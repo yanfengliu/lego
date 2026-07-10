@@ -147,6 +147,7 @@ When a non-obvious lesson deserves preservation, anchor it to the run or manifes
 ## Git and documentation hygiene
 
 - Preserve unrelated changes and never discard user work. Stage only a coherent requested unit.
+- Commit early and often: as soon as a coherent, independently useful unit passes its applicable gates, commit and push it before starting or accumulating the next unit. Do not use this cadence to land broken, unreviewed, or authority-boundary code.
 - Commit directly to `main`: this is a solo-developer repository, so land each coherent, self-contained unit of change as its own commit once the applicable gate set passes, and push at the end of every task — do not leave the remote behind.
 - Branch, merge, release, rewrite history, or modify sibling repositories only when the task authorizes that action; branches are reserved for explicit experimentation meant to stay isolated from `main`. This autonomy does not weaken the safety gates: the recursive-loop harness still never auto-pushes, auto-merges, or deploys, and AI patch acceptance still requires previewed user consent.
 - Keep canonical policy in this file; keep `CLAUDE.md` as a pointer.
