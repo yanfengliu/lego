@@ -1,0 +1,699 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://schemas.brick-studio.local/protocol/1",
+  "title": "LegoStudioProtocol",
+  "description": "Authoritative version-1 wire contracts for canonical brick documents, untrusted build programs, trusted patches, scope, and validation.",
+  "oneOf": [
+    { "$ref": "#/definitions/TruthSnapshot" },
+    { "$ref": "#/definitions/RigidTransform" },
+    { "$ref": "#/definitions/BrickDocumentV1" },
+    { "$ref": "#/definitions/BuildProgramV1" },
+    { "$ref": "#/definitions/ScopeCapabilityV1" },
+    { "$ref": "#/definitions/AssemblyPatchV1" },
+    { "$ref": "#/definitions/ValidationReportV1" }
+  ],
+  "definitions": {
+    "Identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "ShortText": {
+      "type": "string",
+      "maxLength": 256
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "LduCoordinate": {
+      "type": "integer",
+      "minimum": -10000000,
+      "maximum": 10000000
+    },
+    "LduVector": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/LduCoordinate" },
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "SnapshotRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "hash"],
+      "properties": {
+        "id": { "$ref": "#/definitions/Identifier" },
+        "version": { "$ref": "#/definitions/Identifier" },
+        "hash": { "$ref": "#/definitions/Hash" }
+      }
+    },
+    "TruthSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "catalog",
+        "connectorTaxonomy",
+        "collisionModel",
+        "transformPolicy",
+        "validatorSet"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "lego.truth-snapshot/1" },
+        "catalog": { "$ref": "#/definitions/SnapshotRef" },
+        "connectorTaxonomy": { "$ref": "#/definitions/SnapshotRef" },
+        "collisionModel": { "$ref": "#/definitions/SnapshotRef" },
+        "transformPolicy": { "$ref": "#/definitions/SnapshotRef" },
+        "validatorSet": { "$ref": "#/definitions/SnapshotRef" }
+      }
+    },
+    "RigidTransform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["positionLdu", "orientationId"],
+      "properties": {
+        "positionLdu": { "$ref": "#/definitions/LduVector" },
+        "orientationId": { "$ref": "#/definitions/Identifier" }
+      }
+    },
+    "EntityProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source"],
+      "properties": {
+        "source": {
+          "enum": ["manual", "ai", "import", "template", "migration"]
+        },
+        "sourceId": { "$ref": "#/definitions/Identifier" }
+      }
+    },
+    "PartInstance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "catalogPartId",
+        "colorId",
+        "transform",
+        "submodelId",
+        "stepId",
+        "semanticTags",
+        "provenance"
+      ],
+      "properties": {
+        "id": { "$ref": "#/definitions/Identifier" },
+        "catalogPartId": { "$ref": "#/definitions/Identifier" },
+        "colorId": { "$ref": "#/definitions/Identifier" },
+        "transform": { "$ref": "#/definitions/RigidTransform" },
+        "submodelId": { "$ref": "#/definitions/Identifier" },
+        "stepId": { "$ref": "#/definitions/Identifier" },
+        "semanticTags": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "maxItems": 32,
+          "uniqueItems": true
+        },
+        "provenance": { "$ref": "#/definitions/EntityProvenance" }
+      }
+    },
+    "PartPortRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["partId", "portId"],
+      "properties": {
+        "partId": { "$ref": "#/definitions/Identifier" },
+        "portId": { "$ref": "#/definitions/Identifier" }
+      }
+    },
+    "ConnectionEdge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "a", "b", "provenance"],
+      "properties": {
+        "id": { "$ref": "#/definitions/Identifier" },
+        "kind": { "const": "stud-tube" },
+        "a": { "$ref": "#/definitions/PartPortRef" },
+        "b": { "$ref": "#/definitions/PartPortRef" },
+        "provenance": { "$ref": "#/definitions/EntityProvenance" }
+      }
+    },
+    "Submodel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "partIds"],
+      "properties": {
+        "id": { "$ref": "#/definitions/Identifier" },
+        "name": { "$ref": "#/definitions/ShortText" },
+        "partIds": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "maxItems": 10000,
+          "uniqueItems": true
+        }
+      }
+    },
+    "BuildStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "index", "name", "partIds"],
+      "properties": {
+        "id": { "$ref": "#/definitions/Identifier" },
+        "index": { "type": "integer", "minimum": 0, "maximum": 9999 },
+        "name": { "$ref": "#/definitions/ShortText" },
+        "partIds": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "maxItems": 10000,
+          "uniqueItems": true
+        }
+      }
+    },
+    "SemanticRegion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "partIds"],
+      "properties": {
+        "id": { "$ref": "#/definitions/Identifier" },
+        "label": { "$ref": "#/definitions/ShortText" },
+        "partIds": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "maxItems": 10000,
+          "uniqueItems": true
+        }
+      }
+    },
+    "DocumentConstraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxParts", "allowedCatalogPartIds", "allowedColorIds"],
+      "properties": {
+        "maxParts": { "type": "integer", "minimum": 1, "maximum": 10000 },
+        "allowedCatalogPartIds": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "minItems": 1,
+          "maxItems": 10000,
+          "uniqueItems": true
+        },
+        "allowedColorIds": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "minItems": 1,
+          "maxItems": 256,
+          "uniqueItems": true
+        }
+      }
+    },
+    "DocumentProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["origin"],
+      "properties": {
+        "origin": { "enum": ["manual", "import", "migration"] },
+        "sourceId": { "$ref": "#/definitions/Identifier" }
+      }
+    },
+    "BrickDocumentV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "id",
+        "revision",
+        "truth",
+        "name",
+        "parts",
+        "connections",
+        "submodels",
+        "steps",
+        "semanticRegions",
+        "constraints",
+        "provenance"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "lego.brick-document/1" },
+        "id": { "$ref": "#/definitions/Identifier" },
+        "revision": { "$ref": "#/definitions/Identifier" },
+        "truth": { "$ref": "#/definitions/TruthSnapshot" },
+        "name": { "$ref": "#/definitions/ShortText" },
+        "parts": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/PartInstance" },
+          "maxItems": 10000
+        },
+        "connections": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ConnectionEdge" },
+          "maxItems": 50000
+        },
+        "submodels": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Submodel" },
+          "minItems": 1,
+          "maxItems": 1024
+        },
+        "steps": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/BuildStep" },
+          "minItems": 1,
+          "maxItems": 10000
+        },
+        "semanticRegions": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/SemanticRegion" },
+          "maxItems": 1024
+        },
+        "constraints": { "$ref": "#/definitions/DocumentConstraints" },
+        "provenance": { "$ref": "#/definitions/DocumentProvenance" }
+      }
+    },
+    "PlacePartInstruction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "operationId",
+        "localPartId",
+        "catalogPartId",
+        "colorId",
+        "transform",
+        "submodelId",
+        "stepId",
+        "semanticTags"
+      ],
+      "properties": {
+        "kind": { "const": "placePart" },
+        "operationId": { "$ref": "#/definitions/Identifier" },
+        "localPartId": { "$ref": "#/definitions/Identifier" },
+        "catalogPartId": { "$ref": "#/definitions/Identifier" },
+        "colorId": { "$ref": "#/definitions/Identifier" },
+        "transform": { "$ref": "#/definitions/RigidTransform" },
+        "submodelId": { "$ref": "#/definitions/Identifier" },
+        "stepId": { "$ref": "#/definitions/Identifier" },
+        "semanticTags": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "maxItems": 32,
+          "uniqueItems": true
+        }
+      }
+    },
+    "AttachInstruction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "operationId", "a", "b", "connectionKind"],
+      "properties": {
+        "kind": { "const": "attach" },
+        "operationId": { "$ref": "#/definitions/Identifier" },
+        "a": { "$ref": "#/definitions/PartPortRef" },
+        "b": { "$ref": "#/definitions/PartPortRef" },
+        "connectionKind": { "const": "stud-tube" }
+      }
+    },
+    "RemovePartInstruction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "operationId", "partId"],
+      "properties": {
+        "kind": { "const": "removePart" },
+        "operationId": { "$ref": "#/definitions/Identifier" },
+        "partId": { "$ref": "#/definitions/Identifier" }
+      }
+    },
+    "ReplacePartInstruction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "operationId", "partId", "catalogPartId", "colorId"],
+      "properties": {
+        "kind": { "const": "replacePart" },
+        "operationId": { "$ref": "#/definitions/Identifier" },
+        "partId": { "$ref": "#/definitions/Identifier" },
+        "catalogPartId": { "$ref": "#/definitions/Identifier" },
+        "colorId": { "$ref": "#/definitions/Identifier" }
+      }
+    },
+    "MovePartInstruction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "operationId", "partId", "transform"],
+      "properties": {
+        "kind": { "const": "movePart" },
+        "operationId": { "$ref": "#/definitions/Identifier" },
+        "partId": { "$ref": "#/definitions/Identifier" },
+        "transform": { "$ref": "#/definitions/RigidTransform" }
+      }
+    },
+    "RecolorPartInstruction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "operationId", "partId", "colorId"],
+      "properties": {
+        "kind": { "const": "recolorPart" },
+        "operationId": { "$ref": "#/definitions/Identifier" },
+        "partId": { "$ref": "#/definitions/Identifier" },
+        "colorId": { "$ref": "#/definitions/Identifier" }
+      }
+    },
+    "AssignStepInstruction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "operationId", "partId", "stepId"],
+      "properties": {
+        "kind": { "const": "assignStep" },
+        "operationId": { "$ref": "#/definitions/Identifier" },
+        "partId": { "$ref": "#/definitions/Identifier" },
+        "stepId": { "$ref": "#/definitions/Identifier" }
+      }
+    },
+    "TemplateParameter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "value"],
+      "properties": {
+        "name": { "$ref": "#/definitions/Identifier" },
+        "value": {
+          "oneOf": [
+            { "type": "string", "maxLength": 256 },
+            { "type": "number", "minimum": -10000000, "maximum": 10000000 },
+            { "type": "boolean" }
+          ]
+        }
+      }
+    },
+    "InstantiateTemplateInstruction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "operationId",
+        "instanceLocalId",
+        "templateId",
+        "parameters",
+        "transform",
+        "submodelId",
+        "stepId"
+      ],
+      "properties": {
+        "kind": { "const": "instantiateTemplate" },
+        "operationId": { "$ref": "#/definitions/Identifier" },
+        "instanceLocalId": { "$ref": "#/definitions/Identifier" },
+        "templateId": { "$ref": "#/definitions/Identifier" },
+        "parameters": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/TemplateParameter" },
+          "maxItems": 64
+        },
+        "transform": { "$ref": "#/definitions/RigidTransform" },
+        "submodelId": { "$ref": "#/definitions/Identifier" },
+        "stepId": { "$ref": "#/definitions/Identifier" }
+      }
+    },
+    "ProgramOperation": {
+      "oneOf": [
+        { "$ref": "#/definitions/PlacePartInstruction" },
+        { "$ref": "#/definitions/AttachInstruction" },
+        { "$ref": "#/definitions/RemovePartInstruction" },
+        { "$ref": "#/definitions/ReplacePartInstruction" },
+        { "$ref": "#/definitions/MovePartInstruction" },
+        { "$ref": "#/definitions/RecolorPartInstruction" },
+        { "$ref": "#/definitions/AssignStepInstruction" },
+        { "$ref": "#/definitions/InstantiateTemplateInstruction" }
+      ]
+    },
+    "BuildProgramV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "operations"],
+      "properties": {
+        "schemaVersion": { "const": "lego.build-program/1" },
+        "operations": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ProgramOperation" },
+          "minItems": 1,
+          "maxItems": 1024
+        }
+      }
+    },
+    "AddPartOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "operationId", "part", "semanticRegionIds"],
+      "properties": {
+        "kind": { "const": "addPart" },
+        "operationId": { "$ref": "#/definitions/Identifier" },
+        "part": { "$ref": "#/definitions/PartInstance" },
+        "semanticRegionIds": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "uniqueItems": true,
+          "maxItems": 1024
+        }
+      }
+    },
+    "RemovePartOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "operationId", "part", "semanticRegionIds"],
+      "properties": {
+        "kind": { "const": "removePart" },
+        "operationId": { "$ref": "#/definitions/Identifier" },
+        "part": { "$ref": "#/definitions/PartInstance" },
+        "semanticRegionIds": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "uniqueItems": true,
+          "maxItems": 1024
+        }
+      }
+    },
+    "UpdatePartOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "operationId", "before", "after"],
+      "properties": {
+        "kind": { "const": "updatePart" },
+        "operationId": { "$ref": "#/definitions/Identifier" },
+        "before": { "$ref": "#/definitions/PartInstance" },
+        "after": { "$ref": "#/definitions/PartInstance" }
+      }
+    },
+    "AddConnectionOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "operationId", "connection"],
+      "properties": {
+        "kind": { "const": "addConnection" },
+        "operationId": { "$ref": "#/definitions/Identifier" },
+        "connection": { "$ref": "#/definitions/ConnectionEdge" }
+      }
+    },
+    "RemoveConnectionOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "operationId", "connection"],
+      "properties": {
+        "kind": { "const": "removeConnection" },
+        "operationId": { "$ref": "#/definitions/Identifier" },
+        "connection": { "$ref": "#/definitions/ConnectionEdge" }
+      }
+    },
+    "BuildOperation": {
+      "oneOf": [
+        { "$ref": "#/definitions/AddPartOperation" },
+        { "$ref": "#/definitions/RemovePartOperation" },
+        { "$ref": "#/definitions/UpdatePartOperation" },
+        { "$ref": "#/definitions/AddConnectionOperation" },
+        { "$ref": "#/definitions/RemoveConnectionOperation" }
+      ]
+    },
+    "AllowedVolume": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minLdu", "maxLdu"],
+      "properties": {
+        "minLdu": { "$ref": "#/definitions/LduVector" },
+        "maxLdu": { "$ref": "#/definitions/LduVector" }
+      }
+    },
+    "ScopeBudgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxAddedParts", "maxRemovedParts", "maxOperations"],
+      "properties": {
+        "maxAddedParts": { "type": "integer", "minimum": 0, "maximum": 10000 },
+        "maxRemovedParts": { "type": "integer", "minimum": 0, "maximum": 10000 },
+        "maxOperations": { "type": "integer", "minimum": 1, "maximum": 10000 }
+      }
+    },
+    "ScopeCapabilityV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "capabilityId",
+        "baseRevision",
+        "baseDocumentHash",
+        "frozenPartIds",
+        "mutablePartIds",
+        "requiredAttachmentPorts",
+        "allowedVolume",
+        "allowedCatalogPartIds",
+        "allowedColorIds",
+        "budgets"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "lego.scope-capability/1" },
+        "capabilityId": { "$ref": "#/definitions/Identifier" },
+        "baseRevision": { "$ref": "#/definitions/Identifier" },
+        "baseDocumentHash": { "$ref": "#/definitions/Hash" },
+        "frozenPartIds": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "maxItems": 10000,
+          "uniqueItems": true
+        },
+        "mutablePartIds": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "maxItems": 10000,
+          "uniqueItems": true
+        },
+        "requiredAttachmentPorts": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/PartPortRef" },
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "allowedVolume": { "$ref": "#/definitions/AllowedVolume" },
+        "allowedCatalogPartIds": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "minItems": 1,
+          "maxItems": 10000,
+          "uniqueItems": true
+        },
+        "allowedColorIds": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "minItems": 1,
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "budgets": { "$ref": "#/definitions/ScopeBudgets" }
+      }
+    },
+    "GenerationProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["jobId", "candidateId", "compilerSnapshotHash", "buildProgramHash"],
+      "properties": {
+        "jobId": { "$ref": "#/definitions/Identifier" },
+        "candidateId": { "$ref": "#/definitions/Identifier" },
+        "compilerSnapshotHash": { "$ref": "#/definitions/Hash" },
+        "buildProgramHash": { "$ref": "#/definitions/Hash" }
+      }
+    },
+    "AssemblyPatchV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "baseRevision",
+        "baseDocumentHash",
+        "truthSnapshotHash",
+        "scopeCapabilityId",
+        "scopeDigest",
+        "operations",
+        "provenance"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "lego.assembly-patch/1" },
+        "baseRevision": { "$ref": "#/definitions/Identifier" },
+        "baseDocumentHash": { "$ref": "#/definitions/Hash" },
+        "truthSnapshotHash": { "$ref": "#/definitions/Hash" },
+        "scopeCapabilityId": { "$ref": "#/definitions/Identifier" },
+        "scopeDigest": { "$ref": "#/definitions/Hash" },
+        "operations": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/BuildOperation" },
+          "minItems": 1,
+          "maxItems": 10000
+        },
+        "provenance": { "$ref": "#/definitions/GenerationProvenance" }
+      }
+    },
+    "ValidationIssue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "issueId",
+        "validatorId",
+        "code",
+        "severity",
+        "message",
+        "path",
+        "partIds",
+        "connectionIds",
+        "scope"
+      ],
+      "properties": {
+        "issueId": { "$ref": "#/definitions/Identifier" },
+        "validatorId": { "$ref": "#/definitions/Identifier" },
+        "code": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 64,
+          "pattern": "^[A-Z][A-Z0-9_]*$"
+        },
+        "severity": { "enum": ["blocking", "advisory"] },
+        "message": { "$ref": "#/definitions/ShortText" },
+        "path": {
+          "type": "string",
+          "maxLength": 512,
+          "pattern": "^(/([^~/]|~0|~1)*)*$"
+        },
+        "partIds": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "connectionIds": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "scope": { "enum": ["patch", "document"] }
+      }
+    },
+    "ValidationReportV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "targetDocumentHash",
+        "truthSnapshotHash",
+        "validatorSetHash",
+        "patchValid",
+        "documentGloballyValid",
+        "issues"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "lego.validation-report/1" },
+        "targetDocumentHash": { "$ref": "#/definitions/Hash" },
+        "truthSnapshotHash": { "$ref": "#/definitions/Hash" },
+        "validatorSetHash": { "$ref": "#/definitions/Hash" },
+        "patchValid": { "type": "boolean" },
+        "documentGloballyValid": { "type": "boolean" },
+        "issues": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ValidationIssue" },
+          "maxItems": 10000
+        }
+      }
+    }
+  }
+}

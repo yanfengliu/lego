@@ -1,0 +1,15 @@
+{
+  "name": "@lego-studio/rendering",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@lego-studio/brick-kernel": "0.0.0",
+    "@lego-studio/catalog": "0.0.0",
+    "@lego-studio/protocol": "0.0.0",
+    "three": "0.185.1"
+  }
+}

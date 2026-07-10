@@ -1,0 +1,18 @@
+{
+  "name": "@lego-studio/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5173 --strictPort",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@lego-studio/brick-kernel": "0.0.0",
+    "@lego-studio/catalog": "0.0.0",
+    "@lego-studio/protocol": "0.0.0",
+    "@lego-studio/rendering": "0.0.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  }
+}

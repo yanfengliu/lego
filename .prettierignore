@@ -1,0 +1,14 @@
+node_modules
+dist
+coverage
+playwright-report
+test-results
+var
+output
+packages/protocol/src/generated
+AGENTS.md
+CLAUDE.md
+.claude
+docs
+THIRD_PARTY_NOTICES.md
+packages/protocol/src/generated
