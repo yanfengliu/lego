@@ -20,7 +20,7 @@ import { ValidationPanel } from "./components/ValidationPanel";
 import { installAutomationBridge, type AutomationAppState } from "./automation";
 import { createEditorState, editorReducer, type EditorTransaction } from "./editor-state";
 import { StaleFileImportError, readBoundedFileText } from "./file-import";
-import { compileLocalPromptPreview } from "./local-assistant";
+import { useCandidateLab } from "./generation/use-candidate-lab";
 import {
   ManualCommandError,
   createAddPartTransaction,
@@ -30,7 +30,6 @@ import {
 import { IndexedDbProjectRepository } from "./persistence/indexeddb-project-repository";
 import { ProjectSaveQueue } from "./persistence/project-save-queue";
 
-type AssistantPreview = ReturnType<typeof compileLocalPromptPreview>;
 type ProjectHydration =
   { readonly state: "loading" } | { readonly state: "ready" } | { readonly state: "degraded" };
 
@@ -55,8 +54,8 @@ export function App() {
   );
   const [colorId, setColorId] = useState("builtin:red");
   const [commandError, setCommandError] = useState<string | null>(null);
-  const [assistantPrompt, setAssistantPrompt] = useState("Build a 4 level red and yellow tower");
-  const [assistantPreview, setAssistantPreview] = useState<AssistantPreview | null>(null);
+  const [assistantPrompt, setAssistantPrompt] = useState("Build an 18-piece red and yellow tower");
+  const candidateLab = useCandidateLab(state.document);
   const [projectHydration, setProjectHydration] = useState<ProjectHydration>({ state: "loading" });
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "failed">("saved");
   const [persistenceError, setPersistenceError] = useState<string | null>(null);
@@ -74,37 +73,67 @@ export function App() {
     state.document.connections.some(
       ({ a, b }) => a.partId === selectedPart.id || b.partId === selectedPart.id,
     );
-  const previewDocument =
-    assistantPreview?.result.ok === true ? assistantPreview.result.document : state.document;
+  const previewDocument = candidateLab.selectedCandidate?.document ?? state.document;
   const report = useMemo(() => validateBrickDocument(previewDocument), [previewDocument]);
   const documentReport = useMemo(() => validateBrickDocument(state.document), [state.document]);
 
-  const automationState = useMemo<AutomationAppState>(
-    () => ({
+  const automationState = useMemo<AutomationAppState>(() => {
+    const readyPopulation = candidateLab.state.status === "ready" ? candidateLab.state : null;
+    const candidatePopulation =
+      readyPopulation === null
+        ? []
+        : readyPopulation.population.attempts.map((attempt) => ({
+            candidateId: attempt.candidateId,
+            state:
+              attempt.status === "hard-valid"
+                ? readyPopulation.selectedCandidateId === attempt.candidateId
+                  ? ("preview" as const)
+                  : ("hard-valid" as const)
+                : attempt.status === "duplicate"
+                  ? ("duplicate" as const)
+                  : ("rejected" as const),
+            documentHash: attempt.structuralHash,
+            operationCount: attempt.program?.operations.length ?? 0,
+            failureCodes: attempt.failure ? [attempt.failure.code] : [],
+            rank: attempt.rank,
+            metrics: attempt.metrics,
+            lineage: {
+              parentCandidateId: attempt.lineage.parentCandidateId,
+              strategyId: attempt.strategyId,
+            },
+          }));
+    const candidate =
+      candidatePopulation.find(({ state: candidateState }) => candidateState === "preview") ?? null;
+    return {
       document: state.document,
       selectedPartId: state.selectedPartId,
       validationReport: documentReport,
-      candidate: assistantPreview
-        ? assistantPreview.result.ok
-          ? {
-              candidateId: assistantPreview.result.patch.provenance.candidateId,
-              state: "preview",
-              documentHash: assistantPreview.result.validationReport.targetDocumentHash,
-              operationCount: assistantPreview.result.patch.operations.length,
-              failureCodes: [],
-            }
+      candidateValidation: candidateLab.selectedCandidate?.validationReport ?? null,
+      activeJob:
+        candidateLab.state.status === "idle"
+          ? null
           : {
-              candidateId: "local-preview-candidate",
-              state: "rejected",
-              documentHash: null,
-              operationCount: 0,
-              failureCodes: assistantPreview.result.issues.map(({ code }) => code),
-            }
-        : null,
+              jobId: candidateLab.state.jobId,
+              state: candidateLab.state.status,
+              baseRevision: candidateLab.state.baseRevision,
+              baseDocumentHash: candidateLab.state.baseDocumentHash,
+              verificationDurationMs:
+                candidateLab.state.status === "ready"
+                  ? candidateLab.state.verificationDurationMs
+                  : null,
+            },
+      candidatePopulation,
+      candidate,
       commandError,
-    }),
-    [assistantPreview, commandError, documentReport, state.document, state.selectedPartId],
-  );
+    };
+  }, [
+    candidateLab.selectedCandidate?.validationReport,
+    candidateLab.state,
+    commandError,
+    documentReport,
+    state.document,
+    state.selectedPartId,
+  ]);
 
   useEffect(() => {
     automationStateRef.current = automationState;
@@ -184,9 +213,9 @@ export function App() {
   function runCommand(command: () => void) {
     try {
       importGenerationRef.current += 1;
+      candidateLab.clear();
       command();
       setCommandError(null);
-      setAssistantPreview(null);
     } catch (error) {
       setCommandError(
         error instanceof ManualCommandError ? error.message : "The command could not be applied",
@@ -234,6 +263,7 @@ export function App() {
   }
 
   async function importLDraw(file: File) {
+    candidateLab.clear();
     const generation = ++importGenerationRef.current;
     try {
       const text = await readBoundedFileText(
@@ -250,7 +280,6 @@ export function App() {
         return;
       }
       dispatch({ type: "replaceDocument", document: imported });
-      setAssistantPreview(null);
       setCommandError(null);
     } catch (error) {
       if (error instanceof StaleFileImportError) return;
@@ -303,7 +332,7 @@ export function App() {
             disabled={state.undoStack.length === 0}
             onClick={() => {
               importGenerationRef.current += 1;
-              setAssistantPreview(null);
+              candidateLab.clear();
               dispatch({ type: "undo" });
             }}
           >
@@ -316,7 +345,7 @@ export function App() {
             disabled={state.redoStack.length === 0}
             onClick={() => {
               importGenerationRef.current += 1;
-              setAssistantPreview(null);
+              candidateLab.clear();
               dispatch({ type: "redo" });
             }}
           >
@@ -333,7 +362,7 @@ export function App() {
                 return;
               }
               importGenerationRef.current += 1;
-              setAssistantPreview(null);
+              candidateLab.clear();
               dispatch({ type: "replaceDocument", document: initialDocument() });
             }}
           >
@@ -399,9 +428,11 @@ export function App() {
             ref={viewportRef}
             document={previewDocument}
             validationReport={report}
-            selectedPartId={assistantPreview?.result.ok ? null : state.selectedPartId}
-            previewing={assistantPreview?.result.ok === true}
-            onSelectPart={(partId) => dispatch({ type: "selectPart", partId })}
+            selectedPartId={candidateLab.selectedCandidate ? null : state.selectedPartId}
+            previewing={candidateLab.selectedCandidate !== null}
+            onSelectPart={(partId) => {
+              if (!candidateLab.selectedCandidate) dispatch({ type: "selectPart", partId });
+            }}
           />
           <div className="viewport-footer">
             <span>Orbit: drag · Zoom: wheel · Select: click</span>
@@ -450,13 +481,11 @@ export function App() {
           <ValidationPanel report={documentReport} />
           <AssistantPanel
             prompt={assistantPrompt}
-            planSummary={assistantPreview?.plan.summary ?? null}
-            result={assistantPreview?.result ?? null}
+            lab={candidateLab.state}
             onPromptChange={setAssistantPrompt}
-            onGenerate={() =>
-              setAssistantPreview(compileLocalPromptPreview(state.document, assistantPrompt))
-            }
-            onClear={() => setAssistantPreview(null)}
+            onGenerate={() => candidateLab.generate(assistantPrompt)}
+            onSelectCandidate={candidateLab.selectCandidate}
+            onClear={candidateLab.clear}
           />
         </aside>
       </div>

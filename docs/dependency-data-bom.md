@@ -74,6 +74,7 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
     { "manifest": "package.json", "section": "devDependencies", "name": "vitest", "spec": "4.1.10" },
     { "manifest": "apps/web/package.json", "section": "dependencies", "name": "@lego-studio/brick-kernel", "spec": "0.0.0" },
     { "manifest": "apps/web/package.json", "section": "dependencies", "name": "@lego-studio/catalog", "spec": "0.0.0" },
+    { "manifest": "apps/web/package.json", "section": "dependencies", "name": "@lego-studio/generation", "spec": "0.0.0" },
     { "manifest": "apps/web/package.json", "section": "dependencies", "name": "@lego-studio/protocol", "spec": "0.0.0" },
     { "manifest": "apps/web/package.json", "section": "dependencies", "name": "@lego-studio/rendering", "spec": "0.0.0" },
     { "manifest": "apps/web/package.json", "section": "dependencies", "name": "react", "spec": "19.2.7" },
@@ -331,6 +332,16 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
       "declaredLicense": "MIT",
       "rightsPolicy": "project-mit",
       "allowedRoles": ["runtime curated catalog truth and project-authored parametric part definitions"]
+    },
+    {
+      "name": "@lego-studio/generation",
+      "version": "0.0.0",
+      "kind": "workspace",
+      "resolvedSource": "workspace:packages/generation",
+      "upstreamSource": "this repository",
+      "declaredLicense": "MIT",
+      "rightsPolicy": "project-mit",
+      "allowedRoles": ["runtime deterministic local candidate population, constrained recipes, ranking, and lineage evidence"]
     },
     {
       "name": "@lego-studio/protocol",
