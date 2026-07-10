@@ -1,4 +1,3 @@
-import { getPartDefinition, type LduVector3 } from "@lego-studio/catalog";
 import {
   validateAssemblyPatchV1,
   validateBrickDocumentV1,
@@ -13,14 +12,12 @@ import type {
   ConnectionEdge,
   EntityProvenance,
   PartInstance,
-  PartPortRef,
   ProgramOperation,
   ScopeCapabilityV1,
-  ValidationIssue,
   ValidationReportV1,
 } from "@lego-studio/protocol";
 
-import { canonicalDigest, canonicalSha256, canonicalStringify, deepFreeze } from "./canonical.ts";
+import { canonicalDigest, canonicalSha256, deepFreeze } from "./canonical.ts";
 import { documentStructuralHash, normalizeBrickDocument } from "./document.ts";
 import { createBuiltinTruthSnapshot } from "./factory.ts";
 import {
@@ -30,8 +27,7 @@ import {
   SCOPE_CAPABILITY_NORMALIZATION_VERSION,
 } from "./normalization.ts";
 import { applyBuildOperations, OperationApplicationError } from "./operations.ts";
-import { transformLduPoint } from "./transforms.ts";
-import { validateBrickDocument } from "./validation.ts";
+import { assessPatchHardValidation, collectScopePolicyIssues } from "./patch-policy.ts";
 
 export const BUILD_PROGRAM_COMPILER_VERSION = "lego.build-program-compiler/1" as const;
 export const BUILD_PROGRAM_COMPILER_MANIFEST = deepFreeze({
@@ -410,234 +406,6 @@ function compileInstruction(
   }
 }
 
-function fullPartBounds(part: PartInstance): { min: LduVector3; max: LduVector3 } | undefined {
-  const definition = getPartDefinition(part.catalogPartId);
-  if (!definition || !definition.legalOrientationIds.includes(part.transform.orientationId)) {
-    return undefined;
-  }
-  const { min, max } = definition.boundsLdu;
-  const points: LduVector3[] = [];
-  for (const x of [min[0], max[0]]) {
-    for (const y of [min[1], max[1]]) {
-      for (const z of [min[2], max[2]]) {
-        points.push(transformLduPoint(part.transform, [x, y, z]));
-      }
-    }
-  }
-  return {
-    min: [
-      Math.min(...points.map(([x]) => x)),
-      Math.min(...points.map(([, y]) => y)),
-      Math.min(...points.map(([, , z]) => z)),
-    ],
-    max: [
-      Math.max(...points.map(([x]) => x)),
-      Math.max(...points.map(([, y]) => y)),
-      Math.max(...points.map(([, , z]) => z)),
-    ],
-  };
-}
-
-function portRefKey({ partId, portId }: PartPortRef): string {
-  return `${partId}\u0000${portId}`;
-}
-
-function scopeIssues(
-  base: BrickDocumentV1,
-  result: BrickDocumentV1,
-  operations: readonly BuildOperation[],
-  scope: ScopeCapabilityV1,
-): CompilationIssue[] {
-  const issues: CompilationIssue[] = [];
-  const mutable = new Set(scope.mutablePartIds);
-  const frozen = new Set(scope.frozenPartIds);
-  const overlap = scope.mutablePartIds.filter((id) => frozen.has(id));
-  if (overlap.length > 0) {
-    issues.push(
-      issue(
-        "SCOPE_OVERLAP",
-        `Parts cannot be both frozen and mutable: ${overlap.join(", ")}`,
-        "/scope",
-      ),
-    );
-  }
-
-  const baseParts = new Map(base.parts.map((part) => [part.id, part]));
-  const resultParts = new Map(result.parts.map((part) => [part.id, part]));
-  const added = result.parts.filter(({ id }) => !baseParts.has(id));
-  const removed = base.parts.filter(({ id }) => !resultParts.has(id));
-  const changed = result.parts.filter((part) => {
-    const before = baseParts.get(part.id);
-    return before !== undefined && canonicalStringify(before) !== canonicalStringify(part);
-  });
-
-  for (const part of [...removed, ...changed]) {
-    if (!mutable.has(part.id)) {
-      issues.push(
-        issue(
-          "SCOPE_PART_LOCKED",
-          `Patch changes a part outside mutable scope: ${part.id}`,
-          "/operations",
-        ),
-      );
-    }
-  }
-
-  if (added.length > scope.budgets.maxAddedParts) {
-    issues.push(
-      issue(
-        "SCOPE_ADDITION_BUDGET_EXCEEDED",
-        `Patch adds ${added.length} parts but the capability allows ${scope.budgets.maxAddedParts}`,
-        "/operations",
-      ),
-    );
-  }
-  if (removed.length > scope.budgets.maxRemovedParts) {
-    issues.push(
-      issue(
-        "SCOPE_REMOVAL_BUDGET_EXCEEDED",
-        `Patch removes ${removed.length} parts but the capability allows ${scope.budgets.maxRemovedParts}`,
-        "/operations",
-      ),
-    );
-  }
-  if (operations.length > scope.budgets.maxOperations) {
-    issues.push(
-      issue(
-        "SCOPE_OPERATION_BUDGET_EXCEEDED",
-        `Compiler expanded ${operations.length} operations but the capability allows ${scope.budgets.maxOperations}`,
-        "/operations",
-      ),
-    );
-  }
-
-  for (const part of [...added, ...changed]) {
-    if (!scope.allowedCatalogPartIds.includes(part.catalogPartId)) {
-      issues.push(
-        issue(
-          "SCOPE_CATALOG_PART_NOT_ALLOWED",
-          `Catalog part is outside scope: ${part.catalogPartId}`,
-          "/operations",
-        ),
-      );
-    }
-    if (!scope.allowedColorIds.includes(part.colorId)) {
-      issues.push(
-        issue("SCOPE_COLOR_NOT_ALLOWED", `Color is outside scope: ${part.colorId}`, "/operations"),
-      );
-    }
-    const bounds = fullPartBounds(part);
-    if (
-      (bounds &&
-        bounds.min.some((coordinate, axis) => coordinate < scope.allowedVolume.minLdu[axis]!)) ||
-      (bounds &&
-        bounds.max.some((coordinate, axis) => coordinate > scope.allowedVolume.maxLdu[axis]!))
-    ) {
-      issues.push(
-        issue("SCOPE_VOLUME_EXCEEDED", `Part leaves the allowed volume: ${part.id}`, "/operations"),
-      );
-    }
-  }
-
-  const requiredPorts = new Set(
-    scope.requiredAttachmentPorts.map(({ partId, portId }) =>
-      portRefKey({ partId: resolvePartId(partId, new Map()), portId }),
-    ),
-  );
-  const occupiedBasePorts = new Set(
-    base.connections.flatMap((connection) => [portRefKey(connection.a), portRefKey(connection.b)]),
-  );
-  for (const required of requiredPorts) {
-    if (occupiedBasePorts.has(required)) {
-      issues.push(
-        issue(
-          "SCOPE_REQUIRED_ATTACHMENT_OCCUPIED",
-          "A required patch attachment port is already occupied in the base document",
-          "/scope/requiredAttachmentPorts",
-        ),
-      );
-    }
-  }
-  for (const operation of operations) {
-    if (operation.kind !== "addConnection" && operation.kind !== "removeConnection") continue;
-    const endpointIds = [operation.connection.a.partId, operation.connection.b.partId];
-    const lockedEndpointIds = endpointIds.filter(
-      (partId) => baseParts.has(partId) && !mutable.has(partId),
-    );
-    if (operation.kind === "removeConnection" && lockedEndpointIds.length > 0) {
-      issues.push(
-        issue(
-          "SCOPE_CONNECTION_LOCKED",
-          `Patch detaches a locked part: ${lockedEndpointIds.join(", ")}`,
-          "/operations",
-          operation.operationId,
-        ),
-      );
-    }
-    if (
-      operation.kind === "addConnection" &&
-      lockedEndpointIds.some((partId) => {
-        const endpoint =
-          operation.connection.a.partId === partId
-            ? operation.connection.a
-            : operation.connection.b;
-        return !requiredPorts.has(portRefKey(endpoint));
-      })
-    ) {
-      issues.push(
-        issue(
-          "SCOPE_CONNECTION_LOCKED",
-          "Patch connects to a locked port that was not authorized as an attachment",
-          "/operations",
-          operation.operationId,
-        ),
-      );
-    }
-  }
-
-  const resultConnectionIds = new Set(result.connections.map(({ id }) => id));
-  const patchAddedResultPorts = new Set(
-    operations
-      .filter(
-        (operation) =>
-          operation.kind === "addConnection" && resultConnectionIds.has(operation.connection.id),
-      )
-      .flatMap((operation) =>
-        operation.kind === "addConnection"
-          ? [portRefKey(operation.connection.a), portRefKey(operation.connection.b)]
-          : [],
-      ),
-  );
-  for (const required of requiredPorts) {
-    if (!patchAddedResultPorts.has(required)) {
-      issues.push(
-        issue(
-          "SCOPE_REQUIRED_ATTACHMENT_MISSING",
-          "Patch does not preserve a required attachment port",
-          "/operations",
-        ),
-      );
-    }
-  }
-
-  return issues;
-}
-
-function validationIssueSignature(validationIssue: ValidationIssue): string {
-  return canonicalStringify({
-    code: validationIssue.code,
-    issueId: validationIssue.issueId,
-    partIds: [...validationIssue.partIds].sort(),
-    connectionIds: [...validationIssue.connectionIds].sort(),
-  });
-}
-
-const INCOMPLETE_VALIDATION_CODES = new Set([
-  "COLLISION_COMPARISON_BUDGET_EXCEEDED",
-  "COLLISION_FINDING_BUDGET_EXCEEDED",
-  "VALIDATION_ISSUE_BUDGET_EXCEEDED",
-]);
-
 export function compileBuildProgram(
   baseValue: unknown,
   programValue: unknown,
@@ -825,49 +593,27 @@ export function compileBuildProgram(
     };
   }
 
-  const scopedIssues = scopeIssues(base, resultDocument, state.operations, scope);
+  const scopedIssues = collectScopePolicyIssues(base, resultDocument, state.operations, scope);
   if (scopedIssues.length > 0) return { ok: false, issues: scopedIssues };
 
-  const baseValidation = validateBrickDocument(base);
-  const resultValidation = validateBrickDocument(resultDocument);
-  const incompleteValidation = [...baseValidation.issues, ...resultValidation.issues].filter(
-    ({ code }) => INCOMPLETE_VALIDATION_CODES.has(code),
-  );
-  if (incompleteValidation.length > 0) {
+  const hardValidation = assessPatchHardValidation(base, resultDocument);
+  if (hardValidation.incompleteCodes.length > 0) {
     return {
       ok: false,
       issues: [
         issue(
           "HARD_VALIDATION_INCOMPLETE",
-          `Compilation cannot continue without complete hard validation: ${[
-            ...new Set(incompleteValidation.map(({ code }) => code)),
-          ].join(", ")}`,
+          `Compilation cannot continue without complete hard validation: ${hardValidation.incompleteCodes.join(", ")}`,
           "/validation",
         ),
       ],
     };
   }
-  const baseBlocking = new Set(
-    baseValidation.issues
-      .filter(({ severity }) => severity === "blocking")
-      .map(validationIssueSignature),
-  );
-  const introduced = resultValidation.issues.filter(
-    (validationIssue) =>
-      validationIssue.severity === "blocking" &&
-      !baseBlocking.has(validationIssueSignature(validationIssue)),
-  );
-  const validationReport: ValidationReportV1 = {
-    ...resultValidation,
-    patchValid: introduced.length === 0,
-  };
-  if (
-    !validationReport.patchValid ||
-    (baseValidation.documentGloballyValid && !validationReport.documentGloballyValid)
-  ) {
+  const validationReport = hardValidation.validationReport;
+  if (!validationReport.patchValid || !hardValidation.globalValidityPreserved) {
     return {
       ok: false,
-      issues: introduced.map((introducedIssue) =>
+      issues: hardValidation.introducedBlockingIssues.map((introducedIssue) =>
         issue(
           "PATCH_INTRODUCES_BLOCKING_ISSUE",
           `${introducedIssue.code}: ${introducedIssue.message}`,
