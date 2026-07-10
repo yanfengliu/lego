@@ -84,6 +84,7 @@ The authoritative workspace commands are:
 - `npm run node:check` — exercise protocol, catalog, and brick-kernel imports in the supported Node 24 source-first runtime.
 - `npm run bom:check` — reconcile workspace manifests, exact pins, lockfile metadata, and the dependency/data bill of materials.
 - `npm run notices:check` — prove `THIRD_PARTY_NOTICES.md` matches the locked third-party graph.
+- `npm run test:browser` — drive persistence and interaction contracts in a real browser with an in-process disposable Vite server.
 - `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build` — individual source, behavior, and production-bundle gates; the build fails if development automation globals survive tree-shaking.
 - `npm run verify` — run the complete implemented gate set in the required order.
 

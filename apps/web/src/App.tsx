@@ -4,6 +4,7 @@ import { PART_DEFINITIONS } from "@lego-studio/catalog";
 import {
   LDRAW_LIMITS,
   applyBuildOperations,
+  canonicalDigest,
   createEmptyBrickDocument,
   exportBrickDocumentToLDraw,
   importBrickDocumentFromLDraw,
@@ -26,8 +27,20 @@ import {
   createRemovePartTransaction,
   createUpdatePartTransaction,
 } from "./manual-commands";
+import { IndexedDbProjectRepository } from "./persistence/indexeddb-project-repository";
+import { ProjectSaveQueue } from "./persistence/project-save-queue";
 
 type AssistantPreview = ReturnType<typeof compileLocalPromptPreview>;
+type ProjectHydration =
+  { readonly state: "loading" } | { readonly state: "ready" } | { readonly state: "degraded" };
+
+const LOCAL_PROJECT_ID = "primary-project";
+
+function localStorageErrorMessage(error: unknown): string {
+  return error instanceof Error
+    ? `Local project storage failed: ${error.message}`
+    : "Local project storage failed";
+}
 
 function initialDocument() {
   return createEmptyBrickDocument({ id: "local-document", name: "Untitled model" });
@@ -44,10 +57,16 @@ export function App() {
   const [commandError, setCommandError] = useState<string | null>(null);
   const [assistantPrompt, setAssistantPrompt] = useState("Build a 4 level red and yellow tower");
   const [assistantPreview, setAssistantPreview] = useState<AssistantPreview | null>(null);
+  const [projectHydration, setProjectHydration] = useState<ProjectHydration>({ state: "loading" });
+  const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "failed">("saved");
+  const [persistenceError, setPersistenceError] = useState<string | null>(null);
   const viewportRef = useRef<BrickViewportHandle>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const automationStateRef = useRef<AutomationAppState | null>(null);
   const importGenerationRef = useRef(0);
+  const saveQueueRef = useRef<ProjectSaveQueue | null>(null);
+  const lastQueuedStateHashRef = useRef<string | null>(null);
+  const latestSaveSequenceRef = useRef(0);
 
   const selectedPart = state.document.parts.find(({ id }) => id === state.selectedPartId) ?? null;
   const selectedPartConnected =
@@ -90,6 +109,65 @@ export function App() {
   useEffect(() => {
     automationStateRef.current = automationState;
   }, [automationState]);
+
+  useEffect(() => {
+    let active = true;
+    const repository = new IndexedDbProjectRepository();
+    const load = repository.load(LOCAL_PROJECT_ID);
+    void load
+      .then((stored) => {
+        if (!active) return;
+        if (stored) {
+          dispatch({ type: "restoreState", state: stored.state });
+          lastQueuedStateHashRef.current = canonicalDigest(stored.state);
+        }
+        saveQueueRef.current = new ProjectSaveQueue(
+          repository,
+          LOCAL_PROJECT_ID,
+          stored?.generation ?? 0,
+        );
+        setProjectHydration({ state: "ready" });
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        setPersistenceError(localStorageErrorMessage(error));
+        setSaveStatus("failed");
+        setProjectHydration({ state: "degraded" });
+      });
+    return () => {
+      active = false;
+      const queue = saveQueueRef.current;
+      saveQueueRef.current = null;
+      void (queue?.flush() ?? Promise.resolve())
+        .catch(() => undefined)
+        .then(() => repository.close())
+        .catch(() => undefined);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (
+      projectHydration.state !== "ready" ||
+      persistenceError !== null ||
+      saveQueueRef.current === null
+    ) {
+      return;
+    }
+    const stateHash = canonicalDigest(state);
+    if (stateHash === lastQueuedStateHashRef.current) return;
+    lastQueuedStateHashRef.current = stateHash;
+    const saveSequence = ++latestSaveSequenceRef.current;
+    setSaveStatus("saving");
+    void saveQueueRef.current.enqueue(state).then(
+      () => {
+        if (saveSequence === latestSaveSequenceRef.current) setSaveStatus("saved");
+      },
+      (error: unknown) => {
+        setSaveStatus("failed");
+        setPersistenceError(localStorageErrorMessage(error));
+      },
+    );
+  }, [persistenceError, projectHydration.state, state]);
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;
@@ -180,6 +258,14 @@ export function App() {
     }
   }
 
+  if (projectHydration.state === "loading") {
+    return (
+      <main className="persistence-gate" aria-busy="true">
+        <p>Loading the local project…</p>
+      </main>
+    );
+  }
+
   return (
     <main className="studio-shell">
       <header className="studio-header">
@@ -197,7 +283,14 @@ export function App() {
         </div>
         <div className="document-title">
           <span>{state.document.name}</span>
-          <small>{state.document.parts.length} parts · session only</small>
+          <small>
+            {state.document.parts.length} parts ·{" "}
+            {projectHydration.state === "degraded" || persistenceError !== null
+              ? "session only"
+              : saveStatus === "saved"
+                ? "saved locally"
+                : saveStatus}
+          </small>
         </div>
         <div className="header-actions">
           <span className="offline-badge">
@@ -317,6 +410,12 @@ export function App() {
           {commandError ? (
             <div className="command-error" role="alert">
               {commandError}
+            </div>
+          ) : null}
+          {persistenceError ? (
+            <div className="command-error" role="alert">
+              {persistenceError} Editing remains available for this session. Stored bytes were left
+              unchanged, and further automatic saves are paused to preserve the last durable copy.
             </div>
           ) : null}
         </section>

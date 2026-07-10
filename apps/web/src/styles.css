@@ -24,6 +24,22 @@
   --invalid: #ff857a;
 }
 
+.persistence-gate {
+  display: grid;
+  min-height: 100vh;
+  place-content: center;
+  gap: 0.75rem;
+  padding: 2rem;
+  color: #e9eef7;
+  text-align: center;
+  background: #10151d;
+}
+
+.persistence-gate h1,
+.persistence-gate p {
+  margin: 0;
+}
+
 * {
   box-sizing: border-box;
 }

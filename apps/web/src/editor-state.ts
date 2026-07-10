@@ -1,6 +1,8 @@
 import { applyBuildOperations, invertBuildOperations } from "@lego-studio/brick-kernel";
 import type { BrickDocumentV1, BuildOperation } from "@lego-studio/protocol";
 
+export const EDITOR_HISTORY_LIMIT = 500;
+
 export interface EditorTransaction {
   readonly label: string;
   readonly operations: readonly BuildOperation[];
@@ -18,6 +20,7 @@ export type EditorAction =
   | { readonly type: "applyTransaction"; readonly transaction: EditorTransaction }
   | { readonly type: "undo" }
   | { readonly type: "redo" }
+  | { readonly type: "restoreState"; readonly state: EditorState }
   | { readonly type: "replaceDocument"; readonly document: BrickDocumentV1 };
 
 export function createEditorState(document: BrickDocumentV1): EditorState {
@@ -38,6 +41,14 @@ function selectedPartStillExists(
     : null;
 }
 
+function appendHistory(
+  history: readonly EditorTransaction[],
+  transaction: EditorTransaction,
+): readonly EditorTransaction[] {
+  const retained = history.slice(-(EDITOR_HISTORY_LIMIT - 1));
+  return [...retained, transaction];
+}
+
 export function editorReducer(state: EditorState, action: EditorAction): EditorState {
   switch (action.type) {
     case "selectPart":
@@ -53,7 +64,7 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       return {
         document,
         selectedPartId: selectedPartStillExists(document, state.selectedPartId),
-        undoStack: [...state.undoStack, action.transaction],
+        undoStack: appendHistory(state.undoStack, action.transaction),
         redoStack: [],
       };
     }
@@ -78,10 +89,12 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       return {
         document,
         selectedPartId: selectedPartStillExists(document, state.selectedPartId),
-        undoStack: [...state.undoStack, transaction],
+        undoStack: appendHistory(state.undoStack, transaction),
         redoStack: state.redoStack.slice(0, -1),
       };
     }
+    case "restoreState":
+      return action.state;
     case "replaceDocument":
       return createEditorState(action.document);
   }

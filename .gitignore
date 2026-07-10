@@ -24,6 +24,7 @@ coverage/
 test-results/
 playwright-report/
 blob-report/
+.playwright-cli/
 /tmp/review-runs/
 
 # Product, broker, and recursive-loop artifacts

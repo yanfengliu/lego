@@ -6,7 +6,7 @@ import {
   validateBrickDocument,
 } from "@lego-studio/brick-kernel";
 
-import { createEditorState, editorReducer } from "./editor-state";
+import { EDITOR_HISTORY_LIMIT, createEditorState, editorReducer } from "./editor-state";
 import {
   ManualCommandError,
   createAddPartTransaction,
@@ -15,6 +15,61 @@ import {
 } from "./manual-commands";
 
 describe("manual editor command history", () => {
+  it("retains a bounded recent undo checkpoint during long editing sessions", () => {
+    const empty = createEmptyBrickDocument({ id: "bounded", name: "Bounded history" });
+    const addition = createAddPartTransaction(empty, {
+      catalogPartId: "builtin:brick-1x1",
+      colorId: "builtin:red",
+      selectedPartId: null,
+    });
+    let state = editorReducer(createEditorState(empty), {
+      type: "applyTransaction",
+      transaction: addition,
+    });
+
+    for (let index = 0; index < EDITOR_HISTORY_LIMIT + 5; index += 1) {
+      state = editorReducer(state, {
+        type: "applyTransaction",
+        transaction: createUpdatePartTransaction(
+          state.document,
+          addition.partId,
+          { colorId: index % 2 === 0 ? "builtin:yellow" : "builtin:red" },
+          false,
+        ),
+      });
+    }
+
+    expect(state.undoStack).toHaveLength(EDITOR_HISTORY_LIMIT);
+    for (let index = 0; index < EDITOR_HISTORY_LIMIT; index += 1) {
+      state = editorReducer(state, { type: "undo" });
+    }
+    expect(state.undoStack).toHaveLength(0);
+    expect(state.redoStack).toHaveLength(EDITOR_HISTORY_LIMIT);
+    expect(editorReducer(state, { type: "undo" })).toBe(state);
+  });
+
+  it("restores a replay-validated persisted editor state without dropping history", () => {
+    const empty = createEmptyBrickDocument({ id: "restored", name: "Restored" });
+    const transaction = createAddPartTransaction(empty, {
+      catalogPartId: "builtin:brick-1x1",
+      colorId: "builtin:red",
+      selectedPartId: null,
+    });
+    const persisted = editorReducer(createEditorState(empty), {
+      type: "applyTransaction",
+      transaction,
+    });
+
+    const restored = editorReducer(createEditorState(empty), {
+      type: "restoreState",
+      state: persisted,
+    });
+
+    expect(restored).toBe(persisted);
+    expect(restored.document.parts).toHaveLength(1);
+    expect(restored.undoStack).toHaveLength(1);
+  });
+
   it("adds, connects, undoes, and redoes explicit transactions", () => {
     const empty = createEmptyBrickDocument({ id: "editor", name: "Editor" });
     const first = createAddPartTransaction(empty, {
