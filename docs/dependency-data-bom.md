@@ -1,6 +1,6 @@
 # Dependency and data bill of materials
 
-Status: Gate 0 baseline, 2026-07-09
+Status: Gate 0 baseline, 2026-07-10
 
 This bill of materials records every direct runtime and development dependency declared by the npm workspace, plus the intended provenance and allowed role of starter geometry, connector, collision, weight, and example sources. It is an allowlist, not a finding that every distributable obligation has already been satisfied.
 
@@ -56,6 +56,10 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
   ],
   "declarations": [
     { "manifest": "apps/companion/package.json", "section": "dependencies", "name": "@lego-studio/protocol", "spec": "0.0.0" },
+    { "manifest": "apps/companion/package.json", "section": "devDependencies", "name": "@lego-studio/brick-kernel", "spec": "0.0.0" },
+    { "manifest": "apps/companion/package.json", "section": "devDependencies", "name": "@lego-studio/catalog", "spec": "0.0.0" },
+    { "manifest": "apps/companion/package.json", "section": "devDependencies", "name": "@lego-studio/generation", "spec": "0.0.0" },
+    { "manifest": "apps/companion/package.json", "section": "devDependencies", "name": "@lego-studio/harness", "spec": "0.0.0" },
     { "manifest": "apps/harness/package.json", "section": "dependencies", "name": "@lego-studio/brick-kernel", "spec": "0.0.0" },
     { "manifest": "apps/harness/package.json", "section": "dependencies", "name": "@lego-studio/catalog", "spec": "0.0.0" },
     { "manifest": "apps/harness/package.json", "section": "dependencies", "name": "@lego-studio/generation", "spec": "0.0.0" },
@@ -347,6 +351,16 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
       "declaredLicense": "MIT",
       "rightsPolicy": "project-mit",
       "allowedRoles": ["runtime deterministic local candidate population, constrained recipes, ranking, and lineage evidence"]
+    },
+    {
+      "name": "@lego-studio/harness",
+      "version": "0.0.0",
+      "kind": "workspace",
+      "resolvedSource": "workspace:apps/harness",
+      "upstreamSource": "this repository",
+      "declaredLicense": "MIT",
+      "rightsPolicy": "project-mit",
+      "allowedRoles": ["runtime unprivileged deterministic maker capture and downstream replay, plus development companion integration testing"]
     },
     {
       "name": "@lego-studio/protocol",

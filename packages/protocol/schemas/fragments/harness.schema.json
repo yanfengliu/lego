@@ -84,6 +84,8 @@
         "candidateId",
         "strategyId",
         "status",
+        "failureStage",
+        "failureCode",
         "programHash",
         "structuralHash",
         "compilerSnapshotHash",
@@ -99,6 +101,15 @@
         "candidateId": { "$ref": "#/definitions/Identifier" },
         "strategyId": { "$ref": "#/definitions/Identifier" },
         "status": { "enum": ["failed", "duplicate", "hard-valid"] },
+        "failureStage": {
+          "oneOf": [
+            { "enum": ["generation", "compile", "validation", "deduplication"] },
+            { "type": "null" }
+          ]
+        },
+        "failureCode": {
+          "oneOf": [{ "$ref": "#/definitions/Identifier" }, { "type": "null" }]
+        },
         "programHash": { "$ref": "#/definitions/NullableHash" },
         "structuralHash": { "$ref": "#/definitions/NullableHash" },
         "compilerSnapshotHash": { "$ref": "#/definitions/NullableHash" },

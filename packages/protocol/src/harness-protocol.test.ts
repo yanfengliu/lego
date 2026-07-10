@@ -80,6 +80,8 @@ const capture = {
       candidateId: "candidate-1",
       strategyId: "deterministic.compact-tower/1",
       status: "hard-valid",
+      failureStage: null,
+      failureCode: null,
       programHash: HASH_A,
       structuralHash: HASH_B,
       compilerSnapshotHash: HASH_C,
@@ -248,6 +250,68 @@ describe("unsealed test run bundle protocol", () => {
         candidates: [{ ...capture.candidates[0], rank: null }],
       }),
     ).toBe(false);
+  });
+
+  it("requires exact failure-stage evidence for failed and deduplicated checkpoints", () => {
+    const incomplete = {
+      ...capture.candidates[0],
+      compilerSnapshotHash: null,
+      patchHash: null,
+      documentHash: null,
+      validationReportHash: null,
+      metricsHash: null,
+      rank: null,
+    };
+    const generationFailure = {
+      ...incomplete,
+      status: "failed",
+      failureStage: "generation",
+      failureCode: "NO_CONNECTION_PATH",
+      programHash: null,
+      structuralHash: null,
+    };
+    const compileFailure = {
+      ...incomplete,
+      status: "failed",
+      failureStage: "compile",
+      failureCode: "COMPILATION_REJECTED",
+      structuralHash: null,
+    };
+    const duplicate = {
+      ...incomplete,
+      status: "duplicate",
+      failureStage: "deduplication",
+      failureCode: "DUPLICATE_STRUCTURAL_HASH",
+    };
+
+    expect(
+      validateDeterministicMakerCaptureManifestV1({
+        ...capture,
+        candidates: [generationFailure],
+      }),
+    ).toBe(true);
+    expect(
+      validateDeterministicMakerCaptureManifestV1({
+        ...capture,
+        candidates: [compileFailure],
+      }),
+    ).toBe(true);
+    expect(
+      validateDeterministicMakerCaptureManifestV1({ ...capture, candidates: [duplicate] }),
+    ).toBe(true);
+    for (const candidate of [
+      { ...generationFailure, programHash: HASH_A },
+      { ...generationFailure, failureCode: "COMPILATION_REJECTED" },
+      { ...compileFailure, programHash: null },
+      { ...compileFailure, structuralHash: HASH_B },
+      { ...compileFailure, failureCode: "NO_CONNECTION_PATH" },
+      { ...duplicate, failureCode: "HARD_VALIDATION_REJECTED" },
+      { ...incomplete, status: "hard-valid", failureStage: "validation" },
+    ]) {
+      expect(
+        validateDeterministicMakerCaptureManifestV1({ ...capture, candidates: [candidate] }),
+      ).toBe(false);
+    }
   });
 
   it("rejects relabelled, cross-hash, diagnostic-only, and wrong-stage artifact roles", () => {

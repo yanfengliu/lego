@@ -146,6 +146,8 @@ export function candidateCheckpoints(
       candidateId: attempt.candidateId,
       strategyId: attempt.strategyId,
       status: attempt.status,
+      failureStage: attempt.failure?.stage ?? null,
+      failureCode: attempt.failure?.code ?? null,
       programHash: attempt.programHash,
       structuralHash: attempt.structuralHash,
       compilerSnapshotHash:
@@ -233,6 +235,8 @@ function validCandidateCheckpoint(value: unknown, index: number): boolean {
     "candidateId",
     "strategyId",
     "status",
+    "failureStage",
+    "failureCode",
     "programHash",
     "structuralHash",
     "compilerSnapshotHash",
@@ -253,6 +257,13 @@ function validCandidateCheckpoint(value: unknown, index: number): boolean {
     (record.status === "failed" ||
       record.status === "duplicate" ||
       record.status === "hard-valid") &&
+    (record.failureStage === null ||
+      record.failureStage === "generation" ||
+      record.failureStage === "compile" ||
+      record.failureStage === "validation" ||
+      record.failureStage === "deduplication") &&
+    (record.failureCode === null ||
+      (typeof record.failureCode === "string" && IDENTIFIER.test(record.failureCode))) &&
     nullableDigest(record.programHash) &&
     nullableDigest(record.structuralHash) &&
     nullableDigest(record.compilerSnapshotHash) &&

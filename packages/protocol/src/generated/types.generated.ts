@@ -741,6 +741,9 @@ export interface CandidateReplayCheckpointV1 {
   candidateId: Identifier;
   strategyId: Identifier;
   status: "failed" | "duplicate" | "hard-valid";
+  failureStage:
+    ("generation" | "compile" | "validation" | "deduplication") | null;
+  failureCode: Identifier | null;
   programHash: NullableHash;
   structuralHash: NullableHash;
   compilerSnapshotHash: NullableHash;

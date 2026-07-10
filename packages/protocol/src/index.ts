@@ -381,10 +381,48 @@ export const validateDeterministicMakerCaptureManifestV1 =
           candidate.validationReportHash !== null &&
           candidate.metricsHash !== null &&
           candidate.rank !== null;
-        if (candidate.status === "hard-valid" && !complete) {
+        if (
+          candidate.status === "hard-valid" &&
+          (!complete || candidate.failureStage !== null || candidate.failureCode !== null)
+        ) {
           return semanticError(
             `/candidates/${index}`,
             "Hard-valid candidate checkpoints require every trusted downstream hash and rank",
+          );
+        }
+        if (
+          candidate.status === "duplicate" &&
+          (candidate.failureStage !== "deduplication" ||
+            candidate.failureCode !== "DUPLICATE_STRUCTURAL_HASH" ||
+            candidate.programHash === null ||
+            candidate.structuralHash === null)
+        ) {
+          return semanticError(
+            `/candidates/${index}`,
+            "Duplicate checkpoints require explicit deduplication evidence and source hashes",
+          );
+        }
+        if (
+          candidate.status === "failed" &&
+          (candidate.failureStage === null ||
+            candidate.failureStage === "deduplication" ||
+            candidate.failureCode === null ||
+            candidate.structuralHash !== null ||
+            !(
+              (candidate.failureStage === "generation" &&
+                (candidate.failureCode === "OPERATION_BUDGET_TOO_SMALL" ||
+                  candidate.failureCode === "NO_CONNECTION_PATH")) ||
+              (candidate.failureStage === "compile" &&
+                candidate.failureCode === "COMPILATION_REJECTED") ||
+              (candidate.failureStage === "validation" &&
+                candidate.failureCode === "HARD_VALIDATION_REJECTED")
+            ) ||
+            (candidate.failureStage === "generation" && candidate.programHash !== null) ||
+            (candidate.failureStage !== "generation" && candidate.programHash === null))
+        ) {
+          return semanticError(
+            `/candidates/${index}`,
+            "Failed checkpoints require an exact failure stage, code, and program-boundary state",
           );
         }
         if (

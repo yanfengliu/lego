@@ -11,6 +11,8 @@ export interface CandidateReplayCheckpoint {
   readonly candidateId: string;
   readonly strategyId: string;
   readonly status: "failed" | "duplicate" | "hard-valid";
+  readonly failureStage: "generation" | "compile" | "validation" | "deduplication" | null;
+  readonly failureCode: string | null;
   readonly programHash: Sha256Digest | null;
   readonly structuralHash: Sha256Digest | null;
   readonly compilerSnapshotHash: Sha256Digest | null;
