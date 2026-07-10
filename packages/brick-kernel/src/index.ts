@@ -10,6 +10,7 @@ export * from "./operations.ts";
 export * from "./patch-diff.ts";
 export * from "./patch-verification.ts";
 export * from "./template-admission.ts";
+export { isBoundedDataOnlyJson, type DataOnlyJsonLimits } from "./template-admission-input.ts";
 export * from "./transforms.ts";
 export * from "./truth-manifests.ts";
 export * from "./validation.ts";

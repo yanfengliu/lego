@@ -1,6 +1,6 @@
 # Gate 0/1 implementation threat model
 
-This document describes the executable browser, protocol, catalog, brick-kernel, renderer, strict LDraw profile, and the companion package's content-addressed artifact-store foundation currently in this repository. The broader broker, provider, evaluator, retention, and acceptance design remains normative in [spec.md](spec.md), but those services do not exist yet and are not credited as mitigations here.
+This document describes the executable browser, protocol, catalog, brick-kernel, renderer and canonical render-packet foundation, strict LDraw profile, and the companion package's content-addressed artifact-store foundation currently in this repository. The broader broker, provider, evaluator, retention, and acceptance design remains normative in [spec.md](spec.md), but those services do not exist yet and are not credited as mitigations here.
 
 ## Assets and security objectives
 
@@ -18,6 +18,7 @@ This document describes the executable browser, protocol, catalog, brick-kernel,
 | Restricted compiler | `unknown` base/program values and broker-shaped scope objects passed by a caller | Structured-cloned inputs, closed schemas, active truth snapshot, deterministic compiler, scope checks |
 | Operation application | Runtime JavaScript values that may bypass TypeScript | Structured clone, per-operation schema validation, canonical payload normalization, stale before-values |
 | Renderer | Documents and optional external validation reports | Local validation, render admission limits, disposable derived scene |
+| Canonical render-packet builder | Inert camera, validation, capture-metadata, and artifact-reference records | Data-only descriptor preflight, exact policy-derived camera reconstruction, closed canonical output, protocol validation, and fixed byte/view budgets |
 | Browser UI | User gestures, delayed file reads, numeric edits, context loss | React orchestration over immutable kernel results; no mutable Three.js truth |
 | Development automation | Same-origin development page and model state | `import.meta.env.DEV` guard plus production-bundle token scan |
 | Companion artifact store | Untrusted bytes, `ArtifactRefV1` metadata, and references to retained objects | Explicit absolute store-owned root, internally derived SHA-256 paths, byte and metadata policy bounds, bounded operation admission, file-synced atomic publication, and verify-on-read |
@@ -35,6 +36,8 @@ An attacker may submit malformed, deeply nested, oversized, cyclic, aliased, pro
 | Hide new invalidity behind a pre-existing aggregate finding | Invalid patch marked valid | Deterministic full-evidence issue identity, bounded display evidence, incomplete-validator sentinels that can never be grandfathered, and regression tests |
 | Exhaust validation with dense geometry or issue floods | Browser or worker denial of service | Collision comparison/finding budgets, validation issue/evidence budgets, deterministic blocking sentinel issues, and schema-valid bounded reports |
 | Forge manual, AI, template, or migration provenance in a file | False lineage or authority | Unsealed LDraw claims are validated as syntax but reattributed to content-addressed local `import` provenance |
+| Alter a named camera or add irrelevant camera fields while labeling a render canonical | Misleading or incomparable visual evidence | The packet builder reconstructs the exact seven-view camera packet from its pinned bounds and camera policy, compares canonical hashes, emits only whitelisted fields, and rejects geometry drift |
+| Execute getters or exhaust cloning through malformed render evidence | Code execution or resource exhaustion at the evidence boundary | Descriptor-only bounded data preflight runs before structured cloning; malformed camera, validation, capture, and packet records fail with typed errors |
 | Resolve `constructor` or `toString` as catalog data | Prototype lookup confusion | Private `Map` indexes and canonical-ID checks for parts, colors, and allowlists |
 | Load external files, paths, or arbitrary LDraw geometry | Path traversal or unreviewed content | Exact metadata-bearing profile, byte/line/count limits, generated internal subfile names, no filesystem resolution, and rejection of external references |
 | Render an enormous or forged document/report | Memory exhaustion or waived overlays | Part/primitive admission budgets; local report recomputation; malformed external reports are detached, schema-checked, and ignored |
@@ -50,7 +53,7 @@ An attacker may submit malformed, deeply nested, oversized, cyclic, aliased, pro
 - `apps/companion` currently exposes a local library-level artifact store only. It has no HTTP surface, job or ledger authority, signing identity, reference-count database, retention/tombstone lifecycle, credential proxy, release verification, or production namespace, so the existence of a CAS object proves content identity but grants no authority or consent.
 - Artifact payload files are synced before publication, but containing directories are not synced and startup does not reclaim staging directories stranded by a process crash. Power-loss directory-entry durability and crash-orphan cleanup are therefore not claimed. Admission limits apply per opened store instance; the future broker must own store construction rather than expose it to untrusted callers.
 - AI candidate acceptance is intentionally unavailable. Enabling it requires the companion broker, a user-originated one-use scope capability, authoritative event recording, transactional application, and an isolated synthetic acceptance drill.
-- The renderer is a visual aid, not a structural oracle. Browser pixel comparison, accessibility interaction, WebGL context recovery, and long-run memory evidence remain required delivery gates for visual claims.
+- The renderer is a visual aid, not a structural oracle. The packet builder binds exact metadata, policies, hashes, and canonical camera geometry, but the current browser capture API has not yet issued a trusted receipt that binds each PNG byte hash to the view, pass, camera, renderer, and capture transaction. Relabelled but otherwise valid caller-supplied artifact references therefore remain a residual risk until capture-to-CAS integration lands. Browser pixel comparison, accessibility interaction, WebGL context recovery, and long-run memory evidence remain required delivery gates for visual claims.
 - The LDraw profile is tested against this implementation's exact supported subset. External viewer/tool verification is still required before claiming ecosystem compatibility beyond emitted standard part lines and rigid transforms.
 - The catalog and collision model make no guarantee of clutch strength, instruction accessibility, mass, cost, inventory availability, or physical stability.
 - The browser persists replay-checked project snapshots in local IndexedDB. That database is neither a credential store nor an authoritative broker ledger, and storage failure handling, corruption recovery, quota behavior, and retained-data controls remain browser delivery concerns.
@@ -59,7 +62,7 @@ An attacker may submit malformed, deeply nested, oversized, cyclic, aliased, pro
 
 - `npm run schema:check` proves generated public types and standalone validators match the authoritative schema.
 - `npm run node:check` imports and exercises protocol, catalog, kernel, and rendering packages under the supported Node runtime.
-- `npm test` covers hostile wrappers, canonical determinism, scope, invertibility, collision/issue budgets, provenance reattribution, render replacement, and file-import races.
+- `npm test` covers hostile wrappers, canonical determinism, scope, invertibility, collision/issue budgets, provenance reattribution, render replacement, exact canonical camera geometry, render-packet view and byte bounds, and file-import races.
 - `npm run test:browser` covers exact IndexedDB reload, undo/redo retention, session-only degradation, compare-and-swap races, corruption quarantine, and version-change cleanup in a real browser.
 - `npm run build` also proves development automation tokens are absent from production JavaScript.
 - `apps/companion/src/artifact-store.test.ts` covers store ownership, intrinsic byte and policy bounds, bounded admission, queued-input mutation, idempotency, concurrent publication, verified reads, tamper, truncation, missing objects, metadata/path attacks, symlink escape, and caught failed-finalization cleanup.
