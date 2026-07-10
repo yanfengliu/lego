@@ -64,6 +64,19 @@ const projection = rendering.deriveBrickScene(emptyDocument);
 assert.equal(rendering.createCanonicalViewPacket(projection).views.length, 7);
 projection.dispose();
 
+const generation = await import("@lego-studio/generation");
+assert.equal(generation.GENERATION_VERSION, "lego.generation/1");
+assert.match(
+  generation.RANKING_POLICY_HASH,
+  /^sha256:[0-9a-f]{64}$/,
+  "The deterministic maker must expose its pinned ranking-policy hash under Node",
+);
+assert.equal(
+  typeof generation.runDeterministicMakerPopulation,
+  "function",
+  "The bounded deterministic maker population must load under Node",
+);
+
 console.log(
-  `Node consumer contract passed on Node ${process.versions.node}: protocol, catalog, brick-kernel, rendering`,
+  `Node consumer contract passed on Node ${process.versions.node}: protocol, catalog, brick-kernel, generation, rendering`,
 );

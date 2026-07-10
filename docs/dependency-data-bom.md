@@ -49,6 +49,7 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
     { "manifest": "apps/web/package.json", "name": "@lego-studio/web", "version": "0.0.0" },
     { "manifest": "packages/brick-kernel/package.json", "name": "@lego-studio/brick-kernel", "version": "0.0.0" },
     { "manifest": "packages/catalog/package.json", "name": "@lego-studio/catalog", "version": "0.0.0" },
+    { "manifest": "packages/generation/package.json", "name": "@lego-studio/generation", "version": "0.0.0" },
     { "manifest": "packages/protocol/package.json", "name": "@lego-studio/protocol", "version": "0.0.0" },
     { "manifest": "packages/rendering/package.json", "name": "@lego-studio/rendering", "version": "0.0.0" }
   ],
@@ -82,6 +83,9 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
     { "manifest": "packages/brick-kernel/package.json", "section": "dependencies", "name": "@lego-studio/catalog", "spec": "0.0.0" },
     { "manifest": "packages/brick-kernel/package.json", "section": "dependencies", "name": "@lego-studio/protocol", "spec": "0.0.0" },
     { "manifest": "packages/brick-kernel/package.json", "section": "dependencies", "name": "@noble/hashes", "spec": "2.2.0" },
+    { "manifest": "packages/generation/package.json", "section": "dependencies", "name": "@lego-studio/brick-kernel", "spec": "0.0.0" },
+    { "manifest": "packages/generation/package.json", "section": "dependencies", "name": "@lego-studio/catalog", "spec": "0.0.0" },
+    { "manifest": "packages/generation/package.json", "section": "dependencies", "name": "@lego-studio/protocol", "spec": "0.0.0" },
     { "manifest": "packages/rendering/package.json", "section": "dependencies", "name": "@lego-studio/brick-kernel", "spec": "0.0.0" },
     { "manifest": "packages/rendering/package.json", "section": "dependencies", "name": "@lego-studio/catalog", "spec": "0.0.0" },
     { "manifest": "packages/rendering/package.json", "section": "dependencies", "name": "@lego-studio/protocol", "spec": "0.0.0" },

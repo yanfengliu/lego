@@ -27,6 +27,7 @@
       "@lego-studio/protocol": ["./packages/protocol/src/index.ts"],
       "@lego-studio/catalog": ["./packages/catalog/src/index.ts"],
       "@lego-studio/brick-kernel": ["./packages/brick-kernel/src/index.ts"],
+      "@lego-studio/generation": ["./packages/generation/src/index.ts"],
       "@lego-studio/rendering": ["./packages/rendering/src/index.ts"]
     }
   },
