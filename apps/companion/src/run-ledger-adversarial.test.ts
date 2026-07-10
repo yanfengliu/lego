@@ -3,7 +3,6 @@ import { execFile } from "node:child_process";
 import { appendFile, link, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 import type { ArtifactRefV1 } from "@lego-studio/protocol";
@@ -396,7 +395,7 @@ describe("native run ledger adversarial contracts", () => {
   it("uses a cross-process writer lease and treats partial lock owners as bounded busy", async () => {
     const root = join(await sandbox(), "ledger");
     const ledger = await openLedger(root);
-    const moduleUrl = pathToFileURL(join(process.cwd(), "apps/companion/src/run-ledger.ts")).href;
+    const moduleUrl = new URL("./run-ledger.ts", import.meta.url).href;
     const childScript = `
       import { openTestRunLedger } from ${JSON.stringify(moduleUrl)};
       try {
