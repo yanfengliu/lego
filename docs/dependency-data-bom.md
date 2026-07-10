@@ -45,6 +45,7 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
     }
   },
   "workspaces": [
+    { "manifest": "apps/companion/package.json", "name": "@lego-studio/companion", "version": "0.0.0" },
     { "manifest": "apps/web/package.json", "name": "@lego-studio/web", "version": "0.0.0" },
     { "manifest": "packages/brick-kernel/package.json", "name": "@lego-studio/brick-kernel", "version": "0.0.0" },
     { "manifest": "packages/catalog/package.json", "name": "@lego-studio/catalog", "version": "0.0.0" },
@@ -52,6 +53,7 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
     { "manifest": "packages/rendering/package.json", "name": "@lego-studio/rendering", "version": "0.0.0" }
   ],
   "declarations": [
+    { "manifest": "apps/companion/package.json", "section": "dependencies", "name": "@lego-studio/protocol", "spec": "0.0.0" },
     { "manifest": "package.json", "section": "devDependencies", "name": "@eslint/js", "spec": "10.0.1" },
     { "manifest": "package.json", "section": "devDependencies", "name": "@playwright/test", "spec": "1.61.1" },
     { "manifest": "package.json", "section": "devDependencies", "name": "@types/node", "spec": "26.1.1" },
