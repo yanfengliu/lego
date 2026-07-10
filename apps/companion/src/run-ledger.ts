@@ -17,6 +17,7 @@ import {
   type AppendRunEventInput,
   type AppendRunEventResult,
   type ArtifactResolver,
+  type FinalizeRunBundleInput,
   type RunLedgerLimits,
   type RunLedgerSnapshot,
   type StoredNativeRunEvent,
@@ -30,6 +31,7 @@ import {
   recoveredArtifactRefs,
 } from "./run-ledger-artifact-index.ts";
 import { verifyArtifactReferences } from "./run-ledger-artifact-resolver.ts";
+import { normalizeFinalizeRunBundleInput } from "./run-ledger-finalize.ts";
 import { normalizeRunLedgerOptions } from "./run-ledger-options.ts";
 
 const ACTIVE_LEDGER_KEYS = new Set<string>();
@@ -98,6 +100,44 @@ class FileTestRunLedger implements TestRunLedger {
     }
     this.#pendingAppendBytes += queuedBytes;
     const operation = this.#tail.then(() => this.#appendOne(input));
+    const admitted = operation.finally(() => {
+      this.#pendingAppends -= 1;
+      this.#pendingAppendBytes -= queuedBytes;
+    });
+    this.#tail = admitted.then(
+      () => undefined,
+      () => undefined,
+    );
+    return admitted;
+  }
+
+  finalizeBundle(value: FinalizeRunBundleInput): Promise<AppendRunEventResult> {
+    if (!this.#accepting) {
+      return Promise.reject(new RunLedgerError("LEDGER_CLOSED", "Run ledger is closed"));
+    }
+    if (this.#pendingAppends >= this.#limits.maxPendingAppends) {
+      return Promise.reject(
+        new RunLedgerError("LEDGER_LIMIT_EXCEEDED", "Pending append admission is full"),
+      );
+    }
+    this.#pendingAppends += 1;
+    let input: FinalizeRunBundleInput;
+    let queuedBytes: number;
+    try {
+      input = normalizeFinalizeRunBundleInput(value);
+      queuedBytes = Buffer.byteLength(canonicalJson(input), "utf8");
+    } catch (error) {
+      this.#pendingAppends -= 1;
+      return Promise.reject(error);
+    }
+    if (this.#pendingAppendBytes + queuedBytes > this.#limits.maxPendingAppendBytes) {
+      this.#pendingAppends -= 1;
+      return Promise.reject(
+        new RunLedgerError("LEDGER_LIMIT_EXCEEDED", "Pending append admission is full"),
+      );
+    }
+    this.#pendingAppendBytes += queuedBytes;
+    const operation = this.#tail.then(() => this.#finalizeOne(input));
     const admitted = operation.finally(() => {
       this.#pendingAppends -= 1;
       this.#pendingAppendBytes -= queuedBytes;
@@ -192,6 +232,35 @@ class FileTestRunLedger implements TestRunLedger {
       event,
     });
   }
+
+  async #finalizeOne(input: FinalizeRunBundleInput): Promise<AppendRunEventResult> {
+    const digest = requestDigest(input.append);
+    const previous = this.#state.idempotency.get(input.append.idempotencyKey);
+    if (previous) {
+      if (
+        previous.digest !== digest ||
+        previous.event.event.sequence !== input.expectedEventCount ||
+        previous.event.event.previousEventHash !== input.expectedEventRoot
+      ) {
+        throw new RunLedgerError(
+          "IDEMPOTENCY_CONFLICT",
+          "Finalization key was already bound to another checkpoint or manifest",
+        );
+      }
+      return Object.freeze({ disposition: "idempotent", event: previous.event });
+    }
+    const current = snapshotState(this.#state);
+    if (
+      current.eventCount !== input.expectedEventCount ||
+      current.eventRoot !== input.expectedEventRoot
+    ) {
+      throw new RunLedgerError(
+        "STALE_CHECKPOINT",
+        "Bundle finalization checkpoint no longer matches the ledger prefix",
+      );
+    }
+    return this.#appendOne(input.append);
+  }
 }
 
 export async function openTestRunLedger(options: TestRunLedgerOptions): Promise<TestRunLedger> {
@@ -241,6 +310,7 @@ export {
   type AppendRunEventInput,
   type AppendRunEventResult,
   type ArtifactResolver,
+  type FinalizeRunBundleInput,
   type CandidateState,
   type DiagnosticReason,
   type NativeRunTransition,

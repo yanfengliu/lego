@@ -17,6 +17,7 @@ export {
   type ArtifactResolver,
   type CandidateState,
   type DiagnosticReason,
+  type FinalizeRunBundleInput,
   type NativeRunTransition,
   type ProviderAttemptState,
   type RunLedgerErrorCode,

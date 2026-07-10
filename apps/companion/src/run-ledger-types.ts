@@ -109,6 +109,15 @@ export interface AppendRunEventResult {
   readonly event: StoredNativeRunEvent;
 }
 
+export interface FinalizeRunBundleInput {
+  readonly schemaVersion: "lego.test-run-finalize/1";
+  readonly namespace: "test";
+  readonly expectedRunId: string;
+  readonly expectedEventCount: number;
+  readonly expectedEventRoot: `sha256:${string}`;
+  readonly append: AppendRunEventInput;
+}
+
 /** Trusted local CAS read interface only; network-backed resolvers are outside this test slice. */
 export interface ArtifactResolver {
   read(reference: ArtifactRefV1): Promise<Uint8Array>;
@@ -140,6 +149,7 @@ export interface TestRunLedger {
   readonly namespace: "test";
   readonly runId: string;
   append(input: AppendRunEventInput): Promise<AppendRunEventResult>;
+  finalizeBundle(input: FinalizeRunBundleInput): Promise<AppendRunEventResult>;
   events(): readonly StoredNativeRunEvent[];
   snapshot(): RunLedgerSnapshot;
   close(): Promise<void>;
@@ -162,6 +172,7 @@ export type RunLedgerErrorCode =
   | "LEDGER_CLOSED"
   | "LEDGER_BUSY"
   | "POLICY_MISMATCH"
+  | "STALE_CHECKPOINT"
   | "UNSAFE_PATH";
 
 export class RunLedgerError extends Error {
