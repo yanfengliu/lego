@@ -11,6 +11,7 @@ export default defineConfig({
       "@lego-studio/catalog": `${root}packages/catalog/src/index.ts`,
       "@lego-studio/brick-kernel": `${root}packages/brick-kernel/src/index.ts`,
       "@lego-studio/generation": `${root}packages/generation/src/index.ts`,
+      "@lego-studio/harness": `${root}apps/harness/src/index.ts`,
       "@lego-studio/rendering": `${root}packages/rendering/src/index.ts`,
     },
   },

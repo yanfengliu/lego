@@ -77,6 +77,18 @@ assert.equal(
   "The bounded deterministic maker population must load under Node",
 );
 
+const harness = await import("@lego-studio/harness");
+assert.match(
+  harness.DOWNSTREAM_REPLAY_POLICY_HASH,
+  /^sha256:[0-9a-f]{64}$/,
+  "The model-agnostic harness must expose its pinned captured-output replay policy",
+);
+assert.equal(
+  typeof harness.replayDeterministicMakerRun,
+  "function",
+  "The captured-output downstream replayer must load under Node",
+);
+
 console.log(
-  `Node consumer contract passed on Node ${process.versions.node}: protocol, catalog, brick-kernel, generation, rendering`,
+  `Node consumer contract passed on Node ${process.versions.node}: protocol, catalog, brick-kernel, generation, harness, rendering`,
 );
