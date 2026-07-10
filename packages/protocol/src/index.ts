@@ -13,6 +13,7 @@ import {
   validateCandidateProgramSubmissionV1 as generatedValidateCandidateProgramSubmissionV1,
   validateCandidateRecordV1 as generatedValidateCandidateRecordV1,
   validateDataUseConsentV1 as generatedValidateDataUseConsentV1,
+  validateDeterministicMakerOutputV1 as generatedValidateDeterministicMakerOutputV1,
   validateGenerationBudgetsV1 as generatedValidateGenerationBudgetsV1,
   validateGenerationJobRecordV1 as generatedValidateGenerationJobRecordV1,
   validateMakerObservationV1 as generatedValidateMakerObservationV1,
@@ -43,6 +44,7 @@ import type {
   CandidateProgramSubmissionV1,
   CandidateRecordV1,
   DataUseConsentV1,
+  DeterministicMakerOutputV1,
   GenerationBudgetsV1,
   GenerationJobRecordV1,
   MakerObservationV1,
@@ -85,6 +87,7 @@ export const SCHEMA_IDS = {
   trustNamespaceV1: `${ROOT_SCHEMA_ID}#/definitions/TrustNamespaceV1`,
   generationBudgetsV1: `${ROOT_SCHEMA_ID}#/definitions/GenerationBudgetsV1`,
   dataUseConsentV1: `${ROOT_SCHEMA_ID}#/definitions/DataUseConsentV1`,
+  deterministicMakerOutputV1: `${ROOT_SCHEMA_ID}#/definitions/DeterministicMakerOutputV1`,
   buildBriefV1: `${ROOT_SCHEMA_ID}#/definitions/BuildBriefV1`,
   providerCapabilitiesV1: `${ROOT_SCHEMA_ID}#/definitions/ProviderCapabilitiesV1`,
   renderPacketV1: `${ROOT_SCHEMA_ID}#/definitions/RenderPacketV1`,
@@ -318,6 +321,21 @@ export const validatePresentedPatchEnvelopeV1 = withSemanticValidation<Presented
 export const validateAcceptanceAuthorizationV1 =
   generatedValidateAcceptanceAuthorizationV1 as ProtocolValidator<AcceptanceAuthorizationV1>;
 export const validateRunEventV1 = generatedValidateRunEventV1 as ProtocolValidator<RunEventV1>;
+export const validateDeterministicMakerOutputV1 =
+  withSemanticValidation<DeterministicMakerOutputV1>(
+    generatedValidateDeterministicMakerOutputV1,
+    (value) => {
+      if (value.slots.some((slot, index) => slot.index !== index)) {
+        return semanticError(
+          "/slots",
+          "Deterministic maker output slots must use contiguous authoritative indices",
+        );
+      }
+      return unique(value.slots.map(({ strategyId }) => strategyId))
+        ? null
+        : semanticError("/slots", "Deterministic maker strategy identifiers must be unique");
+    },
+  );
 export const validateNativeSealedRunManifestV1 = withSemanticValidation<NativeSealedRunManifestV1>(
   generatedValidateNativeSealedRunManifestV1,
   (value) => {

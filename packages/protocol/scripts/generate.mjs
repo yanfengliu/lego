@@ -118,6 +118,7 @@ const validatorDefinitions = {
   validateTrustNamespaceV1: "TrustNamespaceV1",
   validateGenerationBudgetsV1: "GenerationBudgetsV1",
   validateDataUseConsentV1: "DataUseConsentV1",
+  validateDeterministicMakerOutputV1: "DeterministicMakerOutputV1",
   validateBuildBriefV1: "BuildBriefV1",
   validateProviderCapabilitiesV1: "ProviderCapabilitiesV1",
   validateRenderPacketV1: "RenderPacketV1",

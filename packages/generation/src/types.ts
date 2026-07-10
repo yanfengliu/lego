@@ -51,6 +51,23 @@ export interface MakerInputFailure {
   readonly path: string;
 }
 
+export type CapturedProgramFailureCode =
+  | "CAPTURE_NOT_DATA_ONLY"
+  | "CANDIDATE_COUNT_MISMATCH"
+  | "CANDIDATE_SHAPE_INVALID"
+  | "DUPLICATE_STRATEGY_ID"
+  | "FAILURE_RECORD_INVALID"
+  | "PROGRAM_NOT_NORMALIZED"
+  | "PROGRAM_RECORD_INVALID"
+  | "PROGRAM_HASH_MISMATCH";
+
+export interface CapturedProgramFailure {
+  readonly stage: "captured-output";
+  readonly code: CapturedProgramFailureCode;
+  readonly message: string;
+  readonly path: string;
+}
+
 export interface NormalizedTextBrief {
   readonly schemaVersion: "lego.normalized-text-brief/1";
   readonly sourceBriefHash: Sha256Digest;
@@ -210,3 +227,10 @@ export interface MakerPopulationFailure {
 }
 
 export type MakerPopulationResult = MakerPopulationSuccess | MakerPopulationFailure;
+
+export interface CapturedMakerPopulationFailure {
+  readonly ok: false;
+  readonly failure: MakerInputFailure | CapturedProgramFailure;
+}
+
+export type CapturedMakerPopulationResult = MakerPopulationSuccess | CapturedMakerPopulationFailure;

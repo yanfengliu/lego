@@ -97,6 +97,16 @@ export type NativeSealedRunManifestV1 =
   DeepReadonly<Wire.NativeSealedRunManifestV1>;
 export type ReplayClosureCertificateV1 =
   DeepReadonly<Wire.ReplayClosureCertificateV1>;
+export type DeterministicMakerOutputV1 =
+  DeepReadonly<Wire.DeterministicMakerOutputV1>;
+export type DeterministicMakerOutputSlotV1 =
+  DeepReadonly<Wire.DeterministicMakerOutputSlotV1>;
+export type DeterministicMakerProgramOutcomeV1 =
+  DeepReadonly<Wire.DeterministicMakerProgramOutcomeV1>;
+export type DeterministicMakerFailureOutcomeV1 =
+  DeepReadonly<Wire.DeterministicMakerFailureOutcomeV1>;
+export type DeterministicMakerGenerationFailureV1 =
+  DeepReadonly<Wire.DeterministicMakerGenerationFailureV1>;
 export type TemplateSnapshotV1 = DeepReadonly<Wire.TemplateSnapshotV1>;
 export type TemplateColorParameterV1 =
   DeepReadonly<Wire.TemplateColorParameterV1>;

@@ -28,6 +28,7 @@ export type LegoStudioProtocol =
   | AcceptanceAuthorizationV1
   | RunEventV1
   | NativeSealedRunManifestV1
+  | DeterministicMakerOutputV1
   | TemplateSnapshotV1;
 export type Identifier = string;
 export type Hash = string;
@@ -676,6 +677,32 @@ export interface ReplayClosureCertificateV1 {
   artifactRoot: Hash;
   requiredArtifactHashes: Hash[];
   verifierVersion: Identifier;
+}
+export interface DeterministicMakerOutputV1 {
+  schemaVersion: "lego.deterministic-maker-output/1";
+  makerVersion: Identifier;
+  slots: DeterministicMakerOutputSlotV1[];
+}
+export interface DeterministicMakerOutputSlotV1 {
+  index: number;
+  strategyId: Identifier;
+  shape: "tower" | "staircase" | "spire" | "column";
+  outcome:
+    DeterministicMakerProgramOutcomeV1 | DeterministicMakerFailureOutcomeV1;
+}
+export interface DeterministicMakerProgramOutcomeV1 {
+  kind: "program";
+  program: BuildProgramV1;
+  normalizedProgramHash: Hash;
+}
+export interface DeterministicMakerFailureOutcomeV1 {
+  kind: "generationFailure";
+  failure: DeterministicMakerGenerationFailureV1;
+}
+export interface DeterministicMakerGenerationFailureV1 {
+  stage: "generation";
+  code: "OPERATION_BUDGET_TOO_SMALL" | "NO_CONNECTION_PATH";
+  message: string;
 }
 /**
  * Intrinsic immutable fixed-graph data. Admission must separately validate catalog parts, colors, transforms, and ports against the pinned catalog, truth, and admission-policy snapshots before compiler use.

@@ -9,24 +9,37 @@ import { STUD_PITCH_LDU } from "@lego-studio/catalog";
 import type { BrickDocumentV1 } from "@lego-studio/protocol";
 
 import { normalizeRestrictedTextBrief, validateMakerJobId } from "./brief.ts";
+import { normalizeCapturedPrograms } from "./captured-programs.ts";
 import { cloneBoundedDataOnlyJson } from "./data-only.ts";
 import { GENERATION_VERSION, RANKING_POLICY, RANKING_POLICY_HASH } from "./policy.ts";
-import { generateDeterministicPrograms, type GeneratedProgramDraft } from "./recipes.ts";
+import {
+  generateDeterministicPrograms,
+  type GeneratedProgramDraft,
+  type GeneratedRecipeResult,
+} from "./recipes.ts";
 import type {
   CandidateAttempt,
   CandidateLineage,
   CandidateMetrics,
+  CapturedMakerPopulationResult,
   DeterministicMakerPopulationInput,
   DuplicateCandidateAttempt,
   FailedCandidateAttempt,
   HardValidCandidate,
+  MakerPopulationFailure,
   MakerPopulationResult,
+  NormalizedBriefSuccess,
   NormalizedTextBrief,
   SupportedShape,
 } from "./types.ts";
 
 interface UnrankedHardValidCandidate extends Omit<HardValidCandidate, "rank"> {
   readonly rank: 0;
+}
+
+interface NormalizedPopulationInput {
+  readonly jobId: string;
+  readonly normalized: NormalizedBriefSuccess;
 }
 
 function candidateIdentity(
@@ -178,6 +191,23 @@ function compileCandidate(
       },
     };
   }
+  if (result.patch.provenance.buildProgramHash !== draft.programHash) {
+    return {
+      ...common,
+      status: "failed",
+      structuralHash: null,
+      document: null,
+      patch: null,
+      validationReport: null,
+      metrics: null,
+      rank: null,
+      failure: {
+        stage: "validation",
+        code: "HARD_VALIDATION_REJECTED",
+        message: "Trusted compiler did not bind the patch to the captured build-program hash",
+      },
+    };
+  }
   if (!result.validationReport.patchValid || !result.validationReport.documentGloballyValid) {
     return {
       ...common,
@@ -229,9 +259,9 @@ function compileCandidate(
   };
 }
 
-export function runDeterministicMakerPopulation(
+function normalizePopulationInput(
   input: DeterministicMakerPopulationInput,
-): MakerPopulationResult {
+): { readonly ok: true; readonly value: NormalizedPopulationInput } | MakerPopulationFailure {
   const detachedInput = cloneBoundedDataOnlyJson(input, {
     maxDepth: 24,
     maxNodes: 12_000,
@@ -267,11 +297,14 @@ export function runDeterministicMakerPopulation(
     scope: detachedInput.scope,
   });
   if (!normalized.ok) return normalized;
+  return { ok: true, value: { jobId, normalized } };
+}
 
-  const generated = generateDeterministicPrograms(
-    normalized.brief,
-    normalized.scope.budgets.maxOperations,
-  );
+function evaluateNormalizedPopulation(
+  context: NormalizedPopulationInput,
+  generated: readonly GeneratedRecipeResult[],
+): MakerPopulationResult {
+  const { jobId, normalized } = context;
   const attempts: (
     FailedCandidateAttempt | DuplicateCandidateAttempt | UnrankedHardValidCandidate
   )[] = [];
@@ -347,4 +380,33 @@ export function runDeterministicMakerPopulation(
     });
   }
   return deepFreeze(population);
+}
+
+export function runDeterministicMakerPopulation(
+  input: DeterministicMakerPopulationInput,
+): MakerPopulationResult {
+  const normalizedInput = normalizePopulationInput(input);
+  if (!normalizedInput.ok) return normalizedInput;
+  const { normalized } = normalizedInput.value;
+  const generated = generateDeterministicPrograms(
+    normalized.brief,
+    normalized.scope.budgets.maxOperations,
+  );
+  return evaluateNormalizedPopulation(normalizedInput.value, generated);
+}
+
+export function replayCapturedMakerPopulation(
+  input: DeterministicMakerPopulationInput,
+  capturedPrograms: unknown,
+): CapturedMakerPopulationResult {
+  const normalizedInput = normalizePopulationInput(input);
+  if (!normalizedInput.ok) return normalizedInput;
+  const { normalized } = normalizedInput.value;
+  const captured = normalizeCapturedPrograms(
+    capturedPrograms,
+    normalized.brief.candidateLimit,
+    normalized.scope.budgets.maxOperations,
+  );
+  if (!captured.ok) return deepFreeze({ ok: false, failure: captured.failure });
+  return evaluateNormalizedPopulation(normalizedInput.value, captured.programs);
 }

@@ -1,0 +1,66 @@
+{
+  "title": "Model-agnostic harness wire contracts",
+  "roots": ["DeterministicMakerOutputV1"],
+  "definitions": {
+    "DeterministicMakerGenerationFailureV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stage", "code", "message"],
+      "properties": {
+        "stage": { "const": "generation" },
+        "code": { "enum": ["OPERATION_BUDGET_TOO_SMALL", "NO_CONNECTION_PATH"] },
+        "message": { "type": "string", "minLength": 1, "maxLength": 1024 }
+      }
+    },
+    "DeterministicMakerProgramOutcomeV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "program", "normalizedProgramHash"],
+      "properties": {
+        "kind": { "const": "program" },
+        "program": { "$ref": "#/definitions/BuildProgramV1" },
+        "normalizedProgramHash": { "$ref": "#/definitions/Hash" }
+      }
+    },
+    "DeterministicMakerFailureOutcomeV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "failure"],
+      "properties": {
+        "kind": { "const": "generationFailure" },
+        "failure": { "$ref": "#/definitions/DeterministicMakerGenerationFailureV1" }
+      }
+    },
+    "DeterministicMakerOutputSlotV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["index", "strategyId", "shape", "outcome"],
+      "properties": {
+        "index": { "type": "integer", "minimum": 0, "maximum": 3 },
+        "strategyId": { "$ref": "#/definitions/Identifier" },
+        "shape": { "enum": ["tower", "staircase", "spire", "column"] },
+        "outcome": {
+          "oneOf": [
+            { "$ref": "#/definitions/DeterministicMakerProgramOutcomeV1" },
+            { "$ref": "#/definitions/DeterministicMakerFailureOutcomeV1" }
+          ]
+        }
+      }
+    },
+    "DeterministicMakerOutputV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "makerVersion", "slots"],
+      "properties": {
+        "schemaVersion": { "const": "lego.deterministic-maker-output/1" },
+        "makerVersion": { "$ref": "#/definitions/Identifier" },
+        "slots": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/DeterministicMakerOutputSlotV1" },
+          "minItems": 0,
+          "maxItems": 4
+        }
+      }
+    }
+  }
+}

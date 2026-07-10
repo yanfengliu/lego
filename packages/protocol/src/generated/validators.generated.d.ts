@@ -15,6 +15,7 @@ export const validateArtifactRefV1: ValidateFunction<unknown>;
 export const validateTrustNamespaceV1: ValidateFunction<unknown>;
 export const validateGenerationBudgetsV1: ValidateFunction<unknown>;
 export const validateDataUseConsentV1: ValidateFunction<unknown>;
+export const validateDeterministicMakerOutputV1: ValidateFunction<unknown>;
 export const validateBuildBriefV1: ValidateFunction<unknown>;
 export const validateProviderCapabilitiesV1: ValidateFunction<unknown>;
 export const validateRenderPacketV1: ValidateFunction<unknown>;
