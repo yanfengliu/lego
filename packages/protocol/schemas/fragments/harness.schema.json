@@ -1,6 +1,11 @@
 {
   "title": "Model-agnostic harness wire contracts",
-  "roots": ["DeterministicMakerOutputV1"],
+  "roots": [
+    "DeterministicMakerOutputV1",
+    "DeterministicMakerCaptureManifestV1",
+    "TestRunBundleManifestV1",
+    "TestRunBundleHandleV1"
+  ],
   "definitions": {
     "DeterministicMakerGenerationFailureV1": {
       "type": "object",
@@ -59,6 +64,218 @@
           "items": { "$ref": "#/definitions/DeterministicMakerOutputSlotV1" },
           "minItems": 0,
           "maxItems": 4
+        }
+      }
+    },
+    "NullableHash": {
+      "oneOf": [{ "$ref": "#/definitions/Hash" }, { "type": "null" }]
+    },
+    "NullablePositiveInteger": {
+      "oneOf": [
+        { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+        { "type": "null" }
+      ]
+    },
+    "CandidateReplayCheckpointV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attemptIndex",
+        "candidateId",
+        "strategyId",
+        "status",
+        "programHash",
+        "structuralHash",
+        "compilerSnapshotHash",
+        "patchHash",
+        "documentHash",
+        "validationReportHash",
+        "metricsHash",
+        "rank",
+        "candidateDigest"
+      ],
+      "properties": {
+        "attemptIndex": { "type": "integer", "minimum": 0, "maximum": 3 },
+        "candidateId": { "$ref": "#/definitions/Identifier" },
+        "strategyId": { "$ref": "#/definitions/Identifier" },
+        "status": { "enum": ["failed", "duplicate", "hard-valid"] },
+        "programHash": { "$ref": "#/definitions/NullableHash" },
+        "structuralHash": { "$ref": "#/definitions/NullableHash" },
+        "compilerSnapshotHash": { "$ref": "#/definitions/NullableHash" },
+        "patchHash": { "$ref": "#/definitions/NullableHash" },
+        "documentHash": { "$ref": "#/definitions/NullableHash" },
+        "validationReportHash": { "$ref": "#/definitions/NullableHash" },
+        "metricsHash": { "$ref": "#/definitions/NullableHash" },
+        "rank": { "$ref": "#/definitions/NullablePositiveInteger" },
+        "candidateDigest": { "$ref": "#/definitions/Hash" }
+      }
+    },
+    "DeterministicMakerCaptureManifestV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "harnessVersion",
+        "namespace",
+        "integrity",
+        "authenticated",
+        "boundary",
+        "jobId",
+        "protocolVersion",
+        "generationVersion",
+        "compilerSnapshotHash",
+        "rankingPolicyHash",
+        "replayPolicyHash",
+        "baseDocumentHash",
+        "truthSnapshotHash",
+        "briefHash",
+        "normalizedBriefHash",
+        "scopeDigest",
+        "requestHash",
+        "requestByteLength",
+        "capturedProgramsHash",
+        "capturedProgramsByteLength",
+        "populationHash",
+        "populationByteLength",
+        "resultOk",
+        "candidates"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "lego.deterministic-maker-capture-manifest/1" },
+        "harnessVersion": { "const": "lego.harness/1" },
+        "namespace": { "const": "test" },
+        "integrity": { "const": "unsealed" },
+        "authenticated": { "const": false },
+        "boundary": { "const": "deterministic-recipe-results" },
+        "jobId": { "$ref": "#/definitions/Identifier" },
+        "protocolVersion": { "$ref": "#/definitions/Identifier" },
+        "generationVersion": { "$ref": "#/definitions/Identifier" },
+        "compilerSnapshotHash": { "$ref": "#/definitions/Hash" },
+        "rankingPolicyHash": { "$ref": "#/definitions/Hash" },
+        "replayPolicyHash": { "$ref": "#/definitions/Hash" },
+        "baseDocumentHash": { "$ref": "#/definitions/Hash" },
+        "truthSnapshotHash": { "$ref": "#/definitions/Hash" },
+        "briefHash": { "$ref": "#/definitions/Hash" },
+        "normalizedBriefHash": { "$ref": "#/definitions/NullableHash" },
+        "scopeDigest": { "$ref": "#/definitions/Hash" },
+        "requestHash": { "$ref": "#/definitions/Hash" },
+        "requestByteLength": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777216
+        },
+        "capturedProgramsHash": { "$ref": "#/definitions/Hash" },
+        "capturedProgramsByteLength": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777216
+        },
+        "populationHash": { "$ref": "#/definitions/Hash" },
+        "populationByteLength": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777216
+        },
+        "resultOk": { "type": "boolean" },
+        "candidates": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/CandidateReplayCheckpointV1" },
+          "maxItems": 4
+        }
+      }
+    },
+    "TestRunSourceEventV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sequence", "eventHash", "transition", "cancellationGeneration"],
+      "properties": {
+        "sequence": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "eventHash": { "$ref": "#/definitions/Hash" },
+        "transition": { "$ref": "#/definitions/Identifier" },
+        "cancellationGeneration": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        }
+      }
+    },
+    "TestRunArtifactRoleV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "subjectId", "artifact", "sourceEvent"],
+      "properties": {
+        "role": { "enum": ["request", "maker-output"] },
+        "subjectId": { "$ref": "#/definitions/Identifier" },
+        "artifact": { "$ref": "#/definitions/ArtifactRefV1" },
+        "sourceEvent": { "$ref": "#/definitions/TestRunSourceEventV1" }
+      }
+    },
+    "TestRunBundleManifestV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "namespace",
+        "integrity",
+        "authenticated",
+        "runId",
+        "jobId",
+        "coveredEventCount",
+        "coveredEventRoot",
+        "replayBoundary",
+        "roles",
+        "capture",
+        "terminalIntent"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "lego.test-run-bundle-manifest/1" },
+        "namespace": { "const": "test" },
+        "integrity": { "const": "unsealed" },
+        "authenticated": { "const": false },
+        "runId": { "$ref": "#/definitions/Identifier" },
+        "jobId": { "$ref": "#/definitions/Identifier" },
+        "coveredEventCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "coveredEventRoot": { "$ref": "#/definitions/Hash" },
+        "replayBoundary": { "const": "deterministic-recipe-results" },
+        "roles": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/TestRunArtifactRoleV1" },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "capture": { "$ref": "#/definitions/DeterministicMakerCaptureManifestV1" },
+        "terminalIntent": { "const": "exhausted" }
+      }
+    },
+    "TestRunBundleHandleV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "namespace",
+        "integrity",
+        "authenticated",
+        "runId",
+        "manifestRef",
+        "terminalEventHash",
+        "terminalSequence"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "lego.test-run-bundle-handle/1" },
+        "namespace": { "const": "test" },
+        "integrity": { "const": "unsealed" },
+        "authenticated": { "const": false },
+        "runId": { "$ref": "#/definitions/Identifier" },
+        "manifestRef": { "$ref": "#/definitions/ArtifactRefV1" },
+        "terminalEventHash": { "$ref": "#/definitions/Hash" },
+        "terminalSequence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
         }
       }
     }

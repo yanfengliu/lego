@@ -14,6 +14,7 @@ import {
   validateCandidateRecordV1 as generatedValidateCandidateRecordV1,
   validateDataUseConsentV1 as generatedValidateDataUseConsentV1,
   validateDeterministicMakerOutputV1 as generatedValidateDeterministicMakerOutputV1,
+  validateDeterministicMakerCaptureManifestV1 as generatedValidateDeterministicMakerCaptureManifestV1,
   validateGenerationBudgetsV1 as generatedValidateGenerationBudgetsV1,
   validateGenerationJobRecordV1 as generatedValidateGenerationJobRecordV1,
   validateMakerObservationV1 as generatedValidateMakerObservationV1,
@@ -25,6 +26,8 @@ import {
   validateRunEventV1 as generatedValidateRunEventV1,
   validateScopeCapabilityV1 as generatedValidateScopeCapabilityV1,
   validateTemplateSnapshotV1 as generatedValidateTemplateSnapshotV1,
+  validateTestRunBundleHandleV1 as generatedValidateTestRunBundleHandleV1,
+  validateTestRunBundleManifestV1 as generatedValidateTestRunBundleManifestV1,
   validateTruthSnapshot as generatedValidateTruthSnapshot,
   validateTrustNamespaceV1 as generatedValidateTrustNamespaceV1,
   validateValidationIssue as generatedValidateValidationIssue,
@@ -45,6 +48,7 @@ import type {
   CandidateRecordV1,
   DataUseConsentV1,
   DeterministicMakerOutputV1,
+  DeterministicMakerCaptureManifestV1,
   GenerationBudgetsV1,
   GenerationJobRecordV1,
   MakerObservationV1,
@@ -56,6 +60,8 @@ import type {
   RunEventV1,
   ScopeCapabilityV1,
   TemplateSnapshotV1,
+  TestRunBundleHandleV1,
+  TestRunBundleManifestV1,
   TruthSnapshot,
   TrustNamespaceV1,
   ValidationIssue,
@@ -88,6 +94,7 @@ export const SCHEMA_IDS = {
   generationBudgetsV1: `${ROOT_SCHEMA_ID}#/definitions/GenerationBudgetsV1`,
   dataUseConsentV1: `${ROOT_SCHEMA_ID}#/definitions/DataUseConsentV1`,
   deterministicMakerOutputV1: `${ROOT_SCHEMA_ID}#/definitions/DeterministicMakerOutputV1`,
+  deterministicMakerCaptureManifestV1: `${ROOT_SCHEMA_ID}#/definitions/DeterministicMakerCaptureManifestV1`,
   buildBriefV1: `${ROOT_SCHEMA_ID}#/definitions/BuildBriefV1`,
   providerCapabilitiesV1: `${ROOT_SCHEMA_ID}#/definitions/ProviderCapabilitiesV1`,
   renderPacketV1: `${ROOT_SCHEMA_ID}#/definitions/RenderPacketV1`,
@@ -101,6 +108,8 @@ export const SCHEMA_IDS = {
   acceptanceAuthorizationV1: `${ROOT_SCHEMA_ID}#/definitions/AcceptanceAuthorizationV1`,
   runEventV1: `${ROOT_SCHEMA_ID}#/definitions/RunEventV1`,
   nativeSealedRunManifestV1: `${ROOT_SCHEMA_ID}#/definitions/NativeSealedRunManifestV1`,
+  testRunBundleManifestV1: `${ROOT_SCHEMA_ID}#/definitions/TestRunBundleManifestV1`,
+  testRunBundleHandleV1: `${ROOT_SCHEMA_ID}#/definitions/TestRunBundleHandleV1`,
 } as const;
 
 export type ProtocolValidator<T> = ValidateFunction<T>;
@@ -336,6 +345,121 @@ export const validateDeterministicMakerOutputV1 =
         : semanticError("/slots", "Deterministic maker strategy identifiers must be unique");
     },
   );
+export const validateDeterministicMakerCaptureManifestV1 =
+  withSemanticValidation<DeterministicMakerCaptureManifestV1>(
+    generatedValidateDeterministicMakerCaptureManifestV1,
+    (value) => {
+      if (value.candidates.some((candidate, index) => candidate.attemptIndex !== index)) {
+        return semanticError(
+          "/candidates",
+          "Capture candidate checkpoints must use contiguous authoritative indices",
+        );
+      }
+      if (
+        !unique(value.candidates.map(({ candidateId }) => candidateId)) ||
+        !unique(value.candidates.map(({ strategyId }) => strategyId))
+      ) {
+        return semanticError(
+          "/candidates",
+          "Capture candidate and strategy identifiers must be unique",
+        );
+      }
+      if (!value.resultOk && value.candidates.length !== 0) {
+        return semanticError(
+          "/candidates",
+          "Rejected maker inputs cannot claim downstream candidate checkpoints",
+        );
+      }
+      for (let index = 0; index < value.candidates.length; index += 1) {
+        const candidate = value.candidates[index]!;
+        const complete =
+          candidate.programHash !== null &&
+          candidate.structuralHash !== null &&
+          candidate.compilerSnapshotHash !== null &&
+          candidate.patchHash !== null &&
+          candidate.documentHash !== null &&
+          candidate.validationReportHash !== null &&
+          candidate.metricsHash !== null &&
+          candidate.rank !== null;
+        if (candidate.status === "hard-valid" && !complete) {
+          return semanticError(
+            `/candidates/${index}`,
+            "Hard-valid candidate checkpoints require every trusted downstream hash and rank",
+          );
+        }
+        if (
+          candidate.status !== "hard-valid" &&
+          (candidate.compilerSnapshotHash !== null ||
+            candidate.patchHash !== null ||
+            candidate.documentHash !== null ||
+            candidate.validationReportHash !== null ||
+            candidate.metricsHash !== null ||
+            candidate.rank !== null)
+        ) {
+          return semanticError(
+            `/candidates/${index}`,
+            "Non-ranked candidate checkpoints cannot claim trusted derived artifacts or rank",
+          );
+        }
+      }
+      return null;
+    },
+  );
+export const validateTestRunBundleManifestV1 = withSemanticValidation<TestRunBundleManifestV1>(
+  generatedValidateTestRunBundleManifestV1,
+  (value) => {
+    if (value.jobId !== value.capture.jobId) {
+      return semanticError("/jobId", "Bundle and capture job identifiers must match");
+    }
+    const [requestRole, outputRole] = value.roles;
+    if (
+      requestRole?.role !== "request" ||
+      outputRole?.role !== "maker-output" ||
+      requestRole.subjectId !== value.jobId ||
+      requestRole.artifact.kind !== "input" ||
+      requestRole.artifact.mediaType !== "application/json" ||
+      requestRole.artifact.sha256 !== value.capture.requestHash ||
+      requestRole.artifact.byteLength !== value.capture.requestByteLength ||
+      requestRole.sourceEvent.transition !== "run.none.created" ||
+      outputRole.artifact.kind !== "transcript" ||
+      outputRole.artifact.mediaType !== "application/json" ||
+      outputRole.artifact.sha256 !== value.capture.capturedProgramsHash ||
+      outputRole.artifact.byteLength !== value.capture.capturedProgramsByteLength ||
+      outputRole.sourceEvent.transition !== "providerAttempt.running.succeeded"
+    ) {
+      return semanticError(
+        "/roles",
+        "Bundle roles must bind the exact request and captured-output artifacts and source stages",
+      );
+    }
+    if (
+      value.roles.some(
+        ({ sourceEvent }) =>
+          sourceEvent.sequence >= value.coveredEventCount ||
+          sourceEvent.cancellationGeneration !== 0,
+      ) ||
+      !unique(value.roles.map(({ artifact }) => artifact.artifactId)) ||
+      new Set(value.roles.map(({ sourceEvent }) => sourceEvent.sequence)).size !==
+        value.roles.length
+    ) {
+      return semanticError(
+        "/roles",
+        "Bundle roles require unique artifacts and non-diagnostic source events in the covered prefix",
+      );
+    }
+    return null;
+  },
+);
+export const validateTestRunBundleHandleV1 = withSemanticValidation<TestRunBundleHandleV1>(
+  generatedValidateTestRunBundleHandleV1,
+  (value) =>
+    value.manifestRef.kind === "bundle" && value.manifestRef.mediaType === "application/json"
+      ? null
+      : semanticError(
+          "/manifestRef",
+          "Test bundle handle must reference a canonical JSON bundle artifact",
+        ),
+);
 export const validateNativeSealedRunManifestV1 = withSemanticValidation<NativeSealedRunManifestV1>(
   generatedValidateNativeSealedRunManifestV1,
   (value) => {

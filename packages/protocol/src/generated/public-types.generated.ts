@@ -23,6 +23,9 @@ export type LongText = DeepReadonly<Wire.LongText>;
 export type AttemptTerminalV1 = DeepReadonly<Wire.AttemptTerminalV1>;
 export type UtcTimestamp = DeepReadonly<Wire.UtcTimestamp>;
 export type Ed25519Signature = DeepReadonly<Wire.Ed25519Signature>;
+export type NullableHash = DeepReadonly<Wire.NullableHash>;
+export type NullablePositiveInteger =
+  DeepReadonly<Wire.NullablePositiveInteger>;
 export type TemplateColorValueV1 = DeepReadonly<Wire.TemplateColorValueV1>;
 export type TruthSnapshot = DeepReadonly<Wire.TruthSnapshot>;
 export type SnapshotRef = DeepReadonly<Wire.SnapshotRef>;
@@ -107,6 +110,15 @@ export type DeterministicMakerFailureOutcomeV1 =
   DeepReadonly<Wire.DeterministicMakerFailureOutcomeV1>;
 export type DeterministicMakerGenerationFailureV1 =
   DeepReadonly<Wire.DeterministicMakerGenerationFailureV1>;
+export type DeterministicMakerCaptureManifestV1 =
+  DeepReadonly<Wire.DeterministicMakerCaptureManifestV1>;
+export type CandidateReplayCheckpointV1 =
+  DeepReadonly<Wire.CandidateReplayCheckpointV1>;
+export type TestRunBundleManifestV1 =
+  DeepReadonly<Wire.TestRunBundleManifestV1>;
+export type TestRunArtifactRoleV1 = DeepReadonly<Wire.TestRunArtifactRoleV1>;
+export type TestRunSourceEventV1 = DeepReadonly<Wire.TestRunSourceEventV1>;
+export type TestRunBundleHandleV1 = DeepReadonly<Wire.TestRunBundleHandleV1>;
 export type TemplateSnapshotV1 = DeepReadonly<Wire.TemplateSnapshotV1>;
 export type TemplateColorParameterV1 =
   DeepReadonly<Wire.TemplateColorParameterV1>;

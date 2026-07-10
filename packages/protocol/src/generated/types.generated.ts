@@ -29,6 +29,9 @@ export type LegoStudioProtocol =
   | RunEventV1
   | NativeSealedRunManifestV1
   | DeterministicMakerOutputV1
+  | DeterministicMakerCaptureManifestV1
+  | TestRunBundleManifestV1
+  | TestRunBundleHandleV1
   | TemplateSnapshotV1;
 export type Identifier = string;
 export type Hash = string;
@@ -62,6 +65,8 @@ export type AttemptTerminalV1 =
   | AttemptFailureTerminalV1;
 export type UtcTimestamp = string;
 export type Ed25519Signature = string;
+export type NullableHash = Hash | null;
+export type NullablePositiveInteger = number | null;
 export type TemplateColorValueV1 =
   TemplateLiteralColorV1 | TemplateParameterColorV1;
 
@@ -703,6 +708,84 @@ export interface DeterministicMakerGenerationFailureV1 {
   stage: "generation";
   code: "OPERATION_BUDGET_TOO_SMALL" | "NO_CONNECTION_PATH";
   message: string;
+}
+export interface DeterministicMakerCaptureManifestV1 {
+  schemaVersion: "lego.deterministic-maker-capture-manifest/1";
+  harnessVersion: "lego.harness/1";
+  namespace: "test";
+  integrity: "unsealed";
+  authenticated: false;
+  boundary: "deterministic-recipe-results";
+  jobId: Identifier;
+  protocolVersion: Identifier;
+  generationVersion: Identifier;
+  compilerSnapshotHash: Hash;
+  rankingPolicyHash: Hash;
+  replayPolicyHash: Hash;
+  baseDocumentHash: Hash;
+  truthSnapshotHash: Hash;
+  briefHash: Hash;
+  normalizedBriefHash: NullableHash;
+  scopeDigest: Hash;
+  requestHash: Hash;
+  requestByteLength: number;
+  capturedProgramsHash: Hash;
+  capturedProgramsByteLength: number;
+  populationHash: Hash;
+  populationByteLength: number;
+  resultOk: boolean;
+  candidates: CandidateReplayCheckpointV1[];
+}
+export interface CandidateReplayCheckpointV1 {
+  attemptIndex: number;
+  candidateId: Identifier;
+  strategyId: Identifier;
+  status: "failed" | "duplicate" | "hard-valid";
+  programHash: NullableHash;
+  structuralHash: NullableHash;
+  compilerSnapshotHash: NullableHash;
+  patchHash: NullableHash;
+  documentHash: NullableHash;
+  validationReportHash: NullableHash;
+  metricsHash: NullableHash;
+  rank: NullablePositiveInteger;
+  candidateDigest: Hash;
+}
+export interface TestRunBundleManifestV1 {
+  schemaVersion: "lego.test-run-bundle-manifest/1";
+  namespace: "test";
+  integrity: "unsealed";
+  authenticated: false;
+  runId: Identifier;
+  jobId: Identifier;
+  coveredEventCount: number;
+  coveredEventRoot: Hash;
+  replayBoundary: "deterministic-recipe-results";
+  roles: TestRunArtifactRoleV1[];
+  capture: DeterministicMakerCaptureManifestV1;
+  terminalIntent: "exhausted";
+}
+export interface TestRunArtifactRoleV1 {
+  role: "request" | "maker-output";
+  subjectId: Identifier;
+  artifact: ArtifactRefV1;
+  sourceEvent: TestRunSourceEventV1;
+}
+export interface TestRunSourceEventV1 {
+  sequence: number;
+  eventHash: Hash;
+  transition: Identifier;
+  cancellationGeneration: number;
+}
+export interface TestRunBundleHandleV1 {
+  schemaVersion: "lego.test-run-bundle-handle/1";
+  namespace: "test";
+  integrity: "unsealed";
+  authenticated: false;
+  runId: Identifier;
+  manifestRef: ArtifactRefV1;
+  terminalEventHash: Hash;
+  terminalSequence: number;
 }
 /**
  * Intrinsic immutable fixed-graph data. Admission must separately validate catalog parts, colors, transforms, and ports against the pinned catalog, truth, and admission-policy snapshots before compiler use.
