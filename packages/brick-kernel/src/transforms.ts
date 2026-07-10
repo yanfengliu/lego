@@ -7,6 +7,7 @@ import {
   type PartDefinition,
   type UprightOrientation,
 } from "@lego-studio/catalog";
+import { validateRigidTransform } from "@lego-studio/protocol";
 import type { PartInstance, RigidTransform } from "@lego-studio/protocol";
 
 export interface ConnectorWorldFrame {
@@ -38,6 +39,116 @@ export function rotateLduVector(matrix: OrientationMatrix, [x, y, z]: LduVector3
     matrix[3] * x + matrix[4] * y + matrix[5] * z,
     matrix[6] * x + matrix[7] * y + matrix[8] * z,
   ];
+}
+
+function multiplyOrientationMatrices(
+  parent: OrientationMatrix,
+  local: OrientationMatrix,
+): OrientationMatrix {
+  const product: OrientationMatrix = [
+    parent[0] * local[0] + parent[1] * local[3] + parent[2] * local[6],
+    parent[0] * local[1] + parent[1] * local[4] + parent[2] * local[7],
+    parent[0] * local[2] + parent[1] * local[5] + parent[2] * local[8],
+    parent[3] * local[0] + parent[4] * local[3] + parent[5] * local[6],
+    parent[3] * local[1] + parent[4] * local[4] + parent[5] * local[7],
+    parent[3] * local[2] + parent[4] * local[5] + parent[5] * local[8],
+    parent[6] * local[0] + parent[7] * local[3] + parent[8] * local[6],
+    parent[6] * local[1] + parent[7] * local[4] + parent[8] * local[7],
+    parent[6] * local[2] + parent[7] * local[5] + parent[8] * local[8],
+  ];
+  if (!product.every(Number.isSafeInteger)) {
+    throw new TransformPolicyError("Composed orientation matrix must remain integral");
+  }
+  return product;
+}
+
+function assertDataOnlyTransform(value: RigidTransform, label: string): void {
+  try {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) {
+      throw new TypeError("transform is not a record");
+    }
+    const transformDescriptors = Object.getOwnPropertyDescriptors(value);
+    if (
+      Reflect.ownKeys(transformDescriptors).some(
+        (key) => typeof key !== "string" || !("value" in transformDescriptors[key]!),
+      )
+    ) {
+      throw new TypeError("transform contains accessors or symbol keys");
+    }
+    const position = transformDescriptors.positionLdu?.value;
+    if (!Array.isArray(position)) throw new TypeError("position is not an array");
+    const positionDescriptors = Object.getOwnPropertyDescriptors(position);
+    if (
+      Reflect.ownKeys(positionDescriptors).some(
+        (key) => typeof key !== "string" || !("value" in positionDescriptors[key]!),
+      )
+    ) {
+      throw new TypeError("position contains accessors or symbol keys");
+    }
+  } catch {
+    throw new TransformPolicyError(`${label} transform must contain data properties only`);
+  }
+}
+
+function requireRigidTransform(value: unknown, label: string): RigidTransform {
+  if (!validateRigidTransform(value)) {
+    throw new TransformPolicyError(`${label} transform violates the rigid-transform policy`);
+  }
+  const transform = value as RigidTransform;
+  getUprightOrientation(transform.orientationId);
+  return transform;
+}
+
+/**
+ * Composes a parent/world transform with a local transform under the finite
+ * upright orientation policy. The exact matrix product must resolve back to a
+ * catalog orientation; arbitrary matrices and fractional coordinates are not
+ * representable in the canonical document. Inputs are inert value records
+ * (such as parsed JSON); active Proxy traps must be rejected at the caller's
+ * trust boundary because JavaScript cannot inspect them without executing code.
+ */
+export function composeRigidTransforms(
+  parentValue: RigidTransform,
+  localValue: RigidTransform,
+): RigidTransform {
+  assertDataOnlyTransform(parentValue, "Parent");
+  assertDataOnlyTransform(localValue, "Local");
+  let detached: { readonly parent: unknown; readonly local: unknown };
+  try {
+    detached = structuredClone({ parent: parentValue, local: localValue });
+  } catch {
+    throw new TransformPolicyError("Transforms must be detached structured-cloneable data");
+  }
+  const parent = requireRigidTransform(detached.parent, "Parent");
+  const local = requireRigidTransform(detached.local, "Local");
+  const parentOrientation = getUprightOrientation(parent.orientationId);
+  const localOrientation = getUprightOrientation(local.orientationId);
+  const composedMatrix = multiplyOrientationMatrices(
+    parentOrientation.matrix,
+    localOrientation.matrix,
+  );
+  const composedOrientation = UPRIGHT_ORIENTATIONS.find(({ matrix }) =>
+    matrix.every((value, index) => value === composedMatrix[index]),
+  );
+  if (!composedOrientation) {
+    throw new TransformPolicyError(
+      `Upright orientation policy is not closed for ${parent.orientationId} and ${local.orientationId}`,
+    );
+  }
+
+  const rotatedLocalPosition = rotateLduVector(parentOrientation.matrix, local.positionLdu);
+  const composed: RigidTransform = {
+    positionLdu: [
+      parent.positionLdu[0] + rotatedLocalPosition[0],
+      parent.positionLdu[1] + rotatedLocalPosition[1],
+      parent.positionLdu[2] + rotatedLocalPosition[2],
+    ],
+    orientationId: composedOrientation.id,
+  };
+  if (!validateRigidTransform(composed)) {
+    throw new TransformPolicyError("Composed transform violates the rigid-transform policy");
+  }
+  return composed;
 }
 
 export function transformLduPoint(transform: RigidTransform, point: LduVector3): LduVector3 {
