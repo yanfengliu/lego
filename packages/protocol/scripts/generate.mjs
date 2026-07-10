@@ -113,6 +113,7 @@ const validatorDefinitions = {
   validateAssemblyPatchV1: "AssemblyPatchV1",
   validateValidationIssue: "ValidationIssue",
   validateValidationReportV1: "ValidationReportV1",
+  validateTemplateSnapshotV1: "TemplateSnapshotV1",
   validateArtifactRefV1: "ArtifactRefV1",
   validateTrustNamespaceV1: "TrustNamespaceV1",
   validateGenerationBudgetsV1: "GenerationBudgetsV1",

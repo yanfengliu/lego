@@ -27,7 +27,8 @@ export type LegoStudioProtocol =
   | PresentedPatchEnvelopeV1
   | AcceptanceAuthorizationV1
   | RunEventV1
-  | NativeSealedRunManifestV1;
+  | NativeSealedRunManifestV1
+  | TemplateSnapshotV1;
 export type Identifier = string;
 export type Hash = string;
 /**
@@ -60,6 +61,8 @@ export type AttemptTerminalV1 =
   | AttemptFailureTerminalV1;
 export type UtcTimestamp = string;
 export type Ed25519Signature = string;
+export type TemplateColorValueV1 =
+  TemplateLiteralColorV1 | TemplateParameterColorV1;
 
 export interface TruthSnapshot {
   schemaVersion: "lego.truth-snapshot/1";
@@ -199,6 +202,8 @@ export interface InstantiateTemplateInstruction {
   operationId: Identifier;
   instanceLocalId: Identifier;
   templateId: Identifier;
+  templateVersion?: number;
+  templateHash?: Hash;
   parameters: TemplateParameter[];
   transform: RigidTransform;
   submodelId: Identifier;
@@ -671,4 +676,77 @@ export interface ReplayClosureCertificateV1 {
   artifactRoot: Hash;
   requiredArtifactHashes: Hash[];
   verifierVersion: Identifier;
+}
+/**
+ * Intrinsic immutable fixed-graph data. Admission must separately validate catalog parts, colors, transforms, and ports against the pinned catalog, truth, and admission-policy snapshots before compiler use.
+ */
+export interface TemplateSnapshotV1 {
+  schemaVersion: "lego.template-snapshot/1";
+  id: Identifier;
+  version: number;
+  parentId?: Identifier;
+  contentHash: Hash;
+  status: "draft" | "trial" | "canary" | "stable" | "rejected" | "deprecated";
+  catalogHash: Hash;
+  truthSnapshotHash: Hash;
+  admissionPolicyHash: Hash;
+  parameters: TemplateColorParameterV1[];
+  parts: TemplateFixedPartV1[];
+  internalConnections: TemplateInternalConnectionV1[];
+  externalPorts: TemplateExternalPortV1[];
+  clearanceVolume: TemplateClearanceVolumeV1;
+  evidenceRunIds: Identifier[];
+  counterexampleRunIds: Identifier[];
+  benchmarkReportIds: Identifier[];
+  provenance: TemplateProvenanceV1;
+  license: TemplateLicenseV1;
+}
+export interface TemplateColorParameterV1 {
+  kind: "color-enum";
+  name: Identifier;
+  allowedColorIds: Identifier[];
+  defaultColorId?: Identifier;
+}
+export interface TemplateFixedPartV1 {
+  localPartId: Identifier;
+  catalogPartId: Identifier;
+  color: TemplateColorValueV1;
+  transform: RigidTransform;
+  semanticTags: Identifier[];
+}
+export interface TemplateLiteralColorV1 {
+  kind: "literal";
+  colorId: Identifier;
+}
+export interface TemplateParameterColorV1 {
+  kind: "parameter";
+  parameterName: Identifier;
+}
+export interface TemplateInternalConnectionV1 {
+  localConnectionId: Identifier;
+  kind: "stud-tube";
+  a: TemplateLocalPortRefV1;
+  b: TemplateLocalPortRefV1;
+}
+export interface TemplateLocalPortRefV1 {
+  localPartId: Identifier;
+  portId: Identifier;
+}
+export interface TemplateExternalPortV1 {
+  name: Identifier;
+  endpoint: TemplateLocalPortRefV1;
+}
+export interface TemplateClearanceVolumeV1 {
+  minLdu: LduVector;
+  maxLdu: LduVector;
+}
+export interface TemplateProvenanceV1 {
+  origin: "project" | "imported" | "generated";
+  sourceId: Identifier;
+  sourceHash?: Hash;
+}
+export interface TemplateLicenseV1 {
+  spdxExpression: string;
+  attribution: string;
+  redistribution: "allowed" | "restricted" | "evaluation-only";
 }

@@ -1,0 +1,208 @@
+{
+  "title": "Immutable fixed-graph template snapshots",
+  "roots": ["TemplateSnapshotV1"],
+  "definitions": {
+    "TemplateColorParameterV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "name", "allowedColorIds"],
+      "properties": {
+        "kind": { "const": "color-enum" },
+        "name": { "$ref": "#/definitions/Identifier" },
+        "allowedColorIds": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true
+        },
+        "defaultColorId": { "$ref": "#/definitions/Identifier" }
+      }
+    },
+    "TemplateLiteralColorV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "colorId"],
+      "properties": {
+        "kind": { "const": "literal" },
+        "colorId": { "$ref": "#/definitions/Identifier" }
+      }
+    },
+    "TemplateParameterColorV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "parameterName"],
+      "properties": {
+        "kind": { "const": "parameter" },
+        "parameterName": { "$ref": "#/definitions/Identifier" }
+      }
+    },
+    "TemplateColorValueV1": {
+      "oneOf": [
+        { "$ref": "#/definitions/TemplateLiteralColorV1" },
+        { "$ref": "#/definitions/TemplateParameterColorV1" }
+      ]
+    },
+    "TemplateFixedPartV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["localPartId", "catalogPartId", "color", "transform", "semanticTags"],
+      "properties": {
+        "localPartId": { "$ref": "#/definitions/Identifier" },
+        "catalogPartId": { "$ref": "#/definitions/Identifier" },
+        "color": { "$ref": "#/definitions/TemplateColorValueV1" },
+        "transform": { "$ref": "#/definitions/RigidTransform" },
+        "semanticTags": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "maxItems": 32,
+          "uniqueItems": true
+        }
+      }
+    },
+    "TemplateLocalPortRefV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["localPartId", "portId"],
+      "properties": {
+        "localPartId": { "$ref": "#/definitions/Identifier" },
+        "portId": { "$ref": "#/definitions/Identifier" }
+      }
+    },
+    "TemplateInternalConnectionV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["localConnectionId", "kind", "a", "b"],
+      "properties": {
+        "localConnectionId": { "$ref": "#/definitions/Identifier" },
+        "kind": { "const": "stud-tube" },
+        "a": { "$ref": "#/definitions/TemplateLocalPortRefV1" },
+        "b": { "$ref": "#/definitions/TemplateLocalPortRefV1" }
+      }
+    },
+    "TemplateExternalPortV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "endpoint"],
+      "properties": {
+        "name": { "$ref": "#/definitions/Identifier" },
+        "endpoint": { "$ref": "#/definitions/TemplateLocalPortRefV1" }
+      }
+    },
+    "TemplateClearanceVolumeV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minLdu", "maxLdu"],
+      "properties": {
+        "minLdu": { "$ref": "#/definitions/LduVector" },
+        "maxLdu": { "$ref": "#/definitions/LduVector" }
+      }
+    },
+    "TemplateProvenanceV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["origin", "sourceId"],
+      "properties": {
+        "origin": { "enum": ["project", "imported", "generated"] },
+        "sourceId": { "$ref": "#/definitions/Identifier" },
+        "sourceHash": { "$ref": "#/definitions/Hash" }
+      }
+    },
+    "TemplateLicenseV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["spdxExpression", "attribution", "redistribution"],
+      "properties": {
+        "spdxExpression": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9 .()+\\-:]+$"
+        },
+        "attribution": { "type": "string", "minLength": 1, "maxLength": 2048 },
+        "redistribution": { "enum": ["allowed", "restricted", "evaluation-only"] }
+      }
+    },
+    "TemplateSnapshotV1": {
+      "type": "object",
+      "description": "Intrinsic immutable fixed-graph data. Admission must separately validate catalog parts, colors, transforms, and ports against the pinned catalog, truth, and admission-policy snapshots before compiler use.",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "id",
+        "version",
+        "contentHash",
+        "status",
+        "catalogHash",
+        "truthSnapshotHash",
+        "admissionPolicyHash",
+        "parameters",
+        "parts",
+        "internalConnections",
+        "externalPorts",
+        "clearanceVolume",
+        "evidenceRunIds",
+        "counterexampleRunIds",
+        "benchmarkReportIds",
+        "provenance",
+        "license"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "lego.template-snapshot/1" },
+        "id": { "$ref": "#/definitions/Identifier" },
+        "version": { "type": "integer", "minimum": 1, "maximum": 1000000 },
+        "parentId": { "$ref": "#/definitions/Identifier" },
+        "contentHash": { "$ref": "#/definitions/Hash" },
+        "status": {
+          "enum": ["draft", "trial", "canary", "stable", "rejected", "deprecated"]
+        },
+        "catalogHash": { "$ref": "#/definitions/Hash" },
+        "truthSnapshotHash": { "$ref": "#/definitions/Hash" },
+        "admissionPolicyHash": { "$ref": "#/definitions/Hash" },
+        "parameters": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/TemplateColorParameterV1" },
+          "maxItems": 16
+        },
+        "parts": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/TemplateFixedPartV1" },
+          "minItems": 1,
+          "maxItems": 256
+        },
+        "internalConnections": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/TemplateInternalConnectionV1" },
+          "maxItems": 1024
+        },
+        "externalPorts": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/TemplateExternalPortV1" },
+          "minItems": 1,
+          "maxItems": 64
+        },
+        "clearanceVolume": { "$ref": "#/definitions/TemplateClearanceVolumeV1" },
+        "evidenceRunIds": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "counterexampleRunIds": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "benchmarkReportIds": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "provenance": { "$ref": "#/definitions/TemplateProvenanceV1" },
+        "license": { "$ref": "#/definitions/TemplateLicenseV1" }
+      }
+    }
+  }
+}

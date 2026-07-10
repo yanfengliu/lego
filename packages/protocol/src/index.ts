@@ -23,6 +23,7 @@ import {
   validateRigidTransform as generatedValidateRigidTransform,
   validateRunEventV1 as generatedValidateRunEventV1,
   validateScopeCapabilityV1 as generatedValidateScopeCapabilityV1,
+  validateTemplateSnapshotV1 as generatedValidateTemplateSnapshotV1,
   validateTruthSnapshot as generatedValidateTruthSnapshot,
   validateTrustNamespaceV1 as generatedValidateTrustNamespaceV1,
   validateValidationIssue as generatedValidateValidationIssue,
@@ -52,13 +53,17 @@ import type {
   RigidTransform,
   RunEventV1,
   ScopeCapabilityV1,
+  TemplateSnapshotV1,
   TruthSnapshot,
   TrustNamespaceV1,
   ValidationIssue,
   ValidationReportV1,
 } from "./generated/public-types.generated.js";
 
+import { checkTemplateSnapshotSemantics } from "./template-snapshot.ts";
+
 export type * from "./generated/public-types.generated.js";
+export * from "./template-snapshot.ts";
 
 export const PROTOCOL_VERSION = "lego.protocol/1" as const;
 
@@ -73,6 +78,7 @@ export const SCHEMA_IDS = {
   buildOperation: `${ROOT_SCHEMA_ID}#/definitions/BuildOperation`,
   scopeCapabilityV1: `${ROOT_SCHEMA_ID}#/definitions/ScopeCapabilityV1`,
   assemblyPatchV1: `${ROOT_SCHEMA_ID}#/definitions/AssemblyPatchV1`,
+  templateSnapshotV1: `${ROOT_SCHEMA_ID}#/definitions/TemplateSnapshotV1`,
   validationIssue: `${ROOT_SCHEMA_ID}#/definitions/ValidationIssue`,
   validationReportV1: `${ROOT_SCHEMA_ID}#/definitions/ValidationReportV1`,
   artifactRefV1: `${ROOT_SCHEMA_ID}#/definitions/ArtifactRefV1`,
@@ -123,8 +129,56 @@ function withSemanticValidation<T>(
   return validate;
 }
 
+function withDetachedSemanticValidation<T>(
+  generated: ValidateFunction<unknown>,
+  semanticCheck: (value: T) => ErrorObject | null,
+): ProtocolValidator<T> {
+  const validate = ((value: unknown): value is T => {
+    let detached: unknown;
+    try {
+      detached = structuredClone(value);
+    } catch {
+      validate.errors = [
+        semanticError("", "Protocol value must be detached structured-cloneable data"),
+      ];
+      return false;
+    }
+    if (!generated(detached)) {
+      validate.errors = generated.errors ?? null;
+      return false;
+    }
+    const error = semanticCheck(detached as T);
+    validate.errors = error ? [error] : null;
+    return error === null;
+  }) as ProtocolValidator<T>;
+  validate.errors = null;
+  return validate;
+}
+
 function unique(values: readonly string[]): boolean {
   return new Set(values).size === values.length;
+}
+
+function buildProgramSemanticError(value: BuildProgramV1): ErrorObject | null {
+  for (let index = 0; index < value.operations.length; index += 1) {
+    const operation = value.operations[index]!;
+    if (operation.kind !== "instantiateTemplate") continue;
+    const hasVersion = operation.templateVersion !== undefined;
+    const hasHash = operation.templateHash !== undefined;
+    if (hasVersion !== hasHash) {
+      return semanticError(
+        `/operations/${index}`,
+        "Template version and content hash must be pinned together",
+      );
+    }
+    if (!unique(operation.parameters.map(({ name }) => name))) {
+      return semanticError(
+        `/operations/${index}/parameters`,
+        "Template parameter bindings must have unique names",
+      );
+    }
+  }
+  return null;
 }
 
 export const validateTruthSnapshot =
@@ -133,8 +187,10 @@ export const validateRigidTransform =
   generatedValidateRigidTransform as ProtocolValidator<RigidTransform>;
 export const validateBrickDocumentV1 =
   generatedValidateBrickDocumentV1 as ProtocolValidator<BrickDocumentV1>;
-export const validateBuildProgramV1 =
-  generatedValidateBuildProgramV1 as ProtocolValidator<BuildProgramV1>;
+export const validateBuildProgramV1 = withDetachedSemanticValidation<BuildProgramV1>(
+  generatedValidateBuildProgramV1,
+  buildProgramSemanticError,
+);
 export const validateBuildOperation =
   generatedValidateBuildOperation as ProtocolValidator<BuildOperation>;
 export const validateScopeCapabilityV1 =
@@ -145,6 +201,13 @@ export const validateValidationIssue =
   generatedValidateValidationIssue as ProtocolValidator<ValidationIssue>;
 export const validateValidationReportV1 =
   generatedValidateValidationReportV1 as ProtocolValidator<ValidationReportV1>;
+export const validateTemplateSnapshotV1 = withDetachedSemanticValidation<TemplateSnapshotV1>(
+  generatedValidateTemplateSnapshotV1,
+  (value) => {
+    const error = checkTemplateSnapshotSemantics(value);
+    return error === null ? null : semanticError(error.instancePath, error.message);
+  },
+);
 export const validateArtifactRefV1 = withSemanticValidation<ArtifactRefV1>(
   generatedValidateArtifactRefV1,
   (value) =>

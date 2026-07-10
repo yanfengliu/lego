@@ -26,12 +26,32 @@ assert.equal(
   false,
   "The generated Ajv validator must enforce integer LDU coordinates",
 );
+assert.equal(
+  protocol.validateTemplateSnapshotV1({}),
+  false,
+  "The TemplateSnapshot standalone and semantic validator must load under Node",
+);
+assert.equal(
+  typeof protocol.templateSnapshotContentHash,
+  "function",
+  "The canonical TemplateSnapshot hash helper must load under Node",
+);
 
 const catalog = await import("@lego-studio/catalog");
 assert.ok(catalog.PART_DEFINITIONS.length > 0, "The built-in catalog must load under Node");
 assert.ok(catalog.getPartDefinition("builtin:brick-1x1"));
 
 const kernel = await import("@lego-studio/brick-kernel");
+assert.equal(
+  typeof kernel.validateTemplateSnapshotAgainstTruth,
+  "function",
+  "The truth-bound TemplateSnapshot admission gate must load under Node",
+);
+assert.match(
+  kernel.TEMPLATE_ADMISSION_SNAPSHOT_HASH,
+  /^sha256:[0-9a-f]{64}$/,
+  "The TemplateSnapshot admission policy must expose its pinned hash under Node",
+);
 assert.equal(kernel.BRICK_KERNEL_VERSION, "lego.brick-kernel/1");
 const emptyDocument = kernel.createEmptyBrickDocument({
   id: "node-consumer-contract",

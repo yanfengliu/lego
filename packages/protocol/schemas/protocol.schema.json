@@ -402,6 +402,8 @@
         "operationId": { "$ref": "#/definitions/Identifier" },
         "instanceLocalId": { "$ref": "#/definitions/Identifier" },
         "templateId": { "$ref": "#/definitions/Identifier" },
+        "templateVersion": { "type": "integer", "minimum": 1, "maximum": 1000000 },
+        "templateHash": { "$ref": "#/definitions/Hash" },
         "parameters": {
           "type": "array",
           "items": { "$ref": "#/definitions/TemplateParameter" },

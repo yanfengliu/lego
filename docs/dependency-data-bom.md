@@ -76,6 +76,7 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
     { "manifest": "apps/web/package.json", "section": "dependencies", "name": "react", "spec": "19.2.7" },
     { "manifest": "apps/web/package.json", "section": "dependencies", "name": "react-dom", "spec": "19.2.7" },
     { "manifest": "packages/protocol/package.json", "section": "dependencies", "name": "ajv", "spec": "8.20.0" },
+    { "manifest": "packages/protocol/package.json", "section": "dependencies", "name": "@noble/hashes", "spec": "2.2.0" },
     { "manifest": "packages/brick-kernel/package.json", "section": "dependencies", "name": "@lego-studio/catalog", "spec": "0.0.0" },
     { "manifest": "packages/brick-kernel/package.json", "section": "dependencies", "name": "@lego-studio/protocol", "spec": "0.0.0" },
     { "manifest": "packages/brick-kernel/package.json", "section": "dependencies", "name": "@noble/hashes", "spec": "2.2.0" },
@@ -293,7 +294,7 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
       "upstreamSource": "https://github.com/paulmillr/noble-hashes",
       "declaredLicense": "MIT",
       "rightsPolicy": "npm-lockfile-spdx-unverified",
-      "allowedRoles": ["runtime deterministic content hashing in the pure brick kernel"]
+      "allowedRoles": ["runtime deterministic content hashing in the pure brick kernel and immutable protocol snapshots"]
     },
     {
       "name": "three",

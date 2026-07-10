@@ -580,7 +580,7 @@ A template is a parameterized, compiler-interpreted, validated declarative subas
 
 “Executable” means a schema-constrained, non-Turing-complete declarative AST interpreted by trusted code. Templates, predicates and operation patterns cannot contain imports, scripts, callbacks, arbitrary expressions or dynamic evaluation. Expansion depth, recursion, memory, operation, part-count and time limits apply even in quarantine.
 
-Every template is an immutable `TemplateSnapshot` with ID, version, parent ID, content hash, lifecycle status, exact catalog and truth snapshots, typed ports, evidence runs, counterexamples and benchmark reports. Retrieval pins the exact version and hash; mutable aliases are resolved only before a run manifest is sealed.
+Every template is an immutable `TemplateSnapshot` with ID, version, parent ID, content hash, lifecycle status, exact catalog, truth and template-admission-policy snapshots, typed ports, evidence runs, counterexamples and benchmark reports. Retrieval pins the exact version and hash; mutable aliases are resolved only before a run manifest is sealed.
 
 Initial examples are limited to stud/tube constructions supported by the first catalog: running-bond walls, reinforced corners, openings, stepped slopes, roof ridges, simple fixed chassis frames and decorative modules. Wheel bogies and articulated character joints wait for the required axle, pin, hinge or clip truth.
 

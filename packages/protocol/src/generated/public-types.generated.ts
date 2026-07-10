@@ -23,6 +23,7 @@ export type LongText = DeepReadonly<Wire.LongText>;
 export type AttemptTerminalV1 = DeepReadonly<Wire.AttemptTerminalV1>;
 export type UtcTimestamp = DeepReadonly<Wire.UtcTimestamp>;
 export type Ed25519Signature = DeepReadonly<Wire.Ed25519Signature>;
+export type TemplateColorValueV1 = DeepReadonly<Wire.TemplateColorValueV1>;
 export type TruthSnapshot = DeepReadonly<Wire.TruthSnapshot>;
 export type SnapshotRef = DeepReadonly<Wire.SnapshotRef>;
 export type RigidTransform = DeepReadonly<Wire.RigidTransform>;
@@ -96,3 +97,18 @@ export type NativeSealedRunManifestV1 =
   DeepReadonly<Wire.NativeSealedRunManifestV1>;
 export type ReplayClosureCertificateV1 =
   DeepReadonly<Wire.ReplayClosureCertificateV1>;
+export type TemplateSnapshotV1 = DeepReadonly<Wire.TemplateSnapshotV1>;
+export type TemplateColorParameterV1 =
+  DeepReadonly<Wire.TemplateColorParameterV1>;
+export type TemplateFixedPartV1 = DeepReadonly<Wire.TemplateFixedPartV1>;
+export type TemplateLiteralColorV1 = DeepReadonly<Wire.TemplateLiteralColorV1>;
+export type TemplateParameterColorV1 =
+  DeepReadonly<Wire.TemplateParameterColorV1>;
+export type TemplateInternalConnectionV1 =
+  DeepReadonly<Wire.TemplateInternalConnectionV1>;
+export type TemplateLocalPortRefV1 = DeepReadonly<Wire.TemplateLocalPortRefV1>;
+export type TemplateExternalPortV1 = DeepReadonly<Wire.TemplateExternalPortV1>;
+export type TemplateClearanceVolumeV1 =
+  DeepReadonly<Wire.TemplateClearanceVolumeV1>;
+export type TemplateProvenanceV1 = DeepReadonly<Wire.TemplateProvenanceV1>;
+export type TemplateLicenseV1 = DeepReadonly<Wire.TemplateLicenseV1>;

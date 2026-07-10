@@ -10,6 +10,7 @@ export const validateScopeCapabilityV1: ValidateFunction<unknown>;
 export const validateAssemblyPatchV1: ValidateFunction<unknown>;
 export const validateValidationIssue: ValidateFunction<unknown>;
 export const validateValidationReportV1: ValidateFunction<unknown>;
+export const validateTemplateSnapshotV1: ValidateFunction<unknown>;
 export const validateArtifactRefV1: ValidateFunction<unknown>;
 export const validateTrustNamespaceV1: ValidateFunction<unknown>;
 export const validateGenerationBudgetsV1: ValidateFunction<unknown>;
