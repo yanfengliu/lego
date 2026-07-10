@@ -36,7 +36,7 @@ This repository is an AI-native digital brick modeling studio with three coordin
 2. An AI copilot that generates complete models or scoped, previewable subassembly patches.
 3. A replayable laboratory that improves templates, techniques, the harness, and the application under protected evaluation and human authority.
 
-The repository is currently design-first; implementation has not been scaffolded. Do not claim that a documented feature, command, validator, provider, or harness exists until the files and executable behavior prove it.
+The repository now has an initial Gate 0/1 TypeScript workspace with protocol, catalog, brick-kernel, rendering, and browser packages. Provider-backed generation, the companion trust broker, production candidate acceptance, retained native run bundles, and the recursive engineering runner remain unimplemented. Do not claim that a documented feature, command, validator, provider, broker, or harness exists until live files and executable behavior prove it.
 
 The first product is not a BrickLink Studio clone, a general mesh editor, a complete official-parts catalog, or a guarantee of physical stability, clutch strength, or instruction accessibility. It does not merge with `3d-maker` merely because both render 3D objects.
 
@@ -77,7 +77,17 @@ The first product is not a BrickLink Studio clone, a general mesh editor, a comp
 
 ## Commands and completion gates
 
-No application package or authoritative test scripts exist yet. Do not invent commands or report runtime gates as passing.
+The authoritative workspace commands are:
+
+- `npm run dev` — serve the browser studio on the pinned local development origin.
+- `npm run schema:check` — prove generated protocol types and standalone validators match the authoritative schema.
+- `npm run node:check` — exercise protocol, catalog, and brick-kernel imports in the supported Node 24 source-first runtime.
+- `npm run bom:check` — reconcile workspace manifests, exact pins, lockfile metadata, and the dependency/data bill of materials.
+- `npm run notices:check` — prove `THIRD_PARTY_NOTICES.md` matches the locked third-party graph.
+- `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build` — individual source, behavior, and production-bundle gates; the build fails if development automation globals survive tree-shaking.
+- `npm run verify` — run the complete implemented gate set in the required order.
+
+`npm run playtest:recursive` does not exist yet. Add it only with the recorded-input runner, immutable evidence, finding lifecycle, replay verification, ledger behavior, and acceptance drill required by `../loop-ops/docs/skills/building-recursive-loop.md`; never add a placeholder command that merely exits successfully.
 
 For documentation-only work, at minimum verify the diff, internal paths and links, Markdown fences, and trailing whitespace. When Gate 0 or Gate 1 introduces executable packages, add their real commands here in the same change and make those scripts authoritative.
 
@@ -93,7 +103,7 @@ For any ordinary UI change, drive and inspect the affected surface in the actual
 4. Compare before and after pixels when the change is visual, using tolerances appropriate to the renderer.
 5. Confirm that pixels, structured state, and intended behavior agree; fix and repeat.
 
-The task that first scaffolds the browser automation bridge must implement and test these hooks before claiming the relevant render or interaction gate complete. Until then, do not pretend they exist. Do not approve a visual feature from source inspection alone. Do not approve structural behavior from a pleasing screenshot alone. Test resize, WebGL context loss, repeated candidate disposal, and renderer-memory stability when relevant.
+The development browser automation bridge is implemented in `apps/web/src/automation.ts` and tested at the contract level. Do not approve a visual feature from source inspection or hook presence alone, and do not approve structural behavior from a pleasing screenshot alone. Test the served app, resize, WebGL context loss, repeated candidate disposal, and renderer-memory stability when relevant. Production builds must still omit the bridge or require the authenticated non-production namespace specified above before they can handle real user documents.
 
 Import/export work must exercise the actual supported consumer or viewer path. A string round trip alone does not prove that an exported model loads, renders, or preserves the supported canonical edge set.
 

@@ -2,16 +2,38 @@
 
 An AI-native digital brick modeling studio for manually building, generating, repairing, and evolving digitally connection- and collision-validated brick assemblies.
 
-Status: design draft; implementation has not started.
+Status: Gate 0/1 implementation is underway. The repository now contains a runnable browser studio, strict wire schemas, a project-authored starter catalog, deterministic assembly kernel, disposable Three.js renderer, and a bounded LDraw profile. Provider-backed AI, the companion trust broker, and the recursive engineering runner are not implemented yet.
+
+## Run it
+
+```powershell
+npm install
+npm run dev
+```
+
+Open `http://127.0.0.1:5173`. The current studio supports explicit part placement and attachment, precise transforms, recoloring, deletion, undo/redo, live graph/port/collision validation, canonical 3D views, and strict LDraw import/export.
+
+The Copilot panel is deliberately a local deterministic preview: it converts a bounded tower prompt into the same restricted `BuildProgram` contract an eventual model provider must use, compiles and validates an immutable candidate, and never applies it. AI candidate acceptance remains unavailable until the companion broker can issue and verify the required one-use authorization.
+
+Run the complete implemented gate set with:
+
+```powershell
+npm run verify
+```
+
+`verify` also exercises the shared packages under the supported Node 24 TypeScript-stripping runtime and proves that development automation globals are absent from the production browser bundle.
 
 ## Design
 
 - [Product and architecture specification](docs/design/spec.md)
+- [Current implementation threat model](docs/design/threat-model.md)
 - [Learning harness and improvement loops](docs/design/learning-system.md)
 - [Brick assembly loop skill procedure](docs/skills/brick-assembly-loop.md)
 
 ## First vertical slice
 
 The first useful slice is deliberately small: a curated basic-part catalog, a precise manual editor, deterministic connection and collision validation, text-to-model candidate generation, canonical multi-view renders, previewable AI patches, LDraw interchange, and replayable run artifacts.
+
+Implemented today: 14 parametric bricks and plates, strict JSON Schema/Ajv protocol validators, canonical hashing, invertible build operations, scoped restricted-program compilation, hard validators, manual editor history, renderer lifecycle and camera packets, development-only automation hooks, provenance/BOM checks, third-party notices, and the metadata-bearing LDraw subset emitted by this app. Unsealed LDraw metadata is treated as an untrusted claim and reattributed to local import provenance. Arbitrary ecosystem LDraw files, physical-stability claims, broker-authorized candidate acceptance, model providers, retained run bundles, and self-improvement passes remain outside the current executable slice.
 
 The app owns brick-specific semantics. The sibling `3d-maker` repository remains a separate procedural-asset evolution studio; the two projects may later share experiment, lineage, and visual-evaluation protocols after real duplicate implementations exist.
