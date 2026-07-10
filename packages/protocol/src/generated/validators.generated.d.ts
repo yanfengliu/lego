@@ -1,4 +1,4 @@
-// Generated from schemas/protocol.schema.json. Do not edit by hand.
+// Generated from schemas/protocol.schema.json and schemas/fragments/*.schema.json. Do not edit by hand.
 import type { ValidateFunction } from "ajv";
 
 export const validateTruthSnapshot: ValidateFunction<unknown>;
@@ -8,4 +8,22 @@ export const validateBuildProgramV1: ValidateFunction<unknown>;
 export const validateBuildOperation: ValidateFunction<unknown>;
 export const validateScopeCapabilityV1: ValidateFunction<unknown>;
 export const validateAssemblyPatchV1: ValidateFunction<unknown>;
+export const validateValidationIssue: ValidateFunction<unknown>;
 export const validateValidationReportV1: ValidateFunction<unknown>;
+export const validateArtifactRefV1: ValidateFunction<unknown>;
+export const validateTrustNamespaceV1: ValidateFunction<unknown>;
+export const validateGenerationBudgetsV1: ValidateFunction<unknown>;
+export const validateDataUseConsentV1: ValidateFunction<unknown>;
+export const validateBuildBriefV1: ValidateFunction<unknown>;
+export const validateProviderCapabilitiesV1: ValidateFunction<unknown>;
+export const validateRenderPacketV1: ValidateFunction<unknown>;
+export const validateActorObservationV1: ValidateFunction<unknown>;
+export const validateMakerObservationV1: ValidateFunction<unknown>;
+export const validateCandidateProgramSubmissionV1: ValidateFunction<unknown>;
+export const validateAttemptTranscriptV1: ValidateFunction<unknown>;
+export const validateGenerationJobRecordV1: ValidateFunction<unknown>;
+export const validateCandidateRecordV1: ValidateFunction<unknown>;
+export const validatePresentedPatchEnvelopeV1: ValidateFunction<unknown>;
+export const validateAcceptanceAuthorizationV1: ValidateFunction<unknown>;
+export const validateRunEventV1: ValidateFunction<unknown>;
+export const validateNativeSealedRunManifestV1: ValidateFunction<unknown>;

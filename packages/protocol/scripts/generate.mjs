@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 import Ajv from "ajv";
@@ -8,11 +8,42 @@ import { format } from "prettier";
 
 const packageDirectory = fileURLToPath(new URL("..", import.meta.url));
 const schemaPath = fileURLToPath(new URL("../schemas/protocol.schema.json", import.meta.url));
+const fragmentDirectory = fileURLToPath(new URL("../schemas/fragments", import.meta.url));
 const generatedDirectory = fileURLToPath(new URL("../src/generated", import.meta.url));
 const checkOnly = process.argv.includes("--check");
-const banner = "// Generated from schemas/protocol.schema.json. Do not edit by hand.\n";
+const banner =
+  "// Generated from schemas/protocol.schema.json and schemas/fragments/*.schema.json. Do not edit by hand.\n";
 
 const schema = JSON.parse(await readFile(schemaPath, "utf8"));
+const fragmentFilenames = (await readdir(fragmentDirectory))
+  .filter((filename) => filename.endsWith(".schema.json"))
+  .sort();
+for (const filename of fragmentFilenames) {
+  const fragment = JSON.parse(
+    await readFile(
+      fileURLToPath(new URL(`../schemas/fragments/${filename}`, import.meta.url)),
+      "utf8",
+    ),
+  );
+  const unexpectedKeys = Object.keys(fragment).filter(
+    (key) => !["title", "roots", "definitions"].includes(key),
+  );
+  if (unexpectedKeys.length > 0 || !Array.isArray(fragment.roots) || !fragment.definitions) {
+    throw new Error(`Invalid protocol schema fragment metadata: ${filename}`);
+  }
+  for (const definitionName of fragment.roots) {
+    if (!Object.hasOwn(fragment.definitions, definitionName)) {
+      throw new Error(`Fragment root is not defined (${filename}: ${definitionName})`);
+    }
+    schema.oneOf.push({ $ref: `#/definitions/${definitionName}` });
+  }
+  for (const [definitionName, definition] of Object.entries(fragment.definitions)) {
+    if (Object.hasOwn(schema.definitions, definitionName)) {
+      throw new Error(`Duplicate protocol definition (${filename}: ${definitionName})`);
+    }
+    schema.definitions[definitionName] = definition;
+  }
+}
 visitSchema(schema, (node) => {
   if (node.type === "object" && node.additionalProperties !== false) {
     throw new Error(
@@ -80,7 +111,25 @@ const validatorDefinitions = {
   validateBuildOperation: "BuildOperation",
   validateScopeCapabilityV1: "ScopeCapabilityV1",
   validateAssemblyPatchV1: "AssemblyPatchV1",
+  validateValidationIssue: "ValidationIssue",
   validateValidationReportV1: "ValidationReportV1",
+  validateArtifactRefV1: "ArtifactRefV1",
+  validateTrustNamespaceV1: "TrustNamespaceV1",
+  validateGenerationBudgetsV1: "GenerationBudgetsV1",
+  validateDataUseConsentV1: "DataUseConsentV1",
+  validateBuildBriefV1: "BuildBriefV1",
+  validateProviderCapabilitiesV1: "ProviderCapabilitiesV1",
+  validateRenderPacketV1: "RenderPacketV1",
+  validateActorObservationV1: "ActorObservationV1",
+  validateMakerObservationV1: "MakerObservationV1",
+  validateCandidateProgramSubmissionV1: "CandidateProgramSubmissionV1",
+  validateAttemptTranscriptV1: "AttemptTranscriptV1",
+  validateGenerationJobRecordV1: "GenerationJobRecordV1",
+  validateCandidateRecordV1: "CandidateRecordV1",
+  validatePresentedPatchEnvelopeV1: "PresentedPatchEnvelopeV1",
+  validateAcceptanceAuthorizationV1: "AcceptanceAuthorizationV1",
+  validateRunEventV1: "RunEventV1",
+  validateNativeSealedRunManifestV1: "NativeSealedRunManifestV1",
 };
 
 const ajv = new Ajv({

@@ -2,14 +2,16 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://schemas.brick-studio.local/protocol/1",
   "title": "LegoStudioProtocol",
-  "description": "Authoritative version-1 wire contracts for canonical brick documents, untrusted build programs, trusted patches, scope, and validation.",
+  "description": "Authoritative version-1 wire contracts for canonical brick documents, restricted generation, evidence, authority, and validation.",
   "oneOf": [
     { "$ref": "#/definitions/TruthSnapshot" },
     { "$ref": "#/definitions/RigidTransform" },
     { "$ref": "#/definitions/BrickDocumentV1" },
     { "$ref": "#/definitions/BuildProgramV1" },
+    { "$ref": "#/definitions/BuildOperation" },
     { "$ref": "#/definitions/ScopeCapabilityV1" },
     { "$ref": "#/definitions/AssemblyPatchV1" },
+    { "$ref": "#/definitions/ValidationIssue" },
     { "$ref": "#/definitions/ValidationReportV1" }
   ],
   "definitions": {

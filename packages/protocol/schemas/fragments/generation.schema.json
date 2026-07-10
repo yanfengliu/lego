@@ -1,0 +1,940 @@
+{
+  "title": "Generation, evidence, and authority contracts",
+  "roots": [
+    "TrustNamespaceV1",
+    "ArtifactRefV1",
+    "BuildBriefV1",
+    "ProviderCapabilitiesV1",
+    "RenderPacketV1",
+    "ActorObservationV1",
+    "MakerObservationV1",
+    "CandidateProgramSubmissionV1",
+    "AttemptTranscriptV1",
+    "GenerationJobRecordV1",
+    "CandidateRecordV1",
+    "PresentedPatchEnvelopeV1",
+    "AcceptanceAuthorizationV1",
+    "RunEventV1",
+    "NativeSealedRunManifestV1"
+  ],
+  "definitions": {
+    "LongText": {
+      "type": "string",
+      "maxLength": 8192
+    },
+    "UtcTimestamp": {
+      "type": "string",
+      "minLength": 20,
+      "maxLength": 40,
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,9})?Z$"
+    },
+    "Ed25519Signature": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{86}$"
+    },
+    "TrustNamespaceV1": {
+      "enum": ["production", "test", "evaluation"]
+    },
+    "ArtifactRefV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactId", "kind", "mediaType", "sha256", "byteLength", "casKey"],
+      "properties": {
+        "artifactId": { "$ref": "#/definitions/Identifier" },
+        "kind": {
+          "enum": [
+            "input",
+            "program",
+            "patch",
+            "document",
+            "validation",
+            "render",
+            "critique",
+            "metrics",
+            "transcript",
+            "source",
+            "bundle",
+            "report",
+            "export"
+          ]
+        },
+        "mediaType": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 128,
+          "pattern": "^[a-z0-9][a-z0-9.+-]*/[a-z0-9][a-z0-9.+-]*$"
+        },
+        "sha256": { "$ref": "#/definitions/Hash" },
+        "byteLength": { "type": "integer", "minimum": 0, "maximum": 1073741824 },
+        "casKey": { "$ref": "#/definitions/Hash" }
+      }
+    },
+    "GenerationBudgetsV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maxCandidates",
+        "maxRepairs",
+        "maxProviderCalls",
+        "maxTokens",
+        "maxCostMicros",
+        "maxWallTimeMs",
+        "maxRenders",
+        "maxStoredBytes"
+      ],
+      "properties": {
+        "maxCandidates": { "type": "integer", "minimum": 1, "maximum": 16 },
+        "maxRepairs": { "type": "integer", "minimum": 0, "maximum": 32 },
+        "maxProviderCalls": { "type": "integer", "minimum": 0, "maximum": 64 },
+        "maxTokens": { "type": "integer", "minimum": 0, "maximum": 10000000 },
+        "maxCostMicros": { "type": "integer", "minimum": 0, "maximum": 1000000000000 },
+        "maxWallTimeMs": { "type": "integer", "minimum": 1, "maximum": 86400000 },
+        "maxRenders": { "type": "integer", "minimum": 1, "maximum": 1024 },
+        "maxStoredBytes": { "type": "integer", "minimum": 1, "maximum": 1073741824 }
+      }
+    },
+    "DataUseConsentV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policyVersion",
+        "providerTransmission",
+        "retainRunArtifacts",
+        "knowledgeUse",
+        "benchmarkUse",
+        "trainingUse"
+      ],
+      "properties": {
+        "policyVersion": { "$ref": "#/definitions/Identifier" },
+        "providerTransmission": { "enum": ["none", "text-only", "text-and-approved-assets"] },
+        "retainRunArtifacts": { "type": "boolean" },
+        "knowledgeUse": { "type": "boolean" },
+        "benchmarkUse": { "type": "boolean" },
+        "trainingUse": { "type": "boolean" }
+      }
+    },
+    "BuildBriefV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "mode",
+        "prompt",
+        "referenceArtifactIds",
+        "baseRevision",
+        "baseDocumentHash",
+        "allowedCatalogPartIds",
+        "allowedColorIds",
+        "pieceBudget",
+        "semanticRequirements",
+        "styleTags",
+        "budgets",
+        "consent"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "lego.build-brief/1" },
+        "mode": {
+          "enum": ["full", "insertion", "completion", "replacement", "repair", "variant"]
+        },
+        "prompt": { "$ref": "#/definitions/LongText" },
+        "referenceArtifactIds": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "maxItems": 8,
+          "uniqueItems": true
+        },
+        "referenceCameraAssumptions": { "$ref": "#/definitions/ShortText" },
+        "baseRevision": { "$ref": "#/definitions/Identifier" },
+        "baseDocumentHash": { "$ref": "#/definitions/Hash" },
+        "allowedCatalogPartIds": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "minItems": 1,
+          "maxItems": 10000,
+          "uniqueItems": true
+        },
+        "allowedColorIds": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "minItems": 1,
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "pieceBudget": { "type": "integer", "minimum": 1, "maximum": 10000 },
+        "targetBoundsLdu": { "$ref": "#/definitions/AllowedVolume" },
+        "semanticRequirements": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ShortText" },
+          "maxItems": 64,
+          "uniqueItems": true
+        },
+        "styleTags": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "maxItems": 32,
+          "uniqueItems": true
+        },
+        "budgets": { "$ref": "#/definitions/GenerationBudgetsV1" },
+        "consent": { "$ref": "#/definitions/DataUseConsentV1" }
+      }
+    },
+    "ProviderCapabilitiesV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "providerId",
+        "policyVersion",
+        "supportedProtocolVersions",
+        "supportedCatalogHashes",
+        "inputKinds",
+        "supportsTools",
+        "supportsStreaming",
+        "cancellation",
+        "seedBehavior",
+        "maxInputBytes",
+        "maxOutputBytes",
+        "maxTokens",
+        "execution",
+        "retention",
+        "training",
+        "acceptedConsentClasses"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "lego.provider-capabilities/1" },
+        "providerId": { "$ref": "#/definitions/Identifier" },
+        "policyVersion": { "$ref": "#/definitions/Identifier" },
+        "supportedProtocolVersions": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true
+        },
+        "supportedCatalogHashes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Hash" },
+          "minItems": 1,
+          "maxItems": 64,
+          "uniqueItems": true
+        },
+        "inputKinds": {
+          "type": "array",
+          "items": { "enum": ["text", "image", "mesh"] },
+          "minItems": 1,
+          "maxItems": 3,
+          "uniqueItems": true
+        },
+        "supportsTools": { "type": "boolean" },
+        "supportsStreaming": { "type": "boolean" },
+        "cancellation": { "enum": ["real", "best-effort", "none"] },
+        "seedBehavior": { "enum": ["deterministic", "best-effort", "none"] },
+        "maxInputBytes": { "type": "integer", "minimum": 1, "maximum": 1073741824 },
+        "maxOutputBytes": { "type": "integer", "minimum": 1, "maximum": 16777216 },
+        "maxTokens": { "type": "integer", "minimum": 1, "maximum": 10000000 },
+        "execution": { "enum": ["local", "external"] },
+        "retention": { "enum": ["none", "transient", "provider-policy"] },
+        "training": { "enum": ["prohibited", "opt-out", "allowed-with-consent"] },
+        "acceptedConsentClasses": {
+          "type": "array",
+          "items": { "enum": ["none", "text-only", "text-and-approved-assets"] },
+          "minItems": 1,
+          "maxItems": 3,
+          "uniqueItems": true
+        }
+      }
+    },
+    "RenderViewArtifactV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["viewId", "pass", "artifact", "width", "height", "devicePixelRatio"],
+      "properties": {
+        "viewId": { "$ref": "#/definitions/Identifier" },
+        "pass": {
+          "enum": [
+            "beauty",
+            "silhouette",
+            "depth",
+            "normal",
+            "part-id",
+            "connections",
+            "collision",
+            "disconnected",
+            "exposed-ports",
+            "support",
+            "closeup"
+          ]
+        },
+        "artifact": { "$ref": "#/definitions/ArtifactRefV1" },
+        "width": { "type": "integer", "minimum": 1, "maximum": 8192 },
+        "height": { "type": "integer", "minimum": 1, "maximum": 8192 },
+        "devicePixelRatio": { "type": "number", "minimum": 0.25, "maximum": 8 }
+      }
+    },
+    "RenderPacketV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "documentHash",
+        "validationReportHash",
+        "rendererSnapshotHash",
+        "cameraSnapshotHash",
+        "capturePolicyHash",
+        "browserBuildHash",
+        "views"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "lego.render-packet/1" },
+        "documentHash": { "$ref": "#/definitions/Hash" },
+        "validationReportHash": { "$ref": "#/definitions/Hash" },
+        "rendererSnapshotHash": { "$ref": "#/definitions/Hash" },
+        "cameraSnapshotHash": { "$ref": "#/definitions/Hash" },
+        "capturePolicyHash": { "$ref": "#/definitions/Hash" },
+        "browserBuildHash": { "$ref": "#/definitions/Hash" },
+        "views": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/RenderViewArtifactV1" },
+          "minItems": 7,
+          "maxItems": 128
+        }
+      }
+    },
+    "ControlBoundsV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "width", "height"],
+      "properties": {
+        "x": { "type": "integer", "minimum": -65536, "maximum": 65536 },
+        "y": { "type": "integer", "minimum": -65536, "maximum": 65536 },
+        "width": { "type": "integer", "minimum": 0, "maximum": 65536 },
+        "height": { "type": "integer", "minimum": 0, "maximum": 65536 }
+      }
+    },
+    "OfferedControlV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["controlId", "label", "state", "bounds", "actionCategories"],
+      "properties": {
+        "controlId": { "$ref": "#/definitions/Identifier" },
+        "label": { "$ref": "#/definitions/ShortText" },
+        "state": { "enum": ["enabled", "disabled", "selected"] },
+        "bounds": { "$ref": "#/definitions/ControlBoundsV1" },
+        "actionCategories": {
+          "type": "array",
+          "items": {
+            "enum": ["click", "type", "select", "drag", "orbit", "zoom", "cancel", "preview"]
+          },
+          "minItems": 1,
+          "maxItems": 8,
+          "uniqueItems": true
+        }
+      }
+    },
+    "ViewportV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height", "devicePixelRatio"],
+      "properties": {
+        "width": { "type": "integer", "minimum": 1, "maximum": 16384 },
+        "height": { "type": "integer", "minimum": 1, "maximum": 16384 },
+        "devicePixelRatio": { "type": "number", "minimum": 0.25, "maximum": 8 }
+      }
+    },
+    "ActorObservationV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "observationHash",
+        "runId",
+        "sequence",
+        "screenshotArtifact",
+        "visibleTextHash",
+        "offeredControls",
+        "viewport",
+        "cameraSnapshotHash",
+        "renderConfigHash",
+        "applicationBuildHash",
+        "documentRevision",
+        "documentHash"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "lego.actor-observation/1" },
+        "observationHash": { "$ref": "#/definitions/Hash" },
+        "runId": { "$ref": "#/definitions/Identifier" },
+        "sequence": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "screenshotArtifact": { "$ref": "#/definitions/ArtifactRefV1" },
+        "visibleTextHash": { "$ref": "#/definitions/Hash" },
+        "offeredControls": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/OfferedControlV1" },
+          "maxItems": 1024
+        },
+        "viewport": { "$ref": "#/definitions/ViewportV1" },
+        "cameraSnapshotHash": { "$ref": "#/definitions/Hash" },
+        "renderConfigHash": { "$ref": "#/definitions/Hash" },
+        "applicationBuildHash": { "$ref": "#/definitions/Hash" },
+        "documentRevision": { "$ref": "#/definitions/Identifier" },
+        "documentHash": { "$ref": "#/definitions/Hash" },
+        "activeJobId": { "$ref": "#/definitions/Identifier" },
+        "activeCandidateId": { "$ref": "#/definitions/Identifier" }
+      }
+    },
+    "MakerScopeProjectionV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mutablePartIds",
+        "readOnlyBoundaryPartIds",
+        "requiredAttachmentPorts",
+        "allowedVolume",
+        "allowedCatalogPartIds",
+        "allowedColorIds",
+        "budgets"
+      ],
+      "properties": {
+        "mutablePartIds": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "maxItems": 10000,
+          "uniqueItems": true
+        },
+        "readOnlyBoundaryPartIds": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "maxItems": 10000,
+          "uniqueItems": true
+        },
+        "requiredAttachmentPorts": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/PartPortRef" },
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "allowedVolume": { "$ref": "#/definitions/AllowedVolume" },
+        "allowedCatalogPartIds": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "minItems": 1,
+          "maxItems": 10000,
+          "uniqueItems": true
+        },
+        "allowedColorIds": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "minItems": 1,
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "budgets": { "$ref": "#/definitions/ScopeBudgets" }
+      }
+    },
+    "MakerDocumentSummaryV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "partCount",
+        "connectionCount",
+        "componentCount",
+        "exposedPortCount",
+        "semanticTags",
+        "boundsLdu"
+      ],
+      "properties": {
+        "partCount": { "type": "integer", "minimum": 0, "maximum": 10000 },
+        "connectionCount": { "type": "integer", "minimum": 0, "maximum": 50000 },
+        "componentCount": { "type": "integer", "minimum": 0, "maximum": 10000 },
+        "exposedPortCount": { "type": "integer", "minimum": 0, "maximum": 100000 },
+        "semanticTags": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "boundsLdu": { "$ref": "#/definitions/AllowedVolume" }
+      }
+    },
+    "MakerObservationV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "observationHash",
+        "jobId",
+        "attemptId",
+        "consentPolicyHash",
+        "scopePolicyHash",
+        "baseRevision",
+        "baseDocumentHash",
+        "brief",
+        "scope",
+        "documentSummary",
+        "validationSummary",
+        "renderPacket",
+        "referenceArtifacts",
+        "templateSnapshotHashes",
+        "lessonSnapshotHashes",
+        "remainingBudgets"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "lego.maker-observation/1" },
+        "observationHash": { "$ref": "#/definitions/Hash" },
+        "jobId": { "$ref": "#/definitions/Identifier" },
+        "attemptId": { "$ref": "#/definitions/Identifier" },
+        "consentPolicyHash": { "$ref": "#/definitions/Hash" },
+        "scopePolicyHash": { "$ref": "#/definitions/Hash" },
+        "baseRevision": { "$ref": "#/definitions/Identifier" },
+        "baseDocumentHash": { "$ref": "#/definitions/Hash" },
+        "brief": { "$ref": "#/definitions/BuildBriefV1" },
+        "scope": { "$ref": "#/definitions/MakerScopeProjectionV1" },
+        "documentSummary": { "$ref": "#/definitions/MakerDocumentSummaryV1" },
+        "validationSummary": { "$ref": "#/definitions/ValidationReportV1" },
+        "parentDiffArtifact": { "$ref": "#/definitions/ArtifactRefV1" },
+        "renderPacket": { "$ref": "#/definitions/RenderPacketV1" },
+        "referenceArtifacts": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ArtifactRefV1" },
+          "maxItems": 8
+        },
+        "templateSnapshotHashes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Hash" },
+          "maxItems": 128,
+          "uniqueItems": true
+        },
+        "lessonSnapshotHashes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Hash" },
+          "maxItems": 128,
+          "uniqueItems": true
+        },
+        "remainingBudgets": { "$ref": "#/definitions/GenerationBudgetsV1" }
+      }
+    },
+    "CandidateProgramSubmissionV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "jobId", "attemptId", "observationHash", "program"],
+      "properties": {
+        "schemaVersion": { "const": "lego.candidate-program-submission/1" },
+        "jobId": { "$ref": "#/definitions/Identifier" },
+        "attemptId": { "$ref": "#/definitions/Identifier" },
+        "observationHash": { "$ref": "#/definitions/Hash" },
+        "program": { "$ref": "#/definitions/BuildProgramV1" }
+      }
+    },
+    "AttemptSuccessTerminalV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "preDocumentHash", "postDocumentHash"],
+      "properties": {
+        "status": { "const": "success" },
+        "proposedDecisionArtifactHash": { "$ref": "#/definitions/Hash" },
+        "executedActionArtifactHash": { "$ref": "#/definitions/Hash" },
+        "commandTransactionHash": { "$ref": "#/definitions/Hash" },
+        "preDocumentHash": { "$ref": "#/definitions/Hash" },
+        "postDocumentHash": { "$ref": "#/definitions/Hash" }
+      }
+    },
+    "AttemptNoMutationTerminalV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "proposedDecisionArtifactHash",
+        "reasonCode",
+        "preDocumentHash",
+        "postDocumentHash"
+      ],
+      "properties": {
+        "status": { "enum": ["staleObservation", "capabilityRejected", "controlUnavailable"] },
+        "proposedDecisionArtifactHash": { "$ref": "#/definitions/Hash" },
+        "reasonCode": { "$ref": "#/definitions/Identifier" },
+        "preDocumentHash": { "$ref": "#/definitions/Hash" },
+        "postDocumentHash": { "$ref": "#/definitions/Hash" }
+      }
+    },
+    "AttemptFailureTerminalV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reasonCode", "preDocumentHash", "postDocumentHash"],
+      "properties": {
+        "status": {
+          "enum": [
+            "timeout",
+            "malformedOutput",
+            "refusal",
+            "cancelled",
+            "crash",
+            "persistenceFailed"
+          ]
+        },
+        "reasonCode": { "$ref": "#/definitions/Identifier" },
+        "proposedDecisionArtifactHash": { "$ref": "#/definitions/Hash" },
+        "preDocumentHash": { "$ref": "#/definitions/Hash" },
+        "postDocumentHash": { "$ref": "#/definitions/Hash" }
+      }
+    },
+    "AttemptTerminalV1": {
+      "oneOf": [
+        { "$ref": "#/definitions/AttemptSuccessTerminalV1" },
+        { "$ref": "#/definitions/AttemptNoMutationTerminalV1" },
+        { "$ref": "#/definitions/AttemptFailureTerminalV1" }
+      ]
+    },
+    "AttemptTranscriptV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "runId",
+        "attemptId",
+        "sequence",
+        "kind",
+        "observationHash",
+        "inputArtifactHashes",
+        "deadlineMs",
+        "startedEventHash",
+        "terminalEventHash",
+        "terminal"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "lego.attempt-transcript/1" },
+        "runId": { "$ref": "#/definitions/Identifier" },
+        "attemptId": { "$ref": "#/definitions/Identifier" },
+        "sequence": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "kind": { "enum": ["maker", "provider", "browser", "critic"] },
+        "observationHash": { "$ref": "#/definitions/Hash" },
+        "inputArtifactHashes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Hash" },
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "deadlineMs": { "type": "integer", "minimum": 1, "maximum": 86400000 },
+        "startedEventHash": { "$ref": "#/definitions/Hash" },
+        "terminalEventHash": { "$ref": "#/definitions/Hash" },
+        "terminal": { "$ref": "#/definitions/AttemptTerminalV1" }
+      }
+    },
+    "GenerationJobRecordV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "namespace",
+        "jobId",
+        "idempotencyKey",
+        "state",
+        "baseRevision",
+        "baseDocumentHash",
+        "truthSnapshotHash",
+        "scopeCapabilityId",
+        "scopeDigest",
+        "briefHash",
+        "budgets",
+        "cancellationGeneration",
+        "candidateIds",
+        "eventSequence"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "lego.generation-job/1" },
+        "namespace": { "enum": ["production", "test"] },
+        "jobId": { "$ref": "#/definitions/Identifier" },
+        "idempotencyKey": { "$ref": "#/definitions/Identifier" },
+        "state": {
+          "enum": [
+            "created",
+            "queued",
+            "running",
+            "draining",
+            "cancelling",
+            "cancelled",
+            "succeeded",
+            "failed",
+            "exhausted",
+            "persistenceFailed"
+          ]
+        },
+        "baseRevision": { "$ref": "#/definitions/Identifier" },
+        "baseDocumentHash": { "$ref": "#/definitions/Hash" },
+        "truthSnapshotHash": { "$ref": "#/definitions/Hash" },
+        "scopeCapabilityId": { "$ref": "#/definitions/Identifier" },
+        "scopeDigest": { "$ref": "#/definitions/Hash" },
+        "briefHash": { "$ref": "#/definitions/Hash" },
+        "budgets": { "$ref": "#/definitions/GenerationBudgetsV1" },
+        "cancellationGeneration": { "type": "integer", "minimum": 0, "maximum": 2147483647 },
+        "candidateIds": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "maxItems": 16,
+          "uniqueItems": true
+        },
+        "eventSequence": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+      }
+    },
+    "CandidateMetricsV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["partCount", "operationCount", "blockingIssueCount", "advisoryIssueCount"],
+      "properties": {
+        "partCount": { "type": "integer", "minimum": 0, "maximum": 10000 },
+        "operationCount": { "type": "integer", "minimum": 0, "maximum": 10000 },
+        "blockingIssueCount": { "type": "integer", "minimum": 0, "maximum": 10000 },
+        "advisoryIssueCount": { "type": "integer", "minimum": 0, "maximum": 10000 },
+        "intentScore": { "type": "number", "minimum": 0, "maximum": 1 },
+        "visualScore": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "CandidateRecordV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "jobId",
+        "candidateId",
+        "cancellationGeneration",
+        "state",
+        "programArtifact",
+        "metrics"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "lego.candidate-record/1" },
+        "jobId": { "$ref": "#/definitions/Identifier" },
+        "candidateId": { "$ref": "#/definitions/Identifier" },
+        "parentCandidateId": { "$ref": "#/definitions/Identifier" },
+        "cancellationGeneration": { "type": "integer", "minimum": 0, "maximum": 2147483647 },
+        "state": {
+          "enum": [
+            "received",
+            "compiled",
+            "compileRejected",
+            "hardValid",
+            "hardInvalid",
+            "diagnosticRendered",
+            "diagnosticReviewed",
+            "rendered",
+            "critiqued",
+            "ranked",
+            "presented",
+            "archived",
+            "cancelled",
+            "processingFailed",
+            "persistenceFailed"
+          ]
+        },
+        "programArtifact": { "$ref": "#/definitions/ArtifactRefV1" },
+        "patchArtifact": { "$ref": "#/definitions/ArtifactRefV1" },
+        "documentArtifact": { "$ref": "#/definitions/ArtifactRefV1" },
+        "validationArtifact": { "$ref": "#/definitions/ArtifactRefV1" },
+        "renderPacketArtifact": { "$ref": "#/definitions/ArtifactRefV1" },
+        "critiqueArtifact": { "$ref": "#/definitions/ArtifactRefV1" },
+        "metrics": { "$ref": "#/definitions/CandidateMetricsV1" },
+        "failureCodes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "maxItems": 256,
+          "uniqueItems": true
+        }
+      }
+    },
+    "Ed25519SealV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "keyId", "keyEpoch", "signature"],
+      "properties": {
+        "algorithm": { "const": "Ed25519" },
+        "keyId": { "$ref": "#/definitions/Identifier" },
+        "keyEpoch": { "type": "integer", "minimum": 0, "maximum": 2147483647 },
+        "signature": { "$ref": "#/definitions/Ed25519Signature" }
+      }
+    },
+    "PresentedPatchEnvelopeV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "namespace",
+        "jobId",
+        "candidateId",
+        "cancellationGeneration",
+        "compilerSnapshotHash",
+        "buildProgramHash",
+        "validationReportHash",
+        "candidateState",
+        "patch",
+        "issuedAt",
+        "seal"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "lego.presented-patch-envelope/1" },
+        "namespace": { "enum": ["production", "test"] },
+        "jobId": { "$ref": "#/definitions/Identifier" },
+        "candidateId": { "$ref": "#/definitions/Identifier" },
+        "cancellationGeneration": { "type": "integer", "minimum": 0, "maximum": 2147483647 },
+        "compilerSnapshotHash": { "$ref": "#/definitions/Hash" },
+        "buildProgramHash": { "$ref": "#/definitions/Hash" },
+        "validationReportHash": { "$ref": "#/definitions/Hash" },
+        "candidateState": { "const": "presented" },
+        "patch": { "$ref": "#/definitions/AssemblyPatchV1" },
+        "issuedAt": { "$ref": "#/definitions/UtcTimestamp" },
+        "seal": { "$ref": "#/definitions/Ed25519SealV1" }
+      }
+    },
+    "AcceptanceAuthorizationV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "namespace",
+        "authorizationId",
+        "transactionId",
+        "envelopeHash",
+        "baseDocumentHash",
+        "truthSnapshotHash",
+        "browserDeviceKeyId",
+        "cancellationGeneration",
+        "issuedEventSequence",
+        "issuedEventRoot",
+        "seal"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "lego.acceptance-authorization/1" },
+        "namespace": { "const": "production" },
+        "authorizationId": { "$ref": "#/definitions/Identifier" },
+        "transactionId": { "$ref": "#/definitions/Identifier" },
+        "envelopeHash": { "$ref": "#/definitions/Hash" },
+        "baseDocumentHash": { "$ref": "#/definitions/Hash" },
+        "truthSnapshotHash": { "$ref": "#/definitions/Hash" },
+        "browserDeviceKeyId": { "$ref": "#/definitions/Identifier" },
+        "cancellationGeneration": { "type": "integer", "minimum": 0, "maximum": 2147483647 },
+        "issuedEventSequence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "issuedEventRoot": { "$ref": "#/definitions/Hash" },
+        "seal": { "$ref": "#/definitions/Ed25519SealV1" }
+      }
+    },
+    "ReplayClosureCertificateV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sealedReplayLevel",
+        "earliestRetainedBoundary",
+        "artifactRoot",
+        "requiredArtifactHashes",
+        "verifierVersion"
+      ],
+      "properties": {
+        "sealedReplayLevel": { "enum": ["full", "downstream-only", "metadata-only"] },
+        "earliestRetainedBoundary": {
+          "enum": ["inputs", "provider-response", "program", "metadata"]
+        },
+        "artifactRoot": { "$ref": "#/definitions/Hash" },
+        "requiredArtifactHashes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Hash" },
+          "maxItems": 10000,
+          "uniqueItems": true
+        },
+        "verifierVersion": { "$ref": "#/definitions/Identifier" }
+      }
+    },
+    "RunEventV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "runId",
+        "sequence",
+        "previousEventHash",
+        "actorId",
+        "transition",
+        "idempotencyKey",
+        "artifactHashes",
+        "eventHash"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "lego.run-event/1" },
+        "runId": { "$ref": "#/definitions/Identifier" },
+        "sequence": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "previousEventHash": { "$ref": "#/definitions/Hash" },
+        "actorId": { "$ref": "#/definitions/Identifier" },
+        "transition": { "$ref": "#/definitions/Identifier" },
+        "idempotencyKey": { "$ref": "#/definitions/Identifier" },
+        "artifactHashes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Hash" },
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "eventHash": { "$ref": "#/definitions/Hash" }
+      }
+    },
+    "NativeSealedRunManifestV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "namespace",
+        "runId",
+        "terminalState",
+        "baseDocumentHash",
+        "truthSnapshotHash",
+        "applicationBuildHash",
+        "brokerBuildHash",
+        "harnessBuildHash",
+        "lockfileHash",
+        "runtimeHash",
+        "briefHash",
+        "scopeDigest",
+        "budgets",
+        "candidateIds",
+        "eventCount",
+        "eventRoot",
+        "artifacts",
+        "replayClosure",
+        "finalizedAt",
+        "seal"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "lego.native-run-manifest/1" },
+        "namespace": { "enum": ["production", "test"] },
+        "runId": { "$ref": "#/definitions/Identifier" },
+        "terminalState": {
+          "enum": ["succeeded", "exhausted", "failed", "cancelled", "persistenceFailed"]
+        },
+        "baseDocumentHash": { "$ref": "#/definitions/Hash" },
+        "truthSnapshotHash": { "$ref": "#/definitions/Hash" },
+        "applicationBuildHash": { "$ref": "#/definitions/Hash" },
+        "brokerBuildHash": { "$ref": "#/definitions/Hash" },
+        "harnessBuildHash": { "$ref": "#/definitions/Hash" },
+        "lockfileHash": { "$ref": "#/definitions/Hash" },
+        "runtimeHash": { "$ref": "#/definitions/Hash" },
+        "briefHash": { "$ref": "#/definitions/Hash" },
+        "scopeDigest": { "$ref": "#/definitions/Hash" },
+        "providerCapabilitiesHash": { "$ref": "#/definitions/Hash" },
+        "budgets": { "$ref": "#/definitions/GenerationBudgetsV1" },
+        "candidateIds": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Identifier" },
+          "maxItems": 16,
+          "uniqueItems": true
+        },
+        "eventCount": { "type": "integer", "minimum": 1, "maximum": 1000000 },
+        "eventRoot": { "$ref": "#/definitions/Hash" },
+        "artifacts": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ArtifactRefV1" },
+          "maxItems": 10000
+        },
+        "replayClosure": { "$ref": "#/definitions/ReplayClosureCertificateV1" },
+        "finalizedAt": { "$ref": "#/definitions/UtcTimestamp" },
+        "seal": { "$ref": "#/definitions/Ed25519SealV1" }
+      }
+    }
+  }
+}
