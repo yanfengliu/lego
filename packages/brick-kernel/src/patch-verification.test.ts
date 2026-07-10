@@ -222,6 +222,158 @@ describe("independent assembly-patch verification", () => {
     });
   });
 
+  it("requires the final connection payload to preserve every required attachment port", () => {
+    const base = documentWithPart("boundary-part");
+    const scope = scopeFor(base, {
+      mutablePartIds: ["boundary-part"],
+      requiredAttachmentPorts: [{ partId: "boundary-part", portId: "stud:0:0" }],
+    });
+    const addedPart = createPartInstance({
+      id: "added-part",
+      transform: { positionLdu: [0, -24, 0], orientationId: "upright-yaw-0" },
+      source: "ai",
+      sourceId: "candidate-acceptance-1",
+    });
+    const requiredConnection = {
+      id: "reused-connection-id",
+      kind: "stud-tube",
+      a: { partId: "boundary-part", portId: "stud:0:0" },
+      b: { partId: addedPart.id, portId: "undersideClutch:0:0" },
+      provenance: { source: "ai", sourceId: "candidate-acceptance-1" },
+    } as const;
+    const replacementConnection = {
+      ...requiredConnection,
+      a: { partId: "boundary-part", portId: "undersideClutch:0:0" },
+      b: { partId: addedPart.id, portId: "stud:0:0" },
+    } as const;
+    const operations: BuildOperation[] = [
+      {
+        kind: "addPart",
+        operationId: "add-required-part",
+        part: addedPart,
+        semanticRegionIds: [],
+      },
+      {
+        kind: "addConnection",
+        operationId: "add-required-connection",
+        connection: requiredConnection,
+      },
+      {
+        kind: "removeConnection",
+        operationId: "remove-required-connection",
+        connection: requiredConnection,
+      },
+      {
+        kind: "addConnection",
+        operationId: "reuse-connection-id",
+        connection: replacementConnection,
+      },
+    ];
+
+    const verified = verifyAssemblyPatchAgainstCapability(
+      base,
+      patchFor(base, scope, operations),
+      scope,
+    );
+    expect(verified.ok).toBe(false);
+    if (verified.ok) return;
+    expect(verified.issues.map(({ code }) => code)).toContain("SCOPE_REQUIRED_ATTACHMENT_MISSING");
+  });
+
+  it("rejects a required attachment boundary manufactured by added parts", () => {
+    const base = createEmptyBrickDocument({ id: "manufactured-base", name: "Manufactured base" });
+    const lower = createPartInstance({ id: "manufactured-lower", source: "ai" });
+    const upper = createPartInstance({
+      id: "manufactured-upper",
+      transform: { positionLdu: [0, -24, 0], orientationId: "upright-yaw-0" },
+      source: "ai",
+    });
+    const scope = scopeFor(base, {
+      requiredAttachmentPorts: [{ partId: lower.id, portId: "stud:0:0" }],
+    });
+    const operations: BuildOperation[] = [
+      {
+        kind: "addPart",
+        operationId: "add-manufactured-lower",
+        part: lower,
+        semanticRegionIds: [],
+      },
+      {
+        kind: "addPart",
+        operationId: "add-manufactured-upper",
+        part: upper,
+        semanticRegionIds: [],
+      },
+      {
+        kind: "addConnection",
+        operationId: "connect-manufactured-boundary",
+        connection: {
+          id: "manufactured-connection",
+          kind: "stud-tube",
+          a: { partId: lower.id, portId: "stud:0:0" },
+          b: { partId: upper.id, portId: "undersideClutch:0:0" },
+          provenance: { source: "ai" },
+        },
+      },
+    ];
+
+    const verified = verifyAssemblyPatchAgainstCapability(
+      base,
+      patchFor(base, scope, operations),
+      scope,
+    );
+    expect(verified.ok).toBe(false);
+    if (verified.ok) return;
+    expect(verified.issues.map(({ code }) => code)).toContain("SCOPE_REQUIRED_ATTACHMENT_INVALID");
+  });
+
+  it.each([
+    [
+      "illegal orientation",
+      createPartInstance({
+        id: "unbounded-part",
+        transform: { positionLdu: [0, 0, 0], orientationId: "illegal-orientation" },
+      }),
+    ],
+    [
+      "unknown catalog part",
+      createPartInstance({ id: "unbounded-part", catalogPartId: "unknown:part" }),
+    ],
+  ] as const)("fails closed on bounds unavailable for an %s", (_label, part) => {
+    const empty = createEmptyBrickDocument({ id: "unbounded-base", name: "Unbounded base" });
+    const base: BrickDocumentV1 = {
+      ...empty,
+      parts: [part],
+      submodels: [{ id: "root", name: "Root", partIds: [part.id] }],
+      steps: [{ id: "step-1", index: 0, name: "Step 1", partIds: [part.id] }],
+    };
+    const scope = scopeFor(base, {
+      mutablePartIds: [part.id],
+      allowedVolume: { minLdu: [-100, -100, -100], maxLdu: [100, 100, 100] },
+      allowedCatalogPartIds: [...PART_DEFINITIONS.map(({ id }) => id), "unknown:part"],
+    });
+    const operations: BuildOperation[] = [
+      {
+        kind: "updatePart",
+        operationId: "move-unbounded-part",
+        before: part,
+        after: {
+          ...part,
+          transform: { ...part.transform, positionLdu: [1_000_000, 0, 0] },
+        },
+      },
+    ];
+
+    const verified = verifyAssemblyPatchAgainstCapability(
+      base,
+      patchFor(base, scope, operations),
+      scope,
+    );
+    expect(verified.ok).toBe(false);
+    if (verified.ok) return;
+    expect(verified.issues.map(({ code }) => code)).toContain("SCOPE_BOUNDS_UNAVAILABLE");
+  });
+
   it("rejects operation-application failures before scope or hard validation", () => {
     const base = createEmptyBrickDocument({ id: "bad-operations", name: "Bad operations" });
     const scope = scopeFor(base);

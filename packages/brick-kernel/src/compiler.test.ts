@@ -9,7 +9,13 @@ import type {
 } from "@lego-studio/protocol";
 import { validateAssemblyPatchV1 } from "@lego-studio/protocol";
 
-import { BUILTIN_COMPILER_SNAPSHOT_HASH, compileBuildProgram } from "./compiler";
+import {
+  BUILD_PROGRAM_COMPILER_MANIFEST,
+  BUILD_PROGRAM_COMPILER_VERSION,
+  BUILTIN_COMPILER_SNAPSHOT_HASH,
+  compileBuildProgram,
+} from "./compiler";
+import { canonicalDigest } from "./canonical";
 import { documentStructuralHash } from "./document";
 import { createEmptyBrickDocument, createPartInstance } from "./factory";
 import { applyBuildOperations } from "./operations";
@@ -85,6 +91,15 @@ const stackProgram: BuildProgramV1 = {
 };
 
 describe("restricted BuildProgram compiler", () => {
+  it("pins scope hardening behavior in compiler snapshot version 2", () => {
+    expect(BUILD_PROGRAM_COMPILER_VERSION).toBe("lego.build-program-compiler/2");
+    expect(BUILD_PROGRAM_COMPILER_MANIFEST).toMatchObject({
+      scopeVolumePolicy: "authoritative-full-bounds-fail-closed/1",
+      requiredAttachmentPolicy: "retained-base-port-and-final-surviving-edge/2",
+    });
+    expect(BUILTIN_COMPILER_SNAPSHOT_HASH).toBe(canonicalDigest(BUILD_PROGRAM_COMPILER_MANIFEST));
+  });
+
   it("compiles untrusted place instructions into a schema-valid immutable patch", () => {
     const base = createEmptyBrickDocument({ id: "compile", name: "Compiler" });
     const result = compile(base, placeOne);
@@ -429,6 +444,63 @@ describe("restricted BuildProgram compiler", () => {
         expect.objectContaining({ code: "SCOPE_REQUIRED_ATTACHMENT_OCCUPIED" }),
       ]),
     });
+  });
+
+  it("rejects a required attachment manufactured entirely by the candidate", () => {
+    const base = createEmptyBrickDocument({ id: "manufactured-boundary", name: "Boundary" });
+    const trial = compile(base, stackProgram);
+    expect(trial.ok).toBe(true);
+    if (!trial.ok) return;
+    const manufacturedPort = trial.document.connections[0]!.a;
+
+    const result = compile(
+      base,
+      stackProgram,
+      scopeFor(base, { requiredAttachmentPorts: [manufacturedPort] }),
+    );
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.issues.map(({ code }) => code)).toContain("SCOPE_REQUIRED_ATTACHMENT_INVALID");
+  });
+
+  it("fails closed on changed parts without authoritative bounds but permits their removal", () => {
+    const empty = createEmptyBrickDocument({ id: "draft-unbounded", name: "Draft unbounded" });
+    const unbounded = createPartInstance({
+      id: "unbounded-part",
+      transform: { positionLdu: [0, 0, 0], orientationId: "illegal-orientation" },
+    });
+    const base: BrickDocumentV1 = {
+      ...empty,
+      parts: [unbounded],
+      submodels: [{ id: "root", name: "Root", partIds: [unbounded.id] }],
+      steps: [{ id: "step-1", index: 0, name: "Step 1", partIds: [unbounded.id] }],
+    };
+    const scope = scopeFor(base, { mutablePartIds: [unbounded.id] });
+    const move: BuildProgramV1 = {
+      schemaVersion: "lego.build-program/1",
+      operations: [
+        {
+          kind: "movePart",
+          operationId: "move-unbounded",
+          partId: unbounded.id,
+          transform: { positionLdu: [10, 0, 0], orientationId: "illegal-orientation" },
+        },
+      ],
+    };
+    const removal: BuildProgramV1 = {
+      schemaVersion: "lego.build-program/1",
+      operations: [{ kind: "removePart", operationId: "remove-unbounded", partId: unbounded.id }],
+    };
+
+    const moved = compile(base, move, scope);
+    expect(moved.ok).toBe(false);
+    if (!moved.ok) {
+      expect(moved.issues.map(({ code }) => code)).toContain("SCOPE_BOUNDS_UNAVAILABLE");
+    }
+    const removed = compile(base, removal, scope);
+    expect(removed.ok).toBe(true);
+    if (removed.ok) expect(removed.document.parts).toHaveLength(0);
   });
 
   it("rejects edits to locked parts and parts outside the allowed volume", () => {

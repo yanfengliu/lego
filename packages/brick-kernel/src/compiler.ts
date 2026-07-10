@@ -29,7 +29,7 @@ import {
 import { applyBuildOperations, OperationApplicationError } from "./operations.ts";
 import { assessPatchHardValidation, collectScopePolicyIssues } from "./patch-policy.ts";
 
-export const BUILD_PROGRAM_COMPILER_VERSION = "lego.build-program-compiler/1" as const;
+export const BUILD_PROGRAM_COMPILER_VERSION = "lego.build-program-compiler/2" as const;
 export const BUILD_PROGRAM_COMPILER_MANIFEST = deepFreeze({
   schemaVersion: "lego.build-program-compiler-manifest/1",
   compilerVersion: BUILD_PROGRAM_COMPILER_VERSION,
@@ -40,7 +40,8 @@ export const BUILD_PROGRAM_COMPILER_MANIFEST = deepFreeze({
   scopeNormalization: SCOPE_CAPABILITY_NORMALIZATION_VERSION,
   truthSnapshotPolicy: "exact-active-bundle-migration-required/1",
   scopeBudgetPolicy: "independent-pre-append-hard-ceilings/1",
-  requiredAttachmentPolicy: "free-in-base-and-patch-added-surviving-edge/1",
+  scopeVolumePolicy: "authoritative-full-bounds-fail-closed/1",
+  requiredAttachmentPolicy: "retained-base-port-and-final-surviving-edge/2",
   deterministicIdPolicy: "canonical-json-sha256-first-96-bits/1",
   supportedInstructionKinds: [
     "placePart",
@@ -79,11 +80,13 @@ export type CompilationIssueCode =
   | "SCOPE_CONNECTION_LOCKED"
   | "SCOPE_CATALOG_PART_NOT_ALLOWED"
   | "SCOPE_COLOR_NOT_ALLOWED"
+  | "SCOPE_BOUNDS_UNAVAILABLE"
   | "SCOPE_VOLUME_EXCEEDED"
   | "SCOPE_ADDITION_BUDGET_EXCEEDED"
   | "SCOPE_REMOVAL_BUDGET_EXCEEDED"
   | "SCOPE_OPERATION_BUDGET_EXCEEDED"
   | "SCOPE_REQUIRED_ATTACHMENT_MISSING"
+  | "SCOPE_REQUIRED_ATTACHMENT_INVALID"
   | "SCOPE_REQUIRED_ATTACHMENT_OCCUPIED"
   | "PATCH_INTRODUCES_BLOCKING_ISSUE"
   | "HARD_VALIDATION_INCOMPLETE"

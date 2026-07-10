@@ -10,7 +10,7 @@ import type {
 } from "@lego-studio/protocol";
 
 import { canonicalStringify } from "./canonical.ts";
-import { transformLduPoint } from "./transforms.ts";
+import { getConnectorWorldFrame, transformLduPoint } from "./transforms.ts";
 import { validateBrickDocument } from "./validation.ts";
 
 export type ScopePolicyIssueCode =
@@ -19,11 +19,13 @@ export type ScopePolicyIssueCode =
   | "SCOPE_CONNECTION_LOCKED"
   | "SCOPE_CATALOG_PART_NOT_ALLOWED"
   | "SCOPE_COLOR_NOT_ALLOWED"
+  | "SCOPE_BOUNDS_UNAVAILABLE"
   | "SCOPE_VOLUME_EXCEEDED"
   | "SCOPE_ADDITION_BUDGET_EXCEEDED"
   | "SCOPE_REMOVAL_BUDGET_EXCEEDED"
   | "SCOPE_OPERATION_BUDGET_EXCEEDED"
   | "SCOPE_REQUIRED_ATTACHMENT_MISSING"
+  | "SCOPE_REQUIRED_ATTACHMENT_INVALID"
   | "SCOPE_REQUIRED_ATTACHMENT_OCCUPIED";
 
 export interface ScopePolicyIssue {
@@ -168,11 +170,19 @@ export function collectScopePolicyIssues(
       );
     }
     const bounds = fullPartBounds(part);
+    if (!bounds) {
+      issues.push(
+        scopeIssue(
+          "SCOPE_BOUNDS_UNAVAILABLE",
+          `Patch scope cannot establish authoritative bounds for part: ${part.id}`,
+          "/operations",
+        ),
+      );
+      continue;
+    }
     if (
-      (bounds &&
-        bounds.min.some((coordinate, axis) => coordinate < scope.allowedVolume.minLdu[axis]!)) ||
-      (bounds &&
-        bounds.max.some((coordinate, axis) => coordinate > scope.allowedVolume.maxLdu[axis]!))
+      bounds.min.some((coordinate, axis) => coordinate < scope.allowedVolume.minLdu[axis]!) ||
+      bounds.max.some((coordinate, axis) => coordinate > scope.allowedVolume.maxLdu[axis]!)
     ) {
       issues.push(
         scopeIssue(
@@ -188,8 +198,28 @@ export function collectScopePolicyIssues(
   const occupiedBasePorts = new Set(
     base.connections.flatMap((connection) => [portRefKey(connection.a), portRefKey(connection.b)]),
   );
-  for (const required of requiredPorts) {
-    if (occupiedBasePorts.has(required)) {
+  for (let index = 0; index < scope.requiredAttachmentPorts.length; index += 1) {
+    const requiredPort = scope.requiredAttachmentPorts[index]!;
+    const required = portRefKey(requiredPort);
+    const basePart = baseParts.get(requiredPort.partId);
+    let resolvesOnBase = false;
+    if (basePart) {
+      try {
+        getConnectorWorldFrame(basePart, requiredPort.portId);
+        resolvesOnBase = true;
+      } catch {
+        // Malformed required ports fail scope before result evaluation.
+      }
+    }
+    if (!resolvesOnBase) {
+      issues.push(
+        scopeIssue(
+          "SCOPE_REQUIRED_ATTACHMENT_INVALID",
+          `Required attachment must resolve to a retained base port: ${requiredPort.partId}/${requiredPort.portId}`,
+          `/scope/requiredAttachmentPorts/${index}`,
+        ),
+      );
+    } else if (occupiedBasePorts.has(required)) {
       issues.push(
         scopeIssue(
           "SCOPE_REQUIRED_ATTACHMENT_OCCUPIED",
@@ -237,21 +267,14 @@ export function collectScopePolicyIssues(
     }
   }
 
-  const resultConnectionIds = new Set(result.connections.map(({ id }) => id));
-  const patchAddedResultPorts = new Set(
-    operations
-      .filter(
-        (operation) =>
-          operation.kind === "addConnection" && resultConnectionIds.has(operation.connection.id),
-      )
-      .flatMap((operation) =>
-        operation.kind === "addConnection"
-          ? [portRefKey(operation.connection.a), portRefKey(operation.connection.b)]
-          : [],
-      ),
+  const finalResultPorts = new Set(
+    result.connections.flatMap((connection) => [
+      portRefKey(connection.a),
+      portRefKey(connection.b),
+    ]),
   );
   for (const required of requiredPorts) {
-    if (!patchAddedResultPorts.has(required)) {
+    if (!finalResultPorts.has(required)) {
       issues.push(
         scopeIssue(
           "SCOPE_REQUIRED_ATTACHMENT_MISSING",
