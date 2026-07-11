@@ -1,0 +1,4 @@
+interface:
+  display_name: "Brick Assembly Loop"
+  short_description: "Build and improve AI-native brick assemblies"
+  default_prompt: "Use $brick-assembly-loop to generate, inspect, validate, and improve a brick model or its harness."
