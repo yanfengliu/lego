@@ -1,160 +1,64 @@
-# AGENTS.md
+# AGENTS.md — lego
 
-## Headless-first execution
+## What this is
 
-Always work headlessly by default. This is a mandatory execution rule, not an adaptable default. Use a visible browser window, desktop application, GUI automation, or another non-headless interaction only when it is absolutely necessary to complete or adequately verify the task and no headless alternative is sufficient. State the reason before launching the non-headless path.
+An AI-native digital brick modeling studio with three coordinated surfaces: a precise manual brick editor; an AI copilot that generates complete models or scoped, previewable subassembly patches; and a replayable laboratory that improves templates, techniques, the harness, and the app under protected evaluation and human authority. Stack: a TypeScript workspace (protocol, catalog, brick-kernel, rendering, browser packages), Three.js, React, Node 24, Vitest + Playwright.
 
-## Working style
+Status: an initial Gate 0/1 workspace exists; provider-backed generation, the companion trust broker, production candidate acceptance, retained native run bundles, and the recursive engineering runner remain unimplemented. Non-goals: not a BrickLink Studio clone, general mesh editor, complete official-parts catalog, or a guarantee of physical stability/clutch/instructions; it does not merge with `3d-maker` merely because both render 3D. **Do not claim a feature, command, validator, provider, broker, or harness exists until live files and executable behavior prove it.**
 
-Treat this file as adaptable defaults except where it names a load-bearing invariant, authority boundary, consent rule, or safety gate. Optimize for a correct, verified, readable outcome. If a default would make the work worse, deviate deliberately and explain why.
+## Fleet constitution
 
-Scale the workflow to the task. Handle a trivial edit directly. For substantial features, audits, migrations, or broad refactors, use an explicit explore → plan → implement → verify flow, parallelize genuinely independent work, and keep the primary agent responsible for decisions and integration. Adversarially verify non-trivial work against live files and artifacts.
+- Work headlessly by default; go non-headless only when nothing else can complete or verify the task, and say why.
+- These rules are strong defaults, not law: when one would make the work worse, deviate and say why.
+- Scale the approach to the task: trivial changes directly; substantial work as explore → plan → implement → verify, with subagents when work is genuinely parallel.
+- Delivery boundary: each minimal coherent verified unit is reviewed, staged (scoped files only), and committed promptly — never commit failing or partial work as a checkpoint. Commit to `main`; push at the end of every task.
+- Concurrent sessions share one worktree and one index: commit by explicit pathspec (`git commit -- <files>`), never `git commit -a`, `git add -A`, or `git add .` — a sweeping commit captures whatever another session has staged. (Evidence: voxel c024b33, 2026-07-17.)
+- The repo's gates must pass before every commit that touches code; doc-only changes need a self-reviewed diff.
+- Review: self-review trivial changes; adversarially review non-trivial ones — independent agents that try to refute the change against the live code. High-risk work (persistence/migrations, security/auth, concurrency, money, supply chain, edits that reach sibling repos) escalates to the multi-cli-review skill. Reviewers must read the live code; verify reviewer claims against the codebase before acting on them; substantive findings outweigh approval votes.
+- Dependency changes: re-resolve the lockfile, run the repo's audit gate (a new HIGH/CRITICAL is a blocker), and note the audit result in the commit message.
+- Docs are part of the change: update every affected surface in the same commit; write prose one line per paragraph (no hard wrapping); never reference or mandate files that don't exist.
+- Bias to continue: work through the whole accepted plan without mid-plan check-ins; context management is the harness's job, never a reason to stop. Stop only for a genuine blocker, a direction-changing decision, or an explicit stop. (Established 2026-05-01; reinforced 2026-07-05.)
+- Error messages are a product surface: whenever code rejects, fails, or throws, say what happened, which specific input caused it, and what would satisfy it — never a bare `Validation failed`, `invalid input`, or a silent boolean false. A diagnostic that forces a human or an agent to read the source to learn why is itself a defect; fix the message in the same change as the bug. Applies equally to validators, CLI output, and assertion text. (Established 2026-07-18, after city's `placeService` answered five rejected placements with only "Validation failed".)
+- Steering compounds: when the user gives a direction that generalizes past the immediate task, land it in the canon in that same session — here if it is fleet-wide, else the repo's AGENTS.md or lessons file — so the next run inherits it instead of relearning it, and say what was captured and where. (Established 2026-07-18.)
+- Reviewer model pins live only in `../loop-ops/docs/skills/multi-cli-review.md`, and loop-work model directives in `../loop-ops/DIRECTIVES.md` — never hardcode model IDs anywhere else.
+- Lessons files (`docs/learning/lessons.md` where present) require evidence anchors — source, fix commit, test id, behavior delta; unanchored lessons are folklore.
+- Recursive loop: before running or driving a pass, read `../loop-ops/docs/skills/recursive-playtest.md`; before building loop machinery, read `../loop-ops/docs/skills/building-recursive-loop.md`.
 
-Continue through an accepted multi-step plan without artificial checkpoints. Stop only for a genuine blocker, an explicit stop, missing authority, or a material product choice that cannot be inferred safely.
+## Gates
 
-**Never manage context yourself — auto-compaction handles it. In a loop, just keep pushing progress.** Do NOT stop, checkpoint, hand off "for fresh context", or ask "should I keep going / do you want to check first" because the conversation is getting long. The harness auto-summarizes when needed and work continues seamlessly, so context length is never a reason to pause, wrap up, or offer the user a checkpoint. When one increment ships (gates green + commit + push + docs), immediately start the next one in the same turn. Only ever stop for (a) a genuine blocker, (b) a real user decision that changes direction, or (c) the user explicitly saying stop. Reporting shipped milestones is fine; turning that report into a "want me to continue?" gate is not. This rule was reinforced 2026-07-05 after the user objected — again — to a mid-marathon "want me to keep rolling or check first?" offer.
+Authoritative workspace commands live in `package.json`; run the smallest relevant checks while iterating and **`npm run verify`** (schema:check · node:check · bom:check · notices:check · format:check · lint · typecheck · test · test:browser · build) before declaring implementation complete. A unit-only pass is insufficient for changes that cross persistence, broker, provider, browser, import/export, or rendering boundaries. Dependency audit gate: `npm run audit` (and `audit:runtime`); a new HIGH/CRITICAL is a blocker. Doc-only work verifies the diff, internal paths/links, Markdown fences, and trailing whitespace.
 
-Preserve unrelated user changes. Inspect the worktree before editing and keep the diff scoped.
+`npm run playtest:recursive` does not exist yet — add it only with the recorded-input runner, immutable evidence, finding lifecycle, replay verification, ledger, and acceptance drill required by `../loop-ops/docs/skills/building-recursive-loop.md`; never a placeholder that merely exits 0.
 
-## Canonical procedures
+## Invariants & boundaries
 
-Read `docs/design/spec.md` at session start, and each of these before changing the relevant system:
+- The versioned `BrickDocument` part-and-connection graph is the authoring source of truth (part transforms authoritative; connection edges are validated annotations). Three.js scenes, meshes, renders, overlays, LDraw, GLB, screenshots, and provider responses are derived artifacts.
+- Deterministic compilation is the central contract: identical canonical base bytes + normalized build-program bytes under the same compiler/schema/catalog/template/transform/connector/collision/validator snapshots produce the same structural hash and validation report.
+- Saved documents pin their truth snapshots; schema or truth changes require an explicit versioned migration and report — never silently reinterpret an old document.
+- Manual editing may create a temporarily draft-invalid document; an applied AI patch must be scope-valid, must not add a blocking failure outside its scope, and must preserve global validity when the base was globally valid.
+- Provider, critic, generated-template, lesson, and repair output is untrusted data: it cannot declare itself valid, author trusted scope/provenance, execute code, waive a hard validator, or directly mutate the user document.
+- Hard structural validity dominates visual resemblance — pixels cannot prove graph correctness, and graph correctness cannot prove the model satisfies the brief; inspect both.
+- Every model-assisted repair or replan creates an immutable child candidate; never overwrite parents or erase counterevidence.
+- User documents change only through explicit manual commands or previewed acceptance; AI never silently accepts a patch, promotes knowledge, merges code, deploys, changes secrets, or weakens its evaluator.
+- A physical claim applies only to the exact document + catalog hash actually tested; structural edits invalidate it.
+- Keep domain, build-program, canonicalization, migration, and deterministic validation code independent of the DOM, React, Three.js scene objects, provider SDKs, and persistence adapters. The Three.js scene is a disposable view rebuilt safely after context loss with deliberate disposal; React owns UI and state orchestration, not mutable Three.js truth.
+- The released companion trust broker owns production signing, credential proxying, authoritative events, and artifact sealing; it enforces a user-originated, scope-bounded, one-use acceptance capability and records the sealed event. Neither broker nor harness may originate acceptance, consent, or scope. The broker never loads or launches challenger code; production/test identities, keys, ledgers, and namespaces stay distinct; the independent evaluator accepts only expected-namespace seals; challenger execution has no arbitrary filesystem access or direct network egress, and only bounded schema-checked aggregate output leaves the evaluator.
+- The browser stays a useful offline manual editor; provider generation, recorded AI candidates, and AI-patch acceptance require the broker boundary. Isolate candidate and provider failures — one malformed response, invalid candidate, failed render, or exhausted strategy must not corrupt the document or crash the editor.
+- `lego` owns brick semantics; `3d-maker` owns genome-to-mesh semantics. Share only proven generic experiment/lineage/artifact/comparison/evaluation interfaces after both implementations demonstrate the same need — do not add the game engine as a dependency of brick-domain, browser, broker, or evaluator packages to reuse its contracts.
+- Treat file imports, archives, images, LDraw, JSON, HTML, provider output, and loopback requests as hostile inputs — bound bytes, depth, dimensions, expansion, recursion, operation and part counts, time, render memory, paths, origins, and output schemas. Keep files and functions focused (under 500 LOC; 1000 is a hard ceiling).
+- Keep credentials, tokens, signing keys, private endpoints, and session material out of source, bundles, run artifacts, prompts, and logs; mock provider/network calls in ordinary tests and require explicit authorization for live calls. User references and designs are local by default — external transmission, training, benchmark inclusion, sharing, and Git retention are separate consent decisions.
 
-- `docs/design/spec.md` — product intent, non-goals, architecture, trust boundaries, contracts, and delivery gates.
-- `docs/design/learning-system.md` — maker, knowledge, evaluation, feedback, and engineering-improvement loops.
-- `docs/skills/brick-assembly-loop.md` — canonical operating procedure for generation, rendered-result inspection, repair, learning, and app or harness improvement.
+## Known traps
 
-When they overlap, `spec.md` owns product, domain, trust, and authority contracts; `learning-system.md` owns experiment, lifecycle, feedback, evaluation, and promotion contracts; `brick-assembly-loop.md` is the subordinate operating procedure and may not weaken either design document.
+- Reproduce a failure from the exact sealed run when available and consent permits: check the current `effectiveReplayLevel` first and replay only within its boundary (a historical `sealedReplayLevel` does not restore deleted bytes); inspect the brief, base document, build program, snapshots, validation report, lineage, render packet, and event sequence before inventing a synthetic repro. Never forward sensitive run contents to an external model, reviewer, provider, or log without the separately required consent.
+- Do not approve a visual feature from source or hook presence alone, or structural behavior from a pleasing screenshot alone: drive the served app in a real browser, capture canonical isometric/orthographic views, inspect `window.render_app_to_text()` / `capture_model_views()` / `get_model_snapshot()` / `advanceTime(ms)` / validator output, and confirm pixels + structured state + intended behavior agree. Import/export must exercise the actual consumer/viewer path — a string round trip does not prove a model loads or preserves the canonical edge set.
+- Before any authorized commit, inspect the staged diff and newly tracked files for secrets and raw artifacts. If a credential may be exposed, stop further disclosure, report it and every known location, treat it as compromised, and give exact containment/rotation steps — deleting the line later is not sufficient.
 
-Before building recursive-loop machinery, read `../loop-ops/docs/skills/building-recursive-loop.md`. Before running an existing recursive pass, read `../loop-ops/docs/skills/recursive-playtest.md` and `../loop-ops/DIRECTIVES.md`.
+## Conventions
 
-For co-evolution work, also read `../3d-maker/AGENTS.md` and `../3d-maker/docs/design/spec.md`. Do not modify a sibling repository unless the task explicitly scopes it, and do not transfer its domain invariants into this repository.
-
-`CLAUDE.md` is a pointer to this file. Keep policy here rather than duplicating it across agent-specific files.
-
-## Project intent and scope
-
-This repository is an AI-native digital brick modeling studio with three coordinated surfaces:
-
-1. A precise manual brick editor.
-2. An AI copilot that generates complete models or scoped, previewable subassembly patches.
-3. A replayable laboratory that improves templates, techniques, the harness, and the application under protected evaluation and human authority.
-
-The repository now has an initial Gate 0/1 TypeScript workspace with protocol, catalog, brick-kernel, rendering, and browser packages. Provider-backed generation, the companion trust broker, production candidate acceptance, retained native run bundles, and the recursive engineering runner remain unimplemented. Do not claim that a documented feature, command, validator, provider, broker, or harness exists until live files and executable behavior prove it.
-
-The first product is not a BrickLink Studio clone, a general mesh editor, a complete official-parts catalog, or a guarantee of physical stability, clutch strength, or instruction accessibility. It does not merge with `3d-maker` merely because both render 3D objects.
-
-## Load-bearing invariants
-
-- The versioned `BrickDocument` part-and-connection graph is the authoring source of truth. Part transforms are authoritative; connection edges are validated semantic annotations. Three.js scenes, meshes, renders, overlays, LDraw, GLB, screenshots, and provider responses are derived artifacts.
-- Deterministic compilation is the central contract: identical canonical base bytes and normalized build-program bytes under the same compiler, schema, catalog, template, transform, connector, collision, and validator snapshots produce the same structural hash and validation report.
-- Saved documents pin their truth snapshots. Schema or truth changes require an explicit versioned migration and report; never silently reinterpret an old document.
-- Manual editing may temporarily create a draft-invalid document. An applied AI patch must be scope-valid, must not add a blocking failure outside its scope, and must preserve global validity when the base was globally valid.
-- Provider, critic, generated-template, lesson, and repair output is untrusted data. It cannot declare itself valid, author trusted scope or provenance, execute code, waive a hard validator, or directly mutate the user document.
-- Hard structural validity dominates visual resemblance. Pixels cannot prove graph correctness, and graph correctness cannot prove that the model satisfies the brief. Inspect both.
-- Every model-assisted repair or replan creates an immutable child candidate. Do not overwrite parents or erase counterevidence.
-- User documents change only through explicit manual commands or previewed acceptance. AI never silently accepts a patch, promotes knowledge, merges code, deploys, changes secrets, or weakens its evaluator.
-- A physical claim applies only to the exact document and catalog hash actually tested. Structural edits invalidate it.
-
-## Architecture and authority boundaries
-
-- Keep domain, build-program, canonicalization, migration, and deterministic validation code independent of the DOM, React, Three.js scene objects, provider SDKs, and persistence adapters.
-- Treat the Three.js scene graph as a disposable view derived from canonical state. Rebuild it safely after context loss and dispose geometries, materials, textures, render targets, controls, and listeners deliberately.
-- Keep React responsible for application UI and state orchestration, not ownership of mutable Three.js truth.
-- The released companion trust broker owns production signing, credential proxying, authoritative events, and artifact sealing. It verifies and enforces a user-originated, scope-bounded, one-use acceptance capability and records the sealed event; neither broker nor harness may originate acceptance, consent, or broader scope.
-- The broker never loads or launches challenger code. Production and test identities, keys, credentials, ledgers, and namespaces remain distinct. The independent evaluator accepts only expected-namespace broker or evaluator seals; challenger execution has no arbitrary filesystem access or direct network egress, and only bounded schema-checked aggregate output leaves the evaluator boundary.
-- The browser remains a useful offline manual editor. Model-provider generation, recorded AI candidates, and AI-patch acceptance require the broker boundary defined by the specification.
-- Isolate candidate and provider failures. One malformed response, invalid candidate, failed render, or exhausted strategy must not corrupt the document or crash the editor.
-- `lego` owns brick semantics. `3d-maker` owns genome-to-mesh semantics. Share only proven generic experiment, lineage, artifact, comparison, or evaluation interfaces after both implementations demonstrate the same need.
-
-## Change workflow
-
-- Read the affected path and trace data flow before editing. Prefer the smallest coherent change that satisfies the real contract.
-- Use test-driven development for behavior: write or update the failing contract test first, then implement. Test externally meaningful behavior rather than incidental implementation structure.
-- Use property, fuzz, and golden tests for canonical serialization, migrations, compiler determinism, legal transforms, connectors, collisions, scope enforcement, replay, LDraw round trips, and malformed provider data.
-- Reproduce failures from the exact sealed run when available and consent permits. Check the current `effectiveReplayLevel` first and replay only from its allowed boundary; a historical `sealedReplayLevel` does not restore deleted bytes. Inspect the brief, base document, build program, snapshots, validation report, lineage, render packet, and event sequence before inventing a synthetic reproduction. Do not forward sensitive run contents to an external model, reviewer, provider, or log without the separately required consent.
-- Make async states, ordering, cancellation, retries, idempotency, persistence, cleanup, and terminal outcomes explicit. Never let a late job win against newer user state.
-- Keep files and functions focused. Split when responsibilities diverge; do not create speculative shared abstractions before real duplication proves them.
-- Keep tunable values in schemas, catalogs, policies, or named constants rather than scattering magic numbers through compiler or renderer code.
-- Update durable design or procedure documents in the same task when architecture, authority, schemas, migrations, validation, replay, public automation hooks, or delivery gates change. Canonical documents must state only the current normative rule; update or remove superseded operational text and leave history to Git until an explicit non-normative decision record exists. If such a record is later created, preserve decisions by adding superseding entries rather than rewriting history.
-- Gate 0 begins with a dependency and data bill of materials. Record the source, version, license, attribution, redistribution and training rights, and allowed runtime or evaluation role for every code, geometry, connector, collision, weight, model, and example source. Preserve file-level LDraw provenance. Permission to reuse geometry does not imply permission to train on models that use it.
-
-## Commands and completion gates
-
-The authoritative workspace commands are:
-
-- `npm run dev` — serve the browser studio on the pinned local development origin.
-- `npm run schema:check` — prove generated protocol types and standalone validators match the authoritative schema.
-- `npm run node:check` — exercise protocol, catalog, and brick-kernel imports in the supported Node 24 source-first runtime.
-- `npm run bom:check` — reconcile workspace manifests, exact pins, lockfile metadata, and the dependency/data bill of materials.
-- `npm run notices:check` — prove `THIRD_PARTY_NOTICES.md` matches the locked third-party graph.
-- `npm run test:browser` — drive persistence and interaction contracts in a real browser with an in-process disposable Vite server.
-- `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build` — individual source, behavior, and production-bundle gates; the build fails if development automation globals survive tree-shaking.
-- `npm run verify` — run the complete implemented gate set in the required order.
-
-`npm run playtest:recursive` does not exist yet. Add it only with the recorded-input runner, immutable evidence, finding lifecycle, replay verification, ledger behavior, and acceptance drill required by `../loop-ops/docs/skills/building-recursive-loop.md`; never add a placeholder command that merely exits successfully.
-
-For documentation-only work, at minimum verify the diff, internal paths and links, Markdown fences, and trailing whitespace. When Gate 0 or Gate 1 introduces executable packages, add their real commands here in the same change and make those scripts authoritative.
-
-Run the smallest relevant checks while iterating, then the complete applicable gate set before declaring implementation complete. A unit-only pass is insufficient for changes that cross persistence, broker, provider, browser, import/export, or rendering boundaries.
-
-## Render and interaction verification
-
-For any ordinary UI change, drive and inspect the affected surface in the actual served browser application. For a model, renderer, camera, overlay, selection, scope, or 3D interaction change:
-
-1. Drive the actual served application in a real browser.
-2. Capture the canonical isometric and orthographic model views plus relevant overlays.
-3. Inspect `window.render_app_to_text()`, `window.capture_model_views()`, `window.get_model_snapshot()`, `window.advanceTime(ms)`, validator output, errors, selection, scope, and candidate lineage.
-4. Compare before and after pixels when the change is visual, using tolerances appropriate to the renderer.
-5. Confirm that pixels, structured state, and intended behavior agree; fix and repeat.
-
-The development browser automation bridge is implemented in `apps/web/src/automation.ts` and tested at the contract level. Do not approve a visual feature from source inspection or hook presence alone, and do not approve structural behavior from a pleasing screenshot alone. Test the served app, resize, WebGL context loss, repeated candidate disposal, and renderer-memory stability when relevant. Production builds must still omit the bridge or require the authenticated non-production namespace specified above before they can handle real user documents.
-
-Import/export work must exercise the actual supported consumer or viewer path. A string round trip alone does not prove that an exported model loads, renders, or preserves the supported canonical edge set.
-
-## Learning and recursive improvement
-
-The engineering loop is:
-
-`run → evidence → finding → verify → select → fix → rerun → prove → ledger`
-
-- Every finding is born unverified. Structural, scope and replay claims require mechanical replay or addressed deterministic evidence. Visual, accessibility, specification or human-preference claims may use the corresponding independent method and an addressed sealed evidence bundle, but can never certify structural truth. Source, documentation, architecture, schema and security findings may use reproducible content-hashed live-file evidence, static or type checks, schema proofs, or threat-model evidence appropriate to the claim.
-- The broker-sealed native run is authoritative. Only the broker allocates authoritative run, attempt and event-sequence IDs or seals native evidence; the harness submits records and artifacts under those IDs. A `civ-engine`-compatible run or finding projection, or a `loop-ops`-compatible pass record, is rebuildable derived data that references explicit native run IDs and immutable artifacts through the LEGO-owned projection envelope. Do not add the full game engine as a dependency of brick-domain, browser, broker, or evaluator packages merely to reuse its contracts.
-- Project only durable tracking-worthy failures, not every invalid candidate. A first critical scope, security, data-loss or replay failure is eligible immediately; recurrence is a ranking and promotion signal, not an admission requirement. Give each projected finding an explicit stable `data.class`; a finding signature groups failure classes and a state digest compares sanitized checkpoints, but neither signs, seals, or identifies a `BrickDocument`.
-- When implementation was authorized and a verified fix candidate was selected, a recursive pass is not complete at `proposal-only`. Use the fleet vocabulary verbatim: `fixed-proven`, `fix-unproven`, or `blocked`. Preserve runner stop reasons such as `no-fix-candidate` or `run-failed` without inventing LEGO-only synonyms. Diagnosis-only requests remain read-only.
-- Prove a fix with non-vacuous replay of an explicit retained run plus a fresh independent oracle sweep, comparing at stable failure-class granularity rather than reading the diff or matching run-specific finding IDs. A replay that checks no required checkpoint, skips a required hard validator, or relies on `latest.*` or modification-time discovery cannot prove anything.
-- Run an authorized fix in a disposable exact-base worktree with one selected finding, bounded patch capability, and a reserved proof budget. Never clean, reset, switch, or otherwise mutate the user's active checkout; never auto-push, merge, deploy, or change the production evaluator or broker.
-- Full mode starts only after separate non-borrowable attempt and proof-budget capabilities exist. Only an evaluator-owned or released verifier may sign `fixed-proven`; the harness cannot grade itself, and missing affected-canary or verifier evidence prevents promotion.
-- A model-facing browser actor receives only a hashed `ActorObservation` and a bounded capability API, never arbitrary evaluation or verifier hooks. A maker receives only a hashed, consent-authorized and scope-filtered `MakerObservation`, never the local brief, locked-region details or unapproved references directly. Visible and enabled controls are not authorization: production actors cannot accept patches, grant consent, transmit or delete user data, change policy, promote, merge or deploy. Rich structured state belongs to trusted `VerifierEvidence`; case-level holdout evidence remains evaluator-local, and acceptance-path automation uses synthetic fixtures and an isolated test broker.
-- Promote confirmed failures into regression tests or fixtures. A fix without a way to catch recurrence is incomplete.
-- Quarantine prompt, retrieval, template, technique, repair, ranking, and stopping challengers until protected benchmarks and the independent evaluator support promotion. Never let a challenger change the contract that grades it.
-- Changes to `docs/skills/brick-assembly-loop.md` are cross-agent contract changes. State the failure or missing behavior motivating the edit and forward-test the revised procedure on a realistic scenario. Verify README and repo pointers, and verify installed global pointer skills when the current environment exposes them and the task authorizes global changes.
-- Product run artifacts belong under `var/runs/`; local broker databases, indexes, CAS data, and development state belong under `var/state/`; fleet recursive-pass artifacts belong under `output/`. Configure browser and reviewer raw captures under those ignored roots. Keep raw runs, provider responses, screenshots, and temporary reviewer logs out of Git.
-- Committed fixtures and benchmark evidence are synthetic, repo-owned, or public by default. A real user or provider artifact requires separate inspectable consent for Git or benchmark use, provider and license clearance, minimization and redaction, and secret and personal-data scanning. Consent to generate is not consent to retain, train, benchmark, share, or commit.
-
-When a non-obvious lesson deserves preservation, anchor it to the run or manifest hash, originating finding or review, fix commit when available, exact regression test or benchmark, and measurable behavior delta. Without evidence anchors, a lesson is folklore rather than accumulated learning.
-
-## Review and security
-
-- Self-review trivial prose or formatting. Use independent adversarial review for non-trivial behavior. Add specialized independent security or multi-model review for trust-broker, evaluator, provider, consent, signing, persistence, scoped-patch, migration, recursive-loop, or data-loss changes. Multi-CLI mechanics — current reviewer model pins, exact commands, sandbox flags, output extraction, and CLI failure modes — live in the fleet-canonical runbook `../loop-ops/docs/skills/multi-cli-review.md` (review pins bump there, once for the whole fleet), with `.claude/skills/multi-cli-review/SKILL.md` as this repo's thin stub for repo-specific notes; read both before every multi-CLI session.
-- Reviewers must read the live files and artifacts. Every review prompt must include the directive: *"Verify each claim in the plan/diff against the live codebase — grep for the symbols, function signatures, column names, and file paths it references; do not approve based on prompt text alone."* Independently verify each claim before changing code. Convergence is the absence of substantive findings, not the number of approval votes — a HIGH defect from one reviewer outweighs APPROVED from two.
-- Aspects to review: (1) design — easily scales, generalizes, debugs, can be understood and reasoned about, stays lean; (2) test coverage; (3) correctness; (4) clean code — typing, efficiency, memory leaks, duplicated logic, inconsistent implementations, boundary violations. Keep files under 500 LOC (hard ceiling 1000), prefer composition over inheritance, clean up dead code, and do not change behavior beyond what the task asks.
-- Enrich the baseline review prompt (quoted in the fleet-canonical runbook) with task-specific context — the change's intent, prior-iteration findings to verify, files to focus on, and an anti-regression checklist. The bare baseline returns generic feedback; useful reviews need the specifics.
-- Keep reviewer model IDs current. Use the latest-family alias when a command should track the newest model; bump pinned strings whenever a more capable fixed variant ships, and verify with a one-line smoke test before committing the bump — silent fallback to an older model is the failure mode to guard against. Review-command pins live in the fleet-canonical runbook (`../loop-ops/docs/skills/multi-cli-review.md`), the fleet's single bump site.
-- For trust-boundary changes, produce a repository-grounded threat model covering assets, trust edges, attacker capabilities, abuse paths, impact, and mapped mitigations. For implementation and review, apply stack-appropriate secure defaults and evidence-backed checks. The `security-threat-model` and `security-best-practices` skills are preferred implementations when available, not cross-agent prerequisites.
-- Keep credentials, tokens, signing keys, private endpoints, and session material outside source, browser bundles, run artifacts, prompts, and logs. Mock provider/network calls in ordinary tests. Require explicit authorization for live calls.
-- User references and designs are local by default. External-provider transmission, knowledge or benchmark inclusion, training, sharing, and Git retention are separate consent decisions. Runtime provider discovery may narrow the maintainer-reviewed `ProviderCapabilities` policy but never broaden its data use, locality, retention, or training permissions.
-- Treat file imports, archives, images, LDraw, JSON, HTML text, provider output, and loopback requests as hostile inputs. Bound bytes, depth, dimensions, expansion, recursion, operation counts, part counts, time, render memory, paths, origins, and output schemas.
-- Before any authorized commit, inspect the staged diff and newly tracked files for secrets and accidental raw artifacts. If credentials may be exposed, stop further disclosure, report the credential and every known location, and treat it as compromised. Rotate or revoke it only when explicitly authorized; otherwise give the owner the exact required containment and rotation steps. Deleting a line later is not sufficient.
-- When dependencies change, update the selected lockfile, run both runtime-only and full dependency audits supported by the package manager, and block new HIGH or CRITICAL findings unless the user accepts a documented, expiring exception.
-
-## Git and documentation hygiene
-
-- Preserve unrelated changes and never discard user work. Stage only a coherent requested unit.
-- Commit early and often: as soon as a coherent, independently useful unit passes its applicable gates, commit and push it before starting or accumulating the next unit. Do not use this cadence to land broken, unreviewed, or authority-boundary code.
-- During substantial multi-step work, treat each minimal coherent unit as a delivery boundary: once it passes the applicable gates, review it immediately (self-review for trivial changes; adversarial review for behavior or public-contract changes), resolve substantive findings, stage only its scoped files, and commit it promptly before unrelated completed units accumulate in the worktree or diff. Never commit failing, in-flight, or partial work merely as a checkpoint.
-- Commit directly to `main`: this is a solo-developer repository, so land each coherent, self-contained unit of change as its own commit once the applicable gate set passes, and push at the end of every task — do not leave the remote behind.
-- Branch, merge, release, rewrite history, or modify sibling repositories only when the task authorizes that action; branches are reserved for explicit experimentation meant to stay isolated from `main`. This autonomy does not weaken the safety gates: the recursive-loop harness still never auto-pushes, auto-merges, or deploys, and AI patch acceptance still requires previewed user consent.
-- Keep canonical policy in this file; keep `CLAUDE.md` as a pointer.
-- Keep the README and the three canonical documents above aligned with implemented reality. Do not create heavyweight changelog, devlog, architecture, or progress trees until the repository has enough implementation and recurring work to justify them.
-- Temporary evidence belongs in ignored run directories. Committed documentation should be durable, concise, and useful to a future agent.
+- Session start: read `docs/design/spec.md`, and before changing the relevant system also `docs/design/learning-system.md` and `docs/skills/brick-assembly-loop.md`. Precedence when they overlap: `spec.md` owns product/domain/trust/authority contracts; `learning-system.md` owns experiment/lifecycle/feedback/evaluation/promotion contracts; `brick-assembly-loop.md` is the subordinate operating procedure and may not weaken either. For co-evolution also read `../3d-maker/AGENTS.md` and its spec; do not modify a sibling repo unless the task scopes it, or transfer its invariants here.
+- The recursive-improvement engineering loop and its evidence/broker/challenger/promotion contracts live in `docs/design/learning-system.md` and the `brick-assembly-loop` skill; the fleet loop vocabulary and pass boundaries are in `../loop-ops/docs/skills/recursive-playtest.md`. Use that vocabulary verbatim (`fixed-proven` / `fix-unproven` / `blocked`; preserve `no-fix-candidate` / `run-failed`) — no LEGO-only synonyms. Promote confirmed failures into regression tests or fixtures.
+- Multi-CLI review mechanics (reviewer model pins, commands, sandbox flags, output extraction) live in the fleet runbook `../loop-ops/docs/skills/multi-cli-review.md`, with `.claude/skills/multi-cli-review/SKILL.md` as this repo's thin stub — read both before a multi-CLI session. Add specialized independent security or multi-model review for trust-broker, evaluator, provider, consent, signing, persistence, scoped-patch, migration, recursive-loop, or data-loss changes, and produce a repository-grounded threat model for trust-boundary changes (the `security-threat-model` / `security-best-practices` skills are the preferred implementations).
+- Gate 0 begins with a dependency and data bill of materials: record source, version, license, attribution, redistribution/training rights, and allowed role for every code/geometry/connector/collision/weight/model/example source; preserve file-level LDraw provenance. Permission to reuse geometry does not imply permission to train.
+- Artifact locations: product run artifacts under `var/runs/`; local broker databases, indexes, CAS, and dev state under `var/state/`; fleet recursive-pass artifacts under `output/`; browser and reviewer raw captures under those ignored roots. Committed fixtures and benchmarks are synthetic, repo-owned, or public by default; a real user or provider artifact needs separate inspectable consent, license clearance, minimization/redaction, and secret/personal-data scanning.
+- Keep `README.md` and the three canonical documents aligned with implemented reality; add heavyweight changelog/devlog/architecture/progress trees only when recurring implementation work justifies them.
