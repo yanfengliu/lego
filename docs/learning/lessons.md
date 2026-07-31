@@ -3,6 +3,24 @@
 Each entry records something that cost real time, with an anchor that proves it happened.
 Unanchored lessons are folklore and do not belong here.
 
+When a lesson becomes a gate — a test, a lint rule, a fixed command — delete it from here. The machine enforces it, so nobody needs to read it.
+
+## Rules
+
+The one-line form of every lesson below. This is the part worth reading at session start; drop to the entry only when you doubt a rule or are working in that area.
+
+- An error message that covers several causes hides the real one — split the condition and name the observed values.
+- `lstat` and a handle's `fstat` disagree on `dev` across platforms; the inode is the identity, the device only corroborates.
+- The structural hash covers part identifiers, so it cannot decide whether two models are the same.
+- Recomputing pinned truth per call turns catalog growth into a timeout that reads as a hang.
+- A deterministic capture default is the wrong default for an interactive camera.
+- A preview that recomputes geometry drifts from what gets placed; read the same source the renderer does.
+- Filtering by value drops the token you wanted when it collides with the one you meant to discard.
+- Long feedback loops need an intermediate score; a booklet supplies its own in step numbering and piece counts.
+- Reading a document's structure is not the same as seeing it — render it and look.
+
+## Entries
+
 ## An error message that covers several causes hides the real one
 
 `recoverEvents` reported "Ledger file exceeds its byte cap" for five distinct conditions: wrong file type, extra hard links, a device mismatch, an inode mismatch, and the actual size cap.
