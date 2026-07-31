@@ -287,25 +287,15 @@ button:disabled {
   background: #2b2718;
   box-shadow: 3px 0 0 var(--accent) inset;
 }
-.part-glyph {
-  display: grid;
+.part-option:active {
+  cursor: grabbing;
+}
+.part-preview {
   width: 44px;
   height: 34px;
-  place-items: center;
-  border-radius: 5px;
-  color: #2e2812;
-  background: #dcb02b;
-  box-shadow:
-    0 -5px 0 #f3d262 inset,
-    0 2px 4px rgb(0 0 0 / 25%);
-  font-size: 0.57rem;
-  font-weight: 900;
-}
-.part-glyph--plate {
-  height: 21px;
-  box-shadow:
-    0 -3px 0 #f3d262 inset,
-    0 2px 4px rgb(0 0 0 / 25%);
+  flex: 0 0 auto;
+  overflow: visible;
+  filter: drop-shadow(0 2px 3px rgb(0 0 0 / 35%));
 }
 .part-option__copy {
   display: flex;

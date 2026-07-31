@@ -3,9 +3,12 @@ import { useMemo, useState } from "react";
 import {
   COLOR_DEFINITIONS,
   PART_DEFINITIONS,
+  getColorDefinition,
   type ColorDefinition,
   type PartDefinition,
 } from "@lego-studio/catalog";
+
+import { PartPreview } from "./PartPreview";
 
 interface CatalogPanelProps {
   readonly selectedPartDefinitionId: string;
@@ -15,27 +18,39 @@ interface CatalogPanelProps {
   readonly onPartDefinitionChange: (partId: string) => void;
   readonly onColorChange: (colorId: string) => void;
   readonly onAdd: () => void;
+  readonly onDragStateChange: (partId: string | null) => void;
 }
 
 function PartOption({
   part,
+  colorHex,
   selected,
   onSelect,
+  onDragStateChange,
 }: {
   readonly part: PartDefinition;
+  readonly colorHex: string;
   readonly selected: boolean;
   readonly onSelect: () => void;
+  readonly onDragStateChange: (partId: string | null) => void;
 }) {
   return (
     <button
       type="button"
       className={`part-option${selected ? " is-selected" : ""}`}
       aria-pressed={selected}
+      title={`${part.displayName} — drag into the model to place it`}
+      draggable
       onClick={onSelect}
+      onDragStart={(event) => {
+        event.dataTransfer.effectAllowed = "copy";
+        event.dataTransfer.setData("text/plain", part.id);
+        onSelect();
+        onDragStateChange(part.id);
+      }}
+      onDragEnd={() => onDragStateChange(null)}
     >
-      <span className={`part-glyph part-glyph--${part.family}`} aria-hidden="true">
-        <span>{part.dimensions.widthStuds * part.dimensions.lengthStuds}</span>
-      </span>
+      <PartPreview part={part} colorHex={colorHex} />
       <span className="part-option__copy">
         <strong>{part.displayName}</strong>
         <small>
@@ -76,8 +91,10 @@ export function CatalogPanel({
   onPartDefinitionChange,
   onColorChange,
   onAdd,
+  onDragStateChange,
 }: CatalogPanelProps) {
   const [query, setQuery] = useState("");
+  const colorHex = getColorDefinition(selectedColorId)?.displayHex ?? "#c91a09";
   const parts = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     return normalized
@@ -110,8 +127,10 @@ export function CatalogPanel({
           <PartOption
             key={part.id}
             part={part}
+            colorHex={colorHex}
             selected={part.id === selectedPartDefinitionId}
             onSelect={() => onPartDefinitionChange(part.id)}
+            onDragStateChange={onDragStateChange}
           />
         ))}
       </div>

@@ -11,6 +11,7 @@ import {
   validateBrickDocument,
 } from "@lego-studio/brick-kernel";
 import { assertRenderBudget } from "@lego-studio/rendering";
+import type { RigidTransform } from "@lego-studio/protocol";
 
 import { AssistantPanel } from "./components/AssistantPanel";
 import { BrickViewport, type BrickViewportHandle } from "./components/BrickViewport";
@@ -24,6 +25,8 @@ import { useCandidateLab } from "./generation/use-candidate-lab";
 import {
   ManualCommandError,
   createAddPartTransaction,
+  createMovePartTransaction,
+  createPlacePartTransaction,
   createRemovePartTransaction,
   createUpdatePartTransaction,
 } from "./manual-commands";
@@ -53,6 +56,7 @@ export function App() {
     PART_DEFINITIONS[4]?.id ?? "builtin:brick-2x2",
   );
   const [colorId, setColorId] = useState("builtin:red");
+  const [draggedCatalogPartId, setDraggedCatalogPartId] = useState<string | null>(null);
   const [commandError, setCommandError] = useState<string | null>(null);
   const [assistantPrompt, setAssistantPrompt] = useState("Build an 18-piece red and yellow tower");
   const candidateLab = useCandidateLab(state.document);
@@ -240,6 +244,25 @@ export function App() {
     });
   }
 
+  function placePart(catalogPartId: string, transform: RigidTransform) {
+    runCommand(() => {
+      const transaction = createPlacePartTransaction(state.document, {
+        catalogPartId,
+        colorId,
+        transform,
+      });
+      applyTransaction(transaction);
+      dispatch({ type: "selectPart", partId: transaction.partId });
+    });
+  }
+
+  function movePart(partId: string, transform: RigidTransform) {
+    runCommand(() => {
+      applyTransaction(createMovePartTransaction(state.document, partId, transform));
+      dispatch({ type: "selectPart", partId });
+    });
+  }
+
   function deleteSelectedPart() {
     if (!selectedPart) return;
     runCommand(() => {
@@ -401,6 +424,7 @@ export function App() {
           onPartDefinitionChange={setCatalogPartId}
           onColorChange={setColorId}
           onAdd={addPart}
+          onDragStateChange={setDraggedCatalogPartId}
         />
 
         <section className="workspace" aria-label="Model workspace">
@@ -430,9 +454,12 @@ export function App() {
             validationReport={report}
             selectedPartId={candidateLab.selectedCandidate ? null : state.selectedPartId}
             previewing={candidateLab.selectedCandidate !== null}
+            draggedCatalogPartId={draggedCatalogPartId}
             onSelectPart={(partId) => {
               if (!candidateLab.selectedCandidate) dispatch({ type: "selectPart", partId });
             }}
+            onPlacePart={placePart}
+            onMovePart={movePart}
           />
           <div className="viewport-footer">
             <span>

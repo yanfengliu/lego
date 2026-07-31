@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 
-import type { BrickDocumentV1, ValidationReportV1 } from "@lego-studio/protocol";
+import type { BrickDocumentV1, RigidTransform, ValidationReportV1 } from "@lego-studio/protocol";
 import {
   createCameraForView,
   createCanonicalViewPacket,
@@ -19,19 +19,18 @@ import {
   GridHelper,
   MOUSE,
   PerspectiveCamera,
-  Raycaster,
   Scene,
   SRGBColorSpace,
   Vector2,
   Vector3,
   WebGLRenderer,
   type Camera,
-  type Object3D,
 } from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
-import { keyboardSelection } from "../viewport-navigation";
 import { installFlyRig } from "../viewport/install-fly-rig";
+import { installSelectionRig } from "../viewport/install-selection";
+import { installPlacementRig, type PlacementRig } from "../viewport/install-placement";
 
 export interface BrickViewportSnapshot {
   readonly contextLost: boolean;
@@ -52,7 +51,11 @@ interface BrickViewportProps {
   readonly validationReport: ValidationReportV1;
   readonly selectedPartId: string | null;
   readonly previewing: boolean;
+  /** Catalog part being dragged out of the palette, if any. */
+  readonly draggedCatalogPartId: string | null;
   readonly onSelectPart: (partId: string | null) => void;
+  readonly onPlacePart: (catalogPartId: string, transform: RigidTransform) => void;
+  readonly onMovePart: (partId: string, transform: RigidTransform) => void;
 }
 
 interface ViewportRuntime {
@@ -99,15 +102,6 @@ function syncOrbitFrustum(runtime: ViewportRuntime): void {
   camera.updateProjectionMatrix();
 }
 
-function partIdFromObject(object: Object3D | null): string | null {
-  let current = object;
-  while (current) {
-    if (typeof current.userData.partId === "string") return current.userData.partId;
-    current = current.parent;
-  }
-  return null;
-}
-
 function resizeCamera(
   camera: Camera,
   width: number,
@@ -127,7 +121,16 @@ function resizeCamera(
 
 export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>(
   function BrickViewport(
-    { document, validationReport, selectedPartId, previewing, onSelectPart },
+    {
+      document,
+      validationReport,
+      selectedPartId,
+      previewing,
+      draggedCatalogPartId,
+      onSelectPart,
+      onPlacePart,
+      onMovePart,
+    },
     ref,
   ) {
     const hostRef = useRef<HTMLDivElement>(null);
@@ -135,6 +138,11 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
     const previewingRef = useRef(previewing);
     const selectedPartIdRef = useRef(selectedPartId);
     const onSelectPartRef = useRef(onSelectPart);
+    const documentRef = useRef(document);
+    const draggedCatalogPartIdRef = useRef(draggedCatalogPartId);
+    const onPlacePartRef = useRef(onPlacePart);
+    const onMovePartRef = useRef(onMovePart);
+    const placementRef = useRef<PlacementRig | null>(null);
     const [contextLost, setContextLost] = useState(false);
     const [renderError, setRenderError] = useState<string | null>(null);
     const contextLostRef = useRef(false);
@@ -144,6 +152,10 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
     selectedPartIdRef.current = selectedPartId;
     onSelectPartRef.current = onSelectPart;
     contextLostRef.current = contextLost;
+    documentRef.current = document;
+    draggedCatalogPartIdRef.current = draggedCatalogPartId;
+    onPlacePartRef.current = onPlacePart;
+    onMovePartRef.current = onMovePart;
 
     useImperativeHandle(
       ref,
@@ -291,37 +303,31 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
       resizeObserver.observe(host);
       resize();
 
-      const pointer = new Vector2();
-      const raycaster = new Raycaster();
-      let pointerStart: { x: number; y: number; button: number } | null = null;
-      const handlePointerDown = (event: PointerEvent) => {
-        pointerStart = { x: event.clientX, y: event.clientY, button: event.button };
-      };
-      const handlePointerUp = (event: PointerEvent) => {
-        if (previewingRef.current || !runtime.projection) return;
-        const started = pointerStart;
-        pointerStart = null;
-        if (
-          !started ||
-          started.button !== 0 ||
-          Math.hypot(event.clientX - started.x, event.clientY - started.y) > 4
-        ) {
-          return;
-        }
-        const bounds = renderer.domElement.getBoundingClientRect();
-        pointer.set(
-          ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
-          -((event.clientY - bounds.top) / bounds.height) * 2 + 1,
-        );
-        raycaster.setFromCamera(pointer, runtime.camera);
-        const hit = raycaster.intersectObjects(
-          [...runtime.projection.partObjects.values()],
-          true,
-        )[0];
-        onSelectPartRef.current(partIdFromObject(hit?.object ?? null));
-      };
-      renderer.domElement.addEventListener("pointerdown", handlePointerDown);
-      renderer.domElement.addEventListener("pointerup", handlePointerUp);
+      const placement = installPlacementRig({
+        element: renderer.domElement,
+        scene,
+        getCamera: () => runtime.camera,
+        getParts: () => documentRef.current.parts,
+        getPartObjects: () => [...(runtime.projection?.partObjects.values() ?? [])],
+        getDraggedCatalogPartId: () => draggedCatalogPartIdRef.current,
+        getOrientationId: () => "upright-yaw-0",
+        isSuspended: () => previewingRef.current || contextLostRef.current,
+        onPlace: (catalogPartId, transform) => onPlacePartRef.current(catalogPartId, transform),
+        onMove: (partId, transform) => onMovePartRef.current(partId, transform),
+        requestRender: render,
+      });
+      placementRef.current = placement;
+
+      const disposeSelectionRig = installSelectionRig({
+        element: renderer.domElement,
+        getCamera: () => runtime.camera,
+        getPartObjects: () => [...(runtime.projection?.partObjects.values() ?? [])],
+        isSuspended: () => previewingRef.current || runtime.projection === null,
+        isMoving: () => placement.isMoving,
+        getSelectedPartId: () => selectedPartIdRef.current,
+        onSelect: (partId) => onSelectPartRef.current(partId),
+        onBeginMove: (partId) => placement.beginMove(partId),
+      });
 
       const disposeFlyRig = installFlyRig({
         element: renderer.domElement,
@@ -333,19 +339,6 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
           applyMovement: () => runtime.controls.update(),
         }),
       });
-
-      const handleKeyDown = (event: KeyboardEvent) => {
-        if (previewingRef.current || !runtime.projection) return;
-        const next = keyboardSelection(
-          selectedPartIdRef.current,
-          [...runtime.projection.partObjects.keys()],
-          event.key,
-        );
-        if (next === undefined) return;
-        event.preventDefault();
-        onSelectPartRef.current(next);
-      };
-      renderer.domElement.addEventListener("keydown", handleKeyDown);
 
       const handleContextLost = (event: Event) => {
         event.preventDefault();
@@ -364,10 +357,10 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
         resizeObserver.disconnect();
         controls.removeEventListener("change", render);
         runtime.controls.dispose();
-        renderer.domElement.removeEventListener("pointerdown", handlePointerDown);
-        renderer.domElement.removeEventListener("pointerup", handlePointerUp);
+        disposeSelectionRig();
         disposeFlyRig();
-        renderer.domElement.removeEventListener("keydown", handleKeyDown);
+        placement.dispose();
+        placementRef.current = null;
         renderer.domElement.removeEventListener("webglcontextlost", handleContextLost);
         renderer.domElement.removeEventListener("webglcontextrestored", handleContextRestored);
         runtime.projection?.dispose();

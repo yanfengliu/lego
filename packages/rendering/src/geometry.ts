@@ -5,7 +5,7 @@ import {
   type LduBounds,
   type PartDefinition,
 } from "@lego-studio/catalog";
-import type { PartInstance } from "@lego-studio/protocol";
+import type { PartInstance, RigidTransform } from "@lego-studio/protocol";
 import {
   BoxGeometry,
   CylinderGeometry,
@@ -18,7 +18,7 @@ import {
   MeshStandardMaterial,
 } from "three";
 
-import { THREE_UNITS_PER_LDU, lduToThreeVector } from "./coordinates.ts";
+import { THREE_UNITS_PER_LDU, lduToThreeVector, lduTransformToThreeMatrix } from "./coordinates.ts";
 import type { RenderDiagnostic } from "./types.ts";
 
 const FALLBACK_COLOR = 0xff2bd6;
@@ -160,3 +160,66 @@ export function createPartOverlay(
 }
 
 export const PLACEHOLDER_PART_BOUNDS = PLACEHOLDER_BOUNDS;
+
+const GHOST_COLORS = { valid: 0x54e08a, blocked: 0xff5470 } as const;
+
+export type GhostVerdict = keyof typeof GHOST_COLORS;
+
+/**
+ * A translucent stand-in for a part the user is about to place. It is a pure
+ * display artifact: it carries no part ID and never enters the document, so it
+ * cannot be mistaken for authored truth. Dispose it with disposeObjectTree.
+ */
+export function createPlacementGhost(
+  definition: PartDefinition,
+  transform: RigidTransform,
+  verdict: GhostVerdict,
+): Group {
+  const group = new Group();
+  const material = new MeshStandardMaterial({
+    color: GHOST_COLORS[verdict],
+    metalness: 0,
+    roughness: 0.5,
+    transparent: true,
+    opacity: 0.55,
+    depthWrite: false,
+  });
+  material.userData = { renderRole: "placement-ghost-material", verdict };
+
+  const { widthLdu, heightLdu, lengthLdu } = definition.dimensions;
+  const bodyGeometry = new BoxGeometry(
+    widthLdu * THREE_UNITS_PER_LDU,
+    heightLdu * THREE_UNITS_PER_LDU,
+    lengthLdu * THREE_UNITS_PER_LDU,
+  );
+  bodyGeometry.userData = { renderRole: "placement-ghost-geometry" };
+  group.add(new Mesh(bodyGeometry, material));
+
+  const studGeometry = new CylinderGeometry(
+    STUD_RADIUS_LDU * THREE_UNITS_PER_LDU,
+    STUD_RADIUS_LDU * THREE_UNITS_PER_LDU,
+    STUD_HEIGHT_LDU * THREE_UNITS_PER_LDU,
+    16,
+    1,
+    false,
+  );
+  studGeometry.userData = { renderRole: "placement-ghost-geometry" };
+  for (const primitive of definition.collision.primitives) {
+    if (primitive.kind !== "cylinder" || primitive.tag !== "stud") continue;
+    const stud = new Mesh(studGeometry, material);
+    stud.position.copy(lduToThreeVector(primitive.centerLdu));
+    group.add(stud);
+  }
+
+  lduTransformToThreeMatrix(transform).decompose(group.position, group.quaternion, group.scale);
+  group.updateMatrix();
+  group.renderOrder = 50;
+  group.name = "placement-ghost";
+  group.userData = {
+    renderRole: "placement-ghost",
+    catalogPartId: definition.id,
+    verdict,
+    sourceOfTruth: "none",
+  };
+  return group;
+}
