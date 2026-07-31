@@ -1,6 +1,7 @@
 import type { SourceProvenance, UprightOrientation } from "./types.ts";
 
-export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/1" as const;
+/** Bumped to /2 when the palette grew from eight colours to the full solid set. */
+export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/2" as const;
 export const CONNECTOR_TAXONOMY_VERSION = "stud-tube/1" as const;
 export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/1" as const;
 export const TRANSFORM_POLICY_VERSION = "upright-quarter-turns-negative-y-up/1" as const;

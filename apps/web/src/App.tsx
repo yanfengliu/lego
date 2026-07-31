@@ -8,6 +8,7 @@ import {
   createEmptyBrickDocument,
   exportBrickDocumentToLDraw,
   importBrickDocumentFromLDraw,
+  migrateDocumentTruth,
   validateBrickDocument,
 } from "@lego-studio/brick-kernel";
 import { assertRenderBudget } from "@lego-studio/rendering";
@@ -64,6 +65,7 @@ export function App() {
   const [projectHydration, setProjectHydration] = useState<ProjectHydration>({ state: "loading" });
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "failed">("saved");
   const [persistenceError, setPersistenceError] = useState<string | null>(null);
+  const [migrationNotice, setMigrationNotice] = useState<string | null>(null);
   const viewportRef = useRef<BrickViewportHandle>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const automationStateRef = useRef<AutomationAppState | null>(null);
@@ -152,8 +154,26 @@ export function App() {
       .then((stored) => {
         if (!active) return;
         if (stored) {
-          dispatch({ type: "restoreState", state: stored.state });
-          lastQueuedStateHashRef.current = canonicalDigest(stored.state);
+          // A stored document pins its own truth; carry it forward explicitly
+          // rather than letting it float onto the newer catalog.
+          const { document: migratedDocument, report } = migrateDocumentTruth(
+            stored.state.document,
+          );
+          const restored =
+            report.migrated || report.blockingReasons.length > 0
+              ? { ...stored.state, document: migratedDocument }
+              : stored.state;
+          if (report.migrated) {
+            setMigrationNotice(
+              `Updated this model from ${report.fromCatalogVersion} to ${report.toCatalogVersion}; ${report.addedColorIds.length} new colors are now available.`,
+            );
+          } else if (report.blockingReasons.length > 0) {
+            setMigrationNotice(
+              `This model is pinned to ${report.fromCatalogVersion} and was left unchanged: ${report.blockingReasons[0]}`,
+            );
+          }
+          dispatch({ type: "restoreState", state: restored });
+          lastQueuedStateHashRef.current = canonicalDigest(restored);
         }
         saveQueueRef.current = new ProjectSaveQueue(
           repository,
@@ -513,6 +533,11 @@ export function App() {
           {commandError ? (
             <div className="command-error" role="alert">
               {commandError}
+            </div>
+          ) : null}
+          {migrationNotice ? (
+            <div className="command-error command-error--notice" role="status">
+              {migrationNotice}
             </div>
           ) : null}
           {persistenceError ? (

@@ -1,6 +1,7 @@
 import {
   applyBuildOperations,
   canonicalDigest,
+  createBuiltinTruthSnapshot,
   deepFreeze,
   documentStructuralHash,
   invertBuildOperations,
@@ -141,6 +142,11 @@ function parseHistory(value: unknown, label: string): EditorTransaction[] {
   return value.map(parseTransaction);
 }
 
+/** True when the document pins a truth snapshot other than this kernel's. */
+function documentAwaitsTruthMigration(document: BrickDocumentV1): boolean {
+  return canonicalDigest(document.truth) !== canonicalDigest(createBuiltinTruthSnapshot());
+}
+
 function verifyHistory(
   document: BrickDocumentV1,
   undoStack: readonly EditorTransaction[],
@@ -242,7 +248,11 @@ export function parseStoredEditorProject(value: unknown): StoredEditorProjectV1 
   if (totalOperations > PROJECT_SNAPSHOT_LIMITS.maxTotalHistoryOperations) {
     return limit("Stored editor history exceeds the total operation limit");
   }
-  verifyHistory(document, undoStack, redoStack);
+  // Operations authored under an older truth cannot be replayed against the
+  // current kernel, so a document awaiting migration skips replay. The stored
+  // bytes are still verified in full below; only the history is set aside.
+  const awaitingTruthMigration = documentAwaitsTruthMigration(document);
+  if (!awaitingTruthMigration) verifyHistory(document, undoStack, redoStack);
 
   const state = { document, selectedPartId, undoStack, redoStack } satisfies EditorState;
   const snapshotHash = snapshotDigest(
@@ -264,7 +274,9 @@ export function parseStoredEditorProject(value: unknown): StoredEditorProjectV1 
     generation: detached.generation as number,
     documentHash,
     snapshotHash,
-    state,
+    // Undo across a truth migration would reinstate the old truth, so the
+    // migrated document starts a fresh history.
+    state: awaitingTruthMigration ? { ...state, undoStack: [], redoStack: [] } : state,
   });
 }
 

@@ -76,10 +76,84 @@ function ColorOption({
       className={`color-option${selected ? " is-selected" : ""}`}
       aria-label={color.displayName}
       aria-pressed={selected}
-      title={color.displayName}
+      title={`${color.displayName} · ${color.displayHex}`}
       onClick={onSelect}
       style={{ "--swatch": color.displayHex } as React.CSSProperties}
     />
+  );
+}
+
+function ColorPanel({
+  selectedColorId,
+  onColorChange,
+}: {
+  readonly selectedColorId: string;
+  readonly onColorChange: (colorId: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [expanded, setExpanded] = useState(false);
+  const selected = getColorDefinition(selectedColorId);
+  const normalized = query.trim().toLowerCase();
+  const matches = normalized
+    ? COLOR_DEFINITIONS.filter(
+        (color) =>
+          color.displayName.toLowerCase().includes(normalized) ||
+          color.displayHex.toLowerCase().includes(normalized),
+      )
+    : COLOR_DEFINITIONS;
+  // Collapsed, the panel shows one dense row; expanded, the whole palette. The
+  // current colour always stays on screen so the selection is never hidden.
+  const collapsed = matches.slice(0, 9);
+  const visible =
+    expanded || normalized
+      ? matches
+      : collapsed.some(({ id }) => id === selectedColorId) || !selected
+        ? collapsed
+        : [selected, ...collapsed.slice(0, 8)];
+
+  return (
+    <div className="color-panel">
+      <div className="color-panel__header">
+        <span className="field-label">Color</span>
+        <span className="color-panel__current" title={selected?.displayHex}>
+          {selected?.displayName ?? "Unknown"}
+          <code>{selected?.displayHex ?? "—"}</code>
+        </span>
+      </div>
+      {expanded ? (
+        <label className="search-field search-field--compact">
+          <span className="sr-only">Search colors</span>
+          <span aria-hidden="true">⌕</span>
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search colors or hex"
+          />
+        </label>
+      ) : null}
+      <div className="color-grid" aria-label="Palette">
+        {visible.map((color) => (
+          <ColorOption
+            key={color.id}
+            color={color}
+            selected={color.id === selectedColorId}
+            onSelect={() => onColorChange(color.id)}
+          />
+        ))}
+      </div>
+      {visible.length === 0 ? <p className="color-panel__empty">No color matches {query}</p> : null}
+      <button
+        type="button"
+        className="color-panel__toggle"
+        aria-expanded={expanded}
+        onClick={() => {
+          setExpanded(!expanded);
+          if (expanded) setQuery("");
+        }}
+      >
+        {expanded ? "Show fewer" : `All ${COLOR_DEFINITIONS.length} colors`}
+      </button>
+    </div>
   );
 }
 
@@ -136,17 +210,7 @@ export function CatalogPanel({
       </div>
 
       <div className="catalog-footer">
-        <div className="field-label">Color</div>
-        <div className="color-grid">
-          {COLOR_DEFINITIONS.map((color) => (
-            <ColorOption
-              key={color.id}
-              color={color}
-              selected={color.id === selectedColorId}
-              onSelect={() => onColorChange(color.id)}
-            />
-          ))}
-        </div>
+        <ColorPanel selectedColorId={selectedColorId} onColorChange={onColorChange} />
         <button
           type="button"
           className="primary-action"

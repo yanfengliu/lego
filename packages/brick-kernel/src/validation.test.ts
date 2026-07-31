@@ -104,7 +104,7 @@ describe("hard document validation", () => {
     ]);
     expect(codes(badCatalog)).toContain("CATALOG_PART_NOT_ALLOWED");
 
-    const badColor = withParts([createPartInstance({ id: "bad", colorId: "builtin:purple" })]);
+    const badColor = withParts([createPartInstance({ id: "bad", colorId: "builtin:not-a-color" })]);
     expect(codes(badColor)).toContain("COLOR_NOT_ALLOWED");
 
     const badOrientation = withParts([

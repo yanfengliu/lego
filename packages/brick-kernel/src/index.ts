@@ -5,6 +5,7 @@ export * from "./compiler.ts";
 export * from "./document.ts";
 export * from "./factory.ts";
 export * from "./ldraw.ts";
+export * from "./migration.ts";
 export * from "./normalization.ts";
 export * from "./operations.ts";
 export * from "./patch-diff.ts";

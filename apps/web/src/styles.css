@@ -923,3 +923,56 @@ button.candidate-attempt {
     border-left: 0;
   }
 }
+
+.search-field--compact {
+  margin-bottom: 0.5rem;
+}
+.color-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.color-panel__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.color-panel__current {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 0.35rem;
+  color: var(--muted);
+  font-size: 0.64rem;
+}
+.color-panel__current code {
+  color: var(--muted);
+  font-size: 0.6rem;
+  opacity: 0.75;
+}
+.color-panel__empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.64rem;
+}
+.color-panel__toggle {
+  align-self: flex-start;
+  padding: 0.1rem 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.64rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.color-panel__toggle:hover {
+  color: var(--text);
+}
+.command-error--notice {
+  border-color: #3d5a44;
+  background: #16241a;
+  color: #b7dcbf;
+}

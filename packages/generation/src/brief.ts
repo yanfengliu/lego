@@ -29,7 +29,8 @@ export const MAX_MAKER_CANDIDATES = 4;
 export const MIN_MAKER_PARTS = 10;
 export const MAX_MAKER_PARTS = 40;
 export const MAX_MAKER_ALLOWED_PART_IDS = 64;
-export const MAX_MAKER_ALLOWED_COLOR_IDS = 32;
+/** Bounds untrusted maker input while leaving headroom above the builtin palette. */
+export const MAX_MAKER_ALLOWED_COLOR_IDS = 128;
 export const MIN_MAKER_OPERATIONS = MIN_MAKER_PARTS * 2 - 1;
 export const MAX_MAKER_BRIEF_LIST_ITEMS = 16;
 export const MAX_MAKER_BASE_ANNOTATIONS = 64;
@@ -277,16 +278,20 @@ export function normalizeRestrictedTextBrief(
       "/scope",
     );
   }
-  if (
-    brief.allowedCatalogPartIds.length > MAX_MAKER_ALLOWED_PART_IDS ||
-    scope.allowedCatalogPartIds.length > MAX_MAKER_ALLOWED_PART_IDS ||
-    brief.allowedColorIds.length > MAX_MAKER_ALLOWED_COLOR_IDS ||
-    scope.allowedColorIds.length > MAX_MAKER_ALLOWED_COLOR_IDS
-  ) {
+  const oversizedAllowlist = (
+    [
+      ["/brief/allowedCatalogPartIds", brief.allowedCatalogPartIds, MAX_MAKER_ALLOWED_PART_IDS],
+      ["/scope/allowedCatalogPartIds", scope.allowedCatalogPartIds, MAX_MAKER_ALLOWED_PART_IDS],
+      ["/brief/allowedColorIds", brief.allowedColorIds, MAX_MAKER_ALLOWED_COLOR_IDS],
+      ["/scope/allowedColorIds", scope.allowedColorIds, MAX_MAKER_ALLOWED_COLOR_IDS],
+    ] as const
+  ).find(([, values, limit]) => values.length > limit);
+  if (oversizedAllowlist) {
+    const [path, values, limit] = oversizedAllowlist;
     return failure(
       "ALLOWLIST_TOO_LARGE",
-      "Maker allowlists exceed the bounded local catalog limits",
-      "/brief/allowedCatalogPartIds",
+      `${path} lists ${values.length} entries but the bounded local catalog limit is ${limit}`,
+      path,
     );
   }
   if (

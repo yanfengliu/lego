@@ -169,7 +169,7 @@ export class IndexedDbProjectRepository implements ProjectRepository {
       if (error instanceof ProjectSnapshotError) {
         throw new ProjectRepositoryError(
           "CORRUPT_PROJECT",
-          "The local project failed integrity checks and was left unchanged",
+          `The local project failed integrity checks and was left unchanged (${error.code}: ${error.message})`,
           error,
         );
       }
