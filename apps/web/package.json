@@ -13,6 +13,7 @@
     "@lego-studio/generation": "0.0.0",
     "@lego-studio/protocol": "0.0.0",
     "@lego-studio/rendering": "0.0.0",
+    "pdfjs-dist": "5.4.149",
     "react": "19.2.7",
     "react-dom": "19.2.7"
   }

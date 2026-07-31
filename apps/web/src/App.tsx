@@ -40,6 +40,12 @@ import {
   createRemovePartTransaction,
   createUpdatePartTransaction,
 } from "./manual-commands";
+import { ingestInstructionPdf } from "./instructions/ingest-pdf";
+import {
+  InstructionIngestError,
+  summarizeInstructionSource,
+  type InstructionSourceV1,
+} from "./instructions/instruction-source";
 import { nextYawOrientationId, snapPlacementOrigin } from "./placement";
 import {
   IndexedDbProjectRepository,
@@ -86,8 +92,11 @@ export function App() {
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "failed">("saved");
   const [persistenceError, setPersistenceError] = useState<string | null>(null);
   const [migrationNotice, setMigrationNotice] = useState<string | null>(null);
+  const [instructionSource, setInstructionSource] = useState<InstructionSourceV1 | null>(null);
+  const [instructionProgress, setInstructionProgress] = useState<string | null>(null);
   const viewportRef = useRef<BrickViewportHandle>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
+  const instructionInputRef = useRef<HTMLInputElement>(null);
   const automationStateRef = useRef<AutomationAppState | null>(null);
   const importGenerationRef = useRef(0);
   const saveQueueRef = useRef<ProjectSaveQueue | null>(null);
@@ -360,6 +369,28 @@ export function App() {
       .catch((error: unknown) => setPersistenceError(localStorageErrorMessage(error)));
   }
 
+  async function importInstructions(file: File) {
+    setInstructionSource(null);
+    setInstructionProgress(`Reading ${file.name}…`);
+    try {
+      const source = await ingestInstructionPdf(file, {
+        onProgress: (read, total) => setInstructionProgress(`Reading page ${read} of ${total}…`),
+      });
+      setInstructionSource(source);
+      setInstructionProgress(null);
+      setCommandError(null);
+    } catch (error) {
+      setInstructionProgress(null);
+      setCommandError(
+        error instanceof InstructionIngestError
+          ? error.message
+          : `Could not read ${file.name} as instructions: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+      );
+    }
+  }
+
   function applyTransaction(transaction: EditorTransaction) {
     applyBuildOperations(state.document, transaction.operations);
     dispatch({ type: "applyTransaction", transaction });
@@ -577,6 +608,25 @@ export function App() {
           >
             Import
           </button>
+          <button
+            type="button"
+            className="quiet-action"
+            title="Read a set instruction PDF"
+            onClick={() => instructionInputRef.current?.click()}
+          >
+            Instructions
+          </button>
+          <input
+            ref={instructionInputRef}
+            className="sr-only"
+            type="file"
+            accept=".pdf,application/pdf"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) void importInstructions(file);
+              event.target.value = "";
+            }}
+          />
           <button type="button" className="quiet-action" onClick={exportLDraw}>
             Export LDraw
           </button>
@@ -714,6 +764,21 @@ export function App() {
             </span>
             <code>{report.targetDocumentHash.slice(0, 18)}…</code>
           </div>
+          {instructionProgress ? (
+            <div className="command-error command-error--notice" role="status">
+              {instructionProgress}
+            </div>
+          ) : null}
+          {instructionSource ? (
+            <div className="command-error command-error--notice" role="status">
+              Read {instructionSource.fileName}:{" "}
+              {summarizeInstructionSource(instructionSource).pageCount} pages,{" "}
+              {summarizeInstructionSource(instructionSource).pagesWithText} with text,{" "}
+              {summarizeInstructionSource(instructionSource).megabytes} MB.{" "}
+              <code>{instructionSource.contentHash.slice(0, 18)}…</code> Interpreting these pages
+              into build steps is not implemented yet.
+            </div>
+          ) : null}
           {commandError ? (
             <div className="command-error" role="alert">
               {commandError}

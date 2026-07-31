@@ -46,6 +46,18 @@ This inventory records the exact installed npm dependency graph. The correspondi
 | @jridgewell/sourcemap-codec | 1.5.5 | MIT | https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.5.5.tgz |
 | @jridgewell/trace-mapping | 0.3.31 | MIT | https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz |
 | @jsdevtools/ono | 7.1.3 | MIT | https://registry.npmjs.org/@jsdevtools/ono/-/ono-7.1.3.tgz |
+| @napi-rs/canvas-android-arm64 | 0.1.100 | MIT | https://registry.npmjs.org/@napi-rs/canvas-android-arm64/-/canvas-android-arm64-0.1.100.tgz |
+| @napi-rs/canvas-darwin-arm64 | 0.1.100 | MIT | https://registry.npmjs.org/@napi-rs/canvas-darwin-arm64/-/canvas-darwin-arm64-0.1.100.tgz |
+| @napi-rs/canvas-darwin-x64 | 0.1.100 | MIT | https://registry.npmjs.org/@napi-rs/canvas-darwin-x64/-/canvas-darwin-x64-0.1.100.tgz |
+| @napi-rs/canvas-linux-arm-gnueabihf | 0.1.100 | MIT | https://registry.npmjs.org/@napi-rs/canvas-linux-arm-gnueabihf/-/canvas-linux-arm-gnueabihf-0.1.100.tgz |
+| @napi-rs/canvas-linux-arm64-gnu | 0.1.100 | MIT | https://registry.npmjs.org/@napi-rs/canvas-linux-arm64-gnu/-/canvas-linux-arm64-gnu-0.1.100.tgz |
+| @napi-rs/canvas-linux-arm64-musl | 0.1.100 | MIT | https://registry.npmjs.org/@napi-rs/canvas-linux-arm64-musl/-/canvas-linux-arm64-musl-0.1.100.tgz |
+| @napi-rs/canvas-linux-riscv64-gnu | 0.1.100 | MIT | https://registry.npmjs.org/@napi-rs/canvas-linux-riscv64-gnu/-/canvas-linux-riscv64-gnu-0.1.100.tgz |
+| @napi-rs/canvas-linux-x64-gnu | 0.1.100 | MIT | https://registry.npmjs.org/@napi-rs/canvas-linux-x64-gnu/-/canvas-linux-x64-gnu-0.1.100.tgz |
+| @napi-rs/canvas-linux-x64-musl | 0.1.100 | MIT | https://registry.npmjs.org/@napi-rs/canvas-linux-x64-musl/-/canvas-linux-x64-musl-0.1.100.tgz |
+| @napi-rs/canvas-win32-arm64-msvc | 0.1.100 | MIT | https://registry.npmjs.org/@napi-rs/canvas-win32-arm64-msvc/-/canvas-win32-arm64-msvc-0.1.100.tgz |
+| @napi-rs/canvas-win32-x64-msvc | 0.1.100 | MIT | https://registry.npmjs.org/@napi-rs/canvas-win32-x64-msvc/-/canvas-win32-x64-msvc-0.1.100.tgz |
+| @napi-rs/canvas | 0.1.100 | MIT | https://registry.npmjs.org/@napi-rs/canvas/-/canvas-0.1.100.tgz |
 | @napi-rs/wasm-runtime | 1.1.6 | MIT | https://registry.npmjs.org/@napi-rs/wasm-runtime/-/wasm-runtime-1.1.6.tgz |
 | @noble/hashes | 2.2.0 | MIT | https://registry.npmjs.org/@noble/hashes/-/hashes-2.2.0.tgz |
 | @oxc-project/types | 0.139.0 | MIT | https://registry.npmjs.org/@oxc-project/types/-/types-0.139.0.tgz |
@@ -198,6 +210,7 @@ This inventory records the exact installed npm dependency graph. The correspondi
 | path-exists | 4.0.0 | MIT | https://registry.npmjs.org/path-exists/-/path-exists-4.0.0.tgz |
 | path-key | 3.1.1 | MIT | https://registry.npmjs.org/path-key/-/path-key-3.1.1.tgz |
 | pathe | 2.0.3 | MIT | https://registry.npmjs.org/pathe/-/pathe-2.0.3.tgz |
+| pdfjs-dist | 5.4.149 | Apache-2.0 | https://registry.npmjs.org/pdfjs-dist/-/pdfjs-dist-5.4.149.tgz |
 | picocolors | 1.1.1 | ISC | https://registry.npmjs.org/picocolors/-/picocolors-1.1.1.tgz |
 | picomatch | 4.0.5 | MIT | https://registry.npmjs.org/picomatch/-/picomatch-4.0.5.tgz |
 | playwright-core | 1.61.1 | Apache-2.0 | https://registry.npmjs.org/playwright-core/-/playwright-core-1.61.1.tgz |

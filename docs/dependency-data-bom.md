@@ -87,6 +87,7 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
     { "manifest": "apps/web/package.json", "section": "dependencies", "name": "@lego-studio/protocol", "spec": "0.0.0" },
     { "manifest": "apps/web/package.json", "section": "dependencies", "name": "@lego-studio/rendering", "spec": "0.0.0" },
     { "manifest": "apps/web/package.json", "section": "dependencies", "name": "react", "spec": "19.2.7" },
+    { "manifest": "apps/web/package.json", "section": "dependencies", "name": "pdfjs-dist", "spec": "5.4.149" },
     { "manifest": "apps/web/package.json", "section": "dependencies", "name": "react-dom", "spec": "19.2.7" },
     { "manifest": "packages/protocol/package.json", "section": "dependencies", "name": "ajv", "spec": "8.20.0" },
     { "manifest": "packages/protocol/package.json", "section": "dependencies", "name": "@noble/hashes", "spec": "2.2.0" },
@@ -221,6 +222,16 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
       "declaredLicense": "MIT",
       "rightsPolicy": "npm-lockfile-spdx-unverified",
       "allowedRoles": ["development generation of TypeScript declarations from reviewed schemas"]
+    },
+    {
+      "name": "pdfjs-dist",
+      "version": "5.4.149",
+      "kind": "npm",
+      "resolvedSource": "https://registry.npmjs.org/pdfjs-dist/-/pdfjs-dist-5.4.149.tgz",
+      "upstreamSource": "https://github.com/mozilla/pdf.js",
+      "declaredLicense": "Apache-2.0",
+      "rightsPolicy": "npm-lockfile-spdx-unverified",
+      "allowedRoles": ["runtime instruction PDF parsing"]
     },
     {
       "name": "prettier",
