@@ -5,6 +5,7 @@ import {
   createCameraForView,
   createCanonicalViewPacket,
   deriveBrickScene,
+  THREE_UNITS_PER_LDU,
   fitPerspectiveCameraToFrame,
   orbitCameraFrustum,
   setBrickSceneSelection,
@@ -28,6 +29,7 @@ import {
 } from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
+import { GROUND_UNDERSIDE_LDU } from "../placement";
 import { installFlyRig } from "../viewport/install-fly-rig";
 import { installSelectionRig } from "../viewport/install-selection";
 import { installPlacementRig, type PlacementRig } from "../viewport/install-placement";
@@ -53,11 +55,15 @@ interface BrickViewportProps {
   readonly validationReport: ValidationReportV1;
   readonly selectedPartId: string | null;
   readonly previewing: boolean;
+  /** Changing this re-frames the camera; editing the model never does. */
+  readonly frameToken: number;
   /** Catalog part being dragged out of the palette, if any. */
   readonly draggedCatalogPartId: string | null;
   readonly onSelectPart: (partId: string | null) => void;
   readonly onPlacePart: (catalogPartId: string, transform: RigidTransform) => void;
   readonly onMovePart: (partId: string, transform: RigidTransform) => void;
+  /** Called when the user presses Escape, so the palette can un-arm. */
+  readonly onDisarm: () => void;
 }
 
 interface ViewportRuntime {
@@ -74,6 +80,9 @@ interface ViewportRuntime {
 
 const GRID_HALF_EXTENT = 20;
 const GRID_SCENE_RADIUS = GRID_HALF_EXTENT * Math.SQRT2;
+
+/** About six studs of working area, so an empty scene is not framed inside a brick. */
+const MIN_INTERACTIVE_FRAME_RADIUS = 6;
 
 /**
  * Left drag is reserved for selection and part dragging, so orbiting moves to
@@ -128,10 +137,12 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
       validationReport,
       selectedPartId,
       previewing,
+      frameToken,
       draggedCatalogPartId,
       onSelectPart,
       onPlacePart,
       onMovePart,
+      onDisarm,
     },
     ref,
   ) {
@@ -144,10 +155,12 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
     const draggedCatalogPartIdRef = useRef(draggedCatalogPartId);
     const onPlacePartRef = useRef(onPlacePart);
     const onMovePartRef = useRef(onMovePart);
+    const onDisarmRef = useRef(onDisarm);
     const placementRef = useRef<PlacementRig | null>(null);
     const [contextLost, setContextLost] = useState(false);
     const [renderError, setRenderError] = useState<string | null>(null);
     const contextLostRef = useRef(false);
+    const framedTokenRef = useRef<number | null>(null);
     const capturePromiseRef = useRef<Promise<Record<string, string>> | null>(null);
 
     previewingRef.current = previewing;
@@ -158,6 +171,7 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
     draggedCatalogPartIdRef.current = draggedCatalogPartId;
     onPlacePartRef.current = onPlacePart;
     onMovePartRef.current = onMovePart;
+    onDisarmRef.current = onDisarm;
 
     useImperativeHandle(
       ref,
@@ -319,6 +333,7 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
         isSuspended: () => previewingRef.current || contextLostRef.current,
         onPlace: (catalogPartId, transform) => onPlacePartRef.current(catalogPartId, transform),
         onMove: (partId, transform) => onMovePartRef.current(partId, transform),
+        onDisarm: () => onDisarmRef.current(),
         requestRender: render,
       });
       placementRef.current = placement;
@@ -328,7 +343,7 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
         getCamera: () => runtime.camera,
         getPartObjects: () => [...(runtime.projection?.partObjects.values() ?? [])],
         isSuspended: () => previewingRef.current || runtime.projection === null,
-        isMoving: () => placement.isMoving,
+        isPlacing: () => placement.isPlacing,
         getSelectedPartId: () => selectedPartIdRef.current,
         onSelect: (partId) => onSelectPartRef.current(partId),
         onBeginMove: (partId) => placement.beginMove(partId),
@@ -384,16 +399,10 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
 
       let replacement: DerivedBrickScene | null = null;
       let packet: CanonicalViewPacket;
-      let camera: Camera;
       try {
         replacement = deriveBrickScene(document, { validationReport });
         packet = createCanonicalViewPacket(replacement);
-        const view = packet.views[0];
-        if (!view) throw new Error("Canonical isometric view is unavailable");
-        camera = createCameraForView(
-          view,
-          Math.max(1, host.clientWidth) / Math.max(1, host.clientHeight),
-        );
+        if (!packet.views[0]) throw new Error("Canonical isometric view is unavailable");
       } catch (error) {
         replacement?.dispose();
         setRenderError(error instanceof Error ? error.message : "Model rendering failed");
@@ -407,24 +416,41 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
       setRenderError(null);
 
       const view = packet.views[0]!;
-      runtime.controls.dispose();
-      runtime.camera = camera;
       runtime.sceneRadius = Math.max(view.frameRadius, GRID_SCENE_RADIUS);
-      runtime.controls = new OrbitControls(runtime.camera, runtime.renderer.domElement);
-      configureOrbitControls(runtime.controls, runtime.sceneRadius);
-      runtime.controls.target.copy(new Vector3(...view.target));
-      runtime.controls.addEventListener("change", () => {
-        if (contextLostRef.current) return;
-        syncOrbitFrustum(runtime);
-        runtime.renderer.render(runtime.scene, runtime.camera);
-      });
-      runtime.controls.update();
-      runtime.grid.position.y = runtime.projection.bounds.isEmpty()
-        ? -0.5
-        : runtime.projection.bounds.min.y - 0.02;
+      runtime.controls.maxDistance = runtime.sceneRadius * 50;
+
+      // The camera belongs to the user. Editing the model must never move it,
+      // so re-framing happens only on the first render and when the caller
+      // explicitly asks for it (new model, import, reset).
+      if (framedTokenRef.current !== frameToken) {
+        framedTokenRef.current = frameToken;
+        // The canonical packet frames an empty document with a half-unit box,
+        // which is right for deterministic capture but puts an interactive
+        // camera inside the first brick placed. Never frame tighter than a
+        // usable working area.
+        const camera = createCameraForView(
+          { ...view, frameRadius: Math.max(view.frameRadius, MIN_INTERACTIVE_FRAME_RADIUS) },
+          Math.max(1, host.clientWidth) / Math.max(1, host.clientHeight),
+        );
+        runtime.controls.dispose();
+        runtime.camera = camera;
+        runtime.controls = new OrbitControls(runtime.camera, runtime.renderer.domElement);
+        configureOrbitControls(runtime.controls, runtime.sceneRadius);
+        runtime.controls.target.copy(new Vector3(...view.target));
+        runtime.controls.addEventListener("change", () => {
+          if (contextLostRef.current) return;
+          syncOrbitFrustum(runtime);
+          runtime.renderer.render(runtime.scene, runtime.camera);
+        });
+        runtime.controls.update();
+      }
+
+      // The build plate is fixed truth, so the grid marks it rather than
+      // drifting with whatever the model's lowest point happens to be.
+      runtime.grid.position.y = -GROUND_UNDERSIDE_LDU * THREE_UNITS_PER_LDU;
       syncOrbitFrustum(runtime);
       runtime.renderer.render(runtime.scene, runtime.camera);
-    }, [document, validationReport]);
+    }, [document, validationReport, frameToken]);
 
     useEffect(() => {
       const runtime = runtimeRef.current;

@@ -259,6 +259,43 @@ export function findStudConnections(
   );
 }
 
+export type SupportVerdict =
+  | { readonly supported: true; readonly held: "build-plate" | "connections" }
+  | { readonly supported: false; readonly reason: string };
+
+/** World Y of a part's underside, which is where it would rest on something. */
+export function partUndersideLdu(part: Pick<PartInstance, "catalogPartId" | "transform">): number {
+  return bodyBoundsLdu(part).max[1];
+}
+
+/**
+ * Whether a placement would actually stay put. A brick is held either by the
+ * build plate underneath it or by at least one stud/clutch pair — the same
+ * connections the kernel validates. Anything else is floating, and a floating
+ * brick falls, so the editor refuses it rather than writing a document that
+ * only looks buildable.
+ *
+ * Studs engaging a part *above* count too: pushing a brick up under an overhang
+ * is held by clutch friction exactly as a brick pressed down onto studs is.
+ */
+export function assessSupport(
+  candidate: Pick<PartInstance, "id" | "catalogPartId" | "transform">,
+  connections: readonly DiscoveredConnection[],
+): SupportVerdict {
+  if (connections.length > 0) return { supported: true, held: "connections" };
+  if (partUndersideLdu(candidate) === GROUND_UNDERSIDE_LDU) {
+    return { supported: true, held: "build-plate" };
+  }
+  const definition = requireDefinition(candidate.catalogPartId);
+  const heightAbovePlate = GROUND_UNDERSIDE_LDU - partUndersideLdu(candidate);
+  return {
+    supported: false,
+    reason:
+      `${definition.displayName} would rest ${heightAbovePlate} LDU above the build plate with nothing under it. ` +
+      `Place it on the plate, or line it up so at least one stud meets a tube.`,
+  };
+}
+
 export function createPlacementTransform(
   positionLdu: LduVector3,
   orientationId: string,

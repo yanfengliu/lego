@@ -10,8 +10,8 @@ export interface SelectionRigOptions {
   readonly getCamera: () => Camera;
   readonly getPartObjects: () => readonly Object3D[];
   readonly isSuspended: () => boolean;
-  /** True while a part is following the pointer, so a release must not reselect. */
-  readonly isMoving: () => boolean;
+  /** True while a ghost is following the pointer, so a release must not reselect. */
+  readonly isPlacing: () => boolean;
   readonly getSelectedPartId: () => string | null;
   readonly onSelect: (partId: string | null) => void;
   readonly onBeginMove: (partId: string) => void;
@@ -35,7 +35,7 @@ export function installSelectionRig({
   getCamera,
   getPartObjects,
   isSuspended,
-  isMoving,
+  isPlacing,
   getSelectedPartId,
   onSelect,
   onBeginMove,
@@ -58,7 +58,7 @@ export function installSelectionRig({
 
   const handlePointerDown = (event: PointerEvent) => {
     pointerStart = { x: event.clientX, y: event.clientY, button: event.button };
-    movingAtPointerDown = isMoving();
+    movingAtPointerDown = isPlacing();
   };
   const handlePointerUp = (event: PointerEvent) => {
     const started = pointerStart;

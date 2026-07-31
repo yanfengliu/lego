@@ -26,37 +26,41 @@ interface CatalogPanelProps {
   readonly onPartDefinitionChange: (partId: string) => void;
   readonly onColorChange: (colorId: string) => void;
   readonly onAdd: () => void;
-  readonly onDragStateChange: (partId: string | null) => void;
+  readonly onArmChange: (partId: string | null) => void;
+  /** Catalog part currently armed for placement, if any. */
+  readonly armedPartId: string | null;
 }
 
 function PartOption({
   part,
   colorHex,
   selected,
+  armed,
   onSelect,
-  onDragStateChange,
+  onArmChange,
 }: {
   readonly part: PartDefinition;
   readonly colorHex: string;
   readonly selected: boolean;
+  readonly armed: boolean;
   readonly onSelect: () => void;
-  readonly onDragStateChange: (partId: string | null) => void;
+  readonly onArmChange: (partId: string | null) => void;
 }) {
   return (
     <button
       type="button"
-      className={`part-option${selected ? " is-selected" : ""}`}
+      className={`part-option${selected ? " is-selected" : ""}${armed ? " is-armed" : ""}`}
       aria-pressed={selected}
-      title={`${part.displayName} — drag into the model to place it`}
-      draggable
-      onClick={onSelect}
-      onDragStart={(event) => {
-        event.dataTransfer.effectAllowed = "copy";
-        event.dataTransfer.setData("text/plain", part.id);
+      title={
+        armed
+          ? `${part.displayName} — click in the model to place it, Escape to stop`
+          : `${part.displayName} — click to preview it in the model`
+      }
+      onClick={() => {
         onSelect();
-        onDragStateChange(part.id);
+        // Clicking the armed part again puts the tool away.
+        onArmChange(armed ? null : part.id);
       }}
-      onDragEnd={() => onDragStateChange(null)}
     >
       <PartPreview part={part} colorHex={colorHex} />
       <span className="part-option__copy">
@@ -173,7 +177,8 @@ export function CatalogPanel({
   onPartDefinitionChange,
   onColorChange,
   onAdd,
-  onDragStateChange,
+  onArmChange,
+  armedPartId,
 }: CatalogPanelProps) {
   const [query, setQuery] = useState("");
   const colorHex = getColorDefinition(selectedColorId)?.displayHex ?? "#c91a09";
@@ -234,8 +239,9 @@ export function CatalogPanel({
                 part={part}
                 colorHex={colorHex}
                 selected={part.id === selectedPartDefinitionId}
+                armed={part.id === armedPartId}
                 onSelect={() => onPartDefinitionChange(part.id)}
-                onDragStateChange={onDragStateChange}
+                onArmChange={onArmChange}
               />
             ))}
           </div>

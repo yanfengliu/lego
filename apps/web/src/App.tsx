@@ -63,6 +63,8 @@ export function App() {
   const [draggedCatalogPartId, setDraggedCatalogPartId] = useState<string | null>(null);
   const [playbackPosition, setPlaybackPosition] = useState<number | null>(null);
   const [playbackPlaying, setPlaybackPlaying] = useState(false);
+  // Bumping this re-frames the camera; ordinary edits must never move it.
+  const [frameToken, setFrameToken] = useState(0);
   const [commandError, setCommandError] = useState<string | null>(null);
   const [assistantPrompt, setAssistantPrompt] = useState("Build an 18-piece red and yellow tower");
   const candidateLab = useCandidateLab(state.document);
@@ -265,6 +267,23 @@ export function App() {
     }
   }
 
+  /**
+   * Returns the whole workspace to its opening state, not just the document:
+   * selection, candidate previews, playback, errors, and the camera framing all
+   * go back to where a fresh session starts.
+   */
+  function resetScene() {
+    importGenerationRef.current += 1;
+    candidateLab.clear();
+    setPlaybackPlaying(false);
+    setPlaybackPosition(null);
+    setDraggedCatalogPartId(null);
+    setCommandError(null);
+    setMigrationNotice(null);
+    dispatch({ type: "replaceDocument", document: initialDocument() });
+    setFrameToken((token) => token + 1);
+  }
+
   function applyTransaction(transaction: EditorTransaction) {
     applyBuildOperations(state.document, transaction.operations);
     dispatch({ type: "applyTransaction", transaction });
@@ -365,6 +384,7 @@ export function App() {
         return;
       }
       dispatch({ type: "replaceDocument", document: imported });
+      setFrameToken((token) => token + 1);
       setCommandError(null);
     } catch (error) {
       if (error instanceof StaleFileImportError) return;
@@ -446,12 +466,26 @@ export function App() {
               ) {
                 return;
               }
-              importGenerationRef.current += 1;
-              candidateLab.clear();
-              dispatch({ type: "replaceDocument", document: initialDocument() });
+              resetScene();
             }}
           >
             New model
+          </button>
+          <button
+            type="button"
+            className="quiet-action"
+            title="Clear the model, selection, previews, and camera"
+            onClick={() => {
+              if (
+                state.document.parts.length > 0 &&
+                !window.confirm("Reset the whole scene? The current model is discarded.")
+              ) {
+                return;
+              }
+              resetScene();
+            }}
+          >
+            Reset scene
           </button>
           <button
             type="button"
@@ -486,7 +520,8 @@ export function App() {
           onPartDefinitionChange={setCatalogPartId}
           onColorChange={setColorId}
           onAdd={addPart}
-          onDragStateChange={setDraggedCatalogPartId}
+          onArmChange={setDraggedCatalogPartId}
+          armedPartId={draggedCatalogPartId}
         />
 
         <section className="workspace" aria-label="Model workspace">
@@ -553,6 +588,8 @@ export function App() {
             validationReport={report}
             selectedPartId={candidateLab.selectedCandidate ? null : state.selectedPartId}
             previewing={candidateLab.selectedCandidate !== null}
+            frameToken={frameToken}
+            onDisarm={() => setDraggedCatalogPartId(null)}
             draggedCatalogPartId={draggedCatalogPartId}
             onSelectPart={(partId) => {
               if (!candidateLab.selectedCandidate) dispatch({ type: "selectPart", partId });
@@ -575,7 +612,8 @@ export function App() {
           ) : null}
           <div className="viewport-footer">
             <span>
-              Select: left · Orbit: middle · Pan: right · Zoom: wheel · Fly: WASD, Q/E, Shift
+              Place: click · Select: left · Orbit: middle · Pan: right · Zoom: wheel · Fly: WASD,
+              Q/E
             </span>
             <code>{report.targetDocumentHash.slice(0, 18)}…</code>
           </div>

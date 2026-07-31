@@ -25,6 +25,10 @@ export type OperationApplicationErrorCode =
   | "BASE_DUPLICATE_SUBMODEL_ID"
   | "BASE_DUPLICATE_STEP_ID"
   | "BASE_DUPLICATE_SEMANTIC_REGION_ID"
+  | "STEP_ALREADY_EXISTS"
+  | "STEP_INDEX_TAKEN"
+  | "STEP_NOT_EMPTY"
+  | "STEP_NOT_FOUND"
   | "PART_ALREADY_EXISTS"
   | "PART_NOT_FOUND"
   | "PART_BEFORE_MISMATCH"
@@ -79,6 +83,12 @@ function normalizeOperationPayload(
       return {
         ...operation,
         connection: normalizeConnectionEdge(operation.connection, partValues),
+      };
+    case "addStep":
+    case "removeStep":
+      return {
+        ...operation,
+        step: { ...operation.step, partIds: [...operation.step.partIds].sort() },
       };
   }
 }
@@ -250,6 +260,7 @@ export function applyBuildOperations(
   const submodelMemberships = new Map(
     normalizedBase.submodels.map((submodel) => [submodel.id, new Set(submodel.partIds)]),
   );
+  const steps = new Map(normalizedBase.steps.map((step) => [step.id, step]));
   const stepMemberships = new Map(
     normalizedBase.steps.map((step) => [step.id, new Set(step.partIds)]),
   );
@@ -382,6 +393,48 @@ export function applyBuildOperations(
         connections.delete(operation.connection.id);
         break;
       }
+      case "addStep": {
+        const { step } = operation;
+        if (steps.has(step.id)) {
+          throw new OperationApplicationError(
+            "STEP_ALREADY_EXISTS",
+            operation.operationId,
+            `Build step already exists: ${step.id}`,
+          );
+        }
+        const takenIndex = [...steps.values()].find(({ index }) => index === step.index);
+        if (takenIndex) {
+          throw new OperationApplicationError(
+            "STEP_INDEX_TAKEN",
+            operation.operationId,
+            `Build step index ${step.index} is already used by ${takenIndex.id}`,
+          );
+        }
+        steps.set(step.id, step);
+        stepMemberships.set(step.id, new Set(step.partIds));
+        break;
+      }
+      case "removeStep": {
+        const existing = steps.get(operation.step.id);
+        if (!existing) {
+          throw new OperationApplicationError(
+            "STEP_NOT_FOUND",
+            operation.operationId,
+            `Build step does not exist: ${operation.step.id}`,
+          );
+        }
+        const members = stepMemberships.get(operation.step.id);
+        if (members && members.size > 0) {
+          throw new OperationApplicationError(
+            "STEP_NOT_EMPTY",
+            operation.operationId,
+            `Build step ${operation.step.id} still holds ${members.size} part(s); remove them before removing the step`,
+          );
+        }
+        steps.delete(operation.step.id);
+        stepMemberships.delete(operation.step.id);
+        break;
+      }
       default: {
         const unknownOperation: never = operation;
         throw new OperationApplicationError(
@@ -406,7 +459,7 @@ export function applyBuildOperations(
       ...submodel,
       partIds: [...(submodelMemberships.get(submodel.id) ?? [])],
     })),
-    steps: normalizedBase.steps.map((step) => ({
+    steps: [...steps.values()].map((step) => ({
       ...step,
       partIds: [...(stepMemberships.get(step.id) ?? [])],
     })),
@@ -439,6 +492,10 @@ export function invertBuildOperations(operations: readonly BuildOperation[]): Bu
         return { ...operation, kind: "removeConnection" };
       case "removeConnection":
         return { ...operation, kind: "addConnection" };
+      case "addStep":
+        return { ...operation, kind: "removeStep" };
+      case "removeStep":
+        return { ...operation, kind: "addStep" };
     }
   });
 

@@ -28,6 +28,8 @@ export interface PlacementRigOptions {
   readonly isSuspended: () => boolean;
   readonly onPlace: (catalogPartId: string, transform: RigidTransform) => void;
   readonly onMove: (partId: string, transform: RigidTransform) => void;
+  /** Called when the user cancels, so the palette can un-arm itself. */
+  readonly onDisarm: () => void;
   readonly requestRender: () => void;
 }
 
@@ -35,7 +37,7 @@ export interface PlacementRig {
   /** Arms a move so the part follows the pointer until it is dropped. */
   beginMove(partId: string): void;
   cancel(): void;
-  readonly isMoving: boolean;
+  readonly isPlacing: boolean;
   dispose(): void;
 }
 
@@ -60,6 +62,7 @@ export function installPlacementRig(options: PlacementRigOptions): PlacementRig 
     isSuspended,
     onPlace,
     onMove,
+    onDisarm,
     requestRender,
   } = options;
 
@@ -146,49 +149,45 @@ export function installPlacementRig(options: PlacementRigOptions): PlacementRig 
     else onMove(active.partId, transform);
   }
 
-  // A palette drag arrives as HTML5 drag events; the ghost tracks dragover.
-  const handleDragOver = (event: DragEvent) => {
+  /**
+   * Selecting a part in the palette arms placement; the ghost then previews it
+   * under the pointer until a click commits. The tool stays armed afterwards so
+   * a row of parts can be laid down without returning to the palette.
+   */
+  const handlePointerMove = (event: PointerEvent) => {
+    if (pending?.kind === "move") {
+      updateGhost(event.clientX, event.clientY);
+      return;
+    }
     const catalogPartId = getDraggedCatalogPartId();
-    if (catalogPartId === null || isSuspended()) return;
-    event.preventDefault();
-    if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+    if (catalogPartId === null || isSuspended()) {
+      if (pending) clearPending();
+      return;
+    }
     if (pending?.kind !== "place" || pending.catalogPartId !== catalogPartId) {
       pending = { kind: "place", catalogPartId, orientationId: getOrientationId() };
     }
     updateGhost(event.clientX, event.clientY);
   };
-  const handleDrop = (event: DragEvent) => {
-    if (pending?.kind !== "place") return;
-    event.preventDefault();
+  // Both kinds commit on release, so click-then-click and press-and-drag work.
+  const handlePointerUp = (event: PointerEvent) => {
+    if (!pending || event.button !== 0) return;
     updateGhost(event.clientX, event.clientY);
     commit();
   };
-  const handleDragLeave = () => {
+  const handlePointerLeave = () => {
     if (pending?.kind === "place") clearPending();
   };
-
-  const handlePointerMove = (event: PointerEvent) => {
-    if (pending?.kind !== "move") return;
-    updateGhost(event.clientX, event.clientY);
-  };
-  // A move commits on release, so both click-then-click and press-and-drag work.
-  const handlePointerUp = (event: PointerEvent) => {
-    if (pending?.kind !== "move" || event.button !== 0) return;
-    updateGhost(event.clientX, event.clientY);
-    commit();
-  };
   const handleKeyDown = (event: KeyboardEvent) => {
-    if (event.key === "Escape" && pending) {
-      event.preventDefault();
-      clearPending();
-    }
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    clearPending();
+    onDisarm();
   };
 
-  element.addEventListener("dragover", handleDragOver);
-  element.addEventListener("drop", handleDrop);
-  element.addEventListener("dragleave", handleDragLeave);
   element.addEventListener("pointermove", handlePointerMove);
   element.addEventListener("pointerup", handlePointerUp);
+  element.addEventListener("pointerleave", handlePointerLeave);
   element.addEventListener("keydown", handleKeyDown);
 
   return {
@@ -204,15 +203,13 @@ export function installPlacementRig(options: PlacementRigOptions): PlacementRig 
       lastTransform = null;
     },
     cancel: clearPending,
-    get isMoving() {
-      return pending?.kind === "move";
+    get isPlacing() {
+      return pending !== null;
     },
     dispose() {
-      element.removeEventListener("dragover", handleDragOver);
-      element.removeEventListener("drop", handleDrop);
-      element.removeEventListener("dragleave", handleDragLeave);
       element.removeEventListener("pointermove", handlePointerMove);
       element.removeEventListener("pointerup", handlePointerUp);
+      element.removeEventListener("pointerleave", handlePointerLeave);
       element.removeEventListener("keydown", handleKeyDown);
       ghost.dispose();
     },

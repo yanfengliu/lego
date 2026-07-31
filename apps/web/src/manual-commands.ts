@@ -12,7 +12,12 @@ import type {
   RigidTransform,
 } from "@lego-studio/protocol";
 
-import { endpointKey, findStudConnections, type DiscoveredConnection } from "./placement";
+import {
+  assessSupport,
+  endpointKey,
+  findStudConnections,
+  type DiscoveredConnection,
+} from "./placement";
 
 export class ManualCommandError extends Error {
   public constructor(message: string) {
@@ -36,7 +41,10 @@ function requirePart(document: BrickDocumentV1, partId: string): PartInstance {
   return part;
 }
 
-function nextId(prefix: "manual-part" | "manual-connection" | "manual-operation", seed: unknown) {
+function nextId(
+  prefix: "manual-part" | "manual-connection" | "manual-operation" | "manual-step",
+  seed: unknown,
+) {
   return `${prefix}-${canonicalSha256(seed).slice(0, 20)}`;
 }
 
@@ -178,6 +186,39 @@ export function createAddPartTransaction(
   return { label: `Add ${definition.displayName}`, operations, partId };
 }
 
+/**
+ * The step this placement belongs in. A fresh document opens with one empty
+ * step, so the first placement fills it rather than leaving a step that adds
+ * nothing to the build; every later placement opens the next one.
+ */
+function resolveBuildStep(
+  document: BrickDocumentV1,
+  seed: Record<string, unknown>,
+): {
+  readonly step: {
+    readonly id: string;
+    readonly index: number;
+    readonly name: string;
+    readonly partIds: readonly string[];
+  };
+  readonly isNew: boolean;
+} {
+  const ordered = [...document.steps].sort((left, right) => left.index - right.index);
+  const last = ordered.at(-1);
+  if (last && last.partIds.length === 0) return { step: last, isNew: false };
+
+  const index = (last?.index ?? -1) + 1;
+  return {
+    step: {
+      id: nextId("manual-step", { ...seed, kind: "addStep", index }),
+      index,
+      name: `Step ${index + 1}`,
+      partIds: [],
+    },
+    isNew: true,
+  };
+}
+
 export interface PlacePartCommandOptions {
   readonly catalogPartId: string;
   readonly colorId: string;
@@ -249,13 +290,29 @@ export function createPlacePartTransaction(
   });
 
   const discovered = findStudConnections(part, document.parts, occupiedPorts(document));
+  const support = assessSupport(part, discovered);
+  if (!support.supported) throw new ManualCommandError(support.reason);
+
+  // Each placement becomes its own build step, so the model can be replayed in
+  // the order it was actually built.
+  const { step, isNew } = resolveBuildStep(document, seed);
+  const placed = { ...part, stepId: step.id };
   return {
     label: `Place ${definition.displayName}`,
     operations: [
+      ...(isNew
+        ? [
+            {
+              kind: "addStep" as const,
+              operationId: nextId("manual-operation", { ...seed, kind: "addStep" }),
+              step,
+            },
+          ]
+        : []),
       {
         kind: "addPart",
         operationId: nextId("manual-operation", { ...seed, kind: "addPart" }),
-        part,
+        part: placed,
         semanticRegionIds: [],
       },
       ...connectionOperations(discovered, partId, seed),
@@ -299,6 +356,8 @@ export function createMovePartTransaction(
     document.parts.filter(({ id }) => id !== partId),
     remainingOccupied,
   );
+  const support = assessSupport(after, discovered);
+  if (!support.supported) throw new ManualCommandError(support.reason);
 
   return {
     label: `Move ${definition.displayName}`,

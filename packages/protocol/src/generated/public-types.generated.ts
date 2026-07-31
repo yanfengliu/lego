@@ -57,6 +57,8 @@ export type UpdatePartOperation = DeepReadonly<Wire.UpdatePartOperation>;
 export type AddConnectionOperation = DeepReadonly<Wire.AddConnectionOperation>;
 export type RemoveConnectionOperation =
   DeepReadonly<Wire.RemoveConnectionOperation>;
+export type AddStepOperation = DeepReadonly<Wire.AddStepOperation>;
+export type RemoveStepOperation = DeepReadonly<Wire.RemoveStepOperation>;
 export type ScopeCapabilityV1 = DeepReadonly<Wire.ScopeCapabilityV1>;
 export type AllowedVolume = DeepReadonly<Wire.AllowedVolume>;
 export type ScopeBudgets = DeepReadonly<Wire.ScopeBudgets>;

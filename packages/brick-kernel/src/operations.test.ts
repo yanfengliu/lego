@@ -323,3 +323,86 @@ describe("invertible build operations", () => {
     );
   });
 });
+
+describe("build step operations", () => {
+  const step = { id: "step-2", index: 1, name: "Step 2", partIds: [] as string[] };
+
+  it("adds a step a later part can belong to", () => {
+    const base = createEmptyBrickDocument({ id: "steps", name: "Steps" });
+    const result = applyBuildOperations(base, [{ kind: "addStep", operationId: "op-1", step }]);
+
+    expect(result.steps.map(({ id }) => id)).toEqual(["step-1", "step-2"]);
+    expect(result.steps.find(({ id }) => id === "step-2")).toMatchObject({ index: 1, partIds: [] });
+  });
+
+  it("refuses a duplicate step identifier", () => {
+    const base = createEmptyBrickDocument({ id: "steps", name: "Steps" });
+    expect(() =>
+      applyBuildOperations(base, [
+        { kind: "addStep", operationId: "op-1", step: { ...step, id: "step-1", index: 5 } },
+      ]),
+    ).toThrow(/Build step already exists: step-1/);
+  });
+
+  it("refuses a step index that is already claimed, so the order stays unambiguous", () => {
+    const base = createEmptyBrickDocument({ id: "steps", name: "Steps" });
+    expect(() =>
+      applyBuildOperations(base, [
+        { kind: "addStep", operationId: "op-1", step: { ...step, index: 0 } },
+      ]),
+    ).toThrow(/Build step index 0 is already used by step-1/);
+  });
+
+  it("refuses to remove a step that still holds parts", () => {
+    const base = createEmptyBrickDocument({ id: "steps", name: "Steps" });
+    const withPart = applyBuildOperations(base, [
+      {
+        kind: "addPart",
+        operationId: "op-1",
+        part: createPartInstance({ id: "part-1" }),
+        semanticRegionIds: [],
+      },
+    ]);
+
+    expect(() =>
+      applyBuildOperations(withPart, [
+        { kind: "removeStep", operationId: "op-2", step: withPart.steps[0]! },
+      ]),
+    ).toThrow(/still holds 1 part\(s\); remove them before removing the step/);
+  });
+
+  it("refuses to remove a step that does not exist", () => {
+    const base = createEmptyBrickDocument({ id: "steps", name: "Steps" });
+    expect(() =>
+      applyBuildOperations(base, [{ kind: "removeStep", operationId: "op-1", step }]),
+    ).toThrow(/Build step does not exist: step-2/);
+  });
+
+  it("inverts an added step back out of the document", () => {
+    const base = createEmptyBrickDocument({ id: "steps", name: "Steps" });
+    const operations = [{ kind: "addStep" as const, operationId: "op-1", step }];
+    const forward = applyBuildOperations(base, operations);
+    const back = applyBuildOperations(forward, invertBuildOperations(operations));
+
+    expect(back.steps.map(({ id }) => id)).toEqual(["step-1"]);
+  });
+
+  it("undoes a placement and its step together, in dependency order", () => {
+    const base = createEmptyBrickDocument({ id: "steps", name: "Steps" });
+    const operations = [
+      { kind: "addStep" as const, operationId: "op-1", step },
+      {
+        kind: "addPart" as const,
+        operationId: "op-2",
+        part: createPartInstance({ id: "part-1", stepId: "step-2" }),
+        semanticRegionIds: [],
+      },
+    ];
+    const forward = applyBuildOperations(base, operations);
+    expect(forward.parts).toHaveLength(1);
+
+    const back = applyBuildOperations(forward, invertBuildOperations(operations));
+    expect(back.parts).toHaveLength(0);
+    expect(back.steps.map(({ id }) => id)).toEqual(["step-1"]);
+  });
+});

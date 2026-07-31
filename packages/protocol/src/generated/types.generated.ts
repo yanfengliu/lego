@@ -56,7 +56,9 @@ export type BuildOperation =
   | RemovePartOperation
   | UpdatePartOperation
   | AddConnectionOperation
-  | RemoveConnectionOperation;
+  | RemoveConnectionOperation
+  | AddStepOperation
+  | RemoveStepOperation;
 export type TrustNamespaceV1 = "production" | "test" | "evaluation";
 export type LongText = string;
 export type AttemptTerminalV1 =
@@ -246,6 +248,16 @@ export interface RemoveConnectionOperation {
   kind: "removeConnection";
   operationId: Identifier;
   connection: ConnectionEdge;
+}
+export interface AddStepOperation {
+  kind: "addStep";
+  operationId: Identifier;
+  step: BuildStep;
+}
+export interface RemoveStepOperation {
+  kind: "removeStep";
+  operationId: Identifier;
+  step: BuildStep;
 }
 export interface ScopeCapabilityV1 {
   schemaVersion: "lego.scope-capability/1";
