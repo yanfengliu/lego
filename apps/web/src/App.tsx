@@ -20,10 +20,16 @@ import { BrickViewport, type BrickViewportHandle } from "./components/BrickViewp
 import { BuildPlaybackBar } from "./components/BuildPlaybackBar";
 import { CatalogPanel } from "./components/CatalogPanel";
 import { PanelSplitter } from "./components/PanelSplitter";
+import { ProjectBar } from "./components/ProjectBar";
 import { InspectorPanel } from "./components/InspectorPanel";
 import { ValidationPanel } from "./components/ValidationPanel";
 import { installAutomationBridge, type AutomationAppState } from "./automation";
-import { createEditorState, editorReducer, type EditorTransaction } from "./editor-state";
+import {
+  createEditorState,
+  editorReducer,
+  type EditorState,
+  type EditorTransaction,
+} from "./editor-state";
 import { StaleFileImportError, readBoundedFileText } from "./file-import";
 import { useCandidateLab } from "./generation/use-candidate-lab";
 import {
@@ -35,7 +41,10 @@ import {
   createUpdatePartTransaction,
 } from "./manual-commands";
 import { nextYawOrientationId, snapPlacementOrigin } from "./placement";
-import { IndexedDbProjectRepository } from "./persistence/indexeddb-project-repository";
+import {
+  IndexedDbProjectRepository,
+  type ProjectSummary,
+} from "./persistence/indexeddb-project-repository";
 import { ProjectSaveQueue } from "./persistence/project-save-queue";
 
 type ProjectHydration =
@@ -68,6 +77,8 @@ export function App() {
   const [frameToken, setFrameToken] = useState(0);
   const [catalogWidth, setCatalogWidth] = useState(290);
   const [inspectorWidth, setInspectorWidth] = useState(330);
+  const [projectId, setProjectId] = useState(LOCAL_PROJECT_ID);
+  const [projects, setProjects] = useState<readonly ProjectSummary[]>([]);
   const [commandError, setCommandError] = useState<string | null>(null);
   const [assistantPrompt, setAssistantPrompt] = useState("Build an 18-piece red and yellow tower");
   const candidateLab = useCandidateLab(state.document);
@@ -82,6 +93,7 @@ export function App() {
   const saveQueueRef = useRef<ProjectSaveQueue | null>(null);
   const lastQueuedStateHashRef = useRef<string | null>(null);
   const latestSaveSequenceRef = useRef(0);
+  const repositoryRef = useRef<IndexedDbProjectRepository | null>(null);
 
   const selectedPart = state.document.parts.find(({ id }) => id === state.selectedPartId) ?? null;
   const selectedPartConnected =
@@ -170,8 +182,9 @@ export function App() {
 
   useEffect(() => {
     let active = true;
-    const repository = new IndexedDbProjectRepository();
-    const load = repository.load(LOCAL_PROJECT_ID);
+    const repository = repositoryRef.current ?? new IndexedDbProjectRepository();
+    repositoryRef.current = repository;
+    const load = repository.load(projectId);
     void load
       .then((stored) => {
         if (!active) return;
@@ -197,12 +210,12 @@ export function App() {
           dispatch({ type: "restoreState", state: restored });
           lastQueuedStateHashRef.current = canonicalDigest(restored);
         }
-        saveQueueRef.current = new ProjectSaveQueue(
-          repository,
-          LOCAL_PROJECT_ID,
-          stored?.generation ?? 0,
-        );
+        saveQueueRef.current = new ProjectSaveQueue(repository, projectId, stored?.generation ?? 0);
+        if (!stored) lastQueuedStateHashRef.current = null;
         setProjectHydration({ state: "ready" });
+        void repository.list().then((rows) => {
+          if (active) setProjects(rows);
+        });
       })
       .catch((error: unknown) => {
         if (!active) return;
@@ -214,12 +227,18 @@ export function App() {
       active = false;
       const queue = saveQueueRef.current;
       saveQueueRef.current = null;
-      void (queue?.flush() ?? Promise.resolve())
-        .catch(() => undefined)
-        .then(() => repository.close())
-        .catch(() => undefined);
+      void (queue?.flush() ?? Promise.resolve()).catch(() => undefined);
     };
-  }, []);
+  }, [projectId]);
+
+  // The repository outlives project switches; only unmounting closes it.
+  useEffect(
+    () => () => {
+      void repositoryRef.current?.close().catch(() => undefined);
+      repositoryRef.current = null;
+    },
+    [],
+  );
 
   useEffect(() => {
     if (
@@ -285,6 +304,60 @@ export function App() {
     setMigrationNotice(null);
     dispatch({ type: "replaceDocument", document: initialDocument() });
     setFrameToken((token) => token + 1);
+  }
+
+  /** Flushes pending writes before the open project changes underneath them. */
+  async function switchTo(nextProjectId: string, seed?: EditorState) {
+    const queue = saveQueueRef.current;
+    saveQueueRef.current = null;
+    await (queue?.flush() ?? Promise.resolve()).catch(() => undefined);
+    candidateLab.clear();
+    importGenerationRef.current += 1;
+    setPlaybackPlaying(false);
+    setPlaybackPosition(null);
+    setCommandError(null);
+    setMigrationNotice(null);
+    lastQueuedStateHashRef.current = null;
+    setProjectHydration({ state: "loading" });
+    if (seed) dispatch({ type: "restoreState", state: seed });
+    setProjectId(nextProjectId);
+    setFrameToken((token) => token + 1);
+  }
+
+  function newProjectId(): string {
+    return `project-${canonicalDigest({ at: state.document.revision, existing: projects.length }).slice(7, 19)}`;
+  }
+
+  function openProject(nextProjectId: string) {
+    void switchTo(nextProjectId);
+  }
+
+  function createProject() {
+    void switchTo(newProjectId(), createEditorState(initialDocument()));
+  }
+
+  /** A copy starts from the current editor state under a fresh project id. */
+  function duplicateProject() {
+    void switchTo(newProjectId(), {
+      ...state,
+      document: { ...state.document, name: `${state.document.name} copy` },
+    });
+  }
+
+  function deleteProject(target: string) {
+    const summary = projects.find(({ projectId: id }) => id === target);
+    if (!summary || !window.confirm(`Delete "${summary.name}" permanently?`)) return;
+    const repository = repositoryRef.current;
+    if (!repository) return;
+    void repository
+      .delete(target, summary.generation)
+      .then(() => repository.list())
+      .then((rows) => {
+        setProjects(rows);
+        // Deleting the open project leaves the editor on a fresh one.
+        if (target === projectId) createProject();
+      })
+      .catch((error: unknown) => setPersistenceError(localStorageErrorMessage(error)));
   }
 
   function applyTransaction(transaction: EditorTransaction) {
@@ -418,17 +491,24 @@ export function App() {
             <h1>Brick Studio</h1>
           </div>
         </div>
-        <div className="document-title">
-          <span>{state.document.name}</span>
-          <small>
-            {state.document.parts.length} parts ·{" "}
-            {projectHydration.state === "degraded" || persistenceError !== null
+        <ProjectBar
+          name={state.document.name}
+          partCount={state.document.parts.length}
+          statusLabel={
+            projectHydration.state === "degraded" || persistenceError !== null
               ? "session only"
               : saveStatus === "saved"
                 ? "saved locally"
-                : saveStatus}
-          </small>
-        </div>
+                : saveStatus
+          }
+          projects={projects}
+          currentProjectId={projectId}
+          onRename={(name) => dispatch({ type: "renameDocument", name })}
+          onOpen={openProject}
+          onCreate={createProject}
+          onDuplicate={duplicateProject}
+          onDelete={deleteProject}
+        />
         <div className="header-actions">
           <span className="offline-badge">
             <i /> Offline kernel

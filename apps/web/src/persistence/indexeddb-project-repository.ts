@@ -28,7 +28,16 @@ export class ProjectRepositoryError extends Error {
   }
 }
 
+export interface ProjectSummary {
+  readonly projectId: string;
+  readonly name: string;
+  readonly partCount: number;
+  readonly generation: number;
+}
+
 export interface ProjectRepository {
+  /** Every stored project, for the project switcher. */
+  list(): Promise<readonly ProjectSummary[]>;
   load(projectId: string): Promise<StoredEditorProjectV1 | null>;
   save(
     projectId: string,
@@ -153,6 +162,34 @@ export class IndexedDbProjectRepository implements ProjectRepository {
         { once: true },
       );
     });
+  }
+
+  public async list(): Promise<readonly ProjectSummary[]> {
+    const database = await this.#databasePromise;
+    const transaction = database.transaction(PROJECT_STORE, "readonly");
+    try {
+      const rows: unknown[] = await requestResult(transaction.objectStore(PROJECT_STORE).getAll());
+      await transactionComplete(transaction);
+      const summaries: ProjectSummary[] = [];
+      for (const row of rows) {
+        // One corrupt row must not hide every other project from the switcher.
+        try {
+          const stored = parseStoredEditorProject(row);
+          summaries.push({
+            projectId: stored.projectId,
+            name: stored.state.document.name,
+            partCount: stored.state.document.parts.length,
+            generation: stored.generation,
+          });
+        } catch {
+          continue;
+        }
+      }
+      return summaries.sort((left, right) => left.name.localeCompare(right.name));
+    } catch (error) {
+      transaction.abort();
+      throw error;
+    }
   }
 
   public async load(projectId: string): Promise<StoredEditorProjectV1 | null> {

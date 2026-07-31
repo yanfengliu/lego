@@ -8,6 +8,10 @@ import { ProjectSaveQueue } from "./project-save-queue";
 import { createStoredEditorProject, type StoredEditorProjectV1 } from "./project-snapshot";
 
 class RecordingRepository implements ProjectRepository {
+  public async list() {
+    return [];
+  }
+
   public readonly calls: Array<{
     readonly projectId: string;
     readonly state: EditorState;

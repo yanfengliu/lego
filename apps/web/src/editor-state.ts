@@ -21,7 +21,8 @@ export type EditorAction =
   | { readonly type: "undo" }
   | { readonly type: "redo" }
   | { readonly type: "restoreState"; readonly state: EditorState }
-  | { readonly type: "replaceDocument"; readonly document: BrickDocumentV1 };
+  | { readonly type: "replaceDocument"; readonly document: BrickDocumentV1 }
+  | { readonly type: "renameDocument"; readonly name: string };
 
 export function createEditorState(document: BrickDocumentV1): EditorState {
   return {
@@ -95,6 +96,12 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
     }
     case "restoreState":
       return action.state;
+    case "renameDocument": {
+      const name = action.name.trim();
+      if (name.length === 0 || name === state.document.name) return state;
+      // A name is cosmetic, so it does not enter the undo history.
+      return { ...state, document: { ...state.document, name } };
+    }
     case "replaceDocument":
       return createEditorState(action.document);
   }
