@@ -66,3 +66,20 @@ An instruction booklet is internally redundant: step numbers must run 1..N witho
 Both are checkable the moment a booklet is read, with no model built, and both are falsifiable — which is what made the step-64 bug visible.
 
 **Anchor:** commit `00607a9`; `checkBookletConsistency`; `output/booklet-score.json` records 359/359 steps and 3102 callout pieces.
+
+## Reading a document's structure is not the same as seeing it
+
+The sample booklet's operator counts are dominated by `constructPath` and
+`setFillRGBColor`, so the art was taken to be vector and a shape reader was
+built on that basis.
+Rendering a page and looking at it showed the assemblies are raster images; the
+filled paths are the callout box, the panel divider, and the progress bar.
+Six sampled pages yielded 119 paths and five colours, every one of them page
+furniture rather than a brick.
+
+Looking also surfaced what the structure never would: newly placed parts are
+outlined in yellow on every step, which marks the per-step delta directly in the
+art, and the model needs wedge and curved plates far longer than the catalog
+holds.
+
+**Anchor:** commit `0b03905` and its correction; `apps/web/e2e/pdf-render.spec.ts`; pages 12 and 120 of `recipes/6651557.pdf`.

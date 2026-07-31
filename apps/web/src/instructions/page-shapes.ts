@@ -5,10 +5,11 @@
  * arrives as an exact colour, so identifying it is a lookup rather than a
  * classification.
  *
- * It does not read the whole page. The sample booklet also paints raster image
- * objects, and six sampled build pages yielded only 119 filled paths between
- * them — too few to be all of the brick art. Treat what this returns as one
- * layer of the page, not as the page.
+ * It does not read the brick art. Rendering the sample booklet and looking at it
+ * settled that: the assemblies are raster images, and the filled paths on a
+ * build page are the callout box, the panel divider, the progress bar, and
+ * similar furniture. Six sampled pages yielded 119 paths and five colours, all
+ * page chrome. This is useful for finding a page's regions, not its bricks.
  *
  * The operator list is untrusted like the rest of the document, so the shape
  * count is bounded and a malformed operand is skipped rather than trusted.
