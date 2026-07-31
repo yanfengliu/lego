@@ -1,7 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-const SHOTS =
-  "C:/Users/38909/AppData/Local/Temp/claude/C--Users-38909-Documents-github-lego/cf21f97d-d8f1-464b-a7d3-093b8f37be16/scratchpad/shots";
+const SHOTS = "output/shots";
 
 async function ready(page: Page): Promise<void> {
   await page.goto("/");

@@ -1,7 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const SHOTS =
-  "C:/Users/38909/AppData/Local/Temp/claude/C--Users-38909-Documents-github-lego/cf21f97d-d8f1-464b-a7d3-093b8f37be16/scratchpad/shots";
+const SHOTS = "output/shots";
 
 test("resizes both side panels by dragging their splitters", async ({ page }) => {
   await page.goto("/");

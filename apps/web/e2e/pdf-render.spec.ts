@@ -1,6 +1,6 @@
-import { existsSync } from "node:fs";
-
 import { test, expect } from "@playwright/test";
+
+import { bookletProbeUrls, hasSampleBooklet } from "./sample-booklet";
 
 /**
  * Rasterises booklet pages so they can actually be looked at. Reading a page
@@ -9,14 +9,12 @@ import { test, expect } from "@playwright/test";
  * drawn around it.
  */
 
-const OUT =
-  "C:/Users/38909/AppData/Local/Temp/claude/C--Users-38909-Documents-github-lego/cf21f97d-d8f1-464b-a7d3-093b8f37be16/scratchpad/pdf";
-const ROOT = "C:/Users/38909/Documents/github/lego";
+const OUT = "output/pdf-pages";
 
 test("renders booklet pages as a reader sees them", async ({ page }) => {
   test.setTimeout(300_000);
   // The sample booklet is not committed; without it there is nothing to render.
-  test.skip(!existsSync(`${ROOT}/recipes/6651557.pdf`), "no sample booklet");
+  test.skip(!hasSampleBooklet, "no sample booklet");
   page.on("pageerror", (e) => console.log("PAGEERROR " + e.message));
   await page.goto("/");
 
@@ -47,9 +45,7 @@ test("renders booklet pages as a reader sees them", async ({ page }) => {
         return true;
       },
       {
-        pdfjsUrl: `/@fs/${ROOT}/node_modules/pdfjs-dist/build/pdf.mjs`,
-        workerUrl: `/@fs/${ROOT}/node_modules/pdfjs-dist/build/pdf.worker.mjs`,
-        pdfUrl: `/@fs/${ROOT}/recipes/6651557.pdf`,
+        ...bookletProbeUrls(),
         pageNumber,
       },
     );
