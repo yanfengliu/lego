@@ -195,7 +195,8 @@ button:disabled {
 
 .studio-grid {
   display: grid;
-  grid-template-columns: 290px minmax(420px, 1fr) 330px;
+  /* Overridden inline as the user drags; this is the opening layout. */
+  grid-template-columns: 290px 6px minmax(320px, 1fr) 6px 330px;
   height: calc(100vh - 68px);
 }
 .panel {
@@ -1078,4 +1079,35 @@ button.candidate-attempt {
 .part-option.is-armed {
   border-color: var(--accent);
   box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.panel-splitter {
+  position: relative;
+  cursor: col-resize;
+  background: var(--line);
+  transition: background 120ms ease;
+}
+.panel-splitter:hover,
+.panel-splitter:focus-visible {
+  background: var(--accent);
+  outline: none;
+}
+.panel-splitter span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 26px;
+  border-radius: 2px;
+  background: var(--muted);
+  opacity: 0.5;
+  transform: translate(-50%, -50%);
+}
+/* A drag must not select text or hand the pointer to the canvas. */
+body.is-resizing-panels {
+  cursor: col-resize;
+  user-select: none;
+}
+body.is-resizing-panels canvas {
+  pointer-events: none;
 }

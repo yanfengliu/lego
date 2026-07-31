@@ -19,6 +19,7 @@ import { AssistantPanel } from "./components/AssistantPanel";
 import { BrickViewport, type BrickViewportHandle } from "./components/BrickViewport";
 import { BuildPlaybackBar } from "./components/BuildPlaybackBar";
 import { CatalogPanel } from "./components/CatalogPanel";
+import { PanelSplitter } from "./components/PanelSplitter";
 import { InspectorPanel } from "./components/InspectorPanel";
 import { ValidationPanel } from "./components/ValidationPanel";
 import { installAutomationBridge, type AutomationAppState } from "./automation";
@@ -65,6 +66,8 @@ export function App() {
   const [playbackPlaying, setPlaybackPlaying] = useState(false);
   // Bumping this re-frames the camera; ordinary edits must never move it.
   const [frameToken, setFrameToken] = useState(0);
+  const [catalogWidth, setCatalogWidth] = useState(290);
+  const [inspectorWidth, setInspectorWidth] = useState(330);
   const [commandError, setCommandError] = useState<string | null>(null);
   const [assistantPrompt, setAssistantPrompt] = useState("Build an 18-piece red and yellow tower");
   const candidateLab = useCandidateLab(state.document);
@@ -511,7 +514,12 @@ export function App() {
         </div>
       </header>
 
-      <div className="studio-grid">
+      <div
+        className="studio-grid"
+        style={{
+          gridTemplateColumns: `${catalogWidth}px 6px minmax(320px, 1fr) 6px ${inspectorWidth}px`,
+        }}
+      >
         <CatalogPanel
           selectedPartDefinitionId={catalogPartId}
           selectedColorId={colorId}
@@ -522,6 +530,15 @@ export function App() {
           onAdd={addPart}
           onArmChange={setDraggedCatalogPartId}
           armedPartId={draggedCatalogPartId}
+        />
+
+        <PanelSplitter
+          side="left"
+          width={catalogWidth}
+          minWidth={210}
+          maxWidth={560}
+          onWidthChange={setCatalogWidth}
+          label="Resize the part catalog"
         />
 
         <section className="workspace" aria-label="Model workspace">
@@ -634,6 +651,15 @@ export function App() {
             </div>
           ) : null}
         </section>
+
+        <PanelSplitter
+          side="right"
+          width={inspectorWidth}
+          minWidth={240}
+          maxWidth={620}
+          onWidthChange={setInspectorWidth}
+          label="Resize the inspector"
+        />
 
         <aside className="panel inspector-panel" aria-label="Inspector and copilot">
           <InspectorPanel
