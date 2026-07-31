@@ -6,6 +6,7 @@ import {
   applyBuildOperations,
   canonicalDigest,
   createEmptyBrickDocument,
+  deriveBuildSequence,
   exportBrickDocumentToLDraw,
   importBrickDocumentFromLDraw,
   migrateDocumentTruth,
@@ -16,6 +17,7 @@ import type { RigidTransform } from "@lego-studio/protocol";
 
 import { AssistantPanel } from "./components/AssistantPanel";
 import { BrickViewport, type BrickViewportHandle } from "./components/BrickViewport";
+import { BuildPlaybackBar } from "./components/BuildPlaybackBar";
 import { CatalogPanel } from "./components/CatalogPanel";
 import { InspectorPanel } from "./components/InspectorPanel";
 import { ValidationPanel } from "./components/ValidationPanel";
@@ -59,6 +61,8 @@ export function App() {
   );
   const [colorId, setColorId] = useState("builtin:red");
   const [draggedCatalogPartId, setDraggedCatalogPartId] = useState<string | null>(null);
+  const [playbackPosition, setPlaybackPosition] = useState<number | null>(null);
+  const [playbackPlaying, setPlaybackPlaying] = useState(false);
   const [commandError, setCommandError] = useState<string | null>(null);
   const [assistantPrompt, setAssistantPrompt] = useState("Build an 18-piece red and yellow tower");
   const candidateLab = useCandidateLab(state.document);
@@ -80,7 +84,20 @@ export function App() {
     state.document.connections.some(
       ({ a, b }) => a.partId === selectedPart.id || b.partId === selectedPart.id,
     );
-  const previewDocument = candidateLab.selectedCandidate?.document ?? state.document;
+  // Deriving a sequence validates every step prefix, so only do it while the
+  // playback bar is open.
+  const playbackOpen = playbackPosition !== null;
+  const buildSequence = useMemo(
+    () => (playbackOpen ? deriveBuildSequence(state.document) : null),
+    [playbackOpen, state.document],
+  );
+  const playbackDocument =
+    buildSequence === null
+      ? null
+      : (buildSequence.states[Math.min(playbackPosition ?? 0, buildSequence.states.length - 1)]
+          ?.document ?? null);
+  const previewDocument =
+    candidateLab.selectedCandidate?.document ?? playbackDocument ?? state.document;
   const report = useMemo(() => validateBrickDocument(previewDocument), [previewDocument]);
   const documentReport = useMemo(() => validateBrickDocument(state.document), [state.document]);
 
@@ -503,6 +520,25 @@ export function App() {
                 ↻ <span>Rotate</span>
               </button>
             </div>
+            <div className="tool-group" aria-label="Build playback">
+              <button
+                type="button"
+                className={`tool${playbackPosition !== null ? " is-active" : ""}`}
+                aria-pressed={playbackPosition !== null}
+                disabled={state.document.parts.length === 0}
+                title={
+                  state.document.parts.length === 0
+                    ? "Place a part to review the build"
+                    : "Step through the build one instruction step at a time"
+                }
+                onClick={() => {
+                  setPlaybackPlaying(false);
+                  setPlaybackPosition(playbackPosition === null ? 0 : null);
+                }}
+              >
+                ⏵ <span>Build</span>
+              </button>
+            </div>
             <div className="truth-readout">
               <span>Grid ½ stud</span>
               <span>-Y up</span>
@@ -524,6 +560,19 @@ export function App() {
             onPlacePart={placePart}
             onMovePart={movePart}
           />
+          {buildSequence && playbackPosition !== null ? (
+            <BuildPlaybackBar
+              sequence={buildSequence}
+              position={playbackPosition}
+              playing={playbackPlaying}
+              onSeek={setPlaybackPosition}
+              onPlayingChange={setPlaybackPlaying}
+              onExit={() => {
+                setPlaybackPlaying(false);
+                setPlaybackPosition(null);
+              }}
+            />
+          ) : null}
           <div className="viewport-footer">
             <span>
               Select: left · Orbit: middle · Pan: right · Zoom: wheel · Fly: WASD, Q/E, Shift

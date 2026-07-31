@@ -1023,3 +1023,51 @@ button.candidate-attempt {
   color: var(--muted);
   font-size: 0.66rem;
 }
+
+.playback-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-top: 0.5rem;
+  background: var(--surface-2);
+}
+.playback-scrubber {
+  flex: 1 1 auto;
+  min-width: 80px;
+  display: flex;
+}
+.playback-scrubber input {
+  width: 100%;
+  accent-color: var(--accent);
+}
+.playback-readout {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  white-space: nowrap;
+}
+.playback-readout strong {
+  font-size: 0.72rem;
+}
+.playback-readout small {
+  color: var(--muted);
+  font-size: 0.62rem;
+}
+.playback-verdict {
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.playback-verdict.is-ok {
+  background: #16241a;
+  color: #8fd6a0;
+}
+.playback-verdict.is-bad {
+  background: #2a1618;
+  color: #ff8f9c;
+}
