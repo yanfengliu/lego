@@ -39,6 +39,8 @@ export interface InstructionPage {
   readonly heightPt: number;
   /** Text layer as extracted, already truncated to the per-page budget. */
   readonly text: string;
+  /** The same text as its original items, which token boundaries depend on. */
+  readonly textItems: readonly string[];
   readonly textTruncated: boolean;
 }
 

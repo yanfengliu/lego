@@ -53,12 +53,14 @@ export const loadPdfWithPdfjs: PdfLoader = async (bytes) => {
   }).promise) as unknown as PdfDocument;
 };
 
-function textOf(items: readonly PdfTextItem[]): string {
+/**
+ * The text layer as discrete items. Joining first would destroy the token
+ * boundaries the booklet's step numbers and quantities are read from.
+ */
+function itemsOf(items: readonly PdfTextItem[]): string[] {
   return items
-    .map((item) => (typeof item.str === "string" ? item.str : ""))
-    .join(" ")
-    .replace(/\s+/g, " ")
-    .trim();
+    .map((item) => (typeof item.str === "string" ? item.str.trim() : ""))
+    .filter((value) => value.length > 0);
 }
 
 export interface IngestOptions {
@@ -107,7 +109,8 @@ export async function ingestInstructionPdf(
       assertPageExtent(pageNumber, viewport.width, viewport.height, limits);
 
       const content = await page.getTextContent();
-      const { text, textTruncated } = boundPageText(textOf(content.items), limits);
+      const items = itemsOf(content.items);
+      const { text, textTruncated } = boundPageText(items.join(" "), limits);
       totalTextChars += text.length;
       assertTotalTextBudget(totalTextChars, limits);
 
@@ -116,6 +119,8 @@ export async function ingestInstructionPdf(
         widthPt: viewport.width,
         heightPt: viewport.height,
         text,
+        // Items are capped alongside the text so one page cannot blow the budget.
+        textItems: textTruncated ? items.slice(0, limits.maxTextCharsPerPage) : items,
         textTruncated,
       });
       page.cleanup?.();
