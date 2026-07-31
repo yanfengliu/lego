@@ -1,4 +1,4 @@
-import { constants } from "node:fs";
+import { constants, type Stats } from "node:fs";
 import { lstat, open, realpath, type FileHandle } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
 
@@ -12,7 +12,9 @@ export function filesystemCode(error: unknown): string | undefined {
     : undefined;
 }
 
-export async function linkStats(path: string): Promise<Awaited<ReturnType<typeof lstat>> | null> {
+// `lstat` is overloaded and its return union now includes the bigint form;
+// this calls it without options, so the numeric one is what comes back.
+export async function linkStats(path: string): Promise<Stats | null> {
   try {
     return await lstat(path);
   } catch (error) {

@@ -1,4 +1,4 @@
-import { constants } from "node:fs";
+import { constants, type Stats } from "node:fs";
 import type { FileHandle } from "node:fs/promises";
 import { resolve } from "node:path";
 
@@ -54,11 +54,10 @@ function sameFile(
   return left.dev === 0 || right.dev === 0 || left.dev === right.dev;
 }
 
-function assertFileIdentity(
-  stats: Awaited<ReturnType<FileHandle["stat"]>>,
-  identity: LedgerFileIdentity,
-  byteLength: number,
-): void {
+// `FileHandle["stat"]` is overloaded, and its return union now includes the
+// bigint form. Every caller here stats without options and so always has the
+// numeric one; naming it keeps the identity comparison in numbers.
+function assertFileIdentity(stats: Stats, identity: LedgerFileIdentity, byteLength: number): void {
   if (
     !stats.isFile() ||
     stats.nlink !== 1 ||
@@ -243,7 +242,7 @@ async function recoverEvents(
   }
   const handle = await openNoFollow(paths.eventsFile, constants.O_RDWR);
   try {
-    const stats = await handle.stat();
+    const stats: Stats = await handle.stat();
     const identity = { dev: stats.dev, ino: stats.ino };
     // These are five distinct failures. Reporting them all as a byte cap sends
     // whoever hits one looking at the wrong thing.
@@ -369,7 +368,7 @@ export async function appendStoredEvent(
   }
   let persistenceFailure: unknown;
   try {
-    const stats = await handle.stat();
+    const stats: Stats = await handle.stat();
     assertFileIdentity(stats, expectedIdentity, expectedFileBytes);
     await writeAll(handle, line);
     await handle.sync();
