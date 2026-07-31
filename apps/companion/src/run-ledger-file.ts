@@ -37,6 +37,23 @@ export interface LedgerFileIdentity {
   readonly ino: number;
 }
 
+/**
+ * Whether two stat results describe the same file.
+ *
+ * The inode is the identity: a swapped file gets a different one. The device id
+ * is only corroborating, because `lstat` and a handle's `fstat` do not agree on
+ * it on every platform — Windows reports 0 from `lstat` and the real device from
+ * `fstat` for the same file — so comparing it unconditionally rejects a file
+ * that was never touched. It is still compared when both sides report one.
+ */
+function sameFile(
+  left: { readonly dev: number; readonly ino: number },
+  right: { readonly dev: number; readonly ino: number },
+): boolean {
+  if (left.ino !== right.ino) return false;
+  return left.dev === 0 || right.dev === 0 || left.dev === right.dev;
+}
+
 function assertFileIdentity(
   stats: Awaited<ReturnType<FileHandle["stat"]>>,
   identity: LedgerFileIdentity,
@@ -45,8 +62,7 @@ function assertFileIdentity(
   if (
     !stats.isFile() ||
     stats.nlink !== 1 ||
-    stats.dev !== identity.dev ||
-    stats.ino !== identity.ino ||
+    !sameFile(identity, stats) ||
     stats.size !== byteLength
   ) {
     throw new RunLedgerError("LEDGER_CORRUPTION", "Run event stream identity changed");
@@ -229,14 +245,31 @@ async function recoverEvents(
   try {
     const stats = await handle.stat();
     const identity = { dev: stats.dev, ino: stats.ino };
-    if (
-      !stats.isFile() ||
-      stats.nlink !== 1 ||
-      stats.dev !== linkedStats.dev ||
-      stats.ino !== linkedStats.ino ||
-      stats.size > limits.maxLedgerBytes
-    ) {
-      throw new RunLedgerError("LEDGER_LIMIT_EXCEEDED", "Ledger file exceeds its byte cap");
+    // These are five distinct failures. Reporting them all as a byte cap sends
+    // whoever hits one looking at the wrong thing.
+    if (!stats.isFile()) {
+      throw new RunLedgerError(
+        "LEDGER_CORRUPTION",
+        `Run event stream at ${paths.eventsFile} is not a regular file once opened`,
+      );
+    }
+    if (stats.nlink !== 1) {
+      throw new RunLedgerError(
+        "LEDGER_CORRUPTION",
+        `Run event stream at ${paths.eventsFile} has ${stats.nlink} links; exactly one is required so no other name can alter it`,
+      );
+    }
+    if (!sameFile(linkedStats, stats)) {
+      throw new RunLedgerError(
+        "LEDGER_CORRUPTION",
+        `Run event stream at ${paths.eventsFile} was replaced between lookup and open (device ${linkedStats.dev}/${linkedStats.ino} became ${stats.dev}/${stats.ino})`,
+      );
+    }
+    if (stats.size > limits.maxLedgerBytes) {
+      throw new RunLedgerError(
+        "LEDGER_LIMIT_EXCEEDED",
+        `Ledger file at ${paths.eventsFile} is ${stats.size} bytes, over its ${limits.maxLedgerBytes}-byte cap`,
+      );
     }
     const bytes = Buffer.alloc(stats.size);
     let offset = 0;
