@@ -44,6 +44,8 @@ export interface BrickViewportSnapshot {
 export interface BrickViewportHandle {
   captureCanonicalViews(): Promise<Record<string, string>>;
   getSnapshot(): BrickViewportSnapshot;
+  /** Arms a move so the part follows the pointer until it is dropped. */
+  beginMove(partId: string): void;
 }
 
 interface BrickViewportProps {
@@ -199,6 +201,9 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
           });
           capturePromiseRef.current = pending;
           return pending;
+        },
+        beginMove(partId: string) {
+          placementRef.current?.beginMove(partId);
         },
         getSnapshot() {
           const runtime = runtimeRef.current;

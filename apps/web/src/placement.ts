@@ -2,6 +2,7 @@ import {
   BRICK_HEIGHT_LDU,
   PLATE_HEIGHT_LDU,
   STUD_PITCH_LDU,
+  UPRIGHT_ORIENTATIONS,
   getPartDefinition,
   type LduVector3,
   type PartDefinition,
@@ -76,6 +77,19 @@ function snapLateral(raw: number, studs: number): number {
 
 function snapVertical(raw: number): number {
   return Math.round(raw / VERTICAL_SNAP_LDU) * VERTICAL_SNAP_LDU;
+}
+
+/**
+ * The next legal yaw, cycling through the catalog's quarter turns. Rotating a
+ * part is a transform edit like any other, so it stays inside the finite
+ * upright-orientation policy rather than inventing a matrix.
+ */
+export function nextYawOrientationId(orientationId: string): string {
+  const current = getUprightOrientation(orientationId);
+  const ordered = [...UPRIGHT_ORIENTATIONS].sort((a, b) => a.quarterTurns - b.quarterTurns);
+  const next = ordered[(current.quarterTurns + 1) % ordered.length];
+  if (!next) throw new PlacementError(`No legal yaw follows ${orientationId}`);
+  return next.id;
 }
 
 /** World Y of the surface a part's underside rests on, given its origin. */

@@ -97,6 +97,7 @@ describe("browser automation bridge", () => {
         rendererMemory: { geometries: 0, textures: 0 },
       }),
       captureCanonicalViews: async () => ({}),
+      beginMove: () => undefined,
     };
     const target: AutomationBridgeTarget = {};
     const cleanup = installAutomationBridge(

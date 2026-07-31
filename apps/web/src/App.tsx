@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 
-import { PART_DEFINITIONS } from "@lego-studio/catalog";
+import { PART_DEFINITIONS, getPartDefinition } from "@lego-studio/catalog";
 import {
   LDRAW_LIMITS,
   applyBuildOperations,
@@ -30,6 +30,7 @@ import {
   createRemovePartTransaction,
   createUpdatePartTransaction,
 } from "./manual-commands";
+import { nextYawOrientationId, snapPlacementOrigin } from "./placement";
 import { IndexedDbProjectRepository } from "./persistence/indexeddb-project-repository";
 import { ProjectSaveQueue } from "./persistence/project-save-queue";
 
@@ -263,6 +264,30 @@ export function App() {
     });
   }
 
+  function rotateSelectedPart() {
+    if (!selectedPart) return;
+    runCommand(() => {
+      const definition = getPartDefinition(selectedPart.catalogPartId);
+      if (!definition) {
+        throw new ManualCommandError(
+          `Cannot rotate ${selectedPart.id}: ${selectedPart.catalogPartId} is absent from the pinned catalog`,
+        );
+      }
+      const orientationId = nextYawOrientationId(selectedPart.transform.orientationId);
+      // A yaw can flip the footprint parity, so re-snap laterally at the same height.
+      const positionLdu = snapPlacementOrigin({
+        catalogPartId: selectedPart.catalogPartId,
+        orientationId,
+        rawLdu: selectedPart.transform.positionLdu,
+        supportUndersideLdu:
+          selectedPart.transform.positionLdu[1] + definition.dimensions.heightLdu / 2,
+      });
+      applyTransaction(
+        createMovePartTransaction(state.document, selectedPart.id, { positionLdu, orientationId }),
+      );
+    });
+  }
+
   function deleteSelectedPart() {
     if (!selectedPart) return;
     runCommand(() => {
@@ -433,10 +458,28 @@ export function App() {
               <button type="button" className="tool is-active" aria-pressed="true">
                 ↖ <span>Select</span>
               </button>
-              <button type="button" className="tool" disabled>
+              <button
+                type="button"
+                className="tool"
+                disabled={selectedPart === null}
+                title={
+                  selectedPart
+                    ? "Pick up the selected part, then click to drop it"
+                    : "Select a part to move it"
+                }
+                onClick={() => {
+                  if (selectedPart) viewportRef.current?.beginMove(selectedPart.id);
+                }}
+              >
                 ✥ <span>Move</span>
               </button>
-              <button type="button" className="tool" disabled>
+              <button
+                type="button"
+                className="tool"
+                disabled={selectedPart === null}
+                title={selectedPart ? "Rotate the selected part 90°" : "Select a part to rotate it"}
+                onClick={rotateSelectedPart}
+              >
                 ↻ <span>Rotate</span>
               </button>
             </div>
