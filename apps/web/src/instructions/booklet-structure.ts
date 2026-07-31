@@ -64,23 +64,128 @@ export interface BookletStructure {
   readonly pages: readonly PageTokens[];
 }
 
+export interface NumberSighting {
+  readonly value: number;
+  readonly pageNumber: number;
+  readonly heightPt: number;
+}
+
 /**
- * A booklet prints its own page number on the page. Treating the token that
- * equals the page's position as the page number, and the rest as candidate
- * step numbers, is a guess — which is exactly why the contiguity check exists
- * to confirm or refute it over the whole document.
+ * How well one glyph size explains a booklet's step numbering: a run of 1..N
+ * with nothing missing and nothing repeated scores 1.
+ */
+function scoreAsStepNumbering(sightings: readonly NumberSighting[]): number {
+  if (sightings.length === 0) return 0;
+  const values = sightings.map(({ value }) => value);
+  const unique = new Set(values);
+  const highest = Math.max(...values);
+  if (!unique.has(1)) return 0;
+  const contiguity = unique.size / highest;
+  // Repeats are what an inset label looks like, so they cost.
+  const distinctness = unique.size / values.length;
+  return contiguity * distinctness;
+}
+
+/**
+ * Drops the page number each page prints.
+ *
+ * Page numbers also run 1..N perfectly and would otherwise outscore the real
+ * step numbering. They are identifiable without guessing: on each page, at most
+ * one sighting both equals that page's own number and is set in the smallest
+ * type on the page. A step number that happens to match its page is set larger,
+ * so it survives.
+ */
+export function withoutPrintedPageNumbers(sightings: readonly NumberSighting[]): NumberSighting[] {
+  const smallestByPage = new Map<number, number>();
+  for (const { pageNumber, heightPt } of sightings) {
+    const smallest = smallestByPage.get(pageNumber);
+    if (smallest === undefined || heightPt < smallest) smallestByPage.set(pageNumber, heightPt);
+  }
+
+  const dropped = new Set<number>();
+  return sightings.filter((sighting) => {
+    const isPrintedPageNumber =
+      sighting.value === sighting.pageNumber &&
+      sighting.heightPt === smallestByPage.get(sighting.pageNumber) &&
+      !dropped.has(sighting.pageNumber);
+    if (isPrintedPageNumber) {
+      dropped.add(sighting.pageNumber);
+      return false;
+    }
+    return true;
+  });
+}
+
+/**
+ * Picks the glyph size the booklet prints its step numbers at.
+ *
+ * Step numbers, inset labels, and page numbers are all bare integers and cannot
+ * be told apart by their text. They are set at different sizes, so size is the
+ * discriminator — but rather than hardcode one, every size present is scored by
+ * how well it explains a 1..N numbering and the best is taken. The consistency
+ * check thus chooses its own parameter, and a booklet that sets its steps at
+ * some other size still parses.
+ */
+export function selectStepNumberHeight(allSightings: readonly NumberSighting[]): number | null {
+  const sightings = withoutPrintedPageNumbers(allSightings);
+  const byHeight = new Map<number, NumberSighting[]>();
+  for (const sighting of sightings) {
+    const bucket = byHeight.get(sighting.heightPt);
+    if (bucket) bucket.push(sighting);
+    else byHeight.set(sighting.heightPt, [sighting]);
+  }
+
+  let best: { heightPt: number; score: number; count: number } | null = null;
+  for (const [heightPt, bucket] of byHeight) {
+    const score = scoreAsStepNumbering(bucket);
+    if (score === 0) continue;
+    // Ties go to the size that accounts for more of the booklet.
+    if (!best || score > best.score || (score === best.score && bucket.length > best.count)) {
+      best = { heightPt, score, count: bucket.length };
+    }
+  }
+  return best?.heightPt ?? null;
+}
+
+/**
+ * Reads the step scaffolding. Where a booklet prints its step numbers is
+ * inferred from the document itself rather than assumed, and the contiguity
+ * check then confirms or refutes that inference over the whole document.
  */
 export function extractBookletStructure(source: InstructionSourceV1): BookletStructure {
-  const pages = source.pages.map((page) => classifyPageTokens(page.pageNumber, page.textItems));
+  const pages = source.pages.map((page) =>
+    classifyPageTokens(
+      page.pageNumber,
+      page.textElements.map(({ text }) => text),
+    ),
+  );
+  const sightings: NumberSighting[] = source.pages.flatMap((page) =>
+    page.textElements
+      .filter(({ text }) => BARE_NUMBER.test(text))
+      .map(({ text, heightPt }) => ({
+        value: Number(text),
+        pageNumber: page.pageNumber,
+        heightPt: Math.round(heightPt * 10) / 10,
+      })),
+  );
+  const stepHeight = selectStepNumberHeight(sightings);
+  const stepSightings = withoutPrintedPageNumbers(sightings);
   const steps: BookletStep[] = [];
 
   for (const page of pages) {
-    // The page prints its own number exactly once. Dropping every token that
-    // matches would also drop the step whose number happens to equal the page's
-    // — which is the common case early in a booklet.
-    const candidates = [...page.bareNumbers];
-    const printedPageNumber = candidates.indexOf(page.pageNumber);
-    if (printedPageNumber >= 0) candidates.splice(printedPageNumber, 1);
+    const onPage = stepSightings.filter(({ pageNumber }) => pageNumber === page.pageNumber);
+    let candidates: number[];
+    if (stepHeight === null) {
+      // No size explains the numbering, so fall back to every bare number less
+      // the page's own, and let the consistency findings say how badly that went.
+      candidates = [...page.bareNumbers];
+      const printed = candidates.indexOf(page.pageNumber);
+      if (printed >= 0) candidates.splice(printed, 1);
+    } else {
+      candidates = onPage
+        .filter(({ heightPt }) => heightPt === stepHeight)
+        .map(({ value }) => value);
+    }
     for (const stepNumber of candidates) {
       steps.push({ stepNumber, pageNumber: page.pageNumber, quantities: page.quantities });
     }

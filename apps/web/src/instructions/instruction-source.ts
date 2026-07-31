@@ -33,14 +33,22 @@ export class InstructionIngestError extends Error {
   }
 }
 
+export interface InstructionTextElement {
+  readonly text: string;
+  /** Glyph height in PDF points. A step number is printed far larger than an inset label. */
+  readonly heightPt: number;
+  readonly xPt: number;
+  readonly yPt: number;
+}
+
 export interface InstructionPage {
   readonly pageNumber: number;
   readonly widthPt: number;
   readonly heightPt: number;
   /** Text layer as extracted, already truncated to the per-page budget. */
   readonly text: string;
-  /** The same text as its original items, which token boundaries depend on. */
-  readonly textItems: readonly string[];
+  /** The same text as positioned elements; token boundaries and glyph size both matter. */
+  readonly textElements: readonly InstructionTextElement[];
   readonly textTruncated: boolean;
 }
 

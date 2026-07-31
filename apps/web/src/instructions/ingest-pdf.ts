@@ -8,6 +8,7 @@ import {
   boundPageText,
   type InstructionLimits,
   type InstructionPage,
+  type InstructionTextElement,
   type InstructionSourceV1,
 } from "./instruction-source";
 
@@ -23,6 +24,9 @@ async function sha256Hex(buffer: ArrayBuffer): Promise<string> {
 /** The shape of pdfjs this module depends on, kept narrow so it can be faked. */
 export interface PdfTextItem {
   readonly str?: unknown;
+  readonly height?: unknown;
+  /** PDF text matrix; elements 4 and 5 carry the position. */
+  readonly transform?: unknown;
 }
 export interface PdfPage {
   getViewport(options: { scale: number }): { readonly width: number; readonly height: number };
@@ -53,14 +57,24 @@ export const loadPdfWithPdfjs: PdfLoader = async (bytes) => {
   }).promise) as unknown as PdfDocument;
 };
 
+function numberAt(value: unknown, index: number): number {
+  return Array.isArray(value) && typeof value[index] === "number" ? value[index] : 0;
+}
+
 /**
- * The text layer as discrete items. Joining first would destroy the token
- * boundaries the booklet's step numbers and quantities are read from.
+ * The text layer as positioned elements. Joining first would destroy the token
+ * boundaries the booklet's step numbers and quantities are read from, and the
+ * glyph height is what separates a step number from an inset label.
  */
-function itemsOf(items: readonly PdfTextItem[]): string[] {
+function elementsOf(items: readonly PdfTextItem[]): InstructionTextElement[] {
   return items
-    .map((item) => (typeof item.str === "string" ? item.str.trim() : ""))
-    .filter((value) => value.length > 0);
+    .map((item) => ({
+      text: typeof item.str === "string" ? item.str.trim() : "",
+      heightPt: typeof item.height === "number" ? item.height : 0,
+      xPt: numberAt(item.transform, 4),
+      yPt: numberAt(item.transform, 5),
+    }))
+    .filter(({ text }) => text.length > 0);
 }
 
 export interface IngestOptions {
@@ -109,8 +123,11 @@ export async function ingestInstructionPdf(
       assertPageExtent(pageNumber, viewport.width, viewport.height, limits);
 
       const content = await page.getTextContent();
-      const items = itemsOf(content.items);
-      const { text, textTruncated } = boundPageText(items.join(" "), limits);
+      const elements = elementsOf(content.items);
+      const { text, textTruncated } = boundPageText(
+        elements.map(({ text: value }) => value).join(" "),
+        limits,
+      );
       totalTextChars += text.length;
       assertTotalTextBudget(totalTextChars, limits);
 
@@ -119,8 +136,8 @@ export async function ingestInstructionPdf(
         widthPt: viewport.width,
         heightPt: viewport.height,
         text,
-        // Items are capped alongside the text so one page cannot blow the budget.
-        textItems: textTruncated ? items.slice(0, limits.maxTextCharsPerPage) : items,
+        // Elements are capped alongside the text so one page cannot blow the budget.
+        textElements: textTruncated ? elements.slice(0, limits.maxTextCharsPerPage) : elements,
         textTruncated,
       });
       page.cleanup?.();
