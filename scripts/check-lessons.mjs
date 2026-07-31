@@ -52,9 +52,15 @@ const rulesHeading = rulesLines.indexOf("## Rules");
 if (rulesHeading < 0) fail(`${RULES} has no "## Rules" section; session start reads that`);
 
 const rules = rulesLines.slice(rulesHeading + 1).filter((line) => line.startsWith("- "));
-const entries = evidenceLines
-  .filter((line) => line.startsWith("## ") && line.slice(3).trim() !== "Entries")
-  .map((line) => line.slice(3).trim());
+// A heading inside a fenced block is a template example, not a lesson.
+let fenced = false;
+const entries = [];
+for (const line of evidenceLines) {
+  if (line.trimStart().startsWith("```")) fenced = !fenced;
+  else if (!fenced && line.startsWith("## ") && line.slice(3).trim() !== "Entries") {
+    entries.push(line.slice(3).trim());
+  }
+}
 
 if (rules.length === 0) fail(`${RULES} lists no rules`);
 if (entries.length === 0) fail(`${EVIDENCE} holds no entries`);
