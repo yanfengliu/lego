@@ -41,6 +41,9 @@ const VIEW_BASES: readonly ViewBasis[] = [
 const FALLBACK_MIN = new Vector3(-0.5, -0.5, -0.5);
 const FALLBACK_MAX = new Vector3(0.5, 0.5, 0.5);
 
+/** Smallest interactive near plane; keeps depth precision usable when the camera sits inside the model. */
+export const MIN_ORBIT_NEAR = 0.01 as const;
+
 function tuple(vector: Vector3): readonly [number, number, number] {
   return [vector.x, vector.y, vector.z];
 }
@@ -162,6 +165,32 @@ export function createCameraForView(
     canonicalProjection: view.projection,
   };
   return camera;
+}
+
+/**
+ * Canonical view frustums are pinned to the exact distance the packet was
+ * authored at, which is what makes captures deterministic. An interactive
+ * camera dollies freely, so reusing that frustum clips the model away once the
+ * user passes the authored far plane. This recomputes an orbit-safe frustum for
+ * the current distance instead; canonical capture keeps the packet values.
+ *
+ * `sceneRadius` must cover everything the caller wants visible — the model
+ * frame radius unioned with any display layer such as a ground grid.
+ */
+export function orbitCameraFrustum(
+  distance: number,
+  sceneRadius: number,
+): { readonly near: number; readonly far: number } {
+  if (!Number.isFinite(distance) || distance < 0) {
+    throw new RangeError(
+      `orbit distance must be a non-negative finite number, received ${distance}`,
+    );
+  }
+  requirePositiveFinite(sceneRadius, "sceneRadius");
+  return {
+    near: Math.max(MIN_ORBIT_NEAR, distance - sceneRadius * 1.25),
+    far: distance + sceneRadius * 2.5,
+  };
 }
 
 export function fitPerspectiveCameraToFrame(

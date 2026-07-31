@@ -6,6 +6,7 @@ import {
   createCanonicalViewPacket,
   deriveBrickScene,
   fitPerspectiveCameraToFrame,
+  orbitCameraFrustum,
   setBrickSceneSelection,
   type CanonicalViewPacket,
   type DerivedBrickScene,
@@ -60,6 +61,29 @@ interface ViewportRuntime {
   controls: OrbitControls;
   projection: DerivedBrickScene | null;
   packet: CanonicalViewPacket | null;
+  /** Covers the model and the ground grid so neither clips while orbiting. */
+  sceneRadius: number;
+}
+
+const GRID_HALF_EXTENT = 20;
+const GRID_SCENE_RADIUS = GRID_HALF_EXTENT * Math.SQRT2;
+
+/**
+ * The canonical packet frustum is pinned to the distance it was authored at, so
+ * an interactive camera that dollies past it loses the model. Retarget the
+ * frustum to the live orbit distance before every frame instead.
+ */
+function syncOrbitFrustum(runtime: ViewportRuntime): void {
+  const { camera } = runtime;
+  if (!(camera instanceof PerspectiveCamera)) return;
+  const { near, far } = orbitCameraFrustum(
+    camera.position.distanceTo(runtime.controls.target),
+    runtime.sceneRadius,
+  );
+  if (camera.near === near && camera.far === far) return;
+  camera.near = near;
+  camera.far = far;
+  camera.updateProjectionMatrix();
 }
 
 function partIdFromObject(object: Object3D | null): string | null {
@@ -227,11 +251,14 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
         controls,
         projection: null,
         packet: null,
+        sceneRadius: GRID_SCENE_RADIUS,
       };
       runtimeRef.current = runtime;
 
       const render = () => {
-        if (!contextLostRef.current) renderer.render(scene, runtime.camera);
+        if (contextLostRef.current) return;
+        syncOrbitFrustum(runtime);
+        renderer.render(scene, runtime.camera);
       };
       controls.addEventListener("change", render);
 
@@ -359,17 +386,22 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
       const view = packet.views[0]!;
       runtime.controls.dispose();
       runtime.camera = camera;
+      runtime.sceneRadius = Math.max(view.frameRadius, GRID_SCENE_RADIUS);
       runtime.controls = new OrbitControls(runtime.camera, runtime.renderer.domElement);
       runtime.controls.enableDamping = false;
       runtime.controls.screenSpacePanning = true;
+      runtime.controls.maxDistance = runtime.sceneRadius * 50;
       runtime.controls.target.copy(new Vector3(...view.target));
       runtime.controls.addEventListener("change", () => {
-        if (!contextLostRef.current) runtime.renderer.render(runtime.scene, runtime.camera);
+        if (contextLostRef.current) return;
+        syncOrbitFrustum(runtime);
+        runtime.renderer.render(runtime.scene, runtime.camera);
       });
       runtime.controls.update();
       runtime.grid.position.y = runtime.projection.bounds.isEmpty()
         ? -0.5
         : runtime.projection.bounds.min.y - 0.02;
+      syncOrbitFrustum(runtime);
       runtime.renderer.render(runtime.scene, runtime.camera);
     }, [document, validationReport]);
 

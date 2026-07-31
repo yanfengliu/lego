@@ -20,6 +20,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   CANONICAL_VIEW_NAMES,
+  MIN_ORBIT_NEAR,
   THREE_UNITS_PER_LDU,
   createCameraForView,
   createCanonicalViewPacket,
@@ -27,6 +28,7 @@ import {
   lduToThreeVector,
   lduTransformToThreeMatrix,
   fitPerspectiveCameraToFrame,
+  orbitCameraFrustum,
   rebuildBrickScene,
   setBrickSceneSelection,
   RENDER_LIMITS,
@@ -423,5 +425,52 @@ describe("canonical views and lifecycle", () => {
     expect(prior.disposed).toBe(false);
     expect(prior.partObjects.has("retained")).toBe(true);
     prior.dispose();
+  });
+});
+
+describe("interactive orbit frustums", () => {
+  const projection = deriveBrickScene(
+    documentWithParts([createPartInstance({ id: "orbit-subject" })]),
+  );
+  const view = createCanonicalViewPacket(projection).views[0]!;
+  const authoredDistance = new Vector3(...view.position).distanceTo(new Vector3(...view.target));
+
+  it("keeps the model inside the frustum at any dolly distance", () => {
+    for (const multiplier of [0, 0.05, 0.5, 1, 4, 40, 400]) {
+      const distance = authoredDistance * multiplier;
+      const { near, far } = orbitCameraFrustum(distance, view.frameRadius);
+
+      expect(near).toBeGreaterThanOrEqual(MIN_ORBIT_NEAR);
+      // The whole framed sphere sits between the planes, so nothing is clipped away.
+      expect(near).toBeLessThanOrEqual(Math.max(MIN_ORBIT_NEAR, distance - view.frameRadius));
+      expect(far).toBeGreaterThan(distance + view.frameRadius);
+    }
+  });
+
+  it("covers display layers wider than the model when asked to", () => {
+    const gridRadius = view.frameRadius * 60;
+    const { near, far } = orbitCameraFrustum(authoredDistance, gridRadius);
+
+    expect(near).toBe(MIN_ORBIT_NEAR);
+    expect(far).toBeGreaterThan(authoredDistance + gridRadius);
+  });
+
+  it("reproduces the canonical frustum clipping it replaces for interactive use", () => {
+    // Regression: the authored packet far plane hides the model once the user
+    // dollies past it, which is exactly what orbitCameraFrustum exists to fix.
+    const dollyOut = authoredDistance * 8;
+
+    expect(view.far).toBeLessThan(dollyOut - view.frameRadius);
+    expect(orbitCameraFrustum(dollyOut, view.frameRadius).far).toBeGreaterThan(
+      dollyOut + view.frameRadius,
+    );
+  });
+
+  it("rejects distances and radii it cannot build a frustum from", () => {
+    expect(() => orbitCameraFrustum(-1, 1)).toThrow(
+      /orbit distance must be a non-negative finite number, received -1/,
+    );
+    expect(() => orbitCameraFrustum(Number.NaN, 1)).toThrow(/received NaN/);
+    expect(() => orbitCameraFrustum(1, 0)).toThrow(/sceneRadius must be a positive finite number/);
   });
 });
