@@ -14,14 +14,17 @@ import type {
   TruthSnapshot,
 } from "@lego-studio/protocol";
 
-import { canonicalDigest } from "./canonical.ts";
+import { canonicalDigest, deepFreeze } from "./canonical.ts";
 import { VALIDATOR_SET_DIGEST_INPUT, VALIDATOR_SET_VERSION } from "./truth-manifests.ts";
 
 export const BRICK_DOCUMENT_SCHEMA_VERSION = "lego.brick-document/1" as const;
 export const ROOT_SUBMODEL_ID = "root" as const;
 export const INITIAL_STEP_ID = "step-1" as const;
 
-export function getBuiltinTruthDigestInputs() {
+let cachedDigestInputs: ReturnType<typeof computeBuiltinTruthDigestInputs> | null = null;
+let cachedTruthSnapshot: TruthSnapshot | null = null;
+
+function computeBuiltinTruthDigestInputs() {
   const catalog = getCatalogSnapshotDigestInput();
   return {
     catalog,
@@ -48,8 +51,27 @@ export function getBuiltinTruthDigestInputs() {
   } as const;
 }
 
+/**
+ * The builtin truth is a pure function of compile-time catalog constants, but
+ * digesting the whole catalog is expensive and validation runs on every edit
+ * and every build-sequence prefix. Compute it once and hand out the frozen
+ * value; documents structurally clone what they store, so sharing is safe.
+ */
+export function getBuiltinTruthDigestInputs() {
+  cachedDigestInputs ??= deepFreeze(computeBuiltinTruthDigestInputs());
+  return cachedDigestInputs;
+}
+
 export function createBuiltinTruthSnapshot(): TruthSnapshot {
+  if (cachedTruthSnapshot) return cachedTruthSnapshot;
   const digestInputs = getBuiltinTruthDigestInputs();
+  cachedTruthSnapshot = deepFreeze(buildTruthSnapshot(digestInputs));
+  return cachedTruthSnapshot;
+}
+
+function buildTruthSnapshot(
+  digestInputs: ReturnType<typeof getBuiltinTruthDigestInputs>,
+): TruthSnapshot {
   return {
     schemaVersion: "lego.truth-snapshot/1",
     catalog: {

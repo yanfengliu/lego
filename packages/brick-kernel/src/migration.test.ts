@@ -1,4 +1,4 @@
-import { COLOR_DEFINITIONS } from "@lego-studio/catalog";
+import { BUILTIN_CATALOG_VERSION, COLOR_DEFINITIONS } from "@lego-studio/catalog";
 import type { BrickDocumentV1 } from "@lego-studio/protocol";
 import { describe, expect, it } from "vitest";
 
@@ -57,7 +57,7 @@ describe("migrateDocumentTruth", () => {
 
     expect(report.migrated).toBe(true);
     expect(report.fromCatalogVersion).toBe("builtin.basic-parts/1");
-    expect(report.toCatalogVersion).toBe("builtin.basic-parts/2");
+    expect(report.toCatalogVersion).toBe(BUILTIN_CATALOG_VERSION);
     expect(report.addedColorIds.length).toBeGreaterThan(0);
     expect(report.addedColorIds).toContain("builtin:orange");
     expect(report.addedColorIds).not.toContain("builtin:red");
@@ -102,8 +102,8 @@ describe("migrateDocumentTruth", () => {
 
     expect(report.migrated).toBe(false);
     expect(document.truth.catalog.version).toBe("someone-elses/9");
-    expect(report.blockingReasons[0]).toMatch(
-      /Catalog version someone-elses\/9 has no migration to builtin.basic-parts\/2/,
+    expect(report.blockingReasons[0]).toContain(
+      `Catalog version someone-elses/9 has no migration to ${BUILTIN_CATALOG_VERSION}`,
     );
   });
 
@@ -115,8 +115,8 @@ describe("migrateDocumentTruth", () => {
     });
 
     expect(report.migrated).toBe(false);
-    expect(report.blockingReasons.join(" ")).toMatch(
-      /part-1 uses color builtin:retired-color, which builtin.basic-parts\/2 no longer defines/,
+    expect(report.blockingReasons.join(" ")).toContain(
+      `part-1 uses color builtin:retired-color, which ${BUILTIN_CATALOG_VERSION} no longer defines`,
     );
   });
 

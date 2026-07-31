@@ -65,9 +65,17 @@ export function PartPreview({ part, colorHex }: PartPreviewProps) {
   const width = Math.max(...xs) - minX + pad;
   const depth = Math.max(...ys) - minY + pad;
 
-  const studs = Array.from({ length: widthStuds }, (_, xIndex) =>
-    Array.from({ length: lengthStuds }, (_, zIndex) => project(xIndex + 0.5, height, zIndex + 0.5)),
-  ).flat();
+  // Studs come from the part's own collision primitives, the same source the
+  // renderer draws from, so a studless part such as a tile shows none.
+  const studs = part.collision.primitives
+    .filter((primitive) => primitive.kind === "cylinder" && primitive.tag === "stud")
+    .map((primitive) =>
+      project(
+        primitive.centerLdu[0] / STUD_PITCH_LDU + widthStuds / 2,
+        height,
+        primitive.centerLdu[2] / STUD_PITCH_LDU + lengthStuds / 2,
+      ),
+    );
 
   return (
     <svg

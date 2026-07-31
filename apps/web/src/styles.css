@@ -976,3 +976,50 @@ button.candidate-attempt {
   background: #16241a;
   color: #b7dcbf;
 }
+
+.family-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.5rem;
+}
+.family-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.64rem;
+}
+.family-chip:hover {
+  color: var(--text);
+}
+.family-chip small {
+  opacity: 0.6;
+  font-size: 0.58rem;
+}
+.family-chip.is-active {
+  border-color: #6b5b20;
+  background: #2b2718;
+  color: var(--text);
+}
+.part-group + .part-group {
+  margin-top: 0.5rem;
+}
+.part-group__label {
+  margin: 0.2rem 0 0.15rem 0.55rem;
+  color: var(--muted);
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.part-list__empty {
+  margin: 0.5rem 0.55rem;
+  color: var(--muted);
+  font-size: 0.66rem;
+}

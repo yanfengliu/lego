@@ -107,7 +107,7 @@ describe("captured maker population replay", () => {
       runDeterministicMakerPopulation(input),
     );
     expect(canonicalDigest(runDeterministicMakerPopulation(input))).toBe(
-      "sha256:071c59cb540fafc2f3423b0dd08625bc81f1d0a8bca7767005a053dcca54e9c4",
+      "sha256:dc61ae486e87cf3a3d2bec5d6d98684f8bba613d7cdee1fac86a84635644c40a",
     );
   });
 

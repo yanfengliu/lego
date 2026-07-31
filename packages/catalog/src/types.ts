@@ -12,7 +12,7 @@ export type OrientationMatrix = readonly [
   m33: number,
 ];
 
-export type PartFamily = "brick" | "plate";
+export type PartFamily = "brick" | "plate" | "tile";
 export type ConnectorKind = "stud" | "undersideClutch";
 export type ConnectorGeometryRole = "stud" | "tubeSeat";
 export type CatalogAliasNamespace = "human" | "ldraw";
@@ -114,7 +114,7 @@ export interface ParametricGeometryRecipe {
   readonly digestInput: string;
   readonly contentHash: `sha256:${string}`;
   readonly bodyMode: "rectangular-prism";
-  readonly studMode: "cylinder-grid";
+  readonly studMode: "cylinder-grid" | "none";
   readonly undersideMode: "semantic-tube-seat-grid";
   readonly studRadiusLdu: number;
   readonly studHeightLdu: number;

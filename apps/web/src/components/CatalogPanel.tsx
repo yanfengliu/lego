@@ -6,8 +6,16 @@ import {
   getColorDefinition,
   type ColorDefinition,
   type PartDefinition,
+  type PartFamily,
 } from "@lego-studio/catalog";
 
+import {
+  PART_FAMILY_LABELS,
+  PART_FAMILY_ORDER,
+  countPartsByFamily,
+  groupPartsByFamily,
+  searchParts,
+} from "../catalog-search";
 import { PartPreview } from "./PartPreview";
 
 interface CatalogPanelProps {
@@ -169,12 +177,10 @@ export function CatalogPanel({
 }: CatalogPanelProps) {
   const [query, setQuery] = useState("");
   const colorHex = getColorDefinition(selectedColorId)?.displayHex ?? "#c91a09";
-  const parts = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    return normalized
-      ? PART_DEFINITIONS.filter((part) => part.displayName.toLowerCase().includes(normalized))
-      : PART_DEFINITIONS;
-  }, [query]);
+  const [family, setFamily] = useState<PartFamily | null>(null);
+  const groups = useMemo(() => groupPartsByFamily(searchParts({ query, family })), [query, family]);
+  const matchCount = groups.reduce((total, group) => total + group.parts.length, 0);
+  const familyCounts = useMemo(() => countPartsByFamily(), []);
 
   return (
     <aside className="panel catalog-panel" aria-label="Part catalog">
@@ -196,17 +202,47 @@ export function CatalogPanel({
         />
       </label>
 
-      <div className="part-list" aria-label="Basic parts">
-        {parts.map((part) => (
-          <PartOption
-            key={part.id}
-            part={part}
-            colorHex={colorHex}
-            selected={part.id === selectedPartDefinitionId}
-            onSelect={() => onPartDefinitionChange(part.id)}
-            onDragStateChange={onDragStateChange}
-          />
+      <div className="family-filter" role="group" aria-label="Filter by part family">
+        <button
+          type="button"
+          className={`family-chip${family === null ? " is-active" : ""}`}
+          aria-pressed={family === null}
+          onClick={() => setFamily(null)}
+        >
+          All <small>{PART_DEFINITIONS.length}</small>
+        </button>
+        {PART_FAMILY_ORDER.map((candidate) => (
+          <button
+            key={candidate}
+            type="button"
+            className={`family-chip${family === candidate ? " is-active" : ""}`}
+            aria-pressed={family === candidate}
+            onClick={() => setFamily(family === candidate ? null : candidate)}
+          >
+            {PART_FAMILY_LABELS[candidate]} <small>{familyCounts[candidate]}</small>
+          </button>
         ))}
+      </div>
+
+      <div className="part-list" aria-label="Basic parts">
+        {groups.map((group) => (
+          <div key={group.family} className="part-group">
+            {family === null ? <p className="part-group__label">{group.label}</p> : null}
+            {group.parts.map((part) => (
+              <PartOption
+                key={part.id}
+                part={part}
+                colorHex={colorHex}
+                selected={part.id === selectedPartDefinitionId}
+                onSelect={() => onPartDefinitionChange(part.id)}
+                onDragStateChange={onDragStateChange}
+              />
+            ))}
+          </div>
+        ))}
+        {matchCount === 0 ? (
+          <p className="part-list__empty">No part matches {query.trim() || "this filter"}</p>
+        ) : null}
       </div>
 
       <div className="catalog-footer">

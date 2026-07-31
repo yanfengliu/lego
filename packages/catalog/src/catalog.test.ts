@@ -36,6 +36,24 @@ const EXPECTED_PART_IDS = [
   "builtin:plate-2x2",
   "builtin:plate-2x3",
   "builtin:plate-2x4",
+  "builtin:brick-1x6",
+  "builtin:brick-1x8",
+  "builtin:brick-2x6",
+  "builtin:brick-2x8",
+  "builtin:plate-1x6",
+  "builtin:plate-1x8",
+  "builtin:plate-2x6",
+  "builtin:plate-2x8",
+  "builtin:plate-4x4",
+  "builtin:plate-4x6",
+  "builtin:plate-4x8",
+  "builtin:plate-6x6",
+  "builtin:tile-1x1",
+  "builtin:tile-1x2",
+  "builtin:tile-1x4",
+  "builtin:tile-1x6",
+  "builtin:tile-2x2",
+  "builtin:tile-2x4",
 ] as const;
 
 const determinant = (matrix: readonly number[]): number =>
@@ -50,11 +68,12 @@ describe("starter catalog", () => {
     expect(getPartDefinition("constructor")).toBeUndefined();
     expect(getColorDefinition("constructor")).toBeUndefined();
   });
-  it("contains exactly the fourteen approved basic bricks and plates", () => {
+  it("contains exactly the approved bricks, plates, and tiles", () => {
     expect(PART_DEFINITIONS.map(({ id }) => id)).toEqual(EXPECTED_PART_IDS);
-    expect(new Set(PART_DEFINITIONS.map(({ id }) => id))).toHaveLength(14);
-    expect(PART_DEFINITIONS.filter(({ family }) => family === "brick")).toHaveLength(7);
-    expect(PART_DEFINITIONS.filter(({ family }) => family === "plate")).toHaveLength(7);
+    expect(new Set(PART_DEFINITIONS.map(({ id }) => id))).toHaveLength(EXPECTED_PART_IDS.length);
+    expect(PART_DEFINITIONS.filter(({ family }) => family === "brick")).toHaveLength(11);
+    expect(PART_DEFINITIONS.filter(({ family }) => family === "plate")).toHaveLength(15);
+    expect(PART_DEFINITIONS.filter(({ family }) => family === "tile")).toHaveLength(6);
   });
 
   it("uses integer LDU dimensions and centered bounds", () => {
@@ -70,10 +89,11 @@ describe("starter catalog", () => {
         min: [-dimensions.widthLdu / 2, -expectedHeight / 2, -dimensions.lengthLdu / 2],
         max: [dimensions.widthLdu / 2, expectedHeight / 2, dimensions.lengthLdu / 2],
       });
+      const studOverhang = part.family === "tile" ? 0 : STUD_HEIGHT_LDU;
       expect(part.boundsLdu).toEqual({
         min: [
           -dimensions.widthLdu / 2,
-          -expectedHeight / 2 - STUD_HEIGHT_LDU,
+          -expectedHeight / 2 - studOverhang,
           -dimensions.lengthLdu / 2,
         ],
         max: [dimensions.widthLdu / 2, expectedHeight / 2, dimensions.lengthLdu / 2],
@@ -85,10 +105,11 @@ describe("starter catalog", () => {
     for (const part of PART_DEFINITIONS) {
       const { widthStuds, lengthStuds, heightLdu } = part.dimensions;
       const expectedPortCount = widthStuds * lengthStuds;
+      const expectedStudCount = part.family === "tile" ? 0 : expectedPortCount;
       const studs = part.connectors.filter(({ kind }) => kind === "stud");
       const clutches = part.connectors.filter(({ kind }) => kind === "undersideClutch");
 
-      expect(studs).toHaveLength(expectedPortCount);
+      expect(studs).toHaveLength(expectedStudCount);
       expect(clutches).toHaveLength(expectedPortCount);
 
       for (let xIndex = 0; xIndex < widthStuds; xIndex += 1) {
@@ -98,13 +119,14 @@ describe("starter catalog", () => {
           const stud = studs.find(({ id }) => id === `stud:${xIndex}:${zIndex}`);
           const clutch = clutches.find(({ id }) => id === `undersideClutch:${xIndex}:${zIndex}`);
 
-          expect(stud).toMatchObject({
-            geometryRole: "stud",
-            positionLdu: [x, -heightLdu / 2, z],
-            normal: [0, -1, 0],
-            capacity: 1,
-            compatibleKinds: ["undersideClutch"],
-          });
+          if (part.family !== "tile")
+            expect(stud).toMatchObject({
+              geometryRole: "stud",
+              positionLdu: [x, -heightLdu / 2, z],
+              normal: [0, -1, 0],
+              capacity: 1,
+              compatibleKinds: ["undersideClutch"],
+            });
           expect(clutch).toMatchObject({
             geometryRole: "tubeSeat",
             positionLdu: [x, heightLdu / 2, z],
@@ -119,7 +141,8 @@ describe("starter catalog", () => {
 
   it("provides body and stud collision primitives with connection-gated clearances", () => {
     for (const part of PART_DEFINITIONS) {
-      const expectedStudCount = part.dimensions.widthStuds * part.dimensions.lengthStuds;
+      const gridPoints = part.dimensions.widthStuds * part.dimensions.lengthStuds;
+      const expectedStudCount = part.family === "tile" ? 0 : gridPoints;
       const body = part.collision.primitives.find(({ id }) => id === "body");
       const studs = part.collision.primitives.filter(({ kind }) => kind === "cylinder");
 
@@ -129,7 +152,7 @@ describe("starter catalog", () => {
         maxLdu: part.bodyBoundsLdu.max,
       });
       expect(studs).toHaveLength(expectedStudCount);
-      expect(part.collision.allowances).toHaveLength(expectedStudCount);
+      expect(part.collision.allowances).toHaveLength(gridPoints);
 
       for (const allowance of part.collision.allowances) {
         expect(allowance).toMatchObject({
@@ -198,7 +221,7 @@ describe("starter catalog", () => {
       hashes.add(digest);
     }
 
-    expect(hashes).toHaveLength(14);
+    expect(hashes).toHaveLength(PART_DEFINITIONS.length);
   });
 
   it("exposes a curated color layer with traceable display and interoperability metadata", () => {
