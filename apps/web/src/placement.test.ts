@@ -1,0 +1,262 @@
+import {
+  BRICK_HEIGHT_LDU,
+  PLATE_HEIGHT_LDU,
+  STUD_PITCH_LDU,
+  getPartDefinition,
+  type PartDefinition,
+} from "@lego-studio/catalog";
+import { createPartInstance, transformLduPoint } from "@lego-studio/brick-kernel";
+import type { PartInstance } from "@lego-studio/protocol";
+import { describe, expect, it } from "vitest";
+
+import {
+  GROUND_UNDERSIDE_LDU,
+  PlacementError,
+  bodyBoundsLdu,
+  endpointKey,
+  findBodyOverlaps,
+  findStudConnections,
+  partTopSurfaceLdu,
+  snapPlacementOrigin,
+  worldFootprint,
+} from "./placement";
+
+const BRICK_2X4 = "builtin:brick-2x4";
+const BRICK_2X2 = "builtin:brick-2x2";
+const BRICK_1X1 = "builtin:brick-1x1";
+const PLATE_2X2 = "builtin:plate-2x2";
+
+function partAt(
+  id: string,
+  catalogPartId: string,
+  positionLdu: readonly [number, number, number],
+  orientationId = "upright-yaw-0",
+): PartInstance {
+  return createPartInstance({
+    id,
+    catalogPartId,
+    transform: { positionLdu: [...positionLdu], orientationId },
+  });
+}
+
+function definition(catalogPartId: string): PartDefinition {
+  const found = getPartDefinition(catalogPartId);
+  if (!found)
+    throw new Error(`Test fixture references a part outside the catalog: ${catalogPartId}`);
+  return found;
+}
+
+function studPositions(part: PartInstance): readonly (readonly [number, number, number])[] {
+  return definition(part.catalogPartId)
+    .connectors.filter(({ kind }) => kind === "stud")
+    .map((connector) => transformLduPoint(part.transform, connector.positionLdu));
+}
+
+describe("placement footprints", () => {
+  it("exchanges stud axes for quarter and three-quarter yaws", () => {
+    expect(worldFootprint(definition(BRICK_2X4), "upright-yaw-0")).toMatchObject({
+      studsX: 2,
+      studsZ: 4,
+    });
+    expect(worldFootprint(definition(BRICK_2X4), "upright-yaw-90")).toMatchObject({
+      studsX: 4,
+      studsZ: 2,
+    });
+    expect(worldFootprint(definition(BRICK_2X4), "upright-yaw-180")).toMatchObject({
+      studsX: 2,
+      studsZ: 4,
+    });
+    expect(worldFootprint(definition(BRICK_2X4), "upright-yaw-270")).toMatchObject({
+      studsX: 4,
+      studsZ: 2,
+    });
+  });
+});
+
+describe("snapPlacementOrigin", () => {
+  it("rests a brick on the plate exactly where Place at origin puts it", () => {
+    expect(
+      snapPlacementOrigin({
+        catalogPartId: BRICK_2X2,
+        orientationId: "upright-yaw-0",
+        rawLdu: [3, 999, -4],
+      }),
+    ).toEqual([0, 0, 0]);
+  });
+
+  it("keeps every resting origin on the plate-height lattice", () => {
+    for (const catalogPartId of [BRICK_2X2, PLATE_2X2, BRICK_1X1, BRICK_2X4]) {
+      const [, y] = snapPlacementOrigin({
+        catalogPartId,
+        orientationId: "upright-yaw-0",
+        rawLdu: [0, 0, 0],
+      });
+      expect(Math.abs(y % PLATE_HEIGHT_LDU)).toBe(0);
+    }
+  });
+
+  it("centres even footprints on grid lines and odd footprints inside cells", () => {
+    const even = snapPlacementOrigin({
+      catalogPartId: BRICK_2X2,
+      orientationId: "upright-yaw-0",
+      rawLdu: [6, 0, -6],
+    });
+    const odd = snapPlacementOrigin({
+      catalogPartId: BRICK_1X1,
+      orientationId: "upright-yaw-0",
+      rawLdu: [6, 0, -6],
+    });
+
+    expect(Math.abs(even[0] % STUD_PITCH_LDU)).toBe(0);
+    expect(Math.abs(odd[0] % STUD_PITCH_LDU)).toBe(STUD_PITCH_LDU / 2);
+  });
+
+  it("lands both footprint parities on one shared stud lattice", () => {
+    // A 1x1 dropped beside a 2x2 must be able to share the same stud columns.
+    const even = snapPlacementOrigin({
+      catalogPartId: BRICK_2X2,
+      orientationId: "upright-yaw-0",
+      rawLdu: [0, 0, 0],
+    });
+    const odd = snapPlacementOrigin({
+      catalogPartId: BRICK_1X1,
+      orientationId: "upright-yaw-0",
+      rawLdu: [40, 0, 0],
+    });
+    const evenStuds = studPositions(partAt("even", BRICK_2X2, even));
+    const oddStuds = studPositions(partAt("odd", BRICK_1X1, odd));
+
+    for (const [x, , z] of [...evenStuds, ...oddStuds]) {
+      expect(Math.abs(x % STUD_PITCH_LDU)).toBe(STUD_PITCH_LDU / 2);
+      expect(Math.abs(z % STUD_PITCH_LDU)).toBe(STUD_PITCH_LDU / 2);
+    }
+  });
+
+  it("stacks onto a supporting surface without drifting off the lattice", () => {
+    const base = partAt("base", BRICK_2X2, [0, 0, 0]);
+    const supportUndersideLdu = partTopSurfaceLdu(definition(base.catalogPartId), 0);
+    const stacked = snapPlacementOrigin({
+      catalogPartId: BRICK_2X2,
+      orientationId: "upright-yaw-0",
+      rawLdu: [2, 0, 2],
+      supportUndersideLdu,
+    });
+
+    expect(supportUndersideLdu).toBe(-BRICK_HEIGHT_LDU / 2);
+    expect(stacked).toEqual([0, -BRICK_HEIGHT_LDU, 0]);
+    expect(Math.abs(stacked[1] % PLATE_HEIGHT_LDU)).toBe(0);
+  });
+
+  it("seats a plate on a brick on the same lattice", () => {
+    const stacked = snapPlacementOrigin({
+      catalogPartId: PLATE_2X2,
+      orientationId: "upright-yaw-0",
+      rawLdu: [0, 0, 0],
+      supportUndersideLdu: -BRICK_HEIGHT_LDU / 2,
+    });
+
+    expect(stacked).toEqual([0, -BRICK_HEIGHT_LDU / 2 - PLATE_HEIGHT_LDU / 2, 0]);
+    expect(Math.abs(stacked[1] % PLATE_HEIGHT_LDU)).toBe(0);
+  });
+
+  it("names the offending input when it cannot place", () => {
+    expect(() =>
+      snapPlacementOrigin({
+        catalogPartId: BRICK_2X2,
+        orientationId: "upright-yaw-0",
+        rawLdu: [Number.NaN, 0, 0],
+      }),
+    ).toThrow(/finite LDU position, received \[NaN, 0, 0\]/);
+
+    expect(() =>
+      snapPlacementOrigin({
+        catalogPartId: "builtin:not-a-part",
+        orientationId: "upright-yaw-0",
+        rawLdu: [0, 0, 0],
+      }),
+    ).toThrow(PlacementError);
+    expect(() =>
+      snapPlacementOrigin({
+        catalogPartId: "builtin:not-a-part",
+        orientationId: "upright-yaw-0",
+        rawLdu: [0, 0, 0],
+      }),
+    ).toThrow(/unknown catalog part builtin:not-a-part/);
+  });
+});
+
+describe("body overlap affordance", () => {
+  it("reports interpenetrating bodies and ignores exact stacks", () => {
+    const base = partAt("base", BRICK_2X2, [0, 0, 0]);
+    const stacked = partAt("stacked", BRICK_2X2, [0, -BRICK_HEIGHT_LDU, 0]);
+    const overlapping = partAt("overlapping", BRICK_2X2, [0, -PLATE_HEIGHT_LDU, 0]);
+
+    expect(findBodyOverlaps(stacked, [base])).toEqual([]);
+    expect(findBodyOverlaps(overlapping, [base])).toEqual(["base"]);
+  });
+
+  it("excludes the part being dragged from its own overlap test", () => {
+    const moving = partAt("moving", BRICK_2X2, [0, 0, 0]);
+    expect(findBodyOverlaps(moving, [moving])).toEqual(["moving"]);
+    expect(findBodyOverlaps(moving, [moving], ["moving"])).toEqual([]);
+  });
+
+  it("derives world bounds from the body, never the studs", () => {
+    const bounds = bodyBoundsLdu(partAt("solo", BRICK_2X2, [0, 0, 0]));
+    expect(bounds.min[1]).toBe(-BRICK_HEIGHT_LDU / 2);
+    expect(bounds.max[1]).toBe(BRICK_HEIGHT_LDU / 2);
+  });
+});
+
+describe("stud connection discovery", () => {
+  it("finds every coincident stud/clutch pair under an exact stack", () => {
+    const base = partAt("base", BRICK_2X2, [0, 0, 0]);
+    const stacked = partAt("stacked", BRICK_2X2, [0, -BRICK_HEIGHT_LDU, 0]);
+
+    const discovered = findStudConnections(stacked, [base]);
+
+    expect(discovered).toHaveLength(4);
+    expect(discovered.every(({ targetPartId }) => targetPartId === "base")).toBe(true);
+    expect(new Set(discovered.map(({ candidatePortId }) => candidatePortId)).size).toBe(4);
+  });
+
+  it("returns nothing for a part floating off the lattice", () => {
+    const base = partAt("base", BRICK_2X2, [0, 0, 0]);
+    const floating = partAt("floating", BRICK_2X2, [10, -BRICK_HEIGHT_LDU, 0]);
+    expect(findStudConnections(floating, [base])).toEqual([]);
+  });
+
+  it("skips ports an existing connection already occupies", () => {
+    const base = partAt("base", BRICK_2X2, [0, 0, 0]);
+    const stacked = partAt("stacked", BRICK_2X2, [0, -BRICK_HEIGHT_LDU, 0]);
+    const occupied = new Set([endpointKey("base", "stud:0:0"), endpointKey("base", "stud:1:1")]);
+
+    expect(findStudConnections(stacked, [base], occupied)).toHaveLength(2);
+  });
+
+  it("orders discoveries deterministically", () => {
+    const base = partAt("base", BRICK_2X2, [0, 0, 0]);
+    const stacked = partAt("stacked", BRICK_2X2, [0, -BRICK_HEIGHT_LDU, 0]);
+
+    const first = findStudConnections(stacked, [base]);
+    const second = findStudConnections(stacked, [...[base]].reverse());
+
+    expect(second).toEqual(first);
+  });
+
+  it("connects downward too, when a part is dropped under an existing one", () => {
+    const upper = partAt("upper", BRICK_2X2, [0, -BRICK_HEIGHT_LDU, 0]);
+    const lower = partAt("lower", BRICK_2X2, [0, 0, 0]);
+
+    const discovered = findStudConnections(lower, [upper]);
+
+    expect(discovered).toHaveLength(4);
+    expect(discovered.every(({ targetPartId }) => targetPartId === "upper")).toBe(true);
+  });
+});
+
+describe("ground convention", () => {
+  it("puts the plate surface half a brick below the document origin", () => {
+    expect(GROUND_UNDERSIDE_LDU).toBe(BRICK_HEIGHT_LDU / 2);
+  });
+});

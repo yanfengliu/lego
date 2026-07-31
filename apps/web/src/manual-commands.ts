@@ -12,15 +12,13 @@ import type {
   RigidTransform,
 } from "@lego-studio/protocol";
 
+import { endpointKey, findStudConnections, type DiscoveredConnection } from "./placement";
+
 export class ManualCommandError extends Error {
   public constructor(message: string) {
     super(message);
     this.name = "ManualCommandError";
   }
-}
-
-function endpointKey(partId: string, portId: string): string {
-  return `${partId}\u0000${portId}`;
 }
 
 function occupiedPorts(document: BrickDocumentV1): ReadonlySet<string> {
@@ -178,6 +176,147 @@ export function createAddPartTransaction(
   }
 
   return { label: `Add ${definition.displayName}`, operations, partId };
+}
+
+export interface PlacePartCommandOptions {
+  readonly catalogPartId: string;
+  readonly colorId: string;
+  readonly transform: RigidTransform;
+}
+
+function connectionOperations(
+  discovered: readonly DiscoveredConnection[],
+  candidatePartId: string,
+  seed: Record<string, unknown>,
+): BuildOperation[] {
+  return discovered.map(({ targetPartId, targetPortId, candidatePortId }, index) => {
+    const connectionSeed = { ...seed, kind: "addConnection", index, targetPortId, candidatePortId };
+    return {
+      kind: "addConnection",
+      operationId: nextId("manual-operation", connectionSeed),
+      connection: {
+        id: nextId("manual-connection", connectionSeed),
+        kind: "stud-tube",
+        a: { partId: targetPartId, portId: targetPortId },
+        b: { partId: candidatePartId, portId: candidatePortId },
+        provenance: { source: "manual" },
+      },
+    } satisfies BuildOperation;
+  });
+}
+
+/**
+ * Places a part at an explicit transform rather than deriving one from the
+ * selection, and attaches every stud it happens to land on. A placement that
+ * touches nothing is allowed: manual editing may leave the document
+ * draft-invalid, and the validator overlay is what tells the user so.
+ */
+export function createPlacePartTransaction(
+  document: BrickDocumentV1,
+  { catalogPartId, colorId, transform }: PlacePartCommandOptions,
+): {
+  readonly label: string;
+  readonly operations: readonly BuildOperation[];
+  readonly partId: string;
+} {
+  const definition = getPartDefinition(catalogPartId);
+  if (!definition) throw new ManualCommandError(`Unknown catalog part: ${catalogPartId}`);
+  if (!definition.availableColorIds.includes(colorId)) {
+    throw new ManualCommandError(`Color ${colorId} is unavailable for ${catalogPartId}`);
+  }
+  if (document.parts.length >= document.constraints.maxParts) {
+    throw new ManualCommandError(
+      `The document part budget is exhausted: ${document.parts.length} of ${document.constraints.maxParts} parts are placed`,
+    );
+  }
+
+  const seed = {
+    revision: document.revision,
+    partCount: document.parts.length,
+    catalogPartId,
+    colorId,
+    transform,
+  };
+  const partId = nextId("manual-part", seed);
+  const part = createPartInstance({
+    id: partId,
+    catalogPartId,
+    colorId,
+    transform,
+    submodelId: document.submodels[0]?.id ?? "root",
+    stepId: document.steps[0]?.id ?? "step-1",
+    source: "manual",
+  });
+
+  const discovered = findStudConnections(part, document.parts, occupiedPorts(document));
+  return {
+    label: `Place ${definition.displayName}`,
+    operations: [
+      {
+        kind: "addPart",
+        operationId: nextId("manual-operation", { ...seed, kind: "addPart" }),
+        part,
+        semanticRegionIds: [],
+      },
+      ...connectionOperations(discovered, partId, seed),
+    ],
+    partId,
+  };
+}
+
+/**
+ * Moves an existing part to a new transform. Dragging is an explicit detach, so
+ * incident edges are dropped and then rediscovered at the destination rather
+ * than being carried along with stale geometry.
+ */
+export function createMovePartTransaction(
+  document: BrickDocumentV1,
+  partId: string,
+  transform: RigidTransform,
+): { readonly label: string; readonly operations: readonly BuildOperation[] } {
+  const before = requirePart(document, partId);
+  const definition = getPartDefinition(before.catalogPartId);
+  if (!definition) throw new ManualCommandError(`Unknown catalog part: ${before.catalogPartId}`);
+  if (!definition.legalOrientationIds.includes(transform.orientationId)) {
+    throw new ManualCommandError(
+      `Orientation ${transform.orientationId} is illegal for ${before.catalogPartId}`,
+    );
+  }
+
+  const seed = { revision: document.revision, partId, transform };
+  const incident = document.connections
+    .filter(({ a, b }) => a.partId === partId || b.partId === partId)
+    .sort((left, right) => left.id.localeCompare(right.id));
+  const after = { ...before, transform, provenance: { source: "manual" as const } };
+
+  const remainingOccupied = new Set(
+    document.connections
+      .filter((connection) => !incident.includes(connection))
+      .flatMap(({ a, b }) => [endpointKey(a.partId, a.portId), endpointKey(b.partId, b.portId)]),
+  );
+  const discovered = findStudConnections(
+    after,
+    document.parts.filter(({ id }) => id !== partId),
+    remainingOccupied,
+  );
+
+  return {
+    label: `Move ${definition.displayName}`,
+    operations: [
+      ...incident.map((connection, index) => ({
+        kind: "removeConnection" as const,
+        operationId: nextId("manual-operation", { ...seed, kind: "detach", index }),
+        connection,
+      })),
+      {
+        kind: "updatePart",
+        operationId: nextId("manual-operation", { ...seed, kind: "updatePart" }),
+        before,
+        after,
+      },
+      ...connectionOperations(discovered, partId, seed),
+    ],
+  };
 }
 
 export function createRemovePartTransaction(
