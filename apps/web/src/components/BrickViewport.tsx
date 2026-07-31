@@ -18,8 +18,13 @@ import {
   Color,
   DirectionalLight,
   GridHelper,
+  Mesh,
   MOUSE,
+  PCFSoftShadowMap,
   PerspectiveCamera,
+  PlaneGeometry,
+  PMREMGenerator,
+  ShadowMaterial,
   Scene,
   SRGBColorSpace,
   Vector2,
@@ -28,6 +33,7 @@ import {
   type Camera,
 } from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 
 import { GROUND_UNDERSIDE_LDU } from "../placement";
 import { installFlyRig } from "../viewport/install-fly-rig";
@@ -70,6 +76,7 @@ interface ViewportRuntime {
   readonly scene: Scene;
   readonly renderer: WebGLRenderer;
   readonly grid: GridHelper;
+  readonly shadowPlate: Mesh;
   camera: Camera;
   controls: OrbitControls;
   projection: DerivedBrickScene | null;
@@ -250,6 +257,8 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
       renderer.toneMapping = ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.08;
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = PCFSoftShadowMap;
       renderer.domElement.className = "brick-canvas";
       renderer.domElement.setAttribute("aria-label", "Interactive derived brick model");
       renderer.domElement.setAttribute(
@@ -261,17 +270,44 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
 
       const scene = new Scene();
       scene.background = new Color(0x111512);
-      const ambient = new AmbientLight(0xe7eee7, 1.65);
+      const ambient = new AmbientLight(0xe7eee7, 0.9);
       ambient.userData.renderRole = "viewport-light";
       scene.add(ambient);
-      const key = new DirectionalLight(0xfff4d2, 4.3);
+      const key = new DirectionalLight(0xfff4d2, 3.1);
       key.position.set(7, 10, 8);
+      key.castShadow = true;
+      key.shadow.mapSize.set(2048, 2048);
+      key.shadow.camera.near = 0.5;
+      key.shadow.camera.far = 60;
+      key.shadow.camera.left = -12;
+      key.shadow.camera.right = 12;
+      key.shadow.camera.top = 12;
+      key.shadow.camera.bottom = -12;
+      key.shadow.bias = -0.0006;
+      key.shadow.normalBias = 0.02;
       key.userData.renderRole = "viewport-light";
       scene.add(key);
       const fill = new DirectionalLight(0x9bb9df, 1.6);
       fill.position.set(-8, 5, -7);
       fill.userData.renderRole = "viewport-light";
       scene.add(fill);
+
+      const environmentGenerator = new PMREMGenerator(renderer);
+      const environmentScene = new RoomEnvironment();
+      const environment = environmentGenerator.fromScene(environmentScene, 0.04);
+      scene.environment = environment.texture;
+      scene.environmentIntensity = 0.55;
+      environmentScene.dispose?.();
+      environmentGenerator.dispose();
+
+      const shadowPlate = new Mesh(
+        new PlaneGeometry(GRID_HALF_EXTENT * 2, GRID_HALF_EXTENT * 2),
+        new ShadowMaterial({ opacity: 0.42 }),
+      );
+      shadowPlate.rotation.x = -Math.PI / 2;
+      shadowPlate.receiveShadow = true;
+      shadowPlate.userData.renderRole = "viewport-shadow-plate";
+      scene.add(shadowPlate);
 
       const grid = new GridHelper(40, 80, 0x5e685f, 0x273028);
       grid.material.transparent = true;
@@ -290,6 +326,7 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
         scene,
         renderer,
         grid,
+        shadowPlate,
         camera,
         controls,
         projection: null,
@@ -386,6 +423,10 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
         runtime.projection?.dispose();
         grid.geometry.dispose();
         grid.material.dispose();
+        shadowPlate.geometry.dispose();
+        (shadowPlate.material as ShadowMaterial).dispose();
+        scene.environment = null;
+        environment.texture.dispose();
         renderer.dispose();
         renderer.domElement.remove();
         runtimeRef.current = null;
@@ -400,7 +441,7 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
       let replacement: DerivedBrickScene | null = null;
       let packet: CanonicalViewPacket;
       try {
-        replacement = deriveBrickScene(document, { validationReport });
+        replacement = deriveBrickScene(document, { validationReport, finish: "presentation" });
         packet = createCanonicalViewPacket(replacement);
         if (!packet.views[0]) throw new Error("Canonical isometric view is unavailable");
       } catch (error) {
@@ -447,7 +488,9 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
 
       // The build plate is fixed truth, so the grid marks it rather than
       // drifting with whatever the model's lowest point happens to be.
-      runtime.grid.position.y = -GROUND_UNDERSIDE_LDU * THREE_UNITS_PER_LDU;
+      const plateY = -GROUND_UNDERSIDE_LDU * THREE_UNITS_PER_LDU;
+      runtime.grid.position.y = plateY;
+      runtime.shadowPlate.position.y = plateY;
       syncOrbitFrustum(runtime);
       runtime.renderer.render(runtime.scene, runtime.camera);
     }, [document, validationReport, frameToken]);

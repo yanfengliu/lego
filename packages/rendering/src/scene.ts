@@ -106,6 +106,7 @@ export function deriveBrickScene(
   const invalidCodes = blockingCodesByPart(validationReport);
   const selectedPartIds = new Set(options.selectedPartIds ?? []);
   const includeStuds = options.includeStuds ?? true;
+  const finish = options.finish ?? "flat";
   const root = new Group();
   root.name = `brick-document:${document.id}`;
   root.userData = {
@@ -130,7 +131,7 @@ export function deriveBrickScene(
     const blockingIssueCodes = invalidCodes.get(part.id) ?? [];
     let content: Group;
     if (definition) {
-      content = createCatalogPartGeometry(part, definition, includeStuds, diagnostics);
+      content = createCatalogPartGeometry(part, definition, includeStuds, diagnostics, finish);
     } else {
       diagnostics.push({
         code: "UNKNOWN_CATALOG_PART",

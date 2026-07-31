@@ -474,3 +474,62 @@ describe("interactive orbit frustums", () => {
     expect(() => orbitCameraFrustum(1, 0)).toThrow(/sceneRadius must be a positive finite number/);
   });
 });
+
+describe("presentation finish", () => {
+  function bodyOf(scene: ReturnType<typeof deriveBrickScene>) {
+    const part = [...scene.partObjects.values()][0]!;
+    const content = part.children.find(
+      (child) => child.userData.renderRole !== "selection-overlay",
+    )!;
+    return (content as Group).children.find(
+      (child) => child.userData.renderRole === "body",
+    ) as Mesh;
+  }
+
+  const document = documentWithParts([createPartInstance({ id: "finish-subject" })]);
+
+  it("defaults to the exact box canonical captures are pinned to", () => {
+    const scene = deriveBrickScene(document);
+    const body = bodyOf(scene);
+
+    expect(body.geometry.constructor.name).toBe("BoxGeometry");
+    expect((body.material as MeshStandardMaterial).type).toBe("MeshStandardMaterial");
+    scene.dispose();
+  });
+
+  it("bevels the body and adds a clearcoat only when asked", () => {
+    const scene = deriveBrickScene(document, { finish: "presentation" });
+    const body = bodyOf(scene);
+
+    const flat = deriveBrickScene(document);
+    // RoundedBoxGeometry extends BoxGeometry, so identity is the vertex count:
+    // a chamfered body carries many more than a six-sided box.
+    expect(body.geometry.constructor.name).toBe("RoundedBoxGeometry");
+    expect(body.geometry.attributes.position!.count).toBeGreaterThan(
+      bodyOf(flat).geometry.attributes.position!.count,
+    );
+    expect((body.material as MeshStandardMaterial).type).toBe("MeshPhysicalMaterial");
+    flat.dispose();
+    scene.dispose();
+  });
+
+  it("keeps the same authoritative bounds in either finish, so framing is unchanged", () => {
+    const flat = deriveBrickScene(document);
+    const presentation = deriveBrickScene(document, { finish: "presentation" });
+
+    expect(presentation.bounds.min.toArray()).toEqual(flat.bounds.min.toArray());
+    expect(presentation.bounds.max.toArray()).toEqual(flat.bounds.max.toArray());
+    flat.dispose();
+    presentation.dispose();
+  });
+
+  it("disposes a bevelled scene as cleanly as a flat one", () => {
+    const scene = deriveBrickScene(document, { finish: "presentation" });
+    const body = bodyOf(scene);
+    const disposeGeometry = vi.spyOn(body.geometry, "dispose");
+
+    scene.dispose();
+    expect(disposeGeometry).toHaveBeenCalled();
+    expect(scene.disposed).toBe(true);
+  });
+});

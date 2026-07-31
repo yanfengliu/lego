@@ -6,8 +6,10 @@ import {
   type PartDefinition,
 } from "@lego-studio/catalog";
 import type { PartInstance, RigidTransform } from "@lego-studio/protocol";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import {
   BoxGeometry,
+  BufferGeometry,
   CylinderGeometry,
   EdgesGeometry,
   Group,
@@ -15,11 +17,12 @@ import {
   LineSegments,
   Mesh,
   MeshBasicMaterial,
+  MeshPhysicalMaterial,
   MeshStandardMaterial,
 } from "three";
 
 import { THREE_UNITS_PER_LDU, lduToThreeVector, lduTransformToThreeMatrix } from "./coordinates.ts";
-import type { RenderDiagnostic } from "./types.ts";
+import type { BrickFinish, RenderDiagnostic } from "./types.ts";
 
 const FALLBACK_COLOR = 0xff2bd6;
 const PLACEHOLDER_BOUNDS: LduBounds = { min: [-10, -10, -10], max: [10, 10, 10] };
@@ -34,7 +37,14 @@ function geometryMetadata(definition: PartDefinition) {
   };
 }
 
-function makeMaterial(part: PartInstance, diagnostics: RenderDiagnostic[]): MeshStandardMaterial {
+/** A real brick's edges are chamfered, which is what catches a highlight. */
+const BEVEL_LDU = 0.9;
+
+function makeMaterial(
+  part: PartInstance,
+  diagnostics: RenderDiagnostic[],
+  finish: BrickFinish,
+): MeshStandardMaterial {
   const color = getColorDefinition(part.colorId);
   if (!color) {
     diagnostics.push({
@@ -44,11 +54,22 @@ function makeMaterial(part: PartInstance, diagnostics: RenderDiagnostic[]): Mesh
     });
   }
 
-  const material = new MeshStandardMaterial({
-    color: color?.displayHex ?? FALLBACK_COLOR,
-    metalness: 0,
-    roughness: 0.42,
-  });
+  // ABS is a hard plastic under a glossy skin, so presentation adds a clearcoat
+  // rather than simply lowering roughness.
+  const material =
+    finish === "presentation"
+      ? new MeshPhysicalMaterial({
+          color: color?.displayHex ?? FALLBACK_COLOR,
+          metalness: 0,
+          roughness: 0.34,
+          clearcoat: 0.55,
+          clearcoatRoughness: 0.28,
+        })
+      : new MeshStandardMaterial({
+          color: color?.displayHex ?? FALLBACK_COLOR,
+          metalness: 0,
+          roughness: 0.42,
+        });
   material.name = `brick-material:${part.id}`;
   material.userData = {
     renderRole: "part-material",
@@ -58,20 +79,40 @@ function makeMaterial(part: PartInstance, diagnostics: RenderDiagnostic[]): Mesh
   return material;
 }
 
+/**
+ * The brick body. A flat finish keeps the exact box canonical captures are
+ * pinned to; a presentation finish rounds the edges, which is the difference
+ * between a shape and something that reads as moulded plastic.
+ */
+function createBodyGeometry(
+  width: number,
+  height: number,
+  depth: number,
+  finish: BrickFinish,
+): BufferGeometry {
+  if (finish !== "presentation") return new BoxGeometry(width, height, depth);
+  const bevel = BEVEL_LDU * THREE_UNITS_PER_LDU;
+  // The radius cannot exceed half the smallest side, or the box inverts.
+  const radius = Math.min(bevel, width / 2, height / 2, depth / 2);
+  return new RoundedBoxGeometry(width, height, depth, 2, radius);
+}
+
 export function createCatalogPartGeometry(
   part: PartInstance,
   definition: PartDefinition,
   includeStuds: boolean,
   diagnostics: RenderDiagnostic[],
+  finish: BrickFinish = "flat",
 ): Group {
   const group = new Group();
   const metadata = geometryMetadata(definition);
-  const material = makeMaterial(part, diagnostics);
+  const material = makeMaterial(part, diagnostics, finish);
   const { widthLdu, heightLdu, lengthLdu } = definition.dimensions;
-  const bodyGeometry = new BoxGeometry(
+  const bodyGeometry = createBodyGeometry(
     widthLdu * THREE_UNITS_PER_LDU,
     heightLdu * THREE_UNITS_PER_LDU,
     lengthLdu * THREE_UNITS_PER_LDU,
+    finish,
   );
   bodyGeometry.userData = { ...metadata, renderRole: "body-geometry" };
   const body = new Mesh(bodyGeometry, material);
