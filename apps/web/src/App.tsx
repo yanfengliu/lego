@@ -435,7 +435,9 @@ export function App() {
             }}
           />
           <div className="viewport-footer">
-            <span>Orbit: drag · Zoom: wheel · Select: click</span>
+            <span>
+              Select: left · Orbit: middle · Pan: right · Zoom: wheel · Fly: WASD, Q/E, Shift
+            </span>
             <code>{report.targetDocumentHash.slice(0, 18)}…</code>
           </div>
           {commandError ? (

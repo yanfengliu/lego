@@ -17,6 +17,7 @@ import {
   Color,
   DirectionalLight,
   GridHelper,
+  MOUSE,
   PerspectiveCamera,
   Raycaster,
   Scene,
@@ -30,6 +31,7 @@ import {
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 import { keyboardSelection } from "../viewport-navigation";
+import { installFlyRig } from "../viewport/install-fly-rig";
 
 export interface BrickViewportSnapshot {
   readonly contextLost: boolean;
@@ -67,6 +69,17 @@ interface ViewportRuntime {
 
 const GRID_HALF_EXTENT = 20;
 const GRID_SCENE_RADIUS = GRID_HALF_EXTENT * Math.SQRT2;
+
+/**
+ * Left drag is reserved for selection and part dragging, so orbiting moves to
+ * the middle button and panning to the right button.
+ */
+function configureOrbitControls(controls: OrbitControls, sceneRadius: number): void {
+  controls.enableDamping = false;
+  controls.screenSpacePanning = true;
+  controls.maxDistance = sceneRadius * 50;
+  controls.mouseButtons = { LEFT: null, MIDDLE: MOUSE.ROTATE, RIGHT: MOUSE.PAN };
+}
 
 /**
  * The canonical packet frustum is pinned to the distance it was authored at, so
@@ -210,7 +223,7 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
       renderer.domElement.setAttribute("aria-label", "Interactive derived brick model");
       renderer.domElement.setAttribute(
         "aria-keyshortcuts",
-        "ArrowLeft ArrowRight ArrowUp ArrowDown Home End Escape",
+        "W A S D Q E Shift ArrowLeft ArrowRight ArrowUp ArrowDown Home End Escape",
       );
       renderer.domElement.tabIndex = 0;
       host.append(renderer.domElement);
@@ -238,8 +251,7 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
       const camera = new PerspectiveCamera(35, 1, 0.01, 1000);
       camera.position.set(6, 5, 6);
       const controls = new OrbitControls(camera, renderer.domElement);
-      controls.enableDamping = false;
-      controls.screenSpacePanning = true;
+      configureOrbitControls(controls, GRID_SCENE_RADIUS);
       controls.target.set(0, 0, 0);
       controls.update();
 
@@ -310,6 +322,18 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
       };
       renderer.domElement.addEventListener("pointerdown", handlePointerDown);
       renderer.domElement.addEventListener("pointerup", handlePointerUp);
+
+      const disposeFlyRig = installFlyRig({
+        element: renderer.domElement,
+        isSuspended: () => contextLostRef.current,
+        getTarget: () => ({
+          cameraPosition: runtime.camera.position,
+          cameraMatrixWorld: runtime.camera.matrixWorld,
+          orbitTarget: runtime.controls.target,
+          applyMovement: () => runtime.controls.update(),
+        }),
+      });
+
       const handleKeyDown = (event: KeyboardEvent) => {
         if (previewingRef.current || !runtime.projection) return;
         const next = keyboardSelection(
@@ -342,6 +366,7 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
         runtime.controls.dispose();
         renderer.domElement.removeEventListener("pointerdown", handlePointerDown);
         renderer.domElement.removeEventListener("pointerup", handlePointerUp);
+        disposeFlyRig();
         renderer.domElement.removeEventListener("keydown", handleKeyDown);
         renderer.domElement.removeEventListener("webglcontextlost", handleContextLost);
         renderer.domElement.removeEventListener("webglcontextrestored", handleContextRestored);
@@ -388,9 +413,7 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
       runtime.camera = camera;
       runtime.sceneRadius = Math.max(view.frameRadius, GRID_SCENE_RADIUS);
       runtime.controls = new OrbitControls(runtime.camera, runtime.renderer.domElement);
-      runtime.controls.enableDamping = false;
-      runtime.controls.screenSpacePanning = true;
-      runtime.controls.maxDistance = runtime.sceneRadius * 50;
+      configureOrbitControls(runtime.controls, runtime.sceneRadius);
       runtime.controls.target.copy(new Vector3(...view.target));
       runtime.controls.addEventListener("change", () => {
         if (contextLostRef.current) return;
