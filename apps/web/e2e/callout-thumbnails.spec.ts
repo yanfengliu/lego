@@ -8,6 +8,7 @@ import {
   withoutPrintedPageNumbers,
 } from "../src/instructions/booklet-structure";
 import { ingestInstructionPdf, type PdfDocument } from "../src/instructions/ingest-pdf";
+import { extractPageShapes, type OperatorList } from "../src/instructions/page-shapes";
 import { extractPartsInventory } from "../src/instructions/parts-inventory";
 import { deriveStepPanels } from "../src/instructions/step-panels";
 import { SAMPLE_BOOKLET_PATH, bookletProbeUrls, hasSampleBooklet } from "./sample-booklet";
@@ -72,6 +73,26 @@ test("crops the part thumbnail from every step callout", async ({ page }) => {
     .sort((left, right) => left - right);
   const pages = PAGE_LIMIT > 0 ? stepPages.slice(0, PAGE_LIMIT) : stepPages;
 
+  // Callout boxes bound the search. Without them a flood started under a label
+  // escapes into the main assembly art, and every label near that art returns
+  // the same slab: 216 of 926 crops came back byte-identical before this.
+  const { getDocument, OPS } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const shapeDoc = await getDocument({
+    data: new Uint8Array(bytes),
+    isEvalSupported: false,
+  }).promise;
+  const shapeCodes = {
+    setFillRGBColor: OPS.setFillRGBColor,
+    constructPath: OPS.constructPath,
+    fill: OPS.fill,
+    eoFill: OPS.eoFill,
+    fillStroke: OPS.fillStroke,
+    save: OPS.save,
+    restore: OPS.restore,
+    transform: OPS.transform,
+  };
+
+  let withoutBox = 0;
   const manifest: {
     file: string;
     pageNumber: number;
@@ -90,7 +111,57 @@ test("crops the part thumbnail from every step callout", async ({ page }) => {
         xPt: element.xPt,
         yPt: element.yPt,
       }));
-    if (quantities.length === 0) continue;
+    // The text layer draws a label's glyph run more than once at the very same
+    // spot - six "4x" at one point on page 111 - and each repeat would become
+    // its own callout for the same picture, inflating both the callout count
+    // and the pieces they add up to.
+    const seenAt = new Set<string>();
+    const distinct = quantities.filter(({ quantity, xPt, yPt }) => {
+      const key = `${quantity}@${xPt.toFixed(1)},${yPt.toFixed(1)}`;
+      if (seenAt.has(key)) return false;
+      seenAt.add(key);
+      return true;
+    });
+    if (distinct.length === 0) continue;
+
+    // The smallest filled shape a label sits in is its callout box; the page
+    // background is a filled shape too, so page-sized ones are not boxes.
+    const shapePage = await shapeDoc.getPage(pageNumber);
+    const shapeViewport = shapePage.getViewport({ scale: 1 });
+    const pageArea = shapeViewport.width * shapeViewport.height;
+    const boxes = extractPageShapes(
+      (await shapePage.getOperatorList()) as unknown as OperatorList,
+      shapeCodes,
+    ).filter(({ bounds }) => {
+      const width = bounds.maxXPt - bounds.minXPt;
+      const height = bounds.maxYPt - bounds.minYPt;
+      return width > 25 && height > 25 && width * height < pageArea * 0.5;
+    });
+
+    const boxed = distinct
+      .map((entry) => {
+        const containing = boxes
+          .filter(
+            ({ bounds }) =>
+              entry.xPt >= bounds.minXPt &&
+              entry.xPt <= bounds.maxXPt &&
+              entry.yPt >= bounds.minYPt &&
+              entry.yPt <= bounds.maxYPt,
+          )
+          .sort(
+            (left, right) =>
+              (left.bounds.maxXPt - left.bounds.minXPt) *
+                (left.bounds.maxYPt - left.bounds.minYPt) -
+              (right.bounds.maxXPt - right.bounds.minXPt) *
+                (right.bounds.maxYPt - right.bounds.minYPt),
+          );
+        return { ...entry, box: containing[0]?.bounds ?? null };
+      })
+      .filter((entry) => {
+        if (entry.box === null) withoutBox += 1;
+        return entry.box !== null;
+      });
+    if (boxed.length === 0) continue;
 
     const crops = await page.evaluate(
       async ({ pdfjsUrl, workerUrl, pdfUrl, pageNumber, quantities }) => {
@@ -144,6 +215,7 @@ test("crops the part thumbnail from every step callout", async ({ page }) => {
           seedY: number,
           background: readonly [number, number, number],
           budget: number,
+          limit: { left: number; top: number; right: number; bottom: number },
         ): {
           left: number;
           top: number;
@@ -166,6 +238,7 @@ test("crops the part thumbnail from every step callout", async ({ page }) => {
             seen.add(at);
             const x = at % canvas.width;
             const y = (at - x) / canvas.width;
+            if (x < limit.left || x > limit.right || y < limit.top || y > limit.bottom) continue;
             if (!differs(x, y, background)) continue;
             filled.add(at);
             size += 1;
@@ -185,26 +258,67 @@ test("crops the part thumbnail from every step callout", async ({ page }) => {
           [];
         let index = 0;
         for (const entry of quantities) {
+          if (entry.box === null) continue;
           // pdfjs y grows upward; the raster grows downward.
           const rasterY = viewport.height / scale - entry.yPt;
           // Start above the label's own glyphs, or the flood latches onto "1x".
           const labelTop = Math.round((rasterY - 9) * scale);
           const rasterX = Math.round(entry.xPt * scale);
           if (labelTop < 8) continue;
-          const background = colourAt(
-            Math.max(0, rasterX - Math.round(3 * scale)),
-            Math.max(0, labelTop - 2),
-          );
+          if (labelTop < 8) continue;
 
           // Climb from just above the label to the first pixel of the artwork.
           let blob: ReturnType<typeof floodFrom> = null;
           const MIN_PART_PIXELS = 90 * scale * scale;
-          const spanRight = Math.min(canvas.width - 1, rasterX + Math.round(96 * scale));
-          const spanLeft = Math.max(0, rasterX - Math.round(10 * scale));
-          for (let y = labelTop; y >= Math.max(0, labelTop - Math.round(52 * scale)); y -= 1) {
+          // The part is inside the label's own callout box, never outside it.
+          const pageHeightPt = viewport.height / scale;
+          const box = {
+            left: Math.max(0, Math.round(entry.box.minXPt * scale)),
+            right: Math.min(canvas.width - 1, Math.round(entry.box.maxXPt * scale)),
+            top: Math.max(0, Math.round((pageHeightPt - entry.box.maxYPt) * scale)),
+            bottom: Math.min(
+              canvas.height - 1,
+              Math.round((pageHeightPt - entry.box.minYPt) * scale),
+            ),
+          };
+          // The box's own most common colour is its background. Sampling a single
+          // pixel beside the label instead took whatever sat there - and on a
+          // dark callout box that is not the box's fill, so every pixel inside
+          // "differs" and the flood swallows the whole box.
+          const tally = new Map<string, number>();
+          const stepX = Math.max(1, Math.floor((box.right - box.left) / 60));
+          const stepY = Math.max(1, Math.floor((box.bottom - box.top) / 60));
+          for (let y = box.top; y <= box.bottom; y += stepY) {
+            for (let x = box.left; x <= box.right; x += stepX) {
+              const [r, g, b] = colourAt(x, y);
+              const key = `${r >> 3},${g >> 3},${b >> 3}`;
+              tally.set(key, (tally.get(key) ?? 0) + 1);
+            }
+          }
+          let commonest = "";
+          let seenMost = 0;
+          for (const [key, count] of tally) {
+            if (count > seenMost) {
+              seenMost = count;
+              commonest = key;
+            }
+          }
+          const background = commonest.split(",").map((channel) => (Number(channel) << 3) + 4) as [
+            number,
+            number,
+            number,
+          ];
+
+          const spanRight = Math.min(box.right, rasterX + Math.round(96 * scale));
+          const spanLeft = Math.max(box.left, rasterX - Math.round(10 * scale));
+          for (
+            let y = labelTop;
+            y >= Math.max(box.top, labelTop - Math.round(52 * scale));
+            y -= 1
+          ) {
             for (let x = spanLeft; x <= spanRight; x += 1) {
               if (!differs(x, y, background)) continue;
-              const found = floodFrom(x, y, background, 4_000_000);
+              const found = floodFrom(x, y, background, 4_000_000, box);
               // A callout box's rule encloses a large area with very few pixels;
               // a drawn part fills a good share of its own bounding box.
               const area = found
@@ -257,7 +371,7 @@ test("crops the part thumbnail from every step callout", async ({ page }) => {
         }
         return out;
       },
-      { ...bookletProbeUrls(), pageNumber, quantities },
+      { ...bookletProbeUrls(), pageNumber, quantities: boxed },
     );
 
     for (const crop of crops) {
@@ -289,6 +403,7 @@ test("crops the part thumbnail from every step callout", async ({ page }) => {
       {
         note: "One crop per step callout. Quantities and step assignment come from the text layer.",
         pageLimit: PAGE_LIMIT === 0 ? "full booklet" : PAGE_LIMIT,
+        quantitiesOutsideAnyCallout: withoutBox,
         sourceHash: structure.sourceHash,
         pagesCropped: pages.length,
         calloutCount: manifest.length,
@@ -302,7 +417,8 @@ test("crops the part thumbnail from every step callout", async ({ page }) => {
   console.log(
     `cropped ${manifest.length} callouts over ${pages.length} pages, ` +
       `${manifest.reduce((t, { quantity }) => t + quantity, 0)} pieces, ` +
-      `${manifest.filter(({ stepNumber }) => stepNumber === null).length} unassigned to a step`,
+      `${manifest.filter(({ stepNumber }) => stepNumber === null).length} unassigned to a step, ` +
+      `${withoutBox} quantities outside any callout box`,
   );
   expect(manifest.length).toBeGreaterThan(0);
 });
