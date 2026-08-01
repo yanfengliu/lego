@@ -120,3 +120,22 @@ Region `p200-r0` was labelled smooth from the scale-4 crop, where the studs sit 
 At scale 6 the same outline visibly arcs over every stud, and the label was wrong; had it been committed, a correct measurement would have been scored as a false positive and the estimator tuned to refuse it.
 
 **Anchor:** `apps/web/src/instructions/__fixtures__/booklet-edges.json` carries both scales of every edge for this reason; `p200-r0@4` and `p200-r0@6` both read "scalloped".
+
+## A fixed crop box silently decapitates the big items
+
+Every inventory thumbnail was cut with the same 20.4pt-tall cell, on the assumption that a grid row is a fixed height.
+It is not: a 4x12 plate is drawn far taller than a 1x1, and the crop showed 39% of it — 164px of a part that needs 419.
+Nothing failed; the images looked fine, and a reader called that plate "6x4" from the third of it that survived.
+Two independent readers rediscovered the clipping before the score did, one noting it could only prove ">=7 studs long" because apparent length saturated at the frame.
+Sizing the cell to its own content — climb until a gap of clear rows — recovered the missing parts.
+
+**Anchor:** the content-scan crop in the inventory thumbnail probe; `302926` went 876x164 to 876x419, `303226` 787x163 to 787x301, and the only dimension miss in the naive baseline was the clipped `302926`.
+
+## Reading a part from an isolated thumbnail is a different problem from reading it out of an assembly
+
+The same model, asked what part a step adds, answered 6 of 6 assembly crops at 0.35-0.58 self-reported confidence and got at least one plainly wrong.
+Asked the same question about the booklet's own inventory thumbnails — one part, isolated, on a plain ground — it scored 28/28 on stud dimensions, and the naive control prompt still scored 27/28.
+The prompt was worth about 4 points; the picture was worth the rest.
+Every surviving miss was a taxonomy artifact, where the answer vocabulary had no entry for an arch or a modified brick, not a misreading of the shape.
+
+**Anchor:** `output/vision-benchmark.json`; labels are element ids paired from the text layer by `apps/web/src/instructions/parts-inventory.ts`, resolved to part names against Brickset's published inventory for set 21066.
