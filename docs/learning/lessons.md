@@ -26,3 +26,4 @@ When a lesson becomes a gate — a test, a lint rule, a fixed command — delete
 - A fixed crop box silently decapitates the big items � size the crop to its own content. ([evidence](lessons-evidence.md#a-fixed-crop-box-silently-decapitates-the-big-items))
 - Reading a part from an isolated thumbnail is a different problem from reading it out of an assembly. ([evidence](lessons-evidence.md#reading-a-part-from-an-isolated-thumbnail-is-a-different-problem-from-reading-it-out-of-an-assembly))
 - A hand-assembled parts array is not a document: stacking without connection edges validates as a collision. ([evidence](lessons-evidence.md#a-hand-assembled-parts-array-is-not-a-document))
+- A step highlight is an open contour whenever the step's parts go behind built ones; only about half enclose anything. ([evidence](lessons-evidence.md#a-step-highlight-is-an-open-contour-whenever-the-parts-go-behind-built-ones))

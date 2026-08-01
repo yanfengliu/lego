@@ -164,3 +164,96 @@ export function clearRegion(
     mask.fill(0, y * width + minX, y * width + maxX + 1);
   }
 }
+
+function requireNonNegativeInteger(value: number, label: string): number {
+  if (!Number.isInteger(value) || value < 0) {
+    throw new RangeError(
+      `${label} must be a non-negative integer, received ${String(value)}. ` +
+        `It is a distance in pixels of the raster being compared, so it scales with the render size, not with the model.`,
+    );
+  }
+  return value;
+}
+
+/**
+ * Grows a mask by a Chebyshev radius. Used to turn an exact comparison into a
+ * tolerant one: two boundaries that agree to within a pixel or two are the same
+ * boundary, and demanding they coincide exactly measures the rasteriser rather
+ * than the placement.
+ */
+export function dilateMask(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+  radius: number,
+): Uint8Array {
+  requireNonNegativeInteger(radius, "radius");
+  if (mask.length !== width * height) {
+    throw new RangeError(
+      `Mask holds ${mask.length} pixels but ${width}x${height} needs ${width * height}.`,
+    );
+  }
+  if (radius === 0) return mask.slice();
+  const dilated = new Uint8Array(mask.length);
+  for (let index = 0; index < mask.length; index += 1) {
+    if (mask[index] !== 1) continue;
+    const x = index % width;
+    const y = (index - x) / width;
+    const minX = Math.max(0, x - radius);
+    const maxX = Math.min(width - 1, x + radius);
+    for (let row = Math.max(0, y - radius); row <= Math.min(height - 1, y + radius); row += 1) {
+      dilated.fill(1, row * width + minX, row * width + maxX + 1);
+    }
+  }
+  return dilated;
+}
+
+/**
+ * The pixels of a mask that touch something outside it, which is the line a
+ * booklet would ink. The raster edge counts as outside, so a region running off
+ * the frame still has a boundary there rather than silently losing one side.
+ */
+export function maskBoundary(mask: Uint8Array, width: number, height: number): Uint8Array {
+  if (mask.length !== width * height) {
+    throw new RangeError(
+      `Mask holds ${mask.length} pixels but ${width}x${height} needs ${width * height}.`,
+    );
+  }
+  const boundary = new Uint8Array(mask.length);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const index = y * width + x;
+      if (mask[index] !== 1) continue;
+      const outside =
+        x === 0 ||
+        x === width - 1 ||
+        y === 0 ||
+        y === height - 1 ||
+        mask[index - 1] !== 1 ||
+        mask[index + 1] !== 1 ||
+        mask[index - width] !== 1 ||
+        mask[index + width] !== 1;
+      if (outside) boundary[index] = 1;
+    }
+  }
+  return boundary;
+}
+
+/** How much of `subject` lies within `radius` pixels of `reference`. */
+export function coverage(
+  subject: Uint8Array,
+  reference: Uint8Array,
+  width: number,
+  height: number,
+  radius: number,
+): number {
+  const reach = dilateMask(reference, width, height, radius);
+  let total = 0;
+  let covered = 0;
+  for (let index = 0; index < subject.length; index += 1) {
+    if (subject[index] !== 1) continue;
+    total += 1;
+    if (reach[index] === 1) covered += 1;
+  }
+  return total === 0 ? 0 : covered / total;
+}

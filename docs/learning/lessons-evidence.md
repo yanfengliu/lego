@@ -147,3 +147,12 @@ A stud sitting inside another part's body is legal only through a collision allo
 Building the same four placements through `createPlacePartTransaction` and `applyBuildOperations` — the path the editor itself uses — validated clean.
 
 **Anchor:** `apps/web/e2e/instruction-render.spec.ts`; twelve blocking issues (`DISCONNECTED_ASSEMBLY`, three `PART_STUD_BODY_COLLISION`, four `STEP_MEMBERSHIP_MISMATCH`, four `SUBMODEL_MEMBERSHIP_MISMATCH`) became zero with no change to any transform.
+
+## A step highlight is an open contour whenever the parts go behind built ones
+
+The booklet outlines each step's new parts in yellow, which keys out of the page almost noise-free, so filling that outline looked like a free per-step target region.
+Half of them do not fill. Where a step's parts pass behind something already built, the booklet stops the yellow at the occluding edge and lets the black line art of the part in front carry the rest of the boundary, so the contour is open by design and encloses nothing.
+Thickening the stroke to bridge antialiasing gaps is worth doing — it repaired both open contours on page 160 — but it cannot close a contour that was never drawn closed, and pages 100 and 140 have no closed contour at all.
+A per-step score therefore cannot be an area comparison alone: it needs the stroke itself, scored against the candidate's own boundary, and must report an unavailable region as unavailable rather than as zero agreement.
+
+**Anchor:** `apps/web/src/instructions/highlight-region.ts` and `apps/web/e2e/highlight-region.spec.ts`; 19 of 36 contours closed over pages 12, 24, 40, 60, 80, 100, 120, 140, 160, 180, 200 and 214 of `recipes/6651557.pdf`; page 12 step 6 fills exactly and page 12 step 5 encloses nothing.
