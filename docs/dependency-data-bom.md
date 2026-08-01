@@ -37,6 +37,12 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
       "redistribution": "Conditional on verifying packaged license files and notices against the generated THIRD_PARTY_NOTICES.md inventory.",
       "trainingUse": "Not approved as model-training or benchmark content; use only for the declared software role."
     },
+    "derived-measurement-of-external-source": {
+      "licenseEvidence": "None obtained. The measured source is a LEGO-copyrighted instruction booklet that is not included in the repository and is not approved for any role.",
+      "attribution": "Name the source set and the fact that the data is a measurement rather than a reproduction wherever the fixture is described.",
+      "redistribution": "Only as the numeric measurement itself. No expressive content of the source may be redistributed, and the measurement must not be presented as, or expanded back towards, booklet content.",
+      "trainingUse": "Not approved. Permission to measure a work is not permission to train on it."
+    },
     "external-evaluation-pending-audit": {
       "licenseEvidence": "Unverified; the source is not included.",
       "attribution": "Determine and preserve source-specific, file-level attribution before any inclusion.",
@@ -493,6 +499,17 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
       "rightsPolicy": "external-evaluation-pending-audit",
       "allowedRoles": ["evaluation-only-after-audit"],
       "intent": "Research reference only; upstream code, dataset, solver, and weight terms require separate audits."
+    },
+    {
+      "id": "booklet-edge-profile-fixture",
+      "category": "derived-measurement-from-external-instruction-booklet",
+      "status": "included",
+      "source": "apps/web/src/instructions/__fixtures__/booklet-edges.json, traced from the uncommitted LEGO set 21028 booklet recipes/6651557.pdf",
+      "version": "captured 2026-07-31 at render scales 4 and 6",
+      "declaredLicense": "UNVERIFIED-SOURCE-BOOKLET-COPYRIGHT-LEGO",
+      "rightsPolicy": "derived-measurement-of-external-source",
+      "allowedRoles": ["regression fixture for stud pitch detection"],
+      "intent": "Twelve integer arrays giving the topmost row of a highlight outline per pixel column, plus a verdict set by looking at the rendered region. It records where an edge sits, not what the page depicts: no artwork, text, geometry, colour or model can be reconstructed from it, and it is not a reproduction of the booklet. Retained because the guard it anchors — refusing a pitch on a smooth outline whose thresholded stroke wanders — was only found on real art and cannot be expressed synthetically. Not approved for training, redistribution as booklet content, or as an example model; the source booklet itself remains uncommitted and unapproved."
     },
     {
       "id": "internet-curated-models",
