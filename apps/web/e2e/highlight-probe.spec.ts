@@ -1,10 +1,10 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 
 import { test, expect } from "@playwright/test";
 
-const OUT =
-  "C:/Users/38909/AppData/Local/Temp/claude/C--Users-38909-Documents-github-lego/cf21f97d-d8f1-464b-a7d3-093b8f37be16/scratchpad/pdf";
-const ROOT = "C:/Users/38909/Documents/github/lego";
+import { bookletProbeUrls, hasSampleBooklet } from "./sample-booklet";
+
+const OUT = "output/highlight-masks";
 
 /**
  * Instruction art outlines the parts a step adds. If that outline segments
@@ -13,7 +13,7 @@ const ROOT = "C:/Users/38909/Documents/github/lego";
  */
 test("measures how the step highlight segments", async ({ page }) => {
   test.setTimeout(300_000);
-  test.skip(!existsSync(`${ROOT}/recipes/6651557.pdf`), "no sample booklet");
+  test.skip(!hasSampleBooklet, "no sample booklet");
   await page.goto("/");
   mkdirSync("output", { recursive: true });
   const scoreboard: unknown[] = [];
@@ -126,9 +126,7 @@ test("measures how the step highlight segments", async ({ page }) => {
         };
       },
       {
-        pdfjsUrl: `/@fs/${ROOT}/node_modules/pdfjs-dist/build/pdf.mjs`,
-        workerUrl: `/@fs/${ROOT}/node_modules/pdfjs-dist/build/pdf.worker.mjs`,
-        pdfUrl: `/@fs/${ROOT}/recipes/6651557.pdf`,
+        ...bookletProbeUrls(),
         pageNumber,
       },
     );

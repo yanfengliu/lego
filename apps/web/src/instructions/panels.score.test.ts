@@ -2,28 +2,31 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
+import { SAMPLE_BOOKLET, findSampleBooklet } from "./sample-booklet-path";
+
 import { checkBookletConsistency, extractBookletStructure } from "./booklet-structure";
 import { ingestInstructionPdf, type PdfDocument } from "./ingest-pdf";
 import { deriveStepPanels, summarizePanels } from "./step-panels";
 
-const SAMPLE = "recipes/6651557.pdf";
 const SCOREBOARD = "output/panels-score.json";
 
 describe("step panel scoreboard", () => {
   it("scores panel recovery against the real booklet", async () => {
     mkdirSync("output", { recursive: true });
-    let data: Uint8Array;
-    try {
-      data = new Uint8Array(readFileSync(SAMPLE));
-    } catch {
-      writeFileSync(SCOREBOARD, JSON.stringify({ skipped: `no sample at ${SAMPLE}` }, null, 1));
+    const path = findSampleBooklet();
+    if (!path) {
+      writeFileSync(
+        SCOREBOARD,
+        JSON.stringify({ skipped: `no sample at ${SAMPLE_BOOKLET}` }, null, 1),
+      );
       return;
     }
+    const data = new Uint8Array(readFileSync(path));
     const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
     const document = (await getDocument({ data, isEvalSupported: false })
       .promise) as unknown as PdfDocument;
     const source = await ingestInstructionPdf(
-      { name: "6651557.pdf", arrayBuffer: async () => readFileSync(SAMPLE).buffer as ArrayBuffer },
+      { name: "6651557.pdf", arrayBuffer: async () => readFileSync(path).buffer as ArrayBuffer },
       { loadPdf: async () => document },
     );
 

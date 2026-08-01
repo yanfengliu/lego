@@ -86,3 +86,56 @@ art, and the model needs wedge and curved plates far longer than the catalog
 holds.
 
 **Anchor:** commit `0b03905` and its correction; `apps/web/e2e/pdf-render.spec.ts`; pages 12 and 120 of `recipes/6651557.pdf`.
+
+## A cost curve's true minimum is its sharpest point, and smoothing destroys it
+
+The stud-pitch estimator scored each candidate period by how badly the traced edge failed to repeat at it, then looked for the dip.
+At the true period of 48 px the cost was exactly `0.00` while both neighbours sat at `0.71`, because a second difference cancels perfectly when the period is right.
+A three-point mean, added to stop raster noise passing for a dip, averaged that zero against its neighbours and made 48 px a local *maximum*; the estimate went to 45 px, on the shoulder.
+The dip that matters is one sample wide by construction, so it is the first thing any smoothing removes.
+
+**Anchor:** `findPitchCandidates` reads the curve raw in `apps/web/src/instructions/stud-pitch-comb.ts`; observed costs `47=0.71 48=0.00 49=0.71` against a smoothed `47=0.43 48=0.47 49=0.43`.
+
+## Periodicity and amplitude are both forgeable evidence of a drawn feature
+
+Reading stud pitch from the scallops on a highlight outline failed twice on evidence that looked sufficient.
+First, periodicity: a sloped line rounded into whole raster rows stair-steps, and a staircase repeats exactly and forever — `round(0.45x)` has period 20 — so straight fixtures returned confident 11 and 12 px pitches.
+Adding an amplitude floor fixed the synthetic cases and 59 synthetic negatives passed, but page 120 of the sample booklet, a visibly straight tiled outline, still yielded a confident 26 px pitch: thresholding an anti-aliased stroke into a binary mask makes the traced edge wander by a row or more, and that wander is correlated along the edge, so it clears an amplitude floor and repeats well enough to dip.
+What separates a drawn feature is that its wobble gathers onto the harmonics of one period and leaves the half-multiples between them empty.
+
+**Anchor:** `apps/web/src/instructions/stud-pitch.ts`; the negative is fixture `p120-r1@6` in `__fixtures__/booklet-edges.json`, kept by "reports no pitch for p120-r1@6, whose outline is visibly smooth"; synthetic recall 1.00 with 0 false positives on 59 negatives, and 6/6 hand-labelled real edges.
+
+## A probe that spells out an absolute repo path cannot run from a worktree
+
+Four booklet probes loaded pdfjs and the sample PDF over vite `/@fs/` URLs built from a hardcoded `C:/Users/.../github/lego`.
+Run from a worktree that path is outside the workspace vite infers, so `fs.allow` refused to serve it and every probe died on "Failed to fetch dynamically imported module" — and a worktree has neither `node_modules` nor `recipes/` of its own, so the path was also the wrong one to want.
+Resolving the pdfjs build through `require.resolve` and finding `recipes/` by walking up makes the probes run the same from either checkout.
+
+**Anchor:** `apps/web/e2e/sample-booklet.ts`; `servableRoots()` feeds `server.fs.allow` in `apps/web/e2e/global-setup.ts`.
+
+## Label image ground truth at more than one zoom
+
+Six highlight regions were labelled "scalloped" or "smooth" by rendering each and looking at it, to judge the pitch estimator against something better than its own output.
+Region `p200-r0` was labelled smooth from the scale-4 crop, where the studs sit inside the silhouette and the top edge reads as a plain diagonal.
+At scale 6 the same outline visibly arcs over every stud, and the label was wrong; had it been committed, a correct measurement would have been scored as a false positive and the estimator tuned to refuse it.
+
+**Anchor:** `apps/web/src/instructions/__fixtures__/booklet-edges.json` carries both scales of every edge for this reason; `p200-r0@4` and `p200-r0@6` both read "scalloped".
+
+## A fixed crop box silently decapitates the big items
+
+Every inventory thumbnail was cut with the same 20.4pt-tall cell, on the assumption that a grid row is a fixed height.
+It is not: a 4x12 plate is drawn far taller than a 1x1, and the crop showed 39% of it — 164px of a part that needs 419.
+Nothing failed; the images looked fine, and a reader called that plate "6x4" from the third of it that survived.
+Two independent readers rediscovered the clipping before the score did, one noting it could only prove ">=7 studs long" because apparent length saturated at the frame.
+Sizing the cell to its own content — climb until a gap of clear rows — recovered the missing parts.
+
+**Anchor:** the content-scan crop in the inventory thumbnail probe; `302926` went 876x164 to 876x419, `303226` 787x163 to 787x301, and the only dimension miss in the naive baseline was the clipped `302926`.
+
+## Reading a part from an isolated thumbnail is a different problem from reading it out of an assembly
+
+The same model, asked what part a step adds, answered 6 of 6 assembly crops at 0.35-0.58 self-reported confidence and got at least one plainly wrong.
+Asked the same question about the booklet's own inventory thumbnails — one part, isolated, on a plain ground — it scored 28/28 on stud dimensions, and the naive control prompt still scored 27/28.
+The prompt was worth about 4 points; the picture was worth the rest.
+Every surviving miss was a taxonomy artifact, where the answer vocabulary had no entry for an arch or a modified brick, not a misreading of the shape.
+
+**Anchor:** `output/vision-benchmark.json`; labels are element ids paired from the text layer by `apps/web/src/instructions/parts-inventory.ts`, resolved to part names against Brickset's published inventory for set 21066.
