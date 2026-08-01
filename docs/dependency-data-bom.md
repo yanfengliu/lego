@@ -25,6 +25,12 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
 {
   "schemaVersion": 1,
   "rightsPolicies": {
+    "attribution-required-facts-only": {
+      "licenseEvidence": "Each LDraw part file carries `!LICENSE Licensed under CC BY 4.0 : see CAreadme.txt` in its header, read at the same time as the measurements.",
+      "attribution": "Credit LDraw.org and the part's named author for measurements taken from the official library; the catalog records the LDraw identifier for every part measured this way.",
+      "redistribution": "No LDraw file, geometry, mesh, or excerpt is copied into this repository or shipped. What is kept is measurement — a part's stud positions and body extents as numbers — which is then hand-authored into a project-owned parametric blueprint.",
+      "trainingUse": "Not designated as a model-training or benchmark corpus; permission to read geometry is not permission to train on it."
+    },
     "project-mit": {
       "licenseEvidence": "Repository LICENSE (MIT).",
       "attribution": "Preserve Copyright (c) 2026 Yanfeng Liu and the repository MIT license text.",
@@ -455,6 +461,17 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
       "rightsPolicy": "project-mit",
       "allowedRoles": ["tests", "development-evaluation", "distribution"],
       "intent": "Only synthetic, repo-owned examples are approved by default; there are no example model files in the scaffold yet."
+    },
+    {
+      "id": "ldraw-part-dimensions-reference",
+      "category": "external-geometry-and-catalog-data",
+      "status": "read-at-authoring-time-not-bundled",
+      "source": "https://library.ldraw.org/library/official",
+      "version": "official-library-as-of-2026-08-01",
+      "declaredLicense": "CC-BY-4.0",
+      "rightsPolicy": "attribution-required-facts-only",
+      "allowedRoles": ["dimension-reference-authoring-only"],
+      "intent": "scripts/ldraw-part-facts.mjs reads official part files by hand to measure a part's stud positions and body extents, which are then hand-authored into catalog blueprints as numbers. No LDraw file, geometry, or mesh is copied into the repository or shipped, and nothing fetches at runtime or during a gate. Attribution: part geometry authored by LDraw.org contributors, licensed CC BY 4.0."
     },
     {
       "id": "external-ldraw-parts-library",

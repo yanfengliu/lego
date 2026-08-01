@@ -512,11 +512,13 @@ const PART_BLUEPRINTS = [
     widthStuds: 1,
     lengthStuds: 3,
     ldrawId: "34103.dat",
+    // "Offset" in the part's name: the two studs sit half a pitch off the cell
+    // grid, at the boundaries between cells, not on the outer cells.
     studOffsetsLdu: [
-      [0, -20],
-      [0, 20],
+      [0, -10],
+      [0, 10],
     ],
-    geometrySha256: "3df2ffa53585723dcab7b6cb967fc9bf3a02ac40b19573624f76cfe4debac7af",
+    geometrySha256: "310166865a722342abdd48cd8bcd312716f935e440f7c312c2d9df7b3d7bc17c",
   },
 ] as const satisfies readonly PartBlueprint[];
 
