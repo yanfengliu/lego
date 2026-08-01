@@ -28,14 +28,11 @@ const ASSEMBLY_MODULE_URL: string = "/src/assembly/index.ts";
  * rather than by identifier — the structural hash covers part ids, so it cannot
  * decide whether two models are the same.
  *
- * It does not pass yet, and that is the point of writing it down. The loop runs
- * end to end, the picture prunes 95% of candidates before anything is
- * rasterised, and step 1 is recovered exactly; from step 2 the per-step score
- * does not rank the drawn placement first, and the trace in the scoreboard says
- * so directly — for each step, whether the drawn placement was rendered at all,
- * what it scored, and where it ranked. `parts.correct` is the number to drive
- * up, and it is 1 of 6 today. The assertions below guard what works so it
- * cannot regress while that number is worked on.
+ * It rebuilds the model exactly: every part in the right place at the right
+ * step, nothing extra, with the drawn placement ranked first at every step on
+ * scores of 0.92 to 0.97. The scoreboard keeps the per-step trace — was the
+ * drawn placement rendered, what did it score, where did it rank — because a
+ * total that says 6 of 6 cannot say which step got lucky.
  */
 test("rebuilds a model from its own step pictures", async ({ page }) => {
   test.setTimeout(600_000);
@@ -64,25 +61,34 @@ test("rebuilds a model from its own step pictures", async ({ page }) => {
         { part: "builtin:brick-1x1", at: [50, -8, -50] },
       ];
 
-      // The orientation is part of the placement: dropping it turns a
-      // candidate found at a quarter turn into an unsupported one at zero.
-      const place = (document: unknown, part: string, transform: unknown, colorId: string) =>
-        kernel.applyBuildOperations(
-          document,
-          commands.createPlacePartTransaction(document, {
-            catalogPartId: part,
-            colorId,
-            transform,
-          }).operations,
-        );
+      // The orientation is part of the placement: dropping it turns a candidate
+      // found at a quarter turn into an unsupported one at zero.
+      //
+      // Returns the placed part's id, never its array index. applyBuildOperations
+      // does not keep parts in insertion order, so "the last part" is sometimes
+      // the base plate — keying a mask that way highlighted the wrong part on
+      // about half of all candidates, which is what made two spellings of one
+      // placement score 0.38 and 0.96 when they render identically.
+      const place = (document: unknown, part: string, transform: unknown, colorId: string) => {
+        const transaction = commands.createPlacePartTransaction(document, {
+          catalogPartId: part,
+          colorId,
+          transform,
+        });
+        return {
+          document: kernel.applyBuildOperations(document, transaction.operations),
+          partId: transaction.partId as string,
+        };
+      };
       const upright = (at: number[]) => ({ positionLdu: at, orientationId: "upright-yaw-0" });
 
       // The reference build, and the state after each of its steps.
       let reference = kernel.createEmptyBrickDocument({ id: "reference", name: "Reference" });
-      const states: unknown[] = [];
+      const states: { document: unknown; newPartId: string }[] = [];
       for (const entry of layout) {
-        reference = place(reference, entry.part, upright(entry.at), COLOR);
-        states.push(reference);
+        const placed = place(reference, entry.part, upright(entry.at), COLOR);
+        reference = placed.document;
+        states.push({ document: reference, newPartId: placed.partId });
       }
 
       const renderer = rendering.createInstructionRenderer({ width, height });
@@ -131,8 +137,7 @@ test("rebuilds a model from its own step pictures", async ({ page }) => {
       // outlined in highlight yellow exactly where its visible silhouette ends.
       const panels: { stepNumber: number; highlight: unknown; pixels: Uint8ClampedArray }[] = [];
       for (let step = 0; step < states.length; step += 1) {
-        const document = states[step] as { parts: { id: string }[] };
-        const newPartId = document.parts[document.parts.length - 1]!.id;
+        const { document, newPartId } = states[step]!;
         const scene = rendering.deriveBrickScene(document, { finish: "instruction" });
         const art = renderer.render(scene.root, panelCamera).slice();
         scene.dispose();
@@ -182,8 +187,7 @@ test("rebuilds a model from its own step pictures", async ({ page }) => {
             candidate.transform,
             PROBE_COLOR,
           );
-          const parts = (applied as { parts: { id: string }[] }).parts;
-          return renderMask(applied, parts[parts.length - 1]!.id);
+          return renderMask(applied.document, applied.partId);
         },
         score: (mask: Uint8Array, highlight: unknown) => {
           const scored = assembly.scoreStepDelta(mask, highlight, { tolerancePx: 3 });
@@ -195,7 +199,7 @@ test("rebuilds a model from its own step pictures", async ({ page }) => {
           candidate: { catalogPartId: string; transform: unknown },
           stepNumber: number,
         ) => {
-          const document = place(
+          const { document } = place(
             entry.document,
             candidate.catalogPartId,
             candidate.transform,
@@ -371,9 +375,14 @@ test("rebuilds a model from its own step pictures", async ({ page }) => {
   // The picture has to be doing the pruning, or the loop is not affordable.
   // Measured: 304 renders against 3172 enumerated placements.
   expect(result.totalRendered).toBeLessThan(result.totalEnumerated / 4);
-  // Step 1 is recovered exactly and the score ranks it first. This is the
-  // number to drive up — 1 of 6 today — and this bound stops it going down.
-  expect(result.comparison!.finalCorrect).toBeGreaterThanOrEqual(1);
+  // Every part of the reference, in the right place, at the right step, with
+  // nothing extra: the loop rebuilt the model from its own pictures.
+  expect(result.comparison!.finalCorrect).toBe(result.comparison!.finalExpected);
   expect(result.comparison!.finalExtra).toBe(0);
-  expect(result.trace[0]).toMatchObject({ drawnPlacementRank: 0 });
+  expect(result.comparison!.firstDivergentStepIndex).toBeNull();
+  // Ranked first at every step, not merely first on aggregate — a beam can
+  // reach the right answer while the score is only accidentally right.
+  for (const step of result.trace) {
+    expect(step).toMatchObject({ drawnPlacementRendered: true, drawnPlacementRank: 0 });
+  }
 });

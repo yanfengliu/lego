@@ -27,3 +27,4 @@ When a lesson becomes a gate — a test, a lint rule, a fixed command — delete
 - Reading a part from an isolated thumbnail is a different problem from reading it out of an assembly. ([evidence](lessons-evidence.md#reading-a-part-from-an-isolated-thumbnail-is-a-different-problem-from-reading-it-out-of-an-assembly))
 - A hand-assembled parts array is not a document: stacking without connection edges validates as a collision. ([evidence](lessons-evidence.md#a-hand-assembled-parts-array-is-not-a-document))
 - A step highlight is an open contour whenever the step's parts go behind built ones; only about half enclose anything. ([evidence](lessons-evidence.md#a-step-highlight-is-an-open-contour-whenever-the-parts-go-behind-built-ones))
+- A document's parts are not in insertion order; key a part by the id its command returned, never by array position. ([evidence](lessons-evidence.md#a-documents-parts-are-not-in-insertion-order))

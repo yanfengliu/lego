@@ -156,3 +156,13 @@ Thickening the stroke to bridge antialiasing gaps is worth doing — it repaired
 A per-step score therefore cannot be an area comparison alone: it needs the stroke itself, scored against the candidate's own boundary, and must report an unavailable region as unavailable rather than as zero agreement.
 
 **Anchor:** `apps/web/src/instructions/highlight-region.ts` and `apps/web/e2e/highlight-region.spec.ts`; 19 of 36 contours closed over pages 12, 24, 40, 60, 80, 100, 120, 140, 160, 180, 200 and 214 of `recipes/6651557.pdf`; page 12 step 6 fills exactly and page 12 step 5 encloses nothing.
+
+## A document's parts are not in insertion order
+
+The closed-loop probe rendered a candidate's silhouette by placing it, then colouring `parts[parts.length - 1]` — "the part just added".
+It is not: `applyBuildOperations` returns parts in an order that does not track insertion, so about half the time the mask highlighted the base plate instead of the new brick, and the score compared the wrong shape against the step's highlight.
+The symptom was that two spellings of one placement — a 2x4 brick at yaw 0 and at yaw 180, which occupy the same studs and the same space — scored 0.38 and 0.96.
+That is impossible for identical geometry, and rendering both masks and differencing them confirmed it: zero differing pixels once each was keyed by the id its own transaction returned.
+`createPlacePartTransaction` returns `partId` for exactly this reason.
+
+**Anchor:** `apps/web/e2e/build-search.spec.ts`; observed `partId manual-part-426e9bee…` against `lastPartId manual-part-4a593702…`, mask areas 21541 and 59230 for the same placement; the rebuild went from 1 of 6 parts correct to 6 of 6 with no change to the enumerator, the score, or the driver.
