@@ -220,10 +220,20 @@ export function fitOrthographicView(
     );
   }
   if (azimuths.length === 0 || elevations.length === 0) {
-    throw new RangeError("A camera fit needs at least one azimuth and one elevation to sweep");
+    throw new RangeError(
+      `A camera fit needs at least one azimuth and one elevation to sweep, received ${azimuths.length} and ${elevations.length}. ` +
+        `Omit the option to sweep the defaults, or pass the previous step's fitted direction to search a narrow window around it.`,
+    );
   }
   if (target.area === 0) {
-    return { best: null, ranked: [], renders: 0, failure: "The target silhouette is empty" };
+    return {
+      best: null,
+      ranked: [],
+      renders: 0,
+      failure:
+        `The target silhouette is empty: no pixel of the ${target.width}x${target.height} raster differed from the background. ` +
+        `Either the crop holds no model art, or it was keyed against the wrong background colour — a booklet page also needs a tolerance above 0 for its antialiasing.`,
+    };
   }
 
   let renders = 0;
@@ -267,14 +277,18 @@ export function fitOrthographicView(
     null,
   );
   if (best === null || best.iou === 0) {
+    const swept = `${azimuths.length} azimuths x ${elevations.length} elevations in ${renders} renders`;
+    const seedDescription = `seed pixelsPerUnit=${seed.pixelsPerUnit}, centre=(${seed.centerXPx}, ${seed.centerYPx})`;
     return {
       best: null,
       ranked: [],
       renders,
       failure:
         best === null
-          ? "Every swept direction rendered an empty silhouette, so the geometry never reached the frame"
-          : "No swept direction overlapped the target at all; the target may not be this model",
+          ? `Every swept direction rendered an empty silhouette (${swept}), so the geometry never reached the frame. ` +
+            `Check that the frame's target and sceneRadius came from this scene's own bounds, and that ${seedDescription} does not put the model outside the raster.`
+          : `No swept direction overlapped the ${target.area}-pixel target at all (${swept}), so the best intersection over union was 0. ` +
+            `The model and the target are disjoint rather than merely misaligned: this is usually the wrong document for this panel, or a target keyed from a different background than the render.`,
     };
   }
 

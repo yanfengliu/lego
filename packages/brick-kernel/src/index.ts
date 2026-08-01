@@ -3,6 +3,12 @@ export const BRICK_KERNEL_VERSION = "lego.brick-kernel/1" as const;
 export * from "./build-comparison.ts";
 export * from "./build-sequence.ts";
 export * from "./canonical.ts";
+export {
+  createCollisionWorld,
+  findCatalogCollisions,
+  type CollisionFinding,
+  type CollisionWorld,
+} from "./collisions.ts";
 export * from "./compiler.ts";
 export * from "./document.ts";
 export * from "./factory.ts";

@@ -38,7 +38,8 @@ export function silhouetteFromMask(mask: Uint8Array, width: number, height: numb
   requirePositiveInteger(height, "height");
   if (mask.length !== width * height) {
     throw new RangeError(
-      `Mask holds ${mask.length} pixels but ${width}x${height} needs ${width * height}`,
+      `Mask holds ${mask.length} pixels but ${width}x${height} needs ${width * height}. ` +
+        `One byte per pixel, not one per channel — pass an RGBA buffer to silhouetteFromPixels instead.`,
     );
   }
 
@@ -100,7 +101,8 @@ export function silhouetteFromPixels(
   requirePositiveInteger(height, "height");
   if (pixels.length !== width * height * 4) {
     throw new RangeError(
-      `Pixel buffer holds ${pixels.length} bytes but ${width}x${height} RGBA needs ${width * height * 4}`,
+      `Pixel buffer holds ${pixels.length} bytes but ${width}x${height} RGBA needs ${width * height * 4}. ` +
+        `The width and height must be the ones the renderer was created with, not the ones the camera was fitted to.`,
     );
   }
   if (!Number.isInteger(tolerance) || tolerance < 0 || tolerance > 255) {
@@ -132,7 +134,8 @@ export interface SilhouetteOverlap {
 export function overlap(left: Silhouette, right: Silhouette): SilhouetteOverlap {
   if (left.width !== right.width || left.height !== right.height) {
     throw new RangeError(
-      `Silhouettes must share a raster to be compared, received ${left.width}x${left.height} and ${right.width}x${right.height}`,
+      `Silhouettes must share a raster to be compared: left is ${left.width}x${left.height}, right is ${right.width}x${right.height}. ` +
+        `Render both through the same frame — an instruction render and a page crop only line up when they were sized alike.`,
     );
   }
   let intersection = 0;

@@ -92,7 +92,13 @@ export function createInstructionRenderer(
     width,
     height,
     render(root: Object3D, camera: Camera): Uint8ClampedArray {
-      if (disposed) throw new Error("Cannot render through a disposed instruction renderer");
+      if (disposed) {
+        throw new Error(
+          `Cannot render through a disposed ${width}x${height} instruction renderer. ` +
+            `Its GL context and render target are already released, so this call cannot be retried — ` +
+            `create a new renderer with createInstructionRenderer, or move the dispose() after the last render.`,
+        );
+      }
       scene.add(root);
       try {
         renderer.setRenderTarget(target);

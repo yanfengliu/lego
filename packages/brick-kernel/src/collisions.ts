@@ -367,3 +367,113 @@ export function findCatalogCollisions(
 
   return findings;
 }
+
+const WORLD_CELL_LDU = 100;
+
+function cellKeysFor(bounds: PrimitiveBounds): readonly string[] {
+  const keys: string[] = [];
+  const minX = Math.floor(bounds.min[0] / WORLD_CELL_LDU);
+  const maxX = Math.floor(bounds.max[0] / WORLD_CELL_LDU);
+  const minZ = Math.floor(bounds.min[2] / WORLD_CELL_LDU);
+  const maxZ = Math.floor(bounds.max[2] / WORLD_CELL_LDU);
+  for (let x = minX; x <= maxX; x += 1) {
+    for (let z = minZ; z <= maxZ; z += 1) keys.push(`${x}:${z}`);
+  }
+  return keys;
+}
+
+function primitivesCollide(
+  left: WorldPrimitive,
+  right: WorldPrimitive,
+  allowedPenetrations: ReadonlyMap<string, readonly AllowedPenetration[]>,
+): boolean {
+  if (left.kind === "body" && right.kind === "body") return true;
+  if (left.kind === "stud" && right.kind === "stud") return studsIntersect(left, right);
+  const stud = left.kind === "stud" ? left : (right as WorldStud);
+  const body = left.kind === "body" ? left : (right as WorldBody);
+  return (
+    studIntersectsBody(stud, body) &&
+    !penetrationCoveredByAllowance(stud, body, allowedPenetrations)
+  );
+}
+
+/**
+ * An assembly's collision primitives, indexed once so a candidate placement can
+ * be tested against them without rebuilding them.
+ *
+ * `findCatalogCollisions` is the right shape for validating a document: it
+ * looks at everything against everything, once. It is the wrong shape for a
+ * search, which asks "does this one part fit?" thousands of times against an
+ * assembly that has not changed — rebuilding and re-sorting every neighbour's
+ * primitives per question made enumerating one part over a 120-part model take
+ * 3.6 seconds. Both share the pairwise predicates below, so there is still
+ * exactly one definition of what a collision is.
+ */
+export interface CollisionWorld {
+  readonly primitiveCount: number;
+  /**
+   * Findings between `candidate` and the assembly. Candidate-internal pairs are
+   * never reported: a part cannot collide with itself, and the caller is asking
+   * whether it fits, not whether the catalog entry is self-consistent.
+   */
+  findCollisionsWith(
+    candidate: PartInstance,
+    candidateConnections: readonly ConnectionEdge[],
+  ): CollisionFinding[];
+}
+
+export function createCollisionWorld(parts: readonly PartInstance[]): CollisionWorld {
+  const primitives = makeWorldPrimitives(parts);
+  const partById = new Map(parts.map((part) => [part.id, part]));
+  const cells = new Map<string, WorldPrimitive[]>();
+  for (const primitive of primitives) {
+    for (const key of cellKeysFor(primitive)) {
+      const cell = cells.get(key);
+      if (cell) cell.push(primitive);
+      else cells.set(key, [primitive]);
+    }
+  }
+
+  return {
+    primitiveCount: primitives.length,
+    findCollisionsWith(candidate, candidateConnections) {
+      const candidatePrimitives = makeWorldPrimitives([candidate]);
+      if (candidatePrimitives.length === 0) return [];
+      // Allowances need both endpoints, so the candidate joins the roster only
+      // for this query and never enters the indexed world.
+      const roster = [candidate];
+      for (const connection of candidateConnections) {
+        for (const endpoint of [connection.a, connection.b]) {
+          const part = partById.get(endpoint.partId);
+          if (part && !roster.includes(part)) roster.push(part);
+        }
+      }
+      const allowedPenetrations = collectAllowedPenetrations(roster, candidateConnections);
+
+      const neighbourhood = new Set<WorldPrimitive>();
+      for (const primitive of candidatePrimitives) {
+        for (const key of cellKeysFor(primitive)) {
+          for (const other of cells.get(key) ?? []) {
+            if (other.part.id !== candidate.id) neighbourhood.add(other);
+          }
+        }
+      }
+
+      const findings: CollisionFinding[] = [];
+      const reportedClasses = new Set<string>();
+      for (const left of candidatePrimitives) {
+        for (const right of neighbourhood) {
+          if (!boundsOverlap(left, right)) continue;
+          if (!primitivesCollide(left, right, allowedPenetrations)) continue;
+          const finding = collisionFinding(left, right);
+          const classKey = collisionClassKey(finding);
+          if (reportedClasses.has(classKey)) continue;
+          reportedClasses.add(classKey);
+          findings.push(finding);
+          if (findings.length >= MAX_COLLISION_FINDINGS) return findings;
+        }
+      }
+      return findings;
+    },
+  };
+}

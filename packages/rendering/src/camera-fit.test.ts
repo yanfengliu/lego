@@ -260,13 +260,44 @@ describe("fitting a booklet panel's camera", () => {
     expect(refined.best!.iou).toBeGreaterThan(swept.best!.iou);
   });
 
-  it("says why it failed instead of returning a meaningless best", () => {
+  it("says why it failed, with the numbers needed to diagnose it", () => {
     const empty = silhouetteFromMask(new Uint8Array(240 * 180), 240, 180);
 
     const fit = fitOrthographicView(renderModel, empty, SEED);
 
     expect(fit.best).toBeNull();
-    expect(fit.failure).toMatch(/target silhouette is empty/);
+    // The raster size and the likely cause, not just "empty": a caller reading
+    // this should not have to open the fitter to know what to check next.
+    expect(fit.failure).toContain("240x180");
+    expect(fit.failure).toMatch(/background colour/);
+  });
+
+  it("distinguishes a target it never reached from one it never overlapped", () => {
+    // A target the model cannot overlap at any scale: one pixel in a corner,
+    // far from anything an equal-area align will put the model on.
+    const stray = new Uint8Array(240 * 180);
+    stray[0] = 1;
+    const fit = fitOrthographicView(renderModel, silhouetteFromMask(stray, 240, 180), SEED, {
+      refinePasses: 0,
+    });
+
+    if (fit.best === null) {
+      expect(fit.failure).toContain("1-pixel target");
+      expect(fit.failure).toMatch(/disjoint rather than merely misaligned/);
+    } else {
+      // Overlapping a single pixel is possible; the point is that a zero-overlap
+      // result must explain itself rather than return a meaningless best.
+      expect(fit.failure).toBeNull();
+      expect(fit.best.iou).toBeGreaterThan(0);
+    }
+  });
+
+  it("says how many directions it was given when it was given none", () => {
+    const target = renderModel({ ...SEED, azimuthDegrees: 0, elevationDegrees: 30 });
+
+    expect(() =>
+      fitOrthographicView(renderModel, target, SEED, { azimuthDegrees: [] }),
+    ).toThrowError(/received 0 and 7/);
   });
 
   it("reports every direction it tried, best first", () => {
@@ -340,11 +371,11 @@ describe("silhouettes", () => {
     expect(silhouette.bounds).toBeNull();
   });
 
-  it("refuses to compare regions from different rasters", () => {
+  it("names both rasters, and which is which, when two cannot be compared", () => {
     const small = silhouetteFromMask(new Uint8Array(4), 2, 2);
     const large = silhouetteFromMask(new Uint8Array(9), 3, 3);
 
-    expect(() => overlap(small, large)).toThrowError(/2x2 and 3x3/);
+    expect(() => overlap(small, large)).toThrowError(/left is 2x2, right is 3x3/);
   });
 
   it("scores identical regions at 1 and disjoint regions at 0", () => {
