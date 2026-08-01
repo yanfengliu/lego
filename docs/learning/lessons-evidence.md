@@ -176,6 +176,8 @@ Later steps highlight the part in position, as the score assumes.
 Both conventions appear inside the first fifty steps, and there is no announcement of which is in use — the red arrows are the only signal, and they are unambiguous because nothing else on the page is that red.
 
 So the highlight is two different measurements depending on the step, and a scorer that treats it as one will reject the correct placement on 38% of them.
-An exploded step still constrains a great deal — shape and orientation identify the part, and the arrows point at the destination — but position has to come from the arrows or from physics rather than from the outline.
+An exploded step still constrains a great deal — shape and orientation identify the part, and the arrows point at the destination — but position has to come from somewhere else.
+The cheapest somewhere else is the next step: step N+1 draws the assembly with step N's part already in place, so a candidate placement for step N is scored against step N+1's picture rather than step N's highlight.
+That costs one step of lag and no new machinery — the beam already carries several branches forward, which is exactly what is needed to defer a verdict by a step.
 
 **Anchor:** `apps/web/e2e/first-fifty.spec.ts` counts red-arrow pixels per panel and records `exploded` per step in `output/first-fifty/score.json`; 19 of 50 on the sample booklet, steps 1 through 16 almost all exploded and steps 30 onward almost all in place.
