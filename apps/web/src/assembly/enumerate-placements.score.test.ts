@@ -96,6 +96,9 @@ describe("placement branching factor", () => {
 
     const accepted = records.map((record) => record.accepted);
     const milliseconds = records.map((record) => record.milliseconds);
+    const perTransform = records.map(
+      (record) => (record.milliseconds * 1000) / Math.max(1, record.distinctTransforms),
+    );
     const summary = {
       steps: records.length,
       finalParts: document.parts.length,
@@ -118,6 +121,16 @@ describe("placement branching factor", () => {
       survivalOfRaw:
         records.reduce((sum, record) => sum + record.accepted, 0) /
         records.reduce((sum, record) => sum + record.rawFromStuds, 0),
+      /**
+       * Cost of deciding one candidate, early in the build against late in it.
+       * Absolute times depend on the machine and on what else is running;
+       * whether the cost per candidate grows with assembly size does not, and
+       * that is the property that decides whether the search scales.
+       */
+      microsecondsPerTransform: {
+        firstQuarter: median(perTransform.slice(0, Math.floor(perTransform.length / 4))),
+        lastQuarter: median(perTransform.slice(-Math.floor(perTransform.length / 4))),
+      },
     };
 
     mkdirSync("output", { recursive: true });
@@ -126,9 +139,14 @@ describe("placement branching factor", () => {
     // The build has to actually get somewhere for the curve to mean anything.
     expect(summary.finalParts).toBeGreaterThan(100);
     expect(summary.accepted.min).toBeGreaterThan(0);
-    // A beam of width B costs B enumerations per step. Anything near a second
-    // per enumeration makes 359 steps of that unaffordable, and would mean the
-    // enumeration has gone quadratic in assembly size.
-    expect(summary.milliseconds.max).toBeLessThan(400);
+    // The cost of deciding one candidate must not grow with the assembly. A
+    // wall-clock bound would measure the machine and whatever else is running
+    // on it; this measures the algorithm. Rebuilding the neighbourhood per
+    // candidate showed here as a factor of about eight.
+    const { firstQuarter, lastQuarter } = summary.microsecondsPerTransform;
+    expect({ firstQuarter, lastQuarter, growth: lastQuarter / firstQuarter }).toMatchObject({
+      growth: expect.any(Number),
+    });
+    expect(lastQuarter / firstQuarter).toBeLessThan(3);
   });
 });
