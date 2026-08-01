@@ -25,3 +25,4 @@ When a lesson becomes a gate — a test, a lint rule, a fixed command — delete
 - Label image ground truth at more than one zoom: an outline that reads as smooth at one scale shows its studs at the next. ([evidence](lessons-evidence.md#label-image-ground-truth-at-more-than-one-zoom))
 - A fixed crop box silently decapitates the big items � size the crop to its own content. ([evidence](lessons-evidence.md#a-fixed-crop-box-silently-decapitates-the-big-items))
 - Reading a part from an isolated thumbnail is a different problem from reading it out of an assembly. ([evidence](lessons-evidence.md#reading-a-part-from-an-isolated-thumbnail-is-a-different-problem-from-reading-it-out-of-an-assembly))
+- A hand-assembled parts array is not a document: stacking without connection edges validates as a collision. ([evidence](lessons-evidence.md#a-hand-assembled-parts-array-is-not-a-document))

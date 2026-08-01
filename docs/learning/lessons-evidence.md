@@ -139,3 +139,11 @@ The prompt was worth about 4 points; the picture was worth the rest.
 Every surviving miss was a taxonomy artifact, where the answer vocabulary had no entry for an arch or a modified brick, not a misreading of the shape.
 
 **Anchor:** `output/vision-benchmark.json`; labels are element ids paired from the text layer by `apps/web/src/instructions/parts-inventory.ts`, resolved to part names against Brickset's published inventory for set 21066.
+
+## A hand-assembled parts array is not a document
+
+The instruction-render probe spread four correctly-stacked, on-lattice parts into an empty document's `parts` array and got twelve blocking issues back.
+A stud sitting inside another part's body is legal only through a collision allowance whose `requiresValidatedConnection` is true, so with no connection edges every legitimate stud connection reads as `PART_STUD_BODY_COLLISION`, the assembly reads as `DISCONNECTED_ASSEMBLY`, and the untouched `submodels`/`steps` member lists produce a mismatch per part.
+Building the same four placements through `createPlacePartTransaction` and `applyBuildOperations` — the path the editor itself uses — validated clean.
+
+**Anchor:** `apps/web/e2e/instruction-render.spec.ts`; twelve blocking issues (`DISCONNECTED_ASSEMBLY`, three `PART_STUD_BODY_COLLISION`, four `STEP_MEMBERSHIP_MISMATCH`, four `SUBMODEL_MEMBERSHIP_MISMATCH`) became zero with no change to any transform.

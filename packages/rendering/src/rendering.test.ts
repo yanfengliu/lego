@@ -9,6 +9,7 @@ import {
   BufferGeometry,
   CylinderGeometry,
   Group,
+  LineSegments,
   Material,
   Mesh,
   MeshStandardMaterial,
@@ -531,5 +532,109 @@ describe("presentation finish", () => {
     scene.dispose();
     expect(disposeGeometry).toHaveBeenCalled();
     expect(scene.disposed).toBe(true);
+  });
+});
+
+describe("instruction finish", () => {
+  const document = documentWithParts([createPartInstance({ id: "instruction-subject" })]);
+
+  it("fills flat and unlit, because booklet art carries no lighting", () => {
+    const scene = deriveBrickScene(document, { finish: "instruction" });
+    const bodies = objectsWithRole(scene.root, "body");
+
+    expect(bodies).toHaveLength(1);
+    const material = (bodies[0] as Mesh).material as Material;
+    expect(material.type).toBe("MeshBasicMaterial");
+    // A slope-scaled offset grows without bound on faces seen edge-on and
+    // pushed fills behind their own hidden edges; only the constant term is safe.
+    expect(material.polygonOffsetFactor).toBe(0);
+    expect(material.polygonOffsetUnits).toBeGreaterThan(0);
+    scene.dispose();
+  });
+
+  it("outlines the body and every stud, and casts no shadow", () => {
+    const scene = deriveBrickScene(document, { finish: "instruction" });
+    const studs = objectsWithRole(scene.root, "stud");
+    const outlines = objectsWithRole(scene.root, "instruction-outline");
+
+    expect(studs.length).toBeGreaterThan(0);
+    expect(outlines).toHaveLength(studs.length + 1);
+    for (const object of [...studs, ...objectsWithRole(scene.root, "body")]) {
+      expect(object.castShadow).toBe(false);
+      expect(object.receiveShadow).toBe(false);
+    }
+    scene.dispose();
+  });
+
+  it("shares one ink material across a part's outlines", () => {
+    const scene = deriveBrickScene(document, { finish: "instruction" });
+    const materials = new Set(
+      objectsWithRole(scene.root, "instruction-outline").map(
+        (outline) => (outline as LineSegments).material as Material,
+      ),
+    );
+
+    expect(materials.size).toBe(1);
+    scene.dispose();
+  });
+
+  it("draws no outlines in any other finish", () => {
+    for (const finish of ["flat", "presentation"] as const) {
+      const scene = deriveBrickScene(document, { finish });
+      expect(objectsWithRole(scene.root, "instruction-outline")).toHaveLength(0);
+      scene.dispose();
+    }
+  });
+
+  it("omits the overlays a booklet never prints", () => {
+    // Two bricks in the same place: a blocking collision on both, so the
+    // editor scene has something to paint red.
+    const invalid = documentWithParts([
+      createPartInstance({ id: "overlapping-a" }),
+      createPartInstance({ id: "overlapping-b" }),
+    ]);
+    const editor = deriveBrickScene(invalid, { selectedPartIds: ["overlapping-a"] });
+    const instruction = deriveBrickScene(invalid, {
+      finish: "instruction",
+      selectedPartIds: ["overlapping-a"],
+    });
+
+    expect(editor.validationReport.documentGloballyValid).toBe(false);
+    expect(objectsWithRole(editor.root, "validation-overlay").length).toBeGreaterThan(0);
+    expect(objectsWithRole(editor.root, "selection-overlay")).toHaveLength(1);
+    expect(objectsWithRole(instruction.root, "validation-overlay")).toHaveLength(0);
+    expect(objectsWithRole(instruction.root, "selection-overlay")).toHaveLength(0);
+    editor.dispose();
+    instruction.dispose();
+  });
+
+  it("refuses a selection it could not draw, rather than silently dropping it", () => {
+    const scene = deriveBrickScene(document, { finish: "instruction" });
+
+    expect(() => setBrickSceneSelection(scene, ["instruction-subject"])).toThrowError(
+      /instruction scene: it draws no overlays/,
+    );
+    scene.dispose();
+  });
+
+  it("keeps the same authoritative bounds as the flat finish, so framing is unchanged", () => {
+    const flat = deriveBrickScene(document);
+    const instruction = deriveBrickScene(document, { finish: "instruction" });
+
+    expect(instruction.bounds.min.toArray()).toEqual(flat.bounds.min.toArray());
+    expect(instruction.bounds.max.toArray()).toEqual(flat.bounds.max.toArray());
+    flat.dispose();
+    instruction.dispose();
+  });
+
+  it("disposes its outline geometry and ink", () => {
+    const scene = deriveBrickScene(document, { finish: "instruction" });
+    const outline = objectsWithRole(scene.root, "instruction-outline")[0] as LineSegments;
+    const disposeGeometry = vi.spyOn(outline.geometry, "dispose");
+    const disposeMaterial = vi.spyOn(outline.material as Material, "dispose");
+
+    scene.dispose();
+    expect(disposeGeometry).toHaveBeenCalled();
+    expect(disposeMaterial).toHaveBeenCalled();
   });
 });

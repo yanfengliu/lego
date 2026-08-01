@@ -23,12 +23,13 @@ export interface DeriveBrickSceneOptions {
   /**
    * "flat" is the deterministic finish canonical captures are pinned to, and is
    * the default. "presentation" bevels edges and uses a clearcoat material for
-   * display only; evaluation renders must never ask for it.
+   * display only; evaluation renders must never ask for it. "instruction"
+   * imitates printed booklet art so a render can be compared against one.
    */
   readonly finish?: BrickFinish;
 }
 
-export type BrickFinish = "flat" | "presentation";
+export type BrickFinish = "flat" | "presentation" | "instruction";
 
 export interface DerivedBrickScene {
   readonly schemaVersion: "lego.derived-brick-scene/1";

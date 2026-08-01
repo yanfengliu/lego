@@ -107,6 +107,10 @@ export function deriveBrickScene(
   const selectedPartIds = new Set(options.selectedPartIds ?? []);
   const includeStuds = options.includeStuds ?? true;
   const finish = options.finish ?? "flat";
+  // Selection and validation overlays are the editor's opinion of the model,
+  // not something a booklet prints. An instruction render exists to be compared
+  // against booklet art, so an overlay in it is a false difference.
+  const overlaysVisible = finish !== "instruction";
   const root = new Group();
   root.name = `brick-document:${document.id}`;
   root.userData = {
@@ -114,6 +118,8 @@ export function deriveBrickScene(
     schemaVersion: "lego.derived-brick-scene/1",
     documentId: document.id,
     documentHash,
+    finish,
+    overlaysVisible,
     sourceOfTruth: "BrickDocument",
   };
 
@@ -173,10 +179,10 @@ export function deriveBrickScene(
 
     const partBounds = definition?.boundsLdu ?? PLACEHOLDER_PART_BOUNDS;
     expandTransformedBounds(bounds, partBounds, partObject.matrix);
-    if (selectedPartIds.has(part.id)) {
+    if (overlaysVisible && selectedPartIds.has(part.id)) {
       partObject.add(createPartOverlay(part.id, "selection-overlay", partBounds));
     }
-    if (blockingIssueCodes.length > 0) {
+    if (overlaysVisible && blockingIssueCodes.length > 0) {
       partObject.add(createPartOverlay(part.id, "validation-overlay", partBounds));
     }
     root.add(partObject);
@@ -231,6 +237,11 @@ export function setBrickSceneSelection(
   selectedPartIds: readonly string[],
 ): void {
   if (projection.disposed) throw new Error("Cannot update selection on a disposed brick scene");
+  if (projection.root.userData.overlaysVisible === false) {
+    throw new Error(
+      `Cannot select parts in a ${String(projection.root.userData.finish)} scene: it draws no overlays, so the selection would be invisible. Derive an editor scene instead.`,
+    );
+  }
   const selected = new Set(selectedPartIds);
 
   for (const [partId, partObject] of projection.partObjects) {

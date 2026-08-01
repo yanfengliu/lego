@@ -2,6 +2,7 @@ export * from "./cameras.ts";
 export * from "./constants.ts";
 export * from "./coordinates.ts";
 export { createPlacementGhost, type GhostVerdict } from "./geometry.ts";
+export * from "./instruction-view.ts";
 export { disposeObjectTree } from "./lifecycle.ts";
 export * from "./limits.ts";
 export * from "./render-packet.ts";

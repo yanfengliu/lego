@@ -15,12 +15,14 @@ import {
   Group,
   LineBasicMaterial,
   LineSegments,
+  Material,
   Mesh,
   MeshBasicMaterial,
   MeshPhysicalMaterial,
   MeshStandardMaterial,
 } from "three";
 
+import { INSTRUCTION_EDGE_HEX, INSTRUCTION_EDGE_THRESHOLD_DEGREES } from "./constants.ts";
 import { THREE_UNITS_PER_LDU, lduToThreeVector, lduTransformToThreeMatrix } from "./coordinates.ts";
 import type { BrickFinish, RenderDiagnostic } from "./types.ts";
 
@@ -40,11 +42,42 @@ function geometryMetadata(definition: PartDefinition) {
 /** A real brick's edges are chamfered, which is what catches a highlight. */
 const BEVEL_LDU = 0.9;
 
+function makeBrickMaterial(displayHex: string | number, finish: BrickFinish): Material {
+  // ABS is a hard plastic under a glossy skin, so presentation adds a clearcoat
+  // rather than simply lowering roughness.
+  if (finish === "presentation") {
+    return new MeshPhysicalMaterial({
+      color: displayHex,
+      metalness: 0,
+      roughness: 0.34,
+      clearcoat: 0.55,
+      clearcoatRoughness: 0.28,
+    });
+  }
+  // Booklet art is unlit: one flat tone per part, and the shape is carried
+  // entirely by the printed outlines. The polygon offset pushes the fill back
+  // so an outline is never half-swallowed by the face it lies on.
+  if (finish === "instruction") {
+    return new MeshBasicMaterial({
+      color: displayHex,
+      polygonOffset: true,
+      // Constant, not slope-scaled. A slope-scaled offset grows without bound
+      // on faces seen edge-on, and at factor 1 it pushed a brick's front faces
+      // behind its own back edges: every hidden line printed straight through
+      // the fill. Four depth units wins the z-fight on a coincident outline
+      // and is far too small to reach past any real geometry.
+      polygonOffsetFactor: 0,
+      polygonOffsetUnits: 4,
+    });
+  }
+  return new MeshStandardMaterial({ color: displayHex, metalness: 0, roughness: 0.42 });
+}
+
 function makeMaterial(
   part: PartInstance,
   diagnostics: RenderDiagnostic[],
   finish: BrickFinish,
-): MeshStandardMaterial {
+): Material {
   const color = getColorDefinition(part.colorId);
   if (!color) {
     diagnostics.push({
@@ -54,22 +87,7 @@ function makeMaterial(
     });
   }
 
-  // ABS is a hard plastic under a glossy skin, so presentation adds a clearcoat
-  // rather than simply lowering roughness.
-  const material =
-    finish === "presentation"
-      ? new MeshPhysicalMaterial({
-          color: color?.displayHex ?? FALLBACK_COLOR,
-          metalness: 0,
-          roughness: 0.34,
-          clearcoat: 0.55,
-          clearcoatRoughness: 0.28,
-        })
-      : new MeshStandardMaterial({
-          color: color?.displayHex ?? FALLBACK_COLOR,
-          metalness: 0,
-          roughness: 0.42,
-        });
+  const material = makeBrickMaterial(color?.displayHex ?? FALLBACK_COLOR, finish);
   material.name = `brick-material:${part.id}`;
   material.userData = {
     renderRole: "part-material",
@@ -97,6 +115,25 @@ function createBodyGeometry(
   return new RoundedBoxGeometry(width, height, depth, 2, radius);
 }
 
+/**
+ * The printed outline of one piece of geometry. Booklet art draws every visible
+ * edge in ink and lets depth testing hide the rest, which is why these are
+ * ordinary depth-tested lines rather than an overlay.
+ */
+function createInstructionOutline(
+  source: BufferGeometry,
+  material: LineBasicMaterial,
+  name: string,
+  partId: string,
+): LineSegments {
+  const geometry = new EdgesGeometry(source, INSTRUCTION_EDGE_THRESHOLD_DEGREES);
+  geometry.userData = { renderRole: "instruction-outline-geometry" };
+  const outline = new LineSegments(geometry, material);
+  outline.name = name;
+  outline.userData = { renderRole: "instruction-outline", partId };
+  return outline;
+}
+
 export function createCatalogPartGeometry(
   part: PartInstance,
   definition: PartDefinition,
@@ -107,6 +144,16 @@ export function createCatalogPartGeometry(
   const group = new Group();
   const metadata = geometryMetadata(definition);
   const material = makeMaterial(part, diagnostics, finish);
+  // One ink material per part, shared by its body and every stud outline, so a
+  // 1465-piece model costs 1465 line materials rather than one per stud.
+  const outlineMaterial =
+    finish === "instruction"
+      ? Object.assign(new LineBasicMaterial({ color: INSTRUCTION_EDGE_HEX }), {
+          name: `instruction-outline-material:${part.id}`,
+          userData: { renderRole: "instruction-outline-material" },
+        })
+      : null;
+  const castsShadows = finish !== "instruction";
   const { widthLdu, heightLdu, lengthLdu } = definition.dimensions;
   const bodyGeometry = createBodyGeometry(
     widthLdu * THREE_UNITS_PER_LDU,
@@ -117,10 +164,15 @@ export function createCatalogPartGeometry(
   bodyGeometry.userData = { ...metadata, renderRole: "body-geometry" };
   const body = new Mesh(bodyGeometry, material);
   body.name = `body:${part.id}`;
-  body.castShadow = true;
-  body.receiveShadow = true;
+  body.castShadow = castsShadows;
+  body.receiveShadow = castsShadows;
   body.userData = { renderRole: "body", partId: part.id };
   group.add(body);
+  if (outlineMaterial) {
+    group.add(
+      createInstructionOutline(bodyGeometry, outlineMaterial, `body-outline:${part.id}`, part.id),
+    );
+  }
 
   if (includeStuds) {
     const studGeometry = new CylinderGeometry(
@@ -132,20 +184,31 @@ export function createCatalogPartGeometry(
       false,
     );
     studGeometry.userData = { ...metadata, renderRole: "stud-geometry" };
+    const studOutline = outlineMaterial
+      ? new EdgesGeometry(studGeometry, INSTRUCTION_EDGE_THRESHOLD_DEGREES)
+      : null;
+    if (studOutline) studOutline.userData = { renderRole: "instruction-outline-geometry" };
 
     for (const primitive of definition.collision.primitives) {
       if (primitive.kind !== "cylinder" || primitive.tag !== "stud") continue;
       const stud = new Mesh(studGeometry, material);
       stud.name = `${primitive.id}:${part.id}`;
       stud.position.copy(lduToThreeVector(primitive.centerLdu));
-      stud.castShadow = true;
-      stud.receiveShadow = true;
+      stud.castShadow = castsShadows;
+      stud.receiveShadow = castsShadows;
       stud.userData = {
         renderRole: "stud",
         partId: part.id,
         primitiveId: primitive.id,
       };
       group.add(stud);
+      if (studOutline && outlineMaterial) {
+        const outline = new LineSegments(studOutline, outlineMaterial);
+        outline.name = `${primitive.id}-outline:${part.id}`;
+        outline.position.copy(stud.position);
+        outline.userData = { renderRole: "instruction-outline", partId: part.id };
+        group.add(outline);
+      }
     }
   }
 
