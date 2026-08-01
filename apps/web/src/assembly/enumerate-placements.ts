@@ -95,6 +95,35 @@ export class PlacementEnumerationError extends Error {
 
 const DEFAULT_MAX_DISTINCT_TRANSFORMS = 200_000;
 
+/**
+ * What a placement occupies, as a string two placements share exactly when they
+ * are the same placement written differently.
+ *
+ * A 2x4 brick at yaw 0 and at yaw 180 fill the same space and cover the same
+ * studs; a 1x1 brick is the same in all four. Enumeration deliberately does not
+ * collapse them — it is verified complete against a brute-force lattice sweep,
+ * and folding equivalence into it puts that verification at risk for an
+ * optimisation. Callers that care collapse the result instead, which is what
+ * the search driver does before it spends a render on a candidate.
+ *
+ * Keyed on the world body box and the world stud positions rather than on the
+ * footprint, because a part need not be rectilinear for this to keep working.
+ */
+export function placementOccupancyKey(catalogPartId: string, transform: RigidTransform): string {
+  const definition = getPartDefinition(catalogPartId);
+  if (!definition) {
+    throw new PlacementEnumerationError(
+      `Cannot key an occupancy for unknown catalog part ${catalogPartId}; it is absent from the pinned catalog.`,
+    );
+  }
+  const box = bodyBoundsLdu({ catalogPartId, transform });
+  const studs = definition.connectors
+    .filter((connector) => connector.kind === "stud")
+    .map((connector) => transformLduPoint(transform, connector.positionLdu).join(","))
+    .sort();
+  return [box.min.join(","), box.max.join(","), ...studs].join("|");
+}
+
 function positionKey(position: LduVector3): string {
   return `${position[0]},${position[1]},${position[2]}`;
 }
@@ -289,14 +318,10 @@ export function enumeratePlacements(
       semanticTags: [],
       provenance: { source: "manual" },
     };
-    const connections = discoverConnections(
-      portsByOrientation.get(orientationId)!,
-      transform,
-      candidateId,
-      freeStuds,
-      freeClutches,
-    );
-    const restsOnBuildPlate = bodyBoundsLdu(candidate).max[1] === GROUND_UNDERSIDE_LDU;
+    const ports = portsByOrientation.get(orientationId)!;
+    const box = bodyBoundsLdu(candidate);
+    const connections = discoverConnections(ports, transform, candidateId, freeStuds, freeClutches);
+    const restsOnBuildPlate = box.max[1] === GROUND_UNDERSIDE_LDU;
     if (connections.length === 0) {
       if (!restsOnBuildPlate) rejectedUnsupported += 1;
       else if (!allowDetached) rejectedDetached += 1;
