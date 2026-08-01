@@ -2,23 +2,26 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
+import { SAMPLE_BOOKLET, findSampleBooklet } from "./sample-booklet-path";
+
 import { scoreColorCoverage } from "./catalog-color-match";
 import { extractPageShapes, type OperatorList } from "./page-shapes";
 
 /** Measures what the vector art is made of, before any reader is built on it. */
-const SAMPLE = "recipes/6651557.pdf";
 const SCOREBOARD = "output/shapes-score.json";
 
 describe("page shape scoreboard", () => {
   it("scores the real booklet's fills against the catalog palette", async () => {
     mkdirSync("output", { recursive: true });
-    let data: Uint8Array;
-    try {
-      data = new Uint8Array(readFileSync(SAMPLE));
-    } catch {
-      writeFileSync(SCOREBOARD, JSON.stringify({ skipped: `no sample at ${SAMPLE}` }, null, 1));
+    const path = findSampleBooklet();
+    if (!path) {
+      writeFileSync(
+        SCOREBOARD,
+        JSON.stringify({ skipped: `no sample at ${SAMPLE_BOOKLET}` }, null, 1),
+      );
       return;
     }
+    const data = new Uint8Array(readFileSync(path));
 
     const { getDocument, OPS } = await import("pdfjs-dist/legacy/build/pdf.mjs");
     const document = await getDocument({ data, isEvalSupported: false }).promise;

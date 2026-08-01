@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { checkBookletConsistency, extractBookletStructure } from "./booklet-structure";
 import { ingestInstructionPdf } from "./ingest-pdf";
+import { SAMPLE_BOOKLET, findSampleBooklet } from "./sample-booklet-path";
 import type { PdfDocument } from "./ingest-pdf";
 
 /**
@@ -14,14 +15,15 @@ import type { PdfDocument } from "./ingest-pdf";
  * This is a scoreboard, not a gate: it asserts only that the harness ran. The
  * numbers it records are what the parse is driven against.
  */
-const SAMPLE = "recipes/6651557.pdf";
 // Artifact roots are ignored; scores are evidence for iteration, not source.
 const SCOREBOARD = "output/booklet-score.json";
 
 async function loadSampleDocument(): Promise<PdfDocument | null> {
   let data: Uint8Array;
   try {
-    data = new Uint8Array(readFileSync(SAMPLE));
+    const path = findSampleBooklet();
+    if (!path) return null;
+    data = new Uint8Array(readFileSync(path));
   } catch {
     return null;
   }
@@ -34,12 +36,18 @@ describe("booklet parse scoreboard", () => {
     mkdirSync("output", { recursive: true });
     const document = await loadSampleDocument();
     if (!document) {
-      writeFileSync(SCOREBOARD, JSON.stringify({ skipped: `no sample at ${SAMPLE}` }, null, 1));
+      writeFileSync(
+        SCOREBOARD,
+        JSON.stringify({ skipped: `no sample at ${SAMPLE_BOOKLET}` }, null, 1),
+      );
       return;
     }
 
     const source = await ingestInstructionPdf(
-      { name: "6651557.pdf", arrayBuffer: async () => readFileSync(SAMPLE).buffer as ArrayBuffer },
+      {
+        name: "6651557.pdf",
+        arrayBuffer: async () => readFileSync(findSampleBooklet()!).buffer as ArrayBuffer,
+      },
       { loadPdf: async () => document },
     );
     const structure = extractBookletStructure(source);
