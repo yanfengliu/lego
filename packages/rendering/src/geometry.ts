@@ -2,6 +2,7 @@ import {
   STUD_HEIGHT_LDU,
   STUD_RADIUS_LDU,
   getColorDefinition,
+  type CollisionWedge,
   type LduBounds,
   type PartDefinition,
 } from "@lego-studio/catalog";
@@ -10,6 +11,7 @@ import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.j
 import {
   BoxGeometry,
   BufferGeometry,
+  Float32BufferAttribute,
   CylinderGeometry,
   EdgesGeometry,
   Group,
@@ -142,6 +144,70 @@ function createInstructionOutline(
   return outline;
 }
 
+/**
+ * A wedge drawn as what it is: its bounding rectangle clipped by the sloped
+ * face, extruded through the part's height.
+ *
+ * The cross-section is computed the same way the collision test computes it, so
+ * the shape on screen is the shape that gets refused — a triangle or a
+ * trapezoid depending on where the cut falls.
+ */
+function createWedgeGeometry(wedge: CollisionWedge): BufferGeometry {
+  const [nx, nz] = wedge.cutNormalXZ;
+  const corners: [number, number][] = [
+    [wedge.minLdu[0], wedge.minLdu[2]],
+    [wedge.maxLdu[0], wedge.minLdu[2]],
+    [wedge.maxLdu[0], wedge.maxLdu[2]],
+    [wedge.minLdu[0], wedge.maxLdu[2]],
+  ];
+  const inside = ([x, z]: [number, number]) => nx * x + nz * z <= wedge.cutOffsetLdu;
+  const section: [number, number][] = [];
+  for (let index = 0; index < corners.length; index += 1) {
+    const current = corners[index]!;
+    const previous = corners[(index + 3) % 4]!;
+    if (inside(current) !== inside(previous)) {
+      const currentDistance = nx * current[0] + nz * current[1] - wedge.cutOffsetLdu;
+      const previousDistance = nx * previous[0] + nz * previous[1] - wedge.cutOffsetLdu;
+      const t = previousDistance / (previousDistance - currentDistance);
+      section.push([
+        previous[0] + t * (current[0] - previous[0]),
+        previous[1] + t * (current[1] - previous[1]),
+      ]);
+    }
+    if (inside(current)) section.push(current);
+  }
+  if (section.length < 3) {
+    throw new RangeError(
+      `Wedge ${wedge.id} has a sloped face that removes its whole footprint; check cutNormalXZ and cutOffsetLdu against minLdu/maxLdu.`,
+    );
+  }
+
+  // Two capped ends plus one quad per section edge, as flat triangles: a wedge
+  // has hard edges and smoothing them would round a corner that is not round.
+  const positions: number[] = [];
+  const topY = -wedge.minLdu[1] * THREE_UNITS_PER_LDU;
+  const bottomY = -wedge.maxLdu[1] * THREE_UNITS_PER_LDU;
+  const at = (index: number, y: number): [number, number, number] => [
+    section[index]![0] * THREE_UNITS_PER_LDU,
+    y,
+    section[index]![1] * THREE_UNITS_PER_LDU,
+  ];
+  for (let index = 1; index + 1 < section.length; index += 1) {
+    positions.push(...at(0, topY), ...at(index + 1, topY), ...at(index, topY));
+    positions.push(...at(0, bottomY), ...at(index, bottomY), ...at(index + 1, bottomY));
+  }
+  for (let index = 0; index < section.length; index += 1) {
+    const next = (index + 1) % section.length;
+    positions.push(...at(index, topY), ...at(index, bottomY), ...at(next, bottomY));
+    positions.push(...at(index, topY), ...at(next, bottomY), ...at(next, topY));
+  }
+
+  const geometry = new BufferGeometry();
+  geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
 export function createCatalogPartGeometry(
   part: PartInstance,
   definition: PartDefinition,
@@ -162,24 +228,51 @@ export function createCatalogPartGeometry(
         })
       : null;
   const castsShadows = finish !== "instruction";
-  const { widthLdu, heightLdu, lengthLdu } = definition.dimensions;
-  const bodyGeometry = createBodyGeometry(
-    widthLdu * THREE_UNITS_PER_LDU,
-    heightLdu * THREE_UNITS_PER_LDU,
-    lengthLdu * THREE_UNITS_PER_LDU,
-    finish,
-  );
-  bodyGeometry.userData = { ...metadata, renderRole: "body-geometry" };
-  const body = new Mesh(bodyGeometry, material);
-  body.name = `body:${part.id}`;
-  body.castShadow = castsShadows;
-  body.receiveShadow = castsShadows;
-  body.userData = { renderRole: "body", partId: part.id };
-  group.add(body);
-  if (outlineMaterial) {
-    group.add(
-      createInstructionOutline(bodyGeometry, outlineMaterial, `body-outline:${part.id}`, part.id),
-    );
+  // The solid is drawn from the same body primitives the collision validator
+  // reads. Drawing it from `dimensions` instead would let a wedge look like the
+  // box it is not, and would let the picture and the solid drift apart in
+  // silence — which is the gap LDCad's shadow library exists to patch.
+  let bodyIndex = 0;
+  for (const primitive of definition.collision.primitives) {
+    if (primitive.tag !== "body") continue;
+    const bodyGeometry =
+      primitive.kind === "wedge"
+        ? createWedgeGeometry(primitive)
+        : createBodyGeometry(
+            (primitive.maxLdu[0] - primitive.minLdu[0]) * THREE_UNITS_PER_LDU,
+            (primitive.maxLdu[1] - primitive.minLdu[1]) * THREE_UNITS_PER_LDU,
+            (primitive.maxLdu[2] - primitive.minLdu[2]) * THREE_UNITS_PER_LDU,
+            finish,
+          );
+    bodyGeometry.userData = { ...metadata, renderRole: "body-geometry" };
+    const body = new Mesh(bodyGeometry, material);
+    body.name = bodyIndex === 0 ? `body:${part.id}` : `body:${part.id}:${bodyIndex}`;
+    // A wedge is built from its own corners and is already in place; a box is
+    // built centred on the origin and has to be moved to its own centre.
+    if (primitive.kind !== "wedge") {
+      body.position.copy(
+        lduToThreeVector([
+          (primitive.minLdu[0] + primitive.maxLdu[0]) / 2,
+          (primitive.minLdu[1] + primitive.maxLdu[1]) / 2,
+          (primitive.minLdu[2] + primitive.maxLdu[2]) / 2,
+        ]),
+      );
+    }
+    body.castShadow = castsShadows;
+    body.receiveShadow = castsShadows;
+    body.userData = { renderRole: "body", partId: part.id, primitiveId: primitive.id };
+    group.add(body);
+    if (outlineMaterial) {
+      group.add(
+        createInstructionOutline(
+          bodyGeometry,
+          outlineMaterial,
+          bodyIndex === 0 ? `body-outline:${part.id}` : `body-outline:${part.id}:${bodyIndex}`,
+          part.id,
+        ),
+      );
+    }
+    bodyIndex += 1;
   }
 
   if (includeStuds) {

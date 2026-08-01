@@ -1,4 +1,9 @@
-import { getPartDefinition, type CollisionAllowance, type LduVector3 } from "@lego-studio/catalog";
+import {
+  getPartDefinition,
+  type CollisionAllowance,
+  type CollisionWedge,
+  type LduVector3,
+} from "@lego-studio/catalog";
 import type { ConnectionEdge, PartInstance } from "@lego-studio/protocol";
 
 import { transformLduPoint } from "./transforms.ts";
@@ -22,11 +27,29 @@ interface PrimitiveBounds {
   readonly max: LduVector3;
 }
 
+/**
+ * The sloped face of a wedge, as a half-plane in the horizontal plane: the
+ * solid is where `nx * x + nz * z <= offset`.
+ *
+ * Every body here is a vertical prism with a convex cross-section, so a box is
+ * a rectangle and a wedge is that rectangle clipped by one of these. Keeping
+ * the cut as a half-plane rather than a shape makes it survive a quarter turn
+ * as a rotated normal, and makes the overlap test exact instead of a bounding
+ * box that would claim the whole rectangle is solid.
+ */
+interface HorizontalCut {
+  readonly nx: number;
+  readonly nz: number;
+  readonly offset: number;
+}
+
 interface WorldBody extends PrimitiveBounds {
   readonly kind: "body";
   readonly part: PartInstance;
   readonly primitiveId: string;
   readonly sourceIndex: number;
+  /** Absent for a box, which fills its bounds. */
+  readonly cut?: HorizontalCut;
 }
 
 interface WorldStud extends PrimitiveBounds {
@@ -105,6 +128,18 @@ function makeWorldPrimitives(parts: readonly PartInstance[]): WorldPrimitive[] {
           primitiveId: primitive.id,
           sourceIndex,
           ...transformedBoxBounds(part, primitive.minLdu, primitive.maxLdu),
+        });
+        continue;
+      }
+
+      if (primitive.kind === "wedge") {
+        primitives.push({
+          kind: "body",
+          part,
+          primitiveId: primitive.id,
+          sourceIndex,
+          ...transformedBoxBounds(part, primitive.minLdu, primitive.maxLdu),
+          cut: transformedCut(part, primitive),
         });
         continue;
       }
@@ -209,6 +244,97 @@ function collectAllowedPenetrations(
   return allowed;
 }
 
+/**
+ * Carries a wedge's sloped face into world space.
+ *
+ * The transform is rigid, so the plane's normal is the image of the local
+ * normal as a direction — the difference of two transformed points — and its
+ * offset is that normal dotted with any transformed point on the plane.
+ */
+function transformedCut(part: PartInstance, wedge: CollisionWedge): HorizontalCut {
+  const [nx, nz] = wedge.cutNormalXZ;
+  const origin = transformLduPoint(part.transform, [0, 0, 0]);
+  const tip = transformLduPoint(part.transform, [nx, 0, nz]);
+  const worldNx = tip[0] - origin[0];
+  const worldNz = tip[2] - origin[2];
+  const lengthSquared = nx * nx + nz * nz;
+  const onPlane = transformLduPoint(part.transform, [
+    (nx * wedge.cutOffsetLdu) / lengthSquared,
+    0,
+    (nz * wedge.cutOffsetLdu) / lengthSquared,
+  ]);
+  return { nx: worldNx, nz: worldNz, offset: worldNx * onPlane[0] + worldNz * onPlane[2] };
+}
+
+/** Whether any of a circle reaches the solid side of a sloped face. */
+function cutAdmitsCircle(cut: HorizontalCut, x: number, z: number, radius: number): boolean {
+  const length = Math.hypot(cut.nx, cut.nz);
+  if (length === 0) return true;
+  return (cut.nx * x + cut.nz * z - cut.offset) / length < radius;
+}
+
+/** Area below which a polygon is a seam rather than an overlap. */
+const OVERLAP_AREA_EPSILON = 1e-6;
+
+type Point2 = readonly [number, number];
+
+/** Sutherland-Hodgman: keep the part of the polygon inside `nx*x + nz*z <= offset`. */
+function clipByCut(polygon: readonly Point2[], cut: HorizontalCut): readonly Point2[] {
+  const inside = (point: Point2) => cut.nx * point[0] + cut.nz * point[1] <= cut.offset;
+  const clipped: Point2[] = [];
+  for (let index = 0; index < polygon.length; index += 1) {
+    const current = polygon[index]!;
+    const previous = polygon[(index + polygon.length - 1) % polygon.length]!;
+    const currentIn = inside(current);
+    if (currentIn !== inside(previous)) {
+      const currentDistance = cut.nx * current[0] + cut.nz * current[1] - cut.offset;
+      const previousDistance = cut.nx * previous[0] + cut.nz * previous[1] - cut.offset;
+      const t = previousDistance / (previousDistance - currentDistance);
+      clipped.push([
+        previous[0] + t * (current[0] - previous[0]),
+        previous[1] + t * (current[1] - previous[1]),
+      ]);
+    }
+    if (currentIn) clipped.push(current);
+  }
+  return clipped;
+}
+
+function polygonArea(polygon: readonly Point2[]): number {
+  let total = 0;
+  for (let index = 0; index < polygon.length; index += 1) {
+    const current = polygon[index]!;
+    const next = polygon[(index + 1) % polygon.length]!;
+    total += current[0] * next[1] - next[0] * current[1];
+  }
+  return Math.abs(total) / 2;
+}
+
+/**
+ * Whether two bodies share space, exactly.
+ *
+ * Both are vertical prisms, so their vertical extents must overlap and their
+ * cross-sections must share area. The cross-sections are their shared bounding
+ * rectangle clipped by whichever sloped faces they have, which is exact rather
+ * than conservative: the wedge really is its rectangle minus that half-plane.
+ */
+function bodiesOverlap(left: WorldBody, right: WorldBody): boolean {
+  if (left.cut === undefined && right.cut === undefined) return true;
+  const minX = Math.max(left.min[0], right.min[0]);
+  const maxX = Math.min(left.max[0], right.max[0]);
+  const minZ = Math.max(left.min[2], right.min[2]);
+  const maxZ = Math.min(left.max[2], right.max[2]);
+  let polygon: readonly Point2[] = [
+    [minX, minZ],
+    [maxX, minZ],
+    [maxX, maxZ],
+    [minX, maxZ],
+  ];
+  if (left.cut) polygon = clipByCut(polygon, left.cut);
+  if (right.cut) polygon = clipByCut(polygon, right.cut);
+  return polygon.length >= 3 && polygonArea(polygon) > OVERLAP_AREA_EPSILON;
+}
+
 function boundsOverlap(left: PrimitiveBounds, right: PrimitiveBounds): boolean {
   return (
     left.min[0] < right.max[0] &&
@@ -222,6 +348,11 @@ function boundsOverlap(left: PrimitiveBounds, right: PrimitiveBounds): boolean {
 
 function studIntersectsBody(stud: WorldStud, body: WorldBody): boolean {
   if (stud.min[1] >= body.max[1] || body.min[1] >= stud.max[1]) {
+    return false;
+  }
+  // A stud over the empty corner of a wedge is over nothing, however far inside
+  // the wedge's bounding box it sits.
+  if (body.cut && !cutAdmitsCircle(body.cut, stud.center[0], stud.center[2], stud.radiusLdu)) {
     return false;
   }
   const closestX = Math.max(body.min[0], Math.min(stud.center[0], body.max[0]));
@@ -333,7 +464,7 @@ export function findCatalogCollisions(
 
       let collides: boolean;
       if (left.kind === "body" && right.kind === "body") {
-        collides = true;
+        collides = bodiesOverlap(left, right);
       } else if (left.kind === "stud" && right.kind === "stud") {
         collides = studsIntersect(left, right);
       } else {

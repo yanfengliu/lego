@@ -12,6 +12,8 @@ import {
   getCatalogSnapshotDigestInput,
   getColorDefinition,
   getPartDefinition,
+  type PartDefinition,
+  type PartFamily,
   PART_DEFINITIONS,
   PLATE_HEIGHT_LDU,
   resolvePartId,
@@ -22,7 +24,39 @@ import {
 } from "./index.js";
 
 /** Every family the catalog defines; a new one must be added here deliberately. */
-const PART_FAMILY_NAMES = ["brick", "plate", "tile", "jumper-plate", "grille-tile"] as const;
+const PART_FAMILY_NAMES = [
+  "brick",
+  "plate",
+  "tile",
+  "jumper-plate",
+  "grille-tile",
+  "wedge-plate",
+] as const satisfies readonly PartFamily[];
+
+/**
+ * Grid cells the part's body actually fills. A wedge's tapered corner is empty,
+ * so it carries no underside clutch there.
+ */
+const cellIsSolid = (part: PartDefinition, x: number, z: number): boolean => {
+  const wedge = part.collision.primitives.find((primitive) => primitive.kind === "wedge");
+  if (!wedge) return true;
+  return wedge.cutNormalXZ[0] * x + wedge.cutNormalXZ[1] * z <= wedge.cutOffsetLdu;
+};
+
+const solidCellCount = (part: PartDefinition): number => {
+  const { widthStuds, lengthStuds } = part.dimensions;
+  const wedge = part.collision.primitives.find((primitive) => primitive.kind === "wedge");
+  if (!wedge) return widthStuds * lengthStuds;
+  let count = 0;
+  for (let xIndex = 0; xIndex < widthStuds; xIndex += 1) {
+    for (let zIndex = 0; zIndex < lengthStuds; zIndex += 1) {
+      const x = (xIndex - (widthStuds - 1) / 2) * STUD_PITCH_LDU;
+      const z = (zIndex - (lengthStuds - 1) / 2) * STUD_PITCH_LDU;
+      if (wedge.cutNormalXZ[0] * x + wedge.cutNormalXZ[1] * z <= wedge.cutOffsetLdu) count += 1;
+    }
+  }
+  return count;
+};
 /** Families that present a smooth top, so they carry no studs at all. */
 const SMOOTH_TOP_FAMILIES = new Set(["tile", "grille-tile"]);
 const EXPECTED_PART_IDS = [
@@ -81,6 +115,10 @@ const EXPECTED_PART_IDS = [
   "builtin:jumper-plate-1x2",
   "builtin:jumper-plate-2x2",
   "builtin:jumper-plate-1x3",
+  "builtin:wedge-plate-2x4-left",
+  "builtin:wedge-plate-2x4-right",
+  "builtin:wedge-plate-2x3-left",
+  "builtin:wedge-plate-2x3-right",
 ] as const;
 
 const determinant = (matrix: readonly number[]): number =>
@@ -110,6 +148,7 @@ describe("starter catalog", () => {
       tile: 9,
       "jumper-plate": 3,
       "grille-tile": 1,
+      "wedge-plate": 4,
     });
     // Every part belongs to a family the palette knows how to show.
     expect(
@@ -145,7 +184,7 @@ describe("starter catalog", () => {
   it("places one semantic stud and one underside tube seat at every grid point", () => {
     for (const part of PART_DEFINITIONS) {
       const { widthStuds, lengthStuds, heightLdu } = part.dimensions;
-      const expectedPortCount = widthStuds * lengthStuds;
+      const expectedPortCount = solidCellCount(part);
       // A jumper plate names its studs, so its count is what it declared, not
       // one per grid point.
       const expectedStudCount = SMOOTH_TOP_FAMILIES.has(part.family)
@@ -163,6 +202,12 @@ describe("starter catalog", () => {
           const z = (zIndex - (lengthStuds - 1) / 2) * STUD_PITCH_LDU;
           const stud = studs.find(({ id }) => id === `stud:${xIndex}:${zIndex}`);
           const clutch = clutches.find(({ id }) => id === `undersideClutch:${xIndex}:${zIndex}`);
+          // A wedge's tapered corner is empty, so it holds neither.
+          if (!cellIsSolid(part, x, z)) {
+            expect(stud).toBeUndefined();
+            expect(clutch).toBeUndefined();
+            continue;
+          }
 
           if (!SMOOTH_TOP_FAMILIES.has(part.family) && part.geometry.studOffsetsLdu === undefined)
             expect(stud).toMatchObject({
@@ -186,20 +231,22 @@ describe("starter catalog", () => {
 
   it("provides body and stud collision primitives with connection-gated clearances", () => {
     for (const part of PART_DEFINITIONS) {
-      const gridPoints = part.dimensions.widthStuds * part.dimensions.lengthStuds;
       const expectedStudCount = SMOOTH_TOP_FAMILIES.has(part.family)
         ? 0
-        : (part.geometry.studOffsetsLdu?.length ?? gridPoints);
+        : (part.geometry.studOffsetsLdu?.length ?? solidCellCount(part));
       const body = part.collision.primitives.find(({ id }) => id === "body");
       const studs = part.collision.primitives.filter(({ kind }) => kind === "cylinder");
 
+      // A wedge is the same bounding box with one face sloped away, so its
+      // bounds still have to match; only its kind differs.
       expect(body).toMatchObject({
-        kind: "box",
+        kind: part.geometry.bodyMode === "compound" ? "wedge" : "box",
         minLdu: part.bodyBoundsLdu.min,
         maxLdu: part.bodyBoundsLdu.max,
       });
       expect(studs).toHaveLength(expectedStudCount);
-      expect(part.collision.allowances).toHaveLength(gridPoints);
+      // One per cell the body fills: a wedge has no clutch over its empty corner.
+      expect(part.collision.allowances).toHaveLength(solidCellCount(part));
 
       for (const allowance of part.collision.allowances) {
         expect(allowance).toMatchObject({

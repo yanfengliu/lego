@@ -17,7 +17,8 @@ export type OrientationMatrix = readonly [
  * grille tile is tile-height with none; both are otherwise a rectangular prism,
  * so they differ from a plate or tile only in which studs they carry.
  */
-export type PartFamily = "brick" | "plate" | "tile" | "jumper-plate" | "grille-tile";
+export type PartFamily =
+  "brick" | "plate" | "tile" | "jumper-plate" | "grille-tile" | "wedge-plate";
 export type ConnectorKind = "stud" | "undersideClutch";
 export type ConnectorGeometryRole = "stud" | "tubeSeat";
 export type CatalogAliasNamespace = "human" | "ldraw";
@@ -85,6 +86,30 @@ export interface CollisionBox {
   readonly maxLdu: LduVector3;
 }
 
+/**
+ * A right triangular prism: the box from min to max with one vertical face
+ * sloped away, which is what a wedge plate, a slope and a cheese slope all are.
+ *
+ * The slope is given as a half-plane rather than a shape, because that is what
+ * survives a quarter turn as a rotated normal and what makes the overlap test
+ * exact. A union of axis-aligned boxes cannot express a diagonal at all, and
+ * approximating one at stud resolution on a part two studs wide just
+ * reproduces the bounding box.
+ */
+export interface CollisionWedge {
+  readonly id: string;
+  readonly kind: "wedge";
+  readonly tag: "body";
+  readonly minLdu: LduVector3;
+  readonly maxLdu: LduVector3;
+  /**
+   * Outward normal of the sloped face in the horizontal plane. The solid is the
+   * box where `cutNormalXZ[0] * x + cutNormalXZ[1] * z <= cutOffsetLdu`.
+   */
+  readonly cutNormalXZ: readonly [x: number, z: number];
+  readonly cutOffsetLdu: number;
+}
+
 export interface CollisionCylinder {
   readonly id: string;
   readonly kind: "cylinder";
@@ -95,7 +120,7 @@ export interface CollisionCylinder {
   readonly heightLdu: number;
 }
 
-export type CollisionPrimitive = CollisionBox | CollisionCylinder;
+export type CollisionPrimitive = CollisionBox | CollisionWedge | CollisionCylinder;
 
 export interface CollisionAllowance {
   readonly id: string;
@@ -118,7 +143,12 @@ export interface ParametricGeometryRecipe {
   readonly generatorId: "builtin:parametric-rectilinear-part/1";
   readonly digestInput: string;
   readonly contentHash: `sha256:${string}`;
-  readonly bodyMode: "rectangular-prism";
+  /**
+   * "rectangular-prism" is one box over the whole footprint. "compound" is the
+   * union of the body primitives in `collision`, which is what the renderer
+   * draws — so a part's solid and its picture are the same statement.
+   */
+  readonly bodyMode: "rectangular-prism" | "compound";
   /**
    * "cylinder-grid" puts a stud at the centre of every cell of the footprint,
    * "cylinder-offsets" at the listed positions only, "none" at none.

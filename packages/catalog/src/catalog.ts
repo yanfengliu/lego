@@ -124,6 +124,19 @@ interface PartBlueprint {
    * which is what a plate or brick has.
    */
   readonly studOffsetsLdu?: readonly (readonly [x: number, z: number])[];
+  /**
+   * Slopes one vertical face away, turning the body from a box into a right
+   * prism. Measured from the part's own LDraw file rather than guessed.
+   */
+  readonly bodyWedge?: {
+    readonly cutNormalXZ: readonly [x: number, z: number];
+    readonly cutOffsetLdu: number;
+  };
+  /**
+   * Distinguishes parts that share a family and a footprint but not a shape —
+   * a wedge plate comes in a left and a right that are not interchangeable.
+   */
+  readonly variant?: string;
 }
 
 const PART_BLUEPRINTS = [
@@ -520,6 +533,64 @@ const PART_BLUEPRINTS = [
     ],
     geometrySha256: "310166865a722342abdd48cd8bcd312716f935e440f7c312c2d9df7b3d7bc17c",
   },
+  {
+    family: "wedge-plate",
+    widthStuds: 2,
+    lengthStuds: 4,
+    variant: "left",
+    ldrawId: "41770a.dat",
+    studOffsetsLdu: [
+      [-10, -30],
+      [-10, -10],
+      [-10, 10],
+      [-10, 30],
+    ],
+    bodyWedge: { cutNormalXZ: [4, -1], cutOffsetLdu: 40 },
+    geometrySha256: "f0a7d07de1e70ebcfafc25609a2f4859eeb5e060452fcf5ffcfca448a50e936a",
+  },
+  {
+    family: "wedge-plate",
+    widthStuds: 2,
+    lengthStuds: 4,
+    variant: "right",
+    ldrawId: "41769a.dat",
+    studOffsetsLdu: [
+      [10, -30],
+      [10, -10],
+      [10, 10],
+      [10, 30],
+    ],
+    bodyWedge: { cutNormalXZ: [-4, -1], cutOffsetLdu: 40 },
+    geometrySha256: "01fe4912925c0adad52815bd1ff44c447e0f0ef47191ae2ccc6d993c8ddde9fc",
+  },
+  {
+    family: "wedge-plate",
+    widthStuds: 2,
+    lengthStuds: 3,
+    variant: "left",
+    ldrawId: "43723a.dat",
+    studOffsetsLdu: [
+      [-10, -20],
+      [-10, 0],
+      [-10, 20],
+    ],
+    bodyWedge: { cutNormalXZ: [3, -1], cutOffsetLdu: 30 },
+    geometrySha256: "07f5e2351292bbc7779a5b0a6080e3d4da241c365ddcaceff3f86805be3d96f0",
+  },
+  {
+    family: "wedge-plate",
+    widthStuds: 2,
+    lengthStuds: 3,
+    variant: "right",
+    ldrawId: "43722a.dat",
+    studOffsetsLdu: [
+      [10, -20],
+      [10, 0],
+      [10, 20],
+    ],
+    bodyWedge: { cutNormalXZ: [-3, -1], cutOffsetLdu: 30 },
+    geometrySha256: "bf94e0979d89b8e27d2c29ec02deb3730716fdad78177b20497504d1ee0f3d32",
+  },
 ] as const satisfies readonly PartBlueprint[];
 
 const makeAliases = (displayName: string, ldrawId: `${string}.dat`): readonly CatalogAlias[] =>
@@ -550,6 +621,7 @@ const FAMILY_DISPLAY_NAMES: Readonly<Record<PartFamily, string>> = Object.freeze
   tile: "Tile",
   "jumper-plate": "Jumper plate",
   "grille-tile": "Grille tile",
+  "wedge-plate": "Wedge plate",
 });
 
 /**
@@ -562,6 +634,7 @@ const makeGeometryDigestInput = (
   lengthStuds: number,
   heightLdu: number,
   studOffsetsLdu: readonly (readonly [number, number])[] | undefined,
+  bodyWedge: PartBlueprint["bodyWedge"],
 ): string =>
   JSON.stringify({
     generatorId: "builtin:parametric-rectilinear-part/1",
@@ -575,6 +648,7 @@ const makeGeometryDigestInput = (
     studMode: studModeFor(family, studOffsetsLdu),
     undersideMode: "semantic-tube-seat-grid",
     ...(studOffsetsLdu === undefined ? {} : { studOffsetsLdu }),
+    ...(bodyWedge === undefined ? {} : { bodyMode: "wedge-prism", bodyWedge }),
   });
 
 const studModeFor = (
@@ -586,15 +660,20 @@ const studModeFor = (
 };
 
 const makePart = (blueprint: PartBlueprint): PartDefinition => {
-  const { family, widthStuds, lengthStuds, studOffsetsLdu } = blueprint;
+  const { family, widthStuds, lengthStuds, studOffsetsLdu, bodyWedge } = blueprint;
   const studded = isStudded(family);
   const heightLdu = familyHeightLdu(family);
   const widthLdu = widthStuds * STUD_PITCH_LDU;
   const lengthLdu = lengthStuds * STUD_PITCH_LDU;
   const topY = -heightLdu / 2;
   const bottomY = heightLdu / 2;
-  const displayName = `${FAMILY_DISPLAY_NAMES[family]} ${widthStuds} x ${lengthStuds}`;
-  const id = `builtin:${family}-${widthStuds}x${lengthStuds}`;
+  const variantSuffix = blueprint.variant === undefined ? "" : `-${blueprint.variant}`;
+  const displayName =
+    `${FAMILY_DISPLAY_NAMES[family]} ${widthStuds} x ${lengthStuds}` +
+    (blueprint.variant === undefined
+      ? ""
+      : ` ${blueprint.variant[0]!.toUpperCase()}${blueprint.variant.slice(1)}`);
+  const id = `builtin:${family}-${widthStuds}x${lengthStuds}${variantSuffix}`;
   const bodyBoundsLdu: LduBounds = {
     min: [-widthLdu / 2, topY, -lengthLdu / 2],
     max: [widthLdu / 2, bottomY, lengthLdu / 2],
@@ -605,20 +684,42 @@ const makePart = (blueprint: PartBlueprint): PartDefinition => {
   };
   const connectors: ConnectorPortDefinition[] = [];
   const primitives: CollisionPrimitive[] = [
-    {
-      id: "body",
-      kind: "box",
-      tag: "body",
-      minLdu: bodyBoundsLdu.min,
-      maxLdu: bodyBoundsLdu.max,
-    },
+    bodyWedge
+      ? {
+          id: "body",
+          kind: "wedge",
+          tag: "body",
+          minLdu: bodyBoundsLdu.min,
+          maxLdu: bodyBoundsLdu.max,
+          cutNormalXZ: bodyWedge.cutNormalXZ,
+          cutOffsetLdu: bodyWedge.cutOffsetLdu,
+        }
+      : {
+          id: "body",
+          kind: "box",
+          tag: "body",
+          minLdu: bodyBoundsLdu.min,
+          maxLdu: bodyBoundsLdu.max,
+        },
   ];
+
+  /**
+   * A cell of the footprint the body actually fills. A wedge's tapered corner
+   * is empty, so putting an underside clutch there would offer a connection to
+   * thin air; leaving it out refuses a placement the real part cannot hold,
+   * which is the safe direction to be wrong in.
+   */
+  const cellIsSolid = (x: number, z: number): boolean =>
+    bodyWedge === undefined ||
+    bodyWedge.cutNormalXZ[0] * x + bodyWedge.cutNormalXZ[1] * z <= bodyWedge.cutOffsetLdu;
   const allowances: CollisionAllowance[] = [];
 
   for (let xIndex = 0; xIndex < widthStuds; xIndex += 1) {
     for (let zIndex = 0; zIndex < lengthStuds; zIndex += 1) {
       const x = (xIndex - (widthStuds - 1) / 2) * STUD_PITCH_LDU;
       const z = (zIndex - (lengthStuds - 1) / 2) * STUD_PITCH_LDU;
+
+      if (!cellIsSolid(x, z)) continue;
 
       if (studded && studOffsetsLdu === undefined) {
         connectors.push({
@@ -707,9 +808,10 @@ const makePart = (blueprint: PartBlueprint): PartDefinition => {
         lengthStuds,
         heightLdu,
         studOffsetsLdu,
+        bodyWedge,
       ),
       contentHash: `sha256:${blueprint.geometrySha256}`,
-      bodyMode: "rectangular-prism",
+      bodyMode: bodyWedge ? "compound" : "rectangular-prism",
       studMode: studModeFor(family, studOffsetsLdu),
       ...(studOffsetsLdu === undefined ? {} : { studOffsetsLdu }),
       undersideMode: "semantic-tube-seat-grid",
@@ -721,7 +823,7 @@ const makePart = (blueprint: PartBlueprint): PartDefinition => {
     legalOrientationIds: LEGAL_ORIENTATION_IDS,
     collision: { modelVersion: COLLISION_MODEL_VERSION, primitives, allowances },
     availableColorIds: AVAILABLE_COLOR_IDS,
-    substitutionGroupId: `${family}:${widthStuds}x${lengthStuds}`,
+    substitutionGroupId: `${family}:${widthStuds}x${lengthStuds}${variantSuffix}`,
     inventory: {
       availability: "builtin-unlimited",
       knownMassGrams: null,
