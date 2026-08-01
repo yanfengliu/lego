@@ -106,8 +106,11 @@ describe("captured maker population replay", () => {
     expect(replayCapturedMakerPopulation(input, generated)).toEqual(
       runDeterministicMakerPopulation(input),
     );
+    // Pinned so an accidental change to the deterministic path is caught. It
+    // moves deliberately with catalog truth, because the run embeds it: last
+    // moved for builtin.basic-parts/4.
     expect(canonicalDigest(runDeterministicMakerPopulation(input))).toBe(
-      "sha256:dc61ae486e87cf3a3d2bec5d6d98684f8bba613d7cdee1fac86a84635644c40a",
+      "sha256:5f5f2e8ec391229c89b747bdd2d213e6fae65e746c686e6e081f96f14c83b3ee",
     );
   });
 

@@ -21,6 +21,10 @@ import {
   UPRIGHT_ORIENTATIONS,
 } from "./index.js";
 
+/** Every family the catalog defines; a new one must be added here deliberately. */
+const PART_FAMILY_NAMES = ["brick", "plate", "tile", "jumper-plate", "grille-tile"] as const;
+/** Families that present a smooth top, so they carry no studs at all. */
+const SMOOTH_TOP_FAMILIES = new Set(["tile", "grille-tile"]);
 const EXPECTED_PART_IDS = [
   "builtin:brick-1x1",
   "builtin:brick-1x2",
@@ -54,6 +58,29 @@ const EXPECTED_PART_IDS = [
   "builtin:tile-1x6",
   "builtin:tile-2x2",
   "builtin:tile-2x4",
+  "builtin:plate-1x10",
+  "builtin:plate-1x12",
+  "builtin:plate-2x10",
+  "builtin:plate-2x12",
+  "builtin:plate-4x10",
+  "builtin:plate-4x12",
+  "builtin:plate-6x8",
+  "builtin:plate-6x10",
+  "builtin:plate-6x12",
+  "builtin:plate-6x16",
+  "builtin:plate-8x8",
+  "builtin:plate-8x16",
+  "builtin:brick-1x10",
+  "builtin:brick-1x12",
+  "builtin:brick-1x16",
+  "builtin:brick-2x10",
+  "builtin:tile-1x3",
+  "builtin:tile-1x8",
+  "builtin:tile-2x6",
+  "builtin:grille-tile-1x2",
+  "builtin:jumper-plate-1x2",
+  "builtin:jumper-plate-2x2",
+  "builtin:jumper-plate-1x3",
 ] as const;
 
 const determinant = (matrix: readonly number[]): number =>
@@ -68,12 +95,26 @@ describe("starter catalog", () => {
     expect(getPartDefinition("constructor")).toBeUndefined();
     expect(getColorDefinition("constructor")).toBeUndefined();
   });
-  it("contains exactly the approved bricks, plates, and tiles", () => {
+  it("contains exactly the approved parts, every family accounted for", () => {
     expect(PART_DEFINITIONS.map(({ id }) => id)).toEqual(EXPECTED_PART_IDS);
     expect(new Set(PART_DEFINITIONS.map(({ id }) => id))).toHaveLength(EXPECTED_PART_IDS.length);
-    expect(PART_DEFINITIONS.filter(({ family }) => family === "brick")).toHaveLength(11);
-    expect(PART_DEFINITIONS.filter(({ family }) => family === "plate")).toHaveLength(15);
-    expect(PART_DEFINITIONS.filter(({ family }) => family === "tile")).toHaveLength(6);
+    const perFamily = Object.fromEntries(
+      PART_FAMILY_NAMES.map((family) => [
+        family,
+        PART_DEFINITIONS.filter((part) => part.family === family).length,
+      ]),
+    );
+    expect(perFamily).toEqual({
+      brick: 15,
+      plate: 27,
+      tile: 9,
+      "jumper-plate": 3,
+      "grille-tile": 1,
+    });
+    // Every part belongs to a family the palette knows how to show.
+    expect(
+      PART_DEFINITIONS.filter(({ family }) => !PART_FAMILY_NAMES.includes(family)),
+    ).toHaveLength(0);
   });
 
   it("uses integer LDU dimensions and centered bounds", () => {
@@ -89,7 +130,7 @@ describe("starter catalog", () => {
         min: [-dimensions.widthLdu / 2, -expectedHeight / 2, -dimensions.lengthLdu / 2],
         max: [dimensions.widthLdu / 2, expectedHeight / 2, dimensions.lengthLdu / 2],
       });
-      const studOverhang = part.family === "tile" ? 0 : STUD_HEIGHT_LDU;
+      const studOverhang = SMOOTH_TOP_FAMILIES.has(part.family) ? 0 : STUD_HEIGHT_LDU;
       expect(part.boundsLdu).toEqual({
         min: [
           -dimensions.widthLdu / 2,
@@ -105,7 +146,11 @@ describe("starter catalog", () => {
     for (const part of PART_DEFINITIONS) {
       const { widthStuds, lengthStuds, heightLdu } = part.dimensions;
       const expectedPortCount = widthStuds * lengthStuds;
-      const expectedStudCount = part.family === "tile" ? 0 : expectedPortCount;
+      // A jumper plate names its studs, so its count is what it declared, not
+      // one per grid point.
+      const expectedStudCount = SMOOTH_TOP_FAMILIES.has(part.family)
+        ? 0
+        : (part.geometry.studOffsetsLdu?.length ?? expectedPortCount);
       const studs = part.connectors.filter(({ kind }) => kind === "stud");
       const clutches = part.connectors.filter(({ kind }) => kind === "undersideClutch");
 
@@ -119,7 +164,7 @@ describe("starter catalog", () => {
           const stud = studs.find(({ id }) => id === `stud:${xIndex}:${zIndex}`);
           const clutch = clutches.find(({ id }) => id === `undersideClutch:${xIndex}:${zIndex}`);
 
-          if (part.family !== "tile")
+          if (!SMOOTH_TOP_FAMILIES.has(part.family) && part.geometry.studOffsetsLdu === undefined)
             expect(stud).toMatchObject({
               geometryRole: "stud",
               positionLdu: [x, -heightLdu / 2, z],
@@ -142,7 +187,9 @@ describe("starter catalog", () => {
   it("provides body and stud collision primitives with connection-gated clearances", () => {
     for (const part of PART_DEFINITIONS) {
       const gridPoints = part.dimensions.widthStuds * part.dimensions.lengthStuds;
-      const expectedStudCount = part.family === "tile" ? 0 : gridPoints;
+      const expectedStudCount = SMOOTH_TOP_FAMILIES.has(part.family)
+        ? 0
+        : (part.geometry.studOffsetsLdu?.length ?? gridPoints);
       const body = part.collision.primitives.find(({ id }) => id === "body");
       const studs = part.collision.primitives.filter(({ kind }) => kind === "cylinder");
 

@@ -119,6 +119,11 @@ interface PartBlueprint {
   /** LDraw part identifiers may carry a variant letter, so this is not numeric. */
   readonly ldrawId: `${string}.dat`;
   readonly geometrySha256: string;
+  /**
+   * Stud centres in LDU from the part's centre. Omit for a stud on every cell,
+   * which is what a plate or brick has.
+   */
+  readonly studOffsetsLdu?: readonly (readonly [x: number, z: number])[];
 }
 
 const PART_BLUEPRINTS = [
@@ -346,6 +351,173 @@ const PART_BLUEPRINTS = [
     ldrawId: "87079.dat",
     geometrySha256: "a7f6f08b781a1cc7e31a2a54b156314114a8d428de5be9381950fc4a5cbf1ded",
   },
+  {
+    family: "plate",
+    widthStuds: 1,
+    lengthStuds: 10,
+    ldrawId: "4477.dat",
+    geometrySha256: "e85fb288c822f23d381ada146734f0f525ad0fee0b1180fc9450f597fc1258d3",
+  },
+  {
+    family: "plate",
+    widthStuds: 1,
+    lengthStuds: 12,
+    ldrawId: "60479.dat",
+    geometrySha256: "320cac1477590d96249d57e034b1bfa6c759c97d99b8bf98ac7d0e289c0e1bcf",
+  },
+  {
+    family: "plate",
+    widthStuds: 2,
+    lengthStuds: 10,
+    ldrawId: "3832.dat",
+    geometrySha256: "47abdc29456bfdc0189c32353bbdc5a8ecde4bb7bb4714d9100e2c523aa7dab0",
+  },
+  {
+    family: "plate",
+    widthStuds: 2,
+    lengthStuds: 12,
+    ldrawId: "2445.dat",
+    geometrySha256: "67a8a6a9975e46caba8f504e8cefcd27cf33920971c7857a53369d7795052693",
+  },
+  {
+    family: "plate",
+    widthStuds: 4,
+    lengthStuds: 10,
+    ldrawId: "3030.dat",
+    geometrySha256: "02903b5f6bb273ecc413a190244aa13f1a2d7c80f448fe04159c8c170ffa2527",
+  },
+  {
+    family: "plate",
+    widthStuds: 4,
+    lengthStuds: 12,
+    ldrawId: "3029.dat",
+    geometrySha256: "ca77fffe94bcf0cc4fcf8ca35d275c90f5666cbc7983e7d6846fcf5bbe56e2f1",
+  },
+  {
+    family: "plate",
+    widthStuds: 6,
+    lengthStuds: 8,
+    ldrawId: "3036.dat",
+    geometrySha256: "ec30f8714fbecf194501d1416b77b9ad6402d139c4d4137c436a076d05273730",
+  },
+  {
+    family: "plate",
+    widthStuds: 6,
+    lengthStuds: 10,
+    ldrawId: "3033.dat",
+    geometrySha256: "d9afbaf030bae0a9aa371471c3dbc75e16ae6f67c0e1af246d0b53678a76889a",
+  },
+  {
+    family: "plate",
+    widthStuds: 6,
+    lengthStuds: 12,
+    ldrawId: "3028.dat",
+    geometrySha256: "80b977099604d230f4f9d5fce3c143d791c6f1bf4f3641ccd4915dce57bab86e",
+  },
+  {
+    family: "plate",
+    widthStuds: 6,
+    lengthStuds: 16,
+    ldrawId: "3027.dat",
+    geometrySha256: "539e316384e959dcb3019bb0f9c3f7fe591c5f99655007285cec8e760eb689e2",
+  },
+  {
+    family: "plate",
+    widthStuds: 8,
+    lengthStuds: 8,
+    ldrawId: "41539.dat",
+    geometrySha256: "7cc021c5d231d2f2d9906fe6a36cc2480b183b557ea510a982425855225988d2",
+  },
+  {
+    family: "plate",
+    widthStuds: 8,
+    lengthStuds: 16,
+    ldrawId: "92438.dat",
+    geometrySha256: "fd5eaa06d59c1aa2ca12e92ecd050b5cf218810ed38cec6af252bcd013d4ea7a",
+  },
+  {
+    family: "brick",
+    widthStuds: 1,
+    lengthStuds: 10,
+    ldrawId: "6111.dat",
+    geometrySha256: "52901c059aed63ed1f60628c851b7cd35018f6156a15830aa47652de2e65dade",
+  },
+  {
+    family: "brick",
+    widthStuds: 1,
+    lengthStuds: 12,
+    ldrawId: "6112.dat",
+    geometrySha256: "d0ef7b58ea4fde2e5f76921c62508d95ab80215bf6d21719f95707fe78a9d07a",
+  },
+  {
+    family: "brick",
+    widthStuds: 1,
+    lengthStuds: 16,
+    ldrawId: "2465.dat",
+    geometrySha256: "e622810c1f697ca04bd28a8aea4c5916c06597dee309f703b0b4584ef21e3f70",
+  },
+  {
+    family: "brick",
+    widthStuds: 2,
+    lengthStuds: 10,
+    ldrawId: "3006.dat",
+    geometrySha256: "69ca426ba04162c18c816edfbe60f4572a1509ee87547678a00957b5cb3260f9",
+  },
+  {
+    family: "tile",
+    widthStuds: 1,
+    lengthStuds: 3,
+    ldrawId: "63864.dat",
+    geometrySha256: "e85e6f599984e9d3e1e8a04c4777f334d05025e47ba653e8dc9f6dc1c1a6c3f4",
+  },
+  {
+    family: "tile",
+    widthStuds: 1,
+    lengthStuds: 8,
+    ldrawId: "4162.dat",
+    geometrySha256: "0cecd6a8e819ab911948785ee3d9da4acaacbd1630b5bc4f8430b685ffa3dec8",
+  },
+  {
+    family: "tile",
+    widthStuds: 2,
+    lengthStuds: 6,
+    ldrawId: "69729.dat",
+    geometrySha256: "06b4318dcc0118d86793a68e28b6a64498351f0caac04f1f56537819f24dcf40",
+  },
+  {
+    family: "grille-tile",
+    widthStuds: 1,
+    lengthStuds: 2,
+    ldrawId: "2412b.dat",
+    geometrySha256: "a934c3222aa8971918d4f6f91b7c13fa530cd0f2c2625235310035e1cd313d89",
+  },
+  {
+    family: "jumper-plate",
+    widthStuds: 1,
+    lengthStuds: 2,
+    ldrawId: "15573.dat",
+    studOffsetsLdu: [[0, 0]],
+    geometrySha256: "5c01813b69245ec073dbd5b30051180eef39c3bc525d0e19e888b60ba91f2662",
+  },
+  {
+    family: "jumper-plate",
+    widthStuds: 2,
+    lengthStuds: 2,
+    ldrawId: "87580.dat",
+    studOffsetsLdu: [[0, 0]],
+    geometrySha256: "f9a8c90a7e2ec0ce7138267abc2aa41d95f487f9a588b6c20d55af015e484a97",
+  },
+  {
+    family: "jumper-plate",
+    widthStuds: 1,
+    lengthStuds: 3,
+    ldrawId: "34103.dat",
+    studOffsetsLdu: [
+      [0, -20],
+      [0, 20],
+    ],
+    geometrySha256: "3df2ffa53585723dcab7b6cb967fc9bf3a02ac40b19573624f76cfe4debac7af",
+  },
 ] as const satisfies readonly PartBlueprint[];
 
 const makeAliases = (displayName: string, ldrawId: `${string}.dat`): readonly CatalogAlias[] =>
@@ -364,8 +536,8 @@ const makeAliases = (displayName: string, ldrawId: `${string}.dat`): readonly Ca
     },
   ]);
 
-/** Tiles are plate-height but present a smooth top, so they carry no studs. */
-const isStudded = (family: PartFamily): boolean => family !== "tile";
+/** Tiles and grille tiles are plate-height but present a smooth top, so they carry no studs. */
+const isStudded = (family: PartFamily): boolean => family !== "tile" && family !== "grille-tile";
 
 const familyHeightLdu = (family: PartFamily): number =>
   family === "brick" ? BRICK_HEIGHT_LDU : PLATE_HEIGHT_LDU;
@@ -374,13 +546,20 @@ const FAMILY_DISPLAY_NAMES: Readonly<Record<PartFamily, string>> = Object.freeze
   brick: "Brick",
   plate: "Plate",
   tile: "Tile",
+  "jumper-plate": "Jumper plate",
+  "grille-tile": "Grille tile",
 });
 
+/**
+ * A part with no explicit stud offsets hashes exactly as it did before offsets
+ * existed, so adding them did not re-hash the thirty-two parts before it.
+ */
 const makeGeometryDigestInput = (
   family: PartFamily,
   widthStuds: number,
   lengthStuds: number,
   heightLdu: number,
+  studOffsetsLdu: readonly (readonly [number, number])[] | undefined,
 ): string =>
   JSON.stringify({
     generatorId: "builtin:parametric-rectilinear-part/1",
@@ -391,12 +570,21 @@ const makeGeometryDigestInput = (
     studPitchLdu: STUD_PITCH_LDU,
     studRadiusLdu: STUD_RADIUS_LDU,
     studHeightLdu: STUD_HEIGHT_LDU,
-    studMode: isStudded(family) ? "cylinder-grid" : "none",
+    studMode: studModeFor(family, studOffsetsLdu),
     undersideMode: "semantic-tube-seat-grid",
+    ...(studOffsetsLdu === undefined ? {} : { studOffsetsLdu }),
   });
 
+const studModeFor = (
+  family: PartFamily,
+  studOffsetsLdu: readonly (readonly [number, number])[] | undefined,
+): "cylinder-grid" | "cylinder-offsets" | "none" => {
+  if (!isStudded(family)) return "none";
+  return studOffsetsLdu === undefined ? "cylinder-grid" : "cylinder-offsets";
+};
+
 const makePart = (blueprint: PartBlueprint): PartDefinition => {
-  const { family, widthStuds, lengthStuds } = blueprint;
+  const { family, widthStuds, lengthStuds, studOffsetsLdu } = blueprint;
   const studded = isStudded(family);
   const heightLdu = familyHeightLdu(family);
   const widthLdu = widthStuds * STUD_PITCH_LDU;
@@ -430,7 +618,7 @@ const makePart = (blueprint: PartBlueprint): PartDefinition => {
       const x = (xIndex - (widthStuds - 1) / 2) * STUD_PITCH_LDU;
       const z = (zIndex - (lengthStuds - 1) / 2) * STUD_PITCH_LDU;
 
-      if (studded) {
+      if (studded && studOffsetsLdu === undefined) {
         connectors.push({
           id: `stud:${xIndex}:${zIndex}`,
           kind: "stud",
@@ -476,6 +664,31 @@ const makePart = (blueprint: PartBlueprint): PartDefinition => {
     }
   }
 
+  if (studded && studOffsetsLdu !== undefined) {
+    studOffsetsLdu.forEach(([x, z], index) => {
+      connectors.push({
+        id: `stud:${index}`,
+        kind: "stud",
+        geometryRole: "stud",
+        profileId: CONNECTOR_TAXONOMY_VERSION,
+        positionLdu: [x, topY, z],
+        normal: [0, -1, 0],
+        orientationId: "connector-up",
+        capacity: 1,
+        compatibleKinds: ["undersideClutch"],
+      });
+      primitives.push({
+        id: `stud:${index}`,
+        kind: "cylinder",
+        tag: "stud",
+        axis: "y",
+        centerLdu: [x, topY - STUD_HEIGHT_LDU / 2, z],
+        radiusLdu: STUD_RADIUS_LDU,
+        heightLdu: STUD_HEIGHT_LDU,
+      });
+    });
+  }
+
   return deepFreeze({
     id,
     family,
@@ -486,10 +699,17 @@ const makePart = (blueprint: PartBlueprint): PartDefinition => {
     boundsLdu,
     geometry: {
       generatorId: "builtin:parametric-rectilinear-part/1",
-      digestInput: makeGeometryDigestInput(family, widthStuds, lengthStuds, heightLdu),
+      digestInput: makeGeometryDigestInput(
+        family,
+        widthStuds,
+        lengthStuds,
+        heightLdu,
+        studOffsetsLdu,
+      ),
       contentHash: `sha256:${blueprint.geometrySha256}`,
       bodyMode: "rectangular-prism",
-      studMode: studded ? "cylinder-grid" : "none",
+      studMode: studModeFor(family, studOffsetsLdu),
+      ...(studOffsetsLdu === undefined ? {} : { studOffsetsLdu }),
       undersideMode: "semantic-tube-seat-grid",
       studRadiusLdu: STUD_RADIUS_LDU,
       studHeightLdu: STUD_HEIGHT_LDU,

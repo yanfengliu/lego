@@ -12,7 +12,12 @@ export type OrientationMatrix = readonly [
   m33: number,
 ];
 
-export type PartFamily = "brick" | "plate" | "tile";
+/**
+ * A jumper plate is plate-height with fewer studs than its footprint, and a
+ * grille tile is tile-height with none; both are otherwise a rectangular prism,
+ * so they differ from a plate or tile only in which studs they carry.
+ */
+export type PartFamily = "brick" | "plate" | "tile" | "jumper-plate" | "grille-tile";
 export type ConnectorKind = "stud" | "undersideClutch";
 export type ConnectorGeometryRole = "stud" | "tubeSeat";
 export type CatalogAliasNamespace = "human" | "ldraw";
@@ -114,7 +119,17 @@ export interface ParametricGeometryRecipe {
   readonly digestInput: string;
   readonly contentHash: `sha256:${string}`;
   readonly bodyMode: "rectangular-prism";
-  readonly studMode: "cylinder-grid" | "none";
+  /**
+   * "cylinder-grid" puts a stud at the centre of every cell of the footprint,
+   * "cylinder-offsets" at the listed positions only, "none" at none.
+   *
+   * Offsets rather than cell indices, because a jumper plate's stud sits at the
+   * centre of its footprint — half a pitch off the cells beneath it, which is
+   * the whole point of the part — and no cell index can name that spot.
+   */
+  readonly studMode: "cylinder-grid" | "cylinder-offsets" | "none";
+  /** Stud centres in LDU from the part's centre, for "cylinder-offsets" only. */
+  readonly studOffsetsLdu?: readonly (readonly [x: number, z: number])[];
   readonly undersideMode: "semantic-tube-seat-grid";
   readonly studRadiusLdu: number;
   readonly studHeightLdu: number;

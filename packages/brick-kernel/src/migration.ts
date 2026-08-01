@@ -18,6 +18,7 @@ import { createBuiltinTruthSnapshot } from "./factory.ts";
 export const MIGRATABLE_CATALOG_VERSIONS: readonly string[] = Object.freeze([
   "builtin.basic-parts/1",
   "builtin.basic-parts/2",
+  "builtin.basic-parts/3",
 ]);
 
 export interface TruthMigrationReport {

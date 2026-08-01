@@ -1,7 +1,12 @@
 import type { SourceProvenance, UprightOrientation } from "./types.ts";
 
-/** /2 grew the palette to the full solid set; /3 added tiles and the larger brick and plate sizes. */
-export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/3" as const;
+/**
+ * /2 grew the palette to the full solid set; /3 added tiles and the larger brick
+ * and plate sizes; /4 added the long and wide plates and bricks the sample
+ * booklet needs, and the first two families whose studs do not fill their
+ * footprint — jumper plates and grille tiles.
+ */
+export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/4" as const;
 export const CONNECTOR_TAXONOMY_VERSION = "stud-tube/1" as const;
 export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/1" as const;
 export const TRANSFORM_POLICY_VERSION = "upright-quarter-turns-negative-y-up/1" as const;

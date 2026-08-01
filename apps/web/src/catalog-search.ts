@@ -1,12 +1,20 @@
 import { PART_DEFINITIONS, type PartDefinition, type PartFamily } from "@lego-studio/catalog";
 
 /** Families in palette order, with the label the panel shows. */
-export const PART_FAMILY_ORDER: readonly PartFamily[] = Object.freeze(["brick", "plate", "tile"]);
+export const PART_FAMILY_ORDER: readonly PartFamily[] = Object.freeze([
+  "brick",
+  "plate",
+  "jumper-plate",
+  "tile",
+  "grille-tile",
+]);
 
 export const PART_FAMILY_LABELS: Readonly<Record<PartFamily, string>> = Object.freeze({
   brick: "Bricks",
   plate: "Plates",
   tile: "Tiles",
+  "jumper-plate": "Jumper plates",
+  "grille-tile": "Grille tiles",
 });
 
 /**
@@ -21,22 +29,32 @@ export function normalizePartQuery(value: string): string {
     .replace(/\s+/g, " ");
 }
 
-/** The text a part can be found by: its name, family, size, and LDraw alias. */
+/** Text a part can be found by part-way through: its name, family, LDraw alias. */
 function searchableTerms(part: PartDefinition): readonly string[] {
-  const { widthStuds, lengthStuds } = part.dimensions;
   return [
     normalizePartQuery(part.displayName),
     part.family,
-    `${widthStuds}x${lengthStuds}`,
-    // Size is symmetric to a builder: a 2x4 is also a 4x2.
-    `${lengthStuds}x${widthStuds}`,
     ...part.aliases.map(({ value }) => value.toLowerCase()),
   ];
+}
+
+/**
+ * A part's size, matched whole rather than part-way through.
+ *
+ * Substring matching a size is wrong once the catalog holds a part with a
+ * two-digit dimension: "12x4" contains "2x4", so searching for a 2x4 plate
+ * returned the 4x12 as well.
+ */
+function sizeTerms(part: PartDefinition): readonly string[] {
+  const { widthStuds, lengthStuds } = part.dimensions;
+  // Size is symmetric to a builder: a 2x4 is also a 4x2.
+  return [`${widthStuds}x${lengthStuds}`, `${lengthStuds}x${widthStuds}`];
 }
 
 export function matchesPartQuery(part: PartDefinition, query: string): boolean {
   const normalized = normalizePartQuery(query);
   if (normalized.length === 0) return true;
+  if (sizeTerms(part).includes(normalized)) return true;
   return searchableTerms(part).some((term) => term.includes(normalized));
 }
 
