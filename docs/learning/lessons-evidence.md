@@ -166,3 +166,16 @@ That is impossible for identical geometry, and rendering both masks and differen
 `createPlacePartTransaction` returns `partId` for exactly this reason.
 
 **Anchor:** `apps/web/e2e/build-search.spec.ts`; observed `partId manual-part-426e9bee…` against `lastPartId manual-part-4a593702…`, mask areas 21541 and 59230 for the same placement; the rebuild went from 1 of 6 parts correct to 6 of 6 with no change to the enumerator, the score, or the driver.
+
+## A step's highlight is not always where the part ends up
+
+The closed loop scores a candidate by projecting it through the fitted camera and comparing its silhouette to the step's yellow highlight.
+That assumes the booklet draws the new part where it goes. This booklet does not always do so.
+Early steps are drawn exploded: the new part sits below or beside the assembly with red arrows showing where it travels, so its outline is in the right shape and the right orientation but the wrong place.
+Later steps highlight the part in position, as the score assumes.
+Both conventions appear inside the first fifty steps, and there is no announcement of which is in use — the red arrows are the only signal, and they are unambiguous because nothing else on the page is that red.
+
+So the highlight is two different measurements depending on the step, and a scorer that treats it as one will reject the correct placement on 38% of them.
+An exploded step still constrains a great deal — shape and orientation identify the part, and the arrows point at the destination — but position has to come from the arrows or from physics rather than from the outline.
+
+**Anchor:** `apps/web/e2e/first-fifty.spec.ts` counts red-arrow pixels per panel and records `exploded` per step in `output/first-fifty/score.json`; 19 of 50 on the sample booklet, steps 1 through 16 almost all exploded and steps 30 onward almost all in place.

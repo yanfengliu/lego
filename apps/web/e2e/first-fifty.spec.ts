@@ -58,6 +58,8 @@ test("reads the first fifty steps off the booklet", async ({ page }) => {
     width: number;
     height: number;
     regionCount: number;
+    exploded: boolean;
+    arrowPx: number;
     regions: unknown[];
     callouts: { quantity: number; index: number }[];
   }
@@ -112,7 +114,19 @@ test("reads the first fifty steps off the booklet", async ({ page }) => {
           const highlight = assembly.extractHighlightRegions(image.data, out.width, out.height, {
             minimumOutlinePx: 40,
           });
+          // A red arrow means the step is drawn exploded: the highlighted part
+          // is displaced from where it ends up, so its silhouette says which
+          // part and which way round, but not where. Nothing else on the page
+          // is this red — the art is greys, the highlight is yellow.
+          let arrowPx = 0;
+          for (let index = 0; index < out.width * out.height; index += 1) {
+            const r = image.data[index * 4]!;
+            const g = image.data[index * 4 + 1]!;
+            const b = image.data[index * 4 + 2]!;
+            if (r > 150 && g < 90 && b < 90 && r - g > 80 && r - b > 80) arrowPx += 1;
+          }
           return {
+            arrowPx,
             stepNumber: panel.stepNumber,
             panelPng: out.toDataURL("image/png"),
             width: out.width,
@@ -196,6 +210,9 @@ test("reads the first fifty steps off the booklet", async ({ page }) => {
         width: panel.width,
         height: panel.height,
         regionCount: panel.regions.length,
+        // 60px of arrow survives antialiasing without catching stray red.
+        exploded: panel.arrowPx >= 60,
+        arrowPx: panel.arrowPx,
         regions: panel.regions,
         callouts: result.callouts
           .filter((callout) => callout.stepNumber === panel.stepNumber)
@@ -218,12 +235,16 @@ test("reads the first fifty steps off the booklet", async ({ page }) => {
       .filter((entry) => entry.regionCount === 0)
       .map((entry) => entry.stepNumber),
     calloutPieces: pieces,
+    stepsExploded: manifest.filter((entry) => entry.exploded).length,
+    explodedSteps: manifest.filter((entry) => entry.exploded).map((entry) => entry.stepNumber),
     steps: manifest,
   };
   writeFileSync(`${OUT}/score.json`, JSON.stringify(score, null, 1));
   console.log(
     `steps ${manifest.length}/${LAST_STEP} on pages ${pages[0]}-${pages[pages.length - 1]}; ` +
-      `${withRegion.length} with a highlight; ${pieces} callout pieces`,
+      `${withRegion.length} with a highlight; ` +
+      `${manifest.filter((entry) => entry.exploded).length} drawn exploded; ` +
+      `${pieces} callout pieces`,
   );
   expect(manifest.length).toBeGreaterThan(0);
 });
