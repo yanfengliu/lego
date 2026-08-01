@@ -29,3 +29,4 @@ When a lesson becomes a gate — a test, a lint rule, a fixed command — delete
 - A step highlight is an open contour whenever the step's parts go behind built ones; only about half enclose anything. ([evidence](lessons-evidence.md#a-step-highlight-is-an-open-contour-whenever-the-parts-go-behind-built-ones))
 - A document's parts are not in insertion order; key a part by the id its command returned, never by array position. ([evidence](lessons-evidence.md#a-documents-parts-are-not-in-insertion-order))
 - 19 of the first 50 steps are drawn exploded, so a highlight gives shape and orientation but not position. ([evidence](lessons-evidence.md#a-steps-highlight-is-not-always-where-the-part-ends-up))
+- Part dimensions are published: measure them with `scripts/ldraw-part-facts.mjs` rather than guessing. ([evidence](lessons-evidence.md#part-dimensions-are-published))

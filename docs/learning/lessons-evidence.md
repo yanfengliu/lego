@@ -181,3 +181,17 @@ The cheapest somewhere else is the next step: step N+1 draws the assembly with s
 That costs one step of lag and no new machinery — the beam already carries several branches forward, which is exactly what is needed to defer a verdict by a step.
 
 **Anchor:** `apps/web/e2e/first-fifty.spec.ts` counts red-arrow pixels per panel and records `exploded` per step in `output/first-fifty/score.json`; 19 of 50 on the sample booklet, steps 1 through 16 almost all exploded and steps 30 onward almost all in place.
+
+## Part dimensions are published
+
+Every official LDraw part file states a part's geometry in LDU, and the library serves them one file at a time over HTTP under CC BY 4.0.
+So the stud pattern of any real part is a lookup, not a judgement call, and `scripts/ldraw-part-facts.mjs` does the lookup: it walks a part's subfile references composing transforms until it reaches stud primitives, and takes body extents from the triangles and quads on the way.
+
+It earns its keep immediately. Run against twenty-three parts that had just been hand-authored from memory, it found one wrong: the two studs of `34103`, Plate 1x3 with 2 Studs Offset, sit at plus and minus 10 LDU, not plus and minus 20.
+They are half a pitch off the cell grid — between the cells rather than on the outer ones — which is exactly what "Offset" in the part's name means, and exactly the kind of detail that is invisible until something is built on it.
+
+Two traps inside the tool itself, both worth keeping:
+LDraw builds a part's underside tubes out of stud primitives too, so a 2x4 brick reports eleven studs until the top face is separated from the bottom — eight on top, three tubes beneath.
+And the library rate limits a burst of subfile requests; reporting a non-404 as "no such part" made eight real parts look nonexistent until it retried with backoff instead.
+
+**Anchor:** `scripts/ldraw-part-facts.mjs`, validated against Brick 2x4 (80x40x24, eight studs) and Plate 2x4; correction to `34103` in the catalog with a new geometry hash; measured wedge-plate facts — Wing 2x4 Left/Right are 40x80x8 with four studs along one edge at x -10 / +10, Wing 2x3 Left/Right 40x60x8 with three.
