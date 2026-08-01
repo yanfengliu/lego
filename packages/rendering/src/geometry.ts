@@ -66,6 +66,14 @@ function makeBrickMaterial(displayHex: string | number, finish: BrickFinish): Ma
       // behind its own back edges: every hidden line printed straight through
       // the fill. Four depth units wins the z-fight on a coincident outline
       // and is far too small to reach past any real geometry.
+      //
+      // The cost is that a stud rim, which lies exactly on the silhouette
+      // between the cylinder wall and its cap, still stipples where the wall is
+      // near edge-on: magnified, the ellipse reads dotted rather than drawn.
+      // Raising the factor to 1 draws it solid and simultaneously draws the
+      // rim it should be hiding, so the dotted ellipse is the honest picture.
+      // It costs nothing in a silhouette comparison, which is what the closed
+      // loop scores; revisit only for a presentation-quality instruction print.
       polygonOffsetFactor: 0,
       polygonOffsetUnits: 4,
     });
