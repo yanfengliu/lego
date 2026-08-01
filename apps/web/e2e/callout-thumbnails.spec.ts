@@ -279,11 +279,16 @@ test("crops the part thumbnail from every step callout", async ({ page }) => {
     }
   }
 
+  // A page-limited run must not overwrite a full pass's manifest: the gate runs
+  // this spec with the default limit, and doing so silently truncated the
+  // record of a completed full pass to the handful of pages the gate cropped.
+  const manifestFile = PAGE_LIMIT > 0 ? "manifest.partial.json" : "manifest.json";
   writeFileSync(
-    `${OUT}/manifest.json`,
+    `${OUT}/${manifestFile}`,
     JSON.stringify(
       {
         note: "One crop per step callout. Quantities and step assignment come from the text layer.",
+        pageLimit: PAGE_LIMIT === 0 ? "full booklet" : PAGE_LIMIT,
         sourceHash: structure.sourceHash,
         pagesCropped: pages.length,
         calloutCount: manifest.length,
