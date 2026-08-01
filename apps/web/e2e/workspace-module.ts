@@ -28,3 +28,6 @@ export const CATALOG_MODULE_URL = workspaceModuleUrl("packages/catalog/src/index
  * runtime.
  */
 export const MANUAL_COMMANDS_MODULE_URL: string = "/src/manual-commands.ts";
+
+/** The closed-loop assembly engine, served the same way. */
+export const ASSEMBLY_MODULE_URL: string = "/src/assembly/index.ts";

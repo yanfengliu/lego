@@ -4,7 +4,7 @@ import type { InstructionSourceV1, InstructionTextElement } from "./instruction-
 import {
   assignRegionsToPanels,
   deriveStepPanels,
-  panelBoundsFor,
+  panelCellsFor,
   summarizePanels,
 } from "./step-panels";
 
@@ -12,6 +12,7 @@ const STEP = 26;
 const INSET = 16;
 const PAGE_NUMBER = 10;
 const PAGE_WIDTH = 765;
+const PAGE_HEIGHT = 600;
 
 function element(text: string, heightPt: number, xPt: number, yPt = 400): InstructionTextElement {
   return { text, heightPt, xPt, yPt };
@@ -36,30 +37,80 @@ function sourceOf(pages: readonly (readonly InstructionTextElement[])[]): Instru
   };
 }
 
-describe("panelBoundsFor", () => {
-  it("gives a single step the whole page", () => {
-    expect(panelBoundsFor([14], PAGE_WIDTH)).toEqual([{ minXPt: 0, maxXPt: PAGE_WIDTH }]);
-  });
+describe("panelCellsFor", () => {
+  const at = (xPt: number, yPt: number) => ({ xPt, yPt });
 
-  it("splits two steps at the midpoint between their numbers", () => {
-    expect(panelBoundsFor([14, 387], PAGE_WIDTH)).toEqual([
-      { minXPt: 0, maxXPt: 200.5 },
-      { minXPt: 200.5, maxXPt: PAGE_WIDTH },
+  it("gives a single step the whole page", () => {
+    expect(panelCellsFor([at(14, 500)], PAGE_WIDTH, PAGE_HEIGHT)).toEqual([
+      { minXPt: 0, maxXPt: PAGE_WIDTH, minYPt: 0, maxYPt: PAGE_HEIGHT },
     ]);
   });
 
-  it("tiles the page with no gap, so nothing falls outside every panel", () => {
-    const bounds = panelBoundsFor([100, 300, 600], PAGE_WIDTH);
+  it("starts a column just before its own step number, not midway to it", () => {
+    // The number is printed at the top left of its block, so the midpoint
+    // between two numbers falls inside the left step's artwork.
+    expect(panelCellsFor([at(14, 500), at(387, 500)], PAGE_WIDTH, PAGE_HEIGHT)).toEqual([
+      { minXPt: 0, maxXPt: 377, minYPt: 0, maxYPt: PAGE_HEIGHT },
+      { minXPt: 377, maxXPt: PAGE_WIDTH, minYPt: 0, maxYPt: PAGE_HEIGHT },
+    ]);
+  });
 
-    expect(bounds[0]!.minXPt).toBe(0);
-    expect(bounds.at(-1)!.maxXPt).toBe(PAGE_WIDTH);
-    for (let index = 1; index < bounds.length; index += 1) {
-      expect(bounds[index]!.minXPt).toBe(bounds[index - 1]!.maxXPt);
+  it("splits a stacked pair by row, not into slivers", () => {
+    // Two steps in one column, left-aligned to within a point: cutting on x
+    // alone made the upper one a slice a couple of points wide.
+    const cells = panelCellsFor([at(40, 500), at(41, 200)], PAGE_WIDTH, PAGE_HEIGHT);
+
+    expect(cells[0]).toEqual({ minXPt: 0, maxXPt: PAGE_WIDTH, minYPt: 350, maxYPt: PAGE_HEIGHT });
+    expect(cells[1]).toEqual({ minXPt: 0, maxXPt: PAGE_WIDTH, minYPt: 0, maxYPt: 350 });
+  });
+
+  it("cuts a stacked pair above the lower step's callout box, not through the art above it", () => {
+    // The reader sees callout box, step number, artwork. The midpoint between
+    // step numbers falls inside the upper step's artwork; the box does not.
+    const box = { minXPt: 30, maxXPt: 200, minYPt: 250, maxYPt: 300 };
+    const cells = panelCellsFor([at(40, 500), at(41, 200)], PAGE_WIDTH, PAGE_HEIGHT, [box]);
+
+    expect(cells[0]!.minYPt).toBe(302);
+    expect(cells[1]!.maxYPt).toBe(302);
+  });
+
+  it("ignores a callout box belonging to another column", () => {
+    // A box in the right-hand column must not move the left column's row cut,
+    // which falls back to the midpoint between its own two step numbers.
+    const farColumn = { minXPt: 600, maxXPt: 700, minYPt: 250, maxYPt: 300 };
+    const cells = panelCellsFor([at(40, 500), at(41, 200), at(620, 500)], PAGE_WIDTH, PAGE_HEIGHT, [
+      farColumn,
+    ]);
+
+    expect(cells[0]!.minYPt).toBe(350);
+    expect(cells[1]!.maxYPt).toBe(350);
+  });
+
+  it("tiles a two-by-two grid with no gap", () => {
+    const cells = panelCellsFor(
+      [at(40, 500), at(41, 200), at(400, 500), at(402, 200)],
+      PAGE_WIDTH,
+      PAGE_HEIGHT,
+    );
+
+    expect(cells).toHaveLength(4);
+    for (const cell of cells) {
+      expect(cell.maxXPt).toBeGreaterThan(cell.minXPt);
+      expect(cell.maxYPt).toBeGreaterThan(cell.minYPt);
     }
+    // Columns meet, rows meet, and the outside edges reach the page.
+    expect(cells[0]!.maxXPt).toBe(cells[2]!.minXPt);
+    expect(cells[0]!.minYPt).toBe(cells[1]!.maxYPt);
+    expect(cells[0]!.minXPt).toBe(0);
+    expect(cells[2]!.maxXPt).toBe(PAGE_WIDTH);
   });
 
   it("does not depend on the order the labels arrive in", () => {
-    expect(panelBoundsFor([387, 14], PAGE_WIDTH)).toEqual(panelBoundsFor([14, 387], PAGE_WIDTH));
+    const forward = panelCellsFor([at(14, 500), at(387, 500)], PAGE_WIDTH, PAGE_HEIGHT);
+    const reversed = panelCellsFor([at(387, 500), at(14, 500)], PAGE_WIDTH, PAGE_HEIGHT);
+
+    expect(reversed[0]).toEqual(forward[1]);
+    expect(reversed[1]).toEqual(forward[0]);
   });
 });
 
@@ -133,8 +184,8 @@ describe("assignRegionsToPanels", () => {
 
   it("gives a region to the step whose band its centre falls in", () => {
     const assigned = assignRegionsToPanels(panels, [
-      { minXPt: 20, maxXPt: 120 },
-      { minXPt: 500, maxXPt: 700 },
+      { minXPt: 20, maxXPt: 120, minYPt: 0, maxYPt: PAGE_HEIGHT },
+      { minXPt: 500, maxXPt: 700, minYPt: 0, maxYPt: PAGE_HEIGHT },
     ]);
 
     expect(assigned.get(5)).toHaveLength(1);
@@ -143,7 +194,9 @@ describe("assignRegionsToPanels", () => {
 
   it("assigns a region straddling the boundary by its middle", () => {
     // Boundary sits at 307; this region spans it but is centred left of it.
-    const assigned = assignRegionsToPanels(panels, [{ minXPt: 200, maxXPt: 400 }]);
+    const assigned = assignRegionsToPanels(panels, [
+      { minXPt: 200, maxXPt: 400, minYPt: 0, maxYPt: PAGE_HEIGHT },
+    ]);
 
     expect(assigned.get(5)).toHaveLength(1);
     expect(assigned.get(6)).toHaveLength(0);
@@ -151,9 +204,9 @@ describe("assignRegionsToPanels", () => {
 
   it("orphans no region, so nothing on the page is silently dropped", () => {
     const regions = [
-      { minXPt: 0, maxXPt: 5 },
-      { minXPt: 760, maxXPt: 765 },
-      { minXPt: 300, maxXPt: 320 },
+      { minXPt: 0, maxXPt: 5, minYPt: 0, maxYPt: PAGE_HEIGHT },
+      { minXPt: 760, maxXPt: 765, minYPt: 0, maxYPt: PAGE_HEIGHT },
+      { minXPt: 300, maxXPt: 320, minYPt: 0, maxYPt: PAGE_HEIGHT },
     ];
     const assigned = assignRegionsToPanels(panels, regions);
     const total = [...assigned.values()].reduce((sum, list) => sum + list.length, 0);

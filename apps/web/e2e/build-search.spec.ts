@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { test, expect } from "@playwright/test";
 
 import {
+  ASSEMBLY_MODULE_URL,
   BRICK_KERNEL_MODULE_URL,
   MANUAL_COMMANDS_MODULE_URL,
   RENDERING_MODULE_URL,
@@ -11,8 +12,6 @@ import {
 const OUT = "output/build-search";
 const WIDTH = 560;
 const HEIGHT = 420;
-
-const ASSEMBLY_MODULE_URL: string = "/src/assembly/index.ts";
 
 /**
  * The closed loop, end to end, on a booklet we generate so the answer is known.
