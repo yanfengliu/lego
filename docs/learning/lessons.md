@@ -31,3 +31,5 @@ When a lesson becomes a gate — a test, a lint rule, a fixed command — delete
 - 19 of the first 50 steps are drawn exploded, so a highlight gives shape and orientation but not position. ([evidence](lessons-evidence.md#a-steps-highlight-is-not-always-where-the-part-ends-up))
 - Part dimensions are published: measure them with `scripts/ldraw-part-facts.mjs` rather than guessing. ([evidence](lessons-evidence.md#part-dimensions-are-published))
 - Simulate bricks in centimetres, not LDU or metres, and give the ground real depth or a falling brick goes straight through it. ([evidence](lessons-evidence.md#simulate-bricks-in-centimetres-not-ldu-or-metres))
+- A panel's own stud grid fits the booklet's camera angles and scale with no part identities; where the model sits is not in the grid. ([evidence](lessons-evidence.md#a-panels-own-stud-grid-fits-the-camera-but-not-where-the-model-sits))
+- The phase of a repeat is not the centre of the thing that repeats; fold the cell and take the drawn ring's own centre. ([evidence](lessons-evidence.md#the-phase-of-a-repeat-is-not-the-centre-of-the-thing-that-repeats))

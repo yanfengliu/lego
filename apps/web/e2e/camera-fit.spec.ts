@@ -176,7 +176,10 @@ test("recovers the view a model was drawn from", async ({ page }) => {
   await page.locator("canvas.probe-target").screenshot({ path: `${OUT}/target.png` });
   await page.locator("canvas.probe-fitted").screenshot({ path: `${OUT}/fitted.png` });
   await page.locator("canvas.probe-overlap").screenshot({ path: `${OUT}/overlap.png` });
-  writeFileSync(`${OUT}/score.json`, JSON.stringify(result, null, 1));
+  // Not `score.json`: `camera-panel-fit.spec.ts` owns that name for the fit
+  // against a real printed panel, and two probes writing one path means the
+  // file says whatever ran last.
+  writeFileSync(`${OUT}/synthetic-score.json`, JSON.stringify(result, null, 1));
 
   expect(result.documentGloballyValid).toBe(true);
   expect(result.failure).toBeNull();

@@ -15,13 +15,20 @@ import type { LatticeBasisPx, PixelBoxPx, StudTextureField } from "./camera-fit-
  * render, or the fitted pitch is a hair wrong, the windows walk — and the walk,
  * converted back through the basis, is a reprojection error in pixels.
  *
- * One confound has to be named rather than averaged away: a plate one brick
- * higher draws its studs at the same grid shifted straight up the page, so a
- * window over higher plates reports a phase offset that is nothing to do with
- * the camera. That shift is purely vertical in pixels and stays purely vertical
- * through the basis, so the horizontal component of the drift is free of it.
- * That component is the number to trust; the vertical one is reported beside it
- * and carries the building.
+ * One confound has to be named rather than averaged away, and it is worse than
+ * it first looks: a plate one brick higher draws its studs at the same grid
+ * shifted straight up the page. A window seeing only that plate reports a purely
+ * vertical offset, which the basis carries through as purely vertical, so it is
+ * separable. A window seeing two heights at once does not — the argument of a
+ * sum of two components is not a linear blend of their arguments, and the two
+ * grid directions blend by different amounts, which leaks into the horizontal.
+ * Measured on the sample booklet at 6 to 15px of horizontal spread on panels
+ * whose predicted studs land within a pixel of the drawn ones.
+ *
+ * So this is an upper bound on how far one camera fails to explain a panel, not
+ * the panel's reprojection error. `latticeSiteResiduals` is that measurement,
+ * and comparing the basis fitted on one half of the art against the other half
+ * is the layer-free test for a projection that changes across the page.
  */
 
 export interface LatticeReciprocal {
@@ -198,10 +205,14 @@ export interface LatticeDriftWindow extends PixelBoxPx {
 
 export interface LatticeDrift {
   readonly windows: readonly LatticeDriftWindow[];
-  /** Reprojection error, free of the building's own layer offsets. */
+  /**
+   * Spread of the grid's phase across the panel, weighted by how loudly each
+   * window states it. An upper bound on how far one camera fails to explain the
+   * panel: a multi-layer building drifts without the camera changing.
+   */
   readonly horizontalRmsPx: number;
   readonly horizontalMaxPx: number;
-  /** The same measurement vertically, which layer offsets also live in. */
+  /** The same vertically, where a layer offset lands most of its shift. */
   readonly verticalRmsPx: number;
   readonly verticalMaxPx: number;
   readonly globalCoherence: number;

@@ -421,9 +421,11 @@ export interface StudLatticeOptions {
   readonly refine?: boolean;
   /**
    * How far the measured grid may sit from any axonometric projection before
-   * the fit is refused, as a fraction of one stud pitch. Defaults to 0.1 —
-   * a tenth of a pitch of unexplained pixels is already a different projection,
-   * not a noisy measurement of this one.
+   * the fit is refused, as a fraction of one stud pitch. Defaults to 0.02,
+   * which is where the gap is: over the first forty steps of a real booklet
+   * every panel that reads as a stud grid landed under 0.008 and every panel
+   * that did not — a step drawn from underneath, one whose art is a handful of
+   * tiles — landed over 0.03, with nothing in between.
    */
   readonly maxResidualFraction?: number;
 }
@@ -656,7 +658,7 @@ export function fitStudLattice(
   const minOffsetPx = options.minOffsetPx ?? 7;
   const maxOffsetPx = options.maxOffsetPx ?? 60;
   const peakCount = options.peakCount ?? 16;
-  const maxResidualFraction = options.maxResidualFraction ?? 0.1;
+  const maxResidualFraction = options.maxResidualFraction ?? 0.02;
   if (field.sampleX.length < 200) {
     return {
       basis: null,

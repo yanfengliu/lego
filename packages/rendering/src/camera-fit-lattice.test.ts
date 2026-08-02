@@ -159,7 +159,9 @@ describe("fitStudLattice", () => {
     expect(fit.solution!.azimuthDegrees).toBeCloseTo(TRUTH.azimuthDegrees, 0);
     expect(fit.solution!.elevationDegrees).toBeCloseTo(TRUTH.elevationDegrees, 0);
     expect(fit.solution!.pixelsPerUnit).toBeCloseTo(TRUTH.pixelsPerUnit, 0);
-    expect(fit.solution!.residualPx).toBeLessThan(0.6);
+    // Measured, and the gap to the gate matters: the default refuses a fit
+    // above 0.02 of a pitch, and this one is two orders of magnitude inside it.
+    expect(fit.solution!.residualPx / fit.solution!.pixelsPerUnit).toBeLessThan(0.002);
   });
 
   it("recovers a second camera, so the first is not a coincidence of one grid", () => {

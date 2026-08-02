@@ -122,38 +122,51 @@ test("fits the camera a printed step panel was drawn with", async ({ page }) => 
   await page.goto("/");
   const reports: PanelFitReport[] = [];
 
+  // One evaluate per booklet page, not one per panel. The page raster and the
+  // overlay canvas cannot be left in the DOM between calls: this repo's dev
+  // server reloads the page whenever a source file changes, and a concurrent
+  // session editing app sources took the overlay out from under the screenshot
+  // mid-run with "Element is not attached to the DOM". Everything for a page
+  // happens in one call and the pictures come back as bytes.
   for (const pageNumber of pages) {
-    await page.evaluate(
-      async ({ pdfjsUrl, workerUrl, pdfUrl, pageNumber, scale }) => {
+    const pagePanels = panels.filter((entry) => entry.pageNumber === pageNumber);
+    const pageResults = await page.evaluate(
+      async ({
+        pdfjsUrl,
+        workerUrl,
+        pdfUrl,
+        latticeUrl,
+        phaseUrl,
+        renderingUrl,
+        pageNumber,
+        scale,
+        panelWidth,
+        specs,
+      }) => {
         const pdfjs = await import(/* @vite-ignore */ pdfjsUrl);
+        const lattice = await import(/* @vite-ignore */ latticeUrl);
+        const phaseModule = await import(/* @vite-ignore */ phaseUrl);
+        const rendering = await import(/* @vite-ignore */ renderingUrl);
         pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+        // The previous page's overlays have been read back already, and forty
+        // megapixel canvases left in the document is how a browser worker dies.
+        document.querySelectorAll("canvas.probe").forEach((node) => node.remove());
         const data = new Uint8Array(await (await fetch(pdfUrl)).arrayBuffer());
         const document_ = await pdfjs.getDocument({ data }).promise;
         const pdfPage = await document_.getPage(pageNumber);
         const viewport = pdfPage.getViewport({ scale });
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.ceil(viewport.width);
-        canvas.height = Math.ceil(viewport.height);
-        const context = canvas.getContext("2d", { willReadFrequently: true })!;
-        await pdfPage.render({ canvasContext: context, viewport, background: "#ffffff" }).promise;
+        const pageCanvas = document.createElement("canvas");
+        pageCanvas.width = Math.ceil(viewport.width);
+        pageCanvas.height = Math.ceil(viewport.height);
+        const pageContext = pageCanvas.getContext("2d", { willReadFrequently: true })!;
+        await pdfPage.render({
+          canvasContext: pageContext,
+          viewport,
+          background: "#ffffff",
+        }).promise;
         await document_.destroy();
-        (window as unknown as { __cameraFitPage: HTMLCanvasElement }).__cameraFitPage = canvas;
-      },
-      { ...bookletProbeUrls(), pageNumber, scale: RENDER_SCALE },
-    );
 
-    for (const panel of panels.filter((entry) => entry.pageNumber === pageNumber)) {
-      const panelCallouts = callouts.filter(
-        (callout) => callout.pageNumber === pageNumber && callout.stepNumber === panel.stepNumber,
-      );
-      const report = await page.evaluate(
-        async ({ latticeUrl, phaseUrl, renderingUrl, scale, panelWidth, spec }) => {
-          const lattice = await import(/* @vite-ignore */ latticeUrl);
-          const phaseModule = await import(/* @vite-ignore */ phaseUrl);
-          const rendering = await import(/* @vite-ignore */ renderingUrl);
-          const pageCanvas = (window as unknown as { __cameraFitPage: HTMLCanvasElement })
-            .__cameraFitPage;
-
+        const fitPanel = (spec: (typeof specs)[number]) => {
           // PDF points are bottom-left origin; canvas pixels are top-left.
           const sourceX = spec.minXPt * scale;
           const sourceW = (spec.maxXPt - spec.minXPt) * scale;
@@ -320,9 +333,8 @@ test("fits the camera a printed step panel was drawn with", async ({ page }) => 
 
           // Draw the fit over the art, because an angle in a table cannot say
           // whether the marks land on the studs and a picture can.
-          document.querySelectorAll("canvas.probe").forEach((node) => node.remove());
           const overlay = document.createElement("canvas");
-          overlay.className = "probe probe-overlay";
+          overlay.className = `probe probe-overlay-${spec.stepNumber}`;
           overlay.width = width;
           overlay.height = height;
           overlay.style.cssText = "position:fixed;top:0;left:0;z-index:99999";
@@ -338,7 +350,8 @@ test("fits the camera a printed step panel was drawn with", async ({ page }) => 
             const squash = Math.sin((solution.elevationDegrees * Math.PI) / 180);
             // Red when the fit was refused, so a rejected panel's marks cannot
             // be mistaken for an accepted one's at a glance.
-            draw.strokeStyle = fit.failure === null ? "rgba(80,240,255,0.65)" : "rgba(255,90,90,0.5)";
+            draw.strokeStyle =
+              fit.failure === null ? "rgba(80,240,255,0.65)" : "rgba(255,90,90,0.5)";
             draw.lineWidth = 1;
             for (const site of sites) {
               // Only where the model actually is: the art's bounding box runs
@@ -493,29 +506,46 @@ test("fits the camera a printed step panel was drawn with", async ({ page }) => 
                   }
                 : null,
           } satisfies PanelFitReport;
-        },
-        {
-          latticeUrl: LATTICE_MODULE_URL,
-          phaseUrl: LATTICE_PHASE_MODULE_URL,
-          renderingUrl: RENDERING_MODULE_URL,
-          scale: RENDER_SCALE,
-          panelWidth: PANEL_WIDTH,
-          spec: {
-            stepNumber: panel.stepNumber,
-            pageNumber,
-            minXPt: panel.bounds.minXPt,
-            maxXPt: panel.bounds.maxXPt,
-            minYPt: panel.bounds.minYPt,
-            maxYPt: panel.bounds.maxYPt,
-            calloutBoxes: panelCallouts.map(({ box }) => box),
-          },
-        },
-      );
+        };
 
+        return specs.map((spec) => ({
+          report: fitPanel(spec),
+          overlayPng: (
+            document.querySelector(`canvas.probe-overlay-${spec.stepNumber}`) as HTMLCanvasElement
+          ).toDataURL("image/png"),
+        }));
+      },
+      {
+        ...bookletProbeUrls(),
+        latticeUrl: LATTICE_MODULE_URL,
+        phaseUrl: LATTICE_PHASE_MODULE_URL,
+        renderingUrl: RENDERING_MODULE_URL,
+        pageNumber,
+        scale: RENDER_SCALE,
+        panelWidth: PANEL_WIDTH,
+        specs: pagePanels.map((panel) => ({
+          stepNumber: panel.stepNumber,
+          pageNumber,
+          minXPt: panel.bounds.minXPt,
+          maxXPt: panel.bounds.maxXPt,
+          minYPt: panel.bounds.minYPt,
+          maxYPt: panel.bounds.maxYPt,
+          calloutBoxes: callouts
+            .filter(
+              (callout) =>
+                callout.pageNumber === pageNumber && callout.stepNumber === panel.stepNumber,
+            )
+            .map(({ box }) => box),
+        })),
+      },
+    );
+
+    for (const { report, overlayPng } of pageResults) {
       reports.push(report);
-      await page
-        .locator("canvas.probe-overlay")
-        .screenshot({ path: `${OUT}/overlay-${String(panel.stepNumber).padStart(3, "0")}.png` });
+      writeFileSync(
+        `${OUT}/overlay-${String(report.stepNumber).padStart(3, "0")}.png`,
+        Buffer.from(overlayPng.split(",")[1]!, "base64"),
+      );
     }
   }
 

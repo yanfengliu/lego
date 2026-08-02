@@ -222,3 +222,39 @@ A ground plane modelled as a thin sheet is crossed entirely within one step and 
 The ground is a slab deep enough that nothing crosses it in a step, positioned so its top face is the build plate, and dynamic bodies enable continuous collision detection.
 
 **Anchor:** `apps/web/src/physics/rapier-world.ts`; the landing test in `rapier-world.test.ts` failed at y=23.37 against a plate at y=12 before the ground was given depth.
+
+## A panel's own stud grid fits the camera, but not where the model sits
+
+The closed loop scores a candidate placement by projecting it through the panel's camera, so on a real booklet the camera has to come from somewhere.
+Fitting it by rendering the model we have built cannot start: at step 1 nothing is built, and the parts this set opens with — a 4x4 round corner plate and an arch — are not in the catalog and cannot be rendered at all.
+
+The panel carries its own calibration target. Every stud sits on the same 20 LDU square, so the two grid directions, printed dozens of times across one picture, fix azimuth, elevation and pixels per stud with no part identities involved.
+Measure the two shortest repeats in the picture's own autocorrelation, and solve `a = s(cos az, sin el sin az)`, `b = s(-sin az, sin el cos az)` in pixels with y down: four measured numbers, three unknowns.
+
+Three things had to be got right before it worked on real art.
+The autocorrelation must be normalised over the pairs that overlap, not over their count — a plain mean is biased towards long offsets, which drop the pixels near the art's boundary, and ranked that way the strongest repeat is `4a` while the grid step never makes the shortlist.
+The peaks give some primitive basis of the lattice but not the camera's own pair, so every small unimodular change of basis is enumerated and the axonometric residual chooses; below 35 degrees of elevation `a + b` is shorter than `b`, so peak strength alone picks the wrong pair.
+And the offset window has to hold the largest pitch in the book: a step drawn twice as big has twice the pitch, and a window that stops short locks onto something else entirely — step 4 came back at 34 points per stud against the booklet's 16.
+
+The residual is a fit quality, not a proof, and that is measured rather than assumed: a rhombic grid, which no square grid could project to, still reads under 1% of pitch once a change of basis is allowed.
+The independent check is the stud itself. It is a circle of radius 6 LDU on a 20 LDU pitch, so folded onto a correct cell it has to come back round and 0.3 of a pitch across whatever the elevation — measured at 0.93 circularity and 0.39 radius across the booklet, and an ellipse on a grid fitted to the wrong repeat.
+
+What the grid cannot give is translation. A grid is the same grid one pitch over, so the fit pins the projection to a lattice phase and no further; `centerXPx` and `centerYPx` still need one known part.
+
+**Anchor:** `packages/rendering/src/camera-fit-lattice.ts`, `camera-fit-lattice-phase.ts`, driven by `apps/web/e2e/camera-panel-fit.spec.ts` over the first 40 steps of `recipes/6651557.pdf`.
+32 of 40 panels fit; the 8 refusals are steps drawn from underneath or too small to carry a grid, and the residual gate separates them cleanly — every accepted panel under 0.008 of a pitch, every refused one over 0.03.
+Reprojection error 0.96px of a ~40px pitch over 99% of grid sites; four camera runs found (steps 1-9, 10-15, 16-34, 36-37) with azimuth and elevation holding to about 0.3 degrees of standard deviation inside a run, which is the booklet turning the model over and back.
+Round-tripping the fitted numbers through `createOrthographicViewCamera` and re-fitting the render recovers them to 0.04 degrees and 0.14% of scale.
+
+## The phase of a repeat is not the centre of the thing that repeats
+
+Having fitted a panel's stud grid, the obvious way to say where the studs are is the argument of the picture's fundamental Fourier component at the grid frequency.
+It is off by half a cell. The first overlay drawn that way put a predicted ellipse squarely in every gap between the drawn studs — the grid was right, the pitch was right, the direction was right, and every mark was wrong.
+
+A Fourier phase locates where the pattern's fundamental peaks, which is a property of how the thing is inked, not of where it is.
+The fix costs nothing extra: fold every art pixel onto one grid cell and take the circular mean of the folded ring's own contrast. That is the stud's centre by construction, and the same fold already had to be computed to check the stud's shape.
+
+The fold's sign has its own trap next to it. A pattern peaking at `p0` makes the transform's argument `-2*pi*f.p0`, so the phase that names a grid site is the negated argument; signed the other way, every mark lands mirrored about the panel's centre.
+
+**Anchor:** `foldedStudShape` in `packages/rendering/src/camera-fit-lattice-phase.ts` and the `latticeSite` doc comment; `output/camera-fit/overlay-003.png` was the picture that showed it.
+Reprojection error against the drawn studs is 0.96px with the folded centre; the Fourier phase put it near half a pitch, about 20px.
