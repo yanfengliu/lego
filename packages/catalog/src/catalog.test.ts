@@ -33,6 +33,7 @@ const PART_FAMILY_NAMES = [
   "wedge-plate",
   "technic-brick",
   "axle",
+  "wheel",
 ] as const satisfies readonly PartFamily[];
 
 /**
@@ -61,9 +62,9 @@ const solidCellCount = (part: PartDefinition): number => {
   return count;
 };
 /** Families that present a smooth top, so they carry no studs at all. */
-const SMOOTH_TOP_FAMILIES = new Set<string>(["tile", "grille-tile", "axle"]);
+const SMOOTH_TOP_FAMILIES = new Set<string>(["tile", "grille-tile", "axle", "wheel"]);
 /** Families with no underside tubes, so no clutch grid. */
-const NO_CLUTCH_FAMILIES = new Set<string>(["axle"]);
+const NO_CLUTCH_FAMILIES = new Set<string>(["axle", "wheel"]);
 const EXPECTED_PART_IDS = [
   "builtin:brick-1x1",
   "builtin:brick-1x2",
@@ -126,6 +127,8 @@ const EXPECTED_PART_IDS = [
   "builtin:wedge-plate-2x3-right",
   "builtin:technic-brick-1x2",
   "builtin:axle-1x2",
+  "builtin:axle-1x4",
+  "builtin:wheel-1x2",
 ] as const;
 
 const determinant = (matrix: readonly number[]): number =>
@@ -157,7 +160,8 @@ describe("starter catalog", () => {
       "grille-tile": 1,
       "wedge-plate": 4,
       "technic-brick": 1,
-      axle: 1,
+      axle: 2,
+      wheel: 1,
     });
     // Every part belongs to a family the palette knows how to show.
     expect(
@@ -172,7 +176,9 @@ describe("starter catalog", () => {
           ? BRICK_HEIGHT_LDU
           : part.family === "axle"
             ? 12
-            : PLATE_HEIGHT_LDU;
+            : part.family === "wheel"
+              ? 62
+              : PLATE_HEIGHT_LDU;
       const { dimensions } = part;
 
       expect(dimensions.widthLdu).toBe(dimensions.widthStuds * STUD_PITCH_LDU);
@@ -264,15 +270,29 @@ describe("starter catalog", () => {
         ? 0
         : (part.geometry.studOffsetsLdu?.length ?? solidCellCount(part));
       const body = part.collision.primitives.find(({ id }) => id === "body");
-      const studs = part.collision.primitives.filter(({ kind }) => kind === "cylinder");
+      // Tagged, not merely round: a wheel's body is a cylinder and not a stud.
+      const studs = part.collision.primitives.filter(
+        (primitive) => primitive.kind === "cylinder" && primitive.tag === "stud",
+      );
 
       // A wedge is the same bounding box with one face sloped away, so its
       // bounds still have to match; only its kind differs.
-      expect(body).toMatchObject({
-        kind: part.geometry.bodyMode === "compound" ? "wedge" : "box",
-        minLdu: part.bodyBoundsLdu.min,
-        maxLdu: part.bodyBoundsLdu.max,
-      });
+      // A wheel is round so it can roll; everything else is a box or a wedge.
+      const expectedBodyKind =
+        part.family === "wheel"
+          ? "cylinder"
+          : part.geometry.bodyMode === "compound"
+            ? "wedge"
+            : "box";
+      expect(body).toMatchObject(
+        expectedBodyKind === "cylinder"
+          ? { kind: "cylinder", tag: "body" }
+          : {
+              kind: expectedBodyKind,
+              minLdu: part.bodyBoundsLdu.min,
+              maxLdu: part.bodyBoundsLdu.max,
+            },
+      );
       expect(studs).toHaveLength(expectedStudCount);
       // One per cell the body fills: a wedge has no clutch over its empty corner.
       expect(part.collision.allowances).toHaveLength(solidCellCount(part));

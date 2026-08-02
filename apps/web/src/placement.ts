@@ -3,7 +3,9 @@ import {
   PLATE_HEIGHT_LDU,
   STUD_PITCH_LDU,
   UPRIGHT_ORIENTATIONS,
+  connectorAccepts,
   getPartDefinition,
+  type ConnectorKind,
   type LduVector3,
   type PartDefinition,
 } from "@lego-studio/catalog";
@@ -195,7 +197,7 @@ export function endpointKey(partId: string, portId: string): string {
 
 function connectorFrames(
   part: Pick<PartInstance, "id" | "catalogPartId" | "transform">,
-  kind: "stud" | "undersideClutch",
+  kind: ConnectorKind,
 ): readonly { readonly portId: string; readonly position: LduVector3 }[] {
   const definition = requireDefinition(part.catalogPartId);
   return definition.connectors
@@ -211,7 +213,7 @@ function samePosition(left: LduVector3, right: LduVector3): boolean {
 }
 
 /**
- * Every stud/clutch pair the candidate lands exactly on, in deterministic
+ * Every compatible pair the candidate lands exactly on, in deterministic
  * order. Ports already occupied by an existing connection are skipped so a
  * placement never proposes an over-capacity edge.
  */
@@ -220,19 +222,25 @@ export function findStudConnections(
   parts: readonly PartInstance[],
   occupiedEndpoints: ReadonlySet<string> = new Set(),
 ): readonly DiscoveredConnection[] {
-  const candidateClutches = connectorFrames(candidate, "undersideClutch");
-  const candidateStuds = connectorFrames(candidate, "stud");
+  // Every pairing the taxonomy allows, not only studs and clutches. An axle
+  // held in a bearing is as attached as a brick pressed onto studs, and a rule
+  // that only knew about studs called the whole running gear of a cart
+  // unsupported.
+  const candidatePortsByKind = new Map(
+    (getPartDefinition(candidate.catalogPartId)?.connectors ?? []).map(
+      (connector) => [connector.kind, connectorFrames(candidate, connector.kind)] as const,
+    ),
+  );
   const discovered: DiscoveredConnection[] = [];
   const usedCandidatePorts = new Set<string>();
 
   for (const part of [...parts].sort((left, right) => (left.id < right.id ? -1 : 1))) {
     if (part.id === candidate.id || !getPartDefinition(part.catalogPartId)) continue;
 
-    // The candidate's underside meets the target's studs, and vice versa.
-    for (const [candidatePorts, targetKind] of [
-      [candidateClutches, "stud"],
-      [candidateStuds, "undersideClutch"],
-    ] as const) {
+    const pairings = [...candidatePortsByKind].flatMap(([kind, ports]) =>
+      connectorAccepts(kind).map((targetKind) => [ports, targetKind] as const),
+    );
+    for (const [candidatePorts, targetKind] of pairings) {
       for (const target of connectorFrames(part, targetKind)) {
         if (occupiedEndpoints.has(endpointKey(part.id, target.portId))) continue;
         const match = candidatePorts.find(

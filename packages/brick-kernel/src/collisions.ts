@@ -146,6 +146,28 @@ function makeWorldPrimitives(parts: readonly PartInstance[]): WorldPrimitive[] {
 
       const center = transformLduPoint(part.transform, primitive.centerLdu);
       const halfHeight = primitive.heightLdu / 2;
+      if (primitive.tag === "body") {
+        // Its bounding box, which claims the corners a round part does not
+        // fill. That refuses a placement a real wheel would allow and never
+        // the reverse, which is the safe direction to approximate in.
+        primitives.push({
+          kind: "body",
+          part,
+          primitiveId: primitive.id,
+          sourceIndex,
+          min: [
+            center[0] - primitive.radiusLdu,
+            center[1] - halfHeight,
+            center[2] - primitive.radiusLdu,
+          ],
+          max: [
+            center[0] + primitive.radiusLdu,
+            center[1] + halfHeight,
+            center[2] + primitive.radiusLdu,
+          ],
+        });
+        continue;
+      }
       primitives.push({
         kind: "stud",
         part,

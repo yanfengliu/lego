@@ -1,4 +1,9 @@
-import { getColorDefinition, getPartDefinition } from "@lego-studio/catalog";
+import {
+  connectorAccepts,
+  connectorPairRule,
+  getColorDefinition,
+  getPartDefinition,
+} from "@lego-studio/catalog";
 import { validateBrickDocumentV1 } from "@lego-studio/protocol";
 import type {
   BrickDocumentV1,
@@ -170,16 +175,16 @@ function validateConnections(
       continue;
     }
 
-    const compatible =
-      aFrame.kind !== bFrame.kind &&
-      ((aFrame.kind === "stud" && bFrame.kind === "undersideClutch") ||
-        (aFrame.kind === "undersideClutch" && bFrame.kind === "stud"));
-    if (!compatible) {
+    // From the taxonomy, not from naming kinds here. This was the third place
+    // hardcoded to studs and clutches, after the attach transform and the
+    // assembly graph, and each one silently refused every axle in a bearing.
+    const pair = connectorPairRule(aFrame.kind, bFrame.kind);
+    if (pair === undefined) {
       issues.push(
         makeIssue({
           validatorId: "kernel.connections",
           code: "INCOMPATIBLE_CONNECTION_PORTS",
-          message: `Connection ${connection.id} joins incompatible port kinds`,
+          message: `Connection ${connection.id} joins a ${aFrame.kind} to a ${bFrame.kind}, which cannot be joined. A ${aFrame.kind} joins ${connectorAccepts(aFrame.kind).join(", ") || "nothing"}.`,
           path,
           partIds: [aPart.id, bPart.id],
           connectionIds: [connection.id],
@@ -194,12 +199,18 @@ function validateConnections(
     const opposing = aFrame.normal.every(
       (coordinate, axis) => coordinate === -bFrame.normal[axis]!,
     );
-    if (!coincident || !opposing) {
+    // A hole is open at both ends, so a shaft entering it may face either way.
+    const sameLine =
+      opposing || aFrame.normal.every((coordinate, axis) => coordinate === bFrame.normal[axis]);
+    const aligned = pair.axisMatching === "collinear" ? sameLine : opposing;
+    if (!coincident || !aligned) {
       issues.push(
         makeIssue({
           validatorId: "kernel.connections",
           code: "CONNECTION_TRANSFORM_MISMATCH",
-          message: `Connection ${connection.id} does not agree with authoritative transforms`,
+          message: !coincident
+            ? `Connection ${connection.id} joins ports that are not in the same place: [${aFrame.positionLdu.join(", ")}] against [${bFrame.positionLdu.join(", ")}].`
+            : `Connection ${connection.id} joins ports whose axes do not line up: a ${aFrame.kind} and a ${bFrame.kind} must be ${pair.axisMatching}, but the normals are [${aFrame.normal.join(", ")}] and [${bFrame.normal.join(", ")}].`,
           path,
           partIds: [aPart.id, bPart.id],
           connectionIds: [connection.id],

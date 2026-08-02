@@ -235,6 +235,34 @@ export function createCatalogPartGeometry(
   let bodyIndex = 0;
   for (const primitive of definition.collision.primitives) {
     if (primitive.tag !== "body") continue;
+    // A round body — a wheel — is drawn round. Its axis lies along x, matching
+    // the axle it turns on, where a Three.js cylinder stands on y by default.
+    if (primitive.kind === "cylinder") {
+      const wheel = new CylinderGeometry(
+        primitive.radiusLdu * THREE_UNITS_PER_LDU,
+        primitive.radiusLdu * THREE_UNITS_PER_LDU,
+        primitive.heightLdu * THREE_UNITS_PER_LDU,
+        24,
+        1,
+        false,
+      );
+      wheel.rotateZ(Math.PI / 2);
+      wheel.userData = { ...metadata, renderRole: "body-geometry" };
+      const mesh = new Mesh(wheel, material);
+      mesh.name = bodyIndex === 0 ? `body:${part.id}` : `body:${part.id}:${bodyIndex}`;
+      mesh.position.copy(lduToThreeVector(primitive.centerLdu));
+      mesh.castShadow = castsShadows;
+      mesh.receiveShadow = castsShadows;
+      mesh.userData = { renderRole: "body", partId: part.id, primitiveId: primitive.id };
+      group.add(mesh);
+      if (outlineMaterial) {
+        group.add(
+          createInstructionOutline(wheel, outlineMaterial, `body-outline:${part.id}`, part.id),
+        );
+      }
+      bodyIndex += 1;
+      continue;
+    }
     const bodyGeometry =
       primitive.kind === "wedge"
         ? createWedgeGeometry(primitive)

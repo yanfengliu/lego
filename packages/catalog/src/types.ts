@@ -25,7 +25,8 @@ export type PartFamily =
   | "grille-tile"
   | "wedge-plate"
   | "technic-brick"
-  | "axle";
+  | "axle"
+  | "wheel";
 /**
  * The ways two parts can meet.
  *
@@ -174,7 +175,12 @@ export interface CollisionWedge {
 export interface CollisionCylinder {
   readonly id: string;
   readonly kind: "cylinder";
-  readonly tag: "stud";
+  /**
+   * "stud" is a connector feature and may enter a matching clutch; "body" is
+   * solid and may not. A wheel is a body cylinder — modelling it as a box would
+   * stop it rolling.
+   */
+  readonly tag: "stud" | "body";
   readonly axis: "y";
   readonly centerLdu: LduVector3;
   readonly radiusLdu: number;

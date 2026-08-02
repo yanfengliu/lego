@@ -1,4 +1,9 @@
-import { STUD_PITCH_LDU, STUD_RADIUS_LDU, type PartDefinition } from "@lego-studio/catalog";
+import {
+  STUD_PITCH_LDU,
+  STUD_RADIUS_LDU,
+  type CollisionPrimitive,
+  type PartDefinition,
+} from "@lego-studio/catalog";
 
 /** Isometric basis: X goes down-right, Z down-left, height straight up. */
 const ISO_X = Math.cos(Math.PI / 6);
@@ -68,7 +73,10 @@ export function PartPreview({ part, colorHex }: PartPreviewProps) {
   // Studs come from the part's own collision primitives, the same source the
   // renderer draws from, so a studless part such as a tile shows none.
   const studs = part.collision.primitives
-    .filter((primitive) => primitive.kind === "cylinder" && primitive.tag === "stud")
+    .filter(
+      (primitive): primitive is Extract<CollisionPrimitive, { kind: "cylinder" }> =>
+        primitive.kind === "cylinder" && primitive.tag === "stud",
+    )
     .map((primitive) =>
       project(
         primitive.centerLdu[0] / STUD_PITCH_LDU + widthStuds / 2,

@@ -645,6 +645,10 @@ const PART_BLUEPRINTS = [
     // would allow, never the reverse.
     bodyBoundsLdu: { min: [-19.5, -6, -6], max: [19.5, 6, 6] },
     withoutClutches: true,
+    // A port at each stud position along the shaft and one at its centre. The
+    // centre one matters: a hole in the middle of a part meets an axle that is
+    // itself centred, and without it a centred axle could not be threaded
+    // through anything.
     extraConnectors: [
       {
         id: "axle:0",
@@ -656,12 +660,87 @@ const PART_BLUEPRINTS = [
       {
         id: "axle:1",
         kind: "axle",
+        positionLdu: [0, 0, 0],
+        normal: [1, 0, 0],
+        orientationId: "connector-up",
+      },
+      {
+        id: "axle:2",
+        kind: "axle",
         positionLdu: [10, 0, 0],
         normal: [1, 0, 0],
         orientationId: "connector-up",
       },
     ],
-    geometrySha256: "9d3c01d05548b6667a3a96d8933b1701271d538aefab14079c90d316ecb3f492",
+    geometrySha256: "d1017c9dff28387133e4b75d67d4ffb7124d6f1ccdc9ce9fb9e9a5ac62b14120",
+  },
+  {
+    family: "axle",
+    widthStuds: 1,
+    lengthStuds: 4,
+    ldrawId: "3705.dat",
+    // 79 LDU long, from 3705.dat. Long enough to carry a wheel at each end of a
+    // four-stud-wide chassis, which a 2L axle is not.
+    bodyBoundsLdu: { min: [-39.5, -6, -6], max: [39.5, 6, 6] },
+    withoutClutches: true,
+    extraConnectors: [
+      {
+        id: "axle:0",
+        kind: "axle",
+        positionLdu: [-30, 0, 0],
+        normal: [-1, 0, 0],
+        orientationId: "connector-up",
+      },
+      {
+        id: "axle:1",
+        kind: "axle",
+        positionLdu: [-10, 0, 0],
+        normal: [-1, 0, 0],
+        orientationId: "connector-up",
+      },
+      {
+        id: "axle:2",
+        kind: "axle",
+        positionLdu: [0, 0, 0],
+        normal: [1, 0, 0],
+        orientationId: "connector-up",
+      },
+      {
+        id: "axle:3",
+        kind: "axle",
+        positionLdu: [10, 0, 0],
+        normal: [1, 0, 0],
+        orientationId: "connector-up",
+      },
+      {
+        id: "axle:4",
+        kind: "axle",
+        positionLdu: [30, 0, 0],
+        normal: [1, 0, 0],
+        orientationId: "connector-up",
+      },
+    ],
+    geometrySha256: "6a3fb7e10b1ed36546dd800252aa6854a75eec86c4feb120e70bfdf42acb535e",
+  },
+  {
+    family: "wheel",
+    widthStuds: 1,
+    lengthStuds: 2,
+    ldrawId: "3483.dat",
+    // Rim and tyre as one part: 62 LDU across the tread and 18 wide, from
+    // LDraw 3483. Its axis lies on x, matching the axle it rides.
+    bodyBoundsLdu: { min: [-9, -31, -31], max: [9, 31, 31] },
+    withoutClutches: true,
+    extraConnectors: [
+      {
+        id: "axleHole:0",
+        kind: "axleHole",
+        positionLdu: [0, 0, 0],
+        normal: [1, 0, 0],
+        orientationId: "connector-up",
+      },
+    ],
+    geometrySha256: "7f574aa2e1f6c0d08c0666c6bf6ca8231289252eb0f5378445bf341ced7d9e58",
   },
 ] as const satisfies readonly PartBlueprint[];
 
@@ -682,15 +761,25 @@ const makeAliases = (displayName: string, ldrawId: `${string}.dat`): readonly Ca
   ]);
 
 /** Tiles and grille tiles are plate-height but present a smooth top, so they carry no studs. */
-const SMOOTH_TOP_FAMILIES = new Set<PartFamily>(["tile", "grille-tile", "axle"]);
+const SMOOTH_TOP_FAMILIES = new Set<PartFamily>(["tile", "grille-tile", "axle", "wheel"]);
 const isStudded = (family: PartFamily): boolean => !SMOOTH_TOP_FAMILIES.has(family);
 
 /** An axle is 12 LDU across, which no count of stud pitches describes. */
 const AXLE_THICKNESS_LDU = 12;
+/**
+ * Tyre 7/56 x 17 is 62 LDU across the tread, from LDraw 3483.
+ *
+ * The first wheel here was a 36 LDU one, and it left a cart four LDU off the
+ * ground: a bearing's hole sits 14 above its own base, so ground clearance is
+ * the wheel's radius minus 14 and a small wheel has almost none. This one is
+ * also narrower, so it still clears a two-stud-wide chassis.
+ */
+const WHEEL_DIAMETER_LDU = 62;
 
 const familyHeightLdu = (family: PartFamily): number => {
   if (family === "brick" || family === "technic-brick") return BRICK_HEIGHT_LDU;
   if (family === "axle") return AXLE_THICKNESS_LDU;
+  if (family === "wheel") return WHEEL_DIAMETER_LDU;
   return PLATE_HEIGHT_LDU;
 };
 
@@ -703,6 +792,7 @@ const FAMILY_DISPLAY_NAMES: Readonly<Record<PartFamily, string>> = Object.freeze
   "wedge-plate": "Wedge plate",
   "technic-brick": "Technic brick",
   axle: "Axle",
+  wheel: "Wheel",
 });
 
 /**
@@ -803,23 +893,33 @@ const makePart = (blueprint: PartBlueprint): PartDefinition => {
   };
   const connectors: ConnectorPortDefinition[] = [];
   const primitives: CollisionPrimitive[] = [
-    bodyWedge
+    family === "wheel"
       ? {
           id: "body",
-          kind: "wedge",
+          kind: "cylinder",
           tag: "body",
-          minLdu: bodyBoundsLdu.min,
-          maxLdu: bodyBoundsLdu.max,
-          cutNormalXZ: bodyWedge.cutNormalXZ,
-          cutOffsetLdu: bodyWedge.cutOffsetLdu,
+          axis: "y",
+          centerLdu: [0, 0, 0],
+          radiusLdu: WHEEL_DIAMETER_LDU / 2,
+          heightLdu: bodyBoundsLdu.max[0] - bodyBoundsLdu.min[0],
         }
-      : {
-          id: "body",
-          kind: "box",
-          tag: "body",
-          minLdu: bodyBoundsLdu.min,
-          maxLdu: bodyBoundsLdu.max,
-        },
+      : bodyWedge
+        ? {
+            id: "body",
+            kind: "wedge",
+            tag: "body",
+            minLdu: bodyBoundsLdu.min,
+            maxLdu: bodyBoundsLdu.max,
+            cutNormalXZ: bodyWedge.cutNormalXZ,
+            cutOffsetLdu: bodyWedge.cutOffsetLdu,
+          }
+        : {
+            id: "body",
+            kind: "box",
+            tag: "body",
+            minLdu: bodyBoundsLdu.min,
+            maxLdu: bodyBoundsLdu.max,
+          },
   ];
 
   /**
