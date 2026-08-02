@@ -42,6 +42,48 @@ export interface BoundaryOffset {
  * Chamfer rather than exact Euclidean: the two-pass 3-4 mask is within about 2%
  * over the few pixels that matter here, and an exact transform costs a sort.
  */
+/**
+ * Distance from every pixel to the nearest set pixel of a mask, in pixels.
+ *
+ * Chamfer rather than exact Euclidean: the two-pass 3-4 mask is within about 2%
+ * over the few pixels that matter here, and an exact transform costs a sort.
+ * An empty mask gives a field of `Infinity`, which is the honest answer to "how
+ * far is this from nothing".
+ */
+export function distanceToMask(mask: Uint8Array, width: number, height: number): Float64Array {
+  requireMask({ width, height, mask }, "distance target");
+  const far = 1 << 20;
+  const distance = new Int32Array(width * height).fill(far);
+  for (let pixel = 0; pixel < mask.length; pixel += 1) if (mask[pixel] === 1) distance[pixel] = 0;
+  const relax = (at: number, from_: number, cost: number): void => {
+    const candidate = distance[from_]! + cost;
+    if (candidate < distance[at]!) distance[at] = candidate;
+  };
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const at = y * width + x;
+      if (x > 0) relax(at, at - 1, 3);
+      if (y > 0) relax(at, at - width, 3);
+      if (x > 0 && y > 0) relax(at, at - width - 1, 4);
+      if (x < width - 1 && y > 0) relax(at, at - width + 1, 4);
+    }
+  }
+  for (let y = height - 1; y >= 0; y -= 1) {
+    for (let x = width - 1; x >= 0; x -= 1) {
+      const at = y * width + x;
+      if (x < width - 1) relax(at, at + 1, 3);
+      if (y < height - 1) relax(at, at + width, 3);
+      if (x < width - 1 && y < height - 1) relax(at, at + width + 1, 4);
+      if (x > 0 && y < height - 1) relax(at, at + width - 1, 4);
+    }
+  }
+  const out = new Float64Array(width * height);
+  for (let pixel = 0; pixel < out.length; pixel += 1) {
+    out[pixel] = distance[pixel]! >= far ? Number.POSITIVE_INFINITY : distance[pixel]! / 3;
+  }
+  return out;
+}
+
 export function boundaryOffset(
   from: Uint8Array,
   to: Uint8Array,

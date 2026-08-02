@@ -190,6 +190,12 @@ export const measureRealPanelRegistration = async ({
         assemblyComponents: isolation.componentCount as number,
         assemblyDroppedFraction: isolation.droppedFraction as number,
         highlightRegions: (highlight.regions as readonly unknown[]).length,
+        assemblyBounds: isolation.bounds as {
+          minXPx: number;
+          minYPx: number;
+          maxXPx: number;
+          maxYPx: number;
+        } | null,
         highlightEnclosedPx: enclosed,
         fit: accepted
           ? {
@@ -509,22 +515,41 @@ export const measureRealPanelRegistration = async ({
     current: Panel,
     delta: { emergedMask: Uint8Array; changedMask: Uint8Array },
   ): { report: PlacementReport; png: string | null } {
+    // A step skipped for a missing camera or an open highlight still printed
+    // whatever arrows it printed, and the count of those is a finding in its own
+    // right. Reporting zeros here made the census answer "how many steps got all
+    // the way through" when the question was "how many steps print an arrow".
+    let skipClearances: PlacementReport["clearances"] = [];
+    let skipArrowsInsideAssembly = 0;
+    let skipShortfallStuds: number | null = null;
+    let reading: {
+      arrows: readonly { tailXPx: number; tailYPx: number }[];
+      rejected: readonly { reason: string }[];
+      redPx: number;
+      displacementXPx: number | null;
+      displacementYPx: number | null;
+      displacementSpreadPx: number | null;
+      agreedArrows: number;
+    } | null = null;
     const blank = (skipped: string): { report: PlacementReport; png: null } => ({
       report: {
         skipped,
-        arrows: 0,
-        arrowsRejected: [],
+        arrows: reading?.arrows.length ?? 0,
+        arrowsRejected: reading?.rejected.map((entry) => entry.reason) ?? [],
         referenceEmergenceIou: null,
         referenceChangeIou: null,
         zeroOffsetRank: null,
         arrowTravelStuds: null,
-        arrowDisplacementXPx: null,
-        arrowDisplacementYPx: null,
-        arrowSpreadPx: null,
-        agreedArrows: 0,
+        arrowDisplacementXPx: reading?.displacementXPx ?? null,
+        arrowDisplacementYPx: reading?.displacementYPx ?? null,
+        arrowSpreadPx: reading?.displacementSpreadPx ?? null,
+        agreedArrows: reading?.agreedArrows ?? 0,
         referenceSnapPx: null,
+        clearances: skipClearances,
+        arrowsInsideAssembly: skipArrowsInsideAssembly,
+        arrowShortfallStuds: skipShortfallStuds,
         silhouettePx: 0,
-        silhouetteRegions: 0,
+        silhouetteRegions: current.summary.highlightRegions,
         offeredTranslations: 0,
         scoredTranslations: 0,
         rejectedOffFrame: 0,
@@ -550,6 +575,99 @@ export const measureRealPanelRegistration = async ({
         originMarginPx: current.fit ? Math.round(3 * current.fit.pixelsPerUnit) : 120,
       },
     );
+    reading = arrows;
+    // Measured before the skips, not after. A step that prints a perfectly
+    // good arrow and then fails for want of a fitted camera still printed it,
+    // and reporting the arrow facts only for steps that got all the way
+    // through made the census count the wrong thing twice over.
+    // How much clearance the artist left at each end. An arrow is drawn from
+    // clear of the ghost to clear of the landing surface, so tail-to-head is
+    // shorter than the part's travel by the sum of the two gaps — and that sum
+    // is the arrow's systematic error, readable off the same page. The tail is
+    // measured against this step's own highlight stroke, which rings the ghost;
+    // the head against the model that was already there, which is the assembly
+    // with this step's highlight taken out of it.
+    const alreadyBuilt = new Uint8Array(current.width * current.height);
+    const claimed = rendering.dilateMask(
+      current.highlight.strokeMask,
+      current.width,
+      current.height,
+      3,
+    ) as Uint8Array;
+    for (let pixel = 0; pixel < alreadyBuilt.length; pixel += 1) {
+      if (
+        current.assemblyMask[pixel] === 1 &&
+        claimed[pixel] !== 1 &&
+        current.highlight.mask[pixel] !== 1
+      ) {
+        alreadyBuilt[pixel] = 1;
+      }
+    }
+    const toGhost = assembly.distanceToMask(
+      current.highlight.strokeMask,
+      current.width,
+      current.height,
+    ) as Float64Array;
+    const toBuilt = assembly.distanceToMask(
+      alreadyBuilt,
+      current.width,
+      current.height,
+    ) as Float64Array;
+    const at = (field: Float64Array, x: number, y: number): number | null => {
+      const px = Math.round(x);
+      const py = Math.round(y);
+      if (px < 0 || px >= current.width || py < 0 || py >= current.height) return null;
+      const value = field[py * current.width + px]!;
+      return Number.isFinite(value) ? value : null;
+    };
+    const clearances = (
+      arrows.arrows as readonly {
+        tailXPx: number;
+        tailYPx: number;
+        headXPx: number;
+        headYPx: number;
+        lengthPx: number;
+      }[]
+    ).map((arrow) => ({
+      tailToGhostPx: at(toGhost, arrow.tailXPx, arrow.tailYPx),
+      headToBuiltPx: at(toBuilt, arrow.headXPx, arrow.headYPx),
+      lengthPx: arrow.lengthPx,
+    }));
+    const shortfallStuds = (() => {
+      const both = clearances.filter(
+        (entry) => entry.tailToGhostPx !== null && entry.headToBuiltPx !== null,
+      );
+      if (both.length === 0 || current.fit === null) return null;
+      const total =
+        both.reduce((sum, entry) => sum + entry.tailToGhostPx! + entry.headToBuiltPx!, 0) /
+        both.length;
+      return total / current.fit.pixelsPerUnit;
+    })();
+
+    // Whether the arrow is drawn on the model or on a sub-build strip beside it.
+    // The origin test was supposed to separate those, and on this booklet it
+    // does not: steps 47 and 48 draw their sub-builds as numbered panels above
+    // a rule, and ring each sub-step in yellow exactly like a main step, so a
+    // sub-build's arrow does start at something "this step highlighted". Where
+    // the arrow sits relative to the assembly does separate them.
+    const bounds = current.summary.assemblyBounds;
+    const arrowsInsideAssembly =
+      bounds === null
+        ? 0
+        : (arrows.arrows as readonly { tailXPx: number; tailYPx: number }[]).filter(
+            (arrow) =>
+              arrow.tailXPx >= bounds.minXPx - 40 &&
+              arrow.tailXPx <= bounds.maxXPx + 40 &&
+              arrow.tailYPx >= bounds.minYPx - 40 &&
+              arrow.tailYPx <= bounds.maxYPx + 40,
+          ).length;
+    // Published from here, before any skip. A step that prints an arrow and
+    // then fails for want of a camera still printed it, and these two are the
+    // census the question is about.
+    skipClearances = clearances;
+    skipArrowsInsideAssembly = arrowsInsideAssembly;
+    skipShortfallStuds = shortfallStuds;
+
     if (arrows.displacementXPx === null || arrows.displacementYPx === null) {
       return blank(
         `Step ${current.spec.stepNumber} printed ${arrows.redPx}px of red and no arrow survived the shape and origin tests, so there is no independent answer to rank against: ${arrows.rejected.map((entry: { reason: string }) => entry.reason).join("; ") || "no red at all"}`,
@@ -680,6 +798,9 @@ export const measureRealPanelRegistration = async ({
         arrowSpreadPx: arrows.displacementSpreadPx,
         agreedArrows: arrows.agreedArrows,
         referenceSnapPx: ranking?.referenceSnapPx ?? null,
+        clearances,
+        arrowsInsideAssembly,
+        arrowShortfallStuds: shortfallStuds,
         silhouettePx: current.summary.highlightEnclosedPx,
         silhouetteRegions: current.summary.highlightRegions,
         offeredTranslations: sweep.offered,

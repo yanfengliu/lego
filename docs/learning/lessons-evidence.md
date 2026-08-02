@@ -361,6 +361,17 @@ The two sets do not intersect at all.
 The reason is the build, not the printing. A step needs the lookahead early, when the model is small and the booklet is rezooming hard between panels — median agreement 57% over steps 1 to 15 — and the panels register beautifully later, when the model is big and stable and the highlight is already drawn at the landing site — 94% over steps 17 to 37.
 A picture-to-picture lookahead is therefore best exactly where it is least needed. Anything built on it has to carry the registration quality as a per-pair fact and fall back when it is poor, rather than assume the reading is available.
 
+The arrow itself came out of this looking better than the thing it was checking, so it was measured too.
+Across the first fifty steps, 13 print a red arrow that survives the shape and origin tests — steps 1, 2, 10, 12, 13, 16, 32, 35, 38, 40, 45, 48 and 49 — and 11 of those draw it on the model rather than on a sub-build strip beside it.
+The strips have to be separated out, because this booklet draws whole sub-builds as numbered panels inside a step's panel and rings each sub-step in yellow exactly like a main step: "the arrow starts at something this step highlighted" does not tell them apart and "the arrow's tail sits on the assembly" does.
+Steps 32 and 48 are the two that do not, and step 48's own numbers give it away — a head sitting 253 pixels from the nearest built model at the end of a 29-pixel arrow is not an arrow spanning a gap in that model.
+
+Where an arrow is on the model, it is precise, and biased by an amount the same page states.
+Arrows on one step agree with each other to between 0.5 and 4.0 pixels, a median of 1.0, which at these panels' 21 to 43 pixels per stud is a few hundredths of a stud.
+Each is also systematically short, because it is drawn clear of the ghost at one end and clear of the landing surface at the other, and measuring both gaps gives 0.00, 0.05, 0.38 and 0.47 of a stud on the four steps where a camera fitted — a median of 0.22.
+That is a bias to subtract rather than noise to live with, because the two gaps are readable off the same pixels as the arrow.
+So the arrow is worth about a fifth of a stud raw and a twentieth once the clearance is added back, which is inside what a placement needs — and an order of magnitude sharper than the panel difference it was brought in to check.
+
 **Anchor:** `apps/web/src/assembly/lattice-placements.ts` and the docstring on `scoreExplodedStep`, measured by `apps/web/e2e/real-panel-registration.spec.ts`; numbers and overlays in `output/real-panel-scoring/`.
 0 of 3 scored steps ranked the arrow-implied offset first and 2 put the top offset within a stud of it; median margin -0.037.
 The reference is the red arrow's own tail-to-head vector, which the score never reads, and it is good to about half a stud because an arrow is drawn with clearance at both ends.
@@ -377,3 +388,33 @@ That is how `compound-part-shapes.spec.ts:64` came to be reported as red on `mai
 The port is now derived from the process id in `playwright.config.ts`, with `LEGO_E2E_PORT` to pin it. It is chosen in the config rather than in global setup because Playwright reads `baseURL` before setup runs, so that is the last moment the server and the tests can still agree on a number.
 
 **Anchor:** `playwright.config.ts`, `apps/web/e2e/global-setup.ts`; `compound-part-shapes.spec.ts` red under contention and green on a free port at the same commit (0267c09); full suite 31 passed.
+
+## Matching a gallery one item at a time discards the constraint that makes it a gallery
+
+Naming the part a step adds is matching its printed callout drawing against the back-of-book parts list, which is a labelled gallery of the same drawings.
+Letting every drawing take whichever element it looked most like reconciled 1256 of the booklet's 1465 pieces, over-claimed 230, and left 59 elements never claimed at all — twenty drawings had piled onto a few popular elements while the right owners went hungry.
+
+The book draws each element exactly one way, so 273 distinct callout drawings and 276 listed elements very nearly pair off one to one.
+Making the choice once for the whole book as a minimum-cost assignment under that constraint, with no other change, took it to 1308 pieces reconciled, 158 over-claimed, and 203 of 276 elements at exactly the printed quantity.
+The gain is entirely in what the constraint forbids: taking an element now costs every other drawing the chance to take it, so a confident wrong match can no longer crowd out a less confident right one.
+
+**Anchor:** `scripts/part-assignment.mjs`; `output/part-identification/score.json` variants `deterministic/nearest` and `deterministic/one-to-one` over 870 callouts of `recipes/6651557.pdf`.
+
+## Elements differing only in colour are one shape twice
+
+The set lists a 1x2 tile with a groove in black and the same tile in white under two element ids, and 34 of the black ones were claimed as white.
+The colour term was there, but it searched each part's top tones for their closest approach — and every part in this booklet carries the same pale highlight, so a black tile came within 0.11 of a white one and the shape term drowned the rest.
+Comparing the tones where they actually are, mean ink colour and light face rather than nearest match, and giving colour a third of the weight, cut over-claims from 439 pieces to 230.
+The same pass added an interior-shading grid, because a 1x2 grille tile and a plain 1x2 tile have identical silhouettes and the set holds 54 of the grille.
+
+**Anchor:** `colourDistance` and the `detail` grid in `scripts/part-thumbnail-image.mjs`; over-claims 439 → 230 and elements at exact quantity 139 → 174 with the assignment held at `nearest`.
+
+## Make a vision call answer the same question twice
+
+The callout card asks the model to describe the part in words and to point at a candidate from the parts list, and the candidate's published name is something the model never sees.
+Where the two answers disagree the pick is dropped, and on Haiku they disagreed on 214 of 265 drawings: it read a Tile 1x4 as "plate 8x4", a Plate 2x10 as "plate 12x2", and a Brick 1x4 as "brick 4x2".
+It is a real check rather than a formality — it is the reason a model that reads stud counts this badly cost only two elements of accuracy instead of wrecking the run: conservation went 203 → 201 elements exact and 1308 → 1301 pieces with every Haiku pick applied.
+
+The lesson is not that model calls do not belong here. It is that the pairing of a free answer with a closed-set answer is what makes one safe to use, and that stud counting on a 200-pixel booklet thumbnail is beyond a small model — Sonnet read the same 3x3 plate correctly where Haiku called it 4x4, at roughly fifteen times the wall clock per call.
+
+**Anchor:** `visionPick` and `describesSameThing` in `scripts/part-identification-score.mjs`; `output/part-identification/score.json` variants `adjudicated/*` with `descriptionAgreement.either` 214 of 265, and `answers-haiku.json` / `answers-sonnet.json`.

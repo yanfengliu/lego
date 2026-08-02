@@ -45,6 +45,12 @@ export interface PanelSummary {
   readonly assemblyComponents: number;
   readonly assemblyDroppedFraction: number;
   readonly highlightRegions: number;
+  readonly assemblyBounds: {
+    readonly minXPx: number;
+    readonly minYPx: number;
+    readonly maxXPx: number;
+    readonly maxYPx: number;
+  } | null;
   readonly highlightEnclosedPx: number;
   readonly fit: {
     readonly azimuthDegrees: number;
@@ -149,6 +155,28 @@ export interface PlacementReport {
   readonly agreedArrows: number;
   /** How far the arrows' answer was from the nearest candidate before snapping. */
   readonly referenceSnapPx: number | null;
+  /**
+   * How far each arrow's ends sit from the two things it spans: its tail from
+   * the ghost's own outline, its head from the model that was already there.
+   * Null where the end fell outside the panel or the mask was empty.
+   */
+  readonly clearances: readonly {
+    readonly tailToGhostPx: number | null;
+    readonly headToBuiltPx: number | null;
+    readonly lengthPx: number;
+  }[];
+  /**
+   * The two clearances summed, in stud pitches: how much shorter tail-to-head
+   * is than the part's real travel. It is the arrow's systematic error, and the
+   * one part of its accuracy that can be measured from the same page.
+   */
+  readonly arrowShortfallStuds: number | null;
+  /**
+   * Arrows whose tail lies on the model rather than on a sub-build strip beside
+   * it. This booklet rings its sub-build steps in yellow like main steps, so the
+   * origin test alone does not separate them and this does.
+   */
+  readonly arrowsInsideAssembly: number;
   readonly silhouettePx: number;
   /**
    * How many separate contours the silhouette is.

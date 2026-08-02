@@ -224,6 +224,21 @@ export function readDisplacementArrows(
   const maxWhite = options.maxWhiteSurroundFraction ?? 0.6;
   const agreement = options.agreementDegrees ?? 25;
   const originMargin = options.originMarginPx ?? 60;
+  // A mask with nothing in it is not a constraint, it is an absence of one.
+  // Steps 1 and 38 of the sample booklet close no highlight contour — the first
+  // step of a build has nothing already there to ring — and testing their
+  // arrows against an empty origin rejected two 500px arrows apiece as
+  // belonging to a sub-build that does not exist.
+  let originHasPixels = false;
+  if (options.originMask !== undefined) {
+    for (let pixel = 0; pixel < options.originMask.length; pixel += 1) {
+      if (options.originMask[pixel] === 1) {
+        originHasPixels = true;
+        break;
+      }
+    }
+  }
+  const origin = originHasPixels ? options.originMask : undefined;
   if (options.originMask !== undefined && options.originMask.length !== area) {
     throw new PanelArrowError(
       `The origin mask holds ${options.originMask.length} pixels but the panel is ${raster.width}x${raster.height}, needing ${area}. ` +
@@ -339,7 +354,7 @@ export function readDisplacementArrows(
     const tailT = headAtHigh ? minT : maxT;
     const tailX = centroidX + tailT * ux;
     const tailY = centroidY + tailT * uy;
-    if (options.originMask !== undefined) {
+    if (origin !== undefined) {
       let near = false;
       const fromX = Math.max(0, Math.round(tailX) - originMargin);
       const toX = Math.min(raster.width - 1, Math.round(tailX) + originMargin);
@@ -347,7 +362,7 @@ export function readDisplacementArrows(
       const toY = Math.min(raster.height - 1, Math.round(tailY) + originMargin);
       for (let y = fromY; y <= toY && !near; y += 1) {
         for (let x = fromX; x <= toX; x += 1) {
-          if (options.originMask[y * raster.width + x] === 1) {
+          if (origin[y * raster.width + x] === 1) {
             near = true;
             break;
           }

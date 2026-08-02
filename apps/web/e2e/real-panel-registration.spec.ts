@@ -155,6 +155,21 @@ test("registers consecutive printed panels onto one frame", async ({ page }) => 
   // highlight: the ones where the exploded score could be asked the question
   // and checked against something it never saw.
   const scored = result.pairs.filter((pair) => pair.placement?.ranking != null);
+  // Every step whose arrow survived the shape and origin tests, whether or not
+  // the rest of the question was answerable. This is the population an
+  // arrow-reading approach would have to work with, and it is the number to
+  // quote rather than the scored three.
+  const withArrow = result.pairs.filter(
+    (pair) => pair.placement !== null && pair.placement.arrowDisplacementXPx !== null,
+  );
+  // The subset whose arrow is drawn on the model rather than on a sub-build
+  // strip beside it. That is the population an arrow-reading approach actually
+  // has, and it is smaller than the count of steps that print an arrow.
+  const withModelArrow = withArrow.filter((pair) => pair.placement!.arrowsInsideAssembly > 0);
+  const withArrowRejected = result.pairs.filter(
+    (pair) =>
+      pair.placement?.skipped != null && /printed [1-9]\d*px of red/.test(pair.placement.skipped),
+  );
   const rankDistribution = Object.fromEntries(
     [...new Set(scored.map((pair) => pair.placement!.ranking!.referenceRank))]
       .sort((left, right) => left - right)
@@ -177,6 +192,8 @@ test("registers consecutive printed panels onto one frame", async ({ page }) => 
         "The same agreement with no transform at all, which is what `panelDelta` would have got had the panels been handed to it as cropped.",
       noise:
         "How far apart the two panels' pixels are inside the model both drew, three pixels in from its edge. The p99 is what a difference threshold has to clear before a placement can be read out of the difference.",
+      arrowShortfallStuds:
+        "How much shorter an arrow is than the travel it describes, as its tail's gap from the ghost's outline plus its head's gap from the model already there, in stud pitches. It is the arrow's systematic error; the spread between arrows on one step is its precision, and the two are different things.",
       referenceRank:
         "Distinct pixel offsets that outscored the one the printed red arrows point at. Zero is a first place. The arrows are the only statement of the answer on the page that the score does not itself read, and they are good to about half a stud.",
       bestToReferenceStuds:
@@ -234,6 +251,13 @@ test("registers consecutive printed panels onto one frame", async ({ page }) => 
     medianBestToReferenceStuds: median(
       scored.map((pair) => pair.placement!.ranking!.bestToReferenceStuds),
     ),
+    stepsWithSurvivingArrow: withArrow.length,
+    stepsWithSurvivingArrowList: withArrow.map((pair) => pair.fromStep),
+    stepsWithArrowOnTheModel: withModelArrow.length,
+    stepsWithArrowOnTheModelList: withModelArrow.map((pair) => pair.fromStep),
+    stepsWhoseRedWasAllRejected: withArrowRejected.length,
+    medianArrowShortfallStuds: median(of(withArrow, (pair) => pair.placement!.arrowShortfallStuds)),
+    medianArrowSpreadPx: median(of(withArrow, (pair) => pair.placement!.arrowSpreadPx)),
     firstPlace: scored.filter((pair) => pair.placement!.ranking!.referenceRank === 0).length,
     medianArrowTravelStuds: median(
       scored.map((pair) => pair.placement!.arrowTravelStuds ?? Number.NaN),
@@ -272,6 +296,20 @@ test("registers consecutive printed panels onto one frame", async ({ page }) => 
       `outline gap median ${median(of(registered, (pair) => pair.boundary?.medianPx))?.toFixed(1) ?? "-"}px over ${of(registered, (pair) => pair.boundary?.medianPx).length} of ${registered.length} pairs; ` +
       `emerged/highlight ${score.medianEmergedOverHighlight?.toFixed(2) ?? "-"}`,
   );
+  console.log(
+    `arrows survived shape+origin on ${score.stepsWithSurvivingArrow} step(s): ${score.stepsWithSurvivingArrowList.join(",")}; ` +
+      `${score.stepsWithArrowOnTheModel} of those draw it on the model rather than on a sub-build strip (${score.stepsWithArrowOnTheModelList.join(",")}); ` +
+      `${score.stepsWhoseRedWasAllRejected} printed red that was all rejected; ` +
+      `median arrow shortfall ${score.medianArrowShortfallStuds?.toFixed(2) ?? "-"} studs, spread ${score.medianArrowSpreadPx?.toFixed(1) ?? "-"}px`,
+  );
+  for (const pair of withArrow) {
+    const pl = pair.placement!;
+    console.log(
+      `  step ${String(pair.fromStep).padStart(2)}: ${pl.agreedArrows}/${pl.arrows} arrows, ${pl.arrowsInsideAssembly} on the model, ` +
+        `shortfall ${pl.arrowShortfallStuds?.toFixed(2) ?? "-"} studs, spread ${pl.arrowSpreadPx?.toFixed(1) ?? "-"}px, ` +
+        `clearances ${pl.clearances.map((c) => `${c.tailToGhostPx?.toFixed(0) ?? "-"}+${c.headToBuiltPx?.toFixed(0) ?? "-"}/${c.lengthPx.toFixed(0)}`).join(" ")}`,
+    );
+  }
   console.log(
     `placement scored on ${scored.length} step(s): ${score.firstPlace} ranked the arrow-implied offset first, ` +
       `${score.withinOneStud} put the top offset within a stud of the arrows; ` +

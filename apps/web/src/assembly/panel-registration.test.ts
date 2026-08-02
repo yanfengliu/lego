@@ -7,7 +7,7 @@ import {
   keyPrintedBoxes,
   PanelRegistrationError,
 } from "./panel-art";
-import { boundaryOffset, measureDifferenceNoise } from "./panel-difference";
+import { boundaryOffset, distanceToMask, measureDifferenceNoise } from "./panel-difference";
 import { alignPanelMasks, warpMask, warpRaster } from "./panel-registration";
 
 const PAGE = 0x8b9296;
@@ -413,6 +413,22 @@ describe("boundaryOffset", () => {
     );
     expect(() => boundaryOffset(new Uint8Array(1200), new Uint8Array(1200), 40, 30, 0)).toThrow(
       /whole search radius of at least one pixel, received 0/,
+    );
+  });
+});
+
+describe("distanceToMask", () => {
+  it("gives the distance to the nearest set pixel, and infinity when there is none", () => {
+    const width = 40;
+    const height = 30;
+    const target = boxMask(width, height, [{ x: 10, y: 10, w: 2, h: 2 }]);
+    const field = distanceToMask(target, width, height);
+    expect(field[10 * width + 10]).toBe(0);
+    expect(field[10 * width + 13]).toBeCloseTo(2, 1);
+    // The box spans rows 10 and 11, so the nearest set pixel from row 20 is 9 away.
+    expect(field[20 * width + 10]).toBeCloseTo(9, 0);
+    expect(distanceToMask(new Uint8Array(width * height), width, height)[0]).toBe(
+      Number.POSITIVE_INFINITY,
     );
   });
 });

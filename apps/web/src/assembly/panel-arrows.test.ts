@@ -189,6 +189,23 @@ describe("readDisplacementArrows", () => {
     expect(reading.arrows).toHaveLength(1);
   });
 
+  it("keeps every arrow when the step highlighted nothing to start from", () => {
+    // The first step of a build rings nothing, because there is nothing already
+    // there to ring. Testing its arrows against an empty origin rejected two
+    // 500px arrows on step 1 of the sample booklet as belonging to a sub-build
+    // that does not exist. An absent constraint is not a failed one.
+    const width = 1000;
+    const height = 700;
+    const pixels = panel(width, height);
+    paintArrow(pixels, width, 200, 60, 80);
+    const reading = readDisplacementArrows(
+      { width, height, pixels },
+      { originMask: new Uint8Array(width * height), originMarginPx: 60 },
+    );
+    expect(reading.arrows).toHaveLength(1);
+    expect(reading.rejected).toHaveLength(0);
+  });
+
   it("names the mismatch when the origin mask is not the panel's raster", () => {
     expect(() =>
       readDisplacementArrows(
