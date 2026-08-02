@@ -74,8 +74,12 @@ One body per rigid component, one constraint per articulated joint, and no const
 Mass comes from the catalog rather than from collider volume, so the engine cannot disagree with what a part weighs.
 Rebuilding only the components a change touched is not done: today a change rebuilds the scene.
 
-**5. Edit and simulation modes.**
-Restore on exit first, apply later, because restore cannot corrupt a construction and apply can.
+**5. Edit and simulation modes. Session done; the app toggle is not.**
+`startSimulation` reads the document once, builds bodies from it, and afterwards reports only where those bodies have got to.
+Restore is therefore not an operation at all, which is stronger than making it a reliable one: an operation that does not exist cannot fail or be interrupted halfway.
+It also sidesteps a real conflict — a solver produces a brick resting at 23.37 and tilted four degrees, and no such thing is a lattice position.
+Apply, if it is ever wanted, needs its own answer about where off-lattice parts live, and should be a separate posed layer rather than a write to the build.
+Still to do: the mode toggle in the app, and a viewport that draws part poses instead of document transforms while a session runs.
 
 **6. Indexing and instancing, when measured.**
 A connector index and instanced rendering are both real needs at 1465 parts and both are premature before a number says so.
