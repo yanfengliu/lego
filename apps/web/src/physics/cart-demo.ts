@@ -39,7 +39,13 @@ const CART: readonly Placement[] = [
   { catalogPartId: "builtin:plate-2x6", colorId: COLORS.chassis, positionLdu: [0, 8, 0] },
   { catalogPartId: "builtin:brick-2x4", colorId: COLORS.chassis, positionLdu: [0, -8, 0] },
 
-  // Four bearings under the plate, two per axle.
+  // Four bearings under the plate, two per axle, at the far ends.
+  //
+  // The axles have to be further apart than a wheel is wide or the front and
+  // rear wheels occupy the same space. A 62 LDU wheel needs more than 62
+  // between axles; at ±20 they overlapped by 22 — a third of their diameter —
+  // and the demo shipped that way because nothing asserted the document was
+  // valid. ±40 gives 80.
   //
   // Their positions are forced by the lattice rather than chosen. A 1x2 brick's
   // studs sit 10 LDU either side of its centre, and a plate's cells are at odd
@@ -50,7 +56,7 @@ const CART: readonly Placement[] = [
   // x = 0 for its hole to line up with a centred axle, and x = 0 is not a cell
   // on a two-wide plate.
   ...[-10, 10].flatMap((x) =>
-    [-20, 20].map((z) => ({
+    [-40, 40].map((z) => ({
       catalogPartId: "builtin:technic-brick-1x2",
       colorId: COLORS.bearing,
       positionLdu: [x, 24, z] as const,
@@ -67,7 +73,7 @@ const CART: readonly Placement[] = [
  * correctly.
  */
 const RUNNING_GEAR: readonly Placement[] = [
-  ...[-20, 20].flatMap((z) => [
+  ...[-40, 40].flatMap((z) => [
     { catalogPartId: "builtin:axle-1x4", colorId: COLORS.axle, positionLdu: [0, 22, z] as const },
     // At the axle's outermost ports, and far enough out that a 36 LDU wheel
     // clears the 40 LDU wide plate it is carrying.

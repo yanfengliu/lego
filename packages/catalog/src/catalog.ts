@@ -898,7 +898,8 @@ const makePart = (blueprint: PartBlueprint): PartDefinition => {
           id: "body",
           kind: "cylinder",
           tag: "body",
-          axis: "y",
+          // A wheel lies on its side, turning about the axle it rides.
+          axis: "x",
           centerLdu: [0, 0, 0],
           radiusLdu: WHEEL_DIAMETER_LDU / 2,
           heightLdu: bodyBoundsLdu.max[0] - bodyBoundsLdu.min[0],

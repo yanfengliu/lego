@@ -181,7 +181,12 @@ export interface CollisionCylinder {
    * stop it rolling.
    */
   readonly tag: "stud" | "body";
-  readonly axis: "y";
+  /**
+   * The axis the cylinder stands on. A stud is always vertical; a wheel lies on
+   * its side. Declaring it wrong makes the bounding box wrong on two axes, and
+   * short in one of them — which lets a real overlap go unreported.
+   */
+  readonly axis: "x" | "y" | "z";
   readonly centerLdu: LduVector3;
   readonly radiusLdu: number;
   readonly heightLdu: number;

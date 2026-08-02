@@ -6,7 +6,7 @@ import {
 } from "@lego-studio/catalog";
 import type { ConnectionEdge, PartInstance } from "@lego-studio/protocol";
 
-import { transformLduPoint } from "./transforms.ts";
+import { getUprightOrientation, rotateLduVector, transformLduPoint } from "./transforms.ts";
 import { MAX_COLLISION_COMPARISONS, MAX_COLLISION_FINDINGS } from "./truth-manifests.ts";
 
 export interface CollisionFinding {
@@ -146,6 +146,23 @@ function makeWorldPrimitives(parts: readonly PartInstance[]): WorldPrimitive[] {
 
       const center = transformLduPoint(part.transform, primitive.centerLdu);
       const halfHeight = primitive.heightLdu / 2;
+      // Half-extents along the cylinder's own axis versus across it. A quarter
+      // turn about the vertical swaps x and z, so an x-axis cylinder becomes a
+      // z-axis one; taking the absolute value of the rotated extents handles
+      // both without naming which turn happened.
+      const localHalf: LduVector3 =
+        primitive.axis === "x"
+          ? [halfHeight, primitive.radiusLdu, primitive.radiusLdu]
+          : primitive.axis === "z"
+            ? [primitive.radiusLdu, primitive.radiusLdu, halfHeight]
+            : [primitive.radiusLdu, halfHeight, primitive.radiusLdu];
+      const orientation = getUprightOrientation(part.transform.orientationId);
+      const rotatedHalf = rotateLduVector(orientation.matrix, localHalf);
+      const half: LduVector3 = [
+        Math.abs(rotatedHalf[0]),
+        Math.abs(rotatedHalf[1]),
+        Math.abs(rotatedHalf[2]),
+      ];
       if (primitive.tag === "body") {
         // Its bounding box, which claims the corners a round part does not
         // fill. That refuses a placement a real wheel would allow and never
@@ -155,16 +172,8 @@ function makeWorldPrimitives(parts: readonly PartInstance[]): WorldPrimitive[] {
           part,
           primitiveId: primitive.id,
           sourceIndex,
-          min: [
-            center[0] - primitive.radiusLdu,
-            center[1] - halfHeight,
-            center[2] - primitive.radiusLdu,
-          ],
-          max: [
-            center[0] + primitive.radiusLdu,
-            center[1] + halfHeight,
-            center[2] + primitive.radiusLdu,
-          ],
+          min: [center[0] - half[0], center[1] - half[1], center[2] - half[2]],
+          max: [center[0] + half[0], center[1] + half[1], center[2] + half[2]],
         });
         continue;
       }
@@ -175,16 +184,8 @@ function makeWorldPrimitives(parts: readonly PartInstance[]): WorldPrimitive[] {
         sourceIndex,
         center,
         radiusLdu: primitive.radiusLdu,
-        min: [
-          center[0] - primitive.radiusLdu,
-          center[1] - halfHeight,
-          center[2] - primitive.radiusLdu,
-        ],
-        max: [
-          center[0] + primitive.radiusLdu,
-          center[1] + halfHeight,
-          center[2] + primitive.radiusLdu,
-        ],
+        min: [center[0] - half[0], center[1] - half[1], center[2] - half[2]],
+        max: [center[0] + half[0], center[1] + half[1], center[2] + half[2]],
       });
     }
   }
