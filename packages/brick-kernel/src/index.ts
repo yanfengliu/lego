@@ -1,6 +1,7 @@
 export const BRICK_KERNEL_VERSION = "lego.brick-kernel/1" as const;
 
 export * from "./assemblies.ts";
+export * from "./compound-bodies.ts";
 export * from "./build-comparison.ts";
 export * from "./build-sequence.ts";
 export * from "./canonical.ts";
