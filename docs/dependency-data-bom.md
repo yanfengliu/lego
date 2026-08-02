@@ -93,6 +93,7 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
     { "manifest": "package.json", "section": "devDependencies", "name": "typescript-eslint", "spec": "8.63.0" },
     { "manifest": "package.json", "section": "devDependencies", "name": "vite", "spec": "8.1.4" },
     { "manifest": "package.json", "section": "devDependencies", "name": "vitest", "spec": "4.1.10" },
+    { "manifest": "apps/web/package.json", "section": "dependencies", "name": "@dimforge/rapier3d-compat", "spec": "0.12.0" },
     { "manifest": "apps/web/package.json", "section": "dependencies", "name": "@lego-studio/brick-kernel", "spec": "0.0.0" },
     { "manifest": "apps/web/package.json", "section": "dependencies", "name": "@lego-studio/catalog", "spec": "0.0.0" },
     { "manifest": "apps/web/package.json", "section": "dependencies", "name": "@lego-studio/generation", "spec": "0.0.0" },
@@ -154,6 +155,16 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
       "declaredLicense": "MIT",
       "rightsPolicy": "npm-lockfile-spdx-unverified",
       "allowedRoles": ["development TypeScript declarations for React"]
+    },
+    {
+      "name": "@dimforge/rapier3d-compat",
+      "version": "0.12.0",
+      "kind": "npm",
+      "resolvedSource": "https://registry.npmjs.org/@dimforge/rapier3d-compat/-/rapier3d-compat-0.12.0.tgz",
+      "upstreamSource": "https://github.com/dimforge/rapier.js",
+      "declaredLicense": "Apache-2.0",
+      "rightsPolicy": "npm-lockfile-spdx-unverified",
+      "allowedRoles": ["rigid-body simulation of accepted assemblies, in the browser only"]
     },
     {
       "name": "@types/react-dom",

@@ -8,6 +8,7 @@
     "build": "vite build"
   },
   "dependencies": {
+    "@dimforge/rapier3d-compat": "0.12.0",
     "@lego-studio/brick-kernel": "0.0.0",
     "@lego-studio/catalog": "0.0.0",
     "@lego-studio/generation": "0.0.0",

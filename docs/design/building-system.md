@@ -26,7 +26,7 @@ Collision does a one-dimensional sweep on x with an early break, which is sweep-
 
 **Not built at all.**
 
-Physics: no engine, no compound bodies, no constraints, no simulation mode, no support model beyond the static placement check.
+Physics: Rapier drives compound bodies and revolute joints from the kernel's descriptors. No simulation mode in the app yet, and no support model beyond the static placement check.
 GPU instancing: one mesh per part, so a 1465-piece model is 1465 meshes.
 Mass, centre of mass and inertia are absent from `PartDefinition`.
 No profiling metrics.
@@ -68,10 +68,11 @@ The hole is one port at `[0, -2, 0]` with its axis on x, not two: it is one feat
 Both parts are boxes for collision. The hole is a void the connector graph knows about and the solid does not, which over-claims space by exactly the hole and so refuses more than a real part would — the safe direction.
 The visible cost of having no mesh layer: the brick renders as a plain 1x2, because the hole is not geometry.
 
-**4. Compound bodies and constraints.**
-One rigid body per rigid component, not one per part and never one constraint per stud.
-Constraints only for articulated edges. Rebuild only the components a change touched.
-This is where an engine gets chosen; nothing above depends on which.
+**4. Compound bodies and constraints. Done, except incremental rebuild.**
+`derivePhysicsScene` turns the assembly graph into bodies and joints as plain LDU data, and `apps/web/src/physics/rapier-world.ts` runs them in Rapier.
+One body per rigid component, one constraint per articulated joint, and no constraint per stud.
+Mass comes from the catalog rather than from collider volume, so the engine cannot disagree with what a part weighs.
+Rebuilding only the components a change touched is not done: today a change rebuilds the scene.
 
 **5. Edit and simulation modes.**
 Restore on exit first, apply later, because restore cannot corrupt a construction and apply can.

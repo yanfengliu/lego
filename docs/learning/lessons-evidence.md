@@ -195,3 +195,17 @@ LDraw builds a part's underside tubes out of stud primitives too, so a 2x4 brick
 And the library rate limits a burst of subfile requests; reporting a non-404 as "no such part" made eight real parts look nonexistent until it retried with backoff instead.
 
 **Anchor:** `scripts/ldraw-part-facts.mjs`, validated against Brick 2x4 (80x40x24, eight studs) and Plate 2x4; correction to `34103` in the catalog with a new geometry hash; measured wedge-plate facts — Wing 2x4 Left/Right are 40x80x8 with four studs along one edge at x -10 / +10, Wing 2x3 Left/Right 40x60x8 with three.
+
+## Simulate bricks in centimetres, not LDU or metres
+
+Two scale traps, one cause: a brick is small, and solvers are tuned for objects around a metre.
+
+One LDU is 0.4 mm, so a 2x4 brick is 80 by 24 by 40 LDU and 0.032 m across.
+Feeding either unit to a solver puts every object orders of magnitude away from the size its default tolerances, sleep thresholds and contact slop assume.
+Centimetres put a 2x4 brick at 3.2 by 1.6, which is the range those defaults were chosen for. Gravity is then 981, not 9.81, and mass stays in grams so the system is consistent.
+
+The second trap follows from the first. A brick dropped 8 cm reaches about 125 cm/s, which is 2 cm of travel in a sixtieth of a second — larger than most of the parts involved.
+A ground plane modelled as a thin sheet is crossed entirely within one step and the body keeps falling with nothing to report: the collider was 20 micrometres thick and the brick came to rest 11 LDU *below* the plate.
+The ground is a slab deep enough that nothing crosses it in a step, positioned so its top face is the build plate, and dynamic bodies enable continuous collision detection.
+
+**Anchor:** `apps/web/src/physics/rapier-world.ts`; the landing test in `rapier-world.test.ts` failed at y=23.37 against a plate at y=12 before the ground was given depth.
