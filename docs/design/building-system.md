@@ -5,6 +5,10 @@ An assessment of this repository against a full brick-building-system specificat
 Written because the specification describes a system largely already built here, and the expensive mistake would be to build it a second time alongside.
 Read `part-model.md` first for how a part itself is organised; this is about the system around it.
 
+It is not the goal. The goal is in `spec.md`: read a printed instruction booklet, build the set it describes, verify each step against the booklet's own picture, and play the result back.
+Everything here serves that. Parts exist because the loop cannot place a wedge plate it does not have; physics exists because a model that has been built should be shown standing up and moving.
+When the two compete, the booklet wins — a building system with nothing to build is the more comfortable problem and the wrong one.
+
 ## Against the specification
 
 **Already built, and should be reused rather than replaced.**
