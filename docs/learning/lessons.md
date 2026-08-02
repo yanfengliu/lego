@@ -38,3 +38,4 @@ When a lesson becomes a gate — a test, a lint rule, a fixed command — delete
 - Two consecutive printed panels are one drawing moved: take the scale from the camera fit and search only the shift. ([evidence](lessons-evidence.md#two-consecutive-printed-panels-are-one-drawing-moved))
 - A sub-assembly box is joined to the model by its leader line, so the largest connected region is not the assembly. ([evidence](lessons-evidence.md#a-sub-assembly-box-is-joined-to-the-model-by-its-leader-line))
 - A printed step's panel difference finds the right stud, not the right offset; report the distance, not the rank. ([evidence](lessons-evidence.md#a-printed-steps-panel-difference-finds-the-right-stud-not-the-right-offset))
+- Give each Playwright run its own dev-server port; a shared one lets concurrent runs corrupt each other's app state, not merely queue. ([evidence](lessons-evidence.md#give-each-playwright-run-its-own-dev-server-port))

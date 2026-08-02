@@ -12,7 +12,10 @@ export default async function globalSetup() {
     logLevel: "error",
     server: {
       host: "127.0.0.1",
-      port: 5267,
+      // Set by playwright.config.ts, which picks it before Playwright reads
+      // baseURL. Strict, so a clash is an error rather than a server the tests
+      // then fail to reach.
+      port: Number(process.env.LEGO_E2E_PORT ?? 5267),
       strictPort: true,
       // The booklet probes import pdfjs and fetch the sample PDF over `/@fs/`.
       // Run from a worktree, both live outside the workspace vite infers, and

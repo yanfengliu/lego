@@ -365,3 +365,15 @@ A picture-to-picture lookahead is therefore best exactly where it is least neede
 0 of 3 scored steps ranked the arrow-implied offset first and 2 put the top offset within a stud of it; median margin -0.037.
 The reference is the red arrow's own tail-to-head vector, which the score never reads, and it is good to about half a stud because an arrow is drawn with clearance at both ends.
 `placement-010-011.png` is the picture to look at: the emerged region sits squarely on the landing site and the score's winner and the arrows' answer are half a stud apart.
+
+## Give each Playwright run its own dev-server port
+
+The e2e global setup pinned vite to port 5267. With several agents working in one checkout the obvious cost was queueing — "Port 5267 is already in use", tens of minutes lost each, and one agent resorting to killing every node process, which took a sibling agent down with it mid-flight.
+
+The cost that actually mattered was invisible. Two runs that *do* get through share one dev server, and therefore share the application's state. A spec that calls `resetScene` clears the model out from under another run's spec, which then measures an empty viewport and fails an assertion about the part it placed.
+
+That is how `compound-part-shapes.spec.ts:64` came to be reported as red on `main` by two separate sessions: its silhouette-differs-from-a-plain-box assertion failed because another run had wiped the placed part. On a port of its own the same commit passes. Nobody had introduced a defect, and a real morning could have gone into finding one.
+
+The port is now derived from the process id in `playwright.config.ts`, with `LEGO_E2E_PORT` to pin it. It is chosen in the config rather than in global setup because Playwright reads `baseURL` before setup runs, so that is the last moment the server and the tests can still agree on a number.
+
+**Anchor:** `playwright.config.ts`, `apps/web/e2e/global-setup.ts`; `compound-part-shapes.spec.ts` red under contention and green on a free port at the same commit (0267c09); full suite 31 passed.
