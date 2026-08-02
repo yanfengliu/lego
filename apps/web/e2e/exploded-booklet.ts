@@ -165,9 +165,9 @@ export const measureExplodedResolution = async ({
   };
 
   /**
-   * The probe part's visible silhouette, and the whole assembly's. Ink off,
-   * because a keyed fill with outlines on comes back riddled with holes
-   * along every edge.
+   * The probe part's visible silhouette, and the whole assembly's. Silhouette
+   * mode, not art: shading has no single hex to key, and a keyed fill with
+   * outlines on comes back riddled with holes along every edge.
    */
   const renderMasks = (document: unknown, probePartId: string) => {
     const parts = (document as { parts: { id: string }[] }).parts;
@@ -178,9 +178,7 @@ export const measureExplodedResolution = async ({
       ),
     };
     const scene = rendering.deriveBrickScene(painted, { finish: "instruction" });
-    scene.root.traverse((object: { userData: { renderRole?: string }; visible: boolean }) => {
-      if (object.userData.renderRole === "instruction-outline") object.visible = false;
-    });
+    rendering.setInstructionSilhouetteMode(scene.root, true);
     const pixels = renderer.render(scene.root, panelCamera);
     const probe = new Uint8Array(AREA);
     const model = new Uint8Array(AREA);

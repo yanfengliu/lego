@@ -18,14 +18,28 @@ import {
   LineBasicMaterial,
   LineSegments,
   Material,
+  Matrix3,
   Mesh,
   MeshBasicMaterial,
   MeshPhysicalMaterial,
   MeshStandardMaterial,
 } from "three";
 
-import { INSTRUCTION_EDGE_HEX, INSTRUCTION_EDGE_THRESHOLD_DEGREES } from "./constants.ts";
-import { THREE_UNITS_PER_LDU, lduToThreeVector, lduTransformToThreeMatrix } from "./coordinates.ts";
+import { INSTRUCTION_EDGE_THRESHOLD_DEGREES } from "./constants.ts";
+import {
+  RenderTransformError,
+  THREE_UNITS_PER_LDU,
+  lduToThreeVector,
+  lduTransformToThreeMatrix,
+} from "./coordinates.ts";
+import {
+  INSTRUCTION_ART_MATERIAL_HEX,
+  createInstructionInkMaterial,
+  instructionBoxOutline,
+  instructionFillGeometry,
+  type InstructionBox,
+  type InstructionSurface,
+} from "./instruction-finish.ts";
 import type { BrickFinish, RenderDiagnostic } from "./types.ts";
 
 const FALLBACK_COLOR = 0xff2bd6;
@@ -44,7 +58,31 @@ function geometryMetadata(definition: PartDefinition) {
 /** A real brick's edges are chamfered, which is what catches a highlight. */
 const BEVEL_LDU = 0.9;
 
-function makeBrickMaterial(displayHex: string | number, finish: BrickFinish): Material {
+/**
+ * The part's display colour as a number, and the diagnostic when it cannot be
+ * had. Numeric rather than the catalog's `#rrggbb` because every booklet tone
+ * is arithmetic on its channels.
+ */
+function resolveDisplayHex(
+  part: PartInstance,
+  diagnostics: RenderDiagnostic[],
+): { displayHex: number; fallback: boolean } {
+  const reject = (message: string) => {
+    diagnostics.push({ code: "UNKNOWN_COLOR", message, partId: part.id });
+    return { displayHex: FALLBACK_COLOR, fallback: true };
+  };
+  const color = getColorDefinition(part.colorId);
+  if (!color) return reject(`Part ${part.id} uses unknown display color ${part.colorId}`);
+  if (!/^#[0-9a-fA-F]{6}$/.test(color.displayHex)) {
+    return reject(
+      `Catalog color ${part.colorId} on part ${part.id} has displayHex "${color.displayHex}", ` +
+        `which is not a six-digit #rrggbb — every booklet tone is arithmetic on those channels`,
+    );
+  }
+  return { displayHex: Number.parseInt(color.displayHex.slice(1), 16), fallback: false };
+}
+
+function makeBrickMaterial(displayHex: number, finish: BrickFinish): Material {
   // ABS is a hard plastic under a glossy skin, so presentation adds a clearcoat
   // rather than simply lowering roughness.
   if (finish === "presentation") {
@@ -56,54 +94,31 @@ function makeBrickMaterial(displayHex: string | number, finish: BrickFinish): Ma
       clearcoatRoughness: 0.28,
     });
   }
-  // Booklet art is unlit: one flat tone per part, and the shape is carried
-  // entirely by the printed outlines. The polygon offset pushes the fill back
-  // so an outline is never half-swallowed by the face it lies on.
+  // Booklet art is shaded, not flat: three tones across a brick's three visible
+  // faces, a lighter cap and a near-black wall on every stud. The tone is baked
+  // per triangle into vertex colours, so the material stays unlit and the
+  // palette stays exact — see instruction-finish.ts for the measurements. The
+  // fill takes no polygon offset: an outline that lies on a face is moved
+  // toward the camera instead, which leaves the fill's own depth honest so it
+  // can still hide the lines behind it.
   if (finish === "instruction") {
-    return new MeshBasicMaterial({
-      color: displayHex,
-      polygonOffset: true,
-      // Constant, not slope-scaled. A slope-scaled offset grows without bound
-      // on faces seen edge-on, and at factor 1 it pushed a brick's front faces
-      // behind its own back edges: every hidden line printed straight through
-      // the fill. Four depth units wins the z-fight on a coincident outline
-      // and is far too small to reach past any real geometry.
-      //
-      // The cost is that a stud rim, which lies exactly on the silhouette
-      // between the cylinder wall and its cap, still stipples where the wall is
-      // near edge-on: magnified, the ellipse reads dotted rather than drawn.
-      // Raising the factor to 1 draws it solid and simultaneously draws the
-      // rim it should be hiding, so the dotted ellipse is the honest picture.
-      // It costs nothing in a silhouette comparison, which is what the closed
-      // loop scores; revisit only for a presentation-quality instruction print.
-      polygonOffsetFactor: 0,
-      polygonOffsetUnits: 4,
-    });
+    return new MeshBasicMaterial({ color: INSTRUCTION_ART_MATERIAL_HEX, vertexColors: true });
   }
   return new MeshStandardMaterial({ color: displayHex, metalness: 0, roughness: 0.42 });
 }
 
 function makeMaterial(
   part: PartInstance,
-  diagnostics: RenderDiagnostic[],
+  displayHex: number,
+  fallback: boolean,
   finish: BrickFinish,
 ): Material {
-  const color = getColorDefinition(part.colorId);
-  if (!color) {
-    diagnostics.push({
-      code: "UNKNOWN_COLOR",
-      message: `Part ${part.id} uses unknown display color ${part.colorId}`,
-      partId: part.id,
-    });
-  }
-
-  const material = makeBrickMaterial(color?.displayHex ?? FALLBACK_COLOR, finish);
+  const material = makeBrickMaterial(displayHex, finish);
   material.name = `brick-material:${part.id}`;
-  material.userData = {
-    renderRole: "part-material",
-    colorId: part.colorId,
-    fallback: color === undefined,
-  };
+  // The display hex travels with the material because an instruction fill is
+  // white plus a baked tone; without it, switching shading off would leave the
+  // part white rather than its own colour.
+  material.userData = { renderRole: "part-material", colorId: part.colorId, fallback, displayHex };
   return material;
 }
 
@@ -208,6 +223,22 @@ function createWedgeGeometry(wedge: CollisionWedge): BufferGeometry {
   return geometry;
 }
 
+/**
+ * The rotation that carries this part's local normals into world space, which
+ * is the frame the booklet's light lives in. An orientation the catalog does
+ * not know leaves the part unrotated, matching what `deriveBrickScene` does
+ * with the same failure — a shaded part in the wrong pose would otherwise be a
+ * second, silent symptom of one bad orientation id.
+ */
+function partRotation(part: PartInstance): Matrix3 {
+  try {
+    return new Matrix3().setFromMatrix4(lduTransformToThreeMatrix(part.transform));
+  } catch (error) {
+    if (!(error instanceof RenderTransformError)) throw error;
+    return new Matrix3();
+  }
+}
+
 export function createCatalogPartGeometry(
   part: PartInstance,
   definition: PartDefinition,
@@ -217,17 +248,35 @@ export function createCatalogPartGeometry(
 ): Group {
   const group = new Group();
   const metadata = geometryMetadata(definition);
-  const material = makeMaterial(part, diagnostics, finish);
+  const { displayHex, fallback } = resolveDisplayHex(part, diagnostics);
+  const material = makeMaterial(part, displayHex, fallback, finish);
+  const instruction = finish === "instruction";
+  const rotation = instruction ? partRotation(part) : null;
   // One ink material per part, shared by its body and every stud outline, so a
   // 1465-piece model costs 1465 line materials rather than one per stud.
-  const outlineMaterial =
-    finish === "instruction"
-      ? Object.assign(new LineBasicMaterial({ color: INSTRUCTION_EDGE_HEX }), {
-          name: `instruction-outline-material:${part.id}`,
-          userData: { renderRole: "instruction-outline-material" },
-        })
-      : null;
-  const castsShadows = finish !== "instruction";
+  const outlineMaterial = instruction ? createInstructionInkMaterial(displayHex, part.id) : null;
+  /**
+   * Booklet tone, baked per triangle. Any outline must already have been taken
+   * from `source`: a de-indexed copy replaces it, and the source is disposed.
+   */
+  const shaded = (source: BufferGeometry, surface: InstructionSurface): BufferGeometry =>
+    rotation ? instructionFillGeometry(source, rotation, displayHex, surface) : source;
+  const castsShadows = !instruction;
+  // An arch, a curved slope and a cheese slope are a staircase of boxes rather
+  // than one prism, so their outlines are cut from the union those boxes make:
+  // otherwise every seam between two of them prints, and a ramp reads as a
+  // stack of fins. Kept in the same frame the solid is built in.
+  const bodyBoxes: InstructionBox[] = definition.collision.primitives
+    .filter((primitive) => primitive.tag === "body" && primitive.kind === "box")
+    .map((primitive) => {
+      const low = lduToThreeVector(primitive.minLdu);
+      const high = lduToThreeVector(primitive.maxLdu);
+      return {
+        min: [Math.min(low.x, high.x), Math.min(low.y, high.y), Math.min(low.z, high.z)] as const,
+        max: [Math.max(low.x, high.x), Math.max(low.y, high.y), Math.max(low.z, high.z)] as const,
+      };
+    });
+  let boxIndex = 0;
   // The solid is drawn from the same body primitives the collision validator
   // reads. Drawing it from `dimensions` instead would let a wedge look like the
   // box it is not, and would let the picture and the solid drift apart in
@@ -247,23 +296,30 @@ export function createCatalogPartGeometry(
         false,
       );
       wheel.rotateZ(Math.PI / 2);
-      wheel.userData = { ...metadata, renderRole: "body-geometry" };
-      const mesh = new Mesh(wheel, material);
+      if (outlineMaterial) {
+        const outline = createInstructionOutline(
+          wheel,
+          outlineMaterial,
+          `body-outline:${part.id}`,
+          part.id,
+        );
+        // The barrel is built on the origin and moved; its ink has to move too.
+        outline.position.copy(lduToThreeVector(primitive.centerLdu));
+        group.add(outline);
+      }
+      const wheelGeometry = shaded(wheel, "body");
+      wheelGeometry.userData = { ...metadata, renderRole: "body-geometry" };
+      const mesh = new Mesh(wheelGeometry, material);
       mesh.name = bodyIndex === 0 ? `body:${part.id}` : `body:${part.id}:${bodyIndex}`;
       mesh.position.copy(lduToThreeVector(primitive.centerLdu));
       mesh.castShadow = castsShadows;
       mesh.receiveShadow = castsShadows;
       mesh.userData = { renderRole: "body", partId: part.id, primitiveId: primitive.id };
       group.add(mesh);
-      if (outlineMaterial) {
-        group.add(
-          createInstructionOutline(wheel, outlineMaterial, `body-outline:${part.id}`, part.id),
-        );
-      }
       bodyIndex += 1;
       continue;
     }
-    const bodyGeometry =
+    const source =
       primitive.kind === "wedge"
         ? createWedgeGeometry(primitive)
         : createBodyGeometry(
@@ -272,6 +328,24 @@ export function createCatalogPartGeometry(
             (primitive.maxLdu[2] - primitive.minLdu[2]) * THREE_UNITS_PER_LDU,
             finish,
           );
+    if (outlineMaterial) {
+      const name =
+        bodyIndex === 0 ? `body-outline:${part.id}` : `body-outline:${part.id}:${bodyIndex}`;
+      if (primitive.kind === "wedge") {
+        // A wedge is already built from its own corners, so its edges are in
+        // place; there is no wedge in this catalog that shares a part with a box.
+        group.add(createInstructionOutline(source, outlineMaterial, name, part.id));
+      } else {
+        const geometry = instructionBoxOutline(bodyBoxes, boxIndex);
+        geometry.userData = { renderRole: "instruction-outline-geometry" };
+        const outline = new LineSegments(geometry, outlineMaterial);
+        outline.name = name;
+        outline.userData = { renderRole: "instruction-outline", partId: part.id };
+        group.add(outline);
+      }
+    }
+    if (primitive.kind === "box") boxIndex += 1;
+    const bodyGeometry = shaded(source, "body");
     bodyGeometry.userData = { ...metadata, renderRole: "body-geometry" };
     const body = new Mesh(bodyGeometry, material);
     body.name = bodyIndex === 0 ? `body:${part.id}` : `body:${part.id}:${bodyIndex}`;
@@ -290,21 +364,19 @@ export function createCatalogPartGeometry(
     body.receiveShadow = castsShadows;
     body.userData = { renderRole: "body", partId: part.id, primitiveId: primitive.id };
     group.add(body);
-    if (outlineMaterial) {
-      group.add(
-        createInstructionOutline(
-          bodyGeometry,
-          outlineMaterial,
-          bodyIndex === 0 ? `body-outline:${part.id}` : `body-outline:${part.id}:${bodyIndex}`,
-          part.id,
-        ),
-      );
-    }
     bodyIndex += 1;
   }
 
-  if (includeStuds) {
-    const studGeometry = new CylinderGeometry(
+  // A tile, a wheel, an axle and a cheese slope have no studs at all. Testing
+  // that before the cylinder is built keeps the six studless families from
+  // paying for a geometry, a de-index and a 96-triangle tone bake that is then
+  // dropped — a cost every scene derivation used to repeat, thousands of times
+  // over one closed-loop search.
+  const hasStuds = definition.collision.primitives.some(
+    (primitive) => primitive.kind === "cylinder" && primitive.tag === "stud",
+  );
+  if (includeStuds && hasStuds) {
+    const studSource = new CylinderGeometry(
       STUD_RADIUS_LDU * THREE_UNITS_PER_LDU,
       STUD_RADIUS_LDU * THREE_UNITS_PER_LDU,
       STUD_HEIGHT_LDU * THREE_UNITS_PER_LDU,
@@ -312,11 +384,14 @@ export function createCatalogPartGeometry(
       1,
       false,
     );
-    studGeometry.userData = { ...metadata, renderRole: "stud-geometry" };
     const studOutline = outlineMaterial
-      ? new EdgesGeometry(studGeometry, INSTRUCTION_EDGE_THRESHOLD_DEGREES)
+      ? new EdgesGeometry(studSource, INSTRUCTION_EDGE_THRESHOLD_DEGREES)
       : null;
     if (studOutline) studOutline.userData = { renderRole: "instruction-outline-geometry" };
+    // Every stud of a part shares one geometry, and under a yaw-only
+    // orientation they all face the same way, so one baked tone serves them all.
+    const studGeometry = shaded(studSource, "stud");
+    studGeometry.userData = { ...metadata, renderRole: "stud-geometry" };
 
     for (const primitive of definition.collision.primitives) {
       if (primitive.kind !== "cylinder" || primitive.tag !== "stud") continue;

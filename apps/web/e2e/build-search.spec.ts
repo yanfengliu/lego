@@ -114,13 +114,13 @@ test("rebuilds a model from its own step pictures", async ({ page }) => {
           ),
         };
         const scene = rendering.deriveBrickScene(painted, { finish: "instruction" });
-        // Ink off for a mask render. Booklet outlines are drawn on top of the
-        // fill, so keying the fill colour with them on leaves the silhouette
-        // riddled with one-pixel holes along every edge and stud — panel one
-        // reported eighteen highlight regions instead of one.
-        scene.root.traverse((object: { userData: { renderRole?: string }; visible: boolean }) => {
-          if (object.userData.renderRole === "instruction-outline") object.visible = false;
-        });
+        // Silhouette mode, not art: shading and ink both off. Booklet outlines
+        // are drawn on top of the fill, so keying the fill colour with them on
+        // leaves the silhouette riddled with one-pixel holes along every edge
+        // and stud — panel one reported eighteen highlight regions instead of
+        // one. Shading has no single exact hex to key at all, so the fill goes
+        // back to one flat pass of the part's display hex for the key.
+        rendering.setInstructionSilhouetteMode(scene.root, true);
         const pixels = renderer.render(scene.root, panelCamera);
         const mask = new Uint8Array(width * height);
         for (let index = 0; index < width * height; index += 1) {

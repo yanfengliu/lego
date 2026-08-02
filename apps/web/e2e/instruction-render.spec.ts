@@ -14,17 +14,19 @@ const WIDTH = 900;
 const HEIGHT = 700;
 
 /**
- * The booklet draws flat fills and hard outlines; our renderer draws bevels,
+ * The booklet draws faceted fills and hard outlines; our renderer draws bevels,
  * clearcoat and shadows. A step render cannot be compared against booklet art
  * until it speaks that dialect, so this drives the instruction finish and
- * measures whether the output really is flat.
+ * measures whether the output really is that dialect.
  *
  * The number to watch is how much of the render lands on the expected exact
- * palette — the page grey, the ink, and the catalog display hex of each part
- * placed. A lit render spends thousands of colours on shading; a flat one
- * spends none, so any pixel off that palette is a shading or blending leak.
+ * palette — the page grey, plus, for each colour placed, the enumerable set of
+ * tones a box-and-stud part of that colour can print and the ink it is outlined
+ * in. A lit render spends thousands of colours on shading; this one spends a
+ * fixed handful per colour, so any pixel off that palette is a gradient, an
+ * antialiased blend, or a tone the model did not predict.
  */
-test("renders a model in the booklet's flat dialect", async ({ page }) => {
+test("renders a whole model on the booklet's exact palette", async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto("/");
   mkdirSync(OUT, { recursive: true });
@@ -80,13 +82,16 @@ test("renders a model in the booklet's flat dialect", async ({ page }) => {
         histogram.set(key, (histogram.get(key) ?? 0) + 1);
       }
 
-      const expected = new Map<number, string>([
-        [rendering.INSTRUCTION_BACKGROUND_HEX, "page"],
-        [rendering.INSTRUCTION_EDGE_HEX, "ink"],
-      ]);
+      const expected = new Map<number, string>([[rendering.INSTRUCTION_BACKGROUND_HEX, "page"]]);
       for (const entry of layout) {
-        const hex = catalog.getColorDefinition(entry.color).displayHex;
-        expected.set(Number.parseInt(hex.slice(1), 16), entry.color);
+        const displayHex = Number.parseInt(
+          catalog.getColorDefinition(entry.color).displayHex.slice(1),
+          16,
+        );
+        const ink = rendering.instructionEdgeHex(displayHex);
+        for (const tone of rendering.instructionFaceTones(displayHex)) {
+          expected.set(tone, tone === ink ? `${entry.color}:ink` : entry.color);
+        }
       }
       let onPalette = 0;
       for (const [key, count] of histogram) {
@@ -147,8 +152,9 @@ test("renders a model in the booklet's flat dialect", async ({ page }) => {
   expect(result.blockingIssues).toEqual([]);
   expect(result.documentGloballyValid).toBe(true);
   expect(result.diagnostics).toEqual([]);
-  // Measured at 6 colours and 1.000 on-palette. The slack is for driver
-  // rounding only: reintroduce lighting or antialiasing and this explodes.
-  expect(result.paletteSize).toBeLessThanOrEqual(8);
+  // Four colours, each with at most eight tones and an ink, plus the page.
+  // The slack is for driver rounding only: reintroduce lighting or
+  // antialiasing and this explodes.
+  expect(result.paletteSize).toBeLessThanOrEqual(4 * 9 + 1);
   expect(result.onPaletteShare).toBeGreaterThan(0.999);
 });

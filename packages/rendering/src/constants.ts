@@ -9,9 +9,6 @@ export const CANONICAL_CAMERA_POLICY_VERSION = "lego.canonical-cameras/1" as con
  */
 export const INSTRUCTION_BACKGROUND_HEX = 0x899093 as const;
 
-/** Booklet art outlines every visible edge in near-black; this is that ink. */
-export const INSTRUCTION_EDGE_HEX = 0x1a1a1a as const;
-
 /**
  * Below this dihedral angle an edge is a tessellation seam rather than a
  * feature, which is what keeps a 24-segment stud from printing 24 vertical
