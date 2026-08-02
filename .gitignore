@@ -50,3 +50,14 @@ lerna-debug.log*
 # Local caches
 .cache/
 .parcel-cache/
+
+# The sample instruction booklet: 70 MB of copyrighted LEGO artwork, kept
+# locally and never committed. It was swept into a commit once by a sweeping
+# `git add`, which is what this line exists to prevent.
+recipes/
+
+# Downloaded LDraw part files, re-fetched on demand by scripts/ldraw-part-facts.mjs.
+scripts/ldraw-cache/
+
+# Scratch space.
+tmp/
