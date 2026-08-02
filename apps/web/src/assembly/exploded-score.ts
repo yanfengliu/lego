@@ -5,13 +5,20 @@ import type { HighlightExtraction, HighlightRegionBounds } from "../instructions
 /**
  * Where a step's part went, when the step's own picture will not say.
  *
- * 19 of the sample booklet's first 50 steps are drawn exploded: the new part is
- * printed offset from where it lands, with red arrows pointing at the
- * destination. The step highlight then gives shape and orientation but not
- * position, and `scoreStepDelta` — which compares a candidate's silhouette
- * against that highlight — scores every candidate against a shape in the wrong
- * place. Measured on a synthetic booklet where the answer is known, it ranked
- * the true placement first on none of five exploded steps.
+ * Some steps are drawn exploded: the new part is printed offset from where it
+ * lands, with red arrows pointing at the destination. The step highlight then
+ * gives shape and orientation but not position, and `scoreStepDelta` — which
+ * compares a candidate's silhouette against that highlight — scores every
+ * candidate against a shape in the wrong place. Measured on a synthetic booklet
+ * where the answer is known, it ranked the true placement first on none of five
+ * exploded steps.
+ *
+ * How many real steps that is has been counted twice and the first count was
+ * wrong. Keying red pixels put it at 19 of the sample booklet's first 50, but
+ * red on these pages is a red part or a sub-build's own arrow as often as it is
+ * this step's displacement arrow: 28 of those steps print no red at all, and of
+ * the rest only a handful print an arrow that starts at what the step
+ * highlighted.
  *
  * The position is in the booklet anyway, one page later. Step N+1 draws the
  * assembly with step N's part in place, so the pixels that differ between panel
@@ -34,6 +41,30 @@ import type { HighlightExtraction, HighlightRegionBounds } from "../instructions
  * Both drop the pixels either panel's highlight claims: panel N's highlight is
  * around this step's ghost, and a ghost vanishing is not where a part went;
  * panel N+1's is around step N+1's own part, which appeared for its own reasons.
+ *
+ * It has since been run on a printed booklet as well as a synthetic one, and
+ * the printed answer is both weaker and much thinner.
+ *
+ * Registration holds up. Two consecutive panels of `recipes/6651557.pdf` drawn
+ * with the same camera can be carried onto one frame by a scale and a shift,
+ * and their assembly silhouettes then agree over 91% with their outlines a
+ * median two pixels apart — which is the misregistration this score was already
+ * stress-tested at.
+ *
+ * What the difference supports afterwards is a neighbourhood rather than an
+ * answer, on a sample of three. Only 3 of the booklet's first 49 consecutive
+ * pairs are well posed for the question at all: the rest print no arrow to
+ * check against, print one belonging to a sub-build, fit no camera, or close no
+ * highlight contour. On those three, sweeping the step's own printed silhouette
+ * across the fitted stud grid put the top-scoring offset 0.57, 0.60 and 2.50
+ * studs from where the step's red arrows point, and the do-nothing offset last
+ * of its two thousand candidates on the first two and 677th of 1516 on the
+ * third. None of the three ranks the arrow's own offset first — 43rd, 82nd and
+ * 271st — and about seventy candidate offsets sit within a stud of any point,
+ * so first place was never the right thing to ask for.
+ *
+ * Read it as a prior over a neighbourhood about a stud across, which physics
+ * and part identity then have to resolve. It is not a placement.
  */
 export const PANEL_DELTA_SCHEMA_VERSION = "lego.step-panel-delta/1" as const;
 export const EXPLODED_SCORE_SCHEMA_VERSION = "lego.exploded-step-score/1" as const;

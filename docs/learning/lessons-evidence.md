@@ -354,6 +354,13 @@ The distance from the winner to the answer is the number that means something; t
 
 What the reading gives is a prior over a neighbourhood roughly a stud across. Physics and the part's identity have to resolve it from there.
 
+The sharpest thing the measurement says is not about the score at all. It is where the lookahead registers.
+Take the pairs a difference could honestly be read from — assembly agreement above 0.80 and outlines within three pixels — and 22 of 49 qualify: steps 8, 17 through 26, 29 through 33, 36, 41, and 44 through 47.
+Take the steps that need the lookahead, the ones drawing their part somewhere other than where it lands: 2, 10 and 13.
+The two sets do not intersect at all.
+The reason is the build, not the printing. A step needs the lookahead early, when the model is small and the booklet is rezooming hard between panels — median agreement 57% over steps 1 to 15 — and the panels register beautifully later, when the model is big and stable and the highlight is already drawn at the landing site — 94% over steps 17 to 37.
+A picture-to-picture lookahead is therefore best exactly where it is least needed. Anything built on it has to carry the registration quality as a per-pair fact and fall back when it is poor, rather than assume the reading is available.
+
 **Anchor:** `apps/web/src/assembly/lattice-placements.ts` and the docstring on `scoreExplodedStep`, measured by `apps/web/e2e/real-panel-registration.spec.ts`; numbers and overlays in `output/real-panel-scoring/`.
 0 of 3 scored steps ranked the arrow-implied offset first and 2 put the top offset within a stud of it; median margin -0.037.
 The reference is the red arrow's own tail-to-head vector, which the score never reads, and it is good to about half a stud because an arrow is drawn with clearance at both ends.
