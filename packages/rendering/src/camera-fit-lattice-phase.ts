@@ -421,6 +421,22 @@ export interface LatticeSiteResiduals {
   readonly maxPx: number;
   /** The same for every measured site, hits and misses together. */
   readonly rmsAllPx: number;
+  /**
+   * Share of a cell's ink inside the aperture, averaged over sites. On its own
+   * this says little: the aperture covers `pi * studRadiusCells^2` of the cell,
+   * so any picture scores about that by area alone — 0.45 at the default radius.
+   */
+  readonly inkShare: number;
+  /** What a picture with no grid in it scores on `inkShare` by area alone. */
+  readonly inkShareFloor: number;
+  /**
+   * Ink in the aperture over ink in the same aperture moved half a cell
+   * diagonally, averaged over sites. The control the share on its own lacks:
+   * both apertures are the same size and see the same page, so a picture whose
+   * ink is not on the grid scores 1, and only a real stud under the prediction
+   * pushes it above.
+   */
+  readonly inkOverAntiPhase: number;
 }
 
 export interface LatticeSiteResidualOptions {
@@ -449,6 +465,18 @@ export interface LatticeSiteResidualOptions {
  * studs on the same grid shifted straight up the page. Those sites are not
  * errors and are not averaged in — they are the misses, and the hit rate says
  * how much of the panel is on the layer the phase was taken from.
+ *
+ * The error alone proves nothing, and that is measured rather than argued: an
+ * arbitrary basis at an arbitrary phase over a field of pure noise reports 0.5px
+ * of error at a hit rate of 1.000, because the aperture is symmetric about the
+ * prediction and cannot report an error larger than itself. `inkOverAntiPhase`
+ * is the control — the same aperture moved half a cell off the prediction, over
+ * the same page — and it says the ink really is on the predictions: 1.11 on the
+ * sample booklet against 1.00 for a picture with no grid in it.
+ *
+ * It does not tell an accepted panel from a refused one: 1.108 against 1.118.
+ * That is a limit of this booklet's refusals, which are grid-aligned fits that
+ * locked onto the wrong repeat rather than pictures with no grid in them.
  */
 export function latticeSiteResiduals(
   field: StudTextureField,
@@ -462,7 +490,10 @@ export function latticeSiteResiduals(
   const reciprocal = latticeReciprocal(basis);
   if (reciprocal === null) return null;
   const { width, height, mask, texture } = field;
-  const accumulated = new Map<string, { weight: number; sumU: number; sumV: number }>();
+  const accumulated = new Map<
+    string,
+    { weight: number; cellWeight: number; antiWeight: number; sumU: number; sumV: number }
+  >();
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
       const index = y * width + x;
@@ -473,12 +504,25 @@ export function latticeSiteResiduals(
       const v = reciprocal.f2XPx * x + reciprocal.f2YPx * y - phase.phase2;
       const m = Math.round(u);
       const n = Math.round(v);
-      if (Math.hypot(u - m, v - n) > studRadiusCells) continue;
       const key = `${m}:${n}`;
-      const entry = accumulated.get(key) ?? { weight: 0, sumU: 0, sumV: 0 };
-      entry.weight += weight;
-      entry.sumU += weight * (u - m);
-      entry.sumV += weight * (v - n);
+      const entry = accumulated.get(key) ?? {
+        weight: 0,
+        cellWeight: 0,
+        antiWeight: 0,
+        sumU: 0,
+        sumV: 0,
+      };
+      entry.cellWeight += weight;
+      if (Math.hypot(u - m, v - n) <= studRadiusCells) {
+        entry.weight += weight;
+        entry.sumU += weight * (u - m);
+        entry.sumV += weight * (v - n);
+      }
+      // The same aperture half a cell away, as a control. Its centre is a corner
+      // of four cells, so it is credited to the one this pixel belongs to.
+      if (Math.hypot(wrapToCycle(u - m - 0.5), wrapToCycle(v - n - 0.5)) <= studRadiusCells) {
+        entry.antiWeight += weight;
+      }
       accumulated.set(key, entry);
     }
   }
@@ -489,7 +533,12 @@ export function latticeSiteResiduals(
     .sort((left, right) => left - right);
   const medianWeight = weights[Math.floor(weights.length / 2)]!;
   const floor = medianWeight * minimumWeightFraction;
-  const offsets: { distanceCells: number; distancePx: number }[] = [];
+  const offsets: {
+    distanceCells: number;
+    distancePx: number;
+    share: number;
+    contrast: number;
+  }[] = [];
   for (const entry of accumulated.values()) {
     if (entry.weight < floor) continue;
     const offsetU = entry.sumU / entry.weight;
@@ -500,6 +549,8 @@ export function latticeSiteResiduals(
         basis.a.xPx * offsetU + basis.b.xPx * offsetV,
         basis.a.yPx * offsetU + basis.b.yPx * offsetV,
       ),
+      share: entry.cellWeight > 0 ? entry.weight / entry.cellWeight : 0,
+      contrast: entry.antiWeight > 0 ? entry.weight / entry.antiWeight : 1,
     });
   }
   if (offsets.length === 0) return null;
@@ -514,6 +565,9 @@ export function latticeSiteResiduals(
     rmsPx: rms(hits.map((entry) => entry.distancePx)),
     maxPx: hits.length === 0 ? 0 : Math.max(...hits.map((entry) => entry.distancePx)),
     rmsAllPx: rms(offsets.map((entry) => entry.distancePx)),
+    inkShare: offsets.reduce((total, entry) => total + entry.share, 0) / offsets.length,
+    inkShareFloor: Math.PI * studRadiusCells * studRadiusCells,
+    inkOverAntiPhase: offsets.reduce((total, entry) => total + entry.contrast, 0) / offsets.length,
   };
 }
 
@@ -524,26 +578,46 @@ export interface FoldedStudShape extends LatticePhaseOffset {
    */
   readonly phase1: number;
   readonly phase2: number;
-  /** Root mean square radius of the drawn stud, in stud pitches. */
-  readonly radiusCells: number;
   /**
-   * Minor over major spread of the drawn stud in grid coordinates. A stud is a
-   * circle in the world, so on a genuine square grid it folds back to a circle
-   * whatever the elevation: anything much below 1 says the grid is not square.
+   * Radius at which the folded cell's radial profile changes fastest, in stud
+   * pitches. Measured at 0.17 on the sample booklet, not the 0.3 of the drawn
+   * disc's rim: the local-contrast image is high passed at about a stud's width,
+   * so the profile sees a centre-surround response rather than an edge.
    */
-  readonly circularity: number;
+  readonly ringRadiusCells: number;
+  /**
+   * Swing of the folded cell's radial profile against the scatter about it.
+   * Higher on a correct grid than a wrong one, but only by about 1.3 times on
+   * the sample booklet — a hint, not a gate.
+   */
+  readonly radialContrast: number;
 }
 
 /**
- * The shape of the drawn stud, measured in the fitted grid's own coordinates.
+ * The drawn stud, measured in the fitted grid's own coordinates.
  *
- * This is the independent check the grid solve does not provide. A residual
- * against an axonometric projection turns out to be a weak test on its own —
- * a rhombic grid that no square could project to still reads at 1% of pitch
- * once a change of basis is allowed. But the stud itself is known geometry:
- * a circle of radius 6 LDU on a 20 LDU pitch. Fold the panel onto the fitted
- * cell and that circle has to come back round, and 0.3 of a pitch across. A
- * grid fitted to the wrong repeat folds it into a smear or an ellipse.
+ * This was meant to be the independent check the grid solve does not provide,
+ * since the axonometric residual is weak on its own — a rhombic grid that no
+ * square could project to still reads at 1% of pitch once a change of basis is
+ * allowed. On a real booklet it is not that check, and the numbers are here
+ * rather than the intention.
+ *
+ * The first attempt was second moments of the folded cell, and it is worthless:
+ * a featureless cell spreads its weight uniformly, which is the *most* circular
+ * and the *widest* a cell can be, so mush scores 0.999 circularity and 0.408
+ * RMS radius while a clean synthetic stud scores 0.99 and 0.234. Both are
+ * maximised by having no stud at all, so an assertion on them cannot fail, and
+ * every panel of the sample booklet sat within a few percent of the ceiling.
+ *
+ * The radial profile below is the second attempt and it is honest but weak:
+ * `radialContrast` measured 1.52 on the accepted panels against 1.17 on the
+ * refused ones, and `ringRadiusCells` came out at 0.17 rather than the 0.3 the
+ * drawn disc's rim would predict — the high pass is a stud wide, so what the
+ * profile sees is a centre-surround response and not the rim. Useful as a
+ * diagnostic to look at; not something to gate on.
+ *
+ * What `phase1` and `phase2` are for is unaffected, and they are the reason
+ * this function exists: they put the predicted studs on the drawn ones.
  */
 export function foldedStudShape(fold: FoldedCell): FoldedStudShape | null {
   const { size, values, counts } = fold;
@@ -572,32 +646,72 @@ export function foldedStudShape(fold: FoldedCell): FoldedStudShape | null {
   const phase1 = Math.atan2(imaginary1, real1) / TAU;
   const phase2 = Math.atan2(imaginary2, real2) / TAU;
 
-  let m11 = 0;
-  let m12 = 0;
-  let m22 = 0;
+  // Radial profile about that centre, out to half a pitch. Beyond that only the
+  // cell's corners contribute and a ring there is not a ring.
+  const bins = 12;
+  const reach = 0.5;
+  const sums = new Float64Array(bins);
+  const counted = new Int32Array(bins);
+  const radiusOf = (u: number, v: number) =>
+    Math.hypot(wrapToCycle((u + 0.5) / size - phase1), wrapToCycle((v + 0.5) / size - phase2));
   for (let v = 0; v < size; v += 1) {
     for (let u = 0; u < size; u += 1) {
       const cell = v * size + u;
       if (counts[cell] === 0) continue;
-      const weight = Math.abs(values[cell]!);
-      const du = wrapToCycle((u + 0.5) / size - phase1);
-      const dv = wrapToCycle((v + 0.5) / size - phase2);
-      m11 += weight * du * du;
-      m12 += weight * du * dv;
-      m22 += weight * dv * dv;
+      const radius = radiusOf(u, v);
+      if (radius >= reach) continue;
+      const bin = Math.min(bins - 1, Math.floor((radius / reach) * bins));
+      sums[bin] = sums[bin]! + values[cell]!;
+      counted[bin] = counted[bin]! + 1;
     }
   }
-  m11 /= weightTotal;
-  m12 /= weightTotal;
-  m22 /= weightTotal;
-  const trace = m11 + m22;
-  const gap = Math.sqrt(Math.max(0, ((m11 - m22) / 2) ** 2 + m12 * m12));
-  const major = trace / 2 + gap;
-  const minor = trace / 2 - gap;
+  const profile = new Float64Array(bins);
+  let lowest = Infinity;
+  let highest = -Infinity;
+  let profileBins = 0;
+  for (let bin = 0; bin < bins; bin += 1) {
+    if (counted[bin] === 0) continue;
+    profile[bin] = sums[bin]! / counted[bin]!;
+    profileBins += 1;
+    lowest = Math.min(lowest, profile[bin]!);
+    highest = Math.max(highest, profile[bin]!);
+  }
+  if (profileBins === 0) return null;
+  // A bin's area grows with its radius, so the innermost bins hold a handful of
+  // pixels and their noise is the steepest step in the profile if it is allowed
+  // to count. Requiring a fifth of the fullest bin puts the answer on the rim.
+  const fullest = Math.max(...counted);
+  let ringBin = 0;
+  let steepest = 0;
+  for (let bin = 1; bin < bins; bin += 1) {
+    if (counted[bin]! < fullest * 0.2 || counted[bin - 1]! < fullest * 0.2) continue;
+    const step = Math.abs(profile[bin]! - profile[bin - 1]!);
+    if (step > steepest) {
+      steepest = step;
+      ringBin = bin;
+    }
+  }
+
+  // Scatter about the profile: what the fold holds that the ring does not
+  // explain. A flat profile over noise makes this large and the contrast small.
+  let residual = 0;
+  let residualCount = 0;
+  for (let v = 0; v < size; v += 1) {
+    for (let u = 0; u < size; u += 1) {
+      const cell = v * size + u;
+      if (counts[cell] === 0) continue;
+      const radius = radiusOf(u, v);
+      if (radius >= reach) continue;
+      const bin = Math.min(bins - 1, Math.floor((radius / reach) * bins));
+      residual += (values[cell]! - profile[bin]!) ** 2;
+      residualCount += 1;
+    }
+  }
+  const scatter = residualCount > 0 ? Math.sqrt(residual / residualCount) : 0;
   return {
     phase1,
     phase2,
-    radiusCells: Math.sqrt(Math.max(0, trace)),
-    circularity: major > 0 ? Math.sqrt(Math.max(0, minor) / major) : 0,
+    ringRadiusCells: (ringBin / bins) * reach,
+    radialContrast: scatter > 0 ? (highest - lowest) / scatter : 0,
   };
 }

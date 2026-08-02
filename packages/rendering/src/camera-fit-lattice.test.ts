@@ -300,22 +300,40 @@ describe("latticeSiteResiduals", () => {
 });
 
 describe("foldedStudShape", () => {
-  it("folds the drawn stud back into the circle of the right size it is", () => {
+  it("finds the ring the stud was drawn as, at the radius it was drawn at", () => {
     const field = fieldFor(TRUTH);
     const fit = fitStudLattice(field);
     const shape = foldedStudShape(foldUnitCell(field, fit.basis!, 28)!)!;
-    // A stud is 6 LDU of radius on a 20 LDU pitch. A ring of that radius has an
-    // RMS radius of 0.3 of a pitch, and it is round.
-    expect(shape.radiusCells).toBeGreaterThan(0.2);
-    expect(shape.radiusCells).toBeLessThan(0.4);
-    expect(shape.circularity).toBeGreaterThan(0.85);
+    // A stud is 6 LDU of radius on a 20 LDU pitch, so its ring is at 0.3.
+    expect(shape.ringRadiusCells).toBeGreaterThan(0.2);
+    expect(shape.ringRadiusCells).toBeLessThan(0.4);
+    expect(shape.radialContrast).toBeGreaterThan(3);
   });
 
-  it("catches the wrong grid that the axonometric residual lets through", () => {
+  it("scores a cell with no stud in it near zero, which is what makes it a check", () => {
+    // The trap this replaced: second moments of the folded cell are *maximised*
+    // by having no stud at all. A uniform cell has a circularity of 0.999 and an
+    // RMS radius of 0.408, both above what a clean synthetic stud scores, so an
+    // assertion on them could not fail. A radial profile has the opposite sense.
+    const size = 28;
+    const flat = {
+      size,
+      values: new Float32Array(size * size).fill(1),
+      counts: new Int32Array(size * size).fill(1),
+      contrast: 0,
+    };
+    const mush = foldedStudShape(flat)!;
+    expect(mush.radialContrast).toBeLessThan(0.5);
+
     const field = fieldFor(TRUTH);
     const fit = fitStudLattice(field);
-    // The same lattice sheared: a basis a rhombic grid would produce, which
-    // solves as a clean axonometric view and folds the stud into an ellipse.
+    const real = foldedStudShape(foldUnitCell(field, fit.basis!, size)!)!;
+    expect(real.radialContrast).toBeGreaterThan(mush.radialContrast * 5);
+  });
+
+  it("loses the ring when the grid is sheared off square", () => {
+    const field = fieldFor(TRUTH);
+    const fit = fitStudLattice(field);
     const skewed = {
       a: fit.basis!.a,
       b: {
@@ -324,8 +342,8 @@ describe("foldedStudShape", () => {
       },
     };
     const honest = foldedStudShape(foldUnitCell(field, fit.basis!, 28)!)!;
-    const skewedShape = foldedStudShape(foldUnitCell(field, skewed, 28)!)!;
-    expect(skewedShape.circularity).toBeLessThan(honest.circularity * 0.8);
+    const wrong = foldedStudShape(foldUnitCell(field, skewed, 28)!)!;
+    expect(wrong.radialContrast).toBeLessThan(honest.radialContrast * 0.6);
   });
 });
 

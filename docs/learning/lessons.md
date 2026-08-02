@@ -28,7 +28,7 @@ When a lesson becomes a gate — a test, a lint rule, a fixed command — delete
 - A hand-assembled parts array is not a document: stacking without connection edges validates as a collision. ([evidence](lessons-evidence.md#a-hand-assembled-parts-array-is-not-a-document))
 - A step highlight is an open contour whenever the step's parts go behind built ones; only about half enclose anything. ([evidence](lessons-evidence.md#a-step-highlight-is-an-open-contour-whenever-the-parts-go-behind-built-ones))
 - A document's parts are not in insertion order; key a part by the id its command returned, never by array position. ([evidence](lessons-evidence.md#a-documents-parts-are-not-in-insertion-order))
-- 19 of the first 50 steps are drawn exploded, so a highlight gives shape and orientation but not position. ([evidence](lessons-evidence.md#a-steps-highlight-is-not-always-where-the-part-ends-up))
+- Some steps are drawn exploded, so a highlight gives shape and orientation but not position — and counting them by red pixels overcounts badly. ([evidence](lessons-evidence.md#a-steps-highlight-is-not-always-where-the-part-ends-up))
 - Part dimensions are published: measure them with `scripts/ldraw-part-facts.mjs` rather than guessing. ([evidence](lessons-evidence.md#part-dimensions-are-published))
 - Simulate bricks in centimetres, not LDU or metres, and give the ground real depth or a falling brick goes straight through it. ([evidence](lessons-evidence.md#simulate-bricks-in-centimetres-not-ldu-or-metres))
 - A panel's own stud grid fits the booklet's camera angles and scale with no part identities; where the model sits is not in the grid. ([evidence](lessons-evidence.md#a-panels-own-stud-grid-fits-the-camera-but-not-where-the-model-sits))
@@ -37,3 +37,4 @@ When a lesson becomes a gate — a test, a lint rule, a fixed command — delete
 - Measure the art you are imitating: booklet parts carry three face tones, a near-black stud wall and a per-colour ink, not one flat fill. ([evidence](lessons-evidence.md#measure-the-art-you-are-imitating-rather-than-asserting-its-dialect-in-a-comment))
 - Two consecutive printed panels are one drawing moved: take the scale from the camera fit and search only the shift. ([evidence](lessons-evidence.md#two-consecutive-printed-panels-are-one-drawing-moved))
 - A sub-assembly box is joined to the model by its leader line, so the largest connected region is not the assembly. ([evidence](lessons-evidence.md#a-sub-assembly-box-is-joined-to-the-model-by-its-leader-line))
+- A printed step's panel difference finds the right stud, not the right offset; report the distance, not the rank. ([evidence](lessons-evidence.md#a-printed-steps-panel-difference-finds-the-right-stud-not-the-right-offset))

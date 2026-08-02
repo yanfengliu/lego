@@ -31,7 +31,14 @@ import {
  */
 const OUT = "output/camera-fit";
 const LAST_STEP = 40;
-/** Page render scale; the panel crop is near native at this, so studs stay sharp. */
+/**
+ * Page render scale and panel crop width. Every panel is normalised to the same
+ * crop width whatever cell of the page it owns, so the page is rasterised well
+ * above that and the crop is always a downsample — which is also what keeps the
+ * stud edges smooth. Halving the scale to 3 was tried and it is measurably
+ * worse: 8 camera runs found instead of 4, because a coarser raster lets more
+ * panels lock onto a repeat that is not the grid and still pass the gate.
+ */
 const RENDER_SCALE = 6;
 const PANEL_WIDTH = 1000;
 
@@ -61,7 +68,11 @@ interface PanelFitReport {
     bXPx: number;
     bYPx: number;
   } | null;
-  /** Reprojection error: how far the panel's own regions disagree about the grid. */
+  /**
+   * Spread of the grid's phase across the panel. An upper bound on how far one
+   * camera fails to explain it, not a reprojection error: a window holding two
+   * plate heights reports a phase between them and that leaks into the total.
+   */
   drift: {
     horizontalRmsPx: number;
     horizontalMaxPx: number;
@@ -71,9 +82,14 @@ interface PanelFitReport {
     windows: number;
     failure: string | null;
   } | null;
-  /** Independent check: the drawn stud has to fold back to a circle 0.3 pitch across. */
-  studShape: { radiusCells: number; circularity: number; contrast: number } | null;
-  /** The reprojection error proper: predicted stud against the ink under it. */
+  /** Independent check: a correct cell folds to a disc whose rim is at 0.3 of a pitch. */
+  studShape: { ringRadiusCells: number; radialContrast: number; contrast: number } | null;
+  /**
+   * Predicted stud against the ink under it. `rmsPx` alone means nothing — the
+   * aperture bounds it, and pure noise scores 0.5px at a hit rate of 1 — and
+   * `inkShare` barely clears its own floor because most of a panel's ink is
+   * outlines rather than studs. `inkOverAntiPhase` is the control that counts.
+   */
   studResiduals: {
     sites: number;
     hitRate: number;
@@ -81,8 +97,16 @@ interface PanelFitReport {
     maxPx: number;
     rmsAllPx: number;
     rmsPointsPerHit: number;
+    rmsFractionOfPitch: number;
+    inkShare: number;
+    inkShareFloor: number;
+    inkOverAntiPhase: number;
   } | null;
-  /** Left half against right half, which is where a perspective render would show. */
+  /**
+   * Left half against right half, which is where a perspective render would
+   * show. Null unless both halves produced an accepted fit: half the art is
+   * often too little, and a refused sub-fit's numbers are not a measurement.
+   */
   halves: {
     leftAzimuthDegrees: number;
     rightAzimuthDegrees: number;
@@ -151,8 +175,23 @@ test("fits the camera a printed step panel was drawn with", async ({ page }) => 
         // The previous page's overlays have been read back already, and forty
         // megapixel canvases left in the document is how a browser worker dies.
         document.querySelectorAll("canvas.probe").forEach((node) => node.remove());
-        const data = new Uint8Array(await (await fetch(pdfUrl)).arrayBuffer());
-        const document_ = await pdfjs.getDocument({ data }).promise;
+        // Fetched once and kept, then re-fetched with a retry if the page was
+        // reloaded out from under it. Pulling forty megabytes of PDF over the
+        // dev server twelve times is both slow and a flake: one of those fetches
+        // failed outright during a full browser-suite run.
+        const store = window as unknown as { __cameraFitPdf?: Uint8Array };
+        let data = store.__cameraFitPdf;
+        for (let attempt = 0; data === undefined && attempt < 3; attempt += 1) {
+          try {
+            data = new Uint8Array(await (await fetch(pdfUrl)).arrayBuffer());
+          } catch (cause) {
+            if (attempt === 2) throw cause;
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          }
+        }
+        if (data === undefined) throw new Error(`Could not fetch ${pdfUrl} in three tries.`);
+        store.__cameraFitPdf = data;
+        const document_ = await pdfjs.getDocument({ data: data.slice() }).promise;
         const pdfPage = await document_.getPage(pageNumber);
         const viewport = pdfPage.getViewport({ scale });
         const pageCanvas = document.createElement("canvas");
@@ -412,7 +451,7 @@ test("fits the camera a printed step panel was drawn with", async ({ page }) => 
           const caption = accepted
             ? [
                 `step ${spec.stepNumber}   azimuth ${solution!.azimuthDegrees.toFixed(2)}   elevation ${solution!.elevationDegrees.toFixed(2)}   ${solution!.pixelsPerUnit.toFixed(2)} px per stud`,
-                `model residual ${solution!.residualPx.toFixed(3)}px   stud reprojection ${residuals ? `${residuals.rmsPx.toFixed(2)}px rms over ${(residuals.hitRate * 100).toFixed(0)}% of ${residuals.sites} sites` : "not measured"}`,
+                `residual ${solution!.residualPx.toFixed(3)}px   ${residuals ? `stud ${residuals.rmsPx.toFixed(2)}px over ${residuals.sites} sites, ink ${residuals.inkShare.toFixed(2)} vs ${residuals.inkShareFloor.toFixed(2)} floor` : "stud not measured"}   ring ${shape ? `${shape.ringRadiusCells.toFixed(2)} x${shape.radialContrast.toFixed(1)}` : "-"}`,
               ]
             : [`step ${spec.stepNumber}   REFUSED`, (fit.failure ?? "no grid found").slice(0, 130)];
           draw.font = "14px monospace";
@@ -423,7 +462,7 @@ test("fits the camera a printed step panel was drawn with", async ({ page }) => 
           draw.fillText(caption[1]!, 10, height - 8);
 
           const basisGap =
-            left?.basis && right?.basis
+            left?.basis && right?.basis && left.failure === null && right.failure === null
               ? Math.max(
                   Math.hypot(
                     left.basis.a.xPx - right.basis.a.xPx,
@@ -478,8 +517,8 @@ test("fits the camera a printed step panel was drawn with", async ({ page }) => 
               : null,
             studShape: shape
               ? {
-                  radiusCells: shape.radiusCells,
-                  circularity: shape.circularity,
+                  ringRadiusCells: shape.ringRadiusCells,
+                  radialContrast: shape.radialContrast,
                   contrast: fold!.contrast,
                 }
               : null,
@@ -491,10 +530,20 @@ test("fits the camera a printed step panel was drawn with", async ({ page }) => 
                   maxPx: residuals.maxPx,
                   rmsAllPx: residuals.rmsAllPx,
                   rmsPointsPerHit: residuals.rmsPx / (width / (spec.maxXPt - spec.minXPt)),
+                  // Pitch varies four-fold across the booklet's panels, so an
+                  // error in pixels cannot be compared between them.
+                  rmsFractionOfPitch: solution ? residuals.rmsPx / solution.pixelsPerUnit : 0,
+                  inkShare: residuals.inkShare,
+                  inkShareFloor: residuals.inkShareFloor,
+                  inkOverAntiPhase: residuals.inkOverAntiPhase,
                 }
               : null,
             halves:
-              left?.solution && right?.solution && basisGap !== null
+              left?.solution &&
+              right?.solution &&
+              left.failure === null &&
+              right.failure === null &&
+              basisGap !== null
                 ? {
                     leftAzimuthDegrees: left.solution.azimuthDegrees,
                     rightAzimuthDegrees: right.solution.azimuthDegrees,
@@ -642,14 +691,16 @@ test("fits the camera a printed step panel was drawn with", async ({ page }) => 
   };
   for (const entry of fitted) {
     const previous = group.at(-1);
-    // Three degrees and three percent: an order of magnitude above the spread
-    // measured inside a run and an order below the jump at a rotation.
+    // Angles only. Three degrees is an order of magnitude above the largest
+    // neighbour step measured inside a run (0.73) and an order below the jump at
+    // a rotation (20 and up). Scale is deliberately not a criterion: the booklet
+    // rezooms as the model grows, by up to 2.1% between neighbours inside a run,
+    // and it changed by only 0.3% at one of the three rotations — so a scale term
+    // would split runs that did not change camera and miss ones that did.
     const sameCamera =
       previous !== undefined &&
       Math.abs(entry.fit!.azimuthDegrees - previous.fit!.azimuthDegrees) < 3 &&
-      Math.abs(entry.fit!.elevationDegrees - previous.fit!.elevationDegrees) < 3 &&
-      Math.abs(entry.fit!.pointsPerStud - previous.fit!.pointsPerStud) <
-        previous.fit!.pointsPerStud * 0.03;
+      Math.abs(entry.fit!.elevationDegrees - previous.fit!.elevationDegrees) < 3;
     if (previous !== undefined && !sameCamera) closeRun();
     group.push(entry);
   }
@@ -746,9 +797,9 @@ test("fits the camera a printed step panel was drawn with", async ({ page }) => 
       residualPx:
         "How far the measured grid sits from the closest upright axonometric projection of a square grid. A fit quality, not a proof: a rhombic grid also reads under 1% of pitch once a change of basis is allowed.",
       studResiduals:
-        "The reprojection error. Every art pixel within 0.38 of a pitch of a predicted stud is assigned to it; rmsPx is how far the ink's centre sits from the prediction. Sites whose ink is a stud one layer up are the misses, and hitRate says how much of the panel is on the layer the phase was taken from.",
+        "Every art pixel within 0.38 of a pitch of a predicted stud is assigned to it; rmsPx is how far that ink's centre sits from the prediction. The aperture bounds the error it can report, so rmsPx and hitRate alone prove nothing — pure noise under an invented grid scores 0.5px at a hit rate of 1.000. inkOverAntiPhase is the control: the same aperture half a cell off the prediction, seeing the same page. Sites whose ink is a stud one layer up are the misses.",
       studShape:
-        "The independent check. A stud is a circle of radius 6 LDU on a 20 LDU pitch, so folded onto a correct cell it comes back circular and 0.3 of a pitch across, whatever the elevation.",
+        "A stud is a disc of radius 6 LDU on a 20 LDU pitch, so a correct cell folds to a radial profile whose steepest step is at 0.3 of a pitch. Measured as a profile on purpose: second moments of the folded cell are maximised by having no stud in it at all, so they cannot be a check.",
       drift:
         "Spread of the grid's phase across windows of the panel. An upper bound only: a plate one brick higher shifts its studs on the page, and a window holding two heights reports a phase between them, so a multi-layer panel drifts without the camera changing.",
       pointsPerStud:
@@ -765,35 +816,86 @@ test("fits the camera a printed step panel was drawn with", async ({ page }) => 
     medianElevationDegrees: median(angles.map((entry) => entry.elevationDegrees)),
     medianPointsPerStud: median(angles.map((entry) => entry.pointsPerStud)),
     medianResidualPx: median(angles.map((entry) => entry.residualPx)),
+    // Every median below is over accepted panels only. Folding the refusals in
+    // flattered the headline: they score as well as the accepted panels on the
+    // stud statistics, which is exactly why those statistics needed replacing.
     medianDriftRmsPx: median(
-      reports
+      fitted
         .filter((entry) => entry.drift?.failure === null)
         .map((entry) => entry.drift!.horizontalRmsPx),
     ),
-    medianStudCircularity: median(
-      reports
+    medianStudRingRadiusCells: median(
+      fitted
         .filter((entry) => entry.studShape !== null)
-        .map((entry) => entry.studShape!.circularity),
+        .map((entry) => entry.studShape!.ringRadiusCells),
     ),
-    medianStudRadiusCells: median(
-      reports
+    medianStudRadialContrast: median(
+      fitted
         .filter((entry) => entry.studShape !== null)
-        .map((entry) => entry.studShape!.radiusCells),
+        .map((entry) => entry.studShape!.radialContrast),
+    ),
+    refusedStudRadialContrast: median(
+      reports
+        .filter((entry) => entry.failure !== null && entry.studShape !== null)
+        .map((entry) => entry.studShape!.radialContrast),
     ),
     medianStudReprojectionPx: median(
-      reports
+      fitted
         .filter((entry) => entry.studResiduals !== null)
         .map((entry) => entry.studResiduals!.rmsPx),
     ),
-    medianStudReprojectionPt: median(
-      reports
+    medianStudReprojectionFractionOfPitch: median(
+      fitted
         .filter((entry) => entry.studResiduals !== null)
-        .map((entry) => entry.studResiduals!.rmsPointsPerHit),
+        .map((entry) => entry.studResiduals!.rmsFractionOfPitch),
     ),
     medianStudHitRate: median(
-      reports
+      fitted
         .filter((entry) => entry.studResiduals !== null)
         .map((entry) => entry.studResiduals!.hitRate),
+    ),
+    medianStudInkShare: median(
+      fitted
+        .filter((entry) => entry.studResiduals !== null)
+        .map((entry) => entry.studResiduals!.inkShare),
+    ),
+    refusedStudInkShare: median(
+      reports
+        .filter((entry) => entry.failure !== null && entry.studResiduals !== null)
+        .map((entry) => entry.studResiduals!.inkShare),
+    ),
+    // The clearest per-panel signal that came out of the run: the mean
+    // autocorrelation of the chosen basis over its harmonics.
+    medianCoherence: median(fitted.map((entry) => entry.fit!.coherence)),
+    refusedCoherence: median(
+      reports
+        .filter((entry) => entry.failure !== null && entry.fit !== null)
+        .map((entry) => entry.fit!.coherence),
+    ),
+    medianStudInkOverAntiPhase: median(
+      fitted
+        .filter((entry) => entry.studResiduals !== null)
+        .map((entry) => entry.studResiduals!.inkOverAntiPhase),
+    ),
+    refusedStudInkOverAntiPhase: median(
+      reports
+        .filter((entry) => entry.failure !== null && entry.studResiduals !== null)
+        .map((entry) => entry.studResiduals!.inkOverAntiPhase),
+    ),
+    studInkShareFloor:
+      fitted.find((entry) => entry.studResiduals !== null)?.studResiduals!.inkShareFloor ??
+      Number.NaN,
+    halvesMeasured: fitted.filter((entry) => entry.halves !== null).length,
+    medianHalfBasisDisagreementPx: median(
+      fitted
+        .filter((entry) => entry.halves !== null)
+        .map((entry) => entry.halves!.basisDisagreementPx),
+    ),
+    maxHalfBasisDisagreementPx: Math.max(
+      0,
+      ...fitted
+        .filter((entry) => entry.halves !== null)
+        .map((entry) => entry.halves!.basisDisagreementPx),
     ),
     medianNeighbourBasisDisagreementPt: median(
       neighbours.map((entry) => entry.basisDisagreementPt),
@@ -825,7 +927,10 @@ test("fits the camera a printed step panel was drawn with", async ({ page }) => 
     `fitted ${fitted.length}/${reports.length} panels; ` +
       `median az ${score.medianAzimuthDegrees.toFixed(2)} el ${score.medianElevationDegrees.toFixed(2)} pt/stud ${score.medianPointsPerStud.toFixed(3)}; ` +
       `model residual ${score.medianResidualPx.toFixed(3)}px; ` +
-      `stud reprojection ${score.medianStudReprojectionPx.toFixed(2)}px over ${(score.medianStudHitRate * 100).toFixed(0)}% of sites; ` +
+      `stud reprojection ${score.medianStudReprojectionPx.toFixed(2)}px (${(score.medianStudReprojectionFractionOfPitch * 100).toFixed(1)}% of pitch) over ${(score.medianStudHitRate * 100).toFixed(0)}% of sites; ` +
+      `ink over anti-phase ${score.medianStudInkOverAntiPhase.toFixed(3)} (refused ${score.refusedStudInkOverAntiPhase.toFixed(3)}), share ${score.medianStudInkShare.toFixed(3)} against a floor of ${score.studInkShareFloor.toFixed(3)}; ` +
+      `radial contrast ${score.medianStudRadialContrast.toFixed(2)} against ${score.refusedStudRadialContrast.toFixed(2)} refused; ` +
+      `coherence ${score.medianCoherence.toFixed(3)} against ${score.refusedCoherence.toFixed(3)} refused; ` +
       `neighbour basis gap ${score.medianNeighbourBasisDisagreementPt.toFixed(3)}pt; ` +
       `${runs.length} camera run(s); ` +
       `self-check az ${score.selfCheck.azimuthErrorDegrees?.toFixed(3) ?? "-"} el ${score.selfCheck.elevationErrorDegrees?.toFixed(3) ?? "-"} scale ${score.selfCheck.pixelsPerUnitErrorFraction?.toFixed(4) ?? "-"}`,
@@ -843,23 +948,41 @@ test("fits the camera a printed step panel was drawn with", async ({ page }) => 
   // the bounds sit well clear of what was measured — they are a regression net,
   // not the result. The result is in score.json and in the overlays.
   expect(reports.length).toBe(panels.length);
-  // 32 of the first 40 panels fitted. The eight refusals are steps drawn from
-  // underneath or too small to carry a grid, and each says so.
+  // Most of the first forty panels fit. The refusals are panels where the fitter
+  // locked onto a repeat that is not the stud grid — their recovered pitch is
+  // between a third and twice the booklet's — and each one says so.
   expect(fitted.length).toBeGreaterThanOrEqual(28);
   for (const entry of reports) {
     if (entry.failure === null) continue;
     expect(entry.failure.length).toBeGreaterThan(60);
   }
-  // The reprojection error: predicted stud against the ink under it. Measured
-  // at 0.96px of a roughly 40px pitch, over 99% of grid sites.
-  expect(score.medianStudReprojectionPx).toBeLessThan(2);
+  // Predicted stud against the ink under it, as a fraction of pitch because the
+  // pitch varies four-fold across the booklet's panels.
+  expect(score.medianStudReprojectionFractionOfPitch).toBeLessThan(0.1);
   expect(score.medianStudHitRate).toBeGreaterThan(0.9);
-  // The independent check on the grid itself. A stud is a circle of radius 6 LDU
-  // on a 20 LDU pitch, so folded onto the fitted cell it has to come back round
-  // and 0.3 of a pitch across whatever the elevation. Measured 0.93 and 0.39.
-  expect(score.medianStudCircularity).toBeGreaterThan(0.8);
-  expect(score.medianStudRadiusCells).toBeGreaterThan(0.3);
-  expect(score.medianStudRadiusCells).toBeLessThan(0.5);
+  // And the part of that measurement that is not free. The aperture covers 45%
+  // of a cell, so any picture scores about 0.45 of the ink by area alone, and
+  // the accepted panels sit at 0.474 — barely above, because most of a panel's
+  // ink is outlines and plate edges rather than studs. The control is the same
+  // aperture half a cell off the prediction: same size, same page. At 1.11 the
+  // ink is genuinely on the predictions. It does not separate accepted from
+  // refused (1.108 against 1.118), so it is not asserted to.
+  expect(score.medianStudInkOverAntiPhase).toBeGreaterThan(1.05);
+  // The folded cell was meant to be the independent proof that the picture is a
+  // stud grid, and on this booklet it is not one. It has a radial feature where
+  // a stud would put one (0.17 of a pitch, against a rim at 0.3 — the high pass
+  // is a stud wide, so the profile sees centre-surround rather than an edge),
+  // and the accepted panels beat the refused ones on it by 1.52 to 1.17. That
+  // is a hint. The per-panel signal that does separate them is the grid's own
+  // autocorrelation: 0.26 against 0.11, though the ranges overlap.
+  expect(score.medianStudRingRadiusCells).toBeGreaterThan(0.1);
+  expect(score.medianStudRingRadiusCells).toBeLessThan(0.45);
+  expect(score.medianStudRadialContrast).toBeGreaterThan(score.refusedStudRadialContrast);
+  expect(score.medianCoherence).toBeGreaterThan(score.refusedCoherence * 1.5);
+  // Half the art against the other half, which is where a perspective render
+  // would show. Only counted where both halves produced an accepted fit.
+  expect(score.halvesMeasured).toBeGreaterThan(5);
+  expect(score.medianHalfBasisDisagreementPx).toBeLessThan(3);
   // Stability: the booklet holds one camera for a run of steps, and the runs the
   // fit finds are 1-9, 10-15, 16-34, 36-37 — it turns the model over and back.
   // Inside a run the angles hold to a third of a degree of standard deviation.

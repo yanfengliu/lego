@@ -25,10 +25,18 @@
  *
  * It is a fit quality, not a proof, and the difference is measured: a rhombic
  * grid that no square grid could project to still reads under 1% of pitch once
- * a change of basis is allowed. The independent check lives next door in
- * `camera-fit-lattice-phase.ts` — a stud is a circle of known size on the grid,
- * so folded onto a correct cell it comes back round and 0.3 of a pitch across,
- * and no impostor grid does that.
+ * a change of basis is allowed, and a quarter of random plausible lattices pass
+ * the gate. What it does separate on a booklet is a fit that found the grid from
+ * one that locked onto the wrong repeat, and the strongest second opinion is
+ * `coherence` — the mean autocorrelation of the chosen basis, measured at 0.26
+ * on accepted panels against 0.11 on refused ones.
+ *
+ * There is no strong per-panel proof that the picture is a stud grid at all.
+ * Two were tried against the folded cell in `camera-fit-lattice-phase.ts` and
+ * both are reported there with what they measured; neither separates an
+ * accepted panel from a refused one by much. The evidence that the fit is right
+ * is the overlays, the agreement of thirty-two independent panels on four
+ * cameras, and the round trip through this package's own camera.
  *
  * What this cannot recover is where the model sits. A grid is the same grid
  * shifted by one pitch, so the fit pins the projection to a lattice phase and
@@ -37,10 +45,19 @@
  * lies.
  */
 
+import { STUD_PITCH_LDU } from "@lego-studio/catalog";
+
+import { THREE_UNITS_PER_LDU } from "./coordinates.ts";
+
 const DEGREES = Math.PI / 180;
 
-/** One Three.js world unit is 20 LDU, which is exactly one stud pitch. */
-export const STUD_PITCH_WORLD_UNITS = 1 as const;
+/**
+ * One Three.js world unit is one stud pitch, which is what lets a fitted
+ * `pixelsPerUnit` be read as pixels per stud. Derived rather than written down:
+ * it holds only while 20 LDU and 0.05 world units per LDU multiply to one, and a
+ * hardcoded 1 would go on being 1 after either of them changed.
+ */
+export const STUD_PITCH_WORLD_UNITS = STUD_PITCH_LDU * THREE_UNITS_PER_LDU;
 
 export interface PixelBoxPx {
   readonly minXPx: number;
@@ -83,7 +100,7 @@ export interface StudTextureOptions {
 export interface StudTextureField {
   readonly width: number;
   readonly height: number;
-  /** Local contrast, unit variance over the art, zero everywhere else. */
+  /** Local contrast over the art, scaled to unit variance then clamped to +-4; zero elsewhere. */
   readonly texture: Float32Array;
   readonly mask: Uint8Array;
   readonly sampleX: Int32Array;
@@ -359,9 +376,15 @@ export interface AxonometricSolution {
  * Solves azimuth, elevation and scale from a measured pair of grid vectors.
  *
  * Four measurements, three unknowns, so the solve is least squares and the
- * leftover is meaningful. Returns null when no upright axonometric view could
- * have produced the pair — the giveaway is a required `sin elevation` above one,
- * which is what a non-primitive basis such as `a` paired with `a + b` yields.
+ * leftover is meaningful. Returns null when the pair demands a `sin elevation`
+ * outside (0, 1], which is what a badly mis-paired basis yields. That is a guard
+ * on this function and not a filter the fitter leans on: `fitStudLattice` reaches
+ * every pair through `reduceToAxonometricBasis`, which re-bases a mis-paired
+ * lattice to the one it spans and solves that instead.
+ *
+ * A `sin elevation` a little over one is taken as noise on a near-flat-on view
+ * and clamped, but the residual is measured against the clamped value, so a
+ * basis no camera could print reports the mismatch rather than a perfect fit.
  */
 export function solveAxonometricFromLattice(basis: LatticeBasisPx): AxonometricSolution | null {
   const ax = basis.a.xPx;
@@ -373,7 +396,11 @@ export function solveAxonometricFromLattice(basis: LatticeBasisPx): AxonometricS
   let u = ax;
   let w = -bx;
   if (u * u + w * w <= 0) return null;
-  let k = Math.hypot(ay, by) / Math.hypot(ax, bx);
+  // Block coordinate descent on the normal equations. The objective is a
+  // Rayleigh quotient in k whose stationary equation has roots of product -1, so
+  // there is one positive root and the iteration cannot settle on the other; the
+  // starting k is overwritten on the first pass and is not a seed.
+  let k = 0;
   for (let iteration = 0; iteration < 60; iteration += 1) {
     k = (w * ay + u * by) / (u * u + w * w);
     const scale = 1 + k * k;
@@ -385,12 +412,16 @@ export function solveAxonometricFromLattice(basis: LatticeBasisPx): AxonometricS
   if (k <= 0.02 || k > 1.02) return null;
   const pixelsPerUnit = Math.hypot(u, w);
   if (!(pixelsPerUnit > 0)) return null;
+  // Clamped before the residual, not after: 90 degrees is the steepest view
+  // there is, so a basis demanding more has to report the difference rather than
+  // a perfect fit to a view nothing can print.
+  const sine = Math.min(1, k);
   const residualPx = Math.sqrt(
-    ((u - ax) ** 2 + (-w - bx) ** 2 + (k * w - ay) ** 2 + (k * u - by) ** 2) / 4,
+    ((u - ax) ** 2 + (-w - bx) ** 2 + (sine * w - ay) ** 2 + (sine * u - by) ** 2) / 4,
   );
   return {
     azimuthDegrees: Math.atan2(w, u) / DEGREES,
-    elevationDegrees: Math.asin(Math.min(1, k)) / DEGREES,
+    elevationDegrees: Math.asin(sine) / DEGREES,
     pixelsPerUnit,
     residualPx,
   };
@@ -444,7 +475,7 @@ export interface LatticeCandidate {
 export interface StudLatticeFit {
   readonly basis: LatticeBasisPx | null;
   readonly solution: AxonometricSolution | null;
-  /** Mean autocorrelation over the harmonics the refinement scored. */
+  /** Mean autocorrelation of the chosen basis over the harmonic offsets, refined or not. */
   readonly coherence: number;
   readonly peaks: readonly LatticePeak[];
   readonly candidates: readonly LatticeCandidate[];
@@ -542,11 +573,19 @@ function canonicalPair(first: LatticeVectorPx, second: LatticeVectorPx): Lattice
  * Bounded by length, and that bound is load bearing. Allowed to reach for long
  * combinations, the search finds a low-residual reading of almost any lattice —
  * measured at 1% of pitch on a rhombic grid that no square grid could project
- * to. A projected stud pitch is at most about two and a half times the shortest
- * repeat in the picture at the elevations booklets are drawn at, so anything
- * longer is not the grid step, whatever it solves to.
+ * to. So anything much longer than the picture's own shortest repeat is not the
+ * grid step, whatever it solves to.
+ *
+ * The bound has a precondition and it is exact. At an azimuth on an axis the
+ * longer grid vector is `1 / sin elevation` times the shortest repeat, so 2.6
+ * admits every azimuth only while the elevation is at least 22.62 degrees. Below
+ * that the true basis is out of reach at some azimuths and the panel is refused
+ * rather than mis-fitted: 12% of azimuths at 22 degrees, 36% at 15, all of them
+ * at 5. Instruction art is drawn near 35, where the worst ratio is 1.74.
  */
 const MAX_BASIS_OVER_SHORTEST_REPEAT = 2.6;
+/** Elevation below which the length bound can put the true basis out of reach. */
+const MIN_RELIABLE_ELEVATION_DEGREES = Math.asin(1 / MAX_BASIS_OVER_SHORTEST_REPEAT) / DEGREES;
 
 export function reduceToAxonometricBasis(
   basis: LatticeBasisPx,
@@ -723,7 +762,8 @@ export function fitStudLattice(
       candidates,
       failure:
         `${candidates.length} peak pairs were tried and no change of basis makes any of them an upright axonometric projection of a stud grid; the strongest repeats were ${shortest}. ` +
-        `That is what a perspective panel, a rolled camera, or a repeat that is not the stud grid looks like — inspect the peaks before trusting any angle from this panel.`,
+        `That is what a perspective panel, a rolled camera, or a repeat that is not the stud grid looks like. It is also what a view flatter than ${MIN_RELIABLE_ELEVATION_DEGREES.toFixed(1)} degrees looks like, because the change-of-basis search is bounded to ${MAX_BASIS_OVER_SHORTEST_REPEAT} times the shortest repeat and the true grid step exceeds that below it. ` +
+        `Inspect the peaks before trusting any angle from this panel; raising maxResidualFraction is not the lever.`,
     };
   }
 

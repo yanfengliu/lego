@@ -175,13 +175,18 @@ Early steps are drawn exploded: the new part sits below or beside the assembly w
 Later steps highlight the part in position, as the score assumes.
 Both conventions appear inside the first fifty steps, and there is no announcement of which is in use — the red arrows are the only signal, and they are unambiguous because nothing else on the page is that red.
 
-So the highlight is two different measurements depending on the step, and a scorer that treats it as one will reject the correct placement on 38% of them.
+So the highlight is two different measurements depending on the step, and a scorer that treats it as one will reject the correct placement on the exploded ones.
 An exploded step still constrains a great deal — shape and orientation identify the part, and the arrows point at the destination — but position has to come from somewhere else.
 The cheapest somewhere else is the next step: step N+1 draws the assembly with step N's part already in place, so a candidate placement for step N is scored against step N+1's picture rather than step N's highlight.
 That costs one step of lag and no new machinery — the beam already carries several branches forward, which is exactly what is needed to defer a verdict by a step.
 
 Measured before it was built, on a synthetic booklet with the answer known and the highlight deliberately drawn around a ghost lifted 48 LDU off its landing site, scoring every distinct legal placement rather than the ones a prune kept.
 The current highlight score ranked the true placement first on none of five exploded steps — rank 31 of 126, 44 of 132, 21 of 49, and two steps where every candidate tied at zero — which is the reported failure, reproduced.
+
+The count of 19 was wrong and is corrected here rather than deleted, because the way it was wrong matters more than the number.
+It came from keying red pixels over the whole panel, and red on these pages is a red part or a sub-build's own arrow as often as it is this step's displacement arrow.
+Measured again with shape tests on the red — long, thin, one end fatter — and the requirement that the arrow start at what this step highlighted: 28 of the 49 pairs in the first fifty steps print no red at all, step 12's "arrows" are a red 2x6 plate, and steps 14, 29, 30 and 47 print arrows belonging to sub-builds drawn inside the same panel, two of them in grey inset boxes rather than the white ones a colour test would catch.
+Three steps survive every test. The convention is real and the trap is real; the population is much smaller than a colour key suggests.
 Scored against the next panel it ranked first on all five, by 0.29 to 0.73 of IoU over the best wrong placement.
 
 The shape of the comparison mattered more than the idea.
@@ -330,3 +335,26 @@ The fix is to key the white first. The page is grey, the model is not white, and
 
 **Anchor:** `keyPrintedBoxes` in `apps/web/src/assembly/panel-art.ts`, and the `openingRadiusPx` note on `isolateAssembly` that records why the opening defaults to off.
 With the white keyed out, panels fitting a camera went from 37 to 39 of 50 and median assembly agreement from 66% to 74%.
+
+## A printed step's panel difference finds the right stud, not the right offset
+
+`scoreExplodedStep` reads where an exploded step's part went by differencing the step's panel against the next one's, and on a synthetic booklet it ranked the true placement first on all five contested steps with a mean margin of +0.50.
+Run against the printed booklet it does something weaker, and the sample is far thinner than the synthetic result implies.
+
+Thinner first. Of the 49 consecutive pairs in the first fifty steps, 3 are well posed for the question at all.
+38 print no arrow that survives a shape and origin test; 5 fit no camera on one side, so there is no grid for the part to move on; 2 close no highlight contour, so the part's printed shape is unavailable.
+Establishing an answer to check against is most of the difficulty, and it is the part a synthetic booklet hands over for free.
+
+Weaker second, and the weakness is specific.
+Sweeping the step's own printed silhouette across the fitted stud grid and scoring every offset with the real `scoreExplodedStep`, the top-scoring offset landed 0.57, 0.60 and 2.50 studs from where the step's red arrows point.
+The do-nothing offset — the part already drawn where it lands — ranked last of 1851 and last of 2168 on the two clean steps, so the reading does reject staying put.
+But the arrow's own offset ranked 43rd, 82nd and 271st: first place on none of them.
+That is not the surprise it reads as. About seventy candidate offsets sit within one stud of any point, because a stud pitch is 40 pixels and a plate of height is 13, so ranking was never going to separate the answer from its own neighbours.
+The distance from the winner to the answer is the number that means something; the rank is the number that looks like it does.
+
+What the reading gives is a prior over a neighbourhood roughly a stud across. Physics and the part's identity have to resolve it from there.
+
+**Anchor:** `apps/web/src/assembly/lattice-placements.ts` and the docstring on `scoreExplodedStep`, measured by `apps/web/e2e/real-panel-registration.spec.ts`; numbers and overlays in `output/real-panel-scoring/`.
+0 of 3 scored steps ranked the arrow-implied offset first and 2 put the top offset within a stud of it; median margin -0.037.
+The reference is the red arrow's own tail-to-head vector, which the score never reads, and it is good to about half a stud because an arrow is drawn with clearance at both ends.
+`placement-010-011.png` is the picture to look at: the emerged region sits squarely on the landing site and the score's winner and the arrows' answer are half a stud apart.
