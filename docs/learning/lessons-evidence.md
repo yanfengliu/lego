@@ -434,19 +434,24 @@ A tolerance is chosen against the quantum it has to resolve, not against the noi
 **Anchor:** `arrowDisplacementFamily` in `apps/web/src/assembly/arrow-placement.ts`, and the test that asserts the plate quantum before asserting anything about family size.
 Blind sweep of the same grid: about 2000 offsets. Arrow at 0.35 studs: 12 to 18. Arrow at 0.15: 2 to 4.
 
-## Elongation and area do not separate a brick from an arrow, but fill does
+## A shape test that works on a solid blob need not work on printed art
 
 A red arrow is the booklet's only statement of where a part travels, and red is the obvious way to find one.
-The set has red parts too, so shape has to do the separating, and the two obvious shape tests are not enough.
+The set has red parts too, so shape has to separate them, and the two obvious tests do not.
 A 2x6 plate seen in axonometric is three times longer than it is wide, which clears an elongation gate meant to catch blobs, and on a panel drawn at 21 pixels per stud it is under an area cap sized for a panel drawn at 42.
+Steps 12 and 16 of the sample booklet each let one through, and each produced a diagonal displacement — which matters more than the count, because they are the *only* two diagonal displacements in the first fifty steps.
+A reader that trusts them reports that the booklet mixes vertical drops with diagonal travel, on the evidence of two bricks.
 
-Steps 12 and 16 of the sample booklet each let one through, and each produced a diagonal displacement — which mattered more than the count, because they were the *only* two diagonal displacements in the first fifty steps.
-A reader that trusted them would have reported that the booklet mixes vertical drops with diagonal travel, and sized its search accordingly, on the evidence of two bricks.
+The obvious third test is how much of its own oriented box the shape fills: an arrow is a shaft with a head and fills about a third, a plate fills most of it.
+It is right about a plate and wrong about a *drawn* plate, and it did not fire on either offender.
+Instruction art rings every stud and shades every face, so the saturated red of a printed brick is a sparse figure, not a filled rectangle — it came through under the same threshold the arrows did.
+The test was written, unit-tested against a solid rectangle, passed, and changed nothing on the corpus it was written for.
 
-What separates them is how much of its own oriented box the shape fills. An arrow is a thin shaft with a head and fills about a third; a plate fills most of it.
+The lesson is not about fill. It is that a shape test has to be validated against the art it will meet, not against a synthetic instance of the thing it is meant to reject — and that "the test passes" and "the test fires" are different claims.
+What does separate them in this data is length, 4.7 and 6.1 stud pitches against about 2 for every confirmed arrow, but two examples is not a threshold and a length cap needs the camera scale that one of the two panels has not got.
 
-**Anchor:** the `maxFillFraction` test in `readDisplacementArrows`, `apps/web/src/assembly/panel-arrows.ts`.
-Both offenders were 99 pixels long at 21 pixels per stud — 4.7 studs, where every genuine arrow in the booklet is about 2.
+**Anchor:** the `maxFillFraction` option in `readDisplacementArrows`, `apps/web/src/assembly/panel-arrows.ts`, whose doc now records that it does not catch the case it was added for.
+Zero of step 12's 10 rejected red regions and zero of step 16's 31 mention fill.
 
 ## A measurement computed after an early return reports zero, and zero reads as an absence
 

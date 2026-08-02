@@ -192,6 +192,8 @@ test("registers consecutive printed panels onto one frame", async ({ page }) => 
         "The same agreement with no transform at all, which is what `panelDelta` would have got had the panels been handed to it as cropped.",
       noise:
         "How far apart the two panels' pixels are inside the model both drew, three pixels in from its edge. The p99 is what a difference threshold has to clear before a placement can be read out of the difference.",
+      displacementFamily:
+        "How many whole-grid displacements the arrow admits, against the roughly two thousand a blind sweep of the same grid offers. The tolerance sits under half a plate deliberately: a plate projects to about a third of a stud, so anything wider admits the neighbouring height and the family stops meaning anything.",
       arrowShortfallStuds:
         "How much shorter an arrow is than the travel it describes, as its tail's gap from the ghost's outline plus its head's gap from the model already there, in stud pitches. It is the arrow's systematic error; the spread between arrows on one step is its precision, and the two are different things.",
       referenceRank:
@@ -258,6 +260,12 @@ test("registers consecutive printed panels onto one frame", async ({ page }) => 
     stepsWhoseRedWasAllRejected: withArrowRejected.length,
     medianArrowShortfallStuds: median(of(withArrow, (pair) => pair.placement!.arrowShortfallStuds)),
     medianArrowSpreadPx: median(of(withArrow, (pair) => pair.placement!.arrowSpreadPx)),
+    medianDisplacementFamilyRaw: median(
+      of(withModelArrow, (pair) => pair.placement!.displacementFamily?.rawSize ?? null),
+    ),
+    medianDisplacementFamilyCorrected: median(
+      of(withModelArrow, (pair) => pair.placement!.displacementFamily?.correctedSize ?? null),
+    ),
     firstPlace: scored.filter((pair) => pair.placement!.ranking!.referenceRank === 0).length,
     medianArrowTravelStuds: median(
       scored.map((pair) => pair.placement!.arrowTravelStuds ?? Number.NaN),
@@ -306,6 +314,7 @@ test("registers consecutive printed panels onto one frame", async ({ page }) => 
     const pl = pair.placement!;
     console.log(
       `  step ${String(pair.fromStep).padStart(2)}: ${pl.agreedArrows}/${pl.arrows} arrows, ${pl.arrowsInsideAssembly} on the model, ` +
+        `family ${pl.displacementFamily ? `${pl.displacementFamily.rawSize} raw / ${pl.displacementFamily.correctedSize} corrected of ~2000 blind` : "no camera"}, ` +
         `shortfall ${pl.arrowShortfallStuds?.toFixed(2) ?? "-"} studs, spread ${pl.arrowSpreadPx?.toFixed(1) ?? "-"}px, ` +
         `clearances ${pl.clearances.map((c) => `${c.tailToGhostPx?.toFixed(0) ?? "-"}+${c.headToBuiltPx?.toFixed(0) ?? "-"}/${c.lengthPx.toFixed(0)}`).join(" ")}`,
     );

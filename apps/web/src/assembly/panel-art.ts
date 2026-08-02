@@ -436,3 +436,69 @@ export function keyPrintedBoxes(raster: PanelRaster, options: PrintedBoxOptions 
   }
   return mask;
 }
+
+export interface PdfPointBox {
+  readonly minXPt: number;
+  readonly maxXPt: number;
+  readonly minYPt: number;
+  readonly maxYPt: number;
+}
+
+export interface PanelCrop {
+  readonly width: number;
+  readonly height: number;
+  /** Page scale the PDF was rasterised at. */
+  readonly renderScale: number;
+  /** Where the crop starts in page pixels. */
+  readonly sourceXPx: number;
+  readonly sourceYPx: number;
+  /** Crop pixels per page pixel. */
+  readonly ratio: number;
+  /** The page's own height in pixels, because PDF points count from the bottom. */
+  readonly pageHeightPx: number;
+  /** How far past each box the mask reaches, for its ink. Defaults to 4. */
+  readonly marginPx?: number;
+}
+
+/**
+ * Clears boxes given in PDF points out of a mask taken from a crop of that page.
+ *
+ * Two coordinate systems meet here and they disagree about which way is up: PDF
+ * points count from the bottom of the page and canvas pixels from the top, so
+ * the box's top edge is derived from its *maximum* y. Getting that backwards
+ * masks a mirrored rectangle somewhere else on the panel, which looks like a
+ * hole in the model rather than like a coordinate bug.
+ */
+export function clearPdfBoxes(
+  mask: Uint8Array,
+  crop: PanelCrop,
+  boxes: readonly PdfPointBox[],
+): void {
+  requireMask({ width: crop.width, height: crop.height, mask }, "callout-box target");
+  const margin = crop.marginPx ?? 4;
+  for (const box of boxes) {
+    const minX = Math.max(
+      0,
+      Math.floor((box.minXPt * crop.renderScale - crop.sourceXPx) * crop.ratio) - margin,
+    );
+    const maxX = Math.min(
+      crop.width - 1,
+      Math.ceil((box.maxXPt * crop.renderScale - crop.sourceXPx) * crop.ratio) + margin,
+    );
+    const minY = Math.max(
+      0,
+      Math.floor(
+        (crop.pageHeightPx - box.maxYPt * crop.renderScale - crop.sourceYPx) * crop.ratio,
+      ) - margin,
+    );
+    const maxY = Math.min(
+      crop.height - 1,
+      Math.ceil((crop.pageHeightPx - box.minYPt * crop.renderScale - crop.sourceYPx) * crop.ratio) +
+        margin,
+    );
+    if (maxX < minX) continue;
+    for (let y = minY; y <= maxY; y += 1) {
+      mask.fill(0, y * crop.width + minX, y * crop.width + maxX + 1);
+    }
+  }
+}

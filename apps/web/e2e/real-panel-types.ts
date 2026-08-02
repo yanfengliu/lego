@@ -172,6 +172,21 @@ export interface PlacementReport {
    */
   readonly arrowShortfallStuds: number | null;
   /**
+   * How many whole-grid displacements the arrow admits, which is what it leaves
+   * for physics to settle. A blind sweep of the same grid offers about two
+   * thousand. Null where no camera fitted, because without a projection there is
+   * no grid to invert onto.
+   */
+  readonly displacementFamily: {
+    readonly toleranceStuds: number;
+    /** One plate up the page, in studs. The tolerance has to sit under half of it. */
+    readonly plateInStuds: number;
+    readonly rawSize: number;
+    readonly correctedSize: number;
+    readonly rawBestErrorStuds: number | null;
+    readonly correctedBestErrorStuds: number | null;
+  } | null;
+  /**
    * Arrows whose tail lies on the model rather than on a sub-build strip beside
    * it. This booklet rings its sub-build steps in yellow like main steps, so the
    * origin test alone does not separate them and this does.

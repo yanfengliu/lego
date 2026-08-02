@@ -115,35 +115,28 @@ export const measureRealPanelRegistration = async ({
       backgroundHex: BACKGROUND_HEX,
       toleranceLevels: 10,
     }) as Uint8Array;
-    // Everything the booklet prints on white — the callout box, a sub-assembly
-    // box, the step number, the progress bar — is furniture, and a sub-assembly
-    // box is tied to the model by a leader line, so the largest connected
-    // component alone will not shed it.
+    // Everything the booklet prints on white is furniture; see `keyPrintedBoxes`.
     const furniture = assembly.keyPrintedBoxes(raster) as Uint8Array;
     for (let pixel = 0; pixel < furniture.length; pixel += 1) {
       if (furniture[pixel] === 1) artMask[pixel] = 0;
     }
     // The PDF's own callout boxes go too. They overlap the white ones above on
     // most pages and not on all, and this list is the authoritative one.
-    for (const box of spec.calloutBoxes) {
-      const minX = Math.max(0, Math.floor((box.minXPt * renderScale - sourceX) * ratio) - 4);
-      const maxX = Math.min(width - 1, Math.ceil((box.maxXPt * renderScale - sourceX) * ratio) + 4);
-      const minY = Math.max(
-        0,
-        Math.floor((page.height - box.maxYPt * renderScale - sourceY) * ratio) - 4,
-      );
-      const maxY = Math.min(
-        height - 1,
-        Math.ceil((page.height - box.minYPt * renderScale - sourceY) * ratio) + 4,
-      );
-      for (let y = minY; y <= maxY; y += 1) artMask.fill(0, y * width + minX, y * width + maxX + 1);
-    }
+    assembly.clearPdfBoxes(
+      artMask,
+      {
+        width,
+        height,
+        renderScale,
+        sourceXPx: sourceX,
+        sourceYPx: sourceY,
+        ratio,
+        pageHeightPx: page.height,
+      },
+      spec.calloutBoxes,
+    );
 
-    // No opening. Measured on this booklet at this width, cutting the art at a
-    // radius of 3 first fragmented it into over a hundred pieces and left the
-    // largest holding a sixth of the drawing, which then fitted a nonsense
-    // camera. The plain largest component is what the camera fit was measured
-    // with.
+    // No opening: see `isolateAssembly` for what one does to printed line art.
     const isolation = assembly.isolateAssembly({ width, height, mask: artMask });
     const highlight = assembly.extractHighlightRegions(image.data, width, height, {
       minimumOutlinePx: 40,
@@ -519,6 +512,7 @@ export const measureRealPanelRegistration = async ({
     // whatever arrows it printed, and the count of those is a finding in its own
     // right. Reporting zeros here made the census answer "how many steps got all
     // the way through" when the question was "how many steps print an arrow".
+    let skipFamily: PlacementReport["displacementFamily"] = null;
     let skipClearances: PlacementReport["clearances"] = [];
     let skipArrowsInsideAssembly = 0;
     let skipShortfallStuds: number | null = null;
@@ -546,6 +540,7 @@ export const measureRealPanelRegistration = async ({
         agreedArrows: reading?.agreedArrows ?? 0,
         referenceSnapPx: null,
         clearances: skipClearances,
+        displacementFamily: skipFamily,
         arrowsInsideAssembly: skipArrowsInsideAssembly,
         arrowShortfallStuds: skipShortfallStuds,
         silhouettePx: 0,
@@ -580,76 +575,32 @@ export const measureRealPanelRegistration = async ({
     // good arrow and then fails for want of a fitted camera still printed it,
     // and reporting the arrow facts only for steps that got all the way
     // through made the census count the wrong thing twice over.
-    // How much clearance the artist left at each end. An arrow is drawn from
-    // clear of the ghost to clear of the landing surface, so tail-to-head is
-    // shorter than the part's travel by the sum of the two gaps — and that sum
-    // is the arrow's systematic error, readable off the same page. The tail is
-    // measured against this step's own highlight stroke, which rings the ghost;
-    // the head against the model that was already there, which is the assembly
-    // with this step's highlight taken out of it.
-    const alreadyBuilt = new Uint8Array(current.width * current.height);
-    const claimed = rendering.dilateMask(
-      current.highlight.strokeMask,
-      current.width,
-      current.height,
-      3,
-    ) as Uint8Array;
-    for (let pixel = 0; pixel < alreadyBuilt.length; pixel += 1) {
-      if (
-        current.assemblyMask[pixel] === 1 &&
-        claimed[pixel] !== 1 &&
-        current.highlight.mask[pixel] !== 1
-      ) {
-        alreadyBuilt[pixel] = 1;
-      }
-    }
-    const toGhost = assembly.distanceToMask(
-      current.highlight.strokeMask,
-      current.width,
-      current.height,
-    ) as Float64Array;
-    const toBuilt = assembly.distanceToMask(
-      alreadyBuilt,
-      current.width,
-      current.height,
-    ) as Float64Array;
-    const at = (field: Float64Array, x: number, y: number): number | null => {
-      const px = Math.round(x);
-      const py = Math.round(y);
-      if (px < 0 || px >= current.width || py < 0 || py >= current.height) return null;
-      const value = field[py * current.width + px]!;
-      return Number.isFinite(value) ? value : null;
-    };
-    const clearances = (
-      arrows.arrows as readonly {
-        tailXPx: number;
-        tailYPx: number;
-        headXPx: number;
-        headYPx: number;
-        lengthPx: number;
-      }[]
-    ).map((arrow) => ({
-      tailToGhostPx: at(toGhost, arrow.tailXPx, arrow.tailYPx),
-      headToBuiltPx: at(toBuilt, arrow.headXPx, arrow.headYPx),
-      lengthPx: arrow.lengthPx,
-    }));
-    const shortfallStuds = (() => {
-      const both = clearances.filter(
-        (entry) => entry.tailToGhostPx !== null && entry.headToBuiltPx !== null,
-      );
-      if (both.length === 0 || current.fit === null) return null;
-      const total =
-        both.reduce((sum, entry) => sum + entry.tailToGhostPx! + entry.headToBuiltPx!, 0) /
-        both.length;
-      return total / current.fit.pixelsPerUnit;
-    })();
+    // How much clearance the artist left at each end, and what the arrow then
+    // leaves for physics to settle. All of it is product logic and lives in
+    // `arrow-placement`.
+    const clearances = assembly.measureArrowClearances(arrows.arrows, {
+      width: current.width,
+      height: current.height,
+      ghostStrokeMask: current.highlight.strokeMask,
+      alreadyBuiltMask: assembly.alreadyBuiltMask(
+        current.assemblyMask,
+        current.highlight.mask,
+        current.highlight.strokeMask,
+        current.width,
+        current.height,
+      ) as Uint8Array,
+    }) as readonly {
+      tailToGhostPx: number | null;
+      headToBuiltPx: number | null;
+      lengthPx: number;
+    }[];
+    const shortfallStuds = current.fit
+      ? (assembly.arrowShortfallStuds(clearances, current.fit.pixelsPerUnit) as number | null)
+      : null;
 
-    // Whether the arrow is drawn on the model or on a sub-build strip beside it.
-    // The origin test was supposed to separate those, and on this booklet it
-    // does not: steps 47 and 48 draw their sub-builds as numbered panels above
-    // a rule, and ring each sub-step in yellow exactly like a main step, so a
-    // sub-build's arrow does start at something "this step highlighted". Where
-    // the arrow sits relative to the assembly does separate them.
+    // On the model, or on a sub-build strip beside it? The origin test does not
+    // separate those on this booklet — steps 47 and 48 ring each sub-step in
+    // yellow exactly like a main step — but where the arrow sits does.
     const bounds = current.summary.assemblyBounds;
     const arrowsInsideAssembly =
       bounds === null
@@ -661,6 +612,50 @@ export const measureRealPanelRegistration = async ({
               arrow.tailYPx >= bounds.minYPx - 40 &&
               arrow.tailYPx <= bounds.maxYPx + 40,
           ).length;
+
+    // What the arrow leaves for physics to settle. A blind sweep of the same
+    // grid offers about two thousand offsets; reported raw and with the
+    // clearance added back, because the correction has to earn its place.
+    const familySizes = (() => {
+      if (
+        current.fit === null ||
+        arrows.displacementXPx === null ||
+        arrows.displacementYPx === null
+      ) {
+        return null;
+      }
+      const projection = assembly.panelProjectionFromFit(current.fit) as {
+        up: { yPx: number };
+        pixelsPerStud: number;
+      };
+      const raw = { xPx: arrows.displacementXPx, yPx: arrows.displacementYPx };
+      const measured = clearances.filter(
+        (entry) => entry.tailToGhostPx !== null && entry.headToBuiltPx !== null,
+      );
+      const corrected =
+        measured.length === 0
+          ? raw
+          : (assembly.correctArrowForClearance(raw, {
+              tailToGhostPx:
+                measured.reduce((sum, entry) => sum + entry.tailToGhostPx!, 0) / measured.length,
+              headToBuiltPx:
+                measured.reduce((sum, entry) => sum + entry.headToBuiltPx!, 0) / measured.length,
+            }) as { xPx: number; yPx: number });
+      const sizeOf = (vector: { xPx: number; yPx: number }) =>
+        assembly.arrowDisplacementFamily(projection, vector) as readonly { errorStuds: number }[];
+      const rawFamily = sizeOf(raw);
+      const correctedFamily = sizeOf(corrected);
+      return {
+        toleranceStuds: 0.15,
+        plateInStuds: Math.abs(projection.up.yPx) / projection.pixelsPerStud,
+        rawSize: rawFamily.length,
+        correctedSize: correctedFamily.length,
+        rawBestErrorStuds: rawFamily[0]?.errorStuds ?? null,
+        correctedBestErrorStuds: correctedFamily[0]?.errorStuds ?? null,
+      };
+    })();
+    skipFamily = familySizes;
+
     // Published from here, before any skip. A step that prints an arrow and
     // then fails for want of a camera still printed it, and these two are the
     // census the question is about.
@@ -799,6 +794,7 @@ export const measureRealPanelRegistration = async ({
         agreedArrows: arrows.agreedArrows,
         referenceSnapPx: ranking?.referenceSnapPx ?? null,
         clearances,
+        displacementFamily: familySizes,
         arrowsInsideAssembly,
         arrowShortfallStuds: shortfallStuds,
         silhouettePx: current.summary.highlightEnclosedPx,
@@ -881,44 +877,20 @@ export const measureRealPanelRegistration = async ({
     },
   ): string {
     const { width, height } = current;
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height + 46;
-    const draw = canvas.getContext("2d")!;
-    const out = draw.createImageData(width, height);
+    const { canvas, draw, out } = dimmedBase(current.pixels, width, height, 0.45);
     for (let pixel = 0; pixel < width * height; pixel += 1) {
-      const at = pixel * 4;
-      const grey = Math.round(
-        0.45 *
-          (current.pixels[at]! * 0.299 +
-            current.pixels[at + 1]! * 0.587 +
-            current.pixels[at + 2]! * 0.114),
-      );
-      out.data[at] = grey;
-      out.data[at + 1] = grey;
-      out.data[at + 2] = grey + (delta.emergedMask[pixel] === 1 ? 190 : 0);
-      out.data[at + 3] = 255;
+      if (delta.emergedMask[pixel] === 1) out.data[pixel * 4 + 2]! += 190;
     }
     draw.putImageData(out, 0, 0);
+    // Outline only: a filled stamp hides the emerged region underneath, which is
+    // the thing the reader is being asked to compare it against.
+    const outline = rendering.maskBoundary(current.highlight.mask, width, height) as Uint8Array;
     const stamp = (dx: number, dy: number, colour: string) => {
       draw.fillStyle = colour;
-      for (let y = 0; y < height; y += 1) {
-        for (let x = 0; x < width; x += 1) {
-          if (current.highlight.mask[y * width + x] !== 1) continue;
-          // Outline only: a filled stamp hides the emerged region underneath,
-          // which is the thing the reader is being asked to compare it against.
-          const edge =
-            x === 0 ||
-            y === 0 ||
-            x === width - 1 ||
-            y === height - 1 ||
-            current.highlight.mask[y * width + x - 1] !== 1 ||
-            current.highlight.mask[y * width + x + 1] !== 1 ||
-            current.highlight.mask[(y - 1) * width + x] !== 1 ||
-            current.highlight.mask[(y + 1) * width + x] !== 1;
-          if (!edge) continue;
-          draw.fillRect(x + dx, y + dy, 2, 2);
-        }
+      for (let pixel = 0; pixel < outline.length; pixel += 1) {
+        if (outline[pixel] !== 1) continue;
+        const x = pixel % width;
+        draw.fillRect(x + dx, (pixel - x) / width + dy, 2, 2);
       }
     };
     stamp(verdict.bestDxPx, verdict.bestDyPx, "rgba(90,230,255,0.95)");
@@ -931,22 +903,56 @@ export const measureRealPanelRegistration = async ({
       draw.lineTo(arrow.headXPx, arrow.headYPx);
       draw.stroke();
     }
+    caption(
+      draw,
+      width,
+      height,
+      `step ${current.spec.stepNumber}   arrow-implied placement ranked ${verdict.referenceRank + 1} of ${verdict.candidates}   margin ${verdict.margin.toFixed(4)}`,
+      `cyan = top of the exploded score, pink = where the printed arrows point, blue = what emerged between the panels`,
+    );
+    return canvas.toDataURL("image/png");
+  }
+
+  /** The panel dimmed to grey, with room under it for the legend. */
+  function dimmedBase(
+    pixels: Uint8ClampedArray,
+    width: number,
+    height: number,
+    dim: number,
+  ): { canvas: HTMLCanvasElement; draw: CanvasRenderingContext2D; out: ImageData } {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height + 46;
+    const draw = canvas.getContext("2d")!;
+    const out = draw.createImageData(width, height);
+    for (let pixel = 0; pixel < width * height; pixel += 1) {
+      const at = pixel * 4;
+      const grey = Math.round(
+        dim * (pixels[at]! * 0.299 + pixels[at + 1]! * 0.587 + pixels[at + 2]! * 0.114),
+      );
+      out.data[at] = grey;
+      out.data[at + 1] = grey;
+      out.data[at + 2] = grey;
+      out.data[at + 3] = 255;
+    }
+    return { canvas, draw, out };
+  }
+
+  /** The two-line legend both overlays carry, so a reader knows what a colour means. */
+  function caption(
+    draw: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+    first: string,
+    second: string,
+  ): void {
     draw.fillStyle = "#05070a";
     draw.fillRect(0, height, width, 46);
     draw.font = "13px monospace";
     draw.fillStyle = "#e8f6ff";
-    draw.fillText(
-      `step ${current.spec.stepNumber}   arrow-implied placement ranked ${verdict.referenceRank + 1} of ${verdict.candidates}   margin ${verdict.margin.toFixed(4)}`,
-      10,
-      height + 18,
-    );
+    draw.fillText(first, 10, height + 18);
     draw.fillStyle = "#9fd0ff";
-    draw.fillText(
-      `cyan = top of the exploded score, pink = where the printed arrows point, blue = what emerged between the panels`,
-      10,
-      height + 36,
-    );
-    return canvas.toDataURL("image/png");
+    draw.fillText(second, 10, height + 36);
   }
 
   function paintOverlay(
@@ -956,45 +962,24 @@ export const measureRealPanelRegistration = async ({
     alignment: { iou: number; transform: { scale: number } },
   ): string {
     const { width, height } = current;
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height + 46;
-    const draw = canvas.getContext("2d")!;
-    const out = draw.createImageData(width, height);
+    const { canvas, draw, out } = dimmedBase(current.pixels, width, height, 0.2);
     for (let pixel = 0; pixel < width * height; pixel += 1) {
       const at = pixel * 4;
-      const grey = Math.round(
-        0.2 *
-          (current.pixels[at]! * 0.299 +
-            current.pixels[at + 1]! * 0.587 +
-            current.pixels[at + 2]! * 0.114),
-      );
       // This panel's assembly in red, the next panel's in green: where the two
       // registered, both channels are on and the model reads yellow; where they
       // did not, a red fringe faces a green one and the width of the fringe is
-      // the misregistration, in pixels, visible without a number.
-      const inCurrent = current.assemblyMask[pixel] === 1;
-      const inNext = warpedAssembly[pixel] === 1;
-      out.data[at] = grey + (inCurrent ? 150 : 0);
-      out.data[at + 1] = grey + (inNext ? 150 : 0);
-      out.data[at + 2] = grey + (delta.emergedMask[pixel] === 1 ? 220 : 0);
-      out.data[at + 3] = 255;
+      // the misregistration, visible without a number.
+      if (current.assemblyMask[pixel] === 1) out.data[at]! += 150;
+      if (warpedAssembly[pixel] === 1) out.data[at + 1]! += 150;
+      if (delta.emergedMask[pixel] === 1) out.data[at + 2]! += 220;
     }
     draw.putImageData(out, 0, 0);
-    draw.fillStyle = "#05070a";
-    draw.fillRect(0, height, width, 46);
-    draw.font = "13px monospace";
-    draw.fillStyle = "#e8f6ff";
-    draw.fillText(
+    caption(
+      draw,
+      width,
+      height,
       `steps ${current.spec.stepNumber}-${current.spec.stepNumber + 1}   assembly agreement ${(alignment.iou * 100).toFixed(1)}%   scale x${alignment.transform.scale.toFixed(4)}`,
-      10,
-      height + 18,
-    );
-    draw.fillStyle = "#9fd0ff";
-    draw.fillText(
       `red = step N model, green = step N+1 model warped onto it, blue = emerged (${delta.emergedPx}px)`,
-      10,
-      height + 36,
     );
     return canvas.toDataURL("image/png");
   }

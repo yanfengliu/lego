@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { isArrowRed, PanelArrowError, readDisplacementArrows } from "./panel-arrows";
+import {
+  checkArrowSpansModel,
+  isArrowRed,
+  PanelArrowError,
+  readDisplacementArrows,
+} from "./panel-arrows";
 
 const PAGE = 0x899093;
 const ARROW = 0xd0202a;
@@ -153,6 +158,36 @@ describe("readDisplacementArrows", () => {
     expect(reading.rejected[0]!.reason).toMatch(/inside a printed sub-assembly box/);
   });
 
+  it("refuses a red plate that is long, thin and inside the area cap", () => {
+    // Steps 12 and 16 of the sample booklet each let a red 2x6 plate through:
+    // three times longer than wide, and on a 21px-per-stud panel just inside
+    // the area cap. Each produced a diagonal displacement that would have been
+    // the booklet's only diagonal evidence. A plate fills its own box; an arrow
+    // does not.
+    const width = 1000;
+    const height = 700;
+    const pixels = panel(width, height);
+    // 99 by 30: the length step 12's plate actually came through at, at three
+    // to one so it clears the elongation test, and 2970px so it clears the area
+    // cap. Neither of those catches it; the fill does.
+    for (let y = 100; y < 130; y += 1) {
+      for (let x = 100; x < 199; x += 1) put(pixels, width, x, y, ARROW);
+    }
+    const reading = readDisplacementArrows({ width, height, pixels });
+    expect(reading.arrows).toHaveLength(0);
+    expect(reading.rejected[0]!.reason).toMatch(/fills \d+% of its own/);
+  });
+
+  it("reports how much of its box a real arrow fills", () => {
+    const width = 1000;
+    const height = 700;
+    const pixels = panel(width, height);
+    paintArrow(pixels, width, 100, 40, 80);
+    const arrow = readDisplacementArrows({ width, height, pixels }).arrows[0]!;
+    expect(arrow.fillFraction).toBeLessThan(0.55);
+    expect(arrow.fillFraction).toBeGreaterThan(0.1);
+  });
+
   it("refuses an arrow that starts nowhere near what the step highlighted", () => {
     // The shape of step 47: a sub-build drawn on the open page above the model,
     // with an arrow of its own that belongs to the sub-build.
@@ -227,5 +262,38 @@ describe("readDisplacementArrows", () => {
       readDisplacementArrows({ width: 10, height: 10, pixels: new Uint8ClampedArray(8) }),
     ).toThrow(/holds 8 bytes but 10x10 RGBA needs 400/);
     expect(new PanelArrowError("x").name).toBe("PanelArrowError");
+  });
+});
+
+describe("checkArrowSpansModel", () => {
+  it("accepts an arrow whose head is near the model it points at", () => {
+    // Step 10's second arrow: 103px long, head 6px off the built model.
+    const check = checkArrowSpansModel({ lengthPx: 103 }, 17, 6);
+    expect(check.spansTheModel).toBe(true);
+    expect(check.refusal).toBe("");
+  });
+
+  it("refuses a sub-build's arrow on its own geometry, naming both numbers", () => {
+    // Step 48 of the sample booklet: six arrows in a strip above the model,
+    // 25 to 29px long with heads 215 to 337px from the nearest built brick.
+    // Nothing here refers to the panel's layout — only to the arrow and the
+    // model it claims to point at.
+    const check = checkArrowSpansModel({ lengthPx: 29 }, 1, 253);
+    expect(check.spansTheModel).toBe(false);
+    expect(check.refusal).toMatch(/29px long and its head sits 253px from the nearest built brick/);
+    expect(check.refusal).toMatch(/sub-build drawn in the same panel/);
+  });
+
+  it("refuses when there is no built model to point at, and says why", () => {
+    const check = checkArrowSpansModel({ lengthPx: 56 }, null, null);
+    expect(check.spansTheModel).toBe(false);
+    expect(check.refusal).toMatch(/no built model anywhere to measure against/);
+  });
+
+  it("lets a caller widen the ratio deliberately", () => {
+    expect(checkArrowSpansModel({ lengthPx: 29 }, 1, 253).spansTheModel).toBe(false);
+    expect(
+      checkArrowSpansModel({ lengthPx: 29 }, 1, 253, { headGapOverLength: 10 }).spansTheModel,
+    ).toBe(true);
   });
 });

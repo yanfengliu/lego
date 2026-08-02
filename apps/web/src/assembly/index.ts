@@ -6,6 +6,7 @@
  * Re-exported from one module because the driver is handed its dependencies as
  * callbacks, so a caller wires all of these together at once.
  */
+export * from "./arrow-placement";
 export * from "./build-tree";
 export * from "./enumerate-placements";
 export * from "./exploded-score";
