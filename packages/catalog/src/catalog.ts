@@ -2,6 +2,8 @@ import {
   BRICK_HEIGHT_LDU,
   BUILTIN_CATALOG_VERSION,
   COLLISION_MODEL_VERSION,
+  CONNECTOR_KIND_RULES,
+  connectorAccepts,
   CONNECTOR_TAXONOMY_VERSION,
   LDRAW_IDENTIFIER_PROVENANCE,
   PLATE_HEIGHT_LDU,
@@ -23,6 +25,8 @@ import type {
   ConnectorPortDefinition,
   LduBounds,
   PartDefinition,
+  ConnectorKind,
+  LduVector3,
   PartFamily,
 } from "./types.ts";
 
@@ -659,6 +663,32 @@ const studModeFor = (
   return studOffsetsLdu === undefined ? "cylinder-grid" : "cylinder-offsets";
 };
 
+/**
+ * A port, with everything the kind already implies read from the one table
+ * rather than restated here. A part cannot declare that a stud accepts a stud.
+ */
+const makePort = (
+  id: string,
+  kind: ConnectorKind,
+  positionLdu: LduVector3,
+  normal: LduVector3,
+  orientationId: "connector-up" | "connector-down",
+): ConnectorPortDefinition => {
+  const rule = CONNECTOR_KIND_RULES[kind];
+  return {
+    id,
+    kind,
+    geometryRole: rule.geometryRole,
+    profileId: rule.profileId,
+    positionLdu,
+    normal,
+    orientationId,
+    capacity: 1,
+    compatibleKinds: connectorAccepts(kind),
+    gender: rule.gender,
+  };
+};
+
 const makePart = (blueprint: PartBlueprint): PartDefinition => {
   const { family, widthStuds, lengthStuds, studOffsetsLdu, bodyWedge } = blueprint;
   const studded = isStudded(family);
@@ -722,17 +752,9 @@ const makePart = (blueprint: PartBlueprint): PartDefinition => {
       if (!cellIsSolid(x, z)) continue;
 
       if (studded && studOffsetsLdu === undefined) {
-        connectors.push({
-          id: `stud:${xIndex}:${zIndex}`,
-          kind: "stud",
-          geometryRole: "stud",
-          profileId: CONNECTOR_TAXONOMY_VERSION,
-          positionLdu: [x, topY, z],
-          normal: [0, -1, 0],
-          orientationId: "connector-up",
-          capacity: 1,
-          compatibleKinds: ["undersideClutch"],
-        });
+        connectors.push(
+          makePort(`stud:${xIndex}:${zIndex}`, "stud", [x, topY, z], [0, -1, 0], "connector-up"),
+        );
         primitives.push({
           id: `stud:${xIndex}:${zIndex}`,
           kind: "cylinder",
@@ -743,17 +765,15 @@ const makePart = (blueprint: PartBlueprint): PartDefinition => {
           heightLdu: STUD_HEIGHT_LDU,
         });
       }
-      connectors.push({
-        id: `undersideClutch:${xIndex}:${zIndex}`,
-        kind: "undersideClutch",
-        geometryRole: "tubeSeat",
-        profileId: CONNECTOR_TAXONOMY_VERSION,
-        positionLdu: [x, bottomY, z],
-        normal: [0, 1, 0],
-        orientationId: "connector-down",
-        capacity: 1,
-        compatibleKinds: ["stud"],
-      });
+      connectors.push(
+        makePort(
+          `undersideClutch:${xIndex}:${zIndex}`,
+          "undersideClutch",
+          [x, bottomY, z],
+          [0, 1, 0],
+          "connector-down",
+        ),
+      );
       allowances.push({
         id: `tubeSeat:${xIndex}:${zIndex}`,
         portId: `undersideClutch:${xIndex}:${zIndex}`,
@@ -769,17 +789,7 @@ const makePart = (blueprint: PartBlueprint): PartDefinition => {
 
   if (studded && studOffsetsLdu !== undefined) {
     studOffsetsLdu.forEach(([x, z], index) => {
-      connectors.push({
-        id: `stud:${index}`,
-        kind: "stud",
-        geometryRole: "stud",
-        profileId: CONNECTOR_TAXONOMY_VERSION,
-        positionLdu: [x, topY, z],
-        normal: [0, -1, 0],
-        orientationId: "connector-up",
-        capacity: 1,
-        compatibleKinds: ["undersideClutch"],
-      });
+      connectors.push(makePort(`stud:${index}`, "stud", [x, topY, z], [0, -1, 0], "connector-up"));
       primitives.push({
         id: `stud:${index}`,
         kind: "cylinder",

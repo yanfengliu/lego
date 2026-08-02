@@ -1,4 +1,12 @@
-import type { SourceProvenance, UprightOrientation } from "./types.ts";
+import type {
+  ConnectorArticulation,
+  ConnectorGender,
+  ConnectorGeometryRole,
+  ConnectorKind,
+  ConnectorRotation,
+  SourceProvenance,
+  UprightOrientation,
+} from "./types.ts";
 
 /**
  * /2 grew the palette to the full solid set; /3 added tiles and the larger brick
@@ -81,3 +89,75 @@ export const UPRIGHT_ORIENTATIONS: readonly UprightOrientation[] = Object.freeze
     upAxis: Object.freeze([0, -1, 0] as const),
   }),
 ]);
+
+/**
+ * What may join what, and how.
+ *
+ * One row per pair, so mutuality is structural rather than something to keep in
+ * step: there is no way to say a stud accepts a clutch without also saying a
+ * clutch accepts a stud, because it is the same row.
+ *
+ * Articulation and rotation live here and not on a connector, because they are
+ * properties of the pair. The same axle is rigid in an axle hole, whose cross
+ * section it cannot slip round in, and free in a pin hole, which is round.
+ */
+export interface ConnectorPairRule {
+  readonly male: ConnectorKind;
+  readonly female: ConnectorKind;
+  readonly allowedRotation: ConnectorRotation;
+  readonly articulation: ConnectorArticulation;
+}
+
+export const CONNECTOR_PAIR_RULES: readonly ConnectorPairRule[] = Object.freeze([
+  {
+    male: "stud",
+    female: "undersideClutch",
+    allowedRotation: "quarterTurns",
+    articulation: "rigid",
+  },
+  { male: "axle", female: "axleHole", allowedRotation: "quarterTurns", articulation: "rigid" },
+  // Round hole, cross shaft: it fits and it spins. This is how a wheel turns on
+  // an axle that is itself locked into the chassis.
+  { male: "axle", female: "pinHole", allowedRotation: "continuous", articulation: "revolute" },
+  { male: "pin", female: "pinHole", allowedRotation: "continuous", articulation: "revolute" },
+  { male: "bar", female: "clip", allowedRotation: "continuous", articulation: "revolute" },
+  { male: "hinge", female: "hingeSocket", allowedRotation: "continuous", articulation: "revolute" },
+]);
+
+/** What a connector is, independent of what it happens to be joined to. */
+export interface ConnectorKindRule {
+  readonly gender: ConnectorGender;
+  readonly geometryRole: ConnectorGeometryRole;
+  readonly profileId: string;
+}
+
+export const CONNECTOR_KIND_RULES: Readonly<Record<ConnectorKind, ConnectorKindRule>> =
+  Object.freeze({
+    stud: { gender: "male", geometryRole: "stud", profileId: "stud-tube/1" },
+    undersideClutch: { gender: "female", geometryRole: "tubeSeat", profileId: "stud-tube/1" },
+    axle: { gender: "male", geometryRole: "axleShaft", profileId: "axle-cross/1" },
+    axleHole: { gender: "female", geometryRole: "axleBore", profileId: "axle-cross/1" },
+    pin: { gender: "male", geometryRole: "pinShaft", profileId: "pin-round/1" },
+    pinHole: { gender: "female", geometryRole: "pinBore", profileId: "pin-round/1" },
+    bar: { gender: "male", geometryRole: "barShaft", profileId: "bar-round/1" },
+    clip: { gender: "female", geometryRole: "clipJaw", profileId: "bar-round/1" },
+    hinge: { gender: "male", geometryRole: "hingePin", profileId: "hinge/1" },
+    hingeSocket: { gender: "female", geometryRole: "hingeCup", profileId: "hinge/1" },
+  });
+
+/** Every kind this one may join, derived from the pair table. */
+export const connectorAccepts = (kind: ConnectorKind): readonly ConnectorKind[] =>
+  CONNECTOR_PAIR_RULES.filter((rule) => rule.male === kind || rule.female === kind).map((rule) =>
+    rule.male === kind ? rule.female : rule.male,
+  );
+
+/** How a given pair behaves, or undefined if the two cannot join at all. */
+export const connectorPairRule = (
+  left: ConnectorKind,
+  right: ConnectorKind,
+): ConnectorPairRule | undefined =>
+  CONNECTOR_PAIR_RULES.find(
+    (rule) =>
+      (rule.male === left && rule.female === right) ||
+      (rule.male === right && rule.female === left),
+  );

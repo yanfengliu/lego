@@ -19,8 +19,52 @@ export type OrientationMatrix = readonly [
  */
 export type PartFamily =
   "brick" | "plate" | "tile" | "jumper-plate" | "grille-tile" | "wedge-plate";
-export type ConnectorKind = "stud" | "undersideClutch";
-export type ConnectorGeometryRole = "stud" | "tubeSeat";
+/**
+ * The ways two parts can meet.
+ *
+ * Named after the feature rather than the shape, following LDCad, because a
+ * shape does not say what may enter it: an axle and a pin are both round and
+ * only one of them turns freely in a pin hole.
+ */
+export type ConnectorKind =
+  | "stud"
+  | "undersideClutch"
+  | "axle"
+  | "axleHole"
+  | "pin"
+  | "pinHole"
+  | "bar"
+  | "clip"
+  | "hinge"
+  | "hingeSocket";
+
+export type ConnectorGeometryRole =
+  | "stud"
+  | "tubeSeat"
+  | "axleShaft"
+  | "axleBore"
+  | "pinShaft"
+  | "pinBore"
+  | "barShaft"
+  | "clipJaw"
+  | "hingePin"
+  | "hingeCup";
+
+/** Which half of a pair a connector is. A pair needs one of each. */
+export type ConnectorGender = "male" | "female";
+
+/**
+ * How two joined parts may turn relative to each other.
+ *
+ * A property of the pair, never of one connector: the same axle is rigid in an
+ * axle hole, whose cross section it cannot slip round in, and free in a pin
+ * hole, which is round. Asking a single connector how it articulates has no
+ * answer.
+ */
+export type ConnectorRotation = "fixed" | "quarterTurns" | "continuous";
+
+/** A joined pair is rigid unless the pair says it moves. */
+export type ConnectorArticulation = "rigid" | "revolute";
 export type CatalogAliasNamespace = "human" | "ldraw";
 
 export interface SourceProvenance {
@@ -70,7 +114,8 @@ export interface ConnectorPortDefinition {
   readonly id: string;
   readonly kind: ConnectorKind;
   readonly geometryRole: ConnectorGeometryRole;
-  readonly profileId: "stud-tube/1";
+  readonly profileId: string;
+  readonly gender: ConnectorGender;
   readonly positionLdu: LduVector3;
   readonly normal: LduVector3;
   readonly orientationId: "connector-up" | "connector-down";

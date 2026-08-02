@@ -1,4 +1,4 @@
-import { getPartDefinition } from "@lego-studio/catalog";
+import { getPartDefinition, type ConnectorGender } from "@lego-studio/catalog";
 import type { BrickDocumentV1, ConnectionEdge, PartInstance } from "@lego-studio/protocol";
 
 import { canonicalDigest, canonicalStringify, type Sha256Digest } from "./canonical.ts";
@@ -27,15 +27,19 @@ function endpointKey(endpoint: ConnectionEdge["a"]): string {
   return `${endpoint.partId}\u0000${endpoint.portId}`;
 }
 
-function connectorKind(
+/**
+ * Which half of a pair an endpoint is, or undefined if the part or port is not
+ * in the catalog. Read from the connector taxonomy rather than by naming kinds,
+ * so an axle in an axle hole canonicalises the same way a stud in a clutch does.
+ */
+function connectorGender(
   endpoint: ConnectionEdge["a"],
   partById: ReadonlyMap<string, PartInstance>,
-): "stud" | "undersideClutch" | undefined {
+): ConnectorGender | undefined {
   const part = partById.get(endpoint.partId);
-  return part === undefined
-    ? undefined
-    : getPartDefinition(part.catalogPartId)?.connectors.find(({ id }) => id === endpoint.portId)
-        ?.kind;
+  if (part === undefined) return undefined;
+  return getPartDefinition(part.catalogPartId)?.connectors.find(({ id }) => id === endpoint.portId)
+    ?.gender;
 }
 
 export function normalizeConnectionEdge(
@@ -43,12 +47,14 @@ export function normalizeConnectionEdge(
   parts: readonly PartInstance[],
 ): ConnectionEdge {
   const partById = new Map(parts.map((part) => [part.id, part]));
-  const aKind = connectorKind(connection.a, partById);
-  const bKind = connectorKind(connection.b, partById);
+  // The male half goes first, so one join has one spelling. Where neither side
+  // resolves to a gender, fall back to sorting by key so it is still stable.
+  const aGender = connectorGender(connection.a, partById);
+  const bGender = connectorGender(connection.b, partById);
   const shouldSwap =
-    aKind === "undersideClutch" && bKind === "stud"
+    aGender === "female" && bGender === "male"
       ? true
-      : aKind === "stud" && bKind === "undersideClutch"
+      : aGender === "male" && bGender === "female"
         ? false
         : endpointKey(connection.a) > endpointKey(connection.b);
   const [a, b] = shouldSwap ? [connection.b, connection.a] : [connection.a, connection.b];
