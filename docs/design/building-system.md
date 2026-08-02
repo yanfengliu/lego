@@ -52,9 +52,11 @@ Ordered by what unblocks the most, and by what can be proven headlessly before a
 LDCad's model is the one to copy because it has been tested against the whole library: gender, a section profile, and a grid clause that compresses a whole field to one line.
 Nothing articulated is possible before this, and it is pure model work with no rendering.
 
-**2. Mass properties.**
-Mass, centre of mass and an inertia approximation on `PartDefinition`, derived from the compound body the part already declares rather than authored separately.
-A union of prisms has an exact volume and an exact centroid, so this is arithmetic on data that exists.
+**2. Mass properties. Done, except inertia.**
+`partMassProperties` derives volume and centre of mass from the compound body a part already declares, rather than storing them — nothing to keep in step, and nothing new in the geometry digest.
+The volume is of the modelled solid, which is solid where a real brick is hollow, so the mass estimate runs about double: a 2x4 brick reads near 5 g against a real 2.4 g.
+That is fine for relative mass and wrong for absolute, so it is named an estimate and `inventory.knownMassGrams` overrides it.
+An inertia tensor is not done and is only needed once an engine exists.
 
 **3. Rigid components.**
 Connected components over rigid edges only, with articulated edges as boundaries.
