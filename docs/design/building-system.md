@@ -60,6 +60,11 @@ A union of prisms has an exact volume and an exact centroid, so this is arithmet
 Connected components over rigid edges only, with articulated edges as boundaries.
 Testable headless, and it is the thing physics consumes, so it should be correct before an engine is chosen.
 
+**3a. An articulated part, so joints are exercised.**
+`deriveAssemblies` computes joints, but nothing in the catalog can produce one yet, so that path is written and unproven — the honest state, not a finished feature.
+The smallest fix is a Technic brick with an axle hole and an axle. Measured from LDraw `32064a`: the hole axis runs along the 1-stud direction, centred 10 LDU below the brick's top, which in this catalog's centred convention is `[0, -2, 0]` with the axis on x for a part whose width is 1 stud.
+It also needs a decision this repository has not made: a hole is open at both ends, and a port carries one normal, so either a hole is two ports or `capacity` grows to mean "one axle through, from either side".
+
 **4. Compound bodies and constraints.**
 One rigid body per rigid component, not one per part and never one constraint per stud.
 Constraints only for articulated edges. Rebuild only the components a change touched.

@@ -93,6 +93,19 @@ function endpointKey(partId: string, portId: string): string {
   return `${partId}\u0000${portId}`;
 }
 
+/**
+ * The connections a document declares that actually hold, with the issues from
+ * checking them discarded.
+ *
+ * Anything that reasons about what is attached to what — assemblies, physics,
+ * support — must start here rather than from `document.connections`, which is
+ * an annotation the geometry may contradict.
+ */
+export function validBrickConnections(document: BrickDocumentV1): readonly ConnectionEdge[] {
+  const partById = new Map(document.parts.map((part) => [part.id, part] as const));
+  return validateConnections(document, partById, []);
+}
+
 function validateConnections(
   document: BrickDocumentV1,
   partById: ReadonlyMap<string, PartInstance>,
