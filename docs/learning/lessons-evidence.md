@@ -418,3 +418,47 @@ It is a real check rather than a formality — it is the reason a model that rea
 The lesson is not that model calls do not belong here. It is that the pairing of a free answer with a closed-set answer is what makes one safe to use, and that stud counting on a 200-pixel booklet thumbnail is beyond a small model — Sonnet read the same 3x3 plate correctly where Haiku called it 4x4, at roughly fifteen times the wall clock per call.
 
 **Anchor:** `visionPick` and `describesSameThing` in `scripts/part-identification-score.mjs`; `output/part-identification/score.json` variants `adjudicated/*` with `descriptionAgreement.either` 214 of 265, and `answers-haiku.json` / `answers-sonnet.json`.
+
+## A plate of height projects to a third of a stud, so a looser tolerance cannot see layers
+
+Inverting a printed arrow's pixel displacement back onto the brick grid is underdetermined — two numbers, three axes — and the integer grid is what makes it tractable.
+How tractable depends entirely on the tolerance, and the number that sets the tolerance is not the measurement's accuracy. It is the height quantum.
+
+A plate is 8 LDU against a 20 LDU stud pitch, and under an axonometric view at 35 degrees of elevation it projects to `cos(35) * 0.4` of a stud pitch — 0.322 to 0.330 across every panel of the sample booklet that fitted a camera.
+So a tolerance at or above a third of a stud admits the layer above and the layer below by construction, and the answer is a family containing its own neighbours: measured at 0.35, the booklet's arrows admit 12 to 18 whole-grid displacements apiece.
+At 0.15 — under half a plate, and still three times the corrected arrow's own scatter — the same arrows admit 2 to 4.
+
+The first version defaulted to 0.35 because that was comfortably above the measurement error, which is the wrong thing to be comfortable about.
+A tolerance is chosen against the quantum it has to resolve, not against the noise it has to tolerate, and when those two disagree the quantum wins or the result means nothing.
+
+**Anchor:** `arrowDisplacementFamily` in `apps/web/src/assembly/arrow-placement.ts`, and the test that asserts the plate quantum before asserting anything about family size.
+Blind sweep of the same grid: about 2000 offsets. Arrow at 0.35 studs: 12 to 18. Arrow at 0.15: 2 to 4.
+
+## Elongation and area do not separate a brick from an arrow, but fill does
+
+A red arrow is the booklet's only statement of where a part travels, and red is the obvious way to find one.
+The set has red parts too, so shape has to do the separating, and the two obvious shape tests are not enough.
+A 2x6 plate seen in axonometric is three times longer than it is wide, which clears an elongation gate meant to catch blobs, and on a panel drawn at 21 pixels per stud it is under an area cap sized for a panel drawn at 42.
+
+Steps 12 and 16 of the sample booklet each let one through, and each produced a diagonal displacement — which mattered more than the count, because they were the *only* two diagonal displacements in the first fifty steps.
+A reader that trusted them would have reported that the booklet mixes vertical drops with diagonal travel, and sized its search accordingly, on the evidence of two bricks.
+
+What separates them is how much of its own oriented box the shape fills. An arrow is a thin shaft with a head and fills about a third; a plate fills most of it.
+
+**Anchor:** the `maxFillFraction` test in `readDisplacementArrows`, `apps/web/src/assembly/panel-arrows.ts`.
+Both offenders were 99 pixels long at 21 pixels per stud — 4.7 studs, where every genuine arrow in the booklet is about 2.
+
+## A measurement computed after an early return reports zero, and zero reads as an absence
+
+Three times in one session, a number that decided a design question was computed after the code path that skipped it.
+A step that printed a perfectly good arrow and then failed for want of a fitted camera returned through a blank-report helper that hardcoded zeros, so the census of "how many steps print an arrow" answered "how many steps got all the way through" instead.
+The same fault hid the on-model test and the clearance measurement, both of which sat below the skips.
+
+It is not a subtle bug and it does not look like one from the code: every field is populated, every value is a plausible number, and nothing throws.
+It is only visible against the world — the panels plainly had arrows on them — which is why it survived a careful read of the diff and died the moment the pictures were opened.
+
+The cost was the headline: arrows on the model went from 3 to 11 when the measurements moved above the skips, and 3 would have been small enough to abandon the approach.
+
+The rule is that a measurement belongs at the point the thing it measures becomes available, not at the point the caller happens to want it, and a report that cannot distinguish "measured zero" from "never measured" should be returning null.
+
+**Anchor:** the `skipClearances` / `skipArrowsInsideAssembly` / `skipFamily` publication in `apps/web/e2e/real-panel-scoring.ts`, hoisted above every skip with a comment saying why.
