@@ -8,6 +8,7 @@
  */
 export * from "./build-tree";
 export * from "./enumerate-placements";
+export * from "./exploded-score";
 export * from "./project-bounds";
 export * from "./search-driver";
 export * from "./step-score";

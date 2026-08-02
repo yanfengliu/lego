@@ -180,7 +180,20 @@ An exploded step still constrains a great deal — shape and orientation identif
 The cheapest somewhere else is the next step: step N+1 draws the assembly with step N's part already in place, so a candidate placement for step N is scored against step N+1's picture rather than step N's highlight.
 That costs one step of lag and no new machinery — the beam already carries several branches forward, which is exactly what is needed to defer a verdict by a step.
 
+Measured before it was built, on a synthetic booklet with the answer known and the highlight deliberately drawn around a ghost lifted 48 LDU off its landing site, scoring every distinct legal placement rather than the ones a prune kept.
+The current highlight score ranked the true placement first on none of five exploded steps — rank 31 of 126, 44 of 132, 21 of 49, and two steps where every candidate tied at zero — which is the reported failure, reproduced.
+Scored against the next panel it ranked first on all five, by 0.29 to 0.73 of IoU over the best wrong placement.
+
+The shape of the comparison mattered more than the idea.
+The literal reading — the candidate's pixels are model in panel N+1 and page in panel N, as a share of the candidate — is a coverage, and a small placement hiding inside the region buys it: 3 of 5.
+Comparing the candidate's whole silhouette against the difference is also wrong, because a part landing in front of what is already drawn changes nothing where it overlaps: 3 of 5.
+Comparing only the pixels the candidate would *newly* cover, as a region with both precision and recall, is what works: 4 of 5.
+The fifth is a 2x2 brick standing in the middle of a 6x6 plate — its silhouette lies entirely within the plate's, so it emerges nowhere and the region is empty, which the score reports as unavailable rather than as disagreement.
+A second reading covers it: every pixel the two panels disagree on, which sees the brick because brick faces do not shade like a plate top. That reading is 5 of 5, but it asks the panels to be registered pixel for pixel, and two pixels of registration error cost it that step.
+
 **Anchor:** `apps/web/e2e/first-fifty.spec.ts` counts red-arrow pixels per panel and records `exploded` per step in `output/first-fifty/score.json`; 19 of 50 on the sample booklet, steps 1 through 16 almost all exploded and steps 30 onward almost all in place.
+`apps/web/src/assembly/exploded-score.ts` and `apps/web/e2e/exploded-resolution.spec.ts`; `output/exploded-resolution/score.json` records rank and margin per step per metric — highlight score 0 of 5, emergence 4 of 5 at a mean margin of +0.33, the two readings together 5 of 5 at +0.50 and 4 of 5 under two pixels of misregistration.
+The emerged region also prunes: 427 distinct placements to 285 across the five steps, keeping the true one every time.
 
 ## Part dimensions are published
 
