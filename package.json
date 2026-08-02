@@ -21,6 +21,8 @@
     "schema:generate": "npm run schema:generate --workspace @lego-studio/protocol",
     "schema:check": "npm run schema:check --workspace @lego-studio/protocol",
     "node:check": "node scripts/check-node-consumers.mjs",
+    "pin:generate": "node scripts/update-generation-pin.mjs",
+    "pin:check": "node scripts/update-generation-pin.mjs --check",
     "test": "vitest run",
     "test:browser": "playwright test",
     "test:watch": "vitest",

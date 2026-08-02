@@ -1,12 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  canonicalDigest,
-  createEmptyBrickDocument,
-  documentStructuralHash,
-} from "@lego-studio/brick-kernel";
-import { COLOR_DEFINITIONS, PART_DEFINITIONS } from "@lego-studio/catalog";
-import type { BuildBriefV1, BuildProgramV1, ScopeCapabilityV1 } from "@lego-studio/protocol";
+import { canonicalDigest } from "@lego-studio/brick-kernel";
+import type { BuildProgramV1 } from "@lego-studio/protocol";
 
 import {
   generateDeterministicPrograms,
@@ -16,66 +11,11 @@ import {
   type DeterministicMakerPopulationInput,
   type GeneratedRecipeResult,
 } from "./index.ts";
+import { DETERMINISTIC_RUN_PIN } from "./run-pin.generated.ts";
+import { describePinDrift, liveCatalogTruth, pinnedRunInput } from "./run-pin.ts";
 
-function fixture(prompt = "Build a red and yellow 16 piece tower") {
-  const document = createEmptyBrickDocument({
-    id: "captured-population-test",
-    name: "Captured population test",
-  });
-  const baseDocumentHash = documentStructuralHash(document);
-  const allowedCatalogPartIds = PART_DEFINITIONS.map(({ id }) => id);
-  const allowedColorIds = COLOR_DEFINITIONS.map(({ id }) => id);
-  const brief = {
-    schemaVersion: "lego.build-brief/1",
-    mode: "full",
-    prompt,
-    referenceArtifactIds: [],
-    baseRevision: document.revision,
-    baseDocumentHash,
-    allowedCatalogPartIds,
-    allowedColorIds,
-    pieceBudget: 24,
-    semanticRequirements: ["one connected model"],
-    styleTags: ["simple"],
-    budgets: {
-      maxCandidates: 4,
-      maxRepairs: 0,
-      maxProviderCalls: 0,
-      maxTokens: 0,
-      maxCostMicros: 0,
-      maxWallTimeMs: 10_000,
-      maxRenders: 28,
-      maxStoredBytes: 16_777_216,
-    },
-    consent: {
-      policyVersion: "local-captured-population-1",
-      providerTransmission: "none",
-      retainRunArtifacts: true,
-      knowledgeUse: false,
-      benchmarkUse: false,
-      trainingUse: false,
-    },
-  } satisfies BuildBriefV1;
-  const scope = {
-    schemaVersion: "lego.scope-capability/1",
-    capabilityId: "captured-full-empty-scope",
-    baseRevision: document.revision,
-    baseDocumentHash,
-    frozenPartIds: [],
-    mutablePartIds: [],
-    requiredAttachmentPorts: [],
-    allowedVolume: { minLdu: [-400, -400, -400], maxLdu: [400, 400, 400] },
-    allowedCatalogPartIds,
-    allowedColorIds,
-    budgets: { maxAddedParts: 24, maxRemovedParts: 0, maxOperations: 160 },
-  } satisfies ScopeCapabilityV1;
-  return {
-    jobId: "captured-population-job",
-    document,
-    brief,
-    scope,
-  } satisfies DeterministicMakerPopulationInput;
-}
+/** The pinned run doubles as this file's fixture, so the pin covers what is tested. */
+const fixture = (): DeterministicMakerPopulationInput => pinnedRunInput();
 
 function generatedFor(input: DeterministicMakerPopulationInput) {
   const normalized = normalizeRestrictedTextBrief(input);
@@ -106,12 +46,29 @@ describe("captured maker population replay", () => {
     expect(replayCapturedMakerPopulation(input, generated)).toEqual(
       runDeterministicMakerPopulation(input),
     );
-    // Pinned so an accidental change to the deterministic path is caught. It
-    // moves deliberately with catalog truth, because the run embeds it: last
-    // moved for builtin.basic-parts/4.
-    expect(canonicalDigest(runDeterministicMakerPopulation(input))).toBe(
-      "sha256:644f106b617e1b69a5751b9b8cfce576cfed21345a9532538e1b22d60cccac3e",
+  });
+
+  it("still produces the pinned run digest", () => {
+    const liveDigest = canonicalDigest(runDeterministicMakerPopulation(fixture()));
+
+    expect(liveDigest, describePinDrift(DETERMINISTIC_RUN_PIN, liveDigest)).toBe(
+      DETERMINISTIC_RUN_PIN.populationDigest,
     );
+  });
+
+  it("pins the digest against the catalog truth it was taken from", () => {
+    // Without this the pin could be re-generated against one catalog and read
+    // as evidence about another, which is the whole basis of telling a catalog
+    // change apart from a change in the deterministic path.
+    const live = liveCatalogTruth();
+
+    expect(
+      { version: live.version, hash: live.hash },
+      "The recorded catalog truth is stale relative to this build. Run `npm run pin:generate`.",
+    ).toEqual({
+      version: DETERMINISTIC_RUN_PIN.catalogVersion,
+      hash: DETERMINISTIC_RUN_PIN.catalogTruthHash,
+    });
   });
 
   it("uses a changed but valid captured program instead of regenerating the recipe", () => {

@@ -23,6 +23,8 @@ npm run verify
 
 `verify` also exercises the shared packages under the supported Node 24 TypeScript-stripping runtime and proves that development automation globals are absent from the production browser bundle.
 
+One digest is pinned rather than derived: the canonical output of a single deterministic maker run, which catches an accidental change to generation, ranking, compilation, or validation. Because a run embeds the document's truth snapshot, every catalog change moves it too. Regenerate it with `npm run pin:generate` and commit `packages/generation/src/run-pin.generated.ts` alongside the catalog change; the failing test says which of the two causes it observed, so a real behavioural change cannot be re-pinned away as routine catalog churn.
+
 ## Design
 
 - [Product and architecture specification](docs/design/spec.md)
