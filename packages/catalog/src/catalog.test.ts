@@ -34,7 +34,43 @@ const PART_FAMILY_NAMES = [
   "technic-brick",
   "axle",
   "wheel",
+  "arch",
+  "curved-slope",
+  "cheese-slope",
+  "corner-plate",
 ] as const satisfies readonly PartFamily[];
+
+/**
+ * Which cells of a compound part's footprint carry a stud and which carry a
+ * clutch, written out rather than recomputed.
+ *
+ * These are facts about the real parts, read off their LDraw solids: an arch
+ * has a flat studded top over a void, so its middle cells hold a stud and no
+ * clutch and its legs hold both; a corner plate's missing quarter holds
+ * neither. Deriving them here the way the catalog derives them would assert
+ * only that the code agrees with itself.
+ */
+const COMPOUND_CELLS: Readonly<
+  Record<string, { readonly studs: readonly string[]; readonly clutches: readonly string[] }>
+> = {
+  "builtin:arch-1x4": { studs: ["0:0", "0:1", "0:2", "0:3"], clutches: ["0:0", "0:3"] },
+  "builtin:arch-1x6": {
+    studs: ["0:0", "0:1", "0:2", "0:3", "0:4", "0:5"],
+    clutches: ["0:0", "0:5"],
+  },
+  "builtin:curved-slope-1x2": { studs: [], clutches: ["0:0", "0:1"] },
+  "builtin:curved-slope-1x3": { studs: [], clutches: ["0:0", "0:1", "0:2"] },
+  "builtin:curved-slope-1x4": { studs: [], clutches: ["0:0", "0:1", "0:2", "0:3"] },
+  "builtin:cheese-slope-1x1": { studs: [], clutches: ["0:0"] },
+  "builtin:cheese-slope-2x1": { studs: [], clutches: ["0:0", "1:0"] },
+  "builtin:corner-plate-2x2": {
+    studs: ["0:0", "0:1", "1:0"],
+    clutches: ["0:0", "0:1", "1:0"],
+  },
+};
+
+/** A height its family does not fix, so the part declares its own. */
+const DECLARED_HEIGHTS: Readonly<Record<string, number>> = { "builtin:curved-slope-1x2": 16 };
 
 /**
  * Grid cells the part's body actually fills. A wedge's tapered corner is empty,
@@ -48,6 +84,8 @@ const cellIsSolid = (part: PartDefinition, x: number, z: number): boolean => {
 
 const solidCellCount = (part: PartDefinition): number => {
   if (NO_CLUTCH_FAMILIES.has(part.family)) return 0;
+  const compound = COMPOUND_CELLS[part.id];
+  if (compound) return compound.clutches.length;
   const { widthStuds, lengthStuds } = part.dimensions;
   const wedge = part.collision.primitives.find((primitive) => primitive.kind === "wedge");
   if (!wedge) return widthStuds * lengthStuds;
@@ -61,8 +99,21 @@ const solidCellCount = (part: PartDefinition): number => {
   }
   return count;
 };
+const expectedStudCells = (part: PartDefinition): number => {
+  const compound = COMPOUND_CELLS[part.id];
+  if (compound) return compound.studs.length;
+  if (SMOOTH_TOP_FAMILIES.has(part.family)) return 0;
+  return part.geometry.studOffsetsLdu?.length ?? solidCellCount(part);
+};
 /** Families that present a smooth top, so they carry no studs at all. */
-const SMOOTH_TOP_FAMILIES = new Set<string>(["tile", "grille-tile", "axle", "wheel"]);
+const SMOOTH_TOP_FAMILIES = new Set<string>([
+  "tile",
+  "grille-tile",
+  "axle",
+  "wheel",
+  "curved-slope",
+  "cheese-slope",
+]);
 /** Families with no underside tubes, so no clutch grid. */
 const NO_CLUTCH_FAMILIES = new Set<string>(["axle", "wheel"]);
 const EXPECTED_PART_IDS = [
@@ -129,6 +180,14 @@ const EXPECTED_PART_IDS = [
   "builtin:axle-1x2",
   "builtin:axle-1x4",
   "builtin:wheel-1x2",
+  "builtin:arch-1x4",
+  "builtin:arch-1x6",
+  "builtin:curved-slope-1x2",
+  "builtin:curved-slope-1x3",
+  "builtin:curved-slope-1x4",
+  "builtin:cheese-slope-1x1",
+  "builtin:cheese-slope-2x1",
+  "builtin:corner-plate-2x2",
 ] as const;
 
 const determinant = (matrix: readonly number[]): number =>
@@ -162,6 +221,10 @@ describe("starter catalog", () => {
       "technic-brick": 1,
       axle: 2,
       wheel: 1,
+      arch: 2,
+      "curved-slope": 3,
+      "cheese-slope": 2,
+      "corner-plate": 1,
     });
     // Every part belongs to a family the palette knows how to show.
     expect(
@@ -172,13 +235,19 @@ describe("starter catalog", () => {
   it("uses integer LDU dimensions and centered bounds", () => {
     for (const part of PART_DEFINITIONS) {
       const expectedHeight =
-        part.family === "brick" || part.family === "technic-brick"
+        DECLARED_HEIGHTS[part.id] ??
+        (part.family === "brick" ||
+        part.family === "technic-brick" ||
+        part.family === "arch" ||
+        part.family === "curved-slope"
           ? BRICK_HEIGHT_LDU
-          : part.family === "axle"
-            ? 12
-            : part.family === "wheel"
-              ? 62
-              : PLATE_HEIGHT_LDU;
+          : part.family === "cheese-slope"
+            ? 16
+            : part.family === "axle"
+              ? 12
+              : part.family === "wheel"
+                ? 62
+                : PLATE_HEIGHT_LDU);
       const { dimensions } = part;
 
       expect(dimensions.widthLdu).toBe(dimensions.widthStuds * STUD_PITCH_LDU);
@@ -216,9 +285,8 @@ describe("starter catalog", () => {
       const expectedPortCount = solidCellCount(part);
       // A jumper plate names its studs, so its count is what it declared, not
       // one per grid point.
-      const expectedStudCount = SMOOTH_TOP_FAMILIES.has(part.family)
-        ? 0
-        : (part.geometry.studOffsetsLdu?.length ?? expectedPortCount);
+      const expectedStudCount = expectedStudCells(part);
+      const compound = COMPOUND_CELLS[part.id];
       const studs = part.connectors.filter(({ kind }) => kind === "stud");
       const clutches = part.connectors.filter(({ kind }) => kind === "undersideClutch");
 
@@ -241,6 +309,20 @@ describe("starter catalog", () => {
           if (!cellIsSolid(part, x, z)) {
             expect(stud).toBeUndefined();
             expect(clutch).toBeUndefined();
+            continue;
+          }
+          // A compound part's two faces are independent: an arch's span is
+          // studded above and open below.
+          if (compound) {
+            const cell = `${xIndex}:${zIndex}`;
+            expect([cell, stud === undefined]).toEqual([cell, !compound.studs.includes(cell)]);
+            expect([cell, clutch === undefined]).toEqual([cell, !compound.clutches.includes(cell)]);
+            if (clutch === undefined) continue;
+            expect(clutch).toMatchObject({
+              geometryRole: "tubeSeat",
+              positionLdu: [x, heightLdu / 2, z],
+              normal: [0, 1, 0],
+            });
             continue;
           }
 
@@ -266,9 +348,7 @@ describe("starter catalog", () => {
 
   it("provides body and stud collision primitives with connection-gated clearances", () => {
     for (const part of PART_DEFINITIONS) {
-      const expectedStudCount = SMOOTH_TOP_FAMILIES.has(part.family)
-        ? 0
-        : (part.geometry.studOffsetsLdu?.length ?? solidCellCount(part));
+      const expectedStudCount = expectedStudCells(part);
       const body = part.collision.primitives.find(({ id }) => id === "body");
       // Tagged, not merely round: a wheel's body is a cylinder and not a stud.
       const studs = part.collision.primitives.filter(
@@ -284,15 +364,28 @@ describe("starter catalog", () => {
           : part.geometry.bodyMode === "compound"
             ? "wedge"
             : "box";
-      expect(body).toMatchObject(
-        expectedBodyKind === "cylinder"
-          ? { kind: "cylinder", tag: "body" }
-          : {
-              kind: expectedBodyKind,
-              minLdu: part.bodyBoundsLdu.min,
-              maxLdu: part.bodyBoundsLdu.max,
-            },
-      );
+      if (part.geometry.bodyBoxesLdu === undefined) {
+        expect(body).toMatchObject(
+          expectedBodyKind === "cylinder"
+            ? { kind: "cylinder", tag: "body" }
+            : {
+                kind: expectedBodyKind,
+                minLdu: part.bodyBoundsLdu.min,
+                maxLdu: part.bodyBoundsLdu.max,
+              },
+        );
+      } else {
+        // A union has no single body, so it numbers its boxes; the part that
+        // keeps the unnumbered "body" is the part that is one prism, which is
+        // why sixty-three parts did not re-hash when unions arrived.
+        expect(body).toBeUndefined();
+        expect(part.geometry.bodyMode).toBe("compound");
+        expect(
+          part.collision.primitives
+            .filter(({ tag }) => tag === "body")
+            .map((primitive) => [primitive.id, primitive.kind]),
+        ).toEqual(part.geometry.bodyBoxesLdu.map((_, index) => [`body:${index}`, "box"]));
+      }
       expect(studs).toHaveLength(expectedStudCount);
       // One per cell the body fills: a wedge has no clutch over its empty corner.
       expect(part.collision.allowances).toHaveLength(solidCellCount(part));
@@ -309,6 +402,48 @@ describe("starter catalog", () => {
             (port) => port.id === allowance.portId && port.kind === "undersideClutch",
           ),
         ).toBe(true);
+      }
+    }
+  });
+
+  it("builds a compound body from boxes that neither overlap nor leave their footprint", () => {
+    const compoundParts = PART_DEFINITIONS.filter(
+      (part) => part.geometry.bodyBoxesLdu !== undefined,
+    );
+    expect(compoundParts.map(({ id }) => id)).toEqual(Object.keys(COMPOUND_CELLS));
+
+    for (const part of compoundParts) {
+      const boxes = part.geometry.bodyBoxesLdu!;
+      expect(boxes.length).toBeGreaterThan(1);
+
+      for (const box of boxes) {
+        for (const axis of [0, 1, 2] as const) {
+          expect(box.min[axis]).toBeLessThan(box.max[axis]);
+          // Inside the part's own bounding box, so no box can reach past the
+          // footprint the lattice reserved for it.
+          expect(box.min[axis]).toBeGreaterThanOrEqual(part.bodyBoundsLdu.min[axis]);
+          expect(box.max[axis]).toBeLessThanOrEqual(part.bodyBoundsLdu.max[axis]);
+        }
+      }
+
+      // The union is the declared body, on every axis: a shape that fell short
+      // would leave the part reporting a bounding box it does not fill.
+      for (const axis of [0, 1, 2] as const) {
+        expect(Math.min(...boxes.map(({ min }) => min[axis]))).toBe(part.bodyBoundsLdu.min[axis]);
+        expect(Math.max(...boxes.map(({ max }) => max[axis]))).toBe(part.bodyBoundsLdu.max[axis]);
+      }
+
+      // Disjoint interiors, because mass and centre of mass add the boxes up
+      // and an overlap would be counted twice.
+      for (let left = 0; left < boxes.length; left += 1) {
+        for (let right = left + 1; right < boxes.length; right += 1) {
+          const a = boxes[left]!;
+          const b = boxes[right]!;
+          const overlaps = ([0, 1, 2] as const).every(
+            (axis) => a.min[axis] < b.max[axis] && b.min[axis] < a.max[axis],
+          );
+          expect([part.id, left, right, overlaps]).toEqual([part.id, left, right, false]);
+        }
       }
     }
   });

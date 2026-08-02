@@ -2,10 +2,12 @@
 
 How a brick is organised, indexed, defined, and constructed.
 
-The catalog holds 55 parts and every one is a rectangular prism, because the generator can only make rectangular prisms.
+The catalog held 55 parts and every one was a rectangular prism, because the generator could only make rectangular prisms.
 The sample booklet's first fifty steps need wedge plates, arches, curved slopes, corner plates and cheese slopes, and 142 designs covering 856 pieces are missing across the set.
-None of them are boxes, so the gap is not "more sizes" — it is a part model that can describe a shape at all.
+None of them are boxes, so the gap was not "more sizes" — it was a part model that can describe a shape at all.
 This is that model.
+
+It now holds 71, and four of its families are not prisms: a wedge plate is a prism cut by a vertical plane, and an arch, a curved slope, a cheese slope and a corner plate are each a union of boxes.
 
 ## What the other tools do
 
@@ -55,10 +57,21 @@ A match requires compatible kinds, opposed genders, a shared axis within toleran
 Authoring uses grid compression; the graph is expanded at build time so nothing downstream has to understand a grid.
 
 **4. Compound-body physics — what it displaces.**
-A part's solid is a union of convex bodies: axis-aligned box, oriented box, cylinder, and right triangular prism.
-That set covers this catalog's needs exactly — a wedge plate is a prism, an arch is two legs and a span with the void simply left uncovered, a curved slope is a prism plus a box.
+A part's solid is a union of convex bodies: axis-aligned box, cylinder, and right prism cut by a vertical plane.
 Bodies are inset by a clearance epsilon so touching faces do not register, which is Studio's tolerance idea and the reason its collision is usable rather than maddening.
 A stud may penetrate a matching clutch to its declared depth; that is the existing allowance mechanism and it stays.
+
+The prism's cut is *vertical*, which decides how a shape gets represented and is the thing that is easy to get wrong.
+A wedge plate tapers in plan, so it is one prism and the cut is exact.
+A slope falls away in elevation, so no cut expresses it and it is not one primitive of any kind: it becomes a staircase of boxes, each as tall as the highest point of the real profile over its own span.
+An arch is the same idea upside down — legs, a span, and steps following the curve down from the flat top.
+Where a staircase is wrong it claims material the part does not have, which is the direction the collision model is allowed to be wrong in.
+The steps are measured, not guessed: `scripts/ldraw-part-facts.mjs` gives the extents and stud positions, and ray-casting the flattened part gives the profile between them.
+Parity is useless on these files — LDraw builds hollows out of open primitives, so "inside" is undefined — but containment is not: every point of the real surface must lie inside the union, and that is what was checked before these parts landed.
+
+A union also decides where a part grips.
+A connector is a physical claim, so a cell carries a stud or a clutch only where a whole stud's footprint is backed by solid on that face — independently per face, because an arch's span is studded above and open below, and a corner plate's missing quarter is neither.
+Taking the cell centre instead would invent a grip wherever a conservative box overshoots the real part.
 
 ## One declaration, four derivations
 

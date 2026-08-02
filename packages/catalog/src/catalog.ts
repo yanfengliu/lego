@@ -158,9 +158,59 @@ interface PartBlueprint {
    * that.
    */
   readonly bodyBoundsLdu?: { readonly min: LduVector3; readonly max: LduVector3 };
+  /**
+   * The solid as a union of boxes, for a part that is not one prism. See
+   * `profileBoxes` for the staircase a slope or an arch becomes, and
+   * `ParametricGeometryRecipe.bodyBoxesLdu` for why a staircase is the safe
+   * approximation. Boxes must not overlap: mass and centre of mass sum them.
+   */
+  readonly bodyBoxesLdu?: readonly LduBounds[];
+  /**
+   * A height the family does not fix. A curved slope comes in a brick-height
+   * form and a two-plate form, and both belong in one palette group, so the
+   * family cannot own the number.
+   */
+  readonly heightLdu?: number;
   /** Suppresses the underside clutch grid, for a part that has no underside. */
   readonly withoutClutches?: boolean;
 }
+
+/** Two thirds of a brick, which is what "1 x 1 x 0.667" names in LDraw 54200. */
+const CHEESE_SLOPE_HEIGHT_LDU = 16;
+
+/**
+ * A face that falls away along the part's length, as a staircase of boxes.
+ *
+ * The collision primitives here are prisms cut by *vertical* planes, so a wedge
+ * plate's taper — which is a shape in plan — is one primitive, while a slope or
+ * an arch — which is a shape in elevation — cannot be any primitive at all. It
+ * becomes a run of boxes instead.
+ *
+ * Each span is `[from, to, thickness]` measured off the part's own LDraw file by
+ * ray-casting its solid, with the thickness taken at the tallest point of the
+ * real profile within the span. The union therefore contains the real part:
+ * where it is wrong it claims material the part does not have, which refuses a
+ * placement the real part would allow and never admits one it would not.
+ *
+ * `anchor` says which face the material grows from — a slope stands on its base,
+ * an arch hangs from its flat top.
+ */
+const profileBoxes = (
+  axis: "x" | "z",
+  anchor: "top" | "bottom",
+  heightLdu: number,
+  halfCrossLdu: number,
+  spansLdu: readonly (readonly [from: number, to: number, thicknessLdu: number])[],
+): readonly LduBounds[] =>
+  spansLdu.map(([from, to, thickness]) => {
+    const topY = -heightLdu / 2;
+    const bottomY = heightLdu / 2;
+    const minY = anchor === "top" ? topY : bottomY - thickness;
+    const maxY = anchor === "top" ? topY + thickness : bottomY;
+    return axis === "z"
+      ? { min: [-halfCrossLdu, minY, from], max: [halfCrossLdu, maxY, to] }
+      : { min: [from, minY, -halfCrossLdu], max: [to, maxY, halfCrossLdu] };
+  });
 
 const PART_BLUEPRINTS = [
   {
@@ -742,6 +792,133 @@ const PART_BLUEPRINTS = [
     ],
     geometrySha256: "7f574aa2e1f6c0d08c0666c6bf6ca8231289252eb0f5378445bf341ced7d9e58",
   },
+  {
+    // Legs at the two ends, a flat studded top, and a curved void between. The
+    // underside curve reaches the bottom of the brick at 20 LDU from the centre
+    // and rises to 8 below the top at the apex, so the span is one plate thick
+    // in the middle and the two outer cells are the only ones that clutch.
+    family: "arch",
+    widthStuds: 1,
+    lengthStuds: 4,
+    ldrawId: "3659.dat",
+    bodyBoxesLdu: profileBoxes("z", "top", BRICK_HEIGHT_LDU, 10, [
+      [-40, -15, 24],
+      [-15, -10, 15.14],
+      [-10, -5, 11.09],
+      [-5, 5, 8.99],
+      [5, 10, 11.09],
+      [10, 15, 15.14],
+      [15, 40, 24],
+    ]),
+    geometrySha256: "c474ed120aaf67bf2336264fc750be7e62e524c1e7f82a3df946f7955d912909",
+  },
+  {
+    family: "arch",
+    widthStuds: 1,
+    lengthStuds: 6,
+    ldrawId: "3455.dat",
+    bodyBoxesLdu: profileBoxes("z", "top", BRICK_HEIGHT_LDU, 10, [
+      [-60, -30, 24],
+      [-30, -20, 16.58],
+      [-20, -10, 11.74],
+      [-10, 10, 8.98],
+      [10, 20, 11.74],
+      [20, 30, 16.58],
+      [30, 60, 24],
+    ]),
+    geometrySha256: "373a2ddb213fc8aec48eeea485025b6fdb7d563e28ccfb3fdeca8c0c2f626030",
+  },
+  {
+    // Two plates tall at the high end, falling to half a plate at the low one.
+    // The family holds both heights, so this one names its own.
+    family: "curved-slope",
+    widthStuds: 1,
+    lengthStuds: 2,
+    ldrawId: "11477.dat",
+    heightLdu: 16,
+    bodyBoxesLdu: profileBoxes("z", "bottom", 16, 10, [
+      [-20, -10, 9.68],
+      [-10, 0, 13.29],
+      [0, 10, 15.27],
+      [10, 20, 16],
+    ]),
+    geometrySha256: "13e887e0b75936bd62cb9a052b11dc5d3bf57ea67a8d4eb9fae32a15978e27af",
+  },
+  {
+    // Brick height at the high end, tapering to a knife edge at the low one.
+    family: "curved-slope",
+    widthStuds: 1,
+    lengthStuds: 3,
+    ldrawId: "50950.dat",
+    bodyBoxesLdu: profileBoxes("z", "bottom", BRICK_HEIGHT_LDU, 10, [
+      [-30, -20, 10.78],
+      [-20, -10, 15.81],
+      [-10, 0, 19.48],
+      [0, 10, 21.99],
+      [10, 20, 23.47],
+      [20, 30, 24],
+    ]),
+    geometrySha256: "b4fd6c480cc6e975e8e33acd274de9f7db1abcdee1f8c39f9dd1a00468ae8644",
+  },
+  {
+    family: "curved-slope",
+    widthStuds: 1,
+    lengthStuds: 4,
+    ldrawId: "61678.dat",
+    bodyBoxesLdu: profileBoxes("z", "bottom", BRICK_HEIGHT_LDU, 10, [
+      [-40, -30, 8.6],
+      [-30, -20, 13.03],
+      [-20, -10, 16.19],
+      [-10, 0, 19.17],
+      [0, 10, 21.03],
+      [10, 20, 22.77],
+      [20, 40, 24],
+    ]),
+    geometrySha256: "9bd6e7c02731c89de78f0dd78d422ed3f9e16c818d91ac3d55b619784f01f5f5",
+  },
+  {
+    // The cheese slope: a 31-degree ramp two plates tall at the back and four
+    // LDU at the leading edge, which is thin but not a knife. The slope always
+    // falls along z in this family, so a builder rotates rather than guesses.
+    family: "cheese-slope",
+    widthStuds: 1,
+    lengthStuds: 1,
+    ldrawId: "54200.dat",
+    bodyBoxesLdu: profileBoxes("z", "bottom", CHEESE_SLOPE_HEIGHT_LDU, 10, [
+      [-10, -5, 7.08],
+      [-5, 0, 10.08],
+      [0, 5, 13.08],
+      [5, 10, 16],
+    ]),
+    geometrySha256: "3ffa15552ca1e7bc26df1ab76d31cf0819188eca9994832158d7a26002b19b00",
+  },
+  {
+    family: "cheese-slope",
+    widthStuds: 2,
+    lengthStuds: 1,
+    ldrawId: "85984.dat",
+    bodyBoxesLdu: profileBoxes("z", "bottom", CHEESE_SLOPE_HEIGHT_LDU, 20, [
+      [-10, -5, 7.08],
+      [-5, 0, 10.08],
+      [0, 5, 13.08],
+      [5, 10, 16],
+    ]),
+    geometrySha256: "48e95c7a7d5fd6fddaf8a05b5ab0f9d0d2fc0eafe97233669cfa5f105b833d28",
+  },
+  {
+    // An L: a 1x2 arm and a 1x1 beside it, with the fourth cell of the 2x2
+    // footprint absent. Nothing declares which stud is missing — the body says
+    // it, and the studs and clutches follow the body.
+    family: "corner-plate",
+    widthStuds: 2,
+    lengthStuds: 2,
+    ldrawId: "2420.dat",
+    bodyBoxesLdu: [
+      { min: [-20, -4, -20], max: [0, 4, 20] },
+      { min: [0, -4, -20], max: [20, 4, 0] },
+    ],
+    geometrySha256: "53e58298473ce441b8dbb9764cbd4b73b369413dc1aa2c7e8268e3161ab4ffff",
+  },
 ] as const satisfies readonly PartBlueprint[];
 
 const makeAliases = (displayName: string, ldrawId: `${string}.dat`): readonly CatalogAlias[] =>
@@ -761,7 +938,14 @@ const makeAliases = (displayName: string, ldrawId: `${string}.dat`): readonly Ca
   ]);
 
 /** Tiles and grille tiles are plate-height but present a smooth top, so they carry no studs. */
-const SMOOTH_TOP_FAMILIES = new Set<PartFamily>(["tile", "grille-tile", "axle", "wheel"]);
+const SMOOTH_TOP_FAMILIES = new Set<PartFamily>([
+  "tile",
+  "grille-tile",
+  "axle",
+  "wheel",
+  "curved-slope",
+  "cheese-slope",
+]);
 const isStudded = (family: PartFamily): boolean => !SMOOTH_TOP_FAMILIES.has(family);
 
 /** An axle is 12 LDU across, which no count of stud pitches describes. */
@@ -776,8 +960,31 @@ const AXLE_THICKNESS_LDU = 12;
  */
 const WHEEL_DIAMETER_LDU = 62;
 
+/**
+ * Divisions per axis when asking whether a stud's whole footprint is backed by
+ * solid. Four is enough because every box here is axis-aligned and no smaller
+ * than a half stud, so nothing can hide between samples.
+ */
+const STUD_FOOTPRINT_SAMPLES = 4;
+
+/** The one box that contains them all. */
+const unionOfBoxes = (boxes: readonly LduBounds[]): LduBounds => ({
+  min: [
+    Math.min(...boxes.map(({ min }) => min[0])),
+    Math.min(...boxes.map(({ min }) => min[1])),
+    Math.min(...boxes.map(({ min }) => min[2])),
+  ],
+  max: [
+    Math.max(...boxes.map(({ max }) => max[0])),
+    Math.max(...boxes.map(({ max }) => max[1])),
+    Math.max(...boxes.map(({ max }) => max[2])),
+  ],
+});
+
 const familyHeightLdu = (family: PartFamily): number => {
   if (family === "brick" || family === "technic-brick") return BRICK_HEIGHT_LDU;
+  if (family === "arch" || family === "curved-slope") return BRICK_HEIGHT_LDU;
+  if (family === "cheese-slope") return CHEESE_SLOPE_HEIGHT_LDU;
   if (family === "axle") return AXLE_THICKNESS_LDU;
   if (family === "wheel") return WHEEL_DIAMETER_LDU;
   return PLATE_HEIGHT_LDU;
@@ -793,6 +1000,10 @@ const FAMILY_DISPLAY_NAMES: Readonly<Record<PartFamily, string>> = Object.freeze
   "technic-brick": "Technic brick",
   axle: "Axle",
   wheel: "Wheel",
+  arch: "Arch",
+  "curved-slope": "Curved slope",
+  "cheese-slope": "Cheese slope",
+  "corner-plate": "Corner plate",
 });
 
 /**
@@ -807,6 +1018,7 @@ const makeGeometryDigestInput = (
   studOffsetsLdu: readonly (readonly [number, number])[] | undefined,
   bodyWedge: PartBlueprint["bodyWedge"],
   bodyBoundsLdu: PartBlueprint["bodyBoundsLdu"],
+  bodyBoxesLdu: PartBlueprint["bodyBoxesLdu"],
   extraConnectors: PartBlueprint["extraConnectors"],
   withoutClutches: boolean,
 ): string =>
@@ -823,6 +1035,7 @@ const makeGeometryDigestInput = (
     undersideMode: withoutClutches ? "none" : "semantic-tube-seat-grid",
     ...(studOffsetsLdu === undefined ? {} : { studOffsetsLdu }),
     ...(bodyWedge === undefined ? {} : { bodyMode: "wedge-prism", bodyWedge }),
+    ...(bodyBoxesLdu === undefined ? {} : { bodyMode: "box-union", bodyBoxesLdu }),
     ...(bodyBoundsLdu === undefined ? {} : { bodyBoundsLdu }),
     ...(extraConnectors === undefined ? {} : { extraConnectors }),
   });
@@ -862,9 +1075,9 @@ const makePort = (
 };
 
 const makePart = (blueprint: PartBlueprint): PartDefinition => {
-  const { family, widthStuds, lengthStuds, studOffsetsLdu, bodyWedge } = blueprint;
+  const { family, widthStuds, lengthStuds, studOffsetsLdu, bodyWedge, bodyBoxesLdu } = blueprint;
   const studded = isStudded(family);
-  const heightLdu = familyHeightLdu(family);
+  const heightLdu = blueprint.heightLdu ?? familyHeightLdu(family);
   const widthLdu = widthStuds * STUD_PITCH_LDU;
   const lengthLdu = lengthStuds * STUD_PITCH_LDU;
   const topY = -heightLdu / 2;
@@ -876,10 +1089,15 @@ const makePart = (blueprint: PartBlueprint): PartDefinition => {
       ? ""
       : ` ${blueprint.variant[0]!.toUpperCase()}${blueprint.variant.slice(1)}`);
   const id = `builtin:${family}-${widthStuds}x${lengthStuds}${variantSuffix}`;
-  const bodyBoundsLdu: LduBounds = blueprint.bodyBoundsLdu ?? {
-    min: [-widthLdu / 2, topY, -lengthLdu / 2],
-    max: [widthLdu / 2, bottomY, lengthLdu / 2],
-  };
+  // A union of boxes reports the box that contains them all, so a part whose
+  // solid is an L or an arch still has one honest bounding box to select,
+  // highlight and frame by.
+  const unionBoundsLdu = bodyBoxesLdu === undefined ? undefined : unionOfBoxes(bodyBoxesLdu);
+  const bodyBoundsLdu: LduBounds = blueprint.bodyBoundsLdu ??
+    unionBoundsLdu ?? {
+      min: [-widthLdu / 2, topY, -lengthLdu / 2],
+      max: [widthLdu / 2, bottomY, lengthLdu / 2],
+    };
   // The body plus whatever stands proud of it. Derived from the body rather
   // than from the stud footprint, so a part that declares its own extents does
   // not report a bounding box belonging to a different shape.
@@ -892,36 +1110,47 @@ const makePart = (blueprint: PartBlueprint): PartDefinition => {
     max: bodyBoundsLdu.max,
   };
   const connectors: ConnectorPortDefinition[] = [];
-  const primitives: CollisionPrimitive[] = [
-    family === "wheel"
-      ? {
-          id: "body",
-          kind: "cylinder",
-          tag: "body",
-          // A wheel lies on its side, turning about the axle it rides.
-          axis: "x",
-          centerLdu: [0, 0, 0],
-          radiusLdu: WHEEL_DIAMETER_LDU / 2,
-          heightLdu: bodyBoundsLdu.max[0] - bodyBoundsLdu.min[0],
-        }
-      : bodyWedge
-        ? {
-            id: "body",
-            kind: "wedge",
-            tag: "body",
-            minLdu: bodyBoundsLdu.min,
-            maxLdu: bodyBoundsLdu.max,
-            cutNormalXZ: bodyWedge.cutNormalXZ,
-            cutOffsetLdu: bodyWedge.cutOffsetLdu,
-          }
-        : {
-            id: "body",
-            kind: "box",
-            tag: "body",
-            minLdu: bodyBoundsLdu.min,
-            maxLdu: bodyBoundsLdu.max,
-          },
-  ];
+  // A part whose solid is one prism keeps the single primitive named "body", so
+  // growing the model did not re-hash the sixty-five parts that came before a
+  // union existed. A union numbers its boxes instead.
+  const primitives: CollisionPrimitive[] = bodyBoxesLdu
+    ? bodyBoxesLdu.map((box, index) => ({
+        id: `body:${index}`,
+        kind: "box",
+        tag: "body",
+        minLdu: box.min,
+        maxLdu: box.max,
+      }))
+    : [
+        family === "wheel"
+          ? {
+              id: "body",
+              kind: "cylinder",
+              tag: "body",
+              // A wheel lies on its side, turning about the axle it rides.
+              axis: "x",
+              centerLdu: [0, 0, 0],
+              radiusLdu: WHEEL_DIAMETER_LDU / 2,
+              heightLdu: bodyBoundsLdu.max[0] - bodyBoundsLdu.min[0],
+            }
+          : bodyWedge
+            ? {
+                id: "body",
+                kind: "wedge",
+                tag: "body",
+                minLdu: bodyBoundsLdu.min,
+                maxLdu: bodyBoundsLdu.max,
+                cutNormalXZ: bodyWedge.cutNormalXZ,
+                cutOffsetLdu: bodyWedge.cutOffsetLdu,
+              }
+            : {
+                id: "body",
+                kind: "box",
+                tag: "body",
+                minLdu: bodyBoundsLdu.min,
+                maxLdu: bodyBoundsLdu.max,
+              },
+      ];
 
   /**
    * A cell of the footprint the body actually fills. A wedge's tapered corner
@@ -932,6 +1161,36 @@ const makePart = (blueprint: PartBlueprint): PartDefinition => {
   const cellIsSolid = (x: number, z: number): boolean =>
     bodyWedge === undefined ||
     bodyWedge.cutNormalXZ[0] * x + bodyWedge.cutNormalXZ[1] * z <= bodyWedge.cutOffsetLdu;
+  /**
+   * Whether a whole stud's worth of the named face is solid over this cell.
+   *
+   * A connector is a physical claim, and half a stud of plastic holds nothing:
+   * an arch's span is solid above the void, so its middle cells carry studs and
+   * no clutches, and the missing quarter of a corner plate carries neither. The
+   * criterion is the stud's own footprint rather than the cell centre, because
+   * the centre is inside the body wherever a conservative box overshoots the
+   * real part — and that would invent a grip the real part does not have.
+   */
+  const faceHoldsStud = (face: "top" | "bottom", x: number, z: number): boolean => {
+    if (bodyBoxesLdu === undefined) return true;
+    const reaching = bodyBoxesLdu.filter((box) =>
+      face === "top" ? box.min[1] <= topY : box.max[1] >= bottomY,
+    );
+    for (let ix = 0; ix <= STUD_FOOTPRINT_SAMPLES; ix += 1) {
+      for (let iz = 0; iz <= STUD_FOOTPRINT_SAMPLES; iz += 1) {
+        const sx = x - STUD_RADIUS_LDU + (2 * STUD_RADIUS_LDU * ix) / STUD_FOOTPRINT_SAMPLES;
+        const sz = z - STUD_RADIUS_LDU + (2 * STUD_RADIUS_LDU * iz) / STUD_FOOTPRINT_SAMPLES;
+        if (
+          !reaching.some(
+            (box) => sx >= box.min[0] && sx <= box.max[0] && sz >= box.min[2] && sz <= box.max[2],
+          )
+        ) {
+          return false;
+        }
+      }
+    }
+    return true;
+  };
   const allowances: CollisionAllowance[] = [];
 
   for (let xIndex = 0; xIndex < widthStuds; xIndex += 1) {
@@ -942,7 +1201,7 @@ const makePart = (blueprint: PartBlueprint): PartDefinition => {
       if (!cellIsSolid(x, z)) continue;
       if (blueprint.withoutClutches) continue;
 
-      if (studded && studOffsetsLdu === undefined) {
+      if (studded && studOffsetsLdu === undefined && faceHoldsStud("top", x, z)) {
         connectors.push(
           makePort(`stud:${xIndex}:${zIndex}`, "stud", [x, topY, z], [0, -1, 0], "connector-up"),
         );
@@ -956,6 +1215,7 @@ const makePart = (blueprint: PartBlueprint): PartDefinition => {
           heightLdu: STUD_HEIGHT_LDU,
         });
       }
+      if (!faceHoldsStud("bottom", x, z)) continue;
       connectors.push(
         makePort(
           `undersideClutch:${xIndex}:${zIndex}`,
@@ -1017,15 +1277,17 @@ const makePart = (blueprint: PartBlueprint): PartDefinition => {
         studOffsetsLdu,
         bodyWedge,
         blueprint.bodyBoundsLdu,
+        bodyBoxesLdu,
         blueprint.extraConnectors,
         blueprint.withoutClutches === true,
       ),
       contentHash: `sha256:${blueprint.geometrySha256}`,
-      bodyMode: bodyWedge ? "compound" : "rectangular-prism",
+      bodyMode: bodyWedge || bodyBoxesLdu ? "compound" : "rectangular-prism",
       studMode: studModeFor(family, studOffsetsLdu),
       ...(studOffsetsLdu === undefined ? {} : { studOffsetsLdu }),
       undersideMode: blueprint.withoutClutches === true ? "none" : "semantic-tube-seat-grid",
       ...(blueprint.bodyBoundsLdu === undefined ? {} : { bodyBoundsLdu: blueprint.bodyBoundsLdu }),
+      ...(bodyBoxesLdu === undefined ? {} : { bodyBoxesLdu }),
       ...(blueprint.extraConnectors === undefined
         ? {}
         : { extraConnectors: blueprint.extraConnectors }),

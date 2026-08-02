@@ -17,9 +17,11 @@ import type { PartInstance, RigidTransform } from "@lego-studio/protocol";
  *
  * The build plate's top surface sits at +BRICK_HEIGHT_LDU / 2 so that a brick
  * dropped on empty plate rests exactly where "Place at origin" has always put
- * it. That choice makes every resting origin land on the PLATE_HEIGHT_LDU
- * lattice: a brick resolves to y=0 and a plate to y=8, and every stack built on
- * top of either stays on the same lattice.
+ * it. Resting *surfaces* are what live on the PLATE_HEIGHT_LDU lattice — the
+ * plate, then a plate's height at a time above it — and a part's origin is half
+ * its own height below the surface it sits on. For a brick that is y=0 and for
+ * a plate y=8, both on the lattice, which is why rounding the origin looked
+ * right until a two-plate-tall cheese slope wanted y=+4.
  */
 export const GROUND_UNDERSIDE_LDU = BRICK_HEIGHT_LDU / 2;
 export const VERTICAL_SNAP_LDU = PLATE_HEIGHT_LDU;
@@ -77,8 +79,19 @@ function snapLateral(raw: number, studs: number): number {
   return Math.round((raw - offset) / STUD_PITCH_LDU) * STUD_PITCH_LDU + offset;
 }
 
-function snapVertical(raw: number): number {
-  return Math.round(raw / VERTICAL_SNAP_LDU) * VERTICAL_SNAP_LDU;
+/**
+ * The nearest legal surface for a part's underside to rest on.
+ *
+ * Surfaces are on the plate lattice — the build plate, then a plate's height at
+ * a time above it — and it is the *surface* that lands there, not the part's
+ * origin. Rounding the origin instead works only while every part is a whole
+ * number of plates tall in a way that halves onto the same lattice: a
+ * two-plate-tall cheese slope resting on the plate has its origin at +4, which
+ * the origin lattice rounds to +8 and buries four LDU under the plate.
+ */
+function snapSupportSurface(raw: number): number {
+  const plates = Math.round((raw - GROUND_UNDERSIDE_LDU) / VERTICAL_SNAP_LDU);
+  return GROUND_UNDERSIDE_LDU + plates * VERTICAL_SNAP_LDU;
 }
 
 /**
@@ -128,7 +141,7 @@ export function snapPlacementOrigin({
   const footprint = worldFootprint(definition, orientationId);
   return [
     snapLateral(rawLdu[0], footprint.studsX),
-    snapVertical(supportUndersideLdu - footprint.heightLdu / 2),
+    snapSupportSurface(supportUndersideLdu) - footprint.heightLdu / 2,
     snapLateral(rawLdu[2], footprint.studsZ),
   ];
 }

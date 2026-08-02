@@ -42,26 +42,66 @@ export function PartPreview({ part, colorHex }: PartPreviewProps) {
   const height = heightLdu / STUD_PITCH_LDU;
   const studRadius = (STUD_RADIUS_LDU / STUD_PITCH_LDU) * STUD_PX;
 
-  const top = [
-    project(0, height, 0),
-    project(widthStuds, height, 0),
-    project(widthStuds, height, lengthStuds),
-    project(0, height, lengthStuds),
-  ] as const;
-  const left = [
-    project(0, height, lengthStuds),
-    project(widthStuds, height, lengthStuds),
-    project(widthStuds, 0, lengthStuds),
-    project(0, 0, lengthStuds),
-  ] as const;
-  const right = [
-    project(widthStuds, height, 0),
-    project(widthStuds, height, lengthStuds),
-    project(widthStuds, 0, lengthStuds),
-    project(widthStuds, 0, 0),
-  ] as const;
+  // Preview space puts the part's own base at zero and measures up in studs,
+  // while the catalog measures down in LDU from the part's centre.
+  const toY = (ldu: number): number => (heightLdu / 2 - ldu) / STUD_PITCH_LDU;
+  const toX = (ldu: number): number => ldu / STUD_PITCH_LDU + widthStuds / 2;
+  const toZ = (ldu: number): number => ldu / STUD_PITCH_LDU + lengthStuds / 2;
+  // The same body boxes the renderer draws, so an arch shows its void and a
+  // corner plate its missing quarter. A part whose body is a wedge or a
+  // cylinder has no boxes and falls back to its footprint, which is what this
+  // preview has always drawn for it.
+  const bodyBoxes = part.collision.primitives.filter(
+    (primitive): primitive is Extract<CollisionPrimitive, { kind: "box" }> =>
+      primitive.kind === "box" && primitive.tag === "body",
+  );
+  const cuboids: readonly {
+    readonly x0: number;
+    readonly x1: number;
+    readonly y0: number;
+    readonly y1: number;
+    readonly z0: number;
+    readonly z1: number;
+  }[] =
+    bodyBoxes.length > 0
+      ? bodyBoxes.map(({ minLdu, maxLdu }) => ({
+          x0: toX(minLdu[0]),
+          x1: toX(maxLdu[0]),
+          // LDU y runs downward, so the box's minimum is its top.
+          y0: toY(maxLdu[1]),
+          y1: toY(minLdu[1]),
+          z0: toZ(minLdu[2]),
+          z1: toZ(maxLdu[2]),
+        }))
+      : [{ x0: 0, x1: widthStuds, y0: 0, y1: height, z0: 0, z1: lengthStuds }];
 
-  const all = [...top, ...left, ...right];
+  // Painter's order for an isometric view seen from large x, y and z: the
+  // farthest box is the one whose near corner is smallest.
+  const faces = [...cuboids]
+    .sort((left, right) => left.x1 + left.y1 + left.z1 - (right.x1 + right.y1 + right.z1))
+    .map(({ x0, x1, y0, y1, z0, z1 }) => ({
+      key: `${x0}:${y0}:${z0}:${x1}:${y1}:${z1}`,
+      top: [
+        project(x0, y1, z0),
+        project(x1, y1, z0),
+        project(x1, y1, z1),
+        project(x0, y1, z1),
+      ] as const,
+      left: [
+        project(x0, y1, z1),
+        project(x1, y1, z1),
+        project(x1, y0, z1),
+        project(x0, y0, z1),
+      ] as const,
+      right: [
+        project(x1, y1, z0),
+        project(x1, y1, z1),
+        project(x1, y0, z1),
+        project(x1, y0, z0),
+      ] as const,
+    }));
+
+  const all = faces.flatMap(({ top, left, right }) => [...top, ...left, ...right]);
   const xs = all.map(([x]) => x);
   const ys = all.map(([, y]) => y);
   const pad = studRadius + 2;
@@ -93,9 +133,13 @@ export function PartPreview({ part, colorHex }: PartPreviewProps) {
       aria-label={`${part.displayName} preview`}
       focusable="false"
     >
-      <polygon points={polygon(left)} fill={shade(colorHex, 0.62)} />
-      <polygon points={polygon(right)} fill={shade(colorHex, 0.8)} />
-      <polygon points={polygon(top)} fill={colorHex} />
+      {faces.map(({ key, top, left, right }) => (
+        <g key={key}>
+          <polygon points={polygon(left)} fill={shade(colorHex, 0.62)} />
+          <polygon points={polygon(right)} fill={shade(colorHex, 0.8)} />
+          <polygon points={polygon(top)} fill={colorHex} />
+        </g>
+      ))}
       {studs.map(([x, y]) => (
         <ellipse
           key={`${x.toFixed(2)}:${y.toFixed(2)}`}

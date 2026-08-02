@@ -28,9 +28,16 @@ export const MAX_RESTRICTED_PROMPT_CHARS = 1_024;
 export const MAX_MAKER_CANDIDATES = 4;
 export const MIN_MAKER_PARTS = 10;
 export const MAX_MAKER_PARTS = 40;
-export const MAX_MAKER_ALLOWED_PART_IDS = 64;
+/**
+ * Bounds untrusted maker input while leaving headroom above the builtin
+ * catalog. Derived rather than fixed: at a literal 64 the bound sat one entry
+ * above a 63-part catalog, so the next part added rejected every brief that
+ * allowed the whole palette — and `ALLOWLIST_TOO_LARGE` reads as a bad brief,
+ * not as a catalog that outgrew a number nobody was watching.
+ */
+export const MAX_MAKER_ALLOWED_PART_IDS = Math.max(128, PART_DEFINITIONS.length * 2);
 /** Bounds untrusted maker input while leaving headroom above the builtin palette. */
-export const MAX_MAKER_ALLOWED_COLOR_IDS = 128;
+export const MAX_MAKER_ALLOWED_COLOR_IDS = Math.max(128, COLOR_DEFINITIONS.length * 2);
 export const MIN_MAKER_OPERATIONS = MIN_MAKER_PARTS * 2 - 1;
 export const MAX_MAKER_BRIEF_LIST_ITEMS = 16;
 export const MAX_MAKER_BASE_ANNOTATIONS = 64;

@@ -26,7 +26,11 @@ export type PartFamily =
   | "wedge-plate"
   | "technic-brick"
   | "axle"
-  | "wheel";
+  | "wheel"
+  | "arch"
+  | "curved-slope"
+  | "cheese-slope"
+  | "corner-plate";
 /**
  * The ways two parts can meet.
  *
@@ -237,6 +241,18 @@ export interface ParametricGeometryRecipe {
    * does not describe. Present only when the part declares them.
    */
   readonly bodyBoundsLdu?: LduBounds;
+  /**
+   * The solid as a union of boxes, for a part that is not one prism: an arch is
+   * two legs and a span with the void between them left uncovered, a corner
+   * plate is an L, and a slope is a staircase because the collision model's
+   * prisms are cut by vertical planes only and cannot fall away in elevation.
+   *
+   * Where the boxes approximate a curve they are each as tall as the highest
+   * point of the measured profile over their own span, so the modelled solid
+   * contains the real one — the approximation refuses placements a real part
+   * would allow rather than admitting ones it would not.
+   */
+  readonly bodyBoxesLdu?: readonly LduBounds[];
   /** Connectors the stud grid cannot express, such as a hole through a part. */
   readonly extraConnectors?: readonly {
     readonly id: string;

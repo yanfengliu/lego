@@ -4,8 +4,12 @@ import { PART_DEFINITIONS, type PartDefinition, type PartFamily } from "@lego-st
 export const PART_FAMILY_ORDER: readonly PartFamily[] = Object.freeze([
   "brick",
   "plate",
+  "corner-plate",
   "jumper-plate",
   "wedge-plate",
+  "arch",
+  "curved-slope",
+  "cheese-slope",
   "technic-brick",
   "axle",
   "wheel",
@@ -23,6 +27,10 @@ export const PART_FAMILY_LABELS: Readonly<Record<PartFamily, string>> = Object.f
   axle: "Axles",
   wheel: "Wheels",
   "grille-tile": "Grille tiles",
+  arch: "Arches",
+  "curved-slope": "Curved slopes",
+  "cheese-slope": "Cheese slopes",
+  "corner-plate": "Corner plates",
 });
 
 /**

@@ -2,6 +2,7 @@ import {
   BRICK_HEIGHT_LDU,
   PLATE_HEIGHT_LDU,
   STUD_PITCH_LDU,
+  PART_DEFINITIONS,
   getPartDefinition,
   type PartDefinition,
 } from "@lego-studio/catalog";
@@ -17,6 +18,7 @@ import {
   findBodyOverlaps,
   findStudConnections,
   partTopSurfaceLdu,
+  partUndersideLdu,
   snapPlacementOrigin,
   worldFootprint,
 } from "./placement";
@@ -92,6 +94,26 @@ describe("snapPlacementOrigin", () => {
         rawLdu: [0, 0, 0],
       });
       expect(Math.abs(y % PLATE_HEIGHT_LDU)).toBe(0);
+    }
+  });
+
+  it("rests every catalog part on the build plate, whatever its height", () => {
+    // It is the underside that lands on the plate lattice, not the origin. A
+    // two-plate-tall part has its origin half a plate off that lattice, and
+    // rounding the origin buried a cheese slope four LDU under the plate —
+    // where the editor then refused its own placement as unsupported.
+    for (const part of PART_DEFINITIONS) {
+      const origin = snapPlacementOrigin({
+        catalogPartId: part.id,
+        orientationId: "upright-yaw-0",
+        rawLdu: [0, 0, 0],
+      });
+      const underside = partUndersideLdu({
+        catalogPartId: part.id,
+        transform: { positionLdu: origin, orientationId: "upright-yaw-0" },
+      });
+      expect([part.id, underside]).toEqual([part.id, GROUND_UNDERSIDE_LDU]);
+      expect([part.id, origin.every(Number.isInteger)]).toEqual([part.id, true]);
     }
   });
 

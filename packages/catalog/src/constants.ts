@@ -13,9 +13,11 @@ import type {
  * /2 grew the palette to the full solid set; /3 added tiles and the larger brick
  * and plate sizes; /4 added the long and wide plates and bricks the sample
  * booklet needs, and the first two families whose studs do not fill their
- * footprint — jumper plates and grille tiles.
+ * footprint — jumper plates and grille tiles; /5 added the first parts whose
+ * solid is not one prism — arches, curved slopes, cheese slopes and corner
+ * plates, each a union of boxes measured out of its own LDraw file.
  */
-export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/4" as const;
+export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/5" as const;
 export const CONNECTOR_TAXONOMY_VERSION = "stud-tube/1" as const;
 export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/1" as const;
 export const TRANSFORM_POLICY_VERSION = "upright-quarter-turns-negative-y-up/1" as const;

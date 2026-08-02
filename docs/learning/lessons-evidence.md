@@ -236,14 +236,19 @@ The autocorrelation must be normalised over the pairs that overlap, not over the
 The peaks give some primitive basis of the lattice but not the camera's own pair, so every small unimodular change of basis is enumerated and the axonometric residual chooses; below 35 degrees of elevation `a + b` is shorter than `b`, so peak strength alone picks the wrong pair.
 And the offset window has to hold the largest pitch in the book: a step drawn twice as big has twice the pitch, and a window that stops short locks onto something else entirely — step 4 came back at 34 points per stud against the booklet's 16.
 
-The residual is a fit quality, not a proof, and that is measured rather than assumed: a rhombic grid, which no square grid could project to, still reads under 1% of pitch once a change of basis is allowed.
-The independent check is the stud itself. It is a circle of radius 6 LDU on a 20 LDU pitch, so folded onto a correct cell it has to come back round and 0.3 of a pitch across whatever the elevation — measured at 0.93 circularity and 0.39 radius across the booklet, and an ellipse on a grid fitted to the wrong repeat.
+The residual is a fit quality, not a proof, and that is measured rather than assumed: a rhombic grid, which no square grid could project to, still reads under 1% of pitch once a change of basis is allowed, and a quarter of random plausible lattices pass the 0.02 gate.
+What the gate separates on a booklet is a fit that found the grid from one that locked onto the wrong repeat — the refused panels come back at a third to twice the booklet's pitch.
+Two attempts at an independent per-panel proof that the picture is a stud grid both came up short, and the failures are the useful part.
+Second moments of the folded cell are worthless: a featureless cell spreads its weight uniformly, which is the most circular and the widest a cell can be, so mush scores 0.999 circularity and 0.408 radius against 0.99 and 0.234 for a clean synthetic stud. Both statistics are maximised by having no stud in them, so the three assertions written on them could not fail, and the refused panels scored better than the accepted ones.
+A radial profile of the folded cell is honest but weak: 1.52 on accepted panels against 1.17 on refused ones. The clearest per-panel signal is the grid's own autocorrelation, 0.26 against 0.11, and even that overlaps.
+The evidence the fit is right is elsewhere: the overlays, thirty-two independent panels agreeing on four cameras, and the round trip through the repo's own camera.
 
 What the grid cannot give is translation. A grid is the same grid one pitch over, so the fit pins the projection to a lattice phase and no further; `centerXPx` and `centerYPx` still need one known part.
 
 **Anchor:** `packages/rendering/src/camera-fit-lattice.ts`, `camera-fit-lattice-phase.ts`, driven by `apps/web/e2e/camera-panel-fit.spec.ts` over the first 40 steps of `recipes/6651557.pdf`.
 32 of 40 panels fit; the 8 refusals are steps drawn from underneath or too small to carry a grid, and the residual gate separates them cleanly — every accepted panel under 0.008 of a pitch, every refused one over 0.03.
-Reprojection error 0.96px of a ~40px pitch over 99% of grid sites; four camera runs found (steps 1-9, 10-15, 16-34, 36-37) with azimuth and elevation holding to about 0.3 degrees of standard deviation inside a run, which is the booklet turning the model over and back.
+Predicted studs land 0.94px from the ink under them, 4.1% of the median 21px pitch, over 99% of grid sites — bounded above by the measuring aperture, so read it with the control beside it: the same aperture half a cell off the prediction holds 1.11 times less ink.
+Four camera runs found (steps 1-9, 10-15, 16-34, 36-37) with azimuth and elevation holding to about 0.3 degrees of standard deviation inside a run, which is the booklet turning the model over and back.
 Round-tripping the fitted numbers through `createOrthographicViewCamera` and re-fitting the render recovers them to 0.04 degrees and 0.14% of scale.
 
 ## The phase of a repeat is not the centre of the thing that repeats
@@ -258,3 +263,70 @@ The fold's sign has its own trap next to it. A pattern peaking at `p0` makes the
 
 **Anchor:** `foldedStudShape` in `packages/rendering/src/camera-fit-lattice-phase.ts` and the `latticeSite` doc comment; `output/camera-fit/overlay-003.png` was the picture that showed it.
 Reprojection error against the drawn studs is 0.96px with the folded centre; the Fourier phase put it near half a pitch, about 20px.
+
+## An LDraw part has no inside, because its hollows are open primitives
+
+The obvious way to check that a hand-authored box union contains a real part is to cast a vertical ray through the part's triangles and count crossings: odd means inside.
+It reported 154 solid samples outside the arch's box union, with a worst gap of 11.86 LDU — a wide, hollow region under the span where no material could possibly be.
+
+LDraw does not build a hollow out of a closed box. `box5.dat` has five faces and `box3u2p.dat` has three; the missing faces are the ones nothing would ever see.
+A ray through `3659.dat` at the middle of the arch comes back with three crossings, `[0, 0, 4]`, so parity flips at the top surface and never flips back, and everything below the span reads as solid.
+Nothing about the part is wrong. Parity is simply undefined on a mesh that is not closed, and the LDraw library is full of such meshes on purpose.
+
+Containment does not need parity. If every point of the real surface lies inside a closed union of boxes, so does the solid that surface bounds.
+Sampling each triangle's vertices, edge midpoints and centroid answers the question the invariant actually asks — may the model refuse a placement the real part allows, and never the reverse — with no notion of inside at all.
+
+The profile measurements themselves were never at risk: the first and last crossing along a ray are the outer surfaces whatever the parity does, which is what the staircase heights were read from.
+
+**Anchor:** the eight compound parts added in `packages/catalog/src/catalog.ts` for `builtin.basic-parts/5`.
+Parity reported 154 uncovered samples for `builtin:arch-1x4` and 100 for `builtin:arch-1x6`, and zero for the six parts with no hollow under an overhang; the surface test reports 0 outside for all eight across 7245 surface samples.
+
+## Measure the art you are imitating, rather than asserting its dialect in a comment
+
+The instruction finish was built on a premise stated in its own source: booklet art is unlit, one flat tone per part, with the shape carried entirely by printed outlines.
+Nobody had measured a page. Sampling the set's own printed part pictures says otherwise on every count.
+A white 2x3 brick spends three tones on its three visible faces — 246 pointing right, 240 on top, 223 pointing left — and a light bluish gray 2x2 spends 170 / 161 / 151 on the same three.
+Every stud is a light cap over a near-black wall, 178 then 15 in grey and 245 then 8 in white, which is what makes a printed stud read as a bump instead of a circle drawn on a surface.
+Edges are inked in a colour that contrasts with the fill rather than in one ink: about 110 on a black part whose body is 47, about 85 on a grey part whose body is 165.
+The flat premise had produced renders with three to six colours where a real panel has 4,657 to 15,134, and it had given this catalog's black (#05131D) an ink of #1A1A1A — lighter than the fill it was outlining, so black parts printed with no edges at all.
+
+The measurement was cheap and available the whole time: `output/inventory-thumbnails` holds 265 isolated printed parts at page resolution, one per colour and shape, which is a better reference than a page of assembly because nothing occludes anything.
+
+**Anchor:** `packages/rendering/src/instruction-finish.ts` carries the fitted model and the numbers behind each term; `apps/web/e2e/instruction-finish.spec.ts` renders the same three subjects the reference has and holds the palette exact.
+Off-palette share 0.000 and inked silhouette 0.995-1.000; the offset-line pass it replaced had been measured broken along 38-68% of a silhouette, at 800px as badly as at 420px.
+
+## Two consecutive printed panels are one drawing moved
+
+`panelDelta` reads where an exploded step's part went by differencing step N's picture against step N+1's, and it needs the two panels in one raster.
+A synthetic booklet has that by construction — both panels come out of one camera into one frame — and the previous session flagged it as the assumption most likely to break on real art.
+
+It does not break, but it is not free either.
+Measured over the first fifty steps of `recipes/6651557.pdf`: the printed drawing moves a median of 23 points between one panel and the next and up to 530 at a page turn, while the zoom holds to about a tenth of a percent inside a run of steps drawn with one camera.
+So the registration is a shift, and the shift has to be found.
+
+The scale must not be found the same way.
+Region agreement is a biased objective here, because the model grows between the panels: the next panel's silhouette contains this one's, so shrinking the next panel raises the intersection over union until the search hits the bottom of whatever range it was given.
+On steps 2 to 3 it returned 0.849 against a camera-fit measurement of 0.924, an eight percent error that moved the emerged region a whole part away from where the step's part landed.
+The camera fit already measures the scale — pixels per stud, to about one percent — so it is held and only the shift is searched.
+
+Held that way, consecutive same-camera panels agree over 91% of their assembly silhouettes at the median, and their outlines sit one to two pixels apart.
+The synthetic score was stress-tested against a deliberate two-pixel misregistration, so a printed pair lands at the edge of what was already known to survive.
+Where the booklet turns the model over, agreement falls to about half and no similarity transform can help — which is the useful behaviour: an unregisterable pair reports a low agreement rather than a confident wrong answer.
+
+**Anchor:** `apps/web/src/assembly/panel-registration.ts` and `panel-art.ts`, driven by `apps/web/e2e/real-panel-registration.spec.ts` over the first 50 steps.
+49 of 49 consecutive pairs aligned; 29 share a camera and 2 turn the model over.
+Median assembly agreement 74% over all pairs and 91% over same-camera pairs, against 55% for the panels as cropped; median outline gap 1-2px inside the long camera run of steps 17-37, and `output/real-panel-scoring/pair-020-021.png` shows that pair at 97% as near-solid yellow with single-pixel fringe.
+
+## A sub-assembly box is joined to the model by its leader line
+
+Taking the largest connected non-background region is how `camera-panel-fit` isolates the assembly from the step number, the callout box and the progress bar, and it works there.
+It does not survive a step that draws a sub-build.
+Step 14 of the sample booklet prints a white box holding a two-step sub-assembly and joins it to the model with a printed leader line, so the box and the model are one connected region — and a 400 by 170 rectangle of white came through as part of the assembly and read as a part that appeared between the panels.
+
+Opening the mask to sever the line is worse than the problem.
+Printed art is line work: an erosion of three pixels at a thousand-pixel panel width fragmented step 4 into 125 components and left the largest holding a sixth of the drawing, which then fitted a camera at 21 pixels per stud against the booklet's 40.
+
+The fix is to key the white first. The page is grey, the model is not white, and everything the booklet prints on white — callout box, sub-assembly box, step number, progress bar — goes with its bounding box before the components are counted.
+
+**Anchor:** `keyPrintedBoxes` in `apps/web/src/assembly/panel-art.ts`, and the `openingRadiusPx` note on `isolateAssembly` that records why the opening defaults to off.
+With the white keyed out, panels fitting a camera went from 37 to 39 of 50 and median assembly agreement from 66% to 74%.
