@@ -110,7 +110,7 @@ describe("captured maker population replay", () => {
     // moves deliberately with catalog truth, because the run embeds it: last
     // moved for builtin.basic-parts/4.
     expect(canonicalDigest(runDeterministicMakerPopulation(input))).toBe(
-      "sha256:20b5ef3fa6082b06284ff7a9f4574f5bc90b4a31539da1e0ca7e6516def47836",
+      "sha256:cfe82c365b04d042ffc225b4443d3b7a6a1b7321cfaf36de0a7e6b263ba9e667",
     );
   });
 

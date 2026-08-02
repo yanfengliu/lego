@@ -1,5 +1,6 @@
 import type {
   ConnectorArticulation,
+  ConnectorAxisMatching,
   ConnectorGender,
   ConnectorGeometryRole,
   ConnectorKind,
@@ -106,6 +107,7 @@ export interface ConnectorPairRule {
   readonly female: ConnectorKind;
   readonly allowedRotation: ConnectorRotation;
   readonly articulation: ConnectorArticulation;
+  readonly axisMatching: ConnectorAxisMatching;
 }
 
 export const CONNECTOR_PAIR_RULES: readonly ConnectorPairRule[] = Object.freeze([
@@ -114,14 +116,45 @@ export const CONNECTOR_PAIR_RULES: readonly ConnectorPairRule[] = Object.freeze(
     female: "undersideClutch",
     allowedRotation: "quarterTurns",
     articulation: "rigid",
+    axisMatching: "opposed",
   },
-  { male: "axle", female: "axleHole", allowedRotation: "quarterTurns", articulation: "rigid" },
+  {
+    male: "axle",
+    female: "axleHole",
+    allowedRotation: "quarterTurns",
+    articulation: "rigid",
+    axisMatching: "collinear",
+  },
   // Round hole, cross shaft: it fits and it spins. This is how a wheel turns on
   // an axle that is itself locked into the chassis.
-  { male: "axle", female: "pinHole", allowedRotation: "continuous", articulation: "revolute" },
-  { male: "pin", female: "pinHole", allowedRotation: "continuous", articulation: "revolute" },
-  { male: "bar", female: "clip", allowedRotation: "continuous", articulation: "revolute" },
-  { male: "hinge", female: "hingeSocket", allowedRotation: "continuous", articulation: "revolute" },
+  {
+    male: "axle",
+    female: "pinHole",
+    allowedRotation: "continuous",
+    articulation: "revolute",
+    axisMatching: "collinear",
+  },
+  {
+    male: "pin",
+    female: "pinHole",
+    allowedRotation: "continuous",
+    articulation: "revolute",
+    axisMatching: "collinear",
+  },
+  {
+    male: "bar",
+    female: "clip",
+    allowedRotation: "continuous",
+    articulation: "revolute",
+    axisMatching: "collinear",
+  },
+  {
+    male: "hinge",
+    female: "hingeSocket",
+    allowedRotation: "continuous",
+    articulation: "revolute",
+    axisMatching: "opposed",
+  },
 ]);
 
 /** What a connector is, independent of what it happens to be joined to. */

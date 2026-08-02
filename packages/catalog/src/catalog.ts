@@ -141,6 +141,25 @@ interface PartBlueprint {
    * a wedge plate comes in a left and a right that are not interchangeable.
    */
   readonly variant?: string;
+  /**
+   * Connectors the stud grid cannot express: a hole through a part, a shaft.
+   * Positions are LDU from the part's centre, measured from its LDraw file.
+   */
+  readonly extraConnectors?: readonly {
+    readonly id: string;
+    readonly kind: ConnectorKind;
+    readonly positionLdu: LduVector3;
+    readonly normal: LduVector3;
+    readonly orientationId: "connector-up" | "connector-down";
+  }[];
+  /**
+   * Body extents in LDU, for a part the stud footprint does not describe. An
+   * axle is 39 LDU long and 12 across; no width-by-length-by-family-height says
+   * that.
+   */
+  readonly bodyBoundsLdu?: { readonly min: LduVector3; readonly max: LduVector3 };
+  /** Suppresses the underside clutch grid, for a part that has no underside. */
+  readonly withoutClutches?: boolean;
 }
 
 const PART_BLUEPRINTS = [
@@ -595,6 +614,55 @@ const PART_BLUEPRINTS = [
     bodyWedge: { cutNormalXZ: [-3, -1], cutOffsetLdu: 30 },
     geometrySha256: "bf94e0979d89b8e27d2c29ec02deb3730716fdad78177b20497504d1ee0f3d32",
   },
+  {
+    family: "technic-brick",
+    widthStuds: 1,
+    lengthStuds: 2,
+    ldrawId: "3700.dat",
+    // A round hole straight through the 1-stud direction, its centre 10 LDU
+    // below the brick's top — measured from the peghole placements in 3700.dat.
+    // One port, not two: the hole is one feature open at both ends, which is
+    // why an axle may enter it facing either way.
+    extraConnectors: [
+      {
+        id: "pinHole:0",
+        kind: "pinHole",
+        positionLdu: [0, -2, 0],
+        normal: [1, 0, 0],
+        orientationId: "connector-up",
+      },
+    ],
+    geometrySha256: "a09477c9d804ad264482f9800c073a1fc6de159aa4457515f8e7501db93f29fa",
+  },
+  {
+    family: "axle",
+    widthStuds: 1,
+    lengthStuds: 2,
+    ldrawId: "32062.dat",
+    // 39 LDU long and 12 across, from 32062.dat. The cross section is modelled
+    // as its bounding box, which claims a little more space than the real part
+    // in the corners — the safe direction: it refuses placements a real axle
+    // would allow, never the reverse.
+    bodyBoundsLdu: { min: [-19.5, -6, -6], max: [19.5, 6, 6] },
+    withoutClutches: true,
+    extraConnectors: [
+      {
+        id: "axle:0",
+        kind: "axle",
+        positionLdu: [-10, 0, 0],
+        normal: [-1, 0, 0],
+        orientationId: "connector-up",
+      },
+      {
+        id: "axle:1",
+        kind: "axle",
+        positionLdu: [10, 0, 0],
+        normal: [1, 0, 0],
+        orientationId: "connector-up",
+      },
+    ],
+    geometrySha256: "9d3c01d05548b6667a3a96d8933b1701271d538aefab14079c90d316ecb3f492",
+  },
 ] as const satisfies readonly PartBlueprint[];
 
 const makeAliases = (displayName: string, ldrawId: `${string}.dat`): readonly CatalogAlias[] =>
@@ -614,10 +682,17 @@ const makeAliases = (displayName: string, ldrawId: `${string}.dat`): readonly Ca
   ]);
 
 /** Tiles and grille tiles are plate-height but present a smooth top, so they carry no studs. */
-const isStudded = (family: PartFamily): boolean => family !== "tile" && family !== "grille-tile";
+const SMOOTH_TOP_FAMILIES = new Set<PartFamily>(["tile", "grille-tile", "axle"]);
+const isStudded = (family: PartFamily): boolean => !SMOOTH_TOP_FAMILIES.has(family);
 
-const familyHeightLdu = (family: PartFamily): number =>
-  family === "brick" ? BRICK_HEIGHT_LDU : PLATE_HEIGHT_LDU;
+/** An axle is 12 LDU across, which no count of stud pitches describes. */
+const AXLE_THICKNESS_LDU = 12;
+
+const familyHeightLdu = (family: PartFamily): number => {
+  if (family === "brick" || family === "technic-brick") return BRICK_HEIGHT_LDU;
+  if (family === "axle") return AXLE_THICKNESS_LDU;
+  return PLATE_HEIGHT_LDU;
+};
 
 const FAMILY_DISPLAY_NAMES: Readonly<Record<PartFamily, string>> = Object.freeze({
   brick: "Brick",
@@ -626,6 +701,8 @@ const FAMILY_DISPLAY_NAMES: Readonly<Record<PartFamily, string>> = Object.freeze
   "jumper-plate": "Jumper plate",
   "grille-tile": "Grille tile",
   "wedge-plate": "Wedge plate",
+  "technic-brick": "Technic brick",
+  axle: "Axle",
 });
 
 /**
@@ -639,6 +716,9 @@ const makeGeometryDigestInput = (
   heightLdu: number,
   studOffsetsLdu: readonly (readonly [number, number])[] | undefined,
   bodyWedge: PartBlueprint["bodyWedge"],
+  bodyBoundsLdu: PartBlueprint["bodyBoundsLdu"],
+  extraConnectors: PartBlueprint["extraConnectors"],
+  withoutClutches: boolean,
 ): string =>
   JSON.stringify({
     generatorId: "builtin:parametric-rectilinear-part/1",
@@ -650,9 +730,11 @@ const makeGeometryDigestInput = (
     studRadiusLdu: STUD_RADIUS_LDU,
     studHeightLdu: STUD_HEIGHT_LDU,
     studMode: studModeFor(family, studOffsetsLdu),
-    undersideMode: "semantic-tube-seat-grid",
+    undersideMode: withoutClutches ? "none" : "semantic-tube-seat-grid",
     ...(studOffsetsLdu === undefined ? {} : { studOffsetsLdu }),
     ...(bodyWedge === undefined ? {} : { bodyMode: "wedge-prism", bodyWedge }),
+    ...(bodyBoundsLdu === undefined ? {} : { bodyBoundsLdu }),
+    ...(extraConnectors === undefined ? {} : { extraConnectors }),
   });
 
 const studModeFor = (
@@ -704,13 +786,20 @@ const makePart = (blueprint: PartBlueprint): PartDefinition => {
       ? ""
       : ` ${blueprint.variant[0]!.toUpperCase()}${blueprint.variant.slice(1)}`);
   const id = `builtin:${family}-${widthStuds}x${lengthStuds}${variantSuffix}`;
-  const bodyBoundsLdu: LduBounds = {
+  const bodyBoundsLdu: LduBounds = blueprint.bodyBoundsLdu ?? {
     min: [-widthLdu / 2, topY, -lengthLdu / 2],
     max: [widthLdu / 2, bottomY, lengthLdu / 2],
   };
+  // The body plus whatever stands proud of it. Derived from the body rather
+  // than from the stud footprint, so a part that declares its own extents does
+  // not report a bounding box belonging to a different shape.
   const boundsLdu: LduBounds = {
-    min: [-widthLdu / 2, studded ? topY - STUD_HEIGHT_LDU : topY, -lengthLdu / 2],
-    max: [widthLdu / 2, bottomY, lengthLdu / 2],
+    min: [
+      bodyBoundsLdu.min[0],
+      studded ? bodyBoundsLdu.min[1] - STUD_HEIGHT_LDU : bodyBoundsLdu.min[1],
+      bodyBoundsLdu.min[2],
+    ],
+    max: bodyBoundsLdu.max,
   };
   const connectors: ConnectorPortDefinition[] = [];
   const primitives: CollisionPrimitive[] = [
@@ -750,6 +839,7 @@ const makePart = (blueprint: PartBlueprint): PartDefinition => {
       const z = (zIndex - (lengthStuds - 1) / 2) * STUD_PITCH_LDU;
 
       if (!cellIsSolid(x, z)) continue;
+      if (blueprint.withoutClutches) continue;
 
       if (studded && studOffsetsLdu === undefined) {
         connectors.push(
@@ -787,6 +877,12 @@ const makePart = (blueprint: PartBlueprint): PartDefinition => {
     }
   }
 
+  for (const extra of blueprint.extraConnectors ?? []) {
+    connectors.push(
+      makePort(extra.id, extra.kind, extra.positionLdu, extra.normal, extra.orientationId),
+    );
+  }
+
   if (studded && studOffsetsLdu !== undefined) {
     studOffsetsLdu.forEach(([x, z], index) => {
       connectors.push(makePort(`stud:${index}`, "stud", [x, topY, z], [0, -1, 0], "connector-up"));
@@ -819,12 +915,19 @@ const makePart = (blueprint: PartBlueprint): PartDefinition => {
         heightLdu,
         studOffsetsLdu,
         bodyWedge,
+        blueprint.bodyBoundsLdu,
+        blueprint.extraConnectors,
+        blueprint.withoutClutches === true,
       ),
       contentHash: `sha256:${blueprint.geometrySha256}`,
       bodyMode: bodyWedge ? "compound" : "rectangular-prism",
       studMode: studModeFor(family, studOffsetsLdu),
       ...(studOffsetsLdu === undefined ? {} : { studOffsetsLdu }),
-      undersideMode: "semantic-tube-seat-grid",
+      undersideMode: blueprint.withoutClutches === true ? "none" : "semantic-tube-seat-grid",
+      ...(blueprint.bodyBoundsLdu === undefined ? {} : { bodyBoundsLdu: blueprint.bodyBoundsLdu }),
+      ...(blueprint.extraConnectors === undefined
+        ? {}
+        : { extraConnectors: blueprint.extraConnectors }),
       studRadiusLdu: STUD_RADIUS_LDU,
       studHeightLdu: STUD_HEIGHT_LDU,
       provenance: PROJECT_GEOMETRY_PROVENANCE,

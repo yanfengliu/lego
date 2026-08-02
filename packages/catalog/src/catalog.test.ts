@@ -31,6 +31,8 @@ const PART_FAMILY_NAMES = [
   "jumper-plate",
   "grille-tile",
   "wedge-plate",
+  "technic-brick",
+  "axle",
 ] as const satisfies readonly PartFamily[];
 
 /**
@@ -44,6 +46,7 @@ const cellIsSolid = (part: PartDefinition, x: number, z: number): boolean => {
 };
 
 const solidCellCount = (part: PartDefinition): number => {
+  if (NO_CLUTCH_FAMILIES.has(part.family)) return 0;
   const { widthStuds, lengthStuds } = part.dimensions;
   const wedge = part.collision.primitives.find((primitive) => primitive.kind === "wedge");
   if (!wedge) return widthStuds * lengthStuds;
@@ -58,7 +61,9 @@ const solidCellCount = (part: PartDefinition): number => {
   return count;
 };
 /** Families that present a smooth top, so they carry no studs at all. */
-const SMOOTH_TOP_FAMILIES = new Set(["tile", "grille-tile"]);
+const SMOOTH_TOP_FAMILIES = new Set<string>(["tile", "grille-tile", "axle"]);
+/** Families with no underside tubes, so no clutch grid. */
+const NO_CLUTCH_FAMILIES = new Set<string>(["axle"]);
 const EXPECTED_PART_IDS = [
   "builtin:brick-1x1",
   "builtin:brick-1x2",
@@ -119,6 +124,8 @@ const EXPECTED_PART_IDS = [
   "builtin:wedge-plate-2x4-right",
   "builtin:wedge-plate-2x3-left",
   "builtin:wedge-plate-2x3-right",
+  "builtin:technic-brick-1x2",
+  "builtin:axle-1x2",
 ] as const;
 
 const determinant = (matrix: readonly number[]): number =>
@@ -149,6 +156,8 @@ describe("starter catalog", () => {
       "jumper-plate": 3,
       "grille-tile": 1,
       "wedge-plate": 4,
+      "technic-brick": 1,
+      axle: 1,
     });
     // Every part belongs to a family the palette knows how to show.
     expect(
@@ -158,25 +167,39 @@ describe("starter catalog", () => {
 
   it("uses integer LDU dimensions and centered bounds", () => {
     for (const part of PART_DEFINITIONS) {
-      const expectedHeight = part.family === "brick" ? BRICK_HEIGHT_LDU : PLATE_HEIGHT_LDU;
+      const expectedHeight =
+        part.family === "brick" || part.family === "technic-brick"
+          ? BRICK_HEIGHT_LDU
+          : part.family === "axle"
+            ? 12
+            : PLATE_HEIGHT_LDU;
       const { dimensions } = part;
 
       expect(dimensions.widthLdu).toBe(dimensions.widthStuds * STUD_PITCH_LDU);
       expect(dimensions.lengthLdu).toBe(dimensions.lengthStuds * STUD_PITCH_LDU);
       expect(dimensions.heightLdu).toBe(expectedHeight);
       expect(Object.values(dimensions).every(Number.isInteger)).toBe(true);
-      expect(part.bodyBoundsLdu).toEqual({
+      // Bounds are centred on the part's own origin, so a quarter turn is a
+      // rotation and never also a translation. A part whose solid the stud
+      // footprint does not describe declares its own — a 2L axle really is 39
+      // LDU long, half a unit of moulding clearance short of the 40 the lattice
+      // gives it — but it must still be centred, and its size still integral in
+      // halves so repeated rotation cannot drift.
+      const declared = part.geometry.bodyBoundsLdu;
+      const expectedBody = declared ?? {
         min: [-dimensions.widthLdu / 2, -expectedHeight / 2, -dimensions.lengthLdu / 2],
         max: [dimensions.widthLdu / 2, expectedHeight / 2, dimensions.lengthLdu / 2],
-      });
+      };
+      expect(part.bodyBoundsLdu).toEqual(expectedBody);
+      for (const axis of [0, 1, 2]) {
+        expect(part.bodyBoundsLdu.min[axis]).toBe(-part.bodyBoundsLdu.max[axis]!);
+        expect(Number.isInteger(part.bodyBoundsLdu.max[axis]! * 2)).toBe(true);
+      }
+
       const studOverhang = SMOOTH_TOP_FAMILIES.has(part.family) ? 0 : STUD_HEIGHT_LDU;
       expect(part.boundsLdu).toEqual({
-        min: [
-          -dimensions.widthLdu / 2,
-          -expectedHeight / 2 - studOverhang,
-          -dimensions.lengthLdu / 2,
-        ],
-        max: [dimensions.widthLdu / 2, expectedHeight / 2, dimensions.lengthLdu / 2],
+        min: [expectedBody.min[0], expectedBody.min[1]! - studOverhang, expectedBody.min[2]],
+        max: expectedBody.max,
       });
     }
   });
@@ -202,6 +225,12 @@ describe("starter catalog", () => {
           const z = (zIndex - (lengthStuds - 1) / 2) * STUD_PITCH_LDU;
           const stud = studs.find(({ id }) => id === `stud:${xIndex}:${zIndex}`);
           const clutch = clutches.find(({ id }) => id === `undersideClutch:${xIndex}:${zIndex}`);
+          // An axle has no underside and no top, so no cell holds either.
+          if (NO_CLUTCH_FAMILIES.has(part.family)) {
+            expect(stud).toBeUndefined();
+            expect(clutch).toBeUndefined();
+            continue;
+          }
           // A wedge's tapered corner is empty, so it holds neither.
           if (!cellIsSolid(part, x, z)) {
             expect(stud).toBeUndefined();

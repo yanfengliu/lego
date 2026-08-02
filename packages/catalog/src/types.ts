@@ -18,7 +18,14 @@ export type OrientationMatrix = readonly [
  * so they differ from a plate or tile only in which studs they carry.
  */
 export type PartFamily =
-  "brick" | "plate" | "tile" | "jumper-plate" | "grille-tile" | "wedge-plate";
+  | "brick"
+  | "plate"
+  | "tile"
+  | "jumper-plate"
+  | "grille-tile"
+  | "wedge-plate"
+  | "technic-brick"
+  | "axle";
 /**
  * The ways two parts can meet.
  *
@@ -65,6 +72,15 @@ export type ConnectorRotation = "fixed" | "quarterTurns" | "continuous";
 
 /** A joined pair is rigid unless the pair says it moves. */
 export type ConnectorArticulation = "rigid" | "revolute";
+
+/**
+ * How the two connectors' axes have to line up.
+ *
+ * A stud enters a clutch from one side only, so the axes must oppose. A hole is
+ * open at both ends and a shaft can pass in from either, so only the line
+ * matters and not the direction — which is LDCad's `caps=none`.
+ */
+export type ConnectorAxisMatching = "opposed" | "collinear";
 export type CatalogAliasNamespace = "human" | "ldraw";
 
 export interface SourceProvenance {
@@ -205,7 +221,20 @@ export interface ParametricGeometryRecipe {
   readonly studMode: "cylinder-grid" | "cylinder-offsets" | "none";
   /** Stud centres in LDU from the part's centre, for "cylinder-offsets" only. */
   readonly studOffsetsLdu?: readonly (readonly [x: number, z: number])[];
-  readonly undersideMode: "semantic-tube-seat-grid";
+  /**
+   * Body extents declared outright, for a part whose solid the stud footprint
+   * does not describe. Present only when the part declares them.
+   */
+  readonly bodyBoundsLdu?: LduBounds;
+  /** Connectors the stud grid cannot express, such as a hole through a part. */
+  readonly extraConnectors?: readonly {
+    readonly id: string;
+    readonly kind: ConnectorKind;
+    readonly positionLdu: LduVector3;
+    readonly normal: LduVector3;
+    readonly orientationId: "connector-up" | "connector-down";
+  }[];
+  readonly undersideMode: "semantic-tube-seat-grid" | "none";
   readonly studRadiusLdu: number;
   readonly studHeightLdu: number;
   readonly provenance: SourceProvenance;

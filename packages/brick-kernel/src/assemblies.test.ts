@@ -123,6 +123,57 @@ describe("deriveAssemblies", () => {
     expect(graph.joints).toEqual([]);
   });
 
+  it("keeps an axle in a round hole as its own body, joined by a hinge", () => {
+    // The pair that makes this a mechanism rather than a sculpture: an axle
+    // through a Technic brick's round hole spins, so the two must stay separate
+    // bodies with one revolute joint between them — not welded, and not one
+    // constraint per stud elsewhere in the chassis.
+    const document = documentOf([
+      part("chassis", "builtin:brick-2x4", [0, 0, 0]),
+      part("bearing", "builtin:technic-brick-1x2", [0, -24, 0]),
+      part("shaft", "builtin:axle-1x2", [30, -26, 0]),
+    ]);
+    const validConnections = [
+      edge("weld", "chassis", "stud:0:0", "bearing", "undersideClutch:0:0"),
+      edge("spin", "shaft", "axle:0", "bearing", "pinHole:0"),
+    ];
+
+    const graph = deriveAssemblies(document, { validConnections });
+
+    // The two studded parts weld; the axle stays free.
+    expect(graph.components.map(({ partIds }) => partIds)).toEqual([
+      ["bearing", "chassis"],
+      ["shaft"],
+    ]);
+    expect(graph.joints).toHaveLength(1);
+    expect(graph.joints[0]).toMatchObject({
+      connectionId: "spin",
+      allowedRotation: "continuous",
+    });
+    expect(graph.joints[0]!.componentIds[0]).not.toBe(graph.joints[0]!.componentIds[1]);
+  });
+
+  it("does not count an articulated connection inside one body as a joint", () => {
+    // Both parts are already welded together by another path, so the axle
+    // cannot actually turn: a constraint here would fight the weld.
+    const document = documentOf([
+      part("a", "builtin:technic-brick-1x2", [0, 0, 0]),
+      part("b", "builtin:technic-brick-1x2", [0, -24, 0]),
+      part("shaft", "builtin:axle-1x2", [30, -2, 0]),
+    ]);
+    const graph = deriveAssemblies(document, {
+      validConnections: [
+        edge("weld", "a", "stud:0:0", "b", "undersideClutch:0:0"),
+        edge("spinA", "shaft", "axle:0", "a", "pinHole:0"),
+        edge("spinB", "shaft", "axle:1", "b", "pinHole:0"),
+      ],
+    });
+
+    // Three parts, two bodies, and only the joints that can move.
+    expect(graph.components).toHaveLength(2);
+    expect(graph.joints.map(({ connectionId }) => connectionId)).toEqual(["spinA", "spinB"]);
+  });
+
   it("maps every part to exactly one component", () => {
     const document = documentOf([
       part("a", "builtin:brick-2x4", [0, 0, 0]),

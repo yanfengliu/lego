@@ -1,5 +1,6 @@
 import {
   UPRIGHT_ORIENTATIONS,
+  connectorPairRule,
   getPartDefinition,
   type ConnectorPortDefinition,
   type LduVector3,
@@ -206,21 +207,29 @@ export function createAttachedTransform(
   const orientation = getUprightOrientation(orientationId);
   const attachedNormal = rotateLduVector(orientation.matrix, attachedPort.normal);
 
-  if (
-    targetFrame.kind === attachedPort.kind ||
-    !attachedPort.compatibleKinds.includes(targetFrame.kind)
-  ) {
+  const pair = connectorPairRule(targetFrame.kind, attachedPort.kind);
+  if (pair === undefined) {
     throw new TransformPolicyError(
-      `Incompatible ports: ${targetFrame.kind} and ${attachedPort.kind}`,
+      `Incompatible ports: a ${attachedPort.kind} does not join a ${targetFrame.kind}. ${attachedPort.kind} joins ${attachedPort.compatibleKinds.join(", ") || "nothing"}.`,
     );
   }
 
-  if (
-    attachedNormal[0] !== -targetFrame.normal[0] ||
-    attachedNormal[1] !== -targetFrame.normal[1] ||
-    attachedNormal[2] !== -targetFrame.normal[2]
-  ) {
-    throw new TransformPolicyError("Attached connector normals must face one another");
+  const opposed =
+    attachedNormal[0] === -targetFrame.normal[0] &&
+    attachedNormal[1] === -targetFrame.normal[1] &&
+    attachedNormal[2] === -targetFrame.normal[2];
+  // A hole is open at both ends, so a shaft may enter facing either way and
+  // only the line the axes lie on matters.
+  const sameLine =
+    opposed ||
+    (attachedNormal[0] === targetFrame.normal[0] &&
+      attachedNormal[1] === targetFrame.normal[1] &&
+      attachedNormal[2] === targetFrame.normal[2]);
+  const aligned = pair.axisMatching === "collinear" ? sameLine : opposed;
+  if (!aligned) {
+    throw new TransformPolicyError(
+      `Attached connector axes do not line up: a ${attachedPort.kind} and a ${targetFrame.kind} must be ${pair.axisMatching}, but the attached normal is [${attachedNormal.join(", ")}] against [${targetFrame.normal.join(", ")}].`,
+    );
   }
 
   const rotatedLocalPort = rotateLduVector(orientation.matrix, attachedPort.positionLdu);

@@ -6,6 +6,8 @@ export const PART_FAMILY_ORDER: readonly PartFamily[] = Object.freeze([
   "plate",
   "jumper-plate",
   "wedge-plate",
+  "technic-brick",
+  "axle",
   "tile",
   "grille-tile",
 ]);
@@ -16,6 +18,8 @@ export const PART_FAMILY_LABELS: Readonly<Record<PartFamily, string>> = Object.f
   tile: "Tiles",
   "jumper-plate": "Jumper plates",
   "wedge-plate": "Wedge plates",
+  "technic-brick": "Technic bricks",
+  axle: "Axles",
   "grille-tile": "Grille tiles",
 });
 
