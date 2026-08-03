@@ -504,6 +504,17 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
       "intent": "Potential interoperability reference. Any future import must preserve file-level source, license, and attribution rather than flattening geometry into project-owned data."
     },
     {
+      "id": "ldraw-set-6651557-source-resolution-audit",
+      "category": "external-catalog-source-metadata",
+      "status": "included-metadata-only-attribution-bound",
+      "source": "packages/catalog/src/quarantine/set-6651557-ldraw-source-audit.generated.json, reproduced offline from pinned local official and unofficial LDraw archives",
+      "version": "lego.set-6651557-ldraw-source-audit/1; official archive sha256 6009f2e94204c4d3a63a4c812010b5c90bad8c5acb19b882c859fdac63734eae; unofficial archive sha256 09ec08007203b66e79b1f857aa4804cbee26e1337e177a7c3a87adc1268e44d4; generated audit sha256 cacee99596d0067223977a4cdf967e1aed6cbf072dec1aac8862e486a140cb42",
+      "declaredLicense": "CC-BY-2.0-OR-CC-BY-4.0-PER-FILE-SOURCE-METADATA",
+      "rightsPolicy": "attribution-required-facts-only",
+      "allowedRoles": ["offline source-route evidence", "private reconstruction authoring", "tests"],
+      "intent": "The generated JSON records one resolution-only row for each of the exact 121 required leaves, resolves 117 reviewed LDraw source routes, keeps 3245, 7562, 8172, and 89680 explicitly unresolved, and binds the 439-file transitive graph's root identities, direct references, content hashes, authors, licence expressions, and sizes. It is explicitly blocked from catalog admission, contains no LDraw source bytes or geometry, emits no PartDefinition, is not exported by the public catalog, performs no runtime fetch, and leaves every catalog frame unclaimed. scripts/generate_set_6651557_ldraw_source_audit.py verifies and re-verifies the same open archive handles around bounded traversal and reproduces or checks the source audit offline."
+    },
+    {
       "id": "lego-builder-21066-source-coverage-ledger",
       "category": "external-catalog-source-metadata",
       "status": "included-metadata-only-private-source-authorized",
@@ -590,7 +601,7 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
 - The direct-dependency inventory is checked, but transitive dependency notices and license files are not yet audited.
 - `THIRD_PARTY_NOTICES.md` is generated deterministically from the complete locked npm graph and checked for drift. The distributable-package attribution/exclusion test does not exist yet, so distribution remains blocked until it passes and the packaged license texts are audited.
 - The starter catalog, connector taxonomy, collision model, and derived Three.js geometry are implemented with versioned project-authored provenance; individual geometry recipes carry SHA-256 content hashes and the truth snapshot pins their aggregate interpretation inputs. Synthetic benchmark examples remain an intent record.
-- No raw LDraw geometry, LEGO Builder bundle or XML, LDCad Shadow Library file, research-model code/data/weights, internet-curated model, or booklet page is approved for packaging or training. Minimal source-pinned measurements for the private reconstruction are allowed where this BOM names their exact role; currently that includes official LDraw dimensions, the exact metadata-only 6651557/21066 source-coverage ledger, the 80015 Builder connector fact and its LDCad cross-check, and the local booklet edge fixture.
+- No raw LDraw geometry, LEGO Builder bundle or XML, LDCad Shadow Library file, research-model code/data/weights, internet-curated model, or booklet page is approved for packaging or training. Minimal source-pinned measurements and metadata for the private reconstruction are allowed where this BOM names their exact role; currently that includes official LDraw dimensions, the metadata-only 6651557 LDraw source-resolution audit and 21066 source-coverage ledger, the 80015 Builder connector fact and its LDCad cross-check, and the local booklet edge fixture.
 - The checker verifies manifest, lockfile, and BOM agreement. It does not make legal conclusions, inspect transitive package license texts, prove file-level provenance, or certify trademark compliance.
 
 Gate 0 therefore remains open. This baseline makes additions fail closed and identifies the work required before a distributable package can satisfy the gate exit.

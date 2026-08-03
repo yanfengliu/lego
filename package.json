@@ -23,6 +23,7 @@
     "node:check": "node scripts/check-node-consumers.mjs",
     "pin:generate": "node scripts/update-generation-pin.mjs",
     "pin:check": "node scripts/update-generation-pin.mjs --check",
+    "test:python": "python scripts/set_6651557_ldraw_source_audit_test.py",
     "test": "vitest run",
     "test:browser": "playwright test",
     "test:watch": "vitest",
@@ -30,7 +31,7 @@
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "npm run schema:check && npm run node:check && npm run bom:check && npm run lessons:check && npm run notices:check && npm run format:check && npm run lint && npm run typecheck && npm run test && npm run test:browser && npm run build",
+    "verify": "npm run schema:check && npm run node:check && npm run bom:check && npm run lessons:check && npm run notices:check && npm run format:check && npm run lint && npm run typecheck && npm run test:python && npm run test && npm run test:browser && npm run build",
     "audit:runtime": "npm audit --omit=dev --audit-level=high",
     "audit": "npm audit --audit-level=high",
     "lessons:check": "node scripts/check-lessons.mjs"

@@ -9,6 +9,8 @@ const forbiddenAutomationTokens = [
   "get_model_snapshot",
   "advanceTime",
   "lego.app-observation/1",
+  "lego.set-6651557-ldraw-source-audit/1",
+  "ldraw-source-resolution-only",
 ];
 
 async function javascriptFiles(directory) {

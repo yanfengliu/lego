@@ -6,6 +6,7 @@ test-results
 var
 output
 packages/protocol/src/generated
+packages/catalog/src/quarantine/set-6651557-ldraw-source-audit.generated.json
 AGENTS.md
 CLAUDE.md
 .claude

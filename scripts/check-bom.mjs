@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -417,6 +418,43 @@ for (const asset of bom.dataAssets ?? []) {
     }
     if (asset.allowedRoles.some((role) => role !== "evaluation-only-after-audit")) {
       errors.push(`${asset.id} has a role broader than evaluation-only-after-audit`);
+    }
+  }
+
+  if (asset.id === "ldraw-set-6651557-source-resolution-audit") {
+    const auditPath =
+      "packages/catalog/src/quarantine/set-6651557-ldraw-source-audit.generated.json";
+    const expectedRoles = [
+      "offline source-route evidence",
+      "private reconstruction authoring",
+      "tests",
+    ];
+    if (asset.status !== "included-metadata-only-attribution-bound") {
+      errors.push(`${asset.id} must retain its metadata-only attribution-bound status`);
+    }
+    if (
+      asset.rightsPolicy !== "attribution-required-facts-only" ||
+      asset.declaredLicense !== "CC-BY-2.0-OR-CC-BY-4.0-PER-FILE-SOURCE-METADATA"
+    ) {
+      errors.push(`${asset.id} must retain its file-level LDraw attribution policy`);
+    }
+    if (JSON.stringify(asset.allowedRoles) !== JSON.stringify(expectedRoles)) {
+      errors.push(`${asset.id} must remain closed to its offline authoring and test roles`);
+    }
+    if (!asset.source.startsWith(`${auditPath},`)) {
+      errors.push(`${asset.id} must point at the quarantined generated source audit`);
+    }
+    if (!existsSync(path.join(repositoryRoot, auditPath))) {
+      errors.push(`${asset.id} source audit does not exist: ${auditPath}`);
+    } else {
+      const auditBytes = readFileSync(path.join(repositoryRoot, auditPath));
+      const auditSha256 = createHash("sha256").update(auditBytes).digest("hex");
+      if (!asset.version.includes(`generated audit sha256 ${auditSha256}`)) {
+        errors.push(`${asset.id} version does not bind the live source-audit sha256`);
+      }
+      if (auditBytes.length >= 256 * 1024) {
+        errors.push(`${asset.id} source audit must remain below the 256 KiB review boundary`);
+      }
     }
   }
 }
