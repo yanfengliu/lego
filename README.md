@@ -30,7 +30,6 @@ One digest is pinned rather than derived: the canonical output of a single deter
 - [Product and architecture specification](docs/design/spec.md)
 - [Current implementation threat model](docs/design/threat-model.md)
 - [Learning harness and improvement loops](docs/design/learning-system.md)
-- [Brick assembly loop skill procedure](docs/skills/brick-assembly-loop.md)
 
 ## First vertical slice
 
