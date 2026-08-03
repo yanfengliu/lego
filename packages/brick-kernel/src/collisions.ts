@@ -43,13 +43,15 @@ interface HorizontalCut {
   readonly offset: number;
 }
 
+type Point2 = readonly [x: number, z: number];
+
 interface WorldBody extends PrimitiveBounds {
   readonly kind: "body";
   readonly part: PartInstance;
   readonly primitiveId: string;
   readonly sourceIndex: number;
-  /** Absent for a box, which fills its bounds. */
-  readonly cut?: HorizontalCut;
+  /** Exact convex horizontal section; the vertical extent remains in min/max. */
+  readonly sectionXZ: readonly Point2[];
 }
 
 interface WorldStud extends PrimitiveBounds {
@@ -109,6 +111,31 @@ function transformedBoxBounds(
   };
 }
 
+function rectangleSection(min: LduVector3, max: LduVector3): readonly Point2[] {
+  return [
+    [min[0], min[2]],
+    [max[0], min[2]],
+    [max[0], max[2]],
+    [min[0], max[2]],
+  ];
+}
+
+function transformSection(part: PartInstance, section: readonly Point2[]): readonly Point2[] {
+  return section.map(([x, z]) => {
+    const point = transformLduPoint(part.transform, [x, 0, z]);
+    return [point[0], point[2]] as const;
+  });
+}
+
+function wedgeSection(wedge: CollisionWedge): readonly Point2[] {
+  const [nx, nz] = wedge.cutNormalXZ;
+  return clipByCut(rectangleSection(wedge.minLdu, wedge.maxLdu), {
+    nx,
+    nz,
+    offset: wedge.cutOffsetLdu,
+  });
+}
+
 function makeWorldPrimitives(parts: readonly PartInstance[]): WorldPrimitive[] {
   const primitives: WorldPrimitive[] = [];
 
@@ -122,24 +149,49 @@ function makeWorldPrimitives(parts: readonly PartInstance[]): WorldPrimitive[] {
 
     for (const primitive of definition.collision.primitives) {
       if (primitive.kind === "box") {
+        const sectionXZ = transformSection(
+          part,
+          rectangleSection(primitive.minLdu, primitive.maxLdu),
+        );
         primitives.push({
           kind: "body",
           part,
           primitiveId: primitive.id,
           sourceIndex,
+          sectionXZ,
           ...transformedBoxBounds(part, primitive.minLdu, primitive.maxLdu),
         });
         continue;
       }
 
       if (primitive.kind === "wedge") {
+        const sectionXZ = transformSection(part, wedgeSection(primitive));
         primitives.push({
           kind: "body",
           part,
           primitiveId: primitive.id,
           sourceIndex,
+          sectionXZ,
           ...transformedBoxBounds(part, primitive.minLdu, primitive.maxLdu),
-          cut: transformedCut(part, primitive),
+        });
+        continue;
+      }
+
+      if (primitive.kind === "convex-prism") {
+        const sectionXZ = transformSection(part, primitive.verticesXZLdu);
+        const xs = primitive.verticesXZLdu.map(([x]) => x);
+        const zs = primitive.verticesXZLdu.map(([, z]) => z);
+        primitives.push({
+          kind: "body",
+          part,
+          primitiveId: primitive.id,
+          sourceIndex,
+          sectionXZ,
+          ...transformedBoxBounds(
+            part,
+            [Math.min(...xs), primitive.minYLdu, Math.min(...zs)],
+            [Math.max(...xs), primitive.maxYLdu, Math.max(...zs)],
+          ),
         });
         continue;
       }
@@ -167,13 +219,16 @@ function makeWorldPrimitives(parts: readonly PartInstance[]): WorldPrimitive[] {
         // Its bounding box, which claims the corners a round part does not
         // fill. That refuses a placement a real wheel would allow and never
         // the reverse, which is the safe direction to approximate in.
+        const min: LduVector3 = [center[0] - half[0], center[1] - half[1], center[2] - half[2]];
+        const max: LduVector3 = [center[0] + half[0], center[1] + half[1], center[2] + half[2]];
         primitives.push({
           kind: "body",
           part,
           primitiveId: primitive.id,
           sourceIndex,
-          min: [center[0] - half[0], center[1] - half[1], center[2] - half[2]],
-          max: [center[0] + half[0], center[1] + half[1], center[2] + half[2]],
+          min,
+          max,
+          sectionXZ: rectangleSection(min, max),
         });
         continue;
       }
@@ -274,32 +329,8 @@ function collectAllowedPenetrations(
  * normal as a direction — the difference of two transformed points — and its
  * offset is that normal dotted with any transformed point on the plane.
  */
-function transformedCut(part: PartInstance, wedge: CollisionWedge): HorizontalCut {
-  const [nx, nz] = wedge.cutNormalXZ;
-  const origin = transformLduPoint(part.transform, [0, 0, 0]);
-  const tip = transformLduPoint(part.transform, [nx, 0, nz]);
-  const worldNx = tip[0] - origin[0];
-  const worldNz = tip[2] - origin[2];
-  const lengthSquared = nx * nx + nz * nz;
-  const onPlane = transformLduPoint(part.transform, [
-    (nx * wedge.cutOffsetLdu) / lengthSquared,
-    0,
-    (nz * wedge.cutOffsetLdu) / lengthSquared,
-  ]);
-  return { nx: worldNx, nz: worldNz, offset: worldNx * onPlane[0] + worldNz * onPlane[2] };
-}
-
-/** Whether any of a circle reaches the solid side of a sloped face. */
-function cutAdmitsCircle(cut: HorizontalCut, x: number, z: number, radius: number): boolean {
-  const length = Math.hypot(cut.nx, cut.nz);
-  if (length === 0) return true;
-  return (cut.nx * x + cut.nz * z - cut.offset) / length < radius;
-}
-
 /** Area below which a polygon is a seam rather than an overlap. */
 const OVERLAP_AREA_EPSILON = 1e-6;
-
-type Point2 = readonly [number, number];
 
 /** Sutherland-Hodgman: keep the part of the polygon inside `nx*x + nz*z <= offset`. */
 function clipByCut(polygon: readonly Point2[], cut: HorizontalCut): readonly Point2[] {
@@ -333,6 +364,67 @@ function polygonArea(polygon: readonly Point2[]): number {
   return Math.abs(total) / 2;
 }
 
+function signedPolygonArea(polygon: readonly Point2[]): number {
+  let total = 0;
+  for (let index = 0; index < polygon.length; index += 1) {
+    const current = polygon[index]!;
+    const next = polygon[(index + 1) % polygon.length]!;
+    total += current[0] * next[1] - next[0] * current[1];
+  }
+  return total / 2;
+}
+
+function counterClockwise(polygon: readonly Point2[]): readonly Point2[] {
+  return signedPolygonArea(polygon) < 0 ? [...polygon].reverse() : polygon;
+}
+
+function edgeSide(edgeStart: Point2, edgeEnd: Point2, point: Point2): number {
+  return (
+    (edgeEnd[0] - edgeStart[0]) * (point[1] - edgeStart[1]) -
+    (edgeEnd[1] - edgeStart[1]) * (point[0] - edgeStart[0])
+  );
+}
+
+/** Sutherland-Hodgman clipping against one directed edge of a CCW polygon. */
+function clipByEdge(
+  polygon: readonly Point2[],
+  edgeStart: Point2,
+  edgeEnd: Point2,
+): readonly Point2[] {
+  const clipped: Point2[] = [];
+  for (let index = 0; index < polygon.length; index += 1) {
+    const current = polygon[index]!;
+    const previous = polygon[(index + polygon.length - 1) % polygon.length]!;
+    const currentSide = edgeSide(edgeStart, edgeEnd, current);
+    const previousSide = edgeSide(edgeStart, edgeEnd, previous);
+    const currentIn = currentSide >= 0;
+    const previousIn = previousSide >= 0;
+    if (currentIn !== previousIn) {
+      const denominator = previousSide - currentSide;
+      const t = denominator === 0 ? 0 : previousSide / denominator;
+      clipped.push([
+        previous[0] + t * (current[0] - previous[0]),
+        previous[1] + t * (current[1] - previous[1]),
+      ]);
+    }
+    if (currentIn) clipped.push(current);
+  }
+  return clipped;
+}
+
+function convexIntersection(left: readonly Point2[], right: readonly Point2[]): readonly Point2[] {
+  let intersection = counterClockwise(left);
+  const clipper = counterClockwise(right);
+  for (let index = 0; index < clipper.length && intersection.length > 0; index += 1) {
+    intersection = clipByEdge(
+      intersection,
+      clipper[index]!,
+      clipper[(index + 1) % clipper.length]!,
+    );
+  }
+  return intersection;
+}
+
 /**
  * Whether two bodies share space, exactly.
  *
@@ -342,20 +434,8 @@ function polygonArea(polygon: readonly Point2[]): number {
  * than conservative: the wedge really is its rectangle minus that half-plane.
  */
 function bodiesOverlap(left: WorldBody, right: WorldBody): boolean {
-  if (left.cut === undefined && right.cut === undefined) return true;
-  const minX = Math.max(left.min[0], right.min[0]);
-  const maxX = Math.min(left.max[0], right.max[0]);
-  const minZ = Math.max(left.min[2], right.min[2]);
-  const maxZ = Math.min(left.max[2], right.max[2]);
-  let polygon: readonly Point2[] = [
-    [minX, minZ],
-    [maxX, minZ],
-    [maxX, maxZ],
-    [minX, maxZ],
-  ];
-  if (left.cut) polygon = clipByCut(polygon, left.cut);
-  if (right.cut) polygon = clipByCut(polygon, right.cut);
-  return polygon.length >= 3 && polygonArea(polygon) > OVERLAP_AREA_EPSILON;
+  const intersection = convexIntersection(left.sectionXZ, right.sectionXZ);
+  return intersection.length >= 3 && polygonArea(intersection) > OVERLAP_AREA_EPSILON;
 }
 
 function boundsOverlap(left: PrimitiveBounds, right: PrimitiveBounds): boolean {
@@ -373,16 +453,34 @@ function studIntersectsBody(stud: WorldStud, body: WorldBody): boolean {
   if (stud.min[1] >= body.max[1] || body.min[1] >= stud.max[1]) {
     return false;
   }
-  // A stud over the empty corner of a wedge is over nothing, however far inside
-  // the wedge's bounding box it sits.
-  if (body.cut && !cutAdmitsCircle(body.cut, stud.center[0], stud.center[2], stud.radiusLdu)) {
-    return false;
+  const section = counterClockwise(body.sectionXZ);
+  const point: Point2 = [stud.center[0], stud.center[2]];
+  if (
+    section.every(
+      (start, index) => edgeSide(start, section[(index + 1) % section.length]!, point) >= 0,
+    )
+  ) {
+    return true;
   }
-  const closestX = Math.max(body.min[0], Math.min(stud.center[0], body.max[0]));
-  const closestZ = Math.max(body.min[2], Math.min(stud.center[2], body.max[2]));
-  const dx = stud.center[0] - closestX;
-  const dz = stud.center[2] - closestZ;
-  return dx * dx + dz * dz < stud.radiusLdu * stud.radiusLdu;
+  const radiusSquared = stud.radiusLdu * stud.radiusLdu;
+  return section.some((start, index) => {
+    const end = section[(index + 1) % section.length]!;
+    const dx = end[0] - start[0];
+    const dz = end[1] - start[1];
+    const lengthSquared = dx * dx + dz * dz;
+    const t =
+      lengthSquared === 0
+        ? 0
+        : Math.max(
+            0,
+            Math.min(1, ((point[0] - start[0]) * dx + (point[1] - start[1]) * dz) / lengthSquared),
+          );
+    const closestX = start[0] + t * dx;
+    const closestZ = start[1] + t * dz;
+    const awayX = point[0] - closestX;
+    const awayZ = point[1] - closestZ;
+    return awayX * awayX + awayZ * awayZ < radiusSquared;
+  });
 }
 
 function studsIntersect(left: WorldStud, right: WorldStud): boolean {
@@ -541,7 +639,7 @@ function primitivesCollide(
   right: WorldPrimitive,
   allowedPenetrations: ReadonlyMap<string, readonly AllowedPenetration[]>,
 ): boolean {
-  if (left.kind === "body" && right.kind === "body") return true;
+  if (left.kind === "body" && right.kind === "body") return bodiesOverlap(left, right);
   if (left.kind === "stud" && right.kind === "stud") return studsIntersect(left, right);
   const stud = left.kind === "stud" ? left : (right as WorldStud);
   const body = left.kind === "body" ? left : (right as WorldBody);

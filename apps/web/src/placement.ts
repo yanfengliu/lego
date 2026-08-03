@@ -33,6 +33,9 @@ export interface WorldFootprint {
   /** Stud columns along world Z after the part's yaw is applied. */
   readonly studsZ: number;
   readonly heightLdu: number;
+  /** Legal world-origin residue modulo one stud pitch on each lateral axis. */
+  readonly originOffsetX: number;
+  readonly originOffsetZ: number;
 }
 
 export interface LduBox {
@@ -62,20 +65,35 @@ export function worldFootprint(definition: PartDefinition, orientationId: string
   const { quarterTurns } = getUprightOrientation(orientationId);
   const swapped = quarterTurns % 2 === 1;
   const { widthStuds, lengthStuds, heightLdu } = definition.dimensions;
+  const [gridCenterX, gridCenterZ] = definition.geometry.connectorGridCenterLdu ?? [0, 0];
+  const localFirst: LduVector3 = [
+    gridCenterX - ((widthStuds - 1) * STUD_PITCH_LDU) / 2,
+    0,
+    gridCenterZ - ((lengthStuds - 1) * STUD_PITCH_LDU) / 2,
+  ];
+  const rotatedFirst = transformLduPoint({ positionLdu: [0, 0, 0], orientationId }, localFirst);
+  const originOffset = (firstConnectorCoordinate: number): number => {
+    const residue =
+      (((LATERAL_SNAP_LDU - firstConnectorCoordinate) % STUD_PITCH_LDU) + STUD_PITCH_LDU) %
+      STUD_PITCH_LDU;
+    return Math.abs(residue - STUD_PITCH_LDU) < 1e-9 ? 0 : residue;
+  };
   return {
     studsX: swapped ? lengthStuds : widthStuds,
     studsZ: swapped ? widthStuds : lengthStuds,
     heightLdu,
+    originOffsetX: originOffset(rotatedFirst[0]),
+    originOffsetZ: originOffset(rotatedFirst[2]),
   };
 }
 
 /**
- * Stud centres live on the half-stud offset lattice (20n + 10), so an even
- * footprint centres on a grid line and an odd one centres inside a cell. This
- * keeps every free placement stud-aligned with everything already on the plate.
+ * Stud centres live on the half-stud offset lattice (20n + 10). Most parts'
+ * origin residue follows footprint parity; an asymmetric source frame can
+ * declare another connector-grid centre, and `worldFootprint` carries its
+ * rotated residue here without silently recentering the part.
  */
-function snapLateral(raw: number, studs: number): number {
-  const offset = studs % 2 === 0 ? 0 : LATERAL_SNAP_LDU;
+function snapLateral(raw: number, offset: number): number {
   return Math.round((raw - offset) / STUD_PITCH_LDU) * STUD_PITCH_LDU + offset;
 }
 
@@ -140,9 +158,9 @@ export function snapPlacementOrigin({
   const definition = requireDefinition(catalogPartId);
   const footprint = worldFootprint(definition, orientationId);
   return [
-    snapLateral(rawLdu[0], footprint.studsX),
+    snapLateral(rawLdu[0], footprint.originOffsetX),
     snapSupportSurface(supportUndersideLdu) - footprint.heightLdu / 2,
-    snapLateral(rawLdu[2], footprint.studsZ),
+    snapLateral(rawLdu[2], footprint.originOffsetZ),
   ];
 }
 

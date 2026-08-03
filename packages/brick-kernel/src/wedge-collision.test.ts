@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { findCatalogCollisions } from "./collisions.ts";
+import { createCollisionWorld, findCatalogCollisions } from "./collisions.ts";
 import { transformLduPoint } from "./transforms.ts";
 import type { PartInstance } from "@lego-studio/protocol";
 
@@ -67,6 +67,15 @@ describe("wedge body collision", () => {
     const box = part("wedge", "builtin:plate-2x4", [0, 0, 0]);
 
     expect(codesFor([box, inEmptyCorner])).toContain("PART_BODY_COLLISION");
+  });
+
+  it("gives placement search the same empty-corner verdict as full validation", () => {
+    const world = createCollisionWorld([left]);
+
+    expect(world.findCollisionsWith(inEmptyCorner, [])).toEqual([]);
+    expect(world.findCollisionsWith(onTheSpine, []).map(({ code }) => code)).toContain(
+      "PART_BODY_COLLISION",
+    );
   });
 
   it("mirrors for the right-hand variant", () => {

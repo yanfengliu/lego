@@ -53,6 +53,42 @@ describe("partMassProperties", () => {
     expect(wedge.solidVolumeLdu3).toBeLessThan(plate.solidVolumeLdu3);
   });
 
+  it("measures conservative arc prisms exactly without counting their shared faces twice", () => {
+    for (const id of ["builtin:corner-plate-4x4-round", "builtin:corner-plate-5x5-quarter-ring"]) {
+      const part = require(id);
+      const feature = part.geometry.bodyArc!;
+      const height = part.bodyBoundsLdu.max[1] - part.bodyBoundsLdu.min[1];
+      const delta =
+        ((feature.endAngleDegrees - feature.startAngleDegrees) * Math.PI) /
+        180 /
+        feature.segmentCount;
+      const tangentOuterRadius = feature.outerRadiusLdu / Math.cos(delta / 2);
+      const conservativeSectorArea =
+        feature.segmentCount *
+        0.5 *
+        (tangentOuterRadius ** 2 - feature.innerRadiusLdu ** 2) *
+        Math.sin(delta);
+      const capArea = (feature.capRectanglesLdu ?? []).reduce(
+        (total, cap) =>
+          total + (cap.maxXZLdu[0] - cap.minXZLdu[0]) * (cap.maxXZLdu[1] - cap.minXZLdu[1]),
+        0,
+      );
+      const studCount = part.connectors.filter(({ kind }) => kind === "stud").length;
+      const studVolume = studCount * Math.PI * 6 ** 2 * 4;
+      const measuredBodyVolume = partMassProperties(part).solidVolumeLdu3 - studVolume;
+      const expectedBodyVolume = (conservativeSectorArea + capArea) * height;
+      const exactSectorArea =
+        0.5 *
+        (feature.outerRadiusLdu ** 2 - feature.innerRadiusLdu ** 2) *
+        (((feature.endAngleDegrees - feature.startAngleDegrees) * Math.PI) / 180);
+      const exactSourceVolume = (exactSectorArea + capArea) * height;
+
+      expect(measuredBodyVolume).toBeCloseTo(expectedBodyVolume, 7);
+      expect(measuredBodyVolume).toBeGreaterThan(exactSourceVolume);
+      expect(measuredBodyVolume / exactSourceVolume).toBeLessThan(1.02);
+    }
+  });
+
   it("estimates a 2x4 brick in the right order of magnitude, and says it is high", () => {
     // A real 2x4 brick is about 2.4 g. The model is solid where the part is
     // hollow, so the estimate lands near double — close enough to be useful for

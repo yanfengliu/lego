@@ -93,11 +93,27 @@ function wedgeCorners(shape: Extract<BodyShape, { kind: "wedge" }>): [number, nu
   return section;
 }
 
+const finiteWedgeInput = (shape: Extract<BodyShape, { kind: "wedge" }>): boolean =>
+  [...shape.halfExtentsLdu, ...shape.centerLdu, ...shape.cutNormalXZ, shape.cutOffsetLdu].every(
+    Number.isFinite,
+  ) &&
+  shape.halfExtentsLdu.every((extent) => extent > 0) &&
+  Math.hypot(...shape.cutNormalXZ) > 0;
+
+const doubledPlanArea = (vertices: readonly (readonly [number, number])[]): number =>
+  Math.abs(
+    vertices.reduce((sum, [x, z], index) => {
+      const [nextX, nextZ] = vertices[(index + 1) % vertices.length]!;
+      return sum + x * nextZ - nextX * z;
+    }, 0),
+  );
+
 function addCollider(
   rapier: Rapier,
   world: InstanceType<Rapier["World"]>,
   body: ReturnType<InstanceType<Rapier["World"]>["createRigidBody"]>,
   shape: BodyShape,
+  bodyId: string,
 ): void {
   if (shape.kind === "cylinder") {
     const descriptor = rapier.ColliderDesc.cylinder(
@@ -124,8 +140,42 @@ function addCollider(
     return;
   }
 
+  if (shape.kind === "convex-prism") {
+    const points = new Float32Array(shape.verticesXZLdu.length * 6);
+    shape.verticesXZLdu.forEach(([x, z], index) => {
+      points.set(toSimulation([x, shape.minYLdu, z]), index * 3);
+      points.set(toSimulation([x, shape.maxYLdu, z]), (shape.verticesXZLdu.length + index) * 3);
+    });
+    const failureMessage = `Rapier rejected the convex-prism collider for body ${bodyId}: ${shape.verticesXZLdu.length} plan vertices with Y bounds [${shape.minYLdu}, ${shape.maxYLdu}] did not form a finite three-dimensional hull; provide at least three non-collinear finite plan vertices and distinct finite Y bounds`;
+    let failureCause: unknown;
+    try {
+      const hull = rapier.ColliderDesc.convexHull(points);
+      if (hull) {
+        world.createCollider(hull.setDensity(0), body);
+        return;
+      }
+    } catch (error) {
+      failureCause = error;
+    }
+    throw new Error(failureMessage, { cause: failureCause });
+  }
+
+  const inputSummary = `half-extents [${shape.halfExtentsLdu.join(", ")}], center [${shape.centerLdu.join(", ")}], cut normal [${shape.cutNormalXZ.join(", ")}], and cut offset ${shape.cutOffsetLdu}`;
+  if (!finiteWedgeInput(shape)) {
+    throw new Error(
+      `Rapier could not build the wedge collider for body ${bodyId}: ${inputSummary} must all be finite, every half-extent must be positive, and the cut normal must be non-zero`,
+    );
+  }
   const section = wedgeCorners(shape);
-  if (section.length < 3) return;
+  if (
+    section.length < 3 ||
+    !section.every((vertex) => vertex.every(Number.isFinite)) ||
+    doubledPlanArea(section) === 0
+  ) {
+    throw new Error(
+      `Rapier could not build the wedge collider for body ${bodyId}: clipping ${inputSummary} left ${section.length} plan vertices without finite non-zero area; adjust cutNormalXZ and cutOffsetLdu so at least three non-collinear finite corners remain`,
+    );
+  }
   const topY = shape.centerLdu[1] - shape.halfExtentsLdu[1];
   const bottomY = shape.centerLdu[1] + shape.halfExtentsLdu[1];
   const points = new Float32Array(section.length * 6);
@@ -133,9 +183,18 @@ function addCollider(
     points.set(toSimulation([x, topY, z]), index * 3);
     points.set(toSimulation([x, bottomY, z]), (section.length + index) * 3);
   });
-  const hull = rapier.ColliderDesc.convexHull(points);
-  if (!hull) return;
-  world.createCollider(hull.setDensity(0), body);
+  const failureMessage = `Rapier rejected the wedge collider for body ${bodyId}: ${section.length} plan vertices and vertical bounds [${topY}, ${bottomY}] did not form a finite three-dimensional hull; provide non-collinear finite vertices and distinct finite vertical bounds`;
+  let failureCause: unknown;
+  try {
+    const hull = rapier.ColliderDesc.convexHull(points);
+    if (hull) {
+      world.createCollider(hull.setDensity(0), body);
+      return;
+    }
+  } catch (error) {
+    failureCause = error;
+  }
+  throw new Error(failureMessage, { cause: failureCause });
 }
 
 export async function createSimulation(
@@ -149,63 +208,69 @@ export async function createSimulation(
   const fixed = new Set(options.fixedBodyIds ?? []);
   const bodies = new Map<string, ReturnType<typeof world.createRigidBody>>();
 
-  for (const descriptor of scene.bodies) {
-    const builder = fixed.has(descriptor.id)
-      ? rapier.RigidBodyDesc.fixed()
-      : rapier.RigidBodyDesc.dynamic();
-    const body = world.createRigidBody(
-      builder.setTranslation(...toSimulation(descriptor.originLdu)),
-    );
-    for (const shape of descriptor.shapes) addCollider(rapier, world, body, shape);
-    // Colliders carry no density, so the body's whole mass is stated here and
-    // is exactly what the catalog says. Rapier needs a non-zero mass for a
-    // dynamic body, so a massless one would silently never move.
-    if (!fixed.has(descriptor.id)) {
-      body.setAdditionalMass(Math.max(descriptor.massGrams, 1e-6), true);
-      // Bricks are small and fall fast, so a step can carry one clean through
-      // whatever it was about to land on.
-      body.enableCcd(true);
+  try {
+    for (const descriptor of scene.bodies) {
+      const builder = fixed.has(descriptor.id)
+        ? rapier.RigidBodyDesc.fixed()
+        : rapier.RigidBodyDesc.dynamic();
+      const body = world.createRigidBody(
+        builder.setTranslation(...toSimulation(descriptor.originLdu)),
+      );
+      for (const shape of descriptor.shapes) addCollider(rapier, world, body, shape, descriptor.id);
+      // Colliders carry no density, so the body's whole mass is stated here and
+      // is exactly what the catalog says. Rapier needs a non-zero mass for a
+      // dynamic body, so a massless one would silently never move.
+      if (!fixed.has(descriptor.id)) {
+        body.setAdditionalMass(Math.max(descriptor.massGrams, 1e-6), true);
+        // Bricks are small and fall fast, so a step can carry one clean through
+        // whatever it was about to land on.
+        body.enableCcd(true);
+      }
+      bodies.set(descriptor.id, body);
     }
-    bodies.set(descriptor.id, body);
-  }
 
-  if (options.groundYLdu !== undefined) {
-    // A slab, not a sheet. The first version was 20 micrometres thick and a
-    // brick dropped from 8 cm moves 2 cm in a step, so it passed straight
-    // through and kept going. Deep enough that nothing can cross it in one
-    // step, positioned so its top face is the plate.
-    const halfDepth = 50;
-    const surfaceY = toSimulation([0, options.groundYLdu, 0])[1];
-    const ground = world.createRigidBody(
-      rapier.RigidBodyDesc.fixed().setTranslation(0, surfaceY - halfDepth, 0),
-    );
-    world.createCollider(rapier.ColliderDesc.cuboid(1000, halfDepth, 1000), ground);
-  }
+    if (options.groundYLdu !== undefined) {
+      // A slab, not a sheet. The first version was 20 micrometres thick and a
+      // brick dropped from 8 cm moves 2 cm in a step, so it passed straight
+      // through and kept going. Deep enough that nothing can cross it in one
+      // step, positioned so its top face is the plate.
+      const halfDepth = 50;
+      const surfaceY = toSimulation([0, options.groundYLdu, 0])[1];
+      const ground = world.createRigidBody(
+        rapier.RigidBodyDesc.fixed().setTranslation(0, surfaceY - halfDepth, 0),
+      );
+      world.createCollider(rapier.ColliderDesc.cuboid(1000, halfDepth, 1000), ground);
+    }
 
-  for (const joint of scene.joints) {
-    const a = bodies.get(joint.bodyIds[0]);
-    const b = bodies.get(joint.bodyIds[1]);
-    if (!a || !b) continue;
-    const [ax, ay, az] = toSimulation(joint.anchorsLdu[0]);
-    const [bx, by, bz] = toSimulation(joint.anchorsLdu[1]);
-    // A direction, so it is scaled but not flipped in the same way a point is;
-    // normalising keeps Rapier from rejecting a zero-length axis.
-    const axis = toSimulation(joint.axisLdu);
-    const length = Math.hypot(axis[0], axis[1], axis[2]) || 1;
-    const params =
-      joint.allowedRotation === "continuous"
-        ? rapier.JointData.revolute(
-            { x: ax, y: ay, z: az },
-            { x: bx, y: by, z: bz },
-            { x: axis[0] / length, y: axis[1] / length, z: axis[2] / length },
-          )
-        : rapier.JointData.fixed(
-            { x: ax, y: ay, z: az },
-            { w: 1, x: 0, y: 0, z: 0 },
-            { x: bx, y: by, z: bz },
-            { w: 1, x: 0, y: 0, z: 0 },
-          );
-    world.createImpulseJoint(params, a, b, true);
+    for (const joint of scene.joints) {
+      const a = bodies.get(joint.bodyIds[0]);
+      const b = bodies.get(joint.bodyIds[1]);
+      if (!a || !b) continue;
+      const [ax, ay, az] = toSimulation(joint.anchorsLdu[0]);
+      const [bx, by, bz] = toSimulation(joint.anchorsLdu[1]);
+      // A direction, so it is scaled but not flipped in the same way a point is;
+      // normalising keeps Rapier from rejecting a zero-length axis.
+      const axis = toSimulation(joint.axisLdu);
+      const length = Math.hypot(axis[0], axis[1], axis[2]) || 1;
+      const params =
+        joint.allowedRotation === "continuous"
+          ? rapier.JointData.revolute(
+              { x: ax, y: ay, z: az },
+              { x: bx, y: by, z: bz },
+              { x: axis[0] / length, y: axis[1] / length, z: axis[2] / length },
+            )
+          : rapier.JointData.fixed(
+              { x: ax, y: ay, z: az },
+              { w: 1, x: 0, y: 0, z: 0 },
+              { x: bx, y: by, z: bz },
+              { w: 1, x: 0, y: 0, z: 0 },
+            );
+      world.createImpulseJoint(params, a, b, true);
+    }
+  } catch (error) {
+    world.free();
+    bodies.clear();
+    throw error;
   }
 
   let disposed = false;

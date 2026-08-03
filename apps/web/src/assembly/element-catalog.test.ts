@@ -47,18 +47,37 @@ describe("resolveElementPart", () => {
     expect(resolved.note).toContain("print suffix");
   });
 
+  it("resolves all six measured booklet additions without substitution", () => {
+    const additions = [
+      ["91988", "Plate 2 x 14", "builtin:plate-2x14"],
+      ["30503", "Wedge Plate 4 x 4 Cut Corner", "builtin:wedge-plate-4x4-cut-corner"],
+      ["6106", "Wedge Plate 6 x 6 Cut Corner", "builtin:wedge-plate-6x6-cut-corner"],
+      ["54383", "Wedge Plate 3 x 6 Right", "builtin:wedge-plate-3x6-right"],
+      ["30565", "Plate Round Corner 4 x 4", "builtin:corner-plate-4x4-round"],
+      ["80015", "Plate 5 x 5 Quarter Ring", "builtin:corner-plate-5x5-quarter-ring"],
+    ] as const;
+
+    for (const [partNum, name, catalogPartId] of additions) {
+      expect(resolveElementPart(element(partNum, name))).toMatchObject({
+        outcome: "exact",
+        catalogPartId,
+        note: null,
+      });
+    }
+  });
+
   it("refuses a shape the catalog does not have, naming it and the fix", () => {
     const resolved = resolveElementPart({
-      elementId: "6101857",
-      partNum: "30565",
-      name: "Plate Round Corner 4 x 4",
+      elementId: "element-987654",
+      partNum: "987654",
+      name: "Invented impossible plate",
       colorId: 0,
     });
     expect(resolved.outcome).toBe("absent");
     expect(resolved.catalogPartId).toBeNull();
-    expect(resolved.note).toContain("30565");
-    expect(resolved.note).toContain("Plate Round Corner 4 x 4");
-    expect(resolved.note).toContain("6101857");
+    expect(resolved.note).toContain("987654");
+    expect(resolved.note).toContain("Invented impossible plate");
+    expect(resolved.note).toContain("element-987654");
     expect(resolved.note).toContain("PART_BLUEPRINTS");
   });
 
@@ -108,20 +127,20 @@ describe("summarizeCatalogCoverage", () => {
   it("counts a step covered only when every one of its parts resolves", () => {
     const coverage = summarizeCatalogCoverage([
       requirement(1, "3020", "Plate 2 x 4"),
-      requirement(1, "30565", "Plate Round Corner 4 x 4"),
+      requirement(1, "987654", "Invented impossible plate"),
       requirement(2, "3022", "Plate 2 x 2", 3),
     ]);
     expect(coverage.stepsCovered).toBe(1);
     expect(coverage.stepsTotal).toBe(2);
     expect(coverage.firstCoveredStep).toBe(2);
     expect(coverage.steps[0]!.missing).toEqual([
-      "30565 (Plate Round Corner 4 x 4, element element-30565)",
+      "987654 (Invented impossible plate, element element-987654)",
     ]);
   });
 
   it("reports the covered prefix, which is what a build can actually reach", () => {
     const blockedFirst = summarizeCatalogCoverage([
-      requirement(1, "30565", "Plate Round Corner 4 x 4"),
+      requirement(1, "987654", "Invented impossible plate"),
       requirement(2, "3020", "Plate 2 x 4"),
       requirement(3, "3022", "Plate 2 x 2"),
     ]);
@@ -131,19 +150,19 @@ describe("summarizeCatalogCoverage", () => {
     const openRun = summarizeCatalogCoverage([
       requirement(1, "3020", "Plate 2 x 4"),
       requirement(2, "3022", "Plate 2 x 2"),
-      requirement(3, "30565", "Plate Round Corner 4 x 4"),
+      requirement(3, "987654", "Invented impossible plate"),
     ]);
     expect(openRun.coveredPrefixLength).toBe(2);
   });
 
   it("ranks the missing designs by the pieces they block", () => {
     const coverage = summarizeCatalogCoverage([
-      requirement(1, "30565", "Plate Round Corner 4 x 4", 1),
-      requirement(2, "91988", "Plate 2 x 14", 4),
-      requirement(3, "91988", "Plate 2 x 14", 2),
+      requirement(1, "987654", "Invented impossible plate", 1),
+      requirement(2, "987655", "Invented impossible brick", 4),
+      requirement(3, "987655", "Invented impossible brick", 2),
     ]);
     expect(coverage.missingDesigns[0]).toMatchObject({
-      partNum: "91988",
+      partNum: "987655",
       callouts: 2,
       pieces: 6,
       steps: [2, 3],

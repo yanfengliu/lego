@@ -1,9 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   createEmptyBrickDocument,
   deriveAssemblies,
   derivePhysicsScene,
+  type PhysicsScene,
 } from "@lego-studio/brick-kernel";
 import type { BrickDocumentV1, ConnectionEdge, PartInstance } from "@lego-studio/protocol";
 
@@ -61,6 +62,74 @@ const settle = (simulation: { step(seconds: number): void }, steps = 60) => {
 };
 
 describe("createSimulation", () => {
+  it("reports which convex prism Rapier rejected and how to fix it", async () => {
+    const invalidScene: PhysicsScene = {
+      schemaVersion: "lego.compound-bodies/2",
+      bodies: [
+        {
+          id: "assembly:degenerate-ring",
+          partIds: ["degenerate-ring"],
+          originLdu: [0, 0, 0],
+          massGrams: 1,
+          shapes: [
+            {
+              kind: "convex-prism",
+              verticesXZLdu: [
+                [0, 0],
+                [0, 0],
+                [0, 0],
+              ],
+              minYLdu: -4,
+              maxYLdu: 4,
+              centerLdu: [0, 0, 0],
+            },
+          ],
+        },
+      ],
+      joints: [],
+    };
+
+    await expect(createSimulation(invalidScene)).rejects.toThrow(
+      "Rapier rejected the convex-prism collider for body assembly:degenerate-ring: 3 plan vertices with Y bounds [-4, 4] did not form a finite three-dimensional hull; provide at least three non-collinear finite plan vertices and distinct finite Y bounds",
+    );
+  }, 30_000);
+
+  it("rejects malformed wedges with actionable context and frees the partial world", async () => {
+    const rapier = await import("@dimforge/rapier3d-compat");
+    await rapier.init();
+    const free = vi.spyOn(rapier.World.prototype, "free");
+    const invalidScene: PhysicsScene = {
+      schemaVersion: "lego.compound-bodies/2",
+      bodies: [
+        {
+          id: "assembly:non-finite-wedge",
+          partIds: ["non-finite-wedge"],
+          originLdu: [0, 0, 0],
+          massGrams: 1,
+          shapes: [
+            {
+              kind: "wedge",
+              halfExtentsLdu: [Number.POSITIVE_INFINITY, 4, 40],
+              centerLdu: [0, 0, 0],
+              cutNormalXZ: [1, -1],
+              cutOffsetLdu: 20,
+            },
+          ],
+        },
+      ],
+      joints: [],
+    };
+
+    try {
+      await expect(createSimulation(invalidScene)).rejects.toThrow(
+        "Rapier could not build the wedge collider for body assembly:non-finite-wedge: half-extents [Infinity, 4, 40], center [0, 0, 0], cut normal [1, -1], and cut offset 20 must all be finite, every half-extent must be positive, and the cut normal must be non-zero",
+      );
+      expect(free).toHaveBeenCalledTimes(1);
+    } finally {
+      free.mockRestore();
+    }
+  }, 30_000);
+
   it("drops a body downward, not upward", async () => {
     // LDU is Y-down, so falling means y increases.
     const simulation = await createSimulation(
@@ -87,6 +156,19 @@ describe("createSimulation", () => {
     // Came to rest above the plate rather than falling through it.
     expect(landed).toBeLessThan(12);
     expect(later).toBeCloseTo(landed, 0);
+    simulation.dispose();
+  }, 30_000);
+
+  it("builds and simulates the quarter-ring convex hulls", async () => {
+    const scene = sceneOf(
+      [part("ring", "builtin:corner-plate-5x5-quarter-ring", [0, -100, 0])],
+      [],
+    );
+    expect(scene.bodies[0]!.shapes.filter(({ kind }) => kind === "convex-prism")).toHaveLength(14);
+
+    const simulation = await createSimulation(scene, { groundYLdu: 12 });
+    settle(simulation, 180);
+    expect(simulation.poses().get("assembly:ring")!.positionLdu[1]).toBeLessThan(12);
     simulation.dispose();
   }, 30_000);
 

@@ -27,7 +27,7 @@ import { getUprightOrientation } from "./transforms.ts";
  * assert on it directly.
  */
 
-export const COMPOUND_BODY_SCHEMA_VERSION = "lego.compound-bodies/1" as const;
+export const COMPOUND_BODY_SCHEMA_VERSION = "lego.compound-bodies/2" as const;
 
 export interface BodyBoxShape {
   readonly kind: "box";
@@ -52,7 +52,17 @@ export interface BodyCylinderShape {
   readonly heightLdu: number;
 }
 
-export type BodyShape = BodyBoxShape | BodyWedgeShape | BodyCylinderShape;
+export interface BodyConvexPrismShape {
+  readonly kind: "convex-prism";
+  /** Polygon and vertical limits in the same frame as the containing body. */
+  readonly verticesXZLdu: readonly (readonly [x: number, z: number])[];
+  readonly minYLdu: number;
+  readonly maxYLdu: number;
+  /** Geometric centre for inspection and parity with the other shape records. */
+  readonly centerLdu: LduVector3;
+}
+
+export type BodyShape = BodyBoxShape | BodyWedgeShape | BodyCylinderShape | BodyConvexPrismShape;
 
 export interface CompoundBody {
   readonly id: string;
@@ -98,6 +108,28 @@ function worldShape(part: PartInstance, primitive: CollisionPrimitive): BodyShap
       centerLdu: transformLduPoint(part.transform, primitive.centerLdu),
       radiusLdu: primitive.radiusLdu,
       heightLdu: primitive.heightLdu,
+    };
+  }
+
+  if (primitive.kind === "convex-prism") {
+    const verticesXZLdu = primitive.verticesXZLdu.map(([x, z]) => {
+      const point = transformLduPoint(part.transform, [x, 0, z]);
+      return [point[0], point[2]] as const;
+    });
+    const transformedMinY = transformLduPoint(part.transform, [0, primitive.minYLdu, 0])[1];
+    const transformedMaxY = transformLduPoint(part.transform, [0, primitive.maxYLdu, 0])[1];
+    const minYLdu = Math.min(transformedMinY, transformedMaxY);
+    const maxYLdu = Math.max(transformedMinY, transformedMaxY);
+    return {
+      kind: "convex-prism",
+      verticesXZLdu,
+      minYLdu,
+      maxYLdu,
+      centerLdu: [
+        verticesXZLdu.reduce((total, [x]) => total + x, 0) / verticesXZLdu.length,
+        (minYLdu + maxYLdu) / 2,
+        verticesXZLdu.reduce((total, [, z]) => total + z, 0) / verticesXZLdu.length,
+      ],
     };
   }
 
@@ -148,6 +180,15 @@ function shapeInBodySpace(shape: BodyShape, origin: LduVector3): BodyShape {
   const centerLdu = subtract(shape.centerLdu, origin);
   if (shape.kind === "cylinder") return { ...shape, centerLdu };
   if (shape.kind === "box") return { ...shape, centerLdu };
+  if (shape.kind === "convex-prism") {
+    return {
+      ...shape,
+      centerLdu,
+      verticesXZLdu: shape.verticesXZLdu.map(([x, z]) => [x - origin[0], z - origin[2]] as const),
+      minYLdu: shape.minYLdu - origin[1],
+      maxYLdu: shape.maxYLdu - origin[1],
+    };
+  }
   return {
     ...shape,
     centerLdu,

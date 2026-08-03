@@ -1,4 +1,5 @@
 import type { BrickDocumentV1, PartInstance } from "@lego-studio/protocol";
+import { getPartDefinition } from "@lego-studio/catalog";
 import {
   createEmptyBrickDocument,
   createPartInstance,
@@ -14,6 +15,7 @@ import {
   MeshStandardMaterial,
   OrthographicCamera,
   PerspectiveCamera,
+  Raycaster,
   Vector3,
 } from "three";
 import { describe, expect, it, vi } from "vitest";
@@ -24,7 +26,9 @@ import {
   THREE_UNITS_PER_LDU,
   createCameraForView,
   createCanonicalViewPacket,
+  createPlacementGhost,
   deriveBrickScene,
+  disposeObjectTree,
   lduToThreeVector,
   lduTransformToThreeMatrix,
   fitPerspectiveCameraToFrame,
@@ -147,6 +151,120 @@ describe("brick scene derivation", () => {
       expect(stud.geometry.parameters.radiusBottom).toBeCloseTo(0.3);
       expect(stud.geometry.parameters.height).toBeCloseTo(0.2);
       expect(stud.material).toBe(body.material);
+    }
+  });
+
+  it("renders plan-feature parts as one smooth source body with no collision seams", () => {
+    const target = createPartInstance({
+      id: "quarter-ring",
+      catalogPartId: "builtin:corner-plate-5x5-quarter-ring",
+      colorId: "builtin:red",
+    });
+    const projection = deriveBrickScene(documentWithParts([target]));
+    const bodies = objectsWithRole(projection.partObjects.get(target.id)!, "body");
+
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]!.userData.primitiveId).toBe("body:arc");
+    const geometry = (bodies[0] as Mesh<BufferGeometry>).geometry;
+    geometry.computeBoundingBox();
+    expect(geometry.boundingBox?.min.toArray()).toEqual([
+      expect.closeTo(-1),
+      expect.closeTo(-0.2),
+      expect.closeTo(-4),
+    ]);
+    expect(geometry.boundingBox?.max.toArray()).toEqual([
+      expect.closeTo(4),
+      expect.closeTo(0.2),
+      expect.closeTo(1),
+    ]);
+  });
+
+  it("uses the exact asymmetric, hollow source body for placement ghosts", () => {
+    const definition = getPartDefinition("builtin:corner-plate-5x5-quarter-ring")!;
+    const ghost = createPlacementGhost(
+      definition,
+      { positionLdu: [0, 0, 0], orientationId: "upright-yaw-0" },
+      "valid",
+    );
+    ghost.updateMatrixWorld(true);
+    const body = ghost.children.find(
+      (object): object is Mesh<BufferGeometry> =>
+        object instanceof Mesh && object.userData.primitiveId === "body:arc",
+    )!;
+    body.geometry.computeBoundingBox();
+
+    expect(ghost.userData.sourceOfTruth).toBe("catalog-derived-display");
+    expect(body.geometry.boundingBox?.min.toArray()).toEqual([
+      expect.closeTo(-1),
+      expect.closeTo(-0.2),
+      expect.closeTo(-4),
+    ]);
+    expect(body.geometry.boundingBox?.max.toArray()).toEqual([
+      expect.closeTo(4),
+      expect.closeTo(0.2),
+      expect.closeTo(1),
+    ]);
+
+    const ray = (xLdu: number, zLdu: number) =>
+      new Raycaster(
+        new Vector3(xLdu * THREE_UNITS_PER_LDU, 10, zLdu * THREE_UNITS_PER_LDU),
+        new Vector3(0, -1, 0),
+      ).intersectObject(body, false);
+    expect(ray(20, -20)).toEqual([]);
+    expect(ray(50, -50).length).toBeGreaterThan(0);
+
+    disposeObjectTree(ghost);
+  });
+
+  it("keeps a wedge's cut-away corner empty in its placement ghost", () => {
+    const definition = getPartDefinition("builtin:wedge-plate-4x4-cut-corner")!;
+    const ghost = createPlacementGhost(
+      definition,
+      { positionLdu: [0, 0, 0], orientationId: "upright-yaw-0" },
+      "valid",
+    );
+    ghost.updateMatrixWorld(true);
+    const body = ghost.children.find(
+      (object): object is Mesh<BufferGeometry> =>
+        object instanceof Mesh && object.userData.primitiveId === "body",
+    )!;
+    const ray = (xLdu: number, zLdu: number) =>
+      new Raycaster(
+        new Vector3(xLdu * THREE_UNITS_PER_LDU, 10, zLdu * THREE_UNITS_PER_LDU),
+        new Vector3(0, -1, 0),
+      ).intersectObject(body, false);
+
+    expect(ray(30, -30)).toEqual([]);
+    expect(ray(-30, 30).length).toBeGreaterThan(0);
+    disposeObjectTree(ghost);
+  });
+
+  it("emits no zero-area triangles for the new wedge and arc bodies", () => {
+    const catalogPartIds = [
+      "builtin:wedge-plate-4x4-cut-corner",
+      "builtin:wedge-plate-6x6-cut-corner",
+      "builtin:wedge-plate-3x6-right",
+      "builtin:corner-plate-4x4-round",
+      "builtin:corner-plate-5x5-quarter-ring",
+    ];
+
+    for (const catalogPartId of catalogPartIds) {
+      const target = createPartInstance({ id: catalogPartId, catalogPartId });
+      const projection = deriveBrickScene(documentWithParts([target]));
+      const bodies = objectsWithRole(projection.partObjects.get(target.id)!, "body");
+      expect([catalogPartId, bodies.length]).toEqual([catalogPartId, 1]);
+      const geometry = (bodies[0] as Mesh<BufferGeometry>).geometry;
+      const positions = geometry.getAttribute("position");
+      const vertexIndex = (index: number): number => geometry.index?.getX(index) ?? index;
+      const triangleCount = (geometry.index?.count ?? positions.count) / 3;
+      expect(Number.isInteger(triangleCount)).toBe(true);
+      for (let triangle = 0; triangle < triangleCount; triangle += 1) {
+        const a = new Vector3().fromBufferAttribute(positions, vertexIndex(triangle * 3));
+        const b = new Vector3().fromBufferAttribute(positions, vertexIndex(triangle * 3 + 1));
+        const c = new Vector3().fromBufferAttribute(positions, vertexIndex(triangle * 3 + 2));
+        const twiceArea = b.sub(a).cross(c.sub(a)).length();
+        expect(twiceArea, `${catalogPartId} triangle ${triangle}`).toBeGreaterThan(1e-10);
+      }
     }
   });
 

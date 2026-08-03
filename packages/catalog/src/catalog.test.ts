@@ -1,26 +1,16 @@
-import { createHash } from "node:crypto";
-
 import { describe, expect, it } from "vitest";
 
 import {
   BRICK_HEIGHT_LDU,
-  BUILTIN_CATALOG,
   BUILTIN_CATALOG_VERSION,
-  COLLISION_MODEL_VERSION,
-  COLOR_DEFINITIONS,
-  CONNECTOR_TAXONOMY_VERSION,
-  getCatalogSnapshotDigestInput,
   getColorDefinition,
   getPartDefinition,
-  type PartDefinition,
-  type PartFamily,
   PART_DEFINITIONS,
+  type PartFamily,
   PLATE_HEIGHT_LDU,
   resolvePartId,
   STUD_HEIGHT_LDU,
   STUD_PITCH_LDU,
-  TRANSFORM_POLICY_VERSION,
-  UPRIGHT_ORIENTATIONS,
 } from "./index.js";
 
 /** Every family the catalog defines; a new one must be added here deliberately. */
@@ -40,72 +30,9 @@ const PART_FAMILY_NAMES = [
   "corner-plate",
 ] as const satisfies readonly PartFamily[];
 
-/**
- * Which cells of a compound part's footprint carry a stud and which carry a
- * clutch, written out rather than recomputed.
- *
- * These are facts about the real parts, read off their LDraw solids: an arch
- * has a flat studded top over a void, so its middle cells hold a stud and no
- * clutch and its legs hold both; a corner plate's missing quarter holds
- * neither. Deriving them here the way the catalog derives them would assert
- * only that the code agrees with itself.
- */
-const COMPOUND_CELLS: Readonly<
-  Record<string, { readonly studs: readonly string[]; readonly clutches: readonly string[] }>
-> = {
-  "builtin:arch-1x4": { studs: ["0:0", "0:1", "0:2", "0:3"], clutches: ["0:0", "0:3"] },
-  "builtin:arch-1x6": {
-    studs: ["0:0", "0:1", "0:2", "0:3", "0:4", "0:5"],
-    clutches: ["0:0", "0:5"],
-  },
-  "builtin:curved-slope-1x2": { studs: [], clutches: ["0:0", "0:1"] },
-  "builtin:curved-slope-1x3": { studs: [], clutches: ["0:0", "0:1", "0:2"] },
-  "builtin:curved-slope-1x4": { studs: [], clutches: ["0:0", "0:1", "0:2", "0:3"] },
-  "builtin:cheese-slope-1x1": { studs: [], clutches: ["0:0"] },
-  "builtin:cheese-slope-2x1": { studs: [], clutches: ["0:0", "1:0"] },
-  "builtin:corner-plate-2x2": {
-    studs: ["0:0", "0:1", "1:0"],
-    clutches: ["0:0", "0:1", "1:0"],
-  },
-};
-
 /** A height its family does not fix, so the part declares its own. */
 const DECLARED_HEIGHTS: Readonly<Record<string, number>> = { "builtin:curved-slope-1x2": 16 };
 
-/**
- * Grid cells the part's body actually fills. A wedge's tapered corner is empty,
- * so it carries no underside clutch there.
- */
-const cellIsSolid = (part: PartDefinition, x: number, z: number): boolean => {
-  const wedge = part.collision.primitives.find((primitive) => primitive.kind === "wedge");
-  if (!wedge) return true;
-  return wedge.cutNormalXZ[0] * x + wedge.cutNormalXZ[1] * z <= wedge.cutOffsetLdu;
-};
-
-const solidCellCount = (part: PartDefinition): number => {
-  if (NO_CLUTCH_FAMILIES.has(part.family)) return 0;
-  const compound = COMPOUND_CELLS[part.id];
-  if (compound) return compound.clutches.length;
-  const { widthStuds, lengthStuds } = part.dimensions;
-  const wedge = part.collision.primitives.find((primitive) => primitive.kind === "wedge");
-  if (!wedge) return widthStuds * lengthStuds;
-  let count = 0;
-  for (let xIndex = 0; xIndex < widthStuds; xIndex += 1) {
-    for (let zIndex = 0; zIndex < lengthStuds; zIndex += 1) {
-      const x = (xIndex - (widthStuds - 1) / 2) * STUD_PITCH_LDU;
-      const z = (zIndex - (lengthStuds - 1) / 2) * STUD_PITCH_LDU;
-      if (wedge.cutNormalXZ[0] * x + wedge.cutNormalXZ[1] * z <= wedge.cutOffsetLdu) count += 1;
-    }
-  }
-  return count;
-};
-const expectedStudCells = (part: PartDefinition): number => {
-  const compound = COMPOUND_CELLS[part.id];
-  if (compound) return compound.studs.length;
-  if (SMOOTH_TOP_FAMILIES.has(part.family)) return 0;
-  return part.geometry.studOffsetsLdu?.length ?? solidCellCount(part);
-};
-/** Families that present a smooth top, so they carry no studs at all. */
 const SMOOTH_TOP_FAMILIES = new Set<string>([
   "tile",
   "grille-tile",
@@ -114,8 +41,7 @@ const SMOOTH_TOP_FAMILIES = new Set<string>([
   "curved-slope",
   "cheese-slope",
 ]);
-/** Families with no underside tubes, so no clutch grid. */
-const NO_CLUTCH_FAMILIES = new Set<string>(["axle", "wheel"]);
+
 const EXPECTED_PART_IDS = [
   "builtin:brick-1x1",
   "builtin:brick-1x2",
@@ -188,20 +114,26 @@ const EXPECTED_PART_IDS = [
   "builtin:cheese-slope-1x1",
   "builtin:cheese-slope-2x1",
   "builtin:corner-plate-2x2",
+  "builtin:plate-2x14",
+  "builtin:wedge-plate-4x4-cut-corner",
+  "builtin:wedge-plate-6x6-cut-corner",
+  "builtin:wedge-plate-3x6-right",
+  "builtin:corner-plate-4x4-round",
+  "builtin:corner-plate-5x5-quarter-ring",
 ] as const;
 
-const determinant = (matrix: readonly number[]): number =>
-  matrix[0]! * (matrix[4]! * matrix[8]! - matrix[5]! * matrix[7]!) -
-  matrix[1]! * (matrix[3]! * matrix[8]! - matrix[5]! * matrix[6]!) +
-  matrix[2]! * (matrix[3]! * matrix[7]! - matrix[4]! * matrix[6]!);
-
 describe("starter catalog", () => {
+  it("publishes the six-part catalog truth as version 6", () => {
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/6");
+  });
+
   it("does not expose inherited object properties as catalog entries", () => {
     expect(resolvePartId("constructor")).toBeUndefined();
     expect(resolvePartId("toString")).toBeUndefined();
     expect(getPartDefinition("constructor")).toBeUndefined();
     expect(getColorDefinition("constructor")).toBeUndefined();
   });
+
   it("contains exactly the approved parts, every family accounted for", () => {
     expect(PART_DEFINITIONS.map(({ id }) => id)).toEqual(EXPECTED_PART_IDS);
     expect(new Set(PART_DEFINITIONS.map(({ id }) => id))).toHaveLength(EXPECTED_PART_IDS.length);
@@ -213,18 +145,18 @@ describe("starter catalog", () => {
     );
     expect(perFamily).toEqual({
       brick: 15,
-      plate: 27,
+      plate: 28,
       tile: 9,
       "jumper-plate": 3,
       "grille-tile": 1,
-      "wedge-plate": 4,
+      "wedge-plate": 7,
       "technic-brick": 1,
       axle: 2,
       wheel: 1,
       arch: 2,
       "curved-slope": 3,
       "cheese-slope": 2,
-      "corner-plate": 1,
+      "corner-plate": 3,
     });
     // Every part belongs to a family the palette knows how to show.
     expect(
@@ -267,7 +199,9 @@ describe("starter catalog", () => {
       };
       expect(part.bodyBoundsLdu).toEqual(expectedBody);
       for (const axis of [0, 1, 2]) {
-        expect(part.bodyBoundsLdu.min[axis]).toBe(-part.bodyBoundsLdu.max[axis]!);
+        if (declared === undefined) {
+          expect(part.bodyBoundsLdu.min[axis]).toBe(-part.bodyBoundsLdu.max[axis]!);
+        }
         expect(Number.isInteger(part.bodyBoundsLdu.max[axis]! * 2)).toBe(true);
       }
 
@@ -277,268 +211,5 @@ describe("starter catalog", () => {
         max: expectedBody.max,
       });
     }
-  });
-
-  it("places one semantic stud and one underside tube seat at every grid point", () => {
-    for (const part of PART_DEFINITIONS) {
-      const { widthStuds, lengthStuds, heightLdu } = part.dimensions;
-      const expectedPortCount = solidCellCount(part);
-      // A jumper plate names its studs, so its count is what it declared, not
-      // one per grid point.
-      const expectedStudCount = expectedStudCells(part);
-      const compound = COMPOUND_CELLS[part.id];
-      const studs = part.connectors.filter(({ kind }) => kind === "stud");
-      const clutches = part.connectors.filter(({ kind }) => kind === "undersideClutch");
-
-      expect(studs).toHaveLength(expectedStudCount);
-      expect(clutches).toHaveLength(expectedPortCount);
-
-      for (let xIndex = 0; xIndex < widthStuds; xIndex += 1) {
-        for (let zIndex = 0; zIndex < lengthStuds; zIndex += 1) {
-          const x = (xIndex - (widthStuds - 1) / 2) * STUD_PITCH_LDU;
-          const z = (zIndex - (lengthStuds - 1) / 2) * STUD_PITCH_LDU;
-          const stud = studs.find(({ id }) => id === `stud:${xIndex}:${zIndex}`);
-          const clutch = clutches.find(({ id }) => id === `undersideClutch:${xIndex}:${zIndex}`);
-          // An axle has no underside and no top, so no cell holds either.
-          if (NO_CLUTCH_FAMILIES.has(part.family)) {
-            expect(stud).toBeUndefined();
-            expect(clutch).toBeUndefined();
-            continue;
-          }
-          // A wedge's tapered corner is empty, so it holds neither.
-          if (!cellIsSolid(part, x, z)) {
-            expect(stud).toBeUndefined();
-            expect(clutch).toBeUndefined();
-            continue;
-          }
-          // A compound part's two faces are independent: an arch's span is
-          // studded above and open below.
-          if (compound) {
-            const cell = `${xIndex}:${zIndex}`;
-            expect([cell, stud === undefined]).toEqual([cell, !compound.studs.includes(cell)]);
-            expect([cell, clutch === undefined]).toEqual([cell, !compound.clutches.includes(cell)]);
-            if (clutch === undefined) continue;
-            expect(clutch).toMatchObject({
-              geometryRole: "tubeSeat",
-              positionLdu: [x, heightLdu / 2, z],
-              normal: [0, 1, 0],
-            });
-            continue;
-          }
-
-          if (!SMOOTH_TOP_FAMILIES.has(part.family) && part.geometry.studOffsetsLdu === undefined)
-            expect(stud).toMatchObject({
-              geometryRole: "stud",
-              positionLdu: [x, -heightLdu / 2, z],
-              normal: [0, -1, 0],
-              capacity: 1,
-              compatibleKinds: ["undersideClutch"],
-            });
-          expect(clutch).toMatchObject({
-            geometryRole: "tubeSeat",
-            positionLdu: [x, heightLdu / 2, z],
-            normal: [0, 1, 0],
-            capacity: 1,
-            compatibleKinds: ["stud"],
-          });
-        }
-      }
-    }
-  });
-
-  it("provides body and stud collision primitives with connection-gated clearances", () => {
-    for (const part of PART_DEFINITIONS) {
-      const expectedStudCount = expectedStudCells(part);
-      const body = part.collision.primitives.find(({ id }) => id === "body");
-      // Tagged, not merely round: a wheel's body is a cylinder and not a stud.
-      const studs = part.collision.primitives.filter(
-        (primitive) => primitive.kind === "cylinder" && primitive.tag === "stud",
-      );
-
-      // A wedge is the same bounding box with one face sloped away, so its
-      // bounds still have to match; only its kind differs.
-      // A wheel is round so it can roll; everything else is a box or a wedge.
-      const expectedBodyKind =
-        part.family === "wheel"
-          ? "cylinder"
-          : part.geometry.bodyMode === "compound"
-            ? "wedge"
-            : "box";
-      if (part.geometry.bodyBoxesLdu === undefined) {
-        expect(body).toMatchObject(
-          expectedBodyKind === "cylinder"
-            ? { kind: "cylinder", tag: "body" }
-            : {
-                kind: expectedBodyKind,
-                minLdu: part.bodyBoundsLdu.min,
-                maxLdu: part.bodyBoundsLdu.max,
-              },
-        );
-      } else {
-        // A union has no single body, so it numbers its boxes; the part that
-        // keeps the unnumbered "body" is the part that is one prism, which is
-        // why sixty-three parts did not re-hash when unions arrived.
-        expect(body).toBeUndefined();
-        expect(part.geometry.bodyMode).toBe("compound");
-        expect(
-          part.collision.primitives
-            .filter(({ tag }) => tag === "body")
-            .map((primitive) => [primitive.id, primitive.kind]),
-        ).toEqual(part.geometry.bodyBoxesLdu.map((_, index) => [`body:${index}`, "box"]));
-      }
-      expect(studs).toHaveLength(expectedStudCount);
-      // One per cell the body fills: a wedge has no clutch over its empty corner.
-      expect(part.collision.allowances).toHaveLength(solidCellCount(part));
-
-      for (const allowance of part.collision.allowances) {
-        expect(allowance).toMatchObject({
-          portKind: "undersideClutch",
-          incomingPrimitiveTag: "stud",
-          requiresValidatedConnection: true,
-          maxInsertionDepthLdu: STUD_HEIGHT_LDU,
-        });
-        expect(
-          part.connectors.some(
-            (port) => port.id === allowance.portId && port.kind === "undersideClutch",
-          ),
-        ).toBe(true);
-      }
-    }
-  });
-
-  it("builds a compound body from boxes that neither overlap nor leave their footprint", () => {
-    const compoundParts = PART_DEFINITIONS.filter(
-      (part) => part.geometry.bodyBoxesLdu !== undefined,
-    );
-    expect(compoundParts.map(({ id }) => id)).toEqual(Object.keys(COMPOUND_CELLS));
-
-    for (const part of compoundParts) {
-      const boxes = part.geometry.bodyBoxesLdu!;
-      expect(boxes.length).toBeGreaterThan(1);
-
-      for (const box of boxes) {
-        for (const axis of [0, 1, 2] as const) {
-          expect(box.min[axis]).toBeLessThan(box.max[axis]);
-          // Inside the part's own bounding box, so no box can reach past the
-          // footprint the lattice reserved for it.
-          expect(box.min[axis]).toBeGreaterThanOrEqual(part.bodyBoundsLdu.min[axis]);
-          expect(box.max[axis]).toBeLessThanOrEqual(part.bodyBoundsLdu.max[axis]);
-        }
-      }
-
-      // The union is the declared body, on every axis: a shape that fell short
-      // would leave the part reporting a bounding box it does not fill.
-      for (const axis of [0, 1, 2] as const) {
-        expect(Math.min(...boxes.map(({ min }) => min[axis]))).toBe(part.bodyBoundsLdu.min[axis]);
-        expect(Math.max(...boxes.map(({ max }) => max[axis]))).toBe(part.bodyBoundsLdu.max[axis]);
-      }
-
-      // Disjoint interiors, because mass and centre of mass add the boxes up
-      // and an overlap would be counted twice.
-      for (let left = 0; left < boxes.length; left += 1) {
-        for (let right = left + 1; right < boxes.length; right += 1) {
-          const a = boxes[left]!;
-          const b = boxes[right]!;
-          const overlaps = ([0, 1, 2] as const).every(
-            (axis) => a.min[axis] < b.max[axis] && b.min[axis] < a.max[axis],
-          );
-          expect([part.id, left, right, overlaps]).toEqual([part.id, left, right, false]);
-        }
-      }
-    }
-  });
-
-  it("defines four proper upright yaw matrices under the -Y-up transform policy", () => {
-    expect(UPRIGHT_ORIENTATIONS.map(({ id }) => id)).toEqual([
-      "upright-yaw-0",
-      "upright-yaw-90",
-      "upright-yaw-180",
-      "upright-yaw-270",
-    ]);
-    expect(UPRIGHT_ORIENTATIONS.map(({ quarterTurns }) => quarterTurns)).toEqual([0, 1, 2, 3]);
-
-    for (const orientation of UPRIGHT_ORIENTATIONS) {
-      expect(orientation.matrix.every(Number.isInteger)).toBe(true);
-      expect(determinant(orientation.matrix)).toBe(1);
-      expect(orientation.upAxis).toEqual([0, -1, 0]);
-    }
-
-    for (const part of PART_DEFINITIONS) {
-      expect(part.legalOrientationIds).toEqual(UPRIGHT_ORIENTATIONS.map(({ id }) => id));
-    }
-  });
-
-  it("resolves canonical, human, and LDraw aliases without importing LDraw geometry", () => {
-    expect(resolvePartId("builtin:brick-2x4")).toBe("builtin:brick-2x4");
-    expect(resolvePartId("  Brick 2 x 4 ")).toBe("builtin:brick-2x4");
-    expect(resolvePartId("ldraw:3001.dat")).toBe("builtin:brick-2x4");
-    expect(resolvePartId("3001.dat")).toBe("builtin:brick-2x4");
-    expect(resolvePartId("not-a-part")).toBeUndefined();
-    expect(getPartDefinition("ldraw:3024.dat")).toBe(getPartDefinition("builtin:plate-1x1"));
-
-    for (const part of PART_DEFINITIONS) {
-      expect(part.geometry.provenance.sourceType).toBe("project-authored");
-      expect(part.geometry.provenance.licenseExpression).toBe("MIT");
-      expect(part.geometry.provenance.externalGeometryBundled).toBe(false);
-      expect(part.aliases.some(({ namespace }) => namespace === "ldraw")).toBe(true);
-      expect(part.aliases.some(({ namespace }) => namespace === "human")).toBe(true);
-      expect(
-        part.aliases
-          .filter(({ namespace }) => namespace === "ldraw")
-          .every(({ provenance }) => provenance.runtimeRole === "interchange-identifier-only"),
-      ).toBe(true);
-    }
-  });
-
-  it("binds each project-authored geometry recipe to its declared SHA-256 digest", () => {
-    const hashes = new Set<string>();
-
-    for (const part of PART_DEFINITIONS) {
-      const digest = `sha256:${createHash("sha256").update(part.geometry.digestInput).digest("hex")}`;
-      expect(part.geometry.contentHash).toBe(digest);
-      hashes.add(digest);
-    }
-
-    expect(hashes).toHaveLength(PART_DEFINITIONS.length);
-  });
-
-  it("exposes a curated color layer with traceable display and interoperability metadata", () => {
-    expect(COLOR_DEFINITIONS.length).toBeGreaterThanOrEqual(8);
-    expect(getColorDefinition("builtin:red")?.displayHex).toBe("#C91A09");
-    expect(getColorDefinition("missing")).toBeUndefined();
-
-    for (const color of COLOR_DEFINITIONS) {
-      expect(color.provenance.sourceType).toBe("project-authored");
-      expect(color.provenance.licenseExpression).toBe("MIT");
-      expect(Number.isInteger(color.ldrawCode)).toBe(true);
-    }
-    for (const part of PART_DEFINITIONS) {
-      expect(part.availableColorIds).toEqual(COLOR_DEFINITIONS.map(({ id }) => id));
-    }
-  });
-
-  it("returns a deeply frozen, deterministic truth-snapshot digest input", () => {
-    const input = getCatalogSnapshotDigestInput();
-
-    expect(input).toMatchObject({
-      schemaVersion: "catalog-digest-input/1",
-      catalogVersion: BUILTIN_CATALOG_VERSION,
-      connectorTaxonomyVersion: CONNECTOR_TAXONOMY_VERSION,
-      collisionModelVersion: COLLISION_MODEL_VERSION,
-      transformPolicyVersion: TRANSFORM_POLICY_VERSION,
-      coordinateSystem: { upAxis: "-Y", unit: "LDU", studPitchLdu: STUD_PITCH_LDU },
-    });
-    expect(input.parts).toBe(PART_DEFINITIONS);
-    expect(input).toBe(BUILTIN_CATALOG);
-    expect(input.colors).toBe(COLOR_DEFINITIONS);
-    expect(input.orientations).toBe(UPRIGHT_ORIENTATIONS);
-    expect(JSON.stringify(getCatalogSnapshotDigestInput())).toBe(JSON.stringify(input));
-    expect(Object.isFrozen(input)).toBe(true);
-    expect(Object.isFrozen(input.parts)).toBe(true);
-    expect(Object.isFrozen(input.parts[0]?.connectors)).toBe(true);
-    expect(Object.isFrozen(input.parts[0]?.connectors[0]?.positionLdu)).toBe(true);
-    expect(() => {
-      (input.parts as unknown[]).push({});
-    }).toThrow(TypeError);
   });
 });

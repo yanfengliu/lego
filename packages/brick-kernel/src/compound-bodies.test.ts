@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { deriveAssemblies } from "./assemblies.ts";
-import { derivePhysicsScene } from "./compound-bodies.ts";
+import { COMPOUND_BODY_SCHEMA_VERSION, derivePhysicsScene } from "./compound-bodies.ts";
 import { createEmptyBrickDocument } from "./factory.ts";
 import type { BrickDocumentV1, ConnectionEdge, PartInstance } from "@lego-studio/protocol";
 
@@ -144,6 +144,20 @@ describe("derivePhysicsScene", () => {
     // The body origin is the wedge's balance point, which is off the box centre,
     // so the plane offset must have shifted with it rather than staying at 40.
     expect(wedge!.cutOffsetLdu).not.toBe(40);
+  });
+
+  it("carries an arc decomposition into body-space convex prisms", () => {
+    const scene = sceneOf(
+      [part("ring", "builtin:corner-plate-5x5-quarter-ring", [120, -8, -60])],
+      [],
+    );
+    const prisms = scene.bodies[0]!.shapes.filter((shape) => shape.kind === "convex-prism");
+
+    expect(scene.schemaVersion).toBe(COMPOUND_BODY_SCHEMA_VERSION);
+    expect(COMPOUND_BODY_SCHEMA_VERSION).toBe("lego.compound-bodies/2");
+    expect(prisms).toHaveLength(14);
+    expect(prisms.every(({ verticesXZLdu }) => verticesXZLdu.length >= 4)).toBe(true);
+    expect(prisms.every(({ minYLdu, maxYLdu }) => minYLdu < maxYLdu)).toBe(true);
   });
 
   it("describes an empty document without inventing a body", () => {

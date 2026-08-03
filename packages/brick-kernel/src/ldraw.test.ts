@@ -140,6 +140,51 @@ describe("strict LDraw subset", () => {
     );
   });
 
+  it("corrects the asymmetric 91988 local frame in the actual LDraw type-1 matrix", () => {
+    const base = createEmptyBrickDocument({ id: "frame-correction", name: "Frame correction" });
+    const longPlate = createPartInstance({
+      id: "long-plate",
+      catalogPartId: "builtin:plate-2x14",
+    });
+    const source: BrickDocumentV1 = {
+      ...base,
+      parts: [longPlate],
+      submodels: [{ ...base.submodels[0]!, partIds: [longPlate.id] }],
+      steps: [{ ...base.steps[0]!, partIds: [longPlate.id] }],
+    };
+
+    const exported = exportBrickDocumentToLDraw(source);
+    const partLine = exported.split("\n").find((line) => line.endsWith(" 91988.dat"));
+    expect(partLine).toBe("1 4 0 0 0 0 0 1 0 1 0 -1 0 0 91988.dat");
+
+    // An LDraw consumer applies the type-1 matrix to raw part coordinates. The
+    // official 91988 file's long endpoints lie on local X; the exported matrix
+    // must put that axis on canonical Z, alongside the catalog's 2 x 14 body.
+    const matrix = partLine!.split(" ").slice(5, 14).map(Number) as unknown as readonly [
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+    ];
+    const applyType1Matrix = ([x, y, z]: readonly [number, number, number]) => [
+      matrix[0] * x + matrix[1] * y + matrix[2] * z,
+      matrix[3] * x + matrix[4] * y + matrix[5] * z,
+      matrix[6] * x + matrix[7] * y + matrix[8] * z,
+    ];
+    expect(applyType1Matrix([-140, 0, 0])).toEqual([0, 0, 140]);
+    expect(applyType1Matrix([140, 0, 0])).toEqual([0, 0, -140]);
+
+    const imported = importBrickDocumentFromLDraw(exported);
+    expect(imported.parts.find(({ id }) => id === longPlate.id)?.transform).toEqual(
+      longPlate.transform,
+    );
+  });
+
   it("infers every independently occupied port in a multi-stud attachment", () => {
     const base = createEmptyBrickDocument({ id: "multi-stud", name: "Multi stud" });
     const lower = createPartInstance({

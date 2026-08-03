@@ -1,4 +1,5 @@
 import {
+  BUILTIN_CATALOG_VERSION,
   COLOR_DEFINITIONS,
   PART_DEFINITIONS,
   getColorDefinition,
@@ -20,7 +21,68 @@ export const MIGRATABLE_CATALOG_VERSIONS: readonly string[] = Object.freeze([
   "builtin.basic-parts/2",
   "builtin.basic-parts/3",
   "builtin.basic-parts/4",
+  "builtin.basic-parts/5",
+  BUILTIN_CATALOG_VERSION,
 ]);
+
+/**
+ * Full truth snapshots emitted by reviewed historical commits.
+ *
+ * The commit is part of the evidence: it lets a reviewer check out the exact
+ * source that produced a hash instead of trusting an unexplained digest. More
+ * than one commit may share a catalog version because connector, collision, or
+ * validator truth can move independently. Component-version allowlists alone
+ * would accept impossible cross-products, so migration admits only one of
+ * these complete snapshots and reports every component it advances.
+ */
+export const REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS = Object.freeze([
+  {
+    catalogVersion: "builtin.basic-parts/1",
+    sourceCommit: "b62cbdf53ced2b45cfd8c49d3bcbd74dc5b9b711",
+    truthHash: "sha256:0f6b9dcb03a9dd570b4ccc68f41a015bb33422e5cf6c1fe032f1a15bfbd76a8a",
+  },
+  {
+    catalogVersion: "builtin.basic-parts/2",
+    sourceCommit: "98a3b14e95c6f60cfe7bb852053dfdeb4a56243b",
+    truthHash: "sha256:2d980a480fc5b82011b3a09f9e962d74a8e7af068595503ceaa88e9811a7b17a",
+  },
+  {
+    catalogVersion: "builtin.basic-parts/3",
+    sourceCommit: "d86b274750aa0b971769df605ba70e2dd68cc02a",
+    truthHash: "sha256:e10d6cd07af66fc3bf9bbb2917992e74bb15f76385ec989bd7e94bcd4cffeedd",
+  },
+  {
+    catalogVersion: "builtin.basic-parts/4",
+    sourceCommit: "e0f99cddd820f6dd3915fa10a9ce2f856fc852c4",
+    truthHash: "sha256:f48bb1cae251f592923d94b4b992a55c06e74ea49b0f81be9ff4d416bb38e843",
+  },
+  {
+    catalogVersion: "builtin.basic-parts/4",
+    sourceCommit: "d493dcf390e3009046b457d681a7b80733c3804c",
+    truthHash: "sha256:4a1dea5f4706dba84aeee1bcbd495fec7eac0f7321e7447979a03a8fb089d3bc",
+  },
+  {
+    catalogVersion: "builtin.basic-parts/4",
+    sourceCommit: "5d2ca4f25bd8fae1437daf608c762b99c63ac2a6",
+    truthHash: "sha256:6015f52a986a0ed4f5c5310f8b30c2a35b58f8b015025db8804c67e14ff5e9ef",
+  },
+  {
+    catalogVersion: "builtin.basic-parts/5",
+    sourceCommit: "0267c0919156df1cede84db91dd716f4565d0fb2",
+    truthHash: "sha256:72657715102652a49e08ae683650758958d5c9fad2235761368269ffd15fc4aa",
+  },
+] as const);
+
+const MIGRATABLE_TRUTH_HASHES: ReadonlySet<string> = new Set(
+  REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS.map(({ truthHash }) => truthHash),
+);
+
+export interface TruthComponentChange {
+  readonly component:
+    "catalog" | "connector-taxonomy" | "collision-model" | "transform-policy" | "validator-set";
+  readonly fromVersion: string;
+  readonly toVersion: string;
+}
 
 export interface TruthMigrationReport {
   readonly schemaVersion: "lego.truth-migration/1";
@@ -32,6 +94,8 @@ export interface TruthMigrationReport {
   /** Colour IDs the document gained access to, in catalog order. */
   readonly addedColorIds: readonly string[];
   readonly addedCatalogPartIds: readonly string[];
+  /** Every pinned truth component whose version changed, not only the catalog. */
+  readonly truthComponentChanges: readonly TruthComponentChange[];
   /** Populated only when the document could not be carried forward. */
   readonly blockingReasons: readonly string[];
 }
@@ -55,6 +119,35 @@ export function migrateDocumentTruth(document: BrickDocumentV1): {
   const toTruthHash = canonicalDigest(expectedTruth);
   const fromCatalogVersion = document.truth.catalog.version;
   const toCatalogVersion = expectedTruth.catalog.version;
+  const truthChange = (
+    component: TruthComponentChange["component"],
+    fromVersion: string,
+    toVersion: string,
+  ): readonly TruthComponentChange[] =>
+    fromVersion === toVersion ? [] : [{ component, fromVersion, toVersion }];
+  const truthComponentChanges: readonly TruthComponentChange[] = [
+    ...truthChange("catalog", document.truth.catalog.version, expectedTruth.catalog.version),
+    ...truthChange(
+      "connector-taxonomy",
+      document.truth.connectorTaxonomy.version,
+      expectedTruth.connectorTaxonomy.version,
+    ),
+    ...truthChange(
+      "collision-model",
+      document.truth.collisionModel.version,
+      expectedTruth.collisionModel.version,
+    ),
+    ...truthChange(
+      "transform-policy",
+      document.truth.transformPolicy.version,
+      expectedTruth.transformPolicy.version,
+    ),
+    ...truthChange(
+      "validator-set",
+      document.truth.validatorSet.version,
+      expectedTruth.validatorSet.version,
+    ),
+  ];
   const base = {
     schemaVersion: "lego.truth-migration/1",
     fromCatalogVersion,
@@ -63,6 +156,7 @@ export function migrateDocumentTruth(document: BrickDocumentV1): {
     toTruthHash,
     addedColorIds: [],
     addedCatalogPartIds: [],
+    truthComponentChanges,
   } as const;
 
   if (fromTruthHash === toTruthHash) {
@@ -70,10 +164,61 @@ export function migrateDocumentTruth(document: BrickDocumentV1): {
   }
 
   const blockingReasons: string[] = [];
+  if (!MIGRATABLE_TRUTH_HASHES.has(fromTruthHash)) {
+    blockingReasons.push(
+      `Truth snapshot ${fromTruthHash} is not one of the reviewed historical builtin snapshots; unknown or cross-mixed truth cannot be reinterpreted as ${toTruthHash}`,
+    );
+  }
   if (!MIGRATABLE_CATALOG_VERSIONS.includes(fromCatalogVersion)) {
     blockingReasons.push(
       `Catalog version ${fromCatalogVersion} has no migration to ${toCatalogVersion}; known source versions are ${MIGRATABLE_CATALOG_VERSIONS.join(", ")}`,
     );
+  }
+  const compatibleComponents = [
+    {
+      label: "Catalog",
+      source: document.truth.catalog,
+      expected: expectedTruth.catalog,
+      versions: MIGRATABLE_CATALOG_VERSIONS,
+    },
+    {
+      label: "Connector taxonomy",
+      source: document.truth.connectorTaxonomy,
+      expected: expectedTruth.connectorTaxonomy,
+      versions: [expectedTruth.connectorTaxonomy.version],
+    },
+    {
+      label: "Collision model",
+      source: document.truth.collisionModel,
+      expected: expectedTruth.collisionModel,
+      versions: ["rectilinear-stud-clearance/1", expectedTruth.collisionModel.version],
+    },
+    {
+      label: "Transform policy",
+      source: document.truth.transformPolicy,
+      expected: expectedTruth.transformPolicy,
+      versions: [expectedTruth.transformPolicy.version],
+    },
+    {
+      label: "Validator set",
+      source: document.truth.validatorSet,
+      expected: expectedTruth.validatorSet,
+      versions: ["lego.kernel-validators/1", expectedTruth.validatorSet.version],
+    },
+  ] as const;
+  for (const { label, source, expected, versions } of compatibleComponents) {
+    if (source.id !== expected.id) {
+      blockingReasons.push(
+        `${label} id ${source.id} cannot migrate to ${expected.id}; only the builtin truth component is supported`,
+      );
+      continue;
+    }
+    if (!(versions as readonly string[]).includes(source.version)) {
+      blockingReasons.push(
+        `${label} version ${source.version} cannot migrate to ${expected.version}; known source versions are ${versions.join(", ")}`,
+      );
+      continue;
+    }
   }
   for (const part of document.parts) {
     if (!getPartDefinition(part.catalogPartId)) {

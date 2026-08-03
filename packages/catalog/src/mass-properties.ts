@@ -89,8 +89,10 @@ function pieceOf(primitive: CollisionPrimitive): Piece | null {
     const volume = Math.PI * primitive.radiusLdu ** 2 * primitive.heightLdu;
     return { volume, centroid: primitive.centerLdu };
   }
-  const height = primitive.maxLdu[1] - primitive.minLdu[1];
-  const midY = (primitive.minLdu[1] + primitive.maxLdu[1]) / 2;
+  const minY = primitive.kind === "convex-prism" ? primitive.minYLdu : primitive.minLdu[1];
+  const maxY = primitive.kind === "convex-prism" ? primitive.maxYLdu : primitive.maxLdu[1];
+  const height = maxY - minY;
+  const midY = (minY + maxY) / 2;
   if (primitive.kind === "box") {
     const volume =
       (primitive.maxLdu[0] - primitive.minLdu[0]) *
@@ -105,7 +107,8 @@ function pieceOf(primitive: CollisionPrimitive): Piece | null {
       ],
     };
   }
-  const section = wedgeSection(primitive);
+  const section =
+    primitive.kind === "convex-prism" ? primitive.verticesXZLdu : wedgeSection(primitive);
   if (section.length < 3) return null;
   const { area, x, z } = polygonAreaAndCentroid(section);
   return { volume: area * height, centroid: [x, midY, z] };

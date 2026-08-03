@@ -7,7 +7,7 @@ The sample booklet's first fifty steps need wedge plates, arches, curved slopes,
 None of them are boxes, so the gap was not "more sizes" — it was a part model that can describe a shape at all.
 This is that model.
 
-It now holds 71, and four of its families are not prisms: a wedge plate is a prism cut by a vertical plane, and an arch, a curved slope, a cheese slope and a corner plate are each a union of boxes.
+It now holds 77, and five of its families are not rectangular prisms: wedge plates use a prism cut by a vertical plane, arches, curved slopes and cheese slopes use unions of measured boxes, and corner plates use either boxes or an analytic circular plan feature.
 
 ## What the other tools do
 
@@ -57,8 +57,8 @@ A match requires compatible kinds, opposed genders, a shared axis within toleran
 Authoring uses grid compression; the graph is expanded at build time so nothing downstream has to understand a grid.
 
 **4. Compound-body physics — what it displaces.**
-A part's solid is a union of convex bodies: axis-aligned box, cylinder, and right prism cut by a vertical plane.
-Bodies are inset by a clearance epsilon so touching faces do not register, which is Studio's tolerance idea and the reason its collision is usable rather than maddening.
+A part's solid is a union of convex bodies: axis-aligned box, cylinder, right prism cut by a vertical plane, or vertical prism with a strictly convex plan polygon.
+Plan bodies use their exact authored polygons. Collision requires a strictly positive overlap area, so faces that merely touch do not register; sampled arc bodies are the one conservative exception and may expand outward only within their measured approximation bound.
 A stud may penetrate a matching clutch to its declared depth; that is the existing allowance mechanism and it stays.
 
 The prism's cut is *vertical*, which decides how a shape gets represented and is the thing that is easy to get wrong.
@@ -69,9 +69,12 @@ Where a staircase is wrong it claims material the part does not have, which is t
 The steps are measured, not guessed: `scripts/ldraw-part-facts.mjs` gives the extents and stud positions, and ray-casting the flattened part gives the profile between them.
 Parity is useless on these files — LDraw builds hollows out of open primitives, so "inside" is undefined — but containment is not: every point of the real surface must lie inside the union, and that is what was checked before these parts landed.
 
+A circular sector or ring is authored once as its exact centre, inner and outer radii, angular sweep, and optional endpoint caps.
+Rendering and palette previews sample that source directly as one smooth body; collision and physics derive disjoint convex prisms whose outer edges are tangents and inner edges are chords, so they conservatively contain the source without exposing their seams.
+The quarter-ring parts use twelve slices per quarter: the maximum radial expansion is under 0.2 LDU and is pinned by tests rather than chosen by appearance.
+
 A union also decides where a part grips.
-A connector is a physical claim, so a cell carries a stud or a clutch only where a whole stud's footprint is backed by solid on that face — independently per face, because an arch's span is studded above and open below, and a corner plate's missing quarter is neither.
-Taking the cell centre instead would invent a grip wherever a conservative box overshoots the real part.
+A connector is a physical claim, so inferred and project-authored cells carry a stud or clutch only where a whole stud footprint is backed by solid on that face — independently per face, because an arch's span is studded above and open below, and a corner plate's missing quarter is neither. Taking the cell centre instead would invent a grip wherever a conservative body overshoots the real part. The only exception is an explicit underside grip that exact source data identifies as intentionally straddling a curved outer edge: the complete normalized source-extracted connector set carries its own SHA-256, every exceptional offset is named, primary and independent source revisions and hashes are pinned, all of that evidence enters the catalog digest, and each exception is checked for its centre, inner-void and sector clearance, minimum backed area, and maximum outer overhang. It still opens collision allowance only for its exact validated connection; evidence never promotes adjacent cells or weakens the default whole-footprint rule.
 
 ## One declaration, four derivations
 
@@ -79,7 +82,7 @@ The layers are not authored separately. That is the mistake the shadow library e
 
 A part is declared once, as a list of **features**, and each feature emits its lattice cells, its connectors, and its bodies together:
 
-- `body-box`, `body-wedge`, `body-cylinder` — solid, and the cells they fill
+- `body-box`, `body-wedge`, `body-cylinder`, `body-arc` — solid, and the cells they fill
 - `stud-field(origin, countX, countZ, stepX, stepZ)` — male connectors, their collision cylinders, and the cells they stud
 - `clutch-field(...)` — female connectors and their allowances
 
@@ -96,6 +99,7 @@ It has already earned this — run against twenty-three parts authored from memo
 Canonical id stays `builtin:<family>-<size>`; it is ours and it does not move.
 Aliases are namespaced, and LDraw hands us the cross-catalog ones for free in `!KEYWORDS` — BrickLink, Brickowl, Brickset, Rebrickable — so the identifier map is harvested, not typed.
 Superseded identifiers must resolve: LDraw renamed `41770` to `41770a` and a catalog that only knows the new one cannot read an old document or an old booklet.
+When an LDraw file's local axes differ from the catalog's width-first frame, the part declaration records the finite LDraw-to-catalog orientation; export composes it and import composes its inverse so the canonical document transform never silently rotates.
 Families group the palette and must stay small enough to scan; substitution groups say which parts are interchangeable for a fit.
 
 ## Boundaries

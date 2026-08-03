@@ -30,6 +30,34 @@ const CASES = [
   { name: "Corner plate 2 x 2", partId: "builtin:corner-plate-2x2", plain: "Plate 2 x 2" },
 ] as const;
 
+const PLAN_CASES = [
+  {
+    name: "Wedge plate 4 x 4 Cut-corner",
+    partId: "builtin:wedge-plate-4x4-cut-corner",
+    previewVertices: 5,
+  },
+  {
+    name: "Wedge plate 6 x 6 Cut-corner",
+    partId: "builtin:wedge-plate-6x6-cut-corner",
+    previewVertices: 5,
+  },
+  {
+    name: "Wedge plate 3 x 6 Right",
+    partId: "builtin:wedge-plate-3x6-right",
+    previewVertices: 5,
+  },
+  {
+    name: "Corner plate 4 x 4 Round",
+    partId: "builtin:corner-plate-4x4-round",
+    previewVertices: 26,
+  },
+  {
+    name: "Corner plate 5 x 5 Quarter-ring",
+    partId: "builtin:corner-plate-5x5-quarter-ring",
+    previewVertices: 54,
+  },
+] as const;
+
 async function resetScene(page: Page): Promise<void> {
   // Registered once by the caller: a per-reset `page.once` leaves an unfired
   // handler behind whenever the scene is already empty, and the next reset then
@@ -122,5 +150,35 @@ test("the palette tile shows the same shape the viewport places", async ({ page 
     // must draw more than the one polygon group a plain prism draws.
     const groups = await tile.locator("svg.part-preview > g").count();
     expect(groups, `${partId} palette tile drew ${groups} body boxes`).toBeGreaterThan(1);
+  }
+});
+
+test("plan-feature previews and placed models retain their measured outline", async ({ page }) => {
+  test.setTimeout(300_000);
+  mkdirSync(OUT, { recursive: true });
+  page.on("dialog", (dialog) => void dialog.accept());
+  await page.goto("/");
+  await page.waitForFunction(() => typeof window.get_model_snapshot === "function");
+
+  for (const { name, partId, previewVertices } of PLAN_CASES) {
+    const tile = page.getByRole("button", { name: new RegExp(`^${name}`) }).first();
+    await tile.scrollIntoViewIfNeeded();
+    const top = tile.locator('svg.part-preview > polygon[data-preview-surface="plan-top"]');
+    await expect(top).toHaveCount(1);
+    await expect(top).toHaveAttribute("data-plan-vertices", String(previewVertices));
+    await tile.screenshot({ path: `${OUT}/${partId.replace("builtin:", "")}-palette.png` });
+
+    await resetScene(page);
+    await placeOne(page, name);
+    const observation = await page.evaluate(() => JSON.parse(window.render_app_to_text!()));
+    expect(
+      observation.document.parts.map((part: { catalogPartId: string }) => part.catalogPartId),
+    ).toEqual([partId]);
+    expect(observation.validation.documentGloballyValid).toBe(true);
+    const capture = (await page.evaluate(() => window.capture_model_views!())).isometric!;
+    writeFileSync(
+      `${OUT}/${partId.replace("builtin:", "")}-plan-isometric.png`,
+      Buffer.from(capture.slice(capture.indexOf(",") + 1), "base64"),
+    );
   }
 });

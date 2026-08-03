@@ -4,6 +4,7 @@ import {
   UPRIGHT_ORIENTATIONS,
   getPartDefinition,
   type LduVector3,
+  type OrientationMatrix,
 } from "@lego-studio/catalog";
 import {
   validateBrickDocumentV1,
@@ -118,6 +119,52 @@ const colorByLdrawCode = new Map(
 const orientationByMatrix = new Map(
   UPRIGHT_ORIENTATIONS.map((orientation) => [orientation.matrix.join(" "), orientation] as const),
 );
+const orientationById = new Map(
+  UPRIGHT_ORIENTATIONS.map((orientation) => [orientation.id, orientation] as const),
+);
+
+function multiplyOrientationMatrices(
+  left: OrientationMatrix,
+  right: OrientationMatrix,
+): OrientationMatrix {
+  return [
+    left[0] * right[0] + left[1] * right[3] + left[2] * right[6],
+    left[0] * right[1] + left[1] * right[4] + left[2] * right[7],
+    left[0] * right[2] + left[1] * right[5] + left[2] * right[8],
+    left[3] * right[0] + left[4] * right[3] + left[5] * right[6],
+    left[3] * right[1] + left[4] * right[4] + left[5] * right[7],
+    left[3] * right[2] + left[4] * right[5] + left[5] * right[8],
+    left[6] * right[0] + left[7] * right[3] + left[8] * right[6],
+    left[6] * right[1] + left[7] * right[4] + left[8] * right[7],
+    left[6] * right[2] + left[7] * right[5] + left[8] * right[8],
+  ];
+}
+
+const inverseOrientationMatrix = (matrix: OrientationMatrix): OrientationMatrix => [
+  matrix[0],
+  matrix[3],
+  matrix[6],
+  matrix[1],
+  matrix[4],
+  matrix[7],
+  matrix[2],
+  matrix[5],
+  matrix[8],
+];
+
+function ldrawToCatalogOrientation(catalogPartId: string) {
+  const definition = getPartDefinition(catalogPartId);
+  const orientation = orientationById.get(
+    definition?.ldrawFrame?.ldrawToCatalogOrientationId ?? "upright-yaw-0",
+  );
+  if (!definition || !orientation) {
+    fail(
+      "UNSUPPORTED_DOCUMENT",
+      `Catalog part ${catalogPartId} has no valid LDraw-to-catalog frame mapping`,
+    );
+  }
+  return orientation;
+}
 
 function compareStrings(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
@@ -431,7 +478,9 @@ function exportPartLine(part: PartInstance): string {
   if (!alias || !color || !orientation) {
     fail("UNSUPPORTED_DOCUMENT", `Part ${part.id} uses unsupported LDraw truth`);
   }
-  return `1 ${color.ldrawCode} ${part.transform.positionLdu.join(" ")} ${orientation.matrix.join(" ")} ${alias}`;
+  const frameCorrection = ldrawToCatalogOrientation(part.catalogPartId);
+  const ldrawMatrix = multiplyOrientationMatrices(orientation.matrix, frameCorrection.matrix);
+  return `1 ${color.ldrawCode} ${part.transform.positionLdu.join(" ")} ${ldrawMatrix.join(" ")} ${alias}`;
 }
 
 export function exportBrickDocumentToLDraw(input: BrickDocumentV1): string {
@@ -560,12 +609,26 @@ function parsePartLine(raw: string, metadata: PartMetadata, lineNumber: number):
     );
   }
   const matrixToken = tokens.slice(5, 14).join(" ");
-  const orientation = orientationByMatrix.get(matrixToken);
-  if (!orientation)
+  const ldrawOrientation = orientationByMatrix.get(matrixToken);
+  if (!ldrawOrientation)
     fail("UNSUPPORTED_MATRIX", "Matrix is not a supported upright rotation", lineNumber);
+  const catalogPartId = partIdByLdrawAlias.get(fileName)!;
+  const frameCorrection = ldrawToCatalogOrientation(catalogPartId);
+  const catalogMatrix = multiplyOrientationMatrices(
+    ldrawOrientation.matrix,
+    inverseOrientationMatrix(frameCorrection.matrix),
+  );
+  const orientation = orientationByMatrix.get(catalogMatrix.join(" "));
+  if (!orientation) {
+    fail(
+      "UNSUPPORTED_MATRIX",
+      `LDraw matrix for ${fileName} does not resolve to a supported catalog orientation after its local-frame correction`,
+      lineNumber,
+    );
+  }
   return {
     id: metadata.id,
-    catalogPartId: partIdByLdrawAlias.get(fileName)!,
+    catalogPartId,
     colorId: color.id,
     transform: {
       positionLdu: [

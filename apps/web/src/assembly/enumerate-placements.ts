@@ -433,8 +433,8 @@ function buildPlateOrigins(
   // editor's own lateral snap applies.
   const footprint = worldFootprint(definition, orientationId);
   const origins: LduVector3[] = [];
-  for (let x = alignedStart(minX, footprint.studsX); x <= maxX; x += STUD_PITCH_LDU) {
-    for (let z = alignedStart(minZ, footprint.studsZ); z <= maxZ; z += STUD_PITCH_LDU) {
+  for (let x = alignedStart(minX, footprint.originOffsetX); x <= maxX; x += STUD_PITCH_LDU) {
+    for (let z = alignedStart(minZ, footprint.originOffsetZ); z <= maxZ; z += STUD_PITCH_LDU) {
       origins.push([x, y, z]);
     }
   }
@@ -442,7 +442,6 @@ function buildPlateOrigins(
 }
 
 /** First lattice origin at or above `from` for a footprint this many studs wide. */
-function alignedStart(from: number, studs: number): number {
-  const offset = studs % 2 === 0 ? 0 : STUD_PITCH_LDU / 2;
+function alignedStart(from: number, offset: number): number {
   return Math.ceil((from - offset) / STUD_PITCH_LDU) * STUD_PITCH_LDU + offset;
 }

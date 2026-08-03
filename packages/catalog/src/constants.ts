@@ -15,11 +15,13 @@ import type {
  * booklet needs, and the first two families whose studs do not fill their
  * footprint — jumper plates and grille tiles; /5 added the first parts whose
  * solid is not one prism — arches, curved slopes, cheese slopes and corner
- * plates, each a union of boxes measured out of its own LDraw file.
+ * plates, each a union of boxes measured out of its own LDraw file; /6 adds six
+ * booklet parts, including the first analytic circular plan features and their
+ * conservative convex-prism collision decomposition.
  */
-export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/5" as const;
+export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/6" as const;
 export const CONNECTOR_TAXONOMY_VERSION = "stud-tube/1" as const;
-export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/1" as const;
+export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/2" as const;
 export const TRANSFORM_POLICY_VERSION = "upright-quarter-turns-negative-y-up/1" as const;
 
 export const STUD_PITCH_LDU = 20 as const;
@@ -47,6 +49,13 @@ export const PROJECT_GEOMETRY_PROVENANCE: SourceProvenance = Object.freeze({
   runtimeRole: "parametric-runtime-geometry",
 });
 
+export const PROJECT_PLAN_GEOMETRY_PROVENANCE: SourceProvenance = Object.freeze({
+  ...PROJECT_CATALOG_PROVENANCE,
+  sourceId: "lego-studio:parametric-plan-feature-part-generator",
+  sourceVersion: "1",
+  runtimeRole: "parametric-runtime-geometry",
+});
+
 export const PROJECT_COLOR_PROVENANCE: SourceProvenance = Object.freeze({
   ...PROJECT_CATALOG_PROVENANCE,
   sourceId: "lego-studio:starter-display-colors",
@@ -57,10 +66,23 @@ export const PROJECT_COLOR_PROVENANCE: SourceProvenance = Object.freeze({
 export const LDRAW_IDENTIFIER_PROVENANCE: SourceProvenance = Object.freeze({
   sourceId: "ldraw:interchange-identifiers",
   sourceType: "interoperability-mapping",
-  sourceVersion: "reviewed-2026-07-09",
+  sourceVersion: "reviewed-2026-08-02",
   licenseExpression: "LicenseRef-LDraw-Identifiers",
   attribution: "LDraw.org identifier compatibility; no LDraw geometry is bundled.",
   runtimeRole: "interchange-identifier-only",
+  redistributionAllowed: true,
+  trainingUseAllowed: false,
+  externalGeometryBundled: false,
+});
+
+export const LDRAW_91988_FRAME_PROVENANCE: SourceProvenance = Object.freeze({
+  sourceId: "ldraw:official:91988.dat",
+  sourceType: "interoperability-mapping",
+  sourceVersion: "UPDATE-2012-02;measured-2026-08-02",
+  licenseExpression: "CC-BY-2.0",
+  attribution:
+    "91988.dat authored by Owen Burgoyne [C3POwen] for LDraw.org; frame measured without bundling geometry.",
+  runtimeRole: "interchange-frame-measurement",
   redistributionAllowed: true,
   trainingUseAllowed: false,
   externalGeometryBundled: false,

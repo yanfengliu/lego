@@ -2,6 +2,8 @@ import {
   STUD_HEIGHT_LDU,
   STUD_RADIUS_LDU,
   getColorDefinition,
+  sampleBodyArcPlanBoundary,
+  type BodyArcFeature,
   type CollisionWedge,
   type LduBounds,
   type PartDefinition,
@@ -23,6 +25,8 @@ import {
   MeshBasicMaterial,
   MeshPhysicalMaterial,
   MeshStandardMaterial,
+  ShapeUtils,
+  Vector2,
 } from "three";
 
 import { INSTRUCTION_EDGE_THRESHOLD_DEGREES } from "./constants.ts";
@@ -191,6 +195,20 @@ function createWedgeGeometry(wedge: CollisionWedge): BufferGeometry {
     }
     if (inside(current)) section.push(current);
   }
+  for (let index = section.length - 1; index > 0; index -= 1) {
+    const current = section[index]!;
+    const previous = section[index - 1]!;
+    if (Math.abs(current[0] - previous[0]) <= 1e-9 && Math.abs(current[1] - previous[1]) <= 1e-9) {
+      section.splice(index, 1);
+    }
+  }
+  if (
+    section.length > 1 &&
+    Math.abs(section[0]![0] - section[section.length - 1]![0]) <= 1e-9 &&
+    Math.abs(section[0]![1] - section[section.length - 1]![1]) <= 1e-9
+  ) {
+    section.pop();
+  }
   if (section.length < 3) {
     throw new RangeError(
       `Wedge ${wedge.id} has a sloped face that removes its whole footprint; check cutNormalXZ and cutOffsetLdu against minLdu/maxLdu.`,
@@ -215,6 +233,68 @@ function createWedgeGeometry(wedge: CollisionWedge): BufferGeometry {
     const next = (index + 1) % section.length;
     positions.push(...at(index, topY), ...at(index, bottomY), ...at(next, bottomY));
     positions.push(...at(index, topY), ...at(next, bottomY), ...at(next, topY));
+  }
+
+  const geometry = new BufferGeometry();
+  geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+/** One smooth visible prism from the authored arc, never from its collision facets. */
+export function createArcPrismGeometry(feature: BodyArcFeature, bounds: LduBounds): BufferGeometry {
+  const boundary = sampleBodyArcPlanBoundary(feature, 2);
+  const contour = boundary.map(([x, z]) => new Vector2(x, z));
+  const faces = ShapeUtils.triangulateShape(contour, []);
+  if (faces.length === 0) {
+    throw new RangeError("bodyArc boundary could not be triangulated into a visible solid");
+  }
+
+  const topY = -bounds.min[1] * THREE_UNITS_PER_LDU;
+  const bottomY = -bounds.max[1] * THREE_UNITS_PER_LDU;
+  const at = (index: number, y: number): [number, number, number] => [
+    boundary[index]![0] * THREE_UNITS_PER_LDU,
+    y,
+    boundary[index]![1] * THREE_UNITS_PER_LDU,
+  ];
+  const positions: number[] = [];
+  for (const face of faces) {
+    if (face.length !== 3) {
+      throw new RangeError(`bodyArc triangulation returned a ${face.length}-vertex face`);
+    }
+    const a = face[0]!;
+    const b = face[1]!;
+    const c = face[2]!;
+    const left = boundary[a]!;
+    const middle = boundary[b]!;
+    const right = boundary[c]!;
+    const cross =
+      (middle[0] - left[0]) * (right[1] - left[1]) - (middle[1] - left[1]) * (right[0] - left[0]);
+    if (cross > 0) {
+      positions.push(...at(a, topY), ...at(c, topY), ...at(b, topY));
+      positions.push(...at(a, bottomY), ...at(b, bottomY), ...at(c, bottomY));
+    } else {
+      positions.push(...at(a, topY), ...at(b, topY), ...at(c, topY));
+      positions.push(...at(a, bottomY), ...at(c, bottomY), ...at(b, bottomY));
+    }
+  }
+
+  let twiceArea = 0;
+  for (let index = 0; index < boundary.length; index += 1) {
+    const current = boundary[index]!;
+    const next = boundary[(index + 1) % boundary.length]!;
+    twiceArea += current[0] * next[1] - next[0] * current[1];
+  }
+  const counterClockwise = twiceArea > 0;
+  for (let index = 0; index < boundary.length; index += 1) {
+    const next = (index + 1) % boundary.length;
+    if (counterClockwise) {
+      positions.push(...at(index, topY), ...at(next, topY), ...at(next, bottomY));
+      positions.push(...at(index, topY), ...at(next, bottomY), ...at(index, bottomY));
+    } else {
+      positions.push(...at(index, topY), ...at(next, bottomY), ...at(next, topY));
+      positions.push(...at(index, topY), ...at(index, bottomY), ...at(next, bottomY));
+    }
   }
 
   const geometry = new BufferGeometry();
@@ -282,8 +362,30 @@ export function createCatalogPartGeometry(
   // box it is not, and would let the picture and the solid drift apart in
   // silence — which is the gap LDCad's shadow library exists to patch.
   let bodyIndex = 0;
+  const bodyArc = definition.geometry.bodyArc;
+  if (bodyArc) {
+    const source = createArcPrismGeometry(bodyArc, definition.bodyBoundsLdu);
+    if (outlineMaterial) {
+      group.add(
+        createInstructionOutline(source, outlineMaterial, `body-outline:${part.id}`, part.id),
+      );
+    }
+    const bodyGeometry = shaded(source, "body");
+    bodyGeometry.userData = { ...metadata, renderRole: "body-geometry" };
+    const body = new Mesh(bodyGeometry, material);
+    body.name = `body:${part.id}`;
+    body.castShadow = castsShadows;
+    body.receiveShadow = castsShadows;
+    body.userData = { renderRole: "body", partId: part.id, primitiveId: "body:arc" };
+    group.add(body);
+    bodyIndex += 1;
+  }
   for (const primitive of definition.collision.primitives) {
     if (primitive.tag !== "body") continue;
+    // The visible body is the exact source feature above. Its conservative
+    // convex collision decomposition must never become visible seams or a
+    // slightly expanded silhouette.
+    if (bodyArc || primitive.kind === "convex-prism") continue;
     // A round body — a wheel — is drawn round. Its axis lies along x, matching
     // the axle it turns on, where a Three.js cylinder stands on y by default.
     if (primitive.kind === "cylinder") {
@@ -483,7 +585,6 @@ export function createPlacementGhost(
   transform: RigidTransform,
   verdict: GhostVerdict,
 ): Group {
-  const group = new Group();
   const material = new MeshStandardMaterial({
     color: GHOST_COLORS[verdict],
     metalness: 0,
@@ -494,30 +595,49 @@ export function createPlacementGhost(
   });
   material.userData = { renderRole: "placement-ghost-material", verdict };
 
-  const { widthLdu, heightLdu, lengthLdu } = definition.dimensions;
-  const bodyGeometry = new BoxGeometry(
-    widthLdu * THREE_UNITS_PER_LDU,
-    heightLdu * THREE_UNITS_PER_LDU,
-    lengthLdu * THREE_UNITS_PER_LDU,
+  // Build from the same source feature path as the placed part. A dimensions
+  // box fills a ring's opening, restores a wedge's cut corner, and recentres an
+  // asymmetric raw part such as 80015, so it can falsely show either clearance
+  // or collision while the editor is deciding whether placement is legal.
+  const diagnostics: RenderDiagnostic[] = [];
+  const group = createCatalogPartGeometry(
+    {
+      id: "placement-ghost",
+      catalogPartId: definition.id,
+      colorId: "builtin:white",
+      transform: { positionLdu: [0, 0, 0], orientationId: "upright-yaw-0" },
+      submodelId: "root",
+      stepId: "step-1",
+      semanticTags: [],
+      provenance: { source: "manual" },
+    },
+    definition,
+    true,
+    diagnostics,
+    "flat",
   );
-  bodyGeometry.userData = { renderRole: "placement-ghost-geometry" };
-  group.add(new Mesh(bodyGeometry, material));
-
-  const studGeometry = new CylinderGeometry(
-    STUD_RADIUS_LDU * THREE_UNITS_PER_LDU,
-    STUD_RADIUS_LDU * THREE_UNITS_PER_LDU,
-    STUD_HEIGHT_LDU * THREE_UNITS_PER_LDU,
-    16,
-    1,
-    false,
-  );
-  studGeometry.userData = { renderRole: "placement-ghost-geometry" };
-  for (const primitive of definition.collision.primitives) {
-    if (primitive.kind !== "cylinder" || primitive.tag !== "stud") continue;
-    const stud = new Mesh(studGeometry, material);
-    stud.position.copy(lduToThreeVector(primitive.centerLdu));
-    group.add(stud);
+  if (diagnostics.length > 0) {
+    throw new RangeError(
+      `Placement ghost for ${definition.id} could not derive catalog geometry: ${diagnostics.map(({ message }) => message).join("; ")}`,
+    );
   }
+  const replacedMaterials = new Set<Material>();
+  group.traverse((object) => {
+    if (!(object instanceof Mesh)) return;
+    for (const prior of Array.isArray(object.material) ? object.material : [object.material]) {
+      replacedMaterials.add(prior);
+    }
+    object.material = material;
+    object.geometry.userData = {
+      ...object.geometry.userData,
+      renderRole: "placement-ghost-geometry",
+    };
+    object.userData = { ...object.userData, renderRole: "placement-ghost-piece", verdict };
+    object.castShadow = false;
+    object.receiveShadow = false;
+    object.renderOrder = 50;
+  });
+  for (const replaced of replacedMaterials) replaced.dispose();
 
   lduTransformToThreeMatrix(transform).decompose(group.position, group.quaternion, group.scale);
   group.updateMatrix();
@@ -527,7 +647,7 @@ export function createPlacementGhost(
     renderRole: "placement-ghost",
     catalogPartId: definition.id,
     verdict,
-    sourceOfTruth: "none",
+    sourceOfTruth: "catalog-derived-display",
   };
   return group;
 }

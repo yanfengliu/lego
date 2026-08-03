@@ -1,6 +1,7 @@
 import {
   STUD_PITCH_LDU,
   STUD_RADIUS_LDU,
+  sampleBodyArcPlanBoundary,
   type CollisionPrimitive,
   type PartDefinition,
 } from "@lego-studio/catalog";
@@ -32,6 +33,51 @@ interface PartPreviewProps {
   readonly colorHex: string;
 }
 
+type PlanPoint = readonly [x: number, z: number];
+
+/** Exact horizontal section of the catalog's cut-prism primitive. */
+function sampleWedgePlanBoundary(
+  wedge: Extract<CollisionPrimitive, { kind: "wedge" }>,
+): readonly PlanPoint[] {
+  const [nx, nz] = wedge.cutNormalXZ;
+  const corners: readonly PlanPoint[] = [
+    [wedge.minLdu[0], wedge.minLdu[2]],
+    [wedge.maxLdu[0], wedge.minLdu[2]],
+    [wedge.maxLdu[0], wedge.maxLdu[2]],
+    [wedge.minLdu[0], wedge.maxLdu[2]],
+  ];
+  const inside = ([x, z]: PlanPoint): boolean => nx * x + nz * z <= wedge.cutOffsetLdu;
+  const clipped: PlanPoint[] = [];
+  for (let index = 0; index < corners.length; index += 1) {
+    const current = corners[index]!;
+    const previous = corners[(index + corners.length - 1) % corners.length]!;
+    const currentInside = inside(current);
+    const previousInside = inside(previous);
+    if (currentInside !== previousInside) {
+      const currentDistance = nx * current[0] + nz * current[1] - wedge.cutOffsetLdu;
+      const previousDistance = nx * previous[0] + nz * previous[1] - wedge.cutOffsetLdu;
+      const fraction = previousDistance / (previousDistance - currentDistance);
+      clipped.push([
+        previous[0] + fraction * (current[0] - previous[0]),
+        previous[1] + fraction * (current[1] - previous[1]),
+      ]);
+    }
+    if (currentInside) clipped.push(current);
+  }
+  const unique = clipped.filter(
+    (point, index) =>
+      index === 0 || point[0] !== clipped[index - 1]![0] || point[1] !== clipped[index - 1]![1],
+  );
+  if (
+    unique.length > 1 &&
+    unique[0]![0] === unique[unique.length - 1]![0] &&
+    unique[0]![1] === unique[unique.length - 1]![1]
+  ) {
+    unique.pop();
+  }
+  return unique;
+}
+
 /**
  * A derived, dependency-free thumbnail of a catalog part. It reads the same
  * authoritative dimensions the renderer does, so the palette cannot drift from
@@ -45,12 +91,93 @@ export function PartPreview({ part, colorHex }: PartPreviewProps) {
   // Preview space puts the part's own base at zero and measures up in studs,
   // while the catalog measures down in LDU from the part's centre.
   const toY = (ldu: number): number => (heightLdu / 2 - ldu) / STUD_PITCH_LDU;
-  const toX = (ldu: number): number => ldu / STUD_PITCH_LDU + widthStuds / 2;
-  const toZ = (ldu: number): number => ldu / STUD_PITCH_LDU + lengthStuds / 2;
+  const toX = (ldu: number): number => (ldu - part.bodyBoundsLdu.min[0]) / STUD_PITCH_LDU;
+  const toZ = (ldu: number): number => (ldu - part.bodyBoundsLdu.min[2]) / STUD_PITCH_LDU;
+  const arc = part.geometry.bodyArc;
+  const wedge = part.collision.primitives.find(
+    (primitive): primitive is Extract<CollisionPrimitive, { kind: "wedge" }> =>
+      primitive.kind === "wedge" && primitive.tag === "body",
+  );
+  const planBoundary = arc
+    ? sampleBodyArcPlanBoundary(arc, 2)
+    : wedge
+      ? sampleWedgePlanBoundary(wedge)
+      : null;
+  if (planBoundary) {
+    const boundary = planBoundary.map(([x, z]) => [toX(x), toZ(z)] as const);
+    const top = boundary.map(([x, z]) => project(x, height, z));
+    const sides = boundary.flatMap(([x, z], index) => {
+      const [nextX, nextZ] = boundary[(index + 1) % boundary.length]!;
+      const dx = nextX - x;
+      const dz = nextZ - z;
+      const outwardX = dz;
+      const outwardZ = -dx;
+      if (outwardX + outwardZ <= 0) return [];
+      return [
+        {
+          key: `${index}:${x}:${z}`,
+          shade: outwardX >= outwardZ ? 0.8 : 0.62,
+          points: [
+            project(x, height, z),
+            project(nextX, height, nextZ),
+            project(nextX, 0, nextZ),
+            project(x, 0, z),
+          ] as const,
+        },
+      ];
+    });
+    const studs = part.collision.primitives
+      .filter(
+        (primitive): primitive is Extract<CollisionPrimitive, { kind: "cylinder" }> =>
+          primitive.kind === "cylinder" && primitive.tag === "stud",
+      )
+      .map((primitive) =>
+        project(toX(primitive.centerLdu[0]), height, toZ(primitive.centerLdu[2])),
+      );
+    const all = [...top, ...sides.flatMap(({ points }) => points), ...studs];
+    const xs = all.map(([x]) => x);
+    const ys = all.map(([, y]) => y);
+    const pad = studRadius + 2;
+    const minX = Math.min(...xs) - pad;
+    const minY = Math.min(...ys) - pad;
+    const previewWidth = Math.max(...xs) - minX + pad;
+    const previewHeight = Math.max(...ys) - minY + pad;
+    return (
+      <svg
+        className="part-preview"
+        viewBox={`${minX.toFixed(2)} ${minY.toFixed(2)} ${previewWidth.toFixed(2)} ${previewHeight.toFixed(2)}`}
+        role="img"
+        aria-label={`${part.displayName} preview`}
+        focusable="false"
+      >
+        {sides.map(({ key, shade: factor, points }) => (
+          <polygon key={key} points={polygon(points)} fill={shade(colorHex, factor)} />
+        ))}
+        <polygon
+          points={polygon(top)}
+          fill={colorHex}
+          data-preview-surface="plan-top"
+          data-plan-vertices={boundary.length}
+        />
+        {studs.map(([x, y]) => (
+          <ellipse
+            key={`${x.toFixed(2)}:${y.toFixed(2)}`}
+            cx={x}
+            cy={y - studRadius * ISO_Y}
+            rx={studRadius * ISO_X}
+            ry={studRadius * ISO_Y}
+            fill={shade(colorHex, 1.14)}
+            stroke={shade(colorHex, 0.72)}
+            strokeWidth={0.5}
+          />
+        ))}
+      </svg>
+    );
+  }
   // The same body boxes the renderer draws, so an arch shows its void and a
-  // corner plate its missing quarter. A part whose body is a wedge or a
-  // cylinder has no boxes and falls back to its footprint, which is what this
-  // preview has always drawn for it.
+  // corner plate its missing quarter. Round body cylinders have no boxes and
+  // retain the footprint fallback; cut prisms and arcs were handled exactly
+  // above rather than being widened into that fallback rectangle.
   const bodyBoxes = part.collision.primitives.filter(
     (primitive): primitive is Extract<CollisionPrimitive, { kind: "box" }> =>
       primitive.kind === "box" && primitive.tag === "body",
@@ -117,13 +244,7 @@ export function PartPreview({ part, colorHex }: PartPreviewProps) {
       (primitive): primitive is Extract<CollisionPrimitive, { kind: "cylinder" }> =>
         primitive.kind === "cylinder" && primitive.tag === "stud",
     )
-    .map((primitive) =>
-      project(
-        primitive.centerLdu[0] / STUD_PITCH_LDU + widthStuds / 2,
-        height,
-        primitive.centerLdu[2] / STUD_PITCH_LDU + lengthStuds / 2,
-      ),
-    );
+    .map((primitive) => project(toX(primitive.centerLdu[0]), height, toZ(primitive.centerLdu[2])));
 
   return (
     <svg

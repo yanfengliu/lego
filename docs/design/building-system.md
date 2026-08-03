@@ -19,20 +19,20 @@ Connectors are typed and gendered with positions, axes and profiles, and connect
 Placement has a live ghost preview with a valid or blocked verdict, and refuses an unsupported placement at the command rather than flagging it afterwards.
 Collision separates connector engagement from solid overlap: a stud may enter a matching clutch to a declared depth, and everything else that shares space is refused.
 Colours are a stable palette of 45 ids, changing one edits instance data.
-Undo and redo, project save and load, LDraw import and export, a searchable catalog panel grouped by family, and 640 unit plus 24 browser tests all exist.
+Undo and redo, project save and load, LDraw import and export, a searchable catalog panel grouped by family, and broad unit and browser regression suites all exist.
 
 **Partly built.**
 
 Connector kinds are `stud` and `undersideClutch` only — nothing articulated.
 Selection is single-part; there is no multi-select or box select.
-The asset pipeline is a parametric generator plus the LDraw fact reader, with no mesh stage.
+The asset pipeline is a parametric box, wedge, cylinder, and analytic-plan generator plus the LDraw fact reader, with no imported-mesh stage.
 Collision does a one-dimensional sweep on x with an early break, which is sweep-and-prune, but connector lookup is linear.
 
 **Not built at all.**
 
 Physics: Rapier drives compound bodies and revolute joints from the kernel's descriptors. No simulation mode in the app yet, and no support model beyond the static placement check.
-GPU instancing: one mesh per part, so a 1465-piece model is 1465 meshes.
-Mass, centre of mass and inertia are absent from `PartDefinition`.
+GPU instancing is absent: each part is a `Group` containing one or more body meshes plus separate stud meshes, so a 1465-piece model produces more than 1465 meshes (and instruction rendering adds outline objects).
+Inertia is absent from `PartDefinition`; mass and centre of mass are derived from the declared compound solid, with an optional known-mass override.
 No profiling metrics.
 
 ## One disagreement worth stating

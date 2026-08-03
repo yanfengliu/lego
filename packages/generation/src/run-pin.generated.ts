@@ -6,7 +6,7 @@
 import type { RunPin } from "./run-pin.ts";
 
 export const DETERMINISTIC_RUN_PIN: RunPin = {
-  catalogVersion: "builtin.basic-parts/5",
-  catalogTruthHash: "sha256:4fa0d526206cad697216ae205e3b7f3ec0948adc99ed8987a59b20bc16059dbf",
-  populationDigest: "sha256:84f7e9f44aa3816aafbb258b8a530802cc5842251ffad2349616c5d713276265",
+  catalogVersion: "builtin.basic-parts/6",
+  catalogTruthHash: "sha256:590a94c9b9498faace4b29b74c4c9ba8352d644365585d9aeb96b4a7c53bdb7f",
+  populationDigest: "sha256:4be24daa6ce92d977553c605a62ef14f56de37182e26a92820e12d478391986b",
 };

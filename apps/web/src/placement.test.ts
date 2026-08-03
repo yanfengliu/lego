@@ -73,6 +73,33 @@ describe("placement footprints", () => {
       studsZ: 2,
     });
   });
+
+  it("keeps the asymmetric 80015 source origin on the shared stud lattice at every yaw", () => {
+    const catalogPartId = "builtin:corner-plate-5x5-quarter-ring";
+    for (const orientationId of [
+      "upright-yaw-0",
+      "upright-yaw-90",
+      "upright-yaw-180",
+      "upright-yaw-270",
+    ]) {
+      const footprint = worldFootprint(definition(catalogPartId), orientationId);
+      expect([orientationId, footprint.originOffsetX, footprint.originOffsetZ]).toEqual([
+        orientationId,
+        0,
+        0,
+      ]);
+      const origin = snapPlacementOrigin({
+        catalogPartId,
+        orientationId,
+        rawLdu: [7, 0, -7],
+      });
+      expect(origin.slice(0, 3)).toEqual([0, 8, 0]);
+      for (const [x, , z] of studPositions(partAt("ring", catalogPartId, origin, orientationId))) {
+        expect(Math.abs(x % STUD_PITCH_LDU)).toBe(STUD_PITCH_LDU / 2);
+        expect(Math.abs(z % STUD_PITCH_LDU)).toBe(STUD_PITCH_LDU / 2);
+      }
+    }
+  });
 });
 
 describe("snapPlacementOrigin", () => {

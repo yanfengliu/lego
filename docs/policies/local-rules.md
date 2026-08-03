@@ -1,3 +1,4 @@
 # Local rules
 
 - Use independent subagents for parallel repository work and put every material implementation unit through a separate harsh-critic pass before accepting it; when progress stalls, hold the reproduction or benchmark fixed, solicit deliberately different approaches, score them against the same evidence, and keep the best measured result rather than iterating one idea indefinitely.
+- Treat user-provided and publicly reachable construction sources as authorized inputs for this repository's private, noncommercial reconstruction and evaluation work; commercial-rights review must not block that work. Keep native source payloads local when practical, preserve exact identities and hashes for reproducibility, and do not describe upstream material as project-owned or silently broaden the authorization to public redistribution or training.

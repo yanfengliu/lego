@@ -15,6 +15,7 @@ The machine-readable records refer to one of these policies:
 - `project-mit`: project-authored source governed by the repository `LICENSE` (MIT). Redistribution is allowed with the copyright and license notice. Preserve “Copyright (c) 2026 Yanfeng Liu” and the MIT text. The material is not designated as a model-training or benchmark corpus merely because its software license permits use.
 - `npm-lockfile-spdx-unverified`: the stated license is copied from `package-lock.json` and the installed package manifest. Preserve all upstream copyright, license, and NOTICE material required by the package. The generated `THIRD_PARTY_NOTICES.md` records the locked graph; redistribution still requires verification of packaged license files. The package is approved only for its declared software role, not as model-training or benchmark content.
 - `external-evaluation-pending-audit`: the source is not included. No redistribution or training use is approved. It may become evaluation-only only after source-specific license, attribution, privacy, and data-rights review; moving it into runtime, examples, knowledge, or training requires a new reviewed BOM entry.
+- `private-noncommercial-source-reference`: the repository owner expressly authorizes the named source for this private, noncommercial reconstruction and evaluation. That authorization prevents a commercial-rights audit from blocking local work; it does not silently relicense upstream material. Keep source payloads local where possible and retain exact identities and hashes so factual extractions can be reproduced and challenged.
 
 ## Machine-audited inventory
 
@@ -26,7 +27,7 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
   "schemaVersion": 1,
   "rightsPolicies": {
     "attribution-required-facts-only": {
-      "licenseEvidence": "Each LDraw part file carries `!LICENSE Licensed under CC BY 4.0 : see CAreadme.txt` in its header, read at the same time as the measurements.",
+      "licenseEvidence": "The exact `!LICENSE`, `Author`, and `!LDRAW_ORG` headers are read per source file at the same time as the measurements; the inspected files include both legacy CC BY 2.0 and CC BY 4.0 declarations.",
       "attribution": "Credit LDraw.org and the part's named author for measurements taken from the official library; the catalog records the LDraw identifier for every part measured this way.",
       "redistribution": "No LDraw file, geometry, mesh, or excerpt is copied into this repository or shipped. What is kept is measurement — a part's stud positions and body extents as numbers — which is then hand-authored into a project-owned parametric blueprint.",
       "trainingUse": "Not designated as a model-training or benchmark corpus; permission to read geometry is not permission to train on it."
@@ -48,6 +49,12 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
       "attribution": "Name the source set and the fact that the data is a measurement rather than a reproduction wherever the fixture is described.",
       "redistribution": "Only as the numeric measurement itself. No expressive content of the source may be redistributed, and the measurement must not be presented as, or expanded back towards, booklet content.",
       "trainingUse": "Not approved. Permission to measure a work is not permission to train on it."
+    },
+    "private-noncommercial-source-reference": {
+      "licenseEvidence": "The repository owner expressly authorized use of the named source for private, noncommercial reconstruction and evaluation on 2026-08-02; this records task scope rather than an upstream relicensing claim.",
+      "attribution": "Retain the exact source identity, revision, extraction method, and integrity hashes beside every committed fact derived from the source.",
+      "redistribution": "Source bundles, native files, and booklet pages remain local; only minimal factual measurements and project-authored validation code are committed unless the owner separately expands the scope.",
+      "trainingUse": "Not designated as model-training content; the approved role is private reconstruction and evaluation."
     },
     "external-evaluation-pending-audit": {
       "licenseEvidence": "Unverified; the source is not included.",
@@ -104,6 +111,7 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
     { "manifest": "apps/web/package.json", "section": "dependencies", "name": "react-dom", "spec": "19.2.7" },
     { "manifest": "packages/protocol/package.json", "section": "dependencies", "name": "ajv", "spec": "8.20.0" },
     { "manifest": "packages/protocol/package.json", "section": "dependencies", "name": "@noble/hashes", "spec": "2.2.0" },
+    { "manifest": "packages/catalog/package.json", "section": "dependencies", "name": "@noble/hashes", "spec": "2.2.0" },
     { "manifest": "packages/brick-kernel/package.json", "section": "dependencies", "name": "@lego-studio/catalog", "spec": "0.0.0" },
     { "manifest": "packages/brick-kernel/package.json", "section": "dependencies", "name": "@lego-studio/protocol", "spec": "0.0.0" },
     { "manifest": "packages/brick-kernel/package.json", "section": "dependencies", "name": "@noble/hashes", "spec": "2.2.0" },
@@ -423,11 +431,11 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
       "category": "catalog-data-and-geometry",
       "status": "implemented-project-authored",
       "source": "packages/catalog/src/",
-      "version": "builtin.basic-parts/1",
+      "version": "builtin.basic-parts/6",
       "declaredLicense": "MIT",
       "rightsPolicy": "project-mit",
       "allowedRoles": ["runtime", "tests", "distribution"],
-      "intent": "Project-authored dimensions and parametric geometry for the initial basic brick and plate catalog; no LDraw mesh files are copied into this layer."
+      "intent": "Project-authored dimensions and parametric box, wedge, compound-box, and analytic-plan geometry for the 77-part builtin catalog; no LDraw mesh files are copied into this layer."
     },
     {
       "id": "builtin-stud-clutch-taxonomy",
@@ -438,18 +446,18 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
       "declaredLicense": "MIT",
       "rightsPolicy": "project-mit",
       "allowedRoles": ["runtime", "tests", "distribution"],
-      "intent": "Project-authored stud and underside-clutch port transforms and compatibility rules; no LDCad Shadow Library data is included."
+      "intent": "Project-authored stud and underside-clutch port transforms and compatibility rules. The only external fact currently retained is 80015 revision E's two source-verified partial-overhang underside grips, separately pinned below to LEGO Builder and independently cross-checked against LDCad; no source bundle or shadow file is included."
     },
     {
       "id": "builtin-analytic-collision-model",
       "category": "collision-data",
       "status": "implemented-project-authored",
       "source": "packages/catalog/src/",
-      "version": "builtin.collision/1",
+      "version": "rectilinear-stud-clearance/2",
       "declaredLicense": "MIT",
       "rightsPolicy": "project-mit",
       "allowedRoles": ["runtime", "tests", "distribution"],
-      "intent": "Project-authored bounded analytic collision bodies and connector allowances derived from the starter catalog definitions."
+      "intent": "Project-authored bounded analytic collision bodies, including conservative disjoint convex-prism decompositions of circular plan features, and connector allowances derived from the catalog definitions."
     },
     {
       "id": "builtin-derived-three-geometry",
@@ -460,7 +468,7 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
       "declaredLicense": "MIT",
       "rightsPolicy": "project-mit",
       "allowedRoles": ["runtime", "tests", "distribution"],
-      "intent": "Disposable Three.js meshes generated from canonical project-authored catalog dimensions; never an authoring source of truth."
+      "intent": "Disposable Three.js meshes generated from canonical project-authored catalog dimensions and exact source features rather than collision approximations; never an authoring source of truth."
     },
     {
       "id": "repo-owned-synthetic-examples",
@@ -478,11 +486,11 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
       "category": "external-geometry-and-catalog-data",
       "status": "read-at-authoring-time-not-bundled",
       "source": "https://library.ldraw.org/library/official",
-      "version": "official-library-as-of-2026-08-01",
-      "declaredLicense": "CC-BY-4.0",
+      "version": "per-file headers inspected 2026-08-02",
+      "declaredLicense": "PER-FILE-CC-BY-2.0-OR-CC-BY-4.0",
       "rightsPolicy": "attribution-required-facts-only",
       "allowedRoles": ["dimension-reference-authoring-only"],
-      "intent": "scripts/ldraw-part-facts.mjs reads official part files by hand to measure a part's stud positions and body extents, which are then hand-authored into catalog blueprints as numbers. No LDraw file, geometry, or mesh is copied into the repository or shipped, and nothing fetches at runtime or during a gate. Attribution: part geometry authored by LDraw.org contributors, licensed CC BY 4.0."
+      "intent": "scripts/ldraw-part-facts.mjs reads official part files by hand to measure a part's stud positions, body extents, and local frame, which are then hand-authored into catalog blueprints as numbers. No LDraw file, geometry, or mesh is copied into the repository or shipped, and nothing fetches at runtime or during a gate. Attribution and the applicable CC BY version are retained from each file header."
     },
     {
       "id": "external-ldraw-parts-library",
@@ -496,15 +504,26 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
       "intent": "Potential interoperability reference. Any future import must preserve file-level source, license, and attribution rather than flattening geometry into project-owned data."
     },
     {
+      "id": "lego-builder-80015-connectivity-fact",
+      "category": "external-connector-data",
+      "status": "read-at-authoring-time-fact-pinned",
+      "source": "https://api.prod.dbix.i.lego.com/api/v1/Bricks/80015?Revision=E&Platform=Android",
+      "version": "80015 revision E; manifest sha256 3e57aa4df4ab5327c5b8408912d056ba73b93cd98e769e41d6aabaf6cb0618a6; bundle md5 bb72d5b5609e411392df36903c8c5daa; bundle sha256 f3a11d40f9de9fa54670bdd87db0a87e034896d87b56e64e9f382c3ef0098c75; primitive XML sha256 ad9aca4ca7275358e2f680ad154b5f577f8fc79b87a8ea1c60aea4558a0a23bc; normalized seven-offset fact sha256 0e77ae20bce268bcde610fa8d2b34fa2e91a0c3a0132e298e933433591e8f0d5",
+      "declaredLicense": "USER-AUTHORIZED-PRIVATE-NONCOMMERCIAL-REFERENCE",
+      "rightsPolicy": "private-noncommercial-source-reference",
+      "allowedRoles": ["runtime connector fact", "tests", "private reconstruction"],
+      "intent": "The manifest-pinned Custom2DField type-22 centres establish seven underside grips for 80015, including the two explicit partial-overhang offsets [30, -70] and [70, -30] in catalog LDU coordinates. The bundle and primitive XML are not committed or fetched by runtime or gates."
+    },
+    {
       "id": "ldcad-shadow-library-connectors",
       "category": "external-connector-data",
-      "status": "not-included-pending-audit",
+      "status": "read-at-authoring-time-one-fact-pinned",
       "source": "https://github.com/RolandMelkert/LDCadShadowLibrary",
-      "version": "unselected",
-      "declaredLicense": "UNVERIFIED-SHARE-ALIKE-TERMS",
-      "rightsPolicy": "external-evaluation-pending-audit",
-      "allowedRoles": ["evaluation-only-after-audit"],
-      "intent": "Potential connector research layer that must remain separately attributable and cannot silently seed the builtin connector taxonomy."
+      "version": "commit 15aa1e718b6a8da37d24fc7af5e52e262c041bfb; parts/80015.dat sha256 c4dbcc5c5e2969e2b6e5c394519606a66b8483437503b8f4886cdf9262cd7170; parts/s/80015s01.dat sha256 fa4324fccee90f9903c68c65a75bb4e747a76d429a94d648c10b9e24ceb4d879",
+      "declaredLicense": "CC-BY-SA-4.0",
+      "rightsPolicy": "private-noncommercial-source-reference",
+      "allowedRoles": ["authoring-time connector fact cross-check", "tests", "private reconstruction"],
+      "intent": "The exact 80015 shadow part and subpart independently confirm the same seven underside centres reported by LEGO Builder. Only the two numeric partial-overhang offsets, source identity, and hashes are retained; no LDCad shadow file is bundled or fetched by runtime or gates."
     },
     {
       "id": "bricknet-code-data-and-weights",
@@ -531,13 +550,13 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
     {
       "id": "booklet-edge-profile-fixture",
       "category": "derived-measurement-from-external-instruction-booklet",
-      "status": "included",
+      "status": "included-private-source-authorized",
       "source": "apps/web/src/instructions/__fixtures__/booklet-edges.json, traced from the uncommitted LEGO set 21028 booklet recipes/6651557.pdf",
       "version": "captured 2026-07-31 at render scales 4 and 6",
       "declaredLicense": "UNVERIFIED-SOURCE-BOOKLET-COPYRIGHT-LEGO",
-      "rightsPolicy": "derived-measurement-of-external-source",
-      "allowedRoles": ["regression fixture for stud pitch detection"],
-      "intent": "Twelve integer arrays giving the topmost row of a highlight outline per pixel column, plus a verdict set by looking at the rendered region. It records where an edge sits, not what the page depicts: no artwork, text, geometry, colour or model can be reconstructed from it, and it is not a reproduction of the booklet. Retained because the guard it anchors — refusing a pitch on a smooth outline whose thresholded stroke wanders — was only found on real art and cannot be expressed synthetically. Not approved for training, redistribution as booklet content, or as an example model; the source booklet itself remains uncommitted and unapproved."
+      "rightsPolicy": "private-noncommercial-source-reference",
+      "allowedRoles": ["regression fixture for stud pitch detection", "private reconstruction", "local evaluation"],
+      "intent": "Twelve integer arrays give the topmost row of a highlight outline per pixel column, plus a verdict set by looking at the rendered region. The owner authorizes the local LEGO set 21028 booklet recipes/6651557.pdf as a private, noncommercial reconstruction and evaluation input. The source booklet remains uncommitted and no artwork, page, or expressive excerpt is shipped; the retained fixture records only an edge measurement that cannot reconstruct the page."
     },
     {
       "id": "internet-curated-models",
@@ -560,7 +579,7 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
 - The direct-dependency inventory is checked, but transitive dependency notices and license files are not yet audited.
 - `THIRD_PARTY_NOTICES.md` is generated deterministically from the complete locked npm graph and checked for drift. The distributable-package attribution/exclusion test does not exist yet, so distribution remains blocked until it passes and the packaged license texts are audited.
 - The starter catalog, connector taxonomy, collision model, and derived Three.js geometry are implemented with versioned project-authored provenance; individual geometry recipes carry SHA-256 content hashes and the truth snapshot pins their aggregate interpretation inputs. Synthetic benchmark examples remain an intent record.
-- No LDraw geometry, LDCad Shadow Library connector data, research-model code/data/weights, or internet-curated model is approved for runtime, packaging, knowledge, benchmarks, or training.
+- No raw LDraw geometry, LEGO Builder bundle or XML, LDCad Shadow Library file, research-model code/data/weights, internet-curated model, or booklet page is approved for packaging or training. Minimal source-pinned measurements for the private reconstruction are allowed where this BOM names their exact role; currently that includes official LDraw dimensions, the 80015 Builder connector fact and its LDCad cross-check, and the local booklet edge fixture.
 - The checker verifies manifest, lockfile, and BOM agreement. It does not make legal conclusions, inspect transitive package license texts, prove file-level provenance, or certify trademark compliance.
 
 Gate 0 therefore remains open. This baseline makes additions fail closed and identifies the work required before a distributable package can satisfy the gate exit.

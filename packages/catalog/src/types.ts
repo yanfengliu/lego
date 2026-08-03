@@ -98,7 +98,8 @@ export interface SourceProvenance {
     | "catalog-truth"
     | "parametric-runtime-geometry"
     | "display-color"
-    | "interchange-identifier-only";
+    | "interchange-identifier-only"
+    | "interchange-frame-measurement";
   readonly redistributionAllowed: boolean;
   readonly trainingUseAllowed: boolean;
   readonly externalGeometryBundled: boolean;
@@ -196,7 +197,26 @@ export interface CollisionCylinder {
   readonly heightLdu: number;
 }
 
-export type CollisionPrimitive = CollisionBox | CollisionWedge | CollisionCylinder;
+/**
+ * A vertical prism with a strictly convex, counter-clockwise plan polygon.
+ *
+ * Curved source features are conservatively decomposed into these for
+ * collision and physics. The polygon is collision truth, not render geometry:
+ * renderers use the source feature in `ParametricGeometryRecipe` so the
+ * decomposition can never become a visible faceted approximation.
+ */
+export interface CollisionConvexPrism {
+  readonly id: string;
+  readonly kind: "convex-prism";
+  readonly tag: "body";
+  /** Three to eight finite, strictly convex vertices in counter-clockwise order. */
+  readonly verticesXZLdu: readonly (readonly [x: number, z: number])[];
+  readonly minYLdu: number;
+  readonly maxYLdu: number;
+}
+
+export type CollisionPrimitive =
+  CollisionBox | CollisionWedge | CollisionCylinder | CollisionConvexPrism;
 
 export interface CollisionAllowance {
   readonly id: string;
@@ -215,8 +235,58 @@ export interface PartCollisionDefinition {
   readonly allowances: readonly CollisionAllowance[];
 }
 
+export interface BodyArcCapRectangle {
+  readonly minXZLdu: readonly [x: number, z: number];
+  readonly maxXZLdu: readonly [x: number, z: number];
+}
+
+/**
+ * One analytic circular-sector source feature in the part's horizontal plane.
+ *
+ * Angles increase counter-clockwise from +X. `innerRadiusLdu: 0` is a filled
+ * sector; a positive inner radius is an annular sector. Cap rectangles are
+ * explicit source material outside the sector and must have disjoint interiors.
+ */
+export interface BodyArcFeature {
+  readonly centerXZLdu: readonly [x: number, z: number];
+  readonly innerRadiusLdu: number;
+  readonly outerRadiusLdu: number;
+  readonly startAngleDegrees: number;
+  readonly endAngleDegrees: number;
+  readonly segmentCount: number;
+  readonly capRectanglesLdu?: readonly BodyArcCapRectangle[];
+}
+
+/**
+ * Integrity-bound evidence for explicit underside seats whose incoming stud
+ * legitimately overhangs a curved body edge. These are never inferred: the
+ * named source and extraction rule must enumerate every exceptional offset.
+ */
+export interface PartialOverhangClutchEvidence {
+  readonly backingMode: "source-verified-partial-overhang";
+  readonly sourceId: string;
+  readonly sourceRevision: string;
+  readonly manifestSha256: `sha256:${string}`;
+  readonly manifestMd5: `md5:${string}`;
+  readonly bundleSha256: `sha256:${string}`;
+  readonly primitiveXmlSha256: `sha256:${string}`;
+  readonly independentSourceId: string;
+  readonly independentSourceRevision: string;
+  readonly independentPartSha256: `sha256:${string}`;
+  readonly independentSubpartSha256: `sha256:${string}`;
+  readonly extractorId: "lego-builder-custom2dfield-type22-centres/1";
+  /** SHA-256 of the lexicographically sorted JSON `[x,z][]` extracted from the source. */
+  readonly normalizedClutchOffsetsSha256: `sha256:${string}`;
+  readonly overrides: readonly {
+    readonly positionLdu: readonly [x: number, z: number];
+    readonly kind: "source-verified-partial-overhang";
+    readonly maximumOuterOverhangLdu: number;
+  }[];
+}
+
 export interface ParametricGeometryRecipe {
-  readonly generatorId: "builtin:parametric-rectilinear-part/1";
+  readonly generatorId:
+    "builtin:parametric-rectilinear-part/1" | "builtin:parametric-plan-feature-part/1";
   readonly digestInput: string;
   readonly contentHash: `sha256:${string}`;
   /**
@@ -224,7 +294,7 @@ export interface ParametricGeometryRecipe {
    * union of the body primitives in `collision`, which is what the renderer
    * draws — so a part's solid and its picture are the same statement.
    */
-  readonly bodyMode: "rectangular-prism" | "compound";
+  readonly bodyMode: "rectangular-prism" | "compound" | "arc-prism";
   /**
    * "cylinder-grid" puts a stud at the centre of every cell of the footprint,
    * "cylinder-offsets" at the listed positions only, "none" at none.
@@ -236,6 +306,16 @@ export interface ParametricGeometryRecipe {
   readonly studMode: "cylinder-grid" | "cylinder-offsets" | "none";
   /** Stud centres in LDU from the part's centre, for "cylinder-offsets" only. */
   readonly studOffsetsLdu?: readonly (readonly [x: number, z: number])[];
+  /** Explicit underside clutch centres for an irregular footprint. */
+  readonly clutchOffsetsLdu?: readonly (readonly [x: number, z: number])[];
+  /** Source proof for explicit clutch circles that intentionally cross a body edge. */
+  readonly partialOverhangClutchEvidence?: PartialOverhangClutchEvidence;
+  /**
+   * Centre of the source part's stud lattice when it is not the body-bounds
+   * centre. This preserves a raw LDraw frame without inventing a recentering
+   * transform at import/export boundaries.
+   */
+  readonly connectorGridCenterLdu?: readonly [x: number, z: number];
   /**
    * Body extents declared outright, for a part whose solid the stud footprint
    * does not describe. Present only when the part declares them.
@@ -253,6 +333,8 @@ export interface ParametricGeometryRecipe {
    * would allow rather than admitting ones it would not.
    */
   readonly bodyBoxesLdu?: readonly LduBounds[];
+  /** Smooth plan source; collision prisms are a conservative derived artifact. */
+  readonly bodyArc?: BodyArcFeature;
   /** Connectors the stud grid cannot express, such as a hole through a part. */
   readonly extraConnectors?: readonly {
     readonly id: string;
@@ -261,7 +343,7 @@ export interface ParametricGeometryRecipe {
     readonly normal: LduVector3;
     readonly orientationId: "connector-up" | "connector-down";
   }[];
-  readonly undersideMode: "semantic-tube-seat-grid" | "none";
+  readonly undersideMode: "semantic-tube-seat-grid" | "semantic-tube-seat-offsets" | "none";
   readonly studRadiusLdu: number;
   readonly studHeightLdu: number;
   readonly provenance: SourceProvenance;
@@ -278,6 +360,11 @@ export interface PartDefinition {
   readonly family: PartFamily;
   readonly displayName: string;
   readonly aliases: readonly CatalogAlias[];
+  /** Measured raw-LDraw-to-catalog frame correction and its file-level source. */
+  readonly ldrawFrame?: {
+    readonly ldrawToCatalogOrientationId: string;
+    readonly provenance: SourceProvenance;
+  };
   readonly dimensions: PartDimensions;
   readonly bodyBoundsLdu: LduBounds;
   readonly boundsLdu: LduBounds;

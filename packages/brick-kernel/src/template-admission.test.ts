@@ -156,7 +156,7 @@ describe("validateTemplateSnapshotAgainstTruth", () => {
     const truth = createBuiltinTruthSnapshot();
     const documentValidatorManifest = getBuiltinTruthDigestInputs().validatorSet;
 
-    expect(truth.validatorSet.version).toBe("lego.kernel-validators/1");
+    expect(truth.validatorSet.version).toBe("lego.kernel-validators/2");
     expect(documentValidatorManifest).not.toHaveProperty("templateAdmissionPolicyVersion");
     expect(TEMPLATE_ADMISSION_MANIFEST).toMatchObject({
       policyVersion: "lego.template-admission/1",
