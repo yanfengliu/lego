@@ -1,5 +1,13 @@
 import { createHash, randomUUID } from "node:crypto";
-import { lstatSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { rename } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
 
@@ -290,6 +298,21 @@ export function beginAtomicRun(plan: ReturnType<typeof planAtomicRunDirectory>):
     directory: plan.temporaryDirectory,
     publish: async (verify) => {
       if (published) throw new Error(`Real-build run ${plan.runId} was already published.`);
+      const sourceMirror = resolveRealBuildPath(plan.temporaryDirectory, "source-snapshot", {
+        label: "transient real-build source execution mirror",
+      });
+      if (existsSync(sourceMirror)) {
+        try {
+          rmSync(sourceMirror, { recursive: true, maxRetries: 7, retryDelay: 50 });
+        } catch (error) {
+          throw new Error(
+            `Real-build run ${plan.runId} cannot publish while its transient source execution mirror ` +
+              `remains at ${sourceMirror}. Close task-owned readers of that mirror and retry publication: ` +
+              `${error instanceof Error ? error.message : String(error)}.`,
+            { cause: error },
+          );
+        }
+      }
       verify?.(plan.temporaryDirectory);
       const closure = verifyRealBuildReplayClosure(plan.temporaryDirectory);
       for (let attempt = 0; ; attempt += 1) {

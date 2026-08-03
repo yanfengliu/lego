@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -191,8 +191,8 @@ describe("real-build replay closure", () => {
         },
         browserOutputRetained: true,
       });
-      rmSync(sourceMirror, { recursive: true });
       const published = await run.publish();
+      expect(existsSync(join(published, "source-snapshot"))).toBe(false);
       const closure = verifyRealBuildReplayClosure(published);
       expect(closure).toMatchObject({ authority: "local-diagnostic", authenticated: false });
       expect(JSON.parse(readFileSync(plan.pointerPath, "utf8"))).toEqual({
