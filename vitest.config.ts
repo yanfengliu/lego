@@ -17,7 +17,12 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["packages/**/*.test.ts", "apps/**/*.test.ts", "apps/**/*.test.tsx"],
+    include: [
+      "packages/**/*.test.ts",
+      "apps/**/*.test.ts",
+      "apps/**/*.test.tsx",
+      "scripts/**/*.test.mjs",
+    ],
     restoreMocks: true,
   },
 });

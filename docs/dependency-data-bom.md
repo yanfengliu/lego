@@ -504,6 +504,17 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
       "intent": "Potential interoperability reference. Any future import must preserve file-level source, license, and attribution rather than flattening geometry into project-owned data."
     },
     {
+      "id": "lego-builder-21066-source-coverage-ledger",
+      "category": "external-catalog-source-metadata",
+      "status": "included-metadata-only-private-source-authorized",
+      "source": "packages/catalog/src/quarantine/set-6651557-coverage-ledger.ts, derived from uncommitted local LEGO Builder and LXFML artifacts",
+      "version": "lego.set-catalog-coverage-ledger/1; instructions sha256 baef0a373164b58d7c982984b52d4e50b10cc59ed28007acb456faa72359bd27; model XML sha256 c0564fd86ede633f6cb18738f999fbb70ee948ba93a55cc8d338b4b5f02b5922; Builder manifest sha256 3e57aa4df4ab5327c5b8408912d056ba73b93cd98e769e41d6aabaf6cb0618a6; cache report sha256 bf853ffadc349f43f13cf24c2f790a9bc556103c1c96fb24ad064aa502e475d8; missing-design audit sha256 c66a6ab711186f228234a4d70f7c0dabebc6d893895900c3bb672c01c501196f; all-design audit sha256 ab85e95fa94267b19dd16a160d270e48bf752926697c893db01b0597e7a8f4c4; precursor pack sha256 e5bb745faa79c5e7cb525eb0a11a8443815a0c4805c85644204b26c462ac636d",
+      "declaredLicense": "USER-AUTHORIZED-PRIVATE-NONCOMMERCIAL-REFERENCE",
+      "rightsPolicy": "private-noncommercial-source-reference",
+      "allowedRoles": ["source coverage metadata", "private reconstruction authoring", "tests"],
+      "intent": "The immutable ledger, which is not exported from the public catalog entry point, binds the exact 54 covered and 118 missing top-level designs, the 121 required leaf designs, the 107-record precursor pack, four separately checksum-verified composite components, ten checksum-mismatch quarantines, and the coverage-only 76382 decomposition. It retains hashes, identifiers, counts, source URLs, and bounded measurements only: no Builder bundle, mesh, primitive payload, LXFML model, LDraw geometry, booklet page, absolute local path, or base64 source bytes are committed or fetched by runtime or gates. Source-integrity verification does not publish a PartDefinition or claim catalog, structural, visual, or physical validity."
+    },
+    {
       "id": "lego-builder-80015-connectivity-fact",
       "category": "external-connector-data",
       "status": "read-at-authoring-time-fact-pinned",
@@ -551,12 +562,12 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
       "id": "booklet-edge-profile-fixture",
       "category": "derived-measurement-from-external-instruction-booklet",
       "status": "included-private-source-authorized",
-      "source": "apps/web/src/instructions/__fixtures__/booklet-edges.json, traced from the uncommitted LEGO set 21028 booklet recipes/6651557.pdf",
+      "source": "apps/web/src/instructions/__fixtures__/booklet-edges.json, traced from the uncommitted LEGO set 21066 booklet recipes/6651557.pdf",
       "version": "captured 2026-07-31 at render scales 4 and 6",
       "declaredLicense": "UNVERIFIED-SOURCE-BOOKLET-COPYRIGHT-LEGO",
       "rightsPolicy": "private-noncommercial-source-reference",
       "allowedRoles": ["regression fixture for stud pitch detection", "private reconstruction", "local evaluation"],
-      "intent": "Twelve integer arrays give the topmost row of a highlight outline per pixel column, plus a verdict set by looking at the rendered region. The owner authorizes the local LEGO set 21028 booklet recipes/6651557.pdf as a private, noncommercial reconstruction and evaluation input. The source booklet remains uncommitted and no artwork, page, or expressive excerpt is shipped; the retained fixture records only an edge measurement that cannot reconstruct the page."
+      "intent": "Twelve integer arrays give the topmost row of a highlight outline per pixel column, plus a verdict set by looking at the rendered region. The owner authorizes the local LEGO set 21066 booklet recipes/6651557.pdf as a private, noncommercial reconstruction and evaluation input. The source booklet remains uncommitted and no artwork, page, or expressive excerpt is shipped; the retained fixture records only an edge measurement that cannot reconstruct the page."
     },
     {
       "id": "internet-curated-models",
@@ -579,7 +590,7 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
 - The direct-dependency inventory is checked, but transitive dependency notices and license files are not yet audited.
 - `THIRD_PARTY_NOTICES.md` is generated deterministically from the complete locked npm graph and checked for drift. The distributable-package attribution/exclusion test does not exist yet, so distribution remains blocked until it passes and the packaged license texts are audited.
 - The starter catalog, connector taxonomy, collision model, and derived Three.js geometry are implemented with versioned project-authored provenance; individual geometry recipes carry SHA-256 content hashes and the truth snapshot pins their aggregate interpretation inputs. Synthetic benchmark examples remain an intent record.
-- No raw LDraw geometry, LEGO Builder bundle or XML, LDCad Shadow Library file, research-model code/data/weights, internet-curated model, or booklet page is approved for packaging or training. Minimal source-pinned measurements for the private reconstruction are allowed where this BOM names their exact role; currently that includes official LDraw dimensions, the 80015 Builder connector fact and its LDCad cross-check, and the local booklet edge fixture.
+- No raw LDraw geometry, LEGO Builder bundle or XML, LDCad Shadow Library file, research-model code/data/weights, internet-curated model, or booklet page is approved for packaging or training. Minimal source-pinned measurements for the private reconstruction are allowed where this BOM names their exact role; currently that includes official LDraw dimensions, the exact metadata-only 6651557/21066 source-coverage ledger, the 80015 Builder connector fact and its LDCad cross-check, and the local booklet edge fixture.
 - The checker verifies manifest, lockfile, and BOM agreement. It does not make legal conclusions, inspect transitive package license texts, prove file-level provenance, or certify trademark compliance.
 
 Gate 0 therefore remains open. This baseline makes additions fail closed and identifies the work required before a distributable package can satisfy the gate exit.

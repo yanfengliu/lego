@@ -4,6 +4,8 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { inspectAppPackageSourceFile } from "./check-bom-source-policy.mjs";
+
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(scriptDirectory, "..");
 const bomPath = path.join(repositoryRoot, "docs", "dependency-data-bom.md");
@@ -107,6 +109,25 @@ function compareSet(actualValues, recordedValues, label) {
   for (const value of recorded) {
     if (!actual.has(value)) errors.push(`${label} is stale in BOM: ${display(value)}`);
   }
+}
+
+function sourceFiles(relativeDirectory) {
+  const absoluteDirectory = path.join(repositoryRoot, relativeDirectory);
+  if (!existsSync(absoluteDirectory)) return [];
+
+  const files = [];
+  for (const entry of readdirSync(absoluteDirectory, { withFileTypes: true })) {
+    if (entry.name === "node_modules" || entry.name === "dist" || entry.name === "coverage") {
+      continue;
+    }
+    const relativeEntry = path.posix.join(relativeDirectory, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...sourceFiles(relativeEntry));
+    } else if (entry.isFile()) {
+      files.push(relativeEntry);
+    }
+  }
+  return files;
 }
 
 let bom;
@@ -401,6 +422,12 @@ for (const asset of bom.dataAssets ?? []) {
 }
 
 if (assetIds.size === 0) errors.push("BOM must contain at least one data asset record");
+
+for (const relativeFile of [...sourceFiles("apps"), ...sourceFiles("packages")]) {
+  errors.push(
+    ...inspectAppPackageSourceFile(relativeFile, path.join(repositoryRoot, relativeFile)),
+  );
+}
 
 if (errors.length > 0) {
   console.error(`BOM check failed with ${errors.length} issue(s):`);
