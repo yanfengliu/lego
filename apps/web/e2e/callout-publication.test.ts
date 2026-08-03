@@ -1,0 +1,222 @@
+import { createHash } from "node:crypto";
+import {
+  appendFileSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { afterEach, describe, expect, it } from "vitest";
+
+import {
+  CALLOUT_PUBLICATION_LIMITS,
+  inspectPng,
+  publishCalloutRun,
+  type PreparedCrop,
+  type PublishCalloutRunInput,
+} from "./callout-publication";
+import type { CalloutManifest, PublishedCallout, RecoveryBenchmark } from "./callout-types";
+
+const roots: string[] = [];
+const PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+  "base64",
+);
+
+function hash(bytes: Uint8Array): string {
+  return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+}
+
+function root(): string {
+  const path = mkdtempSync(join(tmpdir(), "lego-callout-publication-"));
+  roots.push(path);
+  return path;
+}
+
+function benchmark(): RecoveryBenchmark {
+  return {
+    schemaVersion: "lego.callout-recovery-benchmark-result/1",
+    fixtureSourceHash: "sha256:fixture",
+    fixedFailureClassSize: 1,
+    observedLegacyFailureIdentities: ["p11|q1|x1.000|y1.000"],
+    scores: [],
+    selected: "evidence-aware",
+    winner: "evidence-aware",
+    winningMargin: 1,
+  };
+}
+
+function input(outDirectory: string, runId = "a".repeat(24)): PublishCalloutRunInput {
+  const metadata: PublishedCallout = {
+    identity: "p11|q1|x1.000|y1.000",
+    fileName: "p11-q1-x1d000-y1d000.png",
+    pageNumber: 11,
+    stepNumber: 1,
+    quantity: 1,
+    xPt: 1,
+    yPt: 1,
+    boxMethod: "vector-smallest",
+    box: { minXPt: 0, minYPt: 0, maxXPt: 10, maxYPt: 10 },
+    evidenceKind: "part-art",
+    regionKind: "isolated-component",
+    cropStrategy: "ranked-component",
+    masksApplied: ["all-pdf-text"],
+    contamination: [],
+    sha256: hash(PNG),
+    byteLength: PNG.length,
+    widthPx: 1,
+    heightPx: 1,
+    foregroundPixels: 1,
+    sourceTextGlyphPixels: 0,
+    sourceQuantityGlyphPixels: 0,
+    textGlyphOverlapPixels: 0,
+    quantityGlyphOverlapPixels: 0,
+    quantityGlyphPixelsMasked: 0,
+    cropRectPx: { left: 0, top: 0, right: 0, bottom: 0 },
+    boundaryClearancePx: { left: 0, top: 0, right: 0, bottom: 0 },
+  };
+  const crops: PreparedCrop[] = [{ metadata, png: PNG }];
+  const { fileName, ...manifestMetadata } = metadata;
+  const manifest: CalloutManifest = {
+    schemaVersion: "lego.callout-thumbnails/4",
+    sourceHash: "sha256:source",
+    pageSelection: [11],
+    pagesCropped: 1,
+    calloutCount: 1,
+    accounting: {
+      rawNxIdentityCount: 1,
+      rawNxQuantityTotal: 1,
+      physicalPartArtIdentityCount: 1,
+      physicalPartArtQuantityTotal: 1,
+      semanticIdentityCount: 0,
+      semanticQuantityTotal: 0,
+    },
+    recoveryBenchmark: benchmark(),
+    conservation: { expectedIdentityCount: 1, publishedIdentityCount: 1 },
+    failures: [],
+    callouts: [{ ...manifestMetadata, file: `runs/${runId}/${fileName}` }],
+  };
+  return { outDirectory, pointerFile: "manifest.json", runId, manifest, crops };
+}
+
+afterEach(() => {
+  for (const path of roots.splice(0)) rmSync(path, { recursive: true, force: true });
+});
+
+describe("callout publication", () => {
+  it("validates PNG signature, IHDR, and exact IEND closure", () => {
+    expect(inspectPng(PNG)).toEqual({ width: 1, height: 1 });
+    expect(() => inspectPng(Buffer.concat([PNG, Buffer.from([0])]))).toThrow(/trailing bytes/);
+    expect(() => inspectPng(Buffer.from(PNG.subarray(1)))).toThrow(/signature/);
+  });
+
+  it("reuses only a byte-identical closed run", () => {
+    const directory = root();
+    expect(publishCalloutRun(input(directory)).reused).toBe(false);
+    expect(publishCalloutRun(input(directory)).reused).toBe(true);
+  });
+
+  it("rejects empty, oversized, or internally inconsistent candidates before pointer mutation", () => {
+    const directory = root();
+    const pointer = join(directory, "manifest.json");
+    writeFileSync(pointer, "old-pointer\n", { flag: "wx" });
+    const prepared = input(directory);
+    const oversized = Buffer.alloc(CALLOUT_PUBLICATION_LIMITS.maxCropBytes + 1);
+    expect(() =>
+      publishCalloutRun({
+        ...prepared,
+        crops: [
+          {
+            metadata: {
+              ...prepared.crops[0]!.metadata,
+              byteLength: oversized.length,
+              sha256: hash(oversized),
+            },
+            png: oversized,
+          },
+        ],
+      }),
+    ).toThrow(/each crop/);
+    expect(() =>
+      publishCalloutRun({
+        ...prepared,
+        manifest: {
+          ...prepared.manifest,
+          callouts: [{ ...prepared.manifest.callouts[0]!, widthPx: 2 }],
+        },
+      }),
+    ).toThrow(/differs from its staged PNG record/);
+    expect(() =>
+      publishCalloutRun({
+        ...prepared,
+        manifest: { ...prepared.manifest, calloutCount: 0, callouts: [] },
+        crops: [],
+      }),
+    ).toThrow(/cannot publish an empty/);
+    expect(readFileSync(pointer, "utf8")).toBe("old-pointer\n");
+  });
+
+  it("leaves the pointer unchanged when an existing manifest is tampered", () => {
+    const directory = root();
+    const prepared = input(directory);
+    publishCalloutRun(prepared);
+    const pointer = join(directory, "manifest.json");
+    writeFileSync(pointer, "old-pointer\n");
+    appendFileSync(join(directory, "runs", prepared.runId, "manifest.json"), "tamper");
+    expect(() => publishCalloutRun(prepared)).toThrow(/not byte-identical/);
+    expect(readFileSync(pointer, "utf8")).toBe("old-pointer\n");
+  });
+
+  it("leaves the pointer unchanged when an existing PNG is missing or changed", () => {
+    for (const mode of ["missing", "tampered"] as const) {
+      const directory = root();
+      const prepared = input(directory);
+      publishCalloutRun(prepared);
+      const pointer = join(directory, "manifest.json");
+      writeFileSync(pointer, `old-${mode}\n`);
+      const pngPath = join(directory, "runs", prepared.runId, prepared.crops[0]!.metadata.fileName);
+      if (mode === "missing") unlinkSync(pngPath);
+      else appendFileSync(pngPath, "tamper");
+      expect(() => publishCalloutRun(prepared)).toThrow();
+      expect(readFileSync(pointer, "utf8")).toBe(`old-${mode}\n`);
+    }
+  });
+
+  it("leaves the pointer unchanged across an interrupted pointer swap", () => {
+    const directory = root();
+    const pointer = join(directory, "manifest.json");
+    writeFileSync(pointer, "old-pointer\n", { flag: "wx" });
+    const prepared = input(directory);
+    expect(() =>
+      publishCalloutRun({
+        ...prepared,
+        fault: (phase) => {
+          if (phase === "before-pointer-swap") throw new Error("injected interruption");
+        },
+      }),
+    ).toThrow(/injected interruption/);
+    expect(readFileSync(pointer, "utf8")).toBe("old-pointer\n");
+    expect(
+      readdirSync(directory).filter((name) => name.startsWith(".stage-") || name.endsWith(".tmp")),
+    ).toEqual([]);
+    expect(publishCalloutRun(prepared).reused).toBe(true);
+  });
+
+  it("removes only confirmed obsolete root PNGs and never selected runs", () => {
+    const directory = root();
+    writeFileSync(join(directory, "p11-c0.png"), PNG, { flag: "wx" });
+    writeFileSync(join(directory, "keep.png"), PNG, { flag: "wx" });
+    const prepared = input(directory);
+    const result = publishCalloutRun(prepared);
+    expect(result.cleanup.removedFiles).toBe(1);
+    expect(existsSync(join(directory, "p11-c0.png"))).toBe(false);
+    expect(existsSync(join(directory, "keep.png"))).toBe(true);
+    expect(existsSync(join(result.runDirectory, prepared.crops[0]!.metadata.fileName))).toBe(true);
+  });
+});

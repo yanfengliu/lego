@@ -1,6 +1,7 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import {
   extractBookletStructure,
@@ -11,37 +12,106 @@ import { ingestInstructionPdf, type PdfDocument } from "../src/instructions/inge
 import { extractPageShapes, type OperatorList } from "../src/instructions/page-shapes";
 import { extractPartsInventory } from "../src/instructions/parts-inventory";
 import { deriveStepPanels } from "../src/instructions/step-panels";
+import {
+  area,
+  contains,
+  evidenceContract,
+  fileStem,
+  parseRequestedPages,
+  recoverPanelNeighbourCell,
+  selectStepPages,
+  stableIdentity,
+} from "./callout-analysis";
+import { evaluateRecoveryBenchmark, selectEvidenceAwareCrop } from "./callout-benchmark";
+import { renderCalloutCrops } from "./callout-browser-crops";
+import {
+  CALLOUT_RECOVERY_BY_IDENTITY,
+  CALLOUT_RECOVERY_FIXTURE,
+  SEMANTIC_CALLOUTS,
+} from "./callout-recovery-fixture";
+import { publishCalloutRun, type PreparedCrop } from "./callout-publication";
+import type {
+  BrowserCrop,
+  BrowserResult,
+  CalloutManifest,
+  CalloutTarget,
+  PublishedCallout,
+  QuantityLabel,
+  RetainedFailure,
+} from "./callout-types";
 import { SAMPLE_BOOKLET_PATH, bookletProbeUrls, hasSampleBooklet } from "./sample-booklet";
 
-/**
- * Cuts the part thumbnail out of every step callout.
- *
- * A step prints, for each part it adds, a small picture of that part with its
- * quantity beside it — the same drawing convention the back-of-book inventory
- * uses, at a different size. So the same content-sized cell crop works, and the
- * result is a per-step parts list to match against the inventory gallery.
- *
- * Unlike the inventory these cells are not on a fixed grid, so a cell's width is
- * bounded by its neighbours in the same row and its height read from its own
- * content. Nothing here identifies a part; it only cuts out the picture and
- * records which step printed it.
- */
 const OUT = "output/callout-thumbnails";
-/**
- * Cropping the whole booklet takes minutes, which is too slow for a gate that
- * runs on every commit, so a few pages are cropped by default and the full pass
- * is opt-in: `CALLOUT_PAGE_LIMIT=0 npx playwright test ...`.
- */
 const PAGE_LIMIT = Number(process.env.CALLOUT_PAGE_LIMIT ?? "8");
+const REQUESTED_PAGES = parseRequestedPages(process.env.CALLOUT_PAGES);
+const FULL_LABEL_COUNT = 881;
+const FULL_RAW_NX_QUANTITY = 1512;
+const FULL_PHYSICAL_LABEL_COUNT = 878;
+const FULL_PHYSICAL_QUANTITY = 1504;
 
-test("crops the part thumbnail from every step callout", async ({ page }) => {
+function sha256(bytes: Uint8Array | string): string {
+  return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+}
+
+function distinctLabels(
+  pageNumber: number,
+  elements: readonly {
+    readonly text: string;
+    readonly xPt: number;
+    readonly yPt: number;
+    readonly heightPt: number;
+  }[],
+): QuantityLabel[] {
+  const seen = new Set<string>();
+  return elements
+    .map((element) => ({ element, match: /^(\d{1,3})x$/.exec(element.text) }))
+    .filter(({ match }) => match !== null)
+    .map(({ element, match }) => ({
+      pageNumber,
+      quantity: Number(match![1]),
+      xPt: element.xPt,
+      yPt: element.yPt,
+      heightPt: element.heightPt,
+      identity: stableIdentity(pageNumber, Number(match![1]), element.xPt, element.yPt),
+    }))
+    .filter(({ identity }) => {
+      if (seen.has(identity)) return false;
+      seen.add(identity);
+      return true;
+    });
+}
+
+function failure(
+  failures: RetainedFailure[],
+  label: QuantityLabel,
+  stage: RetainedFailure["stage"],
+  code: string,
+  message: string,
+): void {
+  failures.push({ ...label, stage, code, message });
+}
+
+function selectCrop(result: BrowserResult): BrowserCrop | null {
+  if (
+    result.targetEvidenceKind === "part-art" &&
+    result.legacy !== null &&
+    result.legacy.contamination.length === 0
+  )
+    return result.legacy;
+  return selectEvidenceAwareCrop(result);
+}
+
+test("publishes typed evidence for every distinct Nx label", async ({ page }) => {
   test.setTimeout(3_000_000);
   test.skip(!hasSampleBooklet, "no sample booklet");
-  mkdirSync(OUT, { recursive: true });
 
   const bytes = readFileSync(SAMPLE_BOOKLET_PATH!);
   const source = await ingestInstructionPdf(
-    { name: "6651557.pdf", arrayBuffer: async () => bytes.buffer as ArrayBuffer },
+    {
+      name: "6651557.pdf",
+      arrayBuffer: async () =>
+        bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
+    },
     {
       loadPdf: async () => {
         const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
@@ -50,14 +120,14 @@ test("crops the part thumbnail from every step callout", async ({ page }) => {
       },
     },
   );
-
   const structure = extractBookletStructure(source);
-  const sightings = source.pages.flatMap((p) =>
-    p.textElements
+  expect(structure.sourceHash).toBe(CALLOUT_RECOVERY_FIXTURE.sourceHash);
+  const sightings = source.pages.flatMap((sourcePage) =>
+    sourcePage.textElements
       .filter(({ text }) => /^\d{1,4}$/.test(text))
       .map(({ text, heightPt }) => ({
         value: Number(text),
-        pageNumber: p.pageNumber,
+        pageNumber: sourcePage.pageNumber,
         heightPt: Math.round(heightPt * 10) / 10,
       })),
   );
@@ -65,22 +135,22 @@ test("crops the part thumbnail from every step callout", async ({ page }) => {
   expect(stepNumberHeightPt).not.toBeNull();
   const panels = deriveStepPanels(source, { stepNumberHeightPt: stepNumberHeightPt! });
   expect(withoutPrintedPageNumbers(sightings).length).toBeGreaterThan(0);
-
-  // The inventory prints quantities too; those cells are not step callouts.
   const inventoryPages = new Set(extractPartsInventory(source).pageNumbers);
-  const stepPages = [...new Set(panels.map(({ pageNumber }) => pageNumber))]
+  const allStepPages = [...new Set(panels.map(({ pageNumber }) => pageNumber))]
     .filter((pageNumber) => !inventoryPages.has(pageNumber))
     .sort((left, right) => left - right);
-  const pages = PAGE_LIMIT > 0 ? stepPages.slice(0, PAGE_LIMIT) : stepPages;
+  const publishPages = selectStepPages(allStepPages, REQUESTED_PAGES, PAGE_LIMIT);
+  const fixturePages = CALLOUT_RECOVERY_FIXTURE.cases.map(({ identity }) =>
+    Number(/^p(\d+)\|/.exec(identity)![1]),
+  );
+  const processingPages = [...new Set([...publishPages, ...fixturePages])].sort(
+    (left, right) => left - right,
+  );
+  const publishPageSet = new Set(publishPages);
 
-  // Callout boxes bound the search. Without them a flood started under a label
-  // escapes into the main assembly art, and every label near that art returns
-  // the same slab: 216 of 926 crops came back byte-identical before this.
   const { getDocument, OPS } = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  const shapeDoc = await getDocument({
-    data: new Uint8Array(bytes),
-    isEvalSupported: false,
-  }).promise;
+  const shapeDoc = await getDocument({ data: new Uint8Array(bytes), isEvalSupported: false })
+    .promise;
   const shapeCodes = {
     setFillRGBColor: OPS.setFillRGBColor,
     constructPath: OPS.constructPath,
@@ -91,334 +161,285 @@ test("crops the part thumbnail from every step callout", async ({ page }) => {
     restore: OPS.restore,
     transform: OPS.transform,
   };
+  const expected: QuantityLabel[] = [];
+  const targets: CalloutTarget[] = [];
+  const failures: RetainedFailure[] = [];
+  const browserResults: BrowserResult[] = [];
 
-  let withoutBox = 0;
-  const manifest: {
-    file: string;
-    pageNumber: number;
-    stepNumber: number | null;
-    quantity: number;
-  }[] = [];
-  await page.goto("/");
+  try {
+    await page.goto("/");
+    for (const pageNumber of processingPages) {
+      const sourcePage = source.pages.find((candidate) => candidate.pageNumber === pageNumber)!;
+      const allLabels = distinctLabels(pageNumber, sourcePage.textElements);
+      if (publishPageSet.has(pageNumber)) expected.push(...allLabels);
+      const labels = publishPageSet.has(pageNumber)
+        ? allLabels
+        : allLabels.filter(({ identity }) => CALLOUT_RECOVERY_BY_IDENTITY.has(identity));
+      if (labels.length === 0) continue;
 
-  for (const pageNumber of pages) {
-    const sourcePage = source.pages.find((p) => p.pageNumber === pageNumber)!;
-    const quantities = sourcePage.textElements
-      .map((element) => ({ element, match: /^(\d{1,3})x$/.exec(element.text) }))
-      .filter(({ match }) => match !== null)
-      .map(({ element, match }) => ({
-        quantity: Number(match![1]),
-        xPt: element.xPt,
-        yPt: element.yPt,
-      }));
-    // The text layer draws a label's glyph run more than once at the very same
-    // spot - six "4x" at one point on page 111 - and each repeat would become
-    // its own callout for the same picture, inflating both the callout count
-    // and the pieces they add up to.
-    const seenAt = new Set<string>();
-    const distinct = quantities.filter(({ quantity, xPt, yPt }) => {
-      const key = `${quantity}@${xPt.toFixed(1)},${yPt.toFixed(1)}`;
-      if (seenAt.has(key)) return false;
-      seenAt.add(key);
-      return true;
-    });
-    if (distinct.length === 0) continue;
-
-    // The smallest filled shape a label sits in is its callout box; the page
-    // background is a filled shape too, so page-sized ones are not boxes.
-    const shapePage = await shapeDoc.getPage(pageNumber);
-    const shapeViewport = shapePage.getViewport({ scale: 1 });
-    const pageArea = shapeViewport.width * shapeViewport.height;
-    const boxes = extractPageShapes(
-      (await shapePage.getOperatorList()) as unknown as OperatorList,
-      shapeCodes,
-    ).filter(({ bounds }) => {
-      const width = bounds.maxXPt - bounds.minXPt;
-      const height = bounds.maxYPt - bounds.minYPt;
-      return width > 25 && height > 25 && width * height < pageArea * 0.5;
-    });
-
-    const boxed = distinct
-      .map((entry) => {
-        const containing = boxes
-          .filter(
-            ({ bounds }) =>
-              entry.xPt >= bounds.minXPt &&
-              entry.xPt <= bounds.maxXPt &&
-              entry.yPt >= bounds.minYPt &&
-              entry.yPt <= bounds.maxYPt,
-          )
-          .sort(
-            (left, right) =>
-              (left.bounds.maxXPt - left.bounds.minXPt) *
-                (left.bounds.maxYPt - left.bounds.minYPt) -
-              (right.bounds.maxXPt - right.bounds.minXPt) *
-                (right.bounds.maxYPt - right.bounds.minYPt),
+      const shapePage = await shapeDoc.getPage(pageNumber);
+      const shapeViewport = shapePage.getViewport({ scale: 1 });
+      const pageArea = shapeViewport.width * shapeViewport.height;
+      const vectorBoxes = extractPageShapes(
+        (await shapePage.getOperatorList()) as unknown as OperatorList,
+        shapeCodes,
+      )
+        .map(({ bounds }) => bounds)
+        .filter((bounds) => {
+          const width = bounds.maxXPt - bounds.minXPt;
+          const height = bounds.maxYPt - bounds.minYPt;
+          return width > 25 && height > 25 && width * height < pageArea * 0.5;
+        });
+      const pending: {
+        readonly label: QuantityLabel;
+        readonly panel: (typeof panels)[number]["bounds"];
+        readonly stepNumber: number;
+      }[] = [];
+      const pageTargets: CalloutTarget[] = [];
+      for (const label of labels) {
+        const panelMatches = panels.filter(
+          (candidate) =>
+            candidate.pageNumber === pageNumber && contains(candidate.bounds, label.xPt, label.yPt),
+        );
+        if (panelMatches.length !== 1) {
+          failure(
+            failures,
+            label,
+            "panel",
+            "quantity-panel-cardinality",
+            `${label.identity} matched ${panelMatches.length} step panels; exactly one is required.`,
           );
-        return { ...entry, box: containing[0]?.bounds ?? null };
-      })
-      .filter((entry) => {
-        if (entry.box === null) withoutBox += 1;
-        return entry.box !== null;
-      });
-    if (boxed.length === 0) continue;
-
-    const crops = await page.evaluate(
-      async ({ pdfjsUrl, workerUrl, pdfUrl, pageNumber, quantities }) => {
-        const pdfjs = await import(/* @vite-ignore */ pdfjsUrl);
-        pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
-        const data = new Uint8Array(await (await fetch(pdfUrl)).arrayBuffer());
-        const doc = await pdfjs.getDocument({ data }).promise;
-        const pdfPage = await doc.getPage(pageNumber);
-        const scale = 8;
-        const viewport = pdfPage.getViewport({ scale });
-
-        document.querySelectorAll("canvas.probe").forEach((node) => node.remove());
-        const canvas = document.createElement("canvas");
-        canvas.className = "probe";
-        canvas.width = Math.ceil(viewport.width);
-        canvas.height = Math.ceil(viewport.height);
-        document.body.append(canvas);
-        const ctx = canvas.getContext("2d")!;
-        await pdfPage.render({ canvasContext: ctx, viewport, background: "#ffffff" }).promise;
-        await doc.destroy();
-
-        const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-        // Callout boxes are drawn on a pale panel; sample it inside the box, not
-        // at the page margin, by taking the most common colour just above a label.
-        const colourAt = (x: number, y: number): [number, number, number] => {
-          const at = (y * canvas.width + x) * 4;
-          return [pixels[at]!, pixels[at + 1]!, pixels[at + 2]!];
-        };
-        const differs = (
-          x: number,
-          y: number,
-          background: readonly [number, number, number],
-        ): boolean => {
-          const [r, g, b] = colourAt(x, y);
-          return (
-            Math.abs(r - background[0]) +
-              Math.abs(g - background[1]) +
-              Math.abs(b - background[2]) >
-            30
-          );
-        };
-
-        /**
-         * The part drawn above a label, as one connected blob of non-background
-         * pixels. A window around the label is the wrong shape — the art sits
-         * above and to the right of it, and a long part reaches into the next
-         * cell's window — so the blob's own extent is taken instead.
-         */
-        const floodFrom = (
-          seedX: number,
-          seedY: number,
-          background: readonly [number, number, number],
-          budget: number,
-          limit: { left: number; top: number; right: number; bottom: number },
-        ): {
-          left: number;
-          top: number;
-          right: number;
-          bottom: number;
-          size: number;
-          filled: Set<number>;
-        } | null => {
-          const seen = new Set<number>();
-          const filled = new Set<number>();
-          const stack = [seedY * canvas.width + seedX];
-          let left = seedX;
-          let right = seedX;
-          let top = seedY;
-          let bottom = seedY;
-          let size = 0;
-          while (stack.length > 0 && size < budget) {
-            const at = stack.pop()!;
-            if (seen.has(at)) continue;
-            seen.add(at);
-            const x = at % canvas.width;
-            const y = (at - x) / canvas.width;
-            if (x < limit.left || x > limit.right || y < limit.top || y > limit.bottom) continue;
-            if (!differs(x, y, background)) continue;
-            filled.add(at);
-            size += 1;
-            if (x < left) left = x;
-            if (x > right) right = x;
-            if (y < top) top = y;
-            if (y > bottom) bottom = y;
-            if (x > 0) stack.push(at - 1);
-            if (x < canvas.width - 1) stack.push(at + 1);
-            if (y > 0) stack.push(at - canvas.width);
-            if (y < canvas.height - 1) stack.push(at + canvas.width);
-          }
-          return size === 0 ? null : { left, top, right, bottom, size, filled };
-        };
-
-        const out: { index: number; url: string; quantity: number; xPt: number; yPt: number }[] =
-          [];
-        let index = 0;
-        for (const entry of quantities) {
-          if (entry.box === null) continue;
-          // pdfjs y grows upward; the raster grows downward.
-          const rasterY = viewport.height / scale - entry.yPt;
-          // Start above the label's own glyphs, or the flood latches onto "1x".
-          const labelTop = Math.round((rasterY - 9) * scale);
-          const rasterX = Math.round(entry.xPt * scale);
-          if (labelTop < 8) continue;
-          if (labelTop < 8) continue;
-
-          // Climb from just above the label to the first pixel of the artwork.
-          let blob: ReturnType<typeof floodFrom> = null;
-          const MIN_PART_PIXELS = 90 * scale * scale;
-          // The part is inside the label's own callout box, never outside it.
-          const pageHeightPt = viewport.height / scale;
-          const box = {
-            left: Math.max(0, Math.round(entry.box.minXPt * scale)),
-            right: Math.min(canvas.width - 1, Math.round(entry.box.maxXPt * scale)),
-            top: Math.max(0, Math.round((pageHeightPt - entry.box.maxYPt) * scale)),
-            bottom: Math.min(
-              canvas.height - 1,
-              Math.round((pageHeightPt - entry.box.minYPt) * scale),
-            ),
-          };
-          // The box's own most common colour is its background. Sampling a single
-          // pixel beside the label instead took whatever sat there - and on a
-          // dark callout box that is not the box's fill, so every pixel inside
-          // "differs" and the flood swallows the whole box.
-          const tally = new Map<string, number>();
-          const stepX = Math.max(1, Math.floor((box.right - box.left) / 60));
-          const stepY = Math.max(1, Math.floor((box.bottom - box.top) / 60));
-          for (let y = box.top; y <= box.bottom; y += stepY) {
-            for (let x = box.left; x <= box.right; x += stepX) {
-              const [r, g, b] = colourAt(x, y);
-              const key = `${r >> 3},${g >> 3},${b >> 3}`;
-              tally.set(key, (tally.get(key) ?? 0) + 1);
-            }
-          }
-          let commonest = "";
-          let seenMost = 0;
-          for (const [key, count] of tally) {
-            if (count > seenMost) {
-              seenMost = count;
-              commonest = key;
-            }
-          }
-          const background = commonest.split(",").map((channel) => (Number(channel) << 3) + 4) as [
-            number,
-            number,
-            number,
-          ];
-
-          const spanRight = Math.min(box.right, rasterX + Math.round(96 * scale));
-          const spanLeft = Math.max(box.left, rasterX - Math.round(10 * scale));
-          for (
-            let y = labelTop;
-            y >= Math.max(box.top, labelTop - Math.round(52 * scale));
-            y -= 1
-          ) {
-            for (let x = spanLeft; x <= spanRight; x += 1) {
-              if (!differs(x, y, background)) continue;
-              const found = floodFrom(x, y, background, 4_000_000, box);
-              // A callout box's rule encloses a large area with very few pixels;
-              // a drawn part fills a good share of its own bounding box.
-              const area = found
-                ? (found.right - found.left + 1) * (found.bottom - found.top + 1)
-                : 0;
-              const isOutline = found !== null && found.size / area < 0.12;
-              if (found && !isOutline && found.size > MIN_PART_PIXELS) {
-                blob = found;
-                break;
-              }
-            }
-            if (blob) break;
-          }
-          if (!blob) continue;
-
-          const pad = Math.round(0.6 * scale);
-          const left = Math.max(0, blob.left - pad);
-          const top = Math.max(0, blob.top - pad);
-          const width = Math.min(canvas.width - left, blob.right - blob.left + 2 * pad);
-          const height = Math.min(canvas.height - top, blob.bottom - blob.top + 2 * pad);
-          if (width < 16 || height < 16) continue;
-
-          // Paint the blob alone. A part drawn on a diagonal has a bounding box
-          // wide enough to contain the next part in the row, and cropping that
-          // box hands the reader two parts and asks about one.
-          const cell = document.createElement("canvas");
-          cell.width = width;
-          cell.height = height;
-          const cellCtx = cell.getContext("2d")!;
-          const image = cellCtx.createImageData(width, height);
-          for (let y = 0; y < height; y += 1) {
-            for (let x = 0; x < width; x += 1) {
-              const from = ((top + y) * canvas.width + (left + x)) * 4;
-              const to = (y * width + x) * 4;
-              const inBlob = blob.filled.has((top + y) * canvas.width + (left + x));
-              image.data[to] = inBlob ? pixels[from]! : background[0];
-              image.data[to + 1] = inBlob ? pixels[from + 1]! : background[1];
-              image.data[to + 2] = inBlob ? pixels[from + 2]! : background[2];
-              image.data[to + 3] = 255;
-            }
-          }
-          cellCtx.putImageData(image, 0, 0);
-          out.push({
-            index: index++,
-            url: cell.toDataURL("image/png"),
-            quantity: entry.quantity,
-            xPt: entry.xPt,
-            yPt: entry.yPt,
-          });
+          continue;
         }
-        return out;
-      },
-      { ...bookletProbeUrls(), pageNumber, quantities: boxed },
-    );
-
-    for (const crop of crops) {
-      const file = `p${pageNumber}-c${crop.index}.png`;
-      writeFileSync(`${OUT}/${file}`, Buffer.from(crop.url.split(",")[1]!, "base64"));
-      // A callout belongs to the step whose panel band it is printed in.
-      const panel = panels.find(
-        (candidate) =>
-          candidate.pageNumber === pageNumber &&
-          crop.xPt >= candidate.bounds.minXPt &&
-          crop.xPt < candidate.bounds.maxXPt,
+        const containing = vectorBoxes
+          .filter((bounds) => contains(bounds, label.xPt, label.yPt))
+          .sort((left, right) => area(left) - area(right));
+        if (containing.length === 0) {
+          pending.push({
+            label,
+            panel: panelMatches[0]!.bounds,
+            stepNumber: panelMatches[0]!.stepNumber,
+          });
+          continue;
+        }
+        const contract = evidenceContract(label.identity, "vector-smallest")!;
+        pageTargets.push({
+          ...label,
+          stepNumber: panelMatches[0]!.stepNumber,
+          box: containing[0]!,
+          boxMethod: "vector-smallest",
+          ...contract,
+        });
+      }
+      for (const entry of pending) {
+        const peers = pageTargets.filter(
+          (peer) =>
+            peer.stepNumber === entry.stepNumber && contains(entry.panel, peer.xPt, peer.yPt),
+        );
+        const box = recoverPanelNeighbourCell(entry.label, entry.panel, peers);
+        const contract = evidenceContract(entry.label.identity, "panel-neighbor-cell");
+        if (box === null || contract === null) {
+          failure(
+            failures,
+            entry.label,
+            "box",
+            contract === null ? "unregistered-unboxed-semantic" : "panel-neighbor-cell-degenerate",
+            contract === null
+              ? `${entry.label.identity} has no vector box and no preregistered semantic evidence contract.`
+              : `${entry.label.identity} has no vector box and its derived panel-neighbor cell is smaller than 25pt.`,
+          );
+          continue;
+        }
+        pageTargets.push({
+          ...entry.label,
+          stepNumber: entry.stepNumber,
+          box,
+          boxMethod: "panel-neighbor-cell",
+          ...contract,
+        });
+      }
+      targets.push(...pageTargets);
+      if (pageTargets.length === 0) continue;
+      browserResults.push(
+        ...(await page.evaluate(renderCalloutCrops, {
+          ...bookletProbeUrls(),
+          pageNumber,
+          targets: pageTargets,
+        })),
       );
-      manifest.push({
-        file,
-        pageNumber,
-        stepNumber: panel?.stepNumber ?? null,
-        quantity: crop.quantity,
-      });
     }
+  } finally {
+    await shapeDoc.destroy();
   }
 
-  // A page-limited run must not overwrite a full pass's manifest: the gate runs
-  // this spec with the default limit, and doing so silently truncated the
-  // record of a completed full pass to the handful of pages the gate cropped.
-  const manifestFile = PAGE_LIMIT > 0 ? "manifest.partial.json" : "manifest.json";
-  writeFileSync(
-    `${OUT}/${manifestFile}`,
-    JSON.stringify(
-      {
-        note: "One crop per step callout. Quantities and step assignment come from the text layer.",
-        pageLimit: PAGE_LIMIT === 0 ? "full booklet" : PAGE_LIMIT,
-        quantitiesOutsideAnyCallout: withoutBox,
-        sourceHash: structure.sourceHash,
-        pagesCropped: pages.length,
-        calloutCount: manifest.length,
-        piecesCalledOut: manifest.reduce((total, { quantity }) => total + quantity, 0),
-        callouts: manifest,
-      },
-      null,
-      1,
+  if (expected.length === 0) {
+    throw new Error(
+      `Selected step pages ${publishPages.join(", ")} contain no distinct Nx labels; no manifest was published.`,
+    );
+  }
+  const expectedIdentities = new Set(expected.map(({ identity }) => identity));
+  expect(expectedIdentities.size).toBe(expected.length);
+  const fullRun = PAGE_LIMIT === 0 && REQUESTED_PAGES === undefined;
+  if (fullRun) {
+    expect(expected.length).toBe(FULL_LABEL_COUNT);
+    expect(expected.reduce((total, { quantity }) => total + quantity, 0)).toBe(
+      FULL_RAW_NX_QUANTITY,
+    );
+  }
+  const benchmark = evaluateRecoveryBenchmark(structure.sourceHash, browserResults);
+  const selected = new Map<string, BrowserCrop>();
+  for (const result of browserResults) {
+    const crop = selectCrop(result);
+    if (crop === null) {
+      const label = targets.find(({ identity }) => identity === result.identity)!;
+      failure(
+        failures,
+        label,
+        "crop",
+        "no-valid-evidence-crop",
+        `${result.identity} produced no crop satisfying its ${result.targetEvidenceKind} evidence contract.`,
+      );
+    } else {
+      selected.set(result.identity, crop);
+    }
+  }
+  for (const label of expected) {
+    if (
+      !selected.has(label.identity) &&
+      !failures.some(({ identity }) => identity === label.identity)
+    ) {
+      failure(
+        failures,
+        label,
+        "box",
+        "quantity-unaccounted",
+        `${label.identity} reached neither a crop nor a typed failure.`,
+      );
+    }
+  }
+  expect(failures).toEqual([]);
+  if (publishPages.includes(11)) {
+    expect(
+      targets.filter(({ pageNumber }) => pageNumber === 11).map(({ stepNumber }) => stepNumber),
+    ).toEqual([1, 1, 2, 3, 4, 4]);
+  }
+
+  const publishedTargets = targets
+    .filter(({ identity }) => expectedIdentities.has(identity))
+    .sort((left, right) => left.identity.localeCompare(right.identity));
+  const crops: PreparedCrop[] = publishedTargets.map((target) => {
+    const crop = selected.get(target.identity)!;
+    expect(crop.contamination).toEqual([]);
+    if (target.evidenceKind === "part-art") expect(crop.textGlyphOverlapPixels).toBe(0);
+    const png = Buffer.from(crop.url.split(",")[1]!, "base64");
+    const metadata: PublishedCallout = {
+      identity: target.identity,
+      fileName: `${fileStem(target.identity)}.png`,
+      pageNumber: target.pageNumber,
+      stepNumber: target.stepNumber,
+      quantity: target.quantity,
+      xPt: target.xPt,
+      yPt: target.yPt,
+      boxMethod: target.boxMethod,
+      box: target.box,
+      evidenceKind: target.evidenceKind,
+      regionKind: target.regionKind,
+      cropStrategy: crop.strategy,
+      masksApplied: crop.masksApplied,
+      contamination: crop.contamination,
+      sha256: sha256(png),
+      byteLength: png.length,
+      widthPx: crop.widthPx,
+      heightPx: crop.heightPx,
+      foregroundPixels: crop.foregroundPixels,
+      sourceTextGlyphPixels: crop.sourceTextGlyphPixels,
+      sourceQuantityGlyphPixels: crop.sourceQuantityGlyphPixels,
+      textGlyphOverlapPixels: crop.textGlyphOverlapPixels,
+      quantityGlyphOverlapPixels: crop.quantityGlyphOverlapPixels,
+      quantityGlyphPixelsMasked: crop.quantityGlyphPixelsMasked,
+      cropRectPx: crop.cropRectPx,
+      boundaryClearancePx: crop.boundaryClearancePx,
+    };
+    return { metadata, png };
+  });
+  expect(crops.length).toBe(expected.length);
+
+  const rawNxQuantityTotal = expected.reduce((total, { quantity }) => total + quantity, 0);
+  const physical = crops.filter(({ metadata }) => metadata.evidenceKind === "part-art");
+  const semantic = crops.filter(({ metadata }) => metadata.evidenceKind !== "part-art");
+  const accounting = {
+    rawNxIdentityCount: expected.length,
+    rawNxQuantityTotal,
+    physicalPartArtIdentityCount: physical.length,
+    physicalPartArtQuantityTotal: physical.reduce(
+      (total, { metadata }) => total + metadata.quantity,
+      0,
     ),
-  );
+    semanticIdentityCount: semantic.length,
+    semanticQuantityTotal: semantic.reduce((total, { metadata }) => total + metadata.quantity, 0),
+  };
+  if (fullRun) {
+    expect(accounting.physicalPartArtIdentityCount).toBe(FULL_PHYSICAL_LABEL_COUNT);
+    expect(accounting.physicalPartArtQuantityTotal).toBe(FULL_PHYSICAL_QUANTITY);
+    expect(semantic.map(({ metadata }) => metadata.identity).sort()).toEqual(
+      SEMANTIC_CALLOUTS.map(({ identity }) => identity).sort(),
+    );
+  }
+  const conservation = {
+    expectedIdentityCount: expected.length,
+    expectedRawNxQuantityTotal: rawNxQuantityTotal,
+    expectedIdentitySetSha256: sha256([...expectedIdentities].sort().join("\n")),
+    publishedIdentityCount: crops.length,
+    publishedRawNxQuantityTotal: crops.reduce(
+      (total, { metadata }) => total + metadata.quantity,
+      0,
+    ),
+    publishedIdentitySetSha256: sha256(
+      crops
+        .map(({ metadata }) => metadata.identity)
+        .sort()
+        .join("\n"),
+    ),
+  };
+  expect(conservation.publishedIdentitySetSha256).toBe(conservation.expectedIdentitySetSha256);
+  expect(conservation.publishedRawNxQuantityTotal).toBe(conservation.expectedRawNxQuantityTotal);
+
+  const runId = sha256(
+    JSON.stringify({
+      schemaVersion: "lego.callout-thumbnails/4",
+      sourceHash: structure.sourceHash,
+      publishPages,
+      benchmark,
+      accounting,
+      conservation,
+      crops: crops.map(({ metadata }) => metadata),
+    }),
+  ).slice("sha256:".length, "sha256:".length + 24);
+  const manifest: CalloutManifest = {
+    schemaVersion: "lego.callout-thumbnails/4",
+    sourceHash: structure.sourceHash,
+    pageSelection: fullRun ? "full booklet" : publishPages,
+    pagesCropped: publishPages.length,
+    calloutCount: crops.length,
+    accounting,
+    recoveryBenchmark: benchmark,
+    conservation,
+    failures,
+    callouts: crops.map(({ metadata: { fileName, ...metadata } }) => ({
+      ...metadata,
+      file: `runs/${runId}/${fileName}`,
+    })),
+  };
+  const publication = publishCalloutRun({
+    outDirectory: OUT,
+    pointerFile: fullRun ? "manifest.json" : "manifest.partial.json",
+    runId,
+    manifest,
+    crops,
+  });
   console.log(
-    `cropped ${manifest.length} callouts over ${pages.length} pages, ` +
-      `${manifest.reduce((t, { quantity }) => t + quantity, 0)} pieces, ` +
-      `${manifest.filter(({ stepNumber }) => stepNumber === null).length} unassigned to a step, ` +
-      `${withoutBox} quantities outside any callout box`,
+    `published ${accounting.rawNxIdentityCount} raw Nx identities / ${accounting.rawNxQuantityTotal} raw quantity; ` +
+      `${accounting.physicalPartArtIdentityCount} physical part-art labels / ${accounting.semanticIdentityCount} semantic labels; ` +
+      `run ${runId}; reused=${publication.reused}; cleaned=${publication.cleanup.removedFiles}`,
   );
-  expect(manifest.length).toBeGreaterThan(0);
 });

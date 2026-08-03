@@ -19,6 +19,9 @@ process.env.LEGO_E2E_PORT = String(port);
 
 export default defineConfig({
   testDir: "./apps/web/e2e",
+  // Browser tests use .spec.ts. Keep colocated Vitest contract tests out of
+  // Playwright's default .test.ts discovery so each runner owns one syntax.
+  testMatch: "**/*.spec.ts",
   fullyParallel: false,
   forbidOnly: true,
   retries: 0,
