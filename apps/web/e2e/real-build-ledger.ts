@@ -235,6 +235,7 @@ const sameTransform = (left: LedgerTransform | null, right: LedgerTransform | nu
 export function validateRealBuildActionLedger(input: {
   readonly ledger: RealBuildActionLedger;
   readonly ledgerDigest: string;
+  readonly lastStep: number;
   readonly official: OfficialModelIndex;
   readonly pdfDigest: string;
   readonly coverageDigest: string;
@@ -260,6 +261,14 @@ export function validateRealBuildActionLedger(input: {
       ];
     }
     const ledgerSteps: readonly LedgerStep[] = input.ledger.steps;
+    if (!Number.isInteger(input.lastStep) || input.lastStep < 1 || input.lastStep > 359) {
+      return [
+        failure(
+          undefined,
+          `Action ledger validation requires a requested last step from 1 through 359; received ${input.lastStep}.`,
+        ),
+      ];
+    }
     if (
       !/^sha256:[0-9a-f]{64}$/u.test(input.ledgerDigest) ||
       input.ledger.schemaVersion !== REAL_BUILD_ACTION_LEDGER_SCHEMA ||
@@ -285,13 +294,24 @@ export function validateRealBuildActionLedger(input: {
         ),
       );
     }
-    const ordered = [...ledgerSteps].sort((left, right) => left.stepNumber - right.stepNumber);
+    const fullRun = input.lastStep === 359;
+    const requestedLedgerSteps = fullRun
+      ? ledgerSteps
+      : ledgerSteps.filter(({ stepNumber }) => stepNumber <= input.lastStep);
+    const ordered = [...requestedLedgerSteps].sort(
+      (left, right) => left.stepNumber - right.stepNumber,
+    );
     if (
-      ordered.length !== 359 ||
+      ordered.length !== input.lastStep ||
       ordered.some(({ stepNumber }, index) => stepNumber !== index + 1)
     ) {
       failures.push(
-        failure(undefined, "Action ledger must contain each printed step 1..359 exactly once."),
+        failure(
+          undefined,
+          `Action ledger must contain each requested printed step 1..${input.lastStep} exactly once${
+            fullRun ? "." : "; later tail steps are outside this prefix and are not validated."
+          }`,
+        ),
       );
     }
     const established = new Map<
@@ -607,12 +627,13 @@ export function validateRealBuildActionLedger(input: {
       }
     }
     for (const [key, claim] of Object.entries(input.coverageByCallout)) {
+      if (claim.stepNumber === null || claim.stepNumber > input.lastStep) continue;
       const count = calloutCounts.get(key) ?? 0;
       const binding = ordered
         .flatMap(({ callouts }) => callouts)
         .find(({ calloutKey }) => calloutKey === key);
       const physicalQuantity = binding?.physicalBrickRefs.length ?? 0;
-      if (claim.stepNumber !== null && (count !== physicalQuantity || !boundCallouts.has(key))) {
+      if (count !== physicalQuantity || !boundCallouts.has(key)) {
         failures.push(
           failure(
             claim.stepNumber,
@@ -624,16 +645,17 @@ export function validateRealBuildActionLedger(input: {
       }
     }
     if (
-      seenDirect.size !== input.official.directBrickRefs.size ||
-      seenCopies.size !== input.official.multiBuildByActualRef.size ||
+      (fullRun && seenDirect.size !== input.official.directBrickRefs.size) ||
+      (fullRun && seenCopies.size !== input.official.multiBuildByActualRef.size) ||
       [...requiredCalloutRefs].some((brickRef) => !boundPhysicalRefs.has(brickRef))
     ) {
       failures.push(
         failure(
           undefined,
           `Action ledger covers ${seenDirect.size}/${input.official.directBrickRefs.size} direct and ` +
-            `${seenCopies.size}/${input.official.multiBuildByActualRef.size} MultiBuild identities; exact official ` +
-            `identity conservation and callout binding for every non-omitted direct Brick are required.`,
+            `${seenCopies.size}/${input.official.multiBuildByActualRef.size} MultiBuild identities through requested ` +
+            `step ${input.lastStep}; exact callout binding is required for the prefix, and full official identity ` +
+            `conservation is additionally required at step 359.`,
         ),
       );
     }

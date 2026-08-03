@@ -1,3 +1,23 @@
+import type { CoverageInputBindings, StepCoverageCalloutClaim } from "./real-build-coverage";
+
+export {
+  bindCalloutsToBookletPanels,
+  CoverageContractError,
+  coverageCalloutKey,
+  isV4ManifestCallout,
+  reconcileStepCoverage,
+  requireCoverageCallout,
+  requireCoverageIndex,
+  resolveCoverageCallout,
+} from "./real-build-coverage";
+export type {
+  CoverageCalloutClaim,
+  CoverageContractFailureCode,
+  CoverageInputBindings,
+  StepCoverageCalloutClaim,
+  V4ManifestCallout,
+} from "./real-build-coverage";
+
 export type SuccessfulStepMechanism =
   | "anchor-orientation"
   | "highlight"
@@ -329,24 +349,6 @@ export function isAtomicStepComplete(step: AtomicStepCompletionFacts): boolean {
   );
 }
 
-export type CoverageContractFailureCode =
-  | "coverage-key-missing"
-  | "coverage-key-mismatch"
-  | "coverage-page-mismatch"
-  | "coverage-quantity-mismatch";
-
-export class CoverageContractError extends Error {
-  readonly code: CoverageContractFailureCode;
-  readonly key: string;
-
-  constructor(code: CoverageContractFailureCode, key: string, message: string) {
-    super(message);
-    this.name = "CoverageContractError";
-    this.code = code;
-    this.key = key;
-  }
-}
-
 export class RealBuildConfigurationError extends Error {
   readonly code = "target-part-budget-too-small" as const;
 
@@ -426,209 +428,6 @@ export interface RealBuildInputDigests {
   readonly builderCalibration: string;
   readonly builderGeometry: string;
   readonly transitionClassifications: string;
-}
-
-export interface CoverageInputBindings {
-  readonly pdf: string | null;
-  readonly calloutManifest: string | null;
-}
-
-export interface CoverageCalloutClaim {
-  readonly pageNumber: number;
-  readonly quantity: number;
-  readonly identificationConfidence?: string | null;
-  readonly cropDigest?: string | null;
-  readonly inputDigest?: string | null;
-}
-
-export function requireCoverageIndex<T extends CoverageCalloutClaim>(
-  value: unknown,
-): Readonly<Record<string, T>> {
-  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-    return value as Readonly<Record<string, T>>;
-  }
-  throw new CoverageContractError(
-    "coverage-key-missing",
-    "byCallout",
-    "Catalog coverage has no object-valued byCallout index. Regenerate it before rebuilding.",
-  );
-}
-
-/** Exact file name emitted by the callout-crop producer and coverage script. */
-export function coverageCalloutKey(pageNumber: number, index: number): string {
-  return `p${pageNumber}-c${index}.png`;
-}
-
-export function requireCoverageCallout<T extends CoverageCalloutClaim>(
-  byCallout: Readonly<Record<string, T>>,
-  input: { readonly pageNumber: number; readonly index: number; readonly quantity: number },
-): T {
-  const key = coverageCalloutKey(input.pageNumber, input.index);
-  const claim = byCallout[key];
-  if (claim === undefined) {
-    const legacyKey = key.slice(0, -".png".length);
-    if (Object.hasOwn(byCallout, legacyKey)) {
-      throw new CoverageContractError(
-        "coverage-key-mismatch",
-        key,
-        `Coverage uses ${legacyKey}, but the callout crop contract requires the exact key ${key}, including .png.`,
-      );
-    }
-    throw new CoverageContractError(
-      "coverage-key-missing",
-      key,
-      `Coverage has no claim for ${key}. Regenerate catalog coverage from the same callout-crop manifest before rebuilding.`,
-    );
-  }
-  if (claim.pageNumber !== input.pageNumber) {
-    throw new CoverageContractError(
-      "coverage-page-mismatch",
-      key,
-      `Coverage claim ${key} says page ${claim.pageNumber}, but its callout crop is on page ${input.pageNumber}.`,
-    );
-  }
-  if (claim.quantity !== input.quantity) {
-    throw new CoverageContractError(
-      "coverage-quantity-mismatch",
-      key,
-      `Coverage claim ${key} says quantity ${claim.quantity}, but the freshly cut callout says ${input.quantity}.`,
-    );
-  }
-  return claim;
-}
-
-export function resolveCoverageCallout<T extends CoverageCalloutClaim>(
-  byCallout: Readonly<Record<string, T>>,
-  input: {
-    readonly pageNumber: number;
-    readonly stepNumber?: number;
-    readonly index: number;
-    readonly quantity: number;
-    readonly cropDigest?: string | null;
-    readonly identificationInputDigest?: string | null;
-  },
-): { readonly claim: T | null; readonly failure: StepFailure | null } {
-  const key = coverageCalloutKey(input.pageNumber, input.index);
-  let claim: T;
-  try {
-    claim = requireCoverageCallout(byCallout, input);
-  } catch (error) {
-    if (error instanceof CoverageContractError) {
-      return {
-        claim: null,
-        failure: {
-          code: "coverage-key-mismatch",
-          stage: "coverage",
-          inputKey: key,
-          message: error.message,
-        },
-      };
-    }
-    return {
-      claim: null,
-      failure: {
-        code: "coverage-key-mismatch",
-        stage: "coverage",
-        inputKey: key,
-        message: `Coverage lookup for ${key} failed with an unexpected contract error: ${String(error)}.`,
-      },
-    };
-  }
-  if (
-    input.stepNumber !== undefined &&
-    "stepNumber" in claim &&
-    claim.stepNumber !== input.stepNumber
-  ) {
-    return {
-      claim: null,
-      failure: {
-        code: "coverage-key-mismatch",
-        stage: "coverage",
-        inputKey: key,
-        message:
-          `Callout ${key} is assigned by retained coverage to printed step ` +
-          `${JSON.stringify(claim.stepNumber)}, but the manifest maps it to step ${input.stepNumber}. ` +
-          `Regenerate or reconcile the content-bound panel assignment before reconstruction.`,
-      },
-    };
-  }
-  if (claim.identificationConfidence !== "vision-kept") {
-    return {
-      claim: null,
-      failure: {
-        code: "untrusted-identification",
-        stage: "callout-resolution",
-        inputKey: key,
-        message:
-          `Callout ${key} has identification confidence ` +
-          `${JSON.stringify(claim.identificationConfidence ?? "missing")}; only vision-kept claims are trusted. ` +
-          `Self-contradicted, refused, unanswered, and unlabelled assignments remain retained failures.`,
-      },
-    };
-  }
-  const digestPairs = [
-    ["crop", input.cropDigest, claim.cropDigest],
-    ["identification input", input.identificationInputDigest, claim.inputDigest],
-  ] as const;
-  for (const [label, expected, actual] of digestPairs) {
-    if (expected !== undefined && expected !== null && actual !== expected) {
-      return {
-        claim: null,
-        failure: {
-          code: "input-digest-mismatch",
-          stage: "coverage",
-          inputKey: key,
-          message:
-            `Callout ${key} ${label} digest is ${JSON.stringify(actual ?? "missing")}, but this run reads ` +
-            `${expected}. Regenerate identification and coverage from the exact retained crop/input.`,
-        },
-      };
-    }
-  }
-  return { claim, failure: null };
-}
-
-export interface StepCoverageCalloutClaim extends CoverageCalloutClaim {
-  readonly stepNumber: number | null;
-}
-
-export function reconcileStepCoverage<T extends StepCoverageCalloutClaim>(
-  byCallout: Readonly<Record<string, T>>,
-  input: {
-    readonly pageNumber: number;
-    readonly stepNumber: number;
-    readonly mappedKeys: readonly string[];
-  },
-): {
-  readonly expectedKeys: readonly string[];
-  readonly expectedPieces: number;
-  readonly failure: StepFailure | null;
-} {
-  const expected = Object.entries(byCallout)
-    .filter(
-      ([, claim]) => claim.pageNumber === input.pageNumber && claim.stepNumber === input.stepNumber,
-    )
-    .sort(([left], [right]) => left.localeCompare(right));
-  const expectedKeys = expected.map(([key]) => key);
-  const mappedKeys = [...input.mappedKeys].sort((left, right) => left.localeCompare(right));
-  const matches =
-    expectedKeys.length === mappedKeys.length &&
-    expectedKeys.every((key, index) => key === mappedKeys[index]);
-  return {
-    expectedKeys,
-    expectedPieces: expected.reduce((total, [, claim]) => total + claim.quantity, 0),
-    failure: matches
-      ? null
-      : {
-          code: "coverage-key-mismatch",
-          stage: "coverage",
-          message:
-            `Step ${input.stepNumber} on page ${input.pageNumber} maps panel callouts ` +
-            `[${mappedKeys.join(", ") || "none"}], but retained coverage assigns ` +
-            `[${expectedKeys.join(", ") || "none"}]. Resolve the panel-to-callout mapping; neither key set may ` +
-            `silently define a complete printed step.`,
-        },
-  };
 }
 
 export interface PlacementScoreEntry<T> {

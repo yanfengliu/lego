@@ -2,6 +2,12 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { claimsFor, conservation } from "./part-identification-score.mjs";
+import {
+  assertBoundMatchArtifacts,
+  assertCardsArtifact,
+  boundAnswers,
+  readJsonArtifact,
+} from "./part-identification-artifacts.mjs";
 import { canvasApi, contactSheet } from "./part-thumbnail-image.mjs";
 
 /**
@@ -32,11 +38,49 @@ function loadRun(argv, { option, inventoryHeld, elementNames }) {
   const source = option(argv, "source", "deterministic");
   const assignment = option(argv, "assign", "one-to-one");
   const model = option(argv, "model", "sonnet");
-  const features = readJson(join(OUT, "features.json"));
-  const match = readJson(join(OUT, "match.json"));
-  const distances = readJson(join(OUT, "distances.json"));
+  const featuresArtifact = readJsonArtifact(
+    join(OUT, "features.json"),
+    "part-identification features",
+  );
+  const matchArtifact = readJsonArtifact(join(OUT, "match.json"), "part-identification match");
+  const distancesArtifact = readJsonArtifact(
+    join(OUT, "distances.json"),
+    "part-identification distances",
+  );
+  const { features, match, distances } = assertBoundMatchArtifacts({
+    featuresArtifact,
+    matchArtifact,
+    distancesArtifact,
+  });
   const answersPath = join(OUT, `answers-${model}.json`);
-  const answers = existsSync(answersPath) ? readJson(answersPath) : null;
+  if (source !== "deterministic" && !existsSync(answersPath)) {
+    throw new Error(
+      `Source ${JSON.stringify(source)} requires content-bound vision answers at ${answersPath}; rerun the bounded ask command for the exact current match.`,
+    );
+  }
+  const cardsPath = join(OUT, "cards", "manifest.json");
+  if (source !== "deterministic" && !existsSync(cardsPath)) {
+    throw new Error(
+      `Source ${JSON.stringify(source)} requires a match-bound cards manifest at ${cardsPath}; regenerate tiles and cards first.`,
+    );
+  }
+  const cardsArtifact =
+    source === "deterministic" ? null : readJsonArtifact(cardsPath, "part-identification cards");
+  if (cardsArtifact !== null) {
+    assertCardsArtifact(cardsArtifact, {
+      matchDigest: matchArtifact.digest,
+      clusterIndexes: match.clusters.map(({ clusterIndex }) => clusterIndex),
+    });
+  }
+  const answers =
+    source !== "deterministic" && existsSync(answersPath)
+      ? boundAnswers(readJsonArtifact(answersPath, `vision answers for ${model}`), {
+          model,
+          matchDigest: matchArtifact.digest,
+          cardsDigest: cardsArtifact.digest,
+          clusterIndexes: match.clusters.map(({ clusterIndex }) => clusterIndex),
+        })
+      : null;
   const held = inventoryHeld();
   const claims = claimsFor(match, distances, source, answers, {
     assign: assignment,

@@ -24,6 +24,7 @@ describe("real build adversarial ledger contracts", () => {
       validateRealBuildActionLedger({
         ledger,
         ledgerDigest: sha256Digest(JSON.stringify(ledger)),
+        lastStep: 359,
         official: fixture.official,
         pdfDigest: fixture.pdfDigest,
         coverageDigest: fixture.coverageDigest,
@@ -160,6 +161,51 @@ describe("real build adversarial ledger contracts", () => {
     ).toContain("does not equal calibrated official Bone truth");
   });
 
+  it("validates an action-ledger prefix without trusting or requiring its unrequested tail", () => {
+    const fixture = realBuildLedgerTestFixture();
+    const validate = (ledger: RealBuildActionLedger, lastStep: number) =>
+      validateRealBuildActionLedger({
+        ledger,
+        ledgerDigest: sha256Digest(JSON.stringify(ledger)),
+        lastStep,
+        official: fixture.official,
+        pdfDigest: fixture.pdfDigest,
+        coverageDigest: fixture.coverageDigest,
+        calloutManifestDigest: fixture.manifestDigest,
+        builderCalibrationDigest: fixture.builderCalibrationDigest,
+        transitionClassificationsDigest: fixture.transitionClassificationsDigest,
+        coverageByCallout: fixture.coverageByCallout,
+        panelEvidenceByStep: fixture.panelEvidenceByStep,
+        transitionClassificationsByStep: fixture.transitionClassificationsByStep,
+      });
+    const prefixLedger: RealBuildActionLedger = {
+      ...fixture.ledger,
+      steps: fixture.ledger.steps.slice(0, 2),
+    };
+    const invalidTailLedger: RealBuildActionLedger = {
+      ...fixture.ledger,
+      steps: [
+        ...fixture.ledger.steps.slice(0, 2),
+        { ...fixture.ledger.steps[2]!, panelEvidenceDigest: REAL_BUILD_TEST_DIGEST },
+        ...fixture.ledger.steps.slice(3),
+      ],
+    };
+
+    expect(validate(prefixLedger, 2)).toEqual([]);
+    expect(validate(invalidTailLedger, 2)).toEqual([]);
+    expect(validate(prefixLedger, 359)).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: "action-ledger-incomplete" })]),
+    );
+    expect(validate(invalidTailLedger, 359)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "action-ledger-incomplete",
+          stepNumber: 3,
+        }),
+      ]),
+    );
+  });
+
   it("includes transition classification in action evidence", () => {
     const fixture = realBuildLedgerTestFixture();
     const step = fixture.ledger.steps[2]!;
@@ -235,6 +281,7 @@ describe("real build adversarial ledger contracts", () => {
     const failures = validateRealBuildActionLedger({
       ledger,
       ledgerDigest: sha256Digest(JSON.stringify(ledger)),
+      lastStep: 359,
       official: unframedOfficial,
       pdfDigest: fixture.pdfDigest,
       coverageDigest: fixture.coverageDigest,

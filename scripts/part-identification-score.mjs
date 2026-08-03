@@ -2,6 +2,12 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { assignDrawings } from "./part-assignment.mjs";
+import {
+  assertBoundMatchArtifacts,
+  assertCardsArtifact,
+  boundAnswers,
+  readJsonArtifact,
+} from "./part-identification-artifacts.mjs";
 
 /**
  * The grader.
@@ -193,11 +199,49 @@ export async function commandScore(argv, { option, inventoryHeld, elementNames }
   const source = option(argv, "source", "deterministic");
   const model = option(argv, "model", "sonnet");
   const assignment = option(argv, "assign", "one-to-one");
-  const features = readJson(join(OUT, "features.json"));
-  const match = readJson(join(OUT, "match.json"));
-  const distances = readJson(join(OUT, "distances.json"));
+  const featuresArtifact = readJsonArtifact(
+    join(OUT, "features.json"),
+    "part-identification features",
+  );
+  const matchArtifact = readJsonArtifact(join(OUT, "match.json"), "part-identification match");
+  const distancesArtifact = readJsonArtifact(
+    join(OUT, "distances.json"),
+    "part-identification distances",
+  );
+  const { features, match, distances } = assertBoundMatchArtifacts({
+    featuresArtifact,
+    matchArtifact,
+    distancesArtifact,
+  });
   const answersPath = join(OUT, `answers-${model}.json`);
-  const answers = existsSync(answersPath) ? readJson(answersPath) : null;
+  const answersArtifact = existsSync(answersPath)
+    ? readJsonArtifact(answersPath, `vision answers for ${model}`)
+    : null;
+  const cardsPath = join(OUT, "cards", "manifest.json");
+  const cardsArtifact =
+    source !== "deterministic" && existsSync(cardsPath)
+      ? readJsonArtifact(cardsPath, "part-identification cards")
+      : null;
+  if (cardsArtifact !== null) {
+    assertCardsArtifact(cardsArtifact, {
+      matchDigest: matchArtifact.digest,
+      clusterIndexes: match.clusters.map(({ clusterIndex }) => clusterIndex),
+    });
+  }
+  if (source !== "deterministic" && cardsArtifact === null) {
+    throw new Error(
+      `No match-bound vision cards at ${cardsPath}; regenerate tiles and cards before scoring adjudicated answers.`,
+    );
+  }
+  const answers =
+    source === "deterministic" || answersArtifact === null || cardsArtifact === null
+      ? null
+      : boundAnswers(answersArtifact, {
+          model,
+          matchDigest: matchArtifact.digest,
+          cardsDigest: cardsArtifact.digest,
+          clusterIndexes: match.clusters.map(({ clusterIndex }) => clusterIndex),
+        });
   if (source !== "deterministic" && answers === null) {
     throw new Error(
       `No vision answers at ${answersPath}; run "node scripts/part-identification.mjs ask --model ${model}" first, ` +
@@ -255,7 +299,7 @@ export async function commandScore(argv, { option, inventoryHeld, elementNames }
     model: source === "deterministic" ? null : model,
     calloutDir: features.calloutDir,
     calloutsIdentified: picks.filter(({ elementId }) => elementId !== null).length,
-    calloutsTotal: features.callouts.length,
+    calloutsTotal: features.calloutCount,
     clusters: match.clusters.length,
     picked: countBy(picks.map(({ picked }) => picked)),
     visionCoverage:
@@ -416,6 +460,7 @@ function scoreAgainstTruth(truth, features, match, claims, names) {
   const lastStep = truth.lastStep ?? 50;
   const rows = [];
   for (const [index, callout] of features.callouts.entries()) {
+    if (callout.evidenceKind !== "part-art") continue;
     if (callout.stepNumber === null || callout.stepNumber > lastStep) continue;
     const claim = claims.get(index);
     const verdict = verdicts.get(`${claim?.clusterIndex}:${claim?.elementId}`) ?? null;

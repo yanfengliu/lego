@@ -36,6 +36,7 @@ import {
   sha256Digest,
 } from "../e2e/real-build-artifacts";
 import { evaluateSearchBenchmark } from "../e2e/real-build-search";
+import { completeRealBuildTestOptions } from "./real-build-test-options";
 
 const TEST_DIGEST = `sha256:${"a".repeat(64)}`;
 const TEST_CLASSIFICATION_DIGEST = `sha256:${"b".repeat(64)}`;
@@ -344,11 +345,13 @@ describe("real booklet build safety", () => {
     });
   });
 
-  it("uses the exact .png coverage key and rejects stale join metadata", () => {
-    const key = coverageCalloutKey(11, 2);
-    const exact = { [key]: { pageNumber: 11, quantity: 3, value: "claim" } };
-    expect(key).toBe("p11-c2.png");
-    expect(requireCoverageCallout(exact, { pageNumber: 11, index: 2, quantity: 3 })).toBe(
+  it("uses the stable v4 callout identity and rejects stale join metadata", () => {
+    const key = coverageCalloutKey("p11|q3|x43.074|y486.271");
+    const exact = {
+      [key]: { identity: key, pageNumber: 11, quantity: 3, value: "claim" },
+    };
+    expect(key).toBe("p11|q3|x43.074|y486.271");
+    expect(requireCoverageCallout(exact, { identity: key, pageNumber: 11, quantity: 3 })).toBe(
       exact[key],
     );
 
@@ -358,7 +361,11 @@ describe("real booklet build safety", () => {
         code: "coverage-key-missing",
       },
       {
-        byCallout: { "p11-c2": { pageNumber: 11, quantity: 3 } },
+        byCallout: { "p11-c2.png": { pageNumber: 11, quantity: 3 } },
+        code: "coverage-key-missing",
+      },
+      {
+        byCallout: { [key]: { identity: "p11|q3|x44.000|y486.271", pageNumber: 11, quantity: 3 } },
         code: "coverage-key-mismatch",
       },
       {
@@ -376,7 +383,7 @@ describe("real booklet build safety", () => {
           entry.byCallout as Readonly<
             Record<string, { readonly pageNumber: number; readonly quantity: number }>
           >,
-          { pageNumber: 11, index: 2, quantity: 3 },
+          { identity: key, pageNumber: 11, quantity: 3 },
         );
         throw new Error(`expected ${entry.code}`);
       } catch (error) {
@@ -384,6 +391,7 @@ describe("real booklet build safety", () => {
         expect((error as CoverageContractError).code).toBe(entry.code);
       }
     }
+    expect(() => coverageCalloutKey("p11-c2.png")).toThrowError(CoverageContractError);
   });
 
   it("rejects a coverage file whose byCallout index is absent", () => {
@@ -398,21 +406,21 @@ describe("real booklet build safety", () => {
 
   it("refuses a panel that silently drops one expected callout key", () => {
     const coverage = {
-      "p11-c0.png": { pageNumber: 11, stepNumber: 1, quantity: 1 },
-      "p11-c1.png": { pageNumber: 11, stepNumber: 1, quantity: 1 },
-      "p11-c2.png": { pageNumber: 11, stepNumber: 1, quantity: 1 },
+      "p11|q1|x1.000|y1.000": { pageNumber: 11, stepNumber: 1, quantity: 1 },
+      "p11|q1|x2.000|y1.000": { pageNumber: 11, stepNumber: 1, quantity: 1 },
+      "p11|q1|x3.000|y1.000": { pageNumber: 11, stepNumber: 1, quantity: 1 },
     };
     const reconciliation = reconcileStepCoverage(coverage, {
       pageNumber: 11,
       stepNumber: 1,
-      mappedKeys: ["p11-c0.png", "p11-c1.png"],
+      mappedKeys: ["p11|q1|x1.000|y1.000", "p11|q1|x2.000|y1.000"],
     });
 
     expect(reconciliation).toMatchObject({
       expectedPieces: 3,
       failure: { code: "coverage-key-mismatch", stage: "coverage" },
     });
-    expect(reconciliation.failure?.message).toContain("p11-c2.png");
+    expect(reconciliation.failure?.message).toContain("p11|q1|x3.000|y1.000");
   });
 
   it("enforces coverage step assignment during production preflight", () => {
@@ -421,6 +429,7 @@ describe("real booklet build safety", () => {
     const failures = preflightRealBuildOptions({
       panels,
       expectedPrintedSteps: 359,
+      lastStep: 359,
       accounting: OFFICIAL_REAL_BUILD_ACCOUNTING,
       targetPartCount: 1_464,
       maxParts: 1_464,
@@ -613,6 +622,7 @@ describe("real booklet build safety", () => {
     const input = {
       panels,
       expectedPrintedSteps: 359,
+      lastStep: 359,
       accounting: OFFICIAL_REAL_BUILD_ACCOUNTING,
       targetPartCount: 1_464,
       maxParts: 1_464,
@@ -685,6 +695,7 @@ describe("real booklet build safety", () => {
       preflightRealBuildOptions({
         panels: badPanels,
         expectedPrintedSteps: 359,
+        lastStep: 359,
         accounting: OFFICIAL_REAL_BUILD_ACCOUNTING,
         targetPartCount: 1_464,
         maxParts: 1_464,
@@ -703,31 +714,54 @@ describe("real booklet build safety", () => {
   it("retains untrusted or content-stale identification as a typed callout failure", () => {
     const crop = `sha256:${"c".repeat(64)}`;
     const input = `sha256:${"d".repeat(64)}`;
+    const identity = "p11|q1|x43.074|y486.271";
     const base = { pageNumber: 11, quantity: 1, cropDigest: crop, inputDigest: input };
     expect(
       resolveCoverageCallout(
-        { "p11-c0.png": { ...base, identificationConfidence: "self-contradicted" } },
+        { [identity]: { ...base, identity, identificationConfidence: "self-contradicted" } },
         {
+          identity,
           pageNumber: 11,
-          index: 0,
           quantity: 1,
           cropDigest: crop,
           identificationInputDigest: input,
         },
       ).failure,
-    ).toMatchObject({ code: "untrusted-identification", inputKey: "p11-c0.png" });
+    ).toMatchObject({ code: "untrusted-identification", inputKey: identity });
     expect(
       resolveCoverageCallout(
-        { "p11-c0.png": { ...base, identificationConfidence: "vision-kept" } },
+        { [identity]: { ...base, identity, identificationConfidence: "vision-kept" } },
         {
+          identity,
           pageNumber: 11,
-          index: 0,
           quantity: 1,
           cropDigest: `sha256:${"e".repeat(64)}`,
           identificationInputDigest: input,
         },
       ).failure,
-    ).toMatchObject({ code: "input-digest-mismatch", inputKey: "p11-c0.png" });
+    ).toMatchObject({ code: "input-digest-mismatch", inputKey: identity });
+  });
+
+  it("validates only requested step actions while retaining the complete 359-panel container", () => {
+    const options = completeRealBuildTestOptions(2);
+    const panels = [...options.panels];
+    panels[2] = {
+      ...panels[2]!,
+      coverageFailures: [
+        {
+          code: "coverage-key-mismatch",
+          stage: "coverage",
+          message: "deliberately invalid unexecuted tail",
+        },
+      ],
+    };
+
+    expect(preflightRealBuildOptions({ ...options, panels })).toEqual([]);
+    expect(preflightRealBuildOptions({ ...options, panels, lastStep: 3 })).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "coverage-key-mismatch", stepNumber: 3 }),
+      ]),
+    );
   });
 
   it("requires nontrivial joint score and distinct highlight evidence for every piece", () => {

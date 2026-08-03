@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { commandAsk } from "./part-identification-ask.mjs";
 import { commandPairsheet, commandSheets } from "./part-identification-sheets.mjs";
@@ -12,6 +13,18 @@ import {
   readThumbnail,
   thumbnailDistance,
 } from "./part-thumbnail-image.mjs";
+import {
+  PART_DISTANCES_SCHEMA,
+  PART_FEATURES_SCHEMA,
+  PART_MATCH_SCHEMA,
+  assertV4CalloutManifest,
+  PART_CARDS_SCHEMA,
+  assertFeaturesArtifact,
+  nonClusteredCalloutRecords,
+  readBoundManifestCrop,
+  readJsonArtifact,
+  sha256Digest,
+} from "./part-identification-artifacts.mjs";
 
 /**
  * What part does a step add?
@@ -81,7 +94,7 @@ function elementNames() {
   return new Map(Object.entries(resolved).map(([id, entry]) => [id, entry]));
 }
 
-async function commandFeatures(argv) {
+async function commandFeatures(argv, context = {}) {
   const calloutDir = option(argv, "callouts", "output/callout-thumbnails");
   const inventoryDir = option(argv, "inventory", "output/inventory-thumbnails");
   mkdirSync(OUT, { recursive: true });
@@ -93,7 +106,8 @@ async function commandFeatures(argv) {
         `produce the full one with CALLOUT_PAGE_LIMIT=0 npx playwright test callout-thumbnails.`,
     );
   }
-  const manifest = readJson(manifestPath);
+  const manifestArtifact = readJsonArtifact(manifestPath, "callout manifest");
+  const manifest = assertV4CalloutManifest(manifestArtifact.value, context.manifestExpectation);
 
   const inventory = {};
   const inventoryFiles = readdirSync(inventoryDir).filter((file) => file.endsWith(".png"));
@@ -106,20 +120,40 @@ async function commandFeatures(argv) {
   const callouts = [];
   for (const entry of manifest.callouts.slice(0, CROP_LIMIT)) {
     const path = join(calloutDir, entry.file);
-    if (!existsSync(path)) continue;
-    const thumbnail = await readThumbnail(path);
-    if (!thumbnail) continue;
+    if (entry.evidenceKind !== "part-art") {
+      // Semantic action/multiplier records stay index-aligned with the v4
+      // manifest for coverage provenance, but never receive a descriptor that
+      // could make them look assignable to a physical inventory element.
+      callouts.push({ ...entry });
+      continue;
+    }
+    const thumbnail = await readBoundManifestCrop(entry, path, readThumbnail);
+    if (!thumbnail) {
+      throw new Error(
+        `Callout crop ${JSON.stringify(entry.identity)} at ${JSON.stringify(entry.file)} contains no decodable part drawing. Regenerate or repair this exact crop before extracting features.`,
+      );
+    }
     callouts.push({ ...entry, descriptor: describe(thumbnail) });
   }
 
   const held = inventoryHeld();
   const withoutThumbnail = [...held.keys()].filter((id) => !(id in inventory));
+  const nonClusteredCallouts = nonClusteredCalloutRecords(callouts);
+  const physicalCallouts = callouts.filter(({ evidenceKind }) => evidenceKind === "part-art");
   writeJson(join(OUT, "features.json"), {
+    schemaVersion: PART_FEATURES_SCHEMA,
+    inputDigests: {
+      pdf: manifest.sourceHash,
+      calloutManifest: manifestArtifact.digest,
+    },
     note: "Descriptors only. Nothing here names a part.",
     calloutDir,
     inventoryDir,
-    calloutCount: callouts.length,
-    piecesCalledOut: callouts.reduce((total, { quantity }) => total + quantity, 0),
+    manifestCalloutCount: callouts.length,
+    calloutCount: physicalCallouts.length,
+    nonClusteredCalloutCount: nonClusteredCallouts.length,
+    nonClusteredCallouts,
+    piecesCalledOut: physicalCallouts.reduce((total, { quantity }) => total + quantity, 0),
     inventoryCount: Object.keys(inventory).length,
     inventoryHeldCount: held.size,
     elementsWithoutThumbnail: withoutThumbnail,
@@ -128,7 +162,8 @@ async function commandFeatures(argv) {
     callouts,
   });
   console.log(
-    `${callouts.length} callouts (${callouts.reduce((total, { quantity }) => total + quantity, 0)} pieces) ` +
+    `${physicalCallouts.length} physical callouts (${physicalCallouts.reduce((total, { quantity }) => total + quantity, 0)} pieces) ` +
+      `and ${nonClusteredCallouts.length} explicitly non-clustered semantic records ` +
       `against ${Object.keys(inventory).length} of ${held.size} inventory thumbnails; ` +
       `${withoutThumbnail.length} elements have no thumbnail to match against`,
   );
@@ -143,9 +178,9 @@ async function commandFeatures(argv) {
  * check still sees every callout separately.
  */
 function clusterCallouts(callouts, threshold = 0.055) {
-  const order = [...callouts.keys()].sort(
-    (left, right) => callouts[right].descriptor.pixels - callouts[left].descriptor.pixels,
-  );
+  const order = [...callouts.keys()]
+    .filter((index) => callouts[index].evidenceKind === "part-art")
+    .sort((left, right) => callouts[right].descriptor.pixels - callouts[left].descriptor.pixels);
   const clusters = [];
   for (const index of order) {
     const descriptor = callouts[index].descriptor;
@@ -165,7 +200,11 @@ function clusterCallouts(callouts, threshold = 0.055) {
 
 async function commandMatch(argv) {
   const k = Number(option(argv, "k", "6"));
-  const features = readJson(join(OUT, "features.json"));
+  const featuresArtifact = readJsonArtifact(
+    join(OUT, "features.json"),
+    "part-identification features",
+  );
+  const features = assertFeaturesArtifact(featuresArtifact);
   const inventory = Object.entries(features.inventory);
   const clusters = clusterCallouts(features.callouts);
 
@@ -177,7 +216,7 @@ async function commandMatch(argv) {
       elementId,
       ...thumbnailDistance(descriptor, candidate),
     }));
-    rows.push(scored.map(({ total }) => Math.round(total * 10000) / 10000));
+    rows.push(scored.map(({ total }) => total));
     const ordered = [...scored].sort((left, right) => left.total - right.total);
     return {
       clusterIndex,
@@ -193,18 +232,22 @@ async function commandMatch(argv) {
   });
 
   writeJson(join(OUT, "match.json"), {
+    schemaVersion: PART_MATCH_SCHEMA,
+    featuresDigest: featuresArtifact.digest,
     note: "Geometry only: a shortlist per cluster of identical callout drawings.",
     clusterCount: ranked.length,
-    calloutCount: features.callouts.length,
+    calloutCount: features.calloutCount,
     clusters: ranked,
   });
   writeJson(join(OUT, "distances.json"), {
+    schemaVersion: PART_DISTANCES_SCHEMA,
+    featuresDigest: featuresArtifact.digest,
     note: "Every drawing against every element, in elementIds order, for the global assignment.",
     elementIds,
     rows,
   });
   console.log(
-    `${features.callouts.length} callouts fell into ${ranked.length} distinct drawings; ` +
+    `${features.calloutCount} physical callouts fell into ${ranked.length} distinct drawings; ` +
       `median top-1 margin ${median(ranked.map(({ margin }) => margin)).toFixed(3)}`,
   );
 }
@@ -374,10 +417,15 @@ async function commandLabelsheet(argv) {
 
 async function commandCards(argv) {
   const k = Number(option(argv, "k", "6"));
-  const match = readJson(join(OUT, "match.json"));
+  const matchArtifact = readJsonArtifact(join(OUT, "match.json"), "part-identification match");
+  const match = matchArtifact.value;
+  if (match.schemaVersion !== PART_MATCH_SCHEMA) {
+    throw new Error(`Cards require ${PART_MATCH_SCHEMA}; regenerate features and match first.`);
+  }
   const cardDir = join(OUT, "cards");
   mkdirSync(cardDir, { recursive: true });
 
+  const cards = {};
   for (const cluster of match.clusters) {
     const png = await drawCard(
       cluster.lead,
@@ -385,12 +433,19 @@ async function commandCards(argv) {
       join(OUT, "tiles", "callout"),
       join(OUT, "tiles", "inventory"),
     );
-    writeFileSync(join(cardDir, `card-${String(cluster.clusterIndex).padStart(4, "0")}.png`), png);
+    const id = `card-${String(cluster.clusterIndex).padStart(4, "0")}`;
+    writeFileSync(join(cardDir, `${id}.png`), png);
+    cards[id] = sha256Digest(png);
   }
+  writeJson(join(cardDir, "manifest.json"), {
+    schemaVersion: PART_CARDS_SCHEMA,
+    matchDigest: matchArtifact.digest,
+    cards,
+  });
   console.log(`drew ${match.clusters.length} cards into ${cardDir}`);
 }
 
-export { clusterCallouts, median, option };
+export { clusterCallouts, commandFeatures, median, option };
 
 const helpers = { option, inventoryHeld, elementNames };
 
@@ -407,10 +462,12 @@ const COMMANDS = {
   sheets: (argv) => commandSheets(argv, helpers),
 };
 
-const [, , command, ...rest] = process.argv;
-const run = COMMANDS[command];
-if (!run) {
-  console.error(command ? `Unknown command "${command}".\n\n${usage()}` : usage());
-  process.exit(1);
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const [, , command, ...rest] = process.argv;
+  const run = COMMANDS[command];
+  if (!run) {
+    console.error(command ? `Unknown command "${command}".\n\n${usage()}` : usage());
+    process.exit(1);
+  }
+  await run(rest);
 }
-await run(rest);

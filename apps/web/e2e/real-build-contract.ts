@@ -33,6 +33,7 @@ export const OFFICIAL_REAL_BUILD_ACCOUNTING = {
 export function preflightRealBuildOptions(input: {
   readonly panels: readonly RealBuildPanelSpec[];
   readonly expectedPrintedSteps: number;
+  readonly lastStep: number;
   readonly accounting: RealBuildAccounting;
   readonly targetPartCount: number;
   readonly maxParts: number;
@@ -71,8 +72,23 @@ export function preflightRealBuildOptions(input: {
         `zero-piece transitions rather than omitted.`,
     });
   }
+  if (
+    !Number.isInteger(input.lastStep) ||
+    input.lastStep < 1 ||
+    input.lastStep > input.expectedPrintedSteps
+  ) {
+    failures.push({
+      code: "printed-step-sequence-invalid",
+      stage: "input",
+      inputKey: "lastStep",
+      message:
+        `The requested real-build prefix must end at an integer printed step from 1 through ` +
+        `${input.expectedPrintedSteps}; received ${input.lastStep}.`,
+    });
+  }
+  const requestedPanels = input.panels.filter(({ stepNumber }) => stepNumber <= input.lastStep);
   const identityStep = new Map<string, number>();
-  for (const panel of input.panels) {
+  for (const panel of requestedPanels) {
     failures.push(
       ...panel.coverageFailures.map((failure) => ({ ...failure, stepNumber: panel.stepNumber })),
     );
@@ -269,27 +285,30 @@ export function preflightRealBuildOptions(input: {
     }
   }
 
-  const directActions = input.panels
+  const directActions = requestedPanels
     .filter(({ action }) => action.kind === "place-callouts")
     .reduce((total, panel) => total + panel.pieces.length + panel.omittedPieces.length, 0);
-  const multiBuildActions = input.panels.reduce(
+  const multiBuildActions = requestedPanels.reduce(
     (total, { action }) => total + (action.kind === "multi-build-copy" ? action.copies.length : 0),
     0,
   );
-  const rawCalloutQuantity = input.panels.reduce((total, panel) => total + panel.calloutPieces, 0);
-  const classifiedPhysicalCalloutPieces = input.panels.reduce(
+  const rawCalloutQuantity = requestedPanels.reduce(
+    (total, panel) => total + panel.calloutPieces,
+    0,
+  );
+  const classifiedPhysicalCalloutPieces = requestedPanels.reduce(
     (total, panel) => total + panel.classifiedPhysicalCalloutPieces,
     0,
   );
-  const semanticMultiplierQuantity = input.panels.reduce(
+  const semanticMultiplierQuantity = requestedPanels.reduce(
     (total, panel) => total + panel.semanticMultiplierQuantity,
     0,
   );
-  const omittedPhysicalPieces = input.panels.reduce(
+  const omittedPhysicalPieces = requestedPanels.reduce(
     (total, panel) => total + panel.omittedPhysicalPieces,
     0,
   );
-  const inconsistentSteps = input.panels.filter((panel) => {
+  const inconsistentSteps = requestedPanels.filter((panel) => {
     const physical = panel.classifiedPhysicalCalloutPieces + panel.omittedPhysicalPieces;
     const ledgerPieces =
       panel.action.kind === "place-callouts"
@@ -312,7 +331,7 @@ export function preflightRealBuildOptions(input: {
   });
   const declared = input.accounting;
   const official = OFFICIAL_REAL_BUILD_ACCOUNTING;
-  const matches =
+  const declarationMatches =
     declared.rawCalloutQuantity === official.rawCalloutQuantity &&
     declared.classifiedPhysicalCalloutPieces === official.classifiedPhysicalCalloutPieces &&
     declared.semanticMultiplierQuantity === official.semanticMultiplierQuantity &&
@@ -322,20 +341,26 @@ export function preflightRealBuildOptions(input: {
     declared.looseInventoryPieces === official.looseInventoryPieces &&
     declared.assembledTargetPieces === official.assembledTargetPieces &&
     declared.inventoryPieces === official.inventoryPieces &&
-    rawCalloutQuantity === declared.rawCalloutQuantity &&
-    classifiedPhysicalCalloutPieces === declared.classifiedPhysicalCalloutPieces &&
-    semanticMultiplierQuantity === declared.semanticMultiplierQuantity &&
-    omittedPhysicalPieces === declared.omittedPhysicalPieces &&
-    rawCalloutQuantity === classifiedPhysicalCalloutPieces + semanticMultiplierQuantity &&
-    classifiedPhysicalCalloutPieces + omittedPhysicalPieces === declared.assembledTargetPieces &&
-    inconsistentSteps.length === 0 &&
-    directActions === declared.directCalloutPieces &&
-    multiBuildActions === declared.multiBuildCopyPieces &&
-    directActions + multiBuildActions === declared.assembledTargetPieces &&
     declared.assembledTargetPieces + declared.looseInventoryPieces === declared.inventoryPieces &&
     input.targetPartCount === declared.assembledTargetPieces &&
     Number.isInteger(input.maxParts) &&
     input.maxParts >= declared.assembledTargetPieces;
+  const prefixMatches =
+    rawCalloutQuantity === classifiedPhysicalCalloutPieces + semanticMultiplierQuantity &&
+    inconsistentSteps.length === 0;
+  const fullSetMatches =
+    rawCalloutQuantity === declared.rawCalloutQuantity &&
+    classifiedPhysicalCalloutPieces === declared.classifiedPhysicalCalloutPieces &&
+    semanticMultiplierQuantity === declared.semanticMultiplierQuantity &&
+    omittedPhysicalPieces === declared.omittedPhysicalPieces &&
+    classifiedPhysicalCalloutPieces + omittedPhysicalPieces === declared.assembledTargetPieces &&
+    directActions === declared.directCalloutPieces &&
+    multiBuildActions === declared.multiBuildCopyPieces &&
+    directActions + multiBuildActions === declared.assembledTargetPieces;
+  const matches =
+    declarationMatches &&
+    prefixMatches &&
+    (input.lastStep < input.expectedPrintedSteps || fullSetMatches);
   if (!matches) {
     failures.push({
       code: "set-accounting-mismatch",
@@ -351,7 +376,12 @@ export function preflightRealBuildOptions(input: {
         `pieces; declarations are ${declared.directCalloutPieces} + ${declared.multiBuildCopyPieces} = ` +
         `${declared.assembledTargetPieces}, plus ${declared.looseInventoryPieces} = ` +
         `${declared.inventoryPieces}; targetPartCount/maxParts are ${input.targetPartCount}/${input.maxParts}. ` +
-        `Per-step inconsistencies: ${inconsistentSteps.map(({ stepNumber }) => stepNumber).join(", ") || "none"}. ` +
+        `Requested prefix 1..${input.lastStep} totals raw/classified/semantic/omitted ` +
+        `${rawCalloutQuantity}/${classifiedPhysicalCalloutPieces}/${semanticMultiplierQuantity}/` +
+        `${omittedPhysicalPieces}; per-step inconsistencies: ` +
+        `${inconsistentSteps.map(({ stepNumber }) => stepNumber).join(", ") || "none"}. Full-set action totals ` +
+        `are required only when step 359 is requested; an earlier prefix remains explicitly unexecuted beyond ` +
+        `its requested boundary. ` +
         `Classify the discrepant callouts and MultiBuild actions; changing the target or accepting quantity-sum ` +
         `as assembled truth is not a fix.`,
     });

@@ -43,13 +43,16 @@ import {
   type TransitionClassificationEvidence,
 } from "./real-build-ledger";
 import {
+  bindCalloutsToBookletPanels,
   isAtomicStepComplete,
+  isV4ManifestCallout,
   resolveCoverageCallout,
   type CoverageCalloutClaim,
   type RealBuildOptions,
   type RealBuildPanelSpec,
   type RealBuildResult,
   type StepFailure,
+  type V4ManifestCallout,
 } from "./real-build-safety";
 import type { RealBuildBrowserOutput } from "./real-build-browser-output";
 import {
@@ -94,20 +97,11 @@ const BUILDER_GEOMETRY_PATH =
 const TRANSITION_CLASSIFICATIONS_PATH =
   process.env.LEGO_REAL_BUILD_TRANSITIONS ?? "output/real-build/transition-classifications.json";
 
-interface ManifestCallout {
-  readonly file: string;
-  readonly pageNumber: number;
-  readonly stepNumber: number | null;
-  readonly quantity: number;
-  readonly cropDigest?: string;
-  readonly physicalQuantity?: number;
-  readonly semanticMultiplierQuantity?: number;
-  readonly omittedPhysicalPieces?: number;
-}
-
 interface CalloutManifest {
+  readonly schemaVersion?: string;
   readonly sourceHash?: string;
-  readonly callouts?: readonly ManifestCallout[];
+  readonly calloutCount?: number;
+  readonly callouts?: readonly unknown[];
 }
 
 interface CalloutResolution extends CoverageCalloutClaim {
@@ -252,6 +246,7 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
     effectiveOutputRoot = "output/real-build";
   }
   const coverageInput = readJsonInput<{
+    readonly schemaVersion?: string;
     readonly byCallout?: unknown;
     readonly inputDigests?: { readonly pdf?: string; readonly calloutManifest?: string };
   }>(COVERAGE_PATH, preparationFailures);
@@ -283,6 +278,31 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
     builderGeometry: sha256Digest(builderGeometryBytes),
     transitionClassifications: sha256Digest(transitionInput.bytes),
   };
+  if (
+    manifestInput.value.schemaVersion !== "lego.callout-thumbnails/4" ||
+    manifestInput.value.sourceHash !== inputDigests.pdf
+  ) {
+    preparationFailures.push(
+      contractFailure(
+        MANIFEST_PATH,
+        `Callout input must use lego.callout-thumbnails/4 and bind the exact booklet PDF. Manifest ` +
+          `${JSON.stringify(manifestInput.value.schemaVersion ?? "missing")}/` +
+          `${JSON.stringify(manifestInput.value.sourceHash ?? "missing")}; live PDF ${inputDigests.pdf}.`,
+      ),
+    );
+  }
+  if (
+    coverageInput.bytes.length > 0 &&
+    coverageInput.value.schemaVersion !== "lego.real-build-catalog-coverage/1"
+  ) {
+    preparationFailures.push(
+      contractFailure(
+        COVERAGE_PATH,
+        `Catalog coverage must use lego.real-build-catalog-coverage/1 and stable v4 callout identities; ` +
+          `received ${JSON.stringify(coverageInput.value.schemaVersion ?? "missing")}.`,
+      ),
+    );
+  }
   let officialModel: OfficialModelIndex | null = null;
   if (
     officialModelBytes.length > 0 &&
@@ -396,14 +416,29 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
       ),
     );
   }
-  const manifestCallouts = Array.isArray(manifestInput.value.callouts)
+  const rawManifestCallouts = Array.isArray(manifestInput.value.callouts)
     ? manifestInput.value.callouts
     : [];
+  const manifestCallouts: V4ManifestCallout[] = rawManifestCallouts.filter(isV4ManifestCallout);
   if (manifestCallouts.length === 0) {
     preparationFailures.push(
       contractFailure(
         `${MANIFEST_PATH}#callouts`,
         `The callout manifest has no callout array; regenerate the full 359-step manifest.`,
+      ),
+    );
+  }
+  if (
+    manifestCallouts.length !== rawManifestCallouts.length ||
+    manifestInput.value.calloutCount !== manifestCallouts.length ||
+    new Set(manifestCallouts.map(({ identity }) => identity)).size !== manifestCallouts.length
+  ) {
+    preparationFailures.push(
+      contractFailure(
+        `${MANIFEST_PATH}#callouts`,
+        `The v4 callout manifest must contain exactly calloutCount unique, typed identity records; received ` +
+          `${manifestCallouts.length}/${rawManifestCallouts.length} typed rows for declared count ` +
+          `${JSON.stringify(manifestInput.value.calloutCount ?? "missing")}.`,
       ),
     );
   }
@@ -425,6 +460,13 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
       [...boxesByPage].map(([pageNumber, entries]) => [pageNumber, entries.map(({ box }) => box)]),
     ),
   );
+  const panelBindings = bindCalloutsToBookletPanels({
+    lastStep: Number.isInteger(lastStep) ? lastStep : 1,
+    manifestCallouts,
+    panels,
+    sourcePages: source.pages,
+  });
+  preparationFailures.push(...panelBindings.failures);
   const calloutBoxesByStep = Object.fromEntries(
     panels.map((panel) => {
       const boxes = (boxesByPage.get(panel.pageNumber) ?? [])
@@ -459,6 +501,7 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
       ...validateRealBuildActionLedger({
         ledger: ledgerInput.value,
         ledgerDigest: inputDigests.actionLedger,
+        lastStep: Number.isInteger(lastStep) ? lastStep : 1,
         official: officialModel,
         pdfDigest: inputDigests.pdf,
         coverageDigest: inputDigests.coverage,
@@ -473,7 +516,11 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
   }
 
   const specs: RealBuildPanelSpec[] = panels.map((panel) => {
-    const entries = manifestCallouts.filter(({ stepNumber }) => stepNumber === panel.stepNumber);
+    const entries = manifestCallouts.filter(
+      ({ identity, evidenceKind }) =>
+        panelBindings.stepByIdentity.get(identity) === panel.stepNumber &&
+        evidenceKind === "part-art",
+    );
     const ledgerStep = ledgerByStep.get(panel.stepNumber);
     const rawQuantity =
       ledgerStep === undefined
@@ -502,16 +549,6 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
     const unresolvedCallouts = new Set<string>();
 
     for (const entry of entries) {
-      const match = /^p(\d+)-c(\d+)\.png$/u.exec(entry.file);
-      if (match === null || Number(match[1]) !== entry.pageNumber) {
-        coverageFailures.push({
-          code: "coverage-key-mismatch",
-          stage: "coverage",
-          inputKey: entry.file,
-          message: `Manifest callout ${entry.file} does not encode its declared page ${entry.pageNumber}.`,
-        });
-        continue;
-      }
       const unsafeCropPath = join(CALLOUT_DIRECTORY, entry.file);
       let cropPath: string | null = null;
       try {
@@ -537,10 +574,21 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
         );
         continue;
       }
+      if (cropDigest !== entry.sha256) {
+        coverageFailures.push(
+          contractFailure(
+            unsafeCropPath,
+            `Manifest callout ${entry.identity} declares crop digest ${entry.sha256}, but retained bytes at ` +
+              `${unsafeCropPath} hash to ${cropDigest}. Republish the crop run; neither manifest nor bytes may ` +
+              `silently replace the other.`,
+          ),
+        );
+        continue;
+      }
       const resolved = resolveCoverageCallout(byCallout, {
+        identity: entry.identity,
         pageNumber: entry.pageNumber,
         stepNumber: panel.stepNumber,
-        index: Number(match[2]),
         quantity: entry.quantity,
         cropDigest,
         identificationInputDigest: inputDigests.calloutManifest,
@@ -660,7 +708,7 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
       minYPt: panel.bounds.minYPt,
       maxYPt: panel.bounds.maxYPt,
       calloutBoxes: calloutBoxesByStep[panel.stepNumber] ?? [],
-      mappedCalloutKeys: ledgerStep?.callouts.map(({ calloutKey }) => calloutKey) ?? [],
+      mappedCalloutKeys: entries.map(({ identity }) => identity),
       pieces,
       omittedPieces,
       calloutPieces: rawQuantity,

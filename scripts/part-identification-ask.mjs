@@ -3,6 +3,14 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { option } from "./part-identification.mjs";
+import {
+  PART_MATCH_SCHEMA,
+  answerBundle,
+  assertCardsArtifact,
+  boundAnswers,
+  readJsonArtifact,
+  sha256Digest,
+} from "./part-identification-artifacts.mjs";
 
 /**
  * The vision call that proposes a part identity.
@@ -56,8 +64,8 @@ const PROMPT = [
  * with the card it belongs to and matched back by that tag, so a call that
  * answers about five of six loses one answer rather than shifting all of them.
  */
-function askBatch(cardIds, model) {
-  const paths = cardIds.map((id) => join(OUT, "cards", `${id}.png`).replaceAll("\\", "/"));
+function askBatch(cardIds, model, out = OUT) {
+  const paths = cardIds.map((id) => join(out, "cards", `${id}.png`).replaceAll("\\", "/"));
   const instruction =
     `Read these ${cardIds.length} images: ${paths.join(" ")}\n\n` +
     `Answer separately about each, in the order given, one line per image, ` +
@@ -95,21 +103,64 @@ function askBatch(cardIds, model) {
 const cardId = (clusterIndex) => `card-${String(clusterIndex).padStart(4, "0")}`;
 
 async function commandAsk(argv) {
+  const out = option(argv, "out", OUT);
   const model = option(argv, "model", "sonnet");
   const jobs = Number(option(argv, "jobs", "4"));
   const batch = Number(option(argv, "batch", "6"));
   const only = option(argv, "only", null);
   const lastStep = option(argv, "last-step", null);
-  const match = readJson(join(OUT, "match.json"));
-  const answersPath = join(OUT, `answers-${model}.json`);
-  const answers = existsSync(answersPath) ? readJson(answersPath) : {};
+  const matchArtifact = readJsonArtifact(join(out, "match.json"), "part-identification match");
+  const match = matchArtifact.value;
+  if (match.schemaVersion !== PART_MATCH_SCHEMA) {
+    throw new Error(
+      `Vision cards require ${PART_MATCH_SCHEMA}; regenerate features, match, tiles, and cards before asking.`,
+    );
+  }
+  const cardsManifestPath = join(out, "cards", "manifest.json");
+  if (!existsSync(cardsManifestPath)) {
+    throw new Error(
+      `Vision cards have no manifest at ${cardsManifestPath}; regenerate tiles and cards for the exact current match.`,
+    );
+  }
+  const cardsArtifact = readJsonArtifact(cardsManifestPath, "part-identification cards");
+  const cardsManifest = assertCardsArtifact(cardsArtifact, {
+    matchDigest: matchArtifact.digest,
+    clusterIndexes: match.clusters.map(({ clusterIndex }) => clusterIndex),
+  });
+  for (const [id, digest] of Object.entries(cardsManifest.cards)) {
+    const path = join(out, "cards", `${id}.png`);
+    if (!existsSync(path) || sha256Digest(readFileSync(path)) !== digest) {
+      throw new Error(
+        `Vision card ${id} is missing or differs from the exact match-bound cards manifest. Regenerate every tile and card before asking, including already-answered clusters.`,
+      );
+    }
+  }
+  const answersPath = join(out, `answers-${model}.json`);
+  const answers = existsSync(answersPath)
+    ? boundAnswers(readJsonArtifact(answersPath, `vision answers for ${model}`), {
+        model,
+        matchDigest: matchArtifact.digest,
+        cardsDigest: cardsArtifact.digest,
+        clusterIndexes: match.clusters.map(({ clusterIndex }) => clusterIndex),
+      })
+    : {};
+  const writeAnswers = () =>
+    writeJson(
+      answersPath,
+      answerBundle({
+        model,
+        matchDigest: matchArtifact.digest,
+        cardsDigest: cardsArtifact.digest,
+        answers,
+      }),
+    );
 
   // A vision pass over the whole book is hours of wall clock, so it can be
   // restricted to the drawings the first N steps use — the range that carries
   // judged truth, and therefore the range where the delta is measurable.
   let inRange = null;
   if (lastStep !== null) {
-    const features = readJson(join(OUT, "features.json"));
+    const features = readJson(join(out, "features.json"));
     inRange = new Set();
     for (const cluster of match.clusters) {
       const uses = cluster.members.some((member) => {
@@ -138,17 +189,17 @@ async function commandAsk(argv) {
     for (;;) {
       const chunk = queue.shift();
       if (!chunk) return;
-      const replies = await askBatch(chunk.map(cardId), model);
+      const replies = await askBatch(chunk.map(cardId), model, out);
       for (const clusterIndex of chunk) {
         answers[clusterIndex] = replies.get(cardId(clusterIndex)) ?? null;
       }
       done += 1;
-      writeJson(answersPath, answers);
+      writeAnswers();
       if (done % 4 === 0) console.log(`  ${done}/${chunks.length} calls`);
     }
   });
   await Promise.all(workers);
-  writeJson(answersPath, answers);
+  writeAnswers();
   const refused = Object.values(answers).filter((answer) => answer === null).length;
   console.log(`answered ${Object.keys(answers).length} drawings, ${refused} with no usable reply`);
 }
