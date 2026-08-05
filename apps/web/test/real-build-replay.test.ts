@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 vi.mock("../e2e/real-build-identification-closure", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../e2e/real-build-identification-closure")>();
@@ -202,7 +202,40 @@ function browserOutput(): RealBuildBrowserOutput {
   };
 }
 
+/** Run roots this file leaves behind, which must be none. */
+function replayTestRoots(): readonly string[] {
+  const output = join(process.cwd(), "output");
+  if (!existsSync(output)) return [];
+  return readdirSync(output).filter((name) => name.startsWith("real-build-replay-test-"));
+}
+
 describe("real-build replay closure", () => {
+  // Each of these tests snapshots repository sources into a run root, so one
+  // that exits without cleaning up leaves roughly 100 MB behind. Six such roots
+  // accumulated - 720 MB - while this suite was failing on an environment guard
+  // that rejected the repository's own pinned Node versions, and nothing
+  // noticed, because a directory under an ignored output path is invisible
+  // until something scans it. The lint gate found them eventually, by going red
+  // on 366 errors inside a source snapshot.
+  //
+  // The cleanup already existed and works; what was missing was anything that
+  // would say so. This tolerates roots that predate the fix and fails on any
+  // new one, so a recurrence is caught by the suite that caused it rather than
+  // by a disk-usage scan weeks later.
+  let rootsBefore: readonly string[] = [];
+  beforeAll(() => {
+    rootsBefore = replayTestRoots();
+  });
+  afterAll(() => {
+    const leaked = replayTestRoots().filter((name) => !rootsBefore.includes(name));
+    expect(
+      leaked,
+      `replay tests left ${leaked.length} run root(s) behind: ${leaked.join(", ")}. ` +
+        `Each holds a full source snapshot, so they cost about 100 MB each. Remove them and ` +
+        `restore the finally-block cleanup on whichever test created them.`,
+    ).toEqual([]);
+  });
+
   it("never weakens a latched publication verifier after a pre-rename failure", () => {
     const outputRoot = `output/real-build-publication-verifier-test-${randomUUID()}`;
     const absoluteOutputRoot = join(process.cwd(), outputRoot);
