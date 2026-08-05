@@ -415,7 +415,13 @@ class LDrawCandidateTests(unittest.TestCase):
         self.assertEqual(inset.minimum[1], original.minimum[1])
         self.assertEqual(inset.maximum[1], original.maximum[1])
         scorecard = score_candidate(validate_candidate(probe), plate_surface(), 1.0)
-        self.assertEqual([row["code"] for row in scorecard["hardFails"]], ["collision-under-claim"])  # type: ignore[index]
+        # The fixture is a solid closed box, so the backing rule emits a clutch on
+        # its bottom face and the clutch-room probe refuses it: a solid block has
+        # nowhere for a stud to go. Both failures are the point of this candidate.
+        self.assertEqual(
+            [row["code"] for row in scorecard["hardFails"]],  # type: ignore[index]
+            ["female-connector-has-no-room-for-a-stud", "collision-under-claim"],
+        )
 
 
 if __name__ == "__main__":

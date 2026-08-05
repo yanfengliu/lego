@@ -24,6 +24,7 @@ from part_admission_contract import (
     MAX_SURFACE_SAMPLES,
     Vector3,
 )
+from part_admission_clutch import clutch_hard_fails, measure_clutch_room
 from part_admission_geometry import (
     PlanIndex,
     body_plan_polygon,
@@ -235,7 +236,9 @@ def measure_connectors(
     female["truthCaveat"] = (
         "an underside tube is not a clutch cell: it sits at the half pitch between cells and one "
         "tube can serve several cells, so this comparison is a diagnostic and is deliberately left "
-        "out of the composite score rather than folded in as a false figure"
+        "out of the composite score rather than folded in as a false figure. A candidate whose "
+        "clutches are correctly on the cell lattice scores zero here by construction; what actually "
+        "measures a declared clutch is the clutchRoom section"
     )
     female["tubeOffsetFromStudLatticeLdu"] = _tube_offsets(
         truth["female"], [row.position for row in candidate.male_connectors]
@@ -316,8 +319,9 @@ def score_candidate(
     connectors = measure_connectors(candidate, surface)
     lattice = measure_lattice(candidate)
     budget = measure_body_budget(candidate)
+    clutch_room = measure_clutch_room(candidate, surface.triangles)
 
-    hard_fails: list[dict[str, object]] = []
+    hard_fails: list[dict[str, object]] = list(clutch_hard_fails(clutch_room))
     if int(containment["pointsOutside"]) > 0:  # type: ignore[arg-type]
         hard_fails.append(
             {
@@ -381,6 +385,7 @@ def score_candidate(
         "collisionContainment": containment,
         "overClaim": over_claim,
         "connectorCoverage": connectors,
+        "clutchRoom": clutch_room,
         "latticeConformance": lattice,
         "bodyBudget": budget,
     }

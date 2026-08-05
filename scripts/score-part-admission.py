@@ -15,119 +15,36 @@ evidence the pilot already established.
 from __future__ import annotations
 
 import argparse
-import hashlib
-import json
-import os
-import stat
 import time
 from pathlib import Path
 
-from builder_native_source import measure_bounds
-from ldraw_source_archive import LDrawSourceLibrary, VerifiedArchive, canonical_bytes
-from ldraw_surface_expander import expand_surface
+from ldraw_source_archive import LDrawSourceLibrary, VerifiedArchive
 from part_admission_contract import CONTAINMENT_EPSILON_LDU, validate_candidate
+from part_admission_evidence import (
+    PILOT_BYTES,
+    PILOT_DESIGN_IDS,
+    PILOT_SHA256,
+    bind_to_pilot,
+    measured_surface,
+    read_pilot,
+    write_output_report,
+)
 from part_admission_lattice import LATTICE_TOLERANCE_LDU
 from part_admission_ldraw_candidate import (
     DEFAULT_COLUMN_LDU,
     PRIMITIVE_ROLE_PINS,
     column_candidate,
     horizontally_inset_candidate,
-    role_classifier,
 )
 from part_admission_scorecard import (
     CONNECTOR_MATCH_TOLERANCE_LDU,
     DEFAULT_SAMPLE_SPACING_LDU,
     score_candidate,
 )
-from part_admission_surface import MeasuredSurface, STUD_ROLE
+from part_admission_surface import MeasuredSurface
 from set_6651557_ldraw_source_audit_plan import ARCHIVE_PINS
 
-PILOT_DESIGN_IDS = ("5092", "30357", "35480", "51739", "77844", "93273")
-PILOT_BYTES = 10_130
-PILOT_SHA256 = "368753adec40d517c5063cbe23f28b9ff21108f0f8824bb0671b8c2575794613"
 SCORECARD_SCHEMA_VERSION = "lego.part-admission-scorecard/1"
-
-
-def read_pilot(path: Path) -> dict[str, object]:
-    resolved = path.resolve(strict=True)
-    data = resolved.read_bytes()
-    digest = hashlib.sha256(data).hexdigest()
-    if len(data) != PILOT_BYTES or digest != PILOT_SHA256:
-        raise ValueError(
-            f"Source pilot {resolved} is {len(data)} bytes sha256:{digest}; the approved report is "
-            f"{PILOT_BYTES} bytes sha256:{PILOT_SHA256}. Regenerate it with "
-            "scripts/generate-set-6651557-source-pilot.py rather than re-pinning this scorer."
-        )
-    report = json.loads(data.decode("utf-8"))
-    if report.get("schemaVersion") != "lego.set-6651557-source-pilot/1":
-        raise ValueError(f"Source pilot schemaVersion is {report.get('schemaVersion')!r}.")
-    if report.get("authority", {}).get("state") != "measurement-only-not-catalog-admitted":
-        raise ValueError("Source pilot is not in the measurement-only authority state.")
-    return report
-
-
-def measured_surface(library: LDrawSourceLibrary, design_id: str) -> MeasuredSurface:
-    root = library.exact("official", f"parts/{design_id}.dat")
-    triangles = expand_surface(
-        library, root, role_classifier(lambda key: library.record(key).sha256)
-    )
-    return MeasuredSurface(
-        design_id=design_id,
-        triangles=tuple(triangle.points for triangle in triangles),
-        roles=tuple(triangle.role for triangle in triangles),
-    )
-
-
-def bind_to_pilot(surface: MeasuredSurface, pilot_part: dict[str, object]) -> dict[str, object]:
-    """Refuse to score a surface that differs from the approved pilot measurement."""
-
-    expected = pilot_part["ldraw"]
-    if not isinstance(expected, dict):
-        raise TypeError(f"Source pilot part {surface.design_id} has no ldraw measurement object.")
-    studs = surface.by_role(STUD_ROLE)
-    solid = tuple(
-        triangle for triangle, role in zip(surface.triangles, surface.roles) if role != STUD_ROLE
-    )
-    points = [point for triangle in surface.triangles for point in triangle]
-    actual: dict[str, object] = {
-        "triangleCount": len(surface.triangles),
-        "studTriangleCount": len(studs),
-        "bodyTriangleCount": len(solid),
-        "uniquePositionCount": len({point for point in points}),
-        "boundsLdu": measure_bounds(points),
-        "bodyBoundsLdu": measure_bounds([point for triangle in solid for point in triangle]),
-    }
-    if studs:
-        actual["studBoundsLdu"] = measure_bounds(
-            [point for triangle in studs for point in triangle]
-        )
-    for field, value in actual.items():
-        if expected.get(field) != value:
-            raise ValueError(
-                f"Part {surface.design_id} expands to {field}={value!r}; the approved source pilot "
-                f"records {expected.get(field)!r}. The archives, the expander or the stud policy "
-                "changed, so this scorecard would not describe the reviewed surface."
-            )
-    return {"checkedFields": sorted(actual), "state": "reproduces-approved-source-pilot"}
-
-
-def write_report(path: Path, report: dict[str, object]) -> str:
-    repository = Path(__file__).resolve().parents[1]
-    boundary = (repository / "output").resolve(strict=True)
-    target = Path(os.path.abspath(os.fspath(path)))
-    if not target.is_relative_to(boundary) or target == boundary:
-        raise ValueError(f"The scorecard must stay below {boundary}; received {target}.")
-    parent = target.parent
-    parent.mkdir(parents=True, exist_ok=True)
-    for directory in (boundary, parent):
-        info = os.lstat(directory)
-        if stat.S_ISLNK(info.st_mode) or bool(getattr(info, "st_file_attributes", 0) & 0x400):
-            raise ValueError(f"Scorecard output path {directory} is a symlink or reparse point.")
-    payload = canonical_bytes(report) + b"\n"
-    temporary = parent / f"{target.name}.partial"
-    temporary.write_bytes(payload)
-    os.replace(temporary, target)
-    return hashlib.sha256(payload).hexdigest()
 
 
 def summarize(scorecards: list[dict[str, object]]) -> dict[str, object]:
@@ -282,7 +199,7 @@ def main() -> None:
         "pilotBinding": bindings,
         "candidates": candidates,
     }
-    digest = write_report(arguments.output, report)
+    digest = write_output_report(arguments.output, report)
     print(f"measured in {time.monotonic() - started:.1f}s")
     print(f"wrote {arguments.output.resolve(strict=True)}")
     print(f"sha256:{digest}")

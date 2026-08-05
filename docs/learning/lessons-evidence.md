@@ -514,3 +514,46 @@ Deny-write sharing fails because libuv maps `UV_FS_O_EXLOCK` to `share = 0`, whi
 What works is pinning content by digest where a digest exists, and saying so honestly where none does.
 
 **Anchor:** `expectedSha256` and `CONTENT_DIGEST_MISMATCH` in `apps/web/e2e/bounded-file-read.ts`, wired at six call sites that already held a digest and were checking it only after the read; regression `never returns same-tick pre-open rewritten bytes`, which returns attacker bytes in 13 of 40 attempts when the check is made a no-op. Attacker reads went from 12–26 of 50 to 0 of 50.
+
+## A check that reads the same constant as the code it checks cannot see that the constant is wrong
+
+A new publisher needed an opt-in flag, and `LEGO_REAL_BUILD_TRANSITIONS=1` was the obvious name.
+That variable already existed: `real-build-input-files.ts` uses it to override the *path* the transition-classification input is read from, defaulting to `output/real-build/transition-classifications.json`.
+Setting it to `1` made the path `1`, so the run wrote its bundle to a file called `1` in the repository root.
+
+Three assertions ran immediately after the write and all three passed: the returned path ended with `TRANSITION_CLASSIFICATIONS_PATH`, `existsSync` was true, and the bytes read back equalled the bytes written.
+They passed because every one of them was computed from the same poisoned constant. `"C:/…/lego/1".endsWith("1")` is true.
+The only thing that noticed was `ls` in the directory the file was supposed to be in — and even then it took three runs, a 200 ms existence poller that never fired, and finally writing `process.cwd()` and the resolved target to a file outside the runner, because the reporter's line prefix made the printed path look truncated rather than wrong.
+
+Two rules, and the second is the general one.
+Grep an environment variable name before adding it; a repository that reads configuration from the environment has a namespace, and `LEGO_REAL_BUILD_*` was already a path-override namespace.
+And a self-check built from the same symbol as the thing it checks is not evidence — it only proves the code is consistent with itself. Verifying a destination means naming it independently: an absolute literal, a directory listing, or a second process.
+
+**Anchor:** `LEGO_REAL_BUILD_PUBLISH_TRANSITIONS` in `apps/web/e2e/real-build-transitions.spec.ts` with the collision recorded at its declaration, against `TRANSITION_CLASSIFICATIONS_PATH` in `apps/web/e2e/real-build-input-files.ts:71`. Observed 2026-08-05 on set 6651557: three consecutive green runs wrote 34,784 bytes to `<repo>/1` while `output/real-build/transition-classifications.json` never existed.
+
+## A printed icon that looks like an instruction can be page chrome
+
+Set 6651557 prints 359 steps, and 26 of them call out no new piece.
+Six of those 26 carry the rotate-the-model icon, which reads exactly like a "this step is a rotation" marker — and it is genuinely vector, a white 44.937pt square with a glyph over it, so it is cheap and exact to detect where the brick art (raster, every assembly a `paintImageXObject`) is not.
+
+Counting it across the whole booklet is what settled its meaning: the icon appears on 39 printed steps, and 33 of those also print piece callouts.
+It is a note about the viewpoint the step is drawn from, not a name for the action. Mapping it to the `rotation` decision would have mislabelled six placement steps out of 26 — a 23% error on the only class the classifier had any variance in.
+
+The wider point is what the vector layer can and cannot answer. It carries the page furniture: callout boxes, dividers, the progress bar, this icon. Every cue that would actually separate a rotation from an attachment — the yellow outline round the part that moves, the leader line, the placement arrow — is drawn in the raster artwork and is invisible to it.
+So a vector-only classifier can decide *whether* a step is a transition (it counts callout boxes) but not reliably *which kind*, and saying so is the finding. That gap is what a vision call is for.
+
+**Anchor:** `deriveTransitionPanelFeatures` and `proposeDeterministicTransition` in `apps/web/e2e/real-build-transition-features.ts`, regression `does not turn the rotate-the-model icon into a rotation decision` in `apps/web/test/real-build-transition-classification.test.ts`. Measured 2026-08-05 over all 224 pages: 39 icons, one per page, all 44.937 × 44.937pt, nearest other white near-square 66.4pt.
+
+## An exact fit to a symmetric feature set is not one answer
+
+Deriving the Builder-to-LDraw frame of 51739 looked finished the moment the authored node lattice landed on the LDraw-measured stud centres with a residual of exactly zero.
+It was not: the four studs of a 2x4 wing sit on a square, a square is invariant under every quarter turn, and the one central tube is on the axis, so eight different frames reproduce that correspondence exactly and four of them are wrong. Zero residual measured how well the anchors matched, and said nothing at all about how many frames match them equally well.
+93273 had the same shape of problem for the same reason, and 35480 and 77844 did not — which is only visible if you count.
+
+Two steps fix it, and the order matters.
+First divide the exact solutions by the part's own measured self-symmetry, because two frames that differ by a symmetry the part already has emit identical connectors and are not an ambiguity at all: 51739's eight collapse to four classes, 93273's eight to two, 35480's four and 77844's two to one each. Only then is what remains a real choice, and it needs evidence the anchors do not contain — something asymmetric. Carrying Builder's own shell vertices through each surviving class and measuring the distance to the LDraw surface separated them by 27.8x and 18.5x, and the human-checkable form of the same fact is that the wing's wide edge sits at z = +13.66..+20 in LDraw and the rejected turn put it at z = -20..-12.92.
+
+The sharper corollary is about mirrors.
+Every one of these parts has a mirror self-symmetry, so a mirrored frame and a proper one are the same frame described twice and no amount of measuring them can tell handedness apart. 5092 is the only pilot part whose symmetry group is trivial, and it is therefore the only place where handedness is a measurement rather than a convention — its best mirrored frame is 5.0x worse. One asymmetric specimen decided a property of all five.
+
+**Anchor:** `exact_frames`, `frames_modulo_symmetry` and `canonical_frame` in `scripts/builder_ldraw_frame.py`; `ldraw_self_symmetries` and `mesh_disagreement` in `scripts/builder_ldraw_frame_witness.py`; regression `test_a_symmetric_part_admits_several_frames_that_are_one_class` in `scripts/builder_ldraw_frame_test.py`. Measured 2026-08-05 over the six-part 6651557 pilot: 8/4/2/8 exact frames reducing to 4/1/1/2 classes for 51739/35480/77844/93273, selection margins 27.8x and 18.5x, 5092 mirror margin 5.0x.
