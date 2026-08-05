@@ -19,6 +19,7 @@ import {
 import { MAX_JSON_ARTIFACT_BYTES, writeContainedFile } from "./part-identification-io.mjs";
 import { verifyRetainedCardImageClosure } from "./part-identification-card-images.mjs";
 import {
+  PART_TRUTH_PATH,
   judgedPairs,
   truthVerdictKey,
   verdictsByCropDigest,
@@ -411,7 +412,7 @@ export async function commandScore(argv, { option, inventoryHeld, elementNames }
     }
   }
 
-  const truthPath = join(OUT, "truth-first50.json");
+  const truthPath = PART_TRUTH_PATH;
   const truthArtifact = existsSync(truthPath)
     ? readJsonArtifact(truthPath, "part-identification first-fifty truth")
     : null;

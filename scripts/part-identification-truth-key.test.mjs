@@ -1,6 +1,10 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
 import {
+  PART_TRUTH_PATH,
+  PART_TRUTH_SCHEMA,
   judgedPairs,
   truthVerdictKey,
   verdictsByCropDigest,
@@ -101,6 +105,28 @@ describe("first-fifty truth keys", () => {
     const [pair] = [...pairs.values()];
     expect(pair.elementId).toBeNull();
     expect(() => truthVerdictKey(pair.leadSha256, pair.elementId)).toThrow(/non-empty element id/u);
+  });
+
+  it("keeps the shipped label set present and bindable", () => {
+    // These labels cost two full blind judging passes, nothing regenerates
+    // them, and they previously lived under an ignored output root where a
+    // gallery re-cut left all 87 of them unbound and nobody noticed, because a
+    // dead key reports a plausible 0/0. Tracking them is only half the fix; a
+    // gate that fails when they go missing or stop being keyable is the rest.
+    const truth = JSON.parse(readFileSync(PART_TRUTH_PATH, "utf8"));
+    expect(truth.schemaVersion).toBe(PART_TRUTH_SCHEMA);
+    expect(truth.verdicts.length).toBeGreaterThan(0);
+    expect(truth.verdicts).toHaveLength(truth.pairsJudged);
+
+    const { bound, unbindable } = verdictsByCropDigest(truth);
+    expect(unbindable).toBe(0);
+    expect(bound.size).toBe(truth.verdicts.length);
+
+    // Every unjudgeable pair must say why rather than merely be absent.
+    for (const pair of truth.unjudgeable) {
+      expect(pair.elementId).toBeNull();
+      expect(pair.reason).toMatch(/\S/u);
+    }
   });
 
   it("refuses a malformed key rather than producing one that silently never matches", () => {

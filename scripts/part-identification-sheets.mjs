@@ -14,6 +14,7 @@ import {
   requirePinnedPartIdentificationModel,
 } from "./part-identification-model.mjs";
 import {
+  PART_TRUTH_PATH,
   judgedPairs,
   truthVerdictKey,
   verdictsByCropDigest,
@@ -177,7 +178,7 @@ export async function commandPairsheet(argv, helpers) {
   // A verdict is keyed to the crop that was shown and the element it was
   // claimed to be, so re-judging a configuration means judging the pairs whose
   // picture or claim actually changed - and nothing else.
-  const truthPath = join(OUT, "truth-first50.json");
+  const truthPath = PART_TRUTH_PATH;
   const judged = existsSync(truthPath)
     ? verdictsByCropDigest(readJson(truthPath)).bound
     : new Map();

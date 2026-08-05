@@ -24,6 +24,22 @@
 /** Truth artifact schema that carries crop-digest keys. */
 export const PART_TRUTH_SCHEMA = "lego.part-identification-truth/2";
 
+/**
+ * Where the labels live, and why they are tracked rather than under `output/`.
+ *
+ * These are hand-read judgements about pictures. They cost two full blind
+ * judging passes to make, nothing regenerates them, and every accuracy number
+ * the identification pipeline reports is measured against them - which makes
+ * them a repository input in the sense AGENTS.md means, not task-run evidence.
+ * They lived under the ignored output root until 2026-08-05 and came within one
+ * gallery re-cut of being lost.
+ *
+ * They are repo-owned: our own verdicts, element identifiers, crop digests and
+ * shape notes. No booklet artwork is carried here, so tracking them raises no
+ * consent or licence question that the crops themselves would.
+ */
+export const PART_TRUTH_PATH = "scripts/fixtures/part-identification-truth-first50.json";
+
 /** The key a verdict is stored and looked up under. */
 export function truthVerdictKey(judgedCropSha256, elementId) {
   if (typeof judgedCropSha256 !== "string" || !/^sha256:[0-9a-f]{64}$/u.test(judgedCropSha256)) {
