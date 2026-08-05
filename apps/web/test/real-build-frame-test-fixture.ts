@@ -1,7 +1,8 @@
 import { getPartDefinition, UPRIGHT_ORIENTATIONS } from "@lego-studio/catalog";
 
 import { sha256Digest } from "../e2e/real-build-artifacts";
-import type { BuilderCanonicalCalibration, LedgerTransform } from "../e2e/real-build-official";
+import type { BuilderTriangleSlicePin } from "../e2e/real-build-builder-sources";
+import type { LedgerTransform } from "../e2e/real-build-official";
 
 type Point = readonly [number, number, number];
 
@@ -12,7 +13,7 @@ export function builderCuboidGeometry(
 ): {
   readonly bytes: Buffer;
   readonly digest: string;
-  readonly reference: BuilderCanonicalCalibration["designFrames"][number]["builderGeometry"];
+  readonly reference: BuilderTriangleSlicePin;
 } {
   const definition = getPartDefinition(catalogPartId);
   const orientation = UPRIGHT_ORIENTATIONS.find(({ id }) => id === transform.orientationId);
@@ -69,10 +70,10 @@ export function builderCuboidGeometry(
     digest: bundleDigest,
     reference: {
       format: "lego.builder-shell-triangles-f32le/1",
-      bundleDigest,
       byteOffset: 0,
       byteLength: bytes.length,
-      digest: bundleDigest,
+      digest: bundleDigest as `sha256:${string}`,
+      triangleCount: triangleIndexes.length,
     },
   };
 }

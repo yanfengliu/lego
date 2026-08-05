@@ -1,9 +1,7 @@
-import { BUILTIN_CATALOG_VERSION } from "@lego-studio/catalog";
+import { BUILTIN_CATALOG_VERSION, getPartDefinition } from "@lego-studio/catalog";
 
 import { sha256Digest } from "../e2e/real-build-artifacts";
 import {
-  applyBuilderCanonicalCalibration,
-  createBuilderFrameEvidence,
   parseOfficialModelIndex,
   pieceEvidenceDigest,
   stepPanelEvidenceDigest,
@@ -42,15 +40,38 @@ export interface RealBuildLedgerTestFixture {
 }
 
 export function realBuildLedgerTestFixture(): RealBuildLedgerTestFixture {
+  const physicalBrick = (brickRef: string, transformation: string): string =>
+    `<Brick uuid="${brickRef}" designID="3005" itemNos="300501">` +
+    `<Part uuid="part-${brickRef}" designID="3005" materials="1">` +
+    `<Bone uuid="bone-${brickRef}" transformation="${transformation}"/>` +
+    `</Part></Brick>`;
+  const instructions =
+    `<BuildingInstructions>` +
+    `<BuildingInstruction name="Building Instruction ##B" uuid="fixture-instruction">` +
+    `<Steps><Step uuid="fixture-root">` +
+    `<SubBuild uuid="fixture-master"><Step uuid="fixture-master-step">` +
+    `<In brickRef="brick-a"/></Step><CameraFittingRange range="0,1"/>` +
+    `<StartImageView uuid="fixture-start"><Added/><Removed/></StartImageView></SubBuild>` +
+    `<MultiBuild name="fixture-copy" masterSubBuildRef="fixture-master">` +
+    `<MultiBuildBrick originalBrickRef="brick-a" actualBrickRef="brick-b"/></MultiBuild>` +
+    `<EndOnHighView><Added/><Removed/></EndOnHighView></Step></Steps>` +
+    `</BuildingInstruction>` +
+    `<BuildingInstruction name="Group #IX" uuid="fixture-aggregate"><Steps>` +
+    `<Step uuid="fixture-aggregate-step"><In brickRef="brick-a"/><In brickRef="brick-b"/>` +
+    `<EndOnHighView><Added/><Removed/></EndOnHighView></Step></Steps>` +
+    `</BuildingInstruction></BuildingInstructions>` +
+    `<BIGraph><BINode uuid="fixture-primary-node" buildingInstructionRef="fixture-instruction"/>` +
+    `<BINode uuid="fixture-aggregate-node" buildingInstructionRef="fixture-aggregate"/>` +
+    `<Dependency predecessorRef="fixture-primary-node" successorRef="fixture-aggregate-node"/>` +
+    `</BIGraph>`;
   const rawOfficial = parseOfficialModelIndex(
     new TextEncoder().encode(
-      `<Root>` +
-        `<Brick uuid="brick-a"><Part designID="3005" materials="1"><Bone transformation="1,0,0,0,1,0,0,0,1,0,0,0"/></Part></Brick>` +
-        `<Brick uuid="brick-b"><Part designID="3005" materials="1"><Bone transformation="0,0,1,0,1,0,-1,0,0,0.8,0,0"/></Part></Brick>` +
-        `<Brick uuid="cal-c"><Part designID="3005" materials="1"><Bone transformation="-1,0,0,0,1,0,0,0,-1,1.6,0,0"/></Part></Brick>` +
-        `<Brick uuid="cal-d"><Part designID="3005" materials="1"><Bone transformation="0,0,-1,0,1,0,1,0,0,2.4,0,0"/></Part></Brick>` +
-        `<In brickRef="brick-a"/><In brickRef="brick-b"/>` +
-        `<MultiBuildBrick originalBrickRef="brick-a" actualBrickRef="brick-b"/></Root>`,
+      `<Root><Bricks>` +
+        physicalBrick("brick-a", "1,0,0,0,1,0,0,0,1,0,0,0") +
+        physicalBrick("brick-b", "0,0,1,0,1,0,-1,0,0,0.8,0,0") +
+        physicalBrick("cal-c", "-1,0,0,0,1,0,0,0,-1,1.6,0,0") +
+        physicalBrick("cal-d", "0,0,-1,0,1,0,1,0,0,2.4,0,0") +
+        `</Bricks>${instructions}</Root>`,
     ),
   );
   const catalogToBuilderLocalTransform = {
@@ -61,23 +82,36 @@ export function realBuildLedgerTestFixture(): RealBuildLedgerTestFixture {
     "builtin:brick-1x1",
     catalogToBuilderLocalTransform,
   );
-  const frameEvidence = createBuilderFrameEvidence({
-    catalogPartId: "builtin:brick-1x1",
-    catalogToBuilderLocalTransform,
-    builderGeometry: builderGeometry.reference,
-    builderGeometryBundleBytes: builderGeometry.bytes,
-    builderGeometryBundleDigest: builderGeometry.digest,
-    protocol: "builder-native-manifest-frame/1",
-  });
+  const definition = getPartDefinition("builtin:brick-1x1");
+  if (definition === undefined) {
+    throw new TypeError("Fixture catalog part builtin:brick-1x1 is absent.");
+  }
+  const catalogDefinitionDigest = sha256Digest(JSON.stringify(definition));
+  const catalogGeometryDigest = sha256Digest(JSON.stringify(definition.geometry));
+  const connectorFrameDigest = sha256Digest(JSON.stringify(definition.connectors));
+  const collisionFrameDigest = sha256Digest(JSON.stringify(definition.collision));
+  const trustedSourceDigest = sha256Digest("synthetic-ledger-v2-builder-source");
+  const inputDigest = sha256Digest(
+    JSON.stringify({
+      trustedSourceDigest,
+      catalogDefinitionDigest,
+      catalogGeometryDigest,
+      connectorFrameDigest,
+      collisionFrameDigest,
+      catalogToBuilderLocalTransform,
+    }),
+  );
+  const frameEvidenceDigest = sha256Digest(
+    JSON.stringify({ inputDigest, fixture: "synthetic-ledger-v2-builder-frame" }),
+  );
   const calibration: BuilderCanonicalCalibration = {
-    schemaVersion: "lego.builder-canonical-calibration/5",
-    matrixConvention: "lxf-row-major-transposed-to-canonical-column-vector",
-    builderUnitsPerLdu: 0.04,
-    axisMapping: ["x", "-y", "z"],
-    maximumMatrixError: 0.000001,
-    maximumPositionErrorLdu: 0.001,
-    maximumFrameP95DistanceLdu: 2,
-    builderGeometryBundleDigest: builderGeometry.digest,
+    schemaVersion: "lego.builder-canonical-calibration/6",
+    officialModelDigest: rawOfficial.digest,
+    geometryBundle: {
+      format: "lego.builder-shell-and-ldraw-triangles-f32le/2",
+      byteLength: builderGeometry.bytes.length,
+      digest: builderGeometry.digest,
+    },
     cases: [
       ["brick-a", [0, 0, 0], "upright-yaw-0"],
       ["brick-b", [20, 0, 0], "upright-yaw-270"],
@@ -92,37 +126,69 @@ export function realBuildLedgerTestFixture(): RealBuildLedgerTestFixture {
         orientationId: orientationId as string,
       },
     })),
+    originPolicy: {
+      protocol: "first-ordered-direct-empty-enumeration/1",
+      anchorBrickRef: "brick-a",
+      anchorBuilderTransformationDigest:
+        rawOfficial.bricks["brick-a"]!.builderTransform!.sourceDigest,
+      expectedComposedTransform: catalogToBuilderLocalTransform,
+      expectedEmptyEnumerationTransform: {
+        positionLdu: [0, 8, 0],
+        orientationId: "upright-yaw-0",
+      },
+    },
     designFrames: [
       {
         designRevision: "3005",
         catalogPartId: "builtin:brick-1x1",
         catalogVersion: BUILTIN_CATALOG_VERSION,
-        catalogDefinitionDigest: frameEvidence.catalogDefinitionDigest,
-        route: "builder-native",
+        trustedSourceDigest,
+        catalogDefinitionDigest,
         catalogToBuilderLocalTransform,
-        builderGeometry: builderGeometry.reference,
-        catalogGeometryDigest: frameEvidence.catalogGeometryDigest,
-        connectorFrameDigest: frameEvidence.connectorFrameDigest,
-        collisionFrameDigest: frameEvidence.collisionFrameDigest,
+        catalogGeometryDigest,
+        connectorFrameDigest,
+        collisionFrameDigest,
         verification: {
-          protocol: "builder-native-manifest-frame/1",
-          inputDigest: frameEvidence.inputDigest,
-          evidenceDigest: frameEvidence.evidenceDigest,
-          sampleCount: frameEvidence.sampleCount,
-          builderTriangleCount: frameEvidence.builderTriangleCount,
-          p95SurfaceDistanceLdu: frameEvidence.p95SurfaceDistanceLdu,
+          protocol: "builder-type23-frame-plus-ldraw-surface/2",
+          inputDigest,
+          evidenceDigest: frameEvidenceDigest,
+          uniqueBuilderVertexCount: 8,
+          builderTriangleCount: builderGeometry.reference.triangleCount,
+          ldrawTriangleCount: builderGeometry.reference.triangleCount,
+          p95SurfaceDistanceMicroLdu: 0,
+          maximumSurfaceDistanceMicroLdu: 0,
         },
       },
     ],
   };
   const builderCalibrationDigest = sha256Digest(JSON.stringify(calibration));
-  const official = applyBuilderCanonicalCalibration(
-    rawOfficial,
-    new TextEncoder().encode(JSON.stringify(calibration)),
-    builderCalibrationDigest,
-    builderGeometry.bytes,
-    builderGeometry.digest,
-  );
+  // Synthetic v2 ledger tests cannot cross the production calibration's source pins.
+  const canonicalTransforms: Record<
+    string,
+    { readonly positionLdu: readonly [number, number, number]; readonly orientationId: string }
+  > = {
+    "brick-a": { positionLdu: [0, 8, 0], orientationId: "upright-yaw-0" },
+    "brick-b": { positionLdu: [20, 0, 0], orientationId: "upright-yaw-270" },
+    "cal-c": { positionLdu: [40, 0, 0], orientationId: "upright-yaw-180" },
+    "cal-d": { positionLdu: [60, 0, 0], orientationId: "upright-yaw-90" },
+  };
+  const official: ReturnType<typeof parseOfficialModelIndex> = {
+    ...rawOfficial,
+    calibrationDigest: builderCalibrationDigest,
+    builderGeometryDigest: builderGeometry.digest,
+    bricks: Object.fromEntries(
+      Object.entries(rawOfficial.bricks).map(([brickRef, brick]) => [
+        brickRef,
+        {
+          ...brick,
+          canonicalTransform: canonicalTransforms[brickRef]!,
+          canonicalTransformFailure: null,
+          calibratedCatalogPartId: "builtin:brick-1x1",
+          frameEvidenceDigest,
+        },
+      ]),
+    ),
+  };
   const pdfDigest = sha256Digest("pdf");
   const coverageDigest = sha256Digest("coverage");
   const manifestDigest = sha256Digest("manifest");

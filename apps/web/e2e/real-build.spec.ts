@@ -1,6 +1,3 @@
-import { readFileSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
-
 import { expect, test } from "@playwright/test";
 
 import {
@@ -11,14 +8,15 @@ import {
 import { bookletProbeUrls, hasSampleBooklet } from "./sample-booklet";
 import {
   beginAtomicRun,
+  createRealBuildScore,
   createRealBuildRunContract,
   enumerateRealBuildCodeRoots,
   planAtomicRunDirectory,
-  REAL_BUILD_SCORE_SCHEMA,
   sha256Digest,
   snapshotRealBuildCodeRoots,
   validateRealBuildOutputRoot,
   verifyRealBuildArtifactManifest,
+  validateRealBuildArtifactFilePlan,
   writeRealBuildArtifactManifest,
 } from "./real-build-artifacts";
 import {
@@ -27,8 +25,39 @@ import {
   preflightRealBuildOptions,
 } from "./real-build-contract";
 import { finalizeExecutedRealBuildResult, realBuildExecutionFailure } from "./real-build-finalize";
+import { captureHighlightExclusivityRenderCases } from "./real-build-highlight-browser";
+import { writeContainedRegularFileAtomic } from "./contained-atomic-write";
 import {
-  actionEvidenceDigest,
+  ACTION_LEDGER_PATH,
+  assertHighlightRendererCasesReproduced,
+  BUILDER_CALIBRATION_PATH,
+  BUILDER_GEOMETRY_PATH,
+  contractFailure,
+  COVERAGE_PATH,
+  ELEMENT_RESOLUTION_PATH,
+  encodeHighlightRendererCompatibilityInputClosure,
+  HIGHLIGHT_RENDERER_CASES_PATH,
+  HIGHLIGHT_RENDERER_COMPATIBILITY_PATH,
+  IDENTIFICATION_DISTANCES_PATH,
+  IDENTIFICATION_FEATURES_PATH,
+  IDENTIFICATION_MATCH_PATH,
+  MANIFEST_PATH,
+  OFFICIAL_MODEL_PATH,
+  readBinaryInput,
+  readJsonArtifact,
+  readIdentificationAdjudicationInputs,
+  TRANSITION_CLASSIFICATIONS_PATH,
+  verifyHighlightRendererCompatibilityInput,
+  type CalloutManifest,
+  type CalloutResolution,
+  type TransitionClassificationBundle,
+} from "./real-build-input-files";
+import {
+  identifyRealBuildIdentificationMode,
+  verifyRealBuildIdentificationClosure,
+  type RealBuildIdentificationMode,
+} from "./real-build-identification-closure";
+import {
   applyBuilderCanonicalCalibration,
   isUnauthenticatedTransitionClassification,
   parseOfficialModelIndex,
@@ -37,7 +66,6 @@ import {
   validateOfficialModelAccounting,
   validateRealBuildActionLedger,
   type BuilderCanonicalCalibration,
-  type LedgerStep,
   type OfficialModelIndex,
   type RealBuildActionLedger,
   type TransitionClassificationEvidence,
@@ -46,24 +74,36 @@ import {
   bindCalloutsToBookletPanels,
   isAtomicStepComplete,
   isV4ManifestCallout,
-  resolveCoverageCallout,
-  type CoverageCalloutClaim,
   type RealBuildOptions,
-  type RealBuildPanelSpec,
   type RealBuildResult,
   type StepFailure,
   type V4ManifestCallout,
 } from "./real-build-safety";
-import type { RealBuildBrowserOutput } from "./real-build-browser-output";
+import {
+  decodeRealBuildPngCapture,
+  type RealBuildBrowserOutput,
+} from "./real-build-browser-output";
 import {
   captureRealBuildSourceBundle,
   materializeRealBuildSourceMirror,
+  planRealBuildSourceMirrorBundle,
   resolveRealBuildPath,
   sourceDriftFailures,
   writeRealBuildReplayClosure,
 } from "./real-build-replay";
+import { acquireRealBuildSourceLock } from "./real-build-source-lock";
+import { createRealBuildServedResponseRecorder } from "./real-build-served-responses";
 import { REAL_BUILD_SOURCE_ROOTS } from "./real-build-source-roots";
-import { realBuildRunBudgets, realBuildRunThresholds } from "./real-build-run-contract";
+import {
+  assertRealBuildBootstrapSourceLockHeld,
+  readRequiredRealBuildBootstrapSourceManifest,
+} from "./real-build-bootstrap-source";
+import {
+  realBuildRunBudgets,
+  realBuildRunThresholds,
+  type RealBuildIdentificationClosureDigests,
+} from "./real-build-run-contract";
+import { buildRealBuildPanelSpecs } from "./real-build-panel-specs";
 import {
   ASSEMBLY_MODULE_URL,
   BRICK_KERNEL_MODULE_URL,
@@ -73,161 +113,11 @@ import {
 } from "./workspace-module";
 
 const OUTPUT_ROOT = process.env.LEGO_REAL_BUILD_OUT ?? "output/real-build";
-const COVERAGE_PATH =
-  process.env.LEGO_REAL_BUILD_COVERAGE ?? "output/real-build/catalog-coverage.json";
-const MANIFEST_PATH =
-  process.env.LEGO_REAL_BUILD_MANIFEST ?? "output/callout-thumbnails/manifest.json";
 const CALLOUT_DIRECTORY = process.env.LEGO_REAL_BUILD_CALLOUTS ?? "output/callout-thumbnails";
 const EXPECTED_PRINTED_STEPS = 359 as const;
 const MINIMUM_WHOLE_STEP_SCORE = 0.45;
 const REAL_BUILD_REQUIRED = process.env.LEGO_REAL_BUILD_REQUIRED === "1";
 const MINIMUM_EXCLUSIVE_HIGHLIGHT_PIXELS_PER_PIECE = 8;
-const HIGHLIGHT_CALIBRATION_PATH =
-  process.env.LEGO_REAL_BUILD_HIGHLIGHT_CALIBRATION ??
-  "output/real-build/highlight-exclusivity-calibration.json";
-const OFFICIAL_MODEL_PATH =
-  process.env.LEGO_REAL_BUILD_OFFICIAL_MODEL ?? "output/official-model/vx1087034_21066_a.xml";
-const ACTION_LEDGER_PATH =
-  process.env.LEGO_REAL_BUILD_ACTION_LEDGER ?? "output/real-build/action-ledger.json";
-const BUILDER_CALIBRATION_PATH =
-  process.env.LEGO_REAL_BUILD_BUILDER_CALIBRATION ??
-  "output/real-build/builder-canonical-calibration.json";
-const BUILDER_GEOMETRY_PATH =
-  process.env.LEGO_REAL_BUILD_BUILDER_GEOMETRY ?? "output/real-build/builder-shell-geometry.bin";
-const TRANSITION_CLASSIFICATIONS_PATH =
-  process.env.LEGO_REAL_BUILD_TRANSITIONS ?? "output/real-build/transition-classifications.json";
-
-interface CalloutManifest {
-  readonly schemaVersion?: string;
-  readonly sourceHash?: string;
-  readonly calloutCount?: number;
-  readonly callouts?: readonly unknown[];
-}
-
-interface CalloutResolution extends CoverageCalloutClaim {
-  readonly stepNumber: number | null;
-  readonly elementId: string | null;
-  readonly resolution: {
-    readonly catalogPartId: string | null;
-    readonly colorId: string;
-    readonly partNum: string;
-    readonly name: string;
-  } | null;
-}
-
-interface HighlightCalibration {
-  readonly schemaVersion?: string;
-  readonly minimumExclusiveHighlightPixelsPerPiece?: number;
-  readonly retainedCaseDigests?: readonly string[];
-}
-
-interface TransitionClassificationBundle {
-  readonly schemaVersion?: string;
-  readonly pdfDigest?: string;
-  readonly entries?: readonly TransitionClassificationEvidence[];
-}
-
-const contractFailure = (inputKey: string, message: string): StepFailure => ({
-  code: "input-digest-mismatch",
-  stage: "input",
-  inputKey,
-  message,
-});
-
-function readJsonInput<T>(path: string, failures: StepFailure[]): { bytes: Buffer; value: T } {
-  let resolved: string;
-  try {
-    resolved = resolveRealBuildPath(process.cwd(), path, {
-      mustExist: true,
-      label: "real-build JSON input",
-    });
-  } catch (error) {
-    failures.push({
-      code: "path-policy-violation",
-      stage: "input",
-      inputKey: path,
-      message: `Required real-build input path is missing or unsafe: ${String(error)}.`,
-    });
-    return { bytes: Buffer.alloc(0), value: {} as T };
-  }
-  const bytes = readFileSync(resolved);
-  try {
-    return { bytes, value: JSON.parse(bytes.toString("utf8")) as T };
-  } catch (error) {
-    failures.push(
-      contractFailure(
-        path,
-        `Required real-build input ${path} is not valid JSON: ${String(error)}.`,
-      ),
-    );
-    return { bytes, value: {} as T };
-  }
-}
-
-function readBinaryInput(path: string, failures: StepFailure[]): Buffer {
-  let resolved: string;
-  try {
-    resolved = resolveRealBuildPath(process.cwd(), path, {
-      mustExist: true,
-      label: "real-build binary input",
-    });
-  } catch (error) {
-    failures.push({
-      code: "path-policy-violation",
-      stage: "input",
-      inputKey: path,
-      message: `Required real-build binary input path is missing or unsafe: ${String(error)}.`,
-    });
-    return Buffer.alloc(0);
-  }
-  return readFileSync(resolved);
-}
-
-function isExecutableLedgerStep(value: unknown): value is LedgerStep {
-  if (typeof value !== "object" || value === null) return false;
-  const step = value as {
-    stepNumber?: unknown;
-    pageNumber?: unknown;
-    callouts?: unknown;
-    action?: unknown;
-  };
-  if (
-    !Number.isInteger(step.stepNumber) ||
-    !Number.isInteger(step.pageNumber) ||
-    !Array.isArray(step.callouts) ||
-    !step.callouts.every(
-      (callout) =>
-        typeof callout === "object" &&
-        callout !== null &&
-        typeof (callout as { calloutKey?: unknown }).calloutKey === "string" &&
-        Array.isArray((callout as { physicalBrickRefs?: unknown }).physicalBrickRefs) &&
-        Number.isInteger(
-          (callout as { semanticMultiplierQuantity?: unknown }).semanticMultiplierQuantity,
-        ),
-    ) ||
-    typeof step.action !== "object" ||
-    step.action === null
-  ) {
-    return false;
-  }
-  const action = step.action as {
-    kind?: unknown;
-    pieces?: unknown;
-    omittedPieces?: unknown;
-    copies?: unknown;
-  };
-  return (
-    (action.kind === "place-callouts" &&
-      Array.isArray(action.pieces) &&
-      action.pieces.every((piece) => typeof piece === "object" && piece !== null) &&
-      Array.isArray(action.omittedPieces) &&
-      action.omittedPieces.every((piece) => typeof piece === "object" && piece !== null)) ||
-    (action.kind === "multi-build-copy" &&
-      Array.isArray(action.copies) &&
-      action.copies.every((piece) => typeof piece === "object" && piece !== null)) ||
-    action.kind === "transition"
-  );
-}
 
 test("rebuilds the real booklet from its own printed steps", async ({ page, browserName }) => {
   test.setTimeout(3_600_000);
@@ -237,6 +127,9 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
   );
   test.skip(!hasSampleBooklet, "no sample booklet");
 
+  const bootstrapSource = readRequiredRealBuildBootstrapSourceManifest();
+  assertRealBuildBootstrapSourceLockHeld();
+
   const preparationFailures: StepFailure[] = [];
   let effectiveOutputRoot = OUTPUT_ROOT;
   try {
@@ -245,38 +138,103 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
     preparationFailures.push(contractFailure("LEGO_REAL_BUILD_OUT", String(error)));
     effectiveOutputRoot = "output/real-build";
   }
-  const coverageInput = readJsonInput<{
+  const lastStep = Number(process.env.LEGO_REAL_BUILD_LAST_STEP ?? 12);
+  if (!Number.isInteger(lastStep) || lastStep < 1 || lastStep > EXPECTED_PRINTED_STEPS) {
+    preparationFailures.push(
+      contractFailure(
+        "LEGO_REAL_BUILD_LAST_STEP",
+        `LEGO_REAL_BUILD_LAST_STEP must be an integer from 1 through 359; received ${lastStep}.`,
+      ),
+    );
+  }
+  const requestedLastStep = Number.isInteger(lastStep) ? lastStep : 1;
+  const coverageInput = readJsonArtifact<{
     readonly schemaVersion?: string;
     readonly byCallout?: unknown;
     readonly inputDigests?: { readonly pdf?: string; readonly calloutManifest?: string };
   }>(COVERAGE_PATH, preparationFailures);
-  const manifestInput = readJsonInput<CalloutManifest>(MANIFEST_PATH, preparationFailures);
-  const calibrationInput = readJsonInput<HighlightCalibration>(
-    HIGHLIGHT_CALIBRATION_PATH,
+  const manifestInput = readJsonArtifact<CalloutManifest>(MANIFEST_PATH, preparationFailures);
+  const highlightCompatibilityInput = readJsonArtifact<unknown>(
+    HIGHLIGHT_RENDERER_COMPATIBILITY_PATH,
     preparationFailures,
   );
-  const ledgerInput = readJsonInput<RealBuildActionLedger>(ACTION_LEDGER_PATH, preparationFailures);
-  const builderCalibrationInput = readJsonInput<BuilderCanonicalCalibration>(
+  const highlightCasesInput = readJsonArtifact<unknown>(
+    HIGHLIGHT_RENDERER_CASES_PATH,
+    preparationFailures,
+  );
+  const ledgerInput = readJsonArtifact<RealBuildActionLedger>(
+    ACTION_LEDGER_PATH,
+    preparationFailures,
+  );
+  const builderCalibrationInput = readJsonArtifact<BuilderCanonicalCalibration>(
     BUILDER_CALIBRATION_PATH,
     preparationFailures,
   );
-  const transitionInput = readJsonInput<TransitionClassificationBundle>(
+  const transitionInput = readJsonArtifact<TransitionClassificationBundle>(
     TRANSITION_CLASSIFICATIONS_PATH,
     preparationFailures,
   );
+  const identificationFeaturesInput = readJsonArtifact<unknown>(
+    IDENTIFICATION_FEATURES_PATH,
+    preparationFailures,
+  );
+  const identificationMatchInput = readJsonArtifact<unknown>(
+    IDENTIFICATION_MATCH_PATH,
+    preparationFailures,
+  );
+  const identificationDistancesInput = readJsonArtifact<unknown>(
+    IDENTIFICATION_DISTANCES_PATH,
+    preparationFailures,
+  );
+  const elementResolutionInput = readJsonArtifact<unknown>(
+    ELEMENT_RESOLUTION_PATH,
+    preparationFailures,
+  );
+  let identificationMode: RealBuildIdentificationMode | null = null;
+  try {
+    identificationMode = identifyRealBuildIdentificationMode(coverageInput, requestedLastStep);
+  } catch (error) {
+    preparationFailures.push(
+      contractFailure(
+        COVERAGE_PATH,
+        `Catalog coverage could not select its source-exact identification roles from its bounded bytes: ${error instanceof Error ? error.message : String(error)}.`,
+      ),
+    );
+  }
+  const adjudicationInputs = readIdentificationAdjudicationInputs(
+    identificationMode?.source ?? null,
+    preparationFailures,
+  );
+  const identificationCardsInput = adjudicationInputs.cards;
+  const identificationCardImagesInput = adjudicationInputs.cardImages;
+  const identificationAnswersInput = adjudicationInputs.answers;
   const officialModelBytes = readBinaryInput(OFFICIAL_MODEL_PATH, preparationFailures);
   const builderGeometryBytes = readBinaryInput(BUILDER_GEOMETRY_PATH, preparationFailures);
   const { bytes: pdfBytes, source } = await readSampleBooklet();
+  const highlightCompatibilityRoleBytes = encodeHighlightRendererCompatibilityInputClosure(
+    highlightCasesInput.bytes,
+    highlightCompatibilityInput.bytes,
+  );
   const inputDigests = {
     pdf: sha256Digest(pdfBytes),
-    calloutManifest: sha256Digest(manifestInput.bytes),
-    coverage: sha256Digest(coverageInput.bytes),
+    calloutManifest: manifestInput.digest,
+    coverage: coverageInput.digest,
     officialModel: sha256Digest(officialModelBytes),
-    actionLedger: sha256Digest(ledgerInput.bytes),
-    highlightCalibration: sha256Digest(calibrationInput.bytes),
-    builderCalibration: sha256Digest(builderCalibrationInput.bytes),
+    actionLedger: ledgerInput.digest,
+    highlightCalibration: sha256Digest(highlightCompatibilityRoleBytes),
+    builderCalibration: builderCalibrationInput.digest,
     builderGeometry: sha256Digest(builderGeometryBytes),
-    transitionClassifications: sha256Digest(transitionInput.bytes),
+    transitionClassifications: transitionInput.digest,
+  };
+  const identificationClosureDigests: RealBuildIdentificationClosureDigests = {
+    source: identificationMode?.source ?? "deterministic",
+    features: identificationFeaturesInput.digest,
+    match: identificationMatchInput.digest,
+    distances: identificationDistancesInput.digest,
+    elements: elementResolutionInput.digest,
+    cards: identificationCardsInput?.digest ?? null,
+    cardImages: identificationCardImagesInput?.digest ?? null,
+    answers: identificationAnswersInput?.digest ?? null,
   };
   if (
     manifestInput.value.schemaVersion !== "lego.callout-thumbnails/4" ||
@@ -288,18 +246,6 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
         `Callout input must use lego.callout-thumbnails/4 and bind the exact booklet PDF. Manifest ` +
           `${JSON.stringify(manifestInput.value.schemaVersion ?? "missing")}/` +
           `${JSON.stringify(manifestInput.value.sourceHash ?? "missing")}; live PDF ${inputDigests.pdf}.`,
-      ),
-    );
-  }
-  if (
-    coverageInput.bytes.length > 0 &&
-    coverageInput.value.schemaVersion !== "lego.real-build-catalog-coverage/1"
-  ) {
-    preparationFailures.push(
-      contractFailure(
-        COVERAGE_PATH,
-        `Catalog coverage must use lego.real-build-catalog-coverage/1 and stable v4 callout identities; ` +
-          `received ${JSON.stringify(coverageInput.value.schemaVersion ?? "missing")}.`,
       ),
     );
   }
@@ -330,25 +276,37 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
       });
     }
   }
-  const validCalibration =
-    calibrationInput.value.schemaVersion === "lego.highlight-exclusivity-calibration/1" &&
-    calibrationInput.value.minimumExclusiveHighlightPixelsPerPiece ===
-      MINIMUM_EXCLUSIVE_HIGHLIGHT_PIXELS_PER_PIECE &&
-    Array.isArray(calibrationInput.value.retainedCaseDigests) &&
-    calibrationInput.value.retainedCaseDigests.length >= 2 &&
-    calibrationInput.value.retainedCaseDigests.every((digest) =>
-      /^sha256:[0-9a-f]{64}$/u.test(digest),
-    );
-  const highlightCalibrationDigest = validCalibration ? sha256Digest(calibrationInput.bytes) : null;
-  if (calibrationInput.bytes.length > 0 && !validCalibration) {
+  let highlightCompatibilityVerified = false;
+  try {
+    const compatibility = verifyHighlightRendererCompatibilityInput({
+      renderCasesBytes: highlightCasesInput.bytes,
+      summaryBytes: highlightCompatibilityInput.bytes,
+    });
+    if (
+      compatibility.roleDigest !== inputDigests.highlightCalibration ||
+      compatibility.summary.policyMinimumExclusiveHighlightPixelsPerPiece !==
+        MINIMUM_EXCLUSIVE_HIGHLIGHT_PIXELS_PER_PIECE
+    ) {
+      throw new TypeError(
+        `The compatibility closure must bind policy ${MINIMUM_EXCLUSIVE_HIGHLIGHT_PIXELS_PER_PIECE} and reproduce role digest ${inputDigests.highlightCalibration}.`,
+      );
+    }
+    highlightCompatibilityVerified = true;
+  } catch (error) {
     preparationFailures.push(
       contractFailure(
-        HIGHLIGHT_CALIBRATION_PATH,
-        `Highlight calibration must use lego.highlight-exclusivity-calibration/1, bind at least two retained ` +
-          `case digests, and calibrate threshold ${MINIMUM_EXCLUSIVE_HIGHLIGHT_PIXELS_PER_PIECE}.`,
+        HIGHLIGHT_RENDERER_COMPATIBILITY_PATH,
+        `Highlight renderer/source compatibility must reproduce the summary from the exact bounded raw ` +
+          `case bytes and support the explicit ${MINIMUM_EXCLUSIVE_HIGHLIGHT_PIXELS_PER_PIECE}px policy: ` +
+          `${error instanceof Error ? error.message : String(error)}. This compatibility evidence does not ` +
+          `authenticate the PDF, source origin, or visual correctness.`,
       ),
     );
   }
+  // Legacy contract field name: this digest binds raw cases plus their reproducible compatibility summary.
+  const highlightCalibrationDigest = highlightCompatibilityVerified
+    ? inputDigests.highlightCalibration
+    : null;
   const transitionEntries = Array.isArray(transitionInput.value.entries)
     ? transitionInput.value.entries
     : [];
@@ -391,17 +349,45 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
         `classification claim whose decision and canonical digest reproduce exactly.`,
     });
   }
-  const lastStep = Number(process.env.LEGO_REAL_BUILD_LAST_STEP ?? 12);
-  if (!Number.isInteger(lastStep) || lastStep < 1 || lastStep > EXPECTED_PRINTED_STEPS) {
+  let verifiedCoverage: {
+    readonly schemaVersion?: string;
+    readonly byCallout?: unknown;
+    readonly inputDigests?: { readonly pdf?: string; readonly calloutManifest?: string };
+  } = {};
+  try {
+    const reproduced = verifyRealBuildIdentificationClosure({
+      coverage: coverageInput,
+      manifest: manifestInput,
+      features: identificationFeaturesInput,
+      match: identificationMatchInput,
+      distances: identificationDistancesInput,
+      cards: identificationCardsInput,
+      cardImages: identificationCardImagesInput,
+      answers: identificationAnswersInput,
+      elementResolution: elementResolutionInput,
+      requestedLastStep,
+    });
+    if (typeof reproduced !== "object" || reproduced === null || Array.isArray(reproduced)) {
+      throw new TypeError("The identification compiler returned a non-object coverage report.");
+    }
+    verifiedCoverage = reproduced;
+    if (verifiedCoverage.schemaVersion !== "lego.real-build-catalog-coverage/1") {
+      throw new TypeError(
+        `Reproduced coverage must use lego.real-build-catalog-coverage/1; received ${JSON.stringify(verifiedCoverage.schemaVersion ?? "missing")}.`,
+      );
+    }
+  } catch (error) {
     preparationFailures.push(
       contractFailure(
-        "LEGO_REAL_BUILD_LAST_STEP",
-        `LEGO_REAL_BUILD_LAST_STEP must be an integer from 1 through 359; received ${lastStep}.`,
+        COVERAGE_PATH,
+        `Catalog coverage was rejected before use because the bounded manifest, features, match, ` +
+          `distances, cards, answers, and element-resolution bytes did not reproduce its exact closure: ` +
+          `${error instanceof Error ? error.message : String(error)}.`,
       ),
     );
   }
 
-  const rawCoverageIndex = coverageInput.value.byCallout;
+  const rawCoverageIndex = verifiedCoverage.byCallout;
   const byCallout =
     typeof rawCoverageIndex === "object" &&
     rawCoverageIndex !== null &&
@@ -445,12 +431,6 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
   const ledgerSteps: readonly unknown[] = Array.isArray(ledgerInput.value.steps)
     ? ledgerInput.value.steps
     : [];
-  const ledgerByStep = new Map<number, LedgerStep>();
-  for (const step of ledgerSteps) {
-    if (isExecutableLedgerStep(step) && !ledgerByStep.has(step.stepNumber)) {
-      ledgerByStep.set(step.stepNumber, step);
-    }
-  }
   const coarsePanels = sampleBookletPanels(source);
   const probedPages = [...new Set(coarsePanels.map(({ pageNumber }) => pageNumber))];
   const boxesByPage = await sampleBookletCalloutBoxes(pdfBytes, source, probedPages);
@@ -515,211 +495,17 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
     );
   }
 
-  const specs: RealBuildPanelSpec[] = panels.map((panel) => {
-    const entries = manifestCallouts.filter(
-      ({ identity, evidenceKind }) =>
-        panelBindings.stepByIdentity.get(identity) === panel.stepNumber &&
-        evidenceKind === "part-art",
-    );
-    const ledgerStep = ledgerByStep.get(panel.stepNumber);
-    const rawQuantity =
-      ledgerStep === undefined
-        ? entries.reduce((total, entry) => total + entry.quantity, 0)
-        : ledgerStep.callouts.reduce(
-            (total, callout) =>
-              total + callout.physicalBrickRefs.length + callout.semanticMultiplierQuantity,
-            0,
-          );
-    const classifiedPhysical =
-      ledgerStep === undefined
-        ? entries.reduce((total, entry) => total + (entry.physicalQuantity ?? entry.quantity), 0)
-        : ledgerStep.callouts.reduce(
-            (total, callout) => total + callout.physicalBrickRefs.length,
-            0,
-          );
-    const semanticQuantity =
-      ledgerStep === undefined
-        ? entries.reduce((total, entry) => total + (entry.semanticMultiplierQuantity ?? 0), 0)
-        : ledgerStep.callouts.reduce(
-            (total, callout) => total + callout.semanticMultiplierQuantity,
-            0,
-          );
-    const coverageFailures: StepFailure[] = [];
-    const missingDesigns = new Set<string>();
-    const unresolvedCallouts = new Set<string>();
-
-    for (const entry of entries) {
-      const unsafeCropPath = join(CALLOUT_DIRECTORY, entry.file);
-      let cropPath: string | null = null;
-      try {
-        cropPath = resolveRealBuildPath(process.cwd(), unsafeCropPath, {
-          mustExist: true,
-          label: "callout crop",
-        });
-      } catch (error) {
-        coverageFailures.push({
-          code: "path-policy-violation",
-          stage: "input",
-          inputKey: unsafeCropPath,
-          message: `Callout crop path is missing or unsafe: ${String(error)}.`,
-        });
-      }
-      const cropDigest = cropPath === null ? null : sha256Digest(readFileSync(cropPath));
-      if (cropDigest === null) {
-        coverageFailures.push(
-          contractFailure(
-            unsafeCropPath,
-            `Manifest callout ${entry.file} has no safe retained crop at ${unsafeCropPath}.`,
-          ),
-        );
-        continue;
-      }
-      if (cropDigest !== entry.sha256) {
-        coverageFailures.push(
-          contractFailure(
-            unsafeCropPath,
-            `Manifest callout ${entry.identity} declares crop digest ${entry.sha256}, but retained bytes at ` +
-              `${unsafeCropPath} hash to ${cropDigest}. Republish the crop run; neither manifest nor bytes may ` +
-              `silently replace the other.`,
-          ),
-        );
-        continue;
-      }
-      const resolved = resolveCoverageCallout(byCallout, {
-        identity: entry.identity,
-        pageNumber: entry.pageNumber,
-        stepNumber: panel.stepNumber,
-        quantity: entry.quantity,
-        cropDigest,
-        identificationInputDigest: inputDigests.calloutManifest,
-      });
-      if (resolved.failure !== null || resolved.claim === null) {
-        coverageFailures.push(resolved.failure!);
-        unresolvedCallouts.add(`${entry.file} (${entry.quantity}x)`);
-        continue;
-      }
-      const claim = resolved.claim;
-      if (claim.resolution?.catalogPartId === null || claim.resolution === null) {
-        if (claim.resolution === null) unresolvedCallouts.add(`${entry.file} (${entry.quantity}x)`);
-        else missingDesigns.add(`${claim.resolution.partNum} "${claim.resolution.name}"`);
-        continue;
-      }
-    }
-
-    const pieces: RealBuildPanelSpec["pieces"][number][] = [];
-    const omittedPieces: RealBuildPanelSpec["omittedPieces"][number][] = [];
-    let action: RealBuildPanelSpec["action"];
-    const actionDigest =
-      ledgerStep === undefined
-        ? "missing"
-        : actionEvidenceDigest({
-            ledgerDigest: inputDigests.actionLedger,
-            officialModelDigest: inputDigests.officialModel,
-            builderCalibrationDigest: inputDigests.builderCalibration,
-            transitionClassificationsDigest: inputDigests.transitionClassifications,
-            step: ledgerStep,
-          });
-    if (ledgerStep?.action.kind === "place-callouts") {
-      for (const piece of ledgerStep.action.pieces) {
-        if (piece.calloutKey === null || piece.identificationConfidence !== "vision-kept") continue;
-        const expectedTransform = officialModel?.bricks[piece.brickRef]?.canonicalTransform ?? null;
-        if (expectedTransform === null) continue;
-        pieces.push({
-          identityKey: piece.brickRef,
-          designId: piece.designId,
-          materialId: piece.materialId,
-          catalogPartId: piece.catalogPartId,
-          colorId: piece.colorId,
-          calloutKey: piece.calloutKey,
-          identificationConfidence: "vision-kept",
-          cropDigest: piece.cropDigest,
-          identificationInputDigest: piece.identificationInputDigest,
-          expectedTransform,
-        });
-      }
-      for (const piece of ledgerStep.action.omittedPieces) {
-        const officialTransform = officialModel?.bricks[piece.brickRef]?.canonicalTransform ?? null;
-        if (officialTransform === null) continue;
-        omittedPieces.push({
-          identityKey: piece.brickRef,
-          designId: piece.designId,
-          materialId: piece.materialId,
-          catalogPartId: piece.catalogPartId,
-          colorId: piece.colorId,
-          evidenceDigest: piece.evidenceDigest,
-          transform: officialTransform,
-        });
-      }
-      action = {
-        kind: "place-callouts",
-        assembledPieces: pieces.length + omittedPieces.length,
-        evidenceDigest: actionDigest,
-      };
-    } else if (ledgerStep?.action.kind === "multi-build-copy") {
-      const copies = ledgerStep.action.copies.flatMap((copy) => {
-        const transform = officialModel?.bricks[copy.brickRef]?.canonicalTransform ?? null;
-        return transform === null
-          ? []
-          : [
-              {
-                identityKey: copy.brickRef,
-                sourceIdentityKey: copy.sourceBrickRef,
-                designId: copy.designId,
-                materialId: copy.materialId,
-                catalogPartId: copy.catalogPartId,
-                colorId: copy.colorId,
-                evidenceDigest: copy.evidenceDigest,
-                transform,
-              },
-            ];
-      });
-      action = {
-        kind: "multi-build-copy",
-        assembledPieces: copies.length,
-        sourceStepNumber: ledgerStep.action.sourceStepNumber,
-        evidenceDigest: actionDigest,
-        copies,
-      };
-    } else if (ledgerStep?.action.kind === "transition") {
-      action = {
-        kind: "transition",
-        assembledPieces: 0,
-        transition: ledgerStep.action.transition,
-        panelEvidenceDigest: ledgerStep.panelEvidenceDigest,
-        classificationEvidenceDigest: ledgerStep.action.classificationEvidenceDigest,
-        evidenceDigest: actionDigest,
-      };
-    } else {
-      action = {
-        kind: "transition",
-        assembledPieces: 0,
-        transition: "unclassified",
-        panelEvidenceDigest: null,
-        classificationEvidenceDigest: null,
-        evidenceDigest: actionDigest,
-      };
-    }
-
-    return {
-      stepNumber: panel.stepNumber,
-      pageNumber: panel.pageNumber,
-      minXPt: panel.bounds.minXPt,
-      maxXPt: panel.bounds.maxXPt,
-      minYPt: panel.bounds.minYPt,
-      maxYPt: panel.bounds.maxYPt,
-      calloutBoxes: calloutBoxesByStep[panel.stepNumber] ?? [],
-      mappedCalloutKeys: entries.map(({ identity }) => identity),
-      pieces,
-      omittedPieces,
-      calloutPieces: rawQuantity,
-      classifiedPhysicalCalloutPieces: classifiedPhysical,
-      semanticMultiplierQuantity: semanticQuantity,
-      omittedPhysicalPieces: omittedPieces.length,
-      action,
-      coverageFailures,
-      missingDesigns: [...missingDesigns],
-      unresolvedCallouts: [...unresolvedCallouts],
-    };
+  const specs = buildRealBuildPanelSpecs({
+    repoRoot: process.cwd(),
+    calloutDirectory: CALLOUT_DIRECTORY,
+    panels,
+    calloutBoxesByStep,
+    stepByCalloutIdentity: panelBindings.stepByIdentity,
+    manifestCallouts,
+    ledgerSteps,
+    officialModel,
+    coverageByCallout: byCallout,
+    inputDigests,
   });
 
   const options: RealBuildOptions = {
@@ -747,17 +533,35 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
     accounting: OFFICIAL_REAL_BUILD_ACCOUNTING,
     inputDigests,
     coverageInputBindings: {
-      pdf: coverageInput.value.inputDigests?.pdf ?? null,
-      calloutManifest: coverageInput.value.inputDigests?.calloutManifest ?? null,
+      pdf: verifiedCoverage.inputDigests?.pdf ?? null,
+      calloutManifest: verifiedCoverage.inputDigests?.calloutManifest ?? null,
     },
     coverageByCallout: byCallout,
   };
   const inputFailures = [...preparationFailures, ...preflightRealBuildOptions(options)];
-  const codeSnapshots = snapshotRealBuildCodeRoots(REAL_BUILD_SOURCE_ROOTS);
   const sourceFiles = enumerateRealBuildCodeRoots(REAL_BUILD_SOURCE_ROOTS);
   const preImportSourceBundle = captureRealBuildSourceBundle(process.cwd(), sourceFiles);
+  const bootstrapDrift = sourceDriftFailures(bootstrapSource.files, preImportSourceBundle);
+  if (bootstrapDrift.length > 0) {
+    throw new TypeError(
+      `Pre-discovery locked source differs from the test-time source capture: ${bootstrapDrift.slice(0, 8).join("; ")}.`,
+    );
+  }
+  const originalCodeSnapshots = Object.fromEntries(
+    preImportSourceBundle.map(({ path, digest }) => [path, digest]),
+  );
+  const executionSourceBundle = planRealBuildSourceMirrorBundle({
+    sourceFiles: preImportSourceBundle,
+    fixedInputs: [
+      { path: "inputs/booklet.pdf", digest: sha256Digest(pdfBytes), bytes: pdfBytes.length },
+    ],
+  });
+  const codeSnapshots = Object.fromEntries(
+    executionSourceBundle.map(({ path, digest }) => [path, digest]),
+  );
   const runContract = createRealBuildRunContract({
     inputDigests,
+    identificationClosure: identificationClosureDigests,
     panels: specs,
     budgets: realBuildRunBudgets(options),
     thresholds: realBuildRunThresholds(options),
@@ -775,189 +579,264 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
     sourceFiles,
     fixedInputs: [{ path: "inputs/booklet.pdf", bytes: pdfBytes }],
   });
-  const mirrorUrl = (path: string): string =>
-    `/@fs/${resolve(sourceMirror, path).replaceAll("\\", "/")}`;
-  const executionOptions: RealBuildOptions = {
-    ...options,
-    pdfjsUrl: mirrorUrl("node_modules/pdfjs-dist/build/pdf.mjs"),
-    workerUrl: mirrorUrl("node_modules/pdfjs-dist/build/pdf.worker.mjs"),
-    pdfUrl: mirrorUrl("inputs/booklet.pdf"),
-    latticeUrl: mirrorUrl("packages/rendering/src/camera-fit-lattice.ts"),
-    renderingUrl: mirrorUrl("packages/rendering/src/index.ts"),
-    kernelUrl: mirrorUrl("packages/brick-kernel/src/index.ts"),
-    commandsUrl: mirrorUrl("apps/web/src/manual-commands.ts"),
-    assemblyUrl: mirrorUrl("apps/web/src/assembly/index.ts"),
-  };
-  const executionDriverUrl = mirrorUrl("apps/web/e2e/real-build-run.ts");
-
-  let result: RealBuildResult;
-  let retainedBrowserOutput: RealBuildBrowserOutput | null = null;
-  if (inputFailures.length > 0) {
-    result = inputRejectedRealBuildResult(executionOptions, inputFailures);
-  } else {
-    await page.addInitScript(() => {
-      Object.defineProperty(window, "WebSocket", { value: class {}, writable: true });
-    });
-    let browserOutput: RealBuildBrowserOutput;
-    try {
-      await page.goto("/");
-      browserOutput = (await page.evaluate(
-        async ({ driverUrl, driverOptions }) => {
-          const driver = await import(/* @vite-ignore */ driverUrl);
-          return driver.runRealBuild(driverOptions);
-        },
-        { driverUrl: executionDriverUrl, driverOptions: executionOptions },
-      )) as RealBuildBrowserOutput;
-    } catch (error) {
-      browserOutput = {
-        schemaVersion: "lego.real-build-browser-output/1",
-        status: "failed",
-        reports: [],
-        documentJson: null,
-        identityBindings: [],
-        fetchedPdfDigest: null,
-        failure: {
-          code: "dynamic-import-failed",
-          stage: "loading",
-          inputKey: "browser-driver",
-          message:
-            `Playwright could not load and invoke the digest-bound real-build browser driver: ` +
-            `${error instanceof Error ? error.message : String(error)}.`,
-        },
-        totalElapsedMs: 0,
-      };
-    }
-    const postRunSnapshots = snapshotRealBuildCodeRoots(REAL_BUILD_SOURCE_ROOTS);
-    const postRunSourceBundle = captureRealBuildSourceBundle(process.cwd(), sourceFiles);
-    const mirrorPostRunBundle = captureRealBuildSourceBundle(sourceMirror, sourceFiles);
-    const drift = [
-      ...sourceDriftFailures(preImportSourceBundle, postRunSourceBundle),
-      ...sourceDriftFailures(preImportSourceBundle, mirrorPostRunBundle),
-    ];
-    if (JSON.stringify(postRunSnapshots) !== JSON.stringify(codeSnapshots) || drift.length > 0) {
-      browserOutput = {
-        schemaVersion: "lego.real-build-browser-output/1",
-        status: "failed",
-        reports: browserOutput.reports,
-        documentJson: browserOutput.documentJson,
-        identityBindings: browserOutput.identityBindings,
-        fetchedPdfDigest: browserOutput.fetchedPdfDigest,
-        failure: {
-          code: "source-drift-detected",
-          stage: "replay",
-          inputKey: "codeSnapshots",
-          message:
-            `Result-determining source changed between immutable pre-import capture, execution mirror, and ` +
-            `post-run verification: ${drift.slice(0, 8).join("; ") || "digest map changed"}. The browser ` +
-            `output is retained diagnostically but cannot be finalized.`,
-        },
-        totalElapsedMs: browserOutput.totalElapsedMs,
-      };
-    }
-    retainedBrowserOutput = browserOutput;
-    result = finalizeExecutedRealBuildResult({ options: executionOptions, browserOutput });
+  const initialMirrorDrift = sourceDriftFailures(executionSourceBundle, sourceMirror.files);
+  if (initialMirrorDrift.length > 0) {
+    throw new TypeError(
+      `Real-build source mirror differs from its exact pre-import bundle: ${initialMirrorDrift.slice(0, 8).join("; ")}.`,
+    );
   }
+  const sourceLock = await acquireRealBuildSourceLock(sourceMirror);
+  const servedResponses = createRealBuildServedResponseRecorder({
+    page,
+    mirror: sourceMirror,
+    sourceLock,
+  });
+  let result!: RealBuildResult;
+  try {
+    await servedResponses.install();
+    sourceLock.assertHeld();
+    const mirrorUrl = (path: string): string => {
+      const resolved = resolveRealBuildPath(sourceMirror.root, path, {
+        mustExist: true,
+        label: "materialized real-build module",
+      });
+      return `/@fs/${resolved.replaceAll("\\", "/")}`;
+    };
+    const executionOptions: RealBuildOptions = {
+      ...options,
+      pdfjsUrl: mirrorUrl("node_modules/pdfjs-dist/build/pdf.mjs"),
+      workerUrl: mirrorUrl("node_modules/pdfjs-dist/build/pdf.worker.mjs"),
+      pdfUrl: mirrorUrl("inputs/booklet.pdf"),
+      latticeUrl: mirrorUrl("packages/rendering/src/camera-fit-lattice.ts"),
+      renderingUrl: mirrorUrl("packages/rendering/src/index.ts"),
+      kernelUrl: mirrorUrl("packages/brick-kernel/src/index.ts"),
+      commandsUrl: mirrorUrl("apps/web/src/manual-commands.ts"),
+      assemblyUrl: mirrorUrl("apps/web/src/assembly/index.ts"),
+    };
+    const executionDriverUrl = mirrorUrl("apps/web/e2e/real-build-run.ts");
 
-  const artifactFiles: string[] = [];
-  for (const step of result.steps) {
-    const tag = String(step.stepNumber).padStart(3, "0");
-    for (const [kind, png] of [
-      ["panel", step.panelPng],
-      ["build", step.buildPng],
-    ] as const) {
-      if (png !== null) {
-        const file = `step-${tag}-${kind}.png`;
-        writeFileSync(join(run.directory, file), Buffer.from(png.split(",")[1]!, "base64"));
-        artifactFiles.push(file);
+    let retainedBrowserOutput: RealBuildBrowserOutput | null = null;
+    if (inputFailures.length === 0) {
+      await page.addInitScript(() => {
+        Object.defineProperty(window, "WebSocket", { value: class {}, writable: true });
+      });
+      try {
+        await page.goto("/__real_build_runner__");
+        const reproducedHighlightCases = await captureHighlightExclusivityRenderCases(page, {
+          contractUrl: mirrorUrl("apps/web/e2e/real-build-contract.ts"),
+          kernelUrl: mirrorUrl("packages/brick-kernel/src/index.ts"),
+          commandsUrl: mirrorUrl("apps/web/src/manual-commands.ts"),
+          renderingUrl: mirrorUrl("packages/rendering/src/index.ts"),
+        });
+        assertHighlightRendererCasesReproduced(highlightCasesInput.bytes, reproducedHighlightCases);
+      } catch (error) {
+        inputFailures.push(
+          contractFailure(
+            HIGHLIGHT_RENDERER_CASES_PATH,
+            `The materialized source-mirror renderer did not independently reproduce the bounded raw ` +
+              `highlight compatibility cases: ${error instanceof Error ? error.message : String(error)}. ` +
+              `This refuses renderer/source incompatibility; it does not authenticate the instruction PDF, ` +
+              `the checkout's origin, or visual correctness.`,
+          ),
+        );
       }
     }
-  }
-  if (result.documentJson !== null) {
-    writeFileSync(join(run.directory, "document.json"), result.documentJson);
-    artifactFiles.push("document.json");
-  }
-  const built = result.steps.filter(isAtomicStepComplete);
-  const score = {
-    schemaVersion: REAL_BUILD_SCORE_SCHEMA,
-    authority: result.authority,
-    runId: plan.runId,
-    status: result.status,
-    inputDigests,
-    accounting: OFFICIAL_REAL_BUILD_ACCOUNTING,
-    lastStep: options.lastStep,
-    stepsAttempted: result.steps.length,
-    stepsComplete: built.length,
-    piecesPlaced: result.steps.reduce((total, step) => total + step.placedPieces, 0),
-    finalParts: result.finalParts,
-    structuralHash: result.structuralHash,
-    inputFailures: result.inputFailures,
-    completionFailures: result.completionFailures,
-    failures: result.steps
-      .filter((step) => step.outcome.status === "failed")
-      .map((step) => ({ stepNumber: step.stepNumber, failure: step.outcome.failure })),
-    totalElapsedMs: result.totalElapsedMs,
-    steps: result.steps.map(({ panelPng, buildPng, ...step }) => ({
-      ...step,
-      panelPng:
-        panelPng === null ? null : `step-${String(step.stepNumber).padStart(3, "0")}-panel.png`,
-      buildPng:
-        buildPng === null ? null : `step-${String(step.stepNumber).padStart(3, "0")}-build.png`,
-    })),
-  };
-  writeFileSync(join(run.directory, "score.json"), `${JSON.stringify(score, null, 1)}\n`);
-  artifactFiles.push("score.json");
-  const replayRoles = [
-    { role: "pdf", bytes: pdfBytes },
-    { role: "callout-manifest", bytes: manifestInput.bytes },
-    { role: "coverage", bytes: coverageInput.bytes },
-    { role: "official-model", bytes: officialModelBytes },
-    { role: "action-ledger", bytes: ledgerInput.bytes },
-    { role: "highlight-calibration", bytes: calibrationInput.bytes },
-    { role: "builder-calibration", bytes: builderCalibrationInput.bytes },
-    { role: "builder-geometry", bytes: builderGeometryBytes },
-    { role: "transition-classifications", bytes: transitionInput.bytes },
-    { role: "run-contract", bytes: Buffer.from(JSON.stringify(runContract)) },
-    { role: "prepared-options", bytes: Buffer.from(JSON.stringify(executionOptions)) },
-    ...(retainedBrowserOutput === null
-      ? []
-      : [
-          {
-            role: "browser-output",
-            bytes: Buffer.from(JSON.stringify(retainedBrowserOutput)),
+    if (inputFailures.length > 0) {
+      result = inputRejectedRealBuildResult(executionOptions, inputFailures);
+    } else {
+      let browserOutput: RealBuildBrowserOutput;
+      try {
+        browserOutput = (await page.evaluate(
+          async ({ driverUrl, driverOptions }) => {
+            const driver = await import(/* @vite-ignore */ driverUrl);
+            return driver.runRealBuild(driverOptions);
           },
-        ]),
-  ];
-  const replayClosure = writeRealBuildReplayClosure({
-    directory: run.directory,
-    repoRoot: sourceMirror,
-    roles: replayRoles,
-    sourceFiles,
-    environment: {
-      schemaVersion: "lego.real-build-environment/1",
-      node: process.version,
-      platform: process.platform,
-      arch: process.arch,
-      versions: process.versions,
-      browser: {
-        name: browserName,
-        version: page.context().browser()?.version() ?? "unavailable",
+          { driverUrl: executionDriverUrl, driverOptions: executionOptions },
+        )) as RealBuildBrowserOutput;
+      } catch (error) {
+        browserOutput = {
+          schemaVersion: "lego.real-build-browser-output/1",
+          status: "failed",
+          reports: [],
+          documentJson: null,
+          identityBindings: [],
+          fetchedPdfDigest: null,
+          failure: {
+            code: "dynamic-import-failed",
+            stage: "loading",
+            inputKey: "browser-driver",
+            message:
+              `Playwright could not load and invoke the digest-bound real-build browser driver: ` +
+              `${error instanceof Error ? error.message : String(error)}.`,
+          },
+          totalElapsedMs: 0,
+        };
+      }
+      const postRunSnapshots = snapshotRealBuildCodeRoots(REAL_BUILD_SOURCE_ROOTS);
+      const postRunSourceBundle = captureRealBuildSourceBundle(process.cwd(), sourceFiles);
+      const mirrorPostRunBundle = captureRealBuildSourceBundle(
+        sourceMirror.root,
+        sourceMirror.files.map(({ path }) => path),
+      );
+      const drift = [
+        ...sourceDriftFailures(preImportSourceBundle, postRunSourceBundle),
+        ...sourceDriftFailures(executionSourceBundle, mirrorPostRunBundle),
+      ];
+      if (
+        JSON.stringify(postRunSnapshots) !== JSON.stringify(originalCodeSnapshots) ||
+        drift.length > 0
+      ) {
+        browserOutput = {
+          schemaVersion: "lego.real-build-browser-output/1",
+          status: "failed",
+          reports: browserOutput.reports,
+          documentJson: browserOutput.documentJson,
+          identityBindings: browserOutput.identityBindings,
+          fetchedPdfDigest: browserOutput.fetchedPdfDigest,
+          failure: {
+            code: "source-drift-detected",
+            stage: "replay",
+            inputKey: "codeSnapshots",
+            message:
+              `Result-determining source changed between immutable pre-import capture, execution mirror, and ` +
+              `post-run verification: ${drift.slice(0, 8).join("; ") || "digest map changed"}. The browser ` +
+              `output is retained diagnostically but cannot be finalized.`,
+          },
+          totalElapsedMs: browserOutput.totalElapsedMs,
+        };
+      }
+      retainedBrowserOutput = browserOutput;
+      result = finalizeExecutedRealBuildResult({ options: executionOptions, browserOutput });
+    }
+
+    const servedResponseEvidence = await servedResponses.writeEvidence(run.directory);
+    sourceLock.assertHeld();
+    const stepArtifactFiles = result.steps.flatMap((step) => {
+      const tag = String(step.stepNumber).padStart(3, "0");
+      return [
+        ...(step.panelPng === null ? [] : [`step-${tag}-panel.png`]),
+        ...(step.buildPng === null ? [] : [`step-${tag}-build.png`]),
+      ];
+    });
+    const artifactFiles = validateRealBuildArtifactFilePlan([
+      ...servedResponseEvidence.files,
+      ...stepArtifactFiles,
+      ...(result.documentJson === null || result.structuralHash === null ? [] : ["document.json"]),
+      "score.json",
+    ]);
+    for (const step of result.steps) {
+      const tag = String(step.stepNumber).padStart(3, "0");
+      for (const [kind, png] of [
+        ["panel", step.panelPng],
+        ["build", step.buildPng],
+      ] as const) {
+        if (png !== null) {
+          const file = `step-${tag}-${kind}.png`;
+          writeContainedRegularFileAtomic(run.directory, file, decodeRealBuildPngCapture(png), {
+            label: "real-build step capture",
+          });
+        }
+      }
+    }
+    if (result.documentJson !== null && result.structuralHash !== null) {
+      writeContainedRegularFileAtomic(run.directory, "document.json", result.documentJson, {
+        label: "real-build document",
+      });
+    }
+    const score = createRealBuildScore({
+      runId: plan.runId,
+      result,
+      accounting: OFFICIAL_REAL_BUILD_ACCOUNTING,
+      lastStep: options.lastStep,
+    });
+    writeContainedRegularFileAtomic(
+      run.directory,
+      "score.json",
+      `${JSON.stringify(score, null, 1)}\n`,
+      { label: "real-build score" },
+    );
+    const replayRoles = [
+      { role: "pdf", bytes: pdfBytes },
+      { role: "callout-manifest", bytes: manifestInput.bytes },
+      { role: "coverage", bytes: coverageInput.bytes },
+      { role: "official-model", bytes: officialModelBytes },
+      { role: "action-ledger", bytes: ledgerInput.bytes },
+      { role: "highlight-calibration", bytes: highlightCompatibilityRoleBytes },
+      { role: "builder-calibration", bytes: builderCalibrationInput.bytes },
+      { role: "builder-geometry", bytes: builderGeometryBytes },
+      { role: "transition-classifications", bytes: transitionInput.bytes },
+      { role: "identification-features", bytes: identificationFeaturesInput.bytes },
+      { role: "identification-match", bytes: identificationMatchInput.bytes },
+      { role: "identification-distances", bytes: identificationDistancesInput.bytes },
+      { role: "element-resolution", bytes: elementResolutionInput.bytes },
+      ...(identificationMode?.source === "adjudicated" &&
+      identificationCardsInput !== null &&
+      identificationCardImagesInput !== null &&
+      identificationAnswersInput !== null
+        ? [
+            { role: "identification-cards", bytes: identificationCardsInput.bytes },
+            {
+              role: "identification-card-images",
+              bytes: identificationCardImagesInput.bytes,
+            },
+            { role: "identification-answers", bytes: identificationAnswersInput.bytes },
+          ]
+        : []),
+      { role: "run-contract", bytes: Buffer.from(JSON.stringify(runContract)) },
+      { role: "prepared-options", bytes: Buffer.from(JSON.stringify(executionOptions)) },
+      ...(retainedBrowserOutput === null
+        ? []
+        : [
+            {
+              role: "browser-output",
+              bytes: Buffer.from(JSON.stringify(retainedBrowserOutput)),
+            },
+          ]),
+    ];
+    sourceLock.assertHeld();
+    const replayClosure = writeRealBuildReplayClosure({
+      directory: run.directory,
+      repoRoot: sourceMirror.root,
+      roles: replayRoles,
+      sourceFiles: sourceMirror.files.map(({ path }) => path),
+      environment: {
+        schemaVersion: "lego.real-build-environment/1",
+        node: process.version,
+        platform: process.platform,
+        arch: process.arch,
+        versions: process.versions,
+        browser: {
+          name: browserName,
+          version: page.context().browser()?.version() ?? "unavailable",
+        },
+        playwright: "@playwright/test (exact package bytes retained in source bundle)",
+        replayProtocol: 1,
+        bootstrapSourceManifestDigest: bootstrapSource.manifestDigest,
+        runContractDigest: runContract.contractDigest,
+        servedResponseManifestDigest: servedResponseEvidence.manifestDigest,
       },
-      playwright: "@playwright/test (exact package bytes retained in source bundle)",
-      runContractDigest: runContract.contractDigest,
-    },
-    browserOutputRetained: retainedBrowserOutput !== null,
-  });
-  writeRealBuildArtifactManifest({
-    directory: run.directory,
-    runId: plan.runId,
-    runContract,
-    result,
-    artifactFiles,
-    replayClosure,
-  });
+      browserOutputRetained: retainedBrowserOutput !== null,
+    });
+    writeRealBuildArtifactManifest({
+      directory: run.directory,
+      runId: plan.runId,
+      runContract,
+      result,
+      artifactFiles,
+      replayClosure,
+    });
+    sourceLock.assertHeld();
+  } finally {
+    try {
+      await servedResponses.dispose();
+    } finally {
+      await sourceLock.release();
+    }
+  }
+  assertRealBuildBootstrapSourceLockHeld();
   const published = await run.publish(verifyRealBuildArtifactManifest);
   console.log(
-    `${result.authority.kind}/${result.status}: ${built.length}/${result.steps.length} steps complete; ` +
+    `${result.authority.kind}/${result.status}: ${result.steps.filter(isAtomicStepComplete).length}/${result.steps.length} steps complete; ` +
       `retained unauthenticated evidence ${published}`,
   );
 

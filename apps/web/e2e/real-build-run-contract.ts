@@ -5,6 +5,7 @@ import type {
   RealBuildOptions,
   RealBuildPanelSpec,
 } from "./real-build-safety";
+import type { RealBuildSourceSnapshot } from "./real-build-replay-files";
 
 const sha256 = (value: string | Uint8Array): string =>
   `sha256:${createHash("sha256").update(value).digest("hex")}`;
@@ -21,9 +22,31 @@ export const REAL_BUILD_INPUT_ROLE_BY_DIGEST = {
   transitionClassifications: "transition-classifications",
 } as const satisfies Readonly<Record<keyof RealBuildInputDigests, string>>;
 
+export const REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST = {
+  features: "identification-features",
+  match: "identification-match",
+  distances: "identification-distances",
+  elements: "element-resolution",
+  cards: "identification-cards",
+  cardImages: "identification-card-images",
+  answers: "identification-answers",
+} as const;
+
+export interface RealBuildIdentificationClosureDigests {
+  readonly source: "deterministic" | "adjudicated";
+  readonly features: string;
+  readonly match: string;
+  readonly distances: string;
+  readonly elements: string;
+  readonly cards: string | null;
+  readonly cardImages: string | null;
+  readonly answers: string | null;
+}
+
 export interface RealBuildRunContract {
-  readonly schemaVersion: "lego.real-build-run-contract/1";
+  readonly schemaVersion: "lego.real-build-run-contract/2";
   readonly inputDigests: RealBuildInputDigests;
+  readonly identificationClosure: RealBuildIdentificationClosureDigests;
   readonly normalizedPanelsDigest: string;
   readonly actionLedger: readonly unknown[];
   readonly actionLedgerDigest: string;
@@ -113,6 +136,7 @@ export function realBuildRunThresholds(
 
 export function createRealBuildRunContract(input: {
   readonly inputDigests: RealBuildInputDigests;
+  readonly identificationClosure: RealBuildIdentificationClosureDigests;
   readonly panels: readonly RealBuildPanelSpec[];
   readonly budgets: Readonly<Record<string, number>>;
   readonly thresholds: Readonly<Record<string, number | string | null>>;
@@ -120,8 +144,9 @@ export function createRealBuildRunContract(input: {
 }): RealBuildRunContract {
   const actionLedger = normalizedActions(input.panels);
   const base = {
-    schemaVersion: "lego.real-build-run-contract/1" as const,
+    schemaVersion: "lego.real-build-run-contract/2" as const,
     inputDigests: input.inputDigests,
+    identificationClosure: input.identificationClosure,
     normalizedPanelsDigest: sha256(JSON.stringify(normalizedPanels(input.panels))),
     actionLedger,
     actionLedgerDigest: sha256(JSON.stringify(actionLedger)),
@@ -152,7 +177,7 @@ export function parseRealBuildRunContract(bytes: Uint8Array): RealBuildRunContra
   if (
     typeof parsed !== "object" ||
     parsed === null ||
-    parsed.schemaVersion !== "lego.real-build-run-contract/1" ||
+    parsed.schemaVersion !== "lego.real-build-run-contract/2" ||
     typeof parsed.contractDigest !== "string"
   ) {
     throw new TypeError("Retained real-build run contract has a malformed schema.");
@@ -164,23 +189,130 @@ export function parseRealBuildRunContract(bytes: Uint8Array): RealBuildRunContra
   return parsed;
 }
 
+/** Verifies the contract's digest fields against exact retained raw role hashes. */
+export function verifyRealBuildRunContractRoleDigests(
+  contract: RealBuildRunContract,
+  roleDigests: Readonly<Record<string, string>>,
+): void {
+  for (const [inputKey, role] of Object.entries(REAL_BUILD_INPUT_ROLE_BY_DIGEST) as [
+    keyof RealBuildInputDigests,
+    string,
+  ][]) {
+    if (contract.inputDigests[inputKey] !== roleDigests[role]) {
+      throw new TypeError(
+        `Run contract ${inputKey} digest is not bound to retained raw role ${role}.`,
+      );
+    }
+  }
+  const identification = contract.identificationClosure;
+  if (
+    (identification.source !== "deterministic" && identification.source !== "adjudicated") ||
+    !/^sha256:[0-9a-f]{64}$/u.test(identification.features) ||
+    !/^sha256:[0-9a-f]{64}$/u.test(identification.match) ||
+    !/^sha256:[0-9a-f]{64}$/u.test(identification.distances) ||
+    !/^sha256:[0-9a-f]{64}$/u.test(identification.elements) ||
+    (identification.source === "deterministic" &&
+      (identification.cards !== null ||
+        identification.cardImages !== null ||
+        identification.answers !== null)) ||
+    (identification.source === "adjudicated" &&
+      (!/^sha256:[0-9a-f]{64}$/u.test(identification.cards ?? "") ||
+        !/^sha256:[0-9a-f]{64}$/u.test(identification.cardImages ?? "") ||
+        !/^sha256:[0-9a-f]{64}$/u.test(identification.answers ?? "")))
+  ) {
+    throw new TypeError(
+      "Run contract identification closure must contain mandatory raw digests and source-exact conditional adjudication digests.",
+    );
+  }
+  for (const key of ["features", "match", "distances", "elements"] as const) {
+    const role = REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST[key];
+    if (identification[key] !== roleDigests[role]) {
+      throw new TypeError(
+        `Run contract identification ${key} digest is not bound to retained raw role ${role}.`,
+      );
+    }
+  }
+  for (const key of ["cards", "cardImages", "answers"] as const) {
+    const role = REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST[key];
+    if (identification.source === "adjudicated") {
+      if (identification[key] !== roleDigests[role]) {
+        throw new TypeError(
+          `Adjudicated run contract ${key} digest is not bound to retained raw role ${role}.`,
+        );
+      }
+    } else if (role in roleDigests) {
+      throw new TypeError(
+        `Deterministic run contract must omit the conditional retained raw role ${role}.`,
+      );
+    }
+  }
+}
+
+/** Enforces exact fixed-input and workspace-package alias semantics, not only a self-consistent map. */
+export function verifyRealBuildExecutionSourceBindings(input: {
+  readonly sourceFiles: readonly RealBuildSourceSnapshot[];
+  readonly pdfDigest: string;
+}): void {
+  const byPath = new Map<string, RealBuildSourceSnapshot>();
+  for (const source of input.sourceFiles) {
+    if (
+      byPath.has(source.path) ||
+      !Number.isSafeInteger(source.bytes) ||
+      source.bytes < 0 ||
+      !/^sha256:[0-9a-f]{64}$/u.test(source.digest)
+    ) {
+      throw new TypeError(
+        `Execution source bundle has a duplicated or malformed entry: ${source.path}.`,
+      );
+    }
+    byPath.set(source.path, source);
+  }
+  const booklet = byPath.get("inputs/booklet.pdf");
+  if (booklet === undefined || booklet.digest !== input.pdfDigest) {
+    throw new TypeError(
+      "Execution source inputs/booklet.pdf must exactly bind the retained raw pdf role.",
+    );
+  }
+  for (const source of input.sourceFiles) {
+    const packageMatch = /^packages\/([^/]+)\/(.+)$/u.exec(source.path);
+    const aliasMatch = /^node_modules\/@lego-studio\/([^/]+)\/(.+)$/u.exec(source.path);
+    if (packageMatch === null && aliasMatch === null) continue;
+    const counterpartPath =
+      packageMatch === null
+        ? `packages/${aliasMatch![1]!}/${aliasMatch![2]!}`
+        : `node_modules/@lego-studio/${packageMatch[1]!}/${packageMatch[2]!}`;
+    const counterpart = byPath.get(counterpartPath);
+    if (
+      counterpart === undefined ||
+      counterpart.digest !== source.digest ||
+      counterpart.bytes !== source.bytes
+    ) {
+      throw new TypeError(
+        `Execution source package identity ${source.path} must have one exact workspace/alias counterpart at ${counterpartPath}.`,
+      );
+    }
+  }
+}
+
 /** Binds deserialized options to raw role hashes, the canonical run contract, and every source byte. */
 export function verifyRealBuildRunContract(input: {
   readonly contract: RealBuildRunContract;
   readonly options: RealBuildOptions;
   readonly roleDigests: Readonly<Record<string, string>>;
-  readonly sourceFiles: readonly { readonly path: string; readonly digest: string }[];
+  readonly sourceFiles: readonly RealBuildSourceSnapshot[];
 }): void {
+  verifyRealBuildRunContractRoleDigests(input.contract, input.roleDigests);
+  verifyRealBuildExecutionSourceBindings({
+    sourceFiles: input.sourceFiles,
+    pdfDigest: input.roleDigests.pdf!,
+  });
   for (const [inputKey, role] of Object.entries(REAL_BUILD_INPUT_ROLE_BY_DIGEST) as [
     keyof RealBuildInputDigests,
     string,
   ][]) {
-    if (
-      input.options.inputDigests[inputKey] !== input.roleDigests[role] ||
-      input.contract.inputDigests[inputKey] !== input.roleDigests[role]
-    ) {
+    if (input.options.inputDigests[inputKey] !== input.roleDigests[role]) {
       throw new TypeError(
-        `Run contract ${inputKey} digest is not bound to retained raw role ${role}.`,
+        `Prepared options ${inputKey} digest is not bound to retained raw role ${role}.`,
       );
     }
   }
@@ -191,6 +323,7 @@ export function verifyRealBuildRunContract(input: {
   );
   const regenerated = createRealBuildRunContract({
     inputDigests: input.options.inputDigests,
+    identificationClosure: input.contract.identificationClosure,
     panels: input.options.panels,
     budgets: realBuildRunBudgets(input.options),
     thresholds: realBuildRunThresholds(input.options),

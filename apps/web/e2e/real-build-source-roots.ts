@@ -1,35 +1,18 @@
+import { readFileSync } from "node:fs";
+
+const policy = JSON.parse(
+  new TextDecoder("utf8", { fatal: true }).decode(
+    readFileSync(new URL("./real-build-source-roots.json", import.meta.url)),
+  ),
+) as { readonly schemaVersion?: unknown; readonly roots?: unknown };
+
+if (
+  policy.schemaVersion !== "lego.real-build-source-roots/1" ||
+  !Array.isArray(policy.roots) ||
+  policy.roots.some((root) => typeof root !== "string")
+) {
+  throw new TypeError("Real-build source-root policy has an unsupported or malformed schema.");
+}
+
 /** Every first-party source and pinned runtime package that can affect browser execution or Node finalization. */
-export const REAL_BUILD_SOURCE_ROOTS = [
-  "apps/web/e2e",
-  "apps/web/index.html",
-  "apps/web/package.json",
-  "apps/web/src",
-  "apps/web/vite.config.ts",
-  "packages/brick-kernel",
-  "packages/catalog",
-  "packages/protocol",
-  "packages/rendering",
-  "node_modules/@noble/hashes",
-  "node_modules/@playwright/test",
-  "node_modules/@oxc-project",
-  "node_modules/@rolldown",
-  "node_modules/@vitejs",
-  "node_modules/fast-deep-equal",
-  "node_modules/fast-uri",
-  "node_modules/lightningcss",
-  "node_modules/picomatch",
-  "node_modules/postcss",
-  "node_modules/pdfjs-dist",
-  "node_modules/playwright",
-  "node_modules/playwright-core",
-  "node_modules/rolldown",
-  "node_modules/require-from-string",
-  "node_modules/three",
-  "node_modules/tinyglobby",
-  "node_modules/vite",
-  "packages/protocol/node_modules/ajv",
-  "packages/protocol/node_modules/json-schema-traverse",
-  "package.json",
-  "package-lock.json",
-  "tsconfig.json",
-] as const;
+export const REAL_BUILD_SOURCE_ROOTS = policy.roots as readonly string[];

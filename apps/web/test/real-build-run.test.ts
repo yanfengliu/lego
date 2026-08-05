@@ -904,6 +904,16 @@ describe("real booklet build safety", () => {
   it("binds panels, action identities, budgets, thresholds, policy, and code into the run contract", () => {
     const base = {
       inputDigests: allInputDigests(sha256Digest("inputs")),
+      identificationClosure: {
+        source: "deterministic" as const,
+        features: sha256Digest("features"),
+        match: sha256Digest("match"),
+        distances: sha256Digest("distances"),
+        elements: sha256Digest("elements"),
+        cards: null,
+        cardImages: null,
+        answers: null,
+      },
       panels: [transitionPanel(1)],
       budgets: { maxParts: 1_464 },
       thresholds: {

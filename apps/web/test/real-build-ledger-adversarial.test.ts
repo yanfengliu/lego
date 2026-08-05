@@ -4,12 +4,10 @@ import { sha256Digest } from "../e2e/real-build-artifacts";
 import { executeFixedLedgerPlacements } from "../e2e/real-build-fixed-actions";
 import {
   actionEvidenceDigest,
-  applyBuilderCanonicalCalibration,
   isUnauthenticatedTransitionClassification,
   pieceEvidenceDigest,
   transitionClassificationEvidenceDigest,
   validateRealBuildActionLedger,
-  type BuilderCanonicalCalibration,
   type LedgerCopyIdentity,
   type LedgerStep,
   type RealBuildActionLedger,
@@ -264,19 +262,30 @@ describe("real build adversarial ledger contracts", () => {
 
   it("fails closed when a used design revision has no independently verified catalog frame", () => {
     const fixture = realBuildLedgerTestFixture();
-    const unframedCalibration: BuilderCanonicalCalibration = {
+    const unframedCalibration = {
       ...fixture.calibration,
       designFrames: [],
     };
     const calibrationBytes = new TextEncoder().encode(JSON.stringify(unframedCalibration));
     const calibrationDigest = sha256Digest(calibrationBytes);
-    const unframedOfficial = applyBuilderCanonicalCalibration(
-      fixture.rawOfficial,
-      calibrationBytes,
+    const unframedOfficial = {
+      ...fixture.official,
       calibrationDigest,
-      fixture.builderGeometryBytes,
-      fixture.builderGeometryDigest,
-    );
+      bricks: Object.fromEntries(
+        Object.entries(fixture.official.bricks).map(([brickRef, brick]) => [
+          brickRef,
+          {
+            ...brick,
+            canonicalTransform: null,
+            canonicalTransformFailure:
+              `Design revision ${brick.designRevision} has no independently verified ` +
+              `code-pinned Builder type-23 plus independent LDraw surface calibration.`,
+            calibratedCatalogPartId: null,
+            frameEvidenceDigest: null,
+          },
+        ]),
+      ),
+    };
     const ledger = { ...fixture.ledger, builderCalibrationDigest: calibrationDigest };
     const failures = validateRealBuildActionLedger({
       ledger,

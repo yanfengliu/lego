@@ -1,0 +1,71 @@
+{
+ "schemaVersion": "lego.real-build-catalog-coverage/1",
+ "inputDigests": {
+  "pdf": "sha256:f76be473d1118d69bb7596dc8ea1b5905571e54ecacced0e210c4e2193779865",
+  "calloutManifest": "sha256:23f58599faa5e6287c1de0eb1e145927ee69fefdf94309ddd8fac0b072d2b0bb",
+  "features": "sha256:a907fa32d19e5cac90a2aed7d97fc121ecfceca972d03c81b43afcc7af25bbfe",
+  "match": "sha256:2ea02f32549ad7f42c44f264a6ffbf75492aea05713cb784e141dcc137401fb8",
+  "distances": "sha256:066562a3dfb6a5044f4bde46b5736fad227197f742c3c8d582a0ab1865b2a6f4",
+  "elementResolution": "sha256:9b1f5551504738d2b32b473588fb7c379e1a94c050b6be20444020f40057a7cc"
+ },
+ "what": "Whether the pinned catalog holds the parts the real booklet's opening steps place. The covered prefix is the number that governs a rebuild: a step whose part is absent cannot be skipped, because the step after it has nothing to attach to.",
+ "identification": {
+  "source": "deterministic",
+  "model": null,
+  "assignment": "nearest"
+ },
+ "lastStep": 1,
+ "calloutsConsidered": 1,
+ "calloutsUnidentified": 0,
+ "coverage": {
+  "schemaVersion": "lego.element-catalog/1",
+  "steps": [
+   {
+    "stepNumber": 1,
+    "pieces": 1,
+    "placeablePieces": 1,
+    "covered": true,
+    "parts": [
+     {
+      "catalogPartId": "builtin:brick-1x1",
+      "colorId": "builtin:black",
+      "quantity": 1,
+      "outcome": "exact"
+     }
+    ],
+    "missing": []
+   }
+  ],
+  "stepsCovered": 1,
+  "stepsTotal": 1,
+  "firstCoveredStep": 1,
+  "coveredPrefixLength": 1,
+  "piecesPlaceable": 1,
+  "piecesTotal": 1,
+  "missingDesigns": []
+ },
+ "byCallout": {
+  "p11|q1|x43.074|y486.271": {
+   "identity": "p11|q1|x43.074|y486.271",
+   "file": "runs/0123456789abcdef01234567/p11-q1-x43d074-y486d271.png",
+   "pageNumber": 11,
+   "stepNumber": 1,
+   "quantity": 1,
+   "cropDigest": "sha256:216dbf4d75f88d708e39d3309dfac7524eed22b5cdbeffc82ce1d9f47b354862",
+   "inputDigest": "sha256:23f58599faa5e6287c1de0eb1e145927ee69fefdf94309ddd8fac0b072d2b0bb",
+   "elementId": "300501",
+   "identificationConfidence": "geometry",
+   "resolution": {
+    "schemaVersion": "lego.element-catalog/1",
+    "elementId": "300501",
+    "partNum": "3005",
+    "name": "Brick 1 x 1",
+    "colorId": "builtin:black",
+    "outcome": "exact",
+    "catalogPartId": "builtin:brick-1x1",
+    "note": null
+   },
+   "unidentifiedBecause": null
+  }
+ }
+}

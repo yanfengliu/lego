@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   closeSync,
   fstatSync,
@@ -10,6 +11,23 @@ import {
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 const SAFE_RELATIVE_PATH_PATTERN = /^[A-Za-z0-9._@/-]+$/u;
+const SHA256_PIN_PATTERN = /^sha256:[0-9a-f]{64}$/u;
+
+/**
+ * What a metadata comparison proves, stated wherever it is the only evidence available.
+ *
+ * Measured on this checkout (Windows 11, NTFS, Node 24.18.1): 145-158 of 200 same-size rewrites
+ * left dev, inode, size, mtimeNs and ctimeNs byte-identical, and 12-15 of 50 pre-open rewrites
+ * were returned to the caller with no error at all. A passing metadata comparison is therefore
+ * not evidence that the bytes are the intended bytes; only `expectedSha256` is.
+ */
+const METADATA_ONLY_LIMITATION =
+  "This compared device, inode, size, modification time and change time only -- never contents. " +
+  "Two cases defeat that comparison and are not fixed by retrying or by using an immutable file: " +
+  "a same-size rewrite landing inside one filesystem timestamp tick (about 15.6 ms on NTFS) leaves " +
+  "every one of those fields identical, and a rewrite that finished before the baseline was taken " +
+  "is invisible to every later comparison. Pin the exact contents through the policy's " +
+  "expectedSha256 field to make the returned bytes verifiable.";
 
 export type BoundedFileReadErrorCode =
   | "INVALID_BOUND"
@@ -18,6 +36,7 @@ export type BoundedFileReadErrorCode =
   | "NOT_REGULAR_FILE"
   | "SIZE_OUT_OF_RANGE"
   | "IDENTITY_UNAVAILABLE"
+  | "CONTENT_DIGEST_MISMATCH"
   | "CHANGED_DURING_READ"
   | "CLOSE_FAILED"
   | "WRITE_FAILED";
@@ -45,7 +64,27 @@ export interface BoundedFileReadPolicy {
   readonly minimumBytes?: number;
   readonly maximumBytes: number;
   readonly exactBytes?: number;
+  /**
+   * `sha256:<64 lowercase hex>` pin over the exact expected contents.
+   *
+   * This is the only field that proves what was read. Supply it wherever the caller already knows
+   * the digest -- a manifest entry, a CAS address, a committed fixture -- because the identity and
+   * timestamp comparisons around it cannot distinguish a same-size concurrent rewrite.
+   */
+  readonly expectedSha256?: string;
   readonly __testHooks?: BoundedFileRaceTestHooks;
+}
+
+function sha256Pin(bytes: Uint8Array): string {
+  return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+}
+
+/** Says whether the returned bytes were proven, so a stability rejection cannot imply more. */
+function contentEvidenceClause(policy: BoundedFileReadPolicy): string {
+  return policy.expectedSha256 === undefined
+    ? METADATA_ONLY_LIMITATION
+    : `The contents did match the caller's expectedSha256 pin ${policy.expectedSha256}, so this ` +
+        "rejection is about the file not holding still, not about the bytes being wrong.";
 }
 
 /** @internal Shared with the contained atomic-write boundary. */
@@ -94,7 +133,7 @@ export function comparableFileState(stat: BigIntStats, label: string): Comparabl
   if (stat.size < 0n || stat.mtimeNs < 0n || stat.ctimeNs < 0n) {
     throw new BoundedFileReadError(
       "IDENTITY_UNAVAILABLE",
-      `${label} does not expose comparable size, modification-time, and change-time metadata; fail closed because a same-size concurrent mutation cannot be detected.`,
+      `${label} does not expose comparable size, modification-time, and change-time metadata; fail closed because not even a differently-sized or differently-timed concurrent mutation could be noticed here.`,
     );
   }
   return {
@@ -248,6 +287,12 @@ function validatePolicy(path: string, policy: BoundedFileReadPolicy): number {
       `${policy.label} at ${JSON.stringify(path)} has an invalid read policy; minimum, maximum, and exact byte bounds must be safe non-negative integers in increasing order.`,
     );
   }
+  if (policy.expectedSha256 !== undefined && !SHA256_PIN_PATTERN.test(policy.expectedSha256)) {
+    throw new BoundedFileReadError(
+      "INVALID_BOUND",
+      `${policy.label} at ${JSON.stringify(path)} pins an unusable content digest ${JSON.stringify(policy.expectedSha256)}; expectedSha256 must be the literal prefix "sha256:" followed by 64 lowercase hexadecimal characters, or be omitted entirely.`,
+    );
+  }
   return minimumBytes;
 }
 
@@ -272,7 +317,7 @@ function readOpenDescriptor(
   if (expectedBefore !== undefined && !sameFileState(expectedBefore, before)) {
     throw new BoundedFileReadError(
       "CHANGED_DURING_READ",
-      `${policy.label} at ${JSON.stringify(path)} was replaced or mutated between lstat and open; retry with an immutable file.`,
+      `${policy.label} at ${JSON.stringify(path)} did not present the same device, inode, size, modification time, and change time at open as the lstat taken immediately before it, so the path was replaced or written between those two calls. ${contentEvidenceClause(policy)}`,
     );
   }
   const size = Number(before.size);
@@ -295,11 +340,12 @@ function readOpenDescriptor(
     if (count === 0) {
       throw new BoundedFileReadError(
         "CHANGED_DURING_READ",
-        `${policy.label} at ${JSON.stringify(path)} ended after ${offset} of ${size} bytes; retry with an immutable file.`,
+        `${policy.label} at ${JSON.stringify(path)} ended after ${offset} of the ${size} bytes its own descriptor reported at open, so it was truncated while being read. The partial bytes were discarded. ${contentEvidenceClause(policy)}`,
       );
     }
     offset += count;
   }
+  assertPinnedContent(bytes, path, policy);
   const trailing = Buffer.allocUnsafe(1);
   const extraBytes = readSync(descriptor, trailing, 0, 1, size);
   policy.__testHooks?.afterRead?.();
@@ -307,13 +353,35 @@ function readOpenDescriptor(
     fstatSync(descriptor, { bigint: true }),
     `${policy.label} descriptor for ${JSON.stringify(path)}`,
   );
-  if (extraBytes !== 0 || !sameFileState(after, before)) {
+  if (extraBytes !== 0) {
     throw new BoundedFileReadError(
       "CHANGED_DURING_READ",
-      `${policy.label} at ${JSON.stringify(path)} changed identity, size, modification time, or change time while being read; retry with an immutable file.`,
+      `${policy.label} at ${JSON.stringify(path)} grew past the ${size} bytes its own descriptor reported at open; a further byte was readable at offset ${size} once the bounded read finished. ${contentEvidenceClause(policy)}`,
+    );
+  }
+  if (!sameFileState(after, before)) {
+    throw new BoundedFileReadError(
+      "CHANGED_DURING_READ",
+      `${policy.label} at ${JSON.stringify(path)} did not hold one device, inode, size, modification time, and change time across its own descriptor read; the file was written or replaced while the ${size} bytes were being read. ${contentEvidenceClause(policy)}`,
     );
   }
   return bytes;
+}
+
+/**
+ * The only check here that inspects contents, and so the only one that can reject bytes the
+ * caller never intended. It runs before the identity and timestamp comparisons deliberately:
+ * whether those happen to notice a same-size rewrite depends on filesystem clock granularity,
+ * and a rejection must not depend on a race the caller cannot control.
+ */
+function assertPinnedContent(bytes: Buffer, path: string, policy: BoundedFileReadPolicy): void {
+  if (policy.expectedSha256 === undefined) return;
+  const observed = sha256Pin(bytes);
+  if (observed === policy.expectedSha256) return;
+  throw new BoundedFileReadError(
+    "CONTENT_DIGEST_MISMATCH",
+    `${policy.label} at ${JSON.stringify(path)} hashes to ${observed} over the ${bytes.length} bytes read through this descriptor, but the caller pinned ${policy.expectedSha256}. Those bytes were discarded and never returned. Comparing contents is what catches a same-size concurrent rewrite; identical device, inode, size, modification time, and change time cannot distinguish one. Regenerate the file so it matches the pin, or re-pin it to the digest it genuinely has -- dropping expectedSha256 would silently accept whatever bytes this path happened to hold.`,
+  );
 }
 
 /** @internal */
@@ -342,7 +410,10 @@ export function closeDescriptor(
   }
 }
 
-/** Opens, sizes, and reads one regular file without ever allocating beyond the declared bound. */
+/**
+ * Opens, sizes, and reads one regular file without ever allocating beyond the declared bound.
+ * The returned bytes are proven only when the policy pins `expectedSha256`.
+ */
 export function readBoundedRegularFile(path: string, policy: BoundedFileReadPolicy): Buffer {
   let descriptor: number | null = null;
   let result: Buffer | null = null;
@@ -372,7 +443,11 @@ export function readBoundedRegularFile(path: string, policy: BoundedFileReadPoli
   return result;
 }
 
-/** Combines containment, link rejection, open, descriptor identity, and post-read verification. */
+/**
+ * Combines containment, link rejection, open, descriptor identity, and post-read verification.
+ * Containment and identity bound *which* file was read; only a pinned `expectedSha256` bounds
+ * *what* it contained, because a same-size rewrite inside one timestamp tick is metadata-identical.
+ */
 export function readContainedBoundedRegularFile(
   root: string,
   candidate: string,
@@ -418,15 +493,24 @@ export function readContainedBoundedRegularFile(
       `${policy.label} post-read descriptor`,
     );
     const postRealpath = realpathSync.native(preflight.target);
-    if (
-      preRealpath !== postRealpath ||
-      !inside(preflight.rootRealpath, postRealpath) ||
-      !sameFileState(preState, postState) ||
-      !sameFileState(descriptorState, postState)
-    ) {
+    const drift = [
+      preRealpath === postRealpath
+        ? null
+        : `its real path moved from ${JSON.stringify(preRealpath)} to ${JSON.stringify(postRealpath)}`,
+      inside(preflight.rootRealpath, postRealpath)
+        ? null
+        : `it now resolves outside the real root ${JSON.stringify(preflight.rootRealpath)}`,
+      sameFileState(preState, postState)
+        ? null
+        : "the path's device, inode, size, modification time, or change time differs from the pre-open lstat",
+      sameFileState(descriptorState, postState)
+        ? null
+        : "the open descriptor and the path no longer describe one same file state",
+    ].filter((reason): reason is string => reason !== null);
+    if (drift.length > 0) {
       throw new BoundedFileReadError(
         "CHANGED_DURING_READ",
-        `${policy.label} path, identity, size, modification time, or change time changed around its descriptor read; retry with an immutable contained file.`,
+        `${policy.label} at ${JSON.stringify(preflight.target)} was not stable around its descriptor read: ${drift.join("; ")}. ${contentEvidenceClause(policy)}`,
       );
     }
   } catch (error) {

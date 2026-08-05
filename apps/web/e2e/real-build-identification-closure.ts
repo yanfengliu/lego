@@ -1,0 +1,236 @@
+import { createHash } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
+
+import { verifyBookletCatalogCoverageClosure } from "../../../scripts/booklet-catalog-coverage.mjs";
+import { PartIdentificationArtifactBindingError } from "../../../scripts/part-identification-artifacts.mjs";
+
+export interface RawJsonArtifact {
+  readonly bytes: Uint8Array;
+  readonly digest: string;
+  readonly value: unknown;
+}
+
+export interface RawBinaryArtifact {
+  readonly bytes: Uint8Array;
+  readonly digest: string;
+}
+
+function sha256(bytes: Uint8Array): string {
+  return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+}
+
+/** Constructs all JSON artifact fields from one retained byte sequence. */
+export function rawJsonArtifactFromBytes(bytes: Uint8Array, label: string): RawJsonArtifact {
+  let value: unknown;
+  try {
+    value = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)) as unknown;
+  } catch (error) {
+    throw new TypeError(
+      `${label} retained bytes must be strict UTF-8 JSON: ${error instanceof Error ? error.message : String(error)}.`,
+      { cause: error },
+    );
+  }
+  return { bytes, digest: sha256(bytes), value };
+}
+
+function bindRawJsonArtifact(artifact: RawJsonArtifact, label: string): RawJsonArtifact {
+  let value: unknown;
+  try {
+    value = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(artifact.bytes)) as unknown;
+  } catch (error) {
+    throw new TypeError(
+      `${label} bytes must be strict UTF-8 JSON: ${error instanceof Error ? error.message : String(error)}.`,
+      { cause: error },
+    );
+  }
+  const digest = sha256(artifact.bytes);
+  if (artifact.digest !== digest) {
+    throw new TypeError(
+      `${label} declares digest ${JSON.stringify(artifact.digest)}, but its bounded bytes hash to ${digest}.`,
+    );
+  }
+  if (!isDeepStrictEqual(artifact.value, value)) {
+    throw new TypeError(
+      `${label} supplied value does not equal the value parsed from its bounded bytes; callers may not independently trust or replace parsed fields.`,
+    );
+  }
+  return { bytes: artifact.bytes, digest, value };
+}
+
+function bindRawBinaryArtifact(artifact: RawBinaryArtifact, label: string): RawBinaryArtifact {
+  if (!(artifact.bytes instanceof Uint8Array)) {
+    throw new TypeError(`${label} must supply exact retained binary bytes.`);
+  }
+  const digest = sha256(artifact.bytes);
+  if (artifact.digest !== digest) {
+    throw new TypeError(
+      `${label} declares digest ${JSON.stringify(artifact.digest)}, but its bounded bytes hash to ${digest}.`,
+    );
+  }
+  return { bytes: artifact.bytes, digest };
+}
+
+interface CoverageDescriptor {
+  readonly identification?: {
+    readonly source?: unknown;
+    readonly model?: unknown;
+    readonly assignment?: unknown;
+  };
+  readonly lastStep?: unknown;
+}
+
+export type RealBuildIdentificationSource = "deterministic" | "adjudicated";
+
+export interface RealBuildIdentificationMode {
+  readonly source: RealBuildIdentificationSource;
+  readonly model: string | null;
+  readonly assignment: "nearest" | "one-to-one" | "quantity-informed";
+  readonly lastStep: number;
+}
+
+export type RealBuildIdentificationInputRole = "identification-answers";
+
+export class RealBuildIdentificationClosureError extends Error {
+  readonly inputRole: RealBuildIdentificationInputRole;
+
+  constructor(inputRole: RealBuildIdentificationInputRole, message: string, cause: Error) {
+    super(message, { cause });
+    this.name = "RealBuildIdentificationClosureError";
+    this.inputRole = inputRole;
+  }
+}
+
+export interface RealBuildIdentificationClosureInput {
+  readonly coverage: RawJsonArtifact;
+  readonly manifest: RawJsonArtifact;
+  readonly features: RawJsonArtifact;
+  readonly match: RawJsonArtifact;
+  readonly distances: RawJsonArtifact;
+  readonly cards?: RawJsonArtifact | null;
+  readonly cardImages?: RawBinaryArtifact | null;
+  readonly answers?: RawJsonArtifact | null;
+  readonly elementResolution: RawJsonArtifact;
+  readonly requestedLastStep: number;
+}
+
+function describeCoverageMode(
+  coverageArtifact: RawJsonArtifact,
+  requestedLastStep: number,
+): RealBuildIdentificationMode {
+  const coverage = coverageArtifact.value as CoverageDescriptor;
+  const source = coverage.identification?.source;
+  const model = coverage.identification?.model;
+  const assignment = coverage.identification?.assignment;
+  const lastStep = coverage.lastStep;
+  if (
+    (source !== "deterministic" && source !== "adjudicated") ||
+    (source === "deterministic" ? model !== null : typeof model !== "string") ||
+    (assignment !== "nearest" &&
+      assignment !== "one-to-one" &&
+      assignment !== "quantity-informed") ||
+    !Number.isInteger(lastStep) ||
+    (lastStep as number) < requestedLastStep
+  ) {
+    throw new TypeError(
+      `Coverage must declare a deterministic/adjudicated source, compatible model, supported assignment, ` +
+        `and a compiled prefix at least ${requestedLastStep}; received ${JSON.stringify({
+          source,
+          model,
+          assignment,
+          lastStep,
+        })}.`,
+    );
+  }
+  return {
+    source,
+    model: model as string | null,
+    assignment,
+    lastStep: lastStep as number,
+  };
+}
+
+/** Selects conditional input roles from the exact bounded coverage bytes, without consulting outputs. */
+export function identifyRealBuildIdentificationMode(
+  coverage: RawJsonArtifact,
+  requestedLastStep: number,
+): RealBuildIdentificationMode {
+  return describeCoverageMode(bindRawJsonArtifact(coverage, "Catalog coverage"), requestedLastStep);
+}
+
+export function prepareRealBuildIdentificationClosure(input: RealBuildIdentificationClosureInput) {
+  const coverageArtifact = bindRawJsonArtifact(input.coverage, "Catalog coverage");
+  const manifestArtifact = bindRawJsonArtifact(input.manifest, "Callout manifest");
+  const featuresArtifact = bindRawJsonArtifact(input.features, "Identification features");
+  const matchArtifact = bindRawJsonArtifact(input.match, "Identification match");
+  const distancesArtifact = bindRawJsonArtifact(input.distances, "Identification distances");
+  const elementResolutionArtifact = bindRawJsonArtifact(
+    input.elementResolution,
+    "Element resolution",
+  );
+  const mode = describeCoverageMode(coverageArtifact, input.requestedLastStep);
+  if (
+    mode.source === "adjudicated" &&
+    (input.cards == null || input.cardImages == null || input.answers == null)
+  ) {
+    throw new TypeError(
+      "Adjudicated coverage requires exact retained identification-card manifest, card-image bundle, and answer bytes; regenerate or retain all three roles.",
+    );
+  }
+  if (
+    mode.source === "deterministic" &&
+    (input.cards != null || input.cardImages != null || input.answers != null)
+  ) {
+    throw new TypeError(
+      "Deterministic coverage must omit adjudication card-manifest, card-image, and answer roles; those bytes are neither read nor retained for deterministic replay.",
+    );
+  }
+  const cardsArtifact =
+    mode.source === "deterministic"
+      ? null
+      : bindRawJsonArtifact(input.cards!, "Identification cards");
+  const cardImagesArtifact =
+    mode.source === "deterministic"
+      ? null
+      : bindRawBinaryArtifact(input.cardImages!, "Identification card images");
+  const answersArtifact =
+    mode.source === "deterministic"
+      ? null
+      : bindRawJsonArtifact(input.answers!, "Identification answers");
+  return {
+    coverageBytes: coverageArtifact.bytes,
+    manifestBytes: manifestArtifact.bytes,
+    featuresArtifact,
+    matchArtifact,
+    distancesArtifact,
+    cardsArtifact,
+    cardImagesArtifact,
+    answersArtifact,
+    elementsArtifact: elementResolutionArtifact,
+    source: mode.source,
+    model: mode.model,
+    assignment: mode.assignment,
+    lastStep: mode.lastStep,
+  };
+}
+
+export function attributeRealBuildIdentificationClosureError(error: unknown): Error {
+  if (error instanceof PartIdentificationArtifactBindingError) {
+    return new RealBuildIdentificationClosureError(
+      "identification-answers",
+      `The identification answers artifact does not bind the retained match/cards/prompt closure: ${error.message}`,
+      error,
+    );
+  }
+  return error instanceof Error ? error : new Error(String(error));
+}
+
+/** Recompiles coverage from every identity-bearing raw artifact before the browser can use it. */
+export function verifyRealBuildIdentificationClosure(
+  input: RealBuildIdentificationClosureInput,
+): unknown {
+  try {
+    return verifyBookletCatalogCoverageClosure(prepareRealBuildIdentificationClosure(input));
+  } catch (error) {
+    throw attributeRealBuildIdentificationClosureError(error);
+  }
+}

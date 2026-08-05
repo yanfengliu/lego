@@ -4,8 +4,16 @@ import { fileURLToPath } from "node:url";
 import { createServer, searchForWorkspaceRoot } from "vite";
 
 import { servableRoots } from "./sample-booklet";
+import {
+  assertRealBuildBootstrapSourceLockHeld,
+  readRequiredRealBuildBootstrapSourceManifest,
+} from "./real-build-bootstrap-source";
 
 export default async function globalSetup() {
+  if (process.env.LEGO_REAL_BUILD_REQUIRED === "1") {
+    readRequiredRealBuildBootstrapSourceManifest();
+    assertRealBuildBootstrapSourceLockHeld();
+  }
   const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
   const server = await createServer({
     root: webRoot,

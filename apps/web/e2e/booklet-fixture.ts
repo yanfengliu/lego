@@ -1,17 +1,19 @@
-import { readFileSync } from "node:fs";
-
 import {
   extractBookletStructure,
   selectStepNumberHeight,
 } from "../src/instructions/booklet-structure";
 import { ingestInstructionPdf, type PdfDocument } from "../src/instructions/ingest-pdf";
+import {
+  INSTRUCTION_PDF_LIMITS,
+  type InstructionSourceV1,
+} from "../src/instructions/instruction-source";
 import { extractPageShapes, type OperatorList } from "../src/instructions/page-shapes";
 import {
   deriveStepPanels,
   type PanelCalloutBox,
   type StepPanel,
 } from "../src/instructions/step-panels";
-import { type InstructionSourceV1 } from "../src/instructions/instruction-source";
+import { readBoundedRegularFile } from "./bounded-file-read";
 import { SAMPLE_BOOKLET_PATH } from "./sample-booklet";
 
 /**
@@ -27,15 +29,31 @@ export interface SampleBooklet {
   readonly source: InstructionSourceV1;
 }
 
+export const SAMPLE_BOOKLET_MAXIMUM_BYTES = INSTRUCTION_PDF_LIMITS.maxBytes;
+
+export function readSampleBookletBytes(path: string): Buffer {
+  return readBoundedRegularFile(path, {
+    label: "Sample instruction booklet 6651557.pdf",
+    maximumBytes: SAMPLE_BOOKLET_MAXIMUM_BYTES,
+  });
+}
+
+export function exactSampleBookletArrayBuffer(bytes: Buffer): ArrayBuffer {
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+}
+
 export async function readSampleBooklet(): Promise<SampleBooklet> {
   if (SAMPLE_BOOKLET_PATH === null) {
     throw new Error(
       "readSampleBooklet needs recipes/6651557.pdf, which is uncommitted and absent from this checkout; guard the caller with hasSampleBooklet.",
     );
   }
-  const bytes = readFileSync(SAMPLE_BOOKLET_PATH);
+  const bytes = readSampleBookletBytes(SAMPLE_BOOKLET_PATH);
   const source = await ingestInstructionPdf(
-    { name: "6651557.pdf", arrayBuffer: async () => bytes.buffer as ArrayBuffer },
+    {
+      name: "6651557.pdf",
+      arrayBuffer: async () => exactSampleBookletArrayBuffer(bytes),
+    },
     {
       loadPdf: async () => {
         const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");

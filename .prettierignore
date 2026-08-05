@@ -7,6 +7,7 @@ var
 output
 packages/protocol/src/generated
 packages/catalog/src/quarantine/set-6651557-ldraw-source-audit.generated.json
+apps/web/test/fixtures/real-build-identification-golden
 AGENTS.md
 CLAUDE.md
 .claude

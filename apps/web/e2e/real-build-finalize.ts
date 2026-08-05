@@ -17,7 +17,11 @@ import {
 } from "./real-build-safety";
 import { isLocalRealBuildAuthority, LOCAL_REAL_BUILD_AUTHORITY } from "./real-build-authority";
 import { preflightRealBuildOptions } from "./real-build-contract";
-import type { RealBuildBrowserOutput, RealBuildIdentityBinding } from "./real-build-browser-output";
+import {
+  isRealBuildBrowserOutput,
+  type RealBuildBrowserOutput,
+  type RealBuildIdentityBinding,
+} from "./real-build-browser-output";
 
 type CanonicalDocumentShape = BrickDocumentV1;
 type CanonicalPartShape = BrickDocumentV1["parts"][number];
@@ -503,24 +507,6 @@ function malformedBrowserOutputFailure(message: string): StepFailure {
   };
 }
 
-function hasBrowserOutputShape(value: unknown): value is RealBuildBrowserOutput {
-  if (typeof value !== "object" || value === null) return false;
-  const candidate = value as Partial<RealBuildBrowserOutput>;
-  if (
-    candidate.schemaVersion !== "lego.real-build-browser-output/1" ||
-    !Array.isArray(candidate.reports) ||
-    !Array.isArray(candidate.identityBindings) ||
-    !Number.isFinite(candidate.totalElapsedMs) ||
-    (candidate.status !== "executed" && candidate.status !== "failed")
-  ) {
-    return false;
-  }
-  const failure = (candidate as { readonly failure?: unknown }).failure;
-  return candidate.status === "executed"
-    ? typeof candidate.documentJson === "string" && typeof candidate.fetchedPdfDigest === "string"
-    : typeof failure === "object" && failure !== null;
-}
-
 function deepFreezeDiagnosticValue(value: unknown, seen = new Set<object>()): void {
   if (typeof value !== "object" || value === null || seen.has(value)) return;
   seen.add(value);
@@ -586,7 +572,7 @@ export function finalizeExecutedRealBuildResult(input: {
       totalElapsedMs: 0,
     });
   }
-  if (!hasBrowserOutputShape(input.browserOutput)) {
+  if (!isRealBuildBrowserOutput(input.browserOutput, input.options)) {
     completionFailures = [
       malformedBrowserOutputFailure("schema, reports, or identity bindings are invalid."),
     ];
@@ -649,11 +635,13 @@ export function finalizeExecutedRealBuildResult(input: {
     inputDigests: input.options.inputDigests,
     inputFailures: [],
     completionFailures,
-    steps: hasBrowserOutputShape(input.browserOutput) ? input.browserOutput.reports : [],
+    steps: isRealBuildBrowserOutput(input.browserOutput, input.options)
+      ? input.browserOutput.reports
+      : [],
     documentJson,
     structuralHash,
     finalParts,
-    totalElapsedMs: hasBrowserOutputShape(input.browserOutput)
+    totalElapsedMs: isRealBuildBrowserOutput(input.browserOutput, input.options)
       ? input.browserOutput.totalElapsedMs
       : 0,
   };
