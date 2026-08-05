@@ -482,3 +482,35 @@ The repair was not to reword the document. It was to make the refusal executable
 
 **Anchor:** `assert_pinned_environment_for_retained_bundle` in `scripts/discover_builder_shell_core.py`, regression `test_retained_bundle_refuses_to_parse_outside_the_pinned_environment`, which fails with `AssertionError: retained bundle must not be parsed` when the gate is removed.
 Verified 2026-08-04 by running `where python` and `validate_worker_runtime()` under all four installed interpreters: clean return under 3.13.9 and 3.13.10, `ValueError` under 3.14.0 and 3.10.6.
+
+## A blocker you inherited is a claim, not a fact
+
+A handoff note recorded that Git writes were unavailable: an exact 15-path `git add` had hit a `.git/index.lock` permission error, and the escalation had been rejected by an approval-service quota said to last four more days.
+The next session read that, believed it, and planned around it — staging delivery for later, reporting the goal as blocked on infrastructure.
+Nothing was committed. Roughly four thousand lines of independently approved work sat in the working tree, unprotected, across two sessions.
+
+It took one command to disprove. `.git` was writable, no stale lock existed, `git add` returned 0, and the first `git push` succeeded on the first attempt.
+The original failure had been real but session-local; what was false was its promotion into a standing restriction.
+
+The same session then found the identical shape a second time, in the same handoff: "the only registered Python is 3.14.0", disproved by one `where python`.
+Two inherited claims, both asserted rather than measured, both load-bearing for a decision to not do work.
+
+The rule is not "distrust handoffs" — a handoff that records a real failure is doing its job.
+It is that a *blocker* is the one kind of inherited claim that must be retested before it is repeated, because its entire effect is to stop work, and it costs one command to check against days of not shipping.
+
+**Anchor:** commits `a6ebde8` through `88af17d` on 2026-08-04, 144 paths committed and pushed in fourteen pathspec commits after the inherited blocker was tested and found false; the same session's `where python` correction is recorded in [A safety barrier that lives only in a document is not a barrier](#a-safety-barrier-that-lives-only-in-a-document-is-not-a-barrier).
+
+## File metadata cannot see a same-size rewrite
+
+`sameFileState` compared `dev`, `ino`, `size`, `mtimeNs` and `ctimeNs` across a bounded read, and its error promised the file had not "changed identity, size, modification time, or change time while being read".
+On NTFS the default clock granularity is about 15.6 ms, so two same-size writes inside one tick are byte-identical in metadata: measured at 72.5–79.0% of 200 samples.
+A same-size rewrite injected before the read therefore returned the attacker's bytes with no error in 12 to 26 of 50 attempts, past the pre-open `lstat`, the `fstat` at open, the post-read comparison, the realpath re-check and the ancestor re-check.
+
+The guard test passed. It passed because an `await import(...)` sat between the write and the check, letting the clock tick; replayed without that incidental delay, 30 to 33 of 50 mutations went undetected.
+
+Two closures do not work and both look plausible.
+Reading twice and comparing fails because the dangerous rewrite completes *before* the read, so both reads return the same attacker bytes.
+Deny-write sharing fails because libuv maps `UV_FS_O_EXLOCK` to `share = 0`, which denies readers too and breaks on any concurrent process, and an exclusive open still cannot see a rewrite that already finished.
+What works is pinning content by digest where a digest exists, and saying so honestly where none does.
+
+**Anchor:** `expectedSha256` and `CONTENT_DIGEST_MISMATCH` in `apps/web/e2e/bounded-file-read.ts`, wired at six call sites that already held a digest and were checking it only after the read; regression `never returns same-tick pre-open rewritten bytes`, which returns attacker bytes in 13 of 40 attempts when the check is made a no-op. Attacker reads went from 12–26 of 50 to 0 of 50.

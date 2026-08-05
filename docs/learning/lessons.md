@@ -46,3 +46,5 @@ When a lesson becomes a gate — a test, a lint rule, a fixed command — delete
 - A shape test that works on a solid blob need not work on printed art; "it passes" and "it fires" are different claims. ([evidence](lessons-evidence.md#a-shape-test-that-works-on-a-solid-blob-need-not-work-on-printed-art))
 - A measurement computed after an early return reports zero, and zero reads as an absence. ([evidence](lessons-evidence.md#a-measurement-computed-after-an-early-return-reports-zero-and-zero-reads-as-an-absence))
 - A safety barrier that lives only in a document is not a barrier; state the machine fact you actually ran, then make the refusal executable. ([evidence](lessons-evidence.md#a-safety-barrier-that-lives-only-in-a-document-is-not-a-barrier))
+- A blocker you inherited is a claim, not a fact: retest it before repeating it, because its whole effect is to stop work. ([evidence](lessons-evidence.md#a-blocker-you-inherited-is-a-claim-not-a-fact))
+- File metadata cannot see a same-size rewrite, and a guard test that passes on an incidental clock tick is a false green. ([evidence](lessons-evidence.md#file-metadata-cannot-see-a-same-size-rewrite))
