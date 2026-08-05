@@ -90,13 +90,15 @@ export type CatalogAliasNamespace = "human" | "ldraw";
 
 export interface SourceProvenance {
   readonly sourceId: string;
-  readonly sourceType: "project-authored" | "interoperability-mapping";
+  readonly sourceType:
+    "project-authored" | "interoperability-mapping" | "external-bundled-geometry";
   readonly sourceVersion: string;
   readonly licenseExpression: string;
   readonly attribution: string;
   readonly runtimeRole:
     | "catalog-truth"
     | "parametric-runtime-geometry"
+    | "render-mesh-asset"
     | "display-color"
     | "interchange-identifier-only"
     | "interchange-frame-measurement";
@@ -349,6 +351,36 @@ export interface ParametricGeometryRecipe {
   readonly provenance: SourceProvenance;
 }
 
+/**
+ * A rendering-only reference into the closed set of mesh data preloaded by the
+ * application. The reference is deliberately not a path or URL: resolving it
+ * must never read a filesystem or cross a network boundary.
+ *
+ * Mesh vertices use their immutable source asset-local LDU frame. The recipe's
+ * explicit asset-to-catalog frame applies orientation and translation exactly
+ * once. `PartDefinition.ldrawFrame` is independent interchange truth and is
+ * never consulted by the mesh resolver. Collision, connectors, bounds, and
+ * every other catalog-truth field remain independently authored.
+ */
+export interface MeshReferenceGeometryRecipe {
+  readonly generatorId: "builtin:preloaded-mesh-reference/1";
+  readonly assetId: string;
+  readonly contentHash: `sha256:${string}`;
+  /**
+   * Integrity-bound normalization from the immutable asset-local coordinates
+   * into catalog-local LDU. This is part of the catalog digest and is separate
+   * from `PartDefinition.ldrawFrame`, which remains interchange-only truth.
+   */
+  readonly assetToCatalogFrame: {
+    readonly schemaVersion: "mesh-asset-to-catalog-frame/1";
+    readonly orientationId: string;
+    readonly translationLdu: LduVector3;
+  };
+  readonly provenance: SourceProvenance;
+}
+
+export type PartGeometryRecipe = ParametricGeometryRecipe | MeshReferenceGeometryRecipe;
+
 export interface InventoryMetadata {
   readonly availability: "builtin-unlimited";
   readonly knownMassGrams: null;
@@ -366,9 +398,15 @@ export interface PartDefinition {
     readonly provenance: SourceProvenance;
   };
   readonly dimensions: PartDimensions;
+  /**
+   * Catalog-local centre of the connector lattice when the part's authored
+   * origin is off-centre. Geometry-independent truth for snapping; legacy
+   * parametric parts may continue to carry it inside their recipe.
+   */
+  readonly connectorGridCenterLdu?: readonly [x: number, z: number];
   readonly bodyBoundsLdu: LduBounds;
   readonly boundsLdu: LduBounds;
-  readonly geometry: ParametricGeometryRecipe;
+  readonly geometry: PartGeometryRecipe;
   readonly connectors: readonly ConnectorPortDefinition[];
   readonly legalOrientationIds: readonly string[];
   readonly collision: PartCollisionDefinition;
@@ -377,6 +415,11 @@ export interface PartDefinition {
   readonly inventory: InventoryMetadata;
   readonly provenance: SourceProvenance;
 }
+
+/** The existing feature-derived catalog declarations, narrowed for their factory. */
+export type ParametricPartDefinition = Omit<PartDefinition, "geometry"> & {
+  readonly geometry: ParametricGeometryRecipe;
+};
 
 export interface ColorDefinition {
   readonly id: string;

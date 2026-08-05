@@ -86,7 +86,9 @@ function selectPartDefinitions(
 ): readonly PartDefinition[] {
   const preferred = recipe.partIds
     .map((id) => PART_DEFINITIONS.find((part) => part.id === id))
-    .filter((part): part is PartDefinition => part !== undefined && allowedPartIds.has(part.id));
+    .filter(
+      (part): part is NonNullable<typeof part> => part !== undefined && allowedPartIds.has(part.id),
+    );
   if (preferred.length === recipe.partIds.length) return preferred;
   const fallback = PART_DEFINITIONS.find(({ id }) => allowedPartIds.has(id));
   return fallback ? [fallback] : [];

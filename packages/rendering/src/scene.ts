@@ -66,7 +66,9 @@ export function deriveBrickScene(
   document: BrickDocumentV1,
   options: DeriveBrickSceneOptions = {},
 ): DerivedBrickScene {
-  assertRenderBudget(document);
+  const includeStuds = options.includeStuds ?? true;
+  const finish = options.finish ?? "flat";
+  assertRenderBudget(document, { includeStuds, finish });
   const diagnostics: RenderDiagnostic[] = [];
   const documentHash = documentStructuralHash(document);
   const locallyValidatedReport = validateBrickDocument(document);
@@ -105,8 +107,6 @@ export function deriveBrickScene(
   const validationReport = locallyValidatedReport;
   const invalidCodes = blockingCodesByPart(validationReport);
   const selectedPartIds = new Set(options.selectedPartIds ?? []);
-  const includeStuds = options.includeStuds ?? true;
-  const finish = options.finish ?? "flat";
   // Selection and validation overlays are the editor's opinion of the model,
   // not something a booklet prints. An instruction render exists to be compared
   // against booklet art, so an overlay in it is a false difference.
@@ -171,7 +171,7 @@ export function deriveBrickScene(
       catalogPartId: part.catalogPartId,
       colorId: part.colorId,
       orientationId: part.transform.orientationId,
-      placeholder: definition === undefined,
+      placeholder: definition === undefined || content.userData.placeholder === true,
       selected: selectedPartIds.has(part.id),
       invalid: blockingIssueCodes.length > 0,
       blockingIssueCodes,

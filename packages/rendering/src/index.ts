@@ -4,7 +4,7 @@ export * from "./camera-fit-lattice-phase.ts";
 export * from "./cameras.ts";
 export * from "./constants.ts";
 export * from "./coordinates.ts";
-export { createPlacementGhost, type GhostVerdict } from "./geometry.ts";
+export { createCatalogPartGeometry, createPlacementGhost, type GhostVerdict } from "./geometry.ts";
 export * from "./instruction-finish.ts";
 export * from "./instruction-view.ts";
 export { disposeObjectTree } from "./lifecycle.ts";

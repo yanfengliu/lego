@@ -16,9 +16,39 @@ import type { CatalogSnapshotDigestInput, ColorDefinition, PartDefinition } from
 import { sampleBodyArcPlanBoundary } from "./arc-plan.ts";
 import { COLOR_DEFINITIONS } from "./colors.ts";
 import { deepFreeze } from "./freeze.ts";
+import { validateMeshPartDefinitionAdmission } from "./mesh-admission.ts";
+import { resolvePreloadedMeshAsset } from "./mesh-assets.ts";
 import { PART_DEFINITIONS } from "./part-factory.ts";
 
 export { sampleBodyArcPlanBoundary, COLOR_DEFINITIONS, PART_DEFINITIONS };
+
+export class BuiltinCatalogMeshAdmissionError extends Error {
+  readonly code = "BUILTIN_CATALOG_MESH_ADMISSION_FAILED" as const;
+
+  constructor(message: string) {
+    super(message);
+    this.name = "BuiltinCatalogMeshAdmissionError";
+  }
+}
+
+/**
+ * Fail-closed production boundary. Tests may build synthetic resolvers, but a
+ * part entering the built-in snapshot must resolve through the exact immutable
+ * production registry and pass every mesh admission check during initialization.
+ */
+export function assertBuiltinCatalogMeshAdmissions(parts: readonly PartDefinition[]): void {
+  for (const part of parts) {
+    if (part.geometry.generatorId !== "builtin:preloaded-mesh-reference/1") continue;
+    const result = validateMeshPartDefinitionAdmission(part, resolvePreloadedMeshAsset);
+    if (!result.accepted) {
+      throw new BuiltinCatalogMeshAdmissionError(
+        `Built-in catalog rejected mesh part ${part.id}: ${result.issues.map(({ code, message }) => `${code}: ${message}`).join("; ")}`,
+      );
+    }
+  }
+}
+
+assertBuiltinCatalogMeshAdmissions(PART_DEFINITIONS);
 
 const normalizeLookupKey = (value: string): string =>
   value

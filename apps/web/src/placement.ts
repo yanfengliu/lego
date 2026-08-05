@@ -65,7 +65,22 @@ export function worldFootprint(definition: PartDefinition, orientationId: string
   const { quarterTurns } = getUprightOrientation(orientationId);
   const swapped = quarterTurns % 2 === 1;
   const { widthStuds, lengthStuds, heightLdu } = definition.dimensions;
-  const [gridCenterX, gridCenterZ] = definition.geometry.connectorGridCenterLdu ?? [0, 0];
+  const connectorGridCenter =
+    definition.connectorGridCenterLdu ??
+    (definition.geometry.generatorId === "builtin:preloaded-mesh-reference/1"
+      ? undefined
+      : (definition.geometry.connectorGridCenterLdu ?? [0, 0]));
+  if (connectorGridCenter === undefined) {
+    throw new PlacementError(
+      `Cannot snap mesh-backed catalog part ${definition.id}: connectorGridCenterLdu is missing from its geometry-independent PartDefinition truth. Declare the catalog-local connector-grid centre; assuming [0, 0] can put its authored connectors off the shared stud lattice.`,
+    );
+  }
+  if (connectorGridCenter.length !== 2 || !connectorGridCenter.every(Number.isSafeInteger)) {
+    throw new PlacementError(
+      `Cannot snap catalog part ${definition.id}: connectorGridCenterLdu must contain exactly two safe-integer LDU coordinates so snapping yields a serializable canonical transform; received [${connectorGridCenter.join(", ")}].`,
+    );
+  }
+  const [gridCenterX, gridCenterZ] = connectorGridCenter;
   const localFirst: LduVector3 = [
     gridCenterX - ((widthStuds - 1) * STUD_PITCH_LDU) / 2,
     0,
@@ -139,6 +154,35 @@ export interface SnapPlacementOptions {
   readonly supportUndersideLdu?: number;
 }
 
+export interface DefinitionSnapPlacementOptions {
+  readonly definition: PartDefinition;
+  readonly orientationId: string;
+  /** Unsnapped cursor position in canonical LDU. */
+  readonly rawLdu: LduVector3;
+  /** World Y the part's underside should rest on; defaults to the build plate. */
+  readonly supportUndersideLdu?: number;
+}
+
+/** Core snap operation for an already resolved catalog definition. */
+export function snapPlacementOriginForDefinition({
+  definition,
+  orientationId,
+  rawLdu,
+  supportUndersideLdu = GROUND_UNDERSIDE_LDU,
+}: DefinitionSnapPlacementOptions): LduVector3 {
+  if (!rawLdu.every((coordinate) => Number.isFinite(coordinate))) {
+    throw new PlacementError(
+      `Placement needs a finite LDU position, received [${rawLdu.join(", ")}]`,
+    );
+  }
+  const footprint = worldFootprint(definition, orientationId);
+  return [
+    snapLateral(rawLdu[0], footprint.originOffsetX),
+    snapSupportSurface(supportUndersideLdu) - footprint.heightLdu / 2,
+    snapLateral(rawLdu[2], footprint.originOffsetZ),
+  ];
+}
+
 /**
  * Resolves a raw pointer position to the nearest legal origin for a part. The
  * result is always integral and lattice-aligned, so it is directly
@@ -156,12 +200,12 @@ export function snapPlacementOrigin({
     );
   }
   const definition = requireDefinition(catalogPartId);
-  const footprint = worldFootprint(definition, orientationId);
-  return [
-    snapLateral(rawLdu[0], footprint.originOffsetX),
-    snapSupportSurface(supportUndersideLdu) - footprint.heightLdu / 2,
-    snapLateral(rawLdu[2], footprint.originOffsetZ),
-  ];
+  return snapPlacementOriginForDefinition({
+    definition,
+    orientationId,
+    rawLdu,
+    supportUndersideLdu,
+  });
 }
 
 /** World-space AABB of a part's solid body, excluding its studs. */

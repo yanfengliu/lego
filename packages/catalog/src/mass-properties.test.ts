@@ -1,11 +1,20 @@
 import { describe, expect, it } from "vitest";
 
-import { PART_DEFINITIONS, getPartDefinition, partMassGrams, partMassProperties } from "./index.js";
+import {
+  PART_DEFINITIONS,
+  getPartDefinition,
+  partMassGrams,
+  partMassProperties,
+  type ParametricPartDefinition,
+} from "./index.js";
 
-const require = (id: string) => {
+const require = (id: string): ParametricPartDefinition => {
   const part = getPartDefinition(id);
   if (!part) throw new Error(`test needs ${id} in the catalog`);
-  return part;
+  if (part.geometry.generatorId === "builtin:preloaded-mesh-reference/1") {
+    throw new Error(`test needs ${id} to retain its legacy parametric recipe`);
+  }
+  return part as ParametricPartDefinition;
 };
 
 describe("partMassProperties", () => {

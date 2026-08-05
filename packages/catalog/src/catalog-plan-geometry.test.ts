@@ -5,11 +5,21 @@ import {
   getPartDefinition,
   PART_DEFINITIONS,
   type PartDefinition,
+  type ParametricPartDefinition,
   sampleBodyArcPlanBoundary,
   STUD_HEIGHT_LDU,
   STUD_PITCH_LDU,
   STUD_RADIUS_LDU,
 } from "./index.js";
+
+function requireParametricPart(id: string): ParametricPartDefinition {
+  const part = getPartDefinition(id);
+  if (part === undefined) throw new Error(`test needs ${id} in the catalog`);
+  if (part.geometry.generatorId === "builtin:preloaded-mesh-reference/1") {
+    throw new Error(`test needs ${id} to retain its legacy parametric recipe`);
+  }
+  return part as PartDefinition & ParametricPartDefinition;
+}
 
 /**
  * Which cells of a compound part's footprint carry a stud and which carry a
@@ -44,7 +54,7 @@ const COMPOUND_CELLS: Readonly<
  * Connector cells whose complete stud circle is backed. A wedge's sloped edge
  * may contain the centre while failing to support the incoming stud footprint.
  */
-const cellHoldsStudFootprint = (part: PartDefinition, x: number, z: number): boolean => {
+const cellHoldsStudFootprint = (part: ParametricPartDefinition, x: number, z: number): boolean => {
   const wedge = part.collision.primitives.find((primitive) => primitive.kind === "wedge");
   if (!wedge) return true;
   return [
@@ -58,7 +68,7 @@ const cellHoldsStudFootprint = (part: PartDefinition, x: number, z: number): boo
   );
 };
 
-const solidCellCount = (part: PartDefinition): number => {
+const solidCellCount = (part: ParametricPartDefinition): number => {
   if (NO_CLUTCH_FAMILIES.has(part.family)) return 0;
   if (part.geometry.clutchOffsetsLdu !== undefined) return part.geometry.clutchOffsetsLdu.length;
   const compound = COMPOUND_CELLS[part.id];
@@ -77,7 +87,7 @@ const solidCellCount = (part: PartDefinition): number => {
   return count;
 };
 
-const expectedStudCells = (part: PartDefinition): number => {
+const expectedStudCells = (part: ParametricPartDefinition): number => {
   const compound = COMPOUND_CELLS[part.id];
   if (compound) return compound.studs.length;
   if (SMOOTH_TOP_FAMILIES.has(part.family)) return 0;
@@ -340,8 +350,8 @@ describe("catalog plan geometry", () => {
 
   it("derives bounded, disjoint conservative prisms from each smooth body arc", () => {
     const arcParts = [
-      getPartDefinition("builtin:corner-plate-4x4-round")!,
-      getPartDefinition("builtin:corner-plate-5x5-quarter-ring")!,
+      requireParametricPart("builtin:corner-plate-4x4-round"),
+      requireParametricPart("builtin:corner-plate-5x5-quarter-ring"),
     ];
     const primitiveCosts: number[] = [];
 

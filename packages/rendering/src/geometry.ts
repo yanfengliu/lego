@@ -2,11 +2,15 @@ import {
   STUD_HEIGHT_LDU,
   STUD_RADIUS_LDU,
   getColorDefinition,
+  resolvePreloadedMeshAsset,
   sampleBodyArcPlanBoundary,
   type BodyArcFeature,
   type CollisionWedge,
   type LduBounds,
+  type MeshAssetResolver,
   type PartDefinition,
+  type PreloadedMeshGroup,
+  type ResolvedMeshAsset,
 } from "@lego-studio/catalog";
 import type { PartInstance, RigidTransform } from "@lego-studio/protocol";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
@@ -26,6 +30,7 @@ import {
   MeshPhysicalMaterial,
   MeshStandardMaterial,
   ShapeUtils,
+  Uint32BufferAttribute,
   Vector2,
 } from "three";
 
@@ -319,13 +324,164 @@ function partRotation(part: PartInstance): Matrix3 {
   }
 }
 
+interface SelectedResolvedMesh {
+  readonly positionsLdu: readonly number[];
+  readonly indices: readonly number[] | null;
+  readonly groups: readonly PreloadedMeshGroup[];
+}
+
+function selectResolvedMesh(
+  asset: ResolvedMeshAsset,
+  includeStuds: boolean,
+  selectedRole?: PreloadedMeshGroup["role"],
+): SelectedResolvedMesh {
+  if (includeStuds && selectedRole === undefined) return asset;
+
+  const positionsLdu: number[] = [];
+  const indices: number[] = [];
+  const groups: PreloadedMeshGroup[] = [];
+  const remappedVertex = new Map<number, number>();
+  let selectedTriangleStart = 0;
+  const includedRole = selectedRole ?? "body";
+  for (const group of asset.groups) {
+    if (group.role !== includedRole) continue;
+    groups.push({
+      role: group.role,
+      triangleStart: selectedTriangleStart,
+      triangleCount: group.triangleCount,
+    });
+    selectedTriangleStart += group.triangleCount;
+    for (
+      let triangle = group.triangleStart;
+      triangle < group.triangleStart + group.triangleCount;
+      triangle += 1
+    ) {
+      for (let corner = 0; corner < 3; corner += 1) {
+        const sourceIndex = asset.indices?.[triangle * 3 + corner] ?? triangle * 3 + corner;
+        let selectedIndex = remappedVertex.get(sourceIndex);
+        if (selectedIndex === undefined) {
+          selectedIndex = positionsLdu.length / 3;
+          remappedVertex.set(sourceIndex, selectedIndex);
+          const sourceOffset = sourceIndex * 3;
+          positionsLdu.push(
+            asset.positionsLdu[sourceOffset]!,
+            asset.positionsLdu[sourceOffset + 1]!,
+            asset.positionsLdu[sourceOffset + 2]!,
+          );
+        }
+        indices.push(selectedIndex);
+      }
+    }
+  }
+  return { positionsLdu, indices, groups };
+}
+
+function createResolvedMeshGeometry(
+  asset: ResolvedMeshAsset,
+  includeStuds: boolean,
+  selectedRole?: PreloadedMeshGroup["role"],
+) {
+  const { positionsLdu, indices, groups } = selectResolvedMesh(asset, includeStuds, selectedRole);
+  const positions = new Float32Array(positionsLdu.length);
+  for (let index = 0; index < positionsLdu.length; index += 3) {
+    const position = lduToThreeVector([
+      positionsLdu[index]!,
+      positionsLdu[index + 1]!,
+      positionsLdu[index + 2]!,
+    ]);
+    positions[index] = position.x;
+    positions[index + 1] = position.y;
+    positions[index + 2] = position.z;
+  }
+
+  const geometry = new BufferGeometry();
+  geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+  if (indices !== null) {
+    geometry.setIndex(new Uint32BufferAttribute(new Uint32Array(indices), 1));
+  }
+  for (const group of groups) {
+    geometry.addGroup(group.triangleStart * 3, group.triangleCount * 3, 0);
+  }
+  geometry.userData = {
+    meshTriangleGroups: groups.map((group) => ({ ...group })),
+    includedMeshRoles: [...new Set(groups.map(({ role }) => role))],
+  };
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
 export function createCatalogPartGeometry(
   part: PartInstance,
   definition: PartDefinition,
   includeStuds: boolean,
   diagnostics: RenderDiagnostic[],
   finish: BrickFinish = "flat",
+  resolveMeshAsset: MeshAssetResolver = resolvePreloadedMeshAsset,
 ): Group {
+  if (definition.geometry.generatorId === "builtin:preloaded-mesh-reference/1") {
+    const resolution = resolveMeshAsset(definition.geometry);
+    if (!resolution.ok) {
+      diagnostics.push({ code: resolution.code, message: resolution.message, partId: part.id });
+      return createPlaceholderGeometry(part, definition.boundsLdu, resolution.code);
+    }
+
+    const group = new Group();
+    const metadata = geometryMetadata(definition);
+    const { displayHex, fallback } = resolveDisplayHex(part, diagnostics);
+    const material = makeMaterial(part, displayHex, fallback, finish);
+    const instruction = finish === "instruction";
+    const rotation = instruction ? partRotation(part) : null;
+    const outlineMaterial = instruction ? createInstructionInkMaterial(displayHex, part.id) : null;
+    const renderRoles: readonly InstructionSurface[] =
+      instruction && includeStuds && resolution.asset.groups.some(({ role }) => role === "stud")
+        ? ["body", "stud"]
+        : ["body"];
+    for (const renderRole of renderRoles) {
+      const source = createResolvedMeshGeometry(
+        resolution.asset,
+        includeStuds,
+        instruction ? renderRole : undefined,
+      );
+      const includedMeshRoles = source.userData.includedMeshRoles;
+      if (outlineMaterial) {
+        group.add(
+          createInstructionOutline(
+            source,
+            outlineMaterial,
+            `${renderRole}-outline:${part.id}`,
+            part.id,
+          ),
+        );
+      }
+      const geometry = rotation
+        ? instructionFillGeometry(source, rotation, displayHex, renderRole)
+        : source;
+      geometry.userData = {
+        ...metadata,
+        renderRole: `${renderRole}-geometry`,
+        meshAssetId: resolution.asset.assetId,
+        includedMeshRoles,
+      };
+      const mesh = new Mesh(geometry, material);
+      mesh.name = `${renderRole}:${part.id}`;
+      mesh.castShadow = !instruction;
+      mesh.receiveShadow = !instruction;
+      mesh.userData = {
+        renderRole,
+        partId: part.id,
+        primitiveId: `mesh:${resolution.asset.assetId}`,
+      };
+      group.add(mesh);
+    }
+    group.userData = {
+      renderRole: "catalog-part-geometry",
+      catalogPartId: definition.id,
+      sourceOfTruth: "preloaded-mesh-asset",
+      placeholder: false,
+    };
+    return group;
+  }
+
   const group = new Group();
   const metadata = geometryMetadata(definition);
   const { displayHex, fallback } = resolveDisplayHex(part, diagnostics);
@@ -521,16 +677,33 @@ export function createCatalogPartGeometry(
   return group;
 }
 
-export function createPlaceholderGeometry(part: PartInstance): Group {
+export function createPlaceholderGeometry(
+  part: PartInstance,
+  bounds: LduBounds = PLACEHOLDER_BOUNDS,
+  reason: string = "UNKNOWN_CATALOG_PART",
+): Group {
   const group = new Group();
-  const geometry = new BoxGeometry(1, 1, 1);
-  geometry.userData = { renderRole: "placeholder-geometry" };
-  const material = new MeshBasicMaterial({ color: FALLBACK_COLOR, wireframe: true });
-  material.userData = { renderRole: "placeholder-material" };
+  const low = lduToThreeVector(bounds.min);
+  const high = lduToThreeVector(bounds.max);
+  const geometry = new BoxGeometry(
+    Math.abs(high.x - low.x),
+    Math.abs(high.y - low.y),
+    Math.abs(high.z - low.z),
+  );
+  geometry.userData = { renderRole: "placeholder-geometry", reason };
+  const material = new MeshBasicMaterial({
+    color: FALLBACK_COLOR,
+    wireframe: true,
+    depthTest: false,
+  });
+  material.userData = { renderRole: "placeholder-material", reason };
   const mesh = new Mesh(geometry, material);
   mesh.name = `placeholder:${part.id}`;
-  mesh.userData = { renderRole: "placeholder", partId: part.id };
+  mesh.position.addVectors(low, high).multiplyScalar(0.5);
+  mesh.renderOrder = 1_000;
+  mesh.userData = { renderRole: "placeholder", partId: part.id, reason };
   group.add(mesh);
+  group.userData = { renderRole: "placeholder-group", placeholder: true, reason };
   return group;
 }
 
@@ -584,17 +757,8 @@ export function createPlacementGhost(
   definition: PartDefinition,
   transform: RigidTransform,
   verdict: GhostVerdict,
+  resolveMeshAsset: MeshAssetResolver = resolvePreloadedMeshAsset,
 ): Group {
-  const material = new MeshStandardMaterial({
-    color: GHOST_COLORS[verdict],
-    metalness: 0,
-    roughness: 0.5,
-    transparent: true,
-    opacity: 0.55,
-    depthWrite: false,
-  });
-  material.userData = { renderRole: "placement-ghost-material", verdict };
-
   // Build from the same source feature path as the placed part. A dimensions
   // box fills a ring's opening, restores a wedge's cut corner, and recentres an
   // asymmetric raw part such as 80015, so it can falsely show either clearance
@@ -615,12 +779,38 @@ export function createPlacementGhost(
     true,
     diagnostics,
     "flat",
+    resolveMeshAsset,
   );
   if (diagnostics.length > 0) {
+    if (group.userData.placeholder === true) {
+      lduTransformToThreeMatrix(transform).decompose(group.position, group.quaternion, group.scale);
+      group.updateMatrix();
+      group.renderOrder = 1_000;
+      group.name = "placement-ghost";
+      group.userData = {
+        ...group.userData,
+        renderRole: "placement-ghost",
+        catalogPartId: definition.id,
+        verdict,
+        sourceOfTruth: "catalog-mesh-placeholder",
+        placeholder: true,
+        diagnostics: diagnostics.map(({ code, message }) => ({ code, message })),
+      };
+      return group;
+    }
     throw new RangeError(
       `Placement ghost for ${definition.id} could not derive catalog geometry: ${diagnostics.map(({ message }) => message).join("; ")}`,
     );
   }
+  const material = new MeshStandardMaterial({
+    color: GHOST_COLORS[verdict],
+    metalness: 0,
+    roughness: 0.5,
+    transparent: true,
+    opacity: 0.55,
+    depthWrite: false,
+  });
+  material.userData = { renderRole: "placement-ghost-material", verdict };
   const replacedMaterials = new Set<Material>();
   group.traverse((object) => {
     if (!(object instanceof Mesh)) return;
@@ -648,6 +838,7 @@ export function createPlacementGhost(
     catalogPartId: definition.id,
     verdict,
     sourceOfTruth: "catalog-derived-display",
+    placeholder: false,
   };
   return group;
 }

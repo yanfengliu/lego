@@ -8,7 +8,7 @@ import {
   STUD_RADIUS_LDU,
   UPRIGHT_ORIENTATIONS,
 } from "./constants.ts";
-import type { CollisionPrimitive, LduBounds, PartDefinition } from "./types.ts";
+import type { CollisionPrimitive, LduBounds, ParametricPartDefinition } from "./types.ts";
 
 import { arcCollisionPrimitives } from "./arc-plan.ts";
 import { AVAILABLE_COLOR_IDS } from "./colors.ts";
@@ -32,7 +32,7 @@ import {
 } from "./part-factory-support.ts";
 
 /** Internal deterministic compiler exported for adversarial blueprint tests. */
-export const makePartDefinition = (blueprint: PartBlueprint): PartDefinition => {
+export const makePartDefinition = (blueprint: PartBlueprint): ParametricPartDefinition => {
   const {
     family,
     widthStuds,
@@ -221,6 +221,6 @@ export const makePartDefinition = (blueprint: PartBlueprint): PartDefinition => 
   });
 };
 
-export const PART_DEFINITIONS: readonly PartDefinition[] = deepFreeze(
+export const PART_DEFINITIONS: readonly ParametricPartDefinition[] = deepFreeze(
   PART_BLUEPRINTS.map(makePartDefinition),
 );

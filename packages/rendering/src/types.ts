@@ -1,4 +1,5 @@
 import type { BrickDocumentV1, ValidationReportV1 } from "@lego-studio/protocol";
+import type { MeshAssetResolutionErrorCode } from "@lego-studio/catalog";
 import type { Box3, Camera, Group } from "three";
 
 export type RenderDiagnosticCode =
@@ -8,7 +9,8 @@ export type RenderDiagnosticCode =
   | "UNKNOWN_CATALOG_PART"
   | "UNKNOWN_COLOR"
   | "UNKNOWN_ORIENTATION"
-  | "VALIDATION_REPORT_MISMATCH";
+  | "VALIDATION_REPORT_MISMATCH"
+  | MeshAssetResolutionErrorCode;
 
 export interface RenderDiagnostic {
   readonly code: RenderDiagnosticCode;

@@ -223,7 +223,10 @@ describe("measured set 6651557 catalog parts", () => {
           kind === "undersideClutch" && positionLdu[0] === 50 && positionLdu[2] === -70,
       ),
     ).toBe(false);
-    expect(getPartDefinition("builtin:corner-plate-4x4-round")!.geometry.bodyArc).toEqual({
+    const roundPart = getPartDefinition("builtin:corner-plate-4x4-round")!;
+    expect(roundPart.geometry.generatorId).not.toBe("builtin:preloaded-mesh-reference/1");
+    if (roundPart.geometry.generatorId === "builtin:preloaded-mesh-reference/1") return;
+    expect(roundPart.geometry.bodyArc).toEqual({
       centerXZLdu: [-40, 40],
       innerRadiusLdu: 0,
       outerRadiusLdu: 80,

@@ -25,7 +25,9 @@ Undo and redo, project save and load, LDraw import and export, a searchable cata
 
 Connector kinds are `stud` and `undersideClutch` only — nothing articulated.
 Selection is single-part; there is no multi-select or box select.
-The asset pipeline is a parametric box, wedge, cylinder, and analytic-plan generator plus the LDraw fact reader, with no imported-mesh stage.
+The asset pipeline has the parametric box, wedge, cylinder and analytic-plan generators, the LDraw fact reader, and a closed preloaded-mesh renderer whose immutable registry caps asset, vertex, triangle and byte totals, whose successful frame-resolution cache is a fixed-size LRU, whose admission checks content hash, generic asset-local frame and represented connector/collision/body/visual bounds, and whose finish-aware scene budget accounts for indexed sources, de-indexed instruction fills, role splits, colors and outlines.
+Its production mesh registry is empty and no catalog part is mesh-backed yet, so the capability exists without claiming that the required set geometry has been admitted.
+The retained six-part 6651557 pilot is the measurable intermediate for that admission: six exact LDraw closures (70 unique files), checked file-by-file against the complete exact 439-record source audit, cover six designs while independently rehashed Builder native record slices cover five, and its pressure rows show where fractional bounds, non-upright connectivity and oriented collision exceed the current representation. It remains local measurement evidence only; the repaired source-integrity unit has passed fresh adversarial approval, and a scored comparison of two distinct source strategies rather than a bulk catalog import is next.
 Collision does a one-dimensional sweep on x with an early break, which is sweep-and-prune, but connector lookup is linear.
 
 **Not built at all.**

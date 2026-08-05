@@ -1,8 +1,12 @@
-import { UPRIGHT_ORIENTATIONS, type LduVector3 } from "@lego-studio/catalog";
+import {
+  MESH_RENDER_UNITS_PER_LDU,
+  UPRIGHT_ORIENTATIONS,
+  type LduVector3,
+} from "@lego-studio/catalog";
 import type { RigidTransform } from "@lego-studio/protocol";
 import { Matrix4, Vector3 } from "three";
 
-export const THREE_UNITS_PER_LDU = 0.05 as const;
+export const THREE_UNITS_PER_LDU = MESH_RENDER_UNITS_PER_LDU;
 
 export class RenderTransformError extends Error {
   constructor(message: string) {
