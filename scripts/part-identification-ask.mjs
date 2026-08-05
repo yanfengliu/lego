@@ -52,6 +52,22 @@ function writeJson(path, value) {
 const PROMPT = PART_IDENTIFICATION_PROMPT;
 
 /**
+ * The child environment for one vision call.
+ *
+ * The consent that permits this call covers booklet crops reaching the pinned
+ * model, and nothing else. Left to itself the CLI also runs a small background
+ * model over the same session for conversation bookkeeping, which both widens
+ * that scope and puts a second entry in `modelUsage` — so the response can no
+ * longer prove that one pinned model, and only that model, produced the answer.
+ * Turning the non-essential traffic off is what makes the single-entry check in
+ * `responseModelIdentity` an enforceable statement rather than one that fails
+ * against every real CLI.
+ */
+function visionChildEnv(base = process.env) {
+  return { ...base, CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1" };
+}
+
+/**
  * The vision call, headless.
  *
  * `claude -p` is a real executable on every platform this runs on, so it is
@@ -98,6 +114,7 @@ async function askBatch(cardIds, model, out = OUT, context = {}) {
           maxStdoutBytes: context.maxStdoutBytes ?? MAX_CHILD_STDOUT_BYTES,
           maxStderrBytes: context.maxStderrBytes ?? MAX_CHILD_STDERR_BYTES,
           spawnImpl: context.spawnImpl,
+          env: visionChildEnv(context.env),
           inheritFds,
         },
       );

@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 
+import { PART_IDENTIFICATION_MODEL_ID } from "../../../scripts/part-identification-model.mjs";
 import { BoundedFileReadError, readContainedBoundedRegularFile } from "./bounded-file-read";
 import {
   verifyHighlightExclusivityCompatibility,
@@ -49,7 +50,7 @@ export const IDENTIFICATION_CARD_IMAGES_PATH =
   "output/part-identification/cards/images.bin";
 export const IDENTIFICATION_ANSWERS_PATH =
   process.env.LEGO_REAL_BUILD_IDENTIFICATION_ANSWERS ??
-  "output/part-identification/answers-claude-opus-4-8.json";
+  `output/part-identification/answers-${PART_IDENTIFICATION_MODEL_ID}.json`;
 export const ELEMENT_RESOLUTION_PATH =
   process.env.LEGO_REAL_BUILD_ELEMENT_RESOLUTION ??
   "output/part-identification/element-resolution.json";

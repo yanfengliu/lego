@@ -1,9 +1,9 @@
-export const PART_IDENTIFICATION_MODEL_ID = "claude-opus-4-8";
+export const PART_IDENTIFICATION_MODEL_ID = "claude-opus-5";
 
 export const PART_IDENTIFICATION_MODEL_IDENTITY = Object.freeze({
   requestedModelId: PART_IDENTIFICATION_MODEL_ID,
   responseModelId: PART_IDENTIFICATION_MODEL_ID,
-  canonicalModel: "claude-opus-4-8",
+  canonicalModel: "claude-opus-5",
   provider: "firstParty",
 });
 

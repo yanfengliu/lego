@@ -417,7 +417,13 @@ It is a real check rather than a formality — it is the reason a model that rea
 
 The lesson is not that model calls do not belong here. It is that the pairing of a free answer with a closed-set answer is what makes one safe to use, and that stud counting on a 200-pixel booklet thumbnail is beyond a small model — Sonnet read the same 3x3 plate correctly where Haiku called it 4x4, at roughly fifteen times the wall clock per call.
 
-**Anchor:** `visionPick` and `describesSameThing` in `scripts/part-identification-score.mjs`; the adjudicated variants that carry `descriptionAgreement.either` 214 of 265 were measured on the 870-callout closure generation and are retained as `output/part-identification/history/score-adjudicated-*-stale-*.json` beside `history/answers-haiku-stale-2d0c01db.json` and `history/answers-sonnet-legacy-7e8559d4.json`. They cannot be recomputed from the current 863-callout closure without a separately authorized model call, so the live `score-*.json` set is deterministic only.
+A frontier model does not retire the check, and it does not move the answer either.
+Opus 5 answered all 273 drawings of the live closure and contradicted itself on 140 of the 233 it could be checked on, so 93 picks survived — 37% of its 252 positive proposals, against Haiku's 51 of 265.
+What those 93 bought, under the one-to-one assignment the headline uses, was nothing at all: 0 of 273 drawings changed, 0 of 863 callouts, 0 pieces, and conservation and first-fifty accuracy identical to geometry alone at 203/276 elements, 1313/1465 pieces and 161/185 callouts.
+Under `nearest` it moved 3 drawings and 22 pieces for +1 element and +17 pieces; under `quantity-informed` it moved 10 drawings and 44 pieces and lost 2 elements and 8 pieces.
+A global assignment over 273 drawings and 276 elements is already so constrained that a per-drawing prior worth a 0.22 discount changes almost nothing, which is the thing to measure before buying another pass.
+
+**Anchor:** `visionPick` and `describesSameThing` in `scripts/part-identification-score.mjs`; the adjudicated variants that carry `descriptionAgreement.either` 214 of 265 were measured on the 870-callout closure generation and are retained as `output/part-identification/history/score-adjudicated-*-stale-*.json` beside `history/answers-haiku-stale-2d0c01db.json` and `history/answers-sonnet-legacy-7e8559d4.json`. The Opus 5 pass is the live `output/part-identification/answers-claude-opus-5.json` and the `score-adjudicated-*.json` set it produced, whose `descriptionAgreement.either` is 158 of 265 and whose `picked` tally is 346 vision-kept, 41 vision-overruled, 395 self-contradicted, 44 description-unverifiable, 37 refused.
 
 ## A plate of height projects to a third of a stud, so a looser tolerance cannot see layers
 
@@ -557,3 +563,48 @@ The sharper corollary is about mirrors.
 Every one of these parts has a mirror self-symmetry, so a mirrored frame and a proper one are the same frame described twice and no amount of measuring them can tell handedness apart. 5092 is the only pilot part whose symmetry group is trivial, and it is therefore the only place where handedness is a measurement rather than a convention — its best mirrored frame is 5.0x worse. One asymmetric specimen decided a property of all five.
 
 **Anchor:** `exact_frames`, `frames_modulo_symmetry` and `canonical_frame` in `scripts/builder_ldraw_frame.py`; `ldraw_self_symmetries` and `mesh_disagreement` in `scripts/builder_ldraw_frame_witness.py`; regression `test_a_symmetric_part_admits_several_frames_that_are_one_class` in `scripts/builder_ldraw_frame_test.py`. Measured 2026-08-05 over the six-part 6651557 pilot: 8/4/2/8 exact frames reducing to 4/1/1/2 classes for 51739/35480/77844/93273, selection margins 27.8x and 18.5x, 5092 mirror margin 5.0x.
+
+## A clearance probe answers whether a stud fits, never whether anything holds it
+
+Bringing the LDCad Shadow Library in as a third connector source produced 21 under-stud clutch candidates across the six-part 6651557 pilot, and all 21 passed the `clutchRoom` probe against the expanded LDraw surface: the nominal 6 by 4 LDU stud volume was clear and the face was open on every one, worst intrusion 0.117147353 LDU against a 0.230576635 LDU bound.
+Read as a verdict that would have said LDCad is right about all 21. It is not one.
+Two of those cells are on 51739 at (±30, 8, 10), where LEGO Builder's authored field deliberately declares nothing, and the probe passes there for the same reason it passes everywhere on an underside: an underside is a cavity, so of course a stud fits.
+The reverse case is on the same six parts. Builder authors five clutches on 77844 and LDCad authors none, and no probe fires at all on a cell nobody declared, so the geometry is equally silent about the five missing ones.
+
+What does bear on it is a different measurement: how far the claimed cell sits from a real underside tube, because a stud is gripped between the tubes and walls at the corners of its own cell.
+Every cell the two sources agree on has a tube exactly 10 LDU away in both plan axes. The two LDCad-only cells on 51739 have their nearest tube 30 LDU away.
+That is evidence and still not a verdict — two cells *both* sources author on 93273, at (0, 0, ±30), also have their nearest tube 30 LDU away, and there walls do the gripping.
+So the honest output is the disagreement itself: 11 of Builder's 16 pilot cells independently confirmed at 0 LDU, 2 LDCad-only, 5 Builder-only, with the geometry recorded beside each and neither source declared the winner.
+
+**Anchor:** `measure_clutch_room` in `scripts/part_admission_clutch.py` driving candidates from `emit_clutch_connectors` in `scripts/ldcad_shadow_connectors.py`; `grip_evidence` and `compare_positions` in `scripts/derive-ldcad-shadow-connectors.py`; regressions `test_every_emitted_clutch_passes_the_clutch_room_probe` and `test_the_two_disagreements_are_recorded_rather_than_smoothed` in `scripts/ldcad_shadow_test.py`. Measured 2026-08-05 over the six-part 6651557 pilot: 21/21 clutches with room, 11 agreeing cells, 2 LDCad-only, 5 Builder-only.
+
+## The editor keeps its document in IndexedDB, so reloading is not a fresh plate
+
+Proving the five newly admitted 6651557 parts could actually be placed meant driving the served app and clicking the plate once per part, reloading between them so each placement stood on its own.
+Every part after the first came back with `partCount: 1` and the same structural hash `sha256:d60cdce0...`, naming only the tile placed first.
+Read quickly that says four of the five parts cannot be placed. It says nothing of the kind.
+The editor persists its project through `indexeddb-project-repository.ts`, so `page.goto` reloaded the app onto the document that was already there, the click landed on a plate that already had a tile at the centre, and the command refused it — which is the editor doing exactly what it is supposed to do, because an illegal placement is refused at the command rather than flagged afterwards.
+Clearing `localStorage` first did not help either, because that is not where the document lives.
+
+A fresh browser context per part fixed it in one line and turned the same five clicks into five distinct structural hashes with zero blocking issues each.
+The general shape: when a UI check reuses one page, the app's own persistence becomes a hidden input to every step after the first, and a correct refusal is indistinguishable from a broken feature. Give each independent assertion its own context, or assert on a state you cleared through the app's own controls rather than through the browser's.
+
+**Anchor:** `apps/web/src/persistence/indexeddb-project-repository.ts`; measured 2026-08-05 driving the served app at `builtin.basic-parts/7`. Shared page: 5 placements, 1 part, one hash `sha256:d60cdce0...`. Context per part: 5 placements, 5 parts, 5 hashes, 0 blocking issues each.
+
+## Grading a free-text answer against a controlled vocabulary measures wording, not sight
+
+The identification prompt asks the model for a `"<plain colour name>"`, and `describesSameThing` accepts the answer only if it equals the element's LDraw display name after normalisation.
+Those are two different vocabularies, and LEGO greys are exactly where they part company.
+Over the 273-drawing Opus 5 pass, colour was the axis that rejected most: 90 disagreements against 55 on stud size and 35 on kind.
+63 of the 140 self-contradictions were colour alone, with shape and stud size both agreeing — the model had the part right and lost it on the word.
+
+Splitting those 63 says which half is the model's problem.
+23 drawings, 84 pieces, said "light gray" where the sticker says "Light Bluish Gray": the same colour under LEGO's own two names for it.
+19 drawings, 130 pieces, gave the hue without the shade — "blue" against "Dark Blue", "grey" against "Dark Bluish Gray" — which is what "plain colour name" invites.
+Only 21 are the model actually misreading: 7 called a dark part light, and 14 called a black part dark gray.
+
+So two thirds of the strictest check's rejections were the harness disagreeing with itself about vocabulary.
+The check is still worth having and must not be loosened to make the number look better — "dark gray" for a black brick is a real error and belongs in the same bucket as a wrong stud count.
+The fix is at the other end: a prompt that grades against a closed vocabulary should print that vocabulary, so a rejection means the model saw the wrong thing rather than said it the wrong way.
+
+**Anchor:** `PART_IDENTIFICATION_PROMPT` in `scripts/part-identification-prompt.mjs` asks for a plain colour name; `describesSameThing` in `scripts/part-identification-score.mjs` compares it to `COLOR_DEFINITIONS[].displayName` by normalised equality. Measured over `output/part-identification/answers-claude-opus-5.json` (273 drawings, 252 positive proposals, 93 kept): `descriptionAgreement` in `score-adjudicated-one-to-one.json` reports colourDisagrees 103 of 265 checked against sizeDisagrees 69 and kindDisagrees 53.
