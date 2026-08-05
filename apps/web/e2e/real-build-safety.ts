@@ -1,4 +1,5 @@
 import type { CoverageInputBindings, StepCoverageCalloutClaim } from "./real-build-coverage";
+import type { TrustedIdentificationConfidence } from "./real-build-identification-trust";
 
 export {
   bindCalloutsToBookletPanels,
@@ -617,7 +618,7 @@ export interface RealBuildPanelSpec {
     readonly catalogPartId: string;
     readonly colorId: string;
     readonly calloutKey: string;
-    readonly identificationConfidence: "vision-kept";
+    readonly identificationConfidence: TrustedIdentificationConfidence;
     readonly cropDigest: string | null;
     readonly identificationInputDigest: string | null;
     readonly expectedTransform: {

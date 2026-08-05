@@ -46,10 +46,21 @@ export const SYNTHETIC_IDENTIFICATION_GOLDEN = {
     bytes: 76,
     digest: "sha256:9b1f5551504738d2b32b473588fb7c379e1a94c050b6be20444020f40057a7cc",
   },
+  /**
+   * One judged pair covering the single synthetic callout, so the deterministic
+   * golden proves the pair-judged trust path end to end: the geometry claim this
+   * closure would otherwise publish is upgraded to `pair-judged-same`, and the
+   * upgrade only survives because the coverage bytes reproduce from these bytes.
+   */
+  pairJudged: {
+    file: "pair-judged-truth.json",
+    bytes: 631,
+    digest: "sha256:f10acf1be4a328da456c871e63e1e96b1910d2d184a4f4f823252d31ded98d79",
+  },
   coverage: {
     file: "coverage.json",
-    bytes: 2_334,
-    digest: "sha256:646a1854007e6e839318a90b316525994a35e7589f1374885ba6101992b29cf3",
+    bytes: 2_433,
+    digest: "sha256:500ffe073becb6274837127abdb681dd07d7ea2237095a6eb1155368c84025bc",
   },
 } as const;
 

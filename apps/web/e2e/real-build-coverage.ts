@@ -1,5 +1,9 @@
 import type { StepFailure } from "./real-build-safety";
 import { evidenceContract, stableIdentity } from "./callout-analysis";
+import {
+  TRUSTED_IDENTIFICATION_CONFIDENCES_SENTENCE,
+  isTrustedIdentificationConfidence,
+} from "./real-build-identification-trust";
 
 export type CoverageContractFailureCode =
   | "coverage-key-missing"
@@ -159,7 +163,7 @@ export function resolveCoverageCallout<T extends CoverageCalloutClaim>(
       },
     };
   }
-  if (claim.identificationConfidence !== "vision-kept") {
+  if (!isTrustedIdentificationConfidence(claim.identificationConfidence)) {
     return {
       claim: null,
       failure: {
@@ -168,8 +172,10 @@ export function resolveCoverageCallout<T extends CoverageCalloutClaim>(
         inputKey: key,
         message:
           `Callout ${key} has identification confidence ` +
-          `${JSON.stringify(claim.identificationConfidence ?? "missing")}; only vision-kept claims are trusted. ` +
-          `Self-contradicted, refused, unanswered, and unlabelled assignments remain retained failures.`,
+          `${JSON.stringify(claim.identificationConfidence ?? "missing")}; only ` +
+          `${TRUSTED_IDENTIFICATION_CONFIDENCES_SENTENCE} claims are trusted. Self-contradicted, refused, ` +
+          `unanswered, unlabelled, and pair-judged-different assignments remain retained failures — a callout ` +
+          `nobody judged stays untrusted, and one judged to be a different part stays refused.`,
       },
     };
   }

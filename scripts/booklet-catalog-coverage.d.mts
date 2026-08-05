@@ -6,6 +6,7 @@ export function compileBookletCatalogCoverageClosure(input: {
   readonly cardsArtifact: unknown;
   readonly cardImagesArtifact: unknown;
   readonly answersArtifact: unknown;
+  readonly pairJudgedArtifact: unknown;
   readonly elementsArtifact: unknown;
   readonly source: "deterministic" | "adjudicated";
   readonly model: string | null;
@@ -22,6 +23,7 @@ export function verifyBookletCatalogCoverageClosure(input: {
   readonly cardsArtifact: unknown;
   readonly cardImagesArtifact: unknown;
   readonly answersArtifact: unknown;
+  readonly pairJudgedArtifact: unknown;
   readonly elementsArtifact: unknown;
   readonly source: "deterministic" | "adjudicated";
   readonly model: string | null;
@@ -36,6 +38,7 @@ export function buildBookletCatalogCoverageReport(input: {
     readonly inputDigests: { readonly pdf: string; readonly calloutManifest: string };
   };
   readonly claims: ReadonlyMap<number, unknown>;
+  readonly judgedVerdicts?: ReadonlyMap<number, unknown>;
   readonly elements: Readonly<Record<string, unknown>>;
   readonly source: "deterministic" | "adjudicated";
   readonly model: string | null;

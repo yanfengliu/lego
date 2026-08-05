@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { PART_IDENTIFICATION_MODEL_ID } from "../../../scripts/part-identification-model.mjs";
+import { PART_TRUTH_PATH } from "../../../scripts/part-identification-truth-key.mjs";
 import { BoundedFileReadError, readContainedBoundedRegularFile } from "./bounded-file-read";
 import {
   verifyHighlightExclusivityCompatibility,
@@ -54,6 +55,15 @@ export const IDENTIFICATION_ANSWERS_PATH =
 export const ELEMENT_RESOLUTION_PATH =
   process.env.LEGO_REAL_BUILD_ELEMENT_RESOLUTION ??
   "output/part-identification/element-resolution.json";
+/**
+ * The blind pair-judging verdicts, tracked in Git rather than under `output/`.
+ *
+ * Every other identification role is regenerable from the booklet; this one is
+ * not. It is two full blind judging passes over pictures, and it is the evidence
+ * behind every `pair-judged-same` identity the run places.
+ */
+export const PAIR_JUDGED_TRUTH_PATH =
+  process.env.LEGO_REAL_BUILD_PAIR_JUDGED_TRUTH ?? PART_TRUTH_PATH;
 export const HIGHLIGHT_RENDERER_COMPATIBILITY_PATH =
   process.env.LEGO_REAL_BUILD_HIGHLIGHT_RENDERER_COMPATIBILITY ??
   "output/real-build/highlight-renderer-compatibility.json";
@@ -114,6 +124,11 @@ const jsonInputPolicies = (): readonly (InputSizePolicy & { readonly path: strin
     path: ELEMENT_RESOLUTION_PATH,
     description: "element-resolution JSON",
     maximumBytes: REAL_BUILD_RAW_REPLAY_ROLE_BYTE_POLICIES["element-resolution"].maximumBytes,
+  },
+  {
+    path: PAIR_JUDGED_TRUTH_PATH,
+    description: "blind pair-judging verdict JSON",
+    maximumBytes: REAL_BUILD_RAW_REPLAY_ROLE_BYTE_POLICIES["pair-judged-truth"].maximumBytes,
   },
   {
     path: COVERAGE_PATH,

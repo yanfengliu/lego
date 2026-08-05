@@ -35,6 +35,7 @@ describe("real-build run contract", () => {
         cards: null,
         cardImages: null,
         answers: null,
+        pairJudged: REAL_BUILD_TEST_DIGEST,
       },
       panels: options.panels,
       budgets: realBuildRunBudgets(options),
@@ -48,6 +49,7 @@ describe("real-build run contract", () => {
         REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.match,
         REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.distances,
         REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.elements,
+        REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.pairJudged,
       ].map((role) => [role, REAL_BUILD_TEST_DIGEST]),
     );
     const verify = (

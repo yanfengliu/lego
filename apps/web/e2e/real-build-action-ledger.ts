@@ -5,6 +5,7 @@ import {
   uncorroboratedDesign,
 } from "./real-build-action-ledger-cut";
 import type { CalloutResolution } from "./real-build-input-files";
+import { requireTrustedIdentificationConfidence } from "./real-build-identification-trust";
 import {
   pieceEvidenceDigest,
   REAL_BUILD_ACTION_LEDGER_SCHEMA,
@@ -105,7 +106,14 @@ function directPiece(input: {
     catalogPartId: brick.calibratedCatalogPartId ?? input.claim.resolution!.catalogPartId!,
     colorId: input.claim.resolution!.colorId,
     calloutKey: input.calloutKey,
-    identificationConfidence: "vision-kept",
+    // The claim's own published confidence, never a literal: a pair-judged
+    // identity written out as vision-kept would be the ledger relabelling the
+    // evidence that produced it, and the validator's coverage-match check would
+    // then be comparing the ledger against a claim it had already rewritten.
+    identificationConfidence: requireTrustedIdentificationConfidence(
+      input.claim.identificationConfidence,
+      input.calloutKey,
+    ),
     cropDigest: input.claim.cropDigest!,
     identificationInputDigest: input.bindings.calloutManifestDigest,
     transform: null,

@@ -6,6 +6,7 @@ import {
   readCalloutCropInput,
   type CalloutResolution,
 } from "./real-build-input-files";
+import { isTrustedIdentificationConfidence } from "./real-build-identification-trust";
 import {
   actionEvidenceDigest,
   type LedgerStep,
@@ -187,7 +188,12 @@ export function buildRealBuildPanelSpecs(input: {
           });
     if (ledgerStep?.action.kind === "place-callouts") {
       for (const piece of ledgerStep.action.pieces) {
-        if (piece.calloutKey === null || piece.identificationConfidence !== "vision-kept") continue;
+        if (
+          piece.calloutKey === null ||
+          !isTrustedIdentificationConfidence(piece.identificationConfidence)
+        ) {
+          continue;
+        }
         const expectedTransform =
           input.officialModel?.bricks[piece.brickRef]?.canonicalTransform ?? null;
         if (expectedTransform === null) continue;
@@ -198,7 +204,9 @@ export function buildRealBuildPanelSpecs(input: {
           catalogPartId: piece.catalogPartId,
           colorId: piece.colorId,
           calloutKey: piece.calloutKey,
-          identificationConfidence: "vision-kept",
+          // The ledger piece's own confidence, so the run contract records which
+          // trust source actually placed each piece rather than one fixed label.
+          identificationConfidence: piece.identificationConfidence,
           cropDigest: piece.cropDigest,
           identificationInputDigest: piece.identificationInputDigest,
           expectedTransform,

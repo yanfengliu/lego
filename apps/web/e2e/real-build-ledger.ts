@@ -2,6 +2,11 @@ import { createHash } from "node:crypto";
 
 import type { StepFailure } from "./real-build-safety";
 import {
+  TRUSTED_IDENTIFICATION_CONFIDENCES_SENTENCE,
+  isTrustedIdentificationConfidence,
+  type TrustedIdentificationConfidence,
+} from "./real-build-identification-trust";
+import {
   officialTransformFailure,
   type LedgerTransform,
   type OfficialModelIndex,
@@ -30,7 +35,7 @@ export interface LedgerPieceIdentity {
   readonly catalogPartId: string;
   readonly colorId: string;
   readonly calloutKey: string | null;
-  readonly identificationConfidence: "vision-kept" | "official-model";
+  readonly identificationConfidence: TrustedIdentificationConfidence | "official-model";
   readonly cropDigest: string | null;
   readonly identificationInputDigest: string;
   readonly evidenceDigest: string;
@@ -501,7 +506,13 @@ export function validateRealBuildActionLedger(input: {
           if (
             !omitted &&
             (piece.calloutKey === null ||
-              piece.identificationConfidence !== "vision-kept" ||
+              // Widened deliberately from the single vision-kept literal: a
+              // pair-judged identity is a different trust source with its own
+              // provenance, and it enters here as its own value rather than
+              // being written out as vision-kept. The claim-match check below
+              // still requires coverage to carry the exact same value, so the
+              // ledger cannot relabel what identified the piece.
+              !isTrustedIdentificationConfidence(piece.identificationConfidence) ||
               !/^sha256:[0-9a-f]{64}$/u.test(piece.cropDigest ?? "") ||
               !/^sha256:[0-9a-f]{64}$/u.test(piece.identificationInputDigest) ||
               piece.identificationInputDigest !== input.calloutManifestDigest ||
@@ -510,9 +521,10 @@ export function validateRealBuildActionLedger(input: {
             failures.push(
               failure(
                 step.stepNumber,
-                `Direct Brick ${piece.brickRef} must bind one exact coverage callout with vision-kept ` +
-                  `confidence and retained crop/input digests; its placement transform is decided by the ` +
-                  `independent visual search, not ignored ledger data.`,
+                `Direct Brick ${piece.brickRef} must bind one exact coverage callout whose identification ` +
+                  `confidence is ${TRUSTED_IDENTIFICATION_CONFIDENCES_SENTENCE}, with retained crop/input ` +
+                  `digests; it declares ${JSON.stringify(piece.identificationConfidence)}. Its placement ` +
+                  `transform is decided by the independent visual search, not ignored ledger data.`,
               ),
             );
           }

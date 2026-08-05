@@ -287,7 +287,11 @@ describe("assembleRealBuildActionLedger", () => {
     expect(assembled.ledger.steps[0]!.callouts).toEqual([]);
     expect(assembled.refusals).toHaveLength(1);
     expect(assembled.refusals[0]!.reason).toContain("self-contradicted");
-    expect(assembled.refusals[0]!.reason).toContain("only vision-kept callouts");
+    // Names every trust source a callout could have been established by, so the
+    // refusal says what would satisfy it rather than only what failed.
+    expect(assembled.refusals[0]!.reason).toContain(
+      'only "vision-kept" and "pair-judged-same" callouts may become a ledger piece',
+    );
     expect(JSON.stringify(assembled.ledger)).not.toContain("self-contradicted");
   });
 

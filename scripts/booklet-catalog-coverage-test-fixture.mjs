@@ -19,6 +19,7 @@ import {
   cardImageBundleArtifact,
   encodeCardImageBundle,
 } from "./part-identification-card-images.mjs";
+import { PART_TRUTH_SCHEMA } from "./part-identification-truth-key.mjs";
 import { __testOnly } from "./booklet-catalog-coverage.mjs";
 
 /**
@@ -197,6 +198,21 @@ export function build(overrides = {}) {
 export const artifact = (value) =>
   jsonArtifactFromBytes(Buffer.from(JSON.stringify(value)), "coverage fixture artifact");
 
+/**
+ * Judged verdicts for the synthetic closure, keyed exactly as the real ones are.
+ *
+ * `verdicts` defaults to none, so a suite that says nothing about judging gets a
+ * bound role that binds nothing — which is the state every existing closure
+ * assertion was written against.
+ */
+export const pairJudgedArtifactFor = (verdicts = []) =>
+  artifact({
+    schemaVersion: PART_TRUTH_SCHEMA,
+    method: "pair-verification",
+    lastStep: 50,
+    verdicts,
+  });
+
 export function closureFixture() {
   const callout = fixture().manifest.callouts[0];
   const manifest = manifestFor([callout]);
@@ -287,6 +303,7 @@ export function closureFixture() {
     cardsArtifact,
     cardImagesArtifact,
     answersArtifact,
+    pairJudgedArtifact: pairJudgedArtifactFor(),
     elementsArtifact: artifact(elements),
     source: "adjudicated",
     model: PART_IDENTIFICATION_MODEL_ID,

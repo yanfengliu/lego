@@ -913,6 +913,7 @@ describe("real booklet build safety", () => {
         cards: null,
         cardImages: null,
         answers: null,
+        pairJudged: sha256Digest("pair-judged"),
       },
       panels: [transitionPanel(1)],
       budgets: { maxParts: 1_464 },

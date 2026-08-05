@@ -21,6 +21,7 @@ import {
   IDENTIFICATION_MATCH_PATH,
   MANIFEST_PATH,
   OFFICIAL_MODEL_PATH,
+  PAIR_JUDGED_TRUTH_PATH,
   readBinaryInput,
   readIdentificationAdjudicationInputs,
   readJsonArtifact,
@@ -82,6 +83,7 @@ export async function compileRealBuildActionLedger(options?: {
   const matchInput = readJsonArtifact<unknown>(IDENTIFICATION_MATCH_PATH, inputFailures);
   const distancesInput = readJsonArtifact<unknown>(IDENTIFICATION_DISTANCES_PATH, inputFailures);
   const elementsInput = readJsonArtifact<unknown>(ELEMENT_RESOLUTION_PATH, inputFailures);
+  const pairJudgedInput = readJsonArtifact<unknown>(PAIR_JUDGED_TRUTH_PATH, inputFailures);
   const officialModelBytes = readBinaryInput(OFFICIAL_MODEL_PATH, inputFailures);
   const builderGeometryBytes = readBinaryInput(BUILDER_GEOMETRY_PATH, inputFailures);
   const mode = identifyRealBuildIdentificationMode(
@@ -135,6 +137,7 @@ export async function compileRealBuildActionLedger(options?: {
     cardImages: adjudication.cardImages,
     answers: adjudication.answers,
     elementResolution: elementsInput,
+    pairJudged: pairJudgedInput,
     requestedLastStep: REAL_BUILD_ACTION_LEDGER_PRINTED_STEPS,
   }) as { readonly byCallout?: unknown };
   const rawIndex = reproducedCoverage.byCallout;

@@ -110,6 +110,13 @@ export interface RealBuildIdentificationClosureInput {
   readonly cardImages?: RawBinaryArtifact | null;
   readonly answers?: RawJsonArtifact | null;
   readonly elementResolution: RawJsonArtifact;
+  /**
+   * The retained blind pair-judging verdicts. Mandatory in both identification
+   * modes: the verdicts are a trust source of their own, so a closure that could
+   * be recompiled without them would be a closure in which dropping the trust
+   * source leaves no trace in the coverage bytes.
+   */
+  readonly pairJudged: RawJsonArtifact;
   readonly requestedLastStep: number;
 }
 
@@ -167,6 +174,7 @@ export function prepareRealBuildIdentificationClosure(input: RealBuildIdentifica
     input.elementResolution,
     "Element resolution",
   );
+  const pairJudgedArtifact = bindRawJsonArtifact(input.pairJudged, "Pair-judged truth");
   const mode = describeCoverageMode(coverageArtifact, input.requestedLastStep);
   if (
     mode.source === "adjudicated" &&
@@ -205,6 +213,7 @@ export function prepareRealBuildIdentificationClosure(input: RealBuildIdentifica
     cardsArtifact,
     cardImagesArtifact,
     answersArtifact,
+    pairJudgedArtifact,
     elementsArtifact: elementResolutionArtifact,
     source: mode.source,
     model: mode.model,

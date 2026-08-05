@@ -241,6 +241,12 @@ function closureFixture(): {
     },
   });
   const elementResolution = artifact(elements);
+  const pairJudged = artifact({
+    schemaVersion: "lego.part-identification-truth/2",
+    method: "pair-verification",
+    lastStep: 50,
+    verdicts: [],
+  });
   const compilerInput = {
     manifestBytes: manifest.bytes,
     featuresArtifact: features,
@@ -250,6 +256,7 @@ function closureFixture(): {
     cardImagesArtifact: cardImages,
     answersArtifact: answers,
     elementsArtifact: elementResolution,
+    pairJudgedArtifact: pairJudged,
     source: "adjudicated" as const,
     model: PART_IDENTIFICATION_MODEL_ID,
     assignment: "nearest" as const,
@@ -272,6 +279,7 @@ function closureFixture(): {
       cardImages,
       answers,
       elementResolution,
+      pairJudged,
       requestedLastStep: 1,
     },
   };
@@ -286,6 +294,7 @@ describe("real-build identification closure", () => {
       match: goldenArtifact("match"),
       distances: goldenArtifact("distances"),
       elementResolution: goldenArtifact("elementResolution"),
+      pairJudged: goldenArtifact("pairJudged"),
       cards: null,
       cardImages: null,
       answers: null,
@@ -314,6 +323,7 @@ describe("real-build identification closure", () => {
       match: goldenArtifact("match"),
       distances: goldenArtifact("distances"),
       elementResolution: goldenArtifact("elementResolution"),
+      pairJudged: goldenArtifact("pairJudged"),
       requestedLastStep: 1,
     };
     expect(prepareRealBuildIdentificationClosure(input)).toMatchObject({
@@ -355,6 +365,7 @@ describe("real-build identification closure", () => {
         match: goldenArtifact("match"),
         distances: goldenArtifact("distances"),
         elementResolution: goldenArtifact("elementResolution"),
+        pairJudged: goldenArtifact("pairJudged"),
         requestedLastStep: 1,
         [role]: fixture.input[role],
       } satisfies RealBuildIdentificationClosureInput;

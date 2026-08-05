@@ -99,6 +99,15 @@ export const REAL_BUILD_RAW_REPLAY_ROLE_BYTE_POLICIES = {
     allowEmpty: true,
   },
   "element-resolution": { minimumNonEmptyBytes: 1, maximumBytes: 4 * MEBIBYTE, allowEmpty: true },
+  // Tracked in Git, so its ceiling is the repository blob-review threshold
+  // rather than a generous output-artifact bound: a verdict file that grew past
+  // 256 KiB would need the review AGENTS.md requires before it could be a
+  // repository input at all.
+  "pair-judged-truth": {
+    minimumNonEmptyBytes: 1,
+    maximumBytes: 256 * KIBIBYTE,
+    allowEmpty: true,
+  },
   "identification-cards": { minimumNonEmptyBytes: 1, maximumBytes: 2 * MEBIBYTE, allowEmpty: true },
   "identification-card-images": {
     minimumNonEmptyBytes: IDENTIFICATION_CARD_IMAGES_MINIMUM_BYTES,

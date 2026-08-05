@@ -110,6 +110,8 @@ const rawRoleBytes = {
     syntheticIdentificationGoldenBytes("distances"),
   [REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.elements]:
     syntheticIdentificationGoldenBytes("elementResolution"),
+  [REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.pairJudged]:
+    syntheticIdentificationGoldenBytes("pairJudged"),
 } as Readonly<Record<string, Uint8Array>>;
 const inputDigests = Object.fromEntries(
   Object.entries(REAL_BUILD_INPUT_ROLE_BY_DIGEST).map(([inputKey, role]) => [
@@ -308,6 +310,7 @@ describe("real-build replay closure", () => {
           cards: null,
           cardImages: null,
           answers: null,
+          pairJudged: SYNTHETIC_IDENTIFICATION_GOLDEN.pairJudged.digest,
         },
         panels: options.panels,
         budgets: realBuildRunBudgets(options),

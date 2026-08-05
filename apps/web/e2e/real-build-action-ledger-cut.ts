@@ -1,6 +1,10 @@
 import type { CalloutResolution } from "./real-build-input-files";
 import type { OfficialModelIndex } from "./real-build-ledger";
 import type { OfficialBuilderIdentity } from "./real-build-action-ledger";
+import {
+  TRUSTED_IDENTIFICATION_CONFIDENCES_SENTENCE,
+  isTrustedIdentificationConfidence,
+} from "./real-build-identification-trust";
 
 /**
  * How one printed step's slice of the official Builder program is corroborated,
@@ -67,7 +71,8 @@ export function uncorroboratedDesign(
 ): string | null {
   const available = slice.map(({ brickRef }) => official.bricks[brickRef]?.designId ?? null);
   for (const { calloutKey, claim } of rows) {
-    if (claim.identificationConfidence !== "vision-kept" || claim.resolution === null) continue;
+    if (!isTrustedIdentificationConfidence(claim.identificationConfidence)) continue;
+    if (claim.resolution === null) continue;
     for (let unit = 0; unit < claim.quantity; unit += 1) {
       const index = available.findIndex(
         (designId) => designId !== null && corroboratesDesign(designId, claim.resolution!.partNum),
@@ -141,12 +146,13 @@ export function pieceRefusal(input: {
       `carry for this step.`
     );
   }
-  if (input.claim.identificationConfidence !== "vision-kept") {
+  if (!isTrustedIdentificationConfidence(input.claim.identificationConfidence)) {
     return (
       `callout ${input.calloutKey} carries identification confidence ` +
-      `${JSON.stringify(input.claim.identificationConfidence ?? "missing")}, and only vision-kept callouts may ` +
-      `become a ledger piece. Re-run part identification for this crop until it is kept; writing it out as ` +
-      `vision-kept would make the ledger certify its own input.`
+      `${JSON.stringify(input.claim.identificationConfidence ?? "missing")}, and only ` +
+      `${TRUSTED_IDENTIFICATION_CONFIDENCES_SENTENCE} callouts may become a ledger piece. Re-run part ` +
+      `identification for this crop until it is kept, or judge the pair blind against its claimed element; ` +
+      `writing it out as a trusted confidence would make the ledger certify its own input.`
     );
   }
   if (input.claim.resolution === null || input.claim.resolution.catalogPartId === null) {

@@ -30,6 +30,7 @@ export const REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST = {
   cards: "identification-cards",
   cardImages: "identification-card-images",
   answers: "identification-answers",
+  pairJudged: "pair-judged-truth",
 } as const;
 
 export interface RealBuildIdentificationClosureDigests {
@@ -41,6 +42,8 @@ export interface RealBuildIdentificationClosureDigests {
   readonly cards: string | null;
   readonly cardImages: string | null;
   readonly answers: string | null;
+  /** Mandatory in both modes: blind pair judging is a trust source, not an adjudication aid. */
+  readonly pairJudged: string;
 }
 
 export interface RealBuildRunContract {
@@ -211,6 +214,7 @@ export function verifyRealBuildRunContractRoleDigests(
     !/^sha256:[0-9a-f]{64}$/u.test(identification.match) ||
     !/^sha256:[0-9a-f]{64}$/u.test(identification.distances) ||
     !/^sha256:[0-9a-f]{64}$/u.test(identification.elements) ||
+    !/^sha256:[0-9a-f]{64}$/u.test(identification.pairJudged) ||
     (identification.source === "deterministic" &&
       (identification.cards !== null ||
         identification.cardImages !== null ||
@@ -224,7 +228,7 @@ export function verifyRealBuildRunContractRoleDigests(
       "Run contract identification closure must contain mandatory raw digests and source-exact conditional adjudication digests.",
     );
   }
-  for (const key of ["features", "match", "distances", "elements"] as const) {
+  for (const key of ["features", "match", "distances", "elements", "pairJudged"] as const) {
     const role = REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST[key];
     if (identification[key] !== roleDigests[role]) {
       throw new TypeError(

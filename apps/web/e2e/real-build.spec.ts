@@ -41,6 +41,7 @@ import {
   IDENTIFICATION_MATCH_PATH,
   MANIFEST_PATH,
   OFFICIAL_MODEL_PATH,
+  PAIR_JUDGED_TRUTH_PATH,
   readBinaryInput,
   readJsonArtifact,
   readIdentificationAdjudicationInputs,
@@ -184,6 +185,10 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
     ELEMENT_RESOLUTION_PATH,
     preparationFailures,
   );
+  const pairJudgedTruthInput = readJsonArtifact<unknown>(
+    PAIR_JUDGED_TRUTH_PATH,
+    preparationFailures,
+  );
   let identificationMode: RealBuildIdentificationMode | null = null;
   try {
     identificationMode = identifyRealBuildIdentificationMode(coverageInput, requestedLastStep);
@@ -226,6 +231,7 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
     match: identificationMatchInput.digest,
     distances: identificationDistancesInput.digest,
     elements: elementResolutionInput.digest,
+    pairJudged: pairJudgedTruthInput.digest,
     cards: identificationCardsInput?.digest ?? null,
     cardImages: identificationCardImagesInput?.digest ?? null,
     answers: identificationAnswersInput?.digest ?? null,
@@ -335,6 +341,7 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
       cardImages: identificationCardImagesInput,
       answers: identificationAnswersInput,
       elementResolution: elementResolutionInput,
+      pairJudged: pairJudgedTruthInput,
       requestedLastStep,
     });
     if (typeof reproduced !== "object" || reproduced === null || Array.isArray(reproduced)) {
@@ -706,6 +713,7 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
       { role: "identification-match", bytes: identificationMatchInput.bytes },
       { role: "identification-distances", bytes: identificationDistancesInput.bytes },
       { role: "element-resolution", bytes: elementResolutionInput.bytes },
+      { role: "pair-judged-truth", bytes: pairJudgedTruthInput.bytes },
       ...(identificationMode?.source === "adjudicated" &&
       identificationCardsInput !== null &&
       identificationCardImagesInput !== null &&

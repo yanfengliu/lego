@@ -14,6 +14,7 @@ export const MANDATORY_IDENTIFICATION_ROLES = [
   REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.match,
   REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.distances,
   REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.elements,
+  REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.pairJudged,
 ] as const;
 
 export const CONDITIONAL_IDENTIFICATION_ROLES = [
@@ -90,6 +91,7 @@ export function reconstructRealBuildIdentificationReplay(
     match: artifact(REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.match),
     distances: artifact(REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.distances),
     elementResolution: artifact(REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.elements),
+    pairJudged: artifact(REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.pairJudged),
     cards:
       mode.source === "adjudicated"
         ? artifact(REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.cards)
