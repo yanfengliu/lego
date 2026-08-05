@@ -112,6 +112,22 @@ A part with no explicit stud offsets must keep hashing exactly as it did, so gro
 Layer 1 is derived and disposable; layers 2, 3 and 4 are truth.
 Collision must stay conservative in the safe direction: an approximation may refuse a placement a real part would allow, and must never allow one it would not.
 
+## Which source owns which layer
+
+Two deliberately different strategies were built against the six-part pilot and scored on measurements, not on their own reports. Neither won outright, and the split is not a compromise — each layer went to whichever source can actually be checked.
+
+**Layer 4, collision, comes from LDraw.** Per-column height-field decomposition of the expanded BFC surface into boxes and stud cylinders yields 37-276 bodies per part at 1.07-1.28x over-claim, and 3,400,701 sampled surface points with none outside the union. It needs no new body kind. The per-slab convex-prism alternative is far fewer bodies but over-claims up to 2.02x and produces 18-vertex hulls against the current 3-8 vertex limit.
+
+**Builder collision is refused, and the reason is not preference.** Its authored boxes are inset a uniform 0.25 LDU on every horizontal face — the deliberate undersize this document already predicted of BrickLink Studio — so the real part escapes them by 0.25 to 4.675 LDU measured alignment-free, Builder's own mesh against Builder's own boxes in one frame, which is why no registration error can explain it. That is the one direction collision may never be wrong in. Uniform inflation does not rescue it: closing the escape needs 3.21-5.66 LDU of margin, after which the union overhangs the real part by up to 10.29 LDU per face and its volume grows 8.5 to 36.8 times.
+
+**Layer 3, connectors, comes from Builder.** Its `Custom2DField` is a half-stud node lattice, and reading the top-plane field reproduces the LDraw-measured stud centres to 0.000 LDU with nothing unmatched in either direction. It wins because it carries something geometry does not contain: an *authored functional claim*. 5092 declares one clutch and codes the neighbouring cell absent — the exact cell the LDraw-led rule can only score 1 of 2 on, because the overhang is genuinely partial and no amount of measuring the shape settles what the part is for.
+
+**Layer 2, bounds, comes from LDraw, exactly.** Every composed coordinate in all six closures is a terminating decimal, so a bound is signed integer units at a fixed 10^-9 scale, inside the safe-integer range. This is forced, not chosen: float64 round-trips five of the six parts and fails 93273, whose -16.00016098 is not a double.
+
+The one-declaration rule still holds, and has to be defended deliberately here, because taking connectors and bodies from different sources is exactly how they drift apart. A part is still declared once; the Builder-derived connector set is admitted only through a containment gate against the exact LDraw closure, so the two sources cannot disagree silently. That makes the LDraw expansion a hard prerequisite of the Builder path rather than a cross-check of it.
+
+Known gaps, which are work items rather than caveats: 14 of the 121 required designs are absent from the Builder pack outright and fall back to the LDraw geometric rule; 20 required leaves depend on a node family the pilot never validated; only 5 of 107 records carry an external review pin. Builder physics is refused as mass truth on sight — 66 of 107 records declare mass exactly `1`, which makes a 1x2 tile outweigh a 1x4 curved slope.
+
 ## Resolved decision
 
 Layer 1 bundles real LDraw geometry. The owner decided this on 2026-08-04; it was a licensing choice, not a technical one.
