@@ -8,6 +8,7 @@ import {
 import { createEmptyBrickDocument } from "@lego-studio/brick-kernel";
 
 import { enumeratePlacements } from "../src/assembly/enumerate-placements";
+import { realBuildInputChainRecovery } from "./real-build-input-chain";
 import {
   BUILDER_STEP1_CALIBRATION_CASES,
   BUILDER_STEP1_DESIGN_SOURCES,
@@ -444,9 +445,18 @@ export function createBuilderFrameEvidence(input: {
     connectorFrameDigest !== source.expectedCatalogConnectorDigest ||
     collisionFrameDigest !== source.expectedCatalogCollisionDigest
   ) {
+    const differing = [
+      ["definition", catalogDefinitionDigest, source.expectedCatalogDefinitionDigest],
+      ["geometry", catalogGeometryDigest, source.expectedCatalogGeometryDigest],
+      ["connector", connectorFrameDigest, source.expectedCatalogConnectorDigest],
+      ["collision", collisionFrameDigest, source.expectedCatalogCollisionDigest],
+    ]
+      .filter(([, observed, expected]) => observed !== expected)
+      .map(([role, observed, expected]) => `${role} ${expected} -> ${observed}`);
     throw new TypeError(
       `Pinned Builder source ${source.designRevision}/${source.catalogPartId} is stale against catalog ` +
-        `${BUILTIN_CATALOG_VERSION}; reviewed definition, geometry, connector, or collision digests differ.`,
+        `${BUILTIN_CATALOG_VERSION}; ${differing.join(", ")}. ` +
+        realBuildInputChainRecovery("apps/web/e2e/real-build-builder-sources.ts"),
     );
   }
   const pinnedCenters = sortedPoints(source.builderStudCentersLdu);
@@ -706,9 +716,16 @@ export function applyBuilderCanonicalCalibration(
     builderGeometryBundleDigest,
   );
   if (JSON.stringify(calibration) !== JSON.stringify(expected)) {
+    const retainedVersions = [
+      ...new Set(calibration.designFrames?.map(({ catalogVersion }) => catalogVersion) ?? []),
+    ];
     throw new TypeError(
       `Builder calibration does not exactly reproduce the code-pinned ${BUILDER_CANONICAL_CALIBRATION_SCHEMA} ` +
-        `report; artifact-authored sources, frames, cases, metrics, or extra fields are forbidden.`,
+        `report; artifact-authored sources, frames, cases, metrics, or extra fields are forbidden. ` +
+        `The retained report is pinned to catalog ${retainedVersions.join(", ") || "an unstated version"} ` +
+        `and this build is ${BUILTIN_CATALOG_VERSION}, so the usual cause is a catalog bump rather than ` +
+        `a hand edit. ` +
+        realBuildInputChainRecovery("output/real-build/builder-canonical-calibration.json"),
     );
   }
   const frames = new Map(calibration.designFrames.map((frame) => [frame.designRevision, frame]));
