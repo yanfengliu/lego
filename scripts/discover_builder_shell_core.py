@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib.util
 import math
 import re
-import secrets
+import sys
 from pathlib import Path
 from types import ModuleType
 from typing import Callable
@@ -20,6 +20,10 @@ def _load_sibling(module_name: str, filename: str) -> ModuleType:
 
 META = _load_sibling("builder_shell_discovery_metadata", "discover_builder_shell_metadata.py")
 EXTRACTOR = _load_sibling("builder_shell_extractor_foundation", "extract-builder-shell.py")
+PUBLICATION = _load_sibling(
+    "builder_shell_discovery_publication", "discover_builder_shell_publication.py"
+)
+SNAPSHOT = EXTRACTOR.SNAPSHOT
 DESIGN_ID = META.DESIGN_ID
 REVISION = META.REVISION
 BUNDLE_BYTES = META.BUNDLE_BYTES
@@ -168,15 +172,93 @@ def shell_report(candidate: Candidate, mesh_handler_factory: Callable[[object], 
     }
 
 
+# The two module names that must come from the private RECORD-verified snapshot
+# before any byte of the retained bundle is handed to third-party parsing code.
+PINNED_IMPORT_MODULES = ("UnityPy", "UnityPy.helpers.MeshHelper")
+
+# What actually stops a real decode here, stated once so no doc has to guess. The
+# interpreter gate is necessary and not sufficient: this machine already carries
+# conforming 64-bit CPython 3.13 interpreters under which validate_worker_runtime()
+# returns cleanly. Only the pinned distribution set is the barrier.
+PINNED_ENVIRONMENT_BARRIER = (
+    "Only a private snapshot holding exactly the "
+    f"{len(SNAPSHOT.PINNED_DISTRIBUTIONS)} pinned distributions (UnityPy "
+    f"{SNAPSHOT.UNITYPY_VERSION} and its {len(SNAPSHOT.PINNED_DISTRIBUTIONS) - 1} pinned "
+    "dependencies, contract sha256 "
+    f"{SNAPSHOT.PINNED_ENVIRONMENT_DIGEST}) with matching wheel RECORD digests may decode "
+    "it. Build one by running scripts/discover-builder-shell.py --unitypy <exact reviewed "
+    "environment> --bundle <bundle> --output-root <root>, which captures and revalidates "
+    "that snapshot before the worker imports anything. Dead ends: the CPython 3.13 "
+    "interpreter check is NOT the barrier - a conforming 64-bit CPython 3.13 already "
+    "satisfies it - and pip install UnityPy=="
+    f"{SNAPSHOT.UNITYPY_VERSION} into an existing interpreter's site-packages does not "
+    "satisfy this gate, because that target carries unpinned distributions the contract "
+    "rejects; neither switching interpreter nor installing the package unblocks a real "
+    "decode."
+)
+
+
+def assert_pinned_environment_for_retained_bundle(
+    payload: bytes, snapshot_root: Path | None
+) -> None:
+    """Refuse to parse the exact retained bundle outside the pinned distribution set.
+
+    Synthetic fixtures are not the retained artifact and are not gated. The exact
+    85,098-byte quarantined 3245-M capture is, and the refusal is executable rather
+    than documentary.
+    """
+    if sha256(payload) != META.BUNDLE_SHA256:
+        return
+    if snapshot_root is None:
+        raise ValueError(
+            f"Refusing to parse the exact retained {META.DESIGN_ID}-{META.REVISION} bundle "
+            f"({META.BUNDLE_BYTES} bytes sha256:{META.BUNDLE_SHA256}): build_report was called "
+            "without a pinned snapshot root, so no verified UnityPy environment backs the "
+            f"loader. {PINNED_ENVIRONMENT_BARRIER}"
+        )
+    root = Path(snapshot_root).resolve(strict=False)
+    try:
+        # Necessary, never sufficient - the message below says so, so that a failure
+        # here is not mistaken for the barrier a second time.
+        SNAPSHOT.validate_worker_runtime()
+        SNAPSHOT.capture_pinned_import_payloads(root)
+    except BaseException as error:
+        raise ValueError(
+            f"Refusing to parse the exact retained {META.DESIGN_ID}-{META.REVISION} bundle "
+            f"({META.BUNDLE_BYTES} bytes sha256:{META.BUNDLE_SHA256}): the import root {root} "
+            f"is not the exact pinned distribution set ({error}). {PINNED_ENVIRONMENT_BARRIER}"
+        ) from error
+    for module_name in PINNED_IMPORT_MODULES:
+        module = sys.modules.get(module_name)
+        origin = getattr(module, "__file__", None)
+        if module is None or not origin:
+            raise ValueError(
+                f"Refusing to parse the exact retained {META.DESIGN_ID}-{META.REVISION} bundle "
+                f"({META.BUNDLE_BYTES} bytes sha256:{META.BUNDLE_SHA256}): required pinned "
+                f"module {module_name!r} is not imported from {root}. "
+                f"{PINNED_ENVIRONMENT_BARRIER}"
+            )
+        resolved = Path(origin).resolve(strict=False)
+        if not resolved.is_relative_to(root):
+            raise ValueError(
+                f"Refusing to parse the exact retained {META.DESIGN_ID}-{META.REVISION} bundle "
+                f"({META.BUNDLE_BYTES} bytes sha256:{META.BUNDLE_SHA256}): pinned module "
+                f"{module_name!r} was imported from {resolved}, which is outside the verified "
+                f"snapshot {root}. {PINNED_ENVIRONMENT_BARRIER}"
+            )
+
+
 def build_report(
     payload: bytes,
     loader: Callable[[bytes], object],
     mesh_handler_factory: Callable[[object], object],
+    snapshot_root: Path | None = None,
 ) -> dict[str, object]:
     if len(payload) != BUNDLE_BYTES or sha256(payload) != BUNDLE_SHA256:
         raise ValueError(
             "Bundle bytes do not match the one exact quarantined 3245-M source identity."
         )
+    assert_pinned_environment_for_retained_bundle(payload, snapshot_root)
     environment = EXTRACTOR.load_environment_from_bytes(payload, loader)
     shell, primitive, partinfo = META.enumerate_candidates(environment)
     report = {
@@ -362,252 +444,16 @@ def atomic_write_relative_windows(
     verify: Callable[[], None],
     expected_root_identity: tuple[int, int],
 ) -> None:
-    import ctypes
-    from ctypes import wintypes
+    """Publish one bounded report atomically inside a prevalidated output root.
 
-    class UnicodeString(ctypes.Structure):
-        _fields_ = [
-            ("Length", wintypes.USHORT), ("MaximumLength", wintypes.USHORT),
-            ("Buffer", wintypes.LPWSTR),
-        ]
-
-    class ObjectAttributes(ctypes.Structure):
-        _fields_ = [
-            ("Length", wintypes.ULONG), ("RootDirectory", wintypes.HANDLE),
-            ("ObjectName", ctypes.POINTER(UnicodeString)), ("Attributes", wintypes.ULONG),
-            ("SecurityDescriptor", wintypes.LPVOID),
-            ("SecurityQualityOfService", wintypes.LPVOID),
-        ]
-
-    class IoStatusBlock(ctypes.Structure):
-        _fields_ = [("Status", wintypes.LPVOID), ("Information", ctypes.c_size_t)]
-
-    class FileBasicInfo(ctypes.Structure):
-        _fields_ = [
-            ("CreationTime", ctypes.c_longlong), ("LastAccessTime", ctypes.c_longlong),
-            ("LastWriteTime", ctypes.c_longlong), ("ChangeTime", ctypes.c_longlong),
-            ("FileAttributes", wintypes.DWORD),
-        ]
-
-    class FileId128(ctypes.Structure):
-        _fields_ = [("Identifier", ctypes.c_ubyte * 16)]
-
-    class FileIdInfo(ctypes.Structure):
-        _fields_ = [("VolumeSerialNumber", ctypes.c_ulonglong), ("FileId", FileId128)]
-
-    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
-    ntdll = ctypes.WinDLL("ntdll", use_last_error=True)
-    kernel.CreateFileW.restype = wintypes.HANDLE
-    kernel.CreateFileW.argtypes = [
-        wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, wintypes.LPVOID,
-        wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE,
-    ]
-    kernel.GetFileInformationByHandleEx.argtypes = [
-        wintypes.HANDLE, ctypes.c_int, wintypes.LPVOID, wintypes.DWORD
-    ]
-    kernel.WriteFile.argtypes = [
-        wintypes.HANDLE, wintypes.LPVOID, wintypes.DWORD,
-        ctypes.POINTER(wintypes.DWORD), wintypes.LPVOID,
-    ]
-    kernel.ReadFile.argtypes = [
-        wintypes.HANDLE, wintypes.LPVOID, wintypes.DWORD,
-        ctypes.POINTER(wintypes.DWORD), wintypes.LPVOID,
-    ]
-    kernel.FlushFileBuffers.argtypes = [wintypes.HANDLE]
-    kernel.GetFileSizeEx.argtypes = [wintypes.HANDLE, ctypes.POINTER(ctypes.c_longlong)]
-    kernel.SetFileInformationByHandle.argtypes = [
-        wintypes.HANDLE, ctypes.c_int, wintypes.LPVOID, wintypes.DWORD
-    ]
-    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
-    ntdll.NtCreateFile.restype = wintypes.LONG
-    ntdll.NtCreateFile.argtypes = [
-        ctypes.POINTER(wintypes.HANDLE), wintypes.ULONG,
-        ctypes.POINTER(ObjectAttributes), ctypes.POINTER(IoStatusBlock),
-        wintypes.LPVOID, wintypes.ULONG, wintypes.ULONG, wintypes.ULONG,
-        wintypes.ULONG, wintypes.LPVOID, wintypes.ULONG,
-    ]
-    ntdll.NtSetInformationFile.restype = wintypes.LONG
-    ntdll.NtSetInformationFile.argtypes = [
-        wintypes.HANDLE, ctypes.POINTER(IoStatusBlock), wintypes.LPVOID,
-        wintypes.ULONG, wintypes.ULONG,
-    ]
-    root_handle = kernel.CreateFileW(
-        str(root), 0x20 | 0x80, 0x1 | 0x2, None, 3,
-        0x02000000 | 0x00200000, None,
+    The handle lifetimes, NTSTATUS reporting, and the rule that nothing is deleted
+    once the rename commits live in discover_builder_shell_publication.py.
+    """
+    PUBLICATION.atomic_write_relative_windows(
+        root,
+        target_name,
+        payload,
+        verify,
+        expected_root_identity,
+        META.close_windows_handle,
     )
-    if root_handle == ctypes.c_void_p(-1).value:
-        raise OSError(ctypes.get_last_error(), f"Cannot open output root {root}")
-    file_handle = wintypes.HANDLE()
-    binding_handle = wintypes.HANDLE()
-    published = False
-    primary_error: BaseException | None = None
-    cleanup_errors: list[BaseException] = []
-    try:
-        root_info = FileBasicInfo()
-        if not kernel.GetFileInformationByHandleEx(
-            root_handle, 0, ctypes.byref(root_info), ctypes.sizeof(root_info)
-        ):
-            raise OSError(ctypes.get_last_error(), "Cannot inspect output-root handle")
-        if not root_info.FileAttributes & 0x10 or root_info.FileAttributes & 0x400:
-            raise ValueError("Output-root handle is not a non-reparse directory.")
-        root_id = FileIdInfo()
-        if not kernel.GetFileInformationByHandleEx(
-            root_handle, 18, ctypes.byref(root_id), ctypes.sizeof(root_id)
-        ):
-            raise OSError(ctypes.get_last_error(), "Cannot inspect output-root file identity")
-        observed_root_identity = (
-            int(root_id.VolumeSerialNumber),
-            int.from_bytes(bytes(root_id.FileId.Identifier), "little"),
-        )
-        if observed_root_identity != expected_root_identity:
-            raise ValueError(
-                "Output-root handle does not name the exact prevalidated directory; "
-                f"opened {observed_root_identity}, expected {expected_root_identity}."
-            )
-        verify()
-        temporary_name = f".{target_name}.{secrets.token_hex(16)}"
-        name_buffer = ctypes.create_unicode_buffer(temporary_name)
-        name = UnicodeString(
-            len(temporary_name.encode("utf-16-le")),
-            len(temporary_name.encode("utf-16-le")) + 2,
-            ctypes.cast(name_buffer, wintypes.LPWSTR),
-        )
-        attributes = ObjectAttributes(
-            ctypes.sizeof(ObjectAttributes), root_handle, ctypes.pointer(name),
-            0x40, None, None,
-        )
-        status_block = IoStatusBlock()
-        status = ntdll.NtCreateFile(
-            ctypes.byref(file_handle), 0x40000000 | 0x00010000 | 0x00100000,
-            ctypes.byref(attributes), ctypes.byref(status_block), None, 0x100,
-            0x1, 2, 0x20 | 0x40, None, 0,
-        )
-        if status < 0:
-            raise OSError(f"NtCreateFile failed for private output temporary: 0x{status & 0xFFFFFFFF:08x}")
-        for offset in range(0, len(payload), 65_536):
-            chunk = payload[offset : offset + 65_536]
-            written = wintypes.DWORD()
-            buffer = ctypes.create_string_buffer(chunk)
-            if not kernel.WriteFile(
-                file_handle, buffer, len(chunk), ctypes.byref(written), None
-            ) or written.value != len(chunk):
-                raise OSError(ctypes.get_last_error(), "Bounded output write failed")
-        if not kernel.FlushFileBuffers(file_handle):
-            raise OSError(ctypes.get_last_error(), "Bounded output flush failed")
-        verify()
-        encoded_name = target_name.encode("utf-16-le")
-        rename = ctypes.create_string_buffer(20 + len(encoded_name))
-        ctypes.c_ubyte.from_buffer(rename, 0).value = 1
-        ctypes.c_void_p.from_buffer(rename, 8).value = int(root_handle)
-        ctypes.c_uint32.from_buffer(rename, 16).value = len(encoded_name)
-        ctypes.memmove(ctypes.addressof(rename) + 20, encoded_name, len(encoded_name))
-        rename_status = ntdll.NtSetInformationFile(
-            file_handle, ctypes.byref(status_block), rename, ctypes.sizeof(rename), 10
-        )
-        if rename_status < 0:
-            raise OSError(
-                f"Handle-relative output publication failed: "
-                f"0x{rename_status & 0xFFFFFFFF:08x}"
-            )
-        verify()
-        target_buffer = ctypes.create_unicode_buffer(target_name)
-        target = UnicodeString(
-            len(encoded_name),
-            len(encoded_name) + 2,
-            ctypes.cast(target_buffer, wintypes.LPWSTR),
-        )
-        target_attributes = ObjectAttributes(
-            ctypes.sizeof(ObjectAttributes), root_handle, ctypes.pointer(target),
-            0x40, None, None,
-        )
-        binding_status = ntdll.NtCreateFile(
-            ctypes.byref(binding_handle), 0x0001 | 0x0080 | 0x00100000,
-            ctypes.byref(target_attributes), ctypes.byref(status_block), None, 0,
-            0x1 | 0x2 | 0x4, 1, 0x20 | 0x40 | 0x00200000, None, 0,
-        )
-        if binding_status < 0:
-            raise OSError(
-                f"Handle-relative output binding failed: "
-                f"0x{binding_status & 0xFFFFFFFF:08x}"
-            )
-        original_id = FileIdInfo()
-        bound_id = FileIdInfo()
-        for handle, info, label in (
-            (file_handle, original_id, "publication"),
-            (binding_handle, bound_id, "bound target"),
-        ):
-            if not kernel.GetFileInformationByHandleEx(
-                handle, 18, ctypes.byref(info), ctypes.sizeof(info)
-            ):
-                raise OSError(ctypes.get_last_error(), f"Cannot inspect {label} file identity")
-        original_identity = (
-            int(original_id.VolumeSerialNumber), bytes(original_id.FileId.Identifier)
-        )
-        bound_identity = (int(bound_id.VolumeSerialNumber), bytes(bound_id.FileId.Identifier))
-        if original_identity != bound_identity:
-            raise ValueError("Published output target does not name the exact renamed file handle.")
-        bound_basic = FileBasicInfo()
-        if not kernel.GetFileInformationByHandleEx(
-            binding_handle, 0, ctypes.byref(bound_basic), ctypes.sizeof(bound_basic)
-        ):
-            raise OSError(ctypes.get_last_error(), "Cannot inspect bound output target")
-        if bound_basic.FileAttributes & (0x10 | 0x400):
-            raise ValueError("Published output target is a directory or reparse point.")
-        bound_size = ctypes.c_longlong()
-        if not kernel.GetFileSizeEx(binding_handle, ctypes.byref(bound_size)):
-            raise OSError(ctypes.get_last_error(), "Cannot inspect bound output size")
-        if bound_size.value != len(payload):
-            raise ValueError(
-                f"Published output has {bound_size.value} bytes; expected exact {len(payload)} bytes."
-            )
-        observed = bytearray()
-        remaining = len(payload) + 1
-        while remaining > 0:
-            chunk_size = min(65_536, remaining)
-            buffer = ctypes.create_string_buffer(chunk_size)
-            read = wintypes.DWORD()
-            if not kernel.ReadFile(
-                binding_handle, buffer, chunk_size, ctypes.byref(read), None
-            ):
-                raise OSError(ctypes.get_last_error(), "Bounded output verification read failed")
-            if read.value == 0:
-                break
-            observed.extend(buffer.raw[: read.value])
-            remaining -= read.value
-        if bytes(observed) != payload:
-            raise ValueError("Published output bytes differ from the exact canonical payload.")
-        published = True
-    except BaseException as error:
-        primary_error = error
-        raise
-    finally:
-        if file_handle.value:
-            if not published:
-                delete = wintypes.BOOLEAN(1)
-                cleanup_status = ntdll.NtSetInformationFile(
-                    file_handle, ctypes.byref(status_block), ctypes.byref(delete),
-                    ctypes.sizeof(delete), 13,
-                )
-                if cleanup_status < 0:
-                    cleanup_errors.append(
-                        OSError(
-                            f"Handle-relative output cleanup failed: "
-                            f"0x{cleanup_status & 0xFFFFFFFF:08x}"
-                        )
-                    )
-        for handle, label in (
-            (binding_handle.value, "Bound output handle"),
-            (file_handle.value, "Publication handle"),
-            (root_handle, "Output-root handle"),
-        ):
-            if handle:
-                try:
-                    META.close_windows_handle(kernel, int(handle), label)
-                except BaseException as error:
-                    cleanup_errors.append(error)
-        if cleanup_errors:
-            detail = "; ".join(f"{type(error).__name__}: {error}" for error in cleanup_errors)
-            if primary_error is not None:
-                primary_error.add_note(f"Output publication cleanup also failed: {detail}")
-            else:
-                raise RuntimeError(f"Output publication cleanup failed: {detail}") from cleanup_errors[0]

@@ -467,3 +467,18 @@ The cost was the headline: arrows on the model went from 3 to 11 when the measur
 The rule is that a measurement belongs at the point the thing it measures becomes available, not at the point the caller happens to want it, and a report that cannot distinguish "measured zero" from "never measured" should be returning null.
 
 **Anchor:** the `skipClearances` / `skipArrowsInsideAssembly` / `skipFamily` publication in `apps/web/e2e/real-panel-scoring.ts`, hoisted above every skip with a comment saying why.
+
+## A safety barrier that lives only in a document is not a barrier
+
+The quarantined 3245 Builder discovery tool handles one untrusted 85,098-byte third-party bundle, and its handoff and commit message explained why it could not be decoded here: "the only registered Python is `C:\Python314\python.exe` 3.14.0", against a pinned UnityPy wheel that needs 64-bit CPython 3.13.
+Nobody had run `where python`.
+It resolves first to `C:\Users\38909\miniconda3\python.exe`, CPython 3.13.9, 64-bit, win32; a second conforming 3.13.10 sits in `miniconda3/envs/py313`; and `validate_worker_runtime()` returns cleanly under both. The claimed barrier had never been one, and the suite the same document reported as blocked was in fact running under a conforming interpreter the whole time.
+
+Two separate faults, and the second is the expensive one.
+The stated fact was wrong because it was asserted rather than measured — one command would have settled it.
+And the barrier it described was documentary: nothing in the code required the pinned environment before handing bundle bytes to a third-party parser, so `build_report(bytes, UnityPy.load, MeshHandler)` from a REPL would have decoded the artifact with no gate at all. A future session reading "the interpreter is the barrier" had an obvious unblocking move — `pip install UnityPy==1.25.3` into the conda base — that removed the last thing standing between an untrusted bundle and third-party parsing code.
+
+The repair was not to reword the document. It was to make the refusal executable: the exact retained identity is now refused unless the active import root passes the full 13-distribution RECORD contract, and the error message names the dead ends, including that the interpreter check is not the barrier and that installing the package does not help.
+
+**Anchor:** `assert_pinned_environment_for_retained_bundle` in `scripts/discover_builder_shell_core.py`, regression `test_retained_bundle_refuses_to_parse_outside_the_pinned_environment`, which fails with `AssertionError: retained bundle must not be parsed` when the gate is removed.
+Verified 2026-08-04 by running `where python` and `validate_worker_runtime()` under all four installed interpreters: clean return under 3.13.9 and 3.13.10, `ValueError` under 3.14.0 and 3.10.6.
