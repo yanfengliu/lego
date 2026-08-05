@@ -14,8 +14,31 @@ export interface OrientedBox {
 }
 
 export const ORIENTED_BOX_MAX_SAT_AXES = 15;
+/**
+ * Largest dot-product or determinant deviation an authored rotation may carry
+ * and still count as orthonormal catalog truth. One LDU is 0.4 mm, so at this
+ * bound the worst shear displaces a corner of a 100 LDU half-extent part by
+ * 1e-7 LDU — forty picometres, far below any authoring or rendering resolution.
+ * A looser bound admits real shear as truth: 1e-3 would accept a corner
+ * displacement of 0.1 LDU on that same part. `oriented-box-overlap.test.ts`
+ * pins both sides of this boundary.
+ */
 export const ORIENTED_BOX_MATRIX_TOLERANCE = 1e-9;
 export const ORIENTED_BOX_OVERLAP_TOLERANCE_LDU = 0;
+
+/**
+ * Smallest fraction of a source box's world-axis span that its eight computed
+ * corners must still resolve. Corner arithmetic adds each rotated half-extent
+ * to the center separately, so once a term falls below half the binary64
+ * spacing at that center it vanishes outright (1e16 + 0.7071 is 1e16) and the
+ * whole axis span can collapse to zero while the corners stay distinct in the
+ * other two axes. Any span reaching four times that spacing survives to within
+ * one spacing, so a surviving span below this fraction means the arithmetic,
+ * not the source box, decided the shape.
+ */
+const ORIENTED_BOX_SPAN_RESOLUTION_FLOOR = 0.5;
+
+const WORLD_AXIS_LABELS = ["x", "y", "z"] as const;
 
 type Axis3 = readonly [x: number, y: number, z: number];
 
@@ -76,13 +99,38 @@ function faceNormals(axes: readonly [Axis3, Axis3, Axis3]): readonly [Axis3, Axi
   return [cross(axes[1], axes[2]), cross(axes[2], axes[0]), cross(axes[0], axes[1])];
 }
 
+/** Renders an arbitrary rejected value for an error message without throwing. */
+function describeValue(value: unknown): string {
+  if (typeof value === "bigint" || typeof value === "function" || typeof value === "symbol") {
+    return String(value);
+  }
+  if (value === undefined) return "undefined";
+  if (ArrayBuffer.isView(value)) return `${value.constructor.name}(${Array.from(value as never)})`;
+  try {
+    return JSON.stringify(value) ?? String(value);
+  } catch {
+    return Object.prototype.toString.call(value);
+  }
+}
+
 /**
  * Accepts only a finite, proper orthonormal rotation. Tolerance permits source
  * decimal round-off; the matrix itself is retained byte-for-value unchanged.
+ *
+ * This is a total predicate over unknown input: a missing field, a string, a
+ * plain object, or a typed array answers false rather than throwing, so callers
+ * keep control of the rejection message. A typed array is rejected on purpose
+ * — the narrowed `OrientationMatrix` is a readonly nine-number tuple, and a
+ * `Float64Array` satisfies neither its element access contract nor its
+ * structural identity under canonicalization.
  */
-export function isProperOrthonormalMatrix(matrix: readonly number[]): matrix is OrientationMatrix {
-  if (matrix.length !== 9 || !matrix.every(Number.isFinite)) return false;
-  const axes = matrixAxes(matrix as OrientationMatrix);
+export function isProperOrthonormalMatrix(matrix: unknown): matrix is OrientationMatrix {
+  if (!Array.isArray(matrix) || matrix.length !== 9) return false;
+  const entries: readonly unknown[] = matrix;
+  const isFiniteNumber = (value: unknown): value is number =>
+    typeof value === "number" && Number.isFinite(value);
+  if (!entries.every(isFiniteNumber)) return false;
+  const axes = matrixAxes(entries as unknown as OrientationMatrix);
   for (let left = 0; left < axes.length; left += 1) {
     for (let right = left; right < axes.length; right += 1) {
       const expected = left === right ? 1 : 0;
@@ -91,24 +139,42 @@ export function isProperOrthonormalMatrix(matrix: readonly number[]): matrix is 
       }
     }
   }
-  const det = determinant(matrix);
+  const det = determinant(entries);
   return det > 0 && Math.abs(det - 1) <= ORIENTED_BOX_MATRIX_TOLERANCE;
 }
 
+function isNumberTriple(value: unknown): value is readonly [number, number, number] {
+  return (
+    Array.isArray(value) &&
+    value.length === 3 &&
+    value.every((entry) => typeof entry === "number" && Number.isFinite(entry))
+  );
+}
+
 function assertOrientedBox(box: OrientedBox, label: string): void {
-  if (box.centerLdu.length !== 3 || !box.centerLdu.every(Number.isFinite)) {
-    throw new TypeError(`${label} centerLdu must contain three finite coordinates`);
+  if (box === null || typeof box !== "object") {
+    throw new TypeError(
+      `${label} must be an object with centerLdu, halfExtentsLdu, and orientation, ` +
+        `received ${describeValue(box)}.`,
+    );
   }
-  if (
-    box.halfExtentsLdu.length !== 3 ||
-    !box.halfExtentsLdu.every((extent) => Number.isFinite(extent) && extent > 0)
-  ) {
-    throw new TypeError(`${label} halfExtentsLdu must contain three finite positive extents`);
+  if (!isNumberTriple(box.centerLdu)) {
+    throw new TypeError(
+      `${label} centerLdu ${describeValue(box.centerLdu)} must contain three finite coordinates ` +
+        "as a plain array of numbers.",
+    );
+  }
+  if (!isNumberTriple(box.halfExtentsLdu) || !box.halfExtentsLdu.every((extent) => extent > 0)) {
+    throw new TypeError(
+      `${label} halfExtentsLdu ${describeValue(box.halfExtentsLdu)} must contain three finite ` +
+        "positive extents as a plain array of numbers; a zero or negative extent has no volume.",
+    );
   }
   if (!isProperOrthonormalMatrix(box.orientation)) {
     throw new TypeError(
-      `${label} orientation ${JSON.stringify(box.orientation)} must be a finite proper ` +
-        `orthonormal 3x3 matrix within ${ORIENTED_BOX_MATRIX_TOLERANCE}; reflections, ` +
+      `${label} orientation ${describeValue(box.orientation)} must be a finite proper ` +
+        `orthonormal 3x3 matrix, given as a plain array of nine numbers in row-major order, ` +
+        `within ${ORIENTED_BOX_MATRIX_TOLERANCE}; reflections, ` +
         "scale, shear, and zero or duplicate axes are invalid.",
     );
   }
@@ -141,6 +207,19 @@ function cornersUnchecked(box: OrientedBox): readonly LduVector3[] {
       }
     }
   }
+  assertCornerResolution(box, corners);
+  return corners;
+}
+
+/**
+ * Rejects a corner set that no longer carries the source box's shape.
+ *
+ * Whole-corner distinctness is necessary but not sufficient: one surviving
+ * coordinate keeps all eight corner tuples distinct while another coordinate's
+ * entire span has been rounded away, so each world axis is checked on its own
+ * against the span the source box actually has there.
+ */
+function assertCornerResolution(box: OrientedBox, corners: readonly LduVector3[]): void {
   if (new Set(corners.map((corner) => corner.join(","))).size !== 8) {
     throw new RangeError(
       `Oriented-box corner precision collapsed distinct source corners for center ` +
@@ -149,7 +228,29 @@ function cornersUnchecked(box: OrientedBox): readonly LduVector3[] {
         "source corners to remain distinct binary64 positions.",
     );
   }
-  return corners;
+  const axes = matrixAxes(box.orientation);
+  for (let worldAxis = 0; worldAxis < 3; worldAxis += 1) {
+    let sourceSpan = 0;
+    for (let localAxis = 0; localAxis < 3; localAxis += 1) {
+      sourceSpan += Math.abs(axes[localAxis]![worldAxis]!) * box.halfExtentsLdu[localAxis]!;
+    }
+    sourceSpan *= 2;
+    if (!(sourceSpan > 0)) continue;
+    const projected = corners.map((corner) => corner[worldAxis]!);
+    const resolvedSpan = Math.max(...projected) - Math.min(...projected);
+    if (resolvedSpan >= sourceSpan * ORIENTED_BOX_SPAN_RESOLUTION_FLOOR) continue;
+    const magnitude = Math.abs(box.centerLdu[worldAxis]!);
+    const spacing = nextUp(magnitude) - magnitude;
+    throw new RangeError(
+      `Oriented-box corner precision collapsed the ${WORLD_AXIS_LABELS[worldAxis]} span for ` +
+        `center ${JSON.stringify(box.centerLdu)} and half-extents ` +
+        `${JSON.stringify(box.halfExtentsLdu)}: the source box spans ${sourceSpan} LDU on that ` +
+        `axis but its eight binary64 corners resolve only ${resolvedSpan} LDU. Binary64 spacing ` +
+        `at that center coordinate is ${spacing} LDU, which rounds away rotated half-extents ` +
+        `smaller than ${spacing / 2} LDU. Reduce the center-coordinate magnitude, or use ` +
+        `half-extents whose ${WORLD_AXIS_LABELS[worldAxis]} span exceeds ${4 * spacing} LDU.`,
+    );
+  }
 }
 
 /** Returns the fixed eight source-preserving corners after validation. */
