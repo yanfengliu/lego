@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import { parseRequestedPages, selectStepPages } from "./callout-analysis";
 import { evaluateRecoveryBenchmark, fixtureAccepts } from "./callout-benchmark";
-import { CALLOUT_RECOVERY_FIXTURE, SEMANTIC_CALLOUTS } from "./callout-recovery-fixture";
+import {
+  CALLOUT_RECOVERY_FIXTURE,
+  FULL_BOOKLET_CALLOUT_ACCOUNTING,
+  SEMANTIC_CALLOUTS,
+} from "./callout-recovery-fixture";
 import type { BrowserCrop, BrowserResult, RecoveryFixtureCase } from "./callout-types";
 
 function crop(
@@ -43,32 +47,139 @@ function crop(
 }
 
 describe("callout recovery fixture", () => {
-  it("pins 19 unique failures and all three semantic evidence regions", () => {
-    expect(CALLOUT_RECOVERY_FIXTURE.cases).toHaveLength(19);
-    expect(new Set(CALLOUT_RECOVERY_FIXTURE.cases.map(({ identity }) => identity)).size).toBe(19);
+  it("pins 34 unique failures and the exact 18 semantic identities", () => {
+    expect(CALLOUT_RECOVERY_FIXTURE.cases).toHaveLength(34);
+    expect(new Set(CALLOUT_RECOVERY_FIXTURE.cases.map(({ identity }) => identity)).size).toBe(34);
     expect(
-      SEMANTIC_CALLOUTS.map(({ identity, evidenceKind, regionKind }) => ({
-        identity,
-        evidenceKind,
-        regionKind,
-      })),
+      SEMANTIC_CALLOUTS.map(({ identity }) => identity).sort((left, right) =>
+        left.localeCompare(right),
+      ),
     ).toEqual([
-      {
-        identity: "p209|q2|x650.759|y397.824",
-        evidenceKind: "assembly-action",
-        regionKind: "vector-box-full",
-      },
-      {
-        identity: "p33|q4|x274.854|y340.077",
-        evidenceKind: "subassembly-repeat",
-        regionKind: "vector-box-full",
-      },
-      {
-        identity: "p96|q2|x685.147|y70.803",
-        evidenceKind: "assembly-action",
-        regionKind: "panel-neighbor-action",
-      },
+      "p103|q2|x253.179|y92.215",
+      "p111|q4|x725.103|y415.705",
+      "p147|q2|x532.191|y440.120",
+      "p173|q2|x330.444|y327.720",
+      "p182|q2|x333.883|y418.464",
+      "p187|q2|x268.113|y339.249",
+      "p199|q2|x315.163|y148.519",
+      "p209|q2|x650.759|y397.824",
+      "p213|q2|x112.849|y272.876",
+      "p216|q2|x353.685|y318.273",
+      "p32|q2|x511.589|y390.747",
+      "p33|q4|x274.854|y340.077",
+      "p76|q2|x315.636|y170.033",
+      "p79|q2|x357.198|y161.718",
+      "p89|q2|x332.007|y431.482",
+      "p93|q2|x332.066|y400.171",
+      "p96|q2|x685.147|y70.803",
+      "p99|q2|x267.940|y62.979",
     ]);
+  });
+
+  it("pins the visually audited subassembly predicates independently of runtime crops", () => {
+    const auditedIdentities = new Set([
+      "p32|q2|x511.589|y390.747",
+      "p76|q2|x315.636|y170.033",
+      "p79|q2|x357.198|y161.718",
+      "p89|q2|x332.007|y431.482",
+      "p93|q2|x332.066|y400.171",
+      "p99|q2|x267.940|y62.979",
+      "p103|q2|x253.179|y92.215",
+      "p111|q4|x725.103|y415.705",
+      "p147|q2|x532.191|y440.120",
+      "p173|q2|x330.444|y327.720",
+      "p182|q2|x333.883|y418.464",
+      "p187|q2|x268.113|y339.249",
+      "p199|q2|x315.163|y148.519",
+      "p213|q2|x112.849|y272.876",
+      "p216|q2|x353.685|y318.273",
+    ]);
+    expect(
+      CALLOUT_RECOVERY_FIXTURE.cases
+        .filter(({ identity }) => auditedIdentities.has(identity))
+        .map(
+          ({
+            identity,
+            evidenceKind,
+            regionKind,
+            requiredMasks,
+            minimumWidthPx,
+            minimumHeightPx,
+            minimumForegroundPixels,
+            minimumBoundaryClearancePx,
+          }) => ({
+            identity,
+            evidenceKind,
+            regionKind,
+            requiredMasks,
+            minimumWidthPx,
+            minimumHeightPx,
+            minimumForegroundPixels,
+            minimumBoundaryClearancePx,
+          }),
+        )
+        .sort((left, right) => left.identity.localeCompare(right.identity)),
+    ).toEqual(
+      [
+        ["p32|q2|x511.589|y390.747", 250, 400],
+        ["p76|q2|x315.636|y170.033", 650, 400],
+        ["p79|q2|x357.198|y161.718", 750, 300],
+        ["p89|q2|x332.007|y431.482", 450, 250],
+        ["p93|q2|x332.066|y400.171", 450, 250],
+        ["p99|q2|x267.940|y62.979", 450, 250],
+        ["p103|q2|x253.179|y92.215", 450, 250],
+        ["p111|q4|x725.103|y415.705", 850, 500],
+        ["p147|q2|x532.191|y440.120", 350, 300],
+        ["p173|q2|x330.444|y327.720", 1_100, 450],
+        ["p182|q2|x333.883|y418.464", 750, 350],
+        ["p187|q2|x268.113|y339.249", 800, 350],
+        ["p199|q2|x315.163|y148.519", 250, 400],
+        ["p213|q2|x112.849|y272.876", 250, 500],
+        ["p216|q2|x353.685|y318.273", 1_550, 350],
+      ]
+        .map(([identity, minimumWidthPx, minimumHeightPx]) => ({
+          identity,
+          evidenceKind: "subassembly-repeat",
+          regionKind: "vector-box-full",
+          requiredMasks: ["quantity-label"],
+          minimumWidthPx,
+          minimumHeightPx,
+          minimumForegroundPixels: 10_000,
+          minimumBoundaryClearancePx: 16,
+        }))
+        .sort((left, right) => String(left.identity).localeCompare(String(right.identity))),
+    );
+  });
+
+  it("pins the fresh full-booklet publication accounting", () => {
+    expect(FULL_BOOKLET_CALLOUT_ACCOUNTING).toEqual({
+      rawNxIdentityCount: 881,
+      rawNxQuantityTotal: 1_512,
+      physicalPartArtIdentityCount: 863,
+      physicalPartArtQuantityTotal: 1_472,
+      semanticIdentityCount: 18,
+      semanticQuantityTotal: 40,
+      fixedFailureClassSize: 34,
+    });
+    expect(SEMANTIC_CALLOUTS).toHaveLength(FULL_BOOKLET_CALLOUT_ACCOUNTING.semanticIdentityCount);
+    expect(
+      SEMANTIC_CALLOUTS.reduce((total, { identity }) => {
+        const match = /^p\d+\|q(\d+)\|/.exec(identity);
+        expect(match).not.toBeNull();
+        return total + Number(match![1]);
+      }, 0),
+    ).toBe(FULL_BOOKLET_CALLOUT_ACCOUNTING.semanticQuantityTotal);
+    expect(
+      FULL_BOOKLET_CALLOUT_ACCOUNTING.rawNxIdentityCount -
+        FULL_BOOKLET_CALLOUT_ACCOUNTING.semanticIdentityCount,
+    ).toBe(FULL_BOOKLET_CALLOUT_ACCOUNTING.physicalPartArtIdentityCount);
+    expect(
+      FULL_BOOKLET_CALLOUT_ACCOUNTING.rawNxQuantityTotal -
+        FULL_BOOKLET_CALLOUT_ACCOUNTING.semanticQuantityTotal,
+    ).toBe(FULL_BOOKLET_CALLOUT_ACCOUNTING.physicalPartArtQuantityTotal);
+    expect(CALLOUT_RECOVERY_FIXTURE.cases).toHaveLength(
+      FULL_BOOKLET_CALLOUT_ACCOUNTING.fixedFailureClassSize,
+    );
   });
 
   it("rejects numeral-only part art for a semantic action", () => {
@@ -117,7 +228,7 @@ describe("callout recovery fixture", () => {
     const benchmark = evaluateRecoveryBenchmark(CALLOUT_RECOVERY_FIXTURE.sourceHash, results);
     expect(benchmark.winner).toBe("evidence-aware");
     expect(benchmark.winningMargin).toBeGreaterThan(0);
-    expect(benchmark.scores.find(({ strategy }) => strategy === "evidence-aware")?.valid).toBe(19);
+    expect(benchmark.scores.find(({ strategy }) => strategy === "evidence-aware")?.valid).toBe(34);
     expect(benchmark.scores.find(({ strategy }) => strategy === "ranked-component")?.valid).toBe(
       16,
     );

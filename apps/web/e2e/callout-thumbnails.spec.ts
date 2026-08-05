@@ -27,6 +27,7 @@ import { renderCalloutCrops } from "./callout-browser-crops";
 import {
   CALLOUT_RECOVERY_BY_IDENTITY,
   CALLOUT_RECOVERY_FIXTURE,
+  FULL_BOOKLET_CALLOUT_ACCOUNTING,
   SEMANTIC_CALLOUTS,
 } from "./callout-recovery-fixture";
 import { publishCalloutRun, type PreparedCrop } from "./callout-publication";
@@ -44,10 +45,10 @@ import { SAMPLE_BOOKLET_PATH, bookletProbeUrls, hasSampleBooklet } from "./sampl
 const OUT = "output/callout-thumbnails";
 const PAGE_LIMIT = Number(process.env.CALLOUT_PAGE_LIMIT ?? "8");
 const REQUESTED_PAGES = parseRequestedPages(process.env.CALLOUT_PAGES);
-const FULL_LABEL_COUNT = 881;
-const FULL_RAW_NX_QUANTITY = 1512;
-const FULL_PHYSICAL_LABEL_COUNT = 878;
-const FULL_PHYSICAL_QUANTITY = 1504;
+const FULL_LABEL_COUNT = FULL_BOOKLET_CALLOUT_ACCOUNTING.rawNxIdentityCount;
+const FULL_RAW_NX_QUANTITY = FULL_BOOKLET_CALLOUT_ACCOUNTING.rawNxQuantityTotal;
+const FULL_PHYSICAL_LABEL_COUNT = FULL_BOOKLET_CALLOUT_ACCOUNTING.physicalPartArtIdentityCount;
+const FULL_PHYSICAL_QUANTITY = FULL_BOOKLET_CALLOUT_ACCOUNTING.physicalPartArtQuantityTotal;
 
 function sha256(bytes: Uint8Array | string): string {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
@@ -379,8 +380,17 @@ test("publishes typed evidence for every distinct Nx label", async ({ page }) =>
     semanticQuantityTotal: semantic.reduce((total, { metadata }) => total + metadata.quantity, 0),
   };
   if (fullRun) {
+    expect(benchmark.fixedFailureClassSize).toBe(
+      FULL_BOOKLET_CALLOUT_ACCOUNTING.fixedFailureClassSize,
+    );
     expect(accounting.physicalPartArtIdentityCount).toBe(FULL_PHYSICAL_LABEL_COUNT);
     expect(accounting.physicalPartArtQuantityTotal).toBe(FULL_PHYSICAL_QUANTITY);
+    expect(accounting.semanticIdentityCount).toBe(
+      FULL_BOOKLET_CALLOUT_ACCOUNTING.semanticIdentityCount,
+    );
+    expect(accounting.semanticQuantityTotal).toBe(
+      FULL_BOOKLET_CALLOUT_ACCOUNTING.semanticQuantityTotal,
+    );
     expect(semantic.map(({ metadata }) => metadata.identity).sort()).toEqual(
       SEMANTIC_CALLOUTS.map(({ identity }) => identity).sort(),
     );
