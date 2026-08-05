@@ -623,3 +623,22 @@ The common cause is that each check answered "I could not verify this" the same 
 The repair that generalises is not more checks, it is making the three outcomes distinguishable: verified, refused, and *could not verify*. `verdictsUnbindable` separates dead labels from absent ones; the barrier became an executable refusal naming its own dead ends; the chain declares its order as data with each stage's rebuild command; and the skip became a failing assertion. A check that cannot say "I did not run" will eventually not run.
 
 **Anchor:** `verdictsUnbindable` in `scripts/part-identification-score.mjs` (87 -> 0 once verdicts were re-keyed by crop digest); `assert_pinned_environment_for_retained_bundle` in `scripts/discover_builder_shell_core.py`; `apps/web/e2e/real-build-input-chain.ts` with its regression `apps/web/test/real-build-input-chain.test.ts`; and the stale-artifact case in `apps/web/test/real-build-builder-calibration.test.ts`, converted from `console.warn` plus skip to a failing assertion naming the observed version, the expected version and the regeneration command. All four found on 2026-08-05.
+
+## The shape of the question decides what a vision call is worth
+
+Two configurations, the same booklet, the same model family, measured on the same day.
+
+Asked an open N-way question — a card of four to six candidate renders beside the callout, answer with a pick number, a free-text description and a confidence — Claude Opus 5 was **39.9 percent self-consistent** across 273 drawings. It contradicted itself on 140 of 233 checkable proposals, its picks changed 0 of 273 drawings and 0 of 863 callouts against the deterministic baseline, and its confidence carried no signal at all: 0.874 mean on answers that survived, 0.854 on answers that contradicted themselves. As a filter it was worthless.
+
+Asked a closed binary question — two pictures side by side at the same height, is this the same part, nothing else on screen — two independent raters on different models agreed **84 of 84**, including all eight "different" calls and both cases where the pair was unjudgeable because the claim side was blank.
+
+Roughly a twentyfold difference in reliability, from the same models looking at the same art. What moved it:
+
+The answer space was small and checkable. Same or different has a structure that two raters can be compared on; "which of these six" does not.
+The answer was withheld. The pair judge saw no part name, no element id, no metadata, and could not be led by them — which is also what makes the resulting label auditable.
+Uncertainty had somewhere to go. "Unsure" was a first-class answer and was used exactly twice, both times correctly, on pairs whose right-hand side was empty. A confidence number instead absorbs uncertainty into a value nothing acts on.
+Escalation was built in. Contact sheets first, single-pair renders for anything ambiguous; one rater re-read 39 of 84 that way, and the resolution difference is what settled stud counts.
+
+The corollary is that a disappointing vision result is not automatically a model limit. Before concluding the model cannot see it, check whether it was asked something answerable — and whether the grader is measuring sight or vocabulary.
+
+**Anchor:** the open configuration is `output/part-identification/answers-claude-opus-5.json` scored by `scripts/part-identification-score.mjs`, 39.9 percent self-consistency and a whole-book claim diff of zero. The closed configuration is `scripts/fixtures/part-identification-truth-first50.json`, schema `lego.part-identification-truth/2`, whose `raters` block records the 84/84 agreement and the two pairs adjudicated by hand where the raters' descriptions diverged despite agreeing verdicts. Both measured 2026-08-05.
