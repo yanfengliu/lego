@@ -13,6 +13,14 @@ export default tseslint.config(
       "**/playwright-report/**",
       "**/test-results/**",
       "packages/protocol/src/generated/**",
+      // The artifact roots AGENTS.md declares for task-run evidence. A run that
+      // snapshots repository sources into its own output directory would
+      // otherwise be linted as if it were repository source, and one probe
+      // left behind turns the lint gate red for a reason unrelated to the code.
+      "output/**",
+      "var/runs/**",
+      "var/state/**",
+      "tmp/**",
     ],
   },
   eslint.configs.recommended,
