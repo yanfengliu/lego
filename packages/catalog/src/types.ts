@@ -1,5 +1,29 @@
 export type LduVector3 = readonly [x: number, y: number, z: number];
 
+/**
+ * One LDU coordinate held exactly, as a signed integer count of 10^-9 LDU.
+ *
+ * Part geometry measured out of LDraw is not always a float64: composing
+ * 93273's closure gives a bound of exactly -16.00016098, which no double holds.
+ * The construction lattice is untouched by this — placements are integer LDU —
+ * so exactness lives on the geometry side, where the fractions come from.
+ *
+ * The scale travels with the value rather than living only in a constant, so a
+ * stored bound states what its own units mean and a later scale change cannot
+ * be mistaken for the same number.
+ */
+export interface ExactLdu {
+  readonly units: number;
+  readonly scaleExponent: number;
+}
+
+export type ExactLduVector3 = readonly [x: ExactLdu, y: ExactLdu, z: ExactLdu];
+
+export interface ExactLduBounds {
+  readonly min: ExactLduVector3;
+  readonly max: ExactLduVector3;
+}
+
 export type OrientationMatrix = readonly [
   m11: number,
   m12: number,
@@ -324,6 +348,12 @@ export interface ParametricGeometryRecipe {
    */
   readonly bodyBoundsLdu?: LduBounds;
   /**
+   * The same extents held exactly, for a part whose measured coordinates fall
+   * on a fraction float64 cannot carry. Present only when the part declares
+   * them, so a part that never needed exact bounds hashes as it always did.
+   */
+  readonly exactBodyBoundsLdu?: ExactLduBounds;
+  /**
    * The solid as a union of boxes, for a part that is not one prism: an arch is
    * two legs and a span with the void between them left uncovered, a corner
    * plate is an L, and a slope is a staircase because the collision model's
@@ -406,6 +436,14 @@ export interface PartDefinition {
   readonly connectorGridCenterLdu?: readonly [x: number, z: number];
   readonly bodyBoundsLdu: LduBounds;
   readonly boundsLdu: LduBounds;
+  /**
+   * The two bounds above, held exactly, for a part whose measured source needs
+   * more precision than float64 carries. Both are present together or neither
+   * is; the float64 pair stays the field every renderer, validator and
+   * placement path reads, and never shrinks the exact solid.
+   */
+  readonly exactBodyBoundsLdu?: ExactLduBounds;
+  readonly exactBoundsLdu?: ExactLduBounds;
   readonly geometry: PartGeometryRecipe;
   readonly connectors: readonly ConnectorPortDefinition[];
   readonly legalOrientationIds: readonly string[];

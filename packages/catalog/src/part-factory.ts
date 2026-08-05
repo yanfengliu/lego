@@ -8,7 +8,12 @@ import {
   STUD_RADIUS_LDU,
   UPRIGHT_ORIENTATIONS,
 } from "./constants.ts";
-import type { CollisionPrimitive, LduBounds, ParametricPartDefinition } from "./types.ts";
+import type {
+  CollisionPrimitive,
+  ExactLduBounds,
+  LduBounds,
+  ParametricPartDefinition,
+} from "./types.ts";
 
 import { arcCollisionPrimitives } from "./arc-plan.ts";
 import { AVAILABLE_COLOR_IDS } from "./colors.ts";
@@ -16,6 +21,14 @@ import {
   buildConnectorFeatures,
   validatePartialOverhangClutchEvidence,
 } from "./connector-backing-policy.ts";
+import {
+  assertNumericBoundsContainExact,
+  exactLduBoundsToNumbers,
+  exactLduFromNumber,
+  formatExactLduBounds,
+  parseExactLduBounds,
+  subtractExactLdu,
+} from "./exact-ldu.ts";
 import { deepFreeze } from "./freeze.ts";
 import { PART_BLUEPRINTS } from "./part-blueprints.ts";
 import type { PartBlueprint } from "./part-blueprint-types.ts";
@@ -43,12 +56,24 @@ export const makePartDefinition = (blueprint: PartBlueprint): ParametricPartDefi
     bodyWedge,
     bodyBoxesLdu,
     bodyArc,
+    exactBodyBoundsLdu: exactBodyBoundsDeclaration,
   } = blueprint;
   if ([bodyWedge, bodyBoxesLdu, bodyArc].filter((feature) => feature !== undefined).length > 1) {
     throw new Error(`${blueprint.ldrawId} declares more than one body source feature`);
   }
-  if (bodyArc !== undefined && blueprint.bodyBoundsLdu === undefined) {
-    throw new Error(`${blueprint.ldrawId} bodyArc requires explicit measured bodyBoundsLdu`);
+  if (exactBodyBoundsDeclaration !== undefined && blueprint.bodyBoundsLdu !== undefined) {
+    throw new Error(
+      `${blueprint.ldrawId} declares body extents twice, as bodyBoundsLdu ${JSON.stringify(blueprint.bodyBoundsLdu)} and as exactBodyBoundsLdu ${JSON.stringify(exactBodyBoundsDeclaration)}; a part states its body extents once, so keep the exact decimal declaration and drop the float64 one.`,
+    );
+  }
+  if (
+    bodyArc !== undefined &&
+    blueprint.bodyBoundsLdu === undefined &&
+    exactBodyBoundsDeclaration === undefined
+  ) {
+    throw new Error(
+      `${blueprint.ldrawId} bodyArc requires explicit measured bodyBoundsLdu or exactBodyBoundsLdu`,
+    );
   }
   validatePartialOverhangClutchEvidence(blueprint);
   if (
@@ -78,22 +103,62 @@ export const makePartDefinition = (blueprint: PartBlueprint): ParametricPartDefi
   // solid is an L or an arch still has one honest bounding box to select,
   // highlight and frame by.
   const unionBoundsLdu = bodyBoxesLdu === undefined ? undefined : unionOfBoxes(bodyBoxesLdu);
-  const bodyBoundsLdu: LduBounds = blueprint.bodyBoundsLdu ??
-    unionBoundsLdu ?? {
-      min: [-widthLdu / 2, topY, -lengthLdu / 2],
-      max: [widthLdu / 2, bottomY, lengthLdu / 2],
-    };
+  // A part whose measured extents are not a float64 declares them exactly, and
+  // the float64 pair is projected from that record rather than authored beside
+  // it, so every existing consumer keeps reading the field it always read and
+  // the two cannot disagree.
+  const exactBodyBounds: ExactLduBounds | undefined =
+    exactBodyBoundsDeclaration === undefined
+      ? undefined
+      : parseExactLduBounds(exactBodyBoundsDeclaration, `${blueprint.ldrawId} exactBodyBoundsLdu`);
   // The body plus whatever stands proud of it. Derived from the body rather
   // than from the stud footprint, so a part that declares its own extents does
   // not report a bounding box belonging to a different shape.
-  const boundsLdu: LduBounds = {
-    min: [
-      bodyBoundsLdu.min[0],
-      studded ? bodyBoundsLdu.min[1] - STUD_HEIGHT_LDU : bodyBoundsLdu.min[1],
-      bodyBoundsLdu.min[2],
-    ],
-    max: bodyBoundsLdu.max,
-  };
+  const exactBounds: ExactLduBounds | undefined =
+    exactBodyBounds === undefined
+      ? undefined
+      : {
+          min: [
+            exactBodyBounds.min[0],
+            subtractExactLdu(
+              exactBodyBounds.min[1],
+              exactLduFromNumber(
+                studded ? STUD_HEIGHT_LDU : 0,
+                `${blueprint.ldrawId} stud overhang`,
+              ),
+              `${blueprint.ldrawId} visual bounds min y`,
+            ),
+            exactBodyBounds.min[2],
+          ],
+          max: exactBodyBounds.max,
+        };
+  const bodyBoundsLdu: LduBounds =
+    exactBodyBounds === undefined
+      ? (blueprint.bodyBoundsLdu ??
+        unionBoundsLdu ?? {
+          min: [-widthLdu / 2, topY, -lengthLdu / 2],
+          max: [widthLdu / 2, bottomY, lengthLdu / 2],
+        })
+      : exactLduBoundsToNumbers(exactBodyBounds);
+  const boundsLdu: LduBounds =
+    exactBounds === undefined
+      ? {
+          min: [
+            bodyBoundsLdu.min[0],
+            studded ? bodyBoundsLdu.min[1] - STUD_HEIGHT_LDU : bodyBoundsLdu.min[1],
+            bodyBoundsLdu.min[2],
+          ],
+          max: bodyBoundsLdu.max,
+        }
+      : exactLduBoundsToNumbers(exactBounds);
+  if (exactBodyBounds !== undefined && exactBounds !== undefined) {
+    assertNumericBoundsContainExact(
+      bodyBoundsLdu,
+      exactBodyBounds,
+      `${blueprint.ldrawId} bodyBoundsLdu`,
+    );
+    assertNumericBoundsContainExact(boundsLdu, exactBounds, `${blueprint.ldrawId} boundsLdu`);
+  }
 
   // A part whose solid is one prism keeps the single primitive named "body", so
   // growing the model did not re-hash the sixty-five parts that came before a
@@ -155,26 +220,18 @@ export const makePartDefinition = (blueprint: PartBlueprint): ParametricPartDefi
     dimensions: { widthStuds, lengthStuds, widthLdu, lengthLdu, heightLdu },
     bodyBoundsLdu,
     boundsLdu,
+    ...(exactBodyBounds === undefined || exactBounds === undefined
+      ? {}
+      : { exactBodyBoundsLdu: exactBodyBounds, exactBoundsLdu: exactBounds }),
     geometry: {
       generatorId:
         bodyArc === undefined
           ? "builtin:parametric-rectilinear-part/1"
           : "builtin:parametric-plan-feature-part/1",
       digestInput: makeGeometryDigestInput(
-        family,
-        widthStuds,
-        lengthStuds,
+        blueprint,
         heightLdu,
-        studOffsetsLdu,
-        bodyWedge,
-        blueprint.bodyBoundsLdu,
-        bodyBoxesLdu,
-        bodyArc,
-        blueprint.extraConnectors,
-        clutchOffsetsLdu,
-        partialOverhangClutchEvidence,
-        blueprint.connectorGridCenterLdu,
-        blueprint.withoutClutches === true,
+        exactBodyBounds === undefined ? undefined : formatExactLduBounds(exactBodyBounds),
       ),
       contentHash: `sha256:${blueprint.geometrySha256}`,
       bodyMode:
@@ -197,6 +254,7 @@ export const makePartDefinition = (blueprint: PartBlueprint): ParametricPartDefi
             ? "semantic-tube-seat-grid"
             : "semantic-tube-seat-offsets",
       ...(blueprint.bodyBoundsLdu === undefined ? {} : { bodyBoundsLdu: blueprint.bodyBoundsLdu }),
+      ...(exactBodyBounds === undefined ? {} : { exactBodyBoundsLdu: exactBodyBounds }),
       ...(bodyBoxesLdu === undefined ? {} : { bodyBoxesLdu }),
       ...(bodyArc === undefined ? {} : { bodyArc }),
       ...(blueprint.extraConnectors === undefined

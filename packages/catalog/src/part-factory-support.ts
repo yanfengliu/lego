@@ -10,6 +10,7 @@ import {
 } from "./constants.ts";
 import type { CatalogAlias, LduBounds, PartFamily } from "./types.ts";
 
+import { EXACT_LDU_SCALE_EXPONENT, type ExactLduBoundsDeclaration } from "./exact-ldu.ts";
 import { deepFreeze } from "./freeze.ts";
 import { CHEESE_SLOPE_HEIGHT_LDU } from "./part-blueprints-special.ts";
 import type { PartBlueprint } from "./part-blueprint-types.ts";
@@ -110,24 +111,30 @@ export const studModeFor = (
 
 /**
  * A part with no explicit stud offsets hashes exactly as it did before offsets
- * existed, so adding them did not re-hash the thirty-two parts before it.
+ * existed, so adding them did not re-hash the thirty-two parts before it. The
+ * same rule holds for exact bounds: a part that does not declare them emits the
+ * same digest text it always did.
  */
 export const makeGeometryDigestInput = (
-  family: PartFamily,
-  widthStuds: number,
-  lengthStuds: number,
+  blueprint: PartBlueprint,
   heightLdu: number,
-  studOffsetsLdu: readonly (readonly [number, number])[] | undefined,
-  bodyWedge: PartBlueprint["bodyWedge"],
-  bodyBoundsLdu: PartBlueprint["bodyBoundsLdu"],
-  bodyBoxesLdu: PartBlueprint["bodyBoxesLdu"],
-  bodyArc: PartBlueprint["bodyArc"],
-  extraConnectors: PartBlueprint["extraConnectors"],
-  clutchOffsetsLdu: PartBlueprint["clutchOffsetsLdu"],
-  partialOverhangClutchEvidence: PartBlueprint["partialOverhangClutchEvidence"],
-  connectorGridCenterLdu: PartBlueprint["connectorGridCenterLdu"],
-  withoutClutches: boolean,
+  exactBodyBoundsLdu: ExactLduBoundsDeclaration | undefined,
 ): string => {
+  const {
+    family,
+    widthStuds,
+    lengthStuds,
+    studOffsetsLdu,
+    bodyWedge,
+    bodyBoxesLdu,
+    bodyArc,
+    extraConnectors,
+    clutchOffsetsLdu,
+    partialOverhangClutchEvidence,
+    connectorGridCenterLdu,
+  } = blueprint;
+  const bodyBoundsLdu = blueprint.bodyBoundsLdu;
+  const withoutClutches = blueprint.withoutClutches === true;
   const generatorId =
     bodyArc === undefined
       ? "builtin:parametric-rectilinear-part/1"
@@ -152,6 +159,14 @@ export const makeGeometryDigestInput = (
     ...(bodyBoxesLdu === undefined ? {} : { bodyMode: "box-union", bodyBoxesLdu }),
     ...(bodyArc === undefined ? {} : { bodyMode: "arc-prism", bodyArc }),
     ...(bodyBoundsLdu === undefined ? {} : { bodyBoundsLdu }),
+    // Exact bounds enter the digest as their canonical decimal text, so the
+    // hash binds the measured value rather than the double it projects to.
+    ...(exactBodyBoundsLdu === undefined
+      ? {}
+      : {
+          bodyBoundsMode: `exact-decimal/${EXACT_LDU_SCALE_EXPONENT}`,
+          exactBodyBoundsLdu,
+        }),
     ...(extraConnectors === undefined ? {} : { extraConnectors }),
     ...(clutchOffsetsLdu === undefined ? {} : { clutchOffsetsLdu }),
     ...(partialOverhangClutchEvidence === undefined ? {} : { partialOverhangClutchEvidence }),

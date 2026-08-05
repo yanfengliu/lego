@@ -1,4 +1,5 @@
 export * from "./catalog.ts";
+export * from "./exact-ldu.ts";
 export * from "./mesh-assets.ts";
 export * from "./mesh-admission.ts";
 export * from "./mass-properties.ts";

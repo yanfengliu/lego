@@ -8,6 +8,8 @@ import type {
   SourceProvenance,
 } from "./types.ts";
 
+import type { ExactLduBoundsDeclaration } from "./exact-ldu.ts";
+
 export interface PartBlueprint {
   readonly family: PartFamily;
   readonly widthStuds: number;
@@ -61,6 +63,13 @@ export interface PartBlueprint {
    * that.
    */
   readonly bodyBoundsLdu?: { readonly min: LduVector3; readonly max: LduVector3 };
+  /**
+   * The same declaration for a part whose measured extents are not float64:
+   * canonical decimal text per axis, exactly as the audited LDraw closure
+   * prints it. Mutually exclusive with `bodyBoundsLdu` — one part states its
+   * body extents once.
+   */
+  readonly exactBodyBoundsLdu?: ExactLduBoundsDeclaration;
   /**
    * The solid as a union of boxes, for a part that is not one prism. See
    * `profileBoxes` for the staircase a slope or an arch becomes, and
