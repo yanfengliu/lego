@@ -7,7 +7,7 @@ import os
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import BinaryIO, Iterable
+from typing import Iterable
 
 
 MAX_LDRAW_FILE_BYTES = 2 * 1024 * 1024
@@ -29,11 +29,54 @@ def sha256_prefixed(data: bytes) -> str:
     return f"sha256:{hashlib.sha256(data).hexdigest()}"
 
 
-def stream_sha256(stream: BinaryIO) -> str:
-    digest = hashlib.sha256()
-    while chunk := stream.read(1024 * 1024):
-        digest.update(chunk)
-    return digest.hexdigest()
+class _PinnedBytesStream:
+    """Seekable read-only view over one digest-verified immutable byte snapshot."""
+
+    def __init__(self, data: bytes) -> None:
+        self._data = data
+        self._position = 0
+        self.closed = False
+
+    def read(self, size: int = -1) -> bytes:
+        if self.closed:
+            raise ValueError("I/O operation on closed pinned-byte stream")
+        if size is None or size < 0:
+            end = len(self._data)
+        else:
+            end = min(len(self._data), self._position + size)
+        result = self._data[self._position : end]
+        self._position = end
+        return result
+
+    def seek(self, offset: int, whence: int = os.SEEK_SET) -> int:
+        if self.closed:
+            raise ValueError("I/O operation on closed pinned-byte stream")
+        if whence == os.SEEK_SET:
+            position = offset
+        elif whence == os.SEEK_CUR:
+            position = self._position + offset
+        elif whence == os.SEEK_END:
+            position = len(self._data) + offset
+        else:
+            raise ValueError(f"Unsupported seek mode {whence}")
+        if position < 0:
+            raise ValueError(f"Negative pinned-byte seek position {position}")
+        self._position = position
+        return position
+
+    def tell(self) -> int:
+        return self._position
+
+    def seekable(self) -> bool:
+        return True
+
+    def readable(self) -> bool:
+        return True
+
+    def close(self) -> None:
+        self.closed = True
+        self._position = 0
+        self._data = b""
 
 
 def normalize_archive_member(name: str) -> str:
@@ -86,27 +129,41 @@ class SourceRecord:
 class VerifiedArchive:
     def __init__(self, path: Path, pin: object) -> None:
         self.archive_id = str(getattr(pin, "archive_id"))
-        self.path = path.resolve()
+        self.path = path.resolve(strict=True)
         self.expected_bytes = int(getattr(pin, "byte_length"))
         self.expected_sha256 = str(getattr(pin, "sha256"))
         if not self.path.is_file():
             raise FileNotFoundError(f"{self.archive_id} LDraw archive does not exist: {self.path}")
-        self._stream = self.path.open("rb")
+        with self.path.open("rb") as source:
+            before = os.fstat(source.fileno())
+            snapshot = source.read(self.expected_bytes + 1)
+            after = os.fstat(source.fileno())
+        identities = {
+            (info.st_dev, info.st_ino, info.st_size) for info in (before, after)
+        }
+        if len(identities) != 1:
+            raise ValueError(
+                f"{self.archive_id} LDraw archive changed identity or size during its bounded snapshot"
+            )
+        actual_bytes = before.st_size
+        if actual_bytes != self.expected_bytes or len(snapshot) != self.expected_bytes:
+            raise ValueError(
+                f"{self.archive_id} LDraw archive has {actual_bytes} bytes and yielded "
+                f"{len(snapshot)}; expected exactly {self.expected_bytes}"
+            )
+        actual_sha256 = hashlib.sha256(snapshot).hexdigest()
+        if actual_sha256 != self.expected_sha256:
+            raise ValueError(
+                f"{self.archive_id} LDraw archive sha256:{actual_sha256} differs from pinned "
+                f"sha256:{self.expected_sha256}"
+            )
+        self._snapshot = snapshot
+        self._stream = _PinnedBytesStream(snapshot)
         try:
-            actual_bytes = os.fstat(self._stream.fileno()).st_size
-            if actual_bytes != self.expected_bytes:
-                raise ValueError(
-                    f"{self.archive_id} LDraw archive has {actual_bytes} bytes; expected {self.expected_bytes}"
-                )
-            actual_sha256 = stream_sha256(self._stream)
-            if actual_sha256 != self.expected_sha256:
-                raise ValueError(
-                    f"{self.archive_id} LDraw archive sha256:{actual_sha256} differs from pinned sha256:{self.expected_sha256}"
-                )
-            self._stream.seek(0)
             self.archive = zipfile.ZipFile(self._stream)
         except BaseException:
             self._stream.close()
+            self._snapshot = b""
             raise
         infos = self.archive.infolist()
         maximum = int(getattr(pin, "max_entry_count"))
@@ -134,17 +191,16 @@ class VerifiedArchive:
     def close(self) -> None:
         self.archive.close()
         self._stream.close()
+        self._snapshot = b""
 
     def verify_unchanged(self) -> None:
-        before = os.fstat(self._stream.fileno())
-        self._stream.seek(0)
-        actual_sha256 = stream_sha256(self._stream)
-        after = os.fstat(self._stream.fileno())
-        if before.st_size != after.st_size or after.st_size != self.expected_bytes:
-            raise ValueError(f"{self.archive_id} LDraw archive changed size during traversal")
+        if len(self._snapshot) != self.expected_bytes:
+            raise ValueError(f"{self.archive_id} immutable LDraw snapshot changed size during traversal")
+        actual_sha256 = hashlib.sha256(self._snapshot).hexdigest()
         if actual_sha256 != self.expected_sha256:
             raise ValueError(
-                f"{self.archive_id} LDraw archive changed during traversal: sha256:{actual_sha256} differs from pinned sha256:{self.expected_sha256}"
+                f"{self.archive_id} immutable LDraw snapshot changed during traversal: "
+                f"sha256:{actual_sha256} differs from pinned sha256:{self.expected_sha256}"
             )
 
     def contains(self, path: str) -> bool:
@@ -308,20 +364,22 @@ class LDrawSourceLibrary:
         dependencies: list[tuple[str, str]] = []
         source_key = f"{key[0]}:{key[1]}"
         for line_number, raw_line in enumerate(self.text(key).splitlines(), 1):
-            fields = raw_line.strip().split()
+            stripped = raw_line.strip()
+            fields = stripped.split()
             if not fields or fields[0] != "1":
                 continue
-            if len(fields) < 15:
+            reference_fields = stripped.split(maxsplit=14)
+            if len(reference_fields) < 15:
                 raise ValueError(f"Malformed LDraw type-1 record {source_key}:{line_number}")
             try:
-                values = [float(value) for value in fields[2:14]]
+                values = [float(value) for value in reference_fields[2:14]]
             except ValueError as error:
                 raise ValueError(
                     f"Malformed LDraw transform {source_key}:{line_number}: {error}"
                 ) from error
             if any(not math.isfinite(value) for value in values):
                 raise ValueError(f"Non-finite LDraw transform {source_key}:{line_number}")
-            dependencies.append(self.resolve(" ".join(fields[14:]), key[0]))
+            dependencies.append(self.resolve(reference_fields[14], key[0]))
             if len(dependencies) > MAX_REFERENCES_PER_FILE:
                 raise ValueError(
                     f"{source_key} exceeds {MAX_REFERENCES_PER_FILE} type-1 references"

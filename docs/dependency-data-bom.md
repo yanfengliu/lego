@@ -14,6 +14,7 @@ The machine-readable records refer to one of these policies:
 
 - `project-mit`: project-authored source governed by the repository `LICENSE` (MIT). Redistribution is allowed with the copyright and license notice. Preserve “Copyright (c) 2026 Yanfeng Liu” and the MIT text. The material is not designated as a model-training or benchmark corpus merely because its software license permits use.
 - `npm-lockfile-spdx-unverified`: the stated license is copied from `package-lock.json` and the installed package manifest. Preserve all upstream copyright, license, and NOTICE material required by the package. The generated `THIRD_PARTY_NOTICES.md` records the locked graph; redistribution still requires verification of packaged license files. The package is approved only for its declared software role, not as model-training or benchmark content.
+- `pypi-artifact-spdx-unverified`: the recorded source identity comes from an exact PyPI artifact where an artifact digest is named and otherwise from the installed distribution's checksum-pinned METADATA, WHEEL, and RECORD. Preserve every distribution's upstream copyright, license, and notice material. The environment is approved only for the named local authoring role; it is not a runtime dependency, distributable input, training corpus, or authority source, and its transitive artifact provenance and license texts remain unaudited until separately recorded.
 - `external-evaluation-pending-audit`: the source is not included. No redistribution or training use is approved. It may become evaluation-only only after source-specific license, attribution, privacy, and data-rights review; moving it into runtime, examples, knowledge, or training requires a new reviewed BOM entry.
 - `private-noncommercial-source-reference`: the repository owner expressly authorizes the named source for this private, noncommercial reconstruction and evaluation. That authorization prevents a commercial-rights audit from blocking local work; it does not silently relicense upstream material. Keep source payloads local where possible and retain exact identities and hashes so factual extractions can be reproduced and challenged.
 
@@ -43,6 +44,12 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
       "attribution": "Preserve all upstream copyright, license, and NOTICE material required by the package.",
       "redistribution": "Conditional on verifying packaged license files and notices against the generated THIRD_PARTY_NOTICES.md inventory.",
       "trainingUse": "Not approved as model-training or benchmark content; use only for the declared software role."
+    },
+    "pypi-artifact-spdx-unverified": {
+      "licenseEvidence": "Exact PyPI artifact identity where recorded plus installed checksum-pinned METADATA, WHEEL, RECORD, and any included license files; upstream license texts and transitive artifact provenance have not received an independent audit.",
+      "attribution": "Preserve each pinned distribution's upstream copyright, license, and notice material, including Copyright (c) 2019-2026 K0lb3 and the UnityPy MIT license.",
+      "redistribution": "Not bundled by this repository. Any later redistribution must audit every pinned distribution's source artifact and include all required upstream notices and license texts.",
+      "trainingUse": "Not approved as model-training or benchmark content; use only for the declared local authoring role."
     },
     "derived-measurement-of-external-source": {
       "licenseEvidence": "None obtained. The measured source is a LEGO-copyrighted instruction booklet that is not included in the repository and is not approved for any role.",
@@ -482,6 +489,17 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
       "intent": "Only synthetic, repo-owned examples are approved by default; there are no example model files in the scaffold yet."
     },
     {
+      "id": "synthetic-real-build-identification-goldens",
+      "category": "regression-fixtures",
+      "status": "implemented-project-authored",
+      "source": "apps/web/test/fixtures/real-build-identification-golden/",
+      "version": "lego.synthetic-real-build-identification-goldens/1; exact byte counts and SHA-256 digests bound in apps/web/test/real-build-identification-golden.ts",
+      "declaredLicense": "MIT",
+      "rightsPolicy": "project-mit",
+      "allowedRoles": ["tests", "development-evaluation", "distribution"],
+      "intent": "Reviewable repo-authored JSON fixtures preserve the synthetic identification pipeline closure without embedding encoded payload bytes in TypeScript source; the loader enforces each exact byte count and digest before use."
+    },
+    {
       "id": "ldraw-part-dimensions-reference",
       "category": "external-geometry-and-catalog-data",
       "status": "read-at-authoring-time-not-bundled",
@@ -524,6 +542,39 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
       "rightsPolicy": "private-noncommercial-source-reference",
       "allowedRoles": ["source coverage metadata", "private reconstruction authoring", "tests"],
       "intent": "The immutable ledger, which is not exported from the public catalog entry point, binds the exact 54 covered and 118 missing top-level designs, the 121 required leaf designs, the 107-record precursor pack, four separately checksum-verified composite components, ten checksum-mismatch quarantines, and the coverage-only 76382 decomposition. It retains hashes, identifiers, counts, source URLs, and bounded measurements only: no Builder bundle, mesh, primitive payload, LXFML model, LDraw geometry, booklet page, absolute local path, or base64 source bytes are committed or fetched by runtime or gates. Source-integrity verification does not publish a PartDefinition or claim catalog, structural, visual, or physical validity."
+    },
+    {
+      "id": "set-6651557-six-part-source-pilot",
+      "category": "external-render-geometry-and-primitive-frame-evidence",
+      "status": "local-authoring-only-private-source-authorized-not-bundled-not-admitted",
+      "source": "Six exact roots and their audited closures in the local pinned official/unofficial LDraw archives, plus five checksum-valid records from the local 107-record LEGO Builder native pack; 30357 remains explicitly unavailable from that pack because its Builder bundle failed the recorded integrity pin",
+      "version": "lego.set-6651557-source-pilot/1; source audit sha256 cacee99596d0067223977a4cdf967e1aed6cbf072dec1aac8862e486a140cb42; official archive sha256 6009f2e94204c4d3a63a4c812010b5c90bad8c5acb19b882c859fdac63734eae; unofficial archive sha256 09ec08007203b66e79b1f857aa4804cbee26e1337e177a7c3a87adc1268e44d4; Builder native pack sha256 e5bb745faa79c5e7cb525eb0a11a8443815a0c4805c85644204b26c462ac636d; decoded binary sha256 76830eb4832492e5416ad6920ab4f8167b6cf55725641cce162ac8f9f215b6c7; retained report sha256 368753adec40d517c5063cbe23f28b9ff21108f0f8824bb0671b8c2575794613",
+      "declaredLicense": "LDRAW-SIX-CLOSURES-CC-BY-4.0; USER-AUTHORIZED-PRIVATE-NONCOMMERCIAL-BUILDER-REFERENCE",
+      "rightsPolicy": "private-noncommercial-source-reference",
+      "allowedRoles": ["local source-surface measurement", "local primitive-frame pressure measurement", "private reconstruction strategy benchmark", "synthetic committed tests"],
+      "intent": "scripts/generate-set-6651557-source-pilot.py captures each exact pinned archive once into an immutable bounded snapshot, binds every opened file in the six closures' 70-file union to its corresponding row and reference set in the complete exact 439-record source audit, reads the exact native pack through one held descriptor, rejects duplicate/non-finite or over-budget JSON, independently rehashes each reviewed metadata-and-binary slice, validates rigid primitive frames, and publishes only an ignored canonical measurement report through a prevalidated Windows directory handle. scripts/ldraw_surface_expander.py preserves exact type-1 composition including internal filename spaces, BFC winding and INVERTNEXT semantics, determinant reversal, bounded closure expansion, inherited visible-stud ancestry, and the official quad validity tolerances. No LDraw text, expanded geometry, Builder payload, base64, absolute source path, or mesh is committed or packaged. The report is explicitly measurement-only: it emits no PartDefinition, claims no frame/connector/collision truth, performs no runtime fetch, and cannot admit or self-certify a catalog part."
+    },
+    {
+      "id": "unitypy-builder-shell-extractor",
+      "category": "external-authoring-software-dependency",
+      "status": "local-authoring-only-pinned-not-bundled",
+      "source": "https://pypi.org/project/UnityPy/1.25.3/; upstream https://github.com/K0lb3/UnityPy; transitive source-artifact provenance remains pending audit",
+      "version": "Pinned import environment contract sha256 c4cc3cf7e9e066258688bc9fcace54e0b5c32d39f01956f07d1aff9c25dba80b: UnityPy 1.25.3, archspec 0.2.6, astc-encoder-py 0.1.12, attrs 26.1.0, brotli 1.2.0, etcpak 0.9.15, fmod_toolkit 0.1.3, fsspec 2026.7.0, lz4 4.4.5, pillow 12.3.0, pyfmodex 0.7.2, texture2ddecoder 1.0.6, and tpk_ar 0.2.4; exact per-distribution RECORD digests, wheel tags, and admitted top-level imports are hard-coded in scripts/builder-import-snapshot.py; CPython 3.13 Windows x86-64 UnityPy wheel unitypy-1.25.3-cp313-cp313-win_amd64.whl sha256 255b7284e2f61161ceb0b361f742ac516236e0785fdb11c7d6911e691f1c0782; UnityPy installed RECORD sha256 2c0725359f1bee3e737b2acf4e7bcc37724645db94c3219945aabb45ca0da379",
+      "declaredLicense": "UnityPy MIT; transitive distribution license metadata and texts pending independent audit",
+      "rightsPolicy": "pypi-artifact-spdx-unverified",
+      "allowedRoles": ["local authoring-only decoding of the two checksum-pinned Builder Shell meshes"],
+      "intent": "scripts/extract-builder-shell.py and its focused scripts/builder-import-snapshot.py helper validate the hard-coded 13-distribution environment contract and exact dist-info set, then same-handle capture every non-bytecode RECORD-pinned payload before writing a fresh private temporary snapshot. A child CPython process launched with -I -S -B revalidates that snapshot, disables bytecode writes, limits sys.path to the snapshot and trusted base-runtime paths, constrains PATH, and imports UnityPy only from the snapshot; the mutable original target is never placed on the worker import path, stray top-level modules and timestamp-valid pyc files are not copied, and the snapshot is deleted only after the worker exits. The controller bounds and independently validates the worker report's strict JSON schema, identities, counts, finite coordinates, index ranges, and canonical mesh digest before publishing it, then admits only the hard-coded 30565 revision E and 80015 revision E bundle/path/count tuples. UnityPy and the pinned authoring environment are not committed, bundled, fetched by runtime or gates, used as catalog authority, or approved for training. Transitive source-artifact provenance and license/text review remain a Gate 0 gap."
+    },
+    {
+      "id": "lego-builder-step1-shell-frame-calibration",
+      "category": "external-render-geometry-and-frame-evidence",
+      "status": "local-authoring-only-private-source-authorized-not-bundled",
+      "source": "Local checksum-pinned LEGO Builder Shell meshes for 30565 revision E and 80015 revision E, the retained 21066 LXFML model, and local checksum-pinned official/unofficial LDraw archives used only as an independent surface comparison",
+      "version": "lego.builder-canonical-calibration/6; model sha256 c0564fd86ede633f6cb18738f999fbb70ee948ba93a55cc8d338b4b5f02b5922; 30565 bundle sha256 955ce425a8ddf4b12d320260d627df3f3fb46c52fedaf70f1d562b0e1efa7c93 and Shell canonical sha256 8b41bc4bed4f2e9ee8ddd49b6ed74b52035c1b4f86507d838db56bb55deec8b2; 80015 bundle sha256 f3a11d40f9de9fa54670bdd87db0a87e034896d87b56e64e9f382c3ef0098c75 and Shell canonical sha256 946c5c5782c36a44883200cc57e150c43bef2f4b8e8444257cfcb49952327723; official LDraw archive sha256 6009f2e94204c4d3a63a4c812010b5c90bad8c5acb19b882c859fdac63734eae; unofficial LDraw archive sha256 09ec08007203b66e79b1f857aa4804cbee26e1337e177a7c3a87adc1268e44d4; exact 57-file official LDraw closure manifest sha256 588e47260fc03cdc0fc2fea3bf8a0c5eef62818b0b41dd028aea859031af3fa6; local geometry bundle 122688 bytes sha256 4c03dc3f534e7eab78da7e9c61bf3a539de064a01aa829b18023ac86340f8450; local calibration report sha256 78bcdc88850a40e5763e251ec90f2815a6926c8aa3b59a9988de561488e0fdb1",
+      "declaredLicense": "USER-AUTHORIZED-PRIVATE-NONCOMMERCIAL-REFERENCE; LDRAW-PER-FILE-CC-BY-2.0-OR-CC-BY-4.0",
+      "rightsPolicy": "private-noncommercial-source-reference",
+      "allowedRoles": ["local render-surface comparison", "private reconstruction frame calibration", "tests with synthetic committed fixtures"],
+      "intent": "scripts/extract-builder-shell.py parses the exact captured bytes of one hard-coded checksum-pinned Builder bundle and emits a local Shell inspection; scripts/generate-builder-calibration.py parses the exact already-hashed local archive bytes under fixed ZIP expansion bounds and produces ignored local geometry/calibration outputs. Before geometry expansion, every traversed 30565/80015 LDraw member must match the embedded metadata-only closure's normalized path, SHA-256, Author, !LICENSE, and !LDRAW_ORG values; all 57 are official-library CC BY 4.0 files and the unofficial archive may not contribute. The evidence compares two named Builder Shells with independently pinned LDraw surfaces and the already-reviewed catalog digests for those same designs. No Builder bundle, Shell report, LDraw source text, expanded LDraw geometry, generated geometry bundle, calibration report, or source path is committed, packaged, fetched at runtime, uploaded, or approved for training. This evidence does not admit a PartDefinition and cannot author or independently certify connector truth (C), collision truth (X), or canonical frame truth (F); it is a reproducible local review input only, and changing a digest or limit is not source authorization."
     },
     {
       "id": "lego-builder-80015-connectivity-fact",
@@ -601,7 +652,7 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
 - The direct-dependency inventory is checked, but transitive dependency notices and license files are not yet audited.
 - `THIRD_PARTY_NOTICES.md` is generated deterministically from the complete locked npm graph and checked for drift. The distributable-package attribution/exclusion test does not exist yet, so distribution remains blocked until it passes and the packaged license texts are audited.
 - The starter catalog, connector taxonomy, collision model, and derived Three.js geometry are implemented with versioned project-authored provenance; individual geometry recipes carry SHA-256 content hashes and the truth snapshot pins their aggregate interpretation inputs. Synthetic benchmark examples remain an intent record.
-- No raw LDraw geometry, LEGO Builder bundle or XML, LDCad Shadow Library file, research-model code/data/weights, internet-curated model, or booklet page is approved for packaging or training. Minimal source-pinned measurements and metadata for the private reconstruction are allowed where this BOM names their exact role; currently that includes official LDraw dimensions, the metadata-only 6651557 LDraw source-resolution audit and 21066 source-coverage ledger, the 80015 Builder connector fact and its LDCad cross-check, and the local booklet edge fixture.
+- No raw LDraw geometry, LEGO Builder bundle or XML, LDCad Shadow Library file, research-model code/data/weights, internet-curated model, or booklet page is approved for packaging or training. Minimal source-pinned measurements and metadata for the private reconstruction are allowed where this BOM names their exact role; currently that includes official LDraw dimensions, the metadata-only 6651557 LDraw source-resolution audit and 21066 source-coverage ledger, the local-only six-part LDraw/Builder source pilot and two-design Builder Shell/frame comparison, the 80015 Builder connector fact and its LDCad cross-check, and the local booklet edge fixture.
 - The checker verifies manifest, lockfile, and BOM agreement. It does not make legal conclusions, inspect transitive package license texts, prove file-level provenance, or certify trademark compliance.
 
 Gate 0 therefore remains open. This baseline makes additions fail closed and identifies the work required before a distributable package can satisfy the gate exit.

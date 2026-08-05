@@ -83,6 +83,7 @@ class ArchiveBoundaryTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "differs from pinned"):
                 VerifiedArchive(ordinary, archive_pin(ordinary, "official", sha256="0" * 64))
 
+            expected_part = part_text("1.dat").encode("utf-8")
             verified = VerifiedArchive(ordinary, archive_pin(ordinary, "official"))
             try:
                 with ordinary.open("r+b") as stream:
@@ -90,8 +91,8 @@ class ArchiveBoundaryTests(unittest.TestCase):
                     original = stream.read(1)
                     stream.seek(10)
                     stream.write(bytes([original[0] ^ 0x01]))
-                with self.assertRaisesRegex(ValueError, "changed during traversal"):
-                    verified.verify_unchanged()
+                verified.verify_unchanged()
+                self.assertEqual(verified.read("parts/1.dat"), expected_part)
             finally:
                 verified.close()
 
