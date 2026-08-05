@@ -8,6 +8,10 @@ import {
 import { createEmptyBrickDocument } from "@lego-studio/brick-kernel";
 
 import { enumeratePlacements } from "../src/assembly/enumerate-placements";
+import {
+  selectCatalogToBuilderFrame,
+  type FrameSelectionMethod,
+} from "./real-build-builder-frame-selection";
 import { realBuildInputChainRecovery } from "./real-build-input-chain";
 import {
   BUILDER_STEP1_CALIBRATION_CASES,
@@ -25,8 +29,8 @@ import type {
   OfficialModelIndex,
 } from "./real-build-official";
 
-export const BUILDER_CANONICAL_CALIBRATION_SCHEMA = "lego.builder-canonical-calibration/6" as const;
-export const BUILDER_FRAME_EVIDENCE_PROTOCOL = "builder-type23-frame-plus-ldraw-surface/2" as const;
+export const BUILDER_CANONICAL_CALIBRATION_SCHEMA = "lego.builder-canonical-calibration/7" as const;
+export const BUILDER_FRAME_EVIDENCE_PROTOCOL = "builder-type23-frame-plus-ldraw-surface/3" as const;
 
 type FramePoint = BuilderFramePoint;
 type FrameTriangle = readonly [FramePoint, FramePoint, FramePoint];
@@ -45,6 +49,10 @@ export interface BuilderFrameEvidence {
   readonly ldrawTriangleCount: number;
   readonly p95SurfaceDistanceMicroLdu: number;
   readonly maximumSurfaceDistanceMicroLdu: number;
+  readonly frameCandidateCount: number;
+  readonly frameEquivalenceClassCount: number;
+  readonly frameSelection: FrameSelectionMethod;
+  readonly frameWitnessMarginMicroRatio: number | null;
 }
 
 export interface BuilderCanonicalCalibration {
@@ -86,6 +94,10 @@ export interface BuilderCanonicalCalibration {
       readonly ldrawTriangleCount: number;
       readonly p95SurfaceDistanceMicroLdu: number;
       readonly maximumSurfaceDistanceMicroLdu: number;
+      readonly frameCandidateCount: number;
+      readonly frameEquivalenceClassCount: number;
+      readonly frameSelection: FrameSelectionMethod;
+      readonly frameWitnessMarginMicroRatio: number | null;
     };
   }[];
 }
@@ -220,48 +232,6 @@ export function resolveBuilderBoneTransform(transform: BuilderBoneTransform): {
     transform: { positionLdu: rounded, orientationId: orientation.id },
     failure: null,
   };
-}
-
-function deriveUniqueCatalogToBuilderFrame(
-  catalogStudCenters: readonly FramePoint[],
-  builderStudCenters: readonly FramePoint[],
-): LedgerTransform {
-  if (catalogStudCenters.length < 1 || catalogStudCenters.length !== builderStudCenters.length) {
-    throw new TypeError(
-      `Builder type-23 stud set has ${builderStudCenters.length} centers while the catalog has ` +
-        `${catalogStudCenters.length}; a missing, extra, or clutch-center substitution cannot calibrate a frame.`,
-    );
-  }
-  const expectedKeys = sortedPoints(builderStudCenters).map(pointKey);
-  const firstCatalog = catalogStudCenters[0]!;
-  const candidates = new Map<string, LedgerTransform>();
-  for (const orientation of UPRIGHT_ORIENTATIONS) {
-    const rotatedFirst = transformFramePoint(
-      { positionLdu: [0, 0, 0], orientationId: orientation.id },
-      firstCatalog,
-    )!;
-    for (const target of builderStudCenters) {
-      const candidate: LedgerTransform = {
-        positionLdu: target.map(
-          (coordinate, axis) => coordinate - rotatedFirst[axis]!,
-        ) as unknown as LedgerTransform["positionLdu"],
-        orientationId: orientation.id,
-      };
-      const transformed = sortedPoints(
-        catalogStudCenters.map((point) => transformFramePoint(candidate, point)!),
-      ).map(pointKey);
-      if (JSON.stringify(transformed) === JSON.stringify(expectedKeys)) {
-        candidates.set(JSON.stringify(candidate), candidate);
-      }
-    }
-  }
-  if (candidates.size !== 1) {
-    throw new TypeError(
-      `Builder type-23 centers and catalog stud centers yield ${candidates.size} upright local frames; ` +
-        `exactly one is required so geometry cannot choose its own registration.`,
-    );
-  }
-  return [...candidates.values()][0]!;
 }
 
 function sliceBytes(bundleBytes: Uint8Array, reference: BuilderTriangleSlicePin): Buffer {
@@ -469,10 +439,6 @@ export function createBuilderFrameEvidence(input: {
   const catalogStudCenters = definition.connectors
     .filter(({ kind }) => kind === "stud")
     .map(({ positionLdu }) => positionLdu as FramePoint);
-  const catalogToBuilderLocalTransform = deriveUniqueCatalogToBuilderFrame(
-    catalogStudCenters,
-    pinnedCenters,
-  );
   const builderTriangles = decodeTriangles(builderGeometryBundleBytes, source.builderGeometry);
   const sourceLdrawTriangles = decodeTriangles(
     builderGeometryBundleBytes,
@@ -504,22 +470,34 @@ export function createBuilderFrameEvidence(input: {
         `${ldrawTriangles.length} LDraw triangles.`,
     );
   }
-  const distancesMicroLdu = [...uniqueBuilderPoints.values()].map((builderPoint) => {
-    const catalogPoint = inverseTransformFramePoint(catalogToBuilderLocalTransform, builderPoint);
-    if (catalogPoint === null) {
-      throw new TypeError(`Derived Builder frame for ${source.designRevision} is not invertible.`);
-    }
-    let nearest = Number.POSITIVE_INFINITY;
-    for (const triangle of ldrawTriangles) {
-      nearest = Math.min(nearest, pointTriangleDistance(catalogPoint, triangle));
-    }
-    if (!Number.isFinite(nearest)) {
-      throw new TypeError(
-        `Surface evidence for ${source.designRevision} produced a non-finite distance.`,
-      );
-    }
-    return Math.round(nearest * 1_000_000);
+  const surfaceDistances = (frame: LedgerTransform): number[] =>
+    [...uniqueBuilderPoints.values()].map((builderPoint) => {
+      const catalogPoint = inverseTransformFramePoint(frame, builderPoint);
+      if (catalogPoint === null) {
+        throw new TypeError(
+          `Derived Builder frame for ${source.designRevision} is not invertible.`,
+        );
+      }
+      let nearest = Number.POSITIVE_INFINITY;
+      for (const triangle of ldrawTriangles) {
+        nearest = Math.min(nearest, pointTriangleDistance(catalogPoint, triangle));
+      }
+      if (!Number.isFinite(nearest)) {
+        throw new TypeError(
+          `Surface evidence for ${source.designRevision} produced a non-finite distance.`,
+        );
+      }
+      return Math.round(nearest * 1_000_000);
+    });
+  const selection = selectCatalogToBuilderFrame({
+    definition,
+    designRevision: source.designRevision,
+    catalogStudCenters,
+    builderStudCenters: pinnedCenters,
+    measure: surfaceDistances,
   });
+  const catalogToBuilderLocalTransform = selection.transform;
+  const distancesMicroLdu = surfaceDistances(catalogToBuilderLocalTransform);
   const ordered = [...distancesMicroLdu].sort((left, right) => left - right);
   const p95SurfaceDistanceMicroLdu =
     ordered[Math.max(0, Math.ceil(ordered.length * 0.95) - 1)] ?? 0;
@@ -542,6 +520,10 @@ export function createBuilderFrameEvidence(input: {
     trustedSourceDigest,
     builderGeometryBundleDigest,
     catalogToBuilderLocalTransform,
+    frameCandidateCount: selection.candidateCount,
+    frameEquivalenceClassCount: selection.equivalenceClassCount,
+    frameSelection: selection.method,
+    frameWitnessMarginMicroRatio: selection.witnessMarginMicroRatio,
   };
   const inputDigest = digest(JSON.stringify(evidenceInput));
   return {
@@ -558,6 +540,10 @@ export function createBuilderFrameEvidence(input: {
     ldrawTriangleCount: ldrawTriangles.length,
     p95SurfaceDistanceMicroLdu,
     maximumSurfaceDistanceMicroLdu,
+    frameCandidateCount: selection.candidateCount,
+    frameEquivalenceClassCount: selection.equivalenceClassCount,
+    frameSelection: selection.method,
+    frameWitnessMarginMicroRatio: selection.witnessMarginMicroRatio,
   };
 }
 
@@ -591,6 +577,10 @@ function expectedFrameReport(
       ldrawTriangleCount: evidence.ldrawTriangleCount,
       p95SurfaceDistanceMicroLdu: evidence.p95SurfaceDistanceMicroLdu,
       maximumSurfaceDistanceMicroLdu: evidence.maximumSurfaceDistanceMicroLdu,
+      frameCandidateCount: evidence.frameCandidateCount,
+      frameEquivalenceClassCount: evidence.frameEquivalenceClassCount,
+      frameSelection: evidence.frameSelection,
+      frameWitnessMarginMicroRatio: evidence.frameWitnessMarginMicroRatio,
     },
   };
 }

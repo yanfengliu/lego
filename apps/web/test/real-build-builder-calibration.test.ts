@@ -14,6 +14,7 @@ import {
 } from "../e2e/real-build-official";
 import {
   BUILDER_STEP1_DESIGN_SOURCES,
+  BUILDER_STEP1_GEOMETRY_BUNDLE,
   BUILDER_STEP1_OFFICIAL_MODEL_DIGEST,
   type BuilderDesignSourcePin,
   type BuilderFramePoint,
@@ -30,7 +31,7 @@ const calibrationPath = resolve(
 );
 /**
  * The retained calibration report is a claim about the exact catalog it was
- * taken from: it embeds that catalog's version and both designs' definition
+ * taken from: it embeds that catalog's version and every design's definition
  * digests, and `applyBuilderCanonicalCalibration` refuses an artifact that does
  * not reproduce the code-derived report byte for byte. Every part definition
  * carries the catalog version in its provenance, so every catalog bump makes the
@@ -155,7 +156,7 @@ const sortedCentersDigest = (centers: readonly Point[]): `sha256:${string}` =>
     ),
   );
 
-describe("Builder canonical calibration v6", () => {
+describe("Builder canonical calibration v7", () => {
   it("keeps a retained calibration report in step with the catalog it claims", () => {
     // The compared value is the whole remedy, so a failure prints what is wrong
     // and what to run rather than two digests that mean nothing on their own.
@@ -234,7 +235,7 @@ describe("Builder canonical calibration v6", () => {
         builderGeometryBundleBytes: fixture.bytes,
         builderGeometryBundleDigest: fixture.digest,
       }),
-    ).toThrow(/exactly one is required so geometry cannot choose its own registration/u);
+    ).toThrow(/yield no upright local frame at all/u);
   });
 
   it("rejects one 3-LDU outlier even when the other 20 vertices keep p95 within tolerance", () => {
@@ -250,7 +251,7 @@ describe("Builder canonical calibration v6", () => {
   });
 
   it.skipIf(!hasRetainedCalibration)(
-    "recomputes the retained v6 report and derives the exact step-1 canonical origin",
+    "recomputes the retained v7 report and derives the exact step-1 canonical origin",
     () => {
       const officialBytes = readFileSync(officialModelPath);
       const geometryBytes = readFileSync(geometryBundlePath);
@@ -261,9 +262,7 @@ describe("Builder canonical calibration v6", () => {
 
       // The geometry bundle is reviewed source and does not move with the
       // catalog, so its digest is pinned as a literal.
-      expect(geometryDigest).toBe(
-        "sha256:4c03dc3f534e7eab78da7e9c61bf3a539de064a01aa829b18023ac86340f8450",
-      );
+      expect(geometryDigest).toBe(BUILDER_STEP1_GEOMETRY_BUNDLE.digest);
       // The calibration report is not: `applyBuilderCanonicalCalibration` below
       // recomputes it from the live code and catalog and requires the retained
       // bytes to equal it exactly, and every part definition it embeds carries
@@ -287,44 +286,45 @@ describe("Builder canonical calibration v6", () => {
 
       const report = createBuilderCanonicalCalibration(official, geometryBytes, geometryDigest);
       expect(JSON.parse(calibrationBytes.toString("utf8"))).toEqual(report);
+      // Every frame, with the reason it is the frame and the margin it won by.
+      // A reverted quotient shows up as a design that suddenly refuses; a
+      // reverted witness shows up as a design whose method or margin moved.
       expect(
         report.designFrames.map(
-          ({ designRevision, catalogToBuilderLocalTransform, verification }) => ({
-            designRevision,
-            catalogToBuilderLocalTransform,
-            uniqueBuilderVertexCount: verification.uniqueBuilderVertexCount,
-            builderTriangleCount: verification.builderTriangleCount,
-            ldrawTriangleCount: verification.ldrawTriangleCount,
-            p95SurfaceDistanceMicroLdu: verification.p95SurfaceDistanceMicroLdu,
-            maximumSurfaceDistanceMicroLdu: verification.maximumSurfaceDistanceMicroLdu,
-          }),
+          ({ designRevision, catalogPartId, catalogToBuilderLocalTransform, verification }) =>
+            [
+              designRevision,
+              catalogPartId,
+              catalogToBuilderLocalTransform.orientationId,
+              catalogToBuilderLocalTransform.positionLdu.join("/"),
+              verification.frameCandidateCount,
+              verification.frameEquivalenceClassCount,
+              verification.frameSelection,
+              String(verification.frameWitnessMarginMicroRatio),
+              verification.maximumSurfaceDistanceMicroLdu,
+            ].join(" "),
         ),
       ).toEqual([
-        {
-          designRevision: "30565;E",
-          catalogToBuilderLocalTransform: {
-            positionLdu: [30, -4, -30],
-            orientationId: "upright-yaw-0",
-          },
-          uniqueBuilderVertexCount: 127,
-          builderTriangleCount: 236,
-          ldrawTriangleCount: 1_368,
-          p95SurfaceDistanceMicroLdu: 1_299_038,
-          maximumSurfaceDistanceMicroLdu: 1_316_400,
-        },
-        {
-          designRevision: "80015;E",
-          catalogToBuilderLocalTransform: {
-            positionLdu: [-70, -4, 10],
-            orientationId: "upright-yaw-270",
-          },
-          uniqueBuilderVertexCount: 430,
-          builderTriangleCount: 804,
-          ldrawTriangleCount: 1_000,
-          p95SurfaceDistanceMicroLdu: 1_251_371,
-          maximumSurfaceDistanceMicroLdu: 1_589_701,
-        },
+        "30565;E builtin:corner-plate-4x4-round upright-yaw-0 30/-4/-30 1 1 unique-stud-correspondence null 1316400",
+        "80015;E builtin:corner-plate-5x5-quarter-ring upright-yaw-270 -70/-4/10 1 1 unique-stud-correspondence null 1589701",
+        "3032;F builtin:plate-4x6 upright-yaw-90 50/-4/30 2 1 catalog-part-self-symmetry null 1299039",
+        "3034;J builtin:plate-2x8 upright-yaw-90 70/-4/10 2 1 catalog-part-self-symmetry null 1299038",
+        "3460;N builtin:plate-1x8 upright-yaw-90 70/-4/0 2 1 catalog-part-self-symmetry null 1299038",
+        "3795;I builtin:plate-2x6 upright-yaw-90 50/-4/10 2 1 catalog-part-self-symmetry null 1299038",
+        "3832;G builtin:plate-2x10 upright-yaw-90 90/-4/10 2 1 catalog-part-self-symmetry null 1299039",
+        "6106;D builtin:wedge-plate-6x6-cut-corner upright-yaw-0 50/-4/-50 1 1 unique-stud-correspondence null 1375628",
+        "30503;F builtin:wedge-plate-4x4-cut-corner upright-yaw-0 30/-4/-30 1 1 unique-stud-correspondence null 1299038",
+        "41539;F builtin:plate-8x8 upright-yaw-0 70/-4/70 4 1 catalog-part-self-symmetry null 1299042",
+        "51739;H builtin:wedge-plate-2x4-wing upright-yaw-270 30/-4/-10 4 4 ldraw-surface-witness 27425140 1060658",
+        "54383;F builtin:wedge-plate-3x6-right upright-yaw-90 50/-4/20 1 1 unique-stud-correspondence null 1299038",
+        "60479;F builtin:plate-1x12 upright-yaw-90 110/-4/0 2 1 catalog-part-self-symmetry null 1299038",
+        "91988;F builtin:plate-2x14 upright-yaw-90 130/-4/10 2 1 catalog-part-self-symmetry null 1299039",
       ]);
+      // Every Builder Shell vertex of every design is inside the 2 LDU the
+      // independent LDraw surface has to corroborate it within.
+      for (const frame of report.designFrames) {
+        expect(frame.verification.maximumSurfaceDistanceMicroLdu).toBeLessThanOrEqual(2_000_000);
+      }
 
       const calibrated = applyBuilderCanonicalCalibration(
         official,

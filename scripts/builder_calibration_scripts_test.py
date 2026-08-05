@@ -387,18 +387,33 @@ class FrameAndShellTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unexpected schema"):
             EXTRACTOR.validate_shell_report(report, source)
 
-    def test_asymmetric_connector_sets_derive_one_frame_and_reject_tampering(self) -> None:
-        design = GENERATOR.DESIGNS[0]
+    def test_reviewed_slices_tile_the_bundle_and_the_closure_manifest_reproduces_its_digest(
+        self,
+    ) -> None:
+        """The generator's whole contract: a gap-free layout and a pinned closure.
+
+        Frames are not derived here at all any more - the one implementation
+        lives in `apps/web/e2e/real-build-builder-calibration.ts` - so what this
+        file still owns is the byte layout of the geometry bundle and the
+        metadata-only closure that decides which LDraw files may contribute.
+        """
+
+        offset = 0
+        for section in [design["builderGeometry"] for design in GENERATOR.DESIGNS] + [
+            design["ldrawReferenceGeometry"] for design in GENERATOR.DESIGNS
+        ]:
+            self.assertEqual(section["byteOffset"], offset)
+            self.assertEqual(section["byteLength"], section["triangleCount"] * 36)
+            offset += section["byteLength"]
+        self.assertEqual(offset, GENERATOR.GEOMETRY_BUNDLE_BYTES)
         self.assertEqual(
-            GENERATOR.derive_frame(
-                design["catalogStudCenters"], design["builderStudCentersLdu"]
-            ),
-            {"positionLdu": [30, -4, -30], "orientationId": "upright-yaw-0"},
+            GENERATOR.sha256(GENERATOR.canonical_json(GENERATOR.LDRAW_CLOSURE_MANIFEST)),
+            GENERATOR.LDRAW_CLOSURE_DIGEST,
         )
-        changed = [list(point) for point in design["builderStudCentersLdu"]]
-        changed[0][0] += 1
-        with self.assertRaisesRegex(ValueError, "expected exactly one"):
-            GENERATOR.derive_frame(design["catalogStudCenters"], changed)
+        self.assertEqual(
+            len({str(design["designRevision"]) for design in GENERATOR.DESIGNS}),
+            len(GENERATOR.DESIGNS),
+        )
 
     def test_shell_validator_rejects_an_out_of_range_triangle_index(self) -> None:
         source = {
@@ -418,7 +433,7 @@ class FrameAndShellTests(unittest.TestCase):
         }
         design = {
             "designRevision": "project-authored;1",
-            "sourceIdentity": source,
+            **source,
             "builderGeometry": {"byteLength": 36, "digest": "sha256:" + "c" * 64},
         }
         with self.assertRaisesRegex(ValueError, "invalid triangle index"):
@@ -479,6 +494,7 @@ class LDrawLibraryTests(unittest.TestCase):
                 GENERATOR.sha256(text.encode("utf-8")),
                 "Project Fixture",
                 "Part UPDATE 2026-01",
+                GENERATOR.LDRAW_CLOSURE_LICENSE,
             ),
         )
         library = GENERATOR.LDrawLibrary(
@@ -490,7 +506,15 @@ class LDrawLibraryTests(unittest.TestCase):
         finally:
             library.close()
 
-        changed = (("parts/a.dat", "0" * 64, "Project Fixture", "Part UPDATE 2026-01"),)
+        changed = (
+            (
+                "parts/a.dat",
+                "0" * 64,
+                "Project Fixture",
+                "Part UPDATE 2026-01",
+                GENERATOR.LDRAW_CLOSURE_LICENSE,
+            ),
+        )
         library = GENERATOR.LDrawLibrary(
             [("Fixture LDraw archive", payload)], changed
         )

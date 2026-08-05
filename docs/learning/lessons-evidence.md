@@ -642,3 +642,17 @@ Escalation was built in. Contact sheets first, single-pair renders for anything 
 The corollary is that a disappointing vision result is not automatically a model limit. Before concluding the model cannot see it, check whether it was asked something answerable — and whether the grader is measuring sight or vocabulary.
 
 **Anchor:** the open configuration is `output/part-identification/answers-claude-opus-5.json` scored by `scripts/part-identification-score.mjs`, 39.9 percent self-consistency and a whole-book claim diff of zero. The closed configuration is `scripts/fixtures/part-identification-truth-first50.json`, schema `lego.part-identification-truth/2`, whose `raters` block records the 84/84 agreement and the two pairs adjudicated by hand where the raters' descriptions diverged despite agreeing verdicts. Both measured 2026-08-05.
+
+## A rotation matrix stored as nine numbers has two readings, and only geometry says which
+
+LEGO Builder's `Custom2DField` carries its frame as a twelve-number `transformation` attribute, nine of which are a 3x3 rotation. Read row-major and read column-major it is the same matrix only when the matrix is symmetric. The six-part source pilot never had to decide: every field it touched was the identity, so `builder_ldraw_field._signed_permutation` refused an asymmetric matrix outright and said so — measure a rotated field before accepting one.
+
+Two of the fourteen designs the real build's opening steps place carry a quarter turn: 30503 and 6106. Both readings put their type-23 stud nodes on an exact integer LDU lattice and both admit exactly one exact frame against the LDraw-measured stud centres, because a rotation of the field is absorbed by a compensating rotation of the frame. Exactness could not choose, and a count of one exact frame per reading looked equally convincing on both sides.
+
+The Builder Shell mesh chose, because it is in the design's own frame and is not free to rotate with the field. Carrying its vertices through each reading's frame and measuring them against the expanded LDraw surface: 30503 reads 1.299 LDU maximum column-major against 113.137 row-major, and 6106 reads 1.376 against 169.706. That is 87x and 123x, and it is **column-major**.
+
+The XML then confirmed it for free, from data already in the file. Every primitive repeats its rotation as an axis-angle pair, and 2310's `angle="120" ax=ay=az="-0.5773502692"` is the -120 degree rotation about (1,1,1) — which is the transpose of what its nine numbers read row-major. The redundant attribute was a second independent witness sitting in the source the whole time.
+
+Two things generalize. A serialized matrix is not self-describing, and neither is a lattice that fits: when two readings both fit exactly, the thing that separates them has to be something the ambiguity cannot rotate. And when a format repeats itself, the repetition is a free cross-check — read it before running a search.
+
+**Anchor:** `field_studs` order comparison against `builder_calibration_sources.py`'s pinned centres for 30503 and 6106; the 87x/123x separation is `verification.maximumSurfaceDistanceMicroLdu` for the two readings under `createBuilderFrameEvidence`, and the surviving column-major reading is pinned as `builderStudCentersLdu` in `apps/web/e2e/real-build-builder-sources.ts` with `apps/web/test/real-build-builder-calibration.test.ts` asserting both designs resolve at `unique-stud-correspondence` under 1.4 LDU. Measured 2026-08-05.

@@ -105,7 +105,7 @@ export function realBuildLedgerTestFixture(): RealBuildLedgerTestFixture {
     JSON.stringify({ inputDigest, fixture: "synthetic-ledger-v2-builder-frame" }),
   );
   const calibration: BuilderCanonicalCalibration = {
-    schemaVersion: "lego.builder-canonical-calibration/6",
+    schemaVersion: "lego.builder-canonical-calibration/7",
     officialModelDigest: rawOfficial.digest,
     geometryBundle: {
       format: "lego.builder-shell-and-ldraw-triangles-f32le/2",
@@ -149,7 +149,7 @@ export function realBuildLedgerTestFixture(): RealBuildLedgerTestFixture {
         connectorFrameDigest,
         collisionFrameDigest,
         verification: {
-          protocol: "builder-type23-frame-plus-ldraw-surface/2",
+          protocol: "builder-type23-frame-plus-ldraw-surface/3",
           inputDigest,
           evidenceDigest: frameEvidenceDigest,
           uniqueBuilderVertexCount: 8,
@@ -157,6 +157,10 @@ export function realBuildLedgerTestFixture(): RealBuildLedgerTestFixture {
           ldrawTriangleCount: builderGeometry.reference.triangleCount,
           p95SurfaceDistanceMicroLdu: 0,
           maximumSurfaceDistanceMicroLdu: 0,
+          frameCandidateCount: 1,
+          frameEquivalenceClassCount: 1,
+          frameSelection: "unique-stud-correspondence",
+          frameWitnessMarginMicroRatio: null,
         },
       },
     ],

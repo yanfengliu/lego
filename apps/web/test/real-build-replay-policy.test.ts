@@ -94,7 +94,7 @@ describe("real-build replay resource policy", () => {
         roles: [{ role: "builder-geometry", bytes: BUILDER_GEOMETRY_EXACT_BYTES - 1 }],
         sources: [],
       }),
-    ).toThrow(/builder-geometry.*exactly 122688/u);
+    ).toThrow(new RegExp(`builder-geometry.*exactly ${BUILDER_GEOMETRY_EXACT_BYTES}`, "u"));
     expect(() =>
       assertReplayDeclaredBudgets({
         roles: [{ role: "builder-geometry", bytes: BUILDER_GEOMETRY_EXACT_BYTES }],

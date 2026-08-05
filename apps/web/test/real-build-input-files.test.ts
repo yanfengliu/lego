@@ -159,7 +159,10 @@ describe("bounded real-build input reads", () => {
         code: "input-digest-mismatch",
         inputKey: path,
         message: expect.stringMatching(
-          /exactly 122688 bytes.*rejected before any contents were read/u,
+          new RegExp(
+            `exactly ${input.BUILDER_GEOMETRY_EXACT_BYTES} bytes.*rejected before any contents were read`,
+            "u",
+          ),
         ),
       }),
     ]);
@@ -168,7 +171,13 @@ describe("bounded real-build input reads", () => {
     const undersizedFailures: Parameters<typeof input.readBinaryInput>[1] = [];
     expect(input.readBinaryInput(path, undersizedFailures)).toHaveLength(0);
     expect(readObservation.count).toBe(0);
-    expect(undersizedFailures[0]?.message).toMatch(/is 122687 bytes.*exactly 122688 bytes/u);
+    expect(undersizedFailures[0]?.message).toMatch(
+      new RegExp(
+        `is ${input.BUILDER_GEOMETRY_EXACT_BYTES - 1} bytes.*exactly ` +
+          `${input.BUILDER_GEOMETRY_EXACT_BYTES} bytes`,
+        "u",
+      ),
+    );
   });
 
   it("rejects Builder calibration JSON above 64 KiB before parsing or reading", async () => {
