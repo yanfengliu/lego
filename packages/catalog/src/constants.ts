@@ -21,9 +21,12 @@ import type {
  * admission from measured source — five set 6651557 parts whose render mesh is
  * bundled LDraw geometry, whose collision is that surface's per-column height
  * field, whose connectors are LEGO Builder's authored field carried through a
- * pinned per-part frame, and whose extents are the exact LDraw closure.
+ * pinned per-part frame, and whose extents are the exact LDraw closure; /8 adds
+ * three parts the Builder pack has no record of at all, whose female connectors
+ * come from the LDCad shadow library instead — 30357, 2450 and 79491, each of
+ * which LDraw alone leaves with studs and zero clutch cells.
  */
-export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/7" as const;
+export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/8" as const;
 export const CONNECTOR_TAXONOMY_VERSION = "stud-tube/1" as const;
 export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/2" as const;
 export const TRANSFORM_POLICY_VERSION = "upright-quarter-turns-negative-y-up/1" as const;
@@ -115,6 +118,32 @@ export const MEASURED_PART_CATALOG_PROVENANCE: SourceProvenance = Object.freeze(
   sourceVersion: "set-6651557/1",
   attribution:
     "Copyright (c) 2026 Yanfeng Liu. Extents and collision measured from the official LDraw closure; connectors from the LEGO Builder authored field through a pinned per-part frame.",
+});
+
+/**
+ * Catalog truth for a measured part whose female connectors the LDCad shadow
+ * library authored, because the LEGO Builder pack has no record of the design.
+ *
+ * The library is CC BY-SA 4.0, and the owner directed on 2026-08-05 that licence
+ * must not block this private, noncommercial work. What that decision does not
+ * waive is recorded rather than dropped: attribution travels with the derived
+ * connector data, ShareAlike would attach to it if it were ever redistributed —
+ * the licence's sui generis database-rights clause reaches an extracted database
+ * too — and permission to read and share is still not permission to train, which
+ * stays an unheld right. `docs/dependency-data-bom.md` holds the full finding.
+ */
+export const LDCAD_SHADOW_CONNECTOR_PROVENANCE: SourceProvenance = Object.freeze({
+  sourceId: "lego-studio:ldcad-shadow-measured-part-admission",
+  sourceType: "external-connector-metadata",
+  sourceVersion:
+    "set-6651557/1; LDCadShadowLibrary commit 15aa1e718b6a8da37d24fc7af5e52e262c041bfb; whole-tree manifest sha256 668bc047a45e5560ff0fbbd69e9eb5adafab127781720bcb069a1554cb3f0c0f; composed by ldcad-shadow-composed-over-ldraw-tree/1",
+  licenseExpression: "MIT AND CC-BY-SA-4.0",
+  attribution:
+    "Copyright (c) 2026 Yanfeng Liu. Underside clutch cells derived from the LDCad Shadow Library by Roland Melkert and its per-file !HISTORY contributors, CC BY-SA 4.0; ShareAlike attaches to this derived connector data on redistribution. Extents, collision and render mesh are the official LDraw closure named on the part.",
+  runtimeRole: "catalog-truth",
+  redistributionAllowed: true,
+  trainingUseAllowed: false,
+  externalGeometryBundled: false,
 });
 
 export const LDRAW_91988_FRAME_PROVENANCE: SourceProvenance = Object.freeze({

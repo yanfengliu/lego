@@ -1,5 +1,6 @@
 import {
   COLLISION_MODEL_VERSION,
+  LDCAD_SHADOW_CONNECTOR_PROVENANCE,
   LDRAW_BUNDLED_GEOMETRY_PROVENANCE,
   MEASURED_PART_CATALOG_PROVENANCE,
   STUD_HEIGHT_LDU,
@@ -45,6 +46,31 @@ const AXIS_NAMES = ["x", "y", "z"] as const;
 
 function fail(blueprint: MeasuredPartBlueprint, message: string): never {
   throw new Error(`Measured part ${blueprint.designId} (${blueprint.ldrawId}) ${message}`);
+}
+
+/**
+ * Which authored source made this part's clutch cells, and the catalog
+ * provenance that says so.
+ *
+ * A female connector is not recoverable from LDraw geometry — an underside is a
+ * cavity and the measured tubes sit half a stud pitch off the cell lattice — so
+ * every clutch here is an authored claim by a named third party. Exactly one
+ * source may make it, because a part that names two has no single licence,
+ * attribution or evidence chain, and a part that names none is claiming a grip
+ * nothing authored.
+ */
+function connectorProvenance(blueprint: MeasuredPartBlueprint): SourceProvenance {
+  const builder = blueprint.builderSource !== undefined;
+  const shadow = blueprint.ldcadShadowSource !== undefined;
+  if (builder === shadow) {
+    fail(
+      blueprint,
+      builder
+        ? `declares both a Builder record (${blueprint.builderSource!.recordSha256}) and an LDCad shadow walk (${blueprint.ldcadShadowSource!.commit}) for its ${blueprint.clutchesLdu.length} clutch cells; a clutch is one authored claim, so exactly one source must make it.`
+        : `declares ${blueprint.clutchesLdu.length} clutch cells and no authored connector source; an LDraw underside is a cavity, so a clutch cell is never measured from geometry and must name the Builder record or the LDCad shadow walk it came from.`,
+    );
+  }
+  return builder ? MEASURED_PART_CATALOG_PROVENANCE : LDCAD_SHADOW_CONNECTOR_PROVENANCE;
 }
 
 function unionOf(boxes: readonly LduBounds[]): LduBounds {
@@ -341,11 +367,11 @@ export const makeMeasuredPartDefinition = (blueprint: MeasuredPartBlueprint): Pa
       knownMassGrams: null,
       physicalAvailabilityClaimed: false,
     },
-    provenance: MEASURED_PART_CATALOG_PROVENANCE,
+    provenance: connectorProvenance(blueprint),
   });
 };
 
-/** The five set 6651557 parts admitted from measured LDraw and Builder source. */
+/** The set 6651557 parts admitted from measured LDraw, Builder and LDCad source. */
 export const MEASURED_PART_DEFINITIONS: readonly PartDefinition[] = deepFreeze(
   SET_6651557_MEASURED_BLUEPRINTS.map(makeMeasuredPartDefinition),
 );

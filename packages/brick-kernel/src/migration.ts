@@ -23,6 +23,7 @@ export const MIGRATABLE_CATALOG_VERSIONS: readonly string[] = Object.freeze([
   "builtin.basic-parts/4",
   "builtin.basic-parts/5",
   "builtin.basic-parts/6",
+  "builtin.basic-parts/7",
   BUILTIN_CATALOG_VERSION,
 ]);
 
@@ -79,6 +80,15 @@ export const REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS = Object.freeze([
     catalogVersion: "builtin.basic-parts/6",
     sourceCommit: "c78c6f31744b4ef846ecc477015dea4aa20d6ee3",
     truthHash: "sha256:e5ae3655ebac2b16ede784efa82728c2412d0c95021183653b07222ac9d76a09",
+  },
+  // The snapshot /8 replaced. /7 admitted the five parts LEGO Builder has a
+  // record for; /8 admits the three it has none for, whose clutch cells the
+  // LDCad shadow library authored instead. Both are additive, so a document
+  // saved against the eighty-two-part catalog still carries forward.
+  {
+    catalogVersion: "builtin.basic-parts/7",
+    sourceCommit: "9d0ebed8f6639d71affeaed63ab1682f35e1a18b",
+    truthHash: "sha256:29eaae6325eba701dc52827a9373c7583889ce3fd16fd8057f3c6f243a8ab868",
   },
 ] as const);
 

@@ -22,13 +22,35 @@ export interface MeasuredBuilderSource {
 }
 
 /**
+ * The LDCad shadow library a connector set was composed from, pinned whole.
+ *
+ * A shadow file is metadata a third party wrote about a part it does not own,
+ * inherited through the same type-1 matrix that places the geometry, so the
+ * evidence is the walk rather than one file: the composition identifier says how
+ * the walk was performed and `shadowFiles` names every file that contributed.
+ * The library is CC BY-SA 4.0, which is why the commit and whole-tree manifest
+ * digest are carried here rather than left in a report — attribution has to
+ * travel with the derived data.
+ */
+export interface MeasuredLdcadShadowSource {
+  readonly libraryId: string;
+  readonly commit: string;
+  /** SHA-256 over the sorted path/bytes/digest table of the whole checkout. */
+  readonly manifestSha256: `sha256:${string}`;
+  readonly compositionId: string;
+  readonly shadowFiles: readonly string[];
+}
+
+/**
  * A part declared from measured source rather than from parameters.
  *
  * The four layers still come from one declaration, but each field states which
  * source measured it: the mesh and the collision decomposition are the expanded
- * LDraw surface, the connectors are Builder's authored `Custom2DField` carried
- * through the pinned frame, and the bounds are the exact LDraw closure. Nothing
- * here is generated from a width and a length, so nothing here may be inferred.
+ * LDraw surface, the bounds are the exact LDraw closure, and the female
+ * connectors are an authored claim carried through a pinned frame — Builder's
+ * `Custom2DField` where a record exists, the LDCad shadow library where it does
+ * not. Nothing here is generated from a width and a length, so nothing here may
+ * be inferred.
  *
  * `assetToCatalogFrame` is the explicit source-to-catalog frame a part whose
  * source frame is not centred must carry. It is a quarter turn about the
@@ -81,5 +103,11 @@ export interface MeasuredPartBlueprint {
    */
   readonly bodyBoxesLdu: readonly number[];
   readonly ldrawSource: MeasuredLdrawSource;
-  readonly builderSource: MeasuredBuilderSource;
+  /**
+   * Where the female connectors came from. Exactly one of these is present, and
+   * the factory refuses a declaration carrying both or neither: a clutch cell is
+   * a physical claim, so the part has to name the authored source that made it.
+   */
+  readonly builderSource?: MeasuredBuilderSource;
+  readonly ldcadShadowSource?: MeasuredLdcadShadowSource;
 }

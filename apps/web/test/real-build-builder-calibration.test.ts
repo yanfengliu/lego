@@ -32,9 +32,17 @@ const calibrationPath = resolve(
  * The retained calibration report is a claim about the exact catalog it was
  * taken from: it embeds that catalog's version and both designs' definition
  * digests, and `applyBuilderCanonicalCalibration` refuses an artifact that does
- * not reproduce the code-derived report byte for byte. A report from a
- * superseded catalog version is therefore stale rather than wrong, and it is
- * announced and skipped instead of being edited into agreement.
+ * not reproduce the code-derived report byte for byte. Every part definition
+ * carries the catalog version in its provenance, so every catalog bump makes the
+ * retained report stale — twice now it has gone stale unnoticed and surfaced as
+ * a real build rejecting with `builder-calibration-invalid`.
+ *
+ * A missing report is not a failure: a fresh checkout has no local Builder
+ * evidence and there is nothing to cross-check, so the retained case skips. A
+ * report that is present and pinned to a superseded version is a different
+ * thing — somebody kept it, and it now claims agreement with a catalog that no
+ * longer exists. That is failed here by name rather than announced in a warning
+ * nobody reads while the case quietly stops running.
  */
 function retainedCalibrationCatalogVersions(): readonly string[] {
   if (!existsSync(calibrationPath)) return [];
@@ -50,14 +58,10 @@ const retainedCalibrationVersions = retainedCalibrationCatalogVersions();
 const retainedCalibrationIsCurrent =
   retainedCalibrationVersions.length > 0 &&
   retainedCalibrationVersions.every((version) => version === BUILTIN_CATALOG_VERSION);
-if (retainedCalibrationVersions.length > 0 && !retainedCalibrationIsCurrent) {
-  console.warn(
-    `Retained Builder calibration report is pinned to catalog ${retainedCalibrationVersions.join(", ")} and this build is ${BUILTIN_CATALOG_VERSION}; regenerate it with scripts/generate-builder-calibration.py to restore the writer/reader cross-check. Skipping the retained-report case.`,
-  );
-}
 const hasRetainedCalibration =
   [officialModelPath, geometryBundlePath, calibrationPath].every(existsSync) &&
   retainedCalibrationIsCurrent;
+const IN_STEP = "absent, or pinned to the current catalog version";
 
 const typedDigest = (value: string | Uint8Array): `sha256:${string}` =>
   sha256Digest(value) as `sha256:${string}`;
@@ -152,6 +156,23 @@ const sortedCentersDigest = (centers: readonly Point[]): `sha256:${string}` =>
   );
 
 describe("Builder canonical calibration v6", () => {
+  it("keeps a retained calibration report in step with the catalog it claims", () => {
+    // The compared value is the whole remedy, so a failure prints what is wrong
+    // and what to run rather than two digests that mean nothing on their own.
+    const state =
+      retainedCalibrationVersions.length === 0 || retainedCalibrationIsCurrent
+        ? IN_STEP
+        : `Retained output/real-build/builder-canonical-calibration.json is pinned to catalog ` +
+          `${retainedCalibrationVersions.join(", ")} and this build is ${BUILTIN_CATALOG_VERSION}. ` +
+          `Every part definition carries the catalog version in its provenance, so a bump ` +
+          `invalidates the report and the real build then rejects with builder-calibration-invalid. ` +
+          `Regenerate it with \`LEGO_REAL_BUILD_REGENERATE_INPUTS=1 npx playwright test ` +
+          `apps/web/e2e/real-build-inputs.spec.ts\`, or delete it if this checkout is not meant to ` +
+          `hold local Builder evidence. Do not edit the artifact into agreement.`;
+
+    expect(state).toBe(IN_STEP);
+  });
+
   it("derives an asymmetric type-23 frame before corroborating source-native surfaces", () => {
     const fixture = sourceNativeFixture();
     const evidence = createBuilderFrameEvidence({
@@ -238,12 +259,32 @@ describe("Builder canonical calibration v6", () => {
       const geometryDigest = sha256Digest(geometryBytes);
       const calibrationDigest = sha256Digest(calibrationBytes);
 
+      // The geometry bundle is reviewed source and does not move with the
+      // catalog, so its digest is pinned as a literal.
       expect(geometryDigest).toBe(
         "sha256:4c03dc3f534e7eab78da7e9c61bf3a539de064a01aa829b18023ac86340f8450",
       );
-      expect(calibrationDigest).toBe(
-        "sha256:78bcdc88850a40e5763e251ec90f2815a6926c8aa3b59a9988de561488e0fdb1",
-      );
+      // The calibration report is not: `applyBuilderCanonicalCalibration` below
+      // recomputes it from the live code and catalog and requires the retained
+      // bytes to equal it exactly, and every part definition it embeds carries
+      // BUILTIN_CATALOG_VERSION. So its digest necessarily moves on every
+      // catalog bump, and a literal here was the previous run's output carried
+      // forward by hand — the shape that silently stops checking anything the
+      // day somebody updates it without looking. It was
+      // sha256:78bcdc88850a40e5763e251ec90f2815a6926c8aa3b59a9988de561488e0fdb1
+      // at builtin.basic-parts/7. What is worth asserting is that the digest
+      // gate fires, which is checked directly rather than pinned.
+      expect(calibrationDigest).toMatch(/^sha256:[0-9a-f]{64}$/u);
+      expect(() =>
+        applyBuilderCanonicalCalibration(
+          official,
+          calibrationBytes,
+          `sha256:${"0".repeat(64)}`,
+          geometryBytes,
+          geometryDigest,
+        ),
+      ).toThrow(/do not match their declared digest/u);
+
       const report = createBuilderCanonicalCalibration(official, geometryBytes, geometryDigest);
       expect(JSON.parse(calibrationBytes.toString("utf8"))).toEqual(report);
       expect(

@@ -427,7 +427,7 @@ Research systems are evidence that the feature is viable, not permission to ship
 - BrickNet code is a promising graph, connector, collision, and generation spike. Its model, dataset, connector, and collision-asset terms require a complete audit before redistribution or commercial use.
 - BrickGPT is a useful restricted-catalog baseline; upstream dataset and solver terms require the same audit.
 - The LDraw parts library must preserve file-level source, license, and attribution metadata.
-- LDCad Shadow Library-derived connector data remains a separately attributed share-alike data artifact.
+- LDCad Shadow Library-derived connector data is admitted as catalog truth from `builtin.basic-parts/8` under the owner's 2026-08-05 decision that licence must not block private, noncommercial work, and it stays separately attributed: its own provenance record carries the CC BY-SA 4.0 attribution and the pinned library digest, share-alike attaches to the derived data on redistribution, and no shadow file is committed.
 - Internet-curated models are not assumed to be training data merely because their referenced part geometry is reusable.
 - The public product name, logo, domain, and non-affiliation language require trademark review before launch.
 

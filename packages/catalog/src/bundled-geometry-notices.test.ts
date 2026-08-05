@@ -12,17 +12,25 @@ import {
 
 const NOTICES_PATH = resolve(import.meta.dirname, "../../../docs/bundled-geometry-notices.md");
 
+const LDCAD_CONNECTOR_SOURCE_ID = "lego-studio:ldcad-shadow-measured-part-admission";
+
 /**
- * The attribution CC BY 4.0 requires, rendered from the catalog it describes.
+ * The attribution CC BY 4.0 and CC BY-SA 4.0 require, rendered from the catalog
+ * it describes.
  *
  * A notices file nobody regenerates is the failure mode this exists to prevent:
- * the document is derived here, so admitting or removing a bundled file moves it
- * in the same commit or turns this test red.
+ * the document is derived here, so admitting or removing a bundled file — or a
+ * part whose connectors a share-alike source authored — moves it in the same
+ * commit or turns this test red.
  */
 function renderNotices(): string {
   const meshParts = PART_DEFINITIONS.filter(
     ({ geometry }) => geometry.generatorId === "builtin:preloaded-mesh-reference/1",
   );
+  const shadowParts = PART_DEFINITIONS.filter(
+    ({ provenance }) => provenance.sourceId === LDCAD_CONNECTOR_SOURCE_ID,
+  );
+  const shadowProvenance = shadowParts[0]?.provenance;
   const fileByPath = new Map(BUNDLED_LDRAW_SOURCE_FILES.map((file) => [file.path, file]));
   const partRows = meshParts.map((part) => {
     const ldrawId = part.aliases.find(({ namespace }) => namespace === "ldraw")!.value;
@@ -60,6 +68,23 @@ function renderNotices(): string {
     "| File | Title | Author | LDraw.org status | SHA-256 |",
     "| --- | --- | --- | --- | --- |",
     ...fileRows,
+    "",
+    "## Derived connector data",
+    "",
+    "The parts below take their underside clutch cells from the [LDCad Shadow Library](https://github.com/RolandMelkert/LDCadShadowLibrary), which is licensed [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). LEGO Builder has no record of any of these designs, and a female connector is not recoverable from LDraw geometry at all, so without that source each of them would carry studs and no clutch cell — a part that can be built on and can never be placed on anything.",
+    "",
+    "No shadow file is bundled. What is admitted is derived data: clutch-cell positions composed through each part's own LDraw reference tree in exact rational arithmetic. ShareAlike still attaches to that derived data if it is redistributed — the licence's sui generis database-rights clause reaches an extracted database too — and reading and sharing the library is **not** permission to train on it, which stays an unheld right.",
+    "",
+    ...(shadowProvenance === undefined
+      ? []
+      : [`Source: \`${shadowProvenance.sourceVersion}\`.`, ""]),
+    "| Catalog part | LDraw file | Clutch cells |",
+    "| --- | --- | --- |",
+    ...shadowParts.map((part) => {
+      const ldrawId = part.aliases.find(({ namespace }) => namespace === "ldraw")!.value;
+      const clutches = part.connectors.filter(({ kind }) => kind === "undersideClutch").length;
+      return `| \`${part.id}\` | \`${ldrawId}\` | ${clutches} |`;
+    }),
     "",
   ].join("\n");
 }

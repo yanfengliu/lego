@@ -128,11 +128,17 @@ const EXPECTED_PART_IDS = [
   "builtin:wedge-plate-2x4-wing",
   "builtin:corner-plate-3x3",
   "builtin:curved-slope-1x4-double",
+  // builtin.basic-parts/8: the designs LEGO Builder has no record of at all, so
+  // their clutch cells come from the LDCad shadow library instead. Appended for
+  // the same reason.
+  "builtin:plate-3x3-corner-round",
+  "builtin:wedge-plate-3x3-cut-corner",
+  "builtin:corner-plate-2x2-round",
 ] as const;
 
 describe("starter catalog", () => {
-  it("publishes the five-part measured admission as version 7", () => {
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/7");
+  it("publishes the LDCad-connector admission as version 8", () => {
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/8");
   });
 
   it("does not expose inherited object properties as catalog entries", () => {
@@ -153,18 +159,18 @@ describe("starter catalog", () => {
     );
     expect(perFamily).toEqual({
       brick: 15,
-      plate: 29,
+      plate: 30,
       tile: 10,
       "jumper-plate": 3,
       "grille-tile": 1,
-      "wedge-plate": 8,
+      "wedge-plate": 9,
       "technic-brick": 1,
       axle: 2,
       wheel: 1,
       arch: 2,
       "curved-slope": 4,
       "cheese-slope": 2,
-      "corner-plate": 4,
+      "corner-plate": 5,
     });
     // Every part belongs to a family the palette knows how to show.
     expect(

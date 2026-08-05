@@ -55,25 +55,28 @@ function recipe(
 }
 
 describe("preloaded mesh asset resolution", () => {
-  it("keeps every one of the 77 legacy geometry hashes when the mesh parts arrive", () => {
-    // The first production mesh admission appended five parts and bumped the
-    // catalog to builtin.basic-parts/7. What must not move is the geometry
-    // identity of the parts that were already here: this roster digest is the
-    // same literal it was at builtin.basic-parts/6, so it proves the five new
-    // parts were added rather than the seventy-seven regenerated.
+  it("keeps every one of the 77 legacy geometry hashes as the mesh parts arrive", () => {
+    // The first production mesh admission appended five parts at
+    // builtin.basic-parts/7; /8 appended three more, whose clutch cells the
+    // LDCad shadow library authored because LEGO Builder has no record of them.
+    // What must not move is the geometry identity of the parts that were already
+    // here: this roster digest is the same literal it was at
+    // builtin.basic-parts/6, so it proves each admission added parts rather than
+    // regenerating the seventy-seven.
     //
     // The whole-definition digest does move, and deliberately: every part's
     // provenance carries the catalog version, and the LDraw identifier layer no
     // longer claims that no geometry is bundled. It was
-    // 9b095f16fe40a9157c1a65ee8a26da1f37974751ae2b27f896b69d5ebe0a6901 at /6.
+    // 9b095f16fe40a9157c1a65ee8a26da1f37974751ae2b27f896b69d5ebe0a6901 at /6 and
+    // 55f9fade3dc2bde3387886791bf57f95d4921f245611a522551b6d8cfd476662 at /7.
     const legacyParts = PART_DEFINITIONS.slice(0, 77);
     const meshParts = PART_DEFINITIONS.slice(77);
     const legacyHashes = JSON.stringify(
       legacyParts.map(({ id, geometry }) => [id, geometry.contentHash]),
     );
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/7");
-    expect(PART_DEFINITIONS).toHaveLength(82);
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/8");
+    expect(PART_DEFINITIONS).toHaveLength(85);
     expect(
       legacyParts.every(
         ({ geometry }) => geometry.generatorId !== "builtin:preloaded-mesh-reference/1",
@@ -83,12 +86,12 @@ describe("preloaded mesh asset resolution", () => {
       meshParts.map(
         ({ geometry }) => geometry.generatorId === "builtin:preloaded-mesh-reference/1",
       ),
-    ).toEqual([true, true, true, true, true]);
+    ).toEqual([true, true, true, true, true, true, true, true]);
     expect(createHash("sha256").update(legacyHashes).digest("hex")).toBe(
       "92c7dc3d6f7990dc5b6dbbddabf02e557f2ec54927f61d6e16bf7e9530b0db4d",
     );
     expect(createHash("sha256").update(JSON.stringify(legacyParts)).digest("hex")).toBe(
-      "55f9fade3dc2bde3387886791bf57f95d4921f245611a522551b6d8cfd476662",
+      "c9bf14d7ba446448c28a4638ea32ab84f79171e03e3947053fedde6720d116fa",
     );
   });
 

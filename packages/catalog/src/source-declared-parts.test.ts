@@ -13,16 +13,20 @@ import {
   type CollisionPrimitive,
   type PartDefinition,
 } from "./index.js";
+import { makeMeasuredPartDefinition } from "./measured-part-factory.ts";
+import type { MeasuredPartBlueprint } from "./measured-part-types.ts";
+import { SET_6651557_MEASURED_BLUEPRINTS } from "./part-blueprints-6651557-measured.ts";
 import { SET_6651557_MESH_ASSETS } from "./mesh-assets-6651557.ts";
 
 /**
- * What the five set 6651557 parts are, written out rather than recomputed.
+ * What the eight set 6651557 parts are, written out rather than recomputed.
  *
  * These are facts about real parts: the extents come from the exact expanded
  * LDraw closure, the collision column count from its per-column height field at
- * 1 LDU, and the connector counts from LEGO Builder's authored field carried
- * through the per-part frame that report pins. A change here is a change to a
- * measurement, not a refactor.
+ * 1 LDU, and the connector counts from an authored female-connector source
+ * carried through the per-part frame — LEGO Builder's field for the five it has
+ * a record for, the LDCad shadow library's snap metas for the three it does not.
+ * A change here is a change to a measurement, not a refactor.
  */
 const ADMITTED = [
   {
@@ -120,6 +124,75 @@ const ADMITTED = [
     vertices: 207,
     closureFiles: 21,
   },
+  // builtin.basic-parts/8. LEGO Builder's 107-record pack has no record of any
+  // of these three, so LDraw alone leaves each with studs and zero clutch cells
+  // — a part that can be built on and never placed on anything. Their clutch
+  // cells are the LDCad shadow library's, composed through the part's own LDraw
+  // reference tree and driven through the same clutch-room probe.
+  {
+    id: "builtin:plate-3x3-corner-round",
+    ldrawId: "30357.dat",
+    family: "plate",
+    widthStuds: 3,
+    lengthStuds: 3,
+    heightLdu: 8,
+    orientationId: "upright-yaw-0",
+    translationLdu: [0, -4, 0],
+    connectorGridCenterLdu: [20, 20],
+    bodyBoundsLdu: { min: [-10, -4, -10], max: [50, 4, 50] },
+    boundsLdu: { min: [-10, -8, -10], max: [50, 4, 50] },
+    studs: 8,
+    clutches: 8,
+    bodyBoxes: 157,
+    triangles: 904,
+    vertices: 598,
+    closureFiles: 27,
+  },
+  {
+    id: "builtin:wedge-plate-3x3-cut-corner",
+    ldrawId: "2450.dat",
+    family: "wedge-plate",
+    widthStuds: 3,
+    lengthStuds: 3,
+    heightLdu: 8,
+    orientationId: "upright-yaw-0",
+    translationLdu: [0, -4, 0],
+    connectorGridCenterLdu: [0, 0],
+    bodyBoundsLdu: { min: [-30, -4, -30], max: [30, 4, 30] },
+    boundsLdu: { min: [-30, -8, -30], max: [30, 4, 30] },
+    studs: 6,
+    clutches: 6,
+    bodyBoxes: 168,
+    triangles: 650,
+    vertices: 452,
+    closureFiles: 15,
+  },
+  {
+    id: "builtin:corner-plate-2x2-round",
+    ldrawId: "79491.dat",
+    family: "corner-plate",
+    widthStuds: 2,
+    lengthStuds: 2,
+    heightLdu: 8,
+    orientationId: "upright-yaw-0",
+    translationLdu: [0, -4, 0],
+    connectorGridCenterLdu: [10, 10],
+    bodyBoundsLdu: { min: [-10, -4, -10], max: [30, 4, 30] },
+    boundsLdu: { min: [-10, -8, -10], max: [30, 4, 30] },
+    studs: 2,
+    clutches: 2,
+    bodyBoxes: 53,
+    triangles: 302,
+    vertices: 199,
+    closureFiles: 24,
+  },
+] as const;
+
+/** The three whose clutch cells no LEGO Builder record could have supplied. */
+const LDCAD_CONNECTOR_PART_IDS = [
+  "builtin:plate-3x3-corner-round",
+  "builtin:wedge-plate-3x3-cut-corner",
+  "builtin:corner-plate-2x2-round",
 ] as const;
 
 function require(id: string): PartDefinition {
@@ -135,7 +208,7 @@ const bodyBoxes = (part: PartDefinition): readonly Extract<CollisionPrimitive, {
   );
 
 describe("set 6651557 parts declared from measured source", () => {
-  it("admits all five through the production mesh gate", () => {
+  it("admits all eight through the production mesh gate", () => {
     for (const expected of ADMITTED) {
       expect([expected.id, validateMeshPartDefinitionAdmission(require(expected.id))]).toEqual([
         expected.id,
@@ -277,15 +350,15 @@ describe("set 6651557 parts declared from measured source", () => {
     expect(BUNDLED_LDRAW_ARCHIVE.sha256).toBe(
       "sha256:6009f2e94204c4d3a63a4c812010b5c90bad8c5acb19b882c859fdac63734eae",
     );
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(52);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(84);
     for (const file of BUNDLED_LDRAW_SOURCE_FILES) {
       expect(file.licenseExpression).toBe("CC-BY-4.0");
       expect(file.author.trim().length).toBeGreaterThan(0);
       expect(file.title.trim().length).toBeGreaterThan(0);
       expect(file.sha256).toMatch(/^sha256:[0-9a-f]{64}$/u);
     }
-    // 16 named authors across 52 files: attribution is per file, never flattened.
-    expect(new Set(BUNDLED_LDRAW_SOURCE_FILES.map(({ author }) => author)).size).toBe(16);
+    // 22 named authors across 84 files: attribution is per file, never flattened.
+    expect(new Set(BUNDLED_LDRAW_SOURCE_FILES.map(({ author }) => author)).size).toBe(22);
 
     for (const expected of ADMITTED) {
       const closure = BUNDLED_LDRAW_CLOSURES[expected.ldrawId.replace(".dat", "")]!;
@@ -313,5 +386,81 @@ describe("set 6651557 parts declared from measured source", () => {
       expect(provenance.attribution).toMatch(/reuse is not permission to train/u);
       expect(provenance.attribution).toContain(expected.ldrawId);
     }
+  });
+
+  it("says on the part itself which authored source made its clutch cells", () => {
+    // A clutch is never measured from geometry, so the part has to name who
+    // claimed it. The catalog provenance is what carries that outwards: a
+    // Builder-sourced part and an LDCad-sourced part are not interchangeable
+    // records, because they carry different licences and different attribution.
+    for (const expected of ADMITTED) {
+      const part = require(expected.id);
+      const ldcad = (LDCAD_CONNECTOR_PART_IDS as readonly string[]).includes(expected.id);
+
+      expect([expected.id, part.provenance.sourceId]).toEqual([
+        expected.id,
+        ldcad
+          ? "lego-studio:ldcad-shadow-measured-part-admission"
+          : "lego-studio:measured-part-admission",
+      ]);
+    }
+  });
+
+  it("carries the shadow library's attribution and share-alike position with the data", () => {
+    for (const id of LDCAD_CONNECTOR_PART_IDS) {
+      const { provenance } = require(id);
+
+      expect(provenance.sourceType).toBe("external-connector-metadata");
+      // The connectors are metadata, not geometry: nothing of the library's own
+      // files is bundled, and the render mesh stays the LDraw closure's.
+      expect(provenance.externalGeometryBundled).toBe(false);
+      expect(provenance.licenseExpression).toBe("MIT AND CC-BY-SA-4.0");
+      expect(provenance.attribution).toContain("Roland Melkert");
+      expect(provenance.attribution).toMatch(/ShareAlike attaches to this derived connector data/u);
+      expect(provenance.sourceVersion).toContain("15aa1e718b6a8da37d24fc7af5e52e262c041bfb");
+      expect(provenance.sourceVersion).toContain(
+        "668bc047a45e5560ff0fbbd69e9eb5adafab127781720bcb069a1554cb3f0c0f",
+      );
+      // Reading and sharing under CC BY-SA is still not permission to train.
+      expect(provenance.trainingUseAllowed).toBe(false);
+    }
+  });
+
+  it("gives every one of the three a clutch cell under every stud it carries", () => {
+    // This is the whole point of admitting them. Under LDraw alone each has
+    // studs and zero clutch cells, which is a part that can be built on and can
+    // never be placed on anything.
+    for (const id of LDCAD_CONNECTOR_PART_IDS) {
+      const part = require(id);
+      const studs = part.connectors
+        .filter(({ kind }) => kind === "stud")
+        .map(({ positionLdu }) => `${positionLdu[0]},${positionLdu[2]}`);
+      const clutches = part.connectors
+        .filter(({ kind }) => kind === "undersideClutch")
+        .map(({ positionLdu }) => `${positionLdu[0]},${positionLdu[2]}`);
+
+      expect(studs.length).toBeGreaterThan(0);
+      expect([...clutches].sort()).toEqual([...studs].sort());
+    }
+  });
+
+  it("refuses a declaration that names two connector sources, or none", () => {
+    const declared: readonly MeasuredPartBlueprint[] = SET_6651557_MEASURED_BLUEPRINTS;
+    const builderBlueprint = declared.find(({ designId }) => designId === "77844")!;
+    const shadowBlueprint = declared.find(({ designId }) => designId === "30357")!;
+
+    // The key is dropped rather than set to undefined: under
+    // exactOptionalPropertyTypes an absent source and a present undefined one
+    // are different declarations, and the factory's rule is about absence.
+    const { ldcadShadowSource: shadowSource, ...sourceless } = shadowBlueprint;
+    expect(shadowSource).toBeDefined();
+    expect(builderBlueprint.ldcadShadowSource).toBeUndefined();
+
+    expect(() =>
+      makeMeasuredPartDefinition({ ...builderBlueprint, ldcadShadowSource: shadowSource! }),
+    ).toThrow(/declares both a Builder record .* and an LDCad shadow walk/u);
+    expect(() => makeMeasuredPartDefinition(sourceless)).toThrow(
+      /8 clutch cells and no authored connector source/u,
+    );
   });
 });

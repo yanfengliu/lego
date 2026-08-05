@@ -845,7 +845,7 @@ export function createPreloadedMeshAssetResolver(
 }
 
 // The closed production registry. It is bundled LDraw geometry as of catalog
-// builtin.basic-parts/7 and cannot be mutated at runtime; a new asset enters
+// builtin.basic-parts/8 and cannot be mutated at runtime; a new asset enters
 // only through a reviewed catalog admission.
 const PRELOADED_PRODUCTION_MESH_ASSETS = SET_6651557_MESH_ASSETS;
 

@@ -115,7 +115,14 @@ export type CatalogAliasNamespace = "human" | "ldraw";
 export interface SourceProvenance {
   readonly sourceId: string;
   readonly sourceType:
-    "project-authored" | "interoperability-mapping" | "external-bundled-geometry";
+    | "project-authored"
+    | "interoperability-mapping"
+    | "external-bundled-geometry"
+    // Facts a third party authored about a part it does not own, admitted as
+    // truth rather than bundled as files: the LDCad shadow library's clutch
+    // cells are metadata, not geometry, so `externalGeometryBundled` stays false
+    // while the licence and attribution are still the external source's.
+    | "external-connector-metadata";
   readonly sourceVersion: string;
   readonly licenseExpression: string;
   readonly attribution: string;

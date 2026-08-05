@@ -117,13 +117,13 @@ describe("migrateDocumentTruth", () => {
   });
 
   it("admits no historical truth snapshots beyond the reviewed table", () => {
-    expect(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS).toHaveLength(8);
+    expect(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS).toHaveLength(9);
     expect(
       new Set(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS.map(({ sourceCommit }) => sourceCommit)).size,
-    ).toBe(8);
+    ).toBe(9);
     expect(
       new Set(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS.map(({ truthHash }) => truthHash)).size,
-    ).toBe(8);
+    ).toBe(9);
   });
 
   it("pins the legacy fixture to a reviewed historical truth snapshot", () => {
@@ -225,12 +225,80 @@ describe("migrateDocumentTruth", () => {
       "builtin:wedge-plate-2x4-wing",
       "builtin:corner-plate-3x3",
       "builtin:curved-slope-1x4-double",
+      "builtin:plate-3x3-corner-round",
+      "builtin:wedge-plate-3x3-cut-corner",
+      "builtin:corner-plate-2x2-round",
     ]);
     expect(report.addedColorIds).toEqual([]);
     expect(report.truthComponentChanges).toEqual([
       {
         component: "catalog",
         fromVersion: "builtin.basic-parts/6",
+        toVersion: BUILTIN_CATALOG_VERSION,
+      },
+    ]);
+  });
+
+  it("carries a /7 document forward and names the three parts it gained", () => {
+    // The snapshot /8 replaced. /7 admitted the five designs LEGO Builder has a
+    // record for; the three named here are the ones it has none for, whose
+    // clutch cells the LDCad shadow library authored instead.
+    const current = createEmptyBrickDocument({ id: "seven", name: "Saved at /7" });
+    const document: BrickDocumentV1 = {
+      ...current,
+      truth: {
+        schemaVersion: "lego.truth-snapshot/1",
+        catalog: {
+          id: "builtin.basic-parts",
+          version: "builtin.basic-parts/7",
+          hash: "sha256:f26a1ba141ca0485f1bf046c68d94082497fcd8dcea85906723a389a09ec55d2",
+        },
+        connectorTaxonomy: {
+          id: "stud-tube",
+          version: "stud-tube/1",
+          hash: "sha256:2f3f165461925f9ba3be532d9b5a2e76836d6eb1c93709f954ae7f6150d8db5e",
+        },
+        collisionModel: {
+          id: "rectilinear-stud-clearance",
+          version: "rectilinear-stud-clearance/2",
+          hash: "sha256:c8b66e871ec0e730795ace974befb927844ecd1d99929f94c76cb955287c955c",
+        },
+        transformPolicy: {
+          id: "upright-quarter-turns-negative-y-up",
+          version: "upright-quarter-turns-negative-y-up/1",
+          hash: "sha256:5d9342646d5f6434e57e0673aa43192d9274e47588e4dc07081960644402b7ca",
+        },
+        validatorSet: {
+          id: "lego.kernel-validators",
+          version: "lego.kernel-validators/2",
+          hash: "sha256:cb2767cfa8c8d7adfe145bef950b49428d8c8fced235a04b5f984c29799a031e",
+        },
+      },
+      constraints: {
+        ...current.constraints,
+        allowedCatalogPartIds: PART_DEFINITIONS.slice(0, 82)
+          .map(({ id }) => id)
+          .sort(),
+      },
+    };
+
+    const { report } = migrateDocumentTruth(document);
+
+    expect(report.migrated).toBe(true);
+    expect(report.blockingReasons).toEqual([]);
+    expect(report.fromTruthHash).toBe(
+      "sha256:29eaae6325eba701dc52827a9373c7583889ce3fd16fd8057f3c6f243a8ab868",
+    );
+    expect(report.addedCatalogPartIds).toEqual([
+      "builtin:plate-3x3-corner-round",
+      "builtin:wedge-plate-3x3-cut-corner",
+      "builtin:corner-plate-2x2-round",
+    ]);
+    expect(report.addedColorIds).toEqual([]);
+    expect(report.truthComponentChanges).toEqual([
+      {
+        component: "catalog",
+        fromVersion: "builtin.basic-parts/7",
         toVersion: BUILTIN_CATALOG_VERSION,
       },
     ]);

@@ -113,8 +113,14 @@ export const BUILDER_STEP1_DESIGN_SOURCES = [
     builderStudCentersDigest:
       "sha256:7533437f380d7a9f23d1150ca08a8ee58fa1608c96108f2279ea5db7e524b59f",
     uniqueBuilderVertexCount: 127,
+    // The whole-definition digest carries `provenance.sourceVersion`, which is
+    // BUILTIN_CATALOG_VERSION, so it moves on every catalog bump whether or not
+    // this part changed. Its three siblings below do not: geometry provenance
+    // pins `sourceVersion: "1"`, so a bump that also moved one of them would be
+    // a real change to this part rather than a version carried through.
+    // 298bb0f4b2a107a521c3569b05b0c6a0ed18f627e5f2bc41f97ff3fd364b5e0b at /7.
     expectedCatalogDefinitionDigest:
-      "sha256:298bb0f4b2a107a521c3569b05b0c6a0ed18f627e5f2bc41f97ff3fd364b5e0b",
+      "sha256:233969c0a0b932d11988a12505a2e294dde12341ee8799ba1e46f088bfce494d",
     expectedCatalogGeometryDigest:
       "sha256:8f1673f6e9d8d8cd605ae0523477a7fb315d267e2ca139f3cf11a77aeb4fac58",
     expectedCatalogConnectorDigest:
@@ -166,8 +172,10 @@ export const BUILDER_STEP1_DESIGN_SOURCES = [
     builderStudCentersDigest:
       "sha256:fcb9e7ebe34ecd586ea7e2ce826005bf22b0227b892261173263c49ae3e30f2f",
     uniqueBuilderVertexCount: 430,
+    // d3ba651ebe38373e51bd8819185b65a67ee422b90a2a86a0c3dd3320f9aaf40c at /7;
+    // the catalog version it carries is the only thing that moved.
     expectedCatalogDefinitionDigest:
-      "sha256:d3ba651ebe38373e51bd8819185b65a67ee422b90a2a86a0c3dd3320f9aaf40c",
+      "sha256:a3aac56acf3c35febeccc847a9c943b14ec79ba8d423758091887edba81a488b",
     expectedCatalogGeometryDigest:
       "sha256:219faec905cef376d05b5769ef055041875ba1a01ae8ebec81b864f24c9664e4",
     expectedCatalogConnectorDigest:
