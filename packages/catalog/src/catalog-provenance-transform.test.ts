@@ -44,7 +44,7 @@ describe("catalog provenance and transforms", () => {
     }
   });
 
-  it("resolves canonical, human, and LDraw aliases without importing LDraw geometry", () => {
+  it("resolves canonical, human, and LDraw aliases and states each geometry layer's rights", () => {
     expect(resolvePartId("builtin:brick-2x4")).toBe("builtin:brick-2x4");
     expect(resolvePartId("  Brick 2 x 4 ")).toBe("builtin:brick-2x4");
     expect(resolvePartId("ldraw:3001.dat")).toBe("builtin:brick-2x4");
@@ -53,9 +53,15 @@ describe("catalog provenance and transforms", () => {
     expect(getPartDefinition("ldraw:3024.dat")).toBe(getPartDefinition("builtin:plate-1x1"));
 
     for (const part of PART_DEFINITIONS) {
-      expect(part.geometry.provenance.sourceType).toBe("project-authored");
-      expect(part.geometry.provenance.licenseExpression).toBe("MIT");
-      expect(part.geometry.provenance.externalGeometryBundled).toBe(false);
+      // A generated recipe is ours; a bundled LDraw mesh is not, and says so
+      // with the licence and attribution CC BY 4.0 requires.
+      const bundled = part.geometry.generatorId === "builtin:preloaded-mesh-reference/1";
+      expect(part.geometry.provenance.sourceType).toBe(
+        bundled ? "external-bundled-geometry" : "project-authored",
+      );
+      expect(part.geometry.provenance.licenseExpression).toBe(bundled ? "CC-BY-4.0" : "MIT");
+      expect(part.geometry.provenance.externalGeometryBundled).toBe(bundled);
+      expect(part.geometry.provenance.trainingUseAllowed).toBe(false);
       expect(part.aliases.some(({ namespace }) => namespace === "ldraw")).toBe(true);
       expect(part.aliases.some(({ namespace }) => namespace === "human")).toBe(true);
       expect(
@@ -70,6 +76,12 @@ describe("catalog provenance and transforms", () => {
     const hashes = new Set<string>();
 
     for (const part of PART_DEFINITIONS) {
+      // A bundled mesh is hashed from its own bytes rather than from a
+      // generator input, and mesh-assets.ts already refuses a mismatch.
+      if (part.geometry.generatorId === "builtin:preloaded-mesh-reference/1") {
+        hashes.add(part.geometry.contentHash);
+        continue;
+      }
       const digest = `sha256:${createHash("sha256").update(part.geometry.digestInput).digest("hex")}`;
       expect(part.geometry.contentHash).toBe(digest);
       hashes.add(digest);

@@ -22,6 +22,7 @@ export const MIGRATABLE_CATALOG_VERSIONS: readonly string[] = Object.freeze([
   "builtin.basic-parts/3",
   "builtin.basic-parts/4",
   "builtin.basic-parts/5",
+  "builtin.basic-parts/6",
   BUILTIN_CATALOG_VERSION,
 ]);
 
@@ -70,6 +71,14 @@ export const REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS = Object.freeze([
     catalogVersion: "builtin.basic-parts/5",
     sourceCommit: "0267c0919156df1cede84db91dd716f4565d0fb2",
     truthHash: "sha256:72657715102652a49e08ae683650758958d5c9fad2235761368269ffd15fc4aa",
+  },
+  // The snapshot /7 replaced. It became historical at the first production part
+  // admission rather than when the mesh contract landed, so a document saved
+  // against the six-part catalog still carries forward.
+  {
+    catalogVersion: "builtin.basic-parts/6",
+    sourceCommit: "c78c6f31744b4ef846ecc477015dea4aa20d6ee3",
+    truthHash: "sha256:e5ae3655ebac2b16ede784efa82728c2412d0c95021183653b07222ac9d76a09",
   },
 ] as const);
 

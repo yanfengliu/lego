@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import { BUILTIN_CATALOG_VERSION } from "@lego-studio/catalog";
 import { describe, expect, it } from "vitest";
 
 import { sha256Digest } from "../e2e/real-build-artifacts";
@@ -27,9 +28,36 @@ const calibrationPath = resolve(
   process.cwd(),
   "output/real-build/builder-canonical-calibration.json",
 );
-const hasRetainedCalibration = [officialModelPath, geometryBundlePath, calibrationPath].every(
-  existsSync,
-);
+/**
+ * The retained calibration report is a claim about the exact catalog it was
+ * taken from: it embeds that catalog's version and both designs' definition
+ * digests, and `applyBuilderCanonicalCalibration` refuses an artifact that does
+ * not reproduce the code-derived report byte for byte. A report from a
+ * superseded catalog version is therefore stale rather than wrong, and it is
+ * announced and skipped instead of being edited into agreement.
+ */
+function retainedCalibrationCatalogVersions(): readonly string[] {
+  if (!existsSync(calibrationPath)) return [];
+  const retained = JSON.parse(readFileSync(calibrationPath, "utf8")) as {
+    readonly designFrames?: readonly { readonly catalogVersion?: string }[];
+  };
+  return [
+    ...new Set((retained.designFrames ?? []).map(({ catalogVersion }) => catalogVersion ?? "")),
+  ];
+}
+
+const retainedCalibrationVersions = retainedCalibrationCatalogVersions();
+const retainedCalibrationIsCurrent =
+  retainedCalibrationVersions.length > 0 &&
+  retainedCalibrationVersions.every((version) => version === BUILTIN_CATALOG_VERSION);
+if (retainedCalibrationVersions.length > 0 && !retainedCalibrationIsCurrent) {
+  console.warn(
+    `Retained Builder calibration report is pinned to catalog ${retainedCalibrationVersions.join(", ")} and this build is ${BUILTIN_CATALOG_VERSION}; regenerate it with scripts/generate-builder-calibration.py to restore the writer/reader cross-check. Skipping the retained-report case.`,
+  );
+}
+const hasRetainedCalibration =
+  [officialModelPath, geometryBundlePath, calibrationPath].every(existsSync) &&
+  retainedCalibrationIsCurrent;
 
 const typedDigest = (value: string | Uint8Array): `sha256:${string}` =>
   sha256Digest(value) as `sha256:${string}`;

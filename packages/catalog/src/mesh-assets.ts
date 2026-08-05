@@ -2,6 +2,7 @@ import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils.js";
 
 import { UPRIGHT_ORIENTATIONS } from "./constants.ts";
+import { SET_6651557_MESH_ASSETS } from "./mesh-assets-6651557.ts";
 import type { LduVector3, MeshReferenceGeometryRecipe } from "./types.ts";
 
 export interface PreloadedMeshGroup {
@@ -843,10 +844,10 @@ export function createPreloadedMeshAssetResolver(
   };
 }
 
-// Intentionally empty until a separately reviewed catalog admission adds a
-// production asset. The capability and its failure behavior use synthetic
-// fixtures in tests and cannot mutate this closed registry at runtime.
-const PRELOADED_PRODUCTION_MESH_ASSETS = Object.freeze({});
+// The closed production registry. It is bundled LDraw geometry as of catalog
+// builtin.basic-parts/7 and cannot be mutated at runtime; a new asset enters
+// only through a reviewed catalog admission.
+const PRELOADED_PRODUCTION_MESH_ASSETS = SET_6651557_MESH_ASSETS;
 
 export const resolvePreloadedMeshAsset = createPreloadedMeshAssetResolver(
   PRELOADED_PRODUCTION_MESH_ASSETS,

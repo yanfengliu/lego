@@ -1,9 +1,11 @@
 import {
   CONNECTOR_KIND_RULES,
   STUD_PITCH_LDU,
+  STUD_RADIUS_LDU,
   UPRIGHT_ORIENTATIONS,
   connectorAccepts,
 } from "./constants.ts";
+import { MAX_EXACT_LDU_MAGNITUDE } from "./exact-ldu.ts";
 import {
   MESH_RENDER_QUANTIZATION_TOLERANCE_LDU,
   isLowercaseSha256,
@@ -52,12 +54,27 @@ export interface MeshPartAdmissionResult {
   readonly issues: readonly MeshPartAdmissionIssue[];
 }
 
+/**
+ * A measured LDU coordinate: finite, and within the magnitude the exact bound
+ * representation can carry.
+ *
+ * Geometry is not whole LDU once it is measured rather than generated — 51739's
+ * wing ends at 38.5 and 93273's curve peaks 0.00016098 LDU above two plates — so
+ * requiring integers of extents and collision bodies would refuse the real parts
+ * this gate exists to admit. Connector positions, the placement lattice, the
+ * asset frame and collision allowances keep their whole-LDU rule below, because
+ * those are lattice claims rather than measurements.
+ */
+function isMeasuredLdu(value: number): boolean {
+  return Number.isFinite(value) && Math.abs(value) <= MAX_EXACT_LDU_MAGNITUDE;
+}
+
 function validBounds(bounds: LduBounds): boolean {
   return (
     bounds.min.length === 3 &&
     bounds.max.length === 3 &&
-    bounds.min.every(Number.isSafeInteger) &&
-    bounds.max.every(Number.isSafeInteger) &&
+    bounds.min.every(isMeasuredLdu) &&
+    bounds.max.every(isMeasuredLdu) &&
     bounds.min.every((minimum, axis) => minimum <= bounds.max[axis]!)
   );
 }
@@ -140,7 +157,7 @@ function validConvexPlan(vertices: readonly (readonly [number, number])[]): bool
   if (
     vertices.length < 3 ||
     vertices.length > 8 ||
-    !vertices.every((vertex) => vertex.length === 2 && vertex.every(Number.isSafeInteger))
+    !vertices.every((vertex) => vertex.length === 2 && vertex.every(isMeasuredLdu))
   ) {
     return false;
   }
@@ -224,7 +241,7 @@ function collisionPrimitiveBounds(primitive: CollisionPrimitive): LduBounds | nu
       primitive.tag !== "body" ||
       !validPositiveBounds(bounds) ||
       !cutNormalValid ||
-      !Number.isSafeInteger(primitive.cutOffsetLdu)
+      !isMeasuredLdu(primitive.cutOffsetLdu)
     ) {
       return null;
     }
@@ -242,10 +259,11 @@ function collisionPrimitiveBounds(primitive: CollisionPrimitive): LduBounds | nu
       (primitive.tag !== "body" && primitive.tag !== "stud") ||
       (primitive.tag === "stud" && primitive.axis !== "y") ||
       (primitive.axis !== "x" && primitive.axis !== "y" && primitive.axis !== "z") ||
-      !safeVector(primitive.centerLdu) ||
-      !Number.isSafeInteger(primitive.radiusLdu) ||
+      primitive.centerLdu.length !== 3 ||
+      !primitive.centerLdu.every(isMeasuredLdu) ||
+      !isMeasuredLdu(primitive.radiusLdu) ||
       primitive.radiusLdu <= 0 ||
-      !Number.isSafeInteger(primitive.heightLdu) ||
+      !isMeasuredLdu(primitive.heightLdu) ||
       primitive.heightLdu <= 0
     ) {
       return null;
@@ -270,8 +288,8 @@ function collisionPrimitiveBounds(primitive: CollisionPrimitive): LduBounds | nu
   if (
     primitive.tag !== "body" ||
     !validConvexPlan(primitive.verticesXZLdu) ||
-    !Number.isSafeInteger(primitive.minYLdu) ||
-    !Number.isSafeInteger(primitive.maxYLdu) ||
+    !isMeasuredLdu(primitive.minYLdu) ||
+    !isMeasuredLdu(primitive.maxYLdu) ||
     primitive.minYLdu >= primitive.maxYLdu
   ) {
     return null;
@@ -454,16 +472,20 @@ export function validateMeshPartDefinitionAdmission(
     );
   }
 
+  // Placement rests a part's underside from heightLdu, so the underside plane
+  // is exact. The measured top may stand proud of the nominal plane — 93273's
+  // curve peaks 0.00016098 LDU above two plates — but never short of it, which
+  // would mean the declared lattice height overstates the part.
   if (
     dimensionsValid &&
     bodyBoundsValid &&
-    (definition.bodyBoundsLdu.min[1] !== -dimensions.heightLdu / 2 ||
+    (definition.bodyBoundsLdu.min[1] > -dimensions.heightLdu / 2 ||
       definition.bodyBoundsLdu.max[1] !== dimensions.heightLdu / 2)
   ) {
     add(
       "MESH_ADMISSION_VERTICAL_EXTENTS_INVALID",
       "/bodyBoundsLdu",
-      `Part ${definition.id} body vertical bounds must be centered on its authored origin at [-heightLdu/2, +heightLdu/2]=[${-dimensions.heightLdu / 2}, ${dimensions.heightLdu / 2}] so placement can rest its underside from heightLdu; received [${definition.bodyBoundsLdu.min[1]}, ${definition.bodyBoundsLdu.max[1]}].`,
+      `Part ${definition.id} body vertical bounds are [${definition.bodyBoundsLdu.min[1]}, ${definition.bodyBoundsLdu.max[1]}]; heightLdu ${dimensions.heightLdu} requires the underside at exactly ${dimensions.heightLdu / 2} so placement can rest it there, and a top at ${-dimensions.heightLdu / 2} or above it, never inside.`,
     );
   }
 
@@ -526,13 +548,16 @@ export function validateMeshPartDefinitionAdmission(
       ((connector.kind === "stud" &&
         connector.positionLdu[1] !== definition.bodyBoundsLdu.min[1]) ||
         (connector.kind === "undersideClutch" &&
-          connector.positionLdu[1] !== definition.bodyBoundsLdu.max[1]))
+          (connector.positionLdu[1] < definition.bodyBoundsLdu.min[1] ||
+            connector.positionLdu[1] > definition.bodyBoundsLdu.max[1])))
     ) {
       connectorRepresentationValid = false;
       add(
         "MESH_ADMISSION_VERTICAL_EXTENTS_INVALID",
         `/connectors/${index}/positionLdu/1`,
-        `Part ${definition.id} ${connector.kind} connector ${connector.id} must lie on the represented ${connector.kind === "stud" ? "top" : "underside"} body plane Y=${connector.kind === "stud" ? definition.bodyBoundsLdu.min[1] : definition.bodyBoundsLdu.max[1]}; received Y=${connector.positionLdu[1]}.`,
+        connector.kind === "stud"
+          ? `Part ${definition.id} stud connector ${connector.id} must stand on the represented top body plane Y=${definition.bodyBoundsLdu.min[1]}; received Y=${connector.positionLdu[1]}.`
+          : `Part ${definition.id} underside connector ${connector.id} seats at Y=${connector.positionLdu[1]}, outside the represented body's [${definition.bodyBoundsLdu.min[1]}, ${definition.bodyBoundsLdu.max[1]}] range. A stepped underside may seat above the lowest plane — 93273 seats two clutches 8 LDU up — but never outside the part.`,
       );
     }
   }
@@ -598,6 +623,46 @@ export function validateMeshPartDefinitionAdmission(
       "/collision/primitives",
       `Part ${definition.id} body collision primitive union ${representedBodyBounds === null ? "is empty" : `is [${representedBodyBounds.min.join(", ")}]..[${representedBodyBounds.max.join(", ")}]`} but must agree with bodyBoundsLdu [${definition.bodyBoundsLdu.min.join(", ")}]..[${definition.bodyBoundsLdu.max.join(", ")}]. This validates declared representation bounds, not physical correctness.`,
     );
+  }
+
+  // A declared underside seat has to be a plane the represented solid actually
+  // presents downward, with none of that solid hanging below it inside the stud
+  // footprint that an incoming stud would have to pass through. This is the
+  // collision union's half of the physical clutch-room measurement; it does not
+  // certify clutch strength, and the surface probe stays the source of that.
+  for (
+    let index = 0;
+    bodyPrimitiveBounds.length > 0 && index < definition.connectors.length;
+    index += 1
+  ) {
+    const connector = definition.connectors[index]!;
+    if (connector.kind !== "undersideClutch" || !safeVector(connector.positionLdu)) continue;
+    const [seatX, seatY, seatZ] = connector.positionLdu;
+    const seatPlanes = bodyPrimitiveBounds.map(({ max }) => max[1]);
+    if (!seatPlanes.some((plane) => Math.abs(plane - seatY) <= MESH_VISUAL_BOUNDS_TOLERANCE_LDU)) {
+      add(
+        "MESH_ADMISSION_CONNECTOR_COLLISION_MISMATCH",
+        `/connectors/${index}/positionLdu/1`,
+        `Part ${definition.id} underside connector ${connector.id} declares a seat plane Y=${seatY} that no body collision primitive presents downward; the represented solid's downward faces are at [${[...new Set(seatPlanes)].sort((left, right) => left - right).join(", ")}]. A seat has to be a plane of the part, not a coordinate near one.`,
+      );
+      continue;
+    }
+    const blocking = bodyPrimitiveBounds.filter(
+      (bounds) =>
+        bounds.max[1] > seatY + MESH_VISUAL_BOUNDS_TOLERANCE_LDU &&
+        bounds.min[0] < seatX + STUD_RADIUS_LDU &&
+        bounds.max[0] > seatX - STUD_RADIUS_LDU &&
+        bounds.min[2] < seatZ + STUD_RADIUS_LDU &&
+        bounds.max[2] > seatZ - STUD_RADIUS_LDU,
+    );
+    if (blocking.length > 0) {
+      const deepest = Math.max(...blocking.map(({ max }) => max[1]));
+      add(
+        "MESH_ADMISSION_CONNECTOR_COLLISION_MISMATCH",
+        `/connectors/${index}/positionLdu`,
+        `Part ${definition.id} underside connector ${connector.id} seats at Y=${seatY}, but ${blocking.length} body collision primitive(s) reach down to Y=${deepest} inside its ${STUD_RADIUS_LDU} LDU stud footprint at [${seatX}, ${seatZ}]; an incoming stud cannot pass through the part's own solid to reach that seat.`,
+      );
+    }
   }
 
   const studConnectors = definition.connectors.filter(({ kind }) => kind === "stud");

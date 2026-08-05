@@ -15,11 +15,15 @@ import type {
  * booklet needs, and the first two families whose studs do not fill their
  * footprint — jumper plates and grille tiles; /5 added the first parts whose
  * solid is not one prism — arches, curved slopes, cheese slopes and corner
- * plates, each a union of boxes measured out of its own LDraw file; /6 adds six
+ * plates, each a union of boxes measured out of its own LDraw file; /6 added six
  * booklet parts, including the first analytic circular plan features and their
- * conservative convex-prism collision decomposition.
+ * conservative convex-prism collision decomposition; /7 is the first production
+ * admission from measured source — five set 6651557 parts whose render mesh is
+ * bundled LDraw geometry, whose collision is that surface's per-column height
+ * field, whose connectors are LEGO Builder's authored field carried through a
+ * pinned per-part frame, and whose extents are the exact LDraw closure.
  */
-export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/6" as const;
+export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/7" as const;
 export const CONNECTOR_TAXONOMY_VERSION = "stud-tube/1" as const;
 export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/2" as const;
 export const TRANSFORM_POLICY_VERSION = "upright-quarter-turns-negative-y-up/1" as const;
@@ -68,11 +72,49 @@ export const LDRAW_IDENTIFIER_PROVENANCE: SourceProvenance = Object.freeze({
   sourceType: "interoperability-mapping",
   sourceVersion: "reviewed-2026-08-02",
   licenseExpression: "LicenseRef-LDraw-Identifiers",
-  attribution: "LDraw.org identifier compatibility; no LDraw geometry is bundled.",
+  attribution:
+    "LDraw.org identifier compatibility; this layer bundles no geometry. Bundled LDraw meshes carry their own per-file CC BY 4.0 provenance.",
   runtimeRole: "interchange-identifier-only",
   redistributionAllowed: true,
   trainingUseAllowed: false,
   externalGeometryBundled: false,
+});
+
+/**
+ * Real LDraw part geometry, bundled as the render layer.
+ *
+ * The owner decided this on 2026-08-04 and it was a licensing choice, not a
+ * technical one: every claimed-built step is compared against its printed
+ * booklet panel, so a generated approximation of a curve fails the measurement
+ * the goal is scored by. What the choice obliges is here — per-file authorship
+ * and licence are preserved in `ldraw-bundled-sources-6651557.ts`, and reuse is
+ * still not permission to train, which stays a separate and unheld right.
+ */
+export const LDRAW_BUNDLED_GEOMETRY_PROVENANCE: SourceProvenance = Object.freeze({
+  sourceId: "ldraw:official-library:bundled-part-geometry",
+  sourceType: "external-bundled-geometry",
+  sourceVersion:
+    "ldraw-complete-2026-07 archive sha256 6009f2e94204c4d3a63a4c812010b5c90bad8c5acb19b882c859fdac63734eae",
+  licenseExpression: "CC-BY-4.0",
+  attribution:
+    "LDraw part geometry (c) its named authors and LDraw.org contributors, used under CC BY 4.0. Per-file authorship, licence and content hash are preserved in ldraw-bundled-sources-6651557.ts.",
+  runtimeRole: "render-mesh-asset",
+  redistributionAllowed: true,
+  trainingUseAllowed: false,
+  externalGeometryBundled: true,
+});
+
+/**
+ * Catalog truth for a part declared from measured source rather than from
+ * parameters. The declaration is ours; every number in it was measured, and the
+ * mesh, connector and frame sources are named on the part itself.
+ */
+export const MEASURED_PART_CATALOG_PROVENANCE: SourceProvenance = Object.freeze({
+  ...PROJECT_CATALOG_PROVENANCE,
+  sourceId: "lego-studio:measured-part-admission",
+  sourceVersion: "set-6651557/1",
+  attribution:
+    "Copyright (c) 2026 Yanfeng Liu. Extents and collision measured from the official LDraw closure; connectors from the LEGO Builder authored field through a pinned per-part frame.",
 });
 
 export const LDRAW_91988_FRAME_PROVENANCE: SourceProvenance = Object.freeze({

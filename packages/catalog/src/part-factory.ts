@@ -13,6 +13,7 @@ import type {
   ExactLduBounds,
   LduBounds,
   ParametricPartDefinition,
+  PartDefinition,
 } from "./types.ts";
 
 import { arcCollisionPrimitives } from "./arc-plan.ts";
@@ -30,6 +31,7 @@ import {
   subtractExactLdu,
 } from "./exact-ldu.ts";
 import { deepFreeze } from "./freeze.ts";
+import { MEASURED_PART_DEFINITIONS } from "./measured-part-factory.ts";
 import { PART_BLUEPRINTS } from "./part-blueprints.ts";
 import type { PartBlueprint } from "./part-blueprint-types.ts";
 import {
@@ -279,6 +281,14 @@ export const makePartDefinition = (blueprint: PartBlueprint): ParametricPartDefi
   });
 };
 
-export const PART_DEFINITIONS: readonly ParametricPartDefinition[] = deepFreeze(
-  PART_BLUEPRINTS.map(makePartDefinition),
-);
+/**
+ * The parametric part first, then the parts declared from measured source.
+ *
+ * Appending rather than interleaving is deliberate: catalog order is part of
+ * the truth digest, so a part admitted later must not move a part admitted
+ * earlier.
+ */
+export const PART_DEFINITIONS: readonly PartDefinition[] = deepFreeze([
+  ...PART_BLUEPRINTS.map(makePartDefinition),
+  ...MEASURED_PART_DEFINITIONS,
+]);

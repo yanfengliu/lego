@@ -226,15 +226,21 @@ describe("mesh part catalog admission", () => {
     expect(issueCodes(incoherent)).toContain("MESH_ADMISSION_PROVENANCE_INVALID");
   });
 
-  it("requires exact safe-integer declarations and toleranced equality with resolved visual bounds", () => {
+  it("requires finite measured declarations and toleranced equality with resolved visual bounds", () => {
     const valid = definition();
     const bodyOutside: PartDefinition = {
       ...valid,
       bodyBoundsLdu: { min: [0, -4, -40], max: [21, 4, 0] },
     };
-    const fractionalBounds: PartDefinition = {
+    // Measured geometry is not whole LDU, so a fraction is admitted while a
+    // non-finite or unrepresentable magnitude still is not.
+    const nonFiniteBounds: PartDefinition = {
       ...valid,
-      boundsLdu: { min: [0, -4, -40], max: [20.000_000_5, 4, 0] },
+      boundsLdu: { min: [0, -4, -40], max: [Number.POSITIVE_INFINITY, 4, 0] },
+    };
+    const unrepresentableBounds: PartDefinition = {
+      ...valid,
+      boundsLdu: { min: [0, -4, -40], max: [1e12, 4, 0] },
     };
     const meshWithMaximumRawZ = (maximumRawZ: number): PreloadedMeshAsset => ({
       ...ASSET,
@@ -256,7 +262,8 @@ describe("mesh part catalog admission", () => {
     const misclassifiedBody = definition({ asset: misclassifiedBodyAsset });
 
     expect(issueCodes(bodyOutside)).toContain("MESH_ADMISSION_BOUNDS_INVALID");
-    expect(issueCodes(fractionalBounds)).toContain("MESH_ADMISSION_BOUNDS_INVALID");
+    expect(issueCodes(nonFiniteBounds)).toContain("MESH_ADMISSION_BOUNDS_INVALID");
+    expect(issueCodes(unrepresentableBounds)).toContain("MESH_ADMISSION_BOUNDS_INVALID");
     expect(issueCodes(outsideTolerance, true, outsideToleranceAsset)).toContain(
       "MESH_ADMISSION_VISUAL_BOUNDS_MISMATCH",
     );

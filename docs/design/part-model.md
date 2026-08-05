@@ -7,7 +7,7 @@ The sample booklet's first fifty steps need wedge plates, arches, curved slopes,
 None of them are boxes, so the gap was not "more sizes" — it was a part model that can describe a shape at all.
 This is that model.
 
-It now holds 77, and five of its families are not rectangular prisms: wedge plates use a prism cut by a vertical plane, arches, curved slopes and cheese slopes use unions of measured boxes, and corner plates use either boxes or an analytic circular plan feature.
+It now holds 82, and five of its families are not rectangular prisms: wedge plates use a prism cut by a vertical plane, arches, curved slopes and cheese slopes use unions of measured boxes, and corner plates use either boxes or an analytic circular plan feature.
 
 ## What the other tools do
 
@@ -92,7 +92,7 @@ They are the same statement read three ways.
 
 The mesh is the exception, because it comes from outside, so it is **checked** rather than derived.
 The renderer now has a closed preloaded-mesh capability: a catalog recipe names a bounded asset and exact content hash, an explicit asset-local-to-catalog frame is applied once independently of any optional LDraw interchange frame, and an admission gate checks provenance, frame, connector-grid centre, connector/collision consistency, body bounds and visual bounds before a definition may use it.
-The production asset registry is still empty and no catalog part is mesh-backed yet; this capability does not turn pixels into connector or collision truth.
+The production asset registry holds the five bundled set 6651557 meshes described under the first admission below; this capability does not turn pixels into connector or collision truth, and the other 77 parts remain parametric.
 The measurement-only 6651557 six-part pilot expands exact audited LDraw closures with BFC, inherited stud ancestry and the [official two-diagonal, at-most-3-degree legacy quad tolerance](https://www.ldraw.org/article/512.html), then independently rehashes and measures five Builder native records without emitting a definition. Its retained pressure report finds fractional LDraw bounds for 51739 and 93273, no checksum-valid Builder surface for 30357, non-upright connectivity for 5092, and collision frames outside the current axis-aligned representation for every available record. Those measurements reject rounding, omitted primitives and premature admission; the scored comparison they forced is the section below, and the fractional-bounds pressure it recorded is answered by the exact bound representation described there.
 `scripts/ldraw-part-facts.mjs` already reads a part's true stud positions and body extents out of the official LDraw files.
 Running it against a declaration is a real gate: it catches a wrong LDraw identifier and a wrong hand-authored declaration with the same test.
@@ -111,7 +111,8 @@ Families group the palette and must stay small enough to scan; substitution grou
 Catalog truth is versioned: adding parts bumps `BUILTIN_CATALOG_VERSION`, extends `MIGRATABLE_CATALOG_VERSIONS`, and the migration report says what changed.
 A version advances at the first production admission rather than at the contract change, so the preceding version stays a historical migration snapshot.
 A part with no explicit stud offsets must keep hashing exactly as it did, so growing the model does not re-hash the parts already in it — and the same holds for exact bounds, which are absent from a part that does not declare them.
-Layer 1 is derived and disposable; layers 2, 3 and 4 are truth.
+A new part is appended rather than interleaved, because catalog order is part of the truth digest: at `/7` the 77 geometry content hashes are byte-identical to what they were at `/6`, which is what proves five parts were added rather than seventy-seven regenerated.
+Layer 1 is derived and disposable, but it is no longer generated: it is bundled source geometry, so it carries its own licence and attribution and is still never consulted by a validator. Layers 2, 3 and 4 are truth.
 Collision must stay conservative in the safe direction: an approximation may refuse a placement a real part would allow, and must never allow one it would not.
 
 ## Which source owns which layer
@@ -154,10 +155,42 @@ Each frame carries a SHA-256 over its canonical form, binding design, Builder re
 What a field may emit is decided by measurement, not by what a family is called.
 Under the pinned frames every family 0, 1 and 15 node — 27 of them — sits on its own part's 20 LDU cell lattice, and no family 7, 9, 18, 22 or 23 node ever does: the tube sits at the corner of four cells, the rail at the half pitch along one axis, the plane and edge markers at corners and edges. No stud can be held at a half pitch, so only 0 and 1 (male) and 15 (female) are emitted and the tubes and rails are reported as the geometry that makes a clutch grip rather than as grips. That is 16 clutch cells across the five parts — 1, 2, 4, 5 and 4 — against the zero the whole-footprint rule emits, every one of them on its part's own cell phase with zero pitch deviation. All 16 pass the stud-room check above; the worst intrusion is 0.115238 LDU and needs no allowance to explain, because an LDraw circle is an inscribed 16-gon and a socket wall nominally tangent to the stud reads as exactly `6 * (1 - cos(pi/16))` = 0.115288 LDU of material. The probe is not vacuous: a solid closed box with a clutch declared on its bottom face fails it.
 
-30357 pays the whole price and it is worth naming rather than averaging away.
-It is absent from the 107-record pack, so it has no frame, no revision pin and no authored lattice, and the LDraw geometric rule leaves it 8 stud connectors and 0 clutch cells against the 4 underside tubes its own geometry carries. A part with studs and no clutches can be built on and can never be placed on anything, which is not a degraded part but a different one.
+30357 pays the whole price under Builder alone, and it is worth naming rather than averaging away.
+It is absent from the 107-record pack, so it has no frame, no revision pin and no authored lattice, and the LDraw geometric rule leaves it 8 stud connectors and 0 clutch cells against the 4 underside tubes its own geometry carries. A part with studs and no clutches can be built on and can never be placed on anything, which is not a degraded part but a different one. The section below is the measured answer to exactly that part.
 
-Known gaps, which are work items rather than caveats: 14 of the 121 required designs are absent from the Builder pack outright and fall back to the LDraw geometric rule; the pilot now validates nine node families (0, 1, 7, 9, 15, 18, 22, 23, 29) and leaves five the pack uses (2, 3, 5, 11, 16) unvalidated, along with the `Hinge`, `Axel`, `Fixed` and `Slider` connectivity kinds; only 5 of 107 records carry an external review pin. Builder physics is refused as mass truth on sight — 66 of 107 records declare mass exactly `1`, which makes a 1x2 tile outweigh a 1x4 curved slope.
+Known gaps, which are work items rather than caveats: 14 of the 121 required designs are absent from the Builder pack outright, of which the shadow library measured below answers 7 and the other 7 still fall back to the LDraw geometric rule; the pilot now validates nine node families (0, 1, 7, 9, 15, 18, 22, 23, 29) and leaves five the pack uses (2, 3, 5, 11, 16) unvalidated, along with the `Hinge`, `Axel`, `Fixed` and `Slider` connectivity kinds; only 5 of 107 records carry an external review pin. Builder physics is refused as mass truth on sight — 66 of 107 records declare mass exactly `1`, which makes a 1x2 tile outweigh a 1x4 curved slope.
+
+### The third source, measured
+
+The LDCad Shadow Library was the obvious candidate for the parts Builder has no record of, and it is now measured rather than assumed.
+
+Licence first, because it decides what the measurement is worth.
+The library is CC BY-SA 4.0: stated in its README, shipped whole as `LICENSE.md`, and repeated in the header of every file read.
+Reading it and recording numbers is permitted with attribution and is what happens here; shipping a connector set derived from a substantial portion of it is a ShareAlike obligation — the licence's sui generis database-rights clause reaches an extracted database too — and this MIT repository has not taken that on.
+So the measurement is admissible and an admission is a separate licensing decision, recorded in `docs/dependency-data-bom.md` beside the whole-tree manifest digest the reader verifies before parsing anything.
+
+Reading a part's shadow information means walking its LDraw tree, not opening one file.
+LDCad appends a shadow file to the identically named LDraw file during loading, so a snap written against `p/stud.dat` is inherited through the same type-1 matrix that places the geometry, and a whole anti-stud field compresses to one `[grid=...]` clause whose `C` prefix centres an axis. 93273 has no shadow file of its own and takes all four of its clutches from `parts/s/93273s01.dat`; 77844 has neither.
+
+The walk validates itself before its female claims are read.
+The library says nothing about where a stud is — it inherits `p/stud.dat` — so the composed male studs are matched against the LDraw-measured visible stud primitives first: 8 of 8 on 30357, 5 of 5 on 77844, 4 of 4 on 51739, 2 of 2 on 35480, maximum position error exactly 0 LDU on every part, nothing unmatched in either direction. A composition that could not place a stud could not be believed about a clutch.
+
+Where both authored sources have a claim they agree exactly, and where they differ the difference is the finding.
+5092, 35480 and 93273 are identical sets at 0 LDU — 1, 2 and 4 cells. 51739 reproduces all four Builder cells at 0 LDU and adds two more at (±30, 8, 10). 77844 is the reverse: Builder authors five clutches and LDCad authors none at all. So 11 of Builder's 16 cells are independently confirmed by a source that never saw Builder, 2 are LDCad-only and 5 are Builder-only, and neither source is a superset of the other.
+
+Both disagreements are silence rather than contradiction, and the node census already recorded above is what shows it.
+51739's Builder field carries two absent-coded nodes and both sit at the half pitch, so its 5x5 node lattice stops at ±20 LDU and never reaches the wing tips at ±30: Builder does not deny those cells, it does not describe them. 77844 is the same shape of gap from the other side — it has no shadow file anywhere in its LDraw closure, so LDCad has nothing to say about it, while Builder deliberately codes eight of its cells absent on the part's own lattice. Reading either silence as a denial would be inventing a claim neither source made.
+
+Geometry answers whether a stud fits, and cannot answer who is right about the rest.
+All 21 clutches emitted across the pilot pass the same stud-room probe against the expanded LDraw surface, including both disputed 51739 cells; the worst intrusion anywhere is 0.117147353 LDU against the 0.230576635 LDU bound. A sharper diagnostic is how far each claimed cell sits from a real underside tube: every cell the two sources agree on has a tube at a corner of its own cell, and the two LDCad-only cells on 51739 have their nearest tube a full 30 LDU away — but so do two cells *both* sources author on 93273, where walls rather than tubes do the gripping. It is evidence, not a verdict, and it is recorded as such.
+
+30357 is what this was for.
+The shadow library authors all eight of its clutches, at exactly the eight cells 8 LDU beneath its eight LDraw-measured studs, each with a tube at a corner, all eight with room for a stud, no hard fail, composite 0.988908. The worst two sit beside the rounded corner at 0.117147353 LDU of intrusion, which is 1.016 times the inscribed-16-gon sagitta and still under half the bound. The part that could be built on and never placed now has both faces.
+
+Over all 121 required leaves: 112 have at least one shadow file somewhere in their LDraw closure, but only 55 carry an under-stud clutch, because the library's male studs come free from the primitives and its female fields are authored per part. Builder authors a clutch claim for 84. The two overlap on 38, Builder alone covers 46, LDCad alone covers 17 — including 7 of the 14 designs absent from the Builder pack (2450, 3814, 30357, 41682, 44237, 79491, 93888). LDraw contributes 0, by construction rather than omission. That leaves 20 leaves with no female claim from any source (11090, 11610, 23443, 24482, 30374, 3245, 32828, 35464, 37846, 3818, 3819, 3820, 4519, 4569, 63965, 64647, 7126, 78258, 87994, 99563), of which 8 do carry some other female cylinder the shadow library authors — a minifig arm socket or a technic hole is a female snap and is not a place a stud is held.
+One of the 20 is misfiled by that count and the report says so rather than letting it stand: 3245 is one of the four leaves with no selected LDraw source route, so there is no tree to walk, yet the shadow library holds seven files for its lettered variants and `3245b` declares a 6 by 44 LDU round female hole on a centred pair. Its gap is the route, not the source.
+
+None of this admits a part. `scripts/derive-ldcad-shadow-connectors.py` emits no `PartDefinition`, bumps no catalog version, claims no catalog frame, reads the pinned Builder frame report without writing it, and refuses to run at all if the shadow tree is not the pinned checkout.
 
 ## Resolved decision
 
@@ -168,8 +201,55 @@ Generating our own geometry "costs fidelity on curves and gains nothing else", a
 
 What the decision obliges, none of which is optional:
 per-file authorship and licence are preserved for every bundled file;
-`docs/dependency-data-bom.md` flips from "no LDraw geometry is bundled, identifiers only" to geometry bundled under CC BY 4.0 with attribution required, and the third-party notices are regenerated with it;
+`docs/dependency-data-bom.md` flips from "no LDraw geometry is bundled, identifiers only" to geometry bundled under CC BY 4.0 with attribution required, and the notices are regenerated with it;
 and permission to reuse geometry is still **not** permission to train on it, which stays recorded as a separate and unheld right.
 
-The BOM and notices flip at first admission, not now — bundling is a claim about files that are actually present, so the record changes when the geometry does.
+The BOM and notices flipped at the first admission that actually bundles a file, which is the one below — bundling is a claim about files that are present, so the record changed when the geometry did.
+`docs/bundled-geometry-notices.md` is the attribution CC BY 4.0 requires, rendered from the catalog by a test that fails if the two disagree, so admitting or removing a file moves it in the same commit.
+It names 52 files and 16 authors, and every one declares CC BY 4.0 in its own header.
+The npm notices file is generated from the lockfile alone and could not carry this; the geometry record is its own document rather than an appendix to a package inventory.
+
+## The first admission
+
+Five parts, at `builtin.basic-parts/7`. The version advanced here rather than when the mesh contract landed, so `/6` stays a historical migration snapshot and a document saved against it still carries forward.
+
+| Part | LDraw | Composite | Bodies | Studs | Clutches | Mesh |
+| --- | --- | --- | --- | --- | --- | --- |
+| `builtin:tile-1x2-cut-right-45` | 5092 | 0.9947 | 44 | 0 | 1 | 84 triangles |
+| `builtin:plate-1x2-round-end` | 35480 | 0.9712 | 74 | 2 | 2 | 604 |
+| `builtin:wedge-plate-2x4-wing` | 51739 | 0.9901 | 119 | 4 | 4 | 424 |
+| `builtin:corner-plate-3x3` | 77844 | 0.9961 | 55 | 5 | 5 | 485 |
+| `builtin:curved-slope-1x4-double` | 93273 | 0.8937 | 275 | 0 | 4 | 328 |
+
+The composites are the connector scorecards in the pinned frame report, which score the thing actually admitted — Builder's authored connectors over the LDraw column bodies — rather than either source alone.
+Zero hard fails, 2,538,158 surface points sampled across the five with none outside the union, and all 16 clutch seats have room for a stud.
+93273 scores lowest for a reason worth keeping visible: it has no stud connector at all, so it is not lattice-alignable and loses a third of its lattice-conformance component.
+Its collision is also the most expensive in the catalog at 275 columns, which is what a curve costs at 1 LDU.
+
+**30357 is deliberately not admitted.**
+It is absent from the 107-record Builder pack, so it has 8 stud connectors and zero clutch cells: a part that can be built on and can never be placed on anything is a different part, not a degraded one.
+The LDCad shadow library authors clutches for it and is measured above; admitting an LDCad-derived connector set is a ShareAlike question this repository has not answered, so 30357 waits on that decision rather than on more measurement.
+
+Each part carries an explicit source-to-catalog frame — a quarter turn about the vertical axis and a whole-LDU translation, applied exactly once — because the source frames are not centred and they differ per part.
+5092, 35480 and 51739 turn 90 degrees so the catalog's width-first convention holds; 77844 and 93273 do not turn at all; the vertical translation is -4 for the four plate-height parts and +8 for 93273.
+The raw horizontal frame is preserved rather than recentred, so 77844's corner still runs -10 to 50 LDU and the connector lattice is centred independently at (20, 20).
+
+Two of the five need the exact bound representation and all five use it, because a measured part states its extents once: 51739's wing ends at 38.5 LDU and 93273's curve peaks at -8.00016098, which is not a float64.
+The float64 pair every consumer reads is derived from the exact decimal rather than authored beside it, and 93273's projection lands 4.2e-16 LDU outside its exact bound, which is the safe direction for a minimum.
+
+93273 also forced two rules to be stated properly rather than assumed.
+Its underside is stepped, so two of its four clutches seat 8 LDU above the lowest plane; "a clutch sits at `bodyBounds.max[1]`" was a fact about flat parts, and the rule is now that a seat must be a plane the represented solid actually presents downward with none of that solid inside the stud footprint below it — which is strictly stronger for a flat part and correct for a stepped one.
+And its curve stands 0.00016098 LDU proud of two plates, so the vertical-extents rule is now that the underside plane is exact, because placement rests the part there, while the top may stand proud of the nominal height and may never fall short of it.
+The same pressure retired the whole-LDU requirement on extents and collision bodies: measured geometry is float64 and bounded by what the exact representation can carry, while connector positions, the lattice centre, the asset frame and the collision allowances stay whole LDU because those are lattice claims rather than measurements.
+
+The mesh is the expanded BFC-corrected surface in its immutable asset-local LDraw frame, with one vertex per position the renderer can hold apart: composing a closure by two routes reaches the same corner with a 1e-15 LDU difference that Float32 cannot carry, and keeping both would declare vertices the pipeline then collapses. The merge is checked to leave every measured extent unmoved.
+
+Reproducing the generated tables needs the pinned archives and the frame report:
+
+```
+python -B scripts/derive-builder-ldraw-frame.py --official <ldraw-complete-2026-07.zip> --unofficial <ldraw-unofficial-2026-08-02.zip>
+python -B scripts/score-part-admission.py --official <same> --unofficial <same>
+```
+
+The catalog tables themselves — `mesh-assets-6651557.ts`, `part-blueprints-6651557-measured.ts` and `ldraw-bundled-sources-6651557.ts` — are emitted from those two reports through the same `scripts/part_admission_*` modules that score them, so the scorer and the emitter cannot describe different geometry.
 Layers 2, 3 and 4 never depended on this and are derived from measured source either way.

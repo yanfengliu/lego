@@ -120,11 +120,19 @@ const EXPECTED_PART_IDS = [
   "builtin:wedge-plate-3x6-right",
   "builtin:corner-plate-4x4-round",
   "builtin:corner-plate-5x5-quarter-ring",
+  // builtin.basic-parts/7: the first parts declared from measured source, in
+  // admission order. Appended rather than interleaved, so no part already in
+  // the catalog moves.
+  "builtin:tile-1x2-cut-right-45",
+  "builtin:plate-1x2-round-end",
+  "builtin:wedge-plate-2x4-wing",
+  "builtin:corner-plate-3x3",
+  "builtin:curved-slope-1x4-double",
 ] as const;
 
 describe("starter catalog", () => {
-  it("publishes the six-part catalog truth as version 6", () => {
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/6");
+  it("publishes the five-part measured admission as version 7", () => {
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/7");
   });
 
   it("does not expose inherited object properties as catalog entries", () => {
@@ -145,18 +153,18 @@ describe("starter catalog", () => {
     );
     expect(perFamily).toEqual({
       brick: 15,
-      plate: 28,
-      tile: 9,
+      plate: 29,
+      tile: 10,
       "jumper-plate": 3,
       "grille-tile": 1,
-      "wedge-plate": 7,
+      "wedge-plate": 8,
       "technic-brick": 1,
       axle: 2,
       wheel: 1,
       arch: 2,
-      "curved-slope": 3,
+      "curved-slope": 4,
       "cheese-slope": 2,
-      "corner-plate": 3,
+      "corner-plate": 4,
     });
     // Every part belongs to a family the palette knows how to show.
     expect(
@@ -165,7 +173,11 @@ describe("starter catalog", () => {
   });
 
   it("uses integer LDU dimensions and centered bounds", () => {
+    // Parametric parts only. A part declared from measured source keeps its
+    // source frame — 77844's corner runs -10 to 50 LDU — and states its extents
+    // exactly; catalog-measured-parts.test.ts holds it to that contract instead.
     for (const part of PART_DEFINITIONS) {
+      if (part.geometry.generatorId === "builtin:preloaded-mesh-reference/1") continue;
       const expectedHeight =
         DECLARED_HEIGHTS[part.id] ??
         (part.family === "brick" ||

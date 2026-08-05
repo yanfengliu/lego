@@ -22,6 +22,18 @@ function requireParametricPart(id: string): ParametricPartDefinition {
 }
 
 /**
+ * The parametric parts only.
+ *
+ * A part declared from measured source has no generated stud grid, no
+ * `bodyMode` and no digest input to reproduce, so none of the expectations
+ * below describe one; measured-part-admission.test.ts covers those five.
+ */
+const PARAMETRIC_PART_DEFINITIONS: readonly ParametricPartDefinition[] = PART_DEFINITIONS.filter(
+  (part): part is PartDefinition & ParametricPartDefinition =>
+    part.geometry.generatorId !== "builtin:preloaded-mesh-reference/1",
+);
+
+/**
  * Which cells of a compound part's footprint carry a stud and which carry a
  * clutch, written out rather than recomputed.
  *
@@ -166,7 +178,7 @@ describe("catalog plan geometry", () => {
   });
 
   it("places one semantic stud and one underside tube seat at every grid point", () => {
-    for (const part of PART_DEFINITIONS) {
+    for (const part of PARAMETRIC_PART_DEFINITIONS) {
       const { widthStuds, lengthStuds, heightLdu } = part.dimensions;
       const expectedPortCount = solidCellCount(part);
       // A jumper plate names its studs, so its count is what it declared, not
@@ -238,7 +250,7 @@ describe("catalog plan geometry", () => {
   });
 
   it("provides body and stud collision primitives with connection-gated clearances", () => {
-    for (const part of PART_DEFINITIONS) {
+    for (const part of PARAMETRIC_PART_DEFINITIONS) {
       const expectedStudCount = expectedStudCells(part);
       const body = part.collision.primitives.find(({ id }) => id === "body");
       // Tagged, not merely round: a wheel's body is a cylinder and not a stud.
@@ -307,7 +319,7 @@ describe("catalog plan geometry", () => {
   });
 
   it("builds a compound body from boxes that neither overlap nor leave their footprint", () => {
-    const compoundParts = PART_DEFINITIONS.filter(
+    const compoundParts = PARAMETRIC_PART_DEFINITIONS.filter(
       (part) => part.geometry.bodyBoxesLdu !== undefined,
     );
     expect(compoundParts.map(({ id }) => id)).toEqual(Object.keys(COMPOUND_CELLS));

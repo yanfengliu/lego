@@ -4,6 +4,8 @@ Status: Gate 0 baseline, 2026-07-10
 
 This bill of materials records every direct runtime and development dependency declared by the npm workspace, plus the intended provenance and allowed role of starter geometry, connector, collision, weight, and example sources. It is an allowlist, not a finding that every distributable obligation has already been satisfied.
 
+Real LDraw geometry is bundled as of `builtin.basic-parts/7`: five parts carry the expanded triangles of their own official LDraw closure as their render mesh, under CC BY 4.0 with per-file authorship preserved. The attribution those files require is reproduced in [bundled-geometry-notices.md](bundled-geometry-notices.md). Reuse is not training, and that right stays unheld.
+
 The exact dependency versions and resolved tarballs below come from `package-lock.json`. An npm lockfile license string is upstream-declared metadata, not an independent legal verification. `THIRD_PARTY_NOTICES.md` is generated from the complete locked npm graph, but release redistribution remains blocked until packaged license files, attribution, and evaluation-only exclusions are audited and tested.
 
 Run `node scripts/check-bom.mjs` after changing a workspace or dependency. The check is offline: it compares this inventory with the live package manifests and lockfile and fails on missing, stale, or mismatched records.
@@ -32,6 +34,12 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
       "attribution": "Credit LDraw.org and the part's named author for measurements taken from the official library; the catalog records the LDraw identifier for every part measured this way.",
       "redistribution": "No LDraw file, geometry, mesh, or excerpt is copied into this repository or shipped. What is kept is measurement — a part's stud positions and body extents as numbers — which is then hand-authored into a project-owned parametric blueprint.",
       "trainingUse": "Not designated as a model-training or benchmark corpus; permission to read geometry is not permission to train on it."
+    },
+    "attribution-required-bundled-geometry": {
+      "licenseEvidence": "The exact `!LICENSE`, `Author`, `!LDRAW_ORG` and SHA-256 of every bundled file are read from the pinned official archive and preserved per file in packages/catalog/src/ldraw-bundled-sources-6651557.ts; all 52 files in the five bundled closures declare CC BY 4.0.",
+      "attribution": "Credit LDraw.org and each bundled file's named author. Attribution is per file and is never flattened: the catalog carries the path, author, title, licence and content hash of every file whose geometry is bundled, and each mesh recipe names its root file and author.",
+      "redistribution": "Allowed under CC BY 4.0 with attribution. Real LDraw part geometry is bundled as the render layer, by the owner decision of 2026-08-04; it is rendering-only and is never consulted for connector, collision, bounds or validator truth.",
+      "trainingUse": "Not held. Permission to reuse geometry is not permission to train on it, and no bundled file is designated as a model-training or benchmark corpus."
     },
     "project-mit": {
       "licenseEvidence": "Repository LICENSE (MIT).",
@@ -438,11 +446,22 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
       "category": "catalog-data-and-geometry",
       "status": "implemented-project-authored",
       "source": "packages/catalog/src/",
-      "version": "builtin.basic-parts/6",
+      "version": "builtin.basic-parts/7",
       "declaredLicense": "MIT",
       "rightsPolicy": "project-mit",
       "allowedRoles": ["runtime", "tests", "distribution"],
-      "intent": "Project-authored dimensions and parametric box, wedge, compound-box, and analytic-plan geometry for the 77-part builtin catalog; no LDraw mesh files are copied into this layer."
+      "intent": "Project-authored dimensions and parametric box, wedge, compound-box, and analytic-plan geometry for 77 of the 82 builtin parts; no LDraw mesh file is copied into this layer. The other five parts are declared from measured source and bundle their render mesh under ldraw-bundled-part-geometry; their catalog truth — exact extents, connectors and collision columns — is still project-authored here."
+    },
+    {
+      "id": "ldraw-bundled-part-geometry",
+      "category": "external-render-geometry",
+      "status": "included-bundled-attribution-bound",
+      "source": "packages/catalog/src/mesh-assets-6651557.ts and packages/catalog/src/ldraw-bundled-sources-6651557.ts, expanded offline from the pinned local official LDraw archive",
+      "version": "ldraw-complete-2026-07 archive sha256 6009f2e94204c4d3a63a4c812010b5c90bad8c5acb19b882c859fdac63734eae; 5 roots, 52 files, 16 named authors, all CC BY 4.0; catalog builtin.basic-parts/7",
+      "declaredLicense": "CC-BY-4.0",
+      "rightsPolicy": "attribution-required-bundled-geometry",
+      "allowedRoles": ["runtime render mesh", "palette preview", "tests", "distribution"],
+      "intent": "The expanded BFC-corrected triangles of 5092, 35480, 51739, 77844 and 93273 are bundled as the render layer for the five parts admitted at builtin.basic-parts/7, in their immutable asset-local LDraw frame, and each part applies its own explicit source-to-catalog frame exactly once. This is the flip the owner decision of 2026-08-04 obliged: it happens at the first admission that actually bundles a file, because bundling is a claim about files that are present. Layer 1 only: the mesh is rendering-only and is never consulted by a validator, and the connector, collision and bounds layers are measured separately and carry their own provenance. Per-file authorship, title, licence and content hash are preserved for all 52 files and are reproduced in docs/bundled-geometry-notices.md, which packages/catalog/src/bundled-geometry-notices.test.ts holds to the catalog. Reuse is not training: trainingUseAllowed is false on every bundled record and that right stays unheld."
     },
     {
       "id": "builtin-stud-clutch-taxonomy",
@@ -508,7 +527,7 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
       "declaredLicense": "PER-FILE-CC-BY-2.0-OR-CC-BY-4.0",
       "rightsPolicy": "attribution-required-facts-only",
       "allowedRoles": ["dimension-reference-authoring-only"],
-      "intent": "scripts/ldraw-part-facts.mjs reads official part files by hand to measure a part's stud positions, body extents, and local frame, which are then hand-authored into catalog blueprints as numbers. No LDraw file, geometry, or mesh is copied into the repository or shipped, and nothing fetches at runtime or during a gate. Attribution and the applicable CC BY version are retained from each file header."
+      "intent": "scripts/ldraw-part-facts.mjs reads official part files by hand to measure a part's stud positions, body extents, and local frame, which are then hand-authored into catalog blueprints as numbers. This layer copies no LDraw file, geometry, or mesh, and nothing fetches at runtime or during a gate; geometry that is bundled is recorded separately under ldraw-bundled-part-geometry. Attribution and the applicable CC BY version are retained from each file header."
     },
     {
       "id": "external-ldraw-parts-library",
@@ -602,13 +621,22 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
     {
       "id": "ldcad-shadow-library-connectors",
       "category": "external-connector-data",
-      "status": "read-at-authoring-time-one-fact-pinned",
-      "source": "https://github.com/RolandMelkert/LDCadShadowLibrary",
-      "version": "commit 15aa1e718b6a8da37d24fc7af5e52e262c041bfb; parts/80015.dat sha256 c4dbcc5c5e2969e2b6e5c394519606a66b8483437503b8f4886cdf9262cd7170; parts/s/80015s01.dat sha256 fa4324fccee90f9903c68c65a75bb4e747a76d429a94d648c10b9e24ceb4d879",
+      "status": "read-at-authoring-time-measurement-only-not-bundled-not-admitted",
+      "source": "https://github.com/RolandMelkert/LDCadShadowLibrary, retained locally and only locally as a working-tree checkout of the pinned commit",
+      "version": "commit 15aa1e718b6a8da37d24fc7af5e52e262c041bfb, authored 2026-03-15 by Roland Melkert; whole-tree manifest of 4257 files and 1768204 bytes, sha256 668bc047a45e5560ff0fbbd69e9eb5adafab127781720bcb069a1554cb3f0c0f over the sorted lowercased path/bytes/sha256 table excluding .git; LICENSE.md sha256 23ee78c8bae49cf08ea2f0c84945c66b987ebe4520881fb51b3dad4fb43d07c2; parts/80015.dat sha256 c4dbcc5c5e2969e2b6e5c394519606a66b8483437503b8f4886cdf9262cd7170; parts/s/80015s01.dat sha256 fa4324fccee90f9903c68c65a75bb4e747a76d429a94d648c10b9e24ceb4d879",
       "declaredLicense": "CC-BY-SA-4.0",
       "rightsPolicy": "private-noncommercial-source-reference",
-      "allowedRoles": ["authoring-time connector fact cross-check", "tests", "private reconstruction"],
-      "intent": "The exact 80015 shadow part and subpart independently confirm the same seven underside centres reported by LEGO Builder. Only the two numeric partial-overhang offsets, source identity, and hashes are retained; no LDCad shadow file is bundled or fetched by runtime or gates."
+      "allowedRoles": [
+        "authoring-time connector fact cross-check",
+        "local measurement-only under-stud-clutch candidate emission scored against the expanded LDraw surface",
+        "local female-connector coverage survey over the 121 required 6651557 leaves",
+        "tests",
+        "private reconstruction"
+      ],
+      "licenseFinding": "The library states CC BY-SA 4.0 in its README and ships the full Attribution-ShareAlike 4.0 International text as LICENSE.md, and every read file repeats `0 !LICENSE CC BY-SA 4.0, see LICENSE.md` in its own header. Reading it and recording measurements is permitted with attribution. Section 4 of that licence also covers sui generis database rights, so extracting a substantial portion of the library's contents into a new database makes that database Adapted Material.",
+      "shareAlikeObligation": "Committing a shadow file, or shipping a connector set derived from a substantial portion of the library, is a ShareAlike obligation this MIT-licensed repository has not taken on. `docs/design/spec.md` already records the resolution: any such data would have to live as a separately attributed share-alike data artifact rather than inside the MIT catalog. Nothing in this repository has taken that step, and admission of an LDCad-derived connector set is therefore a licensing decision as well as a technical one.",
+      "intent": "The exact 80015 shadow part and subpart independently confirm the same seven underside centres reported by LEGO Builder. scripts/ldcad_shadow_source.py verifies the whole tree against the manifest digest above before parsing a single meta; scripts/ldcad_shadow_metas.py treats every file as hostile bounded UTF-8 text and refuses an unknown LDCad command rather than skipping it; scripts/ldcad_shadow_connectors.py composes the parsed snap metas through the part's own LDraw reference tree in exact rational arithmetic; scripts/ldcad_shadow_coverage.py compares the result with the LDraw-measured stud primitives, the pinned Builder frame report and the 121 required leaves; and scripts/derive-ldcad-shadow-connectors.py emits under-stud-clutch candidates for the six-part pilot, surveys all 121 required leaves, and drives every emitted clutch through the existing clutchRoom probe in scripts/part_admission_clutch.py against the expanded LDraw surface. scripts/ldcad_shadow_test.py and scripts/ldcad_shadow_coverage_test.py gate all of it under npm run test:python, including a sweep proving all 4251 shadow files parse. Only derived numbers are retained — connector positions, counts, per-design agreement with the pinned Builder frame report, and coverage — inside the gitignored output tree. No LDCad shadow file, meta line, header, or excerpt is committed, packaged, or fetched by runtime or gates; the measurement emits no PartDefinition, bumps no catalog version, claims no catalog frame, and modifies no existing Builder frame pin.",
+      "trainingUse": "Not designated as a model-training or benchmark corpus; a CC BY-SA licence to read and share the material is not permission to train on it, and no separate right has been obtained."
     },
     {
       "id": "bricknet-code-data-and-weights",
@@ -664,7 +692,9 @@ The JSON block is normative for `scripts/check-bom.mjs`. Keep it strict JSON.
 - The direct-dependency inventory is checked, but transitive dependency notices and license files are not yet audited.
 - `THIRD_PARTY_NOTICES.md` is generated deterministically from the complete locked npm graph and checked for drift. The distributable-package attribution/exclusion test does not exist yet, so distribution remains blocked until it passes and the packaged license texts are audited.
 - The starter catalog, connector taxonomy, collision model, and derived Three.js geometry are implemented with versioned project-authored provenance; individual geometry recipes carry SHA-256 content hashes and the truth snapshot pins their aggregate interpretation inputs. Synthetic benchmark examples remain an intent record.
-- No raw LDraw geometry, LEGO Builder bundle or XML, LDCad Shadow Library file, research-model code/data/weights, internet-curated model, or booklet page is approved for packaging or training. Minimal source-pinned measurements and metadata for the private reconstruction are allowed where this BOM names their exact role; currently that includes official LDraw dimensions, the metadata-only 6651557 LDraw source-resolution audit and 21066 source-coverage ledger, the local-only six-part LDraw/Builder source pilot and two-design Builder Shell/frame comparison, the 80015 Builder connector fact and its LDCad cross-check, and the local booklet edge fixture.
+- Real LDraw part geometry is bundled and packaged as the render layer for the five parts admitted at `builtin.basic-parts/7`, under CC BY 4.0 with per-file attribution preserved. That is the owner decision of 2026-08-04, and it flipped here at the first admission that actually bundles a file rather than when the capability landed. It is Layer 1 only: rendering, never connector, collision, bounds or validator truth.
+- **Nothing is approved for training.** Reuse of the bundled geometry is not permission to train on it; that right stays unheld and is recorded as `trainingUseAllowed: false` on every record. No LEGO Builder bundle or XML, LDCad Shadow Library file, research-model code/data/weights, internet-curated model, or booklet page is approved for packaging either. Minimal source-pinned measurements and metadata for the private reconstruction are allowed where this BOM names their exact role; currently that includes official LDraw dimensions, the metadata-only 6651557 LDraw source-resolution audit and 21066 source-coverage ledger, the local-only six-part LDraw/Builder source pilot and two-design Builder Shell/frame comparison, the 80015 Builder connector fact and its LDCad cross-check, the local-only LDCad shadow-library connector measurement, and the local booklet edge fixture.
+- The LDCad Shadow Library is CC BY-SA 4.0, so its ShareAlike condition — including the sui generis database-rights clause — is a distribution question the repository has not answered. Measuring it locally is settled; admitting an LDCad-derived connector set into the MIT catalog is not, and would need a separately attributed share-alike data artifact or an independent re-derivation.
 - The checker verifies manifest, lockfile, and BOM agreement. It does not make legal conclusions, inspect transitive package license texts, prove file-level provenance, or certify trademark compliance.
 
 Gate 0 therefore remains open. This baseline makes additions fail closed and identifies the work required before a distributable package can satisfy the gate exit.

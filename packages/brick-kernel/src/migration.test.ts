@@ -2,6 +2,7 @@ import {
   BUILTIN_CATALOG_VERSION,
   COLLISION_MODEL_VERSION,
   COLOR_DEFINITIONS,
+  PART_DEFINITIONS,
 } from "@lego-studio/catalog";
 import type { BrickDocumentV1 } from "@lego-studio/protocol";
 import { describe, expect, it } from "vitest";
@@ -116,13 +117,13 @@ describe("migrateDocumentTruth", () => {
   });
 
   it("admits no historical truth snapshots beyond the reviewed table", () => {
-    expect(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS).toHaveLength(7);
+    expect(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS).toHaveLength(8);
     expect(
       new Set(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS.map(({ sourceCommit }) => sourceCommit)).size,
-    ).toBe(7);
+    ).toBe(8);
     expect(
       new Set(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS.map(({ truthHash }) => truthHash)).size,
-    ).toBe(7);
+    ).toBe(8);
   });
 
   it("pins the legacy fixture to a reviewed historical truth snapshot", () => {
@@ -167,6 +168,72 @@ describe("migrateDocumentTruth", () => {
       },
     ]);
     expect(document.constraints.allowedColorIds).toHaveLength(COLOR_DEFINITIONS.length);
+  });
+
+  it("carries a /6 document forward and names the five parts it gained", () => {
+    // The snapshot this catalog version replaced. `/6` became historical at the
+    // first production part admission, which is what makes this path exist.
+    const current = createEmptyBrickDocument({ id: "six", name: "Saved at /6" });
+    const document: BrickDocumentV1 = {
+      ...current,
+      truth: {
+        schemaVersion: "lego.truth-snapshot/1",
+        catalog: {
+          id: "builtin.basic-parts",
+          version: "builtin.basic-parts/6",
+          hash: "sha256:590a94c9b9498faace4b29b74c4c9ba8352d644365585d9aeb96b4a7c53bdb7f",
+        },
+        connectorTaxonomy: {
+          id: "stud-tube",
+          version: "stud-tube/1",
+          hash: "sha256:720d9d3f430c388bd4fa47de41f93aed138505642bf9b33b3f6e5ca6a0510dfb",
+        },
+        collisionModel: {
+          id: "rectilinear-stud-clearance",
+          version: "rectilinear-stud-clearance/2",
+          hash: "sha256:692e143470b6a19f54299301de79daf74acd75af0ffeefb82437b5e81c6bda2a",
+        },
+        transformPolicy: {
+          id: "upright-quarter-turns-negative-y-up",
+          version: "upright-quarter-turns-negative-y-up/1",
+          hash: "sha256:535a51b5b102dac0d5788ffecb3c1330d51e0799853d7cc9a1fa1236354f8a09",
+        },
+        validatorSet: {
+          id: "lego.kernel-validators",
+          version: "lego.kernel-validators/2",
+          hash: "sha256:cb2767cfa8c8d7adfe145bef950b49428d8c8fced235a04b5f984c29799a031e",
+        },
+      },
+      constraints: {
+        ...current.constraints,
+        allowedCatalogPartIds: PART_DEFINITIONS.slice(0, 77)
+          .map(({ id }) => id)
+          .sort(),
+      },
+    };
+
+    const { report } = migrateDocumentTruth(document);
+
+    expect(report.migrated).toBe(true);
+    expect(report.blockingReasons).toEqual([]);
+    expect(report.fromTruthHash).toBe(
+      "sha256:e5ae3655ebac2b16ede784efa82728c2412d0c95021183653b07222ac9d76a09",
+    );
+    expect(report.addedCatalogPartIds).toEqual([
+      "builtin:tile-1x2-cut-right-45",
+      "builtin:plate-1x2-round-end",
+      "builtin:wedge-plate-2x4-wing",
+      "builtin:corner-plate-3x3",
+      "builtin:curved-slope-1x4-double",
+    ]);
+    expect(report.addedColorIds).toEqual([]);
+    expect(report.truthComponentChanges).toEqual([
+      {
+        component: "catalog",
+        fromVersion: "builtin.basic-parts/6",
+        toVersion: BUILTIN_CATALOG_VERSION,
+      },
+    ]);
   });
 
   it("produces a document the current validators accept", () => {

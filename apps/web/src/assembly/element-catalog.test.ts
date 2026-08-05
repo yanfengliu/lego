@@ -78,7 +78,10 @@ describe("resolveElementPart", () => {
     expect(resolved.note).toContain("987654");
     expect(resolved.note).toContain("Invented impossible plate");
     expect(resolved.note).toContain("element-987654");
-    expect(resolved.note).toContain("PART_BLUEPRINTS");
+    // The fix names both admission paths, because there are now two.
+    expect(resolved.note).toContain("part-blueprints-6651557-measured.ts");
+    expect(resolved.note).toContain("part-blueprints.ts");
+    expect(resolved.note).toContain("BUILTIN_CATALOG_VERSION");
   });
 
   it("never truncates digits to reach a neighbouring part", () => {
