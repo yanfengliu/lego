@@ -1,83 +1,90 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { basename, join } from "node:path";
+import { existsSync, mkdirSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { commandAsk } from "./part-identification-ask.mjs";
+import { commandCards } from "./part-identification-cards.mjs";
 import { commandPairsheet, commandSheets } from "./part-identification-sheets.mjs";
 import { commandScore, commandSummary } from "./part-identification-score.mjs";
 import {
-  canvasApi,
   contactSheet,
+  createPngDecodeBudget,
   cropToContent,
   describe,
   readThumbnail,
   thumbnailDistance,
 } from "./part-thumbnail-image.mjs";
 import {
+  MAX_IMAGE_ARTIFACT_BYTES,
+  MAX_JSON_ARTIFACT_BYTES,
+  boundedDirectoryFiles,
+  readContainedFile,
+  writeContainedFile,
+} from "./part-identification-io.mjs";
+import {
   PART_DISTANCES_SCHEMA,
   PART_FEATURES_SCHEMA,
   PART_MATCH_SCHEMA,
   assertV4CalloutManifest,
-  PART_CARDS_SCHEMA,
+  assertBoundMatchArtifacts,
   assertFeaturesArtifact,
   nonClusteredCalloutRecords,
   readBoundManifestCrop,
+  readBoundInventoryThumbnail,
   readJsonArtifact,
   sha256Digest,
 } from "./part-identification-artifacts.mjs";
+import { PART_IDENTIFICATION_MODEL_ID } from "./part-identification-model.mjs";
 
-/**
- * What part does a step add?
- *
- * A step prints a small picture of each part it adds. The back of the book
- * prints the same drawing of every part in the set beside the element id that
- * names it, and that gallery is labelled without anything having looked at a
- * picture — the ids come out of the text layer. So naming a callout is matching
- * one drawing to a labelled gallery of the same drawings.
- *
- * The grader is the printed inventory itself: every callout in the book, summed
- * per element, must come to the quantities printed at the back. That scores all
- * 359 steps at once with nothing hand-labelled, and it is falsifiable — claiming
- * a part 104 times when the set holds 21 is provably wrong.
- *
- * Geometry proposes a shortlist, a vision call picks from it, and the inventory
- * disposes: a pick must name a listed element, must agree with the free
- * description the same call gave, and is capped by what the set actually holds.
- */
+/** Match each step callout to the labelled inventory: geometry proposes, vision may pick, and inventory conservation disposes. */
 
 const OUT = "output/part-identification";
 const CROP_LIMIT = 4000;
 
-function usage() {
+export function usage() {
   return [
     "usage: node scripts/part-identification.mjs <command> [options]",
     "",
     "  features   --callouts DIR --inventory DIR    read both galleries into descriptors",
     "  match      [--k 6]                            rank inventory candidates per callout",
-    "  tiles                                         re-cut both galleries to their ink",
+    "  tiles      [--callouts DIR --inventory DIR]   re-cut both galleries to their ink",
     "  labelsheet [--last-step 50]                   numbered sheets to read ground truth off",
-    "  cards      [--k 8]                            draw one adjudication card per cluster",
-    "  ask        [--model sonnet] [--jobs 6] [--batch 6] [--last-step N]  the vision calls",
+    "  cards      [--k 6] [--callouts DIR --inventory DIR]  draw source-bound cards plus exact replay bundle",
+    `  ask        [--model ${PART_IDENTIFICATION_MODEL_ID}] [--jobs 6] [--batch 6] [--last-step N]  the vision calls`,
     "  pairsheet  [--source ...] [--assign ...]      callout beside claimed element, to judge",
     "  score      [--source deterministic|adjudicated] [--assign ...]  conservation and accuracy",
-    "  summary    [--models haiku,sonnet]            every configuration side by side into score.json",
+    `  summary    [--models ${PART_IDENTIFICATION_MODEL_ID}]  every configuration side by side into score.json`,
     "  sheets                                        contact sheets of hits and misses",
+    "  --help                                        print this help and exit successfully",
     "",
     `every command reads and writes ${OUT}/`,
   ].join("\n");
 }
 
 function option(argv, name, fallback) {
-  const at = argv.indexOf(`--${name}`);
-  return at === -1 || at === argv.length - 1 ? fallback : argv[at + 1];
+  const flag = `--${name}`;
+  const positions = argv.flatMap((value, index) => (value === flag ? [index] : []));
+  if (positions.length === 0) return fallback;
+  if (positions.length > 1) {
+    throw new Error(`${flag} may be provided only once; received ${positions.length} occurrences.`);
+  }
+  const at = positions[0];
+  if (at === argv.length - 1 || argv[at + 1].startsWith("--")) {
+    throw new Error(`${flag} requires a value; received no value.`);
+  }
+  return argv[at + 1];
 }
 
 function readJson(path) {
-  return JSON.parse(readFileSync(path, "utf8"));
+  return readJsonArtifact(path, `part-identification input ${path}`).value;
 }
 
 function writeJson(path, value) {
-  writeFileSync(path, `${JSON.stringify(value, null, 1)}\n`);
+  writeContainedFile(dirname(path), basename(path), `${JSON.stringify(value, null, 1)}\n`, {
+    label: "Part-identification JSON artifact",
+    pathLabel: "Part-identification JSON path",
+    maxBytes: MAX_JSON_ARTIFACT_BYTES,
+  });
 }
 
 /** The printed inventory: 276 element ids and the pieces the set holds of each. */
@@ -110,16 +117,31 @@ async function commandFeatures(argv, context = {}) {
   const manifest = assertV4CalloutManifest(manifestArtifact.value, context.manifestExpectation);
 
   const inventory = {};
-  const inventoryFiles = readdirSync(inventoryDir).filter((file) => file.endsWith(".png"));
+  const inventorySourceDigests = {};
+  const decodeBudget = createPngDecodeBudget("Part-identification feature extraction");
+  const inventoryFiles = boundedDirectoryFiles(inventoryDir, {
+    label: "Inventory thumbnail directory",
+  }).filter((file) => file.endsWith(".png"));
   for (const file of inventoryFiles) {
-    const thumbnail = await readThumbnail(join(inventoryDir, file));
+    if (!/^\d{3,12}\.png$/u.test(file)) {
+      throw new Error(
+        `Inventory thumbnail ${JSON.stringify(file)} is not a canonical decimal element-id PNG. Regenerate the inventory gallery before extracting features.`,
+      );
+    }
+    const bytes = readContainedFile(inventoryDir, file, {
+      label: `Inventory thumbnail ${file}`,
+      pathLabel: "Inventory thumbnail file",
+      maxBytes: MAX_IMAGE_ARTIFACT_BYTES,
+    });
+    const thumbnail = await readThumbnail(bytes, decodeBudget);
     if (!thumbnail) continue;
-    inventory[basename(file, ".png")] = describe(thumbnail);
+    const elementId = basename(file, ".png");
+    inventory[elementId] = describe(thumbnail);
+    inventorySourceDigests[elementId] = sha256Digest(bytes);
   }
 
   const callouts = [];
   for (const entry of manifest.callouts.slice(0, CROP_LIMIT)) {
-    const path = join(calloutDir, entry.file);
     if (entry.evidenceKind !== "part-art") {
       // Semantic action/multiplier records stay index-aligned with the v4
       // manifest for coverage provenance, but never receive a descriptor that
@@ -127,7 +149,9 @@ async function commandFeatures(argv, context = {}) {
       callouts.push({ ...entry });
       continue;
     }
-    const thumbnail = await readBoundManifestCrop(entry, path, readThumbnail);
+    const thumbnail = await readBoundManifestCrop(entry, calloutDir, (bytes) =>
+      readThumbnail(bytes, decodeBudget),
+    );
     if (!thumbnail) {
       throw new Error(
         `Callout crop ${JSON.stringify(entry.identity)} at ${JSON.stringify(entry.file)} contains no decodable part drawing. Regenerate or repair this exact crop before extracting features.`,
@@ -146,7 +170,7 @@ async function commandFeatures(argv, context = {}) {
       pdf: manifest.sourceHash,
       calloutManifest: manifestArtifact.digest,
     },
-    note: "Descriptors only. Nothing here names a part.",
+    note: "Descriptors plus exact source-image digests. Nothing here names a part.",
     calloutDir,
     inventoryDir,
     manifestCalloutCount: callouts.length,
@@ -159,6 +183,7 @@ async function commandFeatures(argv, context = {}) {
     elementsWithoutThumbnail: withoutThumbnail,
     piecesWithoutThumbnail: withoutThumbnail.reduce((total, id) => total + held.get(id), 0),
     inventory,
+    inventorySourceDigests,
     callouts,
   });
   console.log(
@@ -200,6 +225,9 @@ function clusterCallouts(callouts, threshold = 0.055) {
 
 async function commandMatch(argv) {
   const k = Number(option(argv, "k", "6"));
+  if (!Number.isInteger(k) || k < 1 || k > 32) {
+    throw new Error(`--k must be an integer from 1 through 32; received ${JSON.stringify(k)}.`);
+  }
   const featuresArtifact = readJsonArtifact(
     join(OUT, "features.json"),
     "part-identification features",
@@ -267,75 +295,61 @@ function median(values) {
  * offering both invites the wrong comparison; stud counting is what decides
  * these, and it wants pixels.
  */
-async function drawCard(lead, candidates, calloutDir, inventoryDir) {
-  const { createCanvas, loadImage } = await canvasApi();
-  const cell = 320;
-  const queryHeight = 340;
-  const width = Math.max(cell * candidates.length, 900);
-  const canvas = createCanvas(width, queryHeight + cell + 96);
-  const context = canvas.getContext("2d");
-  context.fillStyle = "#ffffff";
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  context.fillStyle = "#000000";
-  context.font = "bold 22px sans-serif";
-  context.fillText("QUERY", 12, 26);
-  context.fillText("CANDIDATES", 12, queryHeight + 64);
-
-  const place = async (path, left, top, boxWidth, boxHeight) => {
-    if (!existsSync(path)) return;
-    const image = await loadImage(path);
-    const scale = Math.min(boxWidth / image.width, boxHeight / image.height);
-    context.drawImage(
-      image,
-      left + (boxWidth - image.width * scale) / 2,
-      top + (boxHeight - image.height * scale) / 2,
-      image.width * scale,
-      image.height * scale,
-    );
-  };
-
-  await place(join(calloutDir, lead), 0, 34, width, queryHeight - 44);
-  for (const [index, candidate] of candidates.entries()) {
-    const left = index * cell;
-    const top = queryHeight + 72;
-    context.strokeStyle = "#888888";
-    context.strokeRect(left + 2, top, cell - 4, cell - 4);
-    await place(
-      join(inventoryDir, `${candidate.elementId}.png`),
-      left + 6,
-      top + 28,
-      cell - 12,
-      cell - 36,
-    );
-    context.fillStyle = "#000000";
-    context.font = "bold 24px sans-serif";
-    context.fillText(`${index + 1}`, left + 12, top + 24);
-  }
-  return canvas.encode("png");
-}
-
 /** Both galleries re-cut to their ink, so cards and sheets show the part, not the cell. */
-async function commandTiles() {
-  const features = readJson(join(OUT, "features.json"));
+async function commandTiles(argv) {
+  const featuresArtifact = readJsonArtifact(
+    join(OUT, "features.json"),
+    "part-identification features",
+  );
+  const features = assertFeaturesArtifact(featuresArtifact);
+  const calloutDir = option(argv, "callouts", "output/callout-thumbnails");
+  const inventoryDir = option(argv, "inventory", "output/inventory-thumbnails");
+  if (features.calloutDir !== calloutDir || features.inventoryDir !== inventoryDir) {
+    throw new Error(
+      `Tile roots ${JSON.stringify(calloutDir)}/${JSON.stringify(inventoryDir)} do not match the feature provenance ${JSON.stringify(features.calloutDir)}/${JSON.stringify(features.inventoryDir)}. Pass the exact original roots or regenerate features; artifact text cannot redirect later reads.`,
+    );
+  }
   const calloutTiles = join(OUT, "tiles", "callout");
   const inventoryTiles = join(OUT, "tiles", "inventory");
   mkdirSync(calloutTiles, { recursive: true });
   mkdirSync(inventoryTiles, { recursive: true });
 
   let written = 0;
+  const decodeBudget = createPngDecodeBudget("Part-identification tile extraction");
   for (const elementId of Object.keys(features.inventory)) {
-    const png = await cropToContent(join(features.inventoryDir, `${elementId}.png`));
+    if (!/^\d{3,12}$/u.test(elementId)) {
+      throw new Error(
+        `Feature inventory key ${JSON.stringify(elementId)} is not a decimal element id.`,
+      );
+    }
+    const relativePath = `${elementId}.png`;
+    const png = await readBoundInventoryThumbnail(
+      elementId,
+      features.inventorySourceDigests[elementId],
+      inventoryDir,
+      (bytes) => cropToContent(bytes, 6, decodeBudget),
+    );
     if (!png) continue;
-    writeFileSync(join(inventoryTiles, `${elementId}.png`), png);
+    writeNestedArtifact(inventoryTiles, relativePath, png);
     written += 1;
   }
   for (const callout of features.callouts) {
-    const png = await cropToContent(join(features.calloutDir, callout.file));
+    const png = await readBoundManifestCrop(callout, calloutDir, (bytes) =>
+      cropToContent(bytes, 6, decodeBudget),
+    );
     if (!png) continue;
-    writeFileSync(join(calloutTiles, callout.file), png);
+    writeNestedArtifact(calloutTiles, callout.file, png);
     written += 1;
   }
   console.log(`cut ${written} tiles into ${join(OUT, "tiles")}`);
+}
+
+function writeNestedArtifact(root, relativePath, bytes) {
+  writeContainedFile(root, relativePath, bytes, {
+    label: "Part-identification tile",
+    pathLabel: "Part-identification tile path",
+    maxBytes: MAX_IMAGE_ARTIFACT_BYTES,
+  });
 }
 
 /**
@@ -348,8 +362,25 @@ async function commandTiles() {
  */
 async function commandLabelsheet(argv) {
   const lastStep = Number(option(argv, "last-step", "50"));
-  const features = readJson(join(OUT, "features.json"));
-  const match = readJson(join(OUT, "match.json"));
+  if (!Number.isInteger(lastStep) || lastStep < 1 || lastStep > 359) {
+    throw new Error(
+      `--last-step must be an integer from 1 through 359; received ${JSON.stringify(lastStep)}.`,
+    );
+  }
+  const featuresArtifact = readJsonArtifact(
+    join(OUT, "features.json"),
+    "part-identification features",
+  );
+  const matchArtifact = readJsonArtifact(join(OUT, "match.json"), "part-identification match");
+  const distancesArtifact = readJsonArtifact(
+    join(OUT, "distances.json"),
+    "part-identification distances",
+  );
+  const { features, match } = assertBoundMatchArtifacts({
+    featuresArtifact,
+    matchArtifact,
+    distancesArtifact,
+  });
   const dir = join(OUT, "label-sheets");
   mkdirSync(dir, { recursive: true });
 
@@ -383,20 +414,31 @@ async function commandLabelsheet(argv) {
   );
 
   const perSheet = 9;
+  const decodeBudget = createPngDecodeBudget("Part-identification label sheets");
   const entries = [];
   for (let page = 0; page * perSheet < wanted.length; page += 1) {
     const slice = wanted.slice(page * perSheet, page * perSheet + perSheet);
     const png = await contactSheet(
       slice.map((drawing, at) => ({
-        path: join(OUT, "tiles", "callout", drawing.lead),
+        path: readContainedFile(join(OUT, "tiles", "callout"), drawing.lead, {
+          label: `Label-sheet callout ${drawing.lead}`,
+          pathLabel: "Label-sheet callout path",
+          maxBytes: MAX_IMAGE_ARTIFACT_BYTES,
+        }),
         lines: [
           `#${page * perSheet + at + 1}`,
           `first step ${drawing.firstStep} · ${drawing.calloutsInRange} callouts`,
         ],
       })),
-      { columns: 3, cellWidth: 660, cellHeight: 500, title: `label sheet ${page + 1}` },
+      {
+        columns: 3,
+        cellWidth: 660,
+        cellHeight: 500,
+        title: `label sheet ${page + 1}`,
+        decodeBudget,
+      },
     );
-    writeFileSync(join(dir, `labels-${page}.png`), png);
+    writeNestedArtifact(dir, `labels-${page}.png`, png);
     for (const [at, drawing] of slice.entries()) {
       entries.push({ n: page * perSheet + at + 1, ...drawing });
     }
@@ -415,37 +457,7 @@ async function commandLabelsheet(argv) {
   );
 }
 
-async function commandCards(argv) {
-  const k = Number(option(argv, "k", "6"));
-  const matchArtifact = readJsonArtifact(join(OUT, "match.json"), "part-identification match");
-  const match = matchArtifact.value;
-  if (match.schemaVersion !== PART_MATCH_SCHEMA) {
-    throw new Error(`Cards require ${PART_MATCH_SCHEMA}; regenerate features and match first.`);
-  }
-  const cardDir = join(OUT, "cards");
-  mkdirSync(cardDir, { recursive: true });
-
-  const cards = {};
-  for (const cluster of match.clusters) {
-    const png = await drawCard(
-      cluster.lead,
-      cluster.candidates.slice(0, k),
-      join(OUT, "tiles", "callout"),
-      join(OUT, "tiles", "inventory"),
-    );
-    const id = `card-${String(cluster.clusterIndex).padStart(4, "0")}`;
-    writeFileSync(join(cardDir, `${id}.png`), png);
-    cards[id] = sha256Digest(png);
-  }
-  writeJson(join(cardDir, "manifest.json"), {
-    schemaVersion: PART_CARDS_SCHEMA,
-    matchDigest: matchArtifact.digest,
-    cards,
-  });
-  console.log(`drew ${match.clusters.length} cards into ${cardDir}`);
-}
-
-export { clusterCallouts, commandFeatures, median, option };
+export { clusterCallouts, commandFeatures, median, option, writeNestedArtifact };
 
 const helpers = { option, inventoryHeld, elementNames };
 
@@ -454,7 +466,7 @@ const COMMANDS = {
   match: commandMatch,
   tiles: commandTiles,
   labelsheet: commandLabelsheet,
-  cards: commandCards,
+  cards: (argv) => commandCards(argv, { option, writeJson, writeNestedArtifact }),
   ask: commandAsk,
   pairsheet: (argv) => commandPairsheet(argv, helpers),
   score: (argv) => commandScore(argv, helpers),
@@ -462,12 +474,27 @@ const COMMANDS = {
   sheets: (argv) => commandSheets(argv, helpers),
 };
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const [, , command, ...rest] = process.argv;
+export async function runPartIdentificationCli(argv = process.argv.slice(2), context = {}) {
+  const [command, ...rest] = argv;
+  const stdout = context.stdout ?? console.log;
+  const stderr = context.stderr ?? console.error;
+  if (command === "--help" || command === "-h" || command === "help") {
+    stdout(usage());
+    return 0;
+  }
   const run = COMMANDS[command];
   if (!run) {
-    console.error(command ? `Unknown command "${command}".\n\n${usage()}` : usage());
-    process.exit(1);
+    const resolveNote =
+      command === "resolve"
+        ? "\n\nThere is no resolver command: element-resolution.json is a retained prerequisite and must be restored or reproduced from its pinned source."
+        : "";
+    stderr(command ? `Unknown command "${command}".${resolveNote}\n\n${usage()}` : usage());
+    return 1;
   }
   await run(rest);
+  return 0;
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  process.exitCode = await runPartIdentificationCli();
 }

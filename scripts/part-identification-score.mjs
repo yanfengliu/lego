@@ -1,13 +1,24 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
 
 import { assignDrawings } from "./part-assignment.mjs";
+import { COLOR_DEFINITIONS } from "../packages/catalog/src/colors.ts";
 import {
   assertBoundMatchArtifacts,
   assertCardsArtifact,
   boundAnswers,
   readJsonArtifact,
 } from "./part-identification-artifacts.mjs";
+import { PART_IDENTIFICATION_PROMPT_DIGEST } from "./part-identification-prompt.mjs";
+import {
+  PART_IDENTIFICATION_MODEL_ID,
+  requirePinnedPartIdentificationModel,
+} from "./part-identification-model.mjs";
+import { MAX_JSON_ARTIFACT_BYTES, writeContainedFile } from "./part-identification-io.mjs";
+import {
+  assertCardImageFilesAndBundle,
+  readCardImageBundleFromRoot,
+} from "./part-identification-card-images.mjs";
 
 /**
  * The grader.
@@ -27,11 +38,15 @@ import {
 const OUT = "output/part-identification";
 
 function readJson(path) {
-  return JSON.parse(readFileSync(path, "utf8"));
+  return readJsonArtifact(path, `part-identification input ${path}`).value;
 }
 
 function writeJson(path, value) {
-  writeFileSync(path, `${JSON.stringify(value, null, 1)}\n`);
+  writeContainedFile(dirname(path), basename(path), `${JSON.stringify(value, null, 1)}\n`, {
+    label: "Part-identification score",
+    pathLabel: "Part-identification score path",
+    maxBytes: MAX_JSON_ARTIFACT_BYTES,
+  });
 }
 
 /**
@@ -41,25 +56,45 @@ function writeJson(path, value) {
  * them can throw it out: the pick has to be a number on the card, the element
  * behind that number has to be one the inventory lists, and the free
  * description given in the same breath has to agree with that element's
- * published name on kind and stud size. The call never sees the names, so the
- * third check is not something it can satisfy by asserting.
+ * published name and colour code on kind, stud size, and colour. The call never
+ * sees that metadata, so the third check is not something it can satisfy by
+ * asserting.
  */
-function visionPick(cluster, answers, names) {
+function visionPick(cluster, answers, names, cards) {
   const answer = answers?.[cluster.clusterIndex] ?? null;
   if (answer === null || answer === undefined) return { elementId: null, picked: "unanswered" };
   const pick = Number(answer.pick ?? 0);
   if (pick === 0) return { elementId: null, picked: "refused" };
-  if (!Number.isInteger(pick) || pick < 1 || pick > cluster.candidates.length) {
+  const cardId = `card-${String(cluster.clusterIndex).padStart(4, "0")}`;
+  const displayed = cards?.[cardId]?.candidateElementIds;
+  if (!Array.isArray(displayed)) {
+    return { elementId: null, picked: "description-unverifiable" };
+  }
+  if (!Number.isInteger(pick) || pick < 1 || pick > displayed.length) {
     return { elementId: null, picked: "out-of-range" };
   }
-  const elementId = cluster.candidates[pick - 1].elementId;
-  if (names) {
-    const verdict = describesSameThing(answer, names.get(elementId)?.name);
-    if (verdict && (verdict.kindAgrees === false || verdict.sizeAgrees === false)) {
-      return { elementId: null, picked: "self-contradicted" };
-    }
+  const elementId = displayed[pick - 1];
+  if (!(names instanceof Map)) {
+    return { elementId: null, picked: "description-unverifiable" };
   }
-  return { elementId, picked: "picked" };
+  const verdict = describesSameThing(answer, names.get(elementId));
+  if (
+    verdict === null ||
+    verdict.kindAgrees !== true ||
+    verdict.sizeAgrees !== true ||
+    verdict.colourAgrees !== true
+  ) {
+    return {
+      elementId: null,
+      picked:
+        verdict?.kindAgrees === false ||
+        verdict?.sizeAgrees === false ||
+        verdict?.colourAgrees === false
+          ? "self-contradicted"
+          : "description-unverifiable",
+    };
+  }
+  return { elementId, picked: "vision-kept" };
 }
 
 /**
@@ -71,6 +106,16 @@ function visionPick(cluster, answers, names) {
  * one, enters as a discount on that element rather than as the answer.
  */
 export function claimsFor(match, distances, source, answers, options = {}) {
+  if (source !== "deterministic" && source !== "adjudicated") {
+    throw new Error(
+      `Part-identification source must be deterministic or adjudicated; received ${JSON.stringify(source)}.`,
+    );
+  }
+  if (!["nearest", "one-to-one", "quantity-informed"].includes(options.assign ?? "one-to-one")) {
+    throw new Error(
+      `Part-identification assignment must be nearest, one-to-one, or quantity-informed; received ${JSON.stringify(options.assign)}.`,
+    );
+  }
   const useAssignment = options.assign !== "nearest";
   const chosen = new Map();
 
@@ -84,7 +129,9 @@ export function claimsFor(match, distances, source, answers, options = {}) {
       distanceTo: distances.rows[row],
       pieces: cluster.pieces,
       picked:
-        source === "deterministic" ? null : visionPick(cluster, answers, options.names).elementId,
+        source === "deterministic"
+          ? null
+          : visionPick(cluster, answers, options.names, options.cards).elementId,
     }));
     const result = assignDrawings(drawings, elements, {
       useQuantities: options.assign === "quantity-informed",
@@ -96,7 +143,10 @@ export function claimsFor(match, distances, source, answers, options = {}) {
 
   const claims = new Map();
   for (const cluster of match.clusters) {
-    const vision = source === "deterministic" ? null : visionPick(cluster, answers, options.names);
+    const vision =
+      source === "deterministic"
+        ? null
+        : visionPick(cluster, answers, options.names, options.cards);
     const nearest = cluster.candidates[0]?.elementId ?? null;
     const elementId = useAssignment
       ? (chosen.get(cluster.clusterIndex) ?? null)
@@ -162,12 +212,42 @@ export function conservation(callouts, claims, held) {
  *
  * This is the check that stops the vision call certifying itself. The call
  * answers twice about one picture — once in words, once by pointing at a
- * candidate — and the candidate's published name is not something the call can
- * see. Two answers that disagree are one answer nobody should trust.
+ * candidate — and the candidate's published name and colour code are not
+ * something the call can see. Two answers that disagree are one answer nobody
+ * should trust.
  */
-export function describesSameThing(answer, name) {
-  if (!answer || !name) return null;
-  const plain = name.toLowerCase();
+const normalizeColourName = (value) =>
+  typeof value === "string"
+    ? value
+        .normalize("NFKC")
+        .toLowerCase()
+        .replace(/\bgrey\b/gu, "gray")
+        .replace(/[^a-z0-9]+/gu, " ")
+        .trim()
+        .replace(/\s+/gu, " ")
+    : null;
+
+const COLOUR_BY_LDRAW_CODE = new Map(
+  COLOR_DEFINITIONS.map(({ ldrawCode, displayName }) => [
+    ldrawCode,
+    normalizeColourName(displayName),
+  ]),
+);
+
+export function describesSameThing(answer, element) {
+  if (
+    typeof answer !== "object" ||
+    answer === null ||
+    typeof element !== "object" ||
+    element === null ||
+    typeof element.name !== "string" ||
+    element.name.length === 0 ||
+    typeof answer.kind !== "string" ||
+    !Number.isInteger(answer.studsLong) ||
+    !Number.isInteger(answer.studsWide)
+  )
+    return null;
+  const plain = element.name.toLowerCase();
   const kind = String(answer.kind ?? "").toLowerCase();
   const kindWords = {
     brick: ["brick"],
@@ -182,8 +262,8 @@ export function describesSameThing(answer, name) {
   const kindAgrees =
     kindWords === undefined ? null : kindWords.some((word) => plain.includes(word));
 
-  const long = Number(answer.studsLong ?? 0);
-  const wide = Number(answer.studsWide ?? 0);
+  const long = answer.studsLong;
+  const wide = answer.studsWide;
   const printed = [...plain.matchAll(/(\d+)\s*x\s*(\d+)/g)].map(([, a, b]) => [
     Number(a),
     Number(b),
@@ -192,13 +272,34 @@ export function describesSameThing(answer, name) {
     long > 0 && wide > 0 && printed.length > 0
       ? printed.some(([a, b]) => (a === long && b === wide) || (a === wide && b === long))
       : null;
-  return { kindAgrees, sizeAgrees };
+  const colorCode =
+    Number.isInteger(element.colorId) || /^\d+$/u.test(element.colorId ?? "")
+      ? Number(element.colorId)
+      : null;
+  const expectedColour = colorCode === null ? null : (COLOUR_BY_LDRAW_CODE.get(colorCode) ?? null);
+  const statedColour = normalizeColourName(answer.colour);
+  const colourAgrees =
+    expectedColour === null || statedColour === null || statedColour.length === 0
+      ? null
+      : expectedColour === statedColour;
+  return { kindAgrees, sizeAgrees, colourAgrees };
 }
 
 export async function commandScore(argv, { option, inventoryHeld, elementNames }) {
   const source = option(argv, "source", "deterministic");
-  const model = option(argv, "model", "sonnet");
+  const model = option(argv, "model", PART_IDENTIFICATION_MODEL_ID);
   const assignment = option(argv, "assign", "one-to-one");
+  if (source !== "deterministic" && source !== "adjudicated") {
+    throw new Error(
+      `--source must be deterministic or adjudicated; received ${JSON.stringify(source)}.`,
+    );
+  }
+  if (!["nearest", "one-to-one", "quantity-informed"].includes(assignment)) {
+    throw new Error(
+      `--assign must be nearest, one-to-one, or quantity-informed; received ${JSON.stringify(assignment)}.`,
+    );
+  }
+  requirePinnedPartIdentificationModel(model);
   const featuresArtifact = readJsonArtifact(
     join(OUT, "features.json"),
     "part-identification features",
@@ -208,7 +309,7 @@ export async function commandScore(argv, { option, inventoryHeld, elementNames }
     join(OUT, "distances.json"),
     "part-identification distances",
   );
-  const { features, match, distances } = assertBoundMatchArtifacts({
+  const { features, match, distances, artifacts } = assertBoundMatchArtifacts({
     featuresArtifact,
     matchArtifact,
     distancesArtifact,
@@ -222,15 +323,27 @@ export async function commandScore(argv, { option, inventoryHeld, elementNames }
     source !== "deterministic" && existsSync(cardsPath)
       ? readJsonArtifact(cardsPath, "part-identification cards")
       : null;
-  if (cardsArtifact !== null) {
-    assertCardsArtifact(cardsArtifact, {
-      matchDigest: matchArtifact.digest,
-      clusterIndexes: match.clusters.map(({ clusterIndex }) => clusterIndex),
-    });
+  const cards =
+    cardsArtifact === null
+      ? null
+      : assertCardsArtifact(cardsArtifact, {
+          featuresDigest: artifacts.features.digest,
+          matchDigest: artifacts.match.digest,
+          clusters: match.clusters,
+        });
+  if (cards !== null) {
+    const cardsRoot = join(OUT, "cards");
+    const cardImagesPath = join(cardsRoot, ...cards.imagesFile.split("/"));
+    if (!existsSync(cardImagesPath)) {
+      throw new Error(
+        `No retained card-image bundle at ${cardImagesPath}; regenerate cards before scoring adjudicated answers.`,
+      );
+    }
+    assertCardImageFilesAndBundle(cardsRoot, readCardImageBundleFromRoot(cardsRoot, cards), cards);
   }
   if (source !== "deterministic" && cardsArtifact === null) {
     throw new Error(
-      `No match-bound vision cards at ${cardsPath}; regenerate tiles and cards before scoring adjudicated answers.`,
+      `No feature/match-bound vision cards at ${cardsPath}; regenerate source-bound cards before scoring adjudicated answers.`,
     );
   }
   const answers =
@@ -238,9 +351,11 @@ export async function commandScore(argv, { option, inventoryHeld, elementNames }
       ? null
       : boundAnswers(answersArtifact, {
           model,
-          matchDigest: matchArtifact.digest,
+          matchDigest: artifacts.match.digest,
           cardsDigest: cardsArtifact.digest,
-          clusterIndexes: match.clusters.map(({ clusterIndex }) => clusterIndex),
+          promptDigest: PART_IDENTIFICATION_PROMPT_DIGEST,
+          clusters: match.clusters,
+          cards: cards.cards,
         });
   if (source !== "deterministic" && answers === null) {
     throw new Error(
@@ -255,22 +370,34 @@ export async function commandScore(argv, { option, inventoryHeld, elementNames }
     assign: assignment,
     held,
     names,
+    cards: cards?.cards,
   });
   const table = conservation(features.callouts, claims, held);
 
-  const agreement = { checked: 0, kindDisagrees: 0, sizeDisagrees: 0, either: 0 };
+  const agreement = {
+    checked: 0,
+    kindDisagrees: 0,
+    sizeDisagrees: 0,
+    colourDisagrees: 0,
+    either: 0,
+  };
   const disagreements = [];
   if (source !== "deterministic") {
     for (const cluster of match.clusters) {
       const answer = answers[cluster.clusterIndex];
       const claim = claims.get(cluster.members[0]);
       if (!answer || !claim?.elementId) continue;
-      const verdict = describesSameThing(answer, names.get(claim.elementId)?.name);
+      const verdict = describesSameThing(answer, names.get(claim.elementId));
       if (!verdict) continue;
       agreement.checked += 1;
       if (verdict.kindAgrees === false) agreement.kindDisagrees += 1;
       if (verdict.sizeAgrees === false) agreement.sizeDisagrees += 1;
-      if (verdict.kindAgrees === false || verdict.sizeAgrees === false) {
+      if (verdict.colourAgrees === false) agreement.colourDisagrees += 1;
+      if (
+        verdict.kindAgrees === false ||
+        verdict.sizeAgrees === false ||
+        verdict.colourAgrees === false
+      ) {
         agreement.either += 1;
         disagreements.push({
           clusterIndex: cluster.clusterIndex,
@@ -341,7 +468,13 @@ export async function commandScore(argv, { option, inventoryHeld, elementNames }
  */
 export async function commandSummary(argv, helpers) {
   const { option } = helpers;
-  const models = (option(argv, "models", "haiku,sonnet") ?? "").split(",").filter(Boolean);
+  const models = (option(argv, "models", PART_IDENTIFICATION_MODEL_ID) ?? "")
+    .split(",")
+    .filter(Boolean);
+  if (models.length === 0 || new Set(models).size !== models.length) {
+    throw new Error("--models must contain one or more unique comma-separated pinned model ids.");
+  }
+  for (const model of models) requirePinnedPartIdentificationModel(model);
   const configurations = [
     ["deterministic", "nearest", null],
     ["deterministic", "one-to-one", null],
@@ -354,7 +487,7 @@ export async function commandSummary(argv, helpers) {
   ];
   const variants = [];
   for (const [source, assignment, named] of configurations) {
-    const model = named ?? models[0] ?? "sonnet";
+    const model = named ?? models[0] ?? PART_IDENTIFICATION_MODEL_ID;
     const answersPath = join(OUT, `answers-${model}.json`);
     if (source === "adjudicated" && !existsSync(answersPath)) continue;
     const score = await commandScore(
@@ -389,7 +522,11 @@ export async function commandSummary(argv, helpers) {
 
   const headlineName = option(argv, "headline-source", "adjudicated");
   const headlineAssign = option(argv, "headline-assign", "one-to-one");
-  const headlineModel = option(argv, "headline-model", models[models.length - 1] ?? "sonnet");
+  const headlineModel = option(
+    argv,
+    "headline-model",
+    models[models.length - 1] ?? PART_IDENTIFICATION_MODEL_ID,
+  );
   const headline = await commandScore(
     [
       "--source",

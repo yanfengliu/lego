@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
 
 import { claimsFor, conservation } from "./part-identification-score.mjs";
 import {
@@ -8,7 +8,27 @@ import {
   boundAnswers,
   readJsonArtifact,
 } from "./part-identification-artifacts.mjs";
-import { canvasApi, contactSheet } from "./part-thumbnail-image.mjs";
+import { PART_IDENTIFICATION_PROMPT_DIGEST } from "./part-identification-prompt.mjs";
+import {
+  PART_IDENTIFICATION_MODEL_ID,
+  requirePinnedPartIdentificationModel,
+} from "./part-identification-model.mjs";
+import {
+  MAX_IMAGE_ARTIFACT_BYTES,
+  MAX_JSON_ARTIFACT_BYTES,
+  readContainedFile,
+  writeContainedFile,
+} from "./part-identification-io.mjs";
+import {
+  assertBoundedCanvasDimensions,
+  canvasApi,
+  contactSheet,
+  createPngDecodeBudget,
+} from "./part-thumbnail-image.mjs";
+import {
+  assertCardImageFilesAndBundle,
+  readCardImageBundleFromRoot,
+} from "./part-identification-card-images.mjs";
 
 /**
  * Pictures a person can check the run against.
@@ -23,21 +43,40 @@ import { canvasApi, contactSheet } from "./part-thumbnail-image.mjs";
 const OUT = "output/part-identification";
 
 function readJson(path) {
-  return JSON.parse(readFileSync(path, "utf8"));
+  return readJsonArtifact(path, `part-identification input ${path}`).value;
 }
 
 function writeJson(path, value) {
-  writeFileSync(
-    path,
-    `${JSON.stringify(value, null, 1)}
-`,
-  );
+  writeContainedFile(dirname(path), basename(path), `${JSON.stringify(value, null, 1)}\n`, {
+    label: "Part-identification sheet index",
+    pathLabel: "Part-identification sheet index path",
+    maxBytes: MAX_JSON_ARTIFACT_BYTES,
+  });
+}
+
+function writeImage(root, relativePath, bytes) {
+  writeContainedFile(root, relativePath, bytes, {
+    label: "Part-identification sheet image",
+    pathLabel: "Part-identification sheet image path",
+    maxBytes: MAX_IMAGE_ARTIFACT_BYTES,
+  });
 }
 
 function loadRun(argv, { option, inventoryHeld, elementNames }) {
   const source = option(argv, "source", "deterministic");
   const assignment = option(argv, "assign", "one-to-one");
-  const model = option(argv, "model", "sonnet");
+  const model = option(argv, "model", PART_IDENTIFICATION_MODEL_ID);
+  if (source !== "deterministic" && source !== "adjudicated") {
+    throw new Error(
+      `--source must be deterministic or adjudicated; received ${JSON.stringify(source)}.`,
+    );
+  }
+  if (!["nearest", "one-to-one", "quantity-informed"].includes(assignment)) {
+    throw new Error(
+      `--assign must be nearest, one-to-one, or quantity-informed; received ${JSON.stringify(assignment)}.`,
+    );
+  }
+  if (source === "adjudicated") requirePinnedPartIdentificationModel(model);
   const featuresArtifact = readJsonArtifact(
     join(OUT, "features.json"),
     "part-identification features",
@@ -47,7 +86,7 @@ function loadRun(argv, { option, inventoryHeld, elementNames }) {
     join(OUT, "distances.json"),
     "part-identification distances",
   );
-  const { features, match, distances } = assertBoundMatchArtifacts({
+  const { features, match, distances, artifacts } = assertBoundMatchArtifacts({
     featuresArtifact,
     matchArtifact,
     distancesArtifact,
@@ -61,24 +100,38 @@ function loadRun(argv, { option, inventoryHeld, elementNames }) {
   const cardsPath = join(OUT, "cards", "manifest.json");
   if (source !== "deterministic" && !existsSync(cardsPath)) {
     throw new Error(
-      `Source ${JSON.stringify(source)} requires a match-bound cards manifest at ${cardsPath}; regenerate tiles and cards first.`,
+      `Source ${JSON.stringify(source)} requires a feature/match-bound cards manifest at ${cardsPath}; regenerate source-bound cards first.`,
     );
   }
   const cardsArtifact =
     source === "deterministic" ? null : readJsonArtifact(cardsPath, "part-identification cards");
-  if (cardsArtifact !== null) {
-    assertCardsArtifact(cardsArtifact, {
-      matchDigest: matchArtifact.digest,
-      clusterIndexes: match.clusters.map(({ clusterIndex }) => clusterIndex),
-    });
+  const cards =
+    cardsArtifact === null
+      ? null
+      : assertCardsArtifact(cardsArtifact, {
+          featuresDigest: artifacts.features.digest,
+          matchDigest: artifacts.match.digest,
+          clusters: match.clusters,
+        });
+  if (cards !== null) {
+    const cardsRoot = join(OUT, "cards");
+    const cardImagesPath = join(cardsRoot, ...cards.imagesFile.split("/"));
+    if (!existsSync(cardImagesPath)) {
+      throw new Error(
+        `Source ${JSON.stringify(source)} requires a retained card-image bundle at ${cardImagesPath}; regenerate cards first.`,
+      );
+    }
+    assertCardImageFilesAndBundle(cardsRoot, readCardImageBundleFromRoot(cardsRoot, cards), cards);
   }
   const answers =
     source !== "deterministic" && existsSync(answersPath)
       ? boundAnswers(readJsonArtifact(answersPath, `vision answers for ${model}`), {
           model,
-          matchDigest: matchArtifact.digest,
+          matchDigest: artifacts.match.digest,
           cardsDigest: cardsArtifact.digest,
-          clusterIndexes: match.clusters.map(({ clusterIndex }) => clusterIndex),
+          promptDigest: PART_IDENTIFICATION_PROMPT_DIGEST,
+          clusters: match.clusters,
+          cards: cards.cards,
         })
       : null;
   const held = inventoryHeld();
@@ -86,6 +139,7 @@ function loadRun(argv, { option, inventoryHeld, elementNames }) {
     assign: assignment,
     held,
     names: elementNames(),
+    cards: cards?.cards,
   });
   return { source, assignment, model, features, match, answers, held, claims };
 }
@@ -100,7 +154,17 @@ function loadRun(argv, { option, inventoryHeld, elementNames }) {
  */
 export async function commandPairsheet(argv, helpers) {
   const { option } = helpers;
-  const lastStep = Number(option(argv, "last-step", "50"));
+  const lastStepValue = option(argv, "last-step", "50");
+  const lastStep = Number(lastStepValue);
+  if (!Number.isInteger(lastStep) || lastStep < 1 || lastStep > 359) {
+    throw new Error(
+      `--last-step must be an integer from 1 through 359; received ${JSON.stringify(lastStepValue)}.`,
+    );
+  }
+  const unjudgedOnly = option(argv, "unjudged-only", "no");
+  if (unjudgedOnly !== "yes" && unjudgedOnly !== "no") {
+    throw new Error(`--unjudged-only must be yes or no; received ${JSON.stringify(unjudgedOnly)}.`);
+  }
   const { source, assignment, features, claims } = loadRun(argv, helpers);
   const dir = join(OUT, "pair-sheets");
   const pairDir = join(dir, "pairs");
@@ -137,20 +201,22 @@ export async function commandPairsheet(argv, helpers) {
     : new Set();
   const pairs = [...wanted.values()]
     .filter(
-      (pair) =>
-        option(argv, "unjudged-only", "no") === "no" ||
-        !judged.has(`${pair.clusterIndex}:${pair.elementId}`),
+      (pair) => unjudgedOnly === "no" || !judged.has(`${pair.clusterIndex}:${pair.elementId}`),
     )
     .sort(
       (left, right) => left.firstStep - right.firstStep || left.clusterIndex - right.clusterIndex,
     );
+  const decodeBudget = createPngDecodeBudget("Part-identification pair sheets");
 
   for (const [at, pair] of pairs.entries()) {
     const png = await sideBySide(
-      join(OUT, "tiles", "callout", pair.lead),
-      pair.elementId === null ? null : join(OUT, "tiles", "inventory", `${pair.elementId}.png`),
+      join(OUT, "tiles", "callout"),
+      pair.lead,
+      join(OUT, "tiles", "inventory"),
+      pair.elementId === null ? null : `${pair.elementId}.png`,
+      decodeBudget,
     );
-    writeFileSync(join(pairDir, `pair-${String(at + 1).padStart(3, "0")}.png`), png);
+    writeImage(pairDir, `pair-${String(at + 1).padStart(3, "0")}.png`, png);
   }
 
   const perSheet = 6;
@@ -158,7 +224,15 @@ export async function commandPairsheet(argv, helpers) {
     const slice = pairs.slice(page * perSheet, page * perSheet + perSheet);
     const png = await contactSheet(
       slice.map((pair, at) => ({
-        path: join(pairDir, `pair-${String(page * perSheet + at + 1).padStart(3, "0")}.png`),
+        path: readContainedFile(
+          pairDir,
+          `pair-${String(page * perSheet + at + 1).padStart(3, "0")}.png`,
+          {
+            label: `Pair-sheet cell ${page * perSheet + at + 1}`,
+            pathLabel: "Pair-sheet cell path",
+            maxBytes: MAX_IMAGE_ARTIFACT_BYTES,
+          },
+        ),
         lines: [
           `#${page * perSheet + at + 1}`,
           `step ${pair.firstStep} · ${pair.callouts} callouts`,
@@ -168,10 +242,11 @@ export async function commandPairsheet(argv, helpers) {
         columns: 2,
         cellWidth: 980,
         cellHeight: 400,
+        decodeBudget,
         title: `left = step callout, right = claimed element — sheet ${page + 1}`,
       },
     );
-    writeFileSync(join(dir, `${source}-${assignment}-pairs-${page}.png`), png);
+    writeImage(dir, `${source}-${assignment}-pairs-${page}.png`, png);
   }
 
   writeJson(join(dir, `index-${source}-${assignment}.json`), {
@@ -189,19 +264,43 @@ export async function commandPairsheet(argv, helpers) {
 }
 
 /** One drawing beside another, scaled to the same height, for a same/different call. */
-async function sideBySide(leftPath, rightPath) {
+async function sideBySide(leftRoot, leftRelative, rightRoot, rightRelative, decodeBudget) {
+  const sources = [
+    [leftRoot, leftRelative, 0],
+    [rightRoot, rightRelative, 478],
+  ].flatMap(([root, relativePath, left]) => {
+    if (relativePath === null) return [];
+    const bytes = readContainedFile(root, relativePath, {
+      label: `Pair-sheet image ${relativePath}`,
+      pathLabel: "Pair-sheet image path",
+      maxBytes: MAX_IMAGE_ARTIFACT_BYTES,
+    });
+    return [
+      {
+        bytes,
+        expected: decodeBudget.charge(bytes, `Pair-sheet image ${relativePath}`),
+        left,
+        relativePath,
+      },
+    ];
+  });
   const { createCanvas, loadImage } = await canvasApi();
   const height = 340;
   const half = 470;
-  const canvas = createCanvas(half * 2 + 8, height);
+  const dimensions = assertBoundedCanvasDimensions(half * 2 + 8, height, "Pair-sheet canvas");
+  const canvas = createCanvas(dimensions.width, dimensions.height);
   const context = canvas.getContext("2d");
   context.fillStyle = "#ffffff";
   context.fillRect(0, 0, canvas.width, canvas.height);
   context.fillStyle = "#c8ccd0";
   context.fillRect(half, 0, 8, height);
-  const place = async (path, left) => {
-    if (path === null || !existsSync(path)) return;
-    const image = await loadImage(path);
+  const place = async ({ bytes, expected, left, relativePath }) => {
+    const image = await loadImage(bytes);
+    if (image.width !== expected.width || image.height !== expected.height) {
+      throw new Error(
+        `Pair-sheet image ${relativePath} decoded as ${image.width} x ${image.height}, but its authenticated PNG IHDR declared ${expected.width} x ${expected.height}.`,
+      );
+    }
     const scale = Math.min((half - 16) / image.width, (height - 16) / image.height);
     context.drawImage(
       image,
@@ -211,8 +310,7 @@ async function sideBySide(leftPath, rightPath) {
       image.height * scale,
     );
   };
-  await place(leftPath, 0);
-  await place(rightPath, half + 8);
+  for (const source of sources) await place(source);
   return canvas.encode("png");
 }
 
@@ -224,6 +322,7 @@ export async function commandSheets(argv, helpers) {
   const table = conservation(features.callouts, claims, held);
   const dir = join(OUT, "sheets");
   mkdirSync(dir, { recursive: true });
+  const decodeBudget = createPngDecodeBudget("Part-identification evidence sheets");
 
   const overBy = new Map(table.perElement.map((row) => [row.elementId, row.claimed - row.held]));
   const calloutDir = join(OUT, "tiles", "callout");
@@ -232,7 +331,11 @@ export async function commandSheets(argv, helpers) {
     const elementId = claim?.elementId ?? null;
     const excess = elementId === null ? 0 : (overBy.get(elementId) ?? 0);
     return {
-      path: join(calloutDir, cluster.lead),
+      path: readContainedFile(calloutDir, cluster.lead, {
+        label: `Part-identification sheet callout ${cluster.lead}`,
+        pathLabel: "Part-identification sheet callout path",
+        maxBytes: MAX_IMAGE_ARTIFACT_BYTES,
+      }),
       tint: elementId === null ? "#3a2020" : excess > 0 ? "#3a3320" : "#1d242b",
       excess,
       lines: [
@@ -260,9 +363,10 @@ export async function commandSheets(argv, helpers) {
         columns: 6,
         cellWidth: 320,
         cellHeight: 210,
+        decodeBudget,
         title: `${name} — ${source} — page ${page + 1}`,
       });
-      writeFileSync(join(dir, `${source}-${assignment}-${name}-${page}.png`), png);
+      writeImage(dir, `${source}-${assignment}-${name}-${page}.png`, png);
       written += 1;
     }
   }

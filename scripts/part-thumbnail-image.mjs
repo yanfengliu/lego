@@ -1,46 +1,28 @@
-/**
- * Reading a booklet part thumbnail as something two galleries can be compared in.
- *
- * The booklet draws a part twice: once beside every step that adds it, and once
- * in the back-of-book inventory beside the element id that names it. Those are
- * the same drawing at different sizes on slightly different grounds, so the
- * comparison only works once both are reduced to the same thing — one part, its
- * silhouette, its ink, and nothing of the page it was printed on.
- *
- * Nothing here identifies a part. It turns a PNG into numbers.
- */
+/** Reduce booklet and inventory PNGs to comparable part silhouettes and ink; nothing here identifies a part. */
 
-let canvasModule = null;
+import {
+  assertBoundedCanvasDimensions,
+  assertBoundedImageDimensions,
+  createPngDecodeBudget,
+} from "./part-thumbnail-image-guard.mjs";
+import { canvasApi } from "./part-thumbnail-canvas.mjs";
 
-/**
- * The PNG decoder, loaded on demand so its absence is a sentence rather than a
- * module-resolution stack trace.
- *
- * `@napi-rs/canvas` reaches this checkout only as a dependency of `pdfjs-dist`,
- * which means a pdfjs upgrade can take it away without anything failing until
- * someone runs this script.
- */
-export async function canvasApi() {
-  if (canvasModule) return canvasModule;
-  try {
-    canvasModule = await import("@napi-rs/canvas");
-  } catch (cause) {
-    throw new Error(
-      "@napi-rs/canvas is required to decode the booklet thumbnails and could not be resolved. " +
-        "It is not a declared dependency of this workspace — it arrives only under pdfjs-dist — so " +
-        "declare it in package.json devDependencies and record it in docs/dependency-data-bom.md " +
-        "before anything in the gate depends on it.",
-      { cause },
-    );
-  }
-  return canvasModule;
-}
+export { canvasApi } from "./part-thumbnail-canvas.mjs";
 
-/** Side of the square the silhouette is resampled into. */
+export {
+  MAX_CANVAS_DIMENSION,
+  MAX_CANVAS_PIXELS,
+  MAX_THUMBNAIL_DIMENSION,
+  MAX_THUMBNAIL_PIXELS,
+  MAX_AGGREGATE_PNG_DECODE_PIXELS,
+  assertBoundedCanvasDimensions,
+  assertBoundedImageDimensions,
+  assertBoundedPngDimensions,
+  createPngDecodeBudget,
+} from "./part-thumbnail-image-guard.mjs";
+
 export const GRID = 28;
-/** Sum of absolute channel differences at which a pixel stops being background. */
 const BACKGROUND_TOLERANCE = 34;
-/** Blobs smaller than this share of the largest are page furniture, not the part. */
 const COMPANION_BLOB_SHARE = 0.12;
 
 /**
@@ -125,11 +107,21 @@ function components(ink, width, height) {
  * detached highlight or a printed shadow arrives as two blobs — handles both,
  * and drops the neighbour that only clipped the cell.
  */
-export async function readThumbnail(path) {
+export async function readThumbnail(
+  bytes,
+  decodeBudget = createPngDecodeBudget("Single-thumbnail decode"),
+) {
+  const expected = decodeBudget.charge(bytes, "Thumbnail PNG");
   const { createCanvas, loadImage } = await canvasApi();
-  const image = await loadImage(path);
+  const image = await loadImage(bytes);
   const width = image.width;
   const height = image.height;
+  assertBoundedImageDimensions(width, height);
+  if (width !== expected.width || height !== expected.height) {
+    throw new Error(
+      `Thumbnail decoder reported ${width} x ${height}, but the authenticated PNG IHDR declared ${expected.width} x ${expected.height}. Rejecting decoder/header disagreement before canvas allocation.`,
+    );
+  }
   const canvas = createCanvas(width, height);
   const context = canvas.getContext("2d");
   context.drawImage(image, 0, 0);
@@ -380,18 +372,33 @@ export function thumbnailDistance(left, right, weights = DISTANCE_WEIGHTS) {
  * thumbnail of a thumbnail, far too small to count studs on. Both galleries are
  * re-cut to the ink before anything looks at them.
  */
-export async function cropToContent(path, padding = 6) {
+export async function cropToContent(
+  bytes,
+  padding = 6,
+  decodeBudget = createPngDecodeBudget("Single-thumbnail crop"),
+) {
   const { createCanvas, loadImage } = await canvasApi();
-  const thumbnail = await readThumbnail(path);
+  const thumbnail = await readThumbnail(bytes, decodeBudget);
   if (!thumbnail) return null;
   const { bounds, width, height } = thumbnail;
   const left = Math.max(0, bounds.minX - padding);
   const top = Math.max(0, bounds.minY - padding);
   const right = Math.min(width - 1, bounds.maxX + padding);
   const bottom = Math.min(height - 1, bounds.maxY + padding);
-  const canvas = createCanvas(right - left + 1, bottom - top + 1);
+  const outputDimensions = assertBoundedCanvasDimensions(
+    right - left + 1,
+    bottom - top + 1,
+    "Cropped thumbnail canvas",
+  );
+  const canvas = createCanvas(outputDimensions.width, outputDimensions.height);
   const context = canvas.getContext("2d");
-  const image = await loadImage(path);
+  const expected = decodeBudget.charge(bytes, "Cropped thumbnail PNG");
+  const image = await loadImage(bytes);
+  if (image.width !== expected.width || image.height !== expected.height) {
+    throw new Error(
+      `Cropped thumbnail decoder reported ${image.width} x ${image.height}, but its authenticated PNG IHDR declared ${expected.width} x ${expected.height}.`,
+    );
+  }
   context.drawImage(
     image,
     left,
@@ -407,12 +414,46 @@ export async function cropToContent(path, padding = 6) {
 }
 
 /** Draws labelled thumbnails into a grid so a human can see what was matched. */
-export async function contactSheet(cells, { columns, cellWidth, cellHeight, title }) {
+export async function contactSheet(
+  cells,
+  {
+    columns,
+    cellWidth,
+    cellHeight,
+    title,
+    decodeBudget = createPngDecodeBudget("Contact-sheet input decode"),
+  },
+) {
+  if (
+    !Array.isArray(cells) ||
+    cells.length > 4_096 ||
+    !Number.isSafeInteger(columns) ||
+    columns < 1 ||
+    !Number.isSafeInteger(cellWidth) ||
+    cellWidth < 1 ||
+    !Number.isSafeInteger(cellHeight) ||
+    cellHeight < 1
+  ) {
+    throw new Error(
+      `Contact-sheet layout requires at most 4096 cells and positive safe integer columns/cell dimensions; received ${cells?.length} cells, ${columns} columns, ${cellWidth} x ${cellHeight} cells.`,
+    );
+  }
+  const expectedImages = new Map();
+  for (const [index, cell] of cells.entries()) {
+    if (cell.path) {
+      expectedImages.set(index, decodeBudget.charge(cell.path, `Contact-sheet image ${index + 1}`));
+    }
+  }
   const { createCanvas, loadImage } = await canvasApi();
   const rows = Math.max(1, Math.ceil(cells.length / columns));
   const header = 34;
   const caption = 66;
-  const canvas = createCanvas(columns * cellWidth, header + rows * (cellHeight + caption));
+  const outputDimensions = assertBoundedCanvasDimensions(
+    columns * cellWidth,
+    header + rows * (cellHeight + caption),
+    "Contact-sheet canvas",
+  );
+  const canvas = createCanvas(outputDimensions.width, outputDimensions.height);
   const context = canvas.getContext("2d");
   context.fillStyle = "#12161a";
   context.fillRect(0, 0, canvas.width, canvas.height);
@@ -428,7 +469,14 @@ export async function contactSheet(cells, { columns, cellWidth, cellHeight, titl
     context.fillStyle = cell.tint ?? "#1d242b";
     context.fillRect(left + 2, top + 2, cellWidth - 4, cellHeight + caption - 4);
     if (cell.path) {
+      const expected = expectedImages.get(index);
       const image = await loadImage(cell.path);
+      assertBoundedImageDimensions(image.width, image.height, `Contact-sheet image ${index + 1}`);
+      if (image.width !== expected.width || image.height !== expected.height) {
+        throw new Error(
+          `Contact-sheet image ${index + 1} decoded as ${image.width} x ${image.height}, but its authenticated PNG IHDR declared ${expected.width} x ${expected.height}.`,
+        );
+      }
       const scale = Math.min((cellWidth - 12) / image.width, (cellHeight - 12) / image.height);
       const drawWidth = image.width * scale;
       const drawHeight = image.height * scale;

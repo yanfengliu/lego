@@ -1,16 +1,37 @@
-import { spawn } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
 
 import { option } from "./part-identification.mjs";
 import {
-  PART_MATCH_SCHEMA,
   answerBundle,
+  assertAnswerRecord,
+  assertBoundMatchArtifacts,
   assertCardsArtifact,
   boundAnswers,
   readJsonArtifact,
-  sha256Digest,
 } from "./part-identification-artifacts.mjs";
+import {
+  CHILD_TIMEOUT_MS,
+  MAX_CHILD_STDERR_BYTES,
+  MAX_CHILD_STDOUT_BYTES,
+  runBoundedChild,
+  writeContainedFile,
+} from "./part-identification-io.mjs";
+import {
+  assertCardImageFilesAndBundle,
+  readCardImageBundleFromRoot,
+} from "./part-identification-card-images.mjs";
+import {
+  PART_IDENTIFICATION_PROMPT,
+  PART_IDENTIFICATION_PROMPT_DIGEST,
+} from "./part-identification-prompt.mjs";
+import { parseStrictJsonBytes } from "./part-identification-strict-json.mjs";
+import {
+  PART_IDENTIFICATION_MODEL_ID,
+  requirePinnedPartIdentificationModel,
+  responseModelIdentity,
+} from "./part-identification-model.mjs";
+import { withCardCallSnapshot } from "./part-identification-call-snapshot.mjs";
 
 /**
  * The vision call that proposes a part identity.
@@ -24,31 +45,14 @@ import {
 
 const OUT = "output/part-identification";
 
-function readJson(path) {
-  return JSON.parse(readFileSync(path, "utf8"));
-}
-
 function writeJson(path, value) {
-  writeFileSync(
-    path,
-    `${JSON.stringify(value, null, 1)}
-`,
-  );
+  writeContainedFile(dirname(path), basename(path), `${JSON.stringify(value, null, 1)}\n`, {
+    label: "Part-identification answers",
+    pathLabel: "Answers file",
+  });
 }
 
-const PROMPT = [
-  "Each image shows one LEGO part drawing from an instruction booklet (QUERY), and",
-  "numbered CANDIDATE drawings taken from the same booklet's own parts list.",
-  "Every drawing uses the same viewing angle and drawing style; only the printed size differs.",
-  "The parts list contains every part in the set, so the query part is usually among the",
-  "candidates — answer 0 only when none of them could be the same part.",
-  "First describe the QUERY part on its own, then say which candidate is the same part.",
-  'Reply with one line of JSON per image: {"kind":"<brick|plate|tile|slope|wedge|arch|round|technic|other>",',
-  '"studsLong":<integer or 0>,"studsWide":<integer or 0>,"colour":"<plain colour name>",',
-  '"pick":<candidate number, or 0>,"confidence":<0..1>}',
-  "Count studs along the long axis for studsLong and across for studsWide.",
-  "Shape, stud count and colour must all match for a candidate to be the same part.",
-].join(" ");
+const PROMPT = PART_IDENTIFICATION_PROMPT;
 
 /**
  * The vision call, headless.
@@ -64,84 +68,187 @@ const PROMPT = [
  * with the card it belongs to and matched back by that tag, so a call that
  * answers about five of six loses one answer rather than shifting all of them.
  */
-function askBatch(cardIds, model, out = OUT) {
-  const paths = cardIds.map((id) => join(out, "cards", `${id}.png`).replaceAll("\\", "/"));
-  const instruction =
-    `Read these ${cardIds.length} images: ${paths.join(" ")}\n\n` +
-    `Answer separately about each, in the order given, one line per image, ` +
-    `each line beginning with the image's card id (${cardIds.join(", ")}) followed by the JSON. ` +
-    `No prose, no code fences.\n\n${PROMPT}`;
-  return new Promise((resolve) => {
-    const child = spawn(
-      process.env.CLAUDE_CLI ?? "claude",
-      ["-p", instruction, "--model", model, "--allowedTools", "Read"],
-      { windowsHide: true },
+async function askBatch(cardIds, model, out = OUT, context = {}) {
+  requirePinnedPartIdentificationModel(model);
+  if (
+    !Array.isArray(cardIds) ||
+    cardIds.length < 1 ||
+    cardIds.length > 12 ||
+    new Set(cardIds).size !== cardIds.length ||
+    cardIds.some((id) => typeof id !== "string" || !/^card-\d{4}$/u.test(id))
+  ) {
+    throw new Error(
+      `Vision batch requires 1 through 12 unique canonical card-NNNN ids; received ${JSON.stringify(cardIds)}.`,
     );
-    let out = "";
-    child.stdout.on("data", (chunk) => {
-      out += chunk;
-    });
-    child.stderr.on("data", () => {});
-    child.on("error", () => resolve(new Map()));
-    child.on("close", () => {
-      const answers = new Map();
-      for (const line of out.split("\n")) {
-        const tag = /(card-\d{4})/.exec(line);
-        const json = /\{[^{}]*"pick"[^{}]*\}/.exec(line);
-        if (!tag || !json || !cardIds.includes(tag[1])) continue;
-        try {
-          answers.set(tag[1], JSON.parse(json[0]));
-        } catch {
-          /* a malformed line loses one answer, not the batch */
-        }
-      }
-      resolve(answers);
-    });
-  });
+  }
+  void out;
+  const result = await withCardCallSnapshot(
+    cardIds,
+    context.cardImages,
+    context.cardDigests,
+    async (paths, inheritFds) => {
+      const instruction =
+        `Read these ${cardIds.length} images: ${paths.join(" ")}\n\n` +
+        `Answer separately about each, in the order given, one line per image, ` +
+        `each line beginning with the image's card id (${cardIds.join(", ")}) followed by the JSON. ` +
+        `No prose, no code fences.\n\n${PROMPT}`;
+      return runBoundedChild(
+        context.command ?? process.env.CLAUDE_CLI ?? "claude",
+        ["-p", instruction, "--model", model, "--allowedTools", "Read", "--output-format", "json"],
+        {
+          label: `Pinned Claude vision call for ${cardIds.join(", ")}`,
+          timeoutMs: context.timeoutMs ?? CHILD_TIMEOUT_MS,
+          maxStdoutBytes: context.maxStdoutBytes ?? MAX_CHILD_STDOUT_BYTES,
+          maxStderrBytes: context.maxStderrBytes ?? MAX_CHILD_STDERR_BYTES,
+          spawnImpl: context.spawnImpl,
+          inheritFds,
+        },
+      );
+    },
+    { __testHooks: { lockSpawnImpl: context.lockSpawnImpl } },
+  );
+  if (result.code !== 0) {
+    throw new Error(
+      `Pinned Claude vision call for ${cardIds.join(", ")} exited ${result.code}${result.signal === null ? "" : ` (${result.signal})`}; stderr: ${result.stderr.trim() || "empty"}. No answer was retained.`,
+    );
+  }
+  let payload;
+  try {
+    payload = parseStrictJsonBytes(Buffer.from(result.stdout, "utf8"));
+  } catch (error) {
+    throw new Error(
+      `Pinned Claude vision call for ${cardIds.join(", ")} returned non-JSON metadata: ${error instanceof Error ? error.message : String(error)}.`,
+      { cause: error },
+    );
+  }
+  const modelIdentity = responseModelIdentity(payload, model);
+  const answers = new Map();
+  const duplicates = new Set();
+  for (const line of payload.result.split("\n")) {
+    const tag = /(card-\d{4})/u.exec(line);
+    const json = /\{[^{}]*"pick"[^{}]*\}/u.exec(line);
+    if (!tag || !json || !cardIds.includes(tag[1])) continue;
+    if (answers.has(tag[1])) {
+      duplicates.add(tag[1]);
+      continue;
+    }
+    try {
+      answers.set(
+        tag[1],
+        assertAnswerRecord(
+          parseStrictJsonBytes(Buffer.from(json[0], "utf8")),
+          `Answer for ${tag[1]}`,
+        ),
+      );
+    } catch {
+      // A malformed or schema-invalid line loses one answer, never the batch alignment.
+    }
+  }
+  for (const id of duplicates) answers.delete(id);
+  return { answers, modelIdentity };
 }
 
 const cardId = (clusterIndex) => `card-${String(clusterIndex).padStart(4, "0")}`;
 
+export async function settleVisionWorkers(workers) {
+  const workerResults = await Promise.allSettled(workers);
+  const failures = workerResults.flatMap((result) =>
+    result.status === "rejected" ? [result.reason] : [],
+  );
+  if (failures.length > 0) {
+    throw new AggregateError(
+      failures,
+      `${failures.length} bounded vision worker${failures.length === 1 ? "" : "s"} failed; every sibling worker and owned child process finished before this error was returned.`,
+    );
+  }
+}
+
 async function commandAsk(argv) {
   const out = option(argv, "out", OUT);
-  const model = option(argv, "model", "sonnet");
+  const model = option(argv, "model", PART_IDENTIFICATION_MODEL_ID);
+  const expectedModelIdentity = requirePinnedPartIdentificationModel(model);
   const jobs = Number(option(argv, "jobs", "4"));
   const batch = Number(option(argv, "batch", "6"));
   const only = option(argv, "only", null);
   const lastStep = option(argv, "last-step", null);
-  const matchArtifact = readJsonArtifact(join(out, "match.json"), "part-identification match");
-  const match = matchArtifact.value;
-  if (match.schemaVersion !== PART_MATCH_SCHEMA) {
+  if (!Number.isInteger(jobs) || jobs < 1 || jobs > 8) {
     throw new Error(
-      `Vision cards require ${PART_MATCH_SCHEMA}; regenerate features, match, tiles, and cards before asking.`,
+      `--jobs must be an integer from 1 through 8; received ${JSON.stringify(jobs)}.`,
     );
   }
+  if (!Number.isInteger(batch) || batch < 1 || batch > 12) {
+    throw new Error(
+      `--batch must be an integer from 1 through 12; received ${JSON.stringify(batch)}.`,
+    );
+  }
+  if (only !== null && (!/^\d+$/u.test(only) || Number(only) > 4_000)) {
+    throw new Error(
+      `--only must be a cluster index from 0 through 4000; received ${JSON.stringify(only)}.`,
+    );
+  }
+  if (
+    lastStep !== null &&
+    (!/^\d+$/u.test(lastStep) || Number(lastStep) < 1 || Number(lastStep) > 359)
+  ) {
+    throw new Error(
+      `--last-step must be an integer from 1 through 359; received ${JSON.stringify(lastStep)}.`,
+    );
+  }
+  const featuresArtifact = readJsonArtifact(
+    join(out, "features.json"),
+    "part-identification features",
+  );
+  const matchArtifact = readJsonArtifact(join(out, "match.json"), "part-identification match");
+  const distancesArtifact = readJsonArtifact(
+    join(out, "distances.json"),
+    "part-identification distances",
+  );
+  const { features, match, artifacts } = assertBoundMatchArtifacts({
+    featuresArtifact,
+    matchArtifact,
+    distancesArtifact,
+  });
   const cardsManifestPath = join(out, "cards", "manifest.json");
   if (!existsSync(cardsManifestPath)) {
     throw new Error(
-      `Vision cards have no manifest at ${cardsManifestPath}; regenerate tiles and cards for the exact current match.`,
+      `Vision cards have no manifest at ${cardsManifestPath}; regenerate source-bound cards for the exact current features and match.`,
     );
   }
   const cardsArtifact = readJsonArtifact(cardsManifestPath, "part-identification cards");
   const cardsManifest = assertCardsArtifact(cardsArtifact, {
-    matchDigest: matchArtifact.digest,
-    clusterIndexes: match.clusters.map(({ clusterIndex }) => clusterIndex),
+    featuresDigest: artifacts.features.digest,
+    matchDigest: artifacts.match.digest,
+    clusters: match.clusters,
   });
-  for (const [id, digest] of Object.entries(cardsManifest.cards)) {
-    const path = join(out, "cards", `${id}.png`);
-    if (!existsSync(path) || sha256Digest(readFileSync(path)) !== digest) {
-      throw new Error(
-        `Vision card ${id} is missing or differs from the exact match-bound cards manifest. Regenerate every tile and card before asking, including already-answered clusters.`,
-      );
-    }
+  const cardsRoot = join(out, "cards");
+  const cardImagesPath = join(cardsRoot, ...cardsManifest.imagesFile.split("/"));
+  if (!existsSync(cardImagesPath)) {
+    throw new Error(
+      `Vision cards have no retained image bundle at ${cardImagesPath}; regenerate every source-bound card before asking, including already-answered clusters.`,
+    );
+  }
+  let retained;
+  try {
+    retained = assertCardImageFilesAndBundle(
+      cardsRoot,
+      readCardImageBundleFromRoot(cardsRoot, cardsManifest),
+      cardsManifest,
+    );
+  } catch (cause) {
+    throw new Error(
+      `Vision cards are missing or differ from the exact feature/match-bound manifest and retained image bundle. Regenerate every source-bound card before asking, including already-answered clusters: ${cause instanceof Error ? cause.message : String(cause)}.`,
+      { cause },
+    );
   }
   const answersPath = join(out, `answers-${model}.json`);
   const answers = existsSync(answersPath)
     ? boundAnswers(readJsonArtifact(answersPath, `vision answers for ${model}`), {
         model,
-        matchDigest: matchArtifact.digest,
+        matchDigest: artifacts.match.digest,
         cardsDigest: cardsArtifact.digest,
-        clusterIndexes: match.clusters.map(({ clusterIndex }) => clusterIndex),
+        promptDigest: PART_IDENTIFICATION_PROMPT_DIGEST,
+        clusters: match.clusters,
+        cards: cardsManifest.cards,
       })
     : {};
   const writeAnswers = () =>
@@ -149,8 +256,10 @@ async function commandAsk(argv) {
       answersPath,
       answerBundle({
         model,
-        matchDigest: matchArtifact.digest,
+        modelIdentity: expectedModelIdentity,
+        matchDigest: artifacts.match.digest,
         cardsDigest: cardsArtifact.digest,
+        promptDigest: PART_IDENTIFICATION_PROMPT_DIGEST,
         answers,
       }),
     );
@@ -160,7 +269,6 @@ async function commandAsk(argv) {
   // judged truth, and therefore the range where the delta is measurable.
   let inRange = null;
   if (lastStep !== null) {
-    const features = readJson(join(out, "features.json"));
     inRange = new Set();
     for (const cluster of match.clusters) {
       const uses = cluster.members.some((member) => {
@@ -189,19 +297,27 @@ async function commandAsk(argv) {
     for (;;) {
       const chunk = queue.shift();
       if (!chunk) return;
-      const replies = await askBatch(chunk.map(cardId), model, out);
+      const replies = await askBatch(chunk.map(cardId), model, out, {
+        cardImages: retained.images,
+        cardDigests: new Map(
+          Object.entries(cardsManifest.cards).map(([id, card]) => [id, card.sha256]),
+        ),
+      });
       for (const clusterIndex of chunk) {
-        answers[clusterIndex] = replies.get(cardId(clusterIndex)) ?? null;
+        answers[clusterIndex] = replies.answers.get(cardId(clusterIndex)) ?? null;
+      }
+      if (JSON.stringify(replies.modelIdentity) !== JSON.stringify(expectedModelIdentity)) {
+        throw new Error(`Pinned model identity changed while answering ${chunk.join(", ")}.`);
       }
       done += 1;
       writeAnswers();
       if (done % 4 === 0) console.log(`  ${done}/${chunks.length} calls`);
     }
   });
-  await Promise.all(workers);
+  await settleVisionWorkers(workers);
   writeAnswers();
   const refused = Object.values(answers).filter((answer) => answer === null).length;
   console.log(`answered ${Object.keys(answers).length} drawings, ${refused} with no usable reply`);
 }
 
-export { PROMPT, commandAsk };
+export { PROMPT, askBatch, commandAsk };
