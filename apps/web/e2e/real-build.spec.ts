@@ -1,10 +1,8 @@
 import { expect, test } from "@playwright/test";
 
-import {
-  readSampleBooklet,
-  sampleBookletCalloutBoxes,
-  sampleBookletPanels,
-} from "./booklet-fixture";
+import { readSampleBooklet } from "./booklet-fixture";
+import { deriveRealBuildPanelEvidence } from "./real-build-panel-evidence";
+import { readTransitionClassificationBundle } from "./real-build-transition-classification";
 import { bookletProbeUrls, hasSampleBooklet } from "./sample-booklet";
 import {
   beginAtomicRun,
@@ -59,16 +57,12 @@ import {
 } from "./real-build-identification-closure";
 import {
   applyBuilderCanonicalCalibration,
-  isUnauthenticatedTransitionClassification,
   parseOfficialModelIndex,
-  stepPanelEvidenceDigest,
-  transitionClassificationEvidenceDigest,
   validateOfficialModelAccounting,
   validateRealBuildActionLedger,
   type BuilderCanonicalCalibration,
   type OfficialModelIndex,
   type RealBuildActionLedger,
-  type TransitionClassificationEvidence,
 } from "./real-build-ledger";
 import {
   bindCalloutsToBookletPanels,
@@ -307,38 +301,9 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
   const highlightCalibrationDigest = highlightCompatibilityVerified
     ? inputDigests.highlightCalibration
     : null;
-  const transitionEntries = Array.isArray(transitionInput.value.entries)
-    ? transitionInput.value.entries
-    : [];
-  const transitionClassificationsByStep = Object.fromEntries(
-    transitionEntries.map((entry) => [entry.stepNumber, entry]),
-  ) as Readonly<Record<number, TransitionClassificationEvidence>>;
-  const transitionBundleValid =
-    transitionInput.value.schemaVersion === "lego.transition-classifications/1" &&
-    transitionInput.value.pdfDigest === inputDigests.pdf &&
-    transitionEntries.length > 0 &&
-    new Set(transitionEntries.map(({ stepNumber }) => stepNumber)).size ===
-      transitionEntries.length &&
-    transitionEntries.every(
-      (entry) =>
-        Number.isInteger(entry.stepNumber) &&
-        Number.isInteger(entry.pageNumber) &&
-        /^sha256:[0-9a-f]{64}$/u.test(entry.panelEvidenceDigest) &&
-        /^sha256:[0-9a-f]{64}$/u.test(entry.evidenceDigest) &&
-        entry.evidenceDigest !== entry.panelEvidenceDigest &&
-        ["rotation", "attachment", "final-view"].includes(entry.transition) &&
-        isUnauthenticatedTransitionClassification(entry.localClassification) &&
-        entry.localClassification.decision === entry.transition &&
-        entry.localClassification.reviewedPanelDigest === entry.panelEvidenceDigest &&
-        transitionClassificationEvidenceDigest({
-          stepNumber: entry.stepNumber,
-          pageNumber: entry.pageNumber,
-          panelEvidenceDigest: entry.panelEvidenceDigest,
-          transition: entry.transition,
-          localClassification: entry.localClassification,
-        }) === entry.evidenceDigest,
-    );
-  if (transitionInput.bytes.length > 0 && !transitionBundleValid) {
+  const transitions = readTransitionClassificationBundle(transitionInput.value, inputDigests.pdf);
+  const transitionClassificationsByStep = transitions.byStep;
+  if (transitionInput.bytes.length > 0 && transitions.rejections.length > 0) {
     preparationFailures.push({
       code: "transition-classification-unverified",
       stage: "input",
@@ -346,7 +311,12 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
       message:
         `Transition classification input must use lego.transition-classifications/1, bind the exact PDF, ` +
         `contain unique typed step/page/panel rows, and contain a bounded explicitly unauthenticated local ` +
-        `classification claim whose decision and canonical digest reproduce exactly.`,
+        `classification claim whose decision and canonical digest reproduce exactly. Rejected because: ` +
+        `${transitions.rejections.slice(0, 8).join(" ")}${
+          transitions.rejections.length > 8
+            ? ` (+${transitions.rejections.length - 8} further rejections)`
+            : ""
+        }`,
     });
   }
   let verifiedCoverage: {
@@ -431,15 +401,11 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
   const ledgerSteps: readonly unknown[] = Array.isArray(ledgerInput.value.steps)
     ? ledgerInput.value.steps
     : [];
-  const coarsePanels = sampleBookletPanels(source);
-  const probedPages = [...new Set(coarsePanels.map(({ pageNumber }) => pageNumber))];
-  const boxesByPage = await sampleBookletCalloutBoxes(pdfBytes, source, probedPages);
-  const panels = sampleBookletPanels(
+  const { panels, calloutBoxesByStep, panelEvidenceByStep } = await deriveRealBuildPanelEvidence({
+    pdfBytes,
     source,
-    new Map(
-      [...boxesByPage].map(([pageNumber, entries]) => [pageNumber, entries.map(({ box }) => box)]),
-    ),
-  );
+    pdfDigest: inputDigests.pdf,
+  });
   const panelBindings = bindCalloutsToBookletPanels({
     lastStep: Number.isInteger(lastStep) ? lastStep : 1,
     manifestCallouts,
@@ -447,35 +413,6 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
     sourcePages: source.pages,
   });
   preparationFailures.push(...panelBindings.failures);
-  const calloutBoxesByStep = Object.fromEntries(
-    panels.map((panel) => {
-      const boxes = (boxesByPage.get(panel.pageNumber) ?? [])
-        .filter(
-          ({ labelXPt, labelYPt }) =>
-            labelXPt >= panel.bounds.minXPt &&
-            labelXPt < panel.bounds.maxXPt &&
-            labelYPt >= panel.bounds.minYPt &&
-            labelYPt < panel.bounds.maxYPt,
-        )
-        .map(({ box }) => box);
-      return [panel.stepNumber, boxes] as const;
-    }),
-  );
-  const panelEvidenceByStep = Object.fromEntries(
-    panels.map((panel) => [
-      panel.stepNumber,
-      {
-        pageNumber: panel.pageNumber,
-        digest: stepPanelEvidenceDigest({
-          pdfDigest: inputDigests.pdf,
-          stepNumber: panel.stepNumber,
-          pageNumber: panel.pageNumber,
-          bounds: panel.bounds,
-          calloutBoxes: calloutBoxesByStep[panel.stepNumber] ?? [],
-        }),
-      },
-    ]),
-  );
   if (officialModel !== null) {
     preparationFailures.push(
       ...validateRealBuildActionLedger({
