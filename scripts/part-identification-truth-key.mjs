@@ -40,20 +40,37 @@ export const PART_TRUTH_SCHEMA = "lego.part-identification-truth/2";
  */
 export const PART_TRUTH_PATH = "scripts/fixtures/part-identification-truth-first50.json";
 
-/** The key a verdict is stored and looked up under. */
-export function truthVerdictKey(judgedCropSha256, elementId) {
-  if (typeof judgedCropSha256 !== "string" || !/^sha256:[0-9a-f]{64}$/u.test(judgedCropSha256)) {
+/**
+ * Hex characters of the crop digest a key carries.
+ *
+ * The labels grow with the booklet: at full digest length the all-359-step set
+ * projects past the 256 KiB blob-review threshold, and that cost is paid again
+ * on every re-cut, because a changed extraction rewrites every key in the file.
+ * Sixteen hex characters is 2^64 of collision space against at most a few
+ * thousand crops, and halves the artifact.
+ */
+export const CROP_DIGEST_KEY_HEX = 16;
+
+/** A crop digest reduced to what a key carries, from either length. */
+export function cropDigestKey(sha256) {
+  if (typeof sha256 !== "string" || !/^sha256:[0-9a-f]{16,64}$/u.test(sha256)) {
     throw new TypeError(
-      `A truth verdict key needs the judged crop's sha256 as "sha256:" plus 64 lowercase hex ` +
-        `characters; received ${JSON.stringify(judgedCropSha256)}.`,
+      `A crop digest must be "sha256:" plus 16 to 64 lowercase hex characters; ` +
+        `received ${JSON.stringify(sha256)}.`,
     );
   }
+  return `sha256:${sha256.slice("sha256:".length, "sha256:".length + CROP_DIGEST_KEY_HEX)}`;
+}
+
+/** The key a verdict is stored and looked up under. */
+export function truthVerdictKey(judgedCropSha256, elementId) {
+  const digest = cropDigestKey(judgedCropSha256);
   if (typeof elementId !== "string" || elementId.length === 0) {
     throw new TypeError(
       `A truth verdict key needs a non-empty element id; received ${JSON.stringify(elementId)}.`,
     );
   }
-  return `${judgedCropSha256}:${elementId}`;
+  return `${digest}:${elementId}`;
 }
 
 /**

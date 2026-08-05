@@ -55,6 +55,20 @@ describe("first-fifty truth keys", () => {
     expect(truthVerdictKey(CROP_A, "6101857")).not.toBe(truthVerdictKey(CROP_B, "6101857"));
   });
 
+  it("keys a full digest and its stored truncation to the same thing", () => {
+    // The file stores 16 hex characters to stay under the blob-review threshold
+    // as the labels grow with the booklet; features.json carries all 64. Both
+    // must reach the same verdict or every stored label silently stops binding.
+    const stored = CROP_A.slice(0, "sha256:".length + 16);
+    expect(truthVerdictKey(stored, "6101857")).toBe(truthVerdictKey(CROP_A, "6101857"));
+  });
+
+  it("refuses a digest too short to be a key rather than padding it", () => {
+    expect(() => truthVerdictKey(`sha256:${"a".repeat(8)}`, "6101857")).toThrow(
+      /16 to 64 lowercase hex/u,
+    );
+  });
+
   it("leaves a changed claim unjudged rather than inheriting the verdict", () => {
     // This property survived from the first schema and must not be lost.
     expect(truthVerdictKey(CROP_A, "6101857")).not.toBe(truthVerdictKey(CROP_A, "4160025"));
