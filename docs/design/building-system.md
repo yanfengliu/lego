@@ -49,6 +49,31 @@ Deriving edges from transforms can only be wrong in one place; making both autho
 Everything the specification wants from the graph — connected components, rigid boundaries, splitting on deletion, subassembly selection — works exactly the same on derived edges.
 The difference is only which one gets rebuilt when they conflict.
 
+## Where the booklet build actually is
+
+Measured, not asserted. Every figure here comes from a real run and is reproducible by the commands named below; if one disagrees with the code, the code is right and this section is stale.
+
+The build places **zero pieces**. It has never placed one. What has changed is that "why not" is a short named list rather than an unknown, and three blockers have been cleared in order.
+
+Cleared: the catalog held none of the set's parts, and now holds 85 definitions at `builtin.basic-parts/8` with the first 77 rows still hashing exactly as they did. Admitting `30357`, `2450` and `79491` — whose female connectors come from the LDCad shadow library, the only source that has them — moved the covered prefix from 15 printed steps to 25, because step 16's only missing design was one of them.
+
+Cleared: identification confidence. Blind pair-judged verdicts are a digest-bound closure role, and printed steps 1 to 18 now carry 40 of 42 piece slots trusted, up from 17. Step 1's `80015` callout, which made every prefix impossible, resolves.
+
+Blocking now: **13 official design revisions used by steps 2 to 12 have no code-pinned Builder frame** — `3032;F`, `54383;F`, `30503;F`, `60479;F`, `3795;I`, `3832;G`, `6106;D`, `3460;N`, `91988;F`, `51739;H`, `3034;J`, `41539;F`, `41769;G`. Every one resolves to a catalog part that already exists, so this is a missing frame pin rather than a missing part. Step 1 itself fails on `30503;F`. Only `30565;E` and `80015;E` are calibrated today, and they are the template.
+
+Two contract defects are known, owned by nobody, and neither is the reason the build is at zero:
+`real-build-artifacts.ts` requires an `input-rejected` run to carry zero step rows, while any such run that attempted steps necessarily has them, so publication throws regardless of cause.
+`scripts/generate-builder-calibration.py` hardcodes `builtin.basic-parts/6` and two definition digests that disagree with the TypeScript pins; it has been stale across two version bumps.
+
+To see the current position rather than trusting this paragraph:
+
+```
+LEGO_REAL_BUILD_REGENERATE_COVERAGE=1 LEGO_REAL_BUILD_REGENERATE_INPUTS=1 npx playwright test apps/web/e2e/real-build-inputs.spec.ts
+LEGO_REAL_BUILD_REQUIRED=1 npx playwright test apps/web/e2e/real-build.spec.ts
+```
+
+The second takes a Windows share-mode lock over the whole source tree, so nothing else can write while it runs.
+
 ## Plan
 
 Ordered by what unblocks the most, and by what can be proven headlessly before anything is drawn.

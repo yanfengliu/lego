@@ -608,3 +608,18 @@ The check is still worth having and must not be loosened to make the number look
 The fix is at the other end: a prompt that grades against a closed vocabulary should print that vocabulary, so a rejection means the model saw the wrong thing rather than said it the wrong way.
 
 **Anchor:** `PART_IDENTIFICATION_PROMPT` in `scripts/part-identification-prompt.mjs` asks for a plain colour name; `describesSameThing` in `scripts/part-identification-score.mjs` compares it to `COLOR_DEFINITIONS[].displayName` by normalised equality. Measured over `output/part-identification/answers-claude-opus-5.json` (273 drawings, 252 positive proposals, 93 kept): `descriptionAgreement` in `score-adjudicated-one-to-one.json` reports colourDisagrees 103 of 265 checked against sizeDisagrees 69 and kindDisagrees 53.
+
+## A check that has stopped checking still reports green
+
+Four separate instances surfaced in one day, in four unrelated subsystems, and every one had the same shape: correct code that had quietly stopped verifying anything, reporting success, and surfacing later as a failure that looked like somebody else's problem.
+
+The first-fifty ground-truth verdicts were keyed by cluster index, which `match` renumbers on every re-cut. All 87 labels stopped binding, and `firstFiftyAccuracy` reported `0/0` — indistinguishable from nobody having labelled anything.
+The 3245 Builder quarantine rested on "the only registered Python is 3.14.0", which one `where python` disproved; nothing in the code required the pinned environment before handing bundle bytes to a third-party parser.
+The real-build input chain — catalog version, reviewed source pins, coverage, calibration, ledger — had no declared order, so a catalog bump silently invalidated three artifacts and the only symptom was a build rejection that read like a modeling failure.
+And `real-build-builder-calibration.test.ts` *detected* the stale artifact, then answered it with `console.warn` and a skipped test: a green run that had stopped performing the writer/reader cross-check entirely.
+
+The common cause is that each check answered "I could not verify this" the same way it answered "I verified this and it was fine". Absence and success shared an output. Every one was invisible precisely because green is what you expect, and none was found by the subsystem that owned it.
+
+The repair that generalises is not more checks, it is making the three outcomes distinguishable: verified, refused, and *could not verify*. `verdictsUnbindable` separates dead labels from absent ones; the barrier became an executable refusal naming its own dead ends; the chain declares its order as data with each stage's rebuild command; and the skip became a failing assertion. A check that cannot say "I did not run" will eventually not run.
+
+**Anchor:** `verdictsUnbindable` in `scripts/part-identification-score.mjs` (87 -> 0 once verdicts were re-keyed by crop digest); `assert_pinned_environment_for_retained_bundle` in `scripts/discover_builder_shell_core.py`; `apps/web/e2e/real-build-input-chain.ts` with its regression `apps/web/test/real-build-input-chain.test.ts`; and the stale-artifact case in `apps/web/test/real-build-builder-calibration.test.ts`, converted from `console.warn` plus skip to a failing assertion naming the observed version, the expected version and the regeneration command. All four found on 2026-08-05.
