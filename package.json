@@ -23,7 +23,7 @@
     "node:check": "node scripts/check-node-consumers.mjs",
     "pin:generate": "node scripts/update-generation-pin.mjs",
     "pin:check": "node scripts/update-generation-pin.mjs --check",
-    "test:python": "python -B scripts/set_6651557_ldraw_source_audit_test.py && python -B scripts/ldraw_surface_expander_test.py && python -B scripts/builder_native_source_test.py && python -B scripts/generate_set_6651557_source_pilot_test.py && python -B scripts/builder_calibration_scripts_test.py",
+    "test:python": "python -B scripts/set_6651557_ldraw_source_audit_test.py && python -B scripts/ldraw_surface_expander_test.py && python -B scripts/builder_native_source_test.py && python -B scripts/generate_set_6651557_source_pilot_test.py && python -B scripts/builder_calibration_scripts_test.py && python -B scripts/discover_builder_shell_test.py",
     "test": "vitest run",
     "test:browser": "playwright test",
     "test:watch": "vitest",
