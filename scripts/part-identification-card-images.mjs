@@ -6,7 +6,6 @@ import {
   readContainedFile,
 } from "./part-identification-io.mjs";
 import {
-  MAX_AGGREGATE_PNG_DECODE_PIXELS,
   assertCanonicalCardPng,
   assertCanonicalCardPngHeader,
 } from "./part-thumbnail-image-guard.mjs";
@@ -14,7 +13,30 @@ import {
 export const PART_CARD_IMAGES_SCHEMA = "lego.part-identification-card-images/1";
 export const MAX_CARD_IMAGE_COUNT = 4_096;
 export const MAX_CARD_IMAGE_BUNDLE_BYTES = 192 * 1024 * 1024;
-export const MAX_CARD_IMAGE_TOTAL_PIXELS = MAX_AGGREGATE_PNG_DECODE_PIXELS;
+
+/**
+ * How much raster work one card set may cost, and how much a whole closure verification may.
+ *
+ * Cards are inflated one at a time and released, so this bounds cumulative work
+ * rather than peak memory: a gigapixel is roughly 4 GiB of RGBA scanlines
+ * decoded and discarded card by card, while any single card still stays under
+ * the 32-mebipixel canvas ceiling.
+ *
+ * The size is set from what this booklet can actually produce. A distinct
+ * drawing per physical callout is the ceiling — 863 of them — and the canonical
+ * card raster is 1280 x 756, so the largest set the closure can honestly retain
+ * is about 835 mebipixels. The previous 256-mebipixel bound admitted only 273
+ * cards and left the retained closure 1.6% under its own authenticator: five
+ * more clusters and sealed evidence would have become unreadable by the code
+ * that must read it, which regenerating cannot fix because the run is immutable.
+ *
+ * A closure verification reads the retained bundle once and the current PNGs
+ * once, so `assertCardImageFilesAndBundle` and `verifyRetainedCardImageClosure`
+ * charge both halves against one shared budget of exactly twice the set bound.
+ * Nothing charges the same set twice under a bound that names a single set.
+ */
+export const MAX_CARD_IMAGE_SET_PIXELS = 1024 * 1024 * 1024;
+export const MAX_CARD_IMAGE_CLOSURE_PIXELS = 2 * MAX_CARD_IMAGE_SET_PIXELS;
 const MAGIC = Buffer.from(`${PART_CARD_IMAGES_SCHEMA}\n`, "ascii");
 const SHA256 = /^sha256:[0-9a-f]{64}$/u;
 const CARD_ID = /^card-(\d{4,10})$/u;
@@ -97,24 +119,53 @@ function boundedCardBytes(cardId, bytes) {
   return bytes;
 }
 
-function preflightCardRecords(records) {
-  let totalPixels = 0;
-  for (const { cardId, bytes } of records) {
-    const dimensions = assertCanonicalCardPngHeader(
-      boundedCardBytes(cardId, bytes),
-      `Vision card ${cardId}`,
+/**
+ * One aggregate raster charge, shared by every half of the same verification.
+ *
+ * Passing a budget in is how a caller says "this is still the same closure";
+ * omitting it charges one fresh set, which is what a single-set entry point
+ * such as `encodeCardImageBundle` or a bare `readCardImages` costs.
+ */
+export function createCardImageDecodeBudget(
+  maxPixels = MAX_CARD_IMAGE_SET_PIXELS,
+  label = "Card-image set",
+) {
+  if (!Number.isSafeInteger(maxPixels) || maxPixels < 1) {
+    throw new Error(
+      `${label} pixel budget must be a positive safe integer; received ${JSON.stringify(maxPixels)}.`,
     );
-    totalPixels += dimensions.width * dimensions.height;
-    if (!Number.isSafeInteger(totalPixels) || totalPixels > MAX_CARD_IMAGE_TOTAL_PIXELS) {
-      throw new Error(
-        `Card-image set would decode ${totalPixels} pixels after ${cardId}, above its ${MAX_CARD_IMAGE_TOTAL_PIXELS}-pixel aggregate replay-work limit. Reduce and regenerate the bounded card set before decoding any raster.`,
-      );
-    }
   }
+  let usedPixels = 0;
+  return {
+    charge(cardId, bytes) {
+      const dimensions = assertCanonicalCardPngHeader(
+        boundedCardBytes(cardId, bytes),
+        `Vision card ${cardId}`,
+      );
+      const next = usedPixels + dimensions.width * dimensions.height;
+      if (!Number.isSafeInteger(next) || next > maxPixels) {
+        throw new Error(
+          `${label} would decode ${next} pixels after ${cardId}, above its ${maxPixels}-pixel aggregate replay-work limit. ` +
+            `A sealed run cannot be regenerated smaller, so this is not fixed by rerunning the card command: cut a smaller card set before sealing the next run, ` +
+            `or raise MAX_CARD_IMAGE_SET_PIXELS in scripts/part-identification-card-images.mjs deliberately, with the per-card canvas ceiling and every retained closure re-verified against the new bound.`,
+        );
+      }
+      usedPixels = next;
+      return dimensions;
+    },
+    get usedPixels() {
+      return usedPixels;
+    },
+  };
+}
+
+function preflightCardRecords(records, budget = createCardImageDecodeBudget()) {
+  for (const { cardId, bytes } of records) budget.charge(cardId, bytes);
+  return budget;
 }
 
 /** Re-read every actual PNG through the contained same-handle boundary. */
-export function readCardImages(cardsRoot, manifest) {
+export function readCardImages(cardsRoot, manifest, budget = createCardImageDecodeBudget()) {
   let totalBytes = 0;
   const records = manifestEntries(manifest).map(([cardId, entry]) => {
     if (typeof entry.file !== "string") {
@@ -130,12 +181,12 @@ export function readCardImages(cardsRoot, manifest) {
     totalBytes += 8 + bytes.length;
     if (totalBytes > MAX_CARD_IMAGE_BUNDLE_BYTES) {
       throw new Error(
-        `Current card PNGs require ${totalBytes} record bytes through ${cardId}, above the ${MAX_CARD_IMAGE_BUNDLE_BYTES}-byte retained-set limit. Regenerate a bounded complete card set.`,
+        `Current card PNGs require ${totalBytes} record bytes through ${cardId}, above the ${MAX_CARD_IMAGE_BUNDLE_BYTES}-byte retained-set limit. A sealed run cannot be regenerated smaller: cut a smaller card set before sealing the next run, or raise MAX_CARD_IMAGE_BUNDLE_BYTES deliberately and re-verify every retained closure against it.`,
       );
     }
     return { cardId, entry, bytes };
   });
-  preflightCardRecords(records);
+  preflightCardRecords(records, budget);
   const images = new Map();
   for (const { cardId, entry, bytes } of records) {
     images.set(cardId, assertOneCard(cardId, entry, bytes));
@@ -154,7 +205,7 @@ export function encodeCardImageBundle(manifest, cardBytes) {
   const encodedBytes = records.reduce((total, { bytes }) => total + 8 + bytes.length, 0);
   if (MAGIC.length + 4 + encodedBytes > MAX_CARD_IMAGE_BUNDLE_BYTES) {
     throw new Error(
-      `Card-image bundle would be ${MAGIC.length + 4 + encodedBytes} bytes, above the ${MAX_CARD_IMAGE_BUNDLE_BYTES}-byte replay-role limit. Reduce the bounded card set before validating or decoding its rasters.`,
+      `Card-image bundle would be ${MAGIC.length + 4 + encodedBytes} bytes, above the ${MAX_CARD_IMAGE_BUNDLE_BYTES}-byte replay-role limit. Reduce the card set before sealing this run; a run already sealed at this size cannot be regenerated smaller and needs a deliberately raised bound instead.`,
     );
   }
   preflightCardRecords(records);
@@ -192,7 +243,11 @@ export function cardImageBundleArtifact(bytes) {
   return { bytes: held, digest: sha256(held) };
 }
 
-export function authenticateCardImageBundle(artifact, manifest) {
+export function authenticateCardImageBundle(
+  artifact,
+  manifest,
+  budget = createCardImageDecodeBudget(),
+) {
   const sourceBytes = artifact?.bytes;
   const declaredDigest = artifact?.digest;
   if (!(sourceBytes instanceof Uint8Array)) {
@@ -247,39 +302,43 @@ export function authenticateCardImageBundle(artifact, manifest) {
       `Card-image replay artifact has ${bytes.length - offset} trailing bytes after its exact manifest-bound records.`,
     );
   }
-  preflightCardRecords(records);
+  preflightCardRecords(records, budget);
   for (const { cardId, entry, bytes: image } of records) {
     images.set(cardId, Buffer.from(assertOneCard(cardId, entry, image)));
   }
   return { ...authenticated, images };
 }
 
-export function readCardImageBundle(path, manifest) {
+export function readCardImageBundle(path, manifest, budget = createCardImageDecodeBudget()) {
   const bytes = readBoundedFile(path, {
     label: "part-identification card-image replay bundle",
     maxBytes: MAX_CARD_IMAGE_BUNDLE_BYTES,
   });
-  return authenticateCardImageBundle(cardImageBundleArtifact(bytes), manifest);
+  return authenticateCardImageBundle(cardImageBundleArtifact(bytes), manifest, budget);
 }
 
-export function readCardImageBundleFromRoot(cardsRoot, manifest) {
-  if (typeof manifest?.imagesFile !== "string") {
+export function readCardImageBundleFromRoot(
+  cardsRoot,
+  manifest,
+  budget = createCardImageDecodeBudget(),
+) {
+  // Captured once: a manifest accessor must not be able to pass the containment
+  // check with one path and hand the actual read a different one.
+  const imagesFile = manifest?.imagesFile;
+  if (typeof imagesFile !== "string") {
     throw new Error(
       "Card-image manifest must declare one contained immutable-run imagesFile before its bundle can be read.",
     );
   }
-  const bytes = readContainedFile(cardsRoot, manifest?.imagesFile, {
+  const bytes = readContainedFile(cardsRoot, imagesFile, {
     label: "part-identification card-image replay bundle",
     pathLabel: "part-identification card-image replay bundle path",
     maxBytes: MAX_CARD_IMAGE_BUNDLE_BYTES,
   });
-  return authenticateCardImageBundle(cardImageBundleArtifact(bytes), manifest);
+  return authenticateCardImageBundle(cardImageBundleArtifact(bytes), manifest, budget);
 }
 
-/** Require both retained bundle bytes and the current on-disk PNGs to bind the same manifest. */
-export function assertCardImageFilesAndBundle(cardsRoot, artifact, manifest) {
-  const retained = authenticateCardImageBundle(artifact, manifest);
-  const files = readCardImages(cardsRoot, manifest);
+function assertSameImages(files, retained) {
   for (const [cardId, bytes] of files) {
     if (!bytes.equals(retained.images.get(cardId))) {
       throw new Error(
@@ -287,5 +346,35 @@ export function assertCardImageFilesAndBundle(cardsRoot, artifact, manifest) {
       );
     }
   }
+}
+
+/** Require both retained bundle bytes and the current on-disk PNGs to bind the same manifest. */
+export function assertCardImageFilesAndBundle(
+  cardsRoot,
+  artifact,
+  manifest,
+  budget = createCardImageDecodeBudget(MAX_CARD_IMAGE_CLOSURE_PIXELS, "Card-image closure"),
+) {
+  const retained = authenticateCardImageBundle(artifact, manifest, budget);
+  const files = readCardImages(cardsRoot, manifest, budget);
+  assertSameImages(files, retained);
+  return retained;
+}
+
+/**
+ * The whole retained closure, read and cross-checked once under one budget.
+ *
+ * Reading the bundle and then re-authenticating the same held bytes through
+ * `assertCardImageFilesAndBundle` charged a third set for no extra proof, which
+ * is how a bound named for one set silently governed three.
+ */
+export function verifyRetainedCardImageClosure(
+  cardsRoot,
+  manifest,
+  budget = createCardImageDecodeBudget(MAX_CARD_IMAGE_CLOSURE_PIXELS, "Card-image closure"),
+) {
+  const retained = readCardImageBundleFromRoot(cardsRoot, manifest, budget);
+  const files = readCardImages(cardsRoot, manifest, budget);
+  assertSameImages(files, retained);
   return retained;
 }

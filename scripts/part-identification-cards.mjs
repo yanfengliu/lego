@@ -36,9 +36,8 @@ import {
 import {
   MAX_CARD_IMAGE_BUNDLE_BYTES,
   MAX_CARD_IMAGE_COUNT,
-  assertCardImageFilesAndBundle,
   encodeCardImageBundle,
-  readCardImageBundleFromRoot,
+  verifyRetainedCardImageClosure,
 } from "./part-identification-card-images.mjs";
 import { assertOrdinaryDirectoryPath } from "./part-identification-contained-path.mjs";
 
@@ -149,8 +148,7 @@ function assertExactRunDirectory(cardsRoot, manifest, runPath) {
       `Immutable card run ${JSON.stringify(runPath)} must contain exactly ${expected.length} ordinary files (${expected.join(", ")}); observed ${actual.join(", ") || "no entries"}. Preserve the rejected run for diagnosis and publish a newly derived run rather than repairing reachable bytes in place.`,
     );
   }
-  const retainedBundle = readCardImageBundleFromRoot(cardsRoot, manifest);
-  return assertCardImageFilesAndBundle(cardsRoot, retainedBundle, manifest);
+  return verifyRetainedCardImageClosure(cardsRoot, manifest);
 }
 
 function sameDirectoryIdentity(left, right) {

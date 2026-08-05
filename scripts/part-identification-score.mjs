@@ -4,6 +4,8 @@ import { basename, dirname, join } from "node:path";
 import { assignDrawings } from "./part-assignment.mjs";
 import { COLOR_DEFINITIONS } from "../packages/catalog/src/colors.ts";
 import {
+  PART_SCORE_SCHEMA,
+  PART_SCORE_SUMMARY_SCHEMA,
   assertBoundMatchArtifacts,
   assertCardsArtifact,
   boundAnswers,
@@ -15,10 +17,7 @@ import {
   requirePinnedPartIdentificationModel,
 } from "./part-identification-model.mjs";
 import { MAX_JSON_ARTIFACT_BYTES, writeContainedFile } from "./part-identification-io.mjs";
-import {
-  assertCardImageFilesAndBundle,
-  readCardImageBundleFromRoot,
-} from "./part-identification-card-images.mjs";
+import { verifyRetainedCardImageClosure } from "./part-identification-card-images.mjs";
 
 /**
  * The grader.
@@ -36,10 +35,6 @@ import {
  */
 
 const OUT = "output/part-identification";
-
-function readJson(path) {
-  return readJsonArtifact(path, `part-identification input ${path}`).value;
-}
 
 function writeJson(path, value) {
   writeContainedFile(dirname(path), basename(path), `${JSON.stringify(value, null, 1)}\n`, {
@@ -331,6 +326,7 @@ export async function commandScore(argv, { option, inventoryHeld, elementNames }
           matchDigest: artifacts.match.digest,
           clusters: match.clusters,
         });
+  let cardImages = null;
   if (cards !== null) {
     const cardsRoot = join(OUT, "cards");
     const cardImagesPath = join(cardsRoot, ...cards.imagesFile.split("/"));
@@ -339,7 +335,7 @@ export async function commandScore(argv, { option, inventoryHeld, elementNames }
         `No retained card-image bundle at ${cardImagesPath}; regenerate cards before scoring adjudicated answers.`,
       );
     }
-    assertCardImageFilesAndBundle(cardsRoot, readCardImageBundleFromRoot(cardsRoot, cards), cards);
+    cardImages = verifyRetainedCardImageClosure(cardsRoot, cards);
   }
   if (source !== "deterministic" && cardsArtifact === null) {
     throw new Error(
@@ -364,8 +360,8 @@ export async function commandScore(argv, { option, inventoryHeld, elementNames }
     );
   }
 
-  const held = inventoryHeld();
-  const names = elementNames();
+  const { held, digest: inventoryDigest } = inventoryHeld();
+  const { names, digest: elementResolutionDigest } = elementNames();
   const claims = claimsFor(match, distances, source, answers, {
     assign: assignment,
     held,
@@ -411,12 +407,31 @@ export async function commandScore(argv, { option, inventoryHeld, elementNames }
   }
 
   const truthPath = join(OUT, "truth-first50.json");
-  const accuracy = existsSync(truthPath)
-    ? scoreAgainstTruth(readJson(truthPath), features, match, claims, names)
+  const truthArtifact = existsSync(truthPath)
+    ? readJsonArtifact(truthPath, "part-identification first-fifty truth")
     : null;
+  const accuracy =
+    truthArtifact === null
+      ? null
+      : scoreAgainstTruth(truthArtifact.value, features, match, claims, names);
 
   const picks = [...claims.values()];
   const score = {
+    schemaVersion: PART_SCORE_SCHEMA,
+    // Every sibling artifact binds the bytes it was derived from; a score that
+    // named none of its inputs could not be told apart from one produced by an
+    // earlier closure generation, which is exactly how stale scores survived.
+    inputDigests: {
+      features: artifacts.features.digest,
+      match: artifacts.match.digest,
+      distances: artifacts.distances.digest,
+      inventoryLabels: inventoryDigest,
+      elementResolution: elementResolutionDigest,
+      ...(cardsArtifact === null ? {} : { cards: cardsArtifact.digest }),
+      ...(cardImages === null ? {} : { cardImages: cardImages.digest }),
+      ...(answers === null ? {} : { answers: answersArtifact.digest }),
+      ...(truthArtifact === null ? {} : { truthFirstFifty: truthArtifact.digest }),
+    },
     source,
     assignment,
     assignmentNote:
@@ -540,8 +555,14 @@ export async function commandSummary(argv, helpers) {
     ],
     helpers,
   );
-  const features = readJson(join(OUT, "features.json"));
+  const featuresArtifact = readJsonArtifact(
+    join(OUT, "features.json"),
+    "part-identification features",
+  );
+  const matchArtifact = readJsonArtifact(join(OUT, "match.json"), "part-identification match");
+  const features = featuresArtifact.value;
   writeJson(join(OUT, "score.json"), {
+    schemaVersion: PART_SCORE_SUMMARY_SCHEMA,
     what: "Naming the part a booklet step adds, by matching its printed callout drawing to the back-of-book parts list.",
     headline: {
       source: headlineName,
@@ -551,11 +572,15 @@ export async function commandSummary(argv, helpers) {
     },
     variants,
     inputs: {
+      inputDigests: {
+        features: featuresArtifact.digest,
+        match: matchArtifact.digest,
+      },
       calloutDir: features.calloutDir,
       inventoryDir: features.inventoryDir,
       callouts: features.calloutCount,
       piecesCalledOut: features.piecesCalledOut,
-      distinctDrawings: readJson(join(OUT, "match.json")).clusterCount,
+      distinctDrawings: matchArtifact.value.clusterCount,
       inventoryThumbnails: features.inventoryCount,
       inventoryElements: features.inventoryHeldCount,
       elementsWithoutThumbnail: features.elementsWithoutThumbnail,

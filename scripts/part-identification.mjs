@@ -75,10 +75,6 @@ function option(argv, name, fallback) {
   return argv[at + 1];
 }
 
-function readJson(path) {
-  return readJsonArtifact(path, `part-identification input ${path}`).value;
-}
-
 function writeJson(path, value) {
   writeContainedFile(dirname(path), basename(path), `${JSON.stringify(value, null, 1)}\n`, {
     label: "Part-identification JSON artifact",
@@ -87,18 +83,32 @@ function writeJson(path, value) {
   });
 }
 
-/** The printed inventory: 276 element ids and the pieces the set holds of each. */
+/**
+ * The printed inventory: 276 element ids and the pieces the set holds of each.
+ *
+ * The digest travels with the value because it comes from the same single read;
+ * anything that reopens the path to hash it is reporting a different file.
+ */
 function inventoryHeld() {
-  const labels = readJson("output/inventory-thumbnails/labels.json");
-  return new Map(labels.entries.map(({ elementId, quantity }) => [elementId, quantity]));
+  const artifact = readJsonArtifact(
+    "output/inventory-thumbnails/labels.json",
+    "part-identification inventory labels",
+  );
+  return {
+    held: new Map(artifact.value.entries.map(({ elementId, quantity }) => [elementId, quantity])),
+    digest: artifact.digest,
+  };
 }
 
 /** Element id to published part number and name, checked against the printed quantities. */
 function elementNames() {
   const path = join(OUT, "element-resolution.json");
-  if (!existsSync(path)) return new Map();
-  const resolved = readJson(path);
-  return new Map(Object.entries(resolved).map(([id, entry]) => [id, entry]));
+  if (!existsSync(path)) return { names: new Map(), digest: null };
+  const artifact = readJsonArtifact(path, "part-identification element resolution");
+  return {
+    names: new Map(Object.entries(artifact.value).map(([id, entry]) => [id, entry])),
+    digest: artifact.digest,
+  };
 }
 
 async function commandFeatures(argv, context = {}) {
@@ -160,7 +170,7 @@ async function commandFeatures(argv, context = {}) {
     callouts.push({ ...entry, descriptor: describe(thumbnail) });
   }
 
-  const held = inventoryHeld();
+  const { held } = inventoryHeld();
   const withoutThumbnail = [...held.keys()].filter((id) => !(id in inventory));
   const nonClusteredCallouts = nonClusteredCalloutRecords(callouts);
   const physicalCallouts = callouts.filter(({ evidenceKind }) => evidenceKind === "part-art");

@@ -392,13 +392,13 @@ The port is now derived from the process id in `playwright.config.ts`, with `LEG
 ## Matching a gallery one item at a time discards the constraint that makes it a gallery
 
 Naming the part a step adds is matching its printed callout drawing against the back-of-book parts list, which is a labelled gallery of the same drawings.
-Letting every drawing take whichever element it looked most like reconciled 1256 of the booklet's 1465 pieces, over-claimed 230, and left 59 elements never claimed at all — twenty drawings had piled onto a few popular elements while the right owners went hungry.
+Letting every drawing take whichever element it looked most like reconciled 1245 of the booklet's 1465 pieces, over-claimed 227, and left 39 elements never claimed at all — drawings had piled onto a few popular elements while the right owners went hungry.
 
 The book draws each element exactly one way, so 273 distinct callout drawings and 276 listed elements very nearly pair off one to one.
-Making the choice once for the whole book as a minimum-cost assignment under that constraint, with no other change, took it to 1308 pieces reconciled, 158 over-claimed, and 203 of 276 elements at exactly the printed quantity.
+Making the choice once for the whole book as a minimum-cost assignment under that constraint, with no other change, took it to 1313 pieces reconciled, 141 over-claimed, 11 elements never claimed, and 203 of 276 elements at exactly the printed quantity.
 The gain is entirely in what the constraint forbids: taking an element now costs every other drawing the chance to take it, so a confident wrong match can no longer crowd out a less confident right one.
 
-**Anchor:** `scripts/part-assignment.mjs`; `output/part-identification/score.json` variants `deterministic/nearest` and `deterministic/one-to-one` over 870 callouts of `recipes/6651557.pdf`.
+**Anchor:** `scripts/part-assignment.mjs`; `output/part-identification/score-deterministic-nearest.json` and `score-deterministic-one-to-one.json` over the 863 physical callouts of `recipes/6651557.pdf`, both binding features `sha256:34a746c823add2e…`, match `sha256:d7d88ac846af540…` and distances `sha256:5a93f850136be35…` in their own `inputDigests`. The effect was first measured on an earlier closure generation whose numbers (870 callouts, 1256 → 1308 reconciled, 230 → 158 over-claimed) no longer reproduce; these are the current ones, recomputed 2026-08-04.
 
 ## Elements differing only in colour are one shape twice
 
@@ -417,7 +417,7 @@ It is a real check rather than a formality — it is the reason a model that rea
 
 The lesson is not that model calls do not belong here. It is that the pairing of a free answer with a closed-set answer is what makes one safe to use, and that stud counting on a 200-pixel booklet thumbnail is beyond a small model — Sonnet read the same 3x3 plate correctly where Haiku called it 4x4, at roughly fifteen times the wall clock per call.
 
-**Anchor:** `visionPick` and `describesSameThing` in `scripts/part-identification-score.mjs`; `output/part-identification/score.json` variants `adjudicated/*` with `descriptionAgreement.either` 214 of 265, and `answers-haiku.json` / `answers-sonnet.json`.
+**Anchor:** `visionPick` and `describesSameThing` in `scripts/part-identification-score.mjs`; the adjudicated variants that carry `descriptionAgreement.either` 214 of 265 were measured on the 870-callout closure generation and are retained as `output/part-identification/history/score-adjudicated-*-stale-*.json` beside `history/answers-haiku-stale-2d0c01db.json` and `history/answers-sonnet-legacy-7e8559d4.json`. They cannot be recomputed from the current 863-callout closure without a separately authorized model call, so the live `score-*.json` set is deterministic only.
 
 ## A plate of height projects to a third of a stud, so a looser tolerance cannot see layers
 

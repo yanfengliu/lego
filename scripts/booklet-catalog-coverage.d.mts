@@ -31,7 +31,10 @@ export function verifyBookletCatalogCoverageClosure(input: {
 
 export function buildBookletCatalogCoverageReport(input: {
   readonly manifestBytes: Uint8Array;
-  readonly features: { readonly callouts: readonly unknown[] };
+  readonly features: {
+    readonly callouts: readonly unknown[];
+    readonly inputDigests: { readonly pdf: string; readonly calloutManifest: string };
+  };
   readonly claims: ReadonlyMap<number, unknown>;
   readonly elements: Readonly<Record<string, unknown>>;
   readonly source: "deterministic" | "adjudicated";

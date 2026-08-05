@@ -1,7 +1,18 @@
 export const PART_CARD_IMAGES_SCHEMA: "lego.part-identification-card-images/1";
 export const MAX_CARD_IMAGE_COUNT: 4096;
 export const MAX_CARD_IMAGE_BUNDLE_BYTES: number;
-export const MAX_CARD_IMAGE_TOTAL_PIXELS: number;
+export const MAX_CARD_IMAGE_SET_PIXELS: number;
+export const MAX_CARD_IMAGE_CLOSURE_PIXELS: number;
+
+export interface CardImageDecodeBudget {
+  charge(cardId: string, bytes: Uint8Array): { readonly width: number; readonly height: number };
+  readonly usedPixels: number;
+}
+
+export function createCardImageDecodeBudget(
+  maxPixels?: number,
+  label?: string,
+): CardImageDecodeBudget;
 
 export interface CardImageManifest {
   readonly imagesFile?: string;
@@ -22,6 +33,7 @@ export interface AuthenticatedCardImageBundle {
 export function readCardImages(
   cardsRoot: string,
   manifest: CardImageManifest,
+  budget?: CardImageDecodeBudget,
 ): ReadonlyMap<string, Buffer>;
 export function encodeCardImageBundle(
   manifest: CardImageManifest,
@@ -34,17 +46,26 @@ export function cardImageBundleArtifact(bytes: Uint8Array): {
 export function authenticateCardImageBundle(
   artifact: CardImageBundleArtifact,
   manifest: CardImageManifest,
+  budget?: CardImageDecodeBudget,
 ): AuthenticatedCardImageBundle;
 export function readCardImageBundle(
   path: string,
   manifest: CardImageManifest,
+  budget?: CardImageDecodeBudget,
 ): AuthenticatedCardImageBundle;
 export function readCardImageBundleFromRoot(
   cardsRoot: string,
   manifest: CardImageManifest,
+  budget?: CardImageDecodeBudget,
 ): AuthenticatedCardImageBundle;
 export function assertCardImageFilesAndBundle(
   cardsRoot: string,
   artifact: CardImageBundleArtifact,
   manifest: CardImageManifest,
+  budget?: CardImageDecodeBudget,
+): AuthenticatedCardImageBundle;
+export function verifyRetainedCardImageClosure(
+  cardsRoot: string,
+  manifest: CardImageManifest,
+  budget?: CardImageDecodeBudget,
 ): AuthenticatedCardImageBundle;

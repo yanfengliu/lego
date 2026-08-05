@@ -25,10 +25,7 @@ import {
   contactSheet,
   createPngDecodeBudget,
 } from "./part-thumbnail-image.mjs";
-import {
-  assertCardImageFilesAndBundle,
-  readCardImageBundleFromRoot,
-} from "./part-identification-card-images.mjs";
+import { verifyRetainedCardImageClosure } from "./part-identification-card-images.mjs";
 
 /**
  * Pictures a person can check the run against.
@@ -121,7 +118,7 @@ function loadRun(argv, { option, inventoryHeld, elementNames }) {
         `Source ${JSON.stringify(source)} requires a retained card-image bundle at ${cardImagesPath}; regenerate cards first.`,
       );
     }
-    assertCardImageFilesAndBundle(cardsRoot, readCardImageBundleFromRoot(cardsRoot, cards), cards);
+    verifyRetainedCardImageClosure(cardsRoot, cards);
   }
   const answers =
     source !== "deterministic" && existsSync(answersPath)
@@ -134,14 +131,15 @@ function loadRun(argv, { option, inventoryHeld, elementNames }) {
           cards: cards.cards,
         })
       : null;
-  const held = inventoryHeld();
+  const { held } = inventoryHeld();
+  const { names } = elementNames();
   const claims = claimsFor(match, distances, source, answers, {
     assign: assignment,
     held,
-    names: elementNames(),
+    names,
     cards: cards?.cards,
   });
-  return { source, assignment, model, features, match, answers, held, claims };
+  return { source, assignment, model, features, match, answers, held, names, claims };
 }
 
 /**
@@ -316,9 +314,7 @@ async function sideBySide(leftRoot, leftRelative, rightRoot, rightRelative, deco
 
 /** Contact sheets a person can look at: what was claimed, and where it broke. */
 export async function commandSheets(argv, helpers) {
-  const { elementNames } = helpers;
-  const { source, assignment, features, match, held, claims } = loadRun(argv, helpers);
-  const names = elementNames();
+  const { source, assignment, features, match, held, names, claims } = loadRun(argv, helpers);
   const table = conservation(features.callouts, claims, held);
   const dir = join(OUT, "sheets");
   mkdirSync(dir, { recursive: true });

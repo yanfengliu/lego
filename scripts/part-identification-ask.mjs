@@ -17,10 +17,7 @@ import {
   runBoundedChild,
   writeContainedFile,
 } from "./part-identification-io.mjs";
-import {
-  assertCardImageFilesAndBundle,
-  readCardImageBundleFromRoot,
-} from "./part-identification-card-images.mjs";
+import { verifyRetainedCardImageClosure } from "./part-identification-card-images.mjs";
 import {
   PART_IDENTIFICATION_PROMPT,
   PART_IDENTIFICATION_PROMPT_DIGEST,
@@ -229,11 +226,7 @@ async function commandAsk(argv) {
   }
   let retained;
   try {
-    retained = assertCardImageFilesAndBundle(
-      cardsRoot,
-      readCardImageBundleFromRoot(cardsRoot, cardsManifest),
-      cardsManifest,
-    );
+    retained = verifyRetainedCardImageClosure(cardsRoot, cardsManifest);
   } catch (cause) {
     throw new Error(
       `Vision cards are missing or differ from the exact feature/match-bound manifest and retained image bundle. Regenerate every source-bound card before asking, including already-answered clusters: ${cause instanceof Error ? cause.message : String(cause)}.`,

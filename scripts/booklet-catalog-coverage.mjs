@@ -17,9 +17,8 @@ import { PART_IDENTIFICATION_PROMPT_DIGEST } from "./part-identification-prompt.
 import { PART_IDENTIFICATION_MODEL_ID } from "./part-identification-model.mjs";
 import { MAX_JSON_ARTIFACT_BYTES, writeContainedFile } from "./part-identification-io.mjs";
 import {
-  assertCardImageFilesAndBundle,
   authenticateCardImageBundle,
-  readCardImageBundleFromRoot,
+  verifyRetainedCardImageClosure,
 } from "./part-identification-card-images.mjs";
 import {
   resolveElementPart,
@@ -270,17 +269,18 @@ function buildBookletCatalogCoverageReportWithExpectation(input, manifestExpecta
   );
   assertFeaturesBindManifest(features, manifest);
   const manifestDigest = manifestArtifact.digest;
+  // Unconditional: the report publishes inputDigests.pdf out of the manifest, so
+  // without this edge a caller that supplies neither a features digest nor
+  // feature inputDigests would get a PDF claim no artifact ever asserted.
   const featureInputDigests = features.inputDigests;
-  const featureDigestBindingRequired = identificationDigests.features !== undefined;
   if (
-    (featureDigestBindingRequired || featureInputDigests !== undefined) &&
-    (typeof featureInputDigests !== "object" ||
-      featureInputDigests === null ||
-      featureInputDigests.pdf !== manifest.sourceHash ||
-      featureInputDigests.calloutManifest !== manifestDigest)
+    typeof featureInputDigests !== "object" ||
+    featureInputDigests === null ||
+    featureInputDigests.pdf !== manifest.sourceHash ||
+    featureInputDigests.calloutManifest !== manifestDigest
   ) {
     throw new Error(
-      `Part-identification features bind PDF/manifest digests ${JSON.stringify(featureInputDigests ?? "missing")}, but this retained manifest derives ${JSON.stringify({ pdf: manifest.sourceHash, calloutManifest: manifestDigest })}. Regenerate features, match, distances, cards and answers from the exact retained manifest bytes; rebinding only downstream digests cannot cross this source boundary.`,
+      `Part-identification features bind PDF/manifest digests ${JSON.stringify(featureInputDigests ?? "missing")}, but this retained manifest derives ${JSON.stringify({ pdf: manifest.sourceHash, calloutManifest: manifestDigest })}. Every coverage report publishes those two digests as its own provenance, so features must carry an inputDigests object binding both. Regenerate features, match, distances, cards and answers from the exact retained manifest bytes; rebinding only downstream digests cannot cross this source boundary.`,
     );
   }
   const byCallout = Object.create(null);
@@ -641,11 +641,7 @@ export function runBookletCatalogCoverageCli(argv = process.argv.slice(2), conte
   const cardImagesArtifact =
     source === "deterministic"
       ? null
-      : assertCardImageFilesAndBundle(
-          cardsRoot,
-          readCardImageBundleFromRoot(cardsRoot, cardsArtifact.value),
-          cardsArtifact.value,
-        );
+      : verifyRetainedCardImageClosure(cardsRoot, cardsArtifact.value);
   const answersArtifact =
     source !== "deterministic" && existsSync(answersPath)
       ? readJsonArtifact(answersPath, `vision answers for ${model}`)
