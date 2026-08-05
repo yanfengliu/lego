@@ -112,10 +112,17 @@ A part with no explicit stud offsets must keep hashing exactly as it did, so gro
 Layer 1 is derived and disposable; layers 2, 3 and 4 are truth.
 Collision must stay conservative in the safe direction: an approximation may refuse a placement a real part would allow, and must never allow one it would not.
 
-## Open decision
+## Resolved decision
 
-Using real LDraw meshes for layer 1 is a licensing choice, not a technical one, and it is the owner's.
-LDraw parts are CC BY 4.0, which permits redistribution with attribution, so bundling them is allowed — but it flips this repository's current position, recorded in `docs/dependency-data-bom.md`, that no LDraw geometry is bundled and the role is identifiers only.
-It would require preserving per-file authorship and licence, and permission to reuse geometry is still not permission to train on it.
-The alternative is to keep generating our own geometry from the feature list, which costs fidelity on curves and gains nothing else.
-Layers 2, 3 and 4 do not depend on this and can proceed either way.
+Layer 1 bundles real LDraw geometry. The owner decided this on 2026-08-04; it was a licensing choice, not a technical one.
+
+The reason it had to be decided rather than deferred is the booklet: every claimed-built step is compared against its printed panel, so a generated approximation of a curve is not merely less pretty, it is a step that fails its own check for a reason that has nothing to do with whether the build is right.
+Generating our own geometry "costs fidelity on curves and gains nothing else", and that cost lands directly on the one measurement the goal is scored by.
+
+What the decision obliges, none of which is optional:
+per-file authorship and licence are preserved for every bundled file;
+`docs/dependency-data-bom.md` flips from "no LDraw geometry is bundled, identifiers only" to geometry bundled under CC BY 4.0 with attribution required, and the third-party notices are regenerated with it;
+and permission to reuse geometry is still **not** permission to train on it, which stays recorded as a separate and unheld right.
+
+The BOM and notices flip at first admission, not now — bundling is a claim about files that are actually present, so the record changes when the geometry does.
+Layers 2, 3 and 4 never depended on this and are derived from measured source either way.
