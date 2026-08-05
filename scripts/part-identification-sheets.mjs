@@ -14,6 +14,11 @@ import {
   requirePinnedPartIdentificationModel,
 } from "./part-identification-model.mjs";
 import {
+  judgedPairs,
+  truthVerdictKey,
+  verdictsByCropDigest,
+} from "./part-identification-truth-key.mjs";
+import {
   MAX_IMAGE_ARTIFACT_BYTES,
   MAX_JSON_ARTIFACT_BYTES,
   readContainedFile,
@@ -168,38 +173,22 @@ export async function commandPairsheet(argv, helpers) {
   const pairDir = join(dir, "pairs");
   mkdirSync(pairDir, { recursive: true });
 
-  const wanted = new Map();
-  for (const [index, callout] of features.callouts.entries()) {
-    if (callout.stepNumber === null || callout.stepNumber > lastStep) continue;
-    const claim = claims.get(index);
-    if (!claim) continue;
-    const key = `${claim.clusterIndex}:${claim.elementId}`;
-    const entry = wanted.get(key) ?? {
-      clusterIndex: claim.clusterIndex,
-      elementId: claim.elementId,
-      lead: callout.file,
-      firstStep: callout.stepNumber,
-      callouts: 0,
-      pieces: 0,
-    };
-    entry.callouts += 1;
-    entry.pieces += callout.quantity;
-    entry.firstStep = Math.min(entry.firstStep, callout.stepNumber);
-    wanted.set(key, entry);
-  }
-  // A verdict is keyed to the element it was made about, so re-judging a
-  // configuration only means judging the pairs that changed.
+  const wanted = judgedPairs(features, claims, lastStep);
+  // A verdict is keyed to the crop that was shown and the element it was
+  // claimed to be, so re-judging a configuration means judging the pairs whose
+  // picture or claim actually changed - and nothing else.
   const truthPath = join(OUT, "truth-first50.json");
   const judged = existsSync(truthPath)
-    ? new Set(
-        readJson(truthPath).verdicts.map(
-          (verdict) => `${verdict.clusterIndex}:${verdict.elementId}`,
-        ),
-      )
-    : new Set();
+    ? verdictsByCropDigest(readJson(truthPath)).bound
+    : new Map();
   const pairs = [...wanted.values()]
     .filter(
-      (pair) => unjudgedOnly === "no" || !judged.has(`${pair.clusterIndex}:${pair.elementId}`),
+      (pair) =>
+        unjudgedOnly === "no" ||
+        // A pair with no claimed element has a blank right-hand side, so it can
+        // never carry a verdict and is always still to be looked at.
+        pair.elementId === null ||
+        !judged.has(truthVerdictKey(pair.leadSha256, pair.elementId)),
     )
     .sort(
       (left, right) => left.firstStep - right.firstStep || left.clusterIndex - right.clusterIndex,

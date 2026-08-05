@@ -18,6 +18,11 @@ import {
 } from "./part-identification-model.mjs";
 import { MAX_JSON_ARTIFACT_BYTES, writeContainedFile } from "./part-identification-io.mjs";
 import { verifyRetainedCardImageClosure } from "./part-identification-card-images.mjs";
+import {
+  judgedPairs,
+  truthVerdictKey,
+  verdictsByCropDigest,
+} from "./part-identification-truth-key.mjs";
 
 /**
  * The grader.
@@ -467,7 +472,13 @@ export async function commandScore(argv, { option, inventoryHeld, elementNames }
       `elements exact ${table.elementsExact}/${table.elementsHeld}`,
       `pieces reconciled ${table.piecesReconciled}/${table.piecesHeld}`,
       `over ${table.piecesOverClaimed} under ${table.piecesUnderClaimed}`,
-      accuracy ? `first-50 ${accuracy.correct}/${accuracy.calloutsJudged}` : "first-50 unlabelled",
+      // "0/0" reads as "nobody labelled this", which is a different problem
+      // from labels that exist and no longer bind to any current claim.
+      accuracy === null
+        ? "first-50 unlabelled"
+        : accuracy.calloutsJudged === 0
+          ? `first-50 no verdict binds any of the ${accuracy.calloutsInRange} callouts in range`
+          : `first-50 ${accuracy.correct}/${accuracy.calloutsJudged}`,
     ].join(" | "),
   );
   return score;
@@ -616,21 +627,31 @@ function countBy(values) {
  * claim has no verdict is unscored and counted as such.
  */
 function scoreAgainstTruth(truth, features, match, claims, names) {
-  const verdicts = new Map(
-    truth.verdicts.map((verdict) => [`${verdict.clusterIndex}:${verdict.elementId}`, verdict]),
-  );
+  const { bound: verdicts, unbindable } = verdictsByCropDigest(truth);
   const lastStep = truth.lastStep ?? 50;
+  // The crop a verdict was keyed to is the one the pair sheet displayed, which
+  // is the group's lead. Recomputing it from the same shared helper the sheet
+  // uses is what stops the two drifting apart.
+  const pairs = judgedPairs(features, claims, lastStep);
   const rows = [];
   for (const [index, callout] of features.callouts.entries()) {
     if (callout.evidenceKind !== "part-art") continue;
     if (callout.stepNumber === null || callout.stepNumber > lastStep) continue;
     const claim = claims.get(index);
-    const verdict = verdicts.get(`${claim?.clusterIndex}:${claim?.elementId}`) ?? null;
+    const pair = claim ? (pairs.get(`${claim.clusterIndex}:${claim.elementId}`) ?? null) : null;
+    // A drawing the assignment claimed nothing for has no right-hand side in
+    // its pair, so there was never anything to judge. That is unjudged, not a
+    // malformed key.
+    const verdict =
+      pair === null || pair.elementId === null
+        ? null
+        : (verdicts.get(truthVerdictKey(pair.leadSha256, pair.elementId)) ?? null);
     rows.push({
       file: callout.file,
       stepNumber: callout.stepNumber,
       quantity: callout.quantity,
       clusterIndex: claim?.clusterIndex ?? null,
+      judgedCropSha256: pair?.leadSha256 ?? null,
       claimedElement: claim?.elementId ?? null,
       claimedName: claim?.elementId ? (names.get(claim.elementId)?.name ?? null) : null,
       verdict: verdict === null ? "unjudged" : verdict.same === true ? "same" : "different",
@@ -646,6 +667,11 @@ function scoreAgainstTruth(truth, features, match, claims, names) {
     calloutsInRange: rows.length,
     calloutsJudged: judged.length,
     calloutsUnjudged: rows.length - judged.length,
+    // A verdict that names no crop digest was judged against a gallery
+    // generation that no longer exists. Counting them separately keeps
+    // "nobody judged this" distinguishable from "the labels no longer bind",
+    // which is the failure that hid a dead key behind a plausible 0/0.
+    verdictsUnbindable: unbindable,
     drawingsJudged: drawings.size,
     correct: correct.length,
     accuracy: judged.length === 0 ? 0 : correct.length / judged.length,
