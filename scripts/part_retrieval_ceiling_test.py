@@ -267,6 +267,15 @@ class PinnedGenerationTest(unittest.TestCase):
         )
         self.assertEqual(elimination["shortlistsEmptiedByExactDemand"], 37)
 
+    def test_a_miss_is_exactly_a_card_offering_no_candidate_of_the_right_colour(self) -> None:
+        colour = self.report["colourAbsentFromShortlist"]
+        self.assertEqual(colour["clusters"], 3)
+        self.assertEqual(colour["ofClustersWithTruth"], 75)
+        self.assertTrue(colour["coincidesWithTheMisses"])
+        self.assertEqual(
+            sorted(row["clusterIndex"] for row in colour["detail"]), [15, 53, 101]
+        )
+
     def test_capacity_must_not_be_used_to_prune_a_single_drawing(self) -> None:
         """The filter that refutes a whole cluster deletes the right answer for a drawing.
 

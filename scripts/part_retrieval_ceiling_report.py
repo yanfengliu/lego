@@ -42,6 +42,7 @@ from part_retrieval_ceiling import (  # noqa: E402
 )
 from part_retrieval_ceiling_causes import (  # noqa: E402
     ablate,
+    elimination_and_colour_blocks,
     lead_representativeness,
     sibling_outliers,
 )
@@ -244,6 +245,11 @@ def build_report(quick: bool = False) -> dict:
         "upperBoundAtK": (hits + unknown) / len(judged_clusters),
     }
 
+    colour_absent_block, elimination_block = elimination_and_colour_blocks(
+        union, clusters, resolution, held_of
+    )
+    report["colourAbsentFromShortlist"] = colour_absent_block
+
     # --- is a Builder miss an artefact of the claim-driven within-step pairing? ---
     steps_by_number = {step["stepNumber"]: step for step in builder_steps}
     sensitivity = []
@@ -272,56 +278,7 @@ def build_report(quick: bool = False) -> dict:
         "misses": sensitivity,
     }
 
-    # --- elimination facts that need no per-drawing truth ---
-    emptied_capacity = []
-    emptied_exact = []
-    for cluster in clusters:
-        demand = cluster["pieces"]
-        shortlist = [
-            candidate["elementId"] for candidate in cluster["candidates"][:DISPLAYED_K]
-        ]
-        if not any(held_of.get(element, 0) >= demand for element in shortlist):
-            emptied_capacity.append({"clusterIndex": cluster["clusterIndex"], "demand": demand})
-        if not any(held_of.get(element, 0) == demand for element in shortlist):
-            emptied_exact.append(cluster["clusterIndex"])
-    # Capacity refutes a whole-cluster answer. It must never be used to prune a
-    # candidate for one drawing: a cluster that pooled one mould in several
-    # colours draws more pieces than the true element holds, so the filter
-    # deletes the right answer. Measured here so the artifact carries the
-    # counter-evidence beside the claim rather than only the claim.
-    truth_eliminated = [
-        {
-            "clusterIndex": record.cluster_index,
-            "elementId": record.element_id,
-            "name": resolution.get(record.element_id, {}).get("name"),
-            "held": held_of.get(record.element_id, 0),
-            "clusterDemand": record.pieces,
-            "rank": record.rank,
-            "source": record.source,
-        }
-        for record in union
-        if held_of.get(record.element_id, 0) < record.pieces
-    ]
-    report["eliminationWithoutTruth"] = {
-        "note": (
-            "Capacity is a proof about a whole cluster under the pipeline's own "
-            "one-element-per-cluster assignment: if no displayed element holds enough "
-            "pieces to supply the cluster, no single answer on that card can be right "
-            "for all of it. It is NOT a per-drawing filter - see "
-            "capacityWouldEliminateTheTruthFor. Exact demand is a prior, not a proof, "
-            "and is reported only for comparison."
-        ),
-        "shortlistsEmptiedByCapacity": len(emptied_capacity),
-        "shortlistsEmptiedByCapacityDetail": emptied_capacity,
-        "shortlistsEmptiedByExactDemand": len(emptied_exact),
-        "capacityWouldEliminateTheTruthFor": {
-            "clusters": len(truth_eliminated),
-            "ofClustersWithTruth": len(union),
-            "rate": len(truth_eliminated) / len(union) if union else None,
-            "atRankOne": sum(1 for row in truth_eliminated if row["rank"] == 1),
-            "detail": truth_eliminated,
-        },
-    }
+    report["eliminationWithoutTruth"] = elimination_block
 
     # --- defective inventory thumbnails ---
     outliers = sibling_outliers(features["inventory"], design_of)

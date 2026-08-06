@@ -10,6 +10,9 @@ it was not, and each answer is a different repair, so they are measured apart:
   so their inventory silhouettes must agree. One that disagrees has a bad crop,
   and in a group of three or more the odd one out is identifiable rather than
   symmetric. This needs no ground truth at all.
+* **colour absence / capacity** — two whole-population checks that need only the
+  printed inventory: whether the card offered any candidate of the right colour,
+  and whether it could supply the cluster at all.
 * **lead representativeness** — retrieval ranks one member per cluster. Every
   other member is answered from a shortlist cut for a drawing that is not it, so
   the measure is what changes when a member is ranked on its own descriptor.
@@ -157,3 +160,102 @@ def lead_representativeness(
             }
         )
     return rows
+
+
+def elimination_and_colour_blocks(union, clusters, resolution, held_of, displayed_k=DISPLAYED_K):
+    """The two report blocks that need the printed inventory but no pixel work."""
+
+    # The sharpest form of the miss: retrieval finds the mould and loses the
+    # colour variant, so the drawings it fails on are exactly the drawings whose
+    # colour appears nowhere among the six candidates.
+    colour_of = {element: resolution[element]["colorId"] for element in resolution}
+    colour_absent = [
+        {
+            "clusterIndex": record.cluster_index,
+            "elementId": record.element_id,
+            "name": resolution.get(record.element_id, {}).get("name"),
+            "colorId": colour_of.get(record.element_id),
+            "shortlistColours": sorted(
+                {
+                    colour_of.get(candidate["elementId"])
+                    for candidate in clusters[record.cluster_index]["candidates"][:displayed_k]
+                }
+            ),
+            "rank": record.rank,
+        }
+        for record in union
+        if colour_of.get(record.element_id)
+        not in {
+            colour_of.get(candidate["elementId"])
+            for candidate in clusters[record.cluster_index]["candidates"][:displayed_k]
+        }
+    ]
+    missed = {
+        record.cluster_index
+        for record in union
+        if record.rank is None or record.rank > displayed_k
+    }
+    colour_block = {
+        "note": (
+            "Clusters whose true colour appears on none of the displayed candidates. "
+            "These coincide exactly with the retrieval misses: the descriptor finds "
+            "the mould and loses the colour variant, so offering no candidate of the "
+            "right colour and failing to retrieve are the same event."
+        ),
+        "clusters": len(colour_absent),
+        "ofClustersWithTruth": len(union),
+        "coincidesWithTheMisses": {row["clusterIndex"] for row in colour_absent} == missed,
+        "detail": colour_absent,
+    }
+
+    emptied_capacity = []
+    emptied_exact = []
+    for cluster in clusters:
+        demand = cluster["pieces"]
+        shortlist = [
+            candidate["elementId"] for candidate in cluster["candidates"][:displayed_k]
+        ]
+        if not any(held_of.get(element, 0) >= demand for element in shortlist):
+            emptied_capacity.append({"clusterIndex": cluster["clusterIndex"], "demand": demand})
+        if not any(held_of.get(element, 0) == demand for element in shortlist):
+            emptied_exact.append(cluster["clusterIndex"])
+    # Capacity refutes a whole-cluster answer. It must never be used to prune a
+    # candidate for one drawing: a cluster that pooled one mould in several
+    # colours draws more pieces than the true element holds, so the filter
+    # deletes the right answer. Measured here so the artifact carries the
+    # counter-evidence beside the claim rather than only the claim.
+    truth_eliminated = [
+        {
+            "clusterIndex": record.cluster_index,
+            "elementId": record.element_id,
+            "name": resolution.get(record.element_id, {}).get("name"),
+            "held": held_of.get(record.element_id, 0),
+            "clusterDemand": record.pieces,
+            "rank": record.rank,
+            "source": record.source,
+        }
+        for record in union
+        if held_of.get(record.element_id, 0) < record.pieces
+    ]
+    elimination_block = {
+        "note": (
+            "Capacity is a proof about a whole cluster under the pipeline's own "
+            "one-element-per-cluster assignment: if no displayed element holds enough "
+            "pieces to supply the cluster, no single answer on that card can be right "
+            "for all of it. It is NOT a per-drawing filter - see "
+            "capacityWouldEliminateTheTruthFor. Exact demand is a prior, not a proof, "
+            "and is reported only for comparison."
+        ),
+        "shortlistsEmptiedByCapacity": len(emptied_capacity),
+        "shortlistsEmptiedByCapacityDetail": emptied_capacity,
+        "shortlistsEmptiedByExactDemand": len(emptied_exact),
+        "capacityWouldEliminateTheTruthFor": {
+            "clusters": len(truth_eliminated),
+            "ofClustersWithTruth": len(union),
+            "rate": len(truth_eliminated) / len(union) if union else None,
+            "atRankOne": sum(1 for row in truth_eliminated if row["rank"] == 1),
+            "detail": truth_eliminated,
+        },
+    }
+
+    return colour_block, elimination_block
