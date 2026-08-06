@@ -44,7 +44,12 @@ class Set6651557SourcePilotTests(unittest.TestCase):
                 PILOT.strict_json(b'["abc","def"]', "aggregate")
 
     def test_pinned_read_checks_exact_size_and_digest(self) -> None:
+        # The reader under test requires a path inside the repository, so the
+        # temporary directory is anchored here rather than in the system temp.
+        # output/ is gitignored and therefore absent from a fresh clone, where
+        # this raised FileNotFoundError and failed npm run verify.
         output_root = SCRIPT_PATH.parents[1] / "output"
+        output_root.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(dir=output_root) as directory:
             path = Path(directory) / "pinned.bin"
             path.write_bytes(b"reviewed")
@@ -217,7 +222,12 @@ class Set6651557SourcePilotTests(unittest.TestCase):
         self.assertEqual(PILOT.frame_count(row, "collision", "oriented"), 3)
 
     def test_report_writer_is_canonical_atomic_and_confined_to_output(self) -> None:
+        # The reader under test requires a path inside the repository, so the
+        # temporary directory is anchored here rather than in the system temp.
+        # output/ is gitignored and therefore absent from a fresh clone, where
+        # this raised FileNotFoundError and failed npm run verify.
         output_root = SCRIPT_PATH.parents[1] / "output"
+        output_root.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(dir=output_root) as directory:
             path = Path(directory) / "report.json"
             digest = PILOT.write_report(path, {"z": 2, "a": 1})
