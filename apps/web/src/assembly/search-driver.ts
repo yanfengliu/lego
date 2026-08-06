@@ -140,6 +140,103 @@ export function highlightBounds(highlight: HighlightExtraction): HighlightRegion
   );
 }
 
+export interface StepExpansion {
+  /** Every candidate this branch rendered, best score first. */
+  readonly scored: readonly ScoredCandidate[];
+  readonly enumerated: number;
+  readonly rendered: number;
+  readonly prunedByProximity: number;
+  readonly duplicateSpellings: number;
+  /** Candidates the picture localised to but the render budget could not reach. */
+  readonly overflowed: number;
+}
+
+/**
+ * Everything one branch can do at one step: enumerate, prune against the
+ * printed highlight, render what survives, and score it.
+ *
+ * Factored out because the beam and the backtracking driver differ only in what
+ * they do with this list — the beam keeps its best few and moves on, the
+ * backtracker keeps the whole list so it can come back for the next one.
+ */
+export function expandStep(
+  entry: BeamEntry,
+  target: StepTarget,
+  deps: SearchDriverDeps,
+  options: SearchDriverOptions = {},
+): StepExpansion {
+  const proximityMarginPx = options.proximityMarginPx ?? DEFAULT_PROXIMITY_MARGIN_PX;
+  const maxRendersPerBranch = options.maxRendersPerBranch ?? DEFAULT_MAX_RENDERS_PER_BRANCH;
+  const targetBounds = highlightBounds(target.highlight);
+  const candidates = deps.enumerate(entry.document, target.catalogPartId);
+
+  // The picture says where on the page the step's part is. A candidate that
+  // projects nowhere near it is rejected for the cost of eight corners.
+  //
+  // Equivalent spellings collapse here rather than in the enumerator: a 2x4
+  // brick at yaw 0 and at yaw 180 occupy the same studs and would render
+  // identically, so rendering both is pure waste. The enumerator keeps both
+  // because its completeness is checked against a brute-force sweep that also
+  // keeps both, and that check is worth more than the saving.
+  const seenOccupancy = new Set<string>();
+  const near: PlacementCandidate[] = [];
+  let prunedByProximity = 0;
+  let duplicateSpellings = 0;
+  for (const candidate of candidates) {
+    const occupancy = placementOccupancyKey(candidate.catalogPartId, candidate.transform);
+    if (seenOccupancy.has(occupancy)) {
+      duplicateSpellings += 1;
+      continue;
+    }
+    seenOccupancy.add(occupancy);
+    if (targetBounds === null) {
+      near.push(candidate);
+      continue;
+    }
+    const projected = deps.projectBounds(entry.document, candidate);
+    if (projected === null || !boxesOverlap(projected, targetBounds, proximityMarginPx)) {
+      prunedByProximity += 1;
+      continue;
+    }
+    near.push(candidate);
+  }
+
+  // Closest projection first, so a truncated budget spends itself on the
+  // candidates the picture points at rather than on an arbitrary prefix.
+  const overflowed = Math.max(0, near.length - maxRendersPerBranch);
+  if (targetBounds !== null && overflowed > 0) {
+    const centreX = (targetBounds.minXPx + targetBounds.maxXPx) / 2;
+    const centreY = (targetBounds.minYPx + targetBounds.maxYPx) / 2;
+    const distance = (placement: PlacementCandidate): number => {
+      const box = deps.projectBounds(entry.document, placement);
+      if (box === null) return Number.POSITIVE_INFINITY;
+      return Math.hypot(
+        (box.minXPx + box.maxXPx) / 2 - centreX,
+        (box.minYPx + box.maxYPx) / 2 - centreY,
+      );
+    };
+    const ranked = near.map((placement) => ({ placement, distance: distance(placement) }));
+    ranked.sort((left, right) => left.distance - right.distance);
+    near.length = 0;
+    near.push(...ranked.map((entryRanked) => entryRanked.placement));
+  }
+
+  const scored: ScoredCandidate[] = [];
+  for (const candidate of near.slice(0, maxRendersPerBranch)) {
+    const mask = deps.renderCandidateMask(entry.document, candidate);
+    scored.push({ candidate, score: deps.score(mask, target.highlight) });
+  }
+  scored.sort((left, right) => right.score.score - left.score.score);
+  return {
+    scored,
+    enumerated: candidates.length,
+    rendered: scored.length,
+    prunedByProximity,
+    duplicateSpellings,
+    overflowed,
+  };
+}
+
 /**
  * Advances every branch of the beam by one step and keeps the best branches.
  *
@@ -161,8 +258,6 @@ export function advanceBeam(
     );
   }
   const beamWidth = options.beamWidth ?? DEFAULT_BEAM_WIDTH;
-  const proximityMarginPx = options.proximityMarginPx ?? DEFAULT_PROXIMITY_MARGIN_PX;
-  const maxRendersPerBranch = options.maxRendersPerBranch ?? DEFAULT_MAX_RENDERS_PER_BRANCH;
   if (!Number.isInteger(beamWidth) || beamWidth < 1) {
     throw new SearchDriverError(
       `beamWidth must be a positive integer, received ${String(beamWidth)}. ` +
@@ -176,69 +271,15 @@ export function advanceBeam(
   let rendered = 0;
   let prunedByProximity = 0;
   let duplicateSpellings = 0;
-  const overflowed: number[] = [];
 
   for (const entry of beam) {
-    const candidates = deps.enumerate(entry.document, target.catalogPartId);
-    enumerated += candidates.length;
+    const expansion = expandStep(entry, target, deps, options);
+    enumerated += expansion.enumerated;
+    rendered += expansion.rendered;
+    prunedByProximity += expansion.prunedByProximity;
+    duplicateSpellings += expansion.duplicateSpellings;
 
-    // The picture says where on the page the step's part is. A candidate that
-    // projects nowhere near it is rejected for the cost of eight corners.
-    //
-    // Equivalent spellings collapse here rather than in the enumerator: a 2x4
-    // brick at yaw 0 and at yaw 180 occupy the same studs and would render
-    // identically, so rendering both is pure waste. The enumerator keeps both
-    // because its completeness is checked against a brute-force sweep that also
-    // keeps both, and that check is worth more than the saving.
-    const seenOccupancy = new Set<string>();
-    const near: PlacementCandidate[] = [];
-    for (const candidate of candidates) {
-      const occupancy = placementOccupancyKey(candidate.catalogPartId, candidate.transform);
-      if (seenOccupancy.has(occupancy)) {
-        duplicateSpellings += 1;
-        continue;
-      }
-      seenOccupancy.add(occupancy);
-      if (target_bounds === null) {
-        near.push(candidate);
-        continue;
-      }
-      const projected = deps.projectBounds(entry.document, candidate);
-      if (projected === null || !boxesOverlap(projected, target_bounds, proximityMarginPx)) {
-        prunedByProximity += 1;
-        continue;
-      }
-      near.push(candidate);
-    }
-    if (near.length > maxRendersPerBranch) overflowed.push(near.length);
-    // Closest projection first, so a truncated budget spends itself on the
-    // candidates the picture points at rather than on an arbitrary prefix.
-    if (target_bounds !== null && near.length > maxRendersPerBranch) {
-      const centreX = (target_bounds.minXPx + target_bounds.maxXPx) / 2;
-      const centreY = (target_bounds.minYPx + target_bounds.maxYPx) / 2;
-      const distance = (placement: PlacementCandidate): number => {
-        const box = deps.projectBounds(entry.document, placement);
-        if (box === null) return Number.POSITIVE_INFINITY;
-        return Math.hypot(
-          (box.minXPx + box.maxXPx) / 2 - centreX,
-          (box.minYPx + box.maxYPx) / 2 - centreY,
-        );
-      };
-      const ranked = near.map((placement) => ({ placement, distance: distance(placement) }));
-      ranked.sort((left, right) => left.distance - right.distance);
-      near.length = 0;
-      near.push(...ranked.map((entryRanked) => entryRanked.placement));
-    }
-
-    const scored: ScoredCandidate[] = [];
-    for (const candidate of near.slice(0, maxRendersPerBranch)) {
-      const mask = deps.renderCandidateMask(entry.document, candidate);
-      rendered += 1;
-      scored.push({ candidate, score: deps.score(mask, target.highlight) });
-    }
-    scored.sort((left, right) => right.score.score - left.score.score);
-
-    for (const { candidate, score } of scored.slice(0, beamWidth)) {
+    for (const { candidate, score } of expansion.scored.slice(0, beamWidth)) {
       const applied = deps.apply(entry, candidate, target.stepNumber);
       next.push({
         nodeId: applied.nodeId,
