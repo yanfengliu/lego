@@ -13,8 +13,13 @@ import {
   PART_IDENTIFICATION_MODEL_IDENTITY,
   responseModelIdentity,
 } from "./part-identification-model.mjs";
+import {
+  PART_IDENTIFICATION_COLOUR_VOCABULARY,
+  PART_IDENTIFICATION_PROMPT,
+} from "./part-identification-prompt.mjs";
 import { claimsFor, describesSameThing } from "./part-identification-score.mjs";
 import { canonicalPng } from "./part-identification-test-fixture.mjs";
+import { COLOR_DEFINITIONS } from "../packages/catalog/src/colors.ts";
 
 /** The one reply shape the bounded child parser accepts, for a single answered card. */
 function visionReply() {
@@ -269,5 +274,48 @@ describe("part-identification vision call boundary", () => {
     await expect(askBatch(["../../card-0000"], PART_IDENTIFICATION_MODEL_ID)).rejects.toThrow(
       /unique canonical card-NNNN ids/,
     );
+  });
+});
+
+describe("part-identification colour vocabulary", () => {
+  // The prompt and the grader have to name colours in one language. Asking for a
+  // "plain colour name" and grading against the LDraw display name scored wording,
+  // not sight: 65 of 136 self-contradictions over 273 drawings were colour-only,
+  // most of them "light gray" for Light Bluish Gray or a dropped shade. Naming the
+  // vocabulary in the prompt is the fix; loosening the grader is not.
+  it("offers the call only names the grader can accept", () => {
+    expect(PART_IDENTIFICATION_COLOUR_VOCABULARY.length).toBeGreaterThan(0);
+    expect(new Set(PART_IDENTIFICATION_COLOUR_VOCABULARY).size).toBe(
+      PART_IDENTIFICATION_COLOUR_VOCABULARY.length,
+    );
+    for (const colour of PART_IDENTIFICATION_COLOUR_VOCABULARY) {
+      const definition = COLOR_DEFINITIONS.find(({ displayName }) => displayName === colour);
+      expect(definition, `${colour} must be a catalog colour the grader can resolve`).toBeDefined();
+      expect(
+        describesSameThing(
+          { kind: "brick", studsLong: 1, studsWide: 1, colour },
+          { name: "Brick 1 x 1", colorId: definition.ldrawCode },
+        ),
+      ).toMatchObject({ colourAgrees: true });
+      expect(PART_IDENTIFICATION_PROMPT).toContain(colour);
+    }
+  });
+
+  it("still fails the near misses that are real sight errors", () => {
+    // Black graded against "dark gray", and Sand Blue against "light blue", are
+    // the third of the colour-only contradictions that were never a synonym.
+    for (const [colour, ldrawCode] of [
+      ["dark gray", 0],
+      ["light grey", 72],
+      ["light blue", 379],
+      ["blue", 272],
+    ]) {
+      expect(
+        describesSameThing(
+          { kind: "brick", studsLong: 1, studsWide: 1, colour },
+          { name: "Brick 1 x 1", colorId: ldrawCode },
+        ),
+      ).toMatchObject({ colourAgrees: false });
+    }
   });
 });

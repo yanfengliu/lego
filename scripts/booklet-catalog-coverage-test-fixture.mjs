@@ -70,7 +70,7 @@ export function manifestFor(callouts) {
       .join("\n"),
   );
   return {
-    schemaVersion: "lego.callout-thumbnails/4",
+    schemaVersion: "lego.callout-thumbnails/5",
     sourceHash: digest("booklet"),
     pageSelection: "full booklet",
     pagesCropped: new Set(callouts.map(({ pageNumber }) => pageNumber)).size,
@@ -128,6 +128,7 @@ export function fixture() {
       quantity: 1,
       xPt: 43.074,
       yPt: 486.271,
+      heightPt: 8,
       evidenceKind: "part-art",
       sha256: digest("crop-one"),
     },
@@ -139,6 +140,7 @@ export function fixture() {
       quantity: 1,
       xPt: 108.908,
       yPt: 486.271,
+      heightPt: 8,
       evidenceKind: "part-art",
       sha256: digest("crop-two"),
     },

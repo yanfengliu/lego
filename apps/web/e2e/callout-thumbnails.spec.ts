@@ -341,6 +341,7 @@ test("publishes typed evidence for every distinct Nx label", async ({ page }) =>
       quantity: target.quantity,
       xPt: target.xPt,
       yPt: target.yPt,
+      heightPt: target.heightPt,
       boxMethod: target.boxMethod,
       box: target.box,
       evidenceKind: target.evidenceKind,
@@ -416,7 +417,7 @@ test("publishes typed evidence for every distinct Nx label", async ({ page }) =>
 
   const runId = sha256(
     JSON.stringify({
-      schemaVersion: "lego.callout-thumbnails/4",
+      schemaVersion: "lego.callout-thumbnails/5",
       sourceHash: structure.sourceHash,
       publishPages,
       benchmark,
@@ -426,7 +427,7 @@ test("publishes typed evidence for every distinct Nx label", async ({ page }) =>
     }),
   ).slice("sha256:".length, "sha256:".length + 24);
   const manifest: CalloutManifest = {
-    schemaVersion: "lego.callout-thumbnails/4",
+    schemaVersion: "lego.callout-thumbnails/5",
     sourceHash: structure.sourceHash,
     pageSelection: fullRun ? "full booklet" : publishPages,
     pagesCropped: publishPages.length,

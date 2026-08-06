@@ -5,7 +5,7 @@ export {
   bindCalloutsToBookletPanels,
   CoverageContractError,
   coverageCalloutKey,
-  isV4ManifestCallout,
+  isV5ManifestCallout,
   reconcileStepCoverage,
   requireCoverageCallout,
   requireCoverageIndex,
@@ -16,7 +16,7 @@ export type {
   CoverageContractFailureCode,
   CoverageInputBindings,
   StepCoverageCalloutClaim,
-  V4ManifestCallout,
+  V5ManifestCallout,
 } from "./real-build-coverage";
 
 export type SuccessfulStepMechanism =

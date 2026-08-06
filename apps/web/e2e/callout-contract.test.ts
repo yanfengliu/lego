@@ -3,6 +3,12 @@ import { describe, expect, it } from "vitest";
 import { parseRequestedPages, selectStepPages } from "./callout-analysis";
 import { evaluateRecoveryBenchmark, fixtureAccepts } from "./callout-benchmark";
 import {
+  MEASURED_QUANTITY_FACES_PT,
+  QUANTITY_LABEL_FACE_CONTRACT,
+  assertPublishedQuantityFaces,
+  classifyQuantityFace,
+} from "./callout-faces";
+import {
   CALLOUT_RECOVERY_FIXTURE,
   FULL_BOOKLET_CALLOUT_ACCOUNTING,
   SEMANTIC_CALLOUTS,
@@ -307,6 +313,88 @@ describe("callout recovery fixture", () => {
     expect(benchmark.scores.find(({ strategy }) => strategy === "ranked-component")?.valid).toBe(
       16,
     );
+  });
+});
+
+describe("quantity-label type size", () => {
+  it("puts its bound in the empty gap between the two measured classes", () => {
+    // Re-measured 2026-08-05 over recipes/6651557.pdf: nothing is set between
+    // 8pt and 16pt, so the bound has a factor of two of margin on both sides.
+    expect(MEASURED_QUANTITY_FACES_PT.partsBin).toBe(QUANTITY_LABEL_FACE_CONTRACT.partsBinPt);
+    expect(Math.min(...MEASURED_QUANTITY_FACES_PT.multipliers)).toBe(
+      QUANTITY_LABEL_FACE_CONTRACT.multiplierMinPt,
+    );
+    expect(QUANTITY_LABEL_FACE_CONTRACT.multiplierMinPt).toBeGreaterThan(
+      QUANTITY_LABEL_FACE_CONTRACT.partsBinPt + QUANTITY_LABEL_FACE_CONTRACT.partsBinTolerancePt,
+    );
+    // The tolerance may never reach the 6pt back-matter inventory face, which is
+    // a third meaning entirely and must not read as a step parts-bin quantity.
+    expect(
+      QUANTITY_LABEL_FACE_CONTRACT.partsBinPt - QUANTITY_LABEL_FACE_CONTRACT.partsBinTolerancePt,
+    ).toBeGreaterThan(MEASURED_QUANTITY_FACES_PT.backMatterInventory);
+  });
+
+  it("classifies both measured classes and refuses every unmeasured face", () => {
+    expect(classifyQuantityFace(8)).toBe("parts-bin");
+    for (const face of MEASURED_QUANTITY_FACES_PT.multipliers) {
+      expect(classifyQuantityFace(face)).toBe("multiplier");
+    }
+    for (const face of [6, 4, 9.5, 12, 15.99, 0, -8, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(classifyQuantityFace(face), `${face}pt must not be guessed into a class`).toBeNull();
+    }
+    for (const absent of [undefined, null, "8", "8pt", {}]) {
+      expect(classifyQuantityFace(absent)).toBeNull();
+    }
+  });
+
+  it("names the identity, the observed face, the published class, and the remedy", () => {
+    expect(() =>
+      assertPublishedQuantityFaces([
+        { identity: "p59|q2|x124.683|y55.056", heightPt: 16, evidenceKind: "part-art" },
+      ]),
+    ).toThrow(
+      /p59\|q2\|x124\.683\|y55\.056 at 16pt, published as "part-art".*Preregister the identity/su,
+    );
+    expect(() =>
+      assertPublishedQuantityFaces([
+        { identity: "p11|q1|x1.000|y1.000", heightPt: 8, evidenceKind: "subassembly-repeat" },
+      ]),
+    ).toThrow(/at 8pt, published as "subassembly-repeat".*drops real pieces/su);
+    expect(() =>
+      assertPublishedQuantityFaces([
+        { identity: "p11|q1|x1.000|y1.000", heightPt: 12, evidenceKind: "part-art" },
+      ]),
+    ).toThrow(/never been measured at.*at 12pt.*widen QUANTITY_LABEL_FACE_CONTRACT/su);
+    expect(() =>
+      assertPublishedQuantityFaces([
+        {
+          identity: "p11|q1|x1.000|y1.000",
+          heightPt: undefined as unknown as number,
+          evidenceKind: "part-art",
+        },
+      ]),
+    ).toThrow(/publish no measured quantity-label type size/u);
+  });
+
+  it("agrees with the preregistered fixture on every semantic identity", () => {
+    // Two independent sources for one classification. The fixture is a hand-made
+    // list of regions and crop predicates; this is the booklet's own type size.
+    // Neither derives from the other, which is why both are kept.
+    for (const entry of SEMANTIC_CALLOUTS) {
+      expect(
+        classifyQuantityFace(QUANTITY_LABEL_FACE_CONTRACT.multiplierMinPt),
+        entry.identity,
+      ).toBe("multiplier");
+    }
+    expect(
+      assertPublishedQuantityFaces(
+        SEMANTIC_CALLOUTS.map(({ identity, evidenceKind }) => ({
+          identity,
+          heightPt: 16,
+          evidenceKind,
+        })),
+      ),
+    ).toBeUndefined();
   });
 });
 

@@ -25,7 +25,7 @@ import {
   PART_DISTANCES_SCHEMA,
   PART_FEATURES_SCHEMA,
   PART_MATCH_SCHEMA,
-  assertV4CalloutManifest,
+  assertV5CalloutManifest,
   assertBoundMatchArtifacts,
   assertFeaturesArtifact,
   nonClusteredCalloutRecords,
@@ -124,7 +124,7 @@ async function commandFeatures(argv, context = {}) {
     );
   }
   const manifestArtifact = readJsonArtifact(manifestPath, "callout manifest");
-  const manifest = assertV4CalloutManifest(manifestArtifact.value, context.manifestExpectation);
+  const manifest = assertV5CalloutManifest(manifestArtifact.value, context.manifestExpectation);
 
   const inventory = {};
   const inventorySourceDigests = {};
@@ -153,7 +153,7 @@ async function commandFeatures(argv, context = {}) {
   const callouts = [];
   for (const entry of manifest.callouts.slice(0, CROP_LIMIT)) {
     if (entry.evidenceKind !== "part-art") {
-      // Semantic action/multiplier records stay index-aligned with the v4
+      // Semantic action/multiplier records stay index-aligned with the v5
       // manifest for coverage provenance, but never receive a descriptor that
       // could make them look assignable to a physical inventory element.
       callouts.push({ ...entry });

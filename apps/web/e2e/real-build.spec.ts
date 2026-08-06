@@ -68,11 +68,11 @@ import {
 import {
   bindCalloutsToBookletPanels,
   isAtomicStepComplete,
-  isV4ManifestCallout,
+  isV5ManifestCallout,
   type RealBuildOptions,
   type RealBuildResult,
   type StepFailure,
-  type V4ManifestCallout,
+  type V5ManifestCallout,
 } from "./real-build-safety";
 import {
   decodeRealBuildPngCapture,
@@ -237,13 +237,13 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
     answers: identificationAnswersInput?.digest ?? null,
   };
   if (
-    manifestInput.value.schemaVersion !== "lego.callout-thumbnails/4" ||
+    manifestInput.value.schemaVersion !== "lego.callout-thumbnails/5" ||
     manifestInput.value.sourceHash !== inputDigests.pdf
   ) {
     preparationFailures.push(
       contractFailure(
         MANIFEST_PATH,
-        `Callout input must use lego.callout-thumbnails/4 and bind the exact booklet PDF. Manifest ` +
+        `Callout input must use lego.callout-thumbnails/5 and bind the exact booklet PDF. Manifest ` +
           `${JSON.stringify(manifestInput.value.schemaVersion ?? "missing")}/` +
           `${JSON.stringify(manifestInput.value.sourceHash ?? "missing")}; live PDF ${inputDigests.pdf}.`,
       ),
@@ -382,7 +382,7 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
   const rawManifestCallouts = Array.isArray(manifestInput.value.callouts)
     ? manifestInput.value.callouts
     : [];
-  const manifestCallouts: V4ManifestCallout[] = rawManifestCallouts.filter(isV4ManifestCallout);
+  const manifestCallouts: V5ManifestCallout[] = rawManifestCallouts.filter(isV5ManifestCallout);
   if (manifestCallouts.length === 0) {
     preparationFailures.push(
       contractFailure(
@@ -399,7 +399,7 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
     preparationFailures.push(
       contractFailure(
         `${MANIFEST_PATH}#callouts`,
-        `The v4 callout manifest must contain exactly calloutCount unique, typed identity records; received ` +
+        `The v5 callout manifest must contain exactly calloutCount unique, typed identity records; received ` +
           `${manifestCallouts.length}/${rawManifestCallouts.length} typed rows for declared count ` +
           `${JSON.stringify(manifestInput.value.calloutCount ?? "missing")}.`,
       ),

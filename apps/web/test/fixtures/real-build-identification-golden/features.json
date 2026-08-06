@@ -2,7 +2,7 @@
   "schemaVersion": "lego.part-identification-features/3",
   "inputDigests": {
     "pdf": "sha256:f76be473d1118d69bb7596dc8ea1b5905571e54ecacced0e210c4e2193779865",
-    "calloutManifest": "sha256:23f58599faa5e6287c1de0eb1e145927ee69fefdf94309ddd8fac0b072d2b0bb"
+    "calloutManifest": "sha256:0ea8582b833a5353160aa05b0af6ef41886a9813c8b9c6b3829f533a1689bc73"
   },
   "inventorySourceDigests": {
     "300501": "sha256:aa0208789a6197eb0aea984264b5f8925754d4f96d4d47839a4e04ef6592dd73"
@@ -88,6 +88,7 @@
       "quantity": 1,
       "xPt": 43.074,
       "yPt": 486.271,
+      "heightPt": 8,
       "evidenceKind": "part-art",
       "sha256": "sha256:216dbf4d75f88d708e39d3309dfac7524eed22b5cdbeffc82ce1d9f47b354862",
       "descriptor": {

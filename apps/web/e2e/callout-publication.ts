@@ -15,6 +15,7 @@ import {
 } from "node:fs";
 import { basename, isAbsolute, join, relative, resolve } from "node:path";
 
+import { assertPublishedQuantityFaces } from "./callout-faces";
 import type { CalloutManifest, PublishedCallout } from "./callout-types";
 
 export const CALLOUT_PUBLICATION_LIMITS = Object.freeze({
@@ -143,6 +144,10 @@ function assertManifest(input: PublishCalloutRunInput, bytes: Buffer): void {
       `Manifest contains ${input.manifest.callouts.length} callout records for ${input.crops.length} PNGs.`,
     );
   }
+  // Derived independently of the preregistered recovery fixture: the type size
+  // the booklet printed has to agree with the class about to be published, so a
+  // multiplier nobody registered cannot be published as a physical piece.
+  assertPublishedQuantityFaces(input.manifest.callouts);
   const names = input.crops.map(({ metadata }) => metadata.fileName);
   if (new Set(names).size !== names.length) throw new Error("Crop file names are not unique.");
   const identities = input.crops.map(({ metadata }) => metadata.identity);

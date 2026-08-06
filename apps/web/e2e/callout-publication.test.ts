@@ -52,7 +52,11 @@ function benchmark(): RecoveryBenchmark {
   };
 }
 
-function input(outDirectory: string, runId = "a".repeat(24)): PublishCalloutRunInput {
+function input(
+  outDirectory: string,
+  runId = "a".repeat(24),
+  overrides: Partial<PublishedCallout> = {},
+): PublishCalloutRunInput {
   const metadata: PublishedCallout = {
     identity: "p11|q1|x1.000|y1.000",
     fileName: "p11-q1-x1d000-y1d000.png",
@@ -61,6 +65,7 @@ function input(outDirectory: string, runId = "a".repeat(24)): PublishCalloutRunI
     quantity: 1,
     xPt: 1,
     yPt: 1,
+    heightPt: 8,
     boxMethod: "vector-smallest",
     box: { minXPt: 0, minYPt: 0, maxXPt: 10, maxYPt: 10 },
     evidenceKind: "part-art",
@@ -80,11 +85,12 @@ function input(outDirectory: string, runId = "a".repeat(24)): PublishCalloutRunI
     quantityGlyphPixelsMasked: 0,
     cropRectPx: { left: 0, top: 0, right: 0, bottom: 0 },
     boundaryClearancePx: { left: 0, top: 0, right: 0, bottom: 0 },
+    ...overrides,
   };
   const crops: PreparedCrop[] = [{ metadata, png: PNG }];
   const { fileName, ...manifestMetadata } = metadata;
   const manifest: CalloutManifest = {
-    schemaVersion: "lego.callout-thumbnails/4",
+    schemaVersion: "lego.callout-thumbnails/5",
     sourceHash: "sha256:source",
     pageSelection: [11],
     pagesCropped: 1,
@@ -206,6 +212,67 @@ describe("callout publication", () => {
       readdirSync(directory).filter((name) => name.startsWith(".stage-") || name.endsWith(".tmp")),
     ).toEqual([]);
     expect(publishCalloutRun(prepared).reused).toBe(true);
+  });
+
+  /**
+   * The type size the booklet printed is the second, independent source for a
+   * label's class, and it fails closed. Before it existed, `evidenceContract`
+   * returned `part-art` for every identity nobody had preregistered, so four
+   * multiplier labels were published as physical and put the piece total 8 above
+   * the printed inventory. Each case below must refuse the whole publication and
+   * leave the previous pointer and run set untouched.
+   */
+  describe("published quantity-label type size", () => {
+    function refuses(overrides: Partial<PublishedCallout>, expected: RegExp): void {
+      const directory = root();
+      const pointer = join(directory, "manifest.json");
+      writeFileSync(pointer, "old-pointer\n", { flag: "wx" });
+      const prepared = input(directory, "b".repeat(24), overrides);
+      expect(() => publishCalloutRun(prepared)).toThrow(expected);
+      expect(readFileSync(pointer, "utf8")).toBe("old-pointer\n");
+      expect(existsSync(join(directory, "runs", prepared.runId))).toBe(false);
+    }
+
+    it("refuses a multiplier-face label published as physical part art", () => {
+      refuses(
+        { heightPt: 16, evidenceKind: "part-art" },
+        /multiplier type size but published as physical part art.*p11\|q1\|x1\.000\|y1\.000 at 16pt, published as "part-art"/su,
+      );
+      refuses({ heightPt: 40, evidenceKind: "part-art" }, /at 40pt, published as "part-art"/u);
+    });
+
+    it("refuses a parts-bin-face label published as semantic", () => {
+      for (const evidenceKind of ["subassembly-repeat", "assembly-action"] as const) {
+        refuses(
+          { heightPt: 8, evidenceKind, regionKind: "vector-box-full" },
+          new RegExp(
+            `parts-bin type size but published as semantic.*at 8pt, published as "${evidenceKind}"`,
+            "su",
+          ),
+        );
+      }
+    });
+
+    it("refuses a type size the booklet has never been measured at", () => {
+      // The gap between the 8pt parts bin and the 16pt multiplier is empty, and
+      // 6pt is the back-matter inventory row, which is neither. A face in any of
+      // those bands is a new case, so it must stop the run rather than default.
+      for (const heightPt of [12, 6, 4, 15.9]) {
+        refuses(
+          { heightPt },
+          new RegExp(`never been measured at.*at ${heightPt}pt, published as "part-art"`, "su"),
+        );
+      }
+    });
+
+    it("refuses a record that publishes no measured type size at all", () => {
+      // The exact defect this check exists for: heightPt was extracted from the
+      // PDF and then dropped before the manifest record was written.
+      refuses(
+        { heightPt: undefined as unknown as number },
+        /publish no measured quantity-label type size.*published as "part-art".*Re-run the callout publication/su,
+      );
+    });
   });
 
   it("removes only confirmed obsolete root PNGs and never selected runs", () => {

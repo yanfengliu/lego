@@ -47,7 +47,7 @@ export function authenticateJsonArtifact<T = unknown>(
   label?: string,
 ): AuthenticatedJsonArtifact<T>;
 
-export function assertV4CalloutManifest<T>(manifest: T, expectation?: unknown): T;
+export function assertV5CalloutManifest<T>(manifest: T, expectation?: unknown): T;
 
 export function readBoundManifestCrop<T>(
   entry: { readonly identity?: string; readonly file: string; readonly sha256: string },

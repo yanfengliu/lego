@@ -23,23 +23,23 @@ export const SYNTHETIC_IDENTIFICATION_MANIFEST_EXPECTATION = {
 export const SYNTHETIC_IDENTIFICATION_GOLDEN = {
   manifest: {
     file: "manifest.json",
-    bytes: 1_028,
-    digest: "sha256:23f58599faa5e6287c1de0eb1e145927ee69fefdf94309ddd8fac0b072d2b0bb",
+    bytes: 1_041,
+    digest: "sha256:0ea8582b833a5353160aa05b0af6ef41886a9813c8b9c6b3829f533a1689bc73",
   },
   features: {
     file: "features.json",
-    bytes: 11_892,
-    digest: "sha256:a907fa32d19e5cac90a2aed7d97fc121ecfceca972d03c81b43afcc7af25bbfe",
+    bytes: 11_913,
+    digest: "sha256:33da68db3e015a3528e3ac3365461763c81c8b6ca51824ada6781e210d10e0f4",
   },
   match: {
     file: "match.json",
     bytes: 353,
-    digest: "sha256:2ea02f32549ad7f42c44f264a6ffbf75492aea05713cb784e141dcc137401fb8",
+    digest: "sha256:19493a3d5a09d05c488e624e111951826be053adc0c0f9c9f7bcf2f711596ab6",
   },
   distances: {
     file: "distances.json",
     bytes: 188,
-    digest: "sha256:066562a3dfb6a5044f4bde46b5736fad227197f742c3c8d582a0ab1865b2a6f4",
+    digest: "sha256:a1c770dcb15c6d687f969df20b17952619f8aa6fdcbccdd29a30c2d70e59f660",
   },
   elementResolution: {
     file: "element-resolution.json",
@@ -60,7 +60,7 @@ export const SYNTHETIC_IDENTIFICATION_GOLDEN = {
   coverage: {
     file: "coverage.json",
     bytes: 2_433,
-    digest: "sha256:500ffe073becb6274837127abdb681dd07d7ea2237095a6eb1155368c84025bc",
+    digest: "sha256:70a2f62c1dddad1e6b0bf8ce9bb1d2e74f377066868d23133f64fb3cb4b966b4",
   },
 } as const;
 

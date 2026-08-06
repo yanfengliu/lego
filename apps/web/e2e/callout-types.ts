@@ -114,6 +114,8 @@ export interface PublishedCallout {
   readonly quantity: number;
   readonly xPt: number;
   readonly yPt: number;
+  /** The printed type size of the Nx label, which is what separates a parts-bin quantity from a multiplier. */
+  readonly heightPt: number;
   readonly boxMethod: BoxMethod;
   readonly box: PanelBounds;
   readonly evidenceKind: EvidenceKind;
@@ -136,7 +138,7 @@ export interface PublishedCallout {
 }
 
 export interface CalloutManifest {
-  readonly schemaVersion: "lego.callout-thumbnails/4";
+  readonly schemaVersion: "lego.callout-thumbnails/5";
   readonly sourceHash: string;
   readonly pageSelection: "full booklet" | readonly number[];
   readonly pagesCropped: number;

@@ -142,6 +142,7 @@ function closureFixture(): {
     quantity: 1,
     xPt: 43.074,
     yPt: 486.271,
+    heightPt: 8,
     evidenceKind: "part-art",
     sha256: sha256Digest("synthetic-crop"),
   };
@@ -149,7 +150,7 @@ function closureFixture(): {
     300501: { quantity: 1, partNum: "3005", name: "Brick 1 x 1", colorId: 0 },
   };
   const manifest = artifact({
-    schemaVersion: "lego.callout-thumbnails/4",
+    schemaVersion: "lego.callout-thumbnails/5",
     sourceHash: pdfDigest,
     pageSelection: "full booklet",
     pagesCropped: 1,

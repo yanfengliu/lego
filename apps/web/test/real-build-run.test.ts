@@ -345,7 +345,7 @@ describe("real booklet build safety", () => {
     });
   });
 
-  it("uses the stable v4 callout identity and rejects stale join metadata", () => {
+  it("uses the stable v5 callout identity and rejects stale join metadata", () => {
     const key = coverageCalloutKey("p11|q3|x43.074|y486.271");
     const exact = {
       [key]: { identity: key, pageNumber: 11, quantity: 3, value: "claim" },

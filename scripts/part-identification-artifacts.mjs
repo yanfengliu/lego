@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 
+import { assertPublishedQuantityFaces } from "../apps/web/e2e/callout-faces.ts";
 import { CALLOUT_RECOVERY_BY_IDENTITY } from "../apps/web/e2e/callout-recovery-fixture.ts";
 import {
   MAX_IMAGE_ARTIFACT_BYTES,
@@ -187,10 +188,10 @@ export const FULL_CALLOUT_MANIFEST_EXPECTATION = Object.freeze({
   }),
 });
 
-/** Exact producer contract for the full v4 booklet callout publication. */
-export function assertV4CalloutManifest(manifest, expectation = FULL_CALLOUT_MANIFEST_EXPECTATION) {
+/** Exact producer contract for the full v5 booklet callout publication. */
+export function assertV5CalloutManifest(manifest, expectation = FULL_CALLOUT_MANIFEST_EXPECTATION) {
   if (
-    manifest?.schemaVersion !== "lego.callout-thumbnails/4" ||
+    manifest?.schemaVersion !== "lego.callout-thumbnails/5" ||
     !SHA256.test(manifest.sourceHash ?? "") ||
     manifest.pageSelection !== "full booklet" ||
     !Number.isInteger(manifest.pagesCropped) ||
@@ -202,7 +203,7 @@ export function assertV4CalloutManifest(manifest, expectation = FULL_CALLOUT_MAN
     manifest.failures.length !== 0
   ) {
     throw new Error(
-      "Callout features and coverage require one failure-free full-booklet lego.callout-thumbnails/4 manifest with an exact source digest and declared callout count. Regenerate the complete publication from the current PDF.",
+      "Callout features and coverage require one failure-free full-booklet lego.callout-thumbnails/5 manifest with an exact source digest and declared callout count. Regenerate the complete publication from the current PDF.",
     );
   }
   if (
@@ -247,7 +248,7 @@ export function assertV4CalloutManifest(manifest, expectation = FULL_CALLOUT_MAN
       !SHA256.test(callout.sha256 ?? "")
     ) {
       throw new Error(
-        `Callout manifest entry ${index} (${JSON.stringify(callout?.identity ?? "missing identity")}) must have one unique stable identity matching its positive page/quantity/x/y fields, the fixed evidence contract ${JSON.stringify(expectedKind ?? "unresolved")}, a retained file, and a lowercase crop digest. Regenerate the full v4 publication; copied metadata cannot redefine a booklet callout.`,
+        `Callout manifest entry ${index} (${JSON.stringify(callout?.identity ?? "missing identity")}) must have one unique stable identity matching its positive page/quantity/x/y fields, the fixed evidence contract ${JSON.stringify(expectedKind ?? "unresolved")}, a retained file, and a lowercase crop digest. Regenerate the full v5 publication; copied metadata cannot redefine a booklet callout.`,
       );
     }
     const expectedStem = callout.identity.replaceAll("|", "-").replaceAll(".", "d");
@@ -267,6 +268,10 @@ export function assertV4CalloutManifest(manifest, expectation = FULL_CALLOUT_MAN
     }
     identities.add(callout.identity);
   }
+  // The second, independent source for the same classification: the type size
+  // the booklet printed the label at. The preregistered fixture above cannot see
+  // a multiplier nobody registered; this can.
+  assertPublishedQuantityFaces(manifest.callouts);
 
   const physical = manifest.callouts.filter(({ evidenceKind }) => evidenceKind === "part-art");
   const semantic = manifest.callouts.filter(({ evidenceKind }) => evidenceKind !== "part-art");
@@ -321,14 +326,14 @@ export async function readBoundManifestCrop(entry, root, decode) {
     });
   } catch (cause) {
     throw new Error(
-      `Callout crop ${JSON.stringify(entry.identity ?? "missing identity")} at ${JSON.stringify(entry.file ?? "missing file")} could not be read. Regenerate the exact v4 callout publication before extracting features.`,
+      `Callout crop ${JSON.stringify(entry.identity ?? "missing identity")} at ${JSON.stringify(entry.file ?? "missing file")} could not be read. Regenerate the exact v5 callout publication before extracting features.`,
       { cause },
     );
   }
   const actual = sha256Digest(bytes);
   if (actual !== entry.sha256) {
     throw new Error(
-      `Callout crop ${JSON.stringify(entry.identity ?? "missing identity")} at ${JSON.stringify(entry.file ?? "missing file")} has digest ${actual}, but the v4 manifest binds ${JSON.stringify(entry.sha256 ?? "missing")}. Regenerate the callout publication; do not compute descriptors from changed crop bytes.`,
+      `Callout crop ${JSON.stringify(entry.identity ?? "missing identity")} at ${JSON.stringify(entry.file ?? "missing file")} has digest ${actual}, but the v5 manifest binds ${JSON.stringify(entry.sha256 ?? "missing")}. Regenerate the callout publication; do not compute descriptors from changed crop bytes.`,
     );
   }
   return decode(bytes);
@@ -490,7 +495,7 @@ export function assertFeaturesArtifact(artifact) {
     comparisonCells > MAX_DESCRIPTOR_COMPARISON_CELLS
   ) {
     throw new Error(
-      `Part-identification features must use ${PART_FEATURES_SCHEMA}, bind their exact PDF/manifest inputs and every inventory source-image digest, contain exact non-degenerate ${DESCRIPTOR_GRID_CELLS}-cell descriptors and no more than ${MAX_DESCRIPTOR_COMPARISON_CELLS} worst-case descriptor-cell comparisons, retain canonical stable manifest records in order, and explicitly exclude every non-part-art record from descriptors and clustering. Observed worst-case work ${comparisonCells}. Regenerate them from the exact current v4 manifest and unchanged inventory gallery.`,
+      `Part-identification features must use ${PART_FEATURES_SCHEMA}, bind their exact PDF/manifest inputs and every inventory source-image digest, contain exact non-degenerate ${DESCRIPTOR_GRID_CELLS}-cell descriptors and no more than ${MAX_DESCRIPTOR_COMPARISON_CELLS} worst-case descriptor-cell comparisons, retain canonical stable manifest records in order, and explicitly exclude every non-part-art record from descriptors and clustering. Observed worst-case work ${comparisonCells}. Regenerate them from the exact current v5 manifest and unchanged inventory gallery.`,
     );
   }
   return features;

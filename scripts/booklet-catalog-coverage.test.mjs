@@ -66,7 +66,7 @@ describe("booklet catalog coverage report builder", () => {
     });
   });
 
-  it("binds stable v4 identities and exact PDF, manifest, crop, and claim evidence", () => {
+  it("binds stable v5 identities and exact PDF, manifest, crop, and claim evidence", () => {
     const input = fixture();
     const report = __testOnly.buildBookletCatalogCoverageReport(
       {
@@ -211,6 +211,7 @@ describe("booklet catalog coverage report builder", () => {
       "quantity",
       "sha256",
       "evidenceKind",
+      "heightPt",
     ];
     const fieldReads = Object.create(null);
     const accessorCallout = Object.fromEntries(bindingFields.map((field) => [field, undefined]));
@@ -249,6 +250,7 @@ describe("booklet catalog coverage report builder", () => {
       ["quantity", 2],
       ["sha256", digest("tampered-crop")],
       ["evidenceKind", "assembly-action"],
+      ["heightPt", 16],
     ];
     for (const [field, value] of cases) {
       const input = fixture();
@@ -283,7 +285,7 @@ describe("booklet catalog coverage report builder", () => {
         claims: truncated.claims,
         elements: truncated.elements,
       }),
-    ).toThrow(/features contain 1 callouts, but the exact v4 manifest contains 2/);
+    ).toThrow(/features contain 1 callouts, but the exact v5 manifest contains 2/);
   });
 
   it("keeps semantic multiplier/action identities out of catalog-part coverage", () => {
@@ -297,6 +299,7 @@ describe("booklet catalog coverage report builder", () => {
       quantity: 4,
       xPt: 274.854,
       yPt: 340.077,
+      heightPt: 16,
       evidenceKind: "subassembly-repeat",
       sha256: digest("semantic-action"),
     };
@@ -373,13 +376,32 @@ describe("booklet catalog coverage report builder", () => {
     );
   });
 
-  it("rejects non-v4, malformed, duplicate, and count-stale manifests", () => {
+  // Reader-side half of the derived type-size check. The producer refuses to
+  // publish a class its printed face contradicts; this refuses to read one, so a
+  // manifest edited after publication cannot reintroduce the 8-piece over-read.
+  it("rejects a published class its printed type size contradicts", () => {
+    const bytes = (manifest) => Buffer.from(`${JSON.stringify(manifest, null, 1)}\n`);
+    const withFace = (heightPt, evidenceKind) => {
+      const manifest = structuredClone(fixture().manifest);
+      manifest.callouts[0] = { ...manifest.callouts[0], heightPt, evidenceKind };
+      return { manifestBytes: bytes(manifest), manifestExpectation: expectationFor(manifest) };
+    };
+    expect(() => build(withFace(16, "part-art"))).toThrow(
+      /multiplier type size but published as physical part art/u,
+    );
+    expect(() => build(withFace(12, "part-art"))).toThrow(/never been measured at/u);
+    expect(() => build(withFace(undefined, "part-art"))).toThrow(
+      /publish no measured quantity-label type size/u,
+    );
+  });
+
+  it("rejects non-v5, malformed, duplicate, and count-stale manifests", () => {
     const input = fixture();
     const bytes = (manifest) => Buffer.from(`${JSON.stringify(manifest, null, 1)}\n`);
 
     expect(() =>
       build({ manifestBytes: bytes({ ...input.manifest, schemaVersion: "legacy" }) }),
-    ).toThrow(/lego\.callout-thumbnails\/4/);
+    ).toThrow(/lego\.callout-thumbnails\/5/);
     expect(() => build({ manifestBytes: Buffer.from("not-json") })).toThrow(/not valid JSON/);
     expect(() =>
       build({

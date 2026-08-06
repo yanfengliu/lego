@@ -37,7 +37,7 @@ describe("part-identification feature extraction and bound source reads", () => 
     const identity = "p11|q1|x43.074|y486.271";
     const identityDigest = sha256Digest(identity);
     const manifest = {
-      schemaVersion: "lego.callout-thumbnails/4",
+      schemaVersion: "lego.callout-thumbnails/5",
       sourceHash: FULL_CALLOUT_MANIFEST_EXPECTATION.sourceHash,
       pageSelection: "full booklet",
       pagesCropped: 1,
@@ -68,6 +68,7 @@ describe("part-identification feature extraction and bound source reads", () => 
           quantity: 1,
           xPt: 43.074,
           yPt: 486.271,
+          heightPt: 8,
           evidenceKind: "attacker-controlled",
           sha256: sha256Digest("crop"),
         },

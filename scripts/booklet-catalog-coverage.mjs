@@ -6,7 +6,7 @@ import { claimsFor } from "./part-identification-score.mjs";
 import {
   assertBoundMatchArtifacts,
   assertCardsArtifact,
-  assertV4CalloutManifest,
+  assertV5CalloutManifest,
   authenticateJsonArtifact,
   boundAnswers,
   FULL_CALLOUT_MANIFEST_EXPECTATION,
@@ -58,6 +58,10 @@ const FEATURE_BINDING_FIELDS = [
   "quantity",
   "sha256",
   "evidenceKind",
+  // The printed type size travels with evidenceKind, because it is the second
+  // independent source for it. Binding only the class would let features carry a
+  // face that no longer contradicts a wrong class.
+  "heightPt",
 ];
 const IDENTIFICATION_DIGEST_ROLES = new Set([
   "features",
@@ -121,7 +125,7 @@ function parseManifest(manifestBytes, expectation) {
   const artifact = jsonArtifactFromBytes(manifestBytes, "Callout manifest");
   return {
     artifact,
-    manifest: assertV4CalloutManifest(artifact.value, expectation),
+    manifest: assertV5CalloutManifest(artifact.value, expectation),
   };
 }
 
@@ -266,7 +270,7 @@ function assertFeaturesBindManifest(features, manifest) {
   }
   if (features.callouts.length !== manifest.callouts.length) {
     throw new Error(
-      `Part-identification features contain ${features.callouts.length} callouts, but the exact v4 manifest contains ${manifest.callouts.length}. Regenerate features and every index-bound identification artifact from this manifest.`,
+      `Part-identification features contain ${features.callouts.length} callouts, but the exact v5 manifest contains ${manifest.callouts.length}. Regenerate features and every index-bound identification artifact from this manifest.`,
     );
   }
   for (let index = 0; index < manifest.callouts.length; index += 1) {
@@ -278,7 +282,7 @@ function assertFeaturesBindManifest(features, manifest) {
     for (const field of FEATURE_BINDING_FIELDS) {
       if (actual[field] !== expected[field]) {
         throw new Error(
-          `Part-identification feature callout ${index} field ${field} is ${JSON.stringify(actual[field] ?? "missing")}, but the exact v4 manifest binds ${JSON.stringify(expected[field])}. Regenerate features and every index-bound identification artifact from this manifest.`,
+          `Part-identification feature callout ${index} field ${field} is ${JSON.stringify(actual[field] ?? "missing")}, but the exact v5 manifest binds ${JSON.stringify(expected[field])}. Regenerate features and every index-bound identification artifact from this manifest.`,
         );
       }
     }
@@ -288,7 +292,7 @@ function assertFeaturesBindManifest(features, manifest) {
 /**
  * Compiles content-bound catalog coverage without reading or writing the filesystem.
  * Claims stay index-bound only after every identity-bearing feature field has been
- * proven byte-for-byte equivalent to the exact v4 manifest entry at that index.
+ * proven byte-for-byte equivalent to the exact v5 manifest entry at that index.
  */
 function buildBookletCatalogCoverageReportWithExpectation(input, manifestExpectation) {
   const manifestBytes = input.manifestBytes;
@@ -704,7 +708,7 @@ export function runBookletCatalogCoverageCli(argv = process.argv.slice(2), conte
   const manifestPath = join(CALLOUTS, "manifest.json");
   if (!existsSync(manifestPath)) {
     throw new Error(
-      `Missing ${manifestPath}. Produce the full v4 manifest with: CALLOUT_PAGE_LIMIT=0 npx playwright test callout-thumbnails.`,
+      `Missing ${manifestPath}. Produce the full v5 manifest with: CALLOUT_PAGE_LIMIT=0 npx playwright test callout-thumbnails.`,
     );
   }
   const manifestArtifact = readJsonArtifact(manifestPath, "callout manifest");
