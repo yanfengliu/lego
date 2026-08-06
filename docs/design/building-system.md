@@ -130,3 +130,29 @@ It is the right target: it exercises rigid assembly, articulation, support and s
 
 A useful intermediate exists first, though, and costs almost nothing: place two compatible parts, snap, save, reload, render.
 Every piece of that already works here, so it is a regression test rather than a build.
+
+## Placement: search against the next panel, not inference from this one
+
+Nothing here places a piece yet, and the booklet does not say where pieces go.
+It gives placements rather than connections; roughly half its step highlights are open contours, because the new parts go behind built ones; some steps are drawn exploded, so the highlight fixes shape and orientation but not position; and a panel difference finds the right stud without fixing the offset.
+Treated as an inference problem — read this panel, output a transform — that is underdetermined, and the parts of it that are underdetermined are exactly the ones a rule cannot close.
+
+It is not underdetermined as a search problem, because the booklet renders the same growing object 359 times.
+Panel N+1 contains everything placed at step N. A wrong placement therefore does not merely produce a wrong model; it produces a visibly wrong panel N+1, and N+2, and every panel after. Each future step is a free check on every past placement, so the loop is: propose a placement, render the model from the panel's own camera, compare, and on disagreement undo and take the next candidate.
+
+That reframing dissolves the three hard cases rather than solving them. An exploded step need not be read at all, because the following step is not exploded. An open contour does not matter when the whole render is being compared instead of the highlight. And "the right stud but not the right offset" describes a candidate set, which is what a search wants.
+
+The oracle already exists: `compareBuilds` scores a rebuild per step, `capture_model_views()` renders canonical views, and the camera is solved — a panel's own stud grid fits the booklet's angle and scale with no part identities. The lattice, the connector graph and the collision check prune candidates before any render, and the depletion walk narrows which part is being placed.
+
+Vision belongs here in two distinct jobs, and the distinction is measured rather than stylistic.
+Reading an exploded panel — which floating piece belongs where, on which face, which way up — is general visual sense and cannot be hardcoded; that is a PROPOSER, open-ended, and cheap to be wrong because a wrong candidate is discarded by the next panel.
+Asking whether a render matches a printed panel is a CHECKER, and it must be posed as same-or-different: the open N-way form measured 39.9 percent self-consistent on this booklet where the closed binary form scored 84 of 84 between two independent raters.
+Proposer output stays untrusted data, as every other provider result here does.
+
+Symmetry defers the check rather than defeating it, and that distinction sets the real requirement.
+A placement that renders identically to the correct one contradicts nothing at the step it is made — but it is only *locally* symmetric. A 2x2 plate rotated a quarter turn is indistinguishable alone; attach a 1x2 to one of its edges and the two orientations diverge. The booklet does precisely that, because the model keeps growing on top of every placement, so a symmetric mistake surfaces as soon as something lands that breaks the symmetry, and then it fails like any other wrong placement.
+The frame calibration met the same shape and settled it up front, with an independent witness at a measured margin, because a catalog frame is fixed once and reused everywhere. A placement is not: it sits in a sequence that keeps testing it.
+
+So the requirement is not to resolve ambiguity before committing, which is expensive and sometimes impossible. It is to be able to go back far enough when it surfaces — deep backtracking, and a history the search can actually rewind.
+That also gives the loop its own measurable: how many steps had to be undone, and how far back the deepest reversal reached. A number that can be recorded and driven down, where "prove this placement is unique" cannot be.
+Building it right in one shot is not the goal; noticing and recovering is.
