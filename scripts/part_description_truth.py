@@ -361,3 +361,67 @@ def contaminated_element_probe(ledger, by_identity, answers, builder, rankings, 
             }
         )
     return probe
+
+
+# The geometry chain: every input whose bytes decide which drawings exist, how
+# they cluster, and what the pixel descriptor says about them. If any of these
+# move, the cluster indices renumber and every number measured against them
+# describes a set of drawings that no longer exists.
+#
+# `answers-claude-opus-5.json` is deliberately NOT here. It is the one input a
+# concurrent identification run is expected to republish, and it did move during
+# this measurement (0f2ffb13 -> 0613481b) while the chain below did not. Pinning
+# it would turn an expected republication into a false drift alarm; it is
+# checked differently, by requiring its own `matchDigest` to equal the live
+# match, which is the property that actually matters for it.
+GEOMETRY_CHAIN_PINS = {
+    "output/part-identification/element-resolution.json": (
+        "sha256:9fb2abe8f764f3381135b378c7940f63b69a77ed0f6db8a8f28ba2d8224b3a30"
+    ),
+    "output/part-identification/match.json": (
+        "sha256:ed0f5102f0759da1b17b3b1cda2873f0fcc25e3ba53d4eb90971666c3a968fda"
+    ),
+    "output/part-identification/distances.json": (
+        "sha256:c9b706b5e1f75bb29100663baaa89b04cea197da50cd3e4581e687cb26b16dca"
+    ),
+    "output/part-identification/features.json": (
+        "sha256:2d687f879f9d9b8ca2ec6a2ae98e56179de54a86ddc1fa715f0114508388506f"
+    ),
+    "scripts/fixtures/part-identification-truth-first50.json": (
+        "sha256:639e99ce1bf1785f1f99c9c696ddb4d678946f40b385b7e40547e87d7ece5445"
+    ),
+    "output/real-build/action-ledger.json": (
+        "sha256:872826151c5f4dd57de1b16cce1fc70849d933323e948f7904bb6b1077f7879d"
+    ),
+    "output/official-model/vx1087034_21066_a.xml": (
+        "sha256:c0564fd86ede633f6cb18738f999fbb70ee948ba93a55cc8d338b4b5f02b5922"
+    ),
+}
+
+
+def geometry_chain_drift(pins: dict[str, str]) -> dict:
+    """Whether this run's inputs are the ones the recorded conclusions describe.
+
+    Reported rather than asserted, and every moved input is named with both
+    digests. A run against a drifted chain is not wrong, it is about a different
+    booklet cut -- so the honest outcome is "these numbers describe generation
+    X", not a failure. Silence would let a reader compare two reports measured
+    over different drawings and read the agreement as corroboration.
+    """
+
+    moved = []
+    for path, expected in GEOMETRY_CHAIN_PINS.items():
+        actual = pins.get(path)
+        if actual != expected:
+            moved.append({"path": path, "pinned": expected, "actual": actual})
+    return {
+        "stable": not moved,
+        "inputsChecked": len(GEOMETRY_CHAIN_PINS),
+        "moved": moved,
+        "note": (
+            "The geometry chain is every input that decides which drawings exist and how they "
+            "cluster. It excludes the answers artifact, which a concurrent identification run "
+            "is expected to republish and which is checked instead by requiring its own "
+            "matchDigest to equal the live match."
+        ),
+    }
