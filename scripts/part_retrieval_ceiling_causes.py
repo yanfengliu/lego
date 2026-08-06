@@ -266,7 +266,7 @@ def elimination_and_colour_blocks(union, clusters, resolution, held_of, displaye
 DEFECTIVE_SIBLING_DISTANCE = 0.30
 
 
-def attribute_misses(miss_ablation, outliers, displayed_k=DISPLAYED_K):
+def attribute_misses(miss_ablation, outliers, unreachable=(), displayed_k=DISPLAYED_K):
     """Separate what a miss looks like from what would actually repair it.
 
     Every miss in this generation shows the same symptom - the card offered no
@@ -305,6 +305,23 @@ def attribute_misses(miss_ablation, outliers, displayed_k=DISPLAYED_K):
                 "shapeTermAtTruth": miss["termsAtTruth"]["shape"],
             }
         )
+    # A truth whose element has no thumbnail at all cannot be ablated - there is
+    # no descriptor to ablate - but it is still a miss, and dropping it here would
+    # let byRepair sum to fewer misses than there are while looking complete.
+    for record in unreachable:
+        rows.append(
+            {
+                "clusterIndex": record.cluster_index,
+                "elementId": record.element_id,
+                "name": None,
+                "rank": None,
+                "repair": "publish-a-thumbnail-for-the-element",
+                "rankWithoutTheColourTerm": None,
+                "droppingColourMakesItWorse": False,
+                "colourTermAtTruth": None,
+                "shapeTermAtTruth": None,
+            }
+        )
     by_repair = collections.Counter(row["repair"] for row in rows)
     return {
         "note": (
@@ -314,6 +331,9 @@ def attribute_misses(miss_ablation, outliers, displayed_k=DISPLAYED_K):
             "colour moves them further away. Count the repairs, not the symptom."
         ),
         "misses": len(rows),
+        "ablatableMisses": len(miss_ablation),
+        "unreachableMisses": len(unreachable),
+        "everyMissAccountedFor": len(rows) == len(miss_ablation) + len(unreachable),
         "byRepair": dict(sorted(by_repair.items())),
         "colourReweightWouldHarm": sum(1 for row in rows if row["droppingColourMakesItWorse"]),
         "detail": rows,
@@ -325,7 +345,9 @@ def attribute_misses(miss_ablation, outliers, displayed_k=DISPLAYED_K):
 DEFECT_SIDE_RATIO = 10.0
 
 
-def triangulate_defect_side(miss_ablation, lead_descriptors, inventory, design_of, groups):
+def triangulate_defect_side(
+    miss_ablation, lead_descriptors, inventory, design_of, groups, unreachable=()
+):
     """Which side of the comparison is broken: the inventory crop or the callout crop.
 
     A sibling outlier says one thumbnail disagrees with the others; it cannot say
@@ -382,7 +404,17 @@ def triangulate_defect_side(miss_ablation, lead_descriptors, inventory, design_o
                 "verdict": verdict,
             }
         )
+    for record in unreachable:
+        rows.append(
+            {
+                "clusterIndex": record.cluster_index,
+                "elementId": record.element_id,
+                "siblings": 0,
+                "verdict": "not-measurable-no-thumbnail",
+            }
+        )
     return {
+        "everyMissAccountedFor": len(rows) == len(miss_ablation) + len(unreachable),
         "note": (
             "A third measurement - the booklet's own callout of the same part - says "
             "which side of a sibling disagreement is broken. Four outcomes, because a "

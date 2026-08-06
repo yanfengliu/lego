@@ -329,8 +329,9 @@ def build_report(quick: bool = False) -> dict:
         if record.rank is not None
     ]
 
+    unreachable_misses = [record for record in misses if record.rank is None]
     report["missAttribution"] = attribute_misses(
-        report["missAblation"], outliers
+        report["missAblation"], outliers, unreachable_misses
     )
 
     import collections as _collections
@@ -349,6 +350,7 @@ def build_report(quick: bool = False) -> dict:
         features["inventory"],
         design_of,
         mould_groups,
+        unreachable_misses,
     )
 
     if quick:

@@ -32,7 +32,11 @@ from part_retrieval_ceiling import (
     shape_distance,
     weighted_total,
 )
-from part_retrieval_ceiling_causes import sibling_outliers
+from part_retrieval_ceiling_causes import (
+    attribute_misses,
+    sibling_outliers,
+    triangulate_defect_side,
+)
 
 # The generation every live number below was measured against.
 PINNED = {
@@ -185,6 +189,52 @@ class TruthBindingTest(unittest.TestCase):
         )
 
 
+class MissAccountingTest(unittest.TestCase):
+    """A miss that cannot be ablated must still come back as a row.
+
+    This generation has no truth element without a thumbnail, so the live half
+    cannot exercise the path at all - which is exactly why it is driven here.
+    A branch nothing reaches reports green forever.
+    """
+
+    def test_a_truth_with_no_thumbnail_is_attributed_not_dropped(self) -> None:
+        unreachable = [record(7, "4211393", None)]
+        attribution = attribute_misses([], [], unreachable)
+        self.assertEqual(attribution["misses"], 1)
+        self.assertEqual(attribution["unreachableMisses"], 1)
+        self.assertTrue(attribution["everyMissAccountedFor"])
+        self.assertEqual(
+            attribution["byRepair"], {"publish-a-thumbnail-for-the-element": 1}
+        )
+        self.assertFalse(attribution["detail"][0]["droppingColourMakesItWorse"])
+
+    def test_an_unablatable_miss_is_not_measurable_rather_than_absent(self) -> None:
+        side = triangulate_defect_side([], {}, {}, {}, {}, [record(7, "4211393", None)])
+        self.assertTrue(side["everyMissAccountedFor"])
+        self.assertEqual(side["byVerdict"], {"not-measurable-no-thumbnail": 1})
+
+    def test_an_element_with_no_sibling_is_its_own_verdict(self) -> None:
+        ablation = [
+            {
+                "clusterIndex": 0,
+                "elementId": "111",
+                "name": "solo",
+                "rank": 9,
+                "colour": 9,
+                "termsAtTruth": {"colour": 0.1, "shape": 0.1},
+            }
+        ]
+        side = triangulate_defect_side(
+            ablation,
+            {0: descriptor([255], aspect=1.0)},
+            {"111": descriptor([255], aspect=1.0)},
+            {"111": "3020"},
+            {"3020": ["111"]},
+        )
+        self.assertEqual(side["byVerdict"], {"no-sibling-to-compare": 1})
+        self.assertTrue(side["everyMissAccountedFor"])
+
+
 class SiblingOutlierTest(unittest.TestCase):
     def test_the_odd_thumbnail_of_a_mould_scores_furthest_from_its_siblings(self) -> None:
         inventory = {
@@ -287,6 +337,7 @@ class PinnedGenerationTest(unittest.TestCase):
 
         side = self.report["defectSide"]
         self.assertEqual(side["byVerdict"], {"agrees-on-both-sides": 1, "inventory-thumbnail": 2})
+        self.assertTrue(side["everyMissAccountedFor"])
         by_cluster = {row["clusterIndex"]: row for row in side["detail"]}
         self.assertEqual(by_cluster[101]["verdict"], "agrees-on-both-sides")
         self.assertEqual(by_cluster[101]["ratio"], 1.0)
@@ -319,6 +370,8 @@ class PinnedGenerationTest(unittest.TestCase):
             {"recrop-the-inventory-thumbnail": 2, "the-colour-term": 1},
         )
         self.assertEqual(attribution["colourReweightWouldHarm"], 2)
+        self.assertTrue(attribution["everyMissAccountedFor"])
+        self.assertEqual(attribution["unreachableMisses"], 0)
         worse = {row["clusterIndex"] for row in attribution["detail"] if row["droppingColourMakesItWorse"]}
         self.assertEqual(worse, {15, 53})
 
