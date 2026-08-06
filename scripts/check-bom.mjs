@@ -72,7 +72,67 @@ function extractBom() {
     throw new Error("missing the machine-readable BOM data block");
   }
 
-  return JSON.parse(match[1]);
+  return parseRejectingDuplicateKeys(match[1]);
+}
+
+/**
+ * Parse the BOM, refusing an object that declares the same key twice.
+ *
+ * `JSON.parse` is last-wins, so a record that loses its opening brace merges
+ * into the record above it and silently overwrites that record's fields. That
+ * happened here: the 3245 quarantine record's nine fields landed inside
+ * `lego-builder-step1-shell-frame-calibration`, replacing its `source` with a
+ * LEGO API URL and its `declaredLicense` with one that drops the per-file LDraw
+ * CC BY terms. Every count this checker reports stayed green, because after the
+ * merge the document is valid JSON describing one fewer source than it contains.
+ *
+ * A licence record that can be overwritten without the licence gate noticing is
+ * the failure this rejects.
+ */
+function parseRejectingDuplicateKeys(text) {
+  // A reviver cannot see a duplicate - it is called once per surviving key -
+  // so the raw text is walked separately to find keys declared twice.
+  const duplicates = collectDuplicateKeys(text);
+  if (duplicates.length > 0) {
+    const detail = duplicates.map(({ key, id }) => `${id ?? "<unnamed object>"}.${key}`);
+    throw new Error(
+      `the BOM data block declares ${duplicates.length} duplicate key(s): ${detail.join(", ")}. ` +
+        `JSON.parse keeps the last value, so an earlier field was silently overwritten - usually a ` +
+        `record that lost its opening brace and merged into the one above it. Restore the object ` +
+        `boundary; do not delete the duplicated keys.`,
+    );
+  }
+  return JSON.parse(text);
+}
+
+function collectDuplicateKeys(text) {
+  const duplicates = [];
+  const stack = [];
+  let current = null;
+  const tokens = text.matchAll(/"((?:[^"\\]|\\.)*)"\s*:|[{}[\]]/g);
+  for (const token of tokens) {
+    const [raw, key] = token;
+    if (raw === "{") {
+      stack.push(current);
+      current = { keys: new Set(), id: null };
+      continue;
+    }
+    if (raw === "}") {
+      current = stack.pop() ?? null;
+      continue;
+    }
+    if (raw === "[" || raw === "]" || key === undefined) continue;
+    if (current === null) continue;
+    if (current.keys.has(key)) {
+      duplicates.push({ key, id: current.id });
+    }
+    current.keys.add(key);
+    if (key === "id") {
+      const after = text.slice(token.index + raw.length).match(/^\s*"((?:[^"\\]|\\.)*)"/);
+      if (after) current.id = after[1];
+    }
+  }
+  return duplicates;
 }
 
 function declarationKey(declaration) {
