@@ -61,6 +61,8 @@ from part_description_truth import (
     ClusterTruth,
     build_cluster_index,
     builder_export_truth,
+    colour_gap_analysis,
+    contaminated_element_probe,
     depletion_survivors,
     digest,
     interleave,
@@ -69,6 +71,7 @@ from part_description_truth import (
     pair_judged_truth,
     pixel_ranking,
     recall_table,
+    SHIPPING_SHORTLIST,
 )
 
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
@@ -162,6 +165,11 @@ def main() -> int:
     answers = answers_file["answers"]
     survivors = depletion_survivors(match, features, inventory, coverage)
 
+    def describe(answer: object) -> DescribedQuery | None:
+        """One answers row as a described query, or None when there is no row."""
+
+        return DescribedQuery.from_answer(answer) if isinstance(answer, dict) else None
+
     def rankings(index: int, query: DescribedQuery | None) -> dict:
         """Every ranking this run compares, for one cluster."""
 
@@ -203,7 +211,7 @@ def main() -> int:
         if truth is None or truth.positive is None:
             continue
         answer = answers.get(str(index))
-        query = DescribedQuery.from_answer(answer) if isinstance(answer, dict) else None
+        query = describe(answer)
         ranked = rankings(index, query)
 
         description_best = rank_of(ranked["description"], truth.positive)
@@ -292,56 +300,9 @@ def main() -> int:
     judged_only = [r for r in scored if r["sources"] == ["pair-judged"]]
     no_caveat = [r for r in scored if r["colourCaveat"] is None]
 
-    # The worked example, asked of both retrievals by name.
-    contaminated: list[dict] = []
-    refused_keys = {
-        row["calloutKey"]: row["stepNumber"]
-        for row in ledger.get("provenance", {}).get("refusals", [])
-    }
-    for callout_key, step_number in refused_keys.items():
-        index = by_identity.get(callout_key)
-        if index is None:
-            contaminated.append({"calloutKey": callout_key, "cluster": None})
-            continue
-        answer = answers.get(str(index))
-        query = DescribedQuery.from_answer(answer) if isinstance(answer, dict) else None
-        ranked = rankings(index, query)
-        contaminated.append(
-            {
-                "printedStep": step_number,
-                "calloutKey": callout_key,
-                "cluster": index,
-                "builderExportElement": builder.get(index, (None, None))[0],
-                "described": (
-                    None
-                    if query is None
-                    else {
-                        "kind": query.kind,
-                        "studsLong": query.studs_long,
-                        "studsWide": query.studs_wide,
-                        "colour": query.colour,
-                    }
-                ),
-                "pixelRankOf302028": rank_of(ranked["pixel"], CONTAMINATED_ELEMENT),
-                "descriptionRankOf302028": worst_rank_in_tie(
-                    ranked["description"], CONTAMINATED_ELEMENT
-                ),
-                "descriptionRankOf302028Optimistic": rank_of(
-                    ranked["description"], CONTAMINATED_ELEMENT
-                ),
-                "descriptionPlusDepletionRankOf302028": worst_rank_in_tie(
-                    ranked["descriptionPlusDepletion"], CONTAMINATED_ELEMENT
-                ),
-                "interleavedRankOf302028": rank_of(ranked["interleaved"], CONTAMINATED_ELEMENT),
-                "pixelTop6": [element for element, _ in ranked["pixel"][:6]],
-                "descriptionTop6": [element for element, _ in ranked["description"][:6]],
-                "note": (
-                    "Reported as a measurement about the two retrievals. The pair-judged "
-                    "refusal at this step is not overridden, relabelled or weakened by this "
-                    "run, which writes no assignment and no label."
-                ),
-            }
-        )
+    contaminated = contaminated_element_probe(
+        ledger, by_identity, answers, builder, rankings, describe
+    )
 
     # Where the depletion pruning removes the answer, and why. Its premise is
     # that one cluster is one element, so a cluster's whole demand can be
@@ -373,12 +334,15 @@ def main() -> int:
             }
         )
 
+    # Why the fusion works, checked rather than asserted; see the function.
+    colour_is_the_gap = colour_gap_analysis(scored, match, inventory)
+
     # What each retrieval does with an element a blind judge already refused.
     refuted: list[dict] = []
     for row in rows:
         for element_id in row["negatives"]:
             answer = answers.get(str(row["cluster"]))
-            query = DescribedQuery.from_answer(answer) if isinstance(answer, dict) else None
+            query = describe(answer)
             ranked = rankings(row["cluster"], query)
             refuted.append(
                 {
@@ -471,7 +435,7 @@ def main() -> int:
         },
         "candidateCount": {
             "pixelUniverse": len(pixel_universe),
-            "shippingShortlist": 6,
+            "shippingShortlist": SHIPPING_SHORTLIST,
             "descriptionUniverse": len(pixel_universe),
             "meanDepletionSurvivors": (
                 round(sum(r["depletionSurvivors"] for r in scored) / len(scored), 2)
@@ -487,6 +451,7 @@ def main() -> int:
                 else 0
             ),
         },
+        "colourIsTheWholeGap": colour_is_the_gap,
         "limits": {
             "unbiasedTruthCoversOnlyThePrintedPrefix": (
                 f"The Builder export is the only unbiased source here and it reaches "

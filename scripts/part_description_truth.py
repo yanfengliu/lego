@@ -25,11 +25,18 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from booklet_depletion_walk import Claim, Cluster, consumed_before, narrow_cluster
+from part_description_retrieval import rank_of, worst_rank_in_tie
 
 # The k values both retrievals are reported at. 6 is the shipping shortlist size
 # and is not changed by anything here; the rest bracket it so the shape of the
 # rank distribution is visible rather than a single pass/fail.
 RECALL_K = (1, 3, 6, 10, 25)
+
+# How many candidates the shipping card actually puts in front of the model.
+# Read from here rather than written as a 6 at each use so that "the shortlist"
+# and "recall at the shortlist" cannot drift apart. Nothing in this comparison
+# changes it; it is the number the ceiling is a ceiling at.
+SHIPPING_SHORTLIST = 6
 
 BRICK_RECORD = re.compile(r'<Brick designID="([^"]+)" itemNos="([^"]+)" uuid="([^"]+)"')
 
@@ -279,3 +286,137 @@ def recall_table(ranks: list[int | None]) -> dict[str, float | int]:
     return table
 
 
+def colour_gap_analysis(scored: list[dict], match: dict, inventory: dict) -> dict:
+    """Whether the pixel descriptor's misses are exactly its colour blind spots.
+
+    The pixel descriptor retrieves the mould and loses the colour variant. If
+    that is the *whole* of the gap, then the clusters it misses at the shipping
+    shortlist should be exactly the clusters whose printed card offered no
+    candidate in the true colour -- a set equality, not an overlap, and
+    falsifiable in both directions. Both differences are returned, so a later
+    generation that breaks the claim reports the break instead of inheriting the
+    conclusion, and a partial overlap cannot read as a confirmation.
+
+    Where it holds, a fused shortlist is not an ensemble that happened to work:
+    the two rankings are the two halves of one split, and the description
+    supplies exactly the axis the card could not offer.
+    """
+
+    card_colours = {
+        cluster["clusterIndex"]: {
+            inventory[c["elementId"]]["colorId"]
+            for c in cluster["candidates"]
+            if c["elementId"] in inventory
+        }
+        for cluster in match["clusters"]
+    }
+    missed = {
+        r["cluster"]
+        for r in scored
+        if r["pixelRank"] is None or r["pixelRank"] > SHIPPING_SHORTLIST
+    }
+    colour_absent = {
+        r["cluster"]
+        for r in scored
+        if inventory[r["truth"]]["colorId"] not in card_colours.get(r["cluster"], set())
+    }
+    return {
+        "clustersScored": len(scored),
+        "shortlist": SHIPPING_SHORTLIST,
+        "pixelMissedAtShortlist": sorted(missed),
+        "cardOfferedNoCandidateOfTheTrueColour": sorted(colour_absent),
+        "setsAreEqual": missed == colour_absent,
+        "missedButColourWasOffered": sorted(missed - colour_absent),
+        "colourAbsentButRetrievedAnyway": sorted(colour_absent - missed),
+        "rows": [
+            {
+                "cluster": r["cluster"],
+                "truth": r["truth"],
+                "truthName": r["truthName"],
+                "trueColourLdraw": inventory[r["truth"]]["colorId"],
+                "cardColoursLdraw": sorted(card_colours.get(r["cluster"], set())),
+                "describedColour": (r["described"] or {}).get("colour"),
+                "pixelRank": r["pixelRank"],
+                "descriptionRank": r["descriptionRank"],
+                "interleavedRank": r["interleavedRank"],
+            }
+            for r in scored
+            if r["cluster"] in missed | colour_absent
+        ],
+    }
+
+
+def contaminated_element_probe(ledger, by_identity, answers, builder, rankings, describe):
+    """Where the contaminated green Plate 2 x 4 lands, for the two refused callouts.
+
+    The worked example the whole comparison rests on, asked of both retrievals by
+    name rather than inferred from an aggregate. `rankings` and `describe` are
+    supplied by the driver so this stays a pure report over data it is handed.
+
+    This is a measurement about the retrievals. The pair-judged refusals at
+    printed steps 5 and 7 are not overridden, relabelled or weakened by it: no
+    assignment, label or verdict is written anywhere in this comparison.
+    """
+
+    probe = []
+    refused = {
+        row["calloutKey"]: row["stepNumber"]
+        for row in ledger.get("provenance", {}).get("refusals", [])
+    }
+    for callout_key, step_number in refused.items():
+        index = by_identity.get(callout_key)
+        if index is None:
+            probe.append(
+                {
+                    "printedStep": step_number,
+                    "calloutKey": callout_key,
+                    "cluster": None,
+                    "note": (
+                        f"{callout_key} is a recorded ledger refusal but is not a callout in "
+                        f"the live match, so the current gallery cut this drawing differently "
+                        f"and there is no cluster to probe. Re-cut the gallery or re-emit the "
+                        f"ledger against it."
+                    ),
+                }
+            )
+            continue
+        answer = answers.get(str(index))
+        query = describe(answer)
+        ranked = rankings(index, query)
+        probe.append(
+            {
+                "printedStep": step_number,
+                "calloutKey": callout_key,
+                "cluster": index,
+                "builderExportElement": builder.get(index, (None, None))[0],
+                "described": (
+                    None
+                    if query is None
+                    else {
+                        "kind": query.kind,
+                        "studsLong": query.studs_long,
+                        "studsWide": query.studs_wide,
+                        "colour": query.colour,
+                    }
+                ),
+                "pixelRankOf302028": rank_of(ranked["pixel"], CONTAMINATED_ELEMENT),
+                "descriptionRankOf302028": worst_rank_in_tie(
+                    ranked["description"], CONTAMINATED_ELEMENT
+                ),
+                "descriptionRankOf302028Optimistic": rank_of(
+                    ranked["description"], CONTAMINATED_ELEMENT
+                ),
+                "descriptionPlusDepletionRankOf302028": worst_rank_in_tie(
+                    ranked["descriptionPlusDepletion"], CONTAMINATED_ELEMENT
+                ),
+                "interleavedRankOf302028": rank_of(ranked["interleaved"], CONTAMINATED_ELEMENT),
+                "pixelTop6": [e for e, _ in ranked["pixel"][:SHIPPING_SHORTLIST]],
+                "descriptionTop6": [e for e, _ in ranked["description"][:SHIPPING_SHORTLIST]],
+                "note": (
+                    "Reported as a measurement about the two retrievals. The pair-judged "
+                    "refusal at this step is not overridden, relabelled or weakened by this "
+                    "run, which writes no assignment and no label."
+                ),
+            }
+        )
+    return probe

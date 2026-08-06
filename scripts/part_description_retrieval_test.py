@@ -388,6 +388,86 @@ class ScorerSemanticsTests(unittest.TestCase):
         self.assertEqual(rank_of(fused, "truth"), 2)
         self.assertEqual(worst_rank_in_tie(fused, "truth"), 1)
 
+    def _colour_gap_case(self, rows: list[tuple[int, str, int | None, list[str]]]) -> dict:
+        """(cluster, truthColour, pixelRank, cardColours) -> the analysis over them."""
+
+        inventory: dict[str, dict] = {}
+        match: dict = {"clusters": []}
+        scored: list[dict] = []
+        for cluster, truth_colour, pixel_rank, card_colours in rows:
+            truth = f"truth{cluster}"
+            inventory[truth] = {"partNum": "0", "name": "T", "colorId": truth_colour, "quantity": 1}
+            candidates = []
+            for offset, colour in enumerate(card_colours):
+                element = f"c{cluster}_{offset}"
+                inventory[element] = {
+                    "partNum": "0",
+                    "name": "C",
+                    "colorId": colour,
+                    "quantity": 1,
+                }
+                candidates.append({"elementId": element})
+            match["clusters"].append({"clusterIndex": cluster, "candidates": candidates})
+            scored.append(
+                {
+                    "cluster": cluster,
+                    "truth": truth,
+                    "truthName": "T",
+                    "described": {"colour": "X"},
+                    "pixelRank": pixel_rank,
+                    "descriptionRank": 1,
+                    "interleavedRank": 1,
+                }
+            )
+        return self.scorer.colour_gap_analysis(scored, match, inventory)
+
+    def test_colour_absence_and_a_miss_are_reported_as_the_same_event(self) -> None:
+        """The load-bearing claim: the misses are exactly the colour blind spots."""
+
+        analysis = self._colour_gap_case(
+            [
+                (1, "0", 1, ["0", "72"]),  # retrieved, true colour offered
+                (2, "2", 197, ["0", "72"]),  # missed, true colour absent
+                (3, "0", 20, ["379", "71"]),  # missed, true colour absent
+            ]
+        )
+        self.assertTrue(analysis["setsAreEqual"])
+        self.assertEqual(analysis["pixelMissedAtShortlist"], [2, 3])
+        self.assertEqual(analysis["cardOfferedNoCandidateOfTheTrueColour"], [2, 3])
+        self.assertEqual(analysis["missedButColourWasOffered"], [])
+        self.assertEqual(analysis["colourAbsentButRetrievedAnyway"], [])
+
+    def test_a_partial_overlap_cannot_read_as_a_confirmation(self) -> None:
+        """Both differences are reported, so the claim is falsifiable either way."""
+
+        missed_anyway = self._colour_gap_case(
+            [
+                (1, "0", 99, ["0", "72"]),  # missed although the colour was there
+                (2, "2", 197, ["0", "72"]),
+            ]
+        )
+        self.assertFalse(missed_anyway["setsAreEqual"])
+        self.assertEqual(missed_anyway["missedButColourWasOffered"], [1])
+
+        retrieved_anyway = self._colour_gap_case(
+            [
+                (1, "2", 3, ["0", "72"]),  # colour absent, retrieved regardless
+            ]
+        )
+        self.assertFalse(retrieved_anyway["setsAreEqual"])
+        self.assertEqual(retrieved_anyway["colourAbsentButRetrievedAnyway"], [1])
+
+    def test_a_truth_that_never_ranks_counts_as_missed_at_the_shortlist(self) -> None:
+        analysis = self._colour_gap_case([(1, "2", None, ["0"])])
+        self.assertEqual(analysis["pixelMissedAtShortlist"], [1])
+
+    def test_the_shortlist_boundary_is_the_shipping_one(self) -> None:
+        """Rank 6 is on the card; rank 7 is not. This comparison never changes k."""
+
+        analysis = self._colour_gap_case([(1, "2", 6, ["0"]), (2, "2", 7, ["0"])])
+        self.assertEqual(self.scorer.SHIPPING_SHORTLIST, 6)
+        self.assertEqual(analysis["pixelMissedAtShortlist"], [2])
+
     def test_a_builder_row_with_no_live_cluster_is_named_rather_than_dropped(self) -> None:
         ledger = {
             "steps": [
