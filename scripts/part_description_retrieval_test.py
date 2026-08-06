@@ -310,9 +310,11 @@ class ScorerSemanticsTests(unittest.TestCase):
     """How the head-to-head driver handles missing, conflicting and unmapped truth."""
 
     def setUp(self) -> None:
+        import part_description_causes as causes
         import part_description_truth as truth
 
         self.scorer = truth
+        self.causes = causes
 
     def test_an_unranked_truth_counts_as_a_miss_and_is_reported_separately(self) -> None:
         """A filter that removes the answer must not read as a smaller universe."""
@@ -419,7 +421,7 @@ class ScorerSemanticsTests(unittest.TestCase):
                     "interleavedRank": 1,
                 }
             )
-        return self.scorer.colour_gap_analysis(scored, match, inventory)
+        return self.causes.colour_gap_analysis(scored, match, inventory)
 
     def test_colour_absence_and_a_miss_are_reported_as_the_same_event(self) -> None:
         """The load-bearing claim: the misses are exactly the colour blind spots."""
@@ -489,7 +491,7 @@ class ScorerSemanticsTests(unittest.TestCase):
             "callouts": [{"descriptor": {"aspect": callout}}],
         }
         match = {"clusters": [{"clusterIndex": 1, "members": [0]}]}
-        return self.scorer.defect_side_triangulation(
+        return self.causes.defect_side_triangulation(
             [(1, "truth")], match, features, inventory
         )["rows"][0]
 
@@ -498,7 +500,7 @@ class ScorerSemanticsTests(unittest.TestCase):
 
         row = self._triangulation_case(1.688, 0.862, [1.693, 1.693, 1.687])
         self.assertEqual(row["defectiveSide"], "inventory-thumbnail")
-        self.assertGreater(row["gapRatio"], self.scorer.DEFECT_SEPARATION_RATIO)
+        self.assertGreater(row["gapRatio"], self.causes.DEFECT_SEPARATION_RATIO)
 
     def test_a_callout_matching_only_its_own_thumbnail_convicts_the_callout(self) -> None:
         row = self._triangulation_case(0.900, 0.898, [1.700, 1.690])
@@ -516,16 +518,90 @@ class ScorerSemanticsTests(unittest.TestCase):
 
         row = self._triangulation_case(0.731, 0.723, [0.723])
         self.assertEqual(row["defectiveSide"], "neither-geometry-agrees-on-both-sides")
-        self.assertLess(row["gapRatio"], self.scorer.DEFECT_SEPARATION_RATIO)
+        self.assertLess(row["gapRatio"], self.causes.DEFECT_SEPARATION_RATIO)
 
     def test_the_separation_threshold_has_headroom_rather_than_being_a_boundary(self) -> None:
         """The real data sits at 1.0x, 60.7x and 263.8x; nothing sits near 10x."""
 
-        self.assertEqual(self.scorer.DEFECT_SEPARATION_RATIO, 10.0)
+        self.assertEqual(self.causes.DEFECT_SEPARATION_RATIO, 10.0)
         tie = self._triangulation_case(0.731, 0.723, [0.723])
         thumbnail = self._triangulation_case(1.688, 0.862, [1.693, 1.693, 1.687])
-        self.assertLess(tie["gapRatio"] * 5, self.scorer.DEFECT_SEPARATION_RATIO)
-        self.assertGreater(thumbnail["gapRatio"], self.scorer.DEFECT_SEPARATION_RATIO * 5)
+        self.assertLess(tie["gapRatio"] * 5, self.causes.DEFECT_SEPARATION_RATIO)
+        self.assertGreater(thumbnail["gapRatio"], self.causes.DEFECT_SEPARATION_RATIO * 5)
+
+    def test_an_element_with_no_sibling_gets_a_verdict_of_its_own_not_a_skip(self) -> None:
+        """The regression for a bare `continue` that reported a clean row count.
+
+        113 of the 265 elements with a thumbnail have no same-mould sibling, so
+        the triangulation is simply undefined for them. Dropping those rows made
+        "no row said callout-crop" look like evidence when the question had not
+        been asked -- the same defect the instrument exists to expose.
+        """
+
+        analysis = self.causes.defect_side_triangulation(
+            [(1, "truth")],
+            {"clusters": [{"clusterIndex": 1, "members": [0]}]},
+            {
+                "inventory": {"truth": {"aspect": 0.9}},
+                "callouts": [{"descriptor": {"aspect": 1.7}}],
+            },
+            {"truth": {"partNum": "P", "name": "T", "colorId": "2", "quantity": 1}},
+        )
+        self.assertEqual(len(analysis["rows"]), 1)
+        row = analysis["rows"][0]
+        self.assertEqual(row["defectiveSide"], "no-sibling-to-compare")
+        self.assertIsNone(row["calloutToSiblingGap"])
+        self.assertIsNone(row["gapRatio"])
+
+    def test_every_miss_handed_in_comes_back_as_a_row(self) -> None:
+        """No input may vanish, whatever the instrument can or cannot say about it."""
+
+        analysis = self.causes.defect_side_triangulation(
+            [(1, "truth"), (2, "truth"), (99, "absent")],
+            {"clusters": [{"clusterIndex": 1, "members": [0]}]},
+            {
+                "inventory": {"truth": {"aspect": 0.9}},
+                "callouts": [{"descriptor": {"aspect": 1.7}}],
+            },
+            {"truth": {"partNum": "P", "name": "T", "colorId": "2", "quantity": 1}},
+        )
+        self.assertEqual(len(analysis["rows"]), 3)
+        self.assertEqual(
+            analysis["rows"][1]["defectiveSide"], "not-measurable-no-thumbnail-or-cluster"
+        )
+
+    def test_the_sibling_centre_is_a_median_so_a_second_bad_crop_cannot_drag_it(self) -> None:
+        """The failure being measured is a defective crop, so the centre must resist one.
+
+        Two sound siblings at 1.69 and one that is itself miscropped at 0.86. A
+        mean would sit at 1.41 and blunt the verdict; the median stays at 1.69
+        and the inventory thumbnail is still convicted.
+        """
+
+        row = self._triangulation_case(1.688, 0.862, [0.860, 1.690, 1.693])
+        self.assertEqual(row["siblingMedianAspect"], 1.69)
+        self.assertEqual(row["defectiveSide"], "inventory-thumbnail")
+
+    def test_the_domain_counts_account_for_every_element_with_a_thumbnail(self) -> None:
+        analysis = self.causes.defect_side_triangulation(
+            [],
+            {"clusters": []},
+            {"inventory": {"a": {"aspect": 1.0}, "b": {"aspect": 1.0}, "c": {"aspect": 1.0}}},
+            {
+                "a": {"partNum": "P", "name": "A", "colorId": "0", "quantity": 1},
+                "b": {"partNum": "P", "name": "B", "colorId": "2", "quantity": 1},
+                "c": {"partNum": "Q", "name": "C", "colorId": "0", "quantity": 1},
+                "d": {"partNum": "R", "name": "D", "colorId": "0", "quantity": 1},
+            },
+        )
+        domain = analysis["domain"]
+        self.assertEqual(domain["elementsWithThumbnail"], 3)
+        self.assertEqual(domain["elementsWithSiblings"], 2)
+        self.assertEqual(domain["elementsWithNoSibling"], 1)
+        self.assertEqual(
+            domain["elementsWithSiblings"] + domain["elementsWithNoSibling"],
+            domain["elementsWithThumbnail"],
+        )
 
     def test_a_builder_row_with_no_live_cluster_is_named_rather_than_dropped(self) -> None:
         ledger = {

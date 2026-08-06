@@ -55,15 +55,14 @@ from part_description_retrieval import (
     rank_of,
     worst_rank_in_tie,
 )
+from part_description_causes import colour_gap_analysis, defect_side_triangulation
 from part_description_truth import (
     COLOUR_CAVEAT_NOTE,
     CONTAMINATED_ELEMENT,
     ClusterTruth,
     build_cluster_index,
     builder_export_truth,
-    colour_gap_analysis,
     contaminated_element_probe,
-    defect_side_triangulation,
     depletion_survivors,
     digest,
     interleave,
