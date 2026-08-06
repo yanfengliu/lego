@@ -13,8 +13,11 @@ import {
   adjudicateGalleryCrop,
   assignGalleryComponents,
   galleryComponentScore,
+  summariseCodeReachability,
   type GalleryAssignmentPair,
   type GalleryContaminationCode,
+  type GalleryCropMeasurement,
+  type GalleryLabelAssignment,
 } from "./gallery-crop-contract";
 import {
   INVENTORY_PAGE_LIMITS,
@@ -75,15 +78,17 @@ interface PublishedThumbnail {
   readonly widthPx: number;
   readonly heightPx: number;
   readonly foregroundPixels: number;
-  readonly componentPixels: number;
-  readonly unclaimedRivalPixels: number;
+  readonly largestUnclaimedRivalPixels: number;
+  readonly largestUnclaimedRivalAreaPt2: number;
+  readonly unclaimedRivalComponentsAboveThreshold: number;
   readonly rivalComponentPixels: number;
   readonly rivalComponentCount: number;
   readonly quantityGlyphInkPixels: number;
   readonly quantityGlyphPixelsInCropRect: number;
   readonly sourceTextGlyphPixels: number;
   readonly selectedScore: number;
-  readonly runnerUpScore: number | null;
+  readonly freeRunnerUpScore: number | null;
+  readonly outbidScore: number | null;
   readonly touchesPageBoundary: boolean;
   readonly boundaryClearancePx: {
     readonly left: number;
@@ -120,7 +125,25 @@ test("crops a labelled, measured thumbnail for every inventory element", async (
 
   await page.goto("/");
   const published: PublishedThumbnail[] = [];
+  const measurements: GalleryCropMeasurement[] = [];
+  const writtenFiles = new Set<string>();
   const unassigned: { elementId: string; pageNumber: number; reason: string }[] = [];
+  const unclaimedComponents: {
+    pageNumber: number;
+    pixels: number;
+    boundsPx: { left: number; top: number; right: number; bottom: number };
+  }[] = [];
+  const pageReports: {
+    pageNumber: number;
+    labels: number;
+    inkComponentsFound: number;
+    inkComponentsBelowPartThreshold: number;
+    candidateComponents: number;
+    candidatePairs: number;
+    pairsDroppedBelowLabel: number;
+    pairsDroppedBeyondDistance: number;
+    componentsNoElementTook: number;
+  }[] = [];
 
   for (const pageNumber of inventory.pageNumbers) {
     const anchors = inventory.entries
@@ -139,11 +162,21 @@ test("crops a labelled, measured thumbnail for every inventory element", async (
 
     // Every (element, component) pair near enough to be plausible, scored by
     // how far the picture sits from the label that names it, then assigned once
-    // across the whole page.
+    // across the whole page. Both rejections are counted: a pair silently
+    // dropped is a candidate the gallery could not have chosen, and a run that
+    // does not say how many it dropped cannot be told from one that had none.
     const maximumDistancePx = MAXIMUM_CANDIDATE_DISTANCE_PT * RENDER_SCALE;
     const pairs: GalleryAssignmentPair[] = [];
+    let droppedBelowLabel = 0;
+    let droppedBeyondDistance = 0;
     for (const [labelIndex, label] of analysis.labels.entries()) {
       for (const [componentIndex, component] of analysis.components.entries()) {
+        // A component drawn below its own label is another cell's; only the
+        // picture above a label can belong to it.
+        if (component.bottomPx > label.labelTopPx) {
+          droppedBelowLabel += 1;
+          continue;
+        }
         const score = galleryComponentScore({
           labelXPx: label.labelXPx,
           labelTopPx: label.labelTopPx,
@@ -151,26 +184,37 @@ test("crops a labelled, measured thumbnail for every inventory element", async (
           componentRightPx: component.rightPx,
           componentBottomPx: component.bottomPx,
         });
-        // A component drawn below its own label is another cell's; only the
-        // picture above a label can belong to it.
-        if (component.bottomPx > label.labelTopPx) continue;
-        if (score > maximumDistancePx) continue;
+        if (score > maximumDistancePx) {
+          droppedBeyondDistance += 1;
+          continue;
+        }
         pairs.push({ labelIndex, componentIndex, score });
       }
     }
-    const assignment = assignGalleryComponents(pairs);
+    const assignment = assignGalleryComponents(
+      pairs,
+      analysis.components.map((_component, index) => index),
+    );
 
     const requests: InventoryCropRequest[] = [];
-    const selection = new Map<string, { score: number; runnerUp: number | null }>();
+    const selection = new Map<string, GalleryLabelAssignment>();
     for (const [labelIndex, label] of analysis.labels.entries()) {
       const chosen = assignment.byLabel.get(labelIndex);
       if (chosen === undefined) {
+        // Two very different failures; naming which one, with the numbers that
+        // decided it, is the difference between a diagnosis and a shrug.
+        const offered = pairs.filter((pair) => pair.labelIndex === labelIndex);
         unassigned.push({
           elementId: label.elementId,
           pageNumber,
           reason:
-            `No ink component sits above element ${label.elementId} within ` +
-            `${MAXIMUM_CANDIDATE_DISTANCE_PT}pt of its label, or every candidate was taken by a nearer element.`,
+            offered.length === 0
+              ? `No ink component of at least ${MINIMUM_COMPONENT_PIXELS} pixels sits above element ` +
+                `${label.elementId} within ${MAXIMUM_CANDIDATE_DISTANCE_PT}pt of its label; the page held ` +
+                `${analysis.components.length} candidate component(s).`
+              : `All ${offered.length} candidate(s) for element ${label.elementId} were taken by nearer ` +
+                `elements; its best would have scored ` +
+                `${Math.round(Math.min(...offered.map(({ score }) => score)) * 100) / 100}.`,
         });
         continue;
       }
@@ -187,44 +231,72 @@ test("crops a labelled, measured thumbnail for every inventory element", async (
         componentPixels: component.pixels,
         padPx: CROP_PAD_PX,
       });
-      selection.set(label.elementId, {
-        score: chosen.score,
-        runnerUp: assignment.runnerUpByLabel.get(labelIndex) ?? null,
-      });
+      selection.set(label.elementId, chosen);
     }
 
-    const crops = await page.evaluate(cropAssignedInventoryComponents, { pageNumber, requests });
+    const crops = await page.evaluate(cropAssignedInventoryComponents, {
+      pageNumber,
+      rasterId: analysis.rasterId,
+      requests,
+    });
     const quantityByElement = new Map(
       inventory.entries.map(({ elementId, quantity }) => [elementId, quantity]),
     );
     // A component another cell was awarded is that cell's part, correctly
-    // painted out of this one. Only ink nobody claimed can be this part's own
-    // missing half, so only that counts against the crop.
-    const claimedComponents = new Set(
+    // painted out of this one. Ink nobody claimed is the dangerous kind — but
+    // "nobody claimed it" mostly means "it is a speck of antialiasing", so the
+    // check is on the largest single unclaimed blob, and separately on whether
+    // any unclaimed blob is itself big enough to have been a part picture.
+    const componentByIndex = new Map(
+      analysis.components.map((component) => [component.index, component]),
+    );
+    const claimed = new Set(
       [...assignment.byLabel.values()].map(
         ({ componentIndex }) => analysis.components[componentIndex]!.index,
       ),
     );
+    for (const leftover of assignment.unclaimedComponents) {
+      const component = analysis.components[leftover]!;
+      unclaimedComponents.push({
+        pageNumber,
+        pixels: component.pixels,
+        boundsPx: {
+          left: component.leftPx,
+          top: component.topPx,
+          right: component.rightPx,
+          bottom: component.bottomPx,
+        },
+      });
+    }
     for (const crop of crops) {
       const chosen = selection.get(crop.elementId)!;
-      const unclaimedRivalPixels = crop.rivalComponents
-        .filter(({ index }) => !claimedComponents.has(index))
-        .reduce((total, { pixels }) => total + pixels, 0);
-      const contamination = adjudicateGalleryCrop({
+      const unclaimedRivals = crop.rivalComponents.filter(({ index }) => !claimed.has(index));
+      const measurement = {
         foregroundPixels: crop.foregroundPixels,
-        componentPixels: crop.componentPixels,
-        unclaimedRivalPixels,
-        rivalComponentCount: crop.rivalComponents.length,
+        largestUnclaimedRivalPixels: unclaimedRivals[0]?.pixels ?? 0,
+        largestUnclaimedRivalAreaPt2:
+          Math.round(((unclaimedRivals[0]?.pixels ?? 0) / (RENDER_SCALE * RENDER_SCALE)) * 100) /
+          100,
+        unclaimedRivalComponentsAboveThreshold: unclaimedRivals.filter(
+          ({ index }) => (componentByIndex.get(index)?.pixels ?? 0) >= MINIMUM_COMPONENT_PIXELS,
+        ).length,
         quantityGlyphInkPixels: crop.quantityGlyphInkPixels,
-        sourceTextGlyphPixels: crop.sourceTextGlyphPixels,
         selectedScore: chosen.score,
-        runnerUpScore: chosen.runnerUp,
+        freeRunnerUpScore: chosen.freeRunnerUpScore,
         touchesPageBoundary: crop.touchesPageBoundary,
-        boundaryClearancePx: crop.boundaryClearancePx,
-        floodBudgetExhausted: false,
-      });
+      };
+      measurements.push(measurement);
+      const contamination = adjudicateGalleryCrop(measurement);
       const png = Buffer.from(crop.url.split(",")[1]!, "base64");
       const file = `${crop.elementId}.png`;
+      if (writtenFiles.has(file)) {
+        throw new TypeError(
+          `Element ${crop.elementId} was published twice, so the second crop would overwrite the ` +
+            `first and the manifest would carry two records for one file. The printed inventory ` +
+            `repeats an element id; publish it under a per-entry name before allowing that.`,
+        );
+      }
+      writtenFiles.add(file);
       writeFileSync(`${OUT}/${file}`, png);
       published.push({
         elementId: crop.elementId,
@@ -238,20 +310,37 @@ test("crops a labelled, measured thumbnail for every inventory element", async (
         widthPx: crop.widthPx,
         heightPx: crop.heightPx,
         foregroundPixels: crop.foregroundPixels,
-        componentPixels: crop.componentPixels,
-        unclaimedRivalPixels,
+        largestUnclaimedRivalPixels: measurement.largestUnclaimedRivalPixels,
+        largestUnclaimedRivalAreaPt2: measurement.largestUnclaimedRivalAreaPt2,
+        unclaimedRivalComponentsAboveThreshold: measurement.unclaimedRivalComponentsAboveThreshold,
         rivalComponentPixels: crop.rivalComponents.reduce((total, { pixels }) => total + pixels, 0),
         rivalComponentCount: crop.rivalComponents.length,
         quantityGlyphInkPixels: crop.quantityGlyphInkPixels,
         quantityGlyphPixelsInCropRect: crop.quantityGlyphPixelsInCropRect,
         sourceTextGlyphPixels: crop.sourceTextGlyphPixels,
         selectedScore: Math.round(chosen.score * 100) / 100,
-        runnerUpScore: chosen.runnerUp === null ? null : Math.round(chosen.runnerUp * 100) / 100,
+        freeRunnerUpScore:
+          chosen.freeRunnerUpScore === null
+            ? null
+            : Math.round(chosen.freeRunnerUpScore * 100) / 100,
+        outbidScore:
+          chosen.outbidScore === null ? null : Math.round(chosen.outbidScore * 100) / 100,
         touchesPageBoundary: crop.touchesPageBoundary,
         boundaryClearancePx: crop.boundaryClearancePx,
         cropRectPx: crop.cropRectPx,
       });
     }
+    pageReports.push({
+      pageNumber,
+      labels: analysis.labels.length,
+      inkComponentsFound: analysis.componentsFound,
+      inkComponentsBelowPartThreshold: analysis.componentsFound - analysis.components.length,
+      candidateComponents: analysis.components.length,
+      candidatePairs: pairs.length,
+      pairsDroppedBelowLabel: droppedBelowLabel,
+      pairsDroppedBeyondDistance: droppedBeyondDistance,
+      componentsNoElementTook: assignment.unclaimedComponents.length,
+    });
   }
 
   published.sort((left, right) => left.elementId.localeCompare(right.elementId));
@@ -268,8 +357,18 @@ test("crops a labelled, measured thumbnail for every inventory element", async (
       {
         schemaVersion: MANIFEST_SCHEMA,
         cropContract: GALLERY_CROP_CONTRACT_VERSION,
+        // Every number that decided an outcome, not only the four the
+        // adjudicator reads. The pool threshold and the candidate radius decide
+        // far more than the adjudication thresholds do, and a manifest that
+        // omits them cannot be argued with.
+        constants: {
+          renderScale: RENDER_SCALE,
+          minimumComponentPixels: MINIMUM_COMPONENT_PIXELS,
+          maximumCandidateDistancePt: MAXIMUM_CANDIDATE_DISTANCE_PT,
+          cropPadPx: CROP_PAD_PX,
+          ...INVENTORY_PAGE_LIMITS,
+        },
         policy: GALLERY_CROP_POLICY,
-        renderScale: RENDER_SCALE,
         sourceHash: inventory.sourceHash,
         totalPieces: inventory.totalPieces,
         distinctElements: inventory.distinctElements,
@@ -278,6 +377,18 @@ test("crops a labelled, measured thumbnail for every inventory element", async (
         contaminationByCode: Object.fromEntries(
           [...byCode].sort(([left], [right]) => left.localeCompare(right)),
         ),
+        // How close each check came to firing. "No crop was contaminated" and
+        // "no crop could have been" read identically without this.
+        codeReachability: summariseCodeReachability(measurements),
+        // What the pipeline discarded, per page. An unreported drop is a
+        // candidate the gallery could not have chosen, and silence about it
+        // reads as "there were none".
+        pages: pageReports,
+        // Ink the assignment left on the table that is large enough to have
+        // been a part picture. This is where page furniture shows up: the
+        // circled bag number is a legitimate scoring candidate and is kept out
+        // only by distance, never by kind.
+        unclaimedComponents: unclaimedComponents.sort((left, right) => right.pixels - left.pixels),
         unassigned,
         thumbnails: published,
       },
@@ -300,9 +411,17 @@ test("crops a labelled, measured thumbnail for every inventory element", async (
     ),
   );
 
+  const reachability = summariseCodeReachability(measurements);
   console.log(
     `published ${published.length}/${inventory.distinctElements} thumbnails; ` +
-      `${contaminated.length} contaminated; ${unassigned.length} unassigned`,
+      `${contaminated.length} contaminated; ${unassigned.length} unassigned; ` +
+      `${unclaimedComponents.length} component(s) no element took\n` +
+      reachability
+        .map(
+          ({ code, closestObserved, threshold, fired }) =>
+            `  ${code}: fired ${fired}, closest ${closestObserved} against ${threshold}`,
+        )
+        .join("\n"),
   );
 
   // A crop that cannot say what is wrong with it is what this replaces, so the
@@ -311,5 +430,9 @@ test("crops a labelled, measured thumbnail for every inventory element", async (
     contaminated.map(({ elementId, contamination }) => `${elementId}: ${contamination.join(",")}`),
   ).toEqual([]);
   expect(unassigned).toEqual([]);
+  // The set, not the count: two entries for one element id would overwrite one
+  // file and publish two records for it, and a count comparison would report
+  // that as an off-by-one rather than as the collision it is.
+  expect(new Set(published.map(({ elementId }) => elementId)).size).toBe(published.length);
   expect(published.length).toBe(inventory.distinctElements);
 });

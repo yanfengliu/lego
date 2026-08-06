@@ -55,8 +55,17 @@ export interface InventoryLabelGeometry {
 
 export interface InventoryPageAnalysis {
   readonly pageNumber: number;
+  /**
+   * Identifies the exact raster the components were labelled on. Cropping
+   * refuses a cache that does not carry the same one, so a second analysis at a
+   * different scale or threshold cannot be cropped against an assignment made
+   * from the first.
+   */
+  readonly rasterId: string;
   readonly widthPx: number;
   readonly heightPx: number;
+  /** Ink components before the part-picture threshold; the difference is dropped. */
+  readonly componentsFound: number;
   readonly components: readonly InventoryPageComponent[];
   readonly labels: readonly InventoryLabelGeometry[];
 }
@@ -104,6 +113,7 @@ export interface InventoryCropResult {
 
 interface InventoryPageCache {
   readonly pageNumber: number;
+  readonly rasterId: string;
   readonly widthPx: number;
   readonly heightPx: number;
   readonly pixels: Uint8ClampedArray;
@@ -308,16 +318,34 @@ export async function analyseInventoryPage(
             box.baselineYPt - anchor.yPt <= 11,
         )
         .sort((first, second) => first.baselineYPt - second.baselineYPt)[0];
+      // The centre of the printed id, not its left edge. The score measures a
+      // component's centre against this, so an edge biases every cell by half
+      // the width of its id string in one direction — enough, on a denser
+      // inventory, to walk a whole column one cell sideways with every margin
+      // still comfortably positive and nothing reporting a thing.
+      const identifier = textBoxes.find(
+        (box) =>
+          box.text === anchor.elementId &&
+          Math.abs(box.xPt - anchor.xPt) <= 0.6 &&
+          Math.abs(box.baselineYPt - anchor.yPt) <= 0.6,
+      );
       return {
         elementId: anchor.elementId,
-        labelXPx: Math.round(anchor.xPt * input.scale),
+        labelXPx:
+          identifier === undefined
+            ? Math.round(anchor.xPt * input.scale)
+            : Math.round((identifier.bounds.left + identifier.bounds.right) / 2),
         labelTopPx: Math.round((rasterY - 9) * input.scale),
         quantityMaskPx: quantity === undefined ? null : quantity.bounds,
       };
     });
 
+    const rasterId =
+      `p${input.pageNumber}s${input.scale}m${input.minimumComponentPixels}` +
+      `i${input.limits.inkThreshold}w${width}h${height}c${components.length}`;
     globalThis.__legoInventoryPage = {
       pageNumber: input.pageNumber,
+      rasterId,
       widthPx: width,
       heightPx: height,
       pixels,
@@ -328,8 +356,10 @@ export async function analyseInventoryPage(
     };
     return {
       pageNumber: input.pageNumber,
+      rasterId,
       widthPx: width,
       heightPx: height,
+      componentsFound: components.length,
       components: components.filter(({ pixels: size }) => size >= input.minimumComponentPixels),
       labels,
     };
@@ -348,12 +378,22 @@ export async function analyseInventoryPage(
  */
 export function cropAssignedInventoryComponents(input: {
   readonly pageNumber: number;
+  readonly rasterId: string;
   readonly requests: readonly InventoryCropRequest[];
 }): readonly InventoryCropResult[] {
   const cache = globalThis.__legoInventoryPage;
   if (cache === undefined || cache.pageNumber !== input.pageNumber) {
     throw new Error(
       `No labelled raster is cached for inventory page ${input.pageNumber}; analyse the page in the same browser context before cropping it.`,
+    );
+  }
+  // The cache is keyed on the page alone, and a page analysed twice at
+  // different settings would pass that. The raster id carries the settings, so
+  // an assignment made against one raster cannot be cropped from another.
+  if (cache.rasterId !== input.rasterId) {
+    throw new Error(
+      `Inventory page ${input.pageNumber} is cached as raster ${cache.rasterId} but the assignment was ` +
+        `made against ${input.rasterId}; the page was re-analysed with different settings between the two.`,
     );
   }
   const { widthPx, heightPx, pixels, classification, componentAt, background } = cache;
@@ -437,8 +477,9 @@ export function cropAssignedInventoryComponents(input: {
       }
     }
     // The crop rectangle is the component's own bounds plus padding, so the
-    // whole component is inside it. If the recount disagrees with the labelling
-    // pass, the cached raster is not the one the assignment was made against.
+    // whole component is inside it, and this recount must agree. It is an
+    // internal consistency assertion over one array, not a guard against a
+    // stale raster — the raster id above is that guard.
     if (foregroundPixels !== request.componentPixels) {
       throw new Error(
         `Inventory component ${request.componentIndex} for element ${request.elementId} held ` +
