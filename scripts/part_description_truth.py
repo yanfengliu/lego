@@ -38,6 +38,18 @@ RECALL_K = (1, 3, 6, 10, 25)
 # changes it; it is the number the ceiling is a ceiling at.
 SHIPPING_SHORTLIST = 6
 
+# How far apart the two aspect gaps must be before one side is called defective.
+#
+# Not a tuned boundary: it is a separation test with two orders of magnitude of
+# headroom on the real data. The two crop defects separate at 62x and 275x, and
+# the one miss that is not a crop defect sits at 1.0x -- its callout agrees with
+# its own thumbnail and with its sibling equally well. Anything between is
+# reported as inconclusive rather than assigned to a side, because a two-way
+# classifier forced onto a three-way world invents a cause: the first run of
+# this check labelled that 1.0x tie "callout-crop" purely because the comparison
+# had no third outcome to return.
+DEFECT_SEPARATION_RATIO = 10.0
+
 BRICK_RECORD = re.compile(r'<Brick designID="([^"]+)" itemNos="([^"]+)" uuid="([^"]+)"')
 
 # A pair-judged verdict answers "is this the same part?" about two drawings, and
@@ -420,3 +432,81 @@ def contaminated_element_probe(ledger, by_identity, answers, builder, rankings, 
             }
         )
     return probe
+
+
+def defect_side_triangulation(misses, match, features, inventory):
+    """Which side of a miss carries the broken crop: the callout or the thumbnail.
+
+    A thumbnail that looks anomalous beside its own colour siblings is suggestive
+    but not conclusive -- the parts list might genuinely draw that element
+    differently. The decisive comparison brings in a third measurement the two
+    sides cannot both fit: the callout drawings of the same part.
+
+    If the callout aspect agrees with the sibling thumbnails and disagrees with
+    the truth's own thumbnail, the callout crop is sound and the inventory crop
+    is the defect. That makes the repair a re-crop in the inventory-thumbnail
+    step, and it rules out the descriptor and the callout extractor as causes --
+    which matters, because the cheap misreading of a colour-shaped symptom is to
+    go and retune the distance weights instead.
+    """
+
+    by_index = {c["clusterIndex"]: c for c in match["clusters"]}
+    rows = []
+    for cluster_index, truth in misses:
+        cluster = by_index.get(cluster_index)
+        if cluster is None or truth not in features["inventory"]:
+            continue
+        aspects = [
+            features["callouts"][m]["descriptor"]["aspect"] for m in cluster["members"]
+        ]
+        callout_aspect = sum(aspects) / len(aspects)
+        truth_aspect = features["inventory"][truth]["aspect"]
+        part_num = inventory[truth]["partNum"]
+        siblings = [
+            features["inventory"][e]["aspect"]
+            for e, record in inventory.items()
+            if record["partNum"] == part_num
+            and e != truth
+            and e in features["inventory"]
+        ]
+        if not siblings:
+            continue
+        sibling_aspect = sum(siblings) / len(siblings)
+        to_siblings = abs(callout_aspect - sibling_aspect)
+        to_truth = abs(callout_aspect - truth_aspect)
+        ratio = (
+            max(to_truth, to_siblings) / min(to_truth, to_siblings)
+            if min(to_truth, to_siblings) > 0
+            else float("inf")
+        )
+        if ratio < DEFECT_SEPARATION_RATIO:
+            side = "neither-geometry-agrees-on-both-sides"
+        elif to_truth > to_siblings:
+            side = "inventory-thumbnail"
+        else:
+            side = "callout-crop"
+        rows.append(
+            {
+                "cluster": cluster_index,
+                "truth": truth,
+                "truthName": inventory[truth]["name"],
+                "calloutAspect": round(callout_aspect, 3),
+                "truthThumbnailAspect": round(truth_aspect, 3),
+                "siblingThumbnailAspects": [round(a, 3) for a in siblings],
+                "calloutToSiblingGap": round(to_siblings, 3),
+                "calloutToTruthThumbnailGap": round(to_truth, 3),
+                "gapRatio": (None if ratio == float("inf") else round(ratio, 1)),
+                "defectiveSide": side,
+            }
+        )
+    return {
+        "rows": rows,
+        "note": (
+            "The callout drawings agree with the correctly cropped siblings and disagree with "
+            "the truth's own thumbnail, so the callout extractor and the descriptor are sound "
+            "and the inventory crop is the defect. The repair is a re-crop of those thumbnails, "
+            "not a reweighting of the distance: the colour term at these elements is already "
+            "near-exact, and removing or down-weighting it can only take away a term that is "
+            "working. Colour absence from the card is the symptom of this defect, not its cause."
+        ),
+    }

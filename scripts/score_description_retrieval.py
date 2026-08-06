@@ -63,6 +63,7 @@ from part_description_truth import (
     builder_export_truth,
     colour_gap_analysis,
     contaminated_element_probe,
+    defect_side_triangulation,
     depletion_survivors,
     digest,
     interleave,
@@ -451,7 +452,14 @@ def main() -> int:
                 else 0
             ),
         },
-        "colourIsTheWholeGap": colour_is_the_gap,
+        "colourIsTheSymptomNotTheRepair": colour_is_the_gap,
+        "defectIsOnTheInventorySide": defect_side_triangulation(
+            [(r["cluster"], r["truth"]) for r in scored
+             if r["cluster"] in set(colour_is_the_gap["pixelMissedAtShortlist"])],
+            match,
+            features,
+            inventory,
+        ),
         "limits": {
             "unbiasedTruthCoversOnlyThePrintedPrefix": (
                 f"The Builder export is the only unbiased source here and it reaches "

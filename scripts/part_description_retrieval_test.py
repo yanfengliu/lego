@@ -468,6 +468,65 @@ class ScorerSemanticsTests(unittest.TestCase):
         self.assertEqual(self.scorer.SHIPPING_SHORTLIST, 6)
         self.assertEqual(analysis["pixelMissedAtShortlist"], [2])
 
+    def _triangulation_case(
+        self, callout: float, truth_thumb: float, siblings: list[float]
+    ) -> dict:
+        """One miss, with the aspects of its callout, its thumbnail and its siblings."""
+
+        inventory = {"truth": {"partNum": "P", "name": "T", "colorId": "2", "quantity": 1}}
+        feature_inventory = {"truth": {"aspect": truth_thumb}}
+        for offset, aspect in enumerate(siblings):
+            element = f"sib{offset}"
+            inventory[element] = {
+                "partNum": "P",
+                "name": "S",
+                "colorId": "0",
+                "quantity": 1,
+            }
+            feature_inventory[element] = {"aspect": aspect}
+        features = {
+            "inventory": feature_inventory,
+            "callouts": [{"descriptor": {"aspect": callout}}],
+        }
+        match = {"clusters": [{"clusterIndex": 1, "members": [0]}]}
+        return self.scorer.defect_side_triangulation(
+            [(1, "truth")], match, features, inventory
+        )["rows"][0]
+
+    def test_a_callout_matching_its_siblings_convicts_the_inventory_thumbnail(self) -> None:
+        """The repair this points at is a re-crop, not a reweighting."""
+
+        row = self._triangulation_case(1.688, 0.862, [1.693, 1.693, 1.687])
+        self.assertEqual(row["defectiveSide"], "inventory-thumbnail")
+        self.assertGreater(row["gapRatio"], self.scorer.DEFECT_SEPARATION_RATIO)
+
+    def test_a_callout_matching_only_its_own_thumbnail_convicts_the_callout(self) -> None:
+        row = self._triangulation_case(0.900, 0.898, [1.700, 1.690])
+        self.assertEqual(row["defectiveSide"], "callout-crop")
+
+    def test_agreement_on_both_sides_is_its_own_outcome(self) -> None:
+        """The regression for a two-way test forced onto a three-way world.
+
+        Cluster 101's callout agrees with its own thumbnail and with its sibling
+        equally well -- neither crop is defective and its miss has some other
+        cause. With only two outcomes available the comparison returned
+        "callout-crop" for it, inventing a defect out of a tie and pointing the
+        repair at a file that is fine.
+        """
+
+        row = self._triangulation_case(0.731, 0.723, [0.723])
+        self.assertEqual(row["defectiveSide"], "neither-geometry-agrees-on-both-sides")
+        self.assertLess(row["gapRatio"], self.scorer.DEFECT_SEPARATION_RATIO)
+
+    def test_the_separation_threshold_has_headroom_rather_than_being_a_boundary(self) -> None:
+        """The real data sits at 1.0x, 60.7x and 263.8x; nothing sits near 10x."""
+
+        self.assertEqual(self.scorer.DEFECT_SEPARATION_RATIO, 10.0)
+        tie = self._triangulation_case(0.731, 0.723, [0.723])
+        thumbnail = self._triangulation_case(1.688, 0.862, [1.693, 1.693, 1.687])
+        self.assertLess(tie["gapRatio"] * 5, self.scorer.DEFECT_SEPARATION_RATIO)
+        self.assertGreater(thumbnail["gapRatio"], self.scorer.DEFECT_SEPARATION_RATIO * 5)
+
     def test_a_builder_row_with_no_live_cluster_is_named_rather_than_dropped(self) -> None:
         ledger = {
             "steps": [
