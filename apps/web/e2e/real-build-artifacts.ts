@@ -707,14 +707,22 @@ export function verifyRealBuildArtifactManifest(
     throw new TypeError(`Retained score totals do not reproduce its step rows: ${totalsMismatch}.`);
   }
   if (score.status === "completed" || score.status === "prefix-complete") {
-    const requestedFull = preparedOptions.lastStep === MAXIMUM_REAL_BUILD_PRINTED_STEPS;
     if (!successfulPrefix) {
       throw new TypeError(
         `Retained score claims ${score.status} but only ${completedSteps} of ${score.steps.length} row(s) ` +
           `completed against a requested prefix of ${preparedOptions.lastStep}.`,
       );
     }
-    if (score.status === "completed" ? !requestedFull : requestedFull) {
+    // `completed` is the full booklet and nothing shorter; `prefix-complete` is
+    // anything shorter and nothing longer. Written as two comparisons against
+    // the ceiling rather than as one negation of the other, so a second
+    // booklet's ceiling cannot quietly move which branch catches what.
+    const claimTooShort =
+      score.status === "completed" && preparedOptions.lastStep < MAXIMUM_REAL_BUILD_PRINTED_STEPS;
+    const claimTooLong =
+      score.status === "prefix-complete" &&
+      preparedOptions.lastStep >= MAXIMUM_REAL_BUILD_PRINTED_STEPS;
+    if (claimTooShort || claimTooLong) {
       throw new TypeError(
         `Retained score claims ${score.status} at requested last step ${preparedOptions.lastStep}; ` +
           `completed is reserved for the full ${MAXIMUM_REAL_BUILD_PRINTED_STEPS} printed steps and prefix-complete for anything shorter.`,
@@ -725,9 +733,21 @@ export function verifyRealBuildArtifactManifest(
     // A rejected run retains one typed refusal row per requested printed step
     // — that is what `inputRejectedRealBuildResult` exists to do, and what says
     // which step each cause lands on. Demanding zero rows made this branch
-    // unsatisfiable, so every rejected run threw here whatever its cause. What
-    // the status does forbid is a claim: no completion, no placement, no
-    // document, and no row that is anything but a failure.
+    // unsatisfiable, so every rejected run threw here whatever its cause.
+    //
+    // What the status forbids is a claim. Not only "no completion, no placement,
+    // no document": a rejected run refused *before* execution, so no row may
+    // claim it attempted a piece, reached a canonical build step, or validated
+    // anything. Without that, one token input failure plus N rows of ordinary
+    // execution failures verifies as an input rejection, and this artifact is
+    // what the position-of-record document is written from.
+    const executedRow = score.steps.findIndex(
+      (step) =>
+        isRecord(step) &&
+        ((Number.isSafeInteger(step.attemptedPieces) && (step.attemptedPieces as number) > 0) ||
+          step.canonicalStepId !== null ||
+          (isRecord(step.validation) && step.validation.attempted === true)),
+    );
     const rejectionMismatch =
       score.inputFailures.length === 0
         ? "no input failure was retained to justify the rejection"
@@ -739,9 +759,13 @@ export function verifyRealBuildArtifactManifest(
               ? `${piecesPlaced} piece(s) claim placement`
               : derivedFailures.length !== score.steps.length
                 ? `${score.steps.length - derivedFailures.length} of ${score.steps.length} retained row(s) are not failures`
-                : score.steps.length > preparedOptions.lastStep
-                  ? `${score.steps.length} refusal row(s) exceed the requested prefix of ${preparedOptions.lastStep}`
-                  : null;
+                : executedRow >= 0
+                  ? `row ${executedRow + 1} claims it attempted pieces, reached a canonical step, or validated a document, ` +
+                    `which a run refused before execution cannot have done`
+                  : score.steps.length !== 0 && score.steps.length !== preparedOptions.lastStep
+                    ? `${score.steps.length} refusal row(s) against a requested prefix of ${preparedOptions.lastStep}; ` +
+                      `a rejected run retains one row per requested step, or none at all when it was refused before the panels were selected`
+                    : null;
     if (rejectionMismatch !== null) {
       throw new TypeError(
         `Retained input-rejected score claims more than a refusal: ${rejectionMismatch}.`,

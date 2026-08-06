@@ -156,6 +156,7 @@ describe("runBacktrackingSearch", () => {
     const tree = new BuildTree();
     const base = deps({ offers: [10, 20] });
     const retreat = vi.fn();
+    const retreatedTo: number[][] = [];
     const result = runBacktrackingSearch(
       SEED,
       targets(4),
@@ -177,13 +178,22 @@ describe("runBacktrackingSearch", () => {
         },
         retreat: (toEntry, fromStepNumber, toStepNumber) => {
           tree.moveHead(toEntry.nodeId);
+          retreatedTo.push(history(toEntry.document));
           retreat(fromStepNumber, toStepNumber);
         },
       },
       { maxAlternativesPerStep: 2 },
     );
     expect(result.stopReason).toBe("complete");
-    expect(retreat).toHaveBeenCalled();
+    // The retreat has to name the descent it is undoing and hand back the exact
+    // branch the search resumes from, or a caller moving a head pointer moves it
+    // somewhere the search is not.
+    expect(retreat).toHaveBeenCalledWith(3, 1);
+    // Step 3 fails on both of step 2's alternatives before the search gives up
+    // on step 2 and returns to the root, so the branch handed back is [10],
+    // then [10] again, then the seed. A retreat that handed back anything else
+    // would move a caller's head pointer somewhere the search is not.
+    expect(retreatedTo).toEqual([[10], [10], []]);
     // The branch through the refused step-1 placement is still reachable, which
     // is what makes a rejected branch counterevidence instead of a gap.
     const roots = tree.children(null);
@@ -204,11 +214,104 @@ describe("runBacktrackingSearch", () => {
     expect(result.failure).toContain("exhausted every alternative");
   });
 
+  it("counts the descent it never came back from, which is the deepest one", () => {
+    // 30 steps commit and the 31st cannot, for every history. The search unwinds
+    // all 30 and stops. Counting only reversals that resumed reported zero
+    // reversals and zero depth on exactly the run where the number is the answer.
+    const result = runBacktrackingSearch(
+      SEED,
+      targets(31),
+      withContradiction(deps({ offers: [10] }), 31, [999]),
+    );
+    expect(result.stopReason).toBe("exhausted");
+    expect(result.reversals).toHaveLength(1);
+    expect(result.reversals[0]).toMatchObject({
+      fromStepNumber: 31,
+      toStepNumber: 1,
+      steps: 30,
+      resumed: false,
+    });
+    expect(result.deepestReversalSteps).toBe(30);
+    expect(result.totalStepsUndone).toBe(30);
+  });
+
+  it("undoes exactly the steps it committed, not the index of the step that failed", () => {
+    // The distinction is invisible when the failure is at the end of a descent
+    // that started at the root, so the contradiction is placed mid-booklet.
+    const result = runBacktrackingSearch(
+      SEED,
+      targets(6),
+      withContradiction(deps({ offers: [10, 20] }), 5, [10, 20]),
+    );
+    expect(result.stopReason).toBe("complete");
+    const reversal = result.reversals[0]!;
+    expect(reversal.fromStepNumber - reversal.toStepNumber).toBe(reversal.steps);
+    expect(result.totalStepsUndone).toBe(
+      result.reversals.reduce((total, one) => total + one.steps, 0),
+    );
+  });
+
+  it("carries the deepest failure's own diagnosis into the verdict", () => {
+    const result = runBacktrackingSearch(SEED, targets(2), {
+      ...deps({ offers: [10, 20] }),
+      score: () => scoreOf(0),
+    });
+    expect(result.failure).toContain("scored placement(s)");
+    expect(result.failure).toContain("builtin:brick-2x4");
+    expect(result.failure).toContain("no placement withheld by any budget");
+  });
+
+  it("does not blame the booklet for alternatives its own cap withheld", () => {
+    // Six placements at step 1, only the sixth lets step 2 score. With four
+    // allowed the search fails — and the failure must say the cap decided it.
+    const capped = runBacktrackingSearch(
+      SEED,
+      targets(2),
+      withContradiction(deps({ offers: [10, 20, 30, 40, 50, 60] }), 2, [60]),
+      { maxAlternativesPerStep: 4 },
+    );
+    expect(capped.stopReason).toBe("exhausted");
+    expect(capped.withheldAlternatives).toBeGreaterThan(0);
+    expect(capped.failure).toContain("withheld");
+    expect(capped.failure).toContain("maxAlternativesPerStep");
+    expect(capped.failure).not.toContain("cannot be satisfied");
+
+    // The same booklet, allowed the alternative, completes.
+    const allowed = runBacktrackingSearch(
+      SEED,
+      targets(2),
+      withContradiction(deps({ offers: [10, 20, 30, 40, 50, 60] }), 2, [60]),
+      { maxAlternativesPerStep: 6 },
+    );
+    expect(allowed.stopReason).toBe("complete");
+    expect(allowed.withheldAlternatives).toBe(0);
+  });
+
+  it("counts a withheld alternative even on a run that completes", () => {
+    const result = runBacktrackingSearch(SEED, targets(3), deps({ offers: [10, 20, 30] }), {
+      maxAlternativesPerStep: 1,
+    });
+    expect(result.stopReason).toBe("complete");
+    expect(result.withheldAlternatives).toBe(6);
+  });
+
+  it("refuses an option that would make every step retreat", () => {
+    expect(() =>
+      runBacktrackingSearch(SEED, targets(2), deps(), { maxAlternativesPerStep: 0 }),
+    ).toThrow(/positive integer/u);
+    expect(() => runBacktrackingSearch(SEED, targets(2), deps(), { expansionBudget: -1 })).toThrow(
+      /positive integer/u,
+    );
+  });
+
   it("stops on its expansion budget instead of truncating quietly", () => {
     const result = runBacktrackingSearch(SEED, targets(40), deps(), { expansionBudget: 5 });
     expect(result.stopReason).toBe("budget-exhausted");
     expect(result.stepsCompleted).toBe(5);
     expect(result.failure).toContain("whole budget of 5");
+    // The prefix is returned, so the message must not claim it was withheld.
+    expect(result.entry).not.toBeNull();
+    expect(result.failure).toContain("is returned as `entry`");
   });
 
   it("reports candidates the render budget never reached", () => {
@@ -218,6 +321,20 @@ describe("runBacktrackingSearch", () => {
     expect(result.stopReason).toBe("complete");
     expect(result.unrenderedCandidates).toBe(8);
     expect(result.totalRendered).toBe(4);
+    expect(result.expansionsWithoutLocalisation).toBe(0);
+  });
+
+  it("says when nothing localised a step, so its overflow was never pointed at", () => {
+    const blind = targets(2).map((target) => ({
+      ...target,
+      highlight: { ...target.highlight, regions: [] },
+    }));
+    const result = runBacktrackingSearch(SEED, blind, deps({ offers: [1, 2, 3, 4, 5, 6] }), {
+      maxRendersPerBranch: 2,
+    });
+    expect(result.stopReason).toBe("complete");
+    expect(result.expansionsWithoutLocalisation).toBe(2);
+    expect(result.unrenderedCandidates).toBe(8);
   });
 
   it("refuses a zero-scoring placement even when it is the only one offered", () => {

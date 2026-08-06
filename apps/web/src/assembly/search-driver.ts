@@ -97,6 +97,15 @@ export interface StepOutcome {
   readonly prunedByProximity: number;
   /** Candidates that occupy exactly what an earlier candidate already did. */
   readonly duplicateSpellings: number;
+  /**
+   * Candidates that survived the prune on some branch and were never rendered,
+   * so no branch could have chosen them. Summed across the beam, and reported
+   * rather than absorbed: a step that advanced with a positive count here is
+   * not a step that looked at everything the picture pointed at.
+   */
+  readonly unrenderedCandidates: number;
+  /** Branches whose highlight enclosed nothing, so nothing localised their search. */
+  readonly branchesWithoutLocalisation: number;
   readonly bestScore: number;
   /** Set when the whole beam died, which is when backtracking is the fallback. */
   readonly failure: string | null;
@@ -147,8 +156,14 @@ export interface StepExpansion {
   readonly rendered: number;
   readonly prunedByProximity: number;
   readonly duplicateSpellings: number;
-  /** Candidates the picture localised to but the render budget could not reach. */
+  /** Candidates that survived the prune but the render budget could not reach. */
   readonly overflowed: number;
+  /**
+   * False when the step's highlight enclosed nothing, so no candidate was
+   * pruned by proximity and the rendered set is an arbitrary prefix of the
+   * enumeration rather than the placements the picture pointed at.
+   */
+  readonly localised: boolean;
 }
 
 /**
@@ -234,6 +249,7 @@ export function expandStep(
     prunedByProximity,
     duplicateSpellings,
     overflowed,
+    localised: targetBounds !== null,
   };
 }
 
@@ -271,6 +287,8 @@ export function advanceBeam(
   let rendered = 0;
   let prunedByProximity = 0;
   let duplicateSpellings = 0;
+  let unrenderedCandidates = 0;
+  let branchesWithoutLocalisation = 0;
 
   for (const entry of beam) {
     const expansion = expandStep(entry, target, deps, options);
@@ -278,6 +296,8 @@ export function advanceBeam(
     rendered += expansion.rendered;
     prunedByProximity += expansion.prunedByProximity;
     duplicateSpellings += expansion.duplicateSpellings;
+    unrenderedCandidates += expansion.overflowed;
+    if (!expansion.localised) branchesWithoutLocalisation += 1;
 
     for (const { candidate, score } of expansion.scored.slice(0, beamWidth)) {
       const applied = deps.apply(entry, candidate, target.stepNumber);
@@ -300,6 +320,8 @@ export function advanceBeam(
     rendered,
     prunedByProximity,
     duplicateSpellings,
+    unrenderedCandidates,
+    branchesWithoutLocalisation,
     bestScore: kept[0]?.stepScores.at(-1) ?? 0,
     failure:
       kept.length > 0
