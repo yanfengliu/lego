@@ -21,3 +21,15 @@
 # inherits the protection instead of waiting to be discovered by a red suite.
 apps/web/test/fixtures/** -text
 scripts/fixtures/** -text
+
+# The first version of this file listed only the digest-pinned goldens, because
+# the audit behind it grepped for the two pin helpers. That missed byte
+# comparison as a category: scripts/set_6651557_ldraw_source_audit_test.py
+# asserts render_source_audit(document) equals the tracked audit's exact bytes,
+# so a fresh clone failed `npm run verify` on `...}]}\r\n' != ...}]}\n'` - the
+# same hazard, found by cloning rather than by reading.
+#
+# A generated file is the risky class by construction: something regenerates it
+# and something else checks the result matches byte for byte.
+packages/catalog/src/quarantine/** -text
+*.generated.json -text
