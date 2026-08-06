@@ -189,6 +189,14 @@ def build_report(quick: bool = False) -> dict:
             "builderByCluster": recall_at(
                 [merged[key] for key in sorted({record.cluster_index for record in builder})]
             ),
+            "builderByClusterDesignLevel": recall_at(
+                design_level_records(
+                    [merged[key] for key in sorted({record.cluster_index for record in builder})],
+                    design_of,
+                    element_ids,
+                    rows,
+                )
+            ),
             "pairJudgedPositive": recall_at(judged),
             "union": recall_at(union),
             "unionDesignLevel": recall_at(
@@ -276,16 +284,43 @@ def build_report(quick: bool = False) -> dict:
             emptied_capacity.append({"clusterIndex": cluster["clusterIndex"], "demand": demand})
         if not any(held_of.get(element, 0) == demand for element in shortlist):
             emptied_exact.append(cluster["clusterIndex"])
+    # Capacity refutes a whole-cluster answer. It must never be used to prune a
+    # candidate for one drawing: a cluster that pooled one mould in several
+    # colours draws more pieces than the true element holds, so the filter
+    # deletes the right answer. Measured here so the artifact carries the
+    # counter-evidence beside the claim rather than only the claim.
+    truth_eliminated = [
+        {
+            "clusterIndex": record.cluster_index,
+            "elementId": record.element_id,
+            "name": resolution.get(record.element_id, {}).get("name"),
+            "held": held_of.get(record.element_id, 0),
+            "clusterDemand": record.pieces,
+            "rank": record.rank,
+            "source": record.source,
+        }
+        for record in union
+        if held_of.get(record.element_id, 0) < record.pieces
+    ]
     report["eliminationWithoutTruth"] = {
         "note": (
-            "Capacity is a proof under the pipeline's own one-element-per-cluster "
-            "assignment: if no displayed element holds enough pieces to supply the "
-            "cluster, no answer on that card can be right for the whole cluster. "
-            "Exact demand is a prior, not a proof, and is reported only for comparison."
+            "Capacity is a proof about a whole cluster under the pipeline's own "
+            "one-element-per-cluster assignment: if no displayed element holds enough "
+            "pieces to supply the cluster, no single answer on that card can be right "
+            "for all of it. It is NOT a per-drawing filter - see "
+            "capacityWouldEliminateTheTruthFor. Exact demand is a prior, not a proof, "
+            "and is reported only for comparison."
         ),
         "shortlistsEmptiedByCapacity": len(emptied_capacity),
         "shortlistsEmptiedByCapacityDetail": emptied_capacity,
         "shortlistsEmptiedByExactDemand": len(emptied_exact),
+        "capacityWouldEliminateTheTruthFor": {
+            "clusters": len(truth_eliminated),
+            "ofClustersWithTruth": len(union),
+            "rate": len(truth_eliminated) / len(union) if union else None,
+            "atRankOne": sum(1 for row in truth_eliminated if row["rank"] == 1),
+            "detail": truth_eliminated,
+        },
     }
 
     # --- defective inventory thumbnails ---

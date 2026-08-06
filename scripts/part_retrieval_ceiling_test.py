@@ -267,6 +267,29 @@ class PinnedGenerationTest(unittest.TestCase):
         )
         self.assertEqual(elimination["shortlistsEmptiedByExactDemand"], 37)
 
+    def test_capacity_must_not_be_used_to_prune_a_single_drawing(self) -> None:
+        """The filter that refutes a whole cluster deletes the right answer for a drawing.
+
+        A cluster that pooled one mould in several colours draws more pieces than
+        the true element holds, so capacity removes the truth - at rank 1 in
+        almost every case. The claim and its counter-evidence ship together.
+        """
+
+        eliminated = self.report["eliminationWithoutTruth"]["capacityWouldEliminateTheTruthFor"]
+        self.assertEqual(eliminated["ofClustersWithTruth"], 75)
+        self.assertEqual(eliminated["clusters"], 11)
+        self.assertEqual(eliminated["atRankOne"], 10)
+        self.assertEqual(
+            [row["clusterIndex"] for row in eliminated["detail"]],
+            [1, 15, 44, 128, 135, 140, 151, 209, 220, 253, 257],
+        )
+
+    def test_the_descriptor_is_a_perfect_mould_retriever_on_unbiased_truth(self) -> None:
+        mould = self.report["recall"]["builderByClusterDesignLevel"]
+        self.assertEqual(mould["denominator"], 18)
+        self.assertEqual(mould["rankHistogram"], {1: 18})
+        self.assertEqual(mould["recallAt1"]["rate"], 1.0)
+
     def test_both_green_elements_carry_a_defective_inventory_thumbnail(self) -> None:
         worst = self.report["defectiveInventoryThumbnails"]["worst"]
         self.assertEqual([row["elementId"] for row in worst[:2]], ["302028", "383228"])
