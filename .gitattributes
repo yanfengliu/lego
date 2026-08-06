@@ -1,0 +1,23 @@
+# Files whose exact bytes are load-bearing must never be translated.
+#
+# This repository sets core.autocrlf=true, so without an attribute Git rewrites
+# LF to CRLF on checkout. That is harmless for source, and fatal for a file that
+# something hashes: apps/web/test/real-build-identification-golden.ts reads each
+# golden through readBoundedRegularFile with both exactBytes and expectedSha256,
+# and those pins are LF byte counts over LF digests.
+#
+# Demonstrated: `git checkout -- apps/web/test/fixtures/real-build-identification-golden/`
+# rewrote every golden to CRLF, took manifest.json from 1028 to 1029 bytes and its
+# digest from 23f58599... to c84a4473..., and failed all five golden-reading tests
+# with BoundedFileReadError. A fresh clone or a new worktree does the same thing,
+# and the failure reads as tampering rather than as a checkout artifact.
+#
+# One binding is cross-file, which makes the failure harder still to place:
+# coverage.json pins pairJudged sha256:f10acf1b..., the digest of its sibling
+# pair-judged-truth.json (631 bytes LF, 651 CRLF, digest 6961c65e... translated).
+# So the file that fails is not the file Git changed.
+#
+# The rule is the directory, not the individual file, so a fixture added later
+# inherits the protection instead of waiting to be discovered by a red suite.
+apps/web/test/fixtures/** -text
+scripts/fixtures/** -text
