@@ -259,3 +259,62 @@ def elimination_and_colour_blocks(union, clusters, resolution, held_of, displaye
     }
 
     return colour_block, elimination_block
+
+
+# The two identifiable sibling outliers sit at 0.744 and 0.346; the next one is
+# 0.183. The gap is the threshold, not a tuned parameter.
+DEFECTIVE_SIBLING_DISTANCE = 0.30
+
+
+def attribute_misses(miss_ablation, outliers, displayed_k=DISPLAYED_K):
+    """Separate what a miss looks like from what would actually repair it.
+
+    Every miss in this generation shows the same symptom - the card offered no
+    candidate of the true colour - but that symptom has two upstream causes with
+    opposite repairs, and reading the symptom as the cause points the work the
+    wrong way. Where the inventory crop is defective the colour term is already
+    near-perfect and the geometry is what is broken, so removing colour weight
+    makes those misses WORSE. Only the miss the colour term itself causes is
+    repaired by touching colour.
+    """
+
+    defective = {
+        row["elementId"]
+        for row in outliers
+        if row["identifiable"] and row["nearestSiblingDistance"] >= DEFECTIVE_SIBLING_DISTANCE
+    }
+    rows = []
+    for miss in miss_ablation:
+        without_colour = miss["colour"]
+        if miss["elementId"] in defective:
+            repair = "recrop-the-inventory-thumbnail"
+        elif without_colour <= displayed_k:
+            repair = "the-colour-term"
+        else:
+            repair = "unattributed"
+        rows.append(
+            {
+                "clusterIndex": miss["clusterIndex"],
+                "elementId": miss["elementId"],
+                "name": miss["name"],
+                "rank": miss["rank"],
+                "repair": repair,
+                "rankWithoutTheColourTerm": without_colour,
+                "droppingColourMakesItWorse": without_colour > miss["rank"],
+                "colourTermAtTruth": miss["termsAtTruth"]["colour"],
+                "shapeTermAtTruth": miss["termsAtTruth"]["shape"],
+            }
+        )
+    by_repair = collections.Counter(row["repair"] for row in rows)
+    return {
+        "note": (
+            "One symptom, two repairs. Every miss here has no candidate of the true "
+            "colour on its card, but for the defective-thumbnail misses the colour term "
+            "already matches almost exactly and the geometry is corrupt, so reweighting "
+            "colour moves them further away. Count the repairs, not the symptom."
+        ),
+        "misses": len(rows),
+        "byRepair": dict(sorted(by_repair.items())),
+        "colourReweightWouldHarm": sum(1 for row in rows if row["droppingColourMakesItWorse"]),
+        "detail": rows,
+    }

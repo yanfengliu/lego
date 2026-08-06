@@ -276,6 +276,23 @@ class PinnedGenerationTest(unittest.TestCase):
             sorted(row["clusterIndex"] for row in colour["detail"]), [15, 53, 101]
         )
 
+    def test_the_shared_symptom_does_not_share_a_repair(self) -> None:
+        """All three misses look like colour; two of them are not repaired by colour.
+
+        Reading the symptom as the cause would send the work to the colour weight,
+        which moves the two defective-thumbnail misses further away.
+        """
+
+        attribution = self.report["missAttribution"]
+        self.assertEqual(attribution["misses"], 3)
+        self.assertEqual(
+            attribution["byRepair"],
+            {"recrop-the-inventory-thumbnail": 2, "the-colour-term": 1},
+        )
+        self.assertEqual(attribution["colourReweightWouldHarm"], 2)
+        worse = {row["clusterIndex"] for row in attribution["detail"] if row["droppingColourMakesItWorse"]}
+        self.assertEqual(worse, {15, 53})
+
     def test_capacity_must_not_be_used_to_prune_a_single_drawing(self) -> None:
         """The filter that refutes a whole cluster deletes the right answer for a drawing.
 

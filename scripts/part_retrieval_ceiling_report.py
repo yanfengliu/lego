@@ -7,9 +7,9 @@ describes is worthless.
 
     python -B scripts/part_retrieval_ceiling_report.py [--out PATH] [--quick]
 
-`--quick` skips the two whole-population recomputations (every member's own
-shortlist, and the per-term ablation of every miss), which are the only slow
-parts.
+`--quick` skips the one whole-population recomputation - every non-lead member's
+own shortlist - which is the only slow part. The per-term ablation covers three
+drawings and always runs.
 """
 
 from __future__ import annotations
@@ -42,6 +42,7 @@ from part_retrieval_ceiling import (  # noqa: E402
 )
 from part_retrieval_ceiling_causes import (  # noqa: E402
     ablate,
+    attribute_misses,
     elimination_and_colour_blocks,
     lead_representativeness,
     sibling_outliers,
@@ -301,9 +302,6 @@ def build_report(quick: bool = False) -> dict:
         "firstFiftyDrawingsJudged": score["firstFiftyAccuracy"]["drawingsJudged"],
     }
 
-    if quick:
-        return report
-
     misses = [
         record
         for record in union
@@ -327,6 +325,13 @@ def build_report(quick: bool = False) -> dict:
         for record in misses
         if record.rank is not None
     ]
+
+    report["missAttribution"] = attribute_misses(
+        report["missAblation"], outliers
+    )
+
+    if quick:
+        return report
 
     lead_rows = lead_representativeness(features, clusters, inventory_order, element_ids)
     multi = [row for row in lead_rows if row["members"] > 1]
