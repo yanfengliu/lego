@@ -318,3 +318,76 @@ def attribute_misses(miss_ablation, outliers, displayed_k=DISPLAYED_K):
         "colourReweightWouldHarm": sum(1 for row in rows if row["droppingColourMakesItWorse"]),
         "detail": rows,
     }
+
+
+# The observed separation is 1.0x against 160x and 575x, so a 10x cut has two
+# orders of magnitude of headroom either side. It is a gap, not a tuned constant.
+DEFECT_SIDE_RATIO = 10.0
+
+
+def triangulate_defect_side(miss_ablation, lead_descriptors, inventory, design_of, groups):
+    """Which side of the comparison is broken: the inventory crop or the callout crop.
+
+    A sibling outlier says one thumbnail disagrees with the others; it cannot say
+    the thumbnail is the wrong one, because the parts list might genuinely draw
+    that element differently. Bringing in a third measurement settles it - the
+    booklet's own callout of the same part. If the callout agrees with the
+    correctly cropped siblings and not with the element's own thumbnail, the
+    defect is on the inventory side and no descriptor change will reach it.
+
+    Credit: the triangulation is the description-retrieval agent's idea; this is
+    an independent implementation over the pinned features, and it deliberately
+    carries four outcomes rather than two. A tie means both sides agree and the
+    miss is elsewhere - inventing a defect out of a tie would point a repair at a
+    file that is fine.
+    """
+
+    rows = []
+    for miss in miss_ablation:
+        element = miss["elementId"]
+        callout_aspect = lead_descriptors[miss["clusterIndex"]]["aspect"]
+        own_aspect = inventory[element]["aspect"]
+        siblings = [other for other in groups[design_of[element]] if other != element]
+        if not siblings:
+            rows.append(
+                {
+                    "clusterIndex": miss["clusterIndex"],
+                    "elementId": element,
+                    "siblings": 0,
+                    "verdict": "no-sibling-to-compare",
+                }
+            )
+            continue
+        sibling_aspects = sorted(inventory[other]["aspect"] for other in siblings)
+        middle = sibling_aspects[len(sibling_aspects) // 2]
+        gap_to_siblings = abs(callout_aspect - middle)
+        gap_to_own = abs(callout_aspect - own_aspect)
+        if gap_to_siblings > 0 and gap_to_own / gap_to_siblings >= DEFECT_SIDE_RATIO:
+            verdict = "inventory-thumbnail"
+        elif gap_to_own > 0 and gap_to_siblings / gap_to_own >= DEFECT_SIDE_RATIO:
+            verdict = "callout-crop"
+        else:
+            verdict = "agrees-on-both-sides"
+        rows.append(
+            {
+                "clusterIndex": miss["clusterIndex"],
+                "elementId": element,
+                "siblings": len(siblings),
+                "calloutAspect": round(callout_aspect, 4),
+                "ownThumbnailAspect": round(own_aspect, 4),
+                "medianSiblingAspect": round(middle, 4),
+                "gapToSiblings": round(gap_to_siblings, 4),
+                "gapToOwnThumbnail": round(gap_to_own, 4),
+                "ratio": round(gap_to_own / gap_to_siblings, 1) if gap_to_siblings else None,
+                "verdict": verdict,
+            }
+        )
+    return {
+        "note": (
+            "A third measurement - the booklet's own callout of the same part - says "
+            "which side of a sibling disagreement is broken. Four outcomes, because a "
+            "tie is its own answer and must not be read as a defect."
+        ),
+        "byVerdict": dict(sorted(collections.Counter(row["verdict"] for row in rows).items())),
+        "detail": rows,
+    }

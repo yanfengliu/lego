@@ -43,6 +43,7 @@ from part_retrieval_ceiling import (  # noqa: E402
 from part_retrieval_ceiling_causes import (  # noqa: E402
     ablate,
     attribute_misses,
+    triangulate_defect_side,
     elimination_and_colour_blocks,
     lead_representativeness,
     sibling_outliers,
@@ -292,6 +293,8 @@ def build_report(quick: bool = False) -> dict:
         ),
         "groupsWithSiblings": len({row["partNum"] for row in outliers}),
         "elementsWithSiblings": len(outliers),
+        "elementsWithNoSibling": len(features["inventory"]) - len(outliers),
+        "worstIsATruncatedView": True,
         "worst": outliers[:15],
     }
 
@@ -328,6 +331,24 @@ def build_report(quick: bool = False) -> dict:
 
     report["missAttribution"] = attribute_misses(
         report["missAblation"], outliers
+    )
+
+    import collections as _collections
+
+    mould_groups = _collections.defaultdict(list)
+    for element in features["inventory"]:
+        mould_groups[design_of[element]].append(element)
+    report["defectSide"] = triangulate_defect_side(
+        report["missAblation"],
+        {
+            cluster["clusterIndex"]: features["callouts"][index_of_file[cluster["lead"]]][
+                "descriptor"
+            ]
+            for cluster in clusters
+        },
+        features["inventory"],
+        design_of,
+        mould_groups,
     )
 
     if quick:

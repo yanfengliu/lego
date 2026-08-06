@@ -276,6 +276,35 @@ class PinnedGenerationTest(unittest.TestCase):
             sorted(row["clusterIndex"] for row in colour["detail"]), [15, 53, 101]
         )
 
+    def test_the_defect_is_on_the_inventory_side_and_a_tie_says_so(self) -> None:
+        """The callout of the same part settles which side of the disagreement is broken.
+
+        Two misses have a callout that matches the correctly cropped siblings and
+        not the element's own thumbnail, so no descriptor change reaches them. The
+        third agrees on both sides, and that tie is reported as a tie rather than
+        invented into a defect.
+        """
+
+        side = self.report["defectSide"]
+        self.assertEqual(side["byVerdict"], {"agrees-on-both-sides": 1, "inventory-thumbnail": 2})
+        by_cluster = {row["clusterIndex"]: row for row in side["detail"]}
+        self.assertEqual(by_cluster[101]["verdict"], "agrees-on-both-sides")
+        self.assertEqual(by_cluster[101]["ratio"], 1.0)
+        for cluster in (15, 53):
+            self.assertGreater(by_cluster[cluster]["ratio"], 100.0)
+
+    def test_the_published_outlier_list_says_it_is_truncated(self) -> None:
+        """"Not in the worst fifteen" must not read as "has no sibling"."""
+
+        block = self.report["defectiveInventoryThumbnails"]
+        self.assertTrue(block["worstIsATruncatedView"])
+        self.assertEqual(block["elementsWithSiblings"], 152)
+        self.assertEqual(block["elementsWithNoSibling"], 113)
+        self.assertEqual(
+            block["elementsWithSiblings"] + block["elementsWithNoSibling"],
+            self.report["structuralCeiling"]["elementsWithThumbnail"],
+        )
+
     def test_the_shared_symptom_does_not_share_a_repair(self) -> None:
         """All three misses look like colour; two of them are not repaired by colour.
 
