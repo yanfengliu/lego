@@ -64,6 +64,7 @@ from part_description_truth import (
     builder_export_truth,
     contaminated_element_probe,
     depletion_survivors,
+    geometry_chain_drift,
     digest,
     interleave,
     load,
@@ -84,6 +85,53 @@ TRUTH = REPOSITORY_ROOT / "scripts/fixtures/part-identification-truth-first50.js
 ACTION_LEDGER = REPOSITORY_ROOT / "output/real-build/action-ledger.json"
 OFFICIAL_MODEL = REPOSITORY_ROOT / "output/official-model/vx1087034_21066_a.xml"
 COVERAGE = REPOSITORY_ROOT / "output/real-build/catalog-coverage.json"
+
+
+# What these numbers do not establish. Kept as prose beside the code that
+# produces them rather than only in a handover message, because a limit that
+# lives in a message stops travelling with the number the moment the number is
+# quoted somewhere else.
+# What these numbers do not establish, in the file that produces them rather
+# than only in a handover message -- a limit that lives in a message stops
+# travelling with the number the moment the number is quoted somewhere else.
+# The coverage limit is computed per run by `measurement_limits` below, because
+# it depends on how far the ledger actually corroborated.
+STATIC_MEASUREMENT_LIMITS = {
+    "theDescriptionColumnIsModelOutput": (
+        "The pixel ranking is deterministic and needs no model call. The description "
+        "ranking is derived from provider output, which this repository treats as "
+        "untrusted data: it cannot declare itself valid and it varies between runs. A "
+        "fused shortlist therefore changes the trust shape of retrieval as well as its "
+        "recall -- half the candidates would come from a source that has to be re-earned "
+        "on every republication, and the recall figures here describe one generation of "
+        "that source. Read recall@6 = 1.000 as 'these two rankings are complementary on "
+        "the labels we have', not as 'retrieval is solved'."
+    ),
+    "descriptionsWereProducedWhileSeeingSixCandidates": (
+        "Every description read here came from the shipping prompt, which shows the "
+        "query and six pixel-selected candidates before asking for the description. A "
+        "description could in principle be pulled toward what was on offer. The two "
+        "cases that matter most argue against that here: for the green Plate 2 x 4 and "
+        "the green Plate 2 x 10 the call said Green while no green element was on its "
+        "shortlist at all."
+    ),
+}
+
+
+def measurement_limits(builder_clusters: int, total_clusters: int) -> dict:
+    """The static limits plus the one that depends on this run's coverage."""
+
+    return {
+        "unbiasedTruthCoversOnlyThePrintedPrefix": (
+            f"The Builder export is the only unbiased source here and it reaches "
+            f"{builder_clusters} of {total_clusters} clusters, all inside printed steps "
+            f"1-12, because the action ledger stops being corroborated at step 13. Nothing "
+            f"else measures the other clusters against an independent label; the "
+            f"pair-judged subset that does reach further is conditioned on the pixel route "
+            f"having already proposed the element."
+        ),
+        **STATIC_MEASUREMENT_LIMITS,
+    }
 
 
 def main() -> int:
@@ -175,10 +223,21 @@ def main() -> int:
 
         pixel = pixel_ranking(distances, index)
         surviving = survivors.get(index, frozenset()) & pixel_universe
+        # Restricted to the 265 elements the pixel descriptor can reach, so the
+        # head-to-head compares two rankings over one universe. That restriction
+        # is fair to the pixel route and *unfair to description*: 11 elements
+        # have no thumbnail, description reaches them and the restricted column
+        # scores them as a miss. Both are computed so the cost of the fairness
+        # choice is visible rather than assumed to be zero -- no truth lands on
+        # those 11 in this generation, which is exactly why the discrepancy
+        # would otherwise go unnoticed until one did.
         description = (
             rank_elements(query, parsed, DescriptionWeights(), restrict_to=pixel_universe)
             if query is not None
             else []
+        )
+        description_full = (
+            rank_elements(query, parsed, DescriptionWeights()) if query is not None else []
         )
         # Pixels for the mould, the description for the colour. The pixel
         # descriptor's residual miss on the independent ground truth is almost
@@ -198,6 +257,7 @@ def main() -> int:
             "pixel": pixel,
             "pixelPlusDepletion": [row for row in pixel if row[0] in surviving],
             "description": description,
+            "descriptionFullInventory": description_full,
             "descriptionPlusDepletion": [row for row in description if row[0] in surviving],
             "interleaved": interleave(pixel, description),
             "pixelColourReranked": colour_reranked,
@@ -246,6 +306,10 @@ def main() -> int:
                 ),
                 "descriptionRank": description_rank,
                 "descriptionRankOptimistic": description_best,
+                "descriptionRankFullInventory": worst_rank_in_tie(
+                    ranked["descriptionFullInventory"], truth.positive
+                ),
+                "truthReachableByPixel": truth.positive in pixel_universe,
                 "descriptionPlusDepletionRank": worst_rank_in_tie(
                     ranked["descriptionPlusDepletion"], truth.positive
                 ),
@@ -282,6 +346,9 @@ def main() -> int:
             "description": recall_table([r["descriptionRank"] for r in subset]),
             "descriptionOptimisticTies": recall_table(
                 [r["descriptionRankOptimistic"] for r in subset]
+            ),
+            "descriptionOverFullInventory": recall_table(
+                [r["descriptionRankFullInventory"] for r in subset]
             ),
             "descriptionPlusDepletion": recall_table(
                 [r["descriptionPlusDepletionRank"] for r in subset]
@@ -360,6 +427,7 @@ def main() -> int:
             "description the identification call already produces, on the same ground truth."
         ),
         "pins": pins,
+        "geometryChainDrift": geometry_chain_drift(pins),
         "generation": {
             "answersMatchDigest": answers_file.get("matchDigest"),
             "liveMatchDigest": pins["output/part-identification/match.json"],
@@ -459,34 +527,33 @@ def main() -> int:
             features,
             inventory,
         ),
-        "limits": {
-            "unbiasedTruthCoversOnlyThePrintedPrefix": (
-                f"The Builder export is the only unbiased source here and it reaches "
-                f"{len(builder)} of {len(match['clusters'])} clusters, all inside printed steps "
-                f"1-12, because the action ledger stops being corroborated at step 13. Nothing "
-                f"below measures the other clusters against an independent label; the "
-                f"pair-judged subset that does reach further is conditioned on the pixel route "
-                f"having already proposed the element."
+        # Conservation, computed rather than trusted. Two ways a truth-bearing
+        # cluster can leave the head-to-head without saying so, both of them
+        # silent on this generation and neither of them reachable from live data
+        # -- which is why each is asserted by a synthetic test rather than by a
+        # live one. A branch nothing reaches is not covered, it is quiet.
+        "everyTruthAccountedFor": {
+            "clustersWithPositiveTruth": len(rows),
+            "scored": len(scored),
+            "withoutADescription": len(rows) - len(scored),
+            "adds_up": len(rows) == len(scored) + (len(rows) - len(scored)),
+            "truthOutsidePixelUniverse": sorted(
+                r["cluster"] for r in scored if not r["truthReachableByPixel"]
             ),
-            "theDescriptionColumnIsModelOutput": (
-                "The pixel ranking is deterministic and needs no model call. The description "
-                "ranking is derived from provider output, which this repository treats as "
-                "untrusted data: it cannot declare itself valid and it varies between runs. A "
-                "fused shortlist therefore changes the trust shape of retrieval as well as its "
-                "recall -- half the candidates would come from a source that has to be re-earned "
-                "on every republication, and the recall figures here describe one generation of "
-                "that source. Read recall@6 = 1.000 as 'these two rankings are complementary on "
-                "the labels we have', not as 'retrieval is solved'."
+            "headToHeadUnderCreditsDescription": any(
+                not r["truthReachableByPixel"] for r in scored
             ),
-            "descriptionsWereProducedWhileSeeingSixCandidates": (
-                "Every description read here came from the shipping prompt, which shows the "
-                "query and six pixel-selected candidates before asking for the description. A "
-                "description could in principle be pulled toward what was on offer. The two "
-                "cases that matter most argue against that here: for the green Plate 2 x 4 and "
-                "the green Plate 2 x 10 the call said Green while no green element was on its "
-                "shortlist at all."
+            "note": (
+                "A truth whose element has no parts-list thumbnail is unreachable by the pixel "
+                "descriptor and reachable by description, but the head-to-head restricts both "
+                "to the 265-element pixel universe, so such a row scores as a description miss "
+                "when description would in fact rank it. Zero rows are in that state here. If "
+                "`headToHeadUnderCreditsDescription` is ever true, read "
+                "`descriptionOverFullInventory` for the honest description figure and treat the "
+                "restricted `description` column as a lower bound."
             ),
         },
+        "limits": measurement_limits(len(builder), len(match["clusters"])),
         "depletionRemovedTheAnswer": {
             "clusters": len(depletion_unsafe),
             "ofScored": len(scored),
@@ -502,6 +569,31 @@ def main() -> int:
         "refutedElements": refuted,
         "rows": sorted(rows, key=lambda r: r["cluster"]),
     }
+
+    if not report["geometryChainDrift"]["stable"]:
+        for row in report["geometryChainDrift"]["moved"]:
+            print(
+                f"WARNING: {row['path']} is {row['actual']} but these conclusions were "
+                f"measured against {row['pinned']}. The identification chain was "
+                f"republished, so cluster indices have renumbered and the numbers below "
+                f"describe a different cut of the booklet than the recorded findings. "
+                f"Re-read the findings against this generation before comparing them with "
+                f"any other report.",
+                file=sys.stderr,
+            )
+
+    if report["everyTruthAccountedFor"]["headToHeadUnderCreditsDescription"]:
+        print(
+            f"WARNING: clusters "
+            f"{report['everyTruthAccountedFor']['truthOutsidePixelUniverse']} have a truth "
+            f"element with no parts-list thumbnail. The pixel descriptor cannot reach those "
+            f"elements at all, and the head-to-head restricts description to the same "
+            f"265-element universe for fairness, so those rows score as a description miss "
+            f"when description would rank them. The restricted `description` column is a lower "
+            f"bound for this run; read `descriptionOverFullInventory` beside it, or publish "
+            f"thumbnails for those elements and re-measure.",
+            file=sys.stderr,
+        )
 
     print(json.dumps({k: v for k, v in report.items() if k != "rows"}, indent=1))
     if args.json is not None:

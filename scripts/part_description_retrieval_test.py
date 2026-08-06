@@ -219,6 +219,52 @@ class RankingTests(unittest.TestCase):
         ]
         self.assertEqual(restricted, [e for e in full if e in {"green24", "green210"}])
 
+    def test_restricting_to_the_pixel_universe_can_hide_an_element_description_finds(
+        self,
+    ) -> None:
+        """The head-to-head's fairness restriction has a cost, and it is not zero.
+
+        Eleven inventory elements have no parts-list thumbnail, so the pixel
+        descriptor cannot reach them at all. The comparison restricts description
+        to the same universe so the two rankings are scored over one set -- which
+        means a truth on one of those eleven scores as a description miss when
+        description would in fact rank it first.
+
+        No truth lands there in the measured generation, so this branch is
+        unreachable from live data and a live test would report green forever
+        without entering it. It is pinned synthetically instead: a branch nothing
+        reaches is not covered, it is quiet.
+        """
+
+        elements = parse_inventory(
+            {
+                "no-thumbnail": {
+                    "partNum": "3030",
+                    "name": "Plate 4 x 10",
+                    "colorId": "71",
+                    "quantity": 1,
+                },
+                "has-thumbnail": {
+                    "partNum": "3001",
+                    "name": "Brick 2 x 4",
+                    "colorId": "0",
+                    "quantity": 1,
+                },
+            }
+        )
+        query = DescribedQuery.from_answer(
+            {
+                "kind": "plate",
+                "studsLong": 10,
+                "studsWide": 4,
+                "colour": "Light Bluish Gray",
+            }
+        )
+        restricted = rank_elements(query, elements, restrict_to=frozenset({"has-thumbnail"}))
+        full = rank_elements(query, elements)
+        self.assertIsNone(worst_rank_in_tie(restricted, "no-thumbnail"))
+        self.assertEqual(worst_rank_in_tie(full, "no-thumbnail"), 1)
+
     def test_an_absent_element_ranks_as_none_rather_than_as_last(self) -> None:
         query = DescribedQuery.from_answer(
             {"kind": "plate", "studsLong": 4, "studsWide": 2, "colour": "Green"}
@@ -602,6 +648,49 @@ class ScorerSemanticsTests(unittest.TestCase):
             domain["elementsWithSiblings"] + domain["elementsWithNoSibling"],
             domain["elementsWithThumbnail"],
         )
+
+    def test_a_moved_geometry_input_is_named_with_both_digests(self) -> None:
+        """A drifted chain is a different booklet cut, not a failure -- so it is reported.
+
+        Two reports measured over different cuts can agree by coincidence and
+        read as corroboration. Naming the drift is what lets a reader tell a
+        same-generation agreement from a lucky one.
+        """
+
+        pins = dict(self.scorer.GEOMETRY_CHAIN_PINS)
+        moved_path = "output/part-identification/match.json"
+        pins[moved_path] = "sha256:" + "0" * 64
+        drift = self.scorer.geometry_chain_drift(pins)
+        self.assertFalse(drift["stable"])
+        self.assertEqual(len(drift["moved"]), 1)
+        self.assertEqual(drift["moved"][0]["path"], moved_path)
+        self.assertEqual(drift["moved"][0]["actual"], pins[moved_path])
+        self.assertEqual(
+            drift["moved"][0]["pinned"], self.scorer.GEOMETRY_CHAIN_PINS[moved_path]
+        )
+
+    def test_an_absent_geometry_input_counts_as_drift_rather_than_as_agreement(self) -> None:
+        """A missing pin must not read as a match against None."""
+
+        pins = dict(self.scorer.GEOMETRY_CHAIN_PINS)
+        del pins["output/part-identification/features.json"]
+        drift = self.scorer.geometry_chain_drift(pins)
+        self.assertFalse(drift["stable"])
+        self.assertIsNone(drift["moved"][0]["actual"])
+
+    def test_the_answers_artifact_is_not_in_the_geometry_chain(self) -> None:
+        """It is expected to be republished, and it was mid-measurement.
+
+        Pinning it would turn a normal republication into a false drift alarm.
+        Its correctness is checked by a different property: its own matchDigest
+        must equal the live match.
+        """
+
+        self.assertNotIn(
+            "output/part-identification/answers-claude-opus-5.json",
+            self.scorer.GEOMETRY_CHAIN_PINS,
+        )
+        self.assertTrue(self.scorer.geometry_chain_drift(self.scorer.GEOMETRY_CHAIN_PINS)["stable"])
 
     def test_a_builder_row_with_no_live_cluster_is_named_rather_than_dropped(self) -> None:
         ledger = {
