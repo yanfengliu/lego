@@ -690,23 +690,67 @@ export function verifyRealBuildArtifactManifest(
   }
   const successfulPrefix =
     score.steps.length === preparedOptions.lastStep && completedSteps === score.steps.length;
-  if (
-    score.stepsAttempted !== score.steps.length ||
-    score.stepsComplete !== completedSteps ||
-    score.piecesPlaced !== piecesPlaced ||
-    JSON.stringify(score.failures) !== JSON.stringify(derivedFailures) ||
-    (score.status === "completed" &&
-      (!successfulPrefix || preparedOptions.lastStep !== MAXIMUM_REAL_BUILD_PRINTED_STEPS)) ||
-    (score.status === "prefix-complete" &&
-      (!successfulPrefix || preparedOptions.lastStep >= MAXIMUM_REAL_BUILD_PRINTED_STEPS)) ||
-    (score.status === "input-rejected" &&
-      (score.steps.length !== 0 ||
-        score.inputFailures.length === 0 ||
-        score.structuralHash !== null)) ||
-    (score.status === "incomplete" && successfulPrefix && score.completionFailures.length === 0)
-  ) {
+  // One condition per cause, each naming what it saw. A single boolean over
+  // every status covered seven different defects with one sentence, and the
+  // sentence was the same whichever one fired.
+  const totalsMismatch =
+    score.stepsAttempted !== score.steps.length
+      ? `stepsAttempted ${score.stepsAttempted} against ${score.steps.length} retained step row(s)`
+      : score.stepsComplete !== completedSteps
+        ? `stepsComplete ${score.stepsComplete} against ${completedSteps} row(s) that satisfy atomic completion`
+        : score.piecesPlaced !== piecesPlaced
+          ? `piecesPlaced ${score.piecesPlaced} against ${piecesPlaced} summed over the rows`
+          : JSON.stringify(score.failures) !== JSON.stringify(derivedFailures)
+            ? `${score.failures.length} retained failure(s) against ${derivedFailures.length} derived from rows whose outcome is failed`
+            : null;
+  if (totalsMismatch !== null) {
+    throw new TypeError(`Retained score totals do not reproduce its step rows: ${totalsMismatch}.`);
+  }
+  if (score.status === "completed" || score.status === "prefix-complete") {
+    const requestedFull = preparedOptions.lastStep === MAXIMUM_REAL_BUILD_PRINTED_STEPS;
+    if (!successfulPrefix) {
+      throw new TypeError(
+        `Retained score claims ${score.status} but only ${completedSteps} of ${score.steps.length} row(s) ` +
+          `completed against a requested prefix of ${preparedOptions.lastStep}.`,
+      );
+    }
+    if (score.status === "completed" ? !requestedFull : requestedFull) {
+      throw new TypeError(
+        `Retained score claims ${score.status} at requested last step ${preparedOptions.lastStep}; ` +
+          `completed is reserved for the full ${MAXIMUM_REAL_BUILD_PRINTED_STEPS} printed steps and prefix-complete for anything shorter.`,
+      );
+    }
+  }
+  if (score.status === "input-rejected") {
+    // A rejected run retains one typed refusal row per requested printed step
+    // — that is what `inputRejectedRealBuildResult` exists to do, and what says
+    // which step each cause lands on. Demanding zero rows made this branch
+    // unsatisfiable, so every rejected run threw here whatever its cause. What
+    // the status does forbid is a claim: no completion, no placement, no
+    // document, and no row that is anything but a failure.
+    const rejectionMismatch =
+      score.inputFailures.length === 0
+        ? "no input failure was retained to justify the rejection"
+        : score.structuralHash !== null
+          ? `a structural hash ${String(score.structuralHash)} was claimed`
+          : completedSteps !== 0
+            ? `${completedSteps} row(s) claim atomic completion`
+            : piecesPlaced !== 0
+              ? `${piecesPlaced} piece(s) claim placement`
+              : derivedFailures.length !== score.steps.length
+                ? `${score.steps.length - derivedFailures.length} of ${score.steps.length} retained row(s) are not failures`
+                : score.steps.length > preparedOptions.lastStep
+                  ? `${score.steps.length} refusal row(s) exceed the requested prefix of ${preparedOptions.lastStep}`
+                  : null;
+    if (rejectionMismatch !== null) {
+      throw new TypeError(
+        `Retained input-rejected score claims more than a refusal: ${rejectionMismatch}.`,
+      );
+    }
+  }
+  if (score.status === "incomplete" && successfulPrefix && score.completionFailures.length === 0) {
     throw new TypeError(
-      "Retained score status and totals do not reproduce its exact step, failure, and run-budget evidence.",
+      `Retained score claims incomplete, yet all ${score.steps.length} requested row(s) completed and no completion failure was retained.`,
     );
   }
   if ((score.structuralHash === null) !== (documentBytes === null)) {
