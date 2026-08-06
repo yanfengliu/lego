@@ -16,12 +16,29 @@ import {
 } from "./real-build-safety";
 import { LOCAL_REAL_BUILD_AUTHORITY } from "./real-build-authority";
 
-/** Set 6651557's inventory and assembled model are not the same quantity. */
+/**
+ * Set 6651557's inventory and assembled model are not the same quantity.
+ *
+ * Every figure here is read from a printed source, not reconciled to fit.
+ * The step pages carry 881 distinct Nx labels totalling 1512: 859 set in the
+ * 8pt parts-bin face totalling 1464, and 22 set in the 16/24/40pt multiplier
+ * face totalling 48 (see `FULL_BOOKLET_CALLOUT_ACCOUNTING`). The back-matter
+ * inventory on pages 221-222 totals 1465, one more than 1464 because the loose
+ * 31510 separator is never placed. The official Builder XML independently
+ * yields 1395 direct + 69 MultiBuild = 1464 instruction identities from 1465
+ * Bricks, with that same separator unmatched — see
+ * `validateOfficialModelAccounting`.
+ *
+ * `omittedPhysicalPieces` is therefore 0 and not a spare degree of freedom: the
+ * bin quantities already cover every assembled piece. Raising it to absorb a
+ * shortfall would let a callout over-read pay for itself and silence the very
+ * conservation this constant exists to enforce.
+ */
 export const OFFICIAL_REAL_BUILD_ACCOUNTING = {
-  rawCalloutQuantity: 1_486,
-  classifiedPhysicalCalloutPieces: 1_446,
-  semanticMultiplierQuantity: 40,
-  omittedPhysicalPieces: 18,
+  rawCalloutQuantity: 1_512,
+  classifiedPhysicalCalloutPieces: 1_464,
+  semanticMultiplierQuantity: 48,
+  omittedPhysicalPieces: 0,
   directCalloutPieces: 1_395,
   multiBuildCopyPieces: 69,
   looseInventoryPieces: 1,
@@ -357,20 +374,33 @@ export function preflightRealBuildOptions(input: {
     directActions === declared.directCalloutPieces &&
     multiBuildActions === declared.multiBuildCopyPieces &&
     directActions + multiBuildActions === declared.assembledTargetPieces;
-  const matches =
-    declarationMatches &&
-    prefixMatches &&
-    (input.lastStep < input.expectedPrintedSteps || fullSetMatches);
+  const fullSetRequired = input.lastStep >= input.expectedPrintedSteps;
+  const matches = declarationMatches && prefixMatches && (!fullSetRequired || fullSetMatches);
+  // Naming the failed clause is the difference between "some number moved" and a
+  // repairable report: the three clauses have three different causes and fixes.
+  const failedClauses = [
+    declarationMatches ? null : "declaration (the supplied accounting is not the official one)",
+    prefixMatches
+      ? null
+      : "prefix (the requested panels do not internally conserve raw = physical + semantic)",
+    !fullSetRequired || fullSetMatches
+      ? null
+      : "full-set (panel and action totals do not reach the official set totals)",
+  ].filter((clause): clause is string => clause !== null);
   if (!matches) {
     failures.push({
       code: "set-accounting-mismatch",
       stage: "input",
       inputKey: "accounting",
       message:
-        `Set 6651557 must classify raw crops as 1486 = 1446 physical-piece quantities + 40 semantic ` +
-        `repeat/subassembly multipliers, then add 18 omitted physical pieces to reach 1464 assembled. Its ` +
-        `action ledger must independently conserve 1395 direct pieces + 69 MultiBuild copies = 1464, plus ` +
-        `1 loose separator = 1465 inventory. Supplied panels total raw/classified/semantic/omitted ` +
+        `Set 6651557 must classify raw crops as ${official.rawCalloutQuantity} = ` +
+        `${official.classifiedPhysicalCalloutPieces} physical-piece quantities + ` +
+        `${official.semanticMultiplierQuantity} semantic repeat/subassembly multipliers, then add ` +
+        `${official.omittedPhysicalPieces} omitted physical pieces to reach ` +
+        `${official.assembledTargetPieces} assembled. Its action ledger must independently conserve ` +
+        `${official.directCalloutPieces} direct pieces + ${official.multiBuildCopyPieces} MultiBuild copies = ` +
+        `${official.assembledTargetPieces}, plus ${official.looseInventoryPieces} loose separator = ` +
+        `${official.inventoryPieces} inventory. Supplied panels total raw/classified/semantic/omitted ` +
         `${rawCalloutQuantity}/${classifiedPhysicalCalloutPieces}/${semanticMultiplierQuantity}/` +
         `${omittedPhysicalPieces}; actions account for ${directActions} direct and ${multiBuildActions} copied ` +
         `pieces; declarations are ${declared.directCalloutPieces} + ${declared.multiBuildCopyPieces} = ` +
@@ -379,11 +409,13 @@ export function preflightRealBuildOptions(input: {
         `Requested prefix 1..${input.lastStep} totals raw/classified/semantic/omitted ` +
         `${rawCalloutQuantity}/${classifiedPhysicalCalloutPieces}/${semanticMultiplierQuantity}/` +
         `${omittedPhysicalPieces}; per-step inconsistencies: ` +
-        `${inconsistentSteps.map(({ stepNumber }) => stepNumber).join(", ") || "none"}. Full-set action totals ` +
+        `${inconsistentSteps.map(({ stepNumber }) => stepNumber).join(", ") || "none"}. Failed clause(s): ` +
+        `${failedClauses.join("; ")}. Full-set action totals ` +
         `are required only when step 359 is requested; an earlier prefix remains explicitly unexecuted beyond ` +
         `its requested boundary. ` +
-        `Classify the discrepant callouts and MultiBuild actions; changing the target or accepting quantity-sum ` +
-        `as assembled truth is not a fix.`,
+        `Classify the discrepant callouts and MultiBuild actions. Three things are not fixes: changing the ` +
+        `target, accepting the quantity sum as assembled truth, and raising omittedPhysicalPieces to absorb a ` +
+        `shortfall — the printed inventory is ${official.inventoryPieces} pieces and no parse may claim more.`,
     });
   }
 

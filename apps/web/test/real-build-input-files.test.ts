@@ -263,8 +263,31 @@ describe("bounded real-build input reads", () => {
       bytes,
       digest: sha256Digest(bytes),
     });
-    expect(input.IDENTIFICATION_CARD_IMAGES_PATH).toBe(path);
+    expect(input.IDENTIFICATION_CARD_IMAGES_PATH_OVERRIDE).toBe(path);
     expect(failures).toEqual([]);
+  });
+
+  it("reads the card-image bundle the cards manifest names rather than a sibling copy", async () => {
+    delete process.env.LEGO_REAL_BUILD_IDENTIFICATION_CARD_IMAGES;
+    const input = await import("../e2e/real-build-input-files");
+    const failures: Parameters<typeof input.resolveCardImagesPath>[1] = [];
+    const runFile = `runs/${"0123456789abcdef01234567"}/images.bin`;
+    expect(input.resolveCardImagesPath({ imagesFile: runFile }, failures)).toBe(
+      `output/part-identification/cards/${runFile}`,
+    );
+    expect(failures).toEqual([]);
+  });
+
+  // A leftover images.bin beside the manifest belongs to an earlier cards run
+  // and would silently bind a superseded card set to a fresh manifest.
+  it("refuses a card-image bundle that is not the manifest's own immutable run file", async () => {
+    delete process.env.LEGO_REAL_BUILD_IDENTIFICATION_CARD_IMAGES;
+    const input = await import("../e2e/real-build-input-files");
+    for (const named of ["images.bin", "runs/../images.bin", "runs/NOTHEX/images.bin", undefined]) {
+      const failures: Parameters<typeof input.resolveCardImagesPath>[1] = [];
+      expect(input.resolveCardImagesPath({ imagesFile: named }, failures)).toBeNull();
+      expect(failures).toEqual([expect.objectContaining({ inputKey: "identificationCardImages" })]);
+    }
   });
 
   it("rejects a card-image bundle above 192 MiB before reading any byte", async () => {

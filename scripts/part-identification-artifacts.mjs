@@ -173,13 +173,17 @@ export const FULL_CALLOUT_MANIFEST_EXPECTATION = Object.freeze({
   identityCount: 881,
   rawQuantity: 1_512,
   identitySetDigest: "sha256:618c1815980af3d82ecd96f1697558b8a1976169517448039cff58430e4bf982",
+  // Must equal FULL_BOOKLET_CALLOUT_ACCOUNTING in
+  // apps/web/e2e/callout-recovery-fixture.ts, which is the classification's own
+  // source. callout-contract.test.ts asserts the two agree; a third private copy
+  // of these numbers is how the last 26-piece drift went unseen.
   accounting: Object.freeze({
     rawNxIdentityCount: 881,
     rawNxQuantityTotal: 1_512,
-    physicalPartArtIdentityCount: 863,
-    physicalPartArtQuantityTotal: 1_472,
-    semanticIdentityCount: 18,
-    semanticQuantityTotal: 40,
+    physicalPartArtIdentityCount: 859,
+    physicalPartArtQuantityTotal: 1_464,
+    semanticIdentityCount: 22,
+    semanticQuantityTotal: 48,
   }),
 });
 

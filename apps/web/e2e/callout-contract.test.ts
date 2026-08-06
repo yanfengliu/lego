@@ -8,6 +8,8 @@ import {
   SEMANTIC_CALLOUTS,
 } from "./callout-recovery-fixture";
 import type { BrowserCrop, BrowserResult, RecoveryFixtureCase } from "./callout-types";
+import { OFFICIAL_REAL_BUILD_ACCOUNTING } from "./real-build-contract";
+import { FULL_CALLOUT_MANIFEST_EXPECTATION } from "../../../scripts/part-identification-artifacts.mjs";
 
 function crop(
   fixture: RecoveryFixtureCase,
@@ -47,15 +49,16 @@ function crop(
 }
 
 describe("callout recovery fixture", () => {
-  it("pins 34 unique failures and the exact 18 semantic identities", () => {
-    expect(CALLOUT_RECOVERY_FIXTURE.cases).toHaveLength(34);
-    expect(new Set(CALLOUT_RECOVERY_FIXTURE.cases.map(({ identity }) => identity)).size).toBe(34);
+  it("pins 38 unique failures and the exact 22 semantic identities", () => {
+    expect(CALLOUT_RECOVERY_FIXTURE.cases).toHaveLength(38);
+    expect(new Set(CALLOUT_RECOVERY_FIXTURE.cases.map(({ identity }) => identity)).size).toBe(38);
     expect(
       SEMANTIC_CALLOUTS.map(({ identity }) => identity).sort((left, right) =>
         left.localeCompare(right),
       ),
     ).toEqual([
       "p103|q2|x253.179|y92.215",
+      "p109|q2|x723.002|y319.540",
       "p111|q4|x725.103|y415.705",
       "p147|q2|x532.191|y440.120",
       "p173|q2|x330.444|y327.720",
@@ -67,10 +70,13 @@ describe("callout recovery fixture", () => {
       "p216|q2|x353.685|y318.273",
       "p32|q2|x511.589|y390.747",
       "p33|q4|x274.854|y340.077",
+      "p59|q2|x124.683|y55.056",
       "p76|q2|x315.636|y170.033",
       "p79|q2|x357.198|y161.718",
+      "p85|q2|x662.244|y445.465",
       "p89|q2|x332.007|y431.482",
       "p93|q2|x332.066|y400.171",
+      "p96|q2|x125.941|y478.298",
       "p96|q2|x685.147|y70.803",
       "p99|q2|x267.940|y62.979",
     ]);
@@ -155,11 +161,11 @@ describe("callout recovery fixture", () => {
     expect(FULL_BOOKLET_CALLOUT_ACCOUNTING).toEqual({
       rawNxIdentityCount: 881,
       rawNxQuantityTotal: 1_512,
-      physicalPartArtIdentityCount: 863,
-      physicalPartArtQuantityTotal: 1_472,
-      semanticIdentityCount: 18,
-      semanticQuantityTotal: 40,
-      fixedFailureClassSize: 34,
+      physicalPartArtIdentityCount: 859,
+      physicalPartArtQuantityTotal: 1_464,
+      semanticIdentityCount: 22,
+      semanticQuantityTotal: 48,
+      fixedFailureClassSize: 38,
     });
     expect(SEMANTIC_CALLOUTS).toHaveLength(FULL_BOOKLET_CALLOUT_ACCOUNTING.semanticIdentityCount);
     expect(
@@ -180,6 +186,75 @@ describe("callout recovery fixture", () => {
     expect(CALLOUT_RECOVERY_FIXTURE.cases).toHaveLength(
       FULL_BOOKLET_CALLOUT_ACCOUNTING.fixedFailureClassSize,
     );
+  });
+
+  // Regression for the 2026-08-05 set-accounting-mismatch. The callout
+  // publication and the real-build contract each pinned their own copy of the
+  // same three numbers and drifted 26 pieces apart: the real-build copy stayed
+  // on a superseded 870-identity generation (raw 1486, physical 1446) while the
+  // publication moved to 881/1512, and the gap was papered over by an 18-piece
+  // omittedPhysicalPieces class that no artifact ever enumerated. Either half
+  // moving alone now fails here rather than at a build that places nothing.
+  it("conserves one callout accounting across the publication and real-build contracts", () => {
+    // Third copy: the .mjs producer contract that validates a published
+    // manifest. It carries the six published totals but not the fixture size.
+    const published = Object.fromEntries(
+      Object.entries(FULL_BOOKLET_CALLOUT_ACCOUNTING).filter(
+        ([key]) => key !== "fixedFailureClassSize",
+      ),
+    );
+    expect(FULL_CALLOUT_MANIFEST_EXPECTATION.accounting).toEqual(published);
+    expect(FULL_BOOKLET_CALLOUT_ACCOUNTING.rawNxQuantityTotal).toBe(
+      OFFICIAL_REAL_BUILD_ACCOUNTING.rawCalloutQuantity,
+    );
+    expect(FULL_BOOKLET_CALLOUT_ACCOUNTING.physicalPartArtQuantityTotal).toBe(
+      OFFICIAL_REAL_BUILD_ACCOUNTING.classifiedPhysicalCalloutPieces,
+    );
+    expect(FULL_BOOKLET_CALLOUT_ACCOUNTING.semanticQuantityTotal).toBe(
+      OFFICIAL_REAL_BUILD_ACCOUNTING.semanticMultiplierQuantity,
+    );
+  });
+
+  it("keeps the assembled model inside the printed inventory", () => {
+    const official = OFFICIAL_REAL_BUILD_ACCOUNTING;
+    // The printed back matter is ground truth: 1465 pieces, one of them the
+    // loose 31510 separator that is never placed. No parse may claim more.
+    expect(official.inventoryPieces).toBe(1_465);
+    expect(official.assembledTargetPieces + official.looseInventoryPieces).toBe(
+      official.inventoryPieces,
+    );
+    expect(official.classifiedPhysicalCalloutPieces + official.omittedPhysicalPieces).toBe(
+      official.assembledTargetPieces,
+    );
+    expect(official.directCalloutPieces + official.multiBuildCopyPieces).toBe(
+      official.assembledTargetPieces,
+    );
+    expect(official.classifiedPhysicalCalloutPieces + official.semanticMultiplierQuantity).toBe(
+      official.rawCalloutQuantity,
+    );
+    expect(official.classifiedPhysicalCalloutPieces).toBeLessThanOrEqual(
+      official.inventoryPieces - official.looseInventoryPieces,
+    );
+    // An omitted class is the one term with no printed source, so it is the one
+    // an over-reading parse could hide behind. It stays zero until some artifact
+    // enumerates the pieces, which is what omitted-piece-identity-missing asks for.
+    expect(official.omittedPhysicalPieces).toBe(0);
+  });
+
+  it("classifies every multiplier-face label as semantic", () => {
+    // The booklet sets parts-bin quantities at 8pt and multipliers at 16/24/40pt.
+    // These four were read at the multiplier faces but published as part-art,
+    // which is what put the physical total 8 pieces above the assembled model.
+    const recovered = ["p59|q2|", "p85|q2|", "p96|q2|x125.941", "p109|q2|"];
+    for (const prefix of recovered) {
+      const entry = CALLOUT_RECOVERY_FIXTURE.cases.find(({ identity }) =>
+        identity.startsWith(prefix),
+      );
+      expect(entry, `${prefix} must stay a preregistered multiplier label`).toBeDefined();
+      expect(entry!.evidenceKind).not.toBe("part-art");
+      expect(entry!.regionKind).toBe("vector-box-full");
+      expect(entry!.requiredMasks).toContain("quantity-label");
+    }
   });
 
   it("rejects numeral-only part art for a semantic action", () => {
@@ -228,7 +303,7 @@ describe("callout recovery fixture", () => {
     const benchmark = evaluateRecoveryBenchmark(CALLOUT_RECOVERY_FIXTURE.sourceHash, results);
     expect(benchmark.winner).toBe("evidence-aware");
     expect(benchmark.winningMargin).toBeGreaterThan(0);
-    expect(benchmark.scores.find(({ strategy }) => strategy === "evidence-aware")?.valid).toBe(34);
+    expect(benchmark.scores.find(({ strategy }) => strategy === "evidence-aware")?.valid).toBe(38);
     expect(benchmark.scores.find(({ strategy }) => strategy === "ranked-component")?.valid).toBe(
       16,
     );

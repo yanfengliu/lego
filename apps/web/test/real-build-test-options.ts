@@ -45,7 +45,9 @@ export const realBuildTransitionPanel = (stepNumber: number): RealBuildPanelSpec
 
 function completePanels(): readonly RealBuildPanelSpec[] {
   const panels = Array.from({ length: 359 }, (_, index) => realBuildTransitionPanel(index + 1));
-  const directPieces = Array.from({ length: 1_377 }, (_, index) => ({
+  // Mirrors OFFICIAL_REAL_BUILD_ACCOUNTING: 1395 direct + 69 MultiBuild = 1464
+  // assembled, with no omitted class, and raw 1512 = 1464 physical + 48 semantic.
+  const directPieces = Array.from({ length: 1_395 }, (_, index) => ({
     identityKey: `direct-${index}`,
     designId: "3005",
     materialId: "1",
@@ -60,18 +62,6 @@ function completePanels(): readonly RealBuildPanelSpec[] {
       orientationId: "upright-yaw-0",
     },
   }));
-  const omittedPieces = Array.from({ length: 18 }, (_, index) => ({
-    identityKey: `omitted-${index}`,
-    designId: "3005",
-    materialId: "1",
-    catalogPartId: "builtin:brick-1x1",
-    colorId: "builtin:black",
-    evidenceDigest: REAL_BUILD_TEST_DIGEST,
-    transform: {
-      positionLdu: [(1_377 + index) * 20, 0, 0] as const,
-      orientationId: "upright-yaw-0",
-    },
-  }));
   panels[357] = {
     ...realBuildTransitionPanel(358),
     action: {
@@ -80,11 +70,11 @@ function completePanels(): readonly RealBuildPanelSpec[] {
       evidenceDigest: REAL_BUILD_TEST_DIGEST,
     },
     pieces: directPieces,
-    omittedPieces,
+    omittedPieces: [],
     mappedCalloutKeys: directPieces.map(({ calloutKey }) => calloutKey),
-    calloutPieces: 1_377,
-    classifiedPhysicalCalloutPieces: 1_377,
-    omittedPhysicalPieces: 18,
+    calloutPieces: 1_395,
+    classifiedPhysicalCalloutPieces: 1_395,
+    omittedPhysicalPieces: 0,
   };
   panels[358] = {
     ...realBuildTransitionPanel(359),
@@ -107,9 +97,9 @@ function completePanels(): readonly RealBuildPanelSpec[] {
         },
       })),
     },
-    calloutPieces: 109,
+    calloutPieces: 117,
     classifiedPhysicalCalloutPieces: 69,
-    semanticMultiplierQuantity: 40,
+    semanticMultiplierQuantity: 48,
     mappedCalloutKeys: ["fixture-copy-callout"],
   };
   return panels;
@@ -118,7 +108,7 @@ function completePanels(): readonly RealBuildPanelSpec[] {
 function completeCoverage(): RealBuildOptions["coverageByCallout"] {
   return {
     ...Object.fromEntries(
-      Array.from({ length: 1_377 }, (_, index) => [
+      Array.from({ length: 1_395 }, (_, index) => [
         `fixture-direct-${index}`,
         {
           pageNumber: 358,
@@ -133,7 +123,7 @@ function completeCoverage(): RealBuildOptions["coverageByCallout"] {
     "fixture-copy-callout": {
       pageNumber: 359,
       stepNumber: 359,
-      quantity: 109,
+      quantity: 117,
       identificationConfidence: "official-model",
       cropDigest: null,
       inputDigest: REAL_BUILD_TEST_DIGEST,

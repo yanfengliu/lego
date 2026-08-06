@@ -46,9 +46,43 @@ export const IDENTIFICATION_DISTANCES_PATH =
 export const IDENTIFICATION_CARDS_PATH =
   process.env.LEGO_REAL_BUILD_IDENTIFICATION_CARDS ??
   "output/part-identification/cards/manifest.json";
-export const IDENTIFICATION_CARD_IMAGES_PATH =
-  process.env.LEGO_REAL_BUILD_IDENTIFICATION_CARD_IMAGES ??
-  "output/part-identification/cards/images.bin";
+/**
+ * The card-images bundle is named by the cards manifest, not by convention.
+ *
+ * `part-identification cards` writes each publication into its own immutable
+ * `runs/<24-hex>/` directory and records the bundle it wrote as `imagesFile`.
+ * A fixed sibling path is therefore a second copy of a fact the manifest
+ * already carries, and a copy that no producer maintains: one left over from an
+ * earlier generation reads as current and binds a superseded card set to a
+ * fresh manifest. Only an explicit override may name the file directly.
+ */
+export const IDENTIFICATION_CARD_IMAGES_PATH_OVERRIDE =
+  process.env.LEGO_REAL_BUILD_IDENTIFICATION_CARD_IMAGES ?? null;
+
+/** Run-relative bundle the cards manifest is allowed to name, and nothing else. */
+const CARD_IMAGES_RUN_FILE = /^runs\/[0-9a-f]{24}\/images\.bin$/u;
+
+export function resolveCardImagesPath(cards: unknown, failures: StepFailure[]): string | null {
+  if (IDENTIFICATION_CARD_IMAGES_PATH_OVERRIDE !== null) {
+    return IDENTIFICATION_CARD_IMAGES_PATH_OVERRIDE;
+  }
+  const named = (cards as { readonly imagesFile?: unknown } | null)?.imagesFile;
+  if (typeof named !== "string" || !CARD_IMAGES_RUN_FILE.test(named)) {
+    failures.push({
+      code: "input-digest-mismatch",
+      stage: "input",
+      inputKey: "identificationCardImages",
+      message:
+        `The cards manifest at ${IDENTIFICATION_CARDS_PATH} names its image bundle as ` +
+        `${JSON.stringify(named ?? "missing")}, which is not a run-relative ` +
+        `"runs/<24 lowercase hex>/images.bin". The bundle is read from the manifest so a leftover ` +
+        `sibling copy cannot bind a superseded card set; republish the cards run, or set ` +
+        `LEGO_REAL_BUILD_IDENTIFICATION_CARD_IMAGES to name the exact bundle deliberately.`,
+    });
+    return null;
+  }
+  return `${IDENTIFICATION_CARDS_PATH.replace(/\/manifest\.json$/u, "")}/${named}`;
+}
 export const IDENTIFICATION_ANSWERS_PATH =
   process.env.LEGO_REAL_BUILD_IDENTIFICATION_ANSWERS ??
   `output/part-identification/answers-${PART_IDENTIFICATION_MODEL_ID}.json`;
@@ -182,7 +216,7 @@ function jsonInputPolicy(path: string): InputSizePolicy {
 }
 
 function binaryInputPolicy(path: string): InputSizePolicy {
-  if (path === IDENTIFICATION_CARD_IMAGES_PATH) {
+  if (path === IDENTIFICATION_CARD_IMAGES_PATH_OVERRIDE || /\/images\.bin$/u.test(path)) {
     return {
       description: "identification-card image replay bundle",
       maximumBytes: IDENTIFICATION_CARD_IMAGES_MAXIMUM_BYTES,
@@ -324,9 +358,12 @@ export function readIdentificationAdjudicationInputs(
   readonly answers: RawJsonArtifact | null;
 } {
   if (source !== "adjudicated") return { cards: null, cardImages: null, answers: null };
-  const cardImageBytes = readBinaryInput(IDENTIFICATION_CARD_IMAGES_PATH, failures);
+  const cards = readJsonArtifact<unknown>(IDENTIFICATION_CARDS_PATH, failures);
+  const imagesPath = resolveCardImagesPath(cards.value, failures);
+  const cardImageBytes =
+    imagesPath === null ? Buffer.alloc(0) : readBinaryInput(imagesPath, failures);
   return {
-    cards: readJsonArtifact<unknown>(IDENTIFICATION_CARDS_PATH, failures),
+    cards,
     cardImages: { bytes: cardImageBytes, digest: sha256(cardImageBytes) },
     answers: readJsonArtifact<unknown>(IDENTIFICATION_ANSWERS_PATH, failures),
   };

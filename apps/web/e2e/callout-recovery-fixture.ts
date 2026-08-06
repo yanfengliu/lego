@@ -72,18 +72,39 @@ export const CALLOUT_RECOVERY_FIXTURE = Object.freeze({
     physical("p96|q4|x23.652|y364.342"),
     physical("p96|q8|x23.652|y410.868"),
     semantic("p99|q2|x267.940|y62.979", 450, 250),
+    // Large-face multiplier labels. Every Nx label the booklet sets in a step
+    // parts bin is 8pt; these four are 16pt, 24pt and 40pt, the same faces the
+    // eighteen entries above use. Each restates pieces the step's own bin has
+    // already counted — p59, p85 and p109 are pointer boxes with leader lines
+    // into the model, p96 is a subassembly-repeat header — so counting their
+    // quantity as physical double-counts the bin. See the size split in
+    // FULL_BOOKLET_CALLOUT_ACCOUNTING below.
+    pointer("p59|q2|x124.683|y55.056", 250, 130),
+    pointer("p85|q2|x662.244|y445.465", 350, 380),
+    semantic("p96|q2|x125.941|y478.298", 600, 230),
+    pointer("p109|q2|x723.002|y319.540", 250, 130),
   ] satisfies readonly RecoveryFixtureCase[],
 });
 
-/** Source-pinned conservation totals for a fresh full-booklet publication. */
+/**
+ * Source-pinned conservation totals for a fresh full-booklet publication.
+ *
+ * The split is the booklet's own type face. Every Nx label a step parts bin
+ * prints is 8pt and 859 of them total 1464; the 22 multiplier labels are set at
+ * 16pt, 24pt and 40pt and total 48. 1464 is also what the printed back-matter
+ * inventory (pages 221-222, 1465 pieces) leaves after its one loose 31510
+ * separator, and what the official Builder XML yields as 1395 direct + 69
+ * MultiBuild instruction identities. Three independent printed sources, one
+ * number: a physical total above 1464 is over-read, whatever produced it.
+ */
 export const FULL_BOOKLET_CALLOUT_ACCOUNTING = Object.freeze({
   rawNxIdentityCount: 881,
   rawNxQuantityTotal: 1_512,
-  physicalPartArtIdentityCount: 863,
-  physicalPartArtQuantityTotal: 1_472,
-  semanticIdentityCount: 18,
-  semanticQuantityTotal: 40,
-  fixedFailureClassSize: 34,
+  physicalPartArtIdentityCount: 859,
+  physicalPartArtQuantityTotal: 1_464,
+  semanticIdentityCount: 22,
+  semanticQuantityTotal: 48,
+  fixedFailureClassSize: 38,
 });
 
 function physical(identity: string): RecoveryFixtureCase {
@@ -96,6 +117,24 @@ function physical(identity: string): RecoveryFixtureCase {
     minimumHeightPx: 64,
     minimumForegroundPixels: 1_000,
     minimumBoundaryClearancePx: 0,
+  };
+}
+
+/** A multiplier label whose region is a pointer box rather than a whole subassembly. */
+function pointer(
+  identity: string,
+  minimumWidthPx: number,
+  minimumHeightPx: number,
+): RecoveryFixtureCase {
+  return {
+    identity,
+    evidenceKind: "assembly-action",
+    regionKind: "vector-box-full",
+    requiredMasks: ["quantity-label"],
+    minimumWidthPx,
+    minimumHeightPx,
+    minimumForegroundPixels: 10_000,
+    minimumBoundaryClearancePx: 16,
   };
 }
 
