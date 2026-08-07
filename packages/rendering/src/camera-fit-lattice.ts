@@ -54,13 +54,20 @@ const DEGREES = Math.PI / 180;
 /**
  * Which face of the assembly a panel is drawn from.
  *
- * A projected square lattice is identical seen from above and from below, so
- * the grid alone cannot say which — the two differ only in the sign of
- * `sin elevation`, and the solver has to be told. On set 6651557 the booklet
- * says: it prints a rotate-the-model icon at each turn, and folding those gives
- * the face per step. Left to itself the solver takes the above-view root, which
- * is right for a model that stays upright and wrong for one built partly
- * inverted.
+ * This is an input to *rendering*, never to fitting, and the difference is
+ * proved rather than asserted. A below-view lattice at azimuth A is the same
+ * lattice as an above-view at azimuth -A: the projection gives
+ * a(A, -e) = a(-A, e) and b(A, -e) = -b(-A, e), and negating one basis vector
+ * spans the same lattice. So a stud grid cannot distinguish the two faces even
+ * in principle, and telling the fitter which face to look for changes nothing,
+ * because its search over re-basings already reaches the equivalent
+ * positive-elevation solution.
+ *
+ * Measured on the first forty panels of 6651557: fitting every panel a second
+ * time as a below-view produced no solution at all on any of them, including
+ * the five the booklet's own flip icon and two blind raters agree are drawn
+ * from underneath. The face has to be applied when a candidate is rendered —
+ * as the sign of the camera's elevation — not when the panel is measured.
  */
 export type PanelFace = "studs-up" | "underside";
 
@@ -485,14 +492,6 @@ export interface StudLatticeOptions {
    * tiles — landed over 0.03, with nothing in between.
    */
   readonly maxResidualFraction?: number;
-  /**
-   * Which face of the assembly this panel is drawn from. Defaults to studs-up,
-   * which is what every caller assumed before the booklet was found to turn the
-   * model over. A panel drawn from underneath does not fit as an above-view: the
-   * residual lands over 0.03 and the fit is refused, which is why the sign has
-   * to come from outside the grid.
-   */
-  readonly face?: PanelFace;
 }
 
 export interface LatticeCandidate {
@@ -623,7 +622,6 @@ const MIN_RELIABLE_ELEVATION_DEGREES = Math.asin(1 / MAX_BASIS_OVER_SHORTEST_REP
 
 export function reduceToAxonometricBasis(
   basis: LatticeBasisPx,
-  { face = "studs-up" }: { readonly face?: PanelFace } = {},
 ): { readonly basis: LatticeBasisPx; readonly solution: AxonometricSolution } | null {
   let shortest = Infinity;
   for (let m = -2; m <= 2; m += 1) {
@@ -654,7 +652,7 @@ export function reduceToAxonometricBasis(
           if (Math.hypot(second.xPx, second.yPx) > longestAllowed) continue;
           const pair = canonicalPair(first, second);
           if (pair === null) continue;
-          const solution = solveAxonometricFromLattice(pair, { face });
+          const solution = solveAxonometricFromLattice(pair);
           if (solution === null) continue;
           if (best === null || solution.residualPx < best.solution.residualPx) {
             best = { basis: pair, solution };
@@ -733,7 +731,6 @@ export function fitStudLattice(
   const maxOffsetPx = options.maxOffsetPx ?? 60;
   const peakCount = options.peakCount ?? 16;
   const maxResidualFraction = options.maxResidualFraction ?? 0.02;
-  const face = options.face ?? "studs-up";
   if (field.sampleX.length < 200) {
     return {
       basis: null,
@@ -769,7 +766,7 @@ export function fitStudLattice(
       const explainedPeaks = countExplained(spanning, peaks);
       // The peaks give some primitive basis; the camera's own pair of grid
       // steps is a change of basis away, and only it solves cleanly.
-      const reduced = reduceToAxonometricBasis(spanning, { face });
+      const reduced = reduceToAxonometricBasis(spanning);
       candidates.push({
         basis: reduced?.basis ?? spanning,
         solution: reduced?.solution ?? null,
@@ -819,7 +816,7 @@ export function fitStudLattice(
 
   const chosen = viable[0]!;
   const refined = options.refine === false ? chosen.basis : refineBasis(field, chosen.basis);
-  const settled = reduceToAxonometricBasis(refined, { face });
+  const settled = reduceToAxonometricBasis(refined);
   const basis = settled?.basis ?? refined;
   const solution = settled?.solution ?? chosen.solution;
   if (solution === null) {

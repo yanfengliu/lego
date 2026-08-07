@@ -4,8 +4,8 @@ import {
   buildStudTextureField,
   fitStudLattice,
   latticeBasisFromAxonometric,
-  solveAxonometricFromLattice,
   reduceToAxonometricBasis,
+  solveAxonometricFromLattice,
   studLatticePeaks,
   type LatticeBasisPx,
 } from "./camera-fit-lattice.ts";
@@ -449,5 +449,54 @@ describe("solveAxonometricFromLattice below the model", () => {
         expect(solution!.residualPx).toBeLessThan(1e-9);
       }
     }
+  });
+});
+
+describe("a stud grid cannot tell which face it is seen from", () => {
+  /**
+   * The reason the flip icon cannot be fed to the fitter, proved rather than
+   * asserted. This test exists so nobody adds a `face` option to
+   * fitStudLattice again: it could not change an answer.
+   */
+  it("gives the same lattice for a below-view as for an above-view at negated azimuth", () => {
+    for (const azimuthDegrees of [12, 30, 45, 55, 78]) {
+      for (const elevationDegrees of [15, 26, 35.264, 48]) {
+        const below = latticeBasisFromAxonometric({
+          azimuthDegrees,
+          elevationDegrees: -elevationDegrees,
+          pixelsPerUnit: 31,
+        });
+        const above = latticeBasisFromAxonometric({
+          azimuthDegrees: -azimuthDegrees,
+          elevationDegrees,
+          pixelsPerUnit: 31,
+        });
+
+        // a is shared outright, and b differs only in sign — which spans the
+        // same lattice, so no measurement of the grid can separate them.
+        expect(below.a.xPx).toBeCloseTo(above.a.xPx, 9);
+        expect(below.a.yPx).toBeCloseTo(above.a.yPx, 9);
+        expect(below.b.xPx).toBeCloseTo(-above.b.xPx, 9);
+        expect(below.b.yPx).toBeCloseTo(-above.b.yPx, 9);
+      }
+    }
+  });
+
+  it("fits a below-view panel as an above-view without ever failing", () => {
+    // Which is what the booklet showed: refitting all forty measured panels as
+    // below-views produced no solution on any of them, the five drawn from
+    // underneath included. The fitter's search over re-basings always reaches
+    // the positive-elevation twin, so the face must be applied at render time.
+    const below = latticeBasisFromAxonometric({
+      azimuthDegrees: 55,
+      elevationDegrees: -35,
+      pixelsPerUnit: 16,
+    });
+    const reduced = reduceToAxonometricBasis(below);
+
+    expect(reduced).not.toBeNull();
+    expect(reduced!.solution.elevationDegrees).toBeGreaterThan(0);
+    expect(Math.abs(reduced!.solution.elevationDegrees)).toBeCloseTo(35, 4);
+    expect(reduced!.solution.residualPx).toBeLessThan(1e-6);
   });
 });
