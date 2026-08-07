@@ -143,8 +143,20 @@ export interface ExtractShapesOptions {
 
 /**
  * Walks a page's operator list into filled shapes in page coordinates.
- * Transform state is tracked through save/restore so a shape's bounds are where
- * it actually lands, not where its untransformed path happens to sit.
+ *
+ * Save and restore carry the whole graphics state, not just the transform.
+ * PDF's `q`/`Q` save and restore the fill colour too, so a shape drawn after a
+ * restore takes the colour that was current at the matching save — it does not
+ * need a `setFillRGBColor` of its own. Stacking the transform alone let the
+ * colour leak forwards across a restore, and every such shape was reported in
+ * whatever colour happened to be left over.
+ *
+ * Measured on 6651557 page 13, which prints the rotate-the-model icon twice:
+ * both are drawn as a white rounded square under a black glyph, the second
+ * relies on the restored white, and it was reported `#000000`. The icon
+ * detector keys on `#ffffff`, so step 8's icon was invisible and the booklet's
+ * 39 icons read as one per page — the count that made a two-icon page look
+ * impossible.
  */
 export function extractPageShapes(
   operators: OperatorList,
@@ -152,7 +164,7 @@ export function extractPageShapes(
   { limits = PAGE_SHAPE_LIMITS }: ExtractShapesOptions = {},
 ): readonly PageShape[] {
   const shapes: PageShape[] = [];
-  const stack: Matrix[] = [];
+  const stack: { readonly transform: Matrix; readonly fillHex: string }[] = [];
   let transform: Matrix = IDENTITY;
   let fillHex = "#000000";
 
@@ -163,9 +175,11 @@ export function extractPageShapes(
     const args = operators.argsArray[index];
 
     if (code === codes.save) {
-      stack.push(transform);
+      stack.push({ transform, fillHex });
     } else if (code === codes.restore) {
-      transform = stack.pop() ?? IDENTITY;
+      const restored = stack.pop();
+      transform = restored?.transform ?? IDENTITY;
+      fillHex = restored?.fillHex ?? "#000000";
     } else if (code === codes.transform) {
       const matrix = asMatrix(args);
       if (matrix) transform = multiply(transform, matrix);

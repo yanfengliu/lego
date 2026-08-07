@@ -135,4 +135,45 @@ describe("extractPageShapes", () => {
 
     expect(shapes).toHaveLength(10);
   });
+
+  it("restores the fill colour on restore, not only the transform", () => {
+    // What page 13 of 6651557 does twice: a white rounded square under a black
+    // glyph, drawn inside save/restore. The second icon relies on the colour the
+    // restore puts back rather than setting white again, which is legal PDF.
+    // Stacking the transform alone leaked the glyph's black forward and reported
+    // the second white square as #000000, so the icon detector never saw it.
+    const shapes = extractPageShapes(
+      listOf([
+        [CODES.setFillRGBColor, ["#ffffff"]],
+        [CODES.save, []],
+        [CODES.setFillRGBColor, ["#000000"]],
+        [CODES.constructPath, path(CODES.fill, [0, 0, 45, 45])],
+        [CODES.restore, []],
+        [CODES.constructPath, path(CODES.fill, [100, 0, 145, 45])],
+      ]),
+      CODES,
+    );
+
+    expect(shapes.map(({ fillHex }) => fillHex)).toEqual(["#000000", "#ffffff"]);
+  });
+
+  it("keeps save/restore of colour and transform independent per nesting level", () => {
+    const shapes = extractPageShapes(
+      listOf([
+        [CODES.setFillRGBColor, ["#c91a09"]],
+        [CODES.save, []],
+        [CODES.setFillRGBColor, ["#00ff00"]],
+        [CODES.save, []],
+        [CODES.setFillRGBColor, ["#0000ff"]],
+        [CODES.constructPath, path(CODES.fill, [0, 0, 1, 1])],
+        [CODES.restore, []],
+        [CODES.constructPath, path(CODES.fill, [0, 0, 2, 2])],
+        [CODES.restore, []],
+        [CODES.constructPath, path(CODES.fill, [0, 0, 3, 3])],
+      ]),
+      CODES,
+    );
+
+    expect(shapes.map(({ fillHex }) => fillHex)).toEqual(["#0000ff", "#00ff00", "#c91a09"]);
+  });
 });
