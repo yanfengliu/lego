@@ -36,6 +36,14 @@ import {
   type RuntimeBrickIdentity,
 } from "./real-build-fixed-actions";
 import { evaluateSearchBenchmark } from "./real-build-search";
+import type { DeferralEvidence } from "./real-build-deferral";
+import { settleDeferredPrintedStep } from "./real-build-deferred-step";
+import { composeExecutedStepReport } from "./real-build-step-report";
+import {
+  derivePanelRasterEvidence,
+  renderRealBuildPageCanvas,
+  type PanelRasterEvidence,
+} from "./real-build-panel-raster";
 import {
   BrowserPreparationError,
   failedBrowserOutput,
@@ -102,24 +110,15 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
         applyOperations: (base, operations) => kernel.applyBuildOperations(base, operations),
       });
       const { panels: selectedPanels, pages } = selectRequestedPanelPages(options);
+      const orderedPanels = [...selectedPanels].sort(
+        (left, right) => left.stepNumber - right.stepNumber,
+      );
 
+      document.querySelectorAll("canvas.page-probe").forEach((node) => node.remove());
       for (const pageNumber of pages) {
-        const pdfPage = await pdf.getPage(pageNumber);
-        const viewport = pdfPage.getViewport({ scale: options.renderScale });
-        document.querySelectorAll("canvas.page-probe").forEach((node) => node.remove());
-        const pageCanvas = document.createElement("canvas");
-        pageCanvas.className = "page-probe";
-        pageCanvas.width = Math.ceil(viewport.width);
-        pageCanvas.height = Math.ceil(viewport.height);
+        const page = await renderRealBuildPageCanvas(pdf, pageNumber, options.renderScale);
+        const pageCanvas = page.canvas;
         try {
-          const pageContext = pageCanvas.getContext("2d", { willReadFrequently: true })!;
-          await pdfPage.render({
-            canvas: pageCanvas,
-            canvasContext: pageContext,
-            viewport,
-            background: "#ffffff",
-          }).promise;
-
           const onThisPage = selectedPanels
             .filter((panel) => panel.pageNumber === pageNumber)
             .sort((left, right) => left.stepNumber - right.stepNumber);
@@ -128,105 +127,27 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
             const stepStarted = performance.now();
             const stepBaseDocument = document_;
             try {
-              const sourceX = spec.minXPt * options.renderScale;
-              const sourceW = (spec.maxXPt - spec.minXPt) * options.renderScale;
-              const sourceY = pageCanvas.height - spec.maxYPt * options.renderScale;
-              const sourceH = (spec.maxYPt - spec.minYPt) * options.renderScale;
-              const ratio = options.panelWidth / sourceW;
-              const fitWidth = Math.max(1, Math.round(options.panelWidth));
-              const fitHeight = Math.max(1, Math.round(sourceH * ratio));
-              const crop = document.createElement("canvas");
-              crop.width = fitWidth;
-              crop.height = fitHeight;
-              const cropContext = crop.getContext("2d", { willReadFrequently: true })!;
-              cropContext.imageSmoothingEnabled = true;
-              cropContext.drawImage(
+              const evidence = derivePanelRasterEvidence({
                 pageCanvas,
-                sourceX,
-                sourceY,
-                sourceW,
-                sourceH,
-                0,
-                0,
-                fitWidth,
-                fitHeight,
-              );
-              const fitImage = cropContext.getImageData(0, 0, fitWidth, fitHeight);
-
-              const fitRaster = { width: fitWidth, height: fitHeight, pixels: fitImage.data };
-              const artMask = assembly.keyPanelArt(fitRaster, {
-                backgroundHex: 0x899093,
-                toleranceLevels: 10,
-              }) as Uint8Array;
-              const furniture = assembly.keyPrintedBoxes(fitRaster) as Uint8Array;
-              for (let index = 0; index < artMask.length; index += 1) {
-                if (furniture[index] === 1) artMask[index] = 0;
-              }
-              assembly.clearPdfBoxes(
-                artMask,
-                {
-                  width: fitWidth,
-                  height: fitHeight,
-                  renderScale: options.renderScale,
-                  sourceXPx: sourceX,
-                  sourceYPx: sourceY,
-                  ratio,
-                  pageHeightPx: pageCanvas.height,
-                },
-                spec.calloutBoxes,
-              );
-              const isolation = assembly.isolateAssembly({
-                width: fitWidth,
-                height: fitHeight,
-                mask: artMask,
+                spec,
+                options,
+                modules: { lattice, assembly },
               });
-
-              const field = lattice.buildStudTextureField(fitImage.data, fitWidth, fitHeight, {
-                backgroundHex: 0x899093,
-                backgroundTolerance: 10,
-                highPassRadiusPx: 14,
-                includeMask: isolation.mask,
-                maxSamples: 18_000,
-              });
-              const fit = lattice.fitStudLattice(field, {
-                minOffsetPx: 8,
-                maxOffsetPx: 100,
-                maxResidualFraction: 0.02,
-              });
-
-              const factor = options.workFactor;
-              const work = assembly.downsampleRaster(fitRaster, factor) as {
-                width: number;
-                height: number;
-                pixels: Uint8ClampedArray;
-              };
-              const width = work.width;
-              const height = work.height;
-              const highlight = assembly.extractHighlightRegions(work.pixels, width, height, {
-                minimumOutlinePx: Math.max(10, Math.round(40 / factor)),
-              });
-              const workIsolation = assembly.downsampleMask(
-                { width: fitWidth, height: fitHeight, mask: isolation.mask },
-                factor,
-              ) as { mask: Uint8Array };
-              const built = assembly.alreadyBuiltMask(
-                workIsolation.mask,
-                highlight.mask,
-                highlight.strokeMask,
+              const {
                 width,
                 height,
-              ) as Uint8Array;
-              const arrows = assembly.readDisplacementArrows(
-                { width, height, pixels: work.pixels },
-                { originMask: highlight.strokeMask },
-              );
-
-              const highlightBox = assembly.highlightBounds(highlight) as {
-                minXPx: number;
-                minYPx: number;
-                maxXPx: number;
-                maxYPx: number;
-              } | null;
+                highlight,
+                highlightBox,
+                builtMask: built,
+                arrows,
+                arrowFamily,
+              } = evidence;
+              const fit = {
+                solution: evidence.fitSolution,
+                failure: evidence.fitFailure,
+                coherence: evidence.fitCoherence,
+              };
+              const factor = options.workFactor;
 
               const pieceReports: RealBuildPieceReport[] = [];
               let candidateDocument = stepBaseDocument;
@@ -256,86 +177,6 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
               const parts = (stepBaseDocument as { parts: unknown[] }).parts;
               const anchorStep = parts.length === 0;
 
-              // The camera fit reads azimuth, scale and phase off the panel's own
-              // stud grid, and it cannot read the face: a projected square
-              // lattice is identical from above and below, so the fitter returns
-              // the positive-elevation twin on every panel including the flipped
-              // ones. The booklet's rotate-the-model icon supplies that missing
-              // sign, and `viewForPanelFace` applies it.
-              //
-              // Both consumers of the fit take the corrected view, not just the
-              // renderer: the arrow family is resolved against this projection
-              // too, so a face-blind projection would convert the printed arrows
-              // into the wrong displacements before any render happened.
-              const faceCorrectedFit =
-                fit.solution === null || spec.panelFace === null
-                  ? null
-                  : (assembly.viewForPanelFace(fit.solution, spec.panelFace) as {
-                      azimuthDegrees: number;
-                      elevationDegrees: number;
-                      pixelsPerUnit: number;
-                    });
-
-              // A detected arrow is not yet a placement; converting it is what
-              // makes it one. The booklet draws an exploded step by inking an
-              // arrow from clear of the ghost to clear of the landing surface,
-              // so the drawn vector is shorter than the travel by both gaps —
-              // measured at 0.00 to 0.47 of a stud on this booklet, always the
-              // same way. `measureArrowClearances` reads those gaps off the same
-              // pixels, `correctArrowForClearance` adds them back, and
-              // `arrowDisplacementFamily` returns every whole-grid displacement
-              // whose projection matches what is left.
-              //
-              // The count is the size of that family, not a claim that the
-              // family has one member. On this projection several triples agree
-              // to within the measurement, which is why the family is handed to
-              // the panel-scored search rather than read as an answer; what it
-              // establishes is that the arrow constrains the placement at all,
-              // which is exactly what the refusal asks for.
-              const arrowFamily =
-                faceCorrectedFit === null ||
-                arrows.displacementXPx === null ||
-                arrows.displacementYPx === null
-                  ? []
-                  : (() => {
-                      const projection = assembly.panelProjectionFromFit(faceCorrectedFit);
-                      const clearances = assembly.measureArrowClearances(arrows.arrows, {
-                        width,
-                        height,
-                        ghostStrokeMask: highlight.strokeMask,
-                        alreadyBuiltMask: built,
-                      }) as readonly {
-                        tailToGhostPx: number | null;
-                        headToBuiltPx: number | null;
-                      }[];
-                      const raw = {
-                        xPx: arrows.displacementXPx as number,
-                        yPx: arrows.displacementYPx as number,
-                      };
-                      const measured = clearances.filter(
-                        (entry) => entry.tailToGhostPx !== null && entry.headToBuiltPx !== null,
-                      );
-                      // A missing gap is treated as zero rather than guessed,
-                      // which under-corrects and leaves the answer where it was.
-                      const corrected =
-                        measured.length === 0
-                          ? raw
-                          : (assembly.correctArrowForClearance(raw, {
-                              tailToGhostPx:
-                                measured.reduce((sum, e) => sum + e.tailToGhostPx!, 0) /
-                                measured.length,
-                              headToBuiltPx:
-                                measured.reduce((sum, e) => sum + e.headToBuiltPx!, 0) /
-                                measured.length,
-                            }) as { xPx: number; yPx: number });
-                      return assembly.arrowDisplacementFamily(projection, corrected) as readonly {
-                        lduX: number;
-                        lduY: number;
-                        lduZ: number;
-                        errorStuds: number;
-                      }[];
-                    })();
-
               const noSignal = placementSignalFailure({
                 stepNumber: spec.stepNumber,
                 hasHighlight: highlightBox !== null,
@@ -343,6 +184,29 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                 usableArrowPlacementCount: arrowFamily.length,
                 independentPlacementSignalCount: 0,
               });
+
+              // A panel that prints no highlight at all cannot score anything:
+              // `scoreStepDelta` gets a null region IoU over an empty stroke
+              // mask, so every candidate scores exactly zero by construction.
+              // That is the first printed step — nothing is built yet to outline
+              // — and it is a fact about the booklet rather than a defect.
+              //
+              // It is also not a dead end. Panel N+1 draws everything placed at
+              // step N as already built, so the step carries its candidates one
+              // panel forward and is settled there. The lookahead is one step
+              // and no further: if that panel does not discriminate either, the
+              // deferral refuses by name rather than searching until something
+              // wins.
+              const localScoringSignal =
+                highlight.regions.length > 0 && (highlight.keyedPx as number) > 0;
+              const deferring =
+                !localScoringSignal &&
+                spec.action.kind === "place-callouts" &&
+                spec.pieces.length > 0;
+              const deferralTarget = deferring
+                ? (orderedPanels.find((panel) => panel.stepNumber > spec.stepNumber) ?? null)
+                : null;
+              let deferral: DeferralEvidence | null = null;
               const prerequisiteInput = {
                 stepNumber: spec.stepNumber,
                 actionKind: spec.action.kind,
@@ -479,6 +343,38 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                   target: [0, 0, 0] as [number, number, number],
                   sceneRadius: 60,
                 };
+
+                // The lookahead panel's raster, derived while this step is still
+                // open. It usually shares this page — printed steps 1 to 4 are
+                // all on page 11 — but it need not, so the page is rasterised on
+                // demand and released again rather than assumed present.
+                let lookahead: {
+                  readonly spec: typeof spec;
+                  readonly evidence: PanelRasterEvidence;
+                } | null = null;
+                if (deferralTarget !== null) {
+                  const lookaheadPage =
+                    deferralTarget.pageNumber === pageNumber
+                      ? { canvas: pageCanvas, dispose: () => {} }
+                      : await renderRealBuildPageCanvas(
+                          pdf,
+                          deferralTarget.pageNumber,
+                          options.renderScale,
+                        );
+                  try {
+                    lookahead = {
+                      spec: deferralTarget,
+                      evidence: derivePanelRasterEvidence({
+                        pageCanvas: lookaheadPage.canvas,
+                        spec: deferralTarget,
+                        options,
+                        modules: { lattice, assembly },
+                      }),
+                    };
+                  } finally {
+                    lookaheadPage.dispose();
+                  }
+                }
                 try {
                   const renderer = rendering.createInstructionRenderer({ width, height });
                   try {
@@ -566,11 +462,38 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                     }
 
                     if (failure === null) {
-                      const placementMechanism: SuccessfulStepMechanism = anchorStep
-                        ? "anchor-orientation"
-                        : "highlight";
+                      const placementMechanism: SuccessfulStepMechanism = deferring
+                        ? "deferred-lookahead"
+                        : anchorStep
+                          ? "anchor-orientation"
+                          : "highlight";
                       attemptedMechanism = placementMechanism;
-                      for (const [pieceIndex, piece] of spec.pieces.entries()) {
+                      if (deferring) {
+                        const settledDeferral = settleDeferredPrintedStep({
+                          spec,
+                          baseDocument: stepBaseDocument,
+                          stepId: printedStepId,
+                          lookahead,
+                          options,
+                          rendering,
+                          kernel,
+                          assembly,
+                          place,
+                        });
+                        deferral = settledDeferral.evidence;
+                        failure = settledDeferral.failure;
+                        pieceReports.push(...settledDeferral.pieceReports);
+                        if (settledDeferral.placement !== null) {
+                          candidateDocument = settledDeferral.placement.document;
+                          candidatePartIds.push(...settledDeferral.placement.partIds);
+                          printedStepId = settledDeferral.placement.stepId;
+                          pendingRegistrations.push(...settledDeferral.placement.registrations);
+                          candidatePlaced += settledDeferral.placement.partIds.length;
+                        }
+                      }
+                      for (const [pieceIndex, piece] of deferring
+                        ? []
+                        : [...spec.pieces.entries()]) {
                         try {
                           const enumeration = assembly.enumeratePlacements(
                             candidateDocument,
@@ -848,7 +771,21 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                         failure = fixed.failure;
                       }
 
-                      if (failure === null && candidatePlaced === spec.action.assembledPieces) {
+                      // The joint visual gate measures this step's own printed
+                      // highlight, and a deferred step has none — union and
+                      // exclusive pixel counts are zero by construction, so
+                      // running it would refuse every deferred step whatever it
+                      // placed. Its evidence is the deferral's own gate instead:
+                      // agreement with the lookahead panel's already-built art,
+                      // over a margin no measured wrong pick has cleared. That
+                      // is reported in `deferral` and `jointVisual` stays null,
+                      // so the report says which gate ran rather than implying
+                      // this one passed.
+                      if (
+                        failure === null &&
+                        !deferring &&
+                        candidatePlaced === spec.action.assembledPieces
+                      ) {
                         const pieceMasks = candidatePartIds.map(
                           (partId) => silhouette(candidateDocument, partId, centre).probe,
                         );
@@ -920,7 +857,7 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                         scene.dispose();
                       }
                       buildPng = rgbaPngDataUrl(pixels, width, height);
-                      panelPng = rgbaPngDataUrl(work.pixels, width, height);
+                      panelPng = rgbaPngDataUrl(evidence.workPixels, width, height);
                     }
 
                     cameraReport = {
@@ -980,68 +917,25 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                 blockingStep = spec.stepNumber;
               }
 
-              const fitSolution = fit.solution as {
-                azimuthDegrees: number;
-                elevationDegrees: number;
-                pixelsPerUnit: number;
-                residualPx: number;
-              } | null;
-              reports.push({
-                stepNumber: spec.stepNumber,
-                pageNumber: spec.pageNumber,
-                panelFace: spec.panelFace,
-                fit: {
-                  azimuthDegrees: fitSolution?.azimuthDegrees ?? null,
-                  elevationDegrees: fitSolution?.elevationDegrees ?? null,
-                  pixelsPerUnit: fitSolution?.pixelsPerUnit ?? null,
-                  residualPx: fitSolution?.residualPx ?? null,
-                  coherence: fit.coherence as number,
-                  failure: fit.failure as string | null,
-                },
-                calloutPieces: spec.calloutPieces,
-                expectedAssembledPieces: spec.action.assembledPieces,
-                attemptedPieces:
-                  spec.action.kind === "multi-build-copy"
-                    ? spec.action.copies.length
-                    : spec.pieces.length + spec.omittedPieces.length,
-                placedPieces: placed,
-                action: spec.action,
-                actionEvidenceDigest: spec.action.evidenceDigest,
-                canonicalStepId: outcome.status === "complete" ? printedStepId : null,
-                prerequisites,
-                outcome,
-                validation,
-                camera: cameraReport,
-                highlight: {
-                  regions: highlight.regions.length,
-                  closedContourRate: highlight.closedContourRate,
-                  strokePx: highlight.keyedPx,
-                  boundsPx:
-                    highlightBox === null
-                      ? null
-                      : [
-                          highlightBox.minXPx,
-                          highlightBox.minYPx,
-                          highlightBox.maxXPx,
-                          highlightBox.maxYPx,
-                        ],
-                },
-                arrows: {
-                  kept: (arrows.arrows as unknown[]).length,
-                  redPx: arrows.redPx as number,
-                  rejected: (arrows.rejected as unknown[]).length,
-                  displacementFamily: arrowFamily.length,
-                  displacementFamilyLdu: arrowFamily
-                    .slice(0, 8)
-                    .map((entry) => [entry.lduX, entry.lduY, entry.lduZ] as const),
-                },
-                pieces: pieceReports,
-                jointVisual,
-                documentParts: (document_ as { parts: unknown[] }).parts.length,
-                elapsedMs: Math.round(performance.now() - stepStarted),
-                panelPng,
-                buildPng,
-              });
+              reports.push(
+                composeExecutedStepReport({
+                  spec,
+                  evidence,
+                  prerequisites,
+                  outcome,
+                  validation,
+                  camera: cameraReport,
+                  pieces: pieceReports,
+                  jointVisual,
+                  deferral,
+                  placedPieces: placed,
+                  canonicalStepId: printedStepId,
+                  documentParts: (document_ as { parts: unknown[] }).parts.length,
+                  elapsedMs: Math.round(performance.now() - stepStarted),
+                  panelPng,
+                  buildPng,
+                }),
+              );
             } catch (error) {
               document_ = stepBaseDocument;
               const message = error instanceof Error ? error.message : String(error);
@@ -1065,15 +959,12 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
             }
           }
         } finally {
-          pageCanvas.width = 0;
-          pageCanvas.height = 0;
-          pageCanvas.remove();
-          pdfPage.cleanup?.();
+          page.dispose();
         }
       }
 
       return {
-        schemaVersion: "lego.real-build-browser-output/1",
+        schemaVersion: "lego.real-build-browser-output/2",
         status: "executed",
         reports,
         documentJson: JSON.stringify(document_),

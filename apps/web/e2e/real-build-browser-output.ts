@@ -16,7 +16,7 @@ export interface RealBuildIdentityBinding {
 
 export type RealBuildBrowserOutput =
   | {
-      readonly schemaVersion: "lego.real-build-browser-output/1";
+      readonly schemaVersion: "lego.real-build-browser-output/2";
       readonly status: "executed";
       readonly reports: readonly RealBuildStepReport[];
       readonly documentJson: string;
@@ -25,7 +25,7 @@ export type RealBuildBrowserOutput =
       readonly totalElapsedMs: number;
     }
   | {
-      readonly schemaVersion: "lego.real-build-browser-output/1";
+      readonly schemaVersion: "lego.real-build-browser-output/2";
       readonly status: "failed";
       readonly reports: readonly RealBuildStepReport[];
       readonly documentJson: string | null;
@@ -70,6 +70,7 @@ const REPORT_KEYS = [
   "arrows",
   "pieces",
   "jointVisual",
+  "deferral",
   "documentParts",
   "elapsedMs",
   "panelPng",
@@ -161,6 +162,7 @@ function isStepOutcome(value: unknown): boolean {
         "highlight",
         "arrow",
         "exhaustive",
+        "deferred-lookahead",
         "instruction-transition",
         "official-ledger",
       ].includes(String(value.mechanism)) &&
@@ -377,6 +379,43 @@ function isHighlightEvidence(value: unknown, maximum: number): boolean {
   );
 }
 
+function isDeferralEvidence(value: unknown): boolean {
+  if (value === null) return true;
+  return (
+    isRecord(value) &&
+    exactKeys(value, [
+      "lookaheadStepNumber",
+      "reachSteps",
+      "wholeStepCandidates",
+      "rendered",
+      "lookaheadBuiltPixels",
+      "bestAgreement",
+      "runnerUpAgreement",
+      "margin",
+      "minimumMargin",
+      "settled",
+    ]) &&
+    (value.lookaheadStepNumber === null ||
+      isBoundedInteger(value.lookaheadStepNumber, 1_000_000)) &&
+    isBoundedInteger(value.reachSteps, 1_000_000) &&
+    isBoundedInteger(value.wholeStepCandidates, Number.MAX_SAFE_INTEGER) &&
+    isBoundedInteger(value.rendered, Number.MAX_SAFE_INTEGER) &&
+    isBoundedInteger(value.lookaheadBuiltPixels, Number.MAX_SAFE_INTEGER) &&
+    isNullableFiniteNumber(value.bestAgreement) &&
+    isNullableFiniteNumber(value.runnerUpAgreement) &&
+    isNullableFiniteNumber(value.margin) &&
+    isFiniteNumber(value.minimumMargin) &&
+    typeof value.settled === "boolean" &&
+    // A settled deferral must name the panel that settled it and the margin it
+    // cleared. Without this a run could report `settled: true` with no reach and
+    // no evidence, which is exactly the claim this field exists to make checkable.
+    (!value.settled ||
+      (value.lookaheadStepNumber !== null &&
+        (value.reachSteps as number) > 0 &&
+        isFiniteNumber(value.bestAgreement)))
+  );
+}
+
 function isArrowEvidence(value: unknown, maximum: number): boolean {
   return (
     isRecord(value) &&
@@ -431,6 +470,7 @@ function assertStepReportShape(
     report.pieces.length > options.maxParts ||
     !report.pieces.every((piece) => isPieceReport(piece, options.maxParts)) ||
     !isWholeStepVisual(report.jointVisual, options.maxParts) ||
+    !isDeferralEvidence(report.deferral) ||
     !isBoundedInteger(report.documentParts, options.maxParts) ||
     !isFiniteNumber(report.elapsedMs) ||
     report.elapsedMs < 0 ||
@@ -474,7 +514,7 @@ export function assertRealBuildBrowserOutput(
         ];
   if (
     !exactKeys(value, expectedKeys) ||
-    value.schemaVersion !== "lego.real-build-browser-output/1" ||
+    value.schemaVersion !== "lego.real-build-browser-output/2" ||
     !Array.isArray(value.reports) ||
     value.reports.length > options.lastStep ||
     (value.status === "executed" && value.reports.length !== options.lastStep) ||

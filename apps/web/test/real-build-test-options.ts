@@ -1,4 +1,5 @@
 import { OFFICIAL_REAL_BUILD_ACCOUNTING } from "../e2e/real-build-contract";
+import { DEFERRED_STEP_MINIMUM_MARGIN } from "../e2e/real-build-deferral";
 import type { RealBuildOptions, RealBuildPanelSpec } from "../e2e/real-build-safety";
 
 export const REAL_BUILD_TEST_DIGEST = `sha256:${"a".repeat(64)}`;
@@ -150,6 +151,8 @@ export function completeRealBuildTestOptions(lastStep: number): RealBuildOptions
     workFactor: 2,
     maxRendersPerPiece: 24,
     blindRenderBudget: 220,
+    deferredCandidateBudget: 512,
+    minimumDeferredAgreementMargin: DEFERRED_STEP_MINIMUM_MARGIN,
     proximityMarginPx: 14,
     targetPartCount: 1_464,
     maxParts: 1_464,

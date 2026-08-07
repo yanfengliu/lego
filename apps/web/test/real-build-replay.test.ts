@@ -189,13 +189,14 @@ function browserOutput(): RealBuildBrowserOutput {
     arrows: { kept: 0, redPx: 0, rejected: 0, displacementFamily: 0, displacementFamilyLdu: [] },
     pieces: [],
     jointVisual: null,
+    deferral: null,
     documentParts: 0,
     elapsedMs: 1,
     panelPng: null,
     buildPng: null,
   };
   return {
-    schemaVersion: "lego.real-build-browser-output/1",
+    schemaVersion: "lego.real-build-browser-output/2",
     status: "executed",
     reports: [report],
     documentJson: JSON.stringify(document),
@@ -581,7 +582,7 @@ describe("real-build replay closure", () => {
       );
       rewriteReservedJsonRole(
         "browser-output",
-        Buffer.from('{"schemaVersion":"lego.real-build-browser-output/1"}'),
+        Buffer.from('{"schemaVersion":"lego.real-build-browser-output/2"}'),
       );
       expect(() => verifyRealBuildReplayClosure(published)).toThrow(
         /browser-output must be an executed or failed object/u,

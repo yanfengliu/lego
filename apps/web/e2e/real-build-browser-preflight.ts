@@ -22,7 +22,7 @@ export const failedBrowserOutput = (
   failure: StepFailure,
   started: number,
 ): RealBuildBrowserOutput => ({
-  schemaVersion: "lego.real-build-browser-output/1",
+  schemaVersion: "lego.real-build-browser-output/2",
   status: "failed",
   reports: [],
   documentJson: null,

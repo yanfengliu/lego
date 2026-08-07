@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { readSampleBooklet, sampleBookletPageShapes } from "./booklet-fixture";
+import { DEFERRED_STEP_MINIMUM_MARGIN, summariseDeferrals } from "./real-build-deferral";
 import { deriveRealBuildPanelEvidence } from "./real-build-panel-evidence";
 import { readTransitionClassificationBundle } from "./real-build-transition-classification";
 import { deriveTransitionPanelFeatures } from "./real-build-transition-features";
@@ -495,6 +496,10 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
     workFactor: 2,
     maxRendersPerPiece: 24,
     blindRenderBudget: 220,
+    // Step 1 alone is a 400-candidate product: four yaws of the quarter ring on
+    // the empty plate times a hundred distinct seats for the round plate on each.
+    deferredCandidateBudget: 512,
+    minimumDeferredAgreementMargin: DEFERRED_STEP_MINIMUM_MARGIN,
     proximityMarginPx: 14,
     targetPartCount: OFFICIAL_REAL_BUILD_ACCOUNTING.assembledTargetPieces,
     maxParts: OFFICIAL_REAL_BUILD_ACCOUNTING.assembledTargetPieces,
@@ -628,7 +633,7 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
         )) as RealBuildBrowserOutput;
       } catch (error) {
         browserOutput = {
-          schemaVersion: "lego.real-build-browser-output/1",
+          schemaVersion: "lego.real-build-browser-output/2",
           status: "failed",
           reports: [],
           documentJson: null,
@@ -674,7 +679,7 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
       ];
       if (drift.length > 0) {
         browserOutput = {
-          schemaVersion: "lego.real-build-browser-output/1",
+          schemaVersion: "lego.real-build-browser-output/2",
           status: "failed",
           reports: browserOutput.reports,
           documentJson: browserOutput.documentJson,
@@ -823,8 +828,17 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
   }
   assertRealBuildBootstrapSourceLockHeld();
   const published = await run.publish(verifyRealBuildArtifactManifest);
+  // The deferral's own measurable, printed with the run rather than buried in
+  // the retained score: how many printed steps their own panel could not answer,
+  // how many a later panel settled, and the deepest reach any settlement needed.
+  // A deferral with no such number is untestable — "it settled" and "it settled
+  // by looking further than it should have had to" read exactly the same.
+  const deferrals = summariseDeferrals(result.steps);
   console.log(
     `${result.authority.kind}/${result.status}: ${result.steps.filter(isAtomicStepComplete).length}/${result.steps.length} steps complete; ` +
+      `${result.steps.reduce((total, step) => total + step.placedPieces, 0)} piece(s) placed; ` +
+      `${deferrals.deferredSteps} deferred, ${deferrals.settledByLookahead} settled by lookahead, ` +
+      `deepest settlement reach ${deferrals.deepestSettlementReachSteps} step(s); ` +
       `retained unauthenticated evidence ${published}`,
   );
 

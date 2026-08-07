@@ -1,6 +1,7 @@
 import type { PanelFace } from "../src/assembly/panel-face";
 
 import type { CoverageInputBindings, StepCoverageCalloutClaim } from "./real-build-coverage";
+import type { DeferralEvidence } from "./real-build-deferral";
 import type { TrustedIdentificationConfidence } from "./real-build-identification-trust";
 
 export {
@@ -26,6 +27,12 @@ export type SuccessfulStepMechanism =
   | "highlight"
   | "arrow"
   | "exhaustive"
+  /**
+   * Settled by the next panel rather than by its own: the step's panel printed
+   * no highlight, so its candidates were carried forward one printed step and
+   * scored against the art that shows what this step built.
+   */
+  | "deferred-lookahead"
   | "instruction-transition"
   | "official-ledger";
 
@@ -63,6 +70,8 @@ export type StepFailureCode =
   | "zero-placement-score"
   | "tied-placement-score"
   | "ambiguous-placement-score"
+  | "deferred-panel-unscored"
+  | "ambiguous-deferred-placement"
   | "benchmark-prefix-mismatch"
   | "hard-validation-failed"
   | "hard-validation-error"
@@ -678,6 +687,20 @@ export interface RealBuildOptions {
   readonly workFactor: number;
   readonly maxRendersPerPiece: number;
   readonly blindRenderBudget: number;
+  /**
+   * Most whole-step candidates a deferred step may carry to the next panel.
+   *
+   * A deferred step has no highlight to prune against, so its candidate set is
+   * the full product over the printed step's pieces. Exceeding this is refused
+   * rather than truncated: a silently capped product would report a step as
+   * settled against a set that never contained the answer.
+   */
+  readonly deferredCandidateBudget: number;
+  /**
+   * Margin the best deferred candidate must beat the runner-up by on the
+   * lookahead panel. Set from `DEFERRED_STEP_MINIMUM_MARGIN`.
+   */
+  readonly minimumDeferredAgreementMargin: number;
   readonly proximityMarginPx: number;
   readonly targetPartCount: number;
   readonly maxParts: number;
@@ -802,6 +825,17 @@ export interface RealBuildStepReport {
   };
   readonly pieces: readonly RealBuildPieceReport[];
   readonly jointVisual: WholeStepVisualEvidence | null;
+  /**
+   * Set only when this step's own panel gave no scoring signal at all, and null
+   * otherwise — so its presence is the report that a deferral happened, and its
+   * `settled` flag is the report of whether the next panel answered.
+   *
+   * A step whose panel prints no highlight cannot be scored against it: the
+   * region IoU is null and the stroke mask is empty, so every candidate scores
+   * zero by construction. `jointVisual` is therefore null on these steps, and
+   * this field carries the evidence that replaced it.
+   */
+  readonly deferral: DeferralEvidence | null;
   readonly documentParts: number;
   readonly elapsedMs: number;
   readonly panelPng: string | null;

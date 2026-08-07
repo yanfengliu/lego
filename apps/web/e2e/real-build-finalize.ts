@@ -315,7 +315,7 @@ export function auditRealBuildReportEvidence(
       ? ["instruction-transition"]
       : panel.action.kind === "multi-build-copy" || panel.pieces.length === 0
         ? ["official-ledger"]
-        : ["anchor-orientation", "highlight", "arrow", "exhaustive"];
+        : ["anchor-orientation", "highlight", "arrow", "exhaustive", "deferred-lookahead"];
   if (
     report.outcome.status !== "complete" ||
     !expectedMechanisms.includes(report.outcome.mechanism)

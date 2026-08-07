@@ -80,6 +80,7 @@ const completeReport = (stepNumber: number): RealBuildStepReport => ({
   arrows: { kept: 0, redPx: 0, rejected: 0, displacementFamily: 0, displacementFamilyLdu: [] },
   pieces: [],
   jointVisual: null,
+  deferral: null,
   documentParts: 0,
   elapsedMs: 1,
   panelPng: null,
@@ -151,7 +152,7 @@ const browserOutput = (
     })(),
   }));
   return {
-    schemaVersion: "lego.real-build-browser-output/1",
+    schemaVersion: "lego.real-build-browser-output/2",
     status: "executed",
     reports: normalizedReports,
     documentJson: bytes,
@@ -327,6 +328,7 @@ describe("real build adversarial completion and ledger contracts", () => {
         },
       ],
       jointVisual,
+      deferral: null,
       documentParts: 1,
       panelPng: png,
       buildPng: png,
@@ -488,6 +490,7 @@ describe("real build adversarial completion and ledger contracts", () => {
       placedPieces: 1,
       action: panel.action,
       actionEvidenceDigest: DIGEST,
+      deferral: null,
       documentParts: 1,
     };
     const tamperedDocument = {
@@ -520,7 +523,7 @@ describe("real build adversarial completion and ledger contracts", () => {
     const result = finalizeExecutedRealBuildResult({
       options: identityOptions,
       browserOutput: {
-        schemaVersion: "lego.real-build-browser-output/1",
+        schemaVersion: "lego.real-build-browser-output/2",
         status: "executed",
         reports: [tamperedReport],
         documentJson: bytes,

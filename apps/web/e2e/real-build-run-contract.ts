@@ -119,6 +119,7 @@ export function realBuildRunBudgets(options: RealBuildOptions): Readonly<Record<
     targetPartCount: options.targetPartCount,
     maxRendersPerPiece: options.maxRendersPerPiece,
     blindRenderBudget: options.blindRenderBudget,
+    deferredCandidateBudget: options.deferredCandidateBudget,
   };
 }
 
@@ -127,6 +128,7 @@ export function realBuildRunThresholds(
 ): Readonly<Record<string, number | string | null>> {
   return {
     minimumScoreMargin: options.minimumScoreMargin,
+    minimumDeferredAgreementMargin: options.minimumDeferredAgreementMargin,
     minimumWholeStepScore: options.minimumWholeStepScore,
     minimumExclusiveHighlightPixelsPerPiece: options.minimumExclusiveHighlightPixelsPerPiece,
     highlightCalibrationDigest: options.highlightCalibrationDigest,
