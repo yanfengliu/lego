@@ -754,7 +754,20 @@ export interface RealBuildStepReport {
     readonly strokePx: number;
     readonly boundsPx: readonly [number, number, number, number] | null;
   };
-  readonly arrows: { readonly kept: number; readonly redPx: number; readonly rejected: number };
+  readonly arrows: {
+    readonly kept: number;
+    readonly redPx: number;
+    readonly rejected: number;
+    /**
+     * Whole-grid displacements whose projection matches the corrected arrow.
+     *
+     * The count, not a winner. On a printed panel's projection several triples
+     * agree to within the measurement, so this says how far the arrow narrowed
+     * the placement and not which one it chose — one means the arrow settled the
+     * step by itself, and more means something else has to.
+     */
+    readonly displacementFamily: number;
+  };
   readonly pieces: readonly RealBuildPieceReport[];
   readonly jointVisual: WholeStepVisualEvidence | null;
   readonly documentParts: number;

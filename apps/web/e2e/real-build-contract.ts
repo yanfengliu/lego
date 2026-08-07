@@ -531,7 +531,7 @@ export function unexecutedStepReport(
     },
     camera: null,
     highlight: { regions: 0, closedContourRate: 0, strokePx: 0, boundsPx: null },
-    arrows: { kept: 0, redPx: 0, rejected: 0 },
+    arrows: { kept: 0, redPx: 0, rejected: 0, displacementFamily: 0 },
     pieces: [],
     jointVisual: null,
     documentParts: input.documentParts ?? 0,

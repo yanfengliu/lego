@@ -379,10 +379,11 @@ function isHighlightEvidence(value: unknown, maximum: number): boolean {
 function isArrowEvidence(value: unknown, maximum: number): boolean {
   return (
     isRecord(value) &&
-    exactKeys(value, ["kept", "redPx", "rejected"]) &&
+    exactKeys(value, ["kept", "redPx", "rejected", "displacementFamily"]) &&
     isBoundedInteger(value.kept, maximum) &&
     isBoundedInteger(value.redPx, Number.MAX_SAFE_INTEGER) &&
-    isBoundedInteger(value.rejected, maximum)
+    isBoundedInteger(value.rejected, maximum) &&
+    isBoundedInteger(value.displacementFamily, Number.MAX_SAFE_INTEGER)
   );
 }
 
@@ -560,7 +561,7 @@ export function assertRealBuildBrowserOutput(
             // separate the two.
             `[highlight ${entry.highlight.regions} region(s), ${entry.highlight.strokePx}px stroke, ` +
             `closed ${entry.highlight.closedContourRate}; arrows ${entry.arrows.kept} kept ` +
-            `${entry.arrows.rejected} rejected]` +
+            `${entry.arrows.rejected} rejected, family ${entry.arrows.displacementFamily}]` +
             (failure === null ? "" : ` — ${failure.code}: ${failure.message}`)
           );
         });

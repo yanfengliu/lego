@@ -987,6 +987,7 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                   kept: (arrows.arrows as unknown[]).length,
                   redPx: arrows.redPx as number,
                   rejected: (arrows.rejected as unknown[]).length,
+                  displacementFamily: arrowFamily.length,
                 },
                 pieces: pieceReports,
                 jointVisual,
