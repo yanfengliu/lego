@@ -52,6 +52,19 @@ import { THREE_UNITS_PER_LDU } from "./coordinates.ts";
 const DEGREES = Math.PI / 180;
 
 /**
+ * Which face of the assembly a panel is drawn from.
+ *
+ * A projected square lattice is identical seen from above and from below, so
+ * the grid alone cannot say which — the two differ only in the sign of
+ * `sin elevation`, and the solver has to be told. On set 6651557 the booklet
+ * says: it prints a rotate-the-model icon at each turn, and folding those gives
+ * the face per step. Left to itself the solver takes the above-view root, which
+ * is right for a model that stays upright and wrong for one built partly
+ * inverted.
+ */
+export type PanelFace = "studs-up" | "underside";
+
+/**
  * One Three.js world unit is one stud pitch, which is what lets a fitted
  * `pixelsPerUnit` be read as pixels per stud. Derived rather than written down:
  * it holds only while 20 LDU and 0.05 world units per LDU multiply to one, and a
@@ -386,11 +399,22 @@ export interface AxonometricSolution {
  * and clamped, but the residual is measured against the clamped value, so a
  * basis no camera could print reports the mismatch rather than a perfect fit.
  */
-export function solveAxonometricFromLattice(basis: LatticeBasisPx): AxonometricSolution | null {
+export function solveAxonometricFromLattice(
+  basis: LatticeBasisPx,
+  { face = "studs-up" }: { readonly face?: PanelFace } = {},
+): AxonometricSolution | null {
+  // The projection is a = s(cos az, sin elev sin az), b = s(-sin az, sin elev
+  // cos az), so a camera below the model differs from one above it only in the
+  // sign of `sin elev` — that is, in the sign of both y components. Mirroring
+  // the measured basis therefore turns the below-view problem into the
+  // above-view one this solver already handles, and the elevation is negated on
+  // the way back out. Nothing else about the fit changes: the azimuth, the
+  // scale and the residual are all measured against the mirrored basis.
+  const mirror = face === "underside" ? -1 : 1;
   const ax = basis.a.xPx;
-  const ay = basis.a.yPx;
+  const ay = basis.a.yPx * mirror;
   const bx = basis.b.xPx;
-  const by = basis.b.yPx;
+  const by = basis.b.yPx * mirror;
   if (![ax, ay, bx, by].every((value) => Number.isFinite(value))) return null;
   // u = s cos azimuth, w = s sin azimuth, k = sin elevation.
   let u = ax;
@@ -408,7 +432,9 @@ export function solveAxonometricFromLattice(basis: LatticeBasisPx): AxonometricS
     w = (k * ay - bx) / scale;
   }
   if (!Number.isFinite(k) || !Number.isFinite(u) || !Number.isFinite(w)) return null;
-  // A negative k is the same view mirrored, which upright art never prints.
+  // After mirroring, k is always the above-view root. A negative k here means
+  // the basis does not describe the requested face at all, which is exactly the
+  // signal that says a panel was drawn from the other side.
   if (k <= 0.02 || k > 1.02) return null;
   const pixelsPerUnit = Math.hypot(u, w);
   if (!(pixelsPerUnit > 0)) return null;
@@ -421,7 +447,7 @@ export function solveAxonometricFromLattice(basis: LatticeBasisPx): AxonometricS
   );
   return {
     azimuthDegrees: Math.atan2(w, u) / DEGREES,
-    elevationDegrees: Math.asin(sine) / DEGREES,
+    elevationDegrees: (mirror * Math.asin(sine)) / DEGREES,
     pixelsPerUnit,
     residualPx,
   };
@@ -459,6 +485,14 @@ export interface StudLatticeOptions {
    * tiles — landed over 0.03, with nothing in between.
    */
   readonly maxResidualFraction?: number;
+  /**
+   * Which face of the assembly this panel is drawn from. Defaults to studs-up,
+   * which is what every caller assumed before the booklet was found to turn the
+   * model over. A panel drawn from underneath does not fit as an above-view: the
+   * residual lands over 0.03 and the fit is refused, which is why the sign has
+   * to come from outside the grid.
+   */
+  readonly face?: PanelFace;
 }
 
 export interface LatticeCandidate {
@@ -589,6 +623,7 @@ const MIN_RELIABLE_ELEVATION_DEGREES = Math.asin(1 / MAX_BASIS_OVER_SHORTEST_REP
 
 export function reduceToAxonometricBasis(
   basis: LatticeBasisPx,
+  { face = "studs-up" }: { readonly face?: PanelFace } = {},
 ): { readonly basis: LatticeBasisPx; readonly solution: AxonometricSolution } | null {
   let shortest = Infinity;
   for (let m = -2; m <= 2; m += 1) {
@@ -619,7 +654,7 @@ export function reduceToAxonometricBasis(
           if (Math.hypot(second.xPx, second.yPx) > longestAllowed) continue;
           const pair = canonicalPair(first, second);
           if (pair === null) continue;
-          const solution = solveAxonometricFromLattice(pair);
+          const solution = solveAxonometricFromLattice(pair, { face });
           if (solution === null) continue;
           if (best === null || solution.residualPx < best.solution.residualPx) {
             best = { basis: pair, solution };
@@ -698,6 +733,7 @@ export function fitStudLattice(
   const maxOffsetPx = options.maxOffsetPx ?? 60;
   const peakCount = options.peakCount ?? 16;
   const maxResidualFraction = options.maxResidualFraction ?? 0.02;
+  const face = options.face ?? "studs-up";
   if (field.sampleX.length < 200) {
     return {
       basis: null,
@@ -733,7 +769,7 @@ export function fitStudLattice(
       const explainedPeaks = countExplained(spanning, peaks);
       // The peaks give some primitive basis; the camera's own pair of grid
       // steps is a change of basis away, and only it solves cleanly.
-      const reduced = reduceToAxonometricBasis(spanning);
+      const reduced = reduceToAxonometricBasis(spanning, { face });
       candidates.push({
         basis: reduced?.basis ?? spanning,
         solution: reduced?.solution ?? null,
@@ -783,7 +819,7 @@ export function fitStudLattice(
 
   const chosen = viable[0]!;
   const refined = options.refine === false ? chosen.basis : refineBasis(field, chosen.basis);
-  const settled = reduceToAxonometricBasis(refined);
+  const settled = reduceToAxonometricBasis(refined, { face });
   const basis = settled?.basis ?? refined;
   const solution = settled?.solution ?? chosen.solution;
   if (solution === null) {

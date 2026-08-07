@@ -396,3 +396,58 @@ describe("latticePhase", () => {
     expect(recoveredY).toBeCloseTo(shiftYPx, 0);
   });
 });
+
+describe("solveAxonometricFromLattice below the model", () => {
+  /**
+   * Set 6651557 is built partly upside down, so five of its first forty-three
+   * panels are drawn from underneath. A projected square lattice is identical
+   * from above and below — the two differ only in the sign of sin elevation —
+   * so the grid cannot say which, and the face has to be supplied.
+   */
+  const BELOW = { azimuthDegrees: 55, elevationDegrees: -35, pixelsPerUnit: 16 };
+
+  it("recovers a below-view exactly when told the panel is drawn from underneath", () => {
+    const solution = solveAxonometricFromLattice(latticeBasisFromAxonometric(BELOW), {
+      face: "underside",
+    });
+
+    expect(solution).not.toBeNull();
+    expect(solution!.azimuthDegrees).toBeCloseTo(BELOW.azimuthDegrees, 6);
+    expect(solution!.elevationDegrees).toBeCloseTo(BELOW.elevationDegrees, 6);
+    expect(solution!.pixelsPerUnit).toBeCloseTo(BELOW.pixelsPerUnit, 6);
+    expect(solution!.residualPx).toBeLessThan(1e-9);
+  });
+
+  it("refuses that same basis as an above-view rather than fitting it badly", () => {
+    // This is what the booklet's refused panels were: the camera fit reported
+    // 32 of 40 fitted, and a below-view forced through the above-view root is
+    // exactly the shape of the eight it would not take.
+    expect(solveAxonometricFromLattice(latticeBasisFromAxonometric(BELOW))).toBeNull();
+  });
+
+  it("still refuses an above-view basis when told to read it as underside", () => {
+    // The face is a claim that can be wrong, and a wrong claim has to fail
+    // loudly rather than return a mirrored fit that looks fine.
+    expect(
+      solveAxonometricFromLattice(latticeBasisFromAxonometric({ ...BELOW, elevationDegrees: 35 }), {
+        face: "underside",
+      }),
+    ).toBeNull();
+  });
+
+  it("round-trips every below-view it can print", () => {
+    for (const azimuthDegrees of [12, 30, 45, 62, 78]) {
+      for (const elevationDegrees of [-15, -26, -35.264, -48]) {
+        const solution = solveAxonometricFromLattice(
+          latticeBasisFromAxonometric({ azimuthDegrees, elevationDegrees, pixelsPerUnit: 31 }),
+          { face: "underside" },
+        );
+
+        expect(solution).not.toBeNull();
+        expect(solution!.azimuthDegrees).toBeCloseTo(azimuthDegrees, 6);
+        expect(solution!.elevationDegrees).toBeCloseTo(elevationDegrees, 6);
+        expect(solution!.residualPx).toBeLessThan(1e-9);
+      }
+    }
+  });
+});
