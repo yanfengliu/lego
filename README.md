@@ -31,7 +31,7 @@ One digest is pinned rather than derived: the canonical output of a single deter
 - [Part model](docs/design/part-model.md)
 - [Building system: assessment, measured position, and plan](docs/design/building-system.md)
 - [Current implementation threat model](docs/design/threat-model.md)
-- [Learning harness and improvement loops](docs/design/learning-system.md)
+- [Booklet-run evidence, evaluation, and promotion](docs/design/learning-system.md)
 
 ## First vertical slice
 

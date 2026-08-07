@@ -368,7 +368,7 @@ Do not share brick documents, part catalogs, connection validators, procedural g
 
 A user hands the app a printed instruction booklet, watches it build the set that booklet describes with every step checked against the booklet's own picture, sees each refusal named in the booklet's own terms, edits the finished model manually, exports LDraw, plays the build back, and replays the run to its declared level.
 
-The system improves only through evidence: measured booklet numbers, typed failures, promoted regression fixtures, and reversible experiments.
+The system improves only through evidence: measured booklet numbers, typed failures, promoted regression fixtures, and reversible experiments. `learning-system.md` owns what a run retains, what lifecycle its candidates travel, and what must hold before any of that becomes a repository input.
 
 ## Cut: the AI copilot
 
