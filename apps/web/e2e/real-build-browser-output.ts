@@ -526,18 +526,46 @@ export function assertRealBuildBrowserOutput(
               : panel.pieces.length + panel.omittedPieces.length),
         0,
       );
-    if (
-      typeof value.documentJson !== "string" ||
-      value.documentJson.length === 0 ||
-      value.fetchedPdfDigest !== options.inputDigests.pdf ||
-      value.identityBindings.length !== expectedBindings
-    ) {
+    // One condition per cause, naming what it saw. As a single boolean this
+    // covered four unrelated failures — no document, an empty one, the wrong
+    // PDF, and a binding count that disagrees with the panels — under one
+    // sentence that named none of them, so every one of them read as "the
+    // browser produced nothing".
+    const executedMismatch =
+      typeof value.documentJson !== "string"
+        ? `documentJson is ${value.documentJson === null ? "null" : typeof value.documentJson}, not a string`
+        : value.documentJson.length === 0
+          ? "documentJson is empty, so the run finished without a document"
+          : value.fetchedPdfDigest !== options.inputDigests.pdf
+            ? `the browser fetched PDF ${String(value.fetchedPdfDigest)} but the prepared inputs pin ${options.inputDigests.pdf}`
+            : value.identityBindings.length !== expectedBindings
+              ? `${value.identityBindings.length} identity binding(s) were retained against ${expectedBindings} the requested panels declare`
+              : null;
+    if (executedMismatch !== null) {
+      // A binding count is a symptom; the steps hold the cause, and they are
+      // right here. Without them this refusal says the run placed nothing and
+      // leaves finding out why to a separate investigation, except the reports
+      // never reach disk — publication is downstream of this throw.
+      const outcomes = (Array.isArray(value.reports) ? value.reports : [])
+        .slice(0, 6)
+        .map((report) => {
+          const entry = report as RealBuildStepReport;
+          const failure = entry.outcome.failure;
+          return (
+            `step ${entry.stepNumber} ${entry.outcome.status}/${entry.outcome.mechanism} ` +
+            `${entry.placedPieces}/${entry.expectedAssembledPieces} placed` +
+            (failure === null ? "" : ` — ${failure.code}: ${failure.message}`)
+          );
+        });
       throw new TypeError(
-        "Executed replay browser-output must retain a document and the exact prepared PDF digest.",
+        `Executed replay browser-output does not reproduce its prepared inputs: ${executedMismatch}. ` +
+          (outcomes.length === 0
+            ? "No step reports were retained."
+            : `Steps: ${outcomes.join(" | ")}`),
       );
     }
     try {
-      const document: unknown = JSON.parse(value.documentJson);
+      const document: unknown = JSON.parse(value.documentJson as string);
       if (!validateBrickDocumentV1(document)) {
         throw new TypeError("document is not a valid BrickDocumentV1");
       }
