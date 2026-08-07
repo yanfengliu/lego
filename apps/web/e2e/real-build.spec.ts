@@ -701,6 +701,19 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
       result = finalizeExecutedRealBuildResult({ options: executionOptions, browserOutput });
     }
 
+    // The deferral's own measurable, printed as soon as a result exists rather
+    // than with the rest of the summary at the end. Everything after this point —
+    // the artifact plan, the replay closure, the manifest — can refuse a
+    // partially-complete prefix and throw, and a number that only prints on runs
+    // that did not need it is not a measurement.
+    const deferrals = summariseDeferrals(result.steps);
+    console.log(
+      `deferral: ${deferrals.deferredSteps} printed step(s) had no scoring signal of their own, ` +
+        `${deferrals.settledByLookahead} settled by a later panel, deepest settlement reach ` +
+        `${deferrals.deepestSettlementReachSteps} printed step(s); ` +
+        `${result.steps.reduce((total, step) => total + step.placedPieces, 0)} piece(s) placed.`,
+    );
+
     const servedResponseEvidence = await servedResponses.writeEvidence(run.directory);
     sourceLock.assertHeld();
     const stepArtifactFiles = result.steps.flatMap((step) => {
@@ -828,17 +841,9 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
   }
   assertRealBuildBootstrapSourceLockHeld();
   const published = await run.publish(verifyRealBuildArtifactManifest);
-  // The deferral's own measurable, printed with the run rather than buried in
-  // the retained score: how many printed steps their own panel could not answer,
-  // how many a later panel settled, and the deepest reach any settlement needed.
-  // A deferral with no such number is untestable — "it settled" and "it settled
-  // by looking further than it should have had to" read exactly the same.
-  const deferrals = summariseDeferrals(result.steps);
   console.log(
     `${result.authority.kind}/${result.status}: ${result.steps.filter(isAtomicStepComplete).length}/${result.steps.length} steps complete; ` +
       `${result.steps.reduce((total, step) => total + step.placedPieces, 0)} piece(s) placed; ` +
-      `${deferrals.deferredSteps} deferred, ${deferrals.settledByLookahead} settled by lookahead, ` +
-      `deepest settlement reach ${deferrals.deepestSettlementReachSteps} step(s); ` +
       `retained unauthenticated evidence ${published}`,
   );
 
