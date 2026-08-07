@@ -1,8 +1,11 @@
 {
-  "schemaVersion": "lego.panel-face-ground-truth/1",
-  "what": "Which face of the assembly each printed panel of set 6651557 is drawn from, for printed steps 1 to 43. Judged from the rendered pages by two independent raters who were not shown the rotate-the-model icon or each other's answers; they agreed on all 43 panels. It exists so the icon fold is scored against something that is not the icon.",
+  "schemaVersion": "lego.panel-face-ground-truth/2",
+  "what": "Which face of the assembly each printed panel of set 6651557 is drawn from, for printed steps 1 to 43. Two raters read the rendered pages and answered a two-way forced choice per panel; neither was shown the rotate-the-model icon, the other's answers, or any face the pipeline had derived. Their per-panel verdicts and the feature each named are kept below, so the claim can be inspected rather than taken on the summary.",
+  "howToReadTheAgreement": "interRaterAgreement alone is close to uninformative here and must be read against majorityClassShare: 38 of 43 panels are studs-up, so a rater who answered that every time would score 0.8837. The agreement is worth something only on the 5 minority panels, which are the ones the whole question is about.",
   "raters": 2,
   "interRaterAgreement": 1.0,
+  "majorityClassShare": 0.8837,
+  "minorityPanels": [4, 7, 10, 11, 16],
   "measured": "2026-08-06",
   "iconSteps": [4, 5, 7, 8, 10, 12, 16, 17],
   "faces": {
@@ -49,5 +52,609 @@
     "41": "studs-up",
     "42": "studs-up",
     "43": "studs-up"
-  }
+  },
+  "verdicts": [
+    {
+      "stepNumber": 1,
+      "pageNumber": 11,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The base part in the lower half of the panel (the curved corner plate the wedge drops onto) carries solid raised cylinders along its arc - filled discs with a lit top rim and cast shadow; no annuli or rib walls anywhere in the panel."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The curved base plate at the bottom of the panel (the piece the red arrows point into) is covered in solid raised stud cylinders - filled dark discs with lit elliptical top rims and visible cylinder side walls at its two ends and mid-span. No annuli and no rib lattice anywhere on it."
+      }
+    },
+    {
+      "stepNumber": 2,
+      "pageNumber": 11,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The step-1 result drawn in the upper half of the panel shows about twelve solid raised studs on its fan surface plus studs on the two 1x2 side tabs; the discs are opaque with a highlighted upper rim, no holes through them."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The grey assembly drawn at the top of the panel (round corner plate plus the two 1x2 tab ends of the curved plate poking out left and right) shows ~13 solid raised studs, each a filled disc with a lit rim; the single studs on the left and right tabs are solid too. Its lower edge, where the red arrows arrive, is a plain flat plate wall with no tubes visible."
+      }
+    },
+    {
+      "stepNumber": 3,
+      "pageNumber": 11,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The whole assembly right of the yellow outline, and the yellow-outlined wedge itself, is covered in solid filled discs with lit crescent rims; nothing shows a dark centre hole or internal cross-ribbing."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "A dense field of solid raised studs covers the whole fan-shaped assembly, including inside the yellow-outlined new wedge plate at centre-left; every circle is a filled disc with a lit crescent highlight, none is an open ring."
+      }
+    },
+    {
+      "stepNumber": 4,
+      "pageNumber": 11,
+      "raterA": {
+        "face": "underside",
+        "confident": true,
+        "evidence": "The curved plate at upper-left of the panel shows open annular tubes - you see through to a dark interior - and straight rib walls forming rectangular cells; the same ring-and-rib lattice runs across the wedge at right."
+      },
+      "raterB": {
+        "face": "underside",
+        "confident": true,
+        "evidence": "The fan at centre-left shows open ring tubes (annuli you can see through into the part's interior) set inside a lattice of straight ribs and rectangular cell walls; the curved nose at the top-left shows the arched underside webbing, and the yellow-outlined long plate crossing the panel shows its hollow channel and end walls."
+      }
+    },
+    {
+      "stepNumber": 5,
+      "pageNumber": 12,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The large rounded plate filling the right of the panel is covered in solid raised studs, and the incoming green 2x4 at lower-left shows eight solid green studs; no tubes or ribbing on any surface."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The large dark fan right of centre is covered in solid raised studs (filled discs, lit top ellipses), and the new green 2x4 plate at the panel centre shows eight solid green stud cylinders with dark tops - no tubes, no ribbing."
+      }
+    },
+    {
+      "stepNumber": 6,
+      "pageNumber": 12,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "Every disc on the assembly, including the yellow-outlined 6x10 wedge plates, is a filled cylinder with a lit upper-left rim; the panel contains no annuli and no rectangular rib cells."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "Every circle across the assembly, including the yellow-outlined wedge at upper-centre and the long 1x plates at the left and lower-centre, is a solid raised cylinder with a lit top rim; the stepped notches along the lower-right yellow edge are the plate's outer profile, not internal ribbing."
+      }
+    },
+    {
+      "stepNumber": 7,
+      "pageNumber": 13,
+      "raterA": {
+        "face": "underside",
+        "confident": true,
+        "evidence": "The assembly shows open ring tubes with black through-holes set inside a lattice of straight ribs and rectangular cells; even the newly added blue 2x8 and green 1x4 plates are drawn tube-side-up."
+      },
+      "raterB": {
+        "face": "underside",
+        "confident": true,
+        "evidence": "The grey fan filling the left two-thirds of the panel shows open ring tubes with visible inner bores, surrounded by straight ribs forming rectangular cells; the newly added blue 2x8 and green 2x4 plates at centre-right likewise show hollow ring tubes recessed inside rectangular walled pockets."
+      }
+    },
+    {
+      "stepNumber": 8,
+      "pageNumber": 13,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The large plate right of centre is solid raised studs throughout, and the blue plate peeking out at the lower seam shows three solid blue studs; no open rings or ribbing visible."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The two yellow-outlined 4x6 plates at panel centre and the whole hull behind them are covered in solid raised studs (filled discs with lit rims); the green and blue plates added in the previous step now appear only as thin coloured edge slivers tucked below the studded surface at lower-right."
+      }
+    },
+    {
+      "stepNumber": 9,
+      "pageNumber": 14,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "At 7x zoom the discs on the yellow-outlined 4x6 plate and on the whole hull are opaque filled cylinders with a lit rim highlight - directly unlike the step-11 panel, where the same-sized circles have black holes through them and rib walls between."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "At 4.5x the entire hull, including the yellow-outlined plate at lower-right, resolves as solid raised stud cylinders with lit top ellipses; the plate edge at the lower-right shows a plain vertical side wall with studs standing on top of it and no tube openings or cross-ribbing."
+      }
+    },
+    {
+      "stepNumber": 10,
+      "pageNumber": 14,
+      "raterA": {
+        "face": "underside",
+        "confident": true,
+        "evidence": "Open annular tubes with dark centres plus a dense grid of rib walls cover the hull; the green, blue and yellow plates are drawn tube-side-up, and the new 6x6 plate below also shows rings as it is pushed up by the red arrows."
+      },
+      "raterB": {
+        "face": "underside",
+        "confident": true,
+        "evidence": "Open ring tubes with clearly visible inner bores fill the grey hull, framed by straight ribs and rectangular cell walls; the green 2x4s and blue 2x8 at centre and the yellow-outlined 8x8 plate rising from lower-right all show hollow tubes inside walled rectangular recesses."
+      }
+    },
+    {
+      "stepNumber": 11,
+      "pageNumber": 15,
+      "raterA": {
+        "face": "underside",
+        "confident": true,
+        "evidence": "Every circle on the hull and on the yellow, blue and green plates is a raised ring with a visible black hole through it, sitting in a lattice of straight ribs and rectangular cells."
+      },
+      "raterB": {
+        "face": "underside",
+        "confident": true,
+        "evidence": "The whole assembly is a lattice of rectangular rib cells containing open ring tubes - visible on the grey hull, on the green 2x4s, on the blue 2x8, and on the yellow-outlined 1x10 plate at lower-right; the curved bow at upper-left shows the arched internal webbing of the underside."
+      }
+    },
+    {
+      "stepNumber": 12,
+      "pageNumber": 16,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The whole hull is a field of solid raised studs with lit crescent rims; the red 2x6 being added at the right edge and the green plate below it also show solid studs, and no ribbing is visible."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The dark hull is a solid field of raised stud cylinders with lit top rims, and the green 1x10 plate along the lower edge plus the red 2x6 plate being lowered at right both show solid coloured studs with dark elliptical tops - no annuli, no rib lattice."
+      }
+    },
+    {
+      "stepNumber": 13,
+      "pageNumber": 17,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "Across the whole wing deck - e.g. the band just left of the green 1x2 plate at right-centre (~x900-1100, y600-780) - every circle is a SOLID filled disc with a lit elliptical rim and a dark cylinder side-wall crescent beneath it. No annulus, no visible bore, and no straight ribs anywhere; the yellow-outlined 1x8 plate below the assembly likewise carries solid studs on its upper face."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "Across the whole raft deck (checked at 12x on the 8x8 area around the centre-left of the assembly, and again on the near corner just above the red arrows): every circle is a SINGLE ellipse with a filled mid-grey top face and a black crescent of cylinder side wall beneath it. No concentric inner ellipse, no see-through centre, and no straight rib walls or rectangular cells anywhere on the surface. The plate's thin flat side edge is visible along the lower-right rim, confirming we are looking down onto the top. (The loose 1x8 plate at bottom, yellow-outlined with red arrows, is an incoming piece and also shows studs on its own top face.)"
+      }
+    },
+    {
+      "stepNumber": 14,
+      "pageNumber": 18,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The yellow-highlighted new wedge plate at the right end of the assembly (~x1070-1300, y620-800) shows ~24 solid raised cylinders, each a filled disc with a lit top face and a dark cylindrical wall below; the main wing body left of it (~x500-760, y500-700) shows the same solid studs. (The small sub-assembly inset box at top right does show open tubes, but that is a callout, not the main assembly.)"
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "Main raft in the lower-left two thirds of the page: at 12x the features are solid raised cylinders - one lit ellipse rim, a grey filled top disc, and a dark shaded cylinder wall under the front edge. No annuli and no rib lattice on the deck. (The white sub-step box at top right does show a plate held tubes-up, but that is a sub-assembly callout, not the main assembly.)"
+      }
+    },
+    {
+      "stepNumber": 15,
+      "pageNumber": 19,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The yellow-outlined wedge plate added at the right of the wing (~x1050-1290, y660-810) and the entire deck to its left are covered in solid raised cylinders - filled discs with lit rims and dark side walls, no see-through centres; the stepped wedge edge at the lower right shows the plate's solid top surface, not tube/rib lattice."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "Main raft centred on the page: same solid-disc signature at 12x - single ellipse outline, filled grey top face, black crescent of cylinder wall below each disc. Nothing on the surface reads as an annulus, and the seam lines between the sub-plates are plain butt joints with no internal cross-ribbing."
+      }
+    },
+    {
+      "stepNumber": 16,
+      "pageNumber": 20,
+      "raterA": {
+        "face": "underside",
+        "confident": true,
+        "evidence": "The grey base surface across the centre (~x600-850, y550-740) is a field of OPEN RINGS - hollow tubes with a clearly visible dark bore and a lit inner wall - and straight ribs/walls form rectangular cells around the plate borders. The red, yellow, green and blue plates likewise present annuli facing the viewer, i.e. they are pressed in studs-down onto the exposed tube face."
+      },
+      "raterB": {
+        "face": "underside",
+        "confident": true,
+        "evidence": "The whole base surface is OPEN RINGS: at 12x on the grey field left of the yellow 1x8 (and unmistakably on the green and yellow plates themselves) each feature is a double concentric ellipse with a black void inside that you see through to the inner tube wall. The rings sit in a lattice of rectangular cells bounded by straight internal rib walls, visible along every plate border. Tube diameter is also visibly larger than the stud pitch seen on pages 17-19."
+      }
+    },
+    {
+      "stepNumber": 17,
+      "pageNumber": 21,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "At the left tip beside the yellow-highlighted wedge plate (~x350-550, y580-740) and across the whole black deck (~x600-850, y550-740), every circle is a solid raised cylinder: filled dark top, lit elliptical rim, dark side wall beneath. No bore and no rectangular rib cells anywhere - the opposite of the annuli seen in the step-16 panel."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "Main raft: at 12x near the centre of the deck each feature is a solid disc - one ellipse, grey filled top, black shaded cylinder wall beneath - directly contrasting with the double-ring annuli on page 20 checked at the same magnification. Along the rounded right-hand tip the plate's flat side edge and hollow-edge notches are seen edge-on while the deck above them is uniformly studded, so the visible face is the top."
+      }
+    },
+    {
+      "stepNumber": 18,
+      "pageNumber": 22,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The black deck surrounding the yellow-highlighted transparent pieces at the rounded top-right end (~x1000-1200, y380-540) and the main body (~x600-850, y600-790) are covered in solid raised cylinders with lit top faces and dark cylindrical sides; the transparent parts sit ON those studs, and no hollow tubes or internal ribbing appear on the assembly."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "Main raft: at 12x on the deck below and left of centre, every feature is a solid raised cylinder (single lit ellipse, filled grey top face, dark side-wall crescent); no concentric rings, no rib cells. Only the loose trans-clear piece highlighted in yellow at the top-right is drawn tubes-up, and that is an incoming part sitting above the studded deck, not the assembly itself."
+      }
+    },
+    {
+      "stepNumber": 19,
+      "pageNumber": 23,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The whole black wedge hull (spanning roughly the centre of the page, x 380-1210 / y 390-930) is covered in solid raised cylinders. Zooming 16x on the field around x 600-680 / y 620-680 shows each element as a filled dark disc with a bright elliptical rim and a dark cylinder side wall beneath it - no hole through the centre and no straight ribs or rectangular cells between them. The newly highlighted black 1x8 plate at the top of the panel (x 860-1000 / y 400-470) likewise carries solid studs sitting proud of the surface."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "At 12x zoom on the large black wedge plate at centre (around x=600-700, y=650-720 of page-023.png), every disc is a solid filled cylinder: a lit elliptical top face with a dark shaded side-wall crescent beneath it and a cast shadow. No disc shows an inner hole/annulus, and the surface between discs is smooth flat plate with only panel seam lines - no rib-and-cell lattice. The yellow-highlighted black 1x8 element at upper right is laid ON TOP of that stud field."
+      }
+    },
+    {
+      "stepNumber": 20,
+      "pageNumber": 24,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "Zooming on the large black plate at lower-left (x 480-780 / y 560-760) resolves each circle as a solid raised stud: lit top ellipse, dark filled top face, short cylinder wall casting a shadow below. Additionally, the six small black round elements added inside the yellow outline near x 1000-1100 / y 420-490 sit on top of the white/trans plates as raised pieces, and the black plates at the top edge (x 800-950 / y 400-480) show solid studs along their upper surface. Nothing in the panel shows open tubes or internal ribbing."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "12x zoom at x=500-600, y=700-770 of page-024.png shows the same solid raised cylinders (filled elliptical tops + shaded lower crescents) across the whole black plate. Additionally, the light-grey nose area inside the yellow outline (x~930-1180, y~400-545) shows raised stud tops - including faint embossed LEGO-logo text on the white stud faces - plus five raised black round studs in the middle. No tubes or ribbing anywhere."
+      }
+    },
+    {
+      "stepNumber": 21,
+      "pageNumber": 25,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "High zoom on the black hull field at x 600-680 / y 620-680 shows solid raised cylinders - filled dark tops with a bright rim and visible side wall - identical in form to a plate seen from above. The dark-grey 2x4 tile and the black studs newly added inside the yellow outline (x 850-1110 / y 470-620) rest on the upper surface of the assembly. No annuli and no rectangular rib cells appear anywhere on the plate."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "12x zoom at x=560-660, y=700-770 of page-025.png: uniform field of solid raised studs on the big black wedge plate - each a filled ellipse with a dark cylinder-wall crescent below, separated by smooth plate surface and straight seam lines only. No open rings, no internal ribs."
+      }
+    },
+    {
+      "stepNumber": 22,
+      "pageNumber": 26,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "Zoom on the black plate field at x 560-640 / y 620-680 resolves solid raised studs (bright top ellipse, filled dark disc, cylinder wall shadow underneath). The newly added dark plates inside the yellow outline along the upper-left edge (x 490-830 / y 425-600) sit on top of that surface with their own solid black studs facing the viewer. No hollow tubes or ribbing lattice present."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "12x zoom at x=500-600, y=740-810 of page-026.png shows the same solid raised cylinders over the whole black plate. The yellow-highlighted strip added at upper left also presents raised black studs on its upper surface. Nothing in the panel shows annuli or a rectangular rib lattice."
+      }
+    },
+    {
+      "stepNumber": 23,
+      "pageNumber": 27,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "Zoom on the black hull at x 600-680 / y 620-680 gives solid raised studs with lit rims and side walls. Confirmed independently by the newly placed white 2x2 plates inside the yellow outline (x 830-990 / y 585-650), which carry unmistakable solid black raised studs standing proud against the white plate tops. No open rings or internal ribs anywhere on the assembly."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "12x zoom at x=560-660, y=700-770 of page-027.png: solid filled stud discs with shaded side walls across the black plate. The yellow-outlined new sub-area at centre-right (x~780-1020, y~550-720) shows a white/light-grey plate carrying raised white studs sitting above the black stud field."
+      }
+    },
+    {
+      "stepNumber": 24,
+      "pageNumber": 28,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The front-left corner of the hull (x 380-700 / y 750-930) zoomed 4x shows the plate's outer edge in profile: a plain vertical side wall with solid raised studs standing on the top face above it, and bare flat plate surface where no studs sit. A plate seen from below would show that same edge as a rim enclosing open tubes and cross ribs; here the interior is smooth with discrete solid cylinders. The light-grey raised stud near x 540 / y 705 is likewise a filled cylinder, not an annulus."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "12x zoom at x=500-600, y=760-830 of page-028.png shows the identical solid raised cylinder pattern (lit elliptical tops, dark crescent side walls) covering the black wedge plate, plus raised white studs on the light plate near x~800-940, y~580-650. No hollow tubes and no internal cross-ribbing visible anywhere in the panel."
+      }
+    },
+    {
+      "stepNumber": 25,
+      "pageNumber": 29,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "At 8x zoom on the wide dark hull field at centre-left (page x~400-560, y~600-720) every circle is a SOLID raised cylinder: a lit elliptical top cap with a dark cylindrical sidewall below it, in regular 20-LDU rows across several abutting plates. No annuli, no rectangular rib lattice anywhere on that surface. The white 2x2 plate and the 1x1 round plates near the yellow-highlighted grille (x~940-1080, y~460-560) also read as filled discs with lit tops."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The whole port wing at lower-left of the panel (roughly x 380-700, y 560-900) is a dense field of solid raised cylinders - each circle is a filled dark disc with a lit rim highlight on its upper-left and a short visible side wall. Zooming that region shows no annuli and no rectangular rib lattice anywhere; the dark-grey 1x4 and 2x4 plate outlines run between rows of solid studs."
+      }
+    },
+    {
+      "stepNumber": 26,
+      "pageNumber": 30,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "Solid raised studs fill the dark hull field at upper-left (page x~350-700, y~570-760), and the two white 2x2 plates inside the yellow highlight (x~440-560, y~745-800) each carry four solid black stud cylinders standing proud of the white plate top. The ring-shaped circles along the near front edge (x~470-660, y~840-905) are OPEN/hollow studs sitting raised on top of the front plate row - at 8x they are proud cylinders casting shadow on the plate's top plane, not recessed tubes in a rib lattice."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The large black wing plates filling the upper-left of the model (approx x 340-720, y 560-790) show row upon row of solid raised studs, and the newly added white 2x2 plates inside the yellow highlight at lower-left (approx x 360-560, y 730-820) each carry four filled black stud discs on their upper surface. The only ring shapes are isolated round detail parts along the front edge, not a tube-and-rib lattice."
+      }
+    },
+    {
+      "stepNumber": 27,
+      "pageNumber": 31,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The dark hull field at centre-left (page x~400-700, y~590-800) is covered in solid raised stud cylinders with lit top caps; plate seams run between them. The newly added printed 'New York, New York' tile lies flat and smooth along the near-front edge (x~500-720, y~830-900) - a tile top face, with studded plates behind it. No tubes or internal ribbing visible."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The deck between bow and stern (approx x 450-1000, y 550-800) is covered in solid filled stud discs with lit tops, and the 'New York, New York' printed tile highlighted at the lower-front edge (approx x 500-720, y 830-900) reads right-way-up on the outward hull side, confirming the model sits on its base with the top deck toward the viewer."
+      }
+    },
+    {
+      "stepNumber": 28,
+      "pageNumber": 32,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The base's top surface (page x~430-800, y~560-780) shows dense rows of solid raised studs with lit caps and dark cylinder walls. The two yellow-highlighted arch bricks added this step stand upright on that surface with their own studs facing up (x~570-930, y~365-560), and their arch openings are vertical - so we are looking down onto the studded top, not up at an underside."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "Zooming the mid-deck (approx x 450-810, y 570-880) shows continuous rows of solid raised cylinders on every black plate; additionally the two arch bricks being added at upper-centre (approx x 570-930, y 370-570) stand upright on the deck with their own studs facing up, which is only possible on a studs-up surface."
+      }
+    },
+    {
+      "stepNumber": 29,
+      "pageNumber": 33,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The hull top between the arches and the front edge (page x~420-780, y~570-780) is solid raised studs at 4x zoom - filled discs with lit crescents and visible cylinder sides. The yellow-highlighted subway train sits on top of that surface under the arch (x~620-860, y~450-560), resting on studs. No open tubes or rectangular rib cells anywhere on the assembly."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The deck at centre-left (approx x 400-800, y 570-880) is a field of filled stud discs with highlighted tops - no open tubes or cross-ribbing. The subway train inside the yellow highlight (approx x 620-850, y 450-560) rests on top of that deck under the arches, and the 'New York, New York' printed tile is readable on the hull's outer side face."
+      }
+    },
+    {
+      "stepNumber": 30,
+      "pageNumber": 34,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "At 4x the base top (page x~400-760, y~560-780) is unmistakably solid raised studs. The yellow-highlighted dark-blue 1x2 bricks added this step (x~370-440, y~600-690) are drawn standing upright with two solid studs on their upper face, and the second arch brick above them likewise shows a studded top row - the whole panel is a downward view onto the studded surface."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The whole deck (approx x 400-1000, y 550-830) shows solid raised studs, and the highlighted dark-blue 1x2x2 brick at left (approx x 365-435, y 600-690) is drawn with its two solid studs on the top face, seated on the studded deck. No annular tubes or rectangular cell walls appear anywhere on the assembly."
+      }
+    },
+    {
+      "stepNumber": 31,
+      "pageNumber": 35,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The whole deck field between the two long black wall rows (centre of the panel, immediately around and below the yellow-outlined 1x2x2 brick) is solid raised cylinders - at 8x zoom each is a filled disc with a lit top face and a shaded cylinder wall, never an annulus. Confirmed by the near bow edge at bottom-left, where the white 2x2 plate shows four filled discs and the 'New York, New York' printed tile lies right-way-round on that same flat deck plane. No hollow tubes and no rectangular rib lattice anywhere on the model."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The dark deck field immediately right of the blue 1x2x2 brick (centre-left of the panel) is packed with solid raised studs - at 10x each is a filled disc the same shade as the plate, ringed by a thin light outline and sitting on a dark cylinder wall, identical to the studs-up 2x4 plate in this page's own step-1 callout. No annuli, no rib lattice. The scattered ring-topped cylinders further right sit on top of tiles (seams pass beneath them) and are hollow-stud round 1x1 details, not tube ends. The 'New York, New York' printed tile on the near hull reads unmirrored."
+      }
+    },
+    {
+      "stepNumber": 32,
+      "pageNumber": 36,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The long black 1-plate-wide walls running diagonally across the centre of the model carry unbroken rows of solid raised studs along their upper edges (clearest on the wall just left of the white placement arrow, and on the wall inside the yellow outline). The arch bricks show their arch openings facing the viewer with studs on top of them, and the deck plates below the yellow outline read as filled discs. No tubes or ribbing."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The run of studs along the top edge of the black brick wall traced by the yellow highlight (mid-left of the panel) magnifies to solid filled discs with lit top faces and dark side walls - the yellow highlight line passes over their tops. The arch bricks left and right of centre have their curve up and opening down."
+      }
+    },
+    {
+      "stepNumber": 33,
+      "pageNumber": 37,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The newly added light-grey 6x16 plate at upper-centre, inside the yellow outline, is covered in solid raised studs; at 7x zoom each stud is a lit grey top face sitting on a dark cylinder side wall, with no hole through the middle. The dark deck to its lower-right is the same solid-disc pattern, and the arch bricks below show open arches with studs above them."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The light-grey 6x16 plate just seated at upper-centre inside the yellow outline shows a full grid of solid raised studs (filled mid-grey caps over black cylinder walls) at 10x, and the hull deck below at centre-right shows the same solid studs on the mid-grey plates. Nothing on the panel reads as an open ring except the small round detail parts resting on tiles."
+      }
+    },
+    {
+      "stepNumber": 34,
+      "pageNumber": 38,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The large yellow-outlined dark-grey plate deck filling the upper-left half of the model is a dense field of solid raised studs (lit top face, shadowed lower rim), interrupted only by a smooth white 2x4 tile inset near its top edge. The 'New York, New York' printed tile at the near bow reads right-way-round on the flat deck plane. No annuli, no internal ribbing."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The large black plates at upper-centre inside the yellow outline carry a dense field of solid raised studs - at 10x each is a filled dark disc with a bright top rim and a black cylindrical wall, with plain butt seams between plates and no internal ribbing. The 'New York, New York' tile at lower-centre reads unmirrored."
+      }
+    },
+    {
+      "stepNumber": 35,
+      "pageNumber": 39,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "This page shows only sub-assembly panels 1-4 (no large model). In every panel the sub-assembly presents solid raised studs on its upper face: in panel 4 (right, lower) the blue 1x6 and 1x4 bricks and the light-grey 2x2 brick all show filled discs with lit tops, and the red arrows drop the two grey 2x2 plates down onto them. Panels 1-3 show the same solid studs; no tubes or rib lattice appears anywhere."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "This page has no main model, only four sub-build panels; judging the sub-assembly they build: in substep 1 the light-grey 2x2 brick shows four solid raised studs receiving a blue 1x4 brick pushed down onto them by red arrows, and in substeps 3 and 4 the assembled blue 1x4 bricks present a row of solid filled studs along their top edge with plates arrowed down onto them."
+      }
+    },
+    {
+      "stepNumber": 36,
+      "pageNumber": 41,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The deck to the right of the yellow outline is a field of solid raised studs, and the blue 1x4 brick plus the light-grey 2x2 brick added at the right edge both show filled discs on their upper faces. The 'New York, New York' printed tile at the far-left bow lies right-way-round on the flat deck plane. The scattered small annuli inside the yellow outline are the hollow centre studs of jumper plates (matching the 5x 1x2-with-one-stud and 3x 1x3-with-two-studs parts), sitting proud of a flat tiled surface - not recessed tubes, and there is no rectangular rib lattice."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The large dark plate spanning the centre-right of the deck (just left of the grey/blue tower) is blanketed in solid raised studs - at 10x, filled discs with lit rims over black cylinder walls. The two large arches below it open downward, and the 'New York, New York' printed tile on the left hull face reads unmirrored, so the model is only yawed relative to pages 35-38, not flipped."
+      }
+    },
+    {
+      "stepNumber": 37,
+      "pageNumber": 42,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "Every deck surface of the ship is covered in solid raised cylinders. Clearest at the stern block (right of centre, roughly x=950-1150, y=560-700 on the page): the light-grey and dark-blue plates carry filled dark discs with a lit elliptical top face and a short cylinder wall below, each casting a small shadow onto the plate. Same on the white 2x2 plates at the left deck and the black plates along the bow. Nowhere on the assembly is there an annulus you can see through, and no straight internal ribs forming rectangular cells - the rectangles present are plate/tile seams on a flat upper surface, not underside ribbing."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "Every round feature on the ship's deck is a solid raised cylinder, not an annulus. Clearest at the dark-blue 1x4 plate on the upper deck just left of centre and the navy brick at mid-right (~x1150,y700): each stud is a lit blue top ellipse sitting on a darker blue/black cylinder wall. The black deck plates repeat the identical profile (white outline ring, black lit top ellipse, black shadowed side crescent) - verified at 14x zoom around x700-800,y525-600. The white bow plates near the prow each carry a convex stud with a highlight on the upper-left and shadow on the lower-right. Nowhere on the page is there a see-through tube annulus or a rectangular rib lattice."
+      }
+    },
+    {
+      "stepNumber": 38,
+      "pageNumber": 43,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The main assembly is the long black 1x14 plate in the lower-left quadrant of the page. Its whole length carries a single row of ~14 solid raised studs: each is a filled dark disc with a bright crescent rim and a visible cylindrical side wall standing proud of the plate surface. The two red placement arrows land on the two leftmost of these studs. No annuli, no ribbing, no hollow tubes anywhere on it."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The long black plate running from upper-left to lower-right carries an unbroken row of ~14 solid raised black studs along its upper face; at 5x zoom each is a filled disc with a lit white-outlined rim, a black top ellipse and a shadowed cylinder side beneath it. The two red arrows descend onto the two nearest of those studs, and the plate's near long edge and end face are visible as flat side walls - no tubes, no internal ribbing."
+      }
+    },
+    {
+      "stepNumber": 39,
+      "pageNumber": 43,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "Upper-right panel. Every light-blue 1x2 plate along the black rail shows two solid raised cylinders on its upper face (filled tops with lit rims and a visible stud wall), and the medium-blue 1x1 bricks each show one solid stud on top with the snowflake print on their vertical side face. The black base plate's top is hidden under those pieces; only its side wall shows. No open rings and no rib lattice."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The medium-azure 1x2 rounded plate at the far lower-right end of the strip shows two unmistakable raised studs at 18x zoom: a lit pale-azure top face capping a dark cylindrical wall that stands proud of the plate's smooth top surface. Each azure 1x1 printed brick likewise carries a single raised stud on its top face. The black base plate beneath is seen from above with its top surface covered by the azure parts; nothing on the panel reads as a hollow tube or a rib lattice."
+      }
+    },
+    {
+      "stepNumber": 40,
+      "pageNumber": 43,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "Lower-right panel. On the already-built rail, the light-blue plates at the left end (where the red arrows land) show two solid raised studs, and the medium-blue 1x1 bricks each show a solid stud on top. The already-placed black brackets likewise present two solid raised studs on their horizontal plates with the vertical wall rising behind. No tubes, no rectangular rib cells."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The azure 1x2 rounded plate at the left end of the strip (the target of the two red arrows) presents two raised studs with lit azure tops facing upward, and the three black brackets already seated on the strip each show two solid raised studs on their horizontal plate, their vertical flanges rising above. Ignoring the airborne bracket, every surface of the seated assembly is either a stud top or a smooth side wall - no annuli, no cell ribbing."
+      }
+    },
+    {
+      "stepNumber": 41,
+      "pageNumber": 44,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "Upper-left panel. The four yellow-outlined light-blue 1x2 plates just added each present two solid raised cylinders on their upward face (dark filled tops, bright rims, short stud walls), and the medium-blue 1x1 bricks between them each show one solid stud on top. Everything else visible is vertical side wall of the black brackets. No annular tubes, no ribbing."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "All four yellow-highlighted azure 1x2 rounded plates along the top of the strip show two solid raised studs each - lit azure top ellipse over a dark cylinder side - and the azure 1x1 printed bricks between them each show one. At 6x zoom the studs clearly stand proud of the plate tops; there is no hollow centre in any of them and no rib lattice anywhere in the panel."
+      }
+    },
+    {
+      "stepNumber": 42,
+      "pageNumber": 44,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "Lower-left panel. The black 1x4 plate at the centre-right of the rail (around x=360-470, y=815-880 on the page) shows four unmistakable solid raised studs - at 10x each is a filled dark elliptical top with a bright rim and a short cylinder wall, no hole through the middle. The rest of the upper face is smooth black tile/plate top. Nothing on the assembly reads as an open ring or as rib-and-cell ribbing; the repeated black horizontal bars along the front are bracket/tile side walls, not underside ribs."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "The black 1x4 plate at centre-right of the strip shows four solid raised studs running along the top; at 16x zoom each is a white-outlined disc with a lit dark-grey top face and a black cylinder side crescent below it, identical in profile to the step-38 plate's studs. The long black tile above it presents a smooth lit top face. No tube annuli and no rectangular cell walls appear."
+      }
+    },
+    {
+      "stepNumber": 43,
+      "pageNumber": 44,
+      "raterA": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "Right-hand panel. No studs are exposed on the main assembly (the black 1x4 stud plate from the previous state is exactly covered by the white sub-assembly), but the face presented to the viewer is still the top: the long black plate/tile running the length of the rail shows a flat, evenly lit solid upper face with a thin front edge (clearest left of the white piece, around x=940-1150, y=560-640), and the end block at the far right shows the same lit solid top. There is not a single annulus or rectangular rib cell anywhere on the assembly, which the underside of that 1x14 base plate would show unmistakably. The white sub-assembly descends vertically onto that upward-facing surface."
+      },
+      "raterB": {
+        "face": "studs-up",
+        "confident": true,
+        "evidence": "No studs remain exposed on the main assembly - they are covered by the tiles added in step 42 - but the panel still resolves the face: at 13x zoom the long black tile along the upper edge and the black base plate at the lower-right end both present their lit top faces with the stack building upward from the base plate, and the white sub-assembly is driven straight down onto that top surface by the white arrow. Not one tube annulus or rib-lattice cell appears anywhere in the panel, so it cannot be the underside."
+      }
+    }
+  ]
 }

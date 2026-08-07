@@ -563,58 +563,76 @@ describe("derivePanelFaces", () => {
 });
 
 describe("panel faces against a blind reading of the pages", () => {
-  /**
-   * The fold's only honest score: two raters read the rendered pages of 6651557
-   * without being shown the icon or each other's answers, and agreed on all 43
-   * panels. Scoring the icon against the icon would measure nothing.
-   *
-   * Measured 2026-08-06: 43 of 43. The same comparison before extractPageShapes
-   * stopped leaking fill colour across a restore was 7 of 43 — step 8's icon was
-   * invisible, and one missed icon inverts the parity of every step after it.
-   */
-  test("reproduces every judged panel from the printed icons alone", () => {
-    const judged = Object.entries(PANEL_FACE_GROUND_TRUTH.faces).map(([stepNumber, panelFace]) => ({
-      stepNumber: Number(stepNumber),
-      panelFace,
-    }));
-    const iconSteps = new Set<number>(PANEL_FACE_GROUND_TRUTH.iconSteps);
-    const folded = derivePanelFaces(
-      judged.map(({ stepNumber }) => ({
-        stepNumber,
-        rotationIconPresent: iconSteps.has(stepNumber),
-      })),
-    );
+  const TRUTH = PANEL_FACE_GROUND_TRUTH;
+  const faceOf = (step: number): string => (TRUTH.faces as Record<string, string>)[String(step)]!;
+  const steps = Object.keys(TRUTH.faces)
+    .map(Number)
+    .sort((left, right) => left - right);
 
-    expect(folded).toEqual(judged);
+  test("keeps the two raters' own verdicts, not just their summary", () => {
+    // The summary is the thing that cannot be checked. Every panel carries both
+    // raters' answers and the feature each named, so a claim of independence is
+    // inspectable rather than asserted — this repo's identification trust model
+    // already refuses anything that enters a list by asserting itself.
+    expect(TRUTH.verdicts).toHaveLength(steps.length);
+    for (const verdict of TRUTH.verdicts) {
+      expect(verdict.raterA.evidence.length).toBeGreaterThan(20);
+      expect(verdict.raterB.evidence.length).toBeGreaterThan(20);
+      expect(verdict.raterA.evidence).not.toBe(verdict.raterB.evidence);
+    }
+    const agreed = TRUTH.verdicts.filter(
+      (verdict) => verdict.raterA.face === verdict.raterB.face,
+    ).length;
+    expect(agreed / TRUTH.verdicts.length).toBeCloseTo(TRUTH.interRaterAgreement, 4);
+    expect(
+      Object.fromEntries(TRUTH.verdicts.map((v) => [String(v.stepNumber), v.raterA.face])),
+    ).toEqual(TRUTH.faces);
   });
 
-  test("scores far worse when any single icon is dropped, wherever it is", () => {
-    const judged = Object.entries(PANEL_FACE_GROUND_TRUTH.faces).map(([stepNumber, panelFace]) => ({
-      stepNumber: Number(stepNumber),
-      panelFace,
-    }));
-    const steps = judged.map(({ stepNumber }) => stepNumber);
+  test("states the baseline that makes its agreement rate readable", () => {
+    // 38 of 43 panels are studs-up, so answering studs-up every time scores
+    // 0.8837. Quoting a perfect agreement without that number overstates it by
+    // a lot, and the whole question lives on the five minority panels.
+    const counts = new Map<string, number>();
+    for (const face of Object.values(TRUTH.faces)) counts.set(face, (counts.get(face) ?? 0) + 1);
+    const majority = Math.max(...counts.values()) / steps.length;
 
-    for (const dropped of PANEL_FACE_GROUND_TRUTH.iconSteps) {
-      const iconSteps = new Set(
-        PANEL_FACE_GROUND_TRUTH.iconSteps.filter((step) => step !== dropped),
-      );
+    expect(majority).toBeCloseTo(TRUTH.majorityClassShare, 4);
+    expect(TRUTH.minorityPanels.length).toBe(steps.length - Math.max(...counts.values()));
+    expect(TRUTH.minorityPanels.every((step) => faceOf(step) === "underside")).toBe(true);
+    // The claim worth making is about these five, not about all 43.
+    expect(TRUTH.minorityPanels).toEqual([4, 7, 10, 11, 16]);
+  });
+
+  test("agrees with the fold on the minority panels, which is where it can disagree", () => {
+    // Deliberately scored on the minority alone. Over all 43 this comparison is
+    // near-vacuous: both sides are studs-up on 38 of them, so it would report
+    // 0.88 even if the fold were replaced by a constant.
+    const iconSteps = new Set<number>(TRUTH.iconSteps);
+    const folded = new Map(
+      derivePanelFaces(
+        steps.map((stepNumber) => ({ stepNumber, rotationIconPresent: iconSteps.has(stepNumber) })),
+      ).map(({ stepNumber, panelFace }) => [stepNumber, panelFace]),
+    );
+
+    const constant = steps.filter((step) => faceOf(step) === "studs-up").length;
+    expect(constant / steps.length).toBeCloseTo(TRUTH.majorityClassShare, 4);
+
+    for (const step of TRUTH.minorityPanels) expect(folded.get(step)).toBe("underside");
+    const wrong = steps.filter((step) => folded.get(step) !== faceOf(step));
+    expect(wrong).toEqual([]);
+  });
+
+  test("inverts the minority panels when any single icon is dropped", () => {
+    for (const dropped of TRUTH.iconSteps) {
+      const iconSteps = new Set(TRUTH.iconSteps.filter((step) => step !== dropped));
       const folded = derivePanelFaces(
-        steps.map((stepNumber) => ({
-          stepNumber,
-          rotationIconPresent: iconSteps.has(stepNumber),
-        })),
+        steps.map((stepNumber) => ({ stepNumber, rotationIconPresent: iconSteps.has(stepNumber) })),
       );
-      const correct = folded.filter(
-        (entry, index) => entry.panelFace === judged[index]!.panelFace,
-      ).length;
+      const firstWrong = folded.findIndex((entry) => entry.panelFace !== faceOf(entry.stepNumber));
 
-      // Every step at or after the dropped icon inverts and never recovers, so
-      // the score cannot stay near perfect for any choice of dropped icon.
-      expect(correct).toBeLessThan(judged.length);
-      expect(folded.findIndex((entry, index) => entry.panelFace !== judged[index]!.panelFace)).toBe(
-        steps.indexOf(dropped),
-      );
+      // Every step at or after the dropped icon inverts and never recovers.
+      expect(firstWrong).toBe(steps.indexOf(dropped));
     }
   });
 });
