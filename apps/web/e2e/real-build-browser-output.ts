@@ -553,7 +553,14 @@ export function assertRealBuildBrowserOutput(
           const failure = entry.outcome.failure;
           return (
             `step ${entry.stepNumber} ${entry.outcome.status}/${entry.outcome.mechanism} ` +
-            `${entry.placedPieces}/${entry.expectedAssembledPieces} placed` +
+            `${entry.placedPieces}/${entry.expectedAssembledPieces} placed ` +
+            // The evidence the step had to work from. A placement score of zero
+            // means something different when the panel printed no highlight at
+            // all than when it printed one the candidate missed, and only these
+            // separate the two.
+            `[highlight ${entry.highlight.regions} region(s), ${entry.highlight.strokePx}px stroke, ` +
+            `closed ${entry.highlight.closedContourRate}; arrows ${entry.arrows.kept} kept ` +
+            `${entry.arrows.rejected} rejected]` +
             (failure === null ? "" : ` — ${failure.code}: ${failure.message}`)
           );
         });
