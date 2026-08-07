@@ -1,0 +1,20 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--workspace",
+        "@lego-studio/web",
+        "--",
+        "--port",
+        "5290",
+        "--strictPort"
+      ],
+      "port": 5290
+    }
+  ]
+}
