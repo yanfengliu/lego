@@ -6,7 +6,7 @@ An AI-native digital brick modeling studio with three coordinated surfaces: a pr
 
 Status: an initial Gate 0/1 workspace exists; provider-backed generation, the companion trust broker, production candidate acceptance, retained native run bundles, and the recursive engineering runner remain unimplemented. Non-goals: not a BrickLink Studio clone, general mesh editor, complete official-parts catalog, or a guarantee of physical stability/clutch/instructions; it does not merge with `3d-maker` merely because both render 3D. **Do not claim a feature, command, validator, provider, broker, or harness exists until live files and executable behavior prove it.**
 
-<!-- FLEET-CANON:BEGIN sha=6a54748e4508 generated from fleet/FLEET.md by `npm run sync-canon` — do not edit inside this block; this repo's own rules go in docs/policies/local-rules.md -->
+<!-- FLEET-CANON:BEGIN sha=bd918e40ba88 generated from fleet/FLEET.md by `npm run sync-canon` — do not edit inside this block; this repo's own rules go in docs/policies/local-rules.md -->
 ## Fleet constitution
 
 - Work headlessly by default. If only a browser or GUI can finish or verify the task, say why.
@@ -17,6 +17,7 @@ Status: an initial Gate 0/1 workspace exists; provider-backed generation, the co
 - The top reasoning tier is rationed: spend it only on the hardest problem, or on directing the workhorse tier that does the work — and only at maximum effort or orchestration.
 - High-risk work — persistence/migrations, security/auth, concurrency, money, supply chain, edits that reach sibling repos — escalates to the multi-cli-review skill.
 - Error messages are a product surface: audit them as a class, including paths the task did not touch.
+- Show the bottleneck, do not describe it: when work is blocked or a finding needs a decision, put the actual artifact in front of the user — the screenshot, the rendered page, the captured frame — and do it as soon as the blocker is named, not after the analysis is finished. Prose about a picture asks the user to reconstruct what you are already looking at, and they routinely know the domain better than the pipeline does. (Owner direction, 2026-08-06: an instruction-booklet panel was described in text across several exchanges; shown as an image, the owner saw in seconds that the model was drawn from its underside and that the booklet prints an explicit flip icon — a cue the pipeline had already detected, correctly interpreted as a viewpoint note, and then dropped.)
 - Task-run evidence lives only under ignored paths and is deleted once nothing active needs it; it enters Git only when review promotes it into a repository input — a fixture, golden, snapshot, or contract. Tracked docs keep conclusions and provenance only.
 - Git blob ceilings: a new or changed blob over 256 KiB needs an explicit repository-input reason; over 512 KiB binary, or 1 MiB anything, never enters ordinary Git. An external asset store or LFS requires explicit user approval.
 - Steering compounds: a direction that outlives the immediate task lands that same session — `../fleet/FLEET.md` if fleet-wide, else this repo's `docs/policies/local-rules.md` — and you say where it went.
