@@ -54,20 +54,18 @@ const DEGREES = Math.PI / 180;
 /**
  * Which face of the assembly a panel is drawn from.
  *
- * This is an input to *rendering*, never to fitting, and the difference is
- * proved rather than asserted. A below-view lattice at azimuth A is the same
- * lattice as an above-view at azimuth -A: the projection gives
- * a(A, -e) = a(-A, e) and b(A, -e) = -b(-A, e), and negating one basis vector
- * spans the same lattice. So a stud grid cannot distinguish the two faces even
- * in principle, and telling the fitter which face to look for changes nothing,
- * because its search over re-basings already reaches the equivalent
- * positive-elevation solution.
+ * Nothing in this module takes it, and that absence is the finding. A
+ * below-view lattice at azimuth A is the same lattice as an above-view at -A:
+ * the projection gives a(A, -e) = a(-A, e) and b(A, -e) = -b(-A, e), and
+ * negating one basis vector spans the same lattice. The two faces are not
+ * near-identical under this measurement, they are equal, so no fit can recover
+ * the face and no parameter can help it — a `face` option here would be a knob
+ * that reads as a capability. The regressions below hold the equivalence so it
+ * is not added back.
  *
- * Measured on the first forty panels of 6651557: fitting every panel a second
- * time as a below-view produced no solution at all on any of them, including
- * the five the booklet's own flip icon and two blind raters agree are drawn
- * from underneath. The face has to be applied when a candidate is rendered —
- * as the sign of the camera's elevation — not when the panel is measured.
+ * The face is an input to rendering: the sign of the camera's elevation when a
+ * candidate is drawn. It is exported here because that is where the fit that
+ * cannot supply it lives.
  */
 export type PanelFace = "studs-up" | "underside";
 
@@ -406,22 +404,11 @@ export interface AxonometricSolution {
  * and clamped, but the residual is measured against the clamped value, so a
  * basis no camera could print reports the mismatch rather than a perfect fit.
  */
-export function solveAxonometricFromLattice(
-  basis: LatticeBasisPx,
-  { face = "studs-up" }: { readonly face?: PanelFace } = {},
-): AxonometricSolution | null {
-  // The projection is a = s(cos az, sin elev sin az), b = s(-sin az, sin elev
-  // cos az), so a camera below the model differs from one above it only in the
-  // sign of `sin elev` — that is, in the sign of both y components. Mirroring
-  // the measured basis therefore turns the below-view problem into the
-  // above-view one this solver already handles, and the elevation is negated on
-  // the way back out. Nothing else about the fit changes: the azimuth, the
-  // scale and the residual are all measured against the mirrored basis.
-  const mirror = face === "underside" ? -1 : 1;
+export function solveAxonometricFromLattice(basis: LatticeBasisPx): AxonometricSolution | null {
   const ax = basis.a.xPx;
-  const ay = basis.a.yPx * mirror;
+  const ay = basis.a.yPx;
   const bx = basis.b.xPx;
-  const by = basis.b.yPx * mirror;
+  const by = basis.b.yPx;
   if (![ax, ay, bx, by].every((value) => Number.isFinite(value))) return null;
   // u = s cos azimuth, w = s sin azimuth, k = sin elevation.
   let u = ax;
@@ -439,9 +426,10 @@ export function solveAxonometricFromLattice(
     w = (k * ay - bx) / scale;
   }
   if (!Number.isFinite(k) || !Number.isFinite(u) || !Number.isFinite(w)) return null;
-  // After mirroring, k is always the above-view root. A negative k here means
-  // the basis does not describe the requested face at all, which is exactly the
-  // signal that says a panel was drawn from the other side.
+  // A negative k names the mirrored reading of the same lattice, which is a
+  // relabelling rather than a second camera — see PanelFace for why no face can
+  // be recovered here. Taking the positive root is a choice of representative,
+  // not a claim that upright art is all this booklet prints.
   if (k <= 0.02 || k > 1.02) return null;
   const pixelsPerUnit = Math.hypot(u, w);
   if (!(pixelsPerUnit > 0)) return null;
@@ -454,7 +442,7 @@ export function solveAxonometricFromLattice(
   );
   return {
     azimuthDegrees: Math.atan2(w, u) / DEGREES,
-    elevationDegrees: (mirror * Math.asin(sine)) / DEGREES,
+    elevationDegrees: Math.asin(sine) / DEGREES,
     pixelsPerUnit,
     residualPx,
   };

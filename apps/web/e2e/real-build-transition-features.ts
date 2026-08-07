@@ -19,10 +19,10 @@ import type {
  * page chrome, and one piece of chrome is decisive: the rotate-the-model icon,
  * drawn as a white 44.937pt square with a black glyph over it.
  *
- * That icon is *not* the transition kind. It appears on 39 printed steps of
- * this booklet, and 33 of those also print piece callouts, so it annotates the
- * viewpoint of an ordinary building step rather than naming an action. Reading
- * it as "this step is a rotation" would mislabel six placement steps. It is
+ * That icon is *not* the transition kind. It appears on 43 printed steps of
+ * this booklet, and most of those also print piece callouts, so it annotates
+ * the viewpoint of an ordinary building step rather than naming an action.
+ * Reading it as "this step is a rotation" would mislabel placement steps. It is
  * recorded as evidence in the notes and deliberately not used as the decision.
  *
  * The consequence, stated plainly: this classifier cannot tell a rotation-only
@@ -32,7 +32,7 @@ import type {
  * the fix is the model seam, not a cleverer reading of the vector layer.
  */
 
-/** Exact side of the rotate-the-model chrome icon, measured across all 39 in this booklet. */
+/** Exact side of the rotate-the-model chrome icon, measured across all 43 in this booklet. */
 export const ROTATION_ICON_SIDE_PT = 44.937;
 export const ROTATION_ICON_SIDE_TOLERANCE_PT = 0.5;
 export const ROTATION_ICON_FILL_HEX = "#ffffff";
@@ -183,7 +183,7 @@ export function proposeDeterministicTransition(
 ): TransitionClassifierProposal | null {
   if (panel.newPieceCalloutCount !== 0) return null;
   const icon = panel.rotationIconPresent
-    ? "The rotate-the-model icon is printed in this panel; this booklet prints that icon on 39 steps, 33 of " +
+    ? "The rotate-the-model icon is printed in this panel; this booklet prints that icon on 43 steps, most of " +
       "which also place pieces, so it records the viewpoint and not the action."
     : "No rotate-the-model icon is printed in this panel.";
   const provenance =
