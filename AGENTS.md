@@ -2,11 +2,12 @@
 
 ## What this is
 
-An AI-native digital brick modeling studio with three coordinated surfaces: a precise manual brick editor; an AI copilot that generates complete models or scoped, previewable subassembly patches; and a replayable laboratory that improves templates, techniques, the harness, and the app under protected evaluation and human authority. Stack: a TypeScript workspace (protocol, catalog, brick-kernel, rendering, browser packages), Three.js, React, Node 24, Vitest + Playwright.
+A digital brick modeling studio with two surfaces. A precise manual brick editor, and a closed loop that reads a printed LEGO instruction booklet and assembles the set it describes — counting every part, compiling the printed steps into a build program, placing each piece, and verifying each step against the booklet's own picture before playing the result back. Stack: a TypeScript workspace (protocol, catalog, brick-kernel, rendering, browser packages), Three.js, React, Node 24, Vitest + Playwright.
 
-Status: an initial Gate 0/1 workspace exists; provider-backed generation, the companion trust broker, production candidate acceptance, retained native run bundles, and the recursive engineering runner remain unimplemented. Non-goals: not a BrickLink Studio clone, general mesh editor, complete official-parts catalog, or a guarantee of physical stability/clutch/instructions; it does not merge with `3d-maker` merely because both render 3D. **Do not claim a feature, command, validator, provider, broker, or harness exists until live files and executable behavior prove it.**
+Status, and `docs/design/building-system.md` is the measured position of record rather than this line: the manual editor, catalog, validators, LDraw round trip and Rapier physics exist; the booklet loop completes **printed step 1 of set 6651557, two pieces placed**, and refuses step 2. The catalog holds 85 parts against the set's 121 leaf designs. Playback, animation and the remaining 357 steps are not built. Non-goals: not a BrickLink Studio clone, general mesh editor, complete official-parts catalog, or a guarantee of physical stability/clutch/instructions; it does not merge with `3d-maker` merely because both render 3D. **Do not claim a feature, command, validator, or harness exists until live files and executable behavior prove it.**
 
-<!-- FLEET-CANON:BEGIN sha=dd0295125f80 generated from fleet/FLEET.md by `npm run sync-canon` — do not edit inside this block; this repo's own rules go in docs/policies/local-rules.md -->
+
+
 ## Fleet constitution
 
 - Work headlessly by default. If only a browser or GUI can finish or verify the task, say why.
@@ -22,11 +23,12 @@ Status: an initial Gate 0/1 workspace exists; provider-backed generation, the co
 - Write prose one line per paragraph (no hard wrapping).
 - Steering compounds: a direction that outlives the immediate task lands that same session — `../fleet/FLEET.md` if fleet-wide, else this repo's `docs/policies/local-rules.md` — and you say where it went.
 - Reviewer model pins live only in `../fleet/docs/skills/multi-cli-review.md`; a model a product itself calls is pinned in the repo that calls it. Never hardcode a model ID anywhere else.
-<!-- FLEET-CANON:END -->
+
+
 
 ## Gates
 
-Authoritative workspace commands live in `package.json`; run the smallest relevant checks while iterating and **`npm run verify`** (schema:check · node:check · bom:check · lessons:check · notices:check · format:check · lint · typecheck · test · test:browser · build) before declaring implementation complete. A unit-only pass is insufficient for changes that cross persistence, broker, provider, browser, import/export, or rendering boundaries. Dependency audit gate: `npm run audit` (and `audit:runtime`); a new HIGH/CRITICAL is a blocker. Doc-only work verifies the diff, internal paths/links, Markdown fences, and trailing whitespace.
+Authoritative workspace commands live in `package.json`; run the smallest relevant checks while iterating and `npm run verify` (schema:check · node:check · bom:check · lessons:check · notices:check · format:check · lint · typecheck · test · test:browser · build) before declaring implementation complete. A unit-only pass is insufficient for changes that cross persistence, broker, provider, browser, import/export, or rendering boundaries. Dependency audit gate: `npm run audit` (and `audit:runtime`); a new HIGH/CRITICAL is a blocker. Doc-only work verifies the diff, internal paths/links, Markdown fences, and trailing whitespace.
 
 `npm run playtest:recursive` does not exist and is not planned; the loop this repository actually runs is the booklet one — build a printed step, compare the render against its own printed panel, and drive the number in `docs/design/building-system.md`.
 
@@ -48,12 +50,16 @@ Authoritative workspace commands live in `package.json`; run the smallest releva
 - Treat file imports, archives, images, LDraw, JSON, HTML, provider output, and loopback requests as hostile inputs — bound bytes, depth, dimensions, expansion, recursion, operation and part counts, time, render memory, paths, origins, and output schemas. Keep files and functions focused (under 500 LOC; 1000 is a hard ceiling).
 - Keep credentials, tokens, signing keys, private endpoints, and session material out of source, bundles, run artifacts, prompts, and logs; mock provider/network calls in ordinary tests and require explicit authorization for live calls. User references and designs are local by default — external transmission, training, benchmark inclusion, sharing, and Git retention are separate consent decisions.
 
+
+
 ## Known traps
 
 - Reproduce a failure from the exact sealed run when available and consent permits: check the current `effectiveReplayLevel` first and replay only within its boundary (a historical `sealedReplayLevel` does not restore deleted bytes); inspect the brief, base document, build program, snapshots, validation report, lineage, render packet, and event sequence before inventing a synthetic repro. Never forward sensitive run contents to an external model, reviewer, provider, or log without the separately required consent.
 - Do not approve a visual feature from source or hook presence alone, or structural behavior from a pleasing screenshot alone: drive the served app in a real browser, capture canonical isometric/orthographic views, inspect `window.render_app_to_text()` / `capture_model_views()` / `get_model_snapshot()` / `advanceTime(ms)` / validator output, and confirm pixels + structured state + intended behavior agree. Import/export must exercise the actual consumer/viewer path — a string round trip does not prove a model loads or preserves the canonical edge set.
 - An editor must not be able to author a state the domain forbids: a placement nothing would hold up is refused at the command, not merely flagged afterwards, and the message says what was wrong with it. Prefer making the illegal state unreachable through the UI over detecting it later.
 - Before any authorized commit, inspect the staged diff and newly tracked files for secrets and raw artifacts. If a credential may be exposed, stop further disclosure, report it and every known location, treat it as compromised, and give exact containment/rotation steps — deleting the line later is not sufficient.
+
+
 
 ## Conventions
 
@@ -65,4 +71,4 @@ Authoritative workspace commands live in `package.json`; run the smallest releva
 - Missing parts are work items, not blockers: when a build, an instruction, or a technique needs a part the catalog lacks, add it to the catalog rather than substituting or abandoning the shape. Every added part carries its family, real LDraw identifier, connectors, collision primitives, and provenance, and the palette must keep it discoverable — grouped by family, searchable by name, size, and identifier, and shown as a preview derived from the part's own geometry so the palette cannot drift from what gets placed. Adding parts is a catalog-truth change: bump `BUILTIN_CATALOG_VERSION`, extend `MIGRATABLE_CATALOG_VERSIONS`, and let the migration report say what changed. (Established 2026-07-30.)
 - Gate 0 begins with a dependency and data bill of materials: record source, version, license, attribution, redistribution/training rights, and allowed role for every code/geometry/connector/collision/weight/model/example source; preserve file-level LDraw provenance. Permission to reuse geometry does not imply permission to train.
 - Artifact locations: product run artifacts under `var/runs/`; local broker databases, indexes, CAS, and dev state under `var/state/`; fleet recursive-pass artifacts under `output/`; browser and reviewer raw captures under those ignored roots. Committed fixtures and benchmarks are synthetic, repo-owned, or public by default; a real user or provider artifact needs separate inspectable consent, license clearance, minimization/redaction, and secret/personal-data scanning.
-- Keep `README.md` and the three canonical documents aligned with implemented reality; add heavyweight changelog/devlog/architecture/progress trees only when recurring implementation work justifies them.
+- Keep `README.md` and the three canonical documents aligned with implemented reality, and append one dated line to `docs/devlog/summary.md` for each session that changes behaviour — densest form, what moved and what it cost, newest first. The devlog is history and `building-system.md` is the current position; neither substitutes for the other.
