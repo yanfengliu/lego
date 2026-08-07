@@ -219,7 +219,7 @@ export function settleExplodedPrintedStep<D>(input: {
   });
 
   const renders = enumeration.candidates.length * displacements.length;
-  if (enumeration.overBudget || renders > options.deferredCandidateBudget) {
+  if (enumeration.overBudget || renders > options.explodedGhostRenderBudget) {
     return refused(
       {
         ...emptyEvidence,
@@ -235,7 +235,7 @@ export function settleExplodedPrintedStep<D>(input: {
         message:
           `Step ${spec.stepNumber} is drawn exploded, and redrawing its ${enumeration.candidates.length} ` +
           `whole-step candidates back along ${displacements.length} distinct arrow displacement(s) needs ` +
-          `${renders} renders against the explicit ${options.deferredCandidateBudget} budget ` +
+          `${renders} renders against the explicit ${options.explodedGhostRenderBudget} budget ` +
           `(${enumeration.perPiece.join(" x ")} distinct placements per piece on the first branch). It was ` +
           `refused rather than truncated: a capped product would report the step settled against a set that ` +
           `may never have contained the answer.`,

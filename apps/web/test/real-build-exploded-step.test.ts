@@ -9,6 +9,11 @@ import {
 } from "@lego-studio/brick-kernel";
 import { createOrthographicViewCamera, dilateMask } from "@lego-studio/rendering";
 
+import {
+  arrowTravelFamily,
+  measureArrowTravelCeiling,
+  panelProjectionFromFit,
+} from "../src/assembly/arrow-placement";
 import { enumeratePlacements, placementOccupancyKey } from "../src/assembly/enumerate-placements";
 import {
   decideExplodedGhostPlacement,
@@ -49,7 +54,13 @@ const FRAME = {
 };
 const WEDGE = "builtin:wedge-plate-4x4-cut-corner";
 /** Seven plates straight up, which is the travel printed step 2 draws. */
-const TRAVEL: ArrowDisplacement = { lduX: 0, lduY: -56, lduZ: 0, errorStuds: 0.02 };
+const TRAVEL: ArrowDisplacement = {
+  lduX: 0,
+  lduY: -56,
+  lduZ: 0,
+  travelPx: 46.17,
+  offLineStuds: 0.003,
+};
 
 type Document = ReturnType<typeof createEmptyBrickDocument>;
 type Transform = { readonly positionLdu: readonly [number, number, number]; orientationId: string };
@@ -374,7 +385,7 @@ describe("exploded printed step", () => {
     // far outside the best of them fell.
     const settlement = settle({
       regionMask: PRINTED_REGION,
-      family: [{ lduX: 0, lduY: -8, lduZ: 0, errorStuds: 0.04 }],
+      family: [{ lduX: 0, lduY: -8, lduZ: 0, travelPx: 6.6, offLineStuds: 0.004 }],
     });
     expect(settlement.evidence.containedCandidates).toBe(0);
     expect(settlement.evidence.settled).toBe(false);
@@ -383,6 +394,105 @@ describe("exploded printed step", () => {
     expect(settlement.evidence.bestOutsideRegionPx).toBeGreaterThan(0);
     expect(settlement.evidence.bestRegionIou).toBeLessThan(settlement.evidence.containmentCeiling);
     expect(settlement.failure?.message).toMatch(/No candidate's ghost lies wholly inside/);
+  });
+
+  it("settles from an arrow inked short of the travel it means", () => {
+    // The whole chain, from the ink to the placement, on an arrow drawn the way
+    // this booklet draws one: from a point inside the ghost to a point inside
+    // the model, so it stops at the model's visible surface while the seat is
+    // behind it. Panel 2 inks 33.50px of a 46.17px travel; the same fraction is
+    // applied here so the shortfall is the booklet's rather than a number
+    // chosen to pass.
+    const projection = panelProjectionFromFit(VIEW);
+    const trueTravelPx = {
+      xPx:
+        (TRAVEL.lduX / 20) * projection.a.xPx +
+        (TRAVEL.lduZ / 20) * projection.b.xPx +
+        (-TRAVEL.lduY / 8) * projection.up.xPx,
+      yPx:
+        (TRAVEL.lduX / 20) * projection.a.yPx +
+        (TRAVEL.lduZ / 20) * projection.b.yPx +
+        (-TRAVEL.lduY / 8) * projection.up.yPx,
+    };
+    const inkedFraction = 33.50220230104512 / 46.16553563437847;
+    const inked = { xPx: trueTravelPx.xPx * inkedFraction, yPx: trueTravelPx.yPx * inkedFraction };
+
+    // The tail is inside the ghost, which is where this booklet puts it: the
+    // ghost's own centroid stands in for it.
+    const ghost = ghostMaskFor(DRAWN, TRAVEL);
+    let sumX = 0;
+    let sumY = 0;
+    let ghostPx = 0;
+    for (let pixel = 0; pixel < ghost.length; pixel += 1) {
+      if (ghost[pixel] !== 1) continue;
+      sumX += pixel % WIDTH;
+      sumY += Math.floor(pixel / WIDTH);
+      ghostPx += 1;
+    }
+    const tail = { tailXPx: sumX / ghostPx, tailYPx: sumY / ghostPx };
+
+    const ceiling = measureArrowTravelCeiling([tail], inked, {
+      width: WIDTH,
+      height: HEIGHT,
+      mask: rasterise(BASE),
+    });
+    const family = arrowTravelFamily(projection, inked, ceiling.ceilingPx);
+
+    // What the ink alone would have said, stated as geometry rather than as a
+    // threshold: its endpoint is more than a plate of travel from the truth's,
+    // so a family drawn as a disc around it cannot hold the answer at any
+    // radius that still separates one plate from the next.
+    const gapStuds =
+      Math.hypot(trueTravelPx.xPx - inked.xPx, trueTravelPx.yPx - inked.yPx) /
+      projection.pixelsPerStud;
+    expect(gapStuds).toBeGreaterThan(Math.abs(projection.up.yPx) / projection.pixelsPerStud);
+    expect(
+      family.some(
+        (entry) =>
+          entry.lduX === TRAVEL.lduX && entry.lduY === TRAVEL.lduY && entry.lduZ === TRAVEL.lduZ,
+      ),
+    ).toBe(true);
+
+    // And the same panel read the superseded way, written out rather than
+    // named: the whole-grid triple whose projection lands nearest the ink's
+    // endpoint, which is what a family drawn as a disc around that endpoint
+    // leads with. Nothing on the panel fits it.
+    let nearest: ArrowDisplacement | null = null;
+    let nearestPx = Number.POSITIVE_INFINITY;
+    for (let plates = -12; plates <= 12; plates += 1) {
+      for (let studsB = -8; studsB <= 8; studsB += 1) {
+        for (let studsA = -8; studsA <= 8; studsA += 1) {
+          const xPx =
+            studsA * projection.a.xPx + studsB * projection.b.xPx + plates * projection.up.xPx;
+          const yPx =
+            studsA * projection.a.yPx + studsB * projection.b.yPx + plates * projection.up.yPx;
+          const offPx = Math.hypot(xPx - inked.xPx, yPx - inked.yPx);
+          if (offPx >= nearestPx) continue;
+          nearestPx = offPx;
+          nearest = {
+            lduX: studsA * 20,
+            lduY: -plates * 8,
+            lduZ: studsB * 20,
+            travelPx: Math.hypot(xPx, yPx),
+            offLineStuds: 0,
+          };
+        }
+      }
+    }
+    expect(nearest!.lduY).not.toBe(TRAVEL.lduY);
+    const throughTheInk = measureGhostContainment(ghostMaskFor(DRAWN, nearest!), PRINTED_REGION);
+    expect(throughTheInk.contained).toBe(false);
+    expect(throughTheInk.outsideRegionPx).toBeGreaterThan(0);
+
+    // Through the family the ink's own line admits, the same placement's ghost
+    // lands inside the printed contour exactly. That is the whole difference,
+    // and the decision above turns on nothing else: `settleExplodedPrintedStep`
+    // settles when one candidate is contained and refuses when none is.
+    const member = family.find((entry) => entry.lduY === TRAVEL.lduY)!;
+    const throughTheLine = measureGhostContainment(ghostMaskFor(DRAWN, member), PRINTED_REGION);
+    expect(throughTheLine.contained).toBe(true);
+    expect(throughTheLine.outsideRegionPx).toBe(0);
+    expect(throughTheLine.regionIou).toBe(throughTheLine.containmentCeiling);
   });
 
   it("refuses a panel whose arrows converted to nothing rather than scoring the seat", () => {
@@ -395,7 +505,7 @@ describe("exploded printed step", () => {
   it("refuses over its render budget rather than truncating the field", () => {
     const settlement = settle({
       regionMask: PRINTED_REGION,
-      options: { deferredCandidateBudget: 4 },
+      options: { explodedGhostRenderBudget: 4 },
     });
     expect(settlement.failure?.code).toBe("resource-budget-exhausted");
     expect(settlement.placement).toBeNull();

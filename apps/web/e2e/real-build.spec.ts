@@ -506,6 +506,12 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
     // Step 1 alone is a 400-candidate product: four yaws of the quarter ring on
     // the empty plate times a hundred distinct seats for the round plate on each.
     deferredCandidateBudget: 512,
+    // An exploded step renders every whole-step candidate once per member of
+    // the arrow's travel family, so this bounds a product rather than a set:
+    // printed step 2 is 105 candidates by 22 members. Sized from measured cost —
+    // the run's own step lines report 88 renders in 1435ms, so 4096 is about a
+    // minute of rendering for one printed step.
+    explodedGhostRenderBudget: 4_096,
     minimumDeferredAgreementMargin: DEFERRED_STEP_MINIMUM_MARGIN,
     minimumDeferredAgreement: DEFERRED_STEP_MINIMUM_AGREEMENT,
     proximityMarginPx: 14,

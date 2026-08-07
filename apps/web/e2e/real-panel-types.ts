@@ -178,13 +178,17 @@ export interface PlacementReport {
    * no grid to invert onto.
    */
   readonly displacementFamily: {
+    /** How far off the arrow's line a triple's projection may sit. */
     readonly toleranceStuds: number;
-    /** One plate up the page, in studs. The tolerance has to sit under half of it. */
+    /** One plate up the page, in studs. */
     readonly plateInStuds: number;
-    readonly rawSize: number;
-    readonly correctedSize: number;
-    readonly rawBestErrorStuds: number | null;
-    readonly correctedBestErrorStuds: number | null;
+    /** The arrow as inked, which is a floor on the travel rather than the travel. */
+    readonly drawnLengthPx: number;
+    /** Where the model the part is joining stops, along the arrow's own axis. */
+    readonly travelCeilingPx: number;
+    readonly size: number;
+    readonly bestOffLineStuds: number | null;
+    readonly shortestTravelPx: number | null;
   } | null;
   /**
    * Arrows whose tail lies on the model rather than on a sub-build strip beside

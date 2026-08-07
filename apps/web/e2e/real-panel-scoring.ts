@@ -614,13 +614,14 @@ export const measureRealPanelRegistration = async ({
           ).length;
 
     // What the arrow leaves for physics to settle. A blind sweep of the same
-    // grid offers about two thousand offsets; reported raw and with the
-    // clearance added back, because the correction has to earn its place.
+    // grid offers about two thousand offsets; the arrow's line and the travel
+    // ceiling the panel's own art implies cut that to a shortlist.
     const familySizes = (() => {
       if (
         current.fit === null ||
         arrows.displacementXPx === null ||
-        arrows.displacementYPx === null
+        arrows.displacementYPx === null ||
+        (arrows.arrows as readonly unknown[]).length === 0
       ) {
         return null;
       }
@@ -628,30 +629,30 @@ export const measureRealPanelRegistration = async ({
         up: { yPx: number };
         pixelsPerStud: number;
       };
-      const raw = { xPx: arrows.displacementXPx, yPx: arrows.displacementYPx };
-      const measured = clearances.filter(
-        (entry) => entry.tailToGhostPx !== null && entry.headToBuiltPx !== null,
-      );
-      const corrected =
-        measured.length === 0
-          ? raw
-          : (assembly.correctArrowForClearance(raw, {
-              tailToGhostPx:
-                measured.reduce((sum, entry) => sum + entry.tailToGhostPx!, 0) / measured.length,
-              headToBuiltPx:
-                measured.reduce((sum, entry) => sum + entry.headToBuiltPx!, 0) / measured.length,
-            }) as { xPx: number; yPx: number });
-      const sizeOf = (vector: { xPx: number; yPx: number }) =>
-        assembly.arrowDisplacementFamily(projection, vector) as readonly { errorStuds: number }[];
-      const rawFamily = sizeOf(raw);
-      const correctedFamily = sizeOf(corrected);
+      const drawn = { xPx: arrows.displacementXPx, yPx: arrows.displacementYPx };
+      const ceiling = assembly.measureArrowTravelCeiling(arrows.arrows, drawn, {
+        width: current.width,
+        height: current.height,
+        mask: assembly.alreadyBuiltMask(
+          current.assemblyMask,
+          current.highlight.mask,
+          current.highlight.strokeMask,
+          current.width,
+          current.height,
+        ) as Uint8Array,
+      }) as { ceilingPx: number };
+      const family = assembly.arrowTravelFamily(projection, drawn, ceiling.ceilingPx) as readonly {
+        offLineStuds: number;
+        travelPx: number;
+      }[];
       return {
         toleranceStuds: 0.15,
         plateInStuds: Math.abs(projection.up.yPx) / projection.pixelsPerStud,
-        rawSize: rawFamily.length,
-        correctedSize: correctedFamily.length,
-        rawBestErrorStuds: rawFamily[0]?.errorStuds ?? null,
-        correctedBestErrorStuds: correctedFamily[0]?.errorStuds ?? null,
+        drawnLengthPx: Math.hypot(drawn.xPx, drawn.yPx),
+        travelCeilingPx: ceiling.ceilingPx,
+        size: family.length,
+        bestOffLineStuds: family[0]?.offLineStuds ?? null,
+        shortestTravelPx: family[0]?.travelPx ?? null,
       };
     })();
     skipFamily = familySizes;

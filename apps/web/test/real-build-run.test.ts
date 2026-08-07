@@ -440,6 +440,8 @@ describe("real booklet build safety", () => {
       minimumExclusiveHighlightPixelsPerPiece: 8,
       maxRendersPerPiece: 220,
       blindRenderBudget: 220,
+      deferredCandidateBudget: 512,
+      explodedGhostRenderBudget: 4_096,
       highlightCalibrationDigest: TEST_DIGEST,
       coverageByCallout: {
         "p11-c0.png": { pageNumber: 11, stepNumber: 2, quantity: 1 },
@@ -636,6 +638,8 @@ describe("real booklet build safety", () => {
       minimumExclusiveHighlightPixelsPerPiece: 8,
       maxRendersPerPiece: 220,
       blindRenderBudget: 220,
+      deferredCandidateBudget: 512,
+      explodedGhostRenderBudget: 4_096,
       highlightCalibrationDigest: digest,
       coverageByCallout: {},
     };
@@ -712,6 +716,8 @@ describe("real booklet build safety", () => {
         minimumExclusiveHighlightPixelsPerPiece: 8,
         maxRendersPerPiece: 220,
         blindRenderBudget: 220,
+        deferredCandidateBudget: 512,
+        explodedGhostRenderBudget: 4_096,
         highlightCalibrationDigest: digest,
         coverageByCallout: {},
       }),
@@ -937,6 +943,8 @@ describe("real booklet build safety", () => {
       minimumExclusiveHighlightPixelsPerPiece: 8,
       maxRendersPerPiece: 220,
       blindRenderBudget: 220,
+      deferredCandidateBudget: 512,
+      explodedGhostRenderBudget: 4_096,
       highlightCalibrationDigest: digest,
       coverageByCallout: {},
     };

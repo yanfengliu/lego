@@ -120,6 +120,7 @@ export function realBuildRunBudgets(options: RealBuildOptions): Readonly<Record<
     maxRendersPerPiece: options.maxRendersPerPiece,
     blindRenderBudget: options.blindRenderBudget,
     deferredCandidateBudget: options.deferredCandidateBudget,
+    explodedGhostRenderBudget: options.explodedGhostRenderBudget,
   };
 }
 

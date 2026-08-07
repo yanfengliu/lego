@@ -53,7 +53,7 @@ The difference is only which one gets rebuilt when they conflict.
 
 Measured, not asserted. Every figure here comes from a real run and is reproducible by the commands named below; if one disagrees with the code, the code is right and this section is stale.
 
-**The build places its first two pieces.** Printed step 1 now reports `complete/deferred-lookahead 2/2 placed`, which is the first printed step this repository has ever completed from the booklet's own pixels. The frontier has moved to printed step 2, whose refusal is `whole-step-score-too-low` — the model and the printed picture disagree — rather than anything about the search: the placement the booklet draws is in the candidate set, and it is now scored against the *ghost* the exploded panel draws rather than the seat it means. What is left is the arrow, which reads about 1.26 plates short of the drawn travel, so no candidate's ghost lands wholly inside the printed contour. Everything below that says "zero pieces" describes a twelve-step request, which is still zero for the reasons that section names; the three-step prefix is where the placement now happens.
+**The build places four pieces and completes a three-step prefix.** Printed steps 1, 2 and 3 all report `complete` — by deferred lookahead, by exploded ghost and by its own highlight respectively — and `piecesPlaced` is 4. The frontier has moved off the panel reading entirely: what now stops the run reaching `completed` is the completion audit, which compares every placed transform against the official ledger's and finds all four in a different world frame, and the standing `visual-evidence-unverified` limit that no Node-side visual audit exists. Neither is a placement failure. Everything below that says "zero pieces" describes a twelve-step request, which is still zero for the reasons that section names; the three-step prefix is where the placement now happens.
 
 Cleared: the catalog held none of the set's parts, and now holds 85 definitions at `builtin.basic-parts/8` with the first 77 rows still hashing exactly as they did. Admitting `30357`, `2450` and `79491` — whose female connectors come from the LDCad shadow library, the only source that has them — moved the covered prefix from 15 printed steps to 25, because step 16's only missing design was one of them. The prefix still measures 25, with step 26 the first uncovered and `28802` its only missing design.
 
@@ -164,6 +164,48 @@ step 3 failed/blocked 0/1 placed [highlight 1 region(s), 766px stroke, closed 1;
 **What that refusal replaced is worth stating, because a half-fix here is worse than no fix.** Under the corrected family and the superseded 0.45 blend, the winner would have been `[0,8,-20] upright-yaw-90` at 0.5968 — comfortably over the bar, and wrong, since the drawn placement is `[-20,8,-20] upright-yaw-90`. Scoring the ghost without also dropping the stroke term and the global bar would have turned a truthful refusal into a silent wrong placement.
 
 `piecesPlaced` as the run's own summary reports it is still **0**, and that is the retention defect below rather than a placement result: `finalizeExecutedRealBuildResult` returns no step rows for a partially-complete prefix, so `summariseDeferrals` and the placed-piece total sum an empty list. The step lines above are the measurement, and they say step 1 placed 2 of 2.
+
+### The arrow states a direction, not a length — and the prefix completes
+
+Measured 2026-08-07 at `LEGO_REAL_BUILD_LAST_STEP=3`, one run, after the change this section describes. The run prints two lines and then fails on the completion audit; both lines verbatim:
+
+```
+deferral: 1 printed step(s) had no scoring signal of their own, 1 settled by a later panel, deepest settlement reach 1 printed step(s); 4 piece(s) placed.
+local-diagnostic/incomplete: 3/3 steps complete; 4 piece(s) placed; retained unauthenticated evidence output\real-build\runs\2026-08-07T16-52-16-157Z-efaa42b433e7-d8171390-4584-47f1-99d0-1fd6ff9c9126
+```
+
+The per-step rows the run retained, from that bundle's `score.json` — the spec composes no step line of its own, so these are the fields the superseded quotations above were built from:
+
+| step | outcome | placed | highlight | arrows | family | evidence |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | complete/deferred-lookahead | 2/2 | 0 regions, 0px stroke | 2 kept, 0 rejected | 21 | deferral: 400 candidates, agreement 0.9031176006314128 against runner-up 0.7784953180497255, margin 0.12462228258168728, reach 1 |
+| 2 | complete/exploded-ghost | 1/1 | 1 region, 527px stroke, closed 1 | 2 kept, 0 rejected | 22 | ghost: 105 candidates x 22 displacements = 2310 renders, region 4749px, ghost 2796px, best 0.5887555274794694 = ceiling, 0px outside, contained 1, runner-up 0.5746502401336396 |
+| 3 | complete/highlight | 1/1 | 1 region, 766px stroke, closed 1 | 0 kept, 0 rejected | 0 | 191 renders, best 0.4926108075463847 |
+
+**Step 1 places the same two transforms it did before, which was the thing at risk.** `builtin:corner-plate-5x5-quarter-ring` at `[0,8,0] upright-yaw-90` and `builtin:corner-plate-4x4-round` at `[-40,0,-40] upright-yaw-90` — the branch-3 prefix, at the same 0.9031176006314128 agreement recorded above. Step 2 places `builtin:wedge-plate-4x4-cut-corner` at `[-20,8,-20] upright-yaw-90`, which is the placement the booklet draws. Step 3 places `builtin:wedge-plate-6x6-cut-corner` at `[-20,0,60] upright-yaw-180`.
+
+**The clearance correction was built on a model of the drawing that the drawing contradicts.** `correctArrowForClearance` assumed an arrow is inked from clear of the ghost to clear of the landing surface and added both gaps back. Measured on panel 2 by a lock-free probe that drove `derivePanelRasterEvidence`'s own preparation and then read the arrows against the masks it produces; its numbers are in `output/build-search/zz-arrow-clearance.json`, which is run evidence and not tracked, and the probe itself is gone with the rest of that session's diagnostics. Both arrow tails lie **inside** the printed highlight region — distance to it 0, `tailInsideRegion` true — and both heads lie **inside** the already-built art, distance 0. The 4.333px each tail reported was its distance to the highlight *stroke*, measured from a point already inside the yellow band; adding it lengthened a vector that was 38% too short to begin with. The two arrows also disagree about length by 3.00px on a 33.50px consensus (32.005 and 35.000) while agreeing in direction to 0.14 degrees — 1.50px of scatter along the axis against 0.033px across it. The arrow measures its direction about fifty times more precisely than its length.
+
+**The reason is that an exploded step's seat is occluded, so the arrow cannot draw the whole travel.** The head stops at the model's visible surface while the part comes to rest behind it. So the ink is a floor: `arrowTravelFamily` now returns whole-grid displacements along the arrow's *line* — perpendicular offset within the same 0.15 of a stud the old point tolerance used — with travel between the drawn length and a ceiling `measureArrowTravelCeiling` reads off the panel: the material point that starts at the tail cannot end further along than the far side of the art it is joining. On panel 2 the mean tail sits at -239.836 along the axis and the built art reaches -159.341, so the ceiling is **80.495px** against a 33.502px arrow — 46.993px of reach.
+
+**Exactly one candidate survives, and it is the drawn one, across every setting either bound could plausibly take.** Scoring all 105 candidates through the ladder gives one contained seat — `[-20,8,-20] upright-yaw-90` — at every perpendicular tolerance from 0.05 to 0.15 of a stud and every reach from 10px to 60px. It becomes two only at reach 72px, where a sixteen-plate travel enters and a second seat fits. The panel's own ceiling lands at 46.993px: 13px below the widest reach checked that still answers uniquely, and 25px below the one that stops. The answer is not sitting on the edge of the bound that produced it.
+
+**The hypothesis this replaced was that the residual was lattice quantisation, and it is refuted.** Two independent probes measured it. Scoring the ghost through the raw measured arrow instead of a lattice member moves the previous best from 46px outside the contour to 102px, and through the clearance-corrected arrow to 60px; on the drawn placement the same three readings are 238, 912 and 431. Rounding to the grid was saving 14 to 56px, not costing 46. The 46px belonged to a different seat entirely — `[0,8,-20] upright-yaw-90`, reached through the oblique family member `[60,-96,40]` — whose residual is a 5px horizontal strip on a panel whose arrows are vertical, and which never reaches zero at any travel along the arrow's line.
+
+**Two bounds had to move, and neither is a correctness bar.** An exploded step renders its whole-step candidate set once per family member, so its render count is a product: 105 by 22 is 2310 where four members made it 420. That was being counted against `deferredCandidateBudget`, which bounds a *candidate set*; `explodedGhostRenderBudget` is now its own explicit option at **4096**, sized from the run's own measured cost of about 16ms a render, and preflight refuses a render budget below the candidate budget because an exploded step renders every candidate at least once. The retained-report shape check bounded `rendered` by `maxParts`, a part ceiling standing in for a render ceiling; it is now bounded by the run's render budgets. Both held only while every search rendered fewer candidates than the model has pieces.
+
+**What stops the run now is the frame, and it is the first time the audit could reach it.** With three steps complete the finalizer retains step rows, so the completion audit runs for the first time — and reports every printed step mismatched against the official ledger's expected transforms:
+
+| step | part | placed | ledger expects |
+| --- | --- | --- | --- |
+| 1 | corner-plate-5x5-quarter-ring | `[0,8,0] upright-yaw-90` | `[0,8,0] upright-yaw-0` |
+| 1 | corner-plate-4x4-round | `[-40,0,-40] upright-yaw-90` | `[40,0,-40] upright-yaw-0` |
+| 2 | wedge-plate-4x4-cut-corner | `[-20,8,-20] upright-yaw-90` | `[20,8,-20] upright-yaw-0` |
+| 3 | wedge-plate-6x6-cut-corner | `[-20,0,60] upright-yaw-180` | `[20,0,60] upright-yaw-270` |
+
+Every position differs by x to -x with y and z preserved, and every orientation by a quarter turn — one global frame relation across four pieces from three independently decided steps, not four independent errors. That is the mismatch the section above predicted; reconciling the two frames is still its own piece of work, and it is now the thing that blocks the prefix rather than a footnote. `visual-evidence-unverified` also fires for all three steps, as it must until a Node-side visual audit exists, so `completed` is unavailable on this run for two separate reasons regardless.
+
+The retention defect below is *not* fixed — a partially-complete prefix still returns no step rows. It stopped biting because the prefix now completes.
 
 ### One defect the run surfaced by getting this far
 

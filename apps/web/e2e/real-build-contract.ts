@@ -64,9 +64,36 @@ export function preflightRealBuildOptions(input: {
   readonly highlightCalibrationDigest: string | null;
   readonly maxRendersPerPiece: number;
   readonly blindRenderBudget: number;
+  readonly deferredCandidateBudget: number;
+  readonly explodedGhostRenderBudget: number;
   readonly coverageByCallout: Readonly<Record<string, StepCoverageCalloutClaim>>;
 }): readonly StepFailure[] {
   const failures: StepFailure[] = [];
+  // An exploded step renders its whole-step candidate set once per member of
+  // the arrow's travel family, so its render count is the product of the two.
+  // A render budget below the candidate budget could therefore refuse a step
+  // whose candidate set the run had already agreed to enumerate — one budget
+  // admitting a set the other cannot look at. They are different resources and
+  // both are explicit, but the render budget has to be able to cover the
+  // candidates at least once.
+  if (
+    !Number.isInteger(input.deferredCandidateBudget) ||
+    !Number.isInteger(input.explodedGhostRenderBudget) ||
+    input.deferredCandidateBudget < 1 ||
+    input.explodedGhostRenderBudget < input.deferredCandidateBudget
+  ) {
+    failures.push({
+      code: "benchmark-policy-mismatch",
+      stage: "input",
+      inputKey: "explodedGhostRenderBudget",
+      message:
+        `The exploded-step render budget is ${input.explodedGhostRenderBudget} against a whole-step candidate ` +
+        `budget of ${input.deferredCandidateBudget}. An exploded step renders every candidate at least once, ` +
+        `so a render budget under the candidate budget refuses a set the run had already agreed to enumerate ` +
+        `and the step fails on a resource it was configured to have. Both must be positive integers with the ` +
+        `render budget at least the candidate budget.`,
+    });
+  }
   // The pruned candidate set is a subset of the exhaustive one by construction:
   // the proximity filter only removes. So a pruned budget below the exhaustive
   // one can only ever refuse renders the exhaustive strategy then performs

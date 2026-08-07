@@ -24,6 +24,30 @@
  * shortlist, and hands that to the thing that can tell them apart: whether the
  * part would be held up and whether it would pass through something. The
  * picture proposes, the domain disposes.
+ *
+ * **The arrow measures its direction, not its length.** That was assumed for a
+ * while and it is false, on the panel the assumption was written for. Printed
+ * step 2 of `recipes/6651557.pdf` draws two arrows into one part: their
+ * directions agree to 0.14 degrees, and their lengths disagree by 3.00 work
+ * pixels on a 33.50px vector — 1.50px of scatter along the axis against 0.03px
+ * across it, so the same pair of arrows states the direction about fifty times
+ * more precisely than the travel. And the travel they state is short: the
+ * placement the booklet draws is 46.17px away, 38% further than the ink.
+ *
+ * The reason is visible in where the ink stops. Both tails sit *inside* the
+ * step's own highlight region and both heads sit *inside* the already-built art
+ * (`measureArrowClearances` returns 0 to each on that panel), so the arrow is
+ * not inked from clear of one body to clear of the other — it is drawn from the
+ * part to the model, and it stops at the model's visible surface because the
+ * seat it is heading for is *behind* that surface. An arrow cannot draw the
+ * occluded remainder of its own travel, and an exploded step is exploded
+ * precisely because the seat is hidden.
+ *
+ * So the arrow gives a line and a floor: the part travels along the arrow's
+ * axis, at least as far as the arrow is inked. What bounds it above is also on
+ * the panel rather than in a constant — the part cannot pass clean through the
+ * model it is joining, so the material point that starts at the tail ends no
+ * further along than the far side of the already-built art.
  */
 
 import { dilateMask } from "@lego-studio/rendering";
@@ -56,42 +80,6 @@ export interface PanelProjection {
   readonly pixelsPerStud: number;
 }
 
-export interface ArrowClearance {
-  /** Gap between the arrow's tail and the ghost's own outline, in pixels. */
-  readonly tailToGhostPx: number | null;
-  /** Gap between its head and the model already there, in pixels. */
-  readonly headToBuiltPx: number | null;
-}
-
-/**
- * The arrow's vector with the clearance it was drawn with added back.
- *
- * An arrow is inked from clear of the ghost to clear of the landing surface, so
- * tail-to-head is shorter than the part's travel by the two gaps. Measured on
- * the sample booklet that shortfall is 0.00 to 0.47 of a stud, median 0.22 —
- * small, always in the same direction, and readable off the same pixels as the
- * arrow, which is what makes it a correction rather than an error.
- *
- * A missing gap is treated as zero rather than guessed. That under-corrects,
- * which leaves the answer where it already was; inventing a clearance would move
- * it somewhere nobody measured.
- */
-export function correctArrowForClearance(
-  displacement: PixelVector,
-  clearance: ArrowClearance,
-): PixelVector {
-  const length = Math.hypot(displacement.xPx, displacement.yPx);
-  if (!(length > 0)) {
-    throw new ArrowPlacementError(
-      `An arrow of zero length has no direction to extend along, so its clearance cannot be added back. ` +
-        `The reader returns a displacement only when at least one arrow survived; a zero here means the caller built the vector itself.`,
-    );
-  }
-  const added = (clearance.tailToGhostPx ?? 0) + (clearance.headToBuiltPx ?? 0);
-  const scale = (length + added) / length;
-  return { xPx: displacement.xPx * scale, yPx: displacement.yPx * scale };
-}
-
 export interface DisplacementCandidate {
   readonly studsA: number;
   readonly studsB: number;
@@ -100,25 +88,28 @@ export interface DisplacementCandidate {
   readonly lduX: number;
   readonly lduY: number;
   readonly lduZ: number;
-  readonly errorPx: number;
-  readonly errorStuds: number;
+  /** How far along the arrow's own axis this triple carries the part, in pixels. */
+  readonly travelPx: number;
+  /** How far its projection sits off the arrow's line, in pixels. */
+  readonly offLinePx: number;
+  readonly offLineStuds: number;
 }
 
-export interface DisplacementFamilyOptions {
+export interface TravelFamilyOptions {
   /** Whole pitches searched either way along each ground direction. Defaults to 8. */
   readonly studRange?: number;
   /** Whole plates searched either way. Defaults to 12. */
   readonly plateRange?: number;
   /**
-   * How far a triple's projection may sit from the arrow, in stud pitches.
-   * Defaults to 0.15.
+   * How far a triple's projection may sit off the arrow's *line*, in stud
+   * pitches. Defaults to 0.15.
    *
-   * The default is chosen against the height quantum, not against the arrow. A
-   * plate projects to about a third of a stud, so anything at or above that
-   * admits the neighbouring height by construction and the family stops meaning
-   * anything. Below half a plate it separates heights; the corrected arrow's own
-   * scatter is around 0.05, so 0.15 leaves three times the measurement's error
-   * and still resolves the grid.
+   * Across the axis is where the arrow is accurate: panel 2's two arrows scatter
+   * 0.03px there against 1.50px along it. The default is nonetheless kept at the
+   * value the length tolerance used, because two arrows are too few to calibrate
+   * a tighter one — and it makes no difference on that panel, where 0.10 and
+   * 0.15 admit exactly the same 22 triples. The nearest off-line class beyond
+   * the arrow's own is at 0.066 of a stud, so the setting has room either way.
    */
   readonly toleranceStuds?: number;
   /** Refuses rather than truncating. Defaults to 200. */
@@ -126,18 +117,25 @@ export interface DisplacementFamilyOptions {
 }
 
 /**
- * Every whole-grid displacement whose projection matches the arrow.
+ * Every whole-grid displacement that runs along the arrow, as far as it can have.
  *
- * Sorted by how far its projection sits from the arrow, closest first — but the
- * caller must not read that order as a ranking of correctness. It is a ranking
- * of pixel agreement, and on a projection this degenerate several triples agree
- * to within the measurement. The order is there so that ties can be broken
- * deterministically after physics has had its say, not before.
+ * The window is `[|arrow|, ceilingPx]` and both ends are measurements rather than
+ * settings. The floor is the ink: the arrow is drawn from the part to the model,
+ * so the part travels at least the length that was drawn. The ceiling comes from
+ * `measureArrowTravelCeiling`, which is where the model the part is joining stops
+ * — travel beyond that carries the part clean through it.
+ *
+ * Sorted off-line first and then by travel, closest first — but the caller must
+ * not read that order as a ranking of correctness. It is a ranking of pixel
+ * agreement, and on a projection this degenerate several triples agree to within
+ * the measurement. The order is there so that ties can be broken deterministically
+ * after physics has had its say, not before.
  */
-export function arrowDisplacementFamily(
+export function arrowTravelFamily(
   projection: PanelProjection,
   displacementPx: PixelVector,
-  options: DisplacementFamilyOptions = {},
+  ceilingPx: number,
+  options: TravelFamilyOptions = {},
 ): readonly DisplacementCandidate[] {
   const studRange = options.studRange ?? 8;
   const plateRange = options.plateRange ?? 12;
@@ -163,27 +161,32 @@ export function arrowDisplacementFamily(
   if (!(toleranceStuds >= 0)) {
     throw new ArrowPlacementError(
       `toleranceStuds must be non-negative, received ${String(toleranceStuds)}. ` +
-        `It is how far a candidate's projection may sit from the arrow, and the arrow itself is good to about a fifth of a stud once its clearance is corrected.`,
+        `It is how far a triple's projection may sit off the arrow's line, and two arrows onto one part agree in direction to about a hundredth of a stud.`,
+    );
+  }
+  const drawnPx = Math.hypot(displacementPx.xPx, displacementPx.yPx);
+  if (!(drawnPx > 0)) {
+    throw new ArrowPlacementError(
+      `An arrow of zero length states no direction, so there is no line to search along. ` +
+        `The reader returns a displacement only when at least one arrow survived; a zero here means the caller built the vector itself.`,
     );
   }
 
+  const alongX = displacementPx.xPx / drawnPx;
+  const alongY = displacementPx.yPx / drawnPx;
   const tolerancePx = toleranceStuds * projection.pixelsPerStud;
   const found: DisplacementCandidate[] = [];
   for (let plates = -plateRange; plates <= plateRange; plates += 1) {
     for (let studsB = -studRange; studsB <= studRange; studsB += 1) {
       for (let studsA = -studRange; studsA <= studRange; studsA += 1) {
-        const errorX =
-          studsA * projection.a.xPx +
-          studsB * projection.b.xPx +
-          plates * projection.up.xPx -
-          displacementPx.xPx;
-        const errorY =
-          studsA * projection.a.yPx +
-          studsB * projection.b.yPx +
-          plates * projection.up.yPx -
-          displacementPx.yPx;
-        const errorPx = Math.hypot(errorX, errorY);
-        if (errorPx > tolerancePx) continue;
+        const xPx =
+          studsA * projection.a.xPx + studsB * projection.b.xPx + plates * projection.up.xPx;
+        const yPx =
+          studsA * projection.a.yPx + studsB * projection.b.yPx + plates * projection.up.yPx;
+        const travelPx = xPx * alongX + yPx * alongY;
+        if (travelPx < drawnPx || travelPx > ceilingPx) continue;
+        const offLinePx = Math.abs(xPx * -alongY + yPx * alongX);
+        if (offLinePx > tolerancePx) continue;
         found.push({
           studsA,
           studsB,
@@ -195,19 +198,22 @@ export function arrowDisplacementFamily(
           // arrow found nothing" rather than as a sign error.
           lduY: -plates * PLATE_HEIGHT_LDU,
           lduZ: studsB * STUD_PITCH_LDU,
-          errorPx,
-          errorStuds: errorPx / projection.pixelsPerStud,
+          travelPx,
+          offLinePx,
+          offLineStuds: offLinePx / projection.pixelsPerStud,
         });
       }
     }
   }
   if (found.length > maximumFamily) {
     throw new ArrowPlacementError(
-      `The arrow admits ${found.length} whole-grid displacements within ${toleranceStuds} of a stud, over the ${maximumFamily} this will return. ` +
-        `Either the tolerance is far wider than the arrow's own accuracy of about a fifth of a stud, or the ranges are wider than the part could have travelled.`,
+      `The arrow admits ${found.length} whole-grid displacements within ${toleranceStuds} of a stud of its line and ${ceilingPx.toFixed(1)}px of travel, over the ${maximumFamily} this will return. ` +
+        `Either the tolerance is far wider than the arrow's own direction accuracy, the ceiling reaches past the model the part is joining, or the ranges are wider than the part could have travelled.`,
     );
   }
-  return found.sort((left, right) => left.errorPx - right.errorPx);
+  return found.sort(
+    (left, right) => left.offLinePx - right.offLinePx || left.travelPx - right.travelPx,
+  );
 }
 
 export interface ArbitratedPlacement {
@@ -326,8 +332,83 @@ export function panelProjectionFromFit(fit: {
   };
 }
 
-export interface MeasuredClearance extends ArrowClearance {
+export interface MeasuredClearance {
+  /** Distance from the arrow's tail to the ghost's own outline, in pixels. */
+  readonly tailToGhostPx: number | null;
+  /** Distance from its head to the model already there, in pixels. */
+  readonly headToBuiltPx: number | null;
   readonly lengthPx: number;
+}
+
+export interface ArrowTravelCeiling {
+  /** The arrows' mean tail, projected onto the arrow's own axis. */
+  readonly tailAlongPx: number;
+  /** How far the model the part is joining reaches along that axis. */
+  readonly modelFarAlongPx: number;
+  /** The two, differenced: the furthest the part can have travelled. */
+  readonly ceilingPx: number;
+}
+
+/**
+ * The furthest along its own axis the part can have travelled.
+ *
+ * The arrow's tail lies on the ghost — `readDisplacementArrows` only keeps an
+ * arrow whose tail is within its origin margin of what the step highlighted — so
+ * the material point that starts there ends up somewhere on or in the model the
+ * arrow points at. Beyond the far side of that model it has passed clean through
+ * it, which is not a placement any build sequence reaches.
+ *
+ * That makes the ceiling a measurement of the panel rather than a setting. On
+ * printed step 2 of the sample booklet it is 80.50px against a drawn arrow of
+ * 33.50px and a true travel of 46.17px, and the answer stays the single drawn
+ * placement anywhere from 43px to about 105px of ceiling — so it is not a bound
+ * the answer sits on the edge of.
+ *
+ * Returns a ceiling below the drawn length when the two disagree, rather than
+ * clamping: an empty family then says the panel's own arrow and its own art do
+ * not describe the same travel, which is a fact about the panel worth surfacing.
+ */
+export function measureArrowTravelCeiling(
+  arrows: readonly { readonly tailXPx: number; readonly tailYPx: number }[],
+  displacementPx: PixelVector,
+  alreadyBuilt: { readonly width: number; readonly height: number; readonly mask: Uint8Array },
+): ArrowTravelCeiling {
+  const drawnPx = Math.hypot(displacementPx.xPx, displacementPx.yPx);
+  if (!(drawnPx > 0)) {
+    throw new ArrowPlacementError(
+      `An arrow of zero length states no axis, so nothing can be projected onto it. ` +
+        `The reader returns a displacement only when at least one arrow survived; a zero here means the caller built the vector itself.`,
+    );
+  }
+  if (arrows.length === 0) {
+    throw new ArrowPlacementError(
+      `A travel ceiling is measured from where the arrows start, and none were given. ` +
+        `The displacement is a consensus over arrows that were kept, so the same arrows are available to the caller.`,
+    );
+  }
+  if (alreadyBuilt.mask.length !== alreadyBuilt.width * alreadyBuilt.height) {
+    throw new ArrowPlacementError(
+      `The already-built mask holds ${alreadyBuilt.mask.length} pixels against the ${alreadyBuilt.width}x${alreadyBuilt.height} raster it claims. ` +
+        `It comes off the same panel raster as the arrows; a mismatch means one of them was extracted at another size.`,
+    );
+  }
+  const alongX = displacementPx.xPx / drawnPx;
+  const alongY = displacementPx.yPx / drawnPx;
+  const tailAlongPx =
+    arrows.reduce((sum, arrow) => sum + arrow.tailXPx * alongX + arrow.tailYPx * alongY, 0) /
+    arrows.length;
+  let modelFarAlongPx = Number.NEGATIVE_INFINITY;
+  for (let pixel = 0; pixel < alreadyBuilt.mask.length; pixel += 1) {
+    if (alreadyBuilt.mask[pixel] !== 1) continue;
+    const along =
+      (pixel % alreadyBuilt.width) * alongX + Math.floor(pixel / alreadyBuilt.width) * alongY;
+    if (along > modelFarAlongPx) modelFarAlongPx = along;
+  }
+  return {
+    tailAlongPx,
+    modelFarAlongPx,
+    ceilingPx: modelFarAlongPx - tailAlongPx,
+  };
 }
 
 export interface ClearanceMasks {
@@ -365,14 +446,23 @@ export function alreadyBuiltMask(
 }
 
 /**
- * How much clearance the artist left at each end of each arrow.
+ * How far each arrow's ends sit from the ghost's outline and from the model.
  *
- * Both gaps come off the same pixels as the arrow, which is what makes the
- * shortfall a correction rather than an error bar. A gap that falls outside the
- * panel, or is measured against a mask with nothing in it, comes back null
- * rather than as a number, because "no ghost outline to measure from" and "the
- * arrow starts exactly on the outline" are different facts and a zero would say
- * the second when the first is true.
+ * This was written as "the clearance the artist left", on the assumption that an
+ * arrow is inked from clear of one body to clear of the other and that adding
+ * both gaps back recovers the travel. Panel 2 of the sample booklet refutes it:
+ * both tails lie *inside* the printed highlight region and both heads *inside*
+ * the already-built art, so both numbers come back 0 to the region and 0 to the
+ * art, and the 4.33px each tail reports to the highlight *stroke* is the
+ * distance from a point inside the yellow band out to it — not a gap in front of
+ * the part. Adding it to the arrow lengthened a vector that was already 38%
+ * short. Nothing builds a travel out of these any more; they are published as a
+ * census of where the ink actually falls.
+ *
+ * A gap that falls outside the panel, or is measured against a mask with nothing
+ * in it, comes back null rather than as a number, because "no ghost outline to
+ * measure from" and "the arrow starts exactly on the outline" are different
+ * facts and a zero would say the second when the first is true.
  */
 export function measureArrowClearances(
   arrows: readonly {
@@ -400,7 +490,12 @@ export function measureArrowClearances(
   }));
 }
 
-/** The mean of the clearances that measured both ends, in stud pitches. */
+/**
+ * The mean of the gaps that measured both ends, in stud pitches.
+ *
+ * A census figure, not a correction: see `measureArrowClearances` for why these
+ * gaps are not the arrow's shortfall.
+ */
 export function arrowShortfallStuds(
   clearances: readonly MeasuredClearance[],
   pixelsPerStud: number,

@@ -260,11 +260,11 @@ test("registers consecutive printed panels onto one frame", async ({ page }) => 
     stepsWhoseRedWasAllRejected: withArrowRejected.length,
     medianArrowShortfallStuds: median(of(withArrow, (pair) => pair.placement!.arrowShortfallStuds)),
     medianArrowSpreadPx: median(of(withArrow, (pair) => pair.placement!.arrowSpreadPx)),
-    medianDisplacementFamilyRaw: median(
-      of(withModelArrow, (pair) => pair.placement!.displacementFamily?.rawSize ?? null),
+    medianDisplacementFamily: median(
+      of(withModelArrow, (pair) => pair.placement!.displacementFamily?.size ?? null),
     ),
-    medianDisplacementFamilyCorrected: median(
-      of(withModelArrow, (pair) => pair.placement!.displacementFamily?.correctedSize ?? null),
+    medianArrowTravelCeilingPx: median(
+      of(withModelArrow, (pair) => pair.placement!.displacementFamily?.travelCeilingPx ?? null),
     ),
     firstPlace: scored.filter((pair) => pair.placement!.ranking!.referenceRank === 0).length,
     medianArrowTravelStuds: median(
@@ -314,7 +314,7 @@ test("registers consecutive printed panels onto one frame", async ({ page }) => 
     const pl = pair.placement!;
     console.log(
       `  step ${String(pair.fromStep).padStart(2)}: ${pl.agreedArrows}/${pl.arrows} arrows, ${pl.arrowsInsideAssembly} on the model, ` +
-        `family ${pl.displacementFamily ? `${pl.displacementFamily.rawSize} raw / ${pl.displacementFamily.correctedSize} corrected of ~2000 blind` : "no camera"}, ` +
+        `family ${pl.displacementFamily ? `${pl.displacementFamily.size} of ~2000 blind, ceiling ${pl.displacementFamily.travelCeilingPx.toFixed(0)}px over a ${pl.displacementFamily.drawnLengthPx.toFixed(0)}px arrow` : "no camera"}, ` +
         `shortfall ${pl.arrowShortfallStuds?.toFixed(2) ?? "-"} studs, spread ${pl.arrowSpreadPx?.toFixed(1) ?? "-"}px, ` +
         `clearances ${pl.clearances.map((c) => `${c.tailToGhostPx?.toFixed(0) ?? "-"}+${c.headToBuiltPx?.toFixed(0) ?? "-"}/${c.lengthPx.toFixed(0)}`).join(" ")}`,
     );

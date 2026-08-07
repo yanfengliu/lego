@@ -297,7 +297,11 @@ describe("deferred printed step", () => {
     { catalogPartId: "builtin:corner-plate-4x4-round" },
   ]);
 
-  it("settles printed step 1 on the panel that shows what it built", () => {
+  // Printed step 1 is a 400-candidate product and every candidate is rasterised,
+  // so this one test runs for about five seconds — the default timeout leaves it
+  // no headroom and it fails on a busy machine rather than on a defect. The
+  // clock is what moves here; nothing it asserts does.
+  it("settles printed step 1 on the panel that shows what it built", { timeout: 30_000 }, () => {
     const drawn = drawnStepOne();
     const { settlement } = settle({ spec: stepOne, builtMask: rasterise(drawn.document) });
 

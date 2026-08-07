@@ -236,7 +236,7 @@ function isStepValidation(value: unknown): boolean {
   );
 }
 
-function isBlindSearch(value: unknown, maximum: number): boolean {
+function isBlindSearch(value: unknown, maximum: number, renderBound: number): boolean {
   return (
     isRecord(value) &&
     exactKeys(value, [
@@ -254,7 +254,7 @@ function isBlindSearch(value: unknown, maximum: number): boolean {
     DIGEST_PATTERN.test(value.comparisonPrefixHash) &&
     isBoundedInteger(value.distinctCandidates, maximum) &&
     typeof value.feasible === "boolean" &&
-    isBoundedInteger(value.rendered, maximum) &&
+    isBoundedInteger(value.rendered, renderBound) &&
     isNullableFiniteNumber(value.bestScore) &&
     isNullableFiniteNumber(value.runnerUpScore) &&
     (value.agreesWithHighlight === null || typeof value.agreesWithHighlight === "boolean") &&
@@ -264,7 +264,7 @@ function isBlindSearch(value: unknown, maximum: number): boolean {
   );
 }
 
-function isPieceReport(value: unknown, maximum: number): boolean {
+function isPieceReport(value: unknown, maximum: number, renderBound: number): boolean {
   return (
     isRecord(value) &&
     exactKeys(value, [
@@ -282,10 +282,10 @@ function isPieceReport(value: unknown, maximum: number): boolean {
     ]) &&
     typeof value.catalogPartId === "string" &&
     value.catalogPartId.length > 0 &&
-    isBlindSearch(value.blind, maximum) &&
+    isBlindSearch(value.blind, maximum, renderBound) &&
     isBoundedInteger(value.enumerated, maximum) &&
     isBoundedInteger(value.afterProximity, maximum) &&
-    isBoundedInteger(value.rendered, maximum) &&
+    isBoundedInteger(value.rendered, renderBound) &&
     isNullableFiniteNumber(value.bestScore) &&
     isNullableFiniteNumber(value.runnerUpScore) &&
     typeof value.placed === "boolean" &&
@@ -484,8 +484,18 @@ function isArrowEvidence(value: unknown, maximum: number): boolean {
 function assertStepReportShape(
   report: unknown,
   index: number,
-  options: Pick<RealBuildOptions, "lastStep" | "maxParts" | "panels">,
+  options: Pick<
+    RealBuildOptions,
+    "lastStep" | "maxParts" | "panels" | "blindRenderBudget" | "explodedGhostRenderBudget"
+  >,
 ): asserts report is RealBuildStepReport {
+  // A render count is not a part count. These were bounded by `maxParts`, which
+  // held only while every search rendered fewer candidates than the model has
+  // pieces; an exploded step renders its candidate set once per member of the
+  // arrow's travel family, and printed step 2's 105 by 22 went straight through
+  // a ceiling that was never about renders. The bound is the run's own render
+  // budgets, which is what actually caps the number.
+  const renderBound = Math.max(options.blindRenderBudget, options.explodedGhostRenderBudget);
   const panel = options.panels.find(({ stepNumber }) => stepNumber === index + 1);
   if (
     !isRecord(report) ||
@@ -513,7 +523,7 @@ function assertStepReportShape(
     !isArrowEvidence(report.arrows, options.maxParts) ||
     !Array.isArray(report.pieces) ||
     report.pieces.length > options.maxParts ||
-    !report.pieces.every((piece) => isPieceReport(piece, options.maxParts)) ||
+    !report.pieces.every((piece) => isPieceReport(piece, options.maxParts, renderBound)) ||
     !isWholeStepVisual(report.jointVisual, options.maxParts) ||
     !isDeferralEvidence(report.deferral) ||
     !isExplodedGhostEvidence(report.explodedGhost) ||
@@ -532,7 +542,15 @@ function assertStepReportShape(
 /** Rejects a self-labelled browser-output object unless its complete boundary shape is coherent. */
 export function assertRealBuildBrowserOutput(
   value: unknown,
-  options: Pick<RealBuildOptions, "lastStep" | "maxParts" | "inputDigests" | "panels">,
+  options: Pick<
+    RealBuildOptions,
+    | "lastStep"
+    | "maxParts"
+    | "inputDigests"
+    | "panels"
+    | "blindRenderBudget"
+    | "explodedGhostRenderBudget"
+  >,
 ): asserts value is RealBuildBrowserOutput {
   if (!isRecord(value) || (value.status !== "executed" && value.status !== "failed")) {
     throw new TypeError("Replay browser-output must be an executed or failed object.");
@@ -705,7 +723,15 @@ export function assertRealBuildBrowserOutput(
 
 export function isRealBuildBrowserOutput(
   value: unknown,
-  options: Pick<RealBuildOptions, "lastStep" | "maxParts" | "inputDigests" | "panels">,
+  options: Pick<
+    RealBuildOptions,
+    | "lastStep"
+    | "maxParts"
+    | "inputDigests"
+    | "panels"
+    | "blindRenderBudget"
+    | "explodedGhostRenderBudget"
+  >,
 ): value is RealBuildBrowserOutput {
   try {
     assertRealBuildBrowserOutput(value, options);

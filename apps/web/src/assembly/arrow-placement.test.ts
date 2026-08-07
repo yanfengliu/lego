@@ -2,11 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   arbitrateArrowCandidates,
-  arrowDisplacementFamily,
+  arrowTravelFamily,
   ArrowPlacementError,
-  correctArrowForClearance,
+  measureArrowTravelCeiling,
   panelProjectionForWorkRaster,
   panelProjectionFromFit,
+  type DisplacementCandidate,
   type PanelProjection,
 } from "./arrow-placement";
 
@@ -43,51 +44,173 @@ function project(
   };
 }
 
-describe("correctArrowForClearance", () => {
-  it("extends the arrow along its own axis by both gaps", () => {
-    const corrected = correctArrowForClearance(
-      { xPx: 0, yPx: 100 },
-      { tailToGhostPx: 13, headToBuiltPx: 4 },
-    );
-    expect(corrected.xPx).toBeCloseTo(0, 6);
-    expect(corrected.yPx).toBeCloseTo(117, 6);
+const lengthOf = (vector: { xPx: number; yPx: number }): number =>
+  Math.hypot(vector.xPx, vector.yPx);
+
+const scaled = (vector: { xPx: number; yPx: number }, factor: number) => ({
+  xPx: vector.xPx * factor,
+  yPx: vector.yPx * factor,
+});
+
+const holds = (
+  family: readonly DisplacementCandidate[],
+  studsA: number,
+  studsB: number,
+  plates: number,
+): boolean =>
+  family.some(
+    (entry) => entry.studsA === studsA && entry.studsB === studsB && entry.plates === plates,
+  );
+
+describe("measureArrowTravelCeiling", () => {
+  /**
+   * A panel drawn the way an exploded step is: the model occupies the top of the
+   * raster and the ghost floats below it, with the arrow inked upward out of the
+   * ghost and stopping inside the model.
+   */
+  const WIDTH = 40;
+  const HEIGHT = 100;
+  const MODEL_TOP_ROW = 10;
+  const MODEL_BOTTOM_ROW = 40;
+  const built = (() => {
+    const mask = new Uint8Array(WIDTH * HEIGHT);
+    for (let y = MODEL_TOP_ROW; y <= MODEL_BOTTOM_ROW; y += 1) {
+      for (let x = 8; x < 32; x += 1) mask[y * WIDTH + x] = 1;
+    }
+    return { width: WIDTH, height: HEIGHT, mask };
+  })();
+  const UPWARD = { xPx: 0, yPx: -20 };
+
+  it("stops where the model the part is joining stops", () => {
+    const ceiling = measureArrowTravelCeiling([{ tailXPx: 20, tailYPx: 70 }], UPWARD, built);
+    // Up the page is decreasing y, so the far side of the model is its top row
+    // and the travel that reaches it is the whole distance from the tail.
+    expect(ceiling.modelFarAlongPx).toBeCloseTo(-MODEL_TOP_ROW, 6);
+    expect(ceiling.tailAlongPx).toBeCloseTo(-70, 6);
+    expect(ceiling.ceilingPx).toBeCloseTo(70 - MODEL_TOP_ROW, 6);
   });
 
-  it("treats an unmeasured gap as zero rather than guessing one", () => {
-    const corrected = correctArrowForClearance(
-      { xPx: 30, yPx: 40 },
-      { tailToGhostPx: null, headToBuiltPx: 5 },
+  it("takes the arrows' mean tail, because the displacement is their consensus", () => {
+    const ceiling = measureArrowTravelCeiling(
+      [
+        { tailXPx: 12, tailYPx: 60 },
+        { tailXPx: 28, tailYPx: 80 },
+      ],
+      UPWARD,
+      built,
     );
-    expect(Math.hypot(corrected.xPx, corrected.yPx)).toBeCloseTo(55, 6);
+    expect(ceiling.ceilingPx).toBeCloseTo(70 - MODEL_TOP_ROW, 6);
   });
 
-  it("refuses a zero-length arrow, which has no axis to extend along", () => {
+  it("measures along the arrow rather than down the raster", () => {
+    // The same model, read along an arrow pointing up and to the left: the far
+    // corner along that axis is a different pixel from the topmost row.
+    const oblique = measureArrowTravelCeiling(
+      [{ tailXPx: 20, tailYPx: 70 }],
+      { xPx: -20, yPx: -20 },
+      built,
+    );
+    const straight = measureArrowTravelCeiling([{ tailXPx: 20, tailYPx: 70 }], UPWARD, built);
+    expect(oblique.ceilingPx).not.toBeCloseTo(straight.ceilingPx, 3);
+  });
+
+  it("names an arrow with no axis rather than dividing by its length", () => {
     expect(() =>
-      correctArrowForClearance({ xPx: 0, yPx: 0 }, { tailToGhostPx: 1, headToBuiltPx: 1 }),
-    ).toThrow(/zero length has no direction to extend along/);
+      measureArrowTravelCeiling([{ tailXPx: 1, tailYPx: 1 }], { xPx: 0, yPx: 0 }, built),
+    ).toThrow(/zero length states no axis/);
+  });
+
+  it("refuses to guess a tail when no arrow was given", () => {
+    expect(() => measureArrowTravelCeiling([], UPWARD, built)).toThrow(
+      /measured from where the arrows start, and none were given/,
+    );
+  });
+
+  it("refuses a mask that came off another raster", () => {
+    expect(() =>
+      measureArrowTravelCeiling([{ tailXPx: 1, tailYPx: 1 }], UPWARD, {
+        width: WIDTH,
+        height: HEIGHT,
+        mask: new Uint8Array(4),
+      }),
+    ).toThrow(/holds 4 pixels against the 40x100 raster it claims/);
   });
 });
 
-describe("arrowDisplacementFamily", () => {
-  it("finds the displacement its own projection came from", () => {
-    const truth = { studsA: 0, studsB: 0, plates: -6 };
-    const family = arrowDisplacementFamily(
-      STEP_ONE,
-      project(STEP_ONE, truth.studsA, truth.studsB, truth.plates),
-      { toleranceStuds: 0.35 },
-    );
-    const exact = family.find(
-      (entry) =>
-        entry.studsA === truth.studsA &&
-        entry.studsB === truth.studsB &&
-        entry.plates === truth.plates,
-    );
-    expect(exact).toBeDefined();
-    expect(exact!.errorStuds).toBeCloseTo(0, 6);
+describe("arrowTravelFamily", () => {
+  /**
+   * Panel 2 of the sample booklet, at the raster its arrows were read on. Every
+   * number below is that panel's own measurement.
+   */
+  const PANEL_TWO = panelProjectionForWorkRaster(
+    {
+      azimuthDegrees: 54.882572739160764,
+      elevationDegrees: 35.639060713178495,
+      pixelsPerUnit: 40.574776536412344,
+    },
+    2,
+  );
+  /** The travel the booklet draws: seven plates straight up. */
+  const TRUE_TRAVEL = project(PANEL_TWO, 0, 0, 7);
+  /** The arrow as inked on that panel, tail to head. */
+  const INKED = scaled(TRUE_TRAVEL, 33.50220230104512 / lengthOf(TRUE_TRAVEL));
+  /** Where the already-built art stops along that axis, measured off the panel. */
+  const CEILING_PX = 80.49463;
+
+  it("recovers a travel the arrow was inked too short to state", () => {
+    // The defect this replaces. Both of panel 2's arrows are drawn from inside
+    // the ghost to inside the model — the head stops at the model's visible
+    // surface while the seat is behind it — so the ink is a floor rather than
+    // the travel. Stated as the geometry: the gap between the arrow's endpoint
+    // and the true travel's is far wider than any family drawn as a disc around
+    // the ink could admit, whatever radius it used to separate one plate from
+    // the next.
+    const gapStuds =
+      Math.hypot(TRUE_TRAVEL.xPx - INKED.xPx, TRUE_TRAVEL.yPx - INKED.yPx) /
+      PANEL_TWO.pixelsPerStud;
+    const plateInStuds = Math.abs(PANEL_TWO.up.yPx) / PANEL_TWO.pixelsPerStud;
+    expect(gapStuds).toBeGreaterThan(plateInStuds);
+
+    const family = arrowTravelFamily(PANEL_TWO, INKED, CEILING_PX);
+    expect(holds(family, 0, 0, 7)).toBe(true);
+  });
+
+  it("takes the ink as a floor, so nothing travels less far than it was drawn", () => {
+    const family = arrowTravelFamily(PANEL_TWO, INKED, CEILING_PX);
+    expect(family.length).toBeGreaterThan(0);
+    expect(family.every((entry) => entry.travelPx >= lengthOf(INKED))).toBe(true);
+    // Six plates is the whole-grid travel nearest the ink, and it is short of
+    // the drawing: the family holds it, and it is not the only member.
+    expect(holds(family, 0, 0, 6)).toBe(true);
+    expect(
+      family.filter((entry) => entry.studsA === 0 && entry.studsB === 0).length,
+    ).toBeGreaterThan(1);
+  });
+
+  it("stops at the model rather than carrying the part through it", () => {
+    const family = arrowTravelFamily(PANEL_TWO, INKED, CEILING_PX);
+    expect(family.every((entry) => entry.travelPx <= CEILING_PX)).toBe(true);
+    // Twelve plates is on the arrow's line and inside this panel's own ceiling,
+    // so it is offered here. Nothing but the ceiling excludes such a travel: a
+    // family that checked only the direction would take it at any distance.
+    const twelvePlates = lengthOf(project(PANEL_TWO, 0, 0, 12));
+    expect(twelvePlates).toBeLessThan(CEILING_PX);
+    expect(holds(family, 0, 0, 12)).toBe(true);
+    expect(holds(arrowTravelFamily(PANEL_TWO, INKED, twelvePlates - 1), 0, 0, 12)).toBe(false);
+  });
+
+  it("measures across the arrow rather than to its endpoint", () => {
+    const family = arrowTravelFamily(PANEL_TWO, INKED, CEILING_PX);
+    const tolerancePx = 0.15 * PANEL_TWO.pixelsPerStud;
+    expect(family.every((entry) => entry.offLinePx <= tolerancePx)).toBe(true);
+    // One stud sideways is on nobody's line: it travels a plausible distance and
+    // is still excluded, because the arrow's direction is what it measures.
+    expect(family.every((entry) => !(entry.studsA === 1 && entry.studsB === 0))).toBe(true);
   });
 
   it("converts to LDU with the document's y running down", () => {
-    const family = arrowDisplacementFamily(STEP_ONE, project(STEP_ONE, 2, -3, 5), {
+    const travel = project(STEP_ONE, 2, -3, 5);
+    const family = arrowTravelFamily(STEP_ONE, travel, lengthOf(travel) + 1, {
       toleranceStuds: 0.01,
     });
     const exact = family.find((entry) => entry.plates === 5)!;
@@ -99,48 +222,47 @@ describe("arrowDisplacementFamily", () => {
     expect(exact.lduY).toBe(-40);
   });
 
-  it("cannot separate one height from the next above the plate quantum", () => {
-    // The design constraint the default exists for. A plate projects to about a
-    // third of a stud, so a tolerance at or above that admits the neighbouring
-    // heights whatever the arrow said — on step 1's camera a clean six-plate
-    // drop comes back as a family of fifteen, three of which are the same
-    // ground position at three different heights.
-    const plateInStuds = Math.abs(STEP_ONE.up.yPx) / STEP_ONE.pixelsPerStud;
-    expect(plateInStuds).toBeGreaterThan(0.3);
-    expect(plateInStuds).toBeLessThan(0.34);
-
-    const wide = arrowDisplacementFamily(STEP_ONE, project(STEP_ONE, 0, 0, -6), {
-      toleranceStuds: 0.35,
-    });
-    expect(wide.length).toBeGreaterThan(10);
-    const sameGround = wide.filter((entry) => entry.studsA === 0 && entry.studsB === 0);
-    expect(sameGround.length).toBeGreaterThan(1);
-  });
-
-  it("separates the heights below half a plate, which is what the default does", () => {
-    const family = arrowDisplacementFamily(STEP_ONE, project(STEP_ONE, 0, 0, -6));
-    expect(family.length).toBeLessThan(5);
-    const sameGround = family.filter((entry) => entry.studsA === 0 && entry.studsB === 0);
-    expect(sameGround).toHaveLength(1);
-    expect(sameGround[0]!.plates).toBe(-6);
+  it("orders off the line first and by travel after, deterministically", () => {
+    const family = arrowTravelFamily(PANEL_TWO, INKED, CEILING_PX);
+    for (let index = 1; index < family.length; index += 1) {
+      const previous = family[index - 1]!;
+      const current = family[index]!;
+      expect(
+        previous.offLinePx < current.offLinePx ||
+          (previous.offLinePx === current.offLinePx && previous.travelPx <= current.travelPx),
+      ).toBe(true);
+    }
   });
 
   it("refuses a range counted in the wrong unit", () => {
-    expect(() =>
-      arrowDisplacementFamily(STEP_ONE, { xPx: 0, yPx: 10 }, { studRange: 400 }),
-    ).toThrow(/studRange must be a whole number of grid steps between 0 and 64, received 400/);
+    expect(() => arrowTravelFamily(STEP_ONE, { xPx: 0, yPx: 10 }, 50, { studRange: 400 })).toThrow(
+      /studRange must be a whole number of grid steps between 0 and 64, received 400/,
+    );
   });
 
   it("refuses rather than truncating when the tolerance is absurd", () => {
     expect(() =>
-      arrowDisplacementFamily(STEP_ONE, { xPx: 0, yPx: 10 }, { toleranceStuds: 20 }),
+      arrowTravelFamily(STEP_ONE, { xPx: 0, yPx: 10 }, 400, { toleranceStuds: 20 }),
     ).toThrow(/over the 200 this will return/);
   });
 
   it("names the missing scale rather than dividing by it", () => {
     expect(() =>
-      arrowDisplacementFamily({ ...STEP_ONE, pixelsPerStud: 0 }, { xPx: 0, yPx: 10 }),
+      arrowTravelFamily({ ...STEP_ONE, pixelsPerStud: 0 }, { xPx: 0, yPx: 10 }, 50),
     ).toThrow(/needs a positive pixelsPerStud, received 0/);
+  });
+
+  it("names an arrow with no direction rather than searching every line at once", () => {
+    expect(() => arrowTravelFamily(STEP_ONE, { xPx: 0, yPx: 0 }, 50)).toThrow(
+      /zero length states no direction/,
+    );
+  });
+
+  it("is empty when the panel's arrow and the panel's art disagree", () => {
+    // A ceiling under the ink says the model the arrow points at does not reach
+    // as far as the arrow is drawn. Nothing is invented to close that: the
+    // family comes back empty and the caller refuses for want of a travel.
+    expect(arrowTravelFamily(PANEL_TWO, INKED, lengthOf(INKED) - 1)).toStrictEqual([]);
   });
 });
 
@@ -174,19 +296,27 @@ describe("panelProjectionForWorkRaster", () => {
   };
 
   it("recovers the travel a displacement measured on the work raster came from", () => {
-    const family = arrowDisplacementFamily(
+    const family = arrowTravelFamily(
       panelProjectionForWorkRaster(FIT, WORK_FACTOR),
       workRasterPx,
+      lengthOf(workRasterPx),
     );
     expect(family[0]).toMatchObject(TRAVEL);
-    expect(family[0]!.errorStuds).toBeCloseTo(0, 9);
+    expect(family[0]!.offLineStuds).toBeCloseTo(0, 9);
   });
 
   it("reports the same travel from either raster, which is the whole point", () => {
-    const fromFull = arrowDisplacementFamily(panelProjectionFromFit(FIT), fullResolutionPx);
-    const fromWork = arrowDisplacementFamily(
+    // Read on its own raster each time — the ceiling scales with the pixels the
+    // travel is measured in, exactly as the displacement does.
+    const fromFull = arrowTravelFamily(
+      panelProjectionFromFit(FIT),
+      fullResolutionPx,
+      lengthOf(fullResolutionPx),
+    );
+    const fromWork = arrowTravelFamily(
       panelProjectionForWorkRaster(FIT, WORK_FACTOR),
       workRasterPx,
+      lengthOf(workRasterPx),
     );
     expect(fromWork.map(({ lduX, lduY, lduZ }) => [lduX, lduY, lduZ])).toStrictEqual(
       fromFull.map(({ lduX, lduY, lduZ }) => [lduX, lduY, lduZ]),
@@ -198,7 +328,11 @@ describe("panelProjectionForWorkRaster", () => {
     // number: inverting a work-pixel displacement through the full-resolution
     // projection divides the answer by the work factor, and the run's whole
     // arrow family inherited it.
-    const mixedUp = arrowDisplacementFamily(panelProjectionFromFit(FIT), workRasterPx);
+    const mixedUp = arrowTravelFamily(
+      panelProjectionFromFit(FIT),
+      workRasterPx,
+      lengthOf(workRasterPx),
+    );
     expect(mixedUp[0]).toMatchObject({ ...TRAVEL, plates: TRAVEL.plates / WORK_FACTOR });
     expect(mixedUp.every((entry) => entry.plates < TRAVEL.plates)).toBe(true);
   });
@@ -216,7 +350,8 @@ describe("panelProjectionForWorkRaster", () => {
 });
 
 describe("arbitrateArrowCandidates", () => {
-  const family = arrowDisplacementFamily(STEP_ONE, project(STEP_ONE, 0, 0, -6), {
+  const drawn = project(STEP_ONE, 0, 0, -6);
+  const family = arrowTravelFamily(STEP_ONE, drawn, lengthOf(drawn) * 2, {
     toleranceStuds: 0.35,
   });
 

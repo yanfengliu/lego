@@ -708,6 +708,17 @@ export interface RealBuildOptions {
    */
   readonly deferredCandidateBudget: number;
   /**
+   * Most ghost renders an exploded step may perform.
+   *
+   * A different resource from the candidate budget above, and it used to be
+   * counted against it. An exploded step renders its whole-step candidate set
+   * once per member of the arrow's travel family, so the render count is a
+   * *product* of two independent counts and bounding it by the candidate budget
+   * only ever held because the family had four members. Exceeding this is
+   * refused rather than truncated, for the same reason the candidate product is.
+   */
+  readonly explodedGhostRenderBudget: number;
+  /**
    * Margin the best deferred candidate must beat the runner-up by on the
    * lookahead panel. Set from `DEFERRED_STEP_MINIMUM_MARGIN`, which is a noise
    * floor rather than a discriminator — see that constant for why.

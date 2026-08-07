@@ -327,40 +327,37 @@ test("what step 2 says about step 1's candidates", async ({ page }) => {
                 elevationDegrees: number;
                 pixelsPerUnit: number;
               });
-        let family: readonly { lduX: number; lduY: number; lduZ: number; errorStuds: number }[] =
-          [];
+        let family: readonly {
+          lduX: number;
+          lduY: number;
+          lduZ: number;
+          travelPx: number;
+          offLineStuds: number;
+        }[] = [];
         if (
           corrected !== null &&
           arrows.displacementXPx !== null &&
-          arrows.displacementYPx !== null
+          arrows.displacementYPx !== null &&
+          (arrows.arrows as readonly unknown[]).length > 0
         ) {
           // At the raster the arrows were read on: `readDisplacementArrows`
           // above is handed `work.pixels`, and `corrected.pixelsPerUnit` is the
           // fit over the full-resolution crop.
           const projection = assembly.panelProjectionForWorkRaster(corrected, factor);
-          const clearances = assembly.measureArrowClearances(arrows.arrows, {
-            width,
-            height,
-            ghostStrokeMask: highlight.strokeMask,
-            alreadyBuiltMask: built,
-          }) as readonly { tailToGhostPx: number | null; headToBuiltPx: number | null }[];
-          const raw = {
+          const drawn = {
             xPx: arrows.displacementXPx as number,
             yPx: arrows.displacementYPx as number,
           };
-          const measured = clearances.filter(
-            (entry) => entry.tailToGhostPx !== null && entry.headToBuiltPx !== null,
-          );
-          const adjusted =
-            measured.length === 0
-              ? raw
-              : (assembly.correctArrowForClearance(raw, {
-                  tailToGhostPx:
-                    measured.reduce((sum, e) => sum + e.tailToGhostPx!, 0) / measured.length,
-                  headToBuiltPx:
-                    measured.reduce((sum, e) => sum + e.headToBuiltPx!, 0) / measured.length,
-                }) as { xPx: number; yPx: number });
-          family = assembly.arrowDisplacementFamily(projection, adjusted) as typeof family;
+          const ceiling = assembly.measureArrowTravelCeiling(arrows.arrows, drawn, {
+            width,
+            height,
+            mask: built,
+          }) as { ceilingPx: number };
+          family = assembly.arrowTravelFamily(
+            projection,
+            drawn,
+            ceiling.ceilingPx,
+          ) as typeof family;
         }
         return {
           spec,

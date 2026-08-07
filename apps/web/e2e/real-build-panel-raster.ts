@@ -30,7 +30,8 @@ export interface ArrowDisplacement {
   readonly lduX: number;
   readonly lduY: number;
   readonly lduZ: number;
-  readonly errorStuds: number;
+  readonly travelPx: number;
+  readonly offLineStuds: number;
 }
 
 export interface PanelHighlightBox {
@@ -220,13 +221,14 @@ export function derivePanelRasterEvidence(input: {
       : (assembly.viewForPanelFace(fit.solution, spec.panelFace) as PanelViewSolution);
 
   // A detected arrow is not yet a placement; converting it is what makes it
-  // one. The booklet draws an exploded step by inking an arrow from clear of the
-  // ghost to clear of the landing surface, so the drawn vector is shorter than
-  // the travel by both gaps — measured at 0.00 to 0.47 of a stud on this
-  // booklet, always the same way. `measureArrowClearances` reads those gaps off
-  // the same pixels, `correctArrowForClearance` adds them back, and
-  // `arrowDisplacementFamily` returns every whole-grid displacement whose
-  // projection matches what is left.
+  // one. The arrow states a line and a floor rather than a vector: its two ends
+  // are inked *inside* the ghost and *inside* the model — measured on panel 2 of
+  // this booklet, where both tails sit in the highlight region and both heads in
+  // the already-built art — so it stops at the model's visible surface while the
+  // seat it heads for is behind it. What bounds the travel above is measured off
+  // the same panel by `measureArrowTravelCeiling`: the part cannot pass clean
+  // through the model it is joining. `arrowTravelFamily` returns every
+  // whole-grid displacement inside that window.
   //
   // The count is the size of that family, not a claim that the family has one
   // member. On this projection several triples agree to within the measurement,
@@ -247,38 +249,19 @@ export function derivePanelRasterEvidence(input: {
       ? []
       : (() => {
           const projection = assembly.panelProjectionForWorkRaster(faceCorrectedFit, factor);
-          const clearances = assembly.measureArrowClearances(arrows.arrows, {
-            width,
-            height,
-            ghostStrokeMask: highlight.strokeMask,
-            alreadyBuiltMask: built,
-          }) as readonly {
-            tailToGhostPx: number | null;
-            headToBuiltPx: number | null;
-          }[];
-          const raw = {
+          const drawn = {
             xPx: arrows.displacementXPx as number,
             yPx: arrows.displacementYPx as number,
           };
-          const measured = clearances.filter(
-            (entry) => entry.tailToGhostPx !== null && entry.headToBuiltPx !== null,
-          );
-          // A missing gap is treated as zero rather than guessed, which
-          // under-corrects and leaves the answer where it was.
-          const corrected =
-            measured.length === 0
-              ? raw
-              : (assembly.correctArrowForClearance(raw, {
-                  tailToGhostPx:
-                    measured.reduce((sum, entry) => sum + entry.tailToGhostPx!, 0) /
-                    measured.length,
-                  headToBuiltPx:
-                    measured.reduce((sum, entry) => sum + entry.headToBuiltPx!, 0) /
-                    measured.length,
-                }) as { xPx: number; yPx: number });
-          return assembly.arrowDisplacementFamily(
+          const ceiling = assembly.measureArrowTravelCeiling(arrows.arrows, drawn, {
+            width,
+            height,
+            mask: built,
+          }) as { ceilingPx: number };
+          return assembly.arrowTravelFamily(
             projection,
-            corrected,
+            drawn,
+            ceiling.ceilingPx,
           ) as readonly ArrowDisplacement[];
         })();
 
