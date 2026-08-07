@@ -256,11 +256,71 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
               const parts = (stepBaseDocument as { parts: unknown[] }).parts;
               const anchorStep = parts.length === 0;
 
+              // A detected arrow is not yet a placement; converting it is what
+              // makes it one. The booklet draws an exploded step by inking an
+              // arrow from clear of the ghost to clear of the landing surface,
+              // so the drawn vector is shorter than the travel by both gaps —
+              // measured at 0.00 to 0.47 of a stud on this booklet, always the
+              // same way. `measureArrowClearances` reads those gaps off the same
+              // pixels, `correctArrowForClearance` adds them back, and
+              // `arrowDisplacementFamily` returns every whole-grid displacement
+              // whose projection matches what is left.
+              //
+              // The count is the size of that family, not a claim that the
+              // family has one member. On this projection several triples agree
+              // to within the measurement, which is why the family is handed to
+              // the panel-scored search rather than read as an answer; what it
+              // establishes is that the arrow constrains the placement at all,
+              // which is exactly what the refusal asks for.
+              const arrowFamily =
+                fit.solution === null ||
+                arrows.displacementXPx === null ||
+                arrows.displacementYPx === null
+                  ? []
+                  : (() => {
+                      const projection = assembly.panelProjectionFromFit(fit.solution);
+                      const clearances = assembly.measureArrowClearances(arrows.arrows, {
+                        width,
+                        height,
+                        ghostStrokeMask: highlight.strokeMask,
+                        alreadyBuiltMask: built,
+                      }) as readonly {
+                        tailToGhostPx: number | null;
+                        headToBuiltPx: number | null;
+                      }[];
+                      const raw = {
+                        xPx: arrows.displacementXPx as number,
+                        yPx: arrows.displacementYPx as number,
+                      };
+                      const measured = clearances.filter(
+                        (entry) => entry.tailToGhostPx !== null && entry.headToBuiltPx !== null,
+                      );
+                      // A missing gap is treated as zero rather than guessed,
+                      // which under-corrects and leaves the answer where it was.
+                      const corrected =
+                        measured.length === 0
+                          ? raw
+                          : (assembly.correctArrowForClearance(raw, {
+                              tailToGhostPx:
+                                measured.reduce((sum, e) => sum + e.tailToGhostPx!, 0) /
+                                measured.length,
+                              headToBuiltPx:
+                                measured.reduce((sum, e) => sum + e.headToBuiltPx!, 0) /
+                                measured.length,
+                            }) as { xPx: number; yPx: number });
+                      return assembly.arrowDisplacementFamily(projection, corrected) as readonly {
+                        lduX: number;
+                        lduY: number;
+                        lduZ: number;
+                        errorStuds: number;
+                      }[];
+                    })();
+
               const noSignal = placementSignalFailure({
                 stepNumber: spec.stepNumber,
                 hasHighlight: highlightBox !== null,
                 detectedArrowCount: (arrows.arrows as unknown[]).length,
-                usableArrowPlacementCount: 0,
+                usableArrowPlacementCount: arrowFamily.length,
                 independentPlacementSignalCount: 0,
               });
               const prerequisiteInput = {
