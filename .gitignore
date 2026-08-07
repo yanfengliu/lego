@@ -27,9 +27,14 @@ blob-report/
 .playwright-cli/
 /tmp/review-runs/
 
-# Product, broker, and recursive-loop artifacts
-/var/runs/
-/var/state/
+# Product, broker, and recursive-loop artifacts.
+# The whole of /var/ is ignored, not just runs/ and state/. The spec gives var/
+# exactly those two children and calls both ignored, so nothing under it is ever
+# a repository input — but naming only the two left the root itself offered to
+# Git, and an analysis session filled it with 62 MB of booklet crops and scratch
+# Python that a sweeping `git add` would have committed. Same accident the
+# recipes/ line below exists to prevent, one directory up.
+/var/
 /output/
 
 # Logs and process state
