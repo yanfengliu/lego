@@ -73,21 +73,15 @@ Measured: served requests move from 22 fulfilled and 4 blocked to **110 fulfille
 
 Two defects surfaced only because the run got that far, and both are the same shape — a check that no failing run could reach. `MAXIMUM_REPLAY_ROLE_COUNT` was 20 while the closure emits 21, and the twenty-first is `browser-output`, which exists only once the browser completes; the bound was one too small from the day it was written. And the drift check reported "digest map changed" and named nothing whenever its snapshot half fired alone, because that half was a bare `JSON.stringify` inequality; it now names the path and both digests.
 
-Still zero pieces placed, but the chain of harness refusals is exhausted and the blocker is now about the build. The driver runs, returns a valid document and the exact prepared PDF, and retains **0 identity bindings against the 4 the requested panels declare**. The steps say why:
+Still zero pieces placed, but the chain of harness refusals is exhausted, the arrows now convert, and **the search runs on a printed panel for the first time**. The driver returns a valid document and the exact prepared PDF; step 1 enumerates and renders four candidates under both the pruned and exhaustive strategies, and every one scores zero. Steps 2 and 3 are blocked behind it.
 
-```
-step 1 failed/deferred 0/2 — no-placement-signal: Step 1 has no enclosed highlight,
-  no usable arrow placement, and no independent placement signal. 2 arrow drawing(s)
-  were detected, but detections that have not been converted into candidate
-  constraints cannot justify choosing the first enumerated placement.
-step 2, step 3 — blocked-by-prior-step
-```
+`real-build-run.ts` used to read the displacement arrows and then pass `usableArrowPlacementCount: 0` as a literal, so every exploded step refused with `no-placement-signal`. The conversion existed and nothing called it: `measureArrowClearances` reads the gaps the artist left at each end, `correctArrowForClearance` adds them back — 0.00 to 0.47 of a stud on this booklet, always the same direction — and `arrowDisplacementFamily` returns every whole-grid displacement whose projection matches what is left. Wiring those moved step 1's refusal from `no-placement-signal` to `benchmark-disagreement`.
 
-That refusal is honest and its cause is one line: `real-build-run.ts` reads the arrows at `readDisplacementArrows` and then passes `usableArrowPlacementCount: 0` as a literal. Printed step 1 is an exploded step — the wedge plate drawn above the curved plate with two red arrows into it — so its highlight encloses nothing and the arrows are the whole placement signal.
+**Why the score is zero is a fact about the booklet, not a defect.** Step 1 reports `highlight 0 region(s), 0px stroke, closed 0; arrows 2 kept 0 rejected`. It is the first step, so nothing is already built and there is nothing to outline; the panel prints no highlight at all. `scoreStepDelta` therefore has `regionIou` null and an empty stroke mask, and every candidate scores zero by construction. The search is not failing — it is being asked a question this panel does not answer.
 
-The machinery to convert them exists and is unused by the run: `arrowDisplacementFamily` in `apps/web/src/assembly/arrow-placement.ts` returns every whole-grid displacement whose projection matches an arrow, and `arbitrateArrowCandidates` orders them — with its own warning that the order is pixel agreement and not a ranking of correctness, because on this projection several triples agree to within the measurement. Only `real-panel-scoring.ts` calls either. Wiring them into the run is the next change, and the honest expectation is that the family will be ambiguous rather than singular, which is what the search in the section below exists to settle.
+The panel's own drawn art cannot stand in for the missing highlight either, because step 1 is drawn exploded: the wedge floats above the curved plate with two arrows into it, so an assembled candidate does not match the drawing however it is placed.
 
-
+That is exactly the case the section below designs for — an exploded step need not be read at all, because the following step is not exploded. The run cannot yet do it: it settles each step against its own panel through `selectUniquePlacementScore`, which is why an unanswerable panel is a dead end rather than a deferral. Carrying step 1's candidates forward and letting step 2's panel score them is the next change, and it is the same swap the section below already argues for.
 
 Blocking at printed step 10 — chosen because step 11 is the only step in that prefix that needs `41769;G`, so a ten-step request separates the frame question from everything else: **seven input failures, all of them one cause.**
 
