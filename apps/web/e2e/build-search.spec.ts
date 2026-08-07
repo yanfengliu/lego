@@ -385,3 +385,315 @@ test("rebuilds a model from its own step pictures", async ({ page }) => {
     expect(step).toMatchObject({ drawnPlacementRendered: true, drawnPlacementRank: 0 });
   }
 });
+
+/**
+ * The same loop on a booklet that turns the model over partway through.
+ *
+ * Set 6651557 does this: it prints a rotate-the-model icon at each turn, and
+ * folding those over the opening steps gives studs up, studs up, studs up,
+ * underside, studs up, studs up, underside — five of its first forty-three
+ * panels are drawn from beneath. A loop that renders every candidate from above
+ * compares against the opposite face of the printed drawing and cannot recover,
+ * because the error is in the comparison rather than in the placement.
+ *
+ * The face cannot come from the panel's own stud grid: a below-view lattice at
+ * azimuth A is exactly an above-view lattice at -A, so no measurement of the
+ * grid separates them. It comes from the icon, and it is applied when a
+ * candidate is rendered, as (-A, -e).
+ *
+ * This drives the loop twice over one flipped booklet — once told the faces and
+ * once not — so the number says what consuming the icon is worth, rather than
+ * only that the face-aware run passes.
+ */
+test("rebuilds a model whose booklet turns it over", async ({ page }) => {
+  test.setTimeout(600_000);
+  await page.goto("/");
+  mkdirSync(OUT, { recursive: true });
+
+  const result = await page.evaluate(
+    async ({ kernelUrl, renderingUrl, commandsUrl, assemblyUrl, width, height }) => {
+      const kernel = await import(/* @vite-ignore */ kernelUrl);
+      const rendering = await import(/* @vite-ignore */ renderingUrl);
+      const commands = await import(/* @vite-ignore */ commandsUrl);
+      const assembly = await import(/* @vite-ignore */ assemblyUrl);
+
+      const COLOR = "builtin:light-bluish-gray";
+      const PROBE_COLOR = "builtin:magenta";
+      const PROBE_HEX = 0x923978;
+
+      // Deliberately not symmetric about the plate's centre: a symmetric layout
+      // projects the same from both faces and could not tell them apart.
+      const layout = [
+        { part: "builtin:plate-6x6", at: [0, 8, 0], face: "studs-up" },
+        { part: "builtin:brick-2x4", at: [-20, -8, -20], face: "studs-up" },
+        { part: "builtin:brick-2x2", at: [20, -8, 20], face: "underside" },
+        { part: "builtin:brick-1x6", at: [-50, -8, 0], face: "underside" },
+        { part: "builtin:plate-1x2", at: [-10, -24, -40], face: "studs-up" },
+        { part: "builtin:brick-1x1", at: [50, -8, -50], face: "studs-up" },
+      ];
+
+      const place = (document: unknown, part: string, transform: unknown, colorId: string) => {
+        const transaction = commands.createPlacePartTransaction(document, {
+          catalogPartId: part,
+          colorId,
+          transform,
+        });
+        return {
+          document: kernel.applyBuildOperations(document, transaction.operations),
+          partId: transaction.partId as string,
+        };
+      };
+      const upright = (at: number[]) => ({ positionLdu: at, orientationId: "upright-yaw-0" });
+
+      let reference = kernel.createEmptyBrickDocument({ id: "reference", name: "Reference" });
+      const states: { document: unknown; newPartId: string }[] = [];
+      for (const entry of layout) {
+        const placed = place(reference, entry.part, upright(entry.at), COLOR);
+        reference = placed.document;
+        states.push({ document: reference, newPartId: placed.partId });
+      }
+
+      const renderer = rendering.createInstructionRenderer({ width, height });
+      const finalScene = rendering.deriveBrickScene(reference, { finish: "instruction" });
+      const frame = rendering.instructionViewFrame(finalScene.bounds, width, height);
+      finalScene.dispose();
+
+      const AZIMUTH = 41;
+      const ELEVATION = 26;
+      // Both signs flip, measured rather than derived: the lattice fit reports a
+      // negated azimuth when the true view is below, so (A, -e) is a third
+      // camera that reproduces neither face.
+      const cameraFor = (face: string) =>
+        rendering.createOrthographicViewCamera(
+          {
+            azimuthDegrees: face === "underside" ? -AZIMUTH : AZIMUTH,
+            elevationDegrees: face === "underside" ? -ELEVATION : ELEVATION,
+            pixelsPerUnit: 52,
+            centerXPx: width / 2,
+            centerYPx: height * 0.62,
+          },
+          frame,
+        );
+      const cameras: Record<string, unknown> = {
+        "studs-up": cameraFor("studs-up"),
+        underside: cameraFor("underside"),
+      };
+
+      const renderMask = (document: unknown, highlightPartId: string | null, face: string) => {
+        const parts = (document as { parts: { id: string }[] }).parts;
+        const painted = {
+          ...(document as object),
+          parts: parts.map((part) =>
+            part.id === highlightPartId ? { ...part, colorId: PROBE_COLOR } : part,
+          ),
+        };
+        const scene = rendering.deriveBrickScene(painted, { finish: "instruction" });
+        rendering.setInstructionSilhouetteMode(scene.root, true);
+        const pixels = renderer.render(scene.root, cameras[face]);
+        const mask = new Uint8Array(width * height);
+        for (let index = 0; index < width * height; index += 1) {
+          const key =
+            (pixels[index * 4] << 16) | (pixels[index * 4 + 1] << 8) | pixels[index * 4 + 2];
+          if (key === PROBE_HEX) mask[index] = 1;
+        }
+        scene.dispose();
+        return mask;
+      };
+
+      // Each panel drawn from the face the booklet turned the model to.
+      const panels: { stepNumber: number; face: string; highlight: unknown }[] = [];
+      for (let step = 0; step < states.length; step += 1) {
+        const { document, newPartId } = states[step]!;
+        const face = layout[step]!.face;
+        const scene = rendering.deriveBrickScene(document, { finish: "instruction" });
+        const art = renderer.render(scene.root, cameras[face]).slice();
+        scene.dispose();
+        const visible = renderMask(document, newPartId, face);
+        const boundary = rendering.maskBoundary(visible, width, height);
+        for (let index = 0; index < width * height; index += 1) {
+          if (boundary[index] !== 1) continue;
+          art[index * 4] = 0xff;
+          art[index * 4 + 1] = 0xcc;
+          art[index * 4 + 2] = 0x00;
+        }
+        panels.push({
+          stepNumber: step + 1,
+          face,
+          highlight: assembly.extractHighlightRegions(art, width, height, {
+            minimumOutlinePx: 40,
+          }),
+        });
+      }
+
+      // One drive of the loop. faceAware decides whether the search is told
+      // which face each panel was drawn from, or assumes studs up throughout.
+      const drive = (faceAware: boolean) => {
+        const tree = new assembly.BuildTree();
+        let renderFace = "studs-up";
+        const candidateLog: { positionLdu: number[] }[] = [];
+        const scoreLog: { score: number }[] = [];
+        const deps = {
+          enumerate: (document: unknown, catalogPartId: string) =>
+            assembly.enumeratePlacements(document, catalogPartId, {
+              includeBuildPlate: (document as { parts: unknown[] }).parts.length === 0,
+            }).candidates,
+          projectBounds: (document: unknown, candidate: { transform: unknown }) => {
+            void document;
+            return assembly.projectPartBounds(candidate, cameras[renderFace], width, height);
+          },
+          renderCandidateMask: (
+            document: unknown,
+            candidate: { catalogPartId: string; transform: unknown },
+          ) => {
+            candidateLog.push(candidate.transform as { positionLdu: number[] });
+            const applied = place(
+              document,
+              candidate.catalogPartId,
+              candidate.transform,
+              PROBE_COLOR,
+            );
+            return renderMask(applied.document, applied.partId, renderFace);
+          },
+          score: (mask: Uint8Array, highlight: unknown) => {
+            const scored = assembly.scoreStepDelta(mask, highlight, { tolerancePx: 3 });
+            scoreLog.push(scored);
+            return scored;
+          },
+          apply: (
+            entry: { document: unknown; nodeId: string | null },
+            candidate: { catalogPartId: string; transform: unknown },
+            stepNumber: number,
+          ) => {
+            const { document } = place(
+              entry.document,
+              candidate.catalogPartId,
+              candidate.transform,
+              COLOR,
+            );
+            const node = tree.append(
+              entry.nodeId,
+              {
+                catalogPartId: candidate.catalogPartId,
+                colorId: COLOR,
+                transform: candidate.transform,
+                stepNumber,
+              },
+              kernel.documentStructuralHash(document),
+            );
+            return { document, nodeId: node.node.id };
+          },
+        };
+
+        let beam: {
+          document: unknown;
+          nodeId: string | null;
+          cumulativeScore: number;
+          stepScores: number[];
+        }[] = [
+          {
+            nodeId: null,
+            document: kernel.createEmptyBrickDocument({ id: "search", name: "Search" }),
+            cumulativeScore: 0,
+            stepScores: [],
+          },
+        ];
+        const trace: {
+          stepNumber: number;
+          face: string;
+          renderedFrom: string;
+          drawnPlacementRendered: boolean;
+          drawnPlacementRank: number | null;
+          drawnPlacementScore: number | null;
+          bestScore: number | null;
+        }[] = [];
+        let failedAtStep: number | null = null;
+        for (const panel of panels) {
+          renderFace = faceAware ? panel.face : "studs-up";
+          candidateLog.length = 0;
+          scoreLog.length = 0;
+          const outcome = assembly.advanceBeam(
+            beam,
+            {
+              stepNumber: panel.stepNumber,
+              catalogPartId: layout[panel.stepNumber - 1]!.part,
+              colorId: COLOR,
+              highlight: panel.highlight,
+            },
+            deps,
+            { beamWidth: 3, proximityMarginPx: 14, maxRendersPerBranch: 20 },
+          );
+          const wanted = layout[panel.stepNumber - 1]!.at;
+          const offered = candidateLog.findIndex(
+            (transform) =>
+              transform.positionLdu[0] === wanted[0] &&
+              transform.positionLdu[1] === wanted[1] &&
+              transform.positionLdu[2] === wanted[2],
+          );
+          const ranked = scoreLog
+            .map((entry, index) => ({ index, score: entry.score }))
+            .sort((left, right) => right.score - left.score);
+          trace.push({
+            stepNumber: panel.stepNumber,
+            face: panel.face,
+            renderedFrom: renderFace,
+            drawnPlacementRendered: offered >= 0,
+            drawnPlacementRank: offered >= 0 ? ranked.findIndex((e) => e.index === offered) : null,
+            drawnPlacementScore: offered >= 0 ? scoreLog[offered]!.score : null,
+            bestScore: ranked[0]?.score ?? null,
+          });
+          if (outcome.failure !== null) {
+            failedAtStep = panel.stepNumber;
+            break;
+          }
+          beam = outcome.beam;
+        }
+
+        const best = beam[0];
+        const comparison = best ? kernel.compareBuilds(reference, best.document) : null;
+        return {
+          failedAtStep,
+          trace,
+          correct: comparison ? comparison.steps.at(-1)!.cumulative.correct : 0,
+          expected: comparison ? comparison.steps.at(-1)!.cumulative.expectedParts : 0,
+          extra: comparison ? comparison.steps.at(-1)!.cumulative.extra : 0,
+          firstDivergentStepIndex: comparison ? comparison.firstDivergentStepIndex : null,
+          stepsRankedFirst: trace.filter((entry) => entry.drawnPlacementRank === 0).length,
+        };
+      };
+
+      const faceAware = drive(true);
+      const faceBlind = drive(false);
+      renderer.dispose();
+      return {
+        steps: layout.length,
+        undersideSteps: layout.filter((entry) => entry.face === "underside").length,
+        faceAware,
+        faceBlind,
+      };
+    },
+    {
+      kernelUrl: BRICK_KERNEL_MODULE_URL,
+      renderingUrl: RENDERING_MODULE_URL,
+      commandsUrl: MANUAL_COMMANDS_MODULE_URL,
+      assemblyUrl: ASSEMBLY_MODULE_URL,
+      width: WIDTH,
+      height: HEIGHT,
+    },
+  );
+
+  writeFileSync(`${OUT}/flipped-score.json`, JSON.stringify(result, null, 1));
+
+  // Told which face each panel was drawn from, the loop rebuilds the model
+  // exactly, with the drawn placement ranked first at every step.
+  expect(result.faceAware.failedAtStep).toBeNull();
+  expect(result.faceAware.correct).toBe(result.faceAware.expected);
+  expect(result.faceAware.extra).toBe(0);
+  expect(result.faceAware.firstDivergentStepIndex).toBeNull();
+  expect(result.faceAware.stepsRankedFirst).toBe(result.steps);
+
+  // Not told, it does not. This is what says consuming the icon is worth
+  // something: the comparison is against the opposite face of the drawing, and
+  // no placement can satisfy it.
+  expect(result.undersideSteps).toBeGreaterThan(0);
+  expect(result.faceBlind.stepsRankedFirst).toBeLessThan(result.faceAware.stepsRankedFirst);
+});
