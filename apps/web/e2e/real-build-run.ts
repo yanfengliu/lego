@@ -17,12 +17,10 @@ import type { RealBuildBrowserOutput } from "./real-build-browser-output";
 import {
   assessWholeStepVisualEvidence,
   executeCanonicalTransition,
-  instructionSilhouetteMasks,
   maskCentroid,
   measureWholeStepMaskEvidence,
   preflightRealBuildOptions,
   selectRequestedPanelPages,
-  shiftedMaskIou,
   unexecutedStepReport,
   validateRealBuildCandidate,
 } from "./real-build-contract";
@@ -38,6 +36,8 @@ import {
 import { evaluateSearchBenchmark } from "./real-build-search";
 import type { DeferralEvidence } from "./real-build-deferral";
 import { settleDeferredPrintedStep } from "./real-build-deferred-step";
+import { settleExplodedPrintedStep, type ExplodedGhostEvidence } from "./real-build-exploded-step";
+import { anchorStepCamera, createStepSilhouette } from "./real-build-step-camera";
 import { composeExecutedStepReport } from "./real-build-step-report";
 import {
   derivePanelRasterEvidence,
@@ -199,14 +199,30 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
               // wins.
               const localScoringSignal =
                 highlight.regions.length > 0 && (highlight.keyedPx as number) > 0;
-              const deferring =
-                !localScoringSignal &&
-                spec.action.kind === "place-callouts" &&
-                spec.pieces.length > 0;
+              const placesCallouts =
+                spec.action.kind === "place-callouts" && spec.pieces.length > 0;
+              const deferring = !localScoringSignal && placesCallouts;
+              // A step that prints a displacement arrow is drawn exploded: the
+              // yellow rings the part where the booklet floats it, not where it
+              // seats, so a seated candidate is being scored against a shape in
+              // the wrong place. The signal costs nothing — it is the same arrow
+              // reading the family comes from — and it separates this booklet's
+              // first three printed steps 2, 2, 0.
+              //
+              // Not on an anchor step, where nothing is built and the camera has
+              // no registration: that path centres each candidate on the
+              // highlight's own centroid, and a ghost free to be shifted onto the
+              // contour is contained by construction rather than by being right.
+              const exploded =
+                !deferring &&
+                !anchorStep &&
+                placesCallouts &&
+                (arrows.arrows as unknown[]).length > 0;
               const deferralTarget = deferring
                 ? (orderedPanels.find((panel) => panel.stepNumber > spec.stepNumber) ?? null)
                 : null;
               let deferral: DeferralEvidence | null = null;
+              let explodedGhost: ExplodedGhostEvidence | null = null;
               const prerequisiteInput = {
                 stepNumber: spec.stepNumber,
                 actionKind: spec.action.kind,
@@ -378,96 +394,67 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                 try {
                   const renderer = rendering.createInstructionRenderer({ width, height });
                   try {
-                    const silhouette = (
-                      subject: typeof document_,
-                      highlightPartId: string | readonly string[] | null,
-                      centre: [number, number],
-                    ) => {
-                      const subjectParts = (subject as { parts: { id: string }[] }).parts;
-                      const highlighted = new Set(
-                        highlightPartId === null
-                          ? []
-                          : typeof highlightPartId === "string"
-                            ? [highlightPartId]
-                            : highlightPartId,
-                      );
-                      const painted = {
-                        ...(subject as object),
-                        parts: subjectParts.map((part) =>
-                          highlighted.has(part.id) ? { ...part, colorId: "builtin:magenta" } : part,
-                        ),
-                      };
-                      const scene = rendering.deriveBrickScene(painted, { finish: "instruction" });
-                      let pixels: Uint8Array;
-                      try {
-                        rendering.setInstructionSilhouetteMode(scene.root, true);
-                        const camera = rendering.createOrthographicViewCamera(
-                          { ...view, centerXPx: centre[0], centerYPx: centre[1] },
-                          frame,
-                        );
-                        pixels = new Uint8Array(renderer.render(scene.root, camera));
-                      } finally {
-                        scene.dispose();
-                      }
-                      return instructionSilhouetteMasks(pixels, width, height, 0x923978);
-                    };
+                    const silhouette = createStepSilhouette({
+                      rendering,
+                      renderer,
+                      view,
+                      frame,
+                      widthPx: width,
+                      heightPx: height,
+                    });
 
                     let centre: [number, number] = [width / 2, height / 2];
                     let anchorIou: number | null = null;
                     let anchorShift: [number, number] | null = null;
 
                     if (!anchorStep) {
-                      const trial = silhouette(candidateDocument, null, centre);
-                      const from = maskCentroid(trial.all, width, height);
-                      const to = maskCentroid(built, width, height);
-                      if (from === null || to === null) {
-                        failure = {
-                          code: "camera-anchor-failed",
-                          stage: "camera-registration",
-                          message:
-                            `Step ${spec.stepNumber} could not anchor its camera: ` +
-                            (from === null
-                              ? `the model built so far rendered nothing at the panel's fitted angles.`
-                              : `the panel's already-built art is empty after the highlight was removed, so there was nothing to register against.`),
-                        };
-                      } else {
-                        const seedX = Math.round(to.x - from.x);
-                        const seedY = Math.round(to.y - from.y);
-                        const shiftedIou = (dx: number, dy: number) =>
-                          shiftedMaskIou({
-                            mask: trial.all,
-                            target: built,
-                            width,
-                            height,
-                            dx,
-                            dy,
-                          });
-                        let best = { dx: seedX, dy: seedY, iou: shiftedIou(seedX, seedY) };
-                        for (const step of [8, 3, 1]) {
-                          for (let dy = -4; dy <= 4; dy += 1) {
-                            for (let dx = -4; dx <= 4; dx += 1) {
-                              const candidate = {
-                                dx: best.dx + dx * step,
-                                dy: best.dy + dy * step,
-                              };
-                              const iou = shiftedIou(candidate.dx, candidate.dy);
-                              if (iou > best.iou) best = { ...candidate, iou };
-                            }
-                          }
-                        }
-                        centre = [width / 2 + best.dx, height / 2 + best.dy];
-                        anchorIou = best.iou;
-                        anchorShift = [best.dx, best.dy];
-                      }
+                      const anchored = anchorStepCamera({
+                        stepNumber: spec.stepNumber,
+                        modelMask: silhouette(candidateDocument, null, centre).all,
+                        builtMask: built,
+                        widthPx: width,
+                        heightPx: height,
+                      });
+                      failure = anchored.failure;
+                      centre = anchored.centrePx;
+                      anchorIou = anchored.anchorIou;
+                      anchorShift = anchored.anchorShiftPx;
                     }
 
                     if (failure === null) {
                       const placementMechanism: SuccessfulStepMechanism = deferring
                         ? "deferred-lookahead"
-                        : anchorStep
-                          ? "anchor-orientation"
-                          : "highlight";
+                        : exploded
+                          ? "exploded-ghost"
+                          : anchorStep
+                            ? "anchor-orientation"
+                            : "highlight";
                       attemptedMechanism = placementMechanism;
+                      if (exploded) {
+                        const settledExploded = settleExplodedPrintedStep({
+                          spec,
+                          baseDocument: stepBaseDocument,
+                          stepId: printedStepId,
+                          evidence,
+                          options,
+                          view,
+                          centrePx: centre,
+                          rendering,
+                          kernel,
+                          assembly,
+                          place,
+                        });
+                        explodedGhost = settledExploded.evidence;
+                        failure = settledExploded.failure;
+                        pieceReports.push(...settledExploded.pieceReports);
+                        if (settledExploded.placement !== null) {
+                          candidateDocument = settledExploded.placement.document;
+                          candidatePartIds.push(...settledExploded.placement.partIds);
+                          printedStepId = settledExploded.placement.stepId;
+                          pendingRegistrations.push(...settledExploded.placement.registrations);
+                          candidatePlaced += settledExploded.placement.partIds.length;
+                        }
+                      }
                       if (deferring) {
                         const settledDeferral = settleDeferredPrintedStep({
                           spec,
@@ -491,7 +478,7 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                           candidatePlaced += settledDeferral.placement.partIds.length;
                         }
                       }
-                      for (const [pieceIndex, piece] of deferring
+                      for (const [pieceIndex, piece] of deferring || exploded
                         ? []
                         : [...spec.pieces.entries()]) {
                         try {
@@ -772,18 +759,29 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                       }
 
                       // The joint visual gate measures this step's own printed
-                      // highlight, and a deferred step has none — union and
+                      // highlight against seated silhouettes, and neither a
+                      // deferred nor an exploded step can be asked that.
+                      //
+                      // A deferred step has no highlight at all — union and
                       // exclusive pixel counts are zero by construction, so
                       // running it would refuse every deferred step whatever it
                       // placed. Its evidence is the deferral's own gate instead:
                       // agreement with the lookahead panel's already-built art,
-                      // over a margin no measured wrong pick has cleared. That
-                      // is reported in `deferral` and `jointVisual` stays null,
-                      // so the report says which gate ran rather than implying
-                      // this one passed.
+                      // over a margin no measured wrong pick has cleared.
+                      //
+                      // An exploded step has a highlight, but it rings the ghost
+                      // rather than the seat, so a seated union scored against it
+                      // is a comparison with a shape in the wrong place — on
+                      // printed step 2 the drawn placement reaches region IoU
+                      // 0.000155 there. Its evidence is the ghost gate instead.
+                      //
+                      // Both are reported in their own field and `jointVisual`
+                      // stays null, so the report says which gate ran rather than
+                      // implying this one passed.
                       if (
                         failure === null &&
                         !deferring &&
+                        !exploded &&
                         candidatePlaced === spec.action.assembledPieces
                       ) {
                         const pieceMasks = candidatePartIds.map(
@@ -928,6 +926,7 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                   pieces: pieceReports,
                   jointVisual,
                   deferral,
+                  explodedGhost,
                   placedPieces: placed,
                   canonicalStepId: printedStepId,
                   documentParts: (document_ as { parts: unknown[] }).parts.length,

@@ -1,4 +1,5 @@
 import type { DeferralEvidence } from "./real-build-deferral";
+import type { ExplodedGhostEvidence } from "./real-build-exploded-step";
 import type { PanelRasterEvidence } from "./real-build-panel-raster";
 import type {
   RealBuildPanelSpec,
@@ -68,6 +69,7 @@ export function composeExecutedStepReport(input: {
   readonly pieces: readonly RealBuildPieceReport[];
   readonly jointVisual: WholeStepVisualEvidence | null;
   readonly deferral: DeferralEvidence | null;
+  readonly explodedGhost: ExplodedGhostEvidence | null;
   readonly placedPieces: number;
   readonly canonicalStepId: string | null;
   readonly documentParts: number;
@@ -98,6 +100,7 @@ export function composeExecutedStepReport(input: {
     pieces: input.pieces,
     jointVisual: input.jointVisual,
     deferral: input.deferral,
+    explodedGhost: input.explodedGhost,
     documentParts: input.documentParts,
     elapsedMs: input.elapsedMs,
     panelPng: input.panelPng,

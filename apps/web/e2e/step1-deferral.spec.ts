@@ -334,7 +334,10 @@ test("what step 2 says about step 1's candidates", async ({ page }) => {
           arrows.displacementXPx !== null &&
           arrows.displacementYPx !== null
         ) {
-          const projection = assembly.panelProjectionFromFit(corrected);
+          // At the raster the arrows were read on: `readDisplacementArrows`
+          // above is handed `work.pixels`, and `corrected.pixelsPerUnit` is the
+          // fit over the full-resolution crop.
+          const projection = assembly.panelProjectionForWorkRaster(corrected, factor);
           const clearances = assembly.measureArrowClearances(arrows.arrows, {
             width,
             height,

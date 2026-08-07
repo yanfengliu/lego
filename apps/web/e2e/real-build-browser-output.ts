@@ -71,6 +71,7 @@ const REPORT_KEYS = [
   "pieces",
   "jointVisual",
   "deferral",
+  "explodedGhost",
   "documentParts",
   "elapsedMs",
   "panelPng",
@@ -163,6 +164,7 @@ function isStepOutcome(value: unknown): boolean {
         "arrow",
         "exhaustive",
         "deferred-lookahead",
+        "exploded-ghost",
         "instruction-transition",
         "official-ledger",
       ].includes(String(value.mechanism)) &&
@@ -379,6 +381,47 @@ function isHighlightEvidence(value: unknown, maximum: number): boolean {
   );
 }
 
+function isExplodedGhostEvidence(value: unknown): boolean {
+  if (value === null) return true;
+  return (
+    isRecord(value) &&
+    exactKeys(value, [
+      "displacements",
+      "wholeStepCandidates",
+      "rendered",
+      "printedRegionPx",
+      "ghostSilhouettePx",
+      "containmentCeiling",
+      "bestRegionIou",
+      "runnerUpRegionIou",
+      "bestOutsideRegionPx",
+      "containedCandidates",
+      "settled",
+    ]) &&
+    isBoundedInteger(value.displacements, Number.MAX_SAFE_INTEGER) &&
+    isBoundedInteger(value.wholeStepCandidates, Number.MAX_SAFE_INTEGER) &&
+    isBoundedInteger(value.rendered, Number.MAX_SAFE_INTEGER) &&
+    isBoundedInteger(value.printedRegionPx, Number.MAX_SAFE_INTEGER) &&
+    isBoundedInteger(value.ghostSilhouettePx, Number.MAX_SAFE_INTEGER) &&
+    isFiniteNumber(value.containmentCeiling) &&
+    isNullableFiniteNumber(value.bestRegionIou) &&
+    isNullableFiniteNumber(value.runnerUpRegionIou) &&
+    (value.bestOutsideRegionPx === null ||
+      isBoundedInteger(value.bestOutsideRegionPx, Number.MAX_SAFE_INTEGER)) &&
+    isBoundedInteger(value.containedCandidates, Number.MAX_SAFE_INTEGER) &&
+    typeof value.settled === "boolean" &&
+    // A settled exploded step must have redrawn something along an arrow and
+    // found exactly one ghost the printed contour contains. Without this a run
+    // could report `settled: true` having rendered nothing, which is the claim
+    // this field exists to make checkable.
+    (!value.settled ||
+      (value.containedCandidates === 1 &&
+        (value.displacements as number) > 0 &&
+        (value.rendered as number) > 0 &&
+        isFiniteNumber(value.bestRegionIou)))
+  );
+}
+
 function isDeferralEvidence(value: unknown): boolean {
   if (value === null) return true;
   return (
@@ -473,6 +516,7 @@ function assertStepReportShape(
     !report.pieces.every((piece) => isPieceReport(piece, options.maxParts)) ||
     !isWholeStepVisual(report.jointVisual, options.maxParts) ||
     !isDeferralEvidence(report.deferral) ||
+    !isExplodedGhostEvidence(report.explodedGhost) ||
     !isBoundedInteger(report.documentParts, options.maxParts) ||
     !isFiniteNumber(report.elapsedMs) ||
     report.elapsedMs < 0 ||

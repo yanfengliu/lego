@@ -233,11 +233,20 @@ export function derivePanelRasterEvidence(input: {
   // which is why the family is handed to the panel-scored search rather than
   // read as an answer; what it establishes is that the arrow constrains the
   // placement at all, which is exactly what the refusal asks for.
+  //
+  // The projection is built at the raster the arrow was measured on. The fit
+  // above reads the stud lattice off the full-resolution crop, while
+  // `readDisplacementArrows` reads `work.pixels` — the same crop downsampled by
+  // `factor` — and every mask returned here is that size. Inverting a work-pixel
+  // displacement through the full-resolution projection reported exactly
+  // `factor` times too little travel; the renderer divides the same number
+  // (`real-build-run.ts` and `real-build-deferred-step.ts` both build their view
+  // at `pixelsPerUnit / workFactor`) and this path did not.
   const arrowFamily =
     faceCorrectedFit === null || arrows.displacementXPx === null || arrows.displacementYPx === null
       ? []
       : (() => {
-          const projection = assembly.panelProjectionFromFit(faceCorrectedFit);
+          const projection = assembly.panelProjectionForWorkRaster(faceCorrectedFit, factor);
           const clearances = assembly.measureArrowClearances(arrows.arrows, {
             width,
             height,

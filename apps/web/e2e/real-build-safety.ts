@@ -2,6 +2,7 @@ import type { PanelFace } from "../src/assembly/panel-face";
 
 import type { CoverageInputBindings, StepCoverageCalloutClaim } from "./real-build-coverage";
 import type { DeferralEvidence } from "./real-build-deferral";
+import type { ExplodedGhostEvidence } from "./real-build-exploded-step";
 import type { TrustedIdentificationConfidence } from "./real-build-identification-trust";
 
 export {
@@ -33,6 +34,13 @@ export type SuccessfulStepMechanism =
    * scored against the art that shows what this step built.
    */
   | "deferred-lookahead"
+  /**
+   * Settled against the ghost its own panel draws: the step is printed exploded,
+   * so its highlight rings the part where the booklet floats it rather than
+   * where it seats, and each candidate was redrawn back along the arrow's travel
+   * before being compared.
+   */
+  | "exploded-ghost"
   | "instruction-transition"
   | "official-ledger";
 
@@ -74,6 +82,7 @@ export type StepFailureCode =
   | "deferred-reach-unmeasured"
   | "weak-deferred-agreement"
   | "ambiguous-deferred-placement"
+  | "ambiguous-exploded-ghost"
   | "benchmark-prefix-mismatch"
   | "hard-validation-failed"
   | "hard-validation-error"
@@ -845,6 +854,18 @@ export interface RealBuildStepReport {
    * this field carries the evidence that replaced it.
    */
   readonly deferral: DeferralEvidence | null;
+  /**
+   * Set only when this step's panel drew its highlight round a ghost, and null
+   * otherwise — so its presence is the report that the step was read exploded.
+   *
+   * A step drawn exploded prints the part clear of the assembly with arrows into
+   * the seat, so the contour is around where the part is *drawn*. Scoring a
+   * seated candidate against it measures a shape in the wrong place, and
+   * `jointVisual` is therefore null on these steps: this field carries what
+   * replaced it, including the containment ceiling the panel's own geometry
+   * imposes on any score it could reach.
+   */
+  readonly explodedGhost: ExplodedGhostEvidence | null;
   readonly documentParts: number;
   readonly elapsedMs: number;
   readonly panelPng: string | null;

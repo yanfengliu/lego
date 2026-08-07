@@ -573,6 +573,7 @@ export function unexecutedStepReport(
     pieces: [],
     jointVisual: null,
     deferral: null,
+    explodedGhost: null,
     documentParts: input.documentParts ?? 0,
     elapsedMs: input.elapsedMs ?? 0,
     panelPng: null,

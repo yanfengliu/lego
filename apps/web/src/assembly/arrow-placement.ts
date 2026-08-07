@@ -274,6 +274,40 @@ export function arbitrateArrowCandidates(
   };
 }
 
+/**
+ * The projection to invert an arrow that was read off a downsampled raster.
+ *
+ * A camera fit is measured on one raster and an arrow is often read on another.
+ * The run fits the stud lattice on the full-resolution panel crop and then reads
+ * the arrows off the same crop downsampled by `workFactor`, so a displacement in
+ * work pixels inverted through the full-resolution projection reports exactly
+ * `workFactor` times too little travel. The renderer already divides — every
+ * candidate is rendered at `pixelsPerUnit / workFactor` — and the arrow path is
+ * the one place that did not, which halved every arrow-derived displacement in
+ * the repository.
+ *
+ * It is stated as its own function rather than as a division at the call site
+ * because the two rasters are the whole content of the mistake: the caller has
+ * to name which raster its pixels were measured on, and cannot express that by
+ * passing a fit alone.
+ */
+export function panelProjectionForWorkRaster(
+  fit: {
+    readonly azimuthDegrees: number;
+    readonly elevationDegrees: number;
+    readonly pixelsPerUnit: number;
+  },
+  workFactor: number,
+): PanelProjection {
+  if (!Number.isInteger(workFactor) || workFactor < 1) {
+    throw new ArrowPlacementError(
+      `workFactor must be a whole downsampling factor of at least 1, received ${String(workFactor)}. ` +
+        `It is how many full-resolution pixels one measured pixel spans, so a fractional or zero factor describes no raster.`,
+    );
+  }
+  return panelProjectionFromFit({ ...fit, pixelsPerUnit: fit.pixelsPerUnit / workFactor });
+}
+
 /** The projection a fitted panel camera implies, in the form the inversion needs. */
 export function panelProjectionFromFit(fit: {
   readonly azimuthDegrees: number;

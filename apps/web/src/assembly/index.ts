@@ -11,6 +11,7 @@ export * from "./backtracking-search";
 export * from "./build-tree";
 export * from "./enumerate-placements";
 export * from "./exploded-score";
+export * from "./ghost-placement";
 export * from "./lattice-placements";
 export * from "./panel-art";
 export * from "./panel-arrows";

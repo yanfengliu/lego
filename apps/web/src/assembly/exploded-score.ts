@@ -65,6 +65,15 @@ import type { HighlightExtraction, HighlightRegionBounds } from "../instructions
  *
  * Read it as a prior over a neighbourhood about a stud across, which physics
  * and part identity then have to resolve. It is not a placement.
+ *
+ * One thing this is *not*, because the name invites the mistake: it is not the
+ * scorer for an exploded step's own panel. It deliberately zeroes every pixel
+ * either panel's highlight claims — panel N's highlight is the ghost contour —
+ * so it throws away exactly the evidence a step's own picture supplies. Reading
+ * an exploded step against the ghost it draws is `ghost-placement.ts`, which
+ * compares a ghost-positioned silhouette against the printed region with
+ * `scoreStepDelta`'s own region agreement. This module answers the different
+ * question of where the part came to rest, per the *next* panel.
  */
 export const PANEL_DELTA_SCHEMA_VERSION = "lego.step-panel-delta/1" as const;
 export const EXPLODED_SCORE_SCHEMA_VERSION = "lego.exploded-step-score/1" as const;

@@ -5,6 +5,8 @@ import {
   arrowDisplacementFamily,
   ArrowPlacementError,
   correctArrowForClearance,
+  panelProjectionForWorkRaster,
+  panelProjectionFromFit,
   type PanelProjection,
 } from "./arrow-placement";
 
@@ -139,6 +141,77 @@ describe("arrowDisplacementFamily", () => {
     expect(() =>
       arrowDisplacementFamily({ ...STEP_ONE, pixelsPerStud: 0 }, { xPx: 0, yPx: 10 }),
     ).toThrow(/needs a positive pixelsPerStud, received 0/);
+  });
+});
+
+describe("panelProjectionForWorkRaster", () => {
+  /**
+   * Panel 2 of the sample booklet: the lattice fit is measured on the
+   * full-resolution crop, and the arrows are read off the same crop downsampled
+   * by the run's work factor.
+   */
+  const FIT = {
+    azimuthDegrees: 54.882572739160764,
+    elevationDegrees: 35.639060713178495,
+    pixelsPerUnit: 40.574776536412344,
+  };
+  const WORK_FACTOR = 2;
+  // Straight up the page, which is the direction panel 2's arrows draw, over an
+  // even number of plates so that the factor divides the travel exactly and the
+  // mistake below is arithmetic rather than a rounding.
+  const TRAVEL = { studsA: 0, studsB: 0, plates: 8 };
+
+  /** The same travel, as it is measured on each of the two rasters. */
+  const fullResolutionPx = project(
+    panelProjectionFromFit(FIT),
+    TRAVEL.studsA,
+    TRAVEL.studsB,
+    TRAVEL.plates,
+  );
+  const workRasterPx = {
+    xPx: fullResolutionPx.xPx / WORK_FACTOR,
+    yPx: fullResolutionPx.yPx / WORK_FACTOR,
+  };
+
+  it("recovers the travel a displacement measured on the work raster came from", () => {
+    const family = arrowDisplacementFamily(
+      panelProjectionForWorkRaster(FIT, WORK_FACTOR),
+      workRasterPx,
+    );
+    expect(family[0]).toMatchObject(TRAVEL);
+    expect(family[0]!.errorStuds).toBeCloseTo(0, 9);
+  });
+
+  it("reports the same travel from either raster, which is the whole point", () => {
+    const fromFull = arrowDisplacementFamily(panelProjectionFromFit(FIT), fullResolutionPx);
+    const fromWork = arrowDisplacementFamily(
+      panelProjectionForWorkRaster(FIT, WORK_FACTOR),
+      workRasterPx,
+    );
+    expect(fromWork.map(({ lduX, lduY, lduZ }) => [lduX, lduY, lduZ])).toStrictEqual(
+      fromFull.map(({ lduX, lduY, lduZ }) => [lduX, lduY, lduZ]),
+    );
+  });
+
+  it("reads exactly a factor too little travel when the rasters are mixed up", () => {
+    // The defect this replaces, stated as the arithmetic rather than as a
+    // number: inverting a work-pixel displacement through the full-resolution
+    // projection divides the answer by the work factor, and the run's whole
+    // arrow family inherited it.
+    const mixedUp = arrowDisplacementFamily(panelProjectionFromFit(FIT), workRasterPx);
+    expect(mixedUp[0]).toMatchObject({ ...TRAVEL, plates: TRAVEL.plates / WORK_FACTOR });
+    expect(mixedUp.every((entry) => entry.plates < TRAVEL.plates)).toBe(true);
+  });
+
+  it("is the fit's own projection when nothing was downsampled", () => {
+    expect(panelProjectionForWorkRaster(FIT, 1)).toStrictEqual(panelProjectionFromFit(FIT));
+  });
+
+  it("names the factor rather than accepting a raster nobody rendered", () => {
+    expect(() => panelProjectionForWorkRaster(FIT, 1.5)).toThrow(
+      /workFactor must be a whole downsampling factor of at least 1, received 1.5/,
+    );
+    expect(() => panelProjectionForWorkRaster(FIT, 0)).toThrow(/received 0/);
   });
 });
 

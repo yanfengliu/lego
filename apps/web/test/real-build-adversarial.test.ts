@@ -81,6 +81,7 @@ const completeReport = (stepNumber: number): RealBuildStepReport => ({
   pieces: [],
   jointVisual: null,
   deferral: null,
+  explodedGhost: null,
   documentParts: 0,
   elapsedMs: 1,
   panelPng: null,
