@@ -32,4 +32,26 @@ scripts/fixtures/** -text
 # A generated file is the risky class by construction: something regenerates it
 # and something else checks the result matches byte for byte.
 packages/catalog/src/quarantine/** -text
-*.generated.json -text
+*.generated.* -text
+
+# That claim was written as `*.generated.json`, which protected the one file the
+# incident named and left the rest of the class translated. A fresh worktree
+# therefore still cannot pass `npm run verify`: it fails at the very first stage,
+# because packages/protocol/scripts/generate.mjs --check compares bytes against
+# types.generated.ts, public-types.generated.ts, validators.generated.js and
+# validators.generated.d.ts, and it fails again inside `npm run test`, because
+# packages/catalog/src/bundled-geometry-notices.test.ts asserts that
+# docs/bundled-geometry-notices.md equals what the catalog renders. Not one of
+# those files differs from the index by a character; only the checkout does.
+#
+# `npm run pin:check` shows what that costs whoever reads the failure. It calls
+# the run pin stale and then prints the held and the produced digest side by
+# side - and they are the same digest, sha256:366fefbf... twice. The check is
+# comparing file bytes while its message talks about hashes, so the error argues
+# against its own verdict and sends the reader after a regeneration that will
+# change nothing.
+#
+# So the suffix rule now covers the class rather than one extension of it, and
+# the two generated documents that do not carry the suffix are named directly.
+THIRD_PARTY_NOTICES.md -text
+docs/bundled-geometry-notices.md -text
