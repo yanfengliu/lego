@@ -119,7 +119,7 @@ This inventory records the exact installed npm dependency graph. The correspondi
 | assertion-error | 2.0.1 | MIT | https://registry.npmjs.org/assertion-error/-/assertion-error-2.0.1.tgz |
 | balanced-match | 4.0.4 | MIT | https://registry.npmjs.org/balanced-match/-/balanced-match-4.0.4.tgz |
 | baseline-browser-mapping | 2.10.42 | Apache-2.0 | https://registry.npmjs.org/baseline-browser-mapping/-/baseline-browser-mapping-2.10.42.tgz |
-| brace-expansion | 5.0.7 | MIT | https://registry.npmjs.org/brace-expansion/-/brace-expansion-5.0.7.tgz |
+| brace-expansion | 5.0.9 | MIT | https://registry.npmjs.org/brace-expansion/-/brace-expansion-5.0.9.tgz |
 | browserslist | 4.28.5 | MIT | https://registry.npmjs.org/browserslist/-/browserslist-4.28.5.tgz |
 | caniuse-lite | 1.0.30001803 | CC-BY-4.0 | https://registry.npmjs.org/caniuse-lite/-/caniuse-lite-1.0.30001803.tgz |
 | chai | 6.2.2 | MIT | https://registry.npmjs.org/chai/-/chai-6.2.2.tgz |
@@ -149,7 +149,7 @@ This inventory records the exact installed npm dependency graph. The correspondi
 | fast-deep-equal | 3.1.3 | MIT | https://registry.npmjs.org/fast-deep-equal/-/fast-deep-equal-3.1.3.tgz |
 | fast-json-stable-stringify | 2.1.0 | MIT | https://registry.npmjs.org/fast-json-stable-stringify/-/fast-json-stable-stringify-2.1.0.tgz |
 | fast-levenshtein | 2.0.6 | MIT | https://registry.npmjs.org/fast-levenshtein/-/fast-levenshtein-2.0.6.tgz |
-| fast-uri | 3.1.3 | BSD-3-Clause | https://registry.npmjs.org/fast-uri/-/fast-uri-3.1.3.tgz |
+| fast-uri | 3.1.5 | BSD-3-Clause | https://registry.npmjs.org/fast-uri/-/fast-uri-3.1.5.tgz |
 | fdir | 6.5.0 | MIT | https://registry.npmjs.org/fdir/-/fdir-6.5.0.tgz |
 | fflate | 0.8.3 | MIT | https://registry.npmjs.org/fflate/-/fflate-0.8.3.tgz |
 | file-entry-cache | 8.0.0 | MIT | https://registry.npmjs.org/file-entry-cache/-/file-entry-cache-8.0.0.tgz |
@@ -170,7 +170,7 @@ This inventory records the exact installed npm dependency graph. The correspondi
 | is-glob | 4.0.3 | MIT | https://registry.npmjs.org/is-glob/-/is-glob-4.0.3.tgz |
 | isexe | 2.0.0 | ISC | https://registry.npmjs.org/isexe/-/isexe-2.0.0.tgz |
 | js-tokens | 4.0.0 | MIT | https://registry.npmjs.org/js-tokens/-/js-tokens-4.0.0.tgz |
-| js-yaml | 4.3.0 | MIT | https://registry.npmjs.org/js-yaml/-/js-yaml-4.3.0.tgz |
+| js-yaml | 4.3.1 | MIT | https://registry.npmjs.org/js-yaml/-/js-yaml-4.3.1.tgz |
 | jsesc | 3.1.0 | MIT | https://registry.npmjs.org/jsesc/-/jsesc-3.1.0.tgz |
 | json-buffer | 3.0.1 | MIT | https://registry.npmjs.org/json-buffer/-/json-buffer-3.0.1.tgz |
 | json-schema-to-typescript | 15.0.4 | MIT | https://registry.npmjs.org/json-schema-to-typescript/-/json-schema-to-typescript-15.0.4.tgz |
@@ -200,7 +200,7 @@ This inventory records the exact installed npm dependency graph. The correspondi
 | minimatch | 10.2.5 | BlueOak-1.0.0 | https://registry.npmjs.org/minimatch/-/minimatch-10.2.5.tgz |
 | minimist | 1.2.8 | MIT | https://registry.npmjs.org/minimist/-/minimist-1.2.8.tgz |
 | ms | 2.1.3 | MIT | https://registry.npmjs.org/ms/-/ms-2.1.3.tgz |
-| nanoid | 3.3.15 | MIT | https://registry.npmjs.org/nanoid/-/nanoid-3.3.15.tgz |
+| nanoid | 3.3.17 | MIT | https://registry.npmjs.org/nanoid/-/nanoid-3.3.17.tgz |
 | natural-compare | 1.4.0 | MIT | https://registry.npmjs.org/natural-compare/-/natural-compare-1.4.0.tgz |
 | node-releases | 2.0.51 | MIT | https://registry.npmjs.org/node-releases/-/node-releases-2.0.51.tgz |
 | obug | 2.1.3 | MIT | https://registry.npmjs.org/obug/-/obug-2.1.3.tgz |
@@ -215,7 +215,7 @@ This inventory records the exact installed npm dependency graph. The correspondi
 | picomatch | 4.0.5 | MIT | https://registry.npmjs.org/picomatch/-/picomatch-4.0.5.tgz |
 | playwright-core | 1.61.1 | Apache-2.0 | https://registry.npmjs.org/playwright-core/-/playwright-core-1.61.1.tgz |
 | playwright | 1.61.1 | Apache-2.0 | https://registry.npmjs.org/playwright/-/playwright-1.61.1.tgz |
-| postcss | 8.5.16 | MIT | https://registry.npmjs.org/postcss/-/postcss-8.5.16.tgz |
+| postcss | 8.5.26 | MIT | https://registry.npmjs.org/postcss/-/postcss-8.5.26.tgz |
 | prelude-ls | 1.2.1 | MIT | https://registry.npmjs.org/prelude-ls/-/prelude-ls-1.2.1.tgz |
 | prettier | 3.9.5 | MIT | https://registry.npmjs.org/prettier/-/prettier-3.9.5.tgz |
 | punycode | 2.3.1 | MIT | https://registry.npmjs.org/punycode/-/punycode-2.3.1.tgz |
