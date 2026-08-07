@@ -70,23 +70,6 @@ Both are checkable the moment a booklet is read, with no model built, and both a
 
 **Anchor:** commit `00607a9`; `checkBookletConsistency`; `output/booklet-score.json` records 359/359 steps and 3102 callout pieces.
 
-## Reading a document's structure is not the same as seeing it
-
-The sample booklet's operator counts are dominated by `constructPath` and
-`setFillRGBColor`, so the art was taken to be vector and a shape reader was
-built on that basis.
-Rendering a page and looking at it showed the assemblies are raster images; the
-filled paths are the callout box, the panel divider, and the progress bar.
-Six sampled pages yielded 119 paths and five colours, every one of them page
-furniture rather than a brick.
-
-Looking also surfaced what the structure never would: newly placed parts are
-outlined in yellow on every step, which marks the per-step delta directly in the
-art, and the model needs wedge and curved plates far longer than the catalog
-holds.
-
-**Anchor:** commit `0b03905` and its correction; `apps/web/e2e/pdf-render.spec.ts`; pages 12 and 120 of `recipes/6651557.pdf`.
-
 ## A cost curve's true minimum is its sharpest point, and smoothing destroys it
 
 The stud-pitch estimator scored each candidate period by how badly the traced edge failed to repeat at it, then looked for the dip.
@@ -377,18 +360,6 @@ So the arrow is worth about a fifth of a stud raw and a twentieth once the clear
 The reference is the red arrow's own tail-to-head vector, which the score never reads, and it is good to about half a stud because an arrow is drawn with clearance at both ends.
 `placement-010-011.png` is the picture to look at: the emerged region sits squarely on the landing site and the score's winner and the arrows' answer are half a stud apart.
 
-## Give each Playwright run its own dev-server port
-
-The e2e global setup pinned vite to port 5267. With several agents working in one checkout the obvious cost was queueing — "Port 5267 is already in use", tens of minutes lost each, and one agent resorting to killing every node process, which took a sibling agent down with it mid-flight.
-
-The cost that actually mattered was invisible. Two runs that *do* get through share one dev server, and therefore share the application's state. A spec that calls `resetScene` clears the model out from under another run's spec, which then measures an empty viewport and fails an assertion about the part it placed.
-
-That is how `compound-part-shapes.spec.ts:64` came to be reported as red on `main` by two separate sessions: its silhouette-differs-from-a-plain-box assertion failed because another run had wiped the placed part. On a port of its own the same commit passes. Nobody had introduced a defect, and a real morning could have gone into finding one.
-
-The port is now derived from the process id in `playwright.config.ts`, with `LEGO_E2E_PORT` to pin it. It is chosen in the config rather than in global setup because Playwright reads `baseURL` before setup runs, so that is the last moment the server and the tests can still agree on a number.
-
-**Anchor:** `playwright.config.ts`, `apps/web/e2e/global-setup.ts`; `compound-part-shapes.spec.ts` red under contention and green on a free port at the same commit (0267c09); full suite 31 passed.
-
 ## Matching a gallery one item at a time discards the constraint that makes it a gallery
 
 Naming the part a step adds is matching its printed callout drawing against the back-of-book parts list, which is a labelled gallery of the same drawings.
@@ -536,19 +507,6 @@ Grep an environment variable name before adding it; a repository that reads conf
 And a self-check built from the same symbol as the thing it checks is not evidence — it only proves the code is consistent with itself. Verifying a destination means naming it independently: an absolute literal, a directory listing, or a second process.
 
 **Anchor:** `LEGO_REAL_BUILD_PUBLISH_TRANSITIONS` in `apps/web/e2e/real-build-transitions.spec.ts` with the collision recorded at its declaration, against `TRANSITION_CLASSIFICATIONS_PATH` in `apps/web/e2e/real-build-input-files.ts:71`. Observed 2026-08-05 on set 6651557: three consecutive green runs wrote 34,784 bytes to `<repo>/1` while `output/real-build/transition-classifications.json` never existed.
-
-## A printed icon that looks like an instruction can be page chrome
-
-Set 6651557 prints 359 steps, and 26 of them call out no new piece.
-Six of those 26 carry the rotate-the-model icon, which reads exactly like a "this step is a rotation" marker — and it is genuinely vector, a white 44.937pt square with a glyph over it, so it is cheap and exact to detect where the brick art (raster, every assembly a `paintImageXObject`) is not.
-
-Counting it across the whole booklet is what settled its meaning: the icon appears on 39 printed steps, and 33 of those also print piece callouts.
-It is a note about the viewpoint the step is drawn from, not a name for the action. Mapping it to the `rotation` decision would have mislabelled six placement steps out of 26 — a 23% error on the only class the classifier had any variance in.
-
-The wider point is what the vector layer can and cannot answer. It carries the page furniture: callout boxes, dividers, the progress bar, this icon. Every cue that would actually separate a rotation from an attachment — the yellow outline round the part that moves, the leader line, the placement arrow — is drawn in the raster artwork and is invisible to it.
-So a vector-only classifier can decide *whether* a step is a transition (it counts callout boxes) but not reliably *which kind*, and saying so is the finding. That gap is what a vision call is for.
-
-**Anchor:** `deriveTransitionPanelFeatures` and `proposeDeterministicTransition` in `apps/web/e2e/real-build-transition-features.ts`, regression `does not turn the rotate-the-model icon into a rotation decision` in `apps/web/test/real-build-transition-classification.test.ts`. Measured 2026-08-05 over all 224 pages: 39 icons, one per page, all 44.937 × 44.937pt, nearest other white near-square 66.4pt.
 
 ## An exact fit to a symmetric feature set is not one answer
 
