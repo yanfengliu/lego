@@ -37,6 +37,14 @@ blob-report/
 /var/
 /output/
 
+# Agent worktrees. Each is a whole checkout of this repository nested inside it,
+# so a sweeping `git add` offers a duplicate of every tracked file to the commit
+# — the same accident as /var/ above, one directory deeper and thousands of
+# files wider. Only .git/info/exclude carried this, which is per-machine and
+# does not survive a clone, so a rebuilt machine had the hole open again.
+# worktrees/ alone, not .claude/: launch.json beside it is tracked.
+/.claude/worktrees/
+
 # Logs and process state
 logs/
 *.log
