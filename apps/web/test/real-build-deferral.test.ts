@@ -291,7 +291,17 @@ function drawnStepOne(): {
   };
 }
 
-describe("deferred printed step", () => {
+// Settling a step rasterises its candidates against a printed panel, which is
+// the most expensive work any unit test here does. Measured inside a full
+// `vitest run` with the ceiling lifted: 4787ms to settle step 1 and 3484ms to
+// report the depth reached, against Vitest's 5000ms default. That is 96% of the
+// budget, so the suite failed on roughly three runs in four - always by timeout,
+// and on whichever of the two tests the scheduler happened to slow, which reads
+// as a flaky assertion rather than as a ceiling set too close to the work. Alone
+// the same test takes 2279ms, so the load multiplier is the thing to leave room
+// for: 30000ms is a bit over 6x the loaded measurement, still low enough that a
+// genuine hang fails the run rather than hanging it.
+describe("deferred printed step", { timeout: 30_000 }, () => {
   const stepOne = panelSpec(1, [
     { catalogPartId: "builtin:corner-plate-5x5-quarter-ring" },
     { catalogPartId: "builtin:corner-plate-4x4-round" },
