@@ -25,10 +25,19 @@ import {
  *
  * This is the branching factor of the whole closed-loop search, so it is
  * enumerated from connections rather than swept over a lattice: a placement is
- * legal almost always because some of the part's underside clutches land on
- * studs that are free, and there are far fewer free studs than lattice cells.
- * Solving `origin = stud - rotate(clutch)` turns each (free stud, clutch,
- * orientation) triple straight into an exact integer origin.
+ * legal because some of its ports meet a free port of the assembly, and there
+ * are far fewer free ports than lattice cells. Solving `origin = port -
+ * rotate(port)` turns each (free port, candidate port, orientation) triple
+ * straight into an exact integer origin.
+ *
+ * A stud-tube joint has two sides and the enumeration seeds from both. The
+ * candidate's clutches landing on the assembly's free studs is the part going
+ * *on top*; the candidate's studs landing on the assembly's free clutches is the
+ * part sliding in *underneath*, which is what an instruction booklet draws with
+ * an upward arrow. Seeding only the first kind is not a smaller search, it is a
+ * search whose set can never contain that answer: measured on the booklet's
+ * printed step 2, the two seed sets are disjoint and the drawn placement is only
+ * in the second.
  *
  * Nothing here re-implements the rules. Support comes from the same predicate
  * the editor refuses placements with, and collisions are adjudicated by the
@@ -36,7 +45,7 @@ import {
  * so a candidate this accepts is one the document validator accepts. The tests
  * assert both directions of that against brute force.
  */
-export const PLACEMENT_ENUMERATION_VERSION = "lego.placement-enumeration/1" as const;
+export const PLACEMENT_ENUMERATION_VERSION = "lego.placement-enumeration/2" as const;
 
 export interface PlacementCandidate {
   readonly catalogPartId: string;
@@ -49,13 +58,19 @@ export interface PlacementCandidate {
 export interface PlacementEnumerationCounts {
   /** Studs on the assembly with no connection already using them. */
   readonly freeStuds: number;
-  /** (free stud x clutch x orientation) triples, before deduplication. */
+  /** Underside clutches on the assembly with no connection already using them. */
+  readonly freeClutches: number;
+  /** (free stud x candidate clutch x orientation) triples, before deduplication. */
   readonly rawFromStuds: number;
+  /** (free clutch x candidate stud x orientation) triples: the part goes under. */
+  readonly rawFromClutches: number;
   readonly rawFromBuildPlate: number;
   readonly distinctTransforms: number;
   readonly rejectedUnsupported: number;
   /** Held up by the plate but touching no other part, so the assembly splits. */
   readonly rejectedDetached: number;
+  /** Connected, but its body would be inside the build plate. */
+  readonly rejectedBelowBuildPlate: number;
   readonly rejectedColliding: number;
   readonly accepted: number;
 }
@@ -261,7 +276,14 @@ export function enumeratePlacements(
 
   const origins = new Map<string, { origin: LduVector3; orientationId: string }>();
   let rawFromStuds = 0;
+  let rawFromClutches = 0;
   let rawFromBuildPlate = 0;
+  const candidateClutchCount = definition.connectors.filter(
+    (connector) => connector.kind === "undersideClutch",
+  ).length;
+  const candidateStudCount = definition.connectors.filter(
+    (connector) => connector.kind === "stud",
+  ).length;
 
   const remember = (origin: LduVector3, orientationId: string): void => {
     const key = `${positionKey(origin)}|${orientationId}`;
@@ -269,7 +291,7 @@ export function enumeratePlacements(
     if (origins.size > maxDistinctTransforms) {
       throw new PlacementEnumerationError(
         `Enumerating ${catalogPartId} over ${document.parts.length} parts passed the ${maxDistinctTransforms} distinct-transform bound ` +
-          `(${freeStuds.size} free studs x ${definition.connectors.filter((c) => c.kind === "undersideClutch").length} clutches x ${orientationIds.length} orientations). ` +
+          `(${freeStuds.size} free studs x ${candidateClutchCount} clutches, plus ${freeClutches.size} free clutches x ${candidateStudCount} studs, x ${orientationIds.length} orientations). ` +
           `Nothing was truncated — a silently capped count would read as a tractable step that is not one. ` +
           `Raise maxDistinctTransforms deliberately, narrow orientationIds, or prune the assembly before enumerating.`,
       );
@@ -277,12 +299,23 @@ export function enumeratePlacements(
   };
 
   for (const orientationId of orientationIds) {
-    const clutchOffsets = portsByOrientation.get(orientationId)!.clutches;
+    const ports = portsByOrientation.get(orientationId)!;
+    // The candidate goes on top: its clutches land on free studs.
     for (const studPosition of freeStuds.keys()) {
       const [x, y, z] = studPosition.split(",").map(Number) as [number, number, number];
-      for (const clutch of clutchOffsets) {
+      for (const clutch of ports.clutches) {
         rawFromStuds += 1;
         remember([x - clutch.offset[0], y - clutch.offset[1], z - clutch.offset[2]], orientationId);
+      }
+    }
+    // The candidate goes underneath: its studs land on free clutches. The two
+    // sets are disjoint in general — a seat under the assembly is not a seat on
+    // it — so this is reachability, not a duplicate spelling of the loop above.
+    for (const clutchPosition of freeClutches.keys()) {
+      const [x, y, z] = clutchPosition.split(",").map(Number) as [number, number, number];
+      for (const stud of ports.studs) {
+        rawFromClutches += 1;
+        remember([x - stud.offset[0], y - stud.offset[1], z - stud.offset[2]], orientationId);
       }
     }
   }
@@ -303,6 +336,7 @@ export function enumeratePlacements(
   const allowDetached = options.allowDetached ?? assemblyIsEmpty;
   let rejectedUnsupported = 0;
   let rejectedDetached = 0;
+  let rejectedBelowBuildPlate = 0;
   let rejectedColliding = 0;
   const candidateId = "enumeration-candidate";
 
@@ -327,6 +361,17 @@ export function enumeratePlacements(
       else if (!allowDetached) rejectedDetached += 1;
       if (!restsOnBuildPlate || !allowDetached) continue;
     }
+    // Seeding from free clutches reaches under the assembly, and under the
+    // assembly is sometimes under the build plate: a part whose studs enter the
+    // clutches of something already resting on the plate has its own body inside
+    // the plate. The kernel has no collider for the plate, so the validator
+    // accepts it, but no build sequence can pass through that state — the same
+    // reason a detached placement is refused above. Rejected rather than scored,
+    // because a candidate the search can render is a candidate it can pick.
+    if (box.max[1] > GROUND_UNDERSIDE_LDU) {
+      rejectedBelowBuildPlate += 1;
+      continue;
+    }
 
     const findings = world.findCollisionsWith(
       candidate,
@@ -348,11 +393,14 @@ export function enumeratePlacements(
     candidates,
     counts: {
       freeStuds: freeStuds.size,
+      freeClutches: freeClutches.size,
       rawFromStuds,
+      rawFromClutches,
       rawFromBuildPlate,
       distinctTransforms: origins.size,
       rejectedUnsupported,
       rejectedDetached,
+      rejectedBelowBuildPlate,
       rejectedColliding,
       accepted: candidates.length,
     },

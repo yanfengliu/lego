@@ -393,6 +393,7 @@ function isDeferralEvidence(value: unknown): boolean {
       "runnerUpAgreement",
       "margin",
       "minimumMargin",
+      "minimumAgreement",
       "settled",
     ]) &&
     (value.lookaheadStepNumber === null ||
@@ -405,6 +406,7 @@ function isDeferralEvidence(value: unknown): boolean {
     isNullableFiniteNumber(value.runnerUpAgreement) &&
     isNullableFiniteNumber(value.margin) &&
     isFiniteNumber(value.minimumMargin) &&
+    isFiniteNumber(value.minimumAgreement) &&
     typeof value.settled === "boolean" &&
     // A settled deferral must name the panel that settled it and the margin it
     // cleared. Without this a run could report `settled: true` with no reach and

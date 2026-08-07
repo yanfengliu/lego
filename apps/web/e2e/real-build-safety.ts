@@ -71,6 +71,8 @@ export type StepFailureCode =
   | "tied-placement-score"
   | "ambiguous-placement-score"
   | "deferred-panel-unscored"
+  | "deferred-reach-unmeasured"
+  | "weak-deferred-agreement"
   | "ambiguous-deferred-placement"
   | "benchmark-prefix-mismatch"
   | "hard-validation-failed"
@@ -698,9 +700,16 @@ export interface RealBuildOptions {
   readonly deferredCandidateBudget: number;
   /**
    * Margin the best deferred candidate must beat the runner-up by on the
-   * lookahead panel. Set from `DEFERRED_STEP_MINIMUM_MARGIN`.
+   * lookahead panel. Set from `DEFERRED_STEP_MINIMUM_MARGIN`, which is a noise
+   * floor rather than a discriminator — see that constant for why.
    */
   readonly minimumDeferredAgreementMargin: number;
+  /**
+   * Agreement the best deferred candidate must reach against the lookahead
+   * panel's already-built art. Set from `DEFERRED_STEP_MINIMUM_AGREEMENT`, and
+   * it is the gate that actually decides a deferral.
+   */
+  readonly minimumDeferredAgreement: number;
   readonly proximityMarginPx: number;
   readonly targetPartCount: number;
   readonly maxParts: number;

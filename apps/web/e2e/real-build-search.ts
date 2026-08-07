@@ -30,18 +30,41 @@ export function evaluateSearchBenchmark<T, S extends ScoredPlacement<T>>(input: 
   readonly blind: BlindSearchReport;
 } {
   const prunedStarted = performance.now();
-  const prunedScores =
-    input.prunedCandidates.length > input.maxPrunedRenders
-      ? []
-      : input.prunedCandidates.map(input.score).sort((left, right) => right.score - left.score);
-  const prunedDecision = selectUniquePlacementScore({
-    stepNumber: input.stepNumber,
-    pieceIndex: input.pieceIndex,
-    catalogPartId: input.catalogPartId,
-    eligibleCandidates: input.prunedCandidates.length,
-    scores: prunedScores.map((entry) => ({ candidate: entry, score: entry.score })),
-    minimumMargin: input.minimumMargin,
-  });
+  // Over its budget the pruned strategy refuses rather than scoring a prefix of
+  // its set — but it says so in its own words. Reporting that as
+  // `incomplete-placement-scoring`, which is what fell out of handing an empty
+  // score list to the shared selector, describes the symptom and hides both the
+  // count that was eligible and the budget it passed; the run then prints a
+  // disagreement between a strategy that looked and one that declined, with
+  // nothing to say which.
+  const prunedOverBudget = input.prunedCandidates.length > input.maxPrunedRenders;
+  const prunedScores = prunedOverBudget
+    ? []
+    : input.prunedCandidates.map(input.score).sort((left, right) => right.score - left.score);
+  const prunedDecision = prunedOverBudget
+    ? {
+        winner: null,
+        runnerUp: null,
+        failure: {
+          code: "resource-budget-exhausted" as const,
+          stage: "budget" as const,
+          pieceIndex: input.pieceIndex,
+          catalogPartId: input.catalogPartId,
+          message:
+            `Step ${input.stepNumber} pruned search has ${input.prunedCandidates.length} eligible ` +
+            `placements for ${input.catalogPartId} after the proximity prune, over the explicit ` +
+            `${input.maxPrunedRenders} per-piece render budget. It was refused rather than truncated, so ` +
+            `nothing was scored.`,
+        },
+      }
+    : selectUniquePlacementScore({
+        stepNumber: input.stepNumber,
+        pieceIndex: input.pieceIndex,
+        catalogPartId: input.catalogPartId,
+        eligibleCandidates: input.prunedCandidates.length,
+        scores: prunedScores.map((entry) => ({ candidate: entry, score: entry.score })),
+        minimumMargin: input.minimumMargin,
+      });
   const prunedElapsedMs = Math.round(performance.now() - prunedStarted);
 
   let exhaustiveScores: S[] = [];

@@ -1,5 +1,6 @@
 import { instructionSilhouetteMasks, maskCentroid } from "./real-build-contract";
 import {
+  deferredReachFailure,
   enumerateWholeStepCandidates,
   registerPrefixAgreement,
   selectDeferredPlacement,
@@ -70,6 +71,8 @@ export function settleDeferredPrintedStep<D>(input: {
 }): DeferredStepSettlement<D> {
   const { spec, lookahead, options, rendering, kernel, assembly } = input;
   const minimumMargin = options.minimumDeferredAgreementMargin;
+  const minimumAgreement = options.minimumDeferredAgreement;
+  const reachSteps = lookahead === null ? 0 : lookahead.spec.stepNumber - spec.stepNumber;
   const baseHash = kernel.documentStructuralHash(input.baseDocument) as string;
 
   const refused = (
@@ -106,7 +109,7 @@ export function settleDeferredPrintedStep<D>(input: {
 
   const emptyEvidence: DeferralEvidence = {
     lookaheadStepNumber: lookahead?.spec.stepNumber ?? null,
-    reachSteps: lookahead === null ? 0 : lookahead.spec.stepNumber - spec.stepNumber,
+    reachSteps,
     wholeStepCandidates: 0,
     rendered: 0,
     lookaheadBuiltPixels: 0,
@@ -114,6 +117,7 @@ export function settleDeferredPrintedStep<D>(input: {
     runnerUpAgreement: null,
     margin: null,
     minimumMargin,
+    minimumAgreement,
     settled: false,
   };
 
@@ -127,6 +131,18 @@ export function settleDeferredPrintedStep<D>(input: {
         `later printed step was requested to settle it against. A one-step lookahead needs panel N+1; ` +
         `extend the requested range rather than accepting the first enumerated placement.`,
     });
+  }
+
+  const outOfReach = deferredReachFailure({
+    stepNumber: spec.stepNumber,
+    lookaheadStepNumber: lookahead.spec.stepNumber,
+    reachSteps,
+  });
+  if (outOfReach !== null) {
+    return refused(
+      { ...emptyEvidence, lookaheadStepNumber: lookahead.spec.stepNumber },
+      outOfReach,
+    );
   }
 
   const view =
@@ -255,14 +271,16 @@ export function settleDeferredPrintedStep<D>(input: {
   const decision = selectDeferredPlacement({
     stepNumber: spec.stepNumber,
     lookaheadStepNumber: lookahead.spec.stepNumber,
+    reachSteps,
     lookaheadBuiltPixels,
     scores: scored,
     minimumMargin,
+    minimumAgreement,
   });
   const ordered = [...scored].sort((left, right) => right.agreement - left.agreement);
   const evidence: DeferralEvidence = {
     lookaheadStepNumber: lookahead.spec.stepNumber,
-    reachSteps: lookahead.spec.stepNumber - spec.stepNumber,
+    reachSteps,
     wholeStepCandidates: enumeration.candidates.length,
     rendered,
     lookaheadBuiltPixels,
@@ -270,6 +288,7 @@ export function settleDeferredPrintedStep<D>(input: {
     runnerUpAgreement: ordered[1]?.agreement ?? null,
     margin: decision.margin,
     minimumMargin,
+    minimumAgreement,
     settled: decision.failure === null,
   };
   if (decision.failure !== null || decision.winner === null) {

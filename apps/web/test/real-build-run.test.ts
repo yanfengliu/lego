@@ -438,6 +438,8 @@ describe("real booklet build safety", () => {
       coverageInputBindings: { pdf: TEST_DIGEST, calloutManifest: TEST_DIGEST },
       minimumWholeStepScore: 0.45,
       minimumExclusiveHighlightPixelsPerPiece: 8,
+      maxRendersPerPiece: 220,
+      blindRenderBudget: 220,
       highlightCalibrationDigest: TEST_DIGEST,
       coverageByCallout: {
         "p11-c0.png": { pageNumber: 11, stepNumber: 2, quantity: 1 },
@@ -632,6 +634,8 @@ describe("real booklet build safety", () => {
       coverageInputBindings: { pdf: digest, calloutManifest: digest },
       minimumWholeStepScore: 0.45,
       minimumExclusiveHighlightPixelsPerPiece: 8,
+      maxRendersPerPiece: 220,
+      blindRenderBudget: 220,
       highlightCalibrationDigest: digest,
       coverageByCallout: {},
     };
@@ -706,6 +710,8 @@ describe("real booklet build safety", () => {
         coverageInputBindings: { pdf: digest, calloutManifest: digest },
         minimumWholeStepScore: 0.45,
         minimumExclusiveHighlightPixelsPerPiece: 8,
+        maxRendersPerPiece: 220,
+        blindRenderBudget: 220,
         highlightCalibrationDigest: digest,
         coverageByCallout: {},
       }),
@@ -871,6 +877,87 @@ describe("real booklet build safety", () => {
     expect(result.winner?.candidate.id).toBe("a");
     expect(result.blind).toMatchObject({ rendered: 2, agreesWithHighlight: true });
     expect(scoreCalls).toBe(4);
+  });
+
+  /**
+   * The pruned strategy refuses over its budget, and says what it refused over.
+   *
+   * The count is the thing the next reader needs — how many candidates were
+   * eligible against what bound — and it used to be computed and then dropped:
+   * an empty score list handed to the shared selector reported
+   * `incomplete-placement-scoring`, and the benchmark message that quotes the
+   * strategy printed only that code.
+   */
+  it("says how many placements the pruned budget refused, and how many it allowed", () => {
+    const candidates = Array.from({ length: 7 }, (_, index) => ({
+      id: `c${index}`,
+      score: 1 - index / 10,
+    }));
+    const result = evaluateSearchBenchmark({
+      stepNumber: 2,
+      pieceIndex: 0,
+      catalogPartId: "builtin:wedge-plate-4x4-cut-corner",
+      prefixHash: `sha256:${"2".repeat(64)}`,
+      prunedCandidates: candidates,
+      exhaustiveCandidates: candidates,
+      maxPrunedRenders: 3,
+      exhaustiveRenderBudget: 20,
+      minimumMargin: 0.01,
+      score: (candidate) => ({ candidate, score: candidate.score }),
+      key: (candidate) => candidate?.id ?? null,
+    });
+
+    expect(result.failure?.code).toBe("benchmark-disagreement");
+    // Both numbers survive into the message the run prints, and they are the two
+    // a reader needs to decide whether to raise the budget or prune harder.
+    expect(result.failure?.message).toContain("7 eligible placements");
+    expect(result.failure?.message).toContain("over the explicit 3 per-piece render budget");
+    expect(result.prunedScores).toHaveLength(0);
+  });
+
+  /**
+   * A pruned budget under the exhaustive one cannot bind in the direction it
+   * intends: the pruned set is a subset of the exhaustive set, so every render it
+   * refuses is performed a few lines later by the other strategy, and all the
+   * refusal buys is a step that fails.
+   */
+  it("refuses a pruned render budget smaller than the exhaustive one", () => {
+    const panels = Array.from({ length: 359 }, (_, index) => transitionPanel(index + 1));
+    const digest = `sha256:${"a".repeat(64)}`;
+    const coherent = {
+      panels,
+      expectedPrintedSteps: 359,
+      lastStep: 1,
+      accounting: OFFICIAL_REAL_BUILD_ACCOUNTING,
+      targetPartCount: 1_464,
+      maxParts: 1_464,
+      inputDigests: allInputDigests(digest),
+      coverageInputBindings: { pdf: digest, calloutManifest: digest },
+      minimumWholeStepScore: 0.45,
+      minimumExclusiveHighlightPixelsPerPiece: 8,
+      maxRendersPerPiece: 220,
+      blindRenderBudget: 220,
+      highlightCalibrationDigest: digest,
+      coverageByCallout: {},
+    };
+
+    expect(
+      preflightRealBuildOptions(coherent).filter(
+        ({ code }) => code === "benchmark-policy-mismatch",
+      ),
+    ).toEqual([]);
+    const refused = preflightRealBuildOptions({ ...coherent, maxRendersPerPiece: 24 });
+    expect(refused).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "benchmark-policy-mismatch",
+          inputKey: "maxRendersPerPiece",
+        }),
+      ]),
+    );
+    expect(refused.find(({ code }) => code === "benchmark-policy-mismatch")?.message).toContain(
+      "subset of the exhaustive one",
+    );
   });
 
   it("plans digest-bound unique run directories so interrupted attempts cannot mix", () => {

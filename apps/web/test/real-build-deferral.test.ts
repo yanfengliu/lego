@@ -16,7 +16,11 @@ import { createPlacePartTransaction } from "../src/manual-commands";
 import { groupPlacementOperationsInPrintedStep } from "../e2e/real-build-safety";
 import { createCanonicalPrintedStepPlacer } from "../e2e/real-build-fixed-actions";
 import { settleDeferredPrintedStep } from "../e2e/real-build-deferred-step";
-import { DEFERRED_STEP_MINIMUM_MARGIN, summariseDeferrals } from "../e2e/real-build-deferral";
+import {
+  DEFERRED_STEP_MINIMUM_AGREEMENT,
+  DEFERRED_STEP_MINIMUM_MARGIN,
+  summariseDeferrals,
+} from "../e2e/real-build-deferral";
 import type { PanelRasterEvidence } from "../e2e/real-build-panel-raster";
 import type { RealBuildOptions, RealBuildPanelSpec } from "../e2e/real-build-safety";
 import { completeRealBuildTestOptions } from "./real-build-test-options";
@@ -90,6 +94,22 @@ function rasterise(document: Document): Uint8Array {
     }
   }
   return mask;
+}
+
+/** Centre of a mask, in pixels, for placing a hand-drawn exclusion region. */
+function maskCentroidPx(mask: Uint8Array): { readonly x: number; readonly y: number } {
+  let sumX = 0;
+  let sumY = 0;
+  let count = 0;
+  for (let y = 0; y < HEIGHT; y += 1) {
+    for (let x = 0; x < WIDTH; x += 1) {
+      if (mask[y * WIDTH + x] !== 1) continue;
+      sumX += x;
+      sumY += y;
+      count += 1;
+    }
+  }
+  return { x: sumX / count, y: sumY / count };
 }
 
 function rgbaFromMask(mask: Uint8Array): Uint8Array {
@@ -182,13 +202,14 @@ function panelSpec(
 function lookaheadEvidence(
   builtMask: Uint8Array,
   excludedMask?: Uint8Array,
+  lookaheadStepNumber = 2,
 ): {
   readonly spec: RealBuildPanelSpec;
   readonly evidence: PanelRasterEvidence;
 } {
   const empty = new Uint8Array(WIDTH * HEIGHT);
   return {
-    spec: panelSpec(2, [{ catalogPartId: "builtin:plate-2x2" }]),
+    spec: panelSpec(lookaheadStepNumber, [{ catalogPartId: "builtin:plate-2x2" }]),
     evidence: {
       width: WIDTH,
       height: HEIGHT,
@@ -217,6 +238,7 @@ function settle(input: {
   readonly spec: RealBuildPanelSpec;
   readonly builtMask: Uint8Array | null;
   readonly excludedMask?: Uint8Array;
+  readonly lookaheadStepNumber?: number;
   readonly options?: Partial<RealBuildOptions>;
 }) {
   const base = createEmptyBrickDocument({ id: "deferral", name: "deferral", maxParts: 64 });
@@ -227,7 +249,9 @@ function settle(input: {
       baseDocument: base,
       stepId: null,
       lookahead:
-        input.builtMask === null ? null : lookaheadEvidence(input.builtMask, input.excludedMask),
+        input.builtMask === null
+          ? null
+          : lookaheadEvidence(input.builtMask, input.excludedMask, input.lookaheadStepNumber),
       options: { ...completeRealBuildTestOptions(2), workFactor: 2, ...input.options },
       rendering: modules.rendering,
       kernel: modules.kernel,
@@ -374,16 +398,132 @@ describe("deferred printed step", () => {
     expect(settlement.placement).toBeNull();
   });
 
-  it("keeps the margin bar above every wrong pick the probe measured", () => {
-    // From output/build-search/step1-deferral.json (probe 7762ebe): the margins
-    // of the four picks that were wrong. The bar is read from the code and
-    // compared against numbers measured elsewhere, so raising it silently is
-    // safe and lowering it below a recorded wrong answer is not.
-    const measuredWrongPickMargins = [0.0212, 0.0365, 0.0168, 0.0878];
-    for (const margin of measuredWrongPickMargins) {
-      expect(margin).toBeLessThanOrEqual(DEFERRED_STEP_MINIMUM_MARGIN);
+  /**
+   * A panel that shows more than the step could have built.
+   *
+   * The lookahead art here is the drawn assembly plus a piece this printed step
+   * does not place, which is what a panel two steps ahead — or one carrying a
+   * sub-assembly box — actually looks like. The best candidate is still the
+   * clear winner of its field and beats the runner-up by a wide margin, and it
+   * still only explains part of the picture. The deferral must refuse: a margin
+   * says which candidate is least bad, not that any of them is the drawn one.
+   */
+  it("refuses a winner the panel does not corroborate, however far it beat the runner-up", () => {
+    const drawn = drawnStepOne();
+    const alsoDrawn = place(
+      drawn.document,
+      "builtin:plate-2x2",
+      { positionLdu: [140, 8, 140], orientationId: "upright-yaw-0" },
+      "builtin:black",
+      2,
+      null,
+    );
+
+    const { settlement } = settle({ spec: stepOne, builtMask: rasterise(alsoDrawn.document) });
+
+    expect(settlement.failure?.code).toBe("weak-deferred-agreement");
+    expect(settlement.placement).toBeNull();
+    expect(settlement.evidence.settled).toBe(false);
+    // The margin is not the reason. It is larger here than the one the printed
+    // booklet produced for the pick this loop actually made (0.2085), and larger
+    // than the superseded bar of 0.0878 that would have admitted it.
+    expect(settlement.evidence.margin).toBeGreaterThan(0.0878);
+    expect(settlement.evidence.bestAgreement).toBeGreaterThan(
+      settlement.evidence.runnerUpAgreement!,
+    );
+  });
+
+  /**
+   * The same decision with the two questions the other way round.
+   *
+   * The panel's highlight is drawn over most of where the candidates disagree,
+   * leaving a sliver. The winner matches what is left exactly, so the picture
+   * corroborates it; the runner-up is close behind, so the margin is small. This
+   * is the case the superseded 0.0878 refused, and refusing it is a false
+   * refusal — the panel does show which candidate is right.
+   */
+  it("settles a step whose winner the panel corroborates by a small margin", () => {
+    const drawn = drawnStepOne();
+    const secondPieceOnly = rasterise({
+      ...drawn.document,
+      parts: drawn.document.parts.filter(
+        (part) => part.catalogPartId === "builtin:corner-plate-4x4-round",
+      ),
+    } as Document);
+    const centre = maskCentroidPx(secondPieceOnly);
+    const excluded = new Uint8Array(WIDTH * HEIGHT);
+    for (let y = 0; y < HEIGHT; y += 1) {
+      for (let x = 0; x < WIDTH; x += 1) {
+        const dx = x - centre.x;
+        const dy = y - centre.y;
+        if (dx * dx + dy * dy <= 34 * 34) excluded[y * WIDTH + x] = 1;
+      }
     }
-    // And below the right pick, at the panel a one-step deferral actually uses.
-    expect(DEFERRED_STEP_MINIMUM_MARGIN).toBeLessThan(0.2085);
+
+    const { settlement } = settle({
+      spec: stepOne,
+      builtMask: rasterise(drawn.document),
+      excludedMask: excluded,
+    });
+
+    expect(settlement.failure).toBeNull();
+    expect(settlement.evidence.settled).toBe(true);
+    expect(
+      settlement.pieceReports.map(({ positionLdu, orientationId }) => ({
+        positionLdu,
+        orientationId,
+      })),
+    ).toEqual(
+      drawn.transforms.map(({ positionLdu, orientationId }) => ({ positionLdu, orientationId })),
+    );
+    // Under the superseded bar this margin was a refusal.
+    expect(settlement.evidence.margin).toBeLessThan(0.0878);
+  });
+
+  it("refuses to look further forward than the reach that has been measured", () => {
+    const drawn = drawnStepOne();
+    const { settlement } = settle({
+      spec: stepOne,
+      builtMask: rasterise(drawn.document),
+      lookaheadStepNumber: 3,
+    });
+
+    expect(settlement.failure?.code).toBe("deferred-reach-unmeasured");
+    expect(settlement.failure?.message).toContain("Request the intervening printed step");
+    expect(settlement.placement).toBeNull();
+    // Refused before anything was rendered, so no margin or agreement is
+    // published for a reach nothing calibrates.
+    expect(settlement.evidence.rendered).toBe(0);
+    expect(settlement.evidence.bestAgreement).toBeNull();
+  });
+
+  /**
+   * The two constants, against observations in the metric they gate.
+   *
+   * Every number below is `definedIou` from `output/build-search/step1-deferral.json`
+   * (probe 7762ebe) — the same quantity `registerPrefixAgreement` returns, over
+   * the same masks, which is what the superseded calibration got wrong: it
+   * maximised over `bestScore` and `anchorIou` margins instead, and those order
+   * the branches differently at every panel.
+   */
+  it("keeps both gates inside what the gated metric actually measured", () => {
+    // Right picks: branch 3's agreement at panels 2 and 3.
+    for (const rightPick of [0.903118, 0.889836]) {
+      expect(DEFERRED_STEP_MINIMUM_AGREEMENT).toBeLessThanOrEqual(rightPick);
+    }
+    // The best candidate of the same field with the right branch deleted, which
+    // is what a set that does not contain the answer looks like.
+    for (const bestWrong of [0.694576, 0.827593]) {
+      expect(DEFERRED_STEP_MINIMUM_AGREEMENT).toBeGreaterThan(bestWrong);
+    }
+    // The margin is a noise floor, so it is bounded on both sides by
+    // measurements rather than set between right and wrong answers: at least the
+    // error two independently registered agreements can carry (the stride-4
+    // search reports up to 0.009916 below its own stride-1 optimum), and under
+    // every right-pick margin recorded, including the shallowest.
+    expect(DEFERRED_STEP_MINIMUM_MARGIN).toBeGreaterThanOrEqual(2 * 0.009916);
+    for (const rightPickMargin of [0.2085413294, 0.0622428487]) {
+      expect(DEFERRED_STEP_MINIMUM_MARGIN).toBeLessThan(rightPickMargin);
+    }
   });
 });

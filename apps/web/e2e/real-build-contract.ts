@@ -62,9 +62,40 @@ export function preflightRealBuildOptions(input: {
   readonly minimumWholeStepScore: number;
   readonly minimumExclusiveHighlightPixelsPerPiece: number;
   readonly highlightCalibrationDigest: string | null;
+  readonly maxRendersPerPiece: number;
+  readonly blindRenderBudget: number;
   readonly coverageByCallout: Readonly<Record<string, StepCoverageCalloutClaim>>;
 }): readonly StepFailure[] {
   const failures: StepFailure[] = [];
+  // The pruned candidate set is a subset of the exhaustive one by construction:
+  // the proximity filter only removes. So a pruned budget below the exhaustive
+  // one can only ever refuse renders the exhaustive strategy then performs
+  // anyway — the step fails for want of a pruned winner while the run spends
+  // strictly more time than the refusal saved. Measured on printed step 2: 47
+  // eligible against a pruned budget of 24, refused, and 88 rendered
+  // exhaustively in the same step. It is a configuration that cannot bind in the
+  // direction it intends, so it is refused as input rather than left to produce
+  // a benchmark disagreement between a strategy that looked and one that did not.
+  if (
+    !Number.isInteger(input.maxRendersPerPiece) ||
+    !Number.isInteger(input.blindRenderBudget) ||
+    input.maxRendersPerPiece < 1 ||
+    input.blindRenderBudget < 1 ||
+    input.maxRendersPerPiece < input.blindRenderBudget
+  ) {
+    failures.push({
+      code: "benchmark-policy-mismatch",
+      stage: "input",
+      inputKey: "maxRendersPerPiece",
+      message:
+        `The pruned per-piece render budget is ${input.maxRendersPerPiece} against an exhaustive budget of ` +
+        `${input.blindRenderBudget}. The pruned set is a subset of the exhaustive one, so a smaller pruned ` +
+        `budget refuses only renders the exhaustive strategy performs regardless: it cannot save the work ` +
+        `it exists to save, and it turns a scorable step into a disagreement between a strategy that ` +
+        `scored and one that declined to. Both budgets must be positive integers with the pruned one at ` +
+        `least the exhaustive one.`,
+    });
+  }
   const numbers = input.panels.map(({ stepNumber }) => stepNumber);
   const unique = new Set(numbers);
   const expected = Array.from({ length: input.expectedPrintedSteps }, (_, index) => index + 1);
@@ -973,6 +1004,15 @@ export function adjudicateSearchBenchmark(input: {
   ) {
     return { accepted: "pruned", failure: null };
   }
+  // Each strategy reports its own outcome in its own words. A strategy that
+  // refused has a message saying what it refused over — how many candidates were
+  // eligible, what budget they passed — and interpolating only its failure code
+  // throws that away, leaving a disagreement nobody can act on without rerunning
+  // the step.
+  const summarise = (evidence: SearchStrategyEvidence): string =>
+    `${evidence.strategy}: ${evidence.winnerKey ?? evidence.failure?.code ?? "none"} score ` +
+    `${evidence.bestScore ?? "none"} from ${evidence.rendered} renders in ${evidence.elapsedMs}ms` +
+    `${evidence.failure === null ? "" : ` — ${evidence.failure.message}`}`;
   return {
     accepted: null,
     failure: {
@@ -980,13 +1020,8 @@ export function adjudicateSearchBenchmark(input: {
       stage: "benchmark",
       message:
         `Step ${input.stepNumber} pruned and exhaustive search do not establish the same independently ` +
-        `scored winner at the same quality. Pruned: ${input.pruned.winnerKey ?? input.pruned.failure?.code ?? "none"} ` +
-        `score ${input.pruned.bestScore ?? "none"} from ${input.pruned.rendered} renders in ` +
-        `${input.pruned.elapsedMs}ms; exhaustive: ` +
-        `${input.exhaustive.winnerKey ?? input.exhaustive.failure?.code ?? "none"} score ` +
-        `${input.exhaustive.bestScore ?? "none"} from ${input.exhaustive.rendered} renders in ` +
-        `${input.exhaustive.elapsedMs}ms. A digest or declared policy cannot turn unresolved visual ` +
-        `disagreement into reconstruction truth.`,
+        `scored winner at the same quality. ${summarise(input.pruned)}; ${summarise(input.exhaustive)}. ` +
+        `A digest or declared policy cannot turn unresolved visual disagreement into reconstruction truth.`,
     },
   };
 }

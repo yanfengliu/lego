@@ -21,42 +21,98 @@ import type { StepFailure } from "./real-build-safety";
  * about the settled prefix, and all of them survive untouched.
  *
  * And a deferral refuses rather than guesses. If the panel it defers to does not
- * separate the candidates by a measured margin, the step fails with its own
- * named code. The margin below is not a round number; it is the largest margin
- * any *wrong* pick achieved in the measurement that motivated this code.
+ * show the winning candidate, or does not separate it from the runner-up, the
+ * step fails with its own named code. Which of those two questions the decision
+ * actually rests on is settled below, in the metric it is measured in.
  */
 
 /**
  * How far the best candidate must beat the runner-up on the lookahead panel.
  *
- * Taken from `output/build-search/step1-deferral.json` (probe committed at
- * 7762ebe), which scored the four step-1 branches against printed panels 2 and
- * 3 under five different discriminators and recorded which branch each picked.
+ * **This is a noise floor, not a discriminator, and it cannot be anything else
+ * on the data that exists.** The quantity gated here is
+ * `registerPrefixAgreement`'s agreement, and in that quantity
+ * `output/build-search/step1-deferral.json` (probe 7762ebe) recorded two
+ * observations, *both right picks*: 0.2085 at panel 2 and 0.0622 at panel 3. The
+ * false-accept rate of any bar on that data has denominator zero, so no value
+ * here is calibrated — a bar can only be bounded above by the right answers it
+ * would refuse, and 0.0622 bounds it below 0.0622.
  *
- * Four of those picks were *wrong*, and their margins are the bar to clear:
- * the greedy panel-3 delta score at 0.0212, the greedy panel-2 delta score at
- * 0.0365, the panel-3 `anchorIou` at 0.0168, and the cumulative panel-2+3 delta
- * at **0.0878** — the largest. The only discriminator that picked the branch the
- * booklet actually draws, and picked it at both panels, was prefix agreement
- * with the highlight's own region excluded: 0.2085 at panel 2 and 0.0622 at
- * panel 3.
+ * The previous value, 0.0878, was a maximum over a *different* quantity: three
+ * `bestScore` margins and one `anchorIou`, spanning 0.076 to 0.514, against a
+ * gated metric spanning 0.507 to 0.903. Their rank correlations with the gated
+ * metric flip sign panel to panel (Spearman rho of `bestScore` −0.600 at panel 2
+ * and +0.800 at panel 3; of `anchorIou` +1.000 and −0.400), so they do not order
+ * candidates the same way and a bar measured in one does not bound the other. In
+ * the gated metric that bar had a false-refusal rate of 1 in 2: it refuses the
+ * measured right pick at panel 3.
  *
- * So the bar is the largest measured wrong margin, and it is required strictly:
- * every wrong pick in that measurement fails it, and the right pick at the panel
- * a one-step deferral actually uses clears it by 2.38x. A threshold no wrong
- * answer ever fails is decoration, which is why it is set from wrong answers
- * rather than from the right one.
+ * Margin cannot be made to work by choosing a better number either. Ablating the
+ * right branch — the enumerator failing to offer the drawn placement is not
+ * hypothetical, `truthEnumerated` is false for all four branches at panel 2 —
+ * gives wrong-pick margins of 0.1776 and 0.0238. The minimum right margin
+ * (0.0622) is below the maximum wrong one (0.1776), and the same interleaving
+ * holds for the ratio, so no threshold on margin separates right from wrong on
+ * this data.
+ *
+ * What is left for it to say is "these two candidates are not distinguishable by
+ * this registration", and that has a measured size: replaying the search at
+ * stride 1 instead of stride 4 moves the reported agreement by up to 0.009916,
+ * and a margin differences two independently registered agreements, so it
+ * carries up to twice that in pure search noise. Hence 0.02. Its false-accept
+ * rate is 2 in 2 by construction; the gate that decides is the one below.
  */
-export const DEFERRED_STEP_MINIMUM_MARGIN = 0.0878;
+export const DEFERRED_STEP_MINIMUM_MARGIN = 0.02;
+
+/**
+ * How much the winning candidate must agree with the lookahead panel outright.
+ *
+ * This is the discriminator. Of every quantity the probe recorded, the winner's
+ * own absolute agreement is the only one that separates the right pick from the
+ * wrong one: right picks scored 0.9031 (panel 2) and 0.8898 (panel 3), and the
+ * best wrong candidate — the right branch ablated away, so the set no longer
+ * contains the answer — scored 0.6946 and 0.8276. The separating window is
+ * (0.827593, 0.889836], and 0.85 sits inside it. On every observation that
+ * exists: false-refusal 0 of 3, false-accept 0 of 2.
+ *
+ * Its headroom is stated rather than hidden, because it is thin. 0.85 is 6.3 px
+ * of registration error away from the panel-2 observation and 4.5 px from the
+ * panel-3 one, and one pixel of registration error moves this agreement by up to
+ * 0.0328. It is also not obviously portable across panels: the excluded region is
+ * 106% of the built art at panel 2 and 236% at panel 3. What recommends it over
+ * a margin is that it does not degrade as candidates are added, and production
+ * runs a 400-candidate product in which the runner-up is a near-duplicate by
+ * construction.
+ */
+export const DEFERRED_STEP_MINIMUM_AGREEMENT = 0.85;
+
+/**
+ * How many printed steps forward a deferral may look.
+ *
+ * One, because one is all that has ever been measured. The panel-3 observation
+ * that would license two is oracle-conditioned — its prefixes were built from
+ * the official transform of step 2 rotated into each branch, which no run can
+ * do — and a real two-panel rule would carry step-2 candidates forward from a
+ * set the probe showed does not contain the answer. Reachability comes before
+ * ranking, so this stays at one until a second reach is measured without an
+ * oracle.
+ */
+export const DEFERRED_STEP_MAXIMUM_REACH_STEPS = 1;
 
 /**
  * Shifts the coarse registration search samples, in pixels of stride.
  *
  * The search maximises agreement over translation because the panel's camera
  * fit pins angle and scale but not where the drawing sits on the page. Sampling
- * every fourth pixel in each axis costs a sixteenth of the work and moves the
- * chosen shift by at most a pixel; the reported agreement is then recomputed at
- * full resolution at that shift, so no reported number is a subsample.
+ * every fourth pixel in each axis costs a sixteenth of the work; the reported
+ * agreement is then recomputed at full resolution at the chosen shift, so no
+ * reported number is a subsample.
+ *
+ * What the subsampling costs was measured rather than assumed, because this
+ * docstring used to claim it moved the chosen shift "by at most a pixel":
+ * replaying the same search at stride 1 on the probe's eight mask pairs moves
+ * the optimum by up to 7.3 px and reports an agreement up to 0.009916 below the
+ * stride-1 optimum. `DEFERRED_STEP_MINIMUM_MARGIN` is sized from that number.
  */
 const REGISTRATION_SAMPLE_STRIDE = 4;
 const REGISTRATION_SCALES = [8, 3, 1] as const;
@@ -183,6 +239,33 @@ export interface DeferredPlacementDecision<T> {
 }
 
 /**
+ * Refuses a deferral that would look further forward than has been measured.
+ *
+ * Separate from the decision procedure because the caller must be able to refuse
+ * before it renders a few hundred candidate prefixes, and because a refusal that
+ * arrives after scoring publishes a margin and an agreement that nothing
+ * calibrates.
+ */
+export function deferredReachFailure(input: {
+  readonly stepNumber: number;
+  readonly lookaheadStepNumber: number;
+  readonly reachSteps: number;
+}): StepFailure | null {
+  if (input.reachSteps <= DEFERRED_STEP_MAXIMUM_REACH_STEPS) return null;
+  return {
+    code: "deferred-reach-unmeasured",
+    stage: "evidence",
+    stepNumber: input.stepNumber,
+    message:
+      `Step ${input.stepNumber} would defer ${input.reachSteps} printed steps forward, to step ` +
+      `${input.lookaheadStepNumber}. Only a reach of ${DEFERRED_STEP_MAXIMUM_REACH_STEPS} has been ` +
+      `calibrated: the deeper observation that exists was built from the official transform of the ` +
+      `intervening step, which no run can reproduce, and a real deeper deferral would carry candidates ` +
+      `forward from a set never shown to contain the answer. Request the intervening printed step.`,
+  };
+}
+
+/**
  * Picks the deferred step's placement, or refuses and says which gate refused.
  *
  * The candidate list is the whole printed step, not one piece: a step whose
@@ -192,9 +275,11 @@ export interface DeferredPlacementDecision<T> {
 export function selectDeferredPlacement<T>(input: {
   readonly stepNumber: number;
   readonly lookaheadStepNumber: number;
+  readonly reachSteps: number;
   readonly lookaheadBuiltPixels: number;
   readonly scores: readonly DeferredCandidateScore<T>[];
   readonly minimumMargin: number;
+  readonly minimumAgreement: number;
 }): DeferredPlacementDecision<T> {
   const refuse = (
     code: StepFailure["code"],
@@ -206,6 +291,15 @@ export function selectDeferredPlacement<T>(input: {
     margin,
     failure: { code, stage: "evidence", stepNumber: input.stepNumber, message },
   });
+
+  // Reach is checked before anything is scored, because it is a fact about how
+  // far this decision procedure has ever been measured rather than about these
+  // candidates. The caller checks it before it renders anything; this repeats it
+  // so the decision procedure itself cannot be handed an uncalibrated reach.
+  const reachFailure = deferredReachFailure(input);
+  if (reachFailure !== null) {
+    return { winner: null, runnerUp: null, margin: null, failure: reachFailure };
+  }
 
   // The honest limit of a one-step lookahead, named before it can bite: if the
   // panel a step defers to is itself signal-less, the deferral has nothing to
@@ -229,12 +323,15 @@ export function selectDeferredPlacement<T>(input: {
   if (
     !Number.isFinite(input.minimumMargin) ||
     input.minimumMargin < 0 ||
+    !Number.isFinite(input.minimumAgreement) ||
+    input.minimumAgreement <= 0 ||
     input.scores.some(({ agreement }) => !Number.isFinite(agreement))
   ) {
     return refuse(
       "ambiguous-deferred-placement",
       `Step ${input.stepNumber} produced non-finite deferred agreement evidence or an invalid minimum ` +
-        `margin ${input.minimumMargin} against printed step ${input.lookaheadStepNumber}.`,
+        `margin ${input.minimumMargin} / minimum agreement ${input.minimumAgreement} against printed step ` +
+        `${input.lookaheadStepNumber}.`,
     );
   }
 
@@ -251,14 +348,30 @@ export function selectDeferredPlacement<T>(input: {
       margin,
     );
   }
+  // The discriminator, and it is asked first: whether the winner is the drawn
+  // assembly at all is a different question from whether it beat its runner-up,
+  // and only the first one has ever separated a right pick from a wrong one. A
+  // set that does not contain the answer still has a best member, and that
+  // member's margin can be large.
+  if (winner.agreement < input.minimumAgreement) {
+    return refuse(
+      "weak-deferred-agreement",
+      `Step ${input.stepNumber} best deferred candidate agrees with printed step ` +
+        `${input.lookaheadStepNumber}'s already-built art at ${winner.agreement} over ` +
+        `${input.scores.length} candidate(s), below the required ${input.minimumAgreement}. Every recorded ` +
+        `right pick cleared that outright and the best candidate of a set with the answer removed did not, ` +
+        `so a winner under it is more likely to be the least wrong of the wrong ones than the drawn placement.`,
+      margin,
+    );
+  }
   if (margin !== null && margin <= input.minimumMargin) {
     return refuse(
       "ambiguous-deferred-placement",
       `Step ${input.stepNumber} deferred to printed step ${input.lookaheadStepNumber} and separated its best ` +
         `two of ${input.scores.length} whole-step candidates by ${margin} (${winner.agreement} against ` +
-        `${runnerUp!.agreement}), at or below the required ${input.minimumMargin}. That margin is the largest ` +
-        `one a measured wrong pick achieved, so a decision inside it is not distinguishable from the wrong ` +
-        `answers already recorded.`,
+        `${runnerUp!.agreement}), at or below the required ${input.minimumMargin}. That is the size of this ` +
+        `registration's own search noise, so the two are not distinguishable by it — it is not a claim that ` +
+        `a larger margin would have been right.`,
       margin,
     );
   }
@@ -277,6 +390,7 @@ export interface DeferralEvidence {
   readonly runnerUpAgreement: number | null;
   readonly margin: number | null;
   readonly minimumMargin: number;
+  readonly minimumAgreement: number;
   readonly settled: boolean;
 }
 

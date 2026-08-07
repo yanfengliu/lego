@@ -1,7 +1,11 @@
 import { expect, test } from "@playwright/test";
 
 import { readSampleBooklet, sampleBookletPageShapes } from "./booklet-fixture";
-import { DEFERRED_STEP_MINIMUM_MARGIN, summariseDeferrals } from "./real-build-deferral";
+import {
+  DEFERRED_STEP_MINIMUM_AGREEMENT,
+  DEFERRED_STEP_MINIMUM_MARGIN,
+  summariseDeferrals,
+} from "./real-build-deferral";
 import { deriveRealBuildPanelEvidence } from "./real-build-panel-evidence";
 import { readTransitionClassificationBundle } from "./real-build-transition-classification";
 import { deriveTransitionPanelFeatures } from "./real-build-transition-features";
@@ -494,12 +498,16 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
     renderScale: 6,
     panelWidth: 1_000,
     workFactor: 2,
-    maxRendersPerPiece: 24,
+    // Both budgets are per piece, and the pruned candidate set is a subset of
+    // the exhaustive one, so they are the same number: see the coherence check
+    // in `preflightRealBuildOptions`.
+    maxRendersPerPiece: 220,
     blindRenderBudget: 220,
     // Step 1 alone is a 400-candidate product: four yaws of the quarter ring on
     // the empty plate times a hundred distinct seats for the round plate on each.
     deferredCandidateBudget: 512,
     minimumDeferredAgreementMargin: DEFERRED_STEP_MINIMUM_MARGIN,
+    minimumDeferredAgreement: DEFERRED_STEP_MINIMUM_AGREEMENT,
     proximityMarginPx: 14,
     targetPartCount: OFFICIAL_REAL_BUILD_ACCOUNTING.assembledTargetPieces,
     maxParts: OFFICIAL_REAL_BUILD_ACCOUNTING.assembledTargetPieces,

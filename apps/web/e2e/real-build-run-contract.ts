@@ -129,6 +129,7 @@ export function realBuildRunThresholds(
   return {
     minimumScoreMargin: options.minimumScoreMargin,
     minimumDeferredAgreementMargin: options.minimumDeferredAgreementMargin,
+    minimumDeferredAgreement: options.minimumDeferredAgreement,
     minimumWholeStepScore: options.minimumWholeStepScore,
     minimumExclusiveHighlightPixelsPerPiece: options.minimumExclusiveHighlightPixelsPerPiece,
     highlightCalibrationDigest: options.highlightCalibrationDigest,
