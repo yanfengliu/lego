@@ -29,7 +29,7 @@ import type {
   OfficialModelIndex,
 } from "./real-build-official";
 
-export const BUILDER_CANONICAL_CALIBRATION_SCHEMA = "lego.builder-canonical-calibration/7" as const;
+export const BUILDER_CANONICAL_CALIBRATION_SCHEMA = "lego.builder-canonical-calibration/8" as const;
 export const BUILDER_FRAME_EVIDENCE_PROTOCOL = "builder-type23-frame-plus-ldraw-surface/3" as const;
 
 type FramePoint = BuilderFramePoint;
@@ -186,8 +186,27 @@ export function composeBuilderTransforms(
   };
 }
 
+/**
+ * The one change of basis from LXFML's right-handed Y-up frame to LDraw's
+ * right-handed Y-down frame: a 180-degree rotation about x, `diag(1,-1,-1)`,
+ * determinant +1. It is the frame the rest of the repository already declares —
+ * `scripts/builder_ldraw_frame.py` writes it as `diag(25,-25,-25)` including the
+ * 25 LDU-per-stud scale, and `docs/design/part-model.md` states it in words.
+ *
+ * The sign vector is shared with the position mapping in
+ * `resolveBuilderBoneTransform` because a change of basis has to be one thing:
+ * conjugating the rotation by one `S` while scaling the translation by another
+ * is not a rigid motion at all, so the two are declared together and must move
+ * together. Reading the rotation through `diag(1,-1,1)` and the position through
+ * `diag(1,-1,1)` was self-consistent but improper — determinant -1 — and it
+ * mirrored every world placement in the model while leaving each part's own
+ * local frame, and therefore every per-part surface check, exactly as correct as
+ * before.
+ */
+const LDD_TO_LDRAW_BASIS_SIGNS = [1, -1, -1] as const;
+
 function transformedMatrix(matrix: BuilderBoneTransform["matrix"]): readonly number[] {
-  const signs = [1, -1, 1] as const;
+  const signs = LDD_TO_LDRAW_BASIS_SIGNS;
   return matrix.map((_, index) => {
     const row = Math.floor(index / 3);
     const column = index % 3;
@@ -213,9 +232,9 @@ export function resolveBuilderBoneTransform(transform: BuilderBoneTransform): {
     };
   }
   const scaled = [
-    transform.position[0] / 0.04,
-    -transform.position[1] / 0.04,
-    transform.position[2] / 0.04,
+    (LDD_TO_LDRAW_BASIS_SIGNS[0] * transform.position[0]) / 0.04,
+    (LDD_TO_LDRAW_BASIS_SIGNS[1] * transform.position[1]) / 0.04,
+    (LDD_TO_LDRAW_BASIS_SIGNS[2] * transform.position[2]) / 0.04,
   ] as const;
   const rounded = scaled.map(Math.round) as [number, number, number];
   const residual = Math.max(...scaled.map((value, index) => Math.abs(value - rounded[index]!)));

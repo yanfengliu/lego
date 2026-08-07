@@ -1008,30 +1008,40 @@ export const BUILDER_STEP1_DESIGN_SOURCES = [
   },
 ] as const satisfies readonly BuilderDesignSourcePin[];
 
+/**
+ * Four reviewed Bone readings, one per quarter turn, at the corrected
+ * `diag(1,-1,-1)` LXFML-to-LDraw basis. Every `positionLdu` z is the negation of
+ * what this table held before, and the two quarter turns exchange: conjugating a
+ * yaw by the extra z flip inverts it, so a Bone that read `upright-yaw-90` now
+ * reads `upright-yaw-270` and vice versa, while `yaw-0` and `yaw-180` are fixed
+ * points and cannot witness the change at all. Case 1 is therefore the position
+ * witness and cases 2 and 4 are the rotation witnesses; a change that moved only
+ * one half of the basis would leave one of them wrong.
+ */
 export const BUILDER_STEP1_CALIBRATION_CASES = [
   {
     brickRef: "a12d1753-e853-4589-bc67-e1cb4e784fa7",
     builderTransformationDigest:
       "sha256:ba9b5cb293247b9222b123c4d95b66e4ba7d6752fc60de74feb35d31aeef34ad",
-    expectedTransform: { positionLdu: [270, -16, 244], orientationId: "upright-yaw-0" },
+    expectedTransform: { positionLdu: [270, -16, -244], orientationId: "upright-yaw-0" },
   },
   {
     brickRef: "da6a6d03-1c34-43ff-97e9-5939ccf26777",
     builderTransformationDigest:
       "sha256:6e6e61a4b108dde4eadc59ecff258a2c87658727a9117af2a9d8db1d2160c1d2",
-    expectedTransform: { positionLdu: [270, -580, 104], orientationId: "upright-yaw-90" },
+    expectedTransform: { positionLdu: [270, -580, -104], orientationId: "upright-yaw-270" },
   },
   {
     brickRef: "d63813bf-f3b6-4059-b5de-6605e8baf320",
     builderTransformationDigest:
       "sha256:65d39c9641261db0a54ce361f501594ba6d0f1fc660be10ed5ed5869430d61ec",
-    expectedTransform: { positionLdu: [390, -572, 104], orientationId: "upright-yaw-180" },
+    expectedTransform: { positionLdu: [390, -572, -104], orientationId: "upright-yaw-180" },
   },
   {
     brickRef: "55506c77-f293-40f5-8aa7-ea85501f07f1",
     builderTransformationDigest:
       "sha256:aa2a689c493fc4d244e55c72eb122791350195c40fc252a6adaf4d38138aa25b",
-    expectedTransform: { positionLdu: [410, -580, 104], orientationId: "upright-yaw-270" },
+    expectedTransform: { positionLdu: [410, -580, -104], orientationId: "upright-yaw-90" },
   },
 ] as const satisfies readonly BuilderCalibrationCasePin[];
 
@@ -1041,11 +1051,11 @@ export const BUILDER_STEP1_ORIGIN_POLICY = {
   anchorBuilderTransformationDigest:
     "sha256:b17eb49ceb81e036753fd1bc9a1a4d0cf60c945cf8a98311c589e6e981dd7f82",
   expectedComposedTransform: {
-    positionLdu: [540, -4, 194],
-    orientationId: "upright-yaw-180",
+    positionLdu: [560, -4, -194],
+    orientationId: "upright-yaw-0",
   },
   expectedEmptyEnumerationTransform: {
     positionLdu: [0, 8, 0],
-    orientationId: "upright-yaw-180",
+    orientationId: "upright-yaw-0",
   },
 } as const;

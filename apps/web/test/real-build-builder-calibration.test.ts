@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { BUILTIN_CATALOG_VERSION } from "@lego-studio/catalog";
+import { createPartInstance } from "@lego-studio/brick-kernel";
 import { describe, expect, it } from "vitest";
 
 import { sha256Digest } from "../e2e/real-build-artifacts";
@@ -19,6 +20,7 @@ import {
   type BuilderDesignSourcePin,
   type BuilderFramePoint,
 } from "../e2e/real-build-builder-sources";
+import { assessSupport, findBodyOverlaps, findStudConnections } from "../src/placement";
 
 type Point = BuilderFramePoint;
 type Triangle = readonly [Point, Point, Point];
@@ -156,7 +158,7 @@ const sortedCentersDigest = (centers: readonly Point[]): `sha256:${string}` =>
     ),
   );
 
-describe("Builder canonical calibration v7", () => {
+describe("Builder canonical calibration v8", () => {
   it("keeps a retained calibration report in step with the catalog it claims", () => {
     // The compared value is the whole remedy, so a failure prints what is wrong
     // and what to run rather than two digests that mean nothing on their own.
@@ -251,7 +253,7 @@ describe("Builder canonical calibration v7", () => {
   });
 
   it.skipIf(!hasRetainedCalibration)(
-    "recomputes the retained v7 report and derives the exact step-1 canonical origin",
+    "recomputes the retained v8 report and derives the exact step-1 canonical origin",
     () => {
       const officialBytes = readFileSync(officialModelPath);
       const geometryBytes = readFileSync(geometryBundlePath);
@@ -336,15 +338,50 @@ describe("Builder canonical calibration v7", () => {
       expect(calibrated.bricks["76092bf0-3d72-474a-baf3-06b837082f6a"]).toMatchObject({
         designRevision: "80015;E",
         calibratedCatalogPartId: "builtin:corner-plate-5x5-quarter-ring",
-        canonicalTransform: { positionLdu: [0, 8, 0], orientationId: "upright-yaw-180" },
+        canonicalTransform: { positionLdu: [0, 8, 0], orientationId: "upright-yaw-0" },
         canonicalTransformFailure: null,
       });
       expect(calibrated.bricks["21288f64-b9d5-4efb-92b9-427a17832a45"]).toMatchObject({
         designRevision: "30565;E",
         calibratedCatalogPartId: "builtin:corner-plate-4x4-round",
-        canonicalTransform: { positionLdu: [60, 0, -20], orientationId: "upright-yaw-0" },
+        canonicalTransform: { positionLdu: [40, 0, -40], orientationId: "upright-yaw-0" },
         canonicalTransformFailure: null,
       });
+      // The step-1 target has to be a thing two real bricks can be, and that is
+      // the check the per-design surface evidence above cannot make: it scores
+      // each part against its own LDraw surface, which a mirror leaves
+      // untouched. Here the two parts are scored against *each other* by the
+      // editor's own support rule. Under the mirrored reading these were
+      // [0,8,0] yaw-180 and [60,0,-20] yaw-0, which derive no connection at all
+      // and leave the 4x4 round resting 8 LDU above the plate with nothing
+      // under it.
+      const step1 = [
+        calibrated.bricks["76092bf0-3d72-474a-baf3-06b837082f6a"]!,
+        calibrated.bricks["21288f64-b9d5-4efb-92b9-427a17832a45"]!,
+      ].map((brick, index) =>
+        createPartInstance({
+          id: `step1-${index}`,
+          catalogPartId: brick.calibratedCatalogPartId!,
+          colorId: "builtin:light-bluish-gray",
+          transform: brick.canonicalTransform!,
+        }),
+      );
+      expect(
+        step1.map((candidate) => {
+          const others = step1.filter(({ id }) => id !== candidate.id);
+          const connections = findStudConnections(candidate, others);
+          const support = assessSupport(candidate, connections);
+          return (
+            `${candidate.catalogPartId} ${candidate.transform.positionLdu.join("/")} ` +
+            `${candidate.transform.orientationId} connections=${connections.length} ` +
+            `${support.supported ? `held-by-${support.held}` : `REFUSED: ${support.reason}`} ` +
+            `overlaps=${findBodyOverlaps(candidate, others).length}`
+          );
+        }),
+      ).toEqual([
+        "builtin:corner-plate-5x5-quarter-ring 0/8/0 upright-yaw-0 connections=3 held-by-connections overlaps=0",
+        "builtin:corner-plate-4x4-round 40/0/-40 upright-yaw-0 connections=3 held-by-connections overlaps=0",
+      ]);
 
       const changedGeometry = Buffer.from(geometryBytes);
       changedGeometry[0] = changedGeometry[0]! ^ 1;

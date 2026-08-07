@@ -14,6 +14,7 @@ import {
   type RealBuildActionLedger,
   type TransitionClassificationEvidence,
 } from "../e2e/real-build-ledger";
+import { resolveBuilderBoneTransform } from "../e2e/real-build-official";
 import { REAL_BUILD_TEST_DIGEST } from "./real-build-test-options";
 import { builderCuboidGeometry } from "./real-build-frame-test-fixture";
 
@@ -37,6 +38,19 @@ export interface RealBuildLedgerTestFixture {
   readonly panelEvidenceByStep: Readonly<
     Record<number, { readonly pageNumber: number; readonly digest: string }>
   >;
+}
+
+const FIXTURE_CASE_BRICK_REFS = ["brick-a", "brick-b", "cal-c", "cal-d"] as const;
+
+function resolvedFixtureTransform(
+  rawOfficial: ReturnType<typeof parseOfficialModelIndex>,
+  brickRef: string,
+): { readonly positionLdu: readonly [number, number, number]; readonly orientationId: string } {
+  const resolved = resolveBuilderBoneTransform(rawOfficial.bricks[brickRef]!.builderTransform!);
+  if (resolved.transform === null) {
+    throw new TypeError(`Fixture Bone ${brickRef} does not resolve: ${resolved.failure}`);
+  }
+  return resolved.transform;
 }
 
 export function realBuildLedgerTestFixture(): RealBuildLedgerTestFixture {
@@ -105,26 +119,22 @@ export function realBuildLedgerTestFixture(): RealBuildLedgerTestFixture {
     JSON.stringify({ inputDigest, fixture: "synthetic-ledger-v2-builder-frame" }),
   );
   const calibration: BuilderCanonicalCalibration = {
-    schemaVersion: "lego.builder-canonical-calibration/7",
+    schemaVersion: "lego.builder-canonical-calibration/8",
     officialModelDigest: rawOfficial.digest,
     geometryBundle: {
       format: "lego.builder-shell-and-ldraw-triangles-f32le/2",
       byteLength: builderGeometry.bytes.length,
       digest: builderGeometry.digest,
     },
-    cases: [
-      ["brick-a", [0, 0, 0], "upright-yaw-0"],
-      ["brick-b", [20, 0, 0], "upright-yaw-270"],
-      ["cal-c", [40, 0, 0], "upright-yaw-180"],
-      ["cal-d", [60, 0, 0], "upright-yaw-90"],
-    ].map(([brickRef, positionLdu, orientationId]) => ({
-      brickRef: brickRef as string,
-      builderTransformationDigest:
-        rawOfficial.bricks[brickRef as string]!.builderTransform!.sourceDigest,
-      expectedTransform: {
-        positionLdu: positionLdu as [number, number, number],
-        orientationId: orientationId as string,
-      },
+    // Derived, not restated. This fixture hand-wrote its four expected
+    // transforms next to the four Bone rows they came from, so the ledger tests
+    // compared the fixture with itself and stayed green through a change of
+    // basis that made two of the four internally wrong. Reading them out of the
+    // code under test is what makes the comparison mean something.
+    cases: FIXTURE_CASE_BRICK_REFS.map((brickRef) => ({
+      brickRef,
+      builderTransformationDigest: rawOfficial.bricks[brickRef]!.builderTransform!.sourceDigest,
+      expectedTransform: resolvedFixtureTransform(rawOfficial, brickRef),
     })),
     originPolicy: {
       protocol: "first-ordered-direct-empty-enumeration/1",
@@ -166,16 +176,31 @@ export function realBuildLedgerTestFixture(): RealBuildLedgerTestFixture {
     ],
   };
   const builderCalibrationDigest = sha256Digest(JSON.stringify(calibration));
-  // Synthetic v2 ledger tests cannot cross the production calibration's source pins.
+  // Synthetic v2 ledger tests cannot cross the production calibration's source
+  // pins, so the origin normalization is the fixture's own: the anchor lands on
+  // an empty plate at [0,8,0] and every other brick keeps its offset from it.
+  // The transforms themselves still come from the reader.
+  const originOffset = [0, 8, 0].map(
+    (coordinate, axis) =>
+      coordinate - resolvedFixtureTransform(rawOfficial, "brick-a").positionLdu[axis]!,
+  );
   const canonicalTransforms: Record<
     string,
     { readonly positionLdu: readonly [number, number, number]; readonly orientationId: string }
-  > = {
-    "brick-a": { positionLdu: [0, 8, 0], orientationId: "upright-yaw-0" },
-    "brick-b": { positionLdu: [20, 0, 0], orientationId: "upright-yaw-270" },
-    "cal-c": { positionLdu: [40, 0, 0], orientationId: "upright-yaw-180" },
-    "cal-d": { positionLdu: [60, 0, 0], orientationId: "upright-yaw-90" },
-  };
+  > = Object.fromEntries(
+    FIXTURE_CASE_BRICK_REFS.map((brickRef) => {
+      const resolved = resolvedFixtureTransform(rawOfficial, brickRef);
+      return [
+        brickRef,
+        {
+          positionLdu: resolved.positionLdu.map(
+            (coordinate, axis) => coordinate + originOffset[axis]!,
+          ) as unknown as readonly [number, number, number],
+          orientationId: resolved.orientationId,
+        },
+      ];
+    }),
+  );
   const official: ReturnType<typeof parseOfficialModelIndex> = {
     ...rawOfficial,
     calibrationDigest: builderCalibrationDigest,
@@ -241,7 +266,9 @@ export function realBuildLedgerTestFixture(): RealBuildLedgerTestFixture {
     identificationConfidence: "official-model",
     cropDigest: null,
     identificationInputDigest: official.digest,
-    transform: { positionLdu: [20, 0, 0], orientationId: "upright-yaw-270" },
+    // The copy's declared transform has to be the calibrated Bone truth, which
+    // the validator checks; taking it from the same derivation is the point.
+    transform: canonicalTransforms["brick-b"]!,
   };
   const copy: LedgerCopyIdentity = {
     ...copyBase,

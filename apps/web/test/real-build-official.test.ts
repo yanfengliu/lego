@@ -109,32 +109,53 @@ describe("official Builder model truth", () => {
     );
   });
 
-  it("transposes LXF rotations, composes the discrete local frame, and rejects unrepresentable Bone data", () => {
+  /**
+   * The brick refs name the quarter turn the raw Bone matrix spells, read
+   * row-major, and under the corrected `diag(1,-1,-1)` basis that is also the
+   * LDraw quarter turn it resolves to: the transpose the reader applies and the
+   * conjugation by the extra z flip both invert a yaw, so for the upright
+   * rotations this protocol admits they cancel. Under the mirrored reading they
+   * did not, and each of these rows resolved to the opposite quarter turn —
+   * which is why the two 90-degree rows are the rotation half's witnesses and
+   * the yaw-0 and yaw-180 rows can witness nothing.
+   *
+   * Every Bone here also carries a non-zero z translation. Before the basis was
+   * corrected every synthetic Bone in this file sat at `0,0,0`, so the position
+   * half of the map was never executed on a coordinate that could distinguish
+   * one sign from the other, and the whole suite stayed green under a reading
+   * that mirrors the model.
+   */
+  it("reads an LXF quarter turn and a negated Bone z, and rejects unrepresentable Bone data", () => {
     const xml = new TextEncoder().encode(
       `<Root><Bricks>` +
-        physicalBrickXml("yaw-0", "3005;rev-a", identityBone) +
-        physicalBrickXml("yaw-270", "3005;rev-a", "0,0,1,0,1,0,-1,0,0,0,0,0") +
-        physicalBrickXml("yaw-180", "3005;rev-a", "-1,0,0,0,1,0,0,0,-1,0,0,0") +
-        physicalBrickXml("yaw-90", "3005;rev-a", "0,0,-1,0,1,0,1,0,0,0,0,0") +
+        physicalBrickXml("lxf-yaw-0", "3005;rev-a", "1,0,0,0,1,0,0,0,1,0.8,-0.32,2.4") +
+        physicalBrickXml("lxf-yaw-90", "3005;rev-a", "0,0,1,0,1,0,-1,0,0,0.8,-0.32,2.4") +
+        physicalBrickXml("lxf-yaw-180", "3005;rev-a", "-1,0,0,0,1,0,0,0,-1,0.8,-0.32,2.4") +
+        physicalBrickXml("lxf-yaw-270", "3005;rev-a", "0,0,-1,0,1,0,1,0,0,0.8,-0.32,2.4") +
         physicalBrickXml("tilted", "3005;rev-a", "1,0,0,0,0,-1,0,1,0,0,0,0") +
         `</Bricks>` +
-        builderInstructionsXml(["yaw-0", "tilted"]) +
+        builderInstructionsXml(["lxf-yaw-0", "tilted"]) +
         `</Root>`,
     );
     const raw = parseOfficialModelIndex(xml);
     expect(
-      ["yaw-0", "yaw-90", "yaw-180", "yaw-270"].map(
-        (brickRef) =>
-          resolveBuilderBoneTransform(raw.bricks[brickRef]!.builderTransform!).transform
-            ?.orientationId,
+      ["lxf-yaw-0", "lxf-yaw-90", "lxf-yaw-180", "lxf-yaw-270"].map((brickRef) =>
+        JSON.stringify(
+          resolveBuilderBoneTransform(raw.bricks[brickRef]!.builderTransform!).transform,
+        ),
       ),
-    ).toEqual(["upright-yaw-0", "upright-yaw-90", "upright-yaw-180", "upright-yaw-270"]);
+    ).toEqual([
+      `{"positionLdu":[20,8,-60],"orientationId":"upright-yaw-0"}`,
+      `{"positionLdu":[20,8,-60],"orientationId":"upright-yaw-90"}`,
+      `{"positionLdu":[20,8,-60],"orientationId":"upright-yaw-180"}`,
+      `{"positionLdu":[20,8,-60],"orientationId":"upright-yaw-270"}`,
+    ]);
     expect(
       composeBuilderTransforms(
-        resolveBuilderBoneTransform(raw.bricks["yaw-0"]!.builderTransform!).transform!,
+        resolveBuilderBoneTransform(raw.bricks["lxf-yaw-0"]!.builderTransform!).transform!,
         { positionLdu: [30, -4, -30], orientationId: "upright-yaw-0" },
       ),
-    ).toEqual({ positionLdu: [30, -4, -30], orientationId: "upright-yaw-0" });
+    ).toEqual({ positionLdu: [50, 4, -90], orientationId: "upright-yaw-0" });
     const tilted = resolveBuilderBoneTransform(raw.bricks.tilted!.builderTransform!);
     expect(tilted.transform).toBeNull();
     expect(tilted.failure).toContain("cannot be expressed");
