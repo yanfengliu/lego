@@ -2,13 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { expect, test } from "@playwright/test";
 
-import {
-  extractPageShapes,
-  type OperatorList,
-  type PageShape,
-} from "../src/instructions/page-shapes";
-
-import { readSampleBooklet } from "./booklet-fixture";
+import { readSampleBooklet, sampleBookletPageShapes } from "./booklet-fixture";
 import { writeContainedRegularFileAtomic } from "./contained-atomic-write";
 import { sha256Digest } from "./real-build-artifacts";
 import { TRANSITION_CLASSIFICATIONS_PATH } from "./real-build-input-files";
@@ -56,31 +50,10 @@ test("publishes the booklet's transition classifications", async () => {
   const evidence = await deriveRealBuildPanelEvidence({ pdfBytes: bytes, source, pdfDigest });
   expect(evidence.panels.length).toBe(EXPECTED_PRINTED_STEPS);
 
-  const { getDocument, OPS } = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  const document = await getDocument({ data: new Uint8Array(bytes), isEvalSupported: false })
-    .promise;
-  const shapesByPage = new Map<number, readonly PageShape[]>();
-  try {
-    const codes = {
-      setFillRGBColor: OPS.setFillRGBColor,
-      constructPath: OPS.constructPath,
-      fill: OPS.fill,
-      eoFill: OPS.eoFill,
-      fillStroke: OPS.fillStroke,
-      save: OPS.save,
-      restore: OPS.restore,
-      transform: OPS.transform,
-    };
-    for (const pageNumber of [...new Set(evidence.panels.map((panel) => panel.pageNumber))]) {
-      const page = await document.getPage(pageNumber);
-      shapesByPage.set(
-        pageNumber,
-        extractPageShapes((await page.getOperatorList()) as unknown as OperatorList, codes),
-      );
-    }
-  } finally {
-    await document.destroy();
-  }
+  const shapesByPage = await sampleBookletPageShapes(
+    bytes,
+    evidence.panels.map((panel) => panel.pageNumber),
+  );
 
   const features = deriveTransitionPanelFeatures({
     panels: evidence.panels,

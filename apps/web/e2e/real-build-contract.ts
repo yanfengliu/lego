@@ -498,6 +498,7 @@ export function unexecutedStepReport(
   return {
     stepNumber: panel.stepNumber,
     pageNumber: panel.pageNumber,
+    panelFace: panel.panelFace,
     calloutPieces: panel.calloutPieces,
     expectedAssembledPieces: panel.action.assembledPieces,
     attemptedPieces: 0,

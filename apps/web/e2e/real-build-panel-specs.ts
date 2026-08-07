@@ -1,3 +1,4 @@
+import type { PanelFace } from "../src/assembly/panel-face";
 import type { PanelCalloutBox, StepPanel } from "../src/instructions/step-panels";
 
 import { sha256Digest } from "./real-build-artifacts";
@@ -70,6 +71,12 @@ export function buildRealBuildPanelSpecs(input: {
   readonly repoRoot: string;
   readonly calloutDirectory: string;
   readonly panels: readonly StepPanel[];
+  /**
+   * Which face each printed step is drawn from, over the contiguous prefix the
+   * caller derived. A step absent from this map gets a null face and the run
+   * refuses it rather than assuming studs-up.
+   */
+  readonly facesByStep: ReadonlyMap<number, PanelFace>;
   readonly calloutBoxesByStep: Readonly<Record<number, readonly PanelCalloutBox[]>>;
   readonly stepByCalloutIdentity: ReadonlyMap<string, number>;
   readonly manifestCallouts: readonly V5ManifestCallout[];
@@ -279,6 +286,7 @@ export function buildRealBuildPanelSpecs(input: {
     return {
       stepNumber: panel.stepNumber,
       pageNumber: panel.pageNumber,
+      panelFace: input.facesByStep.get(panel.stepNumber) ?? null,
       minXPt: panel.bounds.minXPt,
       maxXPt: panel.bounds.maxXPt,
       minYPt: panel.bounds.minYPt,

@@ -1,3 +1,4 @@
+import { derivePanelFaces, type PanelFace } from "../src/assembly/panel-face";
 import type { PageShape } from "../src/instructions/page-shapes";
 import type { PanelCalloutBox, StepPanel } from "../src/instructions/step-panels";
 
@@ -40,18 +41,13 @@ export const ROTATION_ICON_FILL_HEX = "#ffffff";
 export const DETERMINISTIC_TRANSITION_CLASSIFIER_ID =
   "lego.deterministic-transition-classifier/1" as const;
 
-/** Which face of the assembly a printed panel is drawn from. */
-export type PanelFace = "studs-up" | "underside";
-
 /**
- * The face printed step 1 is drawn from, and the seed of the whole toggle.
- *
- * It is an assumption, not a measurement: a booklet could open on an inverted
- * subassembly. It is stated here so it can be checked rather than believed —
- * `derivePanelFaces` returns the seed it used, and a vision judgement of any
- * one panel fixes the phase of every other by parity.
+ * The face, its seed and the fold live with the camera correction they exist to
+ * drive, in `src/assembly/panel-face`, so the definition a renderer consumes and
+ * the definition this booklet pass produces cannot drift apart. Re-exported here
+ * because this is where the booklet's own reading of the icon lives.
  */
-export const FIRST_PANEL_FACE: PanelFace = "studs-up";
+export { derivePanelFaces, FIRST_PANEL_FACE, type PanelFace } from "../src/assembly/panel-face";
 
 export interface TransitionPanelFeatures extends TransitionPanelEvidence {
   /** The booklet's rotate-the-model icon is drawn inside this panel. */
@@ -66,26 +62,6 @@ export interface TransitionPanelFeatures extends TransitionPanelEvidence {
    * step 4 onward, and no frame or identification can recover that.
    */
   readonly panelFace: PanelFace;
-}
-
-/**
- * Folds the icon into a face per step, in printed order.
- *
- * Separate from the feature derivation because the fold is the claim worth
- * testing on its own: it needs only the icon flags and the seed, so it can be
- * checked against a blind reading of the panels without a PDF in the room.
- */
-export function derivePanelFaces(
-  steps: readonly { readonly stepNumber: number; readonly rotationIconPresent: boolean }[],
-  seed: PanelFace = FIRST_PANEL_FACE,
-): readonly { readonly stepNumber: number; readonly panelFace: PanelFace }[] {
-  let face = seed;
-  return [...steps]
-    .sort((left, right) => left.stepNumber - right.stepNumber)
-    .map((step) => {
-      if (step.rotationIconPresent) face = face === "studs-up" ? "underside" : "studs-up";
-      return { stepNumber: step.stepNumber, panelFace: face };
-    });
 }
 
 function isRotationIcon(shape: PageShape): boolean {

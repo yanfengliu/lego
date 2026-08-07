@@ -14,6 +14,7 @@ export * from "./exploded-score";
 export * from "./lattice-placements";
 export * from "./panel-art";
 export * from "./panel-arrows";
+export * from "./panel-face";
 export * from "./panel-difference";
 export * from "./panel-registration";
 export * from "./project-bounds";

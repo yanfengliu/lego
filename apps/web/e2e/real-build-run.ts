@@ -256,6 +256,26 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
               const parts = (stepBaseDocument as { parts: unknown[] }).parts;
               const anchorStep = parts.length === 0;
 
+              // The camera fit reads azimuth, scale and phase off the panel's own
+              // stud grid, and it cannot read the face: a projected square
+              // lattice is identical from above and below, so the fitter returns
+              // the positive-elevation twin on every panel including the flipped
+              // ones. The booklet's rotate-the-model icon supplies that missing
+              // sign, and `viewForPanelFace` applies it.
+              //
+              // Both consumers of the fit take the corrected view, not just the
+              // renderer: the arrow family is resolved against this projection
+              // too, so a face-blind projection would convert the printed arrows
+              // into the wrong displacements before any render happened.
+              const faceCorrectedFit =
+                fit.solution === null || spec.panelFace === null
+                  ? null
+                  : (assembly.viewForPanelFace(fit.solution, spec.panelFace) as {
+                      azimuthDegrees: number;
+                      elevationDegrees: number;
+                      pixelsPerUnit: number;
+                    });
+
               // A detected arrow is not yet a placement; converting it is what
               // makes it one. The booklet draws an exploded step by inking an
               // arrow from clear of the ghost to clear of the landing surface,
@@ -273,12 +293,12 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
               // establishes is that the arrow constrains the placement at all,
               // which is exactly what the refusal asks for.
               const arrowFamily =
-                fit.solution === null ||
+                faceCorrectedFit === null ||
                 arrows.displacementXPx === null ||
                 arrows.displacementYPx === null
                   ? []
                   : (() => {
-                      const projection = assembly.panelProjectionFromFit(fit.solution);
+                      const projection = assembly.panelProjectionFromFit(faceCorrectedFit);
                       const clearances = assembly.measureArrowClearances(arrows.arrows, {
                         width,
                         height,
@@ -417,6 +437,18 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                   stage: "camera-fit",
                   message: `Step ${spec.stepNumber} has no usable camera fit: ${fit.failure}`,
                 };
+              } else if (spec.panelFace === null) {
+                failure = {
+                  code: "panel-face-unknown",
+                  stage: "camera-fit",
+                  message:
+                    `Step ${spec.stepNumber} has no derived panel face, so which side of the model the panel ` +
+                    `is drawn from is unknown. This booklet turns the model over mid-build and the face is a ` +
+                    `running parity from printed step 1, so it is derivable only over a contiguous prefix of ` +
+                    `steps whose rotate-the-model icons have all been read. Rendering the candidate anyway ` +
+                    `would score it against the opposite face of the drawing, which no later check reports.`,
+                  stepNumber: spec.stepNumber,
+                };
               } else if (noSignal !== null) {
                 failure = noSignal;
               } else {
@@ -426,10 +458,20 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                   pixelsPerUnit: number;
                   residualPx: number;
                 };
+                // Derived from the solution here rather than reused from
+                // `faceCorrectedFit`, so this branch depends on the face alone —
+                // which the guard above has established — and not on a coupling
+                // between a null solution and a null failure that a reader would
+                // have to go and check.
+                const corrected = assembly.viewForPanelFace(solution, spec.panelFace) as {
+                  azimuthDegrees: number;
+                  elevationDegrees: number;
+                  pixelsPerUnit: number;
+                };
                 const view = {
-                  azimuthDegrees: solution.azimuthDegrees,
-                  elevationDegrees: solution.elevationDegrees,
-                  pixelsPerUnit: solution.pixelsPerUnit / factor,
+                  azimuthDegrees: corrected.azimuthDegrees,
+                  elevationDegrees: corrected.elevationDegrees,
+                  pixelsPerUnit: corrected.pixelsPerUnit / factor,
                 };
                 const frame = {
                   widthPx: width,
@@ -947,6 +989,7 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
               reports.push({
                 stepNumber: spec.stepNumber,
                 pageNumber: spec.pageNumber,
+                panelFace: spec.panelFace,
                 fit: {
                   azimuthDegrees: fitSolution?.azimuthDegrees ?? null,
                   elevationDegrees: fitSolution?.elevationDegrees ?? null,

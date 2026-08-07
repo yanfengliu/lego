@@ -22,7 +22,10 @@ import {
   type RealBuildStepReport,
 } from "../e2e/real-build-safety";
 import { isLocalRealBuildAuthority } from "../e2e/real-build-authority";
-import type { RealBuildBrowserOutput } from "../e2e/real-build-browser-output";
+import {
+  isRealBuildBrowserOutput,
+  type RealBuildBrowserOutput,
+} from "../e2e/real-build-browser-output";
 import {
   REAL_BUILD_TEST_DIGEST,
   completeRealBuildTestOptions,
@@ -35,6 +38,7 @@ const transitionPanel = realBuildTransitionPanel;
 const completeReport = (stepNumber: number): RealBuildStepReport => ({
   stepNumber,
   pageNumber: stepNumber,
+  panelFace: "studs-up",
   calloutPieces: 0,
   expectedAssembledPieces: 0,
   attemptedPieces: 0,
@@ -158,6 +162,39 @@ const browserOutput = (
 };
 
 describe("real build adversarial completion and ledger contracts", () => {
+  /**
+   * The panel face decides the sign of the elevation a candidate is rendered at,
+   * so a report free to name its own face could claim it scored against the side
+   * the booklet drew whichever side it actually used — and a wrong face does not
+   * raise an error, it just returns a low score. The reported face is therefore
+   * bound to the prepared panel rather than merely checked for being a face.
+   */
+  it("refuses a step report whose panel face disagrees with the prepared panel", () => {
+    const prepared = options(2);
+    const honest = browserOutput(2);
+    expect(isRealBuildBrowserOutput(honest, prepared)).toBe(true);
+
+    const forged = {
+      ...honest,
+      reports: honest.reports.map((report, index) =>
+        index === 1 ? { ...report, panelFace: "underside" } : report,
+      ),
+    };
+    expect(isRealBuildBrowserOutput(forged, prepared)).toBe(false);
+
+    // A face is also not optional: dropping the key must fail rather than read
+    // as "no face was needed".
+    const omitted = {
+      ...honest,
+      reports: honest.reports.map((report) => {
+        const withoutFace: Record<string, unknown> = { ...report };
+        delete withoutFace.panelFace;
+        return withoutFace;
+      }),
+    };
+    expect(isRealBuildBrowserOutput(omitted, prepared)).toBe(false);
+  });
+
   it("fails malformed or semantically weakened retained options without trusting browser JSON", () => {
     const malformed = finalizeExecutedRealBuildResult({
       options: null as unknown as RealBuildOptions,

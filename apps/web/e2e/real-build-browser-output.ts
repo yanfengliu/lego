@@ -53,6 +53,7 @@ const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 const REPORT_KEYS = [
   "stepNumber",
   "pageNumber",
+  "panelFace",
   "calloutPieces",
   "expectedAssembledPieces",
   "attemptedPieces",
@@ -408,6 +409,10 @@ function assertStepReportShape(
     panel === undefined ||
     report.stepNumber !== index + 1 ||
     report.pageNumber !== panel.pageNumber ||
+    // Bound to the prepared panel rather than merely well-typed: the run may
+    // only report the face its inputs declared, so it cannot invent one for a
+    // step whose icons were never read.
+    report.panelFace !== panel.panelFace ||
     report.calloutPieces !== panel.calloutPieces ||
     report.expectedAssembledPieces !== panel.action.assembledPieces ||
     !isBoundedInteger(report.attemptedPieces, options.maxParts) ||

@@ -147,6 +147,7 @@ function browserOutput(): RealBuildBrowserOutput {
   const report: RealBuildStepReport = {
     stepNumber: 1,
     pageNumber: 1,
+    panelFace: "studs-up",
     calloutPieces: 0,
     expectedAssembledPieces: 0,
     attemptedPieces: 0,

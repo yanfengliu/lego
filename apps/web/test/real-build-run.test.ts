@@ -55,6 +55,7 @@ const allInputDigests = (value = TEST_DIGEST) => ({
 const transitionPanel = (stepNumber: number): RealBuildPanelSpec => ({
   stepNumber,
   pageNumber: stepNumber,
+  panelFace: "studs-up",
   minXPt: 0,
   maxXPt: 1,
   minYPt: 0,
@@ -570,6 +571,7 @@ describe("real booklet build safety", () => {
     ): RealBuildPanelSpec => ({
       stepNumber,
       pageNumber: stepNumber,
+      panelFace: "studs-up",
       minXPt: 0,
       maxXPt: 1,
       minYPt: 0,
@@ -675,6 +677,7 @@ describe("real booklet build safety", () => {
       mappedCalloutKeys: [],
       pieces: [],
       omittedPieces: [],
+      panelFace: "studs-up" as const,
       calloutPieces: 0,
       classifiedPhysicalCalloutPieces: 0,
       semanticMultiplierQuantity: 0,

@@ -18,6 +18,7 @@ export const REAL_BUILD_TEST_INPUT_DIGESTS = {
 export const realBuildTransitionPanel = (stepNumber: number): RealBuildPanelSpec => ({
   stepNumber,
   pageNumber: stepNumber,
+  panelFace: "studs-up",
   minXPt: 0,
   maxXPt: 1,
   minYPt: 0,

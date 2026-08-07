@@ -1,8 +1,9 @@
 import { expect, test } from "@playwright/test";
 
-import { readSampleBooklet } from "./booklet-fixture";
+import { readSampleBooklet, sampleBookletPageShapes } from "./booklet-fixture";
 import { deriveRealBuildPanelEvidence } from "./real-build-panel-evidence";
 import { readTransitionClassificationBundle } from "./real-build-transition-classification";
+import { deriveTransitionPanelFeatures } from "./real-build-transition-features";
 import { bookletProbeUrls, hasSampleBooklet } from "./sample-booklet";
 import {
   beginAtomicRun,
@@ -439,10 +440,37 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
     );
   }
 
+  // Which face each panel is drawn from, folded from the booklet's own
+  // rotate-the-model icon. Derived here from the booklet bytes this run already
+  // holds rather than read from a side artifact, so it cannot drift from the
+  // pages being scored.
+  //
+  // Only over the requested prefix: the fold is a running parity from step 1, so
+  // it is meaningful exactly on a contiguous run of steps whose icons have all
+  // been read. Steps past the prefix get no face and the run refuses them, which
+  // is why the panels are filtered by step and not merely by page.
+  const facePanels = panels.filter(
+    ({ stepNumber }) => stepNumber <= (Number.isInteger(lastStep) ? lastStep : 1),
+  );
+  const faceFeatures = deriveTransitionPanelFeatures({
+    panels: facePanels,
+    calloutBoxesByStep,
+    panelEvidenceByStep,
+    shapesByPage: await sampleBookletPageShapes(
+      pdfBytes,
+      facePanels.map(({ pageNumber }) => pageNumber),
+    ),
+    expectedPrintedSteps: EXPECTED_PRINTED_STEPS,
+  });
+  const facesByStep = new Map(
+    faceFeatures.map(({ stepNumber, panelFace }) => [stepNumber, panelFace]),
+  );
+
   const specs = buildRealBuildPanelSpecs({
     repoRoot: process.cwd(),
     calloutDirectory: CALLOUT_DIRECTORY,
     panels,
+    facesByStep,
     calloutBoxesByStep,
     stepByCalloutIdentity: panelBindings.stepByIdentity,
     manifestCallouts,

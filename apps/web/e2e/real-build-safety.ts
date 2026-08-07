@@ -1,3 +1,5 @@
+import type { PanelFace } from "../src/assembly/panel-face";
+
 import type { CoverageInputBindings, StepCoverageCalloutClaim } from "./real-build-coverage";
 import type { TrustedIdentificationConfidence } from "./real-build-identification-trust";
 
@@ -51,6 +53,7 @@ export type StepFailureCode =
   | "unresolved-callout"
   | "missing-catalog-part"
   | "camera-fit-failed"
+  | "panel-face-unknown"
   | "no-placement-signal"
   | "camera-anchor-failed"
   | "no-placement-candidate"
@@ -599,6 +602,17 @@ export function groupPlacementOperationsInPrintedStep<T extends PlacementOperati
 export interface RealBuildPanelSpec {
   readonly stepNumber: number;
   readonly pageNumber: number;
+  /**
+   * Which face of the assembly this panel is drawn from, folded from the
+   * booklet's rotate-the-model icon.
+   *
+   * Nullable, and a null is a refusal rather than a default. The face is a
+   * running parity from step 1, so it is only derivable over a contiguous
+   * prefix; a step outside the derived prefix has no face, and rendering it as
+   * studs-up would silently compare the candidate against the opposite side of
+   * the drawing — which is precisely the failure this field exists to stop.
+   */
+  readonly panelFace: PanelFace | null;
   readonly minXPt: number;
   readonly maxXPt: number;
   readonly minYPt: number;
@@ -706,6 +720,15 @@ export interface RealBuildPieceReport {
 export interface RealBuildStepReport {
   readonly stepNumber: number;
   readonly pageNumber: number;
+  /**
+   * The face this panel is drawn from, and therefore the sign of the elevation
+   * the candidate was rendered at: the camera is `viewForPanelFace(fit, face)`.
+   *
+   * Reported on every step, including steps that never rendered, because the
+   * defect this closes was invisible — a face-blind run scores against the
+   * opposite side of the drawing and reports a low score, not an error.
+   */
+  readonly panelFace: PanelFace | null;
   readonly calloutPieces: number;
   readonly expectedAssembledPieces: number;
   readonly attemptedPieces: number;

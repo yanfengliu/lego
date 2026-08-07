@@ -7,7 +7,11 @@ import {
   INSTRUCTION_PDF_LIMITS,
   type InstructionSourceV1,
 } from "../src/instructions/instruction-source";
-import { extractPageShapes, type OperatorList } from "../src/instructions/page-shapes";
+import {
+  extractPageShapes,
+  type OperatorList,
+  type PageShape,
+} from "../src/instructions/page-shapes";
 import {
   deriveStepPanels,
   type PanelCalloutBox,
@@ -234,5 +238,47 @@ export async function sampleBookletCalloutBoxes(
     byPage.set(pageNumber, entries);
   }
   await document.destroy();
+  return byPage;
+}
+
+/**
+ * The vector shapes of the named pages, which is where the booklet's page
+ * chrome lives — including the rotate-the-model icon that carries the panel
+ * face.
+ *
+ * Here rather than inline in each probe because the op codes are the whole
+ * contract: `save`/`restore` have to be passed for `extractPageShapes` to stack
+ * the graphics state, and a probe that omitted them read a white icon as black
+ * and lost four of the booklet's forty-three.
+ */
+export async function sampleBookletPageShapes(
+  bytes: Buffer,
+  pages: readonly number[],
+): Promise<ReadonlyMap<number, readonly PageShape[]>> {
+  const { getDocument, OPS } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const document = await getDocument({ data: new Uint8Array(bytes), isEvalSupported: false })
+    .promise;
+  const codes = {
+    setFillRGBColor: OPS.setFillRGBColor,
+    constructPath: OPS.constructPath,
+    fill: OPS.fill,
+    eoFill: OPS.eoFill,
+    fillStroke: OPS.fillStroke,
+    save: OPS.save,
+    restore: OPS.restore,
+    transform: OPS.transform,
+  };
+  const byPage = new Map<number, readonly PageShape[]>();
+  try {
+    for (const pageNumber of [...new Set(pages)].sort((left, right) => left - right)) {
+      const page = await document.getPage(pageNumber);
+      byPage.set(
+        pageNumber,
+        extractPageShapes((await page.getOperatorList()) as unknown as OperatorList, codes),
+      );
+    }
+  } finally {
+    await document.destroy();
+  }
   return byPage;
 }
