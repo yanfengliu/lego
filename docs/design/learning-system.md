@@ -6,6 +6,14 @@ Status: design draft for review
 
 Related: [product and architecture specification](spec.md)
 
+## Scope after the 2026-08-07 copilot cut
+
+Read this document for the contracts it owns — evidence, sealed runs and replay, the broker and challenger boundaries, evaluation, and promotion — and not as a live product plan.
+
+The AI copilot its inner maker loop was written around, where a user supplies a text brief and the system generates, criticizes, repairs and presents a model for acceptance, was cut. `spec.md` records exactly what went, what survives it because the booklet loop depends on it, and which of the types named below are still live in `packages/protocol` and `packages/brick-kernel`.
+
+The substitution to hold while reading: what this document calls a maker run is now a booklet run, its brief is a printed step rather than a prompt, and its visual critic is a closed same-or-different check of a render against that step's own printed panel. The authority boundaries, immutability rules and replay levels are unchanged by that substitution, which is why they are still normative.
+
 ## Purpose
 
 The harness turns model creation into a replayable experiment. It lets an agent inspect the rendered result and structured assembly state, refine its construction approach, preserve useful evidence, and improve prompts, retrieval, templates, repair strategies, validators, harness behavior, and application code without allowing the system to grade or deploy its own work unchecked.

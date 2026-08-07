@@ -1,76 +1,59 @@
-# AI-native brick modeling studio — product and architecture specification
+# Brick modeling studio and instruction-booklet build loop — product and architecture specification
 
 Date: 2026-07-09
 
-Status: design draft for review
+Revised 2026-08-07: the AI copilot product was cut. See [Cut: the AI copilot](#cut-the-ai-copilot) for what went, what survives it in code, and what that code now serves.
 
 ## Decision summary
 
-Build a separate AI-native brick modeling product in this repository. Do not merge it with `3d-maker` now.
-
-The app combines three surfaces:
+This repository builds two surfaces and nothing else.
 
 1. A precise manual brick editor.
-2. An AI copilot that generates full assemblies or scoped, previewable patches.
-3. A laboratory that records evidence, compares techniques, learns from accepted edits, and proposes improvements to generation, the harness, and the app.
+2. A closed loop that reads a printed LEGO instruction booklet and assembles the set it describes — counting every part, compiling the printed steps into a build program, placing each piece, and verifying each step against the booklet's own printed panel before playing the result back.
 
-The canonical source of truth is a versioned part-and-connection graph. Three.js scenes, renders, LDraw files, GLB files, and model-provider output are derived artifacts.
+Do not merge this with `3d-maker`. `3d-maker`'s source of truth is a compact genome whose output is a disposable mesh, and it can safely jitter numeric parameters; this product's source of truth is an editable assembly graph of real parts at real seats, where arbitrary mutation just makes collisions. Co-evolution means compatible experiment envelopes, not merged repositories — a shared package is justified only after both projects independently implement the same behavior.
+
+The canonical source of truth is a versioned part-and-connection graph. Three.js scenes, renders, LDraw files, GLB files, printed-panel rasters, and model responses are derived artifacts.
 
 The load-bearing deterministic compilation invariant is:
 
 > Base-document structural hash + exact normalized build-program bytes + compiler, schema, catalog, template, transform-policy, connector-taxonomy, collision-model, and validator snapshots produce the same document structural hash and validation report.
 
-Generation replay is a separate, weaker contract because providers may be nondeterministic. A `full` replay uses captured provider and critic outputs; a `downstream-only` replay begins at the earliest retained output; a `metadata-only` record is not replayable. Compilation, validation, render configuration, and patch application remain deterministic at every replay level.
+Run replay is a separate, weaker contract, because a run may call a model and a model may be nondeterministic. A `full` replay uses captured model outputs; a `downstream-only` replay begins at the earliest retained output; a `metadata-only` record is not replayable. Compilation, validation, render configuration, and operation application remain deterministic at every replay level.
 
-AI may propose data. It may not directly author unrestricted executable code in the model-building loop, silently mutate the user's document, waive deterministic validator failures, or rewrite the running application.
-
-## Why this is a separate product
-
-`3d-maker` is explicitly a procedural asset evolution studio whose source of truth is a compact genome and whose output is a generated mesh. This product's source of truth is an editable assembly graph containing real parts, explicit connections, submodels, and build steps.
-
-The domains also mutate differently:
-
-- `3d-maker` can safely jitter numeric parameters and rebuild a disposable mesh.
-- Brick assemblies require graph-aware edits at compatible ports. Arbitrary mutation usually creates collisions or disconnected parts.
-- Brick crossover is meaningful only at typed subassembly boundaries.
-
-Co-evolution initially means shared concepts and compatible experiment envelopes, not merged repositories or shared domain models. A shared package is justified only after both projects independently implement the same behavior and the abstraction survives use in both.
+A model may propose data. It may not author executable code in the build loop, silently mutate the user's document, waive a deterministic validator failure, or rewrite the running application.
 
 ## Product promise
 
 The user can:
 
-- Build accurately with a curated catalog of brick parts.
-- Ask for an entire small model from text or reference images.
-- Select a region or exposed connectors and ask the AI to add, replace, complete, repair, or restyle that portion.
-- Compare several structurally valid candidates rather than receive one opaque answer.
-- Inspect exactly what an AI patch adds, removes, or changes before accepting it.
-- Edit an accepted candidate with the same commands used for manual work.
-- Export to LDraw-compatible tools for additional editing, rendering, instructions, or sourcing.
-- Replay any generation episode to the level permitted by its retained artifacts and consent policy.
+- Build accurately with a curated catalog of brick parts, with every illegal placement refused at the command rather than flagged afterwards.
+- Hand the app a printed instruction booklet and have it read the set's inventory, printed steps, callouts, and panels.
+- Watch it build that set step by step, each placement checked against the booklet's own drawing before the build moves on.
+- See exactly why a step was refused, in the booklet's own terms — which panel, which highlight, which arrow, which candidate, and by how much it missed.
+- Edit the resulting model with the same commands used for manual work.
+- Export to LDraw-compatible tools for further editing, rendering, instructions, or sourcing.
+- Replay any booklet run to the level permitted by its retained artifacts and consent policy.
 - See whether a claim is known, inferred, advisory, unverified, or physically verified.
 
 ## Goals
 
-1. Make AI output useful as an editable starting point even when it is not a finished design.
-2. Make illegal or out-of-scope AI edits impossible to apply silently.
-3. Support both full-model and bounded subassembly generation.
-4. Improve through accepted designs, user edit diffs, validated templates, failure cases, and frozen benchmarks.
-5. Let an engineering agent inspect renders and structured state, reproduce weaknesses, patch the system in isolation, and prove improvement before promotion.
-6. Remain useful as an offline manual editor when no AI provider is available.
+1. Read a printed booklet accurately enough that the booklet's own internal checks — step numbering, callout counts, inventory totals — reconcile.
+2. Place every piece the booklet places, in the frame the booklet draws, and prove it against the printed panel rather than against a hash.
+3. Make an illegal placement unreachable through the editor, not merely detectable after the fact.
+4. Keep every step's verdict measurable and reproducible, so a change with no number attached is visibly not progress.
+5. Recover from a wrong placement by backtracking, rather than by trying to be right the first time.
+6. Remain useful as an offline manual editor with no network and no model available.
 7. Preserve interchange with the LDraw ecosystem without making raw LDraw text the internal authoring model.
 
-## Non-goals for the first product
+## Non-goals
 
-- Rebuilding every BrickLink Studio feature.
-- Full official-part coverage.
-- Claiming perfect physical stability, clutch strength, or instruction accessibility from geometry alone.
-- Photorealistic path tracing.
-- Automatic purchasing or marketplace transactions.
-- Real-time collaboration.
-- Technic, flexible parts, arbitrary hinges, or complex articulated assemblies in the first catalog.
+- Rebuilding every BrickLink Studio feature, or full official-part coverage.
+- Claiming physical stability, clutch strength, or instruction accessibility from geometry alone.
+- Photorealistic path tracing, marketplace transactions, or real-time collaboration.
+- Generating an original model from a text brief, or any copilot that proposes designs the user did not draw or print.
 - Autonomous production deployment or self-approval of application code.
-- Training a foundation model before retrieval, templates, search, and repair have been measured.
+- Training a foundation model on anything here.
 
 ## Core workflows
 
@@ -78,34 +61,39 @@ The user can:
 
 The user searches a part palette, previews placement as a ghost, snaps compatible ports, rotates through legal orientations, and applies edits through an undoable command transaction.
 
-Initial commands are place, move, attach, detach, copy, delete, recolor, group, create submodel, and assign build step. Collision, disconnected-component, and exposed-port overlays remain available during editing.
+Commands are place, move, attach, detach, copy, delete, recolor, group, create submodel, and assign build step. Collision, disconnected-component, and exposed-port overlays remain available during editing. A placement nothing would hold up is refused at the command, and the refusal names the observed values rather than a class.
 
-### Full generation
+### Reading a booklet
 
-The user supplies a text brief and optionally one or more reference images, dimensions, palette, allowed inventory, piece budget, and style preferences. The system creates a hierarchical component plan, produces several candidates, validates and repairs them, renders canonical views, and presents the best diverse valid candidates.
+The reader derives the set inventory, the printed step sequence, each step's callouts and quantities, each step's panel raster, and the printed annotations on that panel — highlight regions, displacement arrows, and the rotation icon that says which face the panel is drawn from.
 
-### Scoped generation
+The booklet checks itself, and those checks are the loop's early measurable: step numbers run 1..N with no gaps, callout quantities reconcile against the back-matter inventory, and a parts-bin quantity is distinguished from a repeat multiplier by printed type size, with an unclassifiable size failing rather than defaulting into either class.
 
-The user defines one of four scopes:
+Panel geometry is fitted from the panel's own printed stud lattice, which gives azimuth, scale and phase but cannot give the face — a projected square lattice reads identically from above and below. The face comes from the printed rotation icon as a running parity from a named seed step, and a step outside the contiguous read prefix refuses rather than defaulting to studs-up.
 
-- Selected parts that may be replaced.
-- An empty insertion volume.
-- Exposed connectors that a new subassembly must attach to.
-- A frozen model with a named semantic region to complete or restyle.
+### Building and verifying a printed step
 
-The request captures locked parts, mutable parts, required attachment ports, allowed volume, allowed parts and colors, and a part budget. The AI returns an `AssemblyPatch`, never a replacement document.
+A printed step compiles into build-program operations against the settled prefix — the single canonical document representing every step already accepted. Candidates are enumerated from the prefix's own free connectors, seeded from both sides of a stud-tube joint, and pruned by lattice, connector graph, collision and the build-plate rule before anything is rendered. The whole printed step is proposed as one object, because its pieces are placed together and scored together.
 
-### Repair
+A placement is settled by comparing a render of the candidate against a printed panel at that panel's own camera and face. The panel that settles step N is usually panel N+1, which draws everything placed at step N as already-built, seated and unhighlighted; that makes it an independent witness step N's own panel frequently cannot be, since an exploded step outlines a floating ghost rather than a seat and the first step outlines nothing at all.
 
-The system converts validator failures into typed, localized issues and attempts deterministic repair before asking a model to revise its proposal. Examples include replacing an unavailable part, reconnecting a detached component, resolving a collision, or moving a subassembly inside the allowed envelope.
+Steps therefore have distinct evidence classes, chosen from a free signal rather than assumed: a panel with a usable highlight is scored against it, a step drawn exploded has each candidate redrawn back along the printed arrow's line and compared against the drawn ghost, and a step with neither defers to the next panel. Every bar in that comparison is derived from the panel's own geometry, never from a global constant — a panel has a reachable ceiling, so one fixed threshold asks a different question on every page.
 
-### Variant exploration
+The printed arrow states a direction, not a length: an exploded step's seat is occluded, so the ink stops at the visible surface while the part comes to rest behind it. A candidate that ranks first on pixel agreement is not thereby correct; when a score and an image disagree, the image is the evidence and the score is a lossy summary of it.
 
-The user can branch from a valid candidate, lock parts or semantic regions, and generate a small population of variants. Lineage is preserved. Mutation occurs through typed operations and parameterized templates, not arbitrary coordinate noise.
+Missing parts are work items, not blockers. A step needing a part the catalog lacks gets the part added, with family, real LDraw identifier, connectors, collision primitives and provenance; it is never substituted or skipped.
 
-### Teaching the system
+`building-system.md` owns the measured position of this loop and the ordered plan for what is missing.
 
-When the user accepts and edits a candidate, the app records the canonical command diff from candidate to final model. The user may promote a recurring subassembly or technique for later retrieval. Rejected candidates remain labeled negative evidence.
+### Backtracking
+
+A locally symmetric placement contradicts nothing at the step that makes it, and the model keeps growing on top of every placement, so a symmetric mistake surfaces later rather than never.
+
+The requirement is therefore not to resolve every ambiguity before committing, but to go back far enough when one surfaces: the search commits to its best candidate, retains every rejected alternative as counterevidence, and walks back to the shallowest step with an untried one. That gives the loop a measurable — how many steps were undone and how far back the deepest reversal reached — where "prove this placement is unique" gives none.
+
+### Playback
+
+A completed build is played back step by step from the canonical document, using the same renderer and the same step membership the build produced.
 
 ## System architecture
 
@@ -113,79 +101,64 @@ When the user accepts and edits a candidate, the app records the canonical comma
 flowchart LR
   U["User"] --> W["Web editor"]
   W --> M["Brick model and command core"]
-  W --> B["Released companion trust broker"]
-  B <--> H["Unprivileged generation harness"]
-  B <--> P["Replaceable generation providers"]
-  B --> C["Released compiler and deterministic validators"]
-  C --> R["Canonical renderer"]
-  R --> V["Visual critic"]
-  V --> B
-  B --> S["Authoritative run and knowledge store"]
+  M --> X["LDraw import and export"]
+  K["Printed booklet"] --> RB["Booklet reader: inventory, steps, callouts, panels"]
+  RB --> PG["Build program for one printed step"]
+  PG --> C["Compiler and deterministic validators"]
+  C --> M
+  M --> R["Canonical renderer"]
+  R --> CP["Panel comparison and scoring"]
+  RB --> CP
+  CP --> PG
+  W --> B["Companion trust broker"]
+  B --> S["Run, artifact and event store"]
   S --> B
   B --> W
-  M --> X["LDraw import and export"]
 ```
 
-### Target repository layout
+### Repository layout
 
 ```text
 apps/
-  web/                       React, Vite, TypeScript, Three.js editor
-  companion/                 Minimal released trust, ledger, seal and credential broker
-  harness/                   Unprivileged Node/TypeScript maker and experiment worker
-services/
-  generators/                Optional Python model-provider adapters
+  web/                       React, Vite, TypeScript, Three.js editor and booklet run driver
+  companion/                 Artifact store, run ledger, run recorder; the released trust broker's home
+  harness/                   Unprivileged captured-output replay worker
 packages/
-  protocol/                  Versioned JSON Schema and generated types
-  brick-domain/              Documents, commands, patches, migrations
-  catalog/                   Parts, colors, geometry, ports, licenses
-  build-program/             Restricted declarative assembly language
-  validation/                Geometry and assembly truth
-  rendering/                 Three.js derivation and canonical captures
-  generation/                Briefs, providers, repair, ranking, lineage
-  evaluation/                Native metrics, protected promotion, and optional fleet projection
-knowledge/
-  templates/                 Curated declarative subassemblies
-  techniques/                Versioned construction and search strategies
-  lessons/                   Evidence-backed scoped hypotheses
-benchmarks/
-  dev/
-  regression/
-var/
-  state/                     Ignored local broker index, CAS, and development state
-  runs/                      Ignored immutable run bundles
+  protocol/                  Versioned JSON Schema and generated types and validators
+  brick-kernel/              Documents, commands, compiler, patches, validation, migrations
+  catalog/                   Parts, colors, geometry, connectors, collision, licenses
+  rendering/                 Three.js derivation, canonical captures, render packets
+  generation/                Deterministic local candidate lab (see the cut section)
+scripts/                     Booklet, LDraw, Builder and catalog derivation tooling
+docs/                        Design, policy, provenance and devlog
+var/state/                   Ignored local broker index, CAS, and development state
+var/runs/                    Ignored immutable run bundles
+output/                      Ignored booklet run evidence and scoreboards
 ```
 
-The real holdout is not stored in the agent-readable repository. An independently owned evaluator receives a sealed challenger artifact, runs masked cases with champion-pinned validators, renderer, cameras and metrics, and returns a tamper-evident aggregate report. Any leaked holdout case is rotated into regression.
-
-This is the target boundary, not permission to scaffold every package immediately. Implementation begins as a small workspace and splits only when a boundary has real behavior.
+Split a package only when a boundary has real behavior.
 
 ### Technology decisions
 
-- React manages editor panels and application state; it does not own the Three.js scene graph.
-- Three.js renders disposable scene state derived from the canonical document.
-- Pure TypeScript owns model semantics, commands, import/export normalization, and validators so the browser and released broker use identical rules. The worker may call the same packages, but its validity claims are never authoritative.
-- Vitest covers pure domain behavior; Playwright covers interaction, deterministic capture, and visual workflows.
-- Python is confined to optional provider adapters for research models such as BrickNet. It never becomes the source of truth for model validity.
-- Cross-language provider messages conform to versioned JSON Schema and contract tests.
-- The recursive engineering loop borrows `civ-engine`'s small improvement finding and run-manifest vocabulary through a LEGO-owned dev-time compatibility adapter against a pinned package version. The native sealed LEGO run remains authoritative; the browser, brick domain, broker, and production evaluator do not depend on game simulation types. Build and CI contract-test the adapter against that pin; each native run records the package, schema and adapter versions. Extract a domain-neutral package only after a second non-game product demonstrates the same stable mapping and the dev-only dependency has become a real maintenance cost.
-- The manual editor starts and remains usable without the provider service.
+- React manages editor panels and application state; it does not own the Three.js scene graph, which renders disposable state derived from the canonical document.
+- Pure TypeScript owns model semantics, commands, import/export normalization, and validators so the browser and the released broker use identical rules. A worker may call the same packages, but its validity claims are never authoritative.
+- Vitest covers pure domain behavior; Playwright covers interaction, deterministic capture, booklet runs, and visual workflows.
+- Python is confined to derivation tooling — LDraw, LDCad and Builder source measurement — and never becomes the source of truth for model validity.
+- Cross-language messages conform to versioned JSON Schema and contract tests.
+- The manual editor starts and remains usable without the broker and without any model.
 
-### Interactive runtime topology
+### Runtime topology
 
-The first delivery is an installed browser/PWA shell, a minimal loopback companion trust broker, and an unprivileged maker worker. The trust broker is a separately released security boundary, not another mode of the mutable experiment harness.
+The delivery is an installed browser/PWA shell, a minimal loopback companion trust broker, and an unprivileged worker. The trust broker is a separately released security boundary, not another mode of the mutable harness.
 
 - The browser owns the interactive document and offline manual editing in IndexedDB. A service-worker-cached shell keeps the primary per-install origin usable when the broker is stopped.
-- `apps/companion` serves the pinned web bundle and versioned job API, owns the authoritative event ledger, SQLite index, content-addressed blobs, OS-keystore-backed signing identity and allowlisted provider credential proxy. At boot it verifies its release manifest; OS identity and keystore policy expose production keys and credentials only to an approved released binary. Dirty, development or challenger builds are forced into a visibly separate test namespace. The broker runs only released compiler, validator, canonicalization and policy code, never loads challenger code, and never exposes raw provider credentials.
-- `apps/harness` is an unprivileged maker and experiment worker. It receives bounded capabilities and artifacts, proposes untrusted programs, and calls providers only through the broker's quota- and consent-enforcing proxy. Production uses a release-signed worker under a restricted OS identity. Engineering challengers use a separate test broker namespace, test keys and test provider credentials and can never write or sign production evidence.
-- The broker and worker are separate processes with distinct identities and sanitized environments. The broker does not launch challenger builds. An evaluator accepts only broker- or evaluator-sealed artifacts from the expected namespace; a seal created by a worker or challenger identity is invalid.
-- The primary web origin uses a stable per-install numeric-loopback scheme, host and reserved port so IndexedDB, the non-extractable device key, pairing pins and queued outbox events survive restarts. Tokens and nonces rotate, not the origin. An origin change requires an explicit authenticated migration served by both old and new origins; if the old origin cannot run, the app refuses automatic migration and preserves the old profile for recovery.
-- Pairing launches the stable origin with a one-time secret in the URL fragment. The app exchanges it once and immediately removes it with `history.replaceState`. In return, it receives a short-lived capability token whose audience is the exact origin and whose scopes name permitted API families. The token stays only in app memory. Every request carries a non-extractable device-key proof over method, canonical path and query, content type, body digest, token audience and scopes, exact origin, nonce and token hash. The broker signing-key fingerprint and device public key are pinned for challenge-response token renewal after reload. One-time secrets and bearer material never enter query strings, persistent browser storage, logs or artifacts; no host-scoped cookie is used.
-- Job events use a streaming transport with polling fallback. The same API supports hosted execution later without changing document semantics.
-- If the broker is absent, manual editing, local projects, deterministic validation, rendering, LDraw interchange, and trusted browser-local template tools continue to work. A local template tool compiles directly into a hard-validated manual command transaction with `localTool` provenance; it is not an AI candidate or broker-sealed patch. Model-provider generation, recorded candidate creation, AI-patch acceptance, run-ledger queries and experiments are visibly unavailable.
-- The worker shuts down provider adapters and releases resources on explicit stop; unexpected browser disconnect does not silently terminate an active recorded job.
+- `apps/companion` serves the pinned web bundle and versioned job API, and owns the authoritative event ledger, the SQLite index, content-addressed blobs, an OS-keystore-backed signing identity and an allowlisted model-credential proxy. At boot it verifies its release manifest; keystore policy exposes production keys and credentials only to an approved released binary, and dirty, development or challenger builds are forced into a visibly separate test namespace. The broker runs only released compiler, validator, canonicalization and policy code, never loads challenger code, and never exposes raw credentials.
+- `apps/harness` is an unprivileged worker holding bounded capabilities, calling models only through the broker's quota- and consent-enforcing proxy. Broker and worker are separate processes with distinct identities and sanitized environments, and a seal created by a worker or challenger identity is invalid.
+- The primary web origin uses a stable per-install numeric-loopback scheme, host and reserved port so IndexedDB, the non-extractable device key, pairing pins and queued outbox events survive restarts. Tokens and nonces rotate, not the origin; an origin change requires an explicit authenticated migration served by both origins, and if the old origin cannot run the app refuses to migrate and preserves the old profile for recovery.
+- Pairing passes a one-time secret in the URL fragment, exchanged once and immediately removed with `history.replaceState` for a short-lived capability token whose audience is the exact origin and whose scopes name permitted API families. The token stays only in app memory, and every request carries a non-extractable device-key proof over method, canonical path and query, content type, body digest, token audience and scopes, exact origin, nonce and token hash. One-time secrets and bearer material never enter query strings, persistent browser storage, logs or artifacts; no host-scoped cookie is used.
+- If the broker is absent, manual editing, local projects, deterministic validation, rendering, LDraw interchange, and trusted browser-local template tools continue to work. A local template tool compiles directly into a hard-validated manual command transaction with local provenance; it is not a broker-sealed patch. Model calls, recorded runs, ledger queries and sealed evidence are visibly unavailable.
 
-The loopback API and every imported/provider-supplied artifact are untrusted boundaries. The service binds only numeric loopback addresses and rejects unexpected `Host` or `Origin` values, DNS-rebinding attempts, missing request proofs and replayed nonces. The implementation caps JSON depth and bytes, operation and part counts, image dimensions, archive expansion, LDraw recursion, external references, render memory and runtime. It rejects path traversal, escapes stored text in the UI, forbids dynamic evaluation, and treats artifact prose as evidence rather than operational instructions.
+The loopback API and every imported, printed or model-supplied artifact are untrusted boundaries. The service binds only numeric loopback addresses and rejects unexpected `Host` or `Origin` values, DNS-rebinding attempts, missing request proofs and replayed nonces. The implementation caps JSON depth and bytes, operation and part counts, image dimensions, archive expansion, LDraw recursion, external references, render memory and runtime. It rejects path traversal, escapes stored text in the UI, forbids dynamic evaluation, and treats artifact prose as evidence rather than operational instructions.
 
 ## Canonical domain model
 
@@ -210,352 +183,201 @@ interface BrickDocument {
 
 `TruthSnapshot` pins the catalog, connector taxonomy, collision model, transform policy and validator versions required to interpret the document. Saved documents never float to newer truth implicitly; migration produces a new revision with an explicit report.
 
-Each part instance has a stable ID, namespaced catalog part ID, color ID, rigid transform, submodel and step membership, semantic tags, and provenance. Position is stored in integer LDraw units. Initial legal orientations are catalog IDs; articulated joints later add bounded joint parameters whose transforms are derived rather than accumulated.
+Each part instance has a stable ID, namespaced catalog part ID, color ID, rigid transform, submodel and step membership, semantic tags, and provenance. Position is stored in integer LDraw units. Legal orientations are catalog IDs; articulated joints add bounded joint parameters whose transforms are derived rather than accumulated.
 
-Part transforms are authoritative. Connection edges are validated semantic annotations that must agree with the relative transforms implied by their ports. Moving a part must either preserve and revalidate an edge or detach it explicitly. The model rejects dangling IDs, duplicate edges, over-capacity ports, incompatible or multiply occupied ports, transform/edge disagreement, inconsistent loops, and invalid submodel or step membership.
+Part transforms are authoritative and connection edges are validated annotations that must agree with the relative transforms implied by their ports. This ordering exists because of the booklet: instructions give placements and never connections, so the loop derives which studs meet which tubes from geometry — and if edges were authoritative a document could assert a connection the geometry contradicts, with nothing able to say which was right.
 
-Canonical serialization defines stable array ordering, ID generation, numeric normalization and the exact provenance fields excluded from or included in the structural hash. Cosmetic metadata never changes structural identity.
+Moving a part must either preserve and revalidate an edge or detach it explicitly. The model rejects dangling IDs, duplicate edges, over-capacity ports, incompatible or multiply occupied ports, transform/edge disagreement, inconsistent loops, and invalid submodel or step membership.
+
+Canonical serialization defines stable array ordering, ID generation, numeric normalization and the exact provenance fields excluded from or included in the structural hash. Cosmetic metadata never changes structural identity. The structural hash covers part identifiers, so it answers whether two documents are the same document, not whether two models are the same model.
 
 ### Part catalog
 
-A `PartDefinition` contains:
+`part-model.md` owns how a part is organised, indexed, defined and constructed. A `PartDefinition` carries namespaced ID and aliases, geometry source and content hash, bounds and simplified collision representation, typed connection ports with local transforms and compatibility rules, legal orientations and substitution rules, available colors and known mass, and source/license/attribution/catalog-version provenance.
 
-- Namespaced part ID and aliases.
-- Geometry source and content hash.
-- Bounds and simplified collision representation.
-- Typed connection ports with local transforms and compatibility rules.
-- Legal orientations and substitution rules.
-- Available colors, mass or weight when known, and inventory metadata.
-- Source, license, attribution, and catalog-version provenance.
+Truth imported from differently licensed datasets stays in separately attributable catalog layers, never flattened into an untraceable application-owned blob.
 
-Truth imported from differently licensed datasets remains in separately attributable catalog layers. It is not flattened into an untraceable application-owned blob.
+Adding a part is a catalog-truth change: it advances the builtin catalog version, extends the migratable set, and the migration report says what changed. The preceding version is kept as a historical migration snapshot so existing documents keep hashing as they did.
 
 ### Connection graph
 
-A connection edge joins two named ports and records connection kind, joint parameters, and provenance. The normalized taxonomy is extensible; the first catalog supports studs and tubes only. Pins, axles, hinges, clips, balls, and fixed connections arrive after the kernel is proven.
+A connection edge joins two named ports and records connection kind, joint parameters, and provenance. The taxonomy is extensible; the shipped kinds are `stud` and `undersideClutch`. Axles, pins, clips, bars and hinges are the next expansion and are ordered in `building-system.md`.
 
 ### Restricted `BuildProgram`
 
-AI providers emit a restricted declarative program or typed operation suggestions. They never emit a trusted patch envelope, JavaScript, Python, shaders, SQL, or arbitrary commands.
+A printed step, a template instantiation, or any other proposer emits a restricted declarative program or typed operation suggestions. Nothing emits a trusted patch envelope, JavaScript, Python, shaders, SQL, or arbitrary commands.
 
-Initial operations include:
+Operations instantiate a validated template with parameters and transform, place a catalog part at a legal target port, attach two compatible ports, remove or replace named parts inside an allowed scope, move or recolor a submodel, and assign parts to a build step.
 
-- Instantiate a validated template with parameters and transform.
-- Place a catalog part at a legal target port.
-- Attach two compatible ports.
-- Remove or replace named parts inside an allowed scope.
-- Move or recolor a submodel.
-- Assign parts to a build step.
+Generated templates, predicates and operation patterns use the same schema-constrained, non-Turing-complete declarative AST. The trusted compiler enforces expansion depth, recursion, memory, operation, part-count and time budgets. Imports, scripts, callbacks, arbitrary expressions, dynamic evaluation, TypeScript and Python are forbidden even in quarantine. The compiler deterministically turns a valid program into document commands, and compilation failure is a normal rejected result rather than an application error.
 
-Automatically generated templates, predicates, lessons, and operation patterns use the same schema-constrained, non-Turing-complete declarative AST. The trusted compiler enforces expansion depth, recursion, memory, operation, part-count and time budgets. Imports, scripts, callbacks, arbitrary expressions, dynamic evaluation, TypeScript and Python are forbidden even in quarantine.
+Model output is always an untrusted candidate program or operation suggestion. It cannot author revision, scope, provenance, consent or validation fields. A caller submits that untrusted value with only opaque broker-issued job and attempt IDs; the broker resolves the trusted revision, scope, provenance, consent, truth and budget context from its job record and hands it to the released compiler, and only that compiler can create an unsigned candidate patch.
 
-The compiler deterministically turns a valid program into document commands. Compilation failure is a normal rejected candidate, not an application error.
+### Compiled patch, scope, and acceptance
 
-Provider and critic output is always an `UntrustedCandidateProgram` or untrusted operation suggestion. It cannot author revision, scope, provenance, consent or validation fields. The harness submits that untrusted value with only the opaque broker-issued job and attempt IDs. The broker resolves the trusted revision, scope, provenance, consent, truth and budget context from its job record and supplies it to the released compiler; only that compiler can create an unsigned candidate patch.
+The compiler's output is an `AssemblyPatch`: schema version, base revision, base document hash, truth snapshot hash, scope capability ID, scope digest, operations, and provenance. It is a compiler product, not a proposer product, and a raw patch is never directly applicable.
 
-### `AssemblyPatch`
+The complete allowed scope lives in the trusted job record created from the user's action, and the browser retains an immutable copy of that capability for the life of the job. `scopeCapabilityId` is an opaque reference and grants no authority.
 
-```ts
-interface AssemblyPatch {
-  schemaVersion: string;
-  baseRevision: string;
-  baseDocumentHash: string;
-  truthSnapshotHash: string;
-  scopeCapabilityId: string;
-  scopeDigest: string;
-  operations: BuildOperation[];
-  provenance: GenerationProvenance;
-}
+Only after hard validation and transition to the terminal state `presented` may the broker create a `PresentedPatchEnvelope`, signing the canonical serialization of the whole envelope except the signature — both schema versions, every patch field, job and candidate identity, cancellation generation, compiler and build-program snapshots, validation report and terminal state. The browser pins the Ed25519 verification key during pairing and rejects an unknown key or noncanonical envelope. Envelope integrity has no browser-clock expiry, but an envelope alone is not applicable.
 
-interface PresentedPatchEnvelope {
-  schemaVersion: string;
-  jobId: string;
-  candidateId: string;
-  cancellationGeneration: number;
-  compilerSnapshotHash: string;
-  buildProgramHash: string;
-  validationReportHash: string;
-  candidateState: "presented";
-  patch: AssemblyPatch;
-  seal: {
-    algorithm: "Ed25519";
-    keyId: string;
-    keyEpoch: number;
-    issuedAt: string;
-    signature: string;
-  };
-}
+Acceptance additionally requires a one-use `AcceptanceAuthorization` bound to the envelope, the proposed transaction ID and the paired device. The broker serializes the request against cancellation and revocation events, rechecks the exact base and truth hashes, commits the authorization payload hash before the event root and seal, then fills the root and signs every final field; if cancellation or revocation won the ordering race, authorization fails before any document write. Once recorded it is irrevocable for that one transaction even if keys later rotate. The browser verifies the signed authorization and inclusion proof, reruns the full before/after scope diff against its retained capability, and only then opens its IndexedDB transaction. If the broker, authorization, envelope seal, original capability or verifier is unavailable, acceptance stays blocked.
 
-interface AcceptanceAuthorization {
-  schemaVersion: string;
-  authorizationId: string;
-  transactionId: string;
-  envelopeHash: string;
-  baseDocumentHash: string;
-  truthSnapshotHash: string;
-  browserDeviceKeyId: string;
-  cancellationGeneration: number;
-  issuedEventSequence: number;
-  issuedEventRoot: string;
-  seal: {
-    algorithm: "Ed25519";
-    keyId: string;
-    keyEpoch: number;
-    signature: string;
-  };
-}
-```
+Acceptance is transactional: base revision, frozen part hashes, scope, truth snapshots and hard validators are verified before the document changes, and a stale patch is regenerated rather than rebased.
 
-The complete allowed scope lives in the trusted job record created from the user's action, and the browser retains an immutable copy of that original capability for the life of the job. `scopeCapabilityId` is an opaque reference; it does not grant authority. The trusted compiler creates the unsigned `AssemblyPatch`. Only after hard validation and transition to the terminal candidate state `presented` may the broker create a `PresentedPatchEnvelope`.
+Manual editing may temporarily create a draft-invalid document. A compiled patch must introduce no new blocking issue outside its scope, must leave its affected scope hard-valid, and must preserve global validity when the base was globally valid. The UI distinguishes `patchValid` from `documentGloballyValid`, and an accepted patch is one undoable command transaction whose preview shows additions, removals, changed parts, and unresolved advisory issues.
 
-The broker signs the canonical serialization of the entire envelope except `seal.signature`, including both schema versions, every patch field, job and candidate identity, cancellation generation, compiler and build-program snapshots, validation report and terminal state. The browser pins the Ed25519 verification key during pairing and rejects an unknown key or noncanonical envelope. Envelope integrity has no browser-clock expiry, but an envelope alone is not applicable.
+This machinery exists, is schema-defined and tested, and is what a booklet step would have to travel through to reach a user document without a manual command. Nothing currently issues an `AcceptanceAuthorization`, so no automatic path into a user document is open today.
 
-When the user clicks Accept, the online broker serializes that request with cancellation and revocation events, rechecks the exact base and truth hashes, and prepares a one-use `AcceptanceAuthorization` bound to the envelope, proposed transaction ID and paired browser device. The issuance event commits the hash of the authorization payload before `issuedEventRoot` and `seal`; after sealing that new ledger root, the broker fills the root and signs the canonical serialization of every final authorization field except `seal.signature`. If cancellation or revocation won the ordering race, authorization fails before any document write. Once recorded, the authorization is irrevocable for that one transaction even if the run later cancels or keys rotate. The browser verifies the signed authorization and inclusion proof, reruns the complete before/after scope diff against its retained capability, and only then starts its IndexedDB transaction. If the broker, authorization, envelope seal, original capability or verifier is unavailable, acceptance remains blocked. A disconnect after authorization may delay mirroring but cannot change the decision. Raw `AssemblyPatch` values are never directly applicable.
+## Model calls
 
-Presented-patch acceptance is transactional. It verifies the base revision, frozen part hashes, scope, truth snapshots, and hard validators before changing the document. Version 1 forbids rebasing a stale patch: the user must regenerate it. A later three-way rebase may proceed only when every touched entity, scope, catalog and constraint is proven unchanged, followed by recompilation and full validation.
+The repository calls vision models at runtime, for two jobs only.
 
-Manual editing may temporarily create a draft-invalid document. An AI patch must introduce no new blocking issue outside its scope, must leave its affected scope hard-valid, and must preserve global validity when the base was globally valid. The UI distinguishes `patchValid` from `documentGloballyValid`.
+A **proposer** reads printed art — which floating piece belongs where, on which face, which way up, and which catalog part a callout thumbnail shows. This is open-ended and cheap to be wrong about, because a wrong candidate is discarded by the next panel.
 
-An accepted AI patch is one undoable command transaction. Preview renders show additions, removals, changed parts, and unresolved advisory issues.
+A **checker** asks whether a render matches a printed panel, and must be posed as a closed same-or-different question over two pictures. The closed form measured 84 of 84 on this booklet where the open pick-one-of-N form managed 39.9 percent self-consistency.
 
-## Generation provider boundary
+Both are bound by the same contract. Model output is untrusted data: it proposes while a deterministic check disposes, and it cannot declare itself valid, author trusted scope or provenance, execute code, waive a hard validator, admit a part, or mutate the user document. Every call records provider, model, parameters, seed where supported, and a raw response hash.
 
-Every provider implements the same asynchronous contract:
+Before any prompt, reference or model summary is transmitted, the broker evaluates a versioned `ProviderCapabilities` record from a maintainer-reviewed policy registry. Each entry is independently signed or pinned and declares supported protocol, schema and catalog versions, accepted input kinds, cancellation and seed behavior, size and budget limits, local or external execution, retention and training policy, and accepted consent classes. Runtime discovery may narrow that trusted record but never broaden it or relax its data-handling policy, and an incompatible or insufficiently consented job fails preflight without sending user data.
 
-1. Receive a normalized `BuildBrief`, optional base-document summary, retrieved examples, technique snapshot, and explicit budget.
-2. Stream progress and immutable untrusted candidate programs; it never creates the trusted patch envelope.
-3. Support cancellation.
-4. Report exact provider, model, parameters, seed when supported, and raw response hash.
-5. Never report its own output as valid; the shared compiler and validators decide.
+Consent is scoped and specific. Cropped regions of the user's own instruction booklets — callout thumbnails and step panels — may be sent to a model for part identification and step classification. Crops only: never a whole booklet, never other repository content, never credentials, and nothing retained beyond local evidence under the ignored output roots. That consent does not extend to any other user reference, design, or artifact.
 
-Before any prompt, reference or model summary is transmitted, the broker evaluates a versioned `ProviderCapabilities` record from a maintainer-reviewed policy registry. Each registry entry is independently signed or pinned and declares supported protocol, schema and catalog versions; text, image and mesh inputs; tool-call and streaming support; real versus best-effort cancellation; seed behavior; size and budget limits; local or external execution; retention and training policy; and accepted consent classes. Runtime discovery may narrow this trusted record but can never broaden it or relax its data-handling policy. Incompatible or insufficiently consented jobs fail preflight without sending user data.
-
-Visual-critic operations are subject to the same untrusted-program boundary and provider preflight.
-
-Initial provider strategies are:
-
-- Deterministic template composition and constrained search.
-- A tool-using general model that calls restricted build operations.
-- A research adapter for BrickNet or a successor, gated by licensing and benchmark results.
-- Mesh or voxel target conversion for image and 3D-reference workflows.
-
-No provider is architectural. Providers are challengers behind adapters and may be removed without changing the editor or canonical document.
-
-### Generation job protocol
-
-The trusted broker creates a job record containing `jobId`, idempotency key, base revision and structural hash, truth snapshots, scope capability, consent classification, budgets and cancellation generation. Job creation durably transfers the exact canonical base-document bytes, complete scope capability, and a resolvable immutable truth bundle into broker-owned content-addressed storage. Existing blobs may be referenced only after the broker resolves and verifies them. Browser and broker independently calculate the same hashes, and a job cannot leave `created` until those artifacts and the creation event are sealed. Events contain the job ID, candidate ID when applicable, a monotonic sequence, event schema, and terminal-state expectation.
-
-The normative run states are `created`, `queued`, `running`, `draining`, `cancelling`, `cancelled`, `succeeded`, `failed`, `exhausted`, and `persistenceFailed`. `draining` stops new work, quiesces active work, seals eligible retained candidates and only then reaches a terminal state. Provider attempts, candidates and acceptance have separate normative state tables in the learning-system design. Cancellation is idempotent. Events arriving after a terminal state or from an older cancellation generation are retained only as diagnostics and cannot create presentable or applicable candidates.
-
-Candidate acceptance is a compare-and-swap against the current document revision and truth snapshots. A late job cannot overwrite newer user work. Version 1 regenerates stale candidates rather than rebasing them.
+The model a product calls is pinned in this repository at the call site's own module. No model ID is hardcoded anywhere else.
 
 ## Validation hierarchy
 
 Validity is lexicographic. A high visual score cannot compensate for a hard failure.
 
 1. **Compilation:** supported schema, catalog parts and colors, finite canonical transforms, legal operations.
-2. **Structural:** compatible ports, permitted orientations, no material collision under the defined model, required connectivity, allowed envelope, frozen scope, and part budget.
-3. **Buildability advisory:** support, approximate stability, insertion accessibility, and plausible build order. These remain clearly advisory until calibrated with physical evidence.
-4. **Intent:** required semantic features, dimensions, palette, silhouette, image or text resemblance.
-5. **Product:** part count, rarity, estimated cost, generation latency, and provider cost.
+2. **Structural:** compatible ports, permitted orientations, no material collision under the defined model, required connectivity, support against the build plate, allowed envelope, frozen scope, and part budget.
+3. **Buildability advisory:** support, approximate stability, insertion accessibility, and plausible build order — clearly advisory until calibrated with physical evidence.
+4. **Panel agreement:** does the render of this candidate match what the booklet draws, at that panel's own camera, face, and reachable ceiling.
+5. **Set accounting:** does the finished build reconcile with the booklet's own inventory, callout quantities and piece totals.
 
-Hard validators return typed issues with implicated part and port IDs, geometric evidence, and permitted repair classes. If no candidate passes the hard gates, the UI may show the best diagnostic draft but must not label it valid or buildable.
+Hard validators return typed issues with implicated part and port IDs, geometric evidence, and permitted repair classes. Pixels cannot prove graph correctness, and graph correctness cannot prove the model is the one the booklet draws; both are inspected.
+
+A physical claim applies only to the exact document and catalog hash actually tested, and any structural edit invalidates it. A general physical-buildability claim requires a separately reviewed calibration program, not an arbitrary count of successful builds.
 
 ## Rendering and visual inspection
 
-Every candidate receives a deterministic render packet:
+A candidate can be rendered into a deterministic render packet: a fixed isometric presentation view; front, back, left, right, top and underside orthographic views; silhouette and depth passes; a part-ID pass grounding visual findings to model entities; an exploded or layer view when useful; connection, collision, disconnected-component, exposed-port and support overlays; and closeups around each blocking validator issue.
 
-- Fixed isometric presentation view.
-- Front, back, left, right, top, and underside orthographic views.
-- Silhouette and depth passes.
-- Part-ID pass for grounding visual findings to model entities.
-- Exploded or layer view when useful.
-- Connection, collision, disconnected-component, exposed-port, and support overlays.
-- Closeups around each blocking validator issue.
+For a booklet step the render that matters is the one taken at the printed panel's own camera and face, because that is the only render comparable to the drawing. The panel supplies azimuth, scale and phase from its stud lattice; the printed rotation icon supplies the sign of the elevation.
 
-The visual critic sees the prompt or reference, render packet, structured document summary, validation report, and parent diff. It judges recognizability, proportion, color, style, obvious missing features, and visible awkwardness. It may propose typed repairs or a strategy restart. It cannot waive or alter validator results.
+Instruction rendering imitates measured booklet art rather than an asserted dialect: parts carry three face tones, a near-black stud wall and a per-colour ink, not one flat fill.
 
-The generator and visual critic should not always be the same model. Randomized audit views and protected structural metrics reduce camera and critic gaming.
+Renders are looked at, not only scored. Every real defect this project has found was found by looking at a render, and none came from a passing test.
 
 ## User experience
 
-The main workspace contains:
+The main workspace contains a central 3D viewport; a part palette and template library grouped by family and searchable by name, size and identifier, with previews derived from each part's own geometry so the palette cannot drift from what gets placed; a scene, submodel and step tree; a selection and constraint inspector; a booklet panel showing the loaded booklet, its printed step list, the current step's panel with its highlight, arrows and face, and the candidate under consideration beside it; a validation panel distinguishing blocking, advisory and unknown findings; and a run inspector for replay, provenance and retained evidence.
 
-- A central 3D viewport.
-- Part palette and template library.
-- Scene, submodel, and step tree.
-- Selection and constraint inspector.
-- AI brief panel with full, region, completion, repair, and variant modes.
-- Candidate tray with canonical views, scores, failures, lineage, cost, and patch diffs.
-- Validation panel that distinguishes blocking, advisory, and unknown findings.
-- Run inspector for replay, provenance, and learned evidence.
-
-Candidate generation never blocks manual editing. A job is tied to the document revision at submission time, supports cancellation, and cannot win a race against newer user state.
+A booklet run never blocks manual editing. A run is tied to the document revision at submission time, supports cancellation, and cannot win a race against newer user state.
 
 ## Persistence and provenance
 
-- IndexedDB stores local projects, current revision history, thumbnails, and preferences needed by the browser.
-- Accepting a candidate atomically commits the document command transaction and an outbox event. The event contains a stable transaction ID and acceptance ID, the `PresentedPatchEnvelope`, its `AcceptanceAuthorization`, base and resulting revision and structural hashes, canonical command-transaction hash, scope digest, and browser application-bundle identity. The browser considers the patch accepted only after that IndexedDB transaction commits. Before appending authoritative acceptance, the broker authenticates the paired browser, verifies that the one-use authorization exists in its ledger, verifies the envelope and capability, replays the patch against its retained canonical base and truth bundle, reproduces the result and command hashes, and deduplicates by transaction ID. A broker disconnect after authorization leaves the event safely queued without weakening those checks.
-- The companion trust broker is the exclusive writer of the authoritative hash-chained append-only event stream. It authenticates user, curator, maintainer and evaluator capabilities before recording their events, and seals finalized event roots with a signing key accessible only to the minimal released broker identity through the OS keystore. Files are written to temporary names and atomically finalized; the final manifest contains all artifact hashes. Post-final acceptance, edit or deletion records are linked events, not mutations of the sealed manifest.
-- Development-only test recorders use a separate namespace and may retain the exact canonical maker request and authority-free output only with explicit local artifact-retention consent. Every distinct retained CAS payload counts against the captured brief's hard stored-byte budget before I/O. Their bundle manifest binds those two CAS artifacts to non-diagnostic source events and an exact prefix-checked `draining → exhausted` terminal append. The exact capture bytes are bound before any neutral candidate receipt and quarantine events, so crash recovery cannot substitute a later capture. The recorder never projects an untrusted checkpoint into native compilation or hard-valid states. Its output remains unsealed and unauthenticated, preserves explicit candidate failure stage and code, and cannot assert a replay level, seal, production validity, acceptance, or promotion evidence.
-- SQLite is a rebuildable query index over the authoritative events and bundles. It is not a competing record of truth.
-- Content-addressed files store programs, documents, LDraw, renders, reports, and retained raw provider responses.
-- Git stores schemas, migrations, curated templates, techniques, lessons, prompts, and benchmark definitions.
-- Large part libraries, provider weights, raw run corpora, and generated images are not committed.
-- Every run pins application, broker and harness commits plus source-tree/diff and built-bundle hashes, lockfiles, runtime versions, relevant non-secret configuration, schema and catalog hashes, provider and critic versions, prompt and technique hashes, reference hashes, budgets, and seeds. Retrievable content-addressed source patches and built bundles are retained only after secret and license scans; hashes without retrievable content are not sufficient for source-level replay.
-- At finalization, the broker validates the transitive artifact closure and seals a replay certificate containing `sealedReplayLevel: full | downstream-only | metadata-only`, the earliest retained boundary, every required artifact hash and retrievability evidence. Callers may request retention but cannot set the result. Later tombstones leave this certificate unchanged while the API derives a separate `effectiveReplayLevel`.
+- IndexedDB stores local projects, revision history, thumbnails, and browser preferences. Reloading the page is not a fresh plate; a run that assumes it is will read its second placement as a collision.
+- The companion trust broker is the exclusive writer of the authoritative hash-chained append-only event stream. It authenticates user, curator, maintainer and evaluator capabilities before recording their events, and seals finalized event roots with a signing key reachable only by the minimal released broker identity through the OS keystore. Files are written to temporary names and atomically finalized, and the final manifest contains all artifact hashes. Post-final acceptance, edit or deletion records are linked events, never mutations of a sealed manifest.
+- Committing an accepted transaction atomically writes the document command transaction and an outbox event carrying the transaction and acceptance IDs, the presented envelope and its authorization, base and resulting hashes, the canonical command-transaction hash, the scope digest, and the browser bundle identity. Before appending authoritative acceptance the broker authenticates the paired browser, verifies the one-use authorization in its ledger, replays against its retained canonical base and truth bundle, reproduces the result and command hashes, and deduplicates by transaction ID.
+- Development-only test recorders use a separate namespace and may retain the exact canonical request and authority-free output only under explicit local artifact-retention consent, counting every retained payload against a hard stored-byte budget before I/O. Their output stays unsealed and unauthenticated and cannot assert a replay level, seal, production validity, acceptance, or promotion evidence.
+- SQLite is a rebuildable query index over the authoritative events and bundles, not a competing record of truth. Content-addressed files store programs, documents, LDraw, renders, reports, panel rasters, and retained raw model responses.
+- Git stores schemas, migrations, curated templates, fixtures, goldens and benchmark definitions. Run evidence lives only under ignored paths and enters Git only when review promotes it into a repository input. Large part libraries, model weights, raw run corpora, and generated images are not committed.
+- Every run pins application, broker and harness commits plus source-tree/diff and built-bundle hashes, lockfiles, runtime versions, non-secret configuration, schema and catalog hashes, model and prompt hashes, booklet and panel hashes, budgets, and seeds. Retrievable content-addressed source patches and built bundles are retained only after secret and license scans; a hash without retrievable content is not sufficient for source-level replay.
+- At finalization the broker validates the transitive artifact closure and seals a replay certificate containing `sealedReplayLevel: full | downstream-only | metadata-only`, the earliest retained boundary, and every required artifact hash with its retrievability evidence. Callers may request retention but cannot set the result. Later tombstones leave the certificate unchanged while the API derives a separate `effectiveReplayLevel`.
+- Deletion creates an authenticated signed tombstone, removes derived indexes and thumbnails, decrements blob references, and garbage-collects unreferenced blobs. Sealed manifests and prior events are unchanged, and the API derives the current effective replay level from the tombstone lineage without retaining deleted sensitive content. Export and consent revocation follow the same lineage links.
 
-Secrets remain behind the broker's credential proxy and outside worker environments, project artifacts and browser bundles. User references and accepted models require explicit opt-in before they are sent to external providers, committed as knowledge or benchmarks, or reused for training.
-
-Deletion creates an authenticated signed tombstone, removes derived indexes, thumbnails and knowledge links, decrements content-addressed blob references, and garbage-collects unreferenced blobs. Sealed manifests and prior events remain unchanged. The index and API derive the current effective replay level from the tombstone lineage without retaining deleted sensitive content. Export and consent revocation follow the same lineage links.
+Secrets stay behind the broker's credential proxy and outside worker environments, project artifacts and browser bundles. User references and designs are local by default; external transmission, training, benchmark inclusion, sharing, and Git retention are separate consent decisions.
 
 ## Interchange
 
-- App JSON is the editable source format.
-- LDraw `.ldr` and `.mpd` are the primary ecosystem interchange formats.
-- Version 1 defines an exact LDraw subset covering supported parts, colors, rigid matrices, submodels and steps. Connection edges are inferred deterministically and supported golden fixtures must reproduce the same canonical edge set.
+- App JSON is the editable source format; LDraw `.ldr` and `.mpd` are the primary ecosystem interchange formats.
+- The supported LDraw subset covers supported parts, colors, rigid matrices, submodels and steps. Connection edges are inferred deterministically and supported golden fixtures must reproduce the same canonical edge set.
 - Unsupported parts, arbitrary matrices, articulated poses, local or external references, and unknown metadata are rejected with diagnostics or preserved as explicitly opaque view-only records. They are never silently rounded, dropped or made editable.
-- LDraw export preserves stable part transforms and steps and may include a namespaced metadata extension for provenance without requiring it for compatibility.
+- LDraw export preserves stable part transforms and steps and may carry a namespaced provenance metadata extension without requiring it for compatibility.
 - GLB is a derived delivery or rendering export, never the authoring source.
 
-Plain LDraw is lossy for AI provenance and unsupported connection semantics; exact complete replay uses app JSON or a metadata-bearing export. Supported-subset round trips are verified against golden models and external viewers. BrickLink Studio is an interoperability and behavior reference, not a code or asset dependency.
+Plain LDraw is lossy for unsupported connection semantics; exact complete replay uses app JSON or a metadata-bearing export. Round trips are verified against golden models and external viewers through the actual consumer path — a string round trip does not prove a model loads. BrickLink Studio is an interoperability and behavior reference, not a code or asset dependency.
+
+An official set export is a corroborating witness, not an oracle. Where the repository's own derivation and a published export disagree, the disagreement is settled by geometry — collision, interlock, and support — and the outcome is recorded with its numbers.
 
 ## External research and licensing gates
 
-Research systems are evidence that the feature is viable, not permission to ship their data or weights.
+Permission to reuse geometry does not imply permission to train, and that right stays unheld everywhere in this repository.
 
-- BrickNet code is a promising graph, connector, collision, and generation spike. Its model, dataset, connector, and collision-asset terms require a complete audit before redistribution or commercial use.
-- BrickGPT is a useful restricted-catalog baseline; upstream dataset and solver terms require the same audit.
-- The LDraw parts library must preserve file-level source, license, and attribution metadata.
-- LDCad Shadow Library-derived connector data is admitted as catalog truth from `builtin.basic-parts/8` under the owner's 2026-08-05 decision that licence must not block private, noncommercial work, and it stays separately attributed: its own provenance record carries the CC BY-SA 4.0 attribution and the pinned library digest, share-alike attaches to the derived data on redistribution, and no shadow file is committed.
+- The LDraw parts library preserves file-level source, license, and attribution metadata. Bundled LDraw geometry ships under CC BY 4.0 with per-file authorship preserved in `docs/bundled-geometry-notices.md`, rendered from the catalog itself.
+- LDCad Shadow Library-derived connector data is admitted as catalog truth under the owner's 2026-08-05 decision that licence must not block private, noncommercial work. It stays separately attributed: its provenance record carries the CC BY-SA 4.0 attribution and the pinned library digest, share-alike attaches to the derived data on redistribution, and no shadow file is committed — derived positions, not source text.
+- LEGO Builder native source is used for measurement and frame derivation. Native payloads stay local where practical, exact identities and hashes are preserved for reproducibility, and upstream material is never described as project-owned.
+- Research systems such as BrickNet and BrickGPT remain recorded in the bill of materials as evaluation-only. Their model, dataset, connector and collision-asset terms require a complete audit before any redistribution or commercial use, and nothing here depends on them.
 - Internet-curated models are not assumed to be training data merely because their referenced part geometry is reusable.
 - The public product name, logo, domain, and non-affiliation language require trademark review before launch.
 
-The first implementation artifact is a dependency and data bill of materials that records origin, version, license, redistribution rights, and runtime role.
+The first implementation artifact is a dependency and data bill of materials recording origin, version, license, attribution, redistribution/training rights, and allowed runtime role for every code, geometry, connector, collision, model and example source.
 
-Primary references for the first audit are the [LDraw legal terms](https://www.ldraw.org/legal-info), [LDCad Shadow Library](https://github.com/RolandMelkert/LDCadShadowLibrary), [BrickNet code](https://github.com/kulits/BrickNet) and [CVPR 2026 paper](https://openaccess.thecvf.com/content/CVPR2026/papers/Kulits_BrickNet_Graph-Backed_Generative_Brick_Assembly_CVPR_2026_paper.pdf), [BrickGPT code](https://github.com/AvaLovelace1/BrickGPT) and [ICCV 2025 paper](https://openaccess.thecvf.com/content/ICCV2025/papers/Pun_Generating_Physically_Stable_and_Buildable_Brick_Structures_from_Text_ICCV_2025_paper.pdf), and LEGO's [Fair Play policy](https://www.lego.com/en-us/legal/notices-and-policies/fair-play).
+Primary references for that audit are the [LDraw legal terms](https://www.ldraw.org/legal-info), [LDCad Shadow Library](https://github.com/RolandMelkert/LDCadShadowLibrary), and LEGO's [Fair Play policy](https://www.lego.com/en-us/legal/notices-and-policies/fair-play).
 
 ## Automation and testability
 
-The app exposes a stable, test-only automation bridge:
+The app exposes a stable, test-only automation bridge: `window.render_app_to_text()` returns document, selection, active run, validation and overlay state; `window.capture_model_views()` captures named canonical render passes; `window.get_model_snapshot()` returns a schema-versioned document summary and structural hash; and `window.advanceTime(ms)` advances deterministic animations and timers.
 
-- `window.render_app_to_text()` returns document, selection, active job, candidate, validation, lineage, and overlay state.
-- `window.capture_model_views()` captures named canonical render passes.
-- `window.get_model_snapshot()` returns a schema-versioned document summary and structural hash.
-- `window.advanceTime(ms)` advances deterministic animations and timers used by automated tests.
+These are verifier instrumentation, not a model-facing action surface. Trusted capture code in the test boundary may call them and retain evidence; an external or model-facing actor receives only a filtered, hashed observation and a bounded action API, with no arbitrary browser evaluation, direct debug-hook access, or production authority. Production builds either omit the bridge or require a separately authenticated test namespace that cannot reach production documents, identities, credentials or ledgers.
 
-These rich hooks are verifier instrumentation, not the browser actor's action surface. Trusted capture code in the test or evaluator boundary may call them and retain `VerifierEvidence`; an external or model-facing actor receives only a filtered, hashed `ActorObservation` and a bounded action API. It has no arbitrary browser evaluation, direct debug-hook access, or production authority. Production builds either omit the bridge or require a separately authenticated test namespace that cannot reach production documents, identities, credentials or ledgers.
+A feature is not approved from source or hook presence alone, nor structural behavior from a pleasing screenshot alone: the served app is driven in a real browser, canonical views are captured, and pixels, structured state and intended behavior are confirmed to agree.
 
-The shared experimentation protocol can adapt `3d-maker`'s existing `render_game_to_text()` hook without forcing the two applications to share a domain API.
-
-### Independent evaluator boundary
-
-Promotion evaluation runs in an independently pinned sandboxed process or service, not in the challenger harness. It verifies broker or evaluator seals from the expected namespace and rejects worker- or challenger-originated signatures, accepts sealed canonical documents and scanned challenger artifacts, re-runs champion-owned validators, renderer, cameras and metrics, and executes masked holdout cases unavailable to the engineering agent. Challenger code has no arbitrary filesystem access or direct network egress. Provider access, when a case requires it, uses evaluator-owned ephemeral credentials through an allowlisted proxy. Outputs are size-bounded and schema-checked, and only aggregate masked reports cross back into the engineering workspace. The evaluator emits a hash-linked tamper-evident report. A change to validator or evaluator policy follows a separate dual-run contract-update workflow against labeled fixtures and cannot judge itself.
-
-Tests include:
-
-- Model and command property tests.
-- Compiler and patch-scope invariants.
-- Golden LDraw import/export round trips.
-- Connector, collision, connectivity, and bounds fixtures.
-- Provider contract and malformed-output tests.
-- Cancellation, stale-result, and WebGL-context-loss paths.
-- Browser interaction and screenshot tests.
-- Actor- and maker-observation redaction, consent, scope, action-capability, stale-observation and browser-replay tests.
-- Table-driven recursive-pass finalization and failure-injection tests covering idempotent `PassOpened` admission, admission-write failure, exact same-request retry, and same-key/different-request conflict; one-to-one pass/native-run identifier binding; every legal mode, progress state, stage and stop-reason mapping; rejection of unknown or mismatched mode, outcome, stop-reason and verdict tuples; bidirectional cleanup and rollback overrides including deterministic both-failed precedence in diagnosis, proposal and full modes; persistence failure at every stage; unavailable verifiers; append-committed/acknowledgement-lost deduplication; proof that no projection appears before a durable terminal append; and the requirement that `fixed-proven` reproduce a matching signed verifier verdict and complete affected-path coverage.
-- Fixed generation benchmarks with immutable run manifests.
-- Resource-disposal and large-model performance tests.
-- Model-based job, candidate, feedback and promotion state-machine tests.
-- Fleet-projection contract tests for strict findings, lightweight manifests, stable failure classes, explicit run IDs, and native-run references.
-- Recursive-pass acceptance tests: two deterministic drives agree, a seeded defect reaches class-level `fixed-proven`, and failed or malformed runs still append valid terminal evidence.
-- Acceptance-authorization ordering against cancellation and key rotation, outbox idempotency, compare-and-swap, rollback and crash-recovery tests.
-- Pairing, full-request proof, nonce replay, stable-origin recovery and authenticated origin-migration tests.
-- Trust-boundary tests proving workers and challenger builds cannot read production credentials, use signing keys, write the authoritative ledger or mint accepted namespaces.
-- Evaluator and holdout access-boundary tests.
-- Event-log hash-chain, truncated-final-record and sealed-bundle tamper tests.
-- Replay-level downgrade, deletion, consent revocation and content-addressed garbage-collection tests.
-- Template, technique and lesson lifecycle property tests.
+Tests include model and command property tests; compiler, patch-scope and operation-inversion invariants; golden LDraw round trips through the real consumer path; connector, collision, connectivity, support and bounds fixtures; booklet reading fixtures covering step-sequence coverage, callout reconciliation, inventory totals, type-size classification and panel-face parity against blind-judged ground truth; panel scoring and registration fixtures including the reachable-ceiling bound and the registration's own noise floor; placement-enumeration and backtracking tests driven through the real renderer and camera rather than hand-drawn masks; whole-loop drives on a synthetic booklet including a face-blind control that must do measurably worse; model-call contract and malformed-output tests with live calls mocked by default; cancellation, stale-result and WebGL-context-loss paths; browser interaction and screenshot tests; resource-disposal and large-model performance tests; trust-boundary tests proving workers and challenger builds cannot read production credentials, use signing keys, write the authoritative ledger or mint accepted namespaces; event-log hash-chain, truncated-final-record and sealed-bundle tamper tests; and replay-level downgrade, deletion, consent-revocation and content-addressed garbage-collection tests.
 
 ## Delivery sequence and gates
 
 ### Gate 0 — Provenance and executable contracts
 
-- Establish the dependency and data bill of materials.
-- Define `BrickDocument`, `BuildProgram`, `AssemblyPatch`, `PresentedPatchEnvelope`, `AcceptanceAuthorization`, validator issue, render packet, actor and maker observation, attempt transcript, trust-namespace, native sealed run-manifest, `PassOpened`, `PassVerdict`, `PassTerminalRecord`, and rebuildable fleet-projection schemas.
-- Specify and threat-model the broker/worker process boundary, production release identity, key access, credential proxy, stable web origin and test namespaces before provider integration.
-- Define catalog and connector provenance rules.
-- Generate `THIRD_PARTY_NOTICES`, preserve per-layer license files, and add a packaging test that excludes evaluation-only assets and weights while auditing required attribution.
+Establish the dependency and data bill of materials. Define the `BrickDocument`, `BuildProgram`, `AssemblyPatch`, `PresentedPatchEnvelope`, `AcceptanceAuthorization`, validator-issue, render-packet, observation, attempt-transcript, trust-namespace, sealed run-manifest and replay-closure schemas. Specify and threat-model the broker/worker process boundary, production release identity, key access, credential proxy, stable web origin and test namespaces before any model integration. Define catalog and connector provenance rules. Generate `THIRD_PARTY_NOTICES`, preserve per-layer license files, and add a packaging test that excludes evaluation-only assets while auditing required attribution.
 
-Exit: every planned code, geometry, connector, collision, weight, and example source has an explicit allowed role or is marked evaluation-only, and a distributable test package proves those boundaries.
+Exit: every planned code, geometry, connector, collision, model and example source has an explicit allowed role or is marked evaluation-only, and a distributable test package proves those boundaries.
 
 ### Gate 1 — Deterministic assembly kernel
 
-- Curate 8–20 basic bricks and plates with verified geometry and stud/tube ports.
-- Implement the canonical graph, commands, build-program compiler, renderer, diagnostic overlays, and hard validators.
-- Implement a minimal manual editor and LDraw round trip.
+Curate basic bricks and plates with verified geometry and stud/tube ports. Implement the canonical graph, commands, build-program compiler, renderer, diagnostic overlays and hard validators, plus a manual editor and LDraw round trip.
 
-Exit:
+Exit: supported-subset golden models round-trip with exact instance, transform and deterministically inferred connection-edge equality, and unsupported data is rejected or preserved as opaque without loss; seeded invalid fixtures are rejected with the expected typed issue; every admitted output is connected, legal, collision-free under the defined validator, and reproducible by structural hash; and no physical-stability claim is made.
 
-- Supported-subset golden models round-trip with exact instance, transform and deterministically inferred connection-edge equality; unsupported data is rejected or preserved as opaque without loss.
-- Seeded invalid fixtures are rejected with the expected typed issue.
-- Every admitted output is connected, legal, collision-free under the defined validator, and reproducible by structural hash.
-- No physical-stability claim is made.
+### Gate 2 — Booklet reading, and run evidence
 
-### Gate 2 — Harness-first generation
+Read a real booklet into its inventory, printed steps, callouts, panels, highlights, arrows and faces. Reconcile the booklet against itself — sequence coverage, callout quantities, piece totals, and type-size classification with an unclassifiable outcome. Fit the panel camera from the printed stud lattice and derive the panel face from the printed rotation icon. Add immutable run bundles, replay levels, canonical render packets, and retained per-step evidence.
 
-- Add immutable run bundles, replay, canonical render packets, template composition, constrained search and repair, and candidate comparison.
-- Add explicit recorded browser and maker transcripts, fresh-instance deterministic re-drive, and a dev-time fleet adapter for validated run summaries, strict findings, stable `data.class` keys, and append-only pass projections.
-- Generate 10–40-part models from a restricted palette before integrating research weights.
-- Add visible dev and regression suites, an evaluator-owned masked holdout, a pre-registered champion/challenger policy, stable default pointers and a verified rollback path before provider integration.
-- Pass the engineering-loop acceptance drill: two clean drives agree, one deliberately seeded harness defect reaches a verified finding and class-level proven fix with a promoted regression, and a failed run still leaves valid terminal evidence.
+Exit: the booklet's own internal checks reconcile with recorded numbers, every panel the loop uses carries a fitted camera and a derived face or a named refusal, and a run's evidence is retained and replayable to its declared level.
 
-Initial target:
+### Gate 3 — Building and verifying a printed step
 
-- Every applied AI candidate is `patchValid`. A globally invalid result is allowed only when the base was already globally invalid, the patch adds no blocking issue outside its scope, and the UI continues to report `documentGloballyValid: false`.
-- On a frozen basic-prompt suite, at least one of four candidates is recognizable and worth editing on 70% of tasks under declared latency and cost budgets.
-- User rejection and edit diffs are captured without becoming automatic positive knowledge.
+Enumerate candidate placements from the settled prefix's free connectors on both sides of a joint, pruned by lattice, connectors, collision and the build plate. Score a step by its own evidence class — highlight, exploded ghost, or deferral to the next panel — against bars derived from that panel's geometry. Name every refusal and publish the number it refused on. Add deep backtracking with retained alternatives, and report the reversal depth.
 
-### Gate 3 — First AI provider and full-model generation
+Exit: a contiguous prefix of printed steps is placed, each settled against a printed panel and each refusal named; the placed transforms reconcile with the official ledger in one frame; and the prefix length and reversal depth are recorded in `building-system.md` and driven deliberately.
 
-- Evaluate provider adapters behind the common contract.
-- Add one end-to-end mode: small full-model generation from text with the restricted catalog.
-- Add structured visual critique and one or two bounded repair cycles.
+### Gate 4 — Full set, and playback
 
-Exit: the first vertical slice can generate three valid small-model candidates, accept one transactionally, edit it manually, export LDraw, and replay the episode to its declared level.
+Extend catalog coverage until the set's leaf designs are all present. Complete the run to the last printed step and play the build back step by step. Calibrate build-order and stability advice with physical-build feedback before making any physical claim.
 
-### Gate 4 — Scoped copilot
+Exit: the set rebuilds end to end from its printed booklet, the finished document reconciles with the set accounting, and playback reproduces the printed step order.
 
-- Add one scoped mode first: completion through explicitly selected exposed ports.
-- Enforce frozen parts, target volume, required attachment ports, allowed palette and piece budget through the trusted scope capability.
-- Add insertion-box generation, replacement, repair and variants only after exposed-port completion passes its own frozen suite.
+### Gate 5 — Co-evolution with `3d-maker`
 
-Exit: scoped generation never changes frozen or out-of-scope state, stale patches must regenerate, and the complete accepted delta is inspectable and undoable.
-
-### Gate 5 — Learning and engineering harness
-
-- Add accepted-case retrieval and quarantined lesson and template proposals on top of the already working champion/challenger evaluator.
-- Add bounded open-finding retrieval, sensor canaries, governed regression enrollment, and derived fleet dashboards without treating raw prose as instructions.
-- Add app-improvement automation in disposable exact-base worktrees with patch capabilities, reserved proof budgets, browser visual QA, fresh oracle sweeps, full non-regression proof, and no mutation of the user's active checkout.
-
-Exit: a challenger can be reproduced, compared fairly, expressed through the fleet pass vocabulary, promoted without changing its evaluator, and rolled back to the previous stable snapshot; every terminal outcome has sealed native evidence and a rebuildable pass projection.
-
-### Gate 6 — Images and richer construction
-
-- Treat a single image as semantic and style guidance with explicit hidden-geometry uncertainty.
-- Prefer multiple views or image-plus-text constraints for reconstruction.
-- Expand parts and connector types only with validator fixtures and provenance.
-- Calibrate build order and stability advice with physical-build feedback.
-
-Physical verification attaches only to an exact document and catalog hash and is invalidated by structural edits. The product continues to describe other output as digitally connection- and collision-validated; a general physical-buildability claim requires a separately reviewed calibration program, not an arbitrary count of successful builds.
-
-### Gate 7 — Co-evolution with `3d-maker`
-
-When both repositories contain proven duplicate behavior, extract only the stable generic pieces: run manifests, lineage, champion/challenger experiments, evaluator interfaces, and possibly candidate-gallery infrastructure.
+When both repositories contain proven duplicate behavior, extract only the stable generic pieces: run manifests, lineage, evaluator interfaces, and comparison infrastructure.
 
 Do not share brick documents, part catalogs, connection validators, procedural genomes, mesh generators, or persistence databases.
 
-## Success criterion for the first release
+## Success criterion
 
-A user can describe a small model, receive several connected and collision-free candidates from a restricted catalog, understand the evidence and remaining uncertainty, accept one as an undoable patch, edit it manually, export LDraw, and replay the episode to its declared level.
+A user hands the app a printed instruction booklet, watches it build the set that booklet describes with every step checked against the booklet's own picture, sees each refusal named in the booklet's own terms, edits the finished model manually, exports LDraw, plays the build back, and replays the run to its declared level.
 
-The system improves only through evidence: accepted edits, validated templates, typed failures, frozen benchmarks, and reversible experiments.
+The system improves only through evidence: measured booklet numbers, typed failures, promoted regression fixtures, and reversible experiments.
+
+## Cut: the AI copilot
+
+The original specification described a third surface — an AI copilot that generated a model from a text brief, produced scoped patches, ranked candidates, criticized and repaired them, and learned from accepted edits. That product is cut, on the owner's decision of 2026-08-07. It is not deferred and it is not a later gate.
+
+What went with it: full and scoped generation from a text brief as a product workflow; the AI brief panel and candidate tray; variant exploration; the teach-the-system loop over accepted-and-edited candidates; the generation provider strategy list, including research adapters and mesh or voxel target conversion; the visual critic as a judge of generated designs; and the gates whose deliverable was any of those.
+
+What survives it, and why: several contracts the copilot introduced are load-bearing for the booklet loop and remain normative above — sealed runs and replay levels; consent for external transmission of user material; artifact sealing and the authoritative event ledger; the untrusted-model-output rule, which binds harder now that the loop calls vision models at runtime; the restricted `BuildProgram` and its trusted compiler, which is how a printed step becomes document commands at all; and the deterministic validation hierarchy.
+
+What survives it in code, stated plainly because the spec must describe what exists. `AssemblyPatch` is the live output type of `packages/brick-kernel`'s compiler, consumed by patch diffing, patch verification, the replay harness and the browser. `PresentedPatchEnvelope`, `AcceptanceAuthorization`, `BuildBrief`, `ProviderCapabilities`, `ActorObservation` and the sealed-replay records are live schemas, validators and exported types in `packages/protocol` with their own contract tests. `packages/generation` is a deterministic local candidate lab that binds a bounded text-only brief to the current document, runs a fixed maker population in workers, ranks hard-valid candidates and previews the selected one; it makes no network or model call, never mutates the saved document, and acceptance stays disabled because nothing issues an authorization.
+
+That code is not the copilot and does not resurrect it. It is the compiler-and-acceptance spine a booklet step would have to travel through to reach a user document automatically, plus one legacy surface. Whether the legacy surface earns its keep is a separate decision from this one; deleting a contract the booklet loop relies on would be the more expensive mistake.
