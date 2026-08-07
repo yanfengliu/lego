@@ -29,7 +29,7 @@ Status: an initial Gate 0/1 workspace exists; provider-backed generation, the co
 
 Authoritative workspace commands live in `package.json`; run the smallest relevant checks while iterating and **`npm run verify`** (schema:check · node:check · bom:check · lessons:check · notices:check · format:check · lint · typecheck · test · test:browser · build) before declaring implementation complete. A unit-only pass is insufficient for changes that cross persistence, broker, provider, browser, import/export, or rendering boundaries. Dependency audit gate: `npm run audit` (and `audit:runtime`); a new HIGH/CRITICAL is a blocker. Doc-only work verifies the diff, internal paths/links, Markdown fences, and trailing whitespace.
 
-`npm run playtest:recursive` does not exist yet — add it only with the recorded-input runner, immutable evidence, finding lifecycle, replay verification, ledger, and acceptance drill required by `../fleet/docs/skills/building-recursive-loop.md`; never a placeholder that merely exits 0.
+`npm run playtest:recursive` does not exist and is not planned; the loop this repository actually runs is the booklet one — build a printed step, compare the render against its own printed panel, and drive the number in `docs/design/building-system.md`.
 
 ## Invariants & boundaries
 
