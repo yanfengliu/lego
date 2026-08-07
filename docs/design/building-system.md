@@ -170,6 +170,22 @@ It is the right target: it exercises rigid assembly, articulation, support and s
 A useful intermediate exists first, though, and costs almost nothing: place two compatible parts, snap, save, reload, render.
 Every piece of that already works here, so it is a regression test rather than a build.
 
+## The official model's world placements are mirrored, and step 1's target is unbuildable
+
+Found 2026-08-07 while asking why step 1's arrow family contained no legal placement. It is upstream of the placement question and of every frame admitted from Builder, so it is stated before the plan.
+
+`resolveBuilderBoneTransform` maps a Builder Bone position to LDU keeping the sign of z. Three independent lines say it should negate it.
+
+A global test against the official `.ldr` export, over 1465 bricks and 173 designs, requiring each design to admit one part frame: the z-negated reading explains **1439 of 1440** instances, the reading in the repository **656**. All 170 resolved per-design frames under the winner are proper rotations, so the export is a rigid re-expression of the model rather than a mirror of it.
+
+The consequence at step 1 is checkable without any of that reasoning, and the editor is the arbiter because it refuses a placement nothing holds up at the command. At the repository's own canonical transforms — `80015;E` at `[0,8,0]` yaw-180 and `30565;E` at `[60,0,-20]` yaw-0 — the second piece is **refused**: "would rest 8 LDU above the build plate with nothing under it". Negating z alone is also refused. At the relation the export gives, both pieces at the same yaw offset `[100,-8,0]`, the editor places both and derives **two connections** — exactly the two stud/clutch coincidences the contact analysis predicted, the 4x4 quarter circle sitting one plate on the 5x5 quarter ring over a 1x3 stud overlap.
+
+So the run has been searching for a step-1 placement that cannot exist. That is also why every one of the four arrow-family displacements was refused for want of support: the family was being resolved toward an unbuildable target.
+
+The root cause is named and is not the calibration's arithmetic. `scripts/extract-builder-shell.py` writes Shell vertices as `-25·v`, negating all three axes, which is correct because the Android asset bundle's frame is left-handed — the chiral design `54383;F`, a *right* wedge plate, lands on the official LDraw surface at p95 1.250 LDU under that decode and cannot be fitted at all with z flipped, p95 10.714. `resolveBuilderBoneTransform` then applies that same handedness to LXFML Bone positions, which are right-handed. **The local part frames are right; the world placements are mirrored.** Step 1's own two parts cannot settle it — both are mirror-ambiguous under a free upright fit, scoring within 0.03 LDU either way — which is why it survived the per-part admission scoring that has passed eight designs.
+
+Fixing it changes pinned catalog and frame truth, so it goes through independent review before it lands, and `canonicalTransform` is what a placed piece is graded against, so anything previously scored against it inherits the mirror and has to be re-scored rather than trusted.
+
 ## Placement: search against the next panel, not inference from this one
 
 Nothing here places a piece yet, and the booklet does not say where pieces go.
