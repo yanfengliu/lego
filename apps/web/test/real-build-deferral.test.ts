@@ -291,27 +291,27 @@ function drawnStepOne(): {
   };
 }
 
-// Settling a step rasterises its candidates against a printed panel, which is
-// the most expensive work any unit test here does. Measured inside a full
-// `vitest run` with the ceiling lifted: 4787ms to settle step 1 and 3484ms to
-// report the depth reached, against Vitest's 5000ms default. That is 96% of the
-// budget, so the suite failed on roughly three runs in four - always by timeout,
-// and on whichever of the two tests the scheduler happened to slow, which reads
-// as a flaky assertion rather than as a ceiling set too close to the work. Alone
-// the same test takes 2279ms, so the load multiplier is the thing to leave room
-// for: 30000ms is a bit over 6x the loaded measurement, still low enough that a
-// genuine hang fails the run rather than hanging it.
+// Settling a step rasterises every candidate against a printed panel - step 1
+// is a 400-candidate product - which is the most expensive work any unit test
+// here does. Measured inside a full `vitest run` with the ceiling lifted:
+// 4787ms to settle step 1 and 3484ms to report the depth reached, against
+// Vitest's 5000ms default. That is 96% of the budget, so the suite failed on
+// roughly three runs in four - always by timeout, and on whichever of the two
+// the scheduler happened to slow, which reads as a flaky assertion rather than
+// as a ceiling set too close to the work. Alone the same test takes 2279ms, so
+// the load multiplier is what needs room: 30000ms is a bit over 6x the loaded
+// measurement, still low enough that a genuine hang fails the run rather than
+// hanging it. The clock is what moves here; nothing either test asserts does.
+//
+// The ceiling belongs to the suite rather than to one test, because the second
+// measurement above is the one that crossed first on some runs.
 describe("deferred printed step", { timeout: 30_000 }, () => {
   const stepOne = panelSpec(1, [
     { catalogPartId: "builtin:corner-plate-5x5-quarter-ring" },
     { catalogPartId: "builtin:corner-plate-4x4-round" },
   ]);
 
-  // Printed step 1 is a 400-candidate product and every candidate is rasterised,
-  // so this one test runs for about five seconds — the default timeout leaves it
-  // no headroom and it fails on a busy machine rather than on a defect. The
-  // clock is what moves here; nothing it asserts does.
-  it("settles printed step 1 on the panel that shows what it built", { timeout: 30_000 }, () => {
+  it("settles printed step 1 on the panel that shows what it built", () => {
     const drawn = drawnStepOne();
     const { settlement } = settle({ spec: stepOne, builtMask: rasterise(drawn.document) });
 
