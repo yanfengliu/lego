@@ -81,7 +81,11 @@ Still zero pieces placed, but the chain of harness refusals is exhausted, the ar
 
 The panel's own drawn art cannot stand in for the missing highlight either, because step 1 is drawn exploded: the wedge floats above the curved plate with two arrows into it, so an assembled candidate does not match the drawing however it is placed.
 
+The arrows do constrain it, and by a measured amount: step 1 reports `family 4`. Its two red arrows narrow the placement from every legal enumeration to **four** whole-grid displacements and no further, so step 1 is neither underdetermined nor solved — it has four candidates and no local evidence to choose among them. Four is a beam width rather than a search.
+
 That is exactly the case the section below designs for — an exploded step need not be read at all, because the following step is not exploded. The run cannot yet do it: it settles each step against its own panel through `selectUniquePlacementScore`, which is why an unanswerable panel is a dead end rather than a deferral. Carrying step 1's candidates forward and letting step 2's panel score them is the next change, and it is the same swap the section below already argues for.
+
+**The answer for step 1 is independently known, which makes that change checkable before it is trusted.** The official Builder model places the two pieces at `30565;E` translation `22.8, 0.32, 8.16` unrotated and `80015;E` translation `22, 0, 10.56` under a quarter turn about Y. Builder's units are 0.8 per stud pitch and 0.32 per plate, so the relative displacement is `(-0.8, -0.32, +2.4)` — exactly **minus one stud, minus one plate, plus three studs**, a clean lattice triple of the same form `arrowDisplacementFamily` emits. Whether that triple is one of the four the arrows admit decides whether the deferral is worth building or the arrow correction is wrong, and it is a comparison between a reading of the printed pixels and an authored source that never saw them.
 
 Blocking at printed step 10 — chosen because step 11 is the only step in that prefix that needs `41769;G`, so a ten-step request separates the frame question from everything else: **seven input failures, all of them one cause.**
 
