@@ -11,6 +11,7 @@ When a lesson becomes a gate — a test, a lint rule, a fixed command — delete
 ## Rules
 
 - An error message that covers several causes hides the real one — split the condition and name the observed values. ([evidence](lessons-evidence.md#an-error-message-that-covers-several-causes-hides-the-real-one))
+- A byte comparison knows only that two files differ; a message naming what changed is a guess, and it prints nonsense exactly when the guess is wrong. ([evidence](lessons-evidence.md#a-byte-comparison-knows-only-that-two-files-differ))
 - `lstat` and a handle's `fstat` disagree on `dev` across platforms; the inode is the identity, the device only corroborates. ([evidence](lessons-evidence.md#lstat-and-fstat-do-not-agree-on-dev-across-platforms))
 - The structural hash covers part identifiers, so it cannot decide whether two models are the same. ([evidence](lessons-evidence.md#the-structural-hash-covers-part-identifiers-so-it-is-not-model-equivalence))
 - Recomputing pinned truth per call turns catalog growth into a timeout that reads as a hang. ([evidence](lessons-evidence.md#recomputing-pinned-truth-per-call-turns-catalog-growth-into-a-timeout))

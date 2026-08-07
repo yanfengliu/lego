@@ -14,6 +14,15 @@ Splitting the condition into five messages that each name the observed values ex
 
 **Anchor:** fix commit `c068b4c`; `apps/companion/src/run-ledger-file.ts`; 46 failing tests in `run-ledger-adversarial.test.ts` and `test-run-recorder.test.ts`.
 
+## A byte comparison knows only that two files differ
+
+`pin:check` decides staleness by comparing the whole formatted bytes of `run-pin.generated.ts` against what the generator produces, and then reported the failure as a moved run digest.
+On a CRLF checkout it printed `holds sha256:366fefbf… but this build produces sha256:366fefbf…` — the same digest twice — and told the reader to regenerate a value that had not changed.
+The comparison is right and belongs at the byte level; the message was one altitude above it, asserting a cause the comparison cannot see.
+Each of the three `--check` gates now names the domain values that moved when any did, and otherwise says the bytes moved while the meaning did not, with the first differing line.
+
+**Anchor:** 2026-08-07; `scripts/generated-file-staleness.mjs`; the doubled digest is quoted verbatim in `.gitattributes`; guarded by "never prints one pinned value as both held and produced" in `scripts/generated-file-staleness.test.mjs`.
+
 ## `lstat` and `fstat` do not agree on `dev` across platforms
 
 The ledger checked that a file was not swapped between lookup and open by comparing `dev` and `ino` from `lstat` against the open handle's `fstat`.
