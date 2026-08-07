@@ -534,6 +534,7 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
     page,
     mirror: sourceMirror,
     sourceLock,
+    repoRoot: process.cwd(),
   });
   let result!: RealBuildResult;
   try {
@@ -622,14 +623,28 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
         sourceMirror.root,
         sourceMirror.files.map(({ path }) => path),
       );
+      // The snapshot comparison used to be a bare JSON.stringify inequality, so
+      // when it fired alone the message fell back to "digest map changed" and
+      // named nothing. Both halves of this check now say which path moved and
+      // what it moved from, which is the difference between a two-minute run
+      // that tells you the answer and one that starts a search.
+      const snapshotDrift = [
+        ...Object.entries(originalCodeSnapshots).flatMap(([path, digest]) => {
+          const observed = postRunSnapshots[path];
+          return observed === digest
+            ? []
+            : [`${path}: captured ${digest}, observed ${observed ?? "missing"}`];
+        }),
+        ...Object.keys(postRunSnapshots)
+          .filter((path) => originalCodeSnapshots[path] === undefined)
+          .map((path) => `${path}: appeared during the run`),
+      ];
       const drift = [
+        ...snapshotDrift,
         ...sourceDriftFailures(preImportSourceBundle, postRunSourceBundle),
         ...sourceDriftFailures(executionSourceBundle, mirrorPostRunBundle),
       ];
-      if (
-        JSON.stringify(postRunSnapshots) !== JSON.stringify(originalCodeSnapshots) ||
-        drift.length > 0
-      ) {
+      if (drift.length > 0) {
         browserOutput = {
           schemaVersion: "lego.real-build-browser-output/1",
           status: "failed",
@@ -643,8 +658,8 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
             inputKey: "codeSnapshots",
             message:
               `Result-determining source changed between immutable pre-import capture, execution mirror, and ` +
-              `post-run verification: ${drift.slice(0, 8).join("; ") || "digest map changed"}. The browser ` +
-              `output is retained diagnostically but cannot be finalized.`,
+              `post-run verification (${drift.length} entr${drift.length === 1 ? "y" : "ies"}): ` +
+              `${drift.slice(0, 8).join("; ")}. The browser output is retained diagnostically but cannot be finalized.`,
           },
           totalElapsedMs: browserOutput.totalElapsedMs,
         };

@@ -112,6 +112,7 @@ describe("real-build served-response evidence", () => {
     const recorder = createRealBuildServedResponseRecorder({
       page,
       sourceLock,
+      repoRoot: process.cwd(),
       mirror: {
         root: mirrorRoot,
         files: sourceFiles,
@@ -287,6 +288,7 @@ describe("real-build served-response evidence", () => {
     const uninstalled = createRealBuildServedResponseRecorder({
       page,
       sourceLock,
+      repoRoot: process.cwd(),
       mirror: { root: mirrorRoot, files: [] },
     });
     await expect(uninstalled.writeEvidence(outputRoot)).rejects.toThrow(/never installed/u);
@@ -294,6 +296,7 @@ describe("real-build served-response evidence", () => {
     const recorder = createRealBuildServedResponseRecorder({
       page,
       sourceLock,
+      repoRoot: process.cwd(),
       mirror: { root: mirrorRoot, files: [] },
     });
     await recorder.install();
@@ -311,6 +314,7 @@ describe("real-build served-response evidence", () => {
     const responseRecorder = createRealBuildServedResponseRecorder({
       page,
       sourceLock,
+      repoRoot: process.cwd(),
       mirror: {
         root: mirrorRoot,
         files: [

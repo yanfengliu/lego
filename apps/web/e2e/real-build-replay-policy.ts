@@ -3,7 +3,25 @@ import { INSTRUCTION_PDF_LIMITS } from "../src/instructions/instruction-source";
 import { REAL_BUILD_RAW_REPLAY_ROLE_BYTE_POLICIES } from "./real-build-input-limits";
 
 export const MAXIMUM_REPLAY_MANIFEST_BYTES = 16 * 1024 * 1024;
-export const MAXIMUM_REPLAY_ROLE_COUNT = 20;
+/**
+ * Bound on declared replay roles, set above the number the run can actually
+ * emit rather than at it.
+ *
+ * 20 was below that number. `real-build.spec.ts` declares fourteen input roles,
+ * three more when identification is adjudicated, `run-contract`,
+ * `prepared-options`, and `browser-output` — twenty — and
+ * `writeRealBuildReplayClosure` adds `environment`, for twenty-one. Only the
+ * last of those is conditional on the browser having run to completion, so
+ * every run that failed earlier declared twenty and passed, and the first run
+ * ever to execute the browser tripped a limit that had been one too small since
+ * it was written. A bound no input can move, tripped only by success, is the
+ * shape of a check that has never been exercised.
+ *
+ * The headroom is for the roles this closure will grow, not for unbounded
+ * input: the count is fixed by code, so a change that needs more than this is a
+ * change to the closure and should say so here.
+ */
+export const MAXIMUM_REPLAY_ROLE_COUNT = 24;
 export const MAXIMUM_REPLAY_ROLE_BYTES = 512 * 1024 * 1024;
 export const MAXIMUM_REPLAY_SOURCE_FILES = 10_000;
 // Fixed booklet inputs are part of the execution mirror, so this boundary must admit the exact

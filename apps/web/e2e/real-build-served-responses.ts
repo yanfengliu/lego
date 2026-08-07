@@ -106,6 +106,8 @@ export function createRealBuildServedResponseRecorder(input: {
   readonly page: Page;
   readonly mirror: RealBuildSourceMirror;
   readonly sourceLock: RealBuildSourceLock;
+  /** Checkout the mirror was captured from, so a checkout path can be matched back to a declared source. */
+  readonly repoRoot: string;
 }): RealBuildServedResponseRecorder {
   const sourceByAbsolute = new Map<string, RealBuildSourceSnapshot>();
   const sourceByPath = new Map(input.mirror.files.map((source) => [source.path, source]));
@@ -153,19 +155,83 @@ export function createRealBuildServedResponseRecorder(input: {
     return sequence;
   };
 
+  /**
+   * The one URL family the bundler invents, resolved against the mirror rather
+   * than admitted from outside it.
+   *
+   * Every module this run asks for by name arrives as `/@fs/<mirror path>`,
+   * which is what keeps the mirror the only thing that executes. Vite's
+   * dependency pre-bundle is the exception: it rewrites a bare import inside a
+   * mirrored file to `/node_modules/.vite/deps/<name>.js`, a path relative to
+   * the dev server's root and carrying no `/@fs/` prefix, so it named no mirror
+   * file and was refused as `outside-locked-source`. Two ajv CommonJS helpers
+   * reach the browser only this way, and serving them raw instead is not an
+   * option, because pre-bundling is also what converts them to ESM.
+   *
+   * The invariant is unchanged: the bytes must still be a file the mirror
+   * declared and hashed, `inside` still rejects anything that climbs out, and a
+   * dep the mirror does not carry is still blocked. All that changes is that a
+   * second spelling can name a mirrored file.
+   *
+   * The cache lives under vite's own root rather than beside the lockfile —
+   * `apps/web/node_modules/.vite` — which is why the declared source root has to
+   * name that path. Declaring the repository-root one instead mirrors an empty
+   * directory and changes nothing.
+   */
+  const DEP_CACHE_PREFIX = "/node_modules/.vite/";
+  /** Dev-server root, which root-relative request paths resolve against. */
+  const SERVER_ROOT_IN_MIRROR = "apps/web";
+
+  /**
+   * Vite's own client, whose import it injects into every module it transforms
+   * in dev — independently of HMR, so turning HMR off removes the socket and
+   * not the import. Fixed virtual routes onto real files in a root the mirror
+   * already declares, so they resolve like any other mirrored module rather
+   * than being waved through.
+   */
+  const VITE_CLIENT_ROUTES: ReadonlyMap<string, string> = new Map([
+    ["/@vite/client", "node_modules/vite/dist/client/client.mjs"],
+    ["/@vite/env", "node_modules/vite/dist/client/env.mjs"],
+  ]);
+
   const sourceForUrl = (url: URL): RealBuildSourceSnapshot | null => {
-    if (!url.pathname.startsWith("/@fs/")) return null;
+    const clientRoute = VITE_CLIENT_ROUTES.get(url.pathname);
+    if (clientRoute !== undefined) {
+      return sourceByPath.get(clientRoute) ?? null;
+    }
+    const isFsUrl = url.pathname.startsWith("/@fs/");
+    if (!isFsUrl && !url.pathname.startsWith(DEP_CACHE_PREFIX)) return null;
     let decoded: string;
     try {
-      decoded = decodeURIComponent(url.pathname.slice("/@fs/".length));
+      decoded = decodeURIComponent(
+        isFsUrl ? url.pathname.slice("/@fs/".length) : url.pathname.slice(1),
+      );
     } catch {
       return null;
     }
     if (decoded.includes("\0")) return null;
     if (process.platform === "win32" && /^\/[A-Za-z]:\//u.test(decoded)) decoded = decoded.slice(1);
-    const absolute = resolve(decoded);
-    if (!inside(resolve(input.mirror.root), absolute)) return null;
-    return sourceByAbsolute.get(comparableAbsolute(absolute)) ?? null;
+    const mirrorRoot = resolve(input.mirror.root);
+    const absolute = isFsUrl
+      ? resolve(decoded)
+      : resolve(mirrorRoot, SERVER_ROOT_IN_MIRROR, decoded);
+    if (inside(mirrorRoot, absolute)) {
+      return sourceByAbsolute.get(comparableAbsolute(absolute)) ?? null;
+    }
+    // Vite resolves an import inside a served module against its own module
+    // graph, which is rooted in the ordinary checkout, so a mirrored file can be
+    // handed back a sibling's absolute path outside the mirror — vite's client
+    // importing `env.mjs` is the case that surfaced it. Chasing those one route
+    // at a time was the wrong cut; what the mirror actually vouches for is a
+    // *file*, identified by its repository-relative path, and the run's own
+    // drift check proves the checkout still holds the bytes that were captured.
+    // So a checkout path is accepted exactly when the mirror declares the same
+    // relative path, and refused otherwise.
+    const repoRelative = relative(resolve(input.repoRoot), absolute).replaceAll("\\", "/");
+    if (repoRelative === "" || repoRelative.startsWith("../") || isAbsolute(repoRelative)) {
+      return null;
+    }
+    return sourceByPath.get(repoRelative) ?? null;
   };
 
   const createResponse = async (

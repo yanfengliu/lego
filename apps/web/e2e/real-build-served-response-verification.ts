@@ -70,6 +70,16 @@ function verifiedHeaderList(value: unknown, label: string): readonly HeaderEntry
   return canonical;
 }
 
+/** Vite rewrites bare imports to this root-relative route; see `sourceForUrl`. */
+const DEP_CACHE_PREFIX = "/node_modules/.vite/";
+/** Dev-server root inside the mirror, which root-relative request paths resolve against. */
+const SERVER_ROOT_IN_MIRROR = "apps/web";
+/** Vite's injected client, a fixed virtual route onto a file the mirror declares. */
+const VITE_CLIENT_ROUTES: ReadonlyMap<string, string> = new Map([
+  ["/@vite/client", "node_modules/vite/dist/client/client.mjs"],
+  ["/@vite/env", "node_modules/vite/dist/client/env.mjs"],
+]);
+
 function sourcePathFromRequestUrl(
   requestUrl: string,
   sourceRoot: string,
@@ -81,14 +91,33 @@ function sourcePathFromRequestUrl(
   } catch (error) {
     throw new TypeError(`Served-response source URL is invalid: ${requestUrl}.`, { cause: error });
   }
-  if (!url.pathname.startsWith("/@fs/") || url.hash !== "") {
+  // Two spellings name a mirrored file, and both have to resolve to one exact
+  // declared source. `/@fs/<absolute>` is what every module asked for by name
+  // uses. `/node_modules/.vite/...` is what vite rewrites a bare import to, is
+  // relative to the dev server's root rather than absolute, and is the only way
+  // ajv's CommonJS helpers reach the browser — see `sourceForUrl` in
+  // `real-build-served-responses.ts` for why they cannot be served raw instead.
+  const clientRoute = VITE_CLIENT_ROUTES.get(url.pathname);
+  if (clientRoute !== undefined) {
+    if (!sourceByPath.has(clientRoute)) {
+      throw new TypeError(
+        `Served-response source URL does not identify one exact replay source: ${requestUrl}.`,
+      );
+    }
+    return clientRoute;
+  }
+  const isFsUrl = url.pathname.startsWith("/@fs/");
+  const isDepCacheUrl = url.pathname.startsWith(DEP_CACHE_PREFIX);
+  if ((!isFsUrl && !isDepCacheUrl) || url.hash !== "") {
     throw new TypeError(
-      `Served-response source URL must use the exact Vite /@fs/ route: ${requestUrl}.`,
+      `Served-response source URL must use the exact Vite /@fs/ route, or the ${DEP_CACHE_PREFIX} route the dependency pre-bundle rewrites bare imports to: ${requestUrl}.`,
     );
   }
   let decoded: string;
   try {
-    decoded = decodeURIComponent(url.pathname.slice("/@fs/".length));
+    decoded = decodeURIComponent(
+      isFsUrl ? url.pathname.slice("/@fs/".length) : url.pathname.slice(1),
+    );
   } catch (error) {
     throw new TypeError(`Served-response source URL has malformed encoding: ${requestUrl}.`, {
       cause: error,
@@ -98,8 +127,33 @@ function sourcePathFromRequestUrl(
   if (decoded.includes("\\") || decoded.includes("\0")) {
     throw new TypeError(`Served-response source URL has a non-canonical path: ${requestUrl}.`);
   }
+  // A dep-cache URL is already mirror-relative once the server root is put back
+  // in front of it, so it skips the absolute-root prefix check and goes
+  // straight to the declared-source lookup below, which is the real gate.
+  if (isDepCacheUrl) {
+    const depRelative = `${SERVER_ROOT_IN_MIRROR}/${decoded}`;
+    const depNormalized = normalizeRealBuildRelativePath(
+      depRelative,
+      "served-response dependency-cache source path",
+    );
+    if (depNormalized !== depRelative || !sourceByPath.has(depNormalized)) {
+      throw new TypeError(
+        `Served-response source URL does not identify one exact replay source: ${requestUrl}.`,
+      );
+    }
+    return depNormalized;
+  }
   const prefix = `${sourceRoot}/`;
   if (!decoded.toLocaleLowerCase("en-US").startsWith(prefix.toLocaleLowerCase("en-US"))) {
+    // Vite resolves an import inside a served module against its own graph,
+    // which is rooted in the ordinary checkout, so a mirrored file can be handed
+    // a sibling's absolute path outside the mirror. What the mirror vouches for
+    // is a file at a repository-relative path, and the run's drift check proves
+    // the checkout still holds the captured bytes, so such a path is accepted
+    // exactly when the mirror declares the same relative path.
+    const tail = decoded.split("/node_modules/").slice(1).join("/node_modules/");
+    const checkoutRelative = tail === "" ? "" : `node_modules/${tail}`;
+    if (checkoutRelative !== "" && sourceByPath.has(checkoutRelative)) return checkoutRelative;
     throw new TypeError(`Served-response source URL is outside its declared locked root.`);
   }
   const relative = decoded.slice(prefix.length);
