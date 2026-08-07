@@ -73,7 +73,21 @@ Measured: served requests move from 22 fulfilled and 4 blocked to **110 fulfille
 
 Two defects surfaced only because the run got that far, and both are the same shape — a check that no failing run could reach. `MAXIMUM_REPLAY_ROLE_COUNT` was 20 while the closure emits 21, and the twenty-first is `browser-output`, which exists only once the browser completes; the bound was one too small from the day it was written. And the drift check reported "digest map changed" and named nothing whenever its snapshot half fired alone, because that half was a bare `JSON.stringify` inequality; it now names the path and both digests.
 
-Still zero pieces placed. The current refusal is `Executed replay browser-output must retain a document and the exact prepared PDF digest` — the driver runs and returns, and what it returns does not yet carry a document. That is the next thing to measure, and it is the first blocker in this chain that is about the build rather than about the harness around it.
+Still zero pieces placed, but the chain of harness refusals is exhausted and the blocker is now about the build. The driver runs, returns a valid document and the exact prepared PDF, and retains **0 identity bindings against the 4 the requested panels declare**. The steps say why:
+
+```
+step 1 failed/deferred 0/2 — no-placement-signal: Step 1 has no enclosed highlight,
+  no usable arrow placement, and no independent placement signal. 2 arrow drawing(s)
+  were detected, but detections that have not been converted into candidate
+  constraints cannot justify choosing the first enumerated placement.
+step 2, step 3 — blocked-by-prior-step
+```
+
+That refusal is honest and its cause is one line: `real-build-run.ts` reads the arrows at `readDisplacementArrows` and then passes `usableArrowPlacementCount: 0` as a literal. Printed step 1 is an exploded step — the wedge plate drawn above the curved plate with two red arrows into it — so its highlight encloses nothing and the arrows are the whole placement signal.
+
+The machinery to convert them exists and is unused by the run: `arrowDisplacementFamily` in `apps/web/src/assembly/arrow-placement.ts` returns every whole-grid displacement whose projection matches an arrow, and `arbitrateArrowCandidates` orders them — with its own warning that the order is pixel agreement and not a ranking of correctness, because on this projection several triples agree to within the measurement. Only `real-panel-scoring.ts` calls either. Wiring them into the run is the next change, and the honest expectation is that the family will be ambiguous rather than singular, which is what the search in the section below exists to settle.
+
+
 
 Blocking at printed step 10 — chosen because step 11 is the only step in that prefix that needs `41769;G`, so a ten-step request separates the frame question from everything else: **seven input failures, all of them one cause.**
 
