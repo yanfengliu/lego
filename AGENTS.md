@@ -8,6 +8,7 @@ Non-goals: not a BrickLink Studio clone, general mesh editor, complete official-
 
 
 
+<!-- FLEET-CANON:BEGIN sha=eddab2e24da6 generated from fleet/FLEET.md by `npm run sync-canon` — do not edit inside this block; this repo's own rules go in docs/policies/local-rules.md -->
 ## Fleet constitution
 
 - Work headlessly by default. If only a browser or GUI can finish or verify the task, say why.
@@ -21,10 +22,10 @@ Non-goals: not a BrickLink Studio clone, general mesh editor, complete official-
 - When blocked, hand over the raw artifact — screenshot, rendered page, log line, data row — as soon as the blocker is named rather than after the analysis: your description of it is filtered through the misunderstanding that caused the block, so it cannot contain what you failed to notice. (lego 2fb9e5f.)
 - Task-run evidence lives only under ignored paths and is deleted once nothing active needs it; it enters Git only when review promotes it into a repository input — a fixture, golden, snapshot, or contract. Tracked docs keep conclusions and provenance only. Blob ceilings for anything promoted: over 256 KiB needs a stated reason, over 512 KiB binary or 1 MiB of anything never enters ordinary Git, and an asset store or LFS needs the user's approval.
 - Write prose one line per paragraph (no hard wrapping).
+- Keep a devlog: one short dated line per behaviour-changing session in `docs/devlog/summary.md`, newest first, and a section in `docs/devlog/detailed/` for anything a later session could trip over — what was believed and proved false, what a reviewer caught that the author missed, what number moved and from what. It is history, not status: the repo's design docs hold the current position. Write it because the alternative is rediscovering your own dead ends.
 - Steering compounds: a direction that outlives the immediate task lands that same session — `../fleet/FLEET.md` if fleet-wide, else this repo's `docs/policies/local-rules.md` — and you say where it went.
 - Reviewer model pins live only in `../fleet/docs/skills/multi-cli-review.md`; a model a product itself calls is pinned in the repo that calls it. Never hardcode a model ID anywhere else.
-
-
+<!-- FLEET-CANON:END -->
 
 ## Gates
 
