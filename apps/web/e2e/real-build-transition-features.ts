@@ -40,9 +40,52 @@ export const ROTATION_ICON_FILL_HEX = "#ffffff";
 export const DETERMINISTIC_TRANSITION_CLASSIFIER_ID =
   "lego.deterministic-transition-classifier/1" as const;
 
+/** Which face of the assembly a printed panel is drawn from. */
+export type PanelFace = "studs-up" | "underside";
+
+/**
+ * The face printed step 1 is drawn from, and the seed of the whole toggle.
+ *
+ * It is an assumption, not a measurement: a booklet could open on an inverted
+ * subassembly. It is stated here so it can be checked rather than believed —
+ * `derivePanelFaces` returns the seed it used, and a vision judgement of any
+ * one panel fixes the phase of every other by parity.
+ */
+export const FIRST_PANEL_FACE: PanelFace = "studs-up";
+
 export interface TransitionPanelFeatures extends TransitionPanelEvidence {
   /** The booklet's rotate-the-model icon is drawn inside this panel. */
   readonly rotationIconPresent: boolean;
+  /**
+   * Which face this panel is drawn from, as a running toggle of the icon.
+   *
+   * The booklet builds this set partly upside down and prints the icon at each
+   * turn, so the icon is a viewpoint change and not an action: the panel it is
+   * printed on is already drawn from the new face. A loop that ignores it
+   * renders candidates against the opposite side of the printed drawing from
+   * step 4 onward, and no frame or identification can recover that.
+   */
+  readonly panelFace: PanelFace;
+}
+
+/**
+ * Folds the icon into a face per step, in printed order.
+ *
+ * Separate from the feature derivation because the fold is the claim worth
+ * testing on its own: it needs only the icon flags and the seed, so it can be
+ * checked against a blind reading of the panels without a PDF in the room.
+ */
+export function derivePanelFaces(
+  steps: readonly { readonly stepNumber: number; readonly rotationIconPresent: boolean }[],
+  seed: PanelFace = FIRST_PANEL_FACE,
+): readonly { readonly stepNumber: number; readonly panelFace: PanelFace }[] {
+  let face = seed;
+  return [...steps]
+    .sort((left, right) => left.stepNumber - right.stepNumber)
+    .map((step) => {
+      if (step.rotationIconPresent) face = face === "studs-up" ? "underside" : "studs-up";
+      return { stepNumber: step.stepNumber, panelFace: face };
+    });
 }
 
 function isRotationIcon(shape: PageShape): boolean {
@@ -75,7 +118,7 @@ export function deriveTransitionPanelFeatures(input: {
         `${JSON.stringify(input.expectedPrintedSteps)}. It decides which step may claim the final view.`,
     );
   }
-  return [...input.panels]
+  const withoutFace = [...input.panels]
     .sort((left, right) => left.stepNumber - right.stepNumber)
     .map((panel) => {
       const evidence = input.panelEvidenceByStep[panel.stepNumber];
@@ -111,6 +154,13 @@ export function deriveTransitionPanelFeatures(input: {
         }),
       };
     });
+  const faceByStep = new Map(
+    derivePanelFaces(withoutFace).map(({ stepNumber, panelFace }) => [stepNumber, panelFace]),
+  );
+  return withoutFace.map((feature) => ({
+    ...feature,
+    panelFace: faceByStep.get(feature.stepNumber)!,
+  }));
 }
 
 /**

@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import { sha256Digest } from "../e2e/real-build-artifacts";
 import { validateRealBuildActionLedger } from "../e2e/real-build-ledger";
 import { realBuildLedgerTestFixture } from "./real-build-ledger-test-fixture";
+import PANEL_FACE_GROUND_TRUTH from "./fixtures/panel-face-ground-truth.json" with { type: "json" };
 import {
   assembleTransitionClassificationBundle,
   buildTransitionClassificationEntry,
@@ -15,6 +16,7 @@ import {
   type TransitionClassifierProposal,
 } from "../e2e/real-build-transition-classification";
 import {
+  derivePanelFaces,
   DETERMINISTIC_TRANSITION_CLASSIFIER_ID,
   deriveTransitionPanelFeatures,
   deterministicTransitionClassifier,
@@ -38,6 +40,7 @@ function features(overrides: Partial<TransitionPanelFeatures> = {}): TransitionP
     panelEvidenceDigest: PANEL_DIGEST,
     newPieceCalloutCount: 0,
     isTerminalPrintedStep: false,
+    panelFace: "studs-up",
     rotationIconPresent: false,
     ...overrides,
   };
@@ -430,6 +433,7 @@ describe("consumption by the action ledger", () => {
         panelEvidenceDigest: step.panelEvidenceDigest,
         newPieceCalloutCount: 0,
         isTerminalPrintedStep: step.stepNumber === TERMINAL_STEP,
+        panelFace: "studs-up",
         rotationIconPresent: step.stepNumber % 7 === 0,
       };
       const decided = proposeDeterministicTransition(panel);
@@ -467,5 +471,150 @@ describe("consumption by the action ledger", () => {
         transitionClassificationsByStep: Object.fromEntries(built),
       }),
     ).toEqual([]);
+  });
+});
+
+describe("derivePanelFaces", () => {
+  /**
+   * The measured opening of 6651557. Printed steps 1 to 12, with the icon on 4,
+   * 5, 7, 8, 10 and 12, read off pages 11 to 15 by eye as up up up UNDER up up
+   * UNDER up up UNDER UNDER up.
+   *
+   * Step 8 is the one that matters: its icon is on the same page as step 7's,
+   * and it was invisible until extractPageShapes stopped leaking fill colour
+   * across a restore. Without it the fold reports steps 8 and 9 as underside
+   * and every later face is inverted.
+   */
+  const OPENING = [4, 5, 7, 8, 10, 12];
+
+  function opening(iconSteps: readonly number[]) {
+    return Array.from({ length: 12 }, (_unused, index) => ({
+      stepNumber: index + 1,
+      rotationIconPresent: iconSteps.includes(index + 1),
+    }));
+  }
+
+  test("folds the booklet's opening icons into the faces its pages are drawn from", () => {
+    expect(derivePanelFaces(opening(OPENING)).map(({ panelFace }) => panelFace)).toEqual([
+      "studs-up",
+      "studs-up",
+      "studs-up",
+      "underside",
+      "studs-up",
+      "studs-up",
+      "underside",
+      "studs-up",
+      "studs-up",
+      "underside",
+      "underside",
+      "studs-up",
+    ]);
+  });
+
+  test("inverts every later face when one icon is missed", () => {
+    const missed = derivePanelFaces(opening(OPENING.filter((step) => step !== 8)));
+    const complete = derivePanelFaces(opening(OPENING));
+    const diverged = complete.filter(
+      (entry, index) => entry.panelFace !== missed[index]!.panelFace,
+    );
+
+    // Not "some steps are wrong", and not a span either: a missed icon inverts
+    // the parity of every step after it, to the end of the booklet. Later icons
+    // keep toggling, but from the wrong phase, so they never resynchronise.
+    // That is why one dropped icon is a whole-build failure and not a local one.
+    expect(diverged.map(({ stepNumber }) => stepNumber)).toEqual([8, 9, 10, 11, 12]);
+  });
+
+  test("carries a face forward across steps that print no icon", () => {
+    expect(
+      derivePanelFaces([
+        { stepNumber: 1, rotationIconPresent: true },
+        { stepNumber: 2, rotationIconPresent: false },
+        { stepNumber: 3, rotationIconPresent: false },
+      ]).map(({ panelFace }) => panelFace),
+    ).toEqual(["underside", "underside", "underside"]);
+  });
+
+  test("takes an explicit seed, so one judged panel can fix the phase of the rest", () => {
+    const steps = [
+      { stepNumber: 1, rotationIconPresent: false },
+      { stepNumber: 2, rotationIconPresent: true },
+    ];
+
+    expect(derivePanelFaces(steps, "underside").map(({ panelFace }) => panelFace)).toEqual([
+      "underside",
+      "studs-up",
+    ]);
+  });
+
+  test("folds in printed order however the steps arrive", () => {
+    const shuffled = [
+      { stepNumber: 3, rotationIconPresent: false },
+      { stepNumber: 1, rotationIconPresent: false },
+      { stepNumber: 2, rotationIconPresent: true },
+    ];
+
+    expect(derivePanelFaces(shuffled)).toEqual([
+      { stepNumber: 1, panelFace: "studs-up" },
+      { stepNumber: 2, panelFace: "underside" },
+      { stepNumber: 3, panelFace: "underside" },
+    ]);
+  });
+});
+
+describe("panel faces against a blind reading of the pages", () => {
+  /**
+   * The fold's only honest score: two raters read the rendered pages of 6651557
+   * without being shown the icon or each other's answers, and agreed on all 43
+   * panels. Scoring the icon against the icon would measure nothing.
+   *
+   * Measured 2026-08-06: 43 of 43. The same comparison before extractPageShapes
+   * stopped leaking fill colour across a restore was 7 of 43 — step 8's icon was
+   * invisible, and one missed icon inverts the parity of every step after it.
+   */
+  test("reproduces every judged panel from the printed icons alone", () => {
+    const judged = Object.entries(PANEL_FACE_GROUND_TRUTH.faces).map(([stepNumber, panelFace]) => ({
+      stepNumber: Number(stepNumber),
+      panelFace,
+    }));
+    const iconSteps = new Set<number>(PANEL_FACE_GROUND_TRUTH.iconSteps);
+    const folded = derivePanelFaces(
+      judged.map(({ stepNumber }) => ({
+        stepNumber,
+        rotationIconPresent: iconSteps.has(stepNumber),
+      })),
+    );
+
+    expect(folded).toEqual(judged);
+  });
+
+  test("scores far worse when any single icon is dropped, wherever it is", () => {
+    const judged = Object.entries(PANEL_FACE_GROUND_TRUTH.faces).map(([stepNumber, panelFace]) => ({
+      stepNumber: Number(stepNumber),
+      panelFace,
+    }));
+    const steps = judged.map(({ stepNumber }) => stepNumber);
+
+    for (const dropped of PANEL_FACE_GROUND_TRUTH.iconSteps) {
+      const iconSteps = new Set(
+        PANEL_FACE_GROUND_TRUTH.iconSteps.filter((step) => step !== dropped),
+      );
+      const folded = derivePanelFaces(
+        steps.map((stepNumber) => ({
+          stepNumber,
+          rotationIconPresent: iconSteps.has(stepNumber),
+        })),
+      );
+      const correct = folded.filter(
+        (entry, index) => entry.panelFace === judged[index]!.panelFace,
+      ).length;
+
+      // Every step at or after the dropped icon inverts and never recovers, so
+      // the score cannot stay near perfect for any choice of dropped icon.
+      expect(correct).toBeLessThan(judged.length);
+      expect(folded.findIndex((entry, index) => entry.panelFace !== judged[index]!.panelFace)).toBe(
+        steps.indexOf(dropped),
+      );
+    }
   });
 });
