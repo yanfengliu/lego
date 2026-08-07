@@ -767,6 +767,15 @@ export interface RealBuildStepReport {
      * step by itself, and more means something else has to.
      */
     readonly displacementFamily: number;
+    /**
+     * The family's own displacements in LDU, closest projection first, bounded.
+     *
+     * The count says how far the arrow narrowed the step; these say to what. An
+     * authored source can then be asked whether the placement it records is one
+     * of them, which is a comparison between a reading of printed pixels and
+     * something that never saw them.
+     */
+    readonly displacementFamilyLdu: readonly (readonly [number, number, number])[];
   };
   readonly pieces: readonly RealBuildPieceReport[];
   readonly jointVisual: WholeStepVisualEvidence | null;

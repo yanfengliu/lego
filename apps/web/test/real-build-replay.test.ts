@@ -185,7 +185,7 @@ function browserOutput(): RealBuildBrowserOutput {
     },
     camera: null,
     highlight: { regions: 0, closedContourRate: 0, strokePx: 0, boundsPx: null },
-    arrows: { kept: 0, redPx: 0, rejected: 0, displacementFamily: 0 },
+    arrows: { kept: 0, redPx: 0, rejected: 0, displacementFamily: 0, displacementFamilyLdu: [] },
     pieces: [],
     jointVisual: null,
     documentParts: 0,

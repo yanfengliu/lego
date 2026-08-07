@@ -379,11 +379,20 @@ function isHighlightEvidence(value: unknown, maximum: number): boolean {
 function isArrowEvidence(value: unknown, maximum: number): boolean {
   return (
     isRecord(value) &&
-    exactKeys(value, ["kept", "redPx", "rejected", "displacementFamily"]) &&
+    exactKeys(value, [
+      "kept",
+      "redPx",
+      "rejected",
+      "displacementFamily",
+      "displacementFamilyLdu",
+    ]) &&
     isBoundedInteger(value.kept, maximum) &&
     isBoundedInteger(value.redPx, Number.MAX_SAFE_INTEGER) &&
     isBoundedInteger(value.rejected, maximum) &&
-    isBoundedInteger(value.displacementFamily, Number.MAX_SAFE_INTEGER)
+    isBoundedInteger(value.displacementFamily, Number.MAX_SAFE_INTEGER) &&
+    Array.isArray(value.displacementFamilyLdu) &&
+    value.displacementFamilyLdu.length <= 8 &&
+    value.displacementFamilyLdu.every((entry) => isTuple(entry, 3))
   );
 }
 
@@ -561,7 +570,8 @@ export function assertRealBuildBrowserOutput(
             // separate the two.
             `[highlight ${entry.highlight.regions} region(s), ${entry.highlight.strokePx}px stroke, ` +
             `closed ${entry.highlight.closedContourRate}; arrows ${entry.arrows.kept} kept ` +
-            `${entry.arrows.rejected} rejected, family ${entry.arrows.displacementFamily}]` +
+            `${entry.arrows.rejected} rejected, family ${entry.arrows.displacementFamily} ` +
+            `${JSON.stringify(entry.arrows.displacementFamilyLdu)}]` +
             (failure === null ? "" : ` — ${failure.code}: ${failure.message}`)
           );
         });

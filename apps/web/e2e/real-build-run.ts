@@ -988,6 +988,9 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                   redPx: arrows.redPx as number,
                   rejected: (arrows.rejected as unknown[]).length,
                   displacementFamily: arrowFamily.length,
+                  displacementFamilyLdu: arrowFamily
+                    .slice(0, 8)
+                    .map((entry) => [entry.lduX, entry.lduY, entry.lduZ] as const),
                 },
                 pieces: pieceReports,
                 jointVisual,
