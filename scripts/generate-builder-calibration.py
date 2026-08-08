@@ -463,9 +463,9 @@ class LDrawLibrary:
                     if self.closure_by_path is not None and (index != 0 or expected is None):
                         raise ValueError(
                             f"LDraw closure reached unpinned file {candidate!r} in "
-                            f"{self.labels[index]}. Only the metadata-pinned 30565/80015 official "
-                            "closure may contribute calibration geometry; review and pin any "
-                            "source-graph change before rerunning."
+                            f"{self.labels[index]}. Only the metadata-pinned official closure of "
+                            f"the {len(LDRAW_CLOSURE_FILES)} reviewed files may contribute calibration "
+                            "geometry; review and pin any source-graph change before rerunning."
                         )
                     if expected is not None:
                         (
@@ -512,9 +512,10 @@ class LDrawLibrary:
             missing = sorted(expected - self.used_closure_files)
             unexpected = sorted(self.used_closure_files - expected)
             raise ValueError(
-                f"LDraw 30565/80015 transitive closure differs from its metadata pin; "
-                f"missing={missing}, unexpected={unexpected}. Re-acquire the exact archives or "
-                "review and pin the complete changed graph before generating evidence."
+                f"LDraw transitive closure of the {len(LDRAW_CLOSURE_MANIFEST['roots'])} reviewed "
+                f"roots differs from its metadata pin; missing={missing}, unexpected={unexpected}. "
+                "Re-acquire the exact archives or review and pin the complete changed graph before "
+                "generating evidence."
             )
 
     def triangles(self, reference: str, stack: tuple[str, ...] = ()):

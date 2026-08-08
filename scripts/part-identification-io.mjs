@@ -25,8 +25,40 @@ export const MAX_IMAGE_ARTIFACT_BYTES = 8 * 1024 * 1024;
 export const MAX_DIRECTORY_ENTRIES = 4_096;
 export const MAX_CHILD_STDOUT_BYTES = 4 * 1024 * 1024;
 export const MAX_CHILD_STDERR_BYTES = 512 * 1024;
-export const CHILD_TIMEOUT_MS = 15 * 60 * 1_000;
 export const MAX_NODE_TIMER_MS = 2_147_483_647;
+/**
+ * How long a bounded child may run before it is terminated.
+ *
+ * Fifteen minutes was chosen against a six-card vision batch. A single-card
+ * call returns in about three, so on a one-card batch the ceiling stops being a
+ * bound on work and becomes a bound on a stall: a hung provider call costs the
+ * full fifteen minutes before the run learns anything, and the batch it carried
+ * is lost with it. Measured overnight, that was two cards answered per pass
+ * against a hundred and twenty-six outstanding.
+ *
+ * So the ceiling is tunable, and the caller who knows its batch size sets it.
+ * Cutting a stall short is only useful because progress is persisted per call -
+ * a terminated pass keeps every answer it already had, so a shorter ceiling
+ * trades a longer tail of retries for far less time spent waiting on calls that
+ * were never going to return.
+ */
+const DEFAULT_CHILD_TIMEOUT_MS = 15 * 60 * 1_000;
+export const CHILD_TIMEOUT_MS = (() => {
+  const raw = process.env.LEGO_CHILD_TIMEOUT_MS;
+  if (raw === undefined) return DEFAULT_CHILD_TIMEOUT_MS;
+  if (!/^\d+$/u.test(raw)) {
+    throw new Error(
+      `LEGO_CHILD_TIMEOUT_MS must be a whole number of milliseconds; received ${JSON.stringify(raw)}.`,
+    );
+  }
+  const parsed = Number(raw);
+  if (parsed < 30_000 || parsed > MAX_NODE_TIMER_MS) {
+    throw new Error(
+      `LEGO_CHILD_TIMEOUT_MS must be between 30000 and ${MAX_NODE_TIMER_MS} ms; received ${parsed}.`,
+    );
+  }
+  return parsed;
+})();
 const fatalUtf8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
 function display(label, path) {
   return label === undefined ? JSON.stringify(path) : `${label} at ${JSON.stringify(path)}`;

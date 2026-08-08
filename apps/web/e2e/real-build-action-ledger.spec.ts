@@ -8,6 +8,7 @@ import {
   compileRealBuildActionLedger,
   REAL_BUILD_ACTION_LEDGER_PRINTED_STEPS,
 } from "./real-build-action-ledger-compile";
+import { isTrustedIdentificationConfidence } from "./real-build-identification-trust";
 import { pieceEvidenceDigest } from "./real-build-ledger";
 import { ACTION_LEDGER_PATH } from "./real-build-input-files";
 import { hasSampleBooklet } from "./sample-booklet";
@@ -65,7 +66,17 @@ test("publishes the booklet's action ledger", async () => {
           piece: content,
         }),
       );
-      expect(piece.identificationConfidence).toBe("vision-kept");
+      // Membership in the one definition, never a literal. This line read
+      // `toBe("vision-kept")` from the day it was written, when `directPiece`
+      // hard-coded that same string into every piece — so it asserted a constant
+      // against itself and tested nothing. Commit 0452f75 replaced the literal
+      // with the claim's own published confidence and fixed six sites to read
+      // `TRUSTED_IDENTIFICATION_CONFIDENCES`; this spec was the seventh and was
+      // missed, which turned a tautology into a gate demanding one particular
+      // trust source. Nothing untrusted can reach here anyway: the cut refuses
+      // it and `requireTrustedIdentificationConfidence` throws, so the honest
+      // assertion is the invariant the line was written to express.
+      expect(isTrustedIdentificationConfidence(piece.identificationConfidence)).toBe(true);
       expect(piece.transform).toBeNull();
     }
   }
@@ -84,10 +95,24 @@ test("publishes the booklet's action ledger", async () => {
   for (const failure of compiled.validationFailures) {
     byCode.set(failure.code, (byCode.get(failure.code) ?? 0) + 1);
   }
+  // Which mechanism actually carried the build. The two trusted confidences are
+  // kept as separate values precisely so this can be said afterwards, and a
+  // publisher that never prints the split throws that away.
+  const byConfidence = new Map<string, number>();
+  for (const step of ledger.steps) {
+    if (step.action.kind !== "place-callouts") continue;
+    for (const { identificationConfidence } of step.action.pieces) {
+      byConfidence.set(
+        identificationConfidence,
+        (byConfidence.get(identificationConfidence) ?? 0) + 1,
+      );
+    }
+  }
   process.stdout.write(
     `${written.replaceAll("\\", "/")}: ${ledger.steps.length} of ` +
       `${REAL_BUILD_ACTION_LEDGER_PRINTED_STEPS} printed steps, ` +
-      `${compiled.assembled.directPieceCount} direct piece identities, ` +
+      `${compiled.assembled.directPieceCount} direct piece identities ` +
+      `[${[...byConfidence].map(([name, count]) => `${name}=${count}`).join(", ") || "none"}], ` +
       `${compiled.assembled.transitionStepCount} transitions, ` +
       `${compiled.assembled.refusals.length} refusals; file digest ${compiled.encodedDigest}\n` +
       `  stopped because ${compiled.assembled.stopReason}\n` +
