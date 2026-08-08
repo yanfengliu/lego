@@ -26,6 +26,18 @@ export function evaluateSearchBenchmark<T, S extends ScoredPlacement<T>>(input: 
 }): {
   readonly winner: S | null;
   readonly failure: StepFailure | null;
+  /**
+   * What the pruned strategy alone concluded, before the benchmark adjudicated.
+   *
+   * Reported separately because the two failures answer different questions and
+   * only one of them is about the printed panel. `failure` above can be a
+   * `benchmark-disagreement` raised because the *exhaustive* half declined —
+   * printed step 4 of this booklet has 240 distinct placements against a 220
+   * budget — which says nothing about whether the panel's own art distinguished
+   * the candidates that were scored. That question is this field's, and it is
+   * the one a lookahead is allowed to answer.
+   */
+  readonly prunedFailure: StepFailure | null;
   readonly prunedScores: readonly S[];
   readonly blind: BlindSearchReport;
 } {
@@ -141,6 +153,7 @@ export function evaluateSearchBenchmark<T, S extends ScoredPlacement<T>>(input: 
   return {
     winner: acceptedDecision.winner?.candidate ?? null,
     failure: benchmark.failure ?? acceptedDecision.failure,
+    prunedFailure: prunedDecision.failure,
     prunedScores,
     blind,
   };

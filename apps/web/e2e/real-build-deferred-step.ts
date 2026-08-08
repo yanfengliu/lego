@@ -1,10 +1,12 @@
 import { instructionSilhouetteMasks, maskCentroid } from "./real-build-contract";
 import {
   deferredReachFailure,
+  describeDeferralTrigger,
   enumerateWholeStepCandidates,
   registerPrefixAgreement,
   selectDeferredPlacement,
   type DeferralEvidence,
+  type DeferralTrigger,
 } from "./real-build-deferral";
 import type { RuntimeBrickIdentity } from "./real-build-fixed-actions";
 import type { PanelRasterEvidence } from "./real-build-panel-raster";
@@ -50,8 +52,34 @@ type BrowserModule = ReturnType<typeof JSON.parse>;
 
 export function settleDeferredPrintedStep<D>(input: {
   readonly spec: RealBuildPanelSpec;
+  readonly trigger: DeferralTrigger;
+  /**
+   * How far apart the step's own panel put its best two candidates, and the
+   * margin it had to clear. Null when the panel gave no local ranking at all.
+   */
+  readonly ownPanelMargin: number | null;
+  readonly ownPanelMinimumMargin: number | null;
   readonly baseDocument: D;
   readonly stepId: string | null;
+  /**
+   * What the step's own panel can still say about a piece, or null when it can
+   * say nothing at all.
+   *
+   * Given every placement offered on one branch, it returns the ones that panel
+   * could not separate from its best. A step deferred for want of any signal has
+   * no such function and carries the whole product; a step deferred because its
+   * panel could not choose has one, and without it the product is unscoreable —
+   * printed step 4's is 240 x 334.
+   */
+  readonly narrowByOwnPanel:
+    | ((input: {
+        readonly document: D;
+        readonly stepId: string | null;
+        readonly catalogPartId: string;
+        readonly colorId: string;
+        readonly offered: readonly PlacementTransform[];
+      }) => readonly PlacementTransform[])
+    | null;
   readonly lookahead: {
     readonly spec: RealBuildPanelSpec;
     readonly evidence: PanelRasterEvidence;
@@ -108,6 +136,9 @@ export function settleDeferredPrintedStep<D>(input: {
   });
 
   const emptyEvidence: DeferralEvidence = {
+    trigger: input.trigger,
+    ownPanelMargin: input.ownPanelMargin,
+    ownPanelMinimumMargin: input.ownPanelMinimumMargin,
     lookaheadStepNumber: lookahead?.spec.stepNumber ?? null,
     reachSteps,
     wholeStepCandidates: 0,
@@ -127,9 +158,9 @@ export function settleDeferredPrintedStep<D>(input: {
       stage: "evidence",
       stepNumber: spec.stepNumber,
       message:
-        `Step ${spec.stepNumber} printed no highlight, so nothing local can score its candidates, and no ` +
-        `later printed step was requested to settle it against. A one-step lookahead needs panel N+1; ` +
-        `extend the requested range rather than accepting the first enumerated placement.`,
+        `Step ${spec.stepNumber} ${describeDeferralTrigger(input.trigger)}, and no later printed step was ` +
+        `requested to settle it against. A one-step lookahead needs panel N+1; extend the requested range ` +
+        `rather than accepting the first enumerated placement.`,
     });
   }
 
@@ -166,6 +197,45 @@ export function settleDeferredPrintedStep<D>(input: {
     });
   }
 
+  // Whether the lookahead panel can say where it stopped drawing what this step
+  // built — asked before anything is enumerated or rendered, because it is a
+  // fact about the printed page rather than about any candidate.
+  //
+  // The agreement this deferral is decided by is defined on panel N+1's art
+  // *minus the region its own new pieces occupy*, and that region comes from the
+  // filled highlight. A panel whose highlight contour does not close yields a
+  // stroke and no filled region, so nothing but a thin outline is removed and
+  // the pieces panel N+1 places are left inside the art step N is required to
+  // explain. The prefix then cannot reach any bar, and reporting that as a weak
+  // agreement would blame the candidate for pixels no candidate could own.
+  const openHighlight = (() => {
+    const { mask, strokeMask, regions, keyedPx } = lookahead.evidence.highlight;
+    if (regions.length === 0 && keyedPx === 0) return null;
+    let strokePx = 0;
+    let fillPx = 0;
+    for (let index = 0; index < strokeMask.length; index += 1) {
+      if (strokeMask[index] === 1) strokePx += 1;
+      else if (mask[index] === 1) fillPx += 1;
+    }
+    if (fillPx > 0) return null;
+    return { strokePx, regions: regions.length };
+  })();
+  if (openHighlight !== null) {
+    return refused(emptyEvidence, {
+      code: "deferred-panel-unscored",
+      stage: "evidence",
+      stepNumber: spec.stepNumber,
+      message:
+        `Step ${spec.stepNumber} deferred to printed step ${lookahead.spec.stepNumber}, whose highlight is ` +
+        `${openHighlight.regions} open contour(s) — ${openHighlight.strokePx}px of stroke enclosing no filled ` +
+        `region. The region a lookahead panel's own new pieces occupy is exactly what has to be excluded ` +
+        `before the rest can be attributed to step ${spec.stepNumber}, and an outline that does not close ` +
+        `does not give it. Scoring anyway would charge this step's prefix with drawing the pieces step ` +
+        `${lookahead.spec.stepNumber} places, which no prefix can do; the ceiling is the panel's contour, ` +
+        `not the candidates.`,
+    });
+  }
+
   const enumeration = enumerateWholeStepCandidates<D>({
     baseDocument: input.baseDocument,
     stepId: input.stepId,
@@ -190,11 +260,37 @@ export function settleDeferredPrintedStep<D>(input: {
       }
       return distinct;
     },
+    narrow: input.narrowByOwnPanel,
+    narrowingRenderBudget: options.deferredNarrowingRenderBudget,
     place: (document, catalogPartId, transform, colorId, stepId) =>
       input.place(document, catalogPartId, transform, colorId, spec.stepNumber, stepId),
     budget: options.deferredCandidateBudget,
   });
 
+  // What the first branch offered and what survived this step's own panel, so a
+  // budget refusal says whether the product blew up because the step is that
+  // open or because its panel could not narrow it.
+  const perBranch =
+    input.narrowByOwnPanel === null
+      ? enumeration.perPiece.join(" x ")
+      : enumeration.perPiece
+          .map((offered, index) => `${enumeration.perPieceCarried[index] ?? offered} of ${offered}`)
+          .join(" x ");
+  if (enumeration.overNarrowingBudget) {
+    return refused(
+      { ...emptyEvidence, wholeStepCandidates: 0 },
+      {
+        code: "resource-budget-exhausted",
+        stage: "budget",
+        stepNumber: spec.stepNumber,
+        message:
+          `Step ${spec.stepNumber} defers to printed step ${lookahead.spec.stepNumber}, and narrowing its ` +
+          `candidates against its own panel passed the explicit ${enumeration.narrowingBudget} render budget ` +
+          `(${perBranch} placements per piece on the first branch). It was refused rather than truncated: a ` +
+          `narrowing that stopped early would carry forward whichever branches it happened to reach first.`,
+      },
+    );
+  }
   if (enumeration.overBudget) {
     return refused(
       { ...emptyEvidence, wholeStepCandidates: enumeration.budget + 1 },
@@ -205,7 +301,7 @@ export function settleDeferredPrintedStep<D>(input: {
         message:
           `Step ${spec.stepNumber} defers to printed step ${lookahead.spec.stepNumber}, and its whole-step ` +
           `candidate product exceeds the explicit ${enumeration.budget} budget ` +
-          `(${enumeration.perPiece.join(" x ")} distinct placements per piece on the first branch). It was ` +
+          `(${perBranch} distinct placements per piece on the first branch). It was ` +
           `refused rather than truncated: a capped product would report the step settled against a set that ` +
           `may never have contained the answer.`,
       },
@@ -270,6 +366,7 @@ export function settleDeferredPrintedStep<D>(input: {
 
   const decision = selectDeferredPlacement({
     stepNumber: spec.stepNumber,
+    trigger: input.trigger,
     lookaheadStepNumber: lookahead.spec.stepNumber,
     reachSteps,
     lookaheadBuiltPixels,
@@ -279,6 +376,9 @@ export function settleDeferredPrintedStep<D>(input: {
   });
   const ordered = [...scored].sort((left, right) => right.agreement - left.agreement);
   const evidence: DeferralEvidence = {
+    trigger: input.trigger,
+    ownPanelMargin: input.ownPanelMargin,
+    ownPanelMinimumMargin: input.ownPanelMinimumMargin,
     lookaheadStepNumber: lookahead.spec.stepNumber,
     reachSteps,
     wholeStepCandidates: enumeration.candidates.length,

@@ -707,12 +707,28 @@ export interface RealBuildOptions {
   /**
    * Most whole-step candidates a deferred step may carry to the next panel.
    *
-   * A deferred step has no highlight to prune against, so its candidate set is
-   * the full product over the printed step's pieces. Exceeding this is refused
-   * rather than truncated: a silently capped product would report a step as
-   * settled against a set that never contained the answer.
+   * A step deferred for want of any local signal has no highlight to narrow
+   * against, so its candidate set is the full product over the printed step's
+   * pieces. Exceeding this is refused rather than truncated: a silently capped
+   * product would report a step as settled against a set that never contained
+   * the answer.
    */
   readonly deferredCandidateBudget: number;
+  /**
+   * Most renders a deferral may spend narrowing a step against its own panel.
+   *
+   * Only a step deferred because its panel could not *separate* its candidates
+   * spends any: that panel drew a highlight, so it can still say which
+   * placements it cannot tell apart from its best one, and carrying only those
+   * forward is what keeps the product finite. Printed step 4's full product is
+   * 240 x 334 = 80,160 whole-step candidates, which no lookahead can score.
+   *
+   * A render is the same 20.8ms one the per-piece search measures (220 renders
+   * in 4583ms on printed step 4), so this is about a minute and a half of
+   * narrowing. Exceeding it is refused rather than truncated, for the same
+   * reason the candidate product is.
+   */
+  readonly deferredNarrowingRenderBudget: number;
   /**
    * Most ghost renders an exploded step may perform.
    *

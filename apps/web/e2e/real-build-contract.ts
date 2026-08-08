@@ -66,10 +66,30 @@ export function preflightRealBuildOptions(input: {
   readonly blindRenderBudget: number;
   readonly deferredCandidateBudget: number;
   readonly explodedGhostRenderBudget: number;
+  readonly deferredNarrowingRenderBudget: number;
   /** `null` when the coverage closure never bound; an empty object is a bound but empty index. */
   readonly coverageByCallout: Readonly<Record<string, StepCoverageCalloutClaim>> | null;
 }): readonly StepFailure[] {
   const failures: StepFailure[] = [];
+  // Narrowing renders one offered placement at a time and keeps the ones the
+  // panel cannot separate, so a budget under the candidate budget could refuse
+  // partway through a set the run had already agreed to carry — the same
+  // mismatch the exploded budget below guards against, in the other direction.
+  if (
+    !Number.isInteger(input.deferredNarrowingRenderBudget) ||
+    input.deferredNarrowingRenderBudget < input.deferredCandidateBudget
+  ) {
+    failures.push({
+      code: "benchmark-policy-mismatch",
+      stage: "input",
+      inputKey: "deferredNarrowingRenderBudget",
+      message:
+        `The deferred narrowing render budget is ${input.deferredNarrowingRenderBudget} against a whole-step ` +
+        `candidate budget of ${input.deferredCandidateBudget}. Narrowing renders every placement the panel ` +
+        `offers before any of them becomes a candidate, so a render budget under the candidate budget refuses ` +
+        `a set the run had already agreed to enumerate. It must be an integer of at least the candidate budget.`,
+    });
+  }
   // An exploded step renders its whole-step candidate set once per member of
   // the arrow's travel family, so its render count is the product of the two.
   // A render budget below the candidate budget could therefore refuse a step

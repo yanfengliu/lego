@@ -19,7 +19,9 @@ import { settleDeferredPrintedStep } from "../e2e/real-build-deferred-step";
 import {
   DEFERRED_STEP_MINIMUM_AGREEMENT,
   DEFERRED_STEP_MINIMUM_MARGIN,
+  ownPanelCannotSeparate,
   summariseDeferrals,
+  type DeferralTrigger,
 } from "../e2e/real-build-deferral";
 import type { PanelRasterEvidence } from "../e2e/real-build-panel-raster";
 import type { RealBuildOptions, RealBuildPanelSpec } from "../e2e/real-build-safety";
@@ -39,6 +41,7 @@ import { completeRealBuildTestOptions } from "./real-build-test-options";
 
 const WIDTH = 360;
 const HEIGHT = 300;
+const BOUNDS = { minXPx: 0, minYPx: 0, maxXPx: WIDTH - 1, maxYPx: HEIGHT - 1 };
 // One three unit is one stud pitch, so this is 20 pixels per stud — the order
 // the booklet's own panel fit reports once the run's work factor is applied.
 const VIEW = { azimuthDegrees: 55, elevationDegrees: 35, pixelsPerUnit: 20 };
@@ -203,6 +206,7 @@ function lookaheadEvidence(
   builtMask: Uint8Array,
   excludedMask?: Uint8Array,
   lookaheadStepNumber = 2,
+  strokeMask?: Uint8Array,
 ): {
   readonly spec: RealBuildPanelSpec;
   readonly evidence: PanelRasterEvidence;
@@ -220,11 +224,11 @@ function lookaheadEvidence(
       // The run divides by `workFactor` before rendering, so the fit carries it.
       faceCorrectedFit: { ...VIEW, pixelsPerUnit: VIEW.pixelsPerUnit * 2 },
       highlight: {
-        regions: [],
+        regions: strokeMask === undefined ? [] : [{ bounds: BOUNDS }],
         closedContourRate: 0,
-        keyedPx: 0,
+        keyedPx: strokeMask === undefined ? 0 : strokeMask.reduce((total, on) => total + on, 0),
         mask: excludedMask ?? empty,
-        strokeMask: empty,
+        strokeMask: strokeMask ?? empty,
       },
       highlightBox: null,
       builtMask,
@@ -238,20 +242,36 @@ function settle(input: {
   readonly spec: RealBuildPanelSpec;
   readonly builtMask: Uint8Array | null;
   readonly excludedMask?: Uint8Array;
+  readonly strokeMask?: Uint8Array;
   readonly lookaheadStepNumber?: number;
+  readonly trigger?: DeferralTrigger;
+  readonly ownPanelMargin?: number | null;
+  readonly narrowByOwnPanel?: Parameters<
+    typeof settleDeferredPrintedStep<Document>
+  >[0]["narrowByOwnPanel"];
   readonly options?: Partial<RealBuildOptions>;
 }) {
   const base = createEmptyBrickDocument({ id: "deferral", name: "deferral", maxParts: 64 });
+  const ownPanelMargin = input.ownPanelMargin ?? null;
   return {
     base,
     settlement: settleDeferredPrintedStep<Document>({
       spec: input.spec,
+      trigger: input.trigger ?? "no-local-signal",
+      ownPanelMargin,
+      ownPanelMinimumMargin: ownPanelMargin === null ? null : 0.01,
       baseDocument: base,
       stepId: null,
+      narrowByOwnPanel: input.narrowByOwnPanel ?? null,
       lookahead:
         input.builtMask === null
           ? null
-          : lookaheadEvidence(input.builtMask, input.excludedMask, input.lookaheadStepNumber),
+          : lookaheadEvidence(
+              input.builtMask,
+              input.excludedMask,
+              input.lookaheadStepNumber,
+              input.strokeMask,
+            ),
       options: { ...completeRealBuildTestOptions(2), workFactor: 2, ...input.options },
       rendering: modules.rendering,
       kernel: modules.kernel,
@@ -382,6 +402,43 @@ describe("deferred printed step", { timeout: 30_000 }, () => {
     expect(settlement.evidence.settled).toBe(false);
     expect(settlement.failure?.code).toBe("ambiguous-deferred-placement");
     expect(settlement.evidence.margin).toBe(0);
+  });
+
+  /**
+   * Printed step 5 of this booklet outlines two pieces that run under the
+   * assembly, and neither contour closes: the panel yields 1429px of stroke and
+   * no filled region. Without the filled region nothing but that outline is
+   * excluded, so the pieces panel 5 places stay inside the art step 4 has to
+   * explain and no prefix can reach any bar. Measured there: the settled 3-step
+   * prefix alone leaves 11,447 built-only pixels of 21,442.
+   */
+  it("refuses a lookahead panel whose highlight encloses no region to exclude", () => {
+    const drawn = drawnStepOne();
+    const built = rasterise(drawn.document);
+    const stroke = new Uint8Array(WIDTH * HEIGHT);
+    const centre = maskCentroidPx(built);
+    for (let index = 0; index < stroke.length; index += 1) {
+      const x = index % WIDTH;
+      const y = Math.floor(index / WIDTH);
+      // An open contour: a bare arc, enclosing nothing.
+      const radius = Math.hypot(x - centre.x, y - centre.y);
+      if (radius > 40 && radius < 43 && x > centre.x) stroke[index] = 1;
+    }
+    const { settlement } = settle({
+      spec: stepOne,
+      builtMask: built,
+      strokeMask: stroke,
+      trigger: "unseparated-by-own-panel",
+      ownPanelMargin: 0.0011,
+    });
+
+    expect(settlement.failure?.code).toBe("deferred-panel-unscored");
+    expect(settlement.failure?.message).toContain("open contour");
+    expect(settlement.failure?.message).toContain("the ceiling is the panel's contour");
+    // Refused before any candidate was rendered, so no agreement is published
+    // for a comparison the panel could not define.
+    expect(settlement.evidence.rendered).toBe(0);
+    expect(settlement.evidence.bestAgreement).toBeNull();
   });
 
   it("refuses when the panel it defers to has nothing built drawn on it", () => {
@@ -539,5 +596,110 @@ describe("deferred printed step", { timeout: 30_000 }, () => {
     for (const rightPickMargin of [0.2085413294, 0.0622428487]) {
       expect(DEFERRED_STEP_MINIMUM_MARGIN).toBeLessThan(rightPickMargin);
     }
+  });
+
+  /**
+   * A step deferred because its own panel could not separate its candidates.
+   *
+   * The lookahead procedure is the same one either way — what changes is what
+   * the settlement records about why it left its own panel, and that record has
+   * to survive into the report or a reader cannot tell an unreadable panel from
+   * a readable one that drew two seats the same.
+   */
+  it("records the local margin that sent an unseparated step to the next panel", () => {
+    const drawn = drawnStepOne();
+    const { settlement } = settle({
+      spec: stepOne,
+      builtMask: rasterise(drawn.document),
+      trigger: "unseparated-by-own-panel",
+      ownPanelMargin: 0.0010802020828231118,
+    });
+
+    expect(settlement.failure).toBeNull();
+    expect(settlement.evidence.trigger).toBe("unseparated-by-own-panel");
+    expect(settlement.evidence.ownPanelMargin).toBe(0.0010802020828231118);
+    expect(settlement.evidence.ownPanelMinimumMargin).toBe(0.01);
+    // The lookahead's own numbers are a different measurement and stay separate
+    // from the local one that triggered the deferral.
+    expect(settlement.evidence.margin).not.toBe(settlement.evidence.ownPanelMargin);
+  });
+
+  it("says which panel could not answer when no later step was requested", () => {
+    const unreadable = settle({ spec: stepOne, builtMask: null }).settlement;
+    const unseparated = settle({
+      spec: stepOne,
+      builtMask: null,
+      trigger: "unseparated-by-own-panel",
+      ownPanelMargin: 0.0011,
+    }).settlement;
+
+    expect(unreadable.failure?.message).toContain("has no scoring signal of its own");
+    expect(unseparated.failure?.message).toContain("could not separate the best two");
+    expect(unseparated.failure?.message).not.toContain("has no scoring signal of its own");
+  });
+});
+
+/**
+ * Which local refusals earn a look at the next panel.
+ *
+ * The predicate is the whole extension of the rule from step 1's blank outline
+ * to step 4's indistinguishable seats, so what it excludes matters as much as
+ * what it admits: every other way a step can fail to choose is a defect in how
+ * it was looked at, and a defect that deferred would be a defect that reached a
+ * later panel and settled there.
+ */
+describe("own-panel separation", () => {
+  const scores = [0.2734538947219428, 0.272373692639];
+  const failure = (code: string) =>
+    ({ code, stage: "evidence", message: `step 4: ${code}` }) as Parameters<
+      typeof ownPanelCannotSeparate
+    >[0]["failure"];
+
+  it("admits a panel that scored its candidates and could not tell the best two apart", () => {
+    for (const code of ["ambiguous-placement-score", "tied-placement-score"]) {
+      expect(ownPanelCannotSeparate({ failure: failure(code), scores, minimumMargin: 0.01 })).toBe(
+        true,
+      );
+    }
+  });
+
+  it("refuses every failure that is not the drawing failing to distinguish two seats", () => {
+    for (const code of [
+      "zero-placement-score",
+      "no-placement-candidate",
+      "incomplete-placement-scoring",
+      "resource-budget-exhausted",
+      "benchmark-disagreement",
+      "camera-fit-failed",
+    ]) {
+      expect(ownPanelCannotSeparate({ failure: failure(code), scores, minimumMargin: 0.01 })).toBe(
+        false,
+      );
+    }
+    expect(ownPanelCannotSeparate({ failure: null, scores, minimumMargin: 0.01 })).toBe(false);
+  });
+
+  /**
+   * `selectUniquePlacementScore` spends `ambiguous-placement-score` on a margin
+   * below the minimum *and* on non-finite scoring evidence or an invalid
+   * minimum. Only the first is a fact about the drawing.
+   */
+  it("refuses the same code when it reports malformed evidence rather than a close call", () => {
+    const ambiguous = failure("ambiguous-placement-score");
+    expect(
+      ownPanelCannotSeparate({
+        failure: ambiguous,
+        scores: [Number.NaN, 0.2],
+        minimumMargin: 0.01,
+      }),
+    ).toBe(false);
+    expect(ownPanelCannotSeparate({ failure: ambiguous, scores, minimumMargin: Number.NaN })).toBe(
+      false,
+    );
+    expect(ownPanelCannotSeparate({ failure: ambiguous, scores, minimumMargin: -1 })).toBe(false);
+    // One score cannot be close to a runner-up that does not exist.
+    expect(
+      ownPanelCannotSeparate({ failure: ambiguous, scores: [0.27], minimumMargin: 0.01 }),
+    ).toBe(false);
   });
 });

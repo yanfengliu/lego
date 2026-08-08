@@ -530,6 +530,11 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
     // the run's own step lines report 88 renders in 1435ms, so 4096 is about a
     // minute of rendering for one printed step.
     explodedGhostRenderBudget: 4_096,
+    // Printed step 4 defers because its own panel cannot separate its best
+    // two placements, and narrowing against that same panel is what keeps its
+    // 240 x 334 product finite. Sized from the same measured render cost as
+    // the budget above: about a minute and a half.
+    deferredNarrowingRenderBudget: 4_096,
     minimumDeferredAgreementMargin: DEFERRED_STEP_MINIMUM_MARGIN,
     minimumDeferredAgreement: DEFERRED_STEP_MINIMUM_AGREEMENT,
     proximityMarginPx: 14,

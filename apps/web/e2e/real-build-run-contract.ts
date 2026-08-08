@@ -121,6 +121,7 @@ export function realBuildRunBudgets(options: RealBuildOptions): Readonly<Record<
     blindRenderBudget: options.blindRenderBudget,
     deferredCandidateBudget: options.deferredCandidateBudget,
     explodedGhostRenderBudget: options.explodedGhostRenderBudget,
+    deferredNarrowingRenderBudget: options.deferredNarrowingRenderBudget,
   };
 }
 

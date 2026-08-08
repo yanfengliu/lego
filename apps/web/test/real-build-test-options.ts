@@ -155,6 +155,7 @@ export function completeRealBuildTestOptions(lastStep: number): RealBuildOptions
     maxRendersPerPiece: 220,
     blindRenderBudget: 220,
     deferredCandidateBudget: 512,
+    deferredNarrowingRenderBudget: 4_096,
     explodedGhostRenderBudget: 4_096,
     minimumDeferredAgreementMargin: DEFERRED_STEP_MINIMUM_MARGIN,
     minimumDeferredAgreement: DEFERRED_STEP_MINIMUM_AGREEMENT,

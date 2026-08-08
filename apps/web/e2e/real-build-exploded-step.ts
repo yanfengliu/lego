@@ -231,6 +231,11 @@ export function settleExplodedPrintedStep<D>(input: {
     },
     place: (document, catalogPartId, transform, colorId, stepId) =>
       input.place(document, catalogPartId, transform, colorId, spec.stepNumber, stepId),
+    // An exploded step's highlight rings the ghost rather than the seat, so
+    // this panel cannot narrow a seated placement at all: the ghost gate is
+    // where its own art gets read.
+    narrow: null,
+    narrowingRenderBudget: options.deferredNarrowingRenderBudget,
     budget: options.deferredCandidateBudget,
   });
 

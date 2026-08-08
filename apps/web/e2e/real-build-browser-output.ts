@@ -427,6 +427,9 @@ function isDeferralEvidence(value: unknown): boolean {
   return (
     isRecord(value) &&
     exactKeys(value, [
+      "trigger",
+      "ownPanelMargin",
+      "ownPanelMinimumMargin",
       "lookaheadStepNumber",
       "reachSteps",
       "wholeStepCandidates",
@@ -439,6 +442,16 @@ function isDeferralEvidence(value: unknown): boolean {
       "minimumAgreement",
       "settled",
     ]) &&
+    (value.trigger === "no-local-signal" || value.trigger === "unseparated-by-own-panel") &&
+    isNullableFiniteNumber(value.ownPanelMargin) &&
+    isNullableFiniteNumber(value.ownPanelMinimumMargin) &&
+    // The local numbers travel as a pair or not at all: a margin with nothing to
+    // compare it against cannot be read, and a minimum with no margin claims a
+    // local ranking the step did not have. A step that deferred because its own
+    // panel could not separate its candidates must carry both, because that
+    // margin is the whole reason it left its own panel.
+    (value.ownPanelMargin === null) === (value.ownPanelMinimumMargin === null) &&
+    (value.trigger !== "unseparated-by-own-panel" || value.ownPanelMargin !== null) &&
     (value.lookaheadStepNumber === null ||
       isBoundedInteger(value.lookaheadStepNumber, 1_000_000)) &&
     isBoundedInteger(value.reachSteps, 1_000_000) &&

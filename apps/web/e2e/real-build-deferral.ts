@@ -11,6 +11,11 @@ import type { StepFailure } from "./real-build-safety";
  * built. So a step with no local scoring signal carries its candidates forward
  * one panel and is settled there, against the art that shows what it built.
  *
+ * A panel can fail to answer in a second way, and it arrives through a different
+ * door: the panel draws a highlight, the candidates are scored against it, and
+ * the drawing does not distinguish the best two. `DeferralTrigger` below is the
+ * one place that names both.
+ *
  * Two things are deliberately *not* done here.
  *
  * The document never branches. One settled prefix exists at all times; the
@@ -98,6 +103,76 @@ export const DEFERRED_STEP_MINIMUM_AGREEMENT = 0.85;
  * oracle.
  */
 export const DEFERRED_STEP_MAXIMUM_REACH_STEPS = 1;
+
+/**
+ * Why a printed step is being settled by a later panel than its own.
+ *
+ * `no-local-signal` is the first printed step's case: the panel prints no
+ * highlight at all, so `scoreStepDelta` has nothing to compare against and every
+ * candidate scores exactly zero.
+ *
+ * `unseparated-by-own-panel` is the same fact reached from the other side. The
+ * panel did print a highlight, every eligible candidate was scored against it,
+ * and the best two came back indistinguishable — which is what a booklet draws
+ * whenever the shape it is drawing does not change under the displacement that
+ * separates two seats. A long thin plate slid along its own axis barely changes
+ * its silhouette, so the panel's own art cannot say which of the two it drew.
+ *
+ * Both are "this panel cannot answer", and the booklet supplies the same remedy
+ * for both: panel N+1 draws everything placed at step N as already built,
+ * seated and unhighlighted, so it is an independent witness that panel N is not.
+ */
+export type DeferralTrigger = "no-local-signal" | "unseparated-by-own-panel";
+
+/**
+ * Whether a step's own panel scored its candidates and could not choose.
+ *
+ * Deliberately narrow, and the narrowness is the point: what earns a lookahead
+ * is evidence that the *drawing* does not distinguish two placements, not any
+ * failure to reach a decision. `zero-placement-score` says nothing scored at
+ * all, `no-placement-candidate` that nothing was eligible,
+ * `incomplete-placement-scoring` that not every eligible candidate was scored,
+ * and `resource-budget-exhausted` that the search could not be afforded. Each of
+ * those is a defect in how this step was looked at, and answering it with the
+ * next panel would use a second picture to paper over the first one never having
+ * been read properly.
+ *
+ * Deferring is not deciding. The step still has to clear the lookahead's own
+ * gates, and if panel N+1 cannot separate the two either it refuses by name —
+ * `weak-deferred-agreement` or `ambiguous-deferred-placement` — rather than
+ * picking the survivor of two inconclusive comparisons.
+ *
+ * The scores are required as well as the code because `selectUniquePlacementScore`
+ * spends `ambiguous-placement-score` on two unrelated things: a margin below the
+ * minimum, and non-finite scoring evidence or an invalid minimum margin. Only
+ * the first is a fact about the drawing. The second is a defect in the run, and
+ * a defect that deferred would be a defect that reached a later panel and
+ * settled there.
+ */
+export function ownPanelCannotSeparate(input: {
+  readonly failure: StepFailure | null;
+  readonly scores: readonly number[];
+  readonly minimumMargin: number;
+}): boolean {
+  const { failure } = input;
+  if (failure === null) return false;
+  if (failure.code !== "ambiguous-placement-score" && failure.code !== "tied-placement-score") {
+    return false;
+  }
+  return (
+    Number.isFinite(input.minimumMargin) &&
+    input.minimumMargin >= 0 &&
+    input.scores.length >= 2 &&
+    input.scores.every((score) => Number.isFinite(score))
+  );
+}
+
+/** The clause every deferral refusal uses to state why it left its own panel. */
+export function describeDeferralTrigger(trigger: DeferralTrigger): string {
+  return trigger === "no-local-signal"
+    ? "has no scoring signal of its own"
+    : "scored every eligible candidate against its own printed highlight and could not separate the best two";
+}
 
 /**
  * Shifts the coarse registration search samples, in pixels of stride.
@@ -274,6 +349,7 @@ export function deferredReachFailure(input: {
  */
 export function selectDeferredPlacement<T>(input: {
   readonly stepNumber: number;
+  readonly trigger: DeferralTrigger;
   readonly lookaheadStepNumber: number;
   readonly reachSteps: number;
   readonly lookaheadBuiltPixels: number;
@@ -307,7 +383,7 @@ export function selectDeferredPlacement<T>(input: {
   if (!Number.isSafeInteger(input.lookaheadBuiltPixels) || input.lookaheadBuiltPixels <= 0) {
     return refuse(
       "deferred-panel-unscored",
-      `Step ${input.stepNumber} has no scoring signal of its own and deferred to printed step ` +
+      `Step ${input.stepNumber} ${describeDeferralTrigger(input.trigger)} and deferred to printed step ` +
         `${input.lookaheadStepNumber}, whose panel shows ${input.lookaheadBuiltPixels} already-built ` +
         `pixel(s). A one-step lookahead settles step N against the art panel N+1 draws of what N built; ` +
         `with nothing drawn there the deferral has nothing to score, and picking anyway would be a guess.`,
@@ -379,6 +455,20 @@ export function selectDeferredPlacement<T>(input: {
 }
 
 export interface DeferralEvidence {
+  /** Why this step's own panel could not settle it. */
+  readonly trigger: DeferralTrigger;
+  /**
+   * How far apart this step's own panel put its best two candidates, and the
+   * margin it had to clear, in `scoreStepDelta`'s units.
+   *
+   * Null on a `no-local-signal` deferral, where there was no local ranking to
+   * report at all. Retained because the deferral replaces the local piece
+   * reports with its own, and a record that only carried the lookahead's numbers
+   * could not be checked against the claim that the local evidence really was
+   * inconclusive.
+   */
+  readonly ownPanelMargin: number | null;
+  readonly ownPanelMinimumMargin: number | null;
   /** Printed step whose panel settled this one, or null when nothing did. */
   readonly lookaheadStepNumber: number | null;
   /** How many printed steps forward the settling panel was. */
@@ -439,8 +529,56 @@ export interface WholeStepEnumeration<D> {
   readonly candidates: readonly WholeStepCandidate<D>[];
   /** Distinct placements offered for each piece on the first branch explored. */
   readonly perPiece: readonly number[];
+  /**
+   * Of those, how many survived the step's own panel on that branch.
+   *
+   * Identical to `perPiece` when nothing narrowed. Reported separately so a
+   * refusal can say whether a product blew up because the step is genuinely
+   * that open or because its own panel said nothing useful about it.
+   */
+  readonly perPieceCarried: readonly number[];
+  readonly narrowingRenders: number;
   readonly overBudget: boolean;
   readonly budget: number;
+  readonly overNarrowingBudget: boolean;
+  readonly narrowingBudget: number;
+}
+
+export type WholeStepPlacementTransform = {
+  readonly positionLdu: readonly [number, number, number];
+  readonly orientationId: string;
+};
+
+/**
+ * The placements a panel's own score cannot tell apart from its best one.
+ *
+ * This is `selectUniquePlacementScore`'s rule read down the ranking instead of
+ * across the top two. That selector accepts a winner when it beats the runner-up
+ * by at least `minimumMargin` and refuses when it does not, which is a claim
+ * that a gap that size is a real separation on this panel and a smaller one is
+ * not. Applied to every candidate rather than to the second, it says which
+ * placements the panel has separated from the best and which it has not — and
+ * only the ones it has not need a second panel to choose between them.
+ *
+ * No new number: the margin is the run's own `minimumScoreMargin`, used for
+ * exactly what it already means. What the narrowing can still get wrong is
+ * dropping the drawn placement, if this panel scores it more than a margin below
+ * something else — which is why the lookahead's deciding gate is the winner's
+ * *absolute* agreement rather than its margin. A set that no longer contains the
+ * answer still has a best member, and that gate is what refuses it.
+ */
+export function placementsOwnPanelCannotSeparate<T>(input: {
+  readonly scored: readonly { readonly candidate: T; readonly score: number }[];
+  readonly minimumMargin: number;
+}): readonly T[] {
+  const finite = input.scored.filter(({ score }) => Number.isFinite(score));
+  if (finite.length === 0 || !Number.isFinite(input.minimumMargin) || input.minimumMargin < 0) {
+    return input.scored.map(({ candidate }) => candidate);
+  }
+  const best = Math.max(...finite.map(({ score }) => score));
+  return finite
+    .filter(({ score }) => best - score < input.minimumMargin)
+    .map(({ candidate }) => candidate);
 }
 
 /**
@@ -450,6 +588,11 @@ export interface WholeStepEnumeration<D> {
  * earlier one, so the set is a product rather than a union. It refuses over its
  * budget rather than truncating: a quietly capped product reads as a settled
  * step that was never fully considered.
+ *
+ * `narrow` is how a step that *has* a panel keeps that product finite. It is
+ * given every placement offered on a branch and returns the ones the step's own
+ * panel could not separate; a step whose panel says nothing passes null and
+ * carries the whole product, as printed step 1 does.
  */
 export function enumerateWholeStepCandidates<D>(input: {
   readonly baseDocument: D;
@@ -458,17 +601,27 @@ export function enumerateWholeStepCandidates<D>(input: {
   readonly enumerateDistinct: (
     document: D,
     catalogPartId: string,
-  ) => readonly {
-    readonly positionLdu: readonly [number, number, number];
-    readonly orientationId: string;
-  }[];
+  ) => readonly WholeStepPlacementTransform[];
+  readonly narrow:
+    | ((input: {
+        readonly document: D;
+        /**
+         * The printed step this branch has already opened, or null before its
+         * first piece. Narrowing places a probe part to render it, and a probe
+         * that opened a second step of its own would collide with the one the
+         * branch is building.
+         */
+        readonly stepId: string | null;
+        readonly catalogPartId: string;
+        readonly colorId: string;
+        readonly offered: readonly WholeStepPlacementTransform[];
+      }) => readonly WholeStepPlacementTransform[])
+    | null;
+  readonly narrowingRenderBudget: number;
   readonly place: (
     document: D,
     catalogPartId: string,
-    transform: {
-      readonly positionLdu: readonly [number, number, number];
-      readonly orientationId: string;
-    },
+    transform: WholeStepPlacementTransform,
     colorId: string,
     stepId: string | null,
   ) => { readonly document: D; readonly partId: string; readonly stepId: string };
@@ -476,10 +629,13 @@ export function enumerateWholeStepCandidates<D>(input: {
 }): WholeStepEnumeration<D> {
   const candidates: WholeStepCandidate<D>[] = [];
   const perPiece: number[] = [];
+  const perPieceCarried: number[] = [];
+  let narrowingRenders = 0;
   let overBudget = false;
+  let overNarrowingBudget = false;
 
   const walk = (partial: WholeStepCandidate<D>, pieceIndex: number): void => {
-    if (overBudget) return;
+    if (overBudget || overNarrowingBudget) return;
     if (pieceIndex === input.pieces.length) {
       candidates.push(partial);
       if (candidates.length > input.budget) overBudget = true;
@@ -488,8 +644,26 @@ export function enumerateWholeStepCandidates<D>(input: {
     const piece = input.pieces[pieceIndex]!;
     const offered = input.enumerateDistinct(partial.document, piece.catalogPartId);
     if (perPiece.length === pieceIndex) perPiece.push(offered.length);
-    for (const transform of offered) {
-      if (overBudget) return;
+    let carried = offered;
+    // A single offer is already decided, and rendering it would spend the
+    // narrowing budget to confirm a set of one.
+    if (input.narrow !== null && offered.length > 1) {
+      narrowingRenders += offered.length;
+      if (narrowingRenders > input.narrowingRenderBudget) {
+        overNarrowingBudget = true;
+        return;
+      }
+      carried = input.narrow({
+        document: partial.document,
+        stepId: partial.stepId,
+        catalogPartId: piece.catalogPartId,
+        colorId: piece.colorId,
+        offered,
+      });
+    }
+    if (perPieceCarried.length === pieceIndex) perPieceCarried.push(carried.length);
+    for (const transform of carried) {
+      if (overBudget || overNarrowingBudget) return;
       let applied;
       try {
         applied = input.place(
@@ -520,9 +694,13 @@ export function enumerateWholeStepCandidates<D>(input: {
 
   walk({ document: input.baseDocument, partIds: [], stepId: input.stepId, transforms: [] }, 0);
   return {
-    candidates: overBudget ? [] : candidates,
+    candidates: overBudget || overNarrowingBudget ? [] : candidates,
     perPiece,
+    perPieceCarried,
+    narrowingRenders,
     overBudget,
     budget: input.budget,
+    overNarrowingBudget,
+    narrowingBudget: input.narrowingRenderBudget,
   };
 }
