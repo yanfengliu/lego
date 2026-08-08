@@ -73,6 +73,17 @@ SUPPORTED_SHELLS = (
         "triangles": 804,
     },
     {
+        "designRevision": "3020;L",
+        "bundleSha256": "a0bee312fc74b5f7f054c255b020933d9afb43a9feac6f12012749b6f659a030",
+        "shellPathId": "-3965320204972781753",
+        "shellCanonicalSha256": "3fa58d39e1ec1038e12ecbcdc57c0da0089324716b82140345590089fbbb3163",
+        "serializedBytes": 3264,
+        "vertexDataBytes": 2688,
+        "indexBufferBytes": 168,
+        "vertices": 48,
+        "triangles": 28,
+    },
+    {
         "designRevision": "3032;F",
         "bundleSha256": "a771edd53c9739b178ea7915cf8f284834de230572ed63f5ce88ac392f4f25dc",
         "shellPathId": "-6153107707984632065",

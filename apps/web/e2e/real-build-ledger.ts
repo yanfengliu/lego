@@ -247,7 +247,8 @@ export function validateRealBuildActionLedger(input: {
   readonly calloutManifestDigest: string;
   readonly builderCalibrationDigest: string;
   readonly transitionClassificationsDigest: string;
-  readonly coverageByCallout: Readonly<Record<string, CoverageLedgerClaim>>;
+  /** `null` when the coverage closure never bound; an empty object is a bound but empty index. */
+  readonly coverageByCallout: Readonly<Record<string, CoverageLedgerClaim>> | null;
   readonly panelEvidenceByStep: Readonly<
     Record<number, { readonly pageNumber: number; readonly digest: string }>
   >;
@@ -533,7 +534,7 @@ export function validateRealBuildActionLedger(input: {
         if (established.has(piece.brickRef))
           failures.push(failure(step.stepNumber, `Brick identity ${piece.brickRef} is reused.`));
         established.set(piece.brickRef, { stepNumber: step.stepNumber, piece });
-        if (piece.calloutKey !== null) {
+        if (piece.calloutKey !== null && input.coverageByCallout !== null) {
           const claim = input.coverageByCallout[piece.calloutKey];
           const claimMatches =
             claim !== undefined &&
@@ -558,31 +559,36 @@ export function validateRealBuildActionLedger(input: {
       }
       const actionBrickRefs = new Set(identities.map(({ brickRef }) => brickRef));
       for (const binding of step.callouts) {
-        const claim = input.coverageByCallout[binding.calloutKey];
+        const claim = input.coverageByCallout?.[binding.calloutKey];
         const physicalRefs = new Set(binding.physicalBrickRefs);
+        // The bookkeeping below still runs with an unbound closure — it is what
+        // proves the ledger binds its own callouts — but the claim comparison is
+        // not evaluated, because there is no claim to compare against.
         if (
-          boundCallouts.has(binding.calloutKey) ||
-          claim === undefined ||
-          claim.stepNumber !== step.stepNumber ||
-          claim.pageNumber !== step.pageNumber ||
-          !Number.isInteger(binding.semanticMultiplierQuantity) ||
-          binding.semanticMultiplierQuantity < 0 ||
-          physicalRefs.size !== binding.physicalBrickRefs.length ||
-          binding.physicalBrickRefs.some((brickRef) => boundPhysicalRefs.has(brickRef)) ||
-          binding.physicalBrickRefs.some((brickRef) => !actionBrickRefs.has(brickRef)) ||
-          binding.physicalBrickRefs.some((brickRef) => {
-            const piece = identities.find((candidate) => candidate.brickRef === brickRef);
-            return (
-              piece === undefined ||
-              (step.action.kind === "place-callouts" && piece.calloutKey !== binding.calloutKey) ||
-              claim.resolution?.catalogPartId !== piece.catalogPartId ||
-              claim.resolution?.colorId !== piece.colorId ||
-              claim.resolution?.partNum !== piece.designId
-            );
-          }) ||
-          claim.quantity !==
-            binding.physicalBrickRefs.length + binding.semanticMultiplierQuantity ||
-          (binding.semanticMultiplierQuantity > 0 && step.action.kind !== "multi-build-copy")
+          input.coverageByCallout !== null &&
+          (boundCallouts.has(binding.calloutKey) ||
+            claim === undefined ||
+            claim.stepNumber !== step.stepNumber ||
+            claim.pageNumber !== step.pageNumber ||
+            !Number.isInteger(binding.semanticMultiplierQuantity) ||
+            binding.semanticMultiplierQuantity < 0 ||
+            physicalRefs.size !== binding.physicalBrickRefs.length ||
+            binding.physicalBrickRefs.some((brickRef) => boundPhysicalRefs.has(brickRef)) ||
+            binding.physicalBrickRefs.some((brickRef) => !actionBrickRefs.has(brickRef)) ||
+            binding.physicalBrickRefs.some((brickRef) => {
+              const piece = identities.find((candidate) => candidate.brickRef === brickRef);
+              return (
+                piece === undefined ||
+                (step.action.kind === "place-callouts" &&
+                  piece.calloutKey !== binding.calloutKey) ||
+                claim.resolution?.catalogPartId !== piece.catalogPartId ||
+                claim.resolution?.colorId !== piece.colorId ||
+                claim.resolution?.partNum !== piece.designId
+              );
+            }) ||
+            claim.quantity !==
+              binding.physicalBrickRefs.length + binding.semanticMultiplierQuantity ||
+            (binding.semanticMultiplierQuantity > 0 && step.action.kind !== "multi-build-copy"))
         ) {
           failures.push(
             failure(
@@ -638,7 +644,7 @@ export function validateRealBuildActionLedger(input: {
         }
       }
     }
-    for (const [key, claim] of Object.entries(input.coverageByCallout)) {
+    for (const [key, claim] of Object.entries(input.coverageByCallout ?? {})) {
       if (claim.stepNumber === null || claim.stepNumber > input.lastStep) continue;
       const count = calloutCounts.get(key) ?? 0;
       const binding = ordered

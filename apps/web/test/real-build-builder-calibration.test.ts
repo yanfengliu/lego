@@ -309,6 +309,10 @@ describe("Builder canonical calibration v8", () => {
       ).toEqual([
         "30565;E builtin:corner-plate-4x4-round upright-yaw-0 30/-4/-30 1 1 unique-stud-correspondence null 1316400",
         "80015;E builtin:corner-plate-5x5-quarter-ring upright-yaw-270 -70/-4/10 1 1 unique-stud-correspondence null 1589701",
+        // 3020;L continues the 2xN family exactly: every one reads
+        // [(N-1)*10, -4, 10] at yaw-90, and 3020 at N=4 reads 30/-4/10. That
+        // was derived from its own type-23 field, not copied from the others.
+        "3020;L builtin:plate-2x4 upright-yaw-90 30/-4/10 2 1 catalog-part-self-symmetry null 1305568",
         "3032;F builtin:plate-4x6 upright-yaw-90 50/-4/30 2 1 catalog-part-self-symmetry null 1299039",
         "3034;J builtin:plate-2x8 upright-yaw-90 70/-4/10 2 1 catalog-part-self-symmetry null 1299038",
         "3460;N builtin:plate-1x8 upright-yaw-90 70/-4/0 2 1 catalog-part-self-symmetry null 1299038",

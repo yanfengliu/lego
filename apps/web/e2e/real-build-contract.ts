@@ -66,7 +66,8 @@ export function preflightRealBuildOptions(input: {
   readonly blindRenderBudget: number;
   readonly deferredCandidateBudget: number;
   readonly explodedGhostRenderBudget: number;
-  readonly coverageByCallout: Readonly<Record<string, StepCoverageCalloutClaim>>;
+  /** `null` when the coverage closure never bound; an empty object is a bound but empty index. */
+  readonly coverageByCallout: Readonly<Record<string, StepCoverageCalloutClaim>> | null;
 }): readonly StepFailure[] {
   const failures: StepFailure[] = [];
   // An exploded step renders its whole-step candidate set once per member of
@@ -167,12 +168,20 @@ export function preflightRealBuildOptions(input: {
     failures.push(
       ...panel.coverageFailures.map((failure) => ({ ...failure, stepNumber: panel.stepNumber })),
     );
-    const reconciliation = reconcileStepCoverage(input.coverageByCallout, {
-      pageNumber: panel.pageNumber,
-      stepNumber: panel.stepNumber,
-      mappedKeys: panel.mappedCalloutKeys,
-    });
-    if (reconciliation.failure !== null) {
+    // With no bound coverage there is nothing to reconcile against, and every
+    // panel would otherwise be reported as assigned "[none]" — a statement about
+    // the substitute rather than about the retained coverage artifact.
+    const reconciliation =
+      input.coverageByCallout === null
+        ? null
+        : reconcileStepCoverage(input.coverageByCallout, {
+            pageNumber: panel.pageNumber,
+            stepNumber: panel.stepNumber,
+            mappedKeys: panel.mappedCalloutKeys,
+          });
+    if (reconciliation === null) {
+      // Not evaluated: the run's unbound-coverage refusal accounts for it.
+    } else if (reconciliation.failure !== null) {
       failures.push({ ...reconciliation.failure, stepNumber: panel.stepNumber });
     } else if (reconciliation.expectedPieces !== panel.calloutPieces) {
       failures.push({
@@ -490,7 +499,9 @@ export function preflightRealBuildOptions(input: {
   for (const key of ["pdf", "calloutManifest"] as const) {
     const actual = input.inputDigests[key];
     const bound = input.coverageInputBindings[key];
-    if (bound !== actual) {
+    // An unbound closure carries no bindings, so this would report the retained
+    // coverage as binding "missing" when the file on disk binds the exact digest.
+    if (input.coverageByCallout !== null && bound !== actual) {
       failures.push({
         code: "input-digest-mismatch",
         stage: "input",

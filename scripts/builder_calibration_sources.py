@@ -6,7 +6,7 @@ two byte slices it contributes to `output/real-build/builder-shell-geometry.bin`
 The slice digests are the review pin - the generator recomputes them from the
 reports and the archives and refuses to write a bundle that differs.
 
-`LDRAW_CLOSURE_FILES` is the complete transitive closure of all fourteen roots in
+`LDRAW_CLOSURE_FILES` is the complete transitive closure of all fifteen roots in
 the pinned official archive, with each file's own SHA-256, author, LDRAW_ORG
 status and licence line. Nothing outside it may contribute geometry, and the
 unofficial archive may not contribute at all.
@@ -14,7 +14,7 @@ unofficial archive may not contribute at all.
 
 from __future__ import annotations
 
-LDRAW_CLOSURE_DIGEST = "e2b4fbb9092de9cc95051178ef6673bde77834eca4bc7496d036ab8cad904544"
+LDRAW_CLOSURE_DIGEST = "8674c2d085b3ddd3690cec5832e4c14f5e9705ddbeccc3a9249b4a41e50d8823"
 LDRAW_CLOSURE_FILES: tuple[tuple[str, str, str, str, str], ...] = (
     ("p/1-16chrd.dat", "e429dd760eb6f0cf460a74e6ebf52c023bedbdea82de7801efa1694b5a1a82e8", "Philippe Hurbain [Philo]", "Primitive UPDATE 2015-01", "Licensed under CC BY 4.0 : see CAreadme.txt"),
     ("p/1-16cyli.dat", "b60f031d9dfd0995c1741992a5695ee3789419886e8189dead961d05f75f7bfc", "Marc Klein [marckl]", "Primitive UPDATE 2005-01", "Licensed under CC BY 4.0 : see CAreadme.txt"),
@@ -96,6 +96,7 @@ LDRAW_CLOSURE_FILES: tuple[tuple[str, str, str, str, str], ...] = (
     ("p/stug4-2x2.dat", "cf6e68b84d37562ed1a035015c23f804157ce6a80a7632a179e4def8ddcacfcb", "Steffen [Steffen]", "Primitive UPDATE 2011-01", "Licensed under CC BY 4.0 : see CAreadme.txt"),
     ("p/stug4.dat", "977530a161304abc45fa2dbcac0e8a7df389d8ab3838a82702032a74dca9021f", "[PTadmin]", "Primitive UPDATE 2011-01", "Licensed under CC BY 4.0 : see CAreadme.txt"),
     ("p/tri3a4.dat", "8c1cf47d85e2d2b429c0ac404108a9e91048fe7c9501b527dda55e75ad11bc4e", "Magnus Forsberg [MagFors]", "Primitive UPDATE 2017-01", "Licensed under CC BY 4.0 : see CAreadme.txt"),
+    ("parts/3020.dat", "551e433cc4bcfdeeb6e390e509d52ee2e62c90d3eae625ee36928ef32291bb79", "James Jessiman", "Part UPDATE 2002-03", "Licensed under CC BY 4.0 : see CAreadme.txt"),
     ("parts/3032.dat", "35e8b828a5bf21de83ca898a49b9725e6d08d5752ad6eb57910f27086108ca1f", "James Jessiman", "Part UPDATE 2002-03", "Licensed under CC BY 4.0 : see CAreadme.txt"),
     ("parts/3034.dat", "035f4ac31ecad8943fd0ac6baa155c6ff38c75a4d8ef1083fb2afa48b166a845", "James Jessiman", "Part UPDATE 2003-03", "Licensed under CC BY 4.0 : see CAreadme.txt"),
     ("parts/30503.dat", "132b14ffca8e2f2b6296a0a1bcff77187d064c00340ac36fa0cb4784cbc8b56c", "Ronald Scott Moody [rmoody]", "Part UPDATE 2013-02", "Licensed under CC BY 2.0 and CC BY 4.0 : see CAreadme.txt"),
@@ -136,7 +137,7 @@ DESIGNS: tuple[dict[str, object], ...] = (
             "triangleCount": 236,
         },
         "ldrawReferenceGeometry": {
-            "byteOffset": 70992,
+            "byteOffset": 72000,
             "byteLength": 49248,
             "digest": "sha256:46aa56e00a305b75690fcaf8493e296d999648053f28953c5572fd8a638ec64d",
             "triangleCount": 1368,
@@ -158,10 +159,32 @@ DESIGNS: tuple[dict[str, object], ...] = (
             "triangleCount": 804,
         },
         "ldrawReferenceGeometry": {
-            "byteOffset": 120240,
+            "byteOffset": 121248,
             "byteLength": 36000,
             "digest": "sha256:685a8ad17a0882dc5fc8493abd7280c7962956f88c6c662859c80957bd1ed463",
             "triangleCount": 1000,
+        },
+    },
+    {
+        "designRevision": "3020;L",
+        "designId": "3020",
+        "bundleSha256": "sha256:a0bee312fc74b5f7f054c255b020933d9afb43a9feac6f12012749b6f659a030",
+        "primitiveXmlSha256": "sha256:53708ef9472a1fe21e9fb6d2c2272cc9b891690cf3cfe7021169d8e108f04c59",
+        "shellPathId": "-3965320204972781753",
+        "shellCanonicalSha256": "sha256:3fa58d39e1ec1038e12ecbcdc57c0da0089324716b82140345590089fbbb3163",
+        "shellVertexCount": 48,
+        "shellTriangleCount": 28,
+        "builderGeometry": {
+            "byteOffset": 37440,
+            "byteLength": 1008,
+            "digest": "sha256:360596e152a3693e6f891859f7dca62b04a64b36f31df38e7b09ed5c8c78194f",
+            "triangleCount": 28,
+        },
+        "ldrawReferenceGeometry": {
+            "byteOffset": 157248,
+            "byteLength": 25200,
+            "digest": "sha256:21a0b912516255248a4e94c6fd697eba22c32f874858f79b7f07ae18f2927293",
+            "triangleCount": 700,
         },
     },
     {
@@ -174,13 +197,13 @@ DESIGNS: tuple[dict[str, object], ...] = (
         "shellVertexCount": 48,
         "shellTriangleCount": 28,
         "builderGeometry": {
-            "byteOffset": 37440,
+            "byteOffset": 38448,
             "byteLength": 1008,
             "digest": "sha256:21bbef26d0c5d88afc20c29c835db4849c91e2f3a05cddc32c6a00420c2f4781",
             "triangleCount": 28,
         },
         "ldrawReferenceGeometry": {
-            "byteOffset": 156240,
+            "byteOffset": 182448,
             "byteLength": 94320,
             "digest": "sha256:b344f62b81992a79e2167e592c59095bedbaaa77df60485f4c41cd7c86fc779d",
             "triangleCount": 2620,
@@ -196,13 +219,13 @@ DESIGNS: tuple[dict[str, object], ...] = (
         "shellVertexCount": 48,
         "shellTriangleCount": 28,
         "builderGeometry": {
-            "byteOffset": 38448,
+            "byteOffset": 39456,
             "byteLength": 1008,
             "digest": "sha256:aeefe66eec91f955b603bf00e0bf887ffddaabd7f8b96b8ca8c7a006c60220e6",
             "triangleCount": 28,
         },
         "ldrawReferenceGeometry": {
-            "byteOffset": 250560,
+            "byteOffset": 276768,
             "byteLength": 52848,
             "digest": "sha256:f6c828a66e2db69bbb501c7e648597a50322c2fcb2e4c8355b4b7076d41502b2",
             "triangleCount": 1468,
@@ -218,13 +241,13 @@ DESIGNS: tuple[dict[str, object], ...] = (
         "shellVertexCount": 48,
         "shellTriangleCount": 28,
         "builderGeometry": {
-            "byteOffset": 39456,
+            "byteOffset": 40464,
             "byteLength": 1008,
             "digest": "sha256:7a345910847ea54ec37e5549062c1d1a90260f01dceda32cecbbf9fc6570f1c1",
             "triangleCount": 28,
         },
         "ldrawReferenceGeometry": {
-            "byteOffset": 303408,
+            "byteOffset": 329616,
             "byteLength": 26928,
             "digest": "sha256:fcb9df98cc230d8068f4db80767da78f4e562ba946fa7e14d4554b85bc519616",
             "triangleCount": 748,
@@ -240,13 +263,13 @@ DESIGNS: tuple[dict[str, object], ...] = (
         "shellVertexCount": 48,
         "shellTriangleCount": 28,
         "builderGeometry": {
-            "byteOffset": 40464,
+            "byteOffset": 41472,
             "byteLength": 1008,
             "digest": "sha256:ecf4447f852680ab14c09d19a9e604840cc5974d8140d6102e8820653f29f3ca",
             "triangleCount": 28,
         },
         "ldrawReferenceGeometry": {
-            "byteOffset": 330336,
+            "byteOffset": 356544,
             "byteLength": 39024,
             "digest": "sha256:49e89a57ae6a6ddefa0026e506d231c178c46128ad64a04a1bc4c89dee644bfd",
             "triangleCount": 1084,
@@ -262,13 +285,13 @@ DESIGNS: tuple[dict[str, object], ...] = (
         "shellVertexCount": 48,
         "shellTriangleCount": 28,
         "builderGeometry": {
-            "byteOffset": 41472,
+            "byteOffset": 42480,
             "byteLength": 1008,
             "digest": "sha256:edf6c5e6d346682473f4068cdbf16db1f694e976b7bcdabffdb94ef53a0d30fe",
             "triangleCount": 28,
         },
         "ldrawReferenceGeometry": {
-            "byteOffset": 369360,
+            "byteOffset": 395568,
             "byteLength": 66672,
             "digest": "sha256:fe4e8041fe6f6f71d1f908aa4a65acc82d7b51ea8fceac98e5bb0ef2301877af",
             "triangleCount": 1852,
@@ -284,13 +307,13 @@ DESIGNS: tuple[dict[str, object], ...] = (
         "shellVertexCount": 244,
         "shellTriangleCount": 144,
         "builderGeometry": {
-            "byteOffset": 42480,
+            "byteOffset": 43488,
             "byteLength": 5184,
             "digest": "sha256:0631695c148f79c48783abb495ac139baf43a90d1342120291bbc93be43b6956",
             "triangleCount": 144,
         },
         "ldrawReferenceGeometry": {
-            "byteOffset": 436032,
+            "byteOffset": 462240,
             "byteLength": 114804,
             "digest": "sha256:e6d55f3bf6504265cfd25f4fb0c265e9589cae033489a35a25932bfe2f76e199",
             "triangleCount": 3189,
@@ -306,13 +329,13 @@ DESIGNS: tuple[dict[str, object], ...] = (
         "shellVertexCount": 190,
         "shellTriangleCount": 120,
         "builderGeometry": {
-            "byteOffset": 47664,
+            "byteOffset": 48672,
             "byteLength": 4320,
             "digest": "sha256:1d1325129f22e067d23651c0b0dbfcfaaba51c6a423b28330ecfad78e2e42161",
             "triangleCount": 120,
         },
         "ldrawReferenceGeometry": {
-            "byteOffset": 550836,
+            "byteOffset": 577044,
             "byteLength": 41544,
             "digest": "sha256:927bd8018cb4ea7b25754ed6e7eccc2bfa7e661517d910b924e8ece126ad93df",
             "triangleCount": 1154,
@@ -328,13 +351,13 @@ DESIGNS: tuple[dict[str, object], ...] = (
         "shellVertexCount": 48,
         "shellTriangleCount": 28,
         "builderGeometry": {
-            "byteOffset": 51984,
+            "byteOffset": 52992,
             "byteLength": 1008,
             "digest": "sha256:bfcc21ff0214ce0f49e1c4b61f754fcde82598245f4f6c53a7758fa1286b989e",
             "triangleCount": 28,
         },
         "ldrawReferenceGeometry": {
-            "byteOffset": 592380,
+            "byteOffset": 618588,
             "byteLength": 280944,
             "digest": "sha256:41d0ef2d34d33c4a8fec051b00aaff35cb5b37ea4ab925b2e1c04a16987681ae",
             "triangleCount": 7804,
@@ -350,13 +373,13 @@ DESIGNS: tuple[dict[str, object], ...] = (
         "shellVertexCount": 268,
         "shellTriangleCount": 220,
         "builderGeometry": {
-            "byteOffset": 52992,
+            "byteOffset": 54000,
             "byteLength": 7920,
             "digest": "sha256:9c2df61afa93f24be48987d2330c77e5821ea05d84465f436023d033e254affe",
             "triangleCount": 220,
         },
         "ldrawReferenceGeometry": {
-            "byteOffset": 873324,
+            "byteOffset": 899532,
             "byteLength": 15264,
             "digest": "sha256:26f291fd904b5f0dbc1041100b99b288bdf9ef44b98160c98782a18769f00cb5",
             "triangleCount": 424,
@@ -372,13 +395,13 @@ DESIGNS: tuple[dict[str, object], ...] = (
         "shellVertexCount": 300,
         "shellTriangleCount": 224,
         "builderGeometry": {
-            "byteOffset": 60912,
+            "byteOffset": 61920,
             "byteLength": 8064,
             "digest": "sha256:351ee326c6cc7b9a441cf7e12a6ae97b77c6ff4fe601cc7992a487678ae258d0",
             "triangleCount": 224,
         },
         "ldrawReferenceGeometry": {
-            "byteOffset": 888588,
+            "byteOffset": 914796,
             "byteLength": 41904,
             "digest": "sha256:a7beecdadb78be0e7b51ba8740fc2c8d109cc807eb761f5e2374510b748e2e00",
             "triangleCount": 1164,
@@ -394,13 +417,13 @@ DESIGNS: tuple[dict[str, object], ...] = (
         "shellVertexCount": 48,
         "shellTriangleCount": 28,
         "builderGeometry": {
-            "byteOffset": 68976,
+            "byteOffset": 69984,
             "byteLength": 1008,
             "digest": "sha256:dd0b16d4c313b301b9fb0e7d33af9949986cbdac71f16c2c6f125ad6dfe785ed",
             "triangleCount": 28,
         },
         "ldrawReferenceGeometry": {
-            "byteOffset": 930492,
+            "byteOffset": 956700,
             "byteLength": 40752,
             "digest": "sha256:d26b12f67ea0b6559c5c12058de6e1344054a771ae6927a105150fbde2c5e5c3",
             "triangleCount": 1132,
@@ -416,13 +439,13 @@ DESIGNS: tuple[dict[str, object], ...] = (
         "shellVertexCount": 48,
         "shellTriangleCount": 28,
         "builderGeometry": {
-            "byteOffset": 69984,
+            "byteOffset": 70992,
             "byteLength": 1008,
             "digest": "sha256:88a0258f5cb93ef1b8bf66d98dd84401443892c4fc5efec0f1a44a235a99bf87",
             "triangleCount": 28,
         },
         "ldrawReferenceGeometry": {
-            "byteOffset": 971244,
+            "byteOffset": 997452,
             "byteLength": 94320,
             "digest": "sha256:dfaf2ec3c405080f38c2ce59517de2d7a8621c44ae642c0998fc2fc3726f9dc4",
             "triangleCount": 2620,
@@ -430,5 +453,5 @@ DESIGNS: tuple[dict[str, object], ...] = (
     },
 )
 
-GEOMETRY_BUNDLE_BYTES = 1065564
-GEOMETRY_BUNDLE_SHA256 = "c4676be559d544badecd98091d2d618730ab82f87f2b68f020e6cd0b810055f9"
+GEOMETRY_BUNDLE_BYTES = 1091772
+GEOMETRY_BUNDLE_SHA256 = "da8260f77540db459bd745d75ebb072d1b08d357d1628569a06c58d6aed77c55"

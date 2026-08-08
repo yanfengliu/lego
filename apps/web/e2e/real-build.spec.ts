@@ -28,6 +28,7 @@ import {
   inputRejectedRealBuildResult,
   preflightRealBuildOptions,
 } from "./real-build-contract";
+import { describeUnboundCoverageRefusal } from "./real-build-coverage-refusal";
 import { finalizeExecutedRealBuildResult, realBuildExecutionFailure } from "./real-build-finalize";
 import { captureHighlightExclusivityRenderCases } from "./real-build-highlight-browser";
 import { writeContainedRegularFileAtomic } from "./contained-atomic-write";
@@ -331,11 +332,19 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
         }`,
     });
   }
+  // `null` is not an empty coverage index. It records that the closure never
+  // bound, so nothing downstream has a coverage to read. Substituting `{}` here
+  // is what turned one unbound input role into dozens of further "failures",
+  // every one of them a false statement about the artifact on disk: the run
+  // reported that coverage bound its PDF to "missing" and carried no callout
+  // claims while the file it had just read bound the exact PDF digest and 859
+  // claims. The substitute, not the artifact, was what those checks described.
   let verifiedCoverage: {
     readonly schemaVersion?: string;
     readonly byCallout?: unknown;
     readonly inputDigests?: { readonly pdf?: string; readonly calloutManifest?: string };
-  } = {};
+  } | null = null;
+  let coverageClosureRejection: string | null = null;
   try {
     const reproduced = verifyRealBuildIdentificationClosure({
       coverage: coverageInput,
@@ -353,31 +362,38 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
     if (typeof reproduced !== "object" || reproduced === null || Array.isArray(reproduced)) {
       throw new TypeError("The identification compiler returned a non-object coverage report.");
     }
-    verifiedCoverage = reproduced;
-    if (verifiedCoverage.schemaVersion !== "lego.real-build-catalog-coverage/1") {
+    const candidate = reproduced as { readonly schemaVersion?: string };
+    if (candidate.schemaVersion !== "lego.real-build-catalog-coverage/1") {
       throw new TypeError(
-        `Reproduced coverage must use lego.real-build-catalog-coverage/1; received ${JSON.stringify(verifiedCoverage.schemaVersion ?? "missing")}.`,
+        `Reproduced coverage must use lego.real-build-catalog-coverage/1; received ${JSON.stringify(candidate.schemaVersion ?? "missing")}.`,
       );
     }
+    verifiedCoverage = candidate;
   } catch (error) {
+    // `verifiedCoverage` is still null: it is assigned only after the reproduced
+    // report has passed its schema check, so no partial closure can leak past here.
+    coverageClosureRejection = error instanceof Error ? error.message : String(error);
     preparationFailures.push(
       contractFailure(
         COVERAGE_PATH,
         `Catalog coverage was rejected before use because the bounded manifest, features, match, ` +
           `distances, cards, answers, and element-resolution bytes did not reproduce its exact closure: ` +
-          `${error instanceof Error ? error.message : String(error)}.`,
+          `${coverageClosureRejection}.`,
       ),
     );
   }
 
-  const rawCoverageIndex = verifiedCoverage.byCallout;
-  const byCallout =
-    typeof rawCoverageIndex === "object" &&
-    rawCoverageIndex !== null &&
-    !Array.isArray(rawCoverageIndex)
-      ? (rawCoverageIndex as Readonly<Record<string, CalloutResolution>>)
-      : {};
-  if (Object.keys(byCallout).length === 0) {
+  const rawCoverageIndex = verifiedCoverage?.byCallout;
+  /** The bound callout index, or `null` when the closure never bound one. */
+  const byCallout: Readonly<Record<string, CalloutResolution>> | null =
+    verifiedCoverage === null
+      ? null
+      : typeof rawCoverageIndex === "object" &&
+          rawCoverageIndex !== null &&
+          !Array.isArray(rawCoverageIndex)
+        ? (rawCoverageIndex as Readonly<Record<string, CalloutResolution>>)
+        : {};
+  if (byCallout !== null && Object.keys(byCallout).length === 0) {
     preparationFailures.push(
       contractFailure(
         `${COVERAGE_PATH}#byCallout`,
@@ -435,6 +451,8 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
         official: officialModel,
         pdfDigest: inputDigests.pdf,
         coverageDigest: inputDigests.coverage,
+        // Deliberately nullable: with no bound coverage the ledger's own
+        // structure is still checked, but nothing is compared to a claim.
         calloutManifestDigest: inputDigests.calloutManifest,
         builderCalibrationDigest: inputDigests.builderCalibration,
         transitionClassificationsDigest: inputDigests.transitionClassifications,
@@ -524,12 +542,31 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
     accounting: OFFICIAL_REAL_BUILD_ACCOUNTING,
     inputDigests,
     coverageInputBindings: {
-      pdf: verifiedCoverage.inputDigests?.pdf ?? null,
-      calloutManifest: verifiedCoverage.inputDigests?.calloutManifest ?? null,
+      pdf: verifiedCoverage?.inputDigests?.pdf ?? null,
+      calloutManifest: verifiedCoverage?.inputDigests?.calloutManifest ?? null,
     },
-    coverageByCallout: byCallout,
+    // Execution never sees an unbound closure — the refusal below is unconditional
+    // — so the executable options carry the ordinary index shape and the nullable
+    // verdict is handed to preflight, which is the code that must not evaluate.
+    coverageByCallout: byCallout ?? {},
   };
-  const inputFailures = [...preparationFailures, ...preflightRealBuildOptions(options)];
+  const evaluatedFailures = [
+    ...preparationFailures,
+    ...preflightRealBuildOptions({ ...options, coverageByCallout: byCallout }),
+  ];
+  const inputFailures =
+    coverageClosureRejection === null
+      ? evaluatedFailures
+      : [
+          describeUnboundCoverageRefusal({
+            rejection: coverageClosureRejection,
+            coveragePath: COVERAGE_PATH,
+            requestedLastStep: options.lastStep,
+            requestedPanels: specs.filter(({ stepNumber }) => stepNumber <= options.lastStep),
+            otherFailures: evaluatedFailures,
+          }),
+          ...evaluatedFailures,
+        ];
   const sourceFiles = enumerateRealBuildCodeRoots(REAL_BUILD_SOURCE_ROOTS);
   const preImportSourceBundle = captureRealBuildSourceBundle(process.cwd(), sourceFiles);
   const bootstrapDrift = sourceDriftFailures(bootstrapSource.files, preImportSourceBundle);

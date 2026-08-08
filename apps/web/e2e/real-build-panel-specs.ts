@@ -82,7 +82,8 @@ export function buildRealBuildPanelSpecs(input: {
   readonly manifestCallouts: readonly V5ManifestCallout[];
   readonly ledgerSteps: readonly unknown[];
   readonly officialModel: OfficialModelIndex | null;
-  readonly coverageByCallout: Readonly<Record<string, CalloutResolution>>;
+  /** `null` when the coverage closure never bound; an empty object is a bound but empty index. */
+  readonly coverageByCallout: Readonly<Record<string, CalloutResolution>> | null;
   readonly inputDigests: RealBuildInputDigests;
 }): readonly RealBuildPanelSpec[] {
   const ledgerByStep = new Map<number, LedgerStep>();
@@ -160,6 +161,10 @@ export function buildRealBuildPanelSpecs(input: {
         );
         continue;
       }
+      // An unbound closure leaves nothing to resolve against. Resolving against a
+      // substituted empty index would report every callout as uncovered, which is
+      // a claim about the substitute rather than about the coverage artifact.
+      if (input.coverageByCallout === null) continue;
       const resolved = resolveCoverageCallout(input.coverageByCallout, {
         identity: entry.identity,
         pageNumber: entry.pageNumber,

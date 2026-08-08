@@ -64,6 +64,12 @@ export type StepFailureStage =
   | "input";
 
 export type StepFailureCode =
+  /**
+   * The catalog-coverage closure never bound, so every coverage-derived check
+   * was left unevaluated rather than failed. Distinct from `coverage-key-mismatch`,
+   * which reports a bound index that disagrees with the ledger.
+   */
+  | "coverage-closure-unbound"
   | "coverage-key-mismatch"
   | "unresolved-callout"
   | "missing-catalog-part"

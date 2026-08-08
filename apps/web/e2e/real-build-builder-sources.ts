@@ -52,17 +52,17 @@ export const BUILDER_STEP1_OFFICIAL_MODEL_DIGEST =
 
 export const BUILDER_STEP1_GEOMETRY_BUNDLE = {
   format: "lego.builder-shell-and-ldraw-triangles-f32le/2",
-  byteLength: 1_065_564,
-  digest: "sha256:c4676be559d544badecd98091d2d618730ab82f87f2b68f020e6cd0b810055f9",
+  byteLength: 1_091_772,
+  digest: "sha256:da8260f77540db459bd745d75ebb072d1b08d357d1628569a06c58d6aed77c55",
 } as const;
 
 const LDRAW_OFFICIAL_ARCHIVE =
   "sha256:6009f2e94204c4d3a63a4c812010b5c90bad8c5acb19b882c859fdac63734eae" as const;
 const LDRAW_UNOFFICIAL_ARCHIVE =
   "sha256:09ec08007203b66e79b1f857aa4804cbee26e1337e177a7c3a87adc1268e44d4" as const;
-/** The 101-file official closure of all fourteen roots; `builder_calibration_sources.py` holds it. */
+/** The 102-file official closure of all fifteen roots; `builder_calibration_sources.py` holds it. */
 export const BUILDER_STEP1_LDRAW_CLOSURE_DIGEST =
-  "sha256:e2b4fbb9092de9cc95051178ef6673bde77834eca4bc7496d036ab8cad904544" as const;
+  "sha256:8674c2d085b3ddd3690cec5832e4c14f5e9705ddbeccc3a9249b4a41e50d8823" as const;
 /**
  * Every design revision the set 6651557 build places whose Builder frame is pinned.
  *
@@ -110,7 +110,7 @@ export const BUILDER_STEP1_DESIGN_SOURCES = [
     },
     ldrawReferenceGeometry: {
       format: "lego.ldraw-expanded-triangles-f32le/1",
-      byteOffset: 70992,
+      byteOffset: 72000,
       byteLength: 49248,
       digest: "sha256:46aa56e00a305b75690fcaf8493e296d999648053f28953c5572fd8a638ec64d",
       triangleCount: 1368,
@@ -169,7 +169,7 @@ export const BUILDER_STEP1_DESIGN_SOURCES = [
     },
     ldrawReferenceGeometry: {
       format: "lego.ldraw-expanded-triangles-f32le/1",
-      byteOffset: 120240,
+      byteOffset: 121248,
       byteLength: 36000,
       digest: "sha256:685a8ad17a0882dc5fc8493abd7280c7962956f88c6c662859c80957bd1ed463",
       triangleCount: 1000,
@@ -198,6 +198,62 @@ export const BUILDER_STEP1_DESIGN_SOURCES = [
       "sha256:26bcf626f81a915874df281b8a4bb1f586c322ae23e27990cc184caf27f85950",
   },
   {
+    designRevision: "3020;L",
+    catalogPartId: "builtin:plate-2x4",
+    sourceIdentity: {
+      bundleSha256: "sha256:a0bee312fc74b5f7f054c255b020933d9afb43a9feac6f12012749b6f659a030",
+      manifestMd5: "md5:e94e8489ac5f11afd887ba07ab754f21",
+      primitiveXmlSha256: "sha256:53708ef9472a1fe21e9fb6d2c2272cc9b891690cf3cfe7021169d8e108f04c59",
+      shellPathId: "-3965320204972781753",
+      shellCanonicalSha256:
+        "sha256:3fa58d39e1ec1038e12ecbcdc57c0da0089324716b82140345590089fbbb3163",
+      shellVertexCount: 48,
+      shellTriangleCount: 28,
+      ldrawOfficialArchiveSha256: LDRAW_OFFICIAL_ARCHIVE,
+      ldrawUnofficialArchiveSha256: LDRAW_UNOFFICIAL_ARCHIVE,
+      ldrawClosureSha256: BUILDER_STEP1_LDRAW_CLOSURE_DIGEST,
+    },
+    builderGeometry: {
+      format: "lego.builder-shell-triangles-f32le/1",
+      byteOffset: 37440,
+      byteLength: 1008,
+      digest: "sha256:360596e152a3693e6f891859f7dca62b04a64b36f31df38e7b09ed5c8c78194f",
+      triangleCount: 28,
+    },
+    ldrawReferenceGeometry: {
+      format: "lego.ldraw-expanded-triangles-f32le/1",
+      byteOffset: 157248,
+      byteLength: 25200,
+      digest: "sha256:21a0b912516255248a4e94c6fd697eba22c32f874858f79b7f07ae18f2927293",
+      triangleCount: 700,
+    },
+    ldrawToCatalogLocalTransform: {
+      positionLdu: [0, -4, 0],
+      orientationId: "upright-yaw-90",
+    },
+    builderStudCentersLdu: [
+      [0, -8, 0],
+      [0, -8, 20],
+      [20, -8, 0],
+      [20, -8, 20],
+      [40, -8, 0],
+      [40, -8, 20],
+      [60, -8, 0],
+      [60, -8, 20],
+    ],
+    builderStudCentersDigest:
+      "sha256:bce3a4b7c27d844d355de67159ece54babc6262e0abb5d674022465183c52d69",
+    uniqueBuilderVertexCount: 16,
+    expectedCatalogDefinitionDigest:
+      "sha256:19bd2f962dbdd8920075e09aec49a7bf6f7f9f3240948b50507619a101212911",
+    expectedCatalogGeometryDigest:
+      "sha256:6be8c6b20f95cc920b0dbe1a449bb0a17f29e53cd2a8618d0082c7fd891a3f02",
+    expectedCatalogConnectorDigest:
+      "sha256:1603c98cb725564e9a55f3632d57d9246395b4930ef9204cb0527acff6845960",
+    expectedCatalogCollisionDigest:
+      "sha256:9a6a1ebbf98d1d642499a886631c4aaee85b98ee6df7554f8ab727caaa89f7d7",
+  },
+  {
     designRevision: "3032;F",
     catalogPartId: "builtin:plate-4x6",
     sourceIdentity: {
@@ -215,14 +271,14 @@ export const BUILDER_STEP1_DESIGN_SOURCES = [
     },
     builderGeometry: {
       format: "lego.builder-shell-triangles-f32le/1",
-      byteOffset: 37440,
+      byteOffset: 38448,
       byteLength: 1008,
       digest: "sha256:21bbef26d0c5d88afc20c29c835db4849c91e2f3a05cddc32c6a00420c2f4781",
       triangleCount: 28,
     },
     ldrawReferenceGeometry: {
       format: "lego.ldraw-expanded-triangles-f32le/1",
-      byteOffset: 156240,
+      byteOffset: 182448,
       byteLength: 94320,
       digest: "sha256:b344f62b81992a79e2167e592c59095bedbaaa77df60485f4c41cd7c86fc779d",
       triangleCount: 2620,
@@ -287,14 +343,14 @@ export const BUILDER_STEP1_DESIGN_SOURCES = [
     },
     builderGeometry: {
       format: "lego.builder-shell-triangles-f32le/1",
-      byteOffset: 38448,
+      byteOffset: 39456,
       byteLength: 1008,
       digest: "sha256:aeefe66eec91f955b603bf00e0bf887ffddaabd7f8b96b8ca8c7a006c60220e6",
       triangleCount: 28,
     },
     ldrawReferenceGeometry: {
       format: "lego.ldraw-expanded-triangles-f32le/1",
-      byteOffset: 250560,
+      byteOffset: 276768,
       byteLength: 52848,
       digest: "sha256:f6c828a66e2db69bbb501c7e648597a50322c2fcb2e4c8355b4b7076d41502b2",
       triangleCount: 1468,
@@ -351,14 +407,14 @@ export const BUILDER_STEP1_DESIGN_SOURCES = [
     },
     builderGeometry: {
       format: "lego.builder-shell-triangles-f32le/1",
-      byteOffset: 39456,
+      byteOffset: 40464,
       byteLength: 1008,
       digest: "sha256:7a345910847ea54ec37e5549062c1d1a90260f01dceda32cecbbf9fc6570f1c1",
       triangleCount: 28,
     },
     ldrawReferenceGeometry: {
       format: "lego.ldraw-expanded-triangles-f32le/1",
-      byteOffset: 303408,
+      byteOffset: 329616,
       byteLength: 26928,
       digest: "sha256:fcb9df98cc230d8068f4db80767da78f4e562ba946fa7e14d4554b85bc519616",
       triangleCount: 748,
@@ -407,14 +463,14 @@ export const BUILDER_STEP1_DESIGN_SOURCES = [
     },
     builderGeometry: {
       format: "lego.builder-shell-triangles-f32le/1",
-      byteOffset: 40464,
+      byteOffset: 41472,
       byteLength: 1008,
       digest: "sha256:ecf4447f852680ab14c09d19a9e604840cc5974d8140d6102e8820653f29f3ca",
       triangleCount: 28,
     },
     ldrawReferenceGeometry: {
       format: "lego.ldraw-expanded-triangles-f32le/1",
-      byteOffset: 330336,
+      byteOffset: 356544,
       byteLength: 39024,
       digest: "sha256:49e89a57ae6a6ddefa0026e506d231c178c46128ad64a04a1bc4c89dee644bfd",
       triangleCount: 1084,
@@ -467,14 +523,14 @@ export const BUILDER_STEP1_DESIGN_SOURCES = [
     },
     builderGeometry: {
       format: "lego.builder-shell-triangles-f32le/1",
-      byteOffset: 41472,
+      byteOffset: 42480,
       byteLength: 1008,
       digest: "sha256:edf6c5e6d346682473f4068cdbf16db1f694e976b7bcdabffdb94ef53a0d30fe",
       triangleCount: 28,
     },
     ldrawReferenceGeometry: {
       format: "lego.ldraw-expanded-triangles-f32le/1",
-      byteOffset: 369360,
+      byteOffset: 395568,
       byteLength: 66672,
       digest: "sha256:fe4e8041fe6f6f71d1f908aa4a65acc82d7b51ea8fceac98e5bb0ef2301877af",
       triangleCount: 1852,
@@ -535,14 +591,14 @@ export const BUILDER_STEP1_DESIGN_SOURCES = [
     },
     builderGeometry: {
       format: "lego.builder-shell-triangles-f32le/1",
-      byteOffset: 42480,
+      byteOffset: 43488,
       byteLength: 5184,
       digest: "sha256:0631695c148f79c48783abb495ac139baf43a90d1342120291bbc93be43b6956",
       triangleCount: 144,
     },
     ldrawReferenceGeometry: {
       format: "lego.ldraw-expanded-triangles-f32le/1",
-      byteOffset: 436032,
+      byteOffset: 462240,
       byteLength: 114804,
       digest: "sha256:e6d55f3bf6504265cfd25f4fb0c265e9589cae033489a35a25932bfe2f76e199",
       triangleCount: 3189,
@@ -609,14 +665,14 @@ export const BUILDER_STEP1_DESIGN_SOURCES = [
     },
     builderGeometry: {
       format: "lego.builder-shell-triangles-f32le/1",
-      byteOffset: 47664,
+      byteOffset: 48672,
       byteLength: 4320,
       digest: "sha256:1d1325129f22e067d23651c0b0dbfcfaaba51c6a423b28330ecfad78e2e42161",
       triangleCount: 120,
     },
     ldrawReferenceGeometry: {
       format: "lego.ldraw-expanded-triangles-f32le/1",
-      byteOffset: 550836,
+      byteOffset: 577044,
       byteLength: 41544,
       digest: "sha256:927bd8018cb4ea7b25754ed6e7eccc2bfa7e661517d910b924e8ece126ad93df",
       triangleCount: 1154,
@@ -667,14 +723,14 @@ export const BUILDER_STEP1_DESIGN_SOURCES = [
     },
     builderGeometry: {
       format: "lego.builder-shell-triangles-f32le/1",
-      byteOffset: 51984,
+      byteOffset: 52992,
       byteLength: 1008,
       digest: "sha256:bfcc21ff0214ce0f49e1c4b61f754fcde82598245f4f6c53a7758fa1286b989e",
       triangleCount: 28,
     },
     ldrawReferenceGeometry: {
       format: "lego.ldraw-expanded-triangles-f32le/1",
-      byteOffset: 592380,
+      byteOffset: 618588,
       byteLength: 280944,
       digest: "sha256:41d0ef2d34d33c4a8fec051b00aaff35cb5b37ea4ab925b2e1c04a16987681ae",
       triangleCount: 7804,
@@ -779,14 +835,14 @@ export const BUILDER_STEP1_DESIGN_SOURCES = [
     },
     builderGeometry: {
       format: "lego.builder-shell-triangles-f32le/1",
-      byteOffset: 52992,
+      byteOffset: 54000,
       byteLength: 7920,
       digest: "sha256:9c2df61afa93f24be48987d2330c77e5821ea05d84465f436023d033e254affe",
       triangleCount: 220,
     },
     ldrawReferenceGeometry: {
       format: "lego.ldraw-expanded-triangles-f32le/1",
-      byteOffset: 873324,
+      byteOffset: 899532,
       byteLength: 15264,
       digest: "sha256:26f291fd904b5f0dbc1041100b99b288bdf9ef44b98160c98782a18769f00cb5",
       triangleCount: 424,
@@ -831,14 +887,14 @@ export const BUILDER_STEP1_DESIGN_SOURCES = [
     },
     builderGeometry: {
       format: "lego.builder-shell-triangles-f32le/1",
-      byteOffset: 60912,
+      byteOffset: 61920,
       byteLength: 8064,
       digest: "sha256:351ee326c6cc7b9a441cf7e12a6ae97b77c6ff4fe601cc7992a487678ae258d0",
       triangleCount: 224,
     },
     ldrawReferenceGeometry: {
       format: "lego.ldraw-expanded-triangles-f32le/1",
-      byteOffset: 888588,
+      byteOffset: 914796,
       byteLength: 41904,
       digest: "sha256:a7beecdadb78be0e7b51ba8740fc2c8d109cc807eb761f5e2374510b748e2e00",
       triangleCount: 1164,
@@ -888,14 +944,14 @@ export const BUILDER_STEP1_DESIGN_SOURCES = [
     },
     builderGeometry: {
       format: "lego.builder-shell-triangles-f32le/1",
-      byteOffset: 68976,
+      byteOffset: 69984,
       byteLength: 1008,
       digest: "sha256:dd0b16d4c313b301b9fb0e7d33af9949986cbdac71f16c2c6f125ad6dfe785ed",
       triangleCount: 28,
     },
     ldrawReferenceGeometry: {
       format: "lego.ldraw-expanded-triangles-f32le/1",
-      byteOffset: 930492,
+      byteOffset: 956700,
       byteLength: 40752,
       digest: "sha256:d26b12f67ea0b6559c5c12058de6e1344054a771ae6927a105150fbde2c5e5c3",
       triangleCount: 1132,
@@ -948,14 +1004,14 @@ export const BUILDER_STEP1_DESIGN_SOURCES = [
     },
     builderGeometry: {
       format: "lego.builder-shell-triangles-f32le/1",
-      byteOffset: 69984,
+      byteOffset: 70992,
       byteLength: 1008,
       digest: "sha256:88a0258f5cb93ef1b8bf66d98dd84401443892c4fc5efec0f1a44a235a99bf87",
       triangleCount: 28,
     },
     ldrawReferenceGeometry: {
       format: "lego.ldraw-expanded-triangles-f32le/1",
-      byteOffset: 971244,
+      byteOffset: 997452,
       byteLength: 94320,
       digest: "sha256:dfaf2ec3c405080f38c2ce59517de2d7a8621c44ae642c0998fc2fc3726f9dc4",
       triangleCount: 2620,
