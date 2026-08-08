@@ -8,6 +8,7 @@ import {
 import type {
   BrickDocumentV1,
   BuildOperation,
+  ConnectionEdge,
   PartInstance,
   RigidTransform,
 } from "@lego-studio/protocol";
@@ -322,6 +323,35 @@ export function createPlacePartTransaction(
 }
 
 /**
+ * What would hold a repositioned part up, worked out the way a real detach
+ * works: its own incident edges are dropped first, then every pairing is
+ * rediscovered at the destination.
+ *
+ * Both halves matter, and each one alone is a bug. Carrying the incident edges
+ * over holds a part up by connections it has moved out from under — a false
+ * accept. Rediscovering without dropping them first finds their target ports
+ * still occupied, so a part set back down on the very studs it came from
+ * discovers nothing and is refused — a false refusal, which in an editor is the
+ * worse of the two because the user cannot work around it.
+ */
+function rediscoverAfterDetach(
+  document: BrickDocumentV1,
+  after: PartInstance,
+  incident: readonly ConnectionEdge[],
+): readonly DiscoveredConnection[] {
+  const remainingOccupied = new Set(
+    document.connections
+      .filter((connection) => !incident.includes(connection))
+      .flatMap(({ a, b }) => [endpointKey(a.partId, a.portId), endpointKey(b.partId, b.portId)]),
+  );
+  return findStudConnections(
+    after,
+    document.parts.filter(({ id }) => id !== after.id),
+    remainingOccupied,
+  );
+}
+
+/**
  * Moves an existing part to a new transform. Dragging is an explicit detach, so
  * incident edges are dropped and then rediscovered at the destination rather
  * than being carried along with stale geometry.
@@ -346,16 +376,7 @@ export function createMovePartTransaction(
     .sort((left, right) => left.id.localeCompare(right.id));
   const after = { ...before, transform, provenance: { source: "manual" as const } };
 
-  const remainingOccupied = new Set(
-    document.connections
-      .filter((connection) => !incident.includes(connection))
-      .flatMap(({ a, b }) => [endpointKey(a.partId, a.portId), endpointKey(b.partId, b.portId)]),
-  );
-  const discovered = findStudConnections(
-    after,
-    document.parts.filter(({ id }) => id !== partId),
-    remainingOccupied,
-  );
+  const discovered = rediscoverAfterDetach(document, after, incident);
   const support = assessSupport(after, discovered);
   if (!support.supported) throw new ManualCommandError(support.reason);
 
@@ -426,6 +447,36 @@ export function createUpdatePartTransaction(
     throw new ManualCommandError("Moving a connected part requires an explicit detach");
   }
 
+  const after = { ...before, ...changes, provenance: { source: "manual" as const } };
+  // One rediscovery, read twice: it decides whether the edit is accepted, and
+  // it is the edge set the accepted edit writes. Discovering it a second time
+  // for the operations would let the two answers drift apart — the command
+  // could accept a seat on the strength of pairings it then failed to record.
+  const discovered = rediscoverAfterDetach(document, after, incident);
+  // A transform typed into the inspector has to hold the part up exactly as a
+  // drag does. The detach guard above is not that check: it asks whether the
+  // user consented to dropping the edges, not whether anything is left holding
+  // the part once they are dropped. Without this a floating Y is accepted, and
+  // in a one-part document not even the validator objects, because connectivity
+  // is trivially satisfied by a single part.
+  //
+  // Only a transform change can alter what supports a part, so a recolour or a
+  // step reassignment is left alone rather than re-litigating a position the
+  // user did not touch.
+  if (transformChanged) {
+    const support = assessSupport(after, discovered);
+    if (!support.supported) throw new ManualCommandError(support.reason);
+  }
+
+  // Operation-id seeds. The three families this command emits carry disjoint
+  // key sets under canonical JSON — detach is {revision, partId, kind, index},
+  // updatePart is {revision, partId, changes}, and every reattachment is that
+  // seed plus {kind, index, targetPortId, candidatePortId} — so no two encode
+  // to the same bytes and no two can share an id. Within the reattachment
+  // family `index` separates the edges, and `changes` keeps two edits of the
+  // same part in the same revision apart. Every input is a value already in the
+  // document or the caller's request, so a re-run reproduces the same ids.
+  const seed = { revision: document.revision, partId, changes };
   const operations: BuildOperation[] = detachConnections
     ? incident.map((connection, index) => ({
         kind: "removeConnection",
@@ -440,13 +491,21 @@ export function createUpdatePartTransaction(
     : [];
   operations.push({
     kind: "updatePart",
-    operationId: nextId("manual-operation", {
-      revision: document.revision,
-      partId,
-      changes,
-    }),
+    operationId: nextId("manual-operation", seed),
     before,
-    after: { ...before, ...changes, provenance: { source: "manual" } },
+    after,
   });
+  // Detaching without reattaching leaves the document's edge set describing
+  // geometry that is gone: a part seated perfectly on new studs reads as
+  // DISCONNECTED_ASSEMBLY, and the studs it now sits on still look free, so a
+  // later placement can double-occupy them. A drag already reattaches; typing
+  // the same transform into the inspector has to reach the same document.
+  //
+  // A transform change without a detach is emitted too, and cannot duplicate:
+  // the guard above only lets that case through when the part had no incident
+  // edges at all.
+  if (detachConnections || transformChanged) {
+    operations.push(...connectionOperations(discovered, partId, seed));
+  }
   return { label: `Edit ${partId}`, operations };
 }
