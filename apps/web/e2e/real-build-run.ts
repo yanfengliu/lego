@@ -369,11 +369,16 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                   azimuthDegrees: number;
                   elevationDegrees: number;
                   pixelsPerUnit: number;
+                  upSign?: 1 | -1;
                 };
-                const view = {
+                // The camera the panel's own lattice implies, up to the quarter
+                // turn it cannot pin. `anchorStepCamera` resolves that below and
+                // every render in this step uses what it chose.
+                const fittedView = {
                   azimuthDegrees: corrected.azimuthDegrees,
                   elevationDegrees: corrected.elevationDegrees,
                   pixelsPerUnit: corrected.pixelsPerUnit / factor,
+                  upSign: corrected.upSign ?? (1 as const),
                 };
                 const frame = {
                   widthPx: width,
@@ -425,24 +430,43 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                 try {
                   const renderer = rendering.createInstructionRenderer({ width, height });
                   try {
-                    const silhouette = createStepSilhouette({
-                      rendering,
-                      renderer,
-                      view,
-                      frame,
-                      widthPx: width,
-                      heightPx: height,
-                    });
+                    const silhouetteAtTurn = (turnDegrees: number) =>
+                      createStepSilhouette({
+                        rendering,
+                        renderer,
+                        view: {
+                          ...fittedView,
+                          azimuthDegrees: fittedView.azimuthDegrees + turnDegrees,
+                        },
+                        frame,
+                        widthPx: width,
+                        heightPx: height,
+                      });
 
                     let centre: [number, number] = [width / 2, height / 2];
                     let anchorIou: number | null = null;
                     let anchorShift: [number, number] | null = null;
+                    let anchorTurn = 0;
 
                     if (!anchorStep) {
                       const anchored = anchorStepCamera({
                         stepNumber: spec.stepNumber,
-                        modelMask: silhouette(candidateDocument, null, centre).all,
+                        renderModelMask: (turnDegrees) =>
+                          silhouetteAtTurn(turnDegrees)(candidateDocument, null, [
+                            width / 2,
+                            height / 2,
+                          ]).all,
                         builtMask: built,
+                        // The panel stops reporting what was already built
+                        // inside its own highlight, because it draws this
+                        // step's part over it. Scoring the model there measures
+                        // the drawing's occlusion instead of the registration.
+                        excludedMask: assembly.highlightExclusionMask(
+                          highlight.mask,
+                          highlight.strokeMask,
+                          width,
+                          height,
+                        ) as Uint8Array,
                         widthPx: width,
                         heightPx: height,
                       });
@@ -450,7 +474,13 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                       centre = anchored.centrePx;
                       anchorIou = anchored.anchorIou;
                       anchorShift = anchored.anchorShiftPx;
+                      anchorTurn = anchored.anchorTurnDegrees ?? 0;
                     }
+                    const view = {
+                      ...fittedView,
+                      azimuthDegrees: fittedView.azimuthDegrees + anchorTurn,
+                    };
+                    const silhouette = silhouetteAtTurn(anchorTurn);
 
                     if (failure === null) {
                       let placementMechanism: SuccessfulStepMechanism = deferring
@@ -1004,6 +1034,7 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                       centerYPx: centre[1],
                       anchorIou,
                       anchorShiftPx: anchorShift,
+                      anchorTurnDegrees: anchorStep ? null : anchorTurn,
                     };
                   } finally {
                     renderer.dispose();

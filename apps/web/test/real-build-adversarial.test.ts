@@ -301,6 +301,7 @@ describe("real build adversarial completion and ledger contracts", () => {
         centerYPx: 100,
         anchorIou: 0.8,
         anchorShiftPx: [0, 0],
+        anchorTurnDegrees: 0,
       },
       highlight: { regions: 1, closedContourRate: 1, strokePx: 20, boundsPx: [0, 0, 10, 10] },
       pieces: [

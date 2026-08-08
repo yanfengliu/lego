@@ -355,6 +355,7 @@ function isCameraEvidence(value: unknown): boolean {
         "centerYPx",
         "anchorIou",
         "anchorShiftPx",
+        "anchorTurnDegrees",
       ]) &&
       [
         "azimuthDegrees",
@@ -366,6 +367,7 @@ function isCameraEvidence(value: unknown): boolean {
         "centerYPx",
       ].every((key) => isFiniteNumber(value[key])) &&
       isNullableFiniteNumber(value.anchorIou) &&
+      isNullableFiniteNumber(value.anchorTurnDegrees) &&
       (value.anchorShiftPx === null || isTuple(value.anchorShiftPx, 2)))
   );
 }

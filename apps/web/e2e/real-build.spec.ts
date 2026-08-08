@@ -519,8 +519,18 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
     // Both budgets are per piece, and the pruned candidate set is a subset of
     // the exhaustive one, so they are the same number: see the coherence check
     // in `preflightRealBuildOptions`.
-    maxRendersPerPiece: 220,
-    blindRenderBudget: 220,
+    //
+    // 220 could not bind on printed step 4, whose two pieces enumerate 240 and
+    // 334 placements — the same 240 x 334 the deferred-narrowing budget below
+    // was already sized against. Both strategies refused with
+    // `resource-budget-exhausted` before rendering anything, so the step was
+    // decided by a cost ceiling rather than by its panel. Sized from the run's
+    // own measured render cost of about 21ms, 1024 is roughly twenty seconds a
+    // piece, in the same range as the two budgets below. It is a cost ceiling
+    // and not a correctness bar: exceeding it still refuses rather than
+    // truncating, so no step is ever scored against a set that was silently cut.
+    maxRendersPerPiece: 1_024,
+    blindRenderBudget: 1_024,
     // Step 1 alone is a 400-candidate product: four yaws of the quarter ring on
     // the empty plate times a hundred distinct seats for the round plate on each.
     deferredCandidateBudget: 512,

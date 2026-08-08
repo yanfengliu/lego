@@ -14,9 +14,10 @@ import { overlap, type Silhouette } from "./silhouette.ts";
  * Four of the six parameters are solved rather than searched. Once a view
  * direction is chosen, the scale and the image-plane offset follow in closed
  * form from the two silhouettes' areas and centroids, so the search is a plain
- * two-dimensional sweep over azimuth and elevation. Roll is not a parameter:
- * printed panels are axis-aligned, and a roll term would trade a real
- * constraint for a degree of freedom that only helps the fit lie.
+ * two-dimensional sweep over azimuth and elevation. Continuous roll is not a
+ * parameter: printed panels are axis-aligned, and a free roll term would trade a
+ * real constraint for a degree of freedom that only helps the fit lie. The one
+ * discrete half-turn `upSign` carries is not fitted either — see below.
  */
 export interface OrthographicViewParameters {
   /** Rotation about the vertical axis, degrees. */
@@ -28,6 +29,28 @@ export interface OrthographicViewParameters {
   /** Where the camera's view axis lands in the image, in pixels. */
   readonly centerXPx: number;
   readonly centerYPx: number;
+  /**
+   * Which way the model's own up axis points in the image: `1` up the page,
+   * `-1` down it. Defaults to `1`.
+   *
+   * This is the half-turn a booklet takes when it turns the model over, and it
+   * is not expressible as an azimuth and an elevation. Turning a model by any
+   * half-turn `R` about a horizontal axis and photographing it from a camera at
+   * `(A, e)` is the same picture as photographing the *unturned* model from
+   * `R⁻¹` of that camera — and `R⁻¹` carries the up vector to `-Y`, because a
+   * half-turn about a horizontal axis is exactly what inverts up. Negating the
+   * azimuth and the elevation moves the eye; it does not roll the image, and no
+   * `(A, e)` pair does: with up pinned to `+Y`, the image's vertical axis always
+   * has a positive world-`Y` component while `|e| < 90`, so the rolled image is
+   * outside the family.
+   *
+   * It is a fact about which face the panel draws, supplied by the booklet's own
+   * rotate-the-model icon, rather than a parameter any fit may move: a projected
+   * square lattice is invariant under it, so no fit could recover it and a fit
+   * free to choose it would only gain a way to lie. `fitCameraToSilhouette` and
+   * its refinement never set it.
+   */
+  readonly upSign?: 1 | -1;
 }
 
 export interface OrthographicViewFrame {
@@ -116,13 +139,21 @@ export function createOrthographicViewCamera(
   const target = new Vector3(...frame.target);
   const direction = viewDirection(parameters.azimuthDegrees, parameters.elevationDegrees);
   camera.position.copy(target).addScaledVector(direction, sceneRadius * 4);
+  const upSign = parameters.upSign ?? 1;
+  if (upSign !== 1 && upSign !== -1) {
+    throw new RangeError(
+      `upSign must be 1 or -1, received ${String(upSign)}. It is which way the model's own up axis ` +
+        `points in the image, not a scale: a booklet that turns the model over inverts it, and ` +
+        `nothing in between exists.`,
+    );
+  }
   // Straight down or straight up leaves the default up vector parallel to the
   // view axis, which makes lookAt degenerate; fall back to the world Z axis.
   const looksAlongUp = Math.abs(Math.abs(parameters.elevationDegrees) - 90) < 1e-6;
   camera.up.set(
     0,
-    looksAlongUp ? 0 : 1,
-    looksAlongUp ? -Math.sign(parameters.elevationDegrees) : 0,
+    looksAlongUp ? 0 : upSign,
+    looksAlongUp ? -Math.sign(parameters.elevationDegrees) * upSign : 0,
   );
   camera.lookAt(target);
   camera.updateProjectionMatrix();

@@ -1001,12 +1001,25 @@ export function shiftedMaskIou(input: {
   readonly height: number;
   readonly dx: number;
   readonly dy: number;
+  /**
+   * Pixels where neither side is defined, in target space. Omitted counts them
+   * all.
+   *
+   * A panel draws the part a step adds *over* what the steps before it built, so
+   * inside its highlight the target simply stops reporting the model — and
+   * charging the model for that bite measures the drawing's occlusion rather
+   * than the model's agreement. Measured on the sample booklet's printed step 3:
+   * without the exclusion the correct quarter turn scores 0.6267 and a wrong one
+   * 0.6435, so the choice inverts; with it they are 0.8898 and 0.7762.
+   */
+  readonly excluded?: Uint8Array | null;
 }): number {
   let intersection = 0;
   let union = 0;
   for (let y = 0; y < input.height; y += 1) {
     const sourceY = y - input.dy;
     for (let x = 0; x < input.width; x += 1) {
+      if (input.excluded != null && input.excluded[y * input.width + x] === 1) continue;
       const sourceX = x - input.dx;
       const here =
         sourceX < 0 || sourceX >= input.width || sourceY < 0 || sourceY >= input.height

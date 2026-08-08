@@ -45,6 +45,11 @@ export interface FittedPanelView {
   readonly azimuthDegrees: number;
   readonly elevationDegrees: number;
   readonly pixelsPerUnit: number;
+  /**
+   * Which way the model's own up axis points in the image: `1` up the page,
+   * `-1` down it. Absent means `1`.
+   */
+  readonly upSign?: 1 | -1;
 }
 
 /**
@@ -61,6 +66,21 @@ export interface FittedPanelView {
  * no further than its quarter-turn coset; `-A` is the representative of that
  * coset, and which member is chosen is the azimuth-branch question the panel
  * score resolves by rendering each, not something this function can settle.
+ * `anchorStepCamera` is where that gets resolved, by registering the model built
+ * so far at each quarter turn against the panel's own already-built art.
+ *
+ * The third thing the booklet does when it turns the model over is invert the
+ * model's up axis in the image, and that is `upSign`. It is not a fourth sign to
+ * choose: a half-turn about *any* horizontal axis carries `+Y` to `-Y`, so every
+ * physical way of turning a model over inverts it, and the axis chosen only
+ * moves the azimuth — into the same quarter-turn coset the paragraph above
+ * already leaves open. Omitting it is the defect this function shipped with:
+ * measured on printed step 4 of the sample booklet, the first panel this
+ * repository ever drew from underneath, the model built so far registers against
+ * the panel's own art at **0.4821** without it and **0.8312** with it and the
+ * matching quarter turn, against 0.9031 and 0.8898 on the two studs-up panels
+ * before it. Every quarter turn and elevation sign was tried without it and none
+ * reached 0.45, because the roll is not in that family.
  */
 export function viewForPanelFace(fit: FittedPanelView, face: PanelFace): FittedPanelView {
   if (face !== "studs-up" && face !== "underside") {
@@ -74,12 +94,14 @@ export function viewForPanelFace(fit: FittedPanelView, face: PanelFace): FittedP
       azimuthDegrees: fit.azimuthDegrees,
       elevationDegrees: fit.elevationDegrees,
       pixelsPerUnit: fit.pixelsPerUnit,
+      upSign: 1,
     };
   }
   return {
     azimuthDegrees: -fit.azimuthDegrees,
     elevationDegrees: -fit.elevationDegrees,
     pixelsPerUnit: fit.pixelsPerUnit,
+    upSign: -1,
   };
 }
 

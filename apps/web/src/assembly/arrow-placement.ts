@@ -302,6 +302,7 @@ export function panelProjectionForWorkRaster(
     readonly azimuthDegrees: number;
     readonly elevationDegrees: number;
     readonly pixelsPerUnit: number;
+    readonly upSign?: 1 | -1;
   },
   workFactor: number,
 ): PanelProjection {
@@ -314,20 +315,51 @@ export function panelProjectionForWorkRaster(
   return panelProjectionFromFit({ ...fit, pixelsPerUnit: fit.pixelsPerUnit / workFactor });
 }
 
-/** The projection a fitted panel camera implies, in the form the inversion needs. */
+/**
+ * The projection a fitted panel camera implies, in the form the inversion needs.
+ *
+ * `upSign` is the same half-turn `createOrthographicViewCamera` takes: a panel
+ * drawn from underneath is the model turned over, and a half-turn about a
+ * horizontal axis inverts the image's own axes. Both image components of every
+ * basis vector negate, which is what a half-turn *is* — so the plate step, which
+ * a reader may expect to be even in the elevation, points down the page on such
+ * a panel, because the model's up axis does.
+ */
 export function panelProjectionFromFit(fit: {
   readonly azimuthDegrees: number;
   readonly elevationDegrees: number;
   readonly pixelsPerUnit: number;
+  readonly upSign?: 1 | -1;
 }): PanelProjection {
   const azimuth = (fit.azimuthDegrees * Math.PI) / 180;
   const elevation = (fit.elevationDegrees * Math.PI) / 180;
   const scale = fit.pixelsPerUnit;
+  const upSign = fit.upSign ?? 1;
+  if (upSign !== 1 && upSign !== -1) {
+    throw new ArrowPlacementError(
+      `upSign must be 1 or -1, received ${String(upSign)}. It states which way the model's own up ` +
+        `axis points in the image; a panel drawn from underneath inverts it and nothing in between exists.`,
+    );
+  }
+  const roll = (value: { xPx: number; yPx: number }) => ({
+    xPx: upSign * value.xPx,
+    yPx: upSign * value.yPx,
+  });
   return {
-    a: { xPx: scale * Math.cos(azimuth), yPx: scale * Math.sin(elevation) * Math.sin(azimuth) },
-    b: { xPx: -scale * Math.sin(azimuth), yPx: scale * Math.sin(elevation) * Math.cos(azimuth) },
-    // One plate of the twenty-LDU pitch, straight up the page.
-    up: { xPx: 0, yPx: (-scale * Math.cos(elevation) * PLATE_HEIGHT_LDU) / STUD_PITCH_LDU },
+    a: roll({
+      xPx: scale * Math.cos(azimuth),
+      yPx: scale * Math.sin(elevation) * Math.sin(azimuth),
+    }),
+    b: roll({
+      xPx: -scale * Math.sin(azimuth),
+      yPx: scale * Math.sin(elevation) * Math.cos(azimuth),
+    }),
+    // One plate of the twenty-LDU pitch, straight up the page — or straight down
+    // it when the panel draws the model turned over.
+    up: roll({
+      xPx: 0,
+      yPx: (-scale * Math.cos(elevation) * PLATE_HEIGHT_LDU) / STUD_PITCH_LDU,
+    }),
     pixelsPerStud: scale,
   };
 }
@@ -428,6 +460,33 @@ export interface ClearanceMasks {
  * belongs to the previous steps. Leaving this step's own parts in would let the
  * head measure zero against the very thing it is travelling towards.
  */
+/**
+ * Where this panel stopped reporting what was already built.
+ *
+ * The step's own highlight region and its stroke: the panel draws the new part
+ * *over* the model that was there, so inside this neither the drawing nor a
+ * render of the prefix says anything about the other. Every comparison between a
+ * prefix and a panel drops it from both sides, and the one that did not — the
+ * camera anchor — chose the wrong quarter turn on the sample booklet's printed
+ * step 3 because of it.
+ *
+ * Undilated, unlike `alreadyBuiltMask`'s stroke claim: this is the region a
+ * comparison declines to score, not the region an already-built mask must not
+ * contain, and widening a declined region discards evidence.
+ */
+export function highlightExclusionMask(
+  highlightMask: Uint8Array,
+  highlightStrokeMask: Uint8Array,
+  width: number,
+  height: number,
+): Uint8Array {
+  const excluded = new Uint8Array(width * height);
+  for (let pixel = 0; pixel < excluded.length; pixel += 1) {
+    excluded[pixel] = highlightMask[pixel] === 1 || highlightStrokeMask[pixel] === 1 ? 1 : 0;
+  }
+  return excluded;
+}
+
 export function alreadyBuiltMask(
   assemblyMask: Uint8Array,
   highlightMask: Uint8Array,

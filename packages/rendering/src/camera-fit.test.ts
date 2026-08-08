@@ -64,6 +64,71 @@ function renderModel(
 
 const SEED = { pixelsPerUnit: 40, centerXPx: FRAME.widthPx / 2, centerYPx: FRAME.heightPx / 2 };
 
+describe("orthographic view camera up sign", () => {
+  const pixelOf = (parameters: OrthographicViewParameters, point: readonly number[]) => {
+    const camera = createOrthographicViewCamera(parameters, FRAME);
+    const projected = new Vector3(point[0]!, point[1]!, point[2]!).project(camera);
+    return {
+      xPx: ((projected.x + 1) / 2) * FRAME.widthPx,
+      yPx: ((1 - projected.y) / 2) * FRAME.heightPx,
+    };
+  };
+  const VIEW: OrthographicViewParameters = {
+    azimuthDegrees: 55,
+    elevationDegrees: 35,
+    pixelsPerUnit: 30,
+    centerXPx: FRAME.widthPx / 2,
+    centerYPx: FRAME.heightPx / 2,
+  };
+
+  /**
+   * The half-turn a booklet takes when it turns the model over. Photographing a
+   * turned model is the same as photographing the unturned one through the
+   * inverse of the turn, and a half-turn about a horizontal axis carries the up
+   * vector to `-Y` — so the picture is the unturned one rotated half a turn
+   * about the view axis, which is exactly what this asserts.
+   */
+  it("rotates the image half a turn about the view axis", () => {
+    for (const point of MODEL) {
+      const upright = pixelOf(VIEW, point);
+      const inverted = pixelOf({ ...VIEW, upSign: -1 }, point);
+      expect(inverted.xPx).toBeCloseTo(2 * VIEW.centerXPx - upright.xPx, 6);
+      expect(inverted.yPx).toBeCloseTo(2 * VIEW.centerYPx - upright.yPx, 6);
+    }
+  });
+
+  /**
+   * And it is a degree of freedom the fit does not have, which is why omitting
+   * it could not be repaired by sweeping the fitted view. A model's own up axis
+   * projects above the view axis at every azimuth and every elevation short of
+   * straight down; inverted, it projects below. No member of the swept family
+   * reproduces the inverted image.
+   */
+  it("is not reachable by any azimuth or elevation", () => {
+    const inverted = pixelOf({ ...VIEW, upSign: -1 }, [0, 1, 0]);
+    expect(inverted.yPx).toBeGreaterThan(VIEW.centerYPx);
+
+    for (let azimuthDegrees = 0; azimuthDegrees < 360; azimuthDegrees += 5) {
+      for (let elevationDegrees = -89; elevationDegrees <= 89; elevationDegrees += 1) {
+        const swept = pixelOf({ ...VIEW, azimuthDegrees, elevationDegrees }, [0, 1, 0]);
+        expect(swept.yPx).toBeLessThan(VIEW.centerYPx);
+      }
+    }
+  });
+
+  it("refuses a sign that is neither up nor down", () => {
+    expect(() =>
+      createOrthographicViewCamera({ ...VIEW, upSign: 0 as unknown as 1 }, FRAME),
+    ).toThrow(/upSign must be 1 or -1/u);
+  });
+
+  it("leaves an unstated sign upright, so every existing caller is unchanged", () => {
+    for (const point of MODEL) {
+      expect(pixelOf({ ...VIEW, upSign: 1 }, point)).toEqual(pixelOf(VIEW, point));
+    }
+  });
+});
+
 describe("orthographic view camera", () => {
   it("puts the view axis exactly where the fit says it is", () => {
     const parameters: OrthographicViewParameters = {

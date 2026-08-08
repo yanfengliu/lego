@@ -6,19 +6,21 @@ import { derivePanelFaces, FIRST_PANEL_FACE, viewForPanelFace } from "./panel-fa
 const FIT = { azimuthDegrees: 41, elevationDegrees: 26, pixelsPerUnit: 52 } as const;
 
 describe("viewForPanelFace", () => {
-  it("leaves a studs-up panel at the fitted camera", () => {
+  it("leaves a studs-up panel at the fitted camera, up the page", () => {
     expect(viewForPanelFace(FIT, "studs-up")).toEqual({
       azimuthDegrees: 41,
       elevationDegrees: 26,
       pixelsPerUnit: 52,
+      upSign: 1,
     });
   });
 
-  it("negates both angles for an underside panel, and keeps the scale", () => {
+  it("negates both angles and inverts up for an underside panel, and keeps the scale", () => {
     expect(viewForPanelFace(FIT, "underside")).toEqual({
       azimuthDegrees: -41,
       elevationDegrees: -26,
       pixelsPerUnit: 52,
+      upSign: -1,
     });
   });
 
@@ -38,14 +40,44 @@ describe("viewForPanelFace", () => {
     const above = panelProjectionFromFit(viewForPanelFace(FIT, "studs-up"));
     const below = panelProjectionFromFit(viewForPanelFace(FIT, "underside"));
 
-    expect(below.a.xPx).toBeCloseTo(above.a.xPx, 12);
-    expect(below.a.yPx).toBeCloseTo(above.a.yPx, 12);
-    expect(below.b.xPx).toBeCloseTo(-above.b.xPx, 12);
-    expect(below.b.yPx).toBeCloseTo(-above.b.yPx, 12);
-    // A plate stacked upward projects the same way from either face: the height
-    // term is even in the elevation, so only the horizontal basis carries the
-    // difference.
-    expect(below.up.yPx).toBeCloseTo(above.up.yPx, 12);
+    // `a` is negated and `b` is unchanged. Negating one basis vector spans the
+    // same lattice, so the grid the fitter sees is identical — the half-turn
+    // that inverts up moved which vector carries the sign, not the lattice.
+    expect(below.a.xPx).toBeCloseTo(-above.a.xPx, 12);
+    expect(below.a.yPx).toBeCloseTo(-above.a.yPx, 12);
+    expect(below.b.xPx).toBeCloseTo(above.b.xPx, 12);
+    expect(below.b.yPx).toBeCloseTo(above.b.yPx, 12);
+  });
+
+  /**
+   * The half-turn a booklet takes when it turns the model over, stated where it
+   * can be checked: a plate stacked onto the model climbs *down* the page on a
+   * panel drawn from underneath, because the model's own up axis does.
+   *
+   * This is the part `viewForPanelFace` shipped without, and it is not
+   * recoverable by moving the eye: with up pinned to the world `+Y`, the plate
+   * step is `-cos(e)` and is negative — up the page — at every azimuth and every
+   * elevation short of straight down. The sweep below is the impossibility
+   * proof, and it is what makes the sign a face input rather than a fit output.
+   */
+  it("climbs down the page from underneath, which no azimuth or elevation can reproduce", () => {
+    const above = panelProjectionFromFit(viewForPanelFace(FIT, "studs-up"));
+    const below = panelProjectionFromFit(viewForPanelFace(FIT, "underside"));
+
+    expect(above.up.yPx).toBeLessThan(0);
+    expect(below.up.yPx).toBeCloseTo(-above.up.yPx, 12);
+    expect(below.up.yPx).toBeGreaterThan(0);
+
+    for (let azimuthDegrees = 0; azimuthDegrees < 360; azimuthDegrees += 5) {
+      for (let elevationDegrees = -89; elevationDegrees <= 89; elevationDegrees += 1) {
+        const swept = panelProjectionFromFit({
+          azimuthDegrees,
+          elevationDegrees,
+          pixelsPerUnit: FIT.pixelsPerUnit,
+        });
+        expect(swept.up.yPx).toBeLessThan(0);
+      }
+    }
   });
 
   /**
@@ -59,7 +91,10 @@ describe("viewForPanelFace", () => {
     const halfAnswer = panelProjectionFromFit({ ...FIT, elevationDegrees: -FIT.elevationDegrees });
 
     expect(halfAnswer.a.yPx).not.toBeCloseTo(above.a.yPx, 6);
-    expect(halfAnswer.a.yPx).not.toBeCloseTo(below.a.yPx, 6);
+    expect(halfAnswer.a.xPx).not.toBeCloseTo(below.a.xPx, 6);
+    // And it draws a stacked plate up the page, where the panel it is standing
+    // in for draws it down: the half-answer never even changes face.
+    expect(halfAnswer.up.yPx).toBeLessThan(0);
   });
 });
 

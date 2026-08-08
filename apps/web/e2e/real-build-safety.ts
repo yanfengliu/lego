@@ -844,6 +844,16 @@ export interface RealBuildStepReport {
     readonly centerYPx: number;
     readonly anchorIou: number | null;
     readonly anchorShiftPx: readonly [number, number] | null;
+    /**
+     * The quarter turn the anchor added to the fitted azimuth to register the
+     * model built so far against this panel's own art.
+     *
+     * Reported because the fit provably cannot supply it — a quarter turn
+     * permutes the projected stud basis and spans the same lattice — so the
+     * azimuth above is the fit's representative and this is which member of its
+     * coset the panel turned out to be at.
+     */
+    readonly anchorTurnDegrees: number | null;
   } | null;
   readonly highlight: {
     readonly regions: number;
