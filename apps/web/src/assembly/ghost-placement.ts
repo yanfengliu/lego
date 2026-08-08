@@ -48,9 +48,20 @@
  * closes and the region term is always available — and the stroke term is
  * actively wrong, because the yellow sits about five work pixels outside the
  * part and a three-pixel tolerance cannot bridge that, so it scores the artist's
- * offset rather than the placement. Measured on panel 2 the blend ranks a
- * candidate that visibly spills outside the contour above the one that is
- * exactly contained; the region term alone ranks them the other way round.
+ * offset rather than the placement.
+ *
+ * The inversion that follows is a number rather than a claim. On printed panel 2
+ * the placement the booklet draws scores region IoU 0.5887555 with *no* pixel
+ * outside the contour, stroke F1 0.5684824, and blends to 0.5806463; a candidate
+ * spilling 46 pixels outside scores region IoU 0.5728884, stroke F1 0.6326254,
+ * and blends to 0.5967832. `scoreStepDelta`'s blend therefore puts the spilling
+ * ghost first and the region term puts the contained one first. Nothing on this
+ * road reads the blend: `decideExplodedGhostPlacement` below sorts on
+ * `regionIou`, and `real-build-exploded-step.ts` picks a seat's family member by
+ * containment. Both choices are held by `real-build-exploded-step.test.ts`,
+ * whose synthetic panel now carries a stroke drawn outward the way the booklet
+ * draws one — on it the contained ghost's stroke F1 is 0, so swapping either key
+ * for the blend fails loudly instead of silently placing a spilling ghost.
  *
  * And containment does not name a seat on its own. Every candidate seat sits on
  * the same 20/8 lattice, so `{seat - displacement}` reaches the same pictures

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  applyBuildOperations,
   createEmptyBrickDocument,
   documentStructuralHash,
   validateBrickDocument,
@@ -8,7 +9,7 @@ import {
 import { createCanonicalViewPacket, deriveBrickScene } from "@lego-studio/rendering";
 
 import type { BrickViewportHandle } from "./components/BrickViewport";
-import { compileLocalPromptPreview } from "./local-assistant";
+import { createAddPartTransaction } from "./manual-commands";
 import {
   installAutomationBridge,
   type AutomationAppState,
@@ -22,10 +23,6 @@ describe("browser automation bridge", () => {
       document,
       selectedPartId: null,
       validationReport: validateBrickDocument(document),
-      candidateValidation: null,
-      activeJob: null,
-      candidatePopulation: [],
-      candidate: null,
       commandError: null,
     };
     const target: AutomationBridgeTarget = {};
@@ -38,7 +35,6 @@ describe("browser automation bridge", () => {
     expect(JSON.parse(target.render_app_to_text!())).toMatchObject({
       schemaVersion: "lego.app-observation/1",
       documentHash: expect.stringMatching(/^sha256:/),
-      activeJob: null,
       selection: { partId: null },
     });
     expect(target.get_model_snapshot!()).toMatchObject({
@@ -55,39 +51,22 @@ describe("browser automation bridge", () => {
     expect(target).toEqual({});
   });
 
-  it("keeps base validation separate while candidate validation and preview pixels agree", () => {
-    const document = createEmptyBrickDocument({ id: "automation-base", name: "Base" });
-    const compiled = compileLocalPromptPreview(document, "Build a 4 level tower");
-    if (!compiled.result.ok) throw new Error(JSON.stringify(compiled.result.issues));
-    const candidateDocument = compiled.result.document;
-    const candidateValidation = compiled.result.validationReport;
-    const candidateHash = documentStructuralHash(candidateDocument);
-    const scene = deriveBrickScene(candidateDocument, { validationReport: candidateValidation });
+  it("reports the live viewport packet against the same document its validation covers", () => {
+    const empty = createEmptyBrickDocument({ id: "automation-base", name: "Base" });
+    const addition = createAddPartTransaction(empty, {
+      catalogPartId: "builtin:brick-2x4",
+      colorId: "builtin:red",
+      selectedPartId: null,
+    });
+    const document = applyBuildOperations(empty, addition.operations);
+    const documentHash = documentStructuralHash(document);
+    const validationReport = validateBrickDocument(document);
+    const scene = deriveBrickScene(document, { validationReport });
     const viewPacket = createCanonicalViewPacket(scene);
-    const candidate = {
-      candidateId: "candidate-automation",
-      state: "preview" as const,
-      documentHash: candidateHash,
-      operationCount: compiled.result.patch.operations.length,
-      failureCodes: [],
-      rank: 1,
-      metrics: null,
-      lineage: { parentCandidateId: null, strategyId: "test" },
-    };
     const state: AutomationAppState = {
       document,
-      selectedPartId: null,
-      validationReport: validateBrickDocument(document),
-      candidateValidation,
-      activeJob: {
-        jobId: "automation-job",
-        state: "ready",
-        baseRevision: document.revision,
-        baseDocumentHash: documentStructuralHash(document),
-        verificationDurationMs: 1,
-      },
-      candidatePopulation: [candidate],
-      candidate,
+      selectedPartId: addition.partId,
+      validationReport,
       commandError: null,
     };
     const viewport: BrickViewportHandle = {
@@ -107,10 +86,10 @@ describe("browser automation bridge", () => {
     );
     const observation = JSON.parse(target.render_app_to_text!());
 
-    expect(observation.validation.targetDocumentHash).toBe(documentStructuralHash(document));
-    expect(observation.candidate.documentHash).toBe(candidateHash);
-    expect(observation.candidateValidation.targetDocumentHash).toBe(candidateHash);
-    expect(observation.renderer.viewPacket.documentHash).toBe(candidateHash);
+    expect(observation.documentHash).toBe(documentHash);
+    expect(observation.validation.targetDocumentHash).toBe(documentHash);
+    expect(observation.renderer.viewPacket.documentHash).toBe(documentHash);
+    expect(observation.selection).toEqual({ partId: addition.partId });
 
     cleanup();
     scene.dispose();
