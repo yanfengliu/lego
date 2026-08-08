@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 
 import {
   COLOR_DEFINITIONS,
@@ -31,7 +31,14 @@ interface CatalogPanelProps {
   readonly armedPartId: string | null;
 }
 
-function PartOption({
+/**
+ * Memoized, and the handlers take the part id rather than closing over it, so
+ * the identity of every prop survives a parent render. The palette is 84 of
+ * these; a per-item arrow function would defeat the memo and re-render the whole
+ * list — including its 84 thumbnails — on every unrelated state change in the
+ * app, which is how flipping one word in the header cost ~70ms.
+ */
+const PartOption = memo(function PartOption({
   part,
   colorHex,
   selected,
@@ -43,7 +50,7 @@ function PartOption({
   readonly colorHex: string;
   readonly selected: boolean;
   readonly armed: boolean;
-  readonly onSelect: () => void;
+  readonly onSelect: (partId: string) => void;
   readonly onArmChange: (partId: string | null) => void;
 }) {
   return (
@@ -57,7 +64,7 @@ function PartOption({
           : `${part.displayName} — click to preview it in the model`
       }
       onClick={() => {
-        onSelect();
+        onSelect(part.id);
         // Clicking the armed part again puts the tool away.
         onArmChange(armed ? null : part.id);
       }}
@@ -71,7 +78,7 @@ function PartOption({
       </span>
     </button>
   );
-}
+});
 
 function ColorOption({
   color,
@@ -169,7 +176,12 @@ function ColorPanel({
   );
 }
 
-export function CatalogPanel({
+/**
+ * Memoized so that state the palette does not depend on — the persistence
+ * status readout, above all — cannot drag 84 parts and their thumbnails through
+ * a render. It still re-renders whenever one of its own props actually changes.
+ */
+export const CatalogPanel = memo(function CatalogPanel({
   selectedPartDefinitionId,
   selectedColorId,
   canAttach,
@@ -186,6 +198,11 @@ export function CatalogPanel({
   const groups = useMemo(() => groupPartsByFamily(searchParts({ query, family })), [query, family]);
   const matchCount = groups.reduce((total, group) => total + group.parts.length, 0);
   const familyCounts = useMemo(() => countPartsByFamily(), []);
+  // One identity for all 84 options, so PartOption's memo holds.
+  const selectPart = useCallback(
+    (partId: string) => onPartDefinitionChange(partId),
+    [onPartDefinitionChange],
+  );
 
   return (
     <aside className="panel catalog-panel" aria-label="Part catalog">
@@ -240,7 +257,7 @@ export function CatalogPanel({
                 colorHex={colorHex}
                 selected={part.id === selectedPartDefinitionId}
                 armed={part.id === armedPartId}
-                onSelect={() => onPartDefinitionChange(part.id)}
+                onSelect={selectPart}
                 onArmChange={onArmChange}
               />
             ))}
@@ -269,4 +286,4 @@ export function CatalogPanel({
       </div>
     </aside>
   );
-}
+});

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 
 import { PART_DEFINITIONS, getPartDefinition } from "@lego-studio/catalog";
 import {
@@ -15,7 +15,6 @@ import {
 import { assertRenderBudget } from "@lego-studio/rendering";
 import type { RigidTransform } from "@lego-studio/protocol";
 
-import { AssistantPanel } from "./components/AssistantPanel";
 import { BrickViewport, type BrickViewportHandle } from "./components/BrickViewport";
 import { BuildPlaybackBar } from "./components/BuildPlaybackBar";
 import { CatalogPanel } from "./components/CatalogPanel";
@@ -31,7 +30,6 @@ import {
   type EditorTransaction,
 } from "./editor-state";
 import { StaleFileImportError, readBoundedFileText } from "./file-import";
-import { useCandidateLab } from "./generation/use-candidate-lab";
 import {
   ManualCommandError,
   createAddPartTransaction,
@@ -86,8 +84,6 @@ export function App() {
   const [projectId, setProjectId] = useState(LOCAL_PROJECT_ID);
   const [projects, setProjects] = useState<readonly ProjectSummary[]>([]);
   const [commandError, setCommandError] = useState<string | null>(null);
-  const [assistantPrompt, setAssistantPrompt] = useState("Build an 18-piece red and yellow tower");
-  const candidateLab = useCandidateLab(state.document);
   const [projectHydration, setProjectHydration] = useState<ProjectHydration>({ state: "loading" });
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "failed">("saved");
   const [persistenceError, setPersistenceError] = useState<string | null>(null);
@@ -122,68 +118,26 @@ export function App() {
       ? null
       : (buildSequence.states[Math.min(playbackPosition ?? 0, buildSequence.states.length - 1)]
           ?.document ?? null);
-  const previewDocument =
-    candidateLab.selectedCandidate?.document ?? playbackDocument ?? state.document;
-  const report = useMemo(() => validateBrickDocument(previewDocument), [previewDocument]);
+  const previewDocument = playbackDocument ?? state.document;
   const documentReport = useMemo(() => validateBrickDocument(state.document), [state.document]);
+  // Outside playback the preview *is* the document, and validating it twice
+  // produced two equal reports from the same validators. Nothing here decides
+  // legality differently; it decides it once.
+  const previewReport = useMemo(
+    () => (previewDocument === state.document ? null : validateBrickDocument(previewDocument)),
+    [previewDocument, state.document],
+  );
+  const report = previewReport ?? documentReport;
 
-  const automationState = useMemo<AutomationAppState>(() => {
-    const readyPopulation = candidateLab.state.status === "ready" ? candidateLab.state : null;
-    const candidatePopulation =
-      readyPopulation === null
-        ? []
-        : readyPopulation.population.attempts.map((attempt) => ({
-            candidateId: attempt.candidateId,
-            state:
-              attempt.status === "hard-valid"
-                ? readyPopulation.selectedCandidateId === attempt.candidateId
-                  ? ("preview" as const)
-                  : ("hard-valid" as const)
-                : attempt.status === "duplicate"
-                  ? ("duplicate" as const)
-                  : ("rejected" as const),
-            documentHash: attempt.structuralHash,
-            operationCount: attempt.program?.operations.length ?? 0,
-            failureCodes: attempt.failure ? [attempt.failure.code] : [],
-            rank: attempt.rank,
-            metrics: attempt.metrics,
-            lineage: {
-              parentCandidateId: attempt.lineage.parentCandidateId,
-              strategyId: attempt.strategyId,
-            },
-          }));
-    const candidate =
-      candidatePopulation.find(({ state: candidateState }) => candidateState === "preview") ?? null;
-    return {
+  const automationState = useMemo<AutomationAppState>(
+    () => ({
       document: state.document,
       selectedPartId: state.selectedPartId,
       validationReport: documentReport,
-      candidateValidation: candidateLab.selectedCandidate?.validationReport ?? null,
-      activeJob:
-        candidateLab.state.status === "idle"
-          ? null
-          : {
-              jobId: candidateLab.state.jobId,
-              state: candidateLab.state.status,
-              baseRevision: candidateLab.state.baseRevision,
-              baseDocumentHash: candidateLab.state.baseDocumentHash,
-              verificationDurationMs:
-                candidateLab.state.status === "ready"
-                  ? candidateLab.state.verificationDurationMs
-                  : null,
-            },
-      candidatePopulation,
-      candidate,
       commandError,
-    };
-  }, [
-    candidateLab.selectedCandidate?.validationReport,
-    candidateLab.state,
-    commandError,
-    documentReport,
-    state.document,
-    state.selectedPartId,
-  ]);
+    }),
+    [commandError, documentReport, state.document, state.selectedPartId],
+  );
 
   useEffect(() => {
     automationStateRef.current = automationState;
@@ -285,10 +239,11 @@ export function App() {
     );
   }, []);
 
-  function runCommand(command: () => void) {
+  // Stable identity: the catalog panel is memoized, and a fresh handler on every
+  // render would put its 84 parts back into every unrelated re-render.
+  const runCommand = useCallback((command: () => void) => {
     try {
       importGenerationRef.current += 1;
-      candidateLab.clear();
       command();
       setCommandError(null);
     } catch (error) {
@@ -296,16 +251,15 @@ export function App() {
         error instanceof ManualCommandError ? error.message : "The command could not be applied",
       );
     }
-  }
+  }, []);
 
   /**
    * Returns the whole workspace to its opening state, not just the document:
-   * selection, candidate previews, playback, errors, and the camera framing all
-   * go back to where a fresh session starts.
+   * selection, playback, errors, and the camera framing all go back to where a
+   * fresh session starts.
    */
   function resetScene() {
     importGenerationRef.current += 1;
-    candidateLab.clear();
     setPlaybackPlaying(false);
     setPlaybackPosition(null);
     setDraggedCatalogPartId(null);
@@ -320,7 +274,6 @@ export function App() {
     const queue = saveQueueRef.current;
     saveQueueRef.current = null;
     await (queue?.flush() ?? Promise.resolve()).catch(() => undefined);
-    candidateLab.clear();
     importGenerationRef.current += 1;
     setPlaybackPlaying(false);
     setPlaybackPosition(null);
@@ -391,12 +344,15 @@ export function App() {
     }
   }
 
-  function applyTransaction(transaction: EditorTransaction) {
-    applyBuildOperations(state.document, transaction.operations);
-    dispatch({ type: "applyTransaction", transaction });
-  }
+  const applyTransaction = useCallback(
+    (transaction: EditorTransaction) => {
+      applyBuildOperations(state.document, transaction.operations);
+      dispatch({ type: "applyTransaction", transaction });
+    },
+    [state.document],
+  );
 
-  function addPart() {
+  const addPart = useCallback(() => {
     runCommand(() => {
       const transaction = createAddPartTransaction(state.document, {
         catalogPartId,
@@ -406,7 +362,7 @@ export function App() {
       applyTransaction(transaction);
       dispatch({ type: "selectPart", partId: transaction.partId });
     });
-  }
+  }, [applyTransaction, catalogPartId, colorId, runCommand, state.document, state.selectedPartId]);
 
   function placePart(catalogPartId: string, transform: RigidTransform) {
     runCommand(() => {
@@ -474,7 +430,6 @@ export function App() {
   }
 
   async function importLDraw(file: File) {
-    candidateLab.clear();
     const generation = ++importGenerationRef.current;
     try {
       const text = await readBoundedFileText(
@@ -551,7 +506,6 @@ export function App() {
             disabled={state.undoStack.length === 0}
             onClick={() => {
               importGenerationRef.current += 1;
-              candidateLab.clear();
               dispatch({ type: "undo" });
             }}
           >
@@ -564,7 +518,6 @@ export function App() {
             disabled={state.redoStack.length === 0}
             onClick={() => {
               importGenerationRef.current += 1;
-              candidateLab.clear();
               dispatch({ type: "redo" });
             }}
           >
@@ -733,14 +686,11 @@ export function App() {
             ref={viewportRef}
             document={previewDocument}
             validationReport={report}
-            selectedPartId={candidateLab.selectedCandidate ? null : state.selectedPartId}
-            previewing={candidateLab.selectedCandidate !== null}
+            selectedPartId={state.selectedPartId}
             frameToken={frameToken}
             onDisarm={() => setDraggedCatalogPartId(null)}
             draggedCatalogPartId={draggedCatalogPartId}
-            onSelectPart={(partId) => {
-              if (!candidateLab.selectedCandidate) dispatch({ type: "selectPart", partId });
-            }}
+            onSelectPart={(partId) => dispatch({ type: "selectPart", partId })}
             onPlacePart={placePart}
             onMovePart={movePart}
           />
@@ -806,7 +756,7 @@ export function App() {
           label="Resize the inspector"
         />
 
-        <aside className="panel inspector-panel" aria-label="Inspector and copilot">
+        <aside className="panel inspector-panel" aria-label="Inspector and validation">
           <InspectorPanel
             key={`${selectedPart?.id ?? "none"}:${state.document.revision}`}
             part={selectedPart}
@@ -834,14 +784,6 @@ export function App() {
             onDelete={deleteSelectedPart}
           />
           <ValidationPanel report={documentReport} />
-          <AssistantPanel
-            prompt={assistantPrompt}
-            lab={candidateLab.state}
-            onPromptChange={setAssistantPrompt}
-            onGenerate={() => candidateLab.generate(assistantPrompt)}
-            onSelectCandidate={candidateLab.selectCandidate}
-            onClear={candidateLab.clear}
-          />
         </aside>
       </div>
     </main>

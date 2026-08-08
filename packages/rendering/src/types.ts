@@ -2,6 +2,8 @@ import type { BrickDocumentV1, ValidationReportV1 } from "@lego-studio/protocol"
 import type { MeshAssetResolutionErrorCode } from "@lego-studio/catalog";
 import type { Box3, Camera, Group } from "three";
 
+import type { PartMaterialCache } from "./material-cache.ts";
+
 export type RenderDiagnosticCode =
   | "DUPLICATE_PART_ID"
   | "MALFORMED_VALIDATION_REPORT"
@@ -29,6 +31,14 @@ export interface DeriveBrickSceneOptions {
    * imitates printed booklet art so a render can be compared against one.
    */
   readonly finish?: BrickFinish;
+  /**
+   * Shared part materials that outlive this scene. Supplying one makes the
+   * derived scene a borrower: `dispose()` frees its geometry and its own
+   * overlays but leaves the cache's materials — and therefore their compiled GL
+   * programs — alive for the next derivation. Omit it and the scene owns every
+   * material it makes, which is what a one-shot capture wants.
+   */
+  readonly materialCache?: PartMaterialCache;
 }
 
 export type BrickFinish = "flat" | "presentation" | "instruction";
@@ -41,6 +51,12 @@ export interface DerivedBrickScene {
   readonly documentHash: string;
   readonly validationReport: ValidationReportV1;
   readonly diagnostics: readonly RenderDiagnostic[];
+  /**
+   * The shared material store this scene borrowed from, if any. Carried on the
+   * scene so a later mutation of it — a selection change — retires and rebuilds
+   * overlays under the same borrowing rule the derivation used.
+   */
+  readonly materialCache: PartMaterialCache | undefined;
   readonly disposed: boolean;
   dispose(): void;
 }

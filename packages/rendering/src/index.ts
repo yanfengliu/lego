@@ -8,6 +8,7 @@ export { createCatalogPartGeometry, createPlacementGhost, type GhostVerdict } fr
 export * from "./instruction-finish.ts";
 export * from "./instruction-view.ts";
 export { disposeObjectTree } from "./lifecycle.ts";
+export { createPartMaterialCache, type PartMaterialCache } from "./material-cache.ts";
 export * from "./limits.ts";
 export * from "./render-packet.ts";
 export * from "./scene.ts";

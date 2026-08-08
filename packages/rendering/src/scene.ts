@@ -6,7 +6,7 @@ import {
 } from "@lego-studio/brick-kernel";
 import { validateValidationReportV1 } from "@lego-studio/protocol";
 import type { BrickDocumentV1, ValidationReportV1 } from "@lego-studio/protocol";
-import { Box3, Group, Matrix4 } from "three";
+import { Box3, Group, Matrix4, type Material } from "three";
 
 import {
   RenderTransformError,
@@ -137,7 +137,16 @@ export function deriveBrickScene(
     const blockingIssueCodes = invalidCodes.get(part.id) ?? [];
     let content: Group;
     if (definition) {
-      content = createCatalogPartGeometry(part, definition, includeStuds, diagnostics, finish);
+      content = createCatalogPartGeometry(
+        part,
+        definition,
+        includeStuds,
+        diagnostics,
+        finish,
+        // The default preloaded-mesh resolver; only the cache after it differs.
+        undefined,
+        options.materialCache,
+      );
     } else {
       diagnostics.push({
         code: "UNKNOWN_CATALOG_PART",
@@ -180,10 +189,14 @@ export function deriveBrickScene(
     const partBounds = definition?.boundsLdu ?? PLACEHOLDER_PART_BOUNDS;
     expandTransformedBounds(bounds, partBounds, partObject.matrix);
     if (overlaysVisible && selectedPartIds.has(part.id)) {
-      partObject.add(createPartOverlay(part.id, "selection-overlay", partBounds));
+      partObject.add(
+        createPartOverlay(part.id, "selection-overlay", partBounds, options.materialCache),
+      );
     }
     if (overlaysVisible && blockingIssueCodes.length > 0) {
-      partObject.add(createPartOverlay(part.id, "validation-overlay", partBounds));
+      partObject.add(
+        createPartOverlay(part.id, "validation-overlay", partBounds, options.materialCache),
+      );
     }
     root.add(partObject);
 
@@ -209,13 +222,22 @@ export function deriveBrickScene(
     documentHash,
     validationReport,
     diagnostics,
+    materialCache: options.materialCache,
     get disposed() {
       return disposed;
     },
     dispose() {
       if (disposed) return;
       disposed = true;
-      disposeObjectTree(root);
+      // Geometry, overlays and every material this scene minted itself go. A
+      // cache's materials were only borrowed: disposing one drops three's
+      // refcount on its compiled program to zero, and the next frame blocks
+      // linking a replacement it did not need.
+      const { materialCache } = options;
+      disposeObjectTree(
+        root,
+        materialCache ? (material) => materialCache.owns(material) : undefined,
+      );
       partObjects.clear();
     },
   };
@@ -243,10 +265,17 @@ export function setBrickSceneSelection(
     );
   }
   const selected = new Set(selectedPartIds);
+  const { materialCache } = projection;
+  // Retiring an overlay must not dispose the shared ink the next one is about
+  // to draw with; a disposed material is an invisible selection box.
+  const retainMaterial = materialCache
+    ? (material: Material) => materialCache.owns(material)
+    : undefined;
 
   for (const [partId, partObject] of projection.partObjects) {
     for (const child of [...partObject.children]) {
-      if (child.userData.renderRole === "selection-overlay") disposeObjectTree(child);
+      if (child.userData.renderRole === "selection-overlay")
+        disposeObjectTree(child, retainMaterial);
     }
     const isSelected = selected.has(partId);
     partObject.userData = { ...partObject.userData, selected: isSelected };
@@ -258,6 +287,7 @@ export function setBrickSceneSelection(
         partId,
         "selection-overlay",
         definition?.boundsLdu ?? PLACEHOLDER_PART_BOUNDS,
+        materialCache,
       ),
     );
   }

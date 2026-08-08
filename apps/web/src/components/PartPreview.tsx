@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 import {
   STUD_PITCH_LDU,
   STUD_RADIUS_LDU,
@@ -134,8 +136,14 @@ function sampleWedgePlanBoundary(
  * A derived, dependency-free thumbnail of a catalog part. It reads the same
  * authoritative dimensions the renderer does, so the palette cannot drift from
  * what actually gets placed.
+ *
+ * Memoized because it is a pure function of its props and the palette draws 84
+ * of them: `part` comes from the module-level `PART_DEFINITIONS`, `colorHex` is
+ * a string, and the resolver is the module default unless a test supplies one.
+ * Unmemoized, every unrelated re-render of the app re-projected and re-sorted
+ * every triangle of every thumbnail.
  */
-export function PartPreview({
+export const PartPreview = memo(function PartPreview({
   part,
   colorHex,
   resolveMeshAsset = resolvePreloadedMeshAsset,
@@ -440,4 +448,4 @@ export function PartPreview({
       ))}
     </svg>
   );
-}
+});

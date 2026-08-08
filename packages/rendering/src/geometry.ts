@@ -49,6 +49,7 @@ import {
   type InstructionBox,
   type InstructionSurface,
 } from "./instruction-finish.ts";
+import type { PartMaterialCache } from "./material-cache.ts";
 import type { BrickFinish, RenderDiagnostic } from "./types.ts";
 
 const FALLBACK_COLOR = 0xff2bd6;
@@ -116,19 +117,45 @@ function makeBrickMaterial(displayHex: number, finish: BrickFinish): Material {
   return new MeshStandardMaterial({ color: displayHex, metalness: 0, roughness: 0.42 });
 }
 
+/**
+ * Everything that decides what a part material looks like, and nothing that
+ * does not. The part id is deliberately absent: two parts of the same colour and
+ * finish want the same plastic, and giving them separate materials costs a GL
+ * program relink every time the scene is rebuilt.
+ */
+function materialCacheKey(
+  colorId: string,
+  displayHex: number,
+  fallback: boolean,
+  finish: BrickFinish,
+): string {
+  const hex = displayHex.toString(16).padStart(6, "0");
+  return `${finish}|${colorId}|${fallback ? "fallback" : "exact"}|${hex}`;
+}
+
 function makeMaterial(
   part: PartInstance,
   displayHex: number,
   fallback: boolean,
   finish: BrickFinish,
+  materialCache?: PartMaterialCache,
 ): Material {
-  const material = makeBrickMaterial(displayHex, finish);
-  material.name = `brick-material:${part.id}`;
-  // The display hex travels with the material because an instruction fill is
-  // white plus a baked tone; without it, switching shading off would leave the
-  // part white rather than its own colour.
-  material.userData = { renderRole: "part-material", colorId: part.colorId, fallback, displayHex };
-  return material;
+  const key = materialCacheKey(part.colorId, displayHex, fallback, finish);
+  const create = (): Material => {
+    const material = makeBrickMaterial(displayHex, finish);
+    material.name = `brick-material:${key}`;
+    // The display hex travels with the material because an instruction fill is
+    // white plus a baked tone; without it, switching shading off would leave the
+    // part white rather than its own colour.
+    material.userData = {
+      renderRole: "part-material",
+      colorId: part.colorId,
+      fallback,
+      displayHex,
+    };
+    return material;
+  };
+  return materialCache ? materialCache.acquire(key, create) : create();
 }
 
 /**
@@ -417,6 +444,13 @@ export function createCatalogPartGeometry(
   diagnostics: RenderDiagnostic[],
   finish: BrickFinish = "flat",
   resolveMeshAsset: MeshAssetResolver = resolvePreloadedMeshAsset,
+  /**
+   * Optional shared-material store. Without one, every call mints its own
+   * materials and the caller owns disposing them, which is what a one-shot
+   * capture wants. An interactive viewport passes its own cache so a rebuild
+   * does not destroy and relink the GL programs it is about to need again.
+   */
+  materialCache?: PartMaterialCache,
 ): Group {
   if (definition.geometry.generatorId === "builtin:preloaded-mesh-reference/1") {
     const resolution = resolveMeshAsset(definition.geometry);
@@ -428,7 +462,7 @@ export function createCatalogPartGeometry(
     const group = new Group();
     const metadata = geometryMetadata(definition);
     const { displayHex, fallback } = resolveDisplayHex(part, diagnostics);
-    const material = makeMaterial(part, displayHex, fallback, finish);
+    const material = makeMaterial(part, displayHex, fallback, finish, materialCache);
     const instruction = finish === "instruction";
     const rotation = instruction ? partRotation(part) : null;
     const outlineMaterial = instruction ? createInstructionInkMaterial(displayHex, part.id) : null;
@@ -485,7 +519,7 @@ export function createCatalogPartGeometry(
   const group = new Group();
   const metadata = geometryMetadata(definition);
   const { displayHex, fallback } = resolveDisplayHex(part, diagnostics);
-  const material = makeMaterial(part, displayHex, fallback, finish);
+  const material = makeMaterial(part, displayHex, fallback, finish, materialCache);
   const instruction = finish === "instruction";
   const rotation = instruction ? partRotation(part) : null;
   // One ink material per part, shared by its body and every stud outline, so a
@@ -719,6 +753,12 @@ export function createPartOverlay(
   partId: string,
   renderRole: "selection-overlay" | "validation-overlay",
   bounds: LduBounds = PLACEHOLDER_BOUNDS,
+  /**
+   * Same bargain as a part material. The geometry is per-part — it is the part's
+   * own box — but the ink is one of exactly two colours, and minting it per
+   * overlay meant every selection change destroyed and relinked a GL program.
+   */
+  materialCache?: PartMaterialCache,
 ): LineSegments {
   const width = (bounds.max[0] - bounds.min[0]) * THREE_UNITS_PER_LDU;
   const height = (bounds.max[1] - bounds.min[1]) * THREE_UNITS_PER_LDU;
@@ -727,13 +767,19 @@ export function createPartOverlay(
   const geometry = new EdgesGeometry(sourceGeometry);
   sourceGeometry.dispose();
   geometry.userData = { renderRole: `${renderRole}-geometry` };
-  const material = new LineBasicMaterial({
-    color: renderRole === "selection-overlay" ? 0x43d9ff : 0xff3d52,
-    depthTest: false,
-    transparent: true,
-    opacity: 0.95,
-  });
-  material.userData = { renderRole: `${renderRole}-material` };
+  const createMaterial = (): LineBasicMaterial => {
+    const created = new LineBasicMaterial({
+      color: renderRole === "selection-overlay" ? 0x43d9ff : 0xff3d52,
+      depthTest: false,
+      transparent: true,
+      opacity: 0.95,
+    });
+    created.userData = { renderRole: `${renderRole}-material` };
+    return created;
+  };
+  const material = materialCache
+    ? materialCache.acquire(`overlay|${renderRole}`, createMaterial)
+    : createMaterial();
   const overlay = new LineSegments(geometry, material);
   overlay.name = `${renderRole}:${partId}`;
   overlay.position.copy(lduToThreeVector(boundsCenter(bounds)));

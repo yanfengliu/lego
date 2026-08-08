@@ -4,6 +4,7 @@ import type { BrickDocumentV1, RigidTransform, ValidationReportV1 } from "@lego-
 import {
   createCameraForView,
   createCanonicalViewPacket,
+  createPartMaterialCache,
   deriveBrickScene,
   THREE_UNITS_PER_LDU,
   fitPerspectiveCameraToFrame,
@@ -11,6 +12,7 @@ import {
   setBrickSceneSelection,
   type CanonicalViewPacket,
   type DerivedBrickScene,
+  type PartMaterialCache,
 } from "@lego-studio/rendering";
 import {
   ACESFilmicToneMapping,
@@ -60,7 +62,6 @@ interface BrickViewportProps {
   readonly document: BrickDocumentV1;
   readonly validationReport: ValidationReportV1;
   readonly selectedPartId: string | null;
-  readonly previewing: boolean;
   /** Changing this re-frames the camera; editing the model never does. */
   readonly frameToken: number;
   /** Catalog part being dragged out of the palette, if any. */
@@ -81,6 +82,13 @@ interface ViewportRuntime {
   controls: OrbitControls;
   projection: DerivedBrickScene | null;
   packet: CanonicalViewPacket | null;
+  /**
+   * Shared part materials, owned by the renderer's lifetime rather than by any
+   * one derived scene. Rebuilding the scene per edit used to dispose every part
+   * material and mint replacements, which destroyed and relinked this
+   * renderer's GL programs on each placement.
+   */
+  readonly materialCache: PartMaterialCache;
   /** Covers the model and the ground grid so neither clips while orbiting. */
   sceneRadius: number;
 }
@@ -143,7 +151,6 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
       document,
       validationReport,
       selectedPartId,
-      previewing,
       frameToken,
       draggedCatalogPartId,
       onSelectPart,
@@ -155,7 +162,6 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
   ) {
     const hostRef = useRef<HTMLDivElement>(null);
     const runtimeRef = useRef<ViewportRuntime | null>(null);
-    const previewingRef = useRef(previewing);
     const selectedPartIdRef = useRef(selectedPartId);
     const onSelectPartRef = useRef(onSelectPart);
     const documentRef = useRef(document);
@@ -170,7 +176,6 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
     const framedTokenRef = useRef<number | null>(null);
     const capturePromiseRef = useRef<Promise<Record<string, string>> | null>(null);
 
-    previewingRef.current = previewing;
     selectedPartIdRef.current = selectedPartId;
     onSelectPartRef.current = onSelectPart;
     contextLostRef.current = contextLost;
@@ -331,6 +336,7 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
         controls,
         projection: null,
         packet: null,
+        materialCache: createPartMaterialCache(),
         sceneRadius: GRID_SCENE_RADIUS,
       };
       runtimeRef.current = runtime;
@@ -367,7 +373,7 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
         getPartObjects: () => [...(runtime.projection?.partObjects.values() ?? [])],
         getDraggedCatalogPartId: () => draggedCatalogPartIdRef.current,
         getOrientationId: () => "upright-yaw-0",
-        isSuspended: () => previewingRef.current || contextLostRef.current,
+        isSuspended: () => contextLostRef.current,
         onPlace: (catalogPartId, transform) => onPlacePartRef.current(catalogPartId, transform),
         onMove: (partId, transform) => onMovePartRef.current(partId, transform),
         onDisarm: () => onDisarmRef.current(),
@@ -379,7 +385,7 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
         element: renderer.domElement,
         getCamera: () => runtime.camera,
         getPartObjects: () => [...(runtime.projection?.partObjects.values() ?? [])],
-        isSuspended: () => previewingRef.current || runtime.projection === null,
+        isSuspended: () => runtime.projection === null,
         isPlacing: () => placement.isPlacing,
         getSelectedPartId: () => selectedPartIdRef.current,
         onSelect: (partId) => onSelectPartRef.current(partId),
@@ -421,6 +427,8 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
         renderer.domElement.removeEventListener("webglcontextlost", handleContextLost);
         renderer.domElement.removeEventListener("webglcontextrestored", handleContextRestored);
         runtime.projection?.dispose();
+        // After the last scene that borrows from it, never before.
+        runtime.materialCache.dispose();
         grid.geometry.dispose();
         grid.material.dispose();
         shadowPlate.geometry.dispose();
@@ -441,7 +449,11 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
       let replacement: DerivedBrickScene | null = null;
       let packet: CanonicalViewPacket;
       try {
-        replacement = deriveBrickScene(document, { validationReport, finish: "presentation" });
+        replacement = deriveBrickScene(document, {
+          validationReport,
+          finish: "presentation",
+          materialCache: runtime.materialCache,
+        });
         packet = createCanonicalViewPacket(replacement);
         if (!packet.views[0]) throw new Error("Canonical isometric view is unavailable");
       } catch (error) {
@@ -525,13 +537,8 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
             <span>Choose a part, color, then place it at the origin.</span>
           </div>
         ) : null}
-        {previewing ? <div className="preview-ribbon">Unaccepted candidate preview</div> : null}
         <div className="sr-only" aria-live="polite">
-          {previewing
-            ? "Candidate preview is visible; selection is disabled."
-            : selectedPartId
-              ? `Selected part ${selectedPartId}`
-              : "No part selected"}
+          {selectedPartId ? `Selected part ${selectedPartId}` : "No part selected"}
         </div>
         <div className="viewport-axis" aria-hidden="true">
           <span className="axis-x">X</span>

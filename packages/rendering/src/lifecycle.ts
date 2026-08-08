@@ -8,7 +8,15 @@ function materialTextures(material: Material): readonly Texture[] {
   return [...textures];
 }
 
-export function disposeObjectTree(root: Object3D): void {
+/**
+ * Frees everything a subtree owns. `retainMaterial` names the materials this
+ * subtree only borrowed — a shared cache's, typically — and leaves them and
+ * their textures alone; every other material is disposed as before.
+ */
+export function disposeObjectTree(
+  root: Object3D,
+  retainMaterial?: (material: Material) => boolean,
+): void {
   const objects: Object3D[] = [];
   const geometries = new Set<BufferGeometry>();
   const materials = new Set<Material>();
@@ -26,15 +34,22 @@ export function disposeObjectTree(root: Object3D): void {
       : renderable.material
         ? [renderable.material]
         : [];
-    for (const material of objectMaterials) {
-      materials.add(material);
-      for (const texture of materialTextures(material)) textures.add(texture);
-    }
+    for (const material of objectMaterials) materials.add(material);
   });
+
+  // A retained material keeps its textures: they are the cache's to free, and
+  // disposing one out from under a live material is a blank surface next frame.
+  for (const material of materials) {
+    if (retainMaterial?.(material) === true) continue;
+    for (const texture of materialTextures(material)) textures.add(texture);
+  }
 
   root.removeFromParent();
   for (const object of objects.reverse()) object.clear();
   for (const geometry of geometries) geometry.dispose();
-  for (const material of materials) material.dispose();
+  for (const material of materials) {
+    if (retainMaterial?.(material) === true) continue;
+    material.dispose();
+  }
   for (const texture of textures) texture.dispose();
 }
