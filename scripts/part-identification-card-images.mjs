@@ -194,6 +194,42 @@ export function readCardImages(cardsRoot, manifest, budget = createCardImageDeco
   return images;
 }
 
+/**
+ * Exactly the named cards, each authenticated against the digest its manifest binds.
+ *
+ * A reader that needs the pixels of five cards out of two hundred and sixty-nine
+ * should not inflate the other two hundred and sixty-four to get them. The bound
+ * is the same either way: the manifest is validated whole before this is called,
+ * and each returned card still has to hash to the entry that names it, so a
+ * subset read is as authenticated as the closure — it simply proves less about
+ * the cards it did not open, which is exactly what it claims.
+ */
+export function readBoundCardImages(
+  cardsRoot,
+  manifest,
+  cardIds,
+  budget = createCardImageDecodeBudget(),
+) {
+  const entries = new Map(manifestEntries(manifest));
+  const images = new Map();
+  for (const cardId of cardIds) {
+    const entry = entries.get(cardId);
+    if (entry === undefined || typeof entry.file !== "string") {
+      throw new Error(
+        `Vision card ${JSON.stringify(cardId)} is not one immutable-run entry of the validated cards manifest.`,
+      );
+    }
+    const bytes = readContainedFile(cardsRoot, entry.file, {
+      label: `Vision card ${cardId}`,
+      pathLabel: "Vision card path",
+      maxBytes: MAX_IMAGE_ARTIFACT_BYTES,
+    });
+    budget.charge(cardId, bytes);
+    images.set(cardId, assertOneCard(cardId, entry, bytes));
+  }
+  return images;
+}
+
 /** Encode sorted card id/length/PNG records without base64 inflation or archive ambiguity. */
 export function encodeCardImageBundle(manifest, cardBytes) {
   const entries = manifestEntries(manifest);

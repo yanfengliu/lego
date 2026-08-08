@@ -12,6 +12,12 @@ import {
   readJsonArtifact,
 } from "./part-identification-artifacts.mjs";
 import { PART_IDENTIFICATION_PROMPT_DIGEST } from "./part-identification-prompt.mjs";
+import { handednessVerdicts } from "./part-identification-handedness.mjs";
+import {
+  candidatesNamedInNote,
+  mirrorPairedPicks,
+  mirrorTwinCandidate,
+} from "./part-identification-mirror-pairs.mjs";
 import {
   PART_IDENTIFICATION_MODEL_ID,
   requirePinnedPartIdentificationModel,
@@ -60,12 +66,37 @@ function writeJson(path, value) {
  * published name and colour code on kind, stud size, and colour. The call never
  * sees that metadata, so the third check is not something it can satisfy by
  * asserting.
+ *
+ * Two more stand behind them, and both only ever reject.
+ *
+ * A declared difference means the call is saying the candidate it named is not
+ * the query — a different hand, a different length, a different shade, a
+ * different small feature. That answer proposes nothing, so it claims nothing,
+ * and the reason travels in the label rather than being flattened into a bare
+ * refusal. Only `view` passes through, because two drawings of one part from
+ * different sides are still one part.
+ *
+ * And where the card displayed both hands of a mirror pair, the description
+ * check provably cannot separate them: "wedge 6x2 White" agrees exactly as well
+ * with "Wedge Plate 6 x 2 Right" as with "Wedge Plate 6 x 2 Left", so a swapped
+ * pick would have been stamped trusted and built. Four picks in the last run sat
+ * on that hole. What closes it is the card's own pixels: the query silhouette
+ * matches one hand and matches the other only after being flipped, so the
+ * comparison decides which hand it is without asking the answer anything. A
+ * previous version asked instead that the note name the twin's candidate number,
+ * which cannot separate the hands at all and promoted a swapped pick.
+ *
+ * `handedness` is that verdict, keyed by card id, computed by
+ * `part-identification-handedness.mjs` from bytes the manifest binds. Its
+ * absence is not permission: a mirror-paired pick with no verdict, or with a
+ * verdict that could not decide, stays unpromoted.
  */
-function visionPick(cluster, answers, names, cards) {
+export function visionPick(cluster, answers, names, cards, handedness = null) {
   const answer = answers?.[cluster.clusterIndex] ?? null;
   if (answer === null || answer === undefined) return { elementId: null, picked: "unanswered" };
   const pick = Number(answer.pick ?? 0);
   if (pick === 0) return { elementId: null, picked: "refused" };
+  const differs = answer.differsFromPick ?? "nothing";
   const cardId = `card-${String(cluster.clusterIndex).padStart(4, "0")}`;
   const displayed = cards?.[cardId]?.candidateElementIds;
   if (!Array.isArray(displayed)) {
@@ -73,6 +104,9 @@ function visionPick(cluster, answers, names, cards) {
   }
   if (!Number.isInteger(pick) || pick < 1 || pick > displayed.length) {
     return { elementId: null, picked: "out-of-range" };
+  }
+  if (differs !== "nothing" && differs !== "view") {
+    return { elementId: null, picked: `differs-${differs}` };
   }
   const elementId = displayed[pick - 1];
   if (!(names instanceof Map)) {
@@ -95,7 +129,19 @@ function visionPick(cluster, answers, names, cards) {
           : "description-unverifiable",
     };
   }
-  return { elementId, picked: "vision-kept" };
+  const twin = mirrorTwinCandidate(displayed, names, pick);
+  if (twin !== 0) {
+    const hand =
+      (handedness instanceof Map ? handedness.get(cardId) : handedness?.[cardId]) ?? null;
+    if (hand?.decided !== true) return { elementId: null, picked: "handedness-unverified" };
+    if (hand.hand !== pick) return { elementId: null, picked: "handedness-refuted" };
+  }
+  const second = Number(answer.alsoCouldBe ?? 0);
+  const alsoCouldBe =
+    Number.isInteger(second) && second >= 1 && second <= displayed.length && second !== pick
+      ? displayed[second - 1]
+      : null;
+  return { elementId, picked: "vision-kept", alsoCouldBe };
 }
 
 /**
@@ -126,14 +172,22 @@ export function claimsFor(match, distances, source, answers, options = {}) {
       elementId,
       held: held.get(elementId) ?? 0,
     }));
-    const drawings = match.clusters.map((cluster, row) => ({
-      distanceTo: distances.rows[row],
-      pieces: cluster.pieces,
-      picked:
+    const drawings = match.clusters.map((cluster, row) => {
+      const vision =
         source === "deterministic"
           ? null
-          : visionPick(cluster, answers, options.names, options.cards).elementId,
-    }));
+          : visionPick(cluster, answers, options.names, options.cards, options.handedness);
+      return {
+        distanceTo: distances.rows[row],
+        pieces: cluster.pieces,
+        picked: vision?.elementId ?? null,
+        // A second choice is only carried when the first survived every check.
+        // A rejected answer's runner-up is no more trustworthy than the answer,
+        // so a declared alternative discounts an element only where the call as
+        // a whole was believed.
+        alsoCouldBe: vision?.elementId === null ? null : (vision?.alsoCouldBe ?? null),
+      };
+    });
     const result = assignDrawings(drawings, elements, {
       useQuantities: options.assign === "quantity-informed",
     });
@@ -147,7 +201,7 @@ export function claimsFor(match, distances, source, answers, options = {}) {
     const vision =
       source === "deterministic"
         ? null
-        : visionPick(cluster, answers, options.names, options.cards);
+        : visionPick(cluster, answers, options.names, options.cards, options.handedness);
     const nearest = cluster.candidates[0]?.elementId ?? null;
     const elementId = useAssignment
       ? (chosen.get(cluster.clusterIndex) ?? null)
@@ -368,11 +422,21 @@ export async function commandScore(argv, { option, inventoryHeld, elementNames }
 
   const { held, digest: inventoryDigest } = inventoryHeld();
   const { names, digest: elementResolutionDigest } = elementNames();
+  // The hand is read off the card before anything is claimed, and only for the
+  // cards that display both hands of one part. Everywhere else there is no
+  // mirror question, and inflating 269 rasters to establish that would cost a
+  // minute of every score run for nothing.
+  const mirrorPairs =
+    source === "deterministic" || answers === null
+      ? []
+      : mirrorPairedPicks(match, answers, names, cards?.cards);
+  const handedness = handednessVerdicts(mirrorPairs, cardImages?.images);
   const claims = claimsFor(match, distances, source, answers, {
     assign: assignment,
     held,
     names,
     cards: cards?.cards,
+    handedness,
   });
   const table = conservation(features.callouts, claims, held);
 
@@ -411,6 +475,11 @@ export async function commandScore(argv, { option, inventoryHeld, elementNames }
       }
     }
   }
+
+  const observed =
+    source === "deterministic"
+      ? null
+      : readWhatTheCallObserved(match, answers, claims, names, cards?.cards, handedness);
 
   const truthPath = PART_TRUTH_PATH;
   const truthArtifact = existsSync(truthPath)
@@ -463,6 +532,14 @@ export async function commandScore(argv, { option, inventoryHeld, elementNames }
     conservation: table,
     descriptionAgreement: source === "deterministic" ? null : agreement,
     descriptionDisagreements: disagreements.slice(0, 30),
+    // What the call saw and could not say in the six description fields. This is
+    // the reader the written notes have to have: a booklet icon that was
+    // detected, measured and correctly named, then consumed by nothing for
+    // weeks, is how this repository already inverted the face parity of every
+    // step after it. Collecting text nobody prints is the same failure with a
+    // different field name, so the notes are reported in full rather than
+    // counted.
+    observations: observed,
     firstFiftyAccuracy: accuracy,
   };
   writeJson(join(OUT, `score-${source}-${assignment}.json`), score);
@@ -473,6 +550,15 @@ export async function commandScore(argv, { option, inventoryHeld, elementNames }
       `elements exact ${table.elementsExact}/${table.elementsHeld}`,
       `pieces reconciled ${table.piecesReconciled}/${table.piecesHeld}`,
       `over ${table.piecesOverClaimed} under ${table.piecesUnderClaimed}`,
+      // The observation field is only worth having if a run says out loud how
+      // often it was used. The two mirror numbers are printed separately and
+      // named for what each one measures: "hand read" is the card's pixels
+      // deciding which hand the query is, "pair named" is only that the answer
+      // mentioned the twin's number, which cannot separate the hands at all.
+      observed === null
+        ? "no vision observations"
+        : `notes ${observed.notesWritten}/${observed.answered} | hand read ${observed.handedness.picksWhoseHandWasRead}/${observed.handedness.picksWhoseMirrorWasDisplayed}` +
+          ` (${observed.handedness.picksTheHandRefuted} refuted) | pair named ${observed.mirrorPairAwareness.picksThatNamedTheMirror}/${observed.mirrorPairAwareness.picksWhoseMirrorWasDisplayed}`,
       // "0/0" reads as "nobody labelled this", which is a different problem
       // from labels that exist and no longer bind to any current claim.
       accuracy === null
@@ -543,6 +629,24 @@ export async function commandSummary(argv, helpers) {
         piecesCorrect: score.firstFiftyAccuracy.piecesCorrect,
       },
       descriptionAgreement: score.descriptionAgreement,
+      // Compact here, sentences and all: whether a declared second choice
+      // actually carried a drawing is the one observation number that changes
+      // with the assignment, so the side-by-side table would be blind without
+      // it. The written notes themselves live under `headline.observations`.
+      observations: score.observations && {
+        notesWritten: score.observations.notesWritten,
+        byDifference: score.observations.byDifference,
+        secondChoicesOffered: score.observations.secondChoicesOffered,
+        secondChoicesTaken: score.observations.secondChoicesTaken,
+        picksWhoseMirrorWasDisplayed: score.observations.handedness.picksWhoseMirrorWasDisplayed,
+        // The hand, read from the card. Kept separate from the awareness count
+        // below, which was previously the only mirror number reported and was
+        // read as if it were this one.
+        picksWhoseHandWasRead: score.observations.handedness.picksWhoseHandWasRead,
+        picksTheHandUpheld: score.observations.handedness.picksTheHandUpheld,
+        picksTheHandRefuted: score.observations.handedness.picksTheHandRefuted,
+        picksThatNamedTheMirror: score.observations.mirrorPairAwareness.picksThatNamedTheMirror,
+      },
       visionCoverage: score.visionCoverage,
     });
   }
@@ -606,6 +710,130 @@ function countBy(values) {
   const tally = {};
   for (const value of values) tally[value] = (tally[value] ?? 0) + 1;
   return tally;
+}
+
+/** How many rows of written observation the score file will carry. */
+const MAX_REPORTED_NOTES = 200;
+
+/**
+ * Everything the call said beyond the six description fields, printed.
+ *
+ * `notes` is the point of it. The observation field is optional so that a
+ * written note means the call had something to say, and that only holds if the
+ * ones written are read — a report that counted them and threw the sentences
+ * away would be the collect-and-ignore failure again, one indirection further
+ * out. `notesWritten` sits beside the array so truncation can never masquerade
+ * as silence.
+ *
+ * Two mirror numbers, kept apart because they measure different things and one
+ * of them was being read as the other.
+ *
+ * `handedness` is the hand, decided from the card's own pixels. Four picks in
+ * the previous run sat on a card that displayed both hands of a mirror pair,
+ * where the description check accepts either twin, so a swap was invisible end
+ * to end.
+ *
+ * `mirrorPairAwareness` is only that the answer named the twin's candidate
+ * number in its note. That was once treated as verifying the hand and it does
+ * not: the twin's number is the same number whichever hand was picked, so the
+ * swapped pick satisfies it word for word. The count is kept because noticing
+ * the pair is worth knowing about, under a name that says what it is.
+ */
+export function readWhatTheCallObserved(match, answers, claims, names, cards, handedness = null) {
+  const notes = [];
+  const handedRows = [];
+  const differences = [];
+  let answered = 0;
+  let secondChoicesOffered = 0;
+  let secondChoicesTaken = 0;
+
+  for (const cluster of match.clusters) {
+    const answer = answers?.[cluster.clusterIndex] ?? null;
+    if (answer === null || answer === undefined) continue;
+    answered += 1;
+    differences.push(answer.differsFromPick ?? "absent");
+    const claim = claims.get(cluster.members[0]) ?? null;
+    const cardId = `card-${String(cluster.clusterIndex).padStart(4, "0")}`;
+    const displayed = cards?.[cardId]?.candidateElementIds ?? null;
+    const pickedElement =
+      Array.isArray(displayed) && answer.pick >= 1 && answer.pick <= displayed.length
+        ? displayed[answer.pick - 1]
+        : null;
+    const secondElement =
+      Array.isArray(displayed) && answer.alsoCouldBe >= 1 && answer.alsoCouldBe <= displayed.length
+        ? displayed[answer.alsoCouldBe - 1]
+        : null;
+    if (secondElement !== null) {
+      secondChoicesOffered += 1;
+      if (claim?.elementId === secondElement && claim.elementId !== pickedElement) {
+        secondChoicesTaken += 1;
+      }
+    }
+
+    const twin = mirrorTwinCandidate(displayed, names, answer.pick);
+    if (twin !== 0) {
+      const verdict =
+        (handedness instanceof Map ? handedness.get(cardId) : handedness?.[cardId]) ?? null;
+      handedRows.push({
+        clusterIndex: cluster.clusterIndex,
+        lead: cluster.lead,
+        pick: answer.pick,
+        pickedName: pickedElement === null ? null : (names.get(pickedElement)?.name ?? null),
+        mirrorCandidate: twin,
+        mirrorName: names.get(displayed[twin - 1])?.name ?? null,
+        namedTheMirror: candidatesNamedInNote(answer.note).has(twin),
+        handRead: verdict?.decided === true ? verdict.hand : null,
+        handAgreesWithPick: verdict?.decided === true ? verdict.hand === answer.pick : null,
+        handReason: verdict?.decided === true ? null : (verdict?.reason ?? "no-verdict"),
+        queryAgainstPick: verdict?.queryAgainstPick ?? null,
+        queryAgainstTwin: verdict?.queryAgainstTwin ?? null,
+        mirroredAgainstTwin: verdict?.mirroredAgainstTwin ?? null,
+        queryAsymmetry: verdict?.queryAsymmetry ?? null,
+        margin: verdict?.margin ?? null,
+        picked: claim?.picked ?? null,
+      });
+    }
+
+    if (typeof answer.note === "string" && answer.note.length > 0) {
+      notes.push({
+        clusterIndex: cluster.clusterIndex,
+        lead: cluster.lead,
+        pick: answer.pick,
+        alsoCouldBe: answer.alsoCouldBe,
+        differsFromPick: answer.differsFromPick,
+        confidence: answer.confidence,
+        picked: claim?.picked ?? null,
+        pickedName: pickedElement === null ? null : (names.get(pickedElement)?.name ?? null),
+        note: answer.note,
+      });
+    }
+  }
+
+  return {
+    answered,
+    notesWritten: notes.length,
+    byDifference: countBy(differences),
+    secondChoicesOffered,
+    secondChoicesTaken,
+    handedness: {
+      picksWhoseMirrorWasDisplayed: handedRows.length,
+      picksWhoseHandWasRead: handedRows.filter(({ handRead }) => handRead !== null).length,
+      picksTheHandUpheld: handedRows.filter(({ handAgreesWithPick }) => handAgreesWithPick === true)
+        .length,
+      picksTheHandRefuted: handedRows.filter(
+        ({ handAgreesWithPick }) => handAgreesWithPick === false,
+      ).length,
+      picksTheCardCouldNotSeparate: handedRows.filter(({ handRead }) => handRead === null).length,
+      note: "A pick whose mirror twin sits on the same card cannot be separated from that twin by kind, stud size and colour. The hand is decided from the card's own pixels — the query silhouette against each hand, and against each hand mirrored — and a pick the card cannot separate stays unpromoted rather than being guessed.",
+      rows: handedRows,
+    },
+    mirrorPairAwareness: {
+      picksWhoseMirrorWasDisplayed: handedRows.length,
+      picksThatNamedTheMirror: handedRows.filter(({ namedTheMirror }) => namedTheMirror).length,
+      note: "Only that the answer named the twin's candidate number in its note. This is mirror-pair awareness and not a handedness check: the twin's number is the same number whichever hand was picked, so a swapped pick with the note \"candidate 1 is the mirror\" satisfies it exactly as well as the correct answer. It decides nothing.",
+    },
+    notes: notes.slice(0, MAX_REPORTED_NOTES),
+  };
 }
 
 /**

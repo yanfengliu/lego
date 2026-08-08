@@ -147,6 +147,17 @@ export function assertCanonicalCardPngHeader(bytes, label = "Vision card PNG") {
 
 /** Fully validate the exact non-interlaced RGBA PNG emitted for adjudication cards. */
 export function assertCanonicalCardPng(bytes, label = "Vision card PNG") {
+  return canonicalCardScanlines(bytes, label).dimensions;
+}
+
+/**
+ * The validated card PNG's filtered scanlines, inflated once.
+ *
+ * Split out of `assertCanonicalCardPng` so a reader that needs the pixels does
+ * not walk and inflate the same chunk stream a second time under a second set of
+ * bounds. The validation is unchanged and still the only way to reach the bytes.
+ */
+function canonicalCardScanlines(bytes, label) {
   const dimensions = assertCanonicalCardPngHeader(bytes, label);
   const held = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const idat = [];
@@ -221,5 +232,46 @@ export function assertCanonicalCardPng(bytes, label = "Vision card PNG") {
       `${label} decoded to ${raster.length} scanline bytes or uses an invalid row filter; required exactly ${expectedInflatedBytes} bounded bytes with filters 0..4.`,
     );
   }
-  return dimensions;
+  return { dimensions, raster, rowBytes };
+}
+
+/**
+ * The card's exact RGBA pixels, reconstructed here rather than by a native decoder.
+ *
+ * Everything downstream of this is a measurement that a regression test pins to
+ * three decimal places, so the decode has to produce the same bytes on every
+ * machine. PNG un-filtering is defined losslessly and the guard above has
+ * already restricted the input to 8-bit RGBA with no interlacing, which leaves
+ * exactly the five row filters below and no decoder-specific colour management,
+ * premultiplication or resampling to disagree about.
+ */
+export function decodeCanonicalCardRgba(bytes, label = "Vision card PNG") {
+  const { dimensions, raster, rowBytes } = canonicalCardScanlines(bytes, label);
+  const { width, height } = dimensions;
+  const stride = width * 4;
+  const data = new Uint8Array(stride * height);
+  for (let row = 0; row < height; row += 1) {
+    const filter = raster[row * rowBytes];
+    const from = row * rowBytes + 1;
+    const to = row * stride;
+    const above = to - stride;
+    for (let at = 0; at < stride; at += 1) {
+      const left = at >= 4 ? data[to + at - 4] : 0;
+      const up = row > 0 ? data[above + at] : 0;
+      const upLeft = row > 0 && at >= 4 ? data[above + at - 4] : 0;
+      let predicted = 0;
+      if (filter === 1) predicted = left;
+      else if (filter === 2) predicted = up;
+      else if (filter === 3) predicted = (left + up) >> 1;
+      else if (filter === 4) {
+        const estimate = left + up - upLeft;
+        const toLeft = Math.abs(estimate - left);
+        const toUp = Math.abs(estimate - up);
+        const toUpLeft = Math.abs(estimate - upLeft);
+        predicted = toLeft <= toUp && toLeft <= toUpLeft ? left : toUp <= toUpLeft ? up : upLeft;
+      }
+      data[to + at] = (raster[from + at] + predicted) & 0xff;
+    }
+  }
+  return { width, height, data };
 }

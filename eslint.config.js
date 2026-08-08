@@ -18,9 +18,21 @@ export default tseslint.config(
       // otherwise be linted as if it were repository source, and one probe
       // left behind turns the lint gate red for a reason unrelated to the code.
       "output/**",
-      "var/runs/**",
-      "var/state/**",
+      // The whole of var/, matching .gitignore's `/var/` rather than only the
+      // two children the spec names. Naming runs/ and state/ alone left every
+      // other subdirectory linted: five browser-drive probes dropped in
+      // var/audit/ used `window` and `document` from plain .mjs and turned the
+      // lint gate red on evidence that is not repository source and never
+      // enters Git.
+      "var/**",
       "tmp/**",
+      // Agent worktrees are whole checkouts of this repository nested inside it,
+      // each carrying its own tsconfig. Left visible they do not merely add
+      // files: the type-aware parser finds several candidate project roots and
+      // refuses every file in the repo, so one abandoned worktree fails the lint
+      // gate on sources it does not contain. They are working copies, never
+      // repository source.
+      ".claude/worktrees/**",
     ],
   },
   eslint.configs.recommended,

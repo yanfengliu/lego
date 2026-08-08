@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  validateAcceptanceAuthorizationV1,
   validateActorObservationV1,
   validateArtifactRefV1,
   validateAttemptTranscriptV1,
@@ -11,11 +10,9 @@ import {
   validateGenerationJobRecordV1,
   validateMakerObservationV1,
   validateNativeSealedRunManifestV1,
-  validatePresentedPatchEnvelopeV1,
   validateProviderCapabilitiesV1,
   validateRenderPacketV1,
   validateRunEventV1,
-  type AcceptanceAuthorizationV1,
   type ActorObservationV1,
   type ArtifactRefV1,
   type AttemptTranscriptV1,
@@ -25,7 +22,6 @@ import {
   type GenerationJobRecordV1,
   type MakerObservationV1,
   type NativeSealedRunManifestV1,
-  type PresentedPatchEnvelopeV1,
   type ProviderCapabilitiesV1,
   type RenderPacketV1,
   type RunEventV1,
@@ -284,36 +280,6 @@ const seal = {
   signature: SIGNATURE,
 } as const;
 
-const envelope = {
-  schemaVersion: "lego.presented-patch-envelope/1",
-  namespace: "test",
-  jobId: "job-1",
-  candidateId: "candidate-1",
-  cancellationGeneration: 0,
-  compilerSnapshotHash: HASH,
-  buildProgramHash: HASH,
-  validationReportHash: HASH,
-  candidateState: "presented",
-  patch,
-  issuedAt: "2026-07-09T12:00:00Z",
-  seal,
-} satisfies PresentedPatchEnvelopeV1;
-
-const authorization = {
-  schemaVersion: "lego.acceptance-authorization/1",
-  namespace: "production",
-  authorizationId: "authorization-1",
-  transactionId: "transaction-1",
-  envelopeHash: HASH,
-  baseDocumentHash: HASH,
-  truthSnapshotHash: HASH,
-  browserDeviceKeyId: "device-key-1",
-  cancellationGeneration: 0,
-  issuedEventSequence: 12,
-  issuedEventRoot: HASH,
-  seal: { ...seal, keyId: "production-key-1" },
-} satisfies AcceptanceAuthorizationV1;
-
 const runEvent = {
   schemaVersion: "lego.run-event/1",
   runId: "run-1",
@@ -388,8 +354,6 @@ describe("generation and authority protocol validators", () => {
     expect(validateAttemptTranscriptV1(attempt)).toBe(true);
     expect(validateGenerationJobRecordV1(job)).toBe(true);
     expect(validateCandidateRecordV1(candidate)).toBe(true);
-    expect(validatePresentedPatchEnvelopeV1(envelope)).toBe(true);
-    expect(validateAcceptanceAuthorizationV1(authorization)).toBe(true);
     expect(validateRunEventV1(runEvent)).toBe(true);
     expect(validateNativeSealedRunManifestV1(manifest)).toBe(true);
   });
@@ -431,15 +395,6 @@ describe("generation and authority protocol validators", () => {
         ...attempt,
         terminal: { ...attempt.terminal, postDocumentHash: HASH_B },
       }),
-    ).toBe(false);
-  });
-
-  it("keeps acceptance production-only while allowing test-namespace preview envelopes", () => {
-    expect(validatePresentedPatchEnvelopeV1(envelope)).toBe(true);
-    expect(validateAcceptanceAuthorizationV1({ ...authorization, namespace: "test" })).toBe(false);
-    expect(validatePresentedPatchEnvelopeV1({ ...envelope, candidateState: "ranked" })).toBe(false);
-    expect(
-      validatePresentedPatchEnvelopeV1({ ...envelope, candidateId: "different-candidate" }),
     ).toBe(false);
   });
 

@@ -11,13 +11,17 @@ import {
   readContainedFile,
 } from "./part-identification-io.mjs";
 import { isPinnedModelIdentity } from "./part-identification-model.mjs";
+import {
+  PART_IDENTIFICATION_DIFFERENCES,
+  PART_IDENTIFICATION_MAX_NOTE_LENGTH,
+} from "./part-identification-prompt.mjs";
 import { parseStrictJsonBytes } from "./part-identification-strict-json.mjs";
 
 export const PART_FEATURES_SCHEMA = "lego.part-identification-features/3";
 export const PART_MATCH_SCHEMA = "lego.part-identification-match/2";
 export const PART_DISTANCES_SCHEMA = "lego.part-identification-distances/2";
 export const PART_CARDS_SCHEMA = "lego.part-identification-cards/4";
-export const PART_ANSWERS_SCHEMA = "lego.part-identification-answers/3";
+export const PART_ANSWERS_SCHEMA = "lego.part-identification-answers/4";
 export const PART_SCORE_SCHEMA = "lego.part-identification-score/1";
 export const PART_SCORE_SUMMARY_SCHEMA = "lego.part-identification-score-summary/1";
 export const DESCRIPTOR_GRID_CELLS = 28 * 28;
@@ -36,7 +40,48 @@ const ANSWER_KINDS = new Set([
   "technic",
   "other",
 ]);
-const ANSWER_FIELDS = ["colour", "confidence", "kind", "pick", "studsLong", "studsWide"];
+/**
+ * The keys every answer carries, and the one key it may omit.
+ *
+ * `note` is optional on purpose, and the option is the point. A required
+ * observation field is filled on every card, so two hundred answers would say
+ * "a standard 2x4 plate in Dark Bluish Gray" and bury the five that say
+ * something; leaving it absent makes a written note itself the signal. It is
+ * stored only when non-empty — the ask boundary drops a blank one rather than
+ * retaining a key that means nothing — so a present `note` in a retained bundle
+ * always means the call chose to write.
+ */
+export const ANSWER_FIELDS = [
+  "alsoCouldBe",
+  "colour",
+  "confidence",
+  "differsFromPick",
+  "kind",
+  "pick",
+  "studsLong",
+  "studsWide",
+];
+export const OPTIONAL_ANSWER_FIELDS = ["note"];
+const ANSWER_KEY_SETS = new Set([
+  ANSWER_FIELDS.join(","),
+  [...ANSWER_FIELDS, ...OPTIONAL_ANSWER_FIELDS].sort().join(","),
+]);
+const ANSWER_DIFFERENCES = new Set(PART_IDENTIFICATION_DIFFERENCES);
+/**
+ * A note travels on one line inside one JSON object, so braces and line breaks
+ * are structurally forbidden rather than merely discouraged: the reply is split
+ * per line before it is parsed, and a brace inside the text would carve the
+ * object at the wrong place. Rejecting them here means a malformed note costs
+ * one answer at a boundary that says so, not a silently truncated record.
+ */
+const noteHasForbiddenCharacter = (text) => {
+  for (const character of text) {
+    const code = character.codePointAt(0);
+    if (code < 0x20 || code === 0x7f) return true;
+    if (character === "{" || character === "}") return true;
+  }
+  return false;
+};
 const DESCRIPTOR_FIELDS = [
   "aspect",
   "boxHeight",
@@ -764,19 +809,24 @@ export function boundAnswers(
   const invalidAnswers = answerKeys.filter((key) => !validAnswerRecord(bundle.answers[key]));
   if (invalidAnswers.length > 0) {
     mismatches.push(
-      `answer records ${JSON.stringify(invalidAnswers)} were not null or exact bounded description/pick/confidence objects`,
+      `answer records ${JSON.stringify(invalidAnswers)} were not null or exact bounded ${ANSWER_FIELDS.join("/")} objects with an optional bounded note`,
     );
   }
+  // A second choice is a candidate number exactly as a pick is, so it is held to
+  // the same rule: both have to be numbers the exact bound card actually showed,
+  // or the assignment would discount an element nobody was ever asked about.
   const unseenPicks = answerKeys.filter((key) => {
     const answer = bundle.answers[key];
-    if (answer === null || !validAnswerRecord(answer) || answer.pick === 0) return false;
+    if (answer === null || !validAnswerRecord(answer)) return false;
+    if (answer.pick === 0 && answer.alsoCouldBe === 0) return false;
     const cardId = `card-${String(Number(key)).padStart(4, "0")}`;
     const displayed = cards?.[cardId]?.candidateElementIds;
-    return !Array.isArray(displayed) || answer.pick > displayed.length;
+    if (!Array.isArray(displayed)) return true;
+    return answer.pick > displayed.length || answer.alsoCouldBe > displayed.length;
   });
   if (unseenPicks.length > 0) {
     mismatches.push(
-      `answer records ${JSON.stringify(unseenPicks)} picked candidates that their exact bound cards did not display`,
+      `answer records ${JSON.stringify(unseenPicks)} named picked or second-choice candidates that their exact bound cards did not display`,
     );
   }
   if (mismatches.length > 0) {
@@ -788,34 +838,90 @@ export function boundAnswers(
 function validAnswerRecord(answer) {
   if (answer === null) return true;
   if (typeof answer !== "object" || Array.isArray(answer)) return false;
-  if (Object.keys(answer).sort().join(",") !== ANSWER_FIELDS.join(",")) return false;
-  return (
-    ANSWER_KINDS.has(answer.kind) &&
-    Number.isInteger(answer.studsLong) &&
-    answer.studsLong >= 0 &&
-    answer.studsLong <= 64 &&
-    Number.isInteger(answer.studsWide) &&
-    answer.studsWide >= 0 &&
-    answer.studsWide <= 64 &&
-    typeof answer.colour === "string" &&
-    answer.colour.length >= 1 &&
-    answer.colour.length <= 64 &&
-    Number.isInteger(answer.pick) &&
-    answer.pick >= 0 &&
-    answer.pick <= 64 &&
-    Number.isFinite(answer.confidence) &&
-    answer.confidence >= 0 &&
-    answer.confidence <= 1
-  );
+  if (!ANSWER_KEY_SETS.has(Object.keys(answer).sort().join(","))) return false;
+  if (
+    !ANSWER_KINDS.has(answer.kind) ||
+    !Number.isInteger(answer.studsLong) ||
+    answer.studsLong < 0 ||
+    answer.studsLong > 64 ||
+    !Number.isInteger(answer.studsWide) ||
+    answer.studsWide < 0 ||
+    answer.studsWide > 64 ||
+    typeof answer.colour !== "string" ||
+    answer.colour.length < 1 ||
+    answer.colour.length > 64 ||
+    !Number.isInteger(answer.pick) ||
+    answer.pick < 0 ||
+    answer.pick > 64 ||
+    !Number.isInteger(answer.alsoCouldBe) ||
+    answer.alsoCouldBe < 0 ||
+    answer.alsoCouldBe > 64 ||
+    !Number.isFinite(answer.confidence) ||
+    answer.confidence < 0 ||
+    answer.confidence > 1 ||
+    !ANSWER_DIFFERENCES.has(answer.differsFromPick)
+  ) {
+    return false;
+  }
+  // A second choice that repeats the first is not a second choice, and a second
+  // choice offered where nothing was picked names an alternative to nothing.
+  if (answer.alsoCouldBe !== 0 && (answer.alsoCouldBe === answer.pick || answer.pick === 0)) {
+    return false;
+  }
+  // `pick` and `differsFromPick` are two statements about the same thing, so
+  // they have to agree: refusing every candidate is exactly the case where there
+  // is no pick to differ from, and declaring a difference from a candidate that
+  // was never named describes nothing.
+  if ((answer.pick === 0) !== (answer.differsFromPick === "not-on-card")) return false;
+  if (Object.hasOwn(answer, "note")) {
+    if (
+      typeof answer.note !== "string" ||
+      answer.note.trim().length === 0 ||
+      answer.note.length > PART_IDENTIFICATION_MAX_NOTE_LENGTH ||
+      noteHasForbiddenCharacter(answer.note)
+    ) {
+      return false;
+    }
+  } else if (answer.differsFromPick !== "nothing") {
+    // A declared difference with no sentence is the failure this field exists to
+    // stop: the record would say the pick is wrong and destroy the reason in the
+    // same breath, which is what a bare `pick: 0` did for the two refusals in
+    // the previous run.
+    return false;
+  }
+  return true;
 }
 
 export function assertAnswerRecord(answer, label = "Part-identification answer") {
   if (!validAnswerRecord(answer)) {
     throw new Error(
-      `${label} must be null or an exact bounded kind/studsLong/studsWide/colour/pick/confidence object.`,
+      `${label} must be null or an exact bounded ${ANSWER_FIELDS.join("/")} object, with an optional non-empty ` +
+        `note of at most ${PART_IDENTIFICATION_MAX_NOTE_LENGTH} characters carrying no braces or control characters. ` +
+        `differsFromPick must be one of ${PART_IDENTIFICATION_DIFFERENCES.join(", ")}, must be "not-on-card" exactly ` +
+        'when pick is 0, and must carry a note whenever it is not "nothing"; alsoCouldBe must be 0 or a second, different candidate number.',
     );
   }
   return answer;
+}
+
+/**
+ * Drops a blank note so a retained answer never carries a key that means nothing.
+ *
+ * The whole value of an optional observation field is that a present note means
+ * the call had something to say. A model that emits `"note":""` to satisfy the
+ * shape would erase that, and rejecting the whole answer over an empty string
+ * would throw away a good pick on punctuation, so the blank is removed here — at
+ * the boundary, before the record is validated or stored — rather than tolerated
+ * downstream.
+ */
+export function canonicalAnswerRecord(answer) {
+  if (typeof answer !== "object" || answer === null || Array.isArray(answer)) return answer;
+  if (!Object.hasOwn(answer, "note")) return answer;
+  if (typeof answer.note === "string" && answer.note.trim().length === 0) {
+    return Object.fromEntries(Object.entries(answer).filter(([key]) => key !== "note"));
+  }
+  if (typeof answer.note !== "string") return answer;
+  return answer.note === answer.note.trim() ? answer : { ...answer, note: answer.note.trim() };
 }
 
 export const answerBundle = ({

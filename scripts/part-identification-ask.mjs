@@ -8,6 +8,7 @@ import {
   assertBoundMatchArtifacts,
   assertCardsArtifact,
   boundAnswers,
+  canonicalAnswerRecord,
   readJsonArtifact,
 } from "./part-identification-artifacts.mjs";
 import {
@@ -23,6 +24,8 @@ import {
   PART_IDENTIFICATION_PROMPT_DIGEST,
 } from "./part-identification-prompt.mjs";
 import { parseStrictJsonBytes } from "./part-identification-strict-json.mjs";
+import { MAX_QUOTED_REFUSAL } from "./part-identification-reask.mjs";
+import { quoteLine } from "./generated-file-staleness.mjs";
 import {
   PART_IDENTIFICATION_MODEL_ID,
   requirePinnedPartIdentificationModel,
@@ -137,29 +140,60 @@ async function askBatch(cardIds, model, out = OUT, context = {}) {
   }
   const modelIdentity = responseModelIdentity(payload, model);
   const answers = new Map();
+  const rejected = new Map();
   const duplicates = new Set();
   for (const line of payload.result.split("\n")) {
-    const tag = /(card-\d{4})/u.exec(line);
-    const json = /\{[^{}]*"pick"[^{}]*\}/u.exec(line);
-    if (!tag || !json || !cardIds.includes(tag[1])) continue;
-    if (answers.has(tag[1])) {
+    const opened = line.indexOf("{");
+    const closed = line.lastIndexOf("}");
+    // The card id is read from the text before the JSON starts. Scanning the
+    // whole line would let a written note that mentions another card retag the
+    // answer, which is the one way free text could corrupt a record rather than
+    // merely fail to parse.
+    const tag = /(card-\d{4})/u.exec(opened < 0 ? line : line.slice(0, opened));
+    if (!tag || opened < 0 || closed < opened || !cardIds.includes(tag[1])) continue;
+    if (answers.has(tag[1]) || rejected.has(tag[1])) {
       duplicates.add(tag[1]);
       continue;
     }
     try {
+      // Carving the object with a brace-free regex was safe only while no field
+      // could contain a brace. A note may legally contain one inside its JSON
+      // string, so the whole first-brace-to-last-brace span is handed to the
+      // strict parser instead: it either yields exactly one well-formed object
+      // or it throws, where the regex would have silently produced no match.
       answers.set(
         tag[1],
         assertAnswerRecord(
-          parseStrictJsonBytes(Buffer.from(json[0], "utf8")),
+          canonicalAnswerRecord(
+            parseStrictJsonBytes(Buffer.from(line.slice(opened, closed + 1), "utf8")),
+          ),
           `Answer for ${tag[1]}`,
         ),
       );
-    } catch {
-      // A malformed or schema-invalid line loses one answer, never the batch alignment.
+    } catch (error) {
+      // A malformed or schema-invalid line loses one answer, never the batch
+      // alignment — but it says so. A silent drop reports a whole schema change
+      // as "answered N drawings, N with no usable reply", which reads as a model
+      // that would not answer rather than as a call and a validator that no
+      // longer agree.
+      //
+      // The refused text travels with the reason, because the reason alone is
+      // not enough to act on. A re-ask refused during this session named the
+      // rule it broke and discarded the line, and finding out which rule it had
+      // actually broken cost a second live call — on a reply that turned out to
+      // be correct. Quoted rather than pasted: this is untrusted model output
+      // and an escape or control character in it must be visible, not rendered.
+      rejected.set(
+        tag[1],
+        `${error instanceof Error ? error.message : String(error)} Refused text: ${quoteLine(line, MAX_QUOTED_REFUSAL)}`,
+      );
     }
   }
-  for (const id of duplicates) answers.delete(id);
-  return { answers, modelIdentity };
+  for (const id of duplicates) {
+    answers.delete(id);
+    rejected.delete(id);
+  }
+  return { answers, rejected, modelIdentity };
 }
 
 const cardId = (clusterIndex) => `card-${String(clusterIndex).padStart(4, "0")}`;
@@ -302,6 +336,7 @@ async function commandAsk(argv) {
   );
 
   let done = 0;
+  const rejections = new Map();
   const queue = [...chunks];
   const workers = Array.from({ length: jobs }, async () => {
     for (;;) {
@@ -314,7 +349,10 @@ async function commandAsk(argv) {
         ),
       });
       for (const clusterIndex of chunk) {
-        answers[clusterIndex] = replies.answers.get(cardId(clusterIndex)) ?? null;
+        const id = cardId(clusterIndex);
+        answers[clusterIndex] = replies.answers.get(id) ?? null;
+        const reason = replies.rejected?.get(id);
+        if (reason !== undefined) rejections.set(id, reason);
       }
       if (JSON.stringify(replies.modelIdentity) !== JSON.stringify(expectedModelIdentity)) {
         throw new Error(`Pinned model identity changed while answering ${chunk.join(", ")}.`);
@@ -328,6 +366,16 @@ async function commandAsk(argv) {
   writeAnswers();
   const refused = Object.values(answers).filter((answer) => answer === null).length;
   console.log(`answered ${Object.keys(answers).length} drawings, ${refused} with no usable reply`);
+  // A reply the validator threw out is a different event from a reply that never
+  // arrived, and only one of the two is fixed by asking again. Printing the first
+  // distinct reasons is what makes a prompt and a schema that have drifted apart
+  // visible in the run that produced them.
+  if (rejections.size > 0) {
+    const reasons = [...new Set(rejections.values())].slice(0, 3);
+    console.log(
+      `${rejections.size} replies arrived and were refused by the answer schema; first reasons:\n  ${reasons.join("\n  ")}`,
+    );
+  }
 }
 
 export { PROMPT, askBatch, commandAsk };

@@ -1,7 +1,6 @@
 import type { ErrorObject, ValidateFunction } from "ajv";
 
 import {
-  validateAcceptanceAuthorizationV1 as generatedValidateAcceptanceAuthorizationV1,
   validateActorObservationV1 as generatedValidateActorObservationV1,
   validateArtifactRefV1 as generatedValidateArtifactRefV1,
   validateAssemblyPatchV1 as generatedValidateAssemblyPatchV1,
@@ -19,7 +18,6 @@ import {
   validateGenerationJobRecordV1 as generatedValidateGenerationJobRecordV1,
   validateMakerObservationV1 as generatedValidateMakerObservationV1,
   validateNativeSealedRunManifestV1 as generatedValidateNativeSealedRunManifestV1,
-  validatePresentedPatchEnvelopeV1 as generatedValidatePresentedPatchEnvelopeV1,
   validateProviderCapabilitiesV1 as generatedValidateProviderCapabilitiesV1,
   validateRenderPacketV1 as generatedValidateRenderPacketV1,
   validateRigidTransform as generatedValidateRigidTransform,
@@ -35,7 +33,6 @@ import {
 } from "./generated/validators.generated.js";
 
 import type {
-  AcceptanceAuthorizationV1,
   ActorObservationV1,
   ArtifactRefV1,
   AssemblyPatchV1,
@@ -53,7 +50,6 @@ import type {
   GenerationJobRecordV1,
   MakerObservationV1,
   NativeSealedRunManifestV1,
-  PresentedPatchEnvelopeV1,
   ProviderCapabilitiesV1,
   RenderPacketV1,
   RigidTransform,
@@ -104,8 +100,6 @@ export const SCHEMA_IDS = {
   attemptTranscriptV1: `${ROOT_SCHEMA_ID}#/definitions/AttemptTranscriptV1`,
   generationJobRecordV1: `${ROOT_SCHEMA_ID}#/definitions/GenerationJobRecordV1`,
   candidateRecordV1: `${ROOT_SCHEMA_ID}#/definitions/CandidateRecordV1`,
-  presentedPatchEnvelopeV1: `${ROOT_SCHEMA_ID}#/definitions/PresentedPatchEnvelopeV1`,
-  acceptanceAuthorizationV1: `${ROOT_SCHEMA_ID}#/definitions/AcceptanceAuthorizationV1`,
   runEventV1: `${ROOT_SCHEMA_ID}#/definitions/RunEventV1`,
   nativeSealedRunManifestV1: `${ROOT_SCHEMA_ID}#/definitions/NativeSealedRunManifestV1`,
   testRunBundleManifestV1: `${ROOT_SCHEMA_ID}#/definitions/TestRunBundleManifestV1`,
@@ -315,20 +309,6 @@ export const validateCandidateRecordV1 = withSemanticValidation<CandidateRecordV
           "Candidate program must be content-addressed program data",
         ),
 );
-export const validatePresentedPatchEnvelopeV1 = withSemanticValidation<PresentedPatchEnvelopeV1>(
-  generatedValidatePresentedPatchEnvelopeV1,
-  (value) => {
-    const provenance = value.patch.provenance;
-    return provenance.jobId === value.jobId &&
-      provenance.candidateId === value.candidateId &&
-      provenance.compilerSnapshotHash === value.compilerSnapshotHash &&
-      provenance.buildProgramHash === value.buildProgramHash
-      ? null
-      : semanticError("/patch/provenance", "Presented patch provenance must match its envelope");
-  },
-);
-export const validateAcceptanceAuthorizationV1 =
-  generatedValidateAcceptanceAuthorizationV1 as ProtocolValidator<AcceptanceAuthorizationV1>;
 export const validateRunEventV1 = generatedValidateRunEventV1 as ProtocolValidator<RunEventV1>;
 export const validateDeterministicMakerOutputV1 =
   withSemanticValidation<DeterministicMakerOutputV1>(

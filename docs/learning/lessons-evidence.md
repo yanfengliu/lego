@@ -14,6 +14,25 @@ Splitting the condition into five messages that each name the observed values ex
 
 **Anchor:** fix commit `c068b4c`; `apps/companion/src/run-ledger-file.ts`; 46 failing tests in `run-ledger-adversarial.test.ts` and `test-run-recorder.test.ts`.
 
+## A byte comparison knows only that two files differ
+
+`pin:check` decides staleness by comparing the whole formatted bytes of `run-pin.generated.ts` against what the generator produces, and then reported the failure as a moved run digest.
+On a CRLF checkout it printed `holds sha256:366fefbf… but this build produces sha256:366fefbf…` — the same digest twice — and told the reader to regenerate a value that had not changed.
+The comparison is right and belongs at the byte level; the message was one altitude above it, asserting a cause the comparison cannot see.
+Each of the three `--check` gates now names the domain values that moved when any did, and otherwise says the bytes moved while the meaning did not, with the first differing line.
+
+**Anchor:** 2026-08-07; `scripts/generated-file-staleness.mjs`; the doubled digest is quoted verbatim in `.gitattributes`; guarded by "never prints one pinned value as both held and produced" in `scripts/generated-file-staleness.test.mjs`.
+
+## Naming an ambiguity is not resolving it
+
+The grader stopped promoting a pick when the card displayed both hands of one part, and let it through again once the model's free-text note named the mirror twin by its candidate number.
+That check cannot fail on the case it exists to catch. The twin's number is the same number whichever hand was picked, so feeding `visionPick` the swapped pick on card-0039 with the note `candidate 1 is the mirror` returned `vision-kept` carrying element `6392747` — Wedge Plate 6 x 2 **Left** — identical in label and in element to the correct answer.
+Nothing downstream closed it either: `describesSameThing` never reads Left/Right, and both mirror pairs in this inventory are quantity 1 and 1, so a swapped pick conserves the printed piece counts exactly.
+The block was called `handedness` and the run reported `mirror named 0/4`, so the number read as handedness verified on four cards when it was mirror-pair awareness on four cards.
+The hand is a property of the drawing, so it is now read off the drawing: the query silhouette against each hand and against each hand mirrored, area-normalised, the wider overlap deciding. Same swapped input, same note, now `handedness-refuted` with no element.
+
+**Anchor:** 2026-08-07; `scripts/part-identification-handedness.mjs`; the swap and its before/after label are pinned in `scripts/part-identification-handedness.test.mjs` ("rejects the swapped hand even when the note names the twin by number"), which goes red if the refutation branch is removed.
+
 ## `lstat` and `fstat` do not agree on `dev` across platforms
 
 The ledger checked that a file was not swapped between lookup and open by comparing `dev` and `ino` from `lstat` against the open handle's `fstat`.

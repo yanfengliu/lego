@@ -32,6 +32,8 @@ const answer = (overrides = {}) => ({
   studsWide: 1,
   colour: "black",
   pick: 1,
+  alsoCouldBe: 0,
+  differsFromPick: "nothing",
   confidence: 0.9,
   ...overrides,
 });

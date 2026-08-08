@@ -64,31 +64,6 @@ const projection = rendering.deriveBrickScene(emptyDocument);
 assert.equal(rendering.createCanonicalViewPacket(projection).views.length, 7);
 projection.dispose();
 
-const generation = await import("@lego-studio/generation");
-assert.equal(generation.GENERATION_VERSION, "lego.generation/1");
-assert.match(
-  generation.RANKING_POLICY_HASH,
-  /^sha256:[0-9a-f]{64}$/,
-  "The deterministic maker must expose its pinned ranking-policy hash under Node",
-);
-assert.equal(
-  typeof generation.runDeterministicMakerPopulation,
-  "function",
-  "The bounded deterministic maker population must load under Node",
-);
-
-const harness = await import("@lego-studio/harness");
-assert.match(
-  harness.DOWNSTREAM_REPLAY_POLICY_HASH,
-  /^sha256:[0-9a-f]{64}$/,
-  "The model-agnostic harness must expose its pinned captured-output replay policy",
-);
-assert.equal(
-  typeof harness.replayDeterministicMakerRun,
-  "function",
-  "The captured-output downstream replayer must load under Node",
-);
-
 console.log(
-  `Node consumer contract passed on Node ${process.versions.node}: protocol, catalog, brick-kernel, generation, harness, rendering`,
+  `Node consumer contract passed on Node ${process.versions.node}: protocol, catalog, brick-kernel, rendering`,
 );

@@ -28,7 +28,5 @@ export const validateCandidateProgramSubmissionV1: ValidateFunction<unknown>;
 export const validateAttemptTranscriptV1: ValidateFunction<unknown>;
 export const validateGenerationJobRecordV1: ValidateFunction<unknown>;
 export const validateCandidateRecordV1: ValidateFunction<unknown>;
-export const validatePresentedPatchEnvelopeV1: ValidateFunction<unknown>;
-export const validateAcceptanceAuthorizationV1: ValidateFunction<unknown>;
 export const validateRunEventV1: ValidateFunction<unknown>;
 export const validateNativeSealedRunManifestV1: ValidateFunction<unknown>;

@@ -12,8 +12,6 @@
     "AttemptTranscriptV1",
     "GenerationJobRecordV1",
     "CandidateRecordV1",
-    "PresentedPatchEnvelopeV1",
-    "AcceptanceAuthorizationV1",
     "RunEventV1",
     "NativeSealedRunManifestV1"
   ],
@@ -748,74 +746,6 @@
         "keyId": { "$ref": "#/definitions/Identifier" },
         "keyEpoch": { "type": "integer", "minimum": 0, "maximum": 2147483647 },
         "signature": { "$ref": "#/definitions/Ed25519Signature" }
-      }
-    },
-    "PresentedPatchEnvelopeV1": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "schemaVersion",
-        "namespace",
-        "jobId",
-        "candidateId",
-        "cancellationGeneration",
-        "compilerSnapshotHash",
-        "buildProgramHash",
-        "validationReportHash",
-        "candidateState",
-        "patch",
-        "issuedAt",
-        "seal"
-      ],
-      "properties": {
-        "schemaVersion": { "const": "lego.presented-patch-envelope/1" },
-        "namespace": { "enum": ["production", "test"] },
-        "jobId": { "$ref": "#/definitions/Identifier" },
-        "candidateId": { "$ref": "#/definitions/Identifier" },
-        "cancellationGeneration": { "type": "integer", "minimum": 0, "maximum": 2147483647 },
-        "compilerSnapshotHash": { "$ref": "#/definitions/Hash" },
-        "buildProgramHash": { "$ref": "#/definitions/Hash" },
-        "validationReportHash": { "$ref": "#/definitions/Hash" },
-        "candidateState": { "const": "presented" },
-        "patch": { "$ref": "#/definitions/AssemblyPatchV1" },
-        "issuedAt": { "$ref": "#/definitions/UtcTimestamp" },
-        "seal": { "$ref": "#/definitions/Ed25519SealV1" }
-      }
-    },
-    "AcceptanceAuthorizationV1": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "schemaVersion",
-        "namespace",
-        "authorizationId",
-        "transactionId",
-        "envelopeHash",
-        "baseDocumentHash",
-        "truthSnapshotHash",
-        "browserDeviceKeyId",
-        "cancellationGeneration",
-        "issuedEventSequence",
-        "issuedEventRoot",
-        "seal"
-      ],
-      "properties": {
-        "schemaVersion": { "const": "lego.acceptance-authorization/1" },
-        "namespace": { "const": "production" },
-        "authorizationId": { "$ref": "#/definitions/Identifier" },
-        "transactionId": { "$ref": "#/definitions/Identifier" },
-        "envelopeHash": { "$ref": "#/definitions/Hash" },
-        "baseDocumentHash": { "$ref": "#/definitions/Hash" },
-        "truthSnapshotHash": { "$ref": "#/definitions/Hash" },
-        "browserDeviceKeyId": { "$ref": "#/definitions/Identifier" },
-        "cancellationGeneration": { "type": "integer", "minimum": 0, "maximum": 2147483647 },
-        "issuedEventSequence": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 9007199254740991
-        },
-        "issuedEventRoot": { "$ref": "#/definitions/Hash" },
-        "seal": { "$ref": "#/definitions/Ed25519SealV1" }
       }
     },
     "ReplayClosureCertificateV1": {

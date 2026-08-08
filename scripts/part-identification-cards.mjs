@@ -40,6 +40,12 @@ import {
   verifyRetainedCardImageClosure,
 } from "./part-identification-card-images.mjs";
 import { assertOrdinaryDirectoryPath } from "./part-identification-contained-path.mjs";
+import {
+  CARD_LAYOUT,
+  cardHeightForLayout,
+  cardWidthFor,
+  panelBox,
+} from "./part-identification-handedness.mjs";
 
 const OUT = "output/part-identification";
 const MAX_RETAINED_CARD_RUN_BYTES = 512 * 1024 * 1024;
@@ -56,12 +62,15 @@ async function drawCard(query, candidates, decodeBudget) {
       `Part-identification cards require 1 through 32 candidates; received ${candidates?.length}.`,
     );
   }
-  const cell = 320;
-  const queryHeight = 340;
-  const width = Math.max(cell * candidates.length, 900);
+  // Every panel rectangle below comes from the same declaration the handedness
+  // reader measures with. A card drawn to one layout and scored against another
+  // does not fail loudly — it reads an empty rectangle and calls the hand
+  // undecidable — so the two share one source rather than two copies.
+  const { cell, queryHeight } = CARD_LAYOUT;
+  const width = cardWidthFor(candidates.length);
   const cardDimensions = assertBoundedCanvasDimensions(
     width,
-    queryHeight + cell + 96,
+    cardHeightForLayout(),
     "Part-identification card canvas",
   );
   const sources = [query];
@@ -81,7 +90,7 @@ async function drawCard(query, candidates, decodeBudget) {
   context.font = "bold 22px sans-serif";
   context.fillText("QUERY", 12, 26);
   context.fillText("CANDIDATES", 12, queryHeight + 64);
-  const place = async ({ bytes, expected }, left, top, boxWidth, boxHeight) => {
+  const place = async ({ bytes, expected }, { left, top, width: boxWidth, height: boxHeight }) => {
     const image = await loadImage(bytes);
     if (image.width !== expected.width || image.height !== expected.height) {
       throw new Error(
@@ -97,13 +106,13 @@ async function drawCard(query, candidates, decodeBudget) {
       image.height * scale,
     );
   };
-  await place(prepared[0], 0, 34, width, queryHeight - 44);
+  await place(prepared[0], panelBox(0, candidates.length));
   for (const [index] of candidates.entries()) {
     const left = index * cell;
-    const top = queryHeight + 72;
+    const top = queryHeight + CARD_LAYOUT.candidateTop;
     context.strokeStyle = "#888888";
     context.strokeRect(left + 2, top, cell - 4, cell - 4);
-    await place(prepared[index + 1], left + 6, top + 28, cell - 12, cell - 36);
+    await place(prepared[index + 1], panelBox(index + 1, candidates.length));
     context.fillStyle = "#000000";
     context.font = "bold 24px sans-serif";
     context.fillText(`${index + 1}`, left + 12, top + 24);

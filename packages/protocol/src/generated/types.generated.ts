@@ -24,8 +24,6 @@ export type LegoStudioProtocol =
   | AttemptTranscriptV1
   | GenerationJobRecordV1
   | CandidateRecordV1
-  | PresentedPatchEnvelopeV1
-  | AcceptanceAuthorizationV1
   | RunEventV1
   | NativeSealedRunManifestV1
   | DeterministicMakerOutputV1
@@ -617,40 +615,6 @@ export interface CandidateMetricsV1 {
   intentScore?: number;
   visualScore?: number;
 }
-export interface PresentedPatchEnvelopeV1 {
-  schemaVersion: "lego.presented-patch-envelope/1";
-  namespace: "production" | "test";
-  jobId: Identifier;
-  candidateId: Identifier;
-  cancellationGeneration: number;
-  compilerSnapshotHash: Hash;
-  buildProgramHash: Hash;
-  validationReportHash: Hash;
-  candidateState: "presented";
-  patch: AssemblyPatchV1;
-  issuedAt: UtcTimestamp;
-  seal: Ed25519SealV1;
-}
-export interface Ed25519SealV1 {
-  algorithm: "Ed25519";
-  keyId: Identifier;
-  keyEpoch: number;
-  signature: Ed25519Signature;
-}
-export interface AcceptanceAuthorizationV1 {
-  schemaVersion: "lego.acceptance-authorization/1";
-  namespace: "production";
-  authorizationId: Identifier;
-  transactionId: Identifier;
-  envelopeHash: Hash;
-  baseDocumentHash: Hash;
-  truthSnapshotHash: Hash;
-  browserDeviceKeyId: Identifier;
-  cancellationGeneration: number;
-  issuedEventSequence: number;
-  issuedEventRoot: Hash;
-  seal: Ed25519SealV1;
-}
 export interface RunEventV1 {
   schemaVersion: "lego.run-event/1";
   runId: Identifier;
@@ -694,6 +658,12 @@ export interface ReplayClosureCertificateV1 {
   artifactRoot: Hash;
   requiredArtifactHashes: Hash[];
   verifierVersion: Identifier;
+}
+export interface Ed25519SealV1 {
+  algorithm: "Ed25519";
+  keyId: Identifier;
+  keyEpoch: number;
+  signature: Ed25519Signature;
 }
 export interface DeterministicMakerOutputV1 {
   schemaVersion: "lego.deterministic-maker-output/1";

@@ -2,7 +2,7 @@ export const PART_FEATURES_SCHEMA: "lego.part-identification-features/3";
 export const PART_MATCH_SCHEMA: "lego.part-identification-match/2";
 export const PART_DISTANCES_SCHEMA: "lego.part-identification-distances/2";
 export const PART_CARDS_SCHEMA: "lego.part-identification-cards/4";
-export const PART_ANSWERS_SCHEMA: "lego.part-identification-answers/3";
+export const PART_ANSWERS_SCHEMA: "lego.part-identification-answers/4";
 export const PART_SCORE_SCHEMA: "lego.part-identification-score/1";
 export const PART_SCORE_SUMMARY_SCHEMA: "lego.part-identification-score-summary/1";
 export const DESCRIPTOR_GRID_CELLS: number;
@@ -130,6 +130,9 @@ export function boundAnswers(
   },
 ): Readonly<Record<string, PartIdentificationAnswer | null>>;
 
+export type PartIdentificationDifference =
+  "nothing" | "mirrored" | "size" | "colour" | "view" | "detail" | "not-on-card" | "other";
+
 export interface PartIdentificationAnswer {
   readonly kind:
     "brick" | "plate" | "tile" | "slope" | "wedge" | "arch" | "round" | "technic" | "other";
@@ -137,13 +140,19 @@ export interface PartIdentificationAnswer {
   readonly studsWide: number;
   readonly colour: string;
   readonly pick: number;
+  readonly alsoCouldBe: number;
+  readonly differsFromPick: PartIdentificationDifference;
   readonly confidence: number;
+  /** Present only when the call chose to write; never an empty string. */
+  readonly note?: string;
 }
 
 export function assertAnswerRecord<T extends PartIdentificationAnswer | null>(
   answer: T,
   label?: string,
 ): T;
+
+export function canonicalAnswerRecord<T>(answer: T): T;
 
 export function answerBundle(input: {
   readonly model: string;

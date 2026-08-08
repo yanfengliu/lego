@@ -64,6 +64,27 @@ test("builds a model by clicking the palette and the viewport", async ({ page })
   ).toBe(true);
   // Every placement opened its own step, so the build is replayable.
   expect(observation.document.steps).toHaveLength(3);
+
+  // The canonical capture hook, checked against a real built model rather than
+  // an empty scene. This repository's whole verification story rests on looking
+  // at what it renders, and `capture_model_views()` is the one door to those
+  // pictures — a hook that quietly returned four views would leave every caller
+  // still passing while three viewpoints went unlooked at. The names are spelt
+  // out rather than imported from `CANONICAL_VIEW_NAMES` on purpose: importing
+  // the list would make dropping a view from the constant invisible here.
+  // Source of truth: `packages/rendering/src/cameras.ts`.
+  const captures = await page.evaluate(() => window.capture_model_views!());
+  expect(Object.keys(captures).sort()).toEqual([
+    "back",
+    "front",
+    "isometric",
+    "left",
+    "right",
+    "top",
+    "underside",
+  ]);
+  expect(Object.values(captures).every((value) => value.startsWith("data:image/png"))).toBe(true);
+
   expect(consoleErrors).toEqual([]);
 });
 

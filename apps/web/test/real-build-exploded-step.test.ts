@@ -7,7 +7,7 @@ import {
   documentStructuralHash,
   transformLduPoint,
 } from "@lego-studio/brick-kernel";
-import { createOrthographicViewCamera, dilateMask } from "@lego-studio/rendering";
+import { createOrthographicViewCamera, dilateMask, maskBoundary } from "@lego-studio/rendering";
 
 import {
   arrowTravelFamily,
@@ -59,6 +59,14 @@ const TRAVEL: ArrowDisplacement = {
   lduY: -56,
   lduZ: 0,
   travelPx: 46.17,
+  offLineStuds: 0.003,
+};
+/** The same arrow read one plate short: a near miss, still on the arrow's line. */
+const ONE_PLATE_SHORT: ArrowDisplacement = {
+  lduX: 0,
+  lduY: -48,
+  lduZ: 0,
+  travelPx: 39.57,
   offLineStuds: 0.003,
 };
 
@@ -271,7 +279,6 @@ function panelEvidence(input: {
   readonly regionMask: Uint8Array;
   readonly family?: readonly ArrowDisplacement[];
 }): PanelRasterEvidence {
-  const empty = new Uint8Array(WIDTH * HEIGHT);
   let keyedPx = 0;
   for (let pixel = 0; pixel < input.regionMask.length; pixel += 1) {
     if (input.regionMask[pixel] === 1) keyedPx += 1;
@@ -290,7 +297,13 @@ function panelEvidence(input: {
       closedContourRate: 1,
       keyedPx,
       mask: input.regionMask,
-      strokeMask: empty,
+      // The printed yellow is the boundary of the printed region, and the
+      // region is the silhouette grown outward — so the stroke lies outward of
+      // the part, which is what makes the blended score unusable here. An empty
+      // stroke would make `strokeF1` identically zero and `scoreStepDelta`'s
+      // blend a monotone transform of `regionIou`, and this suite could then
+      // not tell the two ranking keys apart.
+      strokeMask: maskBoundary(input.regionMask, WIDTH, HEIGHT),
     },
     highlightBox: boundsOf(input.regionMask),
     builtMask: rasterise(BASE),
@@ -325,6 +338,19 @@ function settle(input: {
 
 /** The booklet draws the yellow clear of the part; four pixels here, five there. */
 const PRINTED_REGION = dilateMask(ghostMaskFor(DRAWN, TRAVEL), WIDTH, HEIGHT, 4);
+/** The ink itself, which is that region's boundary — not the silhouette's. */
+const PRINTED_STROKE = maskBoundary(PRINTED_REGION, WIDTH, HEIGHT);
+
+/** The panel's highlight in the shape `scoreStepDelta` reads it. */
+function printedHighlight(): Parameters<typeof scoreStepDelta>[1] {
+  return {
+    width: WIDTH,
+    height: HEIGHT,
+    mask: PRINTED_REGION,
+    strokeMask: PRINTED_STROKE,
+    regions: [{ leaked: false }],
+  } as unknown as Parameters<typeof scoreStepDelta>[1];
+}
 
 describe("exploded printed step", () => {
   it("scores the ghost the booklet draws rather than the seat it means", () => {
@@ -332,14 +358,7 @@ describe("exploded printed step", () => {
     // the printed contour rings the ghost, so the drawn placement scored where
     // it seats agrees with it almost not at all, while the same placement drawn
     // back along the arrow reaches the panel's own containment ceiling.
-    const highlight = {
-      width: WIDTH,
-      height: HEIGHT,
-      mask: PRINTED_REGION,
-      strokeMask: new Uint8Array(WIDTH * HEIGHT),
-      regions: [{ leaked: false }],
-    } as unknown as Parameters<typeof scoreStepDelta>[1];
-    const seated = scoreStepDelta(seatedMaskFor(DRAWN), highlight, { tolerancePx: 3 });
+    const seated = scoreStepDelta(seatedMaskFor(DRAWN), printedHighlight(), { tolerancePx: 3 });
     const ghost = measureGhostContainment(ghostMaskFor(DRAWN, TRAVEL), PRINTED_REGION);
     expect(ghost.contained).toBe(true);
     expect(ghost.regionIou).toBe(ghost.containmentCeiling);
@@ -366,6 +385,56 @@ describe("exploded printed step", () => {
     expect(settlement.evidence.bestOutsideRegionPx).toBe(0);
     expect(settlement.evidence.containmentCeiling).toBeLessThan(1);
     expect(settlement.evidence.rendered).toBe(settlement.evidence.wholeStepCandidates);
+  });
+
+  it("decides by containment, which the printed stroke would rank the other way round", () => {
+    // Why this panel cannot be scored by `scoreStepDelta`'s blend, measured
+    // here rather than asserted. The booklet draws the yellow outward of the
+    // part, so the printed stroke is the boundary of the printed *region* and
+    // sits four pixels clear of the silhouette — further than the three-pixel
+    // tolerance can reach. The exactly contained ghost therefore agrees with
+    // the ink not at all, while a ghost read one plate short pushes its own
+    // boundary out into the ink and agrees with it well. The blend rewards the
+    // artist's offset; the region term measures the placement.
+    const highlight = printedHighlight();
+    const truth = ghostMaskFor(DRAWN, TRAVEL);
+    const spilling = ghostMaskFor(DRAWN, ONE_PLATE_SHORT);
+    const truthGhost = measureGhostContainment(truth, PRINTED_REGION);
+    const spillingGhost = measureGhostContainment(spilling, PRINTED_REGION);
+    expect(truthGhost.contained).toBe(true);
+    expect(truthGhost.outsideRegionPx).toBe(0);
+    expect(spillingGhost.contained).toBe(false);
+    expect(spillingGhost.outsideRegionPx).toBeGreaterThan(0);
+
+    // The key the decision actually uses puts them the right way round.
+    expect(truthGhost.regionIou).toBeGreaterThan(spillingGhost.regionIou);
+
+    // The blend puts them the wrong way round, and it is the stroke term that
+    // does it: the contained ghost's boundary lies wholly inside the ink.
+    const truthScore = scoreStepDelta(truth, highlight, { tolerancePx: 3 });
+    const spillingScore = scoreStepDelta(spilling, highlight, { tolerancePx: 3 });
+    expect(highlight.strokeMask.reduce((total, value) => total + value, 0)).toBeGreaterThan(0);
+    expect(truthScore.strokeF1).toBe(0);
+    expect(spillingScore.strokeF1).toBeGreaterThan(0);
+    expect(spillingScore.score).toBeGreaterThan(truthScore.score);
+    // On the printed panel the same comparison is 0.5806463 against 0.5967832,
+    // the contained ghost losing to one spilling 46px of 2793. Here the gap is
+    // wider because the ink is drawn at a uniform four pixels rather than the
+    // booklet's three to fourteen; the direction is the same and it is the
+    // direction that matters.
+
+    // With both readings in the family the step still settles on the placement
+    // the panel was drawn from. It settles because one ghost is contained, not
+    // because one scored highest: were either key swapped for the blend, the
+    // spilling reading would represent this seat and nothing would be contained.
+    const settlement = settle({ regionMask: PRINTED_REGION, family: [TRAVEL, ONE_PLATE_SHORT] });
+    expect(settlement.failure).toBeNull();
+    expect(settlement.evidence.displacements).toBe(2);
+    expect(settlement.evidence.containedCandidates).toBe(1);
+    expect(settlement.evidence.bestOutsideRegionPx).toBe(0);
+    expect(settlement.evidence.bestRegionIou).toBe(settlement.evidence.containmentCeiling);
+    expect(settlement.pieceReports[0]!.positionLdu).toStrictEqual(DRAWN.positionLdu);
+    expect(settlement.pieceReports[0]!.orientationId).toBe(DRAWN.orientationId);
   });
 
   it("refuses a contour loose enough to fit several seats rather than picking one", () => {

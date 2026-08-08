@@ -6,6 +6,7 @@ import { commandAsk } from "./part-identification-ask.mjs";
 import { commandCards } from "./part-identification-cards.mjs";
 import { commandPairsheet, commandSheets } from "./part-identification-sheets.mjs";
 import { commandScore, commandSummary } from "./part-identification-score.mjs";
+import { commandObservations, commandReask } from "./part-identification-observations-run.mjs";
 import {
   contactSheet,
   createPngDecodeBudget,
@@ -35,6 +36,7 @@ import {
   sha256Digest,
 } from "./part-identification-artifacts.mjs";
 import { PART_IDENTIFICATION_MODEL_ID } from "./part-identification-model.mjs";
+import { DEFAULT_MAX_REASKS } from "./part-identification-reask.mjs";
 
 /** Match each step callout to the labelled inventory: geometry proposes, vision may pick, and inventory conservation disposes. */
 
@@ -53,6 +55,8 @@ export function usage() {
     `  ask        [--model ${PART_IDENTIFICATION_MODEL_ID}] [--jobs 6] [--batch 6] [--last-step N]  the vision calls`,
     "  pairsheet  [--source ...] [--assign ...]      callout beside claimed element, to judge",
     "  score      [--source deterministic|adjudicated] [--assign ...]  conservation and accuracy",
+    "  observations [--model M]                      what the call wrote, grouped and read",
+    `  reask      [--model M] [--max ${DEFAULT_MAX_REASKS}]              one narrowed question where two candidates stood`,
     `  summary    [--models ${PART_IDENTIFICATION_MODEL_ID}]  every configuration side by side into score.json`,
     "  sheets                                        contact sheets of hits and misses",
     "  --help                                        print this help and exit successfully",
@@ -481,6 +485,8 @@ const COMMANDS = {
   pairsheet: (argv) => commandPairsheet(argv, helpers),
   score: (argv) => commandScore(argv, helpers),
   summary: (argv) => commandSummary(argv, helpers),
+  observations: (argv) => commandObservations(argv, helpers),
+  reask: (argv) => commandReask(argv, helpers),
   sheets: (argv) => commandSheets(argv, helpers),
 };
 

@@ -2,7 +2,7 @@
 
 A digital brick modeling studio with two surfaces: a precise manual editor for digitally connection- and collision-validated brick assemblies, and a closed loop that reads a printed LEGO instruction booklet and assembles the set it describes, verifying each step against the booklet's own printed panel.
 
-Status: the repository contains a runnable browser studio with integrity-checked local project persistence, strict wire schemas, truth-bound immutable template admission, a project-authored catalog, deterministic assembly kernel, disposable Three.js renderer, exact canonical render-packet validation, a bounded LDraw profile, the booklet reader and printed-panel scoring loop, an unprivileged captured-output replay harness, and the companion package's local content-addressed artifact store plus an unsealed, test-namespace native run ledger and retained run bundle recorder. The authoritative production companion broker surfaces are not implemented. The AI copilot that earlier drafts of the specification described — generating a model from a text brief and accepting scoped patches — was cut on 2026-08-07; see the [cut section](docs/design/spec.md#cut-the-ai-copilot) for what survives it in code and why.
+Status: the repository contains a runnable browser studio with integrity-checked local project persistence, strict wire schemas, truth-bound immutable template admission, a project-authored catalog, deterministic assembly kernel, disposable Three.js renderer, exact canonical render-packet validation, a bounded LDraw profile, the booklet reader and printed-panel scoring loop, and the companion package's local content-addressed artifact store plus an unsealed, test-namespace native run ledger and retained run bundle recorder. The authoritative production companion broker surfaces are not implemented. The AI copilot that earlier drafts of the specification described — generating a model from a text brief and accepting scoped patches — was cut on 2026-08-07; see the [cut section](docs/design/spec.md#cut-the-ai-copilot) for what survives it in code and why.
 
 ## Run it
 
@@ -13,8 +13,6 @@ npm run dev
 
 Open `http://127.0.0.1:5173`. The current studio supports explicit part placement and attachment, precise transforms, recoloring, deletion, undo/redo, live graph/port/collision validation, canonical 3D views, and strict LDraw import/export.
 
-The Candidate population panel is the one surface left over from the cut copilot, and it is a deterministic local lab rather than a generator. It binds a bounded text-only full-empty `BuildBrief` and `ScopeCapability` to the exact current `BrickDocument`, runs the four-attempt maker and a separate same-build digest verifier in parallel module workers, shows ranked hard-valid candidates plus non-selectable duplicate or failure evidence, and previews only the exact selected candidate. It makes no model or network call and never mutates the saved document. Acceptance remains disabled because nothing issues the required one-use authorization.
-
 Run the complete implemented gate set with:
 
 ```powershell
@@ -22,8 +20,6 @@ npm run verify
 ```
 
 `verify` also exercises the shared packages under the supported Node 24 TypeScript-stripping runtime and proves that development automation globals are absent from the production browser bundle.
-
-One digest is pinned rather than derived: the canonical output of a single deterministic maker run, which catches an accidental change to generation, ranking, compilation, or validation. Because a run embeds the document's truth snapshot, every catalog change moves it too. Regenerate it with `npm run pin:generate` and commit `packages/generation/src/run-pin.generated.ts` alongside the catalog change; the failing test says which of the two causes it observed, so a real behavioural change cannot be re-pinned away as routine catalog churn.
 
 ## Design
 

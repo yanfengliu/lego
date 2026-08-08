@@ -37,11 +37,15 @@ function describeLineEndings(text) {
 
 // Quoted rather than printed raw: the difference is often a tab, a trailing
 // space or a byte-order mark, and a bare paste renders those invisible.
-function quoteLine(line) {
+//
+// Exported because a refused model reply wants the same treatment for the same
+// reason, and more strongly: that text is untrusted, so an escape or a control
+// character in it has to be visible rather than rendered. The limit is a
+// parameter because a quoted source line and a quoted JSON reply want different
+// amounts — cutting a reply at 120 characters hides the key that broke it.
+export function quoteLine(line, maxLength = MAX_QUOTED_LINE) {
   if (line === undefined) return "no such line";
-  return JSON.stringify(
-    line.length > MAX_QUOTED_LINE ? `${line.slice(0, MAX_QUOTED_LINE)}…` : line,
-  );
+  return JSON.stringify(line.length > maxLength ? `${line.slice(0, maxLength)}…` : line);
 }
 
 /**

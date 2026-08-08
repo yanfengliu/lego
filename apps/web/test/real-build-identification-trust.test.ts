@@ -67,6 +67,20 @@ describe("identification confidences a placement may be built on", () => {
       "vision-overruled",
       "geometry",
       "unanswered",
+      // A card that displayed both hands of a mirror pair cannot be separated by
+      // kind, stud size and colour, so a pick there is not built on until the
+      // answer names the mirror candidate. Four picks in the last full run were
+      // stamped trusted by a check that provably could not discriminate.
+      "handedness-unverified",
+      // The call declaring that the query differs from the candidate it named is
+      // the call saying that candidate is not the query. It proposes nothing to
+      // build on, and the reason travels in the label rather than being
+      // flattened into a bare refusal.
+      "differs-mirrored",
+      "differs-size",
+      "differs-colour",
+      "differs-detail",
+      "differs-other",
     ]) {
       expect(resolve(refused).failure).toMatchObject({
         code: "untrusted-identification",

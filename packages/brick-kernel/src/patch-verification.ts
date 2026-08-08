@@ -94,8 +94,8 @@ function schemaFailure(
 /**
  * Independently verifies a received unsigned patch against the exact retained
  * base and scope capability. This boundary does not authorize or apply a user
- * document transaction; callers still need a verified presented envelope and
- * one-use acceptance authorization before committing its returned document.
+ * document transaction, and no acceptance path exists to commit its returned
+ * document: a user document changes only through an explicit manual command.
  */
 export function verifyAssemblyPatchAgainstCapability(
   baseValue: unknown,

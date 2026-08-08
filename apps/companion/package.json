@@ -15,8 +15,6 @@
   },
   "devDependencies": {
     "@lego-studio/brick-kernel": "0.0.0",
-    "@lego-studio/catalog": "0.0.0",
-    "@lego-studio/generation": "0.0.0",
-    "@lego-studio/harness": "0.0.0"
+    "@lego-studio/catalog": "0.0.0"
   }
 }

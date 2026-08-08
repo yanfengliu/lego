@@ -6,6 +6,11 @@ import standaloneCode from "ajv/dist/standalone/index.js";
 import { compile } from "json-schema-to-typescript";
 import { format } from "prettier";
 
+// The repository's shared wording for "a generated file no longer matches its
+// generator". This script is dev-time tooling, not part of the package's source
+// graph, so reaching the root scripts directory costs the package nothing.
+import { describeStaleProtocolArtifact } from "../../../scripts/generated-file-staleness.mjs";
+
 const packageDirectory = fileURLToPath(new URL("..", import.meta.url));
 const schemaPath = fileURLToPath(new URL("../schemas/protocol.schema.json", import.meta.url));
 const fragmentDirectory = fileURLToPath(new URL("../schemas/fragments", import.meta.url));
@@ -131,8 +136,6 @@ const validatorDefinitions = {
   validateAttemptTranscriptV1: "AttemptTranscriptV1",
   validateGenerationJobRecordV1: "GenerationJobRecordV1",
   validateCandidateRecordV1: "CandidateRecordV1",
-  validatePresentedPatchEnvelopeV1: "PresentedPatchEnvelopeV1",
-  validateAcceptanceAuthorizationV1: "AcceptanceAuthorizationV1",
   validateRunEventV1: "RunEventV1",
   validateNativeSealedRunManifestV1: "NativeSealedRunManifestV1",
 };
@@ -199,7 +202,7 @@ for (const [filename, expected] of outputs) {
 
   if (checkOnly) {
     stale = true;
-    console.error(`Generated protocol artifact is stale: ${filename}`);
+    console.error(describeStaleProtocolArtifact(filename, actual, expected));
   } else {
     await writeFile(outputPath, expected, "utf8");
     console.log(`Generated ${filename}`);

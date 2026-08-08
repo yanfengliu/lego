@@ -84,6 +84,22 @@ type GhostContainment = {
 // finalizer recomputes everything they produce.
 type BrowserModule = ReturnType<typeof JSON.parse>;
 
+/**
+ * Which of a seat's two ghosts represents the seat: containment first.
+ *
+ * `contained` is the hard test the decision turns on — every ghost pixel inside
+ * the printed contour, with no threshold in it — and `regionIou` is a soft
+ * score. Keeping the largest `regionIou` and then reading *that* member's
+ * `contained` flag mixes them: a seat holding a contained member can be recorded
+ * as uncontained because some other member's larger silhouette scored higher
+ * while spilling outside. So a contained member always represents its seat, and
+ * `regionIou` only separates members that agree on containment.
+ */
+function representsSeat(candidate: GhostContainment, incumbent: GhostContainment): boolean {
+  if (candidate.contained !== incumbent.contained) return candidate.contained;
+  return candidate.regionIou > incumbent.regionIou;
+}
+
 export function settleExplodedPrintedStep<D>(input: {
   readonly spec: RealBuildPanelSpec;
   readonly baseDocument: D;
@@ -310,7 +326,12 @@ export function settleExplodedPrintedStep<D>(input: {
           ghostMask,
           highlight.mask as Uint8Array,
         ) as GhostContainment;
-        if (best === null || containment.regionIou > best.regionIou) best = containment;
+        // Containment decides, `regionIou` only orders — see `representsSeat`.
+        // Measured on printed panel 2 no seat of 105 changes hands, so this
+        // moves no current outcome; it is what makes the set handed to
+        // `decideExplodedGhostPlacement` exactly "seats with a contained
+        // member" rather than a sample of it.
+        if (best === null || representsSeat(containment, best)) best = containment;
       }
       if (best !== null) scored.push({ candidate, containment: best });
     }

@@ -86,10 +86,16 @@ export function assign(cost, rows, columns) {
 }
 
 /** Cost of pairing one callout drawing with one element, before any assignment. */
-export function pairCost(distance, { picked, pieces, held, useQuantities }) {
+export function pairCost(distance, { picked, alsoCouldBe, pieces, held, useQuantities }) {
   // A vision pick is a vote, not a verdict: it lowers the cost of the element it
   // names so the assignment prefers it, and loses to a strong contrary pairing.
-  let cost = distance - (picked ? 0.22 : 0);
+  //
+  // A declared second choice is half a vote. The call is told to offer one only
+  // where two candidates are genuinely hard to separate, and where it does, the
+  // forced single pick was throwing the tie away: the runner-up was indexed
+  // nowhere, so a drawing whose first choice a stronger drawing had already
+  // taken fell back on raw geometry instead of on the alternative it named.
+  let cost = distance - (picked ? 0.22 : alsoCouldBe ? 0.11 : 0);
   if (useQuantities) {
     cost += 0.12 * Math.min(2, Math.abs(Math.log((pieces + 1) / (held + 1))));
   }
@@ -113,6 +119,9 @@ export function assignDrawings(drawings, elements, options) {
     for (let column = 0; column < elements.length; column += 1) {
       cost[row * columns + column] = pairCost(drawings[row].distanceTo[column], {
         picked: drawings[row].picked === elements[column].elementId,
+        alsoCouldBe:
+          drawings[row].alsoCouldBe != null &&
+          drawings[row].alsoCouldBe === elements[column].elementId,
         pieces: drawings[row].pieces,
         held: elements[column].held,
         useQuantities: options.useQuantities,

@@ -92,16 +92,12 @@ export type AttemptFailureTerminalV1 =
 export type GenerationJobRecordV1 = DeepReadonly<Wire.GenerationJobRecordV1>;
 export type CandidateRecordV1 = DeepReadonly<Wire.CandidateRecordV1>;
 export type CandidateMetricsV1 = DeepReadonly<Wire.CandidateMetricsV1>;
-export type PresentedPatchEnvelopeV1 =
-  DeepReadonly<Wire.PresentedPatchEnvelopeV1>;
-export type Ed25519SealV1 = DeepReadonly<Wire.Ed25519SealV1>;
-export type AcceptanceAuthorizationV1 =
-  DeepReadonly<Wire.AcceptanceAuthorizationV1>;
 export type RunEventV1 = DeepReadonly<Wire.RunEventV1>;
 export type NativeSealedRunManifestV1 =
   DeepReadonly<Wire.NativeSealedRunManifestV1>;
 export type ReplayClosureCertificateV1 =
   DeepReadonly<Wire.ReplayClosureCertificateV1>;
+export type Ed25519SealV1 = DeepReadonly<Wire.Ed25519SealV1>;
 export type DeterministicMakerOutputV1 =
   DeepReadonly<Wire.DeterministicMakerOutputV1>;
 export type DeterministicMakerOutputSlotV1 =

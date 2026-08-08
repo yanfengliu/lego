@@ -2,6 +2,8 @@ import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import process from "node:process";
 
+import { describeStaleNotices, noticeRows } from "./generated-file-staleness.mjs";
+
 const root = resolve(import.meta.dirname, "..");
 const lockfilePath = resolve(root, "package-lock.json");
 const noticesPath = resolve(root, "THIRD_PARTY_NOTICES.md");
@@ -65,23 +67,21 @@ const lockfile = JSON.parse(await readFile(lockfilePath, "utf8"));
 const expected = renderNotices(lockfile);
 
 if (process.argv.includes("--check")) {
-  let actual;
+  let actual = null;
   try {
     actual = await readFile(noticesPath, "utf8");
-  } catch {
-    console.error("THIRD_PARTY_NOTICES.md is missing; run the notices generator.");
-    process.exitCode = 1;
+  } catch (error) {
+    // Anything other than "not there" is its own failure and must not be
+    // reported as a missing file: an unreadable notices file needs a different
+    // fix from an ungenerated one.
+    if (error?.code !== "ENOENT") throw error;
   }
 
-  if (actual !== undefined && actual !== expected) {
-    console.error("THIRD_PARTY_NOTICES.md is stale; run the notices generator.");
+  if (actual !== expected) {
+    console.error(describeStaleNotices(actual, expected));
     process.exitCode = 1;
   }
 } else {
   await writeFile(noticesPath, expected, "utf8");
-  console.log(`Wrote ${dependenciesCount(expected)} dependency notices.`);
-}
-
-function dependenciesCount(notices) {
-  return notices.split("\n").filter((line) => line.startsWith("| ")).length - 2;
+  console.log(`Wrote ${noticeRows(expected).size} dependency notices.`);
 }

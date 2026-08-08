@@ -3,21 +3,23 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
+  BUILTIN_COMPILER_SNAPSHOT_HASH,
+  canonicalDigest,
   canonicalStringify,
   createEmptyBrickDocument,
   documentStructuralHash,
+  normalizeScopeCapability,
 } from "@lego-studio/brick-kernel";
 import { COLOR_DEFINITIONS, PART_DEFINITIONS } from "@lego-studio/catalog";
 import {
-  generateDeterministicPrograms,
-  normalizeRestrictedTextBrief,
-  type DeterministicMakerPopulationInput,
-} from "@lego-studio/generation";
-import { captureMakerRunFromCapturedOutput, makerOutputFromPrograms } from "@lego-studio/harness";
-import {
+  PROTOCOL_VERSION,
+  validateDeterministicMakerCaptureManifestV1,
+  validateDeterministicMakerOutputV1,
   validateTestRunBundleHandleV1,
   validateTestRunBundleManifestV1,
   type BuildBriefV1,
+  type DeterministicMakerCaptureManifestV1,
+  type DeterministicMakerOutputV1,
   type ScopeCapabilityV1,
   type TestRunBundleManifestV1,
 } from "@lego-studio/protocol";
@@ -28,9 +30,10 @@ import {
   openTestRunLedger,
   openTestRunRecorder,
   type ArtifactStore,
+  type TestMakerRunRequest,
   type TestRunLedger,
 } from "./index.ts";
-import { canonicalJson } from "./run-ledger-codec.ts";
+import { canonicalJson, sha256 } from "./run-ledger-codec.ts";
 
 const encoder = new TextEncoder();
 const sandboxes: string[] = [];
@@ -41,10 +44,7 @@ async function sandbox(): Promise<string> {
   return path;
 }
 
-function fixture(
-  retainRunArtifacts = true,
-  maxStoredBytes = 16_777_216,
-): DeterministicMakerPopulationInput {
+function fixture(retainRunArtifacts = true, maxStoredBytes = 16_777_216): TestMakerRunRequest {
   const document = createEmptyBrickDocument({
     id: "test-recorder-document",
     name: "Test recorder document",
@@ -102,22 +102,143 @@ function fixture(
   return { jobId: "test-recorder-job", document, brief, scope };
 }
 
-function makerOutput(input: DeterministicMakerPopulationInput) {
-  const normalized = normalizeRestrictedTextBrief(input);
-  if (!normalized.ok) throw new Error(normalized.failure.message);
-  return makerOutputFromPrograms(
-    generateDeterministicPrograms(normalized.brief, normalized.scope.budgets.maxOperations),
-  );
+const PROGRAM = {
+  schemaVersion: "lego.build-program/1",
+  operations: [
+    {
+      kind: "placePart",
+      operationId: "place-1",
+      localPartId: "tower-base",
+      catalogPartId: "builtin:brick-2x4",
+      colorId: "builtin:red",
+      transform: { positionLdu: [0, 12, 0], orientationId: "upright-yaw-0" },
+      submodelId: "root",
+      stepId: "step-1",
+      semanticTags: [],
+    },
+  ],
+} as const;
+
+const PROGRAM_HASH = canonicalDigest(PROGRAM);
+
+/**
+ * Captured maker output, stated rather than generated.
+ *
+ * The deterministic maker that produced bytes in this shape was deleted with the
+ * AI copilot. The recorder under test never ran it — it only ever received the
+ * output as untrusted wire data and re-validated it — so a literal fixture
+ * exercises exactly the boundary that survives, and one slot of each outcome
+ * kind covers both branches of `assertCaptureBindings`.
+ */
+function makerOutput(): DeterministicMakerOutputV1 {
+  const output = {
+    schemaVersion: "lego.deterministic-maker-output/1",
+    makerVersion: "lego.test-recorder-maker/1",
+    slots: [
+      {
+        index: 0,
+        strategyId: "tower-stack",
+        shape: "tower",
+        outcome: { kind: "program", program: PROGRAM, normalizedProgramHash: PROGRAM_HASH },
+      },
+      {
+        index: 1,
+        strategyId: "spire-taper",
+        shape: "spire",
+        outcome: {
+          kind: "generationFailure",
+          failure: {
+            stage: "generation",
+            code: "OPERATION_BUDGET_TOO_SMALL",
+            message: "The operation budget cannot reach the requested height",
+          },
+        },
+      },
+    ],
+  };
+  if (!validateDeterministicMakerOutputV1(output)) {
+    throw new Error("Test recorder fixture is not a valid deterministic maker output");
+  }
+  return output as unknown as DeterministicMakerOutputV1;
 }
 
-function successfulCapture(input: DeterministicMakerPopulationInput, output: unknown) {
-  const result = captureMakerRunFromCapturedOutput(input, output);
-  if (!result.ok) throw new Error(result.failure.message);
-  return result.capture;
+/** A manifest bound to the exact request and output bytes the recorder retains. */
+function captureManifest(
+  input: TestMakerRunRequest,
+  output: DeterministicMakerOutputV1,
+): DeterministicMakerCaptureManifestV1 {
+  const requestJson = canonicalStringify(input);
+  const outputJson = canonicalJson(output);
+  const manifest = {
+    schemaVersion: "lego.deterministic-maker-capture-manifest/1",
+    harnessVersion: "lego.harness/1",
+    namespace: "test",
+    integrity: "unsealed",
+    authenticated: false,
+    boundary: "deterministic-recipe-results",
+    jobId: input.jobId,
+    protocolVersion: PROTOCOL_VERSION,
+    generationVersion: output.makerVersion,
+    compilerSnapshotHash: BUILTIN_COMPILER_SNAPSHOT_HASH,
+    rankingPolicyHash: canonicalDigest({ policy: "test-recorder-ranking" }),
+    replayPolicyHash: canonicalDigest({ policy: "test-recorder-replay" }),
+    baseDocumentHash: documentStructuralHash(input.document),
+    truthSnapshotHash: canonicalDigest(input.document.truth),
+    briefHash: canonicalDigest(input.brief),
+    normalizedBriefHash: canonicalDigest(input.brief),
+    scopeDigest: canonicalDigest(normalizeScopeCapability(input.scope)),
+    requestHash: sha256(requestJson),
+    requestByteLength: Buffer.byteLength(requestJson, "utf8"),
+    capturedProgramsHash: sha256(outputJson),
+    capturedProgramsByteLength: Buffer.byteLength(outputJson, "utf8"),
+    populationHash: canonicalDigest({ population: outputJson }),
+    populationByteLength: outputJson.length,
+    resultOk: true,
+    candidates: [
+      {
+        attemptIndex: 0,
+        candidateId: "candidate-0",
+        strategyId: "tower-stack",
+        status: "hard-valid",
+        failureStage: null,
+        failureCode: null,
+        programHash: PROGRAM_HASH,
+        structuralHash: canonicalDigest({ candidate: 0 }),
+        compilerSnapshotHash: BUILTIN_COMPILER_SNAPSHOT_HASH,
+        patchHash: canonicalDigest({ patch: 0 }),
+        documentHash: canonicalDigest({ document: 0 }),
+        validationReportHash: canonicalDigest({ report: 0 }),
+        metricsHash: canonicalDigest({ metrics: 0 }),
+        rank: 1,
+        candidateDigest: canonicalDigest({ digest: 0 }),
+      },
+      {
+        attemptIndex: 1,
+        candidateId: "candidate-1",
+        strategyId: "spire-taper",
+        status: "failed",
+        failureStage: "generation",
+        failureCode: "OPERATION_BUDGET_TOO_SMALL",
+        programHash: null,
+        structuralHash: null,
+        compilerSnapshotHash: null,
+        patchHash: null,
+        documentHash: null,
+        validationReportHash: null,
+        metricsHash: null,
+        rank: null,
+        candidateDigest: canonicalDigest({ digest: 1 }),
+      },
+    ],
+  };
+  if (!validateDeterministicMakerCaptureManifestV1(manifest)) {
+    throw new Error("Test recorder fixture is not a valid capture manifest");
+  }
+  return manifest as unknown as DeterministicMakerCaptureManifestV1;
 }
 
 async function openRun(
-  input: DeterministicMakerPopulationInput,
+  input: TestMakerRunRequest,
   decorateStore?: (store: ArtifactStore) => ArtifactStore,
 ) {
   const root = await sandbox();
@@ -148,13 +269,13 @@ afterEach(async () => {
 describe("unsealed test-run recorder", () => {
   it("anchors retained request and maker output to an atomic exhausted bundle", async () => {
     const input = fixture();
-    const output = makerOutput(input);
-    const capture = successfulCapture(input, output);
+    const output = makerOutput();
+    const capture = captureManifest(input, output);
     const { ledger, recorder, store } = await openRun(input);
 
     const outputRef = await recorder.recordMakerOutput(canonicalJson(output));
-    const handle = await recorder.finalizeCapture(capture.manifest);
-    const retryHandle = await recorder.finalizeCapture(capture.manifest);
+    const handle = await recorder.finalizeCapture(capture);
+    const retryHandle = await recorder.finalizeCapture(capture);
 
     expect(handle).toEqual(retryHandle);
     expect(validateTestRunBundleHandleV1(handle)).toBe(true);
@@ -168,7 +289,7 @@ describe("unsealed test-run recorder", () => {
       new TextDecoder().decode(await store.read(handle.manifestRef)),
     ) as TestRunBundleManifestV1;
     expect(validateTestRunBundleManifestV1(manifest)).toBe(true);
-    expect(manifest.capture).toEqual(capture.manifest);
+    expect(manifest.capture).toEqual(capture);
     expect(manifest.roles.map(({ role }) => role)).toEqual(["request", "maker-output"]);
     expect(manifest.roles[1]?.artifact).toEqual(outputRef);
     expect(manifest.roles.map(({ sourceEvent }) => sourceEvent.transition)).toEqual([
@@ -182,7 +303,7 @@ describe("unsealed test-run recorder", () => {
     expect(ledger.snapshot()).toMatchObject({
       runState: "exhausted",
       providerAttempts: [{ state: "succeeded" }],
-      candidates: capture.manifest.candidates.map(({ candidateId }) => ({
+      candidates: capture.candidates.map(({ candidateId }) => ({
         id: candidateId,
         state: "archived",
       })),
@@ -192,18 +313,18 @@ describe("unsealed test-run recorder", () => {
         .events()
         .filter(({ transition }) => transition.subject === "candidate")
         .map(({ transition }) => transition.to),
-    ).toEqual(capture.manifest.candidates.flatMap(() => ["received", "archived"]));
+    ).toEqual(capture.candidates.flatMap(() => ["received", "archived"]));
     expect(ledger.events().at(-1)?.artifactRefs).toEqual([handle.manifestRef]);
     await ledger.close();
   });
 
   it("resumes the same run without duplicating events after caller state is lost", async () => {
     const input = fixture();
-    const output = makerOutput(input);
-    const capture = successfulCapture(input, output);
+    const output = makerOutput();
+    const capture = captureManifest(input, output);
     const { ledger, recorder, store } = await openRun(input);
     await recorder.recordMakerOutput(canonicalJson(output));
-    const first = await recorder.finalizeCapture(capture.manifest);
+    const first = await recorder.finalizeCapture(capture);
     const count = ledger.snapshot().eventCount;
 
     const resumed = await openTestRunRecorder({
@@ -216,7 +337,7 @@ describe("unsealed test-run recorder", () => {
       ledger,
     });
     await resumed.recordMakerOutput(canonicalJson(output));
-    const second = await resumed.finalizeCapture(capture.manifest);
+    const second = await resumed.finalizeCapture(capture);
 
     expect(second).toEqual(first);
     expect(ledger.snapshot().eventCount).toBe(count);
@@ -225,13 +346,13 @@ describe("unsealed test-run recorder", () => {
 
   it("rejects capture relabeling before writing candidate or bundle evidence", async () => {
     const input = fixture();
-    const output = makerOutput(input);
-    const capture = successfulCapture(input, output);
+    const output = makerOutput();
+    const capture = captureManifest(input, output);
     const { ledger, recorder } = await openRun(input);
     await recorder.recordMakerOutput(canonicalJson(output));
     const before = ledger.snapshot();
     const relabeled = {
-      ...capture.manifest,
+      ...capture,
       requestHash: `sha256:${"e".repeat(64)}` as const,
     };
 
@@ -244,18 +365,18 @@ describe("unsealed test-run recorder", () => {
 
   it("rejects accessor-bearing capture data without executing it or changing the ledger", async () => {
     const input = fixture();
-    const output = makerOutput(input);
-    const capture = successfulCapture(input, output);
+    const output = makerOutput();
+    const capture = captureManifest(input, output);
     const { ledger, recorder } = await openRun(input);
     await recorder.recordMakerOutput(canonicalJson(output));
     const before = ledger.snapshot();
     let reads = 0;
-    const hostile = { ...capture.manifest } as Record<string, unknown>;
+    const hostile = { ...capture } as Record<string, unknown>;
     Object.defineProperty(hostile, "jobId", {
       enumerable: true,
       get() {
         reads += 1;
-        return capture.manifest.jobId;
+        return capture.jobId;
       },
     });
 
@@ -269,8 +390,8 @@ describe("unsealed test-run recorder", () => {
 
   it("binds capture bytes before candidate events so a crash retry cannot replace them", async () => {
     const input = fixture();
-    const output = makerOutput(input);
-    const capture = successfulCapture(input, output);
+    const output = makerOutput();
+    const capture = captureManifest(input, output);
     let failBundlePut = true;
     const { ledger, recorder, recorderStore, store } = await openRun(input, (base) => ({
       async put(value) {
@@ -280,9 +401,7 @@ describe("unsealed test-run recorder", () => {
       read: (reference) => base.read(reference),
     }));
     await recorder.recordMakerOutput(canonicalJson(output));
-    await expect(recorder.finalizeCapture(capture.manifest)).rejects.toThrow(
-      "injected bundle failure",
-    );
+    await expect(recorder.finalizeCapture(capture)).rejects.toThrow("injected bundle failure");
     expect(ledger.snapshot().runState).toBe("draining");
     failBundlePut = false;
 
@@ -299,7 +418,7 @@ describe("unsealed test-run recorder", () => {
     const before = ledger.snapshot();
     await expect(
       resumed.finalizeCapture({
-        ...capture.manifest,
+        ...capture,
         populationHash: `sha256:${"f".repeat(64)}`,
       }),
     ).rejects.toMatchObject({ code: "INVALID_STATE" });
@@ -406,12 +525,12 @@ describe("unsealed test-run recorder", () => {
 
   it("rejects maker output that would exceed the retained-byte budget before its CAS put", async () => {
     const roomy = fixture();
-    const roomyOutput = makerOutput(roomy);
+    const roomyOutput = makerOutput();
     const limit =
       Buffer.byteLength(canonicalStringify(roomy), "utf8") +
       Math.floor(Buffer.byteLength(canonicalJson(roomyOutput), "utf8") / 2);
     const input = fixture(true, limit);
-    const output = makerOutput(input);
+    const output = makerOutput();
     expect(Buffer.byteLength(canonicalStringify(input), "utf8")).toBeLessThan(limit);
     expect(
       Buffer.byteLength(canonicalStringify(input), "utf8") +
