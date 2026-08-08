@@ -952,6 +952,45 @@ test("fits the camera a printed step panel was drawn with", async ({ page }) => 
   // locked onto a repeat that is not the stud grid — their recovered pitch is
   // between a third and twice the booklet's — and each one says so.
   expect(fitted.length).toBeGreaterThanOrEqual(28);
+
+  // Printed step 4, named because it is the panel that blocked the booklet run
+  // and the one the candidate ranking was fixed on. It is the booklet's first
+  // underside panel and it was refused at 9.11px from the closest axonometric
+  // against the 0.02 gate, on a 92.19px pitch — twice what its neighbours
+  // measure — while its own grid sat second in the candidate list at 0.5% of a
+  // 43.8px pitch, beaten on unit-cell area by a lattice no upright axonometric
+  // view can print.
+  //
+  // Fitting is not the claim; least squares always returns something. The claim
+  // is that what it fits is the camera the panels either side of it measured,
+  // and the printed pitch is the strongest form of it: the booklet rezooms
+  // between panels, but not by 100%.
+  const step3 = reports.find((entry) => entry.stepNumber === 3)!;
+  const step4 = reports.find((entry) => entry.stepNumber === 4)!;
+  const step5 = reports.find((entry) => entry.stepNumber === 5)!;
+  expect(step4.failure).toBeNull();
+  for (const neighbour of [step3, step5]) {
+    expect(neighbour.failure).toBeNull();
+    expect(step4.fit!.pointsPerStud).toBeCloseTo(neighbour.fit!.pointsPerStud, 0);
+    expect(Math.abs(step4.fit!.elevationDegrees - neighbour.fit!.elevationDegrees)).toBeLessThan(3);
+  }
+  // And its grid is its neighbours' reflected in x rather than a repeat of it —
+  // `a` is their `b` mirrored and `b` is their `a` — which is what an underside
+  // panel reads as under a fit that can only report a positive elevation, and
+  // why its azimuth lands near 90 minus theirs instead of on top of them.
+  //
+  // Bounded at 1.5px rather than pinned, and the bound still discriminates: the
+  // measured gaps are 0.10, 0.05, 0.42 and 0.16, while the other reading — step
+  // 4 drawn on the same grid as step 3 rather than its mirror — puts `a` about
+  // 11px away, which is seven times the bound.
+  for (const [measured, mirrored] of [
+    [step4.fit!.aXPx, -step3.fit!.bXPx],
+    [step4.fit!.aYPx, step3.fit!.bYPx],
+    [step4.fit!.bXPx, -step3.fit!.aXPx],
+    [step4.fit!.bYPx, step3.fit!.aYPx],
+  ] as const) {
+    expect(Math.abs(measured - mirrored)).toBeLessThan(1.5);
+  }
   for (const entry of reports) {
     if (entry.failure === null) continue;
     expect(entry.failure.length).toBeGreaterThan(60);
@@ -984,7 +1023,9 @@ test("fits the camera a printed step panel was drawn with", async ({ page }) => 
   expect(score.halvesMeasured).toBeGreaterThan(5);
   expect(score.medianHalfBasisDisagreementPx).toBeLessThan(3);
   // Stability: the booklet holds one camera for a run of steps, and the runs the
-  // fit finds are 1-9, 10-15, 16-34, 36-37 — it turns the model over and back.
+  // fit finds are 1-3, 4, 5-9, 10-15, 16-34, 36-37 — it turns the model over and
+  // back, and printed step 4 is a run of one because it is a single underside
+  // panel between two studs-up ones and so reads as the mirror of both.
   // Inside a run the angles hold to a third of a degree of standard deviation.
   expect(runs.length).toBeGreaterThanOrEqual(3);
   for (const run of runs) {

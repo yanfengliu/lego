@@ -572,6 +572,22 @@ export function studLatticePeaks(
   return peaks.sort((left, right) => right.score - left.score).slice(0, peakCount);
 }
 
+/**
+ * Two grid vectors as an `(a, b)` pair in the canonical orientation.
+ *
+ * Order-dependent, and measured to be losing pairs because of it: peaks come out
+ * of the search below the horizon, where negating one to swap its role would put
+ * it above, so a pair only forms when the right-pointing vector is passed first.
+ * Printed step 7 of the sample booklet is refused for exactly that reason — its
+ * grid steps are (23,19) and (-33,13), the left-pointing one is the picture's
+ * strongest repeat and the right-pointing one only its ninth, so the pair always
+ * arrives left-first and is dropped, and the panel is then refused on the
+ * residual of the pairs that survived. Trying both orders recovers it at 0.2% of
+ * its pitch on the camera its neighbours measured, and is left undone here on
+ * purpose: over the same forty panels the pairs it adds include a lattice at
+ * twice printed step 4's pitch, which then wins that panel's ranking, so the
+ * two changes have to be measured together rather than one at a time.
+ */
 function canonicalPair(first: LatticeVectorPx, second: LatticeVectorPx): LatticeBasisPx | null {
   const rightward = first.xPx >= 0 ? first : { xPx: -first.xPx, yPx: -first.yPx };
   const other = second.xPx <= 0 ? second : { xPx: -second.xPx, yPx: -second.yPx };
@@ -789,13 +805,30 @@ export function fitStudLattice(
   }
 
   // Explained peaks first: a lattice that misses half the repeats is the wrong
-  // lattice however well its own vectors solve. Then the coarsest such lattice,
-  // because every finer one explains those peaks too and would halve the pitch.
-  // The axonometric residual settles what is left, and it is the measurement.
+  // lattice however well its own vectors solve.
+  //
+  // Then whether the lattice is an upright axonometric projection at all, by the
+  // same threshold the fit is gated on below. The coarseness preference under it
+  // exists to stop a finer lattice halving the pitch, and it can only mean that
+  // among readings that are readings: a lattice no axonometric view could print
+  // is not a coarser reading of the picture, it is not a reading of it. Ranking
+  // it first because its cell is bigger is how printed step 4 of the sample
+  // booklet was refused — its own grid sat second in the list at 0.5% of pitch
+  // while an index-2 sublattice of it, explaining exactly as many peaks with
+  // twice the cell, won on coarseness at 10% and carried the panel down with it.
+  // This does not widen the threshold; it consults it one step earlier, where
+  // the candidate is chosen rather than after it has been.
+  //
+  // Then the coarsest such lattice, and the residual settles what is left.
+  const axonometric = (candidate: LatticeCandidate): boolean =>
+    candidate.solution !== null &&
+    candidate.solution.residualPx <= maxResidualFraction * candidate.solution.pixelsPerUnit;
   viable.sort((left, right) => {
     if (right.explainedPeaks !== left.explainedPeaks) {
       return right.explainedPeaks - left.explainedPeaks;
     }
+    const leftFits = axonometric(left);
+    if (leftFits !== axonometric(right)) return leftFits ? -1 : 1;
     if (Math.abs(right.cellAreaPx - left.cellAreaPx) > 1) {
       return right.cellAreaPx - left.cellAreaPx;
     }
