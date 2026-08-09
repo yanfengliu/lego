@@ -76,7 +76,11 @@ A Plate 2x4 is two nested `box5` shells plus studs and tubes, and every number b
 
 `box5` is a box with five faces - open on one side - which is precisely a shell, so LDraw already models the plate the way the standard demands and the catalog flattened it to a filled prism.
 
-**Not yet measured:** the tube's radius. `stud4.dat` is absent from `scripts/ldraw-cache/`, which holds `stud3a.dat` and `stud4od.dat` but not it. That is one missing file, not a missing method, and it is recorded rather than guessed - a tube radius invented here would be the same class of error as the stud radius that read 6.0001514980873605.
+The clutch direction is measured too, not assumed: `plate-2x4` puts its studs at y -4 and its underside clutches at y +4, so the cavity opens toward **+Y** in catalog frame while studs sit at -Y. Catalog axes are swapped against LDraw's - catalog x is the 2-stud width and z the 4-stud length, LDraw the reverse - so the cavity is x half 16, z half 36, y 0..4, and the three tubes sit at z in {-20, 0, 20} with x 0, between the stud rows.
+
+The tube's **inner radius is 6 LDU**, from `stud4od.dat` line 5, `4-4cylo.dat` scaled by 6. It equals the stud radius exactly, which is the clutch itself: an interference fit of a 6 LDU stud into a 6 LDU tube. That the two numbers must agree is now a fact with a file behind it rather than a coincidence.
+
+**Not yet measured:** the tube's OUTER radius. `stud4.dat` is absent from `scripts/ldraw-cache/`, which holds `stud3a.dat` and `stud4od.dat` but not it. That is one missing file, not a missing method, and it is recorded rather than guessed - a tube radius invented here would be the same class of error as the stud radius that read 6.0001514980873605.
 
 **1 — Extend the standard.** Add the rules the current four do not cover: the render silhouette agrees with the expanded LDraw surface from all seven canonical views within a stated tolerance; `bodyBoundsLdu` equals the drawn extent; collision primitives cover the body and no more. Expect the violation count to *rise* above 82; a standard that finds less after being sharpened was not sharpened.
 
