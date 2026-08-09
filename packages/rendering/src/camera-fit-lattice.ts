@@ -582,11 +582,49 @@ export function studLatticePeaks(
  * grid steps are (23,19) and (-33,13), the left-pointing one is the picture's
  * strongest repeat and the right-pointing one only its ninth, so the pair always
  * arrives left-first and is dropped, and the panel is then refused on the
- * residual of the pairs that survived. Trying both orders recovers it at 0.2% of
- * its pitch on the camera its neighbours measured, and is left undone here on
- * purpose: over the same forty panels the pairs it adds include a lattice at
- * twice printed step 4's pitch, which then wins that panel's ranking, so the
- * two changes have to be measured together rather than one at a time.
+ * residual of the pairs that survived.
+ *
+ * Making it order-free is three lines — put each vector below the horizon, where
+ * its sign is unique, then read the roles off the signs of `x` — and it is still
+ * left undone, but no longer for want of the joint measurement the note here used
+ * to ask for. **That measurement has been taken**, over the nineteen sampled
+ * panels in `output/zzz-lattice`, and what it found is that the obstruction is
+ * not the pairing and not the ordering of the comparator below:
+ *
+ * - Order-free pairing does recover printed step 7's own grid, at 0.21% of its
+ *   pitch and az 55.2 / el 34.9 against neighbours at 54.2-55.1 / 34.5-35.2.
+ * - It also admits printed step 4's `a=(14,6) b=(-25,21)`, a lattice built on
+ *   the fifth-of-a-pitch repeat that panel draws along one grid direction. That
+ *   candidate counts **seven** of the panel's sixteen peaks against **six** for
+ *   the panel's own grid, so it wins the first ranking key outright while
+ *   sitting 23.75% of pitch from any axonometric projection against 0.47%, and
+ *   printed step 4 goes from fitted to refused.
+ * - Printed step 4's own grid is second on *every* key that separates it from
+ *   the fine lattice. It is beaten on harmonic response — the module's own
+ *   whole-picture measure, which `refineBasis` already maximises — by its own
+ *   index-4 superlattice `a=(72,29) b=(-50,41)` at exactly twice its pitch,
+ *   0.1622 against 0.1401. So peaks-then-harmonics keeps the superlattice out
+ *   and lets the fine lattice in, and harmonics-then-peaks does the reverse.
+ * - Printability first fixes both and destroys the gate: it pre-selects a
+ *   candidate the final residual check is guaranteed to accept, and all forty
+ *   sampled panels then "fitted", including ones reporting 10.6, 21.0 and 77.2
+ *   points per stud against the booklet's 16.1.
+ * - `coherence` first — the autocorrelation strength of the two repeats the pair
+ *   is built from — looked like the answer and is refuted by the strongest
+ *   evidence available. It scores 17 of 17 on the sampled printed panels,
+ *   recovers printed step 7 *and* keeps printed step 4, and lifts the fitted
+ *   count to 34 of 40. It also puts a **synthetically drawn** grid's azimuth at
+ *   79.0 degrees where the test drew it at 34.0, failing eleven of this module's
+ *   twenty tests. Ground truth by construction beats agreement with neighbours.
+ *
+ * So what is missing is a per-candidate measurement that separates a stud grid
+ * from a repeat that is not one, and none of `explainedPeaks`, `cellAreaPx`,
+ * `residualPx`, `harmonicScore` or `coherence` is it. The panel harness already
+ * computes something that does look like one — `foldedStudShape`'s radial
+ * contrast, 1.51 on accepted panels against 1.33 on refused — and it is computed
+ * once for the chosen basis rather than for each candidate. That is the next
+ * thing to try, and whatever it is must be checked against the synthetic grids
+ * in this module's own tests before any panel is scored with it.
  */
 function canonicalPair(first: LatticeVectorPx, second: LatticeVectorPx): LatticeBasisPx | null {
   const rightward = first.xPx >= 0 ? first : { xPx: -first.xPx, yPx: -first.yPx };
@@ -668,13 +706,29 @@ export function reduceToAxonometricBasis(
   return best;
 }
 
+/**
+ * How many of the picture's repeats a lattice actually has a site at.
+ *
+ * The lattice's own origin is not one of them, and saying so is not a
+ * refinement. Every lattice has a site at (0, 0) and the autocorrelation peak it
+ * would be matched against is at a nonzero offset, so a peak "explained" by the
+ * origin is a repeat the lattice does not have. The tolerance is a fraction of
+ * the cell, so a coarse candidate's catchment around the origin is physically
+ * large and it collects short repeats wholesale: printed step 7 of the sample
+ * booklet had a 2448px-cell candidate counting the peaks at (-8,3) and (-13,5)
+ * as its origin, 8.5px and 13.9px away on a picture whose grid step is 40px, and
+ * printed step 4 had a 4402px-cell candidate counting (8,3) at 8.5px. Both then
+ * outranked the panel's own grid on peak count.
+ */
 function countExplained(basis: LatticeBasisPx, peaks: readonly LatticePeak[]): number {
   const determinant = basis.a.xPx * basis.b.yPx - basis.a.yPx * basis.b.xPx;
   let explained = 0;
   for (const peak of peaks) {
     const m = (peak.vector.xPx * basis.b.yPx - peak.vector.yPx * basis.b.xPx) / determinant;
     const n = (basis.a.xPx * peak.vector.yPx - basis.a.yPx * peak.vector.xPx) / determinant;
-    if (Math.abs(m - Math.round(m)) < 0.16 && Math.abs(n - Math.round(n)) < 0.16) explained += 1;
+    if (Math.abs(m - Math.round(m)) >= 0.16 || Math.abs(n - Math.round(n)) >= 0.16) continue;
+    if (Math.round(m) === 0 && Math.round(n) === 0) continue;
+    explained += 1;
   }
   return explained;
 }
@@ -818,6 +872,20 @@ export function fitStudLattice(
   // twice the cell, won on coarseness at 10% and carried the panel down with it.
   // This does not widen the threshold; it consults it one step earlier, where
   // the candidate is chosen rather than after it has been.
+  //
+  // Three other keys were tried above the peak count and all three are refuted;
+  // `canonicalPair` above carries the numbers. In summary: printability first
+  // removes the fit's ability to refuse, because it pre-selects a candidate the
+  // final gate is guaranteed to accept, and all forty sampled panels then
+  // "fitted" including ones reporting 10.6, 21.0 and 77.2 points per stud
+  // against the booklet's 16.1. Harmonic response first promotes printed step
+  // 4's own index-4 superlattice, at exactly twice its pitch. And `coherence`
+  // first — the strength of the two repeats the basis is built from, which reads
+  // like the picture's own evidence and scores 17 of 17 on the sampled printed
+  // panels — puts the azimuth of a *synthetically drawn* grid at 79.0 degrees
+  // where it was drawn at 34.0, and takes eleven of this module's twenty tests
+  // with it. A ranking that a controlled grid falsifies is not a ranking,
+  // whatever it scores on pictures whose answer is only known by consensus.
   //
   // Then the coarsest such lattice, and the residual settles what is left.
   const axonometric = (candidate: LatticeCandidate): boolean =>

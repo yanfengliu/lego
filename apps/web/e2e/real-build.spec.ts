@@ -542,9 +542,17 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
     explodedGhostRenderBudget: 4_096,
     // Printed step 4 defers because its own panel cannot separate its best
     // two placements, and narrowing against that same panel is what keeps its
-    // 240 x 334 product finite. Sized from the same measured render cost as
-    // the budget above: about a minute and a half.
-    deferredNarrowingRenderBudget: 4_096,
+    // 240 x 334 product finite.
+    //
+    // 4096 could not bind on printed step 6, whose four pieces narrow
+    // 1 of 187, then 2 of 534, then 2 of 627, then 10 of 553 — 4187 renders,
+    // eighty behind the ceiling. Like `maxRendersPerPiece` above this is a cost
+    // ceiling and not a correctness bar: exceeding it refuses rather than
+    // truncating, so no step is ever narrowed against a set that was silently
+    // cut, and nothing about which candidate wins changes with it. Sized from
+    // the same measured render cost of about 21ms, 8192 is roughly three minutes
+    // of rendering for one printed step.
+    deferredNarrowingRenderBudget: 8_192,
     minimumDeferredAgreementMargin: DEFERRED_STEP_MINIMUM_MARGIN,
     minimumDeferredAgreement: DEFERRED_STEP_MINIMUM_AGREEMENT,
     proximityMarginPx: 14,

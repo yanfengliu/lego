@@ -440,6 +440,11 @@ function isDeferralEvidence(value: unknown): boolean {
       "ownPanelMinimumMargin",
       "lookaheadStepNumber",
       "reachSteps",
+      "lookaheadUpSign",
+      "lookaheadMeasure",
+      "lookaheadTurnDegrees",
+      "lookaheadTurnAnchorIou",
+      "lookaheadTurnMargin",
       "wholeStepCandidates",
       "rendered",
       "lookaheadBuiltPixels",
@@ -463,6 +468,24 @@ function isDeferralEvidence(value: unknown): boolean {
     (value.lookaheadStepNumber === null ||
       isBoundedInteger(value.lookaheadStepNumber, 1_000_000)) &&
     isBoundedInteger(value.reachSteps, 1_000_000) &&
+    (value.lookaheadUpSign === null ||
+      value.lookaheadUpSign === 1 ||
+      value.lookaheadUpSign === -1) &&
+    (value.lookaheadMeasure === null ||
+      value.lookaheadMeasure === "iou" ||
+      value.lookaheadMeasure === "containment") &&
+    isNullableFiniteNumber(value.lookaheadTurnDegrees) &&
+    isNullableFiniteNumber(value.lookaheadTurnAnchorIou) &&
+    isNullableFiniteNumber(value.lookaheadTurnMargin) &&
+    // A settled deferral rendered its candidates through some camera, so it
+    // knows which face and which quarter turn that camera was at. Reporting
+    // `settled` without them is the claim this pair exists to make checkable:
+    // the run that could not say either rendered every candidate upright at
+    // turn zero and did not know it.
+    (!value.settled ||
+      (value.lookaheadUpSign !== null &&
+        value.lookaheadMeasure !== null &&
+        isFiniteNumber(value.lookaheadTurnDegrees))) &&
     isBoundedInteger(value.wholeStepCandidates, Number.MAX_SAFE_INTEGER) &&
     isBoundedInteger(value.rendered, Number.MAX_SAFE_INTEGER) &&
     isBoundedInteger(value.lookaheadBuiltPixels, Number.MAX_SAFE_INTEGER) &&

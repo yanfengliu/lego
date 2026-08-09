@@ -406,14 +406,24 @@ describe("deferred printed step", { timeout: 30_000 }, () => {
   });
 
   /**
+   * A lookahead panel whose highlight encloses nothing is still evidence, and
+   * this used to refuse it.
+   *
    * Printed step 5 of this booklet outlines two pieces that run under the
-   * assembly, and neither contour closes: the panel yields 1429px of stroke and
-   * no filled region. Without the filled region nothing but that outline is
-   * excluded, so the pieces panel 5 places stay inside the art step 4 has to
-   * explain and no prefix can reach any bar. Measured there: the settled 3-step
-   * prefix alone leaves 11,447 built-only pixels of 21,442.
+   * assembly, and neither contour closes: 1429px of stroke and no filled region.
+   * Printed step 7 draws two more, 1338px enclosing nothing, and that is where it
+   * bit — printed step 6 defers to it. Without a filled region nothing but the
+   * outline is excluded, so what panel N+1 shows is what step N built *plus* the
+   * pieces panel N+1 places: a superset of anything a step-N candidate can draw.
+   * Equality is then the wrong question, so the measure becomes containment and
+   * the term charging a candidate for ink no candidate could own is dropped —
+   * the same correction `rankStepDelta` makes on an open contour.
+   *
+   * What must not be dropped with it is falsifiability, which is the second half
+   * of this test: a candidate whose pieces sit outside the panel's built art
+   * still loses, because containment is what it fails.
    */
-  it("refuses a lookahead panel whose highlight encloses no region to exclude", () => {
+  it("scores a lookahead panel whose highlight encloses no region by containment", () => {
     const drawn = drawnStepOne();
     const built = rasterise(drawn.document);
     const stroke = new Uint8Array(WIDTH * HEIGHT);
@@ -433,13 +443,41 @@ describe("deferred printed step", { timeout: 30_000 }, () => {
       ownPanelMargin: 0.0011,
     });
 
-    expect(settlement.failure?.code).toBe("deferred-panel-unscored");
-    expect(settlement.failure?.message).toContain("open contour");
-    expect(settlement.failure?.message).toContain("the ceiling is the panel's contour");
-    // Refused before any candidate was rendered, so no agreement is published
-    // for a comparison the panel could not define.
-    expect(settlement.evidence.rendered).toBe(0);
-    expect(settlement.evidence.bestAgreement).toBeNull();
+    expect(settlement.evidence.lookaheadMeasure).toBe("containment");
+    expect(settlement.evidence.rendered).toBeGreaterThan(0);
+    expect(settlement.evidence.bestAgreement).not.toBeNull();
+    expect(settlement.failure).toBeNull();
+    expect(settlement.placement).not.toBeNull();
+
+    // And the same open contour settles nothing when the panel stops being a
+    // picture of this prefix. Displacing the drawn art is what the registration
+    // is allowed to undo — it maximises over translation — so the control is not
+    // that the best candidate falls: it is that the *separation* does. The
+    // correct drawing tells the candidates apart; a displaced one lets several
+    // slide into it equally and the margin gate refuses.
+    const elsewhere = new Uint8Array(WIDTH * HEIGHT);
+    for (let index = 0; index < built.length; index += 1) {
+      const x = index % WIDTH;
+      const shifted = index - x + ((x + WIDTH / 2) % WIDTH);
+      if (built[index] === 1) elsewhere[shifted] = 1;
+    }
+    const displaced = settle({
+      spec: stepOne,
+      builtMask: elsewhere,
+      strokeMask: stroke,
+      trigger: "unseparated-by-own-panel",
+      ownPanelMargin: 0.0011,
+    }).settlement;
+    expect(displaced.evidence.lookaheadMeasure).toBe("containment");
+    expect(displaced.placement).toBeNull();
+    expect(displaced.evidence.settled).toBe(false);
+    // Named, so this cannot pass because the panel went blank or the candidates
+    // never rendered: the same candidates were scored and the drawing could not
+    // separate them.
+    expect(displaced.failure?.code).toBe("ambiguous-deferred-placement");
+    expect(displaced.evidence.rendered).toBe(settlement.evidence.rendered);
+    expect(displaced.evidence.margin!).toBeLessThanOrEqual(displaced.evidence.minimumMargin);
+    expect(settlement.evidence.margin!).toBeGreaterThan(settlement.evidence.minimumMargin);
   });
 
   it("refuses when the panel it defers to has nothing built drawn on it", () => {

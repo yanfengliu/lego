@@ -216,6 +216,24 @@ export interface PrefixAgreementInput {
   readonly height: number;
   /** Centroid-difference seed, in pixels. */
   readonly seedPx: readonly [number, number];
+  /**
+   * What "agrees" means, which is decided by whether the lookahead panel could
+   * be made to draw only what step N built.
+   *
+   * `"iou"` when its highlight closes: the excluded region removes the pieces
+   * panel N+1 places, so the two sides are the same assembly and either one
+   * having a pixel the other lacks is a disagreement.
+   *
+   * `"containment"` when it does not. About half of this booklet's contours are
+   * open — printed step 7 draws two, 1338px of stroke enclosing no filled region
+   * — and with nothing to remove, `builtMask` is what step N built *plus* the
+   * pieces step N+1 places. It is then a superset of what any step-N candidate
+   * can draw, so equality is the wrong question and the right one is whether
+   * everything the candidate draws is drawn there as built. This is printed step
+   * 5's move one level up: drop the term that charges a candidate for ink no
+   * candidate could own, and let the existing separation margin decide.
+   */
+  readonly measure: "iou" | "containment";
 }
 
 export class DeferralInputError extends Error {
@@ -244,7 +262,7 @@ function agreementAt(input: PrefixAgreementInput, dx: number, dy: number, stride
       if (here === 1) {
         union += 1;
         if (there === 1) intersection += 1;
-      } else if (there === 1) {
+      } else if (there === 1 && input.measure === "iou") {
         union += 1;
       }
     }
@@ -473,6 +491,33 @@ export interface DeferralEvidence {
   readonly lookaheadStepNumber: number | null;
   /** How many printed steps forward the settling panel was. */
   readonly reachSteps: number;
+  /**
+   * Which face the settling panel is drawn from, as the `upSign` the candidates
+   * were rendered with. `-1` is a panel drawn from underneath.
+   *
+   * Reported because the lookahead panel is a different printed page from the
+   * one that deferred, and the booklet turns the model over between them: this
+   * deferral used to render every candidate upright at the fitted azimuth, which
+   * is the opposite side of the drawing whenever the settling panel is an
+   * underside one. Null when no camera was resolved.
+   */
+  readonly lookaheadUpSign: 1 | -1 | null;
+  /**
+   * Whether the settling panel's own new pieces could be removed from its art
+   * before the rest was attributed to this step, and so what "agrees" meant.
+   * `"iou"` on a closed contour, `"containment"` on an open one.
+   */
+  readonly lookaheadMeasure: "iou" | "containment" | null;
+  /**
+   * The quarter turn the settling panel's own art put the already-settled prefix
+   * at, added to its fitted azimuth. Zero by definition when nothing is built
+   * yet, because the branch the first printed step settles into is what fixes
+   * the world frame rather than something a registration can measure.
+   */
+  readonly lookaheadTurnDegrees: number | null;
+  /** The registration agreement at that turn, and its margin over the next. */
+  readonly lookaheadTurnAnchorIou: number | null;
+  readonly lookaheadTurnMargin: number | null;
   readonly wholeStepCandidates: number;
   readonly rendered: number;
   readonly lookaheadBuiltPixels: number;
