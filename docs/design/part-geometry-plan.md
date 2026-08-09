@@ -61,6 +61,23 @@ Each step ends with a number that must move, and the next does not start until i
 
 **0 — Derive the shell's real dimensions from LDraw.** Wall thickness, ceiling depth and tube radius are not to be invented; `3020.dat` expands to the true surface and this repository already expands it. The number: those four dimensions, measured, with the file and line they came from. Nothing below starts until they are measured, because a shell built from plausible numbers is the same error as a prism built from none — it just looks more like a part.
 
+### Step 0 result — measured from `scripts/ldraw-cache/3020.dat`
+
+A Plate 2x4 is two nested `box5` shells plus studs and tubes, and every number below is read off that file rather than chosen.
+
+| dimension | value | source |
+|---|---|---|
+| outer body | half-extents 40 x 20, height 8 | line 30, `1 16 0 8 0 40 0 0 0 -8 0 0 0 20 box5.dat` |
+| cavity | half-extents 36 x 16, depth 4 | line 21, `1 16 0 8 0 36 0 0 0 -4 0 0 0 16 box5.dat` |
+| wall thickness | **4 LDU**, both axes | 40 - 36 and 20 - 16 |
+| ceiling thickness | **4 LDU** of the plate's 8 | 8 - 4 |
+| underside tubes | 3, at x in {-20, 0, 20}, y 4, z 0 | lines 16-18, `stud4.dat` on the 20 lattice between stud columns |
+| top studs | 8, `stud.dat` | eight `1 16 ... stud.dat` lines |
+
+`box5` is a box with five faces - open on one side - which is precisely a shell, so LDraw already models the plate the way the standard demands and the catalog flattened it to a filled prism.
+
+**Not yet measured:** the tube's radius. `stud4.dat` is absent from `scripts/ldraw-cache/`, which holds `stud3a.dat` and `stud4od.dat` but not it. That is one missing file, not a missing method, and it is recorded rather than guessed - a tube radius invented here would be the same class of error as the stud radius that read 6.0001514980873605.
+
 **1 — Extend the standard.** Add the rules the current four do not cover: the render silhouette agrees with the expanded LDraw surface from all seven canonical views within a stated tolerance; `bodyBoundsLdu` equals the drawn extent; collision primitives cover the body and no more. Expect the violation count to *rise* above 82; a standard that finds less after being sharpened was not sharpened.
 
 **2 — Build the underside surface for one part.** `plate-2x4`, because `3020;L` is already pinned and its LDraw expansion is already proven. Render it from below beside panel 4's art and read both. The number: its from-below silhouette agreement against the expanded surface, from nothing to within tolerance.
