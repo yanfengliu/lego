@@ -788,3 +788,33 @@ The same shape works on any pinned digest with a version component folded into i
 This is distinct from the older lesson that the structural hash covers part *identifiers* — that one is about two models never hashing alike, this one is about one model not hashing alike across a truth bump.
 
 **Anchor:** 2026-08-09; `structuralDocumentValue` in `packages/brick-kernel/src/document.ts`; measured on all three retained runs at `builtin.basic-parts/9` restoring `truth.catalog` `sha256:a9adf38b…` and `truth.collisionModel` `sha256:8f181d6f…`. The in-tree form of the technique is the `rowsWithTheEightPlate` assertion in `packages/catalog/src/mesh-assets.test.ts`, which recovers the `/6` roster literal by restoring one row.
+
+## A gate that cannot tell "passed" from "did not run" reports the second as the first
+
+2026-08-09, commits `90a4a87` and `a44b53a`, after eight instances surfaced in two days.
+
+`real-build-builder-calibration.test.ts` resolved its inputs through `process.cwd()` and skipped mutely when they were absent, so the strongest assertion this repository makes about Builder frame truth did nothing from any subdirectory and reported `6 passed, 1 skipped`, exit 0. Its companion was vacuous the same way: with the report unreachable, `retainedCalibrationVersions.length === 0` short-circuited to `IN_STEP`. `real-build-official.test.ts` had it too, silencing the case that pins the official model's sha256 and its 1,465 bricks. `real-build-transition-bundle.test.ts` was worse than all three - its mirror case PASSED while asserting the artifact was absent, with the file present at 34,784 bytes.
+
+The same shape without a skip: `real-build-action-ledger.spec.ts` asserted `identificationConfidence` equalled `"vision-kept"`, written 53 minutes before the code stopped hard-coding that literal into every piece, so it checked a constant against itself until a refactor silently turned the tautology into a gate. And the first handedness check demanded the model's note name the mirror twin's number - which is the same number whichever hand was picked, so feeding it a SWAPPED pick returned `vision-kept` for the wrong element.
+
+Every one of them was green. That is the property: the failure mode IS the success signal, so the only way to see it is to make the gate fail on purpose and watch it name the reason.
+
+## A shell pipeline reports the last command's exit code
+
+2026-08-09, three separate occurrences in one session.
+
+`npm run verify 2>&1 | tail -40` was read as exit 0 when verify had failed with 978 lint errors. Then `node scripts/part-identification.mjs ask ... | tail` was read as success when the pass had died at 102 of 269 answers. Then the harness's own completion code for a backgrounded compound command was read as the command's, when it belonged to the `tail` that ended it.
+
+Each time the report was "green" and the underlying work had failed. The fix is mechanical - `cmd > log 2>&1; echo "EXIT=$?"` - and the reason it kept recurring is that the wrong answer looks exactly like the right one.
+
+`npx vitest run -t "<name>"` is the same trap from another direction: it exits 0 when the filter matches nothing, so a filtered green run can mean the assertion never executed.
+
+## A check is written against the case that exists and is silent about the one that arrives
+
+2026-08-09, commit `108d5b3`, found by asking what a change would break before making it.
+
+`connector-backing-policy.ts` admitted a connector by asking whether a whole stud's footprint of a face was backed by solid. Correct for a stud, which stands on the body. Exactly backwards for a clutch, which needs a cavity - solid behind it is what makes the clutch impossible. It had never fired because no part modelled a cavity, so the rule looked right for as long as nothing tested it.
+
+Three more of the same shape in the same two days. `isRealBuildBrowserOutput` answered two unrelated questions with one boolean - are these bytes a browser output, and did the run account for every declared piece - and the second is the signature of an unfinished prefix, so 19 of 22 partial runs discarded every measured row. `evidenceDigest` carried the literal string `"missing"` where `null` was meant, because the refusal message renders `?? "missing"` and the display string had been written into the data; it then threw at step 13 and abandoned 49 correct rows. The stud radius read `6.0001514980873605` - the circumradius of a 16-gon written to four decimals - against a clutch allowance that `Number.isSafeInteger` forces to exactly 6, so a correctly seated stud read as a collision by 60 nanometres.
+
+None was found by a test passing or failing. Each was found by asking what the check would say about a case it had never seen.
