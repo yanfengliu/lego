@@ -26,6 +26,8 @@ import {
   authenticateCardImageBundle,
   verifyRetainedCardImageClosure,
 } from "./part-identification-card-images.mjs";
+import { handednessVerdicts } from "./part-identification-handedness.mjs";
+import { mirrorPairedPicks } from "./part-identification-mirror-pairs.mjs";
 import {
   resolveElementPart,
   summarizeCatalogCoverage,
@@ -581,11 +583,31 @@ function compileBookletCatalogCoverageClosureWithExpectation(input, manifestExpe
     Object.entries(elements).map(([elementId, entry]) => [elementId, entry.quantity]),
   );
   const names = new Map(Object.entries(elements));
+  // The hand is read off the card's own pixels here, on the same terms as the
+  // scorer. Coverage used to call `claimsFor` without this argument, and the
+  // absence of a verdict is not permission, so every mirror-paired pick came back
+  // `handedness-unverified` no matter what the pixels said — four of them in the
+  // sealed run, each with a decided verdict that upheld the pick, two of them
+  // inside the prefix the rebuild is trying to reach. There was never an
+  // evidence-availability reason for it: the bytes the check needs are already a
+  // bound role of this closure, authenticated above and published as the
+  // cardImages digest, so withholding a pick the pixels verified was blindness
+  // that happened to fail safe rather than a stricter standard.
+  //
+  // Deterministic coverage has no answer to check and therefore no mirror
+  // question, and it reaches here with no cards, no answers, and no card images.
+  const handedness = handednessVerdicts(
+    source === "deterministic" || answers === null
+      ? []
+      : mirrorPairedPicks(match, answers, names, cards?.cards),
+    cardImages?.images,
+  );
   const claims = claimsFor(match, distances, source, answers, {
     assign: assignment,
     held,
     names,
     cards: cards?.cards,
+    handedness,
   });
   // Mandatory, not conditional. A coverage report has to say which judged bytes
   // were in force even when none of them bind, because "no judged role" and "a

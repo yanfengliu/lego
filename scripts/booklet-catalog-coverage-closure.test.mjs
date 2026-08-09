@@ -12,6 +12,7 @@ import {
 import {
   artifact,
   canonicalPng,
+  chiralClosureFixture,
   closureFixture,
   digest,
 } from "./booklet-catalog-coverage-test-fixture.mjs";
@@ -205,6 +206,38 @@ describe("booklet catalog coverage closure compiler", () => {
         ),
       ).toThrow(/features bind PDF\/manifest digests/u);
     }
+  });
+
+  /**
+   * The handedness check, exercised through coverage rather than through the scorer.
+   *
+   * Coverage compiled its claims without the verdicts for as long as the check
+   * existed, so every mirror-paired pick came back `handedness-unverified` however
+   * the card read, and the two paths disagreed about four callouts of the sealed
+   * run. Both directions are asserted here because only one of them can fail
+   * unsafely: a compiler that never looks at the card produces the refusal too,
+   * and a suite that only checked for a refusal would go green on the blindness it
+   * is meant to catch.
+   */
+  it("decides a mirror-paired pick from the card bytes it already binds", () => {
+    const { manifestExpectation, calloutIdentity, ...keptInput } = chiralClosureFixture();
+    const kept = __testOnly.compileBookletCatalogCoverageClosure(keptInput, manifestExpectation);
+
+    expect(kept.byCallout[calloutIdentity]).toMatchObject({
+      elementId: "6392746",
+      identificationConfidence: "vision-kept",
+    });
+
+    const swappedInput = chiralClosureFixture({ pick: 2 });
+    const swappedExpectation = swappedInput.manifestExpectation;
+    delete swappedInput.manifestExpectation;
+    delete swappedInput.calloutIdentity;
+    const swapped = __testOnly.compileBookletCatalogCoverageClosure(
+      swappedInput,
+      swappedExpectation,
+    );
+
+    expect(swapped.byCallout[calloutIdentity].identificationConfidence).toBe("handedness-refuted");
   });
 
   it("accepts bounded published print, pattern, and assembly design-number spellings", () => {

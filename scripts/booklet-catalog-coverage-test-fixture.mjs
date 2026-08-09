@@ -20,6 +20,7 @@ import {
   encodeCardImageBundle,
 } from "./part-identification-card-images.mjs";
 import { PART_TRUTH_SCHEMA } from "./part-identification-truth-key.mjs";
+import { chiralCard } from "./part-identification-card-test-fixture.mjs";
 import { __testOnly } from "./booklet-catalog-coverage.mjs";
 
 /**
@@ -299,6 +300,128 @@ export function closureFixture() {
     300501: { quantity: 1, partNum: "3005", name: "Brick 1 x 1", colorId: 0 },
   };
   return {
+    manifestBytes,
+    manifestExpectation: expectationFor(manifest),
+    featuresArtifact,
+    matchArtifact,
+    distancesArtifact,
+    cardsArtifact,
+    cardImagesArtifact,
+    answersArtifact,
+    pairJudgedArtifact: pairJudgedArtifactFor(),
+    elementsArtifact: artifact(elements),
+    source: "adjudicated",
+    model: PART_IDENTIFICATION_MODEL_ID,
+    assignment: "nearest",
+    lastStep: 1,
+  };
+}
+
+/**
+ * The same closure, over a card that displays both hands of one part.
+ *
+ * The two candidates are a left and a right wedge plate in one colour, which is
+ * the exact configuration the description check provably cannot separate — "wedge
+ * 6x2 White" agrees equally well with either name — so the pick may only be kept
+ * when the card's own pixels say which hand the query is. The card is drawn with
+ * a genuinely chiral shape, so a compiler that reads it decides, and a compiler
+ * that does not read it refuses.
+ *
+ * `pick` selects the answer's candidate number: 1 is the hand the query is drawn
+ * as, 2 is the swap that the note check could not catch.
+ */
+export function chiralClosureFixture({ pick = 1 } = {}) {
+  const callout = fixture().manifest.callouts[0];
+  const manifest = manifestFor([callout]);
+  const manifestBytes = Buffer.from(`${JSON.stringify(manifest, null, 1)}\n`);
+  const featuresArtifact = artifact({
+    schemaVersion: PART_FEATURES_SCHEMA,
+    inputDigests: { pdf: manifest.sourceHash, calloutManifest: digest(manifestBytes) },
+    manifestCalloutCount: 1,
+    calloutCount: 1,
+    nonClusteredCalloutCount: 0,
+    nonClusteredCallouts: [],
+    inventory: { 6392746: descriptor(), 6392747: descriptor() },
+    inventorySourceDigests: {
+      6392746: digest("inventory-right"),
+      6392747: digest("inventory-left"),
+    },
+    callouts: [{ ...callout, descriptor: descriptor() }],
+  });
+  const matchArtifact = artifact({
+    schemaVersion: PART_MATCH_SCHEMA,
+    featuresDigest: featuresArtifact.digest,
+    calloutCount: 1,
+    clusterCount: 1,
+    clusters: [
+      {
+        clusterIndex: 0,
+        lead: callout.file,
+        members: [0],
+        pieces: 1,
+        candidates: [
+          { elementId: "6392746", total: 0.07 },
+          { elementId: "6392747", total: 0.21 },
+        ],
+      },
+    ],
+  });
+  const distancesArtifact = artifact({
+    schemaVersion: PART_DISTANCES_SCHEMA,
+    featuresDigest: featuresArtifact.digest,
+    elementIds: ["6392746", "6392747"],
+    rows: [[0.07, 0.21]],
+  });
+  const cardImage = chiralCard();
+  const cardEntries = {
+    "card-0000": {
+      sha256: digest(cardImage),
+      candidateElementIds: ["6392746", "6392747"],
+    },
+  };
+  const cardRunId = deriveCardRunId(featuresArtifact.digest, matchArtifact.digest, cardEntries);
+  const cardsArtifact = artifact({
+    schemaVersion: PART_CARDS_SCHEMA,
+    featuresDigest: featuresArtifact.digest,
+    matchDigest: matchArtifact.digest,
+    runId: cardRunId,
+    imagesFile: `runs/${cardRunId}/images.bin`,
+    cards: {
+      "card-0000": {
+        ...cardEntries["card-0000"],
+        file: `runs/${cardRunId}/card-0000.png`,
+      },
+    },
+  });
+  const cardImagesArtifact = cardImageBundleArtifact(
+    encodeCardImageBundle(cardsArtifact.value, new Map([["card-0000", cardImage]])),
+  );
+  const answersArtifact = artifact({
+    schemaVersion: PART_ANSWERS_SCHEMA,
+    model: PART_IDENTIFICATION_MODEL_ID,
+    modelIdentity: PART_IDENTIFICATION_MODEL_IDENTITY,
+    matchDigest: matchArtifact.digest,
+    cardsDigest: cardsArtifact.digest,
+    promptDigest: PART_IDENTIFICATION_PROMPT_DIGEST,
+    answers: {
+      0: {
+        kind: "wedge",
+        studsLong: 6,
+        studsWide: 2,
+        colour: "White",
+        pick,
+        alsoCouldBe: 0,
+        differsFromPick: "nothing",
+        confidence: 0.9,
+      },
+    },
+  });
+  const elements = {
+    6392746: { quantity: 1, partNum: "78444", name: "Wedge Plate 6 x 2 Right", colorId: "15" },
+    6392747: { quantity: 1, partNum: "78443", name: "Wedge Plate 6 x 2 Left", colorId: "15" },
+  };
+  return {
+    calloutIdentity: callout.identity,
     manifestBytes,
     manifestExpectation: expectationFor(manifest),
     featuresArtifact,
