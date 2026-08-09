@@ -42,16 +42,24 @@ export interface PartStandardViolation {
   readonly detail: string;
 }
 
+interface LduBoundsLike {
+  readonly min: readonly [number, number, number];
+  readonly max: readonly [number, number, number];
+}
+
 interface StandardPart {
   readonly id: string;
   readonly connectors?: readonly { readonly kind?: string }[];
   readonly geometry?: {
     readonly undersideMode?: string;
     readonly studMode?: string;
+    readonly bodyMode?: string;
     readonly studRadiusLdu?: number;
+    readonly studHeightLdu?: number;
   };
   readonly collision?: { readonly primitives?: readonly unknown[] };
-  readonly bodyBoundsLdu?: { readonly min: readonly number[]; readonly max: readonly number[] };
+  readonly bodyBoundsLdu?: LduBoundsLike;
+  readonly boundsLdu?: LduBoundsLike;
 }
 
 /**
@@ -111,6 +119,63 @@ export function partStandardViolations(part: StandardPart): readonly PartStandar
       rule: "collision-is-modelled",
       detail: "declares no collision primitives, so nothing can overlap it",
     });
+  }
+
+  /**
+   * A solid block has nothing to clutch into.
+   *
+   * This is `underside-is-drawn` seen from the body rather than from the mode,
+   * and it is the stronger statement of the two: a part can only accept a stud
+   * underneath if there is a cavity there, so `rectangular-prism` and
+   * `undersideClutch` are a contradiction in the declaration itself, before any
+   * question of what the renderer draws. A plate is a shell - walls, a recessed
+   * ceiling, and tubes - and modelling it as a filled box is wrong from below at
+   * every viewpoint, not only in the render.
+   */
+  if (clutches > 0 && geometry.bodyMode === "rectangular-prism") {
+    violations.push({
+      partId: part.id,
+      rule: "body-is-hollow-where-it-clutches",
+      detail:
+        `declares ${clutches} underside clutch connector(s) with bodyMode ` +
+        `"rectangular-prism", a filled block - a stud cannot enter solid material, so the ` +
+        `body must be a shell with a cavity where those clutches are`,
+    });
+  }
+
+  const body = part.bodyBoundsLdu;
+  const outer = part.boundsLdu;
+  if (body && outer) {
+    const escapes =
+      body.min.some((value, axis) => value < (outer.min[axis] ?? value) - 1e-9) ||
+      body.max.some((value, axis) => value > (outer.max[axis] ?? value) + 1e-9);
+    if (escapes) {
+      violations.push({
+        partId: part.id,
+        rule: "bounds-contain-body",
+        detail:
+          `bodyBoundsLdu ${JSON.stringify(body)} is not inside boundsLdu ` +
+          `${JSON.stringify(outer)}, so the part draws outside the extent it declares`,
+      });
+    }
+
+    /**
+     * Studs are modelled at -Y because LDraw's +Y points down, so a part with a
+     * stud grid must declare exactly `studHeightLdu` of extent below its body
+     * and a part without studs must declare none. A mismatch means the declared
+     * extent and the drawn studs disagree about how tall the part is.
+     */
+    const studExtent = (body.min[1] ?? 0) - (outer.min[1] ?? 0);
+    const expected = studs > 0 ? (geometry.studHeightLdu ?? 0) : 0;
+    if (geometry.studHeightLdu !== undefined && Math.abs(studExtent - expected) > 1e-9) {
+      violations.push({
+        partId: part.id,
+        rule: "stud-extent-is-declared",
+        detail:
+          `declares ${studs} stud(s) at studHeightLdu ${geometry.studHeightLdu}, so boundsLdu ` +
+          `should sit ${expected} LDU below bodyBoundsLdu; it sits ${studExtent}`,
+      });
+    }
   }
 
   return violations;
