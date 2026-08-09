@@ -299,6 +299,18 @@ The profile measurements themselves were never at risk: the first and last cross
 **Anchor:** the eight compound parts added in `packages/catalog/src/catalog.ts` for `builtin.basic-parts/5`.
 Parity reported 154 uncovered samples for `builtin:arch-1x4` and 100 for `builtin:arch-1x6`, and zero for the six parts with no hollow under an overhang; the surface test reports 0 outside for all eight across 7245 surface samples.
 
+### 2026-08-09: and it has no CSG either, so orientation pairing fails the same way
+
+Consistent winding looks like the way out of this. It is not.
+The eight bundled meshes are perfectly BFC-consistent - every triangle at the top face points up and every one at the bottom face points down, all eight parts, no exceptions - which is enough to tell a ceiling from a floor and looks like enough to pair a column's solid runs off without counting crossings.
+
+Probing `plate-3x3-corner-round` down a column 7 LDU from a tube axis, in the annulus between bore and outer wall, gives one up-facing surface and two down-facing ones: the top face at y -4, the cavity ceiling at y 0, and the tube's own ring at y 4.
+There is no up-facing surface at the tube's top, because LDraw places the tube through the ceiling and nothing subtracts one from the other.
+An unpaired close cannot say where its run began - read one way the tube vanishes, read the other the bore fills.
+Columns at 0, 5 and 9 LDU from the same axis all pair cleanly, so a probe that had not been aimed at the overlap would have reported the method working.
+
+The claim "feasible, because the winding is consistent" reached a pushed commit message before it was measured. Necessary is not sufficient.
+
 ## Measure the art you are imitating, rather than asserting its dialect in a comment
 
 The instruction finish was built on a premise stated in its own source: booklet art is unlit, one flat tone per part, with the shape carried entirely by printed outlines.
