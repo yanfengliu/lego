@@ -37,11 +37,19 @@ The four layers, each derived from the one below:
 
 Today layer 3 is invented parametrically and layer 4 is derived separately for 8 parts and parametrically for 77. That is why a stud radius could be `6.0001514980873605` in one layer and exactly 6 in another.
 
-### The third surface kind
+### No third surface kind — the seam already exists
 
-`InstructionSurface` gains `"underside"`. It carries its own instruction tone, its own outline extraction, and its own material-cache key — the same three seams `"stud"` already threads through.
+This was the plan's original step and it is wrong, refuted by reading the renderer.
 
-Underside geometry is a cavity: a recessed floor, perimeter walls at the part's wall thickness, and tube or pin geometry at the seat positions the connectors already declare. Those positions exist — `undersideMode: "semantic-tube-seat-grid"` names a grid the clutch solver reads. The mode stops being semantics-only and becomes the generator's input.
+`geometry.ts` draws the body from `definition.collision.primitives`, every primitive tagged `body`, and says why in its own comment: *"The solid is drawn from the same body primitives the collision validator reads. Drawing it from `dimensions` instead would let a wedge look like the box it is not, and would let the picture and the solid drift apart in silence."*
+
+So render geometry and collision geometry are already the same declaration. A plate is drawn as one filled box because `part-factory.ts` emits one filled box. Emit a **shell** instead — perimeter walls, a recessed ceiling, and tube cylinders at the seat positions — and the underside becomes real in the render and in the collision at the same moment, with no new surface kind, no new outline path, and no new material key.
+
+The mechanism is already in the factory: `bodyBoxesLdu` takes a union of boxes and numbers them `body:0…body:n`, falling through to the single prism only when absent. That is also why the wing plate looks different from every other part — its 115 primitives are a voxelised solid being drawn literally, which is the same seam used badly.
+
+This is a much smaller change than the plan assumed, and a much larger correctness win: it makes a part's drawn shape and its collidable shape the same object by construction, so they cannot disagree the way `studRadiusLdu` disagreed between layers.
+
+`undersideMode` stops being semantics-only and becomes the generator's input: the seat grid it names supplies the tube positions.
 
 ### What stays parametric
 
@@ -50,6 +58,8 @@ A plate's body may remain a prism when the expanded surface proves it is one. Th
 ## Order of work
 
 Each step ends with a number that must move, and the next does not start until it has.
+
+**0 — Derive the shell's real dimensions from LDraw.** Wall thickness, ceiling depth and tube radius are not to be invented; `3020.dat` expands to the true surface and this repository already expands it. The number: those four dimensions, measured, with the file and line they came from. Nothing below starts until they are measured, because a shell built from plausible numbers is the same error as a prism built from none — it just looks more like a part.
 
 **1 — Extend the standard.** Add the rules the current four do not cover: the render silhouette agrees with the expanded LDraw surface from all seven canonical views within a stated tolerance; `bodyBoundsLdu` equals the drawn extent; collision primitives cover the body and no more. Expect the violation count to *rise* above 82; a standard that finds less after being sharpened was not sharpened.
 
