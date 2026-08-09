@@ -1,4 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { describe, expect, test } from "vitest";
 
@@ -71,7 +73,22 @@ const LABELLED_SAMPLE: Readonly<Record<number, "rotation" | "attachment" | "fina
   359: "final-view",
 };
 
-const published = existsSync(TRANSITION_CLASSIFICATIONS_PATH);
+/**
+ * Whether the published bundle exists, asked of the repository rather than of
+ * the shell.
+ *
+ * `TRANSITION_CLASSIFICATIONS_PATH` is repository-relative, and `existsSync`
+ * resolves a relative path against the working directory - so from any
+ * subdirectory this read `false` for a file that is plainly there. That
+ * skipped the five cases below, and made the absence case at the end pass
+ * while asserting the bundle is absent. A mute skip hides a claim; that
+ * manufactured a false one.
+ *
+ * There is no `process.cwd()` here to grep for, which is why the sweep that
+ * found the same defect in this directory's other suites missed it.
+ */
+const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+const published = existsSync(resolve(REPOSITORY_ROOT, TRANSITION_CLASSIFICATIONS_PATH));
 
 describe.skipIf(!published)(`published ${TRANSITION_CLASSIFICATIONS_PATH}`, () => {
   const failures: StepFailure[] = [];
