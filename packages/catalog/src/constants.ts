@@ -38,8 +38,17 @@ import type {
  * the measurements and the file and line behind each. No part is added or
  * removed and no connector moves: every clutch that existed at /9 still exists,
  * held by a cavity wall or by the tubes rather than by solid backing.
+ *
+ * /11 gives the eight parts admitted through the mesh route the three modes the
+ * generated parts declare, so `part-standard` can hold both routes to one rule
+ * instead of reporting a bundled surface as unverifiable. Nothing they draw
+ * changes: the modes are measured off the mesh by `mesh-underside.ts`, which
+ * finds the lowest horizontal surface over each declared clutch and answers
+ * recessed, open or flat. No part is added or removed, no connector moves, and
+ * no collision primitive moves — the only field that changes is what those
+ * eight parts now say about themselves.
  */
-export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/10" as const;
+export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/11" as const;
 export const CONNECTOR_TAXONOMY_VERSION = "stud-tube/1" as const;
 export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/2" as const;
 export const TRANSFORM_POLICY_VERSION = "upright-quarter-turns-negative-y-up/1" as const;

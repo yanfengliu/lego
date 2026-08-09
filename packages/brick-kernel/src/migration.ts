@@ -26,6 +26,7 @@ export const MIGRATABLE_CATALOG_VERSIONS: readonly string[] = Object.freeze([
   "builtin.basic-parts/7",
   "builtin.basic-parts/8",
   "builtin.basic-parts/9",
+  "builtin.basic-parts/10",
   BUILTIN_CATALOG_VERSION,
 ]);
 
@@ -111,6 +112,15 @@ export const REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS = Object.freeze([
     catalogVersion: "builtin.basic-parts/9",
     sourceCommit: "108d5b3cc873a90eddce34a1d0e1688c0dce6f16",
     truthHash: "sha256:79cca11d5dbee2dd620b20a6cba7815235fefd53bd2f6b3d003586c8d5a1c635",
+  },
+  // The snapshot /11 replaced. /11 adds three measured modes to the eight parts
+  // that draw a bundled mesh and changes nothing else — no part, no connector,
+  // no collision primitive — so a document saved against /10 carries forward
+  // and its parts hash differently only because provenance names the version.
+  {
+    catalogVersion: "builtin.basic-parts/10",
+    sourceCommit: "081bd53edccf4c0c62691660c94eed5c723dc152",
+    truthHash: "sha256:17ab2f6c385ecb861526921817a96805b77f29f87574c4eff0c174be6abbe5fb",
   },
 ] as const);
 

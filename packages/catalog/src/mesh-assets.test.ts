@@ -90,7 +90,7 @@ describe("preloaded mesh asset resolution", () => {
     const legacyRows = legacyParts.map(({ id, geometry }) => [id, geometry.contentHash]);
     const legacyHashes = JSON.stringify(legacyRows);
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/10");
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/11");
     expect(PART_DEFINITIONS).toHaveLength(85);
     expect(
       legacyParts.every(
@@ -144,7 +144,7 @@ describe("preloaded mesh asset resolution", () => {
       "builtin:corner-plate-5x5-quarter-ring",
     ]);
     expect(createHash("sha256").update(JSON.stringify(legacyParts)).digest("hex")).toBe(
-      "9c72751bc28ec411bd3b6445a7774e089b1d8e8f14a9085a0df665b258f10b84",
+      "ab6d727120a66184399d511eeab0873085c3493f02fa8279027a4b98f61cf755",
     );
   });
 

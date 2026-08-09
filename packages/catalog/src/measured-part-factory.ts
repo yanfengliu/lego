@@ -13,6 +13,8 @@ import type {
   CollisionPrimitive,
   ConnectorPortDefinition,
   LduBounds,
+  LduVector3,
+  MeshReferenceGeometryRecipe,
   PartDefinition,
   SourceProvenance,
 } from "./types.ts";
@@ -24,7 +26,8 @@ import {
   parseExactLduBounds,
 } from "./exact-ldu.ts";
 import { deepFreeze } from "./freeze.ts";
-import { meshAssetContentHash } from "./mesh-assets.ts";
+import { meshAssetContentHash, resolvePreloadedMeshAsset } from "./mesh-assets.ts";
+import { meshUndersideIsDrawn } from "./mesh-underside.ts";
 import { SET_6651557_MESH_ASSETS } from "./mesh-assets-6651557.ts";
 import type { MeasuredPartBlueprint } from "./measured-part-types.ts";
 import { SET_6651557_MEASURED_BLUEPRINTS } from "./part-blueprints-6651557-measured.ts";
@@ -320,6 +323,53 @@ export const makeMeasuredPartDefinition = (blueprint: MeasuredPartBlueprint): Pa
     externalGeometryBundled: true,
   };
 
+  const meshRecipe = {
+    generatorId: "builtin:preloaded-mesh-reference/1",
+    assetId: meshAssetId,
+    contentHash: meshAssetContentHash(asset),
+    assetToCatalogFrame: {
+      schemaVersion: assetToCatalogFrame.schemaVersion,
+      orientationId: assetToCatalogFrame.orientationId,
+      translationLdu: [
+        assetToCatalogFrame.translationLdu[0],
+        assetToCatalogFrame.translationLdu[1],
+        assetToCatalogFrame.translationLdu[2],
+      ],
+    },
+    provenance: geometryProvenance,
+  } as const satisfies MeshReferenceGeometryRecipe;
+
+  /**
+   * The three modes, read off the mesh rather than written beside it.
+   *
+   * `part-standard` reported all eight mesh parts as unverifiable because the
+   * recipe named no mode at all. It could not have named one honestly either:
+   * these parts draw the expanded LDraw surface, so what they draw is a fact
+   * about bundled geometry and the only truthful way to state it is to measure
+   * it. The resolver is the same one the renderer uses, so the surface measured
+   * here is the surface drawn.
+   */
+  const resolution = resolvePreloadedMeshAsset(meshRecipe);
+  if (!resolution.ok) {
+    fail(
+      blueprint,
+      `names bundled mesh asset ${JSON.stringify(meshAssetId)}, which the production resolver refuses with ${resolution.code}: ${resolution.message}`,
+    );
+  }
+  const clutchSeatsLdu = blueprint.clutchesLdu.map(([x, y, z]) => [x, y, z] as LduVector3);
+  const undersideMode =
+    blueprint.clutchesLdu.length === 0
+      ? "none"
+      : meshUndersideIsDrawn({
+            positionsLdu: resolution.asset.positionsLdu,
+            indices: resolution.asset.indices,
+            groups: resolution.asset.groups,
+            bodyBoundsLdu,
+            clutchSeatsLdu,
+          })
+        ? "modelled-shell-cavity"
+        : "semantic-tube-seat-offsets";
+
   const variantSuffix = variant === undefined ? "" : `-${variant}`;
   const displayName =
     `${FAMILY_DISPLAY_NAMES[family]} ${widthStuds} x ${lengthStuds}` +
@@ -343,19 +393,13 @@ export const makeMeasuredPartDefinition = (blueprint: MeasuredPartBlueprint): Pa
     exactBodyBoundsLdu: exactBodyBounds,
     exactBoundsLdu: exactBounds,
     geometry: {
-      generatorId: "builtin:preloaded-mesh-reference/1",
-      assetId: meshAssetId,
-      contentHash: meshAssetContentHash(asset),
-      assetToCatalogFrame: {
-        schemaVersion: assetToCatalogFrame.schemaVersion,
-        orientationId: assetToCatalogFrame.orientationId,
-        translationLdu: [
-          assetToCatalogFrame.translationLdu[0],
-          assetToCatalogFrame.translationLdu[1],
-          assetToCatalogFrame.translationLdu[2],
-        ],
-      },
-      provenance: geometryProvenance,
+      ...meshRecipe,
+      // A mesh part's body is the bundled surface itself, so it is neither a
+      // prism nor a union of boxes and says so rather than borrowing a
+      // generated part's word for it.
+      bodyMode: "bundled-source-mesh",
+      studMode: blueprint.studsLdu.length === 0 ? "none" : "measured-stud-seats",
+      undersideMode,
     },
     connectors,
     legalOrientationIds: LEGAL_ORIENTATION_IDS,

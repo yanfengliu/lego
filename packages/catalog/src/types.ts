@@ -450,6 +450,20 @@ export interface MeshReferenceGeometryRecipe {
   readonly assetId: string;
   readonly contentHash: `sha256:${string}`;
   /**
+   * What this part draws, in the same three axes a generated part declares, so
+   * `part-standard` can hold both routes to one rule instead of reporting a
+   * mesh part as unverifiable.
+   *
+   * Every one of them is measured, never authored. `bodyMode` is a constant
+   * because the body IS the bundled surface; `studMode` reports whether the
+   * measured surface carried stud seats; and `undersideMode` is read off the
+   * mesh at each declared clutch by `mesh-underside.ts`, so it cannot claim a
+   * cavity the surface does not draw.
+   */
+  readonly bodyMode?: "bundled-source-mesh";
+  readonly studMode?: "measured-stud-seats" | "none";
+  readonly undersideMode?: "modelled-shell-cavity" | "semantic-tube-seat-offsets" | "none";
+  /**
    * Integrity-bound normalization from the immutable asset-local coordinates
    * into catalog-local LDU. This is part of the catalog digest and is separate
    * from `PartDefinition.ldrawFrame`, which remains interchange-only truth.

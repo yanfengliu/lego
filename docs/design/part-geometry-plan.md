@@ -138,7 +138,52 @@ The pictures are the evidence and they were looked at: orbited under the model, 
 
 **4 — Re-derive the 8 mesh-first parts through the same path.** The number: 8 `geometry-mode-is-declared` violations to zero, and the wing plate's 115 collision boxes replaced by a decomposition of its own surface.
 
+### Step 4 result — 16 violations, and the premise of its second half is refuted — 2026-08-09
+
+**The first half is done: `geometry-mode-is-declared` is 8 to 0, and `parts:check` reports 24 to 16.**
+
+Not by re-deriving those parts as parametric ones, which the owner decision of 2026-08-04 forbids — generated approximations were rejected because lost curve fidelity fails the measurement the goal is judged by. They already draw the expanded LDraw surface, which is the highest-fidelity geometry in this catalog. What they lacked was any way to *say* what they draw: `MeshReferenceGeometryRecipe` named no mode, so the standard could only report them as unverifiable.
+
+`mesh-underside.ts` measures it instead. For each clutch a part declares, it finds the lowest horizontal body surface standing over that cell and answers **recessed** (the surface is above the part's own bottom face), **open** (nothing stands there at all), or **flat** (the part is solid under its own clutch, which is the defect). All eight come back `modelled-shell-cavity`, and `35480` comes back `open` at both clutches because its studs are open and the hole runs right through — its ceiling is measurably present at y 0 over x [-6, 6] and z [-16, 16] and measurably absent at the two clutch centres, which is the part being right rather than the measurement being wrong.
+
+**The second half rests on a false premise.** "The wing plate with 115 collision boxes ... its 115 primitives are a voxelised solid being drawn literally" — they are not drawn at all. `createCatalogPartGeometry` takes the mesh branch for these parts and never reads their collision primitives, so nothing about the wing plate's appearance comes from those boxes. They are its collision decomposition, generated as a per-column height field by `emit-measured-part-tables.py` from the same expansion that made the mesh.
+
+What *is* wrong with them is a different thing, and it is the defect the shell fixed on the other side: **a height field is filled, so collision fills a cavity the mesh draws hollow**. Collision and render disagree on all eight parts, exactly where they now agree on the other fifty-eight. That is measured and feasible to fix — the meshes' winding is perfectly consistent (every triangle at the top face points up and every one at the bottom face points down, across all eight, with no exceptions), so a ceiling can be told from a floor and a column's solid runs derived without the crossing-parity test an open LDraw surface defeats. It is not fixed here: it means regenerating the pinned measured tables through the Python emitter, whose scorer refuses partial output, and that is a change to reviewed generated source rather than an edit.
+
+### The 16 that remain, measured from their own LDraw files — 2026-08-09
+
+Step 3 targeted 74 `underside-is-drawn` violations to zero and reached 16. Every one of those sixteen has been expanded from the pinned official archive and its underside measured, so the next attempt does not have to re-measure anything. LDraw y, top face at 0 unless stated:
+
+| part | file | cavity ceiling | measured against the plate rule |
+|---|---|---|---|
+| wedge plate 2x4 left | `41770a` | 4.0, area 1713 | 4 LDU deep, same as a plate |
+| wedge plate 2x3 left | `43723a` | 4.0, area 1246 | same |
+| wedge plate 4x4 cut-corner | `30503` | 4.0, area 3666 | same |
+| wedge plate 6x6 cut-corner | `6106` | 4.0, area 9721 | same |
+| wedge plate 3x6 right | `54383` | 4.0, area 3841 | same |
+| corner plate 4x4 round | `30565` | 4.0, area 4065 | same |
+| corner plate 5x5 quarter-ring | `80015` | 4.0, area 1928 | same |
+| arch 1x4 | `3659` | 4.0 from the top, area 768 | **end walls are 8 LDU, not 4** |
+| arch 1x6 | `3455` | 4.0 from the top, area 1248 | **end walls are 8 LDU, not 4** |
+| curved slope 1x2 | `11477` | 12, 10, 8 and 4 above the bottom | stepped, no single ceiling |
+| curved slope 1x3 | `50950` | 8, 4 and 1 above the bottom | stepped |
+| curved slope 1x4 | `61678` | 20, 16, 8, 4 and 0.2 above the bottom | stepped |
+| cheese slope 1x1 | `54200` | 4 (area 4) and 1 (area 76) above the bottom | a 1 LDU recess, not a cavity |
+| cheese slope 2x1 | `85984` | 4 (area 8) and 1 (area 116) above the bottom | the same |
+
+Three findings, and each is a reason none of the sixteen was shelled here rather than a reason to defer:
+
+**The seven wedge and arc plates have exactly the plate's 4 LDU cavity**, so nothing about their depth needs measuring again. What stops them is representation: a wedge plate's body is one `wedge` primitive and an arc plate's is one `bodyArc`, and the wall ring a shell needs is the plan minus the plan eroded by 4 — a shape neither kind can hold, and not a box union either. It decomposes exactly into convex quad prisms, one per plan edge, and `convex-prism` already exists as a collision kind; what does not exist is a renderer that draws one, because `geometry.ts` skips every convex prism on the grounds that an arc's visible body is its own analytic feature. That is the piece of work, and it is a representation change rather than a measurement.
+
+**The arches are 8 LDU at the ends, not 4, and the plate rule would get them wrong.** `3659`'s ceiling measures 768 LDU squared where eroding its 20 x 80 plan by 4 predicts 864; 768 is 12 x 64, so the cavity stops 8 LDU short at each end. `3455` says the same: 1248 measured against 1344 predicted, and 1248 is 12 x 104. Two files, one number, and it is not the plate's. Applying the plate rule to an arch would be the exact error this document opens by naming — a shell built from plausible numbers, which just looks more like a part.
+
+**A cheese slope has no cavity to model.** Its underside is a 1 LDU recess over most of its area with a 4 LDU pocket of 4 to 8 LDU squared, which is not a wall-and-tube cavity and would not hold a stud the way `cavityHoldsStud` means. Whatever admits its clutch, it is not the plate's shell, and saying so needs `54200` read as a structure rather than as a set of levels.
+
 **5 — Wire `parts:check` into `verify`** and delete the note at the top of the script. The number: `parts:check` exits 0.
+
+### Step 5 is not done, and the reason is the 16 above — 2026-08-09
+
+`parts:check` exits 1 with 16 violations, so wiring it into `verify` would make `verify` red on `main`. It is not wired. The honest statement of where this stands is the count and its composition: **24 to 16, all of one rule, every one of them measured and none of them modelled.**
 
 **6 — Re-verify the booklet prefix.** Steps 4 and 5 were accepted against flat undersides and must be re-run against real ones. The number: `stepsComplete` re-measured, and it may go **down** before it goes up. A prefix that shrinks here is the standard working.
 
@@ -147,6 +192,14 @@ The pictures are the evidence and they were looked at: orbited under the model, 
 Re-run against the real undersides, the booklet reports **5/5 steps complete and 8 pieces placed** at `--last-step 5`, and **4/4 and 6** at `--last-step 4`. Both pins hold to the piece. Printed step 4 is still classified `underside` and still completes, now scored against a plate that has a cavity and tubes rather than against a flat rectangle.
 
 That is the geometry half and it is done. What it does not do is upgrade step 4 to verified: the run's own refusals still report step 4's chosen transform as the mirror of the ledger's, which is the standing mirroring gap and not something a shell can fix. Re-reading steps 4 and 7 against their panels — the comparison numbers, not the completion count — is what remains of this step.
+
+### Step 6, second half — the panels were opened, and step 4 is untouched by any of this — 2026-08-09
+
+**Printed step 4's build render still draws no tubes, and the reason is exact: every part in its prefix is one of the sixteen.** The run retains `step-004-panel.png` and `step-004-build.png` side by side and they were looked at. The booklet draws the model from below with the underside tube rings of every plate printed as rows of circles — that is the 57 this document opens by counting. The build renders the same six pieces as a flat silhouette with studs around the rim and nothing inside it.
+
+The six are `80015`, `30565`, `30503` twice, `6106` and one more, and each carries `semantic-tube-seat-offsets`. `plate-2x4` and `plate-2x14`, the two shelled parts of the early build, do not arrive until printed step 5. So shelling fifty-eight parts changed printed step 4's comparison by nothing at all, and the seven wedge and arc plates in the table above are not one of several ways to make that panel comparable — they are the only one.
+
+**Printed step 7 has never been scored, by this or by any loop.** At `--last-step 7` the run reports `blocked-by-prior-step`: step 6 refuses first with `ambiguous-deferred-placement`, separating its best two of 36 whole-step candidates by **0.003271695476935066** (0.8836938904939751 against 0.88042219501704) where 0.02 is required, and step 7 is then not attempted because the canonical document still represents the base of step 6. Its candidate count is 0 — nothing was enumerated, nothing rendered. The earlier framing that steps 4 and 7 "were both scored against a flat rectangle" is right about step 4 and wrong about step 7: panel 7 has been *registered* against a rendered prefix in the camera-fit work, and no placement of its own has ever been scored.
 
 ## What re-verification owes
 
