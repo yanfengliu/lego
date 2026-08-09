@@ -230,6 +230,84 @@ describe("real build adversarial completion and ledger contracts", () => {
     expect(realBuildExecutionFailure(result)).toBeNull();
   });
 
+  /**
+   * A run that does not finish has to say what it measured before it stopped.
+   *
+   * Every blocker in this loop was found one at a time because a prefix that
+   * refused reported nothing at all: the finalizer used one predicate for "these
+   * bytes are hostile" and "this run did not finish", and the second answer
+   * threw away the first answer's evidence. A census needs one typed row per
+   * requested printed step whatever happened — the row the browser produced when
+   * it produced one, and a row naming the defect when it did not.
+   */
+  it("retains one typed row per requested printed step when the run stops short", () => {
+    const honest = browserOutput(3);
+    const stoppedShort: RealBuildBrowserOutput = {
+      schemaVersion: "lego.real-build-browser-output/2",
+      status: "failed",
+      reports: honest.reports.slice(0, 1),
+      documentJson: null,
+      identityBindings: [],
+      fetchedPdfDigest: DIGEST,
+      failure: {
+        code: "camera-fit-failed",
+        stage: "rendering",
+        stepNumber: 2,
+        message: "Printed step 2 is 9.11px from the closest upright axonometric against 0.02.",
+      },
+      totalElapsedMs: 3,
+    };
+    const result = finalizeExecutedRealBuildResult({
+      options: options(3),
+      browserOutput: stoppedShort,
+    });
+
+    expect(result.steps.map(({ stepNumber }) => stepNumber)).toEqual([1, 2, 3]);
+    expect(result.steps[0]).toEqual(honest.reports[0]);
+    for (const index of [1, 2]) {
+      expect(result.steps[index]?.outcome.status).toBe("failed");
+      expect(result.steps[index]?.outcome.failure?.message).toContain(
+        `The browser retained no report for printed step ${index + 1}`,
+      );
+    }
+    // The reason the run stopped is retained verbatim, numbers included.
+    expect(result.completionFailures[0]?.message).toContain("9.11px");
+    // …and a prefix that stopped short may never read as complete.
+    expect(result.status).toBe("incomplete");
+    expect(realBuildExecutionFailure(result)).not.toBeNull();
+  });
+
+  /**
+   * One unreadable row is one unreadable row. It is recorded as unreadable and
+   * its neighbours keep their evidence, because a report shape that does not
+   * describe the panel it claims says nothing about the panels that do.
+   */
+  it("records an unreadable step row without erasing the rows around it", () => {
+    const honest = browserOutput(3);
+    const forged: RealBuildBrowserOutput = {
+      ...honest,
+      reports: honest.reports.map((report, index) =>
+        index === 1 ? { ...report, panelFace: "underside" as const } : report,
+      ),
+    };
+    expect(isRealBuildBrowserOutput(forged, options(3))).toBe(false);
+
+    const result = finalizeExecutedRealBuildResult({
+      options: options(3),
+      browserOutput: forged,
+    });
+
+    expect(result.steps.map(({ stepNumber }) => stepNumber)).toEqual([1, 2, 3]);
+    expect(result.steps[0]).toEqual(honest.reports[0]);
+    expect(result.steps[2]).toEqual(honest.reports[2]);
+    expect(result.steps[1]?.outcome.status).toBe("failed");
+    expect(result.steps[1]?.outcome.failure?.message).toContain(
+      "complete prepared-panel boundary shape",
+    );
+    expect(result.status).toBe("incomplete");
+    expect(realBuildExecutionFailure(result)).not.toBeNull();
+  });
+
   it("refuses browser-forged visual completion until Node can recompute raw rasters", () => {
     const directPanel: RealBuildPanelSpec = {
       ...transitionPanel(1),

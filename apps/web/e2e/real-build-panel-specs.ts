@@ -188,9 +188,19 @@ export function buildRealBuildPanelSpecs(input: {
     const pieces: RealBuildPanelSpec["pieces"][number][] = [];
     const omittedPieces: RealBuildPanelSpec["omittedPieces"][number][] = [];
     let action: RealBuildPanelSpec["action"];
+    // `null`, not the word "missing". A step the ledger never reached has no
+    // action evidence, and the field is typed `string | null` to say so; a
+    // sentinel string says the same thing in a form that fails every digest
+    // test in the repository. `preflightRealBuildOptions` refuses it either way
+    // and prints the identical message, because that message already reads
+    // `evidenceDigest ?? "missing"` — but the retained score row carried the
+    // sentinel verbatim into `actionEvidenceDigest`, where the artifact
+    // verifier's `isNullableDigest` threw and took every other row's evidence
+    // with it. One unledgered printed step erased the census of forty-nine
+    // steps that had one.
     const actionDigest =
       ledgerStep === undefined
-        ? "missing"
+        ? null
         : actionEvidenceDigest({
             ledgerDigest: input.inputDigests.actionLedger,
             officialModelDigest: input.inputDigests.officialModel,

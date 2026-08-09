@@ -1,5 +1,5 @@
 import type { RealBuildOptions } from "./real-build-safety";
-import { assertRealBuildBrowserOutput } from "./real-build-browser-output";
+import { assertReadableRealBuildBrowserOutput } from "./real-build-browser-output";
 import {
   createRealBuildBootstrapSourceManifest,
   REAL_BUILD_SOURCE_ROOT_POLICY_PATH,
@@ -263,7 +263,7 @@ export function verifyRealBuildReplayClosureData(
       roleBytes.get("browser-output")!,
       "replay browser-output role",
     );
-    assertRealBuildBrowserOutput(browserOutput, preparedOptions);
+    assertReadableRealBuildBrowserOutput(browserOutput, preparedOptions);
   }
   assertSourceExactIdentificationRoles(roleNames, retainedContract.identificationClosure.source);
   reconstructRealBuildIdentificationReplay(roleBytes, retainedContract);
@@ -340,7 +340,7 @@ export function inspectRealBuildReplayClosure(directory: string): RealBuildRepla
       roleBytes.get("browser-output")!,
       "retained browser-output role",
     );
-    assertRealBuildBrowserOutput(browserOutput, options);
+    assertReadableRealBuildBrowserOutput(browserOutput, options);
     contractDigest = contract.contractDigest;
   }
   return {

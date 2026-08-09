@@ -31,7 +31,7 @@ import {
 } from "./real-build-replay-types";
 import { parseFatalUtf8Json } from "./strict-json";
 import { assertRealBuildEnvironment } from "./real-build-environment";
-import { assertRealBuildBrowserOutput } from "./real-build-browser-output";
+import { assertReadableRealBuildBrowserOutput } from "./real-build-browser-output";
 import type { RealBuildOptions } from "./real-build-safety";
 import {
   createRealBuildBootstrapSourceManifest,
@@ -228,7 +228,7 @@ export function writeRealBuildReplayClosureUnverified(
       browserOutputBytes,
       "replay browser-output role",
     );
-    assertRealBuildBrowserOutput(browserOutput, preparedOptions);
+    assertReadableRealBuildBrowserOutput(browserOutput, preparedOptions);
   }
   const environmentBytes = encodeBoundedJson(
     input.environment,

@@ -16,7 +16,7 @@ import {
   isLocallyFinalizedRealBuildResult,
 } from "./real-build-finalize";
 import {
-  assertRealBuildBrowserOutput,
+  assertReadableRealBuildBrowserOutput,
   decodeRealBuildPngCapture,
 } from "./real-build-browser-output";
 import {
@@ -604,7 +604,7 @@ export function verifyRealBuildArtifactManifest(
       verifiedClosure.roleBytes.get("browser-output")!,
       "artifact browser-output role",
     );
-    assertRealBuildBrowserOutput(browserOutput, preparedOptions);
+    assertReadableRealBuildBrowserOutput(browserOutput, preparedOptions);
     const reproducedResult = finalizeExecutedRealBuildResult({
       options: preparedOptions,
       browserOutput,
@@ -633,7 +633,18 @@ export function verifyRealBuildArtifactManifest(
       );
     }
     for (const [index, step] of reproducedScore.steps.entries()) {
-      const browserStep = browserOutput.reports[index]!;
+      // A row the browser never produced, or produced unreadably, is retained
+      // as a typed unreadable row with no captures at all, so there is no PNG
+      // to bind and no browser row to bind it to.
+      const browserStep = browserOutput.reports[index];
+      if (browserStep === undefined) {
+        if (step.panelPng !== null || step.buildPng !== null) {
+          throw new TypeError(
+            `Retained score step ${index} claims a PNG capture the browser output has no row for.`,
+          );
+        }
+        continue;
+      }
       for (const [capture, retainedValue] of [
         [step.panelPng, browserStep.panelPng],
         [step.buildPng, browserStep.buildPng],

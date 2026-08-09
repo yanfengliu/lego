@@ -16,9 +16,9 @@ import {
   type StepFailure,
 } from "./real-build-safety";
 import { isLocalRealBuildAuthority, LOCAL_REAL_BUILD_AUTHORITY } from "./real-build-authority";
-import { preflightRealBuildOptions } from "./real-build-contract";
+import { preflightRealBuildOptions, unexecutedStepReport } from "./real-build-contract";
 import {
-  isRealBuildBrowserOutput,
+  readRealBuildBrowserOutput,
   type RealBuildBrowserOutput,
   type RealBuildIdentityBinding,
 } from "./real-build-browser-output";
@@ -514,6 +514,55 @@ function malformedBrowserOutputFailure(message: string): StepFailure {
   };
 }
 
+/** The printed step a retained report index belongs to, or undefined past the requested prefix. */
+function requestedPanelStepNumber(options: RealBuildOptions, index: number): number | undefined {
+  return options.panels
+    .filter(({ stepNumber }) => stepNumber <= options.lastStep)
+    .sort((left, right) => left.stepNumber - right.stepNumber)[index]?.stepNumber;
+}
+
+/**
+ * One typed row per requested printed step, whatever the browser managed to say.
+ *
+ * A row the browser retained and that matches its prepared panel is kept
+ * verbatim — the refusal code, its message, the panel face, the highlight's
+ * closure and region count, the candidate counts and the placed-against-expected
+ * pieces are already in it, and that is what a census reads. A row the browser
+ * never produced, or produced in a shape that does not describe the panel it
+ * claims, becomes an *unreadable* row built from the trusted panel and naming
+ * the defect verbatim. It does not become silence, and it does not take its
+ * neighbours with it: erasing forty-nine measured steps because the fiftieth is
+ * unreadable is how this loop spent two days answering "what is the next single
+ * blocker" instead of "what are all of them".
+ */
+function retainedStepRows(input: {
+  readonly options: RealBuildOptions;
+  readonly reports: readonly RealBuildStepReport[];
+  readonly reportDefects: readonly (string | null)[];
+}): readonly RealBuildStepReport[] {
+  const requestedPanels = input.options.panels
+    .filter(({ stepNumber }) => stepNumber <= input.options.lastStep)
+    .sort((left, right) => left.stepNumber - right.stepNumber);
+  return requestedPanels.map((panel, index) => {
+    const defect =
+      index >= input.reports.length
+        ? `The browser retained no report for printed step ${panel.stepNumber}; ` +
+          `${input.reports.length} of ${requestedPanels.length} requested step(s) reported at all.`
+        : input.reportDefects[index];
+    if (defect === null || defect === undefined) return input.reports[index]!;
+    return unexecutedStepReport(
+      panel,
+      {
+        code: "run-incomplete",
+        stage: "validation",
+        stepNumber: panel.stepNumber,
+        message: `Printed step ${panel.stepNumber} evidence is unreadable and was not trusted: ${defect}`,
+      },
+      { reason: defect },
+    );
+  });
+}
+
 function deepFreezeDiagnosticValue(value: unknown, seen = new Set<object>()): void {
   if (typeof value !== "object" || value === null || seen.has(value)) return;
   seen.add(value);
@@ -579,13 +628,37 @@ export function finalizeExecutedRealBuildResult(input: {
       totalElapsedMs: 0,
     });
   }
-  if (!isRealBuildBrowserOutput(input.browserOutput, input.options)) {
-    completionFailures = [
-      malformedBrowserOutputFailure("schema, reports, or identity bindings are invalid."),
-    ];
+  // Read once, then decide separately what each half of the reading means.
+  // `envelopeDefect` says these bytes are not a browser output, so nothing in
+  // them may be retained. `reproductionDefect` says an executed run did not
+  // account for every declared piece — the ordinary state of an unfinished
+  // prefix, and a finding rather than a reason to discard the prefix's evidence.
+  const reading = readRealBuildBrowserOutput(input.browserOutput, input.options);
+  const readable = reading.envelopeDefect === null;
+  const retainedRows = readable
+    ? retainedStepRows({
+        options: input.options,
+        reports: input.browserOutput.reports,
+        reportDefects: reading.reportDefects,
+      })
+    : [];
+  if (!readable) {
+    completionFailures = [malformedBrowserOutputFailure(reading.envelopeDefect!)];
   } else if (input.browserOutput.status === "failed") {
     documentJson = input.browserOutput.documentJson;
     completionFailures = [input.browserOutput.failure];
+  } else if (reading.reproductionDefect !== null) {
+    // The run executed and did not account for everything its panels declare.
+    // That refuses completion — `prefixPassed` is false below and no status can
+    // read as complete — but it is not a reason to drop the rows that say why.
+    completionFailures = [
+      completionFailure(reading.reproductionDefect),
+      ...reading.reportDefects.flatMap((defect, index) =>
+        defect === null
+          ? []
+          : [completionFailure(defect, requestedPanelStepNumber(input.options, index))],
+      ),
+    ];
   } else if (input.browserOutput.fetchedPdfDigest !== input.options.inputDigests.pdf) {
     completionFailures = [
       {
@@ -605,7 +678,7 @@ export function finalizeExecutedRealBuildResult(input: {
       finalParts = document.parts.length;
       completionFailures = auditReportAndDocument({
         options: input.options,
-        reports: input.browserOutput.reports,
+        reports: retainedRows,
         document,
         bindings: input.browserOutput.identityBindings,
         structuralHash,
@@ -642,15 +715,11 @@ export function finalizeExecutedRealBuildResult(input: {
     inputDigests: input.options.inputDigests,
     inputFailures: [],
     completionFailures,
-    steps: isRealBuildBrowserOutput(input.browserOutput, input.options)
-      ? input.browserOutput.reports
-      : [],
+    steps: retainedRows,
     documentJson,
     structuralHash,
     finalParts,
-    totalElapsedMs: isRealBuildBrowserOutput(input.browserOutput, input.options)
-      ? input.browserOutput.totalElapsedMs
-      : 0,
+    totalElapsedMs: readable ? input.browserOutput.totalElapsedMs : 0,
   };
   return trustFinalizedResult(result);
 }

@@ -525,14 +525,14 @@ function isArrowEvidence(value: unknown, maximum: number): boolean {
   );
 }
 
-function assertStepReportShape(
+function stepReportShapeDefect(
   report: unknown,
   index: number,
   options: Pick<
     RealBuildOptions,
     "lastStep" | "maxParts" | "panels" | "blindRenderBudget" | "explodedGhostRenderBudget"
   >,
-): asserts report is RealBuildStepReport {
+): string | null {
   // A render count is not a part count. These were bounded by `maxParts`, which
   // held only while every search rendered fewer candidates than the model has
   // pieces; an exploded step renders its candidate set once per member of the
@@ -577,27 +577,56 @@ function assertStepReportShape(
     !isNullablePngCapture(report.panelPng) ||
     !isNullablePngCapture(report.buildPng)
   ) {
-    throw new TypeError(
-      `Replay browser-output report ${index} must match the complete prepared-panel boundary shape.`,
-    );
+    return `Replay browser-output report ${index} must match the complete prepared-panel boundary shape.`;
   }
+  return null;
 }
 
-/** Rejects a self-labelled browser-output object unless its complete boundary shape is coherent. */
-export function assertRealBuildBrowserOutput(
+type RealBuildBrowserOutputBoundary = Pick<
+  RealBuildOptions,
+  | "lastStep"
+  | "maxParts"
+  | "inputDigests"
+  | "panels"
+  | "blindRenderBudget"
+  | "explodedGhostRenderBudget"
+>;
+
+/**
+ * The two separable questions a self-labelled browser output has to answer.
+ *
+ * They were one question, and that is why a run that did not finish reported
+ * nothing about the part it did. `envelopeDefect` and `reportDefects` ask
+ * whether these bytes are a browser output at all — a hostile or garbled object
+ * cannot be trusted and its rows must not be retained. `reproductionDefect`
+ * asks something else entirely: whether an *executed* output accounts for every
+ * piece its prepared panels declare. A prefix that refused at printed step 12 of
+ * 50 fails that and only that, which is not a defect of the bytes but the
+ * ordinary state of this project — and its first eleven rows are exactly the
+ * evidence a survey needs. Merging the two meant one unfinished prefix threw
+ * away every refusal it had already measured.
+ */
+export interface RealBuildBrowserOutputReading {
+  /** Non-null when the bytes are not a readable browser output, so nothing in them may be retained. */
+  readonly envelopeDefect: string | null;
+  /** One entry per retained report, in order: null when that row may be read, else why it may not. */
+  readonly reportDefects: readonly (string | null)[];
+  /** Non-null when an executed output does not account for its prepared inputs — a finding, not a parse error. */
+  readonly reproductionDefect: string | null;
+}
+
+/** Reads a self-labelled browser-output object without deciding what to do about what it finds. */
+export function readRealBuildBrowserOutput(
   value: unknown,
-  options: Pick<
-    RealBuildOptions,
-    | "lastStep"
-    | "maxParts"
-    | "inputDigests"
-    | "panels"
-    | "blindRenderBudget"
-    | "explodedGhostRenderBudget"
-  >,
-): asserts value is RealBuildBrowserOutput {
+  options: RealBuildBrowserOutputBoundary,
+): RealBuildBrowserOutputReading {
+  const unreadable = (envelopeDefect: string): RealBuildBrowserOutputReading => ({
+    envelopeDefect,
+    reportDefects: [],
+    reproductionDefect: null,
+  });
   if (!isRecord(value) || (value.status !== "executed" && value.status !== "failed")) {
-    throw new TypeError("Replay browser-output must be an executed or failed object.");
+    return unreadable("Replay browser-output must be an executed or failed object.");
   }
   const expectedKeys =
     value.status === "executed"
@@ -625,25 +654,29 @@ export function assertRealBuildBrowserOutput(
     value.schemaVersion !== "lego.real-build-browser-output/2" ||
     !Array.isArray(value.reports) ||
     value.reports.length > options.lastStep ||
-    (value.status === "executed" && value.reports.length !== options.lastStep) ||
     !Array.isArray(value.identityBindings) ||
     value.identityBindings.length > options.maxParts ||
     !Number.isFinite(value.totalElapsedMs) ||
     (value.totalElapsedMs as number) < 0 ||
     (value.totalElapsedMs as number) > 4 * 60 * 60 * 1_000
   ) {
-    throw new TypeError(
+    return unreadable(
       "Replay browser-output must have the exact schema, bounded report/binding counts, and elapsed time.",
     );
   }
+  const reportDefects: (string | null)[] = [];
   const seenSteps = new Set<number>();
   for (let index = 0; index < value.reports.length; index += 1) {
-    const report = value.reports[index];
-    assertStepReportShape(report, index, options);
-    if (seenSteps.has(report.stepNumber)) {
-      throw new TypeError(`Replay browser-output repeats printed step ${report.stepNumber}.`);
-    }
-    seenSteps.add(report.stepNumber);
+    const report: unknown = value.reports[index];
+    const shapeDefect = stepReportShapeDefect(report, index, options);
+    const stepNumber = shapeDefect === null ? (report as RealBuildStepReport).stepNumber : null;
+    reportDefects.push(
+      shapeDefect ??
+        (stepNumber !== null && seenSteps.has(stepNumber)
+          ? `Replay browser-output repeats printed step ${stepNumber}.`
+          : null),
+    );
+    if (stepNumber !== null) seenSteps.add(stepNumber);
   }
   const seenIdentities = new Set<string>();
   const seenParts = new Set<string>();
@@ -669,13 +702,18 @@ export function assertRealBuildBrowserOutput(
       seenIdentities.has(binding.identityKey as string) ||
       seenParts.has(binding.partId as string)
     ) {
-      throw new TypeError(
+      return unreadable(
         "Replay browser-output identity bindings must be unique, complete, and step-bounded.",
       );
     }
     seenIdentities.add(binding.identityKey as string);
     seenParts.add(binding.partId as string);
   }
+  const reading = (reproductionDefect: string | null): RealBuildBrowserOutputReading => ({
+    envelopeDefect: null,
+    reportDefects,
+    reproductionDefect,
+  });
   if (value.status === "executed") {
     const expectedBindings = options.panels
       .filter(({ stepNumber }) => stepNumber <= options.lastStep)
@@ -695,21 +733,23 @@ export function assertRealBuildBrowserOutput(
     // sentence that named none of them, so every one of them read as "the
     // browser produced nothing".
     const executedMismatch =
-      typeof value.documentJson !== "string"
-        ? `documentJson is ${value.documentJson === null ? "null" : typeof value.documentJson}, not a string`
-        : value.documentJson.length === 0
-          ? "documentJson is empty, so the run finished without a document"
-          : value.fetchedPdfDigest !== options.inputDigests.pdf
-            ? `the browser fetched PDF ${String(value.fetchedPdfDigest)} but the prepared inputs pin ${options.inputDigests.pdf}`
-            : value.identityBindings.length !== expectedBindings
-              ? `${value.identityBindings.length} identity binding(s) were retained against ${expectedBindings} the requested panels declare`
-              : null;
+      value.reports.length !== options.lastStep
+        ? `${value.reports.length} step report(s) were retained against the requested prefix of ${options.lastStep}`
+        : typeof value.documentJson !== "string"
+          ? `documentJson is ${value.documentJson === null ? "null" : typeof value.documentJson}, not a string`
+          : value.documentJson.length === 0
+            ? "documentJson is empty, so the run finished without a document"
+            : value.fetchedPdfDigest !== options.inputDigests.pdf
+              ? `the browser fetched PDF ${String(value.fetchedPdfDigest)} but the prepared inputs pin ${options.inputDigests.pdf}`
+              : value.identityBindings.length !== expectedBindings
+                ? `${value.identityBindings.length} identity binding(s) were retained against ${expectedBindings} the requested panels declare`
+                : null;
     if (executedMismatch !== null) {
       // A binding count is a symptom; the steps hold the cause, and they are
       // right here. Without them this refusal says the run placed nothing and
-      // leaves finding out why to a separate investigation, except the reports
-      // never reach disk — publication is downstream of this throw.
-      const outcomes = (Array.isArray(value.reports) ? value.reports : [])
+      // leaves finding out why to a separate investigation.
+      const outcomes = value.reports
+        .filter((_, index) => reportDefects[index] === null)
         .slice(0, 6)
         .map((report) => {
           const entry = report as RealBuildStepReport;
@@ -728,7 +768,7 @@ export function assertRealBuildBrowserOutput(
             (failure === null ? "" : ` — ${failure.code}: ${failure.message}`)
           );
         });
-      throw new TypeError(
+      return reading(
         `Executed replay browser-output does not reproduce its prepared inputs: ${executedMismatch}. ` +
           (outcomes.length === 0
             ? "No step reports were retained."
@@ -741,41 +781,63 @@ export function assertRealBuildBrowserOutput(
         throw new TypeError("document is not a valid BrickDocumentV1");
       }
     } catch (error) {
-      throw new TypeError("Executed replay browser-output documentJson is invalid JSON.", {
-        cause: error,
-      });
-    }
-  } else {
-    if (
-      (value.documentJson !== null && typeof value.documentJson !== "string") ||
-      (value.fetchedPdfDigest !== null &&
-        (typeof value.fetchedPdfDigest !== "string" ||
-          !DIGEST_PATTERN.test(value.fetchedPdfDigest) ||
-          value.fetchedPdfDigest !== options.inputDigests.pdf)) ||
-      !isRecord(value.failure) ||
-      typeof value.failure.code !== "string" ||
-      typeof value.failure.stage !== "string" ||
-      typeof value.failure.message !== "string" ||
-      value.failure.message.length === 0
-    ) {
-      throw new TypeError(
-        "Failed replay browser-output must retain a structured failure and only exact optional PDF/document evidence.",
+      return reading(
+        `Executed replay browser-output documentJson is invalid JSON. ` +
+          `${error instanceof Error ? error.message : String(error)}`,
       );
     }
+  } else if (
+    (value.documentJson !== null && typeof value.documentJson !== "string") ||
+    (value.fetchedPdfDigest !== null &&
+      (typeof value.fetchedPdfDigest !== "string" ||
+        !DIGEST_PATTERN.test(value.fetchedPdfDigest) ||
+        value.fetchedPdfDigest !== options.inputDigests.pdf)) ||
+    !isRecord(value.failure) ||
+    typeof value.failure.code !== "string" ||
+    typeof value.failure.stage !== "string" ||
+    typeof value.failure.message !== "string" ||
+    value.failure.message.length === 0
+  ) {
+    // A failed output that cannot say *why* it failed is unreadable, not
+    // incomplete: there is no finding in it to retain.
+    return unreadable(
+      "Failed replay browser-output must retain a structured failure and only exact optional PDF/document evidence.",
+    );
   }
+  return reading(null);
+}
+
+/**
+ * Rejects a browser output unless its bytes are readable and every retained row
+ * matches its prepared panel.
+ *
+ * This is the boundary a *published* artifact and a *replay* must clear: a role
+ * whose rows do not describe the panels they claim is corrupt evidence and must
+ * not be republished. It deliberately does not ask whether the run finished,
+ * which is `reproductionDefect`'s question and belongs in the score.
+ */
+export function assertReadableRealBuildBrowserOutput(
+  value: unknown,
+  options: RealBuildBrowserOutputBoundary,
+): asserts value is RealBuildBrowserOutput {
+  const { envelopeDefect, reportDefects } = readRealBuildBrowserOutput(value, options);
+  const defect = envelopeDefect ?? reportDefects.find((entry) => entry !== null);
+  if (defect !== undefined && defect !== null) throw new TypeError(defect);
+}
+
+/** Rejects a self-labelled browser-output object unless its complete boundary shape is coherent. */
+export function assertRealBuildBrowserOutput(
+  value: unknown,
+  options: RealBuildBrowserOutputBoundary,
+): asserts value is RealBuildBrowserOutput {
+  assertReadableRealBuildBrowserOutput(value, options);
+  const { reproductionDefect } = readRealBuildBrowserOutput(value, options);
+  if (reproductionDefect !== null) throw new TypeError(reproductionDefect);
 }
 
 export function isRealBuildBrowserOutput(
   value: unknown,
-  options: Pick<
-    RealBuildOptions,
-    | "lastStep"
-    | "maxParts"
-    | "inputDigests"
-    | "panels"
-    | "blindRenderBudget"
-    | "explodedGhostRenderBudget"
-  >,
+  options: RealBuildBrowserOutputBoundary,
 ): value is RealBuildBrowserOutput {
   try {
     assertRealBuildBrowserOutput(value, options);

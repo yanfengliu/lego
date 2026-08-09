@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { readSampleBooklet, sampleBookletPageShapes } from "./booklet-fixture";
+import { realBuildStepCensus } from "./real-build-census";
 import {
   DEFERRED_STEP_MINIMUM_AGREEMENT,
   DEFERRED_STEP_MINIMUM_MARGIN,
@@ -787,6 +788,14 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
         `${deferrals.deepestSettlementReachSteps} printed step(s); ` +
         `${result.steps.reduce((total, step) => total + step.placedPieces, 0)} piece(s) placed.`,
     );
+
+    // The census, printed as soon as a result exists and for the same reason the
+    // deferral line is: everything downstream can throw, and a run that says only
+    // "it failed" costs a whole run to learn one blocker. One line per requested
+    // printed step, naming the refusal, the numbers that refusal quotes, and the
+    // evidence the step had to work from — so fifty steps' worth of refusal
+    // classes come out of one run instead of fifty.
+    console.log(realBuildStepCensus(result));
 
     const servedResponseEvidence = await servedResponses.writeEvidence(run.directory);
     sourceLock.assertHeld();
