@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
@@ -14,7 +15,53 @@ import {
 import { builderCuboidGeometry } from "./real-build-frame-test-fixture";
 
 const identityBone = "1,0,0,0,1,0,0,0,1,0,0,0";
-const liveOfficialModelPath = resolve(process.cwd(), "output/official-model/vx1087034_21066_a.xml");
+
+/**
+ * The repository root, derived from this file rather than `process.cwd()`.
+ *
+ * The official source used to resolve against the working directory, so it was
+ * "absent" whenever vitest ran from anywhere but the repository root and the
+ * reparse case below silently skipped: `cd apps/web && npx vitest run
+ * test/real-build-official.test.ts` reported "5 passed | 1 skipped" and exited
+ * 0 while the only case that touches the real 1,465-brick model did nothing.
+ * The config root is not the anchor either — running from `apps/web` picks up
+ * that directory's own vite config, so the config root moves with the cwd.
+ * `real-build-bootstrap-source.test.ts` and `real-build-builder-calibration.
+ * test.ts` in this same directory already anchor this way.
+ */
+const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+const OFFICIAL_MODEL_FILE = "output/official-model/vx1087034_21066_a.xml";
+const REGENERATE_INPUTS =
+  "LEGO_REAL_BUILD_REGENERATE_INPUTS=1 npx playwright test apps/web/e2e/real-build-inputs.spec.ts";
+
+/**
+ * Reads the retained official source, or fails naming the file that is absent.
+ *
+ * This is an input a working checkout is expected to have and one documented
+ * command regenerates, not an optional fixture, so absence is a failure rather
+ * than a skip. `output/` being gitignored — a fresh clone genuinely lacks the
+ * file — was the original justification for skipping, and it does not survive:
+ * a skip is invisible in an exit code, so a gate that skips cannot be told
+ * apart from a gate that passed. That is this repository's recurring failure
+ * mode, six instances in two days, including an assertion comparing a constant
+ * against itself and this case's own companion in
+ * `real-build-builder-calibration.test.ts`. A checkout that cannot make the
+ * claim should say so.
+ */
+function readRequiredOfficialModel(repositoryRelativePath: string): Buffer {
+  const path = resolve(REPOSITORY_ROOT, repositoryRelativePath);
+  if (!existsSync(path)) {
+    throw new Error(
+      `Required real-build input ${repositoryRelativePath} is missing: nothing at ${path} ` +
+        `(repository root derived from this test file as ${REPOSITORY_ROOT}). Regenerate the ` +
+        `real-build inputs with \`${REGENERATE_INPUTS}\`. This case is not optional — it is the ` +
+        `only place the retained 1,465-brick official source is reparsed against its pinned ` +
+        `digest and its ordered and composite invariants, so an absent input is failed by name ` +
+        `rather than skipped.`,
+    );
+  }
+  return readFileSync(path);
+}
 
 function physicalBrickXml(
   brickRef: string,
@@ -248,35 +295,32 @@ describe("official Builder model truth", () => {
     );
   });
 
-  it.skipIf(!existsSync(liveOfficialModelPath))(
-    "reparses the retained official source with exact ordered and composite invariants",
-    () => {
-      const bytes = readFileSync(liveOfficialModelPath);
-      expect(sha256Digest(bytes)).toBe(
-        "sha256:c0564fd86ede633f6cb18738f999fbb70ee948ba93a55cc8d338b4b5f02b5922",
-      );
-      const official = parseOfficialModelIndex(bytes);
+  it("reparses the retained official source with exact ordered and composite invariants", () => {
+    const bytes = readRequiredOfficialModel(OFFICIAL_MODEL_FILE);
+    expect(sha256Digest(bytes)).toBe(
+      "sha256:c0564fd86ede633f6cb18738f999fbb70ee948ba93a55cc8d338b4b5f02b5922",
+    );
+    const official = parseOfficialModelIndex(bytes);
 
-      expect(Object.keys(official.bricks)).toHaveLength(1_465);
-      expect(Object.values(official.bricks).flatMap(({ parts }) => parts)).toHaveLength(1_469);
-      expect(official.builderOrder.phases).toHaveLength(561);
-      expect(official.directBrickRefs.size).toBe(1_395);
-      expect(official.multiBuildByActualRef.size).toBe(69);
-      expect(official.builderOrder.aggregateBrickRefs.size).toBe(1_464);
-      expect(
-        official.builderOrder.phases
-          .slice(0, 3)
-          .map((phase) => (phase.kind === "direct" ? phase.brickRefs : null)),
-      ).toEqual([
-        ["76092bf0-3d72-474a-baf3-06b837082f6a"],
-        ["21288f64-b9d5-4efb-92b9-427a17832a45"],
-        ["9d453fd1-adbe-44b8-ae21-d499a2c01e46"],
-      ]);
-      expect(official.bricks["2d36f089-87da-44d0-b2c6-85a3bcd459b8"]).toMatchObject({
-        designRevision: "76382;AO",
-        builderTransform: null,
-      });
-      expect(official.bricks["2d36f089-87da-44d0-b2c6-85a3bcd459b8"]!.parts).toHaveLength(5);
-    },
-  );
+    expect(Object.keys(official.bricks)).toHaveLength(1_465);
+    expect(Object.values(official.bricks).flatMap(({ parts }) => parts)).toHaveLength(1_469);
+    expect(official.builderOrder.phases).toHaveLength(561);
+    expect(official.directBrickRefs.size).toBe(1_395);
+    expect(official.multiBuildByActualRef.size).toBe(69);
+    expect(official.builderOrder.aggregateBrickRefs.size).toBe(1_464);
+    expect(
+      official.builderOrder.phases
+        .slice(0, 3)
+        .map((phase) => (phase.kind === "direct" ? phase.brickRefs : null)),
+    ).toEqual([
+      ["76092bf0-3d72-474a-baf3-06b837082f6a"],
+      ["21288f64-b9d5-4efb-92b9-427a17832a45"],
+      ["9d453fd1-adbe-44b8-ae21-d499a2c01e46"],
+    ]);
+    expect(official.bricks["2d36f089-87da-44d0-b2c6-85a3bcd459b8"]).toMatchObject({
+      designRevision: "76382;AO",
+      builderTransform: null,
+    });
+    expect(official.bricks["2d36f089-87da-44d0-b2c6-85a3bcd459b8"]!.parts).toHaveLength(5);
+  });
 });
