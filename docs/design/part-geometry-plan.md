@@ -82,6 +82,16 @@ The tube's **inner radius is 6 LDU**, from `stud4od.dat` line 5, `4-4cylo.dat` s
 
 **Not yet measured:** the tube's OUTER radius. `stud4.dat` is absent from `scripts/ldraw-cache/`, which holds `stud3a.dat` and `stud4od.dat` but not it. That is one missing file, not a missing method, and it is recorded rather than guessed - a tube radius invented here would be the same class of error as the stud radius that read 6.0001514980873605.
 
+### The obstacle step 3 must clear, found before writing any shell
+
+`connector-backing-policy.ts` decides admission by asking *whether a whole stud's worth of the named face is backed by solid* — sampling the footprint and requiring a body box to reach it. That assumption holds only for a filled prism.
+
+Emit a shell and the bottom face stops being solid exactly where the clutches are, so `faceHoldsStud("bottom", …)` fails and every `undersideClutch` on all 74 parts is refused. The policy is not wrong; it is right about a stud and silently wrong about a clutch, because the two want opposite things from the same face. A stud needs material behind it to push against. **A clutch needs a cavity** — a hole with a wall and a tube to grip — and material behind it is precisely what makes it impossible.
+
+So step 3 is not "emit shells"; it is "teach backing what a clutch is, then emit shells". The order matters: shells first would refuse 74 parts' connectors and look like the shells were wrong.
+
+This is worth stating as a general shape, because it is the fourth instance in this project: a check that is correct for the case it was written against and silently wrong for a case that arrives later. The stud radius, `isRealBuildBrowserOutput` answering two questions with one boolean, the ledger assertion checking a constant, and now backing. Each looked right in isolation.
+
 **1 — Extend the standard.** Add the rules the current four do not cover: the render silhouette agrees with the expanded LDraw surface from all seven canonical views within a stated tolerance; `bodyBoundsLdu` equals the drawn extent; collision primitives cover the body and no more. Expect the violation count to *rise* above 82; a standard that finds less after being sharpened was not sharpened.
 
 **2 — Build the underside surface for one part.** `plate-2x4`, because `3020;L` is already pinned and its LDraw expansion is already proven. Render it from below beside panel 4's art and read both. The number: its from-below silhouette agreement against the expanded surface, from nothing to within tolerance.
