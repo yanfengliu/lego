@@ -20,8 +20,8 @@
  * in pixels with y running down, where `s` is pixels per stud pitch. Four
  * measured numbers, three unknowns, so the solve leaves a residual, and that
  * residual separates a grid this projection explains from one it does not — on
- * a real booklet, under 0.008 of a pitch for every panel that reads as studs
- * and over 0.03 for every panel that does not.
+ * a real booklet, under 0.018 of a pitch for every panel that reads as studs
+ * and over 0.040 for every panel that does not.
  *
  * It is a fit quality, not a proof, and the difference is measured: a rhombic
  * grid that no square grid could project to still reads under 1% of pitch once
@@ -474,10 +474,14 @@ export interface StudLatticeOptions {
   /**
    * How far the measured grid may sit from any axonometric projection before
    * the fit is refused, as a fraction of one stud pitch. Defaults to 0.02,
-   * which is where the gap is: over the first forty steps of a real booklet
-   * every panel that reads as a stud grid landed under 0.008 and every panel
-   * that did not — a step drawn from underneath, one whose art is a handful of
-   * tiles — landed over 0.03, with nothing in between.
+   * which is where the gap is: over the first forty steps of a real booklet the
+   * accepted panels land between 0.00005 and 0.01776 and the refused ones
+   * between 0.0403 and 0.3638, with nothing in between. The gap used to be the
+   * wider 0.008-to-0.03 and it narrowed at one end: the panel sitting at 0.01776
+   * is printed step 32, which is accepted and should not be — see the ranking in
+   * `fitStudLattice` for what its callout boxes do to its grid. All 34 panels
+   * that read at the booklet's own scale — 15.93 to 16.54 points per stud — are
+   * under 0.008.
    */
   readonly maxResidualFraction?: number;
 }
@@ -487,6 +491,15 @@ export interface LatticeCandidate {
   readonly solution: AxonometricSolution | null;
   /** Autocorrelation peaks this basis explains as integer combinations. */
   readonly explainedPeaks: number;
+  /**
+   * Whether one of those is the picture's strongest repeat.
+   *
+   * The count alone cannot separate a grid from a finer repeat drawn on it,
+   * because a finer lattice has a site wherever the coarse one does and picks up
+   * the sub-pitch peaks as well. This says whether the candidate explains the
+   * one repeat the picture attests to most loudly.
+   */
+  readonly explainsStrongestPeak: boolean;
   /** Unit cell area in square pixels; every finer lattice explains the same peaks. */
   readonly cellAreaPx: number;
   readonly coherence: number;
@@ -575,64 +588,79 @@ export function studLatticePeaks(
 /**
  * Two grid vectors as an `(a, b)` pair in the canonical orientation.
  *
- * Order-dependent, and measured to be losing pairs because of it: peaks come out
- * of the search below the horizon, where negating one to swap its role would put
- * it above, so a pair only forms when the right-pointing vector is passed first.
- * Printed step 7 of the sample booklet is refused for exactly that reason — its
- * grid steps are (23,19) and (-33,13), the left-pointing one is the picture's
- * strongest repeat and the right-pointing one only its ninth, so the pair always
- * arrives left-first and is dropped, and the panel is then refused on the
- * residual of the pairs that survived.
+ * Order-free, and it used not to be. An autocorrelation peak is a repeat and not
+ * an arrow: `v` and `-v` name the same repeat, so which of a pair is `a` and
+ * which is `b` is a fact about their directions and never about the order they
+ * were passed in. The old version negated the first argument to point right and
+ * the second to point left, then dropped the pair if either ended up above the
+ * horizon — which discards every pair whose right-pointing member happens to be
+ * the weaker peak. Printed step 7 of the sample booklet was refused by exactly
+ * that: its grid steps are (23,19) and (-33,13), the left-pointing one is the
+ * picture's strongest repeat and the right-pointing one only its ninth, so the
+ * pair always arrived left-first and was dropped.
  *
- * Making it order-free is three lines — put each vector below the horizon, where
- * its sign is unique, then read the roles off the signs of `x` — and it is still
- * left undone, but no longer for want of the joint measurement the note here used
- * to ask for. **That measurement has been taken**, over the nineteen sampled
- * panels in `output/zzz-lattice`, and what it found is that the obstruction is
- * not the pairing and not the ordering of the comparator below:
+ * Each vector is put below the horizon, where its sign is unique, and the roles
+ * are then read off the signs of `x`. A pair pointing the same way in `x` spans
+ * nothing this projection prints and is refused, as before.
  *
- * - Order-free pairing does recover printed step 7's own grid, at 0.21% of its
- *   pitch and az 55.2 / el 34.9 against neighbours at 54.2-55.1 / 34.5-35.2.
- * - It also admits printed step 4's `a=(14,6) b=(-25,21)`, a lattice built on
- *   the fifth-of-a-pitch repeat that panel draws along one grid direction. That
+ * **The pairs this admits are not all good ones, and the ranking below is what
+ * has to survive them** — that is the joint measurement this note used to ask
+ * for and it has now been taken, over all forty panels of the sample booklet
+ * plus the synthetic grids in this module's tests:
+ *
+ * - It recovers printed step 7's own grid at 0.31% of its pitch, az 55.2 /
+ *   el 35.3 / 15.95 points per stud, against neighbours at 54.6-55.1 / 34.8-35.0
+ *   and 15.99-16.10. Its 164 predicted studs land on the panel's drawn tube
+ *   rings, which is what `output/camera-fit/overlay-007.png` now shows.
+ * - It also admits printed step 4's `a=(14,6) b=(-25,21)`, a lattice built on the
+ *   fifth-of-a-pitch repeat that panel draws along one grid direction. That
  *   candidate counts **seven** of the panel's sixteen peaks against **six** for
- *   the panel's own grid, so it wins the first ranking key outright while
- *   sitting 23.75% of pitch from any axonometric projection against 0.47%, and
- *   printed step 4 goes from fitted to refused.
+ *   the panel's own grid, so it wins a ranking led by the count outright while
+ *   sitting 23.75% of pitch from any axonometric projection against 0.47%. What
+ *   separates them is that it does not explain the picture's strongest repeat,
+ *   (36,14), and the panel's own grid does — see `explainsStrongestPeak`.
  * - Printed step 4's own grid is second on *every* key that separates it from
- *   the fine lattice. It is beaten on harmonic response — the module's own
- *   whole-picture measure, which `refineBasis` already maximises — by its own
- *   index-4 superlattice `a=(72,29) b=(-50,41)` at exactly twice its pitch,
- *   0.1622 against 0.1401. So peaks-then-harmonics keeps the superlattice out
- *   and lets the fine lattice in, and harmonics-then-peaks does the reverse.
+ *   the fine lattice by strength alone. It is beaten on harmonic response — the
+ *   module's own whole-picture measure, which `refineBasis` already maximises —
+ *   by its own index-4 superlattice `a=(72,29) b=(-50,41)` at exactly twice its
+ *   pitch, 0.1622 against 0.1401.
  * - Printability first fixes both and destroys the gate: it pre-selects a
  *   candidate the final residual check is guaranteed to accept, and all forty
  *   sampled panels then "fitted", including ones reporting 10.6, 21.0 and 77.2
  *   points per stud against the booklet's 16.1.
  * - `coherence` first — the autocorrelation strength of the two repeats the pair
- *   is built from — looked like the answer and is refuted by the strongest
- *   evidence available. It scores 17 of 17 on the sampled printed panels,
- *   recovers printed step 7 *and* keeps printed step 4, and lifts the fitted
- *   count to 34 of 40. It also puts a **synthetically drawn** grid's azimuth at
- *   79.0 degrees where the test drew it at 34.0, failing eleven of this module's
- *   twenty tests. Ground truth by construction beats agreement with neighbours.
- *
- * So what is missing is a per-candidate measurement that separates a stud grid
- * from a repeat that is not one, and none of `explainedPeaks`, `cellAreaPx`,
- * `residualPx`, `harmonicScore` or `coherence` is it. The panel harness already
- * computes something that does look like one — `foldedStudShape`'s radial
- * contrast, 1.51 on accepted panels against 1.33 on refused — and it is computed
- * once for the chosen basis rather than for each candidate. That is the next
- * thing to try, and whatever it is must be checked against the synthetic grids
- * in this module's own tests before any panel is scored with it.
+ *   is built from — scores 17 of 17 on the sampled printed panels and still puts
+ *   a **synthetically drawn** grid's azimuth at 79.0 degrees where the test drew
+ *   it at 34.0. So does the picture's own harmonic response once the strongest
+ *   repeat is required first: 35 of the booklet's 36 answerable panels and the
+ *   same 79.04 on the synthetic grid. Ground truth by construction beats
+ *   agreement with neighbours, and both are refused for it.
+ * - `foldedStudShape`'s radial contrast was the lever this note used to point at,
+ *   and computing it per candidate refutes it. On the synthetic grids it is
+ *   emphatic and right — the true basis scores 14.9 against 5.6 for its nearest
+ *   rival at az 34, and 20.0 against 3.1 at az 62 — and on the booklet it ranks
+ *   the panel's own grid first on only **11 of 36** answerable panels, fitting 11
+ *   with 4 wrong acceptances where the count fits 33 with none. It does separate
+ *   each impostor named above from its own panel's grid; what it cannot do is
+ *   beat a third candidate that folds cleaner still.
  */
 function canonicalPair(first: LatticeVectorPx, second: LatticeVectorPx): LatticeBasisPx | null {
-  const rightward = first.xPx >= 0 ? first : { xPx: -first.xPx, yPx: -first.yPx };
-  const other = second.xPx <= 0 ? second : { xPx: -second.xPx, yPx: -second.yPx };
-  if (rightward.yPx < 0 || other.yPx < 0) return null;
-  const determinant = rightward.xPx * other.yPx - rightward.yPx * other.xPx;
-  if (Math.abs(determinant) < 1) return null;
-  return { a: rightward, b: other };
+  // Assigning the roles is what was order-dependent, so both assignments are
+  // tried and nothing else changes. Writing it as "put each below the horizon,
+  // then read the roles off the sign of x" is wrong on the horizon itself: a
+  // vector with `y = 0` is the same repeat under either sign, and it is a legal
+  // `a` at azimuth 0 and a legal `b` at azimuth 90. Fixing its sign to point
+  // right loses every pair it should have been the `b` of — measured on printed
+  // step 38, whose `a=(8,0) b=(-3,14)` then stops being a candidate at all.
+  const assign = (a: LatticeVectorPx, b: LatticeVectorPx): LatticeBasisPx | null => {
+    const rightward = a.xPx >= 0 ? a : { xPx: -a.xPx, yPx: -a.yPx };
+    const other = b.xPx <= 0 ? b : { xPx: -b.xPx, yPx: -b.yPx };
+    if (rightward.yPx < 0 || other.yPx < 0) return null;
+    const determinant = rightward.xPx * other.yPx - rightward.yPx * other.xPx;
+    if (Math.abs(determinant) < 1) return null;
+    return { a: rightward, b: other };
+  };
+  return assign(first, second) ?? assign(second, first);
 }
 
 /**
@@ -720,17 +748,22 @@ export function reduceToAxonometricBasis(
  * printed step 4 had a 4402px-cell candidate counting (8,3) at 8.5px. Both then
  * outranked the panel's own grid on peak count.
  */
-function countExplained(basis: LatticeBasisPx, peaks: readonly LatticePeak[]): number {
+function countExplained(
+  basis: LatticeBasisPx,
+  peaks: readonly LatticePeak[],
+): { readonly explained: number; readonly explainsStrongestPeak: boolean } {
   const determinant = basis.a.xPx * basis.b.yPx - basis.a.yPx * basis.b.xPx;
   let explained = 0;
-  for (const peak of peaks) {
+  let explainsStrongestPeak = false;
+  peaks.forEach((peak, rank) => {
     const m = (peak.vector.xPx * basis.b.yPx - peak.vector.yPx * basis.b.xPx) / determinant;
     const n = (basis.a.xPx * peak.vector.yPx - basis.a.yPx * peak.vector.xPx) / determinant;
-    if (Math.abs(m - Math.round(m)) >= 0.16 || Math.abs(n - Math.round(n)) >= 0.16) continue;
-    if (Math.round(m) === 0 && Math.round(n) === 0) continue;
+    if (Math.abs(m - Math.round(m)) >= 0.16 || Math.abs(n - Math.round(n)) >= 0.16) return;
+    if (Math.round(m) === 0 && Math.round(n) === 0) return;
     explained += 1;
-  }
-  return explained;
+    if (rank === 0) explainsStrongestPeak = true;
+  });
+  return { explained, explainsStrongestPeak };
 }
 
 function refineBasis(field: StudTextureField, seed: LatticeBasisPx): LatticeBasisPx {
@@ -821,14 +854,15 @@ export function fitStudLattice(
     for (let second = first + 1; second < peaks.length; second += 1) {
       const spanning = canonicalPair(peaks[first]!.vector, peaks[second]!.vector);
       if (spanning === null) continue;
-      const explainedPeaks = countExplained(spanning, peaks);
+      const { explained, explainsStrongestPeak } = countExplained(spanning, peaks);
       // The peaks give some primitive basis; the camera's own pair of grid
       // steps is a change of basis away, and only it solves cleanly.
       const reduced = reduceToAxonometricBasis(spanning);
       candidates.push({
         basis: reduced?.basis ?? spanning,
         solution: reduced?.solution ?? null,
-        explainedPeaks,
+        explainedPeaks: explained,
+        explainsStrongestPeak,
         cellAreaPx: Math.abs(spanning.a.xPx * spanning.b.yPx - spanning.a.yPx * spanning.b.xPx),
         coherence: (peaks[first]!.score + peaks[second]!.score) / 2,
         rejectedBecause:
@@ -858,7 +892,25 @@ export function fitStudLattice(
     };
   }
 
-  // Explained peaks first: a lattice that misses half the repeats is the wrong
+  // The picture's strongest repeat first, and it is a different question from
+  // how many repeats a candidate explains. A finer lattice has a site wherever
+  // the true grid has one, so it explains at least as many peaks *and* picks up
+  // the sub-pitch repeats a drawing carries — the ribbing under a plate, the
+  // hatching on a hull — which is why the count alone cannot refuse one. What it
+  // does not get for free is the strongest repeat: printed step 4's fine lattice
+  // `a=(14,6) b=(-25,21)` explains seven of that panel's sixteen peaks against
+  // the panel's own six and has no site at (36,14), the repeat the picture
+  // attests to most loudly, while sitting 23.75% of pitch from any axonometric
+  // projection against 0.47%. Printed step 7's `a=(16,13) b=(-8,3)` is the same
+  // shape of error on the other underside panel.
+  //
+  // This key is inert under the old order-dependent pairing — the same 33 panels
+  // fit and the same 7 refuse — and it is what makes the order-free pairing above
+  // safe. Measured together over the forty panels: 34 fit at the booklet's scale
+  // where 33 did, printed steps 4 and 7 both fit, printed 31 and 38 stay refused,
+  // and printed 32 is the one panel that changes the wrong way (below).
+  //
+  // Then explained peaks: a lattice that misses half the repeats is the wrong
   // lattice however well its own vectors solve.
   //
   // Then whether the lattice is an upright axonometric projection at all, by the
@@ -887,11 +939,37 @@ export function fitStudLattice(
   // with it. A ranking that a controlled grid falsifies is not a ranking,
   // whatever it scores on pictures whose answer is only known by consensus.
   //
+  // Two more were tried once the strongest-repeat key existed to hold the
+  // ordering steady, and both are refused by the same synthetic grids. Ranking
+  // the whole explained set lexicographically by peak strength — prefer the
+  // candidate explaining the strongest repeat the other misses, which subsumes
+  // the count because a superset always wins — fits printed 4 and 7 and then
+  // accepts printed 31 at 6.7 points per stud and printed 32 at 5.8, on lattices
+  // built from those panels' own sub-pitch repeats. Harmonic response under the
+  // strongest-repeat key ranks the panel's own grid first on 35 of the booklet's
+  // 36 answerable panels, the best any key measured here reaches, and puts the
+  // synthetic grid's azimuth at 79.04 where it was drawn at 34.
+  //
   // Then the coarsest such lattice, and the residual settles what is left.
+  //
+  // What this ordering costs is one panel and it is named rather than averaged
+  // away. Printed step 32 moves from a refusal to an acceptance at 21.00 points
+  // per stud against the booklet's 16.1, on `a=(38,0) b=(-17,7)` at 1.78% of
+  // pitch — a pair the old ordering happened to drop. Its overlay says why, and
+  // the cause is upstream of this ranking: that panel's two callout boxes are
+  // joined to the assembly by their own pointer lines, so the largest-connected-
+  // region isolation keeps them and their art — drawn under a second camera at a
+  // second scale — enters the grid measurement. No ordering of these keys refuses
+  // it: over 1698 rule and pairing combinations searched against the forty
+  // panels, every one that fits 34 accepts printed 32, and every one that refuses
+  // it fits at most 33 and leaves printed step 7 refused with it.
   const axonometric = (candidate: LatticeCandidate): boolean =>
     candidate.solution !== null &&
     candidate.solution.residualPx <= maxResidualFraction * candidate.solution.pixelsPerUnit;
   viable.sort((left, right) => {
+    if (left.explainsStrongestPeak !== right.explainsStrongestPeak) {
+      return left.explainsStrongestPeak ? -1 : 1;
+    }
     if (right.explainedPeaks !== left.explainedPeaks) {
       return right.explainedPeaks - left.explainedPeaks;
     }

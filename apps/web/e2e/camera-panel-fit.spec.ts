@@ -323,10 +323,12 @@ test("fits the camera a printed step panel was drawn with", async ({ page }) => 
           // a step drawn twice as big has twice the pitch, and a window that
           // stops short locks onto a harmonic and reports half the scale.
           // Measured over the first forty steps of this booklet: every panel
-          // that reads as a stud grid lands under 0.008 of a pitch from an
-          // axonometric projection, and every panel that does not — a step drawn
-          // from underneath, one whose art is a handful of tiles — lands over
-          // 0.03. Nothing sits between, so the gate goes in the gap.
+          // that reads at the booklet's own 16.1 points per stud lands under
+          // 0.008 of a pitch from an axonometric projection, and every panel
+          // that does not — a step drawn nearly edge-on, one whose art is a
+          // handful of tiles — lands over 0.040. Nothing sits between except
+          // printed step 32 at 0.01776, which is a false accept this file's
+          // assertions name; the gate goes in the gap.
           const fitOptions = { minOffsetPx: 8, maxOffsetPx: 100, maxResidualFraction: 0.02 };
           const fit = lattice.fitStudLattice(field, fitOptions);
 

@@ -173,6 +173,67 @@ describe("fitStudLattice", () => {
     expect(fit.solution!.pixelsPerUnit).toBeCloseTo(22, 0);
   });
 
+  it("recovers cameras the order-dependent pairing could not reach", () => {
+    // Ground truth by construction, and the reason these four are here rather
+    // than any four: each is a camera the fitter used to refuse or mis-fit
+    // because `canonicalPair` read its argument order as information, and each
+    // is recovered now. Printed step 7 of the sample booklet is the same defect
+    // on a real page — its grid steps are (23,19) and (-33,13), the left-pointing
+    // one is the picture's strongest repeat, so the pair always arrived
+    // left-first and was dropped.
+    //
+    // The change was swept over 735 synthetic panels — 7 plate shapes, 7
+    // azimuths, 5 elevations, 3 scales — and recovers 532 of them against 476,
+    // mis-fitting 53 against 83. It is not free: 19 cases go the other way,
+    // including this plate at azimuth 20 / elevation 28 / 26px, which now
+    // refuses. A refusal is the cheap direction to lose in and a mis-fit is not.
+    const shape = {
+      width: 700,
+      height: 620,
+      studsAcross: 16,
+      studsDeep: 12,
+      originXPx: 150,
+      originYPx: 90,
+    } as const;
+    for (const [azimuthDegrees, elevationDegrees, pixelsPerUnit] of [
+      [12, 28, 20],
+      [34, 41, 20],
+      [55, 28, 20],
+      [62, 48, 34],
+    ] as const) {
+      const fit = fitStudLattice(
+        fieldFor({ ...shape, azimuthDegrees, elevationDegrees, pixelsPerUnit }),
+      );
+      expect(fit.failure).toBeNull();
+      expect(fit.solution!.azimuthDegrees).toBeCloseTo(azimuthDegrees, 0);
+      expect(fit.solution!.elevationDegrees).toBeCloseTo(elevationDegrees, 0);
+      expect(fit.solution!.pixelsPerUnit).toBeCloseTo(pixelsPerUnit, 0);
+    }
+  });
+
+  it("will not choose a lattice with no site at the picture's strongest repeat", () => {
+    // What this pins and what it does not. It pins the invariant — the basis the
+    // fit returns has a site at the picture's loudest repeat — and that the key
+    // is not vacuous, because a ranking key every candidate satisfies is not one.
+    // It does *not* prove the key is load bearing: deleting the key from the
+    // comparator leaves this passing, because on a cleanly drawn grid the top
+    // candidate explains the strongest repeat anyway. The evidence that the key
+    // is needed is the printed booklet, where deleting it drops printed step 4
+    // to a refusal at 10.34 points per stud and accepts printed step 38 at 7.43.
+    const fit = fitStudLattice(fieldFor(TRUTH));
+    expect(fit.candidates.some((candidate) => !candidate.explainsStrongestPeak)).toBe(true);
+    expect(fit.candidates[0]!.explainsStrongestPeak).toBe(true);
+    // And the chosen basis really does have a site there, independently of how
+    // the candidate list was ordered.
+    const strongest = fit.peaks[0]!.vector;
+    const basis = fit.basis!;
+    const determinant = basis.a.xPx * basis.b.yPx - basis.a.yPx * basis.b.xPx;
+    const m = (strongest.xPx * basis.b.yPx - strongest.yPx * basis.b.xPx) / determinant;
+    const n = (basis.a.xPx * strongest.yPx - basis.a.yPx * strongest.xPx) / determinant;
+    expect(Math.abs(m - Math.round(m))).toBeLessThan(0.16);
+    expect(Math.abs(n - Math.round(n))).toBeLessThan(0.16);
+  });
+
   it("says what is missing when the crop holds no art", () => {
     const blank = new Uint8ClampedArray(64 * 64 * 4).fill(255);
     const field = buildStudTextureField(blank, 64, 64, {
