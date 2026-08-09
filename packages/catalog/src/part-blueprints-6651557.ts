@@ -134,7 +134,7 @@ export const SET_6651557_PART_BLUEPRINTS = [
       provenance: LDRAW_91988_FRAME_PROVENANCE,
     },
     bodyBoundsLdu: { min: [-20, -4, -140], max: [20, 4, 140] },
-    geometrySha256: "6dcc465b161c101e0395a4145b9250ba8110a33f7eb90997e36ea8e11b8af3e3",
+    geometrySha256: "3c558f70cbef7dd274b4f1314e45ede3a7476b65d6f6e3be1f0d923a5979ed04",
   },
   {
     family: "wedge-plate",

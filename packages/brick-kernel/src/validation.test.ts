@@ -186,27 +186,61 @@ describe("hard document validation", () => {
     expect(codes(faceTouching)).toContain("DISCONNECTED_ASSEMBLY");
   });
 
-  it("requires a validated exact connection before allowing stud penetration", () => {
+  /**
+   * A seated stud stopped being a penetration at builtin.basic-parts/10, and
+   * that is the shell working rather than a check going quiet.
+   *
+   * A 1x1 brick's cavity is its footprint eroded by the 4 LDU wall `3020.dat`
+   * measures, so its inner face stands 6 LDU from the clutch centre — the stud
+   * radius exactly. A stud seated on the lattice touches that wall and crosses
+   * nothing, which is the interference fit itself; while the body was a filled
+   * prism the same stud drove 4 LDU into solid material and needed the
+   * connection-gated allowance to be admitted at all. So the seated pair is now
+   * refused for the one reason left, and being off the lattice by a single LDU
+   * is what the cavity refuses.
+   *
+   * The allowance is not dead: the 27 parts whose underside is still
+   * `semantic-tube-seat-grid` — every wedge, arch and curved slope — keep filled
+   * bodies, and a stud entering one of those is admitted only by a validated
+   * connection. `catalog-plan-geometry.test.ts` holds that side.
+   */
+  it("seats a stud in the cavity, and refuses one a single LDU off the lattice", () => {
     const lower = createPartInstance({ id: "lower" });
-    const upper = createPartInstance({
+    const seated = createPartInstance({
       id: "upper",
       transform: { positionLdu: [0, -24, 0], orientationId: "upright-yaw-0" },
     });
 
-    const unconnectedCodes = codes(withParts([lower, upper]));
-    expect(unconnectedCodes).toContain("PART_STUD_BODY_COLLISION");
+    const unconnectedCodes = codes(withParts([lower, seated]));
+    expect(unconnectedCodes).toEqual(["DISCONNECTED_ASSEMBLY"]);
 
-    const connectedCodes = codes(withParts([lower, upper], [connection("exact")]));
-    expect(connectedCodes).not.toContain("PART_STUD_BODY_COLLISION");
-    expect(connectedCodes).not.toContain("PART_BODY_COLLISION");
+    const connectedCodes = codes(withParts([lower, seated], [connection("exact")]));
+    expect(connectedCodes).toEqual([]);
 
-    const shiftedUpper = createPartInstance({
+    for (const [axis, offset] of [
+      ["x", [1, -24, 0]],
+      ["z", [0, -24, 1]],
+    ] as const) {
+      const nudged = createPartInstance({
+        id: "upper",
+        transform: { positionLdu: offset, orientationId: "upright-yaw-0" },
+      });
+      const nudgedCodes = codes(withParts([lower, nudged], [connection(`off-${axis}`)]));
+      expect(nudgedCodes).toContain("CONNECTION_TRANSFORM_MISMATCH");
+      // The allowance is a 6 LDU circle on the clutch centre and the stud fills
+      // it, so one LDU of drift is outside it however the edge is declared.
+      expect(nudgedCodes).toContain("PART_STUD_BODY_COLLISION");
+    }
+
+    const tooLow = createPartInstance({
       id: "upper",
       transform: { positionLdu: [0, -23, 0], orientationId: "upright-yaw-0" },
     });
-    const mismatchedCodes = codes(withParts([lower, shiftedUpper], [connection("mismatched")]));
-    expect(mismatchedCodes).toContain("CONNECTION_TRANSFORM_MISMATCH");
-    expect(mismatchedCodes).toContain("PART_STUD_BODY_COLLISION");
+    const tooLowCodes = codes(withParts([lower, tooLow], [connection("too-low")]));
+    expect(tooLowCodes).toContain("CONNECTION_TRANSFORM_MISMATCH");
+    // Pushed a further LDU in, the two walls meet before the stud reaches the
+    // ceiling, so this is body against body rather than stud against body.
+    expect(tooLowCodes).toContain("PART_BODY_COLLISION");
   });
 
   it("detects overlapping catalog stud cylinders", () => {

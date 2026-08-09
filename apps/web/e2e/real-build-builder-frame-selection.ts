@@ -134,22 +134,79 @@ function boundsKey(
 /** Raised when the proof cannot describe a part, never when a part is simply not symmetric. */
 class InconclusiveSymmetry extends Error {}
 
+interface TaggedBox {
+  readonly tag: string;
+  readonly min: Point;
+  readonly max: Point;
+}
+
+function transformedBox(transform: LedgerTransform | null, box: TaggedBox): TaggedBox {
+  if (transform === null) return box;
+  const corners: Point[] = [];
+  for (const x of [box.min[0], box.max[0]]) {
+    for (const y of [box.min[1], box.max[1]]) {
+      for (const z of [box.min[2], box.max[2]]) {
+        corners.push(applyUpright(transform, [x, y, z]));
+      }
+    }
+  }
+  return {
+    tag: box.tag,
+    min: [0, 1, 2].map((axis) => Math.min(...corners.map((c) => c[axis]!))) as unknown as Point,
+    max: [0, 1, 2].map((axis) => Math.max(...corners.map((c) => c[axis]!))) as unknown as Point,
+  };
+}
+
+const boxCovers = (boxes: readonly TaggedBox[], point: Point): boolean =>
+  boxes.some(({ min, max }) => [0, 1, 2].every((a) => point[a]! > min[a]! && point[a]! < max[a]!));
+
+/**
+ * Whether two sets of axis-aligned boxes occupy the same volume, tag by tag.
+ *
+ * A decomposition is not the part. `part-shell.ts` cuts a shell's walls into
+ * boxes by sweeping x before z, so a square plate's wall ring comes out as two
+ * boxes running the full length and two inset between them — a set that a
+ * quarter turn does not map onto itself, though the ring it describes maps onto
+ * itself exactly. Comparing the chopping called such a part asymmetric and sent
+ * every square plate to the surface witness; comparing the volume asks the
+ * question the proof means to ask, and keeps asking it correctly when step 4 of
+ * the part-geometry plan re-derives a body into boxes nobody chose by hand.
+ *
+ * Exact rather than sampled: every coordinate of both sets is cut into one
+ * shared grid, so each cell lies wholly inside or wholly outside every box and
+ * its centre decides it.
+ */
+function sameBoxVolume(left: readonly TaggedBox[], right: readonly TaggedBox[]): boolean {
+  for (const tag of new Set([...left, ...right].map((box) => box.tag))) {
+    const here = left.filter((box) => box.tag === tag);
+    const there = right.filter((box) => box.tag === tag);
+    const edges = [0, 1, 2].map((axis) =>
+      [...new Set([...here, ...there].flatMap((box) => [box.min[axis]!, box.max[axis]!]))].sort(
+        (a, b) => a - b,
+      ),
+    );
+    for (let xi = 0; xi + 1 < edges[0]!.length; xi += 1) {
+      for (let yi = 0; yi + 1 < edges[1]!.length; yi += 1) {
+        for (let zi = 0; zi + 1 < edges[2]!.length; zi += 1) {
+          const center: Point = [
+            (edges[0]![xi]! + edges[0]![xi + 1]!) / 2,
+            (edges[1]![yi]! + edges[1]![yi + 1]!) / 2,
+            (edges[2]![zi]! + edges[2]![zi + 1]!) / 2,
+          ];
+          if (boxCovers(here, center) !== boxCovers(there, center)) return false;
+        }
+      }
+    }
+  }
+  return true;
+}
+
 function primitiveKey(
   definitionId: string,
   transform: LedgerTransform | null,
   primitive: Record<string, unknown>,
 ): string {
   const kind = String(primitive.kind);
-  if (kind === "box") {
-    return key({
-      kind,
-      tag: primitive.tag,
-      bounds: boundsKey(transform, {
-        min: primitive.minLdu as Point,
-        max: primitive.maxLdu as Point,
-      }),
-    });
-  }
   if (kind === "cylinder") {
     if (primitive.axis !== "y") {
       throw new InconclusiveSymmetry(
@@ -173,9 +230,9 @@ function primitiveKey(
   }
   throw new InconclusiveSymmetry(
     `Catalog part ${definitionId} declares a ${JSON.stringify(kind)} collision primitive, and the ` +
-      `Builder frame self-symmetry proof covers only box and cylinder. Two exact frames cannot be ` +
-      `declared equivalent on a body this proof cannot rotate; settle the design with the surface ` +
-      `witness or extend the proof deliberately.`,
+      `Builder frame self-symmetry proof covers only box — compared as occupied volume — and ` +
+      `cylinder. Two exact frames cannot be declared equivalent on a body this proof cannot ` +
+      `rotate; settle the design with the surface witness or extend the proof deliberately.`,
   );
 }
 
@@ -226,11 +283,25 @@ function isCatalogPartSelfSymmetry(
               ),
       })),
     );
+  // Boxes are compared as the volume they occupy and everything else by its own
+  // key, because a box is the one primitive whose decomposition is a choice.
+  const boxes = (mapped: LedgerTransform | null): TaggedBox[] =>
+    definition.collision.primitives
+      .filter((primitive) => primitive.kind === "box")
+      .map((primitive) =>
+        transformedBox(mapped, {
+          tag: primitive.tag,
+          min: primitive.minLdu as unknown as Point,
+          max: primitive.maxLdu as unknown as Point,
+        }),
+      );
   const primitives = (mapped: LedgerTransform | null): string =>
     sortedKeys(
-      definition.collision.primitives.map((primitive) =>
-        primitiveKey(definition.id, mapped, primitive as unknown as Record<string, unknown>),
-      ),
+      definition.collision.primitives
+        .filter((primitive) => primitive.kind !== "box")
+        .map((primitive) =>
+          primitiveKey(definition.id, mapped, primitive as unknown as Record<string, unknown>),
+        ),
     );
   const allowances = (mapped: LedgerTransform | null): string =>
     sortedKeys(
@@ -248,6 +319,7 @@ function isCatalogPartSelfSymmetry(
     );
   return (
     connectors(null) === connectors(transform) &&
+    sameBoxVolume(boxes(null), boxes(transform)) &&
     primitives(null) === primitives(transform) &&
     allowances(null) === allowances(transform) &&
     boundsKey(null, definition.bodyBoundsLdu as { min: Point; max: Point }) ===

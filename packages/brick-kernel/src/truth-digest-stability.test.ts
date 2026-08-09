@@ -12,23 +12,31 @@ import { createBuiltinTruthSnapshot, getBuiltinTruthDigestInputs } from "./facto
  * are literals rather than recomputed expectations on purpose: a test that
  * derives what it checks from the code it is checking cannot notice a change.
  *
- * Measured at catalog builtin.basic-parts/9 with 85 definitions, which drew the
- * first part as the shell it is: `plate-2x4` gained the ceiling and four walls
- * `3020.dat` models, so its body is five boxes rather than one. A move here is
+ * Measured at catalog builtin.basic-parts/10 with 85 definitions, which drew
+ * fifty-eight parts as the shells they are: every brick, plate, tile, jumper
+ * plate, grille tile, technic brick and the corner plate now carry the ceiling,
+ * walls and underside tubes their own LDraw files model. A move here is
  * legitimate only alongside a deliberate version bump and its migration report;
  * red for any other reason means something re-hashed the catalog by accident.
+ *
+ * What they were at builtin.basic-parts/9, HEAD 108d5b3 with the same 85
+ * definitions and only `plate-2x4` shelled:
+ *   catalog            sha256:37044e203031a9efc791ed9d9d41468796e57522e4a048d3403eac1a958386ff
+ *   connectorTaxonomy  sha256:57489cb5a3b5e1bf367984c2768318f151e19051d2b1b6ee3713a7e6ef53f6a2
+ *   collisionModel     sha256:be31c76510a2ccefc2904a858accd2f2fcc162ed8ae723a3c285a5d3dbc5ea3b
+ *   transformPolicy    sha256:0b440dad9403f63aa89496e0e129ef3cf5d78391565294cbde18e239ec66c7b6
+ *   validatorSet       sha256:cb2767cfa8c8d7adfe145bef950b49428d8c8fced235a04b5f984c29799a031e
  *
  * What they were at builtin.basic-parts/8, HEAD 262d274 with the same 85
  * definitions and a filled `plate-2x4`:
  *   catalog            sha256:a9adf38bfad3c73d47524100f4e3891ac32a8e6cdd7865a37ec00eccf31281e2
- *   connectorTaxonomy  sha256:57489cb5a3b5e1bf367984c2768318f151e19051d2b1b6ee3713a7e6ef53f6a2
  *   collisionModel     sha256:8f181d6f69af1cbe385a1d91fa07477bb75df9ef6b5af21b4e1f5bcb3a96b878
- *   transformPolicy    sha256:0b440dad9403f63aa89496e0e129ef3cf5d78391565294cbde18e239ec66c7b6
- *   validatorSet       sha256:cb2767cfa8c8d7adfe145bef950b49428d8c8fced235a04b5f984c29799a031e
- * Exactly two moved: the catalog, because every part's provenance carries the
- * version and one part's body changed, and the collision model, because it
- * reads those same body primitives. The connector taxonomy and the transform
- * policy did not, which is the check working — no connector moved.
+ *
+ * Across both bumps exactly two moved: the catalog, because every part's
+ * provenance carries the version and those parts' bodies changed, and the
+ * collision model, because it reads those same body primitives. The connector
+ * taxonomy and the transform policy did not, which is the check working — it
+ * says in one number that shelling fifty-eight parts moved no connector at all.
  *
  * What they were at builtin.basic-parts/7, HEAD 9d0ebed with 82 definitions:
  *   catalog            sha256:f26a1ba141ca0485f1bf046c68d94082497fcd8dcea85906723a389a09ec55d2
@@ -38,30 +46,33 @@ import { createBuiltinTruthSnapshot, getBuiltinTruthDigestInputs } from "./facto
  *   validatorSet       sha256:cb2767cfa8c8d7adfe145bef950b49428d8c8fced235a04b5f984c29799a031e
  */
 const PINNED_TRUTH_HASHES = {
-  catalog: "sha256:37044e203031a9efc791ed9d9d41468796e57522e4a048d3403eac1a958386ff",
+  catalog: "sha256:c41d4c2faf78534bcfab3142907a4271210d9dc855ce1103f12390b0d2c0709e",
   connectorTaxonomy: "sha256:57489cb5a3b5e1bf367984c2768318f151e19051d2b1b6ee3713a7e6ef53f6a2",
-  collisionModel: "sha256:be31c76510a2ccefc2904a858accd2f2fcc162ed8ae723a3c285a5d3dbc5ea3b",
+  collisionModel: "sha256:a14d660a6b24a63326ab6c24865fc07ea59496b1cf48002cea83a4b615724edb",
   transformPolicy: "sha256:0b440dad9403f63aa89496e0e129ef3cf5d78391565294cbde18e239ec66c7b6",
   validatorSet: "sha256:cb2767cfa8c8d7adfe145bef950b49428d8c8fced235a04b5f984c29799a031e",
 } as const;
 
 /**
  * SHA-256 of the ordered `[partId, geometry.contentHash]` roster, all 85 rows.
- * It was 5ea04c448b04800b87087f0c5dcb818d46e805eb51d535c9b40b7894281f4af1 at /8.
+ * It was 5ea04c448b04800b87087f0c5dcb818d46e805eb51d535c9b40b7894281f4af1 at /8
+ * and 19c6fbc5190d808bfa0b3ffd4d81fef3262a8758fffc53f9ecc7dfe76857cce8 at /9.
  *
- * Every earlier move of this number came from appending parts, which left the
- * existing prefixes hashing exactly as before. This one does not: `plate-2x4` is
- * row 14 and its geometry digest changed, so the 77-row and 82-row prefixes
- * moved too — to 66275737ee36d02aa7a31dc4134310b314332a7397424246c0d677e85d5565d5
- * and 4233f1496f925c3035f2f2b3158b5a47480d75a5371630aef3e9ccc225679a99. That is
- * the point of the version bump: a part in place changed what it draws.
+ * Every move of this number through /8 came from appending parts, which left the
+ * existing prefixes hashing exactly as before. /9 moved one row in place and /10
+ * moves fifty-seven more, so no prefix survives either. That is the point of the
+ * version bump: parts in place changed what they draw.
  */
 const PINNED_GEOMETRY_ROSTER_SHA256 =
-  "19c6fbc5190d808bfa0b3ffd4d81fef3262a8758fffc53f9ecc7dfe76857cce8";
+  "719cded0409c9add18a7cd4480811e2dfddb42f7aa7126eccafd23c9867ca0fd";
 
 const PINNED_PART_COUNT = 85;
-/** 1_204_568 at builtin.basic-parts/6, 1_298_834 at /7, 1_358_361 at /8. */
-const PINNED_CATALOG_SERIALIZED_LENGTH = 1_359_123;
+/**
+ * 1_204_568 at builtin.basic-parts/6, 1_298_834 at /7, 1_358_361 at /8,
+ * 1_359_123 at /9. The jump at /10 is fifty-eight bodies going from one box to
+ * five plus their tubes.
+ */
+const PINNED_CATALOG_SERIALIZED_LENGTH = 1_504_923;
 
 describe("builtin truth digest stability", () => {
   it("keeps the five pinned truth hashes byte-identical", () => {
@@ -80,7 +91,7 @@ describe("builtin truth digest stability", () => {
     const truth = createBuiltinTruthSnapshot();
 
     expect(truth.catalog.hash).toBe(PINNED_TRUTH_HASHES.catalog);
-    expect(truth.catalog.version).toBe("builtin.basic-parts/9");
+    expect(truth.catalog.version).toBe("builtin.basic-parts/10");
     expect(truth.connectorTaxonomy.hash).toBe(PINNED_TRUTH_HASHES.connectorTaxonomy);
     expect(truth.collisionModel.hash).toBe(PINNED_TRUTH_HASHES.collisionModel);
     expect(truth.transformPolicy.hash).toBe(PINNED_TRUTH_HASHES.transformPolicy);

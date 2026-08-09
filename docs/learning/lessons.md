@@ -71,3 +71,6 @@ When a lesson becomes a gate — a test, a lint rule, a fixed command — delete
 - A gate that cannot distinguish "passed" from "did not run" will report the second as the first, so prove it fails before trusting that it passes. ([evidence](lessons-evidence.md#a-gate-that-cannot-tell-passed-from-did-not-run-reports-the-second-as-the-first))
 - A pipeline exits with its LAST command's status, so `npm run x | tail` reports tail's success over any failure; capture the command's own code. ([evidence](lessons-evidence.md#a-shell-pipeline-reports-the-last-commands-exit-code))
 - A check is written against the cases that exist, so ask what it would say about one it has never seen — that question, not a passing run, is what finds it. ([evidence](lessons-evidence.md#a-check-is-written-against-the-case-that-exists-and-is-silent-about-the-one-that-arrives))
+- A hand-built surface can be present, counted by a test, and invisible: measure which way each face points, never the vertex order. ([evidence](lessons-evidence.md#a-hand-built-surface-can-be-present-counted-and-invisible))
+- "Err on the safe side" has a direction, and a legal fit that is nearly tangent reverses it — an over-claiming approximation refuses the real build. ([evidence](lessons-evidence.md#err-on-the-safe-side-has-a-direction-and-a-touching-fit-reverses-it))
+

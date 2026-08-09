@@ -245,13 +245,20 @@ describe("measured set 6651557 catalog parts", () => {
         ),
       ).toMatchObject({ kind: "wedge", cutNormalXZ, cutOffsetLdu });
     }
-    expect(
-      getPartDefinition("builtin:plate-2x14")!.collision.primitives.find(({ id }) => id === "body"),
-    ).toMatchObject({
-      kind: "box",
-      minLdu: [-20, -4, -140],
-      maxLdu: [20, 4, 140],
+    // 91988's declared extents survive the part being shelled: the walls still
+    // reach them, so the body it reports is the body it always reported. What
+    // is new is inside — a cavity, and the thirteen tubes `91988.dat` places at
+    // every lattice point between its two stud rows.
+    const plate2x14 = getPartDefinition("builtin:plate-2x14")!;
+    expect(plate2x14.bodyBoundsLdu).toEqual({ min: [-20, -4, -140], max: [20, 4, 140] });
+    expect(plate2x14.geometry).toMatchObject({
+      bodyMode: "compound",
+      undersideMode: "modelled-shell-cavity",
     });
+    expect(
+      (plate2x14.geometry as { bodyTubes?: { centersXZLdu: readonly unknown[] } }).bodyTubes
+        ?.centersXZLdu,
+    ).toHaveLength(13);
     expect(getPartDefinition("builtin:plate-2x14")!.ldrawFrame).toEqual({
       ldrawToCatalogOrientationId: "upright-yaw-90",
       provenance: {

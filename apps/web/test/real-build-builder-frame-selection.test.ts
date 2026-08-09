@@ -1,4 +1,5 @@
 import { getPartDefinition } from "@lego-studio/catalog";
+import type { CollisionPrimitive, PartDefinition } from "@lego-studio/catalog";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -113,6 +114,78 @@ describe("catalog-to-Builder frame selection", () => {
     expect(first.equivalenceClassCount).toBe(1);
     expect(first.method).toBe("catalog-part-self-symmetry");
     expect(second.transform).toEqual(first.transform);
+  });
+
+  /**
+   * The two halves of what the square-plate case above actually rests on, with
+   * everything but the body held fixed.
+   *
+   * `plate-8x8`'s wall ring is cut by sweeping x before z, so it comes out as
+   * two boxes running the full length and two inset between them — a set the
+   * quarter turn does not map onto itself even though the ring does. Cutting
+   * the same ring the other way must not change the verdict, and moving one
+   * wall must.
+   */
+  it("judges a square plate by the volume its body occupies, not by how it was cut", () => {
+    const catalog = studCenters("builtin:plate-8x8");
+    const frame: LedgerTransform = { positionLdu: [70, -4, 70], orientationId: "upright-yaw-270" };
+    const plate = getPartDefinition("builtin:plate-8x8")!;
+    const withBody = (body: readonly CollisionPrimitive[]): PartDefinition => ({
+      ...plate,
+      collision: {
+        ...plate.collision,
+        primitives: [
+          ...body,
+          ...plate.collision.primitives.filter(
+            ({ tag, id }) => tag !== "body" || id.startsWith("tube:"),
+          ),
+        ],
+      },
+    });
+    const box = (id: string, min: Point, max: Point): CollisionPrimitive => ({
+      id,
+      kind: "box",
+      tag: "body",
+      minLdu: min,
+      maxLdu: max,
+    });
+    const ceiling = box("body:0", [-80, -4, -80], [80, 0, 80]);
+    const select = (definition: PartDefinition) =>
+      selectCatalogToBuilderFrame({
+        definition,
+        designRevision: "41539;F",
+        catalogStudCenters: catalog,
+        builderStudCenters: move(catalog, frame),
+        measure: (candidate) => [
+          candidate.orientationId === frame.orientationId ? 100_000 : 4_000_000,
+        ],
+      });
+
+    // The same wall ring, swept z before x.
+    const cutTheOtherWay = select(
+      withBody([
+        ceiling,
+        box("body:1", [-80, 0, -80], [80, 4, -76]),
+        box("body:2", [-80, 0, 76], [80, 4, 80]),
+        box("body:3", [-80, 0, -76], [-76, 4, 76]),
+        box("body:4", [76, 0, -76], [80, 4, 76]),
+      ]),
+    );
+    expect(cutTheOtherWay.method).toBe("catalog-part-self-symmetry");
+    expect(cutTheOtherWay.equivalenceClassCount).toBe(1);
+
+    // One wall moved 4 LDU inward: the same four boxes, a different solid.
+    const oneWallMoved = select(
+      withBody([
+        ceiling,
+        box("body:1", [-80, 0, -80], [-76, 4, 80]),
+        box("body:2", [-76, 0, -80], [76, 4, -76]),
+        box("body:3", [-76, 0, 76], [76, 4, 80]),
+        box("body:4", [72, 0, -80], [76, 4, 80]),
+      ]),
+    );
+    expect(oneWallMoved.method).toBe("ldraw-surface-witness");
+    expect(oneWallMoved.equivalenceClassCount).toBe(4);
   });
 
   /**

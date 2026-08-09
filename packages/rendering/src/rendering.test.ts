@@ -118,6 +118,51 @@ describe("brick scene derivation", () => {
     expect(JSON.stringify(document)).toBe(before);
   });
 
+  /**
+   * A tube is the one piece of this renderer whose surface is built by hand,
+   * and the first version had all 144 of its triangles wound backwards. Every
+   * material here is `FrontSide`, so the tubes were in the scene, counted by
+   * the tests above, and drew nothing at all: the from-below capture of a 2x4
+   * plate was a flat red rectangle, exactly the picture the shell exists to
+   * replace. Vertex order cannot be read; the direction each face points can be
+   * measured, so it is.
+   */
+  it("points every face of an underside tube outward, at a camera that can see it", () => {
+    const part = createPartInstance({ id: "plate", catalogPartId: "builtin:plate-2x4" });
+    const projection = deriveBrickScene(documentWithParts([part]));
+    const tubes = objectsWithRole(projection.partObjects.get(part.id)!, "body").filter(({ name }) =>
+      name.startsWith("tube:"),
+    );
+
+    expect(tubes).toHaveLength(3);
+    const position = (tubes[0] as Mesh).geometry.getAttribute("position");
+    const facing = { away: 0, toward: 0, up: 0, down: 0 };
+    for (let first = 0; first + 2 < position.count; first += 3) {
+      const corners = [0, 1, 2].map((offset) =>
+        new Vector3().fromBufferAttribute(position, first + offset),
+      );
+      const normal = new Vector3()
+        .crossVectors(corners[1]!.clone().sub(corners[0]!), corners[2]!.clone().sub(corners[0]!))
+        .normalize();
+      if (Math.abs(normal.y) > 0.9) {
+        // The part hangs studs-up, so a face a camera below can see points at
+        // negative Y in scene space.
+        facing[normal.y > 0 ? "up" : "down"] += 1;
+        continue;
+      }
+      const centroid = corners
+        .reduce((sum, corner) => sum.add(corner), new Vector3())
+        .multiplyScalar(1 / 3);
+      const outward = new Vector3(centroid.x, 0, centroid.z).normalize();
+      facing[normal.dot(outward) > 0 ? "away" : "toward"] += 1;
+    }
+
+    // 24 facets: an outer wall and a bore of two triangles each, plus the ring
+    // that caps them at the open face. The outer wall points away from the
+    // axis, the bore points at it, and the ring points down.
+    expect(facing).toEqual({ away: 48, toward: 48, up: 0, down: 48 });
+  });
+
   it("builds project-authored body and stud meshes from catalog recipes", () => {
     const part = createPartInstance({
       id: "brick",
@@ -129,13 +174,25 @@ describe("brick scene derivation", () => {
     const bodies = objectsWithRole(partObject, "body");
     const studs = objectsWithRole(partObject, "stud");
 
-    expect(bodies).toHaveLength(1);
+    // A brick is a shell: the ceiling slab, four walls and the two tubes that
+    // stand between its six stud cells. The one filled prism it used to be
+    // would have been a body no stud could clutch into.
+    expect(bodies).toHaveLength(7);
+    expect(bodies.filter(({ name }) => name.startsWith("tube:"))).toHaveLength(2);
     expect(studs).toHaveLength(6);
 
-    const body = bodies[0] as Mesh<BoxGeometry, MeshStandardMaterial>;
+    const boxes = bodies.filter(({ name }) => name.startsWith("body:")) as Mesh<
+      BoxGeometry,
+      MeshStandardMaterial
+    >[];
+    expect(boxes).toHaveLength(5);
+    // Nothing spans the whole 1.2-unit height any more; the ceiling is the
+    // 4 LDU of the brick's 24 that `s/3001s01.dat` leaves solid over its cavity.
+    expect(boxes.map((box) => box.geometry.parameters.height)).not.toContain(1.2);
+    const body = boxes[0]!;
     expect(body.geometry).toBeInstanceOf(BoxGeometry);
     expect(body.geometry.parameters).toMatchObject({ width: 2, depth: 3 });
-    expect(body.geometry.parameters.height).toBeCloseTo(1.2);
+    expect(body.geometry.parameters.height).toBeCloseTo(0.2);
     expect(body.material).toBeInstanceOf(MeshStandardMaterial);
     expect(body.material.color.getHex()).toBe(0xc91a09);
     expect(body.geometry.userData).toMatchObject({

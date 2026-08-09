@@ -110,6 +110,8 @@ This is worth stating as a general shape, because it is the fourth instance in t
 
 `builtin:plate-2x4` carries the measured shell — a ceiling slab and four walls, five boxes, no tubes. Its eight clutches and eight studs survive unchanged, `parts:check` drops from **139 violations to 137** (`underside-is-drawn` 74 → 73, `body-is-hollow-where-it-clutches` 57 → 56, `geometry-mode-is-declared` 8 → 8), and no other part changes in any field. Rendered from below it is a tray: a rim of four wall bottoms with the ceiling recessed 4 LDU inside it, against `plate-2x3`'s flat face at the same viewpoint.
 
+*(Corrected 2026-08-09: that last sentence claims more than the picture it was read from. The straight-down orthographic capture shows the wall bottoms, the tube rings and the recessed ceiling as faces with one normal and one material, so it is one flat colour whatever is behind it — which is how a tube whose triangles were all wound backwards went unnoticed through a whole render pass. The cavity is only visible from an angle under the model; see the step 3 result.)*
+
 **The tubes are deliberately absent from this first shell**, now for a stated reason rather than a missing number. `bodyBoxesLdu` takes boxes, and a tube is an annulus; drawing it as a solid box or a solid cylinder would fill its 6 LDU bore and replace one lie with another. Every clutch on this part is held by the walls alone, and the tubes' own contribution — the opposing grip at an interior seat — cannot be checked until the union can hold a hollow cylinder. Step 3 needs that before it reaches a part whose interior seats have no wall within reach.
 
 **1 — Extend the standard.** Add the rules the current four do not cover: the render silhouette agrees with the expanded LDraw surface from all seven canonical views within a stated tolerance; `bodyBoundsLdu` equals the drawn extent; collision primitives cover the body and no more. Expect the violation count to *rise* above 82; a standard that finds less after being sharpened was not sharpened.
@@ -118,17 +120,39 @@ This is worth stating as a general shape, because it is the fourth instance in t
 
 **3 — Generalise to the 74.** Drive it from `undersideMode` and the declared seat grid. The number: 74 `underside-is-drawn` violations to zero.
 
+### Step 3 result — 137 violations to 24, and the tubes are drawn — 2026-08-09
+
+`part-shell.ts` derives the shell from a part's own footprint rather than from anything authored per part: erode the footprint by the 4 LDU wall, roof it with the 4 LDU ceiling, and stand a tube at the centre of every complete 2 x 2 block of stud cells. Every number in it is read off an LDraw file with the file and line beside it, and a family whose own file nobody has read makes it throw rather than inherit a plate's numbers.
+
+Fifty-eight of the eighty-five parts now draw that shell — every brick, plate, tile, jumper plate, grille tile, technic brick and the corner plate, wherever the body is a uniform-height prism. `parts:check` goes from **137 violations to 24**: `body-is-hollow-where-it-clutches` 56 to **0**, `underside-is-drawn` 73 to **16**, `geometry-mode-is-declared` 8 to 8. The 16 that remain are exactly the bodies this rule does not reach — a wedge's sloped prism, an arc's analytic plan, and the staircases an arch, a curved slope and a cheese slope are, whose bottom is not one plane. The 8 are step 4.
+
+No connector moved. The reviewed Builder source pins say it in one number: of the fifteen designs pinned in `real-build-builder-sources.ts`, nine had their geometry and collision digests move and **not one had its connector digest move**.
+
+Three defects were found in the generalisation, and all three were in the half nobody had looked at:
+
+- **The tube's collision primitive cannot be a cylinder.** `collisions.ts` gives a body cylinder its bounding box — right for a wheel, which stands alone, and wrong for a tube, which sits between four studs 10 * sqrt(2) LDU away. Every exactly seated stack of two 2-wide parts reported `PART_STUD_BODY_COLLISION` against its own tubes, connection declared. It is now the largest axis-aligned box inside the tube circle, whose corners meet that circle exactly in the four directions the studs occupy.
+- **The tube's 144 triangles were wound backwards**, so `FrontSide` culled all of them: the tubes were in the scene, counted by a passing test, and drew nothing. Found by rendering the underside and looking at it.
+- **A shell's box decomposition is not canonical under rotation.** Sweeping x before z cuts a square plate's wall ring into two long boxes and two inset ones, a set no quarter turn maps onto itself, so the Builder frame self-symmetry proof called every square plate asymmetric and sent it to the surface witness. The proof now compares the volume the boxes occupy rather than the boxes, which is the question it meant to ask and the one that survives step 4 re-deriving bodies nobody chose by hand.
+
+The pictures are the evidence and they were looked at: orbited under the model, a 2x4 plate is a tray with three tubes down its centre line, a 4x4 plate has the 3 x 3 grid `3031.dat` places, a 2x4 brick has a 20 LDU deep cavity with three full-height tubes standing in it, and a 1x4 plate has the tray and no tubes at all — the `stud3` pins `part-shell.ts` deliberately omits. The straight-down orthographic capture shows none of this and cannot: from directly below the wall bottoms, the tube rings and the recessed ceiling are all faces with one normal and one material, so the picture is flat whatever is behind it.
+
 **4 — Re-derive the 8 mesh-first parts through the same path.** The number: 8 `geometry-mode-is-declared` violations to zero, and the wing plate's 115 collision boxes replaced by a decomposition of its own surface.
 
 **5 — Wire `parts:check` into `verify`** and delete the note at the top of the script. The number: `parts:check` exits 0.
 
 **6 — Re-verify the booklet prefix.** Steps 4 and 5 were accepted against flat undersides and must be re-run against real ones. The number: `stepsComplete` re-measured, and it may go **down** before it goes up. A prefix that shrinks here is the standard working.
 
+### Step 6, first half — the prefix is unchanged — 2026-08-09
+
+Re-run against the real undersides, the booklet reports **5/5 steps complete and 8 pieces placed** at `--last-step 5`, and **4/4 and 6** at `--last-step 4`. Both pins hold to the piece. Printed step 4 is still classified `underside` and still completes, now scored against a plate that has a cavity and tubes rather than against a flat rectangle.
+
+That is the geometry half and it is done. What it does not do is upgrade step 4 to verified: the run's own refusals still report step 4's chosen transform as the mirror of the ledger's, which is the standing mirroring gap and not something a shell can fix. Re-reading steps 4 and 7 against their panels — the comparison numbers, not the completion count — is what remains of this step.
+
 ## What re-verification owes
 
 Steps 1, 2 and 3 are studs-up panels and their comparisons are unaffected by the underside gap; they stay verified. Steps 4 and 5 are provisional, and step 6's margin is measured through them.
 
-The honest position until step 6 above completes: **3 verified printed steps, not 5.**
+The honest position, with the shell drawn and the prefix re-measured: **3 verified printed steps, not 5.** The geometry those two panels are scored against is now the part; whether the placements they chose are the ones the booklet draws has not been re-read.
 
 ## Why this is worth the cost
 

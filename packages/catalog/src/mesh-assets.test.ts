@@ -64,32 +64,33 @@ describe("preloaded mesh asset resolution", () => {
     // builtin.basic-parts/6 — each admission added parts rather than regenerating
     // the seventy-seven.
     //
-    // /9 is the first release to move a row in place: `plate-2x4` is row 13 and
-    // it gained the shell `3020.dat` models. So the guarantee is stated as what
-    // it actually is now — put that one row back to the hash it carried at /8 and
-    // the roster hashes to the /6 literal again, which says exactly one of the
-    // seventy-seven moved and names it. A second part drifting would break this
-    // just as loudly as before.
+    // /9 was the first release to move a row in place — `plate-2x4` gained the
+    // shell `3020.dat` models — and /10 moves fifty-seven more of the
+    // seventy-seven, so the "restore one row and recover the /6 literal" form
+    // this test used to take no longer says anything. What replaces it says more:
+    // the nineteen legacy parts whose geometry did NOT move are named outright,
+    // and they are exactly the parts the shell rule does not reach — a body that
+    // is a wedge, an arc, a staircase, or has no underside at all. A fifty-ninth
+    // part quietly shelling, or one of these nineteen quietly changing, breaks
+    // this as loudly as a drifting digest used to.
+    //
+    // The roster digest was 66275737ee36d02aa7a31dc4134310b314332a7397424246c0d677e85d5565d5
+    // at /9 and 92c7dc3d6f7990dc5b6dbbddabf02e557f2ec54927f61d6e16bf7e9530b0db4d
+    // from /6 through /8.
     //
     // The whole-definition digest also moves, and deliberately: every part's
     // provenance carries the catalog version, and the LDraw identifier layer no
     // longer claims that no geometry is bundled. It was
     // 9b095f16fe40a9157c1a65ee8a26da1f37974751ae2b27f896b69d5ebe0a6901 at /6,
-    // 55f9fade3dc2bde3387886791bf57f95d4921f245611a522551b6d8cfd476662 at /7 and
-    // c9bf14d7ba446448c28a4638ea32ab84f79171e03e3947053fedde6720d116fa at /8.
+    // 55f9fade3dc2bde3387886791bf57f95d4921f245611a522551b6d8cfd476662 at /7,
+    // c9bf14d7ba446448c28a4638ea32ab84f79171e03e3947053fedde6720d116fa at /8 and
+    // 1176533ee9dbccee01dd8ea4a1ed2fb9faaefd163069e0a1720ace485b518044 at /9.
     const legacyParts = PART_DEFINITIONS.slice(0, 77);
     const meshParts = PART_DEFINITIONS.slice(77);
     const legacyRows = legacyParts.map(({ id, geometry }) => [id, geometry.contentHash]);
     const legacyHashes = JSON.stringify(legacyRows);
-    const rowsWithTheEightPlate = JSON.stringify(
-      legacyRows.map(([id, contentHash]) =>
-        id === "builtin:plate-2x4"
-          ? [id, "sha256:d8f724a2a69a877ed375fd0af2f972a2f2c9cf8368f8d25f1cd14a4f7fe656fb"]
-          : [id, contentHash],
-      ),
-    );
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/9");
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/10");
     expect(PART_DEFINITIONS).toHaveLength(85);
     expect(
       legacyParts.every(
@@ -102,14 +103,48 @@ describe("preloaded mesh asset resolution", () => {
       ),
     ).toEqual([true, true, true, true, true, true, true, true]);
     expect(createHash("sha256").update(legacyHashes).digest("hex")).toBe(
-      "66275737ee36d02aa7a31dc4134310b314332a7397424246c0d677e85d5565d5",
+      "78930871a96006b2d14ecbe6a2d68ca376b011bf391400dad54556cad187aa13",
     );
-    // The /6 literal, recovered by restoring the single row that /9 moved.
-    expect(createHash("sha256").update(rowsWithTheEightPlate).digest("hex")).toBe(
-      "92c7dc3d6f7990dc5b6dbbddabf02e557f2ec54927f61d6e16bf7e9530b0db4d",
-    );
+    expect(
+      legacyParts
+        // A mesh reference declares no `undersideMode` at all, which is not a
+        // shell either; the assertion above says there are none among these.
+        .filter(
+          ({ geometry }) =>
+            !("undersideMode" in geometry) || geometry.undersideMode !== "modelled-shell-cavity",
+        )
+        .map(({ id }) => id),
+    ).toEqual([
+      // A wedge plate's body is a sloped prism, not a box union, so nothing here
+      // can cut a cavity into it without replacing its measured diagonal with a
+      // staircase.
+      "builtin:wedge-plate-2x4-left",
+      "builtin:wedge-plate-2x4-right",
+      "builtin:wedge-plate-2x3-left",
+      "builtin:wedge-plate-2x3-right",
+      // An axle and a wheel have no underside to model.
+      "builtin:axle-1x2",
+      "builtin:axle-1x4",
+      "builtin:wheel-1x2",
+      // An arch, a curved slope and a cheese slope are staircases whose boxes
+      // each stop at a different height, so "the bottom of the part" is not one
+      // plane and a plate's cavity depth says nothing about them.
+      "builtin:arch-1x4",
+      "builtin:arch-1x6",
+      "builtin:curved-slope-1x2",
+      "builtin:curved-slope-1x3",
+      "builtin:curved-slope-1x4",
+      "builtin:cheese-slope-1x1",
+      "builtin:cheese-slope-2x1",
+      "builtin:wedge-plate-4x4-cut-corner",
+      "builtin:wedge-plate-6x6-cut-corner",
+      "builtin:wedge-plate-3x6-right",
+      // An analytic circular plan, for the same reason as a wedge.
+      "builtin:corner-plate-4x4-round",
+      "builtin:corner-plate-5x5-quarter-ring",
+    ]);
     expect(createHash("sha256").update(JSON.stringify(legacyParts)).digest("hex")).toBe(
-      "1176533ee9dbccee01dd8ea4a1ed2fb9faaefd163069e0a1720ace485b518044",
+      "9c72751bc28ec411bd3b6445a7774e089b1d8e8f14a9085a0df665b258f10b84",
     );
   });
 

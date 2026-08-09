@@ -818,3 +818,26 @@ Each time the report was "green" and the underlying work had failed. The fix is 
 Three more of the same shape in the same two days. `isRealBuildBrowserOutput` answered two unrelated questions with one boolean - are these bytes a browser output, and did the run account for every declared piece - and the second is the signature of an unfinished prefix, so 19 of 22 partial runs discarded every measured row. `evidenceDigest` carried the literal string `"missing"` where `null` was meant, because the refusal message renders `?? "missing"` and the display string had been written into the data; it then threw at step 13 and abandoned 49 correct rows. The stud radius read `6.0001514980873605` - the circumradius of a 16-gon written to four decimals - against a clutch allowance that `Number.isSafeInteger` forces to exactly 6, so a correctly seated stud read as a collision by 60 nanometres.
 
 None was found by a test passing or failing. Each was found by asking what the check would say about a case it had never seen.
+
+## A hand-built surface can be present, counted, and invisible
+
+2026-08-09, the session that shelled fifty-eight parts.
+
+`createTubeGeometry` builds the underside tube's 144 triangles by hand. Every one of them was wound backwards, and every material in this renderer is `FrontSide`, so the GPU culled the whole tube. The scene held three tube meshes for a 2x4 plate, `deriveBrickScene` returned them, a unit test counted seven body meshes and passed, and the from-below capture was a flat red rectangle - the exact picture the shell exists to replace, reproduced by geometry that had been added to replace it.
+
+Nothing in the vertex order reads as wrong. What reads is the direction each face points, so the test measures that: 48 triangles away from the axis, 48 toward it, 48 down at a camera below, none up.
+
+The orthographic underside capture could not have found it either, and that is worth knowing on its own: from directly below, the wall bottoms, the tube rings and the recessed ceiling are all faces with the same normal and the same material, so the picture is one flat colour whatever is behind it. The cavity only became visible when the camera was orbited under the model at an angle.
+
+**Anchor:** 2026-08-09; `createTubeGeometry` in `packages/rendering/src/geometry.ts`; the test is "points every face of an underside tube outward, at a camera that can see it" in `packages/rendering/src/rendering.test.ts`; the pictures are `output/underside-probe/orbit-*.png`.
+
+## "Err on the safe side" has a direction, and a touching fit reverses it
+
+2026-08-09, same session, found by validating a two-brick stack.
+
+`collisions.ts` turns a body cylinder into its bounding box and says why: it claims corners a round part does not fill, so it refuses a placement a real wheel would allow and never admits one it would not. That is correct for a wheel, which stands alone. An underside tube does not stand alone - it sits at the centre of a 2 x 2 block with four studs at its corners, 10 * sqrt(2) = 14.142 LDU away against a true radius sum of 14. The bounding box reaches 8 LDU along each axis, so its nearest point to a stud centre is 2.83 LDU away, well inside the stud's 6, and every exactly seated stack of two 2-wide parts reported `PART_STUD_BODY_COLLISION` against its own tubes - with the connection declared.
+
+The conservative direction was the broken one, because the legal configuration is nearly tangent to the thing being approximated. What replaced it is the largest axis-aligned box inside the tube circle: its corners lie exactly on that circle in the four diagonal directions the studs occupy, so it reports the tube's own 0.142 LDU clearance, and it gives up reach only along the two axes where the neighbouring tube 20 LDU away covers the gap. Swept exhaustively - a stud at all 9,801 integer positions under a 2x4 plate, a 4x4 plate and a 2x4 brick, which is every position the document schema can express - it admits none whose drawn annulus overlaps it.
+
+**Anchor:** 2026-08-09; the tube primitive in `makePartDefinition`, `packages/catalog/src/part-factory.ts`; the seated-stack case is "seats a stud in the cavity, and refuses one a single LDU off the lattice" in `packages/brick-kernel/src/validation.test.ts`.
+

@@ -18,20 +18,25 @@ const require = (id: string): ParametricPartDefinition => {
 };
 
 describe("partMassProperties", () => {
-  it("measures a plate as its shell plus its studs, with the cavity taken out", () => {
+  it("measures a plate as its shell plus its tubes and studs, with the cavity taken out", () => {
     // A plate is not a block. `3020.dat` builds it from two nested `box5`
-    // solids, and this now models both: the outer body less the cavity that its
-    // eight clutches need, which is what the mass has to reflect. A filled
-    // 2 x 4 plate would weigh 25600 LDU cubed before its studs; the real one
-    // weighs 9216 less, and that 9216 is the cavity to the LDU.
+    // solids with three tubes standing in the gap, and this now models all of
+    // it: the outer body less the cavity that its eight clutches need, plus the
+    // tubes that grip them. A filled 2 x 4 plate would weigh 25600 LDU cubed
+    // before its studs; the shell weighs 9216 less, and that 9216 is the cavity
+    // to the LDU. A tube weighs its collision box — the square inscribed in the
+    // annulus, side 8 * sqrt(2) — rather than the annulus itself, so the mass is
+    // still an estimate and still errs high, by the bore rather than by the
+    // whole cavity. See part-factory for why the box and not the cylinder.
     const plate = require("builtin:plate-2x4");
     const { solidVolumeLdu3 } = partMassProperties(plate);
     const outerBody = 40 * 8 * 80;
     const cavity = 32 * 4 * 72;
+    const tubes = 3 * (8 * Math.SQRT2) ** 2 * 4;
     const studs = 8 * Math.PI * 6 ** 2 * 4;
 
     expect(outerBody - cavity).toBe(16_384);
-    expect(solidVolumeLdu3).toBeCloseTo(outerBody - cavity + studs, 6);
+    expect(solidVolumeLdu3).toBeCloseTo(outerBody - cavity + tubes + studs, 6);
   });
 
   it("balances a symmetric part on its own origin", () => {
@@ -116,14 +121,17 @@ describe("partMassProperties", () => {
     }
   });
 
-  it("estimates a 2x4 brick in the right order of magnitude, and says it is high", () => {
-    // A real 2x4 brick is about 2.4 g. The model is solid where the part is
-    // hollow, so the estimate lands near double — close enough to be useful for
-    // relative mass, and documented as a placeholder for a measured value.
+  it("estimates a 2x4 brick above a real one, now by the tube bore rather than by the whole cavity", () => {
+    // A real 2x4 brick is about 2.4 g. The model used to be solid where the part
+    // is hollow and landed near 5 g; with the cavity modelled it lands at 3.12,
+    // and what is left over is the tubes' 6 LDU bores, which collision claims as
+    // solid on purpose. The ceiling here is the measurement, not a margin: it
+    // was 8 while the body was filled and there is no reason for it to stay
+    // loose now that the number is 30 % out instead of 108 %.
     const grams = partMassProperties(require("builtin:brick-2x4")).estimatedMassGrams;
 
     expect(grams).toBeGreaterThan(2.4);
-    expect(grams).toBeLessThan(8);
+    expect(grams).toBeLessThan(3.5);
   });
 
   it("prefers a measured mass when the catalog has one", () => {

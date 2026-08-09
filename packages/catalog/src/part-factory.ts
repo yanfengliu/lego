@@ -35,12 +35,20 @@ import { MEASURED_PART_DEFINITIONS } from "./measured-part-factory.ts";
 import { PART_BLUEPRINTS } from "./part-blueprints.ts";
 import type { PartBlueprint } from "./part-blueprint-types.ts";
 import {
+  deriveShellBody,
+  SHELL_CEILING_THICKNESS_LDU,
+  SHELL_WALL_THICKNESS_LDU,
+  TUBE_INNER_RADIUS_LDU,
+  TUBE_OUTER_RADIUS_LDU,
+} from "./part-shell.ts";
+import {
   familyHeightLdu,
   FAMILY_DISPLAY_NAMES,
   isStudded,
   LEGAL_ORIENTATION_IDS,
   makeAliases,
   makeGeometryDigestInput,
+  studCellCentersLdu,
   studModeFor,
   undersideModeFor,
   unionOfBoxes,
@@ -163,13 +171,43 @@ export const makePartDefinition = (blueprint: PartBlueprint): ParametricPartDefi
     assertNumericBoundsContainExact(boundsLdu, exactBounds, `${blueprint.ldrawId} boundsLdu`);
   }
 
+  /**
+   * The underside, derived from this part's own footprint.
+   *
+   * `undefined` for a body that is not a uniform-height prism — an arch, a
+   * slope, a wedge, an arc — and for a part with no underside at all. Where it
+   * is defined it replaces the filled footprint entirely: the shell's union is
+   * the same solid minus the cavity, so `bodyBoundsLdu` above is unaffected and
+   * every stud keeps the ceiling under it.
+   */
+  const shell =
+    bodyWedge === undefined && bodyArc === undefined && blueprint.withoutClutches !== true
+      ? deriveShellBody({
+          ldrawId: blueprint.ldrawId,
+          family,
+          footprintBoxes: blueprint.bodyBoxesLdu ?? [bodyBoundsLdu],
+          topY: bodyBoundsLdu.min[1],
+          bottomY: bodyBoundsLdu.max[1],
+          cellCentersXZLdu: studCellCentersLdu(blueprint),
+        })
+      : undefined;
+  const drawnBoxesLdu = shell?.bodyBoxesLdu ?? bodyBoxesLdu;
+  const bodyTubes =
+    shell === undefined || shell.tubeCentersXZLdu.length === 0
+      ? undefined
+      : {
+          innerRadiusLdu: TUBE_INNER_RADIUS_LDU,
+          outerRadiusLdu: TUBE_OUTER_RADIUS_LDU,
+          heightLdu: bodyBoundsLdu.max[1] - bodyBoundsLdu.min[1] - SHELL_CEILING_THICKNESS_LDU,
+          centersXZLdu: shell.tubeCentersXZLdu,
+        };
   // A part whose solid is one prism keeps the single primitive named "body", so
   // growing the model did not re-hash the sixty-five parts that came before a
   // union existed. A union numbers its boxes instead.
   const bodyPrimitives: CollisionPrimitive[] = bodyArc
     ? [...arcCollisionPrimitives(bodyArc, bodyBoundsLdu)]
-    : bodyBoxesLdu
-      ? bodyBoxesLdu.map((box, index) => ({
+    : drawnBoxesLdu
+      ? drawnBoxesLdu.map((box, index) => ({
           id: `body:${index}`,
           kind: "box",
           tag: "body",
@@ -206,12 +244,52 @@ export const makePartDefinition = (blueprint: PartBlueprint): ParametricPartDefi
                   maxLdu: bodyBoundsLdu.max,
                 },
         ];
+  if (bodyTubes !== undefined) {
+    /**
+     * The tube as collision sees it: the largest axis-aligned box inside its own
+     * circle, half-side `outerRadius / sqrt(2)`.
+     *
+     * A `cylinder` here would be wrong, and measurably so. `collisions.ts` gives
+     * a body cylinder its *bounding box* — right for a wheel, which stands alone
+     * — and a tube does not stand alone: it sits at the centre of a 2 x 2 block
+     * with four studs at its corners. The bounding box reaches 8 LDU along each
+     * axis, so its nearest point to a stud centre 10 * sqrt(2) LDU away is only
+     * 2.83 LDU off, well inside the stud's 6, and every exactly seated stack of
+     * two 2-wide parts reported `PART_STUD_BODY_COLLISION` against its own
+     * tubes.
+     *
+     * The inscribed box puts its four corners exactly on the tube circle in the
+     * four diagonal directions the studs occupy, so the clearance it reports to
+     * a seated stud is the tube's own — 10 * sqrt(2) - 8 - 6 = 0.142 LDU, the
+     * same `TUBE_LATTICE_CLEARANCE_LDU` the backing policy grips by. It gives
+     * that up only along the two axes, where it claims 5.657 LDU rather than 8.
+     *
+     * That shortfall costs nothing that can be authored. A transform's position
+     * is integer LDU by schema, and sweeping one stud across every integer
+     * position under a 2x4 plate, a 4x4 plate and a 2x4 brick — 9,801 positions
+     * each — admits none whose drawn annulus overlaps it. Tubes stand on a 20
+     * LDU pitch, so a position this box lets slip is inside its neighbour.
+     */
+    const halfSide = bodyTubes.outerRadiusLdu / Math.SQRT2;
+    const tubeTopY = bodyBoundsLdu.max[1] - bodyTubes.heightLdu;
+    for (const [index, [x, z]] of bodyTubes.centersXZLdu.entries()) {
+      bodyPrimitives.push({
+        id: `tube:${index}`,
+        kind: "box",
+        tag: "body",
+        minLdu: [x - halfSide, tubeTopY, z - halfSide],
+        maxLdu: [x + halfSide, bodyBoundsLdu.max[1], z + halfSide],
+      });
+    }
+  }
   const { connectors, primitives, allowances, undersideIsModelled } = buildConnectorFeatures({
     blueprint,
     studded,
     topY,
     bottomY,
     bodyPrimitives,
+    bodyBoxesLdu: drawnBoxesLdu,
+    bodyTubes,
   });
   const undersideMode = undersideModeFor(blueprint, undersideIsModelled);
 
@@ -237,12 +315,14 @@ export const makePartDefinition = (blueprint: PartBlueprint): ParametricPartDefi
         heightLdu,
         exactBodyBounds === undefined ? undefined : formatExactLduBounds(exactBodyBounds),
         undersideMode,
+        drawnBoxesLdu,
+        bodyTubes,
       ),
       contentHash: `sha256:${blueprint.geometrySha256}`,
       bodyMode:
         bodyArc !== undefined
           ? "arc-prism"
-          : bodyWedge || bodyBoxesLdu
+          : bodyWedge || drawnBoxesLdu
             ? "compound"
             : "rectangular-prism",
       studMode: studModeFor(family, studOffsetsLdu),
@@ -255,7 +335,16 @@ export const makePartDefinition = (blueprint: PartBlueprint): ParametricPartDefi
       undersideMode,
       ...(blueprint.bodyBoundsLdu === undefined ? {} : { bodyBoundsLdu: blueprint.bodyBoundsLdu }),
       ...(exactBodyBounds === undefined ? {} : { exactBodyBoundsLdu: exactBodyBounds }),
-      ...(bodyBoxesLdu === undefined ? {} : { bodyBoxesLdu }),
+      ...(drawnBoxesLdu === undefined ? {} : { bodyBoxesLdu: drawnBoxesLdu }),
+      ...(shell === undefined
+        ? {}
+        : {
+            shellCavity: {
+              wallThicknessLdu: SHELL_WALL_THICKNESS_LDU,
+              ceilingThicknessLdu: SHELL_CEILING_THICKNESS_LDU,
+            },
+          }),
+      ...(bodyTubes === undefined ? {} : { bodyTubes }),
       ...(bodyArc === undefined ? {} : { bodyArc }),
       ...(blueprint.extraConnectors === undefined
         ? {}

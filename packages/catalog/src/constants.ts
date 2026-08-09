@@ -29,8 +29,17 @@ import type {
  * gains the ceiling and four walls `3020.dat` actually models, so the cavity its
  * eight clutches need is real geometry in the render and in the collision at the
  * same moment. No part is added or removed and no connector moves.
+ *
+ * /10 generalises that one shell to every part shaped like it. Fifty-eight parts
+ * — every brick, plate, tile, jumper plate, grille tile, technic brick and the
+ * corner plate, wherever the body is a uniform-height prism — now draw the
+ * ceiling, walls and underside tubes their own LDraw files model, derived from
+ * each part's own footprint rather than authored per part. `part-shell.ts` holds
+ * the measurements and the file and line behind each. No part is added or
+ * removed and no connector moves: every clutch that existed at /9 still exists,
+ * held by a cavity wall or by the tubes rather than by solid backing.
  */
-export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/9" as const;
+export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/10" as const;
 export const CONNECTOR_TAXONOMY_VERSION = "stud-tube/1" as const;
 export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/2" as const;
 export const TRANSFORM_POLICY_VERSION = "upright-quarter-turns-negative-y-up/1" as const;

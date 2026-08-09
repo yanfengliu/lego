@@ -47,7 +47,7 @@ export const SPECIAL_PART_BLUEPRINTS = [
     lengthStuds: 2,
     ldrawId: "15573.dat",
     studOffsetsLdu: [[0, 0]],
-    geometrySha256: "5c01813b69245ec073dbd5b30051180eef39c3bc525d0e19e888b60ba91f2662",
+    geometrySha256: "f1194823c1b2f75857734defca68c3fafac359b76a1ae904f530daa54d98e297",
   },
   {
     family: "jumper-plate",
@@ -55,7 +55,7 @@ export const SPECIAL_PART_BLUEPRINTS = [
     lengthStuds: 2,
     ldrawId: "87580.dat",
     studOffsetsLdu: [[0, 0]],
-    geometrySha256: "f9a8c90a7e2ec0ce7138267abc2aa41d95f487f9a588b6c20d55af015e484a97",
+    geometrySha256: "2f1a9bcb317519da457672390c0ec10e9aa5decaaa3f95def4930cbf7f3b66e4",
   },
   {
     family: "jumper-plate",
@@ -68,7 +68,7 @@ export const SPECIAL_PART_BLUEPRINTS = [
       [0, -10],
       [0, 10],
     ],
-    geometrySha256: "310166865a722342abdd48cd8bcd312716f935e440f7c312c2d9df7b3d7bc17c",
+    geometrySha256: "37850bee42344ff3151059ea5e7553dd269b5eea55b07fbf11ce6120e962cb52",
   },
   {
     family: "wedge-plate",
@@ -146,7 +146,7 @@ export const SPECIAL_PART_BLUEPRINTS = [
         orientationId: "connector-up",
       },
     ],
-    geometrySha256: "a09477c9d804ad264482f9800c073a1fc6de159aa4457515f8e7501db93f29fa",
+    geometrySha256: "04478baf083a461df2165cb827901fe41d468f99446b8fbe396d616b9225523b",
   },
   {
     family: "axle",
@@ -381,6 +381,6 @@ export const SPECIAL_PART_BLUEPRINTS = [
       { min: [-20, -4, -20], max: [0, 4, 20] },
       { min: [0, -4, -20], max: [20, 4, 0] },
     ],
-    geometrySha256: "53e58298473ce441b8dbb9764cbd4b73b369413dc1aa2c7e8268e3161ab4ffff",
+    geometrySha256: "b018ea8d170304bffbfbf431388bf7b863405a935c971898e9fa1d76f58e16ed",
   },
 ] as const satisfies readonly PartBlueprint[];

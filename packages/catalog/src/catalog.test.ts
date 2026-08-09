@@ -137,8 +137,8 @@ const EXPECTED_PART_IDS = [
 ] as const;
 
 describe("starter catalog", () => {
-  it("publishes the first drawn shell cavity as version 9", () => {
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/9");
+  it("publishes the shell every part shaped like a plate now draws as version 10", () => {
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/10");
   });
 
   it("does not expose inherited object properties as catalog entries", () => {

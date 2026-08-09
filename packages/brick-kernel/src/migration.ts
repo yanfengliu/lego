@@ -25,6 +25,7 @@ export const MIGRATABLE_CATALOG_VERSIONS: readonly string[] = Object.freeze([
   "builtin.basic-parts/6",
   "builtin.basic-parts/7",
   "builtin.basic-parts/8",
+  "builtin.basic-parts/9",
   BUILTIN_CATALOG_VERSION,
 ]);
 
@@ -100,6 +101,16 @@ export const REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS = Object.freeze([
     catalogVersion: "builtin.basic-parts/8",
     sourceCommit: "262d274b51f819f13de0c118b836747da1fd14db",
     truthHash: "sha256:33787b02b898a83957e2cc92cff5b8da39da45dfaa3cafcd12f2446e30748613",
+  },
+  // The snapshot /10 replaced. /10 generalises /9's single hand-authored shell
+  // to every part shaped like it — fifty-eight of them — and, like /9, changes
+  // only what a part draws and collides with. No part identity moves and no
+  // connector moves, so a document saved against /9 carries forward and gains
+  // the cavity and tubes its plates and bricks always had.
+  {
+    catalogVersion: "builtin.basic-parts/9",
+    sourceCommit: "108d5b3cc873a90eddce34a1d0e1688c0dce6f16",
+    truthHash: "sha256:79cca11d5dbee2dd620b20a6cba7815235fefd53bd2f6b3d003586c8d5a1c635",
   },
 ] as const);
 

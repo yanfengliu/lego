@@ -7,11 +7,13 @@ import type { CollisionPrimitive, LduVector3, PartDefinition } from "./types.ts"
  * and nothing new in the geometry digest. A union of prisms has an exact volume
  * and an exact centroid; this is arithmetic on data that exists.
  *
- * The volume is of the *modelled* solid, and the model is solid where a real
- * brick is hollow. A 2x4 brick comes out around 5 g against a real 2.4 g, so
- * `estimatedMassGrams` is an over-estimate by roughly the wall fraction and is
- * a placeholder for a measured value, not a substitute for one — which is what
- * `inventory.knownMassGrams` is for.
+ * The volume is of the *modelled* solid, and the model is still solid in one
+ * place a real brick is hollow: an underside tube's collision primitive is the
+ * box inscribed in its annulus, so part of every bore is counted as material. A
+ * 2x4 brick comes out at 2.82 g against a real 2.4 g — it was 5 g while the
+ * whole cavity was filled — so `estimatedMassGrams` remains an over-estimate
+ * and a placeholder for a measured value, not a substitute for one, which is
+ * what `inventory.knownMassGrams` is for.
  */
 
 /** ABS, in grams per cubic centimetre. */

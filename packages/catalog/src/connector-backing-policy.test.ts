@@ -18,13 +18,19 @@ import { makePartDefinition } from "./part-factory.ts";
  * route, never removes one.
  */
 
-/** The measured `3020.dat` shell, in catalog frame. See the blueprint for every source line. */
+/**
+ * The measured `3020.dat` shell, in catalog frame, written out rather than read
+ * off the part: this is the set `part-shell.ts` has to derive, and taking it
+ * from the catalog would assert only that the derivation agrees with itself.
+ * Order is the derivation's — ascending y, then x, then z. See `part-shell.ts`
+ * for the source line behind every number.
+ */
 const PLATE_2X4_SHELL: readonly LduBounds[] = [
   { min: [-20, -4, -40], max: [20, 0, 40] },
   { min: [-20, 0, -40], max: [-16, 4, 40] },
-  { min: [16, 0, -40], max: [20, 4, 40] },
   { min: [-16, 0, -40], max: [16, 4, -36] },
   { min: [-16, 0, 36], max: [16, 4, 40] },
+  { min: [16, 0, -40], max: [20, 4, 40] },
 ];
 
 const shellBlueprint = (bodyBoxesLdu: readonly LduBounds[]): PartBlueprint => ({
@@ -49,8 +55,20 @@ describe("underside clutch backing", () => {
     expect(plate!.connectors.filter(({ kind }) => kind === "undersideClutch")).toHaveLength(8);
     expect(plate!.connectors.filter(({ kind }) => kind === "stud")).toHaveLength(8);
     // The cavity is the thing being admitted, so it has to be visible in the
-    // solid the renderer draws from, not only in the connector list.
-    expect(plate!.collision.primitives.filter(({ tag }) => tag === "body")).toHaveLength(5);
+    // solid the renderer draws from, not only in the connector list: a ceiling,
+    // four walls, and the three tubes `3020.dat` lines 16-18 stand in the gap.
+    expect(plate!.collision.primitives.filter(({ tag }) => tag === "body")).toHaveLength(8);
+    expect(plate!.geometry.bodyBoxesLdu).toEqual(PLATE_2X4_SHELL);
+    expect(plate!.geometry.bodyTubes).toEqual({
+      innerRadiusLdu: 6,
+      outerRadiusLdu: 8,
+      heightLdu: 4,
+      centersXZLdu: [
+        [0, -20],
+        [0, 0],
+        [0, 20],
+      ],
+    });
   });
 
   it("refuses a clutch whose cavity is too wide for anything to grip it", () => {
@@ -126,7 +144,51 @@ describe("underside clutch backing", () => {
         clutchOffsetsLdu: [[0, 0]],
       }),
     ).toThrow(
-      /underside clutch 0 at \[0, 0\] is held by nothing: .*no body box between y 0 and y 4 reaches the stud's own 6 LDU circle/,
+      /underside clutch 0 at \[0, 0\] is held by nothing: .*no body box or tube between y 0 and y 4 reaches the stud's own 6 LDU circle/,
+    );
+  });
+
+  it("grips an interior clutch by the tubes when no wall is within reach of it", () => {
+    // A 4 x 4 plate's four middle cells are 26 LDU from the nearest wall, so the
+    // walls cannot hold them and step 2's shell would have refused them. What
+    // holds them is what holds them in the real part: the four tubes standing
+    // one lattice diagonal away. Refusing these would have been refusing a
+    // clutch every 4 x 4 plate demonstrably has.
+    const plate = getPartDefinition("builtin:plate-4x4") as ParametricPartDefinition | undefined;
+
+    expect(plate!.geometry.undersideMode).toBe("modelled-shell-cavity");
+    expect(plate!.connectors.filter(({ kind }) => kind === "undersideClutch")).toHaveLength(16);
+    expect(plate!.geometry.bodyTubes?.centersXZLdu).toHaveLength(9);
+    // Without the tubes the same body is a tray whose middle is open, and the
+    // four interior clutches go with them.
+    const wallsOnly = makePartDefinition({
+      family: "plate",
+      widthStuds: 4,
+      lengthStuds: 4,
+      ldrawId: "backing-probe.dat",
+      geometrySha256: "0".repeat(64),
+      bodyBoxesLdu: plate!.geometry.bodyBoxesLdu!,
+    });
+
+    expect(wallsOnly.connectors.filter(({ kind }) => kind === "undersideClutch")).toHaveLength(12);
+  });
+
+  it("refuses to give a family a shell nobody measured, rather than lending it a plate's", () => {
+    // No shipped part reaches this: every family whose body is a uniform-height
+    // prism has had its own LDraw file read. That is exactly why it is fired
+    // here — a guard that has never run is indistinguishable from one that
+    // cannot. An arch's real body is a staircase, so this blueprint is not a
+    // part; it is the shape a new family would arrive in.
+    expect(() =>
+      makePartDefinition({
+        family: "arch",
+        widthStuds: 2,
+        lengthStuds: 4,
+        ldrawId: "unmeasured-family-probe.dat",
+        geometrySha256: "0".repeat(64),
+      }),
+    ).toThrow(
+      /is a arch whose body is a uniform-height prism with underside clutches.*no arch has had its wall thickness, ceiling thickness or tube lattice read off its own LDraw file/su,
     );
   });
 });

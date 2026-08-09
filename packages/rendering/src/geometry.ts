@@ -273,6 +273,70 @@ function createWedgeGeometry(wedge: CollisionWedge): BufferGeometry {
   return geometry;
 }
 
+/** How many facets a round underside tube is drawn with, matching a stud's. */
+const TUBE_SEGMENTS = 24;
+
+/**
+ * One underside tube, drawn as the annulus `stud4.dat` builds rather than as the
+ * box its collision primitive settles for.
+ *
+ * The bore matters: it is exactly the stud radius, so drawing a filled post
+ * would put material where a real plate has a hole and would make a from-below
+ * comparison against a printed panel measure the wrong shape again — the whole
+ * defect this geometry exists to close. The tube is open at the top because the
+ * ceiling closes it there, and capped by a ring at the underside face, which is
+ * what `4-4ring3.dat` scaled 2 does on `stud4.dat` line 25.
+ *
+ * Winding is the whole correctness of this function and it is not obvious by
+ * reading: the first version had all 144 triangles reversed, so the brick
+ * material — `FrontSide`, like every other in this renderer — culled every one
+ * of them and the tubes were in the scene, in the tests, and invisible in the
+ * picture. `rendering.test.ts` measures the direction each face points rather
+ * than trusting the vertex order below.
+ */
+function createTubeGeometry(inner: number, outer: number, height: number): BufferGeometry {
+  const innerRadius = inner * THREE_UNITS_PER_LDU;
+  const outerRadius = outer * THREE_UNITS_PER_LDU;
+  const halfHeight = (height * THREE_UNITS_PER_LDU) / 2;
+  const positions: number[] = [];
+  type Point = readonly [number, number, number];
+  const triangle = (a: Point, b: Point, c: Point) => positions.push(...a, ...b, ...c);
+  /** Two triangles for the quad a-b-c-d, which must already wind outward. */
+  const quad = (a: Point, b: Point, c: Point, d: Point) => {
+    triangle(a, b, c);
+    triangle(a, c, d);
+  };
+  for (let segment = 0; segment < TUBE_SEGMENTS; segment += 1) {
+    const from = (segment / TUBE_SEGMENTS) * Math.PI * 2;
+    const to = ((segment + 1) / TUBE_SEGMENTS) * Math.PI * 2;
+    const [cosFrom, sinFrom] = [Math.cos(from), Math.sin(from)];
+    const [cosTo, sinTo] = [Math.cos(to), Math.sin(to)];
+    const at = (radius: number, cos: number, sin: number, y: number): Point => [
+      radius * cos,
+      y,
+      radius * sin,
+    ];
+    const outerLow = at(outerRadius, cosFrom, sinFrom, -halfHeight);
+    const outerLowNext = at(outerRadius, cosTo, sinTo, -halfHeight);
+    const outerHigh = at(outerRadius, cosFrom, sinFrom, halfHeight);
+    const outerHighNext = at(outerRadius, cosTo, sinTo, halfHeight);
+    const boreLow = at(innerRadius, cosFrom, sinFrom, -halfHeight);
+    const boreLowNext = at(innerRadius, cosTo, sinTo, -halfHeight);
+    const boreHigh = at(innerRadius, cosFrom, sinFrom, halfHeight);
+    const boreHighNext = at(innerRadius, cosTo, sinTo, halfHeight);
+    // The outer wall, facing away from the axis.
+    quad(outerLow, outerHigh, outerHighNext, outerLowNext);
+    // The bore, facing the axis.
+    quad(boreLow, boreLowNext, boreHighNext, boreHigh);
+    // The ring between them at the open face, facing down at a camera below.
+    quad(boreLow, outerLow, outerLowNext, boreLowNext);
+  }
+  const geometry = new BufferGeometry();
+  geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
 /** One smooth visible prism from the authored arc, never from its collision facets. */
 export function createArcPrismGeometry(feature: BodyArcFeature, bounds: LduBounds): BufferGeometry {
   const boundary = sampleBodyArcPlanBoundary(feature, 2);
@@ -570,12 +634,18 @@ export function createCatalogPartGeometry(
     group.add(body);
     bodyIndex += 1;
   }
+
   for (const primitive of definition.collision.primitives) {
     if (primitive.tag !== "body") continue;
     // The visible body is the exact source feature above. Its conservative
     // convex collision decomposition must never become visible seams or a
     // slightly expanded silhouette.
     if (bodyArc || primitive.kind === "convex-prism") continue;
+    // The tubes were drawn above as the annuli they are. Their primitives are
+    // the largest box inside each annulus, so drawing them would both fill the
+    // bore and shrink the tube; they are named rather than matched by kind,
+    // because a box tagged `body` is otherwise exactly what a wall is.
+    if (primitive.id.startsWith("tube:")) continue;
     // A round body — a wheel — is drawn round. Its axis lies along x, matching
     // the axle it turns on, where a Three.js cylinder stands on y by default.
     if (primitive.kind === "cylinder") {
@@ -657,6 +727,43 @@ export function createCatalogPartGeometry(
     body.userData = { renderRole: "body", partId: part.id, primitiveId: primitive.id };
     group.add(body);
     bodyIndex += 1;
+  }
+
+  // An underside tube is an annulus, and its collision primitive is the largest
+  // box inside it. Drawing that primitive would fill the bore and lose the
+  // round wall, so the tubes are drawn from the source feature and their
+  // primitives skipped — the same bargain the arc above makes with its convex
+  // decomposition.
+  const bodyTubes = definition.geometry.bodyTubes;
+  if (bodyTubes) {
+    const tubeSource = createTubeGeometry(
+      bodyTubes.innerRadiusLdu,
+      bodyTubes.outerRadiusLdu,
+      bodyTubes.heightLdu,
+    );
+    const tubeOutline = outlineMaterial
+      ? new EdgesGeometry(tubeSource, INSTRUCTION_EDGE_THRESHOLD_DEGREES)
+      : null;
+    if (tubeOutline) tubeOutline.userData = { renderRole: "instruction-outline-geometry" };
+    const tubeGeometry = shaded(tubeSource, "body");
+    tubeGeometry.userData = { ...metadata, renderRole: "body-geometry" };
+    const tubeCenterY = definition.bodyBoundsLdu.max[1] - bodyTubes.heightLdu / 2;
+    bodyTubes.centersXZLdu.forEach(([x, z], index) => {
+      const tube = new Mesh(tubeGeometry, material);
+      tube.name = `tube:${index}:${part.id}`;
+      tube.position.copy(lduToThreeVector([x, tubeCenterY, z]));
+      tube.castShadow = castsShadows;
+      tube.receiveShadow = castsShadows;
+      tube.userData = { renderRole: "body", partId: part.id, primitiveId: `tube:${index}` };
+      group.add(tube);
+      if (tubeOutline && outlineMaterial) {
+        const outline = new LineSegments(tubeOutline, outlineMaterial);
+        outline.name = `tube:${index}-outline:${part.id}`;
+        outline.position.copy(tube.position);
+        outline.userData = { renderRole: "instruction-outline", partId: part.id };
+        group.add(outline);
+      }
+    });
   }
 
   // A tile, a wheel, an axle and a cheese slope have no studs at all. Testing

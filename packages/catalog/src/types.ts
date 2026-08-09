@@ -268,6 +268,22 @@ export interface PartCollisionDefinition {
   readonly allowances: readonly CollisionAllowance[];
 }
 
+/**
+ * The underside tubes of one part: one profile, many axes.
+ *
+ * `stud4.dat` builds the tube from two coaxial cylinders and a ring between
+ * them, so an annulus is what it is. Every tube on a part shares the profile
+ * and differs only in where its axis stands, which is why the radii are stated
+ * once rather than per tube.
+ */
+export interface PartTubeFeature {
+  readonly innerRadiusLdu: number;
+  readonly outerRadiusLdu: number;
+  /** The cavity's depth: a tube spans it exactly, from the ceiling to the open face. */
+  readonly heightLdu: number;
+  readonly centersXZLdu: readonly (readonly [x: number, z: number])[];
+}
+
 export interface BodyArcCapRectangle {
   readonly minXZLdu: readonly [x: number, z: number];
   readonly maxXZLdu: readonly [x: number, z: number];
@@ -372,6 +388,24 @@ export interface ParametricGeometryRecipe {
    * would allow rather than admitting ones it would not.
    */
   readonly bodyBoxesLdu?: readonly LduBounds[];
+  /**
+   * The wall and ceiling the boxes above were cut to, present only on a part
+   * whose body models its own cavity. It is a record of the rule, not an input:
+   * the boxes are derived from it and from the part's footprint, and binding it
+   * into the digest means a change to the rule re-hashes every part it reached.
+   */
+  readonly shellCavity?: {
+    readonly wallThicknessLdu: number;
+    readonly ceilingThicknessLdu: number;
+  };
+  /**
+   * The underside tubes, as the annulus LDraw draws. The visible tube is this
+   * feature; its collision primitive is the largest axis-aligned box inside the
+   * same circle, whose corners meet that circle exactly in the four diagonal
+   * directions the surrounding studs occupy. `part-factory.ts` states why a
+   * cylinder cannot be used and what the box gives up.
+   */
+  readonly bodyTubes?: PartTubeFeature;
   /** Smooth plan source; collision prisms are a conservative derived artifact. */
   readonly bodyArc?: BodyArcFeature;
   /** Connectors the stud grid cannot express, such as a hole through a part. */

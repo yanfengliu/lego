@@ -56,8 +56,11 @@ describe("instruction finish", () => {
     const scene = deriveBrickScene(document, { finish: "instruction" });
     const bodies = objectsWithRole(scene.root, "body");
 
-    expect(bodies).toHaveLength(1);
+    // A 1x1 brick is a ceiling slab and four walls; it has no 2 x 2 block of
+    // stud cells, so it carries no tube.
+    expect(bodies).toHaveLength(5);
     const material = (bodies[0] as Mesh).material as MeshBasicMaterial;
+    expect(new Set(bodies.map((body) => (body as Mesh).material))).toHaveLength(1);
     // Unlit still: the tone rides in the geometry, so an instruction scene
     // needs no lights and cannot pick up a gradient from one.
     expect(material.type).toBe("MeshBasicMaterial");
@@ -277,7 +280,11 @@ describe("instruction finish", () => {
     const outlines = objectsWithRole(scene.root, "instruction-outline");
 
     expect(studs.length).toBeGreaterThan(0);
-    expect(outlines).toHaveLength(studs.length + 1);
+    // One outline per drawn body and one per stud. A shell is five boxes, so
+    // the body's share is five rather than the one a filled prism drew.
+    const bodies = objectsWithRole(scene.root, "body");
+    expect(bodies).toHaveLength(5);
+    expect(outlines).toHaveLength(studs.length + bodies.length);
     for (const object of [...studs, ...objectsWithRole(scene.root, "body")]) {
       expect(object.castShadow).toBe(false);
       expect(object.receiveShadow).toBe(false);

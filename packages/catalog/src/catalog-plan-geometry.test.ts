@@ -300,11 +300,20 @@ describe("catalog plan geometry", () => {
         // why sixty-three parts did not re-hash when unions arrived.
         expect(body).toBeUndefined();
         expect(part.geometry.bodyMode).toBe("compound");
+        // A shell's underside tubes stand in the same body list, after the
+        // boxes and numbered separately, because the render draws them as the
+        // annulus they are while collision takes the box inside that annulus.
         expect(
           part.collision.primitives
             .filter(({ tag }) => tag === "body")
             .map((primitive) => [primitive.id, primitive.kind]),
-        ).toEqual(part.geometry.bodyBoxesLdu.map((_, index) => [`body:${index}`, "box"]));
+        ).toEqual([
+          ...part.geometry.bodyBoxesLdu.map((_, index) => [`body:${index}`, "box"]),
+          ...(part.geometry.bodyTubes?.centersXZLdu ?? []).map((_, index) => [
+            `tube:${index}`,
+            "box",
+          ]),
+        ]);
       }
       expect(studs).toHaveLength(expectedStudCount);
       // One per cell the body fills: a wedge has no clutch over its empty corner.
@@ -330,7 +339,19 @@ describe("catalog plan geometry", () => {
     const compoundParts = PARAMETRIC_PART_DEFINITIONS.filter(
       (part) => part.geometry.bodyBoxesLdu !== undefined,
     );
-    expect(compoundParts.map(({ id }) => id)).toEqual(Object.keys(COMPOUND_CELLS));
+    // Every part whose cell grid is irregular is a compound body, and the
+    // remainder are compound because they are shells. The list used to be an
+    // equality against COMPOUND_CELLS, which held only while a union meant an
+    // irregular solid; now that a plain plate is a ceiling and four walls, a
+    // compound body is the ordinary case and the two statements have to be made
+    // separately or the exceptions stop being exceptions.
+    for (const id of Object.keys(COMPOUND_CELLS)) {
+      expect([id, compoundParts.some((part) => part.id === id)]).toEqual([id, true]);
+    }
+    for (const part of compoundParts) {
+      if (COMPOUND_CELLS[part.id] !== undefined) continue;
+      expect([part.id, part.geometry.undersideMode]).toEqual([part.id, "modelled-shell-cavity"]);
+    }
 
     for (const part of compoundParts) {
       const boxes = part.geometry.bodyBoxesLdu!;

@@ -111,7 +111,17 @@ function definition(
     })),
     collision: {
       ...base.collision,
-      primitives: base.collision.primitives.map(shiftedPrimitive),
+      // One box, stated here rather than borrowed. The tile this fixture is
+      // built from is a shell now — a ceiling, four walls and no single "body" —
+      // and the cases below mutate one body primitive and expect the union to
+      // stop matching the mesh. Against five boxes, moving one of them leaves
+      // the union unchanged and the fixture stops testing what it says it does.
+      primitives: [
+        { id: "body", kind: "box", tag: "body", minLdu: [0, -4, -40], maxLdu: [20, 4, 0] },
+        ...base.collision.primitives
+          .filter(({ tag }) => tag !== "body")
+          .map((primitive) => shiftedPrimitive(primitive)),
+      ],
       allowances: base.collision.allowances.map((allowance) => ({
         ...allowance,
         centerLdu: shifted(allowance.centerLdu),

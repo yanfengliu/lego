@@ -8,7 +8,7 @@ import {
   STUD_RADIUS_LDU,
   UPRIGHT_ORIENTATIONS,
 } from "./constants.ts";
-import type { CatalogAlias, LduBounds, PartFamily } from "./types.ts";
+import type { CatalogAlias, LduBounds, PartFamily, PartTubeFeature } from "./types.ts";
 
 import { EXACT_LDU_SCALE_EXPONENT, type ExactLduBoundsDeclaration } from "./exact-ldu.ts";
 import { deepFreeze } from "./freeze.ts";
@@ -61,6 +61,28 @@ const AXLE_THICKNESS_LDU = 12;
  * also narrower, so it still clears a two-stud-wide chassis.
  */
 export const WHEEL_DIAMETER_LDU = 62;
+
+/**
+ * Every stud-cell centre of a blueprint's footprint, on the same lattice the
+ * connector builder walks. Flat rather than indexed because the shell asks a
+ * question about neighbours — is this cell one corner of a complete 2 x 2 block
+ * — that cell indices would only obscure.
+ */
+export const studCellCentersLdu = (
+  blueprint: PartBlueprint,
+): readonly (readonly [x: number, z: number])[] => {
+  const [centerX, centerZ] = blueprint.connectorGridCenterLdu ?? [0, 0];
+  const cells: (readonly [number, number])[] = [];
+  for (let xIndex = 0; xIndex < blueprint.widthStuds; xIndex += 1) {
+    for (let zIndex = 0; zIndex < blueprint.lengthStuds; zIndex += 1) {
+      cells.push([
+        centerX + (xIndex - (blueprint.widthStuds - 1) / 2) * STUD_PITCH_LDU,
+        centerZ + (zIndex - (blueprint.lengthStuds - 1) / 2) * STUD_PITCH_LDU,
+      ]);
+    }
+  }
+  return cells;
+};
 
 /** The one box that contains them all. */
 export const unionOfBoxes = (boxes: readonly LduBounds[]): LduBounds => ({
@@ -141,6 +163,14 @@ export const makeGeometryDigestInput = (
   heightLdu: number,
   exactBodyBoundsLdu: ExactLduBoundsDeclaration | undefined,
   undersideMode: ReturnType<typeof undersideModeFor>,
+  /**
+   * The boxes actually drawn: the blueprint's own for a filled part, and the
+   * derived shell for a part that models its cavity. The digest binds what is
+   * drawn rather than what was declared, so a change to the shell rule shows up
+   * as a changed hash on every part it touches.
+   */
+  drawnBoxesLdu: readonly LduBounds[] | undefined,
+  bodyTubes: PartTubeFeature | undefined,
 ): string => {
   const {
     family,
@@ -148,7 +178,6 @@ export const makeGeometryDigestInput = (
     lengthStuds,
     studOffsetsLdu,
     bodyWedge,
-    bodyBoxesLdu,
     bodyArc,
     extraConnectors,
     clutchOffsetsLdu,
@@ -173,7 +202,8 @@ export const makeGeometryDigestInput = (
     undersideMode,
     ...(studOffsetsLdu === undefined ? {} : { studOffsetsLdu }),
     ...(bodyWedge === undefined ? {} : { bodyMode: "wedge-prism", bodyWedge }),
-    ...(bodyBoxesLdu === undefined ? {} : { bodyMode: "box-union", bodyBoxesLdu }),
+    ...(drawnBoxesLdu === undefined ? {} : { bodyMode: "box-union", bodyBoxesLdu: drawnBoxesLdu }),
+    ...(bodyTubes === undefined ? {} : { bodyTubes }),
     ...(bodyArc === undefined ? {} : { bodyMode: "arc-prism", bodyArc }),
     ...(bodyBoundsLdu === undefined ? {} : { bodyBoundsLdu }),
     // Exact bounds enter the digest as their canonical decimal text, so the
