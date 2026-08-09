@@ -1,6 +1,6 @@
 # Making a part draw what it claims
 
-The plan for closing the 82 violations `npm run parts:check` reports, and for the re-verification that owes.
+The plan for closing the violations `npm run parts:check` reports — 82 when this was written, 139 after the standard was sharpened, 137 once the first shell was drawn — and for the re-verification that owes.
 
 This is scoped to part geometry. `part-model.md` owns how a part is organised and declared; this document owns the gap between that declaration and what gets drawn, and the order in which it closes.
 
@@ -10,9 +10,11 @@ Every pixelwise number this project reports — containment, stroke recall, anch
 
 `InstructionSurface` is `"body" | "stud"`. Two surfaces: a solid body, and cylinders on top. There is no underside, cavity, wall or tube anywhere in the render pipeline, and `undersideMode` — which 69 parts declare — is consumed by nothing outside the catalog package. It is not a switch that is off; there is no wire behind it.
 
+*(As of 2026-08-09 the second half of that is no longer true, and the way it stopped being true is not the way this paragraph expected. `undersideMode` did not get wired to a renderer: it became a **report** of the body union, which the renderer already draws. See the shell section below. `InstructionSurface` is still `"body" | "stud"` and still needs no third member.)*
+
 Printed steps 4 and 7 are underside panels. Panel 4's stud lattice fits 57 drawn tube rings, panel 7's fits 174, and both were scored against a flat rectangle. Step 4 was accepted on that comparison, so its placement is **not verified**, and step 6's margin sits on a prefix containing it.
 
-`parts:check` reports 82 violations across 85 parts: 74 parts declaring underside clutches they never draw, and 8 declaring no geometry modes at all.
+`parts:check` reported 82 violations across 85 parts when this was written: 74 parts declaring underside clutches they never draw, and 8 declaring no geometry modes at all. Sharpening the standard with `body-is-hollow-where-it-clutches` took it to 139, and drawing the first shell to **137** — `underside-is-drawn` 73, `body-is-hollow-where-it-clutches` 56, `geometry-mode-is-declared` 8.
 
 ## The invariant
 
@@ -80,7 +82,11 @@ The clutch direction is measured too, not assumed: `plate-2x4` puts its studs at
 
 The tube's **inner radius is 6 LDU**, from `stud4od.dat` line 5, `4-4cylo.dat` scaled by 6. It equals the stud radius exactly, which is the clutch itself: an interference fit of a 6 LDU stud into a 6 LDU tube. That the two numbers must agree is now a fact with a file behind it rather than a coincidence.
 
-**Not yet measured:** the tube's OUTER radius. `stud4.dat` is absent from `scripts/ldraw-cache/`, which holds `stud3a.dat` and `stud4od.dat` but not it. That is one missing file, not a missing method, and it is recorded rather than guessed - a tube radius invented here would be the same class of error as the stud radius that read 6.0001514980873605.
+**Correction, 2026-08-09: the tube's OUTER radius is measured, and the earlier "not yet measured" note was an incomplete search rather than a missing file.** `stud4.dat` itself is indeed absent from `scripts/ldraw-cache/`, but its fractions are not: `1-4stud4.dat` ("Stud Tube Open 0.25") is there and carries the whole profile. Line 13 places `1-4cylo.dat` scaled 6 - the inner wall, agreeing with `stud4od.dat` - and line 14 places `1-4cylo.dat` scaled **8**, which is the outer wall; line 15's `1-4ring3.dat` scaled 2 caps the annulus between radius 6 and 8 and corroborates both. `2-4stud4.dat` lines 19 and 20 say the same. The tube is 4 LDU tall, exactly the cavity depth.
+
+So the tube is an annulus with inner radius **6** and outer radius **8** LDU, and the interference fit is at the wall rather than at the tube: a clutch centre on the 10 LDU half-pitch sits 10 x sqrt(2) = 14.142 LDU from the nearest tube centre, against 6 + 8 = 14, so LDraw's idealised tube clears the stud by 0.142 LDU while the cavity wall touches it exactly.
+
+The lesson is the one this project keeps paying for: the absence was recorded honestly and then believed without re-searching. A blocker you inherited is a claim, not a fact.
 
 ### The obstacle step 3 must clear, found before writing any shell
 
@@ -91,6 +97,20 @@ Emit a shell and the bottom face stops being solid exactly where the clutches ar
 So step 3 is not "emit shells"; it is "teach backing what a clutch is, then emit shells". The order matters: shells first would refuse 74 parts' connectors and look like the shells were wrong.
 
 This is worth stating as a general shape, because it is the fourth instance in this project: a check that is correct for the case it was written against and silently wrong for a case that arrives later. The stud radius, `isRealBuildBrowserOutput` answering two questions with one boolean, the ledger assertion checking a constant, and now backing. Each looked right in isolation.
+
+### The obstacle is cleared, and the first shell is drawn — 2026-08-09
+
+`faceHoldsStud` is unchanged and still answers only the stud question. Beside it, `cavityHoldsStud` answers the clutch question from the body union, and a clutch is admitted when either says yes — a strict widening, so no existing part's connectors moved. All three of its conditions come from the measurements above:
+
+- **clearance** — no body box crosses the cylinder the incoming stud sweeps, which is exactly the volume the `tubeSeat` allowance already reserves;
+- **grip** — some box standing in that band reaches the stud's own 6 LDU circle without crossing it. The range is zero because `3020.dat` makes it zero: cavity face at 16, clutch centre at 10, stud radius 6;
+- **seat** — the cavity is roofed over the stud's footprint, so it bottoms out instead of passing through.
+
+`undersideMode` is now derived from that predicate rather than declared, and gained the value `modelled-shell-cavity`. A part whose union fills its own cavity reverts to `semantic-tube-seat-grid` automatically, so the claim cannot outrun the geometry.
+
+`builtin:plate-2x4` carries the measured shell — a ceiling slab and four walls, five boxes, no tubes. Its eight clutches and eight studs survive unchanged, `parts:check` drops from **139 violations to 137** (`underside-is-drawn` 74 → 73, `body-is-hollow-where-it-clutches` 57 → 56, `geometry-mode-is-declared` 8 → 8), and no other part changes in any field. Rendered from below it is a tray: a rim of four wall bottoms with the ceiling recessed 4 LDU inside it, against `plate-2x3`'s flat face at the same viewpoint.
+
+**The tubes are deliberately absent from this first shell**, now for a stated reason rather than a missing number. `bodyBoxesLdu` takes boxes, and a tube is an annulus; drawing it as a solid box or a solid cylinder would fill its 6 LDU bore and replace one lie with another. Every clutch on this part is held by the walls alone, and the tubes' own contribution — the opposing grip at an interior seat — cannot be checked until the union can hold a hollow cylinder. Step 3 needs that before it reaches a part whose interior seats have no wall within reach.
 
 **1 — Extend the standard.** Add the rules the current four do not cover: the render silhouette agrees with the expanded LDraw surface from all seven canonical views within a stated tolerance; `bodyBoundsLdu` equals the drawn extent; collision primitives cover the body and no more. Expect the violation count to *rise* above 82; a standard that finds less after being sharpened was not sharpened.
 

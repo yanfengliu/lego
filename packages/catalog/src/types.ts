@@ -382,7 +382,19 @@ export interface ParametricGeometryRecipe {
     readonly normal: LduVector3;
     readonly orientationId: "connector-up" | "connector-down";
   }[];
-  readonly undersideMode: "semantic-tube-seat-grid" | "semantic-tube-seat-offsets" | "none";
+  /**
+   * `modelled-shell-cavity` means the underside is real geometry: the body union
+   * above leaves a cavity whose walls hold every one of this part's clutches, so
+   * a render from below draws it and can be compared against a printed underside
+   * panel. The two `semantic-` modes mean the opposite — the tube seats exist for
+   * the clutch solver and nothing draws them.
+   *
+   * The value is derived from the body union by the same predicate that admits
+   * the clutches, never declared, so it cannot claim a cavity the part does not
+   * have.
+   */
+  readonly undersideMode:
+    "semantic-tube-seat-grid" | "semantic-tube-seat-offsets" | "modelled-shell-cavity" | "none";
   readonly studRadiusLdu: number;
   readonly studHeightLdu: number;
   readonly provenance: SourceProvenance;

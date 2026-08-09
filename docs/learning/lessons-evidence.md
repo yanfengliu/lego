@@ -774,3 +774,17 @@ The repair is not a new criterion and not a wider gate: it is the same threshold
 The generalisation: when a selector picks among candidates and a gate then judges the pick, the gate is part of the selection whether it is written there or not. Rank by it, or the loser's number becomes the diagnosis.
 
 **Anchor:** 2026-08-08; the sort in `fitStudLattice`, `packages/rendering/src/camera-fit-lattice.ts`; pinned on the real booklet by the printed-step-4 block in `apps/web/e2e/camera-panel-fit.spec.ts`, which asserts its pitch and elevation against printed steps 3 and 5 and its basis as their mirror. `output/camera-fit/overlay-004.png` before and after is the picture: the predicted cells move from ellipses twice the size of the drawn tubes onto the tubes. The booklet run's step 4 goes from `camera-fit-failed` to 220 scored candidate renders and a different refusal, `ambiguous-placement-score`.
+
+## The structural hash covers the pinned truth, so a catalog bump moves every baseline
+
+`structuralDocumentValue` hashes `truth` alongside the parts, so a document's structural hash is a function of the catalog version it pins as well as of what is in it. Bump `BUILTIN_CATALOG_VERSION` and every pinned baseline in the repository moves at once, whether or not a single placement changed. The three booklet prefixes went `f15eadfa`, `64017a83`, `6d46478c` to `c37d7b59`, `3475cc89`, `b343e96d` on a change that touched one part's body boxes and moved no connector at all.
+
+That is the trap: three moved hashes look exactly like a regression, and the run that produces them cannot tell you which kind of move it was. Neither can a diff of the source, because the bump is deliberate and the placements are somewhere else entirely.
+
+The escape is cheap and exact, and it is the same technique that saved the 77-part legacy roster pin in `mesh-assets.test.ts`. Take the retained `document.json`, put back only the truth digests the bump moved — `truth.catalog.version`, `truth.catalog.hash`, and `truth.collisionModel.hash`, which is the other one that reads the catalog's body primitives — change nothing else, and re-hash. If it reproduces the old value bit for bit, no part, colour, transform, step or connection moved and the whole delta is the version. If it does not, the difference is real and is now isolated from the bump.
+
+The same shape works on any pinned digest with a version component folded into it: restore the component, re-hash, and the literal you were about to overwrite becomes a test of what else changed rather than a casualty of the change.
+
+This is distinct from the older lesson that the structural hash covers part *identifiers* — that one is about two models never hashing alike, this one is about one model not hashing alike across a truth bump.
+
+**Anchor:** 2026-08-09; `structuralDocumentValue` in `packages/brick-kernel/src/document.ts`; measured on all three retained runs at `builtin.basic-parts/9` restoring `truth.catalog` `sha256:a9adf38b…` and `truth.collisionModel` `sha256:8f181d6f…`. The in-tree form of the technique is the `rowsWithTheEightPlate` assertion in `packages/catalog/src/mesh-assets.test.ts`, which recovers the `/6` roster literal by restoring one row.

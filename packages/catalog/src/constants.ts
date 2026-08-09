@@ -24,9 +24,13 @@ import type {
  * pinned per-part frame, and whose extents are the exact LDraw closure; /8 adds
  * three parts the Builder pack has no record of at all, whose female connectors
  * come from the LDCad shadow library instead — 30357, 2450 and 79491, each of
- * which LDraw alone leaves with studs and zero clutch cells.
+ * which LDraw alone leaves with studs and zero clutch cells; /9 is the first
+ * part drawn as the shell it is rather than as a filled block — `plate-2x4`
+ * gains the ceiling and four walls `3020.dat` actually models, so the cavity its
+ * eight clutches need is real geometry in the render and in the collision at the
+ * same moment. No part is added or removed and no connector moves.
  */
-export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/8" as const;
+export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/9" as const;
 export const CONNECTOR_TAXONOMY_VERSION = "stud-tube/1" as const;
 export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/2" as const;
 export const TRANSFORM_POLICY_VERSION = "upright-quarter-turns-negative-y-up/1" as const;

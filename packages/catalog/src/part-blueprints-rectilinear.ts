@@ -97,7 +97,44 @@ export const RECTILINEAR_PART_BLUEPRINTS = [
     widthStuds: 2,
     lengthStuds: 4,
     ldrawId: "3020.dat",
-    geometrySha256: "d8f724a2a69a877ed375fd0af2f972a2f2c9cf8368f8d25f1cd14a4f7fe656fb",
+    /**
+     * The first part drawn as the shell it is, measured off `3020.dat` rather
+     * than chosen. LDraw already models a plate as two nested `box5` solids —
+     * "Box with 5 Faces", open on one side — and this catalog had flattened that
+     * to one filled prism, which is a body no stud can clutch into.
+     *
+     * Line 30, `1 16 0 8 0 40 0 0 0 -8 0 0 0 20 box5.dat`: the outer body, half
+     * extents 40 and 20, height 8, spanning LDraw y 0 (top, where the studs sit)
+     * to 8 (bottom).
+     * Line 21, `1 16 0 8 0 36 0 0 0 -4 0 0 0 16 box5.dat` under a BFC INVERTNEXT:
+     * the cavity, half extents 36 and 16, spanning LDraw y 4 to 8 — the bottom
+     * 4 LDU. Lines 23 to 28 close the rim between the two at y 8.
+     * Wall thickness is 40 - 36 = 4 and 20 - 16 = 4; the ceiling is 8 - 4 = 4.
+     *
+     * Axes are swapped between the two frames: LDraw x is the four-stud length
+     * and z the two-stud width, this catalog the reverse, and catalog y is LDraw
+     * y minus 4 because the body is centred on its own origin. So the cavity is
+     * catalog x half 16, z half 36, y 0 to 4 — opening toward +Y, which is where
+     * `plate-2x4` puts its underside clutches while its studs sit at -4.
+     *
+     * The three underside tubes on lines 16 to 18 are NOT here. They are real —
+     * `1-4stud4.dat` lines 13 and 14 measure them at inner radius 6 and outer
+     * radius 8 LDU — but a tube is an annulus and `bodyBoxesLdu` takes boxes, so
+     * drawing one as a solid box or cylinder would fill its bore and replace one
+     * lie with another. The walls alone hold every clutch on this part: the
+     * cavity face at 16 sits exactly 6 LDU — one stud radius — from every clutch
+     * centre on the 10 LDU half-pitch, which is the interference fit itself.
+     */
+    bodyBoxesLdu: [
+      // The ceiling: the 4 LDU of the plate's 8 that is not cavity.
+      { min: [-20, -4, -40], max: [20, 0, 40] },
+      // The four perimeter walls, 4 LDU thick, standing the cavity's 4 LDU deep.
+      { min: [-20, 0, -40], max: [-16, 4, 40] },
+      { min: [16, 0, -40], max: [20, 4, 40] },
+      { min: [-16, 0, -40], max: [16, 4, -36] },
+      { min: [-16, 0, 36], max: [16, 4, 40] },
+    ],
+    geometrySha256: "c7a4b1b7db11aee3b1b2c1cbeada115da4ef94efa57cc9e109aeb16dc8ee3a08",
   },
   {
     family: "brick",

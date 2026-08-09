@@ -27,9 +27,14 @@ export const EXACT_STUD_RADIUS_LDU = 6;
  *
  * `semantic-tube-seat-grid` means the tube seats exist for the clutch solver and
  * are not modelled. That is a legitimate thing for the solver and an illegitimate
- * thing to photograph: 69 of 85 parts carry it, and none of them draws an
- * underside, so every from-below comparison in this repository has been made
- * against a flat face.
+ * thing to photograph: when this rule was written 69 of 85 parts carried it, none
+ * of them drew an underside, and every from-below comparison in this repository
+ * had therefore been made against a flat face.
+ *
+ * The list is what the rule below tests against, not a census — the count moves
+ * as parts are shelled and `parts:check` is what reports it. `modelled-shell-cavity`
+ * is deliberately absent: a part carrying it has a cavity its body actually
+ * draws, which is the whole point of the mode existing.
  */
 export const SEMANTIC_UNDERSIDE_MODES: readonly string[] = [
   "semantic-tube-seat-grid",

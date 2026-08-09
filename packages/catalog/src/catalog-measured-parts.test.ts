@@ -278,8 +278,10 @@ describe("measured set 6651557 catalog parts", () => {
 
     const { partialOverhangClutchEvidence, ...withoutEvidence } = blueprint;
     expect(partialOverhangClutchEvidence).toBeDefined();
+    // The refusal names all three routes it tried, and why the cavity one could
+    // not even be attempted: 80015's body is an arc, not a union of boxes.
     expect(() => makePartDefinition(withoutEvidence)).toThrow(
-      /lacks full body backing and has no source-verified partial-overhang evidence/,
+      /is held by nothing: its modelled cavity does not hold a stud there \(the body is not a union of boxes, so it models no cavity\), the bottom face is not backed by solid there either, and no source-verified partial-overhang evidence names it/,
     );
 
     const moveFirstEdgeTo =

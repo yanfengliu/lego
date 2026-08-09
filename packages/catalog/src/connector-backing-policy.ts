@@ -13,6 +13,7 @@ import type {
   CollisionPrimitive,
   ConnectorKind,
   ConnectorPortDefinition,
+  LduBounds,
   LduVector3,
 } from "./types.ts";
 
@@ -147,6 +148,14 @@ interface ConnectorFeatures {
   connectors: ConnectorPortDefinition[];
   primitives: CollisionPrimitive[];
   allowances: CollisionAllowance[];
+  /**
+   * True only when this part has clutches and every one of them was admitted by
+   * a modelled cavity rather than by solid backing. It is the geometry's own
+   * answer, so `undersideMode` cannot claim a cavity the body does not draw. A
+   * part whose clutches are mixed reports false: half a modelled underside is
+   * still an underside a from-below comparison would measure wrongly.
+   */
+  undersideIsModelled: boolean;
 }
 
 export const buildConnectorFeatures = ({
@@ -233,7 +242,14 @@ export const buildConnectorFeatures = ({
       minRadiusSquared + GEOMETRY_EPSILON >= bodyArc.innerRadiusLdu ** 2
     );
   };
-  /** Whether a whole stud's worth of the named face is backed by solid. */
+  /**
+   * Whether a whole stud's worth of the named face is backed by solid.
+   *
+   * This is the STUD question and only the stud question: a stud is material
+   * standing proud of the body, so it needs body behind it to stand on. Asking
+   * it of the underside answers the opposite question by accident — see
+   * `cavityHoldsStud` below.
+   */
   const faceHoldsStud = (face: "top" | "bottom", x: number, z: number): boolean => {
     if (bodyArc !== undefined) return arcHoldsFootprint(x, z);
     if (bodyWedge !== undefined) {
@@ -262,6 +278,127 @@ export const buildConnectorFeatures = ({
     }
     return true;
   };
+  /**
+   * The cylinder an incoming stud sweeps as it enters this part's bottom face —
+   * exactly the volume the `tubeSeat` allowance below already reserves for it.
+   */
+  const insertionCeilingY = bottomY - STUD_HEIGHT_LDU;
+  /** Whether a box stands anywhere in the band the incoming stud passes through. */
+  const spansInsertionBand = (box: LduBounds): boolean =>
+    box.min[1] < bottomY - GEOMETRY_EPSILON && box.max[1] > insertionCeilingY + GEOMETRY_EPSILON;
+  /** Whether a box roofs the band, so the stud has something to bottom out against. */
+  const roofsInsertionBand = (box: LduBounds): boolean =>
+    box.min[1] < insertionCeilingY - GEOMETRY_EPSILON &&
+    box.max[1] >= insertionCeilingY - GEOMETRY_EPSILON;
+  /** Distance from a clutch centre to the nearest point of a box's footprint, 0 inside it. */
+  const footprintDistance = (box: LduBounds, x: number, z: number): number =>
+    Math.hypot(
+      Math.max(box.min[0] - x, 0, x - box.max[0]),
+      Math.max(box.min[2] - z, 0, z - box.max[2]),
+    );
+
+  type CavityVerdict = { readonly held: true } | { readonly held: false; readonly reason: string };
+  const CAVITY_HELD: CavityVerdict = { held: true };
+
+  /**
+   * What a CLUTCH is, as opposed to what a stud is.
+   *
+   * A clutch is not material, it is a hole. The incoming stud has to get in,
+   * something has to grip it once it is in, and it has to stop somewhere. Solid
+   * behind a clutch is not what holds it — solid behind a clutch is precisely
+   * what makes it impossible, which is why `faceHoldsStud("bottom", …)` is the
+   * wrong question to put to an underside and was silently answering it anyway.
+   *
+   * A modelled cavity holds a stud when all three are true:
+   *
+   *  - **clearance** — no body box crosses the cylinder the stud sweeps;
+   *  - **grip** — some wall or tube standing in that band reaches the stud's own
+   *    circle;
+   *  - **seat** — the cavity is closed above the stud, so it bottoms out rather
+   *    than passing through.
+   *
+   * The grip range is zero, not a chosen tolerance. LDraw's 3020 puts the plate
+   * cavity's inner face at 16 LDU from centre (`box5` half-extent 16 on line 21)
+   * with clutch centres on the 10 LDU half-pitch and a stud radius of exactly 6:
+   * 16 - 10 = 6 is the stud radius to the LDU. A clutch is an interference fit
+   * and the wall touches the stud, so anything looser here would be a number
+   * nobody measured.
+   *
+   * Only a union body can answer this at all — a filled prism, a wedge and an
+   * arc model no cavity, so they have no underside to interrogate.
+   */
+  const cavityHoldsStud = (x: number, z: number): CavityVerdict => {
+    if (bodyBoxesLdu === undefined) {
+      return { held: false, reason: "the body is not a union of boxes, so it models no cavity" };
+    }
+    let gripping = 0;
+    for (const box of bodyBoxesLdu) {
+      if (!spansInsertionBand(box)) continue;
+      const distance = footprintDistance(box, x, z);
+      if (distance < STUD_RADIUS_LDU - GEOMETRY_EPSILON) {
+        return {
+          held: false,
+          reason:
+            `body box [${box.min.join(", ")}]..[${box.max.join(", ")}] stands ${distance.toFixed(6)} LDU ` +
+            `from the centre, inside the ${STUD_RADIUS_LDU} LDU stud it would have to admit`,
+        };
+      }
+      if (distance <= STUD_RADIUS_LDU + GEOMETRY_EPSILON) gripping += 1;
+    }
+    if (gripping === 0) {
+      return {
+        held: false,
+        reason:
+          `no body box between y ${insertionCeilingY} and y ${bottomY} reaches the stud's own ` +
+          `${STUD_RADIUS_LDU} LDU circle, so the cavity is open there and nothing would grip`,
+      };
+    }
+    for (let ix = 0; ix <= STUD_FOOTPRINT_SAMPLES; ix += 1) {
+      for (let iz = 0; iz <= STUD_FOOTPRINT_SAMPLES; iz += 1) {
+        const sx = x - STUD_RADIUS_LDU + (2 * STUD_RADIUS_LDU * ix) / STUD_FOOTPRINT_SAMPLES;
+        const sz = z - STUD_RADIUS_LDU + (2 * STUD_RADIUS_LDU * iz) / STUD_FOOTPRINT_SAMPLES;
+        if (
+          !bodyBoxesLdu.some(
+            (box) =>
+              roofsInsertionBand(box) &&
+              sx >= box.min[0] &&
+              sx <= box.max[0] &&
+              sz >= box.min[2] &&
+              sz <= box.max[2],
+          )
+        ) {
+          return {
+            held: false,
+            reason:
+              `nothing roofs the cavity at [${sx}, ${sz}], so a stud entering here would pass ` +
+              `through the part rather than bottoming out on its ceiling`,
+          };
+        }
+      }
+    }
+    return CAVITY_HELD;
+  };
+
+  let clutchesAdmitted = 0;
+  let clutchesHeldByCavity = 0;
+  /**
+   * The underside admission both clutch paths use, and the tally that decides
+   * whether this part may claim a drawn underside.
+   *
+   * A part whose body is one filled prism, a wedge or an arc models no cavity,
+   * so the cavity question cannot be put to it and solid backing is the only
+   * answer available. That is not an exemption: those parts are exactly the ones
+   * `body-is-hollow-where-it-clutches` reports in `part-standard.ts`, and this
+   * second branch dies with the last of them.
+   */
+  const undersideHoldsStud = (x: number, z: number): boolean => {
+    const cavity = cavityHoldsStud(x, z);
+    if (!cavity.held && !faceHoldsStud("bottom", x, z)) return false;
+    clutchesAdmitted += 1;
+    if (cavity.held) clutchesHeldByCavity += 1;
+    return true;
+  };
+
   const partialOverhangBackingFraction = (x: number, z: number): number => {
     if (bodyArc === undefined) return 0;
     const relativeX = x - bodyArc.centerXZLdu[0];
@@ -353,7 +490,7 @@ export const buildConnectorFeatures = ({
         });
       }
       if (clutchOffsetsLdu !== undefined) continue;
-      if (!faceHoldsStud("bottom", x, z)) continue;
+      if (!undersideHoldsStud(x, z)) continue;
       connectors.push(
         makePort(
           `undersideClutch:${xIndex}:${zIndex}`,
@@ -405,11 +542,13 @@ export const buildConnectorFeatures = ({
       throw new Error(`${blueprint.ldrawId} cannot declare clutches and suppress its underside`);
     }
     clutchOffsetsLdu.forEach(([x, z], index) => {
-      const hasFullBacking = faceHoldsStud("bottom", x, z);
+      const cavity = cavityHoldsStud(x, z);
+      const hasFullBacking = cavity.held || faceHoldsStud("bottom", x, z);
       const partialOverride = partialOverhangOverrides.get(offsetKey([x, z]));
       if (!hasFullBacking && partialOverride === undefined) {
+        const cavityReason = cavity.held ? "" : cavity.reason;
         throw new Error(
-          `${blueprint.ldrawId} underside clutch ${index} at [${x}, ${z}] lacks full body backing and has no source-verified partial-overhang evidence`,
+          `${blueprint.ldrawId} underside clutch ${index} at [${x}, ${z}] is held by nothing: its modelled cavity does not hold a stud there (${cavityReason}), the bottom face is not backed by solid there either, and no source-verified partial-overhang evidence names it. Give the body a cavity whose wall or tube reaches the stud's ${STUD_RADIUS_LDU} LDU circle without crossing it, or drop the clutch.`,
         );
       }
       if (hasFullBacking && partialOverride !== undefined) {
@@ -430,6 +569,8 @@ export const buildConnectorFeatures = ({
           );
         }
       }
+      clutchesAdmitted += 1;
+      if (cavity.held) clutchesHeldByCavity += 1;
       const portId = `undersideClutch:${index}`;
       connectors.push(
         makePort(portId, "undersideClutch", [x, bottomY, z], [0, 1, 0], "connector-down"),
@@ -447,5 +588,10 @@ export const buildConnectorFeatures = ({
     });
   }
 
-  return { connectors, primitives, allowances };
+  return {
+    connectors,
+    primitives,
+    allowances,
+    undersideIsModelled: clutchesAdmitted > 0 && clutchesHeldByCavity === clutchesAdmitted,
+  };
 };

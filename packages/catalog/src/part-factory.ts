@@ -42,6 +42,7 @@ import {
   makeAliases,
   makeGeometryDigestInput,
   studModeFor,
+  undersideModeFor,
   unionOfBoxes,
   WHEEL_DIAMETER_LDU,
 } from "./part-factory-support.ts";
@@ -205,13 +206,14 @@ export const makePartDefinition = (blueprint: PartBlueprint): ParametricPartDefi
                   maxLdu: bodyBoundsLdu.max,
                 },
         ];
-  const { connectors, primitives, allowances } = buildConnectorFeatures({
+  const { connectors, primitives, allowances, undersideIsModelled } = buildConnectorFeatures({
     blueprint,
     studded,
     topY,
     bottomY,
     bodyPrimitives,
   });
+  const undersideMode = undersideModeFor(blueprint, undersideIsModelled);
 
   return deepFreeze({
     id,
@@ -234,6 +236,7 @@ export const makePartDefinition = (blueprint: PartBlueprint): ParametricPartDefi
         blueprint,
         heightLdu,
         exactBodyBounds === undefined ? undefined : formatExactLduBounds(exactBodyBounds),
+        undersideMode,
       ),
       contentHash: `sha256:${blueprint.geometrySha256}`,
       bodyMode:
@@ -249,12 +252,7 @@ export const makePartDefinition = (blueprint: PartBlueprint): ParametricPartDefi
       ...(blueprint.connectorGridCenterLdu === undefined
         ? {}
         : { connectorGridCenterLdu: blueprint.connectorGridCenterLdu }),
-      undersideMode:
-        blueprint.withoutClutches === true
-          ? "none"
-          : clutchOffsetsLdu === undefined
-            ? "semantic-tube-seat-grid"
-            : "semantic-tube-seat-offsets",
+      undersideMode,
       ...(blueprint.bodyBoundsLdu === undefined ? {} : { bodyBoundsLdu: blueprint.bodyBoundsLdu }),
       ...(exactBodyBounds === undefined ? {} : { exactBodyBoundsLdu: exactBodyBounds }),
       ...(bodyBoxesLdu === undefined ? {} : { bodyBoxesLdu }),

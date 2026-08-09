@@ -46,6 +46,14 @@ const PARAMETRIC_PART_DEFINITIONS: readonly ParametricPartDefinition[] = PART_DE
 const COMPOUND_CELLS: Readonly<
   Record<string, { readonly studs: readonly string[]; readonly clutches: readonly string[] }>
 > = {
+  // The one part drawn as the shell it is. Its union is a ceiling and four
+  // walls rather than a staircase, so unlike every other entry here it keeps a
+  // full grid on both faces: the studs stand on the ceiling and the clutches
+  // open into the cavity the walls enclose.
+  "builtin:plate-2x4": {
+    studs: ["0:0", "0:1", "0:2", "0:3", "1:0", "1:1", "1:2", "1:3"],
+    clutches: ["0:0", "0:1", "0:2", "0:3", "1:0", "1:1", "1:2", "1:3"],
+  },
   "builtin:arch-1x4": { studs: ["0:0", "0:1", "0:2", "0:3"], clutches: ["0:0", "0:3"] },
   "builtin:arch-1x6": {
     studs: ["0:0", "0:1", "0:2", "0:3", "0:4", "0:5"],

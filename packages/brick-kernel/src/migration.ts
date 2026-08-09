@@ -24,6 +24,7 @@ export const MIGRATABLE_CATALOG_VERSIONS: readonly string[] = Object.freeze([
   "builtin.basic-parts/5",
   "builtin.basic-parts/6",
   "builtin.basic-parts/7",
+  "builtin.basic-parts/8",
   BUILTIN_CATALOG_VERSION,
 ]);
 
@@ -89,6 +90,16 @@ export const REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS = Object.freeze([
     catalogVersion: "builtin.basic-parts/7",
     sourceCommit: "9d0ebed8f6639d71affeaed63ab1682f35e1a18b",
     truthHash: "sha256:29eaae6325eba701dc52827a9373c7583889ce3fd16fd8057f3c6f243a8ab868",
+  },
+  // The snapshot /9 replaced. /9 changes no part's identity and no connector's
+  // position — it gives `plate-2x4` the cavity `3020.dat` models, so the change
+  // is to what one part draws and collides with, not to what a document may
+  // refer to. A document saved against the eighty-five-part catalog therefore
+  // still carries forward, and gains a plate that is hollow where it clutches.
+  {
+    catalogVersion: "builtin.basic-parts/8",
+    sourceCommit: "262d274b51f819f13de0c118b836747da1fd14db",
+    truthHash: "sha256:33787b02b898a83957e2cc92cff5b8da39da45dfaa3cafcd12f2446e30748613",
   },
 ] as const);
 

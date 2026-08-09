@@ -110,6 +110,27 @@ export const studModeFor = (
 };
 
 /**
+ * The one place the underside mode is named.
+ *
+ * It used to be spelled out twice — once for the definition and once for the
+ * digest input — which is a drift waiting to happen: the digest would keep
+ * saying "semantic" while the definition said something else, and the hash would
+ * bind the wrong claim. `undersideIsModelled` comes from the connector builder,
+ * which derives it from the body union's own geometry, so this is a report of
+ * what the part draws rather than a declaration about it.
+ */
+export const undersideModeFor = (
+  blueprint: PartBlueprint,
+  undersideIsModelled: boolean,
+): "semantic-tube-seat-grid" | "semantic-tube-seat-offsets" | "modelled-shell-cavity" | "none" => {
+  if (blueprint.withoutClutches === true) return "none";
+  if (undersideIsModelled) return "modelled-shell-cavity";
+  return blueprint.clutchOffsetsLdu === undefined
+    ? "semantic-tube-seat-grid"
+    : "semantic-tube-seat-offsets";
+};
+
+/**
  * A part with no explicit stud offsets hashes exactly as it did before offsets
  * existed, so adding them did not re-hash the thirty-two parts before it. The
  * same rule holds for exact bounds: a part that does not declare them emits the
@@ -119,6 +140,7 @@ export const makeGeometryDigestInput = (
   blueprint: PartBlueprint,
   heightLdu: number,
   exactBodyBoundsLdu: ExactLduBoundsDeclaration | undefined,
+  undersideMode: ReturnType<typeof undersideModeFor>,
 ): string => {
   const {
     family,
@@ -134,7 +156,6 @@ export const makeGeometryDigestInput = (
     connectorGridCenterLdu,
   } = blueprint;
   const bodyBoundsLdu = blueprint.bodyBoundsLdu;
-  const withoutClutches = blueprint.withoutClutches === true;
   const generatorId =
     bodyArc === undefined
       ? "builtin:parametric-rectilinear-part/1"
@@ -149,11 +170,7 @@ export const makeGeometryDigestInput = (
     studRadiusLdu: STUD_RADIUS_LDU,
     studHeightLdu: STUD_HEIGHT_LDU,
     studMode: studModeFor(family, studOffsetsLdu),
-    undersideMode: withoutClutches
-      ? "none"
-      : clutchOffsetsLdu === undefined
-        ? "semantic-tube-seat-grid"
-        : "semantic-tube-seat-offsets",
+    undersideMode,
     ...(studOffsetsLdu === undefined ? {} : { studOffsetsLdu }),
     ...(bodyWedge === undefined ? {} : { bodyMode: "wedge-prism", bodyWedge }),
     ...(bodyBoxesLdu === undefined ? {} : { bodyMode: "box-union", bodyBoxesLdu }),

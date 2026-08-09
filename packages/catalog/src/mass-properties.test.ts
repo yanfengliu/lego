@@ -18,13 +18,20 @@ const require = (id: string): ParametricPartDefinition => {
 };
 
 describe("partMassProperties", () => {
-  it("measures a plate as its box plus its studs", () => {
+  it("measures a plate as its shell plus its studs, with the cavity taken out", () => {
+    // A plate is not a block. `3020.dat` builds it from two nested `box5`
+    // solids, and this now models both: the outer body less the cavity that its
+    // eight clutches need, which is what the mass has to reflect. A filled
+    // 2 x 4 plate would weigh 25600 LDU cubed before its studs; the real one
+    // weighs 9216 less, and that 9216 is the cavity to the LDU.
     const plate = require("builtin:plate-2x4");
     const { solidVolumeLdu3 } = partMassProperties(plate);
-    const box = 40 * 8 * 80;
+    const outerBody = 40 * 8 * 80;
+    const cavity = 32 * 4 * 72;
     const studs = 8 * Math.PI * 6 ** 2 * 4;
 
-    expect(solidVolumeLdu3).toBeCloseTo(box + studs, 6);
+    expect(outerBody - cavity).toBe(16_384);
+    expect(solidVolumeLdu3).toBeCloseTo(outerBody - cavity + studs, 6);
   });
 
   it("balances a symmetric part on its own origin", () => {
@@ -55,11 +62,22 @@ describe("partMassProperties", () => {
     expect(left.solidVolumeLdu3).toBeCloseTo(right.solidVolumeLdu3, 6);
   });
 
-  it("gives a wedge less material than the plate that contains it", () => {
+  it("gives a wedge less material than the solid plate it is cut from", () => {
+    // The yardstick is the filled prism, named here rather than read off
+    // `plate-2x4`. That plate is now a shell and the wedge is still a filled
+    // block, so their masses are two different modelling generations and
+    // comparing them would measure the gap between those rather than the cut.
+    // What is under test is unchanged: the sloped face removes material. When
+    // the wedge becomes a shell too, this goes back to comparing the two parts.
     const wedge = partMassProperties(require("builtin:wedge-plate-2x4-left"));
-    const plate = partMassProperties(require("builtin:plate-2x4"));
+    const plate = require("builtin:plate-2x4");
+    const solidPlateBody =
+      (plate.bodyBoundsLdu.max[0] - plate.bodyBoundsLdu.min[0]) *
+      (plate.bodyBoundsLdu.max[1] - plate.bodyBoundsLdu.min[1]) *
+      (plate.bodyBoundsLdu.max[2] - plate.bodyBoundsLdu.min[2]);
 
-    expect(wedge.solidVolumeLdu3).toBeLessThan(plate.solidVolumeLdu3);
+    expect(solidPlateBody).toBe(40 * 8 * 80);
+    expect(wedge.solidVolumeLdu3).toBeLessThan(solidPlateBody);
   });
 
   it("measures conservative arc prisms exactly without counting their shared faces twice", () => {
