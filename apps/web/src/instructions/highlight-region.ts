@@ -17,8 +17,19 @@
  * so both forms are returned: `mask` holds what closed contours enclose, and
  * `strokeMask` holds the keyed yellow itself, which is always present and is
  * what an open contour can still be scored against.
+ *
+ * `strokeMask` is every keyed pixel, including the specks this extractor itself
+ * rejected as too small to be a contour, because a soft score wants all the
+ * printed yellow it can get. `contourStrokeMask` is the subset the extractor
+ * accepted — the keyed pixels of the components it kept — and it exists because
+ * a *hard* test cannot be stated on the other one. "Every printed pixel is
+ * explained" over `strokeMask` is a claim about the page's stray saturated
+ * pixels as much as about the placement: printed panel 5 of the sample booklet
+ * keys 1429 pixels of which a handful lie in components the extractor discarded,
+ * so a placement drawing the booklet's two contours exactly would still be
+ * refused by specks it was never asked to account for.
  */
-export const HIGHLIGHT_REGION_SCHEMA_VERSION = "lego.highlight-region/1" as const;
+export const HIGHLIGHT_REGION_SCHEMA_VERSION = "lego.highlight-region/2" as const;
 
 export interface HighlightRegionBounds {
   readonly minXPx: number;
@@ -55,6 +66,14 @@ export interface HighlightExtraction {
    * fall back to.
    */
   readonly strokeMask: Uint8Array;
+  /**
+   * The keyed pixels of the contours this extraction kept, undilated.
+   *
+   * `strokeMask` minus every component discarded as too small to be an outline.
+   * This is the printed evidence a step can be *required* to explain in full;
+   * `strokeMask` is what it may be *credited* for explaining.
+   */
+  readonly contourStrokeMask: Uint8Array;
   readonly regions: readonly HighlightRegion[];
   /** Closed contours over all contours, the share of steps the fill serves. */
   readonly closedContourRate: number;
@@ -278,6 +297,15 @@ export function extractHighlightRegions(
   const components = findComponents(stroke, width, height);
   const significant = components.filter((component) => component.pixels.length >= minimumOutlinePx);
   const mask = new Uint8Array(width * height);
+  // Components are found on the dilated stroke, so intersecting a kept
+  // component back against `keyed` recovers the pixels the page actually
+  // printed rather than the ones closing it added.
+  const contourStrokeMask = new Uint8Array(width * height);
+  for (const component of significant) {
+    for (const pixel of component.pixels) {
+      if (keyed[pixel] === 1) contourStrokeMask[pixel] = 1;
+    }
+  }
   const regions: HighlightRegion[] = [];
   for (const component of significant) {
     const candidateMask = new Uint8Array(width * height);
@@ -306,6 +334,7 @@ export function extractHighlightRegions(
     height,
     mask,
     strokeMask: keyed,
+    contourStrokeMask,
     regions,
     keyedPx,
     discardedComponents: components.length - significant.length,

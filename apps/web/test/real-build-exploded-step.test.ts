@@ -304,6 +304,7 @@ function panelEvidence(input: {
       // blend a monotone transform of `regionIou`, and this suite could then
       // not tell the two ranking keys apart.
       strokeMask: maskBoundary(input.regionMask, WIDTH, HEIGHT),
+      contourStrokeMask: maskBoundary(input.regionMask, WIDTH, HEIGHT),
     },
     highlightBox: boundsOf(input.regionMask),
     builtMask: rasterise(BASE),

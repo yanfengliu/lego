@@ -304,15 +304,21 @@ function isWholeStepVisual(value: unknown, maximum: number): boolean {
         "minimumScore",
         "minimumExclusiveHighlightPixelsPerPiece",
         "calibrationDigest",
+        "evidenceKind",
+        "printedEvidencePixels",
         "unionHighlightPixels",
         "summedPieceHighlightPixels",
         "exclusiveHighlightPixelsByPiece",
+        "unexplainedBoundsPx",
         "failure",
       ]) &&
+      (value.unexplainedBoundsPx === null || isTuple(value.unexplainedBoundsPx, 4)) &&
       isNullableFiniteNumber(value.score) &&
       isFiniteNumber(value.minimumScore) &&
       isFiniteNumber(value.minimumExclusiveHighlightPixelsPerPiece) &&
       isNullableDigest(value.calibrationDigest) &&
+      (value.evidenceKind === "region" || value.evidenceKind === "stroke") &&
+      isBoundedInteger(value.printedEvidencePixels, Number.MAX_SAFE_INTEGER) &&
       isBoundedInteger(value.unionHighlightPixels, Number.MAX_SAFE_INTEGER) &&
       isBoundedInteger(value.summedPieceHighlightPixels, Number.MAX_SAFE_INTEGER) &&
       Array.isArray(value.exclusiveHighlightPixelsByPiece) &&

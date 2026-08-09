@@ -786,7 +786,13 @@ describe("real booklet build safety", () => {
     const coverage = measureWholeStepMaskEvidence(
       [new Uint8Array([1, 1, 0, 0]), new Uint8Array([0, 0, 1, 1])],
       new Uint8Array([1, 1, 1, 1]),
+      2,
     );
+    const region = {
+      evidenceKind: "region",
+      printedEvidencePixels: 4,
+      unexplainedBoundsPx: null,
+    } as const;
     expect(
       assessWholeStepVisualEvidence({
         stepNumber: 7,
@@ -794,6 +800,7 @@ describe("real booklet build safety", () => {
         minimumScore: 0.4,
         minimumExclusiveHighlightPixelsPerPiece: 2,
         calibrationDigest: TEST_DIGEST,
+        ...region,
         ...coverage,
       }).failure?.code,
     ).toBe("whole-step-score-too-low");
@@ -804,6 +811,7 @@ describe("real booklet build safety", () => {
         minimumScore: 0.4,
         minimumExclusiveHighlightPixelsPerPiece: 2,
         calibrationDigest: TEST_DIGEST,
+        ...region,
         unionHighlightPixels: 2,
         summedPieceHighlightPixels: 4,
         exclusiveHighlightPixelsByPiece: [0, 0],
@@ -816,6 +824,7 @@ describe("real booklet build safety", () => {
         minimumScore: 0.4,
         minimumExclusiveHighlightPixelsPerPiece: 2,
         calibrationDigest: TEST_DIGEST,
+        ...region,
         unionHighlightPixels: 1,
         summedPieceHighlightPixels: 1,
         exclusiveHighlightPixelsByPiece: [1],
@@ -828,9 +837,80 @@ describe("real booklet build safety", () => {
         minimumScore: 0.4,
         minimumExclusiveHighlightPixelsPerPiece: 2,
         calibrationDigest: TEST_DIGEST,
+        ...region,
         ...coverage,
       }).failure,
     ).toBeNull();
+  });
+
+  // A panel whose contours all stay open prints no enclosed area at all, so the
+  // region mask is empty by construction and every piece's intersection with it
+  // is zero. That is exactly printed step 5 of the sample booklet: two open
+  // contours, 1429px of keyed yellow, and a region union of 0px. Measuring the
+  // stroke instead is what makes the same reuse question askable there.
+  it("attributes an open contour's stroke to the piece whose boundary traces it", () => {
+    // Two pieces side by side, each claiming the stroke its own boundary runs
+    // under. Six printed pixels: three each, none shared.
+    const left = new Uint8Array([1, 1, 1, 0, 0, 0]);
+    const right = new Uint8Array([0, 0, 0, 1, 1, 1]);
+    const printed = new Uint8Array([1, 1, 1, 1, 1, 1]);
+    const measured = measureWholeStepMaskEvidence([left, right], printed, 6);
+    expect(measured).toEqual({
+      unionHighlightPixels: 6,
+      summedPieceHighlightPixels: 6,
+      exclusiveHighlightPixelsByPiece: [3, 3],
+      unexplainedBoundsPx: null,
+    });
+    expect(
+      assessWholeStepVisualEvidence({
+        stepNumber: 5,
+        score: 0.7,
+        minimumScore: 0.45,
+        minimumExclusiveHighlightPixelsPerPiece: 2,
+        calibrationDigest: TEST_DIGEST,
+        evidenceKind: "stroke",
+        printedEvidencePixels: 6,
+        ...measured,
+      }).failure,
+    ).toBeNull();
+  });
+
+  // The hard test an open contour does *not* get, and the measurement that
+  // refused it. "Every printed pixel is explained" reads like containment's
+  // mirror and is false of the right answer: on printed step 5 the best of 374
+  // placements of the Plate 2 x 14 explains 907 of the 1081 pixels its own
+  // contour prints, and the 174 it misses are the outer row of a two-pixel
+  // stroke drawn outward of the silhouette by more than the boundary tolerance.
+  // So this gate stays a reuse gate, and the hard test is `rankStepDelta`
+  // maximality plus the run's existing separation margin in the search.
+  it("does not refuse an open contour for printed line the drawing put out of reach", () => {
+    const stepFive = {
+      stepNumber: 5,
+      score: 0.9,
+      minimumScore: 0.45,
+      minimumExclusiveHighlightPixelsPerPiece: 8,
+      calibrationDigest: TEST_DIGEST,
+      evidenceKind: "stroke",
+      printedEvidencePixels: 1_429,
+      unionHighlightPixels: 1_254,
+      summedPieceHighlightPixels: 1_254,
+      exclusiveHighlightPixelsByPiece: [347, 907],
+      unexplainedBoundsPx: [36, 353, 286, 445] as const,
+    } as const;
+    expect(assessWholeStepVisualEvidence(stepFive).failure).toBeNull();
+    // The shortfall is still reported, because it is where the drawing and the
+    // build disagree and a box on the panel is the only actionable form of it.
+    const evidence = assessWholeStepVisualEvidence(stepFive);
+    expect(evidence.printedEvidencePixels - evidence.unionHighlightPixels).toBe(175);
+    expect(evidence.unexplainedBoundsPx).toEqual([36, 353, 286, 445]);
+    // Reuse still bites on exactly the same evidence: a piece that traces none
+    // of the printed line has not explained anything, open contour or not.
+    expect(
+      assessWholeStepVisualEvidence({
+        ...stepFive,
+        exclusiveHighlightPixelsByPiece: [7, 1_247],
+      }).failure?.code,
+    ).toBe("highlight-reuse-unexplained");
   });
 
   it("refuses pruned/exhaustive disagreement even with a forged digest policy", () => {

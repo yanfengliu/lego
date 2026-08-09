@@ -122,6 +122,35 @@ describe("extracting a step's highlight region", () => {
     expect(extraction.regions).toHaveLength(1);
     expect(extraction.discardedComponents).toBe(1);
     expect(extraction.keyedPx).toBe(extraction.regions[0]!.outlinePx + 2);
+    // And the discarded speck stays out of the mask a hard test may be stated
+    // on. `strokeMask` keeps it, because a soft score wants every printed pixel
+    // it can be credited for; `contourStrokeMask` does not, because "explain
+    // every printed pixel" over the other one is a demand about page noise.
+    const strokePx = extraction.strokeMask.reduce((total, value) => total + value, 0);
+    const contourPx = extraction.contourStrokeMask.reduce((total, value) => total + value, 0);
+    expect(strokePx).toBe(extraction.keyedPx);
+    expect(contourPx).toBe(extraction.regions[0]!.outlinePx);
+    expect(extraction.contourStrokeMask[35 * 60 + 50]).toBe(0);
+    expect(extraction.strokeMask[35 * 60 + 50]).toBe(1);
+  });
+
+  it("keeps an open contour's own stroke, which is all it prints", () => {
+    const pixels = page(60, 40);
+    strokeRectangle(pixels, 60, { minXPx: 10, minYPx: 8, maxXPx: 39, maxYPx: 29 }, 20);
+
+    const extraction = extractHighlightRegions(pixels, 60, 40, {
+      minimumOutlinePx: 10,
+      closeRadiusPx: 0,
+    });
+
+    // Nothing enclosed, so nothing to be contained in — and yet every printed
+    // pixel is still there to be explained. This is the shape roughly half of
+    // this booklet's contours have.
+    expect(extraction.closedContourRate).toBe(0);
+    expect(extraction.mask.every((value) => value === 0)).toBe(true);
+    expect(extraction.contourStrokeMask.reduce((total, value) => total + value, 0)).toBe(
+      extraction.keyedPx,
+    );
   });
 
   it("finds nothing on a page with no highlight, rather than inventing a region", () => {

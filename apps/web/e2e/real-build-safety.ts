@@ -555,14 +555,40 @@ export function benchmarkPrefixFailure(input: {
   };
 }
 
+/**
+ * Which printed evidence a step's joint gate was actually asked about.
+ *
+ * `region` is a panel at least one of whose contours closed, so the drawing
+ * encloses an area a seated silhouette can be compared against. `stroke` is a
+ * panel where none did, because the step's new parts pass behind something
+ * already built and the booklet stops the yellow at the occluding edge — the
+ * printed line is still there, it just encloses nothing. Roughly half of this
+ * booklet's contours are the second kind, so the two are not an exception and a
+ * rule; they are two shapes of evidence and the gate has to say which it read.
+ */
+export type WholeStepEvidenceKind = "region" | "stroke";
+
 export interface WholeStepVisualEvidence {
   readonly score: number | null;
   readonly minimumScore: number;
   readonly minimumExclusiveHighlightPixelsPerPiece: number;
   readonly calibrationDigest: string | null;
+  readonly evidenceKind: WholeStepEvidenceKind;
+  /**
+   * Pixels of printed evidence this panel offered: enclosed region on a `region`
+   * panel, kept contour stroke on a `stroke` one.
+   */
+  readonly printedEvidencePixels: number;
   readonly unionHighlightPixels: number;
   readonly summedPieceHighlightPixels: number;
   readonly exclusiveHighlightPixelsByPiece: readonly number[];
+  /**
+   * Panel box holding the printed evidence no placed piece claimed, or null when
+   * every printed pixel was claimed. `[minX, minY, maxX, maxY]` in the work
+   * raster the panel was scored at, so it can be cropped straight out of the
+   * step's own panel capture and looked at.
+   */
+  readonly unexplainedBoundsPx: readonly [number, number, number, number] | null;
   readonly failure: StepFailure | null;
 }
 

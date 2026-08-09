@@ -116,3 +116,30 @@ export function scoreStepDelta(
     strokePx: highlight.strokeMask.reduce((total, value) => total + value, 0),
   };
 }
+
+/**
+ * The number a placement search ranks by, which is not the same number on both
+ * kinds of panel.
+ *
+ * On a closed contour the drawing encloses an area, and `score` blends that area
+ * agreement with the stroke.
+ *
+ * On an open one it is `strokeRecall` alone — how much of the printed line the
+ * candidate's own boundary passes under — and dropping `boundaryPrecision` is
+ * the whole point. Precision asks what share of the candidate's boundary the
+ * booklet printed, and on an open contour the booklet deliberately printed only
+ * part of it: the yellow stops at the occluding edge and never resumes. A
+ * candidate is then charged for the drawing's occlusion, which is a fact about
+ * the page rather than about the placement, exactly as `shiftedMaskIou` excludes
+ * the highlight band for the same reason. Measured on printed step 5 of the
+ * sample booklet — an open contour on both its pieces — the two keys agree on
+ * every winner, so this is not a rescue of a losing candidate; it is removing a
+ * term that means something else here.
+ *
+ * Recall also cannot be bought by spilling, which is why a search may rank by it
+ * where it may not rank by the blend: boundary drawn where the booklet printed
+ * no yellow explains nothing and scores nothing.
+ */
+export function rankStepDelta(score: StepDeltaScore): number {
+  return score.basis === "stroke" ? score.strokeRecall : score.score;
+}

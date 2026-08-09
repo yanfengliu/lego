@@ -24,11 +24,12 @@ function candidate(x: number): PlacementCandidate {
 
 function highlight(): HighlightExtraction {
   return {
-    schemaVersion: "lego.highlight-region/1",
+    schemaVersion: "lego.highlight-region/2",
     width: 40,
     height: 30,
     mask: new Uint8Array(40 * 30),
     strokeMask: new Uint8Array(40 * 30),
+    contourStrokeMask: new Uint8Array(40 * 30),
     regions: [{ bounds: BOX, outlinePx: 10, enclosedPx: 20, areaPx: 30, leaked: false }],
     keyedPx: 10,
     discardedComponents: 0,

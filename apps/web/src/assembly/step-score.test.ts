@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { extractHighlightRegions } from "../instructions/highlight-region";
-import { scoreStepDelta } from "./step-score";
+import { rankStepDelta, scoreStepDelta } from "./step-score";
 
 const WIDTH = 80;
 const HEIGHT = 60;
@@ -100,6 +100,42 @@ describe("scoring a candidate against a step's highlight", () => {
     expect(right.score).toBe(right.strokeF1);
     expect(right.score).toBeGreaterThan(shifted.score);
     expect(right.strokeRecall).toBeGreaterThan(0.9);
+  });
+
+  // An occluded piece is the reason a contour opens, and it is drawn with part
+  // of its boundary deliberately unprinted. Charging a candidate for that
+  // unprinted boundary — which is what `boundaryPrecision`, and therefore the
+  // blended `score`, does — measures the drawing's occlusion. `rankStepDelta`
+  // drops it on exactly the panels where it means something else.
+  it("ranks an open contour on the printed line alone, not on the line it was never given", () => {
+    const highlight = highlightOf(TRUTH, { open: true });
+    // The drawn placement, and a candidate whose extra length runs off where the
+    // booklet printed no yellow at all — the shape of an occluded seat.
+    const right = scoreStepDelta(filledMask(TRUTH), highlight);
+    const overlong = scoreStepDelta(
+      filledMask({ minX: 20, minY: 15, maxX: 70, maxY: 40 }),
+      highlight,
+    );
+
+    expect(right.basis).toBe("stroke");
+    expect(rankStepDelta(right)).toBe(right.strokeRecall);
+    // The two keys are genuinely different numbers here, so this is a choice
+    // rather than a rename: the drawn placement explains all of the printed
+    // line and is still marked down by the blend for the boundary the booklet
+    // never drew.
+    expect(right.strokeRecall).toBe(1);
+    expect(right.boundaryPrecision).toBeLessThan(1);
+    expect(rankStepDelta(right)).not.toBe(right.score);
+    // And a candidate cannot buy the ranking key by spilling, which is the exact
+    // property containment was chosen for on the exploded road: boundary drawn
+    // where nothing was printed explains nothing, and the boundary it swallows
+    // stops explaining what it used to.
+    expect(rankStepDelta(overlong)).toBeLessThan(rankStepDelta(right));
+    // A closed contour is unaffected: the region is available and it ranks.
+    const closed = highlightOf(TRUTH);
+    const drawn = scoreStepDelta(filledMask(TRUTH), closed);
+    expect(drawn.basis).toBe("region");
+    expect(rankStepDelta(drawn)).toBe(drawn.score);
   });
 
   it("will not let a candidate buy recall by covering the whole panel", () => {

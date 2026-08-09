@@ -396,7 +396,11 @@ export function compileHighlightExclusivityCompatibility(
 ): HighlightExclusivityCompilation {
   const { value, decodedCases } = parseRenderCasesInternal(renderCasesBytes);
   const cases = decodedCases.map((entry) => {
-    const measured = measureWholeStepMaskEvidence(entry.pieceMasks, entry.highlightMask);
+    const measured = measureWholeStepMaskEvidence(
+      entry.pieceMasks,
+      entry.highlightMask,
+      entry.value.width,
+    );
     if (
       measured.unionHighlightPixels <= 0 ||
       measured.summedPieceHighlightPixels < measured.unionHighlightPixels
@@ -405,11 +409,18 @@ export function compileHighlightExclusivityCompatibility(
         `Compatibility case ${entry.value.caseId} has no positive jointly covered highlight, so it cannot test the explicit policy.`,
       );
     }
+    // Named field by field rather than spread, because this summary is a
+    // committed calibration bound by digest: spreading the measurement means
+    // any field added to it for any other reason silently invalidates the
+    // artifact, and the run then refuses its own inputs. What this artifact
+    // certifies is exclusivity, so exclusivity is what it records.
     return {
       caseId: entry.value.caseId,
       caseDigest: digest(encodeCompact(entry.value)),
       pixelCount: entry.highlightMask.length,
-      ...measured,
+      unionHighlightPixels: measured.unionHighlightPixels,
+      summedPieceHighlightPixels: measured.summedPieceHighlightPixels,
+      exclusiveHighlightPixelsByPiece: measured.exclusiveHighlightPixelsByPiece,
     };
   });
   const observedMinimumExclusivePixels = Math.min(

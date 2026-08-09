@@ -57,6 +57,17 @@ import {
   rgbaPngDataUrl,
 } from "./real-build-browser-preflight";
 
+/**
+ * How far a rendered boundary may sit from a printed one and still be the same
+ * boundary, in work-raster pixels.
+ *
+ * One name because it is one quantity. Every comparison of this run's renders
+ * against this booklet's printed line uses it: the per-piece score, the joint
+ * score, and the boundary each piece claims in the joint gate. Two spellings of
+ * one tolerance is how a gate quietly stops testing what the score ranked.
+ */
+const STROKE_TOLERANCE_PX = 3;
+
 export async function runRealBuild(options: RealBuildOptions): Promise<RealBuildBrowserOutput> {
   const runStarted = performance.now();
   const inputFailures = preflightRealBuildOptions(options);
@@ -542,10 +553,17 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                             ).probe;
                           }
                         }
-                        const score = assembly.scoreStepDelta(mask, highlight, {
-                          tolerancePx: 3,
-                        }) as { score: number };
-                        return { candidate, score: score.score, centre: candidateCentre };
+                        // `rankStepDelta`, not `score.score`: on a panel whose
+                        // contours all stay open the ranking key is the printed
+                        // line the candidate explains, and the precision term
+                        // the blend carries would charge it for the boundary the
+                        // booklet chose not to draw.
+                        const score = assembly.rankStepDelta(
+                          assembly.scoreStepDelta(mask, highlight, {
+                            tolerancePx: STROKE_TOLERANCE_PX,
+                          }),
+                        ) as number;
+                        return { candidate, score, centre: candidateCentre };
                       };
                       // One printed step settled against a later panel's art,
                       // used by both deferral triggers. `ownPanelMargin` is what
@@ -955,11 +973,34 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                         );
                         const union = silhouette(candidateDocument, candidatePartIds, centre).probe;
                         const jointScore = assembly.scoreStepDelta(union, highlight, {
-                          tolerancePx: 3,
-                        }) as { score: number };
+                          tolerancePx: STROKE_TOLERANCE_PX,
+                        }) as { score: number; basis: "region" | "stroke" };
+                        // `basis` is `scoreStepDelta`'s own report of which
+                        // evidence this panel gave it, so the gate below reads
+                        // the same panel the score did rather than deciding
+                        // again from the region count and drifting from it.
+                        const evidenceKind = jointScore.basis;
+                        // A piece explains area with its area and stroke with
+                        // its boundary — see `measureWholeStepMaskEvidence`.
+                        const printedEvidence = (
+                          evidenceKind === "stroke" ? highlight.contourStrokeMask : highlight.mask
+                        ) as Uint8Array;
+                        const pieceClaims =
+                          evidenceKind === "stroke"
+                            ? pieceMasks.map(
+                                (mask) =>
+                                  rendering.dilateMask(
+                                    rendering.maskBoundary(mask, width, height),
+                                    width,
+                                    height,
+                                    STROKE_TOLERANCE_PX,
+                                  ) as Uint8Array,
+                              )
+                            : pieceMasks;
                         const coverage = measureWholeStepMaskEvidence(
-                          pieceMasks,
-                          highlight.mask as Uint8Array,
+                          pieceClaims,
+                          printedEvidence,
+                          width,
                         );
                         jointVisual = assessWholeStepVisualEvidence({
                           stepNumber: spec.stepNumber,
@@ -968,6 +1009,11 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                           minimumExclusiveHighlightPixelsPerPiece:
                             options.minimumExclusiveHighlightPixelsPerPiece,
                           calibrationDigest: options.highlightCalibrationDigest,
+                          evidenceKind,
+                          printedEvidencePixels: printedEvidence.reduce(
+                            (total, value) => total + value,
+                            0,
+                          ),
                           ...coverage,
                         });
                         if (jointVisual.failure !== null) failure = jointVisual.failure;

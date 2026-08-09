@@ -159,6 +159,17 @@ A per-step score therefore cannot be an area comparison alone: it needs the stro
 
 **Anchor:** `apps/web/src/instructions/highlight-region.ts` and `apps/web/e2e/highlight-region.spec.ts`; 19 of 36 contours closed over pages 12, 24, 40, 60, 80, 100, 120, 140, 160, 180, 200 and 214 of `recipes/6651557.pdf`; page 12 step 6 fills exactly and page 12 step 5 encloses nothing.
 
+## An open contour has no one-sided pixel test
+
+A closed contour is decided by containment — no candidate pixel outside the printed region — which works because the yellow is drawn outward of the silhouette, so the truth is strictly inside it.
+An open contour encloses nothing, and the two statements that sound like containment's replacement were both tried on printed step 5 of `recipes/6651557.pdf` and are both false of the right answer.
+"Every printed pixel is explained" shipped as a gate for one full run and refused the correct build at 1254 of 1429px: the best of 374 distinct placements of the Plate 2 x 14 is the unique maximum at 907 of the 1081px its own contour prints, and the 174 it misses are the outer row of a two-pixel stroke drawn outward by more than the boundary tolerance — the artist's offset, not the placement.
+"No printed pixel lies inside the piece" fails in the other direction: that same best placement has 433 printed pixels inside its own silhouette, because a line two pixels wide straddling a boundary is half inside it, and 166 of the 374 placements cross nothing at all because they are nowhere near the drawing.
+What works is maximality: rank by `strokeRecall` — the printed line the candidate's visible boundary passes under, with the precision term dropped because it charges the candidate for the occlusion that opened the contour — and require the run's existing separation margin or defer to the next panel.
+It keeps the property containment was chosen for, that a candidate spilling outside the printed contour cannot win, because spilled boundary explains no printed pixel.
+
+**Anchor:** `apps/web/src/assembly/step-score.ts` (`rankStepDelta`) and `apps/web/e2e/real-build-contract.ts` (`assessWholeStepVisualEvidence`); step 5 margins 0.6347 against 0.4962 and 0.2428 against 0.1854 on a 0.01 bar; `stepsComplete` 5, `piecesPlaced` 8.
+
 ## A document's parts are not in insertion order
 
 The closed-loop probe rendered a candidate's silhouette by placing it, then colouring `parts[parts.length - 1]` — "the part just added".

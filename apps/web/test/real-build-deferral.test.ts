@@ -229,6 +229,7 @@ function lookaheadEvidence(
         keyedPx: strokeMask === undefined ? 0 : strokeMask.reduce((total, on) => total + on, 0),
         mask: excludedMask ?? empty,
         strokeMask: strokeMask ?? empty,
+        contourStrokeMask: strokeMask ?? empty,
       },
       highlightBox: null,
       builtMask,

@@ -57,6 +57,8 @@ export interface PanelRasterEvidence {
     readonly keyedPx: number;
     readonly mask: Uint8Array;
     readonly strokeMask: Uint8Array;
+    /** Keyed pixels of the contours the extraction kept, without its noise. */
+    readonly contourStrokeMask: Uint8Array;
   };
   readonly highlightBox: PanelHighlightBox | null;
   /** The panel's art minus this step's highlight: everything already built. */
