@@ -112,3 +112,33 @@ export interface MeasuredPartBlueprint {
   readonly builderConnectivitySource?: PartialOverhangClutchEvidence;
   readonly ldcadShadowSource?: MeasuredLdcadShadowSource;
 }
+
+/**
+ * A source-derived render replacement that is structurally incapable of
+ * supplying connector, allowance or collision truth.
+ *
+ * The generated table carries only the official LDraw surface, exact bounds,
+ * source-to-catalog frame and visible stud-seat witnesses. Admission overlays
+ * those render facts on the preceding parametric definition and then proves
+ * its physical-semantics bytes are unchanged.
+ */
+export interface RenderOnlyPartBlueprint {
+  readonly designId: string;
+  readonly ldrawId: `${string}.dat`;
+  readonly family: PartFamily;
+  readonly widthStuds: number;
+  readonly lengthStuds: number;
+  readonly variant?: string;
+  readonly heightLdu: number;
+  readonly meshAssetId: string;
+  readonly assetToCatalogFrame: {
+    readonly schemaVersion: "mesh-asset-to-catalog-frame/1";
+    readonly orientationId: string;
+    readonly translationLdu: readonly [x: number, y: number, z: number];
+  };
+  readonly exactBodyBoundsLdu: ExactLduBoundsDeclaration;
+  readonly exactBoundsLdu: ExactLduBoundsDeclaration;
+  /** Measured from visible source studs solely to validate frame/chirality. */
+  readonly sourceStudSeatsLdu: readonly (readonly [x: number, y: number, z: number])[];
+  readonly ldrawSource: MeasuredLdrawSource;
+}

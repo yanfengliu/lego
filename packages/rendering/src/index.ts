@@ -11,6 +11,7 @@ export { disposeObjectTree } from "./lifecycle.ts";
 export { createPartMaterialCache, type PartMaterialCache } from "./material-cache.ts";
 export * from "./limits.ts";
 export * from "./render-packet.ts";
+export * from "./part-visual-admission.ts";
 export * from "./scene.ts";
 export * from "./silhouette.ts";
 export type * from "./types.ts";

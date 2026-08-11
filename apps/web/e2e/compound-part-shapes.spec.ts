@@ -30,7 +30,7 @@ const CASES = [
   { name: "Corner plate 2 x 2", partId: "builtin:corner-plate-2x2", plain: "Plate 2 x 2" },
 ] as const;
 
-const PLAN_CASES = [
+const MEASURED_OUTLINE_CASES = [
   {
     name: "Wedge plate 4 x 4 Cut-corner",
     partId: "builtin:wedge-plate-4x4-cut-corner",
@@ -54,7 +54,12 @@ const PLAN_CASES = [
   {
     name: "Wedge plate 3 x 6 Right",
     partId: "builtin:wedge-plate-3x6-right",
-    preview: { kind: "plan", vertices: 5 },
+    preview: {
+      kind: "mesh",
+      assetId: "ldraw:official:54383.dat",
+      sourceTriangles: 1_164,
+      renderedTriangles: 1_164,
+    },
   },
   {
     name: "Corner plate 4 x 4 Round",
@@ -166,10 +171,29 @@ test("the palette tile shows the same shape the viewport places", async ({ page 
     await tile.scrollIntoViewIfNeeded();
     await tile.screenshot({ path: `${OUT}/${partId.replace("builtin:", "")}-palette.png` });
 
-    // The preview is drawn from the part's own body boxes, so a compound part
-    // must draw more than the one polygon group a plain prism draws.
-    const groups = await tile.locator("svg.part-preview > g").count();
-    expect(groups, `${partId} palette tile drew ${groups} body boxes`).toBeGreaterThan(1);
+    const svg = tile.locator("svg.part-preview");
+    if (partId !== "builtin:corner-plate-2x2") {
+      // Promoted parts draw from the same admitted LDraw mesh assets as the
+      // viewport. A body-box fallback can preserve a rough silhouette while
+      // omitting the moulded curves, underside and hard-edge detail.
+      await expect(svg).toHaveAttribute("data-preview-source", "preloaded-mesh-asset");
+      await expect(svg).toHaveAttribute("data-mesh-asset-id", /^ldraw:official:.+\.dat$/);
+      const sourceTriangles = Number(await svg.getAttribute("data-preview-source-triangles"));
+      const renderedTriangles = Number(await svg.getAttribute("data-preview-rendered-triangles"));
+      expect(sourceTriangles, `${partId} source triangle count`).toBeGreaterThan(1);
+      expect(renderedTriangles, `${partId} rendered triangle count`).toBe(
+        Math.min(sourceTriangles, 2_000),
+      );
+      await expect(svg.locator('polygon[data-preview-surface="mesh-triangle"]')).toHaveCount(
+        renderedTriangles,
+      );
+    } else {
+      // The corner plate remains an intentional compound-primitive part. Its
+      // own preview must retain both boxes instead of collapsing to one prism.
+      await expect(svg).not.toHaveAttribute("data-preview-source", "preloaded-mesh-asset");
+      const groups = await svg.locator(":scope > g").count();
+      expect(groups, `${partId} palette tile drew ${groups} body boxes`).toBeGreaterThan(1);
+    }
   }
 });
 
@@ -180,29 +204,23 @@ test("palette previews and placed models retain their measured outline", async (
   await page.goto("/");
   await page.waitForFunction(() => typeof window.get_model_snapshot === "function");
 
-  for (const { name, partId, preview } of PLAN_CASES) {
+  for (const { name, partId, preview } of MEASURED_OUTLINE_CASES) {
     const tile = page.getByRole("button", { name: new RegExp(`^${name}`) }).first();
     await tile.scrollIntoViewIfNeeded();
     const svg = tile.locator("svg.part-preview");
-    if (preview.kind === "mesh") {
-      await expect(svg).toHaveAttribute("data-preview-source", "preloaded-mesh-asset");
-      await expect(svg).toHaveAttribute("data-mesh-asset-id", preview.assetId);
-      await expect(svg).toHaveAttribute(
-        "data-preview-source-triangles",
-        String(preview.sourceTriangles),
-      );
-      await expect(svg).toHaveAttribute(
-        "data-preview-rendered-triangles",
-        String(preview.renderedTriangles),
-      );
-      await expect(svg.locator('polygon[data-preview-surface="mesh-triangle"]')).toHaveCount(
-        preview.renderedTriangles,
-      );
-    } else {
-      const top = svg.locator('polygon[data-preview-surface="plan-top"]');
-      await expect(top).toHaveCount(1);
-      await expect(top).toHaveAttribute("data-plan-vertices", String(preview.vertices));
-    }
+    await expect(svg).toHaveAttribute("data-preview-source", "preloaded-mesh-asset");
+    await expect(svg).toHaveAttribute("data-mesh-asset-id", preview.assetId);
+    await expect(svg).toHaveAttribute(
+      "data-preview-source-triangles",
+      String(preview.sourceTriangles),
+    );
+    await expect(svg).toHaveAttribute(
+      "data-preview-rendered-triangles",
+      String(preview.renderedTriangles),
+    );
+    await expect(svg.locator('polygon[data-preview-surface="mesh-triangle"]')).toHaveCount(
+      preview.renderedTriangles,
+    );
     await tile.screenshot({ path: `${OUT}/${partId.replace("builtin:", "")}-palette.png` });
 
     await resetScene(page);

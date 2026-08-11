@@ -16,6 +16,7 @@ import unittest
 from pathlib import Path
 
 from ldraw_source_archive import SourceRecord
+from ldraw_surface_expander import ExpandedTriangle
 from measured_part_emit import (
     canonical_typescript,
     enforce_generated_check,
@@ -24,21 +25,26 @@ from measured_part_emit import (
     render_blueprints,
     render_bundled_sources,
     render_mesh_assets,
+    render_render_only_blueprints,
 )
 from measured_part_plan import (
     ADMITTED_PART_PLANS,
     BUILDER_80015_CONNECTIVITY,
     BUNDLED_LDRAW_ARCHIVE_RECORD,
+    RENDER_ONLY_PART_PLANS,
 )
 from measured_part_tables import (
     BUILDER_CONNECTIVITY_CONNECTOR_SOURCE,
     LDCAD_SHADOW_CONNECTOR_SOURCE,
     MeasuredPart,
     MeasuredPartPlan,
+    RenderOnlyPart,
+    RenderOnlyPartPlan,
     exact_decimal_text,
     frame_box,
     frame_point,
     merged_mesh,
+    require_front_side_surface,
 )
 from part_admission_surface import BODY_ROLE, MeasuredSurface, STUD_ROLE
 
@@ -91,8 +97,10 @@ def measured(**overrides: object) -> MeasuredPart:
         "surface": MeasuredSurface(
             design_id="unit", triangles=(((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 0.0, 1.0)),),
             roles=(BODY_ROLE,),
+            corner_normals=(((0.0, -1.0, 0.0),) * 3,),
         ),
         "positions_ldu": (0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0),
+        "normals_asset_local": (0.0, -1.0, 0.0) * 3,
         "indices": (0, 1, 2),
         "body_triangle_count": 1,
         "stud_triangle_count": 0,
@@ -108,6 +116,41 @@ def measured(**overrides: object) -> MeasuredPart:
     }
     fields.update(overrides)
     return MeasuredPart(**fields)  # type: ignore[arg-type]
+
+
+def render_only(**overrides: object) -> RenderOnlyPart:
+    render_plan = RenderOnlyPartPlan(
+        design_id="render-unit",
+        ldraw_path="parts/render-unit.dat",
+        family="cheese-slope",
+        width_studs=1,
+        length_studs=1,
+        variant=None,
+        height_ldu=16,
+        orientation_id="upright-yaw-0",
+        translation_ldu=(0, 8, 0),
+    )
+    fields: dict[str, object] = {
+        "plan": render_plan,
+        "surface": MeasuredSurface(
+            design_id="render-unit",
+            triangles=(((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 0.0, 1.0)),),
+            roles=(BODY_ROLE,),
+            corner_normals=(((0.0, -1.0, 0.0),) * 3,),
+        ),
+        "positions_ldu": (0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0),
+        "normals_asset_local": (0.0, -1.0, 0.0) * 3,
+        "indices": (0, 1, 2),
+        "body_triangle_count": 1,
+        "stud_triangle_count": 0,
+        "exact_body_bounds": (("-10", "-7.6", "-10"), ("10", "8", "10")),
+        "exact_bounds": (("-10", "-7.6", "-10"), ("10", "8", "10")),
+        "source_stud_seats_ldu": (),
+        "root": record("parts/render-unit.dat", "sha256:44"),
+        "closure": (record("parts/render-unit.dat", "sha256:44"),),
+    }
+    fields.update(overrides)
+    return RenderOnlyPart(**fields)  # type: ignore[arg-type]
 
 
 class FrameTests(unittest.TestCase):
@@ -167,20 +210,49 @@ class ExactBoundTests(unittest.TestCase):
 
 
 class MeshMergeTests(unittest.TestCase):
+    def test_front_side_admission_refuses_nocertify_and_noclip_semantics(self) -> None:
+        base = {
+            "points": ((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 0.0, 1.0)),
+            "corner_normals": ((0.0, -1.0, 0.0),) * 3,
+            "role": BODY_ROLE,
+            "ancestry": (("official", "parts/unit.dat"),),
+            "source": ("official", "parts/unit.dat"),
+            "line_number": 7,
+        }
+        for label, certified, cull_enabled in (
+            ("BFC NOCERTIFY", False, True),
+            ("BFC NOCLIP", True, False),
+        ):
+            with self.subTest(label=label), self.assertRaisesRegex(ValueError, label):
+                require_front_side_surface(
+                    "unit",
+                    [
+                        ExpandedTriangle(
+                            **base,
+                            certified=certified,
+                            cull_enabled=cull_enabled,
+                        )
+                    ],
+                )
+
     def test_body_triangles_come_first_so_the_two_render_groups_are_contiguous(self) -> None:
         triangles = (
             ((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 0.0, 1.0)),
             ((0.0, 0.0, 0.0), (2.0, 0.0, 0.0), (0.0, 0.0, 2.0)),
         )
         surface = MeasuredSurface(
-            design_id="unit", triangles=triangles, roles=(STUD_ROLE, BODY_ROLE)
+            design_id="unit",
+            triangles=triangles,
+            roles=(STUD_ROLE, BODY_ROLE),
+            corner_normals=(((0.0, -1.0, 0.0),) * 3,) * 2,
         )
 
-        positions, indices, body, stud = merged_mesh(surface, plan())
+        positions, normals, indices, body, stud = merged_mesh(surface, plan())
 
         self.assertEqual((body, stud), (1, 1))
         # The body triangle is emitted first, so its (2, 0, 0) corner is vertex 1.
         self.assertEqual(positions[3:6], (2.0, 0.0, 0.0))
+        self.assertEqual(normals[3:6], (0.0, -1.0, 0.0))
         self.assertEqual(indices[:3], (0, 1, 2))
 
     def test_two_corners_the_renderer_cannot_hold_apart_become_one_vertex(self) -> None:
@@ -192,9 +264,10 @@ class MeshMergeTests(unittest.TestCase):
                 ((0.0, 0.0, 0.0), (near, 0.0, 0.0), (0.0, 0.0, 2.0)),
             ),
             roles=(BODY_ROLE, BODY_ROLE),
+            corner_normals=(((0.0, -1.0, 0.0),) * 3,) * 2,
         )
 
-        positions, indices, _, _ = merged_mesh(surface, plan())
+        positions, _, indices, _, _ = merged_mesh(surface, plan())
 
         self.assertEqual(len(positions) // 3, 4)
         self.assertEqual(indices[3:6], (0, 1, 3))
@@ -207,11 +280,53 @@ class MeshMergeTests(unittest.TestCase):
                 ((0.0, 0.0, 0.0), (1.001, 0.0, 0.0), (0.0, 0.0, 2.0)),
             ),
             roles=(BODY_ROLE, BODY_ROLE),
+            corner_normals=(((0.0, -1.0, 0.0),) * 3,) * 2,
         )
 
-        positions, _, _, _ = merged_mesh(surface, plan())
+        positions, _, _, _, _ = merged_mesh(surface, plan())
 
         self.assertEqual(len(positions) // 3, 5)
+
+    def test_5092_route_noise_reuses_one_exact_position_across_hard_normal_islands(self) -> None:
+        first = (2.7574, 8.0, -1.2426)
+        route_alias = (2.7574, 8.0, -1.2426000000000001)
+        surface = MeasuredSurface(
+            design_id="5092",
+            triangles=(
+                (first, (0.0, 8.0, -4.0), (2.7574, 4.0, -1.2426)),
+                (route_alias, (5.7574, 8.0, -4.2426), (2.7574, 4.0, -1.2426)),
+            ),
+            roles=(BODY_ROLE, BODY_ROLE),
+            corner_normals=(
+                ((0.0, 1.0, 0.0),) * 3,
+                ((0.0, 0.0, 1.0),) * 3,
+            ),
+        )
+
+        positions, _, indices, _, _ = merged_mesh(surface, plan(design_id="5092"))
+
+        first_offset = indices[0] * 3
+        alias_offset = indices[3] * 3
+        self.assertNotEqual(indices[0], indices[3])
+        self.assertEqual(positions[first_offset : first_offset + 3], first)
+        self.assertEqual(positions[alias_offset : alias_offset + 3], first)
+
+    def test_a_material_renderer_position_collapse_is_refused_instead_of_welded(self) -> None:
+        surface = MeasuredSurface(
+            design_id="unit",
+            triangles=(
+                ((1000.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 1.0)),
+                ((1000.00001, 0.0, 0.0), (2.0, 0.0, 0.0), (0.0, 0.0, 2.0)),
+            ),
+            roles=(BODY_ROLE, BODY_ROLE),
+            corner_normals=(
+                ((0.0, 1.0, 0.0),) * 3,
+                ((0.0, 0.0, 1.0),) * 3,
+            ),
+        )
+
+        with self.assertRaisesRegex(ValueError, "materially collapse"):
+            merged_mesh(surface, plan())
 
 
 class NumberLiteralTests(unittest.TestCase):
@@ -314,6 +429,35 @@ class RenderTests(unittest.TestCase):
 
         self.assertNotIn("variant:", rendered)
 
+    def test_render_only_emission_has_no_connector_collision_or_allowance_authority(self) -> None:
+        rendered = render_render_only_blueprints([render_only()], ARCHIVE_SHA256)
+
+        self.assertIn('designId: "render-unit"', rendered)
+        self.assertIn('exactBodyBoundsLdu:', rendered)
+        self.assertIn('sourceStudSeatsLdu: []', rendered)
+        for forbidden in (
+            "connectorSource",
+            "connectors:",
+            "clutchesLdu",
+            "bodyBoxesLdu",
+            "collision",
+            "allowance",
+            "builderSource",
+            "ldcadShadowSource",
+        ):
+            self.assertNotIn(forbidden, rendered)
+
+    def test_emission_report_schema_distinguishes_render_only_authority(self) -> None:
+        repository = Path(__file__).resolve().parents[1]
+        driver = (repository / "scripts/emit-measured-part-tables.py").read_text(encoding="utf-8")
+
+        self.assertIn(
+            'REPORT_SCHEMA_VERSION = "lego.measured-part-admission-emission/3"',
+            driver,
+        )
+        self.assertIn('"fullMeasuredParts": len(measured_parts)', driver)
+        self.assertIn('"renderOnlyParts": len(render_only_parts)', driver)
+
     def test_the_bundled_file_table_deduplicates_and_indexes_by_path(self) -> None:
         shared = record("p/stud.dat", "sha256:22")
         first = measured(closure=(record("parts/a.dat", "sha256:aa"), shared))
@@ -346,6 +490,34 @@ class RenderTests(unittest.TestCase):
         self.assertIn('licenseExpression: "CC-BY-4.0"', rendered)
         self.assertIn('version: "ldraw-complete-2026-07"', rendered)
         self.assertIn("bytes: 144722356", rendered)
+
+    def test_generated_catalog_modules_stay_below_the_hard_file_ceiling(self) -> None:
+        catalog = Path(__file__).resolve().parents[1] / "packages/catalog/src"
+        mesh_chunks = sorted(catalog.glob("mesh-assets-6651557-*.ts"))
+        self.assertEqual(
+            [path.name for path in mesh_chunks],
+            [
+                "mesh-assets-6651557-measured-a.ts",
+                "mesh-assets-6651557-measured-b.ts",
+                "mesh-assets-6651557-measured-c.ts",
+                "mesh-assets-6651557-render-only.ts",
+            ],
+        )
+        generated = [
+            *mesh_chunks,
+            catalog / "mesh-assets-6651557.ts",
+            catalog / "part-blueprints-6651557-measured.ts",
+            catalog / "part-blueprints-6651557-render-only.ts",
+            catalog / "ldraw-bundled-sources-6651557.ts",
+        ]
+        line_counts = {
+            path.name: len(path.read_text(encoding="utf-8").splitlines()) for path in generated
+        }
+
+        self.assertEqual(
+            {name: count for name, count in line_counts.items() if count >= 1_000},
+            {},
+        )
 
 
 class PlanTests(unittest.TestCase):
@@ -385,6 +557,32 @@ class PlanTests(unittest.TestCase):
         self.assertEqual(
             ADMITTED_PART_PLANS[11].connector_source,
             BUILDER_CONNECTIVITY_CONNECTOR_SOURCE,
+        )
+
+    def test_render_only_roots_are_distinct_and_cannot_name_a_connector_source(self) -> None:
+        self.assertEqual(
+            [row.design_id for row in RENDER_ONLY_PART_PLANS],
+            [
+                "41770a",
+                "41769a",
+                "43723a",
+                "43722a",
+                "54383",
+                "3659",
+                "3455",
+                "11477",
+                "50950",
+                "61678",
+                "54200",
+                "85984",
+            ],
+        )
+        self.assertTrue(
+            all(not hasattr(row, "connector_source") for row in RENDER_ONLY_PART_PLANS)
+        )
+        self.assertEqual(
+            len({(row.family, row.width_studs, row.length_studs, row.variant) for row in RENDER_ONLY_PART_PLANS}),
+            len(RENDER_ONLY_PART_PLANS),
         )
 
 

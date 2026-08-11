@@ -1,90 +1,94 @@
 # Building system: current assessment and ordered work
 
-Status date: 2026-08-10
+Status date: 2026-08-11
 
-This document is the current position of the editor and printed-booklet build system. [`spec.md`](spec.md) owns the target product and domain contracts, [`learning-system.md`](learning-system.md) owns run evidence and replay, [`part-model.md`](part-model.md) owns catalog truth, and the [devlog](../devlog/summary.md) owns history.
+This document is the current position of the editor and printed-booklet build system. [`spec.md`](spec.md) owns product, domain, and authority contracts; [`learning-system.md`](learning-system.md) owns run evidence and replay; [`part-model.md`](part-model.md) owns catalog truth; and the [devlog](../devlog/summary.md) owns history.
 
 ## Executive status
 
-The offline manual editor is usable today. It persists local projects in IndexedDB, renders the versioned `BrickDocument`, validates edits, imports and exports the supported LDraw subset, and plays authored build steps.
+The offline manual editor is usable today. It stores local projects in IndexedDB, renders and validates the versioned `BrickDocument`, imports and exports the supported LDraw subset, and plays authored build steps.
 
-The printed-booklet loop is experimental tooling, not a studio workflow. The web UI can load and fingerprint an instruction PDF, but it does not interpret its pages into build steps. The working reader and placement driver run through opt-in Playwright and local derivation scripts; see the [real-build runbook](../runbooks/real-build.md).
+The studio can ingest an instruction PDF, retain bounded page and text metadata, and fingerprint it, but it does not turn pages into build steps. The reader, action-ledger generator, placement search, and scoring loop remain opt-in local tooling driven through Playwright and scripts; see the [real-build runbook](../runbooks/real-build.md).
 
-The latest retained placement run predates the `/12` render correction and requested printed steps 1 through 7. The driver completed five steps and placed eight pieces, then refused step 6 because its best two candidates were visually indistinguishable. That is an incomplete diagnostic run, not a completed build and not a final structural-hash claim.
+Catalog `/13` has 85 definitions: 61 use parametric rendering and 24 use bundled LDraw meshes. Sixteen mesh definitions are render-only promotions that preserve their preceding connector, allowance, and collision truth; eight are fully measured definitions. `npm run parts:check` passes all 85 definitions and is part of `npm run verify`.
 
-Only the first three printed steps are presently verified in the stronger sense required by the product. Catalog `/12` now gives the four definitions implicated by the first underside witness exact LDraw render surfaces, but steps 4 and 5 remain provisional until the retained prefix is rerun against those pixels; their preserved conservative collision is a separate unresolved physical approximation.
+Catalog `/13` has a complete native-resolution exterior review; [`part-model.md`](part-model.md#current-catalog) owns the exact review hash and pixel measurements. The result certifies only surfaces exposed by the eight views, and the earlier downsampled contact-sheet attempt remains counterevidence rather than admission.
+
+The latest `/13` booklet run was published from a source-stable snapshot as an unauthenticated, incomplete diagnostic. It settled printed steps 1 through 4 and placed six pieces. Step 5 refused: its own panel could not separate the leading candidates, and the step-6 panel was too occluded to meet the registered agreement threshold. A separate bounded probe carried both step-5 parents through step 6 and showed that step 7 separates the two parent families and favors one by panel agreement, but honest narrowing required 8,609 renders against the declared 8,192 global budget and step 7 still left four step-6 children unresolved. The production driver therefore remains unchanged and correctly refuses.
 
 ## Capability matrix
 
 | Area | Current state | Important limit |
 | --- | --- | --- |
-| Manual editor | Implemented | Selection and authoring remain primarily single-part; grouping, submodel authoring, and richer step management are not complete UI workflows. |
-| Projects | Implemented | Projects and automatic saves are browser-local IndexedDB state. There is no production sync service. |
-| Catalog and palette | Implemented, incomplete coverage | The builtin catalog is `builtin.basic-parts/12` with 85 definitions. That count is not the set-coverage denominator. |
-| Connectors | Port taxonomy and placement compatibility implemented; wire semantics partial | Ten port kinds and six compatibility rules cover stud/clutch, axle, pin, bar/clip, and hinge pairs. Connection edges and attach programs still serialize only `stud-tube`, with the specific pair inferred from referenced ports. |
-| Rendering | Implemented | Four first-witness parts now use exact LDraw surfaces; twelve catalog parts still draw false flat undersides, and large models are not instanced. |
-| LDraw interchange | Implemented for a bounded subset | Unsupported parts, transforms, references, and semantics must be refused or preserved explicitly; a text round trip alone does not prove an external consumer accepts the model. |
-| Booklet PDF in the studio | Ingestion only | The UI reads metadata and a digest, then states that page-to-build-step interpretation is not implemented. |
-| Booklet reader and action ledger | Experimental, implemented in local tooling | It depends on prepared ignored inputs and is not an integrated product service. |
-| Transition classification | Experimental, raster-blind | The current classifier does not inspect panel pixels, so its label is not visual evidence that a step changed as claimed. |
-| Placement and panel scoring | Experimental, partial | Candidate enumeration and deterministic pixel scoring work on a short prefix; the current run stops at printed step 6. |
-| Partial-run evidence | Implemented locally | Completed and refusal rows survive an incomplete run, but the bundles are unauthenticated local diagnostics. |
-| Replay | Inspection only | Closure bytes and downstream results can be verified; executable replay and production-sealed replay are unbuilt. |
-| Backtracking | Library and tests only | `BuildTree` and `runBacktrackingSearch` exist, but the real-booklet driver does not use them. |
-| Physics | Kernel and development session implemented | Rigid-component derivation, articulated joints, compound bodies, Rapier integration, and a cart demo exist; user-facing simulation and pose controls, inertia, and incremental rebuild do not. |
-| Companion | Library and test namespace only | The content-addressed store, recorder, and test ledger exist. There is no serving, signing, credential-proxying production broker. |
-| Model assistance | Local derivation tooling only | Pinned CLI scripts can classify cropped part art or describe one cropped step image's placement relations. The panel record does not retain its exact input image or receive a candidate render or later-panel witness; ignored readings are not wired into the driver and can discard the settled truth. Panel verification is deterministic; no integrated broker-backed checker exists. |
-| Independent evaluator and promotion service | Specified, unbuilt | No production authority, seal, automatic acceptance, or autonomous code-promotion path exists. |
+| Manual editor | Implemented | Selection and authoring remain primarily single-part; grouping, submodel authoring, richer step editing, and user-facing articulation are incomplete. |
+| Projects | Implemented | Projects and autosaves are browser-local IndexedDB state; there is no production sync service. |
+| Catalog and palette | Implemented, incomplete set coverage | Catalog `/13` has 85 definitions; the prepared set audit currently needs 121 distinct leaf design identities and first reaches missing design `28802` at printed step 26. |
+| Connectors | Port compatibility implemented; wire semantics partial | Ten port kinds and six compatibility rules exist, while serialized edges and attach programs still carry only `stud-tube` and infer the exact port pair from references. |
+| Rendering | Implemented | Twenty-four definitions use bundled source-derived mesh surfaces with pinned transforms and normals; large models are not instanced, and exterior render equality does not prove hidden interiors or physical collision. |
+| Part visual admission | Harness and `/13` exterior review implemented | Capture and separate review bind eight matched views, source closure, cameras, production geometry, hashes, metrics, and explicit outcomes. Hidden interiors still need an interior, cutaway, or other independent witness. |
+| Physical geometry | Conservative and deterministic | Render-only promotions deliberately preserve their preceding collision recipes. Those recipes are suitable for current placement checks but are not exact hollow-interior solids. |
+| LDraw interchange | Implemented for a bounded subset | Unsupported parts, transforms, references, and semantics must be refused or preserved explicitly; a text round trip does not prove acceptance by another consumer. |
+| Booklet PDF in the studio | Ingestion only | Page-to-build-step interpretation is explicitly unimplemented in the UI. |
+| Reader and action ledger | Experimental local tooling | The prepared 359-step ledger reconciles booklet sequence and callouts, but its ignored input chain is not a product service. |
+| Transition labels | Experimental, raster-blind | The current classifier does not inspect pixels, so its label is not visual proof of a change. |
+| Placement and panel scoring | Experimental, partial | Candidate enumeration and deterministic rendering work on a short prefix; a standalone probe measured farther-panel feasibility, but the current deferral examines at most N+1 and has no integrated branch-aware farther-panel search. |
+| Multi-panel model checker | Quarantined contract and adapter | A source-bound N/N+1/conditional-K refusal-only checker passes mocked adversarial tests, but it has no PDF-crop producer, consent preflight, driver consumer, or successful live verdict. |
+| Partial-run evidence | Implemented locally | Completion and refusal rows survive failed runs, but local bundles are unauthenticated diagnostics and detected source drift prevents finalization rather than diagnostic publication. |
+| Replay | Inspection only | Closure bytes and downstream records can be checked; executable and production-sealed replay are unbuilt. |
+| Backtracking | Library and tests only | `BuildTree` and `runBacktrackingSearch` exist, but the booklet driver does not use them. |
+| Physics | Kernel and development session implemented | Rigid components, articulated joints, compound bodies, Rapier integration, and a cart demo exist; simulation, pose controls, inertia, and incremental rebuild are not complete user workflows. |
+| Companion and evaluator | Libraries/specification only | There is no production broker, signing service, credential proxy, independent evaluator, or autonomous promotion path. |
 
 ## Measured booklet frontier
 
-These are retained measurements, not product claims.
+These are measured facts with explicit limits, not a completed-build claim.
 
-| Measure | Current retained result | Interpretation |
+| Measure | Current result | Interpretation |
 | --- | --- | --- |
 | Printed sequence | 359 of 359 steps read | Sequence coverage is complete for the prepared booklet. |
-| Set accounting | 1,464 assembled pieces; 1,465 inventory pieces | The one-piece difference is the loose `31510` separator, which the instructions never place. |
-| Catalog | 85 total definitions at `/12` | Of 12 exact LDraw render surfaces, four are render-only promotions with preserved connector and collision arrays; the set audit tracks 121 distinct required leaf design identities, a separate denominator. |
-| Contiguous prepared coverage | Through printed step 25 | Printed step 26 first needs missing design `28802`; unidentified callouts mean the longer-range count must be regenerated when the identification closure changes. |
-| Driver prefix | Five completed rows; eight pieces | The request ran through step 7 but stopped while resolving step 6. |
-| Defensible verified prefix | Three printed steps | The step-4 render blocker is corrected in `/12`, but steps 4 and 5 have not been rerun and cannot inherit verification from the old evidence. |
-| Step 6 decision | `0.88369` versus `0.88042` | The `0.00327` margin is below the registered `0.02` noise floor, so the driver correctly reports `ambiguous-deferred-placement`. |
-| Completion | Unavailable | The run is incomplete, its world frame is not reconciled with the official ledger, and no Node-side visual audit can issue the required visual claim. |
-
-The catalog standard currently fails twelve parts, all under `underside-is-drawn`. `npm run parts:check` is therefore red and is not included in `npm run verify`; this is a known release-gate gap, not a passing exception.
+| Set accounting | 1,464 assembled pieces; 1,465 inventory pieces | The extra `31510` separator is inventory that the instructions never place. |
+| Catalog | 85 definitions at `/13` | 61 render parametrically; 16 use source meshes with preserved physical truth; 8 use fully measured mesh definitions. |
+| Part standard | 85 passing; 0 failures | `parts:check` is green and included in `verify`. |
+| `/13` visual admission | 24 parts; 192 of 192 visible pairs reviewed `same` | 181 pairs are RGBA-exact; the 11 measured deltas are visually unobservable at native size. Hidden interiors and physical collision remain outside the claim. |
+| Prepared coverage | Through printed step 25 | Printed step 26 first requires missing design `28802`; later counts move when identification closure changes. |
+| Latest `/13` diagnostic request | Steps 1 through 7 | It completed four rows and placed six pieces before step 5 refused; later rows were blocked. |
+| Step 4 | Settled in a source-stable diagnostic | Exact underside surfaces let the own-panel scorer settle both additions with joint visual score `0.8578158458`; retained panel and build images were inspected together. |
+| Step 5 local separation | `0.002799` margin | The leading own-panel candidates are closer than the registered `0.01` minimum. |
+| Step 5 through panel 6 | Best agreement `0.7635021805` | That is below the registered `0.85` agreement threshold even though it separates the top two branches; panel 6 occludes the disputed region. |
+| First visually revealing later panel | Printed step 7 | Direct PDF inspection shows the region again, but the runner cannot yet evaluate it without honestly constructing intervening step 6 for every surviving branch. |
+| Standalone step-7 probe | 2 step-5 parents, 9 step-6 children | Step 7 rejects all five children under one parent and retains four under the other, but 8,609 narrowing renders exceed the 8,192 global budget and the best two surviving children remain only `0.005712` apart against a `0.02` margin. |
+| Defensible verified prefix | Four printed steps | The source-stable `/13` replay completed and validated steps 1 through 4; step 5 remains an evidence refusal rather than an inferred placement. |
+| Completion | Unavailable | Farther-panel lineage, backtracking, world-frame reconciliation, and the final visual audit are incomplete. |
 
 ## What the current refusal means
 
-Booklet PDF page 11, which draws printed step 4 from below, visibly contains hollow clutch rings, ribs, perimeter and inner walls, and cavities. The former render was an almost solid slab. Definitions `30503`, `6106`, `30565`, and `80015` now draw exact LDraw surfaces, but their connectors and conservative collision remain unchanged; this fixes the visible comparison, not hollow collision truth.
+Booklet page 11 draws printed step 4 from below and visibly exposes hollow clutch rings, ribs, walls, and cavities. Catalog `/13` now renders those source surfaces instead of the former dark slab while preserving established connector and collision truth. This closes the rendering defect; it does not turn conservative collision into an exact interior model.
 
-Printed step 6 has two whole-step candidates that both explain the next retained panel well enough, but the registration cannot separate them above its own noise. Picking the slightly larger score would manufacture certainty.
+Panel N+1 is the minimum later witness for a placement at N, not a guarantee that the placement is observable. Step 6 is the concrete counterexample: it turns the model over and adds pieces that hide the disputed step-5 region, while step 7 reveals that region again. A correct farther-panel implementation must retain each step-5 branch, construct every intervening step without using official transforms as an oracle, compare the resulting candidates against the first revealing later panel, and record `not-observable` if bounded search cannot produce a trustworthy witness.
 
-Panel N+1 is the minimum later witness for a placement made at step N, not a guarantee. When it occludes the placement or remains ambiguous, the target evidence packet continues to the first farther panel that actually reveals it; if no retained panel does, that surface or relation is `not-observable`, not silently accepted. The current runner invokes deferral only when the step's own panel has no usable score or cannot separate its top two candidates, tests exactly the first later panel, and is hard-capped at one step; it neither scans for a revealing farther panel nor records `not-observable`.
+The existing single-panel placement reader cannot repair this gap. It can request same-step anchors that its consumer rejects, parse fields the consumer ignores, and narrow away settled truth; its inputs are not bound into the real-build run. The quarantined multi-panel checker improves transport and evidence contracts, but until a consent-checked producer and deterministic driver consumer exist it cannot certify or mutate a build.
 
-The current transition classifier is raster-blind, the retained vision inputs are not an integrated checker and may narrow away the settled truth, and the driver does not use the available backtracking library. None of those paths can presently turn a safe candidate set into a visual correctness claim or recover from a later contradiction.
-
-The driver also cannot claim overall completion after placement alone. Its transform audit and the official model use different world frames, and the final visual-evidence check has no Node-side implementation. Those are independent completion blockers.
+The driver also cannot claim overall completion after placement alone. Its transform audit and official model use different world frames, and the required final Node-side visual audit is unimplemented.
 
 ## Ordered work
 
-1. Rerun the retained prefix under `/12` and re-establish steps 4 and 5 from bound N and N+1 evidence, adding the first revealing farther panel when N+1 occludes the placement or remains ambiguous.
-2. Produce reproducible source-versus-render packets for all four `/12` promotions, including `80015`, with clean top, bottom, front, back, left, right, isometric, and underside-oblique images, hashes, camera policy, and review outcomes; give all twelve remaining failures exact LDraw render surfaces while preserving their current connector, allowance, and collision values; add matched-view regressions; make `npm run parts:check` pass; and include it in the authoritative verification gate.
-3. Replace or augment raster-blind transition labels with bound visual evidence. Bind any placement-proposer crop to its PDF, page, bounds, exact bytes, prompt, model response, candidate render, deterministic face record, panel N+1, and first revealing farther panel, then prove that narrowing retains the settled truth on preregistered counterexamples.
-4. Calibrate farther-panel deferral on preregistered panels, then test whether the first revealing panel separates step 6 without an oracle.
-5. Integrate immutable lineage and deep backtracking into the real-booklet driver and publish reversal depth.
-6. Reconcile the driver and official-ledger world frames, and add the Node-side visual audit required for a completed status.
-7. Regenerate identification and coverage, admit `28802`, and continue adding every newly required design with provenance, connectors, collision, migration, and palette coverage.
-8. Move the proven reader, placement, evidence, and playback path behind a user-facing booklet workflow while keeping manual editing available offline.
-9. Build the separately released broker, executable replay boundary, and independent evaluator only when the local loop has evidence worth sealing.
+1. Add interior or cutaway evidence wherever the completed exterior packet leaves a claimed cavity hidden; keep every unseen claim `not-observable` meanwhile.
+2. Integrate the standalone farther-frontier and aggregate-budget primitives into a branch-aware driver path: retain every N candidate, carry it through intervening steps, select the first revealing panel, and refuse rather than multiplying a per-parent allowance. The measured step-5/6 case must either fit the declared 8,192-render budget or change that budget through a separately justified policy revision.
+3. Build the scoped consent-checking producer for the quarantined checker, prove each crop against its PDF page and bounds, bind deterministic face state and candidate renders, then integrate only refusal or backtracking consequences after preregistered counterexamples pass.
+4. Integrate immutable candidate lineage and deep backtracking into the booklet driver and publish reversal depth.
+5. Reconcile driver and official-ledger world frames and implement the Node-side final visual audit.
+6. Regenerate identification and coverage, admit `28802`, and continue adding required designs with provenance, connectors, collision, migration, palette coverage, and visual admission.
+7. Move the proven reader, placement, evidence, and playback path behind a user-facing booklet workflow while keeping manual editing available offline.
+8. Build the separately released broker, executable replay boundary, and independent evaluator only after the local loop produces evidence worth sealing.
 
-## Manual-editor work beyond the booklet blocker
+## Manual-editor work beyond the booklet frontier
 
 The editor still needs multi-selection, grouping and submodel authoring, richer build-step editing, user-facing articulated pose controls, and simulation controls.
 
-A complete 1,465-piece model will also require measured rendering and interaction work. The current renderer creates groups, body meshes, studs, and instruction outlines per part; connector indexing, instancing, incremental scene rebuild, and profiling should be driven by real frame-time and memory measurements rather than assumed limits.
+A complete 1,465-piece model also needs measured rendering and interaction work. The current renderer creates groups, bodies, studs, and instruction outlines per part; connector indexing, instancing, incremental rebuild, and profiling should be driven by real frame-time and memory measurements.
 
 ## Evidence rule
 
-Every change to the booklet frontier must record the exact requested prefix, catalog version, input closure, completed and verified step counts, piece count, refusal code, score or margin, and the images that make the number interpretable. For each settled step N, retain its own panel, panel N+1, and the first farther panel that actually reveals an otherwise occluded or ambiguous placement; record hidden or unavailable claims as `not-observable`.
+Every frontier change records the exact requested prefix, catalog version, input closure, completed and verified step counts, piece count, refusal code, score or margin, and the images that make the number interpretable. For each settled step N, retain its own panel, panel N+1, and the first farther panel that reveals an otherwise occluded or ambiguous placement; record hidden or unavailable claims as `not-observable`.
 
-Raw runs stay under ignored `output/` and `var/runs/` paths. Stable conclusions live here, failed approaches and historical hashes live in the devlog, and promoted failures become tests or fixtures.
+Raw runs stay under ignored `output/` and `var/runs/`. Stable conclusions live here, failed approaches and historical hashes live in the devlog, and promoted failures become tests or fixtures.

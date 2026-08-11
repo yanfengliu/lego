@@ -32,8 +32,11 @@ import {
 } from "./exact-ldu.ts";
 import { deepFreeze } from "./freeze.ts";
 import { MEASURED_PART_DEFINITIONS } from "./measured-part-factory.ts";
+import { SET_6651557_RENDER_ONLY_BLUEPRINTS } from "./part-blueprints-6651557-render-only.ts";
 import { PART_BLUEPRINTS } from "./part-blueprints.ts";
 import type { PartBlueprint } from "./part-blueprint-types.ts";
+import type { RenderOnlyPartBlueprint } from "./measured-part-types.ts";
+import { promoteRenderOnlyPart } from "./render-only-part-factory.ts";
 import {
   deriveShellBody,
   SHELL_CEILING_THICKNESS_LDU,
@@ -456,9 +459,31 @@ const composePartDefinitions = (): readonly PartDefinition[] => {
     measuredById.set(measured.id, measured);
   }
 
+  const renderOnlyById = new Map<string, RenderOnlyPartBlueprint>();
+  for (const row of SET_6651557_RENDER_ONLY_BLUEPRINTS) {
+    const blueprint: RenderOnlyPartBlueprint = row;
+    const variantSuffix = blueprint.variant === undefined ? "" : `-${blueprint.variant}`;
+    const id = `builtin:${blueprint.family}-${blueprint.widthStuds}x${blueprint.lengthStuds}${variantSuffix}`;
+    if (renderOnlyById.has(id)) {
+      throw new Error(`Render-only catalog declares duplicate part id ${id}`);
+    }
+    if (measuredById.has(id)) {
+      throw new Error(
+        `Part ${id} is declared by both full measured and render-only generation; one admission cannot have two authorities`,
+      );
+    }
+    renderOnlyById.set(id, blueprint);
+  }
+
   const consumedPromotions = new Set<string>();
+  const consumedRenderOnlyPromotions = new Set<string>();
   const definitions: PartDefinition[] = PART_BLUEPRINTS.map(makePartDefinition).map(
     (parametric) => {
+      const renderOnly = renderOnlyById.get(parametric.id);
+      if (renderOnly !== undefined) {
+        consumedRenderOnlyPromotions.add(parametric.id);
+        return promoteRenderOnlyPart(parametric, renderOnly);
+      }
       const measured = measuredById.get(parametric.id);
       if (measured === undefined) return parametric;
       if (!MEASURED_RENDER_PROMOTION_IDS.has(parametric.id)) {
@@ -475,6 +500,13 @@ const composePartDefinitions = (): readonly PartDefinition[] => {
     if (!consumedPromotions.has(promotionId)) {
       throw new Error(
         `Measured render promotion ${promotionId} did not replace a parametric definition`,
+      );
+    }
+  }
+  for (const promotionId of renderOnlyById.keys()) {
+    if (!consumedRenderOnlyPromotions.has(promotionId)) {
+      throw new Error(
+        `Generated render-only promotion ${promotionId} did not replace a parametric definition`,
       );
     }
   }

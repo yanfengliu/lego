@@ -9,8 +9,6 @@ import {
   type LduBounds,
   type MeshAssetResolver,
   type PartDefinition,
-  type PreloadedMeshGroup,
-  type ResolvedMeshAsset,
 } from "@lego-studio/catalog";
 import type { PartInstance, RigidTransform } from "@lego-studio/protocol";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
@@ -30,7 +28,6 @@ import {
   MeshPhysicalMaterial,
   MeshStandardMaterial,
   ShapeUtils,
-  Uint32BufferAttribute,
   Vector2,
 } from "three";
 
@@ -50,6 +47,7 @@ import {
   type InstructionSurface,
 } from "./instruction-finish.ts";
 import type { PartMaterialCache } from "./material-cache.ts";
+import { createResolvedMeshGeometry } from "./resolved-mesh-geometry.ts";
 import type { BrickFinish, RenderDiagnostic } from "./types.ts";
 
 const FALLBACK_COLOR = 0xff2bd6;
@@ -413,92 +411,6 @@ function partRotation(part: PartInstance): Matrix3 {
     if (!(error instanceof RenderTransformError)) throw error;
     return new Matrix3();
   }
-}
-
-interface SelectedResolvedMesh {
-  readonly positionsLdu: readonly number[];
-  readonly indices: readonly number[] | null;
-  readonly groups: readonly PreloadedMeshGroup[];
-}
-
-function selectResolvedMesh(
-  asset: ResolvedMeshAsset,
-  includeStuds: boolean,
-  selectedRole?: PreloadedMeshGroup["role"],
-): SelectedResolvedMesh {
-  if (includeStuds && selectedRole === undefined) return asset;
-
-  const positionsLdu: number[] = [];
-  const indices: number[] = [];
-  const groups: PreloadedMeshGroup[] = [];
-  const remappedVertex = new Map<number, number>();
-  let selectedTriangleStart = 0;
-  const includedRole = selectedRole ?? "body";
-  for (const group of asset.groups) {
-    if (group.role !== includedRole) continue;
-    groups.push({
-      role: group.role,
-      triangleStart: selectedTriangleStart,
-      triangleCount: group.triangleCount,
-    });
-    selectedTriangleStart += group.triangleCount;
-    for (
-      let triangle = group.triangleStart;
-      triangle < group.triangleStart + group.triangleCount;
-      triangle += 1
-    ) {
-      for (let corner = 0; corner < 3; corner += 1) {
-        const sourceIndex = asset.indices?.[triangle * 3 + corner] ?? triangle * 3 + corner;
-        let selectedIndex = remappedVertex.get(sourceIndex);
-        if (selectedIndex === undefined) {
-          selectedIndex = positionsLdu.length / 3;
-          remappedVertex.set(sourceIndex, selectedIndex);
-          const sourceOffset = sourceIndex * 3;
-          positionsLdu.push(
-            asset.positionsLdu[sourceOffset]!,
-            asset.positionsLdu[sourceOffset + 1]!,
-            asset.positionsLdu[sourceOffset + 2]!,
-          );
-        }
-        indices.push(selectedIndex);
-      }
-    }
-  }
-  return { positionsLdu, indices, groups };
-}
-
-function createResolvedMeshGeometry(
-  asset: ResolvedMeshAsset,
-  includeStuds: boolean,
-  selectedRole?: PreloadedMeshGroup["role"],
-) {
-  const { positionsLdu, indices, groups } = selectResolvedMesh(asset, includeStuds, selectedRole);
-  const positions = new Float32Array(positionsLdu.length);
-  for (let index = 0; index < positionsLdu.length; index += 3) {
-    const position = lduToThreeVector([
-      positionsLdu[index]!,
-      positionsLdu[index + 1]!,
-      positionsLdu[index + 2]!,
-    ]);
-    positions[index] = position.x;
-    positions[index + 1] = position.y;
-    positions[index + 2] = position.z;
-  }
-
-  const geometry = new BufferGeometry();
-  geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
-  if (indices !== null) {
-    geometry.setIndex(new Uint32BufferAttribute(new Uint32Array(indices), 1));
-  }
-  for (const group of groups) {
-    geometry.addGroup(group.triangleStart * 3, group.triangleCount * 3, 0);
-  }
-  geometry.userData = {
-    meshTriangleGroups: groups.map((group) => ({ ...group })),
-    includedMeshRoles: [...new Set(groups.map(({ role }) => role))],
-  };
-  geometry.computeVertexNormals();
-  return geometry;
 }
 
 export function createCatalogPartGeometry(

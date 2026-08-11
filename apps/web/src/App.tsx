@@ -50,6 +50,7 @@ import {
   type ProjectSummary,
 } from "./persistence/indexeddb-project-repository";
 import { ProjectSaveQueue } from "./persistence/project-save-queue";
+import { modelAppearanceCatalogIds } from "./migration-notice";
 
 type ProjectHydration =
   { readonly state: "loading" } | { readonly state: "ready" } | { readonly state: "degraded" };
@@ -162,18 +163,12 @@ export function App() {
               ? { ...stored.state, document: migratedDocument }
               : stored.state;
           if (report.migrated) {
-            const documentPartIds = new Set(
+            const reinterpretedParts = modelAppearanceCatalogIds(
               stored.state.document.parts.map(({ catalogPartId }) => catalogPartId),
+              report.catalogInterpretationChanges,
             );
-            const reinterpretedParts = [
-              ...new Set(
-                report.catalogInterpretationChanges
-                  .flatMap(({ affectedCatalogPartIds }) => affectedCatalogPartIds)
-                  .filter((catalogPartId) => documentPartIds.has(catalogPartId)),
-              ),
-            ];
             setMigrationNotice(
-              `Updated this model from ${report.fromCatalogVersion} to ${report.toCatalogVersion}; ${report.addedColorIds.length} new colors are now available${reinterpretedParts.length === 0 ? "" : `, and ${reinterpretedParts.length} part ${reinterpretedParts.length === 1 ? "definition used" : "definitions used"} by this model received updated appearance (${reinterpretedParts.join(", ")})`}.`,
+              `Updated this model from ${report.fromCatalogVersion} to ${report.toCatalogVersion}; ${report.addedColorIds.length} new colors are now available${reinterpretedParts.length === 0 ? "" : `, and ${reinterpretedParts.length} catalog part appearance${reinterpretedParts.length === 1 ? "" : "s"} used by this model changed (${reinterpretedParts.join(", ")})`}.`,
             );
           } else if (report.blockingReasons.length > 0) {
             setMigrationNotice(

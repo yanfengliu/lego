@@ -14,7 +14,13 @@ const require = (id: string): ParametricPartDefinition => {
   const part = getPartDefinition(id);
   if (!part) throw new Error(`test needs ${id} in the catalog`);
   if (part.geometry.generatorId === "builtin:preloaded-mesh-reference/1") {
-    throw new Error(`test needs ${id} to retain its legacy parametric recipe`);
+    const preceding = PART_BLUEPRINTS.map(makePartDefinition).find(
+      (candidate) => candidate.id === id,
+    );
+    if (preceding === undefined) {
+      throw new Error(`test needs ${id} to have a preceding parametric recipe`);
+    }
+    return preceding;
   }
   return part as ParametricPartDefinition;
 };

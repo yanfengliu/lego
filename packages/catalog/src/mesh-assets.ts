@@ -16,6 +16,8 @@ export interface PreloadedMeshAsset {
   readonly assetId: string;
   /** Flat xyz triples in the immutable source asset-local LDU frame. */
   readonly positionsLdu: readonly number[];
+  /** Unit vectors in the same asset-local basis, one xyz triple per position. */
+  readonly normalsAssetLocal?: readonly number[];
   /** Triangle indices. Omit only when each consecutive three vertices is a face. */
   readonly indices?: readonly number[];
   /** Integrity-bound, gap-free partition of every triangle into body/stud ranges. */
@@ -55,6 +57,7 @@ export const MESH_RENDER_QUANTIZATION_TOLERANCE_LDU = 1e-4;
 const MESH_ASSET_ID_PATTERN = /^[a-z0-9][a-z0-9._:/-]{0,127}$/;
 const LOWERCASE_SHA256_PATTERN = /^sha256:[0-9a-f]{64}$/;
 const MAX_FINITE_FLOAT32 = 3.402_823_466_385_288_6e38;
+const NORMAL_UNIT_TOLERANCE = 1e-5;
 
 export function isValidMeshAssetId(value: string): boolean {
   return MESH_ASSET_ID_PATTERN.test(value);
@@ -70,6 +73,7 @@ export type MeshAssetResolutionErrorCode =
   | "MESH_ASSET_TAMPERED"
   | "MESH_ASSET_OVERSIZED"
   | "MESH_ASSET_NONFINITE"
+  | "MESH_ASSET_NORMAL_INVALID"
   | "MESH_ASSET_FLOAT32_RANGE"
   | "MESH_ASSET_RENDER_PRECISION"
   | "MESH_ASSET_INDEX_INVALID"
@@ -86,6 +90,8 @@ export interface ResolvedMeshAsset {
   readonly assetId: string;
   /** Framed positions quantized exactly as the renderer, then mapped back to catalog-local LDU. */
   readonly positionsLdu: readonly number[];
+  /** Source-faithful normals rotated into catalog-local axes, or legacy fallback. */
+  readonly normalsCatalogLocal: readonly number[] | null;
   readonly indices: readonly number[] | null;
   readonly groups: readonly PreloadedMeshGroup[];
   /** One guaranteed preview triangle for each disconnected indexed component. */
@@ -110,9 +116,15 @@ export type MeshAssetResolver = (recipe: MeshReferenceGeometryRecipe) => MeshAss
 
 function hashInput(asset: PreloadedMeshAsset): string {
   return JSON.stringify({
-    schemaVersion: "lego.preloaded-mesh-asset/2",
+    schemaVersion:
+      asset.normalsAssetLocal === undefined
+        ? "lego.preloaded-mesh-asset/2"
+        : "lego.preloaded-mesh-asset/3",
     assetId: asset.assetId,
     positionsLdu: asset.positionsLdu,
+    ...(asset.normalsAssetLocal === undefined
+      ? {}
+      : { normalsAssetLocal: asset.normalsAssetLocal }),
     indices: asset.indices ?? null,
     groups: asset.groups,
   });
@@ -137,6 +149,7 @@ function logicalAssetBytes(asset: PreloadedMeshAsset): number {
   return (
     asset.assetId.length * 2 +
     asset.positionsLdu.length * 8 +
+    (asset.normalsAssetLocal?.length ?? 0) * 8 +
     (asset.indices?.length ?? 0) * 4 +
     (Array.isArray(asset.groups) ? asset.groups.length : 0) * 24
   );
@@ -144,6 +157,8 @@ function logicalAssetBytes(asset: PreloadedMeshAsset): number {
 
 function immutableAsset(asset: PreloadedMeshAsset): PreloadedMeshAsset {
   const positionsLdu = Object.freeze([...asset.positionsLdu]);
+  const normalsAssetLocal =
+    asset.normalsAssetLocal === undefined ? undefined : Object.freeze([...asset.normalsAssetLocal]);
   const indices = asset.indices === undefined ? undefined : Object.freeze([...asset.indices]);
   const groups = Object.freeze(
     (Array.isArray(asset.groups) ? asset.groups : []).map((group) => Object.freeze({ ...group })),
@@ -151,6 +166,7 @@ function immutableAsset(asset: PreloadedMeshAsset): PreloadedMeshAsset {
   return Object.freeze({
     assetId: asset.assetId,
     positionsLdu,
+    ...(normalsAssetLocal === undefined ? {} : { normalsAssetLocal }),
     ...(indices === undefined ? {} : { indices }),
     groups,
   });
@@ -382,21 +398,41 @@ function validateRendererVertexPrecision(
   assetId: string,
   rendererPositions: readonly number[],
   quantizedRendererPositions: readonly number[],
+  normalsCatalogLocal: readonly number[] | null,
 ): MeshAssetFailure | null {
-  const sourcePositionByQuantizedPosition = new Map<string, { key: string; vertex: number }>();
+  const sourceVertexByQuantizedPosition = new Map<
+    string,
+    { positionKey: string; normalVertices: Map<string, number>; vertex: number }
+  >();
   for (let vertex = 0; vertex < rendererPositions.length / 3; vertex += 1) {
     const offset = vertex * 3;
-    const sourceKey = JSON.stringify(rendererPositions.slice(offset, offset + 3));
-    const quantizedKey = JSON.stringify(quantizedRendererPositions.slice(offset, offset + 3));
-    const prior = sourcePositionByQuantizedPosition.get(quantizedKey);
-    if (prior !== undefined && prior.key !== sourceKey) {
+    const positionKey = JSON.stringify(rendererPositions.slice(offset, offset + 3));
+    const quantizedPositionKey = JSON.stringify(
+      quantizedRendererPositions.slice(offset, offset + 3),
+    );
+    const normalKey = JSON.stringify(normalsCatalogLocal?.slice(offset, offset + 3) ?? null);
+    const prior = sourceVertexByQuantizedPosition.get(quantizedPositionKey);
+    if (prior !== undefined && prior.positionKey !== positionKey) {
       return failure(
         "MESH_ASSET_RENDER_PRECISION",
-        `Mesh asset ${assetId} distinct renderer-space vertices ${prior.vertex} and ${vertex} both become ${quantizedKey} after Float32 allocation. Reduce the frame translation or coordinate magnitude so exact LDU-to-render scaling preserves distinct positions before topology, extrema, bounds, preview, or rendering claims.`,
+        `Mesh asset ${assetId} distinct renderer-space positions at vertices ${prior.vertex} and ${vertex} both become ${quantizedPositionKey} after Float32 allocation, even though their normals may differ. Reduce the frame translation or coordinate magnitude so exact LDU-to-render scaling preserves distinct positions before topology, extrema, bounds, preview, or rendering claims.`,
+      );
+    }
+    const duplicateNormalVertex = prior?.normalVertices.get(normalKey);
+    if (duplicateNormalVertex !== undefined) {
+      return failure(
+        "MESH_ASSET_RENDER_PRECISION",
+        `Mesh asset ${assetId} vertices ${duplicateNormalVertex} and ${vertex} duplicate renderer-space position ${positionKey} and normal ${normalKey}. Coincident rows are admitted only when distinct stored normals preserve an intentional hard-edge smoothing island.`,
       );
     }
     if (prior === undefined) {
-      sourcePositionByQuantizedPosition.set(quantizedKey, { key: sourceKey, vertex });
+      sourceVertexByQuantizedPosition.set(quantizedPositionKey, {
+        positionKey,
+        normalVertices: new Map([[normalKey, vertex]]),
+        vertex,
+      });
+    } else {
+      prior.normalVertices.set(normalKey, vertex);
     }
   }
   return null;
@@ -630,6 +666,36 @@ export function createPreloadedMeshAssetResolver(
         `Mesh asset ${recipe.assetId} position value ${nonfinitePosition} is ${String(asset.positionsLdu[nonfinitePosition])}; every LDU coordinate must be finite.`,
       );
     }
+    const normalsAssetLocal = asset.normalsAssetLocal ?? null;
+    if (normalsAssetLocal !== null && normalsAssetLocal.length !== coordinateCount) {
+      return failure(
+        "MESH_ASSET_NORMAL_INVALID",
+        `Mesh asset ${recipe.assetId} has ${coordinateCount / 3} positions but ${normalsAssetLocal.length / 3} asset-local normals; provide exactly one xyz unit normal per position or omit the field for a legacy asset.`,
+      );
+    }
+    if (normalsAssetLocal !== null) {
+      const nonfiniteNormal = normalsAssetLocal.findIndex((value) => !Number.isFinite(value));
+      if (nonfiniteNormal !== -1) {
+        return failure(
+          "MESH_ASSET_NONFINITE",
+          `Mesh asset ${recipe.assetId} normal value ${nonfiniteNormal} is ${String(normalsAssetLocal[nonfiniteNormal])}; every asset-local normal component must be finite.`,
+        );
+      }
+      for (let vertex = 0; vertex < normalsAssetLocal.length / 3; vertex += 1) {
+        const offset = vertex * 3;
+        const length = Math.hypot(
+          normalsAssetLocal[offset]!,
+          normalsAssetLocal[offset + 1]!,
+          normalsAssetLocal[offset + 2]!,
+        );
+        if (!Number.isFinite(length) || Math.abs(length - 1) > NORMAL_UNIT_TOLERANCE) {
+          return failure(
+            "MESH_ASSET_NORMAL_INVALID",
+            `Mesh asset ${recipe.assetId} normal ${vertex} has length ${String(length)}; every source-faithful normal must be unit length within ${NORMAL_UNIT_TOLERANCE}. Regenerate it from the pinned LDraw hard-edge policy rather than normalizing untrusted bytes at render time.`,
+          );
+        }
+      }
+    }
     const vertexCount = coordinateCount / 3;
     const indices = asset.indices ?? null;
     let triangleCount: number;
@@ -728,6 +794,24 @@ export function createPreloadedMeshAssetResolver(
       }
       transformed.push(...catalogPosition);
     }
+    const normalsCatalogLocal: number[] | null =
+      normalsAssetLocal === null
+        ? null
+        : normalsAssetLocal.reduce<number[]>((result, _component, index) => {
+            if (index % 3 !== 0) return result;
+            const source: LduVector3 = [
+              normalsAssetLocal[index]!,
+              normalsAssetLocal[index + 1]!,
+              normalsAssetLocal[index + 2]!,
+            ];
+            const transformedNormal = [
+              matrix[0]! * source[0] + matrix[1]! * source[1] + matrix[2]! * source[2],
+              matrix[3]! * source[0] + matrix[4]! * source[1] + matrix[5]! * source[2],
+              matrix[6]! * source[0] + matrix[7]! * source[1] + matrix[8]! * source[2],
+            ];
+            result.push(...transformedNormal.map((component) => Math.fround(component)));
+            return result;
+          }, []);
 
     // Mirror geometry.ts exactly: scale catalog LDU, invert Y, then assign into
     // a Float32Array. Precision loss is rejected before it can redefine
@@ -768,6 +852,7 @@ export function createPreloadedMeshAssetResolver(
       asset.assetId,
       rendererPositions,
       quantizedRendererPositions,
+      normalsCatalogLocal,
     );
     if (vertexPrecisionFailure !== null) return vertexPrecisionFailure;
     const rendererTriangleFailure = validateTriangles(
@@ -800,6 +885,8 @@ export function createPreloadedMeshAssetResolver(
       asset: Object.freeze({
         assetId: asset.assetId,
         positionsLdu: Object.freeze(quantizedCatalogPositions),
+        normalsCatalogLocal:
+          normalsCatalogLocal === null ? null : Object.freeze(normalsCatalogLocal),
         indices,
         groups: asset.groups,
         componentFirstTriangles: Object.freeze([...topology.componentFirstTriangles]),
@@ -844,9 +931,9 @@ export function createPreloadedMeshAssetResolver(
   };
 }
 
-// The closed production registry. It is bundled LDraw geometry as of catalog
-// builtin.basic-parts/8 and cannot be mutated at runtime; a new asset enters
-// only through a reviewed catalog admission.
+// The closed production registry contains the 24 LDraw meshes admitted through
+// catalog builtin.basic-parts/13. It cannot be mutated at runtime; a new asset
+// enters only through a reviewed catalog admission.
 const PRELOADED_PRODUCTION_MESH_ASSETS = SET_6651557_MESH_ASSETS;
 
 export const resolvePreloadedMeshAsset = createPreloadedMeshAssetResolver(

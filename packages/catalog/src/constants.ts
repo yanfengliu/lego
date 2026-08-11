@@ -54,8 +54,14 @@ import type {
  * recipes remain byte-identical; `preserved-catalog-recipe` states explicitly
  * that those conservative collision solids are independent of the render mesh
  * and may extend beyond or fill voids in it. No part is added, removed or moved.
+ *
+ * /13 promotes the remaining twelve approximate catalog drawings to their
+ * official LDraw render meshes and stores source-faithful normals for all 24
+ * bundled assets. Migration reports render-geometry and normal changes for all
+ * 24 appearances and body/visual-bound changes for the twelve new promotions.
+ * No connector, allowance, collision recipe, or part identity moves.
  */
-export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/12" as const;
+export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/13" as const;
 export const CONNECTOR_TAXONOMY_VERSION = "stud-tube/1" as const;
 export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/2" as const;
 export const TRANSFORM_POLICY_VERSION = "upright-quarter-turns-negative-y-up/1" as const;

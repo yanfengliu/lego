@@ -28,6 +28,7 @@ export const MIGRATABLE_CATALOG_VERSIONS: readonly string[] = Object.freeze([
   "builtin.basic-parts/9",
   "builtin.basic-parts/10",
   "builtin.basic-parts/11",
+  "builtin.basic-parts/12",
   BUILTIN_CATALOG_VERSION,
 ]);
 
@@ -133,6 +134,18 @@ export const REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS = Object.freeze([
     sourceCommit: "bd46506950385df6e4be0f82385f910616e11675",
     truthHash: "sha256:6b784ce4259131b1ed637815b78bbf14a0bd2e92627ce2a8f4d09c3504465c43",
   },
+  // The snapshot /13 replaced. /13 stores source-faithful normals and changes
+  // rendered geometry for all twenty-four bundled meshes; twenty-three change
+  // expanded triangulation, while 54200 moves from its /12 parametric drawing
+  // to an exact mesh. Exact visual/body bounds change for the twelve new render
+  // promotions. Their identities, connectors, allowances, collision
+  // recipes, connector-grid centres and partial-overhang evidence remain
+  // byte-identical to /12.
+  {
+    catalogVersion: "builtin.basic-parts/12",
+    sourceCommit: "e70346d7ec2c75a206a436e8c9cc233e1ca2de37",
+    truthHash: "sha256:cdfeae99ea405770f35f83173eec10804078346d257c5e56006707639313ae8e",
+  },
 ] as const);
 
 const MIGRATABLE_TRUTH_HASHES: ReadonlySet<string> = new Set(
@@ -150,7 +163,9 @@ export interface CatalogInterpretationChange {
   readonly fromCatalogVersion: string;
   readonly toCatalogVersion: string;
   readonly affectedCatalogPartIds: readonly string[];
-  readonly changedFields: readonly ("render-geometry" | "visual-bounds")[];
+  readonly changedFields: readonly (
+    "render-geometry" | "surface-normals" | "body-bounds" | "visual-bounds"
+  )[];
 }
 
 export const REVIEWED_CATALOG_INTERPRETATION_CHANGES: readonly CatalogInterpretationChange[] =
@@ -165,6 +180,87 @@ export const REVIEWED_CATALOG_INTERPRETATION_CHANGES: readonly CatalogInterpreta
         "builtin:corner-plate-5x5-quarter-ring",
       ],
       changedFields: ["render-geometry", "visual-bounds"],
+    },
+    {
+      fromCatalogVersion: "builtin.basic-parts/12",
+      toCatalogVersion: "builtin.basic-parts/13",
+      affectedCatalogPartIds: [
+        "builtin:wedge-plate-2x4-left",
+        "builtin:wedge-plate-2x4-right",
+        "builtin:wedge-plate-2x3-left",
+        "builtin:wedge-plate-2x3-right",
+        "builtin:arch-1x4",
+        "builtin:arch-1x6",
+        "builtin:curved-slope-1x2",
+        "builtin:curved-slope-1x3",
+        "builtin:curved-slope-1x4",
+        "builtin:cheese-slope-1x1",
+        "builtin:cheese-slope-2x1",
+        "builtin:wedge-plate-4x4-cut-corner",
+        "builtin:wedge-plate-6x6-cut-corner",
+        "builtin:wedge-plate-3x6-right",
+        "builtin:corner-plate-4x4-round",
+        "builtin:corner-plate-5x5-quarter-ring",
+        "builtin:tile-1x2-cut-right-45",
+        "builtin:plate-1x2-round-end",
+        "builtin:wedge-plate-2x4-wing",
+        "builtin:corner-plate-3x3",
+        "builtin:curved-slope-1x4-double",
+        "builtin:plate-3x3-corner-round",
+        "builtin:wedge-plate-3x3-cut-corner",
+        "builtin:corner-plate-2x2-round",
+      ],
+      changedFields: ["surface-normals"],
+    },
+    {
+      fromCatalogVersion: "builtin.basic-parts/12",
+      toCatalogVersion: "builtin.basic-parts/13",
+      affectedCatalogPartIds: [
+        "builtin:wedge-plate-2x4-left",
+        "builtin:wedge-plate-2x4-right",
+        "builtin:wedge-plate-2x3-left",
+        "builtin:wedge-plate-2x3-right",
+        "builtin:arch-1x4",
+        "builtin:arch-1x6",
+        "builtin:curved-slope-1x2",
+        "builtin:curved-slope-1x3",
+        "builtin:curved-slope-1x4",
+        "builtin:cheese-slope-1x1",
+        "builtin:cheese-slope-2x1",
+        "builtin:wedge-plate-4x4-cut-corner",
+        "builtin:wedge-plate-6x6-cut-corner",
+        "builtin:wedge-plate-3x6-right",
+        "builtin:corner-plate-4x4-round",
+        "builtin:corner-plate-5x5-quarter-ring",
+        "builtin:tile-1x2-cut-right-45",
+        "builtin:plate-1x2-round-end",
+        "builtin:wedge-plate-2x4-wing",
+        "builtin:corner-plate-3x3",
+        "builtin:curved-slope-1x4-double",
+        "builtin:plate-3x3-corner-round",
+        "builtin:wedge-plate-3x3-cut-corner",
+        "builtin:corner-plate-2x2-round",
+      ],
+      changedFields: ["render-geometry"],
+    },
+    {
+      fromCatalogVersion: "builtin.basic-parts/12",
+      toCatalogVersion: "builtin.basic-parts/13",
+      affectedCatalogPartIds: [
+        "builtin:wedge-plate-2x4-left",
+        "builtin:wedge-plate-2x4-right",
+        "builtin:wedge-plate-2x3-left",
+        "builtin:wedge-plate-2x3-right",
+        "builtin:wedge-plate-3x6-right",
+        "builtin:arch-1x4",
+        "builtin:arch-1x6",
+        "builtin:curved-slope-1x2",
+        "builtin:curved-slope-1x3",
+        "builtin:curved-slope-1x4",
+        "builtin:cheese-slope-1x1",
+        "builtin:cheese-slope-2x1",
+      ],
+      changedFields: ["body-bounds", "visual-bounds"],
     },
   ]);
 

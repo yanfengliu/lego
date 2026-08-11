@@ -11,10 +11,11 @@ Run:
 The first production admission emitted its tables from a scratch script that no
 longer exists, which left generated files in Git with no way to reproduce them.
 This is that path, made real: one measurement emits aligned mesh, collision,
-connector and attribution tables, and every part is scored before a line is
-written. Eight measured definitions consume all of those fields. The four `/12`
-render promotions consume the mesh and visual bounds while `part-factory.ts`
-retains their preceding connector, allowance and collision arrays deliberately.
+connector and attribution tables, and every full measured part is scored before
+a line is written. The separate render-only plan emits only mesh, exact bounds,
+stud-frame witnesses and attribution; it has no connector, allowance or
+collision field to import, and the TypeScript admission asserts the preceding
+catalog physical semantics remain byte-identical.
 
 A hard fail is a refusal, not a low number: nothing is written unless every
 planned part passes, so the catalog cannot gain a part whose own scorecard says
@@ -37,19 +38,30 @@ from measured_part_emit import (
     enforce_generated_check,
     render_blueprints,
     render_bundled_sources,
-    render_mesh_assets,
+    render_mesh_asset_aggregator,
+    render_mesh_asset_chunk,
+    render_render_only_blueprints,
 )
-from measured_part_plan import ADMITTED_PART_PLANS, BUNDLED_LDRAW_ARCHIVE_RECORD
-from measured_part_tables import measure_part, scoreable_candidate
+from measured_part_plan import (
+    ADMITTED_PART_PLANS,
+    BUNDLED_LDRAW_ARCHIVE_RECORD,
+    RENDER_ONLY_PART_PLANS,
+)
+from measured_part_tables import measure_part, measure_render_only_part, scoreable_candidate
 from part_admission_contract import validate_candidate
 from part_admission_evidence import PILOT_DESIGN_IDS, bind_to_pilot, parse_pilot, write_output_report
 from part_admission_scorecard import DEFAULT_SAMPLE_SPACING_LDU, score_candidate
 from set_6651557_ldraw_source_audit_plan import ARCHIVE_PINS
 
-REPORT_SCHEMA_VERSION = "lego.measured-part-admission-emission/2"
+REPORT_SCHEMA_VERSION = "lego.measured-part-admission-emission/3"
 GENERATED_FILES = {
     "meshAssets": "packages/catalog/src/mesh-assets-6651557.ts",
+    "meshAssetsMeasuredA": "packages/catalog/src/mesh-assets-6651557-measured-a.ts",
+    "meshAssetsMeasuredB": "packages/catalog/src/mesh-assets-6651557-measured-b.ts",
+    "meshAssetsMeasuredC": "packages/catalog/src/mesh-assets-6651557-measured-c.ts",
+    "meshAssetsRenderOnly": "packages/catalog/src/mesh-assets-6651557-render-only.ts",
     "blueprints": "packages/catalog/src/part-blueprints-6651557-measured.ts",
+    "renderOnlyBlueprints": "packages/catalog/src/part-blueprints-6651557-render-only.ts",
     "bundledSources": "packages/catalog/src/ldraw-bundled-sources-6651557.ts",
 }
 
@@ -143,7 +155,8 @@ def main() -> None:
         [VerifiedArchive(archive_paths[pin.archive_id], pin) for pin in ARCHIVE_PINS]
     )
     started = time.monotonic()
-    parts = []
+    measured_parts = []
+    render_only_parts = []
     scorecards: list[dict[str, object]] = []
     bindings: dict[str, object] = {}
     try:
@@ -176,8 +189,22 @@ def main() -> None:
                 f"hardFails={[row['code'] for row in scorecard['hardFails']]}",  # type: ignore[index,union-attr]
                 flush=True,
             )
-            parts.append(part)
+            measured_parts.append(part)
             scorecards.append(scorecard)
+        for plan in RENDER_ONLY_PART_PLANS:
+            part = measure_render_only_part(library, plan)
+            bindings[plan.design_id] = {
+                "state": "render-only-bound-to-pinned-official-root-with-no-connector-or-collision-source",
+                "route": f"official:{plan.ldraw_path}",
+                "rootSha256": part.root.sha256,
+            }
+            print(
+                f"{plan.design_id}: renderOnly=true studs={len(part.source_stud_seats_ldu)} "
+                f"triangles={part.body_triangle_count + part.stud_triangle_count} "
+                "structuralFields=0",
+                flush=True,
+            )
+            render_only_parts.append(part)
         library.verify_unchanged()
     finally:
         library.close()
@@ -196,12 +223,31 @@ def main() -> None:
         )
 
     archive_sha256 = str(BUNDLED_LDRAW_ARCHIVE_RECORD["sha256"]).split(":")[-1]
+    mesh_parts = [*measured_parts, *render_only_parts]
     rendered = {
-        "meshAssets": render_mesh_assets(parts, archive_sha256),
-        "blueprints": render_blueprints(
-            parts, archive_sha256, builder, dict(shadow.identity())
+        "meshAssets": render_mesh_asset_aggregator(),
+        "meshAssetsMeasuredA": render_mesh_asset_chunk(
+            measured_parts[:6], archive_sha256, "SET_6651557_MEASURED_MESH_ASSETS_A"
         ),
-        "bundledSources": render_bundled_sources(parts, BUNDLED_LDRAW_ARCHIVE_RECORD),
+        "meshAssetsMeasuredB": render_mesh_asset_chunk(
+            measured_parts[6:9], archive_sha256, "SET_6651557_MEASURED_MESH_ASSETS_B"
+        ),
+        "meshAssetsMeasuredC": render_mesh_asset_chunk(
+            measured_parts[9:], archive_sha256, "SET_6651557_MEASURED_MESH_ASSETS_C"
+        ),
+        "meshAssetsRenderOnly": render_mesh_asset_chunk(
+            render_only_parts,
+            archive_sha256,
+            "SET_6651557_RENDER_ONLY_MESH_ASSETS",
+            render_only=True,
+        ),
+        "blueprints": render_blueprints(
+            measured_parts, archive_sha256, builder, dict(shadow.identity())
+        ),
+        "renderOnlyBlueprints": render_render_only_blueprints(
+            render_only_parts, archive_sha256
+        ),
+        "bundledSources": render_bundled_sources(mesh_parts, BUNDLED_LDRAW_ARCHIVE_RECORD),
     }
     assert_bound_input_unchanged(arguments.pilot, "source pilot", pilot_bytes)
     assert_bound_input_unchanged(
@@ -229,8 +275,10 @@ def main() -> None:
     report = {
         "schemaVersion": REPORT_SCHEMA_VERSION,
         "authority": {
-            "state": "emits-catalog-tables-only-after-every-part-scores-without-a-hard-fail",
-            "partsEmitted": len(parts),
+            "state": "full-measured-parts-score-before-emission-and-render-only-parts-emit-no-physical-semantics",
+            "partsEmitted": len(mesh_parts),
+            "fullMeasuredParts": len(measured_parts),
+            "renderOnlyParts": len(render_only_parts),
             "hardFailingParts": failing,
         },
         "inputs": {
@@ -263,7 +311,22 @@ def main() -> None:
                 "closureFileCount": len(part.closure),
                 "shadowFiles": list(part.shadow_files),
             }
-            for part in parts
+            for part in measured_parts
+        ]
+        + [
+            {
+                "designId": part.plan.design_id,
+                "catalogId": (
+                    f"builtin:{part.plan.family}-{part.plan.width_studs}x{part.plan.length_studs}"
+                    + ("" if part.plan.variant is None else f"-{part.plan.variant}")
+                ),
+                "connectorSource": "preserved-catalog-definition-not-read-by-generator",
+                "sourceStudFrameWitnesses": len(part.source_stud_seats_ldu),
+                "meshTriangles": part.body_triangle_count + part.stud_triangle_count,
+                "closureFileCount": len(part.closure),
+                "structuralFieldsEmitted": 0,
+            }
+            for part in render_only_parts
         ],
         "scorecards": scorecards,
     }

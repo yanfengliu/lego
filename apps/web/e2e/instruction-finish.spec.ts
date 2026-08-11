@@ -41,9 +41,9 @@ interface ProbeReport {
  * both of them were failing before this probe existed.
  *
  * Palette: a shaded render must still land on an enumerable set of tones —
- * the page, each colour's own face tones, each colour's ink. Anything else is a
- * gradient, and a gradient is what makes a comparison against printed art
- * tolerate being wrong.
+ * the page, each colour's ink, and every per-triangle tone declared by the
+ * derived geometry. Anything outside that finite set is a gradient, which is
+ * what makes a comparison against printed art tolerate being wrong.
  *
  * Silhouette ink: the outline pass this replaced was broken along 38 to 68% of
  * a part's silhouette, because it fought the fill for the depth buffer and won
@@ -132,8 +132,9 @@ test("prints a brick in the booklet's shaded dialect", async ({ page }) => {
         { ...alone("builtin:brick-1x4", "builtin:black"), name: "black-1x4" },
         { ...alone("builtin:brick-2x2", "builtin:white"), name: "white-2x2" },
         {
-          // An arch and two slopes: parts whose solid is a staircase of boxes,
-          // which have to print as one moulded shape rather than a row of fins.
+          // An arch and two slopes whose admitted meshes include normals away
+          // from the six box axes. They must retain their moulded face bands
+          // without introducing a continuously interpolated gradient.
           name: "compound",
           parts: [
             base,
@@ -186,13 +187,46 @@ test("prints a brick in the booklet's shaded dialect", async ({ page }) => {
         );
         const pixels = renderer.render(scene.root, camera).slice();
 
-        // Every tone this document is allowed to print, and the subset that is ink.
+        // Every tone this derived scene declares, and the subset that is ink.
+        // Vertex colours are stored in Three's linear working space; convert
+        // them back to sRGB bytes exactly as the unlit renderer does. Every
+        // triangle has one repeated colour at all three corners, so any raster
+        // colour outside this set is an interpolated gradient or contamination.
         const allowed = new Set<number>([background]);
         const ink = new Set<number>();
+        const linearToSrgbByte = (value: number): number =>
+          Math.round(
+            255 * (value <= 0.0031308 ? 12.92 * value : 1.055 * Math.pow(value, 1 / 2.4) - 0.055),
+          );
+        scene.root.traverse(
+          (object: {
+            geometry?: {
+              getAttribute(name: string):
+                | {
+                    readonly count: number;
+                    getX(index: number): number;
+                    getY(index: number): number;
+                    getZ(index: number): number;
+                  }
+                | undefined;
+            };
+          }) => {
+            const colors = object.geometry?.getAttribute("color");
+            if (!colors) return;
+            for (let index = 0; index < colors.count; index += 1) {
+              allowed.add(
+                (linearToSrgbByte(colors.getX(index)) << 16) |
+                  (linearToSrgbByte(colors.getY(index)) << 8) |
+                  linearToSrgbByte(colors.getZ(index)),
+              );
+            }
+          },
+        );
         for (const colorId of new Set(subject.parts.map((entry) => entry.color))) {
           const displayHex = displayHexOf(colorId);
-          for (const tone of rendering.instructionFaceTones(displayHex)) allowed.add(tone);
-          ink.add(rendering.instructionEdgeHex(displayHex));
+          const edge = rendering.instructionEdgeHex(displayHex);
+          allowed.add(edge);
+          ink.add(edge);
         }
 
         const keyAt = (index: number) =>
@@ -309,13 +343,10 @@ test("prints a brick in the booklet's shaded dialect", async ({ page }) => {
   writeFileSync(`${OUT}/score.json`, JSON.stringify(result, null, 1));
 
   for (const subject of result.subjects) {
-    // Shaded, not lit: every pixel is the page, a face tone, or ink. Both
-    // assertions hold only for boxes and studs, which is all these subjects
-    // are. A wedge's sloped face and a wheel's barrel take normals off the six
-    // axes, so they print tones `instructionFaceTones` does not enumerate and
-    // silhouette where no crease exists — adding one here is a probe change,
-    // not a renderer regression. `score.json` names the offending tones.
-    expect.soft(subject.offPaletteShare, `${subject.name} off-palette`).toBeLessThan(0.0005);
+    // Shaded, not lit: every pixel is the page, one exact per-triangle tone, or
+    // ink. Mesh faces can point away from the six box axes, but their declared
+    // tones remain finite and flat; no tolerance is needed for a gradient.
+    expect.soft(subject.offPaletteShare, `${subject.name} off-palette`).toBe(0);
     expect
       .soft(subject.inkedSilhouetteShare, `${subject.name} inked silhouette`)
       .toBeGreaterThan(0.97);

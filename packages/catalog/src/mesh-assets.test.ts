@@ -62,12 +62,24 @@ function recipe(
 
 describe("preloaded mesh asset resolution", () => {
   it("promotes exact meshes in place without growing or reordering the catalog", () => {
-    // Four existing rows switch to exact mesh rendering at /12. These literals
+    // Sixteen existing rows render exact source meshes at /13. These literals
     // pin the remaining parametric geometry identities and full definitions;
     // the full-definition digest moves with catalog-version provenance.
     const promotedIds = new Set([
+      "builtin:wedge-plate-2x4-left",
+      "builtin:wedge-plate-2x4-right",
+      "builtin:wedge-plate-2x3-left",
+      "builtin:wedge-plate-2x3-right",
+      "builtin:arch-1x4",
+      "builtin:arch-1x6",
+      "builtin:curved-slope-1x2",
+      "builtin:curved-slope-1x3",
+      "builtin:curved-slope-1x4",
+      "builtin:cheese-slope-1x1",
+      "builtin:cheese-slope-2x1",
       "builtin:wedge-plate-4x4-cut-corner",
       "builtin:wedge-plate-6x6-cut-corner",
+      "builtin:wedge-plate-3x6-right",
       "builtin:corner-plate-4x4-round",
       "builtin:corner-plate-5x5-quarter-ring",
     ]);
@@ -76,30 +88,26 @@ describe("preloaded mesh asset resolution", () => {
     const legacyRows = legacyParts.map(({ id, geometry }) => [id, geometry.contentHash]);
     const legacyHashes = JSON.stringify(legacyRows);
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/12");
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/13");
     expect(PART_DEFINITIONS).toHaveLength(85);
     expect(
-      [...promotedIds].map((id) => PART_DEFINITIONS.findIndex((part) => part.id === id)),
-    ).toEqual([72, 73, 75, 76]);
+      PART_DEFINITIONS.filter(isMeshPartDefinition)
+        .filter(({ geometry }) => geometry.collisionMode === "preserved-catalog-recipe")
+        .map(({ id }) => id),
+    ).toEqual([...promotedIds]);
     expect(
       legacyParts.every(
         ({ geometry }) => geometry.generatorId !== "builtin:preloaded-mesh-reference/1",
       ),
     ).toBe(true);
-    expect(meshParts).toHaveLength(12);
-    expect(meshParts.slice(0, 4).map(({ geometry }) => geometry.collisionMode)).toEqual([
-      "preserved-catalog-recipe",
-      "preserved-catalog-recipe",
-      "preserved-catalog-recipe",
-      "preserved-catalog-recipe",
-    ]);
+    expect(meshParts).toHaveLength(24);
     expect(
       meshParts
-        .slice(4)
+        .filter(({ geometry }) => geometry.collisionMode !== "preserved-catalog-recipe")
         .every(({ geometry }) => geometry.collisionMode === "mesh-derived-height-field"),
     ).toBe(true);
     expect(createHash("sha256").update(legacyHashes).digest("hex")).toBe(
-      "8a118b74e60a382131758eba730aa4cf5386212dac8c647307f35f104bf12219",
+      "1a24d723074372b10e3d5bb7b52a4487ef3c4f93e12ed9019da123e7103635b5",
     );
     expect(
       legacyParts
@@ -108,25 +116,9 @@ describe("preloaded mesh asset resolution", () => {
             !("undersideMode" in geometry) || geometry.undersideMode !== "modelled-shell-cavity",
         )
         .map(({ id }) => id),
-    ).toEqual([
-      "builtin:wedge-plate-2x4-left",
-      "builtin:wedge-plate-2x4-right",
-      "builtin:wedge-plate-2x3-left",
-      "builtin:wedge-plate-2x3-right",
-      "builtin:axle-1x2",
-      "builtin:axle-1x4",
-      "builtin:wheel-1x2",
-      "builtin:arch-1x4",
-      "builtin:arch-1x6",
-      "builtin:curved-slope-1x2",
-      "builtin:curved-slope-1x3",
-      "builtin:curved-slope-1x4",
-      "builtin:cheese-slope-1x1",
-      "builtin:cheese-slope-2x1",
-      "builtin:wedge-plate-3x6-right",
-    ]);
+    ).toEqual(["builtin:axle-1x2", "builtin:axle-1x4", "builtin:wheel-1x2"]);
     expect(createHash("sha256").update(JSON.stringify(legacyParts)).digest("hex")).toBe(
-      "7f234360af5c4d8f3d1bb11e1386f42ca48ce164b9aa8d74456cce8b247d2c43",
+      "828810fbe4fb557b8e9d315d9775635b7d834be88a4cbc0a4fda0ca54c76db44",
     );
   });
 
@@ -159,6 +151,7 @@ describe("preloaded mesh asset resolution", () => {
       (coordinate, index) => (coordinate * (index % 3 === 1 ? -1 : 1)) / MESH_RENDER_UNITS_PER_LDU,
     );
     expect(resolution.asset.positionsLdu).toEqual(quantizedCatalogPositions);
+    expect(resolution.asset.normalsCatalogLocal).toBeNull();
     expect(
       resolution.asset.positionsLdu.map((coordinate, index) =>
         Math.fround(coordinate * MESH_RENDER_UNITS_PER_LDU * (index % 3 === 1 ? -1 : 1)),
@@ -186,6 +179,86 @@ describe("preloaded mesh asset resolution", () => {
       createHash("sha256").update(JSON.stringify(expectedRecipe)).digest("hex"),
     );
     expect(resolver(movedRecipe)).not.toBe(resolution);
+  });
+
+  it("integrity-binds and rotates one source-faithful unit normal per position", () => {
+    const asset: PreloadedMeshAsset = {
+      ...asymmetricAsset(),
+      normalsAssetLocal: [1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0],
+    };
+    const framedRecipe: MeshReferenceGeometryRecipe = {
+      ...recipe(asset),
+      assetToCatalogFrame: {
+        schemaVersion: "mesh-asset-to-catalog-frame/1",
+        orientationId: "upright-yaw-90",
+        translationLdu: [3, -4, 5],
+      },
+    };
+    const resolver = createPreloadedMeshAssetResolver({ [ASSET_ID]: asset });
+    (asset.normalsAssetLocal as number[])[0] = 0;
+
+    const resolution = resolver(framedRecipe);
+
+    expect(resolution.ok).toBe(true);
+    if (!resolution.ok) return;
+    expect(resolution.asset.normalsCatalogLocal).toEqual([0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1]);
+    expect(Object.isFrozen(resolution.asset.normalsCatalogLocal)).toBe(true);
+    expect(meshAssetContentHash(asset)).not.toBe(framedRecipe.contentHash);
+  });
+
+  it("refuses missing, nonfinite, and non-unit source normal rows by name", () => {
+    const cases: Array<[string, readonly number[]]> = [
+      ["missing", [1, 0, 0]],
+      ["nonfinite", [Number.NaN, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1]],
+      ["non-unit", [2, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0]],
+    ];
+    for (const [label, normalsAssetLocal] of cases) {
+      const asset: PreloadedMeshAsset = { ...asymmetricAsset(), normalsAssetLocal };
+      const resolution = createPreloadedMeshAssetResolver({ [ASSET_ID]: asset })(recipe(asset));
+      expect(resolution.ok, label).toBe(false);
+      if (resolution.ok) continue;
+      expect(resolution.code, label).toMatch(/MESH_ASSET_(?:NORMAL_INVALID|NONFINITE)/);
+      expect(resolution.message, label).toMatch(/normal/i);
+    }
+  });
+
+  it("admits coincident hard-normal islands but refuses a duplicate position-and-normal face", () => {
+    const positionsLdu = [0, 0, 0, 20, 0, 0, 0, -8, 0, 0, 0, 0, 20, 0, 0, 0, -8, 0];
+    const hardSeam: PreloadedMeshAsset = {
+      assetId: ASSET_ID,
+      positionsLdu,
+      normalsAssetLocal: [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0],
+      indices: [0, 1, 2, 3, 4, 5],
+      groups: [{ role: "body", triangleStart: 0, triangleCount: 2 }],
+    };
+    const admitted = createPreloadedMeshAssetResolver({ [ASSET_ID]: hardSeam })(recipe(hardSeam));
+    expect(admitted.ok).toBe(true);
+    if (admitted.ok) expect(admitted.asset.componentFirstTriangles).toEqual([0]);
+
+    const duplicateFace: PreloadedMeshAsset = {
+      ...hardSeam,
+      normalsAssetLocal: Array.from({ length: 6 }, () => [0, 0, 1]).flat(),
+    };
+    const refused = createPreloadedMeshAssetResolver({ [ASSET_ID]: duplicateFace })(
+      recipe(duplicateFace),
+    );
+    expect(refused.ok).toBe(false);
+    if (refused.ok) return;
+    expect(refused.code).toBe("MESH_ASSET_RENDER_PRECISION");
+    expect(refused.message).toMatch(/vertices 0 and 3 duplicate renderer-space position/);
+
+    const precisionCollapsedAcrossNormals: PreloadedMeshAsset = {
+      assetId: "test:normal-does-not-hide-position-collapse/1",
+      positionsLdu: [1_000, 0, 0, 1_000.000_03, 0, 0, 1_000, 20, 0],
+      normalsAssetLocal: [0, 0, 1, 0, 1, 0, 0, 0, 1],
+      indices: [0, 1, 2],
+      groups: [{ role: "body", triangleStart: 0, triangleCount: 1 }],
+    };
+    const collapsed = createPreloadedMeshAssetResolver({
+      [precisionCollapsedAcrossNormals.assetId]: precisionCollapsedAcrossNormals,
+    })(recipe(precisionCollapsedAcrossNormals));
+    expect(collapsed).toMatchObject({ ok: false, code: "MESH_ASSET_RENDER_PRECISION" });
+    if (!collapsed.ok) expect(collapsed.message).toMatch(/even though their normals may differ/);
   });
 
   it("rejects material coordinate drift and collapse after exact renderer Float32 quantization", () => {

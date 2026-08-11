@@ -1,147 +1,126 @@
 # Part model and catalog truth
 
-Status date: 2026-08-10
+Status date: 2026-08-11
 
-This document owns how a part is identified, represented, sourced, derived, checked, admitted, and versioned. [`spec.md`](spec.md) owns document and validator semantics, [`building-system.md`](building-system.md) owns the current product frontier, and [`dependency-data-bom.md`](../dependency-data-bom.md) owns source, license, and allowed-role records.
+This document owns how a part is identified, represented, sourced, derived, checked, admitted, and versioned. [`spec.md`](spec.md) owns document and validator semantics, [`building-system.md`](building-system.md) owns the product frontier, and the [dependency and data bill of materials](../dependency-data-bom.md) owns source, license, and allowed-role records.
 
 ## Current catalog
 
-The builtin catalog is `builtin.basic-parts/12` with 85 definitions: 73 render from repository-authored parametric recipes and 12 render exact surfaces from bounded, content-hashed LDraw closures. Four of those mesh surfaces replace earlier parametric render recipes in place, so the catalog count did not grow.
+The builtin catalog is `builtin.basic-parts/13` with 85 definitions. Sixty-one render from repository-authored parametric recipes and 24 render bundled, content-hashed LDraw surfaces with source-faithful normals. Sixteen of the mesh-backed definitions are render-only promotions of earlier parametric parts; the other eight are fully measured definitions.
 
-The four render-only promotions are `wedge-plate-4x4-cut-corner` (`30503`), `wedge-plate-6x6-cut-corner` (`6106`), `corner-plate-4x4-round` (`30565`), and `corner-plate-5x5-quarter-ring` (`80015`). Their exact visible mesh and bounds come from LDraw, while their previous connector and collision arrays remain byte-for-byte unchanged and the mesh recipe labels that collision `preserved-catalog-recipe`; the conservative collision can fill visible voids and is not a claim of hollow physical truth.
+The sixteen render-only promotions take their visible triangles, normals, exact bounds, and explicit source-to-catalog frame from LDraw while preserving their preceding connector, allowance, connector-grid, evidence, and collision declarations. Their `preserved-catalog-recipe` collision can fill a visible void and is not proof of hollow physical truth. The `/13` migration therefore reports changed render interpretation without pretending that physical semantics changed.
 
-The tracked booklet has 121 distinct required leaf design identities. That is not an 85-of-121 coverage fraction: catalog definitions include parts outside that set, aliases and design identities do not share one denominator, and some booklet callouts remain unidentified. The prepared coverage frontier currently reaches printed step 25; printed step 26 first requires design `28802`.
+The tracked booklet has 121 distinct required leaf design identities. That is not an 85-of-121 coverage fraction: catalog definitions include parts outside the set, aliases and design identities do not share one denominator, and some booklet callouts remain unidentified. Prepared coverage reaches printed step 25; step 26 first requires design `28802`.
 
-The part standard is not green. Twelve definitions declare underside clutches but still render a flat semantic seat grid instead of the cavity, walls, and tubes visible from below. `npm run parts:check` reports all twelve under `underside-is-drawn`, and the command is not yet part of `npm run verify`.
+`npm run parts:check` passes all 85 definitions and is part of `npm run verify`. It is a declaration-consistency gate, not a substitute for source review, matched visual inspection, connector evidence, collision review, or browser verification.
+
+The `/13` exterior visual review is complete. Twenty-four immutable packets bind 192 matched native-resolution source/catalog pairs; a separate review records every visible pair as `same` in batch `sha256:e1094576c2250db8a9875828254f064384c195991304d363c5a2a9ff5a50c0dd`. Of those pairs, 181 are RGBA-exact, ten differ by 12 pixels total at maximum channel delta 1, and the remaining `cheese-slope-2x1` isometric pair differs in 104 pixels without an observable geometry or shading difference at native size. This closes the named exterior views, not hidden interiors or physical collision.
 
 ## One part, four representations
 
-Each representation answers a different question. None may be treated as authority for another.
+Each representation answers a different question. None is authority for another.
 
 ### 1. Render surface
 
-The renderer and palette preview derive visible geometry from the catalog definition. Parametric parts derive it from bounded features; the 12 mesh-rendered parts use preloaded LDraw surfaces with a pinned content hash and one explicit asset-to-catalog frame.
+The viewport and palette preview resolve the same catalog definition. Parametric parts derive visible geometry from bounded features; mesh-backed parts use preloaded LDraw triangles, source-derived normals, a pinned content hash, and one explicit asset-to-catalog frame.
 
-The render surface is disposable view data. It never authorizes a placement, connection, collision waiver, catalog admission, or physical claim.
+Render geometry is disposable view data. It cannot authorize placement, connection, collision, catalog admission, or a claim about hidden physical material. “Exact source geometry” in this repository means the admitted LDraw triangles, loader-faithful normals, and pinned source-to-catalog frame, not pixel identity across independent render paths or access to LEGO production CAD.
 
 ### 2. Construction lattice and bounds
 
-Placement uses LDraw units and legal catalog orientations. Footprints, nominal heights, exact body bounds where required, and connector centres provide the fast lattice used for enumeration and pruning.
+Placement uses LDraw units and legal catalog orientations. Footprints, nominal heights, exact body bounds where needed, and connector centres provide the lattice used for enumeration and pruning.
 
-Exact decimal bounds exist only where measured source coordinates cannot be represented inward safely as ordinary binary floats. The catalog derives the float projection from that one exact declaration and refuses a projection that would fall inside the measured body.
-
-Off-lattice articulated poses do not become lattice truth. They retain their rigid transform and use the geometric validators.
+Exact decimal bounds are retained when a measured extent cannot be projected safely as an ordinary binary float. The catalog derives the float projection from that declaration and refuses inward rounding. Off-lattice articulated poses retain their rigid transform and use geometric validators rather than becoming lattice truth.
 
 ### 3. Connection field
 
-Catalog connection metadata and placement discovery use typed ports with local transforms, capacity, gender, profile, and compatibility. The ten implemented catalog kinds are `stud`, `undersideClutch`, `axle`, `axleHole`, `pin`, `pinHole`, `bar`, `clip`, `hinge`, and `hingeSocket`.
+Catalog ports carry local transforms, capacity, gender, profile, and one of ten implemented kinds: `stud`, `undersideClutch`, `axle`, `axleHole`, `pin`, `pinHole`, `bar`, `clip`, `hinge`, and `hingeSocket`. Six pair rules cover stud/clutch, axle/axle-hole, axle/pin-hole, pin/pin-hole, bar/clip, and hinge/hinge-socket behavior.
 
-Six pair rules define stud/clutch, axle/axle-hole, axle/pin-hole, pin/pin-hole, bar/clip, and hinge/hinge-socket behavior. Rotation and articulation belong to the pair: an axle is rigid in an axle hole and revolute in a round pin hole.
+Placement discovery consumes those rules, but document edges and attach programs still serialize only `stud-tube`; referenced ports imply the actual pair. A versioned pair identity is still needed before the full taxonomy is represented end to end.
 
-Placement discovery consumes those catalog rules, but the current document and build-program wire contracts serialize every connection edge as `stud-tube`; the referenced ports carry the actual pair. The protocol must grow a versioned pair identity before all ten kinds are represented end to end.
-
-A visible cylinder or cavity does not prove a functional connector. Authored Builder or LDCad fields may supply that claim only through a pinned source and frame, and the claimed insertion volume and backing are checked against independent geometry.
+A visible cylinder or cavity does not prove a functional connector. Builder or LDCad fields may supply that claim only through a pinned source and frame, with insertion volume and backing checked against independent geometry.
 
 ### 4. Collision and physics
 
-Collision is a bounded union of simple primitives suitable for deterministic validation and compound rigid bodies. It must conservatively contain material that exists while leaving functional cavities and connector insertion paths open.
+Collision is a bounded union of simple primitives for deterministic validation and compound rigid bodies. It must contain represented outer material while leaving functional connector paths open.
 
-Parametric features derive collision together with visible geometry where that derivation is justified. Eight measured-only LDraw definitions use column height fields that cover their source surface; the four render-only promotions preserve their earlier parametric collision instead. Both are conservative occupancy approximations that may fill internal voids, not connector truth or proof of physical insertion.
+Parametric features derive collision where that derivation is justified. Eight fully measured mesh definitions use conservative column height fields; sixteen render-only promotions preserve their earlier conservative recipes. Neither mode proves that every visible cavity is physically usable.
 
-Physics derives rigid components and joints from the connection graph, then builds compound bodies and geometric mass properties from the collision layer. Physical mass remains unknown in current inventory metadata; a source default such as Builder's repeated mass value is not accepted as truth.
+Physics derives rigid components and joints from the connection graph, then builds compound bodies and geometric mass properties from collision. Physical mass remains unknown in current inventory metadata; repeated source defaults are not admitted as truth.
 
-## One declaration, checked derivations
+## Declaration and derivation
 
-Repository-authored parts use blueprints so one bounded declaration produces the render recipe, nominal bounds, connector field, collision primitives, legal orientations, search metadata, and part-standard facts.
+Repository-authored blueprints produce render recipes, nominal bounds, connector fields, collision primitives, legal orientations, search metadata, and part-standard facts from one bounded declaration. A feature may emit only the representations it can justify; missing geometry is a failing standard, not an invitation for a silent exception.
 
-The core feature vocabulary includes boxes and plates, stud fields, underside shells and grip structures, slopes, curved profiles, cut corners, rings, bars, pins, axles, clips, and hinges. A feature may emit only the representations it can justify; missing geometry is a failing standard, not an invitation to add a silent exception.
+External meshes deliberately split authority. The generated full-measured path may carry reviewed render, connector, and collision evidence. The render-only path can carry only source closure, visible geometry, normals, bounds, frame, stud witnesses, and attribution; the catalog factory overlays those render fields onto the preceding physical definition and proves the preserved fields unchanged.
 
-External meshes are the deliberate exception to derivation. The generation and test path binds the asset hash and provenance, expands the source closure within strict limits, applies one explicit frame, verifies bounds and orientation, checks connector and collision consistency, and ensures the palette and viewport render the same asset. Those automated checks do not admit a part by themselves: admission remains a reviewed catalog change with source records, visual inspection, migration, and repository gates.
+The bounded generator verifies archive hashes, path and expansion limits, BFC winding, LDrawLoader-equivalent hard edges, frames, bounds, visible stud witnesses, provenance, and reproducible generated bytes. Runtime admission verifies hashes, indices, normals, finite bounds, represented body collision, and resource ceilings. These checks produce evidence; they do not replace reviewed admission.
 
 ## Semantic part standard
 
 A part must draw what it claims.
 
-- A declared stud is visible and occupies its declared connector centre.
+- A declared stud is visible at its declared centre and exact radius.
 - A declared underside clutch has a visible entrance, cavity, walls, and grip geometry from below.
-- Collision does not seal a functional insertion path or omit represented outer material.
-- Visual bounds contain the render without silently rounding a measured extent inward; collision is checked under its declared mesh-derived or preserved-recipe mode rather than assumed to share those bounds.
-- A connector is backed and reachable in its own insertion direction.
-- Chiral identity, legal orientation, and the asset frame agree with the visible hand.
-- Palette preview, scene render, canonical capture, collision, and connection metadata resolve from the same catalog definition.
+- Collision neither omits represented outer material nor silently seals a claimed connector path.
+- Visual bounds contain the render without inward rounding; collision is checked under its declared mesh-derived or preserved-recipe mode.
+- Connector backing, reachability, capacity, and compatibility are independently checked.
+- Chiral identity, legal orientation, and source frame agree with the visible hand.
+- Palette preview, viewport geometry, catalog metadata, and retained admission images resolve the same definition.
 
-`scripts/check-part-standard.mjs` and `packages/catalog/src/part-standard.ts` automate seven present rules: underside geometry is drawn, stud radius is exact, geometry modes and collision are declared, clutch-bearing bodies are hollow, outer bounds contain the body, and stud extent matches its declaration. Connector reachability and compatibility, chirality and frames, render/collision parity, palette parity, and canonical visual inspection remain admission obligations enforced by focused catalog/render/browser tests and review rather than by `parts:check` alone.
+`scripts/check-part-standard.mjs` automates seven current declaration rules: underside geometry, stud radius, declared geometry mode, declared collision, hollow clutch-bearing bodies, body containment, and stud extent. Connector reachability and compatibility, chirality, source frames, render/collision parity, palette parity, and matched visual inspection remain separate test and review obligations.
 
-A new automated exception belongs in the shared rule with evidence and a reason; an individual part is never exempted quietly.
+## Render-only promotions and remaining physical limits
 
-## Current underside gap
+Printed step 4 first exposed the old rendering failure: its underside art shows walls, hollow rings, ribs, and cavities where the candidate drew an almost solid slab. `/12` replaced the four implicated surfaces; `/13` replaced the remaining twelve flat semantic undersides and added source-faithful normals to all 24 mesh assets. All sixteen promotions preserve their preceding physical fields.
 
-The printed panel for step 4 is the first strong underside witness in the retained booklet prefix: it visibly contains perimeter and inner walls, hollow clutch rings, ribs, and cavities where the former render showed an almost solid slab. The four `/12` render-only promotions correct the exact visible surfaces implicated by that panel, but steps 4 and 5 remain provisional until the prefix is rerun, and their preserved conservative collision does not establish that those voids are physically usable.
+The twelve `/13` promotions cover five wedge plates, two arches, three curved slopes, and two cheese slopes. Their measured underside shapes differ enough that one generic plate shell would be wrong:
 
-The following twelve definitions still fail because a semantic tube-seat mode declares clutch seats but draws no underside shell: eleven use `semantic-tube-seat-grid`, while `wedge-plate-3x6-right` uses `semantic-tube-seat-offsets`.
-
-- Wedge plates: `wedge-plate-2x4-left`, `wedge-plate-2x4-right`, `wedge-plate-2x3-left`, `wedge-plate-2x3-right`, and `wedge-plate-3x6-right`.
-- Arches: `arch-1x4` and `arch-1x6`.
-- Curved slopes: `curved-slope-1x2`, `curved-slope-1x3`, and `curved-slope-1x4`.
-- Cheese slopes: `cheese-slope-1x1` and `cheese-slope-2x1`.
-
-Their pinned LDraw closures have already been measured; mirrored hands share the same measurement and are grouped here so the twelve-part count remains explicit.
-
-| Catalog part or mirrored pair | LDraw design | Measured underside |
+| Catalog part or mirrored pair | LDraw design | Durable underside measurement |
 | --- | --- | --- |
-| `wedge-plate-2x4-left` / `right` | `41770a` / `41769a` | 4-LDU cavity; area 1,713 LDU² |
-| `wedge-plate-2x3-left` / `right` | `43723a` / `43722a` | 4-LDU cavity; area 1,246 LDU² |
-| `wedge-plate-3x6-right` | `54383` | 4-LDU cavity; area 3,841 LDU² |
-| `arch-1x4` | `3659` | Cavity 4 LDU from the top; 768 LDU²; 8-LDU end walls |
-| `arch-1x6` | `3455` | Cavity 4 LDU from the top; 1,248 LDU²; 8-LDU end walls |
-| `curved-slope-1x2` | `11477` | Stepped levels 12, 10, 8, and 4 LDU above the bottom |
-| `curved-slope-1x3` | `50950` | Stepped levels 8, 4, and 1 LDU above the bottom |
-| `curved-slope-1x4` | `61678` | Stepped levels 20, 16, 8, 4, and 0.2 LDU above the bottom |
-| `cheese-slope-1x1` | `54200` | 1-LDU recess over most of the underside; 4-LDU, 4-LDU² pocket |
-| `cheese-slope-2x1` | `85984` | 1-LDU recess over most of the underside; 4-LDU, 8-LDU² pocket |
+| `wedge-plate-2x4-left` / `right` | `41770a` / `41769a` | 4-LDU cavity; 1,713 LDU^2 area |
+| `wedge-plate-2x3-left` / `right` | `43723a` / `43722a` | 4-LDU cavity; 1,246 LDU^2 area |
+| `wedge-plate-3x6-right` | `54383` | 4-LDU cavity; 3,841 LDU^2 area |
+| `arch-1x4` | `3659` | Cavity 4 LDU from top; 768 LDU^2; 8-LDU end walls |
+| `arch-1x6` | `3455` | Cavity 4 LDU from top; 1,248 LDU^2; 8-LDU end walls |
+| `curved-slope-1x2` | `11477` | Stepped levels 12, 10, 8, and 4 LDU above bottom |
+| `curved-slope-1x3` | `50950` | Stepped levels 8, 4, and 1 LDU above bottom |
+| `curved-slope-1x4` | `61678` | Stepped levels 20, 16, 8, 4, and 0.2 LDU above bottom |
+| `cheese-slope-1x1` | `54200` | 1-LDU recess over most of underside; 4-LDU, 4-LDU^2 pocket |
+| `cheese-slope-2x1` | `85984` | 1-LDU recess over most of underside; 4-LDU, 8-LDU^2 pocket |
 
-The remaining wedge families need shell rings around an approximately 4-LDU cavity. Arches retain their measured end-wall thickness, curved slopes have stepped undersides, and cheese slopes have a local recess rather than a full plate cavity. A generic plate rule would make all three families wrong in different ways.
+LDraw supplies no female connector authority. The pinned LDCad replay agrees with the preserved clutch centres for only `11477`, `54200`, and `85984`, supplies none for seven designs, and disagrees for `61678` and `54383`. That is why `/13` admits these twelve as render-only changes instead of laundering generated connector or collision values into catalog truth.
 
-All twelve official roots are present in the pinned LDraw sources. A measured render-only projection for the complete tranche expands the generated asset table from 12 to 24 meshes and 321,069 to 450,588 bytes, with total triangles moving 10,492 to 14,919; doing only the six catalog definitions referenced by the set-6651557 coverage saves just 47,170 generated bytes. Those coverage rows account for 42 pieces, beginning with `54383` at printed step 6; the `41769a` and `41770a` rows remain variant outcomes rather than exact design-identity matches.
+The source surfaces and underside checks are now green, but conservative collision remains a known approximation. A visually hollow ring is not automatically an open collision volume, and an exterior packet cannot certify an unexposed interior. Hidden claims are `not-observable` until an interior, cutaway, insertion, or other independent witness exposes them.
 
-That render projection cannot supply connector or collision truth. The pinned LDCad female-seat replay agrees with the current XZ centres only for `11477`, `54200`, and `85984`; supplies no seats for `41770a`, `41769a`, `43723a`, `43722a`, `3659`, `3455`, or `50950`; and disagrees for `61678` and `54383`. The repair must therefore preserve every current connector, allowance, and collision value byte-for-byte unless a separate authored source and review deliberately changes it.
+## Identity, versioning, and sources
 
-All 12 mesh-rendered parts draw their source surfaces. The eight measured-only definitions still use column height-field collision, while the four render-only promotions retain their earlier conservative collision; neither mode proves hollow collision parity because a polygon surface has no intrinsic inside and both approximations may fill voids.
+A `PartDefinition` carries a namespaced catalog ID, LDraw design identifier and aliases, family and searchable name, geometry recipe and content hash, bounds, collision primitives, connectors, legal orientations, colors, substitution grouping, inventory metadata with physical mass currently unset, and source/license/attribution provenance.
 
-The exit is visual and structural: all twelve remaining definitions pass the standard, canonical top, bottom, front, back, left, right, isometric, and underside-oblique captures show every observable surface, collision leaves functional cavities usable, and the real-booklet prefix is rerun before its underside-dependent steps are called verified. A surface not exposed by those views or by a later booklet panel is recorded as `not-observable`, never certified from absent pixels.
+Catalog IDs are semantic identities, not filenames. A changed shape, connector field, collision model, hand, or source frame is changed truth even when its display name stays similar.
 
-## Identity and versioning
+Every catalog-truth change advances `BUILTIN_CATALOG_VERSION`, retains supported prior snapshots in `MIGRATABLE_CATALOG_VERSIONS`, and emits an explicit migration report. Saved documents pin catalog and other truth snapshots and are never silently reinterpreted.
 
-A `PartDefinition` carries a namespaced catalog ID, real LDraw design identifier and aliases, family and searchable name, geometry recipe and content hash, bounds, collision primitives, connectors, legal orientations, available colors, a substitution-group identifier, inventory metadata with physical mass currently unset, and source/license/attribution provenance.
+Repository-authored blueprints own parametric declarations. LDraw owns the admitted render surface, normals, exact bounds, and file-level attribution of 24 mesh-backed parts. Builder and LDCad may own connector evidence only where their exact records, frames, licenses, and independent checks are pinned. Builder collision and repeated mass defaults are not catalog truth.
 
-Catalog IDs are semantic identities, not filenames. A changed shape, connector field, collision model, hand, or source frame is changed truth even when the display name remains similar.
-
-Every admission advances `BUILTIN_CATALOG_VERSION`, adds the previous snapshot to `MIGRATABLE_CATALOG_VERSIONS`, and makes migration produce an explicit report. Saved documents pin their catalog and other truth snapshots and are never silently reinterpreted under `/12` or a later version.
-
-The catalog digest binds every field that can change geometry, placement, connection, validation, migration, or provenance. Cosmetic search text may be excluded only by an explicit canonicalization rule.
-
-## Source ownership
-
-Repository-authored parametric blueprints own their declared geometry. LDraw owns the bundled render surface and exact bounds of the 12 mesh-rendered parts, with file-level authorship preserved. Builder and the LDCad Shadow Library may provide authored connector fields after their exact records, transforms, and licenses are pinned and independently checked; the four render-only promotions instead retain their preceding catalog connector arrays.
-
-Builder collision is not catalog truth: its deliberately inset boxes allow measured material to escape. Builder mass is not catalog truth: many unrelated records carry the same placeholder value. LDraw geometry alone supplies no female functional claim, and LDCad-derived connector positions remain separately attributed under their source terms.
-
-Every source's origin, revision, license, attribution, redistribution and training rights, and allowed role live in the bill of materials. Permission to render geometry never implies permission to train on it.
+Every source's origin, revision, hash, license, attribution, redistribution and training rights, and allowed role live in the bill of materials. Permission to render geometry never implies permission to train on it.
 
 ## Admission checklist
 
-The complete matched-view rule was established during `/12` review, after the four promotions had already been admitted. The tracked tests exercise palette and limited presentation-scene captures, and the devlog retains the printed-step conclusion, but no reproducible source-versus-render packet with image hashes, camera policy, and review outcomes survives for `30503`, `6106`, `30565`, or `80015`. All four packets are explicit review debt; prior visual inspection is not promoted into reproducible evidence by prose alone.
+The reproducible admission workflow is documented in the [part visual-admission runbook](../runbooks/part-visual-admission.md). It keeps the editor's seven-view presentation hook separate from the clean eight-view source-versus-catalog review packet.
 
-Before any catalog-truth version after `/12` may enter, every new or modified part must satisfy all of the following. The twelve current `underside-is-drawn` failures predate the complete standard and remain grandfathered geometry debt; they must be repaired before `parts:check` joins `verify`, and reproducible matched-view packets for all four `/12` promotions must also be closed.
+Before a new or modified part enters catalog truth:
 
-1. Its stable catalog identity, family, real design identifier, hand, aliases, and searchable name are settled.
-2. Every source file, closure, revision, content hash, license, attribution, and allowed role is recorded.
-3. One catalog frame aligns visible geometry, exact or conservative bounds, connector centres, collision, and legal orientations.
-4. The part standard passes, including matched top, bottom, front, back, left, right, isometric, and underside-oblique visual inspection; unexposed internal or hidden surfaces are named `not-observable` rather than inferred from silence.
-5. Connector claims have an authored or repository-owned basis and pass insertion, backing, capacity, compatibility, and geometry checks.
-6. Collision contains outer material, preserves functional voids, and stays within primitive and resource limits.
-7. Palette search and preview expose the exact geometry the editor places.
-8. Catalog version, migratable versions, migration report, schema fixtures, notices, and bill of materials are updated.
-9. Focused catalog, renderer, migration, LDraw, and browser tests pass, followed by the authoritative gates; these checks support but do not replace reviewed admission.
+1. Settle stable identity, family, design ID, hand, aliases, and search name.
+2. Record every source closure, revision, hash, license, attribution, and allowed role.
+3. Prove one catalog frame aligns visible geometry, bounds, connectors, collision, and legal orientations.
+4. Pass the automated part standard and matched top, bottom, front, back, left, right, isometric, and underside-oblique review; add interior or cutaway views where the exterior cannot expose a relevant cavity.
+5. Establish connector claims from an authored or repository-owned basis and test insertion, backing, capacity, and compatibility.
+6. Review collision separately for represented material, functional voids, and resource limits.
+7. Verify palette search/preview and production viewport resolve the admitted geometry.
+8. Update catalog migration, schema fixtures, notices, bill of materials, and durable review conclusions.
+9. Run focused catalog, renderer, migration, generator, and browser checks followed by `npm run verify`.
 
-Missing parts remain work items. A booklet step is never completed by substituting a visually similar design, dropping a piece, mirroring a hand, or weakening a hard check.
+Packet generation always leaves review outcomes pending. A separate immutable sidecar binds the packet and both image hashes for each ordered view; only an explicit `same`, `different`, or `not-observable` review closes that evidence. Tests and image metrics support this decision but cannot make it automatically. The completed `/13` sidecars follow this boundary; their all-`same` result is explicitly limited to surfaces visible in the eight retained views.
+
+Missing parts remain work items. A booklet step is never completed by substituting a similar design, dropping a piece, mirroring a hand, or weakening a hard check.

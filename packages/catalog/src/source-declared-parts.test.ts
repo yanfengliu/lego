@@ -26,7 +26,10 @@ import { SET_6651557_MESH_ASSETS } from "./mesh-assets-6651557.ts";
  * 1 LDU, and the connector counts from an authored female-connector source
  * carried through the per-part frame — LEGO Builder's field for the five it has
  * a record for, the LDCad shadow library's snap metas for the three it does not.
- * A change here is a change to a measurement, not a refactor.
+ * Vertex counts include coincident rows split across source-authored normal
+ * islands, so they pin the exact render representation rather than only unique
+ * positions. A change here is a change to measured render or physical evidence,
+ * not a refactor.
  */
 const ADMITTED = [
   {
@@ -45,7 +48,7 @@ const ADMITTED = [
     clutches: 1,
     bodyBoxes: 44,
     triangles: 84,
-    vertices: 48,
+    vertices: 132,
     closureFiles: 7,
   },
   {
@@ -64,7 +67,7 @@ const ADMITTED = [
     clutches: 2,
     bodyBoxes: 72,
     triangles: 604,
-    vertices: 309,
+    vertices: 525,
     closureFiles: 16,
   },
   {
@@ -83,7 +86,7 @@ const ADMITTED = [
     clutches: 4,
     bodyBoxes: 115,
     triangles: 424,
-    vertices: 266,
+    vertices: 482,
     closureFiles: 20,
   },
   {
@@ -102,7 +105,7 @@ const ADMITTED = [
     clutches: 5,
     bodyBoxes: 50,
     triangles: 485,
-    vertices: 334,
+    vertices: 530,
     closureFiles: 11,
   },
   {
@@ -121,7 +124,7 @@ const ADMITTED = [
     clutches: 4,
     bodyBoxes: 275,
     triangles: 328,
-    vertices: 207,
+    vertices: 427,
     closureFiles: 21,
   },
   // builtin.basic-parts/8. LEGO Builder's 107-record pack has no record of any
@@ -145,7 +148,7 @@ const ADMITTED = [
     clutches: 8,
     bodyBoxes: 157,
     triangles: 904,
-    vertices: 598,
+    vertices: 946,
     closureFiles: 27,
   },
   {
@@ -164,7 +167,7 @@ const ADMITTED = [
     clutches: 6,
     bodyBoxes: 168,
     triangles: 650,
-    vertices: 452,
+    vertices: 712,
     closureFiles: 15,
   },
   {
@@ -183,7 +186,7 @@ const ADMITTED = [
     clutches: 2,
     bodyBoxes: 53,
     triangles: 302,
-    vertices: 199,
+    vertices: 354,
     closureFiles: 24,
   },
 ] as const;
@@ -350,7 +353,7 @@ describe("set 6651557 parts declared from measured source", () => {
     expect(BUNDLED_LDRAW_ARCHIVE.sha256).toBe(
       "sha256:6009f2e94204c4d3a63a4c812010b5c90bad8c5acb19b882c859fdac63734eae",
     );
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(118);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(163);
     for (const file of BUNDLED_LDRAW_SOURCE_FILES) {
       expect(file.author.trim().length).toBeGreaterThan(0);
       expect(file.title.trim().length).toBeGreaterThan(0);
@@ -365,9 +368,9 @@ describe("set 6651557 parts declared from measured source", () => {
       BUNDLED_LDRAW_SOURCE_FILES.filter(
         ({ licenseExpression }) => licenseExpression === "CC-BY-4.0",
       ),
-    ).toHaveLength(117);
-    // 25 named authors across 118 files: attribution is per file, never flattened.
-    expect(new Set(BUNDLED_LDRAW_SOURCE_FILES.map(({ author }) => author)).size).toBe(25);
+    ).toHaveLength(162);
+    // 27 named authors across 163 files: attribution is retained per file, never flattened.
+    expect(new Set(BUNDLED_LDRAW_SOURCE_FILES.map(({ author }) => author)).size).toBe(27);
 
     for (const expected of ADMITTED) {
       const closure = BUNDLED_LDRAW_CLOSURES[expected.ldrawId.replace(".dat", "")]!;

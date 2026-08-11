@@ -70,6 +70,90 @@ function legacyDocument(overrides: Partial<BrickDocumentV1> = {}): BrickDocument
   };
 }
 
+const VERSION_13_INTERPRETATION_CHANGES = [
+  {
+    fromCatalogVersion: "builtin.basic-parts/12",
+    toCatalogVersion: "builtin.basic-parts/13",
+    affectedCatalogPartIds: [
+      "builtin:wedge-plate-2x4-left",
+      "builtin:wedge-plate-2x4-right",
+      "builtin:wedge-plate-2x3-left",
+      "builtin:wedge-plate-2x3-right",
+      "builtin:arch-1x4",
+      "builtin:arch-1x6",
+      "builtin:curved-slope-1x2",
+      "builtin:curved-slope-1x3",
+      "builtin:curved-slope-1x4",
+      "builtin:cheese-slope-1x1",
+      "builtin:cheese-slope-2x1",
+      "builtin:wedge-plate-4x4-cut-corner",
+      "builtin:wedge-plate-6x6-cut-corner",
+      "builtin:wedge-plate-3x6-right",
+      "builtin:corner-plate-4x4-round",
+      "builtin:corner-plate-5x5-quarter-ring",
+      "builtin:tile-1x2-cut-right-45",
+      "builtin:plate-1x2-round-end",
+      "builtin:wedge-plate-2x4-wing",
+      "builtin:corner-plate-3x3",
+      "builtin:curved-slope-1x4-double",
+      "builtin:plate-3x3-corner-round",
+      "builtin:wedge-plate-3x3-cut-corner",
+      "builtin:corner-plate-2x2-round",
+    ],
+    changedFields: ["surface-normals"],
+  },
+  {
+    fromCatalogVersion: "builtin.basic-parts/12",
+    toCatalogVersion: "builtin.basic-parts/13",
+    affectedCatalogPartIds: [
+      "builtin:wedge-plate-2x4-left",
+      "builtin:wedge-plate-2x4-right",
+      "builtin:wedge-plate-2x3-left",
+      "builtin:wedge-plate-2x3-right",
+      "builtin:arch-1x4",
+      "builtin:arch-1x6",
+      "builtin:curved-slope-1x2",
+      "builtin:curved-slope-1x3",
+      "builtin:curved-slope-1x4",
+      "builtin:cheese-slope-1x1",
+      "builtin:cheese-slope-2x1",
+      "builtin:wedge-plate-4x4-cut-corner",
+      "builtin:wedge-plate-6x6-cut-corner",
+      "builtin:wedge-plate-3x6-right",
+      "builtin:corner-plate-4x4-round",
+      "builtin:corner-plate-5x5-quarter-ring",
+      "builtin:tile-1x2-cut-right-45",
+      "builtin:plate-1x2-round-end",
+      "builtin:wedge-plate-2x4-wing",
+      "builtin:corner-plate-3x3",
+      "builtin:curved-slope-1x4-double",
+      "builtin:plate-3x3-corner-round",
+      "builtin:wedge-plate-3x3-cut-corner",
+      "builtin:corner-plate-2x2-round",
+    ],
+    changedFields: ["render-geometry"],
+  },
+  {
+    fromCatalogVersion: "builtin.basic-parts/12",
+    toCatalogVersion: "builtin.basic-parts/13",
+    affectedCatalogPartIds: [
+      "builtin:wedge-plate-2x4-left",
+      "builtin:wedge-plate-2x4-right",
+      "builtin:wedge-plate-2x3-left",
+      "builtin:wedge-plate-2x3-right",
+      "builtin:wedge-plate-3x6-right",
+      "builtin:arch-1x4",
+      "builtin:arch-1x6",
+      "builtin:curved-slope-1x2",
+      "builtin:curved-slope-1x3",
+      "builtin:curved-slope-1x4",
+      "builtin:cheese-slope-1x1",
+      "builtin:cheese-slope-2x1",
+    ],
+    changedFields: ["body-bounds", "visual-bounds"],
+  },
+] as const;
+
 describe("migrateDocumentTruth", () => {
   it.each([
     [
@@ -112,6 +196,11 @@ describe("migrateDocumentTruth", () => {
       "bd46506950385df6e4be0f82385f910616e11675",
       "sha256:6b784ce4259131b1ed637815b78bbf14a0bd2e92627ce2a8f4d09c3504465c43",
     ],
+    [
+      "builtin.basic-parts/12",
+      "e70346d7ec2c75a206a436e8c9cc233e1ca2de37",
+      "sha256:cdfeae99ea405770f35f83173eec10804078346d257c5e56006707639313ae8e",
+    ],
   ])("pins reviewed %s truth from commit %s", (catalogVersion, sourceCommit, truthHash) => {
     expect(
       REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS.find(
@@ -122,13 +211,13 @@ describe("migrateDocumentTruth", () => {
   });
 
   it("admits no historical truth snapshots beyond the reviewed table", () => {
-    expect(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS).toHaveLength(13);
+    expect(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS).toHaveLength(14);
     expect(
       new Set(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS.map(({ sourceCommit }) => sourceCommit)).size,
-    ).toBe(13);
+    ).toBe(14);
     expect(
       new Set(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS.map(({ truthHash }) => truthHash)).size,
-    ).toBe(13);
+    ).toBe(14);
   });
 
   it("pins the legacy fixture to a reviewed historical truth snapshot", () => {
@@ -215,8 +304,41 @@ describe("migrateDocumentTruth", () => {
         ],
         changedFields: ["render-geometry", "visual-bounds"],
       },
+      ...VERSION_13_INTERPRETATION_CHANGES,
     ]);
     expect(document.parts).toEqual(savedAtEleven.parts);
+  });
+
+  it("reports 24 normal and geometry plus 12 bounds reinterpretations at /13", () => {
+    const current = createEmptyBrickDocument({ id: "twelve", name: "Saved at /12" });
+    const part = createPartInstance({
+      id: "three-by-six-right",
+      catalogPartId: "builtin:wedge-plate-3x6-right",
+    });
+    const savedAtTwelve: BrickDocumentV1 = {
+      ...current,
+      truth: {
+        ...current.truth,
+        catalog: {
+          ...current.truth.catalog,
+          version: "builtin.basic-parts/12",
+          hash: "sha256:7a058d34855c49d1b46317e0fff51117c36aa92051ba57449465e506fb6986f5",
+        },
+      },
+      parts: [part],
+      submodels: [{ ...current.submodels[0]!, partIds: [part.id] }],
+      steps: [{ ...current.steps[0]!, partIds: [part.id] }],
+    };
+
+    expect(canonicalDigest(savedAtTwelve.truth)).toBe(
+      "sha256:cdfeae99ea405770f35f83173eec10804078346d257c5e56006707639313ae8e",
+    );
+    const { document, report } = migrateDocumentTruth(savedAtTwelve);
+
+    expect(report.migrated).toBe(true);
+    expect(report.addedCatalogPartIds).toEqual([]);
+    expect(report.catalogInterpretationChanges).toEqual(VERSION_13_INTERPRETATION_CHANGES);
+    expect(document.parts).toEqual(savedAtTwelve.parts);
   });
 
   it("carries a /6 document forward and names the five parts it gained", () => {

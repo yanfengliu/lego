@@ -24,6 +24,7 @@ import type {
 } from "./types.ts";
 
 export const MESH_VISUAL_BOUNDS_TOLERANCE_LDU = MESH_RENDER_QUANTIZATION_TOLERANCE_LDU;
+const MAX_STUDLESS_NOMINAL_TOP_CHAMFER_LDU = 0.5;
 
 export type MeshPartAdmissionIssueCode =
   | "MESH_ADMISSION_NOT_MESH"
@@ -480,19 +481,28 @@ export function validateMeshPartDefinitionAdmission(
   }
 
   // Placement rests a part's underside from heightLdu, so the underside plane
-  // is exact. The measured top may stand proud of the nominal plane — 93273's
-  // curve peaks 0.00016098 LDU above two plates — but never short of it, which
-  // would mean the declared lattice height overstates the part.
+  // is exact. A part with a male top connector must also reach the nominal top
+  // plane: otherwise the connector floats above the body. A studless slope may
+  // end just inside it because a real chamfer removes the nominal corner — the
+  // official 54200 and 85984 surfaces reach 15.6 of their nominal 16 LDU. Its
+  // tight mesh bounds, not an invented cap, remain the visible truth. This is
+  // a measured half-LDU exception, not permission for nominal height to float.
+  const hasTopStud = definition.connectors.some(({ kind }) => kind === "stud");
+  const nominalTopY = -dimensions.heightLdu / 2;
+  const topEndsTooFarInside =
+    dimensionsValid &&
+    bodyBoundsValid &&
+    definition.bodyBoundsLdu.min[1] >
+      nominalTopY + (hasTopStud ? 0 : MAX_STUDLESS_NOMINAL_TOP_CHAMFER_LDU);
   if (
     dimensionsValid &&
     bodyBoundsValid &&
-    (definition.bodyBoundsLdu.min[1] > -dimensions.heightLdu / 2 ||
-      definition.bodyBoundsLdu.max[1] !== dimensions.heightLdu / 2)
+    (topEndsTooFarInside || definition.bodyBoundsLdu.max[1] !== dimensions.heightLdu / 2)
   ) {
     add(
       "MESH_ADMISSION_VERTICAL_EXTENTS_INVALID",
       "/bodyBoundsLdu",
-      `Part ${definition.id} body vertical bounds are [${definition.bodyBoundsLdu.min[1]}, ${definition.bodyBoundsLdu.max[1]}]; heightLdu ${dimensions.heightLdu} requires the underside at exactly ${dimensions.heightLdu / 2} so placement can rest it there, and a top at ${-dimensions.heightLdu / 2} or above it, never inside.`,
+      `Part ${definition.id} body vertical bounds are [${definition.bodyBoundsLdu.min[1]}, ${definition.bodyBoundsLdu.max[1]}]; heightLdu ${dimensions.heightLdu} requires the underside at exactly ${dimensions.heightLdu / 2} so placement can rest it there${hasTopStud ? `, and its male stud needs body material at ${nominalTopY} or above it` : `; a studless chamfer may end at most ${MAX_STUDLESS_NOMINAL_TOP_CHAMFER_LDU} LDU inside the nominal top plane ${nominalTopY}`}.`,
     );
   }
 

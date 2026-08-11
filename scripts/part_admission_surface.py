@@ -28,6 +28,8 @@ class MeasuredSurface:
     design_id: str
     triangles: tuple[Triangle, ...]
     roles: tuple[str, ...]
+    # One source-faithful asset-local unit normal for every triangle corner.
+    corner_normals: tuple[Triangle, ...] | None = None
 
     def __post_init__(self) -> None:
         if len(self.triangles) != len(self.roles):
@@ -37,6 +39,11 @@ class MeasuredSurface:
             )
         if not self.triangles:
             raise ValueError(f"Measured surface {self.design_id} has no triangles to measure.")
+        if self.corner_normals is not None and len(self.corner_normals) != len(self.triangles):
+            raise ValueError(
+                f"Measured surface {self.design_id} has {len(self.triangles)} triangles and "
+                f"{len(self.corner_normals)} corner-normal rows; every triangle needs one row."
+            )
 
     def by_role(self, role: str) -> tuple[Triangle, ...]:
         return tuple(

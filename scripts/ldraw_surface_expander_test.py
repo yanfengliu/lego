@@ -9,6 +9,7 @@ from ldraw_surface_expander import (
     expand_surface,
 )
 from ldraw_source_archive import LDrawSourceLibrary
+from measured_part_tables import require_front_side_surface
 
 
 class FakeLibrary:
@@ -149,6 +150,41 @@ class LDrawSurfaceExpanderTests(unittest.TestCase):
         self.assertEqual(triangles[1].points, ((0.0, 0.0, 0.0), (1.0, 1.0, 0.0), (0.0, 1.0, 0.0)))
         self.assertFalse(triangles[0].cull_enabled)
         self.assertFalse(triangles[1].cull_enabled)
+
+    def test_bare_bfc_ccw_does_not_certify_front_side_geometry(self) -> None:
+        library = FakeLibrary(
+            {
+                ("official", "parts/root.dat"): (
+                    "0 root\n0 BFC CCW\n3 16 0 0 0 1 0 0 0 1 0"
+                )
+            }
+        )
+
+        triangles = expand_surface(library, ("official", "parts/root.dat"), lambda _: "body")
+
+        self.assertEqual(len(triangles), 1)
+        self.assertFalse(triangles[0].certified)
+        self.assertFalse(triangles[0].cull_enabled)
+        with self.assertRaisesRegex(ValueError, "BFC NOCERTIFY"):
+            require_front_side_surface("bare-ccw", triangles)
+
+    def test_reversed_nonplanar_quad_uses_ldraw_loaders_p3_p1_surface_diagonal(self) -> None:
+        points = ((0.0, 0.0, 0.0), (2.0, 0.0, 0.0), (2.0, 2.0, 0.07), (0.0, 2.0, 0.0))
+        quad = "4 16 " + " ".join(str(value) for point in points for value in point)
+        library = FakeLibrary(
+            {
+                ("official", "parts/root.dat"): "\n".join(
+                    ("0 root", "0 BFC CERTIFY CW", quad)
+                )
+            }
+        )
+
+        triangles = expand_surface(library, ("official", "parts/root.dat"), lambda _: "body")
+
+        self.assertEqual(triangles[0].points, (points[3], points[2], points[1]))
+        self.assertEqual(triangles[1].points, (points[3], points[1], points[0]))
+        self.assertEqual(triangles[0].corner_normals[0], triangles[1].corner_normals[0])
+        self.assertEqual(triangles[0].corner_normals[2], triangles[1].corner_normals[1])
 
     def test_stud_role_is_inherited_by_primitive_descendants(self) -> None:
         library = FakeLibrary(

@@ -28,1098 +28,388 @@ export interface BundledLdrawSourceFile {
   readonly licenseExpression: string;
 }
 
-/** Every file in the 12 bundled closures, deduplicated and path-ordered. */
+/** Every file in the 24 bundled closures, deduplicated and path-ordered. */
 export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Object.freeze([
-  {
-    path: "p/1-16chrd.dat",
-    bytes: 701,
-    sha256: "sha256:e429dd760eb6f0cf460a74e6ebf52c023bedbdea82de7801efa1694b5a1a82e8",
-    title: "Chord 0.0625",
-    author: "Philippe Hurbain [Philo]",
-    ldrawOrg: "Primitive UPDATE 2015-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/1-16cyli.dat",
-    bytes: 693,
-    sha256: "sha256:b60f031d9dfd0995c1741992a5695ee3789419886e8189dead961d05f75f7bfc",
-    title: "Cylinder 0.0625",
-    author: "Marc Klein [marckl]",
-    ldrawOrg: "Primitive UPDATE 2005-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/1-16cylo.dat",
-    bytes: 394,
-    sha256: "sha256:6cef884c4f96ec15f5bd1428264af2efba4443cb1e47ead116a8a094febefc67",
-    title: "Cylinder Open 0.0625",
-    author: "Max Martin Richter [MMR1988]",
-    ldrawOrg: "Primitive UPDATE 2014-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/1-16edge.dat",
-    bytes: 506,
-    sha256: "sha256:42fc4d69af1281b71cb2eb9546e99e8bca2fc231d05a0379e71d4e1c9a60c95c",
-    title: "Circle 0.0625",
-    author: "Marc Klein [marckl]",
-    ldrawOrg: "Primitive UPDATE 2017-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/1-16ring3.dat",
-    bytes: 419,
-    sha256: "sha256:fc42cc8def33dca0ba2bf372688e5c373d54783041e693ec6ed79da5974e48b7",
-    title: "Ring  3 x 0.0625",
-    author: "Steve Bliss [sbliss]",
-    ldrawOrg: "Primitive UPDATE 2024-02",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/1-16stud4.dat",
-    bytes: 520,
-    sha256: "sha256:2a95318eb2a3737f259e904565d39aff1c9bdeedaf1774c9548fe463fefea01b",
-    title: "Stud Tube Open 0.0625",
-    author: "Massimo Maso [Sirio]",
-    ldrawOrg: "Primitive UPDATE 2024-02",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/1-4chrd.dat",
-    bytes: 743,
-    sha256: "sha256:ccba3a97b5cc358754e476b78b4ce61cce5f404cd15e37471b73df3e81784aec",
-    title: "Chord 0.25",
-    author: "Max Martin Richter [MMR1988]",
-    ldrawOrg: "Primitive UPDATE 2023-05",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/1-4cyli.dat",
-    bytes: 1044,
-    sha256: "sha256:5a7168952a5a3570327873b9a5802fa7b3be40967ab78c03b6a2bfd4419a1f10",
-    title: "Cylinder 0.25",
-    author: "James Jessiman",
-    ldrawOrg: "Primitive UPDATE 2012-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/1-4cylo.dat",
-    bytes: 388,
-    sha256: "sha256:792a01362608c3f385dd7f01a1bd7d19cf9ed8a40f793266345cc86d1d98f3af",
-    title: "Cylinder Open 0.25",
-    author: "Max Martin Richter [MMR1988]",
-    ldrawOrg: "Primitive UPDATE 2010-03",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/1-4cyls2.dat",
-    bytes: 1189,
-    sha256: "sha256:77a3bf3859fa972a5d047721ef18603694f1a6f83543f955240990be9c9ee9bd",
-    title: "Cylinder Sloped 0.25 Convex",
-    author: "Chris Dee [cwdee]",
-    ldrawOrg: "Primitive UPDATE 2012-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/1-4edge.dat",
-    bytes: 545,
-    sha256: "sha256:9ce2de7e67bbac575d52cfdc771b9d00856efc9b88002d97db8e665e50f4d467",
-    title: "Circle 0.25",
-    author: "James Jessiman",
-    ldrawOrg: "Primitive UPDATE 2017-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/1-4ndis.dat",
-    bytes: 692,
-    sha256: "sha256:ff6685838636e7ab6152356d8f09e4f00a38af0d878b0881423f5c45fb868f0c",
-    title: "Disc Negative 0.25",
-    author: "James Jessiman",
-    ldrawOrg: "Primitive UPDATE 2012-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/1-4ring3.dat",
-    bytes: 1198,
-    sha256: "sha256:4048b121d53509363cfaa7422648dd29b2eeb93074279feb0bcc7a45bbb7c2e1",
-    title: "Ring  3 x 0.25",
-    author: "Willy Tschager [Holly-Wood]",
-    ldrawOrg: "Primitive UPDATE 2024-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/1-4stud4.dat",
-    bytes: 404,
-    sha256: "sha256:cc27fe29307676a8f46d25ad35304ce2e576f3c8bee81c20cb461c401512b58e",
-    title: "Stud Tube Open 0.25",
-    author: "Massimo Maso [Sirio]",
-    ldrawOrg: "Primitive UPDATE 2019-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/1-8chrd.dat",
-    bytes: 561,
-    sha256: "sha256:7694157b725563188a6efd69b3f558b00533b375b8a4e82f469497a03e471e74",
-    title: "Chord 0.125",
-    author: "Orion Pobursky [OrionP]",
-    ldrawOrg: "Primitive UPDATE 2023-05",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/1-8cyli.dat",
-    bytes: 806,
-    sha256: "sha256:46def63dc8293ad9a2dd1d1a5cb720b9ba883850e65d3280d2093c664a6140c4",
-    title: "Cylinder 0.125",
-    author: "James Jessiman",
-    ldrawOrg: "Primitive UPDATE 2005-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/1-8cylo.dat",
-    bytes: 381,
-    sha256: "sha256:870bbbf6052e075598de7dce7efe7a139ea5189820e7a296442fe2b3318c18bf",
-    title: "Cylinder Open 0.125",
-    author: "Tim Gould [timgould]",
-    ldrawOrg: "Primitive UPDATE 2012-03",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/1-8edge.dat",
-    bytes: 480,
-    sha256: "sha256:50436a0bce461198c342dccbccb658a1bffae13e44b7c48689b158c946c2c2ab",
-    title: "Circle 0.125",
-    author: "James Jessiman",
-    ldrawOrg: "Primitive UPDATE 2017-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/1-8ndis.dat",
-    bytes: 615,
-    sha256: "sha256:97e394834789794c8635261fa604ad8e69b4c6872d0cd8d7506408b80023f408",
-    title: "Disc Negative 0.125",
-    author: "James Jessiman",
-    ldrawOrg: "Primitive UPDATE 2012-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/1-8ring3.dat",
-    bytes: 610,
-    sha256: "sha256:641f3ae7395e7d38e57ab918928ac19209ed72e8474fd1646e2d70f223c4a0ce",
-    title: "Ring  3 x 0.125",
-    author: "Paul Easter [pneaster]",
-    ldrawOrg: "Primitive UPDATE 2012-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/1-8stud4.dat",
-    bytes: 405,
-    sha256: "sha256:9395515b1e38008dab61d9a971d9564e36ea6fbe4a32a244c789e8e5a2a58f6d",
-    title: "Stud Tube Open 0.125",
-    author: "Massimo Maso [Sirio]",
-    ldrawOrg: "Primitive UPDATE 2019-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/1-8tndis.dat",
-    bytes: 346,
-    sha256: "sha256:5e3bd48d2e7565fc97a8936255339d9682897b43a38f69da43571f42a4a2248e",
-    title: "Disc Negative Truncated 0.125",
-    author: "Massimo Maso [Sirio]",
-    ldrawOrg: "Primitive UPDATE 2022-02",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/2-4chrd.dat",
-    bytes: 490,
-    sha256: "sha256:3b0dfcf2cb881fae0acfe1e53b703104768878636477e540d0c893fc3fd87f8f",
-    title: "Chord 0.5",
-    author: "Philippe Hurbain [Philo]",
-    ldrawOrg: "Primitive UPDATE 2014-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/2-4cyli.dat",
-    bytes: 1543,
-    sha256: "sha256:d486780f0f84893899d9eadcd13150f13a42e15e77a3cda38cdf24ded98862c6",
-    title: "Cylinder 0.5",
-    author: "James Jessiman",
-    ldrawOrg: "Primitive UPDATE 2005-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/2-4cylo.dat",
-    bytes: 387,
-    sha256: "sha256:4fa9f597d775c7f15e3fc66f60e20d914134d13004b485488b7dbff684776232",
-    title: "Cylinder Open 0.5",
-    author: "Max Martin Richter [MMR1988]",
-    ldrawOrg: "Primitive UPDATE 2010-03",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/2-4edge.dat",
-    bytes: 683,
-    sha256: "sha256:665400f76566b161c28303cdadce40d17d979a8ff9a8a133675af2d17fbe6763",
-    title: "Circle 0.5",
-    author: "James Jessiman",
-    ldrawOrg: "Primitive UPDATE 2017-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/2-4ndis.dat",
-    bytes: 874,
-    sha256: "sha256:7557eae598be3f530b840471535198e6b07b03486ffbcc18a00e862c3d25d925",
-    title: "Disc Negative 0.5",
-    author: "James Jessiman",
-    ldrawOrg: "Primitive UPDATE 2012-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/2-4ring2.dat",
-    bytes: 977,
-    sha256: "sha256:dc1748fff34bb0cae3ba1d480921c2f73de4ea1d0532799356b2014a28c8f393",
-    title: "Ring  2 x 0.5",
-    author: "Chris Dee [cwdee]",
-    ldrawOrg: "Primitive UPDATE 2012-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/2-4ring3.dat",
-    bytes: 1159,
-    sha256: "sha256:045613f5bb90e0c283211b1fa261cc66f8ee8ab968dc9763222e7e592cbf83fc",
-    title: "Ring  3 x 0.5",
-    author: "James Jessiman",
-    ldrawOrg: "Primitive UPDATE 2012-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/2-4ring4.dat",
-    bytes: 1090,
-    sha256: "sha256:55bd36c735c720ee8160709a3b6a3a02d828ec12ef56bcbbaf2eafa066de99b6",
-    title: "Ring  4 x 0.5",
-    author: "Paul Easter [pneaster]",
-    ldrawOrg: "Primitive UPDATE 2012-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/3-16chrd.dat",
-    bytes: 317,
-    sha256: "sha256:2bb493e8b5b56a5d63bfa7356a0ed5d6403a68e5e9a983e13a57541783ad19c1",
-    title: "Chord 0.1875",
-    author: "Niels Karsdorp [nielsk]",
-    ldrawOrg: "Primitive UPDATE 2009-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/3-16cyli.dat",
-    bytes: 942,
-    sha256: "sha256:f50d12a37a22ae4a5f37a017b8e39d1e729577b0a4aa376ca685b210806b49c8",
-    title: "Cylinder 0.1875",
-    author: "Mark Kennedy [mkennedy]",
-    ldrawOrg: "Primitive UPDATE 2005-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/3-16cylo.dat",
-    bytes: 386,
-    sha256: "sha256:a5c8370842299035a9cc14308301614c6fb169fb873a7950c888928cd8d9181c",
-    title: "Cylinder Open 0.1875",
-    author: "J.C. Tchang [tchang]",
-    ldrawOrg: "Primitive UPDATE 2013-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/3-16edge.dat",
-    bytes: 586,
-    sha256: "sha256:c08dd83bb7fe90b61f7cd0b10ebef0d9a9ba33b497676dedd2e2e968cb8248f9",
-    title: "Circle 0.1875",
-    author: "Donald Sutter [technog]",
-    ldrawOrg: "Primitive UPDATE 2017-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/3-16ring3.dat",
-    bytes: 580,
-    sha256: "sha256:3e0d8f9325ef96db0fa0a471240f810181a235736554c040a303f20d03294136",
-    title: "Ring  3 x 0.1875",
-    author: "Philippe Hurbain [Philo]",
-    ldrawOrg: "Primitive UPDATE 2024-02",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/3-16stud4.dat",
-    bytes: 520,
-    sha256: "sha256:6dd3e7068ef5fe4ab07ae85e51eabfacef0886cdf0f38941618e5c36fa03e198",
-    title: "Stud Tube Open 0.1875",
-    author: "Massimo Maso [Sirio]",
-    ldrawOrg: "Primitive UPDATE 2024-02",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/3-16tndis.dat",
-    bytes: 392,
-    sha256: "sha256:013e74f7eb727ad92396676544e09a80994a05200ba3a2c3ec1e6597b90bf892",
-    title: "Disc Negative Truncated 0.1875",
-    author: "Massimo Maso [Sirio]",
-    ldrawOrg: "Primitive UPDATE 2022-02",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/4-4cyli.dat",
-    bytes: 2687,
-    sha256: "sha256:4a742c2765b6ebf98245baaf8a160a4ff587fc93d36c8ee2b9074712a2f968c4",
-    title: "Cylinder 1.0",
-    author: "James Jessiman",
-    ldrawOrg: "Primitive UPDATE 2005-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/4-4disc.dat",
-    bytes: 1137,
-    sha256: "sha256:a00b5547776f61a7389d303616987c76b3c4de86ad8ec32f22857e1bd5e5e40f",
-    title: "Disc 1.0",
-    author: "James Jessiman",
-    ldrawOrg: "Primitive UPDATE 2002-02",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/4-4edge.dat",
-    bytes: 1084,
-    sha256: "sha256:54a52196e421fd1717d291ff52ea57553b1fb238907c1678cc1f1a84c698b1da",
-    title: "Circle 1.0",
-    author: "James Jessiman",
-    ldrawOrg: "Primitive UPDATE 2017-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/4-4ring2.dat",
-    bytes: 1628,
-    sha256: "sha256:6fb38804b1f5e9bee8c0b80caf1397b09454fc58b048dc19045b6f37c8762ab0",
-    title: "Ring  2 x 1.0",
-    author: "James Jessiman",
-    ldrawOrg: "Primitive UPDATE 2009-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/4-4ring3.dat",
-    bytes: 1628,
-    sha256: "sha256:1f2835ac308154edc2d6f479d8e742a55be981f6167b20bfa100c195bc0731dd",
-    title: "Ring  3 x 1.0",
-    author: "James Jessiman",
-    ldrawOrg: "Primitive UPDATE 2009-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/48/1-12chrd.dat",
-    bytes: 539,
-    sha256: "sha256:fe2a0252d971dc65126755c4fdb7db900e229dfdce712b42ce9510c7b0390e26",
-    title: "Hi-Res Chord 0.0833",
-    author: "Willy Tschager [Holly-Wood]",
-    ldrawOrg: "48_Primitive UPDATE 2024-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/48/1-12cyli.dat",
-    bytes: 1027,
-    sha256: "sha256:a645a42a5ed912a059a9336ab1449d02efd067008f034549cc8c5ae488159fd3",
-    title: "Hi-Res Cylinder 0.0833",
-    author: "Willy Tschager [Holly-Wood]",
-    ldrawOrg: "48_Primitive UPDATE 2024-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/48/1-12cylo.dat",
-    bytes: 416,
-    sha256: "sha256:aba0697449741a95889cb0faf8d6231777086ebed8ee1956ac304bd32b208c6a",
-    title: "Hi-Res Cylinder Open 0.0833",
-    author: "Max Martin Richter [MMR1988]",
-    ldrawOrg: "48_Primitive UPDATE 2013-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/48/1-12edge.dat",
-    bytes: 584,
-    sha256: "sha256:c1320fa098058f1bb4bb73a4bd02a9533bdcc4f22ac4a0f0a1dcd5cdf85deaed",
-    title: "Hi-Res Circle 0.0833",
-    author: "Willy Tschager [Holly-Wood]",
-    ldrawOrg: "48_Primitive UPDATE 2024-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/48/1-16cyli.dat",
-    bytes: 908,
-    sha256: "sha256:b6fb5e76f958a18c4cc88866d5e6a0502b62d3abda1a72450663b82502645330",
-    title: "Hi-Res Cylinder 0.0625",
-    author: "Willy Tschager [Holly-Wood]",
-    ldrawOrg: "48_Primitive UPDATE 2024-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/48/1-16cylo.dat",
-    bytes: 416,
-    sha256: "sha256:94929f851cefec060fcf3222213a1f9743f9b6549a9e7bbcf471482dc546a827",
-    title: "Hi-Res Cylinder Open 0.0625",
-    author: "Max Martin Richter [MMR1988]",
-    ldrawOrg: "48_Primitive UPDATE 2013-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/48/1-16edge.dat",
-    bytes: 550,
-    sha256: "sha256:9b3b4df68d3c0d68fd3e5c52346871867043f67522e53aaa21991562c89bdc10",
-    title: "Hi-Res Circle 0.0625",
-    author: "Willy Tschager [Holly-Wood]",
-    ldrawOrg: "48_Primitive UPDATE 2024-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/48/1-16tang.dat",
-    bytes: 410,
-    sha256: "sha256:3e11a94e893a58effade5f052e53d2031cb7c6d1a69cc86da882e2c9cfac76e7",
-    title: "Hi-Res Disc Negative Tangent 0.0625",
-    author: "Gerald Lasser [GeraldLasser]",
-    ldrawOrg: "48_Primitive UPDATE 2020-03",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/48/1-24cyli.dat",
-    bytes: 537,
-    sha256: "sha256:5e767152f719b094442a5e68060781c9f2b7304595c6956bf98183bda00a9a36",
-    title: "Hi-Res Cylinder 0.0417",
-    author: "Niels Karsdorp [nielsk]",
-    ldrawOrg: "48_Primitive UPDATE 2009-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/48/1-48chrd.dat",
-    bytes: 653,
-    sha256: "sha256:849fff998e086998d6361b6df1656aa8bb8551adeef975e2ceebfb45b850f0e5",
-    title: "Hi-Res Chord 0.0208",
-    author: "N. W. Perry [Plastikean]",
-    ldrawOrg: "48_Primitive UPDATE 2024-04",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/48/1-48cyli.dat",
-    bytes: 628,
-    sha256: "sha256:e3c990b627eee00c08d92bcdb482761c2783205584b2cde454cc07cac827bacc",
-    title: "Hi-Res Cylinder 0.0208",
-    author: "Willy Tschager [Holly-Wood]",
-    ldrawOrg: "48_Primitive UPDATE 2024-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/48/1-48cylo.dat",
-    bytes: 417,
-    sha256: "sha256:0d3b2c6f9dddb5cf047c9b96573049da0c73caf2c81b0656796e62053853a150",
-    title: "Hi-Res Cylinder Open 0.02083",
-    author: "Max Martin Richter [MMR1988]",
-    ldrawOrg: "48_Primitive UPDATE 2014-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/48/1-48edge.dat",
-    bytes: 317,
-    sha256: "sha256:89dbd38b8578e8fa60ce2f80e8d7aa9b20d53c31cf40d2d322519287e6eeff19",
-    title: "Hi-Res Circle 0.02083",
-    author: "Alex Taylor [anathema]",
-    ldrawOrg: "48_Primitive UPDATE 2010-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/48/1-4cyli.dat",
-    bytes: 2413,
-    sha256: "sha256:e2ed297feaf608b7319c2e54cd81dcb653fbb3d87b5a8e48ab2f54b32953fc6b",
-    title: "Hi-Res Cylinder 0.25",
-    author: "Magnus Forsberg [MagFors]",
-    ldrawOrg: "48_Primitive UPDATE 2024-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/48/1-4disc.dat",
-    bytes: 1186,
-    sha256: "sha256:7198ee223b3a7adb03d3335233d534fa43a88bb8159d67609eea07f68e5f9120",
-    title: "Hi-Res Disc 0.25",
-    author: "Willy Tschager [Holly-Wood]",
-    ldrawOrg: "48_Primitive UPDATE 2024-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/48/1-4edge.dat",
-    bytes: 1196,
-    sha256: "sha256:e4ebabd21711f16411b3c8b8b278995a56c5f25919cd424976357da5b19943c6",
-    title: "Hi-Res Circle 0.25",
-    author: "Magnus Forsberg [MagFors]",
-    ldrawOrg: "48_Primitive UPDATE 2024-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/48/1-8chrd.dat",
-    bytes: 611,
-    sha256: "sha256:282b0d7dd4e73d273b9cbcce88e30889cce3b44aa8574a25382fe526248d5426",
-    title: "Hi-Res Chord 0.125",
-    author: "Willy Tschager [Holly-Wood]",
-    ldrawOrg: "48_Primitive UPDATE 2024-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/48/1-8edge.dat",
-    bytes: 711,
-    sha256: "sha256:eec30153f06bac336ca71ae16b31c5d0c7ae432acb5e91befe37fdb7b6bb1c8e",
-    title: "Hi-Res Circle 0.125",
-    author: "[PTadmin]",
-    ldrawOrg: "48_Primitive UPDATE 2017-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/box2-11.dat",
-    bytes: 489,
-    sha256: "sha256:7f29fb8601b419207b5c855af8fad8abb55a967ec73f3d8be841d370c360b97c",
-    title: "Box with 2 Faces without 11 Edges",
-    author: "Steffen [Steffen]",
-    ldrawOrg: "Primitive UPDATE 2005-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/box2-5.dat",
-    bytes: 609,
-    sha256: "sha256:8f297b754f87da1dbe19eec8704a5ce03a23b794ccd7cd015508e3758a206174",
-    title: "Box with 2 Faces without 5 Edges",
-    author: "Steffen [Steffen]",
-    ldrawOrg: "Primitive UPDATE 2003-03",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/box2-7.dat",
-    bytes: 577,
-    sha256: "sha256:e0474c5ad7fb9ff77b67883a5b1e327d028e3eb4e59921a626b4215632dd9f00",
-    title: "Box with  2 Faces without  7 Edges",
-    author: "Willy Tschager [Holly-Wood]",
-    ldrawOrg: "Primitive UPDATE 2024-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/box3-7a.dat",
-    bytes: 632,
-    sha256: "sha256:4fd59e0bd2a5c2b076568627eaf4ad6696deb1f245422bf124bf4dda160a5c43",
-    title: "Box with  3 Adjacent Faces without  7 Adjacent Edges",
-    author: "Willy Tschager [Holly-Wood]",
-    ldrawOrg: "Primitive UPDATE 2024-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/box3u10p.dat",
-    bytes: 424,
-    sha256: "sha256:a9a9edde9b651aaae34a33728d30ad606e295e0257bca896a07c1b65864370b4",
-    title: "Box with 3 Faces without 10 Parallel Edges",
-    author: "Owen Burgoyne [C3POwen]",
-    ldrawOrg: "Primitive UPDATE 2014-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/box3u2p.dat",
-    bytes: 818,
-    sha256: "sha256:df73118b95f23d693c3b7d25c57c483db3bf61ae017d757848119955d28d59e0",
-    title: "Box with 3 Faces without 2 Parallel Edges",
-    author: "Niels Karsdorp [nielsk]",
-    ldrawOrg: "Primitive UPDATE 2012-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/box3u4a.dat",
-    bytes: 545,
-    sha256: "sha256:15463f41f9947dd75486dc7af3231b1037704f1b654c2555e3ba705817a2db75",
-    title: "Box with 3 Faces without 4 Adjacent Edges",
-    author: "Niels Karsdorp [nielsk]",
-    ldrawOrg: "Primitive UPDATE 2009-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/box3u8p.dat",
-    bytes: 737,
-    sha256: "sha256:0f6187106f023d041dcfd2a24e9f5a2a0c37b5c41b0ff171267ae776a8f16760",
-    title: "Box with 3 Faces and 4 Parallel Edges",
-    author: "James Jessiman",
-    ldrawOrg: "Primitive UPDATE 2012-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/box4-1.dat",
-    bytes: 973,
-    sha256: "sha256:2ed58df5da841827dfc5f9ac11c0bd7ffd8a455e46f166638e635f61a014b44d",
-    title: "Box with 4 Faces without 1 Edge",
-    author: "Tore Eriksson [Tore_Eriksson]",
-    ldrawOrg: "Primitive UPDATE 2012-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/box4-2p.dat",
-    bytes: 756,
-    sha256: "sha256:a4cb5395b3ec8bba18d81e36c32f43cb9349a55fe97729c367afaa5e1e8b7f0f",
-    title: "Box with  4 Faces without  2 Parallel Edges",
-    author: "Willy Tschager [Holly-Wood]",
-    ldrawOrg: "Primitive UPDATE 2024-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/box4-4a.dat",
-    bytes: 1067,
-    sha256: "sha256:58c69e00462c0a74c1bd6d75d757d826ae13e98bd3928b0e685209003bfbee54",
-    title: "Box with  4 Faces without  4 Adjacent Edges",
-    author: "Willy Tschager [Holly-Wood]",
-    ldrawOrg: "Primitive UPDATE 2024-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/box5.dat",
-    bytes: 963,
-    sha256: "sha256:ccb7b8a1d36692335b10ea6aa196849afcad4b15331683ed8112a10b50977318",
-    title: "Box with 5 Faces and All Edges",
-    author: "James Jessiman",
-    ldrawOrg: "Primitive UPDATE 2012-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/boxjcyl4.dat",
-    bytes: 1236,
-    sha256: "sha256:ceb4a5fd46fbff7d2e396afbc308379b914b99556b30a136cfb578a3dc360877",
-    title: "Box to Cylinder Joint 1: 4",
-    author: "Philippe Hurbain [Philo]",
-    ldrawOrg: "Primitive UPDATE 2024-07",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/empty.dat",
-    bytes: 825,
-    sha256: "sha256:192c9b9ee2e425cfbc9e9b12ff61ee0f05ae1cb0c12dc37d5590adb6abb65128",
-    title: "Empty",
-    author: "Steffen [Steffen]",
-    ldrawOrg: "Primitive UPDATE 2025-08",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/rect.dat",
-    bytes: 654,
-    sha256: "sha256:ffeb2dd3d9b83c38841f18f1f74800fbba9e90c5fb6badfff2a795f08a96cb71",
-    title: "Rectangle",
-    author: "James Jessiman",
-    ldrawOrg: "Primitive UPDATE 2010-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/rect1.dat",
-    bytes: 556,
-    sha256: "sha256:48fdcd3181587b4bdc89d356a5aee21268688f3f2fcdd4d6f5c1a3d49b1a1ceb",
-    title: "Rectangle with 1 Edge",
-    author: "Chris Dee [cwdee]",
-    ldrawOrg: "Primitive UPDATE 2010-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/rect2a.dat",
-    bytes: 586,
-    sha256: "sha256:6d75ffb88e705a35f34e095ec0848a7bb70b577a376fdae05804da214b0d6369",
-    title: "Rectangle with 2 Adjacent Edges",
-    author: "Chris Dee [cwdee]",
-    ldrawOrg: "Primitive UPDATE 2010-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/rect2p.dat",
-    bytes: 594,
-    sha256: "sha256:faac2b36241a9de0c0108471e59c45734df6c79813332d9cacf97f6391886acc",
-    title: "Rectangle with 2 Parallel Edges",
-    author: "Donald Sutter [technog]",
-    ldrawOrg: "Primitive UPDATE 2010-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/rect3.dat",
-    bytes: 605,
-    sha256: "sha256:07ac46908b6668d993b6de0fb001a34cd996542106b80ebc7de63317d8dde865",
-    title: "Rectangle with 3 Edges",
-    author: "Mark Kennedy [mkennedy]",
-    ldrawOrg: "Primitive UPDATE 2010-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/recte3.dat",
-    bytes: 319,
-    sha256: "sha256:e7f5ccbb040191aaa4cd469a25b086299cba4a3eaa8d3b0fbf71240e3de0359a",
-    title: "Rectangle Empty with 3 Edges",
-    author: "Steffen [Steffen]",
-    ldrawOrg: "Primitive UPDATE 2011-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/ribt45.dat",
-    bytes: 795,
-    sha256: "sha256:5b6445c727883aa656fd52dfcfb3925ec8c95f6ecb4c7b5f95ff67f13c0acb47",
-    title: "Rib T-Shaped for 45 Degree Plate Edges",
-    author: "Mark Kennedy [mkennedy]",
-    ldrawOrg: "Primitive UPDATE 2010-03",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/stud.dat",
-    bytes: 698,
-    sha256: "sha256:db037d518d7c08bcdc1f0e7497f4f98e97d99850531dd62d602965520f3bf8f4",
-    title: "Stud",
-    author: "James Jessiman",
-    ldrawOrg: "Primitive UPDATE 2012-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/stud2a.dat",
-    bytes: 866,
-    sha256: "sha256:61fbed54b085a30490045309778d1e2a6d95485e6558996b12674f848028d557",
-    title: "Stud Open without Base Edges",
-    author: "James Jessiman",
-    ldrawOrg: "Primitive UPDATE 2009-02",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/stud3.dat",
-    bytes: 710,
-    sha256: "sha256:d29e9160faeaf85b2b72a098e89a81f41e0082517a82065d7b1f149b5fd2addd",
-    title: "Stud Tube Solid",
-    author: "James Jessiman",
-    ldrawOrg: "Primitive UPDATE 2012-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/stud4.dat",
-    bytes: 935,
-    sha256: "sha256:871cdcab26e7f5113488a24c453d6fabda75b275b06de592e0bfaad4292c12a3",
-    title: "Stud Tube Open",
-    author: "James Jessiman",
-    ldrawOrg: "Primitive UPDATE 2009-02",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/stug-1x2.dat",
-    bytes: 333,
-    sha256: "sha256:5842fa1baf6ea7f18fe4e355238cd733ff9bdbdc3d722be5cf8988f1c5fce414",
-    title: "Stud Group  1 x  2",
-    author: "Steffen [Steffen]",
-    ldrawOrg: "Primitive UPDATE 2011-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/stug-1x3.dat",
-    bytes: 372,
-    sha256: "sha256:f24de368545aa96580b811daa6c25e18f5bfdbaca1d4b11addcfa7cbb625f4c9",
-    title: "Stud Group  1 x  3",
-    author: "Steffen [Steffen]",
-    ldrawOrg: "Primitive UPDATE 2012-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/stug-1x4.dat",
-    bytes: 414,
-    sha256: "sha256:e88852b15ca37121e12f7052a234e4a90dc99a8c6d22d45e041f47103c2fb71c",
-    title: "Stud Group  1 x  4",
-    author: "Steffen [Steffen]",
-    ldrawOrg: "Primitive UPDATE 2011-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/stug-2x1.dat",
-    bytes: 341,
-    sha256: "sha256:03d08cea230e892e1b6cbfe523c19b568a834c5888aac5c789d1fb8d6ee93d96",
-    title: "Stud Group  2 x  1",
-    author: "Magnus Forsberg [MagFors]",
-    ldrawOrg: "Primitive UPDATE 2011-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/stug-2x2.dat",
-    bytes: 765,
-    sha256: "sha256:16114159ea25719341a852d5403dc9982a6211f2fcb23f5c4c3eac05a2ad43f7",
-    title: "Stud Group  2 x  2",
-    author: "Steffen [Steffen]",
-    ldrawOrg: "Primitive UPDATE 2012-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/stug-3x1.dat",
-    bytes: 380,
-    sha256: "sha256:9ae441c03c2e73972a26d74f7ead4de280947397dc09e2fd9857ca73ec87181a",
-    title: "Stud Group  3 x  1",
-    author: "Magnus Forsberg [MagFors]",
-    ldrawOrg: "Primitive UPDATE 2012-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/stug-3x3.dat",
-    bytes: 869,
-    sha256: "sha256:ec81497656a4a77a32cc09b131026c9882ab2da35944f701aa7575d43667d7f0",
-    title: "Stud Group  3 x  3",
-    author: "Steve Bliss [sbliss]",
-    ldrawOrg: "Primitive UPDATE 2011-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/stug-4x4.dat",
-    bytes: 741,
-    sha256: "sha256:d167d3367e9d6346e217331f3d35c7b2700d1c87f35e87b40cb3a702afa90e54",
-    title: "Stud Group  4 x  4",
-    author: "Tore Eriksson [Tore_Eriksson]",
-    ldrawOrg: "Primitive UPDATE 2011-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/stug2.dat",
-    bytes: 307,
-    sha256: "sha256:e1dfe5f5e0c433cd406467d366d278518cde9d7e83cc5d4229c451adf52fcc71",
-    title: "~Moved to stug-2x2",
-    author: "[PTadmin]",
-    ldrawOrg: "Primitive UPDATE 2011-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/stug3-1x2.dat",
-    bytes: 347,
-    sha256: "sha256:e78926d1494fa67b984f390aa1c05d01c35eff99030209e9bbee4e15bfcc0ecb",
-    title: "Stud Tube Solid Group  1 x  2",
-    author: "Steffen [Steffen]",
-    ldrawOrg: "Primitive UPDATE 2013-02",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/stug4-2x2.dat",
-    bytes: 435,
-    sha256: "sha256:cf6e68b84d37562ed1a035015c23f804157ce6a80a7632a179e4def8ddcacfcb",
-    title: "Stud Tube Open Group  2 x  2",
-    author: "Steffen [Steffen]",
-    ldrawOrg: "Primitive UPDATE 2011-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/stug4.dat",
-    bytes: 307,
-    sha256: "sha256:977530a161304abc45fa2dbcac0e8a7df389d8ab3838a82702032a74dca9021f",
-    title: "~Moved to stug-4x4",
-    author: "[PTadmin]",
-    ldrawOrg: "Primitive UPDATE 2011-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "p/tri3a4.dat",
-    bytes: 468,
-    sha256: "sha256:8c1cf47d85e2d2b429c0ac404108a9e91048fe7c9501b527dda55e75ad11bc4e",
-    title: "Triangular Prism with 3 Adjacent Faces without 4 Edges",
-    author: "Magnus Forsberg [MagFors]",
-    ldrawOrg: "Primitive UPDATE 2017-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "parts/2450.dat",
-    bytes: 2313,
-    sha256: "sha256:5bdb50ad11b750ca1621a7c1717f1dee4af58ae8816af3c77f4af75f7e72f408",
-    title: "Plate  3 x  3 without Corner",
-    author: "James Jessiman",
-    ldrawOrg: "Part UPDATE 2024-03",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "parts/30357.dat",
-    bytes: 1308,
-    sha256: "sha256:a4d5a169af2b78840aae6122b49981ce7db81ef40713ff994615764b5760edcf",
-    title: "Plate  3 x  3 with  2 x  2 Corner Round",
-    author: "Vincent Messenet [Cheenzo]",
-    ldrawOrg: "Part UPDATE 2026-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "parts/30503.dat",
-    bytes: 2325,
-    sha256: "sha256:132b14ffca8e2f2b6296a0a1bcff77187d064c00340ac36fa0cb4784cbc8b56c",
-    title: "Plate  4 x  4 without Corner",
-    author: "Ronald Scott Moody [rmoody]",
-    ldrawOrg: "Part UPDATE 2013-02",
-    licenseExpression: "CC-BY-2.0 OR CC-BY-4.0",
-  },
-  {
-    path: "parts/30565.dat",
-    bytes: 2082,
-    sha256: "sha256:e201a60e7f8e8ab15a86e8449c0e722a1b1ebe8015a5021ac5ca9aa1fd462f39",
-    title: "Plate  4 x  4 with Corner Round",
-    author: "Gerald Lasser [GeraldLasser]",
-    ldrawOrg: "Part UPDATE 2024-06",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "parts/35480.dat",
-    bytes: 2309,
-    sha256: "sha256:61d6d988e6549678ec0b6343bf7554ff14781006321da10da9adbbf4e68f2613",
-    title: "Plate  1 x  2 with Round Ends and 2 Open Studs",
-    author: "Magnus Forsberg [MagFors]",
-    ldrawOrg: "Part UPDATE 2018-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "parts/5092.dat",
-    bytes: 381,
-    sha256: "sha256:5a8818232b3f361a9a6fb2f774700fa29c488c182c6d4dd2387b41ca29c888f2",
-    title: "Tile  1 x  2 Cut Right 45 Degree",
-    author: "Gerald Lasser [GeraldLasser]",
-    ldrawOrg: "Part UPDATE 2025-03",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "parts/51739.dat",
-    bytes: 1235,
-    sha256: "sha256:7b07281c2fa86a18bf5f9461cf6dfc2893cee1186fdfc7f27e1ec453ecc6c53d",
-    title: "Wing  2 x  4",
-    author: "Chris Dee [cwdee]",
-    ldrawOrg: "Part UPDATE 2025-09",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "parts/6106.dat",
-    bytes: 5396,
-    sha256: "sha256:1fa164e7f76d0b46ffa950c7accc257b32f5d158d180030fbd2fcd4fab1bf9a5",
-    title: "Plate  6 x  6 without Corner",
-    author: "Steve Bliss [sbliss]",
-    ldrawOrg: "Part UPDATE 2024-03",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "parts/77844.dat",
-    bytes: 1445,
-    sha256: "sha256:3a1abf0ad321a6ac2b57c242c23d076f9e1abcfb976931a29fbef8192917dea0",
-    title: "Plate  3 x  3 Corner",
-    author: "Gerald Lasser [GeraldLasser]",
-    ldrawOrg: "Part UPDATE 2024-05",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "parts/79491.dat",
-    bytes: 3207,
-    sha256: "sha256:91a622f303437d48e8bc721cb86ecef1204c4a49d219a4c98992c7669af536e7",
-    title: "Plate  2 x  2 with Corner Round",
-    author: "Gerald Lasser [GeraldLasser]",
-    ldrawOrg: "Part UPDATE 2024-06",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "parts/80015.dat",
-    bytes: 884,
-    sha256: "sha256:b2c08c34303be83aaba7ab12aecf0ce203773e32189691f2c2b59b2a789d29d5",
-    title: "Plate  5 x  5 with  4 x  4 Corner Round and  4 x  4 with  3 x  3 Corner Round Cutout",
-    author: "Gerald Lasser [GeraldLasser]",
-    ldrawOrg: "Part UPDATE 2024-05",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "parts/93273.dat",
-    bytes: 383,
-    sha256: "sha256:14bec7745fd39abc663d276997724137dbe2c927d4658ea36730213b3df81eef",
-    title: "Slope Brick Curved  4 x  1 Double",
-    author: "Magnus Forsberg [MagFors]",
-    ldrawOrg: "Part UPDATE 2011-02",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "parts/s/22888s01.dat",
-    bytes: 2326,
-    sha256: "sha256:553077491f4d2c24cb59df94f75cf3a96b5daaf42adbe33d07e91451fb39d846",
-    title: "~Plate  4 x  8 Round 1/8",
-    author: "Gerald Lasser [GeraldLasser]",
-    ldrawOrg: "Subpart UPDATE 2024-07",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "parts/s/22888s02.dat",
-    bytes: 2718,
-    sha256: "sha256:5afa0d11ed4cfc3f4669b214f53539794f8b6547f14654a991ef67b217215c7d",
-    title: "~Plate  4 x  8 Round 1/8 - Common Geometry",
-    author: "Gerald Lasser [GeraldLasser]",
-    ldrawOrg: "Subpart UPDATE 2024-06",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "parts/s/30565s01.dat",
-    bytes: 2926,
-    sha256: "sha256:69b36b94a6b6313e379a36b26a1a1f9a3f18b452bf98547a7e16f21b3ecf086b",
-    title: "~Plate  4 x  4 Round 1/8",
-    author: "Gerald Lasser [GeraldLasser]",
-    ldrawOrg: "Subpart UPDATE 2024-06",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "parts/s/5092s01.dat",
-    bytes: 2560,
-    sha256: "sha256:02161d4d43cf5d1a4ceb1d3c7440d75bd6789eb2b032a420750ee8363fdc6d81",
-    title: "~Tile  1 x  2 Cut Right 45 Degree without Patternable Surfaces",
-    author: "Gerald Lasser [GeraldLasser]",
-    ldrawOrg: "Subpart UPDATE 2025-03",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "parts/s/51739s01.dat",
-    bytes: 2293,
-    sha256: "sha256:2fa153c39f869c9c9fd4b4289022395d8bf8e748cffbdc2ef98e6d24858b2da1",
-    title: "~Wing  2 x  4 - Half Bottom Section",
-    author: "Magnus Forsberg [MagFors]",
-    ldrawOrg: "Subpart UPDATE 2025-07",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "parts/s/7904s01.dat",
-    bytes: 2424,
-    sha256: "sha256:5c90b49a6e2c569168f4035322f71247aca6f782f8bac1895bea1d81ecd9b55b",
-    title: "~Plate  2 x  2 with Corner Round - Half",
-    author: "Vincent Messenet [Cheenzo]",
-    ldrawOrg: "Subpart UPDATE 2026-01",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "parts/s/80015s01.dat",
-    bytes: 6682,
-    sha256: "sha256:08baa9987359d51ddd8954ae8983a3aa0b5d47b063c497f4e43e520d3b2aa36b",
-    title:
-      "~Plate  5 x  5 with  4 x  4 Corner Round and  4 x  4 with  3 x  3 Corner Round Cutout - Half",
-    author: "Gerald Lasser [GeraldLasser]",
-    ldrawOrg: "Subpart UPDATE 2024-05",
-    licenseExpression: "CC-BY-4.0",
-  },
-  {
-    path: "parts/s/93273s01.dat",
-    bytes: 5473,
-    sha256: "sha256:95d97ee75937fa8baa4b0fca339143ed3a5d1b812e4b2e76ef20d2a4c4622489",
-    title: "~Slope Brick Curved  4 x  1 Double without Top Surface",
-    author: "Magnus Forsberg [MagFors]",
-    ldrawOrg: "Subpart UPDATE 2023-04",
-    licenseExpression: "CC-BY-4.0",
-  },
+  // prettier-ignore
+  { path: "p/1-16chrd.dat", bytes: 701, sha256: "sha256:e429dd760eb6f0cf460a74e6ebf52c023bedbdea82de7801efa1694b5a1a82e8", title: "Chord 0.0625", author: "Philippe Hurbain [Philo]", ldrawOrg: "Primitive UPDATE 2015-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/1-16cyli.dat", bytes: 693, sha256: "sha256:b60f031d9dfd0995c1741992a5695ee3789419886e8189dead961d05f75f7bfc", title: "Cylinder 0.0625", author: "Marc Klein [marckl]", ldrawOrg: "Primitive UPDATE 2005-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/1-16cylo.dat", bytes: 394, sha256: "sha256:6cef884c4f96ec15f5bd1428264af2efba4443cb1e47ead116a8a094febefc67", title: "Cylinder Open 0.0625", author: "Max Martin Richter [MMR1988]", ldrawOrg: "Primitive UPDATE 2014-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/1-16edge.dat", bytes: 506, sha256: "sha256:42fc4d69af1281b71cb2eb9546e99e8bca2fc231d05a0379e71d4e1c9a60c95c", title: "Circle 0.0625", author: "Marc Klein [marckl]", ldrawOrg: "Primitive UPDATE 2017-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/1-16ring3.dat", bytes: 419, sha256: "sha256:fc42cc8def33dca0ba2bf372688e5c373d54783041e693ec6ed79da5974e48b7", title: "Ring  3 x 0.0625", author: "Steve Bliss [sbliss]", ldrawOrg: "Primitive UPDATE 2024-02", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/1-16stud4.dat", bytes: 520, sha256: "sha256:2a95318eb2a3737f259e904565d39aff1c9bdeedaf1774c9548fe463fefea01b", title: "Stud Tube Open 0.0625", author: "Massimo Maso [Sirio]", ldrawOrg: "Primitive UPDATE 2024-02", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/1-16tang.dat", bytes: 309, sha256: "sha256:3bf6430f99195afabdaaab755a660c0978080851fd6f514f50ef0e578e6f82e2", title: "Disc Negative Tangent 0.0625", author: "Gerald Lasser [GeraldLasser]", ldrawOrg: "Primitive UPDATE 2020-02", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/1-16tndis.dat", bytes: 304, sha256: "sha256:98bf2c3ef480d10f1fb8aac9af0240a0a0704b395b9fb61373c719648ae782d2", title: "Disc Negative Truncated 0.0625", author: "Massimo Maso [Sirio]", ldrawOrg: "Primitive UPDATE 2022-03", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/1-4chrd.dat", bytes: 743, sha256: "sha256:ccba3a97b5cc358754e476b78b4ce61cce5f404cd15e37471b73df3e81784aec", title: "Chord 0.25", author: "Max Martin Richter [MMR1988]", ldrawOrg: "Primitive UPDATE 2023-05", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/1-4cyli.dat", bytes: 1044, sha256: "sha256:5a7168952a5a3570327873b9a5802fa7b3be40967ab78c03b6a2bfd4419a1f10", title: "Cylinder 0.25", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2012-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/1-4cylo.dat", bytes: 388, sha256: "sha256:792a01362608c3f385dd7f01a1bd7d19cf9ed8a40f793266345cc86d1d98f3af", title: "Cylinder Open 0.25", author: "Max Martin Richter [MMR1988]", ldrawOrg: "Primitive UPDATE 2010-03", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/1-4cyls2.dat", bytes: 1189, sha256: "sha256:77a3bf3859fa972a5d047721ef18603694f1a6f83543f955240990be9c9ee9bd", title: "Cylinder Sloped 0.25 Convex", author: "Chris Dee [cwdee]", ldrawOrg: "Primitive UPDATE 2012-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/1-4edge.dat", bytes: 545, sha256: "sha256:9ce2de7e67bbac575d52cfdc771b9d00856efc9b88002d97db8e665e50f4d467", title: "Circle 0.25", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2017-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/1-4ndis.dat", bytes: 692, sha256: "sha256:ff6685838636e7ab6152356d8f09e4f00a38af0d878b0881423f5c45fb868f0c", title: "Disc Negative 0.25", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2012-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/1-4ring3.dat", bytes: 1198, sha256: "sha256:4048b121d53509363cfaa7422648dd29b2eeb93074279feb0bcc7a45bbb7c2e1", title: "Ring  3 x 0.25", author: "Willy Tschager [Holly-Wood]", ldrawOrg: "Primitive UPDATE 2024-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/1-4stud4.dat", bytes: 404, sha256: "sha256:cc27fe29307676a8f46d25ad35304ce2e576f3c8bee81c20cb461c401512b58e", title: "Stud Tube Open 0.25", author: "Massimo Maso [Sirio]", ldrawOrg: "Primitive UPDATE 2019-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/1-8chrd.dat", bytes: 561, sha256: "sha256:7694157b725563188a6efd69b3f558b00533b375b8a4e82f469497a03e471e74", title: "Chord 0.125", author: "Orion Pobursky [OrionP]", ldrawOrg: "Primitive UPDATE 2023-05", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/1-8cyli.dat", bytes: 806, sha256: "sha256:46def63dc8293ad9a2dd1d1a5cb720b9ba883850e65d3280d2093c664a6140c4", title: "Cylinder 0.125", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2005-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/1-8cylo.dat", bytes: 381, sha256: "sha256:870bbbf6052e075598de7dce7efe7a139ea5189820e7a296442fe2b3318c18bf", title: "Cylinder Open 0.125", author: "Tim Gould [timgould]", ldrawOrg: "Primitive UPDATE 2012-03", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/1-8edge.dat", bytes: 480, sha256: "sha256:50436a0bce461198c342dccbccb658a1bffae13e44b7c48689b158c946c2c2ab", title: "Circle 0.125", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2017-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/1-8ndis.dat", bytes: 615, sha256: "sha256:97e394834789794c8635261fa604ad8e69b4c6872d0cd8d7506408b80023f408", title: "Disc Negative 0.125", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2012-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/1-8ring3.dat", bytes: 610, sha256: "sha256:641f3ae7395e7d38e57ab918928ac19209ed72e8474fd1646e2d70f223c4a0ce", title: "Ring  3 x 0.125", author: "Paul Easter [pneaster]", ldrawOrg: "Primitive UPDATE 2012-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/1-8stud4.dat", bytes: 405, sha256: "sha256:9395515b1e38008dab61d9a971d9564e36ea6fbe4a32a244c789e8e5a2a58f6d", title: "Stud Tube Open 0.125", author: "Massimo Maso [Sirio]", ldrawOrg: "Primitive UPDATE 2019-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/1-8tndis.dat", bytes: 346, sha256: "sha256:5e3bd48d2e7565fc97a8936255339d9682897b43a38f69da43571f42a4a2248e", title: "Disc Negative Truncated 0.125", author: "Massimo Maso [Sirio]", ldrawOrg: "Primitive UPDATE 2022-02", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/2-4chrd.dat", bytes: 490, sha256: "sha256:3b0dfcf2cb881fae0acfe1e53b703104768878636477e540d0c893fc3fd87f8f", title: "Chord 0.5", author: "Philippe Hurbain [Philo]", ldrawOrg: "Primitive UPDATE 2014-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/2-4cyli.dat", bytes: 1543, sha256: "sha256:d486780f0f84893899d9eadcd13150f13a42e15e77a3cda38cdf24ded98862c6", title: "Cylinder 0.5", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2005-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/2-4cylo.dat", bytes: 387, sha256: "sha256:4fa9f597d775c7f15e3fc66f60e20d914134d13004b485488b7dbff684776232", title: "Cylinder Open 0.5", author: "Max Martin Richter [MMR1988]", ldrawOrg: "Primitive UPDATE 2010-03", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/2-4edge.dat", bytes: 683, sha256: "sha256:665400f76566b161c28303cdadce40d17d979a8ff9a8a133675af2d17fbe6763", title: "Circle 0.5", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2017-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/2-4ndis.dat", bytes: 874, sha256: "sha256:7557eae598be3f530b840471535198e6b07b03486ffbcc18a00e862c3d25d925", title: "Disc Negative 0.5", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2012-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/2-4ring2.dat", bytes: 977, sha256: "sha256:dc1748fff34bb0cae3ba1d480921c2f73de4ea1d0532799356b2014a28c8f393", title: "Ring  2 x 0.5", author: "Chris Dee [cwdee]", ldrawOrg: "Primitive UPDATE 2012-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/2-4ring3.dat", bytes: 1159, sha256: "sha256:045613f5bb90e0c283211b1fa261cc66f8ee8ab968dc9763222e7e592cbf83fc", title: "Ring  3 x 0.5", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2012-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/2-4ring4.dat", bytes: 1090, sha256: "sha256:55bd36c735c720ee8160709a3b6a3a02d828ec12ef56bcbbaf2eafa066de99b6", title: "Ring  4 x 0.5", author: "Paul Easter [pneaster]", ldrawOrg: "Primitive UPDATE 2012-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/2-4stud4.dat", bytes: 750, sha256: "sha256:7afa4b4fd96a1fab9ecf90c1828968b5997d311ec6eb32021d1ac30334d36c7e", title: "Stud Tube Open 0.5", author: "Willy Tschager [Holly-Wood]", ldrawOrg: "Primitive UPDATE 2024-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/3-16chrd.dat", bytes: 317, sha256: "sha256:2bb493e8b5b56a5d63bfa7356a0ed5d6403a68e5e9a983e13a57541783ad19c1", title: "Chord 0.1875", author: "Niels Karsdorp [nielsk]", ldrawOrg: "Primitive UPDATE 2009-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/3-16cyli.dat", bytes: 942, sha256: "sha256:f50d12a37a22ae4a5f37a017b8e39d1e729577b0a4aa376ca685b210806b49c8", title: "Cylinder 0.1875", author: "Mark Kennedy [mkennedy]", ldrawOrg: "Primitive UPDATE 2005-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/3-16cylo.dat", bytes: 386, sha256: "sha256:a5c8370842299035a9cc14308301614c6fb169fb873a7950c888928cd8d9181c", title: "Cylinder Open 0.1875", author: "J.C. Tchang [tchang]", ldrawOrg: "Primitive UPDATE 2013-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/3-16edge.dat", bytes: 586, sha256: "sha256:c08dd83bb7fe90b61f7cd0b10ebef0d9a9ba33b497676dedd2e2e968cb8248f9", title: "Circle 0.1875", author: "Donald Sutter [technog]", ldrawOrg: "Primitive UPDATE 2017-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/3-16ndis.dat", bytes: 557, sha256: "sha256:abb7da370e72fe9e75faf5d10c637b476202dbd8ced9cb5b0f96433e1f72f529", title: "Disc Negative 0.1875", author: "Magnus Forsberg [MagFors]", ldrawOrg: "Primitive UPDATE 2024-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/3-16ring3.dat", bytes: 580, sha256: "sha256:3e0d8f9325ef96db0fa0a471240f810181a235736554c040a303f20d03294136", title: "Ring  3 x 0.1875", author: "Philippe Hurbain [Philo]", ldrawOrg: "Primitive UPDATE 2024-02", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/3-16stud4.dat", bytes: 520, sha256: "sha256:6dd3e7068ef5fe4ab07ae85e51eabfacef0886cdf0f38941618e5c36fa03e198", title: "Stud Tube Open 0.1875", author: "Massimo Maso [Sirio]", ldrawOrg: "Primitive UPDATE 2024-02", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/3-16tndis.dat", bytes: 392, sha256: "sha256:013e74f7eb727ad92396676544e09a80994a05200ba3a2c3ec1e6597b90bf892", title: "Disc Negative Truncated 0.1875", author: "Massimo Maso [Sirio]", ldrawOrg: "Primitive UPDATE 2022-02", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/3-4cyli.dat", bytes: 2031, sha256: "sha256:4a54732476cf4eaad2c9f7b40a3cef24db025132004328e4e84c0666cd217533", title: "Cylinder 0.75", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2005-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/3-4cylo.dat", bytes: 384, sha256: "sha256:b7ff6f92e06cea3815be42f757f17cd28350f2a4ff18dd1a11de0db3626ec44b", title: "Cylinder Open 0.75", author: "Philippe Hurbain [Philo]", ldrawOrg: "Primitive UPDATE 2011-02", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/3-4edge.dat", bytes: 831, sha256: "sha256:d7f5aff979bc227b601abbb8e0226d6055d08eafb5faaf507b3055f712cd4c04", title: "Circle 0.75", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2017-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/3-8cyli.dat", bytes: 1303, sha256: "sha256:9224d4e5edc6f5b0f75f6fa358fd1368a4fd65f676b74fe1bb6e3bbb05046206", title: "Cylinder 0.375", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2005-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/3-8cylo.dat", bytes: 381, sha256: "sha256:f5e90ea29201b4cea569e2effe32eee5fe95146e3eadcddc054a881ef4f839bd", title: "Cylinder Open 0.375", author: "J.C. Tchang [tchang]", ldrawOrg: "Primitive UPDATE 2013-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/3-8edge.dat", bytes: 615, sha256: "sha256:a590f230678d592d514a9c5e307c6a30945e50e4c529fc06accf37530d0e0ed5", title: "Circle 0.375", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2017-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/3-8ring3.dat", bytes: 804, sha256: "sha256:c44e0a5db0b1fc228aa513880a7717cab472194b576a75a89fd71e4059d6d8a2", title: "Ring  3 x 0.375", author: "Niels Karsdorp [nielsk]", ldrawOrg: "Primitive UPDATE 2005-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/4-4cyli.dat", bytes: 2687, sha256: "sha256:4a742c2765b6ebf98245baaf8a160a4ff587fc93d36c8ee2b9074712a2f968c4", title: "Cylinder 1.0", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2005-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/4-4cylo.dat", bytes: 383, sha256: "sha256:d6ca97ee2e75918b3309a5c88aafcd2455b3a316f7cef8963517c19f1d86b38f", title: "Cylinder Open 1.0", author: "Mark Kennedy [mkennedy]", ldrawOrg: "Primitive UPDATE 2010-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/4-4cyls.dat", bytes: 2643, sha256: "sha256:eb26a554261899f82fda150ee70827a010b7d29206b5b577b2ee5831851d8f29", title: "Cylinder Sloped 1.0", author: "Donald Sutter [technog]", ldrawOrg: "Primitive UPDATE 2012-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/4-4disc.dat", bytes: 1137, sha256: "sha256:a00b5547776f61a7389d303616987c76b3c4de86ad8ec32f22857e1bd5e5e40f", title: "Disc 1.0", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2002-02", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/4-4edge.dat", bytes: 1084, sha256: "sha256:54a52196e421fd1717d291ff52ea57553b1fb238907c1678cc1f1a84c698b1da", title: "Circle 1.0", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2017-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/4-4ring2.dat", bytes: 1628, sha256: "sha256:6fb38804b1f5e9bee8c0b80caf1397b09454fc58b048dc19045b6f37c8762ab0", title: "Ring  2 x 1.0", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2009-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/4-4ring3.dat", bytes: 1628, sha256: "sha256:1f2835ac308154edc2d6f479d8e742a55be981f6167b20bfa100c195bc0731dd", title: "Ring  3 x 1.0", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2009-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/48/1-12chrd.dat", bytes: 539, sha256: "sha256:fe2a0252d971dc65126755c4fdb7db900e229dfdce712b42ce9510c7b0390e26", title: "Hi-Res Chord 0.0833", author: "Willy Tschager [Holly-Wood]", ldrawOrg: "48_Primitive UPDATE 2024-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/48/1-12cyli.dat", bytes: 1027, sha256: "sha256:a645a42a5ed912a059a9336ab1449d02efd067008f034549cc8c5ae488159fd3", title: "Hi-Res Cylinder 0.0833", author: "Willy Tschager [Holly-Wood]", ldrawOrg: "48_Primitive UPDATE 2024-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/48/1-12cylo.dat", bytes: 416, sha256: "sha256:aba0697449741a95889cb0faf8d6231777086ebed8ee1956ac304bd32b208c6a", title: "Hi-Res Cylinder Open 0.0833", author: "Max Martin Richter [MMR1988]", ldrawOrg: "48_Primitive UPDATE 2013-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/48/1-12edge.dat", bytes: 584, sha256: "sha256:c1320fa098058f1bb4bb73a4bd02a9533bdcc4f22ac4a0f0a1dcd5cdf85deaed", title: "Hi-Res Circle 0.0833", author: "Willy Tschager [Holly-Wood]", ldrawOrg: "48_Primitive UPDATE 2024-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/48/1-16cyli.dat", bytes: 908, sha256: "sha256:b6fb5e76f958a18c4cc88866d5e6a0502b62d3abda1a72450663b82502645330", title: "Hi-Res Cylinder 0.0625", author: "Willy Tschager [Holly-Wood]", ldrawOrg: "48_Primitive UPDATE 2024-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/48/1-16cylo.dat", bytes: 416, sha256: "sha256:94929f851cefec060fcf3222213a1f9743f9b6549a9e7bbcf471482dc546a827", title: "Hi-Res Cylinder Open 0.0625", author: "Max Martin Richter [MMR1988]", ldrawOrg: "48_Primitive UPDATE 2013-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/48/1-16edge.dat", bytes: 550, sha256: "sha256:9b3b4df68d3c0d68fd3e5c52346871867043f67522e53aaa21991562c89bdc10", title: "Hi-Res Circle 0.0625", author: "Willy Tschager [Holly-Wood]", ldrawOrg: "48_Primitive UPDATE 2024-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/48/1-16tang.dat", bytes: 410, sha256: "sha256:3e11a94e893a58effade5f052e53d2031cb7c6d1a69cc86da882e2c9cfac76e7", title: "Hi-Res Disc Negative Tangent 0.0625", author: "Gerald Lasser [GeraldLasser]", ldrawOrg: "48_Primitive UPDATE 2020-03", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/48/1-24cyli.dat", bytes: 537, sha256: "sha256:5e767152f719b094442a5e68060781c9f2b7304595c6956bf98183bda00a9a36", title: "Hi-Res Cylinder 0.0417", author: "Niels Karsdorp [nielsk]", ldrawOrg: "48_Primitive UPDATE 2009-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/48/1-48chrd.dat", bytes: 653, sha256: "sha256:849fff998e086998d6361b6df1656aa8bb8551adeef975e2ceebfb45b850f0e5", title: "Hi-Res Chord 0.0208", author: "N. W. Perry [Plastikean]", ldrawOrg: "48_Primitive UPDATE 2024-04", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/48/1-48cyli.dat", bytes: 628, sha256: "sha256:e3c990b627eee00c08d92bcdb482761c2783205584b2cde454cc07cac827bacc", title: "Hi-Res Cylinder 0.0208", author: "Willy Tschager [Holly-Wood]", ldrawOrg: "48_Primitive UPDATE 2024-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/48/1-48cylo.dat", bytes: 417, sha256: "sha256:0d3b2c6f9dddb5cf047c9b96573049da0c73caf2c81b0656796e62053853a150", title: "Hi-Res Cylinder Open 0.02083", author: "Max Martin Richter [MMR1988]", ldrawOrg: "48_Primitive UPDATE 2014-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/48/1-48edge.dat", bytes: 317, sha256: "sha256:89dbd38b8578e8fa60ce2f80e8d7aa9b20d53c31cf40d2d322519287e6eeff19", title: "Hi-Res Circle 0.02083", author: "Alex Taylor [anathema]", ldrawOrg: "48_Primitive UPDATE 2010-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/48/1-4cyli.dat", bytes: 2413, sha256: "sha256:e2ed297feaf608b7319c2e54cd81dcb653fbb3d87b5a8e48ab2f54b32953fc6b", title: "Hi-Res Cylinder 0.25", author: "Magnus Forsberg [MagFors]", ldrawOrg: "48_Primitive UPDATE 2024-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/48/1-4disc.dat", bytes: 1186, sha256: "sha256:7198ee223b3a7adb03d3335233d534fa43a88bb8159d67609eea07f68e5f9120", title: "Hi-Res Disc 0.25", author: "Willy Tschager [Holly-Wood]", ldrawOrg: "48_Primitive UPDATE 2024-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/48/1-4edge.dat", bytes: 1196, sha256: "sha256:e4ebabd21711f16411b3c8b8b278995a56c5f25919cd424976357da5b19943c6", title: "Hi-Res Circle 0.25", author: "Magnus Forsberg [MagFors]", ldrawOrg: "48_Primitive UPDATE 2024-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/48/1-8chrd.dat", bytes: 611, sha256: "sha256:282b0d7dd4e73d273b9cbcce88e30889cce3b44aa8574a25382fe526248d5426", title: "Hi-Res Chord 0.125", author: "Willy Tschager [Holly-Wood]", ldrawOrg: "48_Primitive UPDATE 2024-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/48/1-8cyli.dat", bytes: 1361, sha256: "sha256:494069ca353e41885bf8f5b6b3ddc9b62aabeca3eedfe6aa5597ac8f12ca12b9", title: "Hi-Res Cylinder 0.125", author: "Steve Bliss [sbliss]", ldrawOrg: "48_Primitive UPDATE 2004-04", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/48/1-8edge.dat", bytes: 711, sha256: "sha256:eec30153f06bac336ca71ae16b31c5d0c7ae432acb5e91befe37fdb7b6bb1c8e", title: "Hi-Res Circle 0.125", author: "[PTadmin]", ldrawOrg: "48_Primitive UPDATE 2017-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/7-16ring3.dat", bytes: 809, sha256: "sha256:586ca9d96aafb0d4224fe43eb866cc0bff6d19ff1bc13092dd6869eee73f7089", title: "Ring  3 x 0.4375", author: "Alex Taylor [anathema]", ldrawOrg: "Primitive UPDATE 2024-02", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/box2-11.dat", bytes: 489, sha256: "sha256:7f29fb8601b419207b5c855af8fad8abb55a967ec73f3d8be841d370c360b97c", title: "Box with 2 Faces without 11 Edges", author: "Steffen [Steffen]", ldrawOrg: "Primitive UPDATE 2005-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/box2-5.dat", bytes: 609, sha256: "sha256:8f297b754f87da1dbe19eec8704a5ce03a23b794ccd7cd015508e3758a206174", title: "Box with 2 Faces without 5 Edges", author: "Steffen [Steffen]", ldrawOrg: "Primitive UPDATE 2003-03", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/box2-7.dat", bytes: 577, sha256: "sha256:e0474c5ad7fb9ff77b67883a5b1e327d028e3eb4e59921a626b4215632dd9f00", title: "Box with  2 Faces without  7 Edges", author: "Willy Tschager [Holly-Wood]", ldrawOrg: "Primitive UPDATE 2024-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/box2-9.dat", bytes: 398, sha256: "sha256:4ebaa1a0a59a2e219b61d376e86cad06dbd36845a3c15bcde3e3d44cd3be473d", title: "Box with 2 Faces without 9 Edges", author: "Mark Kennedy [mkennedy]", ldrawOrg: "Primitive UPDATE 2010-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/box3-7a.dat", bytes: 632, sha256: "sha256:4fd59e0bd2a5c2b076568627eaf4ad6696deb1f245422bf124bf4dda160a5c43", title: "Box with  3 Adjacent Faces without  7 Adjacent Edges", author: "Willy Tschager [Holly-Wood]", ldrawOrg: "Primitive UPDATE 2024-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/box3u10p.dat", bytes: 424, sha256: "sha256:a9a9edde9b651aaae34a33728d30ad606e295e0257bca896a07c1b65864370b4", title: "Box with 3 Faces without 10 Parallel Edges", author: "Owen Burgoyne [C3POwen]", ldrawOrg: "Primitive UPDATE 2014-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/box3u2p.dat", bytes: 818, sha256: "sha256:df73118b95f23d693c3b7d25c57c483db3bf61ae017d757848119955d28d59e0", title: "Box with 3 Faces without 2 Parallel Edges", author: "Niels Karsdorp [nielsk]", ldrawOrg: "Primitive UPDATE 2012-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/box3u4a.dat", bytes: 545, sha256: "sha256:15463f41f9947dd75486dc7af3231b1037704f1b654c2555e3ba705817a2db75", title: "Box with 3 Faces without 4 Adjacent Edges", author: "Niels Karsdorp [nielsk]", ldrawOrg: "Primitive UPDATE 2009-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/box3u6a.dat", bytes: 514, sha256: "sha256:11f6175e76c3bd1e857a216f80b7e7d81288ec130a33d9b242d1fa3d448cb873", title: "Box with 3 Faces without 4 Adjacent and 2 Parallel Edges", author: "Massimo Maso [Sirio]", ldrawOrg: "Primitive UPDATE 2022-02", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/box3u8p.dat", bytes: 737, sha256: "sha256:0f6187106f023d041dcfd2a24e9f5a2a0c37b5c41b0ff171267ae776a8f16760", title: "Box with 3 Faces and 4 Parallel Edges", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2012-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/box4-1.dat", bytes: 973, sha256: "sha256:2ed58df5da841827dfc5f9ac11c0bd7ffd8a455e46f166638e635f61a014b44d", title: "Box with 4 Faces without 1 Edge", author: "Tore Eriksson [Tore_Eriksson]", ldrawOrg: "Primitive UPDATE 2012-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/box4-2p.dat", bytes: 756, sha256: "sha256:a4cb5395b3ec8bba18d81e36c32f43cb9349a55fe97729c367afaa5e1e8b7f0f", title: "Box with  4 Faces without  2 Parallel Edges", author: "Willy Tschager [Holly-Wood]", ldrawOrg: "Primitive UPDATE 2024-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/box4-4a.dat", bytes: 1067, sha256: "sha256:58c69e00462c0a74c1bd6d75d757d826ae13e98bd3928b0e685209003bfbee54", title: "Box with  4 Faces without  4 Adjacent Edges", author: "Willy Tschager [Holly-Wood]", ldrawOrg: "Primitive UPDATE 2024-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/box4.dat", bytes: 948, sha256: "sha256:2cbfcf075ef5c87c6a5f543f837972a78d43274ac7771b92229b5fe5da797c1e", title: "Box with 4 Faces (2 Parallel Pairs) and All Edges", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2012-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/box5-1.dat", bytes: 655, sha256: "sha256:c23e2cb13761c0af92c930af610075d82370a7f2ea89194fa808f0c4cf877bf2", title: "Box with 5 Faces without 1 Edge", author: "J.C. Tchang [tchang]", ldrawOrg: "Primitive UPDATE 2014-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/box5.dat", bytes: 963, sha256: "sha256:ccb7b8a1d36692335b10ea6aa196849afcad4b15331683ed8112a10b50977318", title: "Box with 5 Faces and All Edges", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2012-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/boxjcyl4.dat", bytes: 1236, sha256: "sha256:ceb4a5fd46fbff7d2e396afbc308379b914b99556b30a136cfb578a3dc360877", title: "Box to Cylinder Joint 1: 4", author: "Philippe Hurbain [Philo]", ldrawOrg: "Primitive UPDATE 2024-07", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/empty.dat", bytes: 825, sha256: "sha256:192c9b9ee2e425cfbc9e9b12ff61ee0f05ae1cb0c12dc37d5590adb6abb65128", title: "Empty", author: "Steffen [Steffen]", ldrawOrg: "Primitive UPDATE 2025-08", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/rect.dat", bytes: 654, sha256: "sha256:ffeb2dd3d9b83c38841f18f1f74800fbba9e90c5fb6badfff2a795f08a96cb71", title: "Rectangle", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2010-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/rect1.dat", bytes: 556, sha256: "sha256:48fdcd3181587b4bdc89d356a5aee21268688f3f2fcdd4d6f5c1a3d49b1a1ceb", title: "Rectangle with 1 Edge", author: "Chris Dee [cwdee]", ldrawOrg: "Primitive UPDATE 2010-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/rect2a.dat", bytes: 586, sha256: "sha256:6d75ffb88e705a35f34e095ec0848a7bb70b577a376fdae05804da214b0d6369", title: "Rectangle with 2 Adjacent Edges", author: "Chris Dee [cwdee]", ldrawOrg: "Primitive UPDATE 2010-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/rect2p.dat", bytes: 594, sha256: "sha256:faac2b36241a9de0c0108471e59c45734df6c79813332d9cacf97f6391886acc", title: "Rectangle with 2 Parallel Edges", author: "Donald Sutter [technog]", ldrawOrg: "Primitive UPDATE 2010-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/rect3.dat", bytes: 605, sha256: "sha256:07ac46908b6668d993b6de0fb001a34cd996542106b80ebc7de63317d8dde865", title: "Rectangle with 3 Edges", author: "Mark Kennedy [mkennedy]", ldrawOrg: "Primitive UPDATE 2010-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/recte3.dat", bytes: 319, sha256: "sha256:e7f5ccbb040191aaa4cd469a25b086299cba4a3eaa8d3b0fbf71240e3de0359a", title: "Rectangle Empty with 3 Edges", author: "Steffen [Steffen]", ldrawOrg: "Primitive UPDATE 2011-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/ribt45.dat", bytes: 795, sha256: "sha256:5b6445c727883aa656fd52dfcfb3925ec8c95f6ecb4c7b5f95ff67f13c0acb47", title: "Rib T-Shaped for 45 Degree Plate Edges", author: "Mark Kennedy [mkennedy]", ldrawOrg: "Primitive UPDATE 2010-03", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/ridgea.dat", bytes: 439, sha256: "sha256:7f8b2df1724dff7edf8619fb4a77fb38ac298475e0136b15d9e254f1a9de74ca", title: "Underside Stud Holder Ridge without Base Edges", author: "Philippe Hurbain [Philo]", ldrawOrg: "Primitive UPDATE 2023-03", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/ridges.dat", bytes: 553, sha256: "sha256:d9e1a7e71997c20d0467d0a1f9ec00049d204c133b3d25eebf6fdc7260493cb9", title: "Underside Stud Holder Ridge Slope", author: "Vincent Messenet [Cheenzo]", ldrawOrg: "Primitive UPDATE 2023-06", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/stud.dat", bytes: 698, sha256: "sha256:db037d518d7c08bcdc1f0e7497f4f98e97d99850531dd62d602965520f3bf8f4", title: "Stud", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2012-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/stud2a.dat", bytes: 866, sha256: "sha256:61fbed54b085a30490045309778d1e2a6d95485e6558996b12674f848028d557", title: "Stud Open without Base Edges", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2009-02", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/stud3.dat", bytes: 710, sha256: "sha256:d29e9160faeaf85b2b72a098e89a81f41e0082517a82065d7b1f149b5fd2addd", title: "Stud Tube Solid", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2012-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/stud3a.dat", bytes: 603, sha256: "sha256:91b1f54ed55b2f57dd73225da3198b5198e31f7587a5e8b7d3351b1478c8881c", title: "Stud Tube Solid without Base Edges", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2003-02", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/stud4.dat", bytes: 935, sha256: "sha256:871cdcab26e7f5113488a24c453d6fabda75b275b06de592e0bfaad4292c12a3", title: "Stud Tube Open", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2009-02", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/stud4od.dat", bytes: 559, sha256: "sha256:6f6ba215655349845b069f9647fffa22fbc43cf083dff46900353c3dc579ec72", title: "Stud Tube Open without Outer Cylinder and Top Surface", author: "Philippe Hurbain [Philo]", ldrawOrg: "Primitive UPDATE 2013-02", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/stug-1x2.dat", bytes: 333, sha256: "sha256:5842fa1baf6ea7f18fe4e355238cd733ff9bdbdc3d722be5cf8988f1c5fce414", title: "Stud Group  1 x  2", author: "Steffen [Steffen]", ldrawOrg: "Primitive UPDATE 2011-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/stug-1x3.dat", bytes: 372, sha256: "sha256:f24de368545aa96580b811daa6c25e18f5bfdbaca1d4b11addcfa7cbb625f4c9", title: "Stud Group  1 x  3", author: "Steffen [Steffen]", ldrawOrg: "Primitive UPDATE 2012-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/stug-1x4.dat", bytes: 414, sha256: "sha256:e88852b15ca37121e12f7052a234e4a90dc99a8c6d22d45e041f47103c2fb71c", title: "Stud Group  1 x  4", author: "Steffen [Steffen]", ldrawOrg: "Primitive UPDATE 2011-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/stug-1x6.dat", bytes: 495, sha256: "sha256:907b74bad03688f6d2f22220db6ec4a6c922203a3e3001aa24f214c6ed48a226", title: "Stud Group  1 x  6", author: "Steffen [Steffen]", ldrawOrg: "Primitive UPDATE 2011-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/stug-2x1.dat", bytes: 341, sha256: "sha256:03d08cea230e892e1b6cbfe523c19b568a834c5888aac5c789d1fb8d6ee93d96", title: "Stud Group  2 x  1", author: "Magnus Forsberg [MagFors]", ldrawOrg: "Primitive UPDATE 2011-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/stug-2x2.dat", bytes: 765, sha256: "sha256:16114159ea25719341a852d5403dc9982a6211f2fcb23f5c4c3eac05a2ad43f7", title: "Stud Group  2 x  2", author: "Steffen [Steffen]", ldrawOrg: "Primitive UPDATE 2012-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/stug-3x1.dat", bytes: 380, sha256: "sha256:9ae441c03c2e73972a26d74f7ead4de280947397dc09e2fd9857ca73ec87181a", title: "Stud Group  3 x  1", author: "Magnus Forsberg [MagFors]", ldrawOrg: "Primitive UPDATE 2012-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/stug-3x3.dat", bytes: 869, sha256: "sha256:ec81497656a4a77a32cc09b131026c9882ab2da35944f701aa7575d43667d7f0", title: "Stud Group  3 x  3", author: "Steve Bliss [sbliss]", ldrawOrg: "Primitive UPDATE 2011-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/stug-4x4.dat", bytes: 741, sha256: "sha256:d167d3367e9d6346e217331f3d35c7b2700d1c87f35e87b40cb3a702afa90e54", title: "Stud Group  4 x  4", author: "Tore Eriksson [Tore_Eriksson]", ldrawOrg: "Primitive UPDATE 2011-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/stug2.dat", bytes: 307, sha256: "sha256:e1dfe5f5e0c433cd406467d366d278518cde9d7e83cc5d4229c451adf52fcc71", title: "~Moved to stug-2x2", author: "[PTadmin]", ldrawOrg: "Primitive UPDATE 2011-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/stug3-1x2.dat", bytes: 347, sha256: "sha256:e78926d1494fa67b984f390aa1c05d01c35eff99030209e9bbee4e15bfcc0ecb", title: "Stud Tube Solid Group  1 x  2", author: "Steffen [Steffen]", ldrawOrg: "Primitive UPDATE 2013-02", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/stug4-1x3.dat", bytes: 386, sha256: "sha256:29afffc8e5e9f4cd96a8e4d3031b9bea98416c344214e2969b22a0edc01f7980", title: "Stud Tube Open Group  1 x  3", author: "Steffen [Steffen]", ldrawOrg: "Primitive UPDATE 2011-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/stug4-2x2.dat", bytes: 435, sha256: "sha256:cf6e68b84d37562ed1a035015c23f804157ce6a80a7632a179e4def8ddcacfcb", title: "Stud Tube Open Group  2 x  2", author: "Steffen [Steffen]", ldrawOrg: "Primitive UPDATE 2011-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/stug4.dat", bytes: 307, sha256: "sha256:977530a161304abc45fa2dbcac0e8a7df389d8ab3838a82702032a74dca9021f", title: "~Moved to stug-4x4", author: "[PTadmin]", ldrawOrg: "Primitive UPDATE 2011-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/tri3a4.dat", bytes: 468, sha256: "sha256:8c1cf47d85e2d2b429c0ac404108a9e91048fe7c9501b527dda55e75ad11bc4e", title: "Triangular Prism with 3 Adjacent Faces without 4 Edges", author: "Magnus Forsberg [MagFors]", ldrawOrg: "Primitive UPDATE 2017-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/11477.dat", bytes: 374, sha256: "sha256:fed74af9f56bcb149a7f67af4b427c261b41d24d15ed7a3466e24170377a0ba6", title: "Slope Brick Curved  2 x  1", author: "Owen Burgoyne [C3POwen]", ldrawOrg: "Part UPDATE 2013-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/2450.dat", bytes: 2313, sha256: "sha256:5bdb50ad11b750ca1621a7c1717f1dee4af58ae8816af3c77f4af75f7e72f408", title: "Plate  3 x  3 without Corner", author: "James Jessiman", ldrawOrg: "Part UPDATE 2024-03", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/30357.dat", bytes: 1308, sha256: "sha256:a4d5a169af2b78840aae6122b49981ce7db81ef40713ff994615764b5760edcf", title: "Plate  3 x  3 with  2 x  2 Corner Round", author: "Vincent Messenet [Cheenzo]", ldrawOrg: "Part UPDATE 2026-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/30503.dat", bytes: 2325, sha256: "sha256:132b14ffca8e2f2b6296a0a1bcff77187d064c00340ac36fa0cb4784cbc8b56c", title: "Plate  4 x  4 without Corner", author: "Ronald Scott Moody [rmoody]", ldrawOrg: "Part UPDATE 2013-02", licenseExpression: "CC-BY-2.0 OR CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/30565.dat", bytes: 2082, sha256: "sha256:e201a60e7f8e8ab15a86e8449c0e722a1b1ebe8015a5021ac5ca9aa1fd462f39", title: "Plate  4 x  4 with Corner Round", author: "Gerald Lasser [GeraldLasser]", ldrawOrg: "Part UPDATE 2024-06", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/3455.dat", bytes: 5908, sha256: "sha256:6e8fcdca71b4dd1a875b926ed5b28889fc4a47a01272b6550987338f0619083b", title: "Arch  1 x  6", author: "James Jessiman", ldrawOrg: "Part UPDATE 2005-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/35480.dat", bytes: 2309, sha256: "sha256:61d6d988e6549678ec0b6343bf7554ff14781006321da10da9adbbf4e68f2613", title: "Plate  1 x  2 with Round Ends and 2 Open Studs", author: "Magnus Forsberg [MagFors]", ldrawOrg: "Part UPDATE 2018-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/3659.dat", bytes: 3576, sha256: "sha256:7544bbc1fae27eb339ee29a72900d411ade577a78a1686227af32ac0efce150c", title: "Arch  1 x  4", author: "James Jessiman", ldrawOrg: "Part UPDATE 2010-03", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/41769a.dat", bytes: 1006, sha256: "sha256:0b069ab042f2cc8297a52e76b49a06e504cd4e9a51f02d6aea8c63f686c28ff8", title: "Wing  2 x  4 Right without Chamfer", author: "Takeshi Takahashi [RainbowDolphin]", ldrawOrg: "Part UPDATE 2026-05", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/41770a.dat", bytes: 1055, sha256: "sha256:59648c2ca07a51d82fdc9aabf4edb65f4942760dc9df3b64946d13fd82b0303d", title: "Wing  2 x  4 Left without Chamfer", author: "Takeshi Takahashi [RainbowDolphin]", ldrawOrg: "Part UPDATE 2026-05", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/43722a.dat", bytes: 869, sha256: "sha256:cb9c4cfc5c9254fab8191a085ed77d170e16d6f90647bac2c36ce666c1764f59", title: "Wing  2 x  3 Right without Chamfer", author: "Donald Sutter [technog]", ldrawOrg: "Part UPDATE 2026-05", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/43723a.dat", bytes: 872, sha256: "sha256:27225adfc6ffa1e36ae9a1a9448fada822a6f3e43c996c5512f5b2d6be24f181", title: "Wing  2 x  3 Left without Chamfer", author: "Donald Sutter [technog]", ldrawOrg: "Part UPDATE 2026-05", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/5092.dat", bytes: 381, sha256: "sha256:5a8818232b3f361a9a6fb2f774700fa29c488c182c6d4dd2387b41ca29c888f2", title: "Tile  1 x  2 Cut Right 45 Degree", author: "Gerald Lasser [GeraldLasser]", ldrawOrg: "Part UPDATE 2025-03", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/50950.dat", bytes: 654, sha256: "sha256:95ce8c0315699aa02e600e36a9fed48f991e95974c536ede259caa5c12c7dd9d", title: "Slope Brick Curved  3 x  1", author: "Orion Pobursky [OrionP]", ldrawOrg: "Part UPDATE 2026-06", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/51739.dat", bytes: 1235, sha256: "sha256:7b07281c2fa86a18bf5f9461cf6dfc2893cee1186fdfc7f27e1ec453ecc6c53d", title: "Wing  2 x  4", author: "Chris Dee [cwdee]", ldrawOrg: "Part UPDATE 2025-09", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/54200.dat", bytes: 1196, sha256: "sha256:3f0c25da3dac0600209a032c53c040b8668e617374997546d5449528eb7099c9", title: "Slope Brick 31  1 x  1 x  0.667", author: "Orion Pobursky [OrionP]", ldrawOrg: "Part UPDATE 2022-04", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/54383.dat", bytes: 557, sha256: "sha256:5c8d2a4649d0229388af615afc9e954d27844009156404fd546a97efe7655bfc", title: "Wing  3 x  6 Right", author: "Magnus Forsberg [MagFors]", ldrawOrg: "Part UPDATE 2026-04", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/6106.dat", bytes: 5396, sha256: "sha256:1fa164e7f76d0b46ffa950c7accc257b32f5d158d180030fbd2fcd4fab1bf9a5", title: "Plate  6 x  6 without Corner", author: "Steve Bliss [sbliss]", ldrawOrg: "Part UPDATE 2024-03", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/61678.dat", bytes: 561, sha256: "sha256:e06daaca0499570e65d18b3e969be2e7be66896e0735b829c579bfcb6caa1eb8", title: "Slope Brick Curved  4 x  1", author: "Tim Gould [timgould]", ldrawOrg: "Part UPDATE 2014-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/77844.dat", bytes: 1445, sha256: "sha256:3a1abf0ad321a6ac2b57c242c23d076f9e1abcfb976931a29fbef8192917dea0", title: "Plate  3 x  3 Corner", author: "Gerald Lasser [GeraldLasser]", ldrawOrg: "Part UPDATE 2024-05", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/79491.dat", bytes: 3207, sha256: "sha256:91a622f303437d48e8bc721cb86ecef1204c4a49d219a4c98992c7669af536e7", title: "Plate  2 x  2 with Corner Round", author: "Gerald Lasser [GeraldLasser]", ldrawOrg: "Part UPDATE 2024-06", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/80015.dat", bytes: 884, sha256: "sha256:b2c08c34303be83aaba7ab12aecf0ce203773e32189691f2c2b59b2a789d29d5", title: "Plate  5 x  5 with  4 x  4 Corner Round and  4 x  4 with  3 x  3 Corner Round Cutout", author: "Gerald Lasser [GeraldLasser]", ldrawOrg: "Part UPDATE 2024-05", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/85984.dat", bytes: 890, sha256: "sha256:4ec471415207722114f48abb384626d3dbda59796803cafc7feaf824ed88d426", title: "Slope Brick 31  1 x  2 x  0.667", author: "Magnus Forsberg [MagFors]", ldrawOrg: "Part UPDATE 2020-02", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/93273.dat", bytes: 383, sha256: "sha256:14bec7745fd39abc663d276997724137dbe2c927d4658ea36730213b3df81eef", title: "Slope Brick Curved  4 x  1 Double", author: "Magnus Forsberg [MagFors]", ldrawOrg: "Part UPDATE 2011-02", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/s/11477s01.dat", bytes: 3191, sha256: "sha256:bc00e46f3d79f0569d3952eb20b91ae2402121d483945fce7e51f3322fdaea21", title: "~Slope Brick Curved  2 x  1 without Top Surface", author: "Owen Burgoyne [C3POwen]", ldrawOrg: "Subpart UPDATE 2023-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/s/22888s01.dat", bytes: 2326, sha256: "sha256:553077491f4d2c24cb59df94f75cf3a96b5daaf42adbe33d07e91451fb39d846", title: "~Plate  4 x  8 Round 1/8", author: "Gerald Lasser [GeraldLasser]", ldrawOrg: "Subpart UPDATE 2024-07", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/s/22888s02.dat", bytes: 2718, sha256: "sha256:5afa0d11ed4cfc3f4669b214f53539794f8b6547f14654a991ef67b217215c7d", title: "~Plate  4 x  8 Round 1/8 - Common Geometry", author: "Gerald Lasser [GeraldLasser]", ldrawOrg: "Subpart UPDATE 2024-06", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/s/30565s01.dat", bytes: 2926, sha256: "sha256:69b36b94a6b6313e379a36b26a1a1f9a3f18b452bf98547a7e16f21b3ecf086b", title: "~Plate  4 x  4 Round 1/8", author: "Gerald Lasser [GeraldLasser]", ldrawOrg: "Subpart UPDATE 2024-06", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/s/41770as01.dat", bytes: 6907, sha256: "sha256:8d88de31c2ec2050977671b63f6115ae47b72f2c01d9f863bd34ecc00760165d", title: "~Wing  2 x  4 Left without Chamfer without Studs", author: "Takeshi Takahashi [RainbowDolphin]", ldrawOrg: "Subpart UPDATE 2026-05", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/s/43722as01.dat", bytes: 3821, sha256: "sha256:e2dddcddb4bf0c30f9ba2f5880d9bca822bde31d07a3bfb094b8b2c4b8711d68", title: "~Wing  2 x  3 Right without Chamfer without Studs and Top Face", author: "Donald Sutter [technog]", ldrawOrg: "Subpart UPDATE 2026-05", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/s/5092s01.dat", bytes: 2560, sha256: "sha256:02161d4d43cf5d1a4ceb1d3c7440d75bd6789eb2b032a420750ee8363fdc6d81", title: "~Tile  1 x  2 Cut Right 45 Degree without Patternable Surfaces", author: "Gerald Lasser [GeraldLasser]", ldrawOrg: "Subpart UPDATE 2025-03", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/s/50950s01.dat", bytes: 3601, sha256: "sha256:60849823f4bdc411b403c5e28c515e7e114bfd3bd5c456bf50892255d99efad4", title: "~Slope Brick Curved  3 x  1 without Top Surface", author: "Rene Rechthaler [Blechtaler]", ldrawOrg: "Subpart UPDATE 2026-06", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/s/51739s01.dat", bytes: 2293, sha256: "sha256:2fa153c39f869c9c9fd4b4289022395d8bf8e748cffbdc2ef98e6d24858b2da1", title: "~Wing  2 x  4 - Half Bottom Section", author: "Magnus Forsberg [MagFors]", ldrawOrg: "Subpart UPDATE 2025-07", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/s/54200s01.dat", bytes: 3744, sha256: "sha256:cf96613781f9e09ef1e12bf1be127a99b1a8f18a5e8ee9af434ef4e757696cc7", title: "~Slope Brick 31  1 x  1 x  0.667 without Sloped Face", author: "Orion Pobursky [OrionP]", ldrawOrg: "Subpart UPDATE 2022-03", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/s/54383s01.dat", bytes: 7235, sha256: "sha256:0b98f176b3df329edc0721e916c80f9c9007290da9e75c236e3cd6baa120ecaa", title: "~Wing  3 x  6 Right without Studs", author: "Magnus Forsberg [MagFors]", ldrawOrg: "Subpart UPDATE 2026-04", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/s/61678s01.dat", bytes: 5379, sha256: "sha256:2445d156ebfd9aa072bbb84ef79421d6f9638fca4dc431e8fce0fb3fa059a6c5", title: "~Slope Brick Curved  4 x  1 without Top Surface", author: "Philippe Hurbain [Philo]", ldrawOrg: "Subpart UPDATE 2014-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/s/7904s01.dat", bytes: 2424, sha256: "sha256:5c90b49a6e2c569168f4035322f71247aca6f782f8bac1895bea1d81ecd9b55b", title: "~Plate  2 x  2 with Corner Round - Half", author: "Vincent Messenet [Cheenzo]", ldrawOrg: "Subpart UPDATE 2026-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/s/80015s01.dat", bytes: 6682, sha256: "sha256:08baa9987359d51ddd8954ae8983a3aa0b5d47b063c497f4e43e520d3b2aa36b", title: "~Plate  5 x  5 with  4 x  4 Corner Round and  4 x  4 with  3 x  3 Corner Round Cutout - Half", author: "Gerald Lasser [GeraldLasser]", ldrawOrg: "Subpart UPDATE 2024-05", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/s/85984s01.dat", bytes: 5162, sha256: "sha256:be8c8a230e87f02663d9a985895d1342fe5246523609296e3d64862895bb8721", title: "~Slope Brick 31  1 x  2 x  0.667 without Top Surface", author: "Magnus Forsberg [MagFors]", ldrawOrg: "Subpart UPDATE 2020-02", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/s/93273s01.dat", bytes: 5473, sha256: "sha256:95d97ee75937fa8baa4b0fca339143ed3a5d1b812e4b2e76ef20d2a4c4622489", title: "~Slope Brick Curved  4 x  1 Double without Top Surface", author: "Magnus Forsberg [MagFors]", ldrawOrg: "Subpart UPDATE 2023-04", licenseExpression: "CC-BY-4.0" },
 ]);
 
 /** Which of those files each bundled part's exact closure references. */
 export const BUNDLED_LDRAW_CLOSURES: Readonly<Record<string, readonly number[]>> = Object.freeze({
-  "5092": [61, 62, 71, 74, 78, 103, 113],
-  "35480": [23, 24, 25, 26, 27, 28, 29, 37, 38, 39, 40, 60, 64, 82, 83, 102],
-  "51739": [30, 31, 32, 33, 36, 37, 38, 39, 41, 61, 62, 66, 71, 74, 78, 81, 84, 89, 104, 114],
-  "77844": [37, 38, 39, 61, 65, 81, 83, 86, 88, 94, 106],
-  "93273": [9, 22, 25, 26, 37, 38, 39, 55, 57, 58, 61, 68, 74, 75, 76, 77, 78, 79, 83, 109, 117],
+  "5092": [76, 77, 90, 93, 97, 135, 153],
+  "35480": [25, 26, 27, 28, 29, 30, 31, 48, 51, 52, 53, 75, 80, 103, 104, 129],
+  "51739": [33, 34, 35, 36, 40, 48, 51, 52, 54, 76, 77, 82, 90, 93, 97, 102, 106, 113, 137, 155],
+  "77844": [48, 51, 52, 76, 81, 102, 104, 109, 112, 118, 142],
+  "93273": [11, 24, 27, 28, 48, 51, 52, 68, 70, 71, 76, 85, 93, 94, 95, 96, 97, 98, 104, 146, 162],
   "30357": [
-    14, 15, 16, 17, 21, 37, 38, 39, 41, 42, 43, 44, 45, 51, 52, 53, 54, 61, 73, 77, 81, 84, 88, 90,
-    95, 99, 115,
+    16, 17, 18, 19, 23, 48, 51, 52, 54, 55, 56, 57, 58, 64, 65, 66, 67, 76, 92, 96, 102, 106, 112,
+    114, 120, 125, 159,
   ],
-  "2450": [37, 38, 39, 41, 61, 70, 75, 76, 77, 78, 80, 81, 84, 89, 98],
+  "2450": [48, 51, 52, 54, 76, 87, 94, 95, 96, 97, 99, 102, 106, 113, 124],
   "79491": [
-    0, 1, 3, 6, 7, 8, 10, 11, 14, 17, 37, 38, 39, 61, 62, 63, 69, 73, 74, 77, 78, 81, 83, 107,
+    0, 1, 3, 8, 9, 10, 12, 13, 16, 19, 48, 51, 52, 76, 77, 79, 86, 92, 93, 96, 97, 102, 104, 143,
   ],
-  "30503": [37, 38, 39, 41, 61, 70, 75, 77, 78, 80, 81, 84, 85, 86, 87, 95, 100],
-  "6106": [37, 38, 39, 41, 61, 67, 70, 74, 78, 81, 84, 89, 92, 93, 96, 105],
+  "30503": [48, 51, 52, 54, 76, 87, 94, 96, 97, 99, 102, 106, 108, 109, 110, 120, 126],
+  "6106": [48, 51, 52, 54, 76, 84, 87, 93, 97, 102, 106, 113, 116, 117, 121, 140],
   "30565": [
-    1, 2, 3, 4, 5, 7, 8, 10, 12, 13, 14, 15, 16, 17, 18, 37, 38, 39, 41, 50, 56, 59, 61, 74, 77, 81,
-    84, 91, 95, 97, 101, 111, 112,
+    1, 2, 3, 4, 5, 9, 10, 12, 14, 15, 16, 17, 18, 19, 20, 48, 51, 52, 54, 63, 69, 73, 76, 93, 96,
+    102, 106, 115, 120, 122, 127, 149, 150,
   ],
   "80015": [
-    1, 2, 3, 7, 8, 10, 12, 13, 15, 16, 17, 18, 19, 20, 31, 32, 33, 34, 35, 37, 38, 39, 46, 47, 48,
-    49, 50, 58, 59, 62, 67, 69, 70, 72, 74, 77, 78, 81, 83, 85, 88, 108, 110, 111, 116,
+    1, 2, 3, 9, 10, 12, 14, 15, 17, 18, 19, 20, 21, 22, 34, 35, 36, 38, 39, 48, 51, 52, 59, 60, 61,
+    62, 63, 71, 73, 77, 84, 86, 87, 91, 93, 96, 97, 102, 104, 108, 112, 144, 148, 149, 160,
   ],
+  "41770a": [
+    0, 1, 2, 3, 7, 9, 10, 12, 14, 15, 16, 17, 18, 19, 21, 22, 23, 25, 26, 27, 30, 32, 34, 35, 36,
+    38, 39, 48, 51, 52, 54, 92, 93, 97, 102, 106, 110, 132, 151,
+  ],
+  "41769a": [
+    0, 1, 2, 3, 7, 9, 10, 12, 14, 15, 16, 17, 18, 19, 21, 22, 23, 25, 26, 27, 30, 32, 34, 35, 36,
+    38, 39, 48, 51, 52, 54, 92, 93, 97, 102, 106, 110, 131, 151,
+  ],
+  "43723a": [
+    7, 9, 10, 12, 14, 30, 34, 35, 36, 41, 42, 43, 44, 45, 46, 47, 48, 49, 51, 52, 74, 76, 77, 93,
+    94, 96, 97, 102, 109, 134, 152,
+  ],
+  "43722a": [
+    7, 9, 10, 12, 14, 30, 34, 35, 36, 41, 42, 43, 44, 45, 46, 47, 48, 49, 51, 52, 74, 76, 77, 93,
+    94, 96, 97, 102, 109, 133, 152,
+  ],
+  "54383": [
+    0, 1, 2, 3, 6, 9, 10, 12, 14, 15, 16, 17, 18, 19, 34, 35, 36, 38, 39, 41, 42, 43, 48, 49, 51,
+    52, 54, 85, 92, 93, 95, 96, 97, 102, 106, 107, 109, 111, 119, 139, 157,
+  ],
+  "3659": [37, 44, 46, 48, 51, 52, 81, 90, 102, 130],
+  "3455": [48, 51, 52, 81, 90, 102, 128],
+  "11477": [11, 24, 27, 28, 71, 72, 73, 76, 77, 78, 85, 93, 97, 98, 123, 147],
+  "50950": [71, 72, 73, 76, 78, 83, 96, 97, 98, 100, 101, 136, 154],
+  "61678": [55, 56, 58, 76, 85, 89, 93, 94, 96, 97, 141, 158],
+  "54200": [88, 93, 97, 138, 156],
+  "85984": [48, 50, 51, 52, 88, 93, 97, 105, 145, 161],
 });
 
 /** The archive the files above were read from, byte-pinned. */

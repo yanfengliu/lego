@@ -345,7 +345,8 @@ describe("catalog plan geometry", () => {
     // compound body is the ordinary case and the two statements have to be made
     // separately or the exceptions stop being exceptions.
     for (const id of Object.keys(COMPOUND_CELLS)) {
-      expect([id, compoundParts.some((part) => part.id === id)]).toEqual([id, true]);
+      const precedingRecipe = requireLegacyParametricPart(id);
+      expect([id, precedingRecipe.geometry.bodyBoxesLdu !== undefined]).toEqual([id, true]);
     }
     for (const part of compoundParts) {
       if (COMPOUND_CELLS[part.id] !== undefined) continue;

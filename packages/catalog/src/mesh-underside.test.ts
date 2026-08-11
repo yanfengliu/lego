@@ -84,14 +84,14 @@ describe("underside measured from a bundled mesh", () => {
   });
 
   it("reports every shipped mesh part as drawing the underside it claims", () => {
-    // Not a restatement of the code: these twelve are bundled LDraw surfaces, and
+    // Not a restatement of the code: these twenty-four are bundled LDraw surfaces, and
     // LDraw models a plate's cavity, so the expected answer here is a fact about
     // the source rather than about the measurement. `35480` is the one that
     // reads `open` at both clutches, because its studs are open and the hole
     // runs through the part.
     const mesh = PART_DEFINITIONS.filter(isMeshPartDefinition);
 
-    expect(mesh).toHaveLength(12);
+    expect(mesh).toHaveLength(24);
     expect(
       mesh.map(({ id, geometry }) => [
         id,
@@ -102,6 +102,83 @@ describe("underside measured from a bundled mesh", () => {
       ]),
     ).toEqual([
       [
+        "builtin:wedge-plate-2x4-left",
+        "preserved-catalog-recipe",
+        "bundled-source-mesh",
+        "measured-stud-seats",
+        "modelled-shell-cavity",
+      ],
+      [
+        "builtin:wedge-plate-2x4-right",
+        "preserved-catalog-recipe",
+        "bundled-source-mesh",
+        "measured-stud-seats",
+        "modelled-shell-cavity",
+      ],
+      [
+        "builtin:wedge-plate-2x3-left",
+        "preserved-catalog-recipe",
+        "bundled-source-mesh",
+        "measured-stud-seats",
+        "modelled-shell-cavity",
+      ],
+      [
+        "builtin:wedge-plate-2x3-right",
+        "preserved-catalog-recipe",
+        "bundled-source-mesh",
+        "measured-stud-seats",
+        "modelled-shell-cavity",
+      ],
+      [
+        "builtin:arch-1x4",
+        "preserved-catalog-recipe",
+        "bundled-source-mesh",
+        "measured-stud-seats",
+        "modelled-shell-cavity",
+      ],
+      [
+        "builtin:arch-1x6",
+        "preserved-catalog-recipe",
+        "bundled-source-mesh",
+        "measured-stud-seats",
+        "modelled-shell-cavity",
+      ],
+      [
+        "builtin:curved-slope-1x2",
+        "preserved-catalog-recipe",
+        "bundled-source-mesh",
+        "none",
+        "modelled-shell-cavity",
+      ],
+      [
+        "builtin:curved-slope-1x3",
+        "preserved-catalog-recipe",
+        "bundled-source-mesh",
+        "none",
+        "modelled-shell-cavity",
+      ],
+      [
+        "builtin:curved-slope-1x4",
+        "preserved-catalog-recipe",
+        "bundled-source-mesh",
+        "none",
+        "modelled-shell-cavity",
+      ],
+      [
+        "builtin:cheese-slope-1x1",
+        "preserved-catalog-recipe",
+        "bundled-source-mesh",
+        "none",
+        "modelled-shell-cavity",
+      ],
+      [
+        "builtin:cheese-slope-2x1",
+        "preserved-catalog-recipe",
+        "bundled-source-mesh",
+        "none",
+        "modelled-shell-cavity",
+      ],
+      [
         "builtin:wedge-plate-4x4-cut-corner",
         "preserved-catalog-recipe",
         "bundled-source-mesh",
@@ -110,6 +187,13 @@ describe("underside measured from a bundled mesh", () => {
       ],
       [
         "builtin:wedge-plate-6x6-cut-corner",
+        "preserved-catalog-recipe",
+        "bundled-source-mesh",
+        "measured-stud-seats",
+        "modelled-shell-cavity",
+      ],
+      [
+        "builtin:wedge-plate-3x6-right",
         "preserved-catalog-recipe",
         "bundled-source-mesh",
         "measured-stud-seats",

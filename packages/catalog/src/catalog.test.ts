@@ -137,8 +137,8 @@ const EXPECTED_PART_IDS = [
 ] as const;
 
 describe("starter catalog", () => {
-  it("publishes the four in-place exact render promotions as version 12", () => {
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/12");
+  it("publishes the complete in-place exact render tranche as version 13", () => {
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/13");
   });
 
   it("does not expose inherited object properties as catalog entries", () => {

@@ -28,7 +28,7 @@ python -B scripts/generate-set-6651557-source-pilot.py --official $officialArchi
 python -B scripts/derive-builder-ldraw-frame.py --official $officialArchive --unofficial $unofficialArchive --native-pack $nativePack --pilot output/real-build/set-6651557-source-pilot.json --output output/real-build/set-6651557-builder-ldraw-frame.json
 ```
 
-Then remeasure, score, canonicalize, and compare all three generated catalog tables. `--check` is a real byte-for-byte refusal after the workspace-pinned Prettier runs; the ignored report binds the exact pilot and Builder-frame bytes and digests it consumed.
+Then remeasure, score, canonicalize, and compare the generated catalog outputs. The mesh registry indexes four bounded chunks so no generated source file approaches the 1 MiB text ceiling; the render-only generated type cannot carry connector, allowance, or collision truth. `--check` runs the workspace-pinned Prettier and refuses any byte drift, while report schema `/3` distinguishes full-measured from render-only authority and binds the exact pilot and Builder-frame inputs. [Part-model catalog truth](../design/part-model.md#current-catalog) owns the current `/13` counts, mesh deltas, and migration interpretation.
 
 ```powershell
 $shadowLibrary = "C:\tmp\ldcad-shadow-20260802"
@@ -36,7 +36,7 @@ $shadowLibrary = "C:\tmp\ldcad-shadow-20260802"
 python -B scripts/emit-measured-part-tables.py --official $officialArchive --unofficial $unofficialArchive --shadow $shadowLibrary --pilot output/real-build/set-6651557-source-pilot.json --builder-frame output/real-build/set-6651557-builder-ldraw-frame.json --report output/real-build/set-6651557-measured-part-emission-check.json --check
 ```
 
-For an intentional catalog-truth update, run the final command once without `--check`, review the three generated TypeScript diffs, and rerun it with `--check`. Never hand-edit `mesh-assets-6651557.ts`, `part-blueprints-6651557-measured.ts`, or `ldraw-bundled-sources-6651557.ts`.
+For an intentional catalog-truth update, run the final command once without `--check`, review all eight generated TypeScript diffs, and rerun it with `--check`. Never hand-edit `mesh-assets-6651557.ts`, its `mesh-assets-6651557-measured-{a,b,c}.ts` and `mesh-assets-6651557-render-only.ts` chunks, `part-blueprints-6651557-measured.ts`, `part-blueprints-6651557-render-only.ts`, or `ldraw-bundled-sources-6651557.ts`.
 
 ## Run the retained build
 
@@ -50,7 +50,7 @@ Remove-Item Env:LEGO_REAL_BUILD_REQUIRED -ErrorAction SilentlyContinue
 Remove-Item Env:LEGO_REAL_BUILD_LAST_STEP -ErrorAction SilentlyContinue
 ```
 
-The default output root is `output/real-build`. A successful publication writes a verified immutable run under `<output-root>/runs/<run-id>/` and atomically updates `<output-root>/runs/current.json`; a refused or interrupted publication must not replace that pointer. `LEGO_REAL_BUILD_OUT` may redirect the published run only to another traversal-free descendant of `output/`; it does not redirect the retained inputs listed above.
+The default output root is `output/real-build`. Once artifact-closure verification succeeds, publication writes an immutable run under `<output-root>/runs/<run-id>/` and atomically updates `<output-root>/runs/current.json` even when the retained run result is a failed diagnostic such as `source-drift-detected`; that status prevents finalization, not diagnostic publication. An interruption or artifact-verification failure before publication must not replace the pointer. `LEGO_REAL_BUILD_OUT` may redirect the published run only to another traversal-free descendant of `output/`; it does not redirect the retained inputs listed above.
 
 ## Regenerate catalog-derived inputs
 
@@ -108,7 +108,17 @@ node scripts/panel-placement-run.mjs --steps 4,5 --panels output/zzz-vision --pr
 npx.cmd vitest run apps/web/test/panel-reading-booklet.test.ts
 ```
 
-The focused test applies whatever ignored readings and retained run it finds to the deterministic enumerator; green means the survivors remain enumerated candidates, not that the reading is visually correct or that the settled transform survived. It selects the farthest available score and document independently and only logs `DROPS SETTLED`, so treat it as a diagnostic rather than a safety gate. A reproducible successor must retain immutable source and candidate-render bytes and bind them to PDF/page/bounds, deterministic face, prompt, brief, model response, catalog, base document, action ledger, panel N+1, and, when N+1 occludes the placement or remains ambiguous, the first revealing farther panel.
+The source-bound N/N+1/conditional-K checker is a separate quarantined diagnostic, not a replacement for the probe above or an input consumed by the studio or real-build driver. It still has no consent-checking PDF/crop producer and no successful live verdict; do not call its subscription-CLI adapter until that producer exists. [`learning-system.md`](../design/learning-system.md#model-calls-as-evidence) owns its evidence/refusal contract and the [threat model](../design/threat-model.md#current-trust-boundaries) owns its transport and trust boundary.
+
+Exercise only the mocked checker and transport path with:
+
+```powershell
+npm run test:vision
+```
+
+Green mocked tests prove the local boundary and refusal semantics, not that a provider inspected a booklet image.
+
+The `panel-reading-booklet.test.ts` command applies whatever ignored readings and retained run it finds to the deterministic enumerator; green means the survivors remain enumerated candidates, not that the reading is visually correct or that the settled transform survived. It selects the farthest available score and document independently and only logs `DROPS SETTLED`, so treat it as a diagnostic rather than a safety gate. A reproducible successor must retain immutable source and candidate-render bytes and bind them to PDF/page/bounds, deterministic face, prompt, brief, model response, catalog, base document, action ledger, panel N+1, and, when N+1 occludes the placement or remains ambiguous, the first revealing farther panel.
 
 ## Evidence lifecycle
 

@@ -6,12 +6,8 @@
  * a rule broken by one part is a modelling slip, and a rule broken by seventy is
  * a standard the catalog never had.
  *
- * This gate is not yet in `npm run verify`, and that is a deliberate, temporary
- * statement rather than an oversight - the catalog does not meet its own
- * standard today, so wiring it into verify would make every unrelated change
- * red. `docs/design/building-system.md` records the count that must reach zero.
- * When it does, this belongs in the chain beside the other :check scripts, and
- * the note there comes out.
+ * This gate is part of `npm run verify`. New or changed catalog geometry must
+ * leave the whole catalog green; there is no grandfathered declaration debt.
  */
 import { BUILTIN_CATALOG } from "../packages/catalog/src/index.ts";
 import { catalogStandardViolations } from "../packages/catalog/src/part-standard.ts";

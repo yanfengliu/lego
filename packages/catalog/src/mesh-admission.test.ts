@@ -150,6 +150,30 @@ describe("mesh part catalog admission", () => {
     expect(result).toEqual({ accepted: true, issues: [] });
   });
 
+  it("admits a studless source chamfer whose visible body ends inside its nominal top plane", () => {
+    const cheese = getPartDefinition("builtin:cheese-slope-1x1");
+    expect(cheese).toBeDefined();
+    if (cheese === undefined) return;
+
+    expect(cheese.dimensions.heightLdu).toBe(16);
+    expect(cheese.bodyBoundsLdu.min[1]).toBeCloseTo(-7.6, 12);
+    expect(cheese.bodyBoundsLdu.min[1]).toBeGreaterThan(-cheese.dimensions.heightLdu / 2);
+    expect(cheese.bodyBoundsLdu.max[1]).toBe(cheese.dimensions.heightLdu / 2);
+    expect(cheese.connectors.some(({ kind }) => kind === "stud")).toBe(false);
+    expect(() => assertBuiltinCatalogMeshAdmissions([cheese])).not.toThrow();
+
+    const implausiblyShallow: PartDefinition = {
+      ...cheese,
+      bodyBoundsLdu: {
+        ...cheese.bodyBoundsLdu,
+        min: [cheese.bodyBoundsLdu.min[0], -7.4, cheese.bodyBoundsLdu.min[2]],
+      },
+    };
+    expect(
+      validateMeshPartDefinitionAdmission(implausiblyShallow).issues.map(({ code }) => code),
+    ).toContain("MESH_ADMISSION_VERTICAL_EXTENTS_INVALID");
+  });
+
   it("rejects a definition whose closed asset is absent before it can render a placeholder", () => {
     expect(issueCodes(definition(), false)).toEqual(["MESH_ADMISSION_RESOLUTION_FAILED"]);
   });

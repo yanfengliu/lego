@@ -12,11 +12,16 @@ import { createBuiltinTruthSnapshot, getBuiltinTruthDigestInputs } from "./facto
  * are literals rather than recomputed expectations on purpose: a test that
  * derives what it checks from the code it is checking cannot notice a change.
  *
- * Measured at catalog builtin.basic-parts/12 with 85 definitions. /12 promotes
- * four existing wedge/round plates to exact bundled LDraw render meshes in
- * place. Exactly one of the five moved — the catalog — while the collision
- * model stayed byte-identical because those promotions deliberately retain the
- * reviewed parametric collision recipes.
+ * Measured at catalog builtin.basic-parts/13 with 85 definitions. /13 promotes
+ * twelve more existing parts to exact bundled LDraw render meshes and stores
+ * source-faithful normals for all twenty-four bundled meshes. Exactly one of
+ * the five moved — the catalog — while connector and collision truth stayed
+ * byte-identical because all sixteen render promotions deliberately retain the
+ * reviewed parametric physical semantics.
+ *
+ * What they were at builtin.basic-parts/12, HEAD e70346d:
+ *   catalog            sha256:7a058d34855c49d1b46317e0fff51117c36aa92051ba57449465e506fb6986f5
+ *   collisionModel     sha256:a14d660a6b24a63326ab6c24865fc07ea59496b1cf48002cea83a4b615724edb
  *
  * What they were at builtin.basic-parts/11, HEAD bd46506:
  *   catalog            sha256:c7e1f3ff0c5edb175c3b97ad98795aa5ed776636941c5e1b3ff52fcee2daa3bc
@@ -60,7 +65,7 @@ import { createBuiltinTruthSnapshot, getBuiltinTruthDigestInputs } from "./facto
  *   validatorSet       sha256:cb2767cfa8c8d7adfe145bef950b49428d8c8fced235a04b5f984c29799a031e
  */
 const PINNED_TRUTH_HASHES = {
-  catalog: "sha256:7a058d34855c49d1b46317e0fff51117c36aa92051ba57449465e506fb6986f5",
+  catalog: "sha256:100283423bf1cfecfdfec5ba2216d1834a9eb19b1757c71772f7fa53223190d6",
   connectorTaxonomy: "sha256:57489cb5a3b5e1bf367984c2768318f151e19051d2b1b6ee3713a7e6ef53f6a2",
   collisionModel: "sha256:a14d660a6b24a63326ab6c24865fc07ea59496b1cf48002cea83a4b615724edb",
   transformPolicy: "sha256:0b440dad9403f63aa89496e0e129ef3cf5d78391565294cbde18e239ec66c7b6",
@@ -78,15 +83,16 @@ const PINNED_TRUTH_HASHES = {
  * version bump: parts in place changed what they draw.
  */
 const PINNED_GEOMETRY_ROSTER_SHA256 =
-  "b1329422ec7708c6478bb61fab5a4e4fd95268b1c340ace22691755785249ce2";
+  "c0c67ff69b02a2915bb46d3ce41b91a1bfe955ef1e7ddd9fa84fcf6041330a03";
 
 const PINNED_PART_COUNT = 85;
 /**
  * 1_204_568 at builtin.basic-parts/6, 1_298_834 at /7, 1_358_361 at /8,
- * 1_359_123 at /9. The jump at /10 is fifty-eight bodies going from one box to
- * five plus their tubes.
+ * 1_359_123 at /9, and 1_504_522 at /12. The /13 increase records twelve exact
+ * render promotions and source-faithful mesh hashes without moving physical
+ * truth.
  */
-const PINNED_CATALOG_SERIALIZED_LENGTH = 1_504_522;
+const PINNED_CATALOG_SERIALIZED_LENGTH = 1_508_599;
 
 describe("builtin truth digest stability", () => {
   it("keeps the five pinned truth hashes byte-identical", () => {
@@ -105,7 +111,7 @@ describe("builtin truth digest stability", () => {
     const truth = createBuiltinTruthSnapshot();
 
     expect(truth.catalog.hash).toBe(PINNED_TRUTH_HASHES.catalog);
-    expect(truth.catalog.version).toBe("builtin.basic-parts/12");
+    expect(truth.catalog.version).toBe("builtin.basic-parts/13");
     expect(truth.connectorTaxonomy.hash).toBe(PINNED_TRUTH_HASHES.connectorTaxonomy);
     expect(truth.collisionModel.hash).toBe(PINNED_TRUTH_HASHES.collisionModel);
     expect(truth.transformPolicy.hash).toBe(PINNED_TRUTH_HASHES.transformPolicy);

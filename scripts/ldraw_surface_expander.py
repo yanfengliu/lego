@@ -4,6 +4,8 @@ import math
 from dataclasses import dataclass
 from typing import Callable, Protocol
 
+from ldraw_surface_smoothing import HardEdge, SmoothingFace, smooth_face_normals
+
 
 SourceKey = tuple[str, str]
 SourceIdentity = tuple[str, str, str]
@@ -13,6 +15,7 @@ Matrix3 = tuple[float, float, float, float, float, float, float, float, float]
 MAX_RECURSION_DEPTH = 64
 MAX_EXPANDED_REFERENCES = 65_536
 MAX_EXPANDED_TRIANGLES = 2_000_000
+MAX_EXPANDED_HARD_EDGES = 2_000_000
 MAX_SOURCE_NUMBER_MAGNITUDE = 1_000_000_000.0
 MAX_EXPANDED_COORDINATE_MAGNITUDE_LDU = 1_000_000_000.0
 
@@ -32,6 +35,20 @@ class AffineTransform:
 @dataclass(frozen=True)
 class ExpandedTriangle:
     points: tuple[Vector3, Vector3, Vector3]
+    corner_normals: tuple[Vector3, Vector3, Vector3]
+    role: str
+    ancestry: tuple[SourceKey, ...]
+    source: SourceKey
+    line_number: int
+    certified: bool
+    cull_enabled: bool
+
+
+@dataclass(frozen=True)
+class _ExpandedFace:
+    points: tuple[Vector3, ...]
+    triangle_corners: tuple[tuple[int, int, int], ...]
+    effective_colour: str
     role: str
     ancestry: tuple[SourceKey, ...]
     source: SourceKey
@@ -44,6 +61,7 @@ class ExpandedTriangle:
 class _ExpansionBudget:
     references: int = 0
     triangles: int = 0
+    hard_edges: int = 0
 
 
 IDENTITY = AffineTransform(
@@ -284,13 +302,18 @@ def expand_surface(
     on_source: Callable[[SourceKey], None] | None = None,
 ) -> list[ExpandedTriangle]:
     budget = _ExpansionBudget()
-    result: list[ExpandedTriangle] = []
+    faces: list[_ExpandedFace] = []
+    hard_edges: list[HardEdge] = []
     source_visited = on_source or (lambda _: None)
+
+    def effective_colour(declared: str, inherited: str) -> str:
+        return inherited if declared == "16" else declared
 
     def visit(
         source: SourceKey,
         transform: AffineTransform,
         ancestry: tuple[SourceKey, ...],
+        inherited_colour: str,
         inverted: bool,
         inherited_cull: bool,
         stack: tuple[SourceKey, ...],
@@ -338,8 +361,6 @@ def expand_surface(
                     certified = "NOCERTIFY" not in options
                 elif certified is False:
                     continue
-                elif certified is None and not operational_seen:
-                    certified = True
                 if "CW" in options:
                     winding = "CW"
                 elif "CCW" in options:
@@ -388,6 +409,7 @@ def expand_surface(
                     translation=tuple(values[0:3]),  # type: ignore[arg-type]
                 )
                 child = library.resolve(reference_fields[14], source[0])
+                child_colour = effective_colour(reference_fields[1], inherited_colour)
                 budget.references += 1
                 if budget.references > MAX_EXPANDED_REFERENCES:
                     raise ValueError(
@@ -399,6 +421,7 @@ def expand_surface(
                     child,
                     composed_transform,
                     next_ancestry,
+                    child_colour,
                     inverted ^ invert_next,
                     inherited_cull
                     and local_cull
@@ -418,8 +441,21 @@ def expand_surface(
                         f"{source[0]}:{source[1]}:{line_number}; expected {expected_length} fields, "
                         f"found {len(fields)}."
                     )
-                _numbers(fields[2:], source, line_number)
+                values = _numbers(fields[2:], source, line_number)
                 _validate_colour(fields[1], source, line_number)
+                if record_type == "2":
+                    budget.hard_edges += 1
+                    if budget.hard_edges > MAX_EXPANDED_HARD_EDGES:
+                        raise ValueError(
+                            f"Expanded LDraw surface exceeds {MAX_EXPANDED_HARD_EDGES} type-2 "
+                            f"hard edges at {source[0]}:{source[1]}:{line_number}."
+                        )
+                    hard_edges.append(
+                        (
+                            transform_point(transform, tuple(values[0:3])),  # type: ignore[arg-type]
+                            transform_point(transform, tuple(values[3:6])),  # type: ignore[arg-type]
+                        )
+                    )
                 continue
 
             expected_length = 11 if record_type == "3" else 14
@@ -437,19 +473,18 @@ def expand_surface(
             ]
             if record_type == "4":
                 _validate_quad(points, source, line_number)
-            triangles = (
-                [(points[0], points[1], points[2])]
-                if record_type == "3"
-                else [
-                    (points[0], points[1], points[2]),
-                    (points[0], points[2], points[3]),
-                ]
-            )
             reverse = certified and (
                 (winding == "CW") ^ inverted ^ (determinant(transform.matrix) < 0)
             )
-            for triangle in triangles:
-                first, second, third = triangle
+            # Three's pinned LDrawLoader reverses the complete face array. For
+            # a CW/nonplanar quad that deliberately selects the p3-p1 diagonal;
+            # preserving a prior p0-p2 split would no longer be source-exact.
+            oriented_points = tuple(reversed(points)) if reverse else tuple(points)
+            triangle_corners = (
+                ((0, 1, 2),) if record_type == "3" else ((0, 1, 2), (0, 2, 3))
+            )
+            for corner_indices in triangle_corners:
+                first, second, third = (oriented_points[index] for index in corner_indices)
                 ab = tuple(second[axis] - first[axis] for axis in range(3))
                 ac = tuple(third[axis] - first[axis] for axis in range(3))
                 cross = (
@@ -462,25 +497,25 @@ def expand_surface(
                         f"Expanded LDraw triangle at {source[0]}:{source[1]}:{line_number} "
                         "is degenerate after its complete type-1 transform."
                     )
-                if reverse:
-                    triangle = (triangle[0], triangle[2], triangle[1])
                 budget.triangles += 1
                 if budget.triangles > MAX_EXPANDED_TRIANGLES:
                     raise ValueError(
                         f"Expanded LDraw surface exceeds {MAX_EXPANDED_TRIANGLES} triangles at "
                         f"{source[0]}:{source[1]}:{line_number}."
                     )
-                result.append(
-                    ExpandedTriangle(
-                        points=triangle,
-                        role=role_for_ancestry(next_ancestry),
-                        ancestry=next_ancestry,
-                        source=source,
-                        line_number=line_number,
-                        certified=certified,
-                        cull_enabled=inherited_cull and local_cull and certified,
-                    )
+            faces.append(
+                _ExpandedFace(
+                    points=oriented_points,
+                    triangle_corners=triangle_corners,
+                    effective_colour=effective_colour(fields[1], inherited_colour),
+                    role=role_for_ancestry(next_ancestry),
+                    ancestry=next_ancestry,
+                    source=source,
+                    line_number=line_number,
+                    certified=certified,
+                    cull_enabled=inherited_cull and local_cull and certified,
                 )
+            )
 
         if invert_next:
             raise ValueError(
@@ -488,7 +523,25 @@ def expand_surface(
                 "type-1 reference."
             )
 
-    visit(root, IDENTITY, (), False, True, ())
+    visit(root, IDENTITY, (), "16", False, True, ())
+    face_normals = smooth_face_normals(
+        tuple(SmoothingFace(face.points, face.effective_colour) for face in faces), hard_edges
+    )
+    result: list[ExpandedTriangle] = []
+    for face, normals in zip(faces, face_normals):
+        for corner_indices in face.triangle_corners:
+            result.append(
+                ExpandedTriangle(
+                    points=tuple(face.points[index] for index in corner_indices),  # type: ignore[arg-type]
+                    corner_normals=tuple(normals[index] for index in corner_indices),  # type: ignore[arg-type]
+                    role=face.role,
+                    ancestry=face.ancestry,
+                    source=face.source,
+                    line_number=face.line_number,
+                    certified=face.certified,
+                    cull_enabled=face.cull_enabled,
+                )
+            )
     return result
 
 

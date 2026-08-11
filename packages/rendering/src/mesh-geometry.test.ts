@@ -239,6 +239,8 @@ describe("preloaded mesh rendering", () => {
       secondGeometry.getAttribute("position").array,
     );
     expect(firstGeometry.index?.array).not.toBe(secondGeometry.index?.array);
+    expect(Array.from(firstGeometry.index!.array)).toEqual(asymmetricAsset().indices);
+    expect(firstGeometry.getAttribute("normal").count).toBe(4);
 
     const disposed = vi.fn();
     firstGeometry.addEventListener("dispose", disposed);
@@ -246,6 +248,36 @@ describe("preloaded mesh rendering", () => {
     expect(disposed).toHaveBeenCalledOnce();
     expect(secondGeometry.getAttribute("position").count).toBe(4);
     disposeObjectTree(second);
+  });
+
+  it("uses integrity-bound hard-normal islands instead of recomputing across coincident seams", () => {
+    const asset: PreloadedMeshAsset = {
+      assetId: "test:hard-normal-islands/1",
+      positionsLdu: [0, 0, 0, 20, 0, 0, 0, -20, 0, 0, 0, 0, 20, 0, 0, 0, 0, 20],
+      normalsAssetLocal: [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0],
+      indices: [0, 1, 2, 3, 4, 5],
+      groups: [{ role: "body", triangleStart: 0, triangleCount: 2 }],
+    };
+    const base = meshDefinition().definition;
+    const geometryRecipe: MeshReferenceGeometryRecipe = {
+      ...meshRecipe(asset),
+      assetToCatalogFrame: {
+        schemaVersion: "mesh-asset-to-catalog-frame/1",
+        orientationId: "upright-yaw-0",
+        translationLdu: [0, 0, 0],
+      },
+    };
+    const definition: PartDefinition = { ...base, geometry: geometryRecipe };
+    const resolver = createPreloadedMeshAssetResolver({ [asset.assetId]: asset });
+    const rendered = createCatalogPartGeometry(part(), definition, true, [], "flat", resolver);
+    const geometry = meshes(rendered)[0]!.geometry as BufferGeometry;
+
+    expect(Array.from(geometry.getAttribute("normal").array)).toEqual([
+      0, 0, 1, 0, 0, 1, 0, 0, 1, 0, -1, 0, 0, -1, 0, 0, -1, 0,
+    ]);
+    expect(Array.from(geometry.index!.array)).toEqual([0, 2, 1, 3, 5, 4]);
+    expect(geometry.getAttribute("position").count).toBe(6);
+    disposeObjectTree(rendered);
   });
 
   it("honors includeStuds=false through integrity-bound triangle groups", () => {

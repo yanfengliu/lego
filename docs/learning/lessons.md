@@ -74,4 +74,6 @@ When a lesson becomes a gate — a test, a lint rule, a fixed command — delete
 - A hand-built surface can be present, counted by a test, and invisible: measure which way each face points, never the vertex order. ([evidence](lessons-evidence.md#a-hand-built-surface-can-be-present-counted-and-invisible))
 - "Err on the safe side" has a direction, and a legal fit that is nearly tangent reverses it — an over-claiming approximation refuses the real build. ([evidence](lessons-evidence.md#err-on-the-safe-side-has-a-direction-and-a-touching-fit-reverses-it))
 - A green vision narrowing can drop settled truth; staying inside the enumerator is safety, not visual correctness. ([evidence](lessons-evidence.md#a-green-vision-narrowing-can-drop-settled-truth))
+- A text prompt is not an image transport; retain the exact image tool call and result or a claimed vision check cannot prove it saw pixels. ([evidence](lessons-evidence.md#a-text-prompt-is-not-an-image-transport))
+- A contact sheet can be full-size while every bound image inside it is downsampled; inspect and name the source pixels at one-to-one scale. ([evidence](lessons-evidence.md#a-contact-sheet-can-be-full-size-while-every-bound-image-inside-it-is-downsampled))
 

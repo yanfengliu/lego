@@ -32,6 +32,17 @@ function renderNotices(): string {
   );
   const shadowProvenance = shadowParts[0]?.provenance;
   const fileByPath = new Map(BUNDLED_LDRAW_SOURCE_FILES.map((file) => [file.path, file]));
+  const licenseCounts = new Map<string, number>();
+  for (const file of BUNDLED_LDRAW_SOURCE_FILES) {
+    licenseCounts.set(file.licenseExpression, (licenseCounts.get(file.licenseExpression) ?? 0) + 1);
+  }
+  const ccBy4Count = licenseCounts.get("CC-BY-4.0") ?? 0;
+  const dualLicenseCount = licenseCounts.get("CC-BY-2.0 OR CC-BY-4.0") ?? 0;
+  if (licenseCounts.size !== 2 || dualLicenseCount !== 1) {
+    throw new Error(
+      `Bundled LDraw licence summary expected CC-BY-4.0 plus one dual-licensed root; received ${JSON.stringify(Object.fromEntries(licenseCounts))}. Review every new licence before regenerating notices.`,
+    );
+  }
   const partRows = meshParts.map((part) => {
     const ldrawId = part.aliases.find(({ namespace }) => namespace === "ldraw")!.value;
     const closure = BUNDLED_LDRAW_CLOSURES[ldrawId.replace(".dat", "")]!;
@@ -47,11 +58,11 @@ function renderNotices(): string {
     "",
     "> Generated from the catalog by `packages/catalog/src/bundled-geometry-notices.test.ts`, which fails if this file and the catalog disagree. Do not edit by hand.",
     "",
-    "The render mesh of the parts below is real LDraw geometry, bundled and redistributed under the [Creative Commons Attribution 4.0 International licence](https://creativecommons.org/licenses/by/4.0/). Of the 118 source files, 117 declare CC BY 4.0 and `parts/30503.dat` declares `CC-BY-2.0 OR CC-BY-4.0`; this bundle selects its CC BY 4.0 option. Attribution therefore names every file whose triangles are bundled with its author, title, licence and content hash rather than flattening it into project-owned data.",
+    `The render mesh of the parts below is real LDraw geometry, bundled and redistributed under the [Creative Commons Attribution 4.0 International licence](https://creativecommons.org/licenses/by/4.0/). Of the ${BUNDLED_LDRAW_SOURCE_FILES.length} source files, ${ccBy4Count} declare CC BY 4.0 and \`parts/30503.dat\` declares \`CC-BY-2.0 OR CC-BY-4.0\`; this bundle selects its CC BY 4.0 option. Attribution therefore names every file whose triangles are bundled with its author, title, licence and content hash rather than flattening it into project-owned data.`,
     "",
     "Permission to reuse this geometry is **not** permission to train on it. That right is not held, and no bundled file is designated as a model-training or benchmark corpus.",
     "",
-    "The geometry supplies the exact source-derived visual surface and envelope used by the app and palette. Connector and collision truth remain independently authored; the four `/12` render-only promotions explicitly preserve their prior conservative collision recipes instead of deriving collision from the mesh.",
+    "The geometry supplies the expanded source-derived triangles, LDraw hard-edge normals, and envelope used by the app and palette. Catalog `/13` changes render geometry and normals for all 24 catalog parts: 23 generated meshes use corrected source-exact triangulation, while `54200` replaces its `/12` parametric drawing with its exact mesh. Connector and collision truth remain independently authored; the sixteen in-place `/12` and `/13` render promotions explicitly preserve their prior conservative collision recipes instead of deriving collision from the mesh.",
     "",
     `Source archive: \`${BUNDLED_LDRAW_ARCHIVE.version}\`, ${BUNDLED_LDRAW_ARCHIVE.bytes} bytes, \`${BUNDLED_LDRAW_ARCHIVE.sha256}\`, from ${BUNDLED_LDRAW_ARCHIVE.source}.`,
     "",
@@ -63,7 +74,7 @@ function renderNotices(): string {
     "",
     "## Every bundled file",
     "",
-    `The ${BUNDLED_LDRAW_SOURCE_FILES.length} files below comprise 117 \`CC-BY-4.0\` declarations and one \`CC-BY-2.0 OR CC-BY-4.0\` declaration.`,
+    `The ${BUNDLED_LDRAW_SOURCE_FILES.length} files below comprise ${ccBy4Count} \`CC-BY-4.0\` declarations and one \`CC-BY-2.0 OR CC-BY-4.0\` declaration.`,
     "",
     "| File | Title | Author | Licence | LDraw.org status | SHA-256 |",
     "| --- | --- | --- | --- | --- | --- |",

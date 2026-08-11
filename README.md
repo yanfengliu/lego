@@ -16,6 +16,8 @@ The repository contains internal Node, Python, Vitest, and Playwright tooling fo
 
 The exact measured frontier and ordered work still missing live in [building-system.md](docs/design/building-system.md). See the [real-booklet runbook](docs/runbooks/real-build.md) to reproduce or regenerate the real-build inputs and runs without copying status into another document; it also names the separate panel-reading probe's present reproducibility limits.
 
+Catalog render changes use the separate [part visual-admission runbook](docs/runbooks/part-visual-admission.md), which captures matched source-versus-catalog views and publishes an immutable explicit review without confusing the editor's presentation captures with admission evidence.
+
 ### Specified but unbuilt
 
 `apps/companion` currently exports a library-level content-addressed artifact store, an unsealed test-namespace ledger, and a consent-gated test recorder. It has no HTTP server, production signing identity, credential proxy, authoritative production namespace, or runnable start command.
@@ -55,7 +57,7 @@ Run the repository's implemented verification gate with:
 npm run verify
 ```
 
-`verify` checks schemas, Node consumers, observation consumers, provenance and notices, lessons, formatting, lint, types, Python derivation contracts, Vitest, Playwright, and the production browser bundle. The standalone `npm run parts:check` catalog-standard diagnostic is not included in `verify`.
+`verify` checks schemas, Node consumers, observation consumers, provenance and notices, the green part-geometry standard, lessons, formatting, lint, types, Python derivation contracts, Vitest, Playwright, and the production browser bundle.
 
 Dependency changes additionally require both audits:
 
@@ -74,6 +76,7 @@ The authoritative command definitions are in [package.json](package.json).
 - [Booklet-run evidence, replay, and promotion](docs/design/learning-system.md)
 - [Current implementation threat model](docs/design/threat-model.md)
 - [Real-booklet developer runbook](docs/runbooks/real-build.md)
+- [Part visual-admission runbook](docs/runbooks/part-visual-admission.md)
 - [Repository-local policy](docs/policies/local-rules.md)
 - [Lessons index and evidence](docs/learning/lessons.md)
 - [Historical devlog](docs/devlog/summary.md)

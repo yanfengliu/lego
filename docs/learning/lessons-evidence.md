@@ -21,7 +21,7 @@ On a CRLF checkout it printed `holds sha256:366fefbf… but this build produces 
 The comparison is right and belongs at the byte level; the message was one altitude above it, asserting a cause the comparison cannot see.
 Each of the three `--check` gates now names the domain values that moved when any did, and otherwise says the bytes moved while the meaning did not, with the first differing line.
 
-**Anchor:** 2026-08-07; `scripts/generated-file-staleness.mjs`; the doubled digest is quoted verbatim in `.gitattributes`; guarded by "never prints one pinned value as both held and produced" in `scripts/generated-file-staleness.test.mjs`.
+**Anchor:** 2026-08-07 commit `a8fc397`; `scripts/generated-file-staleness.mjs`; the doubled digest is quoted verbatim in `.gitattributes`; the then-current regression “never prints one pinned value as both held and produced” lived in `scripts/generated-file-staleness.test.mjs` and was later removed with the obsolete pinning surface.
 
 ## Naming an ambiguity is not resolving it
 
@@ -860,4 +860,24 @@ The conservative direction was the broken one, because the legal configuration i
 The step-4 model reading saw the correct underside viewpoint, then described both pieces as beside one another with zero overlap. Replayed against the retained enumeration, the 1x8 plate narrowed 480 candidates to 12 and dropped its settled transform; the wedge kept all 190 candidates, dropped its settled transform because its anchor was not yet placed, and made the product unusable. The oracle reading kept the settled wedge while narrowing 190 candidates to 2.
 
 The replay stayed green because it proved the safety property it was written to prove: every survivor came from the enumerator, and an unusable reading could not invent a placement. That boundary says nothing about whether the visual description retained the real answer. Report truth loss separately, refuse known disagreements, and never promote subset safety into a claim of visual correctness.
+
+## A text prompt is not an image transport
+
+A model can receive a perfect visual-comparison prompt and still see no pixels. The subscription CLI's streaming input is text-only, while granting its general `Read` tool makes the intended crop boundary a policy sentence rather than an enforced capability. The transport is part of the evidence: without the exact image-bearing tool call and matching result, a saved answer cannot prove which bytes, if any, reached vision.
+
+The bounded route is a stdio MCP server with one no-argument tool. It loads one prevalidated request whose source and candidate PNG bytes already reproduce their digests, returns those image blocks once in declared N/N+1/conditional-K order, exposes no resource or path method, and runs beside a CLI with built-ins and setting sources disabled. The retained stream-json trace must contain exactly that tool use and its matching successful result before the strict answer may be consumed.
+
+The first mocked adapter test violated that rule while appearing to prove it: its successful `tool_result` contained one unrelated placeholder image, and the parser checked only the tool name, call id, and success bit. The harsh-critic regression substitutes a complete tool result from another digest-bound request; consumption now fails unless the retained label and image blocks byte-for-byte reproduce the exact request being sealed. A green mock is transport evidence only when its fake is held to the same identity contract as the live path.
+
+The first live transport probe reached Claude authentication through that boundary and failed with `OAuth access token has expired. Re-authenticate to continue.` That proves the route is callable but not that a model saw the images; the latter remains unproved until a successful trace survives. Mocked green protocol tests prove containment and parsing, never live visual accuracy.
+
+**Anchor:** 2026-08-10; `scripts/multi-panel-vision-mcp-server.test.mjs` cases “returns exact source/render images in panel order” and “serves the same one-tool protocol in a child process”; `scripts/multi-panel-vision-claude-adapter.test.mjs` cases “refuses a successful tool result carrying pixels from another bound request” and “disables ambient tools, serves one validated bundle, retains the raw trace, and cleans up”; live no-`Read` probe terminated at the quoted OAuth refusal before a verdict.
+
+## A contact sheet can be full-size while every bound image inside it is downsampled
+
+The first `/13` visual-admission batch bound 192 source/candidate pairs at 640×640, then an ignored review helper opened each image and applied `thumbnail((320, 320), LANCZOS)` before assembling a 2560×724 contact sheet. Opening that sheet at its own native size therefore displayed every bound image at half linear resolution. Twenty-four immutable sidecars named contact-sheet inspection but mislabeled it as original-resolution review, and their generic notes overclaimed native-pair inspection; only the sole larger-metric pair had actually been opened from its raw packet files.
+
+The pixel metrics and the reviewer’s impression may both be reassuring, but neither repairs the evidence lineage. The review contract names the exact raw PNG pair because scale can erase one-pixel seams, hard-edge shading, thin cavities, and winding defects. Preserve the invalid sidecars as counterevidence, capture a fresh batch instead of overwriting immutable records, and make any inspection composite prove that its two 640×640 regions reproduce the packet PNG pixels without resampling.
+
+**Anchor:** 2026-08-11; capture batch `sha256:91961ab7ff6903004878535e293aac9aa160e37e1a8552f35c5db809207e091b`; `output/visual-admission-dev/make-contact-sheets.py` line 13 and lines 29–30; `docs/runbooks/part-visual-admission.md` native-pair inspection rule; independent review rejected 191 contact-sheet-only outcomes before a batch review manifest was published.
 

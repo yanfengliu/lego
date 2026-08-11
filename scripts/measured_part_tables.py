@@ -1,10 +1,15 @@
 """Measure one admitted part completely, from the pinned sources it is declared from.
 
-The catalog's three generated tables — bundled meshes, measured blueprints and
-per-file attribution — are emitted from one measurement, so their generated
-values stay aligned. Eight measured definitions consume every field. The four
-`/12` render promotions intentionally consume only mesh and visual bounds while
+The catalog's generated mesh modules, measured blueprints, render-only
+blueprints and per-file attribution are emitted from one measurement, so their
+values stay aligned. Twelve measured definitions consume every field. Twelve
+`/13` render promotions intentionally consume only mesh and visual bounds while
 `part-factory.ts` retains their preceding physical semantics.
+
+The distinct render-only route expands a pinned official LDraw root into mesh,
+bounds, stud-frame witnesses and attribution only. It deliberately has no
+connector source, clutch rows, allowances or collision decomposition, because
+those physical semantics remain the preceding catalog definition's bytes.
 
 `measured_part_emit.py` renders the tables and `emit-measured-part-tables.py`
 drives both.
@@ -27,7 +32,7 @@ from ldcad_shadow_connectors import (
 )
 from ldcad_shadow_source import VerifiedShadowLibrary
 from ldraw_source_archive import LDrawSourceLibrary, SourceRecord
-from ldraw_surface_expander import expand_surface
+from ldraw_surface_expander import ExpandedTriangle, expand_surface
 from part_admission_ldraw_candidate import DEFAULT_COLUMN_LDU, column_candidate, role_classifier
 from part_admission_surface import STUD_ROLE, MeasuredSurface
 
@@ -131,12 +136,48 @@ class MeasuredPartPlan:
 
 
 @dataclass(frozen=True)
+class RenderOnlyPartPlan:
+    """Identity and source frame for an exact render promotion.
+
+    Unlike `MeasuredPartPlan`, this declaration cannot name a connector source
+    or carry connector/collision facts. That absence is the admission boundary:
+    the generated render-only table cannot accidentally import an LDCad seat or
+    a measured height-field into catalog truth.
+    """
+
+    design_id: str
+    ldraw_path: str
+    family: str
+    width_studs: int
+    length_studs: int
+    variant: str | None
+    height_ldu: int
+    orientation_id: str
+    translation_ldu: tuple[int, int, int]
+
+    def __post_init__(self) -> None:
+        if self.orientation_id not in UPRIGHT_ORIENTATIONS:
+            raise ValueError(
+                f"Render-only part {self.design_id} names source-to-catalog orientation "
+                f"{self.orientation_id!r}; the catalog frame is one of "
+                f"{sorted(UPRIGHT_ORIENTATIONS)}."
+            )
+        if not all(isinstance(value, int) for value in self.translation_ldu):
+            raise ValueError(
+                f"Render-only part {self.design_id} translates its source frame by "
+                f"{list(self.translation_ldu)}; the translation is whole LDU so the raw "
+                "frame is carried exactly rather than resampled."
+            )
+
+
+@dataclass(frozen=True)
 class MeasuredPart:
     """One part measured end to end, in the catalog frame its plan declares."""
 
     plan: MeasuredPartPlan
     surface: MeasuredSurface
     positions_ldu: tuple[float, ...]
+    normals_asset_local: tuple[float, ...]
     indices: tuple[int, ...]
     body_triangle_count: int
     stud_triangle_count: int
@@ -155,13 +196,37 @@ class MeasuredPart:
         return f"ldraw:official:{self.plan.design_id}.dat"
 
 
+@dataclass(frozen=True)
+class RenderOnlyPart:
+    """Only the source-derived bytes a render promotion is allowed to emit."""
+
+    plan: RenderOnlyPartPlan
+    surface: MeasuredSurface
+    positions_ldu: tuple[float, ...]
+    normals_asset_local: tuple[float, ...]
+    indices: tuple[int, ...]
+    body_triangle_count: int
+    stud_triangle_count: int
+    exact_body_bounds: tuple[tuple[str, str, str], tuple[str, str, str]]
+    exact_bounds: tuple[tuple[str, str, str], tuple[str, str, str]]
+    source_stud_seats_ldu: tuple[Vector3, ...]
+    root: SourceRecord
+    closure: tuple[SourceRecord, ...]
+
+    @property
+    def mesh_asset_id(self) -> str:
+        return f"ldraw:official:{self.plan.design_id}.dat"
+
+
 def float32(value: float) -> float:
     """The renderer's own Float32 allocation of one coordinate."""
 
     return struct.unpack("<f", struct.pack("<f", value))[0]
 
 
-def frame_point(point: Sequence[float], plan: MeasuredPartPlan) -> Vector3:
+def frame_point(
+    point: Sequence[float], plan: MeasuredPartPlan | RenderOnlyPartPlan
+) -> Vector3:
     """One source-local LDU point in the catalog frame, applied exactly once."""
 
     matrix = UPRIGHT_ORIENTATIONS[plan.orientation_id]
@@ -174,8 +239,24 @@ def frame_point(point: Sequence[float], plan: MeasuredPartPlan) -> Vector3:
     )
 
 
+def frame_direction(
+    direction: Sequence[float], plan: MeasuredPartPlan | RenderOnlyPartPlan
+) -> Vector3:
+    """Rotate an asset-local direction into the catalog frame without translation."""
+
+    matrix = UPRIGHT_ORIENTATIONS[plan.orientation_id]
+    return tuple(  # type: ignore[return-value]
+        matrix[row * 3 + 0] * direction[0]
+        + matrix[row * 3 + 1] * direction[1]
+        + matrix[row * 3 + 2] * direction[2]
+        for row in range(3)
+    )
+
+
 def frame_box(
-    minimum: Sequence[float], maximum: Sequence[float], plan: MeasuredPartPlan
+    minimum: Sequence[float],
+    maximum: Sequence[float],
+    plan: MeasuredPartPlan | RenderOnlyPartPlan,
 ) -> tuple[Vector3, Vector3]:
     """An axis-aligned box carried through a quarter turn, corner by corner."""
 
@@ -231,7 +312,7 @@ def _bounds(points: Sequence[Vector3]) -> tuple[Vector3, Vector3]:
 
 
 def _exact_bounds(
-    points: Sequence[Vector3], plan: MeasuredPartPlan, label: str
+    points: Sequence[Vector3], plan: MeasuredPartPlan | RenderOnlyPartPlan, label: str
 ) -> tuple[tuple[str, str, str], tuple[str, str, str]]:
     minimum, maximum = _bounds([frame_point(point, plan) for point in points])
     axes = "xyz"
@@ -248,39 +329,83 @@ def _exact_bounds(
 
 
 def merged_mesh(
-    surface: MeasuredSurface, plan: MeasuredPartPlan
-) -> tuple[tuple[float, ...], tuple[int, ...], int, int]:
+    surface: MeasuredSurface, plan: MeasuredPartPlan | RenderOnlyPartPlan
+) -> tuple[tuple[float, ...], tuple[float, ...], tuple[int, ...], int, int]:
     """The expanded surface as one indexed mesh in its immutable source frame.
 
     Body-role triangles first, then stud-role, so the two render groups are
-    contiguous. Vertices merge on the position the renderer can actually hold
-    apart: composing a closure by two routes reaches the same corner with a
-    1e-15 LDU difference Float32 cannot carry, and declaring both would declare
-    vertices the pipeline then collapses. The positions kept are the measured
-    source values, never the quantized ones.
+    contiguous. Vertices merge on the position and source-faithful normal the
+    renderer can actually hold apart: composing a closure by two routes reaches
+    the same corner with a 1e-15 difference Float32 cannot carry, while a hard
+    LDraw edge deliberately keeps coincident positions in distinct normal
+    islands. Coincident islands reuse the first measured source position so the
+    emitted asset does not encode route-dependent 1e-15 aliases as distinct
+    source vertices; a material collapse still fails instead of being welded.
     """
 
     order = [index for index, role in enumerate(surface.roles) if role != STUD_ROLE]
     stud_count = len(surface.roles) - len(order)
     order.extend(index for index, role in enumerate(surface.roles) if role == STUD_ROLE)
     positions: list[float] = []
+    normals: list[float] = []
     indices: list[int] = []
-    vertex_by_render_position: dict[tuple[float, float, float], int] = {}
+    vertex_by_render_values: dict[tuple[float, ...], int] = {}
+    source_position_by_render_position: dict[tuple[float, float, float], Vector3] = {}
+    if surface.corner_normals is None:
+        raise ValueError(
+            f"Measured surface {surface.design_id} has no source-faithful corner normals; "
+            "render mesh emission cannot fall back to globally averaged vertex normals."
+        )
     for triangle_index in order:
-        for point in surface.triangles[triangle_index]:
+        for point, normal in zip(
+            surface.triangles[triangle_index], surface.corner_normals[triangle_index]
+        ):
             framed = frame_point(point, plan)
+            framed_normal = frame_direction(normal, plan)
             key = (
                 float32(framed[0] * MESH_RENDER_UNITS_PER_LDU),
                 float32(framed[1] * MESH_RENDER_UNITS_PER_LDU),
                 float32(framed[2] * MESH_RENDER_UNITS_PER_LDU),
+                float32(framed_normal[0]),
+                float32(-framed_normal[1]),
+                float32(framed_normal[2]),
             )
-            vertex = vertex_by_render_position.get(key)
+            render_position = key[:3]
+            representative = source_position_by_render_position.get(render_position)
+            if representative is None:
+                representative = point
+                source_position_by_render_position[render_position] = representative
+            elif any(abs(representative[axis] - point[axis]) > 1e-9 for axis in range(3)):
+                raise ValueError(
+                    f"Measured surface {surface.design_id} source positions {representative!r} and "
+                    f"{point!r} materially collapse to renderer position {render_position!r}; "
+                    "reframe the source instead of welding distinct geometry."
+                )
+            vertex = vertex_by_render_values.get(key)
             if vertex is None:
-                vertex = len(vertex_by_render_position)
-                vertex_by_render_position[key] = vertex
-                positions.extend(point)
+                vertex = len(vertex_by_render_values)
+                vertex_by_render_values[key] = vertex
+                positions.extend(representative)
+                normals.extend(normal)
             indices.append(vertex)
-    return tuple(positions), tuple(indices), len(order) - stud_count, stud_count
+    return tuple(positions), tuple(normals), tuple(indices), len(order) - stud_count, stud_count
+
+
+def require_front_side_surface(
+    design_id: str, expanded: Sequence[ExpandedTriangle]
+) -> None:
+    """Refuse LDraw semantics a shared FrontSide admission material cannot carry."""
+
+    for triangle in expanded:
+        if triangle.certified and triangle.cull_enabled:
+            continue
+        condition = "BFC NOCERTIFY" if not triangle.certified else "BFC NOCLIP"
+        raise ValueError(
+            f"Part {design_id} cannot emit an exact FrontSide mesh: expanded triangle at "
+            f"{triangle.source[0]}:{triangle.source[1]}:{triangle.line_number} requires "
+            f"{condition} semantics. Keep it outside FrontSide admission or implement and "
+            "integrity-bind its explicit two-sided material semantics."
+        )
 
 
 def _clamped_column_boxes(
@@ -306,7 +431,7 @@ def _clamped_column_boxes(
 
 
 def _stud_rows(
-    candidate: dict[str, object], plan: MeasuredPartPlan
+    candidate: dict[str, object], plan: MeasuredPartPlan | RenderOnlyPartPlan
 ) -> tuple[tuple[float, float, float, float, float], ...]:
     """One row per measured stud: its seat, then its own collision cylinder."""
 
@@ -322,6 +447,57 @@ def _stud_rows(
     return tuple(sorted(rows))
 
 
+def measure_render_only_part(
+    library: LDrawSourceLibrary,
+    plan: RenderOnlyPartPlan,
+    column_ldu: float = DEFAULT_COLUMN_LDU,
+) -> RenderOnlyPart:
+    """Expand one official root without reading any connector/collision source.
+
+    The temporary column candidate is used only to locate visible source stud
+    seats so TypeScript can prove the declared frame aligns those studs with the
+    predecessor's already-authored male connectors. None of its bodies or
+    connector rows enter a generated catalog table.
+    """
+
+    root_key = library.exact("official", plan.ldraw_path)
+    expanded = expand_surface(
+        library, root_key, role_classifier(lambda key: library.record(key).sha256)
+    )
+    require_front_side_surface(plan.design_id, expanded)
+    surface = MeasuredSurface(
+        design_id=plan.design_id,
+        triangles=tuple(triangle.points for triangle in expanded),
+        roles=tuple(triangle.role for triangle in expanded),
+        corner_normals=tuple(triangle.corner_normals for triangle in expanded),
+    )
+    positions, normals, indices, body_triangles, stud_triangles = merged_mesh(surface, plan)
+    solid_points = [
+        point
+        for triangle, role in zip(surface.triangles, surface.roles)
+        if role != STUD_ROLE
+        for point in triangle
+    ]
+    all_points = [point for triangle in surface.triangles for point in triangle]
+    source_stud_seats = tuple(
+        (x, y, z) for x, y, z, _radius, _height in _stud_rows(column_candidate(surface, column_ldu), plan)
+    )
+    return RenderOnlyPart(
+        plan=plan,
+        surface=surface,
+        positions_ldu=positions,
+        normals_asset_local=normals,
+        indices=indices,
+        body_triangle_count=body_triangles,
+        stud_triangle_count=stud_triangles,
+        exact_body_bounds=_exact_bounds(solid_points, plan, "body bounds"),
+        exact_bounds=_exact_bounds(all_points, plan, "visual bounds"),
+        source_stud_seats_ldu=source_stud_seats,
+        root=library.record(root_key),
+        closure=tuple(library.closure(root_key)),
+    )
+
+
 def measure_part(
     library: LDrawSourceLibrary,
     shadow: VerifiedShadowLibrary,
@@ -335,12 +511,14 @@ def measure_part(
     expanded = expand_surface(
         library, root_key, role_classifier(lambda key: library.record(key).sha256)
     )
+    require_front_side_surface(plan.design_id, expanded)
     surface = MeasuredSurface(
         design_id=plan.design_id,
         triangles=tuple(triangle.points for triangle in expanded),
         roles=tuple(triangle.role for triangle in expanded),
+        corner_normals=tuple(triangle.corner_normals for triangle in expanded),
     )
-    positions, indices, body_triangles, stud_triangles = merged_mesh(surface, plan)
+    positions, normals, indices, body_triangles, stud_triangles = merged_mesh(surface, plan)
     solid_points = [
         point
         for triangle, role in zip(surface.triangles, surface.roles)
@@ -383,6 +561,7 @@ def measure_part(
         plan=plan,
         surface=surface,
         positions_ldu=positions,
+        normals_asset_local=normals,
         indices=indices,
         body_triangle_count=body_triangles,
         stud_triangle_count=stud_triangles,
