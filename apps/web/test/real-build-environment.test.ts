@@ -6,10 +6,13 @@ const RUN_CONTRACT_DIGEST = `sha256:${"a".repeat(64)}`;
 const MANIFEST_DIGEST = `sha256:${"b".repeat(64)}`;
 const SERVED_DIGEST = `sha256:${"c".repeat(64)}`;
 
-function environment(versions: Readonly<Record<string, unknown>>): unknown {
+function environment(
+  versions: Readonly<Record<string, unknown>>,
+  node = `v${String(versions.node ?? process.versions.node)}`,
+): unknown {
   return {
     schemaVersion: "lego.real-build-environment/1",
-    node: "v24.18.1",
+    node,
     platform: "win32",
     arch: "x64",
     bootstrapSourceManifestDigest: MANIFEST_DIGEST,
@@ -82,7 +85,7 @@ describe("real-build replay environment", () => {
   it("reports both sides when versions.node does not match node", () => {
     expect(() =>
       assertRealBuildEnvironment(
-        environment({ ...BASE_VERSIONS, node: "24.18.0" }),
+        environment({ ...BASE_VERSIONS, node: "24.18.0" }, "v24.18.1"),
         RUN_CONTRACT_DIGEST,
       ),
     ).toThrow(/"24\.18\.0".*"v24\.18\.1"/su);

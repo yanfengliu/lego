@@ -211,7 +211,7 @@ describe("brick scene derivation", () => {
     }
   });
 
-  it("renders plan-feature parts as one smooth source body with no collision seams", () => {
+  it("renders an exact source mesh as one body with no preserved-collision seams", () => {
     const target = createPartInstance({
       id: "quarter-ring",
       catalogPartId: "builtin:corner-plate-5x5-quarter-ring",
@@ -221,7 +221,7 @@ describe("brick scene derivation", () => {
     const bodies = objectsWithRole(projection.partObjects.get(target.id)!, "body");
 
     expect(bodies).toHaveLength(1);
-    expect(bodies[0]!.userData.primitiveId).toBe("body:arc");
+    expect(bodies[0]!.userData.primitiveId).toBe("mesh:ldraw:official:80015.dat");
     const geometry = (bodies[0] as Mesh<BufferGeometry>).geometry;
     geometry.computeBoundingBox();
     expect(geometry.boundingBox?.min.toArray()).toEqual([
@@ -231,7 +231,7 @@ describe("brick scene derivation", () => {
     ]);
     expect(geometry.boundingBox?.max.toArray()).toEqual([
       expect.closeTo(4),
-      expect.closeTo(0.2),
+      expect.closeTo(0.4),
       expect.closeTo(1),
     ]);
   });
@@ -246,7 +246,7 @@ describe("brick scene derivation", () => {
     ghost.updateMatrixWorld(true);
     const body = ghost.children.find(
       (object): object is Mesh<BufferGeometry> =>
-        object instanceof Mesh && object.userData.primitiveId === "body:arc",
+        object instanceof Mesh && object.userData.primitiveId === "mesh:ldraw:official:80015.dat",
     )!;
     body.geometry.computeBoundingBox();
 
@@ -258,7 +258,7 @@ describe("brick scene derivation", () => {
     ]);
     expect(body.geometry.boundingBox?.max.toArray()).toEqual([
       expect.closeTo(4),
-      expect.closeTo(0.2),
+      expect.closeTo(0.4),
       expect.closeTo(1),
     ]);
 
@@ -283,7 +283,7 @@ describe("brick scene derivation", () => {
     ghost.updateMatrixWorld(true);
     const body = ghost.children.find(
       (object): object is Mesh<BufferGeometry> =>
-        object instanceof Mesh && object.userData.primitiveId === "body",
+        object instanceof Mesh && object.userData.primitiveId === "mesh:ldraw:official:30503.dat",
     )!;
     const ray = (xLdu: number, zLdu: number) =>
       new Raycaster(

@@ -1,4 +1,4 @@
-import type { PartFamily } from "./types.ts";
+import type { PartFamily, PartialOverhangClutchEvidence } from "./types.ts";
 
 import type { ExactLduBoundsDeclaration } from "./exact-ldu.ts";
 
@@ -94,7 +94,7 @@ export interface MeasuredPartBlueprint {
     radiusLdu: number,
     heightLdu: number,
   ])[];
-  /** Underside clutch seats, from Builder's authored field. */
+  /** Underside clutch seats from the declaration's one authored connector source. */
   readonly clutchesLdu: readonly (readonly [x: number, y: number, z: number])[];
   /**
    * The per-column height-field decomposition, flattened to
@@ -105,9 +105,10 @@ export interface MeasuredPartBlueprint {
   readonly ldrawSource: MeasuredLdrawSource;
   /**
    * Where the female connectors came from. Exactly one of these is present, and
-   * the factory refuses a declaration carrying both or neither: a clutch cell is
+   * the factory refuses a declaration carrying more or fewer: a clutch cell is
    * a physical claim, so the part has to name the authored source that made it.
    */
   readonly builderSource?: MeasuredBuilderSource;
+  readonly builderConnectivitySource?: PartialOverhangClutchEvidence;
   readonly ldcadShadowSource?: MeasuredLdcadShadowSource;
 }

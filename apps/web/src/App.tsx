@@ -162,8 +162,18 @@ export function App() {
               ? { ...stored.state, document: migratedDocument }
               : stored.state;
           if (report.migrated) {
+            const documentPartIds = new Set(
+              stored.state.document.parts.map(({ catalogPartId }) => catalogPartId),
+            );
+            const reinterpretedParts = [
+              ...new Set(
+                report.catalogInterpretationChanges
+                  .flatMap(({ affectedCatalogPartIds }) => affectedCatalogPartIds)
+                  .filter((catalogPartId) => documentPartIds.has(catalogPartId)),
+              ),
+            ];
             setMigrationNotice(
-              `Updated this model from ${report.fromCatalogVersion} to ${report.toCatalogVersion}; ${report.addedColorIds.length} new colors are now available.`,
+              `Updated this model from ${report.fromCatalogVersion} to ${report.toCatalogVersion}; ${report.addedColorIds.length} new colors are now available${reinterpretedParts.length === 0 ? "" : `, and ${reinterpretedParts.length} part ${reinterpretedParts.length === 1 ? "definition used" : "definitions used"} by this model received updated appearance (${reinterpretedParts.join(", ")})`}.`,
             );
           } else if (report.blockingReasons.length > 0) {
             setMigrationNotice(

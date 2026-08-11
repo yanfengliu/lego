@@ -1,10 +1,13 @@
 """Measure one admitted part completely, from the pinned sources it is declared from.
 
-The catalog's three generated tables — the bundled render meshes, the measured
-blueprints and the per-file LDraw attribution — are emitted from this one
-measurement, so the mesh, the collision decomposition, the connectors and the
-attribution cannot describe different geometry. `measured_part_emit.py` renders
-them and `emit-measured-part-tables.py` drives both.
+The catalog's three generated tables — bundled meshes, measured blueprints and
+per-file attribution — are emitted from one measurement, so their generated
+values stay aligned. Eight measured definitions consume every field. The four
+`/12` render promotions intentionally consume only mesh and visual bounds while
+`part-factory.ts` retains their preceding physical semantics.
+
+`measured_part_emit.py` renders the tables and `emit-measured-part-tables.py`
+drives both.
 
 Nothing here decides that a part may be admitted. It measures; the caller scores
 the result with the existing part-admission scorer and refuses on a hard fail.
@@ -48,8 +51,33 @@ MESH_RENDER_UNITS_PER_LDU = 0.05
 MAX_EXACT_FRACTIONAL_DIGITS = 9
 
 BUILDER_CONNECTOR_SOURCE = "builder"
+BUILDER_CONNECTIVITY_CONNECTOR_SOURCE = "builder-connectivity-fact"
 LDCAD_SHADOW_CONNECTOR_SOURCE = "ldcad-shadow"
-CONNECTOR_SOURCES = (BUILDER_CONNECTOR_SOURCE, LDCAD_SHADOW_CONNECTOR_SOURCE)
+CONNECTOR_SOURCES = (
+    BUILDER_CONNECTOR_SOURCE,
+    BUILDER_CONNECTIVITY_CONNECTOR_SOURCE,
+    LDCAD_SHADOW_CONNECTOR_SOURCE,
+)
+
+
+@dataclass(frozen=True)
+class BuilderConnectivityFact:
+    """One byte-pinned Builder field whose full clutch set is already settled."""
+
+    source_id: str
+    source_revision: str
+    manifest_sha256: str
+    manifest_md5: str
+    bundle_sha256: str
+    primitive_xml_sha256: str
+    independent_source_id: str
+    independent_source_revision: str
+    independent_part_sha256: str
+    independent_subpart_sha256: str
+    extractor_id: str
+    normalized_clutch_offsets_sha256: str
+    clutches_source_ldu: tuple[Vector3, ...]
+    partial_overhangs: tuple[tuple[float, float, float], ...]
 
 
 @dataclass(frozen=True)
@@ -72,6 +100,7 @@ class MeasuredPartPlan:
     translation_ldu: tuple[int, int, int]
     connector_grid_center_ldu: tuple[int, int]
     connector_source: str
+    builder_connectivity_fact: BuilderConnectivityFact | None = None
 
     def __post_init__(self) -> None:
         if self.orientation_id not in UPRIGHT_ORIENTATIONS:
@@ -84,6 +113,14 @@ class MeasuredPartPlan:
             raise ValueError(
                 f"Part {self.design_id} names connector source {self.connector_source!r}; "
                 f"the admitted sources are {list(CONNECTOR_SOURCES)}."
+            )
+        has_connectivity_fact = self.builder_connectivity_fact is not None
+        expects_connectivity_fact = self.connector_source == BUILDER_CONNECTIVITY_CONNECTOR_SOURCE
+        if has_connectivity_fact != expects_connectivity_fact:
+            raise ValueError(
+                f"Part {self.design_id} names connector source {self.connector_source!r} and "
+                f"builder_connectivity_fact present={has_connectivity_fact}; the byte-pinned "
+                "fact is required exactly for builder-connectivity-fact parts."
             )
         if not all(isinstance(value, int) for value in self.translation_ldu):
             raise ValueError(
@@ -321,6 +358,11 @@ def measure_part(
                 "Builder-to-LDraw frame report has no record for that design."
             )
         shadow_files: tuple[str, ...] = ()
+    elif plan.connector_source == BUILDER_CONNECTIVITY_CONNECTOR_SOURCE:
+        fact = plan.builder_connectivity_fact
+        assert fact is not None
+        source_clutches = [list(position) for position in fact.clutches_source_ldu]
+        shadow_files = ()
     else:
         composition = compose_part_snaps(library, shadow, root_key)
         source_clutches = [
@@ -382,6 +424,7 @@ def scoreable_candidate(part: MeasuredPart) -> dict[str, object]:
         translation_ldu=(0, 0, 0),
         connector_grid_center_ldu=part.plan.connector_grid_center_ldu,
         connector_source=part.plan.connector_source,
+        builder_connectivity_fact=part.plan.builder_connectivity_fact,
     )
     clutches = [
         frame_point(

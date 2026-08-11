@@ -5,6 +5,7 @@ import {
   createPreloadedMeshAssetResolver,
   getPartDefinition,
   meshAssetContentHash,
+  STUD_PITCH_LDU,
   validateMeshPartDefinitionAdmission,
   type CollisionPrimitive,
   type LduVector3,
@@ -369,6 +370,68 @@ describe("mesh part catalog admission", () => {
     expect(issueCodes(inconsistentCollisionBounds)).toContain("MESH_ADMISSION_COLLISION_INVALID");
     expect(issueCodes(invalidWedgeRepresentation)).toContain("MESH_ADMISSION_COLLISION_INVALID");
     expect(issueCodes(invalidCollisionVersion)).toContain("MESH_ADMISSION_COLLISION_INVALID");
+  });
+
+  it("admits an explicitly preserved collision envelope without calling it mesh-derived", () => {
+    const valid = definition();
+    if (valid.geometry.generatorId !== "builtin:preloaded-mesh-reference/1") {
+      throw new Error("Test fixture must use a preloaded mesh recipe");
+    }
+    const body = valid.collision.primitives.find((primitive) => primitive.tag === "body")!;
+    if (body.kind !== "box") throw new Error("Test fixture requires one box body primitive");
+    const preserved: PartDefinition = {
+      ...valid,
+      geometry: { ...valid.geometry, collisionMode: "preserved-catalog-recipe" },
+      collision: {
+        ...valid.collision,
+        primitives: valid.collision.primitives.map((primitive) =>
+          primitive.id === body.id
+            ? { ...body, maxLdu: [body.maxLdu[0] + 1, body.maxLdu[1], body.maxLdu[2]] }
+            : primitive,
+        ),
+      },
+    };
+    const malformed: PartDefinition = {
+      ...preserved,
+      collision: {
+        ...preserved.collision,
+        primitives: preserved.collision.primitives.map((primitive) =>
+          primitive.id === body.id && primitive.kind === "box"
+            ? { ...primitive, maxLdu: [Number.NaN, primitive.maxLdu[1], primitive.maxLdu[2]] }
+            : primitive,
+        ),
+      },
+    };
+    const unbounded: PartDefinition = {
+      ...preserved,
+      collision: {
+        ...preserved.collision,
+        primitives: preserved.collision.primitives.map((primitive) =>
+          primitive.id === body.id && primitive.kind === "box"
+            ? {
+                ...primitive,
+                maxLdu: [
+                  valid.boundsLdu.max[0] + STUD_PITCH_LDU + 1,
+                  primitive.maxLdu[1],
+                  primitive.maxLdu[2],
+                ],
+              }
+            : primitive,
+        ),
+      },
+    };
+    const withoutBody: PartDefinition = {
+      ...preserved,
+      collision: {
+        ...preserved.collision,
+        primitives: preserved.collision.primitives.filter((primitive) => primitive.tag !== "body"),
+      },
+    };
+
+    expect(issueCodes(preserved)).not.toContain("MESH_ADMISSION_COLLISION_INVALID");
+    expect(issueCodes(malformed)).toContain("MESH_ADMISSION_COLLISION_INVALID");
+    expect(issueCodes(unbounded)).toContain("MESH_ADMISSION_COLLISION_INVALID");
+    expect(issueCodes(withoutBody)).toContain("MESH_ADMISSION_COLLISION_INVALID");
   });
 
   it("uses the clipped wedge polygon for collision bounds and rejects empty or zero-area cuts", () => {

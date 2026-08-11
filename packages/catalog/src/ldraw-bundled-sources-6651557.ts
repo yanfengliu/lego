@@ -7,10 +7,9 @@
 //   python -B scripts/emit-measured-part-tables.py \
 //     --official <ldraw-complete-2026-07.zip> \
 //     --unofficial <ldraw-unofficial-2026-08-02.zip> \
-//     --shadow <ldcad-shadow-20260802>
-//   npx prettier --write packages/catalog/src/mesh-assets-6651557.ts \
-//     packages/catalog/src/part-blueprints-6651557-measured.ts \
-//     packages/catalog/src/ldraw-bundled-sources-6651557.ts
+//     --shadow <ldcad-shadow-20260802> \
+//     --pilot <set-6651557-source-pilot.json> \
+//     --builder-frame <set-6651557-builder-ldraw-frame.json>
 
 /**
  * Per-file authorship and licence for every LDraw file whose geometry is
@@ -29,7 +28,7 @@ export interface BundledLdrawSourceFile {
   readonly licenseExpression: string;
 }
 
-/** Every file in the 8 bundled closures, deduplicated and path-ordered. */
+/** Every file in the 12 bundled closures, deduplicated and path-ordered. */
 export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Object.freeze([
   {
     path: "p/1-16chrd.dat",
@@ -50,12 +49,39 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
     licenseExpression: "CC-BY-4.0",
   },
   {
+    path: "p/1-16cylo.dat",
+    bytes: 394,
+    sha256: "sha256:6cef884c4f96ec15f5bd1428264af2efba4443cb1e47ead116a8a094febefc67",
+    title: "Cylinder Open 0.0625",
+    author: "Max Martin Richter [MMR1988]",
+    ldrawOrg: "Primitive UPDATE 2014-01",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
     path: "p/1-16edge.dat",
     bytes: 506,
     sha256: "sha256:42fc4d69af1281b71cb2eb9546e99e8bca2fc231d05a0379e71d4e1c9a60c95c",
     title: "Circle 0.0625",
     author: "Marc Klein [marckl]",
     ldrawOrg: "Primitive UPDATE 2017-01",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
+    path: "p/1-16ring3.dat",
+    bytes: 419,
+    sha256: "sha256:fc42cc8def33dca0ba2bf372688e5c373d54783041e693ec6ed79da5974e48b7",
+    title: "Ring  3 x 0.0625",
+    author: "Steve Bliss [sbliss]",
+    ldrawOrg: "Primitive UPDATE 2024-02",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
+    path: "p/1-16stud4.dat",
+    bytes: 520,
+    sha256: "sha256:2a95318eb2a3737f259e904565d39aff1c9bdeedaf1774c9548fe463fefea01b",
+    title: "Stud Tube Open 0.0625",
+    author: "Massimo Maso [Sirio]",
+    ldrawOrg: "Primitive UPDATE 2024-02",
     licenseExpression: "CC-BY-4.0",
   },
   {
@@ -113,6 +139,24 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
     licenseExpression: "CC-BY-4.0",
   },
   {
+    path: "p/1-4ring3.dat",
+    bytes: 1198,
+    sha256: "sha256:4048b121d53509363cfaa7422648dd29b2eeb93074279feb0bcc7a45bbb7c2e1",
+    title: "Ring  3 x 0.25",
+    author: "Willy Tschager [Holly-Wood]",
+    ldrawOrg: "Primitive UPDATE 2024-01",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
+    path: "p/1-4stud4.dat",
+    bytes: 404,
+    sha256: "sha256:cc27fe29307676a8f46d25ad35304ce2e576f3c8bee81c20cb461c401512b58e",
+    title: "Stud Tube Open 0.25",
+    author: "Massimo Maso [Sirio]",
+    ldrawOrg: "Primitive UPDATE 2019-01",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
     path: "p/1-8chrd.dat",
     bytes: 561,
     sha256: "sha256:7694157b725563188a6efd69b3f558b00533b375b8a4e82f469497a03e471e74",
@@ -146,6 +190,33 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
     title: "Circle 0.125",
     author: "James Jessiman",
     ldrawOrg: "Primitive UPDATE 2017-01",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
+    path: "p/1-8ndis.dat",
+    bytes: 615,
+    sha256: "sha256:97e394834789794c8635261fa604ad8e69b4c6872d0cd8d7506408b80023f408",
+    title: "Disc Negative 0.125",
+    author: "James Jessiman",
+    ldrawOrg: "Primitive UPDATE 2012-01",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
+    path: "p/1-8ring3.dat",
+    bytes: 610,
+    sha256: "sha256:641f3ae7395e7d38e57ab918928ac19209ed72e8474fd1646e2d70f223c4a0ce",
+    title: "Ring  3 x 0.125",
+    author: "Paul Easter [pneaster]",
+    ldrawOrg: "Primitive UPDATE 2012-01",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
+    path: "p/1-8stud4.dat",
+    bytes: 405,
+    sha256: "sha256:9395515b1e38008dab61d9a971d9564e36ea6fbe4a32a244c789e8e5a2a58f6d",
+    title: "Stud Tube Open 0.125",
+    author: "Massimo Maso [Sirio]",
+    ldrawOrg: "Primitive UPDATE 2019-01",
     licenseExpression: "CC-BY-4.0",
   },
   {
@@ -266,6 +337,24 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
     licenseExpression: "CC-BY-4.0",
   },
   {
+    path: "p/3-16ring3.dat",
+    bytes: 580,
+    sha256: "sha256:3e0d8f9325ef96db0fa0a471240f810181a235736554c040a303f20d03294136",
+    title: "Ring  3 x 0.1875",
+    author: "Philippe Hurbain [Philo]",
+    ldrawOrg: "Primitive UPDATE 2024-02",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
+    path: "p/3-16stud4.dat",
+    bytes: 520,
+    sha256: "sha256:6dd3e7068ef5fe4ab07ae85e51eabfacef0886cdf0f38941618e5c36fa03e198",
+    title: "Stud Tube Open 0.1875",
+    author: "Massimo Maso [Sirio]",
+    ldrawOrg: "Primitive UPDATE 2024-02",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
     path: "p/3-16tndis.dat",
     bytes: 392,
     sha256: "sha256:013e74f7eb727ad92396676544e09a80994a05200ba3a2c3ec1e6597b90bf892",
@@ -356,6 +445,51 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
     licenseExpression: "CC-BY-4.0",
   },
   {
+    path: "p/48/1-16cyli.dat",
+    bytes: 908,
+    sha256: "sha256:b6fb5e76f958a18c4cc88866d5e6a0502b62d3abda1a72450663b82502645330",
+    title: "Hi-Res Cylinder 0.0625",
+    author: "Willy Tschager [Holly-Wood]",
+    ldrawOrg: "48_Primitive UPDATE 2024-01",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
+    path: "p/48/1-16cylo.dat",
+    bytes: 416,
+    sha256: "sha256:94929f851cefec060fcf3222213a1f9743f9b6549a9e7bbcf471482dc546a827",
+    title: "Hi-Res Cylinder Open 0.0625",
+    author: "Max Martin Richter [MMR1988]",
+    ldrawOrg: "48_Primitive UPDATE 2013-01",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
+    path: "p/48/1-16edge.dat",
+    bytes: 550,
+    sha256: "sha256:9b3b4df68d3c0d68fd3e5c52346871867043f67522e53aaa21991562c89bdc10",
+    title: "Hi-Res Circle 0.0625",
+    author: "Willy Tschager [Holly-Wood]",
+    ldrawOrg: "48_Primitive UPDATE 2024-01",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
+    path: "p/48/1-16tang.dat",
+    bytes: 410,
+    sha256: "sha256:3e11a94e893a58effade5f052e53d2031cb7c6d1a69cc86da882e2c9cfac76e7",
+    title: "Hi-Res Disc Negative Tangent 0.0625",
+    author: "Gerald Lasser [GeraldLasser]",
+    ldrawOrg: "48_Primitive UPDATE 2020-03",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
+    path: "p/48/1-24cyli.dat",
+    bytes: 537,
+    sha256: "sha256:5e767152f719b094442a5e68060781c9f2b7304595c6956bf98183bda00a9a36",
+    title: "Hi-Res Cylinder 0.0417",
+    author: "Niels Karsdorp [nielsk]",
+    ldrawOrg: "48_Primitive UPDATE 2009-01",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
     path: "p/48/1-48chrd.dat",
     bytes: 653,
     sha256: "sha256:849fff998e086998d6361b6df1656aa8bb8551adeef975e2ceebfb45b850f0e5",
@@ -401,6 +535,15 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
     licenseExpression: "CC-BY-4.0",
   },
   {
+    path: "p/48/1-4disc.dat",
+    bytes: 1186,
+    sha256: "sha256:7198ee223b3a7adb03d3335233d534fa43a88bb8159d67609eea07f68e5f9120",
+    title: "Hi-Res Disc 0.25",
+    author: "Willy Tschager [Holly-Wood]",
+    ldrawOrg: "48_Primitive UPDATE 2024-01",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
     path: "p/48/1-4edge.dat",
     bytes: 1196,
     sha256: "sha256:e4ebabd21711f16411b3c8b8b278995a56c5f25919cd424976357da5b19943c6",
@@ -416,6 +559,15 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
     title: "Hi-Res Chord 0.125",
     author: "Willy Tschager [Holly-Wood]",
     ldrawOrg: "48_Primitive UPDATE 2024-01",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
+    path: "p/48/1-8edge.dat",
+    bytes: 711,
+    sha256: "sha256:eec30153f06bac336ca71ae16b31c5d0c7ae432acb5e91befe37fdb7b6bb1c8e",
+    title: "Hi-Res Circle 0.125",
+    author: "[PTadmin]",
+    ldrawOrg: "48_Primitive UPDATE 2017-01",
     licenseExpression: "CC-BY-4.0",
   },
   {
@@ -482,6 +634,15 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
     licenseExpression: "CC-BY-4.0",
   },
   {
+    path: "p/box3u8p.dat",
+    bytes: 737,
+    sha256: "sha256:0f6187106f023d041dcfd2a24e9f5a2a0c37b5c41b0ff171267ae776a8f16760",
+    title: "Box with 3 Faces and 4 Parallel Edges",
+    author: "James Jessiman",
+    ldrawOrg: "Primitive UPDATE 2012-01",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
     path: "p/box4-1.dat",
     bytes: 973,
     sha256: "sha256:2ed58df5da841827dfc5f9ac11c0bd7ffd8a455e46f166638e635f61a014b44d",
@@ -515,6 +676,15 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
     title: "Box with 5 Faces and All Edges",
     author: "James Jessiman",
     ldrawOrg: "Primitive UPDATE 2012-01",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
+    path: "p/boxjcyl4.dat",
+    bytes: 1236,
+    sha256: "sha256:ceb4a5fd46fbff7d2e396afbc308379b914b99556b30a136cfb578a3dc360877",
+    title: "Box to Cylinder Joint 1: 4",
+    author: "Philippe Hurbain [Philo]",
+    ldrawOrg: "Primitive UPDATE 2024-07",
     licenseExpression: "CC-BY-4.0",
   },
   {
@@ -626,12 +796,30 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
     licenseExpression: "CC-BY-4.0",
   },
   {
+    path: "p/stug-1x2.dat",
+    bytes: 333,
+    sha256: "sha256:5842fa1baf6ea7f18fe4e355238cd733ff9bdbdc3d722be5cf8988f1c5fce414",
+    title: "Stud Group  1 x  2",
+    author: "Steffen [Steffen]",
+    ldrawOrg: "Primitive UPDATE 2011-01",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
     path: "p/stug-1x3.dat",
     bytes: 372,
     sha256: "sha256:f24de368545aa96580b811daa6c25e18f5bfdbaca1d4b11addcfa7cbb625f4c9",
     title: "Stud Group  1 x  3",
     author: "Steffen [Steffen]",
     ldrawOrg: "Primitive UPDATE 2012-01",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
+    path: "p/stug-1x4.dat",
+    bytes: 414,
+    sha256: "sha256:e88852b15ca37121e12f7052a234e4a90dc99a8c6d22d45e041f47103c2fb71c",
+    title: "Stud Group  1 x  4",
+    author: "Steffen [Steffen]",
+    ldrawOrg: "Primitive UPDATE 2011-01",
     licenseExpression: "CC-BY-4.0",
   },
   {
@@ -662,6 +850,33 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
     licenseExpression: "CC-BY-4.0",
   },
   {
+    path: "p/stug-3x3.dat",
+    bytes: 869,
+    sha256: "sha256:ec81497656a4a77a32cc09b131026c9882ab2da35944f701aa7575d43667d7f0",
+    title: "Stud Group  3 x  3",
+    author: "Steve Bliss [sbliss]",
+    ldrawOrg: "Primitive UPDATE 2011-01",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
+    path: "p/stug-4x4.dat",
+    bytes: 741,
+    sha256: "sha256:d167d3367e9d6346e217331f3d35c7b2700d1c87f35e87b40cb3a702afa90e54",
+    title: "Stud Group  4 x  4",
+    author: "Tore Eriksson [Tore_Eriksson]",
+    ldrawOrg: "Primitive UPDATE 2011-01",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
+    path: "p/stug2.dat",
+    bytes: 307,
+    sha256: "sha256:e1dfe5f5e0c433cd406467d366d278518cde9d7e83cc5d4229c451adf52fcc71",
+    title: "~Moved to stug-2x2",
+    author: "[PTadmin]",
+    ldrawOrg: "Primitive UPDATE 2011-01",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
     path: "p/stug3-1x2.dat",
     bytes: 347,
     sha256: "sha256:e78926d1494fa67b984f390aa1c05d01c35eff99030209e9bbee4e15bfcc0ecb",
@@ -680,6 +895,24 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
     licenseExpression: "CC-BY-4.0",
   },
   {
+    path: "p/stug4.dat",
+    bytes: 307,
+    sha256: "sha256:977530a161304abc45fa2dbcac0e8a7df389d8ab3838a82702032a74dca9021f",
+    title: "~Moved to stug-4x4",
+    author: "[PTadmin]",
+    ldrawOrg: "Primitive UPDATE 2011-01",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
+    path: "p/tri3a4.dat",
+    bytes: 468,
+    sha256: "sha256:8c1cf47d85e2d2b429c0ac404108a9e91048fe7c9501b527dda55e75ad11bc4e",
+    title: "Triangular Prism with 3 Adjacent Faces without 4 Edges",
+    author: "Magnus Forsberg [MagFors]",
+    ldrawOrg: "Primitive UPDATE 2017-01",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
     path: "parts/2450.dat",
     bytes: 2313,
     sha256: "sha256:5bdb50ad11b750ca1621a7c1717f1dee4af58ae8816af3c77f4af75f7e72f408",
@@ -695,6 +928,24 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
     title: "Plate  3 x  3 with  2 x  2 Corner Round",
     author: "Vincent Messenet [Cheenzo]",
     ldrawOrg: "Part UPDATE 2026-01",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
+    path: "parts/30503.dat",
+    bytes: 2325,
+    sha256: "sha256:132b14ffca8e2f2b6296a0a1bcff77187d064c00340ac36fa0cb4784cbc8b56c",
+    title: "Plate  4 x  4 without Corner",
+    author: "Ronald Scott Moody [rmoody]",
+    ldrawOrg: "Part UPDATE 2013-02",
+    licenseExpression: "CC-BY-2.0 OR CC-BY-4.0",
+  },
+  {
+    path: "parts/30565.dat",
+    bytes: 2082,
+    sha256: "sha256:e201a60e7f8e8ab15a86e8449c0e722a1b1ebe8015a5021ac5ca9aa1fd462f39",
+    title: "Plate  4 x  4 with Corner Round",
+    author: "Gerald Lasser [GeraldLasser]",
+    ldrawOrg: "Part UPDATE 2024-06",
     licenseExpression: "CC-BY-4.0",
   },
   {
@@ -725,6 +976,15 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
     licenseExpression: "CC-BY-4.0",
   },
   {
+    path: "parts/6106.dat",
+    bytes: 5396,
+    sha256: "sha256:1fa164e7f76d0b46ffa950c7accc257b32f5d158d180030fbd2fcd4fab1bf9a5",
+    title: "Plate  6 x  6 without Corner",
+    author: "Steve Bliss [sbliss]",
+    ldrawOrg: "Part UPDATE 2024-03",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
     path: "parts/77844.dat",
     bytes: 1445,
     sha256: "sha256:3a1abf0ad321a6ac2b57c242c23d076f9e1abcfb976931a29fbef8192917dea0",
@@ -743,12 +1003,48 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
     licenseExpression: "CC-BY-4.0",
   },
   {
+    path: "parts/80015.dat",
+    bytes: 884,
+    sha256: "sha256:b2c08c34303be83aaba7ab12aecf0ce203773e32189691f2c2b59b2a789d29d5",
+    title: "Plate  5 x  5 with  4 x  4 Corner Round and  4 x  4 with  3 x  3 Corner Round Cutout",
+    author: "Gerald Lasser [GeraldLasser]",
+    ldrawOrg: "Part UPDATE 2024-05",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
     path: "parts/93273.dat",
     bytes: 383,
     sha256: "sha256:14bec7745fd39abc663d276997724137dbe2c927d4658ea36730213b3df81eef",
     title: "Slope Brick Curved  4 x  1 Double",
     author: "Magnus Forsberg [MagFors]",
     ldrawOrg: "Part UPDATE 2011-02",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
+    path: "parts/s/22888s01.dat",
+    bytes: 2326,
+    sha256: "sha256:553077491f4d2c24cb59df94f75cf3a96b5daaf42adbe33d07e91451fb39d846",
+    title: "~Plate  4 x  8 Round 1/8",
+    author: "Gerald Lasser [GeraldLasser]",
+    ldrawOrg: "Subpart UPDATE 2024-07",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
+    path: "parts/s/22888s02.dat",
+    bytes: 2718,
+    sha256: "sha256:5afa0d11ed4cfc3f4669b214f53539794f8b6547f14654a991ef67b217215c7d",
+    title: "~Plate  4 x  8 Round 1/8 - Common Geometry",
+    author: "Gerald Lasser [GeraldLasser]",
+    ldrawOrg: "Subpart UPDATE 2024-06",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
+    path: "parts/s/30565s01.dat",
+    bytes: 2926,
+    sha256: "sha256:69b36b94a6b6313e379a36b26a1a1f9a3f18b452bf98547a7e16f21b3ecf086b",
+    title: "~Plate  4 x  4 Round 1/8",
+    author: "Gerald Lasser [GeraldLasser]",
+    ldrawOrg: "Subpart UPDATE 2024-06",
     licenseExpression: "CC-BY-4.0",
   },
   {
@@ -779,6 +1075,16 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
     licenseExpression: "CC-BY-4.0",
   },
   {
+    path: "parts/s/80015s01.dat",
+    bytes: 6682,
+    sha256: "sha256:08baa9987359d51ddd8954ae8983a3aa0b5d47b063c497f4e43e520d3b2aa36b",
+    title:
+      "~Plate  5 x  5 with  4 x  4 Corner Round and  4 x  4 with  3 x  3 Corner Round Cutout - Half",
+    author: "Gerald Lasser [GeraldLasser]",
+    ldrawOrg: "Subpart UPDATE 2024-05",
+    licenseExpression: "CC-BY-4.0",
+  },
+  {
     path: "parts/s/93273s01.dat",
     bytes: 5473,
     sha256: "sha256:95d97ee75937fa8baa4b0fca339143ed3a5d1b812e4b2e76ef20d2a4c4622489",
@@ -791,17 +1097,29 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
 
 /** Which of those files each bundled part's exact closure references. */
 export const BUNDLED_LDRAW_CLOSURES: Readonly<Record<string, readonly number[]>> = Object.freeze({
-  "5092": [44, 45, 53, 55, 59, 75, 80],
-  "35480": [15, 16, 17, 18, 19, 20, 21, 27, 28, 29, 30, 43, 47, 63, 64, 74],
-  "51739": [22, 23, 24, 25, 26, 27, 28, 29, 31, 44, 45, 49, 53, 55, 59, 62, 65, 68, 76, 81],
-  "77844": [27, 28, 29, 44, 48, 62, 64, 66, 67, 70, 77],
-  "93273": [6, 14, 17, 18, 27, 28, 29, 40, 41, 42, 44, 50, 55, 56, 57, 58, 59, 60, 64, 79, 83],
+  "5092": [61, 62, 71, 74, 78, 103, 113],
+  "35480": [23, 24, 25, 26, 27, 28, 29, 37, 38, 39, 40, 60, 64, 82, 83, 102],
+  "51739": [30, 31, 32, 33, 36, 37, 38, 39, 41, 61, 62, 66, 71, 74, 78, 81, 84, 89, 104, 114],
+  "77844": [37, 38, 39, 61, 65, 81, 83, 86, 88, 94, 106],
+  "93273": [9, 22, 25, 26, 37, 38, 39, 55, 57, 58, 61, 68, 74, 75, 76, 77, 78, 79, 83, 109, 117],
   "30357": [
-    9, 10, 11, 12, 13, 27, 28, 29, 31, 32, 33, 34, 35, 36, 37, 38, 39, 44, 54, 58, 62, 65, 67, 69,
-    71, 73, 82,
+    14, 15, 16, 17, 21, 37, 38, 39, 41, 42, 43, 44, 45, 51, 52, 53, 54, 61, 73, 77, 81, 84, 88, 90,
+    95, 99, 115,
   ],
-  "2450": [27, 28, 29, 31, 44, 52, 56, 57, 58, 59, 61, 62, 65, 68, 72],
-  "79491": [0, 1, 2, 3, 4, 5, 7, 8, 9, 12, 27, 28, 29, 44, 45, 46, 51, 54, 55, 58, 59, 62, 64, 78],
+  "2450": [37, 38, 39, 41, 61, 70, 75, 76, 77, 78, 80, 81, 84, 89, 98],
+  "79491": [
+    0, 1, 3, 6, 7, 8, 10, 11, 14, 17, 37, 38, 39, 61, 62, 63, 69, 73, 74, 77, 78, 81, 83, 107,
+  ],
+  "30503": [37, 38, 39, 41, 61, 70, 75, 77, 78, 80, 81, 84, 85, 86, 87, 95, 100],
+  "6106": [37, 38, 39, 41, 61, 67, 70, 74, 78, 81, 84, 89, 92, 93, 96, 105],
+  "30565": [
+    1, 2, 3, 4, 5, 7, 8, 10, 12, 13, 14, 15, 16, 17, 18, 37, 38, 39, 41, 50, 56, 59, 61, 74, 77, 81,
+    84, 91, 95, 97, 101, 111, 112,
+  ],
+  "80015": [
+    1, 2, 3, 7, 8, 10, 12, 13, 15, 16, 17, 18, 19, 20, 31, 32, 33, 34, 35, 37, 38, 39, 46, 47, 48,
+    49, 50, 58, 59, 62, 67, 69, 70, 72, 74, 77, 78, 81, 83, 85, 88, 108, 110, 111, 116,
+  ],
 });
 
 /** The archive the files above were read from, byte-pinned. */

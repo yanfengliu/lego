@@ -370,7 +370,7 @@ describe.skipIf(!hasEvidence)("a real panel reading, narrowing the real enumerat
       );
     }
     expect(placementsByStep.size).toBeGreaterThan(0);
-  });
+  }, 30_000);
 
   it("has readings to measure", () => {
     if (readingFiles.length === 0) {

@@ -27,13 +27,13 @@ A model may propose data. It may not author executable code in the build loop, s
 
 This document contains both implemented behavior and target product contracts. Durable domain, validation, authority, consent, provenance and untrusted-input rules bind now. Product promises, end-state workflows, production topology, complete user experience, delivery exits and the success criterion describe the target unless a section explicitly says that it is current.
 
-As of 2026-08-10, the current product is an offline-capable manual React and Three.js editor with integrity-checked IndexedDB projects, a searchable catalog, snapped placement and attachment, precise transform and color editing, deletion, undo and redo, live structural validation, manual build playback, and bounded LDraw import and export. The deterministic document, command, compiler, validator, catalog and rendering packages are implemented.
+As of 2026-08-10, the current product is an offline-capable manual React and Three.js editor with integrity-checked IndexedDB projects, a searchable catalog, snapped placement and attachment, precise transform and color editing, deletion, undo and redo, live structural validation, manual build playback, and bounded LDraw import and export. The deterministic document, command, compiler, validator, catalog and rendering packages are implemented. Builtin catalog `/12` has 85 definitions: 73 render parametric recipes and 12 render exact LDraw surfaces, including four render-only promotions that preserve their preceding connector and conservative collision arrays.
 
-The booklet loop currently runs through internal Node, Python, Vitest and Playwright tooling. The web app's Instructions control bounds and fingerprints a PDF but does not yet expose parsed steps, candidate placement, panel verification or automatic application to a user document. `building-system.md` owns the exact measured reconstruction frontier and the ordered work still missing.
+The booklet loop currently runs through internal Node, Python, Vitest and Playwright tooling. The web app's Instructions control ingests a PDF locally into bounded page and text metadata plus a content hash, but does not render panels, compile build steps, verify placements or apply a run to a user document. `building-system.md` owns the exact measured reconstruction frontier and the ordered work still missing.
 
 Current retained-run infrastructure is local and development-only: `apps/companion` is a library and test slice for artifact storage, a test run ledger and a test recorder, while ignored run evidence lives under `var/` and `output/`. There is no released loopback broker, credential proxy, production signing identity, unprivileged worker, production authority namespace or executable sealed replay path.
 
-Current model assistance is an opt-in headless local CLI proposer for cropped callout-card images. Candidate panel agreement is scored deterministically from renders and pixels, and blind same-or-different verdicts are retained evidence consumed by the tooling; there is no integrated live checker model or broker-backed provider path. Model output remains untrusted under every current and target path.
+Current model assistance consists of opt-in local CLI derivation scripts for cropped part-identification cards and single-panel placement descriptions. Their ignored outputs are not called by the studio or wired into the real-booklet driver; candidate panel agreement in that driver is scored deterministically from renders and pixels. The prepared transition classifier is raster-blind, blind same-or-different verdicts are retained evidence rather than an integrated checker, and the driver remains linear instead of using the implemented backtracking library. Model output remains untrusted under every current and target path.
 
 ## Target product promise
 
@@ -87,15 +87,15 @@ Panel geometry is fitted from the panel's own printed stud lattice, which gives 
 
 A printed step compiles into build-program operations against the settled prefix — the single canonical document representing every step already settled. Candidates are enumerated from the prefix's own free connectors, seeded from both sides of a stud-tube joint, and pruned by lattice, connector graph, collision and the build-plate rule before anything is rendered. The whole printed step is proposed as one object, because its pieces are placed together and scored together.
 
-A placement is settled by comparing a render of the candidate against a printed panel at that panel's own camera and face. The panel that settles step N is usually panel N+1, which draws everything placed at step N as already-built, seated and unhighlighted; that makes it an independent witness step N's own panel frequently cannot be, since an exploded step outlines a floating ghost rather than a seat and the first step outlines nothing at all.
+A placement is settled only inside a bound observation packet. For a placement made at step N, inspect panel N, panel N+1 as the minimum later witness, and the first farther panel that actually reveals the placement when N+1 occludes it or remains ambiguous. N+1 is not a guarantee: if no retained panel exposes the claimed surface or relation, record it as `not-observable` rather than infer correctness from silence. A booklet image cannot certify a hidden surface it never shows.
 
-Steps therefore have distinct evidence classes, chosen from a free signal rather than assumed: a panel with a usable highlight is scored against it, a step drawn exploded has each candidate redrawn back along the printed arrow's line and compared against the drawn ghost, and a step with neither defers to the next panel. Every bar in that comparison is derived from the panel's own geometry, never from a global constant — a panel has a reachable ceiling, so one fixed threshold asks a different question on every page.
+Steps therefore have distinct evidence classes, chosen from a free signal rather than assumed: a panel with a usable highlight is scored against it, a step drawn exploded has each candidate redrawn back along the printed arrow's line and compared against the drawn ghost, and a step with neither begins later-panel deferral at N+1 and continues under the observation packet above. Every bar in that comparison is derived from the panel's own geometry, never from a global constant — a panel has a reachable ceiling, so one fixed threshold asks a different question on every page.
 
 The printed arrow states a direction, not a length: an exploded step's seat is occluded, so the ink stops at the visible surface while the part comes to rest behind it. A candidate that ranks first on pixel agreement is not thereby correct; when a score and an image disagree, the image is the evidence and the score is a lossy summary of it.
 
 Missing parts are work items, not blockers. A step needing a part the catalog lacks gets the part added, with family, real LDraw identifier, connectors, collision primitives and provenance; it is never substituted or skipped.
 
-`building-system.md` owns the measured position of this loop and the ordered plan for what is missing.
+`building-system.md` owns the measured position of this loop and the ordered plan for what is missing. The current runner does not yet produce the complete N/N+1/farther observation packet, does not use raster evidence in transition classification, has no integrated vision checker, and does not backtrack.
 
 ### Target: backtracking
 
@@ -211,6 +211,8 @@ Canonical serialization defines stable array ordering, ID generation, numeric no
 
 `part-model.md` owns how a part is organised, indexed, defined and constructed. A `PartDefinition` carries namespaced ID and aliases, geometry source and content hash, bounds and simplified collision representation, typed connection ports with local transforms and compatibility rules, legal orientations, a substitution-group identifier, available colors, inventory metadata, and source/license/attribution/catalog-version provenance. Current builtin inventory records leave `knownMassGrams` unset; richer substitution rules and measured mass are not implemented catalog truth.
 
+Catalog measurement, mesh generation, semantic checks, and focused tests automate parts of admission, but no tool or model admits a part automatically. Admission remains a reviewed repository change that records sources, inspects matched views, advances the truth snapshot, and passes migration and verification gates; an unexposed surface is named `not-observable`, not approved by omission.
+
 Truth imported from differently licensed datasets stays in separately attributable catalog layers, never flattened into an untraceable application-owned blob.
 
 Adding a part is a catalog-truth change: it advances the builtin catalog version, extends the migratable set, and the migration report says what changed. The preceding version is kept as a historical migration snapshot so existing documents keep hashing as they did.
@@ -225,9 +227,9 @@ The six catalog pair rules are `stud` to `undersideClutch` with rigid quarter-tu
 
 A printed step or other proposer emits a restricted declarative program or typed operation suggestions. Nothing emits a trusted patch envelope, JavaScript, Python, shaders, SQL, or arbitrary commands.
 
-The current program schema can place a catalog part at an explicit rigid transform, attach two named ports through the `stud-tube` wire class, remove or replace a named part, move or recolor a named part, and assign one part to a build step. The schema also contains `instantiateTemplate`, but the current compiler rejects it explicitly because no template compiler is installed.
+The current program schema and compiler, not the studio's exposed command set, support placing a catalog part at an explicit rigid transform, attaching two named ports through the `stud-tube` wire class, removing or replacing a named part, moving or recoloring a named part, and assigning one part to a build step. The schema also contains `instantiateTemplate`, but the current compiler rejects it explicitly because no template compiler is installed.
 
-The current compiler validates the closed operation schema and enforces trusted scope budgets for maximum operations, added parts and removed parts before deterministically producing document commands; compilation failure is a normal rejected result rather than an application error.
+The current compiler validates the closed operation schema and enforces exactly three trusted scope budgets—maximum operations, added parts, and removed parts—before deterministically producing document commands; compilation failure is a normal rejected result rather than an application error. Expansion depth, recursion, memory, elapsed time, and template part counts are not current compiler budgets.
 
 The target template path uses a schema-constrained, non-Turing-complete declarative AST and adds expansion-depth, recursion, memory, part-count and time budgets. Imports, scripts, callbacks, arbitrary expressions, dynamic evaluation, TypeScript and Python remain forbidden even in quarantine. Those template-expansion capabilities and resource limits are specified, not implemented.
 
@@ -247,9 +249,9 @@ There is no automatic path from a compiled patch into a user document, and the f
 
 ## Model calls and consent
 
-The current repository has one live model-assisted implementation path: an opt-in headless local CLI proposer reads cropped callout-card images and suggests catalog identities. It is development tooling, is not broker-backed or exposed in the web product, and has no path to mutate a user document.
+The current repository has two opt-in model-assisted derivation paths: local CLI scripts propose catalog identities from cropped callout-card images, including a two-candidate reask, and a separate script describes placement relations from one printed panel. Both write ignored development evidence, are not broker-backed or exposed in the web product, are not wired into the real-booklet driver, and have no path to mutate a user document.
 
-Current booklet placement and panel agreement are decided by deterministic candidate enumeration, rendering and pixel scoring. Blind same-or-different pair verdicts are retained trust evidence produced outside the integrated runtime and consumed by the coverage tooling. The measured closed pair judgement was 84 of 84 on this booklet where the earlier open pick-one-of-N vision pass managed 39.9 percent self-consistency, but that retained evidence is not a live checker service. No integrated checker model or broker-backed provider path exists today.
+Current booklet placement and panel agreement are decided by deterministic candidate enumeration, rendering and pixel scoring. Blind same-or-different pair verdicts are retained trust evidence produced outside the integrated runtime and consumed by the coverage tooling. Two blind raters agreed on all 84 presented pairs, recording 82 verdicts and two unjudgeable pairs, while the earlier open pick-one-of-N vision pass managed 39.9 percent self-consistency. That is an agreement measurement, not independent proof that every verdict is correct; the retained evidence is not a live checker service, and narrowing can discard the settled truth while leaving only safe candidates. No integrated checker model or broker-backed provider path exists today.
 
 The target booklet loop may use a **proposer** to read printed art and a **checker** to ask the closed same-or-different question over a render and printed panel. Both current and target uses are bound by the same authority rule: model output is untrusted data. It proposes while a deterministic check disposes, and it cannot declare itself valid, author trusted scope or provenance, execute code, waive a hard validator, admit a part, or mutate the user document. A production call must record provider, model, parameters, seed where supported and a raw response hash.
 
@@ -275,17 +277,17 @@ A physical claim applies only to the exact document and catalog hash actually te
 
 ## Rendering and visual inspection
 
-A candidate can be rendered into a deterministic render packet: a fixed isometric presentation view; front, back, left, right, top and underside orthographic views; silhouette and depth passes; a part-ID pass grounding visual findings to model entities; an exploded or layer view when useful; connection, collision, disconnected-component, exposed-port and support overlays; and closeups around each blocking validator issue.
+The target deterministic render packet contains a fixed isometric presentation view; front, back, left, right, top and underside orthographic views; an underside-oblique view for internal walls and clutch geometry; silhouette and depth passes; a part-ID pass grounding visual findings to model entities; an exploded or layer view when useful; connection, collision, disconnected-component, exposed-port and support overlays; and closeups around each blocking validator issue. Current test capture implements named canonical views, not every target pass or overlay.
 
 For a booklet step the render that matters is the one taken at the printed panel's own camera and face, because that is the only render comparable to the drawing. The panel supplies azimuth, scale and phase from its stud lattice; the printed rotation icon supplies the sign of the elevation.
 
 Instruction rendering imitates measured booklet art rather than an asserted dialect: parts carry three face tones, a near-black stud wall and a per-colour ink, not one flat fill.
 
-Renders are looked at, not only scored. Every real defect this project has found was found by looking at a render, and none came from a passing test.
+Renders are looked at, not only scored. Matched top, bottom, front, back, left, right, isometric, and underside-oblique views delimit what was observed; hidden surfaces remain `not-observable`. Visual defects have repeatedly escaped passing tests and been found by looking at renders; nonvisual defects are also found by source audits, digest checks, tests, and review.
 
 ## Target user experience
 
-The current workspace provides the central 3D viewport, searchable catalog, project controls, selection and transform/color inspector, live validation and manual build playback. Its Instructions control currently accepts, bounds and fingerprints a PDF only; it does not yet expose the parsed booklet, placement candidates or a run inspector.
+The current workspace provides the central 3D viewport, searchable catalog, project controls, selection and transform/color inspector, live validation and manual build playback. Its Instructions control currently extracts bounded page and text metadata and a content hash from a local PDF; it does not render booklet panels or expose placement candidates, compiled steps, verification, or a run inspector.
 
 The main workspace contains a central 3D viewport; a part palette and template library grouped by family and searchable by name, size and identifier, with previews derived from each part's own geometry so the palette cannot drift from what gets placed; a scene, submodel and step tree; a selection and constraint inspector; a booklet panel showing the loaded booklet, its printed step list, the current step's panel with its highlight, arrows and face, and the candidate under consideration beside it; a validation panel distinguishing blocking, advisory and unknown findings; and a run inspector for replay, provenance and retained evidence.
 
@@ -378,7 +380,7 @@ Exit: the booklet's own internal checks reconcile with recorded numbers, every p
 
 Status: active. The internal real-booklet runner can settle and retain a contiguous prefix with named numerical refusals, but real-run deep backtracking and one-frame reconciliation with the official ledger remain open. The exact current numbers belong only in `building-system.md` and retained run scoreboards.
 
-Enumerate candidate placements from the settled prefix's free connectors on both sides of a joint, pruned by lattice, connectors, collision and the build plate. Score a step by its own evidence class — highlight, exploded ghost, or deferral to the next panel — against bars derived from that panel's geometry. Name every refusal and publish the number it refused on. Add deep backtracking with retained alternatives, and report the reversal depth.
+Enumerate candidate placements from the settled prefix's free connectors on both sides of a joint, pruned by lattice, connectors, collision and the build plate. Score a step by its own evidence class—highlight, exploded ghost, or later-panel deferral—against bars derived from that panel's geometry, retaining N, N+1, and the first farther panel that reveals an otherwise occluded or ambiguous placement. Name every refusal and `not-observable` limit, publish the number it refused on, add deep backtracking with retained alternatives, and report the reversal depth.
 
 Exit: a contiguous prefix of printed steps is placed, each settled against a printed panel and each refusal named; the placed transforms reconcile with the official ledger in one frame; and the prefix length and reversal depth are recorded in `building-system.md` and driven deliberately.
 

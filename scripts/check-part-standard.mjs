@@ -36,8 +36,17 @@ process.stderr.write(
 );
 for (const [rule, list] of [...byRule].sort((a, b) => b[1].length - a[1].length)) {
   process.stderr.write(`${rule} — ${list.length} part(s)\n`);
-  process.stderr.write(`  ${list[0].detail}\n`);
-  process.stderr.write(`  parts: ${list.map((entry) => entry.partId).join(", ")}\n\n`);
+  const byDetail = new Map();
+  for (const violation of list) {
+    const matching = byDetail.get(violation.detail) ?? [];
+    matching.push(violation.partId);
+    byDetail.set(violation.detail, matching);
+  }
+  for (const [detail, partIds] of byDetail) {
+    process.stderr.write(`  ${detail}\n`);
+    process.stderr.write(`  parts: ${partIds.join(", ")}\n`);
+  }
+  process.stderr.write("\n");
 }
 process.stderr.write(
   "Fix the part, or change the rule in packages/catalog/src/part-standard.ts and write down " +

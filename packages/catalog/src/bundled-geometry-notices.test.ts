@@ -15,8 +15,8 @@ const NOTICES_PATH = resolve(import.meta.dirname, "../../../docs/bundled-geometr
 const LDCAD_CONNECTOR_SOURCE_ID = "lego-studio:ldcad-shadow-measured-part-admission";
 
 /**
- * The attribution CC BY 4.0 and CC BY-SA 4.0 require, rendered from the catalog
- * it describes.
+ * The attribution the selected CC BY 4.0 option and CC BY-SA 4.0 require,
+ * rendered from the catalog it describes.
  *
  * A notices file nobody regenerates is the failure mode this exists to prevent:
  * the document is derived here, so admitting or removing a bundled file — or a
@@ -36,37 +36,37 @@ function renderNotices(): string {
     const ldrawId = part.aliases.find(({ namespace }) => namespace === "ldraw")!.value;
     const closure = BUNDLED_LDRAW_CLOSURES[ldrawId.replace(".dat", "")]!;
     const root = fileByPath.get(`parts/${ldrawId}`)!;
-    return `| \`${part.id}\` | \`${ldrawId}\` | ${root.title} | ${root.author} | ${closure.length} |`;
+    return `| \`${part.id}\` | \`${ldrawId}\` | ${root.title} | ${root.author} | \`${root.licenseExpression}\` | ${closure.length} |`;
   });
   const fileRows = BUNDLED_LDRAW_SOURCE_FILES.map(
     (file) =>
-      `| \`${file.path}\` | ${file.title} | ${file.author} | ${file.ldrawOrg} | \`${file.sha256.replace("sha256:", "")}\` |`,
+      `| \`${file.path}\` | ${file.title} | ${file.author} | \`${file.licenseExpression}\` | ${file.ldrawOrg} | \`${file.sha256.replace("sha256:", "")}\` |`,
   );
   return [
     "# Bundled geometry notices",
     "",
     "> Generated from the catalog by `packages/catalog/src/bundled-geometry-notices.test.ts`, which fails if this file and the catalog disagree. Do not edit by hand.",
     "",
-    "The render mesh of the parts below is real LDraw geometry, bundled and redistributed under the [Creative Commons Attribution 4.0 International licence](https://creativecommons.org/licenses/by/4.0/). CC BY 4.0 requires attribution, so every file whose triangles are bundled is named here with its author, title and content hash rather than flattened into project-owned data.",
+    "The render mesh of the parts below is real LDraw geometry, bundled and redistributed under the [Creative Commons Attribution 4.0 International licence](https://creativecommons.org/licenses/by/4.0/). Of the 118 source files, 117 declare CC BY 4.0 and `parts/30503.dat` declares `CC-BY-2.0 OR CC-BY-4.0`; this bundle selects its CC BY 4.0 option. Attribution therefore names every file whose triangles are bundled with its author, title, licence and content hash rather than flattening it into project-owned data.",
     "",
     "Permission to reuse this geometry is **not** permission to train on it. That right is not held, and no bundled file is designated as a model-training or benchmark corpus.",
     "",
-    "The geometry is Layer 1 only: it is what the app draws and what the palette previews, and it is never consulted for connector, collision, bounds or validator truth.",
+    "The geometry supplies the exact source-derived visual surface and envelope used by the app and palette. Connector and collision truth remain independently authored; the four `/12` render-only promotions explicitly preserve their prior conservative collision recipes instead of deriving collision from the mesh.",
     "",
     `Source archive: \`${BUNDLED_LDRAW_ARCHIVE.version}\`, ${BUNDLED_LDRAW_ARCHIVE.bytes} bytes, \`${BUNDLED_LDRAW_ARCHIVE.sha256}\`, from ${BUNDLED_LDRAW_ARCHIVE.source}.`,
     "",
     "## Bundled parts",
     "",
-    "| Catalog part | LDraw file | Title | Author | Closure files |",
-    "| --- | --- | --- | --- | --- |",
+    "| Catalog part | LDraw file | Title | Author | Root licence | Closure files |",
+    "| --- | --- | --- | --- | --- | --- |",
     ...partRows,
     "",
     "## Every bundled file",
     "",
-    `All ${BUNDLED_LDRAW_SOURCE_FILES.length} files below declare CC BY 4.0 in their own header.`,
+    `The ${BUNDLED_LDRAW_SOURCE_FILES.length} files below comprise 117 \`CC-BY-4.0\` declarations and one \`CC-BY-2.0 OR CC-BY-4.0\` declaration.`,
     "",
-    "| File | Title | Author | LDraw.org status | SHA-256 |",
-    "| --- | --- | --- | --- | --- |",
+    "| File | Title | Author | Licence | LDraw.org status | SHA-256 |",
+    "| --- | --- | --- | --- | --- | --- |",
     ...fileRows,
     "",
     "## Derived connector data",
@@ -90,8 +90,8 @@ function renderNotices(): string {
 }
 
 describe("bundled geometry notices", () => {
-  it("reproduces docs/bundled-geometry-notices.md from the catalog", () => {
-    expect(readFileSync(NOTICES_PATH, "utf8")).toBe(renderNotices());
+  it("reproduces docs/bundled-geometry-notices.md from the catalog", async () => {
+    await expect(renderNotices()).toMatchFileSnapshot(NOTICES_PATH);
   });
 
   it("names every part whose geometry is bundled and no part whose geometry is not", () => {

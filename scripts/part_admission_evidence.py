@@ -29,15 +29,13 @@ PILOT_SCHEMA_VERSION = "lego.set-6651557-source-pilot/1"
 MEASUREMENT_ONLY = "measurement-only-not-catalog-admitted"
 
 
-def read_pilot(path: Path) -> dict[str, object]:
-    """The approved six-part source pilot, or a refusal naming what differs."""
+def parse_pilot(data: bytes, source: object = "captured source-pilot bytes") -> dict[str, object]:
+    """Validate and parse one already-captured approved source pilot."""
 
-    resolved = path.resolve(strict=True)
-    data = resolved.read_bytes()
     digest = hashlib.sha256(data).hexdigest()
     if len(data) != PILOT_BYTES or digest != PILOT_SHA256:
         raise ValueError(
-            f"Source pilot {resolved} is {len(data)} bytes sha256:{digest}; the approved report is "
+            f"Source pilot {source} is {len(data)} bytes sha256:{digest}; the approved report is "
             f"{PILOT_BYTES} bytes sha256:{PILOT_SHA256}. Regenerate it with "
             "scripts/generate-set-6651557-source-pilot.py rather than re-pinning this reader."
         )
@@ -50,6 +48,13 @@ def read_pilot(path: Path) -> dict[str, object]:
     if report.get("authority", {}).get("state") != MEASUREMENT_ONLY:
         raise ValueError("Source pilot is not in the measurement-only authority state.")
     return report
+
+
+def read_pilot(path: Path) -> dict[str, object]:
+    """The approved six-part source pilot, or a refusal naming what differs."""
+
+    resolved = path.resolve(strict=True)
+    return parse_pilot(resolved.read_bytes(), resolved)
 
 
 def measured_surface(library: LDrawSourceLibrary, design_id: str) -> MeasuredSurface:

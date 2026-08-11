@@ -4,16 +4,17 @@ Run:
   python -B scripts/emit-measured-part-tables.py \
     --official C:/tmp/ldraw-complete-2026-07.zip \
     --unofficial C:/tmp/ldraw-unofficial-2026-08-02.zip \
-    --shadow C:/tmp/ldcad-shadow-20260802
-  npx prettier --write packages/catalog/src/mesh-assets-6651557.ts \
-    packages/catalog/src/part-blueprints-6651557-measured.ts \
-    packages/catalog/src/ldraw-bundled-sources-6651557.ts
+    --shadow C:/tmp/ldcad-shadow-20260802 \
+    --pilot output/real-build/set-6651557-source-pilot.json \
+    --builder-frame output/real-build/set-6651557-builder-ldraw-frame.json
 
 The first production admission emitted its tables from a scratch script that no
 longer exists, which left generated files in Git with no way to reproduce them.
-This is that path, made real: one measurement feeds the mesh, the collision
-decomposition, the connectors and the per-file attribution, and every part is
-scored by the existing part-admission scorer before a single line is written.
+This is that path, made real: one measurement emits aligned mesh, collision,
+connector and attribution tables, and every part is scored before a line is
+written. Eight measured definitions consume all of those fields. The four `/12`
+render promotions consume the mesh and visual bounds while `part-factory.ts`
+retains their preceding connector, allowance and collision arrays deliberately.
 
 A hard fail is a refusal, not a low number: nothing is written unless every
 planned part passes, so the catalog cannot gain a part whose own scorecard says
@@ -23,21 +24,29 @@ it under-claims. Scoring evidence goes to the gitignored output tree.
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import time
 from pathlib import Path
 
-from ldcad_shadow_coverage import read_builder_frames
+from ldcad_shadow_coverage import parse_builder_frames
 from ldcad_shadow_source import VerifiedShadowLibrary
 from ldraw_source_archive import LDrawSourceLibrary, VerifiedArchive
-from measured_part_emit import render_blueprints, render_bundled_sources, render_mesh_assets
+from measured_part_emit import (
+    canonical_typescript,
+    enforce_generated_check,
+    render_blueprints,
+    render_bundled_sources,
+    render_mesh_assets,
+)
 from measured_part_plan import ADMITTED_PART_PLANS, BUNDLED_LDRAW_ARCHIVE_RECORD
 from measured_part_tables import measure_part, scoreable_candidate
 from part_admission_contract import validate_candidate
-from part_admission_evidence import PILOT_DESIGN_IDS, bind_to_pilot, read_pilot, write_output_report
+from part_admission_evidence import PILOT_DESIGN_IDS, bind_to_pilot, parse_pilot, write_output_report
 from part_admission_scorecard import DEFAULT_SAMPLE_SPACING_LDU, score_candidate
 from set_6651557_ldraw_source_audit_plan import ARCHIVE_PINS
 
-REPORT_SCHEMA_VERSION = "lego.measured-part-admission-emission/1"
+REPORT_SCHEMA_VERSION = "lego.measured-part-admission-emission/2"
 GENERATED_FILES = {
     "meshAssets": "packages/catalog/src/mesh-assets-6651557.ts",
     "blueprints": "packages/catalog/src/part-blueprints-6651557-measured.ts",
@@ -45,12 +54,44 @@ GENERATED_FILES = {
 }
 
 
-def builder_records(report_path: Path) -> dict[str, dict[str, str]]:
+def bound_input(path: Path, label: str) -> tuple[bytes, dict[str, object]]:
+    """Read one required ignored input and retain the exact identity consumed."""
+
+    try:
+        content = path.read_bytes()
+    except OSError as error:
+        flag = f"--{label.replace('_', '-')}"
+        raise SystemExit(
+            f"Measured-part table generation needs {label.replace('_', ' ')} at {path}: "
+            f"{error}. Generate that input first or pass its exact path with {flag}."
+        ) from error
+    return content, {
+        "bytes": len(content),
+        "sha256": f"sha256:{hashlib.sha256(content).hexdigest()}",
+    }
+
+
+def assert_bound_input_unchanged(path: Path, label: str, expected: bytes) -> None:
+    """Refuse a run whose prepared input changed while it was being consumed."""
+
+    try:
+        current = path.read_bytes()
+    except OSError as error:
+        raise SystemExit(
+            f"Measured-part table generation could not re-read {label} at {path}: {error}. "
+            "Keep the prepared input stable for the whole run."
+        ) from error
+    if current != expected:
+        raise SystemExit(
+            f"Measured-part table generation saw {label} change while running at {path}. "
+            "Restore one exact prepared input and rerun; do not combine measurements from two versions."
+        )
+
+
+def builder_records(report_bytes: bytes) -> dict[str, dict[str, str]]:
     """Revision and record digest per design, from the pinned frame report."""
 
-    import json
-
-    report = json.loads(report_path.read_bytes().decode("utf-8"))
+    report = json.loads(report_bytes.decode("utf-8"))
     return {
         str(part["designId"]): {
             "revision": str(part["builderRevision"]),
@@ -84,14 +125,18 @@ def main() -> None:
     parser.add_argument(
         "--check",
         action="store_true",
-        help="measure and score without writing, so a gate can prove the tables reproduce",
+        help="measure, score, canonicalize, and refuse if committed tables do not reproduce",
     )
     arguments = parser.parse_args()
 
-    pilot = read_pilot(arguments.pilot)
+    pilot_bytes, pilot_binding = bound_input(arguments.pilot, "pilot")
+    builder_frame_bytes, builder_frame_binding = bound_input(
+        arguments.builder_frame, "builder_frame"
+    )
+    pilot = parse_pilot(pilot_bytes, arguments.pilot)
     pilot_parts = {str(row["designId"]): row for row in pilot["parts"]}  # type: ignore[index,union-attr]
-    builder_clutches = read_builder_frames(arguments.builder_frame)
-    builder = builder_records(arguments.builder_frame)
+    builder_clutches = parse_builder_frames(builder_frame_bytes, arguments.builder_frame)
+    builder = builder_records(builder_frame_bytes)
     shadow = VerifiedShadowLibrary(arguments.shadow)
     archive_paths = {"official": arguments.official, "unofficial": arguments.unofficial}
     library = LDrawSourceLibrary(
@@ -158,15 +203,26 @@ def main() -> None:
         ),
         "bundledSources": render_bundled_sources(parts, BUNDLED_LDRAW_ARCHIVE_RECORD),
     }
+    assert_bound_input_unchanged(arguments.pilot, "source pilot", pilot_bytes)
+    assert_bound_input_unchanged(
+        arguments.builder_frame, "Builder-to-LDraw frame report", builder_frame_bytes
+    )
     written: dict[str, object] = {}
+    drifted: list[str] = []
     for key, relative in GENERATED_FILES.items():
         target = repository / relative
-        previous = target.read_text(encoding="utf-8") if target.exists() else None
+        canonical = canonical_typescript(repository, target, rendered[key])
+        canonical_bytes = canonical.encode("utf-8")
+        previous = target.read_bytes() if target.exists() else None
+        matches = previous == canonical_bytes
+        if arguments.check and not matches:
+            drifted.append(relative)
         if not arguments.check:
-            target.write_text(rendered[key], encoding="utf-8", newline="\n")
+            target.write_bytes(canonical_bytes)
         written[relative] = {
-            "bytes": len(rendered[key].encode("utf-8")),
-            "changedBeforePrettier": previous != rendered[key],
+            "bytes": len(canonical_bytes),
+            "sha256": f"sha256:{hashlib.sha256(canonical_bytes).hexdigest()}",
+            "matchedBeforeAction": matches,
             "written": not arguments.check,
         }
 
@@ -187,6 +243,8 @@ def main() -> None:
                 "sha256": f"sha256:{ARCHIVE_PINS[1].sha256}",
             },
             "shadowLibrary": shadow.identity(),
+            "sourcePilot": pilot_binding,
+            "builderFrame": builder_frame_binding,
         },
         "sourceBinding": bindings,
         "generatedFiles": written,
@@ -213,6 +271,7 @@ def main() -> None:
     print(f"measured in {time.monotonic() - started:.1f}s")
     print(f"wrote {arguments.report.resolve(strict=True)}")
     print(f"sha256:{digest}")
+    enforce_generated_check(drifted)
 
 
 if __name__ == "__main__":

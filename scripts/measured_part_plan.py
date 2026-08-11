@@ -14,8 +14,10 @@ already in the catalog were not regenerated.
 from __future__ import annotations
 
 from measured_part_tables import (
+    BUILDER_CONNECTIVITY_CONNECTOR_SOURCE,
     BUILDER_CONNECTOR_SOURCE,
     LDCAD_SHADOW_CONNECTOR_SOURCE,
+    BuilderConnectivityFact,
     MeasuredPartPlan,
 )
 
@@ -35,6 +37,7 @@ def _plan(
     translation_ldu: tuple[int, int, int] = (0, -4, 0),
     connector_grid_center_ldu: tuple[int, int] = (0, 0),
     connector_source: str = BUILDER_CONNECTOR_SOURCE,
+    builder_connectivity_fact: BuilderConnectivityFact | None = None,
 ) -> MeasuredPartPlan:
     return MeasuredPartPlan(
         design_id=design_id,
@@ -48,7 +51,34 @@ def _plan(
         translation_ldu=translation_ldu,
         connector_grid_center_ldu=connector_grid_center_ldu,
         connector_source=connector_source,
+        builder_connectivity_fact=builder_connectivity_fact,
     )
+
+
+BUILDER_80015_CONNECTIVITY = BuilderConnectivityFact(
+    source_id="https://api.prod.dbix.i.lego.com/api/v1/Bricks/80015?Revision=E&Platform=Android",
+    source_revision="80015;revision-E;platform-Android",
+    manifest_sha256="sha256:3e57aa4df4ab5327c5b8408912d056ba73b93cd98e769e41d6aabaf6cb0618a6",
+    manifest_md5="md5:bb72d5b5609e411392df36903c8c5daa",
+    bundle_sha256="sha256:f3a11d40f9de9fa54670bdd87db0a87e034896d87b56e64e9f382c3ef0098c75",
+    primitive_xml_sha256="sha256:ad9aca4ca7275358e2f680ad154b5f577f8fc79b87a8ea1c60aea4558a0a23bc",
+    independent_source_id="https://github.com/RolandMelkert/LDCadShadowLibrary",
+    independent_source_revision="15aa1e718b6a8da37d24fc7af5e52e262c041bfb",
+    independent_part_sha256="sha256:c4dbcc5c5e2969e2b6e5c394519606a66b8483437503b8f4886cdf9262cd7170",
+    independent_subpart_sha256="sha256:fa4324fccee90f9903c68c65a75bb4e747a76d429a94d648c10b9e24ceb4d879",
+    extractor_id="lego-builder-custom2dfield-type22-centres/1",
+    normalized_clutch_offsets_sha256="sha256:0e77ae20bce268bcde610fa8d2b34fa2e91a0c3a0132e298e933433591e8f0d5",
+    clutches_source_ldu=(
+        (-10, 8, -70),
+        (10, 8, -70),
+        (30, 8, -70),
+        (50, 8, -50),
+        (70, 8, -30),
+        (70, 8, -10),
+        (70, 8, 10),
+    ),
+    partial_overhangs=((30, -70, 2.2), (70, -30, 2.2)),
+)
 
 
 ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
@@ -100,6 +130,48 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         variant="round",
         connector_grid_center_ldu=(10, 10),
         connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
+    ),
+    # Exact render surfaces for the special plates used by the first underside
+    # booklet panel. Their Builder records are already byte-pinned by the frame
+    # report; admitting them through this route replaces the catalog's filled
+    # wedge/arc drawings with the official LDraw closures, including the real
+    # cavity walls, rings and ribs visible after printed step 4 turns the build.
+    # For 30503, 6106 and 30565 the LDCad shadow records are whole-tree pinned and
+    # each emitted clutch is checked against the expanded LDraw surface. 80015
+    # instead retains its seven-seat, two-overhang byte-pinned Builder fact.
+    _plan(
+        "30503",
+        "wedge-plate",
+        4,
+        4,
+        variant="cut-corner",
+        connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
+    ),
+    _plan(
+        "6106",
+        "wedge-plate",
+        6,
+        6,
+        variant="cut-corner",
+        connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
+    ),
+    _plan(
+        "30565",
+        "corner-plate",
+        4,
+        4,
+        variant="round",
+        connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
+    ),
+    _plan(
+        "80015",
+        "corner-plate",
+        5,
+        5,
+        variant="quarter-ring",
+        connector_grid_center_ldu=(30, -30),
+        connector_source=BUILDER_CONNECTIVITY_CONNECTOR_SOURCE,
+        builder_connectivity_fact=BUILDER_80015_CONNECTIVITY,
     ),
 )
 

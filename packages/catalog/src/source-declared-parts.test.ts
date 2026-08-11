@@ -350,15 +350,24 @@ describe("set 6651557 parts declared from measured source", () => {
     expect(BUNDLED_LDRAW_ARCHIVE.sha256).toBe(
       "sha256:6009f2e94204c4d3a63a4c812010b5c90bad8c5acb19b882c859fdac63734eae",
     );
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(84);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(118);
     for (const file of BUNDLED_LDRAW_SOURCE_FILES) {
-      expect(file.licenseExpression).toBe("CC-BY-4.0");
       expect(file.author.trim().length).toBeGreaterThan(0);
       expect(file.title.trim().length).toBeGreaterThan(0);
       expect(file.sha256).toMatch(/^sha256:[0-9a-f]{64}$/u);
     }
-    // 22 named authors across 84 files: attribution is per file, never flattened.
-    expect(new Set(BUNDLED_LDRAW_SOURCE_FILES.map(({ author }) => author)).size).toBe(22);
+    expect(
+      BUNDLED_LDRAW_SOURCE_FILES.filter(({ licenseExpression }) =>
+        licenseExpression.includes("CC-BY-2.0"),
+      ).map(({ path, licenseExpression }) => [path, licenseExpression]),
+    ).toEqual([["parts/30503.dat", "CC-BY-2.0 OR CC-BY-4.0"]]);
+    expect(
+      BUNDLED_LDRAW_SOURCE_FILES.filter(
+        ({ licenseExpression }) => licenseExpression === "CC-BY-4.0",
+      ),
+    ).toHaveLength(117);
+    // 25 named authors across 118 files: attribution is per file, never flattened.
+    expect(new Set(BUNDLED_LDRAW_SOURCE_FILES.map(({ author }) => author)).size).toBe(25);
 
     for (const expected of ADMITTED) {
       const closure = BUNDLED_LDRAW_CLOSURES[expected.ldrawId.replace(".dat", "")]!;
@@ -458,9 +467,11 @@ describe("set 6651557 parts declared from measured source", () => {
 
     expect(() =>
       makeMeasuredPartDefinition({ ...builderBlueprint, ldcadShadowSource: shadowSource! }),
-    ).toThrow(/declares both a Builder record .* and an LDCad shadow walk/u);
+    ).toThrow(
+      /declares 2 authored connector sources.*exactly one Builder frame, pinned Builder connectivity fact, or LDCad shadow walk/u,
+    );
     expect(() => makeMeasuredPartDefinition(sourceless)).toThrow(
-      /8 clutch cells and no authored connector source/u,
+      /declares 0 authored connector sources for its 8 clutch cells.*exactly one Builder frame, pinned Builder connectivity fact, or LDCad shadow walk/u,
     );
   });
 });

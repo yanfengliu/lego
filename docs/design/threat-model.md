@@ -70,7 +70,8 @@ This model does not protect against an attacker who already controls the reposit
 - The LDraw profile is verified only against this implementation's supported subset; external viewer/tool evidence is required before broader compatibility claims.
 - IndexedDB is not an authoritative ledger or credential store. Storage failure, corruption recovery, quota behavior, and retained-data controls remain browser delivery risks.
 - The catalog and collision model do not establish clutch strength, insertion accessibility, mass, cost, inventory availability, or physical stability.
-- `npm run parts:check` currently reports sixteen parts whose declared underside clutches are not drawn, and it is not part of `npm run verify`; underside-panel visual claims remain limited until that separate gate is green and wired in.
+- Four catalog `/12` parts use exact bundled source meshes and source-derived visual bounds while deliberately retaining their prior conservative collision recipes; those recipes may fill visual cavities, so the render promotion is not a hollow-collision or physical-insertion claim.
+- `npm run parts:check` currently reports twelve parts whose declared underside clutches are not drawn, and it is not part of `npm run verify`; underside-panel visual claims remain limited until that separate gate is green and wired in.
 - Real-booklet browser tests are opt-in and skip when the gitignored booklet and companion source artifacts are absent. A passing ordinary gate proves the mocked/synthetic path, not that the private real-booklet inputs were exercised.
 
 ## Regression and gate anchors

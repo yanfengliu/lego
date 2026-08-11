@@ -8,7 +8,7 @@ A digital brick modeling studio with two surfaces: an offline manual editor for 
 
 The runnable React and Three.js studio supports local projects with integrity-checked IndexedDB persistence, a searchable part catalog, snapped placement and attachment, precise transform and color editing, deletion, undo and redo, live structural validation, manual build playback, and the app's bounded LDraw import and export profile.
 
-The studio's **Instructions** control currently reads, bounds, and fingerprints a PDF only. Turning those pages into build steps and applying a booklet run is not yet a user-facing workflow.
+The studio's **Instructions** control currently ingests a PDF locally into bounded page and text metadata plus a content hash. It does not render booklet panels, compile build steps, or apply a booklet run to the document.
 
 ### Experimental booklet tooling
 
@@ -43,7 +43,7 @@ npm run dev
 
 Open `http://127.0.0.1:5173`.
 
-Choose a part and color in the catalog, then click in the viewport to place it; selecting an existing part lets **Add** attach to a free top stud. Use **Move**, **Rotate**, or the inspector for later edits. Each explicit viewport placement becomes a playback step, available from **Build**.
+Choose a part and color in the catalog, then click in the viewport to place it; on an empty model, **Place at origin** provides the deterministic first placement. Select an existing part and use **Attach to selection** to add the chosen part on a free top stud. Use **Move**, **Rotate**, or the inspector for later edits. Each explicit placement becomes a playback step, available from **Build**.
 
 Projects save locally in the browser. **Import** accepts the supported `.ldr` and `.mpd` subset, **Export LDraw** downloads the current document, and **Instructions** performs PDF ingestion only as described above.
 
@@ -56,8 +56,6 @@ npm run verify
 ```
 
 `verify` checks schemas, Node consumers, observation consumers, provenance and notices, lessons, formatting, lint, types, Python derivation contracts, Vitest, Playwright, and the production browser bundle. The standalone `npm run parts:check` catalog-standard diagnostic is not included in `verify`.
-
-The declared runtime contract is Node 24.x, not one exact minor. A current real-build replay-environment fixture embeds Node 24.18.1 and can make `verify` fail on another Node 24 minor; that is a known fixture mismatch, not an additional setup requirement.
 
 Dependency changes additionally require both audits:
 

@@ -11,14 +11,13 @@ import {
   STUD_PITCH_LDU,
   STUD_RADIUS_LDU,
 } from "./index.js";
+import { PART_BLUEPRINTS } from "./part-blueprints.ts";
+import { makePartDefinition } from "./part-factory.ts";
 
-function requireParametricPart(id: string): ParametricPartDefinition {
-  const part = getPartDefinition(id);
-  if (part === undefined) throw new Error(`test needs ${id} in the catalog`);
-  if (part.geometry.generatorId === "builtin:preloaded-mesh-reference/1") {
-    throw new Error(`test needs ${id} to retain its legacy parametric recipe`);
-  }
-  return part as PartDefinition & ParametricPartDefinition;
+function requireLegacyParametricPart(id: string): ParametricPartDefinition {
+  const part = PART_BLUEPRINTS.map(makePartDefinition).find((candidate) => candidate.id === id);
+  if (part === undefined) throw new Error(`test needs ${id} in the parametric declarations`);
+  return part;
 }
 
 /**
@@ -390,9 +389,11 @@ describe("catalog plan geometry", () => {
   });
 
   it("derives bounded, disjoint conservative prisms from each smooth body arc", () => {
+    // These two parts render exact source meshes at /12, but their preserved
+    // collision arrays still come from these preceding parametric declarations.
     const arcParts = [
-      requireParametricPart("builtin:corner-plate-4x4-round"),
-      requireParametricPart("builtin:corner-plate-5x5-quarter-ring"),
+      requireLegacyParametricPart("builtin:corner-plate-4x4-round"),
+      requireLegacyParametricPart("builtin:corner-plate-5x5-quarter-ring"),
     ];
     const primitiveCosts: number[] = [];
 

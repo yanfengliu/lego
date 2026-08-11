@@ -7,6 +7,8 @@ import {
   partMassProperties,
   type ParametricPartDefinition,
 } from "./index.js";
+import { makePartDefinition } from "./part-factory.ts";
+import { PART_BLUEPRINTS } from "./part-blueprints.ts";
 
 const require = (id: string): ParametricPartDefinition => {
   const part = getPartDefinition(id);
@@ -87,8 +89,13 @@ describe("partMassProperties", () => {
 
   it("measures conservative arc prisms exactly without counting their shared faces twice", () => {
     for (const id of ["builtin:corner-plate-4x4-round", "builtin:corner-plate-5x5-quarter-ring"]) {
-      const part = require(id);
-      const feature = part.geometry.bodyArc!;
+      const part = getPartDefinition(id)!;
+      const parametric = PART_BLUEPRINTS.map(makePartDefinition).find(
+        (definition) => definition.id === id,
+      )!;
+      const feature = parametric.geometry.bodyArc!;
+      expect(part.geometry.generatorId).toBe("builtin:preloaded-mesh-reference/1");
+      expect(part.collision).toEqual(parametric.collision);
       const height = part.bodyBoundsLdu.max[1] - part.bodyBoundsLdu.min[1];
       const delta =
         ((feature.endAngleDegrees - feature.startAngleDegrees) * Math.PI) /

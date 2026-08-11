@@ -2,6 +2,7 @@
 
 Current state belongs in the design documents; this index records only behaviour changes, measured results, and links to the matching detailed history.
 
+- [2026-08-10](detailed/2026-08-10_2026-08-10.md) — Four first-witness parts now render their exact expanded LDraw surfaces: `parts:check` fell 16 → 12 and catalog /11 → /12 while all connector and collision arrays stayed byte-identical; collision therefore remains a conservative recipe rather than hollow physical truth, and a focused replay showed a green vision narrowing can still drop the settled answer.
 - [2026-08-09 (later)](detailed/2026-08-09_2026-08-09.md) — Mesh-backed parts gained measurable geometry modes: `parts:check` fell 24 → 16, geometry-mode gaps 8 → 0, and the catalog moved /10 → /11; the remaining 16 underside gaps are measured, and `parts:check` is still outside `verify`.
 - [2026-08-09](detailed/2026-08-09_2026-08-09.md) — Real shells reached 58 parts: `parts:check` fell 137 → 24, hollow-body gaps 56 → 0, underside gaps 73 → 16, and catalog /9 → /10; the booklet prefix stayed 5/5 steps and 8 pieces, with 3 printed steps visually verified.
 - [2026-08-09](detailed/2026-08-09_2026-08-09.md) — Clutch backing was corrected to test cavity clearance, grip, and seating; the 2×4 plate gained a measured shell, `parts:check` moved 139 → 137, tube outer radius was confirmed as 8 LDU, and catalog /8 → /9 without changing placements.

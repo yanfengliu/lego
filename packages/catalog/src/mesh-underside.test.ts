@@ -2,7 +2,17 @@ import { describe, expect, it } from "vitest";
 
 import { PART_DEFINITIONS } from "./catalog.ts";
 import { meshClutchUndersides, meshUndersideIsDrawn } from "./mesh-underside.ts";
-import type { LduBounds, LduVector3 } from "./types.ts";
+import type {
+  LduBounds,
+  LduVector3,
+  MeshReferenceGeometryRecipe,
+  PartDefinition,
+} from "./types.ts";
+
+type MeshPartDefinition = PartDefinition & { readonly geometry: MeshReferenceGeometryRecipe };
+
+const isMeshPartDefinition = (part: PartDefinition): part is MeshPartDefinition =>
+  part.geometry.generatorId === "builtin:preloaded-mesh-reference/1";
 
 /**
  * The eight mesh-first parts used to be the whole of `geometry-mode-is-declared`:
@@ -74,58 +84,103 @@ describe("underside measured from a bundled mesh", () => {
   });
 
   it("reports every shipped mesh part as drawing the underside it claims", () => {
-    // Not a restatement of the code: these eight are bundled LDraw surfaces, and
+    // Not a restatement of the code: these twelve are bundled LDraw surfaces, and
     // LDraw models a plate's cavity, so the expected answer here is a fact about
     // the source rather than about the measurement. `35480` is the one that
     // reads `open` at both clutches, because its studs are open and the hole
     // runs through the part.
-    const mesh = PART_DEFINITIONS.filter(
-      (part) => part.geometry.generatorId === "builtin:preloaded-mesh-reference/1",
-    );
+    const mesh = PART_DEFINITIONS.filter(isMeshPartDefinition);
 
-    expect(mesh).toHaveLength(8);
+    expect(mesh).toHaveLength(12);
     expect(
       mesh.map(({ id, geometry }) => [
         id,
+        geometry.collisionMode,
         geometry.bodyMode,
         geometry.studMode,
         geometry.undersideMode,
       ]),
     ).toEqual([
-      ["builtin:tile-1x2-cut-right-45", "bundled-source-mesh", "none", "modelled-shell-cavity"],
+      [
+        "builtin:wedge-plate-4x4-cut-corner",
+        "preserved-catalog-recipe",
+        "bundled-source-mesh",
+        "measured-stud-seats",
+        "modelled-shell-cavity",
+      ],
+      [
+        "builtin:wedge-plate-6x6-cut-corner",
+        "preserved-catalog-recipe",
+        "bundled-source-mesh",
+        "measured-stud-seats",
+        "modelled-shell-cavity",
+      ],
+      [
+        "builtin:corner-plate-4x4-round",
+        "preserved-catalog-recipe",
+        "bundled-source-mesh",
+        "measured-stud-seats",
+        "modelled-shell-cavity",
+      ],
+      [
+        "builtin:corner-plate-5x5-quarter-ring",
+        "preserved-catalog-recipe",
+        "bundled-source-mesh",
+        "measured-stud-seats",
+        "modelled-shell-cavity",
+      ],
+      [
+        "builtin:tile-1x2-cut-right-45",
+        "mesh-derived-height-field",
+        "bundled-source-mesh",
+        "none",
+        "modelled-shell-cavity",
+      ],
       [
         "builtin:plate-1x2-round-end",
+        "mesh-derived-height-field",
         "bundled-source-mesh",
         "measured-stud-seats",
         "modelled-shell-cavity",
       ],
       [
         "builtin:wedge-plate-2x4-wing",
+        "mesh-derived-height-field",
         "bundled-source-mesh",
         "measured-stud-seats",
         "modelled-shell-cavity",
       ],
       [
         "builtin:corner-plate-3x3",
+        "mesh-derived-height-field",
         "bundled-source-mesh",
         "measured-stud-seats",
         "modelled-shell-cavity",
       ],
-      ["builtin:curved-slope-1x4-double", "bundled-source-mesh", "none", "modelled-shell-cavity"],
+      [
+        "builtin:curved-slope-1x4-double",
+        "mesh-derived-height-field",
+        "bundled-source-mesh",
+        "none",
+        "modelled-shell-cavity",
+      ],
       [
         "builtin:plate-3x3-corner-round",
+        "mesh-derived-height-field",
         "bundled-source-mesh",
         "measured-stud-seats",
         "modelled-shell-cavity",
       ],
       [
         "builtin:wedge-plate-3x3-cut-corner",
+        "mesh-derived-height-field",
         "bundled-source-mesh",
         "measured-stud-seats",
         "modelled-shell-cavity",
       ],
       [
         "builtin:corner-plate-2x2-round",
+        "mesh-derived-height-field",
         "bundled-source-mesh",
         "measured-stud-seats",
         "modelled-shell-cavity",

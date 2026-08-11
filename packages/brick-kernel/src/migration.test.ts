@@ -107,6 +107,11 @@ describe("migrateDocumentTruth", () => {
       "0267c0919156df1cede84db91dd716f4565d0fb2",
       "sha256:72657715102652a49e08ae683650758958d5c9fad2235761368269ffd15fc4aa",
     ],
+    [
+      "builtin.basic-parts/11",
+      "bd46506950385df6e4be0f82385f910616e11675",
+      "sha256:6b784ce4259131b1ed637815b78bbf14a0bd2e92627ce2a8f4d09c3504465c43",
+    ],
   ])("pins reviewed %s truth from commit %s", (catalogVersion, sourceCommit, truthHash) => {
     expect(
       REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS.find(
@@ -117,13 +122,13 @@ describe("migrateDocumentTruth", () => {
   });
 
   it("admits no historical truth snapshots beyond the reviewed table", () => {
-    expect(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS).toHaveLength(12);
+    expect(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS).toHaveLength(13);
     expect(
       new Set(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS.map(({ sourceCommit }) => sourceCommit)).size,
-    ).toBe(12);
+    ).toBe(13);
     expect(
       new Set(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS.map(({ truthHash }) => truthHash)).size,
-    ).toBe(12);
+    ).toBe(13);
   });
 
   it("pins the legacy fixture to a reviewed historical truth snapshot", () => {
@@ -168,6 +173,50 @@ describe("migrateDocumentTruth", () => {
       },
     ]);
     expect(document.constraints.allowedColorIds).toHaveLength(COLOR_DEFINITIONS.length);
+  });
+
+  it("names every in-place visual reinterpretation when a /11 document advances", () => {
+    const current = createEmptyBrickDocument({ id: "eleven", name: "Saved at /11" });
+    const part = createPartInstance({
+      id: "quarter-ring",
+      catalogPartId: "builtin:corner-plate-5x5-quarter-ring",
+    });
+    const savedAtEleven: BrickDocumentV1 = {
+      ...current,
+      truth: {
+        ...current.truth,
+        catalog: {
+          ...current.truth.catalog,
+          version: "builtin.basic-parts/11",
+          hash: "sha256:c7e1f3ff0c5edb175c3b97ad98795aa5ed776636941c5e1b3ff52fcee2daa3bc",
+        },
+      },
+      parts: [part],
+      submodels: [{ ...current.submodels[0]!, partIds: [part.id] }],
+      steps: [{ ...current.steps[0]!, partIds: [part.id] }],
+    };
+
+    expect(canonicalDigest(savedAtEleven.truth)).toBe(
+      "sha256:6b784ce4259131b1ed637815b78bbf14a0bd2e92627ce2a8f4d09c3504465c43",
+    );
+    const { document, report } = migrateDocumentTruth(savedAtEleven);
+
+    expect(report.migrated).toBe(true);
+    expect(report.addedCatalogPartIds).toEqual([]);
+    expect(report.catalogInterpretationChanges).toEqual([
+      {
+        fromCatalogVersion: "builtin.basic-parts/11",
+        toCatalogVersion: "builtin.basic-parts/12",
+        affectedCatalogPartIds: [
+          "builtin:wedge-plate-4x4-cut-corner",
+          "builtin:wedge-plate-6x6-cut-corner",
+          "builtin:corner-plate-4x4-round",
+          "builtin:corner-plate-5x5-quarter-ring",
+        ],
+        changedFields: ["render-geometry", "visual-bounds"],
+      },
+    ]);
+    expect(document.parts).toEqual(savedAtEleven.parts);
   });
 
   it("carries a /6 document forward and names the five parts it gained", () => {
@@ -345,6 +394,7 @@ describe("migrateDocumentTruth", () => {
     expect(report.blockingReasons.join(" ")).toContain(
       `Catalog version someone-elses/9 has no migration to ${BUILTIN_CATALOG_VERSION}`,
     );
+    expect(report.catalogInterpretationChanges).toEqual([]);
   });
 
   it("refuses unknown non-catalog truth instead of silently rewriting it", () => {

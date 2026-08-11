@@ -39,15 +39,15 @@ TUBE_AT_CELL_CORNER_LDU = 10.0
 TUBE_CORNER_TOLERANCE_LDU = 1e-6
 
 
-def read_builder_frames(path: Path) -> dict[str, list[list[float]]]:
-    """The pinned Builder clutch positions, per design, or a refusal naming the drift."""
+def parse_builder_frames(
+    data: bytes, source: object = "captured Builder-frame bytes"
+) -> dict[str, list[list[float]]]:
+    """Validate and parse pinned Builder clutch positions from captured bytes."""
 
-    resolved = path.resolve(strict=True)
-    data = resolved.read_bytes()
     digest = hashlib.sha256(data).hexdigest()
     if len(data) != BUILDER_FRAME_BYTES or digest != BUILDER_FRAME_SHA256:
         raise ValueError(
-            f"Builder frame report {resolved} is {len(data)} bytes sha256:{digest}; the pinned "
+            f"Builder frame report {source} is {len(data)} bytes sha256:{digest}; the pinned "
             f"report is {BUILDER_FRAME_BYTES} bytes sha256:{BUILDER_FRAME_SHA256}. Regenerate it "
             "with scripts/derive-builder-ldraw-frame.py rather than re-pinning this reader; this "
             "measurement compares against it and must not move it."
@@ -66,6 +66,13 @@ def read_builder_frames(path: Path) -> dict[str, list[list[float]]]:
         )
         for part in report["parts"]
     }
+
+
+def read_builder_frames(path: Path) -> dict[str, list[list[float]]]:
+    """The pinned Builder clutch positions, per design, or a refusal naming the drift."""
+
+    resolved = path.resolve(strict=True)
+    return parse_builder_frames(resolved.read_bytes(), resolved)
 
 
 def compare_positions(ldcad: list[list[float]], builder: list[list[float]]) -> dict[str, object]:

@@ -1,21 +1,25 @@
 """Render the catalog's three generated measured-part tables as TypeScript.
 
-Every table here comes from the same `MeasuredPart`, so the bundled mesh, the
-collision decomposition, the connectors and the per-file attribution cannot
-describe different geometry. The output is deliberately plain: `prettier --write`
-is what lays it out, and `npm run format:check` is what proves the committed
-files came through this path.
+Every table here comes from the same `MeasuredPart`, so its generated fields
+stay aligned. Eight measured definitions consume all fields; the four `/12`
+render promotions consume mesh and visual bounds while the catalog factory
+retains their preceding connector, allowance and collision arrays. The emitter
+canonicalizes this output with the workspace-pinned Prettier before comparison.
 
 This renders text. It admits nothing and reads nothing from the catalog.
 """
 
 from __future__ import annotations
 
+import subprocess
+from pathlib import Path
 from typing import Sequence
 
 from ldcad_shadow_connectors import SHADOW_COMPOSITION_ID
 from ldraw_source_archive import SourceRecord
 from measured_part_tables import (
+    BUILDER_CONNECTIVITY_CONNECTOR_SOURCE,
+    BUILDER_CONNECTOR_SOURCE,
     LDCAD_SHADOW_CONNECTOR_SOURCE,
     MeasuredPart,
 )
@@ -30,11 +34,45 @@ GENERATED_HEADER = """\
 //   python -B scripts/emit-measured-part-tables.py \\
 //     --official <ldraw-complete-2026-07.zip> \\
 //     --unofficial <ldraw-unofficial-2026-08-02.zip> \\
-//     --shadow <ldcad-shadow-20260802>
-//   npx prettier --write packages/catalog/src/mesh-assets-6651557.ts \\
-//     packages/catalog/src/part-blueprints-6651557-measured.ts \\
-//     packages/catalog/src/ldraw-bundled-sources-6651557.ts
+//     --shadow <ldcad-shadow-20260802> \\
+//     --pilot <set-6651557-source-pilot.json> \\
+//     --builder-frame <set-6651557-builder-ldraw-frame.json>
 """
+
+
+def canonical_typescript(repository: Path, target: Path, source: str) -> str:
+    """Format generated TypeScript with the workspace-pinned Prettier."""
+
+    prettier = repository / "node_modules/prettier/bin/prettier.cjs"
+    if not prettier.is_file():
+        raise SystemExit(
+            f"Measured-part table generation needs the pinned Prettier at {prettier}. "
+            "Run npm ci in the repository before generating or checking tables."
+        )
+    result = subprocess.run(
+        ["node", str(prettier), "--stdin-filepath", str(target)],
+        input=source,
+        text=True,
+        encoding="utf-8",
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        reason = result.stderr.strip() or f"exit {result.returncode}"
+        raise SystemExit(f"Prettier could not canonicalize generated table {target}: {reason}.")
+    return result.stdout
+
+
+def enforce_generated_check(drifted: Sequence[str]) -> None:
+    """Make check mode a real refusal rather than a report-only comparison."""
+
+    if not drifted:
+        return
+    raise SystemExit(
+        "Measured-part generated tables do not reproduce their canonical committed bytes: "
+        f"{', '.join(drifted)}. Run this command without --check against the same pinned "
+        "inputs, review the resulting diff, and commit the regenerated tables."
+    )
 
 
 def number_literal(value: float) -> str:
@@ -134,7 +172,7 @@ def _connector_source_block(part: MeasuredPart, shadow_identity: dict[str, objec
 
 
 def _builder_source_block(part: MeasuredPart, builder: dict[str, dict[str, str]]) -> list[str]:
-    if part.plan.connector_source == LDCAD_SHADOW_CONNECTOR_SOURCE:
+    if part.plan.connector_source != BUILDER_CONNECTOR_SOURCE:
         return []
     record = builder[part.plan.design_id]
     return [
@@ -144,6 +182,42 @@ def _builder_source_block(part: MeasuredPart, builder: dict[str, dict[str, str]]
         f"      frameSha256: {_string(record['frameSha256'])},",
         "    },",
     ]
+
+
+def _builder_connectivity_source_block(part: MeasuredPart) -> list[str]:
+    if part.plan.connector_source != BUILDER_CONNECTIVITY_CONNECTOR_SOURCE:
+        return []
+    fact = part.plan.builder_connectivity_fact
+    assert fact is not None
+    lines = [
+        "    builderConnectivitySource: {",
+        '      backingMode: "source-verified-partial-overhang",',
+        f"      sourceId: {_string(fact.source_id)},",
+        f"      sourceRevision: {_string(fact.source_revision)},",
+        f"      manifestSha256: {_string(fact.manifest_sha256)},",
+        f"      manifestMd5: {_string(fact.manifest_md5)},",
+        f"      bundleSha256: {_string(fact.bundle_sha256)},",
+        f"      primitiveXmlSha256: {_string(fact.primitive_xml_sha256)},",
+        f"      independentSourceId: {_string(fact.independent_source_id)},",
+        f"      independentSourceRevision: {_string(fact.independent_source_revision)},",
+        f"      independentPartSha256: {_string(fact.independent_part_sha256)},",
+        f"      independentSubpartSha256: {_string(fact.independent_subpart_sha256)},",
+        f"      extractorId: {_string(fact.extractor_id)},",
+        f"      normalizedClutchOffsetsSha256: {_string(fact.normalized_clutch_offsets_sha256)},",
+        "      overrides: [",
+    ]
+    for x, z, overhang in fact.partial_overhangs:
+        lines.extend(
+            [
+                "        {",
+                f"          positionLdu: [{number_literal(x)}, {number_literal(z)}],",
+                '          kind: "source-verified-partial-overhang",',
+                f"          maximumOuterOverhangLdu: {number_literal(overhang)},",
+                "        },",
+            ]
+        )
+    lines.extend(["      ],", "    },"])
+    return lines
 
 
 def render_blueprints(
@@ -194,6 +268,7 @@ def render_blueprints(
         lines.append(f"      closureFileCount: {len(part.closure)},")
         lines.append("    },")
         lines.extend(_builder_source_block(part, builder))
+        lines.extend(_builder_connectivity_source_block(part))
         lines.extend(_connector_source_block(part, shadow_identity))
         lines.append("  },")
     lines.append("] as const satisfies readonly MeasuredPartBlueprint[];")

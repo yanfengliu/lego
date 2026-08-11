@@ -47,8 +47,15 @@ import type {
  * recessed, open or flat. No part is added or removed, no connector moves, and
  * no collision primitive moves — the only field that changes is what those
  * eight parts now say about themselves.
+ *
+ * /12 promotes the four special plates visible in the first underside booklet
+ * witness — 30503, 6106, 30565 and 80015 — to their exact bundled LDraw render
+ * meshes in place. Their already-reviewed connectors, allowances and collision
+ * recipes remain byte-identical; `preserved-catalog-recipe` states explicitly
+ * that those conservative collision solids are independent of the render mesh
+ * and may extend beyond or fill voids in it. No part is added, removed or moved.
  */
-export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/11" as const;
+export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/12" as const;
 export const CONNECTOR_TAXONOMY_VERSION = "stud-tube/1" as const;
 export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/2" as const;
 export const TRANSFORM_POLICY_VERSION = "upright-quarter-turns-negative-y-up/1" as const;

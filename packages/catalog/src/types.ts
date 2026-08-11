@@ -450,6 +450,12 @@ export interface MeshReferenceGeometryRecipe {
   readonly assetId: string;
   readonly contentHash: `sha256:${string}`;
   /**
+   * How the independently authored collision recipe relates to this render mesh.
+   * A preserved catalog recipe may conservatively extend beyond the exact
+   * visual surface and is not claimed to decompose that surface.
+   */
+  readonly collisionMode?: "mesh-derived-height-field" | "preserved-catalog-recipe";
+  /**
    * What this part draws, in the same three axes a generated part declares, so
    * `part-standard` can hold both routes to one rule instead of reporting a
    * mesh part as unverifiable.
@@ -463,6 +469,8 @@ export interface MeshReferenceGeometryRecipe {
   readonly bodyMode?: "bundled-source-mesh";
   readonly studMode?: "measured-stud-seats" | "none";
   readonly undersideMode?: "modelled-shell-cavity" | "semantic-tube-seat-offsets" | "none";
+  /** Pinned authored evidence for clutch seats that intentionally cross the mesh silhouette. */
+  readonly partialOverhangClutchEvidence?: PartialOverhangClutchEvidence;
   /**
    * Integrity-bound normalization from the immutable asset-local coordinates
    * into catalog-local LDU. This is part of the catalog digest and is separate

@@ -150,8 +150,22 @@ const MEASURED_NEW_PARTS = [
   },
 ] as const;
 
+const RENDER_PROMOTION_IDS = [
+  "builtin:wedge-plate-4x4-cut-corner",
+  "builtin:wedge-plate-6x6-cut-corner",
+  "builtin:corner-plate-4x4-round",
+  "builtin:corner-plate-5x5-quarter-ring",
+] as const;
+
+const parametricById = new Map(
+  PART_BLUEPRINTS.map((blueprint) => {
+    const definition = makePartDefinition(blueprint);
+    return [definition.id, definition] as const;
+  }),
+);
+
 describe("measured set 6651557 catalog parts", () => {
-  it("records the six measured parts without inventing connectors", () => {
+  it("promotes four exact render surfaces without replacing physical semantics", () => {
     for (const facts of MEASURED_NEW_PARTS) {
       const part = getPartDefinition(facts.id);
       const clutchConnectorsXZ =
@@ -173,22 +187,33 @@ describe("measured set 6651557 catalog parts", () => {
       expect(part!.collision.allowances).toHaveLength(clutchConnectorsXZ.length);
     }
 
+    for (const id of RENDER_PROMOTION_IDS) {
+      const promoted = getPartDefinition(id)!;
+      const parametric = parametricById.get(id)!;
+      expect(promoted.geometry).toMatchObject({
+        generatorId: "builtin:preloaded-mesh-reference/1",
+        collisionMode: "preserved-catalog-recipe",
+        bodyMode: "bundled-source-mesh",
+        undersideMode: "modelled-shell-cavity",
+      });
+      if (promoted.geometry.generatorId !== "builtin:preloaded-mesh-reference/1") {
+        throw new Error(`${id} must be mesh-backed after promotion`);
+      }
+      expect(promoted.connectorGridCenterLdu).toEqual(
+        parametric.geometry.connectorGridCenterLdu ?? [0, 0],
+      );
+      expect(promoted.geometry.partialOverhangClutchEvidence).toEqual(
+        parametric.geometry.partialOverhangClutchEvidence,
+      );
+      expect(promoted.connectors).toEqual(parametric.connectors);
+      expect(promoted.collision).toEqual(parametric.collision);
+    }
+
     expect(getPartDefinition("builtin:corner-plate-5x5-quarter-ring")!.geometry).toMatchObject({
-      generatorId: "builtin:parametric-plan-feature-part/1",
-      bodyMode: "arc-prism",
-      connectorGridCenterLdu: [30, -30],
-      bodyArc: {
-        centerXZLdu: [0, 0],
-        innerRadiusLdu: 60,
-        outerRadiusLdu: 80,
-        startAngleDegrees: -90,
-        endAngleDegrees: 0,
-        segmentCount: 12,
-        capRectanglesLdu: [
-          { minXZLdu: [-20, -80], maxXZLdu: [0, -60] },
-          { minXZLdu: [60, 0], maxXZLdu: [80, 20] },
-        ],
-      },
+      generatorId: "builtin:preloaded-mesh-reference/1",
+      assetId: "ldraw:official:80015.dat",
+      collisionMode: "preserved-catalog-recipe",
+      bodyMode: "bundled-source-mesh",
       partialOverhangClutchEvidence: {
         backingMode: "source-verified-partial-overhang",
         manifestSha256: "sha256:3e57aa4df4ab5327c5b8408912d056ba73b93cd98e769e41d6aabaf6cb0618a6",
@@ -218,22 +243,21 @@ describe("measured set 6651557 catalog parts", () => {
       },
     });
     expect(
+      getPartDefinition("builtin:corner-plate-5x5-quarter-ring")!.connectorGridCenterLdu,
+    ).toEqual([30, -30]);
+    expect(
       getPartDefinition("builtin:corner-plate-5x5-quarter-ring")!.connectors.some(
         ({ kind, positionLdu }) =>
           kind === "undersideClutch" && positionLdu[0] === 50 && positionLdu[2] === -70,
       ),
     ).toBe(false);
     const roundPart = getPartDefinition("builtin:corner-plate-4x4-round")!;
-    expect(roundPart.geometry.generatorId).not.toBe("builtin:preloaded-mesh-reference/1");
-    if (roundPart.geometry.generatorId === "builtin:preloaded-mesh-reference/1") return;
-    expect(roundPart.geometry.bodyArc).toEqual({
-      centerXZLdu: [-40, 40],
-      innerRadiusLdu: 0,
-      outerRadiusLdu: 80,
-      startAngleDegrees: -90,
-      endAngleDegrees: 0,
-      segmentCount: 12,
+    expect(roundPart.geometry).toMatchObject({
+      generatorId: "builtin:preloaded-mesh-reference/1",
+      assetId: "ldraw:official:30565.dat",
+      collisionMode: "preserved-catalog-recipe",
     });
+    expect(roundPart.collision.primitives.some(({ id }) => id === "body:arc:0")).toBe(true);
     for (const [id, cutNormalXZ, cutOffsetLdu] of [
       ["builtin:wedge-plate-4x4-cut-corner", [1, -1], 20],
       ["builtin:wedge-plate-6x6-cut-corner", [1, -1], 40],

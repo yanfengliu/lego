@@ -16,17 +16,28 @@ Status date: 2026-08-10
 | Production-sealed replay and tombstone lineage | Specified, unbuilt | Requires the released broker, signing identity, authenticated deletion events, and an independent verifier. |
 | Candidate lineage and backtracking primitives | Implemented as libraries and tests | The real-booklet driver does not yet build its search from that lineage. |
 | Model-call transcript schemas | Implemented protocol | No broker-backed product producer exists. |
-| Local cropped-art proposer | Implemented as a derivation script | It invokes a pinned CLI model outside the product and writes ignored local evidence. |
+| Local part and panel proposers | Implemented as derivation scripts | They invoke a pinned CLI model outside the product for cropped part cards or one printed panel and write ignored local evidence; neither is wired into the studio or real-booklet driver. |
 | Blind pair-judgement evidence | Implemented as retained input and consumer | It is not an integrated live checker call. Current panel verification is deterministic pixel scoring. |
+| Transition classification | Implemented as prepared local input | The current classifier is raster-blind, so its label is not a visual witness. |
 | Independent evaluator and automatic promotion | Specified, unbuilt | No process may grant itself authority by satisfying a local score. |
 
 ## Unit of work
 
 A booklet run reads prepared printed steps, compiles each step against one settled `BrickDocument` prefix, enumerates candidate placements, and compares a render with a printed panel at that panel's fitted camera and face.
 
-A printed step is the unit of evidence. It binds its step number, action, callouts and quantities, panel raster, highlights, arrows, face evidence, candidate field, verdict, and typed refusal or completion row.
+A printed step is the unit of evidence. The implemented local row records the fields listed under [Implemented local bundle](#implemented-local-bundle) and links image filenames whose bytes are hashed by a separate artifact manifest; the stronger per-step bindings described under [Target evidence contract](#target-evidence-contract) do not exist yet.
 
 The comparison is closed: does this exact render agree with this exact printed art under the registered measurement? A model or human may help establish an input claim, but neither may declare structural validity or bypass deterministic compilation, collision, connection, scope, or accounting checks.
+
+## Visual observation envelope
+
+The target evidence packet for a placement made at step N includes panel N, panel N+1 as the minimum later witness, and the first farther panel that actually reveals the placement when N+1 occludes it or remains ambiguous. N+1 is a floor, not a guarantee, and looking ahead stops only at a revealing witness or a named evidence limit.
+
+Every visual claim is scoped to the exact source crop, render, camera, face, registration, mask, and view in which it is visible. A hidden internal surface, an occluded connection, or any feature absent from all retained views is recorded as `not-observable`; unseen pixels cannot certify it. Part admission separately inspects matched top, bottom, front, back, left, right, isometric, and underside-oblique views because a booklet sequence may never expose every surface.
+
+Printed step 4 is the concrete failure that sets this rule: its underside panel visibly shows hollow clutch rings, ribs, walls, and cavities, while the former candidate render showed an almost solid slab. Catalog `/12` corrects the four implicated visible surfaces with exact LDraw meshes, but preserved conservative collision remains outside what that image can prove and the old step verdict must be rerun rather than inherited.
+
+The current real-booklet runner does not satisfy that target packet. It supports one-panel deferral, its transition classifier is raster-blind, its retained vision inputs are not an integrated checker, and its linear search does not backtrack; those limits travel with every local verdict.
 
 ## Authority boundaries
 
@@ -44,7 +55,7 @@ An experiment may change the system under test or the evaluation contract, never
 
 ### Implemented local bundle
 
-The current run binds input digests for its booklet, prepared panels and callouts, action ledger, transition classifications, identification inputs, run options, application source/build closure, runtime environment, and retained model-derived inputs. The input chain is regenerated deliberately and in dependency order; the [real-build runbook](../runbooks/real-build.md) owns the commands.
+The current run binds input digests for its booklet, prepared panels and callouts, action ledger, transition classifications, identification inputs, run options, application source/build closure, runtime environment, and retained model-derived inputs. Binding a transition-classification file does not make its raster-blind labels visual evidence. The input chain is regenerated deliberately and in dependency order; the [real-build runbook](../runbooks/real-build.md) owns the commands.
 
 The current result records local unauthenticated authority, status, requested and expected step counts, assembled target, input and completion failures, retained step rows, optional final document and structural hash, final part count, and elapsed time.
 
@@ -52,13 +63,13 @@ Each retained step row records its step and page, action and action-evidence dig
 
 An incomplete run retains every readable row that matches its prepared input and then records the refusal that stopped the prefix. Malformed envelopes may be rejected wholesale; an ordinary reproduction defect does not erase valid earlier evidence.
 
-Current gaps are explicit. The run contract does not separately bind a catalog snapshot or complete truth bundle; a step row does not record document revisions or a before-and-after structural-hash pair; and `score.json` does not contain reversal depth, retained byte count, or replay level. Replay closure and artifact-size facts live in separate manifest files, and the linear driver has no reversal depth to report.
+Current gaps are explicit. The run contract does not separately bind a catalog snapshot or complete truth bundle; a step row does not record document revisions, a before-and-after structural-hash pair, per-image digests, a complete N/N+1/first-revealing-farther observation packet, or `not-observable` claims; and `score.json` does not contain reversal depth, retained byte count, or replay level. Replay closure and artifact-size facts live in separate manifest files, and the linear driver has no reversal depth to report.
 
 ### Target evidence contract
 
 The complete target run input binds the catalog and truth snapshots and every retained nondeterministic response in addition to the implemented closure.
 
-The complete target step record adds document revision and structural hash before and after the step, per-row panel and render digests, and candidate-lineage provenance sufficient to reproduce the decision without joining unbound filenames.
+The complete target step record adds document revision and structural hash before and after the step, per-row source and render digests, the bound N/N+1/first-revealing-farther observation packet with explicit `not-observable` outcomes, and candidate-lineage provenance sufficient to reproduce the decision without joining unbound filenames.
 
 The complete target summary adds deferral and reversal totals, deepest reversal, retained byte count, replay level, termination policy, and every finding that prevents completion. These fields become current only when their schemas, producers, and verification tests exist.
 
@@ -114,9 +125,9 @@ The exact allowed transitions are enforced in `apps/companion`; this summary doe
 
 [`spec.md`](spec.md#model-calls-and-consent) owns consent, minimization, provider policy, and the untrusted-output rule.
 
-The current live model path is a local derivation script that sends bounded part-art crops to a pinned CLI model to propose identification. It is not called by the studio, does not run through a broker, and cannot mutate a document or admit a catalog part.
+The current model-assisted derivation paths are local scripts that send bounded part-art crops or one bounded printed panel to a pinned CLI model to propose identification or placement relations. They are not called by the studio or real-booklet driver, do not run through a broker, and cannot mutate a document or admit a catalog part.
 
-Blind pair judgements are retained evidence over exact crop and claim digests. The consumer verifies those bindings, but it does not make a live checker call. Panel placement is decided by deterministic image measurements and structural validators.
+The tracked schema-2 blind-pair input keys each verdict by a 16-hex-character prefix of the SHA-256 digest of the judged callout crop plus the claimed element identifier, and the consumer binds the truth file as an input. It does not retain or bind the complete comparison image, exact prompt, raw model responses or model parameters, so it is durable label evidence rather than a complete replay of the judging calls. The consumer does not make a live checker call, and a narrowing result can discard the settled truth while every retained candidate remains safe. Panel placement is decided by deterministic image measurements and structural validators; candidate safety is not visual correctness.
 
 Protocol types for provider capabilities, actor observations, attempt transcripts, and retained responses exist and have contract tests. They have no integrated product producer or broker enforcement path today, so docs and UI must not describe their presence as an operating model service.
 
@@ -134,7 +145,7 @@ Every claimed improvement names the number it should move and retains the image 
 
 Hard metrics are compilation, schema and catalog compatibility, connector and collision validity, required connectivity and support, scope compliance, resource limits, accounting, structural hashes, and replay-closure integrity.
 
-Booklet metrics are sequence and callout coverage, covered catalog prefix, pieces placed, steps settled by evidence class, named refusals, score and margin at each refusal, deferral reach, reversal depth, and completion-audit agreement.
+Booklet metrics are sequence and callout coverage, covered catalog prefix, pieces placed, steps settled by evidence class, observation coverage and `not-observable` claims, named refusals, score and margin at each refusal, deferral reach, reversal depth, and completion-audit agreement.
 
 Soft metrics are panel agreement, silhouette similarity, blind pair agreement, latency, render count, storage, model calls, tokens, and cost. Soft metrics never compensate for a new hard failure.
 
@@ -166,7 +177,7 @@ Physical reports may calibrate advisory build order and stability. They do not s
 
 ## Operational guarantees
 
-The current real-build run contract declares requested/expected step counts, maximum and target part counts, and per-piece, blind, deferred, exploded, and narrowing render/candidate budgets. Input, raster, artifact-role, and stored-byte bounds are enforced by their own contracts rather than collected into one run budget.
+The current real-build run contract declares requested/expected step counts, maximum and target part counts, and per-piece, blind, one-panel-deferred, exploded, and narrowing render/candidate budgets. Input, raster, artifact-role, and stored-byte bounds are enforced by their own contracts rather than collected into one run budget; no current budget grants calibrated arbitrary farther-panel reach.
 
 The target production run additionally declares ceilings for wall time, attempts, model calls, tokens, cost, total stored bytes, image dimensions, recursion, and every other external resource. A budget must be able to bind and reserve enough proof budget for a meaningful rerun.
 
@@ -180,6 +191,8 @@ Task-run evidence is cleaned when no active process needs it. Promoted fixtures 
 - Every retained candidate, comparison, decision, and promotion is immutable and attributable.
 - Hard validity dominates visual resemblance; pixels and structure answer different questions and both are inspected.
 - A panel score is meaningful only with its exact camera, face, masks, registration, reachable bound, and image evidence.
+- N+1 is only the minimum later witness; farther panels continue until the placement is revealed or the claim is recorded `not-observable`.
+- Hidden surfaces are never certified by an image that does not expose them.
 - User documents change only through explicit manual commands today; no automatic acceptance path exists.
 - Production signing, credentials, consent authority, evaluation, and accepted namespaces cannot be created by test or challenger identities.
 - Truth, technique, and preference stay separate, versioned, measured, and reversible.

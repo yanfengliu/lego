@@ -638,9 +638,9 @@ Two configurations, the same booklet, the same model family, measured on the sam
 
 Asked an open N-way question — a card of four to six candidate renders beside the callout, answer with a pick number, a free-text description and a confidence — Claude Opus 5 was **39.9 percent self-consistent** across 273 drawings. It contradicted itself on 140 of 233 checkable proposals, its picks changed 0 of 273 drawings and 0 of 863 callouts against the deterministic baseline, and its confidence carried no signal at all: 0.874 mean on answers that survived, 0.854 on answers that contradicted themselves. As a filter it was worthless.
 
-Asked a closed binary question — two pictures side by side at the same height, is this the same part, nothing else on screen — two independent raters on different models agreed **84 of 84**, including all eight "different" calls and both cases where the pair was unjudgeable because the claim side was blank.
+Asked a closed binary question — two pictures side by side at the same height, is this the same part, nothing else on screen — two independent raters on different models agreed **84 of 84**, including all eight "different" calls and both cases where the pair was unjudgeable because the claim side was blank. The artifact records 82 verdicts and two unjudgeable pairs; agreement is not an independent correctness measurement.
 
-Roughly a twentyfold difference in reliability, from the same models looking at the same art. What moved it:
+The closed framing produced complete inter-rater agreement where the open framing produced poor self-consistency. Those are different measurements, so the result supports the framing and auditability of the question without proving every shared verdict correct. What moved it:
 
 The answer space was small and checkable. Same or different has a structure that two raters can be compared on; "which of these six" does not.
 The answer was withheld. The pair judge saw no part name, no element id, no metadata, and could not be led by them — which is also what makes the resulting label auditable.
@@ -852,4 +852,12 @@ The orthographic underside capture could not have found it either, and that is w
 The conservative direction was the broken one, because the legal configuration is nearly tangent to the thing being approximated. What replaced it is the largest axis-aligned box inside the tube circle: its corners lie exactly on that circle in the four diagonal directions the studs occupy, so it reports the tube's own 0.142 LDU clearance, and it gives up reach only along the two axes where the neighbouring tube 20 LDU away covers the gap. Swept exhaustively - a stud at all 9,801 integer positions under a 2x4 plate, a 4x4 plate and a 2x4 brick, which is every position the document schema can express - it admits none whose drawn annulus overlaps it.
 
 **Anchor:** 2026-08-09; the tube primitive in `makePartDefinition`, `packages/catalog/src/part-factory.ts`; the seated-stack case is "seats a stud in the cavity, and refuses one a single LDU off the lattice" in `packages/brick-kernel/src/validation.test.ts`.
+
+## A green vision narrowing can drop settled truth
+
+**Anchor:** 2026-08-10; `recipes/6651557.pdf` page 11; retained run `2026-08-09T06-52-45-853Z-622f66a3fe8d-2c210f0e-d99f-42c4-85f8-189bf740031c`; focused `apps/web/test/panel-reading-booklet.test.ts` replay, 6/6 green.
+
+The step-4 model reading saw the correct underside viewpoint, then described both pieces as beside one another with zero overlap. Replayed against the retained enumeration, the 1x8 plate narrowed 480 candidates to 12 and dropped its settled transform; the wedge kept all 190 candidates, dropped its settled transform because its anchor was not yet placed, and made the product unusable. The oracle reading kept the settled wedge while narrowing 190 candidates to 2.
+
+The replay stayed green because it proved the safety property it was written to prove: every survivor came from the enumerator, and an unusable reading could not invent a placement. That boundary says nothing about whether the visual description retained the real answer. Report truth loss separately, refuse known disagreements, and never promote subset safety into a claim of visual correctness.
 

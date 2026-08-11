@@ -27,6 +27,7 @@ export const MIGRATABLE_CATALOG_VERSIONS: readonly string[] = Object.freeze([
   "builtin.basic-parts/8",
   "builtin.basic-parts/9",
   "builtin.basic-parts/10",
+  "builtin.basic-parts/11",
   BUILTIN_CATALOG_VERSION,
 ]);
 
@@ -122,6 +123,16 @@ export const REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS = Object.freeze([
     sourceCommit: "081bd53edccf4c0c62691660c94eed5c723dc152",
     truthHash: "sha256:17ab2f6c385ecb861526921817a96805b77f29f87574c4eff0c174be6abbe5fb",
   },
+  // The snapshot /12 replaced. /12 changes only the visible geometry and exact
+  // visual bounds of four existing parts. Their catalog identities, connectors,
+  // allowances and collision recipes remain byte-identical, so a document saved
+  // against /11 carries forward through an explicit migration whose report names
+  // the four visual reinterpretations.
+  {
+    catalogVersion: "builtin.basic-parts/11",
+    sourceCommit: "bd46506950385df6e4be0f82385f910616e11675",
+    truthHash: "sha256:6b784ce4259131b1ed637815b78bbf14a0bd2e92627ce2a8f4d09c3504465c43",
+  },
 ] as const);
 
 const MIGRATABLE_TRUTH_HASHES: ReadonlySet<string> = new Set(
@@ -135,8 +146,30 @@ export interface TruthComponentChange {
   readonly toVersion: string;
 }
 
+export interface CatalogInterpretationChange {
+  readonly fromCatalogVersion: string;
+  readonly toCatalogVersion: string;
+  readonly affectedCatalogPartIds: readonly string[];
+  readonly changedFields: readonly ("render-geometry" | "visual-bounds")[];
+}
+
+export const REVIEWED_CATALOG_INTERPRETATION_CHANGES: readonly CatalogInterpretationChange[] =
+  Object.freeze([
+    {
+      fromCatalogVersion: "builtin.basic-parts/11",
+      toCatalogVersion: "builtin.basic-parts/12",
+      affectedCatalogPartIds: [
+        "builtin:wedge-plate-4x4-cut-corner",
+        "builtin:wedge-plate-6x6-cut-corner",
+        "builtin:corner-plate-4x4-round",
+        "builtin:corner-plate-5x5-quarter-ring",
+      ],
+      changedFields: ["render-geometry", "visual-bounds"],
+    },
+  ]);
+
 export interface TruthMigrationReport {
-  readonly schemaVersion: "lego.truth-migration/1";
+  readonly schemaVersion: "lego.truth-migration/2";
   readonly migrated: boolean;
   readonly fromCatalogVersion: string;
   readonly toCatalogVersion: string;
@@ -145,6 +178,8 @@ export interface TruthMigrationReport {
   /** Colour IDs the document gained access to, in catalog order. */
   readonly addedColorIds: readonly string[];
   readonly addedCatalogPartIds: readonly string[];
+  /** Reviewed in-place catalog reinterpretations crossed by this migration. */
+  readonly catalogInterpretationChanges: readonly CatalogInterpretationChange[];
   /** Every pinned truth component whose version changed, not only the catalog. */
   readonly truthComponentChanges: readonly TruthComponentChange[];
   /** Populated only when the document could not be carried forward. */
@@ -156,10 +191,10 @@ function compareStrings(left: string, right: string): number {
 }
 
 /**
- * Carries a document pinned to an older builtin truth onto the current one when
- * the change was purely additive. Every part must still resolve; anything else
- * is reported as a blocking reason and the document is returned untouched, so a
- * migration is always an explicit, inspectable event.
+ * Carries a document pinned to reviewed compatible builtin truth onto the current
+ * one. Every part must still resolve, and additive plus in-place interpretation
+ * changes are reported; anything else is a blocking reason and leaves the
+ * document untouched, so migration is always an explicit, inspectable event.
  */
 export function migrateDocumentTruth(document: BrickDocumentV1): {
   readonly document: BrickDocumentV1;
@@ -199,14 +234,31 @@ export function migrateDocumentTruth(document: BrickDocumentV1): {
       expectedTruth.validatorSet.version,
     ),
   ];
+  const sourceCatalogOrdinal = Number(fromCatalogVersion.split("/").at(-1));
+  const targetCatalogOrdinal = Number(toCatalogVersion.split("/").at(-1));
+  const catalogInterpretationChanges = MIGRATABLE_CATALOG_VERSIONS.includes(fromCatalogVersion)
+    ? REVIEWED_CATALOG_INTERPRETATION_CHANGES.filter(
+        ({ fromCatalogVersion: changeFrom, toCatalogVersion: changeTo }) => {
+          const changeFromOrdinal = Number(changeFrom.split("/").at(-1));
+          const changeToOrdinal = Number(changeTo.split("/").at(-1));
+          return (
+            Number.isInteger(sourceCatalogOrdinal) &&
+            Number.isInteger(targetCatalogOrdinal) &&
+            sourceCatalogOrdinal <= changeFromOrdinal &&
+            targetCatalogOrdinal >= changeToOrdinal
+          );
+        },
+      )
+    : [];
   const base = {
-    schemaVersion: "lego.truth-migration/1",
+    schemaVersion: "lego.truth-migration/2",
     fromCatalogVersion,
     toCatalogVersion,
     fromTruthHash,
     toTruthHash,
     addedColorIds: [],
     addedCatalogPartIds: [],
+    catalogInterpretationChanges,
     truthComponentChanges,
   } as const;
 

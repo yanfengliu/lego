@@ -20,6 +20,7 @@ import type {
 } from "./types.ts";
 
 import { AVAILABLE_COLOR_IDS } from "./colors.ts";
+import { validatePinnedClutchOffsets } from "./connector-backing-policy.ts";
 import {
   assertNumericBoundsContainExact,
   exactLduBoundsToNumbers,
@@ -64,16 +65,23 @@ function fail(blueprint: MeasuredPartBlueprint, message: string): never {
  */
 function connectorProvenance(blueprint: MeasuredPartBlueprint): SourceProvenance {
   const builder = blueprint.builderSource !== undefined;
+  const builderConnectivity = blueprint.builderConnectivitySource !== undefined;
   const shadow = blueprint.ldcadShadowSource !== undefined;
-  if (builder === shadow) {
+  const sourceCount = Number(builder) + Number(builderConnectivity) + Number(shadow);
+  if (sourceCount !== 1) {
     fail(
       blueprint,
-      builder
-        ? `declares both a Builder record (${blueprint.builderSource!.recordSha256}) and an LDCad shadow walk (${blueprint.ldcadShadowSource!.commit}) for its ${blueprint.clutchesLdu.length} clutch cells; a clutch is one authored claim, so exactly one source must make it.`
-        : `declares ${blueprint.clutchesLdu.length} clutch cells and no authored connector source; an LDraw underside is a cavity, so a clutch cell is never measured from geometry and must name the Builder record or the LDCad shadow walk it came from.`,
+      `declares ${sourceCount} authored connector sources for its ${blueprint.clutchesLdu.length} clutch cells; a clutch is one authored claim, so exactly one Builder frame, pinned Builder connectivity fact, or LDCad shadow walk must make it.`,
     );
   }
-  return builder ? MEASURED_PART_CATALOG_PROVENANCE : LDCAD_SHADOW_CONNECTOR_PROVENANCE;
+  if (builderConnectivity) {
+    validatePinnedClutchOffsets(
+      blueprint.ldrawId,
+      blueprint.clutchesLdu.map(([x, , z]) => [x, z] as const),
+      blueprint.builderConnectivitySource!,
+    );
+  }
+  return shadow ? LDCAD_SHADOW_CONNECTOR_PROVENANCE : MEASURED_PART_CATALOG_PROVENANCE;
 }
 
 function unionOf(boxes: readonly LduBounds[]): LduBounds {
@@ -327,6 +335,7 @@ export const makeMeasuredPartDefinition = (blueprint: MeasuredPartBlueprint): Pa
     generatorId: "builtin:preloaded-mesh-reference/1",
     assetId: meshAssetId,
     contentHash: meshAssetContentHash(asset),
+    collisionMode: "mesh-derived-height-field",
     assetToCatalogFrame: {
       schemaVersion: assetToCatalogFrame.schemaVersion,
       orientationId: assetToCatalogFrame.orientationId,
@@ -336,6 +345,9 @@ export const makeMeasuredPartDefinition = (blueprint: MeasuredPartBlueprint): Pa
         assetToCatalogFrame.translationLdu[2],
       ],
     },
+    ...(blueprint.builderConnectivitySource === undefined
+      ? {}
+      : { partialOverhangClutchEvidence: blueprint.builderConnectivitySource }),
     provenance: geometryProvenance,
   } as const satisfies MeshReferenceGeometryRecipe;
 

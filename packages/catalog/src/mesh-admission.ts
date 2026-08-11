@@ -85,6 +85,13 @@ function boundsContain(outer: LduBounds, inner: LduBounds): boolean {
   );
 }
 
+function expandBounds(bounds: LduBounds, marginLdu: number): LduBounds {
+  return {
+    min: [bounds.min[0] - marginLdu, bounds.min[1] - marginLdu, bounds.min[2] - marginLdu],
+    max: [bounds.max[0] + marginLdu, bounds.max[1] + marginLdu, bounds.max[2] + marginLdu],
+  };
+}
+
 function validConnectorGridCenter(
   value: PartDefinition["connectorGridCenterLdu"],
 ): value is readonly [number, number] {
@@ -593,6 +600,11 @@ export function validateMeshPartDefinitionAdmission(
 
   const primitiveIds = new Set<string>();
   const bodyPrimitiveBounds: LduBounds[] = [];
+  const collisionMustMatchVisualBounds = recipe.collisionMode !== "preserved-catalog-recipe";
+  const collisionEnvelope =
+    recipe.collisionMode === "preserved-catalog-recipe" && visualBoundsValid
+      ? expandBounds(definition.boundsLdu, STUD_PITCH_LDU)
+      : definition.boundsLdu;
   for (let index = 0; index < definition.collision.primitives.length; index += 1) {
     const primitive = definition.collision.primitives[index]!;
     const primitiveBounds = collisionPrimitiveBounds(primitive);
@@ -600,13 +612,13 @@ export function validateMeshPartDefinitionAdmission(
       primitive.id.trim().length > 0 &&
       !primitiveIds.has(primitive.id) &&
       primitiveBounds !== null &&
-      (!visualBoundsValid || boundsContain(definition.boundsLdu, primitiveBounds));
+      (!visualBoundsValid || boundsContain(collisionEnvelope, primitiveBounds));
     primitiveIds.add(primitive.id);
     if (!valid) {
       add(
         "MESH_ADMISSION_COLLISION_INVALID",
         `/collision/primitives/${index}`,
-        `Part ${definition.id} collision primitive ${JSON.stringify(primitive.id)} needs a unique non-empty id, safe finite representation, and an AABB contained by visual boundsLdu; received ${JSON.stringify(primitive)}.`,
+        `Part ${definition.id} collision primitive ${JSON.stringify(primitive.id)} needs a unique non-empty id and safe finite representation, with an AABB contained by ${collisionMustMatchVisualBounds ? "visual boundsLdu" : `the one-stud-pitch preserved-collision envelope [${collisionEnvelope.min.join(", ")}]..[${collisionEnvelope.max.join(", ")}]`}; received ${JSON.stringify(primitive)}.`,
       );
       continue;
     }
@@ -616,12 +628,13 @@ export function validateMeshPartDefinitionAdmission(
   if (
     bodyBoundsValid &&
     (representedBodyBounds === null ||
-      !boundsAgree(representedBodyBounds, definition.bodyBoundsLdu))
+      (collisionMustMatchVisualBounds &&
+        !boundsAgree(representedBodyBounds, definition.bodyBoundsLdu)))
   ) {
     add(
       "MESH_ADMISSION_COLLISION_INVALID",
       "/collision/primitives",
-      `Part ${definition.id} body collision primitive union ${representedBodyBounds === null ? "is empty" : `is [${representedBodyBounds.min.join(", ")}]..[${representedBodyBounds.max.join(", ")}]`} but must agree with bodyBoundsLdu [${definition.bodyBoundsLdu.min.join(", ")}]..[${definition.bodyBoundsLdu.max.join(", ")}]. This validates declared representation bounds, not physical correctness.`,
+      `Part ${definition.id} body collision primitive union ${representedBodyBounds === null ? "is empty; at least one body primitive is required" : `is [${representedBodyBounds.min.join(", ")}]..[${representedBodyBounds.max.join(", ")}] but must agree with bodyBoundsLdu [${definition.bodyBoundsLdu.min.join(", ")}]..[${definition.bodyBoundsLdu.max.join(", ")}]`}. This validates declared representation bounds, not physical correctness.`,
     );
   }
 

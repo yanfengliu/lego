@@ -34,27 +34,47 @@ const PLAN_CASES = [
   {
     name: "Wedge plate 4 x 4 Cut-corner",
     partId: "builtin:wedge-plate-4x4-cut-corner",
-    previewVertices: 5,
+    preview: {
+      kind: "mesh",
+      assetId: "ldraw:official:30503.dat",
+      sourceTriangles: 1_154,
+      renderedTriangles: 1_154,
+    },
   },
   {
     name: "Wedge plate 6 x 6 Cut-corner",
     partId: "builtin:wedge-plate-6x6-cut-corner",
-    previewVertices: 5,
+    preview: {
+      kind: "mesh",
+      assetId: "ldraw:official:6106.dat",
+      sourceTriangles: 3_189,
+      renderedTriangles: 2_000,
+    },
   },
   {
     name: "Wedge plate 3 x 6 Right",
     partId: "builtin:wedge-plate-3x6-right",
-    previewVertices: 5,
+    preview: { kind: "plan", vertices: 5 },
   },
   {
     name: "Corner plate 4 x 4 Round",
     partId: "builtin:corner-plate-4x4-round",
-    previewVertices: 26,
+    preview: {
+      kind: "mesh",
+      assetId: "ldraw:official:30565.dat",
+      sourceTriangles: 1_368,
+      renderedTriangles: 1_368,
+    },
   },
   {
     name: "Corner plate 5 x 5 Quarter-ring",
     partId: "builtin:corner-plate-5x5-quarter-ring",
-    previewVertices: 54,
+    preview: {
+      kind: "mesh",
+      assetId: "ldraw:official:80015.dat",
+      sourceTriangles: 1_000,
+      renderedTriangles: 1_000,
+    },
   },
 ] as const;
 
@@ -153,19 +173,36 @@ test("the palette tile shows the same shape the viewport places", async ({ page 
   }
 });
 
-test("plan-feature previews and placed models retain their measured outline", async ({ page }) => {
+test("palette previews and placed models retain their measured outline", async ({ page }) => {
   test.setTimeout(300_000);
   mkdirSync(OUT, { recursive: true });
   page.on("dialog", (dialog) => void dialog.accept());
   await page.goto("/");
   await page.waitForFunction(() => typeof window.get_model_snapshot === "function");
 
-  for (const { name, partId, previewVertices } of PLAN_CASES) {
+  for (const { name, partId, preview } of PLAN_CASES) {
     const tile = page.getByRole("button", { name: new RegExp(`^${name}`) }).first();
     await tile.scrollIntoViewIfNeeded();
-    const top = tile.locator('svg.part-preview > polygon[data-preview-surface="plan-top"]');
-    await expect(top).toHaveCount(1);
-    await expect(top).toHaveAttribute("data-plan-vertices", String(previewVertices));
+    const svg = tile.locator("svg.part-preview");
+    if (preview.kind === "mesh") {
+      await expect(svg).toHaveAttribute("data-preview-source", "preloaded-mesh-asset");
+      await expect(svg).toHaveAttribute("data-mesh-asset-id", preview.assetId);
+      await expect(svg).toHaveAttribute(
+        "data-preview-source-triangles",
+        String(preview.sourceTriangles),
+      );
+      await expect(svg).toHaveAttribute(
+        "data-preview-rendered-triangles",
+        String(preview.renderedTriangles),
+      );
+      await expect(svg.locator('polygon[data-preview-surface="mesh-triangle"]')).toHaveCount(
+        preview.renderedTriangles,
+      );
+    } else {
+      const top = svg.locator('polygon[data-preview-surface="plan-top"]');
+      await expect(top).toHaveCount(1);
+      await expect(top).toHaveAttribute("data-plan-vertices", String(preview.vertices));
+    }
     await tile.screenshot({ path: `${OUT}/${partId.replace("builtin:", "")}-palette.png` });
 
     await resetScene(page);
@@ -177,7 +214,7 @@ test("plan-feature previews and placed models retain their measured outline", as
     expect(observation.validation.documentGloballyValid).toBe(true);
     const capture = (await page.evaluate(() => window.capture_model_views!())).isometric!;
     writeFileSync(
-      `${OUT}/${partId.replace("builtin:", "")}-plan-isometric.png`,
+      `${OUT}/${partId.replace("builtin:", "")}-outline-isometric.png`,
       Buffer.from(capture.slice(capture.indexOf(",") + 1), "base64"),
     );
   }

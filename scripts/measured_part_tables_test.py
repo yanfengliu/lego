@@ -13,17 +13,25 @@ header does.
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
 
 from ldraw_source_archive import SourceRecord
 from measured_part_emit import (
+    canonical_typescript,
+    enforce_generated_check,
     bundled_file_table,
     number_literal,
     render_blueprints,
     render_bundled_sources,
     render_mesh_assets,
 )
-from measured_part_plan import ADMITTED_PART_PLANS, BUNDLED_LDRAW_ARCHIVE_RECORD
+from measured_part_plan import (
+    ADMITTED_PART_PLANS,
+    BUILDER_80015_CONNECTIVITY,
+    BUNDLED_LDRAW_ARCHIVE_RECORD,
+)
 from measured_part_tables import (
+    BUILDER_CONNECTIVITY_CONNECTOR_SOURCE,
     LDCAD_SHADOW_CONNECTOR_SOURCE,
     MeasuredPart,
     MeasuredPartPlan,
@@ -128,6 +136,12 @@ class FrameTests(unittest.TestCase):
         self.assertIn("guessed", str(caught.exception))
         self.assertIn(LDCAD_SHADOW_CONNECTOR_SOURCE, str(caught.exception))
 
+    def test_a_builder_connectivity_fact_is_required_exactly_for_its_source(self) -> None:
+        with self.assertRaises(ValueError):
+            plan(connector_source=BUILDER_CONNECTIVITY_CONNECTOR_SOURCE)
+        with self.assertRaises(ValueError):
+            plan(builder_connectivity_fact=BUILDER_80015_CONNECTIVITY)
+
 
 class ExactBoundTests(unittest.TestCase):
     def test_an_integral_measurement_prints_without_a_fractional_part(self) -> None:
@@ -230,9 +244,24 @@ class RenderTests(unittest.TestCase):
     def test_the_header_names_the_command_that_reproduces_the_file(self) -> None:
         rendered = render_mesh_assets([measured()], ARCHIVE_SHA256)
 
-        self.assertIn("scripts/emit-measured-part-tables.py", rendered)
         self.assertIn(ARCHIVE_SHA256, rendered)
-        self.assertIn("npx prettier --write", rendered)
+        self.assertIn("scripts/emit-measured-part-tables.py", rendered)
+        self.assertIn("--pilot <set-6651557-source-pilot.json>", rendered)
+        self.assertIn("--builder-frame <set-6651557-builder-ldraw-frame.json>", rendered)
+
+    def test_check_mode_refuses_a_canonical_generated_file_drift(self) -> None:
+        with self.assertRaisesRegex(SystemExit, "do not reproduce.*mesh-assets-6651557"):
+            enforce_generated_check(["packages/catalog/src/mesh-assets-6651557.ts"])
+        enforce_generated_check([])
+
+    def test_generated_typescript_uses_the_workspace_pinned_formatter(self) -> None:
+        repository = Path(__file__).resolve().parents[1]
+        formatted = canonical_typescript(
+            repository,
+            repository / "packages/catalog/src/example-generated.ts",
+            "export const value={items:[1,2]};\n",
+        )
+        self.assertEqual(formatted, "export const value = { items: [1, 2] };\n")
 
     def test_a_builder_part_declares_a_builder_source_and_no_shadow_source(self) -> None:
         rendered = render_blueprints(
@@ -254,6 +283,31 @@ class RenderTests(unittest.TestCase):
         self.assertIn('commit: "15aa1e718b6a8da37d24fc7af5e52e262c041bfb"', rendered)
         self.assertIn('compositionId: "ldcad-shadow-composed-over-ldraw-tree/1"', rendered)
         self.assertIn('shadowFiles: ["p/stud.dat", "parts/unit.dat"]', rendered)
+
+    def test_a_builder_connectivity_part_emits_the_seven_seat_evidence(self) -> None:
+        rendered = render_blueprints(
+            [
+                measured(
+                    plan=plan(
+                        connector_source=BUILDER_CONNECTIVITY_CONNECTOR_SOURCE,
+                        builder_connectivity_fact=BUILDER_80015_CONNECTIVITY,
+                    )
+                )
+            ],
+            ARCHIVE_SHA256,
+            BUILDER_RECORDS,
+            SHADOW_IDENTITY,
+        )
+
+        self.assertIn("builderConnectivitySource: {", rendered)
+        self.assertIn(
+            'normalizedClutchOffsetsSha256: "sha256:0e77ae20bce268bcde610fa8d2b34fa2e91a0c3a0132e298e933433591e8f0d5"',
+            rendered,
+        )
+        self.assertIn("positionLdu: [30, -70]", rendered)
+        self.assertIn("positionLdu: [70, -30]", rendered)
+        self.assertNotIn("builderSource: {", rendered)
+        self.assertNotIn("ldcadShadowSource", rendered)
 
     def test_a_variant_is_omitted_rather_than_emitted_as_undefined(self) -> None:
         rendered = render_blueprints([measured()], ARCHIVE_SHA256, BUILDER_RECORDS, SHADOW_IDENTITY)
@@ -303,20 +357,34 @@ class PlanTests(unittest.TestCase):
 
         self.assertEqual(len(identities), len(set(identities)))
 
-    def test_the_five_first_admission_parts_keep_their_position_and_frame(self) -> None:
-        # Catalog order is part of the truth digest, so a new part is appended.
-        # This is what turns "the roster moved" into a test failure here rather
-        # than into a silently re-hashed catalog.
+    def test_admitted_source_roots_keep_their_position_and_connector_source(self) -> None:
         self.assertEqual(
-            [row.design_id for row in ADMITTED_PART_PLANS[:5]],
-            ["5092", "35480", "51739", "77844", "93273"],
+            [row.design_id for row in ADMITTED_PART_PLANS],
+            [
+                "5092",
+                "35480",
+                "51739",
+                "77844",
+                "93273",
+                "30357",
+                "2450",
+                "79491",
+                "30503",
+                "6106",
+                "30565",
+                "80015",
+            ],
         )
         self.assertTrue(all(row.connector_source == "builder" for row in ADMITTED_PART_PLANS[:5]))
         self.assertTrue(
             all(
                 row.connector_source == LDCAD_SHADOW_CONNECTOR_SOURCE
-                for row in ADMITTED_PART_PLANS[5:]
+                for row in ADMITTED_PART_PLANS[5:11]
             )
+        )
+        self.assertEqual(
+            ADMITTED_PART_PLANS[11].connector_source,
+            BUILDER_CONNECTIVITY_CONNECTOR_SOURCE,
         )
 
 

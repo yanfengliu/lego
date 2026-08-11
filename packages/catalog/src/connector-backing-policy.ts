@@ -80,14 +80,11 @@ const normalizedOffsetSetSha256 = (
   return `sha256:${bytesToHex(sha256(utf8ToBytes(normalized)))}`;
 };
 
-export const validatePartialOverhangClutchEvidence = (blueprint: PartBlueprint): void => {
-  const { bodyArc, clutchOffsetsLdu, partialOverhangClutchEvidence } = blueprint;
-  if (partialOverhangClutchEvidence === undefined) return;
-  if (bodyArc === undefined || clutchOffsetsLdu === undefined) {
-    throw new Error(
-      `${blueprint.ldrawId} partial-overhang clutch evidence requires an analytic bodyArc and explicit clutchOffsetsLdu`,
-    );
-  }
+export const validatePinnedClutchOffsets = (
+  ldrawId: string,
+  clutchOffsetsLdu: readonly (readonly [number, number])[],
+  partialOverhangClutchEvidence: NonNullable<PartBlueprint["partialOverhangClutchEvidence"]>,
+): void => {
   const digestChecks = [
     [partialOverhangClutchEvidence.manifestSha256, "sha256", "manifestSha256"],
     [partialOverhangClutchEvidence.manifestMd5, "md5", "manifestMd5"],
@@ -104,7 +101,7 @@ export const validatePartialOverhangClutchEvidence = (blueprint: PartBlueprint):
   for (const [value, algorithm, field] of digestChecks) {
     if (!hasPinnedDigest(value, algorithm)) {
       throw new Error(
-        `${blueprint.ldrawId} partial-overhang evidence ${field} must be a lowercase ${algorithm} digest`,
+        `${ldrawId} partial-overhang evidence ${field} must be a lowercase ${algorithm} digest`,
       );
     }
   }
@@ -115,7 +112,7 @@ export const validatePartialOverhangClutchEvidence = (blueprint: PartBlueprint):
     partialOverhangClutchEvidence.independentSourceRevision.length === 0
   ) {
     throw new Error(
-      `${blueprint.ldrawId} partial-overhang evidence must name both exact source identities and revisions`,
+      `${ldrawId} partial-overhang evidence must name both exact source identities and revisions`,
     );
   }
   const normalizedClutchOffsetsSha256 = normalizedOffsetSetSha256(clutchOffsetsLdu);
@@ -123,9 +120,35 @@ export const validatePartialOverhangClutchEvidence = (blueprint: PartBlueprint):
     normalizedClutchOffsetsSha256 !== partialOverhangClutchEvidence.normalizedClutchOffsetsSha256
   ) {
     throw new Error(
-      `${blueprint.ldrawId} explicit clutch offsets digest ${normalizedClutchOffsetsSha256} does not match source-extracted normalized digest ${partialOverhangClutchEvidence.normalizedClutchOffsetsSha256}`,
+      `${ldrawId} explicit clutch offsets digest ${normalizedClutchOffsetsSha256} does not match source-extracted normalized digest ${partialOverhangClutchEvidence.normalizedClutchOffsetsSha256}`,
     );
   }
+  const offsets = new Set(clutchOffsetsLdu.map(offsetKey));
+  for (const [index, override] of partialOverhangClutchEvidence.overrides.entries()) {
+    if (
+      !override.positionLdu.every(Number.isFinite) ||
+      !Number.isFinite(override.maximumOuterOverhangLdu) ||
+      override.maximumOuterOverhangLdu <= 0
+    ) {
+      throw new Error(`${ldrawId} partial-overhang override ${index} has invalid geometry`);
+    }
+    if (!offsets.has(offsetKey(override.positionLdu))) {
+      throw new Error(
+        `${ldrawId} partial-overhang override ${index} names [${override.positionLdu.join(", ")}], which is not one of the ${clutchOffsetsLdu.length} pinned clutch offsets`,
+      );
+    }
+  }
+};
+
+export const validatePartialOverhangClutchEvidence = (blueprint: PartBlueprint): void => {
+  const { bodyArc, clutchOffsetsLdu, partialOverhangClutchEvidence } = blueprint;
+  if (partialOverhangClutchEvidence === undefined) return;
+  if (bodyArc === undefined || clutchOffsetsLdu === undefined) {
+    throw new Error(
+      `${blueprint.ldrawId} partial-overhang clutch evidence requires an analytic bodyArc and explicit clutchOffsetsLdu`,
+    );
+  }
+  validatePinnedClutchOffsets(blueprint.ldrawId, clutchOffsetsLdu, partialOverhangClutchEvidence);
 };
 
 /** A port reads every implied field from the one connector-kind table. */
