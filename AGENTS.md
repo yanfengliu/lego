@@ -2,7 +2,7 @@
 
 ## What this is
 
-A digital brick modeling studio with two surfaces. A precise manual brick editor, and a closed loop that reads a printed LEGO instruction booklet and assembles the set it describes — counting every part, compiling the printed steps into a build program, placing each piece, and verifying each step against the booklet's own picture before playing the result back. Stack: a TypeScript workspace (protocol, catalog, brick-kernel, rendering, browser packages), Three.js, React, Node 24, Vitest + Playwright.
+A digital brick modeling studio with two target surfaces: a precise manual brick editor, and a closed loop that reads a printed LEGO instruction booklet and assembles the set it describes — counting every part, compiling the printed steps into a build program, placing each piece, and verifying each step against the booklet's own picture before playing the result back. Stack: a TypeScript workspace (protocol, catalog, brick-kernel, rendering, browser packages), Three.js, React, Node 24, Vitest + Playwright.
 
 Non-goals: not a BrickLink Studio clone, general mesh editor, complete official-parts catalog, or a guarantee of physical stability/clutch/instructions; it does not merge with `3d-maker` merely because both render 3D. **Do not claim a feature, command, validator, or harness exists until live files and executable behavior prove it** — and do not record how far along the project is here. Status is not a rule: `docs/devlog/summary.md` holds what has happened and `docs/design/building-system.md` holds the measured position, and a status line in this file goes stale silently because nothing exercises it.
 
@@ -28,7 +28,7 @@ Non-goals: not a BrickLink Studio clone, general mesh editor, complete official-
 
 ## Gates
 
-Authoritative workspace commands live in `package.json`; run the smallest relevant checks while iterating and `npm run verify` (schema:check · node:check · bom:check · lessons:check · notices:check · format:check · lint · typecheck · test · test:browser · build) before declaring implementation complete. A unit-only pass is insufficient for changes that cross persistence, broker, provider, browser, import/export, or rendering boundaries. Dependency audit gate: `npm run audit` (and `audit:runtime`); a new HIGH/CRITICAL is a blocker. Doc-only work verifies the diff, internal paths/links, Markdown fences, and trailing whitespace.
+Authoritative workspace commands live in `package.json`; run the smallest relevant checks while iterating and `npm run verify` (schema:check · node:check · observations:check · bom:check · lessons:check · notices:check · format:check · lint · typecheck · test:python · test · test:browser · build) before declaring implementation complete. A unit-only pass is insufficient for changes that cross persistence, broker, provider, browser, import/export, or rendering boundaries. Dependency audit gate: `npm run audit` (and `audit:runtime`); a new HIGH/CRITICAL is a blocker. Doc-only work verifies the diff, internal paths/links, Markdown fences, and trailing whitespace.
 
 ## Invariants & boundaries
 

@@ -87,7 +87,7 @@ The page prints its number once, so exactly one occurrence should be removed.
 An instruction booklet is internally redundant: step numbers must run 1..N without a gap, and callout quantities must reconcile with the piece count.
 Both are checkable the moment a booklet is read, with no model built, and both are falsifiable — which is what made the step-64 bug visible.
 
-**Anchor:** commit `00607a9`; `checkBookletConsistency`; `output/booklet-score.json` records 359/359 steps and 3102 callout pieces.
+**Anchor:** commits `00607a9` and `932948d`; `checkBookletConsistency` first recorded 359/359 steps and an impossible 3102 callout pieces, then panel attribution separated 1480 back-of-book inventory tokens and corrected the step-callout total to 1622 while sequence coverage stayed 359/359. The 3102 value is the caught failure, not the current callout count.
 
 ## A cost curve's true minimum is its sharpest point, and smoothing destroys it
 
@@ -209,7 +209,7 @@ Comparing only the pixels the candidate would *newly* cover, as a region with bo
 The fifth is a 2x2 brick standing in the middle of a 6x6 plate — its silhouette lies entirely within the plate's, so it emerges nowhere and the region is empty, which the score reports as unavailable rather than as disagreement.
 A second reading covers it: every pixel the two panels disagree on, which sees the brick because brick faces do not shade like a plate top. That reading is 5 of 5, but it asks the panels to be registered pixel for pixel, and two pixels of registration error cost it that step.
 
-**Anchor:** `apps/web/e2e/first-fifty.spec.ts` counts red-arrow pixels per panel and records `exploded` per step in `output/first-fifty/score.json`; 19 of 50 on the sample booklet, steps 1 through 16 almost all exploded and steps 30 onward almost all in place.
+**Anchor:** `apps/web/e2e/first-fifty.spec.ts` recorded the original whole-panel red-pixel count of 19/50. After the shape, origin, and sub-build filters described above, only printed steps 2, 10, and 13 are well posed for this comparison: 3 of the first 50. The 19 is retained only as the overcount this lesson warns against.
 `apps/web/src/assembly/exploded-score.ts` and `apps/web/e2e/exploded-resolution.spec.ts`; `output/exploded-resolution/score.json` records rank and margin per step per metric — highlight score 0 of 5, emergence 4 of 5 at a mean margin of +0.33, the two readings together 5 of 5 at +0.50 and 4 of 5 under two pixels of misregistration.
 The emerged region also prunes: 427 distinct placements to 285 across the five steps, keeping the true one every time.
 
