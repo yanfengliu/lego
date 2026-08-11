@@ -37,7 +37,7 @@ Every visual claim is scoped to the exact source crop, render, camera, face, reg
 
 Printed step 4 is the concrete failure that sets this rule: its underside panel visibly shows hollow clutch rings, ribs, walls, and cavities, while the former candidate render showed an almost solid slab. Catalog `/12` corrects the four implicated visible surfaces with exact LDraw meshes, but preserved conservative collision remains outside what that image can prove and the old step verdict must be rerun rather than inherited.
 
-The current real-booklet runner does not satisfy that target packet. It supports one-panel deferral, its transition classifier is raster-blind, its retained vision inputs are not an integrated checker, and its linear search does not backtrack; those limits travel with every local verdict.
+The current real-booklet runner does not satisfy that target packet. It invokes one-panel deferral only when own-panel scoring is unavailable or cannot separate the top two candidates, then tests the first later panel and stops; it does not scan for the first revealing farther witness or record `not-observable`. Its transition classifier is raster-blind, its retained vision inputs are not an integrated checker, and its linear search does not backtrack; those limits travel with every local verdict.
 
 ## Authority boundaries
 
@@ -55,7 +55,7 @@ An experiment may change the system under test or the evaluation contract, never
 
 ### Implemented local bundle
 
-The current run binds input digests for its booklet, prepared panels and callouts, action ledger, transition classifications, identification inputs, run options, application source/build closure, runtime environment, and retained model-derived inputs. Binding a transition-classification file does not make its raster-blind labels visual evidence. The input chain is regenerated deliberately and in dependency order; the [real-build runbook](../runbooks/real-build.md) owns the commands.
+The current run binds input digests for its booklet, prepared panels and callouts, action ledger, transition classifications, identification inputs, run options, application source/build closure, runtime environment, and any model-derived input that the real-build run actually consumes and lists in its contract. The separate panel-placement readings are not consumed or bound by that run. Binding a transition-classification file does not make its raster-blind labels visual evidence. The input chain is regenerated deliberately and in dependency order; the [real-build runbook](../runbooks/real-build.md) owns the commands.
 
 The current result records local unauthenticated authority, status, requested and expected step counts, assembled target, input and completion failures, retained step rows, optional final document and structural hash, final part count, and elapsed time.
 
@@ -69,7 +69,7 @@ Current gaps are explicit. The run contract does not separately bind a catalog s
 
 The complete target run input binds the catalog and truth snapshots and every retained nondeterministic response in addition to the implemented closure.
 
-The complete target step record adds document revision and structural hash before and after the step, per-row source and render digests, the bound N/N+1/first-revealing-farther observation packet with explicit `not-observable` outcomes, and candidate-lineage provenance sufficient to reproduce the decision without joining unbound filenames.
+The complete target step record adds document revision and structural hash before and after the step, per-row source and render digests, the bound N/N+1/first-revealing-farther observation packet with explicit `not-observable` outcomes, the step-1 face seed, rotate-icon sequence and fold, derived panel face, and candidate-lineage provenance sufficient to reproduce the decision without joining unbound filenames.
 
 The complete target summary adds deferral and reversal totals, deepest reversal, retained byte count, replay level, termination policy, and every finding that prevents completion. These fields become current only when their schemas, producers, and verification tests exist.
 
@@ -125,7 +125,11 @@ The exact allowed transitions are enforced in `apps/companion`; this summary doe
 
 [`spec.md`](spec.md#model-calls-and-consent) owns consent, minimization, provider policy, and the untrusted-output rule.
 
-The current model-assisted derivation paths are local scripts that send bounded part-art crops or one bounded printed panel to a pinned CLI model to propose identification or placement relations. They are not called by the studio or real-booklet driver, do not run through a broker, and cannot mutate a document or admit a catalog part.
+The current model-assisted derivation paths are local scripts that send bounded part-art crops or one cropped printed-step image to a pinned CLI model to propose identification or placement relations. They are not called by the studio or real-booklet driver, do not run through a broker, and cannot mutate a document or admit a catalog part.
+
+The current panel-placement script accepts one arbitrary resolved local input path without containment, file-type, dimension, PDF, page, or crop-bounds validation and exposes its authenticated temporary snapshot to the CLI with a fixed relation prompt and text naming the new and already-built pieces. The CLI receives no candidate render, panel N+1, first revealing farther panel, alternate view, deterministic panel-face parity, or source binding and is granted repository-wide `Read`. The ignored reading retains image, prompt, brief, and model digests; the raw result and parsed reading; model identity; timing, call, and cost metadata; and current-piece descriptors. It does not retain the input bytes or source path, exact brief or built-piece-list bytes, action-ledger digest, CLI tool trace, or an immutable attempt ID, and the fixed per-step output filename is replaced on rerun. When the mutable input path changes, the digest says that different bytes were used without making the original bytes reproducible. The prompt prefers a same-step anchor that the consumer then refuses as not yet placed, while parsed `newPieceOutlines` and `confidence` fields have no consumer; these are proposal-schema gaps, not evidence that narrowing is correct. That record is proposal evidence only, not a replayable visual observation packet.
+
+For this booklet the panel face is already deterministic evidence: the detector finds 43 rotate icons across all 359 printed steps, while the independently reviewed 43-panel prefix contains eight icon-bearing steps whose fold from the explicit step-1 `studs-up` seed reproduces all 43 reviewed face states, including five underside panels. When present, the model's `viewpoint` field may agree, decline, or make the entire reading refuse; it cannot override that parity record or establish absolute face from the projected lattice. A missing panel line currently parses as `panel: null` and still permits piece predicates to narrow without a face refusal, which is another reason the reading is not a safety gate.
 
 The tracked schema-2 blind-pair input keys each verdict by a 16-hex-character prefix of the SHA-256 digest of the judged callout crop plus the claimed element identifier, and the consumer binds the truth file as an input. It does not retain or bind the complete comparison image, exact prompt, raw model responses or model parameters, so it is durable label evidence rather than a complete replay of the judging calls. The consumer does not make a live checker call, and a narrowing result can discard the settled truth while every retained candidate remains safe. Panel placement is decided by deterministic image measurements and structural validators; candidate safety is not visual correctness.
 

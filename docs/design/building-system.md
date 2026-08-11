@@ -33,7 +33,7 @@ Only the first three printed steps are presently verified in the stronger sense 
 | Backtracking | Library and tests only | `BuildTree` and `runBacktrackingSearch` exist, but the real-booklet driver does not use them. |
 | Physics | Kernel and development session implemented | Rigid-component derivation, articulated joints, compound bodies, Rapier integration, and a cart demo exist; user-facing simulation and pose controls, inertia, and incremental rebuild do not. |
 | Companion | Library and test namespace only | The content-addressed store, recorder, and test ledger exist. There is no serving, signing, credential-proxying production broker. |
-| Model assistance | Local derivation tooling only | Pinned CLI scripts can classify cropped part art or describe one panel's placement relations, but their ignored readings are not wired into the driver and can discard the settled truth. Panel verification is deterministic; no integrated broker-backed checker exists. |
+| Model assistance | Local derivation tooling only | Pinned CLI scripts can classify cropped part art or describe one cropped step image's placement relations. The panel record does not retain its exact input image or receive a candidate render or later-panel witness; ignored readings are not wired into the driver and can discard the settled truth. Panel verification is deterministic; no integrated broker-backed checker exists. |
 | Independent evaluator and promotion service | Specified, unbuilt | No production authority, seal, automatic acceptance, or autonomous code-promotion path exists. |
 
 ## Measured booklet frontier
@@ -59,7 +59,7 @@ Booklet PDF page 11, which draws printed step 4 from below, visibly contains hol
 
 Printed step 6 has two whole-step candidates that both explain the next retained panel well enough, but the registration cannot separate them above its own noise. Picking the slightly larger score would manufacture certainty.
 
-Panel N+1 is the minimum later witness for a placement made at step N, not a guarantee. When it occludes the placement or remains ambiguous, the evidence packet continues to the first farther panel that actually reveals it; if no retained panel does, that surface or relation is `not-observable`, not silently accepted. The current runner supports only one-panel deferral, and farther-panel reach has not been calibrated.
+Panel N+1 is the minimum later witness for a placement made at step N, not a guarantee. When it occludes the placement or remains ambiguous, the target evidence packet continues to the first farther panel that actually reveals it; if no retained panel does, that surface or relation is `not-observable`, not silently accepted. The current runner invokes deferral only when the step's own panel has no usable score or cannot separate its top two candidates, tests exactly the first later panel, and is hard-capped at one step; it neither scans for a revealing farther panel nor records `not-observable`.
 
 The current transition classifier is raster-blind, the retained vision inputs are not an integrated checker and may narrow away the settled truth, and the driver does not use the available backtracking library. None of those paths can presently turn a safe candidate set into a visual correctness claim or recover from a later contradiction.
 
@@ -67,9 +67,9 @@ The driver also cannot claim overall completion after placement alone. Its trans
 
 ## Ordered work
 
-1. Rerun the retained prefix under `/12` and re-establish steps 4 and 5 from a bound N, N+1, and first-revealing-farther evidence packet.
-2. Complete the missing front, back, left, right, and underside-oblique review packets for `30503`, `6106`, and `30565`; draw truthful undersides for the twelve remaining failures; add matched canonical-view regressions; make `npm run parts:check` pass; and include it in the authoritative verification gate.
-3. Replace or augment raster-blind transition labels with bound visual evidence, and prove that any vision-based narrowing retains the settled truth on preregistered counterexamples.
+1. Rerun the retained prefix under `/12` and re-establish steps 4 and 5 from bound N and N+1 evidence, adding the first revealing farther panel when N+1 occludes the placement or remains ambiguous.
+2. Produce reproducible source-versus-render packets for all four `/12` promotions, including `80015`, with clean top, bottom, front, back, left, right, isometric, and underside-oblique images, hashes, camera policy, and review outcomes; give all twelve remaining failures exact LDraw render surfaces while preserving their current connector, allowance, and collision values; add matched-view regressions; make `npm run parts:check` pass; and include it in the authoritative verification gate.
+3. Replace or augment raster-blind transition labels with bound visual evidence. Bind any placement-proposer crop to its PDF, page, bounds, exact bytes, prompt, model response, candidate render, deterministic face record, panel N+1, and first revealing farther panel, then prove that narrowing retains the settled truth on preregistered counterexamples.
 4. Calibrate farther-panel deferral on preregistered panels, then test whether the first revealing panel separates step 6 without an oracle.
 5. Integrate immutable lineage and deep backtracking into the real-booklet driver and publish reversal depth.
 6. Reconcile the driver and official-ledger world frames, and add the Node-side visual audit required for a completed status.

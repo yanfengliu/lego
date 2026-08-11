@@ -5,7 +5,7 @@ import { placementOccupancyKey, type PlacementCandidate } from "./enumerate-plac
 import type { StepDeltaScore } from "./step-score";
 
 /**
- * The closed loop, one step at a time.
+ * A reusable closed-loop search, one step at a time.
  *
  * An open-loop pipeline makes 359 decisions and finds out at the end; at 99%
  * per-step accuracy that is a 3% chance of a correct build. Checking each step
@@ -24,7 +24,10 @@ import type { StepDeltaScore } from "./step-score";
  * those as callbacks, which is what lets the search logic be tested without a
  * graphics context and what keeps its determinism honest: the search is a
  * generator, and its output is a build program that replays with no rendering
- * and no search at all.
+ * and no search at all. The opt-in real-booklet driver currently uses its own
+ * linear selector and does not call this beam or the backtracking library, so
+ * this module's behavior is not evidence that the retained run backtracks or
+ * scans later panels.
  */
 export const SEARCH_DRIVER_SCHEMA_VERSION = "lego.build-search-driver/1" as const;
 
@@ -257,9 +260,11 @@ export function expandStep(
  * Advances every branch of the beam by one step and keeps the best branches.
  *
  * A branch that finds no candidate simply does not continue; only when every
- * branch fails is the step a failure, and then the caller backtracks. That
- * asymmetry is the point of a beam: an ambiguous step costs a wider frontier
- * rather than an unwind.
+ * branch fails is the step a failure returned to the caller. A caller may hand
+ * that failure to the separate backtracking search; this function does not
+ * unwind by itself. The beam's asymmetry means an ambiguous step can cost a
+ * wider frontier rather than an immediate unwind when the caller supplies the
+ * later target.
  */
 export function advanceBeam(
   beam: readonly BeamEntry[],

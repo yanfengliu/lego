@@ -14,7 +14,7 @@ The studio's **Instructions** control currently ingests a PDF locally into bound
 
 The repository contains internal Node, Python, Vitest, and Playwright tooling for booklet parsing, panel measurement, placement search, visual scoring, retained evidence, and the set 6651557 reconstruction. This tooling is an opt-in development harness, not a production service or an automatic path into a user's document.
 
-The exact measured frontier and ordered work still missing live in [building-system.md](docs/design/building-system.md). See the [real-booklet runbook](docs/runbooks/real-build.md) to reproduce or regenerate retained runs without copying status into another document.
+The exact measured frontier and ordered work still missing live in [building-system.md](docs/design/building-system.md). See the [real-booklet runbook](docs/runbooks/real-build.md) to reproduce or regenerate the real-build inputs and runs without copying status into another document; it also names the separate panel-reading probe's present reproducibility limits.
 
 ### Specified but unbuilt
 
@@ -79,5 +79,6 @@ The authoritative command definitions are in [package.json](package.json).
 - [Historical devlog](docs/devlog/summary.md)
 - [Dependency and data bill of materials](docs/dependency-data-bom.md)
 - [Generated bundled-geometry notices](docs/bundled-geometry-notices.md)
+- [Generated locked npm dependency notices](THIRD_PARTY_NOTICES.md)
 
 The app owns brick-specific semantics. The sibling `3d-maker` repository remains a separate procedural-asset evolution studio; generic experiment, lineage, and evaluation interfaces may be shared only after both implementations prove the same need.
