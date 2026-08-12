@@ -2,7 +2,7 @@
 
 Current state belongs in the design documents; this index records only behaviour changes, measured results, and links to the matching detailed history.
 
-- [2026-08-12 (frame lineage contract)](detailed/2026-08-12_2026-08-12.md) — A validated, deeply frozen lattice-frame value now applies turn-before-hand view and arrow transforms and gives equal document bytes frame-qualified candidate IDs; runner, scoring, report, farther-lineage, and fixed-action integration remain the next unit.
+- [2026-08-12 (panel-camera observation prerequisites)](detailed/2026-08-12_2026-08-12.md) — Panel-bound registrations now preserve stable document candidates plus separate observation IDs, transform one ordered q0 arrow family through exact D4, and admit document-camera pairs atomically without selecting a physical hand; runner, scoring, report, farther-lineage, and fixed-action integration remain unimplemented.
 
 - [2026-08-12 (handedness primitive)](detailed/2026-08-12_2026-08-12.md) — Determinant-aware silhouette registration now measures all eight camera hand-and-turn hypotheses: a chiral fixture selects x-reflected turn 90 at `[17,-23]` with IoU 1 versus about 0.476 proper, while a symmetric 2x4 plate ties both hands at 1 and is refused; real-booklet frame, lineage, arrow, and fixed-action integration remain open.
 

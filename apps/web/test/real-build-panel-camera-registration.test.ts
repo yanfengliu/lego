@@ -1,39 +1,46 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 
 import {
-  arrowDisplacementForRealBuildLatticeFrame,
-  createRealBuildLatticeFrame,
-  realBuildFrameCandidateId,
-  viewForRealBuildLatticeFrame,
-  type RealBuildLatticeFrame,
-  type RealBuildLatticeTurnDegrees,
-} from "../e2e/real-build-lattice-frame";
+  arrowDisplacementForRealBuildPanelCameraRegistration,
+  createRealBuildPanelCameraRegistration,
+  realBuildPanelCameraObservationId,
+  viewForRealBuildPanelCameraRegistration,
+  type RealBuildPanelCameraRegistration,
+  type RealBuildPanelCameraTurnDegrees,
+} from "../e2e/real-build-panel-camera-registration";
 
 const HASH = `sha256:${"a".repeat(64)}`;
-const TURNS: readonly RealBuildLatticeTurnDegrees[] = [0, 90, 180, 270];
+const TURNS: readonly RealBuildPanelCameraTurnDegrees[] = [0, 90, 180, 270];
 const HANDS = [
   { latticeHand: "as-fitted" as const, latticeDeterminant: 1 as const },
   { latticeHand: "x-reflected" as const, latticeDeterminant: -1 as const },
 ] as const;
 
 const frame = (
-  latticeHand: RealBuildLatticeFrame["latticeHand"] = "as-fitted",
-  turnDegrees: RealBuildLatticeTurnDegrees = 0,
+  latticeHand: RealBuildPanelCameraRegistration["latticeHand"] = "as-fitted",
+  turnDegrees: RealBuildPanelCameraTurnDegrees = 0,
   shiftPx: readonly [number, number] = [17, -23],
-): RealBuildLatticeFrame =>
-  createRealBuildLatticeFrame({
+  registrationPanelStepNumber = 5,
+): RealBuildPanelCameraRegistration =>
+  createRealBuildPanelCameraRegistration({
     latticeHand,
     latticeDeterminant: latticeHand === "as-fitted" ? 1 : -1,
+    registrationPanelStepNumber,
     turnDegrees,
     shiftPx,
   });
 
-describe("createRealBuildLatticeFrame", () => {
-  it("copies and deeply freezes all eight determinant-and-turn frames", () => {
+describe("createRealBuildPanelCameraRegistration", () => {
+  it("copies and deeply freezes all eight determinant-and-turn registrations", () => {
     const inputs = HANDS.flatMap((hand) =>
-      TURNS.map((turnDegrees) => ({ ...hand, turnDegrees, shiftPx: [17, -23] })),
+      TURNS.map((turnDegrees) => ({
+        ...hand,
+        registrationPanelStepNumber: 5,
+        turnDegrees,
+        shiftPx: [17, -23],
+      })),
     );
-    const frames = inputs.map(createRealBuildLatticeFrame);
+    const frames = inputs.map(createRealBuildPanelCameraRegistration);
 
     expect(frames).toHaveLength(8);
     expect(frames.map(({ latticeHand, turnDegrees }) => `${latticeHand}:${turnDegrees}`)).toEqual([
@@ -56,51 +63,95 @@ describe("createRealBuildLatticeFrame", () => {
 
   it.each([
     [
-      { latticeHand: "right", latticeDeterminant: 1, turnDegrees: 0, shiftPx: [0, 0] },
+      {
+        latticeHand: "right",
+        latticeDeterminant: 1,
+        registrationPanelStepNumber: 5,
+        turnDegrees: 0,
+        shiftPx: [0, 0],
+      },
       /latticeHand.*right/su,
     ],
     [
-      { latticeHand: "as-fitted", latticeDeterminant: 0, turnDegrees: 0, shiftPx: [0, 0] },
+      {
+        latticeHand: "as-fitted",
+        latticeDeterminant: 0,
+        registrationPanelStepNumber: 5,
+        turnDegrees: 0,
+        shiftPx: [0, 0],
+      },
       /latticeDeterminant.*0/su,
     ],
     [
-      { latticeHand: "as-fitted", latticeDeterminant: -1, turnDegrees: 0, shiftPx: [0, 0] },
+      {
+        latticeHand: "as-fitted",
+        latticeDeterminant: -1,
+        registrationPanelStepNumber: 5,
+        turnDegrees: 0,
+        shiftPx: [0, 0],
+      },
       /requires latticeDeterminant 1.*-1/su,
     ],
     [
-      { latticeHand: "x-reflected", latticeDeterminant: 1, turnDegrees: 0, shiftPx: [0, 0] },
+      {
+        latticeHand: "x-reflected",
+        latticeDeterminant: 1,
+        registrationPanelStepNumber: 5,
+        turnDegrees: 0,
+        shiftPx: [0, 0],
+      },
       /requires latticeDeterminant -1.*1/su,
     ],
     [
-      { latticeHand: "as-fitted", latticeDeterminant: 1, turnDegrees: 45, shiftPx: [0, 0] },
+      {
+        latticeHand: "as-fitted",
+        latticeDeterminant: 1,
+        registrationPanelStepNumber: 5,
+        turnDegrees: 45,
+        shiftPx: [0, 0],
+      },
       /turnDegrees.*45/su,
     ],
     [
-      { latticeHand: "as-fitted", latticeDeterminant: 1, turnDegrees: 0, shiftPx: [0.5, 0] },
+      {
+        latticeHand: "as-fitted",
+        latticeDeterminant: 1,
+        registrationPanelStepNumber: 5,
+        turnDegrees: 0,
+        shiftPx: [0.5, 0],
+      },
       /shiftPx.*safe integer/su,
     ],
     [
-      { latticeHand: "as-fitted", latticeDeterminant: 1, turnDegrees: 0, shiftPx: [0] },
+      {
+        latticeHand: "as-fitted",
+        latticeDeterminant: 1,
+        registrationPanelStepNumber: 5,
+        turnDegrees: 0,
+        shiftPx: [0],
+      },
       /shiftPx.*exactly two/su,
     ],
     [
       {
         latticeHand: "as-fitted",
         latticeDeterminant: 1,
+        registrationPanelStepNumber: 5,
         turnDegrees: 0,
         shiftPx: [0, 0],
         extra: true,
       },
       /exactly.*extra/su,
     ],
-  ])("refuses malformed frame %# with a field-specific error", (input, message) => {
-    expect(() => createRealBuildLatticeFrame(input)).toThrow(message);
+  ])("refuses malformed registration %# with a field-specific error", (input, message) => {
+    expect(() => createRealBuildPanelCameraRegistration(input)).toThrow(message);
   });
 
-  it("normalizes negative zero so one mathematical shift has one frame", () => {
-    const normalized = createRealBuildLatticeFrame({
+  it("normalizes negative zero so one mathematical shift has one registration", () => {
+    const normalized = createRealBuildPanelCameraRegistration({
       latticeHand: "as-fitted",
       latticeDeterminant: 1,
+      registrationPanelStepNumber: 5,
       turnDegrees: -0,
       shiftPx: [-0, -0],
     });
@@ -108,7 +159,7 @@ describe("createRealBuildLatticeFrame", () => {
     expect(normalized.shiftPx).toStrictEqual([0, 0]);
   });
 
-  it("snapshots every caller-owned frame field and shift coordinate exactly once", () => {
+  it("snapshots every caller-owned registration field and shift coordinate exactly once", () => {
     const reads = new Map<string, number>();
     const once =
       <T>(key: string, value: T): (() => T) =>
@@ -125,19 +176,22 @@ describe("createRealBuildLatticeFrame", () => {
     Object.defineProperties(input, {
       latticeHand: { enumerable: true, get: once("hand", "x-reflected") },
       latticeDeterminant: { enumerable: true, get: once("determinant", -1) },
+      registrationPanelStepNumber: { enumerable: true, get: once("panel", 5) },
       shiftPx: { enumerable: true, get: once("shift", shift) },
       turnDegrees: { enumerable: true, get: once("turn", 90) },
     });
 
-    expect(createRealBuildLatticeFrame(input)).toEqual({
+    expect(createRealBuildPanelCameraRegistration(input)).toEqual({
       latticeHand: "x-reflected",
       latticeDeterminant: -1,
+      registrationPanelStepNumber: 5,
       shiftPx: [17, -23],
       turnDegrees: 90,
     });
     expect(Object.fromEntries(reads)).toEqual({
       hand: 1,
       determinant: 1,
+      panel: 1,
       turn: 1,
       shift: 1,
       shiftX: 1,
@@ -146,57 +200,83 @@ describe("createRealBuildLatticeFrame", () => {
   });
 });
 
-describe("realBuildFrameCandidateId", () => {
+describe("realBuildPanelCameraObservationId", () => {
   it("has a stable canonical suffix in hand-then-turn order", () => {
     const ids = HANDS.flatMap(({ latticeHand }) =>
       TURNS.map((turnDegrees) =>
-        realBuildFrameCandidateId({
+        realBuildPanelCameraObservationId({
           stepNumber: 5,
           documentHash: HASH,
-          frame: frame(latticeHand, turnDegrees),
+          registration: frame(latticeHand, turnDegrees),
         }),
       ),
     );
 
     expect(ids).toEqual([
-      `step-005:${HASH}:frame:as-fitted:d1:q000:x17:y-23`,
-      `step-005:${HASH}:frame:as-fitted:d1:q090:x17:y-23`,
-      `step-005:${HASH}:frame:as-fitted:d1:q180:x17:y-23`,
-      `step-005:${HASH}:frame:as-fitted:d1:q270:x17:y-23`,
-      `step-005:${HASH}:frame:x-reflected:d-1:q000:x17:y-23`,
-      `step-005:${HASH}:frame:x-reflected:d-1:q090:x17:y-23`,
-      `step-005:${HASH}:frame:x-reflected:d-1:q180:x17:y-23`,
-      `step-005:${HASH}:frame:x-reflected:d-1:q270:x17:y-23`,
+      `step-005:${HASH}:panel-camera:as-fitted:d1:p005:q000:x17:y-23`,
+      `step-005:${HASH}:panel-camera:as-fitted:d1:p005:q090:x17:y-23`,
+      `step-005:${HASH}:panel-camera:as-fitted:d1:p005:q180:x17:y-23`,
+      `step-005:${HASH}:panel-camera:as-fitted:d1:p005:q270:x17:y-23`,
+      `step-005:${HASH}:panel-camera:x-reflected:d-1:p005:q000:x17:y-23`,
+      `step-005:${HASH}:panel-camera:x-reflected:d-1:p005:q090:x17:y-23`,
+      `step-005:${HASH}:panel-camera:x-reflected:d-1:p005:q180:x17:y-23`,
+      `step-005:${HASH}:panel-camera:x-reflected:d-1:p005:q270:x17:y-23`,
     ]);
     expect(new Set(ids)).toHaveLength(8);
   });
 
   it("separates equal document bytes retained under opposite horizontal hands", () => {
     const common = { stepNumber: 5, documentHash: HASH };
-    const fitted = realBuildFrameCandidateId({ ...common, frame: frame("as-fitted", 90) });
-    const reflected = realBuildFrameCandidateId({ ...common, frame: frame("x-reflected", 90) });
+    const fitted = realBuildPanelCameraObservationId({
+      ...common,
+      registration: frame("as-fitted", 90),
+    });
+    const reflected = realBuildPanelCameraObservationId({
+      ...common,
+      registration: frame("x-reflected", 90),
+    });
 
     expect(fitted).not.toBe(reflected);
     expect(fitted).toContain(":as-fitted:d1:");
     expect(reflected).toContain(":x-reflected:d-1:");
   });
 
+  it("separates the same numeric registration observed on different panel rasters", () => {
+    const common = { stepNumber: 5, documentHash: HASH };
+    const panelFive = realBuildPanelCameraObservationId({
+      ...common,
+      registration: frame("as-fitted", 90, [17, -23], 5),
+    });
+    const panelSix = realBuildPanelCameraObservationId({
+      ...common,
+      registration: frame("as-fitted", 90, [17, -23], 6),
+    });
+
+    expect(panelFive).not.toBe(panelSix);
+    expect(panelFive).toContain(":p005:");
+    expect(panelSix).toContain(":p006:");
+  });
+
   it.each([
-    [{ stepNumber: 0, documentHash: HASH, frame: frame() }, /stepNumber.*positive/su],
+    [{ stepNumber: 0, documentHash: HASH, registration: frame() }, /stepNumber.*positive/su],
     [
-      { stepNumber: 1, documentHash: "sha256:ABC", frame: frame() },
+      { stepNumber: 1, documentHash: "sha256:ABC", registration: frame() },
       /documentHash.*lowercase sha256/su,
     ],
     [
-      { stepNumber: 1, documentHash: HASH, frame: { ...frame(), latticeDeterminant: -1 } },
+      {
+        stepNumber: 1,
+        documentHash: HASH,
+        registration: { ...frame(), latticeDeterminant: -1 },
+      },
       /requires latticeDeterminant 1/su,
     ],
-    [{ stepNumber: 1, documentHash: HASH, frame: frame(), extra: true }, /exactly.*extra/su],
-  ])("refuses malformed candidate identity input %#", (input, message) => {
-    expect(() => realBuildFrameCandidateId(input as never)).toThrow(message);
+    [{ stepNumber: 1, documentHash: HASH, registration: frame(), extra: true }, /exactly.*extra/su],
+  ])("refuses malformed observation identity input %#", (input, message) => {
+    expect(() => realBuildPanelCameraObservationId(input as never)).toThrow(message);
   });
 
-  it("snapshots candidate identity fields before validating the nested frame", () => {
+  it("snapshots observation identity fields before validating the nested registration", () => {
     const reads = new Map<string, number>();
     const once =
       <T>(key: string, value: T): (() => T) =>
@@ -208,23 +288,26 @@ describe("realBuildFrameCandidateId", () => {
     Object.defineProperties(input, {
       stepNumber: { enumerable: true, get: once("step", 5) },
       documentHash: { enumerable: true, get: once("hash", HASH) },
-      frame: { enumerable: true, get: once("frame", frame("x-reflected", 90)) },
+      registration: {
+        enumerable: true,
+        get: once("registration", frame("x-reflected", 90)),
+      },
     });
 
-    expect(realBuildFrameCandidateId(input as never)).toBe(
-      `step-005:${HASH}:frame:x-reflected:d-1:q090:x17:y-23`,
+    expect(realBuildPanelCameraObservationId(input as never)).toBe(
+      `step-005:${HASH}:panel-camera:x-reflected:d-1:p005:q090:x17:y-23`,
     );
-    expect(Object.fromEntries(reads)).toEqual({ step: 1, hash: 1, frame: 1 });
+    expect(Object.fromEntries(reads)).toEqual({ step: 1, hash: 1, registration: 1 });
   });
 });
 
-describe("viewForRealBuildLatticeFrame", () => {
+describe("viewForRealBuildPanelCameraRegistration", () => {
   const view = { azimuthDegrees: 41, elevationDegrees: 26, pixelsPerUnit: 52, upSign: -1 as const };
 
   it("applies the quarter turn before the hand transform for all eight frames", () => {
     const transformed = HANDS.flatMap(({ latticeHand }) =>
       TURNS.map((turnDegrees) =>
-        viewForRealBuildLatticeFrame(view, frame(latticeHand, turnDegrees)),
+        viewForRealBuildPanelCameraRegistration(view, frame(latticeHand, turnDegrees)),
       ),
     );
 
@@ -248,11 +331,11 @@ describe("viewForRealBuildLatticeFrame", () => {
 
   it("refuses a non-finite or unscaled view", () => {
     expect(() =>
-      viewForRealBuildLatticeFrame({ ...view, azimuthDegrees: Number.NaN }, frame()),
+      viewForRealBuildPanelCameraRegistration({ ...view, azimuthDegrees: Number.NaN }, frame()),
     ).toThrow(/azimuthDegrees.*finite/su);
-    expect(() => viewForRealBuildLatticeFrame({ ...view, pixelsPerUnit: 0 }, frame())).toThrow(
-      /pixelsPerUnit.*positive/su,
-    );
+    expect(() =>
+      viewForRealBuildPanelCameraRegistration({ ...view, pixelsPerUnit: 0 }, frame()),
+    ).toThrow(/pixelsPerUnit.*positive/su);
   });
 
   it("reads caller-owned view fields once before applying the frame", () => {
@@ -272,18 +355,24 @@ describe("viewForRealBuildLatticeFrame", () => {
     });
 
     expect(
-      viewForRealBuildLatticeFrame(suppliedView as typeof view, frame("x-reflected", 90)),
+      viewForRealBuildPanelCameraRegistration(
+        suppliedView as typeof view,
+        frame("x-reflected", 90),
+      ),
     ).toEqual({ azimuthDegrees: 49, elevationDegrees: -26, pixelsPerUnit: 52, upSign: -1 });
     expect(Object.fromEntries(reads)).toEqual({ azimuth: 1, elevation: 1, scale: 1, up: 1 });
   });
 });
 
-describe("arrowDisplacementForRealBuildLatticeFrame", () => {
+describe("arrowDisplacementForRealBuildPanelCameraRegistration", () => {
   it("rotates X/Z before reflecting X for all eight frames", () => {
     const input = { lduX: 40, lduY: -8, lduZ: 60, travelPx: 46.17, offLineStuds: 0.04 };
     const transformed = HANDS.flatMap(({ latticeHand }) =>
       TURNS.map((turnDegrees) =>
-        arrowDisplacementForRealBuildLatticeFrame(input, frame(latticeHand, turnDegrees)),
+        arrowDisplacementForRealBuildPanelCameraRegistration(
+          input,
+          frame(latticeHand, turnDegrees),
+        ),
       ),
     );
 
@@ -307,13 +396,13 @@ describe("arrowDisplacementForRealBuildLatticeFrame", () => {
 
   it("refuses coordinates or measurements that cannot describe a derived arrow family", () => {
     expect(() =>
-      arrowDisplacementForRealBuildLatticeFrame(
+      arrowDisplacementForRealBuildPanelCameraRegistration(
         { lduX: 0.5, lduY: 0, lduZ: 0, travelPx: 1, offLineStuds: 0 },
         frame(),
       ),
     ).toThrow(/lduX.*safe integer/su);
     expect(() =>
-      arrowDisplacementForRealBuildLatticeFrame(
+      arrowDisplacementForRealBuildPanelCameraRegistration(
         { lduX: 0, lduY: 0, lduZ: 0, travelPx: -1, offLineStuds: 0 },
         frame(),
       ),
@@ -338,14 +427,17 @@ describe("arrowDisplacementForRealBuildLatticeFrame", () => {
     });
 
     expect(
-      arrowDisplacementForRealBuildLatticeFrame(input as never, frame("x-reflected", 90)),
+      arrowDisplacementForRealBuildPanelCameraRegistration(
+        input as never,
+        frame("x-reflected", 90),
+      ),
     ).toEqual({ lduX: -60, lduY: -8, lduZ: -40, travelPx: 46.17, offLineStuds: 0.04 });
     expect(Object.fromEntries(reads)).toEqual({ x: 1, y: 1, z: 1, travel: 1, offline: 1 });
   });
 
   it("normalizes negative zero so equivalent arrow families serialize identically", () => {
     expect(
-      arrowDisplacementForRealBuildLatticeFrame(
+      arrowDisplacementForRealBuildPanelCameraRegistration(
         { lduX: -0, lduY: -0, lduZ: -0, travelPx: -0, offLineStuds: -0 },
         frame("x-reflected", 270),
       ),

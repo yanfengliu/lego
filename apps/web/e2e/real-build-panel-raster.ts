@@ -1,4 +1,19 @@
 import type { PreparedRealBuildModules } from "./real-build-browser-preflight";
+import type { ArrowDisplacement } from "./real-build-panel-camera-registration";
+export type { ArrowDisplacement } from "./real-build-panel-camera-registration";
+import {
+  createPanelArrowCameraEvidence,
+  createPanelViewSolution,
+  createRawPanelArrowMeasurement,
+  type PanelArrowCameraEvidence,
+  type PanelViewSolution,
+} from "./real-build-panel-arrow-evidence";
+export type {
+  PanelArrowCameraEvidence,
+  PanelViewSolution,
+  RawPanelArrowMeasurement,
+  RealBuildArrowFamilyAssembly,
+} from "./real-build-panel-arrow-evidence";
 import type { RealBuildOptions, RealBuildPanelSpec } from "./real-build-safety";
 
 /**
@@ -16,22 +31,8 @@ import type { RealBuildOptions, RealBuildPanelSpec } from "./real-build-safety";
  * about the printed page rather than about any candidate.
  */
 
-export interface PanelViewSolution {
-  readonly azimuthDegrees: number;
-  readonly elevationDegrees: number;
-  readonly pixelsPerUnit: number;
-}
-
 export interface FittedPanelSolution extends PanelViewSolution {
   readonly residualPx: number;
-}
-
-export interface ArrowDisplacement {
-  readonly lduX: number;
-  readonly lduY: number;
-  readonly lduZ: number;
-  readonly travelPx: number;
-  readonly offLineStuds: number;
 }
 
 export interface PanelHighlightBox {
@@ -68,6 +69,13 @@ export interface PanelRasterEvidence {
     readonly rejected: readonly unknown[];
     readonly redPx: number;
   };
+  /**
+   * Raw facts retained so a later panel-camera registration can derive its own family.
+   * Optional only while hand-built test evidence predating this field remains;
+   * production derivation always writes either frozen panel-camera evidence or null.
+   */
+  readonly panelArrowCameraEvidence?: PanelArrowCameraEvidence | null;
+  /** Transitional q0/as-fitted family kept until every consumer is registration-qualified. */
   readonly arrowFamily: readonly ArrowDisplacement[];
 }
 
@@ -205,6 +213,11 @@ export function derivePanelRasterEvidence(input: {
     { width, height, pixels: work.pixels },
     { originMask: highlight.strokeMask },
   );
+  // These are accessors on an untrusted runtime module result. Retain the two
+  // scalars together before `highlightBounds`, `viewForPanelFace`, projection,
+  // or ceiling callbacks can change what a second read would mean.
+  const arrowDisplacementXPx = arrows.displacementXPx as unknown;
+  const arrowDisplacementYPx = arrows.displacementYPx as unknown;
   const highlightBox = assembly.highlightBounds(highlight) as PanelHighlightBox | null;
 
   // The camera fit reads azimuth, scale and phase off the panel's own stud
@@ -220,7 +233,7 @@ export function derivePanelRasterEvidence(input: {
   const faceCorrectedFit =
     fit.solution === null || spec.panelFace === null
       ? null
-      : (assembly.viewForPanelFace(fit.solution, spec.panelFace) as PanelViewSolution);
+      : createPanelViewSolution(assembly.viewForPanelFace(fit.solution, spec.panelFace));
 
   // A detected arrow is not yet a placement; converting it is what makes it
   // one. The arrow states a line and a floor rather than a vector: its two ends
@@ -246,26 +259,62 @@ export function derivePanelRasterEvidence(input: {
   // `factor` times too little travel; the renderer divides the same number
   // (`real-build-run.ts` and `real-build-deferred-step.ts` both build their view
   // at `pixelsPerUnit / workFactor`) and this path did not.
-  const arrowFamily =
-    faceCorrectedFit === null || arrows.displacementXPx === null || arrows.displacementYPx === null
-      ? []
+  const arrowDerivation =
+    faceCorrectedFit === null || arrowDisplacementXPx === null || arrowDisplacementYPx === null
+      ? null
       : (() => {
+          const arrowVector = createRawPanelArrowMeasurement({
+            displacementXPx: arrowDisplacementXPx,
+            displacementYPx: arrowDisplacementYPx,
+            // A temporary upper bound validates and snapshots the vector before
+            // callbacks. Negative infinity is the real empty-built-mask sentinel,
+            // so the measurement contract deliberately admits it.
+            travelCeilingPx: Number.NEGATIVE_INFINITY,
+            workFactor: factor,
+          });
+          // Preserve the legacy callback order while retaining the inputs: the
+          // q0 projection was built before the ceiling was measured.
           const projection = assembly.panelProjectionForWorkRaster(faceCorrectedFit, factor);
-          const drawn = {
-            xPx: arrows.displacementXPx as number,
-            yPx: arrows.displacementYPx as number,
-          };
+          const drawn = Object.freeze({
+            xPx: arrowVector.displacementXPx,
+            yPx: arrowVector.displacementYPx,
+          });
           const ceiling = assembly.measureArrowTravelCeiling(arrows.arrows, drawn, {
             width,
             height,
             mask: built,
           }) as { ceilingPx: number };
-          return assembly.arrowTravelFamily(
-            projection,
+          return {
             drawn,
-            ceiling.ceilingPx,
-          ) as readonly ArrowDisplacement[];
+            projection,
+            measurement: createRawPanelArrowMeasurement({
+              displacementXPx: drawn.xPx,
+              displacementYPx: drawn.yPx,
+              travelCeilingPx: ceiling.ceilingPx,
+              workFactor: factor,
+            }),
+          };
         })();
+  const panelArrowCameraEvidence =
+    arrowDerivation === null
+      ? null
+      : createPanelArrowCameraEvidence({
+          panelStepNumber: spec.stepNumber,
+          faceCorrectedFit,
+          measurement: arrowDerivation.measurement,
+        });
+
+  // Keep the existing q0/as-fitted family byte-for-byte in place while the
+  // candidate, lookahead, and farther-panel paths migrate together. New code
+  // derives from the panel-bound evidence only after selecting its registration.
+  const arrowFamily =
+    arrowDerivation === null
+      ? []
+      : (assembly.arrowTravelFamily(
+          arrowDerivation.projection,
+          arrowDerivation.drawn,
+          arrowDerivation.measurement.travelCeilingPx,
+        ) as readonly ArrowDisplacement[]);
 
   crop.width = 0;
   crop.height = 0;
@@ -282,6 +331,7 @@ export function derivePanelRasterEvidence(input: {
     highlightBox,
     builtMask: built,
     arrows,
+    panelArrowCameraEvidence,
     arrowFamily,
   };
 }

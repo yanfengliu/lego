@@ -46,6 +46,10 @@ export const MEASURED_FARTHER_ORIGIN_REQUIRED_SOURCE_PATHS = Object.freeze([
   "apps/web/e2e/real-build-farther-panel.ts",
   "apps/web/e2e/real-build-farther-scoring.ts",
   "apps/web/e2e/real-build-farther-step.ts",
+  "apps/web/e2e/real-build-panel-arrow-evidence.ts",
+  "apps/web/e2e/real-build-panel-camera-branch-budget.ts",
+  "apps/web/e2e/real-build-panel-camera-branches.ts",
+  "apps/web/e2e/real-build-panel-camera-registration.ts",
   "apps/web/e2e/real-build-panel-raster.ts",
   "apps/web/e2e/real-build-run-visual.ts",
   "apps/web/e2e/real-build-run.ts",
@@ -101,7 +105,7 @@ export function isRealBuildSourceAttestation(value: unknown): value is RealBuild
 export const MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION: RealBuildSourceAttestation = Object.freeze(
   {
     schemaVersion: REAL_BUILD_SOURCE_ATTESTATION_SCHEMA_VERSION,
-    fileCount: 3_071,
-    digest: "sha256:de6cd956a985a60c744a22162c29f3dd5c327f20c405b26bd02751bbe0f94602",
+    fileCount: 3_074,
+    digest: "sha256:0cfd4b8b2817e1ee98a942ac4115718c361f8016ea3647d18636b8fffee2c3a1",
   },
 );

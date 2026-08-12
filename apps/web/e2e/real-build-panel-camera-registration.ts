@@ -1,19 +1,34 @@
 import type { FittedPanelView, LatticeHand } from "../src/assembly/panel-face";
 import { viewForLatticeHand } from "../src/assembly/panel-face";
-import type { ArrowDisplacement } from "./real-build-panel-raster";
 
-export type RealBuildLatticeTurnDegrees = 0 | 90 | 180 | 270;
+export interface ArrowDisplacement {
+  readonly lduX: number;
+  readonly lduY: number;
+  readonly lduZ: number;
+  readonly travelPx: number;
+  readonly offLineStuds: number;
+}
 
-/** One fully qualified horizontal frame retained with a real-build candidate. */
-export interface RealBuildLatticeFrame {
+export type RealBuildPanelCameraTurnDegrees = 0 | 90 | 180 | 270;
+
+/** One panel-local camera observation. It is never physical transform authority. */
+export interface RealBuildPanelCameraRegistration {
   readonly latticeHand: LatticeHand;
   readonly latticeDeterminant: 1 | -1;
-  readonly turnDegrees: RealBuildLatticeTurnDegrees;
+  /** Printed panel whose fitted raster gives `turnDegrees` and `shiftPx` meaning. */
+  readonly registrationPanelStepNumber: number;
+  readonly turnDegrees: RealBuildPanelCameraTurnDegrees;
   readonly shiftPx: readonly [number, number];
 }
 
-const FRAME_KEYS = ["latticeHand", "latticeDeterminant", "shiftPx", "turnDegrees"] as const;
-const CANDIDATE_ID_KEYS = ["documentHash", "frame", "stepNumber"] as const;
+const REGISTRATION_KEYS = [
+  "latticeHand",
+  "latticeDeterminant",
+  "registrationPanelStepNumber",
+  "shiftPx",
+  "turnDegrees",
+] as const;
+const OBSERVATION_ID_KEYS = ["documentHash", "registration", "stepNumber"] as const;
 const DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/u;
 const TURNS: readonly number[] = [0, 90, 180, 270];
 
@@ -43,11 +58,13 @@ function normalizeZero(value: number): number {
   return value === 0 ? 0 : value;
 }
 
-/** Copies, validates, and deeply freezes one frame from an untrusted boundary. */
-export function createRealBuildLatticeFrame(input: unknown): RealBuildLatticeFrame {
-  if (!isRecord(input) || !hasExactKeys(input, FRAME_KEYS)) {
+/** Copies, validates, and deeply freezes one panel-local registration. */
+export function createRealBuildPanelCameraRegistration(
+  input: unknown,
+): RealBuildPanelCameraRegistration {
+  if (!isRecord(input) || !hasExactKeys(input, REGISTRATION_KEYS)) {
     throw new TypeError(
-      `A real-build lattice frame must be an object with exactly ${FRAME_KEYS.join(
+      `A real-build panel camera registration must be an object with exactly ${REGISTRATION_KEYS.join(
         ", ",
       )}; received ${describe(input)}.`,
     );
@@ -55,28 +72,40 @@ export function createRealBuildLatticeFrame(input: unknown): RealBuildLatticeFra
   const {
     latticeHand: hand,
     latticeDeterminant: determinant,
+    registrationPanelStepNumber,
     turnDegrees,
     shiftPx: suppliedShift,
   } = input;
   if (hand !== "as-fitted" && hand !== "x-reflected") {
     throw new TypeError(
-      `Frame latticeHand must be "as-fitted" or "x-reflected"; received ${describe(hand)}.`,
+      `Panel camera registration latticeHand must be "as-fitted" or "x-reflected"; received ${describe(hand)}.`,
     );
   }
   if (determinant !== 1 && determinant !== -1) {
     throw new TypeError(
-      `Frame latticeDeterminant must be 1 or -1; received ${describe(determinant)}.`,
+      `Panel camera registration latticeDeterminant must be 1 or -1; received ${describe(determinant)}.`,
     );
   }
   const requiredDeterminant = expectedDeterminant(hand);
   if (determinant !== requiredDeterminant) {
     throw new TypeError(
-      `Frame latticeHand ${JSON.stringify(hand)} requires latticeDeterminant ${requiredDeterminant}; received ${determinant}.`,
+      `Panel camera registration latticeHand ${JSON.stringify(hand)} requires latticeDeterminant ${requiredDeterminant}; received ${determinant}.`,
     );
   }
+  if (
+    !Number.isSafeInteger(registrationPanelStepNumber) ||
+    (registrationPanelStepNumber as number) < 1
+  ) {
+    throw new RangeError(
+      `Panel camera registration registrationPanelStepNumber must be a positive safe integer; received ${describe(
+        registrationPanelStepNumber,
+      )}.`,
+    );
+  }
+  const panelStepNumber = registrationPanelStepNumber as number;
   if (!TURNS.includes(turnDegrees as number)) {
     throw new RangeError(
-      `Frame turnDegrees must be one of 0, 90, 180, or 270; received ${describe(turnDegrees)}.`,
+      `Panel camera registration turnDegrees must be one of 0, 90, 180, or 270; received ${describe(turnDegrees)}.`,
     );
   }
   const shift = suppliedShift;
@@ -87,48 +116,48 @@ export function createRealBuildLatticeFrame(input: unknown): RealBuildLatticeFra
     !Object.prototype.hasOwnProperty.call(shift, 1)
   ) {
     throw new RangeError(
-      `Frame shiftPx must contain exactly two safe integer pixel offsets; received ${describe(shift)}.`,
+      `Panel camera registration shiftPx must contain exactly two safe integer pixel offsets; received ${describe(shift)}.`,
     );
   }
   const [shiftX, shiftY] = shift;
   if (!Number.isSafeInteger(shiftX) || !Number.isSafeInteger(shiftY)) {
     throw new RangeError(
-      `Frame shiftPx must contain exactly two safe integer pixel offsets; received ${describe([
-        shiftX,
-        shiftY,
-      ])}.`,
+      `Panel camera registration shiftPx must contain exactly two safe integer pixel offsets; received ${describe(
+        [shiftX, shiftY],
+      )}.`,
     );
   }
   const shiftPx = Object.freeze([normalizeZero(shiftX), normalizeZero(shiftY)] as [number, number]);
   return Object.freeze({
     latticeHand: hand,
     latticeDeterminant: determinant,
-    turnDegrees: normalizeZero(turnDegrees as number) as RealBuildLatticeTurnDegrees,
+    registrationPanelStepNumber: panelStepNumber,
+    turnDegrees: normalizeZero(turnDegrees as number) as RealBuildPanelCameraTurnDegrees,
     shiftPx,
   });
 }
 
 function requireView(input: FittedPanelView): FittedPanelView {
   if (!isRecord(input)) {
-    throw new TypeError(`A lattice-frame view must be an object; received ${describe(input)}.`);
+    throw new TypeError(`A panel camera view must be an object; received ${describe(input)}.`);
   }
   const { azimuthDegrees, elevationDegrees, pixelsPerUnit, upSign } = input;
   const values = { azimuthDegrees, elevationDegrees, pixelsPerUnit };
   for (const field of ["azimuthDegrees", "elevationDegrees", "pixelsPerUnit"] as const) {
     if (typeof values[field] !== "number" || !Number.isFinite(values[field])) {
       throw new TypeError(
-        `Lattice-frame view ${field} must be finite; received ${describe(values[field])}.`,
+        `Panel camera view ${field} must be finite; received ${describe(values[field])}.`,
       );
     }
   }
   if (!(pixelsPerUnit > 0)) {
     throw new RangeError(
-      `Lattice-frame view pixelsPerUnit must be positive; received ${pixelsPerUnit}.`,
+      `Panel camera view pixelsPerUnit must be positive; received ${pixelsPerUnit}.`,
     );
   }
   if (upSign !== undefined && upSign !== 1 && upSign !== -1) {
     throw new TypeError(
-      `Lattice-frame view upSign must be 1, -1, or absent; received ${describe(upSign)}.`,
+      `Panel camera view upSign must be 1, -1, or absent; received ${describe(upSign)}.`,
     );
   }
   return Object.freeze({
@@ -140,29 +169,29 @@ function requireView(input: FittedPanelView): FittedPanelView {
 }
 
 /** Adds the quarter turn before applying the determinant-changing hand transform. */
-export function viewForRealBuildLatticeFrame(
+export function viewForRealBuildPanelCameraRegistration(
   suppliedView: FittedPanelView,
-  suppliedFrame: RealBuildLatticeFrame,
+  suppliedRegistration: RealBuildPanelCameraRegistration,
 ): FittedPanelView {
   const view = requireView(suppliedView);
-  const frame = createRealBuildLatticeFrame(suppliedFrame);
+  const registration = createRealBuildPanelCameraRegistration(suppliedRegistration);
   const transformed = viewForLatticeHand(
-    { ...view, azimuthDegrees: view.azimuthDegrees + frame.turnDegrees },
-    frame.latticeHand,
+    { ...view, azimuthDegrees: view.azimuthDegrees + registration.turnDegrees },
+    registration.latticeHand,
   );
   return Object.freeze({ ...transformed });
 }
 
 /**
- * Re-expresses a q0/as-fitted arrow-family row in one qualified frame.
+ * Re-expresses a q0/as-fitted arrow-family row for one panel camera registration.
  *
  * Quarter turns rotate the fitted X/Z basis before the optional hand reversal;
  * applying only the hand would be wrong for every non-zero turn. Travel and
  * off-line error remain measurements of the same projected vector.
  */
-export function arrowDisplacementForRealBuildLatticeFrame(
+export function arrowDisplacementForRealBuildPanelCameraRegistration(
   displacement: ArrowDisplacement,
-  suppliedFrame: RealBuildLatticeFrame,
+  suppliedRegistration: RealBuildPanelCameraRegistration,
 ): ArrowDisplacement {
   if (!isRecord(displacement)) {
     throw new TypeError(
@@ -194,17 +223,17 @@ export function arrowDisplacementForRealBuildLatticeFrame(
       );
     }
   }
-  const frame = createRealBuildLatticeFrame(suppliedFrame);
+  const registration = createRealBuildPanelCameraRegistration(suppliedRegistration);
   const [turnedX, turnedZ] =
-    frame.turnDegrees === 0
+    registration.turnDegrees === 0
       ? [lduX, lduZ]
-      : frame.turnDegrees === 90
+      : registration.turnDegrees === 90
         ? [lduZ, -lduX]
-        : frame.turnDegrees === 180
+        : registration.turnDegrees === 180
           ? [-lduX, -lduZ]
           : [-lduZ, lduX];
   return Object.freeze({
-    lduX: normalizeZero(frame.latticeHand === "x-reflected" ? -turnedX : turnedX),
+    lduX: normalizeZero(registration.latticeHand === "x-reflected" ? -turnedX : turnedX),
     lduY: normalizeZero(lduY),
     lduZ: normalizeZero(turnedZ),
     travelPx: normalizeZero(travelPx),
@@ -212,36 +241,38 @@ export function arrowDisplacementForRealBuildLatticeFrame(
   });
 }
 
-/** A frame-qualified ID; equal document bytes in opposite hands cannot alias. */
-export function realBuildFrameCandidateId(input: {
+/** A panel-observation ID; this must not replace a candidate's stable document identity. */
+export function realBuildPanelCameraObservationId(input: {
   readonly stepNumber: number;
   readonly documentHash: string;
-  readonly frame: RealBuildLatticeFrame;
+  readonly registration: RealBuildPanelCameraRegistration;
 }): string {
-  if (!isRecord(input) || !hasExactKeys(input, CANDIDATE_ID_KEYS)) {
+  if (!isRecord(input) || !hasExactKeys(input, OBSERVATION_ID_KEYS)) {
     throw new TypeError(
-      `A frame candidate ID input must be an object with exactly ${CANDIDATE_ID_KEYS.join(
+      `A panel camera observation ID input must be an object with exactly ${OBSERVATION_ID_KEYS.join(
         ", ",
       )}; received ${describe(input)}.`,
     );
   }
-  const { stepNumber, documentHash, frame: suppliedFrame } = input;
+  const { stepNumber, documentHash, registration: suppliedRegistration } = input;
   if (!Number.isSafeInteger(stepNumber) || stepNumber < 1) {
     throw new RangeError(
-      `Frame candidate stepNumber must be a positive safe integer; received ${describe(stepNumber)}.`,
+      `Panel camera observation stepNumber must be a positive safe integer; received ${describe(stepNumber)}.`,
     );
   }
   if (typeof documentHash !== "string" || !DIGEST_PATTERN.test(documentHash)) {
     throw new TypeError(
-      `Frame candidate documentHash must be a lowercase sha256 digest; received ${describe(
+      `Panel camera observation documentHash must be a lowercase sha256 digest; received ${describe(
         documentHash,
       )}.`,
     );
   }
-  const frame = createRealBuildLatticeFrame(suppliedFrame);
-  const [x, y] = frame.shiftPx;
+  const registration = createRealBuildPanelCameraRegistration(suppliedRegistration);
+  const [x, y] = registration.shiftPx;
   return (
-    `step-${String(stepNumber).padStart(3, "0")}:${documentHash}:frame:` +
-    `${frame.latticeHand}:d${frame.latticeDeterminant}:q${String(frame.turnDegrees).padStart(3, "0")}:x${x}:y${y}`
+    `step-${String(stepNumber).padStart(3, "0")}:${documentHash}:panel-camera:` +
+    `${registration.latticeHand}:d${registration.latticeDeterminant}:p${String(
+      registration.registrationPanelStepNumber,
+    ).padStart(3, "0")}:q${String(registration.turnDegrees).padStart(3, "0")}:x${x}:y${y}`
   );
 }
