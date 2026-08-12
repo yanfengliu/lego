@@ -50,16 +50,18 @@ Remove-Item Env:LEGO_REAL_BUILD_REQUIRED -ErrorAction SilentlyContinue
 Remove-Item Env:LEGO_REAL_BUILD_LAST_STEP -ErrorAction SilentlyContinue
 ```
 
-### Camera-hand registration is not yet in the runner
+### Camera-hand registration and frame lineage are not yet in the runner
 
-The repository now has a pure `LatticeHand` view transform and `anchorStepCameraLatticeFrame` registration primitive. It scores four as-fitted quarter turns and four x-reflected quarter turns, retains a separate translation for every hypothesis, and returns `camera-handedness-unresolved` instead of selecting by enumeration order when the best exact score spans both hands. The retained-build command above still reaches `prepareRunStepCamera` through the proper-only anchor and does not put hand, determinant, turn, or translation into candidate IDs, arrow interpretation, fixed-ledger transforms, or retained lineage; running it therefore does not repair or supersede the current mirrored diagnostic.
+The repository now has a pure `LatticeHand` view transform and `anchorStepCameraLatticeFrame` registration primitive. It scores four as-fitted quarter turns and four x-reflected quarter turns, retains a separate translation for every hypothesis, and returns `camera-handedness-unresolved` instead of selecting by enumeration order when the best exact score spans both hands. A separate `RealBuildLatticeFrame` boundary validates, copies, and deeply freezes `{latticeHand,latticeDeterminant,turnDegrees,shiftPx}`; its view and q0/as-fitted arrow-family transforms apply the quarter turn before the optional hand reflection, and its candidate ID binds the full frame so equal document bytes in opposite frames cannot alias.
+
+The retained-build command above still reaches `prepareRunStepCamera` through the proper-only anchor. Runner scoring, reports, farther branch state and lineage, fixed-ledger omissions, and `multi-build-copy` actions do not call the frame boundary, so current run IDs and records remain frame-blind. Running the command therefore does not repair or supersede the current mirrored diagnostic; wiring this one frame state through those paths is the next ordered unit.
 
 The synthetic chiral regression selects x-reflected turn 90 at shift `[17,-23]` with IoU 1, versus about 0.476 for the best proper-hand hypothesis. A symmetric 2x4 plate reaches IoU 1 in both hands and is refused with all eight attempts retained. These are binary-silhouette measurements only: reflection reverses depth, so they do not establish RGB or occlusion equivalence and do not authorize a physical document branch.
 
 Exercise only that bounded primitive with:
 
 ```powershell
-npx.cmd vitest run apps/web/src/assembly/panel-face.test.ts apps/web/test/real-build-step-camera.test.ts apps/web/test/real-build-step-camera-handedness.test.ts
+npx.cmd vitest run apps/web/src/assembly/panel-face.test.ts apps/web/test/real-build-step-camera.test.ts apps/web/test/real-build-step-camera-handedness.test.ts apps/web/test/real-build-lattice-frame.test.ts
 ```
 
 The default output root is `output/real-build`. Once artifact-closure verification succeeds, publication writes an immutable run under `<output-root>/runs/<run-id>/` and atomically updates `<output-root>/runs/current.json` even when the retained run result is a failed diagnostic such as `source-drift-detected`; that status prevents finalization, not diagnostic publication. Current publication uses artifact-manifest schema `/3` and score schema `/4`, which distinguish an optional `diagnostic-prefix.json` from canonical `document.json`. An interruption or artifact-verification failure before publication must not replace the pointer. `LEGO_REAL_BUILD_OUT` may redirect the published run only to another traversal-free descendant of `output/`; it does not redirect the retained inputs listed above.

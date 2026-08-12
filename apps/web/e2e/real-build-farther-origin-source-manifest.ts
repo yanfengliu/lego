@@ -101,7 +101,7 @@ export function isRealBuildSourceAttestation(value: unknown): value is RealBuild
 export const MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION: RealBuildSourceAttestation = Object.freeze(
   {
     schemaVersion: REAL_BUILD_SOURCE_ATTESTATION_SCHEMA_VERSION,
-    fileCount: 3_070,
-    digest: "sha256:8f15d52bd94a25816f8e8b2b52eccf15443bf3644bc84c928234f423945de6bb",
+    fileCount: 3_071,
+    digest: "sha256:de6cd956a985a60c744a22162c29f3dd5c327f20c405b26bd02751bbe0f94602",
   },
 );

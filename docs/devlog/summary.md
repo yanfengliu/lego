@@ -2,6 +2,8 @@
 
 Current state belongs in the design documents; this index records only behaviour changes, measured results, and links to the matching detailed history.
 
+- [2026-08-12 (frame lineage contract)](detailed/2026-08-12_2026-08-12.md) — A validated, deeply frozen lattice-frame value now applies turn-before-hand view and arrow transforms and gives equal document bytes frame-qualified candidate IDs; runner, scoring, report, farther-lineage, and fixed-action integration remain the next unit.
+
 - [2026-08-12 (handedness primitive)](detailed/2026-08-12_2026-08-12.md) — Determinant-aware silhouette registration now measures all eight camera hand-and-turn hypotheses: a chiral fixture selects x-reflected turn 90 at `[17,-23]` with IoU 1 versus about 0.476 proper, while a symmetric 2x4 plate ties both hands at 1 and is refused; real-booklet frame, lineage, arrow, and fixed-action integration remain open.
 
 - [2026-08-12 (target audit)](detailed/2026-08-12_2026-08-12.md) — Deterministic finalization now exhausts proper upright target frames over complete catalog realization; the measured prefix is uniquely proper through step 2, then step-3 `6106` leaves only an eight-placement physical x-reflection diagnostic with 30 inferred contacts and mismatched flat render topology, so canonical output remains 0/null.
