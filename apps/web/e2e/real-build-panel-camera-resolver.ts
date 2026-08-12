@@ -1,17 +1,14 @@
-import type { Sha256Digest } from "@lego-studio/brick-kernel";
+import { sha256Hex, type Sha256Digest } from "@lego-studio/brick-kernel";
 
+import type { RealBuildPanelCameraBranch } from "./real-build-panel-camera-branches";
+import { type RealBuildPanelCameraBranchBudgetLedger } from "./real-build-panel-camera-branch-budget";
 import {
-  admitRealBuildPanelCameraBranches,
-  type RealBuildPanelCameraBranch,
-} from "./real-build-panel-camera-branches";
-import {
-  createRealBuildPanelCameraBranchBudgetLedger,
-  type RealBuildPanelCameraBranchBudgetFailure,
-  type RealBuildPanelCameraBranchBudgetLedger,
-} from "./real-build-panel-camera-branch-budget";
-import { createRealBuildPanelCameraRegistration } from "./real-build-panel-camera-registration";
+  createRealBuildPanelCameraRegistration,
+  realBuildPanelCameraObservationId,
+} from "./real-build-panel-camera-registration";
 import {
   describePanelCameraValue as describe,
+  describePanelCameraThrown as describeThrown,
   hasExactPanelCameraKeys as hasExactKeys,
   isPanelCameraRecord as isRecord,
   PANEL_CAMERA_ANGULAR_HYPOTHESES as ANGULAR_HYPOTHESES,
@@ -21,6 +18,7 @@ import {
   requireCoherentPanelCameraLedger as requireCoherentLedger,
   samePanelCameraLedger as sameLedger,
   snapshotPanelCameraDocument as snapshotDocument,
+  snapshotPanelCameraBinaryMask as snapshotBinaryMask,
   snapshotPanelCameraLedger as snapshotLedger,
   UNRESOLVED_PANEL_CAMERA_PHYSICAL_FRAME as physicalFrameDecision,
   type RealBuildPanelCameraDocument as CameraDocument,
@@ -31,6 +29,17 @@ import {
   type StepCameraLatticeHypothesis,
 } from "./real-build-step-camera";
 import type { StepFailure } from "./real-build-safety";
+import type {
+  RealBuildPanelCameraPrefixInput,
+  RealBuildPanelCameraResolution,
+} from "./real-build-panel-camera-resolver-types";
+
+export type {
+  RealBuildPanelCameraAngularSeed,
+  RealBuildPanelCameraPrefixInput,
+  RealBuildPanelCameraResolution,
+  RealBuildResolvedPanelCameraObservation,
+} from "./real-build-panel-camera-resolver-types";
 
 const INPUT_KEYS = [
   "builtMask",
@@ -46,59 +55,6 @@ const INPUT_KEYS = [
 const PREFIX_KEYS = ["document", "documentHash", "parentLineageId", "throughStepNumber"] as const;
 const MAX_CAMERA_PIXELS = 16_777_216;
 const LINEAGE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:@-]{0,255}$/u;
-
-export interface RealBuildPanelCameraPrefixInput<D extends CameraDocument> {
-  readonly throughStepNumber: number;
-  readonly parentLineageId: string | null;
-  readonly document: D;
-  readonly documentHash: Sha256Digest;
-}
-
-export interface RealBuildPanelCameraAngularSeed<D> {
-  readonly candidateId: string;
-  readonly lineageId: string;
-  readonly parentLineageId: string | null;
-  readonly throughStepNumber: 0;
-  readonly document: D;
-  readonly registrationPanelStepNumber: number;
-  readonly latticeHand: StepCameraLatticeHypothesis["latticeHand"];
-  readonly latticeDeterminant: 1 | -1;
-  readonly turnDegrees: StepCameraLatticeHypothesis["turnDegrees"];
-  readonly registrationStatus: "unregistered";
-  readonly observationId: null;
-  readonly shiftPx: null;
-}
-
-export interface RealBuildResolvedPanelCameraObservation<D> extends RealBuildPanelCameraBranch<D> {
-  readonly lineageId: string;
-  readonly parentLineageId: string | null;
-}
-
-export interface RealBuildPanelCameraResolution<D> {
-  readonly status: "seeded" | "observed" | "unresolved" | "failed" | "budget-refused";
-  readonly candidateId: string;
-  readonly parentLineageId: string | null;
-  readonly documentHash: Sha256Digest;
-  readonly throughStepNumber: number;
-  readonly registrationPanelStepNumber: number;
-  readonly seeds: readonly RealBuildPanelCameraAngularSeed<D>[];
-  readonly attempts: readonly StepCameraLatticeAttempt[];
-  readonly observations: readonly RealBuildResolvedPanelCameraObservation<D>[];
-  readonly selectedObservationId: string | null;
-  readonly failure: StepFailure | null;
-  readonly reservation: {
-    readonly budget: number;
-    readonly reservedBefore: number;
-    readonly requested: number;
-    readonly reservedAfter: number;
-    readonly failure: RealBuildPanelCameraBranchBudgetFailure | null;
-  };
-  readonly physicalFrameDecision: {
-    readonly status: "unresolved";
-    readonly authorizedTransform: null;
-    readonly reason: "panel-camera-silhouette-is-not-physical-transform-authority";
-  };
-}
 
 export function resolveRealBuildPanelCameraBranches<D extends CameraDocument>(input: {
   readonly prefix: RealBuildPanelCameraPrefixInput<D>;
@@ -194,21 +150,18 @@ export function resolveRealBuildPanelCameraBranches<D extends CameraDocument>(in
     );
   }
   const pixelCount = widthPx * heightPx;
-  if (!(builtMask instanceof Uint8Array) || builtMask.length !== pixelCount) {
-    throw new RangeError(
-      `Panel-camera builtMask must be a Uint8Array of exactly ${pixelCount} pixels; received ${describe(builtMask)}.`,
-    );
-  }
-  if (
-    excludedMask !== null &&
-    (!(excludedMask instanceof Uint8Array) || excludedMask.length !== pixelCount)
-  ) {
-    throw new RangeError(
-      `Panel-camera excludedMask must be null or a Uint8Array of exactly ${pixelCount} pixels; received ${describe(excludedMask)}.`,
-    );
-  }
-  const builtMaskSnapshot = new Uint8Array(builtMask);
-  const excludedMaskSnapshot = excludedMask === null ? null : new Uint8Array(excludedMask);
+  const builtMaskSnapshot = snapshotBinaryMask(builtMask, pixelCount, "Panel-camera builtMask");
+  const excludedMaskSnapshot =
+    excludedMask === null
+      ? null
+      : snapshotBinaryMask(excludedMask, pixelCount, "Panel-camera excludedMask");
+  const rasterMeasurement = Object.freeze({
+    widthPx,
+    heightPx,
+    builtMaskDigest: `sha256:${sha256Hex(builtMaskSnapshot)}`,
+    excludedMaskDigest:
+      excludedMaskSnapshot === null ? null : `sha256:${sha256Hex(excludedMaskSnapshot)}`,
+  });
 
   const detachedDocument = snapshotDocument<D>(document);
   const partCount = detachedDocument.parts.length;
@@ -246,7 +199,7 @@ export function resolveRealBuildPanelCameraBranches<D extends CameraDocument>(in
   }
   if (hashError !== null) {
     throw new TypeError(
-      `Panel-camera prefix ${JSON.stringify(candidateId)} hash verification failed before budget or rendering. ${hashError instanceof Error ? hashError.message : String(hashError)}`,
+      `Panel-camera prefix ${JSON.stringify(candidateId)} hash verification failed before budget or rendering. ${describeThrown(hashError)}`,
       { cause: hashError },
     );
   }
@@ -268,6 +221,7 @@ export function resolveRealBuildPanelCameraBranches<D extends CameraDocument>(in
     throughStepNumber,
     registrationPanelStepNumber,
     physicalFrameDecision,
+    rasterMeasurement,
   };
   const requested = ANGULAR_HYPOTHESES.length;
   let reservationAnswer: unknown;
@@ -280,7 +234,7 @@ export function resolveRealBuildPanelCameraBranches<D extends CameraDocument>(in
   const ledgerAfterReservation = snapshotLedger(ledger);
   if (reservationError !== null) {
     throw new TypeError(
-      `Panel-camera ledger tryReserve(${requested}) threw after changing state from ${describe(ledgerBeforeHash)} to ${describe(ledgerAfterReservation)}; no render ran and the ledger must be discarded. ${reservationError instanceof Error ? reservationError.message : String(reservationError)}`,
+      `Panel-camera ledger tryReserve(${requested}) threw after changing state from ${describe(ledgerBeforeHash)} to ${describe(ledgerAfterReservation)}; no render ran and the ledger must be discarded. ${describeThrown(reservationError)}`,
       { cause: reservationError },
     );
   }
@@ -329,6 +283,7 @@ export function resolveRealBuildPanelCameraBranches<D extends CameraDocument>(in
       status: "budget-refused" as const,
       seeds: Object.freeze([]),
       attempts: Object.freeze([]),
+      renderMaskDigests: Object.freeze([]),
       observations: Object.freeze([]),
       selectedObservationId: null,
       failure,
@@ -362,6 +317,7 @@ export function resolveRealBuildPanelCameraBranches<D extends CameraDocument>(in
       status: "seeded" as const,
       seeds,
       attempts: Object.freeze([]),
+      renderMaskDigests: Object.freeze([]),
       observations: Object.freeze([]),
       selectedObservationId: null,
       failure: null,
@@ -370,6 +326,9 @@ export function resolveRealBuildPanelCameraBranches<D extends CameraDocument>(in
   }
 
   const renderFailures: string[] = [];
+  const renderMaskDigestByHypothesis = new Map<string, string | null>();
+  const hypothesisKey = (hypothesis: StepCameraLatticeHypothesis): string =>
+    `${hypothesis.latticeHand}:${hypothesis.turnDegrees}`;
   const registration = anchorStepCameraLatticeFrame({
     stepNumber: registrationPanelStepNumber,
     builtMask: builtMaskSnapshot,
@@ -398,18 +357,30 @@ export function resolveRealBuildPanelCameraBranches<D extends CameraDocument>(in
         );
       }
       if (callbackError !== null) {
+        renderMaskDigestByHypothesis.set(hypothesisKey(hypothesis), null);
         renderFailures.push(
-          `${hypothesis.latticeHand} turn ${hypothesis.turnDegrees} threw ${callbackError instanceof Error ? callbackError.message : String(callbackError)}`,
+          `${hypothesis.latticeHand} turn ${hypothesis.turnDegrees} threw ${describeThrown(callbackError)}`,
         );
         return new Uint8Array(pixelCount);
       }
-      if (!(mask instanceof Uint8Array) || mask.length !== pixelCount) {
+      try {
+        const snapshot = snapshotBinaryMask(
+          mask,
+          pixelCount,
+          `The ${hypothesis.latticeHand} turn-${hypothesis.turnDegrees} model mask`,
+        );
+        renderMaskDigestByHypothesis.set(
+          hypothesisKey(hypothesis),
+          `sha256:${sha256Hex(snapshot)}`,
+        );
+        return snapshot;
+      } catch (error) {
+        renderMaskDigestByHypothesis.set(hypothesisKey(hypothesis), null);
         renderFailures.push(
-          `${hypothesis.latticeHand} turn ${hypothesis.turnDegrees} returned ${describe(mask)}; required Uint8Array(${pixelCount})`,
+          `${hypothesis.latticeHand} turn ${hypothesis.turnDegrees} returned malformed raster evidence: ${describeThrown(error)}`,
         );
         return new Uint8Array(pixelCount);
       }
-      return mask;
     },
   });
 
@@ -432,30 +403,33 @@ export function resolveRealBuildPanelCameraBranches<D extends CameraDocument>(in
       }),
       silhouetteIou: attempt.iou,
     }));
-  const admitted =
-    rows.length === 0
-      ? null
-      : admitRealBuildPanelCameraBranches({
-          rows,
-          ledger: createRealBuildPanelCameraBranchBudgetLedger(rows.length),
-          hashDocument: () => documentHash,
-        });
-  if (admitted !== null && admitted.status !== "admitted") {
-    throw new TypeError(
-      `Panel-camera resolver's exact-capacity internal admission refused ${rows.length} prepared observations; this is an implementation error.`,
-    );
-  }
   const observations = Object.freeze(
-    (admitted?.branches ?? []).map((branch) =>
-      Object.freeze({
+    rows.map((row) => {
+      const observationId = realBuildPanelCameraObservationId({
+        candidateId: row.candidateId,
+        registration: row.registration,
+      });
+      const branch: RealBuildPanelCameraBranch<D> = Object.freeze({
+        candidateId: row.candidateId,
+        observationId,
+        throughStepNumber: row.throughStepNumber,
+        document: row.document,
+        documentHash: row.documentHash,
+        registration: row.registration,
+        silhouetteRegistration: Object.freeze({
+          authority: "binary-silhouette-registration" as const,
+          iou: row.silhouetteIou,
+        }),
+      });
+      return Object.freeze({
         ...branch,
         lineageId: realBuildPanelCameraLineageId({
           parentLineageId,
           localIdentity: branch.observationId,
         }),
         parentLineageId,
-      }),
-    ),
+      });
+    }),
   );
   const selectedObservationId =
     registration.selected === null
@@ -488,6 +462,11 @@ export function resolveRealBuildPanelCameraBranches<D extends CameraDocument>(in
     status,
     seeds: Object.freeze([]),
     attempts: registration.rankedHypotheses,
+    renderMaskDigests: Object.freeze(
+      registration.rankedHypotheses.map(
+        (attempt) => renderMaskDigestByHypothesis.get(hypothesisKey(attempt)) ?? null,
+      ),
+    ),
     observations,
     selectedObservationId: renderFailure === null ? selectedObservationId : null,
     failure,

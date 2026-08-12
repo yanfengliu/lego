@@ -540,6 +540,10 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
     // Step 1 alone is a 400-candidate product: four yaws of the quarter ring on
     // the empty plate times a hundred distinct seats for the round plate on each.
     deferredCandidateBudget: 512,
+    // Provisional aggregate ceiling for retained candidate/camera lineage slots
+    // across the run. D4 groups reserve eight slots atomically. This does not
+    // bound renders: multiple parent lineages may share one candidate render.
+    panelCameraBranchBudget: 8_192,
     // An exploded step renders every whole-step candidate once per member of
     // the arrow's travel family, so this bounds a product rather than a set:
     // printed step 2 is 105 candidates by 22 members. Sized from measured cost —
@@ -718,7 +722,7 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
         )) as RealBuildBrowserOutput;
       } catch (error) {
         browserOutput = {
-          schemaVersion: "lego.real-build-browser-output/2",
+          schemaVersion: "lego.real-build-browser-output/3",
           status: "failed",
           reports: [],
           documentJson: null,
@@ -764,7 +768,7 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
       ];
       if (drift.length > 0) {
         browserOutput = {
-          schemaVersion: "lego.real-build-browser-output/2",
+          schemaVersion: "lego.real-build-browser-output/3",
           status: "failed",
           reports: browserOutput.reports,
           documentJson: browserOutput.documentJson,
@@ -961,7 +965,7 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
       `retained unauthenticated evidence ${published}`,
   );
 
-  expect(result.schemaVersion).toBe("lego.real-build-result/4");
+  expect(result.schemaVersion).toBe("lego.real-build-result/5");
   expect(result.inputDigests).toEqual(inputDigests);
   if (result.status === "completed") {
     const executionFailure = realBuildExecutionFailure(result);

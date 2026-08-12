@@ -30,9 +30,7 @@ import {
   verifyRealBuildArtifactManifest,
   writeRealBuildArtifactManifest,
 } from "../e2e/real-build-artifacts";
-import { decodeRealBuildPngCapture } from "../e2e/real-build-browser-output";
 import { finalizeExecutedRealBuildResult } from "../e2e/real-build-finalize";
-import { REAL_BUILD_DIAGNOSTIC_PREFIX_FILE } from "../e2e/real-build-diagnostic-prefix";
 import {
   replayRealBuildFinalization,
   replayRealBuildFinalizationDiagnostic,
@@ -64,7 +62,6 @@ import {
   REAL_BUILD_SOURCE_ROOT_POLICY_PATH,
 } from "../e2e/real-build-bootstrap-source";
 import { realBuildRunBudgets, realBuildRunThresholds } from "../e2e/real-build-run-contract";
-import { realBuildFartherCapturePath } from "../e2e/real-build-score";
 import { REAL_BUILD_TEST_DIGEST } from "./real-build-test-options";
 import { SYNTHETIC_IDENTIFICATION_GOLDEN } from "./real-build-identification-golden";
 import {
@@ -293,39 +290,13 @@ describe("real-build replay closure", () => {
         options,
         browserOutput: retainedBrowserOutput,
       });
-      if (result.diagnosticPrefix === null)
-        throw new Error(
-          `Replay fixture finalizer lost its frame-unreconciled diagnostic prefix: ` +
-            JSON.stringify(result.completionFailures),
-        );
       expect(result).toMatchObject({
         status: "incomplete",
-        completionFailures: expect.arrayContaining([
-          expect.objectContaining({
-            code: "official-frame-calibration-missing",
-            stepNumber: 1,
-          }),
-        ]),
-        diagnosticPrefix: {
-          throughStepNumber: 1,
-          targetEquivalence: "unreconciled",
-          parts: 2,
-        },
+        diagnosticPrefix: null,
         documentJson: null,
         structuralHash: null,
         finalParts: 0,
       });
-      writeFileSync(
-        join(run.directory, REAL_BUILD_DIAGNOSTIC_PREFIX_FILE),
-        result.diagnosticPrefix.documentJson,
-      );
-      const fartherCapturePaths = retainedBrowserOutput.reports.flatMap((step) =>
-        step.fartherCaptures.map((capture) => {
-          const path = realBuildFartherCapturePath(step.stepNumber, capture);
-          writeFileSync(join(run.directory, path), decodeRealBuildPngCapture(capture.png));
-          return path;
-        }),
-      );
       writeFileSync(
         join(run.directory, "score.json"),
         `${JSON.stringify(
@@ -344,13 +315,7 @@ describe("real-build replay closure", () => {
         runId: plan.runId,
         runContract,
         result,
-        artifactFiles: [
-          REAL_BUILD_SERVED_RESPONSE_MANIFEST,
-          runnerChunk,
-          ...fartherCapturePaths,
-          REAL_BUILD_DIAGNOSTIC_PREFIX_FILE,
-          "score.json",
-        ],
+        artifactFiles: [REAL_BUILD_SERVED_RESPONSE_MANIFEST, runnerChunk, "score.json"],
         replayClosure,
       });
       mkdirSync(plan.pointerPath);
@@ -417,27 +382,25 @@ describe("real-build replay closure", () => {
       writeFileSync(scorePath, originalScore);
       writeFileSync(artifactManifestPath, originalArtifactManifest);
 
-      const forgedDiagnosticScore = JSON.parse(originalScore.toString("utf8")) as {
-        diagnosticPrefix: { throughStepNumber: number };
+      const mixedGenerationScore = JSON.parse(originalScore.toString("utf8")) as {
+        schemaVersion: string;
       };
-      forgedDiagnosticScore.diagnosticPrefix.throughStepNumber = 2;
-      const forgedDiagnosticScoreBytes = Buffer.from(
-        `${JSON.stringify(forgedDiagnosticScore, null, 1)}\n`,
+      mixedGenerationScore.schemaVersion = "lego.real-build-score/4";
+      const mixedGenerationScoreBytes = Buffer.from(
+        `${JSON.stringify(mixedGenerationScore, null, 1)}\n`,
       );
-      writeFileSync(scorePath, forgedDiagnosticScoreBytes);
-      const forgedDiagnosticManifest = JSON.parse(originalArtifactManifest.toString("utf8")) as {
-        truthSnapshots: { diagnosticPrefix: { throughStepNumber: number } };
+      writeFileSync(scorePath, mixedGenerationScoreBytes);
+      const mixedGenerationManifest = JSON.parse(originalArtifactManifest.toString("utf8")) as {
         artifacts: { file: string; bytes: number; digest: string }[];
       };
-      forgedDiagnosticManifest.truthSnapshots.diagnosticPrefix.throughStepNumber = 2;
-      const forgedDiagnosticScoreEntry = forgedDiagnosticManifest.artifacts.find(
+      const mixedGenerationEntry = mixedGenerationManifest.artifacts.find(
         ({ file }) => file === "score.json",
       )!;
-      forgedDiagnosticScoreEntry.bytes = forgedDiagnosticScoreBytes.length;
-      forgedDiagnosticScoreEntry.digest = sha256Digest(forgedDiagnosticScoreBytes);
-      writeFileSync(artifactManifestPath, `${JSON.stringify(forgedDiagnosticManifest, null, 1)}\n`);
+      mixedGenerationEntry.bytes = mixedGenerationScoreBytes.length;
+      mixedGenerationEntry.digest = sha256Digest(mixedGenerationScoreBytes);
+      writeFileSync(artifactManifestPath, `${JSON.stringify(mixedGenerationManifest, null, 1)}\n`);
       expect(() => verifyRealBuildArtifactManifest(published, plan.runId)).toThrow(
-        /does not exactly reproduce|exact longest atomic prefix 1/u,
+        /Retained score must bind/u,
       );
       writeFileSync(scorePath, originalScore);
       writeFileSync(artifactManifestPath, originalArtifactManifest);
@@ -448,51 +411,13 @@ describe("real-build replay closure", () => {
       );
       rmSync(join(published, "document.json"));
 
-      rmSync(join(published, REAL_BUILD_DIAGNOSTIC_PREFIX_FILE));
-      writeFileSync(scorePath, originalScore);
-      const strippedManifest = JSON.parse(originalArtifactManifest.toString("utf8")) as {
-        truthSnapshots: { diagnosticPrefix: unknown };
-        artifacts: { file: string; bytes: number; digest: string }[];
-      };
-      strippedManifest.truthSnapshots.diagnosticPrefix = null;
-      strippedManifest.artifacts = strippedManifest.artifacts.filter(
-        ({ file }) => file !== REAL_BUILD_DIAGNOSTIC_PREFIX_FILE,
-      );
-      writeFileSync(artifactManifestPath, `${JSON.stringify(strippedManifest, null, 1)}\n`);
-      expect(() => verifyRealBuildArtifactManifest(published, plan.runId)).toThrow(
-        /must bind the artifact run|does not exactly reproduce/u,
-      );
-      writeFileSync(
-        join(published, REAL_BUILD_DIAGNOSTIC_PREFIX_FILE),
-        result.diagnosticPrefix.documentJson,
-      );
-      writeFileSync(artifactManifestPath, originalArtifactManifest);
-
-      const fartherCapturePath = join(published, fartherCapturePaths[0]!);
-      const originalFartherCapture = readFileSync(fartherCapturePath);
-      const forgedFartherCapture = Buffer.concat([originalFartherCapture, Buffer.from([0])]);
-      writeFileSync(fartherCapturePath, forgedFartherCapture);
-      const rehashedFartherManifest = JSON.parse(originalArtifactManifest.toString("utf8")) as {
-        artifacts: { file: string; bytes: number; digest: string }[];
-      };
-      const fartherEntry = rehashedFartherManifest.artifacts.find(
-        ({ file }) => file === fartherCapturePaths[0],
-      )!;
-      fartherEntry.bytes = forgedFartherCapture.length;
-      fartherEntry.digest = sha256Digest(forgedFartherCapture);
-      writeFileSync(artifactManifestPath, `${JSON.stringify(rehashedFartherManifest, null, 1)}\n`);
-      expect(() => verifyRealBuildArtifactManifest(published, plan.runId)).toThrow(
-        /does not equal its exact browser-output metadata and PNG bytes/u,
-      );
-      writeFileSync(fartherCapturePath, originalFartherCapture);
-      writeFileSync(artifactManifestPath, originalArtifactManifest);
-
       const inspected = inspectRealBuildReplayClosure(published);
       expect(inspected).toMatchObject({
         authority: "local-diagnostic",
         authenticated: false,
         replayLevel: "downstream-only",
         contractDigest: runContract.contractDigest,
+        contractSchemaVersion: "lego.real-build-run-contract/3",
       });
       expect(inspected.roleTrace.map(({ role }) => role)).toContain("builder-geometry");
       expect(inspected.roleTrace.map(({ role }) => role)).toEqual(

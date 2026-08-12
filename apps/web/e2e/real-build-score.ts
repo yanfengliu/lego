@@ -6,7 +6,7 @@ import {
 } from "./real-build-safety";
 import { realBuildDiagnosticPrefixSummary } from "./real-build-diagnostic-prefix";
 
-export const REAL_BUILD_SCORE_SCHEMA = "lego.real-build-score/4" as const;
+export const REAL_BUILD_SCORE_SCHEMA = "lego.real-build-score/5" as const;
 
 const capturePath = (stepNumber: number, kind: "panel" | "build"): string =>
   `step-${String(stepNumber).padStart(3, "0")}-${kind}.png`;

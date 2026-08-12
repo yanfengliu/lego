@@ -509,7 +509,7 @@ export function finalizeExecutedRealBuildResult(input: {
       message: `Trusted finalizer rejected retained run options: ${failure.message}`,
     }));
     return trustFinalizedResult({
-      schemaVersion: "lego.real-build-result/4",
+      schemaVersion: "lego.real-build-result/5",
       authority: LOCAL_REAL_BUILD_AUTHORITY,
       status: "incomplete",
       requestedLastStep: 0,
@@ -648,7 +648,7 @@ export function finalizeExecutedRealBuildResult(input: {
       ? "incomplete"
       : "prefix-complete";
   const result: RealBuildResult = {
-    schemaVersion: "lego.real-build-result/4",
+    schemaVersion: "lego.real-build-result/5",
     authority: LOCAL_REAL_BUILD_AUTHORITY,
     status,
     requestedLastStep: input.options.lastStep,

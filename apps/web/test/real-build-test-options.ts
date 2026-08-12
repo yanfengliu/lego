@@ -156,6 +156,8 @@ export function completeRealBuildTestOptions(lastStep: number): RealBuildOptions
     maxRendersPerPiece: 220,
     blindRenderBudget: 220,
     deferredCandidateBudget: 512,
+    // Provisional aggregate panel-camera lineage-slot ceiling, not a render budget.
+    panelCameraBranchBudget: 8_192,
     deferredNarrowingRenderBudget: 4_096,
     fartherPanelMaximumReachSteps: 2,
     fartherPanelRenderBudget: 16,

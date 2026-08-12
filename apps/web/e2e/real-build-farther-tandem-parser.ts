@@ -3,6 +3,7 @@ import {
   measuredFartherOriginKReportIneligibility,
 } from "./real-build-farther-origin-policy";
 import type { RealBuildOptions, RealBuildPanelSpec } from "./real-build-safety";
+import type { RealBuildSourceAttestation } from "./real-build-farther-origin-source-manifest";
 import { isRecord } from "./real-build-farther-report-validation";
 
 type MeasuredFartherOriginOptions = Parameters<
@@ -19,6 +20,7 @@ export function isRealBuildFartherDirectOriginTandemCoherent(input: {
   readonly preparedOriginPanel: RealBuildPanelSpec;
   readonly originCandidates: readonly Record<string, unknown>[];
   readonly options: MeasuredFartherOriginOptions;
+  readonly expectedSourceAttestation?: RealBuildSourceAttestation;
 }): boolean {
   const {
     reportStepNumber,
@@ -29,6 +31,7 @@ export function isRealBuildFartherDirectOriginTandemCoherent(input: {
     preparedOriginPanel,
     originCandidates,
     options,
+    expectedSourceAttestation,
   } = input;
   // A zero-panel budget refusal and an N+1-only origin observation are generic
   // driver states. Only a carry-free report that claims to have reached K is
@@ -53,6 +56,7 @@ export function isRealBuildFartherDirectOriginTandemCoherent(input: {
         typeof measuredFartherOriginProbeIneligibility
       >[0]["origins"],
       options,
+      ...(expectedSourceAttestation === undefined ? {} : { expectedSourceAttestation }),
     }) !== null
   ) {
     return false;

@@ -1,15 +1,53 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  isRealBuildBrowserOutput,
-  readRealBuildBrowserOutput,
-} from "../e2e/real-build-browser-output";
+import { inspectFrozenLegacyBrowserOutputV2 } from "../e2e/real-build-artifact-legacy-browser-v2";
 import {
   isRealBuildFartherCaptures,
   isRealBuildFartherEvidence,
 } from "../e2e/real-build-farther-report-parser";
 import type { RealBuildOptions } from "../e2e/real-build-safety";
-import { DIGEST, PNG, browserOutput, options } from "./real-build-adversarial-fixtures";
+import {
+  completeReport,
+  DIGEST,
+  documentJson,
+  PNG,
+  options,
+} from "./real-build-adversarial-fixtures";
+
+const frozenLegacyBrowserOutput = (lastStep: number) => ({
+  schemaVersion: "lego.real-build-browser-output/2" as const,
+  status: "executed" as const,
+  reports: Array.from({ length: lastStep }, (_, index) =>
+    Object.fromEntries(
+      Object.entries(completeReport(index + 1)).filter(([key]) => key !== "panelCamera"),
+    ),
+  ),
+  documentJson: documentJson(lastStep),
+  identityBindings: [],
+  fetchedPdfDigest: DIGEST,
+  totalElapsedMs: lastStep,
+});
+
+const isFrozenLegacyBrowserOutput = (
+  value: unknown,
+  preparedOptions: RealBuildOptions,
+): boolean => {
+  try {
+    inspectFrozenLegacyBrowserOutputV2(value, preparedOptions);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const frozenLegacyFailure = (value: unknown, preparedOptions: RealBuildOptions): string => {
+  try {
+    inspectFrozenLegacyBrowserOutputV2(value, preparedOptions);
+    return "";
+  } catch (error) {
+    return error instanceof Error ? error.message : "Legacy inspection failed without an Error.";
+  }
+};
 
 describe("real build farther report adversarial contracts", () => {
   it("accepts only exact, bounded, lineage-complete farther evidence and captures", () => {
@@ -58,7 +96,7 @@ describe("real build farther report adversarial contracts", () => {
           : panel,
       ),
     };
-    const honest = browserOutput(1);
+    const honest = frozenLegacyBrowserOutput(1);
     const originDeferral = {
       trigger: "unseparated-by-own-panel" as const,
       ownPanelMargin: 0.1,
@@ -241,7 +279,7 @@ describe("real build farther report adversarial contracts", () => {
       ...candidate,
       reports: [{ ...candidate.reports[0]!, farther: mutation }],
     });
-    expect(isRealBuildBrowserOutput(candidate, prepared)).toBe(true);
+    expect(isFrozenLegacyBrowserOutput(candidate, prepared)).toBe(true);
 
     const partialCarry = {
       ...farther.carries[0]!,
@@ -354,13 +392,19 @@ describe("real build farther report adversarial contracts", () => {
       reports: [
         {
           ...candidate.reports[0]!,
+          outcome: {
+            status: "failed" as const,
+            mechanism: "deferred" as const,
+            attemptedMechanism: "deferred-lookahead" as const,
+            failure: prePanelFarther.refusal,
+          },
           deferral: prePanelDeferral,
           farther: prePanelFarther,
           fartherCaptures: [],
         },
       ],
     };
-    expect(isRealBuildBrowserOutput(prePanelCandidate, prepared)).toBe(true);
+    expect(isFrozenLegacyBrowserOutput(prePanelCandidate, prepared)).toBe(true);
     for (const mutation of [
       {
         ...prePanelFarther,
@@ -378,7 +422,7 @@ describe("real build farther report adversarial contracts", () => {
       },
     ]) {
       expect(
-        isRealBuildBrowserOutput(
+        isFrozenLegacyBrowserOutput(
           {
             ...prePanelCandidate,
             reports: [{ ...prePanelCandidate.reports[0]!, farther: mutation }],
@@ -388,7 +432,7 @@ describe("real build farther report adversarial contracts", () => {
       ).toBe(false);
     }
     expect(
-      isRealBuildBrowserOutput(
+      isFrozenLegacyBrowserOutput(
         {
           ...prePanelCandidate,
           reports: [
@@ -402,7 +446,7 @@ describe("real build farther report adversarial contracts", () => {
       ),
     ).toBe(false);
     expect(
-      isRealBuildBrowserOutput(
+      isFrozenLegacyBrowserOutput(
         {
           ...prePanelCandidate,
           reports: [
@@ -494,7 +538,7 @@ describe("real build farther report adversarial contracts", () => {
     const deferralWithoutEnumeration = { ...originDeferral } as Record<string, unknown>;
     delete deferralWithoutEnumeration.narrowingRenders;
     expect(
-      isRealBuildBrowserOutput(
+      isFrozenLegacyBrowserOutput(
         {
           ...candidate,
           reports: [{ ...candidate.reports[0]!, deferral: deferralWithoutEnumeration }],
@@ -595,14 +639,13 @@ describe("real build farther report adversarial contracts", () => {
       },
     ];
     for (const mutation of fartherMutations) {
-      expect(isRealBuildBrowserOutput(mutateFarther(mutation), prepared)).toBe(false);
+      expect(isFrozenLegacyBrowserOutput(mutateFarther(mutation), prepared)).toBe(false);
     }
+    expect(frozenLegacyFailure(mutateFarther({ ...farther, extra: true }), prepared)).toContain(
+      "farther",
+    );
     expect(
-      readRealBuildBrowserOutput(mutateFarther({ ...farther, extra: true }), prepared)
-        .reportDefects[0],
-    ).toContain("report[0].farther");
-    expect(
-      readRealBuildBrowserOutput(
+      frozenLegacyFailure(
         {
           ...candidate,
           reports: [
@@ -613,10 +656,10 @@ describe("real build farther report adversarial contracts", () => {
           ],
         },
         prepared,
-      ).reportDefects[0],
-    ).toContain("deferral/farther cross-fields");
+      ),
+    ).toContain("deferral");
     expect(
-      isRealBuildBrowserOutput(
+      isFrozenLegacyBrowserOutput(
         {
           ...candidate,
           reports: [
@@ -630,7 +673,7 @@ describe("real build farther report adversarial contracts", () => {
       ),
     ).toBe(false);
     expect(
-      readRealBuildBrowserOutput(
+      frozenLegacyFailure(
         {
           ...candidate,
           reports: [
@@ -643,10 +686,10 @@ describe("real build farther report adversarial contracts", () => {
           ],
         },
         prepared,
-      ).reportDefects[0],
-    ).toContain("report[0].fartherCaptures");
+      ),
+    ).toContain("captures");
     expect(
-      isRealBuildBrowserOutput(
+      isFrozenLegacyBrowserOutput(
         {
           ...candidate,
           reports: [
@@ -707,7 +750,7 @@ describe("real build farther report adversarial contracts", () => {
       ],
     };
     expect(
-      isRealBuildBrowserOutput(
+      isFrozenLegacyBrowserOutput(
         mutateFarther({
           ...farther,
           carries: [carryWithRawPlacementOffers],
@@ -722,11 +765,11 @@ describe("real build farther report adversarial contracts", () => {
         prepared,
       ),
     ).toBe(true);
-    expect(isRealBuildBrowserOutput(mutateFarther({ ...farther, extra: true }), prepared)).toBe(
+    expect(isFrozenLegacyBrowserOutput(mutateFarther({ ...farther, extra: true }), prepared)).toBe(
       false,
     );
     expect(
-      isRealBuildBrowserOutput(
+      isFrozenLegacyBrowserOutput(
         mutateFarther({
           ...farther,
           carries: [
@@ -743,7 +786,7 @@ describe("real build farther report adversarial contracts", () => {
       ),
     ).toBe(false);
     expect(
-      isRealBuildBrowserOutput(
+      isFrozenLegacyBrowserOutput(
         mutateFarther({
           ...farther,
           decision: { ...farther.decision, descendantSettled: false },
@@ -752,7 +795,7 @@ describe("real build farther report adversarial contracts", () => {
       ),
     ).toBe(false);
     expect(
-      isRealBuildBrowserOutput(
+      isFrozenLegacyBrowserOutput(
         {
           ...candidate,
           reports: [
@@ -769,7 +812,7 @@ describe("real build farther report adversarial contracts", () => {
       ),
     ).toBe(false);
     expect(
-      isRealBuildBrowserOutput(
+      isFrozenLegacyBrowserOutput(
         {
           ...candidate,
           reports: [
@@ -834,7 +877,7 @@ describe("real build farther report adversarial contracts", () => {
     expect(isRealBuildFartherCaptures(fartherCapturesWithK.slice(0, 4), fartherWithK)).toBe(false);
 
     expect(
-      isRealBuildBrowserOutput(
+      isFrozenLegacyBrowserOutput(
         {
           ...candidate,
           reports: [
@@ -850,7 +893,7 @@ describe("real build farther report adversarial contracts", () => {
     ).toBe(false);
     const noKOptions = { ...prepared, fartherPanelMaximumReachSteps: 1 };
     expect(
-      isRealBuildBrowserOutput(
+      isFrozenLegacyBrowserOutput(
         {
           ...candidate,
           reports: [

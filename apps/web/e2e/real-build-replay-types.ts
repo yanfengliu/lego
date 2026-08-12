@@ -32,6 +32,8 @@ export interface RealBuildReplayInspection {
   readonly authenticated: false;
   readonly replayLevel: RealBuildReplayClosureManifest["replayLevel"];
   readonly contractDigest: string | null;
+  readonly contractSchemaVersion:
+    "lego.real-build-run-contract/2" | "lego.real-build-run-contract/3" | null;
   readonly roleTrace: readonly {
     readonly role: string;
     readonly digest: string;

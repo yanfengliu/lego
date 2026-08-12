@@ -14,6 +14,7 @@ import {
   REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST,
   REAL_BUILD_INPUT_ROLE_BY_DIGEST,
 } from "../e2e/real-build-run-contract";
+import { unexecutedStepReport } from "../e2e/real-build-contract";
 import {
   stepPrerequisiteFacts,
   type RealBuildOptions,
@@ -27,6 +28,10 @@ import {
   completeRealBuildTestOptions,
   realBuildTransitionPanel,
 } from "./real-build-test-options";
+import {
+  observedPanelCameraEvidence,
+  seededPanelCameraEvidence,
+} from "./real-build-panel-camera-evidence.fixture";
 
 const DIGEST = REAL_BUILD_TEST_DIGEST;
 const PNG = "data:image/png;base64,iVBORw0KGgo=";
@@ -159,7 +164,7 @@ const pieceReport = (index: number): RealBuildPieceReport => ({
   failure: null,
 });
 
-export function replayBrowserOutput(): RealBuildBrowserOutput {
+export function legacyDiagnosticReplayBrowserOutput(): RealBuildBrowserOutput {
   const base = createEmptyBrickDocument({ id: "replay", name: "replay", maxParts: 1_464 });
   const parts = replayPieces.map((piece, index) =>
     createPartInstance({
@@ -229,6 +234,11 @@ export function replayBrowserOutput(): RealBuildBrowserOutput {
       failure: null,
     },
     camera: null,
+    panelCamera: observedPanelCameraEvidence(
+      1,
+      replayOptions.panelCameraBranchBudget,
+      validation.targetDocumentHash as `sha256:${string}`,
+    ),
     highlight: { regions: 0, closedContourRate: 0, strokePx: 0, boundsPx: null },
     arrows: { kept: 0, redPx: 0, rejected: 0, displacementFamily: 0, displacementFamilyLdu: [] },
     pieces: [pieceReport(0), pieceReport(1)],
@@ -348,7 +358,7 @@ export function replayBrowserOutput(): RealBuildBrowserOutput {
     buildPng: null,
   };
   return {
-    schemaVersion: "lego.real-build-browser-output/2",
+    schemaVersion: "lego.real-build-browser-output/3",
     status: "executed",
     reports: [report],
     documentJson: JSON.stringify(document),
@@ -361,6 +371,34 @@ export function replayBrowserOutput(): RealBuildBrowserOutput {
       catalogPartId: piece.catalogPartId,
       colorId: piece.colorId,
     })),
+    fetchedPdfDigest: replayInputDigests.pdf,
+    totalElapsedMs: 1,
+  };
+}
+
+/** Current /3 publication fixture: eight retained roots and no scalar placement authority. */
+export function replayBrowserOutput(): RealBuildBrowserOutput {
+  const document = createEmptyBrickDocument({ id: "replay", name: "replay", maxParts: 1_464 });
+  const failure = {
+    code: "camera-handedness-unresolved" as const,
+    stage: "camera-registration" as const,
+    stepNumber: 1,
+    message:
+      "Replay fixture retained all eight step-0 panel-camera roots; no scalar lineage was selected, so printed step 1 placed no pieces.",
+  };
+  return {
+    schemaVersion: "lego.real-build-browser-output/3",
+    status: "executed",
+    reports: [
+      unexecutedStepReport(panel, failure, {
+        panelCamera: seededPanelCameraEvidence(replayOptions.panelCameraBranchBudget),
+        documentParts: 0,
+        elapsedMs: 1,
+        reason: failure.message,
+      }),
+    ],
+    documentJson: JSON.stringify(document),
+    identityBindings: [],
     fetchedPdfDigest: replayInputDigests.pdf,
     totalElapsedMs: 1,
   };

@@ -10,7 +10,7 @@ export interface RealBuildDiagnosticPrefix {
 }
 
 export interface RealBuildResult {
-  readonly schemaVersion: "lego.real-build-result/4";
+  readonly schemaVersion: "lego.real-build-result/5";
   readonly authority: {
     readonly kind: "local-diagnostic";
     readonly authenticated: false;

@@ -1,5 +1,6 @@
 import type { RealBuildOptions } from "./real-build-safety";
 import { assertReadableRealBuildBrowserOutput } from "./real-build-browser-output";
+import { inspectFrozenLegacyBrowserOutputV2 } from "./real-build-artifact-legacy-browser-v2";
 import {
   createRealBuildBootstrapSourceManifest,
   REAL_BUILD_SOURCE_ROOT_POLICY_PATH,
@@ -33,6 +34,7 @@ import {
   verifyRealBuildRunContract,
   verifyRealBuildRunContractRoleDigests,
 } from "./real-build-run-contract";
+import { verifyLegacyRealBuildRunContractV2 } from "./real-build-run-contract-legacy-v2";
 import {
   REAL_BUILD_REPLAY_CLOSURE_SCHEMA,
   type RealBuildReplayClosureManifest,
@@ -248,22 +250,35 @@ export function verifyRealBuildReplayClosureData(
     parsed.roles.map(({ role, digest: roleDigest }) => [role, roleDigest]),
   );
   verifyRealBuildRunContractRoleDigests(retainedContract, roleDigests);
-  const preparedOptions = parseFatalUtf8Json<RealBuildOptions>(
+  const preparedOptions = parseFatalUtf8Json<unknown>(
     roleBytes.get("prepared-options")!,
     "replay prepared-options role",
   );
-  verifyRealBuildRunContract({
-    contract: retainedContract,
-    options: preparedOptions,
-    roleDigests,
-    sourceFiles: parsed.sourceBundle.files,
-  });
+  if (retainedContract.schemaVersion === "lego.real-build-run-contract/3") {
+    verifyRealBuildRunContract({
+      contract: retainedContract,
+      options: preparedOptions as RealBuildOptions,
+      roleDigests,
+      sourceFiles: parsed.sourceBundle.files,
+    });
+  } else {
+    verifyLegacyRealBuildRunContractV2({
+      contract: retainedContract,
+      options: preparedOptions,
+      roleDigests,
+      sourceFiles: parsed.sourceBundle.files,
+    });
+  }
   if (parsed.replayLevel === "downstream-only") {
     const browserOutput = parseFatalUtf8Json<unknown>(
       roleBytes.get("browser-output")!,
       "replay browser-output role",
     );
-    assertReadableRealBuildBrowserOutput(browserOutput, preparedOptions);
+    if (retainedContract.schemaVersion === "lego.real-build-run-contract/3") {
+      assertReadableRealBuildBrowserOutput(browserOutput, preparedOptions as RealBuildOptions);
+    } else {
+      inspectFrozenLegacyBrowserOutputV2(browserOutput, preparedOptions as RealBuildOptions);
+    }
   }
   assertSourceExactIdentificationRoles(roleNames, retainedContract.identificationClosure.source);
   reconstructRealBuildIdentificationReplay(roleBytes, retainedContract);
@@ -324,30 +339,18 @@ export function readRealBuildReplayRole(directory: string, role: string): Buffer
 export function inspectRealBuildReplayClosure(directory: string): RealBuildReplayInspection {
   const { manifest, roleBytes } = verifyRealBuildReplayClosureData(directory);
   let contractDigest: string | null = null;
+  let contractSchemaVersion: RealBuildReplayInspection["contractSchemaVersion"] = null;
   if (manifest.replayLevel === "downstream-only") {
-    const options = parseFatalUtf8Json<RealBuildOptions>(
-      roleBytes.get("prepared-options")!,
-      "retained prepared-options role",
-    );
     const contract = parseRealBuildRunContract(roleBytes.get("run-contract")!);
-    verifyRealBuildRunContract({
-      contract,
-      options,
-      roleDigests: Object.fromEntries(manifest.roles.map(({ role, digest }) => [role, digest])),
-      sourceFiles: manifest.sourceBundle.files,
-    });
-    const browserOutput = parseFatalUtf8Json<unknown>(
-      roleBytes.get("browser-output")!,
-      "retained browser-output role",
-    );
-    assertReadableRealBuildBrowserOutput(browserOutput, options);
     contractDigest = contract.contractDigest;
+    contractSchemaVersion = contract.schemaVersion;
   }
   return {
     authority: "local-diagnostic",
     authenticated: false,
     replayLevel: manifest.replayLevel,
     contractDigest,
+    contractSchemaVersion,
     roleTrace: manifest.roles.map(({ role, digest, bytes }) => ({ role, digest, bytes })),
     sourceTrace: manifest.sourceBundle.files,
   };

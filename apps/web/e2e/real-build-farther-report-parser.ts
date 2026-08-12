@@ -32,6 +32,7 @@ import {
   sameJson,
 } from "./real-build-farther-report-validation";
 import { isRealBuildFartherDirectOriginTandemCoherent } from "./real-build-farther-tandem-parser";
+import type { RealBuildSourceAttestation } from "./real-build-farther-origin-source-manifest";
 
 export { isRealBuildFartherCaptures } from "./real-build-farther-capture-parser";
 export { isRealBuildFartherDeferralCoherent };
@@ -58,6 +59,7 @@ export function isRealBuildFartherEvidence(
     | "measuredFartherOriginSourceAttestation"
     | "panels"
   >,
+  expectedSourceAttestation?: RealBuildSourceAttestation,
 ): value is RealBuildFartherEvidence | null {
   if (value === null) {
     if (deferral === null) return true;
@@ -190,6 +192,7 @@ export function isRealBuildFartherEvidence(
       preparedOriginPanel,
       originCandidates,
       options,
+      ...(expectedSourceAttestation === undefined ? {} : { expectedSourceAttestation }),
     })
   ) {
     return false;

@@ -68,12 +68,15 @@ export function composeExecutedStepReport(input: {
   readonly outcome: StepOutcome;
   readonly validation: RealBuildStepReport["validation"];
   readonly camera: RealBuildStepReport["camera"];
+  readonly panelCamera: RealBuildStepReport["panelCamera"];
   readonly pieces: readonly RealBuildPieceReport[];
   readonly jointVisual: WholeStepVisualEvidence | null;
   readonly deferral: DeferralEvidence | null;
   readonly farther: RealBuildFartherEvidence | null;
   readonly fartherCaptures: readonly RealBuildFartherCapture[];
   readonly explodedGhost: ExplodedGhostEvidence | null;
+  /** Pieces whose placement/search path actually ran, including rolled-back attempts. */
+  readonly attemptedPieces: number;
   readonly placedPieces: number;
   readonly canonicalStepId: string | null;
   readonly documentParts: number;
@@ -89,10 +92,7 @@ export function composeExecutedStepReport(input: {
     ...panelEvidenceReport(input.evidence),
     calloutPieces: spec.calloutPieces,
     expectedAssembledPieces: spec.action.assembledPieces,
-    attemptedPieces:
-      spec.action.kind === "multi-build-copy"
-        ? spec.action.copies.length
-        : spec.pieces.length + spec.omittedPieces.length,
+    attemptedPieces: input.attemptedPieces,
     placedPieces: input.placedPieces,
     action: spec.action,
     actionEvidenceDigest: spec.action.evidenceDigest,
@@ -101,6 +101,7 @@ export function composeExecutedStepReport(input: {
     outcome: input.outcome,
     validation: input.validation,
     camera: input.camera,
+    panelCamera: input.panelCamera,
     pieces: input.pieces,
     jointVisual: input.jointVisual,
     deferral: input.deferral,

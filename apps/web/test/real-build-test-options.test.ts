@@ -28,4 +28,15 @@ describe("trusted real-build test options", () => {
       expect.arrayContaining([expect.objectContaining({ inputKey: "fartherPanelRenderBudget" })]),
     );
   });
+
+  it("requires a bounded whole-D4 panel-camera lineage allowance", () => {
+    const options = completeRealBuildTestOptions(2);
+    for (const panelCameraBranchBudget of [undefined, 7, 10, 800_008, Number.NaN]) {
+      expect(
+        preflightRealBuildOptions({ ...options, panelCameraBranchBudget } as typeof options),
+      ).toEqual(
+        expect.arrayContaining([expect.objectContaining({ inputKey: "panelCameraBranchBudget" })]),
+      );
+    }
+  });
 });

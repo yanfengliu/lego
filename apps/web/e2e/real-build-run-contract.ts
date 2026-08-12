@@ -7,6 +7,16 @@ import type {
 } from "./real-build-safety";
 import type { RealBuildSourceSnapshot } from "./real-build-replay-files";
 import { deriveMeasuredFartherOriginSourceAttestation } from "./real-build-farther-origin-source-attestation";
+import {
+  describeCurrentRunBudgetDefect,
+  hasValidCurrentRunBudgets,
+  hasValidLegacyRunBudgetsV2,
+} from "./real-build-run-contract-budget-schema";
+
+export {
+  LEGACY_REAL_BUILD_RUN_BUDGET_KEYS_V2,
+  REAL_BUILD_RUN_BUDGET_KEYS,
+} from "./real-build-run-contract-budget-schema";
 
 const sha256 = (value: string | Uint8Array): string =>
   `sha256:${createHash("sha256").update(value).digest("hex")}`;
@@ -47,8 +57,7 @@ export interface RealBuildIdentificationClosureDigests {
   readonly pairJudged: string;
 }
 
-export interface RealBuildRunContract {
-  readonly schemaVersion: "lego.real-build-run-contract/2";
+interface RealBuildRunContractFields {
   readonly inputDigests: RealBuildInputDigests;
   readonly identificationClosure: RealBuildIdentificationClosureDigests;
   readonly normalizedPanelsDigest: string;
@@ -65,6 +74,18 @@ export interface RealBuildRunContract {
   readonly contractDigest: string;
 }
 
+/** Frozen inspection shape for already-retained generation-2 contract bytes. */
+export interface LegacyRealBuildRunContractV2 extends RealBuildRunContractFields {
+  readonly schemaVersion: "lego.real-build-run-contract/2";
+}
+
+/** Current contract generation; only this shape may verify current prepared options. */
+export interface CurrentRealBuildRunContract extends RealBuildRunContractFields {
+  readonly schemaVersion: "lego.real-build-run-contract/3";
+}
+
+export type RealBuildRunContract = LegacyRealBuildRunContractV2 | CurrentRealBuildRunContract;
+
 const REAL_BUILD_RUN_CONTRACT_KEYS = [
   "schemaVersion",
   "inputDigests",
@@ -79,53 +100,17 @@ const REAL_BUILD_RUN_CONTRACT_KEYS = [
   "contractDigest",
 ] as const;
 
-export const REAL_BUILD_RUN_BUDGET_KEYS = [
-  "lastStep",
-  "expectedPrintedSteps",
-  "maxParts",
-  "targetPartCount",
-  "maxRendersPerPiece",
-  "blindRenderBudget",
-  "deferredCandidateBudget",
-  "explodedGhostRenderBudget",
-  "deferredNarrowingRenderBudget",
-  "fartherPanelMaximumReachSteps",
-  "fartherPanelRenderBudget",
-] as const;
-
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 const hasExactKeys = (value: Record<string, unknown>, keys: readonly string[]): boolean =>
   Object.keys(value).length === keys.length && keys.every((key) => key in value);
 
-function hasValidRunBudgets(value: unknown): value is Readonly<Record<string, number>> {
-  if (!isRecord(value) || !hasExactKeys(value, REAL_BUILD_RUN_BUDGET_KEYS)) return false;
-  if (!REAL_BUILD_RUN_BUDGET_KEYS.every((key) => Number.isSafeInteger(value[key]))) return false;
-  const budget = value as Readonly<Record<(typeof REAL_BUILD_RUN_BUDGET_KEYS)[number], number>>;
-  return (
-    budget.lastStep >= 1 &&
-    budget.lastStep <= budget.expectedPrintedSteps &&
-    budget.expectedPrintedSteps === 359 &&
-    budget.targetPartCount >= 1 &&
-    budget.maxParts >= budget.targetPartCount &&
-    budget.maxRendersPerPiece >= 1 &&
-    budget.blindRenderBudget >= 1 &&
-    budget.maxRendersPerPiece >= budget.blindRenderBudget &&
-    budget.deferredCandidateBudget >= 1 &&
-    budget.explodedGhostRenderBudget >= budget.deferredCandidateBudget &&
-    budget.deferredNarrowingRenderBudget >= budget.deferredCandidateBudget &&
-    budget.fartherPanelMaximumReachSteps >= 1 &&
-    budget.fartherPanelMaximumReachSteps < budget.expectedPrintedSteps &&
-    budget.fartherPanelRenderBudget >= 1 &&
-    budget.fartherPanelRenderBudget <= 16
-  );
-}
-
 function normalizedPanels(panels: readonly RealBuildPanelSpec[]): readonly unknown[] {
   return panels.map((panel) => ({
     stepNumber: panel.stepNumber,
     pageNumber: panel.pageNumber,
+    panelFace: panel.panelFace,
     bounds: [panel.minXPt, panel.maxXPt, panel.minYPt, panel.maxYPt],
     calloutBoxes: panel.calloutBoxes,
     mappedCalloutKeys: panel.mappedCalloutKeys,
@@ -139,6 +124,7 @@ function normalizedPanels(panels: readonly RealBuildPanelSpec[]): readonly unkno
 function normalizedActions(panels: readonly RealBuildPanelSpec[]): readonly unknown[] {
   return panels.map((panel) => ({
     stepNumber: panel.stepNumber,
+    panelFace: panel.panelFace,
     action: panel.action,
     directIdentities: panel.pieces.map(
       ({
@@ -178,6 +164,7 @@ export function realBuildRunBudgets(options: RealBuildOptions): Readonly<Record<
     maxRendersPerPiece: options.maxRendersPerPiece,
     blindRenderBudget: options.blindRenderBudget,
     deferredCandidateBudget: options.deferredCandidateBudget,
+    panelCameraBranchBudget: options.panelCameraBranchBudget,
     explodedGhostRenderBudget: options.explodedGhostRenderBudget,
     deferredNarrowingRenderBudget: options.deferredNarrowingRenderBudget,
     fartherPanelMaximumReachSteps: options.fartherPanelMaximumReachSteps,
@@ -209,15 +196,16 @@ export function createRealBuildRunContract(input: {
   readonly budgets: Readonly<Record<string, number>>;
   readonly thresholds: Readonly<Record<string, number | string | null>>;
   readonly codeSnapshots: Readonly<Record<string, string>>;
-}): RealBuildRunContract {
-  if (!hasValidRunBudgets(input.budgets)) {
+}): CurrentRealBuildRunContract {
+  if (!hasValidCurrentRunBudgets(input.budgets)) {
     throw new TypeError(
-      "Real-build run contract budgets must have the exact bounded N/N+1/K execution keys.",
+      "Real-build run contract budgets must have the exact bounded placement, deferred, " +
+        `farther-panel, and panel-camera keys. ${describeCurrentRunBudgetDefect(input.budgets)}`,
     );
   }
   const actionLedger = normalizedActions(input.panels);
   const base = {
-    schemaVersion: "lego.real-build-run-contract/2" as const,
+    schemaVersion: "lego.real-build-run-contract/3" as const,
     inputDigests: input.inputDigests,
     identificationClosure: input.identificationClosure,
     normalizedPanelsDigest: sha256(JSON.stringify(normalizedPanels(input.panels))),
@@ -248,10 +236,13 @@ export function parseRealBuildRunContract(bytes: Uint8Array): RealBuildRunContra
   if (
     !isRecord(parsedValue) ||
     !hasExactKeys(parsedValue, REAL_BUILD_RUN_CONTRACT_KEYS) ||
-    parsedValue.schemaVersion !== "lego.real-build-run-contract/2" ||
+    (parsedValue.schemaVersion !== "lego.real-build-run-contract/2" &&
+      parsedValue.schemaVersion !== "lego.real-build-run-contract/3") ||
     typeof parsedValue.contractDigest !== "string" ||
     !/^sha256:[0-9a-f]{64}$/u.test(parsedValue.contractDigest) ||
-    !hasValidRunBudgets(parsedValue.budgets) ||
+    (parsedValue.schemaVersion === "lego.real-build-run-contract/2"
+      ? !hasValidLegacyRunBudgetsV2(parsedValue.budgets)
+      : !hasValidCurrentRunBudgets(parsedValue.budgets)) ||
     !isRecord(parsedValue.policy) ||
     !hasExactKeys(parsedValue.policy, ["searchDisagreement", "partialStep", "unboundIdentity"]) ||
     parsedValue.policy.searchDisagreement !== "refuse" ||
@@ -390,6 +381,13 @@ export function verifyRealBuildRunContract(input: {
   readonly roleDigests: Readonly<Record<string, string>>;
   readonly sourceFiles: readonly RealBuildSourceSnapshot[];
 }): void {
+  if (input.contract.schemaVersion !== "lego.real-build-run-contract/3") {
+    throw new TypeError(
+      "Current prepared real-build options cannot verify against retained run-contract /2 bytes; " +
+        "generation 2 is frozen for parsing and inspection only, while current generation requires " +
+        "run-contract /3 with panelCameraBranchBudget.",
+    );
+  }
   verifyRealBuildRunContractRoleDigests(input.contract, input.roleDigests);
   verifyRealBuildExecutionSourceBindings({
     sourceFiles: input.sourceFiles,
@@ -423,7 +421,7 @@ export function verifyRealBuildRunContract(input: {
     ) {
       throw new TypeError(
         "Prepared measured farther-origin source attestation does not reproduce from both " +
-          "run-contract /2 codeSnapshots and the exact retained source bundle.",
+          "run-contract /3 codeSnapshots and the exact retained source bundle.",
       );
     }
   }

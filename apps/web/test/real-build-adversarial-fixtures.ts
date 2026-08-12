@@ -2,6 +2,8 @@ import { createEmptyBrickDocument, validateBrickDocument } from "@lego-studio/br
 
 import type { RealBuildBrowserOutput } from "../e2e/real-build-browser-output";
 import { stepPrerequisiteFacts, type RealBuildStepReport } from "../e2e/real-build-safety";
+import { unexecutedStepReport } from "../e2e/real-build-contract";
+import { seededPanelCameraEvidence } from "./real-build-panel-camera-evidence.fixture";
 import {
   REAL_BUILD_TEST_DIGEST,
   completeRealBuildTestOptions,
@@ -53,6 +55,7 @@ export const completeReport = (stepNumber: number): RealBuildStepReport => ({
     failure: null,
   },
   camera: null,
+  panelCamera: null,
   highlight: { regions: 0, closedContourRate: 0, strokePx: 0, boundsPx: null },
   arrows: { kept: 0, redPx: 0, rejected: 0, displacementFamily: 0, displacementFamilyLdu: [] },
   pieces: [],
@@ -113,29 +116,80 @@ export const browserOutput = (
   ),
   bytes = documentJson(lastStep),
 ): RealBuildBrowserOutput => {
-  const document = JSON.parse(bytes) as ReturnType<typeof createEmptyBrickDocument>;
-  const normalizedReports = reports.map((report) => ({
-    ...report,
-    validation: (() => {
-      const validation = validateBrickDocument(prefixDocument(document, report.stepNumber));
-      return {
-        attempted: true,
-        targetDocumentHash: validation.targetDocumentHash,
-        truthSnapshotHash: validation.truthSnapshotHash,
-        validatorSetHash: validation.validatorSetHash,
-        documentGloballyValid: validation.documentGloballyValid,
-        blockingIssues: validation.issues
-          .filter(({ severity }) => severity === "blocking")
-          .map(({ code, message, path, partIds }) => ({ code, message, path, partIds })),
-        failure: null,
+  const prepared = options(lastStep);
+  let document = JSON.parse(bytes) as ReturnType<typeof createEmptyBrickDocument>;
+  const normalizedReports: RealBuildStepReport[] = reports.map((report) =>
+    report.outcome.status === "failed"
+      ? report
+      : {
+          ...report,
+          validation: (() => {
+            const validation = validateBrickDocument(prefixDocument(document, report.stepNumber));
+            return {
+              attempted: true,
+              targetDocumentHash: validation.targetDocumentHash,
+              truthSnapshotHash: validation.truthSnapshotHash,
+              validatorSetHash: validation.validatorSetHash,
+              documentGloballyValid: validation.documentGloballyValid,
+              blockingIssues: validation.issues
+                .filter(({ severity }) => severity === "blocking")
+                .map(({ code, message, path, partIds }) => ({ code, message, path, partIds })),
+              failure: null,
+            };
+          })(),
+        },
+  );
+  if (normalizedReports.length > 0 && normalizedReports[0]!.panelCamera === null) {
+    const failure = {
+      code: "camera-handedness-unresolved" as const,
+      stage: "camera-registration" as const,
+      stepNumber: 1,
+      message:
+        "The current generation retains all eight step-0 camera roots and refuses before scalar transition execution.",
+    };
+    normalizedReports[0] = unexecutedStepReport(transitionPanel(1), failure, {
+      panelCamera: seededPanelCameraEvidence(prepared.panelCameraBranchBudget),
+      documentParts: 0,
+      elapsedMs: 1,
+      reason: failure.message,
+    });
+    document = createEmptyBrickDocument({
+      id: "real-build",
+      name: "Real booklet rebuild",
+      maxParts: prepared.maxParts,
+    });
+    for (let index = 1; index < normalizedReports.length; index += 1) {
+      const stepNumber = index + 1;
+      const panel = prepared.panels.find((candidate) => candidate.stepNumber === stepNumber)!;
+      const blockedFailure = {
+        code: "blocked-by-prior-step" as const,
+        stage: "causality" as const,
+        stepNumber,
+        causedByStep: 1,
+        message: `Printed step ${stepNumber} is causally blocked by unresolved camera root at step 1.`,
       };
-    })(),
-  }));
+      const blockedReport = unexecutedStepReport(panel, blockedFailure, {
+        blockingStep: 1,
+        documentParts: 0,
+        elapsedMs: 0,
+        reason: blockedFailure.message,
+      });
+      normalizedReports[index] = {
+        ...blockedReport,
+        outcome: {
+          status: "failed",
+          mechanism: "blocked",
+          attemptedMechanism: null,
+          failure: blockedFailure,
+        },
+      };
+    }
+  }
   return {
-    schemaVersion: "lego.real-build-browser-output/2",
+    schemaVersion: "lego.real-build-browser-output/3",
     status: "executed",
     reports: normalizedReports,
-    documentJson: bytes,
+    documentJson: JSON.stringify(document),
     identityBindings: [],
     fetchedPdfDigest: DIGEST,
     totalElapsedMs: lastStep,

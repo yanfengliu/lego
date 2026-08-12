@@ -206,6 +206,11 @@ export function writeRealBuildReplayClosureUnverified(
   }
   parseFatalUtf8Json<unknown>(runContractBytes, "replay run-contract role");
   const runContract = parseRealBuildRunContract(runContractBytes);
+  if (runContract.schemaVersion !== "lego.real-build-run-contract/3") {
+    throw new TypeError(
+      "New replay publication requires run-contract /3; retained generation-2 bytes are inspection-only and cannot be republished as current evidence.",
+    );
+  }
   const replayLevel = input.browserOutputRetained ? "downstream-only" : "metadata-only";
   assertExactReplayRoles(
     new Set([...roleNames, "environment"]),

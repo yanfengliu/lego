@@ -11,11 +11,67 @@ import {
   realBuildRunThresholds,
   verifyRealBuildRunContract,
 } from "../e2e/real-build-run-contract";
+import { verifyLegacyRealBuildRunContractV2 } from "../e2e/real-build-run-contract-legacy-v2";
+import {
+  deriveLegacyMeasuredFartherOriginSourceAttestationV2,
+  LEGACY_MEASURED_FARTHER_ORIGIN_REQUIRED_SOURCE_PATHS_V2,
+  LEGACY_MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION_V2,
+} from "../e2e/real-build-farther-origin-source-attestation-legacy-v2";
 import { REAL_BUILD_TEST_DIGEST, completeRealBuildTestOptions } from "./real-build-test-options";
 
 const DIFFERENT_DIGEST = `sha256:${"b".repeat(64)}`;
 const digest = (value: unknown): string =>
   `sha256:${createHash("sha256").update(JSON.stringify(value)).digest("hex")}`;
+
+const FROZEN_LEGACY_RUN_CONTRACT_V2 = {
+  schemaVersion: "lego.real-build-run-contract/2",
+  inputDigests: {
+    pdf: REAL_BUILD_TEST_DIGEST,
+    calloutManifest: REAL_BUILD_TEST_DIGEST,
+    coverage: REAL_BUILD_TEST_DIGEST,
+    officialModel: REAL_BUILD_TEST_DIGEST,
+    actionLedger: REAL_BUILD_TEST_DIGEST,
+    highlightCalibration: REAL_BUILD_TEST_DIGEST,
+    builderCalibration: REAL_BUILD_TEST_DIGEST,
+    builderGeometry: REAL_BUILD_TEST_DIGEST,
+    transitionClassifications: REAL_BUILD_TEST_DIGEST,
+  },
+  identificationClosure: {
+    source: "deterministic",
+    features: REAL_BUILD_TEST_DIGEST,
+    match: REAL_BUILD_TEST_DIGEST,
+    distances: REAL_BUILD_TEST_DIGEST,
+    elements: REAL_BUILD_TEST_DIGEST,
+    cards: null,
+    cardImages: null,
+    answers: null,
+    pairJudged: REAL_BUILD_TEST_DIGEST,
+  },
+  normalizedPanelsDigest: REAL_BUILD_TEST_DIGEST,
+  actionLedger: [],
+  actionLedgerDigest: DIFFERENT_DIGEST,
+  budgets: {
+    lastStep: 1,
+    expectedPrintedSteps: 359,
+    maxParts: 1_464,
+    targetPartCount: 1_464,
+    maxRendersPerPiece: 220,
+    blindRenderBudget: 220,
+    deferredCandidateBudget: 512,
+    explodedGhostRenderBudget: 4_096,
+    deferredNarrowingRenderBudget: 4_096,
+    fartherPanelMaximumReachSteps: 2,
+    fartherPanelRenderBudget: 16,
+  },
+  thresholds: {},
+  policy: {
+    searchDisagreement: "refuse",
+    partialStep: "rollback",
+    unboundIdentity: "refuse",
+  },
+  codeSnapshots: {},
+  contractDigest: "sha256:7e637c389043400b959015c52b8b40859dde88f59ee5443335a1f9a48e0a1539",
+} as const;
 
 describe("real-build run contract", () => {
   it("binds prepared options to every raw role and exact source/action bytes", () => {
@@ -69,10 +125,15 @@ describe("real-build run contract", () => {
       });
 
     expect(verify).not.toThrow();
+    expect(contract.schemaVersion).toBe("lego.real-build-run-contract/3");
     expect(contract.budgets).toMatchObject({
+      panelCameraBranchBudget: 8_192,
       fartherPanelMaximumReachSteps: 2,
       fartherPanelRenderBudget: 16,
     });
+    expect(() => verify({ ...options, panelCameraBranchBudget: 8_200 })).toThrow(
+      /do not exactly reproduce/u,
+    );
     expect(() => verify({ ...options, fartherPanelRenderBudget: 15 })).toThrow(
       /do not exactly reproduce/u,
     );
@@ -92,6 +153,19 @@ describe("real-build run contract", () => {
         roleDigests,
         sourceFiles,
       ),
+    ).toThrow(/do not exactly reproduce/u);
+    expect(() =>
+      verify({
+        ...options,
+        panels: options.panels.map((panel, index) =>
+          index === 0
+            ? {
+                ...panel,
+                panelFace: panel.panelFace === "underside" ? "studs-up" : "underside",
+              }
+            : panel,
+        ),
+      }),
     ).toThrow(/do not exactly reproduce/u);
     expect(() => verify(options, { ...roleDigests, pdf: DIFFERENT_DIGEST }, sourceFiles)).toThrow(
       /raw role pdf/u,
@@ -154,6 +228,177 @@ describe("real-build run contract", () => {
     oversizedFartherBudget.contractDigest = digest(oversizedBudgetBase);
     expect(() =>
       parseRealBuildRunContract(new TextEncoder().encode(JSON.stringify(oversizedFartherBudget))),
+    ).toThrow(/malformed schema/u);
+  });
+
+  it("parses frozen /2 bytes for inspection but refuses mixed current verification", () => {
+    const parsed = parseRealBuildRunContract(
+      new TextEncoder().encode(JSON.stringify(FROZEN_LEGACY_RUN_CONTRACT_V2)),
+    );
+
+    expect(parsed).toEqual(FROZEN_LEGACY_RUN_CONTRACT_V2);
+    expect(parsed.schemaVersion).toBe("lego.real-build-run-contract/2");
+    expect(parsed.budgets).not.toHaveProperty("panelCameraBranchBudget");
+    expect(() =>
+      verifyRealBuildRunContract({
+        contract: parsed,
+        options: completeRealBuildTestOptions(1),
+        roleDigests: {},
+        sourceFiles: [],
+      }),
+    ).toThrow(/cannot verify against retained run-contract \/2 bytes/u);
+  });
+
+  it("reproduces exact generation-2 options without synthesizing the new camera budget", () => {
+    const current = completeRealBuildTestOptions(1);
+    const { panelCameraBranchBudget, ...legacyOptions } = {
+      ...current,
+      panels: [],
+    };
+    expect(panelCameraBranchBudget).toBe(8_192);
+    const sourceFiles = [{ path: "inputs/booklet.pdf", digest: REAL_BUILD_TEST_DIGEST, bytes: 1 }];
+    const budgets = Object.fromEntries(
+      Object.entries(realBuildRunBudgets(current)).filter(
+        ([key]) => key !== "panelCameraBranchBudget",
+      ),
+    );
+    const base = {
+      schemaVersion: "lego.real-build-run-contract/2" as const,
+      inputDigests: legacyOptions.inputDigests,
+      identificationClosure: FROZEN_LEGACY_RUN_CONTRACT_V2.identificationClosure,
+      normalizedPanelsDigest: digest([]),
+      actionLedger: [],
+      actionLedgerDigest: digest([]),
+      budgets,
+      thresholds: realBuildRunThresholds(current),
+      policy: FROZEN_LEGACY_RUN_CONTRACT_V2.policy,
+      codeSnapshots: { "inputs/booklet.pdf": REAL_BUILD_TEST_DIGEST },
+    };
+    const contract = { ...base, contractDigest: digest(base) };
+    const roleDigests = Object.fromEntries(
+      [
+        ...Object.values(REAL_BUILD_INPUT_ROLE_BY_DIGEST),
+        REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.features,
+        REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.match,
+        REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.distances,
+        REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.elements,
+        REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.pairJudged,
+      ].map((role) => [role, REAL_BUILD_TEST_DIGEST]),
+    );
+
+    expect(() =>
+      verifyLegacyRealBuildRunContractV2({
+        contract,
+        options: legacyOptions,
+        roleDigests,
+        sourceFiles,
+      }),
+    ).not.toThrow();
+    expect(() =>
+      verifyLegacyRealBuildRunContractV2({
+        contract,
+        options: current,
+        roleDigests,
+        sourceFiles,
+      }),
+    ).toThrow(/without panelCameraBranchBudget/u);
+  });
+
+  it("keeps generation-2 source-attestation derivation frozen as current anchors expand", () => {
+    const snapshots = Object.fromEntries(
+      LEGACY_MEASURED_FARTHER_ORIGIN_REQUIRED_SOURCE_PATHS_V2.map((path) => [
+        path,
+        REAL_BUILD_TEST_DIGEST,
+      ]),
+    );
+    const first = deriveLegacyMeasuredFartherOriginSourceAttestationV2(snapshots);
+    const changed = deriveLegacyMeasuredFartherOriginSourceAttestationV2({
+      ...snapshots,
+      [LEGACY_MEASURED_FARTHER_ORIGIN_REQUIRED_SOURCE_PATHS_V2[0]!]: DIFFERENT_DIGEST,
+    });
+
+    expect(first).toMatchObject({
+      schemaVersion: "lego.real-build-source-attestation/1",
+      fileCount: LEGACY_MEASURED_FARTHER_ORIGIN_REQUIRED_SOURCE_PATHS_V2.length,
+    });
+    expect(changed.digest).not.toBe(first.digest);
+    expect(LEGACY_MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION_V2).toEqual({
+      schemaVersion: "lego.real-build-source-attestation/1",
+      fileCount: 3_064,
+      digest: "sha256:17bda111319a9054b0613050850e83c4737ff720d725b16cdaa3b931b8cf87b5",
+    });
+    expect(snapshots).not.toHaveProperty("apps/web/e2e/real-build-panel-camera-registration.ts");
+  });
+
+  it("requires one exact bounded panel-camera branch budget in /3", () => {
+    const options = completeRealBuildTestOptions(1);
+    const current = createRealBuildRunContract({
+      inputDigests: options.inputDigests,
+      identificationClosure: {
+        source: "deterministic",
+        features: REAL_BUILD_TEST_DIGEST,
+        match: REAL_BUILD_TEST_DIGEST,
+        distances: REAL_BUILD_TEST_DIGEST,
+        elements: REAL_BUILD_TEST_DIGEST,
+        cards: null,
+        cardImages: null,
+        answers: null,
+        pairJudged: REAL_BUILD_TEST_DIGEST,
+      },
+      panels: options.panels,
+      budgets: realBuildRunBudgets(options),
+      thresholds: realBuildRunThresholds(options),
+      codeSnapshots: {},
+    });
+    const withoutCameraBudget = { ...current.budgets } as Record<string, unknown>;
+    delete withoutCameraBudget.panelCameraBranchBudget;
+    expect(() =>
+      createRealBuildRunContract({
+        inputDigests: options.inputDigests,
+        identificationClosure: current.identificationClosure,
+        panels: options.panels,
+        budgets: withoutCameraBudget as Readonly<Record<string, number>>,
+        thresholds: current.thresholds,
+        codeSnapshots: {},
+      }),
+    ).toThrow(/Missing keys: panelCameraBranchBudget/u);
+
+    expect(() =>
+      createRealBuildRunContract({
+        inputDigests: options.inputDigests,
+        identificationClosure: current.identificationClosure,
+        panels: options.panels,
+        budgets: { ...current.budgets, panelCameraBranchBudget: 10 },
+        thresholds: current.thresholds,
+        codeSnapshots: {},
+      }),
+    ).toThrow(/panelCameraBranchBudget is 10; required a multiple of 8/u);
+
+    const malformedValues: readonly unknown[] = [7, 10, 800_008, 8.5, "8192"];
+    for (const panelCameraBranchBudget of malformedValues) {
+      const candidate = JSON.parse(JSON.stringify(current)) as Record<string, unknown> & {
+        budgets: Record<string, unknown>;
+        contractDigest: string;
+      };
+      candidate.budgets.panelCameraBranchBudget = panelCameraBranchBudget;
+      const base: Record<string, unknown> = { ...candidate };
+      delete base.contractDigest;
+      candidate.contractDigest = digest(base);
+      expect(() =>
+        parseRealBuildRunContract(new TextEncoder().encode(JSON.stringify(candidate))),
+      ).toThrow(/malformed schema/u);
+    }
+
+    const extra = JSON.parse(JSON.stringify(current)) as Record<string, unknown> & {
+      budgets: Record<string, unknown>;
+      contractDigest: string;
+    };
+    extra.budgets.panelCameraRenderBudget = 8_192;
+    const extraBase: Record<string, unknown> = { ...extra };
+    delete extraBase.contractDigest;
+    extra.contractDigest = digest(extraBase);
+    expect(() =>
+      parseRealBuildRunContract(new TextEncoder().encode(JSON.stringify(extra))),
     ).toThrow(/malformed schema/u);
   });
 });

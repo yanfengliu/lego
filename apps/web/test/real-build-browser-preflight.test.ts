@@ -6,6 +6,7 @@ import {
   prepareDigestBoundPdf,
   prepareRealBuildModules,
 } from "../e2e/real-build-browser-preflight";
+import { describeBrowserThrown } from "../e2e/real-build-browser-error-boundary";
 import type { RealBuildOptions } from "../e2e/real-build-safety";
 
 const DIGEST = `sha256:${"a".repeat(64)}`;
@@ -36,6 +37,27 @@ afterEach(() => {
 });
 
 describe("real-build browser preparation failures", () => {
+  it("formats huge and hostile thrown values without enumerating or invoking them", () => {
+    const huge = Object.fromEntries(
+      Array.from({ length: 100_000 }, (_, index) => [`key-${index}`, index]),
+    );
+    const target = Object.create(null) as object;
+    const hostile = new Proxy(target, {
+      getOwnPropertyDescriptor: () => {
+        throw hostile;
+      },
+      ownKeys: () => {
+        throw new Error("must not enumerate");
+      },
+      get: () => {
+        throw new Error("must not read");
+      },
+    });
+
+    expect(describeBrowserThrown(huge)).toBe("a thrown object without an own data message");
+    expect(describeBrowserThrown(hostile)).toContain("message descriptor could not be inspected");
+  });
+
   it("attributes a dynamic import failure to the exact module before execution", async () => {
     await expect(
       prepareRealBuildModules({

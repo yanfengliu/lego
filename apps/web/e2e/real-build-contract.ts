@@ -63,6 +63,7 @@ export function preflightRealBuildOptions(input: {
   readonly maxRendersPerPiece: number;
   readonly blindRenderBudget: number;
   readonly deferredCandidateBudget: number;
+  readonly panelCameraBranchBudget: number;
   readonly explodedGhostRenderBudget: number;
   readonly deferredNarrowingRenderBudget: number;
   readonly fartherPanelMaximumReachSteps: number;
@@ -72,6 +73,23 @@ export function preflightRealBuildOptions(input: {
   readonly coverageByCallout: Readonly<Record<string, StepCoverageCalloutClaim>> | null;
 }): readonly StepFailure[] {
   const failures: StepFailure[] = [];
+  if (
+    !Number.isSafeInteger(input.panelCameraBranchBudget) ||
+    input.panelCameraBranchBudget < 8 ||
+    input.panelCameraBranchBudget > 800_000 ||
+    input.panelCameraBranchBudget % 8 !== 0
+  ) {
+    failures.push({
+      code: "benchmark-policy-mismatch",
+      stage: "input",
+      inputKey: "panelCameraBranchBudget",
+      message:
+        `The panel-camera branch budget is ${String(input.panelCameraBranchBudget)}; required a ` +
+        `safe integer from 8 through 800000, inclusive, and a multiple of 8 so every D4 camera ` +
+        `hypothesis group is reserved atomically. This is an aggregate retained-lineage slot ` +
+        `ceiling, not a render budget.`,
+    });
+  }
   if (
     input.measuredFartherOriginSourceAttestation != null &&
     !isRealBuildSourceAttestation(input.measuredFartherOriginSourceAttestation)
@@ -212,6 +230,25 @@ export function preflightRealBuildOptions(input: {
         `panels and ${unique.size} unique numbers. Missing: ${missing.join(", ") || "none"}; ` +
         `duplicates: ${duplicates.join(", ") || "none"}. Rotation and attachment steps must be explicit ` +
         `zero-piece transitions rather than omitted.`,
+    });
+  }
+  const panelsByPrintedStep = [...input.panels].sort(
+    (left, right) => left.stepNumber - right.stepNumber,
+  );
+  const reversedPage = panelsByPrintedStep.find(
+    (panel, index) => index > 0 && panel.pageNumber < panelsByPrintedStep[index - 1]!.pageNumber,
+  );
+  if (reversedPage !== undefined) {
+    const prior = panelsByPrintedStep[panelsByPrintedStep.indexOf(reversedPage) - 1]!;
+    failures.push({
+      code: "printed-step-sequence-invalid",
+      stage: "input",
+      inputKey: "panels",
+      message:
+        `Printed step ${reversedPage.stepNumber} is assigned to booklet page ${reversedPage.pageNumber}, ` +
+        `which precedes step ${prior.stepNumber} on page ${prior.pageNumber}. Printed-step execution must ` +
+        `advance monotonically through booklet pages so page grouping cannot execute a later step before ` +
+        `its retained predecessor. Correct the panel page binding before the browser loads the PDF.`,
     });
   }
   if (
@@ -617,8 +654,15 @@ export function unexecutedStepReport(
     readonly documentParts?: number;
     readonly elapsedMs?: number;
     readonly reason?: string;
+    readonly panelCamera?: RealBuildStepReport["panelCamera"];
   } = {},
 ): RealBuildStepReport {
+  const causallyBlocked =
+    failure.code === "blocked-by-prior-step" &&
+    failure.stage === "causality" &&
+    input.blockingStep !== undefined &&
+    input.blockingStep !== null &&
+    failure.causedByStep === input.blockingStep;
   const prerequisites = stepPrerequisiteFacts({
     stepNumber: panel.stepNumber,
     actionKind: panel.action.kind,
@@ -644,7 +688,7 @@ export function unexecutedStepReport(
     prerequisites,
     outcome: {
       status: "failed",
-      mechanism: "deferred",
+      mechanism: causallyBlocked ? "blocked" : "deferred",
       attemptedMechanism: null,
       failure,
     },
@@ -666,6 +710,7 @@ export function unexecutedStepReport(
       failure: input.reason ?? "Input preflight rejected the run before panel processing.",
     },
     camera: null,
+    panelCamera: input.panelCamera ?? null,
     highlight: { regions: 0, closedContourRate: 0, strokePx: 0, boundsPx: null },
     arrows: {
       kept: 0,
@@ -702,7 +747,7 @@ export function inputRejectedRealBuildResult(
       "Real-build input was rejected without a retained failure; this is a contract violation.",
   };
   return {
-    schemaVersion: "lego.real-build-result/4",
+    schemaVersion: "lego.real-build-result/5",
     authority: LOCAL_REAL_BUILD_AUTHORITY,
     status: "input-rejected",
     requestedLastStep: options.lastStep,

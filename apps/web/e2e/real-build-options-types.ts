@@ -154,6 +154,15 @@ export interface RealBuildOptions {
    */
   readonly deferredCandidateBudget: number;
   /**
+   * Aggregate panel-camera lineage slots available to the complete run.
+   *
+   * Every retained candidate/hypothesis branch spends one slot, with the
+   * eight D4 camera hypotheses reserved atomically. This provisional ceiling
+   * bounds immutable branch evidence; it is not a render budget, because a
+   * retained lineage may share a render with another parent lineage.
+   */
+  readonly panelCameraBranchBudget: number;
+  /**
    * Most renders a deferral may spend narrowing a step against its own panel.
    *
    * Only a step deferred because its panel could not *separate* its candidates

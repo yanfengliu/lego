@@ -1,5 +1,6 @@
 import type { RealBuildBrowserOutput } from "./real-build-browser-output";
 import type { RealBuildOptions, StepFailure } from "./real-build-safety";
+import { describeBrowserThrown } from "./real-build-browser-error-boundary";
 
 // These modules execute inside the untrusted browser probe. Their output is
 // parsed and recomputed by the typed Node finalizer rather than trusted here.
@@ -8,6 +9,8 @@ type PdfJsModule = UntrustedBrowserModule;
 type PdfLoadingTask = UntrustedBrowserModule;
 type PdfDocument = UntrustedBrowserModule;
 
+const PREPARATION_FAILURES = new WeakMap<object, StepFailure>();
+
 export class BrowserPreparationError extends Error {
   constructor(
     readonly failure: StepFailure,
@@ -15,14 +18,21 @@ export class BrowserPreparationError extends Error {
   ) {
     super(failure.message, options);
     this.name = "BrowserPreparationError";
+    PREPARATION_FAILURES.set(this, failure);
   }
+}
+
+/** Recognizes only errors constructed at this boundary without probing a hostile object. */
+export function browserPreparationFailure(value: unknown): StepFailure | null {
+  if ((typeof value !== "object" || value === null) && typeof value !== "function") return null;
+  return PREPARATION_FAILURES.get(value) ?? null;
 }
 
 export const failedBrowserOutput = (
   failure: StepFailure,
   started: number,
 ): RealBuildBrowserOutput => ({
-  schemaVersion: "lego.real-build-browser-output/2",
+  schemaVersion: "lego.real-build-browser-output/3",
   status: "failed",
   reports: [],
   documentJson: null,
@@ -44,7 +54,7 @@ async function requiredImport<T>(label: string, url: string): Promise<T> {
         inputKey: label,
         message:
           `Real-build ${label} module ${JSON.stringify(url)} failed dynamic import before execution: ` +
-          `${error instanceof Error ? error.message : String(error)}. The run placed no parts.`,
+          `${describeBrowserThrown(error)}. The run placed no parts.`,
       },
       { cause: error },
     );
@@ -109,7 +119,7 @@ export async function prepareDigestBoundPdf(
         inputKey: "pdfUrl",
         message:
           `Real-build PDF ${JSON.stringify(options.pdfUrl)} could not be fetched and hashed before PDF ` +
-          `parsing: ${error instanceof Error ? error.message : String(error)}.`,
+          `parsing: ${describeBrowserThrown(error)}.`,
       },
       { cause: error },
     );
@@ -129,7 +139,14 @@ export async function prepareDigestBoundPdf(
     const pdf = await loadingTask.promise;
     return { pdf, loadingTask, fetchedPdfDigest };
   } catch (error) {
-    await loadingTask.destroy();
+    let cleanupDiagnostic = "";
+    try {
+      await loadingTask.destroy();
+    } catch (cleanupError) {
+      cleanupDiagnostic =
+        ` Loading-task cleanup also failed: ${describeBrowserThrown(cleanupError)}; ` +
+        "the parser failure remains the primary cause.";
+    }
     throw new BrowserPreparationError(
       {
         code: "pdf-load-failed",
@@ -137,7 +154,7 @@ export async function prepareDigestBoundPdf(
         inputKey: "pdf",
         message:
           `PDF.js rejected the exact digest-bound PDF before any step executed: ` +
-          `${error instanceof Error ? error.message : String(error)}.`,
+          `${describeBrowserThrown(error)}.${cleanupDiagnostic}`,
       },
       { cause: error },
     );

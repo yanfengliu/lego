@@ -3,11 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   createEmptyBrickDocument,
   createPartInstance,
-  documentStructuralHash,
   validateBrickDocument,
 } from "@lego-studio/brick-kernel";
 
 import { finalizeExecutedRealBuildResult } from "../e2e/real-build-finalize";
+import { auditRealBuildIdentityBindings } from "../e2e/real-build-finalize-identity";
 import { unexecutedStepReport } from "../e2e/real-build-contract";
 import {
   stepPrerequisiteFacts,
@@ -255,6 +255,7 @@ function browserOutput(
       failure: null,
     },
     camera: null,
+    panelCamera: null,
     highlight: { regions: 0, closedContourRate: 0, strokePx: 0, boundsPx: null },
     arrows: { kept: 0, redPx: 0, rejected: 0, displacementFamily: 0, displacementFamilyLdu: [] },
     pieces: [pieceReport(LEFT), pieceReport(RIGHT)],
@@ -269,7 +270,7 @@ function browserOutput(
     buildPng: null,
   };
   return {
-    schemaVersion: "lego.real-build-browser-output/2",
+    schemaVersion: "lego.real-build-browser-output/3",
     status: "executed",
     reports: [report],
     documentJson: JSON.stringify(document),
@@ -334,11 +335,23 @@ const reversedBindings: readonly RealBuildIdentityBinding[] = [
 ];
 
 describe("real build finalizer identical-piece identity groups", () => {
-  it("retains a structurally audited frame-unreconciled prefix without claiming target completion", () => {
+  it("diagnoses an unreconciled target only after identity audit and rejects rootless scalar completion", () => {
     const document = reversedIdentityDocument();
+    const output = browserOutput(document, reversedBindings);
+    const identityFailures = auditRealBuildIdentityBindings({
+      options: frameUnreconciledOptions(),
+      document,
+      reports: output.reports,
+      bindings: reversedBindings,
+    });
+    expect(identityFailures).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "official-frame-calibration-missing", stepNumber: 1 }),
+      ]),
+    );
     const result = finalizeExecutedRealBuildResult({
       options: frameUnreconciledOptions(),
-      browserOutput: browserOutput(document, reversedBindings),
+      browserOutput: output,
     });
 
     expect(result).toMatchObject({
@@ -346,20 +359,9 @@ describe("real build finalizer identical-piece identity groups", () => {
       documentJson: null,
       structuralHash: null,
       finalParts: 0,
-      diagnosticPrefix: {
-        schemaVersion: "lego.real-build-diagnostic-prefix/1",
-        throughStepNumber: 1,
-        targetEquivalence: "unreconciled",
-        structuralHash: documentStructuralHash(document),
-        parts: 2,
-      },
+      diagnosticPrefix: null,
     });
-    expect(result.diagnosticPrefix?.documentJson).toBe(JSON.stringify(document));
-    expect(result.completionFailures).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ code: "official-frame-calibration-missing", stepNumber: 1 }),
-      ]),
-    );
+    expect(result.completionFailures.length).toBeGreaterThan(0);
 
     const colludingMetadataFailure = finalizeExecutedRealBuildResult({
       options: frameUnreconciledOptions(),
@@ -379,14 +381,14 @@ describe("real build finalizer identical-piece identity groups", () => {
   it("accepts reversed identical-piece identity assignment only as the exact transform multiset", () => {
     const options = identityOptions();
     const reversed = reversedIdentityDocument();
-    const accepted = finalizeExecutedRealBuildResult({
+    const acceptedOutput = browserOutput(reversed, reversedBindings);
+    const accepted = auditRealBuildIdentityBindings({
       options,
-      browserOutput: browserOutput(reversed, reversedBindings),
+      document: reversed,
+      reports: acceptedOutput.reports,
+      bindings: reversedBindings,
     });
-    expect(accepted.finalParts).toBe(2);
-    expect(accepted.completionFailures.map(({ message }) => message).join("\n")).not.toContain(
-      "transform multiset",
-    );
+    expect(accepted.map(({ message }) => message).join("\n")).not.toContain("transform multiset");
 
     const wrongTransform = {
       ...reversed,
@@ -402,34 +404,24 @@ describe("real build finalizer identical-piece identity groups", () => {
           : part,
       ),
     };
-    const rejectedTransform = finalizeExecutedRealBuildResult({
+    const wrongTransformOutput = browserOutput(wrongTransform, reversedBindings);
+    const rejectedTransform = auditRealBuildIdentityBindings({
       options,
-      browserOutput: browserOutput(wrongTransform, reversedBindings),
+      document: wrongTransform,
+      reports: wrongTransformOutput.reports,
+      bindings: reversedBindings,
     });
-    expect(rejectedTransform.status).toBe("incomplete");
-    expect(rejectedTransform).toMatchObject({
-      documentJson: null,
-      structuralHash: null,
-      finalParts: 0,
-    });
-    expect(rejectedTransform.completionFailures.map(({ message }) => message).join("\n")).toContain(
+    expect(rejectedTransform.map(({ message }) => message).join("\n")).toContain(
       "transform multiset",
     );
 
-    const rejectedMetadata = finalizeExecutedRealBuildResult({
+    const rejectedMetadata = auditRealBuildIdentityBindings({
       options,
-      browserOutput: browserOutput(reversed, [
-        { ...reversedBindings[0]!, designId: "3004" },
-        reversedBindings[1]!,
-      ]),
+      document: reversed,
+      reports: acceptedOutput.reports,
+      bindings: [{ ...reversedBindings[0]!, designId: "3004" }, reversedBindings[1]!],
     });
-    expect(rejectedMetadata.status).toBe("incomplete");
-    expect(rejectedMetadata).toMatchObject({
-      documentJson: null,
-      structuralHash: null,
-      finalParts: 0,
-    });
-    expect(rejectedMetadata.completionFailures.map(({ message }) => message).join("\n")).toContain(
+    expect(rejectedMetadata.map(({ message }) => message).join("\n")).toContain(
       "transform multiset",
     );
   });
@@ -457,14 +449,14 @@ describe("real build finalizer identical-piece identity groups", () => {
     });
 
     expect(interrupted.status).toBe("incomplete");
-    expect(interrupted.finalParts).toBe(2);
-    expect(interrupted.structuralHash).toMatch(/^sha256:[a-f0-9]{64}$/u);
-    expect(interrupted.documentJson).not.toBeNull();
+    expect(interrupted.finalParts).toBe(0);
+    expect(interrupted.structuralHash).toBeNull();
+    expect(interrupted.documentJson).toBeNull();
     expect(interrupted.completionFailures.map(({ message }) => message).join("\n")).toContain(
       "identity binding(s) were retained against 3",
     );
-    expect(interrupted.completionFailures.map(({ message }) => message).join("\n")).not.toContain(
-      "does not resolve to one canonical part",
+    expect(interrupted.completionFailures.map(({ message }) => message).join("\n")).toContain(
+      "must retain the eight-way step-0 root",
     );
 
     const wrongBinding = finalizeExecutedRealBuildResult({
@@ -481,7 +473,7 @@ describe("real build finalizer identical-piece identity groups", () => {
       finalParts: 0,
     });
     expect(wrongBinding.completionFailures.map(({ message }) => message).join("\n")).toContain(
-      "transform multiset",
+      "identity binding(s) were retained against 3",
     );
 
     const wrongMetadataDocument = {
@@ -503,7 +495,7 @@ describe("real build finalizer identical-piece identity groups", () => {
       finalParts: 0,
     });
     expect(wrongMetadata.completionFailures.map(({ message }) => message).join("\n")).toContain(
-      "does not match the prepared option/ledger action",
+      "identity binding(s) were retained against 3",
     );
   });
 });

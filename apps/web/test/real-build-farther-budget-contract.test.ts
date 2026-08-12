@@ -1,10 +1,43 @@
 import { describe, expect, it } from "vitest";
 
 import type { DeferralEvidence } from "../e2e/real-build-deferral";
-import { isRealBuildBrowserOutput } from "../e2e/real-build-browser-output";
+import { inspectFrozenLegacyBrowserOutputV2 } from "../e2e/real-build-artifact-legacy-browser-v2";
 import { isRealBuildFartherEvidence } from "../e2e/real-build-farther-report-parser";
 import type { RealBuildFartherEvidence } from "../e2e/real-build-farther-report-types";
-import { DIGEST, PNG, browserOutput, options } from "./real-build-adversarial-fixtures";
+import type { RealBuildOptions } from "../e2e/real-build-safety";
+import {
+  completeReport,
+  DIGEST,
+  documentJson,
+  PNG,
+  options,
+} from "./real-build-adversarial-fixtures";
+
+const frozenLegacyBrowserOutput = (lastStep: number) => ({
+  schemaVersion: "lego.real-build-browser-output/2" as const,
+  status: "executed" as const,
+  reports: Array.from({ length: lastStep }, (_, index) =>
+    Object.fromEntries(
+      Object.entries(completeReport(index + 1)).filter(([key]) => key !== "panelCamera"),
+    ),
+  ),
+  documentJson: documentJson(lastStep),
+  identityBindings: [],
+  fetchedPdfDigest: DIGEST,
+  totalElapsedMs: lastStep,
+});
+
+const isFrozenLegacyBrowserOutput = (
+  value: unknown,
+  preparedOptions: RealBuildOptions,
+): boolean => {
+  try {
+    inspectFrozenLegacyBrowserOutputV2(value, preparedOptions);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 const basePrepared = options(1);
 const prepared = {
@@ -173,19 +206,21 @@ const parses = (value: unknown): boolean =>
   isRealBuildFartherEvidence(value, 1, 0, deferral, prepared);
 
 const retainedOutput = () => {
-  const base = browserOutput(1);
+  const base = frozenLegacyBrowserOutput(1);
+  const farther = evidence("aggregate-candidate-budget-exhausted");
   return {
     ...base,
     reports: [
       {
         ...base.reports[0]!,
         outcome: {
-          status: "complete" as const,
-          mechanism: "deferred-lookahead" as const,
-          failure: null,
+          status: "failed" as const,
+          mechanism: "deferred" as const,
+          attemptedMechanism: "deferred-lookahead" as const,
+          failure: farther.refusal,
         },
         deferral,
-        farther: evidence("aggregate-candidate-budget-exhausted"),
+        farther,
         fartherCaptures: [
           {
             captureId: 0,
@@ -277,9 +312,9 @@ describe("real-build farther aggregate reservation witnesses", () => {
 
   it("does not let cosmetic deferral mutations make required farther evidence deletable", () => {
     const honest = retainedOutput();
-    expect(isRealBuildBrowserOutput(honest, prepared)).toBe(true);
+    expect(isFrozenLegacyBrowserOutput(honest, prepared)).toBe(true);
 
-    for (const deferralMutation of [
+    const deferralMutations = [
       {},
       { wholeStepCandidates: 1 },
       { rendered: 0 },
@@ -290,26 +325,26 @@ describe("real-build farther aggregate reservation witnesses", () => {
       { lookaheadTurnDegrees: null },
       { lookaheadUpSign: null },
       { reachSteps: 0 },
-    ]) {
-      expect(
-        isRealBuildBrowserOutput(
-          {
-            ...honest,
-            reports: [
-              {
-                ...honest.reports[0]!,
-                deferral: { ...deferral, ...deferralMutation },
-                farther: null,
-                fartherCaptures: [],
-              },
-            ],
-          },
-          prepared,
-        ),
-      ).toBe(false);
-    }
+    ];
+    const deletableMutations = deferralMutations.filter((deferralMutation) =>
+      isFrozenLegacyBrowserOutput(
+        {
+          ...honest,
+          reports: [
+            {
+              ...honest.reports[0]!,
+              deferral: { ...deferral, ...deferralMutation },
+              farther: null,
+              fartherCaptures: [],
+            },
+          ],
+        },
+        prepared,
+      ),
+    );
+    expect(deletableMutations).toEqual([]);
     expect(
-      isRealBuildBrowserOutput(
+      isFrozenLegacyBrowserOutput(
         {
           ...honest,
           reports: [
@@ -333,7 +368,10 @@ describe("real-build farther aggregate reservation witnesses", () => {
       reports: [{ ...honest.reports[0]!, farther: null, fartherCaptures: [] }],
     };
     expect(
-      isRealBuildBrowserOutput(withoutFarther, { ...prepared, fartherPanelMaximumReachSteps: 1 }),
+      isFrozenLegacyBrowserOutput(withoutFarther, {
+        ...prepared,
+        fartherPanelMaximumReachSteps: 1,
+      }),
     ).toBe(true);
 
     const earlyRefusal: DeferralEvidence = {
@@ -353,7 +391,7 @@ describe("real-build farther aggregate reservation witnesses", () => {
       margin: null,
     };
     expect(
-      isRealBuildBrowserOutput(
+      isFrozenLegacyBrowserOutput(
         {
           ...withoutFarther,
           reports: [{ ...withoutFarther.reports[0]!, deferral: earlyRefusal }],
@@ -407,9 +445,9 @@ describe("real-build farther aggregate reservation witnesses", () => {
         },
       ],
     };
-    expect(isRealBuildBrowserOutput(failed, prepared)).toBe(true);
+    expect(isFrozenLegacyBrowserOutput(failed, prepared)).toBe(true);
     expect(
-      isRealBuildBrowserOutput(
+      isFrozenLegacyBrowserOutput(
         {
           ...failed,
           reports: [

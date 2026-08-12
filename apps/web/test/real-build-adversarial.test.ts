@@ -34,6 +34,10 @@ import {
   options,
   transitionPanel,
 } from "./real-build-adversarial-fixtures";
+import {
+  observedPanelCameraEvidence,
+  seededPanelCameraEvidence,
+} from "./real-build-panel-camera-evidence.fixture";
 
 describe("real build adversarial completion and ledger contracts", () => {
   /**
@@ -87,7 +91,7 @@ describe("real build adversarial completion and ledger contracts", () => {
     );
   });
 
-  it("reparses canonical bytes and accepts only an exact hard-valid prefix", () => {
+  it("reparses current bytes and refuses a scalar prefix while the eight roots remain unresolved", () => {
     const reports = [completeReport(1), completeReport(2)];
     const result = finalizeExecutedRealBuildResult({
       options: options(2),
@@ -95,11 +99,14 @@ describe("real build adversarial completion and ledger contracts", () => {
     });
 
     expect(result).toMatchObject({
-      status: "prefix-complete",
+      status: "incomplete",
       finalParts: 0,
-      completionFailures: [],
     });
-    expect(realBuildExecutionFailure(result)).toBeNull();
+    expect(result.steps[0]?.outcome).toMatchObject({
+      status: "failed",
+      failure: { code: "camera-handedness-unresolved" },
+    });
+    expect(realBuildExecutionFailure(result)).not.toBeNull();
   });
 
   /**
@@ -115,10 +122,10 @@ describe("real build adversarial completion and ledger contracts", () => {
   it("retains one typed row per requested printed step when the run stops short", () => {
     const honest = browserOutput(3);
     const stoppedShort: RealBuildBrowserOutput = {
-      schemaVersion: "lego.real-build-browser-output/2",
+      schemaVersion: "lego.real-build-browser-output/3",
       status: "failed",
       reports: honest.reports.slice(0, 1),
-      documentJson: null,
+      documentJson: honest.documentJson,
       identityBindings: [],
       fetchedPdfDigest: DIGEST,
       failure: {
@@ -256,6 +263,7 @@ describe("real build adversarial completion and ledger contracts", () => {
         anchorShiftPx: [0, 0],
         anchorTurnDegrees: 0,
       },
+      panelCamera: observedPanelCameraEvidence(1),
       highlight: { regions: 1, closedContourRate: 1, strokePx: 20, boundsPx: [0, 0, 10, 10] },
       pieces: [
         {
@@ -368,8 +376,13 @@ describe("real build adversarial completion and ledger contracts", () => {
     );
   });
 
-  it("rejects colluding report/document and tandem-hash tampering against exact ledger identity", () => {
-    const base = createEmptyBrickDocument({ id: "identity", name: "identity", maxParts: 10 });
+  it("rejects colluding step-1 report/document bytes before unresolved-root ledger projection", () => {
+    const trustedOptions = options(1);
+    const base = createEmptyBrickDocument({
+      id: "real-build",
+      name: "Real booklet rebuild",
+      maxParts: trustedOptions.maxParts,
+    });
     const expectedPart = createPartInstance({
       id: "part-a",
       catalogPartId: "builtin:brick-1x1",
@@ -403,7 +416,6 @@ describe("real build adversarial completion and ledger contracts", () => {
       mappedCalloutKeys: ["p1-c0.png"],
       action: { kind: "place-callouts", assembledPieces: 1, evidenceDigest: DIGEST },
     };
-    const trustedOptions = options(1);
     const sourcePanel = trustedOptions.panels[357]!;
     if (sourcePanel.action.kind !== "place-callouts") {
       throw new TypeError("The complete fixture must retain its direct-piece panel at step 358.");
@@ -452,6 +464,7 @@ describe("real build adversarial completion and ledger contracts", () => {
       actionEvidenceDigest: DIGEST,
       deferral: null,
       documentParts: 1,
+      panelCamera: seededPanelCameraEvidence(identityOptions.panelCameraBranchBudget),
     };
     const tamperedDocument = {
       ...expectedDocument,
@@ -483,7 +496,7 @@ describe("real build adversarial completion and ledger contracts", () => {
     const result = finalizeExecutedRealBuildResult({
       options: identityOptions,
       browserOutput: {
-        schemaVersion: "lego.real-build-browser-output/2",
+        schemaVersion: "lego.real-build-browser-output/3",
         status: "executed",
         reports: [tamperedReport],
         documentJson: bytes,
@@ -505,12 +518,12 @@ describe("real build adversarial completion and ledger contracts", () => {
 
     expect(result.status).toBe("incomplete");
     expect(result.completionFailures).toEqual(
-      expect.arrayContaining([expect.objectContaining({ code: "visual-evidence-unverified" })]),
+      expect.arrayContaining([expect.objectContaining({ code: "run-incomplete" })]),
     );
     expect(result.diagnosticPrefix).toBeNull();
-    expect(result.completionFailures.map(({ message }) => message).join(" ")).toContain(
-      "exact searched-report transform multiset",
-    );
+    const messages = result.completionFailures.map(({ message }) => message).join(" ");
+    expect(messages).toContain("terminal document after a root refusal");
+    expect(messages).toContain("complete placement");
   });
 
   it("fails every bad row and requires completed 1464-part truth at step 359", () => {

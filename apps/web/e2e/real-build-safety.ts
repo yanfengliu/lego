@@ -2,6 +2,7 @@ import type { PanelFace } from "../src/assembly/panel-face";
 
 import type { DeferralEvidence } from "./real-build-deferral";
 import type { ExplodedGhostEvidence } from "./real-build-exploded-step";
+import type { RealBuildPanelCameraEvidence } from "./real-build-panel-camera-evidence";
 import type {
   RealBuildFartherCapture,
   RealBuildFartherEvidence,
@@ -614,6 +615,13 @@ export interface RealBuildStepReport {
      */
     readonly anchorTurnDegrees: number | null;
   } | null;
+  /**
+   * Immutable D4 camera-lineage evidence bound to this printed panel.
+   *
+   * Null means camera-lineage work was not attempted for this row; it never
+   * means that a scalar camera silently stood in for the unresolved frontier.
+   */
+  readonly panelCamera: RealBuildPanelCameraEvidence | null;
   readonly highlight: {
     readonly regions: number;
     readonly closedContourRate: number;

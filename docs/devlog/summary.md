@@ -2,6 +2,10 @@
 
 Current state belongs in the design documents; this index records only behaviour changes, measured results, and links to the matching detailed history.
 
+- [2026-08-12 (browser and artifact closure hardening)](detailed/2026-08-12_2026-08-12.md) — Reviewer-found gaps now reject forged hash-preserving zero-piece steps, terminal-document, action-digest and exact zero-work blocked-row drift, metadata-only/input-rejection artifact `/4` claims without typed digest-bound witnesses, and deletion of a completed legacy deferred decision; only downstream browser closures remain eligible for current publication, and the 10:28 run remains frozen inspection-only under generation-local predicates.
+
+- [2026-08-12 (live fail-closed camera boundary)](detailed/2026-08-12_2026-08-12.md) — Browser-output `/3` now retains the exact canonical eight-way empty-root frontier, refuses step 1 before placement until scoring carries lineage, routes fixed actions through the opaque pre-executor guard, and preserves reports across ordered page and cleanup failures; current publication requires artifact `/4` + contract `/3` + browser `/3` + result/score `/5`, while the measured 10:28 artifact `/3` + contract `/2` + browser `/2` + result/score `/4` run remains legacy inspection-only.
+
 - [2026-08-12 (source-attested extraction)](detailed/2026-08-12_2026-08-12.md) — Real-build runner, artifact, report-parser, and safety boundaries were extracted below their hard line ceilings without changing emitted behavior, while LF checkout rules made the 3,087-file calibrated source attestation reproduce from Git instead of depending on one mixed-EOL worktree.
 
 - [2026-08-12 (panel-camera resolver and fixed-action refusal)](detailed/2026-08-12_2026-08-12.md) — A pure resolver now reserves eight hash-bound root or observed camera lineages atomically and never grants physical authority, while the separate fixed-action seam returns `fixed-ledger-frame-unresolved` without reading its executor; neither path is wired into the runner.

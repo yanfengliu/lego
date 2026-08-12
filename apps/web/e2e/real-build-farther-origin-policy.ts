@@ -492,16 +492,20 @@ export function measuredFartherOriginProbeIneligibility(input: {
     }[];
   }[];
   readonly options: FartherOriginPolicyOptions;
+  /** Frozen generation-specific expectation; producers always omit this and use the current pin. */
+  readonly expectedSourceAttestation?: typeof MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION;
 }): string | null {
   const { originSpec, interveningSpec, fartherSpec, origins, options } = input;
+  const expectedSourceAttestation =
+    input.expectedSourceAttestation ?? MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION;
   if (fartherSpec === null) return "no farther panel is available";
   if (
     JSON.stringify(options.measuredFartherOriginSourceAttestation) !==
-    JSON.stringify(MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION)
+    JSON.stringify(expectedSourceAttestation)
   ) {
     return (
       `source attestation ${JSON.stringify(options.measuredFartherOriginSourceAttestation)} differs from ` +
-      `measured ${JSON.stringify(MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION)}`
+      `measured ${JSON.stringify(expectedSourceAttestation)}`
     );
   }
   const identities = origins.map(({ candidateId, documentHash, lookaheadAgreement, pieces }) => ({

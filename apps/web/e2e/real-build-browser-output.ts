@@ -1,4 +1,5 @@
-import { validateBrickDocumentV1 } from "@lego-studio/protocol";
+import { createEmptyBrickDocument, documentStructuralHash } from "@lego-studio/brick-kernel";
+import { inspectFrozenLegacyBrowserOutputV2 } from "./real-build-artifact-legacy-browser-v2";
 
 import {
   isRealBuildFartherCaptures,
@@ -7,42 +8,39 @@ import {
 } from "./real-build-farther-report-parser";
 import { isRealBuildFartherDecisionPieceCoherent } from "./real-build-farther-decision-piece-coherence";
 import type { RealBuildFartherEvidence } from "./real-build-farther-report-types";
+import {
+  createPanelCameraLineageContinuityState,
+  panelCameraEvidenceDefect,
+  type PanelCameraLineageContinuityState,
+} from "./real-build-browser-output-panel-camera";
+import { MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION } from "./real-build-farther-origin-source-manifest";
+import { LEGACY_MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION_V2 } from "./real-build-farther-origin-source-attestation-legacy-v2";
 import { isNullableRealBuildPngCapture } from "./real-build-png-capture";
 import type { RealBuildOptions, RealBuildStepReport, StepFailure } from "./real-build-safety";
+import type {
+  LegacyRealBuildBrowserOutputBoundary,
+  LegacyRealBuildBrowserOutputV2,
+  RealBuildBrowserOutputBoundary,
+  RealBuildBrowserOutput,
+} from "./real-build-browser-output-types";
+import { inspectBrowserOutputCanonicalTransitions } from "./real-build-browser-output-transition-continuity";
+import { terminalCanonicalDocumentDefect } from "./real-build-browser-output-transition-continuity";
+import { failedBrowserOutputEnvelopeDefect } from "./real-build-browser-output-failed-policy";
+import {
+  boundBrowserOutputReading,
+  boundedBrowserActionMatches,
+  describeDetachedBrowserValue,
+  snapshotCurrentRealBuildBrowserOutput,
+} from "./real-build-browser-output-snapshot";
+
+export type {
+  LegacyRealBuildBrowserOutputV2,
+  RealBuildBrowserOutput,
+  RealBuildIdentityBinding,
+} from "./real-build-browser-output-types";
 
 export { decodeRealBuildPngCapture } from "./real-build-png-capture";
 export { MAXIMUM_REAL_BUILD_FARTHER_CAPTURES } from "./real-build-farther-report-types";
-
-export interface RealBuildIdentityBinding {
-  readonly identityKey: string;
-  readonly partId: string;
-  readonly stepNumber: number;
-  readonly designId: string;
-  readonly materialId: string;
-  readonly catalogPartId: string;
-  readonly colorId: string;
-}
-
-export type RealBuildBrowserOutput =
-  | {
-      readonly schemaVersion: "lego.real-build-browser-output/2";
-      readonly status: "executed";
-      readonly reports: readonly RealBuildStepReport[];
-      readonly documentJson: string;
-      readonly identityBindings: readonly RealBuildIdentityBinding[];
-      readonly fetchedPdfDigest: string;
-      readonly totalElapsedMs: number;
-    }
-  | {
-      readonly schemaVersion: "lego.real-build-browser-output/2";
-      readonly status: "failed";
-      readonly reports: readonly RealBuildStepReport[];
-      readonly documentJson: string | null;
-      readonly identityBindings: readonly RealBuildIdentityBinding[];
-      readonly fetchedPdfDigest: string | null;
-      readonly failure: StepFailure;
-      readonly totalElapsedMs: number;
-    };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -72,6 +70,7 @@ const REPORT_KEYS = [
   "validation",
   "fit",
   "camera",
+  "panelCamera",
   "highlight",
   "arrows",
   "pieces",
@@ -85,6 +84,7 @@ const REPORT_KEYS = [
   "panelPng",
   "buildPng",
 ] as const;
+const LEGACY_REPORT_KEYS_V2 = REPORT_KEYS.filter((key) => key !== "panelCamera");
 
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
@@ -149,14 +149,14 @@ function isStepOutcome(value: unknown): boolean {
         "exploded-ghost",
         "instruction-transition",
         "official-ledger",
-      ].includes(String(value.mechanism)) &&
+      ].includes(value.mechanism as string) &&
       value.failure === null
     );
   }
   return (
     value.status === "failed" &&
     exactKeys(value, ["status", "mechanism", "attemptedMechanism", "failure"]) &&
-    ["deferred", "blocked"].includes(String(value.mechanism)) &&
+    ["deferred", "blocked"].includes(value.mechanism as string) &&
     (value.attemptedMechanism === null || typeof value.attemptedMechanism === "string") &&
     isStepFailure(value.failure)
   );
@@ -529,25 +529,9 @@ function isArrowEvidence(value: unknown, maximum: number): boolean {
 function stepReportShapeDefect(
   report: unknown,
   index: number,
-  options: Pick<
-    RealBuildOptions,
-    | "lastStep"
-    | "maxParts"
-    | "panels"
-    | "blindRenderBudget"
-    | "explodedGhostRenderBudget"
-    | "deferredCandidateBudget"
-    | "deferredNarrowingRenderBudget"
-    | "fartherPanelMaximumReachSteps"
-    | "fartherPanelRenderBudget"
-    | "minimumDeferredAgreement"
-    | "minimumDeferredAgreementMargin"
-    | "inputDigests"
-    | "renderScale"
-    | "panelWidth"
-    | "workFactor"
-    | "measuredFartherOriginSourceAttestation"
-  >,
+  generation: 2 | 3,
+  options: LegacyRealBuildBrowserOutputBoundary,
+  panelCameraContinuity: PanelCameraLineageContinuityState,
 ): string | null {
   // A render count is not a part count. These were bounded by `maxParts`, which
   // held only while every search rendered fewer candidates than the model has
@@ -559,7 +543,7 @@ function stepReportShapeDefect(
   const panel = options.panels.find(({ stepNumber }) => stepNumber === index + 1);
   if (
     !isRecord(report) ||
-    !exactKeys(report, REPORT_KEYS) ||
+    !exactKeys(report, generation === 3 ? REPORT_KEYS : LEGACY_REPORT_KEYS_V2) ||
     panel === undefined ||
     report.stepNumber !== index + 1 ||
     report.pageNumber !== panel.pageNumber ||
@@ -571,8 +555,7 @@ function stepReportShapeDefect(
     report.expectedAssembledPieces !== panel.action.assembledPieces ||
     !isBoundedInteger(report.attemptedPieces, options.maxParts) ||
     !isBoundedInteger(report.placedPieces, options.maxParts) ||
-    JSON.stringify(report.action) !== JSON.stringify(panel.action) ||
-    !isNullableDigest(report.actionEvidenceDigest) ||
+    !boundedBrowserActionMatches(report.action, panel.action, report.actionEvidenceDigest) ||
     (report.canonicalStepId !== null && typeof report.canonicalStepId !== "string") ||
     !isStepPrerequisites(report.prerequisites, options.maxParts) ||
     !isStepOutcome(report.outcome) ||
@@ -618,7 +601,7 @@ function stepReportShapeDefect(
         "deferred-reach-unmeasured",
         "weak-deferred-agreement",
         "ambiguous-deferred-placement",
-      ].includes(String(piece.failure.code)),
+      ].includes(piece.failure.code as string),
   );
   if (
     (deferral !== null) !== outcomeUsesDeferredLookahead ||
@@ -636,6 +619,9 @@ function stepReportShapeDefect(
       report.expectedAssembledPieces as number,
       deferral,
       options,
+      generation === 2
+        ? LEGACY_MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION_V2
+        : MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION,
     )
   ) {
     return `Replay browser-output report[${index}].farther must be an exact bounded branch proof tied to the prepared N/N+1 panels, parent frontier, lineages, budgets, scores, refusal, and decision.`;
@@ -658,28 +644,22 @@ function stepReportShapeDefect(
   ) {
     return `Replay browser-output report[${index}].fartherCaptures must contain one exact source PNG per panel, every N+1 score render, dense capture IDs, and only score-bound candidate IDs.`;
   }
+  if (generation === 3) {
+    const defect = panelCameraEvidenceDefect(
+      report.panelCamera,
+      report,
+      index,
+      options.panelCameraBranchBudget!,
+      panelCameraContinuity,
+      {
+        pdfDigest: options.inputDigests.pdf,
+        panels: options.panels,
+      },
+    );
+    if (defect !== null) return defect;
+  }
   return null;
 }
-
-type RealBuildBrowserOutputBoundary = Pick<
-  RealBuildOptions,
-  | "lastStep"
-  | "maxParts"
-  | "inputDigests"
-  | "panels"
-  | "blindRenderBudget"
-  | "explodedGhostRenderBudget"
-  | "deferredCandidateBudget"
-  | "deferredNarrowingRenderBudget"
-  | "fartherPanelMaximumReachSteps"
-  | "fartherPanelRenderBudget"
-  | "minimumDeferredAgreement"
-  | "minimumDeferredAgreementMargin"
-  | "renderScale"
-  | "panelWidth"
-  | "workFactor"
-  | "measuredFartherOriginSourceAttestation"
->;
 
 /**
  * The two separable questions a self-labelled browser output has to answer.
@@ -696,18 +676,16 @@ type RealBuildBrowserOutputBoundary = Pick<
  * away every refusal it had already measured.
  */
 export interface RealBuildBrowserOutputReading {
-  /** Non-null when the bytes are not a readable browser output, so nothing in them may be retained. */
   readonly envelopeDefect: string | null;
-  /** One entry per retained report, in order: null when that row may be read, else why it may not. */
   readonly reportDefects: readonly (string | null)[];
   /** Non-null when an executed output does not account for its prepared inputs — a finding, not a parse error. */
   readonly reproductionDefect: string | null;
 }
 
-/** Reads a self-labelled browser-output object without deciding what to do about what it finds. */
-export function readRealBuildBrowserOutput(
+function readRealBuildBrowserOutputGeneration(
   value: unknown,
-  options: RealBuildBrowserOutputBoundary,
+  options: LegacyRealBuildBrowserOutputBoundary,
+  generation: 2 | 3,
 ): RealBuildBrowserOutputReading {
   const unreadable = (envelopeDefect: string): RealBuildBrowserOutputReading => ({
     envelopeDefect,
@@ -716,6 +694,17 @@ export function readRealBuildBrowserOutput(
   });
   if (!isRecord(value) || (value.status !== "executed" && value.status !== "failed")) {
     return unreadable("Replay browser-output must be an executed or failed object.");
+  }
+  if (
+    generation === 3 &&
+    (!Number.isSafeInteger(options.panelCameraBranchBudget) ||
+      options.panelCameraBranchBudget! < 8 ||
+      options.panelCameraBranchBudget! > 800_000 ||
+      options.panelCameraBranchBudget! % 8 !== 0)
+  ) {
+    return unreadable(
+      `Current browser-output /3 requires panelCameraBranchBudget to be a safe multiple of eight from 8 through 800000; received ${String(options.panelCameraBranchBudget)}.`,
+    );
   }
   const expectedKeys =
     value.status === "executed"
@@ -740,7 +729,7 @@ export function readRealBuildBrowserOutput(
         ];
   if (
     !exactKeys(value, expectedKeys) ||
-    value.schemaVersion !== "lego.real-build-browser-output/2" ||
+    value.schemaVersion !== `lego.real-build-browser-output/${generation}` ||
     !Array.isArray(value.reports) ||
     value.reports.length > options.lastStep ||
     !Array.isArray(value.identityBindings) ||
@@ -755,9 +744,36 @@ export function readRealBuildBrowserOutput(
   }
   const reportDefects: (string | null)[] = [];
   const seenSteps = new Set<number>();
+  const canonicalDocumentBoundary =
+    generation === 3
+      ? inspectBrowserOutputCanonicalTransitions(
+          value.documentJson,
+          options.panels,
+          options.lastStep,
+          options.maxParts,
+        )
+      : { present: false, defect: null, transitionWitnesses: new Map(), finalDocument: null };
+  const panelCameraContinuity = createPanelCameraLineageContinuityState(
+    generation === 3
+      ? documentStructuralHash(
+          createEmptyBrickDocument({
+            id: "real-build",
+            name: "Real booklet rebuild",
+            maxParts: options.maxParts,
+          }),
+        )
+      : "legacy-v2-does-not-parse-panel-camera-evidence",
+    canonicalDocumentBoundary.transitionWitnesses,
+  );
   for (let index = 0; index < value.reports.length; index += 1) {
     const report: unknown = value.reports[index];
-    const shapeDefect = stepReportShapeDefect(report, index, options);
+    const shapeDefect = stepReportShapeDefect(
+      report,
+      index,
+      generation,
+      options,
+      panelCameraContinuity,
+    );
     const stepNumber = shapeDefect === null ? (report as RealBuildStepReport).stepNumber : null;
     reportDefects.push(
       shapeDefect ??
@@ -767,6 +783,16 @@ export function readRealBuildBrowserOutput(
     );
     if (stepNumber !== null) seenSteps.add(stepNumber);
   }
+  const terminalDocumentDefect =
+    generation === 3
+      ? terminalCanonicalDocumentDefect({
+          boundary: canonicalDocumentBoundary,
+          expectedRootDocumentHash: panelCameraContinuity.expectedRootDocumentHash,
+          acceptedDocumentHash: panelCameraContinuity.acceptedDocumentHash,
+          acceptedDocumentParts: panelCameraContinuity.acceptedDocumentParts,
+          acceptedSteps: [...panelCameraContinuity.acceptedSteps.values()],
+        })
+      : null;
   const seenIdentities = new Set<string>();
   const seenParts = new Set<string>();
   for (const binding of value.identityBindings) {
@@ -829,14 +855,11 @@ export function readRealBuildBrowserOutput(
           : value.documentJson.length === 0
             ? "documentJson is empty, so the run finished without a document"
             : value.fetchedPdfDigest !== options.inputDigests.pdf
-              ? `the browser fetched PDF ${String(value.fetchedPdfDigest)} but the prepared inputs pin ${options.inputDigests.pdf}`
+              ? `the browser fetched PDF ${describeDetachedBrowserValue(value.fetchedPdfDigest)} but the prepared inputs pin ${options.inputDigests.pdf}`
               : value.identityBindings.length !== expectedBindings
                 ? `${value.identityBindings.length} identity binding(s) were retained against ${expectedBindings} the requested panels declare`
                 : null;
     if (executedMismatch !== null) {
-      // A binding count is a symptom; the steps hold the cause, and they are
-      // right here. Without them this refusal says the run placed nothing and
-      // leaves finding out why to a separate investigation.
       const outcomes = value.reports
         .filter((_, index) => reportDefects[index] === null)
         .slice(0, 6)
@@ -846,15 +869,13 @@ export function readRealBuildBrowserOutput(
           return (
             `step ${entry.stepNumber} ${entry.outcome.status}/${entry.outcome.mechanism} ` +
             `${entry.placedPieces}/${entry.expectedAssembledPieces} placed ` +
-            // The evidence the step had to work from. A placement score of zero
-            // means something different when the panel printed no highlight at
-            // all than when it printed one the candidate missed, and only these
-            // separate the two.
             `[highlight ${entry.highlight.regions} region(s), ${entry.highlight.strokePx}px stroke, ` +
             `closed ${entry.highlight.closedContourRate}; arrows ${entry.arrows.kept} kept ` +
             `${entry.arrows.rejected} rejected, family ${entry.arrows.displacementFamily} ` +
             `${JSON.stringify(entry.arrows.displacementFamilyLdu)}]` +
-            (failure === null ? "" : ` — ${failure.code}: ${failure.message}`)
+            (failure === null
+              ? ""
+              : ` — ${failure.code.slice(0, 128)}: ${failure.message.slice(0, 512)}`)
           );
         });
       return reading(
@@ -864,36 +885,63 @@ export function readRealBuildBrowserOutput(
             : `Steps: ${outcomes.join(" | ")}`),
       );
     }
-    try {
-      const document: unknown = JSON.parse(value.documentJson as string);
-      if (!validateBrickDocumentV1(document)) {
-        throw new TypeError("document is not a valid BrickDocumentV1");
-      }
-    } catch (error) {
+    if (generation === 3 && canonicalDocumentBoundary.defect !== null) {
       return reading(
-        `Executed replay browser-output documentJson is invalid JSON. ` +
-          `${error instanceof Error ? error.message : String(error)}`,
+        `Executed replay browser-output canonical transition boundary could not inspect documentJson: ` +
+          `${canonicalDocumentBoundary.defect}.`,
       );
     }
-  } else if (
-    (value.documentJson !== null && typeof value.documentJson !== "string") ||
-    (value.fetchedPdfDigest !== null &&
-      (typeof value.fetchedPdfDigest !== "string" ||
-        !DIGEST_PATTERN.test(value.fetchedPdfDigest) ||
-        value.fetchedPdfDigest !== options.inputDigests.pdf)) ||
-    !isRecord(value.failure) ||
-    typeof value.failure.code !== "string" ||
-    typeof value.failure.stage !== "string" ||
-    typeof value.failure.message !== "string" ||
-    value.failure.message.length === 0
+    if (generation === 3 && terminalDocumentDefect !== null) {
+      return reading(`Executed replay browser-output ${terminalDocumentDefect}.`);
+    }
+  } else {
+    const failedDefect = failedBrowserOutputEnvelopeDefect(value, options.inputDigests.pdf);
+    if (failedDefect !== null) return unreadable(failedDefect);
+  }
+  if (
+    generation === 3 &&
+    value.status === "failed" &&
+    value.documentJson !== null &&
+    terminalDocumentDefect !== null
   ) {
-    // A failed output that cannot say *why* it failed is unreadable, not
-    // incomplete: there is no finding in it to retain.
-    return unreadable(
-      "Failed replay browser-output must retain a structured failure and only exact optional PDF/document evidence.",
-    );
+    return unreadable(`Failed replay browser-output ${terminalDocumentDefect}.`);
   }
   return reading(null);
+}
+
+export function readRealBuildBrowserOutput(
+  value: unknown,
+  options: RealBuildBrowserOutputBoundary,
+): RealBuildBrowserOutputReading {
+  const snapshot = snapshotCurrentRealBuildBrowserOutput(value, options.lastStep, options.maxParts);
+  if (!snapshot.ok) {
+    return {
+      envelopeDefect: `Replay browser-output could not be safely detached: ${snapshot.defect}.`,
+      reportDefects: [],
+      reproductionDefect: null,
+    };
+  }
+  try {
+    return boundBrowserOutputReading(
+      readRealBuildBrowserOutputGeneration(snapshot.value, options, 3),
+    );
+  } catch {
+    return {
+      envelopeDefect: "Replay browser-output detached data could not be safely inspected.",
+      reportDefects: [],
+      reproductionDefect: null,
+    };
+  }
+}
+
+export function inspectLegacyRealBuildBrowserOutputV2(
+  value: unknown,
+  options: LegacyRealBuildBrowserOutputBoundary,
+): LegacyRealBuildBrowserOutputV2 {
+  return inspectFrozenLegacyBrowserOutputV2(
+    value,
+    options as RealBuildOptions,
+  ) as LegacyRealBuildBrowserOutputV2;
 }
 
 /**
