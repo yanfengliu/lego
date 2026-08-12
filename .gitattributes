@@ -12,6 +12,28 @@
 # with BoundedFileReadError. A fresh clone or a new worktree does the same thing,
 # and the failure reads as tampering rather than as a checkout artifact.
 #
+# Runtime source snapshots are also byte-addressed. Keep ordinary source text
+# LF in both the index and every checkout so an attestation calibrated on one
+# platform reproduces on another. Narrower byte-preserving rules below still
+# override these defaults for generated and fixture files.
+.gitattributes text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.mjs text eol=lf
+*.json text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.ps1 text eol=lf
+
+# These hostile-input fixtures deliberately contain literal NUL bytes. Keep
+# their committed bytes exact instead of asking Git's text filters to interpret
+# them; the source snapshot still hashes and locks those bytes verbatim.
+apps/web/src/assembly/enumerate-placements.test.ts -text
+apps/web/src/manual-commands.test.ts -text
+apps/web/src/viewport/placement-ghost.ts -text
+packages/brick-kernel/src/build-sequence.ts -text
+
 # One binding is cross-file, which makes the failure harder still to place:
 # coverage.json pins pairJudged sha256:f10acf1b..., the digest of its sibling
 # pair-judged-truth.json (631 bytes LF, 651 CRLF, digest 6961c65e... translated).

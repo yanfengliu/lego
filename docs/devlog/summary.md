@@ -2,6 +2,8 @@
 
 Current state belongs in the design documents; this index records only behaviour changes, measured results, and links to the matching detailed history.
 
+- [2026-08-12 (source-attested extraction)](detailed/2026-08-12_2026-08-12.md) — Real-build runner, artifact, report-parser, and safety boundaries were extracted below their hard line ceilings without changing emitted behavior, while LF checkout rules made the 3,087-file calibrated source attestation reproduce from Git instead of depending on one mixed-EOL worktree.
+
 - [2026-08-12 (panel-camera resolver and fixed-action refusal)](detailed/2026-08-12_2026-08-12.md) — A pure resolver now reserves eight hash-bound root or observed camera lineages atomically and never grants physical authority, while the separate fixed-action seam returns `fixed-ledger-frame-unresolved` without reading its executor; neither path is wired into the runner.
 
 - [2026-08-12 (panel-camera observation prerequisites)](detailed/2026-08-12_2026-08-12.md) — Panel-bound registrations now preserve stable document candidates plus separate observation IDs, transform one ordered q0 arrow family through exact D4, and admit document-camera pairs atomically without selecting a physical hand; runner, scoring, report, farther-lineage, and fixed-action integration remain unimplemented.

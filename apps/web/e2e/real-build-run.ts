@@ -1,5 +1,4 @@
 import {
-  benchmarkPrefixFailure,
   groupPlacementOperationsInPrintedStep,
   placementSignalFailure,
   settleAtomicStep,
@@ -30,12 +29,7 @@ import {
   rollbackPlacedPieceReports,
   type RuntimeBrickIdentity,
 } from "./real-build-fixed-actions";
-import { evaluateSearchBenchmark } from "./real-build-search";
-import {
-  ownPanelCannotSeparate,
-  type DeferralEvidence,
-  type DeferralTrigger,
-} from "./real-build-deferral";
+import { type DeferralEvidence, type DeferralTrigger } from "./real-build-deferral";
 import { settleExplodedPrintedStep, type ExplodedGhostEvidence } from "./real-build-exploded-step";
 import { composeExecutedStepReport } from "./real-build-step-report";
 import { derivePanelRasterEvidence, renderRealBuildPageCanvas } from "./real-build-panel-raster";
@@ -46,6 +40,7 @@ import {
   prepareRunStepCamera,
   renderRunBuildPng,
 } from "./real-build-run-visual";
+import { executeRunDirectPlacements } from "./real-build-run-placement";
 import {
   BrowserPreparationError,
   failedBrowserOutput,
@@ -501,233 +496,42 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                       }
                       if (deferring) await deferToLookaheadPanel(null);
                       // What this step's own panel managed to separate its best
-                      // two candidates by, kept across the per-piece loop so a
-                      // deferral it triggers can record the evidence that sent
-                      // it to the next panel.
-                      let ownPanelMargin: number | null = null;
-                      for (const [pieceIndex, piece] of deferring || exploded
-                        ? []
-                        : [...spec.pieces.entries()]) {
-                        try {
-                          const enumeration = assembly.enumeratePlacements(
-                            candidateDocument,
-                            piece.catalogPartId,
-                            {
-                              includeBuildPlate:
-                                (candidateDocument as { parts: unknown[] }).parts.length === 0,
-                            },
-                          );
-                          const candidates = enumeration.candidates as unknown as {
-                            catalogPartId: string;
-                            transform: {
-                              positionLdu: [number, number, number];
-                              orientationId: string;
-                            };
-                          }[];
-
-                          const seen = new Set<string>();
-                          const near: typeof candidates = [];
-                          const distinct: typeof candidates = [];
-                          const probeCamera = rendering.createOrthographicViewCamera(
-                            { ...view, centerXPx: centre[0], centerYPx: centre[1] },
-                            frame,
-                          );
-                          for (const candidate of candidates) {
-                            const key = assembly.placementOccupancyKey(
-                              candidate.catalogPartId,
-                              candidate.transform,
-                            ) as string;
-                            if (seen.has(key)) continue;
-                            seen.add(key);
-                            distinct.push(candidate);
-                            if (anchorStep || highlightBox === null) {
-                              near.push(candidate);
-                              continue;
-                            }
-                            const box = assembly.projectPartBounds(
-                              candidate,
-                              probeCamera,
-                              width,
-                              height,
-                            ) as {
-                              minXPx: number;
-                              minYPx: number;
-                              maxXPx: number;
-                              maxYPx: number;
-                            } | null;
-                            if (box === null) continue;
-                            const margin = options.proximityMarginPx;
-                            const overlaps =
-                              box.minXPx - margin <= highlightBox.maxXPx &&
-                              highlightBox.minXPx - margin <= box.maxXPx &&
-                              box.minYPx - margin <= highlightBox.maxYPx &&
-                              highlightBox.minYPx - margin <= box.maxYPx;
-                            if (overlaps) near.push(candidate);
-                          }
-
-                          const highlightPrefix = candidateDocument;
-                          const blindPrefix = candidateDocument;
-                          const highlightPrefixHash = kernel.documentStructuralHash(
-                            highlightPrefix,
-                          ) as string;
-                          const blindPrefixHash = kernel.documentStructuralHash(
-                            blindPrefix,
-                          ) as string;
-                          const prefixFailure = benchmarkPrefixFailure({
-                            stepNumber: spec.stepNumber,
-                            highlightPrefixHash,
-                            blindPrefixHash,
-                          });
-                          if (prefixFailure !== null) {
-                            failure = prefixFailure;
-                            break;
-                          }
-
-                          const placementKey = (
-                            candidate: (typeof candidates)[number] | undefined,
-                          ) =>
-                            candidate === undefined
-                              ? null
-                              : `${candidate.transform.positionLdu.join(",")}|${candidate.transform.orientationId}`;
-                          const search = evaluateSearchBenchmark({
-                            stepNumber: spec.stepNumber,
-                            pieceIndex,
-                            catalogPartId: piece.catalogPartId,
-                            prefixHash: blindPrefixHash,
-                            prunedCandidates: near,
-                            exhaustiveCandidates: distinct,
-                            maxPrunedRenders: options.maxRendersPerPiece,
-                            exhaustiveRenderBudget: options.blindRenderBudget,
-                            minimumMargin: options.minimumScoreMargin,
-                            score: (candidate) =>
-                              renderAndScore(highlightPrefix, candidate, printedStepId),
-                            key: placementKey,
-                          });
-                          const scored = [...search.prunedScores];
-                          const blind = search.blind;
-                          const winner = search.winner;
-                          // Asked of the pruned decision rather than of the
-                          // benchmark's verdict, because only the pruned half
-                          // scored anything against this panel: it is the one
-                          // that can report the panel failing to tell two
-                          // placements apart.
-                          if (
-                            ownPanelCannotSeparate({
-                              failure: search.prunedFailure,
-                              scores: scored.map(({ score }) => score),
-                              minimumMargin: options.minimumScoreMargin,
-                            })
-                          ) {
-                            ownPanelMargin = scored[0]!.score - scored[1]!.score;
-                          }
-                          if (winner === null || search.failure !== null) {
-                            const pieceFailure =
-                              search.failure ??
-                              ({
-                                code: "no-placement-candidate",
-                                stage: "placement",
-                                pieceIndex,
-                                catalogPartId: piece.catalogPartId,
-                                message:
-                                  `No placement of ${piece.catalogPartId} survived to be rendered: ${candidates.length} were enumerated ` +
-                                  `on a ${(candidateDocument as { parts: unknown[] }).parts.length}-part assembly and ${candidates.length - near.length} ` +
-                                  `projected away from the step's highlight box. Either the step base has diverged, or the identified ` +
-                                  `part is not the one this printed step places.`,
-                              } satisfies StepFailure);
-                            pieceReports.push({
-                              catalogPartId: piece.catalogPartId,
-                              blind,
-                              enumerated: candidates.length,
-                              afterProximity: near.length,
-                              rendered: scored.length,
-                              bestScore: scored[0]?.score ?? null,
-                              runnerUpScore: scored[1]?.score ?? null,
-                              placed: false,
-                              positionLdu: null,
-                              orientationId: null,
-                              failure: pieceFailure,
-                            });
-                            failure = pieceFailure;
-                            break;
-                          }
-                          const applied = place(
-                            candidateDocument,
-                            winner.candidate.catalogPartId,
-                            winner.candidate.transform,
-                            piece.colorId,
-                            spec.stepNumber,
-                            printedStepId,
-                          );
-                          candidateDocument = applied.document;
-                          candidatePartIds.push(applied.partId);
-                          pendingRegistrations.push({
-                            identityKey: piece.identityKey,
-                            partId: applied.partId,
-                            stepNumber: spec.stepNumber,
-                            designId: piece.designId,
-                            materialId: piece.materialId,
-                            catalogPartId: piece.catalogPartId,
-                            colorId: piece.colorId,
-                          });
-                          printedStepId = applied.stepId;
-                          centre = winner.centre;
-                          candidatePlaced += 1;
-                          pieceReports.push({
-                            catalogPartId: piece.catalogPartId,
-                            blind,
-                            enumerated: candidates.length,
-                            afterProximity: near.length,
-                            rendered: scored.length,
-                            bestScore: winner.score,
-                            runnerUpScore: scored[1]?.score ?? null,
-                            placed: true,
-                            positionLdu: winner.candidate.transform.positionLdu,
-                            orientationId: winner.candidate.transform.orientationId,
-                            failure: null,
-                          });
-                        } catch (error) {
-                          const message = error instanceof Error ? error.message : String(error);
-                          const isBudget = /budget|limit|maxParts|maximum|too many parts/iu.test(
-                            message,
-                          );
-                          const pieceFailure: StepFailure = {
-                            code: isBudget ? "resource-budget-exhausted" : "placement-error",
-                            stage: isBudget ? "budget" : "placement",
-                            pieceIndex,
-                            catalogPartId: piece.catalogPartId,
-                            message:
-                              `Step ${spec.stepNumber} could not place ${piece.catalogPartId}: ${message}. ` +
-                              `The printed step remains unchanged; an exception is not a placement decision.`,
-                          };
-                          pieceReports.push({
-                            catalogPartId: piece.catalogPartId,
-                            blind: {
-                              comparisonPrefixHash: kernel.documentStructuralHash(
-                                candidateDocument,
-                              ) as string,
-                              distinctCandidates: 0,
-                              feasible: false,
-                              rendered: 0,
-                              bestScore: null,
-                              runnerUpScore: null,
-                              agreesWithHighlight: null,
-                              refusal: pieceFailure.message,
-                              elapsedMs: 0,
-                            },
-                            enumerated: 0,
-                            afterProximity: 0,
-                            rendered: 0,
-                            bestScore: null,
-                            runnerUpScore: null,
-                            placed: false,
-                            positionLdu: null,
-                            orientationId: null,
-                            failure: pieceFailure,
-                          });
-                          failure = pieceFailure;
-                          break;
-                        }
-                      }
+                      // two candidates by is returned with the provisional child
+                      // so a deferral can retain the evidence that sent it onward.
+                      const directPlacement = executeRunDirectPlacements({
+                        stepNumber: spec.stepNumber,
+                        pieces: spec.pieces,
+                        skip: deferring || exploded,
+                        initialDocument: candidateDocument,
+                        initialStepId: printedStepId,
+                        initialCentre: centre,
+                        updateCentre: (nextCentre) => {
+                          centre = nextCentre;
+                        },
+                        initialCandidatePlaced: candidatePlaced,
+                        initialFailure: failure,
+                        candidatePartIds,
+                        pendingRegistrations,
+                        pieceReports,
+                        anchorStep,
+                        highlightBox,
+                        width,
+                        height,
+                        view,
+                        frame,
+                        options,
+                        assembly,
+                        rendering,
+                        kernel,
+                        renderAndScore,
+                        place,
+                      });
+                      candidateDocument = directPlacement.document;
+                      printedStepId = directPlacement.printedStepId;
+                      centre = directPlacement.centre;
+                      candidatePlaced = directPlacement.candidatePlaced;
+                      failure = directPlacement.failure;
+                      const ownPanelMargin = directPlacement.ownPanelMargin;
 
                       // The step's own panel drew a highlight, every eligible
                       // placement was scored against it, and the drawing did not

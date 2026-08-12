@@ -1,14 +1,13 @@
 import type { PanelFace } from "../src/assembly/panel-face";
 
-import type { CoverageInputBindings, StepCoverageCalloutClaim } from "./real-build-coverage";
 import type { DeferralEvidence } from "./real-build-deferral";
 import type { ExplodedGhostEvidence } from "./real-build-exploded-step";
 import type {
   RealBuildFartherCapture,
   RealBuildFartherEvidence,
 } from "./real-build-farther-report-types";
-import type { TrustedIdentificationConfidence } from "./real-build-identification-trust";
-import type { RealBuildSourceAttestation } from "./real-build-farther-origin-source-manifest";
+import type { RealBuildStepAction } from "./real-build-options-types";
+import type { StepFailure, StepFailureCode } from "./real-build-step-failure";
 
 export type {
   RealBuildFartherBudgetEvidence,
@@ -38,6 +37,14 @@ export type {
   StepCoverageCalloutClaim,
   V5ManifestCallout,
 } from "./real-build-coverage";
+export type {
+  RealBuildAccounting,
+  RealBuildInputDigests,
+  RealBuildOptions,
+  RealBuildPanelSpec,
+  RealBuildStepAction,
+} from "./real-build-options-types";
+export type { StepFailure, StepFailureCode, StepFailureStage } from "./real-build-step-failure";
 
 export type SuccessfulStepMechanism =
   | "anchor-orientation"
@@ -59,100 +66,6 @@ export type SuccessfulStepMechanism =
   | "exploded-ghost"
   | "instruction-transition"
   | "official-ledger";
-
-export type StepFailureStage =
-  | "coverage"
-  | "callout-resolution"
-  | "catalog"
-  | "budget"
-  | "camera-fit"
-  | "evidence"
-  | "camera-registration"
-  | "placement"
-  | "benchmark"
-  | "validation"
-  | "rendering"
-  | "atomicity"
-  | "causality"
-  | "loading"
-  | "replay"
-  | "publication"
-  | "input";
-
-export type StepFailureCode =
-  /**
-   * The catalog-coverage closure never bound, so every coverage-derived check
-   * was left unevaluated rather than failed. Distinct from `coverage-key-mismatch`,
-   * which reports a bound index that disagrees with the ledger.
-   */
-  | "coverage-closure-unbound"
-  | "coverage-key-mismatch"
-  | "unresolved-callout"
-  | "missing-catalog-part"
-  | "camera-fit-failed"
-  | "panel-face-unknown"
-  | "no-placement-signal"
-  | "camera-anchor-failed"
-  | "camera-handedness-unresolved"
-  | "no-placement-candidate"
-  | "resource-budget-exhausted"
-  | "placement-error"
-  | "incomplete-placement-scoring"
-  | "zero-placement-score"
-  | "tied-placement-score"
-  | "ambiguous-placement-score"
-  | "deferred-panel-unscored"
-  | "deferred-reach-unmeasured"
-  | "weak-deferred-agreement"
-  | "ambiguous-deferred-placement"
-  | "ambiguous-exploded-ghost"
-  | "benchmark-prefix-mismatch"
-  | "hard-validation-failed"
-  | "hard-validation-error"
-  | "rendering-error"
-  | "piece-placement-failed"
-  | "atomic-step-rollback"
-  | "blocked-by-prior-step"
-  | "set-accounting-mismatch"
-  | "printed-step-sequence-invalid"
-  | "untrusted-identification"
-  | "input-digest-mismatch"
-  | "unsupported-instruction-action"
-  | "whole-step-score-too-low"
-  | "visual-evidence-unverified"
-  | "highlight-reuse-unexplained"
-  | "benchmark-policy-mismatch"
-  | "benchmark-disagreement"
-  | "action-ledger-incomplete"
-  | "omitted-piece-identity-missing"
-  | "multi-build-source-invalid"
-  | "fixed-ledger-frame-unresolved"
-  | "transition-evidence-missing"
-  | "highlight-calibration-missing"
-  | "builder-calibration-invalid"
-  | "official-frame-calibration-missing"
-  | "official-transform-unrepresentable"
-  | "official-model-accounting-mismatch"
-  | "transition-classification-unverified"
-  | "dynamic-import-failed"
-  | "pdf-fetch-failed"
-  | "pdf-load-failed"
-  | "source-drift-detected"
-  | "replay-closure-invalid"
-  | "path-policy-violation"
-  | "artifact-publish-failed"
-  | "run-incomplete";
-
-export interface StepFailure {
-  readonly code: StepFailureCode;
-  readonly stage: StepFailureStage;
-  readonly message: string;
-  readonly causedByStep?: number;
-  readonly pieceIndex?: number;
-  readonly catalogPartId?: string;
-  readonly inputKey?: string;
-  readonly stepNumber?: number;
-}
 
 export type StepOutcome =
   | {
@@ -420,64 +333,6 @@ export function assertTargetPartBudget(maxParts: number, targetPartCount: number
   }
 }
 
-export interface RealBuildAccounting {
-  readonly rawCalloutQuantity: number;
-  readonly classifiedPhysicalCalloutPieces: number;
-  readonly semanticMultiplierQuantity: number;
-  readonly omittedPhysicalPieces: number;
-  readonly directCalloutPieces: number;
-  readonly multiBuildCopyPieces: number;
-  readonly looseInventoryPieces: number;
-  readonly assembledTargetPieces: number;
-  readonly inventoryPieces: number;
-}
-
-export type RealBuildStepAction =
-  | {
-      readonly kind: "place-callouts";
-      readonly assembledPieces: number;
-      readonly evidenceDigest: string | null;
-    }
-  | {
-      readonly kind: "multi-build-copy";
-      readonly assembledPieces: number;
-      readonly sourceStepNumber: number;
-      readonly evidenceDigest: string | null;
-      readonly copies: readonly {
-        readonly identityKey: string;
-        readonly sourceIdentityKey: string;
-        readonly designId: string;
-        readonly materialId: string;
-        readonly catalogPartId: string;
-        readonly colorId: string;
-        readonly evidenceDigest: string;
-        readonly transform: {
-          readonly positionLdu: readonly [number, number, number];
-          readonly orientationId: string;
-        };
-      }[];
-    }
-  | {
-      readonly kind: "transition";
-      readonly assembledPieces: 0;
-      readonly transition: "rotation" | "attachment" | "final-view" | "unclassified";
-      readonly panelEvidenceDigest: string | null;
-      readonly classificationEvidenceDigest: string | null;
-      readonly evidenceDigest: string | null;
-    };
-
-export interface RealBuildInputDigests {
-  readonly pdf: string;
-  readonly calloutManifest: string;
-  readonly coverage: string;
-  readonly officialModel: string;
-  readonly actionLedger: string;
-  readonly highlightCalibration: string;
-  readonly builderCalibration: string;
-  readonly builderGeometry: string;
-  readonly transitionClassifications: string;
-}
-
 export interface PlacementScoreEntry<T> {
   readonly candidate: T;
   readonly score: number;
@@ -667,161 +522,6 @@ export function groupPlacementOperationsInPrintedStep<T extends PlacementOperati
       return operation;
     });
   return { operations: grouped, stepId };
-}
-
-export interface RealBuildPanelSpec {
-  readonly stepNumber: number;
-  readonly pageNumber: number;
-  /**
-   * Which face of the assembly this panel is drawn from, folded from the
-   * booklet's rotate-the-model icon.
-   *
-   * Nullable, and a null is a refusal rather than a default. The face is a
-   * running parity from step 1, so it is only derivable over a contiguous
-   * prefix; a step outside the derived prefix has no face, and rendering it as
-   * studs-up would silently compare the candidate against the opposite side of
-   * the drawing — which is precisely the failure this field exists to stop.
-   */
-  readonly panelFace: PanelFace | null;
-  readonly minXPt: number;
-  readonly maxXPt: number;
-  readonly minYPt: number;
-  readonly maxYPt: number;
-  readonly calloutBoxes: readonly {
-    readonly minXPt: number;
-    readonly maxXPt: number;
-    readonly minYPt: number;
-    readonly maxYPt: number;
-  }[];
-  readonly mappedCalloutKeys: readonly string[];
-  readonly action: RealBuildStepAction;
-  readonly pieces: readonly {
-    readonly identityKey: string;
-    readonly designId: string;
-    readonly materialId: string;
-    readonly catalogPartId: string;
-    readonly colorId: string;
-    readonly calloutKey: string;
-    readonly identificationConfidence: TrustedIdentificationConfidence;
-    readonly cropDigest: string | null;
-    readonly identificationInputDigest: string | null;
-    readonly expectedTransform: {
-      readonly positionLdu: readonly [number, number, number];
-      readonly orientationId: string;
-    };
-  }[];
-  readonly omittedPieces: readonly {
-    readonly identityKey: string;
-    readonly designId: string;
-    readonly materialId: string;
-    readonly catalogPartId: string;
-    readonly colorId: string;
-    readonly evidenceDigest: string;
-    readonly transform: {
-      readonly positionLdu: readonly [number, number, number];
-      readonly orientationId: string;
-    };
-  }[];
-  readonly calloutPieces: number;
-  readonly classifiedPhysicalCalloutPieces: number;
-  readonly semanticMultiplierQuantity: number;
-  readonly omittedPhysicalPieces: number;
-  readonly coverageFailures: readonly StepFailure[];
-  readonly missingDesigns: readonly string[];
-  readonly unresolvedCallouts: readonly string[];
-}
-
-export interface RealBuildOptions {
-  readonly pdfjsUrl: string;
-  readonly workerUrl: string;
-  readonly pdfUrl: string;
-  readonly latticeUrl: string;
-  readonly renderingUrl: string;
-  readonly kernelUrl: string;
-  readonly commandsUrl: string;
-  readonly assemblyUrl: string;
-  readonly measuredFartherOriginSourceAttestation: RealBuildSourceAttestation | null;
-  readonly panels: readonly RealBuildPanelSpec[];
-  readonly expectedPrintedSteps: 359;
-  readonly lastStep: number;
-  readonly renderScale: number;
-  readonly panelWidth: number;
-  readonly workFactor: number;
-  readonly maxRendersPerPiece: number;
-  readonly blindRenderBudget: number;
-  /**
-   * Most whole-step candidates a deferred step may carry to the next panel.
-   *
-   * A step deferred for want of any local signal has no highlight to narrow
-   * against, so its candidate set is the full product over the printed step's
-   * pieces. Exceeding this is refused rather than truncated: a silently capped
-   * product would report a step as settled against a set that never contained
-   * the answer.
-   */
-  readonly deferredCandidateBudget: number;
-  /**
-   * Most renders a deferral may spend narrowing a step against its own panel.
-   *
-   * Only a step deferred because its panel could not *separate* its candidates
-   * spends any: that panel drew a highlight, so it can still say which
-   * placements it cannot tell apart from its best one, and carrying only those
-   * forward is what keeps the product finite. Printed step 4's full product is
-   * 240 x 334 = 80,160 whole-step candidates, which no lookahead can score.
-   *
-   * A render is the same 20.8ms one the per-piece search measures (220 renders
-   * in 4583ms on printed step 4), so this is about a minute and a half of
-   * narrowing. Exceeding it is refused rather than truncated, for the same
-   * reason the candidate product is.
-   */
-  readonly deferredNarrowingRenderBudget: number;
-  /**
-   * Furthest printed-panel distance a branch-aware deferral may inspect from N.
-   *
-   * This is an aggregate search limit, not an allowance that may be restarted
-   * for each surviving parent. The current measured N/N+1/K policy uses 2.
-   */
-  readonly fartherPanelMaximumReachSteps: number;
-  /**
-   * Total candidate renders available to one branch-aware N/N+1/K observation.
-   *
-   * Source-panel captures do not spend this render budget, while every scored
-   * candidate does. The evidence row records the exact aggregate consumption.
-   */
-  readonly fartherPanelRenderBudget: number;
-  /**
-   * Most ghost renders an exploded step may perform.
-   *
-   * A different resource from the candidate budget above, and it used to be
-   * counted against it. An exploded step renders its whole-step candidate set
-   * once per member of the arrow's travel family, so the render count is a
-   * *product* of two independent counts and bounding it by the candidate budget
-   * only ever held because the family had four members. Exceeding this is
-   * refused rather than truncated, for the same reason the candidate product is.
-   */
-  readonly explodedGhostRenderBudget: number;
-  /**
-   * Margin the best deferred candidate must beat the runner-up by on the
-   * lookahead panel. Set from `DEFERRED_STEP_MINIMUM_MARGIN`, which is a noise
-   * floor rather than a discriminator — see that constant for why.
-   */
-  readonly minimumDeferredAgreementMargin: number;
-  /**
-   * Agreement the best deferred candidate must reach against the lookahead
-   * panel's already-built art. Set from `DEFERRED_STEP_MINIMUM_AGREEMENT`, and
-   * it is the gate that actually decides a deferral.
-   */
-  readonly minimumDeferredAgreement: number;
-  readonly proximityMarginPx: number;
-  readonly targetPartCount: number;
-  readonly maxParts: number;
-  readonly minimumScoreMargin: number;
-  readonly minimumWholeStepScore: number;
-  readonly minimumExclusiveHighlightPixelsPerPiece: number;
-  readonly highlightCalibrationDigest: string | null;
-  readonly accounting: RealBuildAccounting;
-  readonly inputDigests: RealBuildInputDigests;
-  readonly coverageInputBindings: CoverageInputBindings;
-  readonly coverageByCallout: Readonly<Record<string, StepCoverageCalloutClaim>>;
 }
 
 export interface BlindSearchReport {
