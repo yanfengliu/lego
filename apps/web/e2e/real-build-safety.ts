@@ -93,6 +93,7 @@ export type StepFailureCode =
   | "panel-face-unknown"
   | "no-placement-signal"
   | "camera-anchor-failed"
+  | "camera-handedness-unresolved"
   | "no-placement-candidate"
   | "resource-budget-exhausted"
   | "placement-error"

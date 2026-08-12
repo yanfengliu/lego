@@ -1,5 +1,6 @@
 import { instructionSilhouetteMasks, maskCentroid, shiftedMaskIou } from "./real-build-contract";
 import type { StepFailure } from "./real-build-safety";
+import type { LatticeHand } from "../src/assembly/panel-face";
 
 /**
  * Where a printed step's camera points, and how a candidate is drawn through it.
@@ -110,6 +111,37 @@ export interface StepCameraAnchor {
   readonly failure: StepFailure | null;
 }
 
+export type StepCameraTurnDegrees = 0 | 90 | 180 | 270;
+
+export interface StepCameraLatticeHypothesis {
+  readonly latticeHand: LatticeHand;
+  /** The horizontal lattice-frame determinant relative to the fitted representative. */
+  readonly latticeDeterminant: 1 | -1;
+  /** Added to the fitted azimuth before the lattice-hand transform is applied. */
+  readonly turnDegrees: StepCameraTurnDegrees;
+}
+
+export type StepCameraLatticeAttempt =
+  | (StepCameraLatticeHypothesis & {
+      readonly status: "scored";
+      readonly iou: number;
+      readonly shiftPx: readonly [number, number];
+      readonly centrePx: readonly [number, number];
+    })
+  | (StepCameraLatticeHypothesis & {
+      readonly status: "empty";
+      readonly iou: null;
+      readonly shiftPx: null;
+      readonly centrePx: null;
+    });
+
+export interface StepCameraLatticeRegistration {
+  readonly selected: Extract<StepCameraLatticeAttempt, { readonly status: "scored" }> | null;
+  /** Every attempted hypothesis, scored best first and empty renders last. */
+  readonly rankedHypotheses: readonly StepCameraLatticeAttempt[];
+  readonly failure: StepFailure | null;
+}
+
 const ANCHOR_SCALES = [8, 3, 1] as const;
 const ANCHOR_RADIUS = 4;
 
@@ -125,7 +157,91 @@ const ANCHOR_RADIUS = 4;
  * model over is a half-turn about a horizontal axis whose direction the booklet
  * does not state and which lands in this same coset.
  */
-const ANCHOR_TURNS_DEGREES = [0, 90, 180, 270] as const;
+const ANCHOR_TURNS_DEGREES: readonly StepCameraTurnDegrees[] = [0, 90, 180, 270];
+
+const LATTICE_HYPOTHESES: readonly StepCameraLatticeHypothesis[] = Object.freeze([
+  ...ANCHOR_TURNS_DEGREES.map((turnDegrees) => ({
+    latticeHand: "as-fitted" as const,
+    latticeDeterminant: 1 as const,
+    turnDegrees,
+  })).map((hypothesis) => Object.freeze(hypothesis)),
+  ...ANCHOR_TURNS_DEGREES.map((turnDegrees) => ({
+    latticeHand: "x-reflected" as const,
+    latticeDeterminant: -1 as const,
+    turnDegrees,
+  })).map((hypothesis) => Object.freeze(hypothesis)),
+]);
+
+interface RegisteredMask {
+  readonly dx: number;
+  readonly dy: number;
+  readonly iou: number;
+}
+
+function registerModelMask(input: {
+  readonly modelMask: Uint8Array;
+  readonly builtMask: Uint8Array;
+  readonly excludedMask: Uint8Array | null;
+  readonly targetCentroid: { readonly x: number; readonly y: number };
+  readonly widthPx: number;
+  readonly heightPx: number;
+}): RegisteredMask | null {
+  const from = maskCentroid(input.modelMask, input.widthPx, input.heightPx);
+  if (from === null) return null;
+  const shiftedIou = (dx: number, dy: number) =>
+    shiftedMaskIou({
+      mask: input.modelMask,
+      target: input.builtMask,
+      width: input.widthPx,
+      height: input.heightPx,
+      dx,
+      dy,
+      excluded: input.excludedMask,
+    });
+  let here = {
+    dx: Math.round(input.targetCentroid.x - from.x),
+    dy: Math.round(input.targetCentroid.y - from.y),
+    iou: 0,
+  };
+  here.iou = shiftedIou(here.dx, here.dy);
+  for (const scale of ANCHOR_SCALES) {
+    for (let dy = -ANCHOR_RADIUS; dy <= ANCHOR_RADIUS; dy += 1) {
+      for (let dx = -ANCHOR_RADIUS; dx <= ANCHOR_RADIUS; dx += 1) {
+        const candidate = { dx: here.dx + dx * scale, dy: here.dy + dy * scale };
+        const iou = shiftedIou(candidate.dx, candidate.dy);
+        if (iou > here.iou) here = { ...candidate, iou };
+      }
+    }
+  }
+  return here;
+}
+
+function requireMaskLength(
+  mask: Uint8Array,
+  name: string,
+  widthPx: number,
+  heightPx: number,
+): void {
+  const required = widthPx * heightPx;
+  if (mask.length !== required) {
+    throw new RangeError(
+      `${name} contains ${mask.length} pixels, but a ${widthPx}x${heightPx} camera registration requires exactly ${required}.`,
+    );
+  }
+}
+
+function requireFrameDimensions(widthPx: number, heightPx: number): void {
+  if (
+    !Number.isSafeInteger(widthPx) ||
+    widthPx <= 0 ||
+    !Number.isSafeInteger(heightPx) ||
+    heightPx <= 0
+  ) {
+    throw new RangeError(
+      `Camera registration dimensions must be positive safe integers; received ${widthPx}x${heightPx}.`,
+    );
+  }
+}
 
 /**
  * Registers the model built so far against the panel's already-built art.
@@ -199,33 +315,15 @@ export function anchorStepCamera(input: {
   const perTurn: { turnDegrees: number; iou: number }[] = [];
   for (const turnDegrees of ANCHOR_TURNS_DEGREES) {
     const modelMask = input.renderModelMask(turnDegrees);
-    const from = maskCentroid(modelMask, widthPx, heightPx);
-    if (from === null) continue;
-    const shiftedIou = (dx: number, dy: number) =>
-      shiftedMaskIou({
-        mask: modelMask,
-        target: input.builtMask,
-        width: widthPx,
-        height: heightPx,
-        dx,
-        dy,
-        excluded: input.excludedMask ?? null,
-      });
-    let here = {
-      dx: Math.round(to.x - from.x),
-      dy: Math.round(to.y - from.y),
-      iou: 0,
-    };
-    here.iou = shiftedIou(here.dx, here.dy);
-    for (const scale of ANCHOR_SCALES) {
-      for (let dy = -ANCHOR_RADIUS; dy <= ANCHOR_RADIUS; dy += 1) {
-        for (let dx = -ANCHOR_RADIUS; dx <= ANCHOR_RADIUS; dx += 1) {
-          const candidate = { dx: here.dx + dx * scale, dy: here.dy + dy * scale };
-          const iou = shiftedIou(candidate.dx, candidate.dy);
-          if (iou > here.iou) here = { ...candidate, iou };
-        }
-      }
-    }
+    const here = registerModelMask({
+      modelMask,
+      builtMask: input.builtMask,
+      excludedMask: input.excludedMask ?? null,
+      targetCentroid: to,
+      widthPx,
+      heightPx,
+    });
+    if (here === null) continue;
     perTurn.push({ turnDegrees, iou: here.iou });
     if (best === null || here.iou > best.iou) best = { turnDegrees, ...here };
   }
@@ -243,4 +341,159 @@ export function anchorStepCamera(input: {
     anchorTurnIous: perTurn,
     failure: null,
   };
+}
+
+/**
+ * Registers both horizontal determinant cosets of a face-corrected panel view.
+ *
+ * The printed stud lattice is unchanged when its world-X basis is reversed, so
+ * a lattice fit cannot decide whether it named the assembly's horizontal hand
+ * correctly. This procedure makes that missing state measurable: four proper
+ * quarter turns and their four x-reflected counterparts are all rendered and
+ * every row retains its own translation. An exact tie is refused rather than
+ * settled by enumeration order.
+ *
+ * This is a binary-silhouette registration contract. A reflected camera also
+ * reverses depth, so this procedure does not claim RGB or occlusion equivalence
+ * and does not by itself authorize a physical document branch.
+ */
+export function anchorStepCameraLatticeFrame(input: {
+  readonly stepNumber: number;
+  readonly renderModelMask: (hypothesis: StepCameraLatticeHypothesis) => Uint8Array;
+  readonly builtMask: Uint8Array;
+  readonly excludedMask?: Uint8Array | null;
+  readonly widthPx: number;
+  readonly heightPx: number;
+}): StepCameraLatticeRegistration {
+  const {
+    widthPx,
+    heightPx,
+    stepNumber,
+    renderModelMask,
+    builtMask: suppliedBuiltMask,
+    excludedMask: suppliedExcludedMask,
+  } = input;
+  requireFrameDimensions(widthPx, heightPx);
+  requireMaskLength(suppliedBuiltMask, "The panel's already-built mask", widthPx, heightPx);
+  if (suppliedExcludedMask !== undefined && suppliedExcludedMask !== null) {
+    requireMaskLength(suppliedExcludedMask, "The panel's excluded mask", widthPx, heightPx);
+  }
+  const builtMask = new Uint8Array(suppliedBuiltMask);
+  const excludedMask =
+    suppliedExcludedMask === undefined || suppliedExcludedMask === null
+      ? null
+      : new Uint8Array(suppliedExcludedMask);
+  const failure = (code: StepFailure["code"], message: string): StepFailure => ({
+    code,
+    stage: "camera-registration",
+    stepNumber,
+    message: `Step ${stepNumber} could not resolve its horizontal camera frame: ${message}`,
+  });
+  const targetCentroid = maskCentroid(builtMask, widthPx, heightPx);
+  if (targetCentroid === null) {
+    return {
+      selected: null,
+      rankedHypotheses: [],
+      failure: failure(
+        "camera-anchor-failed",
+        "the panel's already-built art is empty after the highlight was removed, so there was nothing to register against.",
+      ),
+    };
+  }
+
+  const attempts = LATTICE_HYPOTHESES.map((hypothesis): StepCameraLatticeAttempt => {
+    const modelMask = renderModelMask(hypothesis);
+    requireMaskLength(
+      modelMask,
+      `The ${hypothesis.latticeHand} turn-${hypothesis.turnDegrees} model mask`,
+      widthPx,
+      heightPx,
+    );
+    const registered = registerModelMask({
+      modelMask,
+      builtMask,
+      excludedMask,
+      targetCentroid,
+      widthPx,
+      heightPx,
+    });
+    if (registered === null) {
+      return { ...hypothesis, status: "empty", iou: null, shiftPx: null, centrePx: null };
+    }
+    return {
+      ...hypothesis,
+      status: "scored",
+      iou: registered.iou,
+      shiftPx: [registered.dx, registered.dy],
+      centrePx: [widthPx / 2 + registered.dx, heightPx / 2 + registered.dy],
+    };
+  });
+  const hypothesisRank = (attempt: StepCameraLatticeAttempt): number =>
+    LATTICE_HYPOTHESES.findIndex(
+      (entry) =>
+        entry.latticeHand === attempt.latticeHand && entry.turnDegrees === attempt.turnDegrees,
+    );
+  const rankedHypotheses = Object.freeze(
+    [...attempts]
+      .sort((left, right) => {
+        if (left.status !== right.status) return left.status === "scored" ? -1 : 1;
+        if (left.status === "scored" && right.status === "scored" && left.iou !== right.iou) {
+          return right.iou - left.iou;
+        }
+        return hypothesisRank(left) - hypothesisRank(right);
+      })
+      .map((attempt) =>
+        attempt.status === "empty"
+          ? Object.freeze(attempt)
+          : Object.freeze({
+              ...attempt,
+              shiftPx: Object.freeze([...attempt.shiftPx] as [number, number]),
+              centrePx: Object.freeze([...attempt.centrePx] as [number, number]),
+            }),
+      ),
+  );
+  const best = rankedHypotheses.find(
+    (attempt): attempt is Extract<StepCameraLatticeAttempt, { readonly status: "scored" }> =>
+      attempt.status === "scored",
+  );
+  if (best === undefined) {
+    return {
+      selected: null,
+      rankedHypotheses,
+      failure: failure(
+        "camera-anchor-failed",
+        "the model built so far rendered nothing in any of the eight hand-and-turn hypotheses.",
+      ),
+    };
+  }
+  const leaders = rankedHypotheses.filter(
+    (attempt): attempt is Extract<StepCameraLatticeAttempt, { readonly status: "scored" }> =>
+      attempt.status === "scored" && attempt.iou === best.iou,
+  );
+  const leaderHands = new Set(leaders.map(({ latticeHand }) => latticeHand));
+  const describe = (attempt: (typeof leaders)[number]): string =>
+    `${attempt.latticeHand} turn ${attempt.turnDegrees} at IoU ${attempt.iou} and shift [${attempt.shiftPx.join(
+      ",",
+    )}]`;
+  if (leaderHands.size > 1) {
+    return {
+      selected: null,
+      rankedHypotheses,
+      failure: failure(
+        "camera-handedness-unresolved",
+        `${leaders.map(describe).join(" tied with ")}. Retain all eight frame hypotheses until asymmetric built geometry or another bound panel separates the horizontal hands.`,
+      ),
+    };
+  }
+  if (leaders.length > 1) {
+    return {
+      selected: null,
+      rankedHypotheses,
+      failure: failure(
+        "camera-anchor-failed",
+        `${leaders.map(describe).join(" tied with ")}. Retain every tied quarter turn until another bound panel separates them.`,
+      ),
+    };
+  }
+  return { selected: best, rankedHypotheses, failure: null };
 }

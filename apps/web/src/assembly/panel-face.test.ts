@@ -1,9 +1,76 @@
 import { describe, expect, it } from "vitest";
 
 import { panelProjectionFromFit } from "./arrow-placement";
-import { derivePanelFaces, FIRST_PANEL_FACE, viewForPanelFace } from "./panel-face";
+import {
+  derivePanelFaces,
+  FIRST_PANEL_FACE,
+  viewForLatticeHand,
+  viewForPanelFace,
+} from "./panel-face";
 
 const FIT = { azimuthDegrees: 41, elevationDegrees: 26, pixelsPerUnit: 52 } as const;
+
+describe("viewForLatticeHand", () => {
+  it("leaves the as-fitted hand unchanged", () => {
+    expect(viewForLatticeHand(FIT, "as-fitted")).toStrictEqual(FIT);
+  });
+
+  it("reflects a, preserves b and model-up, and keeps scale and upSign", () => {
+    const faceCorrected = { ...FIT, upSign: -1 as const };
+    const reflectedView = viewForLatticeHand(faceCorrected, "x-reflected");
+    const fitted = panelProjectionFromFit(faceCorrected);
+    const reflected = panelProjectionFromFit(reflectedView);
+
+    expect(reflectedView).toStrictEqual({
+      azimuthDegrees: 139,
+      elevationDegrees: -26,
+      pixelsPerUnit: 52,
+      upSign: -1,
+    });
+    expect(reflected.a.xPx).toBeCloseTo(-fitted.a.xPx, 12);
+    expect(reflected.a.yPx).toBeCloseTo(-fitted.a.yPx, 12);
+    expect(reflected.b.xPx).toBeCloseTo(fitted.b.xPx, 12);
+    expect(reflected.b.yPx).toBeCloseTo(fitted.b.yPx, 12);
+    expect(reflected.up.xPx).toBeCloseTo(fitted.up.xPx, 12);
+    expect(reflected.up.yPx).toBeCloseTo(fitted.up.yPx, 12);
+  });
+
+  it("is a horizontal reflection, not an underside face", () => {
+    const fitted = panelProjectionFromFit(FIT);
+    const reflected = panelProjectionFromFit(viewForLatticeHand(FIT, "x-reflected"));
+    const underside = panelProjectionFromFit(viewForPanelFace(FIT, "underside"));
+
+    expect(reflected.a.xPx).toBeCloseTo(underside.a.xPx, 12);
+    expect(reflected.a.yPx).toBeCloseTo(underside.a.yPx, 12);
+    expect(reflected.b.xPx).toBeCloseTo(underside.b.xPx, 12);
+    expect(reflected.b.yPx).toBeCloseTo(underside.b.yPx, 12);
+    expect(reflected.up.yPx).toBeCloseTo(fitted.up.yPx, 12);
+    expect(underside.up.yPx).toBeCloseTo(-fitted.up.yPx, 12);
+  });
+
+  it("reflects after a quarter turn, so H(A + q) equals H(A) - q", () => {
+    const reflected = viewForLatticeHand(FIT, "x-reflected");
+    const turnThenReflect = viewForLatticeHand(
+      { ...FIT, azimuthDegrees: FIT.azimuthDegrees + 90 },
+      "x-reflected",
+    );
+    const reflectThenSameTurn = {
+      ...reflected,
+      azimuthDegrees: reflected.azimuthDegrees + 90,
+    };
+
+    expect(turnThenReflect.azimuthDegrees).toBe(reflected.azimuthDegrees - 90);
+    expect(turnThenReflect.azimuthDegrees).toBe(49);
+    expect(reflectThenSameTurn.azimuthDegrees).toBe(229);
+    expect(turnThenReflect).not.toEqual(reflectThenSameTurn);
+  });
+
+  it("refuses an unknown hand instead of choosing a mirrored default", () => {
+    expect(() => viewForLatticeHand(FIT, "ambidextrous" as "as-fitted")).toThrow(
+      /as-fitted.*x-reflected.*ambidextrous/su,
+    );
+  });
+});
 
 describe("viewForPanelFace", () => {
   it("leaves a studs-up panel at the fitted camera, up the page", () => {

@@ -30,6 +30,9 @@
 /** Which face of the assembly a printed panel is drawn from. */
 export type PanelFace = "studs-up" | "underside";
 
+/** Which horizontal hand of the fitted square lattice a panel uses. */
+export type LatticeHand = "as-fitted" | "x-reflected";
+
 /**
  * The face printed step 1 is drawn from, and the seed of the whole toggle.
  *
@@ -50,6 +53,34 @@ export interface FittedPanelView {
    * `-1` down it. Absent means `1`.
    */
   readonly upSign?: 1 | -1;
+}
+
+/**
+ * Applies the horizontal lattice hand after the panel face has been corrected.
+ *
+ * The lattice fit has two possible horizontal hands. For a face-corrected view
+ * `p = (A, e, s)`, the opposite hand is `H(p) = (180 - A, -e, s)`. Under the
+ * projection used by the assembly reader, that sends `a` to `-a`, keeps `b`
+ * fixed, and keeps model-up fixed. It is therefore not an underside view:
+ * changing face also inverts `upSign`.
+ *
+ * A quarter turn belongs inside the reflection: `H(A + q) = H(A) - q`.
+ * Callers must add the candidate's turn before applying this helper rather than
+ * applying the same signed turn to both hands.
+ */
+export function viewForLatticeHand(view: FittedPanelView, hand: LatticeHand): FittedPanelView {
+  if (hand !== "as-fitted" && hand !== "x-reflected") {
+    throw new TypeError(
+      `A lattice hand must be "as-fitted" or "x-reflected"; received ${JSON.stringify(hand)}. ` +
+        `Rendering without a known hand can silently mirror every placement in the panel.`,
+    );
+  }
+  if (hand === "as-fitted") return { ...view };
+  return {
+    ...view,
+    azimuthDegrees: 180 - view.azimuthDegrees,
+    elevationDegrees: -view.elevationDegrees,
+  };
 }
 
 /**
