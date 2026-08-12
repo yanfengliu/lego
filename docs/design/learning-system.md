@@ -1,6 +1,6 @@
 # Booklet-run evidence, replay, and promotion
 
-Status date: 2026-08-11
+Status date: 2026-08-12
 
 [`spec.md`](spec.md) owns product, domain, consent, trust, and authority contracts. This document owns the evidence around a booklet run: retention, lifecycle, replay, evaluation, and the conditions under which a finding may become repository knowledge. [`building-system.md`](building-system.md) owns current measured progress, and the [devlog](../devlog/summary.md) owns history.
 
@@ -14,7 +14,7 @@ Status date: 2026-08-11
 | Closure manifest and replay-level derivation | Implemented for retained local bytes | The verifier can inspect closure integrity and reproduce downstream summaries from retained outputs. |
 | Executable replay | Unbuilt | The current replay path deliberately refuses re-execution. |
 | Production-sealed replay and tombstone lineage | Specified, unbuilt | Requires the released broker, signing identity, authenticated deletion events, and an independent verifier. |
-| Candidate lineage, farther-frontier, and backtracking primitives | Implemented as libraries and tests | Immutable all-parent carry, atomic piece witnesses, contiguous N/N+1/K evidence, aggregate budgets, and generic backtracking exist; the real-booklet driver does not use them. |
+| Candidate lineage, farther-frontier, and backtracking primitives | Bounded farther carry integrated; generic backtracking remains library-only | The real-booklet driver retains immutable N parents, exact atomic piece witnesses and N+1 captures, carries one intervening step under shared ledgers, and conditionally scores K only after an atomic carry; generic deep reversal is not integrated. |
 | Model-call transcript schemas | Implemented protocol | No broker-backed product producer exists. |
 | Local part and panel proposers | Implemented as derivation scripts | They invoke a pinned CLI model outside the product for cropped part cards or one printed panel and write ignored local evidence; neither is wired into the studio or real-booklet driver. |
 | Part visual-admission packets and reviews | Implemented as developer tooling; `/13` exterior review complete | An independent LDraw render and the production catalog render share one eight-view camera packet; every generation is pending-only, while the `/13` tranche has separately published native-resolution review sidecars and a complete review-batch manifest. |
@@ -24,9 +24,9 @@ Status date: 2026-08-11
 
 ## Unit of work
 
-A booklet run reads prepared printed steps, compiles each step against one settled `BrickDocument` prefix, enumerates candidate placements, and compares a render with a printed panel at that panel's fitted camera and face.
+A booklet run reads prepared printed steps, compiles an ordinary step against one settled `BrickDocument` prefix, enumerates candidate placements, and compares a render with a printed panel at that panel's fitted camera and face. A deferred origin may now branch temporarily, but no branch becomes document truth until the bounded family decision is complete.
 
-A printed step is the unit of evidence. The implemented local row records the fields listed under [Implemented local bundle](#implemented-local-bundle) and links image filenames whose bytes are hashed by a separate artifact manifest; the stronger per-step bindings described under [Target evidence contract](#target-evidence-contract) do not exist yet.
+A printed step is the unit of evidence. The implemented local row records the fields listed under [Implemented local bundle](#implemented-local-bundle), including bounded farther evidence when invoked, and links image filenames whose bytes are hashed and cross-checked by the artifact manifest; the complete generic packet described under [Target evidence contract](#target-evidence-contract) does not exist yet.
 
 The comparison is closed: does this exact render agree with this exact printed art under the registered measurement? A model or human may help establish an input claim, but neither may declare structural validity or bypass deterministic compilation, collision, connection, scope, or accounting checks.
 
@@ -40,7 +40,7 @@ The completed `/13` outcome and measurements are recorded in [`part-model.md`](p
 
 Printed step 4 is the concrete failure that sets this rule: its underside panel visibly shows hollow clutch rings, ribs, walls, and cavities, while the former candidate render showed an almost solid slab. [Part-model catalog truth](part-model.md#render-only-promotions-and-remaining-physical-limits) owns the render correction and its preserved conservative collision; an old step verdict cannot be inherited across that render-truth change, and the images still cannot prove collision.
 
-The current real-booklet runner does not satisfy that target packet. It invokes one-panel deferral only when own-panel scoring is unavailable or cannot separate the top two candidates, then tests the first later panel and stops; it does not scan for the first revealing farther witness or record `not-observable`. Its transition classifier is raster-blind, its retained vision inputs are not an integrated checker, and its linear search does not backtrack; those limits travel with every local verdict.
+The current real-booklet runner implements a bounded subset of that packet. When own-panel scoring cannot separate step N and N+1 remains unrevealing, it retains every N parent with its exact cached N+1 score render, carries one configured intervening step under shared candidate and narrowing ledgers, and scores a conditional K only after the entire carry succeeds. The live step-5 run retained 8,037 of 8,192 narrowing renders and refused the next atomic request for 572 before K, so it retained all eight descendant lineages as unresolved and left the document unchanged. This is not arbitrary farther-panel scanning, generic deep backtracking, or a vision checker; the raster-blind transition classifier and separate model-derived readings remain non-visual or unintegrated evidence.
 
 ## Authority boundaries
 
@@ -62,11 +62,11 @@ The current run binds input digests for its booklet, prepared panels and callout
 
 The current result records local unauthenticated authority, status, requested and expected step counts, assembled target, input and completion failures, retained step rows, optional final document and structural hash, final part count, and elapsed time.
 
-Each retained step row records its step and page, action and action-evidence digest, expected/attempted/placed counts, outcome, prerequisite facts, validation target/truth/validator hashes when validation ran, fit and camera facts, highlights and arrows, per-piece search and score data, whole-step/deferral/exploded evidence, elapsed time, and panel/build PNG filenames. The artifact manifest hashes retained files separately; the row does not carry a digest for each PNG.
+Each retained step row records its step and page, action and action-evidence digest, expected/attempted/placed counts, outcome, prerequisite facts, validation target/truth/validator hashes when validation ran, fit and camera facts, highlights and arrows, per-piece search and score data, whole-step/deferral/exploded evidence, elapsed time, and panel/build PNG filenames. When bounded farther search runs, the row also binds the origin parents and hashes, exact piece witnesses, parent-child lineages, per-panel scores, shared candidate/narrowing/panel budget facts, typed refusal or family-only decision, and dense exact source/candidate capture metadata. The artifact manifest verifies the projected capture paths and PNG bytes separately; the row does not carry a digest for each PNG.
 
 An incomplete run retains every readable row that matches its prepared input and then records the refusal that stopped the prefix. Malformed envelopes may be rejected wholesale; an ordinary reproduction defect does not erase valid earlier evidence.
 
-Current gaps are explicit. The run contract does not separately bind a catalog snapshot or complete truth bundle; a step row does not record document revisions, a before-and-after structural-hash pair, per-image digests, a complete N/N+1/first-revealing-farther observation packet, or `not-observable` claims; and `score.json` does not contain reversal depth, retained byte count, or replay level. Replay closure and artifact-size facts live in separate manifest files, and the linear driver has no reversal depth to report.
+Current gaps are explicit. The run contract does not separately bind a catalog snapshot or complete truth bundle; a step row does not record document revisions, a before-and-after structural-hash pair, inline per-image digests, or a complete arbitrary-depth N/N+1/first-revealing-farther observation packet; and `score.json` does not contain reversal depth, retained byte count, or replay level. Replay closure and artifact-size facts live in separate manifest files, and the bounded one-intervening-step driver has no generic reversal depth to report.
 
 ### Target evidence contract
 
@@ -86,7 +86,7 @@ Every alternative is immutable. A repair, replan, or rejected placement is a chi
 
 Structural hashes identify duplicate states, lineage identifies cycles, and metric history identifies oscillation. Backtracking walks to the shallowest ancestor with an eligible untried child and reports how many steps were undone and the maximum reversal depth.
 
-Those rules are implemented in the generic build-tree and backtracking libraries, and a standalone farther-frontier unit now adds immutable all-parent expansion, atomic catalog-part/color witnesses, contiguous panel reach, aggregate candidate/render budgets, first-revealing-family selection, ambiguous-descendant retention, and typed `not-observable` or limit outcomes. The unit trusts its upstream generic document payload/hash binding and has no production consumer; the current real-booklet driver still uses a linear prefix. Until integration supplies that binding and survives the measured budgets, a retained run must not claim real-run lineage, farther-panel settlement, reversal depth, or recovery merely because library tests pass.
+Those rules are implemented in the generic build-tree and backtracking libraries. The real-booklet driver now consumes the bounded farther-frontier path: it rechecks parent and child document hashes around callbacks, retains exact atomic catalog-part/color witnesses and immutable lineages, uses shared aggregate candidate and narrowing ledgers, and admits a family-only decision without falsely settling its ambiguous descendants. The live step-5 path proved retention and typed aggregate refusal, not settlement or recovery: five children from the first parent and three from the second remain unresolved after the next 572-render narrowing batch was refused before work at 8,037 of 8,192. Generic ancestor reversal, arbitrary-depth carry, and reversal-depth reporting remain unbuilt in the driver.
 
 ## Typed refusals
 
@@ -188,7 +188,7 @@ Physical reports may calibrate advisory build order and stability. They do not s
 
 ## Operational guarantees
 
-The current real-build run contract declares requested/expected step counts, maximum and target part counts, and per-piece, blind, one-panel-deferred, exploded, and narrowing render/candidate budgets. Input, raster, artifact-role, and stored-byte bounds are enforced by their own contracts rather than collected into one run budget; no current budget grants calibrated arbitrary farther-panel reach.
+The current real-build run contract declares requested/expected step counts, maximum and target part counts, per-piece, blind, one-panel-deferred and exploded limits, a bounded farther-panel reach, a farther-panel score-render limit, and shared aggregate candidate and narrowing ledgers for intervening carry. Reservations are made before the batch or render they authorize, and a refusal retains completed immutable evidence without admitting a partial frontier. Input, raster, artifact-role, and stored-byte bounds are enforced by their own contracts rather than collected into one run budget; no current budget grants arbitrary farther-panel depth or deep backtracking.
 
 The target production run additionally declares ceilings for wall time, attempts, model calls, tokens, cost, total stored bytes, image dimensions, recursion, and every other external resource. A budget must be able to bind and reserve enough proof budget for a meaningful rerun.
 

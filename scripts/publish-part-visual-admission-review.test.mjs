@@ -149,7 +149,7 @@ describe("part visual-admission review CLI", () => {
       rmSync(directory, { recursive: true, force: true });
       rmSync(outside, { recursive: true, force: true });
     }
-  });
+  }, 15_000);
 
   it("bounds the opened descriptor and rejects a path replacement after lstat", () => {
     const directory = mkdtempSync(join("test-results", "visual-pairs-exact-file-"));

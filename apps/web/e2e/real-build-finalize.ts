@@ -104,6 +104,38 @@ const exactTransform = (
   actual.positionLdu.length === 3 &&
   actual.positionLdu.every((coordinate, axis) => coordinate === expected.positionLdu[axis]);
 
+function exactTransformMultiset(
+  actual: readonly CanonicalPartShape["transform"][],
+  expected: readonly CanonicalPartShape["transform"][],
+): boolean {
+  if (actual.length !== expected.length) return false;
+  const matchedActual = new Set<number>();
+  return expected.every((expectedTransform) => {
+    const actualIndex = actual.findIndex(
+      (actualTransform, index) =>
+        !matchedActual.has(index) && exactTransform(actualTransform, expectedTransform),
+    );
+    if (actualIndex === -1) return false;
+    matchedActual.add(actualIndex);
+    return true;
+  });
+}
+
+const unorderedIdentityGroupKey = (identity: {
+  readonly stepNumber: number;
+  readonly designId: string;
+  readonly materialId: string;
+  readonly catalogPartId: string;
+  readonly colorId: string;
+}): string =>
+  JSON.stringify([
+    identity.stepNumber,
+    identity.designId,
+    identity.materialId,
+    identity.catalogPartId,
+    identity.colorId,
+  ]);
+
 function expectedIdentities(options: RealBuildOptions): readonly ExpectedIdentity[] {
   return options.panels
     .filter(({ stepNumber }) => stepNumber <= options.lastStep)
@@ -175,10 +207,62 @@ function auditIdentityBindings(input: {
   const stepIdByNumber = new Map(
     input.document.steps.map((step) => [step.index + 1, step.id] as const),
   );
+  const expectedGroupSizes = new Map<string, number>();
+  for (const identity of expected) {
+    const key = unorderedIdentityGroupKey(identity);
+    expectedGroupSizes.set(key, (expectedGroupSizes.get(key) ?? 0) + 1);
+  }
+  const auditedUnorderedGroups = new Set<string>();
   for (const identity of expected) {
     const binding = bindingByIdentity.get(identity.identityKey);
     const part = binding === undefined ? undefined : partById.get(binding.partId);
     const expectedStepId = stepIdByNumber.get(identity.stepNumber);
+    const groupKey = unorderedIdentityGroupKey(identity);
+    const unorderedGroup = (expectedGroupSizes.get(groupKey) ?? 0) > 1;
+    if (unorderedGroup && auditedUnorderedGroups.has(groupKey)) continue;
+    if (unorderedGroup) {
+      auditedUnorderedGroups.add(groupKey);
+      const group = expected.filter(
+        (candidate) => unorderedIdentityGroupKey(candidate) === groupKey,
+      );
+      const groupBindingsValid = group.every((candidate) => {
+        const candidateBinding = bindingByIdentity.get(candidate.identityKey);
+        const candidatePart =
+          candidateBinding === undefined ? undefined : partById.get(candidateBinding.partId);
+        return (
+          candidateBinding !== undefined &&
+          candidateBinding.stepNumber === candidate.stepNumber &&
+          candidateBinding.designId === candidate.designId &&
+          candidateBinding.materialId === candidate.materialId &&
+          candidateBinding.catalogPartId === candidate.catalogPartId &&
+          candidateBinding.colorId === candidate.colorId &&
+          candidatePart !== undefined &&
+          candidatePart.stepId === expectedStepId &&
+          candidatePart.catalogPartId === candidate.catalogPartId &&
+          candidatePart.colorId === candidate.colorId
+        );
+      });
+      const expectedTransforms = group.map(({ transform }) => transform);
+      const actualTransforms = group
+        .map((candidate) => {
+          const candidateBinding = bindingByIdentity.get(candidate.identityKey);
+          const candidatePart =
+            candidateBinding === undefined ? undefined : partById.get(candidateBinding.partId);
+          return candidatePart?.transform ?? null;
+        })
+        .filter((transform): transform is CanonicalPartShape["transform"] => transform !== null);
+      if (!groupBindingsValid || !exactTransformMultiset(actualTransforms, expectedTransforms)) {
+        failures.push(
+          completionFailure(
+            `Unordered identity group ${group.map(({ identityKey }) => identityKey).join(", ")} at printed ` +
+              `step ${identity.stepNumber} does not resolve to the exact official-ledger transform multiset. ` +
+              `Expected ${JSON.stringify(expectedTransforms)}; observed ${JSON.stringify(actualTransforms)}.`,
+            identity.stepNumber,
+          ),
+        );
+      }
+      continue;
+    }
     if (
       binding === undefined ||
       binding.stepNumber !== identity.stepNumber ||

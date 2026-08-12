@@ -1,8 +1,16 @@
-import { Buffer } from "node:buffer";
-
 import { validateBrickDocumentV1 } from "@lego-studio/protocol";
 
+import {
+  isRealBuildFartherCaptures,
+  isRealBuildFartherDeferralCoherent,
+  isRealBuildFartherEvidence,
+} from "./real-build-farther-report-parser";
+import type { RealBuildFartherEvidence } from "./real-build-farther-report-types";
+import { isNullableRealBuildPngCapture } from "./real-build-png-capture";
 import type { RealBuildOptions, RealBuildStepReport, StepFailure } from "./real-build-safety";
+
+export { decodeRealBuildPngCapture } from "./real-build-png-capture";
+export { MAXIMUM_REAL_BUILD_FARTHER_CAPTURES } from "./real-build-farther-report-types";
 
 export interface RealBuildIdentityBinding {
   readonly identityKey: string;
@@ -47,9 +55,6 @@ function exactKeys(value: Record<string, unknown>, keys: readonly string[]): boo
 }
 
 const DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/u;
-const PNG_DATA_URL_PREFIX = "data:image/png;base64,";
-const MAXIMUM_STEP_CAPTURE_BYTES = 16 * 1024 * 1024;
-const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 const REPORT_KEYS = [
   "stepNumber",
   "pageNumber",
@@ -71,6 +76,8 @@ const REPORT_KEYS = [
   "pieces",
   "jointVisual",
   "deferral",
+  "farther",
+  "fartherCaptures",
   "explodedGhost",
   "documentParts",
   "elapsedMs",
@@ -90,39 +97,13 @@ const isStringArray = (value: unknown): value is readonly string[] =>
   Array.isArray(value) && value.every((entry) => typeof entry === "string" && entry.length > 0);
 const isTuple = (value: unknown, length: number): value is readonly number[] =>
   Array.isArray(value) && value.length === length && value.every(isFiniteNumber);
-
-export function decodeRealBuildPngCapture(value: string): Buffer {
-  if (!value.startsWith(PNG_DATA_URL_PREFIX)) {
-    throw new TypeError("Real-build step capture must be an exact PNG data URL.");
+const isDenseBoundedArray = (value: unknown, maximum: number): value is readonly unknown[] => {
+  if (!Array.isArray(value) || value.length > maximum) return false;
+  for (let index = 0; index < value.length; index += 1) {
+    if (!Object.prototype.hasOwnProperty.call(value, index)) return false;
   }
-  const encoded = value.slice(PNG_DATA_URL_PREFIX.length);
-  if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u.test(encoded)) {
-    throw new TypeError("Real-build step capture must contain canonical base64.");
-  }
-  const bytes = Buffer.from(encoded, "base64");
-  if (
-    bytes.length < PNG_SIGNATURE.length ||
-    bytes.length > MAXIMUM_STEP_CAPTURE_BYTES ||
-    bytes.toString("base64") !== encoded ||
-    !bytes.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE)
-  ) {
-    throw new TypeError(
-      `Real-build step capture must be a ${PNG_SIGNATURE.length}..${MAXIMUM_STEP_CAPTURE_BYTES}-byte canonical PNG.`,
-    );
-  }
-  return bytes;
-}
-
-function isNullablePngCapture(value: unknown): value is string | null {
-  if (value === null) return true;
-  if (typeof value !== "string") return false;
-  try {
-    decodeRealBuildPngCapture(value);
-    return true;
-  } catch {
-    return false;
-  }
-}
+  return true;
+};
 
 function isStepFailure(value: unknown): value is StepFailure {
   if (!isRecord(value)) return false;
@@ -430,7 +411,12 @@ function isExplodedGhostEvidence(value: unknown): boolean {
   );
 }
 
-function isDeferralEvidence(value: unknown): boolean {
+function isDeferralEvidence(
+  value: unknown,
+  maximumPieces: number,
+  expectedPieces: number,
+  narrowingRenderBound: number,
+): boolean {
   if (value === null) return true;
   return (
     isRecord(value) &&
@@ -445,6 +431,9 @@ function isDeferralEvidence(value: unknown): boolean {
       "lookaheadTurnDegrees",
       "lookaheadTurnAnchorIou",
       "lookaheadTurnMargin",
+      "narrowingRenders",
+      "offeredPerPiece",
+      "carriedPerPiece",
       "wholeStepCandidates",
       "rendered",
       "lookaheadBuiltPixels",
@@ -477,6 +466,17 @@ function isDeferralEvidence(value: unknown): boolean {
     isNullableFiniteNumber(value.lookaheadTurnDegrees) &&
     isNullableFiniteNumber(value.lookaheadTurnAnchorIou) &&
     isNullableFiniteNumber(value.lookaheadTurnMargin) &&
+    isBoundedInteger(value.narrowingRenders, narrowingRenderBound + 1) &&
+    isDenseBoundedArray(value.offeredPerPiece, maximumPieces) &&
+    isDenseBoundedArray(value.carriedPerPiece, maximumPieces) &&
+    value.offeredPerPiece.length === value.carriedPerPiece.length &&
+    // One enumeration row per assembled piece. A transition defers no pieces;
+    // every other deferral must say what each printed piece offered/carried.
+    value.offeredPerPiece.length === expectedPieces &&
+    value.offeredPerPiece.every((count) => isBoundedInteger(count, Number.MAX_SAFE_INTEGER)) &&
+    value.carriedPerPiece.every((count, index) =>
+      isBoundedInteger(count, (value.offeredPerPiece as readonly number[])[index] as number),
+    ) &&
     // A settled deferral rendered its candidates through some camera, so it
     // knows which face and which quarter turn that camera was at. Reporting
     // `settled` without them is the claim this pair exists to make checkable:
@@ -530,7 +530,17 @@ function stepReportShapeDefect(
   index: number,
   options: Pick<
     RealBuildOptions,
-    "lastStep" | "maxParts" | "panels" | "blindRenderBudget" | "explodedGhostRenderBudget"
+    | "lastStep"
+    | "maxParts"
+    | "panels"
+    | "blindRenderBudget"
+    | "explodedGhostRenderBudget"
+    | "deferredCandidateBudget"
+    | "deferredNarrowingRenderBudget"
+    | "fartherPanelMaximumReachSteps"
+    | "fartherPanelRenderBudget"
+    | "minimumDeferredAgreement"
+    | "minimumDeferredAgreementMargin"
   >,
 ): string | null {
   // A render count is not a part count. These were bounded by `maxParts`, which
@@ -569,15 +579,68 @@ function stepReportShapeDefect(
     report.pieces.length > options.maxParts ||
     !report.pieces.every((piece) => isPieceReport(piece, options.maxParts, renderBound)) ||
     !isWholeStepVisual(report.jointVisual, options.maxParts) ||
-    !isDeferralEvidence(report.deferral) ||
     !isExplodedGhostEvidence(report.explodedGhost) ||
     !isBoundedInteger(report.documentParts, options.maxParts) ||
     !isFiniteNumber(report.elapsedMs) ||
     report.elapsedMs < 0 ||
-    !isNullablePngCapture(report.panelPng) ||
-    !isNullablePngCapture(report.buildPng)
+    !isNullableRealBuildPngCapture(report.panelPng) ||
+    !isNullableRealBuildPngCapture(report.buildPng)
   ) {
     return `Replay browser-output report ${index} must match the complete prepared-panel boundary shape.`;
+  }
+  if (
+    !isDeferralEvidence(
+      report.deferral,
+      options.maxParts,
+      report.expectedAssembledPieces as number,
+      options.deferredNarrowingRenderBudget,
+    )
+  ) {
+    return `Replay browser-output report[${index}].deferral must have the exact bounded deferral-evidence shape for its prepared piece count.`;
+  }
+  const deferral = report.deferral as Parameters<typeof isRealBuildFartherEvidence>[3];
+  const outcomeUsesDeferredLookahead =
+    isRecord(report.outcome) &&
+    (report.outcome.status === "complete"
+      ? report.outcome.mechanism === "deferred-lookahead"
+      : report.outcome.attemptedMechanism === "deferred-lookahead");
+  const pieceReportsDeferredFailure = (report.pieces as readonly Record<string, unknown>[]).some(
+    (piece) =>
+      isRecord(piece.failure) &&
+      [
+        "deferred-panel-unscored",
+        "deferred-reach-unmeasured",
+        "weak-deferred-agreement",
+        "ambiguous-deferred-placement",
+      ].includes(String(piece.failure.code)),
+  );
+  if (
+    (deferral !== null) !== outcomeUsesDeferredLookahead ||
+    (pieceReportsDeferredFailure && deferral === null)
+  ) {
+    return `Replay browser-output report[${index}] must retain deferral evidence exactly when its outcome or piece failures say deferred lookahead ran.`;
+  }
+  if (!isRealBuildFartherDeferralCoherent(report.farther, deferral)) {
+    return `Replay browser-output report[${index}] deferral/farther cross-fields must repeat the same trigger, own-panel evidence, N+1 step, candidate scores, and unresolved settlement.`;
+  }
+  if (
+    !isRealBuildFartherEvidence(
+      report.farther,
+      report.stepNumber as number,
+      report.expectedAssembledPieces as number,
+      deferral,
+      options,
+    )
+  ) {
+    return `Replay browser-output report[${index}].farther must be an exact bounded branch proof tied to the prepared N/N+1 panels, parent frontier, lineages, budgets, scores, refusal, and decision.`;
+  }
+  if (
+    !isRealBuildFartherCaptures(
+      report.fartherCaptures,
+      report.farther as RealBuildFartherEvidence | null,
+    )
+  ) {
+    return `Replay browser-output report[${index}].fartherCaptures must contain one exact source PNG per panel, every N+1 score render, dense capture IDs, and only score-bound candidate IDs.`;
   }
   return null;
 }
@@ -590,6 +653,12 @@ type RealBuildBrowserOutputBoundary = Pick<
   | "panels"
   | "blindRenderBudget"
   | "explodedGhostRenderBudget"
+  | "deferredCandidateBudget"
+  | "deferredNarrowingRenderBudget"
+  | "fartherPanelMaximumReachSteps"
+  | "fartherPanelRenderBudget"
+  | "minimumDeferredAgreement"
+  | "minimumDeferredAgreementMargin"
 >;
 
 /**

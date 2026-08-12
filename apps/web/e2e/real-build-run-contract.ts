@@ -64,6 +64,63 @@ export interface RealBuildRunContract {
   readonly contractDigest: string;
 }
 
+const REAL_BUILD_RUN_CONTRACT_KEYS = [
+  "schemaVersion",
+  "inputDigests",
+  "identificationClosure",
+  "normalizedPanelsDigest",
+  "actionLedger",
+  "actionLedgerDigest",
+  "budgets",
+  "thresholds",
+  "policy",
+  "codeSnapshots",
+  "contractDigest",
+] as const;
+
+export const REAL_BUILD_RUN_BUDGET_KEYS = [
+  "lastStep",
+  "expectedPrintedSteps",
+  "maxParts",
+  "targetPartCount",
+  "maxRendersPerPiece",
+  "blindRenderBudget",
+  "deferredCandidateBudget",
+  "explodedGhostRenderBudget",
+  "deferredNarrowingRenderBudget",
+  "fartherPanelMaximumReachSteps",
+  "fartherPanelRenderBudget",
+] as const;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const hasExactKeys = (value: Record<string, unknown>, keys: readonly string[]): boolean =>
+  Object.keys(value).length === keys.length && keys.every((key) => key in value);
+
+function hasValidRunBudgets(value: unknown): value is Readonly<Record<string, number>> {
+  if (!isRecord(value) || !hasExactKeys(value, REAL_BUILD_RUN_BUDGET_KEYS)) return false;
+  if (!REAL_BUILD_RUN_BUDGET_KEYS.every((key) => Number.isSafeInteger(value[key]))) return false;
+  const budget = value as Readonly<Record<(typeof REAL_BUILD_RUN_BUDGET_KEYS)[number], number>>;
+  return (
+    budget.lastStep >= 1 &&
+    budget.lastStep <= budget.expectedPrintedSteps &&
+    budget.expectedPrintedSteps === 359 &&
+    budget.targetPartCount >= 1 &&
+    budget.maxParts >= budget.targetPartCount &&
+    budget.maxRendersPerPiece >= 1 &&
+    budget.blindRenderBudget >= 1 &&
+    budget.maxRendersPerPiece >= budget.blindRenderBudget &&
+    budget.deferredCandidateBudget >= 1 &&
+    budget.explodedGhostRenderBudget >= budget.deferredCandidateBudget &&
+    budget.deferredNarrowingRenderBudget >= budget.deferredCandidateBudget &&
+    budget.fartherPanelMaximumReachSteps >= 1 &&
+    budget.fartherPanelMaximumReachSteps < budget.expectedPrintedSteps &&
+    budget.fartherPanelRenderBudget >= 1 &&
+    budget.fartherPanelRenderBudget <= 16
+  );
+}
+
 function normalizedPanels(panels: readonly RealBuildPanelSpec[]): readonly unknown[] {
   return panels.map((panel) => ({
     stepNumber: panel.stepNumber,
@@ -122,6 +179,8 @@ export function realBuildRunBudgets(options: RealBuildOptions): Readonly<Record<
     deferredCandidateBudget: options.deferredCandidateBudget,
     explodedGhostRenderBudget: options.explodedGhostRenderBudget,
     deferredNarrowingRenderBudget: options.deferredNarrowingRenderBudget,
+    fartherPanelMaximumReachSteps: options.fartherPanelMaximumReachSteps,
+    fartherPanelRenderBudget: options.fartherPanelRenderBudget,
   };
 }
 
@@ -150,6 +209,11 @@ export function createRealBuildRunContract(input: {
   readonly thresholds: Readonly<Record<string, number | string | null>>;
   readonly codeSnapshots: Readonly<Record<string, string>>;
 }): RealBuildRunContract {
+  if (!hasValidRunBudgets(input.budgets)) {
+    throw new TypeError(
+      "Real-build run contract budgets must have the exact bounded N/N+1/K execution keys.",
+    );
+  }
   const actionLedger = normalizedActions(input.panels);
   const base = {
     schemaVersion: "lego.real-build-run-contract/2" as const,
@@ -171,11 +235,9 @@ export function createRealBuildRunContract(input: {
 }
 
 export function parseRealBuildRunContract(bytes: Uint8Array): RealBuildRunContract {
-  let parsed: RealBuildRunContract;
+  let parsedValue: unknown;
   try {
-    parsed = JSON.parse(
-      new TextDecoder("utf8", { fatal: true }).decode(bytes),
-    ) as RealBuildRunContract;
+    parsedValue = JSON.parse(new TextDecoder("utf8", { fatal: true }).decode(bytes)) as unknown;
   } catch (error) {
     throw new TypeError(
       `Retained real-build run contract is not strict UTF-8 JSON: ${error instanceof Error ? error.message : String(error)}.`,
@@ -183,13 +245,30 @@ export function parseRealBuildRunContract(bytes: Uint8Array): RealBuildRunContra
     );
   }
   if (
-    typeof parsed !== "object" ||
-    parsed === null ||
-    parsed.schemaVersion !== "lego.real-build-run-contract/2" ||
-    typeof parsed.contractDigest !== "string"
+    !isRecord(parsedValue) ||
+    !hasExactKeys(parsedValue, REAL_BUILD_RUN_CONTRACT_KEYS) ||
+    parsedValue.schemaVersion !== "lego.real-build-run-contract/2" ||
+    typeof parsedValue.contractDigest !== "string" ||
+    !/^sha256:[0-9a-f]{64}$/u.test(parsedValue.contractDigest) ||
+    !hasValidRunBudgets(parsedValue.budgets) ||
+    !isRecord(parsedValue.policy) ||
+    !hasExactKeys(parsedValue.policy, ["searchDisagreement", "partialStep", "unboundIdentity"]) ||
+    parsedValue.policy.searchDisagreement !== "refuse" ||
+    parsedValue.policy.partialStep !== "rollback" ||
+    parsedValue.policy.unboundIdentity !== "refuse" ||
+    !Array.isArray(parsedValue.actionLedger) ||
+    !isRecord(parsedValue.inputDigests) ||
+    !isRecord(parsedValue.identificationClosure) ||
+    !isRecord(parsedValue.thresholds) ||
+    !isRecord(parsedValue.codeSnapshots) ||
+    typeof parsedValue.normalizedPanelsDigest !== "string" ||
+    !/^sha256:[0-9a-f]{64}$/u.test(parsedValue.normalizedPanelsDigest) ||
+    typeof parsedValue.actionLedgerDigest !== "string" ||
+    !/^sha256:[0-9a-f]{64}$/u.test(parsedValue.actionLedgerDigest)
   ) {
     throw new TypeError("Retained real-build run contract has a malformed schema.");
   }
+  const parsed = parsedValue as unknown as RealBuildRunContract;
   const { contractDigest, ...base } = parsed;
   if (sha256(JSON.stringify(base)) !== contractDigest) {
     throw new TypeError("Retained real-build run contract does not reproduce its content digest.");

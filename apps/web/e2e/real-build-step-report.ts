@@ -3,6 +3,8 @@ import type { ExplodedGhostEvidence } from "./real-build-exploded-step";
 import type { PanelRasterEvidence } from "./real-build-panel-raster";
 import type {
   RealBuildPanelSpec,
+  RealBuildFartherCapture,
+  RealBuildFartherEvidence,
   RealBuildPieceReport,
   RealBuildStepReport,
   StepOutcome,
@@ -69,6 +71,8 @@ export function composeExecutedStepReport(input: {
   readonly pieces: readonly RealBuildPieceReport[];
   readonly jointVisual: WholeStepVisualEvidence | null;
   readonly deferral: DeferralEvidence | null;
+  readonly farther: RealBuildFartherEvidence | null;
+  readonly fartherCaptures: readonly RealBuildFartherCapture[];
   readonly explodedGhost: ExplodedGhostEvidence | null;
   readonly placedPieces: number;
   readonly canonicalStepId: string | null;
@@ -100,6 +104,8 @@ export function composeExecutedStepReport(input: {
     pieces: input.pieces,
     jointVisual: input.jointVisual,
     deferral: input.deferral,
+    farther: input.farther,
+    fartherCaptures: input.fartherCaptures,
     explodedGhost: input.explodedGhost,
     documentParts: input.documentParts,
     elapsedMs: input.elapsedMs,

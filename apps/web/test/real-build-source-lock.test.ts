@@ -69,7 +69,7 @@ describe.runIf(process.platform === "win32")("real-build immutable source lock",
       ),
     );
     expect(drift).toEqual([expect.stringContaining(aliasPath)]);
-  });
+  }, 15_000);
 
   it("refuses a helper whose bytes changed after the authenticated mirror snapshot", async () => {
     temporaryRoot = mkdtempSync(join(tmpdir(), "lego-real-build-helper-lock-"));

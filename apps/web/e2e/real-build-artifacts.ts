@@ -18,6 +18,7 @@ import {
 import {
   assertReadableRealBuildBrowserOutput,
   decodeRealBuildPngCapture,
+  MAXIMUM_REAL_BUILD_FARTHER_CAPTURES,
 } from "./real-build-browser-output";
 import {
   assertAncestorSnapshotsStable,
@@ -52,7 +53,11 @@ import {
 } from "./real-build-served-response-policy";
 import { parseFatalUtf8Json } from "./strict-json";
 import { assertRealBuildEnvironment, type RealBuildEnvironment } from "./real-build-environment";
-import { createRealBuildScore, REAL_BUILD_SCORE_SCHEMA } from "./real-build-score";
+import {
+  createRealBuildScore,
+  realBuildFartherCapturePath,
+  REAL_BUILD_SCORE_SCHEMA,
+} from "./real-build-score";
 export { createRealBuildScore, REAL_BUILD_SCORE_SCHEMA } from "./real-build-score";
 
 export {
@@ -75,9 +80,15 @@ const MAXIMUM_SERVED_RESPONSE_CHUNKS = Math.ceil(
   MAXIMUM_BUNDLED_SERVED_RESPONSE_BYTES / MAXIMUM_SERVED_RESPONSE_BODY_CHUNK_BYTES,
 );
 export const MAXIMUM_RETAINED_ARTIFACTS =
-  MAXIMUM_REAL_BUILD_PRINTED_STEPS * 2 + MAXIMUM_SERVED_RESPONSE_CHUNKS + 3;
+  MAXIMUM_REAL_BUILD_PRINTED_STEPS * 2 +
+  (MAXIMUM_REAL_BUILD_PRINTED_STEPS - 1) * MAXIMUM_REAL_BUILD_FARTHER_CAPTURES +
+  MAXIMUM_SERVED_RESPONSE_CHUNKS +
+  3;
 export const MAXIMUM_RETAINED_ARTIFACT_AGGREGATE_BYTES =
   MAXIMUM_REAL_BUILD_PRINTED_STEPS * 2 * MAXIMUM_REAL_BUILD_STEP_CAPTURE_BYTES +
+  (MAXIMUM_REAL_BUILD_PRINTED_STEPS - 1) *
+    MAXIMUM_REAL_BUILD_FARTHER_CAPTURES *
+    MAXIMUM_REAL_BUILD_STEP_CAPTURE_BYTES +
   MAXIMUM_SERVED_RESPONSE_CHUNKS * MAXIMUM_SERVED_RESPONSE_BODY_CHUNK_BYTES +
   MAXIMUM_SERVED_RESPONSE_MANIFEST_BYTES +
   MAXIMUM_REAL_BUILD_DOCUMENT_BYTES +
@@ -114,6 +125,25 @@ export function maximumRealBuildRetainedArtifactBytes(file: string): number {
       return MAXIMUM_REAL_BUILD_STEP_CAPTURE_BYTES;
     }
   }
+  const fartherMatch =
+    /^step-([0-9]{3})-farther-([0-9]{2})-(?:source-panel|candidate-render)-panel-([0-9]{3})\.png$/u.exec(
+      normalized,
+    );
+  if (fartherMatch !== null) {
+    const step = Number(fartherMatch[1]);
+    const captureId = Number(fartherMatch[2]);
+    const panelStep = Number(fartherMatch[3]);
+    if (
+      step >= 1 &&
+      step <= MAXIMUM_REAL_BUILD_PRINTED_STEPS &&
+      captureId >= 0 &&
+      captureId < MAXIMUM_REAL_BUILD_FARTHER_CAPTURES &&
+      panelStep > step &&
+      panelStep <= MAXIMUM_REAL_BUILD_PRINTED_STEPS
+    ) {
+      return MAXIMUM_REAL_BUILD_STEP_CAPTURE_BYTES;
+    }
+  }
   if (normalized === "document.json") return MAXIMUM_REAL_BUILD_DOCUMENT_BYTES;
   if (normalized === "score.json") return MAXIMUM_REAL_BUILD_SCORE_BYTES;
   if (normalized === REAL_BUILD_SERVED_RESPONSE_MANIFEST) {
@@ -142,6 +172,21 @@ export function validateRealBuildArtifactFilePlan(files: readonly string[]): rea
   });
   if (new Set(normalized).size !== normalized.length) {
     throw new TypeError("Artifact manifest files must be unique within the bounded live shape.");
+  }
+  const fartherOrdinalsByStep = new Map<number, Set<number>>();
+  for (const file of normalized) {
+    const match = /^step-([0-9]{3})-farther-([0-9]{2})-/u.exec(file);
+    if (match === null) continue;
+    const step = Number(match[1]);
+    const ordinal = Number(match[2]);
+    const ordinals = fartherOrdinalsByStep.get(step) ?? new Set<number>();
+    if (ordinals.has(ordinal)) {
+      throw new TypeError(
+        `Printed step ${step} repeats farther capture ordinal ${ordinal}; required one deterministic path per captureId.`,
+      );
+    }
+    ordinals.add(ordinal);
+    fartherOrdinalsByStep.set(step, ordinals);
   }
   return normalized;
 }
@@ -638,7 +683,7 @@ export function verifyRealBuildArtifactManifest(
       // to bind and no browser row to bind it to.
       const browserStep = browserOutput.reports[index];
       if (browserStep === undefined) {
-        if (step.panelPng !== null || step.buildPng !== null) {
+        if (step.panelPng !== null || step.buildPng !== null || step.fartherCaptures.length !== 0) {
           throw new TypeError(
             `Retained score step ${index} claims a PNG capture the browser output has no row for.`,
           );
@@ -661,6 +706,33 @@ export function verifyRealBuildArtifactManifest(
               `Retained step capture ${capture} does not equal its exact browser-output PNG bytes.`,
             );
           }
+        }
+      }
+      if (step.fartherCaptures.length !== browserStep.fartherCaptures.length) {
+        throw new TypeError(
+          `Retained score step ${step.stepNumber} projects ${step.fartherCaptures.length} farther captures, ` +
+            `but the exact browser row contains ${browserStep.fartherCaptures.length}.`,
+        );
+      }
+      for (let captureIndex = 0; captureIndex < step.fartherCaptures.length; captureIndex += 1) {
+        const projected = step.fartherCaptures[captureIndex]!;
+        const browserCapture = browserStep.fartherCaptures[captureIndex]!;
+        const expectedPath = realBuildFartherCapturePath(step.stepNumber, browserCapture);
+        const expectedBytes = decodeRealBuildPngCapture(browserCapture.png);
+        const entry = artifactEntries.get(projected.path);
+        if (
+          projected.captureId !== browserCapture.captureId ||
+          projected.role !== browserCapture.role ||
+          projected.panelStepNumber !== browserCapture.panelStepNumber ||
+          projected.candidateId !== browserCapture.candidateId ||
+          projected.path !== expectedPath ||
+          entry === undefined ||
+          entry.bytes !== expectedBytes.length ||
+          entry.digest !== sha256Digest(expectedBytes)
+        ) {
+          throw new TypeError(
+            `Retained farther capture ${projected.path} does not equal its exact browser-output metadata and PNG bytes.`,
+          );
         }
       }
     }

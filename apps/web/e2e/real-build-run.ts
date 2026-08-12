@@ -15,10 +15,7 @@ import {
 } from "./real-build-safety";
 import type { RealBuildBrowserOutput } from "./real-build-browser-output";
 import {
-  assessWholeStepVisualEvidence,
   executeCanonicalTransition,
-  maskCentroid,
-  measureWholeStepMaskEvidence,
   preflightRealBuildOptions,
   selectRequestedPanelPages,
   unexecutedStepReport,
@@ -36,19 +33,19 @@ import {
 import { evaluateSearchBenchmark } from "./real-build-search";
 import {
   ownPanelCannotSeparate,
-  placementsOwnPanelCannotSeparate,
   type DeferralEvidence,
   type DeferralTrigger,
 } from "./real-build-deferral";
-import { settleDeferredPrintedStep } from "./real-build-deferred-step";
 import { settleExplodedPrintedStep, type ExplodedGhostEvidence } from "./real-build-exploded-step";
-import { anchorStepCamera, createStepSilhouette } from "./real-build-step-camera";
 import { composeExecutedStepReport } from "./real-build-step-report";
+import { derivePanelRasterEvidence, renderRealBuildPageCanvas } from "./real-build-panel-raster";
 import {
-  derivePanelRasterEvidence,
-  renderRealBuildPageCanvas,
-  type PanelRasterEvidence,
-} from "./real-build-panel-raster";
+  assessRunWholeStepVisualEvidence,
+  createRunDeferredPanelCoordinator,
+  createRunOwnPanelScorer,
+  prepareRunStepCamera,
+  renderRunBuildPng,
+} from "./real-build-run-visual";
 import {
   BrowserPreparationError,
   failedBrowserOutput,
@@ -174,6 +171,11 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
               let cameraReport: RealBuildStepReport["camera"] = null;
               let panelPng: string | null = null;
               let buildPng: string | null = null;
+              // Source art remains evidence even when this step is causally
+              // blocked by an earlier ambiguity. Farther-panel refusals need
+              // the exact N+1/K pictures to stay inspectable; a blocked build
+              // must not erase the booklet pixels that explained the refusal.
+              panelPng = rgbaPngDataUrl(evidence.workPixels, width, height);
               let jointVisual: WholeStepVisualEvidence | null = null;
               let candidatePlaced = 0;
               const candidatePartIds: string[] = [];
@@ -255,6 +257,8 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                 ? (orderedPanels.find((panel) => panel.stepNumber > spec.stepNumber) ?? null)
                 : null;
               let deferral: DeferralEvidence | null = null;
+              let farther: RealBuildStepReport["farther"] = null;
+              let fartherCaptures: RealBuildStepReport["fartherCaptures"] = [];
               let explodedGhost: ExplodedGhostEvidence | null = null;
               const prerequisiteInput = {
                 stepNumber: spec.stepNumber,
@@ -371,20 +375,14 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                   pixelsPerUnit: number;
                   residualPx: number;
                 };
-                // Derived from the solution here rather than reused from
-                // `faceCorrectedFit`, so this branch depends on the face alone —
-                // which the guard above has established — and not on a coupling
-                // between a null solution and a null failure that a reader would
-                // have to go and check.
+                // Derive this from the guarded fit and panel face directly.
                 const corrected = assembly.viewForPanelFace(solution, spec.panelFace) as {
                   azimuthDegrees: number;
                   elevationDegrees: number;
                   pixelsPerUnit: number;
                   upSign?: 1 | -1;
                 };
-                // The camera the panel's own lattice implies, up to the quarter
-                // turn it cannot pin. `anchorStepCamera` resolves that below and
-                // every render in this step uses what it chose.
+                // The step-visual coordinator resolves the remaining quarter-turn.
                 const fittedView = {
                   azimuthDegrees: corrected.azimuthDegrees,
                   elevationDegrees: corrected.elevationDegrees,
@@ -398,100 +396,39 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                   sceneRadius: 60,
                 };
 
-                // The lookahead panel's raster, derived while this step is still
-                // open. It usually shares this page — printed steps 1 to 4 are
-                // all on page 11 — but it need not, so the page is rasterised on
-                // demand and released again rather than assumed present.
-                //
-                // Derived at most once per step, and only when a deferral is
-                // actually going to read it: a step whose own panel settles it
-                // never pays for the next page. A step whose panel prints no
-                // highlight is known to need it before anything is scored, and
-                // one whose panel cannot separate its candidates is not known
-                // until after.
-                let lookahead: {
-                  readonly spec: typeof spec;
-                  readonly evidence: PanelRasterEvidence;
-                } | null = null;
-                const readLookaheadPanel = async (): Promise<void> => {
-                  if (lookahead !== null || deferralTarget === null) return;
-                  const lookaheadPage =
-                    deferralTarget.pageNumber === pageNumber
-                      ? { canvas: pageCanvas, dispose: () => {} }
-                      : await renderRealBuildPageCanvas(
-                          pdf,
-                          deferralTarget.pageNumber,
-                          options.renderScale,
-                        );
-                  try {
-                    lookahead = {
-                      spec: deferralTarget,
-                      evidence: derivePanelRasterEvidence({
-                        pageCanvas: lookaheadPage.canvas,
-                        spec: deferralTarget,
-                        options,
-                        modules: { lattice, assembly },
-                      }),
-                    };
-                  } finally {
-                    lookaheadPage.dispose();
-                  }
-                };
-                if (deferring) await readLookaheadPanel();
+                const deferredPanels = createRunDeferredPanelCoordinator({
+                  spec,
+                  deferralTarget,
+                  orderedPanels,
+                  currentPageNumber: pageNumber,
+                  currentPageCanvas: pageCanvas,
+                  pdf,
+                  options,
+                  modules: { lattice, rendering, kernel, assembly },
+                  baseDocument: stepBaseDocument,
+                  place,
+                });
+                if (deferring) await deferredPanels.readLookaheadPanel();
                 try {
                   const renderer = rendering.createInstructionRenderer({ width, height });
                   try {
-                    const silhouetteAtTurn = (turnDegrees: number) =>
-                      createStepSilhouette({
-                        rendering,
-                        renderer,
-                        view: {
-                          ...fittedView,
-                          azimuthDegrees: fittedView.azimuthDegrees + turnDegrees,
-                        },
-                        frame,
-                        widthPx: width,
-                        heightPx: height,
-                      });
-
-                    let centre: [number, number] = [width / 2, height / 2];
-                    let anchorIou: number | null = null;
-                    let anchorShift: [number, number] | null = null;
-                    let anchorTurn = 0;
-
-                    if (!anchorStep) {
-                      const anchored = anchorStepCamera({
-                        stepNumber: spec.stepNumber,
-                        renderModelMask: (turnDegrees) =>
-                          silhouetteAtTurn(turnDegrees)(candidateDocument, null, [
-                            width / 2,
-                            height / 2,
-                          ]).all,
-                        builtMask: built,
-                        // The panel stops reporting what was already built
-                        // inside its own highlight, because it draws this
-                        // step's part over it. Scoring the model there measures
-                        // the drawing's occlusion instead of the registration.
-                        excludedMask: assembly.highlightExclusionMask(
-                          highlight.mask,
-                          highlight.strokeMask,
-                          width,
-                          height,
-                        ) as Uint8Array,
-                        widthPx: width,
-                        heightPx: height,
-                      });
-                      failure = anchored.failure;
-                      centre = anchored.centrePx;
-                      anchorIou = anchored.anchorIou;
-                      anchorShift = anchored.anchorShiftPx;
-                      anchorTurn = anchored.anchorTurnDegrees ?? 0;
-                    }
-                    const view = {
-                      ...fittedView,
-                      azimuthDegrees: fittedView.azimuthDegrees + anchorTurn,
-                    };
-                    const silhouette = silhouetteAtTurn(anchorTurn);
+                    const camera = prepareRunStepCamera({
+                      stepNumber: spec.stepNumber,
+                      anchorStep,
+                      candidateDocument,
+                      fittedView,
+                      frame,
+                      width,
+                      height,
+                      builtMask: built,
+                      highlight,
+                      rendering,
+                      assembly,
+                      renderer,
+                    });
+                    failure = camera.failure;
+                    let { centre } = camera;
+                    const { anchorIou, anchorShift, anchorTurn, view, silhouette } = camera;
 
                     if (failure === null) {
                       let placementMechanism: SuccessfulStepMechanism = deferring
@@ -502,109 +439,31 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                             ? "anchor-orientation"
                             : "highlight";
                       attemptedMechanism = placementMechanism;
-                      type PlacementCandidate = {
-                        readonly catalogPartId: string;
-                        readonly transform: {
-                          readonly positionLdu: readonly [number, number, number];
-                          readonly orientationId: string;
-                        };
-                      };
-                      type ScoredCandidate<C> = {
-                        readonly candidate: C;
-                        readonly score: number;
-                        readonly centre: [number, number];
-                      };
-                      // One candidate placed on a prefix, rendered, and scored
-                      // against this step's own printed highlight.
-                      //
-                      // Hoisted above the per-piece loop because a deferral that
-                      // narrows against this panel has to score placements the
-                      // same way the loop does — the same silhouette, the same
-                      // registered centre, the same tolerance. Two spellings of
-                      // one comparison is how a narrowing quietly stops being
-                      // the measurement whose refusal sent the step here.
-                      const renderAndScore = <C extends PlacementCandidate>(
-                        prefixDocument: unknown,
-                        candidate: C,
-                        targetStepId: string | null,
-                      ): ScoredCandidate<C> => {
-                        const applied = place(
-                          prefixDocument,
-                          candidate.catalogPartId,
-                          candidate.transform,
-                          "builtin:magenta",
-                          spec.stepNumber,
-                          targetStepId,
-                        );
-                        let candidateCentre = centre;
-                        let mask = silhouette(applied.document, applied.partId, centre).probe;
-                        if (anchorStep) {
-                          const from = maskCentroid(mask, width, height);
-                          const to = maskCentroid(highlight.mask as Uint8Array, width, height);
-                          if (from !== null && to !== null) {
-                            candidateCentre = [
-                              centre[0] + (to.x - from.x),
-                              centre[1] + (to.y - from.y),
-                            ];
-                            mask = silhouette(
-                              applied.document,
-                              applied.partId,
-                              candidateCentre,
-                            ).probe;
-                          }
-                        }
-                        // `rankStepDelta`, not `score.score`: on a panel whose
-                        // contours all stay open the ranking key is the printed
-                        // line the candidate explains, and the precision term
-                        // the blend carries would charge it for the boundary the
-                        // booklet chose not to draw.
-                        const score = assembly.rankStepDelta(
-                          assembly.scoreStepDelta(mask, highlight, {
-                            tolerancePx: STROKE_TOLERANCE_PX,
-                          }),
-                        ) as number;
-                        return { candidate, score, centre: candidateCentre };
-                      };
-                      // One printed step settled against a later panel's art,
-                      // used by both deferral triggers. `ownPanelMargin` is what
-                      // this step's own panel managed, so a settled deferral
-                      // records the evidence it left behind rather than only the
-                      // evidence it went and found.
-                      const deferToLookaheadPanel = (ownPanelMargin: number | null): void => {
-                        const settledDeferral = settleDeferredPrintedStep({
-                          spec,
+                      const renderAndScore = createRunOwnPanelScorer({
+                        stepNumber: spec.stepNumber,
+                        anchorStep,
+                        getCentre: () => centre,
+                        width,
+                        height,
+                        highlight,
+                        tolerancePx: STROKE_TOLERANCE_PX,
+                        assembly,
+                        silhouette,
+                        place,
+                      });
+                      const deferToLookaheadPanel = async (
+                        ownPanelMargin: number | null,
+                      ): Promise<void> => {
+                        const settledDeferral = await deferredPanels.settle({
                           trigger: deferralTrigger,
                           ownPanelMargin,
-                          ownPanelMinimumMargin:
-                            ownPanelMargin === null ? null : options.minimumScoreMargin,
-                          baseDocument: stepBaseDocument,
                           stepId: printedStepId,
-                          // A step deferred for want of any signal has no panel
-                          // to narrow against; one deferred because its panel
-                          // could not choose has the panel that could not.
-                          narrowByOwnPanel:
-                            deferralTrigger === "no-local-signal"
-                              ? null
-                              : ({ document, stepId, catalogPartId, offered }) =>
-                                  placementsOwnPanelCannotSeparate({
-                                    scored: offered.map((transform) => ({
-                                      candidate: transform,
-                                      score: renderAndScore(
-                                        document,
-                                        { catalogPartId, transform },
-                                        stepId,
-                                      ).score,
-                                    })),
-                                    minimumMargin: options.minimumScoreMargin,
-                                  }),
-                          lookahead,
-                          options,
-                          rendering,
-                          kernel,
-                          assembly,
-                          place,
+                          scoreOwnPanel: (document, stepId, catalogPartId, transform) =>
+                            renderAndScore(document, { catalogPartId, transform }, stepId).score,
                         });
-                        deferral = settledDeferral.evidence;
+                        deferral = settledDeferral.deferral;
+                        farther = settledDeferral.farther;
+                        fartherCaptures = settledDeferral.fartherCaptures;
                         failure = settledDeferral.failure;
                         pieceReports.push(...settledDeferral.pieceReports);
                         if (settledDeferral.placement !== null) {
@@ -640,7 +499,7 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                           candidatePlaced += settledExploded.placement.partIds.length;
                         }
                       }
-                      if (deferring) deferToLookaheadPanel(null);
+                      if (deferring) await deferToLookaheadPanel(null);
                       // What this step's own panel managed to separate its best
                       // two candidates by, kept across the per-piece loop so a
                       // deferral it triggers can record the evidence that sent
@@ -885,7 +744,7 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                       // Everything the local attempt placed is therefore
                       // discarded first, back to the exact printed-step base.
                       if (ownPanelMargin !== null) {
-                        await readLookaheadPanel();
+                        await deferredPanels.readLookaheadPanel();
                         deferring = true;
                         deferralTrigger = "unseparated-by-own-panel";
                         placementMechanism = "deferred-lookahead";
@@ -897,7 +756,7 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                         candidatePlaced = 0;
                         printedStepId = null;
                         failure = null;
-                        deferToLookaheadPanel(ownPanelMargin);
+                        await deferToLookaheadPanel(ownPanelMargin);
                       }
 
                       if (
@@ -929,92 +788,27 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                         failure = fixed.failure;
                       }
 
-                      // The joint visual gate measures this step's own printed
-                      // highlight against seated silhouettes, which some steps
-                      // cannot be asked at all.
-                      //
-                      // A step deferred for want of any local signal has no
-                      // highlight — union and exclusive pixel counts are zero by
-                      // construction, so running it would refuse every such step
-                      // whatever it placed. Its evidence is the deferral's own
-                      // gate instead: agreement with the lookahead panel's
-                      // already-built art, over a margin no measured wrong pick
-                      // has cleared.
-                      //
-                      // An exploded step has a highlight, but it rings the ghost
-                      // rather than the seat, so a seated union scored against it
-                      // is a comparison with a shape in the wrong place — on
-                      // printed step 2 the drawn placement reaches region IoU
-                      // 0.000155 there. Its evidence is the ghost gate instead.
-                      //
-                      // A step deferred because its panel could not *separate*
-                      // its candidates is asked, and deliberately: that panel
-                      // drew a highlight around the seats this step fills, and
-                      // the union of everything the step placed is exactly the
-                      // shape it drew. What failed there was the per-piece score,
-                      // whose ceiling is one piece's share of a highlight that
-                      // rings the whole step — 0.273 for the Plate 1 x 8 of
-                      // printed step 4. That is a different measurement from
-                      // this one, and being unable to rank by it says nothing
-                      // about whether the union lands inside the drawn contour.
-                      // So the settled step clears both panels or neither.
-                      //
-                      // Whichever gate ran is reported in its own field, so the
-                      // report says which one rather than implying this one
-                      // passed.
+                      // No-signal and exploded steps use their own gates; other
+                      // complete seated steps must explain their printed highlight.
                       if (
                         failure === null &&
                         !exploded &&
                         !(deferring && deferralTrigger === "no-local-signal") &&
                         candidatePlaced === spec.action.assembledPieces
                       ) {
-                        const pieceMasks = candidatePartIds.map(
-                          (partId) => silhouette(candidateDocument, partId, centre).probe,
-                        );
-                        const union = silhouette(candidateDocument, candidatePartIds, centre).probe;
-                        const jointScore = assembly.scoreStepDelta(union, highlight, {
-                          tolerancePx: STROKE_TOLERANCE_PX,
-                        }) as { score: number; basis: "region" | "stroke" };
-                        // `basis` is `scoreStepDelta`'s own report of which
-                        // evidence this panel gave it, so the gate below reads
-                        // the same panel the score did rather than deciding
-                        // again from the region count and drifting from it.
-                        const evidenceKind = jointScore.basis;
-                        // A piece explains area with its area and stroke with
-                        // its boundary — see `measureWholeStepMaskEvidence`.
-                        const printedEvidence = (
-                          evidenceKind === "stroke" ? highlight.contourStrokeMask : highlight.mask
-                        ) as Uint8Array;
-                        const pieceClaims =
-                          evidenceKind === "stroke"
-                            ? pieceMasks.map(
-                                (mask) =>
-                                  rendering.dilateMask(
-                                    rendering.maskBoundary(mask, width, height),
-                                    width,
-                                    height,
-                                    STROKE_TOLERANCE_PX,
-                                  ) as Uint8Array,
-                              )
-                            : pieceMasks;
-                        const coverage = measureWholeStepMaskEvidence(
-                          pieceClaims,
-                          printedEvidence,
-                          width,
-                        );
-                        jointVisual = assessWholeStepVisualEvidence({
+                        jointVisual = assessRunWholeStepVisualEvidence({
                           stepNumber: spec.stepNumber,
-                          score: jointScore.score,
-                          minimumScore: options.minimumWholeStepScore,
-                          minimumExclusiveHighlightPixelsPerPiece:
-                            options.minimumExclusiveHighlightPixelsPerPiece,
-                          calibrationDigest: options.highlightCalibrationDigest,
-                          evidenceKind,
-                          printedEvidencePixels: printedEvidence.reduce(
-                            (total, value) => total + value,
-                            0,
-                          ),
-                          ...coverage,
+                          document: candidateDocument,
+                          partIds: candidatePartIds,
+                          centre,
+                          width,
+                          height,
+                          highlight,
+                          tolerancePx: STROKE_TOLERANCE_PX,
+                          options,
+                          rendering,
+                          assembly,
+                          silhouette,
                         });
                         if (jointVisual.failure !== null) failure = jointVisual.failure;
                       }
@@ -1053,20 +847,16 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                         });
                       }
 
-                      const scene = rendering.deriveBrickScene(document_, {
-                        finish: "instruction",
+                      buildPng = renderRunBuildPng({
+                        document: document_,
+                        view,
+                        centre,
+                        frame,
+                        width,
+                        height,
+                        rendering,
+                        renderer,
                       });
-                      let pixels: Uint8Array;
-                      try {
-                        const camera = rendering.createOrthographicViewCamera(
-                          { ...view, centerXPx: centre[0], centerYPx: centre[1] },
-                          frame,
-                        );
-                        pixels = new Uint8Array(renderer.render(scene.root, camera));
-                      } finally {
-                        scene.dispose();
-                      }
-                      buildPng = rgbaPngDataUrl(pixels, width, height);
                       panelPng = rgbaPngDataUrl(evidence.workPixels, width, height);
                     }
 
@@ -1139,6 +929,8 @@ export async function runRealBuild(options: RealBuildOptions): Promise<RealBuild
                   pieces: pieceReports,
                   jointVisual,
                   deferral,
+                  farther,
+                  fartherCaptures,
                   explodedGhost,
                   placedPieces: placed,
                   canonicalStepId: printedStepId,

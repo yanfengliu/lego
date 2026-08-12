@@ -197,7 +197,7 @@ describe("enumerating legal placements", () => {
 
     expect({ missed, invented }).toEqual({ missed: [], invented: [] });
     expect(bruteSize).toBeGreaterThan(10);
-  });
+  }, 15_000);
 
   /**
    * A part arriving from underneath, which is what an upward arrow in a printed

@@ -32,7 +32,10 @@ import {
   verifyRealBuildArtifactManifest,
   writeRealBuildArtifactManifest,
 } from "../e2e/real-build-artifacts";
-import type { RealBuildBrowserOutput } from "../e2e/real-build-browser-output";
+import {
+  decodeRealBuildPngCapture,
+  type RealBuildBrowserOutput,
+} from "../e2e/real-build-browser-output";
 import { finalizeExecutedRealBuildResult } from "../e2e/real-build-finalize";
 import {
   BUILDER_GEOMETRY_EXACT_BYTES,
@@ -74,6 +77,7 @@ import {
   realBuildRunBudgets,
   realBuildRunThresholds,
 } from "../e2e/real-build-run-contract";
+import { realBuildFartherCapturePath } from "../e2e/real-build-score";
 import { stepPrerequisiteFacts, type RealBuildStepReport } from "../e2e/real-build-safety";
 import {
   REAL_BUILD_TEST_DIGEST,
@@ -86,6 +90,7 @@ import {
 } from "./real-build-identification-golden";
 
 const DIGEST = REAL_BUILD_TEST_DIGEST;
+const PNG = "data:image/png;base64,iVBORw0KGgo=";
 const panel = realBuildTransitionPanel(1);
 const sharedOpaqueRoleBytes = new TextEncoder().encode("shared-opaque-role-bytes");
 const rawRoleBytes = {
@@ -166,7 +171,7 @@ function browserOutput(): RealBuildBrowserOutput {
       expectedAssembledPieces: 0,
       resolvedPieces: 0,
     }),
-    outcome: { status: "complete", mechanism: "instruction-transition", failure: null },
+    outcome: { status: "complete", mechanism: "deferred-lookahead", failure: null },
     validation: {
       attempted: true,
       targetDocumentHash: validation.targetDocumentHash,
@@ -189,7 +194,106 @@ function browserOutput(): RealBuildBrowserOutput {
     arrows: { kept: 0, redPx: 0, rejected: 0, displacementFamily: 0, displacementFamilyLdu: [] },
     pieces: [],
     jointVisual: null,
-    deferral: null,
+    deferral: {
+      trigger: "unseparated-by-own-panel",
+      ownPanelMargin: 0.1,
+      ownPanelMinimumMargin: 0.2,
+      lookaheadStepNumber: 2,
+      reachSteps: 1,
+      lookaheadUpSign: 1,
+      lookaheadMeasure: "iou",
+      lookaheadTurnDegrees: 0,
+      lookaheadTurnAnchorIou: 0.8,
+      lookaheadTurnMargin: 0.2,
+      narrowingRenders: 0,
+      offeredPerPiece: [],
+      carriedPerPiece: [],
+      wholeStepCandidates: 2,
+      rendered: 2,
+      lookaheadBuiltPixels: 100,
+      bestAgreement: 0.9,
+      runnerUpAgreement: 0.5,
+      margin: 0.4,
+      minimumMargin: 0.2,
+      minimumAgreement: 0.85,
+      settled: false,
+    },
+    farther: {
+      origin: {
+        evidence: { stepNumber: 1, status: "unseparated", margin: 0.1, minimumMargin: 0.2 },
+        candidates: [
+          {
+            candidateId: "origin-a",
+            documentHash: DIGEST,
+            pieces: [],
+            lookaheadAgreement: 0.9,
+            lookaheadShiftPx: [0, 0],
+          },
+          {
+            candidateId: "origin-b",
+            documentHash: DIGEST,
+            pieces: [],
+            lookaheadAgreement: 0.5,
+            lookaheadShiftPx: [0, 0],
+          },
+        ],
+      },
+      carries: [],
+      panels: [
+        {
+          stepNumber: 2,
+          reachSteps: 1,
+          status: "revealing",
+          reason: null,
+          scores: [
+            { candidateId: "origin-a", agreement: 0.9 },
+            { candidateId: "origin-b", agreement: 0.5 },
+          ],
+          bestAgreement: 0.9,
+          familyMargin: 0.4,
+          descendantMargin: null,
+        },
+      ],
+      budgets: {
+        offeredCandidates: 0,
+        maximumCandidates: options.deferredCandidateBudget,
+        narrowingRenders: 0,
+        maximumNarrowingRenders: options.deferredNarrowingRenderBudget,
+        panelRenders: 2,
+        maximumPanelRenders: options.fartherPanelRenderBudget,
+        reachSteps: 1,
+        maximumReachSteps: options.fartherPanelMaximumReachSteps,
+        refusedReservation: false,
+        failedNarrowingReservation: null,
+        candidateRefusedReservation: false,
+        failedCandidateReservation: null,
+      },
+      refusal: null,
+      decision: {
+        originCandidateId: "origin-a",
+        revealingStepNumber: 2,
+        survivingCandidateIds: ["origin-a"],
+        rejectedCandidateIds: ["origin-b"],
+        descendantSettled: true,
+      },
+    },
+    fartherCaptures: [
+      { captureId: 0, role: "source-panel", panelStepNumber: 2, candidateId: null, png: PNG },
+      {
+        captureId: 1,
+        role: "candidate-render",
+        panelStepNumber: 2,
+        candidateId: "origin-a",
+        png: PNG,
+      },
+      {
+        captureId: 2,
+        role: "candidate-render",
+        panelStepNumber: 2,
+        candidateId: "origin-b",
+        png: PNG,
+      },
+    ],
     explodedGhost: null,
     documentParts: 0,
     elapsedMs: 1,
@@ -429,6 +533,13 @@ describe("real-build replay closure", () => {
       if (result.documentJson === null)
         throw new Error("Replay fixture finalizer lost its document.");
       writeFileSync(join(run.directory, "document.json"), result.documentJson);
+      const fartherCapturePaths = retainedBrowserOutput.reports.flatMap((step) =>
+        step.fartherCaptures.map((capture) => {
+          const path = realBuildFartherCapturePath(step.stepNumber, capture);
+          writeFileSync(join(run.directory, path), decodeRealBuildPngCapture(capture.png));
+          return path;
+        }),
+      );
       writeFileSync(
         join(run.directory, "score.json"),
         `${JSON.stringify(
@@ -450,6 +561,7 @@ describe("real-build replay closure", () => {
         artifactFiles: [
           REAL_BUILD_SERVED_RESPONSE_MANIFEST,
           runnerChunk,
+          ...fartherCapturePaths,
           "document.json",
           "score.json",
         ],
@@ -517,6 +629,25 @@ describe("real-build replay closure", () => {
         /does not exactly reproduce/u,
       );
       writeFileSync(scorePath, originalScore);
+      writeFileSync(artifactManifestPath, originalArtifactManifest);
+
+      const fartherCapturePath = join(published, fartherCapturePaths[0]!);
+      const originalFartherCapture = readFileSync(fartherCapturePath);
+      const forgedFartherCapture = Buffer.concat([originalFartherCapture, Buffer.from([0])]);
+      writeFileSync(fartherCapturePath, forgedFartherCapture);
+      const rehashedFartherManifest = JSON.parse(originalArtifactManifest.toString("utf8")) as {
+        artifacts: { file: string; bytes: number; digest: string }[];
+      };
+      const fartherEntry = rehashedFartherManifest.artifacts.find(
+        ({ file }) => file === fartherCapturePaths[0],
+      )!;
+      fartherEntry.bytes = forgedFartherCapture.length;
+      fartherEntry.digest = sha256Digest(forgedFartherCapture);
+      writeFileSync(artifactManifestPath, `${JSON.stringify(rehashedFartherManifest, null, 1)}\n`);
+      expect(() => verifyRealBuildArtifactManifest(published, plan.runId)).toThrow(
+        /does not equal its exact browser-output metadata and PNG bytes/u,
+      );
+      writeFileSync(fartherCapturePath, originalFartherCapture);
       writeFileSync(artifactManifestPath, originalArtifactManifest);
 
       const inspected = inspectRealBuildReplayClosure(published);

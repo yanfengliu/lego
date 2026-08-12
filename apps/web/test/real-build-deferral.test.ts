@@ -16,6 +16,8 @@ import { createPlacePartTransaction } from "../src/manual-commands";
 import { groupPlacementOperationsInPrintedStep } from "../e2e/real-build-safety";
 import { createCanonicalPrintedStepPlacer } from "../e2e/real-build-fixed-actions";
 import { settleDeferredPrintedStep } from "../e2e/real-build-deferred-step";
+import { settleFartherOriginPieceReports } from "../e2e/real-build-farther-step";
+import { MAXIMUM_REAL_BUILD_FARTHER_CAPTURES } from "../e2e/real-build-farther-report-types";
 import {
   DEFERRED_STEP_MINIMUM_AGREEMENT,
   DEFERRED_STEP_MINIMUM_MARGIN,
@@ -403,6 +405,35 @@ describe("deferred printed step", { timeout: 30_000 }, () => {
     expect(settlement.evidence.settled).toBe(false);
     expect(settlement.failure?.code).toBe("ambiguous-deferred-placement");
     expect(settlement.evidence.margin).toBe(0);
+    expect(settlement.unresolvedCandidates.length).toBeGreaterThan(1);
+    expect(
+      settlement.unresolvedCandidates.filter(({ lookaheadPixels }) => lookaheadPixels !== null),
+    ).toHaveLength(
+      Math.min(settlement.unresolvedCandidates.length, MAXIMUM_REAL_BUILD_FARTHER_CAPTURES - 2),
+    );
+    expect(
+      settlement.unresolvedCandidates
+        .filter(({ lookaheadPixels }) => lookaheadPixels !== null)
+        .every(({ lookaheadPixels }) => lookaheadPixels!.length === WIDTH * HEIGHT * 4),
+    ).toBe(true);
+    const settledReports = settleFartherOriginPieceReports(
+      settlement.pieceReports,
+      settlement.unresolvedCandidates[0]!,
+    );
+    expect(settledReports).toEqual(
+      settlement.pieceReports.map((report, pieceIndex) =>
+        expect.objectContaining({
+          catalogPartId: report.catalogPartId,
+          placed: true,
+          positionLdu:
+            settlement.unresolvedCandidates[0]!.pieces[pieceIndex]!.transform.positionLdu,
+          orientationId:
+            settlement.unresolvedCandidates[0]!.pieces[pieceIndex]!.transform.orientationId,
+          failure: null,
+          blind: expect.objectContaining({ refusal: null }),
+        }),
+      ),
+    );
   });
 
   /**
@@ -505,6 +536,7 @@ describe("deferred printed step", { timeout: 30_000 }, () => {
 
     expect(settlement.failure?.code).toBe("resource-budget-exhausted");
     expect(settlement.failure?.message).toContain("refused rather than truncated");
+    expect(settlement.evidence.wholeStepCandidates).toBe(0);
     expect(settlement.placement).toBeNull();
   });
 

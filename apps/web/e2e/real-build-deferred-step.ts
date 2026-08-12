@@ -10,6 +10,8 @@ import {
 } from "./real-build-deferral";
 import { anchorStepCamera } from "./real-build-step-camera";
 import type { RuntimeBrickIdentity } from "./real-build-fixed-actions";
+import type { FartherPlacementWitness } from "./real-build-farther-panel-types";
+import { MAXIMUM_REAL_BUILD_FARTHER_CAPTURES } from "./real-build-farther-report-types";
 import type { PanelRasterEvidence } from "./real-build-panel-raster";
 import type {
   RealBuildOptions,
@@ -40,6 +42,37 @@ export interface DeferredStepSettlement<D> {
   readonly failure: StepFailure | null;
   readonly pieceReports: readonly RealBuildPieceReport[];
   readonly placement: DeferredPlacementResult<D> | null;
+  /**
+   * Every complete step-N candidate retained when N+1 cannot settle the step.
+   *
+   * This is deliberately empty for an ordinary one-panel settlement and for a
+   * refusal that happened before complete candidates were scored.  A farther
+   * coordinator may consume only this exact set; reconstructing candidates
+   * after the refusal would sever the score from the document it judged.
+   */
+  readonly unresolvedCandidates: readonly DeferredUnresolvedCandidate<D>[];
+}
+
+export interface DeferredUnresolvedCandidate<D> {
+  readonly candidateId: string;
+  readonly document: D;
+  readonly documentHash: string;
+  readonly partIds: readonly string[];
+  readonly stepId: string | null;
+  readonly registrations: readonly RuntimeBrickIdentity[];
+  readonly pieces: readonly FartherPlacementWitness[];
+  readonly lookaheadAgreement: number;
+  /** Registration applied when measuring the lookahead agreement. */
+  readonly lookaheadShiftPx: readonly [number, number];
+  /**
+   * Exact silhouette render whose pixels produced `lookaheadAgreement`.
+   *
+   * Null only outside the bounded retained subset. The document/hash/witness
+   * row remains authoritative for every candidate; this image exists so a
+   * reviewer can inspect the score-bearing production render without causing
+   * a fresh render after a later aggregate-budget refusal.
+   */
+  readonly lookaheadPixels: Uint8Array | null;
 }
 
 type PlacementTransform = {
@@ -107,6 +140,7 @@ export function settleDeferredPrintedStep<D>(input: {
   const refused = (
     evidence: DeferralEvidence,
     failure: StepFailure,
+    unresolvedCandidates: readonly DeferredUnresolvedCandidate<D>[] = [],
   ): DeferredStepSettlement<D> => ({
     evidence,
     failure,
@@ -134,6 +168,7 @@ export function settleDeferredPrintedStep<D>(input: {
       failure: pieceIndex === 0 ? failure : { ...failure, pieceIndex },
     })),
     placement: null,
+    unresolvedCandidates,
   });
 
   const emptyEvidence: DeferralEvidence = {
@@ -148,6 +183,9 @@ export function settleDeferredPrintedStep<D>(input: {
     lookaheadTurnAnchorIou: null,
     lookaheadTurnMargin: null,
     wholeStepCandidates: 0,
+    narrowingRenders: 0,
+    offeredPerPiece: [],
+    carriedPerPiece: [],
     rendered: 0,
     lookaheadBuiltPixels: 0,
     bestAgreement: null,
@@ -263,7 +301,10 @@ export function settleDeferredPrintedStep<D>(input: {
   };
 
   const renderer = rendering.createInstructionRenderer({ width, height });
-  const silhouetteAt = (subject: unknown, turnDegrees: number): Uint8Array => {
+  const renderSilhouetteAt = (
+    subject: unknown,
+    turnDegrees: number,
+  ): { readonly mask: Uint8Array; readonly pixels: Uint8Array } => {
     const scene = rendering.deriveBrickScene(subject, { finish: "instruction" });
     try {
       rendering.setInstructionSilhouetteMode(scene.root, true);
@@ -276,16 +317,17 @@ export function settleDeferredPrintedStep<D>(input: {
         },
         frame,
       );
-      return instructionSilhouetteMasks(
-        new Uint8Array(renderer.render(scene.root, camera)),
-        width,
-        height,
-        0x923978,
-      ).all;
+      const pixels = new Uint8Array(renderer.render(scene.root, camera));
+      return {
+        mask: instructionSilhouetteMasks(pixels, width, height, 0x923978).all,
+        pixels,
+      };
     } finally {
       scene.dispose();
     }
   };
+  const silhouetteAt = (subject: unknown, turnDegrees: number): Uint8Array =>
+    renderSilhouetteAt(subject, turnDegrees).mask;
 
   // Which quarter turn of the settling panel's fitted azimuth it is actually
   // drawn at. The lattice provably cannot say — a quarter turn permutes the
@@ -371,6 +413,8 @@ export function settleDeferredPrintedStep<D>(input: {
     },
     narrow: input.narrowByOwnPanel,
     narrowingRenderBudget: options.deferredNarrowingRenderBudget,
+    placementKey: (catalogPartId, transform) =>
+      assembly.placementOccupancyKey(catalogPartId, transform) as string,
     place: (document, catalogPartId, transform, colorId, stepId) =>
       input.place(document, catalogPartId, transform, colorId, spec.stepNumber, stepId),
     budget: options.deferredCandidateBudget,
@@ -388,7 +432,14 @@ export function settleDeferredPrintedStep<D>(input: {
   if (enumeration.overNarrowingBudget) {
     renderer.dispose();
     return refused(
-      { ...emptyEvidence, ...cameraEvidence, wholeStepCandidates: 0 },
+      {
+        ...emptyEvidence,
+        ...cameraEvidence,
+        wholeStepCandidates: 0,
+        narrowingRenders: enumeration.narrowingRenders,
+        offeredPerPiece: enumeration.perPiece,
+        carriedPerPiece: enumeration.perPieceCarried,
+      },
       {
         code: "resource-budget-exhausted",
         stage: "budget",
@@ -404,7 +455,18 @@ export function settleDeferredPrintedStep<D>(input: {
   if (enumeration.overBudget) {
     renderer.dispose();
     return refused(
-      { ...emptyEvidence, ...cameraEvidence, wholeStepCandidates: enumeration.budget + 1 },
+      {
+        ...emptyEvidence,
+        ...cameraEvidence,
+        // No complete candidate set was admitted or scored. Keep this at zero
+        // rather than using `budget + 1` as an overloaded sentinel: a nonzero
+        // count means exact complete candidates exist and therefore makes the
+        // bounded farther path mandatory at the hostile report boundary.
+        wholeStepCandidates: 0,
+        narrowingRenders: enumeration.narrowingRenders,
+        offeredPerPiece: enumeration.perPiece,
+        carriedPerPiece: enumeration.perPieceCarried,
+      },
       {
         code: "resource-budget-exhausted",
         stage: "budget",
@@ -422,31 +484,61 @@ export function settleDeferredPrintedStep<D>(input: {
   const scored: {
     candidate: (typeof enumeration.candidates)[number];
     agreement: number;
+    lookaheadShiftPx: readonly [number, number];
+  }[] = [];
+  // A later farther-panel row needs one source capture for N+1 and one for K.
+  // Reserve those two slots here, then keep every N+1 render that can fit under
+  // the separately bounded farther-panel render contract without rerendering.
+  const originCaptureLimit = Math.max(1, MAXIMUM_REAL_BUILD_FARTHER_CAPTURES - 2);
+  const retainedScorePixels: {
+    candidate: (typeof enumeration.candidates)[number];
+    agreement: number;
+    order: number;
+    pixels: Uint8Array;
   }[] = [];
   let rendered = 0;
   try {
-    for (const candidate of enumeration.candidates) {
-      const candidateMask = silhouetteAt(candidate.document, turnDegrees);
+    for (const [order, candidate] of enumeration.candidates.entries()) {
+      const scoreRender = renderSilhouetteAt(candidate.document, turnDegrees);
+      const candidateMask = scoreRender.mask;
       rendered += 1;
       const from = maskCentroid(candidateMask, width, height);
       if (from === null || builtCentroid === null) {
-        scored.push({ candidate, agreement: 0 });
-        continue;
+        scored.push({ candidate, agreement: 0, lookaheadShiftPx: [0, 0] });
+        retainedScorePixels.push({ candidate, agreement: 0, order, pixels: scoreRender.pixels });
+      } else {
+        const agreement = registerPrefixAgreement({
+          candidateMask,
+          builtMask,
+          excludedMask,
+          width,
+          height,
+          seedPx: [builtCentroid.x - from.x, builtCentroid.y - from.y],
+          measure,
+        });
+        scored.push({
+          candidate,
+          agreement: agreement.agreement,
+          lookaheadShiftPx: agreement.shiftPx,
+        });
+        retainedScorePixels.push({
+          candidate,
+          agreement: agreement.agreement,
+          order,
+          pixels: scoreRender.pixels,
+        });
       }
-      const agreement = registerPrefixAgreement({
-        candidateMask,
-        builtMask,
-        excludedMask,
-        width,
-        height,
-        seedPx: [builtCentroid.x - from.x, builtCentroid.y - from.y],
-        measure,
-      });
-      scored.push({ candidate, agreement: agreement.agreement });
+      retainedScorePixels.sort(
+        (left, right) => right.agreement - left.agreement || left.order - right.order,
+      );
+      if (retainedScorePixels.length > originCaptureLimit) retainedScorePixels.pop();
     }
   } finally {
     renderer.dispose();
   }
+  const lookaheadPixelsByCandidate = new Map(
+    retainedScorePixels.map(({ candidate, pixels }) => [candidate, pixels]),
+  );
 
   const decision = selectDeferredPlacement({
     stepNumber: spec.stepNumber,
@@ -467,6 +559,9 @@ export function settleDeferredPrintedStep<D>(input: {
     reachSteps,
     ...cameraEvidence,
     wholeStepCandidates: enumeration.candidates.length,
+    narrowingRenders: enumeration.narrowingRenders,
+    offeredPerPiece: enumeration.perPiece,
+    carriedPerPiece: enumeration.perPieceCarried,
     rendered,
     lookaheadBuiltPixels,
     bestAgreement: ordered[0]?.agreement ?? null,
@@ -477,7 +572,49 @@ export function settleDeferredPrintedStep<D>(input: {
     settled: decision.failure === null,
   };
   if (decision.failure !== null || decision.winner === null) {
-    return refused(evidence, decision.failure!);
+    const unresolvedCandidates = scored.map(({ candidate, agreement, lookaheadShiftPx }) => {
+      const documentHash = kernel.documentStructuralHash(candidate.document) as string;
+      return Object.freeze({
+        candidateId: `step-${String(spec.stepNumber).padStart(3, "0")}:${documentHash}`,
+        document: candidate.document,
+        documentHash,
+        partIds: Object.freeze([...candidate.partIds]),
+        stepId: candidate.stepId,
+        registrations: Object.freeze(
+          spec.pieces.map((piece, pieceIndex) =>
+            Object.freeze({
+              identityKey: piece.identityKey,
+              partId: candidate.partIds[pieceIndex]!,
+              stepNumber: spec.stepNumber,
+              designId: piece.designId,
+              materialId: piece.materialId,
+              catalogPartId: piece.catalogPartId,
+              colorId: piece.colorId,
+            }),
+          ),
+        ),
+        pieces: Object.freeze(
+          spec.pieces.map((piece, pieceIndex) =>
+            Object.freeze({
+              catalogPartId: piece.catalogPartId,
+              colorId: piece.colorId,
+              transform: Object.freeze({
+                positionLdu: Object.freeze([
+                  candidate.transforms[pieceIndex]!.positionLdu[0],
+                  candidate.transforms[pieceIndex]!.positionLdu[1],
+                  candidate.transforms[pieceIndex]!.positionLdu[2],
+                ]) as readonly [number, number, number],
+                orientationId: candidate.transforms[pieceIndex]!.orientationId,
+              }),
+            }),
+          ),
+        ),
+        lookaheadAgreement: agreement,
+        lookaheadShiftPx: Object.freeze([...lookaheadShiftPx]) as readonly [number, number],
+        lookaheadPixels: lookaheadPixelsByCandidate.get(candidate) ?? null,
+      });
+    });
+    return refused(evidence, decision.failure!, Object.freeze(unresolvedCandidates));
   }
 
   const winner = decision.winner.candidate;
@@ -521,5 +658,6 @@ export function settleDeferredPrintedStep<D>(input: {
         colorId: piece.colorId,
       })),
     },
+    unresolvedCandidates: [],
   };
 }

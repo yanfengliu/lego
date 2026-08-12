@@ -113,6 +113,17 @@ export function carryFartherFrontier<D>(unsafeInput: FartherCarryInput<D>): Fart
   const candidateIds = input.expansions.flatMap(({ children }) =>
     children.map(({ candidateId }) => candidateId),
   );
+  const parentExpansionCounts = new Map<string, number>();
+  for (const parentCandidateId of expansionIds) {
+    parentExpansionCounts.set(
+      parentCandidateId,
+      (parentExpansionCounts.get(parentCandidateId) ?? 0) + 1,
+    );
+  }
+  const childCandidateCounts = new Map<string, number>();
+  for (const candidateId of candidateIds) {
+    childCandidateCounts.set(candidateId, (childCandidateCounts.get(candidateId) ?? 0) + 1);
+  }
   const completeParents =
     expansionIds.length === parentById.size &&
     new Set(expansionIds).size === expansionIds.length &&
@@ -131,27 +142,34 @@ export function carryFartherFrontier<D>(unsafeInput: FartherCarryInput<D>): Fart
   const atomic = atomicMismatch === undefined;
   const nonempty = input.expansions.every(({ children }) => children.length > 0);
   const measuredCandidates: FartherCandidate<D>[] = [];
-  if (completeParents && atomic && candidateIds.length === new Set(candidateIds).size) {
-    for (const expansion of input.expansions) {
-      const parent = parentById.get(expansion.parentCandidateId)!;
-      for (const child of expansion.children) {
-        measuredCandidates.push(
-          Object.freeze({
-            candidateId: child.candidateId,
-            parentCandidateId: parent.candidateId,
-            originCandidateId: parent.originCandidateId,
-            document: child.document,
-            lineage: freezeArray([
-              ...parent.lineage,
-              freezeLineageStep({
-                stepNumber: input.stepNumber,
-                documentHash: child.documentHash,
-                pieces: child.pieces,
-              }),
-            ]),
-          }),
-        );
-      }
+  for (const expansion of input.expansions) {
+    const parent = parentById.get(expansion.parentCandidateId);
+    const individuallyValid =
+      parent !== undefined &&
+      parentExpansionCounts.get(expansion.parentCandidateId) === 1 &&
+      expansion.children.every(
+        (child) =>
+          childCandidateCounts.get(child.candidateId) === 1 &&
+          atomicPiecesMatch(input.expectedAtomicPieces, child.pieces),
+      );
+    if (!individuallyValid) continue;
+    for (const child of expansion.children) {
+      measuredCandidates.push(
+        Object.freeze({
+          candidateId: child.candidateId,
+          parentCandidateId: parent.candidateId,
+          originCandidateId: parent.originCandidateId,
+          document: child.document,
+          lineage: freezeArray([
+            ...parent.lineage,
+            freezeLineageStep({
+              stepNumber: input.stepNumber,
+              documentHash: child.documentHash,
+              pieces: child.pieces,
+            }),
+          ]),
+        }),
+      );
     }
   }
   const narrowingRenders = input.expansions.reduce(

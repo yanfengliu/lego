@@ -3,7 +3,22 @@ import type { PanelFace } from "../src/assembly/panel-face";
 import type { CoverageInputBindings, StepCoverageCalloutClaim } from "./real-build-coverage";
 import type { DeferralEvidence } from "./real-build-deferral";
 import type { ExplodedGhostEvidence } from "./real-build-exploded-step";
+import type {
+  RealBuildFartherCapture,
+  RealBuildFartherEvidence,
+} from "./real-build-farther-report-types";
 import type { TrustedIdentificationConfidence } from "./real-build-identification-trust";
+
+export type {
+  RealBuildFartherBudgetEvidence,
+  RealBuildFartherCapture,
+  RealBuildFartherCaptureRole,
+  RealBuildFartherCarryEvidence,
+  RealBuildFartherDecision,
+  RealBuildFartherEvidence,
+  RealBuildFartherOriginCandidate,
+  RealBuildFartherOriginEvidence,
+} from "./real-build-farther-report-types";
 
 export {
   bindCalloutsToBookletPanels,
@@ -756,6 +771,20 @@ export interface RealBuildOptions {
    */
   readonly deferredNarrowingRenderBudget: number;
   /**
+   * Furthest printed-panel distance a branch-aware deferral may inspect from N.
+   *
+   * This is an aggregate search limit, not an allowance that may be restarted
+   * for each surviving parent. The current measured N/N+1/K policy uses 2.
+   */
+  readonly fartherPanelMaximumReachSteps: number;
+  /**
+   * Total candidate renders available to one branch-aware N/N+1/K observation.
+   *
+   * Source-panel captures do not spend this render budget, while every scored
+   * candidate does. The evidence row records the exact aggregate consumption.
+   */
+  readonly fartherPanelRenderBudget: number;
+  /**
    * Most ghost renders an exploded step may perform.
    *
    * A different resource from the candidate budget above, and it used to be
@@ -923,6 +952,10 @@ export interface RealBuildStepReport {
    * this field carries the evidence that replaced it.
    */
   readonly deferral: DeferralEvidence | null;
+  /** Branch-aware N/N+1/K evidence; null when this step did not search farther. */
+  readonly farther: RealBuildFartherEvidence | null;
+  /** Exact score renders plus N+1/K source PNGs for `farther`, bounded to 18 dense captures. */
+  readonly fartherCaptures: readonly RealBuildFartherCapture[];
   /**
    * Set only when this step's panel drew its highlight round a ghost, and null
    * otherwise — so its presence is the report that the step was read exploded.

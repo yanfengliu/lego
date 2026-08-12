@@ -519,6 +519,9 @@ export interface DeferralEvidence {
   readonly lookaheadTurnAnchorIou: number | null;
   readonly lookaheadTurnMargin: number | null;
   readonly wholeStepCandidates: number;
+  readonly narrowingRenders: number;
+  readonly offeredPerPiece: readonly number[];
+  readonly carriedPerPiece: readonly number[];
   readonly rendered: number;
   readonly lookaheadBuiltPixels: number;
   readonly bestAgreement: number | null;
@@ -572,6 +575,8 @@ export interface WholeStepCandidate<D> {
 
 export interface WholeStepEnumeration<D> {
   readonly candidates: readonly WholeStepCandidate<D>[];
+  /** Complete leaves reached before a later all-or-nothing refusal. */
+  readonly exploredCandidates: readonly WholeStepCandidate<D>[];
   /** Distinct placements offered for each piece on the first branch explored. */
   readonly perPiece: readonly number[];
   /**
@@ -593,6 +598,127 @@ export type WholeStepPlacementTransform = {
   readonly positionLdu: readonly [number, number, number];
   readonly orientationId: string;
 };
+
+/**
+ * One live narrowing-render allowance shared by any number of enumerations.
+ *
+ * A reservation is atomic: `tryReserve` returns false without changing
+ * `reserved` when the whole batch would cross `budget`. Callers can therefore
+ * hand the same ledger to every parent expansion without multiplying a
+ * per-parent allowance or starting a render batch that cannot finish.
+ */
+export interface BudgetReservationFailure {
+  /** Successfully reserved work before the first refused atomic request. */
+  readonly reservedBefore: number;
+  /** The complete atomic batch that did not fit. */
+  readonly requested: number;
+  readonly budget: number;
+}
+
+export interface NarrowingRenderBudgetLedger {
+  readonly budget: number;
+  readonly reserved: number;
+  readonly refusedReservation: boolean;
+  readonly failedReservation: BudgetReservationFailure | null;
+  tryReserve(renderCount: number): boolean;
+}
+
+/**
+ * One live complete-candidate allowance shared by every parent enumeration.
+ *
+ * Each unique complete leaf reserves one unit before it can enter the retained
+ * evidence. A failed reservation leaves `reserved` unchanged, so callers keep
+ * the complete leaves already reached while refusing the aggregate frontier.
+ */
+export interface WholeStepCandidateBudgetLedger {
+  readonly budget: number;
+  readonly reserved: number;
+  readonly refusedReservation: boolean;
+  readonly failedReservation: BudgetReservationFailure | null;
+  tryReserve(candidateCount: number): boolean;
+}
+
+export function createWholeStepCandidateBudgetLedger(
+  budget: number,
+): WholeStepCandidateBudgetLedger {
+  if (!Number.isSafeInteger(budget) || budget < 0) {
+    throw new RangeError(
+      `Whole-step candidate budget is ${String(budget)}; required a non-negative safe integer.`,
+    );
+  }
+  let reserved = 0;
+  let failedReservation: BudgetReservationFailure | null = null;
+  return Object.freeze({
+    budget,
+    get reserved() {
+      return reserved;
+    },
+    get refusedReservation() {
+      return failedReservation !== null;
+    },
+    get failedReservation() {
+      return failedReservation;
+    },
+    tryReserve(candidateCount: number): boolean {
+      if (!Number.isSafeInteger(candidateCount) || candidateCount < 0) {
+        throw new RangeError(
+          `Whole-step candidate reservation is ${String(candidateCount)}; required a non-negative safe integer.`,
+        );
+      }
+      if (failedReservation !== null) return false;
+      if (candidateCount > budget - reserved) {
+        failedReservation = Object.freeze({
+          reservedBefore: reserved,
+          requested: candidateCount,
+          budget,
+        });
+        return false;
+      }
+      reserved += candidateCount;
+      return true;
+    },
+  });
+}
+
+export function createNarrowingRenderBudgetLedger(budget: number): NarrowingRenderBudgetLedger {
+  if (!Number.isSafeInteger(budget) || budget < 0) {
+    throw new RangeError(
+      `Narrowing-render budget is ${String(budget)}; required a non-negative safe integer.`,
+    );
+  }
+  let reserved = 0;
+  let failedReservation: BudgetReservationFailure | null = null;
+  return Object.freeze({
+    budget,
+    get reserved() {
+      return reserved;
+    },
+    get refusedReservation() {
+      return failedReservation !== null;
+    },
+    get failedReservation() {
+      return failedReservation;
+    },
+    tryReserve(renderCount: number): boolean {
+      if (!Number.isSafeInteger(renderCount) || renderCount < 0) {
+        throw new RangeError(
+          `Narrowing-render reservation is ${String(renderCount)}; required a non-negative safe integer.`,
+        );
+      }
+      if (failedReservation !== null) return false;
+      if (renderCount > budget - reserved) {
+        failedReservation = Object.freeze({
+          reservedBefore: reserved,
+          requested: renderCount,
+          budget,
+        });
+        return false;
+      }
+      reserved += renderCount;
+      return true;
+    },
+  });
+}
 
 /**
  * The placements a panel's own score cannot tell apart from its best one.
@@ -663,6 +789,31 @@ export function enumerateWholeStepCandidates<D>(input: {
       }) => readonly WholeStepPlacementTransform[])
     | null;
   readonly narrowingRenderBudget: number;
+  /**
+   * Optional aggregate allowance shared across parent enumerations. The local
+   * `narrowingRenderBudget` keeps its historical per-enumeration meaning only
+   * when no shared ledger is supplied. With a ledger, its atomic reservation
+   * is authoritative so every refusal has one unambiguous provenance.
+   */
+  readonly narrowingRenderBudgetLedger?: NarrowingRenderBudgetLedger;
+  /**
+   * Optional aggregate complete-leaf allowance shared across parent
+   * enumerations. A refused leaf is not retained, while earlier reserved leaves
+   * remain available as immutable evidence through `exploredCandidates`. When
+   * supplied, this is the authoritative candidate allowance; `budget` keeps
+   * its historical per-enumeration meaning only when no shared ledger exists.
+   */
+  readonly candidateBudgetLedger?: WholeStepCandidateBudgetLedger;
+  /**
+   * Stable occupancy key used to quotient permutations of identical pieces.
+   *
+   * Keys must uniquely and deterministically identify distinct occupancies for
+   * a catalog part. When omitted, the historical full permutation product is
+   * retained. When supplied, construction order remains untouched because
+   * support and legality can be order-dependent; only complete candidates with
+   * the same sorted occupancy multiset are deduplicated.
+   */
+  readonly placementKey?: (catalogPartId: string, transform: WholeStepPlacementTransform) => string;
   readonly place: (
     document: D,
     catalogPartId: string,
@@ -679,11 +830,41 @@ export function enumerateWholeStepCandidates<D>(input: {
   let overBudget = false;
   let overNarrowingBudget = false;
 
+  const completeOccupancyKeys = new Set<string>();
+  const completeOccupancyKey = (candidate: WholeStepCandidate<D>): string | null => {
+    if (input.placementKey === undefined) return null;
+    const grouped = new Map<string, string[]>();
+    for (const [index, piece] of input.pieces.entries()) {
+      const identity = `${piece.catalogPartId}\u0000${piece.colorId}`;
+      const placements = grouped.get(identity) ?? [];
+      placements.push(input.placementKey(piece.catalogPartId, candidate.transforms[index]!));
+      grouped.set(identity, placements);
+    }
+    return JSON.stringify(
+      [...grouped]
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([identity, placements]) => [identity, placements.sort()] as const),
+    );
+  };
+
   const walk = (partial: WholeStepCandidate<D>, pieceIndex: number): void => {
     if (overBudget || overNarrowingBudget) return;
     if (pieceIndex === input.pieces.length) {
+      const occupancyKey = completeOccupancyKey(partial);
+      if (occupancyKey !== null) {
+        if (completeOccupancyKeys.has(occupancyKey)) return;
+        completeOccupancyKeys.add(occupancyKey);
+      }
+      if (input.candidateBudgetLedger !== undefined) {
+        if (!input.candidateBudgetLedger.tryReserve(1)) {
+          overBudget = true;
+          return;
+        }
+      }
       candidates.push(partial);
-      if (candidates.length > input.budget) overBudget = true;
+      if (input.candidateBudgetLedger === undefined && candidates.length > input.budget) {
+        overBudget = true;
+      }
       return;
     }
     const piece = input.pieces[pieceIndex]!;
@@ -694,9 +875,16 @@ export function enumerateWholeStepCandidates<D>(input: {
     // narrowing budget to confirm a set of one.
     if (input.narrow !== null && offered.length > 1) {
       narrowingRenders += offered.length;
-      if (narrowingRenders > input.narrowingRenderBudget) {
-        overNarrowingBudget = true;
-        return;
+      if (input.narrowingRenderBudgetLedger === undefined) {
+        if (narrowingRenders > input.narrowingRenderBudget) {
+          overNarrowingBudget = true;
+          return;
+        }
+      } else {
+        if (!input.narrowingRenderBudgetLedger.tryReserve(offered.length)) {
+          overNarrowingBudget = true;
+          return;
+        }
       }
       carried = input.narrow({
         document: partial.document,
@@ -740,6 +928,7 @@ export function enumerateWholeStepCandidates<D>(input: {
   walk({ document: input.baseDocument, partIds: [], stepId: input.stepId, transforms: [] }, 0);
   return {
     candidates: overBudget || overNarrowingBudget ? [] : candidates,
+    exploredCandidates: candidates,
     perPiece,
     perPieceCarried,
     narrowingRenders,

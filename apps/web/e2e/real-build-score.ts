@@ -1,6 +1,7 @@
 import {
   isAtomicStepComplete,
   type RealBuildAccounting,
+  type RealBuildFartherCapture,
   type RealBuildResult,
 } from "./real-build-safety";
 
@@ -8,6 +9,13 @@ export const REAL_BUILD_SCORE_SCHEMA = "lego.real-build-score/3" as const;
 
 const capturePath = (stepNumber: number, kind: "panel" | "build"): string =>
   `step-${String(stepNumber).padStart(3, "0")}-${kind}.png`;
+
+export const realBuildFartherCapturePath = (
+  stepNumber: number,
+  capture: Pick<RealBuildFartherCapture, "captureId" | "role" | "panelStepNumber">,
+): string =>
+  `step-${String(stepNumber).padStart(3, "0")}-farther-${String(capture.captureId).padStart(2, "0")}-` +
+  `${capture.role}-panel-${String(capture.panelStepNumber).padStart(3, "0")}.png`;
 
 /** Creates the only accepted retained score projection from a locally finalized result. */
 export function createRealBuildScore(input: {
@@ -36,10 +44,17 @@ export function createRealBuildScore(input: {
       .filter((step) => step.outcome.status === "failed")
       .map((step) => ({ stepNumber: step.stepNumber, failure: step.outcome.failure })),
     totalElapsedMs: input.result.totalElapsedMs,
-    steps: input.result.steps.map(({ panelPng, buildPng, ...step }) => ({
+    steps: input.result.steps.map(({ panelPng, buildPng, fartherCaptures, ...step }) => ({
       ...step,
       panelPng: panelPng === null ? null : capturePath(step.stepNumber, "panel"),
       buildPng: buildPng === null ? null : capturePath(step.stepNumber, "build"),
+      fartherCaptures: fartherCaptures.map((capture) => ({
+        captureId: capture.captureId,
+        role: capture.role,
+        panelStepNumber: capture.panelStepNumber,
+        candidateId: capture.candidateId,
+        path: realBuildFartherCapturePath(step.stepNumber, capture),
+      })),
     })),
   };
 }

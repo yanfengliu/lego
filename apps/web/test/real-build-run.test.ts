@@ -22,7 +22,6 @@ import {
 } from "../e2e/real-build-safety";
 import {
   OFFICIAL_REAL_BUILD_ACCOUNTING,
-  adjudicateSearchBenchmark,
   assessWholeStepVisualEvidence,
   executeCanonicalTransition,
   inputRejectedRealBuildResult,
@@ -30,12 +29,6 @@ import {
   preflightRealBuildOptions,
 } from "../e2e/real-build-contract";
 import { realBuildExecutionFailure } from "../e2e/real-build-finalize";
-import {
-  createRealBuildRunContract,
-  planAtomicRunDirectory,
-  sha256Digest,
-} from "../e2e/real-build-artifacts";
-import { evaluateSearchBenchmark } from "../e2e/real-build-search";
 import { completeRealBuildTestOptions } from "./real-build-test-options";
 
 const TEST_DIGEST = `sha256:${"a".repeat(64)}`;
@@ -442,6 +435,8 @@ describe("real booklet build safety", () => {
       blindRenderBudget: 220,
       deferredCandidateBudget: 512,
       deferredNarrowingRenderBudget: 4_096,
+      fartherPanelMaximumReachSteps: 2,
+      fartherPanelRenderBudget: 16,
       explodedGhostRenderBudget: 4_096,
       highlightCalibrationDigest: TEST_DIGEST,
       coverageByCallout: {
@@ -641,6 +636,8 @@ describe("real booklet build safety", () => {
       blindRenderBudget: 220,
       deferredCandidateBudget: 512,
       deferredNarrowingRenderBudget: 4_096,
+      fartherPanelMaximumReachSteps: 2,
+      fartherPanelRenderBudget: 16,
       explodedGhostRenderBudget: 4_096,
       highlightCalibrationDigest: digest,
       coverageByCallout: {},
@@ -720,6 +717,8 @@ describe("real booklet build safety", () => {
         blindRenderBudget: 220,
         deferredCandidateBudget: 512,
         deferredNarrowingRenderBudget: 4_096,
+        fartherPanelMaximumReachSteps: 2,
+        fartherPanelRenderBudget: 16,
         explodedGhostRenderBudget: 4_096,
         highlightCalibrationDigest: digest,
         coverageByCallout: {},
@@ -911,205 +910,5 @@ describe("real booklet build safety", () => {
         exclusiveHighlightPixelsByPiece: [7, 1_247],
       }).failure?.code,
     ).toBe("highlight-reuse-unexplained");
-  });
-
-  it("refuses pruned/exhaustive disagreement even with a forged digest policy", () => {
-    const evidence = (strategy: "pruned" | "exhaustive", winnerKey: string) => ({
-      strategy,
-      winnerKey,
-      bestScore: 0.8,
-      runnerUpScore: 0.5,
-      rendered: strategy === "pruned" ? 2 : 20,
-      elapsedMs: strategy === "pruned" ? 3 : 30,
-      failure: null,
-    });
-    const disagreement = {
-      stepNumber: 8,
-      pruned: evidence("pruned", "a"),
-      exhaustive: evidence("exhaustive", "b"),
-    };
-    expect(adjudicateSearchBenchmark(disagreement).failure?.code).toBe("benchmark-disagreement");
-    const forgedPolicy = {
-      ...disagreement,
-      policy: {
-        winner: "exhaustive",
-        evidenceDigest: `sha256:${"f".repeat(64)}`,
-        rationale: "A syntactically valid digest is not independent quality evidence.",
-      },
-    };
-    expect(adjudicateSearchBenchmark(forgedPolicy).failure?.code).toBe("benchmark-disagreement");
-  });
-
-  it("applies the same score refusal rules to identical pruned and exhaustive searches", () => {
-    const candidates = [
-      { id: "a", score: 0.8 },
-      { id: "b", score: 0.5 },
-    ];
-    let scoreCalls = 0;
-    const result = evaluateSearchBenchmark({
-      stepNumber: 9,
-      pieceIndex: 0,
-      catalogPartId: "builtin:plate-1x1",
-      prefixHash: `sha256:${"1".repeat(64)}`,
-      prunedCandidates: candidates,
-      exhaustiveCandidates: candidates,
-      maxPrunedRenders: 2,
-      exhaustiveRenderBudget: 2,
-      minimumMargin: 0.1,
-      score: (candidate) => {
-        scoreCalls += 1;
-        return { candidate, score: candidate.score };
-      },
-      key: (candidate) => candidate?.id ?? null,
-    });
-    expect(result.failure).toBeNull();
-    expect(result.winner?.candidate.id).toBe("a");
-    expect(result.blind).toMatchObject({ rendered: 2, agreesWithHighlight: true });
-    expect(scoreCalls).toBe(4);
-  });
-
-  /**
-   * The pruned strategy refuses over its budget, and says what it refused over.
-   *
-   * The count is the thing the next reader needs — how many candidates were
-   * eligible against what bound — and it used to be computed and then dropped:
-   * an empty score list handed to the shared selector reported
-   * `incomplete-placement-scoring`, and the benchmark message that quotes the
-   * strategy printed only that code.
-   */
-  it("says how many placements the pruned budget refused, and how many it allowed", () => {
-    const candidates = Array.from({ length: 7 }, (_, index) => ({
-      id: `c${index}`,
-      score: 1 - index / 10,
-    }));
-    const result = evaluateSearchBenchmark({
-      stepNumber: 2,
-      pieceIndex: 0,
-      catalogPartId: "builtin:wedge-plate-4x4-cut-corner",
-      prefixHash: `sha256:${"2".repeat(64)}`,
-      prunedCandidates: candidates,
-      exhaustiveCandidates: candidates,
-      maxPrunedRenders: 3,
-      exhaustiveRenderBudget: 20,
-      minimumMargin: 0.01,
-      score: (candidate) => ({ candidate, score: candidate.score }),
-      key: (candidate) => candidate?.id ?? null,
-    });
-
-    expect(result.failure?.code).toBe("benchmark-disagreement");
-    // Both numbers survive into the message the run prints, and they are the two
-    // a reader needs to decide whether to raise the budget or prune harder.
-    expect(result.failure?.message).toContain("7 eligible placements");
-    expect(result.failure?.message).toContain("over the explicit 3 per-piece render budget");
-    expect(result.prunedScores).toHaveLength(0);
-  });
-
-  /**
-   * A pruned budget under the exhaustive one cannot bind in the direction it
-   * intends: the pruned set is a subset of the exhaustive set, so every render it
-   * refuses is performed a few lines later by the other strategy, and all the
-   * refusal buys is a step that fails.
-   */
-  it("refuses a pruned render budget smaller than the exhaustive one", () => {
-    const panels = Array.from({ length: 359 }, (_, index) => transitionPanel(index + 1));
-    const digest = `sha256:${"a".repeat(64)}`;
-    const coherent = {
-      panels,
-      expectedPrintedSteps: 359,
-      lastStep: 1,
-      accounting: OFFICIAL_REAL_BUILD_ACCOUNTING,
-      targetPartCount: 1_464,
-      maxParts: 1_464,
-      inputDigests: allInputDigests(digest),
-      coverageInputBindings: { pdf: digest, calloutManifest: digest },
-      minimumWholeStepScore: 0.45,
-      minimumExclusiveHighlightPixelsPerPiece: 8,
-      maxRendersPerPiece: 220,
-      blindRenderBudget: 220,
-      deferredCandidateBudget: 512,
-      deferredNarrowingRenderBudget: 4_096,
-      explodedGhostRenderBudget: 4_096,
-      highlightCalibrationDigest: digest,
-      coverageByCallout: {},
-    };
-
-    expect(
-      preflightRealBuildOptions(coherent).filter(
-        ({ code }) => code === "benchmark-policy-mismatch",
-      ),
-    ).toEqual([]);
-    const refused = preflightRealBuildOptions({ ...coherent, maxRendersPerPiece: 24 });
-    expect(refused).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          code: "benchmark-policy-mismatch",
-          inputKey: "maxRendersPerPiece",
-        }),
-      ]),
-    );
-    expect(refused.find(({ code }) => code === "benchmark-policy-mismatch")?.message).toContain(
-      "subset of the exhaustive one",
-    );
-  });
-
-  it("plans digest-bound unique run directories so interrupted attempts cannot mix", () => {
-    const digests = {
-      pdf: sha256Digest("pdf"),
-      calloutManifest: sha256Digest("manifest"),
-      coverage: sha256Digest("coverage"),
-      officialModel: sha256Digest("official-model"),
-      actionLedger: sha256Digest("action-ledger"),
-      highlightCalibration: sha256Digest("highlight-calibration"),
-      builderCalibration: sha256Digest("builder-calibration"),
-      builderGeometry: sha256Digest("builder-geometry"),
-      transitionClassifications: sha256Digest("transition-classifications"),
-    };
-    const first = planAtomicRunDirectory({
-      outputRoot: "output/real-build",
-      inputDigests: digests,
-      runContractDigest: sha256Digest("contract-one"),
-      timestamp: "2026-08-02T12:00:00.000Z",
-      nonce: "11111111-1111-4111-8111-111111111111",
-    });
-    const second = planAtomicRunDirectory({
-      outputRoot: "output/real-build",
-      inputDigests: digests,
-      runContractDigest: sha256Digest("contract-one"),
-      timestamp: "2026-08-02T12:00:00.000Z",
-      nonce: "22222222-2222-4222-8222-222222222222",
-    });
-    expect(first.runId).not.toBe(second.runId);
-    expect(first.temporaryDirectory).toContain(".tmp-");
-    expect(first.finalDirectory).not.toBe(first.temporaryDirectory);
-  });
-
-  it("binds panels, action identities, budgets, thresholds, policy, and code into the run contract", () => {
-    const base = {
-      inputDigests: allInputDigests(sha256Digest("inputs")),
-      identificationClosure: {
-        source: "deterministic" as const,
-        features: sha256Digest("features"),
-        match: sha256Digest("match"),
-        distances: sha256Digest("distances"),
-        elements: sha256Digest("elements"),
-        cards: null,
-        cardImages: null,
-        answers: null,
-        pairJudged: sha256Digest("pair-judged"),
-      },
-      panels: [transitionPanel(1)],
-      budgets: { maxParts: 1_464 },
-      thresholds: {
-        minimumWholeStepScore: 0.45,
-        highlightCalibrationDigest: TEST_DIGEST,
-      },
-      codeSnapshots: { "real-build-run.ts": sha256Digest("code") },
-    };
-    const first = createRealBuildRunContract(base);
-    const changed = createRealBuildRunContract({ ...base, budgets: { maxParts: 1_465 } });
-
-    expect(first.actionLedger).toHaveLength(1);
-    expect(first.policy.searchDisagreement).toBe("refuse");
-    expect(first.contractDigest).not.toBe(changed.contractDigest);
   });
 });

@@ -52,6 +52,18 @@ Remove-Item Env:LEGO_REAL_BUILD_LAST_STEP -ErrorAction SilentlyContinue
 
 The default output root is `output/real-build`. Once artifact-closure verification succeeds, publication writes an immutable run under `<output-root>/runs/<run-id>/` and atomically updates `<output-root>/runs/current.json` even when the retained run result is a failed diagnostic such as `source-drift-detected`; that status prevents finalization, not diagnostic publication. An interruption or artifact-verification failure before publication must not replace the pointer. `LEGO_REAL_BUILD_OUT` may redirect the published run only to another traversal-free descendant of `output/`; it does not redirect the retained inputs listed above.
 
+### Read bounded farther-panel evidence
+
+When an own-panel ambiguity survives N+1, the production test driver records the bounded branch proof on the origin row's `farther` field. `origin` retains every step-N candidate with its structural hash, exact atomic piece witnesses, cached N+1 agreement and registration shift; `carries` records every parent-child lineage and intervening-step cost; `panels` records only panels actually scored; `budgets` records shared offered-candidate, narrowing-render, panel-render and reach use plus any refused reservation; and `refusal` or `decision` records the outcome.
+
+Candidate and narrowing ledgers are shared across all parents. A narrowing reservation precedes its render batch, while a unique complete child is reserved after legal placement proves it exists and before it can enter retained evidence; a refusal retains earlier children as unresolved evidence without admitting a partial frontier, selecting an origin family, scoring conditional K, or changing the settled document. Do not add per-parent allowances together or interpret retained children as placed pieces.
+
+A successful farther decision may select and settle the exact origin document for step N, but that must not be mistaken for settling its intervening descendants. Its `survivingCandidateIds` remain unresolved step-(N+1) alternatives unless a later deterministic step separately settles them; `descendantSettled` stays false whenever more than one survives.
+
+Exact visual evidence is published as dense files named `step-NNN-farther-II-source-panel-panel-KKK.png` and `step-NNN-farther-II-candidate-render-panel-KKK.png`. The parser requires the exact source and scored-candidate ID set, and publication compares each projected path and PNG byte sequence with the browser row before updating `current.json`. An ordinary retained `step-KKK-panel.png` shows that source art was prepared, not that K appears in `farther.panels` or was scored.
+
+Inspect `score.json`, the origin row's farther captures, and the ordinary N/N+1/K panel files together. For the current frontier, [building-system.md](../design/building-system.md#measured-booklet-frontier) records which panel occludes the disputed relation, which later underside view reveals it, and why the aggregate refusal prevents using that later image as a decision.
+
 ## Regenerate catalog-derived inputs
 
 Use the chain entry point instead of rebuilding later artifacts by hand. It preserves this order:

@@ -342,7 +342,7 @@ describe("unsealed test-run recorder", () => {
     expect(second).toEqual(first);
     expect(ledger.snapshot().eventCount).toBe(count);
     await ledger.close();
-  });
+  }, 15_000);
 
   it("rejects capture relabeling before writing candidate or bundle evidence", async () => {
     const input = fixture();

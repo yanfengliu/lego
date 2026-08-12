@@ -233,6 +233,96 @@ describe("farther-panel frontier admission", () => {
     expect(partial.frontier).toBeNull();
   });
 
+  it("retains every valid measured lineage from a three-parent refusal prefix", () => {
+    const threeParentOrigin = createFartherOriginFrontier({
+      stepNumber: 5,
+      candidates: [0, 1, 2].map((parent) => ({
+        candidateId: `three-parent-${parent}`,
+        document: { hash: `three-parent-${parent}` },
+        documentHash: `sha256:three-parent-${parent}`,
+        pieces: witnesses(5, 2),
+      })),
+    }).frontier!;
+    const prefixExpansions: readonly FartherParentExpansion<ProbeDocument>[] = [
+      {
+        parentCandidateId: "three-parent-0",
+        narrowingRenders: 11,
+        offeredPerPiece: [3, 3, 3, 2],
+        carriedPerPiece: [1, 1, 1, 1],
+        children: [0, 1].map((child) => ({
+          candidateId: `three-child-0-${child}`,
+          document: { hash: `three-child-0-${child}` },
+          documentHash: `sha256:three-child-0-${child}`,
+          pieces: witnesses(6, 4),
+        })),
+      },
+      {
+        parentCandidateId: "three-parent-1",
+        narrowingRenders: 7,
+        offeredPerPiece: [2, 2, 2, 1],
+        carriedPerPiece: [1, 1, 1, 1],
+        children: [
+          {
+            candidateId: "three-child-1-0",
+            document: { hash: "three-child-1-0" },
+            documentHash: "sha256:three-child-1-0",
+            pieces: witnesses(6, 4),
+          },
+        ],
+      },
+    ];
+    const result = carryFartherFrontier({
+      frontier: threeParentOrigin,
+      stepNumber: 6,
+      expectedAtomicPieces: step6AtomicPieces,
+      expansions: prefixExpansions,
+      maximumCandidates: 16,
+      maximumNarrowingRenders: 32,
+    });
+
+    expect(result.frontier).toBeNull();
+    expect(result.refusal?.code).toBe("incomplete-parent-expansion");
+    expect(result.evidence).toMatchObject({
+      parentCandidates: 3,
+      parentsExpanded: 2,
+      offeredCandidates: 3,
+      narrowingRenders: 18,
+    });
+    expect(
+      result.evidence.measuredLineages.map(
+        ({ candidateId, parentCandidateId, originCandidateId, lineage }) => ({
+          candidateId,
+          parentCandidateId,
+          originCandidateId,
+          hashes: lineage.map(({ documentHash }) => documentHash),
+        }),
+      ),
+    ).toEqual([
+      {
+        candidateId: "three-child-0-0",
+        parentCandidateId: "three-parent-0",
+        originCandidateId: "three-parent-0",
+        hashes: ["sha256:three-parent-0", "sha256:three-child-0-0"],
+      },
+      {
+        candidateId: "three-child-0-1",
+        parentCandidateId: "three-parent-0",
+        originCandidateId: "three-parent-0",
+        hashes: ["sha256:three-parent-0", "sha256:three-child-0-1"],
+      },
+      {
+        candidateId: "three-child-1-0",
+        parentCandidateId: "three-parent-1",
+        originCandidateId: "three-parent-1",
+        hashes: ["sha256:three-parent-1", "sha256:three-child-1-0"],
+      },
+    ]);
+    expect(result.evidence.measuredLineages).toHaveLength(result.evidence.offeredCandidates);
+    expect(Object.isFrozen(result.evidence.measuredLineages)).toBe(true);
+    expect(Object.isFrozen(result.evidence.measuredLineages[0]!.lineage)).toBe(true);
+    expect(Object.isFrozen(result.evidence.measuredLineages[0]!.lineage[1]!.pieces)).toBe(true);
+  });
+
   it("refuses a same-count substitution and a skipped intervening step", () => {
     const substituted = carryFartherFrontier({
       frontier: origin,

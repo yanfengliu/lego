@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { readSampleBooklet, sampleBookletPageShapes } from "./booklet-fixture";
+import { realBuildFartherCapturePath } from "./real-build-score";
 import { realBuildStepCensus } from "./real-build-census";
 import {
   DEFERRED_STEP_MINIMUM_AGREEMENT,
@@ -32,6 +33,7 @@ import {
 import { describeUnboundCoverageRefusal } from "./real-build-coverage-refusal";
 import { finalizeExecutedRealBuildResult, realBuildExecutionFailure } from "./real-build-finalize";
 import { captureHighlightExclusivityRenderCases } from "./real-build-highlight-browser";
+import { expectMeasuredFartherBudgetRefusal } from "./real-build-measured-farther-assertions";
 import { writeContainedRegularFileAtomic } from "./contained-atomic-write";
 import {
   ACTION_LEDGER_PATH,
@@ -554,6 +556,8 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
     // the same measured render cost of about 21ms, 8192 is roughly three minutes
     // of rendering for one printed step.
     deferredNarrowingRenderBudget: 8_192,
+    fartherPanelMaximumReachSteps: 2,
+    fartherPanelRenderBudget: 16,
     minimumDeferredAgreementMargin: DEFERRED_STEP_MINIMUM_MARGIN,
     minimumDeferredAgreement: DEFERRED_STEP_MINIMUM_AGREEMENT,
     proximityMarginPx: 14,
@@ -804,6 +808,9 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
       return [
         ...(step.panelPng === null ? [] : [`step-${tag}-panel.png`]),
         ...(step.buildPng === null ? [] : [`step-${tag}-build.png`]),
+        ...step.fartherCaptures.map((capture) =>
+          realBuildFartherCapturePath(step.stepNumber, capture),
+        ),
       ];
     });
     const artifactFiles = validateRealBuildArtifactFilePlan([
@@ -824,6 +831,15 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
             label: "real-build step capture",
           });
         }
+      }
+      for (const capture of step.fartherCaptures) {
+        const file = realBuildFartherCapturePath(step.stepNumber, capture);
+        writeContainedRegularFileAtomic(
+          run.directory,
+          file,
+          decodeRealBuildPngCapture(capture.png),
+          { label: "real-build farther-panel capture" },
+        );
       }
     }
     if (result.documentJson !== null && result.structuralHash !== null) {
@@ -932,9 +948,9 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
 
   expect(result.schemaVersion).toBe("lego.real-build-result/3");
   expect(result.inputDigests).toEqual(inputDigests);
-  const executionFailure = realBuildExecutionFailure(result);
-  expect(executionFailure, executionFailure?.message).toBeNull();
   if (result.status === "completed") {
+    const executionFailure = realBuildExecutionFailure(result);
+    expect(executionFailure, executionFailure?.message).toBeNull();
     expect(options.lastStep).toBe(EXPECTED_PRINTED_STEPS);
     expect(result.steps).toHaveLength(EXPECTED_PRINTED_STEPS);
     expect(result.finalParts).toBe(OFFICIAL_REAL_BUILD_ACCOUNTING.assembledTargetPieces);
@@ -943,8 +959,19 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
       expect(isAtomicStepComplete(step)).toBe(true);
       expect(step.validation.documentGloballyValid).toBe(true);
     }
-  } else {
-    expect(result.status).toBe("prefix-complete");
+  } else if (result.status === "prefix-complete") {
+    expect(options.lastStep).toBeLessThan(EXPECTED_PRINTED_STEPS);
     expect(result.steps).toHaveLength(options.lastStep);
+    expect(result.steps.every(isAtomicStepComplete)).toBe(true);
+    const executionFailure = realBuildExecutionFailure(result);
+    expect(executionFailure, executionFailure?.message).toBeNull();
+  } else {
+    expect(result.status).toBe("incomplete");
+    expect(result.steps).toHaveLength(options.lastStep);
+    if (options.lastStep >= 7) {
+      expectMeasuredFartherBudgetRefusal(result);
+    }
+    const executionFailure = realBuildExecutionFailure(result);
+    expect(executionFailure).toMatchObject({ code: "run-incomplete", stage: "validation" });
   }
 });

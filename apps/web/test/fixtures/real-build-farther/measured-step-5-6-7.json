@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "lego.real-build-farther-preregistration/1",
+  "originStepNumber": 5,
+  "interveningStepNumber": 6,
+  "revealingStepNumber": 7,
+  "registeredMaximumNarrowingRenders": 8192,
+  "diagnosticNarrowingRenders": 8609,
+  "productionBudgetObservation": {
+    "firstParentChildren": 5,
+    "firstParentNarrowingRenders": 2628,
+    "secondParentChildrenBeforeRefusal": 3,
+    "secondParentReservedNarrowingRenders": 5409,
+    "aggregateReservedNarrowingRenders": 8037,
+    "refusedReservationRequestedRenders": 572,
+    "refusedNextReservation": true,
+    "admittedFrontier": false
+  },
+  "minimumAgreement": 0.85,
+  "minimumMargin": 0.02,
+  "origins": [
+    {
+      "candidateId": "step5-parent-0",
+      "lookaheadAgreement": 0.6006833844906468,
+      "narrowingRenders": 2628,
+      "offeredPerPiece": [428, 710, 718, 772],
+      "carriedPerPiece": [1, 1, 1, 5],
+      "childIds": ["step6-0-0", "step6-0-1", "step6-0-2", "step6-0-3", "step6-0-4"]
+    },
+    {
+      "candidateId": "step5-parent-1",
+      "lookaheadAgreement": 0.7635021804763502,
+      "narrowingRenders": 5981,
+      "offeredPerPiece": [187, 526, 614, 566],
+      "carriedPerPiece": [2, 2, 1, 1],
+      "childIds": ["step6-1-0", "step6-1-1", "step6-1-2", "step6-1-3"]
+    }
+  ],
+  "frontierScores": {
+    "step6-1-1": 0.8646933735766223,
+    "step6-1-3": 0.858981722355485,
+    "step6-1-0": 0.8557316948979938,
+    "step6-1-2": 0.8491001538770322,
+    "step6-0-2": 0.6999400574186831,
+    "step6-0-0": 0.6943221546031335,
+    "step6-0-1": 0.677316801780321,
+    "step6-0-3": 0.6602800744424444,
+    "step6-0-4": 0.6493466938750647
+  },
+  "selectedOriginCandidateId": "step5-parent-1",
+  "unresolvedDescendantIds": ["step6-1-1", "step6-1-3", "step6-1-0", "step6-1-2"]
+}

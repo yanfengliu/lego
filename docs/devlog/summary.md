@@ -2,7 +2,9 @@
 
 Current state belongs in the design documents; this index records only behaviour changes, measured results, and links to the matching detailed history.
 
-- [2026-08-11 (latest)](detailed/2026-08-11_2026-08-11.md) — Final adversarial review made review batches rebind every image and outcome, made native-pair publication and farther-panel inputs fail closed under replacement and hostile runtime values, required explicit LDraw BFC certification, and split every new source/generated table below its repository ceiling.
+- [2026-08-11 (latest)](detailed/2026-08-11_2026-08-11.md) — The production farther driver now retains both step-5 parents and their 5+3 complete step-6 leaves, then atomically refuses the next narrowing batch at 8,037/8,192 renders; the verified prefix remains four printed steps.
+
+- [2026-08-11](detailed/2026-08-11_2026-08-11.md) — Final adversarial review made review batches rebind every image and outcome, made native-pair publication and farther-panel inputs fail closed under replacement and hostile runtime values, required explicit LDraw BFC certification, and split every new source/generated table below its repository ceiling.
 
 - [2026-08-11](detailed/2026-08-11_2026-08-11.md) — Catalog `/13` exterior admission closed all 192 native-resolution pairs as `same` after rejecting downsampled evidence, and a source-stable replay advanced the defensible verified prefix from three to four printed steps; a standalone step-7 probe needed 8,609 narrowing renders against the 8,192 budget and still retained four step-6 children, so the production driver continues to refuse at step 5.
 

@@ -16,4 +16,16 @@ describe("trusted real-build test options", () => {
   it("satisfies the full-set accounting clause at the last printed step", () => {
     expect(preflightRealBuildOptions(completeRealBuildTestOptions(359))).toEqual([]);
   });
+
+  it("refuses unbounded or unreachable farther-panel policy", () => {
+    const options = completeRealBuildTestOptions(2);
+    expect(preflightRealBuildOptions({ ...options, fartherPanelMaximumReachSteps: 0 })).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ inputKey: "fartherPanelMaximumReachSteps" }),
+      ]),
+    );
+    expect(preflightRealBuildOptions({ ...options, fartherPanelRenderBudget: 17 })).toEqual(
+      expect.arrayContaining([expect.objectContaining({ inputKey: "fartherPanelRenderBudget" })]),
+    );
+  });
 });

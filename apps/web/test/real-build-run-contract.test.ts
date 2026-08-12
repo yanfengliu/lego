@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -12,6 +14,8 @@ import {
 import { REAL_BUILD_TEST_DIGEST, completeRealBuildTestOptions } from "./real-build-test-options";
 
 const DIFFERENT_DIGEST = `sha256:${"b".repeat(64)}`;
+const digest = (value: unknown): string =>
+  `sha256:${createHash("sha256").update(JSON.stringify(value)).digest("hex")}`;
 
 describe("real-build run contract", () => {
   it("binds prepared options to every raw role and exact source/action bytes", () => {
@@ -65,6 +69,13 @@ describe("real-build run contract", () => {
       });
 
     expect(verify).not.toThrow();
+    expect(contract.budgets).toMatchObject({
+      fartherPanelMaximumReachSteps: 2,
+      fartherPanelRenderBudget: 16,
+    });
+    expect(() => verify({ ...options, fartherPanelRenderBudget: 15 })).toThrow(
+      /do not exactly reproduce/u,
+    );
     expect(() =>
       verify(
         {
@@ -119,5 +130,30 @@ describe("real-build run contract", () => {
       JSON.stringify({ ...contract, normalizedPanelsDigest: DIFFERENT_DIGEST }),
     );
     expect(() => parseRealBuildRunContract(tampered)).toThrow(/content digest/u);
+    const extraBudget = JSON.parse(JSON.stringify(contract)) as Record<string, unknown> & {
+      budgets: Record<string, unknown>;
+      contractDigest: string;
+    };
+    extraBudget.budgets.unboundedFartherRenders = 1;
+    const extraBudgetBase: Record<string, unknown> = { ...extraBudget };
+    delete extraBudgetBase.contractDigest;
+    extraBudget.contractDigest = digest(extraBudgetBase);
+    expect(() =>
+      parseRealBuildRunContract(new TextEncoder().encode(JSON.stringify(extraBudget))),
+    ).toThrow(/malformed schema/u);
+    const oversizedFartherBudget = JSON.parse(JSON.stringify(contract)) as Record<
+      string,
+      unknown
+    > & {
+      budgets: Record<string, unknown>;
+      contractDigest: string;
+    };
+    oversizedFartherBudget.budgets.fartherPanelRenderBudget = 17;
+    const oversizedBudgetBase: Record<string, unknown> = { ...oversizedFartherBudget };
+    delete oversizedBudgetBase.contractDigest;
+    oversizedFartherBudget.contractDigest = digest(oversizedBudgetBase);
+    expect(() =>
+      parseRealBuildRunContract(new TextEncoder().encode(JSON.stringify(oversizedFartherBudget))),
+    ).toThrow(/malformed schema/u);
   });
 });

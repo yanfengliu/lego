@@ -1,6 +1,6 @@
 # Building system: current assessment and ordered work
 
-Status date: 2026-08-11
+Status date: 2026-08-12
 
 This document is the current position of the editor and printed-booklet build system. [`spec.md`](spec.md) owns product, domain, and authority contracts; [`learning-system.md`](learning-system.md) owns run evidence and replay; [`part-model.md`](part-model.md) owns catalog truth; and the [devlog](../devlog/summary.md) owns history.
 
@@ -14,7 +14,7 @@ Catalog `/13` has 85 definitions: 61 use parametric rendering and 24 use bundled
 
 Catalog `/13` has a complete native-resolution exterior review; [`part-model.md`](part-model.md#current-catalog) owns the exact review hash and pixel measurements. The result certifies only surfaces exposed by the eight views, and the earlier downsampled contact-sheet attempt remains counterevidence rather than admission.
 
-The latest `/13` booklet run was published from a source-stable snapshot as an unauthenticated, incomplete diagnostic. It settled printed steps 1 through 4 and placed six pieces. Step 5 refused: its own panel could not separate the leading candidates, and the step-6 panel was too occluded to meet the registered agreement threshold. A separate bounded probe carried both step-5 parents through step 6 and showed that step 7 separates the two parent families and favors one by panel agreement, but honest narrowing required 8,609 renders against the declared 8,192 global budget and step 7 still left four step-6 children unresolved. The production driver therefore remains unchanged and correctly refuses.
+The latest `/13` booklet run, `2026-08-12T05-57-16-010Z-1f856626f559-ae143c60-e0fe-4715-b9ce-ec74feedc0c8`, exercised the production driver's integrated bounded farther-panel path as an unauthenticated, incomplete diagnostic. It retained both step-5 origins and their exact cached panel-6 score renders, then carried step 6 under shared candidate and narrowing ledgers: the first parent produced five children for 2,628 narrowing renders, the second produced three children for 5,409 renders, and the next 572-render narrowing batch was refused atomically before work at an aggregate 8,037 of 8,192. All eight child lineages remain unresolved, no partial frontier or document was accepted, conditional panel K was not scored, and the defensible prefix remains printed steps 1 through 4 with six pieces.
 
 ## Capability matrix
 
@@ -31,9 +31,9 @@ The latest `/13` booklet run was published from a source-stable snapshot as an u
 | Booklet PDF in the studio | Ingestion only | Page-to-build-step interpretation is explicitly unimplemented in the UI. |
 | Reader and action ledger | Experimental local tooling | The prepared 359-step ledger reconciles booklet sequence and callouts, but its ignored input chain is not a product service. |
 | Transition labels | Experimental, raster-blind | The current classifier does not inspect pixels, so its label is not visual proof of a change. |
-| Placement and panel scoring | Experimental, partial | Candidate enumeration and deterministic rendering work on a short prefix; a standalone probe measured farther-panel feasibility, but the current deferral examines at most N+1 and has no integrated branch-aware farther-panel search. |
+| Placement and panel scoring | Experimental, partial | Candidate enumeration, deterministic scoring, and a bounded branch-aware N/N+1/conditional-K path run on the real-booklet driver; the measured path carries one intervening step and refuses on shared aggregate budgets, not generic deep backtracking. |
 | Multi-panel model checker | Quarantined contract and adapter | A source-bound N/N+1/conditional-K refusal-only checker passes mocked adversarial tests, but it has no PDF-crop producer, consent preflight, driver consumer, or successful live verdict. |
-| Partial-run evidence | Implemented locally | Completion and refusal rows survive failed runs, but local bundles are unauthenticated diagnostics and detected source drift prevents finalization rather than diagnostic publication. |
+| Partial-run evidence | Implemented locally | Completion, immutable farther lineages, exact source/candidate captures, aggregate budget use, and typed refusal rows survive failed runs, but local bundles are unauthenticated diagnostics and detected source drift prevents finalization rather than diagnostic publication. |
 | Replay | Inspection only | Closure bytes and downstream records can be checked; executable and production-sealed replay are unbuilt. |
 | Backtracking | Library and tests only | `BuildTree` and `runBacktrackingSearch` exist, but the booklet driver does not use them. |
 | Physics | Kernel and development session implemented | Rigid components, articulated joints, compound bodies, Rapier integration, and a cart demo exist; simulation, pose controls, inertia, and incremental rebuild are not complete user workflows. |
@@ -51,20 +51,22 @@ These are measured facts with explicit limits, not a completed-build claim.
 | Part standard | 85 passing; 0 failures | `parts:check` is green and included in `verify`. |
 | `/13` visual admission | 24 parts; 192 of 192 visible pairs reviewed `same` | 181 pairs are RGBA-exact; the 11 measured deltas are visually unobservable at native size. Hidden interiors and physical collision remain outside the claim. |
 | Prepared coverage | Through printed step 25 | Printed step 26 first requires missing design `28802`; later counts move when identification closure changes. |
-| Latest `/13` diagnostic request | Steps 1 through 7 | It completed four rows and placed six pieces before step 5 refused; later rows were blocked. |
+| Latest `/13` diagnostic request | Steps 1 through 7 | It completed four rows and placed six pieces before the integrated farther path refused at step 5; later rows were blocked. |
 | Step 4 | Settled in a source-stable diagnostic | Exact underside surfaces let the own-panel scorer settle both additions with joint visual score `0.8578158458`; retained panel and build images were inspected together. |
 | Step 5 local separation | `0.002799` margin | The leading own-panel candidates are closer than the registered `0.01` minimum. |
-| Step 5 through panel 6 | Best agreement `0.7635021805` | That is below the registered `0.85` agreement threshold even though it separates the top two branches; panel 6 occludes the disputed region. |
-| First visually revealing later panel | Printed step 7 | Direct PDF inspection shows the region again, but the runner cannot yet evaluate it without honestly constructing intervening step 6 for every surviving branch. |
-| Standalone step-7 probe | 2 step-5 parents, 9 step-6 children | Step 7 rejects all five children under one parent and retains four under the other, but 8,609 narrowing renders exceed the 8,192 global budget and the best two surviving children remain only `0.005712` apart against a `0.02` margin. |
+| Step 5 through panel 6 | Agreements `0.600683` and `0.763502` | The best is below the registered `0.85` agreement threshold; retained images confirm that panel 6 occludes the disputed relation. |
+| Integrated step-6 carry | 2 step-5 parents, 8 unresolved step-6 children | The first parent produced five children for 2,628 narrowing renders; the second produced three for 5,409, then the next 572-render batch was refused before work at aggregate 8,037 of 8,192. |
+| First visually revealing later panel | Printed step 7, retained but not scored | Direct PDF and source-panel inspection show the underside revealing the disputed region, but the atomic step-6 carry exhausted its narrowing allowance before conditional K could be scored. |
 | Defensible verified prefix | Four printed steps | The source-stable `/13` replay completed and validated steps 1 through 4; step 5 remains an evidence refusal rather than an inferred placement. |
-| Completion | Unavailable | Farther-panel lineage, backtracking, world-frame reconciliation, and the final visual audit are incomplete. |
+| Completion | Unavailable | Bounded one-intervening-step lineage is integrated; generic deep backtracking, world-frame reconciliation, the final visual audit, and the remaining 355 printed steps are incomplete. |
 
 ## What the current refusal means
 
 Booklet page 11 draws printed step 4 from below and visibly exposes hollow clutch rings, ribs, walls, and cavities. Catalog `/13` now renders those source surfaces instead of the former dark slab while preserving established connector and collision truth. This closes the rendering defect; it does not turn conservative collision into an exact interior model.
 
-Panel N+1 is the minimum later witness for a placement at N, not a guarantee that the placement is observable. Step 6 is the concrete counterexample: it turns the model over and adds pieces that hide the disputed step-5 region, while step 7 reveals that region again. A correct farther-panel implementation must retain each step-5 branch, construct every intervening step without using official transforms as an oracle, compare the resulting candidates against the first revealing later panel, and record `not-observable` if bounded search cannot produce a trustworthy witness.
+Panel N+1 is the minimum later witness for a placement at N, not a guarantee that the placement is observable. Step 6 is the concrete counterexample: it turns the model over and adds pieces that hide the disputed step-5 region, while step 7 reveals that region again. The integrated path retains both step-5 branches, binds their hashes, exact atomic piece witnesses and cached N+1 renders, carries all parents through one intervening step, reserves every narrowing batch before rendering it, and reserves each unique complete child before retaining it. Its typed aggregate refusal preserves all eight measured lineages without selecting a family, settling a descendant, or changing the six-piece document.
+
+The retained panel-6 and panel-7 images were inspected against the PDF: panel 6 occludes the disputed relation and panel 7's underside would reveal it. That visual fact does not waive the 8,192 narrowing-render limit, so conditional K remains unscored and step 5 remains unresolved.
 
 The existing single-panel placement reader cannot repair this gap. It can request same-step anchors that its consumer rejects, parse fields the consumer ignores, and narrow away settled truth; its inputs are not bound into the real-build run. The quarantined multi-panel checker improves transport and evidence contracts, but until a consent-checked producer and deterministic driver consumer exist it cannot certify or mutate a build.
 
@@ -73,9 +75,9 @@ The driver also cannot claim overall completion after placement alone. Its trans
 ## Ordered work
 
 1. Add interior or cutaway evidence wherever the completed exterior packet leaves a claimed cavity hidden; keep every unseen claim `not-observable` meanwhile.
-2. Integrate the standalone farther-frontier and aggregate-budget primitives into a branch-aware driver path: retain every N candidate, carry it through intervening steps, select the first revealing panel, and refuse rather than multiplying a per-parent allowance. The measured step-5/6 case must either fit the declared 8,192-render budget or change that budget through a separately justified policy revision.
+2. Move the integrated step-5/6 carry within the fixed 8,192 narrowing-render budget through semantics-preserving pruning, deduplication or reuse, then score conditional panel 7 only after the whole carry succeeds; do not turn the current eight unresolved lineages into a partial frontier or raise the budget to fit the observation.
 3. Build the scoped consent-checking producer for the quarantined checker, prove each crop against its PDF page and bounds, bind deterministic face state and candidate renders, then integrate only refusal or backtracking consequences after preregistered counterexamples pass.
-4. Integrate immutable candidate lineage and deep backtracking into the booklet driver and publish reversal depth.
+4. Generalize the measured one-intervening-step path into immutable deep backtracking and publish reversal depth; the current farther carry is not that generic search.
 5. Reconcile driver and official-ledger world frames and implement the Node-side final visual audit.
 6. Regenerate identification and coverage, admit `28802`, and continue adding required designs with provenance, connectors, collision, migration, palette coverage, and visual admission.
 7. Move the proven reader, placement, evidence, and playback path behind a user-facing booklet workflow while keeping manual editing available offline.
@@ -89,6 +91,6 @@ A complete 1,465-piece model also needs measured rendering and interaction work.
 
 ## Evidence rule
 
-Every frontier change records the exact requested prefix, catalog version, input closure, completed and verified step counts, piece count, refusal code, score or margin, and the images that make the number interpretable. For each settled step N, retain its own panel, panel N+1, and the first farther panel that reveals an otherwise occluded or ambiguous placement; record hidden or unavailable claims as `not-observable`.
+Every frontier change records the exact requested prefix, catalog version, input closure, completed and verified step counts, piece count, refusal code, score or margin, and the images that make the number interpretable. For each deferred step N, retain immutable parent and descendant lineages, exact source and scored-candidate captures, shared budget reservations, and family-only decisions that leave ambiguous descendants unresolved; retain panel N+1 and the first farther panel reached within policy, and record hidden or unavailable claims as `not-observable`.
 
 Raw runs stay under ignored `output/` and `var/runs/`. Stable conclusions live here, failed approaches and historical hashes live in the devlog, and promoted failures become tests or fixtures.
