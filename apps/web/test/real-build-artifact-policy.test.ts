@@ -6,6 +6,7 @@ import {
   MAXIMUM_RETAINED_ARTIFACTS,
   validateRealBuildArtifactFilePlan,
 } from "../e2e/real-build-artifacts";
+import { REAL_BUILD_DIAGNOSTIC_PREFIX_FILE } from "../e2e/real-build-diagnostic-prefix";
 import {
   REAL_BUILD_SERVED_RESPONSE_MANIFEST,
   servedResponseChunkName,
@@ -36,6 +37,7 @@ describe("real-build retained artifact live-shape policy", () => {
       ...Array.from({ length: 4 }, (_, index) => servedResponseChunkName(index)),
       REAL_BUILD_SERVED_RESPONSE_MANIFEST,
       "document.json",
+      REAL_BUILD_DIAGNOSTIC_PREFIX_FILE,
       "score.json",
     ];
 

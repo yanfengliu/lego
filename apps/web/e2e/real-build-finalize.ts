@@ -22,19 +22,11 @@ import {
   type RealBuildBrowserOutput,
   type RealBuildIdentityBinding,
 } from "./real-build-browser-output";
+import { createRealBuildDiagnosticPrefix } from "./real-build-diagnostic-prefix";
+import { auditRealBuildIdentityBindings } from "./real-build-finalize-identity";
+import type { RealBuildDiagnosticPrefix } from "./real-build-result";
 
 type CanonicalDocumentShape = BrickDocumentV1;
-type CanonicalPartShape = BrickDocumentV1["parts"][number];
-
-interface ExpectedIdentity {
-  readonly identityKey: string;
-  readonly stepNumber: number;
-  readonly designId: string;
-  readonly materialId: string;
-  readonly catalogPartId: string;
-  readonly colorId: string;
-  readonly transform: CanonicalPartShape["transform"];
-}
 
 const FULL_PRINTED_STEPS = 359;
 const FULL_ASSEMBLED_PARTS = 1_464;
@@ -96,223 +88,6 @@ function canonicalPrefixDocument(
   };
 }
 
-const exactTransform = (
-  actual: CanonicalPartShape["transform"],
-  expected: CanonicalPartShape["transform"],
-): boolean =>
-  actual.orientationId === expected.orientationId &&
-  actual.positionLdu.length === 3 &&
-  actual.positionLdu.every((coordinate, axis) => coordinate === expected.positionLdu[axis]);
-
-function exactTransformMultiset(
-  actual: readonly CanonicalPartShape["transform"][],
-  expected: readonly CanonicalPartShape["transform"][],
-): boolean {
-  if (actual.length !== expected.length) return false;
-  const matchedActual = new Set<number>();
-  return expected.every((expectedTransform) => {
-    const actualIndex = actual.findIndex(
-      (actualTransform, index) =>
-        !matchedActual.has(index) && exactTransform(actualTransform, expectedTransform),
-    );
-    if (actualIndex === -1) return false;
-    matchedActual.add(actualIndex);
-    return true;
-  });
-}
-
-const unorderedIdentityGroupKey = (identity: {
-  readonly stepNumber: number;
-  readonly designId: string;
-  readonly materialId: string;
-  readonly catalogPartId: string;
-  readonly colorId: string;
-}): string =>
-  JSON.stringify([
-    identity.stepNumber,
-    identity.designId,
-    identity.materialId,
-    identity.catalogPartId,
-    identity.colorId,
-  ]);
-
-function expectedIdentities(options: RealBuildOptions): readonly ExpectedIdentity[] {
-  return options.panels
-    .filter(({ stepNumber }) => stepNumber <= options.lastStep)
-    .sort((left, right) => left.stepNumber - right.stepNumber)
-    .flatMap((panel): readonly ExpectedIdentity[] => {
-      if (panel.action.kind === "transition") return [];
-      if (panel.action.kind === "multi-build-copy") {
-        return panel.action.copies.map((piece) => ({
-          identityKey: piece.identityKey,
-          stepNumber: panel.stepNumber,
-          designId: piece.designId,
-          materialId: piece.materialId,
-          catalogPartId: piece.catalogPartId,
-          colorId: piece.colorId,
-          transform: piece.transform,
-        }));
-      }
-      return [
-        ...panel.pieces.map((piece) => ({
-          identityKey: piece.identityKey,
-          stepNumber: panel.stepNumber,
-          designId: piece.designId,
-          materialId: piece.materialId,
-          catalogPartId: piece.catalogPartId,
-          colorId: piece.colorId,
-          transform: piece.expectedTransform,
-        })),
-        ...panel.omittedPieces.map((piece) => ({
-          identityKey: piece.identityKey,
-          stepNumber: panel.stepNumber,
-          designId: piece.designId,
-          materialId: piece.materialId,
-          catalogPartId: piece.catalogPartId,
-          colorId: piece.colorId,
-          transform: piece.transform,
-        })),
-      ];
-    });
-}
-
-function auditIdentityBindings(input: {
-  readonly options: RealBuildOptions;
-  readonly document: CanonicalDocumentShape;
-  readonly reports: readonly RealBuildStepReport[];
-  readonly bindings: readonly RealBuildIdentityBinding[];
-}): readonly StepFailure[] {
-  const failures: StepFailure[] = [];
-  const expected = expectedIdentities(input.options);
-  const expectedByIdentity = new Map(expected.map((identity) => [identity.identityKey, identity]));
-  const bindingByIdentity = new Map(
-    input.bindings.map((binding) => [binding.identityKey, binding]),
-  );
-  const uniquePartBindings = new Set(input.bindings.map(({ partId }) => partId));
-  if (
-    expectedByIdentity.size !== expected.length ||
-    bindingByIdentity.size !== input.bindings.length ||
-    uniquePartBindings.size !== input.bindings.length ||
-    input.bindings.length !== expected.length
-  ) {
-    failures.push(
-      completionFailure(
-        `Trusted ledger expects ${expected.length}/${expectedByIdentity.size} unique identities, while browser ` +
-          `output binds ${input.bindings.length}/${bindingByIdentity.size} identities to ` +
-          `${uniquePartBindings.size} unique canonical parts.`,
-      ),
-    );
-  }
-  const partById = new Map(input.document.parts.map((part) => [part.id, part]));
-  const stepIdByNumber = new Map(
-    input.document.steps.map((step) => [step.index + 1, step.id] as const),
-  );
-  const expectedGroupSizes = new Map<string, number>();
-  for (const identity of expected) {
-    const key = unorderedIdentityGroupKey(identity);
-    expectedGroupSizes.set(key, (expectedGroupSizes.get(key) ?? 0) + 1);
-  }
-  const auditedUnorderedGroups = new Set<string>();
-  for (const identity of expected) {
-    const binding = bindingByIdentity.get(identity.identityKey);
-    const part = binding === undefined ? undefined : partById.get(binding.partId);
-    const expectedStepId = stepIdByNumber.get(identity.stepNumber);
-    const groupKey = unorderedIdentityGroupKey(identity);
-    const unorderedGroup = (expectedGroupSizes.get(groupKey) ?? 0) > 1;
-    if (unorderedGroup && auditedUnorderedGroups.has(groupKey)) continue;
-    if (unorderedGroup) {
-      auditedUnorderedGroups.add(groupKey);
-      const group = expected.filter(
-        (candidate) => unorderedIdentityGroupKey(candidate) === groupKey,
-      );
-      const groupBindingsValid = group.every((candidate) => {
-        const candidateBinding = bindingByIdentity.get(candidate.identityKey);
-        const candidatePart =
-          candidateBinding === undefined ? undefined : partById.get(candidateBinding.partId);
-        return (
-          candidateBinding !== undefined &&
-          candidateBinding.stepNumber === candidate.stepNumber &&
-          candidateBinding.designId === candidate.designId &&
-          candidateBinding.materialId === candidate.materialId &&
-          candidateBinding.catalogPartId === candidate.catalogPartId &&
-          candidateBinding.colorId === candidate.colorId &&
-          candidatePart !== undefined &&
-          candidatePart.stepId === expectedStepId &&
-          candidatePart.catalogPartId === candidate.catalogPartId &&
-          candidatePart.colorId === candidate.colorId
-        );
-      });
-      const expectedTransforms = group.map(({ transform }) => transform);
-      const actualTransforms = group
-        .map((candidate) => {
-          const candidateBinding = bindingByIdentity.get(candidate.identityKey);
-          const candidatePart =
-            candidateBinding === undefined ? undefined : partById.get(candidateBinding.partId);
-          return candidatePart?.transform ?? null;
-        })
-        .filter((transform): transform is CanonicalPartShape["transform"] => transform !== null);
-      if (!groupBindingsValid || !exactTransformMultiset(actualTransforms, expectedTransforms)) {
-        failures.push(
-          completionFailure(
-            `Unordered identity group ${group.map(({ identityKey }) => identityKey).join(", ")} at printed ` +
-              `step ${identity.stepNumber} does not resolve to the exact official-ledger transform multiset. ` +
-              `Expected ${JSON.stringify(expectedTransforms)}; observed ${JSON.stringify(actualTransforms)}.`,
-            identity.stepNumber,
-          ),
-        );
-      }
-      continue;
-    }
-    if (
-      binding === undefined ||
-      binding.stepNumber !== identity.stepNumber ||
-      binding.designId !== identity.designId ||
-      binding.materialId !== identity.materialId ||
-      binding.catalogPartId !== identity.catalogPartId ||
-      binding.colorId !== identity.colorId ||
-      part === undefined ||
-      part.stepId !== expectedStepId ||
-      part.catalogPartId !== identity.catalogPartId ||
-      part.colorId !== identity.colorId ||
-      !exactTransform(part.transform, identity.transform)
-    ) {
-      failures.push(
-        completionFailure(
-          `Identity ${identity.identityKey} at printed step ${identity.stepNumber} does not resolve to one ` +
-            `canonical part with exact official-ledger design/material/catalog/color/transform/step ownership. ` +
-            `Expected ${identity.designId}/${identity.materialId}/${identity.catalogPartId}/${identity.colorId}/` +
-            `${JSON.stringify(identity.transform)}; binding ${JSON.stringify(binding ?? null)}; part ` +
-            `${JSON.stringify(part ?? null)}.`,
-          identity.stepNumber,
-        ),
-      );
-    }
-  }
-  const expectedPartIdsByStep = new Map<number, string[]>();
-  for (const binding of input.bindings) {
-    const ids = expectedPartIdsByStep.get(binding.stepNumber) ?? [];
-    ids.push(binding.partId);
-    expectedPartIdsByStep.set(binding.stepNumber, ids);
-  }
-  for (const report of input.reports) {
-    const step = input.document.steps.find(({ index }) => index === report.stepNumber - 1);
-    const expectedPartIds = (expectedPartIdsByStep.get(report.stepNumber) ?? []).sort();
-    const actualPartIds = [...(step?.partIds ?? [])].sort();
-    if (
-      expectedPartIds.length !== actualPartIds.length ||
-      expectedPartIds.some((partId, index) => partId !== actualPartIds[index])
-    ) {
-      failures.push(
-        completionFailure(
-          `Canonical step ${report.stepNumber} part ownership does not equal its exact ledger identity binding.`,
-          report.stepNumber,
-        ),
-      );
-    }
-  }
-  return failures;
-}
-
 export function auditRealBuildReportEvidence(
   options: RealBuildOptions,
   panel: RealBuildPanelSpec,
@@ -356,16 +131,16 @@ export function auditRealBuildReportEvidence(
       : panel.action.kind === "multi-build-copy"
         ? panel.action.copies.map((piece) => ({
             catalogPartId: piece.catalogPartId,
-            transform: piece.transform,
+            fixedTransform: piece.transform,
           }))
         : [
             ...panel.pieces.map((piece) => ({
               catalogPartId: piece.catalogPartId,
-              transform: piece.expectedTransform,
+              fixedTransform: null,
             })),
             ...panel.omittedPieces.map((piece) => ({
               catalogPartId: piece.catalogPartId,
-              transform: piece.transform,
+              fixedTransform: piece.transform,
             })),
           ];
   if (
@@ -377,22 +152,38 @@ export function auditRealBuildReportEvidence(
         observed.catalogPartId !== expected.catalogPartId ||
         observed.placed !== true ||
         observed.failure !== null ||
-        observed.orientationId !== expected.transform.orientationId ||
+        typeof observed.orientationId !== "string" ||
         observed.positionLdu === null ||
-        observed.positionLdu.some(
-          (coordinate, axis) => coordinate !== expected.transform.positionLdu[axis],
-        ) ||
+        (expected.fixedTransform !== null &&
+          (observed.orientationId !== expected.fixedTransform.orientationId ||
+            observed.positionLdu.some(
+              (coordinate, axis) => coordinate !== expected.fixedTransform!.positionLdu[axis],
+            ))) ||
         !isSha256Digest(observed.blind.comparisonPrefixHash)
       );
     })
   ) {
     failures.push(
       completionFailure(
-        `Printed step ${panel.stepNumber} retained piece reports do not match every exact ledger catalog part, ` +
-          `fixed/selected transform, successful placement, and comparison-prefix hash.`,
+        `Printed step ${panel.stepNumber} retained piece reports do not match every exact prepared catalog part, ` +
+          `fixed-ledger transform, successful searched transform, and comparison-prefix hash.`,
         panel.stepNumber,
       ),
     );
+  }
+  if (report.farther?.decision !== null && report.farther?.decision !== undefined) {
+    const selected = report.farther.origin.candidates.find(
+      ({ candidateId }) => candidateId === report.farther!.decision!.originCandidateId,
+    );
+    if (selected === undefined || report.validation.targetDocumentHash !== selected.documentHash) {
+      failures.push(
+        completionFailure(
+          `Printed step ${panel.stepNumber} farther decision does not bind the selected immutable origin ` +
+            `document hash to the Node-reconstructed canonical prefix validation target.`,
+          panel.stepNumber,
+        ),
+      );
+    }
   }
   const expectedMechanisms: readonly string[] =
     panel.action.kind === "transition"
@@ -586,8 +377,39 @@ function auditReportAndDocument(input: {
       );
     }
   }
-  failures.push(...auditIdentityBindings(input));
+  failures.push(...auditRealBuildIdentityBindings(input));
   return failures;
+}
+
+interface AuditedCanonicalOutput {
+  readonly failures: readonly StepFailure[];
+  readonly diagnosticPrefix: RealBuildDiagnosticPrefix | null;
+  readonly documentJson: string | null;
+  readonly structuralHash: string | null;
+  readonly finalParts: number;
+}
+
+/** Retains canonical bytes only after every non-visual Node audit has passed. */
+function auditCanonicalOutput(
+  input: Omit<Parameters<typeof auditReportAndDocument>[0], "structuralHash">,
+): AuditedCanonicalOutput {
+  const candidateHash = documentStructuralHash(input.document);
+  const failures = auditReportAndDocument({ ...input, structuralHash: candidateHash });
+  const structurallyTrusted = failures.every(
+    ({ code }) =>
+      code === "visual-evidence-unverified" || code === "official-frame-calibration-missing",
+  );
+  const targetTrusted = failures.every(({ code }) => code === "visual-evidence-unverified");
+  return {
+    failures,
+    diagnosticPrefix:
+      structurallyTrusted && !targetTrusted
+        ? createRealBuildDiagnosticPrefix(input.document)
+        : null,
+    documentJson: targetTrusted ? JSON.stringify(input.document) : null,
+    structuralHash: targetTrusted ? candidateHash : null,
+    finalParts: targetTrusted ? input.document.parts.length : 0,
+  };
 }
 
 function malformedBrowserOutputFailure(message: string): StepFailure {
@@ -664,6 +486,7 @@ export function finalizeExecutedRealBuildResult(input: {
   readonly options: RealBuildOptions;
   readonly browserOutput: RealBuildBrowserOutput;
 }): RealBuildResult {
+  let diagnosticPrefix: RealBuildDiagnosticPrefix | null = null;
   let finalParts = 0;
   let structuralHash: string | null = null;
   let documentJson: string | null = null;
@@ -686,7 +509,7 @@ export function finalizeExecutedRealBuildResult(input: {
       message: `Trusted finalizer rejected retained run options: ${failure.message}`,
     }));
     return trustFinalizedResult({
-      schemaVersion: "lego.real-build-result/3",
+      schemaVersion: "lego.real-build-result/4",
       authority: LOCAL_REAL_BUILD_AUTHORITY,
       status: "incomplete",
       requestedLastStep: 0,
@@ -706,6 +529,7 @@ export function finalizeExecutedRealBuildResult(input: {
       inputFailures: [],
       completionFailures,
       steps: [],
+      diagnosticPrefix: null,
       documentJson: null,
       structuralHash: null,
       finalParts: 0,
@@ -729,13 +553,12 @@ export function finalizeExecutedRealBuildResult(input: {
   if (!readable) {
     completionFailures = [malformedBrowserOutputFailure(reading.envelopeDefect!)];
   } else if (input.browserOutput.status === "failed") {
-    documentJson = input.browserOutput.documentJson;
     completionFailures = [input.browserOutput.failure];
   } else if (reading.reproductionDefect !== null) {
     // The run executed and did not account for everything its panels declare.
     // That refuses completion — `prefixPassed` is false below and no status can
     // read as complete — but it is not a reason to drop the rows that say why.
-    completionFailures = [
+    const reproductionFailures = [
       completionFailure(reading.reproductionDefect),
       ...reading.reportDefects.flatMap((defect, index) =>
         defect === null
@@ -743,6 +566,43 @@ export function finalizeExecutedRealBuildResult(input: {
           : [completionFailure(defect, requestedPanelStepNumber(input.options, index))],
       ),
     ];
+    completionFailures = reproductionFailures;
+    const completePrefixReports: RealBuildStepReport[] = [];
+    for (const [index, report] of retainedRows.entries()) {
+      if (reading.reportDefects[index] !== null || !isAtomicStepComplete(report)) break;
+      completePrefixReports.push(report);
+    }
+    if (
+      completePrefixReports.length > 0 &&
+      input.browserOutput.fetchedPdfDigest === input.options.inputDigests.pdf &&
+      typeof input.browserOutput.documentJson === "string"
+    ) {
+      try {
+        const lastCompleteStep = completePrefixReports.at(-1)!.stepNumber;
+        const browserDocument = parseCanonicalDocument(input.browserOutput.documentJson);
+        const prefixDocument = canonicalPrefixDocument(browserDocument, lastCompleteStep);
+        const prefixOptions = { ...input.options, lastStep: lastCompleteStep };
+        const prefixBindings = input.browserOutput.identityBindings.filter(
+          ({ stepNumber }) => stepNumber <= lastCompleteStep,
+        );
+        const audited = auditCanonicalOutput({
+          options: prefixOptions,
+          reports: completePrefixReports,
+          document: prefixDocument,
+          bindings: prefixBindings,
+        });
+        ({ diagnosticPrefix, documentJson, structuralHash, finalParts } = audited);
+        completionFailures = [...reproductionFailures, ...audited.failures];
+      } catch (error) {
+        completionFailures = [
+          ...reproductionFailures,
+          completionFailure(
+            `Trusted Node could not independently audit the longest atomic-complete document prefix: ` +
+              `${error instanceof Error ? error.message : String(error)}.`,
+          ),
+        ];
+      }
+    }
   } else if (input.browserOutput.fetchedPdfDigest !== input.options.inputDigests.pdf) {
     completionFailures = [
       {
@@ -755,18 +615,16 @@ export function finalizeExecutedRealBuildResult(input: {
       },
     ];
   } else {
-    documentJson = input.browserOutput.documentJson;
     try {
       const document = parseCanonicalDocument(input.browserOutput.documentJson);
-      structuralHash = documentStructuralHash(document);
-      finalParts = document.parts.length;
-      completionFailures = auditReportAndDocument({
+      const audited = auditCanonicalOutput({
         options: input.options,
         reports: retainedRows,
         document,
         bindings: input.browserOutput.identityBindings,
-        structuralHash,
       });
+      ({ diagnosticPrefix, documentJson, structuralHash, finalParts } = audited);
+      completionFailures = audited.failures;
     } catch (error) {
       completionFailures = [
         malformedBrowserOutputFailure(
@@ -790,7 +648,7 @@ export function finalizeExecutedRealBuildResult(input: {
       ? "incomplete"
       : "prefix-complete";
   const result: RealBuildResult = {
-    schemaVersion: "lego.real-build-result/3",
+    schemaVersion: "lego.real-build-result/4",
     authority: LOCAL_REAL_BUILD_AUTHORITY,
     status,
     requestedLastStep: input.options.lastStep,
@@ -800,6 +658,7 @@ export function finalizeExecutedRealBuildResult(input: {
     inputFailures: [],
     completionFailures,
     steps: retainedRows,
+    diagnosticPrefix,
     documentJson,
     structuralHash,
     finalParts,

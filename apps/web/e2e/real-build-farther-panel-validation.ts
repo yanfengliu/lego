@@ -287,19 +287,26 @@ export function describePanelInputError<D>(
   const invalidSubject = ordered.findIndex(
     (panel) =>
       panel.status === "scored" &&
-      ((panel.subject === "origin" && panel.stepNumber !== input.frontier.originStepNumber + 1) ||
-        (panel.subject === "frontier" &&
-          panel.stepNumber !== input.frontier.throughStepNumber + 1)),
+      (panel.subject === "frontier"
+        ? panel.stepNumber !== input.frontier.throughStepNumber + 1
+        : panel.stepNumber !== input.frontier.originStepNumber + 1 &&
+          !(
+            panel.stepNumber === input.frontier.originStepNumber + 2 &&
+            input.frontier.throughStepNumber === input.frontier.originStepNumber
+          )),
   );
   if (invalidSubject >= 0) {
     const panel = ordered[invalidSubject] as Extract<
       FartherPanelObservationInput,
       { status: "scored" }
     >;
-    return `panels[${invalidSubject}] subject ${shown(panel.subject)} at step ${panel.stepNumber} is not bound to origin N+1 or constructed frontier throughStep+1`;
+    return `panels[${invalidSubject}] subject ${shown(panel.subject)} at step ${panel.stepNumber} is not bound to origin N+1, measured uncarried origin K=N+2, or constructed frontier throughStep+1`;
   }
   const lastPanelStep = ordered.at(-1)?.stepNumber ?? input.frontier.originStepNumber;
-  return lastPanelStep > input.frontier.throughStepNumber + 1
+  const requiresLaterFrontier = ordered.some(
+    (panel) => panel.status === "scored" && panel.subject === "frontier",
+  );
+  return requiresLaterFrontier && lastPanelStep > input.frontier.throughStepNumber + 1
     ? `last panel step ${lastPanelStep} requires construction through ${lastPanelStep - 1}; frontier stops at ${input.frontier.throughStepNumber}`
     : null;
 }

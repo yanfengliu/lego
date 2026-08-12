@@ -146,6 +146,7 @@ export function completeRealBuildTestOptions(lastStep: number): RealBuildOptions
     kernelUrl: "fixture:kernel",
     commandsUrl: "fixture:commands",
     assemblyUrl: "fixture:assembly",
+    measuredFartherOriginSourceAttestation: null,
     panels: completePanels(),
     expectedPrintedSteps: 359,
     lastStep,

@@ -12,6 +12,7 @@ import {
   type StepFailure,
 } from "./real-build-safety";
 import { LOCAL_REAL_BUILD_AUTHORITY } from "./real-build-authority";
+import { isRealBuildSourceAttestation } from "./real-build-farther-origin-source-manifest";
 
 /**
  * Set 6651557's inventory and assembled model are not the same quantity.
@@ -66,10 +67,25 @@ export function preflightRealBuildOptions(input: {
   readonly deferredNarrowingRenderBudget: number;
   readonly fartherPanelMaximumReachSteps: number;
   readonly fartherPanelRenderBudget: number;
+  readonly measuredFartherOriginSourceAttestation?: RealBuildOptions["measuredFartherOriginSourceAttestation"];
   /** `null` when the coverage closure never bound; an empty object is a bound but empty index. */
   readonly coverageByCallout: Readonly<Record<string, StepCoverageCalloutClaim>> | null;
 }): readonly StepFailure[] {
   const failures: StepFailure[] = [];
+  if (
+    input.measuredFartherOriginSourceAttestation != null &&
+    !isRealBuildSourceAttestation(input.measuredFartherOriginSourceAttestation)
+  ) {
+    failures.push({
+      code: "benchmark-policy-mismatch",
+      stage: "input",
+      inputKey: "measuredFartherOriginSourceAttestation",
+      message:
+        "The measured farther-origin source attestation is malformed. Required null for a generic or " +
+        "legacy run, or schema lego.real-build-source-attestation/1 with a positive file count and " +
+        "sha256 digest derived from the captured canonical source map.",
+    });
+  }
   if (
     !Number.isInteger(input.fartherPanelMaximumReachSteps) ||
     input.fartherPanelMaximumReachSteps < 1 ||
@@ -686,7 +702,7 @@ export function inputRejectedRealBuildResult(
       "Real-build input was rejected without a retained failure; this is a contract violation.",
   };
   return {
-    schemaVersion: "lego.real-build-result/3",
+    schemaVersion: "lego.real-build-result/4",
     authority: LOCAL_REAL_BUILD_AUTHORITY,
     status: "input-rejected",
     requestedLastStep: options.lastStep,
@@ -699,6 +715,7 @@ export function inputRejectedRealBuildResult(
       const local = inputFailures.find(({ stepNumber }) => stepNumber === panel.stepNumber);
       return unexecutedStepReport(panel, local ?? { ...first, stepNumber: panel.stepNumber });
     }),
+    diagnosticPrefix: null,
     documentJson: null,
     structuralHash: null,
     finalParts: 0,

@@ -3,10 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
   createEmptyBrickDocument,
   createPartInstance,
+  documentStructuralHash,
   validateBrickDocument,
 } from "@lego-studio/brick-kernel";
 
 import { finalizeExecutedRealBuildResult } from "../e2e/real-build-finalize";
+import { unexecutedStepReport } from "../e2e/real-build-contract";
 import {
   stepPrerequisiteFacts,
   type RealBuildOptions,
@@ -26,7 +28,7 @@ import {
 
 const DIGEST = REAL_BUILD_TEST_DIGEST;
 const LEFT = { positionLdu: [0, 0, 0] as const, orientationId: "upright-yaw-0" };
-const RIGHT = { positionLdu: [40, 0, 0] as const, orientationId: "upright-yaw-0" };
+const RIGHT = { positionLdu: [0, -24, 0] as const, orientationId: "upright-yaw-0" };
 
 function identityOptions(): RealBuildOptions {
   const trusted = completeRealBuildTestOptions(1);
@@ -106,6 +108,78 @@ function identityOptions(): RealBuildOptions {
         inputDigest: DIGEST,
       },
     },
+  };
+}
+
+function interruptedPrefixOptions(): RealBuildOptions {
+  const trusted = identityOptions();
+  const sourcePanel = trusted.panels[357]!;
+  if (sourcePanel.action.kind !== "place-callouts") {
+    throw new TypeError("The complete fixture must retain its direct-piece panel at step 358.");
+  }
+  const moved = sourcePanel.pieces.at(-1)!;
+  const secondPanel: RealBuildPanelSpec = {
+    ...realBuildTransitionPanel(2),
+    action: { kind: "place-callouts", assembledPieces: 1, evidenceDigest: DIGEST },
+    pieces: [moved],
+    calloutPieces: 1,
+    classifiedPhysicalCalloutPieces: 1,
+    mappedCalloutKeys: [moved.calloutKey],
+  };
+  const rebalancedSourcePanel: RealBuildPanelSpec = {
+    ...sourcePanel,
+    pieces: sourcePanel.pieces.slice(0, -1),
+    mappedCalloutKeys: sourcePanel.mappedCalloutKeys.slice(0, -1),
+    calloutPieces: sourcePanel.calloutPieces - 1,
+    classifiedPhysicalCalloutPieces: sourcePanel.classifiedPhysicalCalloutPieces - 1,
+    action: { ...sourcePanel.action, assembledPieces: sourcePanel.action.assembledPieces - 1 },
+  };
+  return {
+    ...trusted,
+    lastStep: 2,
+    panels: trusted.panels.map((panel) =>
+      panel.stepNumber === 2
+        ? secondPanel
+        : panel.stepNumber === 358
+          ? rebalancedSourcePanel
+          : panel,
+    ),
+    coverageByCallout: {
+      ...trusted.coverageByCallout,
+      [moved.calloutKey]: {
+        pageNumber: 2,
+        stepNumber: 2,
+        quantity: 1,
+        identificationConfidence: moved.identificationConfidence,
+        cropDigest: moved.cropDigest,
+        inputDigest: moved.identificationInputDigest,
+      },
+    },
+  };
+}
+
+function frameUnreconciledOptions(): RealBuildOptions {
+  const trusted = identityOptions();
+  return {
+    ...trusted,
+    panels: trusted.panels.map((panel) =>
+      panel.stepNumber !== 1
+        ? panel
+        : {
+            ...panel,
+            pieces: panel.pieces.map((piece, index) =>
+              index === 0
+                ? {
+                    ...piece,
+                    expectedTransform: {
+                      positionLdu: [20, 0, 0] as const,
+                      orientationId: "upright-yaw-90" as const,
+                    },
+                  }
+                : piece,
+            ),
+          },
+    ),
   };
 }
 
@@ -224,6 +298,15 @@ function reversedIdentityDocument() {
   return {
     ...base,
     parts: [partAtRight, partAtLeft],
+    connections: [
+      {
+        id: "connection-left-right",
+        kind: "stud-tube" as const,
+        a: { partId: partAtLeft.id, portId: "stud:0:0" },
+        b: { partId: partAtRight.id, portId: "undersideClutch:0:0" },
+        provenance: { source: "manual" as const },
+      },
+    ],
     steps: [{ ...base.steps[0]!, partIds: [partAtRight.id, partAtLeft.id] }],
     submodels: [{ ...base.submodels[0]!, partIds: [partAtRight.id, partAtLeft.id] }],
   };
@@ -251,6 +334,48 @@ const reversedBindings: readonly RealBuildIdentityBinding[] = [
 ];
 
 describe("real build finalizer identical-piece identity groups", () => {
+  it("retains a structurally audited frame-unreconciled prefix without claiming target completion", () => {
+    const document = reversedIdentityDocument();
+    const result = finalizeExecutedRealBuildResult({
+      options: frameUnreconciledOptions(),
+      browserOutput: browserOutput(document, reversedBindings),
+    });
+
+    expect(result).toMatchObject({
+      status: "incomplete",
+      documentJson: null,
+      structuralHash: null,
+      finalParts: 0,
+      diagnosticPrefix: {
+        schemaVersion: "lego.real-build-diagnostic-prefix/1",
+        throughStepNumber: 1,
+        targetEquivalence: "unreconciled",
+        structuralHash: documentStructuralHash(document),
+        parts: 2,
+      },
+    });
+    expect(result.diagnosticPrefix?.documentJson).toBe(JSON.stringify(document));
+    expect(result.completionFailures).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "official-frame-calibration-missing", stepNumber: 1 }),
+      ]),
+    );
+
+    const colludingMetadataFailure = finalizeExecutedRealBuildResult({
+      options: frameUnreconciledOptions(),
+      browserOutput: browserOutput(document, [
+        { ...reversedBindings[0]!, designId: "3004" },
+        reversedBindings[1]!,
+      ]),
+    });
+    expect(colludingMetadataFailure.diagnosticPrefix).toBeNull();
+    expect(colludingMetadataFailure).toMatchObject({
+      documentJson: null,
+      structuralHash: null,
+      finalParts: 0,
+    });
+  });
+
   it("accepts reversed identical-piece identity assignment only as the exact transform multiset", () => {
     const options = identityOptions();
     const reversed = reversedIdentityDocument();
@@ -282,6 +407,11 @@ describe("real build finalizer identical-piece identity groups", () => {
       browserOutput: browserOutput(wrongTransform, reversedBindings),
     });
     expect(rejectedTransform.status).toBe("incomplete");
+    expect(rejectedTransform).toMatchObject({
+      documentJson: null,
+      structuralHash: null,
+      finalParts: 0,
+    });
     expect(rejectedTransform.completionFailures.map(({ message }) => message).join("\n")).toContain(
       "transform multiset",
     );
@@ -294,8 +424,86 @@ describe("real build finalizer identical-piece identity groups", () => {
       ]),
     });
     expect(rejectedMetadata.status).toBe("incomplete");
+    expect(rejectedMetadata).toMatchObject({
+      documentJson: null,
+      structuralHash: null,
+      finalParts: 0,
+    });
     expect(rejectedMetadata.completionFailures.map(({ message }) => message).join("\n")).toContain(
       "transform multiset",
+    );
+  });
+
+  it("independently audits and retains the longest complete canonical prefix after a later refusal", () => {
+    const options = interruptedPrefixOptions();
+    const document = reversedIdentityDocument();
+    const output = browserOutput(document, reversedBindings);
+    const secondPanel = options.panels.find(({ stepNumber }) => stepNumber === 2)!;
+    const interruptedOutput: RealBuildBrowserOutput = {
+      ...output,
+      reports: [
+        output.reports[0]!,
+        unexecutedStepReport(secondPanel, {
+          code: "run-incomplete",
+          stage: "validation",
+          stepNumber: 2,
+          message: "Synthetic later-step refusal.",
+        }),
+      ],
+    };
+    const interrupted = finalizeExecutedRealBuildResult({
+      options,
+      browserOutput: interruptedOutput,
+    });
+
+    expect(interrupted.status).toBe("incomplete");
+    expect(interrupted.finalParts).toBe(2);
+    expect(interrupted.structuralHash).toMatch(/^sha256:[a-f0-9]{64}$/u);
+    expect(interrupted.documentJson).not.toBeNull();
+    expect(interrupted.completionFailures.map(({ message }) => message).join("\n")).toContain(
+      "identity binding(s) were retained against 3",
+    );
+    expect(interrupted.completionFailures.map(({ message }) => message).join("\n")).not.toContain(
+      "does not resolve to one canonical part",
+    );
+
+    const wrongBinding = finalizeExecutedRealBuildResult({
+      options,
+      browserOutput: {
+        ...interruptedOutput,
+        identityBindings: [{ ...reversedBindings[0]!, designId: "3004" }, reversedBindings[1]!],
+      },
+    });
+    expect(wrongBinding).toMatchObject({
+      status: "incomplete",
+      documentJson: null,
+      structuralHash: null,
+      finalParts: 0,
+    });
+    expect(wrongBinding.completionFailures.map(({ message }) => message).join("\n")).toContain(
+      "transform multiset",
+    );
+
+    const wrongMetadataDocument = {
+      ...document,
+      steps: document.steps.map((step) => ({ ...step, name: "Forged prefix step" })),
+    };
+    const wrongMetadataOutput = browserOutput(wrongMetadataDocument, reversedBindings);
+    const wrongMetadata = finalizeExecutedRealBuildResult({
+      options,
+      browserOutput: {
+        ...wrongMetadataOutput,
+        reports: [wrongMetadataOutput.reports[0]!, interruptedOutput.reports[1]!],
+      },
+    });
+    expect(wrongMetadata).toMatchObject({
+      status: "incomplete",
+      documentJson: null,
+      structuralHash: null,
+      finalParts: 0,
+    });
+    expect(wrongMetadata.completionFailures.map(({ message }) => message).join("\n")).toContain(
+      "does not match the prepared option/ledger action",
     );
   });
 });

@@ -59,6 +59,13 @@ import {
   REAL_BUILD_SCORE_SCHEMA,
 } from "./real-build-score";
 export { createRealBuildScore, REAL_BUILD_SCORE_SCHEMA } from "./real-build-score";
+import {
+  assertRealBuildDiagnosticPrefixDocument,
+  isRealBuildDiagnosticPrefixSummary,
+  realBuildDiagnosticPrefixSummary,
+  REAL_BUILD_DIAGNOSTIC_PREFIX_FILE,
+  type RealBuildDiagnosticPrefixSummary,
+} from "./real-build-diagnostic-prefix";
 
 export {
   beginAtomicRun,
@@ -68,8 +75,9 @@ export {
 } from "./real-build-artifact-publication";
 import { REAL_BUILD_RUN_ID_PATTERN } from "./real-build-artifact-publication";
 import type { RealBuildPublicationVerification } from "./real-build-artifact-publication";
+import { assertNoUndeclaredRealBuildArtifacts } from "./real-build-artifact-file-set";
 
-export const REAL_BUILD_ARTIFACT_MANIFEST_SCHEMA = "lego.real-build-artifact-manifest/2" as const;
+export const REAL_BUILD_ARTIFACT_MANIFEST_SCHEMA = "lego.real-build-artifact-manifest/3" as const;
 
 const MAXIMUM_ARTIFACT_MANIFEST_BYTES = 16 * 1024 * 1024;
 export const MAXIMUM_REAL_BUILD_PRINTED_STEPS = 359;
@@ -83,7 +91,7 @@ export const MAXIMUM_RETAINED_ARTIFACTS =
   MAXIMUM_REAL_BUILD_PRINTED_STEPS * 2 +
   (MAXIMUM_REAL_BUILD_PRINTED_STEPS - 1) * MAXIMUM_REAL_BUILD_FARTHER_CAPTURES +
   MAXIMUM_SERVED_RESPONSE_CHUNKS +
-  3;
+  4;
 export const MAXIMUM_RETAINED_ARTIFACT_AGGREGATE_BYTES =
   MAXIMUM_REAL_BUILD_PRINTED_STEPS * 2 * MAXIMUM_REAL_BUILD_STEP_CAPTURE_BYTES +
   (MAXIMUM_REAL_BUILD_PRINTED_STEPS - 1) *
@@ -91,7 +99,7 @@ export const MAXIMUM_RETAINED_ARTIFACT_AGGREGATE_BYTES =
     MAXIMUM_REAL_BUILD_STEP_CAPTURE_BYTES +
   MAXIMUM_SERVED_RESPONSE_CHUNKS * MAXIMUM_SERVED_RESPONSE_BODY_CHUNK_BYTES +
   MAXIMUM_SERVED_RESPONSE_MANIFEST_BYTES +
-  MAXIMUM_REAL_BUILD_DOCUMENT_BYTES +
+  MAXIMUM_REAL_BUILD_DOCUMENT_BYTES * 2 +
   MAXIMUM_REAL_BUILD_SCORE_BYTES;
 const MAXIMUM_CODE_SNAPSHOT_FILES = 10_000;
 const MAXIMUM_CODE_SNAPSHOT_ENTRIES = 25_000;
@@ -144,7 +152,9 @@ export function maximumRealBuildRetainedArtifactBytes(file: string): number {
       return MAXIMUM_REAL_BUILD_STEP_CAPTURE_BYTES;
     }
   }
-  if (normalized === "document.json") return MAXIMUM_REAL_BUILD_DOCUMENT_BYTES;
+  if (normalized === "document.json" || normalized === REAL_BUILD_DIAGNOSTIC_PREFIX_FILE) {
+    return MAXIMUM_REAL_BUILD_DOCUMENT_BYTES;
+  }
   if (normalized === "score.json") return MAXIMUM_REAL_BUILD_SCORE_BYTES;
   if (normalized === REAL_BUILD_SERVED_RESPONSE_MANIFEST) {
     return MAXIMUM_SERVED_RESPONSE_MANIFEST_BYTES;
@@ -155,7 +165,7 @@ export function maximumRealBuildRetainedArtifactBytes(file: string): number {
     }
   }
   throw new TypeError(
-    `Retained artifact ${normalized} is not one of the bounded step, document, score, or served-response evidence classes.`,
+    `Retained artifact ${normalized} is not one of the bounded step, canonical/diagnostic document, score, or served-response evidence classes.`,
   );
 }
 
@@ -387,6 +397,7 @@ export function writeRealBuildArtifactManifest(input: {
         validationSnapshots.length > 0 ? ("captured" as const) : ("unavailable" as const),
       validationSnapshots,
       finalStructuralHash: input.result.structuralHash,
+      diagnosticPrefix: realBuildDiagnosticPrefixSummary(input.result.diagnosticPrefix),
     },
     replayClosure: {
       manifestDigest: input.replayClosure.manifestDigest,
@@ -433,6 +444,7 @@ export function verifyRealBuildArtifactManifest(
         readonly targetDocumentHash?: string | null;
       }[];
       readonly finalStructuralHash?: string | null;
+      readonly diagnosticPrefix?: unknown;
     };
     readonly replayClosure?: {
       readonly manifestDigest?: string;
@@ -462,10 +474,13 @@ export function verifyRealBuildArtifactManifest(
       "availability",
       "validationSnapshots",
       "finalStructuralHash",
+      "diagnosticPrefix",
     ]) ||
     !Array.isArray(manifest.truthSnapshots.validationSnapshots) ||
     manifest.truthSnapshots.validationSnapshots.length > MAXIMUM_REAL_BUILD_PRINTED_STEPS ||
     !isNullableDigest(manifest.truthSnapshots.finalStructuralHash) ||
+    (manifest.truthSnapshots.diagnosticPrefix !== null &&
+      !isRealBuildDiagnosticPrefixSummary(manifest.truthSnapshots.diagnosticPrefix)) ||
     !Array.isArray(manifest.artifacts) ||
     !/^sha256:[0-9a-f]{64}$/u.test(manifest.replayClosure?.manifestDigest ?? "") ||
     !["downstream-only", "metadata-only"].includes(manifest.replayClosure?.replayLevel ?? "") ||
@@ -559,6 +574,7 @@ export function verifyRealBuildArtifactManifest(
   let aggregateBytes = 0;
   let scoreBytes: Buffer | null = null;
   let documentBytes: Buffer | null = null;
+  let diagnosticPrefixBytes: Buffer | null = null;
   for (const artifact of manifest.artifacts) {
     const normalized = normalizeRealBuildRelativePath(artifact.file, "retained artifact");
     if (
@@ -591,7 +607,9 @@ export function verifyRealBuildArtifactManifest(
     }
     if (normalized === "score.json") scoreBytes = bytes;
     if (normalized === "document.json") documentBytes = bytes;
+    if (normalized === REAL_BUILD_DIAGNOSTIC_PREFIX_FILE) diagnosticPrefixBytes = bytes;
   }
+  assertNoUndeclaredRealBuildArtifacts(directory, artifactPaths);
   if (scoreBytes === null) {
     throw new TypeError("Retained artifacts must include score.json as the truth-summary source.");
   }
@@ -608,6 +626,7 @@ export function verifyRealBuildArtifactManifest(
       "stepsAttempted",
       "stepsComplete",
       "piecesPlaced",
+      "diagnosticPrefix",
       "finalParts",
       "structuralHash",
       "inputFailures",
@@ -628,6 +647,8 @@ export function verifyRealBuildArtifactManifest(
     ) ||
     !isNullableDigest(score.structuralHash) ||
     score.structuralHash !== manifest.truthSnapshots!.finalStructuralHash ||
+    JSON.stringify(score.diagnosticPrefix) !==
+      JSON.stringify(manifest.truthSnapshots!.diagnosticPrefix) ||
     !Array.isArray(score.steps) ||
     score.steps.length > MAXIMUM_REAL_BUILD_PRINTED_STEPS ||
     !Array.isArray(score.inputFailures) ||
@@ -638,7 +659,8 @@ export function verifyRealBuildArtifactManifest(
     (score.totalElapsedMs as number) > 4 * 60 * 60 * 1_000 ||
     !Number.isSafeInteger(score.finalParts) ||
     (score.finalParts as number) < 0 ||
-    (score.finalParts as number) > preparedOptions.maxParts
+    (score.finalParts as number) > preparedOptions.maxParts ||
+    (score.diagnosticPrefix !== null && !isRealBuildDiagnosticPrefixSummary(score.diagnosticPrefix))
   ) {
     throw new TypeError(
       "Retained score must bind the artifact run, authority, input digests, structural hash, and bounded step list.",
@@ -669,12 +691,24 @@ export function verifyRealBuildArtifactManifest(
       reproducedResult.documentJson !== null && reproducedResult.structuralHash !== null
         ? Buffer.from(reproducedResult.documentJson)
         : null;
+    const reproducedDiagnosticPrefix =
+      reproducedResult.diagnosticPrefix === null
+        ? null
+        : Buffer.from(reproducedResult.diagnosticPrefix.documentJson);
     if (
       (documentBytes === null) !== (reproducedDocument === null) ||
       (documentBytes !== null && !documentBytes.equals(reproducedDocument!))
     ) {
       throw new TypeError(
         "Retained document.json does not equal the exact document independently finalized from browser output.",
+      );
+    }
+    if (
+      (diagnosticPrefixBytes === null) !== (reproducedDiagnosticPrefix === null) ||
+      (diagnosticPrefixBytes !== null && !diagnosticPrefixBytes.equals(reproducedDiagnosticPrefix!))
+    ) {
+      throw new TypeError(
+        "Retained diagnostic-prefix.json does not equal the exact diagnostic document independently finalized from browser output.",
       );
     }
     for (const [index, step] of reproducedScore.steps.entries()) {
@@ -738,6 +772,7 @@ export function verifyRealBuildArtifactManifest(
     }
   }
   let completedSteps = 0;
+  let leadingCompleteSteps = 0;
   let piecesPlaced = 0;
   const derivedFailures: unknown[] = [];
   for (let index = 0; index < score.steps.length; index += 1) {
@@ -755,16 +790,16 @@ export function verifyRealBuildArtifactManifest(
     ) {
       throw new TypeError(`Retained score step ${index} has an invalid completion shape.`);
     }
-    if (
-      isAtomicStepComplete({
-        outcome: step.outcome as never,
-        placedPieces: step.placedPieces as number,
-        expectedAssembledPieces: step.expectedAssembledPieces as number,
-        canonicalStepId: step.canonicalStepId as string | null,
-        actionEvidenceDigest: step.actionEvidenceDigest,
-      })
-    ) {
+    const complete = isAtomicStepComplete({
+      outcome: step.outcome as never,
+      placedPieces: step.placedPieces as number,
+      expectedAssembledPieces: step.expectedAssembledPieces as number,
+      canonicalStepId: step.canonicalStepId as string | null,
+      actionEvidenceDigest: step.actionEvidenceDigest,
+    });
+    if (complete) {
       completedSteps += 1;
+      if (leadingCompleteSteps === index) leadingCompleteSteps += 1;
     }
     piecesPlaced += step.placedPieces as number;
     if (step.outcome.status === "failed") {
@@ -773,9 +808,6 @@ export function verifyRealBuildArtifactManifest(
   }
   const successfulPrefix =
     score.steps.length === preparedOptions.lastStep && completedSteps === score.steps.length;
-  // One condition per cause, each naming what it saw. A single boolean over
-  // every status covered seven different defects with one sentence, and the
-  // sentence was the same whichever one fired.
   const totalsMismatch =
     score.stepsAttempted !== score.steps.length
       ? `stepsAttempted ${score.stepsAttempted} against ${score.steps.length} retained step row(s)`
@@ -796,10 +828,6 @@ export function verifyRealBuildArtifactManifest(
           `completed against a requested prefix of ${preparedOptions.lastStep}.`,
       );
     }
-    // `completed` is the full booklet and nothing shorter; `prefix-complete` is
-    // anything shorter and nothing longer. Written as two comparisons against
-    // the ceiling rather than as one negation of the other, so a second
-    // booklet's ceiling cannot quietly move which branch catches what.
     const claimTooShort =
       score.status === "completed" && preparedOptions.lastStep < MAXIMUM_REAL_BUILD_PRINTED_STEPS;
     const claimTooLong =
@@ -860,9 +888,53 @@ export function verifyRealBuildArtifactManifest(
       `Retained score claims incomplete, yet all ${score.steps.length} requested row(s) completed and no completion failure was retained.`,
     );
   }
+  const metadataOnly = closure.replayLevel === "metadata-only";
+  if (
+    metadataOnly !== (score.status === "input-rejected") ||
+    metadataOnly !== (closure.earliestBoundary === "input-rejection")
+  ) {
+    throw new TypeError(
+      "Metadata-only/input-rejection replay closure and retained input-rejected status must occur together.",
+    );
+  }
   if ((score.structuralHash === null) !== (documentBytes === null)) {
     throw new TypeError(
       "Retained document.json presence must exactly match the score structural-hash claim.",
+    );
+  }
+  if ((score.diagnosticPrefix === null) !== (diagnosticPrefixBytes === null)) {
+    throw new TypeError(
+      "Retained diagnostic-prefix.json presence must exactly match the score diagnostic-prefix claim.",
+    );
+  }
+  if (score.diagnosticPrefix !== null) {
+    const summary = score.diagnosticPrefix as RealBuildDiagnosticPrefixSummary;
+    const frameFailure = score.completionFailures.some(
+      (failure) => isRecord(failure) && failure.code === "official-frame-calibration-missing",
+    );
+    if (
+      score.status !== "incomplete" ||
+      score.structuralHash !== null ||
+      documentBytes !== null ||
+      score.finalParts !== 0 ||
+      summary.throughStepNumber !== leadingCompleteSteps ||
+      summary.throughStepNumber > preparedOptions.lastStep ||
+      summary.parts > preparedOptions.maxParts ||
+      !frameFailure
+    ) {
+      throw new TypeError(
+        `A diagnostic prefix requires incomplete status, an empty canonical tuple, an official-frame refusal, and ` +
+          `exact longest atomic prefix ${leadingCompleteSteps} within the prepared part/step bounds.`,
+      );
+    }
+    assertRealBuildDiagnosticPrefixDocument(
+      diagnosticPrefixBytes!,
+      score.diagnosticPrefix as never,
+    );
+  }
+  if (score.structuralHash === null && score.finalParts !== 0) {
+    throw new TypeError(
+      "A score without trusted canonical document bytes and structural hash must retain finalParts=0.",
     );
   }
   if (documentBytes !== null) {

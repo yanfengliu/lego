@@ -5,6 +5,7 @@ import {
   isRealBuildFartherDeferralCoherent,
   isRealBuildFartherEvidence,
 } from "./real-build-farther-report-parser";
+import { isRealBuildFartherDecisionPieceCoherent } from "./real-build-farther-decision-piece-coherence";
 import type { RealBuildFartherEvidence } from "./real-build-farther-report-types";
 import { isNullableRealBuildPngCapture } from "./real-build-png-capture";
 import type { RealBuildOptions, RealBuildStepReport, StepFailure } from "./real-build-safety";
@@ -541,6 +542,11 @@ function stepReportShapeDefect(
     | "fartherPanelRenderBudget"
     | "minimumDeferredAgreement"
     | "minimumDeferredAgreementMargin"
+    | "inputDigests"
+    | "renderScale"
+    | "panelWidth"
+    | "workFactor"
+    | "measuredFartherOriginSourceAttestation"
   >,
 ): string | null {
   // A render count is not a part count. These were bounded by `maxParts`, which
@@ -635,6 +641,16 @@ function stepReportShapeDefect(
     return `Replay browser-output report[${index}].farther must be an exact bounded branch proof tied to the prepared N/N+1 panels, parent frontier, lineages, budgets, scores, refusal, and decision.`;
   }
   if (
+    report.farther !== null &&
+    !isRealBuildFartherDecisionPieceCoherent({
+      farther: report.farther as RealBuildFartherEvidence,
+      reportPieces: report.pieces as RealBuildStepReport["pieces"],
+      preparedPieces: panel.pieces,
+    })
+  ) {
+    return `Replay browser-output report[${index}] completed farther decision must reproduce the selected origin's exact catalog, color and transform witnesses in its placed piece rows.`;
+  }
+  if (
     !isRealBuildFartherCaptures(
       report.fartherCaptures,
       report.farther as RealBuildFartherEvidence | null,
@@ -659,6 +675,10 @@ type RealBuildBrowserOutputBoundary = Pick<
   | "fartherPanelRenderBudget"
   | "minimumDeferredAgreement"
   | "minimumDeferredAgreementMargin"
+  | "renderScale"
+  | "panelWidth"
+  | "workFactor"
+  | "measuredFartherOriginSourceAttestation"
 >;
 
 /**

@@ -17,6 +17,15 @@
   },
   "minimumAgreement": 0.85,
   "minimumMargin": 0.02,
+  "directOriginPanel7Observation": {
+    "measure": "containment",
+    "scores": {
+      "step5-parent-0": 0.81657223796034,
+      "step5-parent-1": 0.9367520589707421
+    },
+    "familyMargin": 0.1201798210104021,
+    "revealingBeforeInterveningCarry": true
+  },
   "origins": [
     {
       "candidateId": "step5-parent-0",

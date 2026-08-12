@@ -21,7 +21,11 @@ vi.mock("../e2e/real-build-identification-closure", async (importOriginal) => {
   };
 });
 
-import { createEmptyBrickDocument, validateBrickDocument } from "@lego-studio/brick-kernel";
+import {
+  createEmptyBrickDocument,
+  createPartInstance,
+  validateBrickDocument,
+} from "@lego-studio/brick-kernel";
 
 import {
   beginAtomicRun,
@@ -37,6 +41,7 @@ import {
   type RealBuildBrowserOutput,
 } from "../e2e/real-build-browser-output";
 import { finalizeExecutedRealBuildResult } from "../e2e/real-build-finalize";
+import { REAL_BUILD_DIAGNOSTIC_PREFIX_FILE } from "../e2e/real-build-diagnostic-prefix";
 import {
   BUILDER_GEOMETRY_EXACT_BYTES,
   encodeHighlightRendererCompatibilityInputClosure,
@@ -78,7 +83,12 @@ import {
   realBuildRunThresholds,
 } from "../e2e/real-build-run-contract";
 import { realBuildFartherCapturePath } from "../e2e/real-build-score";
-import { stepPrerequisiteFacts, type RealBuildStepReport } from "../e2e/real-build-safety";
+import {
+  stepPrerequisiteFacts,
+  type RealBuildOptions,
+  type RealBuildPanelSpec,
+  type RealBuildStepReport,
+} from "../e2e/real-build-safety";
 import {
   REAL_BUILD_TEST_DIGEST,
   completeRealBuildTestOptions,
@@ -91,7 +101,6 @@ import {
 
 const DIGEST = REAL_BUILD_TEST_DIGEST;
 const PNG = "data:image/png;base64,iVBORw0KGgo=";
-const panel = realBuildTransitionPanel(1);
 const sharedOpaqueRoleBytes = new TextEncoder().encode("shared-opaque-role-bytes");
 const rawRoleBytes = {
   ...Object.fromEntries(
@@ -125,10 +134,58 @@ const inputDigests = Object.fromEntries(
   ]),
 ) as unknown as ReturnType<typeof completeRealBuildTestOptions>["inputDigests"];
 const baseOptions = completeRealBuildTestOptions(1);
-const options = {
+const sourcePanel = baseOptions.panels[357]!;
+if (sourcePanel.action.kind !== "place-callouts") {
+  throw new TypeError("The complete fixture must retain its direct-piece panel at step 358.");
+}
+const movedPiece = sourcePanel.pieces.at(-1)!;
+const SEARCHED_TRANSFORM = {
+  positionLdu: [0, 0, 0] as const,
+  orientationId: "upright-yaw-0" as const,
+};
+const replayPiece = {
+  ...movedPiece,
+  expectedTransform: {
+    positionLdu: [20, 0, 0] as const,
+    orientationId: "upright-yaw-90" as const,
+  },
+};
+const panel: RealBuildPanelSpec = {
+  ...realBuildTransitionPanel(1),
+  action: { kind: "place-callouts", assembledPieces: 1, evidenceDigest: DIGEST },
+  pieces: [replayPiece],
+  calloutPieces: 1,
+  classifiedPhysicalCalloutPieces: 1,
+  mappedCalloutKeys: [replayPiece.calloutKey],
+};
+const rebalancedSourcePanel: RealBuildPanelSpec = {
+  ...sourcePanel,
+  pieces: sourcePanel.pieces.slice(0, -1),
+  mappedCalloutKeys: sourcePanel.mappedCalloutKeys.slice(0, -1),
+  calloutPieces: sourcePanel.calloutPieces - 1,
+  classifiedPhysicalCalloutPieces: sourcePanel.classifiedPhysicalCalloutPieces - 1,
+  action: { ...sourcePanel.action, assembledPieces: sourcePanel.action.assembledPieces - 1 },
+};
+const options: RealBuildOptions = {
   ...baseOptions,
   inputDigests,
   highlightCalibrationDigest: inputDigests.highlightCalibration,
+  panels: baseOptions.panels.map((candidate) => {
+    if (candidate.stepNumber === 1) return panel;
+    if (candidate.stepNumber === 358) return rebalancedSourcePanel;
+    return candidate;
+  }),
+  coverageByCallout: {
+    ...baseOptions.coverageByCallout,
+    [replayPiece.calloutKey]: {
+      pageNumber: panel.pageNumber,
+      stepNumber: 1,
+      quantity: 1,
+      identificationConfidence: replayPiece.identificationConfidence,
+      cropDigest: replayPiece.cropDigest,
+      inputDigest: replayPiece.identificationInputDigest,
+    },
+  },
   coverageInputBindings: {
     pdf: inputDigests.pdf,
     calloutManifest: inputDigests.calloutManifest,
@@ -137,39 +194,47 @@ const options = {
 
 function browserOutput(): RealBuildBrowserOutput {
   const base = createEmptyBrickDocument({ id: "replay", name: "replay", maxParts: 1_464 });
+  const part = createPartInstance({
+    id: "part-1",
+    stepId: base.steps[0]!.id,
+    catalogPartId: replayPiece.catalogPartId,
+    colorId: replayPiece.colorId,
+    transform: SEARCHED_TRANSFORM,
+  });
   const document = {
     ...base,
+    parts: [part],
     steps: [
       {
-        id: "step-1",
-        index: 0,
-        name: `Step 1 [transition:rotation;panel=${DIGEST}]`,
-        partIds: [],
+        ...base.steps[0]!,
+        name: "Step 1",
+        partIds: [part.id],
       },
     ],
+    submodels: [{ ...base.submodels[0]!, partIds: [part.id] }],
   };
   const validation = validateBrickDocument(document);
   const report: RealBuildStepReport = {
     stepNumber: 1,
-    pageNumber: 1,
-    panelFace: "studs-up",
-    calloutPieces: 0,
-    expectedAssembledPieces: 0,
-    attemptedPieces: 0,
-    placedPieces: 0,
+    pageNumber: panel.pageNumber,
+    panelFace: panel.panelFace,
+    calloutPieces: 1,
+    expectedAssembledPieces: 1,
+    attemptedPieces: 1,
+    placedPieces: 1,
     action: panel.action,
     actionEvidenceDigest: DIGEST,
     canonicalStepId: "step-1",
     prerequisites: stepPrerequisiteFacts({
       stepNumber: 1,
-      actionKind: "transition",
+      actionKind: "place-callouts",
       blockingStep: null,
       coverageFailures: [],
       unresolvedCallouts: [],
       missingDesigns: [],
-      calloutPieces: 0,
-      expectedAssembledPieces: 0,
-      resolvedPieces: 0,
+      calloutPieces: 1,
+      expectedAssembledPieces: 1,
+      resolvedPieces: 1,
     }),
     outcome: { status: "complete", mechanism: "deferred-lookahead", failure: null },
     validation: {
@@ -192,7 +257,31 @@ function browserOutput(): RealBuildBrowserOutput {
     camera: null,
     highlight: { regions: 0, closedContourRate: 0, strokePx: 0, boundsPx: null },
     arrows: { kept: 0, redPx: 0, rejected: 0, displacementFamily: 0, displacementFamilyLdu: [] },
-    pieces: [],
+    pieces: [
+      {
+        catalogPartId: replayPiece.catalogPartId,
+        blind: {
+          comparisonPrefixHash: DIGEST,
+          distinctCandidates: 2,
+          feasible: true,
+          rendered: 2,
+          bestScore: 0.9,
+          runnerUpScore: 0.5,
+          agreesWithHighlight: true,
+          refusal: null,
+          elapsedMs: 1,
+        },
+        enumerated: 2,
+        afterProximity: 2,
+        rendered: 2,
+        bestScore: 0.9,
+        runnerUpScore: 0.5,
+        placed: true,
+        positionLdu: SEARCHED_TRANSFORM.positionLdu,
+        orientationId: SEARCHED_TRANSFORM.orientationId,
+        failure: null,
+      },
+    ],
     jointVisual: null,
     deferral: {
       trigger: "unseparated-by-own-panel",
@@ -205,9 +294,9 @@ function browserOutput(): RealBuildBrowserOutput {
       lookaheadTurnDegrees: 0,
       lookaheadTurnAnchorIou: 0.8,
       lookaheadTurnMargin: 0.2,
-      narrowingRenders: 0,
-      offeredPerPiece: [],
-      carriedPerPiece: [],
+      narrowingRenders: 2,
+      offeredPerPiece: [2],
+      carriedPerPiece: [2],
       wholeStepCandidates: 2,
       rendered: 2,
       lookaheadBuiltPixels: 100,
@@ -224,15 +313,30 @@ function browserOutput(): RealBuildBrowserOutput {
         candidates: [
           {
             candidateId: "origin-a",
-            documentHash: DIGEST,
-            pieces: [],
+            documentHash: validation.targetDocumentHash,
+            pieces: [
+              {
+                catalogPartId: replayPiece.catalogPartId,
+                colorId: replayPiece.colorId,
+                transform: SEARCHED_TRANSFORM,
+              },
+            ],
             lookaheadAgreement: 0.9,
             lookaheadShiftPx: [0, 0],
           },
           {
             candidateId: "origin-b",
             documentHash: DIGEST,
-            pieces: [],
+            pieces: [
+              {
+                catalogPartId: replayPiece.catalogPartId,
+                colorId: replayPiece.colorId,
+                transform: {
+                  positionLdu: [20, 0, 0],
+                  orientationId: "upright-yaw-0",
+                },
+              },
+            ],
             lookaheadAgreement: 0.5,
             lookaheadShiftPx: [0, 0],
           },
@@ -295,7 +399,7 @@ function browserOutput(): RealBuildBrowserOutput {
       },
     ],
     explodedGhost: null,
-    documentParts: 0,
+    documentParts: 1,
     elapsedMs: 1,
     panelPng: null,
     buildPng: null,
@@ -305,7 +409,17 @@ function browserOutput(): RealBuildBrowserOutput {
     status: "executed",
     reports: [report],
     documentJson: JSON.stringify(document),
-    identityBindings: [],
+    identityBindings: [
+      {
+        identityKey: replayPiece.identityKey,
+        partId: part.id,
+        stepNumber: 1,
+        designId: replayPiece.designId,
+        materialId: replayPiece.materialId,
+        catalogPartId: replayPiece.catalogPartId,
+        colorId: replayPiece.colorId,
+      },
+    ],
     fetchedPdfDigest: inputDigests.pdf,
     totalElapsedMs: 1,
   };
@@ -530,9 +644,18 @@ describe("real-build replay closure", () => {
         options,
         browserOutput: retainedBrowserOutput,
       });
-      if (result.documentJson === null)
-        throw new Error("Replay fixture finalizer lost its document.");
-      writeFileSync(join(run.directory, "document.json"), result.documentJson);
+      if (result.diagnosticPrefix === null)
+        throw new Error("Replay fixture finalizer lost its frame-unreconciled diagnostic prefix.");
+      expect(result).toMatchObject({
+        status: "incomplete",
+        documentJson: null,
+        structuralHash: null,
+        finalParts: 0,
+      });
+      writeFileSync(
+        join(run.directory, REAL_BUILD_DIAGNOSTIC_PREFIX_FILE),
+        result.diagnosticPrefix.documentJson,
+      );
       const fartherCapturePaths = retainedBrowserOutput.reports.flatMap((step) =>
         step.fartherCaptures.map((capture) => {
           const path = realBuildFartherCapturePath(step.stepNumber, capture);
@@ -562,7 +685,7 @@ describe("real-build replay closure", () => {
           REAL_BUILD_SERVED_RESPONSE_MANIFEST,
           runnerChunk,
           ...fartherCapturePaths,
-          "document.json",
+          REAL_BUILD_DIAGNOSTIC_PREFIX_FILE,
           "score.json",
         ],
         replayClosure,
@@ -629,6 +752,57 @@ describe("real-build replay closure", () => {
         /does not exactly reproduce/u,
       );
       writeFileSync(scorePath, originalScore);
+      writeFileSync(artifactManifestPath, originalArtifactManifest);
+
+      const forgedDiagnosticScore = JSON.parse(originalScore.toString("utf8")) as {
+        diagnosticPrefix: { throughStepNumber: number };
+      };
+      forgedDiagnosticScore.diagnosticPrefix.throughStepNumber = 2;
+      const forgedDiagnosticScoreBytes = Buffer.from(
+        `${JSON.stringify(forgedDiagnosticScore, null, 1)}\n`,
+      );
+      writeFileSync(scorePath, forgedDiagnosticScoreBytes);
+      const forgedDiagnosticManifest = JSON.parse(originalArtifactManifest.toString("utf8")) as {
+        truthSnapshots: { diagnosticPrefix: { throughStepNumber: number } };
+        artifacts: { file: string; bytes: number; digest: string }[];
+      };
+      forgedDiagnosticManifest.truthSnapshots.diagnosticPrefix.throughStepNumber = 2;
+      const forgedDiagnosticScoreEntry = forgedDiagnosticManifest.artifacts.find(
+        ({ file }) => file === "score.json",
+      )!;
+      forgedDiagnosticScoreEntry.bytes = forgedDiagnosticScoreBytes.length;
+      forgedDiagnosticScoreEntry.digest = sha256Digest(forgedDiagnosticScoreBytes);
+      writeFileSync(artifactManifestPath, `${JSON.stringify(forgedDiagnosticManifest, null, 1)}\n`);
+      expect(() => verifyRealBuildArtifactManifest(published, plan.runId)).toThrow(
+        /does not exactly reproduce|exact longest atomic prefix 1/u,
+      );
+      writeFileSync(scorePath, originalScore);
+      writeFileSync(artifactManifestPath, originalArtifactManifest);
+
+      writeFileSync(join(published, "document.json"), "{}\n");
+      expect(() => verifyRealBuildArtifactManifest(published, plan.runId)).toThrow(
+        /undeclared reserved evidence file.*document\.json/u,
+      );
+      rmSync(join(published, "document.json"));
+
+      rmSync(join(published, REAL_BUILD_DIAGNOSTIC_PREFIX_FILE));
+      writeFileSync(scorePath, originalScore);
+      const strippedManifest = JSON.parse(originalArtifactManifest.toString("utf8")) as {
+        truthSnapshots: { diagnosticPrefix: unknown };
+        artifacts: { file: string; bytes: number; digest: string }[];
+      };
+      strippedManifest.truthSnapshots.diagnosticPrefix = null;
+      strippedManifest.artifacts = strippedManifest.artifacts.filter(
+        ({ file }) => file !== REAL_BUILD_DIAGNOSTIC_PREFIX_FILE,
+      );
+      writeFileSync(artifactManifestPath, `${JSON.stringify(strippedManifest, null, 1)}\n`);
+      expect(() => verifyRealBuildArtifactManifest(published, plan.runId)).toThrow(
+        /must bind the artifact run|does not exactly reproduce/u,
+      );
+      writeFileSync(
+        join(published, REAL_BUILD_DIAGNOSTIC_PREFIX_FILE),
+        result.diagnosticPrefix.documentJson,
+      );
       writeFileSync(artifactManifestPath, originalArtifactManifest);
 
       const fartherCapturePath = join(published, fartherCapturePaths[0]!);

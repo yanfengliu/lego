@@ -1,5 +1,9 @@
 import type { RealBuildOptions } from "./real-build-safety";
 import {
+  measuredFartherOriginProbeIneligibility,
+  measuredFartherOriginKReportIneligibility,
+} from "./real-build-farther-origin-policy";
+import {
   MAXIMUM_REAL_BUILD_FARTHER_CAPTURES,
   type RealBuildFartherCapture,
   type RealBuildFartherEvidence,
@@ -574,6 +578,11 @@ export function isRealBuildFartherEvidence(
     | "fartherPanelRenderBudget"
     | "minimumDeferredAgreement"
     | "minimumDeferredAgreementMargin"
+    | "inputDigests"
+    | "renderScale"
+    | "panelWidth"
+    | "workFactor"
+    | "measuredFartherOriginSourceAttestation"
     | "panels"
   >,
 ): value is RealBuildFartherEvidence | null {
@@ -698,6 +707,43 @@ export function isRealBuildFartherEvidence(
     ]),
   );
   const carries = value.carries as readonly Record<string, unknown>[];
+  // A zero-panel budget refusal and an N+1-only origin observation are generic
+  // driver states. Only a carry-free report that claims to have reached K is
+  // the measured direct-origin shortcut and inherits its exact calibration.
+  const claimsDirectOriginK =
+    carries.length === 0 &&
+    ((value.panels as readonly Record<string, unknown>[]).some(
+      ({ stepNumber }) => stepNumber === reportStepNumber + 2,
+    ) ||
+      (isRecord(value.refusal) && value.refusal.stepNumber === reportStepNumber + 2));
+  if (claimsDirectOriginK) {
+    const interveningSpec = options.panels.find(
+      ({ stepNumber }) => stepNumber === reportStepNumber + 1,
+    );
+    const fartherSpec = options.panels.find(
+      ({ stepNumber }) => stepNumber === reportStepNumber + 2,
+    );
+    if (
+      interveningSpec === undefined ||
+      measuredFartherOriginProbeIneligibility({
+        originSpec: preparedOriginPanel,
+        interveningSpec,
+        fartherSpec: fartherSpec ?? null,
+        origins: originCandidates as unknown as Parameters<
+          typeof measuredFartherOriginProbeIneligibility
+        >[0]["origins"],
+        options,
+      }) !== null
+    ) {
+      return false;
+    }
+    const kPanel = (value.panels as readonly Record<string, unknown>[]).find(
+      ({ stepNumber }) => stepNumber === reportStepNumber + 2,
+    );
+    if (measuredFartherOriginKReportIneligibility({ kPanel, decision: value.decision }) !== null) {
+      return false;
+    }
+  }
   const prefixRefusalStages = new Map<string, string>([
     ["incomplete-parent-expansion", "evidence"],
     ["aggregate-candidate-budget-exhausted", "budget"],
@@ -912,51 +958,27 @@ export function isRealBuildFartherCaptures(
 ): value is readonly RealBuildFartherCapture[] {
   if (!isDenseBoundedArray(value, MAXIMUM_REAL_BUILD_FARTHER_CAPTURES)) return false;
   if (evidence === null) return value.length === 0;
-  const scoreIdsByPanel = new Map(
-    evidence.panels.map((panel) => [
-      panel.stepNumber,
-      new Set(panel.scores.map(({ candidateId }) => candidateId)),
-    ]),
-  );
+  const expected = evidence.panels.flatMap((panel) => [
+    { role: "source-panel" as const, panelStepNumber: panel.stepNumber, candidateId: null },
+    ...panel.scores.map(({ candidateId }) => ({
+      role: "candidate-render" as const,
+      panelStepNumber: panel.stepNumber,
+      candidateId,
+    })),
+  ]);
+  if (value.length !== expected.length) return false;
   for (let index = 0; index < value.length; index += 1) {
     const capture = value[index];
+    const descriptor = expected[index]!;
     if (
       !isRecord(capture) ||
       !exactKeys(capture, ["captureId", "role", "panelStepNumber", "candidateId", "png"]) ||
       capture.captureId !== index ||
-      (capture.role !== "source-panel" && capture.role !== "candidate-render") ||
-      !Number.isSafeInteger(capture.panelStepNumber) ||
-      !scoreIdsByPanel.has(capture.panelStepNumber as number) ||
-      (capture.role === "source-panel"
-        ? capture.candidateId !== null
-        : !isFartherId(capture.candidateId) ||
-          !scoreIdsByPanel.get(capture.panelStepNumber as number)!.has(capture.candidateId)) ||
+      capture.role !== descriptor.role ||
+      capture.panelStepNumber !== descriptor.panelStepNumber ||
+      capture.candidateId !== descriptor.candidateId ||
       typeof capture.png !== "string" ||
       !isNullableRealBuildPngCapture(capture.png)
-    ) {
-      return false;
-    }
-  }
-  for (const panel of evidence.panels) {
-    const sourceCaptures = value.filter(
-      (capture) =>
-        isRecord(capture) &&
-        capture.role === "source-panel" &&
-        capture.panelStepNumber === panel.stepNumber,
-    );
-    if (sourceCaptures.length !== 1) return false;
-    const candidateCaptureIds = value
-      .filter(
-        (capture) =>
-          isRecord(capture) &&
-          capture.role === "candidate-render" &&
-          capture.panelStepNumber === panel.stepNumber,
-      )
-      .map((capture) => (capture as Record<string, unknown>).candidateId as string);
-    const scoreIds = panel.scores.map(({ candidateId }) => candidateId);
-    if (
-      candidateCaptureIds.length !== scoreIds.length ||
-      !sameIds(new Set(candidateCaptureIds), new Set(scoreIds))
     ) {
       return false;
     }

@@ -6,6 +6,7 @@ import type {
   RealBuildPanelSpec,
 } from "./real-build-safety";
 import type { RealBuildSourceSnapshot } from "./real-build-replay-files";
+import { deriveMeasuredFartherOriginSourceAttestation } from "./real-build-farther-origin-source-attestation";
 
 const sha256 = (value: string | Uint8Array): string =>
   `sha256:${createHash("sha256").update(value).digest("hex")}`;
@@ -409,6 +410,23 @@ export function verifyRealBuildRunContract(input: {
       .map(({ path, digest }) => [path, digest] as const)
       .sort(([left], [right]) => left.localeCompare(right)),
   );
+  if (input.options.measuredFartherOriginSourceAttestation != null) {
+    const contractAttestation = deriveMeasuredFartherOriginSourceAttestation(
+      input.contract.codeSnapshots,
+    );
+    const retainedSourceAttestation = deriveMeasuredFartherOriginSourceAttestation(codeSnapshots);
+    if (
+      JSON.stringify(input.options.measuredFartherOriginSourceAttestation) !==
+        JSON.stringify(contractAttestation) ||
+      JSON.stringify(input.options.measuredFartherOriginSourceAttestation) !==
+        JSON.stringify(retainedSourceAttestation)
+    ) {
+      throw new TypeError(
+        "Prepared measured farther-origin source attestation does not reproduce from both " +
+          "run-contract /2 codeSnapshots and the exact retained source bundle.",
+      );
+    }
+  }
   const regenerated = createRealBuildRunContract({
     inputDigests: input.options.inputDigests,
     identificationClosure: input.contract.identificationClosure,

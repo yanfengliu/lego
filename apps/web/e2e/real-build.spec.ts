@@ -25,6 +25,7 @@ import {
   validateRealBuildArtifactFilePlan,
   writeRealBuildArtifactManifest,
 } from "./real-build-artifacts";
+import { REAL_BUILD_DIAGNOSTIC_PREFIX_FILE } from "./real-build-diagnostic-prefix";
 import {
   OFFICIAL_REAL_BUILD_ACCOUNTING,
   inputRejectedRealBuildResult,
@@ -33,7 +34,7 @@ import {
 import { describeUnboundCoverageRefusal } from "./real-build-coverage-refusal";
 import { finalizeExecutedRealBuildResult, realBuildExecutionFailure } from "./real-build-finalize";
 import { captureHighlightExclusivityRenderCases } from "./real-build-highlight-browser";
-import { expectMeasuredFartherBudgetRefusal } from "./real-build-measured-farther-assertions";
+import { expectMeasuredFartherOriginDecision } from "./real-build-measured-farther-assertions";
 import { writeContainedRegularFileAtomic } from "./contained-atomic-write";
 import {
   ACTION_LEDGER_PATH,
@@ -108,6 +109,7 @@ import {
   realBuildRunThresholds,
   type RealBuildIdentificationClosureDigests,
 } from "./real-build-run-contract";
+import { deriveMeasuredFartherOriginSourceAttestation } from "./real-build-farther-origin-source-attestation";
 import { buildRealBuildPanelSpecs } from "./real-build-panel-specs";
 import {
   ASSEMBLY_MODULE_URL,
@@ -513,6 +515,7 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
     kernelUrl: BRICK_KERNEL_MODULE_URL,
     commandsUrl: MANUAL_COMMANDS_MODULE_URL,
     assemblyUrl: ASSEMBLY_MODULE_URL,
+    measuredFartherOriginSourceAttestation: null,
     panels: specs,
     expectedPrintedSteps: EXPECTED_PRINTED_STEPS,
     lastStep: Number.isInteger(lastStep) ? lastStep : 1,
@@ -615,6 +618,8 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
   const codeSnapshots = Object.fromEntries(
     executionSourceBundle.map(({ path, digest }) => [path, digest]),
   );
+  const measuredFartherOriginSourceAttestation =
+    deriveMeasuredFartherOriginSourceAttestation(codeSnapshots);
   const runContract = createRealBuildRunContract({
     inputDigests,
     identificationClosure: identificationClosureDigests,
@@ -661,6 +666,7 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
     };
     const executionOptions: RealBuildOptions = {
       ...options,
+      measuredFartherOriginSourceAttestation,
       pdfjsUrl: mirrorUrl("node_modules/pdfjs-dist/build/pdf.mjs"),
       workerUrl: mirrorUrl("node_modules/pdfjs-dist/build/pdf.worker.mjs"),
       pdfUrl: mirrorUrl("inputs/booklet.pdf"),
@@ -817,6 +823,7 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
       ...servedResponseEvidence.files,
       ...stepArtifactFiles,
       ...(result.documentJson === null || result.structuralHash === null ? [] : ["document.json"]),
+      ...(result.diagnosticPrefix === null ? [] : [REAL_BUILD_DIAGNOSTIC_PREFIX_FILE]),
       "score.json",
     ]);
     for (const step of result.steps) {
@@ -846,6 +853,14 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
       writeContainedRegularFileAtomic(run.directory, "document.json", result.documentJson, {
         label: "real-build document",
       });
+    }
+    if (result.diagnosticPrefix !== null) {
+      writeContainedRegularFileAtomic(
+        run.directory,
+        REAL_BUILD_DIAGNOSTIC_PREFIX_FILE,
+        result.diagnosticPrefix.documentJson,
+        { label: "real-build diagnostic prefix" },
+      );
     }
     const score = createRealBuildScore({
       runId: plan.runId,
@@ -946,7 +961,7 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
       `retained unauthenticated evidence ${published}`,
   );
 
-  expect(result.schemaVersion).toBe("lego.real-build-result/3");
+  expect(result.schemaVersion).toBe("lego.real-build-result/4");
   expect(result.inputDigests).toEqual(inputDigests);
   if (result.status === "completed") {
     const executionFailure = realBuildExecutionFailure(result);
@@ -968,10 +983,10 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
   } else {
     expect(result.status).toBe("incomplete");
     expect(result.steps).toHaveLength(options.lastStep);
-    if (options.lastStep >= 7) {
-      expectMeasuredFartherBudgetRefusal(result);
-    }
     const executionFailure = realBuildExecutionFailure(result);
     expect(executionFailure).toMatchObject({ code: "run-incomplete", stage: "validation" });
+  }
+  if (options.lastStep >= 7) {
+    expectMeasuredFartherOriginDecision(result);
   }
 });

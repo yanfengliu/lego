@@ -1,20 +1,22 @@
-import { instructionSilhouetteMasks, maskCentroid } from "./real-build-contract";
 import {
   createNarrowingRenderBudgetLedger,
   enumerateWholeStepCandidates,
   placementsOwnPanelCannotSeparate,
-  registerPrefixAgreement,
   type NarrowingRenderBudgetLedger,
   type WholeStepCandidateBudgetLedger,
   type WholeStepPlacementTransform,
 } from "./real-build-deferral";
 import type { DeferredUnresolvedCandidate } from "./real-build-deferred-step";
 import { runFartherPanelDriver } from "./real-build-farther-driver";
+import { attemptMeasuredFartherOrigin, fartherFailure } from "./real-build-farther-origin-attempt";
 import { findFirstRevealingPanel } from "./real-build-farther-panel";
+import {
+  scoreFartherDocumentsAgainstPanel,
+  type FartherPanelScoreResult,
+} from "./real-build-farther-scoring";
 import type { RuntimeBrickIdentity } from "./real-build-fixed-actions";
 import type {
   FartherRefusal,
-  FartherPanelObservationInput,
   FartherParentExpansion,
   FartherPlacementWitness,
 } from "./real-build-farther-panel-types";
@@ -312,149 +314,7 @@ export function expandFartherPrintedStep<D>(input: {
   }
 }
 
-export interface FartherPanelScoreResult {
-  readonly observation: FartherPanelObservationInput;
-  readonly candidatePngs: readonly { readonly candidateId: string; readonly png: string }[];
-}
-
-/** Scores exact carried documents against a farther panel using one base-bound quarter turn. */
-export function scoreFartherDocumentsAgainstPanel<D>(input: {
-  readonly spec: RealBuildPanelSpec;
-  readonly evidence: PanelRasterEvidence;
-  readonly anchorDocument: D;
-  readonly candidates: readonly { readonly candidateId: string; readonly document: D }[];
-  readonly reservedPanelRenders: number;
-  readonly subject?: "origin" | "frontier";
-  readonly options: RealBuildOptions;
-  readonly rendering: PreparedRealBuildModules["rendering"];
-}): FartherPanelScoreResult {
-  const { spec, evidence, rendering } = input;
-  if (
-    !Number.isSafeInteger(input.reservedPanelRenders) ||
-    input.reservedPanelRenders !== input.candidates.length
-  ) {
-    throw new RangeError(
-      `Panel ${spec.stepNumber} reserved ${input.reservedPanelRenders} candidate renders for ` +
-        `${input.candidates.length} exact candidates; required one pre-reserved render per score row.`,
-    );
-  }
-  const view = correctedView(evidence, input.options);
-  if (view === null) {
-    return {
-      observation: {
-        stepNumber: spec.stepNumber,
-        status: "not-observable",
-        reason: "camera-unresolved",
-      },
-      candidatePngs: [],
-    };
-  }
-  const { width, height, builtMask, highlight } = evidence;
-  const builtCentroid = maskCentroid(builtMask, width, height);
-  if (builtCentroid === null) {
-    return {
-      observation: {
-        stepNumber: spec.stepNumber,
-        status: "not-observable",
-        reason: "no-built-art",
-      },
-      candidatePngs: [],
-    };
-  }
-  const excludedMask = new Uint8Array(width * height);
-  let filledHighlightPixels = 0;
-  for (let index = 0; index < excludedMask.length; index += 1) {
-    excludedMask[index] = highlight.mask[index] === 1 || highlight.strokeMask[index] === 1 ? 1 : 0;
-    if (highlight.mask[index] === 1 && highlight.strokeMask[index] !== 1)
-      filledHighlightPixels += 1;
-  }
-  const measure = filledHighlightPixels === 0 ? "containment" : "iou";
-  const frame = frameFor(evidence);
-  const renderer = rendering.createInstructionRenderer({ width, height });
-  try {
-    const renderSilhouetteAt = (
-      subject: D,
-      turnDegrees: number,
-    ): { readonly mask: Uint8Array; readonly pixels: Uint8Array } => {
-      const scene = rendering.deriveBrickScene(subject, { finish: "instruction" });
-      try {
-        rendering.setInstructionSilhouetteMode(scene.root, true);
-        const camera = rendering.createOrthographicViewCamera(
-          {
-            ...view,
-            azimuthDegrees: view.azimuthDegrees + turnDegrees,
-            centerXPx: width / 2,
-            centerYPx: height / 2,
-          },
-          frame,
-        );
-        const pixels = new Uint8Array(renderer.render(scene.root, camera));
-        return {
-          mask: instructionSilhouetteMasks(pixels, width, height, 0x923978).all,
-          pixels,
-        };
-      } finally {
-        scene.dispose();
-      }
-    };
-    const anchored = anchorStepCamera({
-      stepNumber: spec.stepNumber,
-      renderModelMask: (turnDegrees) => renderSilhouetteAt(input.anchorDocument, turnDegrees).mask,
-      builtMask,
-      excludedMask,
-      widthPx: width,
-      heightPx: height,
-    });
-    if (anchored.failure !== null || anchored.anchorTurnDegrees === null) {
-      return {
-        observation: {
-          stepNumber: spec.stepNumber,
-          status: "not-observable",
-          reason: "camera-unresolved",
-        },
-        candidatePngs: [],
-      };
-    }
-    const turnDegrees = anchored.anchorTurnDegrees;
-    const scores: { candidateId: string; agreement: number }[] = [];
-    const candidatePngs: { candidateId: string; png: string }[] = [];
-    for (const candidate of input.candidates) {
-      const scoreRender = renderSilhouetteAt(candidate.document, turnDegrees);
-      const mask = scoreRender.mask;
-      const from = maskCentroid(mask, width, height);
-      const agreement =
-        from === null
-          ? { agreement: 0, shiftPx: [0, 0] as const }
-          : registerPrefixAgreement({
-              candidateMask: mask,
-              builtMask,
-              excludedMask,
-              width,
-              height,
-              seedPx: [builtCentroid.x - from.x, builtCentroid.y - from.y],
-              measure,
-            });
-      scores.push({ candidateId: candidate.candidateId, agreement: agreement.agreement });
-      candidatePngs.push({
-        candidateId: candidate.candidateId,
-        png: rgbaPngDataUrl(scoreRender.pixels, width, height),
-      });
-    }
-    return {
-      observation: {
-        stepNumber: spec.stepNumber,
-        status: "scored",
-        subject: input.subject ?? "frontier",
-        scores: Object.freeze(scores),
-      },
-      // These are the exact owned RGBA buffers that produced the score masks;
-      // retaining them performs no second renderer invocation.
-      candidatePngs: Object.freeze(candidatePngs),
-    };
-  } finally {
-    renderer.dispose();
-  }
-}
+export { scoreFartherDocumentsAgainstPanel } from "./real-build-farther-scoring";
 
 export interface FartherPrintedStepAttempt<D> {
   readonly evidence: RealBuildFartherEvidence;
@@ -493,26 +353,15 @@ export function settleFartherOriginPieceReports<D>(
   });
 }
 
-const fartherFailure = (
-  originStepNumber: number,
-  refusal: RealBuildFartherEvidence["refusal"],
-): StepFailure | null =>
-  refusal === null
-    ? null
-    : {
-        code: refusal.stage === "budget" ? "resource-budget-exhausted" : "deferred-panel-unscored",
-        stage: refusal.stage === "input" ? "evidence" : refusal.stage,
-        stepNumber: originStepNumber,
-        message: refusal.message,
-      };
-
 /**
  * Browser binding for the first complete N/N+1/K farther search.
  *
- * It deliberately admits one intervening atomic step. The generic coordinator
- * owns deeper lineage; this adapter owns production rendering, placement and
- * capture bytes for the booklet driver. Every parent uses one shared narrowing
- * ledger, and an over-limit batch is rejected before its scoring callback runs.
+ * The exact measured step-5 policy may score the two origins directly at K
+ * before constructing N+1. Every other input deliberately admits one
+ * intervening atomic step first. The generic coordinator owns deeper lineage;
+ * this adapter owns production rendering, placement and capture bytes for the
+ * booklet driver. Every parent uses one shared narrowing ledger, and an
+ * over-limit batch is rejected before its scoring callback runs.
  */
 export async function attemptFartherPrintedStep<D>(input: {
   readonly originSpec: RealBuildPanelSpec;
@@ -528,6 +377,7 @@ export async function attemptFartherPrintedStep<D>(input: {
   readonly options: RealBuildOptions;
   readonly modules: Pick<PreparedRealBuildModules, "rendering" | "kernel" | "assembly">;
   readonly place: Place<D>;
+  readonly scoreMeasuredOriginPanel?: typeof scoreFartherDocumentsAgainstPanel;
 }): Promise<FartherPrintedStepAttempt<D>> {
   const { originSpec, interveningSpec, options, modules } = input;
   // The asynchronous K loader is outside the deterministic driver. Snapshot
@@ -569,9 +419,10 @@ export async function attemptFartherPrintedStep<D>(input: {
     margin: input.originMargin,
     minimumMargin: input.originMinimumMargin,
   });
-  // K is deliberately not loaded here. The synchronous coordinator first
-  // completes every intervening parent and reserves the exact K score rows;
-  // only its continuation callback can authorize the asynchronous PDF load.
+  // K is deliberately not loaded eagerly. The source-bound measured branch
+  // below may authorize it against exact origins; otherwise the synchronous
+  // coordinator must complete every intervening parent and reserve the exact K
+  // score rows before its continuation authorizes the asynchronous PDF load.
   let fartherEvidence: PanelRasterEvidence | null = null;
   const ledger = createNarrowingRenderBudgetLedger(options.deferredNarrowingRenderBudget);
   // N+1 was already scored by `settleDeferredPrintedStep`; use those exact
@@ -608,6 +459,24 @@ export async function attemptFartherPrintedStep<D>(input: {
       ),
     ),
   };
+  const measuredOriginAttempt = await attemptMeasuredFartherOrigin({
+    originSpec,
+    baseDocument: input.baseDocument,
+    baseDocumentHash,
+    origins,
+    originEvidence,
+    interveningSpec,
+    interveningEvidence: input.interveningEvidence,
+    interveningScore,
+    fartherSpec: input.fartherSpec,
+    loadFartherEvidence: input.loadFartherEvidence,
+    options,
+    modules,
+    ...(input.scoreMeasuredOriginPanel === undefined
+      ? {}
+      : { scoreMeasuredOriginPanel: input.scoreMeasuredOriginPanel }),
+  });
+  if (measuredOriginAttempt !== null) return measuredOriginAttempt;
   let fartherScore: FartherPanelScoreResult | null = null;
   type PendingK = {
     readonly alternatives: readonly {

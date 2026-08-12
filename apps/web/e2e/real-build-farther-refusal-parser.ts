@@ -8,6 +8,7 @@ const REFUSAL_STAGES = new Map<string, string>([
   ["panel-render-budget-exhausted", "budget"],
   ["incomplete-panel-evidence", "evidence"],
   ["farther-panel-limit-reached", "budget"],
+  ["calibration-mismatch", "evidence"],
   ["not-observable", "evidence"],
 ]);
 
@@ -119,6 +120,23 @@ export function isRealBuildFartherRefusalCoherent(
     budgets.failedNarrowingReservation === null &&
     budgets.candidateRefusedReservation === false &&
     budgets.failedCandidateReservation === null;
+  const noCarryOriginProbe =
+    noReservationRefusal &&
+    carries.length === 0 &&
+    input.finalCandidateCount === input.originCandidateCount &&
+    budgets.offeredCandidates === 0 &&
+    budgets.narrowingRenders === 0;
+  const directNPlusOneOnly =
+    noCarryOriginProbe &&
+    panels.length === 1 &&
+    lastPanelStep === originStepNumber + 1 &&
+    budgets.reachSteps === 1;
+  const directThroughK =
+    noCarryOriginProbe &&
+    panels.length === 2 &&
+    panels[0]?.stepNumber === originStepNumber + 1 &&
+    lastPanelStep === originStepNumber + 2 &&
+    budgets.reachSteps === 2;
   const noRevealingPanel = panelStatuses.every((status) => status !== "revealing");
   const fullLastCarry =
     lastCarry !== undefined && lastCarry.parentsExpanded === lastCarry.parentCandidates;
@@ -171,36 +189,49 @@ export function isRealBuildFartherRefusalCoherent(
       }
       return (
         noRevealingPanel &&
-        fullLastCarry &&
-        refusal.stepNumber === (lastPanelStep as number) + 1 &&
-        (budgets.panelRenders as number) + input.finalCandidateCount >
-          (budgets.maximumPanelRenders as number)
+        ((fullLastCarry &&
+          refusal.stepNumber === (lastPanelStep as number) + 1 &&
+          (budgets.panelRenders as number) + input.finalCandidateCount >
+            (budgets.maximumPanelRenders as number)) ||
+          (directNPlusOneOnly &&
+            maximumReachSteps >= 2 &&
+            refusal.stepNumber === originStepNumber + 2 &&
+            (budgets.panelRenders as number) + input.originCandidateCount >
+              (budgets.maximumPanelRenders as number)))
       );
     case "incomplete-panel-evidence":
       return (
         noReservationRefusal &&
         noRevealingPanel &&
-        fullLastCarry &&
-        refusal.stepNumber === (lastPanelStep ?? originStepNumber) + 1
+        ((fullLastCarry && refusal.stepNumber === (lastPanelStep ?? originStepNumber) + 1) ||
+          (directNPlusOneOnly &&
+            maximumReachSteps >= 2 &&
+            refusal.stepNumber === originStepNumber + 2))
       );
     case "farther-panel-limit-reached":
       return (
         noReservationRefusal &&
         noRevealingPanel &&
-        fullLastCarry &&
         maximumReachSteps === 1 &&
         panels.length === 1 &&
         lastPanelStep === originStepNumber + 1 &&
         budgets.reachSteps === 1 &&
-        refusal.stepNumber === originStepNumber + 2
+        refusal.stepNumber === originStepNumber + 2 &&
+        (fullLastCarry || directNPlusOneOnly)
+      );
+    case "calibration-mismatch":
+      return (
+        noReservationRefusal &&
+        directThroughK &&
+        refusal.stepNumber === originStepNumber + 2 &&
+        panelStatuses.at(-1) === "revealing"
       );
     case "not-observable":
       return (
         noReservationRefusal &&
         noRevealingPanel &&
-        fullLastCarry &&
-        lastPanel !== undefined &&
-        refusal.stepNumber === lastPanelStep
+        ((fullLastCarry && lastPanel !== undefined && refusal.stepNumber === lastPanelStep) ||
+          (directThroughK && refusal.stepNumber === originStepNumber + 2))
       );
     default:
       return false;

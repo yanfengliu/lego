@@ -459,6 +459,50 @@ describe("first revealing farther panel", () => {
     expect(Object.isFrozen(result.evidence)).toBe(true);
   });
 
+  it("admits origin scores only at N+1 or uncarried K=N+2", () => {
+    const originFrontier = origin;
+    const originEvidence = {
+      stepNumber: 5,
+      status: "unseparated" as const,
+      margin: 0,
+      minimumMargin: 0.01,
+    };
+    const scored = (stepNumber: number) => ({
+      stepNumber,
+      status: "scored" as const,
+      subject: "origin" as const,
+      scores: originFrontier.candidates.map(({ candidateId }, index) => ({
+        candidateId,
+        agreement: 0.7 + index / 100,
+      })),
+    });
+    const later = findFirstRevealingPanel({
+      frontier: originFrontier,
+      originEvidence,
+      panels: [scored(6), scored(7), scored(8)],
+      minimumAgreement: 0.85,
+      minimumMargin: 0.02,
+      maximumPanelRenders: 16,
+      maximumReachSteps: 3,
+      fartherPanelsAvailable: false,
+    });
+    expect(later.refusal?.code).toBe("farther-input-invalid");
+    expect(later.refusal?.message).toContain("origin N+1, measured uncarried origin K=N+2");
+
+    const constructed = findFirstRevealingPanel({
+      frontier: carry(8_609).frontier!,
+      originEvidence,
+      panels: [scored(6), scored(7)],
+      minimumAgreement: 0.85,
+      minimumMargin: 0.02,
+      maximumPanelRenders: 16,
+      maximumReachSteps: 2,
+      fartherPanelsAvailable: false,
+    });
+    expect(constructed.refusal?.code).toBe("farther-input-invalid");
+    expect(constructed.refusal?.message).toContain("origin N+1, measured uncarried origin K=N+2");
+  });
+
   it("reports not-observable when occluded and weak panels exhaust the evidence", () => {
     const frontier = carry(8_609).frontier!;
     const result = findFirstRevealingPanel({

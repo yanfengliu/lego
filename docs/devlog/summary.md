@@ -2,6 +2,8 @@
 
 Current state belongs in the design documents; this index records only behaviour changes, measured results, and links to the matching detailed history.
 
+- [2026-08-12 (latest)](detailed/2026-08-12_2026-08-12.md) — Exact source/data-attested panel-7 scoring moved the visual-search diagnostic from step 4/six pieces to step 5/eight pieces at `0.816572` versus `0.936752`, semantic review proved the result is a global x reflection rather than an official-frame model, and manifest `/3` plus score `/4` now replay-bind the unreconciled diagnostic prefix while canonical output stays 0/null.
+
 - [2026-08-11 (latest)](detailed/2026-08-11_2026-08-11.md) — The production farther driver now retains both step-5 parents and their 5+3 complete step-6 leaves, then atomically refuses the next narrowing batch at 8,037/8,192 renders; the verified prefix remains four printed steps.
 
 - [2026-08-11](detailed/2026-08-11_2026-08-11.md) — Final adversarial review made review batches rebind every image and outcome, made native-pair publication and farther-panel inputs fail closed under replacement and hostile runtime values, required explicit LDraw BFC certification, and split every new source/generated table below its repository ceiling.

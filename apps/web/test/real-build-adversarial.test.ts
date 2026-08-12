@@ -357,7 +357,12 @@ describe("real build adversarial completion and ledger contracts", () => {
       browserOutput: browserOutput(1, [completeReport(1)], bytes),
     });
 
-    expect(result).toMatchObject({ status: "incomplete", finalParts: 1 });
+    expect(result).toMatchObject({
+      status: "incomplete",
+      documentJson: null,
+      structuralHash: null,
+      finalParts: 0,
+    });
     expect(result.completionFailures.map(({ message }) => message).join(" ")).toContain(
       "canonical",
     );
@@ -502,8 +507,9 @@ describe("real build adversarial completion and ledger contracts", () => {
     expect(result.completionFailures).toEqual(
       expect.arrayContaining([expect.objectContaining({ code: "visual-evidence-unverified" })]),
     );
+    expect(result.diagnosticPrefix).toBeNull();
     expect(result.completionFailures.map(({ message }) => message).join(" ")).toContain(
-      "exact official-ledger",
+      "exact searched-report transform multiset",
     );
   });
 

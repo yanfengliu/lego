@@ -4,8 +4,9 @@ import {
   type RealBuildFartherCapture,
   type RealBuildResult,
 } from "./real-build-safety";
+import { realBuildDiagnosticPrefixSummary } from "./real-build-diagnostic-prefix";
 
-export const REAL_BUILD_SCORE_SCHEMA = "lego.real-build-score/3" as const;
+export const REAL_BUILD_SCORE_SCHEMA = "lego.real-build-score/4" as const;
 
 const capturePath = (stepNumber: number, kind: "panel" | "build"): string =>
   `step-${String(stepNumber).padStart(3, "0")}-${kind}.png`;
@@ -36,6 +37,7 @@ export function createRealBuildScore(input: {
     stepsAttempted: input.result.steps.length,
     stepsComplete: built.length,
     piecesPlaced: input.result.steps.reduce((total, step) => total + step.placedPieces, 0),
+    diagnosticPrefix: realBuildDiagnosticPrefixSummary(input.result.diagnosticPrefix),
     finalParts: input.result.finalParts,
     structuralHash: input.result.structuralHash,
     inputFailures: input.result.inputFailures,

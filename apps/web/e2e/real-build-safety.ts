@@ -8,6 +8,7 @@ import type {
   RealBuildFartherEvidence,
 } from "./real-build-farther-report-types";
 import type { TrustedIdentificationConfidence } from "./real-build-identification-trust";
+import type { RealBuildSourceAttestation } from "./real-build-farther-origin-source-manifest";
 
 export type {
   RealBuildFartherBudgetEvidence,
@@ -737,6 +738,7 @@ export interface RealBuildOptions {
   readonly kernelUrl: string;
   readonly commandsUrl: string;
   readonly assemblyUrl: string;
+  readonly measuredFartherOriginSourceAttestation: RealBuildSourceAttestation | null;
   readonly panels: readonly RealBuildPanelSpec[];
   readonly expectedPrintedSteps: 359;
   readonly lastStep: number;
@@ -974,24 +976,4 @@ export interface RealBuildStepReport {
   readonly buildPng: string | null;
 }
 
-export interface RealBuildResult {
-  readonly schemaVersion: "lego.real-build-result/3";
-  readonly authority: {
-    readonly kind: "local-diagnostic";
-    readonly authenticated: false;
-    readonly trustSealDigest: null;
-    readonly reason: "released-companion-broker-unavailable";
-  };
-  readonly status: "completed" | "prefix-complete" | "incomplete" | "input-rejected";
-  readonly requestedLastStep: number;
-  readonly expectedPrintedSteps: number;
-  readonly assembledTargetParts: number;
-  readonly inputDigests: RealBuildInputDigests;
-  readonly inputFailures: readonly StepFailure[];
-  readonly completionFailures: readonly StepFailure[];
-  readonly steps: readonly RealBuildStepReport[];
-  readonly documentJson: string | null;
-  readonly structuralHash: string | null;
-  readonly finalParts: number;
-  readonly totalElapsedMs: number;
-}
+export type { RealBuildDiagnosticPrefix, RealBuildResult } from "./real-build-result";

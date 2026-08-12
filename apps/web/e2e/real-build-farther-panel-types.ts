@@ -102,6 +102,7 @@ export type FartherRefusalCode =
   | "panel-render-budget-exhausted"
   | "incomplete-panel-evidence"
   | "farther-panel-limit-reached"
+  | "calibration-mismatch"
   | "not-observable";
 
 export interface FartherRefusal {
