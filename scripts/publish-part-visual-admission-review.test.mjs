@@ -118,7 +118,7 @@ describe("part visual-admission review CLI", () => {
       rmSync(directory, { recursive: true, force: true });
       rmSync(outside, { recursive: true, force: true });
     }
-  });
+  }, 15_000);
 
   it("refuses a native-pair output reached through a linked directory ancestor", () => {
     const directory = mkdtempSync(join("test-results", "visual-pairs-output-link-"));

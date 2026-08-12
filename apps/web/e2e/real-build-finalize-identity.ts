@@ -7,6 +7,10 @@ import type {
   StepFailure,
 } from "./real-build-safety";
 import type { RealBuildIdentityBinding } from "./real-build-browser-output";
+import {
+  auditRealBuildTargetEquivalence,
+  type TargetEquivalencePlacement,
+} from "./real-build-target-equivalence";
 
 type CanonicalDocument = BrickDocumentV1;
 type CanonicalPart = BrickDocumentV1["parts"][number];
@@ -233,29 +237,6 @@ export function auditRealBuildIdentityBindings(input: {
     }
   }
 
-  const searchedFrameMismatches = expected.filter(
-    ({ transformAuthority, transform, officialTransform }) =>
-      transformAuthority === "searched-report" &&
-      transform !== null &&
-      !exactTransform(transform, officialTransform),
-  );
-  if (searchedFrameMismatches.length > 0) {
-    const first = searchedFrameMismatches[0]!;
-    failures.push({
-      code: "official-frame-calibration-missing",
-      stage: "validation",
-      stepNumber: first.stepNumber,
-      message:
-        `${searchedFrameMismatches.length} visually searched placement(s) differ from their raw calibrated ` +
-        `official-model transforms; the first is ${first.identityKey} at printed step ${first.stepNumber}: ` +
-        `searched ${JSON.stringify(first.transform)}, official ${JSON.stringify(first.officialTransform)}. ` +
-        `The repository has no independently proven proper world-frame mapping from the booklet search branch ` +
-        `to the official target. The exact valid candidate bytes remain diagnostic, but target equivalence and ` +
-        `completion are unavailable; do not treat a reflection as a frame or use the official transforms to ` +
-        `choose the visual-search answer.`,
-    });
-  }
-
   const expectedPartIdsByStep = new Map<number, string[]>();
   for (const binding of input.bindings) {
     const ids = expectedPartIdsByStep.get(binding.stepNumber) ?? [];
@@ -276,6 +257,76 @@ export function auditRealBuildIdentityBindings(input: {
           report.stepNumber,
         ),
       );
+    }
+  }
+
+  // Only the exact report -> binding -> part identity relation established
+  // above may enter target comparison. Official transforms remain a post-hoc
+  // evaluator here; no browser search or score sees them.
+  if (failures.length === 0 && expected.length > 0) {
+    const placements: TargetEquivalencePlacement[] = expected.map((identity) => {
+      const binding = bindingByIdentity.get(identity.identityKey)!;
+      const part = partById.get(binding.partId)!;
+      return {
+        identityKey: identity.identityKey,
+        stepNumber: identity.stepNumber,
+        expected: {
+          designId: identity.designId,
+          materialId: identity.materialId,
+          catalogPartId: identity.catalogPartId,
+          colorId: identity.colorId,
+          transform: identity.officialTransform,
+        },
+        actual: {
+          partId: part.id,
+          stepNumber: binding.stepNumber,
+          designId: binding.designId,
+          materialId: binding.materialId,
+          catalogPartId: part.catalogPartId,
+          colorId: part.colorId,
+          transform: part.transform,
+        },
+      };
+    });
+    const target = auditRealBuildTargetEquivalence({ placements });
+    if (target.status === "binding-invalid") {
+      failures.push(
+        completionFailure(
+          `Post-hoc target-equivalence audit rejected the independently bound placement rows: ` +
+            `${target.bindingFailure ?? "no binding defect was reported"}.`,
+        ),
+      );
+    } else if (target.status !== "proper") {
+      const mismatch = target.firstMismatch;
+      const improper = target.improperFrame;
+      failures.push({
+        code: "official-frame-calibration-missing",
+        stage: "validation",
+        ...(mismatch === null ? {} : { stepNumber: mismatch.stepNumber }),
+        message:
+          `The exact searched document has no complete catalog-realization match to the official target under ` +
+          `any proper upright yaw plus one global integer-LDU translation. ` +
+          (mismatch === null
+            ? `No bound placement supplied a proper-frame mismatch witness. `
+            : `The proper-frame frontier first empties at ${mismatch.identityKey} on printed step ` +
+              `${mismatch.stepNumber}: mapped official ${JSON.stringify(mismatch.expectedTransform)}, searched ` +
+              `${JSON.stringify(mismatch.actualTransform)}; ${mismatch.witness}. `) +
+          (improper === null
+            ? `No single D4 reflection preserves every placement origin and independently inferred connector ` +
+              `contact. `
+            : `A diagnostic ${improper.kind} with determinant ${improper.determinant} and translation ` +
+              `${JSON.stringify(improper.positionLdu)} preserves ${improper.matchedPlacements} placement origins ` +
+              `and ${improper.inferredCompatibleContacts} independently inferred compatible connector contacts. ` +
+              `Its connector, collision, allowance, and bounds layers reflect coherently, while ` +
+              `${improper.exactRenderTriangleMatchedPlacements}/${improper.matchedPlacements} placements retain ` +
+              `the exact flat render triangle-and-normal topology` +
+              (improper.firstExactRenderTriangleMismatch === null
+                ? `. `
+                : `; the first render mismatch is ${improper.firstExactRenderTriangleMismatch}. `) +
+              `An improper reflection is not a world frame and cannot authorize completion. `) +
+          `The structurally valid searched bytes remain diagnostic. Fix or carry the booklet lattice hand without ` +
+          `using official transforms to choose a visual-search answer.`,
+      });
     }
   }
   return failures;

@@ -22,12 +22,6 @@ vi.mock("../e2e/real-build-identification-closure", async (importOriginal) => {
 });
 
 import {
-  createEmptyBrickDocument,
-  createPartInstance,
-  validateBrickDocument,
-} from "@lego-studio/brick-kernel";
-
-import {
   beginAtomicRun,
   createRealBuildScore,
   createRealBuildRunContract,
@@ -36,16 +30,9 @@ import {
   verifyRealBuildArtifactManifest,
   writeRealBuildArtifactManifest,
 } from "../e2e/real-build-artifacts";
-import {
-  decodeRealBuildPngCapture,
-  type RealBuildBrowserOutput,
-} from "../e2e/real-build-browser-output";
+import { decodeRealBuildPngCapture } from "../e2e/real-build-browser-output";
 import { finalizeExecutedRealBuildResult } from "../e2e/real-build-finalize";
 import { REAL_BUILD_DIAGNOSTIC_PREFIX_FILE } from "../e2e/real-build-diagnostic-prefix";
-import {
-  BUILDER_GEOMETRY_EXACT_BYTES,
-  encodeHighlightRendererCompatibilityInputClosure,
-} from "../e2e/real-build-input-files";
 import {
   replayRealBuildFinalization,
   replayRealBuildFinalizationDiagnostic,
@@ -76,354 +63,16 @@ import {
   createRealBuildBootstrapSourceManifest,
   REAL_BUILD_SOURCE_ROOT_POLICY_PATH,
 } from "../e2e/real-build-bootstrap-source";
-import {
-  REAL_BUILD_INPUT_ROLE_BY_DIGEST,
-  REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST,
-  realBuildRunBudgets,
-  realBuildRunThresholds,
-} from "../e2e/real-build-run-contract";
+import { realBuildRunBudgets, realBuildRunThresholds } from "../e2e/real-build-run-contract";
 import { realBuildFartherCapturePath } from "../e2e/real-build-score";
+import { REAL_BUILD_TEST_DIGEST } from "./real-build-test-options";
+import { SYNTHETIC_IDENTIFICATION_GOLDEN } from "./real-build-identification-golden";
 import {
-  stepPrerequisiteFacts,
-  type RealBuildOptions,
-  type RealBuildPanelSpec,
-  type RealBuildStepReport,
-} from "../e2e/real-build-safety";
-import {
-  REAL_BUILD_TEST_DIGEST,
-  completeRealBuildTestOptions,
-  realBuildTransitionPanel,
-} from "./real-build-test-options";
-import {
-  SYNTHETIC_IDENTIFICATION_GOLDEN,
-  syntheticIdentificationGoldenBytes,
-} from "./real-build-identification-golden";
-
-const DIGEST = REAL_BUILD_TEST_DIGEST;
-const PNG = "data:image/png;base64,iVBORw0KGgo=";
-const sharedOpaqueRoleBytes = new TextEncoder().encode("shared-opaque-role-bytes");
-const rawRoleBytes = {
-  ...Object.fromEntries(
-    Object.values(REAL_BUILD_INPUT_ROLE_BY_DIGEST).map((role) => [
-      role,
-      new TextEncoder().encode(`retained-${role}`),
-    ]),
-  ),
-  [REAL_BUILD_INPUT_ROLE_BY_DIGEST.pdf]: new TextEncoder().encode("synthetic-booklet"),
-  [REAL_BUILD_INPUT_ROLE_BY_DIGEST.officialModel]: sharedOpaqueRoleBytes,
-  [REAL_BUILD_INPUT_ROLE_BY_DIGEST.actionLedger]: sharedOpaqueRoleBytes,
-  [REAL_BUILD_INPUT_ROLE_BY_DIGEST.highlightCalibration]:
-    encodeHighlightRendererCompatibilityInputClosure(Buffer.from("{}"), Buffer.from("{}")),
-  [REAL_BUILD_INPUT_ROLE_BY_DIGEST.builderGeometry]: Buffer.alloc(BUILDER_GEOMETRY_EXACT_BYTES),
-  [REAL_BUILD_INPUT_ROLE_BY_DIGEST.calloutManifest]: syntheticIdentificationGoldenBytes("manifest"),
-  [REAL_BUILD_INPUT_ROLE_BY_DIGEST.coverage]: syntheticIdentificationGoldenBytes("coverage"),
-  [REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.features]:
-    syntheticIdentificationGoldenBytes("features"),
-  [REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.match]: syntheticIdentificationGoldenBytes("match"),
-  [REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.distances]:
-    syntheticIdentificationGoldenBytes("distances"),
-  [REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.elements]:
-    syntheticIdentificationGoldenBytes("elementResolution"),
-  [REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.pairJudged]:
-    syntheticIdentificationGoldenBytes("pairJudged"),
-} as Readonly<Record<string, Uint8Array>>;
-const inputDigests = Object.fromEntries(
-  Object.entries(REAL_BUILD_INPUT_ROLE_BY_DIGEST).map(([inputKey, role]) => [
-    inputKey,
-    sha256Digest(rawRoleBytes[role]!),
-  ]),
-) as unknown as ReturnType<typeof completeRealBuildTestOptions>["inputDigests"];
-const baseOptions = completeRealBuildTestOptions(1);
-const sourcePanel = baseOptions.panels[357]!;
-if (sourcePanel.action.kind !== "place-callouts") {
-  throw new TypeError("The complete fixture must retain its direct-piece panel at step 358.");
-}
-const movedPiece = sourcePanel.pieces.at(-1)!;
-const SEARCHED_TRANSFORM = {
-  positionLdu: [0, 0, 0] as const,
-  orientationId: "upright-yaw-0" as const,
-};
-const replayPiece = {
-  ...movedPiece,
-  expectedTransform: {
-    positionLdu: [20, 0, 0] as const,
-    orientationId: "upright-yaw-90" as const,
-  },
-};
-const panel: RealBuildPanelSpec = {
-  ...realBuildTransitionPanel(1),
-  action: { kind: "place-callouts", assembledPieces: 1, evidenceDigest: DIGEST },
-  pieces: [replayPiece],
-  calloutPieces: 1,
-  classifiedPhysicalCalloutPieces: 1,
-  mappedCalloutKeys: [replayPiece.calloutKey],
-};
-const rebalancedSourcePanel: RealBuildPanelSpec = {
-  ...sourcePanel,
-  pieces: sourcePanel.pieces.slice(0, -1),
-  mappedCalloutKeys: sourcePanel.mappedCalloutKeys.slice(0, -1),
-  calloutPieces: sourcePanel.calloutPieces - 1,
-  classifiedPhysicalCalloutPieces: sourcePanel.classifiedPhysicalCalloutPieces - 1,
-  action: { ...sourcePanel.action, assembledPieces: sourcePanel.action.assembledPieces - 1 },
-};
-const options: RealBuildOptions = {
-  ...baseOptions,
-  inputDigests,
-  highlightCalibrationDigest: inputDigests.highlightCalibration,
-  panels: baseOptions.panels.map((candidate) => {
-    if (candidate.stepNumber === 1) return panel;
-    if (candidate.stepNumber === 358) return rebalancedSourcePanel;
-    return candidate;
-  }),
-  coverageByCallout: {
-    ...baseOptions.coverageByCallout,
-    [replayPiece.calloutKey]: {
-      pageNumber: panel.pageNumber,
-      stepNumber: 1,
-      quantity: 1,
-      identificationConfidence: replayPiece.identificationConfidence,
-      cropDigest: replayPiece.cropDigest,
-      inputDigest: replayPiece.identificationInputDigest,
-    },
-  },
-  coverageInputBindings: {
-    pdf: inputDigests.pdf,
-    calloutManifest: inputDigests.calloutManifest,
-  },
-};
-
-function browserOutput(): RealBuildBrowserOutput {
-  const base = createEmptyBrickDocument({ id: "replay", name: "replay", maxParts: 1_464 });
-  const part = createPartInstance({
-    id: "part-1",
-    stepId: base.steps[0]!.id,
-    catalogPartId: replayPiece.catalogPartId,
-    colorId: replayPiece.colorId,
-    transform: SEARCHED_TRANSFORM,
-  });
-  const document = {
-    ...base,
-    parts: [part],
-    steps: [
-      {
-        ...base.steps[0]!,
-        name: "Step 1",
-        partIds: [part.id],
-      },
-    ],
-    submodels: [{ ...base.submodels[0]!, partIds: [part.id] }],
-  };
-  const validation = validateBrickDocument(document);
-  const report: RealBuildStepReport = {
-    stepNumber: 1,
-    pageNumber: panel.pageNumber,
-    panelFace: panel.panelFace,
-    calloutPieces: 1,
-    expectedAssembledPieces: 1,
-    attemptedPieces: 1,
-    placedPieces: 1,
-    action: panel.action,
-    actionEvidenceDigest: DIGEST,
-    canonicalStepId: "step-1",
-    prerequisites: stepPrerequisiteFacts({
-      stepNumber: 1,
-      actionKind: "place-callouts",
-      blockingStep: null,
-      coverageFailures: [],
-      unresolvedCallouts: [],
-      missingDesigns: [],
-      calloutPieces: 1,
-      expectedAssembledPieces: 1,
-      resolvedPieces: 1,
-    }),
-    outcome: { status: "complete", mechanism: "deferred-lookahead", failure: null },
-    validation: {
-      attempted: true,
-      targetDocumentHash: validation.targetDocumentHash,
-      truthSnapshotHash: validation.truthSnapshotHash,
-      validatorSetHash: validation.validatorSetHash,
-      documentGloballyValid: validation.documentGloballyValid,
-      blockingIssues: [],
-      failure: null,
-    },
-    fit: {
-      azimuthDegrees: null,
-      elevationDegrees: null,
-      pixelsPerUnit: null,
-      residualPx: null,
-      coherence: 0,
-      failure: null,
-    },
-    camera: null,
-    highlight: { regions: 0, closedContourRate: 0, strokePx: 0, boundsPx: null },
-    arrows: { kept: 0, redPx: 0, rejected: 0, displacementFamily: 0, displacementFamilyLdu: [] },
-    pieces: [
-      {
-        catalogPartId: replayPiece.catalogPartId,
-        blind: {
-          comparisonPrefixHash: DIGEST,
-          distinctCandidates: 2,
-          feasible: true,
-          rendered: 2,
-          bestScore: 0.9,
-          runnerUpScore: 0.5,
-          agreesWithHighlight: true,
-          refusal: null,
-          elapsedMs: 1,
-        },
-        enumerated: 2,
-        afterProximity: 2,
-        rendered: 2,
-        bestScore: 0.9,
-        runnerUpScore: 0.5,
-        placed: true,
-        positionLdu: SEARCHED_TRANSFORM.positionLdu,
-        orientationId: SEARCHED_TRANSFORM.orientationId,
-        failure: null,
-      },
-    ],
-    jointVisual: null,
-    deferral: {
-      trigger: "unseparated-by-own-panel",
-      ownPanelMargin: 0.1,
-      ownPanelMinimumMargin: 0.2,
-      lookaheadStepNumber: 2,
-      reachSteps: 1,
-      lookaheadUpSign: 1,
-      lookaheadMeasure: "iou",
-      lookaheadTurnDegrees: 0,
-      lookaheadTurnAnchorIou: 0.8,
-      lookaheadTurnMargin: 0.2,
-      narrowingRenders: 2,
-      offeredPerPiece: [2],
-      carriedPerPiece: [2],
-      wholeStepCandidates: 2,
-      rendered: 2,
-      lookaheadBuiltPixels: 100,
-      bestAgreement: 0.9,
-      runnerUpAgreement: 0.5,
-      margin: 0.4,
-      minimumMargin: 0.2,
-      minimumAgreement: 0.85,
-      settled: false,
-    },
-    farther: {
-      origin: {
-        evidence: { stepNumber: 1, status: "unseparated", margin: 0.1, minimumMargin: 0.2 },
-        candidates: [
-          {
-            candidateId: "origin-a",
-            documentHash: validation.targetDocumentHash,
-            pieces: [
-              {
-                catalogPartId: replayPiece.catalogPartId,
-                colorId: replayPiece.colorId,
-                transform: SEARCHED_TRANSFORM,
-              },
-            ],
-            lookaheadAgreement: 0.9,
-            lookaheadShiftPx: [0, 0],
-          },
-          {
-            candidateId: "origin-b",
-            documentHash: DIGEST,
-            pieces: [
-              {
-                catalogPartId: replayPiece.catalogPartId,
-                colorId: replayPiece.colorId,
-                transform: {
-                  positionLdu: [20, 0, 0],
-                  orientationId: "upright-yaw-0",
-                },
-              },
-            ],
-            lookaheadAgreement: 0.5,
-            lookaheadShiftPx: [0, 0],
-          },
-        ],
-      },
-      carries: [],
-      panels: [
-        {
-          stepNumber: 2,
-          reachSteps: 1,
-          status: "revealing",
-          reason: null,
-          scores: [
-            { candidateId: "origin-a", agreement: 0.9 },
-            { candidateId: "origin-b", agreement: 0.5 },
-          ],
-          bestAgreement: 0.9,
-          familyMargin: 0.4,
-          descendantMargin: null,
-        },
-      ],
-      budgets: {
-        offeredCandidates: 0,
-        maximumCandidates: options.deferredCandidateBudget,
-        narrowingRenders: 0,
-        maximumNarrowingRenders: options.deferredNarrowingRenderBudget,
-        panelRenders: 2,
-        maximumPanelRenders: options.fartherPanelRenderBudget,
-        reachSteps: 1,
-        maximumReachSteps: options.fartherPanelMaximumReachSteps,
-        refusedReservation: false,
-        failedNarrowingReservation: null,
-        candidateRefusedReservation: false,
-        failedCandidateReservation: null,
-      },
-      refusal: null,
-      decision: {
-        originCandidateId: "origin-a",
-        revealingStepNumber: 2,
-        survivingCandidateIds: ["origin-a"],
-        rejectedCandidateIds: ["origin-b"],
-        descendantSettled: true,
-      },
-    },
-    fartherCaptures: [
-      { captureId: 0, role: "source-panel", panelStepNumber: 2, candidateId: null, png: PNG },
-      {
-        captureId: 1,
-        role: "candidate-render",
-        panelStepNumber: 2,
-        candidateId: "origin-a",
-        png: PNG,
-      },
-      {
-        captureId: 2,
-        role: "candidate-render",
-        panelStepNumber: 2,
-        candidateId: "origin-b",
-        png: PNG,
-      },
-    ],
-    explodedGhost: null,
-    documentParts: 1,
-    elapsedMs: 1,
-    panelPng: null,
-    buildPng: null,
-  };
-  return {
-    schemaVersion: "lego.real-build-browser-output/2",
-    status: "executed",
-    reports: [report],
-    documentJson: JSON.stringify(document),
-    identityBindings: [
-      {
-        identityKey: replayPiece.identityKey,
-        partId: part.id,
-        stepNumber: 1,
-        designId: replayPiece.designId,
-        materialId: replayPiece.materialId,
-        catalogPartId: replayPiece.catalogPartId,
-        colorId: replayPiece.colorId,
-      },
-    ],
-    fetchedPdfDigest: inputDigests.pdf,
-    totalElapsedMs: 1,
-  };
-}
+  replayBrowserOutput as browserOutput,
+  replayInputDigests as inputDigests,
+  replayOptions as options,
+  replayRawRoleBytes as rawRoleBytes,
+} from "./real-build-replay-fixture";
 
 /** Run roots this file leaves behind, which must be none. */
 function replayTestRoots(): readonly string[] {
@@ -645,9 +294,23 @@ describe("real-build replay closure", () => {
         browserOutput: retainedBrowserOutput,
       });
       if (result.diagnosticPrefix === null)
-        throw new Error("Replay fixture finalizer lost its frame-unreconciled diagnostic prefix.");
+        throw new Error(
+          `Replay fixture finalizer lost its frame-unreconciled diagnostic prefix: ` +
+            JSON.stringify(result.completionFailures),
+        );
       expect(result).toMatchObject({
         status: "incomplete",
+        completionFailures: expect.arrayContaining([
+          expect.objectContaining({
+            code: "official-frame-calibration-missing",
+            stepNumber: 1,
+          }),
+        ]),
+        diagnosticPrefix: {
+          throughStepNumber: 1,
+          targetEquivalence: "unreconciled",
+          parts: 2,
+        },
         documentJson: null,
         structuralHash: null,
         finalParts: 0,
