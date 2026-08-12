@@ -28,8 +28,8 @@ const REGISTRATION_KEYS = [
   "shiftPx",
   "turnDegrees",
 ] as const;
-const OBSERVATION_ID_KEYS = ["documentHash", "registration", "stepNumber"] as const;
-const DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/u;
+const OBSERVATION_ID_KEYS = ["candidateId", "registration"] as const;
+const CANDIDATE_ID_PATTERN = /^(?:document|step-[0-9]+):sha256:[0-9a-f]{64}$/u;
 const TURNS: readonly number[] = [0, 90, 180, 270];
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -243,8 +243,7 @@ export function arrowDisplacementForRealBuildPanelCameraRegistration(
 
 /** A panel-observation ID; this must not replace a candidate's stable document identity. */
 export function realBuildPanelCameraObservationId(input: {
-  readonly stepNumber: number;
-  readonly documentHash: string;
+  readonly candidateId: string;
   readonly registration: RealBuildPanelCameraRegistration;
 }): string {
   if (!isRecord(input) || !hasExactKeys(input, OBSERVATION_ID_KEYS)) {
@@ -254,25 +253,27 @@ export function realBuildPanelCameraObservationId(input: {
       )}; received ${describe(input)}.`,
     );
   }
-  const { stepNumber, documentHash, registration: suppliedRegistration } = input;
-  if (!Number.isSafeInteger(stepNumber) || stepNumber < 1) {
-    throw new RangeError(
-      `Panel camera observation stepNumber must be a positive safe integer; received ${describe(stepNumber)}.`,
-    );
-  }
-  if (typeof documentHash !== "string" || !DIGEST_PATTERN.test(documentHash)) {
+  const { candidateId, registration: suppliedRegistration } = input;
+  if (
+    typeof candidateId !== "string" ||
+    candidateId.length > 256 ||
+    !CANDIDATE_ID_PATTERN.test(candidateId)
+  ) {
     throw new TypeError(
-      `Panel camera observation documentHash must be a lowercase sha256 digest; received ${describe(
-        documentHash,
-      )}.`,
+      `Panel camera observation candidateId must be 1-256 ASCII characters in document:sha256:<lowercase digest> or step-<digits>:sha256:<lowercase digest> form; received ${describe(candidateId)}.`,
     );
   }
   const registration = createRealBuildPanelCameraRegistration(suppliedRegistration);
   const [x, y] = registration.shiftPx;
-  return (
-    `step-${String(stepNumber).padStart(3, "0")}:${documentHash}:panel-camera:` +
+  const observationId =
+    `${candidateId}:panel-camera:` +
     `${registration.latticeHand}:d${registration.latticeDeterminant}:p${String(
       registration.registrationPanelStepNumber,
-    ).padStart(3, "0")}:q${String(registration.turnDegrees).padStart(3, "0")}:x${x}:y${y}`
-  );
+    ).padStart(3, "0")}:q${String(registration.turnDegrees).padStart(3, "0")}:x${x}:y${y}`;
+  if (observationId.length > 256) {
+    throw new RangeError(
+      `Panel camera observation ID is ${observationId.length} characters after binding candidate ${JSON.stringify(candidateId)}; lineage IDs must not exceed 256 characters.`,
+    );
+  }
+  return observationId;
 }

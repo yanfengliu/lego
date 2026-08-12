@@ -33,7 +33,8 @@ type TestDocument = { name: string; nested: { values: number[] } };
 const row = (
   overrides: Partial<RealBuildPanelCameraBranchInput<TestDocument>> = {},
 ): RealBuildPanelCameraBranchInput<TestDocument> => ({
-  stepNumber: 5,
+  candidateId: `step-005:${HASH_A}`,
+  throughStepNumber: 5,
   document: { name: "candidate", nested: { values: [1, 2] } },
   documentHash: HASH_A,
   registration: registration(),
@@ -102,6 +103,7 @@ describe("real-build panel-camera branches", () => {
         row({
           document: { name: "candidate-b", nested: { values: [1, 2] } },
           documentHash: HASH_B,
+          candidateId: `step-005:${HASH_B}`,
           registration: registration("as-fitted", 0),
         }),
       ],
@@ -202,6 +204,7 @@ describe("real-build panel-camera branches", () => {
       row({
         document: { name: "candidate-b", nested: { values: [4, 5] } },
         documentHash: HASH_B,
+        candidateId: `step-005:${HASH_B}`,
         registration: registration("as-fitted", 90),
       }),
     ];
@@ -280,6 +283,22 @@ describe("real-build panel-camera branches", () => {
     expect(nonJsonLedger.reserved).toBe(0);
   });
 
+  it("rejects a stable candidate ID whose bound digest aliases different document bytes", () => {
+    const ledger = createRealBuildPanelCameraBranchBudgetLedger(1);
+    expect(() =>
+      admit({
+        rows: [
+          row({
+            candidateId: `step-005:${HASH_B}`,
+            documentHash: HASH_A,
+          }),
+        ],
+        ledger,
+      }),
+    ).toThrow(/candidateId.*does not bind documentHash.*stable identity.*agree/su);
+    expect(ledger.reserved).toBe(0);
+  });
+
   it("rejects malformed rows and hash failures before budget use", () => {
     const ledger = createRealBuildPanelCameraBranchBudgetLedger(1);
     expect(() => admit({ rows: [row({ silhouetteIou: Number.NaN })], ledger })).toThrow(
@@ -307,7 +326,7 @@ describe("real-build panel-camera branches", () => {
     };
     expect(() =>
       admitRealBuildPanelCameraBranches({ rows: [row()], ledger: dishonest, hashDocument }),
-    ).toThrow(/non-atomic acceptance.*reserved 1/su);
+    ).toThrow(/non-atomic or capacity-inconsistent acceptance.*reserved 1/su);
 
     const mutableFailure = { reservedBefore: 0, requested: 1, budget: 0 };
     let refused = false;
@@ -336,6 +355,123 @@ describe("real-build panel-camera branches", () => {
     expect(result.reservation.failure).not.toBe(mutableFailure);
     mutableFailure.requested = 99;
     expect(result.reservation.failure?.requested).toBe(1);
+  });
+
+  it("snapshots tryReserve before hashing and rejects throwing or malformed reservation state", () => {
+    let reserved = 0;
+    let originalCalls = 0;
+    let replacementCalls = 0;
+    const replaceable = {
+      budget: 1,
+      get reserved() {
+        return reserved;
+      },
+      refusedReservation: false,
+      failedReservation: null,
+      tryReserve(count: number) {
+        originalCalls += 1;
+        reserved += count;
+        return true;
+      },
+    };
+    const admitted = admitRealBuildPanelCameraBranches({
+      rows: [row()],
+      ledger: replaceable,
+      hashDocument() {
+        replaceable.tryReserve = () => {
+          replacementCalls += 1;
+          return false;
+        };
+        return HASH_A;
+      },
+    });
+    expect(admitted.status).toBe("admitted");
+    expect(originalCalls).toBe(1);
+    expect(replacementCalls).toBe(0);
+
+    let poisonedReserved = 0;
+    const throwing = {
+      budget: 1,
+      get reserved() {
+        return poisonedReserved;
+      },
+      refusedReservation: false,
+      failedReservation: null,
+      tryReserve() {
+        poisonedReserved = 1;
+        throw new Error("reservation backend failed");
+      },
+    };
+    expect(() =>
+      admitRealBuildPanelCameraBranches({ rows: [row()], ledger: throwing, hashDocument }),
+    ).toThrow(/tryReserve\(1\) threw.*ledger must be discarded.*backend failed/su);
+
+    let malformedReserved = 0;
+    const malformed = {
+      budget: 1,
+      get reserved() {
+        return malformedReserved;
+      },
+      refusedReservation: false,
+      failedReservation: null,
+      tryReserve() {
+        malformedReserved = 1;
+        return "yes";
+      },
+    };
+    expect(() =>
+      admitRealBuildPanelCameraBranches({
+        rows: [row()],
+        ledger: malformed as never,
+        hashDocument,
+      }),
+    ).toThrow(/returned "yes".*State before.*state after.*ledger must be discarded/su);
+  });
+
+  it("binds reservation answers to the actual remaining capacity", () => {
+    let overReserved = 0;
+    const dishonestAcceptance = {
+      budget: 0,
+      get reserved() {
+        return overReserved;
+      },
+      refusedReservation: false,
+      failedReservation: null,
+      tryReserve(count: number) {
+        overReserved += count;
+        return true;
+      },
+    };
+    expect(() =>
+      admitRealBuildPanelCameraBranches({
+        rows: [row()],
+        ledger: dishonestAcceptance,
+        hashDocument,
+      }),
+    ).toThrow(/capacity-inconsistent acceptance.*0 remaining.*ledger must be discarded/su);
+
+    let refused = false;
+    const dishonestRefusal = {
+      budget: 1,
+      reserved: 0,
+      get refusedReservation() {
+        return refused;
+      },
+      get failedReservation() {
+        return refused ? { reservedBefore: 0, requested: 1, budget: 1 } : null;
+      },
+      tryReserve() {
+        refused = true;
+        return false;
+      },
+    };
+    expect(() =>
+      admitRealBuildPanelCameraBranches({
+        rows: [row()],
+        ledger: dishonestRefusal,
+        hashDocument,
+      }),
+    ).toThrow(/capacity-inconsistent refusal.*1 remaining.*ledger must be discarded/su);
   });
 
   it("bounds ledger inputs", () => {

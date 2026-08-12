@@ -126,6 +126,7 @@ export type StepFailureCode =
   | "action-ledger-incomplete"
   | "omitted-piece-identity-missing"
   | "multi-build-source-invalid"
+  | "fixed-ledger-frame-unresolved"
   | "transition-evidence-missing"
   | "highlight-calibration-missing"
   | "builder-calibration-invalid"

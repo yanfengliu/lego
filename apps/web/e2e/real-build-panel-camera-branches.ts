@@ -9,6 +9,7 @@ import type {
   RealBuildPanelCameraBranchBudgetFailure,
   RealBuildPanelCameraBranchBudgetLedger,
 } from "./real-build-panel-camera-branch-budget";
+import { reservePanelCameraAdmission } from "./real-build-panel-camera-admission-reservation";
 
 export {
   createRealBuildPanelCameraBranchBudgetLedger,
@@ -17,18 +18,20 @@ export {
 } from "./real-build-panel-camera-branch-budget";
 
 const ROW_KEYS = [
+  "candidateId",
   "document",
   "documentHash",
   "registration",
   "silhouetteIou",
-  "stepNumber",
+  "throughStepNumber",
 ] as const;
 const INPUT_KEYS = ["hashDocument", "ledger", "rows"] as const;
 const FAILURE_KEYS = ["budget", "requested", "reservedBefore"] as const;
 const DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/u;
 
 export interface RealBuildPanelCameraBranchInput<D> {
-  readonly stepNumber: number;
+  readonly candidateId: string;
+  readonly throughStepNumber: number;
   readonly document: D;
   readonly documentHash: Sha256Digest;
   readonly registration: RealBuildPanelCameraRegistration;
@@ -41,7 +44,7 @@ export interface RealBuildPanelCameraBranch<D> {
   readonly candidateId: string;
   /** Panel-local registration identity; N+1 and K observations intentionally differ. */
   readonly observationId: string;
-  readonly stepNumber: number;
+  readonly throughStepNumber: number;
   readonly document: D;
   readonly documentHash: Sha256Digest;
   readonly registration: RealBuildPanelCameraRegistration;
@@ -60,7 +63,7 @@ export interface RealBuildPanelCameraDocumentGroup<D> {
 
 export interface RealBuildPanelCameraCrossHandTie {
   readonly candidateId: string;
-  readonly stepNumber: number;
+  readonly throughStepNumber: number;
   readonly documentHash: Sha256Digest;
   readonly silhouetteIou: number;
   readonly observationIds: readonly string[];
@@ -198,10 +201,6 @@ export function compareRealBuildPanelCameraObservationIds(left: string, right: s
   }
 }
 
-function candidateId(stepNumber: number, documentHash: Sha256Digest): string {
-  return `step-${String(stepNumber).padStart(3, "0")}:${documentHash}`;
-}
-
 /** Phase one: detach every caller-owned row before invoking any callback or touching the ledger. */
 function snapshotRows<D>(
   suppliedRows: readonly RealBuildPanelCameraBranchInput<D>[],
@@ -224,10 +223,11 @@ function snapshotRows<D>(
         `Panel-camera branch row ${index} must contain exactly ${ROW_KEYS.join(", ")}; received ${describe(supplied)}.`,
       );
     }
-    const { stepNumber, document, documentHash, registration, silhouetteIou } = supplied;
-    if (!Number.isSafeInteger(stepNumber) || (stepNumber as number) < 1) {
+    const { candidateId, throughStepNumber, document, documentHash, registration, silhouetteIou } =
+      supplied;
+    if (!Number.isSafeInteger(throughStepNumber) || (throughStepNumber as number) < 0) {
       throw new RangeError(
-        `Panel-camera branch row ${index} stepNumber must be a positive safe integer; received ${describe(stepNumber)}.`,
+        `Panel-camera branch row ${index} throughStepNumber must be a non-negative safe integer; received ${describe(throughStepNumber)}.`,
       );
     }
     if (typeof documentHash !== "string" || !DIGEST_PATTERN.test(documentHash)) {
@@ -245,19 +245,23 @@ function snapshotRows<D>(
         `Panel-camera branch row ${index} silhouetteIou must be finite from 0 through 1; received ${describe(silhouetteIou)}.`,
       );
     }
-    const step = stepNumber as number;
+    const step = throughStepNumber as number;
     const digest = documentHash as Sha256Digest;
     const copiedRegistration = createRealBuildPanelCameraRegistration(registration);
-    const stableCandidateId = candidateId(step, digest);
+    const observationId = realBuildPanelCameraObservationId({
+      candidateId: candidateId as string,
+      registration: copiedRegistration,
+    });
+    if (!(candidateId as string).endsWith(digest)) {
+      throw new TypeError(
+        `Panel-camera branch row ${index} candidateId ${JSON.stringify(candidateId)} does not bind documentHash ${JSON.stringify(digest)}; stable identity and retained document bytes must agree.`,
+      );
+    }
     prepared.push(
       Object.freeze({
-        candidateId: stableCandidateId,
-        observationId: realBuildPanelCameraObservationId({
-          stepNumber: step,
-          documentHash: digest,
-          registration: copiedRegistration,
-        }),
-        stepNumber: step,
+        candidateId: candidateId as string,
+        observationId,
+        throughStepNumber: step,
         document: detachedDocument<D>(document, index),
         documentHash: digest,
         registration: copiedRegistration,
@@ -371,7 +375,7 @@ function crossHandTies<D>(
       const first = group[0]!;
       return Object.freeze({
         candidateId: first.candidateId,
-        stepNumber: first.stepNumber,
+        throughStepNumber: first.throughStepNumber,
         documentHash: first.documentHash,
         silhouetteIou: first.silhouetteRegistration.iou,
         observationIds: Object.freeze(group.map(({ observationId }) => observationId)),
@@ -398,6 +402,17 @@ export function admitRealBuildPanelCameraBranches<D>(input: {
       `Panel-camera hashDocument must be a deterministic structural-hash function; received ${describe(hashDocument)}.`,
     );
   }
+  if (!isRecord(ledger)) {
+    throw new TypeError(
+      `Panel-camera branch ledger must be an object with atomic reservation state; received ${describe(ledger)}.`,
+    );
+  }
+  const tryReserve = ledger.tryReserve;
+  if (typeof tryReserve !== "function") {
+    throw new TypeError(
+      `Panel-camera branch ledger tryReserve must be a function; received ${describe(tryReserve)}.`,
+    );
+  }
   const prepared = snapshotRows(rows);
   const ledgerBefore = snapshotLedgerState(ledger);
   if (
@@ -416,24 +431,14 @@ export function admitRealBuildPanelCameraBranches<D>(input: {
   verifyHashes(prepared, hashDocument, ledger, ledgerBefore);
   const ordered = orderedUnique(prepared);
   const requested = ordered.length;
-  const admitted = ledger.tryReserve(requested);
-  const ledgerAfter = snapshotLedgerState(ledger);
-  const expectedReserved = admitted ? ledgerBefore.reserved + requested : ledgerBefore.reserved;
-  const coherentFailure =
-    ledgerAfter.failure !== null &&
-    ledgerAfter.failure.reservedBefore === ledgerBefore.reserved &&
-    ledgerAfter.failure.requested === requested &&
-    ledgerAfter.failure.budget === ledgerBefore.budget;
-  if (
-    ledgerAfter.budget !== ledgerBefore.budget ||
-    ledgerAfter.reserved !== expectedReserved ||
-    (admitted && (ledgerAfter.refused || ledgerAfter.failure !== null)) ||
-    (!admitted && (!ledgerAfter.refused || !coherentFailure))
-  ) {
-    throw new TypeError(
-      `Panel-camera branch ledger recorded a non-atomic ${admitted ? "acceptance" : "refusal"}; required reserved ${expectedReserved} and an exact failure witness, received ${describe(ledgerAfter)}.`,
-    );
-  }
+  const { admitted, after: ledgerAfter } = reservePanelCameraAdmission({
+    tryReserve,
+    ledger,
+    before: ledgerBefore,
+    requested,
+    snapshot: snapshotLedgerState,
+    describe,
+  });
   const handDecision = Object.freeze({
     status: "unresolved" as const,
     selectedLatticeHand: null,

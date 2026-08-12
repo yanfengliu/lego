@@ -205,8 +205,7 @@ describe("realBuildPanelCameraObservationId", () => {
     const ids = HANDS.flatMap(({ latticeHand }) =>
       TURNS.map((turnDegrees) =>
         realBuildPanelCameraObservationId({
-          stepNumber: 5,
-          documentHash: HASH,
+          candidateId: `step-005:${HASH}`,
           registration: frame(latticeHand, turnDegrees),
         }),
       ),
@@ -226,7 +225,7 @@ describe("realBuildPanelCameraObservationId", () => {
   });
 
   it("separates equal document bytes retained under opposite horizontal hands", () => {
-    const common = { stepNumber: 5, documentHash: HASH };
+    const common = { candidateId: `step-005:${HASH}` };
     const fitted = realBuildPanelCameraObservationId({
       ...common,
       registration: frame("as-fitted", 90),
@@ -242,7 +241,7 @@ describe("realBuildPanelCameraObservationId", () => {
   });
 
   it("separates the same numeric registration observed on different panel rasters", () => {
-    const common = { stepNumber: 5, documentHash: HASH };
+    const common = { candidateId: `step-005:${HASH}` };
     const panelFive = realBuildPanelCameraObservationId({
       ...common,
       registration: frame("as-fitted", 90, [17, -23], 5),
@@ -257,21 +256,31 @@ describe("realBuildPanelCameraObservationId", () => {
     expect(panelSix).toContain(":p006:");
   });
 
+  it("refuses a generated observation identity that cannot round-trip through lineage", () => {
+    const oversizedCandidate = `step-${"1".repeat(173)}:${HASH}`;
+    expect(oversizedCandidate.length).toBe(250);
+    expect(() =>
+      realBuildPanelCameraObservationId({
+        candidateId: oversizedCandidate,
+        registration: frame("x-reflected", 270, [Number.MAX_SAFE_INTEGER, Number.MIN_SAFE_INTEGER]),
+      }),
+    ).toThrow(/observation ID is .*characters.*lineage IDs must not exceed 256/su);
+  });
+
   it.each([
-    [{ stepNumber: 0, documentHash: HASH, registration: frame() }, /stepNumber.*positive/su],
+    [{ candidateId: "unbound", registration: frame() }, /candidateId.*document.*step/su],
     [
-      { stepNumber: 1, documentHash: "sha256:ABC", registration: frame() },
-      /documentHash.*lowercase sha256/su,
+      { candidateId: "step-1:sha256:ABC", registration: frame() },
+      /candidateId.*lowercase digest/su,
     ],
     [
       {
-        stepNumber: 1,
-        documentHash: HASH,
+        candidateId: `step-001:${HASH}`,
         registration: { ...frame(), latticeDeterminant: -1 },
       },
       /requires latticeDeterminant 1/su,
     ],
-    [{ stepNumber: 1, documentHash: HASH, registration: frame(), extra: true }, /exactly.*extra/su],
+    [{ candidateId: `step-001:${HASH}`, registration: frame(), extra: true }, /exactly.*extra/su],
   ])("refuses malformed observation identity input %#", (input, message) => {
     expect(() => realBuildPanelCameraObservationId(input as never)).toThrow(message);
   });
@@ -286,8 +295,7 @@ describe("realBuildPanelCameraObservationId", () => {
       };
     const input = {};
     Object.defineProperties(input, {
-      stepNumber: { enumerable: true, get: once("step", 5) },
-      documentHash: { enumerable: true, get: once("hash", HASH) },
+      candidateId: { enumerable: true, get: once("candidate", `step-005:${HASH}`) },
       registration: {
         enumerable: true,
         get: once("registration", frame("x-reflected", 90)),
@@ -297,7 +305,7 @@ describe("realBuildPanelCameraObservationId", () => {
     expect(realBuildPanelCameraObservationId(input as never)).toBe(
       `step-005:${HASH}:panel-camera:x-reflected:d-1:p005:q090:x17:y-23`,
     );
-    expect(Object.fromEntries(reads)).toEqual({ step: 1, hash: 1, registration: 1 });
+    expect(Object.fromEntries(reads)).toEqual({ candidate: 1, registration: 1 });
   });
 });
 
