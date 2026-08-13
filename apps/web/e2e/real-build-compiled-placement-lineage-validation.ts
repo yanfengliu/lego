@@ -161,6 +161,7 @@ function validateAcceptedTransition(
   const transitions = [];
   const expectedTransitionIds: string[] = [];
   const seenTransitionIds = new Set<string>();
+  const parentRevisions = new Set<string>();
   for (const lineageId of accepted.lineageIds) {
     const edge = graph.edgesByChildLineage.get(lineageId);
     if (edge === undefined) {
@@ -168,12 +169,30 @@ function validateAcceptedTransition(
         `compiledLineage.acceptedTransition lineage ${lineageId} is not a retained child edge.`,
       );
     }
+    const parent = graph.rootsByLineage.get(edge.parentLineageId);
+    if (parent === undefined) {
+      throw new TypeError(
+        `compiledLineage.acceptedTransition lineage ${lineageId} does not retain its direct parent root.`,
+      );
+    }
+    parentRevisions.add(parent.snapshot.document.revision);
     const transition = graph.transitionsById.get(edge.transitionId)!;
     transitions.push(transition);
     if (!seenTransitionIds.has(edge.transitionId)) {
       expectedTransitionIds.push(edge.transitionId);
       seenTransitionIds.add(edge.transitionId);
     }
+  }
+  if (parentRevisions.size !== 1) {
+    throw new TypeError(
+      "compiledLineage.acceptedTransition cannot aggregate selected lineages whose direct parent root revisions differ.",
+    );
+  }
+  const parentRevision = parentRevisions.values().next().value as string;
+  if (accepted.beforeRevision !== parentRevision) {
+    throw new TypeError(
+      "compiledLineage.acceptedTransition.beforeRevision must equal the exact selected direct parent root revision.",
+    );
   }
   if (!exactArray(accepted.transitionIds, expectedTransitionIds)) {
     throw new TypeError(

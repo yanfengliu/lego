@@ -3,6 +3,7 @@ import { canonicalDigest, type Sha256Digest } from "@lego-studio/brick-kernel";
 import { preflightRealBuildOptions } from "./real-build-contract";
 import { snapshotRealBuildRunInput } from "./real-build-run-input-snapshot";
 import type { RealBuildOptions, RealBuildPanelSpec } from "./real-build-safety";
+import { snapshotHostileUint8Array } from "./real-build-hostile-uint8array";
 
 export const MAXIMUM_REAL_BUILD_PREPARED_RUN_INPUT_BYTES = 16 * 1024 * 1024;
 export const MAXIMUM_REAL_BUILD_PREPARED_STEP_PIECES = 1_024;
@@ -41,50 +42,26 @@ export type RealBuildPreparedStepInspection = Readonly<{
   authority: "absent";
 }>;
 
+export type RealBuildPreparedObservationPolicyInspection = Readonly<{
+  preparedRunInputDigest: Sha256Digest;
+  minimumScore: number;
+  minimumMargin: number;
+  authority: "absent";
+}>;
+
 const preparedSteps = new WeakSet<object>();
 const inspections = new WeakSet<object>();
-const TYPED_ARRAY_PROTOTYPE = Object.getPrototypeOf(Uint8Array.prototype) as object;
-const TYPED_ARRAY_LENGTH = Object.getOwnPropertyDescriptor(TYPED_ARRAY_PROTOTYPE, "length")?.get;
-const TYPED_ARRAY_BUFFER = Object.getOwnPropertyDescriptor(TYPED_ARRAY_PROTOTYPE, "buffer")?.get;
-const SHARED_BYTE_LENGTH =
-  typeof SharedArrayBuffer === "undefined"
-    ? undefined
-    : Object.getOwnPropertyDescriptor(SharedArrayBuffer.prototype, "byteLength")?.get;
+const observationPolicies = new WeakSet<object>();
 
 function snapshotWireBytes(value: unknown): Uint8Array {
-  let length: number;
-  let buffer: ArrayBufferLike;
-  try {
-    if (TYPED_ARRAY_LENGTH === undefined || TYPED_ARRAY_BUFFER === undefined) throw null;
-    length = TYPED_ARRAY_LENGTH.call(value) as number;
-    buffer = TYPED_ARRAY_BUFFER.call(value) as ArrayBufferLike;
-  } catch {
-    throw new TypeError("Prepared run input must be a genuine Uint8Array of UTF-8 JSON bytes.");
-  }
-  if (length > MAXIMUM_REAL_BUILD_PREPARED_RUN_INPUT_BYTES) {
-    throw new RangeError(
+  return snapshotHostileUint8Array(value, {
+    maximumBytes: MAXIMUM_REAL_BUILD_PREPARED_RUN_INPUT_BYTES,
+    typeError: "Prepared run input must be a genuine Uint8Array of UTF-8 JSON bytes.",
+    oversizeError: (length) =>
       `Prepared run input contains ${length} bytes, exceeding ${MAXIMUM_REAL_BUILD_PREPARED_RUN_INPUT_BYTES}; no text was decoded or parsed.`,
-    );
-  }
-  if (SHARED_BYTE_LENGTH !== undefined) {
-    let shared = false;
-    try {
-      SHARED_BYTE_LENGTH.call(buffer);
-      shared = true;
-    } catch {
-      // The SharedArrayBuffer intrinsic rejects an ordinary ArrayBuffer.
-    }
-    if (shared) {
-      throw new TypeError("Prepared run input must not use concurrently mutable shared storage.");
-    }
-  }
-  const snapshot = new Uint8Array(length);
-  try {
-    Uint8Array.prototype.set.call(snapshot, value as Uint8Array);
-  } catch {
-    throw new TypeError("Prepared run input changed or detached during bounded byte copying.");
-  }
-  return snapshot;
+    sharedError: "Prepared run input must not use concurrently mutable shared storage.",
+    copyError: "Prepared run input changed or detached during bounded byte copying.",
+  });
 }
 
 function requireBoundedJsonStructure(text: string): void {
@@ -260,6 +237,47 @@ export function inspectRealBuildPreparedStepInput(
   });
   inspections.add(inspection);
   return inspection;
+}
+
+/** Bounded inspection of the exact thresholds committed by prepared run input bytes. */
+export function inspectRealBuildPreparedObservationPolicy(
+  preparedRunInputBytes: unknown,
+): RealBuildPreparedObservationPolicyInspection {
+  const prepared = parsePreparedRunInput(preparedRunInputBytes);
+  if (
+    !Number.isFinite(prepared.options.minimumDeferredAgreement) ||
+    prepared.options.minimumDeferredAgreement <= 0 ||
+    prepared.options.minimumDeferredAgreement > 1 ||
+    !Number.isFinite(prepared.options.minimumDeferredAgreementMargin) ||
+    prepared.options.minimumDeferredAgreementMargin < 0 ||
+    prepared.options.minimumDeferredAgreementMargin > 1
+  ) {
+    throw new RangeError(
+      "Prepared observation policy requires finite unit-interval minimumDeferredAgreement and minimumDeferredAgreementMargin values.",
+    );
+  }
+  const inspection = Object.freeze({
+    preparedRunInputDigest: canonicalDigest({
+      schemaVersion: "lego.real-build-prepared-run-input/1",
+      canonicalRunInput: prepared.canonical,
+    }),
+    minimumScore: prepared.options.minimumDeferredAgreement,
+    minimumMargin: prepared.options.minimumDeferredAgreementMargin,
+    authority: "absent" as const,
+  });
+  observationPolicies.add(inspection);
+  return inspection;
+}
+
+export function requireRealBuildPreparedObservationPolicyInspection(
+  value: unknown,
+): RealBuildPreparedObservationPolicyInspection {
+  if (value === null || typeof value !== "object" || !observationPolicies.has(value)) {
+    throw new TypeError(
+      "Prepared observation policy must be the exact non-authoritative result of bounded run-input inspection.",
+    );
+  }
+  return value as RealBuildPreparedObservationPolicyInspection;
 }
 
 export function requireRealBuildPreparedStepInspection(
