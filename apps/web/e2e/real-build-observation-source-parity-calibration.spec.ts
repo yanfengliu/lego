@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { writeContainedRegularFileAtomic } from "./contained-atomic-write";
+import { ensureContainedDirectoryTree } from "./contained-directory";
 import { readSampleBooklet } from "./booklet-fixture";
 import { sha256Digest } from "./real-build-artifacts";
 import {
@@ -20,6 +22,10 @@ import {
   realBuildSourceParityPreparedPanelsManifest,
 } from "./real-build-observation-source-parity-contract";
 import { beginRealBuildSourceParityExecutionClosure } from "./real-build-observation-source-parity-execution";
+import {
+  createRealBuildSourceParityExecutionDirectory,
+  removeRealBuildSourceParityExecutionDirectory,
+} from "./real-build-observation-source-parity-execution-directory";
 import type { RealBuildSourceParityProbePanel } from "./real-build-observation-source-parity-types";
 import { deriveRealBuildPanelEvidence } from "./real-build-panel-evidence";
 import { REAL_BUILD_SERVED_RESPONSE_RUNNER_PATH } from "./real-build-served-response-policy";
@@ -47,6 +53,39 @@ test("loads the exact-five calibration runner without invoking measurement", asy
   }, CALIBRATION_RUNNER_MODULE_URL);
   expect(exportType).toBe("function");
 });
+
+const windowsTest = process.platform === "win32" ? test : test.skip;
+
+windowsTest(
+  "serves a task-owned execution mirror from ignored workspace temp",
+  async ({ page }) => {
+    const repoRoot = process.cwd();
+    const directory = createRealBuildSourceParityExecutionDirectory(repoRoot);
+    const relativeDirectory = directory.slice(repoRoot.length + 1).replaceAll("\\", "/");
+    try {
+      ensureContainedDirectoryTree(
+        repoRoot,
+        `${relativeDirectory}/source-snapshot`,
+        "source-parity execution serving probe parent",
+      );
+      writeContainedRegularFileAtomic(
+        repoRoot,
+        `${relativeDirectory}/source-snapshot/probe.mjs`,
+        new TextEncoder().encode('export const observed = "workspace-contained-mirror";\n'),
+        { label: "source-parity execution serving probe" },
+      );
+      await page.goto("/");
+      const moduleUrl = `/@fs/${directory.replaceAll("\\", "/")}/source-snapshot/probe.mjs`;
+      const observed = await page.evaluate(async (url) => {
+        const module = await import(/* @vite-ignore */ url);
+        return module.observed;
+      }, moduleUrl);
+      expect(observed).toBe("workspace-contained-mirror");
+    } finally {
+      removeRealBuildSourceParityExecutionDirectory(repoRoot, directory);
+    }
+  },
+);
 
 test("constructs the five-role browser capture from a tiny synthetic raster", async ({ page }) => {
   await page.goto("/");
@@ -314,17 +353,52 @@ test.describe("opt-in exact-five source-parity calibration capture", () => {
         { moduleUrl: execution.calibrationRunnerUrl, input },
       );
       execution.assertHeld();
-      const preflight =
-        preflightRealBuildSourceParityCalibrationBrowserCaptureEvidence(browserCapture);
-      const closure = await execution.finish({
-        browserResultDigest: preflight.browserCaptureDigest,
-        browserResultBytes: preflight.browserCaptureBytes.length,
-      });
       expect(browserCapture.fullPreparedPanelsDigest).toBe(fullPreparedPanelsDigest);
       expect(browserCapture.calibrationPreparedPanelsDigest).toBe(
         contract.calibrationPreparedPanelsDigest,
       );
       expect(browserCapture.calibrationDigest).toBe(contract.calibrationDigest);
+      expect(
+        browserCapture.panels.map((captured, index) => ({
+          stepNumber: captured.stepNumber,
+          expected: calibrationPanels[index]!.panelEvidenceDigest,
+          observed: captured.panelEvidenceDigest,
+          prepared: {
+            minXPt: calibrationPanels[index]!.minXPt,
+            maxXPt: calibrationPanels[index]!.maxXPt,
+            minYPt: calibrationPanels[index]!.minYPt,
+            maxYPt: calibrationPanels[index]!.maxYPt,
+            calloutBoxes: calibrationPanels[index]!.calloutBoxes,
+          },
+          captured: {
+            minXPt: captured.minXPt,
+            maxXPt: captured.maxXPt,
+            minYPt: captured.minYPt,
+            maxYPt: captured.maxYPt,
+            calloutBoxes: captured.calloutBoxes,
+          },
+        })),
+      ).toEqual(
+        calibrationPanels.map((prepared) => ({
+          stepNumber: prepared.stepNumber,
+          expected: prepared.panelEvidenceDigest,
+          observed: prepared.panelEvidenceDigest,
+          prepared: {
+            minXPt: prepared.minXPt,
+            maxXPt: prepared.maxXPt,
+            minYPt: prepared.minYPt,
+            maxYPt: prepared.maxYPt,
+            calloutBoxes: prepared.calloutBoxes,
+          },
+          captured: {
+            minXPt: prepared.minXPt,
+            maxXPt: prepared.maxXPt,
+            minYPt: prepared.minYPt,
+            maxYPt: prepared.maxYPt,
+            calloutBoxes: prepared.calloutBoxes,
+          },
+        })),
+      );
       expect(browserCapture.roles.map(({ role }) => role)).toEqual(
         REAL_BUILD_SOURCE_PARITY_CALIBRATION_CAPTURE_ROLES,
       );
@@ -336,6 +410,12 @@ test.describe("opt-in exact-five source-parity calibration capture", () => {
           pageNumber,
         ]),
       );
+      const preflight =
+        preflightRealBuildSourceParityCalibrationBrowserCaptureEvidence(browserCapture);
+      const closure = await execution.finish({
+        browserResultDigest: preflight.browserCaptureDigest,
+        browserResultBytes: preflight.browserCaptureBytes.length,
+      });
       expect(closure.sourceSnapshot.preparedPanelsDigest).toBe(fullPreparedPanelsDigest);
       const published = publishRealBuildSourceParityCalibration({
         repoRoot: beforeLock.repoRoot,

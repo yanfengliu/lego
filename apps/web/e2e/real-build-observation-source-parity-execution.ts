@@ -1,7 +1,5 @@
 import { Buffer } from "node:buffer";
-import { basename, dirname, join, resolve } from "node:path";
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { resolve } from "node:path";
 
 import type { Page } from "@playwright/test";
 
@@ -20,6 +18,10 @@ import type {
   RealBuildSourceParitySourceSnapshot,
 } from "./real-build-observation-source-parity-types";
 import { REAL_BUILD_SOURCE_PARITY_MAXIMUM_CANONICAL_BROWSER_RESULT_BYTES } from "./real-build-observation-source-parity-browser-result";
+import {
+  createRealBuildSourceParityExecutionDirectory,
+  removeRealBuildSourceParityExecutionDirectory,
+} from "./real-build-observation-source-parity-execution-directory";
 import { createRealBuildSourceParitySourceBundle } from "./real-build-observation-source-parity-source-bundle";
 import {
   materializeRealBuildSourceMirror,
@@ -38,7 +40,6 @@ import {
 } from "./real-build-served-response-policy";
 import { verifyRealBuildServedResponseEvidence } from "./real-build-served-response-verification";
 
-const TEMPORARY_PREFIX = "lego-source-parity-execution-";
 const MAXIMUM_BOOTSTRAP_MANIFEST_BYTES = 4 * 1024 * 1024;
 const MAXIMUM_MIRROR_MANIFEST_BYTES = 4 * 1024 * 1024;
 const MAXIMUM_ENVIRONMENT_BYTES = 1024 * 1024;
@@ -127,15 +128,8 @@ function assertMirrorMatchesBootstrap(
   }
 }
 
-function safeRemoveTemporaryDirectory(directory: string): void {
-  const resolved = resolve(directory);
-  if (dirname(resolved) !== resolve(tmpdir()) || !basename(resolved).startsWith(TEMPORARY_PREFIX)) {
-    throw new Error(`Refusing to remove non-task source-parity directory ${resolved}.`);
-  }
-  rmSync(resolved, { recursive: true, force: true });
-}
-
 async function cleanupExecution(
+  repoRoot: string,
   directory: string,
   recorder: RealBuildServedResponseRecorder | null,
   lock: RealBuildSourceLock | null,
@@ -156,7 +150,7 @@ async function cleanupExecution(
     }
   }
   try {
-    safeRemoveTemporaryDirectory(directory);
+    removeRealBuildSourceParityExecutionDirectory(repoRoot, directory);
   } catch (error) {
     failures.push(error);
   }
@@ -174,6 +168,11 @@ export async function beginRealBuildSourceParityExecutionClosure(input: {
   readonly pdfBytes: Uint8Array;
   readonly expectedPreparedPanelsDigest: string;
 }): Promise<RealBuildSourceParityExecutionClosure> {
+  if (resolve(input.repoRoot) !== resolve(input.bootstrapLock.repoRoot)) {
+    throw new TypeError(
+      `Source-parity execution repoRoot resolved to ${resolve(input.repoRoot)}; expected the authenticated bootstrap root ${resolve(input.bootstrapLock.repoRoot)} before creating its execution mirror.`,
+    );
+  }
   const expectedPreparedPanelsDigest = input.expectedPreparedPanelsDigest;
   if (!/^sha256:[0-9a-f]{64}$/u.test(expectedPreparedPanelsDigest)) {
     throw new TypeError(
@@ -181,7 +180,7 @@ export async function beginRealBuildSourceParityExecutionClosure(input: {
     );
   }
   assertBootstrapHeld(input.bootstrapLock);
-  const directory = mkdtempSync(join(tmpdir(), TEMPORARY_PREFIX));
+  const directory = createRealBuildSourceParityExecutionDirectory(input.repoRoot);
   let mirrorLock: RealBuildSourceLock | null = null;
   let recorder: RealBuildServedResponseRecorder | null = null;
   try {
@@ -367,12 +366,12 @@ export async function beginRealBuildSourceParityExecutionClosure(input: {
       dispose: async () => {
         if (disposed) return;
         disposed = true;
-        await cleanupExecution(directory, recorder, mirrorLock);
+        await cleanupExecution(input.repoRoot, directory, recorder, mirrorLock);
       },
     };
   } catch (error) {
     try {
-      await cleanupExecution(directory, recorder, mirrorLock);
+      await cleanupExecution(input.repoRoot, directory, recorder, mirrorLock);
     } catch (cleanupError) {
       throw new AggregateError(
         [error, cleanupError],

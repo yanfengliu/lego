@@ -2,6 +2,8 @@
 
 Current state belongs in the design documents; this index records only behaviour changes, measured results, and links to the matching detailed history.
 
+- [2026-08-13 (real exact-five source-locked execution)](detailed/2026-08-12_2026-08-13.md) — The real booklet produced one authenticated fixed-five publication under audit-only execution identity `sha256:979157ed12ef36fcd59a85aba13268d56a47d77ee886070cd31221805d756462`; all ten native PNGs preserved their bound panel composition on inspection, while review remains pending, authority absent, and the dense 359-step probe unrun.
+
 - [2026-08-13 (source-bound exact-five calibration publication)](detailed/2026-08-12_2026-08-13.md) — The exact five-panel capture now reproduces against the PDF, full 359-row manifest, source/provenance/served/runtime closure, derives an audit-only execution identity, and publishes five roles plus ten PNGs content-addressed with the summary last; human authority, admission, and a real-booklet run remain absent.
 
 - [2026-08-13 (source-stage parity and fail-closed calibration)](detailed/2026-08-12_2026-08-13.md) — Source-parity `/4` retains dense production/W/XOR diagnostics, while a separate exact-five browser/Node path closes high/work RGBA, H/P/D/W and lossless PNG bytes without publication or execution identity; every review outcome remains `needs-adjudication`, and neither path can choose truth, enter browser-output `/4`, or mutate a document.

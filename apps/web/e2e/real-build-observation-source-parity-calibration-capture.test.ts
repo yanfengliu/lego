@@ -15,6 +15,7 @@ import {
   encodeCalibrationCaptureSplitIdatTestPng,
   createCalibrationCaptureTestWire,
 } from "./real-build-observation-source-parity-calibration-capture-test-fixture";
+import { decodeCaptureBase64 } from "./real-build-observation-source-parity-calibration-capture-structure";
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -65,6 +66,21 @@ function createArtifact() {
 }
 
 describe("source-parity calibration capture", () => {
+  it("validates a real-scale canonical base64 role in bounded linear work", () => {
+    const bytes = Buffer.alloc(8 * 1024 * 1024, 0xa5);
+    const base64 = bytes.toString("base64");
+    const decoded = decodeCaptureBase64(base64, bytes.length, bytes.length, "large role");
+    expect(Buffer.from(decoded).equals(bytes)).toBe(true);
+    for (const invalidLimit of [Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() => decodeCaptureBase64("pQ==", 1, invalidLimit, "large role")).toThrow(
+        /large role maximum byte limit is/u,
+      );
+    }
+    expect(() =>
+      decodeCaptureBase64(`${base64.slice(0, -1)}!`, bytes.length, bytes.length, "large role"),
+    ).toThrow(/large role has invalid base64 code point 33 at character/u);
+  });
+
   it("admits an exact five-panel wire without minting human or document authority", () => {
     const wire = createCalibrationCaptureTestWire();
     const preflight = preflightRealBuildSourceParityCalibrationBrowserCaptureEvidence(wire);

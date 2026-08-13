@@ -243,19 +243,46 @@ export function decodeCaptureBase64(
   maximumBytes: number,
   path: string,
 ): Uint8Array {
-  if (expectedBytes < 1 || expectedBytes > maximumBytes) {
+  if (!Number.isSafeInteger(maximumBytes) || maximumBytes < 1) {
+    throw new RangeError(
+      `${path} maximum byte limit is ${String(maximumBytes)}; expected one positive safe integer before transport access.`,
+    );
+  }
+  if (!Number.isSafeInteger(expectedBytes) || expectedBytes < 1 || expectedBytes > maximumBytes) {
     throw new RangeError(
       `${path} descriptor declares ${expectedBytes} bytes; expected 1 through ${maximumBytes} before transport access.`,
     );
   }
   const maximumCharacters = Math.ceil(maximumBytes / 3) * 4;
-  if (
-    typeof value !== "string" ||
-    value.length > maximumCharacters ||
-    value.length % 4 !== 0 ||
-    !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u.test(value)
-  ) {
-    throw new TypeError(`${path} must be bounded canonical base64.`);
+  if (typeof value !== "string") {
+    throw new TypeError(`${path} must be a canonical base64 string; observed ${typeof value}.`);
+  }
+  if (value.length > maximumCharacters) {
+    throw new RangeError(
+      `${path} has ${value.length} base64 characters; expected at most ${maximumCharacters} for the ${maximumBytes}-byte limit.`,
+    );
+  }
+  if (value.length % 4 !== 0) {
+    throw new TypeError(
+      `${path} has ${value.length} base64 characters; canonical padded base64 length must be divisible by four.`,
+    );
+  }
+  const padding = value.endsWith("==") ? 2 : value.endsWith("=") ? 1 : 0;
+  const unpaddedLength = value.length - padding;
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    const alphabet =
+      (code >= 0x41 && code <= 0x5a) ||
+      (code >= 0x61 && code <= 0x7a) ||
+      (code >= 0x30 && code <= 0x39) ||
+      code === 0x2b ||
+      code === 0x2f;
+    const valid = index < unpaddedLength ? alphabet : code === 0x3d;
+    if (!valid) {
+      throw new TypeError(
+        `${path} has invalid base64 code point ${code} at character ${index}; expected the RFC 4648 alphabet followed by at most two padding characters.`,
+      );
+    }
   }
   const bytes = Buffer.from(value, "base64");
   if (bytes.length !== expectedBytes) {
