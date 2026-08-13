@@ -563,29 +563,24 @@ export function summariseDeferrals(
   return { deferredSteps, settledByLookahead, deepestSettlementReachSteps };
 }
 
-export interface WholeStepCandidate<D> {
+export type WholeStepPlacementTransform = {
+  readonly positionLdu: readonly [number, number, number];
+  readonly orientationId: string;
+};
+
+export interface WholeStepCandidate<D, O = WholeStepPlacementTransform> {
   readonly document: D;
   readonly partIds: readonly string[];
   readonly stepId: string | null;
-  readonly transforms: readonly {
-    readonly positionLdu: readonly [number, number, number];
-    readonly orientationId: string;
-  }[];
+  readonly transforms: readonly WholeStepPlacementTransform[];
+  /** Exact opaque enumerator rows chosen for this product branch, in piece order. */
+  readonly offeredCandidates: readonly O[];
 }
 
-export interface WholeStepEnumeration<D> {
-  readonly candidates: readonly WholeStepCandidate<D>[];
-  /** Complete leaves reached before a later all-or-nothing refusal. */
-  readonly exploredCandidates: readonly WholeStepCandidate<D>[];
-  /** Distinct placements offered for each piece on the first branch explored. */
+export interface WholeStepEnumeration<D, O = WholeStepPlacementTransform> {
+  readonly candidates: readonly WholeStepCandidate<D, O>[];
+  readonly exploredCandidates: readonly WholeStepCandidate<D, O>[];
   readonly perPiece: readonly number[];
-  /**
-   * Of those, how many survived the step's own panel on that branch.
-   *
-   * Identical to `perPiece` when nothing narrowed. Reported separately so a
-   * refusal can say whether a product blew up because the step is genuinely
-   * that open or because its own panel said nothing useful about it.
-   */
   readonly perPieceCarried: readonly number[];
   readonly narrowingRenders: number;
   readonly overBudget: boolean;
@@ -594,19 +589,7 @@ export interface WholeStepEnumeration<D> {
   readonly narrowingBudget: number;
 }
 
-export type WholeStepPlacementTransform = {
-  readonly positionLdu: readonly [number, number, number];
-  readonly orientationId: string;
-};
-
-/**
- * One live narrowing-render allowance shared by any number of enumerations.
- *
- * A reservation is atomic: `tryReserve` returns false without changing
- * `reserved` when the whole batch would cross `budget`. Callers can therefore
- * hand the same ledger to every parent expansion without multiplying a
- * per-parent allowance or starting a render batch that cannot finish.
- */
+/** One live atomic narrowing-render allowance shared by any number of enumerations. */
 export interface BudgetReservationFailure {
   /** Successfully reserved work before the first refused atomic request. */
   readonly reservedBefore: number;
@@ -623,13 +606,7 @@ export interface NarrowingRenderBudgetLedger {
   tryReserve(renderCount: number): boolean;
 }
 
-/**
- * One live complete-candidate allowance shared by every parent enumeration.
- *
- * Each unique complete leaf reserves one unit before it can enter the retained
- * evidence. A failed reservation leaves `reserved` unchanged, so callers keep
- * the complete leaves already reached while refusing the aggregate frontier.
- */
+/** One live atomic complete-candidate allowance shared by every parent enumeration. */
 export interface WholeStepCandidateBudgetLedger {
   readonly budget: number;
   readonly reserved: number;
@@ -752,57 +729,25 @@ export function placementsOwnPanelCannotSeparate<T>(input: {
     .map(({ candidate }) => candidate);
 }
 
-/**
- * Every way the whole printed step could be placed, as complete documents.
- *
- * Depth-first over the pieces because a later piece is enumerated on top of an
- * earlier one, so the set is a product rather than a union. It refuses over its
- * budget rather than truncating: a quietly capped product reads as a settled
- * step that was never fully considered.
- *
- * `narrow` is how a step that *has* a panel keeps that product finite. It is
- * given every placement offered on a branch and returns the ones the step's own
- * panel could not separate; a step whose panel says nothing passes null and
- * carries the whole product, as printed step 1 does.
- */
-export function enumerateWholeStepCandidates<D>(input: {
+interface WholeStepEnumerationInput<D, O> {
   readonly baseDocument: D;
   readonly stepId: string | null;
   readonly pieces: readonly { readonly catalogPartId: string; readonly colorId: string }[];
-  readonly enumerateDistinct: (
-    document: D,
-    catalogPartId: string,
-  ) => readonly WholeStepPlacementTransform[];
+  readonly enumerateDistinct: (document: D, catalogPartId: string) => readonly O[];
   readonly narrow:
     | ((input: {
         readonly document: D;
-        /**
-         * The printed step this branch has already opened, or null before its
-         * first piece. Narrowing places a probe part to render it, and a probe
-         * that opened a second step of its own would collide with the one the
-         * branch is building.
-         */
+        /** The branch's already-open printed step, or null before its first piece. */
         readonly stepId: string | null;
         readonly catalogPartId: string;
         readonly colorId: string;
-        readonly offered: readonly WholeStepPlacementTransform[];
-      }) => readonly WholeStepPlacementTransform[])
+        readonly offered: readonly O[];
+      }) => readonly O[])
     | null;
   readonly narrowingRenderBudget: number;
-  /**
-   * Optional aggregate allowance shared across parent enumerations. The local
-   * `narrowingRenderBudget` keeps its historical per-enumeration meaning only
-   * when no shared ledger is supplied. With a ledger, its atomic reservation
-   * is authoritative so every refusal has one unambiguous provenance.
-   */
+  /** Optional authoritative aggregate allowance shared across parent enumerations. */
   readonly narrowingRenderBudgetLedger?: NarrowingRenderBudgetLedger;
-  /**
-   * Optional aggregate complete-leaf allowance shared across parent
-   * enumerations. A refused leaf is not retained, while earlier reserved leaves
-   * remain available as immutable evidence through `exploredCandidates`. When
-   * supplied, this is the authoritative candidate allowance; `budget` keeps
-   * its historical per-enumeration meaning only when no shared ledger exists.
-   */
+  /** Optional authoritative aggregate complete-leaf allowance. */
   readonly candidateBudgetLedger?: WholeStepCandidateBudgetLedger;
   /**
    * Stable occupancy key used to quotient permutations of identical pieces.
@@ -817,13 +762,82 @@ export function enumerateWholeStepCandidates<D>(input: {
   readonly place: (
     document: D,
     catalogPartId: string,
-    transform: WholeStepPlacementTransform,
+    offeredCandidate: O,
     colorId: string,
     stepId: string | null,
   ) => { readonly document: D; readonly partId: string; readonly stepId: string };
   readonly budget: number;
-}): WholeStepEnumeration<D> {
-  const candidates: WholeStepCandidate<D>[] = [];
+}
+
+type WholeStepTransformAdapter<O> = [O] extends [WholeStepPlacementTransform]
+  ? {
+      readonly transformOf?: (offeredCandidate: O) => WholeStepPlacementTransform;
+      readonly snapshotOfferedCandidate?: (offeredCandidate: O) => O;
+    }
+  : {
+      readonly transformOf: (offeredCandidate: O) => WholeStepPlacementTransform;
+      /** Must return detached immutable plain data; this snapshot is narrowed, placed, and retained. */
+      readonly snapshotOfferedCandidate: (offeredCandidate: O) => O;
+    };
+
+function wholeStepData(value: unknown, key: string, label: string): unknown {
+  let descriptor: PropertyDescriptor | undefined;
+  try {
+    descriptor =
+      value !== null && (typeof value === "object" || typeof value === "function")
+        ? Object.getOwnPropertyDescriptor(value, key)
+        : undefined;
+  } catch {
+    throw new TypeError(`${label}.${key} could not be inspected without invoking code.`);
+  }
+  if (descriptor === undefined || !("value" in descriptor)) {
+    throw new TypeError(`${label}.${key} must be an own data property.`);
+  }
+  return descriptor.value;
+}
+function snapshotWholeStepTransform(
+  value: unknown,
+  label: string,
+): { readonly key: string; readonly transform: WholeStepPlacementTransform } {
+  const position = wholeStepData(value, "positionLdu", label);
+  const orientation = wholeStepData(value, "orientationId", label);
+  let isArray: boolean;
+  try {
+    isArray = Array.isArray(position);
+  } catch {
+    throw new TypeError(`${label}.positionLdu could not be inspected without invoking code.`);
+  }
+  const length = wholeStepData(position, "length", `${label}.positionLdu`);
+  const coordinates = [0, 1, 2].map((index) =>
+    wholeStepData(position, String(index), `${label}.positionLdu`),
+  );
+  if (
+    !isArray ||
+    length !== 3 ||
+    coordinates.some((value) => !Number.isSafeInteger(value)) ||
+    typeof orientation !== "string" ||
+    orientation.length === 0
+  ) {
+    throw new TypeError(
+      `${label} must expose a dense 3-safe-integer positionLdu tuple and a non-empty string orientationId.`,
+    );
+  }
+  const tuple = Object.freeze(coordinates) as unknown as readonly [number, number, number];
+  return Object.freeze({
+    key: `${tuple.join(",")}\u0000${orientation.length}:${orientation}`,
+    transform: Object.freeze({ positionLdu: tuple, orientationId: orientation }),
+  });
+}
+
+export function enumerateWholeStepCandidates<D, O = WholeStepPlacementTransform>(
+  input: WholeStepEnumerationInput<D, O> & WholeStepTransformAdapter<O>,
+): WholeStepEnumeration<D, O> {
+  const transformOf =
+    input.transformOf ??
+    ((offeredCandidate: O) => offeredCandidate as unknown as WholeStepPlacementTransform);
+  const snapshotOfferedCandidate =
+    input.snapshotOfferedCandidate ?? ((offeredCandidate: O): O => offeredCandidate);
+  const candidates: WholeStepCandidate<D, O>[] = [];
   const perPiece: number[] = [];
   const perPieceCarried: number[] = [];
   let narrowingRenders = 0;
@@ -831,7 +845,7 @@ export function enumerateWholeStepCandidates<D>(input: {
   let overNarrowingBudget = false;
 
   const completeOccupancyKeys = new Set<string>();
-  const completeOccupancyKey = (candidate: WholeStepCandidate<D>): string | null => {
+  const completeOccupancyKey = (candidate: WholeStepCandidate<D, O>): string | null => {
     if (input.placementKey === undefined) return null;
     const grouped = new Map<string, string[]>();
     for (const [index, piece] of input.pieces.entries()) {
@@ -847,7 +861,7 @@ export function enumerateWholeStepCandidates<D>(input: {
     );
   };
 
-  const walk = (partial: WholeStepCandidate<D>, pieceIndex: number): void => {
+  const walk = (partial: WholeStepCandidate<D, O>, pieceIndex: number): void => {
     if (overBudget || overNarrowingBudget) return;
     if (pieceIndex === input.pieces.length) {
       const occupancyKey = completeOccupancyKey(partial);
@@ -868,9 +882,26 @@ export function enumerateWholeStepCandidates<D>(input: {
       return;
     }
     const piece = input.pieces[pieceIndex]!;
-    const offered = input.enumerateDistinct(partial.document, piece.catalogPartId);
+    const offered = input
+      .enumerateDistinct(partial.document, piece.catalogPartId)
+      .map(snapshotOfferedCandidate);
+    const offeredByTransform = new Map<string, O>();
+    for (const offeredCandidate of offered) {
+      const { key: transformKey } = snapshotWholeStepTransform(
+        transformOf(offeredCandidate),
+        `Whole-step enumerator candidate for piece ${pieceIndex} ${piece.catalogPartId}`,
+      );
+      if (offeredByTransform.has(transformKey)) {
+        throw new TypeError(
+          `Whole-step enumerator returned duplicate transform ${transformKey} for piece ${pieceIndex} ` +
+            `${piece.catalogPartId}; each transform must have exactly one opaque candidate payload so ` +
+            `connection or build-plate evidence cannot be discarded by transform-keyed occupancy deduplication.`,
+        );
+      }
+      offeredByTransform.set(transformKey, offeredCandidate);
+    }
     if (perPiece.length === pieceIndex) perPiece.push(offered.length);
-    let carried = offered;
+    let carried: readonly O[] = offered;
     // A single offer is already decided, and rendering it would spend the
     // narrowing budget to confirm a set of one.
     if (input.narrow !== null && offered.length > 1) {
@@ -895,14 +926,33 @@ export function enumerateWholeStepCandidates<D>(input: {
       });
     }
     if (perPieceCarried.length === pieceIndex) perPieceCarried.push(carried.length);
-    for (const transform of carried) {
+    const carriedTransformKeys = new Set<string>();
+    for (const carriedCandidate of carried) {
       if (overBudget || overNarrowingBudget) return;
+      const { key: transformKey, transform } = snapshotWholeStepTransform(
+        transformOf(carriedCandidate),
+        `Whole-step narrowed candidate for piece ${pieceIndex} ${piece.catalogPartId}`,
+      );
+      const offeredCandidate = offeredByTransform.get(transformKey);
+      if (offeredCandidate === undefined) {
+        throw new TypeError(
+          `Whole-step narrowing returned transform ${transformKey} for piece ${pieceIndex} ` +
+            `${piece.catalogPartId}, but that transform was not in the enumerator's offered set.`,
+        );
+      }
+      if (carriedTransformKeys.has(transformKey)) {
+        throw new TypeError(
+          `Whole-step narrowing returned duplicate transform ${transformKey} for piece ${pieceIndex} ` +
+            `${piece.catalogPartId}; narrowing must return a subset without duplicate branches.`,
+        );
+      }
+      carriedTransformKeys.add(transformKey);
       let applied;
       try {
         applied = input.place(
           partial.document,
           piece.catalogPartId,
-          transform,
+          offeredCandidate,
           piece.colorId,
           partial.stepId,
         );
@@ -919,13 +969,23 @@ export function enumerateWholeStepCandidates<D>(input: {
           partIds: [...partial.partIds, applied.partId],
           stepId: applied.stepId,
           transforms: [...partial.transforms, transform],
+          offeredCandidates: [...partial.offeredCandidates, offeredCandidate],
         },
         pieceIndex + 1,
       );
     }
   };
 
-  walk({ document: input.baseDocument, partIds: [], stepId: input.stepId, transforms: [] }, 0);
+  walk(
+    {
+      document: input.baseDocument,
+      partIds: [],
+      stepId: input.stepId,
+      transforms: [],
+      offeredCandidates: [],
+    },
+    0,
+  );
   return {
     candidates: overBudget || overNarrowingBudget ? [] : candidates,
     exploredCandidates: candidates,

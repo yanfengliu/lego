@@ -298,4 +298,168 @@ describe("whole-step enumeration budgets and identical pieces", () => {
 
     expect(enumeration.candidates.map(({ document }) => document.placements)).toEqual([["Z", "A"]]);
   });
+
+  it("retains each chosen placement payload through every two-piece product branch", () => {
+    type ConnectionRow = {
+      readonly targetPartId: string;
+      readonly targetPortId: string;
+      readonly candidatePortId: string;
+    };
+    type OfferedPlacement = {
+      readonly key: string;
+      readonly transform: WholeStepPlacementTransform;
+      readonly connections: readonly ConnectionRow[];
+      readonly restsOnBuildPlate: boolean;
+    };
+    const offered = (
+      key: string,
+      orientationId: string,
+      connections: readonly ConnectionRow[],
+      restsOnBuildPlate: boolean,
+    ): OfferedPlacement => ({
+      key,
+      transform: placement(orientationId),
+      connections,
+      restsOnBuildPlate,
+    });
+    const north = offered("north", "root-north", [], true);
+    const south = offered("south", "root-south", [], true);
+    const northLeft = offered(
+      "north-left",
+      "child-left",
+      [{ targetPartId: "part-1", targetPortId: "north-stud", candidatePortId: "left-clutch" }],
+      false,
+    );
+    const northRight = offered(
+      "north-right",
+      "child-right",
+      [{ targetPartId: "part-1", targetPortId: "north-edge", candidatePortId: "right-clutch" }],
+      false,
+    );
+    const southLeft = offered(
+      "south-left",
+      "child-left",
+      [{ targetPartId: "part-1", targetPortId: "south-stud", candidatePortId: "left-clutch" }],
+      false,
+    );
+    const southRight = offered(
+      "south-right",
+      "child-right",
+      [{ targetPartId: "part-1", targetPortId: "south-edge", candidatePortId: "right-clutch" }],
+      false,
+    );
+
+    const enumeration = enumerateWholeStepCandidates<SyntheticDocument, OfferedPlacement>({
+      baseDocument: { placements: [] },
+      stepId: null,
+      pieces: [
+        { catalogPartId: "root-part", colorId: "black" },
+        { catalogPartId: "child-part", colorId: "red" },
+      ],
+      enumerateDistinct: (document, catalogPartId) =>
+        catalogPartId === "root-part"
+          ? [north, south]
+          : document.placements[0] === "north"
+            ? [northLeft, northRight]
+            : [southLeft, southRight],
+      narrow: ({ offered: branchOffers }) => branchOffers,
+      narrowingRenderBudget: 10,
+      transformOf: (candidate) => candidate.transform,
+      snapshotOfferedCandidate: (candidate) =>
+        Object.freeze({
+          ...candidate,
+          transform: Object.freeze({
+            ...candidate.transform,
+            positionLdu: Object.freeze([...candidate.transform.positionLdu]) as readonly [
+              number,
+              number,
+              number,
+            ],
+          }),
+          connections: Object.freeze(
+            candidate.connections.map((connection) => Object.freeze({ ...connection })),
+          ),
+        }),
+      placementKey: (_catalogPartId, transform) => transform.orientationId,
+      place: (document, _catalogPartId, candidate, _colorId, stepId) => ({
+        document: { placements: [...document.placements, candidate.key] },
+        partId: `part-${document.placements.length + 1}`,
+        stepId: stepId ?? "synthetic-step",
+      }),
+      budget: 10,
+    });
+
+    expect(enumeration.candidates.map(({ document }) => document.placements)).toEqual([
+      ["north", "north-left"],
+      ["north", "north-right"],
+      ["south", "south-left"],
+      ["south", "south-right"],
+    ]);
+    const byBranch = new Map(
+      enumeration.candidates.map((candidate) => [
+        candidate.document.placements.join("/"),
+        candidate,
+      ]),
+    );
+    const expectedPayloads = new Map<string, readonly [OfferedPlacement, OfferedPlacement]>([
+      ["north/north-left", [north, northLeft]],
+      ["north/north-right", [north, northRight]],
+      ["south/south-left", [south, southLeft]],
+      ["south/south-right", [south, southRight]],
+    ]);
+    for (const [branch, [rootPayload, childPayload]] of expectedPayloads) {
+      const retained = byBranch.get(branch)?.offeredCandidates;
+      expect(retained?.[0]).not.toBe(rootPayload);
+      expect(retained?.[1]).not.toBe(childPayload);
+      expect(retained?.[0]?.restsOnBuildPlate).toBe(true);
+      expect(retained?.[1]?.restsOnBuildPlate).toBe(false);
+    }
+    expect(byBranch.get("north/north-left")?.offeredCandidates[1]?.connections).toEqual([
+      { targetPartId: "part-1", targetPortId: "north-stud", candidatePortId: "left-clutch" },
+    ]);
+    expect(byBranch.get("south/south-left")?.offeredCandidates[1]?.connections).toEqual([
+      { targetPartId: "part-1", targetPortId: "south-stud", candidatePortId: "left-clutch" },
+    ]);
+    expect(byBranch.get("north/north-left")?.transforms).toEqual([
+      north.transform,
+      northLeft.transform,
+    ]);
+    expect(enumeration.candidates).toHaveLength(4);
+  });
+
+  it("refuses duplicate transforms before opaque connection payloads can be collapsed", () => {
+    type OfferedPlacement = {
+      readonly transform: WholeStepPlacementTransform;
+      readonly connections: readonly { readonly targetPartId: string }[];
+    };
+    const transform = placement("same-transform");
+    let placeCalls = 0;
+
+    expect(() =>
+      enumerateWholeStepCandidates<SyntheticDocument, OfferedPlacement>({
+        baseDocument: { placements: [] },
+        stepId: null,
+        pieces: [{ catalogPartId: "piece", colorId: "black" }],
+        enumerateDistinct: () => [
+          { transform, connections: [{ targetPartId: "first-parent" }] },
+          { transform, connections: [{ targetPartId: "different-parent" }] },
+        ],
+        narrow: null,
+        narrowingRenderBudget: 10,
+        transformOf: (candidate) => candidate.transform,
+        snapshotOfferedCandidate: (candidate) => Object.freeze({ ...candidate }),
+        placementKey: (_catalogPartId, candidateTransform) => candidateTransform.orientationId,
+        place: (document, _catalogPartId, _candidate, _colorId, stepId) => {
+          placeCalls += 1;
+          return {
+            document,
+            partId: "part-1",
+            stepId: stepId ?? "synthetic-step",
+          };
+        },
+        budget: 10,
+      }),
+    ).toThrowError(/each transform must have exactly one opaque candidate payload/u);
+    expect(placeCalls).toBe(0);
+  });
 });

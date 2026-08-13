@@ -24,6 +24,10 @@ import {
   type RealBuildPreparedPlacementWitness,
 } from "./real-build-prepared-search-boundary";
 import {
+  deriveRealBuildPreparedSearchCanonicalDocumentDigest,
+  deriveRealBuildPreparedSearchProposalId,
+} from "./real-build-prepared-search-digest";
+import {
   planRealBuildPreparedSearchStructure,
   type PlannedPreparedSearchChild,
   type PlannedPreparedSearchParent,
@@ -239,10 +243,9 @@ function snapshotPreflight(
     let cached = documentDigestCache.get(documentSnapshot);
     if (cached === undefined) {
       cached = Object.freeze({
-        digest: canonicalDigest({
-          schemaVersion: "lego.real-build-parent-document-bytes/1",
-          canonicalBytesHash: documentSnapshot.canonicalBytesHash,
-        }),
+        digest: deriveRealBuildPreparedSearchCanonicalDocumentDigest(
+          documentSnapshot.canonicalBytesHash,
+        ),
         canonicalBytesHash: documentSnapshot.canonicalBytesHash,
       });
       documentDigestCache.set(documentSnapshot, cached);
@@ -275,8 +278,7 @@ function snapshotPreflight(
       seenRequests.add(requestKey);
       proposals.push(
         Object.freeze({
-          proposalId: canonicalDigest({
-            schemaVersion: "lego.real-build-prepared-search-proposal/1",
+          proposalId: deriveRealBuildPreparedSearchProposalId({
             printedStepIdentity: preparedStep.printedStepIdentity,
             parentLineageId: identity.lineageId,
             canonicalDocumentDigest,

@@ -1,13 +1,13 @@
-import type { Sha256Digest } from "@lego-studio/brick-kernel";
+import { canonicalDigest, sha256Hex, type Sha256Digest } from "@lego-studio/brick-kernel";
 
 import {
-  groupPlacementOperationsInPrintedStep,
   placementSignalFailure,
   settleAtomicStep,
   stepPrerequisiteFacts,
   stepPrerequisiteFailure,
   type StepFailure,
   type RealBuildOptions,
+  type RealBuildPanelSpec,
   type RealBuildPieceReport,
   type RealBuildStepReport,
   type StepOutcome,
@@ -19,25 +19,20 @@ import {
   executeCanonicalTransition,
   preflightRealBuildOptions,
   selectRequestedPanelPages,
-  unexecutedStepReport,
   validateRealBuildCandidate,
 } from "./real-build-contract";
 import {
   adaptFixedLedgerPlacement,
   canonicalPartsFromDocument,
-  createCanonicalPrintedStepPlacer,
   executeMultiBuildLedgerStep,
   rollbackPlacedPieceReports,
   type RuntimeBrickIdentity,
 } from "./real-build-fixed-actions";
 import { UNRESOLVED_PANEL_CAMERA_PHYSICAL_FRAME } from "./real-build-panel-camera-resolver-boundary";
-import { createRealBuildPanelCameraBranchBudgetLedger } from "./real-build-panel-camera-branches";
-import { projectRealBuildPanelCameraResolutionEvidence } from "./real-build-panel-camera-evidence";
-import { resolveRealBuildPanelCameraBranches } from "./real-build-panel-camera-resolver";
 import { type DeferralEvidence, type DeferralTrigger } from "./real-build-deferral";
 import { settleExplodedPrintedStep, type ExplodedGhostEvidence } from "./real-build-exploded-step";
 import { composeExecutedStepReport } from "./real-build-step-report";
-import { derivePanelRasterEvidence, renderRealBuildPageCanvas } from "./real-build-panel-raster";
+import { derivePanelRasterEvidence } from "./real-build-panel-raster";
 import {
   assessRunWholeStepVisualEvidence,
   createRunDeferredPanelCoordinator,
@@ -47,6 +42,22 @@ import {
 } from "./real-build-run-visual";
 import { executeRunDirectPlacements } from "./real-build-run-placement";
 import { executeRunFixedActionWithPhysicalAuthority } from "./real-build-run-fixed-actions";
+import { createRealBuildRunRootPanelCamera } from "./real-build-run-camera-root";
+import {
+  blockedRealBuildRunStepReport,
+  failedRealBuildPageReport,
+  failedRealBuildPanelEvidenceReport,
+} from "./real-build-run-blocked-step";
+import { createRealBuildRunPlacer } from "./real-build-run-placer";
+import { createRealBuildRunPageCursor } from "./real-build-run-page-cursor";
+import { retainedRealBuildRunOutput } from "./real-build-run-output";
+import {
+  deriveRealBuildProvisionalRunPreparationFacts,
+  deriveRealBuildProvisionalStepPreparationFacts,
+  snapshotRealBuildProvisionalFitScalars,
+} from "./real-build-run-provisional-preparation";
+import { MAXIMUM_REAL_BUILD_PREPARED_STEP_PIECES } from "./real-build-prepared-step-authority";
+import { MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION } from "./real-build-farther-origin-source-manifest";
 import { describeBrowserThrown } from "./real-build-browser-error-boundary";
 import { realBuildCleanupFailure, retainRealBuildCleanupFailure } from "./real-build-run-cleanup";
 import {
@@ -128,6 +139,124 @@ export async function runRealBuild(
     try {
       const driftFailure = realBuildRunInputDriftFailure(inputSnapshot);
       if (driftFailure !== null) throw new BrowserPreparationError(driftFailure);
+      const provisionalPreparation =
+        options.measuredFartherOriginSourceAttestation?.schemaVersion !==
+          MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION.schemaVersion ||
+        options.measuredFartherOriginSourceAttestation.fileCount !==
+          MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION.fileCount ||
+        options.measuredFartherOriginSourceAttestation.digest !==
+          MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION.digest
+          ? null
+          : (() => {
+              const moduleRequests = Object.freeze({
+                pdfjs: options.pdfjsUrl,
+                worker: options.workerUrl,
+                lattice: options.latticeUrl,
+                rendering: options.renderingUrl,
+                kernel: options.kernelUrl,
+                commands: options.commandsUrl,
+                assembly: options.assemblyUrl,
+              });
+              const moduleRequestDigest = canonicalDigest({ moduleRequests });
+              const runFacts = deriveRealBuildProvisionalRunPreparationFacts(
+                inputSnapshot.canonical,
+                canonicalDigest(options.measuredFartherOriginSourceAttestation),
+                moduleRequestDigest,
+                options.inputDigests.pdf,
+                fetchedPdfDigest,
+              );
+              const states = new WeakMap<object, readonly unknown[]>();
+              const consumed = new WeakSet<object>();
+              const run = Object.freeze(Object.create(null)) as object;
+              const moduleObjects = Object.freeze([
+                pdfjs,
+                lattice,
+                rendering,
+                kernel,
+                commands,
+                assembly,
+              ]);
+              const runState = Object.freeze([options, moduleObjects, pdf, loadingTask, runFacts]);
+              states.set(run, runState);
+              return (
+                panel: RealBuildPanelSpec,
+                page: object & { readonly canvas: unknown },
+                pageCanvas: unknown,
+                raster: ReturnType<typeof derivePanelRasterEvidence>,
+              ) => {
+                if (
+                  panel.action.kind !== "place-callouts" ||
+                  panel.action.evidenceDigest === null ||
+                  panel.panelFace === null ||
+                  panel.pieces.length < 1 ||
+                  panel.pieces.length > MAXIMUM_REAL_BUILD_PREPARED_STEP_PIECES ||
+                  panel.omittedPieces.length !== 0 ||
+                  panel.omittedPhysicalPieces !== 0 ||
+                  panel.coverageFailures.length !== 0 ||
+                  panel.missingDesigns.length !== 0 ||
+                  panel.unresolvedCallouts.length !== 0
+                ) {
+                  return;
+                }
+                const deriveFacts = () => {
+                  const fit = snapshotRealBuildProvisionalFitScalars(raster.fitSolution);
+                  return deriveRealBuildProvisionalStepPreparationFacts(
+                    runFacts.preparationIdentity,
+                    runFacts.preparedRunInputDigest,
+                    runFacts.fetchedPdfDigest,
+                    canonicalDigest(panel),
+                    canonicalDigest(panel.action),
+                    canonicalDigest({ pieces: panel.pieces, omittedPieces: panel.omittedPieces }),
+                    panel.stepNumber,
+                    panel.pageNumber,
+                    panel.panelFace,
+                    panel.action.kind,
+                    panel.action.evidenceDigest,
+                    panel.minXPt,
+                    panel.maxXPt,
+                    panel.minYPt,
+                    panel.maxYPt,
+                    raster.width,
+                    raster.height,
+                    raster.workPixels.length,
+                    raster.builtMask.length,
+                    `sha256:${sha256Hex(Uint8Array.from(raster.workPixels))}`,
+                    `sha256:${sha256Hex(raster.builtMask)}`,
+                    fit.azimuthDegrees,
+                    fit.elevationDegrees,
+                    fit.pixelsPerUnit,
+                    fit.residualPx,
+                    fit.upSign,
+                    raster.fitFailure,
+                    raster.fitCoherence,
+                  );
+                };
+                const facts = deriveFacts();
+                const authority = Object.freeze(Object.create(null)) as object;
+                const stepState = Object.freeze([
+                  run,
+                  panel,
+                  panel.action,
+                  page,
+                  pageCanvas,
+                  raster,
+                  facts,
+                ]);
+                states.set(authority, stepState);
+                const reproduced = deriveFacts();
+                if (
+                  states.get(run) !== runState ||
+                  states.get(authority) !== stepState ||
+                  consumed.has(authority) ||
+                  reproduced.printedStepIdentity !== facts.printedStepIdentity
+                ) {
+                  throw new TypeError(
+                    `Printed step ${panel.stepNumber} provisional preparation did not preserve its exact browser-local run, module, PDF, panel, page, crop, face, action, and raster binding.`,
+                  );
+                }
+                consumed.add(authority);
+              };
+            })();
       const reports: RealBuildStepReport[] = [];
       let document_ = kernel.createEmptyBrickDocument({
         id: "real-build",
@@ -137,51 +266,22 @@ export async function runRealBuild(
       let blockingStep: number | null = null;
       const partIdByIdentity = new Map<string, RuntimeBrickIdentity>();
 
-      // The empty canonical root has eight equally admissible D4 camera
-      // histories. Retain all eight before reading a panel or running any
-      // placement callback; generation-3 output refuses until candidate
-      // scoring is actually carried through those lineages.
-      const panelCameraLedger = createRealBuildPanelCameraBranchBudgetLedger(
-        options.panelCameraBranchBudget,
-      );
       const rootDocumentHash = kernel.documentStructuralHash(document_) as Sha256Digest;
-      const rootPanelCamera = projectRealBuildPanelCameraResolutionEvidence(
-        resolveRealBuildPanelCameraBranches({
-          prefix: {
-            throughStepNumber: 0,
-            parentLineageId: null,
-            document: document_ as { readonly parts: readonly unknown[] },
-            documentHash: rootDocumentHash,
-          },
-          registrationPanelStepNumber: 1,
-          renderModelMask: () => new Uint8Array(1),
-          builtMask: new Uint8Array(1),
-          excludedMask: null,
-          widthPx: 1,
-          heightPx: 1,
-          ledger: panelCameraLedger,
-          hashDocument: (document) => kernel.documentStructuralHash(document) as Sha256Digest,
-        }),
-      );
-
-      const place = createCanonicalPrintedStepPlacer<unknown>({
-        createTransaction: (base, piece) => commands.createPlacePartTransaction(base, piece),
-        groupOperations: (operations, step) =>
-          groupPlacementOperationsInPrintedStep(
-            operations as Parameters<typeof groupPlacementOperationsInPrintedStep>[0],
-            step,
-          ),
-        applyOperations: (base, operations) => kernel.applyBuildOperations(base, operations),
+      const rootPanelCamera = createRealBuildRunRootPanelCamera({
+        document: document_ as { readonly parts: readonly unknown[] },
+        documentHash: rootDocumentHash,
+        branchBudget: options.panelCameraBranchBudget,
+        hashDocument: (document) => kernel.documentStructuralHash(document) as Sha256Digest,
       });
+
+      const place = createRealBuildRunPlacer(commands, kernel);
       const { panels: selectedPanels } = selectRequestedPanelPages(options);
       const orderedPanels = [...selectedPanels].sort(
         (left, right) => left.stepNumber - right.stepNumber,
       );
 
       document.querySelectorAll("canvas.page-probe").forEach((node) => node.remove());
-      let page: Awaited<ReturnType<typeof renderRealBuildPageCanvas>> | null = null;
-      let pageNumber: number | null = null;
-      let pageFailure: string | null = null;
+      const pageCursor = createRealBuildRunPageCursor(pdf, options.renderScale);
       let pageCleanupFailure: StepFailure | null = null;
       try {
         for (const spec of orderedPanels) {
@@ -200,79 +300,26 @@ export async function runRealBuild(
           }
 
           if (blockingStep !== null) {
-            const blocked = stepPrerequisiteFailure({
-              stepNumber: spec.stepNumber,
-              actionKind: spec.action.kind,
-              blockingStep,
-              coverageFailures: spec.coverageFailures,
-              unresolvedCallouts: spec.unresolvedCallouts,
-              missingDesigns: spec.missingDesigns,
-              calloutPieces: spec.calloutPieces,
-              expectedAssembledPieces: spec.action.assembledPieces,
-              resolvedPieces:
-                spec.action.kind === "multi-build-copy"
-                  ? spec.action.copies.length
-                  : spec.pieces.length + spec.omittedPieces.length,
-            });
-            if (blocked === null) {
-              throw new TypeError(
-                `Printed step ${spec.stepNumber} followed blocking step ${blockingStep}, but causality produced no blocked outcome.`,
-              );
-            }
             reports.push(
-              unexecutedStepReport(spec, blocked.failure, {
+              blockedRealBuildRunStepReport({
+                panel: spec,
                 blockingStep,
                 documentParts: (document_ as { parts: unknown[] }).parts.length,
-                elapsedMs: 0,
-                reason: blocked.failure.message,
               }),
             );
             continue;
           }
 
-          if (pageNumber !== spec.pageNumber) {
-            const previousPageNumber = pageNumber;
-            if (page !== null) {
-              try {
-                page.dispose();
-              } catch (error) {
-                pageCleanupFailure ??= realBuildCleanupFailure(
-                  `booklet page ${previousPageNumber ?? "unknown"}`,
-                  error,
-                );
-              }
-            }
-            page = null;
-            pageNumber = spec.pageNumber;
-            pageFailure = null;
-            if (pageCleanupFailure === null) {
-              try {
-                page = await renderRealBuildPageCanvas(pdf, pageNumber, options.renderScale);
-              } catch (error) {
-                pageFailure = describeBrowserThrown(error);
-              }
-            } else {
-              pageFailure = pageCleanupFailure.message;
-            }
-          }
+          const { page, failure: pageFailure } = await pageCursor.select(spec.pageNumber);
 
           if (page === null) {
-            const message = pageFailure ?? "the page renderer returned no page and no diagnostic";
-            const failure: StepFailure = {
-              code: "rendering-error",
-              stage: "rendering",
-              stepNumber: spec.stepNumber,
-              message:
-                `Booklet page ${pageNumber} for printed step ${spec.stepNumber} could not be rendered: ` +
-                `${message}. The exact preceding document was retained, this step placed no pieces, and ` +
-                `later printed steps remain represented as causally blocked scoreboard rows.`,
-            };
             reports.push(
-              unexecutedStepReport(spec, failure, {
+              failedRealBuildPageReport({
+                panel: spec,
+                pageNumber: spec.pageNumber,
+                pageFailure,
                 blockingStep,
                 documentParts: (document_ as { parts: unknown[] }).parts.length,
-                elapsedMs: 0,
-                reason: message,
                 panelCamera: spec.stepNumber === 1 ? rootPanelCamera : null,
               }),
             );
@@ -290,6 +337,11 @@ export async function runRealBuild(
               options,
               modules: { lattice, assembly },
             });
+            try {
+              provisionalPreparation?.(spec, page, pageCanvas, evidence);
+            } catch {
+              // Shadow-only until the next browser-output generation.
+            }
             const {
               width,
               height,
@@ -345,30 +397,11 @@ export async function runRealBuild(
               independentPlacementSignalCount: 0,
             });
 
-            // That is the first printed step — nothing is built yet to outline
-            // — and it is a fact about the booklet rather than a defect.
-            // `[80,0,-50]`, the same yaw, differing by one stud across the
-            // plate and one plate-height down — a displacement this camera
-            // projects to almost nothing. That is the same fact about the
-            // booklet as step 1's blank outline, so it gets the same remedy —
-            // but it is only discoverable by scoring, so it is handled after
-            // the local search below rather than here.
             const localScoringSignal =
               highlight.regions.length > 0 && (highlight.keyedPx as number) > 0;
             const placesCallouts = spec.action.kind === "place-callouts" && spec.pieces.length > 0;
             let deferring = !localScoringSignal && placesCallouts;
             let deferralTrigger: DeferralTrigger = "no-local-signal";
-            // A step that prints a displacement arrow is drawn exploded: the
-            // yellow rings the part where the booklet floats it, not where it
-            // seats, so a seated candidate is being scored against a shape in
-            // the wrong place. The signal costs nothing — it is the same arrow
-            // reading the family comes from — and it separates this booklet's
-            // first three printed steps 2, 2, 0.
-            //
-            // Not on an anchor step, where nothing is built and the camera has
-            // no registration: that path centres each candidate on the
-            // highlight's own centroid, and a ghost free to be shifted onto the
-            // contour is contained by construction rather than by being right.
             const exploded =
               !deferring &&
               !anchorStep &&
@@ -575,7 +608,7 @@ export async function runRealBuild(
                 spec,
                 deferralTarget,
                 orderedPanels,
-                currentPageNumber: pageNumber,
+                currentPageNumber: spec.pageNumber,
                 currentPageCanvas: pageCanvas,
                 pdf,
                 options,
@@ -900,20 +933,13 @@ export async function runRealBuild(
           } catch (error) {
             document_ = stepBaseDocument;
             const message = describeBrowserThrown(error);
-            const failure: StepFailure = {
-              code: "rendering-error",
-              stage: "rendering",
-              stepNumber: spec.stepNumber,
-              message:
-                `Step ${spec.stepNumber} failed while preparing or rendering its panel evidence: ${message}. ` +
-                `The exact step base was retained and later printed steps remain in the scoreboard.`,
-            };
             reports.push(
-              unexecutedStepReport(spec, failure, {
+              failedRealBuildPanelEvidenceReport({
+                panel: spec,
+                reason: message,
                 blockingStep,
                 documentParts: (document_ as { parts: unknown[] }).parts.length,
                 elapsedMs: Math.round(performance.now() - stepStarted),
-                reason: message,
                 panelCamera: spec.stepNumber === 1 ? rootPanelCamera : null,
               }),
             );
@@ -921,39 +947,17 @@ export async function runRealBuild(
           }
         }
       } finally {
-        if (page !== null) {
-          try {
-            page.dispose();
-          } catch (error) {
-            pageCleanupFailure ??= realBuildCleanupFailure(
-              `booklet page ${pageNumber ?? "unknown"}`,
-              error,
-            );
-          }
-        }
+        pageCleanupFailure = pageCursor.close();
       }
 
-      retainedOutput =
-        pageCleanupFailure === null
-          ? ({
-              schemaVersion: "lego.real-build-browser-output/3",
-              status: "executed",
-              reports,
-              documentJson: JSON.stringify(document_),
-              identityBindings: [...partIdByIdentity.values()],
-              fetchedPdfDigest,
-              totalElapsedMs: Math.round(performance.now() - runStarted),
-            } satisfies RealBuildBrowserOutput)
-          : ({
-              schemaVersion: "lego.real-build-browser-output/3",
-              status: "failed",
-              reports,
-              documentJson: JSON.stringify(document_),
-              identityBindings: [...partIdByIdentity.values()],
-              fetchedPdfDigest,
-              failure: pageCleanupFailure,
-              totalElapsedMs: Math.round(performance.now() - runStarted),
-            } satisfies RealBuildBrowserOutput);
+      retainedOutput = retainedRealBuildRunOutput({
+        reports,
+        document: document_,
+        identityBindings: [...partIdByIdentity.values()],
+        fetchedPdfDigest,
+        cleanupFailure: pageCleanupFailure,
+        elapsedMs: Math.round(performance.now() - runStarted),
+      });
       return retainedOutput;
     } finally {
       try {

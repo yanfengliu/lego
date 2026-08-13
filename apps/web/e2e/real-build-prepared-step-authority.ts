@@ -17,10 +17,16 @@ export interface RealBuildPreparedAtomicPiece {
   readonly colorId: string;
 }
 
+export interface RealBuildPreparedStepCompilerMetadata {
+  readonly name: string;
+  readonly sourceActionDigest: Sha256Digest;
+}
+
 export interface RealBuildPreparedStepAuthority {
   readonly stepNumber: number;
   readonly preparedRunInputDigest: Sha256Digest;
   readonly printedStepIdentity: Sha256Digest;
+  readonly compilerMetadata: RealBuildPreparedStepCompilerMetadata;
   readonly expectedAtomicPieces: readonly RealBuildPreparedAtomicPiece[];
   readonly [preparedStepAuthorityType]: true;
 }
@@ -30,6 +36,7 @@ export type RealBuildPreparedStepInspection = Readonly<{
   stepNumber: number;
   preparedRunInputDigest: Sha256Digest;
   printedStepIdentity: Sha256Digest;
+  compilerMetadata: RealBuildPreparedStepCompilerMetadata;
   expectedAtomicPieces: readonly RealBuildPreparedAtomicPiece[];
   authority: "absent";
 }>;
@@ -165,6 +172,14 @@ function requirePreparedPanel(panel: RealBuildPanelSpec, stepNumber: number): vo
       `Prepared step ${stepNumber} has no booklet-derived panel face; placement search remains refused.`,
     );
   }
+  if (
+    panel.action.evidenceDigest === null ||
+    !/^sha256:[0-9a-f]{64}$/u.test(panel.action.evidenceDigest)
+  ) {
+    throw new TypeError(
+      `Prepared step ${stepNumber} requires one exact action evidence digest before compiler metadata can be derived.`,
+    );
+  }
   if (panel.pieces.length < 1 || panel.pieces.length > MAXIMUM_REAL_BUILD_PREPARED_STEP_PIECES) {
     throw new RangeError(
       `Prepared step ${stepNumber} declares ${panel.pieces.length} direct pieces; required 1 through ${MAXIMUM_REAL_BUILD_PREPARED_STEP_PIECES}.`,
@@ -231,10 +246,15 @@ export function inspectRealBuildPreparedStepInput(
       Object.freeze({ identityKey, catalogPartId, colorId }),
     ),
   );
+  const compilerMetadata = Object.freeze({
+    name: `Printed step ${String(stepNumber)}`,
+    sourceActionDigest: panel.action.evidenceDigest as Sha256Digest,
+  });
   const inspection = Object.freeze({
     stepNumber: stepNumber as number,
     preparedRunInputDigest,
     printedStepIdentity,
+    compilerMetadata,
     expectedAtomicPieces,
     authority: "absent",
   });

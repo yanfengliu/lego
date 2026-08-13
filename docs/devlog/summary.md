@@ -2,6 +2,8 @@
 
 Current state belongs in the design documents; this index records only behaviour changes, measured results, and links to the matching detailed history.
 
+- [2026-08-12 through 2026-08-13 (atomic compiled branch inspection)](detailed/2026-08-12_2026-08-13.md) — Eight empty-root proposals now converge to one exact compiled child and physical transition while retaining eight parent-specific lineage edges; a seven-slot budget invokes no compiler and yields no frontier, and every compiler, replay, alias or byte-cap failure is likewise zero-frontier. Browser `/3` still refuses step 1 because the batch grants no score, completion or acceptance authority and is not wired into the runner.
+
 - [2026-08-12 (lineage and search prerequisites)](detailed/2026-08-12_2026-08-12.md) — Stable parent-bound lineage, convergent camera-evidence adapters, bounded prepared-search inspection, exact candidate-document snapshots, a normalized farther DAG, and a deterministic automatic-placement compiler now exist without granting execution authority; a fresh four-yaw step-1/2/3 probe found no highlight, no step-1 winner, and truth ranks as low as 171, so browser `/3` still honestly refuses at the eight empty roots.
 
 - [2026-08-12 (browser and artifact closure hardening)](detailed/2026-08-12_2026-08-12.md) — Reviewer-found gaps now reject forged hash-preserving zero-piece steps, terminal-document, action-digest and exact zero-work blocked-row drift, metadata-only/input-rejection artifact `/4` claims without typed digest-bound witnesses, and deletion of a completed legacy deferred decision; only downstream browser closures remain eligible for current publication, and the 10:28 run remains frozen inspection-only under generation-local predicates.

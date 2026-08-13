@@ -18,6 +18,10 @@ describe("prepared real-build step prerequisite", () => {
     expect(inspection).toMatchObject({
       stepNumber: 2,
       authority: "absent",
+      compilerMetadata: {
+        name: "Printed step 2",
+        sourceActionDigest: expect.stringMatching(/^sha256:[0-9a-f]{64}$/u),
+      },
       expectedAtomicPieces: [
         {
           identityKey: "direct-0",
@@ -55,6 +59,31 @@ describe("prepared real-build step prerequisite", () => {
     expect(changed.expectedAtomicPieces[0]!.identityKey).toBe("direct-renamed");
     expect(changed.printedStepIdentity).not.toBe(original.printedStepIdentity);
     expect(changed.preparedRunInputDigest).not.toBe(original.preparedRunInputDigest);
+  });
+
+  it("derives compiler metadata from the same panel and binds action-digest changes", () => {
+    const original = inspectRealBuildPreparedStepInput(preparedSearchOptionsBytes(), 2);
+    const mutated = preparedSearchOptions();
+    const panels = [...mutated.panels];
+    const panel = panels[1]!;
+    if (panel.action.kind !== "place-callouts") throw new Error("Fixture action changed.");
+    panels[1] = {
+      ...panel,
+      action: { ...panel.action, evidenceDigest: `sha256:${"e".repeat(64)}` },
+    };
+    const changed = inspectRealBuildPreparedStepInput(
+      new TextEncoder().encode(JSON.stringify({ ...mutated, panels })),
+      2,
+    );
+
+    expect(original.compilerMetadata).toEqual({
+      name: "Printed step 2",
+      sourceActionDigest: panel.action.evidenceDigest,
+    });
+    expect(changed.compilerMetadata.sourceActionDigest).toBe(`sha256:${"e".repeat(64)}`);
+    expect(changed.compilerMetadata).not.toEqual(original.compilerMetadata);
+    expect(changed.printedStepIdentity).not.toBe(original.printedStepIdentity);
+    expect(Object.isFrozen(changed.compilerMetadata)).toBe(true);
   });
 
   it("keeps successful authority issuance unavailable to caller-authored run bytes", () => {

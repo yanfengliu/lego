@@ -43,6 +43,26 @@ import {
   type RealBuildPreparedAutomaticPrintedStep,
 } from "./real-build-automatic-placement-step";
 
+const automaticPlacementCompilationResults = new WeakSet<object>();
+
+function retainAutomaticPlacementCompilationResult<
+  T extends RealBuildAutomaticPlacementCompilationResult,
+>(result: T): T {
+  automaticPlacementCompilationResults.add(result);
+  return result;
+}
+
+/** Proves a compiler result was created by this module before any caller-shaped field is read. */
+export function isRealBuildAutomaticPlacementCompilationResult(
+  value: unknown,
+): value is RealBuildAutomaticPlacementCompilationResult {
+  return (
+    value !== null &&
+    (typeof value === "object" || typeof value === "function") &&
+    automaticPlacementCompilationResults.has(value)
+  );
+}
+
 function deterministicId(prefix: string, value: unknown): string {
   return `${prefix}-${canonicalSha256(value).slice(0, 24)}`;
 }
@@ -345,7 +365,7 @@ export function compileRealBuildAutomaticPlacement(
     jobId,
     candidateId: proposalId,
   });
-  if (!draft.ok) return draft;
+  if (!draft.ok) return retainAutomaticPlacementCompilationResult(draft);
   const candidateId = realBuildDocumentCandidateId(documentStructuralHash(draft.document));
   const result = compileBuildProgram(preparedStep.documentWithStep, placementProgram, {
     scope: placementScope,
@@ -360,15 +380,17 @@ export function compileRealBuildAutomaticPlacement(
       "Automatic placement provenance recompile changed structural candidate identity.",
     );
   }
-  if (!result.ok) return result;
-  return composeRealBuildAutomaticPrintedStepCompilation({
-    baseDocument: document,
-    preparedStep,
-    placement: result,
-    combinedScope,
-    jobId,
-    candidateId,
-    automaticProgram,
-    placementScope,
-  });
+  if (!result.ok) return retainAutomaticPlacementCompilationResult(result);
+  return retainAutomaticPlacementCompilationResult(
+    composeRealBuildAutomaticPrintedStepCompilation({
+      baseDocument: document,
+      preparedStep,
+      placement: result,
+      combinedScope,
+      jobId,
+      candidateId,
+      automaticProgram,
+      placementScope,
+    }),
+  );
 }

@@ -1,5 +1,7 @@
 import {
+  requireRealBuildPreparedSearchBatchInspection,
   requireRealBuildPreparedSearchBatchPreflight,
+  type RealBuildPreparedSearchBatchInspection,
   type RealBuildPreparedSearchBatchPreflight,
 } from "./real-build-prepared-search-batch-authority";
 
@@ -21,6 +23,8 @@ export interface RealBuildPreparedSearchLedgerSnapshot {
 }
 
 export interface RealBuildPreparedSearchReservationFailure {
+  readonly preflightIdentity: `sha256:${string}`;
+  readonly reservationNumber: number;
   readonly reservedBefore: number;
   readonly requested: number;
   readonly budget: number;
@@ -28,11 +32,13 @@ export interface RealBuildPreparedSearchReservationFailure {
 
 export interface RealBuildPreparedSearchReservation {
   readonly admitted: boolean;
+  readonly refusal: null | "budget-exceeded" | "ledger-already-refused";
   readonly reservedBefore: number;
   readonly requested: number;
   readonly reservedAfter: number;
   readonly budget: number;
   readonly reservationNumber: number;
+  readonly terminalFailure: RealBuildPreparedSearchReservationFailure | null;
 }
 
 interface MutableLedgerState {
@@ -44,7 +50,7 @@ interface MutableLedgerState {
 }
 
 const states = new WeakMap<object, MutableLedgerState>();
-const reservedPreflights = new WeakSet<object>();
+const reservedBatches = new WeakSet<object>();
 
 function requireCount(value: unknown, path: string): number {
   if (
@@ -109,48 +115,101 @@ export function reserveRealBuildPreparedSearchBatch(
 ): RealBuildPreparedSearchReservation {
   const state = requireState(value);
   const preflight = requireRealBuildPreparedSearchBatchPreflight(suppliedPreflight);
-  if (reservedPreflights.has(preflight)) {
-    throw new TypeError("Prepared search preflight may be reserved exactly once.");
+  return reservePreparedSearchCount(
+    state,
+    preflight,
+    preflight.preflightIdentity,
+    preflight.offeredLineages,
+    "preflight",
+  );
+}
+
+function reservePreparedSearchCount(
+  state: MutableLedgerState,
+  batch: object,
+  preflightIdentity: `sha256:${string}`,
+  count: number,
+  label: "preflight" | "inspection",
+): RealBuildPreparedSearchReservation {
+  if (reservedBatches.has(batch)) {
+    throw new TypeError(`Prepared search ${label} may be reserved exactly once.`);
   }
-  reservedPreflights.add(preflight);
-  const count = preflight.offeredLineages;
+  reservedBatches.add(batch);
   const reservedBefore = state.reserved;
   if (state.refused) {
     return Object.freeze({
       admitted: false,
+      refusal: "ledger-already-refused",
       reservedBefore,
       requested: count,
       reservedAfter: reservedBefore,
       budget: state.budget,
       reservationNumber: state.reservationCount,
+      terminalFailure: state.failure,
     });
   }
   state.reservationCount += 1;
   if (count > state.budget - reservedBefore) {
     state.refused = true;
-    state.failure = Object.freeze({ requested: count, reservedBefore, budget: state.budget });
+    state.failure = Object.freeze({
+      preflightIdentity,
+      reservationNumber: state.reservationCount,
+      requested: count,
+      reservedBefore,
+      budget: state.budget,
+    });
     return Object.freeze({
       admitted: false,
+      refusal: "budget-exceeded",
       reservedBefore,
       requested: count,
       reservedAfter: reservedBefore,
       budget: state.budget,
       reservationNumber: state.reservationCount,
+      terminalFailure: state.failure,
     });
   }
   state.reserved += count;
   return Object.freeze({
     admitted: true,
+    refusal: null,
     reservedBefore,
     requested: count,
     reservedAfter: state.reserved,
     budget: state.budget,
     reservationNumber: state.reservationCount,
+    terminalFailure: null,
   });
+}
+
+/**
+ * Reserves a complete inspection-only batch on the same aggregate ledger. This
+ * grants budget state only; it cannot create prepared-step, search, score, or
+ * completion authority.
+ */
+export function reserveRealBuildPreparedSearchInspectionBatch(
+  value: unknown,
+  suppliedInspection: unknown,
+): RealBuildPreparedSearchReservation {
+  const state = requireState(value);
+  const inspection = requireRealBuildPreparedSearchBatchInspection(suppliedInspection);
+  return reservePreparedSearchCount(
+    state,
+    inspection,
+    inspection.preflightIdentity,
+    inspection.offeredLineages,
+    "inspection",
+  );
 }
 
 export function isReservedRealBuildPreparedSearchBatchPreflight(
   value: RealBuildPreparedSearchBatchPreflight,
 ): boolean {
-  return reservedPreflights.has(value);
+  return reservedBatches.has(value);
+}
+
+export function isReservedRealBuildPreparedSearchBatchInspection(
+  value: RealBuildPreparedSearchBatchInspection,
+): boolean {
+  return reservedBatches.has(value);
 }

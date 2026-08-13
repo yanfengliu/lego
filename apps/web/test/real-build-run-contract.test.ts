@@ -239,6 +239,21 @@ describe("real-build run contract", () => {
     expect(parsed).toEqual(FROZEN_LEGACY_RUN_CONTRACT_V2);
     expect(parsed.schemaVersion).toBe("lego.real-build-run-contract/2");
     expect(parsed.budgets).not.toHaveProperty("panelCameraBranchBudget");
+    for (const unsupportedGeneration of [
+      "lego.real-build-run-contract/3",
+      "lego.real-build-run-contract/4",
+    ]) {
+      expect(() =>
+        parseRealBuildRunContract(
+          new TextEncoder().encode(
+            JSON.stringify({
+              ...FROZEN_LEGACY_RUN_CONTRACT_V2,
+              schemaVersion: unsupportedGeneration,
+            }),
+          ),
+        ),
+      ).toThrow(/malformed schema|unsupported run-contract/u);
+    }
     expect(() =>
       verifyRealBuildRunContract({
         contract: parsed,

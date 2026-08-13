@@ -270,6 +270,17 @@ describe("real-build browser-output generation 3", () => {
     const inspected = inspectLegacyRealBuildBrowserOutputV2(legacy, legacyOptions);
     expect(inspected).toBe(legacy);
     expect(inspected.reports[0]).not.toHaveProperty("panelCamera");
+
+    expect(current.schemaVersion).toBe("lego.real-build-browser-output/3");
+    expect(() => inspectLegacyRealBuildBrowserOutputV2(current, legacyOptions)).toThrow(
+      /exact bounded root schema/u,
+    );
+    expect(
+      readRealBuildBrowserOutput(
+        { ...current, schemaVersion: "lego.real-build-browser-output/4" },
+        options(1),
+      ).envelopeDefect,
+    ).toMatch(/exact schema/u);
   });
 
   it("requires the root and rejects a forged hash-preserving zero-piece transition", () => {
