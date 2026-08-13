@@ -222,7 +222,7 @@ describe("resolveRealBuildPanelCameraFrontier", () => {
     expect(b!.observationIds).toHaveLength(8);
     expect(b!.selectedObservationId).not.toBeNull();
     expect(result.observations).toHaveLength(22);
-    expect(result.failure?.message).toContain("synthetic GPU loss");
+    expect(result.failure?.message).toContain("threw an untrusted value that was discarded");
   });
 
   it("reports the failed candidate over an earlier unresolved candidate with detached failures", () => {
@@ -297,7 +297,7 @@ describe("resolveRealBuildPanelCameraFrontier", () => {
           frontierPrefix("parent-a"),
           frontierPrefix("parent-b", "b", { documentHash: HASH_A }),
         ],
-        pattern: /aliases different canonical document bytes/su,
+        pattern: /aliases different canonical document bytes.*discard the ledger/su,
         reserved: 16,
       },
       {
@@ -328,7 +328,7 @@ describe("resolveRealBuildPanelCameraFrontier", () => {
     const sparse = [frontierPrefix("parent-a")] as ReturnType<typeof frontierPrefix>[];
     sparse.length = 2;
     expect(() => resolveRealBuildPanelCameraFrontier(frontierInput({ prefixes: sparse }))).toThrow(
-      /hole at index 1/su,
+      /hole at index 1.*required one stable own data row/su,
     );
 
     const ledger = createRealBuildPanelCameraBranchBudgetLedger(24);
@@ -377,7 +377,9 @@ describe("resolveRealBuildPanelCameraFrontier", () => {
           return BUILT_MASK;
         },
       }),
-    ).toThrow(/more than 200000 aggregate input parts.*no document was cloned.*discarded/su);
+    ).toThrow(
+      /more than 200000 aggregate input parts.*no document was cloned or hashed.*ledger must be discarded/su,
+    );
     expect(ledger.reserved).toBe(24);
     expect(hashes).toBe(0);
     expect(renders).toBe(0);

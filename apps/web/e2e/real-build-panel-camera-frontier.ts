@@ -8,7 +8,6 @@ import {
 } from "./real-build-panel-camera-branch-budget";
 import {
   describePanelCameraValue as describe,
-  describePanelCameraThrown as describeThrown,
   hasExactPanelCameraKeys as hasExactKeys,
   isPanelCameraRecord as isRecord,
   PANEL_CAMERA_ANGULAR_HYPOTHESES,
@@ -23,6 +22,7 @@ import {
   type RealBuildPanelCameraLedgerSnapshot,
 } from "./real-build-panel-camera-resolver-boundary";
 import {
+  describePanelCameraFrontierPreparationFailure,
   preparePanelCameraFrontierCandidates,
   snapshotPanelCameraFrontierPrefixHeaders,
   type PreparedPanelCameraFrontierCandidate,
@@ -43,6 +43,7 @@ const INPUT_KEYS =
     ",",
   );
 const MAX_CAMERA_PIXELS = 16_777_216;
+const TRUSTED_PANEL_CAMERA_FRONTIER_RESOLUTIONS = new WeakSet<object>();
 export interface RealBuildPanelCameraFrontierCandidate<D> {
   readonly status: "observed" | "unresolved" | "failed";
   readonly candidateId: string;
@@ -84,6 +85,29 @@ export interface RealBuildPanelCameraFrontierResolution<D> {
   };
 }
 
+function sealPanelCameraFrontierResolution<D>(
+  value: RealBuildPanelCameraFrontierResolution<D>,
+): RealBuildPanelCameraFrontierResolution<D> {
+  TRUSTED_PANEL_CAMERA_FRONTIER_RESOLUTIONS.add(value);
+  return value;
+}
+
+/** Nonforgeable in-process boundary for central lineage composition. */
+export function requireTrustedRealBuildPanelCameraFrontierResolution(
+  value: unknown,
+): RealBuildPanelCameraFrontierResolution<unknown> {
+  if (
+    value === null ||
+    typeof value !== "object" ||
+    !TRUSTED_PANEL_CAMERA_FRONTIER_RESOLUTIONS.has(value)
+  ) {
+    throw new TypeError(
+      "Panel-camera frontier lineage composition requires the exact immutable result returned by resolveRealBuildPanelCameraFrontier.",
+    );
+  }
+  return value as RealBuildPanelCameraFrontierResolution<unknown>;
+}
+
 function snapshotExternalLedger(
   ledger: RealBuildPanelCameraBranchBudgetLedger,
 ): RealBuildPanelCameraLedgerSnapshot {
@@ -96,13 +120,12 @@ function requireUnchangedExternalLedger(
   expected: RealBuildPanelCameraLedgerSnapshot,
   ledger: RealBuildPanelCameraBranchBudgetLedger,
   context: string,
-  cause: unknown = null,
+  callbackThrew = false,
 ): void {
   const actual = snapshotPanelCameraLedger(ledger);
   if (!samePanelCameraLedger(expected, actual)) {
     throw new TypeError(
-      `Panel-camera frontier ${context} changed the external branch ledger from ${describe(expected)} to ${describe(actual)}; finish no admission and discard the mutated ledger.`,
-      ...(cause === null ? [] : [{ cause }]),
+      `Panel-camera frontier ${context} changed the external branch ledger from ${describe(expected)} to ${describe(actual)}; finish no admission and discard the mutated ledger.${callbackThrew ? " The callback also threw an untrusted value that was discarded." : ""}`,
     );
   }
 }
@@ -220,57 +243,61 @@ export function resolveRealBuildPanelCameraFrontier<
         `Panel ${input.registrationPanelStepNumber} could not retain ${headers.length} complete eight-branch camera prefixes: ` +
         `reservation ${ledgerBefore.reserved}+${requested} exceeds budget ${ledgerBefore.budget}; no document was cloned or hashed, no render callback ran, and no observation was admitted.`,
     });
-    return Object.freeze({
-      status: "budget-refused" as const,
-      throughStepNumber,
-      registrationPanelStepNumber: input.registrationPanelStepNumber,
-      candidates: Object.freeze([]),
-      observations: Object.freeze([]),
-      failure,
-      reservation,
-      physicalFrameDecision: UNRESOLVED_PANEL_CAMERA_PHYSICAL_FRAME,
-      rasterMeasurement,
-    });
+    return sealPanelCameraFrontierResolution(
+      Object.freeze({
+        status: "budget-refused" as const,
+        throughStepNumber,
+        registrationPanelStepNumber: input.registrationPanelStepNumber,
+        candidates: Object.freeze([]),
+        observations: Object.freeze([]),
+        failure,
+        reservation,
+        physicalFrameDecision: UNRESOLVED_PANEL_CAMERA_PHYSICAL_FRAME,
+        rasterMeasurement,
+      }),
+    );
   }
 
   const ledgerAfterReservation = reserved.after;
   let groups: readonly PreparedPanelCameraFrontierCandidate<D>[] = [];
-  let preparationError: unknown = null;
+  let preparationFailed = false;
+  let preparationFailureMessage: string | null = null;
   try {
     groups = preparePanelCameraFrontierCandidates(headers);
-  } catch (error) {
-    preparationError = error;
+  } catch (caught) {
+    preparationFailed = true;
+    preparationFailureMessage = describePanelCameraFrontierPreparationFailure(caught);
   }
   requireUnchangedExternalLedger(
     ledgerAfterReservation,
     input.ledger,
     "document preparation after reservation",
-    preparationError,
+    preparationFailed,
   );
-  if (preparationError !== null) {
+  if (preparationFailed) {
     throw new TypeError(
-      `Panel-camera frontier document preparation failed after reserving ${requested} branches; no hash or render ran, and the ledger must be discarded. ${describeThrown(preparationError)}`,
-      { cause: preparationError },
+      preparationFailureMessage === null
+        ? `Panel-camera frontier document preparation threw an untrusted value after reserving ${requested} branches; no hash or render ran, the thrown value was discarded, and the ledger must be discarded.`
+        : `${preparationFailureMessage} No hash or render ran after reserving ${requested} branches.`,
     );
   }
   for (const group of groups) {
     let measured: unknown;
-    let hashError: unknown = null;
+    let hashCallbackThrew = false;
     try {
       measured = input.hashDocument(group.document);
-    } catch (error) {
-      hashError = error;
+    } catch {
+      hashCallbackThrew = true;
     }
     requireUnchangedExternalLedger(
       ledgerAfterReservation,
       input.ledger,
       `hash callback for ${JSON.stringify(group.candidateId)}`,
-      hashError,
+      hashCallbackThrew,
     );
-    if (hashError !== null) {
+    if (hashCallbackThrew) {
       throw new TypeError(
-        `Panel-camera frontier candidate ${JSON.stringify(group.candidateId)} hash verification failed after reservation; no render ran and the ledger must be discarded. ${describeThrown(hashError)}`,
-        { cause: hashError },
+        `Panel-camera frontier candidate ${JSON.stringify(group.candidateId)} hashDocument threw an untrusted value after reservation; no render ran, the thrown value was discarded, and the ledger must be discarded.`,
       );
     }
     if (typeof measured !== "string" || !PANEL_CAMERA_DIGEST_PATTERN.test(measured)) {
@@ -306,22 +333,24 @@ export function resolveRealBuildPanelCameraFrontier<
           throw new TypeError("the external frontier branch ledger was already mutated");
         }
         let rendered: unknown;
-        let renderError: unknown = null;
+        let renderCallbackThrew = false;
         try {
           rendered = input.renderModelMask(
             Object.freeze({ candidateId: group.candidateId, document, hypothesis }),
           );
-        } catch (error) {
-          renderError = error;
+        } catch {
+          renderCallbackThrew = true;
         }
         const after = snapshotPanelCameraLedger(input.ledger);
         if (!samePanelCameraLedger(ledgerAfterReservation, after)) {
           externalLedgerDefect ??= `rendering ${group.candidateId}/${hypothesis.latticeHand}/${hypothesis.turnDegrees} changed state to ${describe(after)}`;
-          throw new TypeError("the render callback mutated the external frontier branch ledger", {
-            ...(renderError === null ? {} : { cause: renderError }),
-          });
+          throw new TypeError(
+            `the render callback mutated the external frontier branch ledger${renderCallbackThrew ? " and also threw an untrusted value that was discarded" : ""}`,
+          );
         }
-        if (renderError !== null) throw renderError;
+        if (renderCallbackThrew) {
+          throw new TypeError("the render callback threw an untrusted value that was discarded");
+        }
         return rendered as Uint8Array;
       },
       builtMask,
@@ -397,15 +426,17 @@ export function resolveRealBuildPanelCameraFrontier<
       : (candidateResults.find(({ status: candidateStatus }) => candidateStatus === status)
           ?.failure ?? null),
   );
-  return Object.freeze({
-    status,
-    throughStepNumber,
-    registrationPanelStepNumber: input.registrationPanelStepNumber,
-    candidates: Object.freeze(candidateResults),
-    observations: Object.freeze(observations),
-    failure,
-    reservation,
-    physicalFrameDecision: UNRESOLVED_PANEL_CAMERA_PHYSICAL_FRAME,
-    rasterMeasurement,
-  });
+  return sealPanelCameraFrontierResolution(
+    Object.freeze({
+      status,
+      throughStepNumber,
+      registrationPanelStepNumber: input.registrationPanelStepNumber,
+      candidates: Object.freeze(candidateResults),
+      observations: Object.freeze(observations),
+      failure,
+      reservation,
+      physicalFrameDecision: UNRESOLVED_PANEL_CAMERA_PHYSICAL_FRAME,
+      rasterMeasurement,
+    }),
+  );
 }

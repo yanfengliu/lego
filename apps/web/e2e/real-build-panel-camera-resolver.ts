@@ -7,8 +7,8 @@ import {
   realBuildPanelCameraObservationId,
 } from "./real-build-panel-camera-registration";
 import {
+  describePanelCameraBoundaryFailure,
   describePanelCameraValue as describe,
-  describePanelCameraThrown as describeThrown,
   hasExactPanelCameraKeys as hasExactKeys,
   isPanelCameraRecord as isRecord,
   PANEL_CAMERA_ANGULAR_HYPOTHESES as ANGULAR_HYPOTHESES,
@@ -40,6 +40,25 @@ export type {
   RealBuildPanelCameraResolution,
   RealBuildResolvedPanelCameraObservation,
 } from "./real-build-panel-camera-resolver-types";
+
+const TRUSTED_PANEL_CAMERA_RESOLUTIONS = new WeakSet<object>();
+function sealPanelCameraResolution<D>(
+  value: RealBuildPanelCameraResolution<D>,
+): RealBuildPanelCameraResolution<D> {
+  TRUSTED_PANEL_CAMERA_RESOLUTIONS.add(value);
+  return value;
+}
+/** Nonforgeable in-process boundary for composition adapters. */
+export function requireTrustedRealBuildPanelCameraResolution(
+  value: unknown,
+): RealBuildPanelCameraResolution<unknown> {
+  if (value === null || typeof value !== "object" || !TRUSTED_PANEL_CAMERA_RESOLUTIONS.has(value)) {
+    throw new TypeError(
+      "Panel-camera lineage composition requires the exact immutable result returned by resolveRealBuildPanelCameraBranches.",
+    );
+  }
+  return value as RealBuildPanelCameraResolution<unknown>;
+}
 
 const INPUT_KEYS = [
   "builtMask",
@@ -184,23 +203,21 @@ export function resolveRealBuildPanelCameraBranches<D extends CameraDocument>(in
   const ledgerBeforeHash = snapshotLedger(ledger);
   requireCoherentLedger(ledgerBeforeHash);
   let measuredHash: unknown;
-  let hashError: unknown = null;
+  let hashCallbackThrew = false;
   try {
     measuredHash = hashDocument(detachedDocument);
-  } catch (error) {
-    hashError = error;
+  } catch {
+    hashCallbackThrew = true;
   }
   const ledgerAfterHash = snapshotLedger(ledger);
   if (!sameLedger(ledgerBeforeHash, ledgerAfterHash)) {
     throw new TypeError(
-      `Panel-camera hashDocument changed the shared ledger from ${describe(ledgerBeforeHash)} to ${describe(ledgerAfterHash)} while hashing ${JSON.stringify(candidateId)}; discard the mutated ledger.`,
-      ...(hashError === null ? [] : [{ cause: hashError }]),
+      `Panel-camera hashDocument changed the shared ledger from ${describe(ledgerBeforeHash)} to ${describe(ledgerAfterHash)} while hashing ${JSON.stringify(candidateId)}; discard the mutated ledger.${hashCallbackThrew ? " The callback also threw an untrusted value that was discarded." : ""}`,
     );
   }
-  if (hashError !== null) {
+  if (hashCallbackThrew) {
     throw new TypeError(
-      `Panel-camera prefix ${JSON.stringify(candidateId)} hash verification failed before budget or rendering. ${describeThrown(hashError)}`,
-      { cause: hashError },
+      `Panel-camera prefix ${JSON.stringify(candidateId)} hashDocument threw an untrusted value before budget or rendering; the thrown value was discarded.`,
     );
   }
   if (typeof measuredHash !== "string" || !PANEL_CAMERA_DIGEST_PATTERN.test(measuredHash)) {
@@ -225,17 +242,16 @@ export function resolveRealBuildPanelCameraBranches<D extends CameraDocument>(in
   };
   const requested = ANGULAR_HYPOTHESES.length;
   let reservationAnswer: unknown;
-  let reservationError: unknown = null;
+  let reservationCallbackThrew = false;
   try {
     reservationAnswer = tryReserve.call(ledger, requested);
-  } catch (error) {
-    reservationError = error;
+  } catch {
+    reservationCallbackThrew = true;
   }
   const ledgerAfterReservation = snapshotLedger(ledger);
-  if (reservationError !== null) {
+  if (reservationCallbackThrew) {
     throw new TypeError(
-      `Panel-camera ledger tryReserve(${requested}) threw after changing state from ${describe(ledgerBeforeHash)} to ${describe(ledgerAfterReservation)}; no render ran and the ledger must be discarded. ${describeThrown(reservationError)}`,
-      { cause: reservationError },
+      `Panel-camera ledger tryReserve(${requested}) threw an untrusted value after state changed from ${describe(ledgerBeforeHash)} to ${describe(ledgerAfterReservation)}; no render ran, the thrown value was discarded, and the ledger must be discarded.`,
     );
   }
   if (typeof reservationAnswer !== "boolean") {
@@ -278,17 +294,19 @@ export function resolveRealBuildPanelCameraBranches<D extends CameraDocument>(in
         `Panel ${registrationPanelStepNumber} could not retain eight camera branches for the prefix through step ${throughStepNumber}: ` +
         `reservation ${ledgerBeforeHash.reserved}+${requested} exceeds budget ${ledgerBeforeHash.budget}; no render callback ran and no seed or observation was admitted.`,
     });
-    return Object.freeze({
-      ...base,
-      status: "budget-refused" as const,
-      seeds: Object.freeze([]),
-      attempts: Object.freeze([]),
-      renderMaskDigests: Object.freeze([]),
-      observations: Object.freeze([]),
-      selectedObservationId: null,
-      failure,
-      reservation,
-    });
+    return sealPanelCameraResolution(
+      Object.freeze({
+        ...base,
+        status: "budget-refused" as const,
+        seeds: Object.freeze([]),
+        attempts: Object.freeze([]),
+        renderMaskDigests: Object.freeze([]),
+        observations: Object.freeze([]),
+        selectedObservationId: null,
+        failure,
+        reservation,
+      }),
+    );
   }
   if (partCount === 0) {
     const seeds = Object.freeze(
@@ -312,17 +330,19 @@ export function resolveRealBuildPanelCameraBranches<D extends CameraDocument>(in
         }),
       ),
     );
-    return Object.freeze({
-      ...base,
-      status: "seeded" as const,
-      seeds,
-      attempts: Object.freeze([]),
-      renderMaskDigests: Object.freeze([]),
-      observations: Object.freeze([]),
-      selectedObservationId: null,
-      failure: null,
-      reservation,
-    });
+    return sealPanelCameraResolution(
+      Object.freeze({
+        ...base,
+        status: "seeded" as const,
+        seeds,
+        attempts: Object.freeze([]),
+        renderMaskDigests: Object.freeze([]),
+        observations: Object.freeze([]),
+        selectedObservationId: null,
+        failure: null,
+        reservation,
+      }),
+    );
   }
 
   const renderFailures: string[] = [];
@@ -343,23 +363,22 @@ export function resolveRealBuildPanelCameraBranches<D extends CameraDocument>(in
         hypothesis,
       });
       let mask: unknown;
-      let callbackError: unknown = null;
+      let renderCallbackThrew = false;
       try {
         mask = renderModelMask(callbackInput);
-      } catch (error) {
-        callbackError = error;
+      } catch {
+        renderCallbackThrew = true;
       }
       const ledgerAfterRender = snapshotLedger(ledger);
       if (!sameLedger(ledgerAfterReservation, ledgerAfterRender)) {
         throw new TypeError(
-          `Panel-camera renderModelMask changed the shared ledger while rendering ${hypothesis.latticeHand} turn ${hypothesis.turnDegrees}; discard the mutated ledger.`,
-          ...(callbackError === null ? [] : [{ cause: callbackError }]),
+          `Panel-camera renderModelMask changed the shared ledger while rendering ${hypothesis.latticeHand} turn ${hypothesis.turnDegrees}; discard the mutated ledger.${renderCallbackThrew ? " The callback also threw an untrusted value that was discarded." : ""}`,
         );
       }
-      if (callbackError !== null) {
+      if (renderCallbackThrew) {
         renderMaskDigestByHypothesis.set(hypothesisKey(hypothesis), null);
         renderFailures.push(
-          `${hypothesis.latticeHand} turn ${hypothesis.turnDegrees} threw ${describeThrown(callbackError)}`,
+          `${hypothesis.latticeHand} turn ${hypothesis.turnDegrees} threw an untrusted value that was discarded`,
         );
         return new Uint8Array(pixelCount);
       }
@@ -374,10 +393,13 @@ export function resolveRealBuildPanelCameraBranches<D extends CameraDocument>(in
           `sha256:${sha256Hex(snapshot)}`,
         );
         return snapshot;
-      } catch (error) {
+      } catch (caught) {
         renderMaskDigestByHypothesis.set(hypothesisKey(hypothesis), null);
+        const localFailure = describePanelCameraBoundaryFailure(caught);
         renderFailures.push(
-          `${hypothesis.latticeHand} turn ${hypothesis.turnDegrees} returned malformed raster evidence: ${describeThrown(error)}`,
+          localFailure === null
+            ? `${hypothesis.latticeHand} turn ${hypothesis.turnDegrees} returned malformed raster evidence because an untrusted value was thrown; the thrown value was discarded`
+            : `${hypothesis.latticeHand} turn ${hypothesis.turnDegrees} returned malformed raster evidence: ${localFailure}`,
         );
         return new Uint8Array(pixelCount);
       }
@@ -457,19 +479,21 @@ export function resolveRealBuildPanelCameraBranches<D extends CameraDocument>(in
       : registration.failure?.code === "camera-handedness-unresolved"
         ? ("unresolved" as const)
         : ("observed" as const);
-  return Object.freeze({
-    ...base,
-    status,
-    seeds: Object.freeze([]),
-    attempts: registration.rankedHypotheses,
-    renderMaskDigests: Object.freeze(
-      registration.rankedHypotheses.map(
-        (attempt) => renderMaskDigestByHypothesis.get(hypothesisKey(attempt)) ?? null,
+  return sealPanelCameraResolution(
+    Object.freeze({
+      ...base,
+      status,
+      seeds: Object.freeze([]),
+      attempts: registration.rankedHypotheses,
+      renderMaskDigests: Object.freeze(
+        registration.rankedHypotheses.map(
+          (attempt) => renderMaskDigestByHypothesis.get(hypothesisKey(attempt)) ?? null,
+        ),
       ),
-    ),
-    observations,
-    selectedObservationId: renderFailure === null ? selectedObservationId : null,
-    failure,
-    reservation,
-  });
+      observations,
+      selectedObservationId: renderFailure === null ? selectedObservationId : null,
+      failure,
+      reservation,
+    }),
+  );
 }

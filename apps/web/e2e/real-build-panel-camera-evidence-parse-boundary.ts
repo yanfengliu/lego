@@ -58,8 +58,8 @@ export function exactEvidenceRecord(
   let keys: readonly PropertyKey[];
   try {
     keys = Reflect.ownKeys(value);
-  } catch (error) {
-    throw new TypeError(`${path} keys could not be inspected.`, { cause: error });
+  } catch {
+    throw new TypeError(`${path} keys could not be inspected; the thrown value was discarded.`);
   }
   const missing = expectedKeys.find((key) => !keys.includes(key));
   if (missing !== undefined) {

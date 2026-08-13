@@ -75,6 +75,32 @@ function documentFixture(): MutableDeep<BrickDocumentV1> {
 }
 
 describe("BrickDocument canonicalization", () => {
+  it("indexes parts once while normalizing a dense connection graph", () => {
+    const base = documentFixture();
+    const partCount = 600;
+    const connectionCount = 3_000;
+    const parts = Array.from({ length: partCount }, (_, index) => ({
+      ...base.parts[index % base.parts.length]!,
+      id: `dense-part-${index.toString().padStart(4, "0")}`,
+    }));
+    const connections = Array.from({ length: connectionCount }, (_, index) => ({
+      ...base.connections[0]!,
+      id: `dense-connection-${index.toString().padStart(5, "0")}`,
+      a: { partId: parts[index % partCount]!.id, portId: "stud:0:0" },
+      b: { partId: parts[(index + 1) % partCount]!.id, portId: "undersideClutch:0:0" },
+    }));
+    let partMapCalls = 0;
+    const observedParts = new Proxy(parts, {
+      get(target, property, receiver) {
+        if (property === "map") partMapCalls += 1;
+        return Reflect.get(target, property, receiver) as unknown;
+      },
+    });
+    const normalized = normalizeBrickDocument({ ...base, parts: observedParts, connections });
+
+    expect(normalized.connections).toHaveLength(connectionCount);
+    expect(partMapCalls).toBe(2);
+  });
   it("normalizes set-like collections without mutating the authoring document", () => {
     const document = documentFixture();
     const normalized = normalizeBrickDocument(document);

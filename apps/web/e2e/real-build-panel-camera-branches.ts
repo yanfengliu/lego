@@ -130,10 +130,9 @@ function detachedDocument<D>(document: unknown, rowIndex: number): D {
     canonicalStringify(detached);
     freezeRecursively(detached);
     return detached;
-  } catch (error) {
+  } catch {
     throw new TypeError(
-      `Panel-camera branch row ${rowIndex} document could not be detached as immutable evidence; required canonical plain JSON document data. ${error instanceof Error ? error.message : String(error)}`,
-      { cause: error },
+      `Panel-camera branch row ${rowIndex} document could not be detached as immutable evidence; required canonical plain JSON document data and the internal thrown value was discarded.`,
     );
   }
 }
@@ -284,11 +283,11 @@ function verifyHashes<D>(
 ): void {
   for (const branch of prepared) {
     let measuredHash: unknown;
-    let hashError: unknown = null;
+    let hashCallbackThrew = false;
     try {
       measuredHash = hashDocument(branch.document);
-    } catch (error) {
-      hashError = error;
+    } catch {
+      hashCallbackThrew = true;
     }
     const ledgerAfterCallback = snapshotLedgerState(ledger);
     if (
@@ -298,14 +297,12 @@ function verifyHashes<D>(
       !sameFailure(ledgerAfterCallback.failure, ledgerBefore.failure)
     ) {
       throw new TypeError(
-        `Panel-camera hashDocument changed the shared budget ledger from ${describe(ledgerBefore)} to ${describe(ledgerAfterCallback)} while hashing observation ${JSON.stringify(branch.observationId)}; hashing must be pure, admission stopped before its own reservation, and the mutated ledger must be discarded.`,
-        ...(hashError === null ? [] : [{ cause: hashError }]),
+        `Panel-camera hashDocument changed the shared budget ledger from ${describe(ledgerBefore)} to ${describe(ledgerAfterCallback)} while hashing observation ${JSON.stringify(branch.observationId)}; hashing must be pure, admission stopped before its own reservation, and the mutated ledger must be discarded.${hashCallbackThrew ? " The callback also threw an untrusted value that was discarded." : ""}`,
       );
     }
-    if (hashError !== null) {
+    if (hashCallbackThrew) {
       throw new TypeError(
-        `Panel-camera observation ${JSON.stringify(branch.observationId)} document hash verification failed; required the deterministic structural hash of the detached document. ${hashError instanceof Error ? hashError.message : String(hashError)}`,
-        { cause: hashError },
+        `Panel-camera observation ${JSON.stringify(branch.observationId)} hashDocument threw an untrusted value; required the deterministic structural hash of the detached document and the thrown value was discarded.`,
       );
     }
     if (typeof measuredHash !== "string" || !DIGEST_PATTERN.test(measuredHash)) {

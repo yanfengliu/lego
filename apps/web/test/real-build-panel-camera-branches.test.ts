@@ -279,7 +279,7 @@ describe("real-build panel-camera branches", () => {
     const nonJsonLedger = createRealBuildPanelCameraBranchBudgetLedger(1);
     expect(() =>
       admit({ rows: [row({ document: new Date(0) as never })], ledger: nonJsonLedger }),
-    ).toThrow(/canonical plain JSON.*plain JSON object/su);
+    ).toThrow(/required canonical plain JSON document data.*thrown value was discarded/su);
     expect(nonJsonLedger.reserved).toBe(0);
   });
 
@@ -312,7 +312,7 @@ describe("real-build panel-camera branches", () => {
           throw new Error("hash unavailable");
         },
       }),
-    ).toThrow(/hash verification failed.*hash unavailable/su);
+    ).toThrow(/hashDocument threw an untrusted value.*deterministic structural hash.*discarded/su);
     expect(ledger.reserved).toBe(0);
   });
 
@@ -404,7 +404,7 @@ describe("real-build panel-camera branches", () => {
     };
     expect(() =>
       admitRealBuildPanelCameraBranches({ rows: [row()], ledger: throwing, hashDocument }),
-    ).toThrow(/tryReserve\(1\) threw.*ledger must be discarded.*backend failed/su);
+    ).toThrow(/tryReserve\(1\) threw an untrusted value.*ledger must be discarded/su);
 
     let malformedReserved = 0;
     const malformed = {

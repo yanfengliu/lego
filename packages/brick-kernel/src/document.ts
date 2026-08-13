@@ -47,6 +47,13 @@ export function normalizeConnectionEdge(
   parts: readonly PartInstance[],
 ): ConnectionEdge {
   const partById = new Map(parts.map((part) => [part.id, part]));
+  return normalizeConnectionEdgeWithPartIndex(connection, partById);
+}
+
+function normalizeConnectionEdgeWithPartIndex(
+  connection: ConnectionEdge,
+  partById: ReadonlyMap<string, PartInstance>,
+): ConnectionEdge {
   // The male half goes first, so one join has one spelling. Where neither side
   // resolves to a gender, fall back to sorting by key so it is still stable.
   const aGender = connectorGender(connection.a, partById);
@@ -68,6 +75,7 @@ export function normalizeConnectionEdge(
 }
 
 export function normalizeBrickDocument(document: BrickDocumentV1): BrickDocumentV1 {
+  const partById = new Map(document.parts.map((part) => [part.id, part]));
   return {
     ...document,
     truth: {
@@ -82,7 +90,7 @@ export function normalizeBrickDocument(document: BrickDocumentV1): BrickDocument
       .map(normalizePartInstance)
       .sort((left, right) => compareStrings(left.id, right.id)),
     connections: document.connections
-      .map((connection) => normalizeConnectionEdge(connection, document.parts))
+      .map((connection) => normalizeConnectionEdgeWithPartIndex(connection, partById))
       .sort((left, right) => compareStrings(left.id, right.id)),
     submodels: document.submodels
       .map((submodel) => ({

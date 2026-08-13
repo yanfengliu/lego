@@ -6,6 +6,7 @@ import type {
 } from "./real-build-panel-camera-branch-budget";
 import type { StepCameraLatticeHypothesis } from "./real-build-step-camera";
 import {
+  describePanelCameraCanonicalSnapshotFailure,
   snapshotPanelCameraCanonicalDocument,
   type PanelCameraCanonicalDocumentLimits,
   type PanelCameraCanonicalDocumentSnapshot,
@@ -59,6 +60,33 @@ const SHARED_ARRAY_BUFFER_BYTE_LENGTH_GETTER =
   typeof SharedArrayBuffer === "undefined"
     ? undefined
     : Object.getOwnPropertyDescriptor(SharedArrayBuffer.prototype, "byteLength")?.get;
+const panelCameraBoundaryFailures = new WeakSet<object>();
+
+function panelCameraBoundaryTypeError(message: string): TypeError {
+  const failure = new TypeError(message);
+  panelCameraBoundaryFailures.add(failure);
+  return failure;
+}
+
+function panelCameraBoundaryRangeError(message: string): RangeError {
+  const failure = new RangeError(message);
+  panelCameraBoundaryFailures.add(failure);
+  return failure;
+}
+
+export function describePanelCameraBoundaryFailure(value: unknown): string | null {
+  if (
+    value === null ||
+    (typeof value !== "object" && typeof value !== "function") ||
+    !panelCameraBoundaryFailures.has(value)
+  ) {
+    return null;
+  }
+  const descriptor = Object.getOwnPropertyDescriptor(value, "message");
+  return descriptor !== undefined && "value" in descriptor && typeof descriptor.value === "string"
+    ? descriptor.value
+    : "Panel-camera boundary validation failed without an actionable local message.";
+}
 
 export interface RealBuildPanelCameraLedgerSnapshot {
   readonly budget: number;
@@ -144,25 +172,6 @@ function describePanelCameraRecordValue(value: unknown, depth: number): string {
   }
 }
 
-export function describePanelCameraThrown(value: unknown): string {
-  if (value !== null && (typeof value === "object" || typeof value === "function")) {
-    try {
-      const descriptor = Object.getOwnPropertyDescriptor(value, "message");
-      if (
-        descriptor !== undefined &&
-        "value" in descriptor &&
-        typeof descriptor.value === "string"
-      ) {
-        const message = descriptor.value;
-        return message.length <= 512 ? message : `${message.slice(0, 509)}...`;
-      }
-    } catch {
-      return "a hostile thrown object whose message could not be inspected";
-    }
-  }
-  return describePanelCameraValue(value);
-}
-
 export function hasExactPanelCameraKeys(
   value: Record<string, unknown>,
   expected: readonly string[],
@@ -175,16 +184,30 @@ export function hasExactPanelCameraKeys(
 export function snapshotPanelCameraDocument<D extends RealBuildPanelCameraDocument>(
   document: unknown,
 ): D {
+  let outcome:
+    | { readonly ok: true; readonly document: D }
+    | { readonly ok: false; readonly localFailure: string | null };
   try {
-    return snapshotPanelCameraCanonicalDocument<D>(document, {
-      maximumParts: MAX_DOCUMENT_PARTS,
-    }).document;
-  } catch (error) {
+    outcome = {
+      ok: true,
+      document: snapshotPanelCameraCanonicalDocument<D>(document, {
+        maximumParts: MAX_DOCUMENT_PARTS,
+      }).document,
+    };
+  } catch (caught) {
+    outcome = {
+      ok: false,
+      localFailure: describePanelCameraCanonicalSnapshotFailure(caught),
+    };
+  }
+  if (!outcome.ok) {
     throw new TypeError(
-      `Panel-camera prefix document could not be detached as bounded immutable canonical JSON. ${describePanelCameraThrown(error)}`,
-      { cause: error },
+      outcome.localFailure === null
+        ? `Panel-camera prefix document could not be detached as bounded immutable canonical JSON because an untrusted value was thrown; the thrown value was discarded.`
+        : `Panel-camera prefix document could not be detached as bounded immutable canonical JSON: ${outcome.localFailure}`,
     );
   }
+  return outcome.document;
 }
 
 export function snapshotPanelCameraDocumentWithCanonical<D extends RealBuildPanelCameraDocument>(
@@ -213,12 +236,12 @@ export function snapshotPanelCameraBinaryMask(
     length = TYPED_ARRAY_LENGTH_GETTER.call(value) as number;
     buffer = TYPED_ARRAY_BUFFER_GETTER.call(value) as ArrayBufferLike;
   } catch {
-    throw new TypeError(
+    throw panelCameraBoundaryTypeError(
       `${label} must be a genuine Uint8Array of exactly ${expectedLength} binary pixels; received ${describePanelCameraValue(value)}.`,
     );
   }
   if (length !== expectedLength) {
-    throw new RangeError(
+    throw panelCameraBoundaryRangeError(
       `${label} must contain exactly ${expectedLength} pixels; received ${length}. No raster copy was allocated.`,
     );
   }
@@ -231,7 +254,7 @@ export function snapshotPanelCameraBinaryMask(
       // The SharedArrayBuffer intrinsic rejects private ArrayBuffer storage.
     }
     if (shared)
-      throw new TypeError(
+      throw panelCameraBoundaryTypeError(
         `${label} uses SharedArrayBuffer storage that can change during evidence capture; required a private ArrayBuffer-backed Uint8Array for one reproducible snapshot.`,
       );
   }
@@ -240,13 +263,13 @@ export function snapshotPanelCameraBinaryMask(
     snapshot = new Uint8Array(expectedLength);
     Uint8Array.prototype.set.call(snapshot, value as Uint8Array);
   } catch {
-    throw new TypeError(
+    throw panelCameraBoundaryTypeError(
       `${label} changed or detached while its ${expectedLength} pixels were copied; required one stable private Uint8Array snapshot.`,
     );
   }
   for (let index = 0; index < snapshot.length; index += 1) {
     if (snapshot[index] !== 0 && snapshot[index] !== 1) {
-      throw new RangeError(
+      throw panelCameraBoundaryRangeError(
         `${label} pixel ${index} is ${snapshot[index]}; required binary byte 0 or 1.`,
       );
     }

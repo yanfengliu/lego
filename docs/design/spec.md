@@ -2,7 +2,7 @@
 
 Date: 2026-07-09
 
-Revised 2026-08-12: current implementation includes bounded branch-aware farther-panel carry, one exact source- and data-attested step-5 origin shortcut, a deterministic post-search target-equivalence audit that withholds canonical completion when no proper upright world frame realizes the official target, and a generation-3 browser boundary that retains the exact eight-way empty-root camera frontier, routes fixed actions through a fail-closed physical-authority guard, and intentionally refuses before the first placement while camera-scored candidates still lack end-to-end lineage; superseded implementation history lives in the devlog.
+Revised 2026-08-12: current implementation includes bounded branch-aware farther-panel carry, one exact source- and data-attested step-5 origin shortcut, a deterministic post-search target-equivalence audit that withholds canonical completion when no proper upright world frame realizes the official target, and a generation-3 browser boundary that retains the exact eight-way empty-root camera frontier, routes fixed actions through a fail-closed physical-authority guard, and intentionally refuses before the first placement. Stable document-candidate and parent-bound lineage identities, bounded inspection-only lineage evidence, live panel-camera adapters, canonical candidate-document snapshots, a normalized farther DAG, prepared-search inspection and an automatic BuildProgram compiler now exist as prerequisites; all execution producers remain private or unavailable until trusted run preparation, enumeration, visual measurement and Node reproduction are wired end to end. Superseded implementation history lives in the devlog.
 
 ## Decision summary
 

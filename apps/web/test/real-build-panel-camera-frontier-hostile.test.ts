@@ -214,7 +214,9 @@ describe("resolveRealBuildPanelCameraFrontier hostile boundaries", () => {
           return BUILT_MASK;
         },
       }),
-    ).toThrow(/accessors and unstable proxies are not accepted/su);
+    ).toThrow(
+      /prefix 0 document preparation failed.*\$\.parts.*enumerable own data property.*reserved ledger must be discarded/su,
+    );
     expect(reads).toBe(0);
     expect(hashes).toBe(0);
     expect(renders).toBe(0);
@@ -247,7 +249,9 @@ describe("resolveRealBuildPanelCameraFrontier hostile boundaries", () => {
           return BUILT_MASK;
         },
       }),
-    ).toThrow(/exceeds canonical depth 128.*before hashing or rendering/su);
+    ).toThrow(
+      /prefix 0 document preparation failed.*exceeds canonical depth 128.*reject it before hashing or rendering.*reserved ledger must be discarded/su,
+    );
     expect(hashes).toBe(0);
     expect(renders).toBe(0);
     expect(ledger.reserved).toBe(8);
@@ -312,9 +316,11 @@ describe("resolveRealBuildPanelCameraFrontier hostile boundaries", () => {
     expect(result.candidates.map(({ attempts }) => attempts.length)).toEqual([8, 8]);
     expect(result.candidates.map(({ observationIds }) => observationIds.length)).toEqual([6, 7]);
     expect(result.observations).toHaveLength(19);
-    expect(result.candidates[0]!.failure?.message).toMatch(/pixel 1 is 2.*genuine Uint8Array/su);
+    expect(result.candidates[0]!.failure?.message).toMatch(
+      /as-fitted turn 90 returned malformed raster evidence.*model mask pixel 1 is 2.*required binary byte 0 or 1.*as-fitted turn 180 returned malformed raster evidence.*genuine Uint8Array of exactly 4 binary pixels/su,
+    );
     expect(result.candidates[1]!.failure?.message).toContain(
-      "a hostile thrown object whose message could not be inspected",
+      "threw an untrusted value that was discarded",
     );
     expect(
       result.candidates.every(({ selectedObservationId }) => selectedObservationId === null),

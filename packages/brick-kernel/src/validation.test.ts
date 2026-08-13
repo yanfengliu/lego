@@ -277,6 +277,38 @@ describe("hard document validation", () => {
     expect(validateValidationReportV1(first)).toBe(true);
   });
 
+  it("does not spend the collision budget on a target-scale separated broad phase", () => {
+    const parts = Array.from({ length: 1_465 }, (_, index) =>
+      createPartInstance({
+        id: `broad-phase-${index.toString().padStart(4, "0")}`,
+        catalogPartId: "builtin:brick-2x4",
+        transform: { positionLdu: [0, 0, index * 80], orientationId: "upright-yaw-0" },
+      }),
+    );
+    const report = validateBrickDocument(withParts(parts));
+
+    expect(report.documentGloballyValid).toBe(false);
+    expect(report.issues.map(({ code }) => code)).not.toContain(
+      "COLLISION_COMPARISON_BUDGET_EXCEEDED",
+    );
+    expect(report.issues.map(({ code }) => code)).toContain("DISCONNECTED_ASSEMBLY");
+  });
+
+  it("indexes a schema-maximum x-separated row without quadratic source scans", () => {
+    const parts = Array.from({ length: 10_000 }, (_, index) =>
+      createPartInstance({
+        id: `x-separated-${index.toString().padStart(5, "0")}`,
+        transform: { positionLdu: [index * 40, 0, 0], orientationId: "upright-yaw-0" },
+      }),
+    );
+    const report = validateBrickDocument(withParts(parts));
+
+    expect(report.issues.map(({ code }) => code)).not.toContain(
+      "COLLISION_COMPARISON_BUDGET_EXCEEDED",
+    );
+    expect(report.issues.map(({ code }) => code)).toContain("DISCONNECTED_ASSEMBLY");
+  });
+
   it("bounds per-issue evidence while preserving a schema-valid report", () => {
     const parts = Array.from({ length: 300 }, (_, index) =>
       createPartInstance({

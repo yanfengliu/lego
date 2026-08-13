@@ -30,6 +30,10 @@ import {
 } from "./real-build-farther-panel-validation";
 
 export type * from "./real-build-farther-panel-types";
+export { MAXIMUM_LINEAGED_FARTHER_LINEAGES } from "./real-build-farther-panel-types";
+export * from "./real-build-candidate-document-snapshot";
+export * from "./real-build-farther-lineage-panel";
+export * from "./real-build-farther-lineage-transition";
 
 export function createFartherOriginFrontier<D>(
   unsafeInput: FartherOriginInput<D>,

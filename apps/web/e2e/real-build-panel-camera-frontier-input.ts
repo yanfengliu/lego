@@ -2,7 +2,6 @@ import type { Sha256Digest } from "@lego-studio/brick-kernel";
 
 import {
   describePanelCameraValue as describe,
-  describePanelCameraThrown as describeThrown,
   isPanelCameraRecord as isRecord,
   PANEL_CAMERA_DIGEST_PATTERN,
   realBuildStableDocumentCandidateId,
@@ -10,7 +9,10 @@ import {
   type RealBuildPanelCameraDocument,
 } from "./real-build-panel-camera-resolver-boundary";
 import type { RealBuildPanelCameraPrefixInput } from "./real-build-panel-camera-resolver";
-import { PanelCameraPartLimitError } from "./real-build-panel-camera-json-snapshot";
+import {
+  describePanelCameraCanonicalSnapshotFailure,
+  inspectPanelCameraPartLimitFailure,
+} from "./real-build-panel-camera-json-snapshot";
 
 const PREFIX_KEYS = ["document", "documentHash", "parentLineageId", "throughStepNumber"] as const;
 const LINEAGE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:@-]{0,255}$/u;
@@ -19,6 +21,34 @@ const MAX_TOTAL_PART_REFERENCES = 200_000;
 const MAX_TOTAL_CANONICAL_BYTES = 16_777_216;
 const MAX_TOTAL_CANONICAL_NODES = 2_000_000;
 const MAX_DOCUMENT_PARTS = 100_000;
+const panelCameraFrontierPreparationFailures = new WeakSet<object>();
+
+function panelCameraFrontierPreparationTypeError(message: string): TypeError {
+  const failure = new TypeError(message);
+  panelCameraFrontierPreparationFailures.add(failure);
+  return failure;
+}
+
+function panelCameraFrontierPreparationRangeError(message: string): RangeError {
+  const failure = new RangeError(message);
+  panelCameraFrontierPreparationFailures.add(failure);
+  return failure;
+}
+
+/** Returns an actionable message only for failures created inside prepared-frontier validation. */
+export function describePanelCameraFrontierPreparationFailure(value: unknown): string | null {
+  if (
+    value === null ||
+    (typeof value !== "object" && typeof value !== "function") ||
+    !panelCameraFrontierPreparationFailures.has(value)
+  ) {
+    return null;
+  }
+  const descriptor = Object.getOwnPropertyDescriptor(value, "message");
+  return descriptor !== undefined && "value" in descriptor && typeof descriptor.value === "string"
+    ? descriptor.value
+    : "Panel-camera frontier preparation failed without an actionable local message.";
+}
 
 export interface PanelCameraFrontierPrefixHeader<D extends RealBuildPanelCameraDocument> {
   readonly throughStepNumber: number;
@@ -47,12 +77,17 @@ export function snapshotPanelCameraFrontierPrefixHeaders<
   readonly registrationPanelStepNumber: number;
 }): readonly PanelCameraFrontierPrefixHeader<D>[] {
   let prefixes: readonly unknown[];
+  let localPrefixArrayFailure: string | null = null;
   try {
-    if (!Array.isArray(input.prefixes)) throw new TypeError("not an array");
+    if (!Array.isArray(input.prefixes)) {
+      localPrefixArrayFailure = "the supplied prefixes value is not an array";
+      throw new TypeError(localPrefixArrayFailure);
+    }
     const lengthDescriptor = Object.getOwnPropertyDescriptor(input.prefixes, "length");
     const length = lengthDescriptor?.value;
     if (!Number.isSafeInteger(length) || length < 1 || length > MAX_FRONTIER_PREFIXES) {
-      throw new RangeError(`length ${String(length)}`);
+      localPrefixArrayFailure = `prefixes length ${String(length)} is outside 1-${MAX_FRONTIER_PREFIXES}`;
+      throw new RangeError(localPrefixArrayFailure);
     }
     const fixed: unknown[] = [];
     for (let index = 0; index < length; index += 1) {
@@ -64,17 +99,15 @@ export function snapshotPanelCameraFrontierPrefixHeaders<
         descriptor.get !== undefined ||
         descriptor.set !== undefined
       ) {
-        throw new TypeError(
-          `prefixes contain a hole at index ${index}, or that index is an accessor; required one stable own data row`,
-        );
+        localPrefixArrayFailure = `prefixes contain a hole at index ${index}, or that index is an accessor; required one stable own data row`;
+        throw new TypeError(localPrefixArrayFailure);
       }
       fixed.push(descriptor.value);
     }
     prefixes = Object.freeze(fixed);
-  } catch (error) {
+  } catch {
     throw new RangeError(
-      `Panel-camera frontier prefixes must be a non-empty dense plain-data array of at most ${MAX_FRONTIER_PREFIXES} fixed rows; received ${describe(input.prefixes)}. ${describeThrown(error)}`,
-      { cause: error },
+      `Panel-camera frontier prefixes must be a non-empty dense plain-data array of at most ${MAX_FRONTIER_PREFIXES} fixed rows; received ${describe(input.prefixes)}. ${localPrefixArrayFailure === null ? "The internal thrown value was discarded." : `${localPrefixArrayFailure}.`}`,
     );
   }
   const parentCandidates = new Set<string>();
@@ -109,10 +142,9 @@ export function snapshotPanelCameraFrontierPrefixHeaders<
         copied[key] = descriptor.value;
       }
       properties = copied;
-    } catch (error) {
+    } catch {
       throw new TypeError(
         `Panel-camera frontier prefix ${index} must contain exactly ${PREFIX_KEYS.join(", ")} as enumerable own data properties on a plain object; received ${describe(prefix)}.`,
-        { cause: error },
       );
     }
     const { throughStepNumber, parentLineageId, document, documentHash } = properties;
@@ -192,31 +224,31 @@ function snapshotPreparedPrefixes<D extends RealBuildPanelCameraDocument>(
           maximumCanonicalBytes: remainingCanonicalBytes,
           maximumNodes: remainingCanonicalNodes,
         });
-      } catch (error) {
-        if (
-          error instanceof PanelCameraPartLimitError &&
+      } catch (caught) {
+        const partLimit = inspectPanelCameraPartLimitFailure(caught);
+        const localFailure = describePanelCameraCanonicalSnapshotFailure(caught);
+        const message =
+          partLimit !== null &&
           remainingPartReferences < MAX_DOCUMENT_PARTS &&
-          error.limit === remainingPartReferences
-        ) {
-          throw new RangeError(
-            `Panel-camera frontier prefixes reference more than ${MAX_TOTAL_PART_REFERENCES} aggregate input parts at prefix ${index}; no document was cloned or hashed, and the ledger must be discarded.`,
-            { cause: error },
-          );
-        }
-        throw error;
+          partLimit.limit === remainingPartReferences
+            ? `Panel-camera frontier prefixes reference more than ${MAX_TOTAL_PART_REFERENCES} aggregate input parts at prefix ${index}; no document was cloned or hashed, and the ledger must be discarded.`
+            : localFailure !== null
+              ? `Panel-camera frontier prefix ${index} document preparation failed: ${localFailure} The reserved ledger must be discarded.`
+              : `Panel-camera frontier prefix ${index} document preparation failed because an untrusted value was thrown; the thrown value and reserved ledger must be discarded.`;
+        throw panelCameraFrontierPreparationRangeError(message);
       }
       remainingCanonicalBytes -= snapshot.canonicalBytes;
       remainingCanonicalNodes -= snapshot.nodeCount;
       if (source !== null && typeof source === "object") snapshots.set(source, snapshot);
     }
     if (snapshot.partCount > remainingPartReferences) {
-      throw new RangeError(
+      throw panelCameraFrontierPreparationRangeError(
         `Panel-camera frontier prefix ${index} would raise aggregate input part references above ${MAX_TOTAL_PART_REFERENCES}; no further document was detached or hashed, and the ledger must be discarded.`,
       );
     }
     remainingPartReferences -= snapshot.partCount;
     if (snapshot.partCount === 0) {
-      throw new TypeError(
+      throw panelCameraFrontierPreparationTypeError(
         `Panel-camera frontier prefix ${index} through step ${header.throughStepNumber} retains no parts; only the separate step-0 seeding operation may be empty, and the reserved ledger must be discarded.`,
       );
     }
@@ -242,14 +274,14 @@ export function preparePanelCameraFrontierCandidates<D extends RealBuildPanelCam
   for (const prefix of snapshotPreparedPrefixes(headers)) {
     const bytesOwner = candidateByBytes.get(prefix.canonicalDocument);
     if (bytesOwner !== undefined && bytesOwner !== prefix.candidateId) {
-      throw new TypeError(
-        `Panel-camera frontier document bytes claim both ${JSON.stringify(bytesOwner)} and ${JSON.stringify(prefix.candidateId)}; one canonical document must have one stable candidate identity.`,
+      throw panelCameraFrontierPreparationTypeError(
+        `Panel-camera frontier document bytes claim both ${JSON.stringify(bytesOwner)} and ${JSON.stringify(prefix.candidateId)}; one canonical document must have one stable candidate identity, so discard the reserved ledger.`,
       );
     }
     candidateByBytes.set(prefix.canonicalDocument, prefix.candidateId);
     const existing = byCandidate.get(prefix.candidateId);
     if (existing !== undefined && existing.prefix.canonicalDocument !== prefix.canonicalDocument) {
-      throw new TypeError(
+      throw panelCameraFrontierPreparationTypeError(
         `Panel-camera frontier candidate ${JSON.stringify(prefix.candidateId)} aliases different canonical document bytes after reservation; discard the ledger.`,
       );
     }

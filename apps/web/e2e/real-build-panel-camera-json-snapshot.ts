@@ -4,6 +4,23 @@ const DEFAULT_MAXIMUM_DEPTH = 128;
 const DEFAULT_MAXIMUM_ARRAY_LENGTH = 200_000;
 const DEFAULT_MAXIMUM_PARTS = 100_000;
 
+const panelCameraCanonicalSnapshotFailures = new WeakSet<object>();
+const panelCameraPartLimitFailures = new WeakSet<object>();
+/** Local subclasses brand actionable failures without retaining an untrusted cause. */
+class TypeError extends globalThis.TypeError {
+  public constructor(message: string) {
+    super(message);
+    panelCameraCanonicalSnapshotFailures.add(this);
+  }
+}
+
+class RangeError extends globalThis.RangeError {
+  public constructor(message: string) {
+    super(message);
+    panelCameraCanonicalSnapshotFailures.add(this);
+  }
+}
+
 interface DataEntry {
   readonly key: string;
   readonly value: unknown;
@@ -39,7 +56,7 @@ export interface PanelCameraCanonicalDocumentLimits {
   readonly maximumParts?: number;
 }
 
-export class PanelCameraPartLimitError extends RangeError {
+class PanelCameraPartLimitError extends RangeError {
   public readonly observed: number;
   public readonly limit: number;
 
@@ -50,7 +67,39 @@ export class PanelCameraPartLimitError extends RangeError {
     this.name = "PanelCameraPartLimitError";
     this.observed = observed;
     this.limit = limit;
+    panelCameraPartLimitFailures.add(this);
   }
+}
+
+export function describePanelCameraCanonicalSnapshotFailure(value: unknown): string | null {
+  if (
+    value === null ||
+    (typeof value !== "object" && typeof value !== "function") ||
+    !panelCameraCanonicalSnapshotFailures.has(value)
+  ) {
+    return null;
+  }
+  const descriptor = Object.getOwnPropertyDescriptor(value, "message");
+  return descriptor !== undefined && "value" in descriptor && typeof descriptor.value === "string"
+    ? descriptor.value
+    : "Panel-camera canonical snapshot failed without an actionable local message.";
+}
+
+export function inspectPanelCameraPartLimitFailure(
+  value: unknown,
+): Readonly<{ observed: number; limit: number }> | null {
+  if (
+    value === null ||
+    (typeof value !== "object" && typeof value !== "function") ||
+    !panelCameraPartLimitFailures.has(value)
+  ) {
+    return null;
+  }
+  const observed = Object.getOwnPropertyDescriptor(value, "observed")?.value;
+  const limit = Object.getOwnPropertyDescriptor(value, "limit")?.value;
+  return typeof observed === "number" && typeof limit === "number"
+    ? Object.freeze({ observed, limit })
+    : null;
 }
 
 function safePath(parent: string, key: string): string {

@@ -551,6 +551,110 @@ function collisionClassKey(finding: CollisionFinding): string {
   return `${finding.code}\u0000${finding.partIds.join("\u0001")}`;
 }
 
+const PART_BROAD_PHASE_CELL_LDU = 40;
+
+interface PartBroadPhaseIndex {
+  readonly boundsBySource: readonly (PrimitiveBounds | undefined)[];
+  readonly cellKeysBySource: readonly (readonly string[] | undefined)[];
+  readonly primitiveIndicesBySource: readonly (readonly number[] | undefined)[];
+  readonly sourcesByCell: ReadonlyMap<string, readonly number[]>;
+}
+
+function partBroadPhaseCellKeys(bounds: PrimitiveBounds): readonly string[] {
+  const keys: string[] = [];
+  const minX = Math.floor(bounds.min[0] / PART_BROAD_PHASE_CELL_LDU);
+  const maxX = Math.floor(bounds.max[0] / PART_BROAD_PHASE_CELL_LDU);
+  const minY = Math.floor(bounds.min[1] / PART_BROAD_PHASE_CELL_LDU);
+  const maxY = Math.floor(bounds.max[1] / PART_BROAD_PHASE_CELL_LDU);
+  const minZ = Math.floor(bounds.min[2] / PART_BROAD_PHASE_CELL_LDU);
+  const maxZ = Math.floor(bounds.max[2] / PART_BROAD_PHASE_CELL_LDU);
+  for (let x = minX; x <= maxX; x += 1) {
+    for (let y = minY; y <= maxY; y += 1) {
+      for (let z = minZ; z <= maxZ; z += 1) keys.push(`${x}:${y}:${z}`);
+    }
+  }
+  return keys;
+}
+
+/**
+ * Indexes whole-part bounds before primitive comparison.
+ *
+ * The semantic collision budget counts only primitive AABBs that overlap on
+ * all three axes. The old x-only sweep nevertheless visited every primitive
+ * in a long y/z-separated row. This index removes only pairs whose parent-part
+ * unions prove that no primitive pair can overlap. Candidate primitive indices
+ * are sorted back into the original x-sweep order, so findings and the exact
+ * comparison budget remain byte-for-byte deterministic.
+ */
+function createPartBroadPhaseIndex(
+  primitives: readonly WorldPrimitive[],
+  sourceCount: number,
+): PartBroadPhaseIndex {
+  const boundsBySource: (PrimitiveBounds | undefined)[] = Array.from({ length: sourceCount });
+  const primitiveIndicesBySource: (number[] | undefined)[] = Array.from({ length: sourceCount });
+  for (let index = 0; index < primitives.length; index += 1) {
+    const primitive = primitives[index]!;
+    const indices = primitiveIndicesBySource[primitive.sourceIndex];
+    if (indices) indices.push(index);
+    else primitiveIndicesBySource[primitive.sourceIndex] = [index];
+    const prior = boundsBySource[primitive.sourceIndex];
+    boundsBySource[primitive.sourceIndex] = prior
+      ? {
+          min: [
+            Math.min(prior.min[0], primitive.min[0]),
+            Math.min(prior.min[1], primitive.min[1]),
+            Math.min(prior.min[2], primitive.min[2]),
+          ],
+          max: [
+            Math.max(prior.max[0], primitive.max[0]),
+            Math.max(prior.max[1], primitive.max[1]),
+            Math.max(prior.max[2], primitive.max[2]),
+          ],
+        }
+      : { min: primitive.min, max: primitive.max };
+  }
+
+  const cellKeysBySource: (readonly string[] | undefined)[] = Array.from({
+    length: sourceCount,
+  });
+  const sourcesByCell = new Map<string, number[]>();
+  for (let sourceIndex = 0; sourceIndex < boundsBySource.length; sourceIndex += 1) {
+    const bounds = boundsBySource[sourceIndex];
+    if (!bounds) continue;
+    const keys = partBroadPhaseCellKeys(bounds);
+    cellKeysBySource[sourceIndex] = keys;
+    for (const key of keys) {
+      const sources = sourcesByCell.get(key);
+      if (sources) sources.push(sourceIndex);
+      else sourcesByCell.set(key, [sourceIndex]);
+    }
+  }
+  return { boundsBySource, cellKeysBySource, primitiveIndicesBySource, sourcesByCell };
+}
+
+function candidatePrimitiveIndices(
+  sourceIndex: number,
+  index: PartBroadPhaseIndex,
+): readonly number[] {
+  const sourceBounds = index.boundsBySource[sourceIndex];
+  if (!sourceBounds) return [];
+  const candidateSources = new Set<number>();
+  for (const key of index.cellKeysBySource[sourceIndex] ?? []) {
+    for (const candidateSource of index.sourcesByCell.get(key) ?? []) {
+      if (candidateSource === sourceIndex || candidateSources.has(candidateSource)) continue;
+      const candidateBounds = index.boundsBySource[candidateSource];
+      if (candidateBounds && boundsOverlap(sourceBounds, candidateBounds)) {
+        candidateSources.add(candidateSource);
+      }
+    }
+  }
+  const indices: number[] = [];
+  for (const candidateSource of candidateSources) {
+    indices.push(...(index.primitiveIndicesBySource[candidateSource] ?? []));
+  }
+  return indices.sort((left, right) => left - right);
+}
+
 export function findCatalogCollisions(
   parts: readonly PartInstance[],
   validConnections: readonly ConnectionEdge[],
@@ -559,17 +663,27 @@ export function findCatalogCollisions(
   const allowedPenetrations = collectAllowedPenetrations(parts, validConnections);
   const findings: CollisionFinding[] = [];
   const reportedClasses = new Set<string>();
+  const partBroadPhase = createPartBroadPhaseIndex(primitives, parts.length);
+  const candidatesBySource: (readonly number[] | undefined)[] = Array.from({
+    length: parts.length,
+  });
   let comparisons = 0;
 
   for (let leftIndex = 0; leftIndex < primitives.length; leftIndex += 1) {
     const left = primitives[leftIndex];
     if (!left) continue;
 
-    for (let rightIndex = leftIndex + 1; rightIndex < primitives.length; rightIndex += 1) {
-      const right = primitives[rightIndex];
-      if (!right || right.min[0] >= left.max[0]) break;
-      if (left.sourceIndex === right.sourceIndex || !boundsOverlap(left, right)) continue;
-
+    const sourceCandidates =
+      candidatesBySource[left.sourceIndex] ??
+      (candidatesBySource[left.sourceIndex] = candidatePrimitiveIndices(
+        left.sourceIndex,
+        partBroadPhase,
+      ));
+    for (const rightIndex of sourceCandidates) {
+      if (rightIndex <= leftIndex) continue;
+      const right = primitives[rightIndex]!;
+      if (right.min[0] >= left.max[0]) break;
+      if (!boundsOverlap(left, right)) continue;
       comparisons += 1;
       if (comparisons > MAX_COLLISION_COMPARISONS) {
         return [
@@ -582,7 +696,6 @@ export function findCatalogCollisions(
           },
         ];
       }
-
       let collides: boolean;
       if (left.kind === "body" && right.kind === "body") {
         collides = bodiesOverlap(left, right);

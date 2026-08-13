@@ -308,15 +308,22 @@ describe("part-identification contained filesystem and child boundary", () => {
         "writeFileSync(process.argv[1],String(child.pid));",
         "setInterval(()=>{},1000);",
       ].join("");
+      // The Windows production path starts a fresh PowerShell process and compiles the Job Object
+      // helper before it can resume Node. Full-suite process pressure can consume the former 2 s
+      // deadline before the managed child starts; 5 s remains a hard execution/cleanup bound while
+      // leaving the direct POSIX process-group path on its tighter deadline.
+      const descendantTreeTimeoutMs = process.platform === "win32" ? 5_000 : 2_000;
       try {
         await expect(
           runBoundedChild(process.execPath, ["-e", parentProgram, pidPath], {
-            timeoutMs: 2_000,
+            timeoutMs: descendantTreeTimeoutMs,
             maxStdoutBytes: 1_024,
             maxStderrBytes: 1_024,
             label: "descendant-owning child",
           }),
-        ).rejects.toThrow(/2000 ms execution limit.*terminated/);
+        ).rejects.toThrow(
+          new RegExp(`${descendantTreeTimeoutMs} ms execution limit.*terminated`, "u"),
+        );
         expect(existsSync(pidPath)).toBe(true);
         const descendantPid = Number(readFileSync(pidPath, "utf8"));
         for (let attempt = 0; attempt < 20 && processExists(descendantPid); attempt += 1) {

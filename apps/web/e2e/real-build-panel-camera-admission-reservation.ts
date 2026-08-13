@@ -21,17 +21,16 @@ export function reservePanelCameraAdmission(input: {
   readonly describe: (value: unknown) => string;
 }): { readonly admitted: boolean; readonly after: PanelCameraAdmissionLedgerState } {
   let answer: unknown;
-  let thrown: unknown = null;
+  let callbackThrew = false;
   try {
     answer = input.tryReserve.call(input.ledger, input.requested);
-  } catch (error) {
-    thrown = error;
+  } catch {
+    callbackThrew = true;
   }
   const after = input.snapshot(input.ledger);
-  if (thrown !== null) {
+  if (callbackThrew) {
     throw new TypeError(
-      `Panel-camera branch ledger tryReserve(${input.requested}) threw after state changed from ${input.describe(input.before)} to ${input.describe(after)}; admission stopped and the ledger must be discarded. ${thrown instanceof Error ? thrown.message : String(thrown)}`,
-      { cause: thrown },
+      `Panel-camera branch ledger tryReserve(${input.requested}) threw an untrusted value after state changed from ${input.describe(input.before)} to ${input.describe(after)}; admission stopped, the thrown value was discarded, and the ledger must be discarded.`,
     );
   }
   if (typeof answer !== "boolean") {

@@ -227,7 +227,7 @@ describe("resolveRealBuildPanelCameraBranches hostile boundaries", () => {
         ledger: throwingLedger,
       }),
     ).toThrow(
-      /tryReserve\(8\) threw.*changing state.*ledger must be discarded.*backend unavailable/su,
+      /tryReserve\(8\) threw an untrusted value.*thrown value was discarded.*ledger must be discarded/su,
     );
     expect(poisonedReserved).toBe(1);
 
