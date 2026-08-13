@@ -16,6 +16,21 @@ import {
   type RealBuildBrowserBranchStepEvidenceIndex,
   type RealBuildBrowserCompiledBranchJsonReference,
 } from "./real-build-browser-output-v4-types";
+import {
+  createRealBuildBrowserBranchRoleSnapshotRegistry,
+  type RealBuildBrowserBranchStepEvidenceBytes,
+} from "./real-build-browser-output-v4-role-snapshots";
+
+export type { RealBuildBrowserBranchStepEvidenceBytes } from "./real-build-browser-output-v4-role-snapshots";
+
+const VERIFIED_ROLE_SNAPSHOTS = createRealBuildBrowserBranchRoleSnapshotRegistry();
+
+export function readRealBuildBrowserBranchStepEvidenceBytes(
+  inspectedEvidence: unknown,
+  stepNumber: unknown,
+): RealBuildBrowserBranchStepEvidenceBytes {
+  return VERIFIED_ROLE_SNAPSHOTS.read(inspectedEvidence, stepNumber);
+}
 
 export const MAXIMUM_REAL_BUILD_BROWSER_BRANCH_INDEX_BYTES = 8 * 1024 * 1024;
 export const MAXIMUM_REAL_BUILD_BROWSER_BRANCH_ROLE_BYTES = 512 * 1024 * 1024;
@@ -365,7 +380,7 @@ function verifySnapshottedRole(
   inspected: InspectedBytes,
   descriptor: RealBuildBrowserBranchRoleDescriptor<RealBuildBrowserBranchRoleName>,
   references: readonly BranchReference[],
-): void {
+): Uint8Array {
   const snapshot = copyInspectedBytes(inspected, `Browser ${descriptor.role} role`);
   const observedDigest = sha256(snapshot);
   if (observedDigest !== descriptor.digest) {
@@ -384,6 +399,7 @@ function verifySnapshottedRole(
       );
     }
   }
+  return snapshot;
 }
 
 /**
@@ -435,7 +451,16 @@ export function inspectRealBuildBrowserBranchEvidenceV1(
   );
   requireDenseReferences(compiledReferences, evidence.compiledBranchRole);
   requireDenseReferences(observationReferences, evidence.observationRole);
-  verifySnapshottedRole(compiled, evidence.compiledBranchRole, compiledReferences);
-  verifySnapshottedRole(observations, evidence.observationRole, observationReferences);
+  const compiledSnapshot = verifySnapshottedRole(
+    compiled,
+    evidence.compiledBranchRole,
+    compiledReferences,
+  );
+  const observationSnapshot = verifySnapshottedRole(
+    observations,
+    evidence.observationRole,
+    observationReferences,
+  );
+  VERIFIED_ROLE_SNAPSHOTS.retain(evidence, compiledSnapshot, observationSnapshot);
   return evidence;
 }

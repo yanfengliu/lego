@@ -49,9 +49,20 @@ export type RealBuildPreparedObservationPolicyInspection = Readonly<{
   authority: "absent";
 }>;
 
+/** One bounded parse of the complete prepared-run bytes, reusable only for inspection lookups. */
+export type RealBuildPreparedRunInputInspection = Readonly<{
+  preparedRunInputDigest: Sha256Digest;
+  lastStep: number;
+  authority: "absent";
+}>;
+
 const preparedSteps = new WeakSet<object>();
 const inspections = new WeakSet<object>();
 const observationPolicies = new WeakSet<object>();
+const preparedRunInspections = new WeakMap<
+  object,
+  { readonly options: RealBuildOptions; readonly canonical: string }
+>();
 
 function snapshotWireBytes(value: unknown): Uint8Array {
   return snapshotHostileUint8Array(value, {
@@ -183,36 +194,60 @@ function requirePreparedPanel(panel: RealBuildPanelSpec, stepNumber: number): vo
  * issuance intentionally has no public producer until PDF/action-ledger
  * preparation itself is nonforgeable; caller bytes cannot certify themselves.
  */
-export function inspectRealBuildPreparedStepInput(
+export function inspectRealBuildPreparedRunInput(
   preparedRunInputBytes: unknown,
-  stepNumber: unknown,
-): RealBuildPreparedStepInspection {
-  if (
-    !Number.isSafeInteger(stepNumber) ||
-    (stepNumber as number) < 1 ||
-    (stepNumber as number) > 359
-  ) {
-    throw new RangeError("Prepared step number must be a safe integer from 1 through 359.");
-  }
+): RealBuildPreparedRunInputInspection {
   const prepared = parsePreparedRunInput(preparedRunInputBytes);
-  if ((stepNumber as number) > prepared.options.lastStep) {
-    throw new RangeError(
-      `Prepared step ${String(stepNumber)} lies beyond requested lastStep ${prepared.options.lastStep}.`,
+  const inspection = Object.freeze({
+    preparedRunInputDigest: canonicalDigest({
+      schemaVersion: "lego.real-build-prepared-run-input/1",
+      canonicalRunInput: prepared.canonical,
+    }),
+    lastStep: prepared.options.lastStep,
+    authority: "absent" as const,
+  });
+  preparedRunInspections.set(inspection, prepared);
+  return inspection;
+}
+
+function requirePreparedRunInputInspection(
+  value: unknown,
+): readonly [RealBuildPreparedRunInputInspection, RealBuildOptions] {
+  if (value === null || typeof value !== "object") {
+    throw new TypeError(
+      "Prepared run input inspection must be the exact result of one bounded byte parse.",
     );
   }
-  const panel = prepared.options.panels.find(
-    ({ stepNumber: candidate }) => candidate === stepNumber,
+  const prepared = preparedRunInspections.get(value);
+  if (prepared === undefined) {
+    throw new TypeError(
+      "Prepared run input inspection must be the exact result of one bounded byte parse.",
+    );
+  }
+  return [value as RealBuildPreparedRunInputInspection, prepared.options];
+}
+
+export function inspectRealBuildPreparedStepFromRunInput(
+  preparedRunInputInspection: unknown,
+  stepNumber: unknown,
+): RealBuildPreparedStepInspection {
+  const validatedStepNumber = requirePreparedStepNumber(stepNumber);
+  const [preparedRun, options] = requirePreparedRunInputInspection(preparedRunInputInspection);
+  if (validatedStepNumber > options.lastStep) {
+    throw new RangeError(
+      `Prepared step ${String(validatedStepNumber)} lies beyond requested lastStep ${options.lastStep}.`,
+    );
+  }
+  const panel = options.panels.find(
+    ({ stepNumber: candidate }) => candidate === validatedStepNumber,
   );
   if (panel === undefined) {
     throw new TypeError(
-      `Prepared run input has no exact panel for printed step ${String(stepNumber)}.`,
+      `Prepared run input has no exact panel for printed step ${String(validatedStepNumber)}.`,
     );
   }
-  requirePreparedPanel(panel, stepNumber as number);
-  const preparedRunInputDigest = canonicalDigest({
-    schemaVersion: "lego.real-build-prepared-run-input/1",
-    canonicalRunInput: prepared.canonical,
-  });
+  requirePreparedPanel(panel, validatedStepNumber);
+  const preparedRunInputDigest = preparedRun.preparedRunInputDigest;
   const printedStepIdentity = canonicalDigest({
     schemaVersion: "lego.real-build-prepared-step/1",
     preparedRunInputDigest,
@@ -224,11 +259,11 @@ export function inspectRealBuildPreparedStepInput(
     ),
   );
   const compilerMetadata = Object.freeze({
-    name: `Printed step ${String(stepNumber)}`,
+    name: `Printed step ${String(validatedStepNumber)}`,
     sourceActionDigest: panel.action.evidenceDigest as Sha256Digest,
   });
   const inspection = Object.freeze({
-    stepNumber: stepNumber as number,
+    stepNumber: validatedStepNumber,
     preparedRunInputDigest,
     printedStepIdentity,
     compilerMetadata,
@@ -239,30 +274,57 @@ export function inspectRealBuildPreparedStepInput(
   return inspection;
 }
 
+function requirePreparedStepNumber(stepNumber: unknown): number {
+  if (
+    !Number.isSafeInteger(stepNumber) ||
+    (stepNumber as number) < 1 ||
+    (stepNumber as number) > 359
+  ) {
+    throw new RangeError("Prepared step number must be a safe integer from 1 through 359.");
+  }
+  return stepNumber as number;
+}
+
+export function inspectRealBuildPreparedStepInput(
+  preparedRunInputBytes: unknown,
+  stepNumber: unknown,
+): RealBuildPreparedStepInspection {
+  requirePreparedStepNumber(stepNumber);
+  return inspectRealBuildPreparedStepFromRunInput(
+    inspectRealBuildPreparedRunInput(preparedRunInputBytes),
+    stepNumber,
+  );
+}
+
 /** Bounded inspection of the exact thresholds committed by prepared run input bytes. */
 export function inspectRealBuildPreparedObservationPolicy(
   preparedRunInputBytes: unknown,
 ): RealBuildPreparedObservationPolicyInspection {
-  const prepared = parsePreparedRunInput(preparedRunInputBytes);
+  return inspectRealBuildPreparedObservationPolicyFromRunInput(
+    inspectRealBuildPreparedRunInput(preparedRunInputBytes),
+  );
+}
+
+export function inspectRealBuildPreparedObservationPolicyFromRunInput(
+  preparedRunInputInspection: unknown,
+): RealBuildPreparedObservationPolicyInspection {
+  const [preparedRun, options] = requirePreparedRunInputInspection(preparedRunInputInspection);
   if (
-    !Number.isFinite(prepared.options.minimumDeferredAgreement) ||
-    prepared.options.minimumDeferredAgreement <= 0 ||
-    prepared.options.minimumDeferredAgreement > 1 ||
-    !Number.isFinite(prepared.options.minimumDeferredAgreementMargin) ||
-    prepared.options.minimumDeferredAgreementMargin < 0 ||
-    prepared.options.minimumDeferredAgreementMargin > 1
+    !Number.isFinite(options.minimumDeferredAgreement) ||
+    options.minimumDeferredAgreement <= 0 ||
+    options.minimumDeferredAgreement > 1 ||
+    !Number.isFinite(options.minimumDeferredAgreementMargin) ||
+    options.minimumDeferredAgreementMargin < 0 ||
+    options.minimumDeferredAgreementMargin > 1
   ) {
     throw new RangeError(
       "Prepared observation policy requires finite unit-interval minimumDeferredAgreement and minimumDeferredAgreementMargin values.",
     );
   }
   const inspection = Object.freeze({
-    preparedRunInputDigest: canonicalDigest({
-      schemaVersion: "lego.real-build-prepared-run-input/1",
-      canonicalRunInput: prepared.canonical,
-    }),
-    minimumScore: prepared.options.minimumDeferredAgreement,
-    minimumMargin: prepared.options.minimumDeferredAgreementMargin,
+    preparedRunInputDigest: preparedRun.preparedRunInputDigest,
+    minimumScore: options.minimumDeferredAgreement,
+    minimumMargin: options.minimumDeferredAgreementMargin,
     authority: "absent" as const,
   });
   observationPolicies.add(inspection);

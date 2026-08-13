@@ -2,6 +2,8 @@
 
 Current state belongs in the design documents; this index records only behaviour changes, measured results, and links to the matching detailed history.
 
+- [2026-08-13 (verified branch-byte reuse prerequisites)](detailed/2026-08-12_2026-08-13.md) — Browser branch-role inspection now retains one verified copy and returns fresh per-step slices, while prepared-run bytes are parsed once for reusable step and policy lookups; browser-output `/4`, selected provenance, and authority remain absent.
+
 - [2026-08-13 (real exact-five source-locked execution)](detailed/2026-08-12_2026-08-13.md) — The real booklet produced one authenticated fixed-five publication under audit-only execution identity `sha256:979157ed12ef36fcd59a85aba13268d56a47d77ee886070cd31221805d756462`; all ten native PNGs preserved their bound panel composition on inspection, while review remains pending, authority absent, and the dense 359-step probe unrun.
 
 - [2026-08-13 (source-bound exact-five calibration publication)](detailed/2026-08-12_2026-08-13.md) — The exact five-panel capture now reproduces against the PDF, full 359-row manifest, source/provenance/served/runtime closure, derives an audit-only execution identity, and publishes five roles plus ten PNGs content-addressed with the summary last; human authority, admission, and a real-booklet run remain absent.
