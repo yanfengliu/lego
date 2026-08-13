@@ -2,6 +2,8 @@
 
 Current state belongs in the design documents; this index records only behaviour changes, measured results, and links to the matching detailed history.
 
+- [2026-08-13 (unverified step-13 alignment diagnostic)](detailed/2026-08-12_2026-08-13.md) — A bounded hostile-safe helper now isolates the fixed step-12-through-14, cursor-26 alignment question and indicates a synthetic step-13 `41539`/`3958` misidentification without authenticating its detached inputs, mutating the ledger, binding official source, or granting admission authority.
+
 - [2026-08-13 (verified branch-byte reuse prerequisites)](detailed/2026-08-12_2026-08-13.md) — Browser branch-role inspection now retains one verified copy and returns fresh per-step slices, while prepared-run bytes are parsed once for reusable step and policy lookups; browser-output `/4`, selected provenance, and authority remain absent.
 
 - [2026-08-13 (real exact-five source-locked execution)](detailed/2026-08-12_2026-08-13.md) — The real booklet produced one authenticated fixed-five publication under audit-only execution identity `sha256:979157ed12ef36fcd59a85aba13268d56a47d77ee886070cd31221805d756462`; all ten native PNGs preserved their bound panel composition on inspection, while review remains pending, authority absent, and the dense 359-step probe unrun.
