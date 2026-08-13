@@ -161,6 +161,24 @@ describe("extracting a step's highlight region", () => {
     expect(extraction.mask.every((value) => value === 0)).toBe(true);
   });
 
+  it("refuses aggregate full-raster component work before filling hostile stripes", () => {
+    const pixels = page(100, 40);
+    for (let x = 5; x < 20; x += 1) {
+      paint(pixels, 100, x, 5);
+      paint(pixels, 100, x, 20);
+    }
+
+    expect(() =>
+      extractHighlightRegions(pixels, 100, 40, {
+        minimumOutlinePx: 10,
+        closeRadiusPx: 0,
+        maximumAggregateCandidateMaskPixels: 4_000,
+      }),
+    ).toThrowError(
+      "Highlight extraction found 2 significant components at 100x40; one full-raster fill mask per component would exceed the 4000-pixel aggregate bound. Reject or simplify the hostile panel instead of allocating a full raster for every highlight stripe.",
+    );
+  });
+
   it("reports how many contours closed, which is the share a fill can serve", () => {
     const pixels = page(120, 40);
     strokeRectangle(pixels, 120, { minXPx: 5, minYPx: 5, maxXPx: 30, maxYPx: 30 });

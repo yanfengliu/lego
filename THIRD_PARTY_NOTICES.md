@@ -200,7 +200,7 @@ This inventory records the exact installed npm dependency graph. The correspondi
 | minimatch | 10.2.5 | BlueOak-1.0.0 | https://registry.npmjs.org/minimatch/-/minimatch-10.2.5.tgz |
 | minimist | 1.2.8 | MIT | https://registry.npmjs.org/minimist/-/minimist-1.2.8.tgz |
 | ms | 2.1.3 | MIT | https://registry.npmjs.org/ms/-/ms-2.1.3.tgz |
-| nanoid | 3.3.17 | MIT | https://registry.npmjs.org/nanoid/-/nanoid-3.3.17.tgz |
+| nanoid | 3.3.18 | MIT | https://registry.npmjs.org/nanoid/-/nanoid-3.3.18.tgz |
 | natural-compare | 1.4.0 | MIT | https://registry.npmjs.org/natural-compare/-/natural-compare-1.4.0.tgz |
 | node-releases | 2.0.51 | MIT | https://registry.npmjs.org/node-releases/-/node-releases-2.0.51.tgz |
 | obug | 2.1.3 | MIT | https://registry.npmjs.org/obug/-/obug-2.1.3.tgz |

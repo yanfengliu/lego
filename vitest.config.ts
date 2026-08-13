@@ -15,6 +15,8 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    // Bound fork pressure: the default 31 workers made subprocess-heavy suites time out or exit.
+    maxWorkers: "50%",
     include: [
       "packages/**/*.test.ts",
       "apps/**/*.test.ts",

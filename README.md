@@ -14,6 +14,10 @@ The studio's **Instructions** control currently ingests a PDF locally into bound
 
 The repository contains internal Node, Python, Vitest, and Playwright tooling for booklet parsing, panel measurement, placement search, visual scoring, retained evidence, and the set 6651557 reconstruction. This tooling is an opt-in development harness, not a production service or an automatic path into a user's document.
 
+An authority-free source-stage tracer can retain exact H/P/D masks, while a separate source-parity `/4` diagnostic retains production, W, and XOR comparisons for five mask classes across the dense 359-step prepared panel sequence under a bound PDF, source/runtime closure, browser result, and prepared-panel manifest. Its browser work-RGBA, policy, and derivation commitments remain explicitly opaque, its source-RGBA column is visualization-only, and the full 359-step probe has not been run for the current implementation unit.
+
+The fixed five-panel calibration foundation cannot turn that diagnostic into truth. It parses only an unverified external-review claim and returns `needs-adjudication` whether truth is absent, evidence drifts, candidate W differs, or candidate W exactly matches; no human-owned issuer, execution-to-W provenance, browser-output `/4`, or document authority exists.
+
 The exact measured frontier and ordered work still missing live in [building-system.md](docs/design/building-system.md). See the [real-booklet runbook](docs/runbooks/real-build.md) to reproduce or regenerate the real-build inputs and runs without copying status into another document; it also names the separate panel-reading probe's present reproducibility limits.
 
 Catalog render changes use the separate [part visual-admission runbook](docs/runbooks/part-visual-admission.md), which captures matched source-versus-catalog views and publishes an immutable explicit review without confusing the editor's presentation captures with admission evidence.

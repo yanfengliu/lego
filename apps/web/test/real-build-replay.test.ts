@@ -45,25 +45,13 @@ import {
 } from "../e2e/real-build-replay";
 import { REAL_BUILD_SOURCE_ROOTS } from "../e2e/real-build-source-roots";
 import {
-  normalizedServedResponseSourceRoot,
-  REAL_BUILD_SERVED_RESPONSE_MANIFEST,
-  REAL_BUILD_SERVED_RESPONSE_RUNNER_BODY,
-  REAL_BUILD_SERVED_RESPONSE_RUNNER_HEADERS,
-  REAL_BUILD_SERVED_RESPONSE_RUNNER_PATH,
-  REAL_BUILD_SERVED_RESPONSE_RUNNER_STATUS,
-  REAL_BUILD_SERVED_RESPONSE_SCHEMA,
-  servedResponseChunkName,
-  servedResponseDigest,
-  servedResponseRequestKey,
-  strictServedResponseHeaders,
-} from "../e2e/real-build-served-response-policy";
-import {
   createRealBuildBootstrapSourceManifest,
   REAL_BUILD_SOURCE_ROOT_POLICY_PATH,
 } from "../e2e/real-build-bootstrap-source";
 import { realBuildRunBudgets, realBuildRunThresholds } from "../e2e/real-build-run-contract";
 import { REAL_BUILD_TEST_DIGEST } from "./real-build-test-options";
 import { SYNTHETIC_IDENTIFICATION_GOLDEN } from "./real-build-identification-golden";
+import { currentArtifactServedEvidence } from "./real-build-current-artifact-served-fixture";
 import {
   replayBrowserOutput as browserOutput,
   replayInputDigests as inputDigests,
@@ -206,52 +194,13 @@ describe("real-build replay closure", () => {
         fixedInputs: [{ path: "inputs/booklet.pdf", bytes: rawRoleBytes.pdf! }],
       });
       const retainedBrowserOutput = browserOutput();
-      const runnerBody = Buffer.from(REAL_BUILD_SERVED_RESPONSE_RUNNER_BODY);
-      const runnerBodyDigest = servedResponseDigest(runnerBody);
-      const runnerChunk = servedResponseChunkName(0);
-      const runnerRequestHeaders = strictServedResponseHeaders({ accept: "*/*" });
-      const runnerRequestKey = servedResponseRequestKey(
-        REAL_BUILD_SERVED_RESPONSE_RUNNER_PATH,
-        runnerRequestHeaders,
-      );
-      const servedResponseManifestBytes = Buffer.from(
-        `${JSON.stringify({
-          schemaVersion: REAL_BUILD_SERVED_RESPONSE_SCHEMA,
-          sourceRoot: normalizedServedResponseSourceRoot(sourceMirror.root),
-          events: [
-            {
-              sequence: 0,
-              outcome: "fulfilled",
-              requestKey: runnerRequestKey,
-              responseIndex: 0,
-              cacheHit: false,
-            },
-          ],
-          responses: [
-            {
-              index: 0,
-              requestKey: runnerRequestKey,
-              requestUrl: REAL_BUILD_SERVED_RESPONSE_RUNNER_PATH,
-              requestHeaders: runnerRequestHeaders,
-              sourcePath: null,
-              status: REAL_BUILD_SERVED_RESPONSE_RUNNER_STATUS,
-              headers: strictServedResponseHeaders(REAL_BUILD_SERVED_RESPONSE_RUNNER_HEADERS),
-              body: {
-                kind: "bundle",
-                offset: 0,
-                bytes: runnerBody.length,
-                digest: runnerBodyDigest,
-              },
-            },
-          ],
-          bodyChunks: [{ file: runnerChunk, bytes: runnerBody.length, digest: runnerBodyDigest }],
-        })}\n`,
-      );
-      writeFileSync(join(run.directory, runnerChunk), runnerBody);
-      writeFileSync(
-        join(run.directory, REAL_BUILD_SERVED_RESPONSE_MANIFEST),
-        servedResponseManifestBytes,
-      );
+      const served = currentArtifactServedEvidence({
+        sourceRoot: sourceMirror.root,
+        pdfBytes: rawRoleBytes.pdf!.byteLength,
+        pdfDigest: inputDigests.pdf,
+      });
+      writeFileSync(join(run.directory, served.runnerFile), served.runnerBytes);
+      writeFileSync(join(run.directory, served.manifestFile), served.manifestBytes);
       const replayClosure = writeRealBuildReplayClosure({
         directory: run.directory,
         repoRoot: sourceMirror.root,
@@ -282,7 +231,7 @@ describe("real-build replay closure", () => {
           replayProtocol: 1,
           bootstrapSourceManifestDigest: bootstrapManifest.manifestDigest,
           runContractDigest: runContract.contractDigest,
-          servedResponseManifestDigest: servedResponseDigest(servedResponseManifestBytes),
+          servedResponseManifestDigest: sha256Digest(served.manifestBytes),
         },
         browserOutputRetained: true,
       });
@@ -315,7 +264,7 @@ describe("real-build replay closure", () => {
         runId: plan.runId,
         runContract,
         result,
-        artifactFiles: [REAL_BUILD_SERVED_RESPONSE_MANIFEST, runnerChunk, "score.json"],
+        artifactFiles: [served.manifestFile, served.runnerFile, "score.json"],
         replayClosure,
       });
       mkdirSync(plan.pointerPath);

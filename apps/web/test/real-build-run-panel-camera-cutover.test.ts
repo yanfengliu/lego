@@ -217,7 +217,6 @@ describe("real-build runner panel-camera generation cutover", () => {
       attemptedPieces: 0,
       placedPieces: 0,
       canonicalStepId: null,
-      elapsedMs: 0,
       fit: {
         azimuthDegrees: null,
         elevationDegrees: null,
@@ -230,6 +229,8 @@ describe("real-build runner panel-camera generation cutover", () => {
       panelPng: null,
       buildPng: null,
     });
+    expect(Number.isFinite(output.reports[0]!.elapsedMs)).toBe(true);
+    expect(output.reports[0]!.elapsedMs).toBeGreaterThanOrEqual(0);
     expect(placementCallback).not.toHaveBeenCalled();
     expect(
       readRealBuildBrowserOutput(output, snapshotRealBuildRunInput(options).options),

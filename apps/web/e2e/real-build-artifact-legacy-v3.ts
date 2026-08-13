@@ -222,6 +222,7 @@ export function inspectLegacyRealBuildArtifactManifestV3(
     expectedManifestDigest: environment.servedResponseManifestDigest,
     sourceFiles: closure.sourceBundle.files,
     requireRunner: true,
+    frozenLegacyArtifactManifestV3RunId: manifest.runId,
   });
   for (const file of servedResponseFiles) {
     if (!retained.artifactPaths.has(file)) {

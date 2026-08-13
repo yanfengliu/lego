@@ -153,6 +153,7 @@ export function verifyRealBuildArtifactManifest(
   directory: string,
   expectedRunId?: string,
 ): RealBuildPublicationVerification {
+  const expectedCheckoutRoot = resolve(process.cwd()).replaceAll("\\", "/");
   const artifactManifestBytes = readContainedBoundedRegularFile(
     directory,
     "artifact-manifest.json",
@@ -227,6 +228,7 @@ export function verifyRealBuildArtifactManifest(
     expectedManifestDigest: environment.servedResponseManifestDigest,
     sourceFiles: closure.sourceBundle.files,
     requireRunner: closure.replayLevel === "downstream-only",
+    expectedCheckoutRoot,
   });
   for (const file of servedResponseFiles) {
     if (!retained.artifactPaths.has(file)) {
@@ -263,3 +265,4 @@ export function verifyRealBuildArtifactManifest(
     artifactManifestDigest: sha256Digest(artifactManifestBytes),
   };
 }
+import { resolve } from "node:path";

@@ -14,6 +14,7 @@ export * from "./exploded-score";
 export * from "./ghost-placement";
 export * from "./lattice-placements";
 export * from "./panel-art";
+export * from "./panel-art-stages";
 export * from "./panel-arrows";
 export * from "./panel-face";
 export * from "./panel-difference";

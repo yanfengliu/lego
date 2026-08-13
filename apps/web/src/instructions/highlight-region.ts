@@ -101,6 +101,12 @@ export interface HighlightKeyOptions {
    * of over-coverage on a boundary, against regions of tens of thousands.
    */
   readonly closeRadiusPx?: number;
+  /**
+   * Maximum sum of full-raster candidate-mask pixels allocated while filling
+   * significant components. Omitted preserves the historical unbounded API;
+   * hostile-input callers must provide their own explicit aggregate ceiling.
+   */
+  readonly maximumAggregateCandidateMaskPixels?: number;
 }
 
 const DEFAULT_MINIMUM_OUTLINE_PX = 200;
@@ -277,10 +283,21 @@ export function extractHighlightRegions(
   }
   const minimumOutlinePx = options.minimumOutlinePx ?? DEFAULT_MINIMUM_OUTLINE_PX;
   const closeRadiusPx = options.closeRadiusPx ?? DEFAULT_CLOSE_RADIUS_PX;
+  const maximumAggregateCandidateMaskPixels = options.maximumAggregateCandidateMaskPixels;
   if (!Number.isInteger(closeRadiusPx) || closeRadiusPx < 0) {
     throw new RangeError(
       `closeRadiusPx must be a non-negative integer, received ${String(closeRadiusPx)}. ` +
         `It is how many pixels the printed stroke is thickened to bridge its own antialiasing gaps; 0 disables closing.`,
+    );
+  }
+  if (
+    maximumAggregateCandidateMaskPixels !== undefined &&
+    (!Number.isSafeInteger(maximumAggregateCandidateMaskPixels) ||
+      maximumAggregateCandidateMaskPixels < 1)
+  ) {
+    throw new RangeError(
+      `maximumAggregateCandidateMaskPixels must be a positive safe integer when supplied, received ${String(maximumAggregateCandidateMaskPixels)}. ` +
+        `It bounds the full-raster fill work across every significant highlight component.`,
     );
   }
 
@@ -296,6 +313,17 @@ export function extractHighlightRegions(
   const stroke = dilate(keyed, width, height, closeRadiusPx);
   const components = findComponents(stroke, width, height);
   const significant = components.filter((component) => component.pixels.length >= minimumOutlinePx);
+  const candidateMaskPixelsPerComponent = width * height;
+  if (
+    maximumAggregateCandidateMaskPixels !== undefined &&
+    significant.length >
+      Math.floor(maximumAggregateCandidateMaskPixels / candidateMaskPixelsPerComponent)
+  ) {
+    throw new RangeError(
+      `Highlight extraction found ${significant.length} significant components at ${width}x${height}; one full-raster fill mask per component would exceed the ${maximumAggregateCandidateMaskPixels}-pixel aggregate bound. ` +
+        `Reject or simplify the hostile panel instead of allocating a full raster for every highlight stripe.`,
+    );
+  }
   const mask = new Uint8Array(width * height);
   // Components are found on the dilated stroke, so intersecting a kept
   // component back against `keyed` recovers the pixels the page actually
