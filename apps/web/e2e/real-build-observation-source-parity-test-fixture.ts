@@ -112,7 +112,8 @@ const zeroDigest = sourceParityTestDigest(zero);
 const oneDigest = sourceParityTestDigest(one);
 const packedZeroDigest = sourceParityTestDigest(packedZero);
 const packedOneDigest = sourceParityTestDigest(packedOne);
-const fixturePdfDigest = sourceParityTestDigest("pdf");
+export const SOURCE_PARITY_TEST_PDF_DIGEST = sourceParityTestDigest("pdf");
+const fixturePdfDigest = SOURCE_PARITY_TEST_PDF_DIGEST;
 const sourceRootsPolicyDigest = sourceParityTestDigest("roots");
 const bootstrapManifest = createRealBuildBootstrapSourceManifest({
   files: [{ path: REAL_BUILD_SOURCE_ROOT_POLICY_PATH, digest: sourceRootsPolicyDigest, bytes: 1 }],

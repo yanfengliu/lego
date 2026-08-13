@@ -215,3 +215,8 @@ export function copyRealBuildSourceParityCalibrationCaptureArtifact(
     ),
   });
 }
+
+/** Non-invoking brand check for boundaries that accept both retained and transient forms. */
+export function isRealBuildSourceParityCalibrationCaptureArtifact(value: unknown): boolean {
+  return value !== null && typeof value === "object" && retainedByArtifact.has(value);
+}

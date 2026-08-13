@@ -2,6 +2,8 @@
 
 Current state belongs in the design documents; this index records only behaviour changes, measured results, and links to the matching detailed history.
 
+- [2026-08-13 (source-bound exact-five calibration publication)](detailed/2026-08-12_2026-08-13.md) — The exact five-panel capture now reproduces against the PDF, full 359-row manifest, source/provenance/served/runtime closure, derives an audit-only execution identity, and publishes five roles plus ten PNGs content-addressed with the summary last; human authority, admission, and a real-booklet run remain absent.
+
 - [2026-08-13 (source-stage parity and fail-closed calibration)](detailed/2026-08-12_2026-08-13.md) — Source-parity `/4` retains dense production/W/XOR diagnostics, while a separate exact-five browser/Node path closes high/work RGBA, H/P/D/W and lossless PNG bytes without publication or execution identity; every review outcome remains `needs-adjudication`, and neither path can choose truth, enter browser-output `/4`, or mutate a document.
 
 - [2026-08-13 (compiled observation replay and branch-role transport)](detailed/2026-08-12_2026-08-13.md) — Exact packed masks now reproduce optimal registration, camera-group selection and convergent compiled-transition projection under prepared thresholds, while a dense external-role index avoids base64 expansion; both remain inspection-only pending source/camera provenance and the full browser-output `/4` reader.

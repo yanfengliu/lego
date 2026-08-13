@@ -8,6 +8,7 @@ import {
 } from "./real-build-bootstrap-source";
 import type { RealBuildSourceParityCalibrationBrowserInput } from "./real-build-observation-source-parity-calibration-browser-input";
 import { preflightRealBuildSourceParityCalibrationBrowserCaptureEvidence } from "./real-build-observation-source-parity-calibration-capture";
+import { publishRealBuildSourceParityCalibration } from "./real-build-observation-source-parity-calibration-publication";
 import {
   REAL_BUILD_SOURCE_PARITY_CALIBRATION_CAPTURE_ROLES,
   type RealBuildSourceParityCalibrationBrowserCaptureWire,
@@ -263,9 +264,10 @@ test.describe("opt-in exact-five source-parity calibration capture", () => {
       calloutBoxes: evidence.calloutBoxesByStep[panel.stepNumber] ?? [],
       panelEvidenceDigest: evidence.panelEvidenceByStep[panel.stepNumber]!.digest,
     }));
-    const fullPreparedPanelsDigest = sha256Digest(
+    const fullPreparedPanelsManifestBytes = new TextEncoder().encode(
       JSON.stringify(realBuildSourceParityPreparedPanelsManifest(expectedPdfDigest, panels)),
     );
+    const fullPreparedPanelsDigest = sha256Digest(fullPreparedPanelsManifestBytes);
     const contract = createRealBuildSourceParityCalibrationContract({
       pdfDigest: expectedPdfDigest,
       fullPreparedPanelsDigest,
@@ -335,6 +337,15 @@ test.describe("opt-in exact-five source-parity calibration capture", () => {
         ]),
       );
       expect(closure.sourceSnapshot.preparedPanelsDigest).toBe(fullPreparedPanelsDigest);
+      const published = publishRealBuildSourceParityCalibration({
+        repoRoot: beforeLock.repoRoot,
+        capture: browserCapture,
+        fullPreparedPanelsManifestBytes,
+        sourceSnapshot: closure.sourceSnapshot,
+        provenance: closure.provenance,
+      });
+      expect(published.summary.authority.authorized).toBe(false);
+      expect(published.summary.reviewState).toBe("pending-unreviewed");
       expect(assertRealBuildBootstrapSourceLockHeld()).toEqual(beforeLock);
     } finally {
       await execution.dispose();

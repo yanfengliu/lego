@@ -166,18 +166,27 @@ function rgba(width: number, height: number): Uint8ClampedArray {
 const byteView = (value: Uint8ClampedArray): Uint8Array =>
   new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
 
-export function createCalibrationCaptureTestWire(): RealBuildSourceParityCalibrationBrowserCaptureWire {
-  const pdfDigest = calibrationCaptureTestDigest("calibration-pdf");
+export function createCalibrationCaptureTestFullPanels(
+  pdfDigest: Sha256Digest = calibrationCaptureTestDigest("calibration-pdf"),
+) {
   const bounds = { minXPt: 0, maxXPt: 1_000, minYPt: 0, maxYPt: 1 };
-  const pageByStep = new Map<number, number>(
-    REAL_BUILD_SOURCE_PARITY_CALIBRATION_PANEL_PAGES.map(({ stepNumber, pageNumber }) => [
-      stepNumber,
-      pageNumber,
-    ]),
-  );
-  const fullPanels = Array.from({ length: 359 }, (_, index) => {
+  const anchors = [
+    { stepNumber: 1, pageNumber: 1 },
+    ...REAL_BUILD_SOURCE_PARITY_CALIBRATION_PANEL_PAGES,
+  ];
+  return Array.from({ length: 359 }, (_, index) => {
     const stepNumber = index + 1;
-    const pageNumber = pageByStep.get(stepNumber) ?? stepNumber;
+    const upper = anchors.find((anchor) => anchor.stepNumber >= stepNumber)!;
+    const upperIndex = anchors.indexOf(upper);
+    const lower = anchors[Math.max(0, upperIndex - 1)]!;
+    const span = upper.stepNumber - lower.stepNumber;
+    const pageNumber =
+      span === 0
+        ? upper.pageNumber
+        : lower.pageNumber +
+          Math.floor(
+            ((stepNumber - lower.stepNumber) * (upper.pageNumber - lower.pageNumber)) / span,
+          );
     return {
       stepNumber,
       pageNumber,
@@ -192,6 +201,26 @@ export function createCalibrationCaptureTestWire(): RealBuildSourceParityCalibra
       }) as Sha256Digest,
     };
   });
+}
+
+export function createCalibrationCaptureTestFullPreparedPanelsManifestBytes(
+  pdfDigest: Sha256Digest = calibrationCaptureTestDigest("calibration-pdf"),
+): Uint8Array {
+  return new TextEncoder().encode(
+    JSON.stringify(
+      realBuildSourceParityPreparedPanelsManifest(
+        pdfDigest,
+        createCalibrationCaptureTestFullPanels(pdfDigest),
+      ),
+    ),
+  );
+}
+
+export function createCalibrationCaptureTestWire(
+  pdfDigest: Sha256Digest = calibrationCaptureTestDigest("calibration-pdf"),
+): RealBuildSourceParityCalibrationBrowserCaptureWire {
+  const bounds = { minXPt: 0, maxXPt: 1_000, minYPt: 0, maxYPt: 1 };
+  const fullPanels = createCalibrationCaptureTestFullPanels(pdfDigest);
   const panels = REAL_BUILD_SOURCE_PARITY_CALIBRATION_PANEL_PAGES.map(
     ({ stepNumber }) => fullPanels[stepNumber - 1]!,
   );
@@ -375,4 +404,29 @@ export function createCalibrationCaptureTestWire(): RealBuildSourceParityCalibra
       };
     }),
   };
+}
+
+export function createCalibrationCaptureTestWireForFullPreparedPanelsDigest(
+  pdfDigest: Sha256Digest,
+  fullPreparedPanelsDigest: Sha256Digest,
+): RealBuildSourceParityCalibrationBrowserCaptureWire {
+  const wire = createCalibrationCaptureTestWire(pdfDigest);
+  const calibrationDigest = canonicalDigest({
+    schemaVersion: "lego.real-build-observation-source-parity-calibration-contract/1",
+    authority: "absent",
+    pdfDigest,
+    fullPreparedPanelsDigest,
+    calibrationPreparedPanelsDigest: wire.calibrationPreparedPanelsDigest,
+    panels: wire.panels.map(
+      ({ stepNumber, pageNumber, workWidth, workHeight, workPixelCount }) => ({
+        stepNumber,
+        pageNumber,
+        width: workWidth,
+        height: workHeight,
+        pixelCount: workPixelCount,
+        workFactor: 2,
+      }),
+    ),
+  });
+  return { ...wire, fullPreparedPanelsDigest, calibrationDigest };
 }
