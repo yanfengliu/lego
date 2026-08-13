@@ -1,13 +1,26 @@
 import { describe, expect, it } from "vitest";
 
-import { assertRealBuildSourceParityBrowserInput } from "./real-build-observation-source-parity-browser-input";
+import {
+  assertRealBuildSourceParityBrowserInput,
+  snapshotRealBuildSourceParityBrowserInput,
+} from "./real-build-observation-source-parity-browser-input";
 import { REAL_BUILD_SOURCE_PARITY_EXPECTED_STEPS } from "./real-build-observation-source-parity-contract";
 import type { RealBuildSourceParityBrowserInputShape } from "./real-build-observation-source-parity-browser-input";
+import type { RealBuildSourceParityMeasurementInput } from "./real-build-observation-source-parity-browser-types";
 
 const digest = `sha256:${"0".repeat(64)}`;
 
-function validInput(): RealBuildSourceParityBrowserInputShape {
+function validInput(): RealBuildSourceParityMeasurementInput {
   return {
+    urls: {
+      pdfjsUrl: "/pdf.mjs",
+      workerUrl: "/worker.mjs",
+      pdfUrl: "/booklet.pdf",
+      latticeUrl: "/lattice.ts",
+      assemblyUrl: "/assembly.ts",
+      panelRasterUrl: "/panel-raster.ts",
+      candidateUrl: "/candidate.ts",
+    },
     expectedPdfDigest: digest,
     expectedPdfBytes: 1,
     preparedPanelsDigest: digest,
@@ -80,5 +93,37 @@ describe("source-parity browser input errors", () => {
     const input = validInput();
     mutate(input);
     expect(() => assertRealBuildSourceParityBrowserInput(input)).toThrowError(expected);
+  });
+
+  it("refuses a panel accessor without invoking it", () => {
+    const input = validInput();
+    let reads = 0;
+    Object.defineProperty(input.panels[0], "stepNumber", {
+      enumerable: true,
+      get: () => {
+        reads += 1;
+        return 1;
+      },
+    });
+    expect(() => snapshotRealBuildSourceParityBrowserInput(input)).toThrow(
+      /panels\[0\]\.stepNumber must be one enumerable own data field/u,
+    );
+    expect(reads).toBe(0);
+  });
+
+  it("refuses a URL accessor without invoking it before measurement", () => {
+    const input = validInput();
+    let reads = 0;
+    Object.defineProperty(input.urls, "pdfUrl", {
+      enumerable: true,
+      get: () => {
+        reads += 1;
+        return "/replacement.pdf";
+      },
+    });
+    expect(() => snapshotRealBuildSourceParityBrowserInput(input)).toThrow(
+      /urls\.pdfUrl must be one enumerable own data field/u,
+    );
+    expect(reads).toBe(0);
   });
 });

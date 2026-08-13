@@ -25,6 +25,7 @@ import {
   createRealBuildPanelCalibrationHighRgbaSnapshot,
   type RealBuildPanelCalibrationHighRgbaSnapshot,
 } from "./real-build-panel-raster-calibration-snapshot";
+export { copyRealBuildPanelCalibrationHighRgba } from "./real-build-panel-raster-calibration-snapshot";
 export {
   inspectRealBuildPanelCropGeometry,
   mappedPanelCalloutRectangles,

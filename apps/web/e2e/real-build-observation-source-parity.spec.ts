@@ -104,6 +104,7 @@ test("measures work-raster observation-source parity across the real booklet", a
     bootstrap,
     bootstrapLock: beforeLock,
     pdfBytes: bytes,
+    expectedPreparedPanelsDigest: preparedPanelsDigest,
   });
   try {
     await page.goto(REAL_BUILD_SERVED_RESPONSE_RUNNER_PATH);
@@ -133,7 +134,6 @@ test("measures work-raster observation-source parity across the real booklet", a
     const closure = await execution.finish({
       browserResultDigest: browserResultEvidence.digest,
       browserResultBytes: browserResultEvidence.bytes,
-      preparedPanelsDigest,
     });
     expect(assertRealBuildBootstrapSourceLockHeld()).toEqual(beforeLock);
 

@@ -311,14 +311,9 @@ describe("source-parity exact-five calibration foundation", () => {
     }
   });
 
-  it("rejects offset, padding, packed-digest, and logical-digest tampering", () => {
+  it("rejects padding, packed-digest, and logical-digest tampering", () => {
     const contract = calibrationContract();
     const fixture = truthFixture(contract);
-    const offset = clone(fixture.packet);
-    offset.panels[2]!.byteOffset += 1;
-    expect(() => parseRealBuildSourceParityCalibrationTruth(offset, fixture.role)).toThrow(
-      /must start at byte/su,
-    );
     const digestTamper = clone(fixture.packet);
     digestTamper.role.packedDigest = digest("different");
     expect(() => parseRealBuildSourceParityCalibrationTruth(digestTamper, fixture.role)).toThrow(

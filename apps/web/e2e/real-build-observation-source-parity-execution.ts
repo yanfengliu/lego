@@ -46,11 +46,11 @@ const MAXIMUM_ENVIRONMENT_BYTES = 1024 * 1024;
 export interface RealBuildSourceParityExecutionClosure {
   readonly urls: RealBuildSourceParityBrowserInput["urls"];
   readonly runnerUrl: string;
+  readonly calibrationRunnerUrl: string;
   assertHeld(): void;
   finish(binding: {
     readonly browserResultDigest: string;
     readonly browserResultBytes: number;
-    readonly preparedPanelsDigest: string;
   }): Promise<{
     readonly sourceSnapshot: RealBuildSourceParitySourceSnapshot;
     readonly provenance: readonly RealBuildSourceParityProvenanceRole[];
@@ -172,7 +172,14 @@ export async function beginRealBuildSourceParityExecutionClosure(input: {
   readonly bootstrap: RealBuildBootstrapSourceManifest;
   readonly bootstrapLock: RealBuildBootstrapSourceLockEvidence;
   readonly pdfBytes: Uint8Array;
+  readonly expectedPreparedPanelsDigest: string;
 }): Promise<RealBuildSourceParityExecutionClosure> {
+  const expectedPreparedPanelsDigest = input.expectedPreparedPanelsDigest;
+  if (!/^sha256:[0-9a-f]{64}$/u.test(expectedPreparedPanelsDigest)) {
+    throw new TypeError(
+      `Source-parity execution expectedPreparedPanelsDigest must be one lowercase SHA-256 digest; observed ${JSON.stringify(expectedPreparedPanelsDigest)}.`,
+    );
+  }
   assertBootstrapHeld(input.bootstrapLock);
   const directory = mkdtempSync(join(tmpdir(), TEMPORARY_PREFIX));
   let mirrorLock: RealBuildSourceLock | null = null;
@@ -213,11 +220,15 @@ export async function beginRealBuildSourceParityExecutionClosure(input: {
       candidateUrl: mirrorUrl("apps/web/e2e/real-build-observation-source-raster-candidate.ts"),
     };
     const runnerUrl = mirrorUrl("apps/web/e2e/real-build-observation-source-parity-browser-run.ts");
+    const calibrationRunnerUrl = mirrorUrl(
+      "apps/web/e2e/real-build-observation-source-parity-calibration-browser-run.ts",
+    );
     let finished = false;
     let disposed = false;
     return {
       urls,
       runnerUrl,
+      calibrationRunnerUrl,
       assertHeld: () => {
         assertBootstrapHeld(input.bootstrapLock);
         mirrorLock!.assertHeld();
@@ -226,16 +237,19 @@ export async function beginRealBuildSourceParityExecutionClosure(input: {
         if (finished || disposed) {
           throw new TypeError("Source-parity execution closure may be finalized exactly once.");
         }
+        if (!/^sha256:[0-9a-f]{64}$/u.test(binding.browserResultDigest)) {
+          throw new TypeError(
+            `Source-parity execution browserResultDigest must be one lowercase SHA-256 digest; observed ${JSON.stringify(binding.browserResultDigest)}.`,
+          );
+        }
         if (
-          !/^sha256:[0-9a-f]{64}$/u.test(binding.browserResultDigest) ||
-          !/^sha256:[0-9a-f]{64}$/u.test(binding.preparedPanelsDigest) ||
           !Number.isSafeInteger(binding.browserResultBytes) ||
           binding.browserResultBytes < 2 ||
           binding.browserResultBytes >
             REAL_BUILD_SOURCE_PARITY_MAXIMUM_CANONICAL_BROWSER_RESULT_BYTES
         ) {
-          throw new TypeError(
-            "Source-parity execution finish requires a bounded exact browser-result digest/length and prepared-panels digest.",
+          throw new RangeError(
+            `Source-parity execution browserResultBytes must be a safe integer from 2 through ${REAL_BUILD_SOURCE_PARITY_MAXIMUM_CANONICAL_BROWSER_RESULT_BYTES}; observed ${String(binding.browserResultBytes)}.`,
           );
         }
         finished = true;
@@ -297,7 +311,7 @@ export async function beginRealBuildSourceParityExecutionClosure(input: {
             checkoutRoot: input.repoRoot,
             browserResultDigest: binding.browserResultDigest,
             browserResultBytes: binding.browserResultBytes,
-            preparedPanelsDigest: binding.preparedPanelsDigest,
+            preparedPanelsDigest: expectedPreparedPanelsDigest,
           })}\n`,
         );
         if (environmentBytes.length > MAXIMUM_ENVIRONMENT_BYTES) {
@@ -345,7 +359,7 @@ export async function beginRealBuildSourceParityExecutionClosure(input: {
           servedSourceUniqueBytes: sourceBundle.uniqueBytes,
           browserResultDigest: binding.browserResultDigest,
           browserResultBytes: binding.browserResultBytes,
-          preparedPanelsDigest: binding.preparedPanelsDigest,
+          preparedPanelsDigest: expectedPreparedPanelsDigest,
           environmentDigest: sha256Digest(environmentBytes),
         };
         return { sourceSnapshot, provenance };

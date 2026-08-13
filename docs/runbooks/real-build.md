@@ -70,6 +70,16 @@ The publication binds the exact PDF and full prepared-panel digest, bootstrap so
 
 **This command cannot choose truth, authorize a candidate, or advance a build.** The fixed calibration foundation only inspects steps/pages 90/79, 101/87, 346/213, 358/218, and 359/219. A packet that claims human review remains an unverified external-review claim, and absent truth, drift, W difference, and exact W equality all return `needs-adjudication` because no human-owned issuer or execution-to-W provenance exists. The optional high-RGBA snapshot protects retained storage only. There is no calibration admission path that can launch the full probe or enter browser-output `/4`, `runRealBuild`, document mutation, or completion.
 
+The separate exact-five capture command exercises only those five rows and writes or publishes no retained artifact yet: its current spec reconstructs the bounded browser wire in Node and closes exact high/work RGBA, H/P/D/W, pairwise facts, and lossless PNGs, then discards the authority-free capture because publication and execution-identity binding are deliberately not implemented. The real-booklet opt-in has not been run for this unit.
+
+```powershell
+$env:LEGO_REAL_BUILD_REQUIRED = "1"
+$env:LEGO_REAL_BUILD_SOURCE_PARITY_CALIBRATION = "1"
+npx.cmd playwright test apps/web/e2e/real-build-observation-source-parity-calibration.spec.ts
+Remove-Item Env:LEGO_REAL_BUILD_SOURCE_PARITY_CALIBRATION -ErrorAction SilentlyContinue
+Remove-Item Env:LEGO_REAL_BUILD_REQUIRED -ErrorAction SilentlyContinue
+```
+
 ### Panel-camera roots are live; positive placement lineage remains refused
 
 The repository has a pure `LatticeHand` view transform and `anchorStepCameraLatticeFrame` measurement primitive. It scores four as-fitted quarter turns and four x-reflected quarter turns, retains a separate translation for every hypothesis, and returns `camera-handedness-unresolved` instead of selecting by enumeration order when the best exact score spans both hands. `RealBuildPanelCameraRegistration` validates, copies, and deeply freezes `{latticeHand,latticeDeterminant,registrationPanelStepNumber,turnDegrees,shiftPx}` as panel-local raster evidence and never as physical-transform authority. `resolveRealBuildPanelCameraBranches` detaches and canonicalizes the document, verifies its claimed digest, copies both masks, checks the shared ledger around hash and render callbacks, requires the registering panel to be strictly later than the prefix for observations, and atomically reserves complete eight-way angular families. Step 0 produces eight unregistered seeds with null observation and shift; a nonempty prefix retains all attempts and successful observations under one hash-bound `candidateId`, unique `lineageId` values, and explicit parents, while a thrown or malformed render leaves selection null. The arrow boundary derives q0 exactly once from panel-bound fit and raw measurement, then applies the integer D4 transform without reordering the family or changing travel and off-line tolerances. Every result leaves physical-frame authority unresolved.
