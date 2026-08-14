@@ -1,6 +1,6 @@
 # Booklet-run evidence, replay, and promotion
 
-Status date: 2026-08-13
+Status date: 2026-08-14
 
 [`spec.md`](spec.md) owns product, domain, consent, trust, and authority contracts. This document owns the evidence around a booklet run: retention, lifecycle, replay, evaluation, and the conditions under which a finding may become repository knowledge. [`building-system.md`](building-system.md) owns current measured progress, and the [devlog](../devlog/summary.md) owns history.
 
@@ -22,7 +22,7 @@ Status date: 2026-08-13
 | Diagnostic-prefix retention and target equivalence | Deterministic proper-upright audit implemented in Node finalization; separate local publication implemented | Exact bound identity groups and complete catalog realizations must share one proper upright yaw plus integer-LDU translation; otherwise a structurally valid searched document remains `diagnostic-prefix.json` and canonical final document, hash, and part count remain unavailable. |
 | Model-call transcript schemas | Implemented protocol | No broker-backed product producer exists. |
 | Local part and panel proposers | Implemented as derivation scripts | They invoke a pinned CLI model outside the product for cropped part cards or one printed panel and write ignored local evidence; neither is wired into the studio or real-booklet driver. |
-| Part visual-admission packets and reviews | Implemented as developer tooling; `/13` exterior review complete | An independent LDraw render and the production catalog render share one eight-view camera packet; every generation is pending-only, while the `/13` tranche has separately published native-resolution review sidecars and a complete review-batch manifest. |
+| Part visual-admission packets and reviews | Implemented as developer tooling; `/13` tranche and `/14` `25269` exterior reviews complete | An independent LDraw render and the production catalog render share one eight-view camera packet; every generation is pending-only until review, while the `/13` tranche and the separate `/14` `25269` packet retain native-resolution review sidecars and complete review-batch manifests. |
 | Blind pair-judgement evidence | Implemented as retained input and consumer | It is not an integrated live checker call. Current panel verification is deterministic pixel scoring. |
 | Transition classification | Implemented as prepared local input | The current classifier is raster-blind, so its label is not a visual witness. |
 | Independent evaluator and automatic promotion | Specified, unbuilt | No process may grant itself authority by satisfying a local score. |
@@ -41,7 +41,7 @@ The target evidence packet for a placement made at step N includes panel N, pane
 
 Every visual claim is scoped to the exact source crop, render, camera, face, horizontal hand and determinant, quarter turn, registration, mask, and view in which it is visible. A hidden internal surface, an occluded connection, or any feature absent from all retained views is recorded as `not-observable`; unseen pixels cannot certify it. Part admission separately inspects matched top, bottom, front, back, left, right, isometric, and underside-oblique views because a booklet sequence may never expose every surface.
 
-The completed `/13` outcome and measurements are recorded in [`part-model.md`](part-model.md#current-catalog). Here they establish only that separately published native-resolution review sidecars can close retained exterior views; they do not turn hidden interiors or conservative collision recipes into observed truth.
+The completed `/13` tranche and separate `/14` `25269` outcome are recorded in [`part-model.md`](part-model.md#current-catalog). Their native-resolution review sidecars close only the retained exterior views; they do not turn hidden interiors, the LDCad clutch claim, or conservative collision recipes into visually observed truth.
 
 Printed step 4 is the concrete failure that sets this rule: its underside panel visibly shows hollow clutch rings, ribs, walls, and cavities, while the former candidate render showed an almost solid slab. [Part-model catalog truth](part-model.md#render-only-promotions-and-remaining-physical-limits) owns the render correction and its preserved conservative collision; an old step verdict cannot be inherited across that render-truth change, and the images still cannot prove collision.
 

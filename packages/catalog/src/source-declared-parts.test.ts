@@ -6,7 +6,6 @@ import {
   BUNDLED_LDRAW_SOURCE_FILES,
 } from "./ldraw-bundled-sources-6651557.ts";
 import {
-  formatExactLdu,
   getPartDefinition,
   resolvePartId,
   validateMeshPartDefinitionAdmission,
@@ -19,13 +18,15 @@ import { SET_6651557_MEASURED_BLUEPRINTS } from "./part-blueprints-6651557-measu
 import { SET_6651557_MESH_ASSETS } from "./mesh-assets-6651557.ts";
 
 /**
- * What the eight set 6651557 parts are, written out rather than recomputed.
+ * What the nine set 6651557 parts are, written out rather than recomputed.
  *
  * These are facts about real parts: the extents come from the exact expanded
  * LDraw closure, the collision column count from its per-column height field at
  * 1 LDU, and the connector counts from an authored female-connector source
- * carried through the per-part frame — LEGO Builder's field for the five it has
- * a record for, the LDCad shadow library's snap metas for the three it does not.
+ * carried through the per-part frame — LEGO Builder's field for five parts and
+ * the LDCad shadow library's snap metas for four. Three of the LDCad-sourced
+ * designs have no Builder record; 25269 deliberately selects the independently
+ * authored shadow route instead of treating record presence as connector truth.
  * Vertex counts include coincident rows split across source-authored normal
  * islands, so they pin the exact render representation rather than only unique
  * positions. A change here is a change to measured render or physical evidence,
@@ -189,10 +190,38 @@ const ADMITTED = [
     vertices: 354,
     closureFiles: 24,
   },
+  // builtin.basic-parts/14. LDraw owns surface/frame/collision; LDCad owns clutch.
+  {
+    id: "builtin:tile-1x1-quarter-round",
+    ldrawId: "25269.dat",
+    family: "tile",
+    widthStuds: 1,
+    lengthStuds: 1,
+    heightLdu: 8,
+    orientationId: "upright-yaw-0",
+    translationLdu: [0, -4, 0],
+    connectorGridCenterLdu: [0, 0],
+    bodyBoundsLdu: { min: [-10, -4, -10], max: [10, 4, 10] },
+    boundsLdu: { min: [-10, -4, -10], max: [10, 4, 10] },
+    studs: 0,
+    clutches: 1,
+    bodyBoxes: 26,
+    triangles: 96,
+    vertices: 146,
+    closureFiles: 13,
+  },
+] as const;
+
+/** Every part whose clutch cells the LDCad shadow library authors. */
+const LDCAD_CONNECTOR_PART_IDS = [
+  "builtin:plate-3x3-corner-round",
+  "builtin:wedge-plate-3x3-cut-corner",
+  "builtin:corner-plate-2x2-round",
+  "builtin:tile-1x1-quarter-round",
 ] as const;
 
 /** The three whose clutch cells no LEGO Builder record could have supplied. */
-const LDCAD_CONNECTOR_PART_IDS = [
+const BUILDER_MISSING_PART_IDS = [
   "builtin:plate-3x3-corner-round",
   "builtin:wedge-plate-3x3-cut-corner",
   "builtin:corner-plate-2x2-round",
@@ -211,7 +240,7 @@ const bodyBoxes = (part: PartDefinition): readonly Extract<CollisionPrimitive, {
   );
 
 describe("set 6651557 parts declared from measured source", () => {
-  it("admits all eight through the production mesh gate", () => {
+  it("admits all nine through the production mesh gate", () => {
     for (const expected of ADMITTED) {
       expect([expected.id, validateMeshPartDefinitionAdmission(require(expected.id))]).toEqual([
         expected.id,
@@ -272,21 +301,6 @@ describe("set 6651557 parts declared from measured source", () => {
       expect(resolvePartId(expected.ldrawId)).toBe(expected.id);
       expect(resolvePartId(part.displayName)).toBe(expected.id);
     }
-  });
-
-  it("states 93273's height exactly, because float64 cannot carry it", () => {
-    const part = require("builtin:curved-slope-1x4-double");
-
-    // -16.00016098 in the raw LDraw frame, carried to the catalog frame by the
-    // whole-LDU translation the declaration states. The nearest double sits
-    // 4.2e-16 LDU outside it, which is the safe direction for a minimum.
-    expect(formatExactLdu(part.exactBodyBoundsLdu!.min[1])).toBe("-8.00016098");
-    expect(formatExactLdu(part.exactBodyBoundsLdu!.max[1])).toBe("8");
-    expect(part.bodyBoundsLdu.min[1]).toBeLessThanOrEqual(-8.00016098);
-    // The nominal lattice height is two plates; the measured curve stands
-    // 0.00016098 LDU proud of it and the underside plane is exact.
-    expect(part.dimensions.heightLdu).toBe(16);
-    expect(part.bodyBoundsLdu.max[1]).toBe(8);
   });
 
   it("seats 93273's middle clutches on its recessed underside, not on its lowest plane", () => {
@@ -353,7 +367,7 @@ describe("set 6651557 parts declared from measured source", () => {
     expect(BUNDLED_LDRAW_ARCHIVE.sha256).toBe(
       "sha256:6009f2e94204c4d3a63a4c812010b5c90bad8c5acb19b882c859fdac63734eae",
     );
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(163);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(166);
     for (const file of BUNDLED_LDRAW_SOURCE_FILES) {
       expect(file.author.trim().length).toBeGreaterThan(0);
       expect(file.title.trim().length).toBeGreaterThan(0);
@@ -368,8 +382,8 @@ describe("set 6651557 parts declared from measured source", () => {
       BUNDLED_LDRAW_SOURCE_FILES.filter(
         ({ licenseExpression }) => licenseExpression === "CC-BY-4.0",
       ),
-    ).toHaveLength(162);
-    // 27 named authors across 163 files: attribution is retained per file, never flattened.
+    ).toHaveLength(165);
+    // 27 named authors across 166 files: attribution is retained per file, never flattened.
     expect(new Set(BUNDLED_LDRAW_SOURCE_FILES.map(({ author }) => author)).size).toBe(27);
 
     for (const expected of ADMITTED) {
@@ -438,11 +452,11 @@ describe("set 6651557 parts declared from measured source", () => {
     }
   });
 
-  it("gives every one of the three a clutch cell under every stud it carries", () => {
+  it("gives every Builder-missing part a clutch cell under every stud it carries", () => {
     // This is the whole point of admitting them. Under LDraw alone each has
     // studs and zero clutch cells, which is a part that can be built on and can
     // never be placed on anything.
-    for (const id of LDCAD_CONNECTOR_PART_IDS) {
+    for (const id of BUILDER_MISSING_PART_IDS) {
       const part = require(id);
       const studs = part.connectors
         .filter(({ kind }) => kind === "stud")

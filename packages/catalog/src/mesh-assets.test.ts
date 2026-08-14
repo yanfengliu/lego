@@ -61,10 +61,11 @@ function recipe(
 }
 
 describe("preloaded mesh asset resolution", () => {
-  it("promotes exact meshes in place without growing or reordering the catalog", () => {
-    // Sixteen existing rows render exact source meshes at /13. These literals
-    // pin the remaining parametric geometry identities and full definitions;
-    // the full-definition digest moves with catalog-version provenance.
+  it("keeps the exact promotions in place and appends the new source mesh", () => {
+    // Sixteen existing rows render exact source meshes at /13; /14 appends one
+    // complete measured part. These literals pin the remaining parametric
+    // geometry identities and full definitions; the full-definition digest
+    // moves with catalog-version provenance.
     const promotedIds = new Set([
       "builtin:wedge-plate-2x4-left",
       "builtin:wedge-plate-2x4-right",
@@ -88,8 +89,8 @@ describe("preloaded mesh asset resolution", () => {
     const legacyRows = legacyParts.map(({ id, geometry }) => [id, geometry.contentHash]);
     const legacyHashes = JSON.stringify(legacyRows);
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/13");
-    expect(PART_DEFINITIONS).toHaveLength(85);
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/14");
+    expect(PART_DEFINITIONS).toHaveLength(86);
     expect(
       PART_DEFINITIONS.filter(isMeshPartDefinition)
         .filter(({ geometry }) => geometry.collisionMode === "preserved-catalog-recipe")
@@ -100,7 +101,7 @@ describe("preloaded mesh asset resolution", () => {
         ({ geometry }) => geometry.generatorId !== "builtin:preloaded-mesh-reference/1",
       ),
     ).toBe(true);
-    expect(meshParts).toHaveLength(24);
+    expect(meshParts).toHaveLength(25);
     expect(
       meshParts
         .filter(({ geometry }) => geometry.collisionMode !== "preserved-catalog-recipe")
@@ -118,7 +119,7 @@ describe("preloaded mesh asset resolution", () => {
         .map(({ id }) => id),
     ).toEqual(["builtin:axle-1x2", "builtin:axle-1x4", "builtin:wheel-1x2"]);
     expect(createHash("sha256").update(JSON.stringify(legacyParts)).digest("hex")).toBe(
-      "828810fbe4fb557b8e9d315d9775635b7d834be88a4cbc0a4fda0ca54c76db44",
+      "4c570f6156a55d71e2e0b18e95d4b6bc6702274a3e5bc58b655470a7a456a461",
     );
   });
 

@@ -442,17 +442,18 @@ export interface ParametricGeometryRecipe {
  * Mesh vertices use their immutable source asset-local LDU frame. The recipe's
  * explicit asset-to-catalog frame applies orientation and translation exactly
  * once. `PartDefinition.ldrawFrame` is independent interchange truth and is
- * never consulted by the mesh resolver. Collision, connectors, bounds, and
- * every other catalog-truth field remain independently authored.
+ * never consulted by the mesh resolver. Connectors remain separately authored;
+ * bounds and bounded collision data may be independently authored or explicitly
+ * derived at catalog-generation time, but are never inferred at render time.
  */
 export interface MeshReferenceGeometryRecipe {
   readonly generatorId: "builtin:preloaded-mesh-reference/1";
   readonly assetId: string;
   readonly contentHash: `sha256:${string}`;
   /**
-   * How the independently authored collision recipe relates to this render mesh.
-   * A preserved catalog recipe may conservatively extend beyond the exact
-   * visual surface and is not claimed to decompose that surface.
+   * How the bounded collision recipe relates to this render mesh. A preserved
+   * catalog recipe may conservatively extend beyond the exact visual surface;
+   * a derived height field is emitted at catalog-generation time, not runtime.
    */
   readonly collisionMode?: "mesh-derived-height-field" | "preserved-catalog-recipe";
   /**

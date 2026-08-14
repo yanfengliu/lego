@@ -27,6 +27,7 @@ const ALL_PARTS = [
   "builtin:plate-3x3-corner-round",
   "builtin:wedge-plate-3x3-cut-corner",
   "builtin:corner-plate-2x2-round",
+  "builtin:tile-1x1-quarter-round",
 ];
 
 function fail(message) {

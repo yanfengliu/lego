@@ -727,4 +727,47 @@ export const SET_6651557_MEASURED_BLUEPRINTS = [
       ],
     },
   },
+  {
+    designId: "25269",
+    ldrawId: "25269.dat",
+    family: "tile",
+    widthStuds: 1,
+    lengthStuds: 1,
+    variant: "quarter-round",
+    heightLdu: 8,
+    meshAssetId: "ldraw:official:25269.dat",
+    assetToCatalogFrame: {
+      schemaVersion: "mesh-asset-to-catalog-frame/1",
+      orientationId: "upright-yaw-0",
+      translationLdu: [0, -4, 0],
+    },
+    connectorGridCenterLdu: [0, 0],
+    exactBodyBoundsLdu: {
+      min: ["-10", "-4", "-10"],
+      max: ["10", "4", "10"],
+    },
+    exactBoundsLdu: {
+      min: ["-10", "-4", "-10"],
+      max: ["10", "4", "10"],
+    },
+    studsLdu: [],
+    clutchesLdu: [[0, 4, 0]],
+    // prettier-ignore
+    bodyBoxesLdu: [0, -4, -7, 2, 0, 6, 2, -4, -6, 3, 0, 6, -3, -4, -5, 0, 0, 6, 3, -4, -5, 5, 0, 3, -6, -4, -4, -3, 0, 6, 5, -4, -3, 6, 0, 0, 6, -4, -2, 7, 0, 0, 3, -4, 3, 4, 0, 6, -10, -4, -10, -4, 3, -9, -4, -4, -9, -1, 3, -8, -10, -4, -8, -9, 3, 10, -1, -4, -8, 0, 3, -7, 7, -4, 0, 8, 3, 1, 8, -4, 1, 9, 3, 4, 9, -4, 4, 10, 3, 10, -9, -4, 9, 8, 3, 10, -10, -4, -9, -4, 4, -8, -9, -4, -8, -1, 4, -5, -1, -4, -7, 0, 4, -5, -9, -4, -5, -3, 4, -4, -9, -4, -4, -6, 4, 9, 5, -4, 0, 7, 4, 9, 7, -4, 1, 8, 4, 9, 4, -4, 3, 5, 4, 9, 8, -4, 4, 9, 4, 10, -6, -4, 6, 4, 4, 9],
+    ldrawSource: {
+      title: "Tile  1 x  1 Corner Round",
+      author: "Magnus Forsberg [MagFors]",
+      ldrawOrg: "Part UPDATE 2019-02",
+      licenseExpression: "CC-BY-4.0",
+      rootSha256: "sha256:27d965f14caa2c9ebb13c07190f5683da8aca2471671e469e923b623e7978e6c",
+      closureFileCount: 13,
+    },
+    ldcadShadowSource: {
+      libraryId: "ldcad-shadow-library",
+      commit: "15aa1e718b6a8da37d24fc7af5e52e262c041bfb",
+      manifestSha256: "sha256:668bc047a45e5560ff0fbbd69e9eb5adafab127781720bcb069a1554cb3f0c0f",
+      compositionId: "ldcad-shadow-composed-over-ldraw-tree/1",
+      shadowFiles: ["parts/s/25269s01.dat"],
+    },
+  },
 ] as const satisfies readonly MeasuredPartBlueprint[];

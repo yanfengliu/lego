@@ -29,6 +29,7 @@ export const MIGRATABLE_CATALOG_VERSIONS: readonly string[] = Object.freeze([
   "builtin.basic-parts/10",
   "builtin.basic-parts/11",
   "builtin.basic-parts/12",
+  "builtin.basic-parts/13",
   BUILTIN_CATALOG_VERSION,
 ]);
 
@@ -145,6 +146,17 @@ export const REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS = Object.freeze([
     catalogVersion: "builtin.basic-parts/12",
     sourceCommit: "e70346d7ec2c75a206a436e8c9cc233e1ca2de37",
     truthHash: "sha256:cdfeae99ea405770f35f83173eec10804078346d257c5e56006707639313ae8e",
+  },
+  // The snapshot /14 replaced. /14 appends 25269 as one complete measured
+  // definition: the official LDraw closure supplies its render mesh, the LDCad
+  // shadow subpart supplies its centre clutch, and the closure-derived height
+  // field supplies its conservative collision columns. No existing catalog row
+  // changes interpretation, so a /13 document carries forward and reports the
+  // one newly available part rather than an in-place reinterpretation.
+  {
+    catalogVersion: "builtin.basic-parts/13",
+    sourceCommit: "8fc01861ec059da71eb09c3273815f7ea49eec62",
+    truthHash: "sha256:de62fae6dbc8095dfd460983e5e845ddfac4bf9ec2ea1f99572bc46026941cb5",
   },
 ] as const);
 
@@ -273,6 +285,7 @@ export interface TruthMigrationReport {
   readonly toTruthHash: string;
   /** Colour IDs the document gained access to, in catalog order. */
   readonly addedColorIds: readonly string[];
+  /** Complete newly available definitions, including render, connectors and collision. */
   readonly addedCatalogPartIds: readonly string[];
   /** Reviewed in-place catalog reinterpretations crossed by this migration. */
   readonly catalogInterpretationChanges: readonly CatalogInterpretationChange[];

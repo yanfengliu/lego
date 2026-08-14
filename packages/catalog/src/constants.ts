@@ -60,8 +60,14 @@ import type {
  * bundled assets. Migration reports render-geometry and normal changes for all
  * 24 appearances and body/visual-bound changes for the twelve new promotions.
  * No connector, allowance, collision recipe, or part identity moves.
+ *
+ * /14 adds the first one-stud quarter-round tile, `25269.dat`, as one complete
+ * source-declared part. Its exact render surface is the bundled official LDraw
+ * closure, its single centre clutch is authored by the LDCad shadow subpart,
+ * and its conservative collision columns are measured from that same closure.
+ * No existing part, connector, allowance, collision recipe, or identity moves.
  */
-export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/13" as const;
+export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/14" as const;
 export const CONNECTOR_TAXONOMY_VERSION = "stud-tube/1" as const;
 export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/2" as const;
 export const TRANSFORM_POLICY_VERSION = "upright-quarter-turns-negative-y-up/1" as const;
@@ -157,7 +163,9 @@ export const MEASURED_PART_CATALOG_PROVENANCE: SourceProvenance = Object.freeze(
 
 /**
  * Catalog truth for a measured part whose female connectors the LDCad shadow
- * library authored, because the LEGO Builder pack has no record of the design.
+ * library authored. Designs 30357, 2450 and 79491 have no LEGO Builder record.
+ * Builder metadata also names 25269, but this connector admission does not use
+ * that record: the shadow subpart directly authors its centre clutch.
  *
  * The library is CC BY-SA 4.0, and the owner directed on 2026-08-05 that licence
  * must not block this private, noncommercial work. What that decision does not

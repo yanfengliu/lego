@@ -545,6 +545,7 @@ class PlanTests(unittest.TestCase):
                 "6106",
                 "30565",
                 "80015",
+                "25269",
             ],
         )
         self.assertTrue(all(row.connector_source == "builder" for row in ADMITTED_PART_PLANS[:5]))
@@ -557,6 +558,10 @@ class PlanTests(unittest.TestCase):
         self.assertEqual(
             ADMITTED_PART_PLANS[11].connector_source,
             BUILDER_CONNECTIVITY_CONNECTOR_SOURCE,
+        )
+        self.assertEqual(
+            ADMITTED_PART_PLANS[12].connector_source,
+            LDCAD_SHADOW_CONNECTOR_SOURCE,
         )
 
     def test_render_only_roots_are_distinct_and_cannot_name_a_connector_source(self) -> None:

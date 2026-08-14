@@ -2,6 +2,8 @@
 
 Current state belongs in the design documents; this index records only behaviour changes, measured results, and links to the matching detailed history.
 
+- [2026-08-14 (measured 25269 catalog growth)](detailed/2026-08-13_2026-08-14.md) — Catalog `/14` grows 85 → 86 definitions with the step-18 `25269` quarter tile: 96 official-source triangles, 26 collision boxes, one separately attributed LDCad clutch, and all eight source-normal exterior views reviewed `same`; `28802` and fresh v6 adjudication remain open.
+
 - [2026-08-14 (manifest-v6 callout correction)](detailed/2026-08-13_2026-08-14.md) — Full-booklet component-group conservation now separates the duplicated printed-step-18 crops; deterministic identification moves to 288 groups and new source-bound cards, while fresh answers, coverage, and ledger publication remain honestly blocked by Claude OAuth 401.
 
 - [2026-08-13 through 2026-08-14 (exact report authentication)](detailed/2026-08-13_2026-08-14.md) — Canonical replay now refuses independently rehashed identification, coverage, score, and ledger evidence; it reproduces the retained ledger bytes but exposes 97 validation failures, while accepted-only member-local Builder truth removes 48 refusal-derived records and six element conflicts from the prior report path.

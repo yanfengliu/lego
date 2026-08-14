@@ -174,6 +174,20 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         connector_source=BUILDER_CONNECTIVITY_CONNECTOR_SOURCE,
         builder_connectivity_fact=BUILDER_80015_CONNECTIVITY,
     ),
+    # builtin.basic-parts/14: the corrected manifest-v6 step-18 crop identifies
+    # the two printed quarter tiles as 25269 rather than the adjacent 3069 tile.
+    # Its official LDraw root supplies the exact visible surface and collision
+    # height field. The LDCad shadow subpart independently authors the one central
+    # clutch and passes the same clutch-room probe as the other shadow-sourced
+    # measured parts; Builder record presence grants no connector authority.
+    _plan(
+        "25269",
+        "tile",
+        1,
+        1,
+        variant="quarter-round",
+        connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
+    ),
 )
 
 

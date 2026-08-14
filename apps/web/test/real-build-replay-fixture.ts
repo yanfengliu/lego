@@ -1,10 +1,10 @@
-import {
-  createEmptyBrickDocument,
-  createPartInstance,
-  validateBrickDocument,
-} from "@lego-studio/brick-kernel";
+import { createEmptyBrickDocument, createPartInstance } from "@lego-studio/brick-kernel";
 
 import { sha256Digest } from "../e2e/real-build-artifacts";
+import {
+  createFrozenLegacyEmptyBrickDocumentV2,
+  validateFrozenLegacyBrickDocumentV2,
+} from "../e2e/real-build-artifact-legacy-document-v2";
 import type { RealBuildBrowserOutput } from "../e2e/real-build-browser-output";
 import {
   BUILDER_GEOMETRY_EXACT_BYTES,
@@ -165,7 +165,11 @@ const pieceReport = (index: number): RealBuildPieceReport => ({
 });
 
 export function legacyDiagnosticReplayBrowserOutput(): RealBuildBrowserOutput {
-  const base = createEmptyBrickDocument({ id: "replay", name: "replay", maxParts: 1_464 });
+  const base = createFrozenLegacyEmptyBrickDocumentV2({
+    id: "replay",
+    name: "replay",
+    maxParts: 1_464,
+  });
   const parts = replayPieces.map((piece, index) =>
     createPartInstance({
       id: `part-${index + 1}`,
@@ -190,7 +194,7 @@ export function legacyDiagnosticReplayBrowserOutput(): RealBuildBrowserOutput {
     steps: [{ ...base.steps[0]!, name: "Step 1", partIds: parts.map(({ id }) => id) }],
     submodels: [{ ...base.submodels[0]!, partIds: parts.map(({ id }) => id) }],
   };
-  const validation = validateBrickDocument(document);
+  const validation = validateFrozenLegacyBrickDocumentV2(document);
   const report: RealBuildStepReport = {
     stepNumber: 1,
     pageNumber: panel.pageNumber,

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   BRICK_HEIGHT_LDU,
   BUILTIN_CATALOG_VERSION,
+  formatExactLdu,
   getColorDefinition,
   getPartDefinition,
   PART_DEFINITIONS,
@@ -12,6 +13,11 @@ import {
   STUD_HEIGHT_LDU,
   STUD_PITCH_LDU,
 } from "./index.js";
+import {
+  BUNDLED_LDRAW_CLOSURES,
+  BUNDLED_LDRAW_SOURCE_FILES,
+} from "./ldraw-bundled-sources-6651557.ts";
+import { SET_6651557_MEASURED_BLUEPRINTS } from "./part-blueprints-6651557-measured.ts";
 
 /** Every family the catalog defines; a new one must be added here deliberately. */
 const PART_FAMILY_NAMES = [
@@ -134,11 +140,81 @@ const EXPECTED_PART_IDS = [
   "builtin:plate-3x3-corner-round",
   "builtin:wedge-plate-3x3-cut-corner",
   "builtin:corner-plate-2x2-round",
+  // builtin.basic-parts/14: one complete source-declared part, appended so no
+  // existing catalog row moves.
+  "builtin:tile-1x1-quarter-round",
 ] as const;
 
 describe("starter catalog", () => {
-  it("publishes the complete in-place exact render tranche as version 13", () => {
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/13");
+  it("publishes the quarter-round tile admission as version 14", () => {
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/14");
+  });
+
+  it("pins 25269's exact LDCad route and raw-to-catalog central clutch", () => {
+    const blueprint = SET_6651557_MEASURED_BLUEPRINTS.find(({ designId }) => designId === "25269");
+    if (blueprint === undefined) throw new Error("The measured 25269 blueprint is missing");
+    if (!("ldcadShadowSource" in blueprint)) {
+      throw new Error("The measured 25269 blueprint does not name its LDCad source");
+    }
+
+    const rawClutchLdu = [0, 8, 0] as const;
+    expect({
+      frame: blueprint.assetToCatalogFrame,
+      rawClutchLdu,
+      catalogClutchesLdu: blueprint.clutchesLdu,
+      shadow: blueprint.ldcadShadowSource,
+    }).toEqual({
+      frame: {
+        schemaVersion: "mesh-asset-to-catalog-frame/1",
+        orientationId: "upright-yaw-0",
+        translationLdu: [0, -4, 0],
+      },
+      rawClutchLdu: [0, 8, 0],
+      catalogClutchesLdu: [[0, 4, 0]],
+      shadow: {
+        libraryId: "ldcad-shadow-library",
+        commit: "15aa1e718b6a8da37d24fc7af5e52e262c041bfb",
+        manifestSha256: "sha256:668bc047a45e5560ff0fbbd69e9eb5adafab127781720bcb069a1554cb3f0c0f",
+        compositionId: "ldcad-shadow-composed-over-ldraw-tree/1",
+        shadowFiles: ["parts/s/25269s01.dat"],
+      },
+    });
+    expect(
+      rawClutchLdu.map(
+        (coordinate, axis) => coordinate + blueprint.assetToCatalogFrame.translationLdu[axis]!,
+      ),
+    ).toEqual(blueprint.clutchesLdu[0]);
+  });
+
+  it("pins 25269's complete official 13-file surface closure", () => {
+    expect(
+      BUNDLED_LDRAW_CLOSURES["25269"]!.map((index) => BUNDLED_LDRAW_SOURCE_FILES[index]!.path),
+    ).toEqual([
+      "p/1-16chrd.dat",
+      "p/1-16cyli.dat",
+      "p/1-16edge.dat",
+      "p/1-4cyli.dat",
+      "p/1-4disc.dat",
+      "p/1-4edge.dat",
+      "p/box2-5.dat",
+      "p/empty.dat",
+      "p/rect2a.dat",
+      "p/rect2p.dat",
+      "p/rect3.dat",
+      "parts/25269.dat",
+      "parts/s/25269s01.dat",
+    ]);
+  });
+
+  it("states 93273's height exactly, because float64 cannot carry it", () => {
+    const part = getPartDefinition("builtin:curved-slope-1x4-double");
+    if (part === undefined) throw new Error("The measured 93273 definition is missing");
+
+    expect(formatExactLdu(part.exactBodyBoundsLdu!.min[1])).toBe("-8.00016098");
+    expect(formatExactLdu(part.exactBodyBoundsLdu!.max[1])).toBe("8");
+    expect(part.bodyBoundsLdu.min[1]).toBeLessThanOrEqual(-8.00016098);
+    expect(part.dimensions.heightLdu).toBe(16);
+    expect(part.bodyBoundsLdu.max[1]).toBe(8);
   });
 
   it("does not expose inherited object properties as catalog entries", () => {
@@ -160,7 +236,7 @@ describe("starter catalog", () => {
     expect(perFamily).toEqual({
       brick: 15,
       plate: 30,
-      tile: 10,
+      tile: 11,
       "jumper-plate": 3,
       "grille-tile": 1,
       "wedge-plate": 9,

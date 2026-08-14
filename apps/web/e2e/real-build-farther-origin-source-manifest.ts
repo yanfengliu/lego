@@ -154,6 +154,6 @@ export const MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION: RealBuildSourceAttestat
   {
     schemaVersion: REAL_BUILD_SOURCE_ATTESTATION_SCHEMA_VERSION,
     fileCount: 3_384,
-    digest: "sha256:8f7aa5cbe8c9f793c60d17a7d42306b730dc6a7825862db9c07f3b88b6174518",
+    digest: "sha256:b3ee2fe22b22e6c37980c49bb48b12fe1246094e75c17901b124bc6633e303f1",
   },
 );

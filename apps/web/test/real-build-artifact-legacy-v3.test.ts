@@ -9,6 +9,10 @@ import { verifyLegacyRealBuildArtifactScoreV4 } from "../e2e/real-build-artifact
 import { inspectFrozenLegacyBrowserOutputV2 } from "../e2e/real-build-artifact-legacy-browser-v2";
 import { decodeFrozenLegacyPngCaptureV2 } from "../e2e/real-build-artifact-legacy-browser-v2-values";
 import { projectLegacyRealBuildCompletionFailuresV4 } from "../e2e/real-build-artifact-legacy-completion-projection";
+import {
+  assertFrozenLegacyAdditiveCatalogV2,
+  createFrozenLegacyAdditiveCatalogBasisV14,
+} from "../e2e/real-build-artifact-legacy-document-v2";
 import { assertFrozenLegacyIdentityProjectionV2 } from "../e2e/real-build-artifact-legacy-identity-predicates";
 import { verifyRealBuildArtifactManifest } from "../e2e/real-build-artifact-current-verification";
 import { inspectLegacyRealBuildArtifactManifestV3 } from "../e2e/real-build-artifact-legacy-v3";
@@ -44,6 +48,10 @@ const RETAINED_PRODUCTION_REPLAY_ROLES = {
     digest: "sha256:3ffd64b43ad2464e660cbfc487f65e0fa348861d4dcc3b4c0a36314a87f3a10c",
   },
 } as const;
+const FROZEN_SYNTHETIC_DOCUMENT_HASH =
+  "sha256:b64567a9a3fab7206ca8fbe723ec95f256107af0f790eaa94309a4fbee95d382";
+const FROZEN_SYNTHETIC_DOCUMENT_BYTES_DIGEST =
+  "sha256:40deb90d6e390dce650200e77b9ddf826ac7a87910997df118df79c373335ae9";
 
 function retainedCasPath(digest: string): string {
   const hex = digest.slice("sha256:".length);
@@ -55,8 +63,17 @@ interface MutableLegacyDocument {
   submodels: { partIds: string[] }[];
   semanticRegions: { id: string; label: string; partIds: string[] }[];
   parts: {
+    catalogPartId: string;
     transform: { orientationId: string; positionLdu: [number, number, number] };
   }[];
+}
+interface MutableCatalogCompatibilityBasis {
+  truth: BrickDocumentV1["truth"];
+  constraints: {
+    allowedCatalogPartIds: string[];
+    allowedColorIds: string[];
+  };
+  validatorSemanticsHash: string;
 }
 interface MutableLegacyBrowserOutput {
   documentJson: string;
@@ -84,8 +101,10 @@ function legacyFixture() {
     schemaVersion: "lego.real-build-browser-output/2" as const,
     reports,
   };
+  expect(sha256Digest(browserOutput.documentJson)).toBe(FROZEN_SYNTHETIC_DOCUMENT_BYTES_DIGEST);
   const document = JSON.parse(browserOutput.documentJson);
   const diagnostic = createRealBuildDiagnosticPrefix(document);
+  expect(diagnostic.structuralHash).toBe(FROZEN_SYNTHETIC_DOCUMENT_HASH);
   const summary = {
     schemaVersion: diagnostic.schemaVersion,
     throughStepNumber: diagnostic.throughStepNumber,
@@ -356,6 +375,43 @@ describe("legacy artifact-manifest /3 inspection", () => {
     expect(() => inspectFrozenLegacyBrowserOutputV2(capture, replayOptions)).toThrow(
       /captures differ/u,
     );
+  });
+
+  it("fails closed when the reviewed additive catalog bridge is no longer exact", () => {
+    const fixture = legacyFixture();
+    const document = JSON.parse(fixture.browserOutput.documentJson) as BrickDocumentV1;
+    expect(document.truth.catalog.version).toBe("builtin.basic-parts/13");
+    expect(document.constraints.allowedCatalogPartIds).toHaveLength(85);
+    expect(document.constraints.allowedCatalogPartIds).not.toContain(
+      "builtin:tile-1x1-quarter-round",
+    );
+    const active = createFrozenLegacyAdditiveCatalogBasisV14();
+    const driftedTruth = structuredClone(active) as MutableCatalogCompatibilityBasis;
+    driftedTruth.truth = {
+      ...driftedTruth.truth,
+      catalog: { ...driftedTruth.truth.catalog, hash: REAL_BUILD_TEST_DIGEST },
+    };
+    expect(() => assertFrozenLegacyAdditiveCatalogV2(document, driftedTruth)).toThrow(
+      /exact reviewed additive catalog successor/u,
+    );
+
+    const semanticDrift = structuredClone(active) as MutableCatalogCompatibilityBasis;
+    semanticDrift.validatorSemanticsHash = REAL_BUILD_TEST_DIGEST;
+    expect(() => assertFrozenLegacyAdditiveCatalogV2(document, semanticDrift)).toThrow(
+      /existing catalog interpretation moved/u,
+    );
+
+    const nonAdditive = structuredClone(active) as MutableCatalogCompatibilityBasis;
+    nonAdditive.constraints.allowedCatalogPartIds[0] = "builtin:forged-reinterpretation";
+    expect(() => assertFrozenLegacyAdditiveCatalogV2(document, nonAdditive)).toThrow(
+      /exact 85-part predecessor/u,
+    );
+
+    const addedPart = structuredClone(document) as unknown as MutableLegacyDocument;
+    addedPart.parts[0]!.catalogPartId = "builtin:tile-1x1-quarter-round";
+    expect(() =>
+      assertFrozenLegacyAdditiveCatalogV2(addedPart as unknown as BrickDocumentV1),
+    ).toThrow(/did not exist in frozen catalog \/13/u);
   });
 
   it("replays frozen semantic validation for rehashed connection, membership, region, and transform attacks", () => {

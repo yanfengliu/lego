@@ -47,10 +47,10 @@ export interface MeasuredLdcadShadowSource {
  * The four layers still come from one declaration, but each field states which
  * source measured it: the mesh and the collision decomposition are the expanded
  * LDraw surface, the bounds are the exact LDraw closure, and the female
- * connectors are an authored claim carried through a pinned frame — Builder's
- * `Custom2DField` where a record exists, the LDCad shadow library where it does
- * not. Nothing here is generated from a width and a length, so nothing here may
- * be inferred.
+ * connectors are an authored claim carried through a pinned frame. A declaration
+ * selects exactly one reviewed Builder, Builder-connectivity, or LDCad source;
+ * mere record presence selects nothing. Nothing here is generated from a width
+ * and a length, so nothing here may be inferred.
  *
  * `assetToCatalogFrame` is the explicit source-to-catalog frame a part whose
  * source frame is not centred must carry. It is a quarter turn about the

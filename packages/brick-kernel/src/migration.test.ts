@@ -16,7 +16,6 @@ import {
 } from "./migration.ts";
 import { validateBrickDocument } from "./validation.ts";
 
-/** A document pinned to the exact reviewed `/5` truth snapshot. */
 function legacyDocument(overrides: Partial<BrickDocumentV1> = {}): BrickDocumentV1 {
   const current = createEmptyBrickDocument({ id: "legacy", name: "Legacy model" });
   const part = createPartInstance({ id: "part-1", catalogPartId: "builtin:brick-2x2" });
@@ -70,67 +69,126 @@ function legacyDocument(overrides: Partial<BrickDocumentV1> = {}): BrickDocument
   };
 }
 
+const POST_V8_TRUTH_HASHES = {
+  connector: "sha256:57489cb5a3b5e1bf367984c2768318f151e19051d2b1b6ee3713a7e6ef53f6a2",
+  collision: "sha256:a14d660a6b24a63326ab6c24865fc07ea59496b1cf48002cea83a4b615724edb",
+  transform: "sha256:0b440dad9403f63aa89496e0e129ef3cf5d78391565294cbde18e239ec66c7b6",
+} as const;
+
+interface HistoricalDocumentOptions {
+  readonly id: string;
+  readonly name: string;
+  readonly catalogVersion: string;
+  readonly catalogHash: BrickDocumentV1["truth"]["catalog"]["hash"];
+  readonly connectorHash?: BrickDocumentV1["truth"]["connectorTaxonomy"]["hash"];
+  readonly collisionHash?: BrickDocumentV1["truth"]["collisionModel"]["hash"];
+  readonly transformHash?: BrickDocumentV1["truth"]["transformPolicy"]["hash"];
+  readonly allowedCatalogPartCount?: number;
+  readonly part?: BrickDocumentV1["parts"][number];
+}
+
+function historicalDocument(options: HistoricalDocumentOptions): BrickDocumentV1 {
+  const current = createEmptyBrickDocument({ id: options.id, name: options.name });
+  const document: BrickDocumentV1 = {
+    ...current,
+    truth: {
+      schemaVersion: "lego.truth-snapshot/1",
+      catalog: {
+        id: "builtin.basic-parts",
+        version: options.catalogVersion,
+        hash: options.catalogHash,
+      },
+      connectorTaxonomy: {
+        id: "stud-tube",
+        version: "stud-tube/1",
+        hash: options.connectorHash ?? POST_V8_TRUTH_HASHES.connector,
+      },
+      collisionModel: {
+        id: "rectilinear-stud-clearance",
+        version: "rectilinear-stud-clearance/2",
+        hash: options.collisionHash ?? POST_V8_TRUTH_HASHES.collision,
+      },
+      transformPolicy: {
+        id: "upright-quarter-turns-negative-y-up",
+        version: "upright-quarter-turns-negative-y-up/1",
+        hash: options.transformHash ?? POST_V8_TRUTH_HASHES.transform,
+      },
+      validatorSet: {
+        id: "lego.kernel-validators",
+        version: "lego.kernel-validators/2",
+        hash: "sha256:cb2767cfa8c8d7adfe145bef950b49428d8c8fced235a04b5f984c29799a031e",
+      },
+    },
+  };
+  const populated =
+    options.part === undefined
+      ? document
+      : {
+          ...document,
+          parts: [options.part],
+          submodels: [{ ...current.submodels[0]!, partIds: [options.part.id] }],
+          steps: [{ ...current.steps[0]!, partIds: [options.part.id] }],
+        };
+  return options.allowedCatalogPartCount === undefined
+    ? populated
+    : {
+        ...populated,
+        constraints: {
+          ...current.constraints,
+          allowedCatalogPartIds: PART_DEFINITIONS.slice(0, options.allowedCatalogPartCount)
+            .map(({ id }) => id)
+            .sort(),
+        },
+      };
+}
+
+function expectOnlyCatalogChange(
+  report: ReturnType<typeof migrateDocumentTruth>["report"],
+  fromVersion: string,
+): void {
+  expect(report.truthComponentChanges).toEqual([
+    { component: "catalog", fromVersion, toVersion: BUILTIN_CATALOG_VERSION },
+  ]);
+}
+
+const VERSION_13_RENDER_PART_IDS = [
+  "builtin:wedge-plate-2x4-left",
+  "builtin:wedge-plate-2x4-right",
+  "builtin:wedge-plate-2x3-left",
+  "builtin:wedge-plate-2x3-right",
+  "builtin:arch-1x4",
+  "builtin:arch-1x6",
+  "builtin:curved-slope-1x2",
+  "builtin:curved-slope-1x3",
+  "builtin:curved-slope-1x4",
+  "builtin:cheese-slope-1x1",
+  "builtin:cheese-slope-2x1",
+  "builtin:wedge-plate-4x4-cut-corner",
+  "builtin:wedge-plate-6x6-cut-corner",
+  "builtin:wedge-plate-3x6-right",
+  "builtin:corner-plate-4x4-round",
+  "builtin:corner-plate-5x5-quarter-ring",
+  "builtin:tile-1x2-cut-right-45",
+  "builtin:plate-1x2-round-end",
+  "builtin:wedge-plate-2x4-wing",
+  "builtin:corner-plate-3x3",
+  "builtin:curved-slope-1x4-double",
+  "builtin:plate-3x3-corner-round",
+  "builtin:wedge-plate-3x3-cut-corner",
+  "builtin:corner-plate-2x2-round",
+] as const;
+
 const VERSION_13_INTERPRETATION_CHANGES = [
   {
     fromCatalogVersion: "builtin.basic-parts/12",
     toCatalogVersion: "builtin.basic-parts/13",
-    affectedCatalogPartIds: [
-      "builtin:wedge-plate-2x4-left",
-      "builtin:wedge-plate-2x4-right",
-      "builtin:wedge-plate-2x3-left",
-      "builtin:wedge-plate-2x3-right",
-      "builtin:arch-1x4",
-      "builtin:arch-1x6",
-      "builtin:curved-slope-1x2",
-      "builtin:curved-slope-1x3",
-      "builtin:curved-slope-1x4",
-      "builtin:cheese-slope-1x1",
-      "builtin:cheese-slope-2x1",
-      "builtin:wedge-plate-4x4-cut-corner",
-      "builtin:wedge-plate-6x6-cut-corner",
-      "builtin:wedge-plate-3x6-right",
-      "builtin:corner-plate-4x4-round",
-      "builtin:corner-plate-5x5-quarter-ring",
-      "builtin:tile-1x2-cut-right-45",
-      "builtin:plate-1x2-round-end",
-      "builtin:wedge-plate-2x4-wing",
-      "builtin:corner-plate-3x3",
-      "builtin:curved-slope-1x4-double",
-      "builtin:plate-3x3-corner-round",
-      "builtin:wedge-plate-3x3-cut-corner",
-      "builtin:corner-plate-2x2-round",
-    ],
+    affectedCatalogPartIds: VERSION_13_RENDER_PART_IDS,
     changedFields: ["surface-normals"],
   },
   {
     fromCatalogVersion: "builtin.basic-parts/12",
     toCatalogVersion: "builtin.basic-parts/13",
-    affectedCatalogPartIds: [
-      "builtin:wedge-plate-2x4-left",
-      "builtin:wedge-plate-2x4-right",
-      "builtin:wedge-plate-2x3-left",
-      "builtin:wedge-plate-2x3-right",
-      "builtin:arch-1x4",
-      "builtin:arch-1x6",
-      "builtin:curved-slope-1x2",
-      "builtin:curved-slope-1x3",
-      "builtin:curved-slope-1x4",
-      "builtin:cheese-slope-1x1",
-      "builtin:cheese-slope-2x1",
-      "builtin:wedge-plate-4x4-cut-corner",
-      "builtin:wedge-plate-6x6-cut-corner",
-      "builtin:wedge-plate-3x6-right",
-      "builtin:corner-plate-4x4-round",
-      "builtin:corner-plate-5x5-quarter-ring",
-      "builtin:tile-1x2-cut-right-45",
-      "builtin:plate-1x2-round-end",
-      "builtin:wedge-plate-2x4-wing",
-      "builtin:corner-plate-3x3",
-      "builtin:curved-slope-1x4-double",
-      "builtin:plate-3x3-corner-round",
-      "builtin:wedge-plate-3x3-cut-corner",
-      "builtin:corner-plate-2x2-round",
-    ],
+    affectedCatalogPartIds: VERSION_13_RENDER_PART_IDS,
     changedFields: ["render-geometry"],
   },
   {
@@ -201,6 +259,11 @@ describe("migrateDocumentTruth", () => {
       "e70346d7ec2c75a206a436e8c9cc233e1ca2de37",
       "sha256:cdfeae99ea405770f35f83173eec10804078346d257c5e56006707639313ae8e",
     ],
+    [
+      "builtin.basic-parts/13",
+      "8fc01861ec059da71eb09c3273815f7ea49eec62",
+      "sha256:de62fae6dbc8095dfd460983e5e845ddfac4bf9ec2ea1f99572bc46026941cb5",
+    ],
   ])("pins reviewed %s truth from commit %s", (catalogVersion, sourceCommit, truthHash) => {
     expect(
       REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS.find(
@@ -211,13 +274,13 @@ describe("migrateDocumentTruth", () => {
   });
 
   it("admits no historical truth snapshots beyond the reviewed table", () => {
-    expect(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS).toHaveLength(14);
+    expect(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS).toHaveLength(15);
     expect(
       new Set(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS.map(({ sourceCommit }) => sourceCommit)).size,
-    ).toBe(14);
+    ).toBe(15);
     expect(
       new Set(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS.map(({ truthHash }) => truthHash)).size,
-    ).toBe(14);
+    ).toBe(15);
   });
 
   it("pins the legacy fixture to a reviewed historical truth snapshot", () => {
@@ -265,25 +328,17 @@ describe("migrateDocumentTruth", () => {
   });
 
   it("names every in-place visual reinterpretation when a /11 document advances", () => {
-    const current = createEmptyBrickDocument({ id: "eleven", name: "Saved at /11" });
     const part = createPartInstance({
       id: "quarter-ring",
       catalogPartId: "builtin:corner-plate-5x5-quarter-ring",
     });
-    const savedAtEleven: BrickDocumentV1 = {
-      ...current,
-      truth: {
-        ...current.truth,
-        catalog: {
-          ...current.truth.catalog,
-          version: "builtin.basic-parts/11",
-          hash: "sha256:c7e1f3ff0c5edb175c3b97ad98795aa5ed776636941c5e1b3ff52fcee2daa3bc",
-        },
-      },
-      parts: [part],
-      submodels: [{ ...current.submodels[0]!, partIds: [part.id] }],
-      steps: [{ ...current.steps[0]!, partIds: [part.id] }],
-    };
+    const savedAtEleven = historicalDocument({
+      id: "eleven",
+      name: "Saved at /11",
+      catalogVersion: "builtin.basic-parts/11",
+      catalogHash: "sha256:c7e1f3ff0c5edb175c3b97ad98795aa5ed776636941c5e1b3ff52fcee2daa3bc",
+      part,
+    });
 
     expect(canonicalDigest(savedAtEleven.truth)).toBe(
       "sha256:6b784ce4259131b1ed637815b78bbf14a0bd2e92627ce2a8f4d09c3504465c43",
@@ -310,25 +365,17 @@ describe("migrateDocumentTruth", () => {
   });
 
   it("reports 24 normal and geometry plus 12 bounds reinterpretations at /13", () => {
-    const current = createEmptyBrickDocument({ id: "twelve", name: "Saved at /12" });
     const part = createPartInstance({
       id: "three-by-six-right",
       catalogPartId: "builtin:wedge-plate-3x6-right",
     });
-    const savedAtTwelve: BrickDocumentV1 = {
-      ...current,
-      truth: {
-        ...current.truth,
-        catalog: {
-          ...current.truth.catalog,
-          version: "builtin.basic-parts/12",
-          hash: "sha256:7a058d34855c49d1b46317e0fff51117c36aa92051ba57449465e506fb6986f5",
-        },
-      },
-      parts: [part],
-      submodels: [{ ...current.submodels[0]!, partIds: [part.id] }],
-      steps: [{ ...current.steps[0]!, partIds: [part.id] }],
-    };
+    const savedAtTwelve = historicalDocument({
+      id: "twelve",
+      name: "Saved at /12",
+      catalogVersion: "builtin.basic-parts/12",
+      catalogHash: "sha256:7a058d34855c49d1b46317e0fff51117c36aa92051ba57449465e506fb6986f5",
+      part,
+    });
 
     expect(canonicalDigest(savedAtTwelve.truth)).toBe(
       "sha256:cdfeae99ea405770f35f83173eec10804078346d257c5e56006707639313ae8e",
@@ -341,47 +388,38 @@ describe("migrateDocumentTruth", () => {
     expect(document.parts).toEqual(savedAtTwelve.parts);
   });
 
-  it("carries a /6 document forward and names the five parts it gained", () => {
-    // The snapshot this catalog version replaced. `/6` became historical at the
-    // first production part admission, which is what makes this path exist.
-    const current = createEmptyBrickDocument({ id: "six", name: "Saved at /6" });
-    const document: BrickDocumentV1 = {
-      ...current,
-      truth: {
-        schemaVersion: "lego.truth-snapshot/1",
-        catalog: {
-          id: "builtin.basic-parts",
-          version: "builtin.basic-parts/6",
-          hash: "sha256:590a94c9b9498faace4b29b74c4c9ba8352d644365585d9aeb96b4a7c53bdb7f",
-        },
-        connectorTaxonomy: {
-          id: "stud-tube",
-          version: "stud-tube/1",
-          hash: "sha256:720d9d3f430c388bd4fa47de41f93aed138505642bf9b33b3f6e5ca6a0510dfb",
-        },
-        collisionModel: {
-          id: "rectilinear-stud-clearance",
-          version: "rectilinear-stud-clearance/2",
-          hash: "sha256:692e143470b6a19f54299301de79daf74acd75af0ffeefb82437b5e81c6bda2a",
-        },
-        transformPolicy: {
-          id: "upright-quarter-turns-negative-y-up",
-          version: "upright-quarter-turns-negative-y-up/1",
-          hash: "sha256:535a51b5b102dac0d5788ffecb3c1330d51e0799853d7cc9a1fa1236354f8a09",
-        },
-        validatorSet: {
-          id: "lego.kernel-validators",
-          version: "lego.kernel-validators/2",
-          hash: "sha256:cb2767cfa8c8d7adfe145bef950b49428d8c8fced235a04b5f984c29799a031e",
-        },
-      },
-      constraints: {
-        ...current.constraints,
-        allowedCatalogPartIds: PART_DEFINITIONS.slice(0, 77)
-          .map(({ id }) => id)
-          .sort(),
-      },
-    };
+  it("carries /13 forward and reports the complete new quarter-round definition", () => {
+    const savedAtThirteen = historicalDocument({
+      id: "thirteen",
+      name: "Saved at /13",
+      catalogVersion: "builtin.basic-parts/13",
+      catalogHash: "sha256:100283423bf1cfecfdfec5ba2216d1834a9eb19b1757c71772f7fa53223190d6",
+      allowedCatalogPartCount: PART_DEFINITIONS.length - 1,
+    });
+
+    expect(canonicalDigest(savedAtThirteen.truth)).toBe(
+      "sha256:de62fae6dbc8095dfd460983e5e845ddfac4bf9ec2ea1f99572bc46026941cb5",
+    );
+    const { document, report } = migrateDocumentTruth(savedAtThirteen);
+
+    expect(report.migrated).toBe(true);
+    expect(report.addedCatalogPartIds).toEqual(["builtin:tile-1x1-quarter-round"]);
+    expect(report.catalogInterpretationChanges).toEqual([]);
+    expectOnlyCatalogChange(report, "builtin.basic-parts/13");
+    expect(document.parts).toEqual(savedAtThirteen.parts);
+  });
+
+  it("carries a /6 document forward and names the nine parts it gained", () => {
+    const document = historicalDocument({
+      id: "six",
+      name: "Saved at /6",
+      catalogVersion: "builtin.basic-parts/6",
+      catalogHash: "sha256:590a94c9b9498faace4b29b74c4c9ba8352d644365585d9aeb96b4a7c53bdb7f",
+      connectorHash: "sha256:720d9d3f430c388bd4fa47de41f93aed138505642bf9b33b3f6e5ca6a0510dfb",
+      collisionHash: "sha256:692e143470b6a19f54299301de79daf74acd75af0ffeefb82437b5e81c6bda2a",
+      transformHash: "sha256:535a51b5b102dac0d5788ffecb3c1330d51e0799853d7cc9a1fa1236354f8a09",
+      allowedCatalogPartCount: 77,
+    });
 
     const { report } = migrateDocumentTruth(document);
 
@@ -399,59 +437,25 @@ describe("migrateDocumentTruth", () => {
       "builtin:plate-3x3-corner-round",
       "builtin:wedge-plate-3x3-cut-corner",
       "builtin:corner-plate-2x2-round",
+      "builtin:tile-1x1-quarter-round",
     ]);
     expect(report.addedColorIds).toEqual([]);
-    expect(report.truthComponentChanges).toEqual([
-      {
-        component: "catalog",
-        fromVersion: "builtin.basic-parts/6",
-        toVersion: BUILTIN_CATALOG_VERSION,
-      },
-    ]);
+    expectOnlyCatalogChange(report, "builtin.basic-parts/6");
   });
 
-  it("carries a /7 document forward and names the three parts it gained", () => {
-    // The snapshot /8 replaced. /7 admitted the five designs LEGO Builder has a
-    // record for; the three named here are the ones it has none for, whose
-    // clutch cells the LDCad shadow library authored instead.
-    const current = createEmptyBrickDocument({ id: "seven", name: "Saved at /7" });
-    const document: BrickDocumentV1 = {
-      ...current,
-      truth: {
-        schemaVersion: "lego.truth-snapshot/1",
-        catalog: {
-          id: "builtin.basic-parts",
-          version: "builtin.basic-parts/7",
-          hash: "sha256:f26a1ba141ca0485f1bf046c68d94082497fcd8dcea85906723a389a09ec55d2",
-        },
-        connectorTaxonomy: {
-          id: "stud-tube",
-          version: "stud-tube/1",
-          hash: "sha256:2f3f165461925f9ba3be532d9b5a2e76836d6eb1c93709f954ae7f6150d8db5e",
-        },
-        collisionModel: {
-          id: "rectilinear-stud-clearance",
-          version: "rectilinear-stud-clearance/2",
-          hash: "sha256:c8b66e871ec0e730795ace974befb927844ecd1d99929f94c76cb955287c955c",
-        },
-        transformPolicy: {
-          id: "upright-quarter-turns-negative-y-up",
-          version: "upright-quarter-turns-negative-y-up/1",
-          hash: "sha256:5d9342646d5f6434e57e0673aa43192d9274e47588e4dc07081960644402b7ca",
-        },
-        validatorSet: {
-          id: "lego.kernel-validators",
-          version: "lego.kernel-validators/2",
-          hash: "sha256:cb2767cfa8c8d7adfe145bef950b49428d8c8fced235a04b5f984c29799a031e",
-        },
-      },
-      constraints: {
-        ...current.constraints,
-        allowedCatalogPartIds: PART_DEFINITIONS.slice(0, 82)
-          .map(({ id }) => id)
-          .sort(),
-      },
-    };
+  it("carries a /7 document forward and names the four parts it gained", () => {
+    // Three additions have no Builder record; 25269's record is not consumed.
+    // The LDCad shadow library authors all four clutch fields.
+    const document = historicalDocument({
+      id: "seven",
+      name: "Saved at /7",
+      catalogVersion: "builtin.basic-parts/7",
+      catalogHash: "sha256:f26a1ba141ca0485f1bf046c68d94082497fcd8dcea85906723a389a09ec55d2",
+      connectorHash: "sha256:2f3f165461925f9ba3be532d9b5a2e76836d6eb1c93709f954ae7f6150d8db5e",
+      collisionHash: "sha256:c8b66e871ec0e730795ace974befb927844ecd1d99929f94c76cb955287c955c",
+      transformHash: "sha256:5d9342646d5f6434e57e0673aa43192d9274e47588e4dc07081960644402b7ca",
+      allowedCatalogPartCount: 82,
+    });
 
     const { report } = migrateDocumentTruth(document);
 
@@ -464,15 +468,10 @@ describe("migrateDocumentTruth", () => {
       "builtin:plate-3x3-corner-round",
       "builtin:wedge-plate-3x3-cut-corner",
       "builtin:corner-plate-2x2-round",
+      "builtin:tile-1x1-quarter-round",
     ]);
     expect(report.addedColorIds).toEqual([]);
-    expect(report.truthComponentChanges).toEqual([
-      {
-        component: "catalog",
-        fromVersion: "builtin.basic-parts/7",
-        toVersion: BUILTIN_CATALOG_VERSION,
-      },
-    ]);
+    expectOnlyCatalogChange(report, "builtin.basic-parts/7");
   });
 
   it("produces a document the current validators accept", () => {

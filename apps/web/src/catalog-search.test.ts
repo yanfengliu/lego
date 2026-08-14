@@ -46,6 +46,13 @@ describe("matchesPartQuery", () => {
     expect(matchesPartQuery(brick2x4, "3001")).toBe(true);
   });
 
+  it("keeps the admitted 25269 quarter-round tile discoverable by identifier, shape, and size", () => {
+    const quarterRound = part("builtin:tile-1x1-quarter-round");
+    expect(matchesPartQuery(quarterRound, "25269")).toBe(true);
+    expect(matchesPartQuery(quarterRound, "quarter-round")).toBe(true);
+    expect(matchesPartQuery(quarterRound, "1x1")).toBe(true);
+  });
+
   it("does not match an unrelated query", () => {
     expect(matchesPartQuery(brick2x4, "wheel")).toBe(false);
     expect(matchesPartQuery(brick2x4, "9x9")).toBe(false);
