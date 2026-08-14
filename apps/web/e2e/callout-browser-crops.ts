@@ -1,47 +1,70 @@
 import type {
   BrowserCrop,
+  BrowserCropInput,
   BrowserResult,
-  CalloutTarget,
   CropStrategy,
   PixelBounds,
 } from "./callout-types";
+import {
+  assignTargetBoxComponents,
+  calloutSourceBoxKey,
+  coalesceContainedComponentGroups,
+  type FilledMatchableComponent,
+} from "./callout-component-matching";
+import * as conservation from "./callout-component-conservation";
+import { absoluteForegroundSha256 } from "./callout-source-component";
+import { renderSemanticCrop } from "./callout-semantic-crop";
+import {
+  clampCalloutPixelBounds,
+  discardEmptyLegacyComponent,
+  insideCalloutPixelBounds,
+  sampledCalloutBackground,
+} from "./callout-browser-pixels";
+import {
+  assertBoundedCalloutCropRaster,
+  assertBoundedCalloutTextMasks,
+  assertCalloutComponentBoxBound,
+  boundedCalloutPngDataUrl,
+  boundedCalloutPageRaster,
+  calloutSha256,
+  createCalloutComponentCacheBudget,
+  fetchExactCalloutPdfBytes,
+  MAX_CALLOUT_COMPONENT_BOX_PIXELS,
+  snapshotBoundedCalloutTextItems,
+  snapshotBoundedCalloutTargets,
+} from "./callout-browser-resource-bounds";
 
-export interface BrowserCropInput {
-  readonly pdfjsUrl: string;
-  readonly workerUrl: string;
-  readonly pdfUrl: string;
-  readonly pageNumber: number;
-  readonly targets: readonly CalloutTarget[];
-}
-
-/** Self-contained because Playwright serializes this function into the page. */
 export async function renderCalloutCrops(input: BrowserCropInput): Promise<BrowserResult[]> {
+  const targets = snapshotBoundedCalloutTargets(input.targets);
   const pdfjs = await import(/* @vite-ignore */ input.pdfjsUrl);
   pdfjs.GlobalWorkerOptions.workerSrc = input.workerUrl;
-  const data = new Uint8Array(await (await fetch(input.pdfUrl)).arrayBuffer());
+  const data = await fetchExactCalloutPdfBytes(input.pdfUrl, input.expectedSourceBytes);
+  const sourceDigest = await calloutSha256(data);
+  if (sourceDigest !== input.expectedSourceHash) {
+    throw new Error(
+      `Browser callout renderer fetched PDF digest ${sourceDigest}, not the Node-ingested ${input.expectedSourceHash}. Refuse mixed-source crop evidence and retry from one immutable PDF snapshot.`,
+    );
+  }
   const documentHandle = await pdfjs.getDocument({ data }).promise;
   try {
     const pdfPage = await documentHandle.getPage(input.pageNumber);
     const scale = 8;
     const viewport = pdfPage.getViewport({ scale });
+    const raster = boundedCalloutPageRaster(viewport.width, viewport.height);
     document.querySelectorAll("canvas.callout-probe").forEach((node) => node.remove());
     const canvas = document.createElement("canvas");
     canvas.className = "callout-probe";
-    canvas.width = Math.ceil(viewport.width);
-    canvas.height = Math.ceil(viewport.height);
+    canvas.width = raster.width;
+    canvas.height = raster.height;
     document.body.append(canvas);
     const context = canvas.getContext("2d")!;
     await pdfPage.render({ canvasContext: context, viewport, background: "#ffffff" }).promise;
     const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
     const textContent = await pdfPage.getTextContent();
-
-    const clampBounds = (bounds: PixelBounds): PixelBounds => ({
-      left: Math.max(0, Math.min(canvas.width - 1, bounds.left)),
-      top: Math.max(0, Math.min(canvas.height - 1, bounds.top)),
-      right: Math.max(0, Math.min(canvas.width - 1, bounds.right)),
-      bottom: Math.max(0, Math.min(canvas.height - 1, bounds.bottom)),
-    });
-    const textMasks: PixelBounds[] = textContent.items.flatMap((raw: unknown) => {
+    const textItems = snapshotBoundedCalloutTextItems(textContent.items);
+    const clampBounds = (bounds: PixelBounds): PixelBounds =>
+      clampCalloutPixelBounds(bounds, canvas.width, canvas.height);
+    const textMasks: PixelBounds[] = textItems.flatMap((raw: unknown) => {
       const item = raw as { width?: unknown; height?: unknown; transform?: unknown };
       if (!Array.isArray(item.transform) || item.transform.length < 6) return [];
       const transform = pdfjs.Util.transform(viewport.transform, item.transform);
@@ -67,31 +90,17 @@ export async function renderCalloutCrops(input: BrowserCropInput): Promise<Brows
         }),
       ];
     });
-    const inside = (bounds: PixelBounds, x: number, y: number): boolean =>
-      x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom;
-    const inAnyText = (x: number, y: number): boolean =>
-      textMasks.some((bounds) => inside(bounds, x, y));
+    assertBoundedCalloutTextMasks(textMasks);
+    const textPixels = new Uint8Array(canvas.width * canvas.height);
+    for (const bounds of textMasks) {
+      for (let y = bounds.top; y <= bounds.bottom; y += 1) {
+        textPixels.fill(1, y * canvas.width + bounds.left, y * canvas.width + bounds.right + 1);
+      }
+    }
+    const inAnyText = (x: number, y: number): boolean => textPixels[y * canvas.width + x] === 1;
     const colourAt = (x: number, y: number): [number, number, number] => {
       const at = (y * canvas.width + x) * 4;
       return [pixels[at]!, pixels[at + 1]!, pixels[at + 2]!];
-    };
-    const backgroundFor = (box: PixelBounds): [number, number, number] => {
-      const tally = new Map<string, number>();
-      const stepX = Math.max(1, Math.floor((box.right - box.left) / 60));
-      const stepY = Math.max(1, Math.floor((box.bottom - box.top) / 60));
-      for (let y = box.top; y <= box.bottom; y += stepY) {
-        for (let x = box.left; x <= box.right; x += stepX) {
-          const [red, green, blue] = colourAt(x, y);
-          const key = `${red >> 3},${green >> 3},${blue >> 3}`;
-          tally.set(key, (tally.get(key) ?? 0) + 1);
-        }
-      }
-      const commonest = [...tally].sort((left, right) => right[1] - left[1])[0]?.[0] ?? "31,31,31";
-      return commonest.split(",").map((channel) => (Number(channel) << 3) + 4) as [
-        number,
-        number,
-        number,
-      ];
     };
     const differs = (
       x: number,
@@ -108,16 +117,7 @@ export async function renderCalloutCrops(input: BrowserCropInput): Promise<Brows
         30
       );
     };
-
-    type Blob = {
-      left: number;
-      top: number;
-      right: number;
-      bottom: number;
-      size: number;
-      filled: Set<number>;
-      overflowed: boolean;
-    };
+    type Blob = FilledMatchableComponent;
     const floodFrom = (
       seedX: number,
       seedY: number,
@@ -139,7 +139,8 @@ export async function renderCalloutCrops(input: BrowserCropInput): Promise<Brows
         seen.add(at);
         const x = at % canvas.width;
         const y = (at - x) / canvas.width;
-        if (!inside(limit, x, y) || !differs(x, y, background, maskText)) continue;
+        if (!insideCalloutPixelBounds(limit, x, y) || !differs(x, y, background, maskText))
+          continue;
         filled.add(at);
         left = Math.min(left, x);
         right = Math.max(right, x);
@@ -152,21 +153,30 @@ export async function renderCalloutCrops(input: BrowserCropInput): Promise<Brows
       }
       return filled.size === 0
         ? null
-        : { left, top, right, bottom, size: filled.size, filled, overflowed: stack.length > 0 };
+        : {
+            left,
+            top,
+            right,
+            bottom,
+            size: filled.size,
+            filled,
+            overflowed: stack.length > 0,
+            rawComponentCount: 1,
+          };
     };
     const validBlob = (blob: Blob | null, minimum: number, density = 0.08): blob is Blob => {
       if (!blob || blob.size < minimum || blob.overflowed) return false;
       const blobArea = (blob.right - blob.left + 1) * (blob.bottom - blob.top + 1);
       return blobArea >= 16 * 16 && blob.size / blobArea >= density;
     };
-
-    const componentCrop = (
+    const componentCrop = async (
       blob: Blob,
       box: PixelBounds,
       background: readonly [number, number, number],
       strategy: CropStrategy,
       quantityMask: PixelBounds,
-    ): BrowserCrop => {
+      identity: string,
+    ): Promise<BrowserCrop | null> => {
       const contamination: string[] = [];
       const boundaryMargin = Math.max(2, Math.round(scale * 0.25));
       if (
@@ -178,18 +188,30 @@ export async function renderCalloutCrops(input: BrowserCropInput): Promise<Brows
         contamination.push("touches-cell-boundary");
       let sourceTextGlyphPixels = 0;
       let sourceQuantityGlyphPixels = 0;
+      let componentPixels = 0;
+      let componentLeft = canvas.width;
+      let componentTop = canvas.height;
+      let componentRight = -1;
+      let componentBottom = -1;
       for (const pixel of blob.filled) {
         const x = pixel % canvas.width;
         const y = (pixel - x) / canvas.width;
-        if (inAnyText(x, y)) sourceTextGlyphPixels += 1;
-        if (inside(quantityMask, x, y)) sourceQuantityGlyphPixels += 1;
+        const text = inAnyText(x, y);
+        if (text) sourceTextGlyphPixels += 1;
+        if (text && insideCalloutPixelBounds(quantityMask, x, y)) sourceQuantityGlyphPixels += 1;
+        if (!text) {
+          componentPixels += 1;
+          componentLeft = Math.min(componentLeft, x);
+          componentTop = Math.min(componentTop, y);
+          componentRight = Math.max(componentRight, x);
+          componentBottom = Math.max(componentBottom, y);
+        }
       }
       if (sourceTextGlyphPixels > Math.max(16, blob.size * 0.25))
         contamination.push("contains-pdf-text-glyph");
       if (sourceQuantityGlyphPixels > Math.max(16, blob.size * 0.25))
         contamination.push("contains-quantity-glyph");
       if (blob.overflowed) contamination.push("flood-budget-exhausted");
-
       const pad = Math.round(0.6 * scale);
       const cropRectPx = clampBounds({
         left: blob.left - pad,
@@ -199,11 +221,23 @@ export async function renderCalloutCrops(input: BrowserCropInput): Promise<Brows
       });
       const width = cropRectPx.right - cropRectPx.left + 1;
       const height = cropRectPx.bottom - cropRectPx.top + 1;
+      assertBoundedCalloutCropRaster(width, height, `${identity} physical callout crop`);
       const cell = document.createElement("canvas");
       cell.width = width;
       cell.height = height;
       const cellContext = cell.getContext("2d")!;
       const image = cellContext.createImageData(width, height);
+      const componentWidth = componentRight - componentLeft + 1;
+      const componentHeight = componentBottom - componentTop + 1;
+      const componentArea = componentWidth * componentHeight;
+      if (discardEmptyLegacyComponent(strategy, componentPixels)) return null;
+      if (componentPixels === 0 || componentArea > 4_000_000) {
+        throw new Error(
+          `Physical component retained ${componentPixels} pixels in a ${componentWidth}x${componentHeight} raster; expected 1..4000000 bounded pixels.`,
+        );
+      }
+      const componentRecords = new Uint32Array(componentPixels * 2);
+      let componentRecord = 0;
       let foregroundPixels = 0;
       let foregroundLeft = width;
       let foregroundTop = height;
@@ -223,6 +257,14 @@ export async function renderCalloutCrops(input: BrowserCropInput): Promise<Brows
             foregroundTop = Math.min(foregroundTop, y);
             foregroundRight = Math.max(foregroundRight, x);
             foregroundBottom = Math.max(foregroundBottom, y);
+            componentRecords[componentRecord] = sourceY * canvas.width + sourceX;
+            componentRecords[componentRecord + 1] =
+              ((pixels[from]! << 24) |
+                (pixels[from + 1]! << 16) |
+                (pixels[from + 2]! << 8) |
+                pixels[from + 3]!) >>>
+              0;
+            componentRecord += 2;
           }
           image.data[to] = keep ? pixels[from]! : background[0];
           image.data[to + 1] = keep ? pixels[from + 1]! : background[1];
@@ -231,8 +273,23 @@ export async function renderCalloutCrops(input: BrowserCropInput): Promise<Brows
         }
       }
       cellContext.putImageData(image, 0, 0);
+      const componentDigest = await absoluteForegroundSha256({
+        pageNumber: input.pageNumber,
+        rasterScale: scale,
+        canvasWidth: canvas.width,
+        canvasHeight: canvas.height,
+        boundsPx: {
+          left: componentLeft,
+          top: componentTop,
+          right: componentRight,
+          bottom: componentBottom,
+        },
+        rawComponentCount: blob.rawComponentCount,
+        records: componentRecords,
+      });
+      const url = await boundedCalloutPngDataUrl(cell, `${identity} physical callout crop`);
       return {
-        url: cell.toDataURL("image/png"),
+        url,
         widthPx: width,
         heightPx: height,
         strategy,
@@ -256,126 +313,36 @@ export async function renderCalloutCrops(input: BrowserCropInput): Promise<Brows
                 right: width - 1 - foregroundRight,
                 bottom: height - 1 - foregroundBottom,
               },
-      };
-    };
-
-    const semanticCrop = (
-      target: CalloutTarget,
-      box: PixelBounds,
-      background: readonly [number, number, number],
-      quantityMask: PixelBounds,
-    ): BrowserCrop | null => {
-      const inset = Math.round(2 * scale);
-      const actionPadding = Math.round(16 * scale);
-      const region =
-        target.regionKind === "panel-neighbor-action"
-          ? {
-              left: box.left + Math.max(inset, Math.round((box.right - box.left) * 0.08)),
-              right: box.right - inset,
-              top: box.top - actionPadding,
-              bottom: Math.min(box.bottom - inset, quantityMask.bottom + actionPadding),
-            }
-          : {
-              left: box.left + inset,
-              right: box.right - inset,
-              top: box.top + inset,
-              bottom: box.bottom - inset,
-            };
-      const cropRectPx = clampBounds(region);
-      const width = cropRectPx.right - cropRectPx.left + 1;
-      const height = cropRectPx.bottom - cropRectPx.top + 1;
-      if (width < 16 || height < 16) return null;
-      const cell = document.createElement("canvas");
-      cell.width = width;
-      cell.height = height;
-      const cellContext = cell.getContext("2d")!;
-      cellContext.drawImage(
-        canvas,
-        cropRectPx.left,
-        cropRectPx.top,
-        width,
-        height,
-        0,
-        0,
-        width,
-        height,
-      );
-      let sourceTextGlyphPixels = 0;
-      let sourceQuantityGlyphPixels = 0;
-      let foregroundPixels = 0;
-      let textGlyphOverlapPixels = 0;
-      let foregroundLeft = width;
-      let foregroundTop = height;
-      let foregroundRight = -1;
-      let foregroundBottom = -1;
-      for (let y = cropRectPx.top; y <= cropRectPx.bottom; y += 1) {
-        for (let x = cropRectPx.left; x <= cropRectPx.right; x += 1) {
-          if (!differs(x, y, background, false)) continue;
-          const text = inAnyText(x, y);
-          const quantity = inside(quantityMask, x, y);
-          if (text) sourceTextGlyphPixels += 1;
-          if (quantity) sourceQuantityGlyphPixels += 1;
-          else {
-            foregroundPixels += 1;
-            if (text) textGlyphOverlapPixels += 1;
-            const relativeX = x - cropRectPx.left;
-            const relativeY = y - cropRectPx.top;
-            foregroundLeft = Math.min(foregroundLeft, relativeX);
-            foregroundTop = Math.min(foregroundTop, relativeY);
-            foregroundRight = Math.max(foregroundRight, relativeX);
-            foregroundBottom = Math.max(foregroundBottom, relativeY);
-          }
-        }
-      }
-      const maskLeft = Math.max(0, quantityMask.left - cropRectPx.left);
-      const maskTop = Math.max(0, quantityMask.top - cropRectPx.top);
-      const maskRight = Math.min(width, quantityMask.right - cropRectPx.left + 1);
-      const maskBottom = Math.min(height, quantityMask.bottom - cropRectPx.top + 1);
-      if (maskRight > maskLeft && maskBottom > maskTop) {
-        cellContext.fillStyle = `rgb(${background[0]}, ${background[1]}, ${background[2]})`;
-        cellContext.fillRect(maskLeft, maskTop, maskRight - maskLeft, maskBottom - maskTop);
-      }
-      const contamination: string[] = [];
-      if (sourceQuantityGlyphPixels === 0) contamination.push("quantity-mask-empty");
-      if (foregroundPixels === 0) contamination.push("action-region-empty");
-      return {
-        url: cell.toDataURL("image/png"),
-        widthPx: width,
-        heightPx: height,
-        strategy: "semantic-action-region",
-        evidenceKind: target.evidenceKind,
-        regionKind: target.regionKind,
-        masksApplied: ["quantity-label"],
-        contamination,
-        foregroundPixels,
-        sourceTextGlyphPixels,
-        sourceQuantityGlyphPixels,
-        textGlyphOverlapPixels,
-        quantityGlyphOverlapPixels: 0,
-        quantityGlyphPixelsMasked: sourceQuantityGlyphPixels,
-        cropRectPx,
-        boundaryClearancePx:
-          foregroundPixels === 0
-            ? { left: 0, top: 0, right: 0, bottom: 0 }
-            : {
-                left: foregroundLeft,
-                top: foregroundTop,
-                right: width - 1 - foregroundRight,
-                bottom: height - 1 - foregroundBottom,
-              },
+        sourceComponent: {
+          rasterScale: 8,
+          boundsPx: {
+            left: componentLeft,
+            top: componentTop,
+            right: componentRight,
+            bottom: componentBottom,
+          },
+          foregroundPixels: componentPixels,
+          rawComponentCount: blob.rawComponentCount,
+          absoluteForegroundSha256: componentDigest,
+        },
       };
     };
 
     const output: BrowserResult[] = [];
+    let rankedComponentClaims: readonly conservation.AssignedComponentPixels[] = [];
     const pageHeightPt = viewport.height / scale;
-    for (const target of input.targets) {
+    const componentCache = new Map<string, Blob[]>();
+    const componentCacheBudget = createCalloutComponentCacheBudget();
+    const assignmentCache = new Map<string, ReturnType<typeof assignTargetBoxComponents<Blob>>>();
+    for (const target of targets) {
       const box = clampBounds({
         left: Math.round(target.box.minXPt * scale),
         right: Math.round(target.box.maxXPt * scale),
         top: Math.round((pageHeightPt - target.box.maxYPt) * scale),
         bottom: Math.round((pageHeightPt - target.box.minYPt) * scale),
       });
-      const background = backgroundFor(box);
+      if (target.evidenceKind === "part-art") assertCalloutComponentBoxBound(box);
+      const background = sampledCalloutBackground(box, colourAt);
       const rasterY = pageHeightPt - target.yPt;
       const labelTop = Math.round((rasterY - 9) * scale);
       const rasterX = Math.round(target.xPt * scale);
@@ -385,74 +352,136 @@ export async function renderCalloutCrops(input: BrowserCropInput): Promise<Brows
         top: Math.round((rasterY - target.heightPt - 2) * scale),
         bottom: Math.round((rasterY + 2) * scale),
       });
-      const firstSeed = (minimum: number, broad: boolean, maskText: boolean): Blob | null => {
-        const left = broad ? box.left : Math.max(box.left, rasterX - Math.round(10 * scale));
-        const right = broad ? box.right : Math.min(box.right, rasterX + Math.round(96 * scale));
-        const top = broad ? box.top : Math.max(box.top, labelTop - Math.round(52 * scale));
+      const firstSeed = (minimum: number): Blob | null => {
+        const left = Math.max(box.left, rasterX - Math.round(10 * scale));
+        const right = Math.min(box.right, rasterX + Math.round(96 * scale));
+        const top = Math.max(box.top, labelTop - Math.round(52 * scale));
+        const visited = new Set<number>();
         for (let y = Math.min(labelTop, box.bottom); y >= top; y -= 1) {
           for (let x = left; x <= right; x += 1) {
-            if (!differs(x, y, background, maskText)) continue;
-            const found = floodFrom(x, y, background, box, maskText);
+            const at = y * canvas.width + x;
+            if (visited.has(at)) continue;
+            if (!differs(x, y, background, false)) continue;
+            const found = floodFrom(x, y, background, box, false);
+            if (found?.overflowed) {
+              throw new Error(
+                `Callout source component exceeds the ${MAX_CALLOUT_COMPONENT_BOX_PIXELS}-pixel flood bound.`,
+              );
+            }
+            if (found) for (const pixel of found.filled) visited.add(pixel);
             if (validBlob(found, minimum)) return found;
           }
         }
         return null;
       };
-      const componentCandidates = (minimum: number): { blob: Blob; score: number }[] => {
-        const visited = new Set<number>();
-        const candidates: { blob: Blob; score: number }[] = [];
-        for (let y = Math.min(labelTop, box.bottom); y >= box.top; y -= 1) {
-          for (let x = box.left; x <= box.right; x += 1) {
-            const at = y * canvas.width + x;
-            if (visited.has(at) || !differs(x, y, background, true)) continue;
-            const found = floodFrom(x, y, background, box, true);
-            if (!found) continue;
-            for (const pixel of found.filled) visited.add(pixel);
-            const touchesBoundary =
-              found.left <= box.left + 2 ||
-              found.right >= box.right - 2 ||
-              found.top <= box.top + 2 ||
-              found.bottom >= box.bottom - 2;
-            if (!validBlob(found, minimum, 0.015) || touchesBoundary) continue;
-            const horizontalGap =
-              rasterX < found.left
-                ? found.left - rasterX
-                : rasterX > found.right
-                  ? rasterX - found.right
-                  : 0;
-            const verticalGap = Math.max(0, labelTop - found.bottom);
-            const centreBias = Math.abs((found.left + found.right) / 2 - rasterX) * 0.1;
-            candidates.push({ blob: found, score: verticalGap * 1.5 + horizontalGap + centreBias });
+      const componentsFor = (minimum: number): Blob[] => {
+        const cacheKey = `${calloutSourceBoxKey(target)}|${box.left}|${box.top}|${box.right}|${box.bottom}|${minimum}`;
+        let components = componentCache.get(cacheKey);
+        if (!components) {
+          componentCacheBudget.charge(box);
+          const visited = new Set<number>();
+          components = [];
+          enumerateComponents: for (let y = box.bottom; y >= box.top; y -= 1) {
+            for (let x = box.left; x <= box.right; x += 1) {
+              const at = y * canvas.width + x;
+              if (visited.has(at) || !differs(x, y, background, true)) continue;
+              const found = floodFrom(x, y, background, box, true);
+              if (!found) continue;
+              if (found.overflowed) {
+                throw new Error(
+                  `Callout source component exceeds the ${MAX_CALLOUT_COMPONENT_BOX_PIXELS}-pixel flood bound.`,
+                );
+              }
+              for (const pixel of found.filled) visited.add(pixel);
+              const touchesBoundary =
+                found.left <= box.left + 2 ||
+                found.right >= box.right - 2 ||
+                found.top <= box.top + 2 ||
+                found.bottom >= box.bottom - 2;
+              if (validBlob(found, minimum, 0.015) && !touchesBoundary) {
+                components.push(found);
+                if (components.length === 65) break enumerateComponents;
+              }
+            }
           }
+          const peerAnchors = targets
+            .filter(
+              (peer) =>
+                peer.evidenceKind === "part-art" &&
+                calloutSourceBoxKey(peer) === calloutSourceBoxKey(target),
+            )
+            .map((peer) => ({
+              identity: peer.identity,
+              rasterX: Math.round(peer.xPt * scale),
+              labelTop: Math.round((pageHeightPt - peer.yPt - 9) * scale),
+              maximumHorizontalGap: Math.round(peer.heightPt * scale),
+            }));
+          const rawComponents = components;
+          components = coalesceContainedComponentGroups(peerAnchors, rawComponents);
+          componentCache.set(cacheKey, components);
         }
-        return candidates;
+        return components;
       };
       const legacyBlob =
-        target.boxMethod === "vector-smallest" ? firstSeed(90 * scale * scale, false, false) : null;
+        target.evidenceKind === "part-art" && target.boxMethod === "vector-smallest"
+          ? firstSeed(90 * scale * scale)
+          : null;
       const legacy = legacyBlob
-        ? componentCrop(legacyBlob, box, background, "legacy-seed", quantityMask)
+        ? await componentCrop(
+            legacyBlob,
+            box,
+            background,
+            "legacy-seed",
+            quantityMask,
+            target.identity,
+          )
         : null;
-      const needsRecovery =
-        legacy === null || legacy.contamination.length > 0 || target.evidenceKind !== "part-art";
-      const adaptiveBlob = needsRecovery ? firstSeed(scale * scale, true, true) : null;
-      const rankedBlob = needsRecovery
-        ? componentCandidates(scale * scale).sort((left, right) => left.score - right.score)[0]
-            ?.blob
-        : undefined;
+      const assignmentKey = `${calloutSourceBoxKey(target)}|${scale}`;
+      let assignments = assignmentCache.get(assignmentKey);
+      if (!assignments && target.evidenceKind === "part-art") {
+        const components = componentsFor(scale * scale);
+        assignments = assignTargetBoxComponents(target, targets, components, pageHeightPt, scale);
+        assignmentCache.set(assignmentKey, assignments);
+        componentCache.clear();
+      }
+      const rankedBlob = assignments?.byIdentity.get(target.identity) ?? null;
+      if (rankedBlob) {
+        rankedComponentClaims = conservation.retainDisjointAssignedComponent(
+          rankedComponentClaims,
+          {
+            identity: target.identity,
+            filled: rankedBlob.filled,
+          },
+        );
+      }
       output.push({
         identity: target.identity,
         targetEvidenceKind: target.evidenceKind,
         legacy,
-        adaptive: adaptiveBlob
-          ? componentCrop(adaptiveBlob, box, background, "adaptive-seed", quantityMask)
-          : null,
         ranked: rankedBlob
-          ? componentCrop(rankedBlob, box, background, "ranked-component", quantityMask)
+          ? await componentCrop(
+              rankedBlob,
+              box,
+              background,
+              "ranked-component",
+              quantityMask,
+              target.identity,
+            )
           : null,
+        rankedFailure: target.evidenceKind === "part-art" ? (assignments?.failure ?? null) : null,
         action:
           target.evidenceKind === "part-art"
             ? null
-            : semanticCrop(target, box, background, quantityMask),
+            : await renderSemanticCrop({
+                target,
+                box,
+                background,
+                quantityMask,
+                scale,
+                canvas,
+                pixels,
+                textPixels,
+              }),
       });
     }
     return output;

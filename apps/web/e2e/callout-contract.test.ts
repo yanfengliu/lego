@@ -1,20 +1,36 @@
+import { createHash } from "node:crypto";
+
 import { describe, expect, it } from "vitest";
 
 import { parseRequestedPages, selectStepPages } from "./callout-analysis";
-import { evaluateRecoveryBenchmark, fixtureAccepts } from "./callout-benchmark";
+import {
+  evaluateRecoveryBenchmark,
+  fixtureAccepts,
+  selectEvidenceAwareCrop,
+} from "./callout-benchmark";
 import {
   MEASURED_QUANTITY_FACES_PT,
   QUANTITY_LABEL_FACE_CONTRACT,
   assertPublishedQuantityFaces,
   classifyQuantityFace,
 } from "./callout-faces";
+import { assertCalloutEvidenceContract } from "./callout-evidence-contract";
+import { assertCalloutManifestClosure } from "./callout-manifest-closure";
+import { assertMeasuredRecoveryBenchmark } from "./callout-recovery-contract";
 import {
   CALLOUT_RECOVERY_FIXTURE,
   FULL_BOOKLET_CALLOUT_ACCOUNTING,
   SEMANTIC_CALLOUTS,
 } from "./callout-recovery-fixture";
-import type { BrowserCrop, BrowserResult, RecoveryFixtureCase } from "./callout-types";
+import type {
+  BrowserCrop,
+  BrowserResult,
+  CalloutManifest,
+  RecoveryBenchmark,
+  RecoveryFixtureCase,
+} from "./callout-types";
 import { OFFICIAL_REAL_BUILD_ACCOUNTING } from "./real-build-contract";
+import { assertCalloutComponentOwnership } from "../../../scripts/callout-component-ownership.mjs";
 import { FULL_CALLOUT_MANIFEST_EXPECTATION } from "../../../scripts/part-identification-artifacts.mjs";
 
 function crop(
@@ -23,6 +39,12 @@ function crop(
   overrides: Partial<BrowserCrop> = {},
 ): BrowserCrop {
   const evidenceKind = semantic ? fixture.evidenceKind : "part-art";
+  const sourceBounds = fixture.expectedSourceComponentBoundsPx ?? {
+    left: fixture.minimumBoundaryClearancePx,
+    top: fixture.minimumBoundaryClearancePx,
+    right: fixture.minimumWidthPx - fixture.minimumBoundaryClearancePx - 1,
+    bottom: fixture.minimumHeightPx - fixture.minimumBoundaryClearancePx - 1,
+  };
   return {
     url: "data:image/png;base64,AA==",
     widthPx: fixture.minimumWidthPx,
@@ -50,11 +72,313 @@ function crop(
       right: fixture.minimumBoundaryClearancePx,
       bottom: fixture.minimumBoundaryClearancePx,
     },
+    sourceComponent: semantic
+      ? null
+      : {
+          rasterScale: 8,
+          boundsPx: sourceBounds,
+          foregroundPixels: fixture.minimumForegroundPixels,
+          rawComponentCount: 1,
+          absoluteForegroundSha256:
+            fixture.expectedSourceComponentSha256 ?? `sha256:${"0".repeat(64)}`,
+        },
     ...overrides,
   };
 }
 
+function ambientRecoveryBenchmark(identity: string): RecoveryBenchmark {
+  return {
+    schemaVersion: "lego.callout-recovery-benchmark-result/2",
+    fixtureSourceHash: CALLOUT_RECOVERY_FIXTURE.sourceHash,
+    fixedFailureClassSize: 1,
+    observedLegacyFailureIdentities: [identity],
+    scores: [
+      {
+        strategy: "evidence-aware",
+        valid: 1,
+        recovered: 1,
+        kindCorrect: 1,
+        regionCorrect: 1,
+        masksCorrect: 1,
+        uncontaminated: 1,
+        invalidIdentities: [],
+        points: 1_011_111,
+      },
+      {
+        strategy: "legacy-seed",
+        valid: 0,
+        recovered: 0,
+        kindCorrect: 0,
+        regionCorrect: 0,
+        masksCorrect: 0,
+        uncontaminated: 0,
+        invalidIdentities: [identity],
+        points: 0,
+      },
+    ],
+    selected: "evidence-aware",
+    winner: "evidence-aware",
+    winningMargin: 1_011_111,
+  };
+}
+
+function ambientManifestFixture(): CalloutManifest {
+  const runId = "0123456789abcdef01234567";
+  const identity = "p11|q1|x43.074|y486.271";
+  const identitySetSha256 = `sha256:${createHash("sha256").update(identity).digest("hex")}`;
+  return {
+    schemaVersion: "lego.callout-thumbnails/6",
+    sourceHash: CALLOUT_RECOVERY_FIXTURE.sourceHash,
+    pageSelection: [11],
+    pagesCropped: 1,
+    calloutCount: 1,
+    accounting: {
+      rawNxIdentityCount: 1,
+      rawNxQuantityTotal: 1,
+      physicalPartArtIdentityCount: 1,
+      physicalPartArtQuantityTotal: 1,
+      semanticIdentityCount: 0,
+      semanticQuantityTotal: 0,
+    },
+    recoveryBenchmark: ambientRecoveryBenchmark("p1|q1|x1.000|y1.000"),
+    conservation: {
+      expectedIdentityCount: 1,
+      expectedRawNxQuantityTotal: 1,
+      expectedIdentitySetSha256: identitySetSha256,
+      publishedIdentityCount: 1,
+      publishedRawNxQuantityTotal: 1,
+      publishedIdentitySetSha256: identitySetSha256,
+    },
+    failures: [],
+    callouts: [
+      {
+        identity,
+        file: `runs/${runId}/p11-q1-x43d074-y486d271.png`,
+        pageNumber: 11,
+        stepNumber: 1,
+        quantity: 1,
+        xPt: 43.074,
+        yPt: 486.271,
+        heightPt: 8,
+        boxMethod: "vector-smallest",
+        box: { minXPt: 40, minYPt: 480, maxXPt: 80, maxYPt: 510 },
+        evidenceKind: "part-art",
+        regionKind: "isolated-component",
+        cropStrategy: "ranked-component",
+        masksApplied: ["all-pdf-text"],
+        contamination: [],
+        sha256: `sha256:${"a".repeat(64)}`,
+        byteLength: 1,
+        widthPx: 10,
+        heightPx: 10,
+        foregroundPixels: 100,
+        sourceTextGlyphPixels: 0,
+        sourceQuantityGlyphPixels: 0,
+        textGlyphOverlapPixels: 0,
+        quantityGlyphOverlapPixels: 0,
+        quantityGlyphPixelsMasked: 0,
+        cropRectPx: { left: 0, top: 0, right: 9, bottom: 9 },
+        boundaryClearancePx: { left: 0, top: 0, right: 0, bottom: 0 },
+        sourceComponent: {
+          rasterScale: 8,
+          boundsPx: { left: 0, top: 0, right: 9, bottom: 9 },
+          foregroundPixels: 100,
+          rawComponentCount: 1,
+          absoluteForegroundSha256: `sha256:${"b".repeat(64)}`,
+        },
+      },
+    ],
+  };
+}
+
+it("keeps callout trust-boundary predicates independent of ambient collection hooks", () => {
+  const manifest = ambientManifestFixture();
+  const callout = manifest.callouts[0]!;
+  const benchmark = ambientRecoveryBenchmark("p1|q1|x1.000|y1.000");
+  const malformedEvidence = { ...callout, masksApplied: ["attacker-mask"] };
+  const malformedComponent = {
+    ...callout,
+    sourceComponent: { ...callout.sourceComponent!, attackerSemantic: true },
+  };
+  const malformedClosure = { ...manifest, pageSelection: [12] } as CalloutManifest;
+  const malformedBenchmark = {
+    ...benchmark,
+    observedLegacyFailureIdentities: ["attacker"],
+    scores: [
+      { ...benchmark.scores[0]!, invalidIdentities: [] },
+      { ...benchmark.scores[1]!, invalidIdentities: ["attacker"] },
+    ],
+  };
+  const methodNames = ["every", "filter", "includes", "map", "reduce", "sort"] as const;
+  const methodDescriptors: PropertyDescriptor[] = [];
+  for (let index = 0; index < methodNames.length; index += 1) {
+    methodDescriptors[index] = Object.getOwnPropertyDescriptor(
+      Array.prototype,
+      methodNames[index]!,
+    )!;
+  }
+  const objectKeysDescriptor = Object.getOwnPropertyDescriptor(Object, "keys")!;
+  const poison = () => {
+    throw new Error("ambient collection hook was consulted");
+  };
+  let evidenceFailure: unknown;
+  let componentFailure: unknown;
+  let closureFailure: unknown;
+  let recoveryFailure: unknown;
+  try {
+    for (let index = 0; index < methodNames.length; index += 1) {
+      Object.defineProperty(Array.prototype, methodNames[index]!, {
+        configurable: true,
+        writable: true,
+        value: poison,
+      });
+    }
+    Object.defineProperty(Object, "keys", {
+      configurable: true,
+      writable: true,
+      value: poison,
+    });
+
+    assertCalloutEvidenceContract([callout] as readonly Record<string, unknown>[]);
+    assertCalloutComponentOwnership([callout]);
+    assertMeasuredRecoveryBenchmark(
+      benchmark,
+      CALLOUT_RECOVERY_FIXTURE.sourceHash,
+      benchmark.observedLegacyFailureIdentities,
+    );
+    assertCalloutManifestClosure({
+      pointerFile: "manifest.partial.json",
+      runId: "0123456789abcdef01234567",
+      manifest,
+    });
+    try {
+      assertCalloutEvidenceContract([malformedEvidence] as readonly Record<string, unknown>[]);
+    } catch (error) {
+      evidenceFailure = error;
+    }
+    try {
+      assertCalloutComponentOwnership([malformedComponent]);
+    } catch (error) {
+      componentFailure = error;
+    }
+    try {
+      assertCalloutManifestClosure({
+        pointerFile: "manifest.partial.json",
+        runId: "0123456789abcdef01234567",
+        manifest: malformedClosure,
+      });
+    } catch (error) {
+      closureFailure = error;
+    }
+    try {
+      assertMeasuredRecoveryBenchmark(
+        malformedBenchmark,
+        CALLOUT_RECOVERY_FIXTURE.sourceHash,
+        malformedBenchmark.observedLegacyFailureIdentities,
+      );
+    } catch (error) {
+      recoveryFailure = error;
+    }
+  } finally {
+    Object.defineProperty(Object, "keys", objectKeysDescriptor);
+    for (let index = 0; index < methodNames.length; index += 1) {
+      Object.defineProperty(Array.prototype, methodNames[index]!, methodDescriptors[index]!);
+    }
+  }
+
+  expect(evidenceFailure).toBeInstanceOf(Error);
+  expect(componentFailure).toBeInstanceOf(Error);
+  expect(closureFailure).toBeInstanceOf(Error);
+  expect(recoveryFailure).toBeInstanceOf(Error);
+});
+
+it("retains selected source step pages that legitimately contain no Nx callout", () => {
+  const manifest = ambientManifestFixture();
+  assertCalloutManifestClosure({
+    pointerFile: "manifest.partial.json",
+    runId: "0123456789abcdef01234567",
+    manifest: { ...manifest, pageSelection: [11, 45], pagesCropped: 2 },
+  });
+  expect(() =>
+    assertCalloutManifestClosure({
+      pointerFile: "manifest.partial.json",
+      runId: "0123456789abcdef01234567",
+      manifest: { ...manifest, pageSelection: [11, 9_999], pagesCropped: 2 },
+    }),
+  ).toThrow(/page-selection/u);
+});
+
 describe("callout recovery fixture", () => {
+  it("rejects contaminated physical evidence and retyped semantic regions", () => {
+    const physicalFixture = CALLOUT_RECOVERY_FIXTURE.cases.find(
+      ({ evidenceKind }) => evidenceKind === "part-art",
+    )!;
+    const physicalCrop = crop(physicalFixture, false);
+    const physical = {
+      ...physicalCrop,
+      identity: physicalFixture.identity,
+      cropStrategy: physicalCrop.strategy,
+      contamination: ["contains-pdf-text-glyph"],
+    } as unknown as Record<string, unknown>;
+    expect(() => assertCalloutEvidenceContract([physical])).toThrow(/retain no contamination/);
+
+    const semanticFixture = CALLOUT_RECOVERY_FIXTURE.cases.find(
+      ({ evidenceKind }) => evidenceKind !== "part-art",
+    )!;
+    const semanticCrop = crop(semanticFixture, true);
+    const semantic = {
+      ...semanticCrop,
+      identity: semanticFixture.identity,
+      cropStrategy: semanticCrop.strategy,
+      regionKind: "isolated-component",
+    } as unknown as Record<string, unknown>;
+    expect(() => assertCalloutEvidenceContract([semantic])).toThrow(
+      /preregistered evidence kind, region/,
+    );
+  });
+
+  it("rejects drift from the preregistered step-18 source component", () => {
+    const fixture = CALLOUT_RECOVERY_FIXTURE.cases.find(({ identity }) =>
+      identity.startsWith("p22|q2|"),
+    )!;
+    const measured = crop(fixture, false);
+    const record = {
+      ...measured,
+      identity: fixture.identity,
+      cropStrategy: measured.strategy,
+      sourceComponent: {
+        ...measured.sourceComponent,
+        absoluteForegroundSha256: `sha256:${"f".repeat(64)}`,
+      },
+    } as unknown as Record<string, unknown>;
+    expect(() => assertCalloutEvidenceContract([record])).toThrow(
+      /preregistered exact source-component-group bounds and digest/,
+    );
+    expect(() =>
+      assertCalloutEvidenceContract([
+        {
+          ...record,
+          sourceComponent: { ...measured.sourceComponent, rawComponentCount: 65 },
+        },
+      ]),
+    ).toThrow(/1\.\.64 raw members/);
+  });
+
+  it("accepts independently measured asymmetric crop clearances", () => {
+    const fixture = CALLOUT_RECOVERY_FIXTURE.cases.find(
+      ({ evidenceKind }) => evidenceKind === "part-art",
+    )!;
+    const measured = crop(fixture, false, {
+      boundaryClearancePx: { left: 5, top: 3, right: 1, bottom: 2 },
+    });
+    const record = {
+      ...measured,
+      identity: fixture.identity,
+      cropStrategy: measured.strategy,
+    } as unknown as Record<string, unknown>;
+    expect(() => assertCalloutEvidenceContract([record])).not.toThrow();
+  });
+
   it("pins 38 unique failures and the exact 22 semantic identities", () => {
     expect(CALLOUT_RECOVERY_FIXTURE.cases).toHaveLength(38);
     expect(new Set(CALLOUT_RECOVERY_FIXTURE.cases.map(({ identity }) => identity)).size).toBe(38);
@@ -301,8 +625,8 @@ describe("callout recovery fixture", () => {
         identity: fixture.identity,
         targetEvidenceKind: fixture.evidenceKind,
         legacy: null,
-        adaptive: { ...physical, strategy: "adaptive-seed" },
         ranked: physical,
+        rankedFailure: null,
         action: fixture.evidenceKind === "part-art" ? null : crop(fixture, true),
       };
     });
@@ -310,9 +634,86 @@ describe("callout recovery fixture", () => {
     expect(benchmark.winner).toBe("evidence-aware");
     expect(benchmark.winningMargin).toBeGreaterThan(0);
     expect(benchmark.scores.find(({ strategy }) => strategy === "evidence-aware")?.valid).toBe(38);
-    expect(benchmark.scores.find(({ strategy }) => strategy === "ranked-component")?.valid).toBe(
-      16,
+    expect(benchmark.scores.find(({ strategy }) => strategy === "legacy-seed")?.valid).toBe(0);
+    expect(
+      evaluateRecoveryBenchmark(CALLOUT_RECOVERY_FIXTURE.sourceHash, [
+        ...results,
+        { ...results[0]!, identity: "p999|q1|x1.000|y1.000", legacy: null },
+      ]),
+    ).toEqual(benchmark);
+
+    const forgedScores = benchmark.scores.map((score) =>
+      score.strategy === "legacy-seed"
+        ? {
+            ...score,
+            valid: 1,
+            recovered: 1,
+            kindCorrect: 1,
+            regionCorrect: 1,
+            masksCorrect: 1,
+            uncontaminated: 1,
+            invalidIdentities: benchmark.observedLegacyFailureIdentities.slice(1),
+            points: 1_011_111,
+          }
+        : { ...score },
     );
+    const forged = {
+      ...benchmark,
+      scores: forgedScores,
+      winningMargin: forgedScores[0]!.points - forgedScores[1]!.points,
+    };
+    expect(() =>
+      assertMeasuredRecoveryBenchmark(
+        forged,
+        CALLOUT_RECOVERY_FIXTURE.sourceHash,
+        benchmark.observedLegacyFailureIdentities,
+      ),
+    ).toThrow(/complete evidence-aware result/u);
+  });
+
+  it("retains an invalid legacy crop as diagnostics without scoring it as recovered evidence", () => {
+    const results: BrowserResult[] = CALLOUT_RECOVERY_FIXTURE.cases.map((fixture) => ({
+      identity: fixture.identity,
+      targetEvidenceKind: fixture.evidenceKind,
+      legacy: crop(fixture, false, { contamination: ["contains-pdf-text-glyph"] }),
+      ranked: fixture.evidenceKind === "part-art" ? crop(fixture, false) : null,
+      rankedFailure: null,
+      action: fixture.evidenceKind === "part-art" ? null : crop(fixture, true),
+    }));
+
+    const benchmark = evaluateRecoveryBenchmark(CALLOUT_RECOVERY_FIXTURE.sourceHash, results);
+    expect(benchmark.scores.find(({ strategy }) => strategy === "legacy-seed")).toMatchObject({
+      valid: 0,
+      recovered: 0,
+      kindCorrect: 0,
+      regionCorrect: 0,
+      masksCorrect: 0,
+      uncontaminated: 0,
+      invalidIdentities: benchmark.observedLegacyFailureIdentities,
+      points: 0,
+    });
+  });
+
+  it("does not fall back to a legacy physical crop when joint matching is unresolved", () => {
+    const fixture = CALLOUT_RECOVERY_FIXTURE.cases.find(
+      ({ evidenceKind }) => evidenceKind === "part-art",
+    )!;
+    expect(
+      selectEvidenceAwareCrop({
+        identity: fixture.identity,
+        targetEvidenceKind: "part-art",
+        legacy: crop(fixture, false),
+        ranked: null,
+        rankedFailure: {
+          reason: "missing",
+          targetCount: 1,
+          componentCount: 0,
+          targetAnchors: [],
+          componentBounds: [],
+        },
+        action: null,
+      }),
+    ).toBeNull();
   });
 });
 

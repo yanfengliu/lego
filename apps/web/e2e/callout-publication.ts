@@ -3,49 +3,79 @@ import {
   closeSync,
   existsSync,
   fsyncSync,
-  lstatSync,
   mkdirSync,
   openSync,
-  readFileSync,
-  readdirSync,
   renameSync,
   rmSync,
   unlinkSync,
   writeSync,
 } from "node:fs";
-import { basename, isAbsolute, join, relative, resolve } from "node:path";
+import { basename, join } from "node:path";
 
+import {
+  assertCanonicalCardPng,
+  createPngDecodeBudget,
+} from "../../../scripts/part-thumbnail-image-guard.mjs";
 import { assertPublishedQuantityFaces } from "./callout-faces";
-import type { CalloutManifest, PublishedCallout } from "./callout-types";
+import { assertCalloutEvidenceContract } from "./callout-evidence-contract";
+import { assertCalloutManifestClosure } from "./callout-manifest-closure";
+import {
+  applyCalloutRootPngCleanupPlan,
+  prepareCalloutFilesystem,
+  retainedCalloutRunBytes,
+  verifyCalloutRunDirectory,
+  type CalloutRootPngCleanupResult,
+} from "./callout-publication-filesystem";
+import {
+  CALLOUT_PUBLICATION_LIMITS,
+  snapshotPublicationInput,
+  type PreparedCrop,
+  type PublishCalloutRunInput,
+} from "./callout-publication-snapshot";
+import { assertMeasuredRecoveryBenchmark } from "./callout-recovery-contract";
+import { CALLOUT_RECOVERY_FIXTURE } from "./callout-recovery-fixture";
+import { assertCalloutComponentOwnership } from "../../../scripts/callout-component-ownership.mjs";
+import { assertCalloutManifestExactShape } from "../../../scripts/callout-manifest-shape.mjs";
+import { deriveCalloutManifestRunId } from "./callout-run-id";
 
-export const CALLOUT_PUBLICATION_LIMITS = Object.freeze({
-  maxCropBytes: 2 * 1024 * 1024,
-  maxRunBytes: 32 * 1024 * 1024,
-  maxRetainedRunBytes: 128 * 1024 * 1024,
-});
+const JSON_STRINGIFY = JSON.stringify;
+const OBJECT_KEYS = Object.keys;
 
-export interface PreparedCrop {
-  readonly metadata: PublishedCallout;
-  readonly png: Buffer;
-}
-
-export type PublishFaultPhase = "before-run-promote" | "before-pointer-swap";
-
-export interface PublishCalloutRunInput {
-  readonly outDirectory: string;
-  readonly pointerFile: "manifest.json" | "manifest.partial.json";
-  readonly runId: string;
-  readonly manifest: CalloutManifest;
-  readonly crops: readonly PreparedCrop[];
-  readonly fault?: (phase: PublishFaultPhase) => void;
-}
+export {
+  CALLOUT_PUBLICATION_LIMITS,
+  type PreparedCrop,
+  type PublishCalloutRunInput,
+  type PublishFaultPhase,
+} from "./callout-publication-snapshot";
+export { cleanupObsoleteRootPngs } from "./callout-publication-filesystem";
 
 function sha256(bytes: Uint8Array): string {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 }
 
-function manifestBytes(manifest: CalloutManifest): Buffer {
-  return Buffer.from(`${JSON.stringify(manifest, null, 1)}\n`);
+function detachedJson(value: unknown): string {
+  return Reflect.apply(JSON_STRINGIFY, JSON, [value]) as string;
+}
+
+function manifestRecordForCrop(metadata: PreparedCrop["metadata"], runId: string): object {
+  const record = Object.create(null) as Record<string, unknown>;
+  for (const key of Reflect.apply(OBJECT_KEYS, Object, [metadata]) as string[]) {
+    if (key === "fileName") continue;
+    const descriptor = Object.getOwnPropertyDescriptor(metadata, key)!;
+    Object.defineProperty(record, key, {
+      value: descriptor.value,
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
+  }
+  Object.defineProperty(record, "file", {
+    value: `runs/${runId}/${metadata.fileName}`,
+    enumerable: true,
+    configurable: true,
+    writable: true,
+  });
+  return record;
 }
 
 function writeDurably(path: string, bytes: Uint8Array): void {
@@ -103,7 +133,7 @@ export function inspectPng(bytes: Buffer): { readonly width: number; readonly he
   return { width, height };
 }
 
-function assertCrop(crop: PreparedCrop): void {
+function assertCrop(crop: PreparedCrop): { readonly width: number; readonly height: number } {
   const { metadata, png } = crop;
   if (png.length === 0 || png.length > CALLOUT_PUBLICATION_LIMITS.maxCropBytes) {
     throw new Error(
@@ -118,19 +148,24 @@ function assertCrop(crop: PreparedCrop): void {
   if (metadata.sha256 !== sha256(png)) {
     throw new Error(`${metadata.identity} PNG digest does not match ${metadata.sha256}.`);
   }
-  const dimensions = inspectPng(png);
+  const dimensions = assertCanonicalCardPng(png, `${metadata.identity} callout PNG`);
+  const inspected = inspectPng(png);
+  if (inspected.width !== dimensions.width || inspected.height !== dimensions.height) {
+    throw new Error(`${metadata.identity} PNG validators disagreed about its dimensions.`);
+  }
   if (dimensions.width !== metadata.widthPx || dimensions.height !== metadata.heightPx) {
     throw new Error(
       `${metadata.identity} IHDR is ${dimensions.width}x${dimensions.height}, not ${metadata.widthPx}x${metadata.heightPx}.`,
     );
   }
+  return dimensions;
 }
 
 function assertManifest(input: PublishCalloutRunInput, bytes: Buffer): void {
   if (!/^[0-9a-f]{24}$/.test(input.runId))
     throw new Error(`Run id ${input.runId} is not 24 hex digits.`);
-  if (input.manifest.failures.length > 0)
-    throw new Error("A success manifest cannot retain failures.");
+  if (!Array.isArray(input.manifest.failures) || input.manifest.failures.length > 0)
+    throw new Error("A success manifest must retain an exact empty failures array.");
   if (input.manifest.calloutCount === 0 || input.crops.length === 0) {
     throw new Error("A callout run cannot publish an empty crop set.");
   }
@@ -144,33 +179,45 @@ function assertManifest(input: PublishCalloutRunInput, bytes: Buffer): void {
       `Manifest contains ${input.manifest.callouts.length} callout records for ${input.crops.length} PNGs.`,
     );
   }
+  assertCalloutManifestExactShape(input.manifest, "Callout publication manifest");
+  assertPublishedQuantityFaces(input.manifest.callouts);
+  assertCalloutManifestClosure(input);
+  assertMeasuredRecoveryBenchmark(
+    input.manifest.recoveryBenchmark,
+    input.manifest.sourceHash,
+    CALLOUT_RECOVERY_FIXTURE.cases.map(({ identity }) => identity).sort(),
+  );
   // Derived independently of the preregistered recovery fixture: the type size
   // the booklet printed has to agree with the class about to be published, so a
   // multiplier nobody registered cannot be published as a physical piece.
-  assertPublishedQuantityFaces(input.manifest.callouts);
+  assertCalloutEvidenceContract(input.manifest.callouts, "Callout publication");
+  assertCalloutComponentOwnership(input.manifest.callouts, "Callout publication");
   const names = input.crops.map(({ metadata }) => metadata.fileName);
   if (new Set(names).size !== names.length) throw new Error("Crop file names are not unique.");
   const identities = input.crops.map(({ metadata }) => metadata.identity);
   if (new Set(identities).size !== identities.length)
     throw new Error("Crop identities are not unique.");
-  for (const crop of input.crops) {
+  const decodeBudget = createPngDecodeBudget("Callout publication crop decodes");
+  for (let cropIndex = 0; cropIndex < input.crops.length; cropIndex += 1) {
+    const crop = input.crops[cropIndex]!;
     if (crop.metadata.fileName !== basename(crop.metadata.fileName)) {
       throw new Error(`${crop.metadata.identity} file name escapes the run directory.`);
     }
+    decodeBudget.charge(crop.png, `${crop.metadata.identity} callout PNG`);
     assertCrop(crop);
-    const manifestCrop = input.manifest.callouts.find(
-      ({ identity }) => identity === crop.metadata.identity,
-    );
-    const { fileName, ...metadata } = crop.metadata;
-    const expectedManifestCrop = {
-      ...metadata,
-      file: `runs/${input.runId}/${fileName}`,
-    };
-    if (!manifestCrop || JSON.stringify(manifestCrop) !== JSON.stringify(expectedManifestCrop)) {
+    const manifestCrop = input.manifest.callouts[cropIndex];
+    const expectedManifestCrop = manifestRecordForCrop(crop.metadata, input.runId);
+    if (!manifestCrop || detachedJson(manifestCrop) !== detachedJson(expectedManifestCrop)) {
       throw new Error(
-        `${crop.metadata.identity} manifest metadata is absent, noncanonical, or differs from its staged PNG record.`,
+        `${crop.metadata.identity} manifest metadata at index ${cropIndex} is absent, noncanonical, or differs from its staged PNG record at that same index. Manifest and PNG order is part of the run address and cannot be independently reordered.`,
       );
     }
+  }
+  const derivedRunId = deriveCalloutManifestRunId(input.manifest);
+  if (input.runId !== derivedRunId) {
+    throw new Error(
+      `Callout publication declares run ${input.runId}, but its snapshotted v6 source, selection, benchmark, accounting, conservation, and crop metadata derive content-addressed run ${derivedRunId}. Publish under the derived run id; renamed or spliced metadata cannot select a retained directory.`,
+    );
   }
   const runBytes = bytes.length + input.crops.reduce((total, { png }) => total + png.length, 0);
   if (runBytes > CALLOUT_PUBLICATION_LIMITS.maxRunBytes) {
@@ -180,121 +227,17 @@ function assertManifest(input: PublishCalloutRunInput, bytes: Buffer): void {
   }
 }
 
-function verifyRunDirectory(
-  directory: string,
-  expectedManifest: Buffer,
-  crops: readonly PreparedCrop[],
-): void {
-  const directoryStat = lstatSync(directory);
-  if (!directoryStat.isDirectory() || directoryStat.isSymbolicLink()) {
-    throw new Error(`Run path ${directory} is not a regular directory.`);
-  }
-  const expectedNames = ["manifest.json", ...crops.map(({ metadata }) => metadata.fileName)].sort();
-  const entries = readdirSync(directory, { withFileTypes: true });
-  const actualNames = entries.map(({ name }) => name).sort();
-  if (JSON.stringify(actualNames) !== JSON.stringify(expectedNames)) {
-    throw new Error(
-      `Run closure differs: expected ${JSON.stringify(expectedNames)}, found ${JSON.stringify(actualNames)}.`,
-    );
-  }
-  for (const entry of entries) {
-    if (!entry.isFile() || entry.isSymbolicLink()) {
-      throw new Error(`Run closure entry ${entry.name} is not a regular file.`);
-    }
-  }
-  const storedManifest = readFileSync(join(directory, "manifest.json"));
-  if (!storedManifest.equals(expectedManifest)) {
-    throw new Error("Existing run manifest is not byte-identical to the staged manifest.");
-  }
-  for (const crop of crops) {
-    const stored = readFileSync(join(directory, crop.metadata.fileName));
-    if (stored.length !== crop.metadata.byteLength || sha256(stored) !== crop.metadata.sha256) {
-      throw new Error(
-        `${crop.metadata.identity} existing PNG bytes do not match the staged digest.`,
-      );
-    }
-    const dimensions = inspectPng(stored);
-    if (
-      dimensions.width !== crop.metadata.widthPx ||
-      dimensions.height !== crop.metadata.heightPx
-    ) {
-      throw new Error(`${crop.metadata.identity} existing PNG IHDR does not match the manifest.`);
-    }
-  }
-}
-
-function retainedRunBytes(runsDirectory: string): number {
-  if (!existsSync(runsDirectory)) return 0;
-  let total = 0;
-  for (const run of readdirSync(runsDirectory, { withFileTypes: true })) {
-    if (!run.isDirectory() || run.isSymbolicLink()) {
-      throw new Error(`Retained run entry ${run.name} is not a regular directory.`);
-    }
-    for (const entry of readdirSync(join(runsDirectory, run.name), { withFileTypes: true })) {
-      if (!entry.isFile() || entry.isSymbolicLink()) {
-        throw new Error(`Retained run ${run.name}/${entry.name} is not a regular file.`);
-      }
-      total += lstatSync(join(runsDirectory, run.name, entry.name)).size;
-    }
-  }
-  return total;
-}
-
-function pointerRootReferences(outDirectory: string): Set<string> {
-  const referenced = new Set<string>();
-  for (const pointer of ["manifest.json", "manifest.partial.json"]) {
-    const path = join(outDirectory, pointer);
-    if (!existsSync(path)) continue;
-    try {
-      const parsed = JSON.parse(readFileSync(path, "utf8")) as {
-        callouts?: readonly { readonly file?: unknown }[];
-      };
-      for (const callout of parsed.callouts ?? []) {
-        if (typeof callout.file === "string" && !callout.file.includes("/"))
-          referenced.add(callout.file);
-      }
-    } catch {
-      throw new Error(`${pointer} is unreadable, so obsolete root PNG ownership cannot be proven.`);
-    }
-  }
-  return referenced;
-}
-
-export function cleanupObsoleteRootPngs(outDirectory: string): {
-  readonly removedFiles: number;
-  readonly removedBytes: number;
-} {
-  const referenced = pointerRootReferences(outDirectory);
-  const obsolete = readdirSync(outDirectory, { withFileTypes: true }).filter(
-    (entry) =>
-      entry.isFile() &&
-      !entry.isSymbolicLink() &&
-      /^p\d+-c\d+\.png$/.test(entry.name) &&
-      !referenced.has(entry.name),
-  );
-  let removedBytes = 0;
-  for (const entry of obsolete) {
-    const path = resolve(outDirectory, entry.name);
-    const fromRoot = relative(resolve(outDirectory), path);
-    if (!isAbsolute(fromRoot) && !fromRoot.startsWith("..") && lstatSync(path).isFile()) {
-      removedBytes += lstatSync(path).size;
-      unlinkSync(path);
-    }
-  }
-  return { removedFiles: obsolete.length, removedBytes };
-}
-
 export function publishCalloutRun(input: PublishCalloutRunInput): {
   readonly runDirectory: string;
   readonly pointerPath: string;
   readonly reused: boolean;
-  readonly cleanup: { readonly removedFiles: number; readonly removedBytes: number };
+  readonly cleanup: CalloutRootPngCleanupResult;
 } {
-  const bytes = manifestBytes(input.manifest);
+  const snapshot = snapshotPublicationInput(input);
+  input = snapshot.input;
+  const bytes = snapshot.bytes;
   assertManifest(input, bytes);
-  mkdirSync(input.outDirectory, { recursive: true });
-  const runsDirectory = join(input.outDirectory, "runs");
-  mkdirSync(runsDirectory, { recursive: true });
+  const { runsDirectory, cleanupPlan } = prepareCalloutFilesystem(input);
   const stageDirectory = join(input.outDirectory, `.stage-${process.pid}-${randomUUID()}`);
   const pointerTemp = join(input.outDirectory, `.${input.pointerFile}.${randomUUID()}.tmp`);
   const runDirectory = join(runsDirectory, input.runId);
@@ -304,8 +247,8 @@ export function publishCalloutRun(input: PublishCalloutRunInput): {
     for (const crop of input.crops)
       writeDurably(join(stageDirectory, crop.metadata.fileName), crop.png);
     writeDurably(join(stageDirectory, "manifest.json"), bytes);
-    verifyRunDirectory(stageDirectory, bytes, input.crops);
-    const retainedBefore = retainedRunBytes(runsDirectory);
+    verifyCalloutRunDirectory(stageDirectory, bytes, input.crops);
+    const retainedBefore = retainedCalloutRunBytes(runsDirectory);
     const candidateBytes =
       bytes.length + input.crops.reduce((total, { png }) => total + png.length, 0);
     if (retainedBefore > CALLOUT_PUBLICATION_LIMITS.maxRetainedRunBytes) {
@@ -322,18 +265,18 @@ export function publishCalloutRun(input: PublishCalloutRunInput): {
       );
     }
     if (existsSync(runDirectory)) {
-      verifyRunDirectory(runDirectory, bytes, input.crops);
+      verifyCalloutRunDirectory(runDirectory, bytes, input.crops);
       reused = true;
       rmSync(stageDirectory, { recursive: true });
     } else {
       input.fault?.("before-run-promote");
       renameSync(stageDirectory, runDirectory);
-      verifyRunDirectory(runDirectory, bytes, input.crops);
+      verifyCalloutRunDirectory(runDirectory, bytes, input.crops);
     }
     input.fault?.("before-pointer-swap");
     writeDurably(pointerTemp, bytes);
     renameSync(pointerTemp, join(input.outDirectory, input.pointerFile));
-    const cleanup = cleanupObsoleteRootPngs(input.outDirectory);
+    const cleanup = applyCalloutRootPngCleanupPlan(input.outDirectory, cleanupPlan);
     return {
       runDirectory,
       pointerPath: join(input.outDirectory, input.pointerFile),
@@ -344,4 +287,9 @@ export function publishCalloutRun(input: PublishCalloutRunInput): {
     if (existsSync(pointerTemp)) unlinkSync(pointerTemp);
     if (existsSync(stageDirectory)) rmSync(stageDirectory, { recursive: true });
   }
+}
+
+export function assertPublishableCalloutRun(input: PublishCalloutRunInput): void {
+  const snapshot = snapshotPublicationInput(input);
+  assertManifest(snapshot.input, snapshot.bytes);
 }

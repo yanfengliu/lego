@@ -204,6 +204,197 @@ describe("real build adversarial ledger contracts", () => {
     );
   });
 
+  it("refuses oversized top-level and nested rows before invoking array work", () => {
+    const fixture = realBuildLedgerTestFixture();
+    const validate = (ledger: RealBuildActionLedger, lastStep = 1) =>
+      validateRealBuildActionLedger({
+        ledger,
+        ledgerDigest: fixture.ledgerDigest,
+        lastStep,
+        official: fixture.official,
+        pdfDigest: fixture.pdfDigest,
+        coverageDigest: fixture.coverageDigest,
+        calloutManifestDigest: fixture.manifestDigest,
+        builderCalibrationDigest: fixture.builderCalibrationDigest,
+        transitionClassificationsDigest: fixture.transitionClassificationsDigest,
+        coverageByCallout: fixture.coverageByCallout,
+        panelEvidenceByStep: fixture.panelEvidenceByStep,
+        transitionClassificationsByStep: fixture.transitionClassificationsByStep,
+      });
+    const trapArrayWork = <T>(rows: T[]): T[] => {
+      const unexpected = () => {
+        throw new Error("oversized hostile array was iterated or transformed");
+      };
+      Object.defineProperties(rows, {
+        filter: { value: unexpected },
+        map: { value: unexpected },
+        sort: { value: unexpected },
+        [Symbol.iterator]: { value: unexpected },
+      });
+      return rows;
+    };
+    const firstStep = fixture.ledger.steps[0]!;
+    if (firstStep.action.kind !== "place-callouts") throw new Error("fixture action changed");
+    const firstAction = firstStep.action;
+    const oversizedSteps = trapArrayWork(Array.from({ length: 360 }, () => firstStep));
+    const oversizedPieces = trapArrayWork(
+      Array.from({ length: 1_466 }, () => firstAction.pieces[0]!),
+    );
+    const oversizedCallouts = trapArrayWork(
+      Array.from({ length: 1_466 }, () => firstStep.callouts[0]!),
+    );
+
+    expect(validate({ ...fixture.ledger, steps: oversizedSteps })).toEqual([
+      expect.objectContaining({
+        code: "action-ledger-incomplete",
+        message: expect.stringContaining("1 through 359"),
+      }),
+    ]);
+    expect(
+      validate({
+        ...fixture.ledger,
+        steps: [
+          {
+            ...firstStep,
+            action: { ...firstAction, pieces: oversizedPieces },
+          },
+        ],
+      }),
+    ).toEqual([
+      expect.objectContaining({
+        code: "action-ledger-incomplete",
+        message: expect.stringContaining("at most 1465"),
+      }),
+    ]);
+    expect(
+      validate({ ...fixture.ledger, steps: [{ ...firstStep, callouts: oversizedCallouts }] }),
+    ).toEqual([
+      expect.objectContaining({
+        code: "action-ledger-incomplete",
+        message: expect.stringContaining("at most 1465"),
+      }),
+    ]);
+    expect(
+      validate({
+        ...fixture.ledger,
+        steps: [
+          {
+            ...firstStep,
+            action: {
+              ...firstAction,
+              pieces: Array.from({ length: 1_000 }, () => firstAction.pieces[0]!),
+              omittedPieces: Array.from({ length: 466 }, () => firstAction.pieces[0]!),
+            },
+          },
+        ],
+      }),
+    ).toEqual([
+      expect.objectContaining({
+        code: "action-ledger-incomplete",
+        message: expect.stringContaining("exceeds the 1465-identity official inventory bound"),
+      }),
+    ]);
+  });
+
+  it("caps hostile validation failures with an explicit terminal sentinel", () => {
+    const fixture = realBuildLedgerTestFixture();
+    const firstStep = fixture.ledger.steps[0]!;
+    if (firstStep.action.kind !== "place-callouts") throw new Error("fixture action changed");
+    const hostilePiece = {
+      ...firstStep.action.pieces[0]!,
+      designId: "forged-design",
+      catalogPartId: "builtin:forged-part",
+      evidenceDigest: REAL_BUILD_TEST_DIGEST,
+    };
+    const ledger: RealBuildActionLedger = {
+      ...fixture.ledger,
+      steps: [
+        {
+          ...firstStep,
+          action: {
+            ...firstStep.action,
+            pieces: Array.from({ length: 1_465 }, () => hostilePiece),
+          },
+        },
+      ],
+    };
+
+    const failures = validateRealBuildActionLedger({
+      ledger,
+      ledgerDigest: fixture.ledgerDigest,
+      lastStep: 1,
+      official: fixture.official,
+      pdfDigest: fixture.pdfDigest,
+      coverageDigest: fixture.coverageDigest,
+      calloutManifestDigest: fixture.manifestDigest,
+      builderCalibrationDigest: fixture.builderCalibrationDigest,
+      transitionClassificationsDigest: fixture.transitionClassificationsDigest,
+      coverageByCallout: fixture.coverageByCallout,
+      panelEvidenceByStep: fixture.panelEvidenceByStep,
+      transitionClassificationsByStep: fixture.transitionClassificationsByStep,
+    });
+
+    expect(failures).toHaveLength(4_096);
+    expect(failures.at(-1)).toMatchObject({
+      code: "validation-failure-limit",
+      stage: "input",
+      inputKey: "actionLedger.validationFailures",
+    });
+    expect(failures.at(-1)?.message).toMatch(/retained 4095 failures and omitted \d+/u);
+  });
+
+  it("requires zero-coverage steps to retain transition authority and rejects unknown actions", () => {
+    const fixture = realBuildLedgerTestFixture();
+    const validate = (ledger: RealBuildActionLedger) =>
+      validateRealBuildActionLedger({
+        ledger,
+        ledgerDigest: sha256Digest(JSON.stringify(ledger)),
+        lastStep: 3,
+        official: fixture.official,
+        pdfDigest: fixture.pdfDigest,
+        coverageDigest: fixture.coverageDigest,
+        calloutManifestDigest: fixture.manifestDigest,
+        builderCalibrationDigest: fixture.builderCalibrationDigest,
+        transitionClassificationsDigest: fixture.transitionClassificationsDigest,
+        coverageByCallout: fixture.coverageByCallout,
+        panelEvidenceByStep: fixture.panelEvidenceByStep,
+        transitionClassificationsByStep: fixture.transitionClassificationsByStep,
+      });
+    const replaceThirdAction = (action: LedgerStep["action"]): RealBuildActionLedger => ({
+      ...fixture.ledger,
+      steps: [
+        ...fixture.ledger.steps.slice(0, 2),
+        { ...fixture.ledger.steps[2]!, action },
+        ...fixture.ledger.steps.slice(3),
+      ],
+    });
+
+    expect(validate(fixture.ledger)).toEqual([]);
+    const emptyPlacement = validate(
+      replaceThirdAction({ kind: "place-callouts", pieces: [], omittedPieces: [] }),
+    );
+    expect(emptyPlacement).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "action-ledger-incomplete", stepNumber: 3 }),
+      ]),
+    );
+    expect(emptyPlacement.map(({ message }) => message).join(" ")).toMatch(
+      /zero retained callouts.*transition action and classification/u,
+    );
+
+    const unknownAction = validate(
+      replaceThirdAction({ kind: "forged" } as unknown as LedgerStep["action"]),
+    );
+    expect(unknownAction).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "action-ledger-incomplete", stepNumber: 3 }),
+      ]),
+    );
+    expect(unknownAction.map(({ message }) => message).join(" ")).toContain(
+      "has no recognized action kind",
+    );
+  });
+
   it("includes transition classification in action evidence", () => {
     const fixture = realBuildLedgerTestFixture();
     const step = fixture.ledger.steps[2]!;

@@ -30,25 +30,25 @@ export function fixtureAccepts(
     crop.quantityGlyphOverlapPixels > 0
   )
     return false;
+  if (fixture.evidenceKind === "part-art") {
+    if (crop.sourceComponent === null) return false;
+    if (
+      fixture.expectedSourceComponentBoundsPx &&
+      JSON.stringify(crop.sourceComponent.boundsPx) !==
+        JSON.stringify(fixture.expectedSourceComponentBoundsPx)
+    )
+      return false;
+    if (
+      fixture.expectedSourceComponentSha256 &&
+      crop.sourceComponent.absoluteForegroundSha256 !== fixture.expectedSourceComponentSha256
+    )
+      return false;
+  } else if (crop.sourceComponent !== null) return false;
   return !fixture.requiredMasks.includes("quantity-label") || crop.quantityGlyphPixelsMasked > 0;
 }
 
 function physicalRecovery(result: BrowserResult): BrowserCrop | null {
-  const fixture = CALLOUT_RECOVERY_BY_IDENTITY.get(result.identity);
-  const candidates = [result.ranked, result.adaptive].filter(
-    (crop): crop is BrowserCrop => crop !== null,
-  );
-  candidates.sort((left, right) => {
-    const leftValid = fixture ? Number(fixtureAccepts(left, fixture)) : 0;
-    const rightValid = fixture ? Number(fixtureAccepts(right, fixture)) : 0;
-    return (
-      rightValid - leftValid ||
-      left.contamination.length - right.contamination.length ||
-      left.sourceTextGlyphPixels - right.sourceTextGlyphPixels ||
-      Number(left.strategy === "adaptive-seed") - Number(right.strategy === "adaptive-seed")
-    );
-  });
-  return candidates[0] ?? null;
+  return result.ranked;
 }
 
 export function selectEvidenceAwareCrop(result: BrowserResult): BrowserCrop | null {
@@ -58,9 +58,14 @@ export function selectEvidenceAwareCrop(result: BrowserResult): BrowserCrop | nu
 function candidateFor(
   result: BrowserResult,
   strategy: StrategyScore["strategy"],
+  fixture: RecoveryFixtureCase,
 ): BrowserCrop | null {
-  if (strategy === "adaptive-seed") return result.adaptive;
-  if (strategy === "ranked-component") return result.ranked;
+  // Benchmark scores measure evidence that can cross the preregistered
+  // fixture boundary. Keep the raw legacy crop on BrowserResult for diagnostics,
+  // but do not count a missing, contaminated, wrongly typed, or otherwise
+  // rejected crop as recovered evidence.
+  if (strategy === "legacy-seed")
+    return fixtureAccepts(result.legacy, fixture) ? result.legacy : null;
   return selectEvidenceAwareCrop(result);
 }
 
@@ -77,7 +82,7 @@ function scoreStrategy(
   const invalidIdentities: string[] = [];
   for (const fixture of CALLOUT_RECOVERY_FIXTURE.cases) {
     const result = results.get(fixture.identity);
-    const crop = result ? candidateFor(result, strategy) : null;
+    const crop = result ? candidateFor(result, strategy, fixture) : null;
     if (crop !== null) recovered += 1;
     if (crop?.evidenceKind === fixture.evidenceKind) kindCorrect += 1;
     if (crop?.regionKind === fixture.regionKind) regionCorrect += 1;
@@ -95,7 +100,7 @@ function scoreStrategy(
     regionCorrect,
     masksCorrect,
     uncontaminated,
-    invalidIdentities,
+    invalidIdentities: invalidIdentities.sort(),
     points:
       valid * 1_000_000 +
       kindCorrect * 10_000 +
@@ -116,22 +121,20 @@ export function evaluateRecoveryBenchmark(
     );
   }
   const byIdentity = new Map(allResults.map((result) => [result.identity, result] as const));
-  const observedLegacyFailureIdentities = allResults
-    .filter(
-      (result) =>
-        result.legacy === null ||
-        result.legacy.contamination.length > 0 ||
-        result.targetEvidenceKind !== "part-art",
-    )
+  const expected = [...CALLOUT_RECOVERY_BY_IDENTITY.keys()].sort();
+  const observedLegacyFailureIdentities = CALLOUT_RECOVERY_FIXTURE.cases
+    .filter((fixture) => {
+      const result = byIdentity.get(fixture.identity);
+      return !fixtureAccepts(result?.legacy ?? null, fixture);
+    })
     .map(({ identity }) => identity)
     .sort();
-  const expected = [...CALLOUT_RECOVERY_BY_IDENTITY.keys()].sort();
   if (JSON.stringify(observedLegacyFailureIdentities) !== JSON.stringify(expected)) {
     throw new Error(
       `Legacy failure identities drifted: expected ${JSON.stringify(expected)}, observed ${JSON.stringify(observedLegacyFailureIdentities)}.`,
     );
   }
-  const scores = (["adaptive-seed", "ranked-component", "evidence-aware"] as const)
+  const scores = (["legacy-seed", "evidence-aware"] as const)
     .map((strategy) => scoreStrategy(strategy, byIdentity))
     .sort(
       (left, right) => right.points - left.points || left.strategy.localeCompare(right.strategy),
@@ -149,7 +152,7 @@ export function evaluateRecoveryBenchmark(
     );
   }
   return {
-    schemaVersion: "lego.callout-recovery-benchmark-result/1",
+    schemaVersion: "lego.callout-recovery-benchmark-result/2",
     fixtureSourceHash: CALLOUT_RECOVERY_FIXTURE.sourceHash,
     fixedFailureClassSize: CALLOUT_RECOVERY_FIXTURE.cases.length,
     observedLegacyFailureIdentities,

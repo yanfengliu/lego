@@ -28,7 +28,7 @@ import {
 } from "./part-identification-io.mjs";
 import {
   PART_FEATURES_SCHEMA,
-  assertV5CalloutManifest,
+  assertV6CalloutManifest,
   assertBoundMatchArtifacts,
   assertFeaturesArtifact,
   nonClusteredCalloutRecords,
@@ -130,7 +130,7 @@ async function commandFeatures(argv, context = {}) {
     );
   }
   const manifestArtifact = readJsonArtifact(manifestPath, "callout manifest");
-  const manifest = assertV5CalloutManifest(manifestArtifact.value, context.manifestExpectation);
+  const manifest = assertV6CalloutManifest(manifestArtifact.value, context.manifestExpectation);
 
   const inventory = {};
   const inventorySourceDigests = {};
@@ -158,16 +158,17 @@ async function commandFeatures(argv, context = {}) {
 
   const callouts = [];
   for (const entry of manifest.callouts.slice(0, CROP_LIMIT)) {
+    const thumbnail = await readBoundManifestCrop(entry, calloutDir, (bytes) =>
+      entry.evidenceKind === "part-art" ? readThumbnail(bytes, decodeBudget) : null,
+    );
     if (entry.evidenceKind !== "part-art") {
-      // Semantic action/multiplier records stay index-aligned with the v5
-      // manifest for coverage provenance, but never receive a descriptor that
-      // could make them look assignable to a physical inventory element.
+      // Semantic action/multiplier records stay index-aligned with the v6
+      // manifest for coverage provenance. Their exact retained PNG bytes and
+      // dimensions are still authenticated, but they never receive a descriptor
+      // that could make them look assignable to a physical inventory element.
       callouts.push({ ...entry });
       continue;
     }
-    const thumbnail = await readBoundManifestCrop(entry, calloutDir, (bytes) =>
-      readThumbnail(bytes, decodeBudget),
-    );
     if (!thumbnail) {
       throw new Error(
         `Callout crop ${JSON.stringify(entry.identity)} at ${JSON.stringify(entry.file)} contains no decodable part drawing. Regenerate or repair this exact crop before extracting features.`,

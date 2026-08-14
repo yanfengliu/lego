@@ -9,6 +9,7 @@ export const SYNTHETIC_IDENTIFICATION_MANIFEST_EXPECTATION = {
   identityCount: 1,
   rawQuantity: 1,
   identitySetDigest: "sha256:4aa4143460264eb0c486da460a1595693e634b3919f9d0ffcbdfcdb0d8d62080",
+  recoveryFailureIdentities: ["p11|q1|x43.074|y486.271"],
   accounting: {
     rawNxIdentityCount: 1,
     rawNxQuantityTotal: 1,
@@ -23,23 +24,23 @@ export const SYNTHETIC_IDENTIFICATION_MANIFEST_EXPECTATION = {
 export const SYNTHETIC_IDENTIFICATION_GOLDEN = {
   manifest: {
     file: "manifest.json",
-    bytes: 1_041,
-    digest: "sha256:0ea8582b833a5353160aa05b0af6ef41886a9813c8b9c6b3829f533a1689bc73",
+    bytes: 2_502,
+    digest: "sha256:8ffa64e6331992fef91ae70186b8754106cb481bc0ad325146bdf64598b348bd",
   },
   features: {
     file: "features.json",
-    bytes: 11_913,
-    digest: "sha256:33da68db3e015a3528e3ac3365461763c81c8b6ca51824ada6781e210d10e0f4",
+    bytes: 13_093,
+    digest: "sha256:ecd0e263f731fc472275e642f8bba04160491da3f0bb60a33a66467a8f6a8afa",
   },
   match: {
     file: "match.json",
     bytes: 1_099,
-    digest: "sha256:a974c73afb2836c09c5274cc74be67afe2ee354ea37647f2bee05732e5bf4a36",
+    digest: "sha256:0bc30b3007f8a61d9a62736ec711184d786376e768a710697d4028ce96694b6f",
   },
   distances: {
     file: "distances.json",
     bytes: 417,
-    digest: "sha256:698e9f45d2648c21dc925fc3f4e772676c71c9490bede8e80e1c24fd0f641949",
+    digest: "sha256:53e3f3f361b4f3ffa3f27bcdd137b6bcd8967364545da721b5b6501b5dc249ed",
   },
   elementResolution: {
     file: "element-resolution.json",
@@ -60,7 +61,7 @@ export const SYNTHETIC_IDENTIFICATION_GOLDEN = {
   coverage: {
     file: "coverage.json",
     bytes: 2_433,
-    digest: "sha256:a5fe5c9cfd9b87ee190b4cc7e8e9deffb51b136222490b9928122b9d98e19b38",
+    digest: "sha256:6b22b5ccca4bc81ca086696449226cd57de9f5b004fb85ec573ae30ac89ce9b3",
   },
 } as const;
 

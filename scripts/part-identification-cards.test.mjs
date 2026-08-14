@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { deriveCalloutManifestRunId } from "../apps/web/e2e/callout-run-id.ts";
 import { commandAsk } from "./part-identification-ask.mjs";
 import {
   PART_ANSWERS_SCHEMA,
@@ -28,8 +29,6 @@ import {
   partIdentificationMatchValue,
 } from "./part-identification-derivation.mjs";
 import {
-  RUN_ID,
-  boundCallout,
   canonicalPng,
   descriptor,
   digest,
@@ -53,33 +52,147 @@ describe("part-identification card publication", () => {
     const out = join(directory, "identification");
     const calloutRoot = join(directory, "callouts");
     const inventoryRoot = join(directory, "inventory");
-    const callouts = [
-      boundCallout(),
-      {
-        ...boundCallout(),
-        identity: "p11|q1|x108.908|y486.271",
-        file: `runs/${RUN_ID}/p11-q1-x108d908-y486d271.png`,
-        xPt: 108.908,
-        descriptor: descriptor(1, 1),
-      },
-    ];
-    const calloutPaths = callouts.map((callout) => join(calloutRoot, ...callout.file.split("/")));
-    const inventoryPaths = [join(inventoryRoot, "300501.png"), join(inventoryRoot, "300502.png")];
     const calloutPng = twoTonePng();
     const inventoryPng = twoTonePng();
+    const calloutDescriptors = [descriptor(0, 1), descriptor(1, 1)];
+    const sourceCallouts = [43.074, 108.908].map((xPt, index) => {
+      const identity = `p11|q1|x${xPt.toFixed(3)}|y486.271`;
+      const cropLeft = index * 8;
+      return {
+        identity,
+        file: "pending-run-id",
+        pageNumber: 11,
+        stepNumber: 1,
+        quantity: 1,
+        xPt,
+        yPt: 486.271,
+        evidenceKind: "part-art",
+        heightPt: 10,
+        boxMethod: "vector-smallest",
+        box: {
+          minXPt: xPt,
+          minYPt: 486.271,
+          maxXPt: xPt + 4,
+          maxYPt: 490.271,
+        },
+        regionKind: "isolated-component",
+        cropStrategy: "ranked-component",
+        masksApplied: ["all-pdf-text"],
+        contamination: [],
+        sha256: sha256Digest(calloutPng),
+        byteLength: calloutPng.length,
+        widthPx: 4,
+        heightPx: 4,
+        foregroundPixels: 4,
+        sourceTextGlyphPixels: 0,
+        sourceQuantityGlyphPixels: 0,
+        textGlyphOverlapPixels: 0,
+        quantityGlyphOverlapPixels: 0,
+        quantityGlyphPixelsMasked: 0,
+        cropRectPx: { left: cropLeft, top: 0, right: cropLeft + 3, bottom: 3 },
+        boundaryClearancePx: { left: 1, top: 1, right: 1, bottom: 1 },
+        sourceComponent: {
+          rasterScale: 8,
+          boundsPx: { left: cropLeft + 1, top: 1, right: cropLeft + 2, bottom: 2 },
+          foregroundPixels: 4,
+          rawComponentCount: 1,
+          absoluteForegroundSha256: digest(`source-component-${index}`),
+        },
+      };
+    });
+    const identitySetSha256 = sha256Digest(
+      sourceCallouts
+        .map(({ identity }) => identity)
+        .sort()
+        .join("\n"),
+    );
+    const sourceHash = digest("synthetic-card-source");
+    const calloutManifest = {
+      schemaVersion: "lego.callout-thumbnails/6",
+      sourceHash,
+      pageSelection: [11],
+      pagesCropped: 1,
+      calloutCount: sourceCallouts.length,
+      accounting: {
+        rawNxIdentityCount: 2,
+        rawNxQuantityTotal: 2,
+        physicalPartArtIdentityCount: 2,
+        physicalPartArtQuantityTotal: 2,
+        semanticIdentityCount: 0,
+        semanticQuantityTotal: 0,
+      },
+      recoveryBenchmark: {
+        schemaVersion: "lego.callout-recovery-benchmark-result/2",
+        fixtureSourceHash: sourceHash,
+        fixedFailureClassSize: 1,
+        observedLegacyFailureIdentities: [sourceCallouts[0].identity],
+        scores: [
+          {
+            strategy: "legacy-seed",
+            valid: 0,
+            recovered: 0,
+            kindCorrect: 0,
+            regionCorrect: 0,
+            masksCorrect: 0,
+            uncontaminated: 0,
+            invalidIdentities: [sourceCallouts[0].identity],
+            points: 0,
+          },
+          {
+            strategy: "evidence-aware",
+            valid: 1,
+            recovered: 1,
+            kindCorrect: 1,
+            regionCorrect: 1,
+            masksCorrect: 1,
+            uncontaminated: 1,
+            invalidIdentities: [],
+            points: 1_011_111,
+          },
+        ],
+        selected: "evidence-aware",
+        winner: "evidence-aware",
+        winningMargin: 1_011_111,
+      },
+      conservation: {
+        expectedIdentityCount: 2,
+        expectedRawNxQuantityTotal: 2,
+        expectedIdentitySetSha256: identitySetSha256,
+        publishedIdentityCount: 2,
+        publishedRawNxQuantityTotal: 2,
+        publishedIdentitySetSha256: identitySetSha256,
+      },
+      failures: [],
+      callouts: sourceCallouts,
+    };
+    const calloutRunId = deriveCalloutManifestRunId(calloutManifest);
+    calloutManifest.callouts = calloutManifest.callouts.map((callout) => ({
+      ...callout,
+      file: `runs/${calloutRunId}/${callout.identity.replaceAll("|", "-").replaceAll(".", "d")}.png`,
+    }));
+    const callouts = calloutManifest.callouts.map((callout, index) => ({
+      ...callout,
+      descriptor: calloutDescriptors[index],
+    }));
+    const calloutPaths = callouts.map((callout) => join(calloutRoot, ...callout.file.split("/")));
+    const inventoryPaths = [join(inventoryRoot, "300501.png"), join(inventoryRoot, "300502.png")];
     const writeJson = (path, value) =>
       writeFileSync(path, `${JSON.stringify(value, null, 1)}\n`, "utf8");
 
-    for (const path of calloutPaths) mkdirSync(dirname(path), { recursive: true });
+    mkdirSync(calloutRoot, { recursive: true });
     mkdirSync(inventoryRoot, { recursive: true });
     mkdirSync(out, { recursive: true });
+    const calloutManifestArtifact = writeArtifact(
+      join(calloutRoot, "manifest.json"),
+      calloutManifest,
+    );
+    for (const path of calloutPaths) mkdirSync(dirname(path), { recursive: true });
     for (const path of calloutPaths) writeFileSync(path, calloutPng);
     for (const path of inventoryPaths) writeFileSync(path, inventoryPng);
-    for (const callout of callouts) callout.sha256 = sha256Digest(calloutPng);
 
     const featuresArtifact = writeArtifact(join(out, "features.json"), {
       schemaVersion: PART_FEATURES_SCHEMA,
-      inputDigests: { pdf: digest("pdf"), calloutManifest: digest("manifest") },
+      inputDigests: { pdf: sourceHash, calloutManifest: calloutManifestArtifact.digest },
       calloutDir: calloutRoot,
       inventoryDir: inventoryRoot,
       manifestCalloutCount: 2,

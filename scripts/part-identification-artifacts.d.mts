@@ -15,6 +15,7 @@ export const FULL_CALLOUT_MANIFEST_EXPECTATION: Readonly<{
   readonly rawQuantity: number;
   readonly identitySetDigest: string;
   readonly accounting: Readonly<Record<string, number>>;
+  readonly recoveryFailureIdentities: readonly string[];
 }>;
 
 export class PartIdentificationArtifactBindingError extends Error {
@@ -47,7 +48,7 @@ export function authenticateJsonArtifact<T = unknown>(
   label?: string,
 ): AuthenticatedJsonArtifact<T>;
 
-export function assertV5CalloutManifest<T>(manifest: T, expectation?: unknown): T;
+export function assertV6CalloutManifest<T>(manifest: T, expectation?: unknown): T;
 
 export function readBoundManifestCrop<T>(
   entry: { readonly identity?: string; readonly file: string; readonly sha256: string },

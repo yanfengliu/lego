@@ -1,5 +1,5 @@
 import {
-  assertV5CalloutManifest,
+  assertV6CalloutManifest,
   jsonArtifactFromBytes,
 } from "./part-identification-artifacts.mjs";
 import { boundedObserved } from "./bounded-observed-value.mjs";
@@ -50,7 +50,7 @@ function parseManifest(manifestBytes, expectation) {
   const artifact = jsonArtifactFromBytes(manifestBytes, "Callout manifest");
   return {
     artifact,
-    manifest: assertV5CalloutManifest(artifact.value, expectation),
+    manifest: assertV6CalloutManifest(artifact.value, expectation),
   };
 }
 
@@ -204,7 +204,7 @@ function assertFeaturesBindManifest(features, manifest) {
   }
   if (features.callouts.length !== manifest.callouts.length) {
     throw new Error(
-      `Part-identification features contain ${features.callouts.length} callouts, but the exact v5 manifest contains ${manifest.callouts.length}. Regenerate features and every index-bound identification artifact from this manifest.`,
+      `Part-identification features contain ${features.callouts.length} callouts, but the exact v6 manifest contains ${manifest.callouts.length}. Regenerate features and every index-bound identification artifact from this manifest.`,
     );
   }
   for (let index = 0; index < manifest.callouts.length; index += 1) {
@@ -216,7 +216,7 @@ function assertFeaturesBindManifest(features, manifest) {
     for (const field of FEATURE_BINDING_FIELDS) {
       if (actual[field] !== expected[field]) {
         throw new Error(
-          `Part-identification feature callout ${index} field ${field} is ${JSON.stringify(actual[field] ?? "missing")}, but the exact v5 manifest binds ${JSON.stringify(expected[field])}. Regenerate features and every index-bound identification artifact from this manifest.`,
+          `Part-identification feature callout ${index} field ${field} is ${JSON.stringify(actual[field] ?? "missing")}, but the exact v6 manifest binds ${JSON.stringify(expected[field])}. Regenerate features and every index-bound identification artifact from this manifest.`,
         );
       }
     }
@@ -226,7 +226,7 @@ function assertFeaturesBindManifest(features, manifest) {
 /**
  * Compiles content-bound catalog coverage without reading or writing the filesystem.
  * Claims stay index-bound only after every identity-bearing feature field has been
- * proven byte-for-byte equivalent to the exact v5 manifest entry at that index.
+ * proven byte-for-byte equivalent to the exact v6 manifest entry at that index.
  */
 export function buildBookletCatalogCoverageReportWithExpectation(input, manifestExpectation) {
   const manifestBytes = input.manifestBytes;

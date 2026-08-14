@@ -4,7 +4,10 @@ import { expect, test } from "@playwright/test";
 
 import { writeContainedRegularFileAtomic } from "./contained-atomic-write";
 import { sha256Digest } from "./real-build-artifacts";
-import { compileRealBuildActionLedger } from "./real-build-action-ledger-compile";
+import {
+  compileRealBuildActionLedger,
+  requirePublishableRealBuildActionLedger,
+} from "./real-build-action-ledger-compile";
 import { createBuilderCanonicalCalibration } from "./real-build-builder-calibration";
 import {
   describeRealBuildInputChain,
@@ -145,9 +148,8 @@ test("regenerates the catalog-derived real-build inputs in chain order", async (
   rebuilt.push(BUILDER_CALIBRATION_PATH);
 
   // Stage 4 — action ledger, which binds the digests of stages 2 and 3.
-  const compiled = await compileRealBuildActionLedger({
-    validateThroughStep: Number(process.env.LEGO_REAL_BUILD_LAST_STEP ?? 12),
-  });
+  const compiled = await compileRealBuildActionLedger();
+  requirePublishableRealBuildActionLedger(compiled);
   writeContainedRegularFileAtomic(process.cwd(), ACTION_LEDGER_PATH, compiled.encoded, {
     label: `Action ledger ${ACTION_LEDGER_PATH}`,
     replace: true,

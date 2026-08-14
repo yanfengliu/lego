@@ -2,7 +2,7 @@ import {
   assignSlots,
   coverageRowsByStep,
   pieceRefusal,
-  uncorroboratedDesign,
+  uncorroboratedElementCut,
 } from "./real-build-action-ledger-cut";
 import type { CalloutResolution } from "./real-build-input-files";
 import { requireTrustedIdentificationConfidence } from "./real-build-identification-trust";
@@ -69,6 +69,59 @@ export interface ActionLedgerRefusal {
   readonly reason: string;
 }
 
+export interface ActionLedgerRefusalOutputLimits {
+  readonly maximumCount: number;
+  readonly maximumCharacters: number;
+}
+
+export const ACTION_LEDGER_REFUSAL_OUTPUT_LIMITS: ActionLedgerRefusalOutputLimits = {
+  maximumCount: 20,
+  maximumCharacters: 8_192,
+};
+
+function refusalOmissionLine(
+  omittedCount: number,
+  limits: ActionLedgerRefusalOutputLimits,
+): string {
+  return (
+    `  ... ${omittedCount} additional refusal${omittedCount === 1 ? "" : "s"} omitted ` +
+    `(publisher limit: ${limits.maximumCount} entries / ${limits.maximumCharacters} characters).\n`
+  );
+}
+
+/** Bounded publisher diagnostics; the complete refusal provenance stays in the ledger artifact. */
+export function formatActionLedgerRefusalOutput(
+  refusals: readonly ActionLedgerRefusal[],
+  limits: ActionLedgerRefusalOutputLimits = ACTION_LEDGER_REFUSAL_OUTPUT_LIMITS,
+): string {
+  if (!Number.isSafeInteger(limits.maximumCount) || limits.maximumCount < 1) {
+    throw new TypeError(
+      `Action-ledger refusal output maximumCount must be a positive safe integer; received ${JSON.stringify(limits.maximumCount)}.`,
+    );
+  }
+  if (!Number.isSafeInteger(limits.maximumCharacters) || limits.maximumCharacters < 256) {
+    throw new TypeError(
+      `Action-ledger refusal output maximumCharacters must be a safe integer of at least 256; received ${JSON.stringify(limits.maximumCharacters)}.`,
+    );
+  }
+  const lines: string[] = [];
+  let characterCount = 0;
+  const candidateCount = Math.min(refusals.length, limits.maximumCount);
+  const maximumOmissionLineLength = refusalOmissionLine(refusals.length, limits).length;
+  for (let index = 0; index < candidateCount; index += 1) {
+    const refusal = refusals[index]!;
+    const line = `  refused step ${refusal.stepNumber}: ${refusal.reason}\n`;
+    const willOmit = index + 1 < refusals.length;
+    const reservedCharacters = willOmit ? maximumOmissionLineLength : 0;
+    if (characterCount + line.length + reservedCharacters > limits.maximumCharacters) break;
+    lines.push(line);
+    characterCount += line.length;
+  }
+  const omittedCount = refusals.length - lines.length;
+  if (omittedCount > 0) lines.push(refusalOmissionLine(omittedCount, limits));
+  return lines.join("");
+}
+
 export interface AssembledRealBuildActionLedger {
   readonly ledger: RealBuildActionLedger;
   readonly refusals: readonly ActionLedgerRefusal[];
@@ -87,6 +140,15 @@ export interface RealBuildActionLedgerBindings {
 }
 
 const DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/u;
+const REFUSAL_DIAGNOSTIC_VALUE_LIMIT = 160;
+
+function boundedRefusalValue(value: string): string {
+  return JSON.stringify(
+    value.length <= REFUSAL_DIAGNOSTIC_VALUE_LIMIT
+      ? value
+      : `${value.slice(0, REFUSAL_DIAGNOSTIC_VALUE_LIMIT)}...`,
+  );
+}
 
 function directPiece(input: {
   readonly stepNumber: number;
@@ -172,7 +234,9 @@ export function assembleRealBuildActionLedger(
   let cursor = 0;
   let directPieceCount = 0;
   let transitionStepCount = 0;
-  let stopReason = `every printed step through ${input.expectedPrintedSteps} was assembled.`;
+  let stopReason =
+    `the cumulative quantity cursor was corroborated through printed step ${input.expectedPrintedSteps}; ` +
+    `this does not claim every retained callout was admitted as a ledger action.`;
 
   for (let stepNumber = 1; stepNumber <= input.expectedPrintedSteps; stepNumber += 1) {
     const panel = input.panelEvidenceByStep[stepNumber];
@@ -227,15 +291,20 @@ export function assembleRealBuildActionLedger(
         `than the official model places.`;
       break;
     }
-    const drift = uncorroboratedDesign(input.official, rows, slice);
+    const drift = uncorroboratedElementCut(input.official, rows, slice);
     if (drift !== null) {
       stopReason = `printed step ${stepNumber} is not corroborated: ${drift}`;
       break;
     }
     const assigned = assignSlots(input.official, rows, slice);
     const piecesByCallout = new Map<string, LedgerPieceIdentity[]>();
+    const assignmentCountByCallout = new Map<string, number>();
     const stepRefusals: ActionLedgerRefusal[] = [];
     for (const { row, identity } of assigned) {
+      assignmentCountByCallout.set(
+        row.calloutKey,
+        (assignmentCountByCallout.get(row.calloutKey) ?? 0) + 1,
+      );
       const refusal = pieceRefusal({
         stepNumber,
         calloutKey: row.calloutKey,
@@ -275,8 +344,20 @@ export function assembleRealBuildActionLedger(
     const pieces: LedgerPieceIdentity[] = [];
     for (const { calloutKey, claim } of rows) {
       const bound = piecesByCallout.get(calloutKey) ?? [];
+      const assignmentCount = assignmentCountByCallout.get(calloutKey) ?? 0;
       if (bound.length !== claim.quantity) {
-        if (bound.length > 0) {
+        if (assignmentCount < claim.quantity) {
+          stepRefusals.push({
+            stepNumber,
+            calloutKey,
+            brickRef: null,
+            reason:
+              `callout ${boundedRefusalValue(calloutKey)} prints ${claim.quantity} piece(s), but only ` +
+              `${assignmentCount} could be assigned one-to-one by exact claim.elementId equality with a ` +
+              `physical Brick's sole official itemNo; ${claim.quantity - assignmentCount} remain without an ` +
+              `official identity. None are recorded because a partial callout would under-count the printed step.`,
+          });
+        } else if (bound.length > 0) {
           stepRefusals.push({
             stepNumber,
             calloutKey,

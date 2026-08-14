@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 import type { TrustedIdentificationConfidence } from "./real-build-identification-trust";
-import type { LedgerTransform } from "./real-build-official";
+import type { LedgerTransform, OfficialBrickRecord } from "./real-build-official";
 
 export {
   applyBuilderCanonicalCalibration,
@@ -150,6 +150,7 @@ export interface CoverageLedgerClaim {
   readonly pageNumber: number;
   readonly stepNumber: number | null;
   readonly quantity: number;
+  readonly elementId?: string | null;
   readonly identificationConfidence?: string | null;
   readonly cropDigest?: string | null;
   readonly inputDigest?: string | null;
@@ -158,6 +159,18 @@ export interface CoverageLedgerClaim {
     readonly colorId: string;
     readonly partNum: string;
   } | null;
+}
+
+/** Exact element corroboration for one direct callout-to-Brick binding. */
+export function officialItemNoMatchesCoverageClaim(
+  official: OfficialBrickRecord | undefined,
+  claim: CoverageLedgerClaim | undefined,
+): boolean {
+  return (
+    official?.itemNos.length === 1 &&
+    typeof claim?.elementId === "string" &&
+    official.itemNos[0] === claim.elementId
+  );
 }
 
 const digest = (value: string | Uint8Array): string =>

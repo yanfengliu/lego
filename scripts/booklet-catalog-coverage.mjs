@@ -360,7 +360,7 @@ export function runBookletCatalogCoverageCli(argv = process.argv.slice(2), conte
   const manifestPath = join(CALLOUTS, "manifest.json");
   if (!existsSync(manifestPath)) {
     throw new Error(
-      `Missing ${manifestPath}. Produce the full v5 manifest with: CALLOUT_PAGE_LIMIT=0 npx playwright test callout-thumbnails.`,
+      `Missing ${manifestPath}. Produce the full v6 manifest with: CALLOUT_PAGE_LIMIT=0 npx playwright test callout-thumbnails.`,
     );
   }
   const manifestArtifact = readJsonArtifact(manifestPath, "callout manifest");

@@ -25,6 +25,7 @@ import {
 } from "./part-identification-derivation.mjs";
 import { chiralCard } from "./part-identification-card-test-fixture.mjs";
 import { __testOnly } from "./booklet-catalog-coverage.mjs";
+import { deriveCalloutManifestRunId } from "../apps/web/e2e/callout-run-id.ts";
 
 /**
  * The synthetic two-callout booklet both coverage suites are written against.
@@ -73,8 +74,8 @@ export function manifestFor(callouts) {
       .sort()
       .join("\n"),
   );
-  return {
-    schemaVersion: "lego.callout-thumbnails/5",
+  const manifest = {
+    schemaVersion: "lego.callout-thumbnails/6",
     sourceHash: digest("booklet"),
     pageSelection: "full booklet",
     pagesCropped: new Set(callouts.map(({ pageNumber }) => pageNumber)).size,
@@ -87,6 +88,39 @@ export function manifestFor(callouts) {
       semanticIdentityCount: semantic.length,
       semanticQuantityTotal: semantic.reduce((total, { quantity }) => total + quantity, 0),
     },
+    recoveryBenchmark: {
+      schemaVersion: "lego.callout-recovery-benchmark-result/2",
+      fixtureSourceHash: digest("booklet"),
+      fixedFailureClassSize: 1,
+      observedLegacyFailureIdentities: [callouts[0].identity],
+      scores: [
+        {
+          strategy: "evidence-aware",
+          valid: 1,
+          recovered: 1,
+          kindCorrect: 1,
+          regionCorrect: 1,
+          masksCorrect: 1,
+          uncontaminated: 1,
+          invalidIdentities: [],
+          points: 1_011_111,
+        },
+        {
+          strategy: "legacy-seed",
+          valid: 0,
+          recovered: 0,
+          kindCorrect: 0,
+          regionCorrect: 0,
+          masksCorrect: 0,
+          uncontaminated: 0,
+          invalidIdentities: [callouts[0].identity],
+          points: 0,
+        },
+      ],
+      selected: "evidence-aware",
+      winner: "evidence-aware",
+      winningMargin: 1_011_111,
+    },
     conservation: {
       expectedIdentityCount: callouts.length,
       expectedRawNxQuantityTotal: rawQuantity,
@@ -96,8 +130,14 @@ export function manifestFor(callouts) {
       publishedIdentitySetSha256: identityDigest,
     },
     failures: [],
-    callouts,
+    callouts: callouts.map((callout) => ({ ...callout })),
   };
+  const runId = deriveCalloutManifestRunId(manifest);
+  manifest.callouts = manifest.callouts.map((callout) => ({
+    ...callout,
+    file: `runs/${runId}/${callout.identity.replaceAll("|", "-").replaceAll(".", "d")}.png`,
+  }));
+  return manifest;
 }
 
 export const expectationFor = (manifest) => ({
@@ -107,6 +147,7 @@ export const expectationFor = (manifest) => ({
   rawQuantity: manifest.accounting.rawNxQuantityTotal,
   identitySetDigest: manifest.conservation.expectedIdentitySetSha256,
   accounting: manifest.accounting,
+  recoveryFailureIdentities: manifest.recoveryBenchmark.observedLegacyFailureIdentities,
 });
 
 export const descriptor = () => ({
@@ -133,8 +174,32 @@ export function fixture() {
       xPt: 43.074,
       yPt: 486.271,
       heightPt: 8,
+      boxMethod: "vector-smallest",
+      box: { minXPt: 40, minYPt: 480, maxXPt: 80, maxYPt: 510 },
       evidenceKind: "part-art",
+      regionKind: "isolated-component",
+      cropStrategy: "ranked-component",
+      masksApplied: ["all-pdf-text"],
+      contamination: [],
+      widthPx: 1,
+      heightPx: 1,
+      foregroundPixels: 1,
+      sourceTextGlyphPixels: 0,
+      sourceQuantityGlyphPixels: 0,
+      textGlyphOverlapPixels: 0,
+      quantityGlyphOverlapPixels: 0,
+      quantityGlyphPixelsMasked: 0,
+      cropRectPx: { left: 0, top: 0, right: 0, bottom: 0 },
+      boundaryClearancePx: { left: 0, top: 0, right: 0, bottom: 0 },
+      sourceComponent: {
+        rasterScale: 8,
+        boundsPx: { left: 0, top: 0, right: 0, bottom: 0 },
+        foregroundPixels: 1,
+        rawComponentCount: 1,
+        absoluteForegroundSha256: digest("component-group-one"),
+      },
       sha256: digest("crop-one"),
+      byteLength: 1,
     },
     {
       identity: "p11|q1|x108.908|y486.271",
@@ -145,15 +210,39 @@ export function fixture() {
       xPt: 108.908,
       yPt: 486.271,
       heightPt: 8,
+      boxMethod: "vector-smallest",
+      box: { minXPt: 100, minYPt: 480, maxXPt: 140, maxYPt: 510 },
       evidenceKind: "part-art",
+      regionKind: "isolated-component",
+      cropStrategy: "ranked-component",
+      masksApplied: ["all-pdf-text"],
+      contamination: [],
+      widthPx: 1,
+      heightPx: 1,
+      foregroundPixels: 1,
+      sourceTextGlyphPixels: 0,
+      sourceQuantityGlyphPixels: 0,
+      textGlyphOverlapPixels: 0,
+      quantityGlyphOverlapPixels: 0,
+      quantityGlyphPixelsMasked: 0,
+      cropRectPx: { left: 10, top: 0, right: 10, bottom: 0 },
+      boundaryClearancePx: { left: 0, top: 0, right: 0, bottom: 0 },
+      sourceComponent: {
+        rasterScale: 8,
+        boundsPx: { left: 10, top: 0, right: 10, bottom: 0 },
+        foregroundPixels: 1,
+        rawComponentCount: 1,
+        absoluteForegroundSha256: digest("component-group-two"),
+      },
       sha256: digest("crop-two"),
+      byteLength: 1,
     },
   ];
   const manifest = manifestFor(callouts);
   const manifestBytes = Buffer.from(`${JSON.stringify(manifest, null, 1)}\n`);
   const features = {
     inputDigests: { pdf: manifest.sourceHash, calloutManifest: digest(manifestBytes) },
-    callouts: callouts.map((callout, index) => ({
+    callouts: manifest.callouts.map((callout, index) => ({
       ...callout,
       descriptor: descriptor(index),
     })),
@@ -237,6 +326,7 @@ export const pairJudgedArtifactFor = (verdicts = []) =>
 export function closureFixture() {
   const callout = fixture().manifest.callouts[0];
   const manifest = manifestFor([callout]);
+  const publishedCallout = manifest.callouts[0];
   const manifestBytes = Buffer.from(`${JSON.stringify(manifest, null, 1)}\n`);
   const featuresArtifact = artifact({
     schemaVersion: PART_FEATURES_SCHEMA,
@@ -247,7 +337,7 @@ export function closureFixture() {
     nonClusteredCallouts: [],
     inventory: { 300501: descriptor() },
     inventorySourceDigests: { 300501: digest("inventory") },
-    callouts: [{ ...callout, descriptor: descriptor() }],
+    callouts: [{ ...publishedCallout, descriptor: descriptor() }],
   });
   const { matchArtifact, distancesArtifact } = identificationArtifactsFor(featuresArtifact);
   const cardImage = canonicalPng();
@@ -331,6 +421,7 @@ export function closureFixture() {
 export function chiralClosureFixture({ pick = 1 } = {}) {
   const callout = fixture().manifest.callouts[0];
   const manifest = manifestFor([callout]);
+  const publishedCallout = manifest.callouts[0];
   const manifestBytes = Buffer.from(`${JSON.stringify(manifest, null, 1)}\n`);
   const featuresArtifact = artifact({
     schemaVersion: PART_FEATURES_SCHEMA,
@@ -344,7 +435,7 @@ export function chiralClosureFixture({ pick = 1 } = {}) {
       6392746: digest("inventory-right"),
       6392747: digest("inventory-left"),
     },
-    callouts: [{ ...callout, descriptor: descriptor() }],
+    callouts: [{ ...publishedCallout, descriptor: descriptor() }],
   });
   const { matchArtifact, distancesArtifact } = identificationArtifactsFor(featuresArtifact);
   const cardImage = chiralCard();
@@ -396,7 +487,7 @@ export function chiralClosureFixture({ pick = 1 } = {}) {
     6392747: { quantity: 1, partNum: "78443", name: "Wedge Plate 6 x 2 Left", colorId: "15" },
   };
   return {
-    calloutIdentity: callout.identity,
+    calloutIdentity: publishedCallout.identity,
     manifestBytes,
     manifestExpectation: expectationFor(manifest),
     featuresArtifact,

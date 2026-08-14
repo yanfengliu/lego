@@ -6,7 +6,9 @@ import {
   build,
   closureFixture,
   digest,
+  expectationFor,
   identificationArtifactsFor,
+  manifestFor,
   pairJudgedArtifactFor,
 } from "./booklet-catalog-coverage-test-fixture.mjs";
 import { PART_TRUTH_SCHEMA, cropDigestKey } from "./part-identification-truth-key.mjs";
@@ -251,23 +253,18 @@ describe("judged verdicts do not extrapolate past the range that was judged", ()
   /** A coherent deterministic closure whose one callout sits on the given printed step. */
   function closureAtStep(stepNumber, judgedLastStep) {
     const fixture = closureFixture();
-    const manifest = JSON.parse(fixture.manifestBytes.toString("utf8"));
-    const manifestBytes = Buffer.from(
-      `${JSON.stringify(
-        { ...manifest, callouts: manifest.callouts.map((entry) => ({ ...entry, stepNumber })) },
-        null,
-        1,
-      )}\n`,
-    );
+    const baseManifest = JSON.parse(fixture.manifestBytes.toString("utf8"));
+    const manifest = manifestFor(baseManifest.callouts.map((entry) => ({ ...entry, stepNumber })));
+    const manifestBytes = Buffer.from(`${JSON.stringify(manifest, null, 1)}\n`);
     const featuresArtifact = artifact({
       ...fixture.featuresArtifact.value,
       inputDigests: {
         ...fixture.featuresArtifact.value.inputDigests,
         calloutManifest: digest(manifestBytes),
       },
-      callouts: fixture.featuresArtifact.value.callouts.map((callout) => ({
+      callouts: manifest.callouts.map((callout, index) => ({
         ...callout,
-        stepNumber,
+        descriptor: fixture.featuresArtifact.value.callouts[index].descriptor,
       })),
     });
     const { matchArtifact, distancesArtifact } = identificationArtifactsFor(featuresArtifact);
@@ -294,7 +291,7 @@ describe("judged verdicts do not extrapolate past the range that was judged", ()
         assignment: "nearest",
         lastStep: stepNumber,
       },
-      fixture.manifestExpectation,
+      expectationFor(manifest),
     );
   }
 

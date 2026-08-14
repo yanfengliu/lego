@@ -1,7 +1,7 @@
 {
  "schemaVersion": "lego.part-identification-distances/3",
- "featuresDigest": "sha256:33da68db3e015a3528e3ac3365461763c81c8b6ca51824ada6781e210d10e0f4",
- "matchDigest": "sha256:a974c73afb2836c09c5274cc74be67afe2ee354ea37647f2bee05732e5bf4a36",
+ "featuresDigest": "sha256:ecd0e263f731fc472275e642f8bba04160491da3f0bb60a33a66467a8f6a8afa",
+ "matchDigest": "sha256:0bc30b3007f8a61d9a62736ec711184d786376e768a710697d4028ce96694b6f",
  "note": "Every refined cluster lead against every element, in canonical elementIds order.",
  "elementIds": [
   "300501"

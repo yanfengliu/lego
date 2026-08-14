@@ -18,7 +18,7 @@ import {
   type RealBuildInputDigests,
   type RealBuildPanelSpec,
   type StepFailure,
-  type V5ManifestCallout,
+  type V6ManifestCallout,
 } from "./real-build-safety";
 
 function isExecutableLedgerStep(value: unknown): value is LedgerStep {
@@ -79,7 +79,7 @@ export function buildRealBuildPanelSpecs(input: {
   readonly facesByStep: ReadonlyMap<number, PanelFace>;
   readonly calloutBoxesByStep: Readonly<Record<number, readonly PanelCalloutBox[]>>;
   readonly stepByCalloutIdentity: ReadonlyMap<string, number>;
-  readonly manifestCallouts: readonly V5ManifestCallout[];
+  readonly manifestCallouts: readonly V6ManifestCallout[];
   readonly ledgerSteps: readonly unknown[];
   readonly officialModel: OfficialModelIndex | null;
   /** `null` when the coverage closure never bound; an empty object is a bound but empty index. */

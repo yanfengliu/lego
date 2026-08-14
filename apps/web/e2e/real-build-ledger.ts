@@ -5,14 +5,19 @@ import {
 } from "./real-build-identification-trust";
 import { officialTransformFailure } from "./real-build-official";
 import {
+  coverageStepNumbers,
+  ledgerStepActionAuthorityFailure,
+} from "./real-build-ledger-action-authority";
+import { boundedLedgerFailures, preflightActionLedgerRows } from "./real-build-ledger-bounds";
+import {
   REAL_BUILD_ACTION_LEDGER_SCHEMA,
   isUnauthenticatedTransitionClassification,
+  officialItemNoMatchesCoverageClaim,
   pieceEvidenceDigest,
   transitionClassificationEvidenceDigest,
   type CoverageLedgerClaim,
   type LedgerCopyIdentity,
   type LedgerPieceIdentity,
-  type LedgerStep,
   type LedgerTransform,
   type OfficialModelIndex,
   type RealBuildActionLedger,
@@ -45,7 +50,6 @@ export function validateRealBuildActionLedger(input: {
   readonly calloutManifestDigest: string;
   readonly builderCalibrationDigest: string;
   readonly transitionClassificationsDigest: string;
-  /** `null` when the coverage closure never bound; an empty object is a bound but empty index. */
   readonly coverageByCallout: Readonly<Record<string, CoverageLedgerClaim>> | null;
   readonly panelEvidenceByStep: Readonly<
     Record<number, { readonly pageNumber: number; readonly digest: string }>
@@ -54,17 +58,11 @@ export function validateRealBuildActionLedger(input: {
     Record<number, TransitionClassificationEvidence>
   >;
 }): readonly StepFailure[] {
-  const failures: StepFailure[] = [];
+  const failures = boundedLedgerFailures();
   try {
-    if (!Array.isArray(input.ledger.steps)) {
-      return [
-        failure(
-          undefined,
-          "Action ledger has no steps array; no quantity or identity can be trusted.",
-        ),
-      ];
-    }
-    const ledgerSteps: readonly LedgerStep[] = input.ledger.steps;
+    const boundedRows = preflightActionLedgerRows(input.ledger.steps);
+    if (boundedRows.failure !== null) return [boundedRows.failure];
+    const ledgerSteps = boundedRows.steps;
     if (!Number.isInteger(input.lastStep) || input.lastStep < 1 || input.lastStep > 359) {
       return [
         failure(
@@ -85,7 +83,7 @@ export function validateRealBuildActionLedger(input: {
       input.ledger.transitionClassificationsDigest !== input.transitionClassificationsDigest ||
       !/^sha256:[0-9a-f]{64}$/u.test(input.ledger.transitionClassificationsDigest)
     ) {
-      failures.push(
+      failures.add(
         failure(
           undefined,
           `Action ledger bindings do not match the exact official model, coverage, and callout manifest. ` +
@@ -109,7 +107,7 @@ export function validateRealBuildActionLedger(input: {
       ordered.length !== input.lastStep ||
       ordered.some(({ stepNumber }, index) => stepNumber !== index + 1)
     ) {
-      failures.push(
+      failures.add(
         failure(
           undefined,
           `Action ledger must contain each requested printed step 1..${input.lastStep} exactly once${
@@ -128,14 +126,20 @@ export function validateRealBuildActionLedger(input: {
     const boundCallouts = new Set<string>();
     const boundPhysicalRefs = new Set<string>();
     const requiredCalloutRefs = new Set<string>();
+    const coveredSteps = coverageStepNumbers(input.coverageByCallout);
     for (const step of ordered) {
+      const authorityFailure = ledgerStepActionAuthorityFailure(step, coveredSteps);
+      if (authorityFailure !== null) {
+        failures.add(failure(step.stepNumber, authorityFailure));
+        continue;
+      }
       const expectedPanel = input.panelEvidenceByStep[step.stepNumber];
       if (
         expectedPanel === undefined ||
         expectedPanel.pageNumber !== step.pageNumber ||
         expectedPanel.digest !== step.panelEvidenceDigest
       ) {
-        failures.push(
+        failures.add(
           failure(
             step.stepNumber,
             `Ledger step ${step.stepNumber} page ${step.pageNumber} is not bound to the exact PDF panel ` +
@@ -160,7 +164,7 @@ export function validateRealBuildActionLedger(input: {
           official.designId === piece.designId &&
           official.materialId === piece.materialId;
         if (!metadataMatches) {
-          failures.push(
+          failures.add(
             failure(
               step.stepNumber,
               `Ledger Brick ${piece.brickRef} says ${piece.designId}/${piece.materialId}, but that exact ` +
@@ -169,14 +173,14 @@ export function validateRealBuildActionLedger(input: {
           );
         }
         if (official !== undefined && official.canonicalTransform === null) {
-          failures.push(officialTransformFailure(official, step.stepNumber));
+          failures.add(officialTransformFailure(official, step.stepNumber));
         }
         if (
           official !== undefined &&
           (official.calibratedCatalogPartId !== piece.catalogPartId ||
             !/^sha256:[0-9a-f]{64}$/u.test(official.frameEvidenceDigest ?? ""))
         ) {
-          failures.push(
+          failures.add(
             failure(
               step.stepNumber,
               `Official design revision ${official.designRevision} is calibrated for catalog part ` +
@@ -198,7 +202,7 @@ export function validateRealBuildActionLedger(input: {
           piece: pieceWithoutEvidence,
         });
         if (evidenceDigest !== expectedEvidence) {
-          failures.push(
+          failures.add(
             failure(
               step.stepNumber,
               `Brick ${piece.brickRef} evidence digest does not bind its exact official identity, coverage input, ` +
@@ -221,7 +225,7 @@ export function validateRealBuildActionLedger(input: {
             (source.piece as LedgerPieceIdentity).colorId !== piece.colorId ||
             !/^sha256:[0-9a-f]{64}$/u.test((source.piece as LedgerPieceIdentity).evidenceDigest)
           ) {
-            failures.push(
+            failures.add(
               failure(
                 step.stepNumber,
                 `MultiBuild actual Brick ${piece.brickRef} cites ${copy.sourceBrickRef}; official XML cites ` +
@@ -240,7 +244,7 @@ export function validateRealBuildActionLedger(input: {
             piece.identificationInputDigest !== input.official.digest ||
             piece.transform === null
           ) {
-            failures.push(
+            failures.add(
               failure(
                 step.stepNumber,
                 `MultiBuild copy ${piece.brickRef} must be an official-model identity with exact model input digest, ` +
@@ -249,7 +253,7 @@ export function validateRealBuildActionLedger(input: {
             );
           }
           if (!sameTransform(piece.transform, official?.canonicalTransform ?? null)) {
-            failures.push(
+            failures.add(
               failure(
                 step.stepNumber,
                 `MultiBuild copy ${piece.brickRef} transform ${JSON.stringify(piece.transform)} does not ` +
@@ -258,11 +262,11 @@ export function validateRealBuildActionLedger(input: {
             );
           }
           if (seenCopies.has(piece.brickRef))
-            failures.push(failure(step.stepNumber, `Copy ${piece.brickRef} is duplicated.`));
+            failures.add(failure(step.stepNumber, `Copy ${piece.brickRef} is duplicated.`));
           seenCopies.add(piece.brickRef);
         } else {
           if (!input.official.directBrickRefs.has(piece.brickRef)) {
-            failures.push(
+            failures.add(
               failure(
                 step.stepNumber,
                 `Direct Brick ${piece.brickRef} is not an official instruction In reference.`,
@@ -270,9 +274,7 @@ export function validateRealBuildActionLedger(input: {
             );
           }
           if (seenDirect.has(piece.brickRef))
-            failures.push(
-              failure(step.stepNumber, `Direct Brick ${piece.brickRef} is duplicated.`),
-            );
+            failures.add(failure(step.stepNumber, `Direct Brick ${piece.brickRef} is duplicated.`));
           seenDirect.add(piece.brickRef);
           const omitted =
             step.action.kind === "place-callouts" &&
@@ -285,7 +287,7 @@ export function validateRealBuildActionLedger(input: {
               piece.identificationInputDigest !== input.official.digest ||
               piece.transform === null)
           ) {
-            failures.push(
+            failures.add(
               failure(
                 step.stepNumber,
                 `Omitted Brick ${piece.brickRef} must be an exact fixed-transform official-model identity, not a ` +
@@ -294,7 +296,7 @@ export function validateRealBuildActionLedger(input: {
             );
           }
           if (omitted && !sameTransform(piece.transform, official?.canonicalTransform ?? null)) {
-            failures.push(
+            failures.add(
               failure(
                 step.stepNumber,
                 `Omitted Brick ${piece.brickRef} transform ${JSON.stringify(piece.transform)} does not equal ` +
@@ -305,19 +307,13 @@ export function validateRealBuildActionLedger(input: {
           if (
             !omitted &&
             (piece.calloutKey === null ||
-              // Widened deliberately from the single vision-kept literal: a
-              // pair-judged identity is a different trust source with its own
-              // provenance, and it enters here as its own value rather than
-              // being written out as vision-kept. The claim-match check below
-              // still requires coverage to carry the exact same value, so the
-              // ledger cannot relabel what identified the piece.
               !isTrustedIdentificationConfidence(piece.identificationConfidence) ||
               !/^sha256:[0-9a-f]{64}$/u.test(piece.cropDigest ?? "") ||
               !/^sha256:[0-9a-f]{64}$/u.test(piece.identificationInputDigest) ||
               piece.identificationInputDigest !== input.calloutManifestDigest ||
               piece.transform !== null)
           ) {
-            failures.push(
+            failures.add(
               failure(
                 step.stepNumber,
                 `Direct Brick ${piece.brickRef} must bind one exact coverage callout whose identification ` +
@@ -330,7 +326,7 @@ export function validateRealBuildActionLedger(input: {
           if (!omitted) requiredCalloutRefs.add(piece.brickRef);
         }
         if (established.has(piece.brickRef))
-          failures.push(failure(step.stepNumber, `Brick identity ${piece.brickRef} is reused.`));
+          failures.add(failure(step.stepNumber, `Brick identity ${piece.brickRef} is reused.`));
         established.set(piece.brickRef, { stepNumber: step.stepNumber, piece });
         if (piece.calloutKey !== null && input.coverageByCallout !== null) {
           const claim = input.coverageByCallout[piece.calloutKey];
@@ -343,13 +339,14 @@ export function validateRealBuildActionLedger(input: {
             claim.inputDigest === piece.identificationInputDigest &&
             claim.resolution?.catalogPartId === piece.catalogPartId &&
             claim.resolution?.colorId === piece.colorId &&
-            claim.resolution?.partNum === piece.designId;
+            claim.resolution?.partNum === piece.designId &&
+            officialItemNoMatchesCoverageClaim(official, claim);
           if (!claimMatches) {
-            failures.push(
+            failures.add(
               failure(
                 step.stepNumber,
                 `Brick ${piece.brickRef} does not exactly match coverage claim ${piece.calloutKey} for ` +
-                  `step/page/part/color/confidence/crop/input evidence.`,
+                  `step/page/part/color/sole official itemNo/confidence/crop/input evidence.`,
               ),
             );
           }
@@ -359,9 +356,6 @@ export function validateRealBuildActionLedger(input: {
       for (const binding of step.callouts) {
         const claim = input.coverageByCallout?.[binding.calloutKey];
         const physicalRefs = new Set(binding.physicalBrickRefs);
-        // The bookkeeping below still runs with an unbound closure — it is what
-        // proves the ledger binds its own callouts — but the claim comparison is
-        // not evaluated, because there is no claim to compare against.
         if (
           input.coverageByCallout !== null &&
           (boundCallouts.has(binding.calloutKey) ||
@@ -379,6 +373,11 @@ export function validateRealBuildActionLedger(input: {
                 piece === undefined ||
                 (step.action.kind === "place-callouts" &&
                   piece.calloutKey !== binding.calloutKey) ||
+                (step.action.kind === "place-callouts" &&
+                  !officialItemNoMatchesCoverageClaim(
+                    input.official.bricks[piece.brickRef],
+                    claim,
+                  )) ||
                 claim.resolution?.catalogPartId !== piece.catalogPartId ||
                 claim.resolution?.colorId !== piece.colorId ||
                 claim.resolution?.partNum !== piece.designId
@@ -388,11 +387,12 @@ export function validateRealBuildActionLedger(input: {
               binding.physicalBrickRefs.length + binding.semanticMultiplierQuantity ||
             (binding.semanticMultiplierQuantity > 0 && step.action.kind !== "multi-build-copy"))
         ) {
-          failures.push(
+          failures.add(
             failure(
               step.stepNumber,
               `Callout binding ${binding.calloutKey} must exactly match one coverage claim, its page/step/raw ` +
-                `quantity, the listed physical Brick identities, and any explicit MultiBuild multiplier.`,
+                `quantity, each direct Brick's sole official itemNo, the listed physical identities, and any ` +
+                `explicit MultiBuild multiplier.`,
             ),
           );
         }
@@ -428,7 +428,7 @@ export function validateRealBuildActionLedger(input: {
           claim.localClassification?.reviewedPanelDigest !== claim.panelEvidenceDigest ||
           claim.evidenceDigest === step.panelEvidenceDigest
         ) {
-          failures.push({
+          failures.add({
             code: "transition-classification-unverified",
             stage: "input",
             stepNumber: step.stepNumber,
@@ -450,7 +450,7 @@ export function validateRealBuildActionLedger(input: {
         .find(({ calloutKey }) => calloutKey === key);
       const physicalQuantity = binding?.physicalBrickRefs.length ?? 0;
       if (count !== physicalQuantity || !boundCallouts.has(key)) {
-        failures.push(
+        failures.add(
           failure(
             claim.stepNumber,
             `Coverage ${key} at step ${claim.stepNumber} binds ${count}/${physicalQuantity} exact physical ` +
@@ -465,7 +465,7 @@ export function validateRealBuildActionLedger(input: {
       (fullRun && seenCopies.size !== input.official.multiBuildByActualRef.size) ||
       [...requiredCalloutRefs].some((brickRef) => !boundPhysicalRefs.has(brickRef))
     ) {
-      failures.push(
+      failures.add(
         failure(
           undefined,
           `Action ledger covers ${seenDirect.size}/${input.official.directBrickRefs.size} direct and ` +
@@ -475,16 +475,16 @@ export function validateRealBuildActionLedger(input: {
         ),
       );
     }
-    return failures;
+    return failures.result();
   } catch (error) {
-    return [
-      ...failures,
+    failures.add(
       failure(
         undefined,
         `Action ledger is structurally malformed and cannot define build truth: ${
           error instanceof Error ? error.message : String(error)
         }.`,
       ),
-    ];
+    );
+    return failures.result();
   }
 }

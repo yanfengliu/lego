@@ -10,6 +10,11 @@ import {
   readBoundManifestCrop,
   sha256Digest,
 } from "./part-identification-artifacts.mjs";
+import {
+  canonicalPng,
+  expectationFor,
+  manifestFor,
+} from "./booklet-catalog-coverage-test-fixture.mjs";
 import { commandFeatures, runPartIdentificationCli } from "./part-identification.mjs";
 import { derivePartIdentificationMatch } from "./part-identification-derivation.mjs";
 import {
@@ -34,7 +39,7 @@ describe("part-identification feature extraction and bound source reads", () => 
     const identity = "p11|q1|x43.074|y486.271";
     const identityDigest = sha256Digest(identity);
     const manifest = {
-      schemaVersion: "lego.callout-thumbnails/5",
+      schemaVersion: "lego.callout-thumbnails/6",
       sourceHash: FULL_CALLOUT_MANIFEST_EXPECTATION.sourceHash,
       pageSelection: "full booklet",
       pagesCropped: 1,
@@ -46,6 +51,39 @@ describe("part-identification feature extraction and bound source reads", () => 
         physicalPartArtQuantityTotal: 0,
         semanticIdentityCount: 1,
         semanticQuantityTotal: 1,
+      },
+      recoveryBenchmark: {
+        schemaVersion: "lego.callout-recovery-benchmark-result/2",
+        fixtureSourceHash: FULL_CALLOUT_MANIFEST_EXPECTATION.sourceHash,
+        fixedFailureClassSize: 1,
+        observedLegacyFailureIdentities: [identity],
+        scores: [
+          {
+            strategy: "evidence-aware",
+            valid: 1,
+            recovered: 1,
+            kindCorrect: 1,
+            regionCorrect: 1,
+            masksCorrect: 1,
+            uncontaminated: 1,
+            invalidIdentities: [],
+            points: 1_011_111,
+          },
+          {
+            strategy: "legacy-seed",
+            valid: 0,
+            recovered: 0,
+            kindCorrect: 0,
+            regionCorrect: 0,
+            masksCorrect: 0,
+            uncontaminated: 0,
+            invalidIdentities: [identity],
+            points: 0,
+          },
+        ],
+        selected: "evidence-aware",
+        winner: "evidence-aware",
+        winningMargin: 1_011_111,
       },
       conservation: {
         expectedIdentityCount: 1,
@@ -82,12 +120,70 @@ describe("part-identification feature extraction and bound source reads", () => 
             rawQuantity: 1,
             identitySetDigest: identityDigest,
             accounting: manifest.accounting,
+            recoveryFailureIdentities: [identity],
           },
         }),
-      ).rejects.toThrow(/fixed evidence contract/);
+      ).rejects.toThrow(/exactly its versioned keys|fixed evidence contract/);
       await expect(
         commandFeatures(["--callouts", directory, "--inventory", join(directory, "missing")]),
       ).rejects.toThrow(/independently pinned full-booklet publication/);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("authenticates missing and tampered semantic crop bytes before feature derivation", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "lego-semantic-crop-"));
+    const inventoryDirectory = join(directory, "inventory");
+    const png = canonicalPng(1_200, 500);
+    const semantic = {
+      identity: "p33|q4|x274.854|y340.077",
+      file: "placeholder.png",
+      pageNumber: 33,
+      stepNumber: 29,
+      quantity: 4,
+      xPt: 274.854,
+      yPt: 340.077,
+      heightPt: 16,
+      boxMethod: "vector-smallest",
+      box: { minXPt: 250, minYPt: 300, maxXPt: 350, maxYPt: 400 },
+      evidenceKind: "subassembly-repeat",
+      regionKind: "vector-box-full",
+      cropStrategy: "semantic-action-region",
+      masksApplied: ["quantity-label"],
+      contamination: [],
+      widthPx: 1_200,
+      heightPx: 500,
+      foregroundPixels: 10_000,
+      sourceTextGlyphPixels: 10,
+      sourceQuantityGlyphPixels: 10,
+      textGlyphOverlapPixels: 0,
+      quantityGlyphOverlapPixels: 0,
+      quantityGlyphPixelsMasked: 10,
+      cropRectPx: { left: 0, top: 0, right: 1_199, bottom: 499 },
+      boundaryClearancePx: { left: 16, top: 16, right: 16, bottom: 16 },
+      sourceComponent: null,
+      sha256: sha256Digest(png),
+      byteLength: png.length,
+    };
+    const manifest = manifestFor([semantic]);
+    const cropPath = join(directory, ...manifest.callouts[0].file.split("/"));
+    try {
+      mkdirSync(inventoryDirectory, { recursive: true });
+      writeFileSync(join(directory, "manifest.json"), `${JSON.stringify(manifest, null, 1)}\n`);
+      await expect(
+        commandFeatures(["--callouts", directory, "--inventory", inventoryDirectory], {
+          manifestExpectation: expectationFor(manifest),
+        }),
+      ).rejects.toThrow(/semantic.*could not be read|p33\|q4.*could not be read/s);
+
+      mkdirSync(join(cropPath, ".."), { recursive: true });
+      writeFileSync(cropPath, Buffer.alloc(png.length));
+      await expect(
+        commandFeatures(["--callouts", directory, "--inventory", inventoryDirectory], {
+          manifestExpectation: expectationFor(manifest),
+        }),
+      ).rejects.toThrow(/p33\|q4.*digest.*manifest binds/s);
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
@@ -229,11 +325,17 @@ describe("part-identification feature extraction and bound source reads", () => 
     const directory = mkdtempSync(join(tmpdir(), "lego-bound-crop-"));
     const relative = `runs/${RUN_ID}/p11-q1-x43d074-y486d271.png`;
     const path = join(directory, ...relative.split("/"));
-    const original = Buffer.from("original crop bytes");
+    const original = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGD4DwABBAEAX+XDSwAAAABJRU5ErkJggg==",
+      "base64",
+    );
     const entry = {
       identity: "p11|q1|x43.074|y486.271",
       file: relative,
       sha256: sha256Digest(original),
+      byteLength: original.length,
+      widthPx: 1,
+      heightPx: 1,
     };
     try {
       mkdirSync(join(directory, "runs", RUN_ID), { recursive: true });
@@ -248,9 +350,26 @@ describe("part-identification feature extraction and bound source reads", () => 
       const decoded = await readBoundManifestCrop(entry, directory, async (bytes) => {
         writeFileSync(path, "changed after authenticated read");
         expect(bytes).toEqual(original);
-        return { decoded: true };
+        return Buffer.from("transformed crop");
       });
-      expect(decoded).toEqual({ decoded: true });
+      expect(decoded).toEqual(Buffer.from("transformed crop"));
+
+      writeFileSync(path, original);
+      const decodeLengthLie = vi.fn(async () => Buffer.from("must not decode"));
+      await expect(
+        readBoundManifestCrop(
+          { ...entry, byteLength: original.length + 1 },
+          directory,
+          decodeLengthLie,
+        ),
+      ).rejects.toThrow(/contains .* bytes.*manifest binds/s);
+      expect(decodeLengthLie).not.toHaveBeenCalled();
+
+      await expect(
+        readBoundManifestCrop({ ...entry, widthPx: 2 }, directory, async () =>
+          Buffer.from("must not decode"),
+        ),
+      ).rejects.toThrow(/authenticated PNG header of 1 x 1 pixels.*manifest binds 2 x 1/s);
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

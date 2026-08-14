@@ -2,8 +2,7 @@ import type { PanelBounds } from "../src/instructions/step-panels";
 
 export type EvidenceKind = "part-art" | "subassembly-repeat" | "assembly-action";
 export type BoxMethod = "vector-smallest" | "panel-neighbor-cell";
-export type CropStrategy =
-  "legacy-seed" | "adaptive-seed" | "ranked-component" | "semantic-action-region";
+export type CropStrategy = "legacy-seed" | "ranked-component" | "semantic-action-region";
 export type RegionKind = "isolated-component" | "vector-box-full" | "panel-neighbor-action";
 export type MaskKind = "all-pdf-text" | "quantity-label";
 
@@ -22,6 +21,16 @@ export interface CalloutTarget extends QuantityLabel {
   readonly boxMethod: BoxMethod;
   readonly evidenceKind: EvidenceKind;
   readonly regionKind: RegionKind;
+}
+
+export interface BrowserCropInput {
+  readonly pdfjsUrl: string;
+  readonly workerUrl: string;
+  readonly pdfUrl: string;
+  readonly pageNumber: number;
+  readonly expectedSourceHash: string;
+  readonly expectedSourceBytes: number;
+  readonly targets: readonly CalloutTarget[];
 }
 
 export interface PixelBounds {
@@ -55,14 +64,41 @@ export interface BrowserCrop {
   readonly quantityGlyphPixelsMasked: number;
   readonly cropRectPx: PixelBounds;
   readonly boundaryClearancePx: PixelClearance;
+  readonly sourceComponent: SourceComponentEvidence | null;
+}
+
+/** Page-raster identity of the exact non-text component group retained in a physical crop. */
+export interface SourceComponentEvidence {
+  readonly rasterScale: 8;
+  readonly boundsPx: PixelBounds;
+  readonly foregroundPixels: number;
+  readonly rawComponentCount: number;
+  readonly absoluteForegroundSha256: string;
 }
 
 export interface BrowserResult {
   readonly identity: string;
   readonly targetEvidenceKind: EvidenceKind;
   readonly legacy: BrowserCrop | null;
-  readonly adaptive: BrowserCrop | null;
   readonly ranked: BrowserCrop | null;
+  readonly rankedFailure: {
+    readonly reason: "bounds" | "missing" | "ambiguous";
+    readonly targetCount: number;
+    readonly componentCount: number;
+    readonly targetAnchors: readonly {
+      readonly identity: string;
+      readonly rasterX: number;
+      readonly labelTop: number;
+      readonly maximumHorizontalGap: number;
+    }[];
+    readonly componentBounds: readonly {
+      readonly left: number;
+      readonly top: number;
+      readonly right: number;
+      readonly bottom: number;
+      readonly size: number;
+    }[];
+  } | null;
   readonly action: BrowserCrop | null;
 }
 
@@ -81,10 +117,12 @@ export interface RecoveryFixtureCase {
   readonly minimumHeightPx: number;
   readonly minimumForegroundPixels: number;
   readonly minimumBoundaryClearancePx: number;
+  readonly expectedSourceComponentBoundsPx?: PixelBounds;
+  readonly expectedSourceComponentSha256?: string;
 }
 
 export interface StrategyScore {
-  readonly strategy: "adaptive-seed" | "ranked-component" | "evidence-aware";
+  readonly strategy: "legacy-seed" | "evidence-aware";
   readonly valid: number;
   readonly recovered: number;
   readonly kindCorrect: number;
@@ -96,13 +134,13 @@ export interface StrategyScore {
 }
 
 export interface RecoveryBenchmark {
-  readonly schemaVersion: "lego.callout-recovery-benchmark-result/1";
+  readonly schemaVersion: "lego.callout-recovery-benchmark-result/2";
   readonly fixtureSourceHash: string;
   readonly fixedFailureClassSize: number;
   readonly observedLegacyFailureIdentities: readonly string[];
   readonly scores: readonly StrategyScore[];
   readonly selected: "evidence-aware";
-  readonly winner: "adaptive-seed" | "ranked-component" | "evidence-aware";
+  readonly winner: "legacy-seed" | "evidence-aware";
   readonly winningMargin: number;
 }
 
@@ -135,10 +173,11 @@ export interface PublishedCallout {
   readonly quantityGlyphPixelsMasked: number;
   readonly cropRectPx: PixelBounds;
   readonly boundaryClearancePx: PixelClearance;
+  readonly sourceComponent: SourceComponentEvidence | null;
 }
 
 export interface CalloutManifest {
-  readonly schemaVersion: "lego.callout-thumbnails/5";
+  readonly schemaVersion: "lego.callout-thumbnails/6";
   readonly sourceHash: string;
   readonly pageSelection: "full booklet" | readonly number[];
   readonly pagesCropped: number;

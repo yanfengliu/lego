@@ -2,10 +2,10 @@
  "schemaVersion": "lego.real-build-catalog-coverage/2",
  "inputDigests": {
   "pdf": "sha256:f76be473d1118d69bb7596dc8ea1b5905571e54ecacced0e210c4e2193779865",
-  "calloutManifest": "sha256:0ea8582b833a5353160aa05b0af6ef41886a9813c8b9c6b3829f533a1689bc73",
-  "features": "sha256:33da68db3e015a3528e3ac3365461763c81c8b6ca51824ada6781e210d10e0f4",
-  "match": "sha256:a974c73afb2836c09c5274cc74be67afe2ee354ea37647f2bee05732e5bf4a36",
-  "distances": "sha256:698e9f45d2648c21dc925fc3f4e772676c71c9490bede8e80e1c24fd0f641949",
+  "calloutManifest": "sha256:8ffa64e6331992fef91ae70186b8754106cb481bc0ad325146bdf64598b348bd",
+  "features": "sha256:ecd0e263f731fc472275e642f8bba04160491da3f0bb60a33a66467a8f6a8afa",
+  "match": "sha256:0bc30b3007f8a61d9a62736ec711184d786376e768a710697d4028ce96694b6f",
+  "distances": "sha256:53e3f3f361b4f3ffa3f27bcdd137b6bcd8967364545da721b5b6501b5dc249ed",
   "elementResolution": "sha256:9b1f5551504738d2b32b473588fb7c379e1a94c050b6be20444020f40057a7cc",
   "pairJudged": "sha256:d107d2146b18006948f78e7590d311a9be77d4d52d2f11a672c70cab85e68a2f"
  },
@@ -48,12 +48,12 @@
  "byCallout": {
   "p11|q1|x43.074|y486.271": {
    "identity": "p11|q1|x43.074|y486.271",
-   "file": "runs/0123456789abcdef01234567/p11-q1-x43d074-y486d271.png",
+   "file": "runs/618952d72352435370bb4e94/p11-q1-x43d074-y486d271.png",
    "pageNumber": 11,
    "stepNumber": 1,
    "quantity": 1,
    "cropDigest": "sha256:216dbf4d75f88d708e39d3309dfac7524eed22b5cdbeffc82ce1d9f47b354862",
-   "inputDigest": "sha256:0ea8582b833a5353160aa05b0af6ef41886a9813c8b9c6b3829f533a1689bc73",
+   "inputDigest": "sha256:8ffa64e6331992fef91ae70186b8754106cb481bc0ad325146bdf64598b348bd",
    "elementId": "300501",
    "identificationConfidence": "pair-judged-same",
    "resolution": {

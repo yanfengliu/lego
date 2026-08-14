@@ -25,7 +25,7 @@ export {
   bindCalloutsToBookletPanels,
   CoverageContractError,
   coverageCalloutKey,
-  isV5ManifestCallout,
+  isV6ManifestCallout,
   reconcileStepCoverage,
   requireCoverageCallout,
   requireCoverageIndex,
@@ -36,7 +36,7 @@ export type {
   CoverageContractFailureCode,
   CoverageInputBindings,
   StepCoverageCalloutClaim,
-  V5ManifestCallout,
+  V6ManifestCallout,
 } from "./real-build-coverage";
 export type {
   RealBuildAccounting,

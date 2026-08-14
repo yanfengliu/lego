@@ -2,7 +2,7 @@
   "schemaVersion": "lego.part-identification-features/3",
   "inputDigests": {
     "pdf": "sha256:f76be473d1118d69bb7596dc8ea1b5905571e54ecacced0e210c4e2193779865",
-    "calloutManifest": "sha256:0ea8582b833a5353160aa05b0af6ef41886a9813c8b9c6b3829f533a1689bc73"
+    "calloutManifest": "sha256:8ffa64e6331992fef91ae70186b8754106cb481bc0ad325146bdf64598b348bd"
   },
   "inventorySourceDigests": {
     "300501": "sha256:aa0208789a6197eb0aea984264b5f8925754d4f96d4d47839a4e04ef6592dd73"
@@ -82,15 +82,61 @@
   "callouts": [
     {
       "identity": "p11|q1|x43.074|y486.271",
-      "file": "runs/0123456789abcdef01234567/p11-q1-x43d074-y486d271.png",
+      "file": "runs/618952d72352435370bb4e94/p11-q1-x43d074-y486d271.png",
       "pageNumber": 11,
       "stepNumber": 1,
       "quantity": 1,
       "xPt": 43.074,
       "yPt": 486.271,
       "heightPt": 8,
+      "boxMethod": "vector-smallest",
+      "box": {
+        "minXPt": 40,
+        "minYPt": 480,
+        "maxXPt": 80,
+        "maxYPt": 510
+      },
       "evidenceKind": "part-art",
+      "regionKind": "isolated-component",
+      "cropStrategy": "ranked-component",
+      "masksApplied": [
+        "all-pdf-text"
+      ],
+      "contamination": [],
       "sha256": "sha256:216dbf4d75f88d708e39d3309dfac7524eed22b5cdbeffc82ce1d9f47b354862",
+      "byteLength": 68,
+      "widthPx": 28,
+      "heightPx": 28,
+      "foregroundPixels": 2,
+      "sourceTextGlyphPixels": 0,
+      "sourceQuantityGlyphPixels": 0,
+      "textGlyphOverlapPixels": 0,
+      "quantityGlyphOverlapPixels": 0,
+      "quantityGlyphPixelsMasked": 0,
+      "cropRectPx": {
+        "left": 0,
+        "top": 0,
+        "right": 27,
+        "bottom": 27
+      },
+      "boundaryClearancePx": {
+        "left": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0
+      },
+      "sourceComponent": {
+        "rasterScale": 8,
+        "boundsPx": {
+          "left": 0,
+          "top": 0,
+          "right": 27,
+          "bottom": 27
+        },
+        "foregroundPixels": 2,
+        "rawComponentCount": 1,
+        "absoluteForegroundSha256": "sha256:fdc3e13060f9af697f2b4d505a49471d86d03ee657ad2dee504d7e0add19ad5e"
+      },
       "descriptor": {
         "grid": [
           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

@@ -109,7 +109,7 @@ describe("booklet catalog coverage report builder", () => {
     });
   });
 
-  it("binds stable v5 identities and exact PDF, manifest, crop, and claim evidence", () => {
+  it("binds stable v6 identities and exact PDF, manifest, crop, and claim evidence", () => {
     const input = fixture();
     const report = __testOnly.buildBookletCatalogCoverageReport(
       {
@@ -328,7 +328,7 @@ describe("booklet catalog coverage report builder", () => {
         claims: truncated.claims,
         elements: truncated.elements,
       }),
-    ).toThrow(/features contain 1 callouts, but the exact v5 manifest contains 2/);
+    ).toThrow(/features contain 1 callouts, but the exact v6 manifest contains 2/);
   });
 
   it("keeps semantic multiplier/action identities out of catalog-part coverage", () => {
@@ -344,13 +344,34 @@ describe("booklet catalog coverage report builder", () => {
       yPt: 340.077,
       heightPt: 16,
       evidenceKind: "subassembly-repeat",
+      regionKind: "vector-box-full",
+      cropStrategy: "semantic-action-region",
+      masksApplied: ["quantity-label"],
+      contamination: [],
+      widthPx: 1_200,
+      heightPx: 500,
+      foregroundPixels: 10_000,
+      sourceTextGlyphPixels: 10,
+      sourceQuantityGlyphPixels: 10,
+      textGlyphOverlapPixels: 0,
+      quantityGlyphOverlapPixels: 0,
+      quantityGlyphPixelsMasked: 10,
+      cropRectPx: { left: 0, top: 0, right: 1_199, bottom: 499 },
+      boundaryClearancePx: { left: 16, top: 16, right: 16, bottom: 16 },
+      sourceComponent: null,
       sha256: digest("semantic-action"),
     };
     const manifest = manifestFor([...input.manifest.callouts, semantic]);
     const manifestBytes = Buffer.from(`${JSON.stringify(manifest, null, 1)}\n`);
     const features = {
       inputDigests: { pdf: manifest.sourceHash, calloutManifest: digest(manifestBytes) },
-      callouts: [...input.features.callouts, { ...semantic, descriptor: { pixels: 3 } }],
+      callouts: manifest.callouts.map((callout, index) => ({
+        ...callout,
+        descriptor:
+          index < input.features.callouts.length
+            ? input.features.callouts[index].descriptor
+            : { pixels: 3 },
+      })),
     };
     const report = build({
       manifestBytes,
@@ -388,6 +409,41 @@ describe("booklet catalog coverage report builder", () => {
     const input = fixture();
     const truncated = manifestFor([input.manifest.callouts[0]]);
     truncated.sourceHash = FULL_CALLOUT_MANIFEST_EXPECTATION.sourceHash;
+    const failureIdentities = [...FULL_CALLOUT_MANIFEST_EXPECTATION.recoveryFailureIdentities];
+    const completePoints = failureIdentities.length * 1_011_111;
+    truncated.recoveryBenchmark = {
+      schemaVersion: "lego.callout-recovery-benchmark-result/2",
+      fixtureSourceHash: FULL_CALLOUT_MANIFEST_EXPECTATION.sourceHash,
+      fixedFailureClassSize: failureIdentities.length,
+      observedLegacyFailureIdentities: failureIdentities,
+      scores: [
+        {
+          strategy: "evidence-aware",
+          valid: failureIdentities.length,
+          recovered: failureIdentities.length,
+          kindCorrect: failureIdentities.length,
+          regionCorrect: failureIdentities.length,
+          masksCorrect: failureIdentities.length,
+          uncontaminated: failureIdentities.length,
+          invalidIdentities: [],
+          points: completePoints,
+        },
+        {
+          strategy: "legacy-seed",
+          valid: 0,
+          recovered: 0,
+          kindCorrect: 0,
+          regionCorrect: 0,
+          masksCorrect: 0,
+          uncontaminated: 0,
+          invalidIdentities: failureIdentities,
+          points: 0,
+        },
+      ],
+      selected: "evidence-aware",
+      winner: "evidence-aware",
+      winningMargin: completePoints,
+    };
     expect(() =>
       __testOnly.buildBookletCatalogCoverageReport(
         {
@@ -410,7 +466,8 @@ describe("booklet catalog coverage report builder", () => {
     const substituted = structuredClone(input.manifest);
     substituted.callouts[0].identity = "p11|q1|x44.000|y486.271";
     substituted.callouts[0].xPt = 44;
-    substituted.callouts[0].file = "runs/0123456789abcdef01234567/p11-q1-x44d000-y486d271.png";
+    const runId = /^runs\/([0-9a-f]{24})\//u.exec(substituted.callouts[1].file)[1];
+    substituted.callouts[0].file = `runs/${runId}/p11-q1-x44d000-y486d271.png`;
     substituted.conservation.publishedIdentitySetSha256 = digest(
       substituted.callouts
         .map(({ identity }) => identity)
@@ -437,17 +494,17 @@ describe("booklet catalog coverage report builder", () => {
     );
     expect(() => build(withFace(12, "part-art"))).toThrow(/never been measured at/u);
     expect(() => build(withFace(undefined, "part-art"))).toThrow(
-      /publish no measured quantity-label type size/u,
+      /missing=heightPt|publish no measured quantity-label type size/u,
     );
   });
 
-  it("rejects non-v5, malformed, duplicate, and count-stale manifests", () => {
+  it("rejects non-v6, malformed, duplicate, and count-stale manifests", () => {
     const input = fixture();
     const bytes = (manifest) => Buffer.from(`${JSON.stringify(manifest, null, 1)}\n`);
 
     expect(() =>
       build({ manifestBytes: bytes({ ...input.manifest, schemaVersion: "legacy" }) }),
-    ).toThrow(/lego\.callout-thumbnails\/5/);
+    ).toThrow(/lego\.callout-thumbnails\/6/);
     expect(() => build({ manifestBytes: Buffer.from("not-json") })).toThrow(/not valid JSON/);
     expect(() =>
       build({

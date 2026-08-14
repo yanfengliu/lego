@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -53,6 +53,7 @@ export function bookletProbeUrls(): {
   readonly pdfjsUrl: string;
   readonly workerUrl: string;
   readonly pdfUrl: string;
+  readonly expectedSourceBytes: number;
 } {
   if (SAMPLE_BOOKLET_PATH === null) {
     throw new Error(
@@ -63,6 +64,7 @@ export function bookletProbeUrls(): {
     pdfjsUrl: fsUrl(PDFJS_MODULE_PATH),
     workerUrl: fsUrl(PDFJS_WORKER_PATH),
     pdfUrl: fsUrl(SAMPLE_BOOKLET_PATH),
+    expectedSourceBytes: statSync(SAMPLE_BOOKLET_PATH).size,
   };
 }
 

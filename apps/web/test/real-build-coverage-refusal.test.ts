@@ -39,14 +39,32 @@ describe("unbound catalog coverage", () => {
     expect(validate(fixture.coverageByCallout)).toEqual([]);
     // A bound index that is empty really does disagree with the ledger.
     const emptyIndexFailures = validate({});
-    expect(emptyIndexFailures.length).toBeGreaterThan(0);
-    expect(emptyIndexFailures).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          message: expect.stringContaining("does not exactly match coverage claim"),
-        }),
-      ]),
-    );
+    expect(emptyIndexFailures).toEqual([
+      {
+        code: "action-ledger-incomplete",
+        stage: "input",
+        stepNumber: 1,
+        message:
+          "Bound coverage contains zero retained callouts for printed step 1, so the ledger must " +
+          "retain its reproduced transition action and classification instead of place-callouts.",
+      },
+      {
+        code: "action-ledger-incomplete",
+        stage: "input",
+        stepNumber: 2,
+        message:
+          "Bound coverage contains zero retained callouts for printed step 2, so the ledger must " +
+          "retain its reproduced transition action and classification instead of multi-build-copy.",
+      },
+      {
+        code: "action-ledger-incomplete",
+        stage: "input",
+        message:
+          "Action ledger covers 0/1 direct and 0/1 MultiBuild identities through requested step 359; " +
+          "exact callout binding is required for the prefix, and full official identity conservation " +
+          "is additionally required at step 359.",
+      },
+    ]);
     // No index at all is not a disagreement: there is nothing to disagree with.
     expect(validate(null)).toEqual([]);
   });

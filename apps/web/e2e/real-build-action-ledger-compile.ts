@@ -46,10 +46,9 @@ import type { StepFailure } from "./real-build-safety";
  *
  * The publisher never writes a ledger it has not first pushed back through
  * `validateRealBuildActionLedger`, the same function the probe applies, so a
- * file the probe would reject on its own bindings never reaches the output
- * root. The validation failures that remain are returned rather than thrown:
- * they are the honest statement of which evidence the booklet still lacks, and
- * the caller prints them.
+ * file the probe would reject on its own bindings must not reach the output
+ * root. Compilation returns bounded failure records for diagnosis; every
+ * publisher applies `requirePublishableRealBuildActionLedger` before writing.
  */
 
 export const REAL_BUILD_ACTION_LEDGER_PRINTED_STEPS = 359 as const;
@@ -64,10 +63,35 @@ export interface CompiledRealBuildActionLedger {
   readonly validatedThroughStep: number;
 }
 
+const MAXIMUM_PUBLISH_FAILURE_CATEGORIES = 8;
+
+export function requirePublishableRealBuildActionLedger(
+  compiled: Pick<CompiledRealBuildActionLedger, "validatedThroughStep" | "validationFailures">,
+): void {
+  if (compiled.validationFailures.length === 0) return;
+  const counts = new Map<string, number>();
+  for (const failure of compiled.validationFailures) {
+    const category = /^[a-z0-9-]{1,80}$/u.test(failure.code)
+      ? failure.code
+      : "invalid-failure-code";
+    counts.set(category, (counts.get(category) ?? 0) + 1);
+  }
+  const categories = [...counts.entries()].sort(([left], [right]) => left.localeCompare(right));
+  const shown = categories
+    .slice(0, MAXIMUM_PUBLISH_FAILURE_CATEGORIES)
+    .map(([category, count]) => `${category}=${count}`)
+    .join(", ");
+  const omitted = categories.length - MAXIMUM_PUBLISH_FAILURE_CATEGORIES;
+  throw new TypeError(
+    `Refusing to publish an action ledger with ${compiled.validationFailures.length} validation failure(s) ` +
+      `through its complete assembled prefix ending at printed step ${compiled.validatedThroughStep}. ` +
+      `Bounded categories: ${shown}${omitted > 0 ? `, ${omitted} more categories omitted` : ""}. ` +
+      `Resolve the named evidence categories and recompile; no ledger file was written.`,
+  );
+}
+
 /** Compiles the ledger for the requested prefix and re-validates the exact bytes it would write. */
-export async function compileRealBuildActionLedger(options?: {
-  readonly validateThroughStep?: number;
-}): Promise<CompiledRealBuildActionLedger> {
+export async function compileRealBuildActionLedger(): Promise<CompiledRealBuildActionLedger> {
   const inputFailures: StepFailure[] = [];
   const coverageInput = readJsonArtifact<Record<string, unknown>>(COVERAGE_PATH, inputFailures);
   const manifestInput = readJsonArtifact<CalloutManifest>(MANIFEST_PATH, inputFailures);
@@ -165,10 +189,7 @@ export async function compileRealBuildActionLedger(options?: {
   const emitted = emittedRealBuildActionLedger(assembled, REAL_BUILD_ACTION_LEDGER_PRINTED_STEPS);
   const encoded = encodeRealBuildActionLedger(emitted);
   const encodedDigest = sha256Digest(encoded);
-  const validatedThroughStep = Math.max(
-    1,
-    Math.min(options?.validateThroughStep ?? assembled.alignedThroughStep, 359),
-  );
+  const validatedThroughStep = Math.max(1, assembled.alignedThroughStep);
   const validationFailures = validateRealBuildActionLedger({
     ledger: assembled.ledger,
     ledgerDigest: encodedDigest,

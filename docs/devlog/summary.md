@@ -2,6 +2,8 @@
 
 Current state belongs in the design documents; this index records only behaviour changes, measured results, and links to the matching detailed history.
 
+- [2026-08-14 (manifest-v6 callout correction)](detailed/2026-08-13_2026-08-14.md) — Full-booklet component-group conservation now separates the duplicated printed-step-18 crops; deterministic identification moves to 288 groups and new source-bound cards, while fresh answers, coverage, and ledger publication remain honestly blocked by Claude OAuth 401.
+
 - [2026-08-13 through 2026-08-14 (exact report authentication)](detailed/2026-08-13_2026-08-14.md) — Canonical replay now refuses independently rehashed identification, coverage, score, and ledger evidence; it reproduces the retained ledger bytes but exposes 97 validation failures, while accepted-only member-local Builder truth removes 48 refusal-derived records and six element conflicts from the prior report path.
 
 - [2026-08-13 (regenerated identification closure)](detailed/2026-08-12_2026-08-13.md) — The exact match/cards/answers/score/coverage chain now retains 273 of 285 prompt-bound Claude answers, while the rebuilt unauthenticated action ledger aligns source boundaries through step 25 with 44 trusted pieces and 92 explicit refusals before a step-26 `28802` mismatch; bounded failure diagnostics expose only allowlisted status, byte counts, and static remediation, never prompt, session, provider-result, or model-output text.

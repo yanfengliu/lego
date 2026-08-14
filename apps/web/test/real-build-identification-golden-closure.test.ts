@@ -23,6 +23,70 @@ function goldenArtifact(role: keyof typeof SYNTHETIC_IDENTIFICATION_GOLDEN): Raw
 }
 
 describe("real-build deterministic identification golden closure", () => {
+  it("binds explicitly synthetic component-group evidence", () => {
+    const manifest = JSON.parse(
+      syntheticIdentificationGoldenBytes("manifest").toString("utf8"),
+    ) as {
+      readonly callouts: readonly {
+        readonly sourceComponent: {
+          readonly rawComponentCount: number;
+          readonly absoluteForegroundSha256: string;
+        } | null;
+      }[];
+    };
+    expect(manifest.callouts[0]?.sourceComponent).toMatchObject({
+      rawComponentCount: 1,
+      absoluteForegroundSha256: sha256Digest("synthetic-source-component-group"),
+    });
+  });
+
+  it("retains a mathematically complete synthetic recovery benchmark", () => {
+    const manifest = JSON.parse(
+      syntheticIdentificationGoldenBytes("manifest").toString("utf8"),
+    ) as {
+      readonly recoveryBenchmark: {
+        readonly fixedFailureClassSize: number;
+        readonly observedLegacyFailureIdentities: readonly string[];
+        readonly scores: readonly {
+          readonly strategy: "legacy-seed" | "evidence-aware";
+          readonly valid: number;
+          readonly recovered: number;
+          readonly kindCorrect: number;
+          readonly regionCorrect: number;
+          readonly masksCorrect: number;
+          readonly uncontaminated: number;
+          readonly invalidIdentities: readonly string[];
+          readonly points: number;
+        }[];
+        readonly selected: "evidence-aware";
+        readonly winner: "legacy-seed" | "evidence-aware";
+        readonly winningMargin: number;
+      };
+    };
+    const benchmark = manifest.recoveryBenchmark;
+    expect(benchmark.observedLegacyFailureIdentities).toHaveLength(benchmark.fixedFailureClassSize);
+    expect(benchmark.scores.map(({ strategy }) => strategy)).toEqual([
+      "evidence-aware",
+      "legacy-seed",
+    ]);
+    for (const score of benchmark.scores) {
+      expect(score.points).toBe(
+        score.valid * 1_000_000 +
+          score.kindCorrect * 10_000 +
+          score.regionCorrect * 1_000 +
+          score.masksCorrect * 100 +
+          score.uncontaminated * 10 +
+          score.recovered,
+      );
+      expect(score.valid + score.invalidIdentities.length).toBe(benchmark.fixedFailureClassSize);
+    }
+    const selected = benchmark.scores.find(({ strategy }) => strategy === benchmark.selected)!;
+    const runnerUp = benchmark.scores.find(({ strategy }) => strategy !== benchmark.selected)!;
+    expect(selected.valid).toBe(benchmark.fixedFailureClassSize);
+    expect(benchmark.winner).toBe(benchmark.selected);
+    expect(benchmark.winningMargin).toBe(selected.points - runnerUp.points);
+  });
+
   it("reproduces independently pinned deterministic golden bytes and digests", () => {
     const input: RealBuildIdentificationClosureInput = {
       coverage: goldenArtifact("coverage"),

@@ -1,6 +1,6 @@
 # Part model and catalog truth
 
-Status date: 2026-08-11
+Status date: 2026-08-14
 
 This document owns how a part is identified, represented, sourced, derived, checked, admitted, and versioned. [`spec.md`](spec.md) owns document and validator semantics, [`building-system.md`](building-system.md) owns the product frontier, and the [dependency and data bill of materials](../dependency-data-bom.md) owns source, license, and allowed-role records.
 
@@ -10,7 +10,7 @@ The builtin catalog is `builtin.basic-parts/13` with 85 definitions. Sixty-one r
 
 The sixteen render-only promotions take their visible triangles, normals, exact bounds, and explicit source-to-catalog frame from LDraw while preserving their preceding connector, allowance, connector-grid, evidence, and collision declarations. Their `preserved-catalog-recipe` collision can fill a visible void and is not proof of hollow physical truth. The `/13` migration therefore reports changed render interpretation without pretending that physical semantics changed.
 
-The tracked booklet has 121 distinct required leaf design identities. That is not an 85-of-121 coverage fraction: catalog definitions include parts outside the set, aliases and design identities do not share one denominator, and some booklet callouts remain unidentified. The current regenerated coverage is complete through printed step 22, first lacks design `25269` at step 23, and additionally lacks `28802` at step 26; the separate action-ledger source-boundary check reaches step 25 only by retaining omissions and refusals rather than claiming every intervening piece is placeable.
+The tracked booklet has 121 distinct required leaf design identities. That is not an 85-of-121 coverage fraction: catalog definitions include parts outside the set, aliases and design identities do not share one denominator, and some booklet callouts remain unidentified. Full-booklet manifest v6 now corrects printed step 18's quantity-two callout from the adjacent `3069` crop to element `6514469`, design `25269`; deterministic rederivation refines 859 physical callouts to 288 groups, but fresh crop-local adjudication is still absent, so there is no current v6 score or coverage prefix. Design `25269` remains absent from catalog `/13`, `28802` is additionally unresolved at step 26, and the separate retained action-ledger source-boundary check reaches step 25 only by retaining omissions and refusals rather than claiming every intervening piece is placeable.
 
 `npm run parts:check` passes all 85 definitions and is part of `npm run verify`. It is a declaration-consistency gate, not a substitute for source review, matched visual inspection, connector evidence, collision review, or browser verification.
 

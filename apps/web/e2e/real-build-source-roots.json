@@ -43,6 +43,8 @@
     "scripts/booklet-catalog-coverage-report.mjs",
     "scripts/booklet-catalog-coverage.mjs",
     "scripts/bounded-observed-value.mjs",
+    "scripts/callout-component-ownership.mjs",
+    "scripts/callout-manifest-shape.mjs",
     "scripts/part-assignment.mjs",
     "scripts/part-identification-artifact-source.mjs",
     "scripts/part-identification-artifact-vision.mjs",

@@ -79,11 +79,9 @@ import {
 import {
   bindCalloutsToBookletPanels,
   isAtomicStepComplete,
-  isV5ManifestCallout,
   type RealBuildOptions,
   type RealBuildResult,
   type StepFailure,
-  type V5ManifestCallout,
 } from "./real-build-safety";
 import {
   decodeRealBuildPngCapture,
@@ -111,6 +109,7 @@ import {
 } from "./real-build-run-contract";
 import { deriveMeasuredFartherOriginSourceAttestation } from "./real-build-farther-origin-source-attestation";
 import { buildRealBuildPanelSpecs } from "./real-build-panel-specs";
+import { inspectRealBuildManifestRows } from "./real-build-manifest-consumption";
 import {
   ASSEMBLY_MODULE_URL,
   BRICK_KERNEL_MODULE_URL,
@@ -249,13 +248,13 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
     answers: identificationAnswersInput?.digest ?? null,
   };
   if (
-    manifestInput.value.schemaVersion !== "lego.callout-thumbnails/5" ||
+    manifestInput.value.schemaVersion !== "lego.callout-thumbnails/6" ||
     manifestInput.value.sourceHash !== inputDigests.pdf
   ) {
     preparationFailures.push(
       contractFailure(
         MANIFEST_PATH,
-        `Callout input must use lego.callout-thumbnails/5 and bind the exact booklet PDF. Manifest ` +
+        `Callout input must use lego.callout-thumbnails/6 and bind the exact booklet PDF. Manifest ` +
           `${JSON.stringify(manifestInput.value.schemaVersion ?? "missing")}/` +
           `${JSON.stringify(manifestInput.value.sourceHash ?? "missing")}; live PDF ${inputDigests.pdf}.`,
       ),
@@ -406,10 +405,12 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
       ),
     );
   }
-  const rawManifestCallouts = Array.isArray(manifestInput.value.callouts)
-    ? manifestInput.value.callouts
-    : [];
-  const manifestCallouts: V5ManifestCallout[] = rawManifestCallouts.filter(isV5ManifestCallout);
+  const manifestRows = inspectRealBuildManifestRows(
+    manifestInput.value.callouts,
+    manifestInput.value.calloutCount,
+    verifiedCoverage !== null,
+  );
+  const manifestCallouts = manifestRows.typed;
   if (manifestCallouts.length === 0) {
     preparationFailures.push(
       contractFailure(
@@ -418,16 +419,12 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
       ),
     );
   }
-  if (
-    manifestCallouts.length !== rawManifestCallouts.length ||
-    manifestInput.value.calloutCount !== manifestCallouts.length ||
-    new Set(manifestCallouts.map(({ identity }) => identity)).size !== manifestCallouts.length
-  ) {
+  if (!manifestRows.structurallyClosed) {
     preparationFailures.push(
       contractFailure(
         `${MANIFEST_PATH}#callouts`,
-        `The v5 callout manifest must contain exactly calloutCount unique, typed identity records; received ` +
-          `${manifestCallouts.length}/${rawManifestCallouts.length} typed rows for declared count ` +
+        `The v6 callout manifest must contain exactly calloutCount unique, typed identity records; received ` +
+          `${manifestCallouts.length}/${manifestRows.rawCount} typed rows for declared count ` +
           `${JSON.stringify(manifestInput.value.calloutCount ?? "missing")}.`,
       ),
     );
@@ -442,7 +439,7 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
   });
   const panelBindings = bindCalloutsToBookletPanels({
     lastStep: Number.isInteger(lastStep) ? lastStep : 1,
-    manifestCallouts,
+    manifestCallouts: manifestRows.trusted,
     panels,
     sourcePages: source.pages,
   });
@@ -501,7 +498,7 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
     facesByStep,
     calloutBoxesByStep,
     stepByCalloutIdentity: panelBindings.stepByIdentity,
-    manifestCallouts,
+    manifestCallouts: manifestRows.trusted,
     ledgerSteps,
     officialModel,
     coverageByCallout: byCallout,

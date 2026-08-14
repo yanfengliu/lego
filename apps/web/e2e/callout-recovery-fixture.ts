@@ -8,7 +8,7 @@ import type { RecoveryFixtureCase } from "./callout-types";
  * extraction must match this identity set and satisfy these fixed predicates.
  */
 export const CALLOUT_RECOVERY_FIXTURE = Object.freeze({
-  schemaVersion: "lego.callout-recovery-benchmark/1" as const,
+  schemaVersion: "lego.callout-recovery-benchmark/2" as const,
   sourceHash: "sha256:baef0a373164b58d7c982984b52d4e50b10cc59ed28007acb456faa72359bd27",
   cases: [
     semantic("p103|q2|x253.179|y92.215", 450, 250),
@@ -38,7 +38,11 @@ export const CALLOUT_RECOVERY_FIXTURE = Object.freeze({
     physical("p213|q4|x154.442|y474.991"),
     semantic("p213|q2|x112.849|y272.876", 250, 500),
     semantic("p216|q2|x353.685|y318.273", 1_550, 350),
-    physical("p22|q2|x109.082|y495.055"),
+    physical(
+      "p22|q2|x109.082|y495.055",
+      { left: 873, top: 264, right: 989, bottom: 333 },
+      "sha256:3b1bd25148adc6b9d7a0eec82bad4fb5b6f161cfa90220837ee2ff1ca65ceaa0",
+    ),
     physical("p24|q3|x139.735|y493.255"),
     semantic("p32|q2|x511.589|y390.747", 250, 400),
     {
@@ -107,7 +111,30 @@ export const FULL_BOOKLET_CALLOUT_ACCOUNTING = Object.freeze({
   fixedFailureClassSize: 38,
 });
 
-function physical(identity: string): RecoveryFixtureCase {
+export const FULL_BOOKLET_CALLOUT_SOURCE_CLOSURE = Object.freeze({
+  pagesCropped: 196,
+  identitySetSha256: "sha256:618c1815980af3d82ecd96f1697558b8a1976169517448039cff58430e4bf982",
+});
+
+/** Exact sorted PDF pages containing the 359 printed step panels, including 25 with no Nx label. */
+export const FULL_BOOKLET_STEP_PAGES = Object.freeze([
+  11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34,
+  35, 36, 37, 38, 39, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 53, 55, 56, 58, 59, 60, 61, 62, 63,
+  64, 65, 66, 67, 68, 69, 70, 71, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 85, 86, 87, 88, 89,
+  90, 91, 92, 93, 94, 95, 96, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111,
+  112, 114, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 133,
+  134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152,
+  153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 169, 170, 171, 172,
+  173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191,
+  193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211,
+  212, 213, 214, 215, 216, 217, 218, 219,
+]);
+
+function physical(
+  identity: string,
+  expectedSourceComponentBoundsPx?: RecoveryFixtureCase["expectedSourceComponentBoundsPx"],
+  expectedSourceComponentSha256?: RecoveryFixtureCase["expectedSourceComponentSha256"],
+): RecoveryFixtureCase {
   return {
     identity,
     evidenceKind: "part-art",
@@ -117,6 +144,8 @@ function physical(identity: string): RecoveryFixtureCase {
     minimumHeightPx: 64,
     minimumForegroundPixels: 1_000,
     minimumBoundaryClearancePx: 0,
+    ...(expectedSourceComponentBoundsPx ? { expectedSourceComponentBoundsPx } : {}),
+    ...(expectedSourceComponentSha256 ? { expectedSourceComponentSha256 } : {}),
   };
 }
 

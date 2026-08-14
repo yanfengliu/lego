@@ -18,7 +18,7 @@ import {
 
 export {
   FULL_CALLOUT_MANIFEST_EXPECTATION,
-  assertV5CalloutManifest,
+  assertV6CalloutManifest,
   authenticateJsonArtifact,
   jsonArtifactFromBytes,
   nonClusteredCalloutRecords,
@@ -165,14 +165,20 @@ function assertDescriptor(descriptor, path) {
 export function assertFeaturesArtifact(artifact) {
   const boundArtifact = authenticateJsonArtifact(artifact, "part-identification features");
   const features = boundArtifact.value;
-  const expectedNonClustered = Array.isArray(features?.callouts)
-    ? nonClusteredCalloutRecords(features.callouts)
-    : [];
-  const physicalIndexes = Array.isArray(features?.callouts)
-    ? [...features.callouts.keys()].filter(
-        (index) => features.callouts[index]?.evidenceKind === "part-art",
-      )
-    : [];
+  if (
+    !Array.isArray(features?.callouts) ||
+    features.callouts.length < 1 ||
+    features.callouts.length > 4_000
+  ) {
+    throw new Error(
+      `Part-identification features callouts must contain 1 through 4000 rows; received ${Array.isArray(features?.callouts) ? `${features.callouts.length} rows` : boundedObserved(features?.callouts)}. Regenerate features from the exact current v6 manifest before deriving non-clustered records or descriptor work.`,
+    );
+  }
+  const expectedNonClustered = nonClusteredCalloutRecords(features.callouts);
+  const physicalIndexes = [];
+  for (let index = 0; index < features.callouts.length; index += 1) {
+    if (features.callouts[index]?.evidenceKind === "part-art") physicalIndexes.push(index);
+  }
   const nonClusteredValid =
     Array.isArray(features?.nonClusteredCallouts) &&
     features.nonClusteredCallouts.length === expectedNonClustered.length &&
@@ -293,7 +299,7 @@ export function assertFeaturesArtifact(artifact) {
     comparisonCells > MAX_DESCRIPTOR_COMPARISON_CELLS
   ) {
     throw new Error(
-      `Part-identification features must use ${PART_FEATURES_SCHEMA}, bind their exact PDF/manifest inputs and every inventory source-image digest, contain exact non-degenerate ${DESCRIPTOR_GRID_CELLS}-cell descriptors and no more than ${MAX_DESCRIPTOR_COMPARISON_CELLS} worst-case descriptor-coordinate positions across independent member-to-inventory totals, one cached physical-pair matrix, and at most 32 retained lead-candidate expansions. Each counted position feeds the bounded grid and detail channels inside thumbnailDistance; this is an allocation and comparison-call cap, not a claim about primitive loop iterations. Observed worst-case work ${comparisonCells}. Retain canonical stable manifest records in order, explicitly exclude every non-part-art record from descriptors and clustering, and regenerate from the exact current v5 manifest and unchanged inventory gallery.`,
+      `Part-identification features must use ${PART_FEATURES_SCHEMA}, bind their exact PDF/manifest inputs and every inventory source-image digest, contain exact non-degenerate ${DESCRIPTOR_GRID_CELLS}-cell descriptors and no more than ${MAX_DESCRIPTOR_COMPARISON_CELLS} worst-case descriptor-coordinate positions across independent member-to-inventory totals, one cached physical-pair matrix, and at most 32 retained lead-candidate expansions. Each counted position feeds the bounded grid and detail channels inside thumbnailDistance; this is an allocation and comparison-call cap, not a claim about primitive loop iterations. Observed worst-case work ${comparisonCells}. Retain canonical stable manifest records in order, explicitly exclude every non-part-art record from descriptors and clustering, and regenerate from the exact current v6 manifest and unchanged inventory gallery.`,
     );
   }
   return features;

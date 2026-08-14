@@ -15,7 +15,7 @@ FIXTURE_WRITER = Path(__file__).with_name(
 )
 TEST_VERIFIER = Path(__file__).with_name("part-identification-report-test-verifier.mjs")
 EXPECTED_SCORE_BYTES = 14_512
-EXPECTED_SCORE_DIGEST = "sha256:adfdf497959b25dd4ea5b5bcdae2f77bd099a991e9b3bc81eacaef2dce10cbd4"
+EXPECTED_SCORE_DIGEST = "sha256:d53f848d907c3039298f3e67468c9dbc903d6e9de1e5e6c9dc3cdace86265d8f"
 TEST_ROOT_MARKER = ".lego-report-contract-fixture-root"
 TEST_ROOT_MARKER_CONTENT = "lego-report-contract-fixture/1\n"
 

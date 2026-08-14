@@ -16,6 +16,8 @@ import {
   PART_IDENTIFICATION_MODEL_ID,
   PART_IDENTIFICATION_MODEL_IDENTITY,
 } from "../../../scripts/part-identification-model.mjs";
+import { deriveCalloutManifestRunId } from "../e2e/callout-run-id";
+import type { CalloutManifest } from "../e2e/callout-types";
 import { PART_IDENTIFICATION_PROMPT_DIGEST } from "../../../scripts/part-identification-prompt.mjs";
 import {
   derivePartIdentificationMatch,
@@ -135,6 +137,7 @@ function closureFixture(): {
     rawQuantity: 1,
     identitySetDigest,
     accounting,
+    recoveryFailureIdentities: [identity],
   };
   const callout = {
     identity,
@@ -145,19 +148,76 @@ function closureFixture(): {
     xPt: 43.074,
     yPt: 486.271,
     heightPt: 8,
+    boxMethod: "vector-smallest",
+    box: { minXPt: 40, minYPt: 480, maxXPt: 80, maxYPt: 510 },
     evidenceKind: "part-art",
+    regionKind: "isolated-component",
+    cropStrategy: "ranked-component",
+    masksApplied: ["all-pdf-text"],
+    contamination: [],
+    widthPx: 1,
+    heightPx: 1,
+    foregroundPixels: 1,
+    sourceTextGlyphPixels: 0,
+    sourceQuantityGlyphPixels: 0,
+    textGlyphOverlapPixels: 0,
+    quantityGlyphOverlapPixels: 0,
+    quantityGlyphPixelsMasked: 0,
+    cropRectPx: { left: 0, top: 0, right: 0, bottom: 0 },
+    boundaryClearancePx: { left: 0, top: 0, right: 0, bottom: 0 },
+    sourceComponent: {
+      rasterScale: 8,
+      boundsPx: { left: 0, top: 0, right: 0, bottom: 0 },
+      foregroundPixels: 1,
+      rawComponentCount: 1,
+      absoluteForegroundSha256: sha256Digest("synthetic-source-component-group"),
+    },
     sha256: sha256Digest("synthetic-crop"),
+    byteLength: 1,
   };
   const elements = {
     300501: { quantity: 1, partNum: "3005", name: "Brick 1 x 1", colorId: 0 },
   };
-  const manifest = artifact({
-    schemaVersion: "lego.callout-thumbnails/5",
+  const manifestValue = {
+    schemaVersion: "lego.callout-thumbnails/6",
     sourceHash: pdfDigest,
     pageSelection: "full booklet",
     pagesCropped: 1,
     calloutCount: 1,
     accounting,
+    recoveryBenchmark: {
+      schemaVersion: "lego.callout-recovery-benchmark-result/2",
+      fixtureSourceHash: pdfDigest,
+      fixedFailureClassSize: 1,
+      observedLegacyFailureIdentities: [identity],
+      scores: [
+        {
+          strategy: "evidence-aware",
+          valid: 1,
+          recovered: 1,
+          kindCorrect: 1,
+          regionCorrect: 1,
+          masksCorrect: 1,
+          uncontaminated: 1,
+          invalidIdentities: [],
+          points: 1_011_111,
+        },
+        {
+          strategy: "legacy-seed",
+          valid: 0,
+          recovered: 0,
+          kindCorrect: 0,
+          regionCorrect: 0,
+          masksCorrect: 0,
+          uncontaminated: 0,
+          invalidIdentities: [identity],
+          points: 0,
+        },
+      ],
+      selected: "evidence-aware",
+      winner: "evidence-aware",
+      winningMargin: 1_011_111,
+    },
     conservation: {
       expectedIdentityCount: 1,
       expectedRawNxQuantityTotal: 1,
@@ -168,7 +228,14 @@ function closureFixture(): {
     },
     failures: [],
     callouts: [callout],
-  });
+  };
+  const calloutRunId = deriveCalloutManifestRunId(manifestValue as CalloutManifest);
+  const boundCallout = {
+    ...callout,
+    file: `runs/${calloutRunId}/p11-q1-x43d074-y486d271.png`,
+  };
+  manifestValue.callouts = [boundCallout];
+  const manifest = artifact(manifestValue);
   const features = artifact({
     schemaVersion: PART_FEATURES_SCHEMA,
     inputDigests: { pdf: pdfDigest, calloutManifest: manifest.digest },
@@ -178,7 +245,7 @@ function closureFixture(): {
     calloutCount: 1,
     nonClusteredCalloutCount: 0,
     nonClusteredCallouts: [],
-    callouts: [{ ...callout, descriptor: syntheticDescriptor() }],
+    callouts: [{ ...boundCallout, descriptor: syntheticDescriptor() }],
   });
   const derived = derivePartIdentificationMatch(features.value);
   const match = artifact(partIdentificationMatchValue(features.digest, derived));

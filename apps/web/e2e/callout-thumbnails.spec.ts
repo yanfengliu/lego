@@ -1,5 +1,4 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
 
 import { expect, test } from "@playwright/test";
 
@@ -8,7 +7,6 @@ import {
   selectStepNumberHeight,
   withoutPrintedPageNumbers,
 } from "../src/instructions/booklet-structure";
-import { ingestInstructionPdf, type PdfDocument } from "../src/instructions/ingest-pdf";
 import { extractPageShapes, type OperatorList } from "../src/instructions/page-shapes";
 import { extractPartsInventory } from "../src/instructions/parts-inventory";
 import { deriveStepPanels } from "../src/instructions/step-panels";
@@ -23,14 +21,20 @@ import {
   stableIdentity,
 } from "./callout-analysis";
 import { evaluateRecoveryBenchmark, selectEvidenceAwareCrop } from "./callout-benchmark";
-import { renderCalloutCrops } from "./callout-browser-crops";
+import { renderCalloutCropsInPage } from "./callout-browser-runner";
+import { retainBoundedCalloutBrowserResults } from "./callout-browser-results";
 import {
   CALLOUT_RECOVERY_BY_IDENTITY,
   CALLOUT_RECOVERY_FIXTURE,
   FULL_BOOKLET_CALLOUT_ACCOUNTING,
   SEMANTIC_CALLOUTS,
 } from "./callout-recovery-fixture";
-import { publishCalloutRun, type PreparedCrop } from "./callout-publication";
+import {
+  assertPublishableCalloutRun,
+  publishCalloutRun,
+  type PreparedCrop,
+} from "./callout-publication";
+import { deriveCalloutRunId } from "./callout-run-id";
 import type {
   BrowserCrop,
   BrowserResult,
@@ -41,10 +45,12 @@ import type {
   RetainedFailure,
 } from "./callout-types";
 import { SAMPLE_BOOKLET_PATH, bookletProbeUrls, hasSampleBooklet } from "./sample-booklet";
+import { ingestSampleBookletBytes, readSampleBookletBytes } from "./booklet-fixture";
 
 const OUT = "output/callout-thumbnails";
 const PAGE_LIMIT = Number(process.env.CALLOUT_PAGE_LIMIT ?? "8");
 const REQUESTED_PAGES = parseRequestedPages(process.env.CALLOUT_PAGES);
+const DRY_RUN = process.env.CALLOUT_DRY_RUN === "1";
 const FULL_LABEL_COUNT = FULL_BOOKLET_CALLOUT_ACCOUNTING.rawNxIdentityCount;
 const FULL_RAW_NX_QUANTITY = FULL_BOOKLET_CALLOUT_ACCOUNTING.rawNxQuantityTotal;
 const FULL_PHYSICAL_LABEL_COUNT = FULL_BOOKLET_CALLOUT_ACCOUNTING.physicalPartArtIdentityCount;
@@ -92,35 +98,13 @@ function failure(
   failures.push({ ...label, stage, code, message });
 }
 
-function selectCrop(result: BrowserResult): BrowserCrop | null {
-  if (
-    result.targetEvidenceKind === "part-art" &&
-    result.legacy !== null &&
-    result.legacy.contamination.length === 0
-  )
-    return result.legacy;
-  return selectEvidenceAwareCrop(result);
-}
-
 test("publishes typed evidence for every distinct Nx label", async ({ page }) => {
   test.setTimeout(3_000_000);
   test.skip(!hasSampleBooklet, "no sample booklet");
 
-  const bytes = readFileSync(SAMPLE_BOOKLET_PATH!);
-  const source = await ingestInstructionPdf(
-    {
-      name: "6651557.pdf",
-      arrayBuffer: async () =>
-        bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
-    },
-    {
-      loadPdf: async () => {
-        const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
-        return (await getDocument({ data: new Uint8Array(bytes), isEvalSupported: false })
-          .promise) as unknown as PdfDocument;
-      },
-    },
-  );
+  const bytes = readSampleBookletBytes(SAMPLE_BOOKLET_PATH!);
+  expect(sha256(bytes)).toBe(CALLOUT_RECOVERY_FIXTURE.sourceHash);
+  const source = await ingestSampleBookletBytes(bytes);
   const structure = extractBookletStructure(source);
   expect(structure.sourceHash).toBe(CALLOUT_RECOVERY_FIXTURE.sourceHash);
   const sightings = source.pages.flatMap((sourcePage) =>
@@ -166,6 +150,8 @@ test("publishes typed evidence for every distinct Nx label", async ({ page }) =>
   const targets: CalloutTarget[] = [];
   const failures: RetainedFailure[] = [];
   const browserResults: BrowserResult[] = [];
+  let retainedBrowserResultCharacters = 0;
+  const keepLegacyIdentities = new Set(CALLOUT_RECOVERY_BY_IDENTITY.keys());
 
   try {
     await page.goto("/");
@@ -261,13 +247,20 @@ test("publishes typed evidence for every distinct Nx label", async ({ page }) =>
       }
       targets.push(...pageTargets);
       if (pageTargets.length === 0) continue;
-      browserResults.push(
-        ...(await page.evaluate(renderCalloutCrops, {
-          ...bookletProbeUrls(),
-          pageNumber,
-          targets: pageTargets,
-        })),
+      const pageResults = await renderCalloutCropsInPage(page, {
+        ...bookletProbeUrls(),
+        expectedSourceBytes: bytes.byteLength,
+        pageNumber,
+        expectedSourceHash: structure.sourceHash,
+        targets: pageTargets,
+      });
+      const retained = retainBoundedCalloutBrowserResults(
+        pageResults,
+        keepLegacyIdentities,
+        retainedBrowserResultCharacters,
       );
+      retainedBrowserResultCharacters = retained.retainedCharacters;
+      browserResults.push(...retained.results);
     }
   } finally {
     await shapeDoc.destroy();
@@ -290,15 +283,18 @@ test("publishes typed evidence for every distinct Nx label", async ({ page }) =>
   const benchmark = evaluateRecoveryBenchmark(structure.sourceHash, browserResults);
   const selected = new Map<string, BrowserCrop>();
   for (const result of browserResults) {
-    const crop = selectCrop(result);
+    const crop = selectEvidenceAwareCrop(result);
     if (crop === null) {
       const label = targets.find(({ identity }) => identity === result.identity)!;
+      const assignment = result.rankedFailure;
       failure(
         failures,
         label,
         "crop",
-        "no-valid-evidence-crop",
-        `${result.identity} produced no crop satisfying its ${result.targetEvidenceKind} evidence contract.`,
+        assignment ? `component-assignment-${assignment.reason}` : "no-valid-evidence-crop",
+        assignment
+          ? `${result.identity} joint component assignment refused as ${assignment.reason} for ${assignment.targetCount} targets and ${assignment.componentCount} bounded components; anchors=${JSON.stringify(assignment.targetAnchors)} components=${JSON.stringify(assignment.componentBounds)}.`
+          : `${result.identity} produced no crop satisfying its ${result.targetEvidenceKind} evidence contract.`,
       );
     } else {
       selected.set(result.identity, crop);
@@ -361,6 +357,7 @@ test("publishes typed evidence for every distinct Nx label", async ({ page }) =>
       quantityGlyphPixelsMasked: crop.quantityGlyphPixelsMasked,
       cropRectPx: crop.cropRectPx,
       boundaryClearancePx: crop.boundaryClearancePx,
+      sourceComponent: crop.sourceComponent,
     };
     return { metadata, png };
   });
@@ -415,21 +412,20 @@ test("publishes typed evidence for every distinct Nx label", async ({ page }) =>
   expect(conservation.publishedIdentitySetSha256).toBe(conservation.expectedIdentitySetSha256);
   expect(conservation.publishedRawNxQuantityTotal).toBe(conservation.expectedRawNxQuantityTotal);
 
-  const runId = sha256(
-    JSON.stringify({
-      schemaVersion: "lego.callout-thumbnails/5",
-      sourceHash: structure.sourceHash,
-      publishPages,
-      benchmark,
-      accounting,
-      conservation,
-      crops: crops.map(({ metadata }) => metadata),
-    }),
-  ).slice("sha256:".length, "sha256:".length + 24);
-  const manifest: CalloutManifest = {
-    schemaVersion: "lego.callout-thumbnails/5",
+  const pageSelection = fullRun ? "full booklet" : publishPages;
+  const runId = deriveCalloutRunId({
+    schemaVersion: "lego.callout-thumbnails/6",
     sourceHash: structure.sourceHash,
-    pageSelection: fullRun ? "full booklet" : publishPages,
+    pageSelection,
+    recoveryBenchmark: benchmark,
+    accounting,
+    conservation,
+    crops: crops.map(({ metadata }) => metadata),
+  });
+  const manifest: CalloutManifest = {
+    schemaVersion: "lego.callout-thumbnails/6",
+    sourceHash: structure.sourceHash,
+    pageSelection,
     pagesCropped: publishPages.length,
     calloutCount: crops.length,
     accounting,
@@ -441,16 +437,24 @@ test("publishes typed evidence for every distinct Nx label", async ({ page }) =>
       file: `runs/${runId}/${fileName}`,
     })),
   };
-  const publication = publishCalloutRun({
+  const publicationInput = {
     outDirectory: OUT,
     pointerFile: fullRun ? "manifest.json" : "manifest.partial.json",
     runId,
     manifest,
     crops,
-  });
+  } as const;
+  assertPublishableCalloutRun(publicationInput);
+  if (DRY_RUN) {
+    console.log(`validated ${crops.length} callout crops without publishing run ${runId}`);
+    return;
+  }
+  const publication = publishCalloutRun(publicationInput);
   console.log(
     `published ${accounting.rawNxIdentityCount} raw Nx identities / ${accounting.rawNxQuantityTotal} raw quantity; ` +
       `${accounting.physicalPartArtIdentityCount} physical part-art labels / ${accounting.semanticIdentityCount} semantic labels; ` +
-      `run ${runId}; reused=${publication.reused}; cleaned=${publication.cleanup.removedFiles}`,
+      `run ${runId}; reused=${publication.reused}; cleaned=${publication.cleanup.removedFiles}; ` +
+      `cleanup-skipped=${publication.cleanup.skippedFiles}`,
   );
+  if (publication.cleanup.warning) console.warn(publication.cleanup.warning);
 });

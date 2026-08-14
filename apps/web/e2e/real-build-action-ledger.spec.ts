@@ -7,7 +7,9 @@ import { sha256Digest } from "./real-build-artifacts";
 import {
   compileRealBuildActionLedger,
   REAL_BUILD_ACTION_LEDGER_PRINTED_STEPS,
+  requirePublishableRealBuildActionLedger,
 } from "./real-build-action-ledger-compile";
+import { formatActionLedgerRefusalOutput } from "./real-build-action-ledger";
 import { isTrustedIdentificationConfidence } from "./real-build-identification-trust";
 import { pieceEvidenceDigest } from "./real-build-ledger";
 import { ACTION_LEDGER_PATH } from "./real-build-input-files";
@@ -36,9 +38,8 @@ test("publishes the booklet's action ledger", async () => {
   );
   test.skip(!hasSampleBooklet, "no sample booklet");
 
-  const compiled = await compileRealBuildActionLedger({
-    validateThroughStep: Number(process.env.LEGO_REAL_BUILD_LAST_STEP ?? 12),
-  });
+  const compiled = await compileRealBuildActionLedger();
+  requirePublishableRealBuildActionLedger(compiled);
   const { ledger } = compiled.assembled;
 
   // The ledger's own claims are the publisher's responsibility and are checked
@@ -115,12 +116,10 @@ test("publishes the booklet's action ledger", async () => {
       `[${[...byConfidence].map(([name, count]) => `${name}=${count}`).join(", ") || "none"}], ` +
       `${compiled.assembled.transitionStepCount} transitions, ` +
       `${compiled.assembled.refusals.length} refusals; file digest ${compiled.encodedDigest}\n` +
-      `  stopped because ${compiled.assembled.stopReason}\n` +
+      `  cursor result: ${compiled.assembled.stopReason}\n` +
       `  validated through printed step ${compiled.validatedThroughStep}: ` +
       `${compiled.validationFailures.length} remaining evidence failures ` +
       `[${[...byCode].map(([code, count]) => `${code}=${count}`).join(", ") || "none"}]\n`,
   );
-  for (const refusal of compiled.assembled.refusals) {
-    process.stdout.write(`  refused step ${refusal.stepNumber}: ${refusal.reason}\n`);
-  }
+  process.stdout.write(formatActionLedgerRefusalOutput(compiled.assembled.refusals));
 });

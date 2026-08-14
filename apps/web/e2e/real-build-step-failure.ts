@@ -62,6 +62,7 @@ export type StepFailureCode =
   | "benchmark-policy-mismatch"
   | "benchmark-disagreement"
   | "action-ledger-incomplete"
+  | "validation-failure-limit"
   | "omitted-piece-identity-missing"
   | "multi-build-source-invalid"
   | "fixed-ledger-frame-unresolved"

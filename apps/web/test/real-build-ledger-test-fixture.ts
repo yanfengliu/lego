@@ -381,6 +381,7 @@ export function realBuildLedgerTestFixture(): RealBuildLedgerTestFixture {
         pageNumber: 1,
         stepNumber: 1,
         quantity: 1,
+        elementId: "300501",
         identificationConfidence: "vision-kept",
         cropDigest: direct.cropDigest,
         inputDigest: manifestDigest,

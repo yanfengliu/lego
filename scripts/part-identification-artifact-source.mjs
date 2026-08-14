@@ -2,7 +2,17 @@ import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 
 import { assertPublishedQuantityFaces } from "../apps/web/e2e/callout-faces.ts";
-import { CALLOUT_RECOVERY_BY_IDENTITY } from "../apps/web/e2e/callout-recovery-fixture.ts";
+import { assertCalloutEvidenceContract } from "../apps/web/e2e/callout-evidence-contract.ts";
+import { deriveCalloutManifestRunId } from "../apps/web/e2e/callout-run-id.ts";
+import { assertMeasuredRecoveryBenchmark } from "../apps/web/e2e/callout-recovery-contract.ts";
+import {
+  CALLOUT_RECOVERY_BY_IDENTITY,
+  CALLOUT_RECOVERY_FIXTURE,
+  FULL_BOOKLET_CALLOUT_ACCOUNTING,
+  FULL_BOOKLET_CALLOUT_SOURCE_CLOSURE,
+} from "../apps/web/e2e/callout-recovery-fixture.ts";
+import { assertCalloutComponentOwnership } from "./callout-component-ownership.mjs";
+import { assertCalloutManifestExactShape } from "./callout-manifest-shape.mjs";
 import {
   MAX_IMAGE_ARTIFACT_BYTES,
   MAX_JSON_ARTIFACT_BYTES,
@@ -11,6 +21,7 @@ import {
   readContainedFile,
 } from "./part-identification-io.mjs";
 import { parseStrictJsonBytes } from "./part-identification-strict-json.mjs";
+import { assertBoundedPngDimensions } from "./part-thumbnail-image-guard.mjs";
 
 const SHA256 = /^sha256:[0-9a-f]{64}$/u;
 const STABLE_IDENTITY = /^p(\d+)\|q(\d+)\|x-?\d+\.\d{3}\|y-?\d+\.\d{3}$/u;
@@ -54,6 +65,14 @@ export function authenticateJsonArtifact(artifact, label = "JSON artifact") {
     );
   }
   const derived = jsonArtifactFromBytes(bytes, label);
+  if (
+    declaredDigest !== undefined &&
+    (typeof declaredDigest !== "string" || !SHA256.test(declaredDigest))
+  ) {
+    throw new Error(
+      `${label} declares a digest outside the exact lowercase sha256 contract. Re-read the artifact from one immutable byte string.`,
+    );
+  }
   if (declaredDigest !== undefined && declaredDigest !== derived.digest) {
     throw new Error(
       `${label} declares digest ${JSON.stringify(declaredDigest)}, but its raw bytes derive ${derived.digest}. Re-read the artifact from one immutable byte string.`,
@@ -73,29 +92,30 @@ export const expectedEvidenceKind = (identity) =>
   CALLOUT_RECOVERY_BY_IDENTITY.get(identity)?.evidenceKind ?? "part-art";
 
 export const FULL_CALLOUT_MANIFEST_EXPECTATION = Object.freeze({
-  sourceHash: "sha256:baef0a373164b58d7c982984b52d4e50b10cc59ed28007acb456faa72359bd27",
-  pagesCropped: 196,
-  identityCount: 881,
-  rawQuantity: 1_512,
-  identitySetDigest: "sha256:618c1815980af3d82ecd96f1697558b8a1976169517448039cff58430e4bf982",
+  sourceHash: CALLOUT_RECOVERY_FIXTURE.sourceHash,
+  pagesCropped: FULL_BOOKLET_CALLOUT_SOURCE_CLOSURE.pagesCropped,
+  identityCount: FULL_BOOKLET_CALLOUT_ACCOUNTING.rawNxIdentityCount,
+  rawQuantity: FULL_BOOKLET_CALLOUT_ACCOUNTING.rawNxQuantityTotal,
+  identitySetDigest: FULL_BOOKLET_CALLOUT_SOURCE_CLOSURE.identitySetSha256,
   // Must equal FULL_BOOKLET_CALLOUT_ACCOUNTING in
   // apps/web/e2e/callout-recovery-fixture.ts, which is the classification's own
   // source. callout-contract.test.ts asserts the two agree; a third private copy
   // of these numbers is how the last 26-piece drift went unseen.
   accounting: Object.freeze({
-    rawNxIdentityCount: 881,
-    rawNxQuantityTotal: 1_512,
-    physicalPartArtIdentityCount: 859,
-    physicalPartArtQuantityTotal: 1_464,
-    semanticIdentityCount: 22,
-    semanticQuantityTotal: 48,
+    rawNxIdentityCount: FULL_BOOKLET_CALLOUT_ACCOUNTING.rawNxIdentityCount,
+    rawNxQuantityTotal: FULL_BOOKLET_CALLOUT_ACCOUNTING.rawNxQuantityTotal,
+    physicalPartArtIdentityCount: FULL_BOOKLET_CALLOUT_ACCOUNTING.physicalPartArtIdentityCount,
+    physicalPartArtQuantityTotal: FULL_BOOKLET_CALLOUT_ACCOUNTING.physicalPartArtQuantityTotal,
+    semanticIdentityCount: FULL_BOOKLET_CALLOUT_ACCOUNTING.semanticIdentityCount,
+    semanticQuantityTotal: FULL_BOOKLET_CALLOUT_ACCOUNTING.semanticQuantityTotal,
   }),
+  recoveryFailureIdentities: Object.freeze([...CALLOUT_RECOVERY_BY_IDENTITY.keys()].sort()),
 });
 
-/** Exact producer contract for the full v5 booklet callout publication. */
-export function assertV5CalloutManifest(manifest, expectation = FULL_CALLOUT_MANIFEST_EXPECTATION) {
+/** Exact producer contract for the full v6 booklet callout publication. */
+export function assertV6CalloutManifest(manifest, expectation = FULL_CALLOUT_MANIFEST_EXPECTATION) {
   if (
-    manifest?.schemaVersion !== "lego.callout-thumbnails/5" ||
+    manifest?.schemaVersion !== "lego.callout-thumbnails/6" ||
     !SHA256.test(manifest.sourceHash ?? "") ||
     manifest.pageSelection !== "full booklet" ||
     !Number.isInteger(manifest.pagesCropped) ||
@@ -107,7 +127,7 @@ export function assertV5CalloutManifest(manifest, expectation = FULL_CALLOUT_MAN
     manifest.failures.length !== 0
   ) {
     throw new Error(
-      "Callout features and coverage require one failure-free full-booklet lego.callout-thumbnails/5 manifest with an exact source digest and declared callout count. Regenerate the complete publication from the current PDF.",
+      "Callout features and coverage require one failure-free full-booklet lego.callout-thumbnails/6 manifest with source-component ownership, an exact source digest, a declared callout count, and a measured recovery benchmark. Regenerate the complete publication from the current PDF.",
     );
   }
   if (
@@ -122,8 +142,15 @@ export function assertV5CalloutManifest(manifest, expectation = FULL_CALLOUT_MAN
         `define its own expected totals; regenerate all callout pages from the pinned PDF.`,
     );
   }
+  assertCalloutManifestExactShape(manifest, "Callout manifest");
+  assertMeasuredRecoveryBenchmark(
+    manifest.recoveryBenchmark,
+    manifest.sourceHash,
+    expectation.recoveryFailureIdentities,
+  );
 
   const identities = new Set();
+  let publicationRunId = null;
   for (const [index, callout] of manifest.callouts.entries()) {
     const match =
       typeof callout?.identity === "string" ? STABLE_IDENTITY.exec(callout.identity) : null;
@@ -152,16 +179,16 @@ export function assertV5CalloutManifest(manifest, expectation = FULL_CALLOUT_MAN
       !SHA256.test(callout.sha256 ?? "")
     ) {
       throw new Error(
-        `Callout manifest entry ${index} (${JSON.stringify(callout?.identity ?? "missing identity")}) must have one unique stable identity matching its positive page/quantity/x/y fields, the fixed evidence contract ${JSON.stringify(expectedKind ?? "unresolved")}, a retained file, and a lowercase crop digest. Regenerate the full v5 publication; copied metadata cannot redefine a booklet callout.`,
+        `Callout manifest entry ${index} (${JSON.stringify(callout?.identity ?? "missing identity")}) must have one unique stable identity matching its positive page/quantity/x/y fields, the fixed evidence contract ${JSON.stringify(expectedKind ?? "unresolved")}, a retained file, and a lowercase crop digest. Regenerate the full v6 publication; copied metadata cannot redefine a booklet callout.`,
       );
     }
     const expectedStem = callout.identity.replaceAll("|", "-").replaceAll(".", "d");
     let canonicalFile;
+    let fileMatch = null;
     try {
       assertCanonicalRelativePath(callout.file, `Callout manifest entry ${index} file`);
-      canonicalFile = new RegExp(`^runs/[0-9a-f]{24}/${expectedStem}\\.png$`, "u").test(
-        callout.file,
-      );
+      fileMatch = new RegExp(`^runs/([0-9a-f]{24})/${expectedStem}\\.png$`, "u").exec(callout.file);
+      canonicalFile = fileMatch !== null;
     } catch {
       canonicalFile = false;
     }
@@ -170,12 +197,21 @@ export function assertV5CalloutManifest(manifest, expectation = FULL_CALLOUT_MAN
         `Callout manifest entry ${index} file ${JSON.stringify(callout.file)} must be the canonical runs/<24 lowercase hex>/${expectedStem}.png child. Parent paths, links, alternate names, and absolute paths cannot select crop evidence.`,
       );
     }
+    const entryRunId = fileMatch[1];
+    if (publicationRunId === null) publicationRunId = entryRunId;
+    else if (entryRunId !== publicationRunId) {
+      throw new Error(
+        `Callout manifest entry ${index} selects run ${entryRunId}, but earlier records select run ${publicationRunId}. Every physical and semantic crop must come from one immutable publication run; regenerate the complete v6 manifest instead of splicing run directories.`,
+      );
+    }
     identities.add(callout.identity);
   }
   // The second, independent source for the same classification: the type size
   // the booklet printed the label at. The preregistered fixture above cannot see
   // a multiplier nobody registered; this can.
   assertPublishedQuantityFaces(manifest.callouts);
+  assertCalloutEvidenceContract(manifest.callouts, "Callout manifest");
+  assertCalloutComponentOwnership(manifest.callouts, "Callout manifest");
 
   const physical = manifest.callouts.filter(({ evidenceKind }) => evidenceKind === "part-art");
   const semantic = manifest.callouts.filter(({ evidenceKind }) => evidenceKind !== "part-art");
@@ -213,6 +249,12 @@ export function assertV5CalloutManifest(manifest, expectation = FULL_CALLOUT_MAN
       `Callout manifest accounting or conservation does not recompute from its ${manifest.callouts.length} unique records. Expected ${JSON.stringify(accounting)} and ${JSON.stringify(conservation)}. Regenerate the publication; declared totals and identity-set digests cannot self-certify.`,
     );
   }
+  const derivedRunId = deriveCalloutManifestRunId(manifest);
+  if (publicationRunId !== derivedRunId) {
+    throw new Error(
+      `Callout manifest selects run ${publicationRunId}, but its retained v6 source, selection, benchmark, accounting, conservation, and crop metadata derive content-addressed run ${derivedRunId}. Regenerate the exact publication; a renamed or metadata-spliced run cannot inherit another run id.`,
+    );
+  }
   return manifest;
 }
 
@@ -230,14 +272,28 @@ export async function readBoundManifestCrop(entry, root, decode) {
     });
   } catch (cause) {
     throw new Error(
-      `Callout crop ${JSON.stringify(entry.identity ?? "missing identity")} at ${JSON.stringify(entry.file ?? "missing file")} could not be read. Regenerate the exact v5 callout publication before extracting features.`,
+      `Callout crop ${JSON.stringify(entry.identity ?? "missing identity")} at ${JSON.stringify(entry.file ?? "missing file")} could not be read. Regenerate the exact v6 callout publication before extracting features.`,
       { cause },
     );
   }
   const actual = sha256Digest(bytes);
   if (actual !== entry.sha256) {
     throw new Error(
-      `Callout crop ${JSON.stringify(entry.identity ?? "missing identity")} at ${JSON.stringify(entry.file ?? "missing file")} has digest ${actual}, but the v5 manifest binds ${JSON.stringify(entry.sha256 ?? "missing")}. Regenerate the callout publication; do not compute descriptors from changed crop bytes.`,
+      `Callout crop ${JSON.stringify(entry.identity ?? "missing identity")} at ${JSON.stringify(entry.file ?? "missing file")} has digest ${actual}, but the v6 manifest binds ${JSON.stringify(entry.sha256 ?? "missing")}. Regenerate the callout publication; do not compute descriptors from changed crop bytes.`,
+    );
+  }
+  if (bytes.length !== entry.byteLength) {
+    throw new Error(
+      `Callout crop ${JSON.stringify(entry.identity ?? "missing identity")} at ${JSON.stringify(entry.file ?? "missing file")} contains ${bytes.length} bytes, but the v6 manifest binds ${JSON.stringify(entry.byteLength ?? "missing")}. Regenerate the callout publication; do not propagate false retained-byte evidence.`,
+    );
+  }
+  const dimensions = assertBoundedPngDimensions(
+    bytes,
+    `Callout crop ${JSON.stringify(entry.identity ?? "missing identity")}`,
+  );
+  if (dimensions.width !== entry.widthPx || dimensions.height !== entry.heightPx) {
+    throw new Error(
+      `Callout crop ${JSON.stringify(entry.identity ?? "missing identity")} at ${JSON.stringify(entry.file ?? "missing file")} has an authenticated PNG header of ${dimensions.width} x ${dimensions.height} pixels, but the v6 manifest binds ${JSON.stringify(entry.widthPx)} x ${JSON.stringify(entry.heightPx)}. Regenerate the callout publication; do not propagate false crop geometry.`,
     );
   }
   return decode(bytes);

@@ -19,6 +19,8 @@ export const MEASURED_FARTHER_ORIGIN_VERIFIER_SCRIPT_SOURCE_PATHS = Object.freez
   "scripts/booklet-catalog-coverage-report.mjs",
   "scripts/booklet-catalog-coverage.mjs",
   "scripts/bounded-observed-value.mjs",
+  "scripts/callout-component-ownership.mjs",
+  "scripts/callout-manifest-shape.mjs",
   "scripts/part-assignment.mjs",
   "scripts/part-identification-artifact-source.mjs",
   "scripts/part-identification-artifact-vision.mjs",
@@ -151,7 +153,7 @@ export function isRealBuildSourceAttestation(value: unknown): value is RealBuild
 export const MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION: RealBuildSourceAttestation = Object.freeze(
   {
     schemaVersion: REAL_BUILD_SOURCE_ATTESTATION_SCHEMA_VERSION,
-    fileCount: 3_335,
-    digest: "sha256:a68ca5e2dc8fa940036970e4924f41899125a71201ddbd40a365b6d872711969",
+    fileCount: 3_384,
+    digest: "sha256:8f7aa5cbe8c9f793c60d17a7d42306b730dc6a7825862db9c07f3b88b6174518",
   },
 );

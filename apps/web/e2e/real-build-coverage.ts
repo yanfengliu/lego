@@ -52,13 +52,13 @@ export function requireCoverageIndex<T extends CoverageCalloutClaim>(
 
 const STABLE_CALLOUT_IDENTITY = /^p(\d+)\|q(\d+)\|x-?\d+\.\d{3}\|y-?\d+\.\d{3}$/u;
 
-/** Stable content identity emitted by the v5 callout producer and retained by coverage. */
+/** Stable content identity emitted by the v6 callout producer and retained by coverage. */
 export function coverageCalloutKey(identity: string): string {
   if (!STABLE_CALLOUT_IDENTITY.test(identity)) {
     throw new CoverageContractError(
       "coverage-key-mismatch",
       identity,
-      `Callout identity ${JSON.stringify(identity)} is not the v5 p{page}|q{quantity}|x{x}|y{y} stable identity. ` +
+      `Callout identity ${JSON.stringify(identity)} is not the v6 p{page}|q{quantity}|x{x}|y{y} stable identity. ` +
         `Regenerate coverage from the exact current callout manifest; legacy page-index file names are not evidence.`,
     );
   }
@@ -87,7 +87,7 @@ export function requireCoverageCallout<T extends CoverageCalloutClaim>(
     throw new CoverageContractError(
       "coverage-key-missing",
       key,
-      `Coverage has no stable-identity claim for ${key}. Regenerate catalog coverage from the same v5 ` +
+      `Coverage has no stable-identity claim for ${key}. Regenerate catalog coverage from the same v6 ` +
         `callout manifest before rebuilding; array order and legacy p{page}-c{index}.png names cannot be aliased.`,
     );
   }
@@ -205,7 +205,7 @@ export interface StepCoverageCalloutClaim extends CoverageCalloutClaim {
   readonly stepNumber: number | null;
 }
 
-export interface V5ManifestCallout {
+export interface V6ManifestCallout {
   readonly identity: string;
   readonly file: string;
   readonly pageNumber: number;
@@ -219,9 +219,9 @@ export interface V5ManifestCallout {
   readonly omittedPhysicalPieces?: number;
 }
 
-export function isV5ManifestCallout(value: unknown): value is V5ManifestCallout {
+export function isV6ManifestCallout(value: unknown): value is V6ManifestCallout {
   if (typeof value !== "object" || value === null) return false;
-  const entry = value as Partial<V5ManifestCallout>;
+  const entry = value as Partial<V6ManifestCallout>;
   return (
     typeof entry.identity === "string" &&
     typeof entry.file === "string" &&
@@ -235,7 +235,7 @@ export function isV5ManifestCallout(value: unknown): value is V5ManifestCallout 
 
 interface BookletPanelBindingInput {
   readonly lastStep: number;
-  readonly manifestCallouts: readonly V5ManifestCallout[];
+  readonly manifestCallouts: readonly V6ManifestCallout[];
   readonly panels: readonly {
     readonly stepNumber: number;
     readonly pageNumber: number;
@@ -331,7 +331,7 @@ export function bindCalloutsToBookletPanels(input: BookletPanelBindingInput): {
         inputKey: identity,
         ...(liveStep === undefined ? {} : { stepNumber: liveStep }),
         message:
-          `Current booklet callout ${identity} belongs to requested printed step ${liveStep}, but the v5 ` +
+          `Current booklet callout ${identity} belongs to requested printed step ${liveStep}, but the v6 ` +
           `manifest has no record for it. Republish the full callout manifest from this exact PDF.`,
       });
       continue;

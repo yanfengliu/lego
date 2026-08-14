@@ -1,3 +1,5 @@
+import { spawnSync } from "node:child_process";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -39,6 +41,22 @@ const answer = (overrides = {}) => ({
   differsFromPick: "nothing",
   confidence: 0.9,
   ...overrides,
+});
+
+it("loads the v6 artifact authority through the same direct Node entry used by the CLI", () => {
+  const result = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "--eval",
+      "await import('./scripts/part-identification-artifact-source.mjs')",
+    ],
+    { cwd: process.cwd(), encoding: "utf8", timeout: 20_000 },
+  );
+  expect(
+    { status: result.status, signal: result.signal, stderr: result.stderr },
+    result.error?.message ?? result.stderr,
+  ).toMatchObject({ status: 0, signal: null });
 });
 
 const descriptor = (value = 0) => ({
@@ -138,6 +156,21 @@ describe("part-identification artifact bindings", () => {
     );
     expect(() => authenticateJsonArtifact({ ...exact, value: { trusted: false } })).toThrow(
       /does not derive from its raw bytes/,
+    );
+
+    let calls = 0;
+    const hostileDigest = {
+      toJSON() {
+        calls += 1;
+        return "sha256:" + "f".repeat(64);
+      },
+    };
+    expect(() => authenticateJsonArtifact({ ...exact, digest: hostileDigest })).toThrow(
+      /outside the exact lowercase sha256 contract/,
+    );
+    expect(calls).toBe(0);
+    expect(() => authenticateJsonArtifact({ ...exact, digest: "x".repeat(1_000_000) })).toThrow(
+      /outside the exact lowercase sha256 contract/,
     );
   });
 
@@ -276,6 +309,48 @@ describe("part-identification artifact bindings", () => {
     });
     expect(() => assertFeaturesArtifact(features)).toThrow(
       /no more than 536870912 worst-case descriptor-coordinate positions.*Observed worst-case work 593527200/s,
+    );
+  });
+
+  it("rejects more than 4000 feature rows before downstream traversal or allocation", () => {
+    const oversized = {
+      ...fixture().featuresArtifact.value,
+      manifestCalloutCount: 4_001,
+      calloutCount: 4_001,
+      callouts: Array(4_001).fill(null),
+    };
+    const hostileArtifact = { bytes: Buffer.from(JSON.stringify(oversized)) };
+    const traversalMethods = ["every", "filter", "flatMap", "forEach", "keys", "map"];
+    const originalDescriptors = new Map(
+      traversalMethods.map((method) => [
+        method,
+        Object.getOwnPropertyDescriptor(Array.prototype, method),
+      ]),
+    );
+    let observed;
+    try {
+      for (const method of traversalMethods) {
+        Object.defineProperty(Array.prototype, method, {
+          ...originalDescriptors.get(method),
+          value() {
+            throw new Error(`Unexpected downstream traversal through Array.prototype.${method}.`);
+          },
+        });
+      }
+      try {
+        assertFeaturesArtifact(hostileArtifact);
+      } catch (error) {
+        observed = error;
+      }
+    } finally {
+      for (const [method, descriptorValue] of originalDescriptors) {
+        Object.defineProperty(Array.prototype, method, descriptorValue);
+      }
+    }
+
+    expect(observed).toBeInstanceOf(Error);
+    expect(observed.message).toMatch(
+      /callouts must contain 1 through 4000 rows; received 4001 rows/u,
     );
   });
 
