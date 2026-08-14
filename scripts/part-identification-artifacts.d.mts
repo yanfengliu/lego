@@ -1,10 +1,10 @@
 export const PART_FEATURES_SCHEMA: "lego.part-identification-features/3";
-export const PART_MATCH_SCHEMA: "lego.part-identification-match/2";
-export const PART_DISTANCES_SCHEMA: "lego.part-identification-distances/2";
+export const PART_MATCH_SCHEMA: "lego.part-identification-match/3";
+export const PART_DISTANCES_SCHEMA: "lego.part-identification-distances/3";
 export const PART_CARDS_SCHEMA: "lego.part-identification-cards/4";
 export const PART_ANSWERS_SCHEMA: "lego.part-identification-answers/4";
-export const PART_SCORE_SCHEMA: "lego.part-identification-score/1";
-export const PART_SCORE_SUMMARY_SCHEMA: "lego.part-identification-score-summary/1";
+export const PART_SCORE_SCHEMA: "lego.part-identification-score/2";
+export const PART_SCORE_SUMMARY_SCHEMA: "lego.part-identification-score-summary/2";
 export const DESCRIPTOR_GRID_CELLS: number;
 export const MAX_DESCRIPTOR_COMPARISON_CELLS: number;
 

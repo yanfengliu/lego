@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { documentStructuralHash } from "@lego-studio/brick-kernel";
 import type { BrickDocumentV1 } from "@lego-studio/protocol";
 import { describe, expect, it } from "vitest";
+import { readContainedBoundedRegularFile } from "../e2e/bounded-file-read";
 import { verifyLegacyRealBuildArtifactScoreV4 } from "../e2e/real-build-artifact-legacy-score-verification";
 import { inspectFrozenLegacyBrowserOutputV2 } from "../e2e/real-build-artifact-legacy-browser-v2";
 import { decodeFrozenLegacyPngCaptureV2 } from "../e2e/real-build-artifact-legacy-browser-v2-values";
@@ -28,6 +29,26 @@ const RETAINED_PRODUCTION_RUN = join(
   "runs",
   "2026-08-12T10-28-52-560Z-34694c87c62e-26128a38-4d9e-4294-9091-6aae9b3ca367",
 );
+const RETAINED_PRODUCTION_REPLAY_CLOSURE = {
+  bytes: 725_460,
+  digest: "sha256:a8562c9ae06569f54e8df4ac7b3ec28d6975466ea77a8e662116e70da61b88ef",
+  manifestDigest: "sha256:1c27df8a95c655f7508436489e8e31f486f806c7a5382df76d53e0a80801a66c",
+} as const;
+const RETAINED_PRODUCTION_REPLAY_ROLES = {
+  "prepared-options": {
+    bytes: 1_339_294,
+    digest: "sha256:030482e93f29014965157ff014a20a5ac88b1b5e58b001c9305e61593fa3980b",
+  },
+  "browser-output": {
+    bytes: 1_668_298,
+    digest: "sha256:3ffd64b43ad2464e660cbfc487f65e0fa348861d4dcc3b4c0a36314a87f3a10c",
+  },
+} as const;
+
+function retainedCasPath(digest: string): string {
+  const hex = digest.slice("sha256:".length);
+  return `cas/sha256/${hex.slice(0, 2)}/${hex.slice(2)}`;
+}
 
 interface MutableLegacyDocument {
   connections: unknown[];
@@ -479,20 +500,55 @@ describe("legacy artifact-manifest /3 inspection", () => {
   });
 
   it.skipIf(!existsSync(RETAINED_PRODUCTION_RUN))(
-    "inspects the exact ignored production generation when it is locally available",
+    "keeps frozen inspection of the exact ignored production generation when it is locally available",
     () => {
       expect(() => verifyRealBuildArtifactManifest(RETAINED_PRODUCTION_RUN)).toThrow(
         /exact schema \/4/u,
       );
-      expect(inspectLegacyRealBuildArtifactManifestV3(RETAINED_PRODUCTION_RUN)).toMatchObject({
-        kind: "legacy-artifact-inspection",
-        authority: "inspection-only",
-        authenticated: false,
-        artifactManifestSchemaVersion: "lego.real-build-artifact-manifest/3",
-        runContractSchemaVersion: "lego.real-build-run-contract/2",
-        browserOutputSchemaVersion: "lego.real-build-browser-output/2",
-        scoreSchemaVersion: "lego.real-build-score/4",
+      expect(() => inspectLegacyRealBuildArtifactManifestV3(RETAINED_PRODUCTION_RUN)).toThrow(
+        /Part-identification match must use lego\.part-identification-match\/3[\s\S]*received schemaVersion="lego\.part-identification-match\/2"[\s\S]*Regenerate match and distances/u,
+      );
+
+      const replayClosureBytes = readContainedBoundedRegularFile(
+        RETAINED_PRODUCTION_RUN,
+        "replay-closure.json",
+        {
+          label: "exact retained production replay closure",
+          maximumBytes: RETAINED_PRODUCTION_REPLAY_CLOSURE.bytes,
+          exactBytes: RETAINED_PRODUCTION_REPLAY_CLOSURE.bytes,
+          expectedSha256: RETAINED_PRODUCTION_REPLAY_CLOSURE.digest,
+        },
+      );
+      expect(JSON.parse(replayClosureBytes.toString("utf8"))).toMatchObject({
+        manifestDigest: RETAINED_PRODUCTION_REPLAY_CLOSURE.manifestDigest,
+        roles: expect.arrayContaining(
+          Object.entries(RETAINED_PRODUCTION_REPLAY_ROLES).map(([role, pin]) => ({
+            role,
+            bytes: pin.bytes,
+            digest: pin.digest,
+            casPath: retainedCasPath(pin.digest),
+          })),
+        ),
       });
+      const readFrozenRole = (role: keyof typeof RETAINED_PRODUCTION_REPLAY_ROLES) => {
+        const pin = RETAINED_PRODUCTION_REPLAY_ROLES[role];
+        const bytes = readContainedBoundedRegularFile(
+          RETAINED_PRODUCTION_RUN,
+          retainedCasPath(pin.digest),
+          {
+            label: `exact retained replay role ${role}`,
+            maximumBytes: pin.bytes,
+            exactBytes: pin.bytes,
+            expectedSha256: pin.digest,
+          },
+        );
+        return JSON.parse(bytes.toString("utf8"));
+      };
+      const preparedOptions = readFrozenRole("prepared-options");
+      const browserOutput = readFrozenRole("browser-output");
+      expect(inspectFrozenLegacyBrowserOutputV2(browserOutput, preparedOptions)).toBe(
+        browserOutput,
+      );
     },
     120_000,
   );

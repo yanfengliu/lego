@@ -368,9 +368,9 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
       throw new TypeError("The identification compiler returned a non-object coverage report.");
     }
     const candidate = reproduced as { readonly schemaVersion?: string };
-    if (candidate.schemaVersion !== "lego.real-build-catalog-coverage/1") {
+    if (candidate.schemaVersion !== "lego.real-build-catalog-coverage/2") {
       throw new TypeError(
-        `Reproduced coverage must use lego.real-build-catalog-coverage/1; received ${JSON.stringify(candidate.schemaVersion ?? "missing")}.`,
+        `Reproduced coverage must use lego.real-build-catalog-coverage/2; received ${JSON.stringify(candidate.schemaVersion ?? "missing")}.`,
       );
     }
     verifiedCoverage = candidate;
@@ -382,7 +382,7 @@ test("rebuilds the real booklet from its own printed steps", async ({ page, brow
       contractFailure(
         COVERAGE_PATH,
         `Catalog coverage was rejected before use because the bounded manifest, features, match, ` +
-          `distances, cards, answers, and element-resolution bytes did not reproduce its exact closure: ` +
+          `distances, cards, card-images, answers, pair-judged, and element-resolution bytes did not reproduce its exact closure: ` +
           `${coverageClosureRejection}.`,
       ),
     );

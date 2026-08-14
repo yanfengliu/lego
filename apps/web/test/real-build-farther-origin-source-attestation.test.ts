@@ -1,5 +1,8 @@
 import { spawnSync } from "node:child_process";
+import { existsSync, readFileSync, statSync } from "node:fs";
+import { posix } from "node:path";
 
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 import { snapshotRealBuildCodeRoots } from "../e2e/real-build-artifacts";
@@ -9,6 +12,8 @@ import {
   MEASURED_FARTHER_ORIGIN_REQUIRED_SOURCE_PATHS,
   MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION,
   MEASURED_FARTHER_ORIGIN_SOURCE_MANIFEST_PATH,
+  MEASURED_FARTHER_ORIGIN_VERIFIER_ENTRY_SOURCE_PATHS,
+  MEASURED_FARTHER_ORIGIN_VERIFIER_SCRIPT_SOURCE_PATHS,
   isMeasuredFartherOriginSourcePath,
 } from "../e2e/real-build-farther-origin-source-manifest";
 import {
@@ -27,6 +32,144 @@ import { REAL_BUILD_TEST_DIGEST, completeRealBuildTestOptions } from "./real-bui
 const DIFFERENT_DIGEST = `sha256:${"b".repeat(64)}`;
 const codeUnitCompare = (left: string, right: string): number =>
   left < right ? -1 : left > right ? 1 : 0;
+
+function runtimeImportSpecifiersFromText(path: string, text: string): readonly string[] {
+  const source = ts.createSourceFile(
+    path,
+    text,
+    ts.ScriptTarget.Latest,
+    true,
+    path.endsWith(".tsx")
+      ? ts.ScriptKind.TSX
+      : path.endsWith(".jsx")
+        ? ts.ScriptKind.JSX
+        : /\.[cm]?ts$/u.test(path)
+          ? ts.ScriptKind.TS
+          : ts.ScriptKind.JS,
+  );
+  const specifiers: string[] = [];
+  const literalModuleSpecifier = (expression: ts.Expression): string | null =>
+    ts.isStringLiteral(expression) || ts.isNoSubstitutionTemplateLiteral(expression)
+      ? expression.text
+      : null;
+  const importClauseRuns = (clause: ts.ImportClause | undefined): boolean => {
+    if (clause === undefined) return true;
+    if (clause.isTypeOnly) return false;
+    if (clause.name !== undefined || clause.namedBindings === undefined) return true;
+    if (ts.isNamespaceImport(clause.namedBindings)) return true;
+    if (clause.namedBindings.elements.length === 0) return true;
+    return clause.namedBindings.elements.some((element) => !element.isTypeOnly);
+  };
+  const exportClauseRuns = (declaration: ts.ExportDeclaration): boolean => {
+    if (declaration.isTypeOnly) return false;
+    if (declaration.exportClause === undefined) return true;
+    if (ts.isNamespaceExport(declaration.exportClause)) return true;
+    if (declaration.exportClause.elements.length === 0) return true;
+    return declaration.exportClause.elements.some((element) => !element.isTypeOnly);
+  };
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isImportDeclaration(node) &&
+      ts.isStringLiteral(node.moduleSpecifier) &&
+      importClauseRuns(node.importClause)
+    ) {
+      specifiers.push(node.moduleSpecifier.text);
+    } else if (
+      ts.isExportDeclaration(node) &&
+      node.moduleSpecifier !== undefined &&
+      ts.isStringLiteral(node.moduleSpecifier) &&
+      exportClauseRuns(node)
+    ) {
+      specifiers.push(node.moduleSpecifier.text);
+    } else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
+      const argument = node.arguments.length === 1 ? node.arguments[0] : undefined;
+      const specifier = argument === undefined ? null : literalModuleSpecifier(argument);
+      if (specifier === null) {
+        throw new TypeError(
+          `Verifier module ${path} contains a computed dynamic import; source attestation requires a literal module path.`,
+        );
+      }
+      specifiers.push(specifier);
+    } else if (
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === "require"
+    ) {
+      const argument = node.arguments.length === 1 ? node.arguments[0] : undefined;
+      const specifier = argument === undefined ? null : literalModuleSpecifier(argument);
+      if (specifier === null) {
+        throw new TypeError(
+          `Verifier module ${path} contains a computed CommonJS require; source attestation requires a literal module path.`,
+        );
+      }
+      specifiers.push(specifier);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return specifiers;
+}
+
+function runtimeImportSpecifiers(path: string): readonly string[] {
+  return runtimeImportSpecifiersFromText(path, readFileSync(path, "utf8"));
+}
+
+function resolveRuntimeImport(importer: string, specifier: string): string | null {
+  if (!specifier.startsWith(".")) return null;
+  const base = posix.normalize(posix.join(posix.dirname(importer), specifier));
+  if (base.startsWith("../") || posix.isAbsolute(base)) {
+    throw new TypeError(
+      `Verifier import ${JSON.stringify(specifier)} from ${importer} escapes the repository.`,
+    );
+  }
+  const candidates = /\.[cm]?[jt]sx?$|\.json$/u.test(base)
+    ? [base]
+    : [
+        `${base}.ts`,
+        `${base}.tsx`,
+        `${base}.mts`,
+        `${base}.cts`,
+        `${base}.mjs`,
+        `${base}.cjs`,
+        `${base}.js`,
+        `${base}.jsx`,
+        `${base}.json`,
+        `${base}/index.ts`,
+        `${base}/index.tsx`,
+        `${base}/index.mts`,
+        `${base}/index.cts`,
+        `${base}/index.mjs`,
+        `${base}/index.cjs`,
+        `${base}/index.js`,
+        `${base}/index.jsx`,
+      ];
+  const resolved = candidates.find(
+    (candidate) => existsSync(candidate) && statSync(candidate).isFile(),
+  );
+  if (resolved === undefined) {
+    throw new TypeError(
+      `Verifier import ${JSON.stringify(specifier)} from ${importer} does not resolve to a retained first-party module.`,
+    );
+  }
+  return resolved;
+}
+
+function verifierRuntimeModuleClosure(): readonly string[] {
+  const pending = [...MEASURED_FARTHER_ORIGIN_VERIFIER_ENTRY_SOURCE_PATHS];
+  const visited = new Set<string>();
+  while (pending.length > 0) {
+    const path = pending.shift()!;
+    if (visited.has(path)) continue;
+    visited.add(path);
+    for (const specifier of runtimeImportSpecifiers(path)) {
+      const resolved = resolveRuntimeImport(path, specifier);
+      if (resolved === null || visited.has(resolved)) continue;
+      if (/\.[cm]?[jt]sx?$/u.test(resolved)) pending.push(resolved);
+      else visited.add(resolved);
+    }
+  }
+  return [...visited].sort(codeUnitCompare);
+}
 
 const canonicalFixtureSnapshots = (): Readonly<Record<string, string>> =>
   Object.fromEntries(
@@ -103,6 +246,28 @@ function attestedFixture() {
 }
 
 describe("measured farther-origin source attestation", () => {
+  it("tracks literal dynamic-template and CommonJS imports and refuses computed paths", () => {
+    expect(
+      runtimeImportSpecifiersFromText(
+        "scripts/entry.mjs",
+        'import(`./dynamic.mjs`); require("./common.cjs");',
+      ),
+    ).toEqual(["./dynamic.mjs", "./common.cjs"]);
+
+    expect(() =>
+      runtimeImportSpecifiersFromText(
+        "scripts/computed-dynamic.mjs",
+        "const suffix = 'child'; import(`./${suffix}.mjs`);",
+      ),
+    ).toThrow(/computed dynamic import.*literal module path/u);
+    expect(() =>
+      runtimeImportSpecifiersFromText(
+        "scripts/computed-require.cjs",
+        "const child = './child.cjs'; require(child);",
+      ),
+    ).toThrow(/computed CommonJS require.*literal module path/u);
+  });
+
   it("imports its pure manifest and Node derivation directly without a Vite transform", () => {
     const moduleUrls = [
       new URL("../e2e/real-build-farther-origin-source-manifest.ts", import.meta.url).href,
@@ -148,6 +313,25 @@ describe("measured farther-origin source attestation", () => {
     ).not.toEqual(baseline);
   });
 
+  it("attests the exact transitive verifier script closure without a broad scripts root", () => {
+    const scriptClosure = verifierRuntimeModuleClosure().filter((path) =>
+      path.startsWith("scripts/"),
+    );
+    const declaredScriptRoots = REAL_BUILD_SOURCE_ROOTS.filter(
+      (path) =>
+        path.startsWith("scripts/") && path !== "scripts/windows-lock-real-build-snapshot.ps1",
+    );
+
+    expect(scriptClosure).toEqual(MEASURED_FARTHER_ORIGIN_VERIFIER_SCRIPT_SOURCE_PATHS);
+    expect(declaredScriptRoots).toEqual(MEASURED_FARTHER_ORIGIN_VERIFIER_SCRIPT_SOURCE_PATHS);
+    expect(REAL_BUILD_SOURCE_ROOTS).not.toContain("scripts");
+    expect(
+      MEASURED_FARTHER_ORIGIN_VERIFIER_SCRIPT_SOURCE_PATHS.every((path) =>
+        isMeasuredFartherOriginSourcePath(path),
+      ),
+    ).toBe(true);
+  });
+
   it("refuses missing anchors, non-canonical paths, and malformed digests", () => {
     const canonical = { ...canonicalFixtureSnapshots() };
     delete canonical["apps/web/e2e/real-build-farther-origin-attempt.ts"];
@@ -166,6 +350,12 @@ describe("measured farther-origin source attestation", () => {
         "apps/web/e2e/extra.ts": "sha256:not-a-digest",
       }),
     ).toThrow(/malformed digest/u);
+
+    const missingVerifierScript = { ...canonicalFixtureSnapshots() };
+    delete missingVerifierScript["scripts/part-identification-score-truth.mjs"];
+    expect(() => deriveMeasuredFartherOriginSourceAttestation(missingVerifierScript)).toThrow(
+      /missing 1 result-determining verifier script path/u,
+    );
   });
 
   it("accepts omitted legacy preflight state but refuses a malformed claimed attestation", () => {

@@ -4,9 +4,7 @@ import { crc32, deflateSync } from "node:zlib";
 import {
   PART_ANSWERS_SCHEMA,
   PART_CARDS_SCHEMA,
-  PART_DISTANCES_SCHEMA,
   PART_FEATURES_SCHEMA,
-  PART_MATCH_SCHEMA,
   deriveCardRunId,
   jsonArtifactFromBytes,
 } from "./part-identification-artifacts.mjs";
@@ -20,6 +18,11 @@ import {
   encodeCardImageBundle,
 } from "./part-identification-card-images.mjs";
 import { PART_TRUTH_SCHEMA } from "./part-identification-truth-key.mjs";
+import {
+  derivePartIdentificationMatch,
+  partIdentificationDistancesValue,
+  partIdentificationMatchValue,
+} from "./part-identification-derivation.mjs";
 import { chiralCard } from "./part-identification-card-test-fixture.mjs";
 import { __testOnly } from "./booklet-catalog-coverage.mjs";
 
@@ -201,6 +204,18 @@ export function build(overrides = {}) {
 export const artifact = (value) =>
   jsonArtifactFromBytes(Buffer.from(JSON.stringify(value)), "coverage fixture artifact");
 
+/** Exact /3 match-distance closure for one already-authenticated feature fixture. */
+export function identificationArtifactsFor(featuresArtifact, candidateLimit = 6) {
+  const derived = derivePartIdentificationMatch(featuresArtifact.value, candidateLimit);
+  const matchArtifact = artifact(partIdentificationMatchValue(featuresArtifact.digest, derived));
+  return {
+    matchArtifact,
+    distancesArtifact: artifact(
+      partIdentificationDistancesValue(featuresArtifact.digest, matchArtifact.digest, derived),
+    ),
+  };
+}
+
 /**
  * Judged verdicts for the synthetic closure, keyed exactly as the real ones are.
  *
@@ -213,7 +228,10 @@ export const pairJudgedArtifactFor = (verdicts = []) =>
     schemaVersion: PART_TRUTH_SCHEMA,
     method: "pair-verification",
     lastStep: 50,
+    pairsJudged: verdicts.length,
+    pairsUnjudgeable: 0,
     verdicts,
+    unjudgeable: [],
   });
 
 export function closureFixture() {
@@ -231,27 +249,7 @@ export function closureFixture() {
     inventorySourceDigests: { 300501: digest("inventory") },
     callouts: [{ ...callout, descriptor: descriptor() }],
   });
-  const matchArtifact = artifact({
-    schemaVersion: PART_MATCH_SCHEMA,
-    featuresDigest: featuresArtifact.digest,
-    calloutCount: 1,
-    clusterCount: 1,
-    clusters: [
-      {
-        clusterIndex: 0,
-        lead: callout.file,
-        members: [0],
-        pieces: 1,
-        candidates: [{ elementId: "300501", total: 0.01 }],
-      },
-    ],
-  });
-  const distancesArtifact = artifact({
-    schemaVersion: PART_DISTANCES_SCHEMA,
-    featuresDigest: featuresArtifact.digest,
-    elementIds: ["300501"],
-    rows: [[0.01]],
-  });
+  const { matchArtifact, distancesArtifact } = identificationArtifactsFor(featuresArtifact);
   const cardImage = canonicalPng();
   const cardEntries = {
     "card-0000": {
@@ -348,30 +346,7 @@ export function chiralClosureFixture({ pick = 1 } = {}) {
     },
     callouts: [{ ...callout, descriptor: descriptor() }],
   });
-  const matchArtifact = artifact({
-    schemaVersion: PART_MATCH_SCHEMA,
-    featuresDigest: featuresArtifact.digest,
-    calloutCount: 1,
-    clusterCount: 1,
-    clusters: [
-      {
-        clusterIndex: 0,
-        lead: callout.file,
-        members: [0],
-        pieces: 1,
-        candidates: [
-          { elementId: "6392746", total: 0.07 },
-          { elementId: "6392747", total: 0.21 },
-        ],
-      },
-    ],
-  });
-  const distancesArtifact = artifact({
-    schemaVersion: PART_DISTANCES_SCHEMA,
-    featuresDigest: featuresArtifact.digest,
-    elementIds: ["6392746", "6392747"],
-    rows: [[0.07, 0.21]],
-  });
+  const { matchArtifact, distancesArtifact } = identificationArtifactsFor(featuresArtifact);
   const cardImage = chiralCard();
   const cardEntries = {
     "card-0000": {

@@ -3,9 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   PART_ANSWERS_SCHEMA,
   PART_CARDS_SCHEMA,
-  PART_DISTANCES_SCHEMA,
   PART_FEATURES_SCHEMA,
-  PART_MATCH_SCHEMA,
   PartIdentificationArtifactBindingError,
   assertBoundMatchArtifacts,
   assertCardsArtifact,
@@ -19,6 +17,11 @@ import {
   PART_IDENTIFICATION_MODEL_ID,
   PART_IDENTIFICATION_MODEL_IDENTITY,
 } from "./part-identification-model.mjs";
+import {
+  derivePartIdentificationMatch,
+  partIdentificationDistancesValue,
+  partIdentificationMatchValue,
+} from "./part-identification-derivation.mjs";
 
 const digest = (character) => `sha256:${character.repeat(64)}`;
 const run = "0123456789abcdef01234567";
@@ -86,30 +89,17 @@ function fixture(featureOverrides = {}) {
     ...featureOverrides,
   };
   const featuresArtifact = artifact(features);
-  const match = {
-    schemaVersion: PART_MATCH_SCHEMA,
-    featuresDigest: featuresArtifact.digest,
-    calloutCount: 1,
-    clusterCount: 1,
-    clusters: [
-      {
-        clusterIndex: 0,
-        lead: features.callouts[0].file,
-        members: [0],
-        pieces: 1,
-        candidates: [{ elementId: "300501", total: 0.1 }],
-      },
-    ],
-  };
-  const distances = {
-    schemaVersion: PART_DISTANCES_SCHEMA,
-    featuresDigest: featuresArtifact.digest,
-    elementIds: ["300501"],
-    rows: [[0.1]],
-  };
+  const derived = derivePartIdentificationMatch(features);
+  const match = partIdentificationMatchValue(featuresArtifact.digest, derived);
+  const matchArtifact = artifact(match);
+  const distances = partIdentificationDistancesValue(
+    featuresArtifact.digest,
+    matchArtifact.digest,
+    derived,
+  );
   return {
     featuresArtifact,
-    matchArtifact: artifact(match),
+    matchArtifact,
     distancesArtifact: artifact(distances),
   };
 }
@@ -197,9 +187,7 @@ describe("part-identification artifact bindings", () => {
       ...duplicated.matchArtifact.value,
       clusters: [{ ...duplicated.matchArtifact.value.clusters[0], members: [] }],
     });
-    expect(() => assertBoundMatchArtifacts(duplicated)).toThrow(
-      /partition every physical part-art feature/,
-    );
+    expect(() => assertBoundMatchArtifacts(duplicated)).toThrow(/does not equal the bounded/);
 
     const reranked = fixture();
     reranked.matchArtifact = artifact({
@@ -211,7 +199,50 @@ describe("part-identification artifact bindings", () => {
         },
       ],
     });
-    expect(() => assertBoundMatchArtifacts(reranked)).toThrow(/exact ranked prefix/);
+    expect(() => assertBoundMatchArtifacts(reranked)).toThrow(/does not equal the bounded/);
+  });
+
+  it("rejects superseded schemas and every forged /3 guard proof", () => {
+    for (const mutate of [
+      (value) => ({ ...value, schemaVersion: "lego.part-identification-match/2" }),
+      (value) => ({ ...value, candidateLimit: value.candidateLimit + 1 }),
+      (value) => ({
+        ...value,
+        clusterGuard: { ...value.clusterGuard, maximumDistanceExclusive: 0.056 },
+      }),
+      (value) => ({
+        ...value,
+        clusters: value.clusters.map((cluster, index) =>
+          index === 0 ? { ...cluster, memberTopElementIds: ["999999"] } : cluster,
+        ),
+      }),
+    ]) {
+      const forged = fixture();
+      forged.matchArtifact = artifact(mutate(forged.matchArtifact.value));
+      expect(() => assertBoundMatchArtifacts(forged)).toThrow(
+        /match must use|does not equal|distances must use/u,
+      );
+    }
+
+    const staleDistances = fixture();
+    staleDistances.distancesArtifact = artifact({
+      ...staleDistances.distancesArtifact.value,
+      schemaVersion: "lego.part-identification-distances/2",
+    });
+    expect(() => assertBoundMatchArtifacts(staleDistances)).toThrow(/distances must use/u);
+  });
+
+  it("binds distances to the exact serialized match bytes, not just feature semantics", () => {
+    const detached = fixture();
+    // Whitespace changes the authenticated digest while retaining the same JSON value.
+    detached.matchArtifact = jsonArtifactFromBytes(
+      Buffer.from(JSON.stringify(detached.matchArtifact.value, null, 1)),
+      "reserialized match",
+    );
+    expect(detached.matchArtifact.value).toEqual(fixture().matchArtifact.value);
+    expect(() => assertBoundMatchArtifacts(detached)).toThrow(
+      /bind exact features\/match digests/u,
+    );
   });
 
   it("rejects a descriptor population whose bounded shapes still imply excessive total work", () => {
@@ -244,7 +275,51 @@ describe("part-identification artifact bindings", () => {
       callouts,
     });
     expect(() => assertFeaturesArtifact(features)).toThrow(
-      /no more than 536870912 worst-case descriptor-cell comparisons.*Observed worst-case work 575965600/s,
+      /no more than 536870912 worst-case descriptor-coordinate positions.*Observed worst-case work 593527200/s,
+    );
+  });
+
+  it("names the exact descriptor cell and value that violates the byte contract", () => {
+    const corrupt = callout();
+    corrupt.descriptor.grid[37] = 256;
+    const features = artifact({
+      ...fixture().featuresArtifact.value,
+      callouts: [corrupt],
+    });
+
+    expect(() => assertFeaturesArtifact(features)).toThrow(
+      /callouts\[0\]\.descriptor grid\[37\] must be an integer byte from 0 through 255; received 256/u,
+    );
+  });
+
+  it("bounds hostile descriptor values while retaining path, size, and remediation", () => {
+    const corrupt = callout();
+    corrupt.descriptor.mean = "x".repeat(1024 * 1024);
+    const features = artifact({
+      ...fixture().featuresArtifact.value,
+      callouts: [corrupt],
+    });
+    let message = "";
+    try {
+      assertFeaturesArtifact(features);
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+    expect(message).toContain("callouts[0].descriptor mean");
+    expect(message).toContain("string length 1048576");
+    expect(message).toContain("Regenerate that descriptor");
+    expect(message.length).toBeLessThan(768);
+  });
+
+  it("names an invalid colour channel without serializing its enclosing record", () => {
+    const corrupt = callout();
+    corrupt.descriptor.colours[0].rgb[2] = 999;
+    const features = artifact({
+      ...fixture().featuresArtifact.value,
+      callouts: [corrupt],
+    });
+    expect(() => assertFeaturesArtifact(features)).toThrow(
+      /callouts\[0\]\.descriptor colours\[0\]\.rgb\[2\].*received 999.*Regenerate/u,
     );
   });
 
@@ -302,9 +377,7 @@ describe("part-identification artifact bindings", () => {
         },
       ],
     });
-    expect(() => assertBoundMatchArtifacts(artifacts)).toThrow(
-      /exclude every explicit non-clustered semantic index/,
-    );
+    expect(() => assertBoundMatchArtifacts(artifacts)).toThrow(/does not equal the bounded/);
   });
 
   it("binds answers to model, match, cards, prompt, indexes, and exact schema", () => {

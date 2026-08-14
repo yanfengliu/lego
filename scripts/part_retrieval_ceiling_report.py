@@ -1,21 +1,10 @@
-"""Drive the retrieval-ceiling measurement over the retained identification chain.
-
-Reads artifacts, writes one report, and prints the headline numbers. It pins the
-digest of every input it read into the report, because the identification chain
-is republished often and a recall figure that does not say which generation it
-describes is worthless.
-
-    python -B scripts/part_retrieval_ceiling_report.py [--out PATH] [--quick]
-
-`--quick` skips the one whole-population recomputation - every non-lead member's
-own shortlist - which is the only slow part. The per-term ablation covers three
-drawings and always runs.
-"""
+"""Measure the authenticated retrieval ceiling and write a digest-bound report."""
 
 from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -29,17 +18,23 @@ from part_retrieval_ceiling import (  # noqa: E402
     TruthRecord,
     builder_truth,
     design_level_records,
-    digest_of,
     distance_terms,
-    load_json,
+    lead_truth_per_cluster,
+    lead_diagnostic_truth,
     merge_truth,
     official_bricks,
+    pair_sample_bounds,
     pair_judged_truth,
     rank_lookup,
     recall_at,
     ranked_order,
     weighted_total,
 )
+from part_retrieval_ceiling_report_inputs import (  # noqa: E402
+    RetrievalInputVerificationHooks,
+    load_verified_retrieval_inputs,
+)
+from part_retrieval_work_contract import require_report_comparison_budget  # noqa: E402
 from part_retrieval_ceiling_causes import (  # noqa: E402
     ablate,
     attribute_misses,
@@ -48,53 +43,97 @@ from part_retrieval_ceiling_causes import (  # noqa: E402
     lead_representativeness,
     sibling_outliers,
 )
+from part_identification_report_contract import (  # noqa: E402
+    require_adjudication_chain,
+    require_identification_chain,
+    require_score_summary_chain,
+    require_truth_v3,
+)
+REPORT_SCHEMA_VERSION = "lego.part-retrieval-ceiling/2"
+MAX_REPRODUCTION_ABSOLUTE_DEVIATION = 1e-12
 
-INPUTS = {
-    "features": "output/part-identification/features.json",
-    "match": "output/part-identification/match.json",
-    "distances": "output/part-identification/distances.json",
-    "cards": "output/part-identification/cards/manifest.json",
-    "score": "output/part-identification/score.json",
-    "calloutManifest": "output/callout-thumbnails/manifest.json",
-    "elementResolution": "output/part-identification/element-resolution.json",
-    "truthFirstFifty": "scripts/fixtures/part-identification-truth-first50.json",
-    "actionLedger": "output/real-build/action-ledger.json",
-    "officialModel": "output/official-model/vx1087034_21066_a.xml",
-}
+
+def verified_vision_confound(score: dict, score_digest: str) -> dict:
+    """Publish only the headline numbers authenticated by exact score replay."""
+
+    first_fifty = score["headline"]["firstFiftyAccuracy"]
+    return {
+        "status": "exact-recompiled-score-summary",
+        "retainedScoreDigest": score_digest,
+        "firstFiftyAccuracy": first_fifty["accuracy"],
+        "firstFiftyCalloutsJudged": first_fifty["calloutsJudged"],
+        "firstFiftyCorrect": first_fifty["correct"],
+        "firstFiftyDrawingsJudged": first_fifty["drawingsJudged"],
+    }
+
+
+def require_reproduced_retrieval_inputs(
+    worst_absolute_deviation: float, candidate_prefix_reproduced: bool
+) -> None:
+    """Refuse every metric unless retained rows and displayed candidates reproduce."""
+
+    failures = []
+    if (
+        not isinstance(worst_absolute_deviation, (int, float))
+        or isinstance(worst_absolute_deviation, bool)
+        or not math.isfinite(worst_absolute_deviation)
+        or worst_absolute_deviation > MAX_REPRODUCTION_ABSOLUTE_DEVIATION
+    ):
+        failures.append(
+            "worstAbsoluteDeviationFromPublishedRows="
+            f"{worst_absolute_deviation!r} exceeds the finite "
+            f"{MAX_REPRODUCTION_ABSOLUTE_DEVIATION} tolerance"
+        )
+    if candidate_prefix_reproduced is not True:
+        failures.append(
+            f"candidatePrefixReproduced={candidate_prefix_reproduced!r}, required True"
+        )
+    if failures:
+        raise ValueError(
+            "retrieval inputs do not reproduce the descriptor function and displayed candidate "
+            f"prefix ({'; '.join(failures)}). Regenerate match and distances from the exact "
+            "retained features before computing any recall or cause metric."
+        )
+
+
+def verified_rank_rows(
+    rows: list[list[float]],
+    worst_absolute_deviation: float,
+    candidate_prefix_reproduced: bool,
+) -> list[list[int]]:
+    """Cross the reproduction gate before ranking any retained distance row."""
+
+    require_reproduced_retrieval_inputs(
+        worst_absolute_deviation, candidate_prefix_reproduced
+    )
+    return [rank_lookup(row) for row in rows]
 
 
 def build_report(quick: bool = False) -> dict:
-    paths = {name: REPOSITORY_ROOT / relative for name, relative in INPUTS.items()}
-    missing = sorted(name for name, path in paths.items() if not path.exists())
-    if missing:
-        raise SystemExit(f"could not verify: retained inputs absent: {', '.join(missing)}")
-    digests = {name: digest_of(path) for name, path in paths.items()}
-
-    features = load_json(paths["features"])
-    match = load_json(paths["match"])
-    distances = load_json(paths["distances"])
-    score = load_json(paths["score"])
-    resolution = load_json(paths["elementResolution"])
-    fixture = load_json(paths["truthFirstFifty"])
-    ledger = load_json(paths["actionLedger"])
-
-    if match["featuresDigest"] != digests["features"] or (
-        distances["featuresDigest"] != digests["features"]
-    ):
-        raise SystemExit(
-            "could not verify: match/distances do not bind the features file on disk; "
-            "the chain is mid-republication. Re-run once it settles."
-        )
-
+    inputs = load_verified_retrieval_inputs(
+        quick=quick,
+        repository_root=REPOSITORY_ROOT,
+        hooks=RetrievalInputVerificationHooks(
+            require_identification_chain, require_truth_v3, require_adjudication_chain,
+            require_score_summary_chain, require_report_comparison_budget,
+        ),
+    )
+    features = inputs.features
+    match = inputs.match
+    distances = inputs.distances
+    score = inputs.score
+    resolution = inputs.resolution
+    fixture = inputs.truth_fixture
+    ledger = inputs.action_ledger
+    official_model = inputs.official_model
+    digests = inputs.digests
+    clusters = match["clusters"]
     element_ids = distances["elementIds"]
     element_index = {element: index for index, element in enumerate(element_ids)}
     inventory_order = [features["inventory"][element] for element in element_ids]
     design_of = {element: resolution[element]["partNum"] for element in resolution}
     held_of = {element: int(resolution[element]["quantity"]) for element in resolution}
     rows = distances["rows"]
-    ranks = [rank_lookup(row) for row in rows]
-    clusters = match["clusters"]
-
     # --- reproduction check: the report must score the function that ran ---
     index_of_file = {callout["file"]: index for index, callout in enumerate(features["callouts"])}
     worst = 0.0
@@ -109,19 +148,32 @@ def build_report(quick: bool = False) -> dict:
         == [candidate["elementId"] for candidate in cluster["candidates"][:DISPLAYED_K]]
         for cluster in clusters
     )
+    try:
+        ranks = verified_rank_rows(rows, worst, candidate_prefix_reproduced)
+    except ValueError as error:
+        raise SystemExit(
+            f"could not verify the retrieval-report derivation before scoring: {error}"
+        ) from error
 
     judged, negatives, unbindable = pair_judged_truth(
-        fixture["verdicts"], features["callouts"], clusters, ranks, element_index
+        fixture["verdicts"], features, clusters, element_ids
     )
-    bricks = official_bricks(paths["officialModel"].read_text(encoding="utf-8", errors="replace"))
+    bricks = official_bricks(official_model)
     builder, builder_steps = builder_truth(
-        ledger, bricks, features["callouts"], clusters, ranks, element_index
+        ledger, bricks, features["callouts"], clusters, inventory_order, element_index
     )
     merged, conflicts = merge_truth(builder, judged)
     union = [merged[key] for key in sorted(merged)]
+    builder_by_cluster = lead_truth_per_cluster(builder, ranks, element_index)
+    # Cause blocks below were designed around the published lead shortlist.
+    # Exact Builder and pair records retain their own row for recall, but a non-lead member
+    # must not be silently fed back through its cluster lead for attribution.
+    lead_diagnostic_union, member_local_omitted = lead_diagnostic_truth(
+        union, clusters, features["callouts"]
+    )
 
     report = {
-        "schemaVersion": "lego.part-retrieval-ceiling/1",
+        "schemaVersion": REPORT_SCHEMA_VERSION,
         "what": (
             "Recall at k for the descriptor shortlist that precedes every vision call. "
             "A drawing whose correct element is outside the displayed top "
@@ -164,15 +216,15 @@ def build_report(quick: bool = False) -> dict:
         },
         "groundTruthCoverage": {
             "clustersTotal": len(clusters),
-            "clustersWithAnyTruth": len(merged),
+            "clustersWithAnyTruth": len({record.cluster_index for record in union}),
             "fromBuilder": len({record.cluster_index for record in builder}),
             "fromPairJudgedOnly": len(
                 {record.cluster_index for record in judged}
                 - {record.cluster_index for record in builder}
             ),
             "builderCallouts": len(builder),
-            "builderUnits": sum(step["units"] for step in builder_steps),
-            "builderSteps": builder_steps,
+            "acceptedBuilderUnits": sum(step["acceptedUnits"] for step in builder_steps),
+            "acceptedBuilderSteps": builder_steps,
             "builderStopReason": ledger["provenance"]["stopReason"],
             "pairJudgedVerdicts": len(fixture["verdicts"]),
             "pairJudgedPositive": sum(1 for verdict in fixture["verdicts"] if verdict["same"]),
@@ -183,22 +235,17 @@ def build_report(quick: bool = False) -> dict:
         },
         "recall": {
             "unitNote": (
-                "builder counts callouts (one printed drawing instance); pairJudged and "
-                "union count clusters (one card, one vision call). unionDesignLevel scores "
-                "the same clusters on mould alone, counting any element of the correct "
+                "builder, pairJudged, and union count exact callouts. Builder and pair-judged "
+                "ranks are recomputed from each exact member's descriptor; neither rank nor "
+                "pieces inherit from its similarity cluster. builderByCluster instead counts "
+                "one agreed Builder element per cluster against that cluster's published lead row. "
+                "unionDesignLevel scores the same callouts on mould alone, counting any element of the correct "
                 "partNum as a hit, so the gap between it and union is what colour costs."
             ),
             "builder": recall_at(builder),
-            "builderByCluster": recall_at(
-                [merged[key] for key in sorted({record.cluster_index for record in builder})]
-            ),
+            "builderByCluster": recall_at(builder_by_cluster),
             "builderByClusterDesignLevel": recall_at(
-                design_level_records(
-                    [merged[key] for key in sorted({record.cluster_index for record in builder})],
-                    design_of,
-                    element_ids,
-                    rows,
-                )
+                design_level_records(builder_by_cluster, design_of, element_ids, rows)
             ),
             "pairJudgedPositive": recall_at(judged),
             "union": recall_at(union),
@@ -227,6 +274,7 @@ def build_report(quick: bool = False) -> dict:
                     "colorId": resolution.get(record.element_id, {}).get("colorId"),
                     "rank": record.rank,
                     "pieces": record.pieces,
+                    "memberLocalDistanceRow": record.distance_row is not None,
                 }
                 for record in union
             ]
@@ -234,21 +282,17 @@ def build_report(quick: bool = False) -> dict:
     }
 
     # --- bounds over the pair-judged sample, whose selection is unbiased ---
-    judged_clusters = {record.cluster_index for record in judged} | {
-        row["clusterIndex"] for row in negatives
-    }
-    hits = sum(1 for record in judged if record.rank is not None and record.rank <= DISPLAYED_K)
-    unknown = len({row["clusterIndex"] for row in negatives} - {r.cluster_index for r in judged})
-    report["recall"]["pairJudgedSampleBounds"] = {
-        "drawings": len(judged_clusters),
-        "knownHits": hits,
-        "unknownRank": unknown,
-        "lowerBoundAtK": hits / len(judged_clusters),
-        "upperBoundAtK": (hits + unknown) / len(judged_clusters),
-    }
+    report["recall"]["pairJudgedSampleBounds"] = pair_sample_bounds(
+        judged, negatives, DISPLAYED_K
+    )
 
     colour_absent_block, elimination_block = elimination_and_colour_blocks(
-        union, clusters, resolution, held_of
+        lead_diagnostic_union, clusters, resolution, held_of
+    )
+    colour_absent_block["memberLocalRecordsOmitted"] = member_local_omitted
+    colour_absent_block["memberLocalNote"] = (
+        "Non-lead exact Builder and pair-judged records are scored in recall from their own "
+        "descriptor and omitted from this lead-shortlist-only cause block."
     )
     report["colourAbsentFromShortlist"] = colour_absent_block
 
@@ -258,24 +302,25 @@ def build_report(quick: bool = False) -> dict:
     for record in builder:
         if record.rank is None or record.rank <= DISPLAYED_K:
             continue
-        candidates = steps_by_number[record.step_number]["elements"]
-        best = min(ranks[record.cluster_index][element_index[element]] for element in candidates)
+        candidates = steps_by_number[record.step_number]["acceptedElements"]
+        exact_ranks = rank_lookup(list(record.distance_row or rows[record.cluster_index]))
+        best = min(exact_ranks[element_index[element]] for element in candidates)
         sensitivity.append(
             {
                 "clusterIndex": record.cluster_index,
                 "stepNumber": record.step_number,
                 "assignedElementId": record.element_id,
                 "assignedRank": record.rank,
-                "stepElements": candidates,
+                "acceptedStepElements": candidates,
                 "bestRankOverTheWholeStepSet": best,
-                "missSurvivesEveryPairing": best > DISPLAYED_K,
+                "missSurvivesEveryAcceptedPairing": best > DISPLAYED_K,
             }
         )
     report["builderMissSensitivity"] = {
         "note": (
-            "Which callout inside a printed step gets which official identity is decided "
-            "by the claim, so a miss could in principle be a pairing artefact. It is not "
-            "when every element the step places is also outside the displayed shortlist."
+            "Which accepted callout gets which accepted official identity can depend on the "
+            "claim, so a miss could be a pairing artefact inside that accepted subset. Refused "
+            "rows are not positive truth and are excluded from this diagnostic."
         ),
         "misses": sensitivity,
     }
@@ -298,16 +343,11 @@ def build_report(quick: bool = False) -> dict:
         "worst": outliers[:15],
     }
 
-    report["visionConfound"] = {
-        "firstFiftyAccuracy": score["firstFiftyAccuracy"]["accuracy"],
-        "firstFiftyCalloutsJudged": score["firstFiftyAccuracy"]["calloutsJudged"],
-        "firstFiftyCorrect": score["firstFiftyAccuracy"]["correct"],
-        "firstFiftyDrawingsJudged": score["firstFiftyAccuracy"]["drawingsJudged"],
-    }
+    report["visionConfound"] = verified_vision_confound(score, digests["score"])
 
     misses = [
         record
-        for record in union
+        for record in lead_diagnostic_union
         if record.rank is None or record.rank > DISPLAYED_K
     ]
     report["missAblation"] = [

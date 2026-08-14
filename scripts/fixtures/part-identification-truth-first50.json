@@ -1,6 +1,6 @@
 {
-  "schemaVersion": "lego.part-identification-truth/2",
-  "note": "Judged by eye from output/part-identification/pair-sheets/: is the step callout on the left the same part as the claimed element on the right? Nothing but the two drawings was shown. Judged against the deterministic/one-to-one claims. A verdict is keyed to the first 16 hex characters of the SHA-256 of the crop that was judged plus the element it was claimed to be, so it stops binding exactly when the picture or the claim changes, and a different claim is unjudged rather than inherited. The previous schema keyed on cluster index, which match renumbers on every re-cut; that generation is retained unbound at history/truth-first50-870gen-unbound.json.",
+  "schemaVersion": "lego.part-identification-truth/3",
+  "note": "Judged by eye from output/part-identification/pair-sheets/: is the step callout on the left the same part as the claimed element on the right? Nothing but the two drawings was shown. Judged against the deterministic/one-to-one claims. A verdict is keyed to the full SHA-256 of the exact crop that was judged plus the element it was claimed to be, so different crop bytes or a different claim remain unjudged rather than inheriting trust. Schema /3 restored all 82 full crop digests from their tracked pre-truncation source at commit 59ca5b7; retained features/3 sha256:aa5b5db958e6e84c2e03b7ac126de2b24bd08991d26f53369160a1a20b756ad8 independently corroborated that every /2 prefix resolved to exactly one distinct full crop digest. No element, outcome, order, or verdict note changed. Schema /1 keyed on cluster index, which match renumbers on every re-cut; that generation remains only as the ignored local artifact output/part-identification/history/truth-first50-870gen-unbound.json.",
   "method": "pair-verification",
   "judgedBy": "agent, reading the shipped contact sheets; ambiguous pairs re-read at single-pair resolution. Two independent blind raters on different models judged all 84 pairs with no access to features, match, answers, score or truth artifacts and no sight of each other verdicts; they agreed 84/84. The root session adjudicated the pairs where their descriptions diverged despite an agreeing verdict.",
   "raters": {
@@ -18,229 +18,229 @@
   "verdicts": [
     {
       "n": 1,
-      "judgedCropSha256": "sha256:36315f66f191360a",
+      "judgedCropSha256": "sha256:36315f66f191360ae41d179822ca030934bf79fdbcc487aa2658c58f58c47183",
       "elementId": "6101857",
       "same": true,
       "note": "both 4x4 round-corner plates, 12 studs, same notched underside"
     },
     {
       "n": 2,
-      "judgedCropSha256": "sha256:8097fb3b56f3131c",
+      "judgedCropSha256": "sha256:8097fb3b56f3131cbaa72f121a25e91061726642dfa4c3cdee3a5a3a414754c3",
       "elementId": "6372045",
       "same": true,
       "note": "both curved 4x4 macaroni plates with 6 studs"
     },
     {
       "n": 3,
-      "judgedCropSha256": "sha256:1aa4cf7e0cd83d24",
+      "judgedCropSha256": "sha256:1aa4cf7e0cd83d2423292e484894e565a0b02f7a7f2159484c07e04865a0a842",
       "elementId": "4160025",
       "same": true,
       "note": "both 4x4 cut-corner wedge plates, rows 4/3/2/1, same handedness"
     },
     {
       "n": 4,
-      "judgedCropSha256": "sha256:a926e1a6822f6f41",
+      "judgedCropSha256": "sha256:a926e1a6822f6f4168e1ae656824e5176258d981c8132f57e80b607431f0be06",
       "elementId": "4106977",
       "same": true,
       "note": "both 6x6 cut-corner wedge plates, same diagonal side"
     },
     {
       "n": 5,
-      "judgedCropSha256": "sha256:2dd95aee81163252",
+      "judgedCropSha256": "sha256:2dd95aee81163252fb965d084bc16bc82720a82ed8bab4d7d07a5678bf2ae842",
       "elementId": "346026",
       "same": true,
       "note": "8 studs both"
     },
     {
       "n": 6,
-      "judgedCropSha256": "sha256:87335cb83ac14870",
+      "judgedCropSha256": "sha256:87335cb83ac1487063f32d86fcc07867e419cd59a5e251dc678cb97457a36136",
       "elementId": "6001494",
       "same": true,
       "note": "recounted: 12 columns x 2 rows both"
     },
     {
       "n": 7,
-      "judgedCropSha256": "sha256:0daea2b9a2bb8224",
+      "judgedCropSha256": "sha256:0daea2b9a2bb822470f01c3bdc6468f341e1c55c148f1c0749d4821dce7be489",
       "elementId": "383228",
       "same": false,
       "note": "callout is a 2x4 plate (8 studs); claim render shows 2-wide plate with 6+ columns running past the frame edge, so it is longer than 2x4"
     },
     {
       "n": 8,
-      "judgedCropSha256": "sha256:d1e80c354073d10c",
+      "judgedCropSha256": "sha256:d1e80c354073d10c5204c0339e513d4c85ea8d2ec04977d7749849147e31d714",
       "elementId": "303226",
       "same": true,
       "note": "4x6, 24 studs both"
     },
     {
       "n": 9,
-      "judgedCropSha256": "sha256:dadd6b470a7f4285",
+      "judgedCropSha256": "sha256:dadd6b470a7f42857f03eca35619571d8bab169657d350bd74673270b46eded3",
       "elementId": "4514845",
       "same": true,
       "note": "recounted: 12 studs in one row both"
     },
     {
       "n": 10,
-      "judgedCropSha256": "sha256:2691ad02ad3ffe24",
+      "judgedCropSha256": "sha256:2691ad02ad3ffe248b0892e023a9699fe871face95c3f63f297441d1cc81ac48",
       "elementId": "4283046",
       "same": true,
       "note": "same tall wedge plate, straight 6-stud edge on left and diagonal on right in both - not mirrored"
     },
     {
       "n": 11,
-      "judgedCropSha256": "sha256:cc19c9e49156d550",
+      "judgedCropSha256": "sha256:cc19c9e49156d55011c93b5ba6ad4ca680e3d8cd65b265832779c17e06a52d51",
       "elementId": "379526",
       "same": true,
       "note": "2x6 both"
     },
     {
       "n": 12,
-      "judgedCropSha256": "sha256:e018edbc8443a2b4",
+      "judgedCropSha256": "sha256:e018edbc8443a2b4932079dbdb5e63a81beb2c4ed3fa7e7e22c2a91e5efbe513",
       "elementId": "303423",
       "same": true,
       "note": "2x8 both"
     },
     {
       "n": 13,
-      "judgedCropSha256": "sha256:9f4dcbe1b52fdc63",
+      "judgedCropSha256": "sha256:9f4dcbe1b52fdc637ed2895b868974958ebebf46aa05efd616e9d6a8827ff8cb",
       "elementId": "4531412",
       "same": true,
       "note": "same winged 2x4 wedge plate with 2x2 stud group and underside tabs"
     },
     {
       "n": 14,
-      "judgedCropSha256": "sha256:83a213b9ff8d5e0f",
+      "judgedCropSha256": "sha256:83a213b9ff8d5e0f2a721dc9415288c8c65088f7394fd52bdb24d557e5a34c08",
       "elementId": "4166619",
       "same": true,
       "note": "recounted: 8x8 both, square"
     },
     {
       "n": 15,
-      "judgedCropSha256": "sha256:d02fddec8b22c4c3",
+      "judgedCropSha256": "sha256:d02fddec8b22c4c34ff058782df59b591528d90f588410efd448fde2bab00961",
       "elementId": "383224",
       "same": true,
       "note": "2x10 both"
     },
     {
       "n": 16,
-      "judgedCropSha256": "sha256:d24105a62fc20aa8",
+      "judgedCropSha256": "sha256:d24105a62fc20aa8bdfc7ae82ed915556d8507acc47726bd8e2d12a230cbc520",
       "elementId": "4210678",
       "same": true,
       "note": "both 2x10 plates; colour differs (green callout vs grey render), shape identical"
     },
     {
       "n": 17,
-      "judgedCropSha256": "sha256:e9cd97de0ad08db4",
+      "judgedCropSha256": "sha256:e9cd97de0ad08db46d824fdf6ba0495794572aec4bc85b20ca88ba514582cb84",
       "elementId": "4160869",
       "same": true,
       "note": "wedge plate 4x2, 4-stud column on left edge in both - same hand"
     },
     {
       "n": 18,
-      "judgedCropSha256": "sha256:6b477661c23d3796",
+      "judgedCropSha256": "sha256:6b477661c23d379671926b7d7bc88d2b9f4ed75cf73576edfe93e58249b790f4",
       "elementId": "379521",
       "same": true,
       "note": "2x6 both"
     },
     {
       "n": 19,
-      "judgedCropSha256": "sha256:130c23983506c705",
+      "judgedCropSha256": "sha256:130c23983506c705c7d161ff649c4a0a9af12d4be263a81df18e625b6cc7243a",
       "elementId": "6439175",
       "same": true,
       "note": "same L corner plate, 3+3 arms sharing corner stud, 5 studs both"
     },
     {
       "n": 20,
-      "judgedCropSha256": "sha256:a400f346b48bc790",
+      "judgedCropSha256": "sha256:a400f346b48bc7905df1ecac9bdc90d9aa4dbfe86839ea1acb7053c745d60090",
       "elementId": "302326",
       "same": true
     },
     {
       "n": 21,
-      "judgedCropSha256": "sha256:ffb512ce9b682de8",
+      "judgedCropSha256": "sha256:ffb512ce9b682de826fb7c6b322b531970320fff771e333c1a7d20322ce6e988",
       "elementId": "4227392",
       "same": true,
       "note": "3x3 round-corner plate both, same stud pattern"
     },
     {
       "n": 22,
-      "judgedCropSha256": "sha256:f5667a72d63f321c",
+      "judgedCropSha256": "sha256:f5667a72d63f321c009bf54ae07578680f01f6812da065cc5183d86273205ae8",
       "elementId": "6221607",
       "same": true,
       "note": "1x2 rounded plate with 2 open studs both"
     },
     {
       "n": 23,
-      "judgedCropSha256": "sha256:89fab90c30916ad8",
+      "judgedCropSha256": "sha256:89fab90c30916ad8b6f98780b6ac635916b53c1e9d2e30c5d570962761f2305a",
       "elementId": "4161332",
       "same": true,
       "note": "wedge plate with 4-stud column on right edge and slope left in both - same hand (mirror of pair 17's part, consistent within this pair)"
     },
     {
       "n": 24,
-      "judgedCropSha256": "sha256:8a23375961b4b06b",
+      "judgedCropSha256": "sha256:8a23375961b4b06bee820159cc2d0c12bf40192591c7ed9efb2a72e582771e39",
       "elementId": "6514223",
       "same": true,
       "note": "1x2 tile both, same bevelled smooth top"
     },
     {
       "n": 25,
-      "judgedCropSha256": "sha256:5c06b703de80f61a",
+      "judgedCropSha256": "sha256:5c06b703de80f61a534045670e98bded78d6c9417b3e4efc6cca77ca4e3a799f",
       "elementId": "366626",
       "same": false,
       "note": "callout is a smooth 1x6 tile with no studs; claim is a 1x6 plate with 6 studs"
     },
     {
       "n": 26,
-      "judgedCropSha256": "sha256:93d77565a057c428",
+      "judgedCropSha256": "sha256:93d77565a057c4288229f4ab69769606563312b874bd4b65e031841255111260",
       "elementId": "4211133",
       "same": true,
       "note": "1x3 plate both"
     },
     {
       "n": 27,
-      "judgedCropSha256": "sha256:ded1229855fdafe4",
+      "judgedCropSha256": "sha256:ded1229855fdafe43c4fb36a2b69cefd496e08d91576be5c53fe79af48410513",
       "elementId": "6092585",
       "same": true,
       "note": "1x2 jumper with single centre open stud both"
     },
     {
       "n": 28,
-      "judgedCropSha256": "sha256:2a03c8d718cc67e6",
+      "judgedCropSha256": "sha256:2a03c8d718cc67e6db2d06706472f6cd59f90c1885d631a65f6cb42e4d4ede50",
       "elementId": "6195371",
       "same": true,
       "note": "1x3 plate with 2 offset studs and half-stud margins both"
     },
     {
       "n": 29,
-      "judgedCropSha256": "sha256:3197a0aaa065444c",
+      "judgedCropSha256": "sha256:3197a0aaa065444c492bea192b6343b32ec300745e27896fd210448487f32a32",
       "elementId": "306926",
       "same": false,
       "note": "callout is a 1x2 jumper with a centre stud; claim is a completely smooth 1x2 tile"
     },
     {
       "n": 30,
-      "judgedCropSha256": "sha256:d9ab145d04573636",
+      "judgedCropSha256": "sha256:d9ab145d045736368d547c6a2bf0a7fef287b998b6e1d44f539d5c2bcf218c0f",
       "elementId": "4560182",
       "same": true,
       "note": "2x4 tile both"
     },
     {
       "n": 31,
-      "judgedCropSha256": "sha256:b262093e98883243",
+      "judgedCropSha256": "sha256:b262093e988832430ee756c02c61138f5f4754b35504e12fbf0221689b47f5fe",
       "elementId": "242026",
       "same": true,
       "note": "2x2 corner plate, 3 studs both"
     },
     {
       "n": 32,
-      "judgedCropSha256": "sha256:5579faf48c9dfb30",
+      "judgedCropSha256": "sha256:5579faf48c9dfb30cae8b05ae1db1a007a8ea88f16609dce821c72d91182a28d",
       "elementId": "4211063",
       "same": true
     },
     {
       "n": 33,
-      "judgedCropSha256": "sha256:a1c8ce1ee65b63a3",
+      "judgedCropSha256": "sha256:a1c8ce1ee65b63a30e9d159b3559a8eb39513309e32d626f68fee2d76d8c670b",
       "elementId": "6510139",
       "same": true,
       "note": "identical curved-top slope silhouettes seen from behind; no studs visible in either so exact size unverifiable",
@@ -251,7 +251,7 @@
     },
     {
       "n": 34,
-      "judgedCropSha256": "sha256:d93c19b5772e8feb",
+      "judgedCropSha256": "sha256:d93c19b5772e8feb7f4b4da9e8060de2a0fae2c75646d8ce8f4ae6d458c2ef59",
       "elementId": "307026",
       "same": true,
       "note": "2x2 tile both",
@@ -262,28 +262,28 @@
     },
     {
       "n": 35,
-      "judgedCropSha256": "sha256:00cce49ba2c2bcb6",
+      "judgedCropSha256": "sha256:00cce49ba2c2bcb6585f6a67842d9a5475e28f2739b601df30afd5ad1e143b78",
       "elementId": "6092572",
       "same": true,
       "note": "1x2 jumper both"
     },
     {
       "n": 36,
-      "judgedCropSha256": "sha256:ec1ce7b9842e6eef",
+      "judgedCropSha256": "sha256:ec1ce7b9842e6eef290f525b075ce2e3da9bab601ac0d209beb5c21ea013f07b",
       "elementId": "302201",
       "same": true,
       "note": "2x2 plate both"
     },
     {
       "n": 37,
-      "judgedCropSha256": "sha256:cee670fdf0f0950a",
+      "judgedCropSha256": "sha256:cee670fdf0f0950aae4ed5c60bd1946331c4cf596fbd476c5961f157569aaaba",
       "elementId": "4558170",
       "same": true,
       "note": "smooth 1x3 tiles of equal aspect both"
     },
     {
       "n": 38,
-      "judgedCropSha256": "sha256:f1be045d83ac9fc8",
+      "judgedCropSha256": "sha256:f1be045d83ac9fc889b9ae94dc6fb76e17582bd44fb09515087998b28e193ad6",
       "elementId": "4211399",
       "same": true,
       "note": "both 1x1 plates; the small floating arc under the callout does not connect to the body and reads as a booklet arrow artifact, not a clip",
@@ -294,21 +294,21 @@
     },
     {
       "n": 39,
-      "judgedCropSha256": "sha256:7772bda2863e4076",
+      "judgedCropSha256": "sha256:7772bda2863e407650442708305fdf6aa3d25e2682801e1c406b29713643ad4a",
       "elementId": "4648256",
       "same": true,
       "note": "curved slope with underside notch at same position, equal length both"
     },
     {
       "n": 40,
-      "judgedCropSha256": "sha256:bf6228cf8ff412d5",
+      "judgedCropSha256": "sha256:bf6228cf8ff412d5769505a94fd55aed191a6c3abcce14585de46b10f2fd1953",
       "elementId": "6168620",
       "same": true,
       "note": "bracket 1x2-1x4: 2 top studs, 4 hollow side studs both"
     },
     {
       "n": 41,
-      "judgedCropSha256": "sha256:b13109a1dc1ee478",
+      "judgedCropSha256": "sha256:b13109a1dc1ee4784fca2b582e63828dd9577f4de7c2b4ea0a8792d382ef12c8",
       "elementId": "306826",
       "same": true,
       "note": "square smooth tiles of matching aspect and thickness; absolute footprint (2x2 vs 3x3) not resolvable from pictures",
@@ -319,42 +319,42 @@
     },
     {
       "n": 42,
-      "judgedCropSha256": "sha256:ab85f5f844fa0f27",
+      "judgedCropSha256": "sha256:ab85f5f844fa0f27fc5ffa017f6856d99ed137659cf2fc19ead14ac1cfbf0d3c",
       "elementId": "6199908",
       "same": true,
       "note": "1x3 plate with 2 offset open studs both"
     },
     {
       "n": 43,
-      "judgedCropSha256": "sha256:acda80cd82e80c4f",
+      "judgedCropSha256": "sha256:acda80cd82e80c4fbbb7ecfb598c2d26c519c3f9b7d85b15ae0fb6e1c894c08a",
       "elementId": "6214807",
       "same": true,
       "note": "triangular wedge plate with identical underside skirt and feet, same orientation"
     },
     {
       "n": 44,
-      "judgedCropSha256": "sha256:9fb3bf3d0af0c22d",
+      "judgedCropSha256": "sha256:9fb3bf3d0af0c22d401805a14d015ebda6cea0d42b25b1e30fe3ea81e6678409",
       "elementId": "6184876",
       "same": true,
       "note": "arch brick 1x6, 6 studs both"
     },
     {
       "n": 45,
-      "judgedCropSha256": "sha256:e13627c2cb3aeb64",
+      "judgedCropSha256": "sha256:e13627c2cb3aeb6469ca611d11757ede271644dd1f4d3c6184c3a416ae459c0b",
       "elementId": "300526",
       "same": true,
       "note": "1x1 brick both"
     },
     {
       "n": 46,
-      "judgedCropSha256": "sha256:5b16c7f56aaadc85",
+      "judgedCropSha256": "sha256:5b16c7f56aaadc858cbd6c855502ab3ad103ba12be9adef83283a706bf0898ae",
       "elementId": "6066097",
       "same": true,
       "note": "1x2 jumper both"
     },
     {
       "n": 47,
-      "judgedCropSha256": "sha256:3f4be3aed9b715f7",
+      "judgedCropSha256": "sha256:3f4be3aed9b715f7149d2306bb0a0acc19490e57d532989342979e8a328694a8",
       "elementId": "6134378",
       "same": true,
       "note": "same 1x2 rounded piece with two rectangular top slots (roller-skate shape)",
@@ -365,7 +365,7 @@
     },
     {
       "n": 48,
-      "judgedCropSha256": "sha256:d6b73d488c74c916",
+      "judgedCropSha256": "sha256:d6b73d488c74c9167665861eda0ae8b4d16cfd455d8d654be2b69d7fc229bee1",
       "elementId": "6088585",
       "same": true,
       "note": "blurry rosette/flower with centre stud and 4 lobes; structures match but detail is at resolution limit",
@@ -376,196 +376,196 @@
     },
     {
       "n": 49,
-      "judgedCropSha256": "sha256:933c4d77a108001b",
+      "judgedCropSha256": "sha256:933c4d77a108001be9602e23648fbb69982d2f910e4ed78a77cdbf1b88cbd6ef",
       "elementId": "4618852",
       "same": true,
       "note": "1x2x2 tall brick both"
     },
     {
       "n": 50,
-      "judgedCropSha256": "sha256:77142bf534a7e2c9",
+      "judgedCropSha256": "sha256:77142bf534a7e2c9d0d7d274f600ec1f5280f48601cde48726022fbf4f607558",
       "elementId": "4249891",
       "same": true,
       "note": "both 1x2 bricks"
     },
     {
       "n": 51,
-      "judgedCropSha256": "sha256:3f53db603ff01abd",
+      "judgedCropSha256": "sha256:3f53db603ff01abd5ce2bbbcdfb1b24f045d66b01cf5bec3291528c97af61115",
       "elementId": "4211065",
       "same": true,
       "note": "2x4 plate both"
     },
     {
       "n": 52,
-      "judgedCropSha256": "sha256:1d35885fd4973d1c",
+      "judgedCropSha256": "sha256:1d35885fd4973d1c52b133cce3aa2a9bbef80bdc9595bed9cbaa26cb5d12aa07",
       "elementId": "4565323",
       "same": false,
       "note": "callout is a 1x2 plate with 2 studs; claim is a 2x2 smooth-top part with a single open centre stud (2x2 jumper)"
     },
     {
       "n": 53,
-      "judgedCropSha256": "sha256:820ceec5e9ff927a",
+      "judgedCropSha256": "sha256:820ceec5e9ff927a730f3d09f0f3c2f70c201e62aeb365d9bc1cc968b71fb6dd",
       "elementId": "365926",
       "same": true,
       "note": "arch brick 1x4 both"
     },
     {
       "n": 54,
-      "judgedCropSha256": "sha256:97ee859866658fbc",
+      "judgedCropSha256": "sha256:97ee859866658fbc374aea912c51a2468e11b24d27b5489b3304839e2379c761",
       "elementId": "4211104",
       "same": true,
       "note": "1x3 brick both"
     },
     {
       "n": 56,
-      "judgedCropSha256": "sha256:ea25708b1925cc33",
+      "judgedCropSha256": "sha256:ea25708b1925cc33ae4522efa87cc7e3b780e6c36ffc8645a00e2b2b46dd8ca3",
       "elementId": "243126",
       "same": false,
       "note": "callout is a 1x4 plate with 4 studs; claim is a smooth 1x4 tile"
     },
     {
       "n": 57,
-      "judgedCropSha256": "sha256:8a4fdbed1d551576",
+      "judgedCropSha256": "sha256:8a4fdbed1d55157670f139207caa1cbe1e0cf384be675c72dc1acec1e87ed5a8",
       "elementId": "4177735",
       "same": true,
       "note": "1x3 plate both"
     },
     {
       "n": 58,
-      "judgedCropSha256": "sha256:6f1d2005813fce3f",
+      "judgedCropSha256": "sha256:6f1d2005813fce3f2cef7d923088d96a1ee6d154f50ccc8ce6eec94e44abb789",
       "elementId": "4243819",
       "same": true,
       "note": "4x4 plate, 16 studs both"
     },
     {
       "n": 59,
-      "judgedCropSha256": "sha256:84095e0e6534cbed",
+      "judgedCropSha256": "sha256:84095e0e6534cbedd82edc520bb4523c96d951d31cd0ccb95c66e49b0521ae47",
       "elementId": "4560178",
       "same": true,
       "note": "2x4 tile both"
     },
     {
       "n": 60,
-      "judgedCropSha256": "sha256:ba087a1671aec8c7",
+      "judgedCropSha256": "sha256:ba087a1671aec8c7552f0e18e912d037eb910b9153ddefde8d43b27f57cb6def",
       "elementId": "4264569",
       "same": true,
       "note": "1x4 brick both"
     },
     {
       "n": 61,
-      "judgedCropSha256": "sha256:18712c0a9a93d70b",
+      "judgedCropSha256": "sha256:18712c0a9a93d70b3caf72c457dcc79ae046042424c2b7b4dd69a98a945ab17b",
       "elementId": "6233955",
       "same": true,
       "note": "1x3 brick both"
     },
     {
       "n": 62,
-      "judgedCropSha256": "sha256:d423a8d1b7c904bb",
+      "judgedCropSha256": "sha256:d423a8d1b7c904bb73b5e1207a79faf6becc5e124f4978fe36c0fb7993a493b0",
       "elementId": "4211387",
       "same": true,
       "note": "2x2 brick both"
     },
     {
       "n": 63,
-      "judgedCropSha256": "sha256:121a95d1b36fc0e6",
+      "judgedCropSha256": "sha256:121a95d1b36fc0e631ad9a0e5c5891839971b714a621482f9155b6bb665c7ff2",
       "elementId": "4210636",
       "same": true,
       "note": "1x2 palisade/log-profile brick with vertical ridges both"
     },
     {
       "n": 64,
-      "judgedCropSha256": "sha256:92bc67ce91acbc5a",
+      "judgedCropSha256": "sha256:92bc67ce91acbc5a4fd4a8e81250b6d1da84a759b6e703a784a8bbd1ef0e57a4",
       "elementId": "4211397",
       "same": true,
       "note": "2x2 plate both"
     },
     {
       "n": 65,
-      "judgedCropSha256": "sha256:96cf8344b5c27d6e",
+      "judgedCropSha256": "sha256:96cf8344b5c27d6e2ada5b4990e9be9422782e61aae2811cb6421a48d302445b",
       "elementId": "4211388",
       "same": true,
       "note": "both 1x2 bricks"
     },
     {
       "n": 66,
-      "judgedCropSha256": "sha256:33b0e2f248922a24",
+      "judgedCropSha256": "sha256:33b0e2f248922a24c9c2c6f84cddb41cf0b7d074b1db9a206c6e868105deb4bb",
       "elementId": "4211098",
       "same": true,
       "note": "both 1x1 bricks"
     },
     {
       "n": 67,
-      "judgedCropSha256": "sha256:493d57d7be923c0a",
+      "judgedCropSha256": "sha256:493d57d7be923c0a9ae25ff85270f547d0975951a142eb6d559a6a60529779fc",
       "elementId": "6218822",
       "same": false,
       "note": "callout is a full 2x2 plate with 4 studs; claim is a 2x2 with only 2 studs along one edge and a smooth remainder"
     },
     {
       "n": 68,
-      "judgedCropSha256": "sha256:8e6dc6891af5cb3b",
+      "judgedCropSha256": "sha256:8e6dc6891af5cb3ba09a8a4135a2a02e6d85040799b8d621e13a94b769147c94",
       "elementId": "663626",
       "same": false,
       "note": "callout is a 1x6 plate with 6 studs; claim is a smooth 1x6 tile"
     },
     {
       "n": 69,
-      "judgedCropSha256": "sha256:e3e5780eece6552d",
+      "judgedCropSha256": "sha256:e3e5780eece6552d1f98913760e8d2b65fa6803ecd4f27d0b423ebbbd488fe1b",
       "elementId": "371026",
       "same": false,
       "note": "callout is a smooth 1x4 tile; claim is a 1x4 plate with 4 studs"
     },
     {
       "n": 70,
-      "judgedCropSha256": "sha256:6636b0fa8d216bc8",
+      "judgedCropSha256": "sha256:6636b0fa8d216bc87937fc4625e95f8932cefab5476499b2fba5cbc8dbf02f2b",
       "elementId": "6396673",
       "same": true,
       "note": "1x2 rounded plate with 2 open studs both"
     },
     {
       "n": 71,
-      "judgedCropSha256": "sha256:daea078cd477c232",
+      "judgedCropSha256": "sha256:daea078cd477c23276ef42c98da3f6fc1bcf3c6aa8b911779a3622a5867ad5f2",
       "elementId": "6322830",
       "same": true,
       "note": "1x2 technic brick with centre axle (X) hole both"
     },
     {
       "n": 72,
-      "judgedCropSha256": "sha256:d2e2e6c267c3eb74",
+      "judgedCropSha256": "sha256:d2e2e6c267c3eb74f3b86d45fe20cf9f464210741bb8fd223ab909c19678d654",
       "elementId": "6446031",
       "same": true,
       "note": "1x1 technic brick with axle (X) hole both"
     },
     {
       "n": 73,
-      "judgedCropSha256": "sha256:dcff411048541886",
+      "judgedCropSha256": "sha256:dcff411048541886f1e15b5d1121ea3f2f176a7846a0bda0a5ec9353a40efa03",
       "elementId": "6250020",
       "same": true,
       "note": "1x2 plate with upright 2x2 panel (upward bracket) both"
     },
     {
       "n": 74,
-      "judgedCropSha256": "sha256:d5cfe9aa879c5a8f",
+      "judgedCropSha256": "sha256:d5cfe9aa879c5a8fdf93ba6f8b1d8b3a63b3b0ed532102e0f113c42c26338c3c",
       "elementId": "371001",
       "same": true,
       "note": "1x4 plate both"
     },
     {
       "n": 75,
-      "judgedCropSha256": "sha256:801ba2606f7b7b4b",
+      "judgedCropSha256": "sha256:801ba2606f7b7b4b0084ae33fd54c8b84d2bc3dc5ceabfad773adcb141926d55",
       "elementId": "4121932",
       "same": true,
       "note": "slope 45 2x1 with 1 stud both"
     },
     {
       "n": 76,
-      "judgedCropSha256": "sha256:6546ee8146d99733",
+      "judgedCropSha256": "sha256:6546ee8146d997336d6da9fffb44bd7e91fdfb0842322261f0f1ab68013f46ef",
       "elementId": "306901",
       "same": true,
       "note": "1x2 tile both"
     },
     {
       "n": 78,
-      "judgedCropSha256": "sha256:f550c7e729217d9d",
+      "judgedCropSha256": "sha256:f550c7e729217d9de6a4ddf5bf35d18c794a299409d9f95401a5392ca4d67b09",
       "elementId": "4504374",
       "same": true,
       "note": "small studless slopes (cheese-slope-like) with matching proportions and slant; exact width not resolvable",
@@ -576,7 +576,7 @@
     },
     {
       "n": 79,
-      "judgedCropSha256": "sha256:99508b2f0d498f23",
+      "judgedCropSha256": "sha256:99508b2f0d498f23efba23ab6e0f84b2cba1cd682239b9dddc7e7e6dddafe5f9",
       "elementId": "6262021",
       "same": true,
       "note": "slope seen from the back with matching top face and gable triangle; no studs visible in either",
@@ -587,35 +587,35 @@
     },
     {
       "n": 80,
-      "judgedCropSha256": "sha256:e7f0ef8d079ce4b4",
+      "judgedCropSha256": "sha256:e7f0ef8d079ce4b41e16b0b0de33bd8b98f424e6ddb4e8ef9b67b8b99f7b6d4d",
       "elementId": "6103405",
       "same": true,
       "note": "slope 45 2x1 with stud both"
     },
     {
       "n": 81,
-      "judgedCropSha256": "sha256:4561c34fdd852f4d",
+      "judgedCropSha256": "sha256:4561c34fdd852f4d0ce1a4c119a2139956b68837187d6f0a70c61d81f1dfd976",
       "elementId": "6403899",
       "same": true,
       "note": "double-curved slope 2x2 silhouettes identical"
     },
     {
       "n": 82,
-      "judgedCropSha256": "sha256:92c61e52bea54a24",
+      "judgedCropSha256": "sha256:92c61e52bea54a24e141d24c484b27cc0576d4006296ea4c24cdb78c26ddb61d",
       "elementId": "4210690",
       "same": true,
       "note": "both 1x1x5 columns with one stud; colour differs (blue callout vs grey render), shape identical"
     },
     {
       "n": 83,
-      "judgedCropSha256": "sha256:8f3b4ae253489bc4",
+      "judgedCropSha256": "sha256:8f3b4ae253489bc4115410b290bdef835d3c6ea881e2bac4455c87373a8ea622",
       "elementId": "6595205",
       "same": true,
       "note": "1x1x5 column both"
     },
     {
       "n": 84,
-      "judgedCropSha256": "sha256:1c953eb68a93aef6",
+      "judgedCropSha256": "sha256:1c953eb68a93aef6269186af69efaa3ff8f25cf3f52cf457e65d77f4612205b2",
       "elementId": "4255413",
       "same": true,
       "note": "1x1 brick both"
@@ -624,7 +624,7 @@
   "unjudgeable": [
     {
       "n": 55,
-      "judgedCropSha256": "sha256:5c692d8cd12db6f5",
+      "judgedCropSha256": "sha256:5c692d8cd12db6f520d4c9de9e0cdcd857fc6bdde7ec47eec8d4f8bf5ff728f2",
       "elementId": null,
       "reason": "the assignment claimed no element for this drawing, so the pair had a blank right-hand side and there was nothing to judge",
       "callouts": 1,
@@ -632,12 +632,12 @@
     },
     {
       "n": 77,
-      "judgedCropSha256": "sha256:121c834ac7425869",
+      "judgedCropSha256": "sha256:121c834ac742586919ea7b85a8312c672258bbd6820f0ce41fedf58a784a3542",
       "elementId": null,
       "reason": "the assignment claimed no element for this drawing, so the pair had a blank right-hand side and there was nothing to judge",
       "callouts": 1,
       "pieces": 3
     }
   ],
-  "keyNote": "The crop digest is truncated to 16 hex characters. That is 2^64 of collision space against at most a few thousand crops, and the labels grow with the booklet: at full length the all-359-step set projects past the 256 KiB blob-review threshold, which is a cost paid on every re-cut because a changed extraction rewrites every key."
+  "keyNote": "Every verdict and unjudgeable pair retains the full SHA-256 of the exact crop shown. A prefix is not byte identity and cannot carry trust."
 }

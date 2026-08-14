@@ -55,17 +55,14 @@ describe("first-fifty truth keys", () => {
     expect(truthVerdictKey(CROP_A, "6101857")).not.toBe(truthVerdictKey(CROP_B, "6101857"));
   });
 
-  it("keys a full digest and its stored truncation to the same thing", () => {
-    // The file stores 16 hex characters to stay under the blob-review threshold
-    // as the labels grow with the booklet; features.json carries all 64. Both
-    // must reach the same verdict or every stored label silently stops binding.
+  it("refuses a stored truncation rather than treating a prefix as byte identity", () => {
     const stored = CROP_A.slice(0, "sha256:".length + 16);
-    expect(truthVerdictKey(stored, "6101857")).toBe(truthVerdictKey(CROP_A, "6101857"));
+    expect(() => truthVerdictKey(stored, "6101857")).toThrow(/exactly 64 lowercase hex/u);
   });
 
   it("refuses a digest too short to be a key rather than padding it", () => {
     expect(() => truthVerdictKey(`sha256:${"a".repeat(8)}`, "6101857")).toThrow(
-      /16 to 64 lowercase hex/u,
+      /exactly 64 lowercase hex/u,
     );
   });
 
@@ -87,7 +84,7 @@ describe("first-fifty truth keys", () => {
     expect(bound.size).toBe(1);
   });
 
-  it("groups every callout of one drawing onto the lead crop that was judged", () => {
+  it("groups only byte-identical crops with the same element into one judged pair", () => {
     const features = {
       callouts: [
         callout({ sha256: CROP_A, quantity: 2 }),
@@ -99,13 +96,26 @@ describe("first-fifty truth keys", () => {
       [1, { clusterIndex: 7, elementId: "6101857" }],
     ]);
     const pairs = judgedPairs(features, claims, 50);
-    expect(pairs.size).toBe(1);
-    const [pair] = [...pairs.values()];
-    // The lead is the first callout in feature order - the crop the sheet drew.
-    expect(pair.leadSha256).toBe(CROP_A);
-    expect(pair.callouts).toBe(2);
-    expect(pair.pieces).toBe(5);
-    expect(pair.firstStep).toBe(1);
+    expect(pairs.size).toBe(2);
+    expect([...pairs.values()].map(({ leadSha256 }) => leadSha256)).toEqual([CROP_A, CROP_B]);
+
+    const duplicate = judgedPairs(
+      {
+        callouts: [
+          callout({ sha256: CROP_A, quantity: 2 }),
+          callout({ sha256: CROP_A, quantity: 3, file: "duplicate.png", stepNumber: 4 }),
+        ],
+      },
+      claims,
+      50,
+    );
+    expect(duplicate.size).toBe(1);
+    expect([...duplicate.values()][0]).toMatchObject({
+      leadSha256: CROP_A,
+      callouts: 2,
+      pieces: 5,
+      firstStep: 1,
+    });
   });
 
   it("keeps a drawing that was claimed as nothing out of the key space entirely", () => {
@@ -144,7 +154,9 @@ describe("first-fifty truth keys", () => {
   });
 
   it("refuses a malformed key rather than producing one that silently never matches", () => {
-    expect(() => truthVerdictKey("not-a-digest", "6101857")).toThrow(/sha256:.*64 lowercase hex/su);
+    expect(() => truthVerdictKey("not-a-digest", "6101857")).toThrow(
+      /sha256:.*exactly 64 lowercase hex/su,
+    );
     expect(() => truthVerdictKey(CROP_A, "")).toThrow(/non-empty element id/u);
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { __testOnly, buildBookletCatalogCoverageReport } from "./booklet-catalog-coverage.mjs";
+import * as coverageModule from "./booklet-catalog-coverage.mjs";
 import { FULL_CALLOUT_MANIFEST_EXPECTATION } from "./part-identification-artifacts.mjs";
 import {
   build,
@@ -10,7 +10,50 @@ import {
   manifestFor,
 } from "./booklet-catalog-coverage-test-fixture.mjs";
 
+const { __testOnly } = coverageModule;
+
 describe("booklet catalog coverage report builder", () => {
+  it("does not expose the unauthenticated raw verdict-map builder as production API", () => {
+    expect(coverageModule).not.toHaveProperty("buildBookletCatalogCoverageReport");
+    expect(coverageModule).toHaveProperty("compileBookletCatalogCoverageClosure");
+  });
+
+  it.each([0, 360, Number.MAX_SAFE_INTEGER + 1])(
+    "rejects a coverage prefix outside the real 1..359 booklet at %s",
+    (lastStep) => {
+      expect(() => build({ lastStep })).toThrow(/safe integer from 1 through 359/u);
+    },
+  );
+
+  it.each([
+    [Number.NaN, "NaN"],
+    [Number.POSITIVE_INFINITY, "Infinity"],
+    [Number.NEGATIVE_INFINITY, "-Infinity"],
+    [1.5, "1.5"],
+    ["1", '"1"'],
+    [1n, "1n"],
+  ])("reports hostile lastStep %s without losing or serializing it", (lastStep, expected) => {
+    let message = "";
+    try {
+      build({ lastStep });
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+    expect(message).toContain(`safe integer from 1 through 359; received ${expected}`);
+  });
+
+  it("bounds a large wrong-type lastStep diagnostic", () => {
+    const lastStep = "x".repeat(1024 * 1024);
+    let message = "";
+    try {
+      build({ lastStep });
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+    expect(message).toContain(`string length ${lastStep.length}`);
+    expect(message.length).toBeLessThan(512);
+  });
+
   it("refuses to publish a PDF digest no feature artifact ever bound", () => {
     const input = fixture();
     const unbound = {
@@ -84,7 +127,7 @@ describe("booklet catalog coverage report builder", () => {
     const manifestDigest = digest(input.manifestBytes);
 
     expect(report).toMatchObject({
-      schemaVersion: "lego.real-build-catalog-coverage/1",
+      schemaVersion: "lego.real-build-catalog-coverage/2",
       inputDigests: {
         pdf: input.manifest.sourceHash,
         calloutManifest: manifestDigest,
@@ -346,16 +389,19 @@ describe("booklet catalog coverage report builder", () => {
     const truncated = manifestFor([input.manifest.callouts[0]]);
     truncated.sourceHash = FULL_CALLOUT_MANIFEST_EXPECTATION.sourceHash;
     expect(() =>
-      buildBookletCatalogCoverageReport({
-        manifestBytes: Buffer.from(JSON.stringify(truncated)),
-        features: input.features,
-        claims: input.claims,
-        elements: input.elements,
-        source: "adjudicated",
-        model: "fixture-model",
-        assignment: "one-to-one",
-        lastStep: 1,
-      }),
+      __testOnly.buildBookletCatalogCoverageReport(
+        {
+          manifestBytes: Buffer.from(JSON.stringify(truncated)),
+          features: input.features,
+          claims: input.claims,
+          elements: input.elements,
+          source: "adjudicated",
+          model: "fixture-model",
+          assignment: "one-to-one",
+          lastStep: 1,
+        },
+        FULL_CALLOUT_MANIFEST_EXPECTATION,
+      ),
     ).toThrow(/independently pinned full-booklet publication/);
   });
 

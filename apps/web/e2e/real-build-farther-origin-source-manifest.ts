@@ -7,10 +7,49 @@ export interface RealBuildSourceAttestation {
   readonly digest: string;
 }
 
+/** E2E modules whose runtime import graph consumes identification evidence. */
+export const MEASURED_FARTHER_ORIGIN_VERIFIER_ENTRY_SOURCE_PATHS = Object.freeze([
+  "apps/web/e2e/real-build-identification-closure.ts",
+  "apps/web/e2e/real-build-input-files.ts",
+  "apps/web/e2e/real-build-input-limits.ts",
+]);
+
+/** Exact executable script closure reached from the verifier entry modules. */
+export const MEASURED_FARTHER_ORIGIN_VERIFIER_SCRIPT_SOURCE_PATHS = Object.freeze([
+  "scripts/booklet-catalog-coverage-report.mjs",
+  "scripts/booklet-catalog-coverage.mjs",
+  "scripts/bounded-observed-value.mjs",
+  "scripts/part-assignment.mjs",
+  "scripts/part-identification-artifact-source.mjs",
+  "scripts/part-identification-artifact-vision.mjs",
+  "scripts/part-identification-artifacts.mjs",
+  "scripts/part-identification-card-images.mjs",
+  "scripts/part-identification-claims.mjs",
+  "scripts/part-identification-contained-path.mjs",
+  "scripts/part-identification-contained-write.mjs",
+  "scripts/part-identification-derivation.mjs",
+  "scripts/part-identification-handedness.mjs",
+  "scripts/part-identification-io.mjs",
+  "scripts/part-identification-mirror-pairs.mjs",
+  "scripts/part-identification-model.mjs",
+  "scripts/part-identification-pair-judged.mjs",
+  "scripts/part-identification-prompt.mjs",
+  "scripts/part-identification-score-observations.mjs",
+  "scripts/part-identification-score-truth.mjs",
+  "scripts/part-identification-score.mjs",
+  "scripts/part-identification-strict-json.mjs",
+  "scripts/part-identification-truth-key.mjs",
+  "scripts/part-thumbnail-canvas.mjs",
+  "scripts/part-thumbnail-image-guard.mjs",
+  "scripts/part-thumbnail-image.mjs",
+]);
+
 /**
  * Canonical source roots that can affect the measured direct-origin shortcut.
  * The wide first-party and dependency roots are deliberate: a hand-maintained
  * import graph is too easy to under-approximate across dynamic browser imports.
+ * Verifier scripts are the exact exception above, guarded by a static runtime-
+ * import closure test so unrelated scripts and task artifacts stay excluded.
  */
 export const MEASURED_FARTHER_ORIGIN_SOURCE_PREFIXES = Object.freeze([
   "apps/web/e2e/",
@@ -29,11 +68,13 @@ export const MEASURED_FARTHER_ORIGIN_EXACT_SOURCE_PATHS = Object.freeze([
   "package-lock.json",
   "package.json",
   "playwright.config.ts",
+  ...MEASURED_FARTHER_ORIGIN_VERIFIER_SCRIPT_SOURCE_PATHS,
   "tsconfig.json",
 ]);
 
-/** Anchors prove every result-determining slice remained inside the broad closure. */
+/** Anchors prove every result-determining slice remained inside the broad or exact closure. */
 export const MEASURED_FARTHER_ORIGIN_REQUIRED_SOURCE_PATHS = Object.freeze([
+  ...MEASURED_FARTHER_ORIGIN_VERIFIER_ENTRY_SOURCE_PATHS,
   "apps/web/e2e/real-build-browser-preflight.ts",
   "apps/web/e2e/real-build-contract.ts",
   "apps/web/e2e/real-build-deferral.ts",
@@ -72,6 +113,7 @@ export const MEASURED_FARTHER_ORIGIN_REQUIRED_SOURCE_PATHS = Object.freeze([
   "packages/rendering/src/index.ts",
   "packages/rendering/src/camera-fit-lattice.ts",
   "package-lock.json",
+  ...MEASURED_FARTHER_ORIGIN_VERIFIER_SCRIPT_SOURCE_PATHS,
 ]);
 
 export const MEASURED_FARTHER_ORIGIN_SOURCE_MANIFEST_PATH =
@@ -109,7 +151,7 @@ export function isRealBuildSourceAttestation(value: unknown): value is RealBuild
 export const MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION: RealBuildSourceAttestation = Object.freeze(
   {
     schemaVersion: REAL_BUILD_SOURCE_ATTESTATION_SCHEMA_VERSION,
-    fileCount: 3_309,
-    digest: "sha256:9365c2263b28a5ff1b4689fab82efd8a454aaacf30db678a1f4d16aae12a9eeb",
+    fileCount: 3_335,
+    digest: "sha256:a68ca5e2dc8fa940036970e4924f41899125a71201ddbd40a365b6d872711969",
   },
 );

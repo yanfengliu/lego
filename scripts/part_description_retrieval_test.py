@@ -16,6 +16,10 @@ import json
 import unittest
 from pathlib import Path
 
+from part_description_report_support_test import (  # noqa: F401
+    DescriptionReportProseTests,
+)
+
 from part_description_retrieval import (
     DEFAULT_WEIGHTS,
     UNPARSED_DIMENSION_COST,
@@ -34,6 +38,12 @@ from part_description_retrieval import (
     stud_dimensions,
     worst_rank_in_tie,
 )
+from part_description_truth_test import (  # noqa: F401
+    PairJudgedTruthTests,
+    ScoreSummaryContractTests,
+    TruthStructureContractTests,
+)
+from part_description_input_contract_test import DescriptionInputContractTests  # noqa: F401
 
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 INVENTORY = REPOSITORY_ROOT / "output/part-identification/element-resolution.json"
@@ -706,25 +716,58 @@ class ScorerSemanticsTests(unittest.TestCase):
             ],
             "provenance": {"refusals": []},
         }
-        xml = '<Brick designID="3020;L" itemNos="302028" uuid="known" />'
+        xml = (
+            "<LXFML><Bricks>"
+            '<Brick uuid="known" itemNos="302028" designID="3020;L">'
+            '<Part materials="2:0" /></Brick>'
+            "</Bricks></LXFML>"
+        )
         truth, unmapped = self.scorer.builder_export_truth(ledger, xml, {"p11|q1|x1|y1": 4})
         self.assertEqual(truth, {4: ("302028", "3020")})
         self.assertEqual(unmapped, ["p99|q9|x9|y9"])
 
-    def test_a_refused_callout_carries_truth_without_carrying_a_verdict(self) -> None:
-        """The export names what the Builder cut placed; it does not accept anything."""
-
+    def test_only_a_direct_action_piece_carries_positive_builder_truth(self) -> None:
         ledger = {
-            "steps": [],
+            "steps": [
+                {
+                    "stepNumber": 12,
+                    "action": {
+                        "pieces": [
+                            {
+                                "calloutKey": "p12|q1|x10.000|y20.000",
+                                "brickRef": "accepted",
+                            }
+                        ]
+                    },
+                }
+            ],
             "provenance": {
-                "refusals": [{"calloutKey": "p12|q1|x108.829|y453.870", "brickRef": "u"}]
+                "refusals": [
+                    {
+                        "calloutKey": "p12|q1|x108.829|y453.870",
+                        "brickRef": "refused",
+                        "reason": "the proposed identification was not accepted",
+                    }
+                ]
             },
         }
-        xml = '<Brick designID="3020;L" itemNos="302028" uuid="u" />'
-        truth, unmapped = self.scorer.builder_export_truth(
-            ledger, xml, {"p12|q1|x108.829|y453.870": 53}
+        xml = (
+            "<LXFML><Bricks>"
+            '<Brick uuid="accepted" itemNos="300101" designID="3001;L">'
+            '<Part materials="26:0" /></Brick>'
+            '<Brick uuid="refused" itemNos="302028" designID="3020;L">'
+            '<Part materials="2:0" /></Brick>'
+            "</Bricks></LXFML>"
         )
-        self.assertEqual(truth[53], ("302028", "3020"))
+        truth, unmapped = self.scorer.builder_export_truth(
+            ledger,
+            xml,
+            {
+                "p12|q1|x10.000|y20.000": 52,
+                "p12|q1|x108.829|y453.870": 53,
+            },
+        )
+        self.assertEqual(truth, {52: ("300101", "3001")})
         self.assertEqual(unmapped, [])
 
 

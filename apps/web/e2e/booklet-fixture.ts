@@ -46,14 +46,9 @@ export function exactSampleBookletArrayBuffer(bytes: Buffer): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
-export async function readSampleBooklet(): Promise<SampleBooklet> {
-  if (SAMPLE_BOOKLET_PATH === null) {
-    throw new Error(
-      "readSampleBooklet needs recipes/6651557.pdf, which is uncommitted and absent from this checkout; guard the caller with hasSampleBooklet.",
-    );
-  }
-  const bytes = readSampleBookletBytes(SAMPLE_BOOKLET_PATH);
-  const source = await ingestInstructionPdf(
+/** Ingest caller-authenticated booklet bytes without consulting the process cwd. */
+export async function ingestSampleBookletBytes(bytes: Buffer): Promise<InstructionSourceV1> {
+  return ingestInstructionPdf(
     {
       name: "6651557.pdf",
       arrayBuffer: async () => exactSampleBookletArrayBuffer(bytes),
@@ -66,6 +61,16 @@ export async function readSampleBooklet(): Promise<SampleBooklet> {
       },
     },
   );
+}
+
+export async function readSampleBooklet(): Promise<SampleBooklet> {
+  if (SAMPLE_BOOKLET_PATH === null) {
+    throw new Error(
+      "readSampleBooklet needs recipes/6651557.pdf, which is uncommitted and absent from this checkout; guard the caller with hasSampleBooklet.",
+    );
+  }
+  const bytes = readSampleBookletBytes(SAMPLE_BOOKLET_PATH);
+  const source = await ingestSampleBookletBytes(bytes);
   return { bytes, source };
 }
 

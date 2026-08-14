@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import {
   isMeasuredFartherOriginSourcePath,
   MEASURED_FARTHER_ORIGIN_REQUIRED_SOURCE_PATHS,
+  MEASURED_FARTHER_ORIGIN_VERIFIER_SCRIPT_SOURCE_PATHS,
   REAL_BUILD_SOURCE_ATTESTATION_SCHEMA_VERSION,
   type RealBuildSourceAttestation,
 } from "./real-build-farther-origin-source-manifest.ts";
@@ -15,7 +16,7 @@ const sha256 = (value: string): string =>
 
 /**
  * Derives the portable attestation from the exact source map already captured
- * for run-contract /2. It reads no files and admits no generated Vite cache.
+ * for run-contract /3. It reads no files and admits no generated Vite cache.
  */
 export function deriveMeasuredFartherOriginSourceAttestation(
   codeSnapshots: Readonly<Record<string, string>>,
@@ -41,6 +42,15 @@ export function deriveMeasuredFartherOriginSourceAttestation(
     if (isMeasuredFartherOriginSourcePath(path)) rows.push({ path, digest });
   }
   const selected = new Set(rows.map(({ path }) => path));
+  const missingVerifierScripts = MEASURED_FARTHER_ORIGIN_VERIFIER_SCRIPT_SOURCE_PATHS.filter(
+    (path) => !selected.has(path),
+  );
+  if (missingVerifierScripts.length > 0) {
+    throw new TypeError(
+      `Measured farther-origin source closure is missing ${missingVerifierScripts.length} ` +
+        `result-determining verifier script path(s): ${missingVerifierScripts.slice(0, 8).join(", ")}.`,
+    );
+  }
   const missing = MEASURED_FARTHER_ORIGIN_REQUIRED_SOURCE_PATHS.filter(
     (path) => !selected.has(path),
   );

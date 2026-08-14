@@ -25,7 +25,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from booklet_depletion_walk import Claim, Cluster, consumed_before, narrow_cluster
+from part_action_ledger_official_contract import official_bricks
 from part_description_retrieval import rank_of, worst_rank_in_tie
+from part_identification_report_contract import require_truth_v3
 
 # The k values both retrievals are reported at. 6 is the shipping shortlist size
 # and is not changed by anything here; the rest bracket it so the shape of the
@@ -38,8 +40,6 @@ RECALL_K = (1, 3, 6, 10, 25)
 # changes it; it is the number the ceiling is a ceiling at.
 SHIPPING_SHORTLIST = 6
 
-
-BRICK_RECORD = re.compile(r'<Brick designID="([^"]+)" itemNos="([^"]+)" uuid="([^"]+)"')
 
 # A pair-judged verdict answers "is this the same part?" about two drawings, and
 # two of the 82 raters' notes record in words that the two sides are the same
@@ -108,55 +108,123 @@ def build_cluster_index(match: dict, features: dict) -> tuple[dict[int, int], di
 
 
 def builder_export_truth(
-    ledger: dict, official_xml: str, by_identity: dict[str, int]
+    ledger: dict, official_xml: str | bytes, by_identity: dict[str, int]
 ) -> tuple[dict[int, tuple[str, str]], list[str]]:
-    """cluster -> (elementId, designId) from the official Builder export.
+    """cluster -> (elementId, designId) from accepted Builder action pieces.
 
     Returns the unmapped callout keys beside it: a ledger piece whose callout is
     not in the live match is a callout the current gallery cut differently, and
     saying so is the point -- an unmapped row is missing truth, not a pass.
+
+    Ledger refusals are counterevidence, never positive truth. Action-ledger /2
+    has no typed independent-elimination witness that could prove a refused
+    callout's Brick assignment without relying on the rejected claim.
     """
 
-    bricks = {m.group(3): (m.group(1), m.group(2)) for m in BRICK_RECORD.finditer(official_xml)}
-    rows: list[tuple[str, str]] = []
-    for step in ledger.get("steps", []):
+    bricks = official_bricks(official_xml)
+    rows: list[tuple[str, str, str]] = []
+    for step_index, step in enumerate(ledger.get("steps", [])):
+        step_context = (
+            f"step {step['stepNumber']}"
+            if "stepNumber" in step
+            else f"ledger steps[{step_index}]"
+        )
         for piece in step["action"].get("pieces", []):
-            rows.append((piece["calloutKey"], piece["brickRef"]))
-    for refusal in ledger.get("provenance", {}).get("refusals", []):
-        rows.append((refusal["calloutKey"], refusal["brickRef"]))
+            rows.append((step_context, piece["calloutKey"], piece["brickRef"]))
 
     truth: dict[int, tuple[str, str]] = {}
+    provenance: dict[int, tuple[str, str, str, tuple[str, str]]] = {}
     unmapped: list[str] = []
-    for callout_key, brick_ref in rows:
+    for step_number, callout_key, brick_ref in rows:
         cluster_index = by_identity.get(callout_key)
         record = bricks.get(brick_ref)
-        if cluster_index is None or record is None:
+        if cluster_index is None:
             unmapped.append(callout_key)
             continue
-        design_id, item_nos = record
-        truth[cluster_index] = (item_nos, design_id.split(";")[0])
+        if record is None:
+            raise ValueError(
+                f"accepted Builder action piece at {step_number} callout {callout_key!r} names "
+                f"Brick {brick_ref!r}, which is absent from the exact official-model export. "
+                "Restore one reconciled ledger/model closure before scoring description truth."
+            )
+        element_ids = record["elementIds"]
+        if not isinstance(element_ids, tuple) or len(element_ids) != 1:
+            raise ValueError(
+                f"accepted Builder action piece at {step_number} callout {callout_key!r} Brick "
+                f"{brick_ref!r} resolves to official itemNos {element_ids!r}. Description truth "
+                "requires exactly one element identity; it cannot concatenate or choose among "
+                "multiple official elements by attribute or file order."
+            )
+        resolved = (element_ids[0], record["designId"])
+        held = provenance.get(cluster_index)
+        if held is not None and held[3] != resolved:
+            held_step, held_callout, held_brick, held_resolved = held
+            raise ValueError(
+                f"accepted Builder action pieces conflict for cluster {cluster_index}: "
+                f"{held_step} callout {held_callout!r} Brick {held_brick!r} resolves to "
+                f"element/design {held_resolved[0]!r}/{held_resolved[1]!r}, but "
+                f"{step_number} callout {callout_key!r} Brick {brick_ref!r} resolves to "
+                f"{resolved[0]!r}/{resolved[1]!r}. Refuse cluster-level scoring until the "
+                "accepted evidence agrees; file order cannot choose truth."
+            )
+        truth.setdefault(cluster_index, resolved)
+        provenance.setdefault(
+            cluster_index, (step_number, callout_key, brick_ref, resolved)
+        )
     return truth, sorted(set(unmapped))
 
 
 def pair_judged_truth(
-    truth_file: dict, features: dict, by_callout_index: dict[int, int]
+    truth_file: dict, features: dict, match: dict
 ) -> tuple[dict[int, str], dict[int, set[str]], list[str], dict[int, str]]:
-    """cluster -> judged-same element, judged-different elements, unmapped, colour caveats."""
+    """Lead-local description truth from exact full crop+element verdicts.
 
-    cluster_by_crop: dict[str, int] = {}
-    for index, cluster_index in by_callout_index.items():
-        sha = features["callouts"][index]["sha256"]
-        cluster_by_crop.setdefault(sha[: len("sha256:") + 16], cluster_index)
+    The answer being scored belongs to the cluster card's lead drawing. A
+    verdict for another member remains valid evidence about that exact crop,
+    but cannot be promoted into truth for the lead's description.
+    """
+
+    require_truth_v3(truth_file)
+    callouts = features["callouts"]
+    by_crop: dict[str, list[int]] = collections.defaultdict(list)
+    by_file: dict[str, list[int]] = collections.defaultdict(list)
+    member_cluster: dict[int, int] = {}
+    for index, callout in enumerate(callouts):
+        by_crop[callout["sha256"]].append(index)
+        by_file[callout["file"]].append(index)
+    lead_by_cluster: dict[int, int] = {}
+    for cluster in match["clusters"]:
+        cluster_index = cluster["clusterIndex"]
+        for member in cluster["members"]:
+            member_cluster[member] = cluster_index
+        lead_indexes = by_file.get(cluster["lead"], [])
+        if len(lead_indexes) != 1:
+            raise ValueError(
+                f"cluster {cluster_index} lead {cluster['lead']!r} maps to {len(lead_indexes)} "
+                "feature rows; description truth requires one exact card member"
+            )
+        lead_by_cluster[cluster_index] = lead_indexes[0]
 
     same: dict[int, str] = {}
     different: dict[int, set[str]] = collections.defaultdict(set)
     unmapped: list[str] = []
     caveats: dict[int, str] = {}
     for verdict in truth_file["verdicts"]:
-        cluster_index = cluster_by_crop.get(verdict["judgedCropSha256"])
-        if cluster_index is None:
-            unmapped.append(f"n={verdict['n']} {verdict['judgedCropSha256']}")
+        matches = by_crop.get(verdict["judgedCropSha256"], [])
+        matching_lead_clusters = {
+            member_cluster[index]
+            for index in matches
+            if index in member_cluster
+            and lead_by_cluster.get(member_cluster[index]) == index
+        }
+        if len(matching_lead_clusters) != 1:
+            unmapped.append(
+                f"n={verdict['n']} {verdict['judgedCropSha256']} "
+                f"(exact crop maps to {len(matching_lead_clusters)} distinct current card leads "
+                f"across {len(matches)} byte-identical feature rows)"
+            )
             continue
+        cluster_index = next(iter(matching_lead_clusters))
         if verdict["same"]:
             same[cluster_index] = verdict["elementId"]
             if COLOUR_CAVEAT_NOTE.search(verdict.get("note") or ""):
@@ -287,82 +355,6 @@ def recall_table(ranks: list[int | None]) -> dict[str, float | int]:
     return table
 
 
-def contaminated_element_probe(ledger, by_identity, answers, builder, rankings, describe):
-    """Where the contaminated green Plate 2 x 4 lands, for the two refused callouts.
-
-    The worked example the whole comparison rests on, asked of both retrievals by
-    name rather than inferred from an aggregate. `rankings` and `describe` are
-    supplied by the driver so this stays a pure report over data it is handed.
-
-    This is a measurement about the retrievals. The pair-judged refusals at
-    printed steps 5 and 7 are not overridden, relabelled or weakened by it: no
-    assignment, label or verdict is written anywhere in this comparison.
-    """
-
-    probe = []
-    refused = {
-        row["calloutKey"]: row["stepNumber"]
-        for row in ledger.get("provenance", {}).get("refusals", [])
-    }
-    for callout_key, step_number in refused.items():
-        index = by_identity.get(callout_key)
-        if index is None:
-            probe.append(
-                {
-                    "printedStep": step_number,
-                    "calloutKey": callout_key,
-                    "cluster": None,
-                    "note": (
-                        f"{callout_key} is a recorded ledger refusal but is not a callout in "
-                        f"the live match, so the current gallery cut this drawing differently "
-                        f"and there is no cluster to probe. Re-cut the gallery or re-emit the "
-                        f"ledger against it."
-                    ),
-                }
-            )
-            continue
-        answer = answers.get(str(index))
-        query = describe(answer)
-        ranked = rankings(index, query)
-        probe.append(
-            {
-                "printedStep": step_number,
-                "calloutKey": callout_key,
-                "cluster": index,
-                "builderExportElement": builder.get(index, (None, None))[0],
-                "described": (
-                    None
-                    if query is None
-                    else {
-                        "kind": query.kind,
-                        "studsLong": query.studs_long,
-                        "studsWide": query.studs_wide,
-                        "colour": query.colour,
-                    }
-                ),
-                "pixelRankOf302028": rank_of(ranked["pixel"], CONTAMINATED_ELEMENT),
-                "descriptionRankOf302028": worst_rank_in_tie(
-                    ranked["description"], CONTAMINATED_ELEMENT
-                ),
-                "descriptionRankOf302028Optimistic": rank_of(
-                    ranked["description"], CONTAMINATED_ELEMENT
-                ),
-                "descriptionPlusDepletionRankOf302028": worst_rank_in_tie(
-                    ranked["descriptionPlusDepletion"], CONTAMINATED_ELEMENT
-                ),
-                "interleavedRankOf302028": rank_of(ranked["interleaved"], CONTAMINATED_ELEMENT),
-                "pixelTop6": [e for e, _ in ranked["pixel"][:SHIPPING_SHORTLIST]],
-                "descriptionTop6": [e for e, _ in ranked["description"][:SHIPPING_SHORTLIST]],
-                "note": (
-                    "Reported as a measurement about the two retrievals. The pair-judged "
-                    "refusal at this step is not overridden, relabelled or weakened by this "
-                    "run, which writes no assignment and no label."
-                ),
-            }
-        )
-    return probe
-
-
 # The geometry chain: every input whose bytes decide which drawings exist, how
 # they cluster, and what the pixel descriptor says about them. If any of these
 # move, the cluster indices renumber and every number measured against them
@@ -388,7 +380,7 @@ GEOMETRY_CHAIN_PINS = {
         "sha256:2d687f879f9d9b8ca2ec6a2ae98e56179de54a86ddc1fa715f0114508388506f"
     ),
     "scripts/fixtures/part-identification-truth-first50.json": (
-        "sha256:639e99ce1bf1785f1f99c9c696ddb4d678946f40b385b7e40547e87d7ece5445"
+        "sha256:52535395f5612332a966f274b99dfb24fb0150b2ccdab5fc6bd59fe137c596b6"
     ),
     "output/real-build/action-ledger.json": (
         "sha256:872826151c5f4dd57de1b16cce1fc70849d933323e948f7904bb6b1077f7879d"

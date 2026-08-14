@@ -9,7 +9,9 @@ import {
   assertCardsArtifact,
   boundAnswers,
   canonicalAnswerRecord,
+  hasUsableAnswer,
   readJsonArtifact,
+  usableAnswerCount,
 } from "./part-identification-artifacts.mjs";
 import {
   CHILD_TIMEOUT_MS,
@@ -53,6 +55,61 @@ function writeJson(path, value) {
 }
 
 const PROMPT = PART_IDENTIFICATION_PROMPT;
+
+function pendingAnswerClusterIndexes(clusters, answers, { only = null, inRange = null } = {}) {
+  return clusters
+    .filter(({ clusterIndex }) => !hasUsableAnswer(answers[clusterIndex]))
+    .filter(({ clusterIndex }) => only === null || Number(only) === clusterIndex)
+    .filter(({ clusterIndex }) => inRange === null || inRange.has(clusterIndex))
+    .map(({ clusterIndex }) => clusterIndex);
+}
+
+function claudeFailureStdoutDiagnostic(stdout) {
+  const bytes = Buffer.from(stdout, "utf8");
+  if (bytes.length === 0) return "empty";
+  let payload;
+  try {
+    payload = parseStrictJsonBytes(bytes);
+  } catch {
+    return `non-JSON ${bytes.length} UTF-8 bytes omitted`;
+  }
+  if (
+    typeof payload !== "object" ||
+    payload === null ||
+    Array.isArray(payload) ||
+    payload.is_error !== true
+  ) {
+    return `JSON without a CLI error envelope; ${bytes.length} UTF-8 bytes omitted`;
+  }
+  const fields = [`stdoutBytes=${bytes.length}`];
+  const status = payload.api_error_status;
+  const hasApiStatus = Number.isInteger(status) && status >= 100 && status <= 599;
+  if (hasApiStatus) {
+    fields.push(`api_error_status=${status}`);
+  }
+  const reason = payload.terminal_reason;
+  if (reason === "api_error") {
+    fields.push(`terminal_reason=${quoteLine(reason)}`);
+  } else if (typeof reason === "string" && reason.length > 0) {
+    fields.push(`terminalReasonBytes=${Buffer.byteLength(reason, "utf8")} omitted`);
+  }
+  const remediation =
+    status === 401
+      ? 'reauthenticate with "claude auth login --claudeai", then retry one bounded call'
+      : status === 429
+        ? "wait for the provider or account limit to reset, then retry one bounded call"
+        : "verify Claude CLI authentication and pinned-model access before retrying";
+  fields.push(`remediation=${quoteLine(remediation, MAX_QUOTED_REFUSAL)}`);
+  if (typeof payload.result === "string" && payload.result.length > 0) {
+    fields.push(`resultBytes=${Buffer.byteLength(payload.result, "utf8")} omitted`);
+  }
+  return `JSON error (${fields.join(", ")})`;
+}
+
+function claudeFailureStderrDiagnostic(stderr) {
+  const bytes = Buffer.from(stderr, "utf8");
+  return bytes.length === 0 ? "empty" : `${bytes.length} UTF-8 bytes omitted`;
+}
 
 /**
  * The child environment for one vision call.
@@ -126,7 +183,7 @@ async function askBatch(cardIds, model, out = OUT, context = {}) {
   );
   if (result.code !== 0) {
     throw new Error(
-      `Pinned Claude vision call for ${cardIds.join(", ")} exited ${result.code}${result.signal === null ? "" : ` (${result.signal})`}; stderr: ${result.stderr.trim() || "empty"}. No answer was retained.`,
+      `Pinned Claude vision call for ${cardIds.join(", ")} exited ${result.code}${result.signal === null ? "" : ` (${result.signal})`}; stderr: ${claudeFailureStderrDiagnostic(result.stderr)}; stdout: ${claudeFailureStdoutDiagnostic(result.stdout)}. No answer was retained.`,
     );
   }
   let payload;
@@ -323,16 +380,12 @@ async function commandAsk(argv) {
     }
   }
 
-  const pending = match.clusters
-    .filter(({ clusterIndex }) => answers[clusterIndex] === undefined)
-    .filter(({ clusterIndex }) => only === null || Number(only) === clusterIndex)
-    .filter(({ clusterIndex }) => inRange === null || inRange.has(clusterIndex))
-    .map(({ clusterIndex }) => clusterIndex);
+  const pending = pendingAnswerClusterIndexes(match.clusters, answers, { only, inRange });
   const chunks = [];
   for (let at = 0; at < pending.length; at += batch) chunks.push(pending.slice(at, at + batch));
   console.log(
     `${pending.length} drawings to ask in ${chunks.length} calls of up to ${batch}, ` +
-      `${Object.keys(answers).length} already answered`,
+      `${usableAnswerCount(answers)} already answered`,
   );
 
   let done = 0;
@@ -365,7 +418,7 @@ async function commandAsk(argv) {
   await settleVisionWorkers(workers);
   writeAnswers();
   const refused = Object.values(answers).filter((answer) => answer === null).length;
-  console.log(`answered ${Object.keys(answers).length} drawings, ${refused} with no usable reply`);
+  console.log(`answered ${usableAnswerCount(answers)} drawings, ${refused} with no usable reply`);
   // A reply the validator threw out is a different event from a reply that never
   // arrived, and only one of the two is fixed by asking again. Printing the first
   // distinct reasons is what makes a prompt and a schema that have drifted apart
@@ -378,4 +431,11 @@ async function commandAsk(argv) {
   }
 }
 
-export { PROMPT, askBatch, commandAsk };
+export {
+  PROMPT,
+  askBatch,
+  claudeFailureStderrDiagnostic,
+  claudeFailureStdoutDiagnostic,
+  commandAsk,
+  pendingAnswerClusterIndexes,
+};

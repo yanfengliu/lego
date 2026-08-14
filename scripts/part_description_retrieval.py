@@ -343,7 +343,7 @@ class DescribedQuery:
 class DescriptionWeights:
     """How much each described field is worth.
 
-    Equal by default and deliberately so. Colour splits the 265-element universe
+    Equal by default and deliberately so. Colour splits the retained universe
     about fourteen ways, kind about nine, and the stud footprint many more; there
     is no measurement here that says one is more reliable than another, so
     weighting them apart would be fitting the answer rather than describing the

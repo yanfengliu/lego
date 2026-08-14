@@ -1,8 +1,6 @@
 import { existsSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 
-import { assignDrawings } from "./part-assignment.mjs";
-import { COLOR_DEFINITIONS } from "../packages/catalog/src/colors.ts";
 import {
   PART_SCORE_SCHEMA,
   PART_SCORE_SUMMARY_SCHEMA,
@@ -10,26 +8,39 @@ import {
   assertCardsArtifact,
   boundAnswers,
   readJsonArtifact,
+  usableAnswerCount,
 } from "./part-identification-artifacts.mjs";
 import { PART_IDENTIFICATION_PROMPT_DIGEST } from "./part-identification-prompt.mjs";
 import { handednessVerdicts } from "./part-identification-handedness.mjs";
-import {
-  candidatesNamedInNote,
-  mirrorPairedPicks,
-  mirrorTwinCandidate,
-} from "./part-identification-mirror-pairs.mjs";
+import { mirrorPairedPicks } from "./part-identification-mirror-pairs.mjs";
 import {
   PART_IDENTIFICATION_MODEL_ID,
   requirePinnedPartIdentificationModel,
 } from "./part-identification-model.mjs";
 import { MAX_JSON_ARTIFACT_BYTES, writeContainedFile } from "./part-identification-io.mjs";
 import { verifyRetainedCardImageClosure } from "./part-identification-card-images.mjs";
+import { PART_TRUTH_PATH } from "./part-identification-truth-key.mjs";
 import {
-  PART_TRUTH_PATH,
-  judgedPairs,
-  truthVerdictKey,
-  verdictsByCropDigest,
-} from "./part-identification-truth-key.mjs";
+  claimsFor,
+  conservation,
+  describesSameThing,
+  visionPick,
+} from "./part-identification-claims.mjs";
+import {
+  scoreAgainstTruth,
+  snapshotScoreSummaryInputDigests,
+} from "./part-identification-score-truth.mjs";
+import { readWhatTheCallObserved } from "./part-identification-score-observations.mjs";
+
+export {
+  claimsFor,
+  conservation,
+  describesSameThing,
+  scoreAgainstTruth,
+  snapshotScoreSummaryInputDigests,
+  visionPick,
+  readWhatTheCallObserved,
+};
 
 /**
  * The grader.
@@ -56,288 +67,10 @@ function writeJson(path, value) {
   });
 }
 
-/**
- * What the vision call said about one drawing, reduced to the element it pointed at.
- *
- * Three deterministic checks stand between the answer and a claim, and all of
- * them can throw it out: the pick has to be a number on the card, the element
- * behind that number has to be one the inventory lists, and the free
- * description given in the same breath has to agree with that element's
- * published name and colour code on kind, stud size, and colour. The call never
- * sees that metadata, so the third check is not something it can satisfy by
- * asserting.
- *
- * Two more stand behind them, and both only ever reject.
- *
- * A declared difference means the call is saying the candidate it named is not
- * the query — a different hand, a different length, a different shade, a
- * different small feature. That answer proposes nothing, so it claims nothing,
- * and the reason travels in the label rather than being flattened into a bare
- * refusal. Only `view` passes through, because two drawings of one part from
- * different sides are still one part.
- *
- * And where the card displayed both hands of a mirror pair, the description
- * check provably cannot separate them: "wedge 6x2 White" agrees exactly as well
- * with "Wedge Plate 6 x 2 Right" as with "Wedge Plate 6 x 2 Left", so a swapped
- * pick would have been stamped trusted and built. Four picks in the last run sat
- * on that hole. What closes it is the card's own pixels: the query silhouette
- * matches one hand and matches the other only after being flipped, so the
- * comparison decides which hand it is without asking the answer anything. A
- * previous version asked instead that the note name the twin's candidate number,
- * which cannot separate the hands at all and promoted a swapped pick.
- *
- * `handedness` is that verdict, keyed by card id, computed by
- * `part-identification-handedness.mjs` from bytes the manifest binds. Its
- * absence is not permission: a mirror-paired pick with no verdict, or with a
- * verdict that could not decide, stays unpromoted.
- */
-export function visionPick(cluster, answers, names, cards, handedness = null) {
-  const answer = answers?.[cluster.clusterIndex] ?? null;
-  if (answer === null || answer === undefined) return { elementId: null, picked: "unanswered" };
-  const pick = Number(answer.pick ?? 0);
-  if (pick === 0) return { elementId: null, picked: "refused" };
-  const differs = answer.differsFromPick ?? "nothing";
-  const cardId = `card-${String(cluster.clusterIndex).padStart(4, "0")}`;
-  const displayed = cards?.[cardId]?.candidateElementIds;
-  if (!Array.isArray(displayed)) {
-    return { elementId: null, picked: "description-unverifiable" };
-  }
-  if (!Number.isInteger(pick) || pick < 1 || pick > displayed.length) {
-    return { elementId: null, picked: "out-of-range" };
-  }
-  if (differs !== "nothing" && differs !== "view") {
-    return { elementId: null, picked: `differs-${differs}` };
-  }
-  const elementId = displayed[pick - 1];
-  if (!(names instanceof Map)) {
-    return { elementId: null, picked: "description-unverifiable" };
-  }
-  const verdict = describesSameThing(answer, names.get(elementId));
-  if (
-    verdict === null ||
-    verdict.kindAgrees !== true ||
-    verdict.sizeAgrees !== true ||
-    verdict.colourAgrees !== true
-  ) {
-    return {
-      elementId: null,
-      picked:
-        verdict?.kindAgrees === false ||
-        verdict?.sizeAgrees === false ||
-        verdict?.colourAgrees === false
-          ? "self-contradicted"
-          : "description-unverifiable",
-    };
-  }
-  const twin = mirrorTwinCandidate(displayed, names, pick);
-  if (twin !== 0) {
-    const hand =
-      (handedness instanceof Map ? handedness.get(cardId) : handedness?.[cardId]) ?? null;
-    if (hand?.decided !== true) return { elementId: null, picked: "handedness-unverified" };
-    if (hand.hand !== pick) return { elementId: null, picked: "handedness-refuted" };
-  }
-  const second = Number(answer.alsoCouldBe ?? 0);
-  const alsoCouldBe =
-    Number.isInteger(second) && second >= 1 && second <= displayed.length && second !== pick
-      ? displayed[second - 1]
-      : null;
-  return { elementId, picked: "vision-kept", alsoCouldBe };
-}
-
-/**
- * Which element each callout is claimed to be.
- *
- * `nearest` lets every drawing take its closest element with no regard for what
- * any other drawing wants; `assigned` makes the choice once for the whole book
- * under the one-element-one-drawing constraint. The vision pick, where there is
- * one, enters as a discount on that element rather than as the answer.
- */
-export function claimsFor(match, distances, source, answers, options = {}) {
-  if (source !== "deterministic" && source !== "adjudicated") {
-    throw new Error(
-      `Part-identification source must be deterministic or adjudicated; received ${JSON.stringify(source)}.`,
-    );
-  }
-  if (!["nearest", "one-to-one", "quantity-informed"].includes(options.assign ?? "one-to-one")) {
-    throw new Error(
-      `Part-identification assignment must be nearest, one-to-one, or quantity-informed; received ${JSON.stringify(options.assign)}.`,
-    );
-  }
-  const useAssignment = options.assign !== "nearest";
-  const chosen = new Map();
-
-  if (useAssignment) {
-    const held = options.held ?? new Map();
-    const elements = distances.elementIds.map((elementId) => ({
-      elementId,
-      held: held.get(elementId) ?? 0,
-    }));
-    const drawings = match.clusters.map((cluster, row) => {
-      const vision =
-        source === "deterministic"
-          ? null
-          : visionPick(cluster, answers, options.names, options.cards, options.handedness);
-      return {
-        distanceTo: distances.rows[row],
-        pieces: cluster.pieces,
-        picked: vision?.elementId ?? null,
-        // A second choice is only carried when the first survived every check.
-        // A rejected answer's runner-up is no more trustworthy than the answer,
-        // so a declared alternative discounts an element only where the call as
-        // a whole was believed.
-        alsoCouldBe: vision?.elementId === null ? null : (vision?.alsoCouldBe ?? null),
-      };
-    });
-    const result = assignDrawings(drawings, elements, {
-      useQuantities: options.assign === "quantity-informed",
-    });
-    for (const [row, elementId] of result.entries()) {
-      chosen.set(match.clusters[row].clusterIndex, elementId);
-    }
-  }
-
-  const claims = new Map();
-  for (const cluster of match.clusters) {
-    const vision =
-      source === "deterministic"
-        ? null
-        : visionPick(cluster, answers, options.names, options.cards, options.handedness);
-    const nearest = cluster.candidates[0]?.elementId ?? null;
-    const elementId = useAssignment
-      ? (chosen.get(cluster.clusterIndex) ?? null)
-      : (vision?.elementId ?? nearest);
-    let picked = source === "deterministic" ? "geometry" : (vision?.picked ?? "unanswered");
-    if (useAssignment && vision?.elementId) {
-      picked = vision.elementId === elementId ? "vision-kept" : "vision-overruled";
-    }
-    for (const member of cluster.members) {
-      claims.set(member, { elementId, clusterIndex: cluster.clusterIndex, picked });
-    }
-  }
-  return claims;
-}
-
-/** Claimed against held, per element. */
-export function conservation(callouts, claims, held) {
-  const claimed = new Map();
-  let unclaimedPieces = 0;
-  for (const [index, claim] of claims) {
-    const quantity = callouts[index].quantity;
-    if (claim.elementId === null) {
-      unclaimedPieces += quantity;
-      continue;
-    }
-    claimed.set(claim.elementId, (claimed.get(claim.elementId) ?? 0) + quantity);
-  }
-
-  const perElement = [...held].map(([elementId, holds]) => ({
-    elementId,
-    held: holds,
-    claimed: claimed.get(elementId) ?? 0,
-  }));
-  for (const [elementId, count] of claimed) {
-    if (!held.has(elementId)) perElement.push({ elementId, held: 0, claimed: count });
-  }
-
-  const over = perElement.filter((row) => row.claimed > row.held);
-  const under = perElement.filter((row) => row.claimed < row.held);
-  return {
-    elementsHeld: held.size,
-    piecesHeld: [...held.values()].reduce((total, value) => total + value, 0),
-    piecesClaimed: [...claimed.values()].reduce((total, value) => total + value, 0),
-    piecesUnclaimed: unclaimedPieces,
-    elementsExact: perElement.filter((row) => row.claimed === row.held).length,
-    elementsNeverClaimed: perElement.filter((row) => row.claimed === 0 && row.held > 0).length,
-    elementsClaimedButNotHeld: perElement.filter((row) => row.held === 0).length,
-    piecesOverClaimed: over.reduce((total, row) => total + row.claimed - row.held, 0),
-    piecesUnderClaimed: under.reduce((total, row) => total + row.held - row.claimed, 0),
-    piecesReconciled: perElement.reduce((total, row) => total + Math.min(row.claimed, row.held), 0),
-    worstOverClaims: [...over]
-      .sort((left, right) => right.claimed - right.held - (left.claimed - left.held))
-      .slice(0, 20),
-    worstUnderClaims: [...under]
-      .sort((left, right) => right.held - right.claimed - (left.held - left.claimed))
-      .slice(0, 20),
-    perElement: perElement.sort((left, right) => left.elementId.localeCompare(right.elementId)),
-  };
-}
-
-/**
- * Does the free description the same call gave agree with the element it picked?
- *
- * This is the check that stops the vision call certifying itself. The call
- * answers twice about one picture — once in words, once by pointing at a
- * candidate — and the candidate's published name and colour code are not
- * something the call can see. Two answers that disagree are one answer nobody
- * should trust.
- */
-const normalizeColourName = (value) =>
-  typeof value === "string"
-    ? value
-        .normalize("NFKC")
-        .toLowerCase()
-        .replace(/\bgrey\b/gu, "gray")
-        .replace(/[^a-z0-9]+/gu, " ")
-        .trim()
-        .replace(/\s+/gu, " ")
-    : null;
-
-const COLOUR_BY_LDRAW_CODE = new Map(
-  COLOR_DEFINITIONS.map(({ ldrawCode, displayName }) => [
-    ldrawCode,
-    normalizeColourName(displayName),
-  ]),
-);
-
-export function describesSameThing(answer, element) {
-  if (
-    typeof answer !== "object" ||
-    answer === null ||
-    typeof element !== "object" ||
-    element === null ||
-    typeof element.name !== "string" ||
-    element.name.length === 0 ||
-    typeof answer.kind !== "string" ||
-    !Number.isInteger(answer.studsLong) ||
-    !Number.isInteger(answer.studsWide)
-  )
-    return null;
-  const plain = element.name.toLowerCase();
-  const kind = String(answer.kind ?? "").toLowerCase();
-  const kindWords = {
-    brick: ["brick"],
-    plate: ["plate"],
-    tile: ["tile"],
-    slope: ["slope", "sloped", "wedge", "cheese"],
-    wedge: ["wedge", "slope", "sloped"],
-    arch: ["arch", "bow"],
-    round: ["round", "cylinder", "dish", "cone"],
-    technic: ["technic", "pin", "axle"],
-  }[kind];
-  const kindAgrees =
-    kindWords === undefined ? null : kindWords.some((word) => plain.includes(word));
-
-  const long = answer.studsLong;
-  const wide = answer.studsWide;
-  const printed = [...plain.matchAll(/(\d+)\s*x\s*(\d+)/g)].map(([, a, b]) => [
-    Number(a),
-    Number(b),
-  ]);
-  const sizeAgrees =
-    long > 0 && wide > 0 && printed.length > 0
-      ? printed.some(([a, b]) => (a === long && b === wide) || (a === wide && b === long))
-      : null;
-  const colorCode =
-    Number.isInteger(element.colorId) || /^\d+$/u.test(element.colorId ?? "")
-      ? Number(element.colorId)
-      : null;
-  const expectedColour = colorCode === null ? null : (COLOUR_BY_LDRAW_CODE.get(colorCode) ?? null);
-  const statedColour = normalizeColourName(answer.colour);
-  const colourAgrees =
-    expectedColour === null || statedColour === null || statedColour.length === 0
-      ? null
-      : expectedColour === statedColour;
-  return { kindAgrees, sizeAgrees, colourAgrees };
+function countBy(values) {
+  const tally = {};
+  for (const value of values) tally[value] = (tally[value] ?? 0) + 1;
+  return tally;
 }
 
 export async function commandScore(argv, { option, inventoryHeld, elementNames }) {
@@ -524,9 +257,7 @@ export async function commandScore(argv, { option, inventoryHeld, elementNames }
         ? null
         : {
             drawings: match.clusters.length,
-            answered: match.clusters.filter(
-              ({ clusterIndex }) => answers[clusterIndex] !== undefined,
-            ).length,
+            answered: usableAnswerCount(answers),
             note: "Drawings with no answer fall back to geometry, so a partial pass moves the measured range and leaves the rest of the book as it was.",
           },
     conservation: table,
@@ -599,6 +330,7 @@ export async function commandSummary(argv, helpers) {
     ]),
   ];
   const variants = [];
+  let sharedInputDigests = null;
   for (const [source, assignment, named] of configurations) {
     const model = named ?? models[0] ?? PART_IDENTIFICATION_MODEL_ID;
     const answersPath = join(OUT, `answers-${model}.json`);
@@ -607,10 +339,17 @@ export async function commandSummary(argv, helpers) {
       ["--source", source, "--assign", assignment, "--model", model, "--headline", "no"],
       helpers,
     );
+    const capturedDigests = snapshotScoreSummaryInputDigests(
+      score.inputDigests,
+      `${score.source}/${score.assignment}/${score.model ?? "no-model"}`,
+      sharedInputDigests,
+    );
+    sharedInputDigests ??= capturedDigests.shared;
     variants.push({
       source: score.source,
       assignment: score.assignment,
       model: score.model,
+      inputDigests: capturedDigests.all,
       elementsExact: score.conservation.elementsExact,
       elementsHeld: score.conservation.elementsHeld,
       piecesReconciled: score.conservation.piecesReconciled,
@@ -623,6 +362,7 @@ export async function commandSummary(argv, helpers) {
         calloutsInRange: score.firstFiftyAccuracy.calloutsInRange,
         calloutsJudged: score.firstFiftyAccuracy.calloutsJudged,
         calloutsUnjudged: score.firstFiftyAccuracy.calloutsUnjudged,
+        verdictsUnboundToCurrentClaims: score.firstFiftyAccuracy.verdictsUnboundToCurrentClaims,
         correct: score.firstFiftyAccuracy.correct,
         accuracy: score.firstFiftyAccuracy.accuracy,
         piecesJudged: score.firstFiftyAccuracy.piecesJudged,
@@ -671,11 +411,26 @@ export async function commandSummary(argv, helpers) {
     ],
     helpers,
   );
+  const headlineDigests = snapshotScoreSummaryInputDigests(
+    headline.inputDigests,
+    `headline ${headline.source}/${headline.assignment}/${headline.model ?? "no-model"}`,
+    sharedInputDigests,
+  );
   const featuresArtifact = readJsonArtifact(
     join(OUT, "features.json"),
     "part-identification features",
   );
   const matchArtifact = readJsonArtifact(join(OUT, "match.json"), "part-identification match");
+  for (const [role, digest] of [
+    ["features", featuresArtifact.digest],
+    ["match", matchArtifact.digest],
+  ]) {
+    if (sharedInputDigests?.[role] !== digest) {
+      throw new Error(
+        `Score summary metadata reread ${role} digest ${digest}, but the compared variants bind ${JSON.stringify(sharedInputDigests?.[role] ?? "missing")}. An input changed while the summary was running; discard the mixed summary and rerun against immutable artifacts.`,
+      );
+    }
+  }
   const features = featuresArtifact.value;
   writeJson(join(OUT, "score.json"), {
     schemaVersion: PART_SCORE_SUMMARY_SCHEMA,
@@ -685,12 +440,12 @@ export async function commandSummary(argv, helpers) {
       assignment: headlineAssign,
       model: headlineModel,
       ...headline,
+      inputDigests: headlineDigests.all,
     },
     variants,
     inputs: {
       inputDigests: {
-        features: featuresArtifact.digest,
-        match: matchArtifact.digest,
+        ...sharedInputDigests,
       },
       calloutDir: features.calloutDir,
       inventoryDir: features.inventoryDir,
@@ -704,211 +459,6 @@ export async function commandSummary(argv, helpers) {
     },
   });
   console.log(`wrote ${join(OUT, "score.json")} with ${variants.length} variants`);
-}
-
-function countBy(values) {
-  const tally = {};
-  for (const value of values) tally[value] = (tally[value] ?? 0) + 1;
-  return tally;
-}
-
-/** How many rows of written observation the score file will carry. */
-const MAX_REPORTED_NOTES = 200;
-
-/**
- * Everything the call said beyond the six description fields, printed.
- *
- * `notes` is the point of it. The observation field is optional so that a
- * written note means the call had something to say, and that only holds if the
- * ones written are read — a report that counted them and threw the sentences
- * away would be the collect-and-ignore failure again, one indirection further
- * out. `notesWritten` sits beside the array so truncation can never masquerade
- * as silence.
- *
- * Two mirror numbers, kept apart because they measure different things and one
- * of them was being read as the other.
- *
- * `handedness` is the hand, decided from the card's own pixels. Four picks in
- * the previous run sat on a card that displayed both hands of a mirror pair,
- * where the description check accepts either twin, so a swap was invisible end
- * to end.
- *
- * `mirrorPairAwareness` is only that the answer named the twin's candidate
- * number in its note. That was once treated as verifying the hand and it does
- * not: the twin's number is the same number whichever hand was picked, so the
- * swapped pick satisfies it word for word. The count is kept because noticing
- * the pair is worth knowing about, under a name that says what it is.
- */
-export function readWhatTheCallObserved(match, answers, claims, names, cards, handedness = null) {
-  const notes = [];
-  const handedRows = [];
-  const differences = [];
-  let answered = 0;
-  let secondChoicesOffered = 0;
-  let secondChoicesTaken = 0;
-
-  for (const cluster of match.clusters) {
-    const answer = answers?.[cluster.clusterIndex] ?? null;
-    if (answer === null || answer === undefined) continue;
-    answered += 1;
-    differences.push(answer.differsFromPick ?? "absent");
-    const claim = claims.get(cluster.members[0]) ?? null;
-    const cardId = `card-${String(cluster.clusterIndex).padStart(4, "0")}`;
-    const displayed = cards?.[cardId]?.candidateElementIds ?? null;
-    const pickedElement =
-      Array.isArray(displayed) && answer.pick >= 1 && answer.pick <= displayed.length
-        ? displayed[answer.pick - 1]
-        : null;
-    const secondElement =
-      Array.isArray(displayed) && answer.alsoCouldBe >= 1 && answer.alsoCouldBe <= displayed.length
-        ? displayed[answer.alsoCouldBe - 1]
-        : null;
-    if (secondElement !== null) {
-      secondChoicesOffered += 1;
-      if (claim?.elementId === secondElement && claim.elementId !== pickedElement) {
-        secondChoicesTaken += 1;
-      }
-    }
-
-    const twin = mirrorTwinCandidate(displayed, names, answer.pick);
-    if (twin !== 0) {
-      const verdict =
-        (handedness instanceof Map ? handedness.get(cardId) : handedness?.[cardId]) ?? null;
-      handedRows.push({
-        clusterIndex: cluster.clusterIndex,
-        lead: cluster.lead,
-        pick: answer.pick,
-        pickedName: pickedElement === null ? null : (names.get(pickedElement)?.name ?? null),
-        mirrorCandidate: twin,
-        mirrorName: names.get(displayed[twin - 1])?.name ?? null,
-        namedTheMirror: candidatesNamedInNote(answer.note).has(twin),
-        handRead: verdict?.decided === true ? verdict.hand : null,
-        handAgreesWithPick: verdict?.decided === true ? verdict.hand === answer.pick : null,
-        handReason: verdict?.decided === true ? null : (verdict?.reason ?? "no-verdict"),
-        queryAgainstPick: verdict?.queryAgainstPick ?? null,
-        queryAgainstTwin: verdict?.queryAgainstTwin ?? null,
-        mirroredAgainstTwin: verdict?.mirroredAgainstTwin ?? null,
-        queryAsymmetry: verdict?.queryAsymmetry ?? null,
-        margin: verdict?.margin ?? null,
-        picked: claim?.picked ?? null,
-      });
-    }
-
-    if (typeof answer.note === "string" && answer.note.length > 0) {
-      notes.push({
-        clusterIndex: cluster.clusterIndex,
-        lead: cluster.lead,
-        pick: answer.pick,
-        alsoCouldBe: answer.alsoCouldBe,
-        differsFromPick: answer.differsFromPick,
-        confidence: answer.confidence,
-        picked: claim?.picked ?? null,
-        pickedName: pickedElement === null ? null : (names.get(pickedElement)?.name ?? null),
-        note: answer.note,
-      });
-    }
-  }
-
-  return {
-    answered,
-    notesWritten: notes.length,
-    byDifference: countBy(differences),
-    secondChoicesOffered,
-    secondChoicesTaken,
-    handedness: {
-      picksWhoseMirrorWasDisplayed: handedRows.length,
-      picksWhoseHandWasRead: handedRows.filter(({ handRead }) => handRead !== null).length,
-      picksTheHandUpheld: handedRows.filter(({ handAgreesWithPick }) => handAgreesWithPick === true)
-        .length,
-      picksTheHandRefuted: handedRows.filter(
-        ({ handAgreesWithPick }) => handAgreesWithPick === false,
-      ).length,
-      picksTheCardCouldNotSeparate: handedRows.filter(({ handRead }) => handRead === null).length,
-      note: "A pick whose mirror twin sits on the same card cannot be separated from that twin by kind, stud size and colour. The hand is decided from the card's own pixels — the query silhouette against each hand, and against each hand mirrored — and a pick the card cannot separate stays unpromoted rather than being guessed.",
-      rows: handedRows,
-    },
-    mirrorPairAwareness: {
-      picksWhoseMirrorWasDisplayed: handedRows.length,
-      picksThatNamedTheMirror: handedRows.filter(({ namedTheMirror }) => namedTheMirror).length,
-      note: "Only that the answer named the twin's candidate number in its note. This is mirror-pair awareness and not a handedness check: the twin's number is the same number whichever hand was picked, so a swapped pick with the note \"candidate 1 is the mirror\" satisfies it exactly as well as the correct answer. It decides nothing.",
-    },
-    notes: notes.slice(0, MAX_REPORTED_NOTES),
-  };
-}
-
-/**
- * Accuracy on the first fifty steps.
- *
- * Truth here is a same-or-different judgement on a pair of drawings: the
- * callout the step printed, beside the back-of-book drawing of the element this
- * pipeline says it is. Both pictures are in the booklet, the element id under
- * the second one came out of the text layer, and every pair ships as a contact
- * sheet, so the judgement can be re-made by anyone without part names, part
- * numbers or this code.
- *
- * It is verification, not blind labelling: the pipeline proposes and the
- * judgement accepts or rejects. What it cannot catch is the case where the
- * pipeline and the judge are wrong the same way, so it is reported next to the
- * conservation total, which no judgement touches.
- *
- * A verdict names the element it was made about, so changing the claim
- * invalidates it rather than silently carrying over: a callout whose current
- * claim has no verdict is unscored and counted as such.
- */
-function scoreAgainstTruth(truth, features, match, claims, names) {
-  const { bound: verdicts, unbindable } = verdictsByCropDigest(truth);
-  const lastStep = truth.lastStep ?? 50;
-  // The crop a verdict was keyed to is the one the pair sheet displayed, which
-  // is the group's lead. Recomputing it from the same shared helper the sheet
-  // uses is what stops the two drifting apart.
-  const pairs = judgedPairs(features, claims, lastStep);
-  const rows = [];
-  for (const [index, callout] of features.callouts.entries()) {
-    if (callout.evidenceKind !== "part-art") continue;
-    if (callout.stepNumber === null || callout.stepNumber > lastStep) continue;
-    const claim = claims.get(index);
-    const pair = claim ? (pairs.get(`${claim.clusterIndex}:${claim.elementId}`) ?? null) : null;
-    // A drawing the assignment claimed nothing for has no right-hand side in
-    // its pair, so there was never anything to judge. That is unjudged, not a
-    // malformed key.
-    const verdict =
-      pair === null || pair.elementId === null
-        ? null
-        : (verdicts.get(truthVerdictKey(pair.leadSha256, pair.elementId)) ?? null);
-    rows.push({
-      file: callout.file,
-      stepNumber: callout.stepNumber,
-      quantity: callout.quantity,
-      clusterIndex: claim?.clusterIndex ?? null,
-      judgedCropSha256: pair?.leadSha256 ?? null,
-      claimedElement: claim?.elementId ?? null,
-      claimedName: claim?.elementId ? (names.get(claim.elementId)?.name ?? null) : null,
-      verdict: verdict === null ? "unjudged" : verdict.same === true ? "same" : "different",
-    });
-  }
-  const judged = rows.filter(({ verdict }) => verdict !== "unjudged");
-  const correct = judged.filter(({ verdict }) => verdict === "same");
-  const drawings = new Set(judged.map(({ clusterIndex }) => clusterIndex));
-  return {
-    method: truth.method,
-    labelSource: truth.note,
-    lastStep,
-    calloutsInRange: rows.length,
-    calloutsJudged: judged.length,
-    calloutsUnjudged: rows.length - judged.length,
-    // A verdict that names no crop digest was judged against a gallery
-    // generation that no longer exists. Counting them separately keeps
-    // "nobody judged this" distinguishable from "the labels no longer bind",
-    // which is the failure that hid a dead key behind a plausible 0/0.
-    verdictsUnbindable: unbindable,
-    drawingsJudged: drawings.size,
-    correct: correct.length,
-    accuracy: judged.length === 0 ? 0 : correct.length / judged.length,
-    piecesJudged: judged.reduce((total, row) => total + row.quantity, 0),
-    piecesCorrect: correct.reduce((total, row) => total + row.quantity, 0),
-    misses: judged.filter(({ verdict }) => verdict !== "same"),
-    rows,
-  };
 }
 
 /** Everything a scoring or sheet run needs, resolved once from the same options. */

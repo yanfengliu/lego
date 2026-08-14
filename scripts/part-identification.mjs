@@ -13,8 +13,12 @@ import {
   cropToContent,
   describe,
   readThumbnail,
-  thumbnailDistance,
 } from "./part-thumbnail-image.mjs";
+import {
+  derivePartIdentificationMatch,
+  partIdentificationDistancesValue,
+  partIdentificationMatchValue,
+} from "./part-identification-derivation.mjs";
 import {
   MAX_IMAGE_ARTIFACT_BYTES,
   MAX_JSON_ARTIFACT_BYTES,
@@ -23,9 +27,7 @@ import {
   writeContainedFile,
 } from "./part-identification-io.mjs";
 import {
-  PART_DISTANCES_SCHEMA,
   PART_FEATURES_SCHEMA,
-  PART_MATCH_SCHEMA,
   assertV5CalloutManifest,
   assertBoundMatchArtifacts,
   assertFeaturesArtifact,
@@ -209,34 +211,12 @@ async function commandFeatures(argv, context = {}) {
 }
 
 /**
- * Callouts that are the same drawing.
+ * Callouts close enough to share one later identification question.
  *
- * The book redraws a part identically every time it calls it out, so a tight
- * threshold groups the repeats without merging different parts. It is only an
- * economy: one vision call answers for the whole cluster, and the conservation
- * check still sees every callout separately.
+ * It is only an economy: the fixed distance threshold and each member's
+ * independently computed inventory top must both agree before one vision call
+ * may answer for a cluster. The conservation check still sees every callout.
  */
-function clusterCallouts(callouts, threshold = 0.055) {
-  const order = [...callouts.keys()]
-    .filter((index) => callouts[index].evidenceKind === "part-art")
-    .sort((left, right) => callouts[right].descriptor.pixels - callouts[left].descriptor.pixels);
-  const clusters = [];
-  for (const index of order) {
-    const descriptor = callouts[index].descriptor;
-    let joined = false;
-    for (const cluster of clusters) {
-      const distance = thumbnailDistance(descriptor, callouts[cluster.lead].descriptor);
-      if (distance.total < threshold) {
-        cluster.members.push(index);
-        joined = true;
-        break;
-      }
-    }
-    if (!joined) clusters.push({ lead: index, members: [index] });
-  }
-  return clusters;
-}
-
 async function commandMatch(argv) {
   const k = Number(option(argv, "k", "6"));
   if (!Number.isInteger(k) || k < 1 || k > 32) {
@@ -247,50 +227,17 @@ async function commandMatch(argv) {
     "part-identification features",
   );
   const features = assertFeaturesArtifact(featuresArtifact);
-  const inventory = Object.entries(features.inventory);
-  const clusters = clusterCallouts(features.callouts);
-
-  const elementIds = inventory.map(([elementId]) => elementId);
-  const rows = [];
-  const ranked = clusters.map((cluster, clusterIndex) => {
-    const descriptor = features.callouts[cluster.lead].descriptor;
-    const scored = inventory.map(([elementId, candidate]) => ({
-      elementId,
-      ...thumbnailDistance(descriptor, candidate),
-    }));
-    rows.push(scored.map(({ total }) => total));
-    const ordered = [...scored].sort((left, right) => left.total - right.total);
-    return {
-      clusterIndex,
-      lead: features.callouts[cluster.lead].file,
-      members: cluster.members,
-      pieces: cluster.members.reduce(
-        (total, index) => total + features.callouts[index].quantity,
-        0,
-      ),
-      candidates: ordered.slice(0, k),
-      margin: (ordered[1]?.total ?? 1) - ordered[0].total,
-    };
-  });
-
-  writeJson(join(OUT, "match.json"), {
-    schemaVersion: PART_MATCH_SCHEMA,
-    featuresDigest: featuresArtifact.digest,
-    note: "Geometry only: a shortlist per cluster of identical callout drawings.",
-    clusterCount: ranked.length,
-    calloutCount: features.calloutCount,
-    clusters: ranked,
-  });
-  writeJson(join(OUT, "distances.json"), {
-    schemaVersion: PART_DISTANCES_SCHEMA,
-    featuresDigest: featuresArtifact.digest,
-    note: "Every drawing against every element, in elementIds order, for the global assignment.",
-    elementIds,
-    rows,
-  });
+  const derived = derivePartIdentificationMatch(features, k);
+  const match = partIdentificationMatchValue(featuresArtifact.digest, derived);
+  writeJson(join(OUT, "match.json"), match);
+  const matchDigest = sha256Digest(Buffer.from(`${JSON.stringify(match, null, 1)}\n`));
+  writeJson(
+    join(OUT, "distances.json"),
+    partIdentificationDistancesValue(featuresArtifact.digest, matchDigest, derived),
+  );
   console.log(
-    `${features.calloutCount} physical callouts fell into ${ranked.length} distinct drawings; ` +
-      `median top-1 margin ${median(ranked.map(({ margin }) => margin)).toFixed(3)}`,
+    `${features.calloutCount} physical callouts fell into ${derived.clusters.length} legacy-bound refined drawings; ` +
+      `median top-1 margin ${median(derived.clusters.map(({ margin }) => margin)).toFixed(3)}`,
   );
 }
 
@@ -471,7 +418,7 @@ async function commandLabelsheet(argv) {
   );
 }
 
-export { clusterCallouts, commandFeatures, median, option, writeNestedArtifact };
+export { commandFeatures, commandMatch, median, option, writeNestedArtifact };
 
 const helpers = { option, inventoryHeld, elementNames };
 

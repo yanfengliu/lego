@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
 import unittest
 from pathlib import Path
 
@@ -25,6 +24,29 @@ from booklet_depletion_walk import (
     narrowing_score,
     walk_inventory,
 )
+from booklet_depletion_input_contract_test import DepletionInputClosureTests  # noqa: F401
+from part_action_ledger_official_contract import official_bricks
+from part_identification_report_contract_test import (  # noqa: F401
+    ReportClosureTests,
+    ReportInputBoundsTests,
+)
+from part_identification_report_contract_test_fixture import (
+    report_contract_test_verifier_patch,
+)
+
+
+_TEST_VERIFIER_PATCH = None
+
+
+def setUpModule() -> None:
+    global _TEST_VERIFIER_PATCH
+    _TEST_VERIFIER_PATCH = report_contract_test_verifier_patch()
+    _TEST_VERIFIER_PATCH.start()
+
+
+def tearDownModule() -> None:
+    if _TEST_VERIFIER_PATCH is not None:
+        _TEST_VERIFIER_PATCH.stop()
 
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 INVENTORY = REPOSITORY_ROOT / "output/part-identification/element-resolution.json"
@@ -32,9 +54,9 @@ MATCH = REPOSITORY_ROOT / "output/part-identification/match.json"
 FEATURES = REPOSITORY_ROOT / "output/part-identification/features.json"
 DISTANCES = REPOSITORY_ROOT / "output/part-identification/distances.json"
 COVERAGE = REPOSITORY_ROOT / "output/real-build/catalog-coverage.json"
-# The retained publication from before the four mis-read multiplier labels were
-# reclassified. It still carries them as part art, which makes it the only input
-# that can score the walk against a known answer.
+# An independently pinned algorithm-only fixture from before the four mis-read
+# multiplier labels were reclassified. The current report CLI intentionally
+# refuses its coverage/1 schema; this fixture scores only the pure walk method.
 PRE_FIX_COVERAGE = (
     REPOSITORY_ROOT / "output/real-build/history/catalog-coverage-stale-57c5b34d.json"
 )
@@ -352,7 +374,7 @@ class LiveBookletTests(unittest.TestCase):
     "artifact, or drop this ground-truth check rather than weakening it.",
 )
 class GroundTruthLocalisationTests(unittest.TestCase):
-    """Score the walk against a defect whose answer is already known.
+    """Score the pure walk against a historical defect whose answer is known.
 
     The four labels were resolved by a hand read of the printed pages, so this is
     a real test of the method and not of its own output. It measures a limit, and
@@ -418,21 +440,15 @@ class BuilderCutCorroborationTests(unittest.TestCase):
             row["calloutKey"]: row["brickRef"]
             for row in ledger.get("provenance", {}).get("refusals", [])
         }
-        xml = OFFICIAL_MODEL.read_text(encoding="utf-8", errors="replace")
-        cls.bricks = {
-            match.group(3): (match.group(1), match.group(2))
-            for match in re.finditer(
-                r'<Brick designID="([^"]+)" itemNos="([^"]+)" uuid="([^"]+)"', xml
-            )
-        }
+        cls.bricks = official_bricks(OFFICIAL_MODEL.read_bytes())
 
     def test_both_refused_callouts_were_cut_to_the_same_element(self) -> None:
         seen = set()
         for key in ("p12|q1|x108.829|y453.870", "p13|q1|x83.311|y434.390"):
             self.assertIn(key, self.refusals, f"{key} is not a recorded ledger refusal")
-            design, item = self.bricks[self.refusals[key]]
-            seen.add((design, item))
-        self.assertEqual(seen, {("3020;L", "302028")})
+            record = self.bricks[self.refusals[key]]
+            seen.add((record["designId"], record["elementIds"]))
+        self.assertEqual(seen, {("3020", ("302028",))})
 
     def test_that_element_is_the_one_the_inventory_walk_leaves_standing(self) -> None:
         inventory_raw = json.loads(INVENTORY.read_text(encoding="utf-8"))

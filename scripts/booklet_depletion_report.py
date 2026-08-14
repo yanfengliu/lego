@@ -1,7 +1,7 @@
 """Run the depletion walk over the published booklet artifacts and score it.
 
-Reads only. It opens the retained identification and coverage artifacts, hands
-their plain data to `booklet_depletion_walk`, and writes one report to
+Reads only. It opens one exact current coverage/2 source closure, hands its
+plain identification data to `booklet_depletion_walk`, and writes one report to
 `output/booklet-depletion-walk.json` with the digest of every input beside every
 number, so a later reader can tell whether a figure came from the artifacts they
 are looking at.
@@ -13,23 +13,18 @@ them is a narrowed candidate list and the evidence behind it, which is a
 different claim from a verdict.
 
     python -B scripts/booklet_depletion_report.py
-    python -B scripts/booklet_depletion_report.py --coverage <path>   # any retained coverage
-
-The second form is how the method is tested against ground truth: the retained
-pre-fix coverage under `output/real-build/history/` still carries the four
-mis-read multiplier labels as part art, so walking it says whether the walk
-would have found them.
+    python -B scripts/booklet_depletion_report.py --coverage <path>   # current coverage/2 only
 """
 
 from __future__ import annotations
 
 import argparse
 import collections
-import hashlib
 import json
 from dataclasses import asdict
 from pathlib import Path
 
+from booklet_depletion_input_contract import load_depletion_inputs
 from booklet_depletion_walk import (
     Claim,
     Cluster,
@@ -41,10 +36,6 @@ from booklet_depletion_walk import (
 )
 
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
-INVENTORY = REPOSITORY_ROOT / "output/part-identification/element-resolution.json"
-MATCH = REPOSITORY_ROOT / "output/part-identification/match.json"
-DISTANCES = REPOSITORY_ROOT / "output/part-identification/distances.json"
-FEATURES = REPOSITORY_ROOT / "output/part-identification/features.json"
 COVERAGE = REPOSITORY_ROOT / "output/real-build/catalog-coverage.json"
 REPORT = REPOSITORY_ROOT / "output/booklet-depletion-walk.json"
 
@@ -59,8 +50,8 @@ REFUSED_CALLOUTS = ("p12|q1|x108.829|y453.870", "p13|q1|x83.311|y434.390")
 # publication once classified as part art are repeat multipliers, and the two
 # pieces each claimed were never in the set. They are preregistered here so the
 # walk can be scored against a known answer rather than against its own output.
-# Walking the retained pre-fix coverage under output/real-build/history/ is the
-# test; walking the current coverage should find them absent.
+# Feeding the retained pre-fix coverage directly to the pure walk is the
+# algorithm-only test; the current report closure refuses it as coverage/1.
 KNOWN_MISREAD_MULTIPLIER_LABELS = (
     "p59|q2|x124.683|y55.056",
     "p85|q2|x662.244|y445.465",
@@ -69,27 +60,12 @@ KNOWN_MISREAD_MULTIPLIER_LABELS = (
 )
 
 
-def read_json(path: Path) -> tuple[dict, str]:
-    """The artifact and its digest, or a refusal naming the file that is missing."""
-
-    try:
-        data = path.resolve(strict=True).read_bytes()
-    except OSError as error:
-        raise FileNotFoundError(
-            f"{path} could not be read ({error.strerror or error}). The depletion walk reads "
-            f"retained run artifacts, which are ignored by Git and therefore absent on a fresh "
-            f"clone. Re-run the identification and coverage publication that produces it, or "
-            f"pass a retained copy with --coverage."
-        ) from error
-    return json.loads(data.decode("utf-8")), "sha256:" + hashlib.sha256(data).hexdigest()
-
-
 def claims_from_coverage(coverage: dict) -> list[Claim]:
     by_callout = coverage.get("byCallout")
     if not isinstance(by_callout, dict) or not by_callout:
         raise ValueError(
             "the coverage artifact has no non-empty `byCallout` map, so there are no claims to "
-            "walk. This report reads `lego.real-build-catalog-coverage/1`; point --coverage at "
+            "walk. This report reads `lego.real-build-catalog-coverage/2`; point --coverage at "
             "such a file."
         )
     return [
@@ -354,15 +330,20 @@ def localisation_score(report, by_key: dict) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--coverage", default=str(COVERAGE))
+    parser.add_argument(
+        "--coverage",
+        default=str(COVERAGE),
+        help="one retained current lego.real-build-catalog-coverage/2 artifact",
+    )
     parser.add_argument("--out", default=str(REPORT))
     args = parser.parse_args()
 
-    inventory_raw, inventory_digest = read_json(INVENTORY)
-    match, match_digest = read_json(MATCH)
-    features, features_digest = read_json(FEATURES)
-    distances, distances_digest = read_json(DISTANCES)
-    coverage, coverage_digest = read_json(Path(args.coverage))
+    inputs = load_depletion_inputs(REPOSITORY_ROOT, Path(args.coverage))
+    inventory_raw = inputs.inventory
+    match = inputs.match
+    features = inputs.features
+    distances = inputs.distances
+    coverage = inputs.coverage
 
     inventory = {e: int(v["quantity"]) for e, v in inventory_raw.items()}
     universe = tuple(distances["elementIds"])
@@ -376,11 +357,13 @@ def main() -> int:
         universe=universe,
         element_facts=inventory_raw,
         digests={
-            "inventoryDigest": inventory_digest,
-            "matchDigest": match_digest,
-            "featuresDigest": features_digest,
-            "distancesDigest": distances_digest,
-            "coverageDigest": coverage_digest,
+            **{
+                f"{role}Digest": digest
+                for role, digest in inputs.role_digests.items()
+                if role != "elementResolution"
+            },
+            "inventoryDigest": inputs.role_digests["elementResolution"],
+            "coverageDigest": inputs.coverage_digest,
         },
         coverage_path=str(Path(args.coverage).as_posix()),
     )

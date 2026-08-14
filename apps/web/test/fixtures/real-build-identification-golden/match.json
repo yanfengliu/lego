@@ -1,1 +1,42 @@
-{"schemaVersion":"lego.part-identification-match/2","featuresDigest":"sha256:33da68db3e015a3528e3ac3365461763c81c8b6ca51824ada6781e210d10e0f4","calloutCount":1,"clusterCount":1,"clusters":[{"clusterIndex":0,"lead":"runs/0123456789abcdef01234567/p11-q1-x43d074-y486d271.png","members":[0],"pieces":1,"candidates":[{"elementId":"300501","total":0.01}]}]}
+{
+ "schemaVersion": "lego.part-identification-match/3",
+ "featuresDigest": "sha256:33da68db3e015a3528e3ac3365461763c81c8b6ca51824ada6781e210d10e0f4",
+ "candidateLimit": 6,
+ "clusterGuard": {
+  "algorithm": "thumbnail-distance-then-inventory-top-refinement/1",
+  "maximumDistanceExclusive": 0.055,
+  "noCrossBaseClusterMerge": true,
+  "elementOrder": "code-point-ascending",
+  "calloutOrder": "pixels-desc-feature-index-asc",
+  "inventoryGuard": "unique-minimum-total-or-null",
+  "candidateOrder": "total-asc-element-id-code-point-asc"
+ },
+ "note": "Geometry only: legacy distance clusters refined by each drawing's unique inventory minimum.",
+ "clusterCount": 1,
+ "calloutCount": 1,
+ "clusters": [
+  {
+   "clusterIndex": 0,
+   "lead": "runs/0123456789abcdef01234567/p11-q1-x43d074-y486d271.png",
+   "members": [
+    0
+   ],
+   "memberTopElementIds": [
+    "300501"
+   ],
+   "pieces": 1,
+   "candidates": [
+    {
+     "elementId": "300501",
+     "total": 0.48000000000000004,
+     "shape": 1,
+     "detail": 1,
+     "aspect": 0,
+     "colour": 0,
+     "ink": 0
+    }
+   ],
+   "margin": 0.52
+  }
+ ]
+}

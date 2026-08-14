@@ -22,7 +22,7 @@
  */
 
 /** Truth artifact schema that carries crop-digest keys. */
-export const PART_TRUTH_SCHEMA = "lego.part-identification-truth/2";
+export const PART_TRUTH_SCHEMA = "lego.part-identification-truth/3";
 
 /**
  * Where the labels live, and why they are tracked rather than under `output/`.
@@ -41,25 +41,23 @@ export const PART_TRUTH_SCHEMA = "lego.part-identification-truth/2";
 export const PART_TRUTH_PATH = "scripts/fixtures/part-identification-truth-first50.json";
 
 /**
- * Hex characters of the crop digest a key carries.
+ * Hex characters of the exact crop digest a key carries.
  *
- * The labels grow with the booklet: at full digest length the all-359-step set
- * projects past the 256 KiB blob-review threshold, and that cost is paid again
- * on every re-cut, because a changed extraction rewrites every key in the file.
- * Sixteen hex characters is 2^64 of collision space against at most a few
- * thousand crops, and halves the artifact.
+ * A prefix can be probabilistically distinctive, but trust requires byte
+ * identity. Full SHA-256 prevents a re-cut lead with the same prefix from
+ * inheriting a judgement about bytes the rater never saw.
  */
-export const CROP_DIGEST_KEY_HEX = 16;
+export const CROP_DIGEST_KEY_HEX = 64;
 
-/** A crop digest reduced to what a key carries, from either length. */
+/** The exact full crop digest a key carries. */
 export function cropDigestKey(sha256) {
-  if (typeof sha256 !== "string" || !/^sha256:[0-9a-f]{16,64}$/u.test(sha256)) {
+  if (typeof sha256 !== "string" || !/^sha256:[0-9a-f]{64}$/u.test(sha256)) {
     throw new TypeError(
-      `A crop digest must be "sha256:" plus 16 to 64 lowercase hex characters; ` +
+      `A crop digest must be "sha256:" plus exactly 64 lowercase hex characters; ` +
         `received ${JSON.stringify(sha256)}.`,
     );
   }
-  return `sha256:${sha256.slice("sha256:".length, "sha256:".length + CROP_DIGEST_KEY_HEX)}`;
+  return sha256;
 }
 
 /** The key a verdict is stored and looked up under. */
@@ -88,7 +86,10 @@ export function judgedPairs(features, claims, lastStep) {
     if (callout.stepNumber === null || callout.stepNumber > lastStep) continue;
     const claim = claims.get(index);
     if (!claim) continue;
-    const key = `${claim.clusterIndex}:${claim.elementId}`;
+    const key =
+      claim.elementId === null || claim.elementId === undefined
+        ? `unclaimed:${callout.sha256}`
+        : truthVerdictKey(callout.sha256, claim.elementId);
     const entry = pairs.get(key) ?? {
       clusterIndex: claim.clusterIndex,
       elementId: claim.elementId,
@@ -108,7 +109,7 @@ export function judgedPairs(features, claims, lastStep) {
 }
 
 /**
- * Verdicts by crop digest, from either schema.
+ * Current exact verdicts by full crop digest.
  *
  * Version 1 verdicts carry a cluster index that no longer means anything, so
  * they are reported as unbindable rather than guessed at. Re-keying them would

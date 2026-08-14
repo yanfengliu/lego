@@ -2,6 +2,12 @@
 
 Current state belongs in the design documents; this index records only behaviour changes, measured results, and links to the matching detailed history.
 
+- [2026-08-13 through 2026-08-14 (exact report authentication)](detailed/2026-08-13_2026-08-14.md) — Canonical replay now refuses independently rehashed identification, coverage, score, and ledger evidence; it reproduces the retained ledger bytes but exposes 97 validation failures, while accepted-only member-local Builder truth removes 48 refusal-derived records and six element conflicts from the prior report path.
+
+- [2026-08-13 (regenerated identification closure)](detailed/2026-08-12_2026-08-13.md) — The exact match/cards/answers/score/coverage chain now retains 273 of 285 prompt-bound Claude answers, while the rebuilt unauthenticated action ledger aligns source boundaries through step 25 with 44 trusted pieces and 92 explicit refusals before a step-26 `28802` mismatch; bounded failure diagnostics expose only allowlisted status, byte counts, and static remediation, never prompt, session, provider-result, or model-output text.
+
+- [2026-08-13 (member-safe identification refinement)](detailed/2026-08-12_2026-08-13.md) — Part identification now refines legacy visual groups without cross-group movement and binds pair truth to an exact full crop plus element; the retained dry derivation moves 269 groups to 285 and binds 67 callouts / 104 pieces while 15 verdicts remain inert, with ignored outputs, coverage, ledger, admission, and source-parity evidence unchanged.
+
 - [2026-08-13 (unverified step-13 alignment diagnostic)](detailed/2026-08-12_2026-08-13.md) — A bounded hostile-safe helper now isolates the fixed step-12-through-14, cursor-26 alignment question and indicates a synthetic step-13 `41539`/`3958` misidentification without authenticating its detached inputs, mutating the ledger, binding official source, or granting admission authority.
 
 - [2026-08-13 (verified branch-byte reuse prerequisites)](detailed/2026-08-12_2026-08-13.md) — Browser branch-role inspection now retains one verified copy and returns fresh per-step slices, while prepared-run bytes are parsed once for reusable step and policy lookups; browser-output `/4`, selected provenance, and authority remain absent.

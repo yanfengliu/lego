@@ -10,11 +10,8 @@ import {
   readBoundManifestCrop,
   sha256Digest,
 } from "./part-identification-artifacts.mjs";
-import {
-  clusterCallouts,
-  commandFeatures,
-  runPartIdentificationCli,
-} from "./part-identification.mjs";
+import { commandFeatures, runPartIdentificationCli } from "./part-identification.mjs";
+import { derivePartIdentificationMatch } from "./part-identification-derivation.mjs";
 import {
   RUN_ID,
   assignmentByIdentity,
@@ -114,13 +111,118 @@ describe("part-identification feature extraction and bound source reads", () => 
       physicalOnly[1],
       physicalOnly[2],
     ];
+    const inventory = {
+      300501: physicalOnly[0].descriptor,
+      300502: physicalOnly[2].descriptor,
+    };
     const identityGroups = (callouts) =>
-      clusterCallouts(callouts).map(({ members }) =>
+      derivePartIdentificationMatch({ callouts, inventory }).clusters.map(({ members }) =>
         members.map((index) => callouts[index].identity).sort(),
       );
     expect(identityGroups(withSemantic)).toEqual(identityGroups(physicalOnly));
-    expect(clusterCallouts(withSemantic).flatMap(({ members }) => members)).not.toContain(1);
+    expect(
+      derivePartIdentificationMatch({ callouts: withSemantic, inventory }).clusters.flatMap(
+        ({ members }) => members,
+      ),
+    ).not.toContain(1);
     expect(assignmentByIdentity(withSemantic)).toEqual(assignmentByIdentity(physicalOnly));
+  });
+
+  it("splits close drawings with different independent inventory tops and joins matching tops", () => {
+    const lead = descriptor(0, 4);
+    const closeDifferentTop = {
+      ...lead,
+      mean: [13, 13, 13],
+      colours: [{ rgb: [8, 8, 8], share: 1 }],
+    };
+    const inventory = {
+      300501: lead,
+      300502: closeDifferentTop,
+    };
+    const callouts = [
+      { ...physical("lead", 0, 4), descriptor: lead },
+      { ...physical("member", 0, 3), descriptor: closeDifferentTop },
+    ];
+    const split = derivePartIdentificationMatch({ callouts, inventory });
+    expect(split.clusters.map(({ members }) => members)).toEqual([[0], [1]]);
+    expect(split.clusters.map(({ memberTopElementIds }) => memberTopElementIds)).toEqual([
+      ["300501"],
+      ["300502"],
+    ]);
+
+    const joined = derivePartIdentificationMatch({
+      callouts: [callouts[0], { ...callouts[1], descriptor: lead }],
+      inventory,
+    });
+    expect(joined.clusters.map(({ members }) => members)).toEqual([[0, 1]]);
+    expect(joined.clusters[0].memberTopElementIds).toEqual(["300501", "300501"]);
+  });
+
+  it("never merges across a legacy base cluster even when a foreign lead has the same top", () => {
+    const gray = (value, pixels) => ({
+      ...descriptor(0, 4),
+      pixels,
+      mean: [value, value, value],
+      lightFace: value,
+      colours: [{ rgb: [value, value, value], share: 1 }],
+    });
+    const a = gray(0, 3);
+    const b = gray(70, 2);
+    const c = gray(36, 1);
+    const result = derivePartIdentificationMatch({
+      callouts: [
+        { ...physical("a", 0, 3), descriptor: a },
+        { ...physical("b", 0, 2), descriptor: b },
+        { ...physical("c", 0, 1), descriptor: c },
+      ],
+      inventory: { 300501: a, 300502: b },
+    });
+
+    // Legacy distance-only greedy is [a,c], [b]. Refinement may split [a,c]
+    // but c cannot move into the foreign [b] base even though both top 300502.
+    expect(result.clusters.map(({ members }) => members)).toEqual([[0], [2], [1]]);
+    expect(result.clusters.map(({ memberTopElementIds }) => memberTopElementIds)).toEqual([
+      ["300501"],
+      ["300502"],
+      ["300502"],
+    ]);
+    expect(result.clusterGuard.noCrossBaseClusterMerge).toBe(true);
+  });
+
+  it("orders candidates by element id, refuses tied guard minima, and never scores semantics", () => {
+    const same = descriptor(0, 4);
+    const semantic = {
+      ...physical("semantic", 0, 4),
+      evidenceKind: "subassembly-repeat",
+      descriptor: null,
+    };
+    const result = derivePartIdentificationMatch({
+      callouts: [physical("first", 0, 4), physical("second", 0, 4), semantic],
+      inventory: { 300502: same, 300501: same },
+    });
+    expect(result.elementIds).toEqual(["300501", "300502"]);
+    expect(result.clusters).toHaveLength(2);
+    expect(result.clusters[0]).toMatchObject({
+      lead: "first.png",
+      members: [0],
+      memberTopElementIds: [null],
+    });
+    expect(result.clusters[1]).toMatchObject({ members: [1], memberTopElementIds: [null] });
+    expect(result.clusters[0].candidates.map(({ elementId }) => elementId)).toEqual([
+      "300501",
+      "300502",
+    ]);
+    expect(result.clusters.flatMap(({ members }) => members)).not.toContain(2);
+  });
+
+  it("uses lower feature index when equal-pixel callouts share one unique inventory top", () => {
+    const same = descriptor(0, 4);
+    const result = derivePartIdentificationMatch({
+      callouts: [physical("first", 0, 4), physical("second", 0, 4)],
+      inventory: { 300501: same },
+    });
+    expect(result.clusters).toHaveLength(1);
+    expect(result.clusters[0]).toMatchObject({ lead: "first.png", members: [0, 1] });
   });
 
   it("rejects mutated crop bytes before decoding and decodes only the authenticated Buffer", async () => {

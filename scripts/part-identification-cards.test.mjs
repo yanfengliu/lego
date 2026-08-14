@@ -8,9 +8,7 @@ import { commandAsk } from "./part-identification-ask.mjs";
 import {
   PART_ANSWERS_SCHEMA,
   PART_CARDS_SCHEMA,
-  PART_DISTANCES_SCHEMA,
   PART_FEATURES_SCHEMA,
-  PART_MATCH_SCHEMA,
   deriveCardRunId,
   sha256Digest,
 } from "./part-identification-artifacts.mjs";
@@ -24,6 +22,11 @@ import { PART_IDENTIFICATION_MODEL_ID } from "./part-identification-model.mjs";
 import { PART_IDENTIFICATION_MODEL_IDENTITY } from "./part-identification-model.mjs";
 import { PART_IDENTIFICATION_PROMPT_DIGEST } from "./part-identification-prompt.mjs";
 import { option, writeNestedArtifact } from "./part-identification.mjs";
+import {
+  derivePartIdentificationMatch,
+  partIdentificationDistancesValue,
+  partIdentificationMatchValue,
+} from "./part-identification-derivation.mjs";
 import {
   RUN_ID,
   boundCallout,
@@ -90,37 +93,15 @@ describe("part-identification card publication", () => {
       },
       callouts,
     });
-    const matchArtifact = writeArtifact(join(out, "match.json"), {
-      schemaVersion: PART_MATCH_SCHEMA,
-      featuresDigest: featuresArtifact.digest,
-      calloutCount: 2,
-      clusterCount: 2,
-      clusters: [
-        {
-          clusterIndex: 0,
-          lead: callouts[0].file,
-          members: [0],
-          pieces: 1,
-          candidates: [{ elementId: "300501", total: 0.1 }],
-        },
-        {
-          clusterIndex: 1,
-          lead: callouts[1].file,
-          members: [1],
-          pieces: 1,
-          candidates: [{ elementId: "300502", total: 0.1 }],
-        },
-      ],
-    });
-    writeArtifact(join(out, "distances.json"), {
-      schemaVersion: PART_DISTANCES_SCHEMA,
-      featuresDigest: featuresArtifact.digest,
-      elementIds: ["300501", "300502"],
-      rows: [
-        [0.1, 0.2],
-        [0.2, 0.1],
-      ],
-    });
+    const derived = derivePartIdentificationMatch(featuresArtifact.value, 1);
+    const matchArtifact = writeArtifact(
+      join(out, "match.json"),
+      partIdentificationMatchValue(featuresArtifact.digest, derived),
+    );
+    writeArtifact(
+      join(out, "distances.json"),
+      partIdentificationDistancesValue(featuresArtifact.digest, matchArtifact.digest, derived),
+    );
 
     Object.assign(state, {
       directory,
@@ -217,22 +198,19 @@ describe("part-identification card publication", () => {
     { timeout: 30_000 },
     async () => {
       const { helpers, manifestPath, exactManifest, matchArtifact } = state;
-      const expandedMatchArtifact = writeArtifact(join(state.out, "match.json"), {
-        ...matchArtifact.value,
-        clusters: matchArtifact.value.clusters.map((cluster, clusterIndex) => ({
-          ...cluster,
-          candidates:
-            clusterIndex === 0
-              ? [
-                  { elementId: "300501", total: 0.1 },
-                  { elementId: "300502", total: 0.2 },
-                ]
-              : [
-                  { elementId: "300502", total: 0.1 },
-                  { elementId: "300501", total: 0.2 },
-                ],
-        })),
-      });
+      const expandedDerived = derivePartIdentificationMatch(state.featuresArtifact.value, 2);
+      const expandedMatchArtifact = writeArtifact(
+        join(state.out, "match.json"),
+        partIdentificationMatchValue(state.featuresArtifact.digest, expandedDerived),
+      );
+      writeArtifact(
+        join(state.out, "distances.json"),
+        partIdentificationDistancesValue(
+          state.featuresArtifact.digest,
+          expandedMatchArtifact.digest,
+          expandedDerived,
+        ),
+      );
       expect(expandedMatchArtifact.digest).not.toBe(matchArtifact.digest);
       const expandedArgv = [
         "--k",

@@ -15,6 +15,7 @@ import {
   chiralClosureFixture,
   closureFixture,
   digest,
+  identificationArtifactsFor,
 } from "./booklet-catalog-coverage-test-fixture.mjs";
 
 describe("booklet catalog coverage closure compiler", () => {
@@ -180,14 +181,7 @@ describe("booklet catalog coverage closure compiler", () => {
           [field]: forgedDigest,
         },
       });
-      const matchArtifact = artifact({
-        ...adjudicatedInput.matchArtifact.value,
-        featuresDigest: featuresArtifact.digest,
-      });
-      const distancesArtifact = artifact({
-        ...adjudicatedInput.distancesArtifact.value,
-        featuresDigest: featuresArtifact.digest,
-      });
+      const { matchArtifact, distancesArtifact } = identificationArtifactsFor(featuresArtifact);
 
       expect(() =>
         __testOnly.compileBookletCatalogCoverageClosure(

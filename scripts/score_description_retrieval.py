@@ -12,16 +12,16 @@ drawings that no longer exists, and the run says so rather than reporting stale.
 
 Ground truth, strongest first:
 
-* **Builder export.** The emitted real-build action ledger records, per callout,
-  which official Builder identity that piece was cut to, and the official model
-  export says what that identity is: `designID` and `itemNos`, and `itemNos` is
-  the element. The design half is corroboration rather than independent evidence
-  -- the cut binds a callout to a Brick whose design already agrees with the
-  claim -- but the *colour* half is not: the cut never consults the claimed
-  colour, so the element the export names can and does differ in colour from the
-  element that was claimed. Both refused callouts are here too, and their
-  identity was reached by elimination inside the step's cut rather than from any
-  identification, which makes those two rows fully independent.
+* **Builder export.** Accepted `action.pieces` in the emitted real-build action
+  ledger bind callouts to official Builder brick references, and the official
+  model export says what each accepted identity is: `designID` and `itemNos`.
+  A one-entry `itemNos` supplies unambiguous element truth; a multi-entry Brick
+  is refused rather than joined or chosen by file order. The design half is corroboration rather than
+  independent evidence -- the accepted cut binds a callout to a Brick whose
+  design already agrees with the claim -- but the *colour* half is not: the cut
+  never consults the claimed colour, so the element the export names can and
+  does differ in colour from the element that was claimed. Ledger refusals are
+  counterevidence only and never become positive Builder truth.
 * **Blind pair-judged verdicts.** 82 same-or-different judgements made by two
   independent raters on different models with no sight of features, match,
   answers or score, agreeing 84/84. A `same: true` verdict is positive truth for
@@ -29,10 +29,9 @@ Ground truth, strongest first:
   is not, which cannot enter a recall numerator but can and does test whether a
   retrieval is pulling up something already refuted.
 
-The two refusals at printed steps 5 and 7 are not overridden here and cannot be:
-this module writes no label, no assignment and no artifact. It reports where the
-Builder-export element for those crops lands in each ranking, which is a
-measurement about the retrievals, not a verdict about the crops.
+Recorded ledger refusals are not overridden or used as probes here. The worked
+probe is selected only from an exact blind `same: false` crop/element binding;
+no refusal alone supplies positive or negative element truth.
 
 Usage:  python -B scripts/score_description_retrieval.py [--json PATH]
 """
@@ -48,90 +47,33 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from part_description_retrieval import (
     DescribedQuery,
-    DescriptionWeights,
-    colour_cost,
     parse_inventory,
-    rank_elements,
     rank_of,
     worst_rank_in_tie,
 )
+from part_description_report_support import (
+    builder_selection_bias_note,
+    describe_answer,
+    load_description_inputs,
+    measurement_limits,
+    ranking_bundle,
+    recall_tables,
+)
 from part_description_causes import colour_gap_analysis, defect_side_triangulation
 from part_description_truth import (
-    COLOUR_CAVEAT_NOTE,
     CONTAMINATED_ELEMENT,
     ClusterTruth,
     build_cluster_index,
     builder_export_truth,
-    contaminated_element_probe,
     depletion_survivors,
     geometry_chain_drift,
-    digest,
-    interleave,
-    load,
     mould_rank,
     pair_judged_truth,
-    pixel_ranking,
-    recall_table,
     SHIPPING_SHORTLIST,
 )
 
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
-INVENTORY = REPOSITORY_ROOT / "output/part-identification/element-resolution.json"
-MATCH = REPOSITORY_ROOT / "output/part-identification/match.json"
-FEATURES = REPOSITORY_ROOT / "output/part-identification/features.json"
-DISTANCES = REPOSITORY_ROOT / "output/part-identification/distances.json"
-ANSWERS = REPOSITORY_ROOT / "output/part-identification/answers-claude-opus-5.json"
-TRUTH = REPOSITORY_ROOT / "scripts/fixtures/part-identification-truth-first50.json"
-ACTION_LEDGER = REPOSITORY_ROOT / "output/real-build/action-ledger.json"
-OFFICIAL_MODEL = REPOSITORY_ROOT / "output/official-model/vx1087034_21066_a.xml"
-COVERAGE = REPOSITORY_ROOT / "output/real-build/catalog-coverage.json"
-
-
-# What these numbers do not establish. Kept as prose beside the code that
-# produces them rather than only in a handover message, because a limit that
-# lives in a message stops travelling with the number the moment the number is
-# quoted somewhere else.
-# What these numbers do not establish, in the file that produces them rather
-# than only in a handover message -- a limit that lives in a message stops
-# travelling with the number the moment the number is quoted somewhere else.
-# The coverage limit is computed per run by `measurement_limits` below, because
-# it depends on how far the ledger actually corroborated.
-STATIC_MEASUREMENT_LIMITS = {
-    "theDescriptionColumnIsModelOutput": (
-        "The pixel ranking is deterministic and needs no model call. The description "
-        "ranking is derived from provider output, which this repository treats as "
-        "untrusted data: it cannot declare itself valid and it varies between runs. A "
-        "fused shortlist therefore changes the trust shape of retrieval as well as its "
-        "recall -- half the candidates would come from a source that has to be re-earned "
-        "on every republication, and the recall figures here describe one generation of "
-        "that source. Read recall@6 = 1.000 as 'these two rankings are complementary on "
-        "the labels we have', not as 'retrieval is solved'."
-    ),
-    "descriptionsWereProducedWhileSeeingSixCandidates": (
-        "Every description read here came from the shipping prompt, which shows the "
-        "query and six pixel-selected candidates before asking for the description. A "
-        "description could in principle be pulled toward what was on offer. The two "
-        "cases that matter most argue against that here: for the green Plate 2 x 4 and "
-        "the green Plate 2 x 10 the call said Green while no green element was on its "
-        "shortlist at all."
-    ),
-}
-
-
-def measurement_limits(builder_clusters: int, total_clusters: int) -> dict:
-    """The static limits plus the one that depends on this run's coverage."""
-
-    return {
-        "unbiasedTruthCoversOnlyThePrintedPrefix": (
-            f"The Builder export is the only unbiased source here and it reaches "
-            f"{builder_clusters} of {total_clusters} clusters, all inside printed steps "
-            f"1-12, because the action ledger stops being corroborated at step 13. Nothing "
-            f"else measures the other clusters against an independent label; the "
-            f"pair-judged subset that does reach further is conditioned on the pixel route "
-            f"having already proposed the element."
-        ),
-        **STATIC_MEASUREMENT_LIMITS,
-    }
+REPORT_SCHEMA_VERSION = "lego.part-description-retrieval/2"
 
 
 def main() -> int:
@@ -139,40 +81,17 @@ def main() -> int:
     parser.add_argument("--json", type=Path, default=None, help="write the full report here")
     args = parser.parse_args()
 
-    inventory = load(INVENTORY)
-    match = load(MATCH)
-    features = load(FEATURES)
-    distances = load(DISTANCES)
-    answers_file = load(ANSWERS)
-    truth_file = load(TRUTH)
-    ledger = load(ACTION_LEDGER)
-    official_xml = OFFICIAL_MODEL.read_text(encoding="utf-8", errors="replace")
-    coverage = json.loads(COVERAGE.read_text(encoding="utf-8")) if COVERAGE.is_file() else None
-
-    pins = {
-        str(path.relative_to(REPOSITORY_ROOT)).replace("\\", "/"): digest(path)
-        for path in (
-            INVENTORY,
-            MATCH,
-            FEATURES,
-            DISTANCES,
-            ANSWERS,
-            TRUTH,
-            ACTION_LEDGER,
-            OFFICIAL_MODEL,
-        )
-    }
-
-    if answers_file.get("matchDigest") != pins["output/part-identification/match.json"]:
-        print(
-            f"WARNING: the answers artifact was produced against match "
-            f"{answers_file.get('matchDigest')} but the live match is "
-            f"{pins['output/part-identification/match.json']}. A cluster index means a "
-            f"different drawing in each, so every description below is being compared against "
-            f"the wrong cluster. Re-run once the identification chain has settled on one match, "
-            f"then re-measure.",
-            file=sys.stderr,
-        )
+    inputs = load_description_inputs(REPOSITORY_ROOT)
+    inventory = inputs.inventory
+    match = inputs.match
+    features = inputs.features
+    distances = inputs.distances
+    answers_file = inputs.answers
+    truth_file = inputs.truth
+    ledger = inputs.ledger
+    official_xml = inputs.official_xml
+    coverage = inputs.coverage
+    pins = inputs.pins
 
     answer_rows = len(answers_file["answers"])
     if answer_rows < len(match["clusters"]):
@@ -189,10 +108,10 @@ def main() -> int:
     parsed = parse_inventory(inventory)
     pixel_universe = frozenset(distances["elementIds"])
 
-    by_callout_index, by_identity = build_cluster_index(match, features)
+    _by_callout_index, by_identity = build_cluster_index(match, features)
     builder, builder_unmapped = builder_export_truth(ledger, official_xml, by_identity)
     judged_same, judged_different, judged_unmapped, colour_caveats = pair_judged_truth(
-        truth_file, features, by_callout_index
+        truth_file, features, match
     )
 
     truths: dict[int, ClusterTruth] = {}
@@ -213,56 +132,22 @@ def main() -> int:
     answers = answers_file["answers"]
     survivors = depletion_survivors(match, features, inventory, coverage)
 
-    def describe(answer: object) -> DescribedQuery | None:
-        """One answers row as a described query, or None when there is no row."""
-
-        return DescribedQuery.from_answer(answer) if isinstance(answer, dict) else None
+    ranking_cache: dict[tuple[int, DescribedQuery | None], dict] = {}
 
     def rankings(index: int, query: DescribedQuery | None) -> dict:
         """Every ranking this run compares, for one cluster."""
 
-        pixel = pixel_ranking(distances, index)
-        surviving = survivors.get(index, frozenset()) & pixel_universe
-        # Restricted to the 265 elements the pixel descriptor can reach, so the
-        # head-to-head compares two rankings over one universe. That restriction
-        # is fair to the pixel route and *unfair to description*: 11 elements
-        # have no thumbnail, description reaches them and the restricted column
-        # scores them as a miss. Both are computed so the cost of the fairness
-        # choice is visible rather than assumed to be zero -- no truth lands on
-        # those 11 in this generation, which is exactly why the discrepancy
-        # would otherwise go unnoticed until one did.
-        description = (
-            rank_elements(query, parsed, DescriptionWeights(), restrict_to=pixel_universe)
-            if query is not None
-            else []
-        )
-        description_full = (
-            rank_elements(query, parsed, DescriptionWeights()) if query is not None else []
-        )
-        # Pixels for the mould, the description for the colour. The pixel
-        # descriptor's residual miss on the independent ground truth is almost
-        # entirely colour -- it puts the right mould first and the wrong shade of
-        # it -- and colour is the one field a describer states in a closed
-        # fourteen-word vocabulary. So: keep the pixel order, and move every
-        # element whose catalog colour is the colour that was described ahead of
-        # every element whose is not. A stable sort, no weight, no new call.
-        colour_reranked = sorted(
-            pixel,
-            key=lambda row: colour_cost(
-                None if query is None else query.colour,
-                parsed[row[0]].colour if row[0] in parsed else None,
-            ),
-        )
-        return {
-            "pixel": pixel,
-            "pixelPlusDepletion": [row for row in pixel if row[0] in surviving],
-            "description": description,
-            "descriptionFullInventory": description_full,
-            "descriptionPlusDepletion": [row for row in description if row[0] in surviving],
-            "interleaved": interleave(pixel, description),
-            "pixelColourReranked": colour_reranked,
-            "survivors": surviving,
-        }
+        key = (index, query)
+        if key not in ranking_cache:
+            ranking_cache[key] = ranking_bundle(
+                index,
+                query,
+                distances=distances,
+                survivors=survivors,
+                pixel_universe=pixel_universe,
+                parsed=parsed,
+            )
+        return ranking_cache[key]
 
     rows: list[dict] = []
     for cluster in match["clusters"]:
@@ -271,7 +156,7 @@ def main() -> int:
         if truth is None or truth.positive is None:
             continue
         answer = answers.get(str(index))
-        query = describe(answer)
+        query = describe_answer(answer)
         ranked = rankings(index, query)
 
         description_best = rank_of(ranked["description"], truth.positive)
@@ -339,37 +224,9 @@ def main() -> int:
 
     scored = [row for row in rows if row["described"] is not None]
 
-    def table(subset: list[dict]) -> dict:
-        return {
-            "pixel": recall_table([r["pixelRank"] for r in subset]),
-            "pixelPlusDepletion": recall_table([r["pixelPlusDepletionRank"] for r in subset]),
-            "description": recall_table([r["descriptionRank"] for r in subset]),
-            "descriptionOptimisticTies": recall_table(
-                [r["descriptionRankOptimistic"] for r in subset]
-            ),
-            "descriptionOverFullInventory": recall_table(
-                [r["descriptionRankFullInventory"] for r in subset]
-            ),
-            "descriptionPlusDepletion": recall_table(
-                [r["descriptionPlusDepletionRank"] for r in subset]
-            ),
-            "interleavedPixelAndDescription": recall_table(
-                [r["interleavedRank"] for r in subset]
-            ),
-            "pixelColourReranked": recall_table(
-                [r["pixelColourRerankedRank"] for r in subset]
-            ),
-            "pixelMouldOnly": recall_table([r["pixelMouldRank"] for r in subset]),
-            "descriptionMouldOnly": recall_table([r["descriptionMouldRank"] for r in subset]),
-        }
-
     builder_rows = [r for r in scored if "builder-export" in r["sources"]]
     judged_only = [r for r in scored if r["sources"] == ["pair-judged"]]
     no_caveat = [r for r in scored if r["colourCaveat"] is None]
-
-    contaminated = contaminated_element_probe(
-        ledger, by_identity, answers, builder, rankings, describe
-    )
 
     # Where the depletion pruning removes the answer, and why. Its premise is
     # that one cluster is one element, so a cluster's whole demand can be
@@ -409,7 +266,7 @@ def main() -> int:
     for row in rows:
         for element_id in row["negatives"]:
             answer = answers.get(str(row["cluster"]))
-            query = describe(answer)
+            query = describe_answer(answer)
             ranked = rankings(row["cluster"], query)
             refuted.append(
                 {
@@ -420,8 +277,12 @@ def main() -> int:
                     "descriptionRank": worst_rank_in_tie(ranked["description"], element_id),
                 }
             )
+    contaminated = [
+        row for row in refuted if row["refutedElement"] == CONTAMINATED_ELEMENT
+    ]
 
     report = {
+        "schemaVersion": REPORT_SCHEMA_VERSION,
         "what": (
             "Head-to-head recall of the shipping pixel descriptor against retrieval by the "
             "description the identification call already produces, on the same ground truth."
@@ -470,16 +331,7 @@ def main() -> int:
             "pairJudgedUnmapped": judged_unmapped,
             "conflicts": [c for r in rows for c in r["conflicts"]],
             "colourCaveatedVerdicts": sorted(colour_caveats.values()),
-            "selectionBias": (
-                "The 82 pair-judged verdicts were judged against the claims the pixel "
-                "descriptor's own one-to-one assignment produced, so a 'same' verdict is by "
-                "construction an element the pixel route had already proposed. That subset "
-                "measures the pixel descriptor on the cases where it agreed with a judge, not "
-                "on a sample of the booklet, and it favours the pixel route. The Builder "
-                "export does not have this shape: it names the element from the official "
-                "program, its colour half never consults any claim, and its two refused rows "
-                "were reached by elimination inside the printed step's cut."
-            ),
+            "selectionBias": builder_selection_bias_note(),
         },
         "parser": {
             "elements": len(parsed),
@@ -496,10 +348,10 @@ def main() -> int:
             ),
         },
         "recall": {
-            "allPositiveTruth": table(scored),
-            "builderExportOnly": table(builder_rows),
-            "pairJudgedOnly": table(judged_only),
-            "colourCaveatsExcluded": table(no_caveat),
+            "allPositiveTruth": recall_tables(scored),
+            "builderExportOnly": recall_tables(builder_rows),
+            "pairJudgedOnly": recall_tables(judged_only),
+            "colourCaveatsExcluded": recall_tables(no_caveat),
         },
         "candidateCount": {
             "pixelUniverse": len(pixel_universe),
@@ -546,14 +398,14 @@ def main() -> int:
             "note": (
                 "A truth whose element has no parts-list thumbnail is unreachable by the pixel "
                 "descriptor and reachable by description, but the head-to-head restricts both "
-                "to the 265-element pixel universe, so such a row scores as a description miss "
+                f"to the {len(pixel_universe)}-element pixel universe, so such a row scores as a description miss "
                 "when description would in fact rank it. Zero rows are in that state here. If "
                 "`headToHeadUnderCreditsDescription` is ever true, read "
                 "`descriptionOverFullInventory` for the honest description figure and treat the "
                 "restricted `description` column as a lower bound."
             ),
         },
-        "limits": measurement_limits(len(builder), len(match["clusters"])),
+        "limits": measurement_limits(len(builder), len(match["clusters"]), ledger),
         "depletionRemovedTheAnswer": {
             "clusters": len(depletion_unsafe),
             "ofScored": len(scored),
@@ -588,7 +440,7 @@ def main() -> int:
             f"{report['everyTruthAccountedFor']['truthOutsidePixelUniverse']} have a truth "
             f"element with no parts-list thumbnail. The pixel descriptor cannot reach those "
             f"elements at all, and the head-to-head restricts description to the same "
-            f"265-element universe for fairness, so those rows score as a description miss "
+            f"{len(pixel_universe)}-element universe for fairness, so those rows score as a description miss "
             f"when description would rank them. The restricted `description` column is a lower "
             f"bound for this run; read `descriptionOverFullInventory` beside it, or publish "
             f"thumbnails for those elements and re-measure.",

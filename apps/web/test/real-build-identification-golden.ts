@@ -33,13 +33,13 @@ export const SYNTHETIC_IDENTIFICATION_GOLDEN = {
   },
   match: {
     file: "match.json",
-    bytes: 353,
-    digest: "sha256:19493a3d5a09d05c488e624e111951826be053adc0c0f9c9f7bcf2f711596ab6",
+    bytes: 1_099,
+    digest: "sha256:a974c73afb2836c09c5274cc74be67afe2ee354ea37647f2bee05732e5bf4a36",
   },
   distances: {
     file: "distances.json",
-    bytes: 188,
-    digest: "sha256:a1c770dcb15c6d687f969df20b17952619f8aa6fdcbccdd29a30c2d70e59f660",
+    bytes: 417,
+    digest: "sha256:698e9f45d2648c21dc925fc3f4e772676c71c9490bede8e80e1c24fd0f641949",
   },
   elementResolution: {
     file: "element-resolution.json",
@@ -54,13 +54,13 @@ export const SYNTHETIC_IDENTIFICATION_GOLDEN = {
    */
   pairJudged: {
     file: "pair-judged-truth.json",
-    bytes: 631,
-    digest: "sha256:f10acf1be4a328da456c871e63e1e96b1910d2d184a4f4f823252d31ded98d79",
+    bytes: 699,
+    digest: "sha256:d107d2146b18006948f78e7590d311a9be77d4d52d2f11a672c70cab85e68a2f",
   },
   coverage: {
     file: "coverage.json",
     bytes: 2_433,
-    digest: "sha256:70a2f62c1dddad1e6b0bf8ce9bb1d2e74f377066868d23133f64fb3cb4b966b4",
+    digest: "sha256:a5fe5c9cfd9b87ee190b4cc7e8e9deffb51b136222490b9928122b9d98e19b38",
   },
 } as const;
 

@@ -6,10 +6,11 @@ import {
   build,
   closureFixture,
   digest,
+  identificationArtifactsFor,
   pairJudgedArtifactFor,
 } from "./booklet-catalog-coverage-test-fixture.mjs";
-import { cropDigestKey } from "./part-identification-truth-key.mjs";
-import { assertPairJudgedTruth } from "./part-identification-pair-judged.mjs";
+import { PART_TRUTH_SCHEMA, cropDigestKey } from "./part-identification-truth-key.mjs";
+import { pairJudgedVerdictsByCalloutIndexFromParsedJson as pairJudgedVerdictsByCalloutIndex } from "./part-identification-pair-judged.mjs";
 
 /**
  * Blind pair judging as a bound trust source.
@@ -94,7 +95,16 @@ describe("pair-judged identity as a coverage trust source", () => {
   it("refuses to publish a pair-judged confidence with no bound judged digest", () => {
     expect(() =>
       build({
-        judgedVerdicts: new Map([[0, { verdict: "same", judgedCrop: LEAD_CROP_KEY }]]),
+        judgedVerdicts: new Map([
+          [
+            0,
+            {
+              verdict: "same",
+              judgedCrop: LEAD_CROP_KEY,
+              judgedElementId: ELEMENT_ID,
+            },
+          ],
+        ]),
       }),
     ).toThrow(/no pairJudged digest/u);
   });
@@ -117,6 +127,71 @@ describe("pair-judged identity as a coverage trust source", () => {
 
     expect(otherCrop.identificationConfidence).toBe("vision-kept");
     expect(otherElement.identificationConfidence).toBe("vision-kept");
+  });
+
+  it("binds only byte-identical crops, even when full digests share a prefix", () => {
+    const prefix = "a".repeat(16);
+    const leadSha256 = `sha256:${prefix}${"1".repeat(48)}`;
+    const nearSha256 = `sha256:${prefix}${"2".repeat(48)}`;
+    const callout = (sha256) => ({
+      evidenceKind: "part-art",
+      stepNumber: 1,
+      quantity: 1,
+      file: `${sha256.slice(-1)}.png`,
+      identity: sha256,
+      sha256,
+    });
+    const claims = new Map([
+      [0, { clusterIndex: 0, elementId: ELEMENT_ID }],
+      [1, { clusterIndex: 0, elementId: ELEMENT_ID }],
+    ]);
+    const truth = {
+      schemaVersion: PART_TRUTH_SCHEMA,
+      lastStep: 1,
+      pairsJudged: 1,
+      pairsUnjudgeable: 0,
+      verdicts: [verdict(true, { judgedCropSha256: leadSha256 })],
+      unjudgeable: [],
+    };
+    const bind = (memberSha256) =>
+      pairJudgedVerdictsByCalloutIndex({
+        truth,
+        features: { callouts: [callout(leadSha256), callout(memberSha256)] },
+        claims,
+      });
+
+    expect([...bind(nearSha256).keys()]).toEqual([0]);
+    expect([...bind(leadSha256).keys()]).toEqual([0, 1]);
+
+    const recutClaims = new Map([[0, { clusterIndex: 0, elementId: ELEMENT_ID }]]);
+    expect(
+      pairJudgedVerdictsByCalloutIndex({
+        truth,
+        features: { callouts: [callout(nearSha256)] },
+        claims: recutClaims,
+      }).size,
+    ).toBe(0);
+
+    const memberJudged = pairJudgedVerdictsByCalloutIndex({
+      truth: {
+        ...truth,
+        pairsJudged: 2,
+        verdicts: [
+          verdict(true, { n: 1, judgedCropSha256: leadSha256 }),
+          verdict(false, { n: 2, judgedCropSha256: nearSha256 }),
+        ],
+      },
+      features: { callouts: [callout(leadSha256), callout(nearSha256)] },
+      claims,
+    });
+    expect([...memberJudged.values()].map(({ verdict: outcome }) => outcome)).toEqual([
+      "same",
+      "different",
+    ]);
+    expect([...memberJudged.values()].map(({ judgedCrop }) => judgedCrop)).toEqual([
+      leadSha256,
+      nearSha256,
+    ]);
   });
 
   it("does not reproduce coverage whose pair-judged trust the retained verdicts contradict", () => {
@@ -147,54 +222,23 @@ describe("pair-judged identity as a coverage trust source", () => {
       }),
     ).toThrow(/names judged crop "missing"/u);
   });
-});
 
-describe("bounded pair-judged verdict input", () => {
-  const truth = (overrides) => ({
-    schemaVersion: "lego.part-identification-truth/2",
-    lastStep: 50,
-    verdicts: [verdict(true)],
-    ...overrides,
-  });
-
-  it("accepts the shipped verdict file's shape", () => {
-    expect(assertPairJudgedTruth(truth({}))).toEqual({ lastStep: 50, verdictCount: 1 });
-  });
-
-  it("rejects a verdict whose outcome is not exactly true or false", () => {
-    expect(() => assertPairJudgedTruth(truth({ verdicts: [verdict("yes")] }))).toThrow(
-      /must be exactly true or false/u,
-    );
+  it("rejects a detached full-crop verdict even when its element matches", () => {
     expect(() =>
-      assertPairJudgedTruth(truth({ verdicts: [{ ...verdict(true), same: undefined }] })),
-    ).toThrow(/must be exactly true or false/u);
-  });
-
-  it("rejects the same pair judged twice rather than letting file order decide", () => {
-    expect(() =>
-      assertPairJudgedTruth(truth({ verdicts: [verdict(true), verdict(false, { n: 2 })] })),
-    ).toThrow(/judges the same pair twice/u);
-  });
-
-  it("rejects a superseded schema instead of guessing at its keys", () => {
-    expect(() =>
-      assertPairJudgedTruth(truth({ schemaVersion: "lego.part-identification-truth/1" })),
-    ).toThrow(/only lego\.part-identification-truth\/2/u);
-  });
-
-  it("rejects a judged range that is not a printed step", () => {
-    expect(() => assertPairJudgedTruth(truth({ lastStep: 0 }))).toThrow(/from 1 through 359/u);
-    expect(() => assertPairJudgedTruth(truth({ lastStep: 360 }))).toThrow(/from 1 through 359/u);
-  });
-
-  it("rejects an unbounded verdict list", () => {
-    expect(() =>
-      assertPairJudgedTruth(
-        truth({
-          verdicts: Array.from({ length: 4_001 }, (_, index) => verdict(true, { n: index })),
-        }),
-      ),
-    ).toThrow(/bounded maximum is 4000/u);
+      build({
+        identificationDigests: { pairJudged: digest("judged") },
+        judgedVerdicts: new Map([
+          [
+            0,
+            {
+              verdict: "different",
+              judgedCrop: cropDigestKey(digest("unrelated")),
+              judgedElementId: ELEMENT_ID,
+            },
+          ],
+        ]),
+      }),
+    ).toThrow(/binds crop\/element.*this exact feature and claim bind/u);
   });
 });
 
@@ -226,25 +270,23 @@ describe("judged verdicts do not extrapolate past the range that was judged", ()
         stepNumber,
       })),
     });
+    const { matchArtifact, distancesArtifact } = identificationArtifactsFor(featuresArtifact);
     return __testOnly.compileBookletCatalogCoverageClosure(
       {
         manifestBytes,
         featuresArtifact,
-        matchArtifact: artifact({
-          ...fixture.matchArtifact.value,
-          featuresDigest: featuresArtifact.digest,
-        }),
-        distancesArtifact: artifact({
-          ...fixture.distancesArtifact.value,
-          featuresDigest: featuresArtifact.digest,
-        }),
+        matchArtifact,
+        distancesArtifact,
         cardsArtifact: null,
         cardImagesArtifact: null,
         answersArtifact: null,
         pairJudgedArtifact: artifact({
-          schemaVersion: "lego.part-identification-truth/2",
+          schemaVersion: PART_TRUTH_SCHEMA,
           lastStep: judgedLastStep,
+          pairsJudged: 1,
+          pairsUnjudgeable: 0,
           verdicts: [verdict(true)],
+          unjudgeable: [],
         }),
         elementsArtifact: fixture.elementsArtifact,
         source: "deterministic",

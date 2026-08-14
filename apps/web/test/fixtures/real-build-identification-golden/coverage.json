@@ -1,13 +1,13 @@
 {
- "schemaVersion": "lego.real-build-catalog-coverage/1",
+ "schemaVersion": "lego.real-build-catalog-coverage/2",
  "inputDigests": {
   "pdf": "sha256:f76be473d1118d69bb7596dc8ea1b5905571e54ecacced0e210c4e2193779865",
   "calloutManifest": "sha256:0ea8582b833a5353160aa05b0af6ef41886a9813c8b9c6b3829f533a1689bc73",
   "features": "sha256:33da68db3e015a3528e3ac3365461763c81c8b6ca51824ada6781e210d10e0f4",
-  "match": "sha256:19493a3d5a09d05c488e624e111951826be053adc0c0f9c9f7bcf2f711596ab6",
-  "distances": "sha256:a1c770dcb15c6d687f969df20b17952619f8aa6fdcbccdd29a30c2d70e59f660",
+  "match": "sha256:a974c73afb2836c09c5274cc74be67afe2ee354ea37647f2bee05732e5bf4a36",
+  "distances": "sha256:698e9f45d2648c21dc925fc3f4e772676c71c9490bede8e80e1c24fd0f641949",
   "elementResolution": "sha256:9b1f5551504738d2b32b473588fb7c379e1a94c050b6be20444020f40057a7cc",
-  "pairJudged": "sha256:f10acf1be4a328da456c871e63e1e96b1910d2d184a4f4f823252d31ded98d79"
+  "pairJudged": "sha256:d107d2146b18006948f78e7590d311a9be77d4d52d2f11a672c70cab85e68a2f"
  },
  "what": "Whether the pinned catalog holds the parts the real booklet's opening steps place. The covered prefix is the number that governs a rebuild: a step whose part is absent cannot be skipped, because the step after it has nothing to attach to.",
  "identification": {

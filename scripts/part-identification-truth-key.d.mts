@@ -1,6 +1,6 @@
-export const PART_TRUTH_SCHEMA: "lego.part-identification-truth/2";
+export const PART_TRUTH_SCHEMA: "lego.part-identification-truth/3";
 export const PART_TRUTH_PATH: "scripts/fixtures/part-identification-truth-first50.json";
-export const CROP_DIGEST_KEY_HEX: 16;
+export const CROP_DIGEST_KEY_HEX: 64;
 
 export function cropDigestKey(sha256: string): string;
 

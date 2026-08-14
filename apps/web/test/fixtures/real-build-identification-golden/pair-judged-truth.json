@@ -1,5 +1,5 @@
 {
- "schemaVersion": "lego.part-identification-truth/2",
+ "schemaVersion": "lego.part-identification-truth/3",
  "note": "Synthetic golden: one judged pair, so the deterministic golden exercises the pair-judged trust path end to end rather than only the empty case. No booklet artwork and no real verdict is carried here.",
  "method": "pair-verification",
  "judgedBy": "repo-authored fixture",
@@ -11,10 +11,11 @@
  "verdicts": [
   {
    "n": 1,
-   "judgedCropSha256": "sha256:216dbf4d75f88d70",
+   "judgedCropSha256": "sha256:216dbf4d75f88d708e39d3309dfac7524eed22b5cdbeffc82ce1d9f47b354862",
    "elementId": "300501",
    "same": true,
    "note": "synthetic 1x1 brick on both sides"
   }
- ]
+ ],
+ "unjudgeable": []
 }

@@ -3,6 +3,28 @@ import { isDeepStrictEqual } from "node:util";
 
 import { verifyBookletCatalogCoverageClosure } from "../../../scripts/booklet-catalog-coverage.mjs";
 import { PartIdentificationArtifactBindingError } from "../../../scripts/part-identification-artifacts.mjs";
+import { parseStrictJsonBytes } from "../../../scripts/part-identification-strict-json.mjs";
+import { MAXIMUM_REAL_BUILD_PRINTED_STEPS } from "./real-build-artifact-policy";
+
+const MAXIMUM_OBSERVED_STRING_CHARACTERS = 120;
+
+function boundedObserved(value: unknown): string {
+  try {
+    if (typeof value === "string") {
+      if (value.length <= MAXIMUM_OBSERVED_STRING_CHARACTERS) return JSON.stringify(value);
+      const prefix = `${value.slice(0, MAXIMUM_OBSERVED_STRING_CHARACTERS - 3)}...`;
+      return `${JSON.stringify(prefix)} (string length ${value.length})`;
+    }
+    if (typeof value === "bigint") return `${value}n`;
+    if (value === null || typeof value !== "object") {
+      return Object.is(value, -0) ? "-0" : String(value);
+    }
+    if (Array.isArray(value)) return `Array(length=${value.length})`;
+    return `Object(keys=${Object.keys(value).length})`;
+  } catch {
+    return `<uninspectable ${value === null ? "null" : typeof value}>`;
+  }
+}
 
 export interface RawJsonArtifact {
   readonly bytes: Uint8Array;
@@ -23,7 +45,7 @@ function sha256(bytes: Uint8Array): string {
 export function rawJsonArtifactFromBytes(bytes: Uint8Array, label: string): RawJsonArtifact {
   let value: unknown;
   try {
-    value = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)) as unknown;
+    value = parseStrictJsonBytes(bytes);
   } catch (error) {
     throw new TypeError(
       `${label} retained bytes must be strict UTF-8 JSON: ${error instanceof Error ? error.message : String(error)}.`,
@@ -36,7 +58,7 @@ export function rawJsonArtifactFromBytes(bytes: Uint8Array, label: string): RawJ
 function bindRawJsonArtifact(artifact: RawJsonArtifact, label: string): RawJsonArtifact {
   let value: unknown;
   try {
-    value = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(artifact.bytes)) as unknown;
+    value = parseStrictJsonBytes(artifact.bytes);
   } catch (error) {
     throw new TypeError(
       `${label} bytes must be strict UTF-8 JSON: ${error instanceof Error ? error.message : String(error)}.`,
@@ -124,6 +146,15 @@ function describeCoverageMode(
   coverageArtifact: RawJsonArtifact,
   requestedLastStep: number,
 ): RealBuildIdentificationMode {
+  if (
+    !Number.isSafeInteger(requestedLastStep) ||
+    requestedLastStep < 1 ||
+    requestedLastStep > MAXIMUM_REAL_BUILD_PRINTED_STEPS
+  ) {
+    throw new RangeError(
+      `Requested identification prefix must be a safe integer from 1 through ${MAXIMUM_REAL_BUILD_PRINTED_STEPS}; received ${boundedObserved(requestedLastStep)}. Request a real printed-booklet prefix.`,
+    );
+  }
   const coverage = coverageArtifact.value as CoverageDescriptor;
   const source = coverage.identification?.source;
   const model = coverage.identification?.model;
@@ -135,17 +166,16 @@ function describeCoverageMode(
     (assignment !== "nearest" &&
       assignment !== "one-to-one" &&
       assignment !== "quantity-informed") ||
-    !Number.isInteger(lastStep) ||
+    !Number.isSafeInteger(lastStep) ||
+    (lastStep as number) < 1 ||
+    (lastStep as number) > MAXIMUM_REAL_BUILD_PRINTED_STEPS ||
     (lastStep as number) < requestedLastStep
   ) {
     throw new TypeError(
       `Coverage must declare a deterministic/adjudicated source, compatible model, supported assignment, ` +
-        `and a compiled prefix at least ${requestedLastStep}; received ${JSON.stringify({
-          source,
-          model,
-          assignment,
-          lastStep,
-        })}.`,
+        `and a safe compiled prefix from ${requestedLastStep} through ${MAXIMUM_REAL_BUILD_PRINTED_STEPS}; ` +
+        `received source=${boundedObserved(source)}, model=${boundedObserved(model)}, ` +
+        `assignment=${boundedObserved(assignment)}, lastStep=${boundedObserved(lastStep)}.`,
     );
   }
   return {

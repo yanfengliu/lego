@@ -3,14 +3,16 @@ import { join } from "node:path";
 import { crc32, deflateSync } from "node:zlib";
 
 import {
-  PART_DISTANCES_SCHEMA,
   PART_FEATURES_SCHEMA,
-  PART_MATCH_SCHEMA,
   jsonArtifactFromBytes,
   sha256Digest,
 } from "./part-identification-artifacts.mjs";
 import { claimsFor } from "./part-identification-score.mjs";
-import { clusterCallouts } from "./part-identification.mjs";
+import {
+  derivePartIdentificationMatch,
+  partIdentificationDistancesValue,
+  partIdentificationMatchValue,
+} from "./part-identification-derivation.mjs";
 
 /**
  * Shared synthetic evidence for the part-identification suites.
@@ -126,11 +128,12 @@ export function physical(identity, seed, pixels) {
 }
 
 export function assignmentByIdentity(callouts) {
-  const clusters = clusterCallouts(callouts).map((cluster, clusterIndex) => ({
-    ...cluster,
-    clusterIndex,
-    candidates: [{ elementId: String(300_501 + clusterIndex), total: 0 }],
-  }));
+  const inventory = Object.fromEntries(
+    callouts
+      .filter(({ evidenceKind }) => evidenceKind === "part-art")
+      .map((callout, index) => [String(300_501 + index), callout.descriptor]),
+  );
+  const { clusters } = derivePartIdentificationMatch({ callouts, inventory });
   const claims = claimsFor({ clusters }, { elementIds: [], rows: [] }, "deterministic", null, {
     assign: "nearest",
   });
@@ -174,27 +177,15 @@ export function writeIdentificationClosure(directory) {
     inventorySourceDigests: { 300501: digest("inventory") },
     callouts: [callout],
   });
-  const matchArtifact = writeArtifact(join(directory, "match.json"), {
-    schemaVersion: PART_MATCH_SCHEMA,
-    featuresDigest: featuresArtifact.digest,
-    calloutCount: 1,
-    clusterCount: 1,
-    clusters: [
-      {
-        clusterIndex: 0,
-        lead: callout.file,
-        members: [0],
-        pieces: 1,
-        candidates: [{ elementId: "300501", total: 0.1 }],
-      },
-    ],
-  });
-  writeArtifact(join(directory, "distances.json"), {
-    schemaVersion: PART_DISTANCES_SCHEMA,
-    featuresDigest: featuresArtifact.digest,
-    elementIds: ["300501"],
-    rows: [[0.1]],
-  });
+  const derived = derivePartIdentificationMatch(featuresArtifact.value);
+  const matchArtifact = writeArtifact(
+    join(directory, "match.json"),
+    partIdentificationMatchValue(featuresArtifact.digest, derived),
+  );
+  writeArtifact(
+    join(directory, "distances.json"),
+    partIdentificationDistancesValue(featuresArtifact.digest, matchArtifact.digest, derived),
+  );
   return { featuresArtifact, matchArtifact };
 }
 

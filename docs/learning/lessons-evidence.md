@@ -430,13 +430,13 @@ It is a real check rather than a formality — it is the reason a model that rea
 
 The lesson is not that model calls do not belong here. It is that the pairing of a free answer with a closed-set answer is what makes one safe to use, and that stud counting on a 200-pixel booklet thumbnail is beyond a small model — Sonnet read the same 3x3 plate correctly where Haiku called it 4x4, at roughly fifteen times the wall clock per call.
 
-A frontier model does not retire the check, and it does not move the answer either.
-Opus 5 answered all 273 drawings of the live closure and contradicted itself on 140 of the 233 it could be checked on, so 93 picks survived — 37% of its 252 positive proposals, against Haiku's 51 of 265.
-What those 93 bought, under the one-to-one assignment the headline uses, was nothing at all: 0 of 273 drawings changed, 0 of 863 callouts, 0 pieces, and conservation and first-fifty accuracy identical to geometry alone at 203/276 elements, 1313/1465 pieces and 161/185 callouts.
-Under `nearest` it moved 3 drawings and 22 pieces for +1 element and +17 pieces; under `quantity-informed` it moved 10 drawings and 44 pieces and lost 2 elements and 8 pieces.
-A global assignment over 273 drawings and 276 elements is already so constrained that a per-drawing prior worth a 0.22 discount changes almost nothing, which is the thing to measure before buying another pass.
+A frontier model does not retire the check, and the current closure shows that it can move the answer without making its confidence a reliable gate.
+Opus 5 has retained answers for 273 of 285 drawings. The direct vision filter keeps 131, contradicts 127, cannot check 12 descriptions, records 3 explicit differences, and leaves 12 unanswered; mean confidence is `0.892061` for kept answers and `0.877480` for contradicted answers.
+Against deterministic one-to-one assignment, adjudication changes 6 clusters covering 19 callouts and 28 pieces. Element conservation remains 233 of 276 exact, reconciled pieces move from 1,339 to 1,345, and exact crop-plus-current-claim truth moves from 67 to 68 correct callouts while still covering 104 pieces.
+Under `nearest`, adjudication moves element exactness from 236 to 234 while leaving 1,401 reconciled pieces unchanged. Under `quantity-informed`, 235 elements remain exact while reconciled pieces move from 1,381 to 1,376.
+The global assignment is constrained enough that the vision prior moves little, but not nothing, so its effect and failure modes must be measured rather than inferred from model tier.
 
-**Anchor:** `visionPick` and `describesSameThing` in `scripts/part-identification-score.mjs`; the adjudicated variants that carry `descriptionAgreement.either` 214 of 265 were measured on the 870-callout closure generation and are retained as `output/part-identification/history/score-adjudicated-*-stale-*.json` beside `history/answers-haiku-stale-2d0c01db.json` and `history/answers-sonnet-legacy-7e8559d4.json`. The Opus 5 pass is the live `output/part-identification/answers-claude-opus-5.json` and the `score-adjudicated-*.json` set it produced, whose `descriptionAgreement.either` is 158 of 265 and whose `picked` tally is 346 vision-kept, 41 vision-overruled, 395 self-contradicted, 44 description-unverifiable, 37 refused.
+**Anchor:** `visionPick` and `describesSameThing` in `scripts/part-identification-score.mjs`; the adjudicated variants that carry `descriptionAgreement.either` 214 of 265 were measured on the 870-callout closure generation and are retained as `output/part-identification/history/score-adjudicated-*-stale-*.json` beside `history/answers-haiku-stale-2d0c01db.json` and `history/answers-sonnet-legacy-7e8559d4.json`. The current Opus 5 pass is `output/part-identification/answers-claude-opus-5.json` and its `score-adjudicated-*.json` set: `descriptionAgreement.either` is 127 of 265, and the callout-level `picked` tally is 381 self-contradicted, 22 unanswered, 125 vision-kept, 271 vision-member-unreviewed, 25 description-unverifiable, 5 differs-colour, 25 vision-overruled, and 5 differs-detail.
 
 ## A plate of height projects to a third of a stud, so a looser tolerance cannot see layers
 
@@ -593,10 +593,10 @@ The general shape: when a UI check reuses one page, the app's own persistence be
 
 ## Grading a free-text answer against a controlled vocabulary measures wording, not sight
 
-The identification prompt asks the model for a `"<plain colour name>"`, and `describesSameThing` accepts the answer only if it equals the element's LDraw display name after normalisation.
+The identification prompt originally asked the model for a `"<plain colour name>"`, while `describesSameThing` accepted the answer only if it equalled the element's LDraw display name after normalisation.
 Those are two different vocabularies, and LEGO greys are exactly where they part company.
-Over the 273-drawing Opus 5 pass, colour was the axis that rejected most: 90 disagreements against 55 on stud size and 35 on kind.
-63 of the 140 self-contradictions were colour alone, with shape and stud size both agreeing — the model had the part right and lost it on the word.
+In that generation's 273-drawing Opus 5 pass, colour was the axis that rejected most: 90 disagreements against 55 on stud size and 35 on kind.
+Sixty-three of its 140 self-contradictions were colour alone, with shape and stud size both agreeing — the model had the part right and lost it on the word.
 
 Splitting those 63 says which half is the model's problem.
 23 drawings, 84 pieces, said "light gray" where the sticker says "Light Bluish Gray": the same colour under LEGO's own two names for it.
@@ -605,9 +605,9 @@ Only 21 are the model actually misreading: 7 called a dark part light, and 14 ca
 
 So two thirds of the strictest check's rejections were the harness disagreeing with itself about vocabulary.
 The check is still worth having and must not be loosened to make the number look better — "dark gray" for a black brick is a real error and belongs in the same bucket as a wrong stud count.
-The fix is at the other end: a prompt that grades against a closed vocabulary should print that vocabulary, so a rejection means the model saw the wrong thing rather than said it the wrong way.
+The fix is at the other end: a prompt that grades against a closed vocabulary should print that vocabulary, so a rejection means the model saw the wrong thing rather than said it the wrong way. The current prompt now prints all 13 accepted colour labels.
 
-**Anchor:** `PART_IDENTIFICATION_PROMPT` in `scripts/part-identification-prompt.mjs` asks for a plain colour name; `describesSameThing` in `scripts/part-identification-score.mjs` compares it to `COLOR_DEFINITIONS[].displayName` by normalised equality. Measured over `output/part-identification/answers-claude-opus-5.json` (273 drawings, 252 positive proposals, 93 kept): `descriptionAgreement` in `score-adjudicated-one-to-one.json` reports colourDisagrees 103 of 265 checked against sizeDisagrees 69 and kindDisagrees 53.
+**Anchor:** `PART_IDENTIFICATION_PROMPT` in `scripts/part-identification-prompt.mjs` now prints the exact 13-colour vocabulary; `describesSameThing` in `scripts/part-identification-score.mjs` compares against `COLOR_DEFINITIONS[].displayName` by normalised equality. The historical 273-drawing pass retained the wording failure above; the current `output/part-identification/score-adjudicated-one-to-one.json` checks 265 descriptions and reports 35 colour, 77 size, and 56 kind contradictions.
 
 ## A check that has stopped checking still reports green
 
@@ -620,9 +620,9 @@ And `real-build-builder-calibration.test.ts` *detected* the stale artifact, then
 
 The common cause is that each check answered "I could not verify this" the same way it answered "I verified this and it was fine". Absence and success shared an output. Every one was invisible precisely because green is what you expect, and none was found by the subsystem that owned it.
 
-The repair that generalises is not more checks, it is making the three outcomes distinguishable: verified, refused, and *could not verify*. `verdictsUnbindable` separates dead labels from absent ones; the barrier became an executable refusal naming its own dead ends; the chain declares its order as data with each stage's rebuild command; and the skip became a failing assertion. A check that cannot say "I did not run" will eventually not run.
+The repair that generalises is not more checks, it is making the three outcomes distinguishable: verified, refused, and *could not verify*. The historical `verdictsUnbindable` metric separated dead labels from absent ones; current score `/2` additionally reports `verdictsUnboundToCurrentClaims`, so 14 preserved exact labels whose unchanged judged element differs from the current claim cannot disappear into ordinary unjudged callouts. The barrier became an executable refusal naming its own dead ends; the chain declares its order as data with each stage's rebuild command; and the skip became a failing assertion. A check that cannot say "I did not run" will eventually not run.
 
-**Anchor:** `verdictsUnbindable` in `scripts/part-identification-score.mjs` (87 -> 0 once verdicts were re-keyed by crop digest); `assert_pinned_environment_for_retained_bundle` in `scripts/discover_builder_shell_core.py`; `apps/web/e2e/real-build-input-chain.ts` with its regression `apps/web/test/real-build-input-chain.test.ts`; and the stale-artifact case in `apps/web/test/real-build-builder-calibration.test.ts`, converted from `console.warn` plus skip to a failing assertion naming the observed version, the expected version and the regeneration command. All four found on 2026-08-05.
+**Anchor:** historical `verdictsUnbindable` in `scripts/part-identification-score.mjs` moved 87 -> 0 once verdicts were re-keyed by crop digest; current score `/2` pins the separate 14-verdict current-claim mismatch. `assert_pinned_environment_for_retained_bundle` in `scripts/discover_builder_shell_core.py`; `apps/web/e2e/real-build-input-chain.ts` with its regression `apps/web/test/real-build-input-chain.test.ts`; and the stale-artifact case in `apps/web/test/real-build-builder-calibration.test.ts` convert missing execution from warning or skip into a refusal naming the observed version, expected version, and regeneration command. The original four failures were found on 2026-08-05.
 
 The same shape returned the next day wearing the opposite face, in three files, found by two agents who each caught the other's and then their own. A defect-side classifier with two outcomes answered a 1.0x tie - geometry sound on both sides - with `callout-crop`, inventing a defect and aiming the repair at a correct file. A lookup searching a published `worst[:15]` list reported an element as having no same-mould sibling when it has one, collapsing "absent from a truncated view" into "does not exist". And a report built its miss list as "rank is None or rank > k" then built the cause block with a trailing `if rank is not None`, so a truth element with no thumbnail - a miss that cannot be ablated, because there is no descriptor to ablate - was dropped between the two and counted nowhere, while the per-repair totals looked complete.
 
@@ -636,11 +636,11 @@ The third was latent - that generation held zero unreachable truths, so it had n
 
 Two configurations, the same booklet, the same model family, measured on the same day.
 
-Asked an open N-way question — a card of four to six candidate renders beside the callout, answer with a pick number, a free-text description and a confidence — Claude Opus 5 was **39.9 percent self-consistent** across 273 drawings. It contradicted itself on 140 of 233 checkable proposals, its picks changed 0 of 273 drawings and 0 of 863 callouts against the deterministic baseline, and its confidence carried no signal at all: 0.874 mean on answers that survived, 0.854 on answers that contradicted themselves. As a filter it was worthless.
+Asked an open N-way question — a card of candidates beside the callout, answer with a pick number, a free-text description and a confidence — the current Claude Opus 5 closure has 273 retained answers out of 285 drawings and agrees with itself on 138 of 265 checkable descriptions, or **52.1 percent**. It contradicts 127, and adjudication changes 6 clusters covering 19 callouts and 28 pieces against deterministic one-to-one assignment. Confidence is only a weak separator: `0.892061` mean on kept answers and `0.877480` on contradicted answers, so it cannot be an admission gate.
 
 Asked a closed binary question — two pictures side by side at the same height, is this the same part, nothing else on screen — two independent raters on different models agreed **84 of 84**, including all eight "different" calls and both cases where the pair was unjudgeable because the claim side was blank. The artifact records 82 verdicts and two unjudgeable pairs; agreement is not an independent correctness measurement.
 
-The closed framing produced complete inter-rater agreement where the open framing produced poor self-consistency. Those are different measurements, so the result supports the framing and auditability of the question without proving every shared verdict correct. What moved it:
+The closed framing produced complete inter-rater agreement where the open framing still produced substantial self-contradiction. Those are different measurements, so the result supports the framing and auditability of the question without proving every shared verdict correct. What moved it:
 
 The answer space was small and checkable. Same or different has a structure that two raters can be compared on; "which of these six" does not.
 The answer was withheld. The pair judge saw no part name, no element id, no metadata, and could not be led by them — which is also what makes the resulting label auditable.
@@ -649,7 +649,7 @@ Escalation was built in. Contact sheets first, single-pair renders for anything 
 
 The corollary is that a disappointing vision result is not automatically a model limit. Before concluding the model cannot see it, check whether it was asked something answerable — and whether the grader is measuring sight or vocabulary.
 
-**Anchor:** the open configuration is `output/part-identification/answers-claude-opus-5.json` scored by `scripts/part-identification-score.mjs`, 39.9 percent self-consistency and a whole-book claim diff of zero. The closed configuration is `scripts/fixtures/part-identification-truth-first50.json`, schema `lego.part-identification-truth/2`, whose `raters` block records the 84/84 agreement and the two pairs adjudicated by hand where the raters' descriptions diverged despite agreeing verdicts. Both measured 2026-08-05.
+**Anchor:** the current open configuration is `output/part-identification/answers-claude-opus-5.json` scored by `scripts/part-identification-score.mjs`; `descriptionAgreement` records 138 agreements and 127 contradictions across 265 checked descriptions, while adjudicated one-to-one changes 6 clusters, 19 callouts, and 28 pieces from deterministic one-to-one. The closed configuration was measured on 2026-08-05 and originally retained under truth `/2`; `scripts/fixtures/part-identification-truth-first50.json` is now its losslessly migrated `/3` form with full crop SHA-256 plus element keys. The 82 verdict fields, outcomes, and order are unchanged; their full digests came from tracked pre-truncation commit `59ca5b7` and were corroborated against the retained features `/3` crop identities, including byte-identical duplicate rows. Its `raters` block records the 84/84 agreement and the two pairs adjudicated by hand where the raters' descriptions diverged despite agreeing verdicts.
 
 ## A rotation matrix stored as nine numbers has two readings, and only geometry says which
 

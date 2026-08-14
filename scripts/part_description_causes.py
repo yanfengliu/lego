@@ -115,8 +115,8 @@ def defect_side_triangulation(misses, match, features, inventory):
 
     Four outcomes, never three and never two. An element with no same-mould
     sibling leaves the instrument undefined, and that is a distinct verdict from
-    "both crops agree" -- 113 of the 265 elements with a thumbnail have no
-    sibling at all, so silently skipping them would report a clean row count
+    "both crops agree" -- many elements with a thumbnail have no sibling at
+    all, so silently skipping them would report a clean row count
     over a question that was never asked. The first version of this function
     dropped them with a bare `continue`, which is the same defect it was written
     to expose: a check that has stopped checking still reports green.

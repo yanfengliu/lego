@@ -4,9 +4,9 @@
  * Matching each callout to its nearest inventory thumbnail on its own throws
  * away the strongest thing known about the problem: the book draws each element
  * one way, so distinct callout drawings and inventory elements very nearly pair
- * off one to one — 273 drawings against 276 elements in the sample. Left to
- * decide alone, twenty drawings piled onto one popular element while fifty-nine
- * elements were never claimed at all.
+ * off one to one. In the earlier 273-drawing, 276-element generation, leaving
+ * each drawing to decide alone made twenty drawings pile onto one popular
+ * element while fifty-nine elements were never claimed at all.
  *
  * So the choice is made once, globally, as a minimum-cost assignment. That is
  * what stops a confident wrong match crowding out a less confident right one:

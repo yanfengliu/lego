@@ -19,6 +19,7 @@ import {
   truthVerdictKey,
   verdictsByCropDigest,
 } from "./part-identification-truth-key.mjs";
+import { assertPairJudgedTruthFromParsedJson } from "./part-identification-pair-judged.mjs";
 import {
   MAX_IMAGE_ARTIFACT_BYTES,
   MAX_JSON_ARTIFACT_BYTES,
@@ -179,9 +180,12 @@ export async function commandPairsheet(argv, helpers) {
   // claimed to be, so re-judging a configuration means judging the pairs whose
   // picture or claim actually changed - and nothing else.
   const truthPath = PART_TRUTH_PATH;
-  const judged = existsSync(truthPath)
-    ? verdictsByCropDigest(readJson(truthPath)).bound
-    : new Map();
+  let judged = new Map();
+  if (existsSync(truthPath)) {
+    const truth = readJson(truthPath);
+    assertPairJudgedTruthFromParsedJson(truth, `Pair-sheet truth (${truthPath})`);
+    judged = verdictsByCropDigest(truth).bound;
+  }
   const pairs = [...wanted.values()]
     .filter(
       (pair) =>

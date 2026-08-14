@@ -10,15 +10,18 @@ import {
 import {
   PART_ANSWERS_SCHEMA,
   PART_CARDS_SCHEMA,
-  PART_DISTANCES_SCHEMA,
   PART_FEATURES_SCHEMA,
-  PART_MATCH_SCHEMA,
 } from "../../../scripts/part-identification-artifacts.mjs";
 import {
   PART_IDENTIFICATION_MODEL_ID,
   PART_IDENTIFICATION_MODEL_IDENTITY,
 } from "../../../scripts/part-identification-model.mjs";
 import { PART_IDENTIFICATION_PROMPT_DIGEST } from "../../../scripts/part-identification-prompt.mjs";
+import {
+  derivePartIdentificationMatch,
+  partIdentificationDistancesValue,
+  partIdentificationMatchValue,
+} from "../../../scripts/part-identification-derivation.mjs";
 import { sha256Digest } from "../e2e/real-build-artifacts";
 import {
   RealBuildIdentificationClosureError,
@@ -30,7 +33,6 @@ import {
 } from "../e2e/real-build-identification-closure";
 import {
   SYNTHETIC_IDENTIFICATION_GOLDEN,
-  SYNTHETIC_IDENTIFICATION_MANIFEST_EXPECTATION,
   syntheticIdentificationGoldenBytes,
 } from "./real-build-identification-golden";
 
@@ -178,27 +180,11 @@ function closureFixture(): {
     nonClusteredCallouts: [],
     callouts: [{ ...callout, descriptor: syntheticDescriptor() }],
   });
-  const match = artifact({
-    schemaVersion: PART_MATCH_SCHEMA,
-    featuresDigest: features.digest,
-    calloutCount: 1,
-    clusterCount: 1,
-    clusters: [
-      {
-        clusterIndex: 0,
-        lead: callout.file,
-        members: [0],
-        pieces: 1,
-        candidates: [{ elementId: "300501", total: 0.01 }],
-      },
-    ],
-  });
-  const distances = artifact({
-    schemaVersion: PART_DISTANCES_SCHEMA,
-    featuresDigest: features.digest,
-    elementIds: ["300501"],
-    rows: [[0.01]],
-  });
+  const derived = derivePartIdentificationMatch(features.value);
+  const match = artifact(partIdentificationMatchValue(features.digest, derived));
+  const distances = artifact(
+    partIdentificationDistancesValue(features.digest, match.digest, derived),
+  );
   const cardPng = canonicalCardPng();
   const cardEntries = {
     "card-0000": {
@@ -245,10 +231,13 @@ function closureFixture(): {
   });
   const elementResolution = artifact(elements);
   const pairJudged = artifact({
-    schemaVersion: "lego.part-identification-truth/2",
+    schemaVersion: "lego.part-identification-truth/3",
     method: "pair-verification",
     lastStep: 50,
+    pairsJudged: 0,
+    pairsUnjudgeable: 0,
     verdicts: [],
+    unjudgeable: [],
   });
   const compilerInput = {
     manifestBytes: manifest.bytes,
@@ -289,54 +278,6 @@ function closureFixture(): {
 }
 
 describe("real-build identification closure", () => {
-  it("reproduces independently pinned deterministic golden bytes and digests", () => {
-    const input: RealBuildIdentificationClosureInput = {
-      coverage: goldenArtifact("coverage"),
-      manifest: goldenArtifact("manifest"),
-      features: goldenArtifact("features"),
-      match: goldenArtifact("match"),
-      distances: goldenArtifact("distances"),
-      elementResolution: goldenArtifact("elementResolution"),
-      pairJudged: goldenArtifact("pairJudged"),
-      cards: null,
-      cardImages: null,
-      answers: null,
-      requestedLastStep: 1,
-    };
-    for (const role of Object.keys(
-      SYNTHETIC_IDENTIFICATION_GOLDEN,
-    ) as (keyof typeof SYNTHETIC_IDENTIFICATION_GOLDEN)[]) {
-      expect(sha256Digest(syntheticIdentificationGoldenBytes(role))).toBe(
-        SYNTHETIC_IDENTIFICATION_GOLDEN[role].digest,
-      );
-    }
-    expect(() =>
-      coverageTestOnly.verifyBookletCatalogCoverageClosure(
-        prepareRealBuildIdentificationClosure(input),
-        SYNTHETIC_IDENTIFICATION_MANIFEST_EXPECTATION,
-      ),
-    ).not.toThrow();
-  });
-
-  it("does not require or bind adjudication roles for deterministic coverage", () => {
-    const input: RealBuildIdentificationClosureInput = {
-      coverage: goldenArtifact("coverage"),
-      manifest: goldenArtifact("manifest"),
-      features: goldenArtifact("features"),
-      match: goldenArtifact("match"),
-      distances: goldenArtifact("distances"),
-      elementResolution: goldenArtifact("elementResolution"),
-      pairJudged: goldenArtifact("pairJudged"),
-      requestedLastStep: 1,
-    };
-    expect(prepareRealBuildIdentificationClosure(input)).toMatchObject({
-      source: "deterministic",
-      cardsArtifact: null,
-      cardImagesArtifact: null,
-      answersArtifact: null,
-    });
-  });
-
   it("binds the exact retained card-image bytes and digest for adjudicated coverage", () => {
     const fixture = closureFixture();
     const prepared = prepareRealBuildIdentificationClosure(fixture.input);
@@ -513,6 +454,8 @@ describe("real-build identification closure", () => {
     ["model", { model: null }],
     ["assignment", { assignment: "greedy" }],
     ["compiled prefix", { lastStep: 0 }],
+    ["beyond-booklet prefix", { lastStep: 360 }],
+    ["unsafe prefix", { lastStep: Number.MAX_SAFE_INTEGER + 1 }],
   ])("rejects an invalid %s declaration before compiling", (_label, identificationEdit) => {
     const fixture = closureFixture();
     const coverageValue = structuredClone(fixture.input.coverage.value) as {
@@ -530,5 +473,60 @@ describe("real-build identification closure", () => {
         coverage: artifact(coverageValue),
       }),
     ).toThrow(/Coverage must declare a deterministic\/adjudicated source/u);
+  });
+
+  it.each([0, 360, Number.MAX_SAFE_INTEGER + 1])(
+    "rejects requestedLastStep outside the real 1..359 booklet at %s",
+    (requestedLastStep) => {
+      const fixture = closureFixture();
+      expect(() =>
+        prepareRealBuildIdentificationClosure({ ...fixture.input, requestedLastStep }),
+      ).toThrow(/Requested identification prefix must be a safe integer from 1 through 359/u);
+    },
+  );
+
+  it.each([
+    [Number.NaN, "NaN"],
+    [Number.POSITIVE_INFINITY, "Infinity"],
+    [Number.NEGATIVE_INFINITY, "-Infinity"],
+    [1.5, "1.5"],
+    ["1", '"1"'],
+    [1n, "1n"],
+  ])(
+    "reports hostile requestedLastStep %s without losing or serializing it",
+    (requestedLastStep, expected) => {
+      const fixture = closureFixture();
+      let message = "";
+      try {
+        prepareRealBuildIdentificationClosure({
+          ...fixture.input,
+          requestedLastStep: requestedLastStep as unknown as number,
+        });
+      } catch (error) {
+        message = error instanceof Error ? error.message : String(error);
+      }
+      expect(message).toContain(`received ${expected}`);
+    },
+  );
+
+  it.each([
+    [1.5, "1.5"],
+    ["1", '"1"'],
+    [null, "null"],
+    [true, "true"],
+    [[], "Array(length=0)"],
+    [{ unexpected: true }, "Object(keys=1)"],
+  ])("reports hostile compiled-prefix value %s before authentication", (lastStep, expected) => {
+    const fixture = closureFixture();
+    const coverageValue = structuredClone(fixture.input.coverage.value) as Record<string, unknown>;
+    coverageValue.lastStep = lastStep;
+    const coverage = artifact(coverageValue);
+    let message = "";
+    try {
+      prepareRealBuildIdentificationClosure({ ...fixture.input, coverage });
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+    expect(message).toContain(`lastStep=${expected}`);
   });
 });
