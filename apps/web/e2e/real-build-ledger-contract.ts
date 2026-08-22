@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 import type { TrustedIdentificationConfidence } from "./real-build-identification-trust";
 import type { LedgerTransform, OfficialBrickRecord } from "./real-build-official";
 
+export { stepPanelEvidenceDigest } from "./real-build-panel-evidence-digest";
+
 export {
   applyBuilderCanonicalCalibration,
   BUILDER_CANONICAL_CALIBRATION_SCHEMA,
@@ -184,44 +186,6 @@ export function actionEvidenceDigest(input: {
   readonly step: LedgerStep;
 }): string {
   return digest(JSON.stringify(input));
-}
-
-export function stepPanelEvidenceDigest(input: {
-  readonly pdfDigest: string;
-  readonly stepNumber: number;
-  readonly pageNumber: number;
-  readonly bounds: {
-    readonly minXPt: number;
-    readonly maxXPt: number;
-    readonly minYPt: number;
-    readonly maxYPt: number;
-  };
-  readonly calloutBoxes: readonly {
-    readonly minXPt: number;
-    readonly maxXPt: number;
-    readonly minYPt: number;
-    readonly maxYPt: number;
-  }[];
-}): string {
-  return digest(
-    JSON.stringify({
-      pdfDigest: input.pdfDigest,
-      stepNumber: input.stepNumber,
-      pageNumber: input.pageNumber,
-      bounds: {
-        minXPt: input.bounds.minXPt,
-        maxXPt: input.bounds.maxXPt,
-        maxYPt: input.bounds.maxYPt,
-        minYPt: input.bounds.minYPt,
-      },
-      calloutBoxes: input.calloutBoxes.map((box) => ({
-        minXPt: box.minXPt,
-        minYPt: box.minYPt,
-        maxXPt: box.maxXPt,
-        maxYPt: box.maxYPt,
-      })),
-    }),
-  );
 }
 
 export function transitionClassificationEvidenceDigest(

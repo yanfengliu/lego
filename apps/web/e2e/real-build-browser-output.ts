@@ -16,7 +16,12 @@ import {
 import { MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION } from "./real-build-farther-origin-source-manifest";
 import { LEGACY_MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION_V2 } from "./real-build-farther-origin-source-attestation-legacy-v2";
 import { isNullableRealBuildPngCapture } from "./real-build-png-capture";
-import type { RealBuildOptions, RealBuildStepReport, StepFailure } from "./real-build-safety";
+import {
+  isRealBuildSuccessfulStepMechanism,
+  type RealBuildOptions,
+  type RealBuildStepReport,
+} from "./real-build-safety";
+import { isRealBuildBrowserStepFailure } from "./real-build-browser-step-failure";
 import type {
   LegacyRealBuildBrowserOutputBoundary,
   LegacyRealBuildBrowserOutputV2,
@@ -106,50 +111,13 @@ const isDenseBoundedArray = (value: unknown, maximum: number): value is readonly
   return true;
 };
 
-function isStepFailure(value: unknown): value is StepFailure {
-  if (!isRecord(value)) return false;
-  const allowed = new Set([
-    "code",
-    "stage",
-    "message",
-    "causedByStep",
-    "pieceIndex",
-    "catalogPartId",
-    "inputKey",
-    "stepNumber",
-  ]);
-  return (
-    Object.keys(value).every((key) => allowed.has(key)) &&
-    typeof value.code === "string" &&
-    value.code.length > 0 &&
-    typeof value.stage === "string" &&
-    value.stage.length > 0 &&
-    typeof value.message === "string" &&
-    value.message.length > 0 &&
-    ["causedByStep", "pieceIndex", "stepNumber"].every(
-      (key) => value[key] === undefined || Number.isSafeInteger(value[key]),
-    ) &&
-    ["catalogPartId", "inputKey"].every(
-      (key) => value[key] === undefined || typeof value[key] === "string",
-    )
-  );
-}
-
-function isStepOutcome(value: unknown): boolean {
+function isStepOutcome(value: unknown, generation: 2 | 3 | 4): boolean {
   if (!isRecord(value)) return false;
   if (value.status === "complete") {
     return (
       exactKeys(value, ["status", "mechanism", "failure"]) &&
-      [
-        "anchor-orientation",
-        "highlight",
-        "arrow",
-        "exhaustive",
-        "deferred-lookahead",
-        "exploded-ghost",
-        "instruction-transition",
-        "official-ledger",
-      ].includes(value.mechanism as string) &&
+      isRealBuildSuccessfulStepMechanism(value.mechanism) &&
+      (generation === 4 || value.mechanism !== "compiled-observation") &&
       value.failure === null
     );
   }
@@ -157,8 +125,10 @@ function isStepOutcome(value: unknown): boolean {
     value.status === "failed" &&
     exactKeys(value, ["status", "mechanism", "attemptedMechanism", "failure"]) &&
     ["deferred", "blocked"].includes(value.mechanism as string) &&
-    (value.attemptedMechanism === null || typeof value.attemptedMechanism === "string") &&
-    isStepFailure(value.failure)
+    (value.attemptedMechanism === null ||
+      (isRealBuildSuccessfulStepMechanism(value.attemptedMechanism) &&
+        (generation === 4 || value.attemptedMechanism !== "compiled-observation"))) &&
+    isRealBuildBrowserStepFailure(value.failure)
   );
 }
 
@@ -177,13 +147,13 @@ function isStepPrerequisites(value: unknown, maximum: number): boolean {
     ]) &&
     (value.blockingStep === null || Number.isSafeInteger(value.blockingStep)) &&
     Array.isArray(value.coverageFailures) &&
-    value.coverageFailures.every(isStepFailure) &&
+    value.coverageFailures.every(isRealBuildBrowserStepFailure) &&
     isStringArray(value.unresolvedCallouts) &&
     isStringArray(value.missingDesigns) &&
     isBoundedInteger(value.calloutPieces, maximum) &&
     isBoundedInteger(value.expectedAssembledPieces, maximum) &&
     isBoundedInteger(value.resolvedPieces, maximum) &&
-    (value.localFailure === null || isStepFailure(value.localFailure))
+    (value.localFailure === null || isRealBuildBrowserStepFailure(value.localFailure))
   );
 }
 
@@ -273,7 +243,7 @@ function isPieceReport(value: unknown, maximum: number, renderBound: number): bo
     typeof value.placed === "boolean" &&
     (value.positionLdu === null || isTuple(value.positionLdu, 3)) &&
     (value.orientationId === null || typeof value.orientationId === "string") &&
-    (value.failure === null || isStepFailure(value.failure))
+    (value.failure === null || isRealBuildBrowserStepFailure(value.failure))
   );
 }
 
@@ -306,7 +276,7 @@ function isWholeStepVisual(value: unknown, maximum: number): boolean {
       Array.isArray(value.exclusiveHighlightPixelsByPiece) &&
       value.exclusiveHighlightPixelsByPiece.length <= maximum &&
       value.exclusiveHighlightPixelsByPiece.every((entry) => isFiniteNumber(entry) && entry >= 0) &&
-      (value.failure === null || isStepFailure(value.failure)))
+      (value.failure === null || isRealBuildBrowserStepFailure(value.failure)))
   );
 }
 
@@ -529,9 +499,9 @@ function isArrowEvidence(value: unknown, maximum: number): boolean {
 function stepReportShapeDefect(
   report: unknown,
   index: number,
-  generation: 2 | 3,
+  generation: 2 | 3 | 4,
   options: LegacyRealBuildBrowserOutputBoundary,
-  panelCameraContinuity: PanelCameraLineageContinuityState,
+  panelCameraContinuity: PanelCameraLineageContinuityState | null,
 ): string | null {
   // A render count is not a part count. These were bounded by `maxParts`, which
   // held only while every search rendered fewer candidates than the model has
@@ -543,7 +513,7 @@ function stepReportShapeDefect(
   const panel = options.panels.find(({ stepNumber }) => stepNumber === index + 1);
   if (
     !isRecord(report) ||
-    !exactKeys(report, generation === 3 ? REPORT_KEYS : LEGACY_REPORT_KEYS_V2) ||
+    !exactKeys(report, generation === 2 ? LEGACY_REPORT_KEYS_V2 : REPORT_KEYS) ||
     panel === undefined ||
     report.stepNumber !== index + 1 ||
     report.pageNumber !== panel.pageNumber ||
@@ -558,7 +528,7 @@ function stepReportShapeDefect(
     !boundedBrowserActionMatches(report.action, panel.action, report.actionEvidenceDigest) ||
     (report.canonicalStepId !== null && typeof report.canonicalStepId !== "string") ||
     !isStepPrerequisites(report.prerequisites, options.maxParts) ||
-    !isStepOutcome(report.outcome) ||
+    !isStepOutcome(report.outcome, generation) ||
     !isStepValidation(report.validation) ||
     !isFitEvidence(report.fit) ||
     !isCameraEvidence(report.camera) ||
@@ -645,6 +615,9 @@ function stepReportShapeDefect(
     return `Replay browser-output report[${index}].fartherCaptures must contain one exact source PNG per panel, every N+1 score render, dense capture IDs, and only score-bound candidate IDs.`;
   }
   if (generation === 3) {
+    if (panelCameraContinuity === null) {
+      return `Replay browser-output report[${index}] has no generation-3 panel-camera continuity state.`;
+    }
     const defect = panelCameraEvidenceDefect(
       report.panelCamera,
       report,
@@ -659,6 +632,19 @@ function stepReportShapeDefect(
     if (defect !== null) return defect;
   }
   return null;
+}
+
+/**
+ * Reuses the complete current report/action/farther shape for browser-output /4 while
+ * deliberately leaving camera and document authority to the new external evidence roles.
+ * Generation-2 and generation-3 readers continue through their frozen/current paths.
+ */
+export function realBuildBrowserOutputV4BaseReportDefect(
+  report: unknown,
+  index: number,
+  options: RealBuildBrowserOutputBoundary,
+): string | null {
+  return stepReportShapeDefect(report, index, 4, options, null);
 }
 
 /**

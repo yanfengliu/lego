@@ -92,3 +92,100 @@ export interface StepFailure {
   readonly inputKey?: string;
   readonly stepNumber?: number;
 }
+
+const REAL_BUILD_STEP_FAILURE_STAGES: readonly StepFailureStage[] = [
+  "coverage",
+  "callout-resolution",
+  "catalog",
+  "budget",
+  "camera-fit",
+  "evidence",
+  "camera-registration",
+  "placement",
+  "benchmark",
+  "validation",
+  "rendering",
+  "atomicity",
+  "causality",
+  "loading",
+  "replay",
+  "publication",
+  "input",
+];
+
+const REAL_BUILD_STEP_FAILURE_CODES: readonly StepFailureCode[] = [
+  "coverage-closure-unbound",
+  "coverage-key-mismatch",
+  "unresolved-callout",
+  "missing-catalog-part",
+  "camera-fit-failed",
+  "panel-face-unknown",
+  "no-placement-signal",
+  "camera-anchor-failed",
+  "camera-handedness-unresolved",
+  "no-placement-candidate",
+  "resource-budget-exhausted",
+  "placement-error",
+  "incomplete-placement-scoring",
+  "zero-placement-score",
+  "tied-placement-score",
+  "ambiguous-placement-score",
+  "deferred-panel-unscored",
+  "deferred-reach-unmeasured",
+  "weak-deferred-agreement",
+  "ambiguous-deferred-placement",
+  "ambiguous-exploded-ghost",
+  "benchmark-prefix-mismatch",
+  "hard-validation-failed",
+  "hard-validation-error",
+  "rendering-error",
+  "piece-placement-failed",
+  "atomic-step-rollback",
+  "blocked-by-prior-step",
+  "set-accounting-mismatch",
+  "printed-step-sequence-invalid",
+  "untrusted-identification",
+  "input-digest-mismatch",
+  "unsupported-instruction-action",
+  "whole-step-score-too-low",
+  "visual-evidence-unverified",
+  "highlight-reuse-unexplained",
+  "benchmark-policy-mismatch",
+  "benchmark-disagreement",
+  "action-ledger-incomplete",
+  "validation-failure-limit",
+  "omitted-piece-identity-missing",
+  "multi-build-source-invalid",
+  "fixed-ledger-frame-unresolved",
+  "transition-evidence-missing",
+  "highlight-calibration-missing",
+  "builder-calibration-invalid",
+  "official-frame-calibration-missing",
+  "official-transform-unrepresentable",
+  "official-model-accounting-mismatch",
+  "transition-classification-unverified",
+  "dynamic-import-failed",
+  "pdf-fetch-failed",
+  "pdf-load-failed",
+  "source-drift-detected",
+  "replay-closure-invalid",
+  "path-policy-violation",
+  "artifact-publish-failed",
+  "run-incomplete",
+];
+
+function oneOf<T extends string>(value: unknown, allowed: readonly T[]): value is T {
+  if (typeof value !== "string") return false;
+  for (let index = 0; index < allowed.length; index += 1) {
+    if (value === allowed[index]) return true;
+  }
+  return false;
+}
+
+export function isRealBuildStepFailureCode(value: unknown): value is StepFailureCode {
+  return oneOf(value, REAL_BUILD_STEP_FAILURE_CODES);
+}
+
+export function isRealBuildStepFailureStage(value: unknown): value is StepFailureStage {
+  return oneOf(value, REAL_BUILD_STEP_FAILURE_STAGES);
+}

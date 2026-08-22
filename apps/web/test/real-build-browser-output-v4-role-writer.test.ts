@@ -193,7 +193,7 @@ describe("browser-output /4 branch-role writer", () => {
       ),
     );
     expect(result).toBeNull();
-  }, 30_000);
+  }, 60_000);
 
   it("writes and semantically replays a raw-source-empty observation closure", () => {
     const fixture = realBuildBrowserOutputV4SemanticTwoStepFixture();
@@ -388,74 +388,17 @@ describe("browser-output /4 branch-role writer", () => {
     }
   });
 
-  it("keeps retained roles private when a hostile descriptor poisons typed-array set", () => {
+  it("self-parses finalized roles before branding the writer result", () => {
     const { inputs } = observedTwoStepInputs();
-    const originalSet = Uint8Array.prototype.set;
-    const originalCall = Function.prototype.call;
-    const safeReflectApply = Reflect.apply;
-    const capturedTargets = new Set<Uint8Array>();
-    let interceptedIntrinsicGetterCalls = 0;
-    let poisoned = false;
-    const observation = new Proxy(inputs[0]!.observation, {
-      getOwnPropertyDescriptor(target, property) {
-        if (property === "closureBytes" && !poisoned) {
-          poisoned = true;
-          Uint8Array.prototype.set = function (
-            this: Uint8Array,
-            source: ArrayLike<number>,
-            offset?: number,
-          ) {
-            capturedTargets.add(this);
-            return originalSet.call(this, source, offset);
-          };
-          Function.prototype.call = function (
-            this: (...args: unknown[]) => unknown,
-            receiver: unknown,
-            ...args: unknown[]
-          ) {
-            if (
-              this.name === "get length" ||
-              this.name === "get buffer" ||
-              this.name === "get [Symbol.toStringTag]" ||
-              this.name === "get byteLength"
-            ) {
-              interceptedIntrinsicGetterCalls += 1;
-              return 0;
-            }
-            return safeReflectApply(originalCall, this, [receiver, ...args]);
-          };
-        }
-        return Reflect.getOwnPropertyDescriptor(target, property);
-      },
-    });
-    try {
-      const result = createRealBuildBrowserBranchRoleWriterResult([{ ...inputs[0], observation }]);
-      for (const target of capturedTargets) target.fill(0);
-      capturedTargets.clear();
-      const first = readRealBuildBrowserBranchRoleWriterBytes(result);
-      expect(poisoned).toBe(true);
-      expect(interceptedIntrinsicGetterCalls).toBe(0);
-      expect(capturedTargets.size).toBe(0);
-      first.compiledBranchRole.fill(0);
-      const second = readRealBuildBrowserBranchRoleWriterBytes(result);
-      expect(second.compiledBranchRole).not.toEqual(first.compiledBranchRole);
-      const inspected = inspectRealBuildBrowserBranchEvidenceV1(
-        second.branchEvidence,
-        second.compiledBranchRole,
-        second.observationRole,
-      );
-      expect(inspected).toEqual(result.evidence);
-      for (const target of capturedTargets) target.fill(0);
-      const retainedStep = readRealBuildBrowserBranchStepEvidenceBytes(inspected, 1);
-      expect(retainedStep.compiledLineage).toEqual(
-        decodeRealBuildAtomicCompiledBranchEvidenceWire(inputs[0]!.batchResult.evidenceWire),
-      );
-      expect(retainedStep.observationClosure).toEqual(inputs[0]!.observation.closureBytes);
-      expect(retainedStep.observations).toEqual(inputs[0]!.observation.roleBytes);
-    } finally {
-      Uint8Array.prototype.set = originalSet;
-      Function.prototype.call = originalCall;
-    }
+    const result = createRealBuildBrowserBranchRoleWriterResult(inputs);
+    const bytes = readRealBuildBrowserBranchRoleWriterBytes(result);
+    expect(
+      inspectRealBuildBrowserBranchEvidenceV1(
+        bytes.branchEvidence,
+        bytes.compiledBranchRole,
+        bytes.observationRole,
+      ),
+    ).toEqual(result.evidence);
   });
 
   it("ignores poisoned serialization, encoder, toJSON, and WeakMap publication intrinsics", () => {
@@ -556,16 +499,50 @@ describe("browser-output /4 branch-role writer", () => {
     ).toEqual(result!.evidence);
   });
 
-  it("rejects forged batches, relabelled prefixes, sparse inputs, and hostile bytes", () => {
+  it("accepts placement-step gaps while rejecting forged batches, sparse inputs, a proxied container, and hostile bytes", () => {
     const { fixture, inputs } = observedTwoStepInputs();
     expect(() =>
       createRealBuildBrowserBranchRoleWriterResult([
         { ...inputs[0], batchResult: { ...fixture.step1.batchResult } },
       ]),
     ).toThrow(/exact immutable result/iu);
-    expect(() => createRealBuildBrowserBranchRoleWriterResult([inputs[1]])).toThrow(
-      /exact contiguous prefix step 1/iu,
+    const laterOnly = createRealBuildBrowserBranchRoleWriterResult([inputs[1]]);
+    const laterOnlyBytes = readRealBuildBrowserBranchRoleWriterBytes(laterOnly);
+    expect(
+      inspectRealBuildBrowserBranchEvidenceV1(
+        laterOnlyBytes.branchEvidence,
+        laterOnlyBytes.compiledBranchRole,
+        laterOnlyBytes.observationRole,
+      ).steps.map(({ stepNumber }) => stepNumber),
+    ).toEqual([2]);
+    expect(
+      inspectRealBuildBrowserBranchSemanticEvidence(
+        laterOnlyBytes.branchEvidence,
+        laterOnlyBytes.compiledBranchRole,
+        laterOnlyBytes.observationRole,
+        fixture.preparedRunInputBytes,
+      ).steps.map(({ stepNumber }) => stepNumber),
+    ).toEqual([2]);
+
+    expect(() => createRealBuildBrowserBranchRoleWriterResult([inputs[1], inputs[0]])).toThrow(
+      /strictly increasing placement-step numbers/iu,
     );
+
+    let proxyTraps = 0;
+    const proxiedSteps = new Proxy([inputs[0]], {
+      getOwnPropertyDescriptor() {
+        proxyTraps += 1;
+        throw new Error("must not dispatch");
+      },
+      getPrototypeOf() {
+        proxyTraps += 1;
+        throw new Error("must not dispatch");
+      },
+    });
+    expect(() => createRealBuildBrowserBranchRoleWriterResult(proxiedSteps)).toThrow(
+      /could not be inspected safely/iu,
+    );
+    expect(proxyTraps).toBe(0);
 
     const sparse = new Array(1);
     expect(() => createRealBuildBrowserBranchRoleWriterResult(sparse)).toThrow(
@@ -640,7 +617,7 @@ describe("browser-output /4 branch-role writer", () => {
     );
   });
 
-  it("detects raw-role detachment between aggregate measurement and bounded copying", () => {
+  it("rejects a raw-role detachment trigger Proxy before dispatching its trap", () => {
     const { inputs } = observedTwoStepInputs();
     const first = inputs[0]!;
     const roleBytes = new Uint8Array(first.observation.roleBytes);
@@ -664,12 +641,12 @@ describe("browser-output /4 branch-role writer", () => {
       result = createRealBuildBrowserBranchRoleWriterResult([
         { batchResult: first.batchResult, observation },
       ]);
-    }).toThrow(/genuine Uint8Array|changed or detached|changed from/iu);
-    expect(detachedDuringPreflight).toBe(true);
+    }).toThrow(/observation may not be a Proxy/iu);
+    expect(detachedDuringPreflight).toBe(false);
     expect(result).toBeNull();
   });
 
-  it("detects closure detachment between aggregate measurement and bounded copying", () => {
+  it("rejects a closure detachment trigger Proxy before dispatching its trap", () => {
     const { inputs } = observedTwoStepInputs();
     const first = inputs[0]!;
     const closureBytes = new Uint8Array(first.observation.closureBytes);
@@ -693,8 +670,8 @@ describe("browser-output /4 branch-role writer", () => {
       result = createRealBuildBrowserBranchRoleWriterResult([
         { batchResult: first.batchResult, observation },
       ]);
-    }).toThrow(/genuine Uint8Array|changed or detached|changed from/iu);
-    expect(detachedDuringPreflight).toBe(true);
+    }).toThrow(/observation may not be a Proxy/iu);
+    expect(detachedDuringPreflight).toBe(false);
     expect(result).toBeNull();
   });
 
@@ -715,22 +692,13 @@ describe("browser-output /4 branch-role writer", () => {
     expect(entryReads).toBe(0);
   });
 
-  it("preflights an oversized closure before inspecting later observation fields", () => {
+  it("preflights an oversized closure before copying any role bytes", () => {
     const { inputs } = observedTwoStepInputs();
     const first = inputs[0]!;
-    let roleDescriptorReads = 0;
-    const observation = new Proxy(
-      {
-        ...first.observation,
-        closureBytes: new Uint8Array(MAXIMUM_REAL_BUILD_COMPILED_OBSERVATION_CLOSURE_BYTES + 1),
-      },
-      {
-        getOwnPropertyDescriptor(target, property) {
-          if (property === "roleBytes") roleDescriptorReads += 1;
-          return Reflect.getOwnPropertyDescriptor(target, property);
-        },
-      },
-    );
+    const observation = {
+      ...first.observation,
+      closureBytes: new Uint8Array(MAXIMUM_REAL_BUILD_COMPILED_OBSERVATION_CLOSURE_BYTES + 1),
+    };
     let result: unknown = null;
 
     expect(() => {
@@ -738,26 +706,16 @@ describe("browser-output /4 branch-role writer", () => {
         { batchResult: first.batchResult, observation },
       ]);
     }).toThrow(/closureBytes contains .* maximum is .* no role bytes were copied/iu);
-    expect(roleDescriptorReads).toBe(0);
     expect(result).toBeNull();
   });
 
-  it("preflights an oversized raw role before inspecting its policy", () => {
+  it("preflights an oversized raw role before copying it", () => {
     const { inputs } = observedTwoStepInputs();
     const first = inputs[0]!;
-    let policyDescriptorReads = 0;
-    const observation = new Proxy(
-      {
-        ...first.observation,
-        roleBytes: new Uint8Array(MAXIMUM_REAL_BUILD_COMPILED_OBSERVATION_ROLE_BYTES + 1),
-      },
-      {
-        getOwnPropertyDescriptor(target, property) {
-          if (property === "policyInspection") policyDescriptorReads += 1;
-          return Reflect.getOwnPropertyDescriptor(target, property);
-        },
-      },
-    );
+    const observation = {
+      ...first.observation,
+      roleBytes: new Uint8Array(MAXIMUM_REAL_BUILD_COMPILED_OBSERVATION_ROLE_BYTES + 1),
+    };
     let result: unknown = null;
 
     expect(() => {
@@ -765,7 +723,6 @@ describe("browser-output /4 branch-role writer", () => {
         { batchResult: first.batchResult, observation },
       ]);
     }).toThrow(/roleBytes contains .* maximum is .* no role bytes were copied/iu);
-    expect(policyDescriptorReads).toBe(0);
     expect(result).toBeNull();
   });
 

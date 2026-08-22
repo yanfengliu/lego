@@ -23,6 +23,7 @@ interface SnapshotBudget {
 }
 
 const SNAPSHOT_DEFECTS = new WeakMap<object, string>();
+const NODE_IS_PROXY = nodeUtilTypes.isProxy;
 
 function rejectSnapshot(defect: string): never {
   const marker = Object.freeze({});
@@ -155,8 +156,6 @@ function snapshotContainer(
     );
   }
 
-  spendSerializedBytes(budget, 2 + Math.max(0, ownKeys.length - (isArray ? 1 : 0) - 1));
-
   const entries: DataEntry[] = isArray ? new Array<DataEntry>(length) : [];
   for (const propertyKey of ownKeys) {
     if (typeof propertyKey !== "string") {
@@ -173,10 +172,6 @@ function snapshotContainer(
       rejectSnapshot(
         `Browser-output keys exceed ${MAXIMUM_BROWSER_OUTPUT_KEY_CODE_UNITS_TOTAL} code units.`,
       );
-    }
-    if (!isArray) {
-      spendJsonStringBytes(budget, propertyKey);
-      spendSerializedBytes(budget, 1);
     }
     let descriptor: PropertyDescriptor | undefined;
     try {
@@ -226,6 +221,15 @@ function snapshotContainer(
   return snapshot;
 }
 
+function spendContainerSerialization(container: ContainerSnapshot, budget: SnapshotBudget): void {
+  spendSerializedBytes(budget, 2 + Math.max(0, container.entries.length - 1));
+  if (container.kind === "array") return;
+  for (const { key } of container.entries) {
+    spendJsonStringBytes(budget, key);
+    spendSerializedBytes(budget, 1);
+  }
+}
+
 /**
  * Detaches current browser evidence through descriptors only. Caller-owned getters,
  * coercion hooks and toJSON functions are never read or invoked.
@@ -234,6 +238,7 @@ export function snapshotCurrentRealBuildBrowserOutput(
   supplied: unknown,
   maximumReports: number,
   maximumBindings: number,
+  rejectProxies = false,
 ): BrowserOutputSnapshot {
   const reports =
     Number.isSafeInteger(maximumReports) && maximumReports >= 0
@@ -276,9 +281,16 @@ export function snapshotCurrentRealBuildBrowserOutput(
     if (typeof value !== "object") {
       rejectSnapshot(`${path} contains unsupported ${typeof value} data.`);
     }
+    if (rejectProxies && NODE_IS_PROXY(value)) {
+      rejectSnapshot(`${path} is a Proxy; current browser-output /4 accepts detached data only.`);
+    }
     if (ancestors.has(value)) rejectSnapshot(`${path} closes a cyclic object graph.`);
     ancestors.add(value);
     const container = snapshotContainer(value, path, reports, bindings, budget, cache);
+    // An alias is expanded again in the detached JSON-shaped clone, so charge its
+    // braces, keys, separators, and descendants on every occurrence even though
+    // descriptor inspection itself is safely cached.
+    spendContainerSerialization(container, budget);
     const clone: unknown[] | Record<string, unknown> =
       container.kind === "array" ? [] : Object.create(null);
     for (const { key, value: child } of container.entries) {
@@ -303,6 +315,15 @@ export function snapshotCurrentRealBuildBrowserOutput(
         : "browser-output inspection failed";
     return Object.freeze({ ok: false as const, defect: defect.slice(0, 512) });
   }
+}
+
+/** Current /4 rejects Node-detectable Proxy wrappers before any user trap is dispatched. */
+export function snapshotCurrentRealBuildBrowserOutputV4(
+  supplied: unknown,
+  maximumReports: number,
+  maximumBindings: number,
+): BrowserOutputSnapshot {
+  return snapshotCurrentRealBuildBrowserOutput(supplied, maximumReports, maximumBindings, true);
 }
 
 function detachedJsonEqual(left: unknown, right: unknown): boolean {
@@ -360,3 +381,4 @@ export function boundedBrowserActionMatches(
     claimedEvidenceDigest === rightDigest
   );
 }
+import { types as nodeUtilTypes } from "node:util";

@@ -1,7 +1,6 @@
 import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
-import { createHash } from "node:crypto";
 
-import type { Sha256Digest } from "@lego-studio/brick-kernel";
+import { sha256Hex, type Sha256Digest } from "@lego-studio/brick-kernel";
 
 import {
   MAXIMUM_REAL_BUILD_COMPILED_OBSERVATION_CLOSURE_BYTES,
@@ -70,7 +69,7 @@ interface InspectedBytes {
 }
 
 function sha256(value: Uint8Array): Sha256Digest {
-  return `sha256:${createHash("sha256").update(value).digest("hex")}` as Sha256Digest;
+  return `sha256:${sha256Hex(value)}` as Sha256Digest;
 }
 
 function inspectGenuineBytes(value: unknown, label: string): InspectedBytes {

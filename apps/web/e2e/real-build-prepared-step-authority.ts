@@ -1,153 +1,45 @@
-import { canonicalDigest, type Sha256Digest } from "@lego-studio/brick-kernel";
+import { canonicalDigest, canonicalStringify, type Sha256Digest } from "@lego-studio/brick-kernel";
 
-import { preflightRealBuildOptions } from "./real-build-contract";
-import { snapshotRealBuildRunInput } from "./real-build-run-input-snapshot";
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
+import { stepPanelEvidenceDigest } from "./real-build-panel-evidence-digest";
 import type { RealBuildOptions, RealBuildPanelSpec } from "./real-build-safety";
-import { snapshotHostileUint8Array } from "./real-build-hostile-uint8array";
+import {
+  MAXIMUM_REAL_BUILD_PREPARED_RUN_INPUT_BYTES,
+  parseRealBuildPreparedRunInput,
+} from "./real-build-prepared-run-input-parser";
+import type {
+  RealBuildPreparedBrowserOutputBoundaryInspection,
+  RealBuildPreparedObservationPolicyInspection,
+  RealBuildPreparedPanelInspection,
+  RealBuildPreparedRunInputInspection,
+  RealBuildPreparedStepAuthority,
+  RealBuildPreparedStepInspection,
+} from "./real-build-prepared-step-authority-types";
 
-export const MAXIMUM_REAL_BUILD_PREPARED_RUN_INPUT_BYTES = 16 * 1024 * 1024;
+export type {
+  RealBuildPreparedAtomicPiece,
+  RealBuildPreparedBrowserOutputBoundaryInspection,
+  RealBuildPreparedObservationPolicyInspection,
+  RealBuildPreparedPanelBoundsInspection,
+  RealBuildPreparedPanelInspection,
+  RealBuildPreparedRunInputInspection,
+  RealBuildPreparedStepAuthority,
+  RealBuildPreparedStepCompilerMetadata,
+  RealBuildPreparedStepInspection,
+} from "./real-build-prepared-step-authority-types";
+
+export { MAXIMUM_REAL_BUILD_PREPARED_RUN_INPUT_BYTES };
 export const MAXIMUM_REAL_BUILD_PREPARED_STEP_PIECES = 1_024;
-const MAXIMUM_PREPARED_RUN_JSON_DEPTH = 128;
-const MAXIMUM_PREPARED_RUN_JSON_NODES = 2_000_000;
-
-declare const preparedStepAuthorityType: unique symbol;
-
-export interface RealBuildPreparedAtomicPiece {
-  readonly identityKey: string;
-  readonly catalogPartId: string;
-  readonly colorId: string;
-}
-
-export interface RealBuildPreparedStepCompilerMetadata {
-  readonly name: string;
-  readonly sourceActionDigest: Sha256Digest;
-}
-
-export interface RealBuildPreparedStepAuthority {
-  readonly stepNumber: number;
-  readonly preparedRunInputDigest: Sha256Digest;
-  readonly printedStepIdentity: Sha256Digest;
-  readonly compilerMetadata: RealBuildPreparedStepCompilerMetadata;
-  readonly expectedAtomicPieces: readonly RealBuildPreparedAtomicPiece[];
-  readonly [preparedStepAuthorityType]: true;
-}
-
-/** Bounded inspection only. This value cannot authorize placement or budget use. */
-export type RealBuildPreparedStepInspection = Readonly<{
-  stepNumber: number;
-  preparedRunInputDigest: Sha256Digest;
-  printedStepIdentity: Sha256Digest;
-  compilerMetadata: RealBuildPreparedStepCompilerMetadata;
-  expectedAtomicPieces: readonly RealBuildPreparedAtomicPiece[];
-  authority: "absent";
-}>;
-
-export type RealBuildPreparedObservationPolicyInspection = Readonly<{
-  preparedRunInputDigest: Sha256Digest;
-  minimumScore: number;
-  minimumMargin: number;
-  authority: "absent";
-}>;
-
-/** One bounded parse of the complete prepared-run bytes, reusable only for inspection lookups. */
-export type RealBuildPreparedRunInputInspection = Readonly<{
-  preparedRunInputDigest: Sha256Digest;
-  lastStep: number;
-  authority: "absent";
-}>;
 
 const preparedSteps = new WeakSet<object>();
 const inspections = new WeakSet<object>();
 const observationPolicies = new WeakSet<object>();
+const panelInspections = new WeakSet<object>();
+const browserOutputBoundaryInspections = new WeakSet<object>();
 const preparedRunInspections = new WeakMap<
   object,
   { readonly options: RealBuildOptions; readonly canonical: string }
 >();
-
-function snapshotWireBytes(value: unknown): Uint8Array {
-  return snapshotHostileUint8Array(value, {
-    maximumBytes: MAXIMUM_REAL_BUILD_PREPARED_RUN_INPUT_BYTES,
-    typeError: "Prepared run input must be a genuine Uint8Array of UTF-8 JSON bytes.",
-    oversizeError: (length) =>
-      `Prepared run input contains ${length} bytes, exceeding ${MAXIMUM_REAL_BUILD_PREPARED_RUN_INPUT_BYTES}; no text was decoded or parsed.`,
-    sharedError: "Prepared run input must not use concurrently mutable shared storage.",
-    copyError: "Prepared run input changed or detached during bounded byte copying.",
-  });
-}
-
-function requireBoundedJsonStructure(text: string): void {
-  let depth = 0;
-  let nodes = 1;
-  let inString = false;
-  let escaped = false;
-  for (const character of text) {
-    if (inString) {
-      if (escaped) escaped = false;
-      else if (character === "\\") escaped = true;
-      else if (character === '"') inString = false;
-      continue;
-    }
-    if (character === '"') inString = true;
-    else if (character === "{" || character === "[") {
-      depth += 1;
-      nodes += 1;
-      if (depth > MAXIMUM_PREPARED_RUN_JSON_DEPTH) {
-        throw new RangeError(
-          `Prepared run input JSON exceeds depth ${MAXIMUM_PREPARED_RUN_JSON_DEPTH}; it was not parsed.`,
-        );
-      }
-    } else if (character === "}" || character === "]") depth -= 1;
-    else if (character === ",") nodes += 1;
-    if (nodes > MAXIMUM_PREPARED_RUN_JSON_NODES) {
-      throw new RangeError(
-        `Prepared run input JSON exceeds ${MAXIMUM_PREPARED_RUN_JSON_NODES} structural values; it was not parsed. Remove unknown expansion or split the retained input at its declared run boundary.`,
-      );
-    }
-    if (depth < 0) throw new TypeError("Prepared run input JSON has unbalanced containers.");
-  }
-  if (inString || depth !== 0) {
-    throw new TypeError("Prepared run input JSON has an unterminated string or container.");
-  }
-}
-
-function parsePreparedRunInput(value: unknown): {
-  readonly options: RealBuildOptions;
-  readonly canonical: string;
-} {
-  const bytes = snapshotWireBytes(value);
-  let text: string;
-  try {
-    text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-  } catch {
-    throw new TypeError("Prepared run input is not well-formed UTF-8.");
-  }
-  requireBoundedJsonStructure(text);
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text) as unknown;
-  } catch {
-    throw new TypeError("Prepared run input is not valid JSON.");
-  }
-  let snapshot: ReturnType<typeof snapshotRealBuildRunInput>;
-  try {
-    snapshot = snapshotRealBuildRunInput(parsed as RealBuildOptions);
-  } catch {
-    throw new TypeError("Prepared run input is not bounded detached real-build option data.");
-  }
-  let failures: ReturnType<typeof preflightRealBuildOptions>;
-  try {
-    failures = preflightRealBuildOptions(snapshot.options);
-  } catch {
-    throw new TypeError("Prepared run input does not have the complete real-build option shape.");
-  }
-  if (failures.length > 0) {
-    const first = failures[0]!;
-    throw new TypeError(
-      `Prepared run input failed deterministic preflight with ${first.code} at ${first.stage}; no step authority was created.`,
-    );
-  }
-  return { options: snapshot.options, canonical: snapshot.canonical };
-}
 
 function requirePreparedPanel(panel: RealBuildPanelSpec, stepNumber: number): void {
   if (panel.action.kind !== "place-callouts") {
@@ -197,7 +89,7 @@ function requirePreparedPanel(panel: RealBuildPanelSpec, stepNumber: number): vo
 export function inspectRealBuildPreparedRunInput(
   preparedRunInputBytes: unknown,
 ): RealBuildPreparedRunInputInspection {
-  const prepared = parsePreparedRunInput(preparedRunInputBytes);
+  const prepared = parseRealBuildPreparedRunInput(preparedRunInputBytes);
   const inspection = Object.freeze({
     preparedRunInputDigest: canonicalDigest({
       schemaVersion: "lego.real-build-prepared-run-input/1",
@@ -274,6 +166,146 @@ export function inspectRealBuildPreparedStepFromRunInput(
   return inspection;
 }
 
+function optionalDigest(value: string | null): Sha256Digest | null {
+  return value === null ? null : (value as Sha256Digest);
+}
+
+/**
+ * Reads one panel from the exact already-parsed run input without granting placement,
+ * source, camera, or completion authority. This works for placement and zero-piece
+ * transition panels; placementPrintedStepIdentity is present only when the existing
+ * prepared-step boundary would admit that panel for inspection.
+ */
+export function inspectRealBuildPreparedPanelFromRunInput(
+  preparedRunInputInspection: unknown,
+  stepNumber: unknown,
+): RealBuildPreparedPanelInspection {
+  const validatedStepNumber = requirePreparedStepNumber(stepNumber);
+  const [preparedRun, options] = requirePreparedRunInputInspection(preparedRunInputInspection);
+  if (validatedStepNumber > options.lastStep) {
+    throw new RangeError(
+      `Prepared panel ${String(validatedStepNumber)} lies beyond requested lastStep ${options.lastStep}.`,
+    );
+  }
+  const panel = options.panels.find(
+    ({ stepNumber: candidate }) => candidate === validatedStepNumber,
+  );
+  if (panel === undefined) {
+    throw new TypeError(
+      `Prepared run input has no exact panel for printed step ${String(validatedStepNumber)}.`,
+    );
+  }
+  const bounds = intrinsicRealBuildFreeze({
+    minXPt: panel.minXPt,
+    maxXPt: panel.maxXPt,
+    minYPt: panel.minYPt,
+    maxYPt: panel.maxYPt,
+  });
+  const calloutBoxes = intrinsicRealBuildFreeze(
+    panel.calloutBoxes.map((box) =>
+      intrinsicRealBuildFreeze({
+        minXPt: box.minXPt,
+        maxXPt: box.maxXPt,
+        minYPt: box.minYPt,
+        maxYPt: box.maxYPt,
+      }),
+    ),
+  );
+  const expectedAtomicPieces = intrinsicRealBuildFreeze(
+    panel.pieces.map(({ identityKey, catalogPartId, colorId }) =>
+      intrinsicRealBuildFreeze({ identityKey, catalogPartId, colorId }),
+    ),
+  );
+  const prerequisiteFailureCounts = intrinsicRealBuildFreeze({
+    coverageFailures: panel.coverageFailures.length,
+    unresolvedCallouts: panel.unresolvedCallouts.length,
+    missingDesigns: panel.missingDesigns.length,
+  });
+  const preparedRunInputDigest = preparedRun.preparedRunInputDigest;
+  const pdfDigest = options.inputDigests.pdf as Sha256Digest;
+  const panelEvidenceDigest = stepPanelEvidenceDigest({
+    pdfDigest,
+    stepNumber: panel.stepNumber,
+    pageNumber: panel.pageNumber,
+    bounds,
+    calloutBoxes,
+  }) as Sha256Digest;
+  const cropDigest = canonicalDigest(bounds);
+  const actionCanonicalJson = canonicalStringify(panel.action);
+  let placementPrintedStepIdentity: Sha256Digest | null = null;
+  if (panel.action.kind === "place-callouts") {
+    try {
+      requirePreparedPanel(panel, validatedStepNumber);
+      placementPrintedStepIdentity = canonicalDigest({
+        schemaVersion: "lego.real-build-prepared-step/1",
+        preparedRunInputDigest,
+        panel,
+      });
+    } catch {
+      // The panel remains inspectable, but cannot masquerade as a placement-ready step.
+    }
+  }
+  const inspection = intrinsicRealBuildFreeze({
+    stepNumber: validatedStepNumber,
+    preparedRunInputDigest,
+    preparedPanelIdentity: canonicalDigest({
+      schemaVersion: "lego.real-build-prepared-panel/1",
+      preparedRunInputDigest,
+      panel,
+    }),
+    placementPrintedStepIdentity,
+    pdfDigest,
+    pageNumber: panel.pageNumber,
+    panelFace: panel.panelFace,
+    bounds,
+    calloutBoxes,
+    panelEvidenceDigest,
+    cropDigest,
+    actionKind: panel.action.kind,
+    assembledPieces: panel.action.assembledPieces,
+    actionEvidenceDigest: optionalDigest(panel.action.evidenceDigest),
+    actionCanonicalJson,
+    actionDigest: canonicalDigest({
+      schemaVersion: "lego.real-build-prepared-panel-action/1",
+      action: panel.action,
+    }),
+    expectedAtomicPieces,
+    prerequisiteFailureCounts,
+    authority: "absent" as const,
+  });
+  panelInspections.add(inspection);
+  return inspection;
+}
+
+export function requireRealBuildPreparedPanelInspection(
+  value: unknown,
+): RealBuildPreparedPanelInspection {
+  if (value === null || typeof value !== "object" || !panelInspections.has(value)) {
+    throw new TypeError(
+      "Prepared panel inspection must be the exact authority-free result of one retained run-input lookup.",
+    );
+  }
+  return value as RealBuildPreparedPanelInspection;
+}
+
+/** Refuses replay of a panel whose exact prepared input still names unresolved prerequisites. */
+export function requireRealBuildPreparedPanelResolvedPrerequisites(
+  value: unknown,
+): RealBuildPreparedPanelInspection {
+  const panel = requireRealBuildPreparedPanelInspection(value);
+  const counts = panel.prerequisiteFailureCounts;
+  if (
+    counts.coverageFailures !== 0 ||
+    counts.unresolvedCallouts !== 0 ||
+    counts.missingDesigns !== 0
+  ) {
+    throw new TypeError(
+      `Prepared panel ${panel.stepNumber} retains ${counts.coverageFailures} coverage failure(s), ${counts.unresolvedCallouts} unresolved callout(s), and ${counts.missingDesigns} missing design(s); browser-output /4 cannot erase or advance unresolved prepared prerequisites.`,
+    );
+  }
+  return panel;
+}
+
 function requirePreparedStepNumber(stepNumber: unknown): number {
   if (
     !Number.isSafeInteger(stepNumber) ||
@@ -329,6 +361,51 @@ export function inspectRealBuildPreparedObservationPolicyFromRunInput(
   });
   observationPolicies.add(inspection);
   return inspection;
+}
+
+/**
+ * Projects only the detached fields consumed by complete report-shape validation.
+ * The parsed run graph is already deep-frozen; this projection grants no execution,
+ * placement, source, camera, acceptance, or completion authority.
+ */
+export function inspectRealBuildPreparedBrowserOutputBoundaryFromRunInput(
+  preparedRunInputInspection: unknown,
+): RealBuildPreparedBrowserOutputBoundaryInspection {
+  const [preparedRun, options] = requirePreparedRunInputInspection(preparedRunInputInspection);
+  const inspection = intrinsicRealBuildFreeze({
+    preparedRunInputDigest: preparedRun.preparedRunInputDigest,
+    lastStep: options.lastStep,
+    maxParts: options.maxParts,
+    inputDigests: options.inputDigests,
+    panels: options.panels,
+    blindRenderBudget: options.blindRenderBudget,
+    explodedGhostRenderBudget: options.explodedGhostRenderBudget,
+    deferredCandidateBudget: options.deferredCandidateBudget,
+    deferredNarrowingRenderBudget: options.deferredNarrowingRenderBudget,
+    fartherPanelMaximumReachSteps: options.fartherPanelMaximumReachSteps,
+    fartherPanelRenderBudget: options.fartherPanelRenderBudget,
+    minimumDeferredAgreement: options.minimumDeferredAgreement,
+    minimumDeferredAgreementMargin: options.minimumDeferredAgreementMargin,
+    renderScale: options.renderScale,
+    panelWidth: options.panelWidth,
+    workFactor: options.workFactor,
+    measuredFartherOriginSourceAttestation: options.measuredFartherOriginSourceAttestation,
+    panelCameraBranchBudget: options.panelCameraBranchBudget,
+    authority: "absent" as const,
+  });
+  browserOutputBoundaryInspections.add(inspection);
+  return inspection;
+}
+
+export function requireRealBuildPreparedBrowserOutputBoundaryInspection(
+  value: unknown,
+): RealBuildPreparedBrowserOutputBoundaryInspection {
+  if (value === null || typeof value !== "object" || !browserOutputBoundaryInspections.has(value)) {
+    throw new TypeError(
+      "Prepared browser-output boundary must be the exact authority-free projection of one retained run-input parse.",
+    );
+  }
+  return value as RealBuildPreparedBrowserOutputBoundaryInspection;
 }
 
 export function requireRealBuildPreparedObservationPolicyInspection(

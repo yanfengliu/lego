@@ -16,6 +16,9 @@ import {
   inspectRealBuildPreparedStepInput,
   type RealBuildPreparedStepInspection,
 } from "../e2e/real-build-prepared-step-authority";
+import type { Sha256Digest } from "@lego-studio/brick-kernel";
+
+import { stepPanelEvidenceDigest } from "../e2e/real-build-panel-evidence-digest";
 import type { RealBuildOptions, RealBuildPanelSpec } from "../e2e/real-build-safety";
 import { preparedSearchEmptyParent } from "./real-build-prepared-search.fixture";
 import { completeRealBuildTestOptions } from "./real-build-test-options";
@@ -77,8 +80,28 @@ function preparedTwoStepRunInputBytes(
   step1PieceCount: number,
   step2PieceCount: number,
 ): Uint8Array {
-  const options = completeRealBuildTestOptions(358);
-  const panels = [...options.panels];
+  const options = completeRealBuildTestOptions(359);
+  const bounds = { minXPt: 0, maxXPt: 100, minYPt: 0, maxYPt: 1 } as const;
+  const pdfDigest = options.inputDigests.pdf as Sha256Digest;
+  const panels = options.panels.map((panel): RealBuildPanelSpec => {
+    const calloutBoxes: readonly [] = [];
+    const panelEvidenceDigest = stepPanelEvidenceDigest({
+      pdfDigest,
+      stepNumber: panel.stepNumber,
+      pageNumber: panel.pageNumber,
+      bounds,
+      calloutBoxes,
+    });
+    return {
+      ...panel,
+      ...bounds,
+      calloutBoxes,
+      action:
+        panel.action.kind === "transition"
+          ? { ...panel.action, panelEvidenceDigest }
+          : panel.action,
+    };
+  });
   const source = panels[357]!;
   if (source.action.kind !== "place-callouts") {
     throw new TypeError("Two-step semantic fixture lost its direct-placement source panel.");
@@ -107,9 +130,10 @@ function preparedTwoStepRunInputBytes(
       catalogPartId: "builtin:brick-1x1",
       colorId: stepNumber === 1 ? "builtin:red" : "builtin:blue",
     }));
-  const step1Pieces = exactBrickRows(source.pieces.slice(0, step1PieceCount), 1);
-  const step2Pieces = exactBrickRows(source.pieces.slice(step1PieceCount, total), 2);
-  const retainedPieces = source.pieces.slice(total);
+  const movedPieces = source.pieces.slice(source.pieces.length - total);
+  const step1Pieces = exactBrickRows(movedPieces.slice(0, step1PieceCount), 1);
+  const step2Pieces = exactBrickRows(movedPieces.slice(step1PieceCount), 2);
+  const retainedPieces = source.pieces.slice(0, source.pieces.length - total);
   panels[0] = directPlacementPanel(panels[0]!, step1Pieces, evidenceDigest);
   panels[1] = directPlacementPanel(panels[1]!, step2Pieces, evidenceDigest);
   panels[357] = directPlacementPanel(source, retainedPieces, evidenceDigest);

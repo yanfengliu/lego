@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  inspectRealBuildPreparedBrowserOutputBoundaryFromRunInput,
+  inspectRealBuildPreparedPanelFromRunInput,
+  inspectRealBuildPreparedRunInput,
   inspectRealBuildPreparedStepInput,
   MAXIMUM_REAL_BUILD_PREPARED_RUN_INPUT_BYTES,
+  requireRealBuildPreparedPanelInspection,
+  requireRealBuildPreparedBrowserOutputBoundaryInspection,
   requireRealBuildPreparedStepAuthority,
   requireRealBuildPreparedStepInspection,
 } from "../e2e/real-build-prepared-step-authority";
@@ -59,6 +64,101 @@ describe("prepared real-build step prerequisite", () => {
     expect(changed.expectedAtomicPieces[0]!.identityKey).toBe("direct-renamed");
     expect(changed.printedStepIdentity).not.toBe(original.printedStepIdentity);
     expect(changed.preparedRunInputDigest).not.toBe(original.preparedRunInputDigest);
+  });
+
+  it("derives reusable authority-free PDF, panel, crop, action, and piece facts from one parse", () => {
+    const bytes = preparedSearchOptionsBytes(2);
+    const run = inspectRealBuildPreparedRunInput(bytes);
+    const panel = inspectRealBuildPreparedPanelFromRunInput(run, 2);
+    const step = inspectRealBuildPreparedStepInput(bytes, 2);
+    const expected = preparedSearchOptions(2).panels[1]!;
+
+    expect(panel).toMatchObject({
+      stepNumber: 2,
+      preparedRunInputDigest: run.preparedRunInputDigest,
+      placementPrintedStepIdentity: step.printedStepIdentity,
+      pdfDigest: preparedSearchOptions(2).inputDigests.pdf,
+      pageNumber: expected.pageNumber,
+      panelFace: expected.panelFace,
+      bounds: {
+        minXPt: expected.minXPt,
+        maxXPt: expected.maxXPt,
+        minYPt: expected.minYPt,
+        maxYPt: expected.maxYPt,
+      },
+      actionKind: "place-callouts",
+      assembledPieces: 2,
+      actionEvidenceDigest: expected.action.evidenceDigest,
+      expectedAtomicPieces: step.expectedAtomicPieces,
+      authority: "absent",
+    });
+    expect(panel.preparedPanelIdentity).toMatch(/^sha256:[0-9a-f]{64}$/u);
+    expect(panel.panelEvidenceDigest).toMatch(/^sha256:[0-9a-f]{64}$/u);
+    expect(panel.cropDigest).toMatch(/^sha256:[0-9a-f]{64}$/u);
+    expect(panel.actionDigest).toMatch(/^sha256:[0-9a-f]{64}$/u);
+    expect(JSON.parse(panel.actionCanonicalJson)).toEqual(expected.action);
+    expect(Object.isFrozen(panel)).toBe(true);
+    expect(Object.isFrozen(panel.bounds)).toBe(true);
+    expect(Object.isFrozen(panel.calloutBoxes)).toBe(true);
+    expect(Object.isFrozen(panel.expectedAtomicPieces)).toBe(true);
+    expect(requireRealBuildPreparedPanelInspection(panel)).toBe(panel);
+  });
+
+  it("projects the exact deep-frozen report boundary from the same retained parse", () => {
+    const options = preparedSearchOptions(2);
+    const run = inspectRealBuildPreparedRunInput(preparedSearchOptionsBytes(2));
+    const boundary = inspectRealBuildPreparedBrowserOutputBoundaryFromRunInput(run);
+
+    expect(boundary).toMatchObject({
+      preparedRunInputDigest: run.preparedRunInputDigest,
+      lastStep: options.lastStep,
+      maxParts: options.maxParts,
+      inputDigests: options.inputDigests,
+      panelCameraBranchBudget: options.panelCameraBranchBudget,
+      authority: "absent",
+    });
+    expect(boundary.panels).toEqual(options.panels);
+    expect(Object.isFrozen(boundary)).toBe(true);
+    expect(Object.isFrozen(boundary.panels)).toBe(true);
+    expect(Object.isFrozen(boundary.panels[0])).toBe(true);
+    expect(requireRealBuildPreparedBrowserOutputBoundaryInspection(boundary)).toBe(boundary);
+    expect(() => requireRealBuildPreparedBrowserOutputBoundaryInspection({ ...boundary })).toThrow(
+      /exact authority-free projection/u,
+    );
+  });
+
+  it("inspects zero-piece panels without relabelling them as placement-ready", () => {
+    const run = inspectRealBuildPreparedRunInput(preparedSearchOptionsBytes());
+    const panel = inspectRealBuildPreparedPanelFromRunInput(run, 3);
+
+    expect(panel.actionKind).not.toBe("place-callouts");
+    expect(panel.placementPrintedStepIdentity).toBeNull();
+    expect(panel.expectedAtomicPieces).toEqual([]);
+    expect(panel.authority).toBe("absent");
+    expect(() => requireRealBuildPreparedPanelInspection({ ...panel })).toThrow(
+      /exact authority-free result/u,
+    );
+  });
+
+  it("binds panel and crop changes while preserving the private retained run graph", () => {
+    const originalRun = inspectRealBuildPreparedRunInput(preparedSearchOptionsBytes());
+    const original = inspectRealBuildPreparedPanelFromRunInput(originalRun, 2);
+    const options = preparedSearchOptions();
+    const panels = [...options.panels];
+    panels[1] = { ...panels[1]!, maxXPt: panels[1]!.maxXPt + 1 };
+    const changedRun = inspectRealBuildPreparedRunInput(
+      new TextEncoder().encode(JSON.stringify({ ...options, panels })),
+    );
+    const changed = inspectRealBuildPreparedPanelFromRunInput(changedRun, 2);
+
+    expect(changed.cropDigest).not.toBe(original.cropDigest);
+    expect(changed.panelEvidenceDigest).not.toBe(original.panelEvidenceDigest);
+    expect(changed.preparedPanelIdentity).not.toBe(original.preparedPanelIdentity);
+    expect(changed.placementPrintedStepIdentity).not.toBe(original.placementPrintedStepIdentity);
+    expect(original.bounds.maxXPt).toBe(options.panels[1]!.maxXPt);
+    expect(() => inspectRealBuildPreparedPanelFromRunInput(originalRun, 359)).toThrow(
+      /beyond requested lastStep/u,
+    );
   });
 
   it("derives compiler metadata from the same panel and binds action-digest changes", () => {

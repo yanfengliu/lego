@@ -9,6 +9,10 @@ import type {
 } from "./real-build-farther-report-types";
 import type { RealBuildStepAction } from "./real-build-options-types";
 import type { StepFailure, StepFailureCode } from "./real-build-step-failure";
+import type { SuccessfulStepMechanism } from "./real-build-successful-step-mechanism";
+
+export { isRealBuildSuccessfulStepMechanism } from "./real-build-successful-step-mechanism";
+export type { SuccessfulStepMechanism } from "./real-build-successful-step-mechanism";
 
 export type {
   RealBuildFartherBudgetEvidence,
@@ -46,27 +50,6 @@ export type {
   RealBuildStepAction,
 } from "./real-build-options-types";
 export type { StepFailure, StepFailureCode, StepFailureStage } from "./real-build-step-failure";
-
-export type SuccessfulStepMechanism =
-  | "anchor-orientation"
-  | "highlight"
-  | "arrow"
-  | "exhaustive"
-  /**
-   * Settled by the next panel rather than by its own: the step's panel printed
-   * no highlight, so its candidates were carried forward one printed step and
-   * scored against the art that shows what this step built.
-   */
-  | "deferred-lookahead"
-  /**
-   * Settled against the ghost its own panel draws: the step is printed exploded,
-   * so its highlight rings the part where the booklet floats it rather than
-   * where it seats, and each candidate was redrawn back along the arrow's travel
-   * before being compared.
-   */
-  | "exploded-ghost"
-  | "instruction-transition"
-  | "official-ledger";
 
 export type StepOutcome =
   | {

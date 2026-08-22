@@ -37,6 +37,15 @@ import {
 } from "./real-build-browser-output-v4-semantic-work";
 import { createIntrinsicUint8Array, setIntrinsicUint8Array } from "./real-build-hostile-uint8array";
 import { encodeRealBuildSafeJson } from "./real-build-safe-json-bytes";
+import { inspectRealBuildBrowserBranchEvidenceV1 } from "./real-build-browser-output-v4-role";
+
+export {
+  createRealBuildBrowserBranchRoleWriterObservedStepInput,
+  createRealBuildBrowserBranchRoleWriterRequest,
+  createRealBuildBrowserBranchRoleWriterStepInput,
+  type RealBuildBrowserBranchRoleWriterRequest,
+  type RealBuildBrowserBranchRoleWriterStepInput,
+} from "./real-build-browser-output-v4-role-writer-input";
 
 export interface RealBuildBrowserBranchRoleWriterResult {
   readonly evidence: RealBuildBrowserBranchEvidenceV1;
@@ -79,7 +88,8 @@ const retainedBytes = new WeakMap<
 function preflightSteps(planned: RealBuildBrowserBranchRoleWriterPlan): readonly PreflightedStep[] {
   let aggregate = createRealBuildBrowserBranchAggregateWork();
   const preflighted: PreflightedStep[] = [];
-  for (const [index, step] of planned.steps.entries()) {
+  for (let index = 0; index < planned.steps.length; index += 1) {
+    const step = planned.steps[index]!;
     const path = `Browser branch writer steps[${index}]`;
     const lineageBytes = decodeRealBuildAtomicCompiledBranchEvidenceWire(
       step.batchResult.evidenceWire,
@@ -113,12 +123,10 @@ function preflightSteps(planned: RealBuildBrowserBranchRoleWriterPlan): readonly
     );
     const replayInspection = inspectRealBuildCompiledPlacementLineageReplayWork(lineageInspection);
     aggregate = chargeRealBuildBrowserBranchAggregateReplayWork(aggregate, replayInspection.work);
-    preflighted.push(
-      intrinsicRealBuildFreeze({
-        lineageDigest: digest(lineageBytes),
-        closureDigest,
-      }),
-    );
+    preflighted[index] = intrinsicRealBuildFreeze({
+      lineageDigest: digest(lineageBytes),
+      closureDigest,
+    });
   }
   return intrinsicRealBuildFreeze(preflighted);
 }
@@ -175,8 +183,10 @@ function copyRetained(bytes: Uint8Array): Uint8Array {
 }
 
 /**
- * Finalizes a complete contiguous prefix into two dense roles. It verifies byte
- * semantics but grants no source, placement, selection, completion, or consent authority.
+ * Finalizes a terminal-respecting, strictly increasing placement-step sequence into two
+ * dense roles. It verifies byte semantics but cannot classify any skipped prepared panels;
+ * the complete /4 reader checks those gaps. It grants no source, placement, selection,
+ * completion, or consent authority.
  */
 export function createRealBuildBrowserBranchRoleWriterResult(
   stepInputs: unknown,
@@ -188,7 +198,8 @@ export function createRealBuildBrowserBranchRoleWriterResult(
   const steps: RealBuildBrowserBranchEvidenceV1["steps"][number][] = [];
   let compiledOffset = 0;
   let observationOffset = 0;
-  for (const [index, step] of planned.steps.entries()) {
+  for (let index = 0; index < planned.steps.length; index += 1) {
+    const step = planned.steps[index]!;
     const path = `Browser branch writer steps[${index}]`;
     const admitted = preflighted[index];
     if (admitted === undefined) {
@@ -248,14 +259,12 @@ export function createRealBuildBrowserBranchRoleWriterResult(
       observations = observationReference(observationOffset, observationBytes);
       observationOffset += observationBytes.length;
     }
-    steps.push(
-      intrinsicRealBuildFreeze({
-        stepNumber: step.stepNumber,
-        compiledLineage,
-        observationClosure,
-        observations,
-      }),
-    );
+    steps[index] = intrinsicRealBuildFreeze({
+      stepNumber: step.stepNumber,
+      compiledLineage,
+      observationClosure,
+      observations,
+    });
   }
   if (
     compiledOffset !== compiledBranchRole.length ||
@@ -283,6 +292,7 @@ export function createRealBuildBrowserBranchRoleWriterResult(
       `Browser branch writer index contains ${branchEvidence.length} bytes; maximum is ${MAXIMUM_REAL_BUILD_BROWSER_BRANCH_INDEX_BYTES}.`,
     );
   }
+  inspectRealBuildBrowserBranchEvidenceV1(branchEvidence, compiledBranchRole, observationRole);
   const result = intrinsicRealBuildFreeze({ evidence, authority: AUTHORITY });
   SAFE_REFLECT_APPLY(SAFE_WEAK_MAP_SET, retainedBytes, [
     result,

@@ -13,7 +13,12 @@ vi.mock("../e2e/real-build-compiled-placement-lineage-validation", async (import
   };
 });
 
-import { REAL_BUILD_BROWSER_BRANCH_SEMANTIC_INSPECTION_SCHEMA_VERSION } from "../e2e/real-build-browser-output-v4-semantic";
+import {
+  inspectRealBuildBrowserBranchDetailedEvidence,
+  REAL_BUILD_BROWSER_BRANCH_DETAILED_INSPECTION_SCHEMA_VERSION,
+  REAL_BUILD_BROWSER_BRANCH_SEMANTIC_INSPECTION_SCHEMA_VERSION,
+  requireRealBuildBrowserBranchDetailedInspection,
+} from "../e2e/real-build-browser-output-v4-semantic";
 import { REAL_BUILD_AUTOMATIC_MAXIMUM_STEP_PREPARATION_OPERATIONS } from "../e2e/real-build-automatic-placement-step";
 import {
   inspectRealBuildCompiledObservationPreflight,
@@ -76,6 +81,52 @@ describe("browser-output /4 refusal-only branch semantics", () => {
     expect(Object.isFrozen(result.steps[0])).toBe(true);
   });
 
+  it("retains one branded detailed replay for later exact frontier and provenance continuity", () => {
+    const preparedBytes = preparedRunBytes();
+    const closure = rebindObservationClosure(preparedBytes);
+    const branch = branchFixture(closure);
+    const detailed = inspectRealBuildBrowserBranchDetailedEvidence(
+      branch.indexBytes,
+      branch.compiled,
+      branch.roleBytes,
+      preparedBytes,
+    );
+
+    expect(detailed.schemaVersion).toBe(
+      REAL_BUILD_BROWSER_BRANCH_DETAILED_INSPECTION_SCHEMA_VERSION,
+    );
+    expect(detailed.authority).toBe("absent");
+    expect(detailed.semantic.steps[0]!.selectionStatus).toBe("selected");
+    expect(detailed.steps).toHaveLength(1);
+    expect(detailed.steps[0]).toMatchObject({
+      stepNumber: 1,
+      preparedStep: {
+        stepNumber: 1,
+        authority: "absent",
+      },
+      lineageInspection: {
+        evidence: {
+          throughStepNumber: 1,
+        },
+      },
+      closure: {
+        selection: { status: "selected" },
+      },
+      observation: {
+        reproducible: true,
+        provenanceAuthority: "absent",
+        authority: "absent",
+      },
+    });
+    expect(detailed.steps[0]!.index).toBe(detailed.branch.steps[0]);
+    expect(Object.isFrozen(detailed)).toBe(true);
+    expect(Object.isFrozen(detailed.steps)).toBe(true);
+    expect(requireRealBuildBrowserBranchDetailedInspection(detailed)).toBe(detailed);
+    expect(() => requireRealBuildBrowserBranchDetailedInspection({ ...detailed })).toThrow(
+      /exact authority-free result/u,
+    );
+  });
+
   it("replays a selected observation closure but keeps its transition inspection-only", () => {
     const preparedBytes = preparedRunBytes();
     const closure = rebindObservationClosure(preparedBytes);
@@ -92,6 +143,66 @@ describe("browser-output /4 refusal-only branch semantics", () => {
       }),
     );
     expect(result.placementAuthority.reason).toMatch(/source-camera-and-terminal/iu);
+  });
+
+  it("retains one typed budget terminal row and refuses any later branch suffix", () => {
+    const preparedBytes = preparedRunBytes();
+    const source = bindLineageToPreparedRun(preparedBytes);
+    const requested = source.searchRequest.offeredLineages;
+    const terminal = {
+      ...source,
+      status: "budget-refused" as const,
+      searchReservation: {
+        budget: requested - 1,
+        reservedBefore: 0,
+        requested,
+        reservedAfter: 0,
+        reservationNumber: 1,
+        admitted: false,
+        refusal: "budget-exceeded" as const,
+        terminalFailure: {
+          preflightIdentity: source.searchRequest.preflightIdentity,
+          reservationNumber: 1,
+          reservedBefore: 0,
+          requested,
+          budget: requested - 1,
+        },
+      },
+      terminalFailure: null,
+      childCandidates: [],
+      uniqueTransitions: [],
+      lineageEdges: [],
+      selection: {
+        status: "not-applicable" as const,
+        decisionPanelStepNumber: null,
+        selectedCandidateId: null,
+        selectedLineageIds: [],
+        bestScore: null,
+        runnerUpScore: null,
+        margin: null,
+      },
+      acceptedTransition: null,
+    };
+    const terminalBytes = compiledPlacementLineageBytes(terminal);
+    const accepted = inspect(branchFixture({ lineageBytes: terminalBytes }), preparedBytes);
+
+    expect(accepted.steps[0]).toMatchObject({
+      lineageStatus: "budget-refused",
+      childCandidates: 0,
+      lineageEdges: 0,
+      observationClosure: "absent",
+      selectionStatus: "not-applicable",
+      acceptedTransitionInspected: false,
+    });
+    expect(() =>
+      inspect(
+        branchFixtures([
+          { indexedStep: 1, lineageBytes: terminalBytes },
+          { indexedStep: 2, lineageBytes: terminalBytes },
+        ]),
+        preparedBytes,
+      ),
+    ).toThrow(/step 2 follows terminal compiled step 1/iu);
   });
 
   it("admits observation preflight only from the exact replay-admitted work inspection", () => {

@@ -15,8 +15,28 @@ test("loads the branch-role writer in the served browser without granting author
   await page.goto("/");
   const observed = await page.evaluate(async (moduleUrl) => {
     const writer = await import(/* @vite-ignore */ moduleUrl);
-    const result = writer.createRealBuildBrowserBranchRoleWriterResult([]);
+    const request = writer.createRealBuildBrowserBranchRoleWriterRequest();
+    const result = writer.createRealBuildBrowserBranchRoleWriterResult(request);
     const bytes = writer.readRealBuildBrowserBranchRoleWriterBytes(result);
+    let rawRefused = false;
+    try {
+      writer.createRealBuildBrowserBranchRoleWriterResult([]);
+    } catch {
+      rawRefused = true;
+    }
+    let proxyTraps = 0;
+    const proxiedRequest = new Proxy(request, {
+      getOwnPropertyDescriptor(target, property) {
+        proxyTraps += 1;
+        return Reflect.getOwnPropertyDescriptor(target, property);
+      },
+    });
+    let proxyRefused = false;
+    try {
+      writer.createRealBuildBrowserBranchRoleWriterResult(proxiedRequest);
+    } catch {
+      proxyRefused = true;
+    }
     return {
       authority: result.authority,
       schemaVersion: result.evidence.schemaVersion,
@@ -24,6 +44,9 @@ test("loads the branch-role writer in the served browser without granting author
       indexBytes: bytes.branchEvidence.length,
       compiledBytes: bytes.compiledBranchRole.length,
       observationBytes: bytes.observationRole.length,
+      rawRefused,
+      proxyRefused,
+      proxyTraps,
     };
   }, WRITER_MODULE_URL);
 
@@ -38,6 +61,9 @@ test("loads the branch-role writer in the served browser without granting author
     indexBytes: expect.any(Number),
     compiledBytes: 0,
     observationBytes: 0,
+    rawRefused: true,
+    proxyRefused: true,
+    proxyTraps: 0,
   });
   expect(observed.indexBytes).toBeGreaterThan(0);
 });
@@ -51,11 +77,11 @@ test("finalizes a nonempty dense compiled role in the served browser", async ({ 
         import(/* @vite-ignore */ urls.twoStepFixture),
       ]);
       const fixture = twoStepFixture.realBuildBrowserOutputV4SemanticTwoStepFixture();
-      const inputs = fixture.steps.map((step: { batchResult: unknown }) => ({
-        batchResult: step.batchResult,
-        observation: null,
-      }));
-      const result = writer.createRealBuildBrowserBranchRoleWriterResult(inputs);
+      const inputs = fixture.steps.map((step: { batchResult: unknown }) =>
+        writer.createRealBuildBrowserBranchRoleWriterStepInput(step.batchResult),
+      );
+      const request = writer.createRealBuildBrowserBranchRoleWriterRequest(...inputs);
+      const result = writer.createRealBuildBrowserBranchRoleWriterResult(request);
       const bytes = writer.readRealBuildBrowserBranchRoleWriterBytes(result);
       const indexed = JSON.parse(new TextDecoder().decode(bytes.branchEvidence));
       const sha256 = async (value: Uint8Array): Promise<string> => {

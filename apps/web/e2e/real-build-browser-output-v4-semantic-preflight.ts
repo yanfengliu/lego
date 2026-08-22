@@ -68,6 +68,38 @@ export function requireRealBuildBrowserBranchLineageOnlyState(
   }
 }
 
+export function requireRealBuildBrowserBranchTerminalState(
+  lineage: RealBuildCompiledPlacementLineageEvidence,
+  closure: RealBuildCompiledObservationClosure | null,
+): void {
+  if (lineage.status !== "failed" && lineage.status !== "budget-refused") {
+    throw new TypeError(
+      `Browser /4 terminal inspection received compiled lineage status ${JSON.stringify(lineage.status)}; expected failed or budget-refused.`,
+    );
+  }
+  if (closure !== null) {
+    throw new TypeError(
+      `Browser /4 terminal step ${lineage.throughStepNumber} cannot retain an observation closure after ${lineage.status} compilation.`,
+    );
+  }
+  if (
+    lineage.observationBytes !== null ||
+    lineage.observationRefs.length !== 0 ||
+    lineage.selection.status !== "not-applicable" ||
+    lineage.selection.decisionPanelStepNumber !== null ||
+    lineage.selection.selectedCandidateId !== null ||
+    lineage.selection.selectedLineageIds.length !== 0 ||
+    lineage.selection.bestScore !== null ||
+    lineage.selection.runnerUpScore !== null ||
+    lineage.selection.margin !== null ||
+    lineage.acceptedTransition !== null
+  ) {
+    throw new TypeError(
+      `Browser /4 terminal step ${lineage.throughStepNumber} retains observation, selection, or accepted-transition state after ${lineage.status} compilation.`,
+    );
+  }
+}
+
 export function requireRealBuildBrowserBranchPreReplayObservationBindings(
   indexed: RealBuildBrowserBranchEvidenceV1["steps"][number],
   lineageInspection: RealBuildCompiledPlacementLineageWorkInspection,
