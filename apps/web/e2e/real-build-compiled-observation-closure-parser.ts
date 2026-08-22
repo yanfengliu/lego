@@ -16,6 +16,7 @@ import {
 import {
   MAXIMUM_REAL_BUILD_COMPILED_OBSERVATION_CLOSURE_BYTES,
   MAXIMUM_REAL_BUILD_COMPILED_OBSERVATION_ROLE_BYTES,
+  MAXIMUM_REAL_BUILD_COMPILED_OBSERVATION_TABLE_ROWS,
   REAL_BUILD_COMPILED_OBSERVATION_CLOSURE_SCHEMA_VERSION,
   type RealBuildCompiledObservationClosure,
 } from "./real-build-compiled-observation-closure-types";
@@ -127,19 +128,25 @@ export function parseRealBuildCompiledObservationClosure(
     roleBytes,
     roleDigest,
     sources: Object.freeze(
-      closureArray(row.sources, "compiledObservationClosure.sources", 8_192).map(
-        parseClosureSource,
-      ),
+      closureArray(
+        row.sources,
+        "compiledObservationClosure.sources",
+        MAXIMUM_REAL_BUILD_COMPILED_OBSERVATION_TABLE_ROWS,
+      ).map(parseClosureSource),
     ),
     cameras: Object.freeze(
-      closureArray(row.cameras, "compiledObservationClosure.cameras", 8_192).map(
-        parseClosureCamera,
-      ),
+      closureArray(
+        row.cameras,
+        "compiledObservationClosure.cameras",
+        MAXIMUM_REAL_BUILD_COMPILED_OBSERVATION_TABLE_ROWS,
+      ).map(parseClosureCamera),
     ),
     observations: Object.freeze(
-      closureArray(row.observations, "compiledObservationClosure.observations", 8_192).map(
-        parseClosureObservation,
-      ),
+      closureArray(
+        row.observations,
+        "compiledObservationClosure.observations",
+        MAXIMUM_REAL_BUILD_COMPILED_OBSERVATION_TABLE_ROWS,
+      ).map(parseClosureObservation),
     ),
     selection: parseClosureSelection(row.selection),
     acceptedTransition: parseClosureAcceptedTransition(row.acceptedTransition),

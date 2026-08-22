@@ -1,5 +1,3 @@
-import { sha256Hex } from "@lego-studio/brick-kernel";
-
 import { createRealBuildCandidateDocumentSnapshot } from "./real-build-candidate-document-snapshot";
 import {
   deriveRealBuildCompiledObservationCameraId,
@@ -12,8 +10,14 @@ import type {
 } from "./real-build-compiled-observation-closure-types";
 import { MAXIMUM_REAL_BUILD_COMPILED_OBSERVATION_PIXEL_VISITS } from "./real-build-compiled-observation-closure-types";
 import { parseRealBuildCompiledObservationClosure } from "./real-build-compiled-observation-closure-parser";
+import { requireRealBuildCompiledObservationClosurePreReplayRows } from "./real-build-compiled-observation-closure-pre-replay";
 import { realBuildCompiledObservationRegistrationVisits } from "./real-build-compiled-observation-registration";
-import { parseRealBuildCompiledPlacementLineage } from "./real-build-compiled-placement-lineage-parser";
+import {
+  inspectRealBuildCompiledPlacementLineageReplayWork,
+  inspectRealBuildCompiledPlacementLineageWork,
+  requireReplayAdmittedRealBuildCompiledPlacementLineageWorkInspection,
+  validateRealBuildCompiledPlacementLineageReplayWorkInspection,
+} from "./real-build-compiled-placement-lineage-parser";
 import type {
   RealBuildCompiledLineageEdge,
   RealBuildCompiledPlacementLineageEvidence,
@@ -360,6 +364,8 @@ export function inspectRealBuildCompiledObservationPreflight(
   policyInspection: unknown,
 ): RealBuildCompiledObservationPreflight {
   const policy = requireRealBuildPreparedObservationPolicyInspection(policyInspection);
+  const closure = parseRealBuildCompiledObservationClosure(closureBytes);
+  requireRealBuildCompiledObservationClosurePreReplayRows(closure);
   const lineageBytes = snapshotHostileUint8Array(compiledLineageBytes, {
     maximumBytes: MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_BYTES,
     typeError: "Compiled lineage bytes must be a genuine Uint8Array.",
@@ -368,10 +374,28 @@ export function inspectRealBuildCompiledObservationPreflight(
     sharedError: "Compiled lineage bytes cannot use SharedArrayBuffer storage.",
     copyError: "Compiled lineage bytes changed or detached during bounded byte copying.",
   });
-  const lineage = parseRealBuildCompiledPlacementLineage(lineageBytes);
+  const lineageInspection = inspectRealBuildCompiledPlacementLineageWork(lineageBytes);
+  validateRealBuildCompiledPlacementLineageReplayWorkInspection(
+    inspectRealBuildCompiledPlacementLineageReplayWork(lineageInspection),
+  );
+  return inspectObservationPreflightFromReplayAdmittedLineageWork(
+    lineageInspection,
+    closureBytes,
+    policy,
+  );
+}
+
+function inspectObservationPreflightFromReplayAdmittedLineageWork(
+  lineageWorkInspection: unknown,
+  closureBytes: unknown,
+  policy: RealBuildPreparedObservationPolicyInspection,
+): RealBuildCompiledObservationPreflight {
+  const inspection =
+    requireReplayAdmittedRealBuildCompiledPlacementLineageWorkInspection(lineageWorkInspection);
+  const { evidence: lineage } = inspection;
   requireEmptyLegacyObservationGeneration(lineage);
   const closure = parseRealBuildCompiledObservationClosure(closureBytes);
-  if (`sha256:${sha256Hex(lineageBytes)}` !== closure.compiledLineageBytesDigest) {
+  if (inspection.compiledLineageBytesDigest !== closure.compiledLineageBytesDigest) {
     throw new TypeError(
       "Closure compiledLineageBytesDigest does not bind the exact supplied /1 bytes.",
     );
@@ -382,6 +406,19 @@ export function inspectRealBuildCompiledObservationPreflight(
     );
   }
   return buildPreflight({ lineage, closure, policy });
+}
+
+/** Reuses an exact branded lineage after replay-work admission and semantic validation. */
+export function inspectRealBuildCompiledObservationPreflightFromReplayAdmittedLineageWork(
+  lineageWorkInspection: unknown,
+  closureBytes: unknown,
+  policyInspection: unknown,
+): RealBuildCompiledObservationPreflight {
+  return inspectObservationPreflightFromReplayAdmittedLineageWork(
+    lineageWorkInspection,
+    closureBytes,
+    requireRealBuildPreparedObservationPolicyInspection(policyInspection),
+  );
 }
 
 export function requireRealBuildCompiledObservationPreflight(

@@ -32,6 +32,11 @@ interface RootLineageBinding {
   readonly identity: RealBuildCompiledPlacementLineageEvidence["rootCandidates"][number]["identities"][number];
 }
 
+interface RootIndex {
+  readonly byLineage: ReadonlyMap<string, RootLineageBinding>;
+  readonly byCandidate: ReadonlyMap<string, RootLineageBinding>;
+}
+
 export interface RealBuildCompiledGraphIndex {
   readonly rootsByLineage: ReadonlyMap<string, RootLineageBinding>;
   readonly transitionsById: ReadonlyMap<
@@ -67,12 +72,12 @@ function sameValidation(
 
 function validateRoots(evidence: RealBuildCompiledPlacementLineageEvidence) {
   const roots = new Map<string, RootLineageBinding>();
-  const candidateIds = new Set<string>();
+  const rootsByCandidate = new Map<string, RootLineageBinding>();
   const canonicalHashes = new Set<string>();
   let aggregateBytes = 0;
   for (const [groupIndex, group] of evidence.rootCandidates.entries()) {
     const path = `compiledLineage.rootCandidates[${groupIndex}]`;
-    if (candidateIds.has(group.candidateId) || canonicalHashes.has(group.canonicalBytesHash)) {
+    if (rootsByCandidate.has(group.candidateId) || canonicalHashes.has(group.canonicalBytesHash)) {
       throw new TypeError(`${path} duplicates a root candidate or canonical byte payload group.`);
     }
     if (group.candidateId !== realBuildDocumentCandidateId(group.documentHash)) {
@@ -110,10 +115,13 @@ function validateRoots(evidence: RealBuildCompiledPlacementLineageEvidence) {
       }
       roots.set(identity.lineageId, { snapshot, identity });
     }
-    candidateIds.add(group.candidateId);
+    rootsByCandidate.set(group.candidateId, {
+      snapshot,
+      identity: group.identities[0]!,
+    });
     canonicalHashes.add(group.canonicalBytesHash);
   }
-  return roots;
+  return Object.freeze({ byLineage: roots, byCandidate: rootsByCandidate });
 }
 
 function validateReservation(evidence: RealBuildCompiledPlacementLineageEvidence): void {
@@ -212,7 +220,7 @@ function replayTransition(
   transition: RealBuildCompiledPlacementTransitionEvidence,
   index: number,
   evidence: RealBuildCompiledPlacementLineageEvidence,
-  roots: ReadonlyMap<string, RootLineageBinding>,
+  rootsByCandidate: ReadonlyMap<string, RootLineageBinding>,
   childCandidates: ReadonlyMap<string, ChildCandidateBinding>,
 ): void {
   const path = `compiledLineage.uniqueTransitions[${index}]`;
@@ -220,9 +228,7 @@ function replayTransition(
   if (transitionId !== deriveRealBuildCompiledTransitionId(committed)) {
     throw new TypeError(`${path}.transitionId does not commit its exact retained transition.`);
   }
-  const parent = [...roots.values()].find(
-    ({ identity }) => identity.candidateId === transition.parentCandidateId,
-  );
+  const parent = rootsByCandidate.get(transition.parentCandidateId);
   if (parent === undefined) {
     throw new TypeError(`${path}.parentCandidateId does not name a retained root candidate.`);
   }
@@ -235,6 +241,7 @@ function replayTransition(
     transition.childCandidateId !== realBuildDocumentCandidateId(transition.childDocumentHash) ||
     transition.parentDocumentHash !== parent.identity.documentHash ||
     transition.childDocumentHash !== retainedChild.row.documentHash ||
+    transition.printedStep.name !== evidence.preparedStep.compilerMetadata.name ||
     transition.printedStep.sourceActionDigest !== evidence.preparedStep.actionEvidenceDigest
   ) {
     throw new TypeError(`${path} does not bind its exact root, child, and prepared printed step.`);
@@ -346,7 +353,7 @@ function validateEdges(
 export function validateRealBuildCompiledGraph(
   evidence: RealBuildCompiledPlacementLineageEvidence,
 ): RealBuildCompiledGraphIndex {
-  const roots = validateRoots(evidence);
+  const roots: RootIndex = validateRoots(evidence);
   validateReservation(evidence);
   const childCandidates = validateChildCandidates(evidence);
   const transitions = new Map<
@@ -357,7 +364,7 @@ export function validateRealBuildCompiledGraph(
     if (transitions.has(transition.transitionId)) {
       throw new TypeError(`compiledLineage.uniqueTransitions[${index}] repeats an ID.`);
     }
-    replayTransition(transition, index, evidence, roots, childCandidates);
+    replayTransition(transition, index, evidence, roots.byCandidate, childCandidates);
     transitions.set(transition.transitionId, transition);
   }
   if (!evidence.searchReservation.admitted && transitions.size > 0) {
@@ -372,8 +379,8 @@ export function validateRealBuildCompiledGraph(
     }
   }
   return Object.freeze({
-    rootsByLineage: roots,
+    rootsByLineage: roots.byLineage,
     transitionsById: transitions,
-    edgesByChildLineage: validateEdges(evidence, roots, transitions),
+    edgesByChildLineage: validateEdges(evidence, roots.byLineage, transitions),
   });
 }

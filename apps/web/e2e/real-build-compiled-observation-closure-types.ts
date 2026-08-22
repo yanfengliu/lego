@@ -12,6 +12,7 @@ export const REAL_BUILD_COMPILED_OBSERVATION_METRIC =
   "shifted-binary-silhouette-agreement-after-excluded/1" as const;
 export const MAXIMUM_REAL_BUILD_COMPILED_OBSERVATION_CLOSURE_BYTES = 16 * 1024 * 1024;
 export const MAXIMUM_REAL_BUILD_COMPILED_OBSERVATION_ROLE_BYTES = 64 * 1024 * 1024;
+export const MAXIMUM_REAL_BUILD_COMPILED_OBSERVATION_TABLE_ROWS = 8_192;
 export const MAXIMUM_REAL_BUILD_COMPILED_OBSERVATION_RASTER_PIXELS = 1_048_576;
 /** Admits eight independent 1000x500 registrations while refusing eight maximum rasters. */
 export const MAXIMUM_REAL_BUILD_COMPILED_OBSERVATION_PIXEL_VISITS = 128 * 1024 * 1024;

@@ -2,6 +2,8 @@
 
 Current state belongs in the design documents; this index records only behaviour changes, measured results, and links to the matching detailed history.
 
+- [2026-08-21 through 2026-08-22 (refusal-only branch semantic inspection)](detailed/2026-08-21_2026-08-22.md) — The external branch roles now have a local authority-absent semantic consumer that exact-binds prepared steps and proposals, requires legacy observation state empty, charges every retained lineage/closure row class before reconstruction, rejects orphan source/camera tables before replay, and applies conservative aggregate compiler-work admission without redefining the established public lineage `/1` parser; genuine compiler-produced paths pass 1+1 work and refuse graph- and byte-over-budget pairs before second-step replay.
+
 - [2026-08-14 (strict part-identification transport boundary)](detailed/2026-08-13_2026-08-14.md) — The writable legacy answer transport is retired after a model child created local files; 73 `/4` replies remain quarantined, while exact card bytes, one MCP image tool, sanitized downstream proof, and content-addressed `/5` checkpoint lineage now fail closed behind a provider-disabled Gate-0 boundary.
 
 - [2026-08-14 (measured 28802 catalog growth)](detailed/2026-08-13_2026-08-14.md) — Catalog `/15` grows 86 → 87 definitions with the distinct step-26 `28802` rounded-bottom bracket: 618 official-source triangles, 23 collision boxes, six directional stud frames, two LDCad clutches, and all eight source-normal exterior views reviewed `same`; the contradictory Builder `10201` record remains counterevidence and does not advance the ledger.

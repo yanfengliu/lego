@@ -23,8 +23,6 @@ import type { RealBuildCompiledPlacementTerminalFailure } from "./real-build-com
 import {
   MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_EDGES,
   MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_BYTES,
-  MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_JSON_DEPTH,
-  MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_JSON_VALUES,
   MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_OBSERVATIONS,
   MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_ROOTS,
   MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_TRANSITIONS,
@@ -36,6 +34,46 @@ import {
   type RealBuildCompiledPlacementLineageStatus,
 } from "./real-build-compiled-placement-lineage-types";
 import { validateRealBuildCompiledPlacementLineage } from "./real-build-compiled-placement-lineage-validation";
+import { inspectRealBuildCompiledPlacementLineageWire } from "./real-build-compiled-placement-lineage-wire";
+import {
+  measureRealBuildCompiledPlacementLineageReplayWork,
+  requireRealBuildCompiledPlacementLineageReplayWorkWithinLimits,
+  type RealBuildCompiledPlacementLineageReplayWork,
+} from "./real-build-compiled-placement-lineage-replay-work";
+import {
+  measureRealBuildCompiledPlacementLineageStructuralWork,
+  type RealBuildCompiledPlacementLineageWork,
+} from "./real-build-compiled-placement-lineage-structural-work";
+
+export const REAL_BUILD_COMPILED_PLACEMENT_LINEAGE_WORK_INSPECTION_SCHEMA_VERSION =
+  "lego.real-build-compiled-placement-lineage-work-inspection/1" as const;
+export const REAL_BUILD_COMPILED_PLACEMENT_LINEAGE_REPLAY_WORK_INSPECTION_SCHEMA_VERSION =
+  "lego.real-build-compiled-placement-lineage-replay-work-inspection/1" as const;
+
+export type { RealBuildCompiledPlacementLineageWork } from "./real-build-compiled-placement-lineage-structural-work";
+
+export interface RealBuildCompiledPlacementLineageWorkInspection {
+  readonly schemaVersion: typeof REAL_BUILD_COMPILED_PLACEMENT_LINEAGE_WORK_INSPECTION_SCHEMA_VERSION;
+  readonly compiledLineageBytesDigest: `sha256:${string}`;
+  readonly evidence: RealBuildCompiledPlacementLineageEvidence;
+  readonly work: RealBuildCompiledPlacementLineageWork;
+}
+
+export interface RealBuildCompiledPlacementLineageReplayWorkInspection {
+  readonly schemaVersion: typeof REAL_BUILD_COMPILED_PLACEMENT_LINEAGE_REPLAY_WORK_INSPECTION_SCHEMA_VERSION;
+  readonly compiledLineageBytesDigest: `sha256:${string}`;
+  readonly work: RealBuildCompiledPlacementLineageReplayWork;
+}
+
+const workInspections = new WeakSet<object>();
+const validatedWorkInspections = new WeakSet<object>();
+const replayAdmittedWorkInspections = new WeakSet<object>();
+const replayWorkInspections = new WeakSet<object>();
+const replayWorkInspectionByWorkInspection = new WeakMap<
+  object,
+  RealBuildCompiledPlacementLineageReplayWorkInspection
+>();
+const workInspectionByReplayWorkInspection = new WeakMap<object, object>();
 
 const TOP_LEVEL_KEYS = [
   "schemaVersion",
@@ -316,131 +354,120 @@ function parseRealBuildCompiledPlacementLineageInertJsonValue(
     acceptedTransition: parseCompiledAcceptedTransition(row.acceptedTransition),
     completionAuthority: parseCompletionAuthority(row.completionAuthority),
   });
-  validateRealBuildCompiledPlacementLineage(evidence);
   return evidence;
 }
 
-const TYPED_ARRAY_PROTOTYPE = Object.getPrototypeOf(Uint8Array.prototype) as object;
-const TYPED_ARRAY_LENGTH = Object.getOwnPropertyDescriptor(TYPED_ARRAY_PROTOTYPE, "length")?.get;
-const TYPED_ARRAY_BUFFER = Object.getOwnPropertyDescriptor(TYPED_ARRAY_PROTOTYPE, "buffer")?.get;
-const TYPED_ARRAY_TAG = Object.getOwnPropertyDescriptor(
-  TYPED_ARRAY_PROTOTYPE,
-  Symbol.toStringTag,
-)?.get;
-const SHARED_BYTE_LENGTH =
-  typeof SharedArrayBuffer === "undefined"
-    ? undefined
-    : Object.getOwnPropertyDescriptor(SharedArrayBuffer.prototype, "byteLength")?.get;
-
-function snapshotCompiledLineageBytes(value: unknown, maximumBytes: number): Uint8Array {
-  if (
-    !Number.isSafeInteger(maximumBytes) ||
-    maximumBytes < 1 ||
-    maximumBytes > MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_BYTES
-  ) {
-    throw new RangeError(
-      `Compiled lineage maximumBytes must be 1 through ${MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_BYTES}.`,
+function requireWorkInspection(value: unknown): RealBuildCompiledPlacementLineageWorkInspection {
+  if (value === null || typeof value !== "object" || !workInspections.has(value)) {
+    throw new TypeError(
+      "Compiled lineage semantic validation requires its exact branded structural work inspection.",
     );
   }
-  let length: number;
-  let buffer: ArrayBufferLike;
-  let tag: string;
-  try {
-    if (
-      TYPED_ARRAY_LENGTH === undefined ||
-      TYPED_ARRAY_BUFFER === undefined ||
-      TYPED_ARRAY_TAG === undefined
-    ) {
-      throw null;
-    }
-    length = TYPED_ARRAY_LENGTH.call(value) as number;
-    buffer = TYPED_ARRAY_BUFFER.call(value) as ArrayBufferLike;
-    tag = TYPED_ARRAY_TAG.call(value) as string;
-  } catch {
-    throw new TypeError("Compiled lineage wire input must be a genuine Uint8Array.");
-  }
-  if (tag !== "Uint8Array") {
-    throw new TypeError("Compiled lineage wire input must be a genuine Uint8Array.");
-  }
-  if (length > maximumBytes) {
-    throw new RangeError(
-      `Compiled lineage wire input contains ${length} bytes above maximumBytes ${maximumBytes}; no text was decoded or parsed.`,
+  return value as RealBuildCompiledPlacementLineageWorkInspection;
+}
+
+/** Parses and measures exact retained rows without reconstructing documents or replaying compilation. */
+export function inspectRealBuildCompiledPlacementLineageWork(
+  value: unknown,
+  maximumBytes = MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_BYTES,
+): RealBuildCompiledPlacementLineageWorkInspection {
+  const wire = inspectRealBuildCompiledPlacementLineageWire(value, maximumBytes);
+  const evidence = parseRealBuildCompiledPlacementLineageInertJsonValue(wire.value);
+  const inspection = Object.freeze({
+    schemaVersion: REAL_BUILD_COMPILED_PLACEMENT_LINEAGE_WORK_INSPECTION_SCHEMA_VERSION,
+    compiledLineageBytesDigest: wire.bytesDigest,
+    evidence,
+    work: measureRealBuildCompiledPlacementLineageStructuralWork(evidence),
+  });
+  workInspections.add(inspection);
+  return inspection;
+}
+
+/** Reconstructs bounded roots once and caches exact compiler replay policy meters. */
+export function inspectRealBuildCompiledPlacementLineageReplayWork(
+  value: unknown,
+): RealBuildCompiledPlacementLineageReplayWorkInspection {
+  const inspection = requireWorkInspection(value);
+  const cached = replayWorkInspectionByWorkInspection.get(inspection);
+  if (cached !== undefined) return cached;
+  const replayInspection = Object.freeze({
+    schemaVersion: REAL_BUILD_COMPILED_PLACEMENT_LINEAGE_REPLAY_WORK_INSPECTION_SCHEMA_VERSION,
+    compiledLineageBytesDigest: inspection.compiledLineageBytesDigest,
+    work: measureRealBuildCompiledPlacementLineageReplayWork(inspection.evidence),
+  });
+  replayWorkInspections.add(replayInspection);
+  replayWorkInspectionByWorkInspection.set(inspection, replayInspection);
+  workInspectionByReplayWorkInspection.set(replayInspection, inspection);
+  return replayInspection;
+}
+
+function requireReplayWorkInspection(
+  value: unknown,
+): RealBuildCompiledPlacementLineageReplayWorkInspection {
+  if (value === null || typeof value !== "object" || !replayWorkInspections.has(value)) {
+    throw new TypeError(
+      "Compiled lineage replay requires its exact branded replay-work inspection.",
     );
   }
-  if (SHARED_BYTE_LENGTH !== undefined) {
-    let shared = false;
-    try {
-      SHARED_BYTE_LENGTH.call(buffer);
-      shared = true;
-    } catch {
-      // Ordinary ArrayBuffer storage rejects the SharedArrayBuffer intrinsic.
-    }
-    if (shared) {
-      throw new TypeError(
-        "Compiled lineage wire input cannot use concurrently mutable SharedArrayBuffer storage.",
-      );
-    }
-  }
-  const snapshot = new Uint8Array(length);
-  try {
-    Uint8Array.prototype.set.call(snapshot, value as Uint8Array);
-  } catch {
-    throw new TypeError("Compiled lineage wire bytes changed or detached during bounded copying.");
-  }
-  return snapshot;
+  return value as RealBuildCompiledPlacementLineageReplayWorkInspection;
 }
 
-/** Conservatively bounds hostile JSON expansion before JSON.parse allocates it. */
-function requireBoundedCompiledLineageJson(text: string): void {
-  let depth = 0;
-  let values = 1;
-  let inString = false;
-  let escaped = false;
-  for (let index = 0; index < text.length; index += 1) {
-    const character = text[index]!;
-    if (inString) {
-      if (escaped) escaped = false;
-      else if (character === "\\") escaped = true;
-      else if (character === '"') inString = false;
-      continue;
-    }
-    if (character === '"') inString = true;
-    else if (character === "{" || character === "[") {
-      depth += 1;
-      values += 1;
-      if (depth > MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_JSON_DEPTH) {
-        throw new RangeError(
-          `Compiled lineage wire JSON exceeds depth ${MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_JSON_DEPTH} before parsing.`,
-        );
-      }
-    } else if (character === "}" || character === "]") depth -= 1;
-    else if (character === ",") values += 1;
-    if (values > MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_JSON_VALUES) {
-      throw new RangeError(
-        `Compiled lineage wire JSON exceeds ${MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_JSON_VALUES} structural values before parsing.`,
-      );
-    }
-  }
+/** Admits only replay work measured from a branded structural inspection. */
+export function validateRealBuildCompiledPlacementLineageReplayWorkInspection(
+  value: unknown,
+): RealBuildCompiledPlacementLineageEvidence {
+  const replayInspection = requireReplayWorkInspection(value);
+  const inspection = requireWorkInspection(
+    workInspectionByReplayWorkInspection.get(replayInspection),
+  );
+  requireRealBuildCompiledPlacementLineageReplayWorkWithinLimits(replayInspection.work);
+  const evidence = validateRealBuildCompiledPlacementLineageWorkInspection(inspection);
+  replayAdmittedWorkInspections.add(inspection);
+  return evidence;
 }
 
-/** External trust boundary: accepts only bounded, snapshotted, fatal-UTF-8 JSON bytes. */
+/** Preserves the public /1 parser's branded semantic-validation contract. */
+export function validateRealBuildCompiledPlacementLineageWorkInspection(
+  value: unknown,
+): RealBuildCompiledPlacementLineageEvidence {
+  const inspection = requireWorkInspection(value);
+  if (!validatedWorkInspections.has(inspection)) {
+    validateRealBuildCompiledPlacementLineage(inspection.evidence);
+    validatedWorkInspections.add(inspection);
+  }
+  return inspection.evidence;
+}
+
+export function requireValidatedRealBuildCompiledPlacementLineageWorkInspection(
+  value: unknown,
+): RealBuildCompiledPlacementLineageWorkInspection {
+  const inspection = requireWorkInspection(value);
+  if (!validatedWorkInspections.has(inspection)) {
+    throw new TypeError(
+      "Compiled lineage observation preflight requires prior semantic validation of its exact work inspection.",
+    );
+  }
+  return inspection;
+}
+
+export function requireReplayAdmittedRealBuildCompiledPlacementLineageWorkInspection(
+  value: unknown,
+): RealBuildCompiledPlacementLineageWorkInspection {
+  const inspection = requireWorkInspection(value);
+  if (!replayAdmittedWorkInspections.has(inspection)) {
+    throw new TypeError(
+      "Compiled lineage observation preflight requires prior replay-work admission and semantic validation of its exact work inspection.",
+    );
+  }
+  return inspection;
+}
+
+/** Existing /1 trust boundary; new aggregate callers add the replay-work admission brand. */
 export function parseRealBuildCompiledPlacementLineage(
   value: unknown,
   maximumBytes = MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_BYTES,
 ): RealBuildCompiledPlacementLineageEvidence {
-  const bytes = snapshotCompiledLineageBytes(value, maximumBytes);
-  let text: string;
-  try {
-    text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-  } catch {
-    throw new TypeError("Compiled lineage wire input is not well-formed UTF-8.");
-  }
-  requireBoundedCompiledLineageJson(text);
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text) as unknown;
-  } catch {
-    throw new TypeError("Compiled lineage wire input is not valid JSON.");
-  }
-  return parseRealBuildCompiledPlacementLineageInertJsonValue(parsed);
+  return validateRealBuildCompiledPlacementLineageWorkInspection(
+    inspectRealBuildCompiledPlacementLineageWork(value, maximumBytes),
+  );
 }

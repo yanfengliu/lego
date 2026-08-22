@@ -11,6 +11,11 @@ import {
 import type { BrickDocumentV1 } from "@lego-studio/protocol";
 
 import { compileRealBuildAutomaticPlacement } from "../e2e/real-build-automatic-placement-compiler";
+import { snapshotRealBuildAutomaticPlacementInput } from "../e2e/real-build-automatic-placement-input";
+import {
+  measureRealBuildAutomaticPlacementBaseWork,
+  measureRealBuildAutomaticPlacementWork,
+} from "../e2e/real-build-automatic-placement-work";
 import { createRealBuildCandidateDocumentSnapshot } from "../e2e/real-build-candidate-document-snapshot";
 import { realBuildDocumentCandidateId } from "../e2e/real-build-candidate-lineage-identity";
 import {
@@ -165,6 +170,94 @@ describe("automatic printed-step placement compiler", () => {
     expect(result.document.steps.map(({ index }) => index)).toEqual([0, 1]);
     expect(result.patch.operations[0]).toMatchObject({ kind: "addStep", step: { index: 1 } });
     expect(applyBuildOperations(base, result.patch.operations)).toEqual(result.document);
+  });
+
+  it("shares exact step-one and later-step compiler work-policy measurements", () => {
+    const firstInput = snapshotRealBuildAutomaticPlacementInput(placementInput());
+    const firstWork = measureRealBuildAutomaticPlacementWork({
+      base: measureRealBuildAutomaticPlacementBaseWork(
+        firstInput.documentSnapshot.document,
+        firstInput.documentSnapshot.canonicalByteLength,
+      ),
+      printedStepNumber: firstInput.printedStepNumber,
+      printedStep: firstInput.printedStep,
+      witnesses: firstInput.witnesses,
+    });
+    expect(firstWork.preparationOperations).toBe(2);
+    expect(firstWork.combinedOperations).toBe(3);
+    expect(firstWork.graphVisits).toBe(
+      3 * firstWork.finalGraphEntries * firstWork.combinedOperations,
+    );
+    for (const [printedStepNumber, observed] of [
+      [0, "0"],
+      [-0, "-0"],
+      [Number.NaN, "NaN"],
+      [Number.POSITIVE_INFINITY, "Infinity"],
+      [Number.NEGATIVE_INFINITY, "-Infinity"],
+      [BigInt(1) as unknown as number, "1n"],
+    ] as const) {
+      expect(() =>
+        measureRealBuildAutomaticPlacementWork({
+          base: measureRealBuildAutomaticPlacementBaseWork(
+            firstInput.documentSnapshot.document,
+            firstInput.documentSnapshot.canonicalByteLength,
+          ),
+          printedStepNumber,
+          printedStep: firstInput.printedStep,
+          witnesses: firstInput.witnesses,
+        }),
+      ).toThrow(
+        new RegExp(
+          `received printedStepNumber ${observed}; expected a safe integer from 1 through 359`,
+          "iu",
+        ),
+      );
+    }
+
+    const first = compileRealBuildAutomaticPlacement(firstInput);
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    expect(first.automaticPlacement.program.preparationOperations).toHaveLength(2);
+    const laterInput = snapshotRealBuildAutomaticPlacementInput({
+      documentSnapshot: snapshot(first.document),
+      printedStepNumber: 2,
+      printedStep: {
+        name: "Printed step 2",
+        sourceActionDigest: sourceActionDigest("2"),
+      },
+      witnesses: [
+        {
+          catalogPartId: "builtin:brick-1x1",
+          colorId: "builtin:blue",
+          transform: { positionLdu: [0, -24, 0], orientationId: "upright-yaw-0" },
+          connections: [
+            {
+              target: { kind: "base", partId: first.document.parts[0]!.id },
+              targetPortId: "stud:0:0",
+              candidatePortId: "undersideClutch:0:0",
+              connectionKind: "stud-tube",
+            },
+          ],
+        },
+      ],
+    });
+    const laterWork = measureRealBuildAutomaticPlacementWork({
+      base: measureRealBuildAutomaticPlacementBaseWork(
+        laterInput.documentSnapshot.document,
+        laterInput.documentSnapshot.canonicalByteLength,
+      ),
+      printedStepNumber: laterInput.printedStepNumber,
+      printedStep: laterInput.printedStep,
+      witnesses: laterInput.witnesses,
+    });
+    expect(laterWork.preparationOperations).toBe(1);
+    expect(laterWork.combinedOperations).toBe(3);
+    expect(laterWork.byteVisits).toBeGreaterThan(firstWork.byteVisits / 2);
+
+    const later = compileRealBuildAutomaticPlacement(laterInput);
+    expect(later.ok).toBe(true);
+    if (!later.ok) return;
+    expect(later.automaticPlacement.program.preparationOperations).toHaveLength(1);
   });
 
   it("uses compiler-local identities when later witnesses attach to earlier witnesses", () => {

@@ -2,7 +2,6 @@ import {
   BUILTIN_COMPILER_SNAPSHOT_HASH,
   canonicalDigest,
   canonicalSha256,
-  canonicalStringify,
   compileBuildProgram,
   deepFreeze,
   documentStructuralHash,
@@ -28,15 +27,16 @@ export type {
 } from "./real-build-automatic-placement-input";
 import { realBuildDocumentCandidateId } from "./real-build-candidate-lineage-identity";
 import {
+  measureRealBuildAutomaticPlacementBaseWork,
+  measureRealBuildAutomaticPlacementWork,
+  requireRealBuildAutomaticPlacementWorkWithinCompilerLimits,
+} from "./real-build-automatic-placement-work";
+import {
   createRealBuildAutomaticScope,
-  measureRealBuildAutomaticCollisionPrimitiveCount,
   prepareRealBuildAutomaticPrintedStep,
-  REAL_BUILD_AUTOMATIC_MAXIMUM_BYTE_VISITS,
-  REAL_BUILD_AUTOMATIC_MAXIMUM_GRAPH_VISITS,
   REAL_BUILD_AUTOMATIC_MAXIMUM_OPERATIONS,
   REAL_BUILD_AUTOMATIC_MAXIMUM_REQUIRED_BASE_PORTS,
   REAL_BUILD_AUTOMATIC_PLACEMENT_COMPILER_SNAPSHOT_HASH,
-  realBuildAutomaticUtf8ByteLength,
   type RealBuildAutomaticPlacementCompilationSuccess,
   type RealBuildAutomaticPlacementCompilationResult,
   type RealBuildAutomaticPrintedStepProgram,
@@ -69,46 +69,23 @@ function deterministicId(prefix: string, value: unknown): string {
 
 function requireBoundedCompilationWork(
   input: RealBuildAutomaticPlacementInput,
-  operationCount: number,
+  preparationOperations: number,
 ): void {
-  const addedConnections = input.witnesses.reduce(
-    (total, witness) => total + witness.connections.length,
-    0,
-  );
-  const collisionPrimitiveCount = measureRealBuildAutomaticCollisionPrimitiveCount([
-    ...input.documentSnapshot.document.parts.map(({ catalogPartId }) => catalogPartId),
-    ...input.witnesses.map(({ catalogPartId }) => catalogPartId),
-  ]);
-  const finalGraphEntries =
-    input.documentSnapshot.document.parts.length +
-    input.documentSnapshot.document.connections.length +
-    input.documentSnapshot.document.submodels.length +
-    input.documentSnapshot.document.steps.length +
-    input.documentSnapshot.document.semanticRegions.length +
-    input.witnesses.length +
-    addedConnections +
-    collisionPrimitiveCount +
-    1;
-  // Provenance is rebound by a second deterministic compile. Both passes apply
-  // placement operations, then the combined add-step patch is independently
-  // replayed and hard-validated, so charge all three passes up front.
-  const graphVisits = 3 * finalGraphEntries * operationCount;
-  const proposalBytes = realBuildAutomaticUtf8ByteLength(
-    canonicalStringify({ printedStep: input.printedStep, witnesses: input.witnesses }),
-  );
-  const byteVisits =
-    3 *
-    (realBuildAutomaticUtf8ByteLength(input.documentSnapshot.canonicalBytes) + proposalBytes) *
-    operationCount;
-  if (
-    graphVisits > REAL_BUILD_AUTOMATIC_MAXIMUM_GRAPH_VISITS ||
-    byteVisits > REAL_BUILD_AUTOMATIC_MAXIMUM_BYTE_VISITS
-  ) {
-    throw new RangeError(
-      `Automatic placement would require ${graphVisits} graph-entry visits and ${byteVisits} byte-visits across two compiler passes plus one combined hard-validation replay; ` +
-        `the bounded limits are ${REAL_BUILD_AUTOMATIC_MAXIMUM_GRAPH_VISITS} and ${REAL_BUILD_AUTOMATIC_MAXIMUM_BYTE_VISITS}. Reduce the proposal or split it into separately verified printed steps.`,
+  const work = measureRealBuildAutomaticPlacementWork({
+    base: measureRealBuildAutomaticPlacementBaseWork(
+      input.documentSnapshot.document,
+      input.documentSnapshot.canonicalByteLength,
+    ),
+    printedStepNumber: input.printedStepNumber,
+    printedStep: input.printedStep,
+    witnesses: input.witnesses,
+  });
+  if (work.preparationOperations !== preparationOperations) {
+    throw new TypeError(
+      "Automatic placement compiler preparation and work policies disagree for this printed step.",
     );
   }
+  requireRealBuildAutomaticPlacementWorkWithinCompilerLimits(work);
 }
 
 function programFor(
@@ -340,7 +317,7 @@ export function compileRealBuildAutomaticPlacement(
       `Automatic printed step expands to ${combinedOperationCount} operations above the ${REAL_BUILD_AUTOMATIC_MAXIMUM_OPERATIONS}-operation compiler limit.`,
     );
   }
-  requireBoundedCompilationWork(input, combinedOperationCount);
+  requireBoundedCompilationWork(input, preparedStep.preparationOperations.length);
   const placementScope = createRealBuildAutomaticScope({
     document: preparedStep.documentWithStep,
     printedStepNumber: input.printedStepNumber,
