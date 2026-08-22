@@ -30,6 +30,8 @@ export type LegoStudioProtocol =
   | DeterministicMakerCaptureManifestV1
   | TestRunBundleManifestV1
   | TestRunBundleHandleV1
+  | RealBuildExactFiveBrokerChallengeV1
+  | RealBuildExactFiveBrokerConsumptionReceiptV1
   | TemplateSnapshotV1;
 export type Identifier = string;
 export type Hash = string;
@@ -67,6 +69,9 @@ export type UtcTimestamp = string;
 export type Ed25519Signature = string;
 export type NullableHash = Hash | null;
 export type NullablePositiveInteger = number | null;
+export type RealBuildExactFiveChallengeNonce = string;
+export type RealBuildExactFiveStableLoopbackOrigin = string;
+export type RealBuildExactFiveEd25519Signature = string;
 export type TemplateColorValueV1 =
   TemplateLiteralColorV1 | TemplateParameterColorV1;
 
@@ -771,6 +776,46 @@ export interface TestRunBundleHandleV1 {
   manifestRef: ArtifactRefV1;
   terminalEventHash: Hash;
   terminalSequence: number;
+}
+export interface RealBuildExactFiveBrokerChallengeV1 {
+  schemaVersion: "lego.real-build-exact-five-broker-challenge/1";
+  namespace: "production" | "test";
+  purpose: "admit-exact-five-official-frame-equivalence";
+  scope: "exact-five-source-parity-calibration-panels-only";
+  requestDigest: Hash;
+  reviewPresentationDigest: Hash;
+  trustBindingDigest: Hash;
+  challengeNonce: RealBuildExactFiveChallengeNonce;
+  issuedAtUnixMs: number;
+}
+export interface RealBuildExactFiveBrokerConsumptionReceiptV1 {
+  schemaVersion: "lego.real-build-exact-five-broker-consumption-receipt/1";
+  signatureDomain: "lego.real-build-exact-five-broker-consumption-receipt-signature/1";
+  namespace: "production" | "test";
+  purpose: "admit-exact-five-official-frame-equivalence";
+  scope: "exact-five-source-parity-calibration-panels-only";
+  requestDigest: Hash;
+  challengeNonce: RealBuildExactFiveChallengeNonce;
+  audience: Identifier;
+  stableOrigin: RealBuildExactFiveStableLoopbackOrigin;
+  pairedDeviceId: Identifier;
+  brokerInstallId: Identifier;
+  decision: "approved";
+  reviewPresentationDigest: Hash;
+  brokerReleaseId: Identifier;
+  brokerEventId: Identifier;
+  consumedAtUnixMs: number;
+  ledgerSequence: number;
+  previousLedgerRoot: Hash;
+  consumptionEventHash: Hash;
+  resultingLedgerRoot: Hash;
+  seal: RealBuildExactFiveEd25519SealV1;
+}
+export interface RealBuildExactFiveEd25519SealV1 {
+  algorithm: "Ed25519";
+  keyId: Identifier;
+  keyEpoch: number;
+  signature: RealBuildExactFiveEd25519Signature;
 }
 /**
  * Intrinsic immutable fixed-graph data. Admission must separately validate catalog parts, colors, transforms, and ports against the pinned catalog, truth, and admission-policy snapshots before compiler use.

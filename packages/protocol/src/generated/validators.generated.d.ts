@@ -30,3 +30,5 @@ export const validateGenerationJobRecordV1: ValidateFunction<unknown>;
 export const validateCandidateRecordV1: ValidateFunction<unknown>;
 export const validateRunEventV1: ValidateFunction<unknown>;
 export const validateNativeSealedRunManifestV1: ValidateFunction<unknown>;
+export const validateRealBuildExactFiveBrokerChallengeV1: ValidateFunction<unknown>;
+export const validateRealBuildExactFiveBrokerConsumptionReceiptV1: ValidateFunction<unknown>;

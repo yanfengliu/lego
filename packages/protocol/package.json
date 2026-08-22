@@ -11,7 +11,7 @@
   },
   "exports": {
     ".": "./src/index.ts",
-    "./schema": "./schemas/protocol.schema.json"
+    "./schema": "./schemas/protocol.generated.schema.json"
   },
   "dependencies": {
     "@noble/hashes": "2.2.0",

@@ -18,6 +18,8 @@ import {
   validateGenerationJobRecordV1 as generatedValidateGenerationJobRecordV1,
   validateMakerObservationV1 as generatedValidateMakerObservationV1,
   validateNativeSealedRunManifestV1 as generatedValidateNativeSealedRunManifestV1,
+  validateRealBuildExactFiveBrokerChallengeV1 as generatedValidateRealBuildExactFiveBrokerChallengeV1,
+  validateRealBuildExactFiveBrokerConsumptionReceiptV1 as generatedValidateRealBuildExactFiveBrokerConsumptionReceiptV1,
   validateProviderCapabilitiesV1 as generatedValidateProviderCapabilitiesV1,
   validateRenderPacketV1 as generatedValidateRenderPacketV1,
   validateRigidTransform as generatedValidateRigidTransform,
@@ -50,6 +52,8 @@ import type {
   GenerationJobRecordV1,
   MakerObservationV1,
   NativeSealedRunManifestV1,
+  RealBuildExactFiveBrokerChallengeV1,
+  RealBuildExactFiveBrokerConsumptionReceiptV1,
   ProviderCapabilitiesV1,
   RenderPacketV1,
   RigidTransform,
@@ -102,6 +106,8 @@ export const SCHEMA_IDS = {
   candidateRecordV1: `${ROOT_SCHEMA_ID}#/definitions/CandidateRecordV1`,
   runEventV1: `${ROOT_SCHEMA_ID}#/definitions/RunEventV1`,
   nativeSealedRunManifestV1: `${ROOT_SCHEMA_ID}#/definitions/NativeSealedRunManifestV1`,
+  realBuildExactFiveBrokerChallengeV1: `${ROOT_SCHEMA_ID}#/definitions/RealBuildExactFiveBrokerChallengeV1`,
+  realBuildExactFiveBrokerConsumptionReceiptV1: `${ROOT_SCHEMA_ID}#/definitions/RealBuildExactFiveBrokerConsumptionReceiptV1`,
   testRunBundleManifestV1: `${ROOT_SCHEMA_ID}#/definitions/TestRunBundleManifestV1`,
   testRunBundleHandleV1: `${ROOT_SCHEMA_ID}#/definitions/TestRunBundleHandleV1`,
 } as const;
@@ -310,6 +316,10 @@ export const validateCandidateRecordV1 = withSemanticValidation<CandidateRecordV
         ),
 );
 export const validateRunEventV1 = generatedValidateRunEventV1 as ProtocolValidator<RunEventV1>;
+export const validateRealBuildExactFiveBrokerChallengeV1 =
+  generatedValidateRealBuildExactFiveBrokerChallengeV1 as ProtocolValidator<RealBuildExactFiveBrokerChallengeV1>;
+export const validateRealBuildExactFiveBrokerConsumptionReceiptV1 =
+  generatedValidateRealBuildExactFiveBrokerConsumptionReceiptV1 as ProtocolValidator<RealBuildExactFiveBrokerConsumptionReceiptV1>;
 export const validateDeterministicMakerOutputV1 =
   withSemanticValidation<DeterministicMakerOutputV1>(
     generatedValidateDeterministicMakerOutputV1,

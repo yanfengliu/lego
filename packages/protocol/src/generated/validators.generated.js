@@ -25,6 +25,7 @@ const schema13 = {
     validatorSet: { $ref: "#/definitions/SnapshotRef" },
   },
 };
+const func0 = Object.prototype.hasOwnProperty;
 const schema14 = {
   type: "object",
   additionalProperties: false,
@@ -42,9 +43,9 @@ const schema15 = {
   pattern: "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
 };
 const schema17 = { type: "string", pattern: "^sha256:[0-9a-f]{64}$" };
-import func2Module from "ajv/dist/runtime/ucs2length.js";
-const func2 =
-  typeof func2Module === "function" ? func2Module : func2Module.default;
+import func57Module from "ajv/dist/runtime/ucs2length.js";
+const func57 =
+  typeof func57Module === "function" ? func57Module : func57Module.default;
 const pattern0 = new RegExp("^[A-Za-z0-9][A-Za-z0-9._:/-]*$", "u");
 const pattern2 = new RegExp("^sha256:[0-9a-f]{64}$", "u");
 
@@ -55,7 +56,7 @@ function validate13(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.id === undefined) {
+    if (data.id === undefined || !func0.call(data, "id")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -70,7 +71,7 @@ function validate13(
       }
       errors++;
     }
-    if (data.version === undefined) {
+    if (data.version === undefined || !func0.call(data, "version")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -85,7 +86,7 @@ function validate13(
       }
       errors++;
     }
-    if (data.hash === undefined) {
+    if (data.hash === undefined || !func0.call(data, "hash")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -100,7 +101,7 @@ function validate13(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(key0 === "id" || key0 === "version" || key0 === "hash")) {
         const err3 = {
           instancePath,
@@ -117,10 +118,10 @@ function validate13(
         errors++;
       }
     }
-    if (data.id !== undefined) {
+    if (data.id !== undefined && func0.call(data, "id")) {
       let data0 = data.id;
       if (typeof data0 === "string") {
-        if (func2(data0) > 128) {
+        if (func57(data0) > 128) {
           const err4 = {
             instancePath: instancePath + "/id",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -135,7 +136,7 @@ function validate13(
           }
           errors++;
         }
-        if (func2(data0) < 1) {
+        if (func57(data0) < 1) {
           const err5 = {
             instancePath: instancePath + "/id",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -182,10 +183,10 @@ function validate13(
         errors++;
       }
     }
-    if (data.version !== undefined) {
+    if (data.version !== undefined && func0.call(data, "version")) {
       let data1 = data.version;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err8 = {
             instancePath: instancePath + "/version",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -200,7 +201,7 @@ function validate13(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err9 = {
             instancePath: instancePath + "/version",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -247,7 +248,7 @@ function validate13(
         errors++;
       }
     }
-    if (data.hash !== undefined) {
+    if (data.hash !== undefined && func0.call(data, "hash")) {
       let data2 = data.hash;
       if (typeof data2 === "string") {
         if (!pattern2.test(data2)) {
@@ -300,14 +301,17 @@ function validate13(
   return errors === 0;
 }
 
-function validate241(
+function validate247(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.schemaVersion === undefined) {
+    if (
+      data.schemaVersion === undefined ||
+      !func0.call(data, "schemaVersion")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -322,7 +326,7 @@ function validate241(
       }
       errors++;
     }
-    if (data.catalog === undefined) {
+    if (data.catalog === undefined || !func0.call(data, "catalog")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -337,7 +341,10 @@ function validate241(
       }
       errors++;
     }
-    if (data.connectorTaxonomy === undefined) {
+    if (
+      data.connectorTaxonomy === undefined ||
+      !func0.call(data, "connectorTaxonomy")
+    ) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -352,7 +359,10 @@ function validate241(
       }
       errors++;
     }
-    if (data.collisionModel === undefined) {
+    if (
+      data.collisionModel === undefined ||
+      !func0.call(data, "collisionModel")
+    ) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -367,7 +377,10 @@ function validate241(
       }
       errors++;
     }
-    if (data.transformPolicy === undefined) {
+    if (
+      data.transformPolicy === undefined ||
+      !func0.call(data, "transformPolicy")
+    ) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -382,7 +395,7 @@ function validate241(
       }
       errors++;
     }
-    if (data.validatorSet === undefined) {
+    if (data.validatorSet === undefined || !func0.call(data, "validatorSet")) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -397,7 +410,7 @@ function validate241(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "schemaVersion" ||
         key0 === "catalog" ||
@@ -421,7 +434,7 @@ function validate241(
         errors++;
       }
     }
-    if (data.schemaVersion !== undefined) {
+    if (data.schemaVersion !== undefined && func0.call(data, "schemaVersion")) {
       if ("lego.truth-snapshot/1" !== data.schemaVersion) {
         const err7 = {
           instancePath: instancePath + "/schemaVersion",
@@ -438,7 +451,7 @@ function validate241(
         errors++;
       }
     }
-    if (data.catalog !== undefined) {
+    if (data.catalog !== undefined && func0.call(data, "catalog")) {
       if (
         !validate13(data.catalog, {
           instancePath: instancePath + "/catalog",
@@ -454,7 +467,10 @@ function validate241(
         errors = vErrors.length;
       }
     }
-    if (data.connectorTaxonomy !== undefined) {
+    if (
+      data.connectorTaxonomy !== undefined &&
+      func0.call(data, "connectorTaxonomy")
+    ) {
       if (
         !validate13(data.connectorTaxonomy, {
           instancePath: instancePath + "/connectorTaxonomy",
@@ -470,7 +486,10 @@ function validate241(
         errors = vErrors.length;
       }
     }
-    if (data.collisionModel !== undefined) {
+    if (
+      data.collisionModel !== undefined &&
+      func0.call(data, "collisionModel")
+    ) {
       if (
         !validate13(data.collisionModel, {
           instancePath: instancePath + "/collisionModel",
@@ -486,7 +505,10 @@ function validate241(
         errors = vErrors.length;
       }
     }
-    if (data.transformPolicy !== undefined) {
+    if (
+      data.transformPolicy !== undefined &&
+      func0.call(data, "transformPolicy")
+    ) {
       if (
         !validate13(data.transformPolicy, {
           instancePath: instancePath + "/transformPolicy",
@@ -502,7 +524,7 @@ function validate241(
         errors = vErrors.length;
       }
     }
-    if (data.validatorSet !== undefined) {
+    if (data.validatorSet !== undefined && func0.call(data, "validatorSet")) {
       if (
         !validate13(data.validatorSet, {
           instancePath: instancePath + "/validatorSet",
@@ -533,7 +555,7 @@ function validate241(
     }
     errors++;
   }
-  validate241.errors = vErrors;
+  validate247.errors = vErrors;
   return errors === 0;
 }
 
@@ -545,7 +567,7 @@ function validate10(
     null;
   let errors = 0;
   if (
-    !validate241(data, {
+    !validate247(data, {
       instancePath,
       parentData,
       parentDataProperty,
@@ -554,16 +576,16 @@ function validate10(
   ) {
     vErrors =
       vErrors === null
-        ? validate241.errors
-        : vErrors.concat(validate241.errors);
+        ? validate247.errors
+        : vErrors.concat(validate247.errors);
     errors = vErrors.length;
   }
   validate10.errors = vErrors;
   return errors === 0;
 }
 
-export const validateRigidTransform = validate248;
-const schema366 = {
+export const validateRigidTransform = validate254;
+const schema387 = {
   $id: "https://schemas.brick-studio.local/protocol/1/validators/RigidTransform",
   $ref: "https://schemas.brick-studio.local/protocol/1#/definitions/RigidTransform",
 };
@@ -696,14 +718,14 @@ function validate21(
   return errors === 0;
 }
 
-function validate249(
+function validate255(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.positionLdu === undefined) {
+    if (data.positionLdu === undefined || !func0.call(data, "positionLdu")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -718,7 +740,10 @@ function validate249(
       }
       errors++;
     }
-    if (data.orientationId === undefined) {
+    if (
+      data.orientationId === undefined ||
+      !func0.call(data, "orientationId")
+    ) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -733,7 +758,7 @@ function validate249(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(key0 === "positionLdu" || key0 === "orientationId")) {
         const err2 = {
           instancePath,
@@ -750,7 +775,7 @@ function validate249(
         errors++;
       }
     }
-    if (data.positionLdu !== undefined) {
+    if (data.positionLdu !== undefined && func0.call(data, "positionLdu")) {
       if (
         !validate21(data.positionLdu, {
           instancePath: instancePath + "/positionLdu",
@@ -766,10 +791,10 @@ function validate249(
         errors = vErrors.length;
       }
     }
-    if (data.orientationId !== undefined) {
+    if (data.orientationId !== undefined && func0.call(data, "orientationId")) {
       let data1 = data.orientationId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err3 = {
             instancePath: instancePath + "/orientationId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -784,7 +809,7 @@ function validate249(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err4 = {
             instancePath: instancePath + "/orientationId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -846,11 +871,11 @@ function validate249(
     }
     errors++;
   }
-  validate249.errors = vErrors;
+  validate255.errors = vErrors;
   return errors === 0;
 }
 
-function validate248(
+function validate254(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -858,7 +883,7 @@ function validate248(
     null;
   let errors = 0;
   if (
-    !validate249(data, {
+    !validate255(data, {
       instancePath,
       parentData,
       parentDataProperty,
@@ -867,16 +892,16 @@ function validate248(
   ) {
     vErrors =
       vErrors === null
-        ? validate249.errors
-        : vErrors.concat(validate249.errors);
+        ? validate255.errors
+        : vErrors.concat(validate255.errors);
     errors = vErrors.length;
   }
-  validate248.errors = vErrors;
+  validate254.errors = vErrors;
   return errors === 0;
 }
 
-export const validateBrickDocumentV1 = validate252;
-const schema369 = {
+export const validateBrickDocumentV1 = validate258;
+const schema390 = {
   $id: "https://schemas.brick-studio.local/protocol/1/validators/BrickDocumentV1",
   $ref: "https://schemas.brick-studio.local/protocol/1#/definitions/BrickDocumentV1",
 };
@@ -935,7 +960,6 @@ const schema22 = {
   },
 };
 const schema25 = { type: "string", maxLength: 256 };
-const func8 = Object.prototype.hasOwnProperty;
 
 function validate12(
   data,
@@ -944,7 +968,10 @@ function validate12(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.schemaVersion === undefined) {
+    if (
+      data.schemaVersion === undefined ||
+      !func0.call(data, "schemaVersion")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -959,7 +986,7 @@ function validate12(
       }
       errors++;
     }
-    if (data.catalog === undefined) {
+    if (data.catalog === undefined || !func0.call(data, "catalog")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -974,7 +1001,10 @@ function validate12(
       }
       errors++;
     }
-    if (data.connectorTaxonomy === undefined) {
+    if (
+      data.connectorTaxonomy === undefined ||
+      !func0.call(data, "connectorTaxonomy")
+    ) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -989,7 +1019,10 @@ function validate12(
       }
       errors++;
     }
-    if (data.collisionModel === undefined) {
+    if (
+      data.collisionModel === undefined ||
+      !func0.call(data, "collisionModel")
+    ) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -1004,7 +1037,10 @@ function validate12(
       }
       errors++;
     }
-    if (data.transformPolicy === undefined) {
+    if (
+      data.transformPolicy === undefined ||
+      !func0.call(data, "transformPolicy")
+    ) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -1019,7 +1055,7 @@ function validate12(
       }
       errors++;
     }
-    if (data.validatorSet === undefined) {
+    if (data.validatorSet === undefined || !func0.call(data, "validatorSet")) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -1034,7 +1070,7 @@ function validate12(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "schemaVersion" ||
         key0 === "catalog" ||
@@ -1058,7 +1094,7 @@ function validate12(
         errors++;
       }
     }
-    if (data.schemaVersion !== undefined) {
+    if (data.schemaVersion !== undefined && func0.call(data, "schemaVersion")) {
       if ("lego.truth-snapshot/1" !== data.schemaVersion) {
         const err7 = {
           instancePath: instancePath + "/schemaVersion",
@@ -1075,7 +1111,7 @@ function validate12(
         errors++;
       }
     }
-    if (data.catalog !== undefined) {
+    if (data.catalog !== undefined && func0.call(data, "catalog")) {
       if (
         !validate13(data.catalog, {
           instancePath: instancePath + "/catalog",
@@ -1091,7 +1127,10 @@ function validate12(
         errors = vErrors.length;
       }
     }
-    if (data.connectorTaxonomy !== undefined) {
+    if (
+      data.connectorTaxonomy !== undefined &&
+      func0.call(data, "connectorTaxonomy")
+    ) {
       if (
         !validate13(data.connectorTaxonomy, {
           instancePath: instancePath + "/connectorTaxonomy",
@@ -1107,7 +1146,10 @@ function validate12(
         errors = vErrors.length;
       }
     }
-    if (data.collisionModel !== undefined) {
+    if (
+      data.collisionModel !== undefined &&
+      func0.call(data, "collisionModel")
+    ) {
       if (
         !validate13(data.collisionModel, {
           instancePath: instancePath + "/collisionModel",
@@ -1123,7 +1165,10 @@ function validate12(
         errors = vErrors.length;
       }
     }
-    if (data.transformPolicy !== undefined) {
+    if (
+      data.transformPolicy !== undefined &&
+      func0.call(data, "transformPolicy")
+    ) {
       if (
         !validate13(data.transformPolicy, {
           instancePath: instancePath + "/transformPolicy",
@@ -1139,7 +1184,7 @@ function validate12(
         errors = vErrors.length;
       }
     }
-    if (data.validatorSet !== undefined) {
+    if (data.validatorSet !== undefined && func0.call(data, "validatorSet")) {
       if (
         !validate13(data.validatorSet, {
           instancePath: instancePath + "/validatorSet",
@@ -1203,9 +1248,9 @@ const schema26 = {
     provenance: { $ref: "#/definitions/EntityProvenance" },
   },
 };
-import func0Module from "ajv/dist/runtime/equal.js";
-const func0 =
-  typeof func0Module === "function" ? func0Module : func0Module.default;
+import func32Module from "ajv/dist/runtime/equal.js";
+const func32 =
+  typeof func32Module === "function" ? func32Module : func32Module.default;
 
 function validate20(
   data,
@@ -1214,7 +1259,7 @@ function validate20(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.positionLdu === undefined) {
+    if (data.positionLdu === undefined || !func0.call(data, "positionLdu")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -1229,7 +1274,10 @@ function validate20(
       }
       errors++;
     }
-    if (data.orientationId === undefined) {
+    if (
+      data.orientationId === undefined ||
+      !func0.call(data, "orientationId")
+    ) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -1244,7 +1292,7 @@ function validate20(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(key0 === "positionLdu" || key0 === "orientationId")) {
         const err2 = {
           instancePath,
@@ -1261,7 +1309,7 @@ function validate20(
         errors++;
       }
     }
-    if (data.positionLdu !== undefined) {
+    if (data.positionLdu !== undefined && func0.call(data, "positionLdu")) {
       if (
         !validate21(data.positionLdu, {
           instancePath: instancePath + "/positionLdu",
@@ -1277,10 +1325,10 @@ function validate20(
         errors = vErrors.length;
       }
     }
-    if (data.orientationId !== undefined) {
+    if (data.orientationId !== undefined && func0.call(data, "orientationId")) {
       let data1 = data.orientationId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err3 = {
             instancePath: instancePath + "/orientationId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -1295,7 +1343,7 @@ function validate20(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err4 = {
             instancePath: instancePath + "/orientationId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -1378,7 +1426,7 @@ function validate28(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.source === undefined) {
+    if (data.source === undefined || !func0.call(data, "source")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -1393,7 +1441,7 @@ function validate28(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(key0 === "source" || key0 === "sourceId")) {
         const err1 = {
           instancePath,
@@ -1410,7 +1458,7 @@ function validate28(
         errors++;
       }
     }
-    if (data.source !== undefined) {
+    if (data.source !== undefined && func0.call(data, "source")) {
       let data0 = data.source;
       if (!(
         data0 === "manual" ||
@@ -1434,10 +1482,10 @@ function validate28(
         errors++;
       }
     }
-    if (data.sourceId !== undefined) {
+    if (data.sourceId !== undefined && func0.call(data, "sourceId")) {
       let data1 = data.sourceId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err3 = {
             instancePath: instancePath + "/sourceId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -1452,7 +1500,7 @@ function validate28(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err4 = {
             instancePath: instancePath + "/sourceId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -1525,7 +1573,7 @@ function validate26(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.id === undefined) {
+    if (data.id === undefined || !func0.call(data, "id")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -1540,7 +1588,10 @@ function validate26(
       }
       errors++;
     }
-    if (data.catalogPartId === undefined) {
+    if (
+      data.catalogPartId === undefined ||
+      !func0.call(data, "catalogPartId")
+    ) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -1555,7 +1606,7 @@ function validate26(
       }
       errors++;
     }
-    if (data.colorId === undefined) {
+    if (data.colorId === undefined || !func0.call(data, "colorId")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -1570,7 +1621,7 @@ function validate26(
       }
       errors++;
     }
-    if (data.transform === undefined) {
+    if (data.transform === undefined || !func0.call(data, "transform")) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -1585,7 +1636,7 @@ function validate26(
       }
       errors++;
     }
-    if (data.submodelId === undefined) {
+    if (data.submodelId === undefined || !func0.call(data, "submodelId")) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -1600,7 +1651,7 @@ function validate26(
       }
       errors++;
     }
-    if (data.stepId === undefined) {
+    if (data.stepId === undefined || !func0.call(data, "stepId")) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -1615,7 +1666,7 @@ function validate26(
       }
       errors++;
     }
-    if (data.semanticTags === undefined) {
+    if (data.semanticTags === undefined || !func0.call(data, "semanticTags")) {
       const err6 = {
         instancePath,
         schemaPath: "#/required",
@@ -1630,7 +1681,7 @@ function validate26(
       }
       errors++;
     }
-    if (data.provenance === undefined) {
+    if (data.provenance === undefined || !func0.call(data, "provenance")) {
       const err7 = {
         instancePath,
         schemaPath: "#/required",
@@ -1645,7 +1696,7 @@ function validate26(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "id" ||
         key0 === "catalogPartId" ||
@@ -1671,10 +1722,10 @@ function validate26(
         errors++;
       }
     }
-    if (data.id !== undefined) {
+    if (data.id !== undefined && func0.call(data, "id")) {
       let data0 = data.id;
       if (typeof data0 === "string") {
-        if (func2(data0) > 128) {
+        if (func57(data0) > 128) {
           const err9 = {
             instancePath: instancePath + "/id",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -1689,7 +1740,7 @@ function validate26(
           }
           errors++;
         }
-        if (func2(data0) < 1) {
+        if (func57(data0) < 1) {
           const err10 = {
             instancePath: instancePath + "/id",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -1736,10 +1787,10 @@ function validate26(
         errors++;
       }
     }
-    if (data.catalogPartId !== undefined) {
+    if (data.catalogPartId !== undefined && func0.call(data, "catalogPartId")) {
       let data1 = data.catalogPartId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err13 = {
             instancePath: instancePath + "/catalogPartId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -1754,7 +1805,7 @@ function validate26(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err14 = {
             instancePath: instancePath + "/catalogPartId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -1801,10 +1852,10 @@ function validate26(
         errors++;
       }
     }
-    if (data.colorId !== undefined) {
+    if (data.colorId !== undefined && func0.call(data, "colorId")) {
       let data2 = data.colorId;
       if (typeof data2 === "string") {
-        if (func2(data2) > 128) {
+        if (func57(data2) > 128) {
           const err17 = {
             instancePath: instancePath + "/colorId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -1819,7 +1870,7 @@ function validate26(
           }
           errors++;
         }
-        if (func2(data2) < 1) {
+        if (func57(data2) < 1) {
           const err18 = {
             instancePath: instancePath + "/colorId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -1866,7 +1917,7 @@ function validate26(
         errors++;
       }
     }
-    if (data.transform !== undefined) {
+    if (data.transform !== undefined && func0.call(data, "transform")) {
       if (
         !validate20(data.transform, {
           instancePath: instancePath + "/transform",
@@ -1882,10 +1933,10 @@ function validate26(
         errors = vErrors.length;
       }
     }
-    if (data.submodelId !== undefined) {
+    if (data.submodelId !== undefined && func0.call(data, "submodelId")) {
       let data4 = data.submodelId;
       if (typeof data4 === "string") {
-        if (func2(data4) > 128) {
+        if (func57(data4) > 128) {
           const err21 = {
             instancePath: instancePath + "/submodelId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -1900,7 +1951,7 @@ function validate26(
           }
           errors++;
         }
-        if (func2(data4) < 1) {
+        if (func57(data4) < 1) {
           const err22 = {
             instancePath: instancePath + "/submodelId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -1947,10 +1998,10 @@ function validate26(
         errors++;
       }
     }
-    if (data.stepId !== undefined) {
+    if (data.stepId !== undefined && func0.call(data, "stepId")) {
       let data5 = data.stepId;
       if (typeof data5 === "string") {
-        if (func2(data5) > 128) {
+        if (func57(data5) > 128) {
           const err25 = {
             instancePath: instancePath + "/stepId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -1965,7 +2016,7 @@ function validate26(
           }
           errors++;
         }
-        if (func2(data5) < 1) {
+        if (func57(data5) < 1) {
           const err26 = {
             instancePath: instancePath + "/stepId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -2012,7 +2063,7 @@ function validate26(
         errors++;
       }
     }
-    if (data.semanticTags !== undefined) {
+    if (data.semanticTags !== undefined && func0.call(data, "semanticTags")) {
       let data6 = data.semanticTags;
       if (Array.isArray(data6)) {
         if (data6.length > 32) {
@@ -2034,7 +2085,7 @@ function validate26(
         for (let i0 = 0; i0 < len0; i0++) {
           let data7 = data6[i0];
           if (typeof data7 === "string") {
-            if (func2(data7) > 128) {
+            if (func57(data7) > 128) {
               const err30 = {
                 instancePath: instancePath + "/semanticTags/" + i0,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -2049,7 +2100,7 @@ function validate26(
               }
               errors++;
             }
-            if (func2(data7) < 1) {
+            if (func57(data7) < 1) {
               const err31 = {
                 instancePath: instancePath + "/semanticTags/" + i0,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -2103,7 +2154,7 @@ function validate26(
         if (i1 > 1) {
           outer0: for (; i1--;) {
             for (j0 = i1; j0--;) {
-              if (func0(data6[i1], data6[j0])) {
+              if (func32(data6[i1], data6[j0])) {
                 const err34 = {
                   instancePath: instancePath + "/semanticTags",
                   schemaPath: "#/properties/semanticTags/uniqueItems",
@@ -2143,7 +2194,7 @@ function validate26(
         errors++;
       }
     }
-    if (data.provenance !== undefined) {
+    if (data.provenance !== undefined && func0.call(data, "provenance")) {
       if (
         !validate28(data.provenance, {
           instancePath: instancePath + "/provenance",
@@ -2207,7 +2258,7 @@ function validate32(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.partId === undefined) {
+    if (data.partId === undefined || !func0.call(data, "partId")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -2222,7 +2273,7 @@ function validate32(
       }
       errors++;
     }
-    if (data.portId === undefined) {
+    if (data.portId === undefined || !func0.call(data, "portId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -2237,7 +2288,7 @@ function validate32(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(key0 === "partId" || key0 === "portId")) {
         const err2 = {
           instancePath,
@@ -2254,10 +2305,10 @@ function validate32(
         errors++;
       }
     }
-    if (data.partId !== undefined) {
+    if (data.partId !== undefined && func0.call(data, "partId")) {
       let data0 = data.partId;
       if (typeof data0 === "string") {
-        if (func2(data0) > 128) {
+        if (func57(data0) > 128) {
           const err3 = {
             instancePath: instancePath + "/partId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -2272,7 +2323,7 @@ function validate32(
           }
           errors++;
         }
-        if (func2(data0) < 1) {
+        if (func57(data0) < 1) {
           const err4 = {
             instancePath: instancePath + "/partId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -2319,10 +2370,10 @@ function validate32(
         errors++;
       }
     }
-    if (data.portId !== undefined) {
+    if (data.portId !== undefined && func0.call(data, "portId")) {
       let data1 = data.portId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err7 = {
             instancePath: instancePath + "/portId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -2337,7 +2388,7 @@ function validate32(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err8 = {
             instancePath: instancePath + "/portId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -2410,7 +2461,7 @@ function validate31(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.id === undefined) {
+    if (data.id === undefined || !func0.call(data, "id")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -2425,7 +2476,7 @@ function validate31(
       }
       errors++;
     }
-    if (data.kind === undefined) {
+    if (data.kind === undefined || !func0.call(data, "kind")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -2440,7 +2491,7 @@ function validate31(
       }
       errors++;
     }
-    if (data.a === undefined) {
+    if (data.a === undefined || !func0.call(data, "a")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -2455,7 +2506,7 @@ function validate31(
       }
       errors++;
     }
-    if (data.b === undefined) {
+    if (data.b === undefined || !func0.call(data, "b")) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -2470,7 +2521,7 @@ function validate31(
       }
       errors++;
     }
-    if (data.provenance === undefined) {
+    if (data.provenance === undefined || !func0.call(data, "provenance")) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -2485,7 +2536,7 @@ function validate31(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "id" ||
         key0 === "kind" ||
@@ -2508,10 +2559,10 @@ function validate31(
         errors++;
       }
     }
-    if (data.id !== undefined) {
+    if (data.id !== undefined && func0.call(data, "id")) {
       let data0 = data.id;
       if (typeof data0 === "string") {
-        if (func2(data0) > 128) {
+        if (func57(data0) > 128) {
           const err6 = {
             instancePath: instancePath + "/id",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -2526,7 +2577,7 @@ function validate31(
           }
           errors++;
         }
-        if (func2(data0) < 1) {
+        if (func57(data0) < 1) {
           const err7 = {
             instancePath: instancePath + "/id",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -2573,7 +2624,7 @@ function validate31(
         errors++;
       }
     }
-    if (data.kind !== undefined) {
+    if (data.kind !== undefined && func0.call(data, "kind")) {
       if ("stud-tube" !== data.kind) {
         const err10 = {
           instancePath: instancePath + "/kind",
@@ -2590,7 +2641,7 @@ function validate31(
         errors++;
       }
     }
-    if (data.a !== undefined) {
+    if (data.a !== undefined && func0.call(data, "a")) {
       if (
         !validate32(data.a, {
           instancePath: instancePath + "/a",
@@ -2606,7 +2657,7 @@ function validate31(
         errors = vErrors.length;
       }
     }
-    if (data.b !== undefined) {
+    if (data.b !== undefined && func0.call(data, "b")) {
       if (
         !validate32(data.b, {
           instancePath: instancePath + "/b",
@@ -2622,7 +2673,7 @@ function validate31(
         errors = vErrors.length;
       }
     }
-    if (data.provenance !== undefined) {
+    if (data.provenance !== undefined && func0.call(data, "provenance")) {
       if (
         !validate28(data.provenance, {
           instancePath: instancePath + "/provenance",
@@ -2680,7 +2731,7 @@ function validate37(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.id === undefined) {
+    if (data.id === undefined || !func0.call(data, "id")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -2695,7 +2746,7 @@ function validate37(
       }
       errors++;
     }
-    if (data.name === undefined) {
+    if (data.name === undefined || !func0.call(data, "name")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -2710,7 +2761,7 @@ function validate37(
       }
       errors++;
     }
-    if (data.partIds === undefined) {
+    if (data.partIds === undefined || !func0.call(data, "partIds")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -2725,7 +2776,7 @@ function validate37(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(key0 === "id" || key0 === "name" || key0 === "partIds")) {
         const err3 = {
           instancePath,
@@ -2742,10 +2793,10 @@ function validate37(
         errors++;
       }
     }
-    if (data.id !== undefined) {
+    if (data.id !== undefined && func0.call(data, "id")) {
       let data0 = data.id;
       if (typeof data0 === "string") {
-        if (func2(data0) > 128) {
+        if (func57(data0) > 128) {
           const err4 = {
             instancePath: instancePath + "/id",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -2760,7 +2811,7 @@ function validate37(
           }
           errors++;
         }
-        if (func2(data0) < 1) {
+        if (func57(data0) < 1) {
           const err5 = {
             instancePath: instancePath + "/id",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -2807,10 +2858,10 @@ function validate37(
         errors++;
       }
     }
-    if (data.name !== undefined) {
+    if (data.name !== undefined && func0.call(data, "name")) {
       let data1 = data.name;
       if (typeof data1 === "string") {
-        if (func2(data1) > 256) {
+        if (func57(data1) > 256) {
           const err8 = {
             instancePath: instancePath + "/name",
             schemaPath: "#/definitions/ShortText/maxLength",
@@ -2841,7 +2892,7 @@ function validate37(
         errors++;
       }
     }
-    if (data.partIds !== undefined) {
+    if (data.partIds !== undefined && func0.call(data, "partIds")) {
       let data2 = data.partIds;
       if (Array.isArray(data2)) {
         if (data2.length > 10000) {
@@ -2863,7 +2914,7 @@ function validate37(
         for (let i0 = 0; i0 < len0; i0++) {
           let data3 = data2[i0];
           if (typeof data3 === "string") {
-            if (func2(data3) > 128) {
+            if (func57(data3) > 128) {
               const err11 = {
                 instancePath: instancePath + "/partIds/" + i0,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -2878,7 +2929,7 @@ function validate37(
               }
               errors++;
             }
-            if (func2(data3) < 1) {
+            if (func57(data3) < 1) {
               const err12 = {
                 instancePath: instancePath + "/partIds/" + i0,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -2932,7 +2983,7 @@ function validate37(
         if (i1 > 1) {
           outer0: for (; i1--;) {
             for (j0 = i1; j0--;) {
-              if (func0(data2[i1], data2[j0])) {
+              if (func32(data2[i1], data2[j0])) {
                 const err15 = {
                   instancePath: instancePath + "/partIds",
                   schemaPath: "#/properties/partIds/uniqueItems",
@@ -3015,7 +3066,7 @@ function validate39(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.id === undefined) {
+    if (data.id === undefined || !func0.call(data, "id")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -3030,7 +3081,7 @@ function validate39(
       }
       errors++;
     }
-    if (data.index === undefined) {
+    if (data.index === undefined || !func0.call(data, "index")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -3045,7 +3096,7 @@ function validate39(
       }
       errors++;
     }
-    if (data.name === undefined) {
+    if (data.name === undefined || !func0.call(data, "name")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -3060,7 +3111,7 @@ function validate39(
       }
       errors++;
     }
-    if (data.partIds === undefined) {
+    if (data.partIds === undefined || !func0.call(data, "partIds")) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -3075,7 +3126,7 @@ function validate39(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "id" ||
         key0 === "index" ||
@@ -3097,10 +3148,10 @@ function validate39(
         errors++;
       }
     }
-    if (data.id !== undefined) {
+    if (data.id !== undefined && func0.call(data, "id")) {
       let data0 = data.id;
       if (typeof data0 === "string") {
-        if (func2(data0) > 128) {
+        if (func57(data0) > 128) {
           const err5 = {
             instancePath: instancePath + "/id",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -3115,7 +3166,7 @@ function validate39(
           }
           errors++;
         }
-        if (func2(data0) < 1) {
+        if (func57(data0) < 1) {
           const err6 = {
             instancePath: instancePath + "/id",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -3162,7 +3213,7 @@ function validate39(
         errors++;
       }
     }
-    if (data.index !== undefined) {
+    if (data.index !== undefined && func0.call(data, "index")) {
       let data1 = data.index;
       if (!(
         typeof data1 == "number" &&
@@ -3217,10 +3268,10 @@ function validate39(
         }
       }
     }
-    if (data.name !== undefined) {
+    if (data.name !== undefined && func0.call(data, "name")) {
       let data2 = data.name;
       if (typeof data2 === "string") {
-        if (func2(data2) > 256) {
+        if (func57(data2) > 256) {
           const err12 = {
             instancePath: instancePath + "/name",
             schemaPath: "#/definitions/ShortText/maxLength",
@@ -3251,7 +3302,7 @@ function validate39(
         errors++;
       }
     }
-    if (data.partIds !== undefined) {
+    if (data.partIds !== undefined && func0.call(data, "partIds")) {
       let data3 = data.partIds;
       if (Array.isArray(data3)) {
         if (data3.length > 10000) {
@@ -3273,7 +3324,7 @@ function validate39(
         for (let i0 = 0; i0 < len0; i0++) {
           let data4 = data3[i0];
           if (typeof data4 === "string") {
-            if (func2(data4) > 128) {
+            if (func57(data4) > 128) {
               const err15 = {
                 instancePath: instancePath + "/partIds/" + i0,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -3288,7 +3339,7 @@ function validate39(
               }
               errors++;
             }
-            if (func2(data4) < 1) {
+            if (func57(data4) < 1) {
               const err16 = {
                 instancePath: instancePath + "/partIds/" + i0,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -3342,7 +3393,7 @@ function validate39(
         if (i1 > 1) {
           outer0: for (; i1--;) {
             for (j0 = i1; j0--;) {
-              if (func0(data3[i1], data3[j0])) {
+              if (func32(data3[i1], data3[j0])) {
                 const err19 = {
                   instancePath: instancePath + "/partIds",
                   schemaPath: "#/properties/partIds/uniqueItems",
@@ -3424,7 +3475,7 @@ function validate41(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.id === undefined) {
+    if (data.id === undefined || !func0.call(data, "id")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -3439,7 +3490,7 @@ function validate41(
       }
       errors++;
     }
-    if (data.label === undefined) {
+    if (data.label === undefined || !func0.call(data, "label")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -3454,7 +3505,7 @@ function validate41(
       }
       errors++;
     }
-    if (data.partIds === undefined) {
+    if (data.partIds === undefined || !func0.call(data, "partIds")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -3469,7 +3520,7 @@ function validate41(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(key0 === "id" || key0 === "label" || key0 === "partIds")) {
         const err3 = {
           instancePath,
@@ -3486,10 +3537,10 @@ function validate41(
         errors++;
       }
     }
-    if (data.id !== undefined) {
+    if (data.id !== undefined && func0.call(data, "id")) {
       let data0 = data.id;
       if (typeof data0 === "string") {
-        if (func2(data0) > 128) {
+        if (func57(data0) > 128) {
           const err4 = {
             instancePath: instancePath + "/id",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -3504,7 +3555,7 @@ function validate41(
           }
           errors++;
         }
-        if (func2(data0) < 1) {
+        if (func57(data0) < 1) {
           const err5 = {
             instancePath: instancePath + "/id",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -3551,10 +3602,10 @@ function validate41(
         errors++;
       }
     }
-    if (data.label !== undefined) {
+    if (data.label !== undefined && func0.call(data, "label")) {
       let data1 = data.label;
       if (typeof data1 === "string") {
-        if (func2(data1) > 256) {
+        if (func57(data1) > 256) {
           const err8 = {
             instancePath: instancePath + "/label",
             schemaPath: "#/definitions/ShortText/maxLength",
@@ -3585,7 +3636,7 @@ function validate41(
         errors++;
       }
     }
-    if (data.partIds !== undefined) {
+    if (data.partIds !== undefined && func0.call(data, "partIds")) {
       let data2 = data.partIds;
       if (Array.isArray(data2)) {
         if (data2.length > 10000) {
@@ -3607,7 +3658,7 @@ function validate41(
         for (let i0 = 0; i0 < len0; i0++) {
           let data3 = data2[i0];
           if (typeof data3 === "string") {
-            if (func2(data3) > 128) {
+            if (func57(data3) > 128) {
               const err11 = {
                 instancePath: instancePath + "/partIds/" + i0,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -3622,7 +3673,7 @@ function validate41(
               }
               errors++;
             }
-            if (func2(data3) < 1) {
+            if (func57(data3) < 1) {
               const err12 = {
                 instancePath: instancePath + "/partIds/" + i0,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -3676,7 +3727,7 @@ function validate41(
         if (i1 > 1) {
           outer0: for (; i1--;) {
             for (j0 = i1; j0--;) {
-              if (func0(data2[i1], data2[j0])) {
+              if (func32(data2[i1], data2[j0])) {
                 const err15 = {
                   instancePath: instancePath + "/partIds",
                   schemaPath: "#/properties/partIds/uniqueItems",
@@ -3765,7 +3816,7 @@ function validate43(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.maxParts === undefined) {
+    if (data.maxParts === undefined || !func0.call(data, "maxParts")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -3780,7 +3831,10 @@ function validate43(
       }
       errors++;
     }
-    if (data.allowedCatalogPartIds === undefined) {
+    if (
+      data.allowedCatalogPartIds === undefined ||
+      !func0.call(data, "allowedCatalogPartIds")
+    ) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -3796,7 +3850,10 @@ function validate43(
       }
       errors++;
     }
-    if (data.allowedColorIds === undefined) {
+    if (
+      data.allowedColorIds === undefined ||
+      !func0.call(data, "allowedColorIds")
+    ) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -3811,7 +3868,7 @@ function validate43(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "maxParts" ||
         key0 === "allowedCatalogPartIds" ||
@@ -3832,7 +3889,7 @@ function validate43(
         errors++;
       }
     }
-    if (data.maxParts !== undefined) {
+    if (data.maxParts !== undefined && func0.call(data, "maxParts")) {
       let data0 = data.maxParts;
       if (!(
         typeof data0 == "number" &&
@@ -3887,7 +3944,10 @@ function validate43(
         }
       }
     }
-    if (data.allowedCatalogPartIds !== undefined) {
+    if (
+      data.allowedCatalogPartIds !== undefined &&
+      func0.call(data, "allowedCatalogPartIds")
+    ) {
       let data1 = data.allowedCatalogPartIds;
       if (Array.isArray(data1)) {
         if (data1.length > 10000) {
@@ -3924,7 +3984,7 @@ function validate43(
         for (let i0 = 0; i0 < len0; i0++) {
           let data2 = data1[i0];
           if (typeof data2 === "string") {
-            if (func2(data2) > 128) {
+            if (func57(data2) > 128) {
               const err9 = {
                 instancePath: instancePath + "/allowedCatalogPartIds/" + i0,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -3939,7 +3999,7 @@ function validate43(
               }
               errors++;
             }
-            if (func2(data2) < 1) {
+            if (func57(data2) < 1) {
               const err10 = {
                 instancePath: instancePath + "/allowedCatalogPartIds/" + i0,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -3993,7 +4053,7 @@ function validate43(
         if (i1 > 1) {
           outer0: for (; i1--;) {
             for (j0 = i1; j0--;) {
-              if (func0(data1[i1], data1[j0])) {
+              if (func32(data1[i1], data1[j0])) {
                 const err13 = {
                   instancePath: instancePath + "/allowedCatalogPartIds",
                   schemaPath: "#/properties/allowedCatalogPartIds/uniqueItems",
@@ -4033,7 +4093,10 @@ function validate43(
         errors++;
       }
     }
-    if (data.allowedColorIds !== undefined) {
+    if (
+      data.allowedColorIds !== undefined &&
+      func0.call(data, "allowedColorIds")
+    ) {
       let data3 = data.allowedColorIds;
       if (Array.isArray(data3)) {
         if (data3.length > 256) {
@@ -4070,7 +4133,7 @@ function validate43(
         for (let i2 = 0; i2 < len1; i2++) {
           let data4 = data3[i2];
           if (typeof data4 === "string") {
-            if (func2(data4) > 128) {
+            if (func57(data4) > 128) {
               const err17 = {
                 instancePath: instancePath + "/allowedColorIds/" + i2,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -4085,7 +4148,7 @@ function validate43(
               }
               errors++;
             }
-            if (func2(data4) < 1) {
+            if (func57(data4) < 1) {
               const err18 = {
                 instancePath: instancePath + "/allowedColorIds/" + i2,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -4139,7 +4202,7 @@ function validate43(
         if (i3 > 1) {
           outer1: for (; i3--;) {
             for (j1 = i3; j1--;) {
-              if (func0(data3[i3], data3[j1])) {
+              if (func32(data3[i3], data3[j1])) {
                 const err21 = {
                   instancePath: instancePath + "/allowedColorIds",
                   schemaPath: "#/properties/allowedColorIds/uniqueItems",
@@ -4215,7 +4278,7 @@ function validate45(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.origin === undefined) {
+    if (data.origin === undefined || !func0.call(data, "origin")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -4230,7 +4293,7 @@ function validate45(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(key0 === "origin" || key0 === "sourceId")) {
         const err1 = {
           instancePath,
@@ -4247,7 +4310,7 @@ function validate45(
         errors++;
       }
     }
-    if (data.origin !== undefined) {
+    if (data.origin !== undefined && func0.call(data, "origin")) {
       let data0 = data.origin;
       if (!(
         data0 === "manual" ||
@@ -4269,10 +4332,10 @@ function validate45(
         errors++;
       }
     }
-    if (data.sourceId !== undefined) {
+    if (data.sourceId !== undefined && func0.call(data, "sourceId")) {
       let data1 = data.sourceId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err3 = {
             instancePath: instancePath + "/sourceId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -4287,7 +4350,7 @@ function validate45(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err4 = {
             instancePath: instancePath + "/sourceId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -4353,14 +4416,17 @@ function validate45(
   return errors === 0;
 }
 
-function validate253(
+function validate259(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.schemaVersion === undefined) {
+    if (
+      data.schemaVersion === undefined ||
+      !func0.call(data, "schemaVersion")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -4375,7 +4441,7 @@ function validate253(
       }
       errors++;
     }
-    if (data.id === undefined) {
+    if (data.id === undefined || !func0.call(data, "id")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -4390,7 +4456,7 @@ function validate253(
       }
       errors++;
     }
-    if (data.revision === undefined) {
+    if (data.revision === undefined || !func0.call(data, "revision")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -4405,7 +4471,7 @@ function validate253(
       }
       errors++;
     }
-    if (data.truth === undefined) {
+    if (data.truth === undefined || !func0.call(data, "truth")) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -4420,7 +4486,7 @@ function validate253(
       }
       errors++;
     }
-    if (data.name === undefined) {
+    if (data.name === undefined || !func0.call(data, "name")) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -4435,7 +4501,7 @@ function validate253(
       }
       errors++;
     }
-    if (data.parts === undefined) {
+    if (data.parts === undefined || !func0.call(data, "parts")) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -4450,7 +4516,7 @@ function validate253(
       }
       errors++;
     }
-    if (data.connections === undefined) {
+    if (data.connections === undefined || !func0.call(data, "connections")) {
       const err6 = {
         instancePath,
         schemaPath: "#/required",
@@ -4465,7 +4531,7 @@ function validate253(
       }
       errors++;
     }
-    if (data.submodels === undefined) {
+    if (data.submodels === undefined || !func0.call(data, "submodels")) {
       const err7 = {
         instancePath,
         schemaPath: "#/required",
@@ -4480,7 +4546,7 @@ function validate253(
       }
       errors++;
     }
-    if (data.steps === undefined) {
+    if (data.steps === undefined || !func0.call(data, "steps")) {
       const err8 = {
         instancePath,
         schemaPath: "#/required",
@@ -4495,7 +4561,10 @@ function validate253(
       }
       errors++;
     }
-    if (data.semanticRegions === undefined) {
+    if (
+      data.semanticRegions === undefined ||
+      !func0.call(data, "semanticRegions")
+    ) {
       const err9 = {
         instancePath,
         schemaPath: "#/required",
@@ -4510,7 +4579,7 @@ function validate253(
       }
       errors++;
     }
-    if (data.constraints === undefined) {
+    if (data.constraints === undefined || !func0.call(data, "constraints")) {
       const err10 = {
         instancePath,
         schemaPath: "#/required",
@@ -4525,7 +4594,7 @@ function validate253(
       }
       errors++;
     }
-    if (data.provenance === undefined) {
+    if (data.provenance === undefined || !func0.call(data, "provenance")) {
       const err11 = {
         instancePath,
         schemaPath: "#/required",
@@ -4540,8 +4609,8 @@ function validate253(
       }
       errors++;
     }
-    for (const key0 in data) {
-      if (!func8.call(schema22.properties, key0)) {
+    for (const key0 of Object.keys(data)) {
+      if (!func0.call(schema22.properties, key0)) {
         const err12 = {
           instancePath,
           schemaPath: "#/additionalProperties",
@@ -4557,7 +4626,7 @@ function validate253(
         errors++;
       }
     }
-    if (data.schemaVersion !== undefined) {
+    if (data.schemaVersion !== undefined && func0.call(data, "schemaVersion")) {
       if ("lego.brick-document/1" !== data.schemaVersion) {
         const err13 = {
           instancePath: instancePath + "/schemaVersion",
@@ -4574,10 +4643,10 @@ function validate253(
         errors++;
       }
     }
-    if (data.id !== undefined) {
+    if (data.id !== undefined && func0.call(data, "id")) {
       let data1 = data.id;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err14 = {
             instancePath: instancePath + "/id",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -4592,7 +4661,7 @@ function validate253(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err15 = {
             instancePath: instancePath + "/id",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -4639,10 +4708,10 @@ function validate253(
         errors++;
       }
     }
-    if (data.revision !== undefined) {
+    if (data.revision !== undefined && func0.call(data, "revision")) {
       let data2 = data.revision;
       if (typeof data2 === "string") {
-        if (func2(data2) > 128) {
+        if (func57(data2) > 128) {
           const err18 = {
             instancePath: instancePath + "/revision",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -4657,7 +4726,7 @@ function validate253(
           }
           errors++;
         }
-        if (func2(data2) < 1) {
+        if (func57(data2) < 1) {
           const err19 = {
             instancePath: instancePath + "/revision",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -4704,7 +4773,7 @@ function validate253(
         errors++;
       }
     }
-    if (data.truth !== undefined) {
+    if (data.truth !== undefined && func0.call(data, "truth")) {
       if (
         !validate12(data.truth, {
           instancePath: instancePath + "/truth",
@@ -4720,10 +4789,10 @@ function validate253(
         errors = vErrors.length;
       }
     }
-    if (data.name !== undefined) {
+    if (data.name !== undefined && func0.call(data, "name")) {
       let data4 = data.name;
       if (typeof data4 === "string") {
-        if (func2(data4) > 256) {
+        if (func57(data4) > 256) {
           const err22 = {
             instancePath: instancePath + "/name",
             schemaPath: "#/definitions/ShortText/maxLength",
@@ -4754,7 +4823,7 @@ function validate253(
         errors++;
       }
     }
-    if (data.parts !== undefined) {
+    if (data.parts !== undefined && func0.call(data, "parts")) {
       let data5 = data.parts;
       if (Array.isArray(data5)) {
         if (data5.length > 10000) {
@@ -4805,7 +4874,7 @@ function validate253(
         errors++;
       }
     }
-    if (data.connections !== undefined) {
+    if (data.connections !== undefined && func0.call(data, "connections")) {
       let data7 = data.connections;
       if (Array.isArray(data7)) {
         if (data7.length > 50000) {
@@ -4856,7 +4925,7 @@ function validate253(
         errors++;
       }
     }
-    if (data.submodels !== undefined) {
+    if (data.submodels !== undefined && func0.call(data, "submodels")) {
       let data9 = data.submodels;
       if (Array.isArray(data9)) {
         if (data9.length > 1024) {
@@ -4922,7 +4991,7 @@ function validate253(
         errors++;
       }
     }
-    if (data.steps !== undefined) {
+    if (data.steps !== undefined && func0.call(data, "steps")) {
       let data11 = data.steps;
       if (Array.isArray(data11)) {
         if (data11.length > 10000) {
@@ -4988,7 +5057,10 @@ function validate253(
         errors++;
       }
     }
-    if (data.semanticRegions !== undefined) {
+    if (
+      data.semanticRegions !== undefined &&
+      func0.call(data, "semanticRegions")
+    ) {
       let data13 = data.semanticRegions;
       if (Array.isArray(data13)) {
         if (data13.length > 1024) {
@@ -5039,7 +5111,7 @@ function validate253(
         errors++;
       }
     }
-    if (data.constraints !== undefined) {
+    if (data.constraints !== undefined && func0.call(data, "constraints")) {
       if (
         !validate43(data.constraints, {
           instancePath: instancePath + "/constraints",
@@ -5055,7 +5127,7 @@ function validate253(
         errors = vErrors.length;
       }
     }
-    if (data.provenance !== undefined) {
+    if (data.provenance !== undefined && func0.call(data, "provenance")) {
       if (
         !validate45(data.provenance, {
           instancePath: instancePath + "/provenance",
@@ -5086,11 +5158,11 @@ function validate253(
     }
     errors++;
   }
-  validate253.errors = vErrors;
+  validate259.errors = vErrors;
   return errors === 0;
 }
 
-function validate252(
+function validate258(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -5098,7 +5170,7 @@ function validate252(
     null;
   let errors = 0;
   if (
-    !validate253(data, {
+    !validate259(data, {
       instancePath,
       parentData,
       parentDataProperty,
@@ -5107,16 +5179,16 @@ function validate252(
   ) {
     vErrors =
       vErrors === null
-        ? validate253.errors
-        : vErrors.concat(validate253.errors);
+        ? validate259.errors
+        : vErrors.concat(validate259.errors);
     errors = vErrors.length;
   }
-  validate252.errors = vErrors;
+  validate258.errors = vErrors;
   return errors === 0;
 }
 
-export const validateBuildProgramV1 = validate263;
-const schema374 = {
+export const validateBuildProgramV1 = validate269;
+const schema395 = {
   $id: "https://schemas.brick-studio.local/protocol/1/validators/BuildProgramV1",
   $ref: "https://schemas.brick-studio.local/protocol/1#/definitions/BuildProgramV1",
 };
@@ -5185,7 +5257,7 @@ function validate50(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.kind === undefined) {
+    if (data.kind === undefined || !func0.call(data, "kind")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -5200,7 +5272,7 @@ function validate50(
       }
       errors++;
     }
-    if (data.operationId === undefined) {
+    if (data.operationId === undefined || !func0.call(data, "operationId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -5215,7 +5287,7 @@ function validate50(
       }
       errors++;
     }
-    if (data.localPartId === undefined) {
+    if (data.localPartId === undefined || !func0.call(data, "localPartId")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -5230,7 +5302,10 @@ function validate50(
       }
       errors++;
     }
-    if (data.catalogPartId === undefined) {
+    if (
+      data.catalogPartId === undefined ||
+      !func0.call(data, "catalogPartId")
+    ) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -5245,7 +5320,7 @@ function validate50(
       }
       errors++;
     }
-    if (data.colorId === undefined) {
+    if (data.colorId === undefined || !func0.call(data, "colorId")) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -5260,7 +5335,7 @@ function validate50(
       }
       errors++;
     }
-    if (data.transform === undefined) {
+    if (data.transform === undefined || !func0.call(data, "transform")) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -5275,7 +5350,7 @@ function validate50(
       }
       errors++;
     }
-    if (data.submodelId === undefined) {
+    if (data.submodelId === undefined || !func0.call(data, "submodelId")) {
       const err6 = {
         instancePath,
         schemaPath: "#/required",
@@ -5290,7 +5365,7 @@ function validate50(
       }
       errors++;
     }
-    if (data.stepId === undefined) {
+    if (data.stepId === undefined || !func0.call(data, "stepId")) {
       const err7 = {
         instancePath,
         schemaPath: "#/required",
@@ -5305,7 +5380,7 @@ function validate50(
       }
       errors++;
     }
-    if (data.semanticTags === undefined) {
+    if (data.semanticTags === undefined || !func0.call(data, "semanticTags")) {
       const err8 = {
         instancePath,
         schemaPath: "#/required",
@@ -5320,8 +5395,8 @@ function validate50(
       }
       errors++;
     }
-    for (const key0 in data) {
-      if (!func8.call(schema59.properties, key0)) {
+    for (const key0 of Object.keys(data)) {
+      if (!func0.call(schema59.properties, key0)) {
         const err9 = {
           instancePath,
           schemaPath: "#/additionalProperties",
@@ -5337,7 +5412,7 @@ function validate50(
         errors++;
       }
     }
-    if (data.kind !== undefined) {
+    if (data.kind !== undefined && func0.call(data, "kind")) {
       if ("placePart" !== data.kind) {
         const err10 = {
           instancePath: instancePath + "/kind",
@@ -5354,10 +5429,10 @@ function validate50(
         errors++;
       }
     }
-    if (data.operationId !== undefined) {
+    if (data.operationId !== undefined && func0.call(data, "operationId")) {
       let data1 = data.operationId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err11 = {
             instancePath: instancePath + "/operationId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -5372,7 +5447,7 @@ function validate50(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err12 = {
             instancePath: instancePath + "/operationId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -5419,10 +5494,10 @@ function validate50(
         errors++;
       }
     }
-    if (data.localPartId !== undefined) {
+    if (data.localPartId !== undefined && func0.call(data, "localPartId")) {
       let data2 = data.localPartId;
       if (typeof data2 === "string") {
-        if (func2(data2) > 128) {
+        if (func57(data2) > 128) {
           const err15 = {
             instancePath: instancePath + "/localPartId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -5437,7 +5512,7 @@ function validate50(
           }
           errors++;
         }
-        if (func2(data2) < 1) {
+        if (func57(data2) < 1) {
           const err16 = {
             instancePath: instancePath + "/localPartId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -5484,10 +5559,10 @@ function validate50(
         errors++;
       }
     }
-    if (data.catalogPartId !== undefined) {
+    if (data.catalogPartId !== undefined && func0.call(data, "catalogPartId")) {
       let data3 = data.catalogPartId;
       if (typeof data3 === "string") {
-        if (func2(data3) > 128) {
+        if (func57(data3) > 128) {
           const err19 = {
             instancePath: instancePath + "/catalogPartId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -5502,7 +5577,7 @@ function validate50(
           }
           errors++;
         }
-        if (func2(data3) < 1) {
+        if (func57(data3) < 1) {
           const err20 = {
             instancePath: instancePath + "/catalogPartId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -5549,10 +5624,10 @@ function validate50(
         errors++;
       }
     }
-    if (data.colorId !== undefined) {
+    if (data.colorId !== undefined && func0.call(data, "colorId")) {
       let data4 = data.colorId;
       if (typeof data4 === "string") {
-        if (func2(data4) > 128) {
+        if (func57(data4) > 128) {
           const err23 = {
             instancePath: instancePath + "/colorId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -5567,7 +5642,7 @@ function validate50(
           }
           errors++;
         }
-        if (func2(data4) < 1) {
+        if (func57(data4) < 1) {
           const err24 = {
             instancePath: instancePath + "/colorId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -5614,7 +5689,7 @@ function validate50(
         errors++;
       }
     }
-    if (data.transform !== undefined) {
+    if (data.transform !== undefined && func0.call(data, "transform")) {
       if (
         !validate20(data.transform, {
           instancePath: instancePath + "/transform",
@@ -5630,10 +5705,10 @@ function validate50(
         errors = vErrors.length;
       }
     }
-    if (data.submodelId !== undefined) {
+    if (data.submodelId !== undefined && func0.call(data, "submodelId")) {
       let data6 = data.submodelId;
       if (typeof data6 === "string") {
-        if (func2(data6) > 128) {
+        if (func57(data6) > 128) {
           const err27 = {
             instancePath: instancePath + "/submodelId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -5648,7 +5723,7 @@ function validate50(
           }
           errors++;
         }
-        if (func2(data6) < 1) {
+        if (func57(data6) < 1) {
           const err28 = {
             instancePath: instancePath + "/submodelId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -5695,10 +5770,10 @@ function validate50(
         errors++;
       }
     }
-    if (data.stepId !== undefined) {
+    if (data.stepId !== undefined && func0.call(data, "stepId")) {
       let data7 = data.stepId;
       if (typeof data7 === "string") {
-        if (func2(data7) > 128) {
+        if (func57(data7) > 128) {
           const err31 = {
             instancePath: instancePath + "/stepId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -5713,7 +5788,7 @@ function validate50(
           }
           errors++;
         }
-        if (func2(data7) < 1) {
+        if (func57(data7) < 1) {
           const err32 = {
             instancePath: instancePath + "/stepId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -5760,7 +5835,7 @@ function validate50(
         errors++;
       }
     }
-    if (data.semanticTags !== undefined) {
+    if (data.semanticTags !== undefined && func0.call(data, "semanticTags")) {
       let data8 = data.semanticTags;
       if (Array.isArray(data8)) {
         if (data8.length > 32) {
@@ -5782,7 +5857,7 @@ function validate50(
         for (let i0 = 0; i0 < len0; i0++) {
           let data9 = data8[i0];
           if (typeof data9 === "string") {
-            if (func2(data9) > 128) {
+            if (func57(data9) > 128) {
               const err36 = {
                 instancePath: instancePath + "/semanticTags/" + i0,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -5797,7 +5872,7 @@ function validate50(
               }
               errors++;
             }
-            if (func2(data9) < 1) {
+            if (func57(data9) < 1) {
               const err37 = {
                 instancePath: instancePath + "/semanticTags/" + i0,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -5851,7 +5926,7 @@ function validate50(
         if (i1 > 1) {
           outer0: for (; i1--;) {
             for (j0 = i1; j0--;) {
-              if (func0(data8[i1], data8[j0])) {
+              if (func32(data8[i1], data8[j0])) {
                 const err40 = {
                   instancePath: instancePath + "/semanticTags",
                   schemaPath: "#/properties/semanticTags/uniqueItems",
@@ -5930,7 +6005,7 @@ function validate53(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.kind === undefined) {
+    if (data.kind === undefined || !func0.call(data, "kind")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -5945,7 +6020,7 @@ function validate53(
       }
       errors++;
     }
-    if (data.operationId === undefined) {
+    if (data.operationId === undefined || !func0.call(data, "operationId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -5960,7 +6035,7 @@ function validate53(
       }
       errors++;
     }
-    if (data.a === undefined) {
+    if (data.a === undefined || !func0.call(data, "a")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -5975,7 +6050,7 @@ function validate53(
       }
       errors++;
     }
-    if (data.b === undefined) {
+    if (data.b === undefined || !func0.call(data, "b")) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -5990,7 +6065,10 @@ function validate53(
       }
       errors++;
     }
-    if (data.connectionKind === undefined) {
+    if (
+      data.connectionKind === undefined ||
+      !func0.call(data, "connectionKind")
+    ) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -6005,7 +6083,7 @@ function validate53(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "kind" ||
         key0 === "operationId" ||
@@ -6028,7 +6106,7 @@ function validate53(
         errors++;
       }
     }
-    if (data.kind !== undefined) {
+    if (data.kind !== undefined && func0.call(data, "kind")) {
       if ("attach" !== data.kind) {
         const err6 = {
           instancePath: instancePath + "/kind",
@@ -6045,10 +6123,10 @@ function validate53(
         errors++;
       }
     }
-    if (data.operationId !== undefined) {
+    if (data.operationId !== undefined && func0.call(data, "operationId")) {
       let data1 = data.operationId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err7 = {
             instancePath: instancePath + "/operationId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -6063,7 +6141,7 @@ function validate53(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err8 = {
             instancePath: instancePath + "/operationId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -6110,7 +6188,7 @@ function validate53(
         errors++;
       }
     }
-    if (data.a !== undefined) {
+    if (data.a !== undefined && func0.call(data, "a")) {
       if (
         !validate32(data.a, {
           instancePath: instancePath + "/a",
@@ -6126,7 +6204,7 @@ function validate53(
         errors = vErrors.length;
       }
     }
-    if (data.b !== undefined) {
+    if (data.b !== undefined && func0.call(data, "b")) {
       if (
         !validate32(data.b, {
           instancePath: instancePath + "/b",
@@ -6142,7 +6220,10 @@ function validate53(
         errors = vErrors.length;
       }
     }
-    if (data.connectionKind !== undefined) {
+    if (
+      data.connectionKind !== undefined &&
+      func0.call(data, "connectionKind")
+    ) {
       if ("stud-tube" !== data.connectionKind) {
         const err11 = {
           instancePath: instancePath + "/connectionKind",
@@ -6196,7 +6277,7 @@ function validate57(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.kind === undefined) {
+    if (data.kind === undefined || !func0.call(data, "kind")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -6211,7 +6292,7 @@ function validate57(
       }
       errors++;
     }
-    if (data.operationId === undefined) {
+    if (data.operationId === undefined || !func0.call(data, "operationId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -6226,7 +6307,7 @@ function validate57(
       }
       errors++;
     }
-    if (data.partId === undefined) {
+    if (data.partId === undefined || !func0.call(data, "partId")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -6241,7 +6322,7 @@ function validate57(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(key0 === "kind" || key0 === "operationId" || key0 === "partId")) {
         const err3 = {
           instancePath,
@@ -6258,7 +6339,7 @@ function validate57(
         errors++;
       }
     }
-    if (data.kind !== undefined) {
+    if (data.kind !== undefined && func0.call(data, "kind")) {
       if ("removePart" !== data.kind) {
         const err4 = {
           instancePath: instancePath + "/kind",
@@ -6275,10 +6356,10 @@ function validate57(
         errors++;
       }
     }
-    if (data.operationId !== undefined) {
+    if (data.operationId !== undefined && func0.call(data, "operationId")) {
       let data1 = data.operationId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err5 = {
             instancePath: instancePath + "/operationId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -6293,7 +6374,7 @@ function validate57(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err6 = {
             instancePath: instancePath + "/operationId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -6340,10 +6421,10 @@ function validate57(
         errors++;
       }
     }
-    if (data.partId !== undefined) {
+    if (data.partId !== undefined && func0.call(data, "partId")) {
       let data2 = data.partId;
       if (typeof data2 === "string") {
-        if (func2(data2) > 128) {
+        if (func57(data2) > 128) {
           const err9 = {
             instancePath: instancePath + "/partId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -6358,7 +6439,7 @@ function validate57(
           }
           errors++;
         }
-        if (func2(data2) < 1) {
+        if (func57(data2) < 1) {
           const err10 = {
             instancePath: instancePath + "/partId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -6444,7 +6525,7 @@ function validate59(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.kind === undefined) {
+    if (data.kind === undefined || !func0.call(data, "kind")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -6459,7 +6540,7 @@ function validate59(
       }
       errors++;
     }
-    if (data.operationId === undefined) {
+    if (data.operationId === undefined || !func0.call(data, "operationId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -6474,7 +6555,7 @@ function validate59(
       }
       errors++;
     }
-    if (data.partId === undefined) {
+    if (data.partId === undefined || !func0.call(data, "partId")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -6489,7 +6570,10 @@ function validate59(
       }
       errors++;
     }
-    if (data.catalogPartId === undefined) {
+    if (
+      data.catalogPartId === undefined ||
+      !func0.call(data, "catalogPartId")
+    ) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -6504,7 +6588,7 @@ function validate59(
       }
       errors++;
     }
-    if (data.colorId === undefined) {
+    if (data.colorId === undefined || !func0.call(data, "colorId")) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -6519,7 +6603,7 @@ function validate59(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "kind" ||
         key0 === "operationId" ||
@@ -6542,7 +6626,7 @@ function validate59(
         errors++;
       }
     }
-    if (data.kind !== undefined) {
+    if (data.kind !== undefined && func0.call(data, "kind")) {
       if ("replacePart" !== data.kind) {
         const err6 = {
           instancePath: instancePath + "/kind",
@@ -6559,10 +6643,10 @@ function validate59(
         errors++;
       }
     }
-    if (data.operationId !== undefined) {
+    if (data.operationId !== undefined && func0.call(data, "operationId")) {
       let data1 = data.operationId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err7 = {
             instancePath: instancePath + "/operationId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -6577,7 +6661,7 @@ function validate59(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err8 = {
             instancePath: instancePath + "/operationId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -6624,10 +6708,10 @@ function validate59(
         errors++;
       }
     }
-    if (data.partId !== undefined) {
+    if (data.partId !== undefined && func0.call(data, "partId")) {
       let data2 = data.partId;
       if (typeof data2 === "string") {
-        if (func2(data2) > 128) {
+        if (func57(data2) > 128) {
           const err11 = {
             instancePath: instancePath + "/partId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -6642,7 +6726,7 @@ function validate59(
           }
           errors++;
         }
-        if (func2(data2) < 1) {
+        if (func57(data2) < 1) {
           const err12 = {
             instancePath: instancePath + "/partId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -6689,10 +6773,10 @@ function validate59(
         errors++;
       }
     }
-    if (data.catalogPartId !== undefined) {
+    if (data.catalogPartId !== undefined && func0.call(data, "catalogPartId")) {
       let data3 = data.catalogPartId;
       if (typeof data3 === "string") {
-        if (func2(data3) > 128) {
+        if (func57(data3) > 128) {
           const err15 = {
             instancePath: instancePath + "/catalogPartId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -6707,7 +6791,7 @@ function validate59(
           }
           errors++;
         }
-        if (func2(data3) < 1) {
+        if (func57(data3) < 1) {
           const err16 = {
             instancePath: instancePath + "/catalogPartId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -6754,10 +6838,10 @@ function validate59(
         errors++;
       }
     }
-    if (data.colorId !== undefined) {
+    if (data.colorId !== undefined && func0.call(data, "colorId")) {
       let data4 = data.colorId;
       if (typeof data4 === "string") {
-        if (func2(data4) > 128) {
+        if (func57(data4) > 128) {
           const err19 = {
             instancePath: instancePath + "/colorId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -6772,7 +6856,7 @@ function validate59(
           }
           errors++;
         }
-        if (func2(data4) < 1) {
+        if (func57(data4) < 1) {
           const err20 = {
             instancePath: instancePath + "/colorId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -6857,7 +6941,7 @@ function validate61(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.kind === undefined) {
+    if (data.kind === undefined || !func0.call(data, "kind")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -6872,7 +6956,7 @@ function validate61(
       }
       errors++;
     }
-    if (data.operationId === undefined) {
+    if (data.operationId === undefined || !func0.call(data, "operationId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -6887,7 +6971,7 @@ function validate61(
       }
       errors++;
     }
-    if (data.partId === undefined) {
+    if (data.partId === undefined || !func0.call(data, "partId")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -6902,7 +6986,7 @@ function validate61(
       }
       errors++;
     }
-    if (data.transform === undefined) {
+    if (data.transform === undefined || !func0.call(data, "transform")) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -6917,7 +7001,7 @@ function validate61(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "kind" ||
         key0 === "operationId" ||
@@ -6939,7 +7023,7 @@ function validate61(
         errors++;
       }
     }
-    if (data.kind !== undefined) {
+    if (data.kind !== undefined && func0.call(data, "kind")) {
       if ("movePart" !== data.kind) {
         const err5 = {
           instancePath: instancePath + "/kind",
@@ -6956,10 +7040,10 @@ function validate61(
         errors++;
       }
     }
-    if (data.operationId !== undefined) {
+    if (data.operationId !== undefined && func0.call(data, "operationId")) {
       let data1 = data.operationId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err6 = {
             instancePath: instancePath + "/operationId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -6974,7 +7058,7 @@ function validate61(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err7 = {
             instancePath: instancePath + "/operationId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -7021,10 +7105,10 @@ function validate61(
         errors++;
       }
     }
-    if (data.partId !== undefined) {
+    if (data.partId !== undefined && func0.call(data, "partId")) {
       let data2 = data.partId;
       if (typeof data2 === "string") {
-        if (func2(data2) > 128) {
+        if (func57(data2) > 128) {
           const err10 = {
             instancePath: instancePath + "/partId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -7039,7 +7123,7 @@ function validate61(
           }
           errors++;
         }
-        if (func2(data2) < 1) {
+        if (func57(data2) < 1) {
           const err11 = {
             instancePath: instancePath + "/partId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -7086,7 +7170,7 @@ function validate61(
         errors++;
       }
     }
-    if (data.transform !== undefined) {
+    if (data.transform !== undefined && func0.call(data, "transform")) {
       if (
         !validate20(data.transform, {
           instancePath: instancePath + "/transform",
@@ -7140,7 +7224,7 @@ function validate64(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.kind === undefined) {
+    if (data.kind === undefined || !func0.call(data, "kind")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -7155,7 +7239,7 @@ function validate64(
       }
       errors++;
     }
-    if (data.operationId === undefined) {
+    if (data.operationId === undefined || !func0.call(data, "operationId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -7170,7 +7254,7 @@ function validate64(
       }
       errors++;
     }
-    if (data.partId === undefined) {
+    if (data.partId === undefined || !func0.call(data, "partId")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -7185,7 +7269,7 @@ function validate64(
       }
       errors++;
     }
-    if (data.colorId === undefined) {
+    if (data.colorId === undefined || !func0.call(data, "colorId")) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -7200,7 +7284,7 @@ function validate64(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "kind" ||
         key0 === "operationId" ||
@@ -7222,7 +7306,7 @@ function validate64(
         errors++;
       }
     }
-    if (data.kind !== undefined) {
+    if (data.kind !== undefined && func0.call(data, "kind")) {
       if ("recolorPart" !== data.kind) {
         const err5 = {
           instancePath: instancePath + "/kind",
@@ -7239,10 +7323,10 @@ function validate64(
         errors++;
       }
     }
-    if (data.operationId !== undefined) {
+    if (data.operationId !== undefined && func0.call(data, "operationId")) {
       let data1 = data.operationId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err6 = {
             instancePath: instancePath + "/operationId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -7257,7 +7341,7 @@ function validate64(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err7 = {
             instancePath: instancePath + "/operationId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -7304,10 +7388,10 @@ function validate64(
         errors++;
       }
     }
-    if (data.partId !== undefined) {
+    if (data.partId !== undefined && func0.call(data, "partId")) {
       let data2 = data.partId;
       if (typeof data2 === "string") {
-        if (func2(data2) > 128) {
+        if (func57(data2) > 128) {
           const err10 = {
             instancePath: instancePath + "/partId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -7322,7 +7406,7 @@ function validate64(
           }
           errors++;
         }
-        if (func2(data2) < 1) {
+        if (func57(data2) < 1) {
           const err11 = {
             instancePath: instancePath + "/partId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -7369,10 +7453,10 @@ function validate64(
         errors++;
       }
     }
-    if (data.colorId !== undefined) {
+    if (data.colorId !== undefined && func0.call(data, "colorId")) {
       let data3 = data.colorId;
       if (typeof data3 === "string") {
-        if (func2(data3) > 128) {
+        if (func57(data3) > 128) {
           const err14 = {
             instancePath: instancePath + "/colorId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -7387,7 +7471,7 @@ function validate64(
           }
           errors++;
         }
-        if (func2(data3) < 1) {
+        if (func57(data3) < 1) {
           const err15 = {
             instancePath: instancePath + "/colorId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -7472,7 +7556,7 @@ function validate66(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.kind === undefined) {
+    if (data.kind === undefined || !func0.call(data, "kind")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -7487,7 +7571,7 @@ function validate66(
       }
       errors++;
     }
-    if (data.operationId === undefined) {
+    if (data.operationId === undefined || !func0.call(data, "operationId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -7502,7 +7586,7 @@ function validate66(
       }
       errors++;
     }
-    if (data.partId === undefined) {
+    if (data.partId === undefined || !func0.call(data, "partId")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -7517,7 +7601,7 @@ function validate66(
       }
       errors++;
     }
-    if (data.stepId === undefined) {
+    if (data.stepId === undefined || !func0.call(data, "stepId")) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -7532,7 +7616,7 @@ function validate66(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "kind" ||
         key0 === "operationId" ||
@@ -7554,7 +7638,7 @@ function validate66(
         errors++;
       }
     }
-    if (data.kind !== undefined) {
+    if (data.kind !== undefined && func0.call(data, "kind")) {
       if ("assignStep" !== data.kind) {
         const err5 = {
           instancePath: instancePath + "/kind",
@@ -7571,10 +7655,10 @@ function validate66(
         errors++;
       }
     }
-    if (data.operationId !== undefined) {
+    if (data.operationId !== undefined && func0.call(data, "operationId")) {
       let data1 = data.operationId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err6 = {
             instancePath: instancePath + "/operationId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -7589,7 +7673,7 @@ function validate66(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err7 = {
             instancePath: instancePath + "/operationId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -7636,10 +7720,10 @@ function validate66(
         errors++;
       }
     }
-    if (data.partId !== undefined) {
+    if (data.partId !== undefined && func0.call(data, "partId")) {
       let data2 = data.partId;
       if (typeof data2 === "string") {
-        if (func2(data2) > 128) {
+        if (func57(data2) > 128) {
           const err10 = {
             instancePath: instancePath + "/partId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -7654,7 +7738,7 @@ function validate66(
           }
           errors++;
         }
-        if (func2(data2) < 1) {
+        if (func57(data2) < 1) {
           const err11 = {
             instancePath: instancePath + "/partId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -7701,10 +7785,10 @@ function validate66(
         errors++;
       }
     }
-    if (data.stepId !== undefined) {
+    if (data.stepId !== undefined && func0.call(data, "stepId")) {
       let data3 = data.stepId;
       if (typeof data3 === "string") {
-        if (func2(data3) > 128) {
+        if (func57(data3) > 128) {
           const err14 = {
             instancePath: instancePath + "/stepId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -7719,7 +7803,7 @@ function validate66(
           }
           errors++;
         }
-        if (func2(data3) < 1) {
+        if (func57(data3) < 1) {
           const err15 = {
             instancePath: instancePath + "/stepId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -7838,7 +7922,7 @@ function validate69(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.name === undefined) {
+    if (data.name === undefined || !func0.call(data, "name")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -7853,7 +7937,7 @@ function validate69(
       }
       errors++;
     }
-    if (data.value === undefined) {
+    if (data.value === undefined || !func0.call(data, "value")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -7868,7 +7952,7 @@ function validate69(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(key0 === "name" || key0 === "value")) {
         const err2 = {
           instancePath,
@@ -7885,10 +7969,10 @@ function validate69(
         errors++;
       }
     }
-    if (data.name !== undefined) {
+    if (data.name !== undefined && func0.call(data, "name")) {
       let data0 = data.name;
       if (typeof data0 === "string") {
-        if (func2(data0) > 128) {
+        if (func57(data0) > 128) {
           const err3 = {
             instancePath: instancePath + "/name",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -7903,7 +7987,7 @@ function validate69(
           }
           errors++;
         }
-        if (func2(data0) < 1) {
+        if (func57(data0) < 1) {
           const err4 = {
             instancePath: instancePath + "/name",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -7950,14 +8034,14 @@ function validate69(
         errors++;
       }
     }
-    if (data.value !== undefined) {
+    if (data.value !== undefined && func0.call(data, "value")) {
       let data1 = data.value;
       const _errs6 = errors;
       let valid2 = false;
       let passing0 = null;
       const _errs7 = errors;
       if (typeof data1 === "string") {
-        if (func2(data1) > 256) {
+        if (func57(data1) > 256) {
           const err7 = {
             instancePath: instancePath + "/value",
             schemaPath: "#/properties/value/oneOf/0/maxLength",
@@ -8126,7 +8210,7 @@ function validate68(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.kind === undefined) {
+    if (data.kind === undefined || !func0.call(data, "kind")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -8141,7 +8225,7 @@ function validate68(
       }
       errors++;
     }
-    if (data.operationId === undefined) {
+    if (data.operationId === undefined || !func0.call(data, "operationId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -8156,7 +8240,10 @@ function validate68(
       }
       errors++;
     }
-    if (data.instanceLocalId === undefined) {
+    if (
+      data.instanceLocalId === undefined ||
+      !func0.call(data, "instanceLocalId")
+    ) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -8171,7 +8258,7 @@ function validate68(
       }
       errors++;
     }
-    if (data.templateId === undefined) {
+    if (data.templateId === undefined || !func0.call(data, "templateId")) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -8186,7 +8273,7 @@ function validate68(
       }
       errors++;
     }
-    if (data.parameters === undefined) {
+    if (data.parameters === undefined || !func0.call(data, "parameters")) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -8201,7 +8288,7 @@ function validate68(
       }
       errors++;
     }
-    if (data.transform === undefined) {
+    if (data.transform === undefined || !func0.call(data, "transform")) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -8216,7 +8303,7 @@ function validate68(
       }
       errors++;
     }
-    if (data.submodelId === undefined) {
+    if (data.submodelId === undefined || !func0.call(data, "submodelId")) {
       const err6 = {
         instancePath,
         schemaPath: "#/required",
@@ -8231,7 +8318,7 @@ function validate68(
       }
       errors++;
     }
-    if (data.stepId === undefined) {
+    if (data.stepId === undefined || !func0.call(data, "stepId")) {
       const err7 = {
         instancePath,
         schemaPath: "#/required",
@@ -8246,8 +8333,8 @@ function validate68(
       }
       errors++;
     }
-    for (const key0 in data) {
-      if (!func8.call(schema88.properties, key0)) {
+    for (const key0 of Object.keys(data)) {
+      if (!func0.call(schema88.properties, key0)) {
         const err8 = {
           instancePath,
           schemaPath: "#/additionalProperties",
@@ -8263,7 +8350,7 @@ function validate68(
         errors++;
       }
     }
-    if (data.kind !== undefined) {
+    if (data.kind !== undefined && func0.call(data, "kind")) {
       if ("instantiateTemplate" !== data.kind) {
         const err9 = {
           instancePath: instancePath + "/kind",
@@ -8280,10 +8367,10 @@ function validate68(
         errors++;
       }
     }
-    if (data.operationId !== undefined) {
+    if (data.operationId !== undefined && func0.call(data, "operationId")) {
       let data1 = data.operationId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err10 = {
             instancePath: instancePath + "/operationId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -8298,7 +8385,7 @@ function validate68(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err11 = {
             instancePath: instancePath + "/operationId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -8345,10 +8432,13 @@ function validate68(
         errors++;
       }
     }
-    if (data.instanceLocalId !== undefined) {
+    if (
+      data.instanceLocalId !== undefined &&
+      func0.call(data, "instanceLocalId")
+    ) {
       let data2 = data.instanceLocalId;
       if (typeof data2 === "string") {
-        if (func2(data2) > 128) {
+        if (func57(data2) > 128) {
           const err14 = {
             instancePath: instancePath + "/instanceLocalId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -8363,7 +8453,7 @@ function validate68(
           }
           errors++;
         }
-        if (func2(data2) < 1) {
+        if (func57(data2) < 1) {
           const err15 = {
             instancePath: instancePath + "/instanceLocalId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -8410,10 +8500,10 @@ function validate68(
         errors++;
       }
     }
-    if (data.templateId !== undefined) {
+    if (data.templateId !== undefined && func0.call(data, "templateId")) {
       let data3 = data.templateId;
       if (typeof data3 === "string") {
-        if (func2(data3) > 128) {
+        if (func57(data3) > 128) {
           const err18 = {
             instancePath: instancePath + "/templateId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -8428,7 +8518,7 @@ function validate68(
           }
           errors++;
         }
-        if (func2(data3) < 1) {
+        if (func57(data3) < 1) {
           const err19 = {
             instancePath: instancePath + "/templateId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -8475,7 +8565,10 @@ function validate68(
         errors++;
       }
     }
-    if (data.templateVersion !== undefined) {
+    if (
+      data.templateVersion !== undefined &&
+      func0.call(data, "templateVersion")
+    ) {
       let data4 = data.templateVersion;
       if (!(
         typeof data4 == "number" &&
@@ -8530,7 +8623,7 @@ function validate68(
         }
       }
     }
-    if (data.templateHash !== undefined) {
+    if (data.templateHash !== undefined && func0.call(data, "templateHash")) {
       let data5 = data.templateHash;
       if (typeof data5 === "string") {
         if (!pattern2.test(data5)) {
@@ -8564,7 +8657,7 @@ function validate68(
         errors++;
       }
     }
-    if (data.parameters !== undefined) {
+    if (data.parameters !== undefined && func0.call(data, "parameters")) {
       let data6 = data.parameters;
       if (Array.isArray(data6)) {
         if (data6.length > 64) {
@@ -8615,7 +8708,7 @@ function validate68(
         errors++;
       }
     }
-    if (data.transform !== undefined) {
+    if (data.transform !== undefined && func0.call(data, "transform")) {
       if (
         !validate20(data.transform, {
           instancePath: instancePath + "/transform",
@@ -8631,10 +8724,10 @@ function validate68(
         errors = vErrors.length;
       }
     }
-    if (data.submodelId !== undefined) {
+    if (data.submodelId !== undefined && func0.call(data, "submodelId")) {
       let data9 = data.submodelId;
       if (typeof data9 === "string") {
-        if (func2(data9) > 128) {
+        if (func57(data9) > 128) {
           const err29 = {
             instancePath: instancePath + "/submodelId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -8649,7 +8742,7 @@ function validate68(
           }
           errors++;
         }
-        if (func2(data9) < 1) {
+        if (func57(data9) < 1) {
           const err30 = {
             instancePath: instancePath + "/submodelId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -8696,10 +8789,10 @@ function validate68(
         errors++;
       }
     }
-    if (data.stepId !== undefined) {
+    if (data.stepId !== undefined && func0.call(data, "stepId")) {
       let data10 = data.stepId;
       if (typeof data10 === "string") {
-        if (func2(data10) > 128) {
+        if (func57(data10) > 128) {
           const err33 = {
             instancePath: instancePath + "/stepId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -8714,7 +8807,7 @@ function validate68(
           }
           errors++;
         }
-        if (func2(data10) < 1) {
+        if (func57(data10) < 1) {
           const err34 = {
             instancePath: instancePath + "/stepId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -9008,14 +9101,17 @@ function validate49(
   return errors === 0;
 }
 
-function validate264(
+function validate270(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.schemaVersion === undefined) {
+    if (
+      data.schemaVersion === undefined ||
+      !func0.call(data, "schemaVersion")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -9030,7 +9126,7 @@ function validate264(
       }
       errors++;
     }
-    if (data.operations === undefined) {
+    if (data.operations === undefined || !func0.call(data, "operations")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -9045,7 +9141,7 @@ function validate264(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(key0 === "schemaVersion" || key0 === "operations")) {
         const err2 = {
           instancePath,
@@ -9062,7 +9158,7 @@ function validate264(
         errors++;
       }
     }
-    if (data.schemaVersion !== undefined) {
+    if (data.schemaVersion !== undefined && func0.call(data, "schemaVersion")) {
       if ("lego.build-program/1" !== data.schemaVersion) {
         const err3 = {
           instancePath: instancePath + "/schemaVersion",
@@ -9079,7 +9175,7 @@ function validate264(
         errors++;
       }
     }
-    if (data.operations !== undefined) {
+    if (data.operations !== undefined && func0.call(data, "operations")) {
       let data1 = data.operations;
       if (Array.isArray(data1)) {
         if (data1.length > 1024) {
@@ -9160,11 +9256,11 @@ function validate264(
     }
     errors++;
   }
-  validate264.errors = vErrors;
+  validate270.errors = vErrors;
   return errors === 0;
 }
 
-function validate263(
+function validate269(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -9172,7 +9268,7 @@ function validate263(
     null;
   let errors = 0;
   if (
-    !validate264(data, {
+    !validate270(data, {
       instancePath,
       parentData,
       parentDataProperty,
@@ -9181,16 +9277,16 @@ function validate263(
   ) {
     vErrors =
       vErrors === null
-        ? validate264.errors
-        : vErrors.concat(validate264.errors);
+        ? validate270.errors
+        : vErrors.concat(validate270.errors);
     errors = vErrors.length;
   }
-  validate263.errors = vErrors;
+  validate269.errors = vErrors;
   return errors === 0;
 }
 
-export const validateBuildOperation = validate267;
-const schema376 = {
+export const validateBuildOperation = validate273;
+const schema397 = {
   $id: "https://schemas.brick-studio.local/protocol/1/validators/BuildOperation",
   $ref: "https://schemas.brick-studio.local/protocol/1#/definitions/BuildOperation",
 };
@@ -9229,7 +9325,7 @@ function validate76(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.kind === undefined) {
+    if (data.kind === undefined || !func0.call(data, "kind")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -9244,7 +9340,7 @@ function validate76(
       }
       errors++;
     }
-    if (data.operationId === undefined) {
+    if (data.operationId === undefined || !func0.call(data, "operationId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -9259,7 +9355,7 @@ function validate76(
       }
       errors++;
     }
-    if (data.part === undefined) {
+    if (data.part === undefined || !func0.call(data, "part")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -9274,7 +9370,10 @@ function validate76(
       }
       errors++;
     }
-    if (data.semanticRegionIds === undefined) {
+    if (
+      data.semanticRegionIds === undefined ||
+      !func0.call(data, "semanticRegionIds")
+    ) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -9289,7 +9388,7 @@ function validate76(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "kind" ||
         key0 === "operationId" ||
@@ -9311,7 +9410,7 @@ function validate76(
         errors++;
       }
     }
-    if (data.kind !== undefined) {
+    if (data.kind !== undefined && func0.call(data, "kind")) {
       if ("addPart" !== data.kind) {
         const err5 = {
           instancePath: instancePath + "/kind",
@@ -9328,10 +9427,10 @@ function validate76(
         errors++;
       }
     }
-    if (data.operationId !== undefined) {
+    if (data.operationId !== undefined && func0.call(data, "operationId")) {
       let data1 = data.operationId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err6 = {
             instancePath: instancePath + "/operationId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -9346,7 +9445,7 @@ function validate76(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err7 = {
             instancePath: instancePath + "/operationId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -9393,7 +9492,7 @@ function validate76(
         errors++;
       }
     }
-    if (data.part !== undefined) {
+    if (data.part !== undefined && func0.call(data, "part")) {
       if (
         !validate26(data.part, {
           instancePath: instancePath + "/part",
@@ -9409,7 +9508,10 @@ function validate76(
         errors = vErrors.length;
       }
     }
-    if (data.semanticRegionIds !== undefined) {
+    if (
+      data.semanticRegionIds !== undefined &&
+      func0.call(data, "semanticRegionIds")
+    ) {
       let data3 = data.semanticRegionIds;
       if (Array.isArray(data3)) {
         if (data3.length > 1024) {
@@ -9431,7 +9533,7 @@ function validate76(
         for (let i0 = 0; i0 < len0; i0++) {
           let data4 = data3[i0];
           if (typeof data4 === "string") {
-            if (func2(data4) > 128) {
+            if (func57(data4) > 128) {
               const err11 = {
                 instancePath: instancePath + "/semanticRegionIds/" + i0,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -9446,7 +9548,7 @@ function validate76(
               }
               errors++;
             }
-            if (func2(data4) < 1) {
+            if (func57(data4) < 1) {
               const err12 = {
                 instancePath: instancePath + "/semanticRegionIds/" + i0,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -9500,7 +9602,7 @@ function validate76(
         if (i1 > 1) {
           outer0: for (; i1--;) {
             for (j0 = i1; j0--;) {
-              if (func0(data3[i1], data3[j0])) {
+              if (func32(data3[i1], data3[j0])) {
                 const err15 = {
                   instancePath: instancePath + "/semanticRegionIds",
                   schemaPath: "#/properties/semanticRegionIds/uniqueItems",
@@ -9583,7 +9685,7 @@ function validate79(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.kind === undefined) {
+    if (data.kind === undefined || !func0.call(data, "kind")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -9598,7 +9700,7 @@ function validate79(
       }
       errors++;
     }
-    if (data.operationId === undefined) {
+    if (data.operationId === undefined || !func0.call(data, "operationId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -9613,7 +9715,7 @@ function validate79(
       }
       errors++;
     }
-    if (data.part === undefined) {
+    if (data.part === undefined || !func0.call(data, "part")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -9628,7 +9730,10 @@ function validate79(
       }
       errors++;
     }
-    if (data.semanticRegionIds === undefined) {
+    if (
+      data.semanticRegionIds === undefined ||
+      !func0.call(data, "semanticRegionIds")
+    ) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -9643,7 +9748,7 @@ function validate79(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "kind" ||
         key0 === "operationId" ||
@@ -9665,7 +9770,7 @@ function validate79(
         errors++;
       }
     }
-    if (data.kind !== undefined) {
+    if (data.kind !== undefined && func0.call(data, "kind")) {
       if ("removePart" !== data.kind) {
         const err5 = {
           instancePath: instancePath + "/kind",
@@ -9682,10 +9787,10 @@ function validate79(
         errors++;
       }
     }
-    if (data.operationId !== undefined) {
+    if (data.operationId !== undefined && func0.call(data, "operationId")) {
       let data1 = data.operationId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err6 = {
             instancePath: instancePath + "/operationId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -9700,7 +9805,7 @@ function validate79(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err7 = {
             instancePath: instancePath + "/operationId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -9747,7 +9852,7 @@ function validate79(
         errors++;
       }
     }
-    if (data.part !== undefined) {
+    if (data.part !== undefined && func0.call(data, "part")) {
       if (
         !validate26(data.part, {
           instancePath: instancePath + "/part",
@@ -9763,7 +9868,10 @@ function validate79(
         errors = vErrors.length;
       }
     }
-    if (data.semanticRegionIds !== undefined) {
+    if (
+      data.semanticRegionIds !== undefined &&
+      func0.call(data, "semanticRegionIds")
+    ) {
       let data3 = data.semanticRegionIds;
       if (Array.isArray(data3)) {
         if (data3.length > 1024) {
@@ -9785,7 +9893,7 @@ function validate79(
         for (let i0 = 0; i0 < len0; i0++) {
           let data4 = data3[i0];
           if (typeof data4 === "string") {
-            if (func2(data4) > 128) {
+            if (func57(data4) > 128) {
               const err11 = {
                 instancePath: instancePath + "/semanticRegionIds/" + i0,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -9800,7 +9908,7 @@ function validate79(
               }
               errors++;
             }
-            if (func2(data4) < 1) {
+            if (func57(data4) < 1) {
               const err12 = {
                 instancePath: instancePath + "/semanticRegionIds/" + i0,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -9854,7 +9962,7 @@ function validate79(
         if (i1 > 1) {
           outer0: for (; i1--;) {
             for (j0 = i1; j0--;) {
-              if (func0(data3[i1], data3[j0])) {
+              if (func32(data3[i1], data3[j0])) {
                 const err15 = {
                   instancePath: instancePath + "/semanticRegionIds",
                   schemaPath: "#/properties/semanticRegionIds/uniqueItems",
@@ -9932,7 +10040,7 @@ function validate82(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.kind === undefined) {
+    if (data.kind === undefined || !func0.call(data, "kind")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -9947,7 +10055,7 @@ function validate82(
       }
       errors++;
     }
-    if (data.operationId === undefined) {
+    if (data.operationId === undefined || !func0.call(data, "operationId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -9962,7 +10070,7 @@ function validate82(
       }
       errors++;
     }
-    if (data.before === undefined) {
+    if (data.before === undefined || !func0.call(data, "before")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -9977,7 +10085,7 @@ function validate82(
       }
       errors++;
     }
-    if (data.after === undefined) {
+    if (data.after === undefined || !func0.call(data, "after")) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -9992,7 +10100,7 @@ function validate82(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "kind" ||
         key0 === "operationId" ||
@@ -10014,7 +10122,7 @@ function validate82(
         errors++;
       }
     }
-    if (data.kind !== undefined) {
+    if (data.kind !== undefined && func0.call(data, "kind")) {
       if ("updatePart" !== data.kind) {
         const err5 = {
           instancePath: instancePath + "/kind",
@@ -10031,10 +10139,10 @@ function validate82(
         errors++;
       }
     }
-    if (data.operationId !== undefined) {
+    if (data.operationId !== undefined && func0.call(data, "operationId")) {
       let data1 = data.operationId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err6 = {
             instancePath: instancePath + "/operationId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -10049,7 +10157,7 @@ function validate82(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err7 = {
             instancePath: instancePath + "/operationId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -10096,7 +10204,7 @@ function validate82(
         errors++;
       }
     }
-    if (data.before !== undefined) {
+    if (data.before !== undefined && func0.call(data, "before")) {
       if (
         !validate26(data.before, {
           instancePath: instancePath + "/before",
@@ -10112,7 +10220,7 @@ function validate82(
         errors = vErrors.length;
       }
     }
-    if (data.after !== undefined) {
+    if (data.after !== undefined && func0.call(data, "after")) {
       if (
         !validate26(data.after, {
           instancePath: instancePath + "/after",
@@ -10165,7 +10273,7 @@ function validate86(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.kind === undefined) {
+    if (data.kind === undefined || !func0.call(data, "kind")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -10180,7 +10288,7 @@ function validate86(
       }
       errors++;
     }
-    if (data.operationId === undefined) {
+    if (data.operationId === undefined || !func0.call(data, "operationId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -10195,7 +10303,7 @@ function validate86(
       }
       errors++;
     }
-    if (data.connection === undefined) {
+    if (data.connection === undefined || !func0.call(data, "connection")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -10210,7 +10318,7 @@ function validate86(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "kind" ||
         key0 === "operationId" ||
@@ -10231,7 +10339,7 @@ function validate86(
         errors++;
       }
     }
-    if (data.kind !== undefined) {
+    if (data.kind !== undefined && func0.call(data, "kind")) {
       if ("addConnection" !== data.kind) {
         const err4 = {
           instancePath: instancePath + "/kind",
@@ -10248,10 +10356,10 @@ function validate86(
         errors++;
       }
     }
-    if (data.operationId !== undefined) {
+    if (data.operationId !== undefined && func0.call(data, "operationId")) {
       let data1 = data.operationId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err5 = {
             instancePath: instancePath + "/operationId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -10266,7 +10374,7 @@ function validate86(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err6 = {
             instancePath: instancePath + "/operationId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -10313,7 +10421,7 @@ function validate86(
         errors++;
       }
     }
-    if (data.connection !== undefined) {
+    if (data.connection !== undefined && func0.call(data, "connection")) {
       if (
         !validate31(data.connection, {
           instancePath: instancePath + "/connection",
@@ -10366,7 +10474,7 @@ function validate89(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.kind === undefined) {
+    if (data.kind === undefined || !func0.call(data, "kind")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -10381,7 +10489,7 @@ function validate89(
       }
       errors++;
     }
-    if (data.operationId === undefined) {
+    if (data.operationId === undefined || !func0.call(data, "operationId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -10396,7 +10504,7 @@ function validate89(
       }
       errors++;
     }
-    if (data.connection === undefined) {
+    if (data.connection === undefined || !func0.call(data, "connection")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -10411,7 +10519,7 @@ function validate89(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "kind" ||
         key0 === "operationId" ||
@@ -10432,7 +10540,7 @@ function validate89(
         errors++;
       }
     }
-    if (data.kind !== undefined) {
+    if (data.kind !== undefined && func0.call(data, "kind")) {
       if ("removeConnection" !== data.kind) {
         const err4 = {
           instancePath: instancePath + "/kind",
@@ -10449,10 +10557,10 @@ function validate89(
         errors++;
       }
     }
-    if (data.operationId !== undefined) {
+    if (data.operationId !== undefined && func0.call(data, "operationId")) {
       let data1 = data.operationId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err5 = {
             instancePath: instancePath + "/operationId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -10467,7 +10575,7 @@ function validate89(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err6 = {
             instancePath: instancePath + "/operationId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -10514,7 +10622,7 @@ function validate89(
         errors++;
       }
     }
-    if (data.connection !== undefined) {
+    if (data.connection !== undefined && func0.call(data, "connection")) {
       if (
         !validate31(data.connection, {
           instancePath: instancePath + "/connection",
@@ -10567,7 +10675,7 @@ function validate92(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.kind === undefined) {
+    if (data.kind === undefined || !func0.call(data, "kind")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -10582,7 +10690,7 @@ function validate92(
       }
       errors++;
     }
-    if (data.operationId === undefined) {
+    if (data.operationId === undefined || !func0.call(data, "operationId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -10597,7 +10705,7 @@ function validate92(
       }
       errors++;
     }
-    if (data.step === undefined) {
+    if (data.step === undefined || !func0.call(data, "step")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -10612,7 +10720,7 @@ function validate92(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(key0 === "kind" || key0 === "operationId" || key0 === "step")) {
         const err3 = {
           instancePath,
@@ -10629,7 +10737,7 @@ function validate92(
         errors++;
       }
     }
-    if (data.kind !== undefined) {
+    if (data.kind !== undefined && func0.call(data, "kind")) {
       if ("addStep" !== data.kind) {
         const err4 = {
           instancePath: instancePath + "/kind",
@@ -10646,10 +10754,10 @@ function validate92(
         errors++;
       }
     }
-    if (data.operationId !== undefined) {
+    if (data.operationId !== undefined && func0.call(data, "operationId")) {
       let data1 = data.operationId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err5 = {
             instancePath: instancePath + "/operationId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -10664,7 +10772,7 @@ function validate92(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err6 = {
             instancePath: instancePath + "/operationId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -10711,7 +10819,7 @@ function validate92(
         errors++;
       }
     }
-    if (data.step !== undefined) {
+    if (data.step !== undefined && func0.call(data, "step")) {
       if (
         !validate39(data.step, {
           instancePath: instancePath + "/step",
@@ -10764,7 +10872,7 @@ function validate95(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.kind === undefined) {
+    if (data.kind === undefined || !func0.call(data, "kind")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -10779,7 +10887,7 @@ function validate95(
       }
       errors++;
     }
-    if (data.operationId === undefined) {
+    if (data.operationId === undefined || !func0.call(data, "operationId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -10794,7 +10902,7 @@ function validate95(
       }
       errors++;
     }
-    if (data.step === undefined) {
+    if (data.step === undefined || !func0.call(data, "step")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -10809,7 +10917,7 @@ function validate95(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(key0 === "kind" || key0 === "operationId" || key0 === "step")) {
         const err3 = {
           instancePath,
@@ -10826,7 +10934,7 @@ function validate95(
         errors++;
       }
     }
-    if (data.kind !== undefined) {
+    if (data.kind !== undefined && func0.call(data, "kind")) {
       if ("removeStep" !== data.kind) {
         const err4 = {
           instancePath: instancePath + "/kind",
@@ -10843,10 +10951,10 @@ function validate95(
         errors++;
       }
     }
-    if (data.operationId !== undefined) {
+    if (data.operationId !== undefined && func0.call(data, "operationId")) {
       let data1 = data.operationId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err5 = {
             instancePath: instancePath + "/operationId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -10861,7 +10969,7 @@ function validate95(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err6 = {
             instancePath: instancePath + "/operationId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -10908,7 +11016,7 @@ function validate95(
         errors++;
       }
     }
-    if (data.step !== undefined) {
+    if (data.step !== undefined && func0.call(data, "step")) {
       if (
         !validate39(data.step, {
           instancePath: instancePath + "/step",
@@ -10943,7 +11051,7 @@ function validate95(
   return errors === 0;
 }
 
-function validate268(
+function validate274(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -11142,11 +11250,11 @@ function validate268(
       }
     }
   }
-  validate268.errors = vErrors;
+  validate274.errors = vErrors;
   return errors === 0;
 }
 
-function validate267(
+function validate273(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -11154,7 +11262,7 @@ function validate267(
     null;
   let errors = 0;
   if (
-    !validate268(data, {
+    !validate274(data, {
       instancePath,
       parentData,
       parentDataProperty,
@@ -11163,16 +11271,16 @@ function validate267(
   ) {
     vErrors =
       vErrors === null
-        ? validate268.errors
-        : vErrors.concat(validate268.errors);
+        ? validate274.errors
+        : vErrors.concat(validate274.errors);
     errors = vErrors.length;
   }
-  validate267.errors = vErrors;
+  validate273.errors = vErrors;
   return errors === 0;
 }
 
-export const validateScopeCapabilityV1 = validate277;
-const schema378 = {
+export const validateScopeCapabilityV1 = validate283;
+const schema399 = {
   $id: "https://schemas.brick-studio.local/protocol/1/validators/ScopeCapabilityV1",
   $ref: "https://schemas.brick-studio.local/protocol/1#/definitions/ScopeCapabilityV1",
 };
@@ -11260,7 +11368,7 @@ function validate101(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.minLdu === undefined) {
+    if (data.minLdu === undefined || !func0.call(data, "minLdu")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -11275,7 +11383,7 @@ function validate101(
       }
       errors++;
     }
-    if (data.maxLdu === undefined) {
+    if (data.maxLdu === undefined || !func0.call(data, "maxLdu")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -11290,7 +11398,7 @@ function validate101(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(key0 === "minLdu" || key0 === "maxLdu")) {
         const err2 = {
           instancePath,
@@ -11307,7 +11415,7 @@ function validate101(
         errors++;
       }
     }
-    if (data.minLdu !== undefined) {
+    if (data.minLdu !== undefined && func0.call(data, "minLdu")) {
       if (
         !validate21(data.minLdu, {
           instancePath: instancePath + "/minLdu",
@@ -11323,7 +11431,7 @@ function validate101(
         errors = vErrors.length;
       }
     }
-    if (data.maxLdu !== undefined) {
+    if (data.maxLdu !== undefined && func0.call(data, "maxLdu")) {
       if (
         !validate21(data.maxLdu, {
           instancePath: instancePath + "/maxLdu",
@@ -11358,14 +11466,17 @@ function validate101(
   return errors === 0;
 }
 
-function validate278(
+function validate284(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.schemaVersion === undefined) {
+    if (
+      data.schemaVersion === undefined ||
+      !func0.call(data, "schemaVersion")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -11380,7 +11491,7 @@ function validate278(
       }
       errors++;
     }
-    if (data.capabilityId === undefined) {
+    if (data.capabilityId === undefined || !func0.call(data, "capabilityId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -11395,7 +11506,7 @@ function validate278(
       }
       errors++;
     }
-    if (data.baseRevision === undefined) {
+    if (data.baseRevision === undefined || !func0.call(data, "baseRevision")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -11410,7 +11521,10 @@ function validate278(
       }
       errors++;
     }
-    if (data.baseDocumentHash === undefined) {
+    if (
+      data.baseDocumentHash === undefined ||
+      !func0.call(data, "baseDocumentHash")
+    ) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -11425,7 +11539,10 @@ function validate278(
       }
       errors++;
     }
-    if (data.frozenPartIds === undefined) {
+    if (
+      data.frozenPartIds === undefined ||
+      !func0.call(data, "frozenPartIds")
+    ) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -11440,7 +11557,10 @@ function validate278(
       }
       errors++;
     }
-    if (data.mutablePartIds === undefined) {
+    if (
+      data.mutablePartIds === undefined ||
+      !func0.call(data, "mutablePartIds")
+    ) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -11455,7 +11575,10 @@ function validate278(
       }
       errors++;
     }
-    if (data.requiredAttachmentPorts === undefined) {
+    if (
+      data.requiredAttachmentPorts === undefined ||
+      !func0.call(data, "requiredAttachmentPorts")
+    ) {
       const err6 = {
         instancePath,
         schemaPath: "#/required",
@@ -11471,7 +11594,10 @@ function validate278(
       }
       errors++;
     }
-    if (data.allowedVolume === undefined) {
+    if (
+      data.allowedVolume === undefined ||
+      !func0.call(data, "allowedVolume")
+    ) {
       const err7 = {
         instancePath,
         schemaPath: "#/required",
@@ -11486,7 +11612,10 @@ function validate278(
       }
       errors++;
     }
-    if (data.allowedCatalogPartIds === undefined) {
+    if (
+      data.allowedCatalogPartIds === undefined ||
+      !func0.call(data, "allowedCatalogPartIds")
+    ) {
       const err8 = {
         instancePath,
         schemaPath: "#/required",
@@ -11502,7 +11631,10 @@ function validate278(
       }
       errors++;
     }
-    if (data.allowedColorIds === undefined) {
+    if (
+      data.allowedColorIds === undefined ||
+      !func0.call(data, "allowedColorIds")
+    ) {
       const err9 = {
         instancePath,
         schemaPath: "#/required",
@@ -11517,7 +11649,7 @@ function validate278(
       }
       errors++;
     }
-    if (data.budgets === undefined) {
+    if (data.budgets === undefined || !func0.call(data, "budgets")) {
       const err10 = {
         instancePath,
         schemaPath: "#/required",
@@ -11532,8 +11664,8 @@ function validate278(
       }
       errors++;
     }
-    for (const key0 in data) {
-      if (!func8.call(schema114.properties, key0)) {
+    for (const key0 of Object.keys(data)) {
+      if (!func0.call(schema114.properties, key0)) {
         const err11 = {
           instancePath,
           schemaPath: "#/additionalProperties",
@@ -11549,7 +11681,7 @@ function validate278(
         errors++;
       }
     }
-    if (data.schemaVersion !== undefined) {
+    if (data.schemaVersion !== undefined && func0.call(data, "schemaVersion")) {
       if ("lego.scope-capability/1" !== data.schemaVersion) {
         const err12 = {
           instancePath: instancePath + "/schemaVersion",
@@ -11566,10 +11698,10 @@ function validate278(
         errors++;
       }
     }
-    if (data.capabilityId !== undefined) {
+    if (data.capabilityId !== undefined && func0.call(data, "capabilityId")) {
       let data1 = data.capabilityId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err13 = {
             instancePath: instancePath + "/capabilityId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -11584,7 +11716,7 @@ function validate278(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err14 = {
             instancePath: instancePath + "/capabilityId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -11631,10 +11763,10 @@ function validate278(
         errors++;
       }
     }
-    if (data.baseRevision !== undefined) {
+    if (data.baseRevision !== undefined && func0.call(data, "baseRevision")) {
       let data2 = data.baseRevision;
       if (typeof data2 === "string") {
-        if (func2(data2) > 128) {
+        if (func57(data2) > 128) {
           const err17 = {
             instancePath: instancePath + "/baseRevision",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -11649,7 +11781,7 @@ function validate278(
           }
           errors++;
         }
-        if (func2(data2) < 1) {
+        if (func57(data2) < 1) {
           const err18 = {
             instancePath: instancePath + "/baseRevision",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -11696,7 +11828,10 @@ function validate278(
         errors++;
       }
     }
-    if (data.baseDocumentHash !== undefined) {
+    if (
+      data.baseDocumentHash !== undefined &&
+      func0.call(data, "baseDocumentHash")
+    ) {
       let data3 = data.baseDocumentHash;
       if (typeof data3 === "string") {
         if (!pattern2.test(data3)) {
@@ -11730,7 +11865,7 @@ function validate278(
         errors++;
       }
     }
-    if (data.frozenPartIds !== undefined) {
+    if (data.frozenPartIds !== undefined && func0.call(data, "frozenPartIds")) {
       let data4 = data.frozenPartIds;
       if (Array.isArray(data4)) {
         if (data4.length > 10000) {
@@ -11752,7 +11887,7 @@ function validate278(
         for (let i0 = 0; i0 < len0; i0++) {
           let data5 = data4[i0];
           if (typeof data5 === "string") {
-            if (func2(data5) > 128) {
+            if (func57(data5) > 128) {
               const err24 = {
                 instancePath: instancePath + "/frozenPartIds/" + i0,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -11767,7 +11902,7 @@ function validate278(
               }
               errors++;
             }
-            if (func2(data5) < 1) {
+            if (func57(data5) < 1) {
               const err25 = {
                 instancePath: instancePath + "/frozenPartIds/" + i0,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -11821,7 +11956,7 @@ function validate278(
         if (i1 > 1) {
           outer0: for (; i1--;) {
             for (j0 = i1; j0--;) {
-              if (func0(data4[i1], data4[j0])) {
+              if (func32(data4[i1], data4[j0])) {
                 const err28 = {
                   instancePath: instancePath + "/frozenPartIds",
                   schemaPath: "#/properties/frozenPartIds/uniqueItems",
@@ -11861,7 +11996,10 @@ function validate278(
         errors++;
       }
     }
-    if (data.mutablePartIds !== undefined) {
+    if (
+      data.mutablePartIds !== undefined &&
+      func0.call(data, "mutablePartIds")
+    ) {
       let data6 = data.mutablePartIds;
       if (Array.isArray(data6)) {
         if (data6.length > 10000) {
@@ -11883,7 +12021,7 @@ function validate278(
         for (let i2 = 0; i2 < len1; i2++) {
           let data7 = data6[i2];
           if (typeof data7 === "string") {
-            if (func2(data7) > 128) {
+            if (func57(data7) > 128) {
               const err31 = {
                 instancePath: instancePath + "/mutablePartIds/" + i2,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -11898,7 +12036,7 @@ function validate278(
               }
               errors++;
             }
-            if (func2(data7) < 1) {
+            if (func57(data7) < 1) {
               const err32 = {
                 instancePath: instancePath + "/mutablePartIds/" + i2,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -11952,7 +12090,7 @@ function validate278(
         if (i3 > 1) {
           outer1: for (; i3--;) {
             for (j1 = i3; j1--;) {
-              if (func0(data6[i3], data6[j1])) {
+              if (func32(data6[i3], data6[j1])) {
                 const err35 = {
                   instancePath: instancePath + "/mutablePartIds",
                   schemaPath: "#/properties/mutablePartIds/uniqueItems",
@@ -11992,7 +12130,10 @@ function validate278(
         errors++;
       }
     }
-    if (data.requiredAttachmentPorts !== undefined) {
+    if (
+      data.requiredAttachmentPorts !== undefined &&
+      func0.call(data, "requiredAttachmentPorts")
+    ) {
       let data8 = data.requiredAttachmentPorts;
       if (Array.isArray(data8)) {
         if (data8.length > 256) {
@@ -12032,7 +12173,7 @@ function validate278(
         if (i5 > 1) {
           outer2: for (; i5--;) {
             for (j2 = i5; j2--;) {
-              if (func0(data8[i5], data8[j2])) {
+              if (func32(data8[i5], data8[j2])) {
                 const err38 = {
                   instancePath: instancePath + "/requiredAttachmentPorts",
                   schemaPath:
@@ -12073,7 +12214,7 @@ function validate278(
         errors++;
       }
     }
-    if (data.allowedVolume !== undefined) {
+    if (data.allowedVolume !== undefined && func0.call(data, "allowedVolume")) {
       if (
         !validate101(data.allowedVolume, {
           instancePath: instancePath + "/allowedVolume",
@@ -12089,7 +12230,10 @@ function validate278(
         errors = vErrors.length;
       }
     }
-    if (data.allowedCatalogPartIds !== undefined) {
+    if (
+      data.allowedCatalogPartIds !== undefined &&
+      func0.call(data, "allowedCatalogPartIds")
+    ) {
       let data11 = data.allowedCatalogPartIds;
       if (Array.isArray(data11)) {
         if (data11.length > 10000) {
@@ -12126,7 +12270,7 @@ function validate278(
         for (let i6 = 0; i6 < len3; i6++) {
           let data12 = data11[i6];
           if (typeof data12 === "string") {
-            if (func2(data12) > 128) {
+            if (func57(data12) > 128) {
               const err42 = {
                 instancePath: instancePath + "/allowedCatalogPartIds/" + i6,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -12141,7 +12285,7 @@ function validate278(
               }
               errors++;
             }
-            if (func2(data12) < 1) {
+            if (func57(data12) < 1) {
               const err43 = {
                 instancePath: instancePath + "/allowedCatalogPartIds/" + i6,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -12195,7 +12339,7 @@ function validate278(
         if (i7 > 1) {
           outer3: for (; i7--;) {
             for (j3 = i7; j3--;) {
-              if (func0(data11[i7], data11[j3])) {
+              if (func32(data11[i7], data11[j3])) {
                 const err46 = {
                   instancePath: instancePath + "/allowedCatalogPartIds",
                   schemaPath: "#/properties/allowedCatalogPartIds/uniqueItems",
@@ -12235,7 +12379,10 @@ function validate278(
         errors++;
       }
     }
-    if (data.allowedColorIds !== undefined) {
+    if (
+      data.allowedColorIds !== undefined &&
+      func0.call(data, "allowedColorIds")
+    ) {
       let data13 = data.allowedColorIds;
       if (Array.isArray(data13)) {
         if (data13.length > 256) {
@@ -12272,7 +12419,7 @@ function validate278(
         for (let i8 = 0; i8 < len4; i8++) {
           let data14 = data13[i8];
           if (typeof data14 === "string") {
-            if (func2(data14) > 128) {
+            if (func57(data14) > 128) {
               const err50 = {
                 instancePath: instancePath + "/allowedColorIds/" + i8,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -12287,7 +12434,7 @@ function validate278(
               }
               errors++;
             }
-            if (func2(data14) < 1) {
+            if (func57(data14) < 1) {
               const err51 = {
                 instancePath: instancePath + "/allowedColorIds/" + i8,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -12341,7 +12488,7 @@ function validate278(
         if (i9 > 1) {
           outer4: for (; i9--;) {
             for (j4 = i9; j4--;) {
-              if (func0(data13[i9], data13[j4])) {
+              if (func32(data13[i9], data13[j4])) {
                 const err54 = {
                   instancePath: instancePath + "/allowedColorIds",
                   schemaPath: "#/properties/allowedColorIds/uniqueItems",
@@ -12381,10 +12528,13 @@ function validate278(
         errors++;
       }
     }
-    if (data.budgets !== undefined) {
+    if (data.budgets !== undefined && func0.call(data, "budgets")) {
       let data15 = data.budgets;
       if (data15 && typeof data15 == "object" && !Array.isArray(data15)) {
-        if (data15.maxAddedParts === undefined) {
+        if (
+          data15.maxAddedParts === undefined ||
+          !func0.call(data15, "maxAddedParts")
+        ) {
           const err56 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/ScopeBudgets/required",
@@ -12399,7 +12549,10 @@ function validate278(
           }
           errors++;
         }
-        if (data15.maxRemovedParts === undefined) {
+        if (
+          data15.maxRemovedParts === undefined ||
+          !func0.call(data15, "maxRemovedParts")
+        ) {
           const err57 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/ScopeBudgets/required",
@@ -12414,7 +12567,10 @@ function validate278(
           }
           errors++;
         }
-        if (data15.maxOperations === undefined) {
+        if (
+          data15.maxOperations === undefined ||
+          !func0.call(data15, "maxOperations")
+        ) {
           const err58 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/ScopeBudgets/required",
@@ -12429,7 +12585,7 @@ function validate278(
           }
           errors++;
         }
-        for (const key1 in data15) {
+        for (const key1 of Object.keys(data15)) {
           if (!(
             key1 === "maxAddedParts" ||
             key1 === "maxRemovedParts" ||
@@ -12450,7 +12606,10 @@ function validate278(
             errors++;
           }
         }
-        if (data15.maxAddedParts !== undefined) {
+        if (
+          data15.maxAddedParts !== undefined &&
+          func0.call(data15, "maxAddedParts")
+        ) {
           let data16 = data15.maxAddedParts;
           if (!(
             typeof data16 == "number" &&
@@ -12508,7 +12667,10 @@ function validate278(
             }
           }
         }
-        if (data15.maxRemovedParts !== undefined) {
+        if (
+          data15.maxRemovedParts !== undefined &&
+          func0.call(data15, "maxRemovedParts")
+        ) {
           let data17 = data15.maxRemovedParts;
           if (!(
             typeof data17 == "number" &&
@@ -12566,7 +12728,10 @@ function validate278(
             }
           }
         }
-        if (data15.maxOperations !== undefined) {
+        if (
+          data15.maxOperations !== undefined &&
+          func0.call(data15, "maxOperations")
+        ) {
           let data18 = data15.maxOperations;
           if (!(
             typeof data18 == "number" &&
@@ -12655,11 +12820,11 @@ function validate278(
     }
     errors++;
   }
-  validate278.errors = vErrors;
+  validate284.errors = vErrors;
   return errors === 0;
 }
 
-function validate277(
+function validate283(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -12667,7 +12832,7 @@ function validate277(
     null;
   let errors = 0;
   if (
-    !validate278(data, {
+    !validate284(data, {
       instancePath,
       parentData,
       parentDataProperty,
@@ -12676,16 +12841,16 @@ function validate277(
   ) {
     vErrors =
       vErrors === null
-        ? validate278.errors
-        : vErrors.concat(validate278.errors);
+        ? validate284.errors
+        : vErrors.concat(validate284.errors);
     errors = vErrors.length;
   }
-  validate277.errors = vErrors;
+  validate283.errors = vErrors;
   return errors === 0;
 }
 
-export const validateAssemblyPatchV1 = validate282;
-const schema388 = {
+export const validateAssemblyPatchV1 = validate288;
+const schema409 = {
   $id: "https://schemas.brick-studio.local/protocol/1/validators/AssemblyPatchV1",
   $ref: "https://schemas.brick-studio.local/protocol/1#/definitions/AssemblyPatchV1",
 };
@@ -12946,7 +13111,7 @@ function validate108(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.jobId === undefined) {
+    if (data.jobId === undefined || !func0.call(data, "jobId")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -12961,7 +13126,7 @@ function validate108(
       }
       errors++;
     }
-    if (data.candidateId === undefined) {
+    if (data.candidateId === undefined || !func0.call(data, "candidateId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -12976,7 +13141,10 @@ function validate108(
       }
       errors++;
     }
-    if (data.compilerSnapshotHash === undefined) {
+    if (
+      data.compilerSnapshotHash === undefined ||
+      !func0.call(data, "compilerSnapshotHash")
+    ) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -12991,7 +13159,10 @@ function validate108(
       }
       errors++;
     }
-    if (data.buildProgramHash === undefined) {
+    if (
+      data.buildProgramHash === undefined ||
+      !func0.call(data, "buildProgramHash")
+    ) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -13006,7 +13177,7 @@ function validate108(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "jobId" ||
         key0 === "candidateId" ||
@@ -13028,10 +13199,10 @@ function validate108(
         errors++;
       }
     }
-    if (data.jobId !== undefined) {
+    if (data.jobId !== undefined && func0.call(data, "jobId")) {
       let data0 = data.jobId;
       if (typeof data0 === "string") {
-        if (func2(data0) > 128) {
+        if (func57(data0) > 128) {
           const err5 = {
             instancePath: instancePath + "/jobId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -13046,7 +13217,7 @@ function validate108(
           }
           errors++;
         }
-        if (func2(data0) < 1) {
+        if (func57(data0) < 1) {
           const err6 = {
             instancePath: instancePath + "/jobId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -13093,10 +13264,10 @@ function validate108(
         errors++;
       }
     }
-    if (data.candidateId !== undefined) {
+    if (data.candidateId !== undefined && func0.call(data, "candidateId")) {
       let data1 = data.candidateId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err9 = {
             instancePath: instancePath + "/candidateId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -13111,7 +13282,7 @@ function validate108(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err10 = {
             instancePath: instancePath + "/candidateId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -13158,7 +13329,10 @@ function validate108(
         errors++;
       }
     }
-    if (data.compilerSnapshotHash !== undefined) {
+    if (
+      data.compilerSnapshotHash !== undefined &&
+      func0.call(data, "compilerSnapshotHash")
+    ) {
       let data2 = data.compilerSnapshotHash;
       if (typeof data2 === "string") {
         if (!pattern2.test(data2)) {
@@ -13192,7 +13366,10 @@ function validate108(
         errors++;
       }
     }
-    if (data.buildProgramHash !== undefined) {
+    if (
+      data.buildProgramHash !== undefined &&
+      func0.call(data, "buildProgramHash")
+    ) {
       let data3 = data.buildProgramHash;
       if (typeof data3 === "string") {
         if (!pattern2.test(data3)) {
@@ -13245,14 +13422,17 @@ function validate108(
   return errors === 0;
 }
 
-function validate283(
+function validate289(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.schemaVersion === undefined) {
+    if (
+      data.schemaVersion === undefined ||
+      !func0.call(data, "schemaVersion")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -13267,7 +13447,7 @@ function validate283(
       }
       errors++;
     }
-    if (data.baseRevision === undefined) {
+    if (data.baseRevision === undefined || !func0.call(data, "baseRevision")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -13282,7 +13462,10 @@ function validate283(
       }
       errors++;
     }
-    if (data.baseDocumentHash === undefined) {
+    if (
+      data.baseDocumentHash === undefined ||
+      !func0.call(data, "baseDocumentHash")
+    ) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -13297,7 +13480,10 @@ function validate283(
       }
       errors++;
     }
-    if (data.truthSnapshotHash === undefined) {
+    if (
+      data.truthSnapshotHash === undefined ||
+      !func0.call(data, "truthSnapshotHash")
+    ) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -13312,7 +13498,10 @@ function validate283(
       }
       errors++;
     }
-    if (data.scopeCapabilityId === undefined) {
+    if (
+      data.scopeCapabilityId === undefined ||
+      !func0.call(data, "scopeCapabilityId")
+    ) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -13327,7 +13516,7 @@ function validate283(
       }
       errors++;
     }
-    if (data.scopeDigest === undefined) {
+    if (data.scopeDigest === undefined || !func0.call(data, "scopeDigest")) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -13342,7 +13531,7 @@ function validate283(
       }
       errors++;
     }
-    if (data.operations === undefined) {
+    if (data.operations === undefined || !func0.call(data, "operations")) {
       const err6 = {
         instancePath,
         schemaPath: "#/required",
@@ -13357,7 +13546,7 @@ function validate283(
       }
       errors++;
     }
-    if (data.provenance === undefined) {
+    if (data.provenance === undefined || !func0.call(data, "provenance")) {
       const err7 = {
         instancePath,
         schemaPath: "#/required",
@@ -13372,7 +13561,7 @@ function validate283(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "schemaVersion" ||
         key0 === "baseRevision" ||
@@ -13398,7 +13587,7 @@ function validate283(
         errors++;
       }
     }
-    if (data.schemaVersion !== undefined) {
+    if (data.schemaVersion !== undefined && func0.call(data, "schemaVersion")) {
       if ("lego.assembly-patch/1" !== data.schemaVersion) {
         const err9 = {
           instancePath: instancePath + "/schemaVersion",
@@ -13415,10 +13604,10 @@ function validate283(
         errors++;
       }
     }
-    if (data.baseRevision !== undefined) {
+    if (data.baseRevision !== undefined && func0.call(data, "baseRevision")) {
       let data1 = data.baseRevision;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err10 = {
             instancePath: instancePath + "/baseRevision",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -13433,7 +13622,7 @@ function validate283(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err11 = {
             instancePath: instancePath + "/baseRevision",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -13480,7 +13669,10 @@ function validate283(
         errors++;
       }
     }
-    if (data.baseDocumentHash !== undefined) {
+    if (
+      data.baseDocumentHash !== undefined &&
+      func0.call(data, "baseDocumentHash")
+    ) {
       let data2 = data.baseDocumentHash;
       if (typeof data2 === "string") {
         if (!pattern2.test(data2)) {
@@ -13514,7 +13706,10 @@ function validate283(
         errors++;
       }
     }
-    if (data.truthSnapshotHash !== undefined) {
+    if (
+      data.truthSnapshotHash !== undefined &&
+      func0.call(data, "truthSnapshotHash")
+    ) {
       let data3 = data.truthSnapshotHash;
       if (typeof data3 === "string") {
         if (!pattern2.test(data3)) {
@@ -13548,10 +13743,13 @@ function validate283(
         errors++;
       }
     }
-    if (data.scopeCapabilityId !== undefined) {
+    if (
+      data.scopeCapabilityId !== undefined &&
+      func0.call(data, "scopeCapabilityId")
+    ) {
       let data4 = data.scopeCapabilityId;
       if (typeof data4 === "string") {
-        if (func2(data4) > 128) {
+        if (func57(data4) > 128) {
           const err18 = {
             instancePath: instancePath + "/scopeCapabilityId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -13566,7 +13764,7 @@ function validate283(
           }
           errors++;
         }
-        if (func2(data4) < 1) {
+        if (func57(data4) < 1) {
           const err19 = {
             instancePath: instancePath + "/scopeCapabilityId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -13613,7 +13811,7 @@ function validate283(
         errors++;
       }
     }
-    if (data.scopeDigest !== undefined) {
+    if (data.scopeDigest !== undefined && func0.call(data, "scopeDigest")) {
       let data5 = data.scopeDigest;
       if (typeof data5 === "string") {
         if (!pattern2.test(data5)) {
@@ -13647,7 +13845,7 @@ function validate283(
         errors++;
       }
     }
-    if (data.operations !== undefined) {
+    if (data.operations !== undefined && func0.call(data, "operations")) {
       let data6 = data.operations;
       if (Array.isArray(data6)) {
         if (data6.length > 10000) {
@@ -13713,7 +13911,7 @@ function validate283(
         errors++;
       }
     }
-    if (data.provenance !== undefined) {
+    if (data.provenance !== undefined && func0.call(data, "provenance")) {
       if (
         !validate108(data.provenance, {
           instancePath: instancePath + "/provenance",
@@ -13744,11 +13942,11 @@ function validate283(
     }
     errors++;
   }
-  validate283.errors = vErrors;
+  validate289.errors = vErrors;
   return errors === 0;
 }
 
-function validate282(
+function validate288(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -13756,7 +13954,7 @@ function validate282(
     null;
   let errors = 0;
   if (
-    !validate283(data, {
+    !validate289(data, {
       instancePath,
       parentData,
       parentDataProperty,
@@ -13765,16 +13963,16 @@ function validate282(
   ) {
     vErrors =
       vErrors === null
-        ? validate283.errors
-        : vErrors.concat(validate283.errors);
+        ? validate289.errors
+        : vErrors.concat(validate289.errors);
     errors = vErrors.length;
   }
-  validate282.errors = vErrors;
+  validate288.errors = vErrors;
   return errors === 0;
 }
 
-export const validateValidationIssue = validate287;
-const schema395 = {
+export const validateValidationIssue = validate293;
+const schema416 = {
   $id: "https://schemas.brick-studio.local/protocol/1/validators/ValidationIssue",
   $ref: "https://schemas.brick-studio.local/protocol/1#/definitions/ValidationIssue",
 };
@@ -13822,14 +14020,14 @@ const schema135 = {
 const pattern81 = new RegExp("^[A-Z][A-Z0-9_]*$", "u");
 const pattern82 = new RegExp("^(/([^~/]|~0|~1)*)*$", "u");
 
-function validate288(
+function validate294(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.issueId === undefined) {
+    if (data.issueId === undefined || !func0.call(data, "issueId")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -13844,7 +14042,7 @@ function validate288(
       }
       errors++;
     }
-    if (data.validatorId === undefined) {
+    if (data.validatorId === undefined || !func0.call(data, "validatorId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -13859,7 +14057,7 @@ function validate288(
       }
       errors++;
     }
-    if (data.code === undefined) {
+    if (data.code === undefined || !func0.call(data, "code")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -13874,7 +14072,7 @@ function validate288(
       }
       errors++;
     }
-    if (data.severity === undefined) {
+    if (data.severity === undefined || !func0.call(data, "severity")) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -13889,7 +14087,7 @@ function validate288(
       }
       errors++;
     }
-    if (data.message === undefined) {
+    if (data.message === undefined || !func0.call(data, "message")) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -13904,7 +14102,7 @@ function validate288(
       }
       errors++;
     }
-    if (data.path === undefined) {
+    if (data.path === undefined || !func0.call(data, "path")) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -13919,7 +14117,7 @@ function validate288(
       }
       errors++;
     }
-    if (data.partIds === undefined) {
+    if (data.partIds === undefined || !func0.call(data, "partIds")) {
       const err6 = {
         instancePath,
         schemaPath: "#/required",
@@ -13934,7 +14132,10 @@ function validate288(
       }
       errors++;
     }
-    if (data.connectionIds === undefined) {
+    if (
+      data.connectionIds === undefined ||
+      !func0.call(data, "connectionIds")
+    ) {
       const err7 = {
         instancePath,
         schemaPath: "#/required",
@@ -13949,7 +14150,7 @@ function validate288(
       }
       errors++;
     }
-    if (data.scope === undefined) {
+    if (data.scope === undefined || !func0.call(data, "scope")) {
       const err8 = {
         instancePath,
         schemaPath: "#/required",
@@ -13964,8 +14165,8 @@ function validate288(
       }
       errors++;
     }
-    for (const key0 in data) {
-      if (!func8.call(schema135.properties, key0)) {
+    for (const key0 of Object.keys(data)) {
+      if (!func0.call(schema135.properties, key0)) {
         const err9 = {
           instancePath,
           schemaPath: "#/additionalProperties",
@@ -13981,10 +14182,10 @@ function validate288(
         errors++;
       }
     }
-    if (data.issueId !== undefined) {
+    if (data.issueId !== undefined && func0.call(data, "issueId")) {
       let data0 = data.issueId;
       if (typeof data0 === "string") {
-        if (func2(data0) > 128) {
+        if (func57(data0) > 128) {
           const err10 = {
             instancePath: instancePath + "/issueId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -13999,7 +14200,7 @@ function validate288(
           }
           errors++;
         }
-        if (func2(data0) < 1) {
+        if (func57(data0) < 1) {
           const err11 = {
             instancePath: instancePath + "/issueId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -14046,10 +14247,10 @@ function validate288(
         errors++;
       }
     }
-    if (data.validatorId !== undefined) {
+    if (data.validatorId !== undefined && func0.call(data, "validatorId")) {
       let data1 = data.validatorId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err14 = {
             instancePath: instancePath + "/validatorId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -14064,7 +14265,7 @@ function validate288(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err15 = {
             instancePath: instancePath + "/validatorId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -14111,10 +14312,10 @@ function validate288(
         errors++;
       }
     }
-    if (data.code !== undefined) {
+    if (data.code !== undefined && func0.call(data, "code")) {
       let data2 = data.code;
       if (typeof data2 === "string") {
-        if (func2(data2) > 64) {
+        if (func57(data2) > 64) {
           const err18 = {
             instancePath: instancePath + "/code",
             schemaPath: "#/properties/code/maxLength",
@@ -14129,7 +14330,7 @@ function validate288(
           }
           errors++;
         }
-        if (func2(data2) < 2) {
+        if (func57(data2) < 2) {
           const err19 = {
             instancePath: instancePath + "/code",
             schemaPath: "#/properties/code/minLength",
@@ -14175,7 +14376,7 @@ function validate288(
         errors++;
       }
     }
-    if (data.severity !== undefined) {
+    if (data.severity !== undefined && func0.call(data, "severity")) {
       let data3 = data.severity;
       if (!(data3 === "blocking" || data3 === "advisory")) {
         const err22 = {
@@ -14193,10 +14394,10 @@ function validate288(
         errors++;
       }
     }
-    if (data.message !== undefined) {
+    if (data.message !== undefined && func0.call(data, "message")) {
       let data4 = data.message;
       if (typeof data4 === "string") {
-        if (func2(data4) > 256) {
+        if (func57(data4) > 256) {
           const err23 = {
             instancePath: instancePath + "/message",
             schemaPath: "#/definitions/ShortText/maxLength",
@@ -14227,10 +14428,10 @@ function validate288(
         errors++;
       }
     }
-    if (data.path !== undefined) {
+    if (data.path !== undefined && func0.call(data, "path")) {
       let data5 = data.path;
       if (typeof data5 === "string") {
-        if (func2(data5) > 512) {
+        if (func57(data5) > 512) {
           const err25 = {
             instancePath: instancePath + "/path",
             schemaPath: "#/properties/path/maxLength",
@@ -14276,7 +14477,7 @@ function validate288(
         errors++;
       }
     }
-    if (data.partIds !== undefined) {
+    if (data.partIds !== undefined && func0.call(data, "partIds")) {
       let data6 = data.partIds;
       if (Array.isArray(data6)) {
         if (data6.length > 256) {
@@ -14298,7 +14499,7 @@ function validate288(
         for (let i0 = 0; i0 < len0; i0++) {
           let data7 = data6[i0];
           if (typeof data7 === "string") {
-            if (func2(data7) > 128) {
+            if (func57(data7) > 128) {
               const err29 = {
                 instancePath: instancePath + "/partIds/" + i0,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -14313,7 +14514,7 @@ function validate288(
               }
               errors++;
             }
-            if (func2(data7) < 1) {
+            if (func57(data7) < 1) {
               const err30 = {
                 instancePath: instancePath + "/partIds/" + i0,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -14367,7 +14568,7 @@ function validate288(
         if (i1 > 1) {
           outer0: for (; i1--;) {
             for (j0 = i1; j0--;) {
-              if (func0(data6[i1], data6[j0])) {
+              if (func32(data6[i1], data6[j0])) {
                 const err33 = {
                   instancePath: instancePath + "/partIds",
                   schemaPath: "#/properties/partIds/uniqueItems",
@@ -14407,7 +14608,7 @@ function validate288(
         errors++;
       }
     }
-    if (data.connectionIds !== undefined) {
+    if (data.connectionIds !== undefined && func0.call(data, "connectionIds")) {
       let data8 = data.connectionIds;
       if (Array.isArray(data8)) {
         if (data8.length > 256) {
@@ -14429,7 +14630,7 @@ function validate288(
         for (let i2 = 0; i2 < len1; i2++) {
           let data9 = data8[i2];
           if (typeof data9 === "string") {
-            if (func2(data9) > 128) {
+            if (func57(data9) > 128) {
               const err36 = {
                 instancePath: instancePath + "/connectionIds/" + i2,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -14444,7 +14645,7 @@ function validate288(
               }
               errors++;
             }
-            if (func2(data9) < 1) {
+            if (func57(data9) < 1) {
               const err37 = {
                 instancePath: instancePath + "/connectionIds/" + i2,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -14498,7 +14699,7 @@ function validate288(
         if (i3 > 1) {
           outer1: for (; i3--;) {
             for (j1 = i3; j1--;) {
-              if (func0(data8[i3], data8[j1])) {
+              if (func32(data8[i3], data8[j1])) {
                 const err40 = {
                   instancePath: instancePath + "/connectionIds",
                   schemaPath: "#/properties/connectionIds/uniqueItems",
@@ -14538,7 +14739,7 @@ function validate288(
         errors++;
       }
     }
-    if (data.scope !== undefined) {
+    if (data.scope !== undefined && func0.call(data, "scope")) {
       let data10 = data.scope;
       if (!(data10 === "patch" || data10 === "document")) {
         const err42 = {
@@ -14571,11 +14772,11 @@ function validate288(
     }
     errors++;
   }
-  validate288.errors = vErrors;
+  validate294.errors = vErrors;
   return errors === 0;
 }
 
-function validate287(
+function validate293(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -14583,7 +14784,7 @@ function validate287(
     null;
   let errors = 0;
   if (
-    !validate288(data, {
+    !validate294(data, {
       instancePath,
       parentData,
       parentDataProperty,
@@ -14592,16 +14793,16 @@ function validate287(
   ) {
     vErrors =
       vErrors === null
-        ? validate288.errors
-        : vErrors.concat(validate288.errors);
+        ? validate294.errors
+        : vErrors.concat(validate294.errors);
     errors = vErrors.length;
   }
-  validate287.errors = vErrors;
+  validate293.errors = vErrors;
   return errors === 0;
 }
 
-export const validateValidationReportV1 = validate290;
-const schema402 = {
+export const validateValidationReportV1 = validate296;
+const schema423 = {
   $id: "https://schemas.brick-studio.local/protocol/1/validators/ValidationReportV1",
   $ref: "https://schemas.brick-studio.local/protocol/1#/definitions/ValidationReportV1",
 };
@@ -14639,7 +14840,7 @@ function validate111(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.issueId === undefined) {
+    if (data.issueId === undefined || !func0.call(data, "issueId")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -14654,7 +14855,7 @@ function validate111(
       }
       errors++;
     }
-    if (data.validatorId === undefined) {
+    if (data.validatorId === undefined || !func0.call(data, "validatorId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -14669,7 +14870,7 @@ function validate111(
       }
       errors++;
     }
-    if (data.code === undefined) {
+    if (data.code === undefined || !func0.call(data, "code")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -14684,7 +14885,7 @@ function validate111(
       }
       errors++;
     }
-    if (data.severity === undefined) {
+    if (data.severity === undefined || !func0.call(data, "severity")) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -14699,7 +14900,7 @@ function validate111(
       }
       errors++;
     }
-    if (data.message === undefined) {
+    if (data.message === undefined || !func0.call(data, "message")) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -14714,7 +14915,7 @@ function validate111(
       }
       errors++;
     }
-    if (data.path === undefined) {
+    if (data.path === undefined || !func0.call(data, "path")) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -14729,7 +14930,7 @@ function validate111(
       }
       errors++;
     }
-    if (data.partIds === undefined) {
+    if (data.partIds === undefined || !func0.call(data, "partIds")) {
       const err6 = {
         instancePath,
         schemaPath: "#/required",
@@ -14744,7 +14945,10 @@ function validate111(
       }
       errors++;
     }
-    if (data.connectionIds === undefined) {
+    if (
+      data.connectionIds === undefined ||
+      !func0.call(data, "connectionIds")
+    ) {
       const err7 = {
         instancePath,
         schemaPath: "#/required",
@@ -14759,7 +14963,7 @@ function validate111(
       }
       errors++;
     }
-    if (data.scope === undefined) {
+    if (data.scope === undefined || !func0.call(data, "scope")) {
       const err8 = {
         instancePath,
         schemaPath: "#/required",
@@ -14774,8 +14978,8 @@ function validate111(
       }
       errors++;
     }
-    for (const key0 in data) {
-      if (!func8.call(schema135.properties, key0)) {
+    for (const key0 of Object.keys(data)) {
+      if (!func0.call(schema135.properties, key0)) {
         const err9 = {
           instancePath,
           schemaPath: "#/additionalProperties",
@@ -14791,10 +14995,10 @@ function validate111(
         errors++;
       }
     }
-    if (data.issueId !== undefined) {
+    if (data.issueId !== undefined && func0.call(data, "issueId")) {
       let data0 = data.issueId;
       if (typeof data0 === "string") {
-        if (func2(data0) > 128) {
+        if (func57(data0) > 128) {
           const err10 = {
             instancePath: instancePath + "/issueId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -14809,7 +15013,7 @@ function validate111(
           }
           errors++;
         }
-        if (func2(data0) < 1) {
+        if (func57(data0) < 1) {
           const err11 = {
             instancePath: instancePath + "/issueId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -14856,10 +15060,10 @@ function validate111(
         errors++;
       }
     }
-    if (data.validatorId !== undefined) {
+    if (data.validatorId !== undefined && func0.call(data, "validatorId")) {
       let data1 = data.validatorId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err14 = {
             instancePath: instancePath + "/validatorId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -14874,7 +15078,7 @@ function validate111(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err15 = {
             instancePath: instancePath + "/validatorId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -14921,10 +15125,10 @@ function validate111(
         errors++;
       }
     }
-    if (data.code !== undefined) {
+    if (data.code !== undefined && func0.call(data, "code")) {
       let data2 = data.code;
       if (typeof data2 === "string") {
-        if (func2(data2) > 64) {
+        if (func57(data2) > 64) {
           const err18 = {
             instancePath: instancePath + "/code",
             schemaPath: "#/properties/code/maxLength",
@@ -14939,7 +15143,7 @@ function validate111(
           }
           errors++;
         }
-        if (func2(data2) < 2) {
+        if (func57(data2) < 2) {
           const err19 = {
             instancePath: instancePath + "/code",
             schemaPath: "#/properties/code/minLength",
@@ -14985,7 +15189,7 @@ function validate111(
         errors++;
       }
     }
-    if (data.severity !== undefined) {
+    if (data.severity !== undefined && func0.call(data, "severity")) {
       let data3 = data.severity;
       if (!(data3 === "blocking" || data3 === "advisory")) {
         const err22 = {
@@ -15003,10 +15207,10 @@ function validate111(
         errors++;
       }
     }
-    if (data.message !== undefined) {
+    if (data.message !== undefined && func0.call(data, "message")) {
       let data4 = data.message;
       if (typeof data4 === "string") {
-        if (func2(data4) > 256) {
+        if (func57(data4) > 256) {
           const err23 = {
             instancePath: instancePath + "/message",
             schemaPath: "#/definitions/ShortText/maxLength",
@@ -15037,10 +15241,10 @@ function validate111(
         errors++;
       }
     }
-    if (data.path !== undefined) {
+    if (data.path !== undefined && func0.call(data, "path")) {
       let data5 = data.path;
       if (typeof data5 === "string") {
-        if (func2(data5) > 512) {
+        if (func57(data5) > 512) {
           const err25 = {
             instancePath: instancePath + "/path",
             schemaPath: "#/properties/path/maxLength",
@@ -15086,7 +15290,7 @@ function validate111(
         errors++;
       }
     }
-    if (data.partIds !== undefined) {
+    if (data.partIds !== undefined && func0.call(data, "partIds")) {
       let data6 = data.partIds;
       if (Array.isArray(data6)) {
         if (data6.length > 256) {
@@ -15108,7 +15312,7 @@ function validate111(
         for (let i0 = 0; i0 < len0; i0++) {
           let data7 = data6[i0];
           if (typeof data7 === "string") {
-            if (func2(data7) > 128) {
+            if (func57(data7) > 128) {
               const err29 = {
                 instancePath: instancePath + "/partIds/" + i0,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -15123,7 +15327,7 @@ function validate111(
               }
               errors++;
             }
-            if (func2(data7) < 1) {
+            if (func57(data7) < 1) {
               const err30 = {
                 instancePath: instancePath + "/partIds/" + i0,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -15177,7 +15381,7 @@ function validate111(
         if (i1 > 1) {
           outer0: for (; i1--;) {
             for (j0 = i1; j0--;) {
-              if (func0(data6[i1], data6[j0])) {
+              if (func32(data6[i1], data6[j0])) {
                 const err33 = {
                   instancePath: instancePath + "/partIds",
                   schemaPath: "#/properties/partIds/uniqueItems",
@@ -15217,7 +15421,7 @@ function validate111(
         errors++;
       }
     }
-    if (data.connectionIds !== undefined) {
+    if (data.connectionIds !== undefined && func0.call(data, "connectionIds")) {
       let data8 = data.connectionIds;
       if (Array.isArray(data8)) {
         if (data8.length > 256) {
@@ -15239,7 +15443,7 @@ function validate111(
         for (let i2 = 0; i2 < len1; i2++) {
           let data9 = data8[i2];
           if (typeof data9 === "string") {
-            if (func2(data9) > 128) {
+            if (func57(data9) > 128) {
               const err36 = {
                 instancePath: instancePath + "/connectionIds/" + i2,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -15254,7 +15458,7 @@ function validate111(
               }
               errors++;
             }
-            if (func2(data9) < 1) {
+            if (func57(data9) < 1) {
               const err37 = {
                 instancePath: instancePath + "/connectionIds/" + i2,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -15308,7 +15512,7 @@ function validate111(
         if (i3 > 1) {
           outer1: for (; i3--;) {
             for (j1 = i3; j1--;) {
-              if (func0(data8[i3], data8[j1])) {
+              if (func32(data8[i3], data8[j1])) {
                 const err40 = {
                   instancePath: instancePath + "/connectionIds",
                   schemaPath: "#/properties/connectionIds/uniqueItems",
@@ -15348,7 +15552,7 @@ function validate111(
         errors++;
       }
     }
-    if (data.scope !== undefined) {
+    if (data.scope !== undefined && func0.call(data, "scope")) {
       let data10 = data.scope;
       if (!(data10 === "patch" || data10 === "document")) {
         const err42 = {
@@ -15385,14 +15589,17 @@ function validate111(
   return errors === 0;
 }
 
-function validate291(
+function validate297(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.schemaVersion === undefined) {
+    if (
+      data.schemaVersion === undefined ||
+      !func0.call(data, "schemaVersion")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -15407,7 +15614,10 @@ function validate291(
       }
       errors++;
     }
-    if (data.targetDocumentHash === undefined) {
+    if (
+      data.targetDocumentHash === undefined ||
+      !func0.call(data, "targetDocumentHash")
+    ) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -15422,7 +15632,10 @@ function validate291(
       }
       errors++;
     }
-    if (data.truthSnapshotHash === undefined) {
+    if (
+      data.truthSnapshotHash === undefined ||
+      !func0.call(data, "truthSnapshotHash")
+    ) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -15437,7 +15650,10 @@ function validate291(
       }
       errors++;
     }
-    if (data.validatorSetHash === undefined) {
+    if (
+      data.validatorSetHash === undefined ||
+      !func0.call(data, "validatorSetHash")
+    ) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -15452,7 +15668,7 @@ function validate291(
       }
       errors++;
     }
-    if (data.patchValid === undefined) {
+    if (data.patchValid === undefined || !func0.call(data, "patchValid")) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -15467,7 +15683,10 @@ function validate291(
       }
       errors++;
     }
-    if (data.documentGloballyValid === undefined) {
+    if (
+      data.documentGloballyValid === undefined ||
+      !func0.call(data, "documentGloballyValid")
+    ) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -15483,7 +15702,7 @@ function validate291(
       }
       errors++;
     }
-    if (data.issues === undefined) {
+    if (data.issues === undefined || !func0.call(data, "issues")) {
       const err6 = {
         instancePath,
         schemaPath: "#/required",
@@ -15498,7 +15717,7 @@ function validate291(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "schemaVersion" ||
         key0 === "targetDocumentHash" ||
@@ -15523,7 +15742,7 @@ function validate291(
         errors++;
       }
     }
-    if (data.schemaVersion !== undefined) {
+    if (data.schemaVersion !== undefined && func0.call(data, "schemaVersion")) {
       if ("lego.validation-report/1" !== data.schemaVersion) {
         const err8 = {
           instancePath: instancePath + "/schemaVersion",
@@ -15540,7 +15759,10 @@ function validate291(
         errors++;
       }
     }
-    if (data.targetDocumentHash !== undefined) {
+    if (
+      data.targetDocumentHash !== undefined &&
+      func0.call(data, "targetDocumentHash")
+    ) {
       let data1 = data.targetDocumentHash;
       if (typeof data1 === "string") {
         if (!pattern2.test(data1)) {
@@ -15574,7 +15796,10 @@ function validate291(
         errors++;
       }
     }
-    if (data.truthSnapshotHash !== undefined) {
+    if (
+      data.truthSnapshotHash !== undefined &&
+      func0.call(data, "truthSnapshotHash")
+    ) {
       let data2 = data.truthSnapshotHash;
       if (typeof data2 === "string") {
         if (!pattern2.test(data2)) {
@@ -15608,7 +15833,10 @@ function validate291(
         errors++;
       }
     }
-    if (data.validatorSetHash !== undefined) {
+    if (
+      data.validatorSetHash !== undefined &&
+      func0.call(data, "validatorSetHash")
+    ) {
       let data3 = data.validatorSetHash;
       if (typeof data3 === "string") {
         if (!pattern2.test(data3)) {
@@ -15642,7 +15870,7 @@ function validate291(
         errors++;
       }
     }
-    if (data.patchValid !== undefined) {
+    if (data.patchValid !== undefined && func0.call(data, "patchValid")) {
       if (typeof data.patchValid !== "boolean") {
         const err15 = {
           instancePath: instancePath + "/patchValid",
@@ -15659,7 +15887,10 @@ function validate291(
         errors++;
       }
     }
-    if (data.documentGloballyValid !== undefined) {
+    if (
+      data.documentGloballyValid !== undefined &&
+      func0.call(data, "documentGloballyValid")
+    ) {
       if (typeof data.documentGloballyValid !== "boolean") {
         const err16 = {
           instancePath: instancePath + "/documentGloballyValid",
@@ -15676,7 +15907,7 @@ function validate291(
         errors++;
       }
     }
-    if (data.issues !== undefined) {
+    if (data.issues !== undefined && func0.call(data, "issues")) {
       let data6 = data.issues;
       if (Array.isArray(data6)) {
         if (data6.length > 10000) {
@@ -15742,11 +15973,11 @@ function validate291(
     }
     errors++;
   }
-  validate291.errors = vErrors;
+  validate297.errors = vErrors;
   return errors === 0;
 }
 
-function validate290(
+function validate296(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -15754,7 +15985,7 @@ function validate290(
     null;
   let errors = 0;
   if (
-    !validate291(data, {
+    !validate297(data, {
       instancePath,
       parentData,
       parentDataProperty,
@@ -15763,20 +15994,20 @@ function validate290(
   ) {
     vErrors =
       vErrors === null
-        ? validate291.errors
-        : vErrors.concat(validate291.errors);
+        ? validate297.errors
+        : vErrors.concat(validate297.errors);
     errors = vErrors.length;
   }
-  validate290.errors = vErrors;
+  validate296.errors = vErrors;
   return errors === 0;
 }
 
-export const validateTemplateSnapshotV1 = validate294;
-const schema407 = {
+export const validateTemplateSnapshotV1 = validate300;
+const schema428 = {
   $id: "https://schemas.brick-studio.local/protocol/1/validators/TemplateSnapshotV1",
   $ref: "https://schemas.brick-studio.local/protocol/1#/definitions/TemplateSnapshotV1",
 };
-const schema330 = {
+const schema351 = {
   type: "object",
   description:
     "Intrinsic immutable fixed-graph data. Admission must separately validate catalog parts, colors, transforms, and ports against the pinned catalog, truth, and admission-policy snapshots before compiler use.",
@@ -15858,7 +16089,7 @@ const schema330 = {
     license: { $ref: "#/definitions/TemplateLicenseV1" },
   },
 };
-const schema364 = {
+const schema385 = {
   type: "object",
   additionalProperties: false,
   required: ["spdxExpression", "attribution", "redistribution"],
@@ -15873,8 +16104,8 @@ const schema364 = {
     redistribution: { enum: ["allowed", "restricted", "evaluation-only"] },
   },
 };
-const pattern248 = new RegExp("^[A-Za-z0-9 .()+\\-:]+$", "u");
-const schema337 = {
+const pattern266 = new RegExp("^[A-Za-z0-9 .()+\\-:]+$", "u");
+const schema358 = {
   type: "object",
   additionalProperties: false,
   required: ["kind", "name", "allowedColorIds"],
@@ -15892,14 +16123,14 @@ const schema337 = {
   },
 };
 
-function validate215(
+function validate221(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.kind === undefined) {
+    if (data.kind === undefined || !func0.call(data, "kind")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -15914,7 +16145,7 @@ function validate215(
       }
       errors++;
     }
-    if (data.name === undefined) {
+    if (data.name === undefined || !func0.call(data, "name")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -15929,7 +16160,10 @@ function validate215(
       }
       errors++;
     }
-    if (data.allowedColorIds === undefined) {
+    if (
+      data.allowedColorIds === undefined ||
+      !func0.call(data, "allowedColorIds")
+    ) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -15944,7 +16178,7 @@ function validate215(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "kind" ||
         key0 === "name" ||
@@ -15966,7 +16200,7 @@ function validate215(
         errors++;
       }
     }
-    if (data.kind !== undefined) {
+    if (data.kind !== undefined && func0.call(data, "kind")) {
       if ("color-enum" !== data.kind) {
         const err4 = {
           instancePath: instancePath + "/kind",
@@ -15983,10 +16217,10 @@ function validate215(
         errors++;
       }
     }
-    if (data.name !== undefined) {
+    if (data.name !== undefined && func0.call(data, "name")) {
       let data1 = data.name;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err5 = {
             instancePath: instancePath + "/name",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -16001,7 +16235,7 @@ function validate215(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err6 = {
             instancePath: instancePath + "/name",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -16048,7 +16282,10 @@ function validate215(
         errors++;
       }
     }
-    if (data.allowedColorIds !== undefined) {
+    if (
+      data.allowedColorIds !== undefined &&
+      func0.call(data, "allowedColorIds")
+    ) {
       let data2 = data.allowedColorIds;
       if (Array.isArray(data2)) {
         if (data2.length > 32) {
@@ -16085,7 +16322,7 @@ function validate215(
         for (let i0 = 0; i0 < len0; i0++) {
           let data3 = data2[i0];
           if (typeof data3 === "string") {
-            if (func2(data3) > 128) {
+            if (func57(data3) > 128) {
               const err11 = {
                 instancePath: instancePath + "/allowedColorIds/" + i0,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -16100,7 +16337,7 @@ function validate215(
               }
               errors++;
             }
-            if (func2(data3) < 1) {
+            if (func57(data3) < 1) {
               const err12 = {
                 instancePath: instancePath + "/allowedColorIds/" + i0,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -16154,7 +16391,7 @@ function validate215(
         if (i1 > 1) {
           outer0: for (; i1--;) {
             for (j0 = i1; j0--;) {
-              if (func0(data2[i1], data2[j0])) {
+              if (func32(data2[i1], data2[j0])) {
                 const err15 = {
                   instancePath: instancePath + "/allowedColorIds",
                   schemaPath: "#/properties/allowedColorIds/uniqueItems",
@@ -16194,10 +16431,13 @@ function validate215(
         errors++;
       }
     }
-    if (data.defaultColorId !== undefined) {
+    if (
+      data.defaultColorId !== undefined &&
+      func0.call(data, "defaultColorId")
+    ) {
       let data4 = data.defaultColorId;
       if (typeof data4 === "string") {
-        if (func2(data4) > 128) {
+        if (func57(data4) > 128) {
           const err17 = {
             instancePath: instancePath + "/defaultColorId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -16212,7 +16452,7 @@ function validate215(
           }
           errors++;
         }
-        if (func2(data4) < 1) {
+        if (func57(data4) < 1) {
           const err18 = {
             instancePath: instancePath + "/defaultColorId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -16274,11 +16514,11 @@ function validate215(
     }
     errors++;
   }
-  validate215.errors = vErrors;
+  validate221.errors = vErrors;
   return errors === 0;
 }
 
-const schema341 = {
+const schema362 = {
   type: "object",
   additionalProperties: false,
   required: [
@@ -16301,13 +16541,13 @@ const schema341 = {
     },
   },
 };
-const schema344 = {
+const schema365 = {
   oneOf: [
     { $ref: "#/definitions/TemplateLiteralColorV1" },
     { $ref: "#/definitions/TemplateParameterColorV1" },
   ],
 };
-const schema345 = {
+const schema366 = {
   type: "object",
   additionalProperties: false,
   required: ["kind", "colorId"],
@@ -16317,14 +16557,14 @@ const schema345 = {
   },
 };
 
-function validate219(
+function validate225(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.kind === undefined) {
+    if (data.kind === undefined || !func0.call(data, "kind")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -16339,7 +16579,7 @@ function validate219(
       }
       errors++;
     }
-    if (data.colorId === undefined) {
+    if (data.colorId === undefined || !func0.call(data, "colorId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -16354,7 +16594,7 @@ function validate219(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(key0 === "kind" || key0 === "colorId")) {
         const err2 = {
           instancePath,
@@ -16371,7 +16611,7 @@ function validate219(
         errors++;
       }
     }
-    if (data.kind !== undefined) {
+    if (data.kind !== undefined && func0.call(data, "kind")) {
       if ("literal" !== data.kind) {
         const err3 = {
           instancePath: instancePath + "/kind",
@@ -16388,10 +16628,10 @@ function validate219(
         errors++;
       }
     }
-    if (data.colorId !== undefined) {
+    if (data.colorId !== undefined && func0.call(data, "colorId")) {
       let data1 = data.colorId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err4 = {
             instancePath: instancePath + "/colorId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -16406,7 +16646,7 @@ function validate219(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err5 = {
             instancePath: instancePath + "/colorId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -16468,11 +16708,11 @@ function validate219(
     }
     errors++;
   }
-  validate219.errors = vErrors;
+  validate225.errors = vErrors;
   return errors === 0;
 }
 
-const schema347 = {
+const schema368 = {
   type: "object",
   additionalProperties: false,
   required: ["kind", "parameterName"],
@@ -16482,14 +16722,14 @@ const schema347 = {
   },
 };
 
-function validate221(
+function validate227(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.kind === undefined) {
+    if (data.kind === undefined || !func0.call(data, "kind")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -16504,7 +16744,10 @@ function validate221(
       }
       errors++;
     }
-    if (data.parameterName === undefined) {
+    if (
+      data.parameterName === undefined ||
+      !func0.call(data, "parameterName")
+    ) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -16519,7 +16762,7 @@ function validate221(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(key0 === "kind" || key0 === "parameterName")) {
         const err2 = {
           instancePath,
@@ -16536,7 +16779,7 @@ function validate221(
         errors++;
       }
     }
-    if (data.kind !== undefined) {
+    if (data.kind !== undefined && func0.call(data, "kind")) {
       if ("parameter" !== data.kind) {
         const err3 = {
           instancePath: instancePath + "/kind",
@@ -16553,10 +16796,10 @@ function validate221(
         errors++;
       }
     }
-    if (data.parameterName !== undefined) {
+    if (data.parameterName !== undefined && func0.call(data, "parameterName")) {
       let data1 = data.parameterName;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err4 = {
             instancePath: instancePath + "/parameterName",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -16571,7 +16814,7 @@ function validate221(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err5 = {
             instancePath: instancePath + "/parameterName",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -16633,11 +16876,11 @@ function validate221(
     }
     errors++;
   }
-  validate221.errors = vErrors;
+  validate227.errors = vErrors;
   return errors === 0;
 }
 
-function validate218(
+function validate224(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -16648,7 +16891,7 @@ function validate218(
   let passing0 = null;
   const _errs1 = errors;
   if (
-    !validate219(data, {
+    !validate225(data, {
       instancePath,
       parentData,
       parentDataProperty,
@@ -16657,8 +16900,8 @@ function validate218(
   ) {
     vErrors =
       vErrors === null
-        ? validate219.errors
-        : vErrors.concat(validate219.errors);
+        ? validate225.errors
+        : vErrors.concat(validate225.errors);
     errors = vErrors.length;
   }
   var _valid0 = _errs1 === errors;
@@ -16668,7 +16911,7 @@ function validate218(
   }
   const _errs2 = errors;
   if (
-    !validate221(data, {
+    !validate227(data, {
       instancePath,
       parentData,
       parentDataProperty,
@@ -16677,8 +16920,8 @@ function validate218(
   ) {
     vErrors =
       vErrors === null
-        ? validate221.errors
-        : vErrors.concat(validate221.errors);
+        ? validate227.errors
+        : vErrors.concat(validate227.errors);
     errors = vErrors.length;
   }
   var _valid0 = _errs2 === errors;
@@ -16715,18 +16958,18 @@ function validate218(
       }
     }
   }
-  validate218.errors = vErrors;
+  validate224.errors = vErrors;
   return errors === 0;
 }
 
-function validate217(
+function validate223(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.localPartId === undefined) {
+    if (data.localPartId === undefined || !func0.call(data, "localPartId")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -16741,7 +16984,10 @@ function validate217(
       }
       errors++;
     }
-    if (data.catalogPartId === undefined) {
+    if (
+      data.catalogPartId === undefined ||
+      !func0.call(data, "catalogPartId")
+    ) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -16756,7 +17002,7 @@ function validate217(
       }
       errors++;
     }
-    if (data.color === undefined) {
+    if (data.color === undefined || !func0.call(data, "color")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -16771,7 +17017,7 @@ function validate217(
       }
       errors++;
     }
-    if (data.transform === undefined) {
+    if (data.transform === undefined || !func0.call(data, "transform")) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -16786,7 +17032,7 @@ function validate217(
       }
       errors++;
     }
-    if (data.semanticTags === undefined) {
+    if (data.semanticTags === undefined || !func0.call(data, "semanticTags")) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -16801,7 +17047,7 @@ function validate217(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "localPartId" ||
         key0 === "catalogPartId" ||
@@ -16824,10 +17070,10 @@ function validate217(
         errors++;
       }
     }
-    if (data.localPartId !== undefined) {
+    if (data.localPartId !== undefined && func0.call(data, "localPartId")) {
       let data0 = data.localPartId;
       if (typeof data0 === "string") {
-        if (func2(data0) > 128) {
+        if (func57(data0) > 128) {
           const err6 = {
             instancePath: instancePath + "/localPartId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -16842,7 +17088,7 @@ function validate217(
           }
           errors++;
         }
-        if (func2(data0) < 1) {
+        if (func57(data0) < 1) {
           const err7 = {
             instancePath: instancePath + "/localPartId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -16889,10 +17135,10 @@ function validate217(
         errors++;
       }
     }
-    if (data.catalogPartId !== undefined) {
+    if (data.catalogPartId !== undefined && func0.call(data, "catalogPartId")) {
       let data1 = data.catalogPartId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err10 = {
             instancePath: instancePath + "/catalogPartId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -16907,7 +17153,7 @@ function validate217(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err11 = {
             instancePath: instancePath + "/catalogPartId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -16954,9 +17200,9 @@ function validate217(
         errors++;
       }
     }
-    if (data.color !== undefined) {
+    if (data.color !== undefined && func0.call(data, "color")) {
       if (
-        !validate218(data.color, {
+        !validate224(data.color, {
           instancePath: instancePath + "/color",
           parentData: data,
           parentDataProperty: "color",
@@ -16965,12 +17211,12 @@ function validate217(
       ) {
         vErrors =
           vErrors === null
-            ? validate218.errors
-            : vErrors.concat(validate218.errors);
+            ? validate224.errors
+            : vErrors.concat(validate224.errors);
         errors = vErrors.length;
       }
     }
-    if (data.transform !== undefined) {
+    if (data.transform !== undefined && func0.call(data, "transform")) {
       if (
         !validate20(data.transform, {
           instancePath: instancePath + "/transform",
@@ -16986,7 +17232,7 @@ function validate217(
         errors = vErrors.length;
       }
     }
-    if (data.semanticTags !== undefined) {
+    if (data.semanticTags !== undefined && func0.call(data, "semanticTags")) {
       let data4 = data.semanticTags;
       if (Array.isArray(data4)) {
         if (data4.length > 32) {
@@ -17008,7 +17254,7 @@ function validate217(
         for (let i0 = 0; i0 < len0; i0++) {
           let data5 = data4[i0];
           if (typeof data5 === "string") {
-            if (func2(data5) > 128) {
+            if (func57(data5) > 128) {
               const err15 = {
                 instancePath: instancePath + "/semanticTags/" + i0,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -17023,7 +17269,7 @@ function validate217(
               }
               errors++;
             }
-            if (func2(data5) < 1) {
+            if (func57(data5) < 1) {
               const err16 = {
                 instancePath: instancePath + "/semanticTags/" + i0,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -17077,7 +17323,7 @@ function validate217(
         if (i1 > 1) {
           outer0: for (; i1--;) {
             for (j0 = i1; j0--;) {
-              if (func0(data4[i1], data4[j0])) {
+              if (func32(data4[i1], data4[j0])) {
                 const err19 = {
                   instancePath: instancePath + "/semanticTags",
                   schemaPath: "#/properties/semanticTags/uniqueItems",
@@ -17132,11 +17378,11 @@ function validate217(
     }
     errors++;
   }
-  validate217.errors = vErrors;
+  validate223.errors = vErrors;
   return errors === 0;
 }
 
-const schema350 = {
+const schema371 = {
   type: "object",
   additionalProperties: false,
   required: ["localConnectionId", "kind", "a", "b"],
@@ -17147,7 +17393,7 @@ const schema350 = {
     b: { $ref: "#/definitions/TemplateLocalPortRefV1" },
   },
 };
-const schema352 = {
+const schema373 = {
   type: "object",
   additionalProperties: false,
   required: ["localPartId", "portId"],
@@ -17157,14 +17403,14 @@ const schema352 = {
   },
 };
 
-function validate227(
+function validate233(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.localPartId === undefined) {
+    if (data.localPartId === undefined || !func0.call(data, "localPartId")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -17179,7 +17425,7 @@ function validate227(
       }
       errors++;
     }
-    if (data.portId === undefined) {
+    if (data.portId === undefined || !func0.call(data, "portId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -17194,7 +17440,7 @@ function validate227(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(key0 === "localPartId" || key0 === "portId")) {
         const err2 = {
           instancePath,
@@ -17211,10 +17457,10 @@ function validate227(
         errors++;
       }
     }
-    if (data.localPartId !== undefined) {
+    if (data.localPartId !== undefined && func0.call(data, "localPartId")) {
       let data0 = data.localPartId;
       if (typeof data0 === "string") {
-        if (func2(data0) > 128) {
+        if (func57(data0) > 128) {
           const err3 = {
             instancePath: instancePath + "/localPartId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -17229,7 +17475,7 @@ function validate227(
           }
           errors++;
         }
-        if (func2(data0) < 1) {
+        if (func57(data0) < 1) {
           const err4 = {
             instancePath: instancePath + "/localPartId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -17276,10 +17522,10 @@ function validate227(
         errors++;
       }
     }
-    if (data.portId !== undefined) {
+    if (data.portId !== undefined && func0.call(data, "portId")) {
       let data1 = data.portId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err7 = {
             instancePath: instancePath + "/portId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -17294,7 +17540,7 @@ function validate227(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err8 = {
             instancePath: instancePath + "/portId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -17356,18 +17602,21 @@ function validate227(
     }
     errors++;
   }
-  validate227.errors = vErrors;
+  validate233.errors = vErrors;
   return errors === 0;
 }
 
-function validate226(
+function validate232(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.localConnectionId === undefined) {
+    if (
+      data.localConnectionId === undefined ||
+      !func0.call(data, "localConnectionId")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -17382,7 +17631,7 @@ function validate226(
       }
       errors++;
     }
-    if (data.kind === undefined) {
+    if (data.kind === undefined || !func0.call(data, "kind")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -17397,7 +17646,7 @@ function validate226(
       }
       errors++;
     }
-    if (data.a === undefined) {
+    if (data.a === undefined || !func0.call(data, "a")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -17412,7 +17661,7 @@ function validate226(
       }
       errors++;
     }
-    if (data.b === undefined) {
+    if (data.b === undefined || !func0.call(data, "b")) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -17427,7 +17676,7 @@ function validate226(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "localConnectionId" ||
         key0 === "kind" ||
@@ -17449,10 +17698,13 @@ function validate226(
         errors++;
       }
     }
-    if (data.localConnectionId !== undefined) {
+    if (
+      data.localConnectionId !== undefined &&
+      func0.call(data, "localConnectionId")
+    ) {
       let data0 = data.localConnectionId;
       if (typeof data0 === "string") {
-        if (func2(data0) > 128) {
+        if (func57(data0) > 128) {
           const err5 = {
             instancePath: instancePath + "/localConnectionId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -17467,7 +17719,7 @@ function validate226(
           }
           errors++;
         }
-        if (func2(data0) < 1) {
+        if (func57(data0) < 1) {
           const err6 = {
             instancePath: instancePath + "/localConnectionId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -17514,7 +17766,7 @@ function validate226(
         errors++;
       }
     }
-    if (data.kind !== undefined) {
+    if (data.kind !== undefined && func0.call(data, "kind")) {
       if ("stud-tube" !== data.kind) {
         const err9 = {
           instancePath: instancePath + "/kind",
@@ -17531,9 +17783,9 @@ function validate226(
         errors++;
       }
     }
-    if (data.a !== undefined) {
+    if (data.a !== undefined && func0.call(data, "a")) {
       if (
-        !validate227(data.a, {
+        !validate233(data.a, {
           instancePath: instancePath + "/a",
           parentData: data,
           parentDataProperty: "a",
@@ -17542,14 +17794,14 @@ function validate226(
       ) {
         vErrors =
           vErrors === null
-            ? validate227.errors
-            : vErrors.concat(validate227.errors);
+            ? validate233.errors
+            : vErrors.concat(validate233.errors);
         errors = vErrors.length;
       }
     }
-    if (data.b !== undefined) {
+    if (data.b !== undefined && func0.call(data, "b")) {
       if (
-        !validate227(data.b, {
+        !validate233(data.b, {
           instancePath: instancePath + "/b",
           parentData: data,
           parentDataProperty: "b",
@@ -17558,8 +17810,8 @@ function validate226(
       ) {
         vErrors =
           vErrors === null
-            ? validate227.errors
-            : vErrors.concat(validate227.errors);
+            ? validate233.errors
+            : vErrors.concat(validate233.errors);
         errors = vErrors.length;
       }
     }
@@ -17578,11 +17830,11 @@ function validate226(
     }
     errors++;
   }
-  validate226.errors = vErrors;
+  validate232.errors = vErrors;
   return errors === 0;
 }
 
-const schema355 = {
+const schema376 = {
   type: "object",
   additionalProperties: false,
   required: ["name", "endpoint"],
@@ -17592,14 +17844,14 @@ const schema355 = {
   },
 };
 
-function validate231(
+function validate237(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.name === undefined) {
+    if (data.name === undefined || !func0.call(data, "name")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -17614,7 +17866,7 @@ function validate231(
       }
       errors++;
     }
-    if (data.endpoint === undefined) {
+    if (data.endpoint === undefined || !func0.call(data, "endpoint")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -17629,7 +17881,7 @@ function validate231(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(key0 === "name" || key0 === "endpoint")) {
         const err2 = {
           instancePath,
@@ -17646,10 +17898,10 @@ function validate231(
         errors++;
       }
     }
-    if (data.name !== undefined) {
+    if (data.name !== undefined && func0.call(data, "name")) {
       let data0 = data.name;
       if (typeof data0 === "string") {
-        if (func2(data0) > 128) {
+        if (func57(data0) > 128) {
           const err3 = {
             instancePath: instancePath + "/name",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -17664,7 +17916,7 @@ function validate231(
           }
           errors++;
         }
-        if (func2(data0) < 1) {
+        if (func57(data0) < 1) {
           const err4 = {
             instancePath: instancePath + "/name",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -17711,9 +17963,9 @@ function validate231(
         errors++;
       }
     }
-    if (data.endpoint !== undefined) {
+    if (data.endpoint !== undefined && func0.call(data, "endpoint")) {
       if (
-        !validate227(data.endpoint, {
+        !validate233(data.endpoint, {
           instancePath: instancePath + "/endpoint",
           parentData: data,
           parentDataProperty: "endpoint",
@@ -17722,8 +17974,8 @@ function validate231(
       ) {
         vErrors =
           vErrors === null
-            ? validate227.errors
-            : vErrors.concat(validate227.errors);
+            ? validate233.errors
+            : vErrors.concat(validate233.errors);
         errors = vErrors.length;
       }
     }
@@ -17742,11 +17994,11 @@ function validate231(
     }
     errors++;
   }
-  validate231.errors = vErrors;
+  validate237.errors = vErrors;
   return errors === 0;
 }
 
-const schema357 = {
+const schema378 = {
   type: "object",
   additionalProperties: false,
   required: ["minLdu", "maxLdu"],
@@ -17756,14 +18008,14 @@ const schema357 = {
   },
 };
 
-function validate234(
+function validate240(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.minLdu === undefined) {
+    if (data.minLdu === undefined || !func0.call(data, "minLdu")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -17778,7 +18030,7 @@ function validate234(
       }
       errors++;
     }
-    if (data.maxLdu === undefined) {
+    if (data.maxLdu === undefined || !func0.call(data, "maxLdu")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -17793,7 +18045,7 @@ function validate234(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(key0 === "minLdu" || key0 === "maxLdu")) {
         const err2 = {
           instancePath,
@@ -17810,7 +18062,7 @@ function validate234(
         errors++;
       }
     }
-    if (data.minLdu !== undefined) {
+    if (data.minLdu !== undefined && func0.call(data, "minLdu")) {
       if (
         !validate21(data.minLdu, {
           instancePath: instancePath + "/minLdu",
@@ -17826,7 +18078,7 @@ function validate234(
         errors = vErrors.length;
       }
     }
-    if (data.maxLdu !== undefined) {
+    if (data.maxLdu !== undefined && func0.call(data, "maxLdu")) {
       if (
         !validate21(data.maxLdu, {
           instancePath: instancePath + "/maxLdu",
@@ -17857,11 +18109,11 @@ function validate234(
     }
     errors++;
   }
-  validate234.errors = vErrors;
+  validate240.errors = vErrors;
   return errors === 0;
 }
 
-const schema361 = {
+const schema382 = {
   type: "object",
   additionalProperties: false,
   required: ["origin", "sourceId"],
@@ -17872,14 +18124,14 @@ const schema361 = {
   },
 };
 
-function validate238(
+function validate244(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.origin === undefined) {
+    if (data.origin === undefined || !func0.call(data, "origin")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -17894,7 +18146,7 @@ function validate238(
       }
       errors++;
     }
-    if (data.sourceId === undefined) {
+    if (data.sourceId === undefined || !func0.call(data, "sourceId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -17909,7 +18161,7 @@ function validate238(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "origin" ||
         key0 === "sourceId" ||
@@ -17930,7 +18182,7 @@ function validate238(
         errors++;
       }
     }
-    if (data.origin !== undefined) {
+    if (data.origin !== undefined && func0.call(data, "origin")) {
       let data0 = data.origin;
       if (!(
         data0 === "project" ||
@@ -17941,7 +18193,7 @@ function validate238(
           instancePath: instancePath + "/origin",
           schemaPath: "#/properties/origin/enum",
           keyword: "enum",
-          params: { allowedValues: schema361.properties.origin.enum },
+          params: { allowedValues: schema382.properties.origin.enum },
           message: "must be equal to one of the allowed values",
         };
         if (vErrors === null) {
@@ -17952,10 +18204,10 @@ function validate238(
         errors++;
       }
     }
-    if (data.sourceId !== undefined) {
+    if (data.sourceId !== undefined && func0.call(data, "sourceId")) {
       let data1 = data.sourceId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err4 = {
             instancePath: instancePath + "/sourceId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -17970,7 +18222,7 @@ function validate238(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err5 = {
             instancePath: instancePath + "/sourceId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -18017,7 +18269,7 @@ function validate238(
         errors++;
       }
     }
-    if (data.sourceHash !== undefined) {
+    if (data.sourceHash !== undefined && func0.call(data, "sourceHash")) {
       let data2 = data.sourceHash;
       if (typeof data2 === "string") {
         if (!pattern2.test(data2)) {
@@ -18066,18 +18318,21 @@ function validate238(
     }
     errors++;
   }
-  validate238.errors = vErrors;
+  validate244.errors = vErrors;
   return errors === 0;
 }
 
-function validate295(
+function validate301(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.schemaVersion === undefined) {
+    if (
+      data.schemaVersion === undefined ||
+      !func0.call(data, "schemaVersion")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -18092,7 +18347,7 @@ function validate295(
       }
       errors++;
     }
-    if (data.id === undefined) {
+    if (data.id === undefined || !func0.call(data, "id")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -18107,7 +18362,7 @@ function validate295(
       }
       errors++;
     }
-    if (data.version === undefined) {
+    if (data.version === undefined || !func0.call(data, "version")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -18122,7 +18377,7 @@ function validate295(
       }
       errors++;
     }
-    if (data.contentHash === undefined) {
+    if (data.contentHash === undefined || !func0.call(data, "contentHash")) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -18137,7 +18392,7 @@ function validate295(
       }
       errors++;
     }
-    if (data.status === undefined) {
+    if (data.status === undefined || !func0.call(data, "status")) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -18152,7 +18407,7 @@ function validate295(
       }
       errors++;
     }
-    if (data.catalogHash === undefined) {
+    if (data.catalogHash === undefined || !func0.call(data, "catalogHash")) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -18167,7 +18422,10 @@ function validate295(
       }
       errors++;
     }
-    if (data.truthSnapshotHash === undefined) {
+    if (
+      data.truthSnapshotHash === undefined ||
+      !func0.call(data, "truthSnapshotHash")
+    ) {
       const err6 = {
         instancePath,
         schemaPath: "#/required",
@@ -18182,7 +18440,10 @@ function validate295(
       }
       errors++;
     }
-    if (data.admissionPolicyHash === undefined) {
+    if (
+      data.admissionPolicyHash === undefined ||
+      !func0.call(data, "admissionPolicyHash")
+    ) {
       const err7 = {
         instancePath,
         schemaPath: "#/required",
@@ -18197,7 +18458,7 @@ function validate295(
       }
       errors++;
     }
-    if (data.parameters === undefined) {
+    if (data.parameters === undefined || !func0.call(data, "parameters")) {
       const err8 = {
         instancePath,
         schemaPath: "#/required",
@@ -18212,7 +18473,7 @@ function validate295(
       }
       errors++;
     }
-    if (data.parts === undefined) {
+    if (data.parts === undefined || !func0.call(data, "parts")) {
       const err9 = {
         instancePath,
         schemaPath: "#/required",
@@ -18227,7 +18488,10 @@ function validate295(
       }
       errors++;
     }
-    if (data.internalConnections === undefined) {
+    if (
+      data.internalConnections === undefined ||
+      !func0.call(data, "internalConnections")
+    ) {
       const err10 = {
         instancePath,
         schemaPath: "#/required",
@@ -18242,7 +18506,10 @@ function validate295(
       }
       errors++;
     }
-    if (data.externalPorts === undefined) {
+    if (
+      data.externalPorts === undefined ||
+      !func0.call(data, "externalPorts")
+    ) {
       const err11 = {
         instancePath,
         schemaPath: "#/required",
@@ -18257,7 +18524,10 @@ function validate295(
       }
       errors++;
     }
-    if (data.clearanceVolume === undefined) {
+    if (
+      data.clearanceVolume === undefined ||
+      !func0.call(data, "clearanceVolume")
+    ) {
       const err12 = {
         instancePath,
         schemaPath: "#/required",
@@ -18272,7 +18542,10 @@ function validate295(
       }
       errors++;
     }
-    if (data.evidenceRunIds === undefined) {
+    if (
+      data.evidenceRunIds === undefined ||
+      !func0.call(data, "evidenceRunIds")
+    ) {
       const err13 = {
         instancePath,
         schemaPath: "#/required",
@@ -18287,7 +18560,10 @@ function validate295(
       }
       errors++;
     }
-    if (data.counterexampleRunIds === undefined) {
+    if (
+      data.counterexampleRunIds === undefined ||
+      !func0.call(data, "counterexampleRunIds")
+    ) {
       const err14 = {
         instancePath,
         schemaPath: "#/required",
@@ -18302,7 +18578,10 @@ function validate295(
       }
       errors++;
     }
-    if (data.benchmarkReportIds === undefined) {
+    if (
+      data.benchmarkReportIds === undefined ||
+      !func0.call(data, "benchmarkReportIds")
+    ) {
       const err15 = {
         instancePath,
         schemaPath: "#/required",
@@ -18317,7 +18596,7 @@ function validate295(
       }
       errors++;
     }
-    if (data.provenance === undefined) {
+    if (data.provenance === undefined || !func0.call(data, "provenance")) {
       const err16 = {
         instancePath,
         schemaPath: "#/required",
@@ -18332,7 +18611,7 @@ function validate295(
       }
       errors++;
     }
-    if (data.license === undefined) {
+    if (data.license === undefined || !func0.call(data, "license")) {
       const err17 = {
         instancePath,
         schemaPath: "#/required",
@@ -18347,8 +18626,8 @@ function validate295(
       }
       errors++;
     }
-    for (const key0 in data) {
-      if (!func8.call(schema330.properties, key0)) {
+    for (const key0 of Object.keys(data)) {
+      if (!func0.call(schema351.properties, key0)) {
         const err18 = {
           instancePath,
           schemaPath: "#/additionalProperties",
@@ -18364,7 +18643,7 @@ function validate295(
         errors++;
       }
     }
-    if (data.schemaVersion !== undefined) {
+    if (data.schemaVersion !== undefined && func0.call(data, "schemaVersion")) {
       if ("lego.template-snapshot/1" !== data.schemaVersion) {
         const err19 = {
           instancePath: instancePath + "/schemaVersion",
@@ -18381,10 +18660,10 @@ function validate295(
         errors++;
       }
     }
-    if (data.id !== undefined) {
+    if (data.id !== undefined && func0.call(data, "id")) {
       let data1 = data.id;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err20 = {
             instancePath: instancePath + "/id",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -18399,7 +18678,7 @@ function validate295(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err21 = {
             instancePath: instancePath + "/id",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -18446,7 +18725,7 @@ function validate295(
         errors++;
       }
     }
-    if (data.version !== undefined) {
+    if (data.version !== undefined && func0.call(data, "version")) {
       let data2 = data.version;
       if (!(
         typeof data2 == "number" &&
@@ -18501,10 +18780,10 @@ function validate295(
         }
       }
     }
-    if (data.parentId !== undefined) {
+    if (data.parentId !== undefined && func0.call(data, "parentId")) {
       let data3 = data.parentId;
       if (typeof data3 === "string") {
-        if (func2(data3) > 128) {
+        if (func57(data3) > 128) {
           const err27 = {
             instancePath: instancePath + "/parentId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -18519,7 +18798,7 @@ function validate295(
           }
           errors++;
         }
-        if (func2(data3) < 1) {
+        if (func57(data3) < 1) {
           const err28 = {
             instancePath: instancePath + "/parentId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -18566,7 +18845,7 @@ function validate295(
         errors++;
       }
     }
-    if (data.contentHash !== undefined) {
+    if (data.contentHash !== undefined && func0.call(data, "contentHash")) {
       let data4 = data.contentHash;
       if (typeof data4 === "string") {
         if (!pattern2.test(data4)) {
@@ -18600,7 +18879,7 @@ function validate295(
         errors++;
       }
     }
-    if (data.status !== undefined) {
+    if (data.status !== undefined && func0.call(data, "status")) {
       let data5 = data.status;
       if (!(
         data5 === "draft" ||
@@ -18614,7 +18893,7 @@ function validate295(
           instancePath: instancePath + "/status",
           schemaPath: "#/properties/status/enum",
           keyword: "enum",
-          params: { allowedValues: schema330.properties.status.enum },
+          params: { allowedValues: schema351.properties.status.enum },
           message: "must be equal to one of the allowed values",
         };
         if (vErrors === null) {
@@ -18625,7 +18904,7 @@ function validate295(
         errors++;
       }
     }
-    if (data.catalogHash !== undefined) {
+    if (data.catalogHash !== undefined && func0.call(data, "catalogHash")) {
       let data6 = data.catalogHash;
       if (typeof data6 === "string") {
         if (!pattern2.test(data6)) {
@@ -18659,7 +18938,10 @@ function validate295(
         errors++;
       }
     }
-    if (data.truthSnapshotHash !== undefined) {
+    if (
+      data.truthSnapshotHash !== undefined &&
+      func0.call(data, "truthSnapshotHash")
+    ) {
       let data7 = data.truthSnapshotHash;
       if (typeof data7 === "string") {
         if (!pattern2.test(data7)) {
@@ -18693,7 +18975,10 @@ function validate295(
         errors++;
       }
     }
-    if (data.admissionPolicyHash !== undefined) {
+    if (
+      data.admissionPolicyHash !== undefined &&
+      func0.call(data, "admissionPolicyHash")
+    ) {
       let data8 = data.admissionPolicyHash;
       if (typeof data8 === "string") {
         if (!pattern2.test(data8)) {
@@ -18727,7 +19012,7 @@ function validate295(
         errors++;
       }
     }
-    if (data.parameters !== undefined) {
+    if (data.parameters !== undefined && func0.call(data, "parameters")) {
       let data9 = data.parameters;
       if (Array.isArray(data9)) {
         if (data9.length > 16) {
@@ -18748,7 +19033,7 @@ function validate295(
         const len0 = data9.length;
         for (let i0 = 0; i0 < len0; i0++) {
           if (
-            !validate215(data9[i0], {
+            !validate221(data9[i0], {
               instancePath: instancePath + "/parameters/" + i0,
               parentData: data9,
               parentDataProperty: i0,
@@ -18757,8 +19042,8 @@ function validate295(
           ) {
             vErrors =
               vErrors === null
-                ? validate215.errors
-                : vErrors.concat(validate215.errors);
+                ? validate221.errors
+                : vErrors.concat(validate221.errors);
             errors = vErrors.length;
           }
         }
@@ -18778,7 +19063,7 @@ function validate295(
         errors++;
       }
     }
-    if (data.parts !== undefined) {
+    if (data.parts !== undefined && func0.call(data, "parts")) {
       let data11 = data.parts;
       if (Array.isArray(data11)) {
         if (data11.length > 256) {
@@ -18814,7 +19099,7 @@ function validate295(
         const len1 = data11.length;
         for (let i1 = 0; i1 < len1; i1++) {
           if (
-            !validate217(data11[i1], {
+            !validate223(data11[i1], {
               instancePath: instancePath + "/parts/" + i1,
               parentData: data11,
               parentDataProperty: i1,
@@ -18823,8 +19108,8 @@ function validate295(
           ) {
             vErrors =
               vErrors === null
-                ? validate217.errors
-                : vErrors.concat(validate217.errors);
+                ? validate223.errors
+                : vErrors.concat(validate223.errors);
             errors = vErrors.length;
           }
         }
@@ -18844,7 +19129,10 @@ function validate295(
         errors++;
       }
     }
-    if (data.internalConnections !== undefined) {
+    if (
+      data.internalConnections !== undefined &&
+      func0.call(data, "internalConnections")
+    ) {
       let data13 = data.internalConnections;
       if (Array.isArray(data13)) {
         if (data13.length > 1024) {
@@ -18865,7 +19153,7 @@ function validate295(
         const len2 = data13.length;
         for (let i2 = 0; i2 < len2; i2++) {
           if (
-            !validate226(data13[i2], {
+            !validate232(data13[i2], {
               instancePath: instancePath + "/internalConnections/" + i2,
               parentData: data13,
               parentDataProperty: i2,
@@ -18874,8 +19162,8 @@ function validate295(
           ) {
             vErrors =
               vErrors === null
-                ? validate226.errors
-                : vErrors.concat(validate226.errors);
+                ? validate232.errors
+                : vErrors.concat(validate232.errors);
             errors = vErrors.length;
           }
         }
@@ -18895,7 +19183,7 @@ function validate295(
         errors++;
       }
     }
-    if (data.externalPorts !== undefined) {
+    if (data.externalPorts !== undefined && func0.call(data, "externalPorts")) {
       let data15 = data.externalPorts;
       if (Array.isArray(data15)) {
         if (data15.length > 64) {
@@ -18931,7 +19219,7 @@ function validate295(
         const len3 = data15.length;
         for (let i3 = 0; i3 < len3; i3++) {
           if (
-            !validate231(data15[i3], {
+            !validate237(data15[i3], {
               instancePath: instancePath + "/externalPorts/" + i3,
               parentData: data15,
               parentDataProperty: i3,
@@ -18940,8 +19228,8 @@ function validate295(
           ) {
             vErrors =
               vErrors === null
-                ? validate231.errors
-                : vErrors.concat(validate231.errors);
+                ? validate237.errors
+                : vErrors.concat(validate237.errors);
             errors = vErrors.length;
           }
         }
@@ -18961,9 +19249,12 @@ function validate295(
         errors++;
       }
     }
-    if (data.clearanceVolume !== undefined) {
+    if (
+      data.clearanceVolume !== undefined &&
+      func0.call(data, "clearanceVolume")
+    ) {
       if (
-        !validate234(data.clearanceVolume, {
+        !validate240(data.clearanceVolume, {
           instancePath: instancePath + "/clearanceVolume",
           parentData: data,
           parentDataProperty: "clearanceVolume",
@@ -18972,12 +19263,15 @@ function validate295(
       ) {
         vErrors =
           vErrors === null
-            ? validate234.errors
-            : vErrors.concat(validate234.errors);
+            ? validate240.errors
+            : vErrors.concat(validate240.errors);
         errors = vErrors.length;
       }
     }
-    if (data.evidenceRunIds !== undefined) {
+    if (
+      data.evidenceRunIds !== undefined &&
+      func0.call(data, "evidenceRunIds")
+    ) {
       let data18 = data.evidenceRunIds;
       if (Array.isArray(data18)) {
         if (data18.length > 256) {
@@ -18999,7 +19293,7 @@ function validate295(
         for (let i4 = 0; i4 < len4; i4++) {
           let data19 = data18[i4];
           if (typeof data19 === "string") {
-            if (func2(data19) > 128) {
+            if (func57(data19) > 128) {
               const err51 = {
                 instancePath: instancePath + "/evidenceRunIds/" + i4,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -19014,7 +19308,7 @@ function validate295(
               }
               errors++;
             }
-            if (func2(data19) < 1) {
+            if (func57(data19) < 1) {
               const err52 = {
                 instancePath: instancePath + "/evidenceRunIds/" + i4,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -19068,7 +19362,7 @@ function validate295(
         if (i5 > 1) {
           outer0: for (; i5--;) {
             for (j0 = i5; j0--;) {
-              if (func0(data18[i5], data18[j0])) {
+              if (func32(data18[i5], data18[j0])) {
                 const err55 = {
                   instancePath: instancePath + "/evidenceRunIds",
                   schemaPath: "#/properties/evidenceRunIds/uniqueItems",
@@ -19108,7 +19402,10 @@ function validate295(
         errors++;
       }
     }
-    if (data.counterexampleRunIds !== undefined) {
+    if (
+      data.counterexampleRunIds !== undefined &&
+      func0.call(data, "counterexampleRunIds")
+    ) {
       let data20 = data.counterexampleRunIds;
       if (Array.isArray(data20)) {
         if (data20.length > 256) {
@@ -19130,7 +19427,7 @@ function validate295(
         for (let i6 = 0; i6 < len5; i6++) {
           let data21 = data20[i6];
           if (typeof data21 === "string") {
-            if (func2(data21) > 128) {
+            if (func57(data21) > 128) {
               const err58 = {
                 instancePath: instancePath + "/counterexampleRunIds/" + i6,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -19145,7 +19442,7 @@ function validate295(
               }
               errors++;
             }
-            if (func2(data21) < 1) {
+            if (func57(data21) < 1) {
               const err59 = {
                 instancePath: instancePath + "/counterexampleRunIds/" + i6,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -19199,7 +19496,7 @@ function validate295(
         if (i7 > 1) {
           outer1: for (; i7--;) {
             for (j1 = i7; j1--;) {
-              if (func0(data20[i7], data20[j1])) {
+              if (func32(data20[i7], data20[j1])) {
                 const err62 = {
                   instancePath: instancePath + "/counterexampleRunIds",
                   schemaPath: "#/properties/counterexampleRunIds/uniqueItems",
@@ -19239,7 +19536,10 @@ function validate295(
         errors++;
       }
     }
-    if (data.benchmarkReportIds !== undefined) {
+    if (
+      data.benchmarkReportIds !== undefined &&
+      func0.call(data, "benchmarkReportIds")
+    ) {
       let data22 = data.benchmarkReportIds;
       if (Array.isArray(data22)) {
         if (data22.length > 256) {
@@ -19261,7 +19561,7 @@ function validate295(
         for (let i8 = 0; i8 < len6; i8++) {
           let data23 = data22[i8];
           if (typeof data23 === "string") {
-            if (func2(data23) > 128) {
+            if (func57(data23) > 128) {
               const err65 = {
                 instancePath: instancePath + "/benchmarkReportIds/" + i8,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -19276,7 +19576,7 @@ function validate295(
               }
               errors++;
             }
-            if (func2(data23) < 1) {
+            if (func57(data23) < 1) {
               const err66 = {
                 instancePath: instancePath + "/benchmarkReportIds/" + i8,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -19330,7 +19630,7 @@ function validate295(
         if (i9 > 1) {
           outer2: for (; i9--;) {
             for (j2 = i9; j2--;) {
-              if (func0(data22[i9], data22[j2])) {
+              if (func32(data22[i9], data22[j2])) {
                 const err69 = {
                   instancePath: instancePath + "/benchmarkReportIds",
                   schemaPath: "#/properties/benchmarkReportIds/uniqueItems",
@@ -19370,9 +19670,9 @@ function validate295(
         errors++;
       }
     }
-    if (data.provenance !== undefined) {
+    if (data.provenance !== undefined && func0.call(data, "provenance")) {
       if (
-        !validate238(data.provenance, {
+        !validate244(data.provenance, {
           instancePath: instancePath + "/provenance",
           parentData: data,
           parentDataProperty: "provenance",
@@ -19381,15 +19681,18 @@ function validate295(
       ) {
         vErrors =
           vErrors === null
-            ? validate238.errors
-            : vErrors.concat(validate238.errors);
+            ? validate244.errors
+            : vErrors.concat(validate244.errors);
         errors = vErrors.length;
       }
     }
-    if (data.license !== undefined) {
+    if (data.license !== undefined && func0.call(data, "license")) {
       let data25 = data.license;
       if (data25 && typeof data25 == "object" && !Array.isArray(data25)) {
-        if (data25.spdxExpression === undefined) {
+        if (
+          data25.spdxExpression === undefined ||
+          !func0.call(data25, "spdxExpression")
+        ) {
           const err71 = {
             instancePath: instancePath + "/license",
             schemaPath: "#/definitions/TemplateLicenseV1/required",
@@ -19404,7 +19707,10 @@ function validate295(
           }
           errors++;
         }
-        if (data25.attribution === undefined) {
+        if (
+          data25.attribution === undefined ||
+          !func0.call(data25, "attribution")
+        ) {
           const err72 = {
             instancePath: instancePath + "/license",
             schemaPath: "#/definitions/TemplateLicenseV1/required",
@@ -19419,7 +19725,10 @@ function validate295(
           }
           errors++;
         }
-        if (data25.redistribution === undefined) {
+        if (
+          data25.redistribution === undefined ||
+          !func0.call(data25, "redistribution")
+        ) {
           const err73 = {
             instancePath: instancePath + "/license",
             schemaPath: "#/definitions/TemplateLicenseV1/required",
@@ -19434,7 +19743,7 @@ function validate295(
           }
           errors++;
         }
-        for (const key1 in data25) {
+        for (const key1 of Object.keys(data25)) {
           if (!(
             key1 === "spdxExpression" ||
             key1 === "attribution" ||
@@ -19456,10 +19765,13 @@ function validate295(
             errors++;
           }
         }
-        if (data25.spdxExpression !== undefined) {
+        if (
+          data25.spdxExpression !== undefined &&
+          func0.call(data25, "spdxExpression")
+        ) {
           let data26 = data25.spdxExpression;
           if (typeof data26 === "string") {
-            if (func2(data26) > 128) {
+            if (func57(data26) > 128) {
               const err75 = {
                 instancePath: instancePath + "/license/spdxExpression",
                 schemaPath:
@@ -19475,7 +19787,7 @@ function validate295(
               }
               errors++;
             }
-            if (func2(data26) < 1) {
+            if (func57(data26) < 1) {
               const err76 = {
                 instancePath: instancePath + "/license/spdxExpression",
                 schemaPath:
@@ -19491,7 +19803,7 @@ function validate295(
               }
               errors++;
             }
-            if (!pattern248.test(data26)) {
+            if (!pattern266.test(data26)) {
               const err77 = {
                 instancePath: instancePath + "/license/spdxExpression",
                 schemaPath:
@@ -19525,10 +19837,13 @@ function validate295(
             errors++;
           }
         }
-        if (data25.attribution !== undefined) {
+        if (
+          data25.attribution !== undefined &&
+          func0.call(data25, "attribution")
+        ) {
           let data27 = data25.attribution;
           if (typeof data27 === "string") {
-            if (func2(data27) > 2048) {
+            if (func57(data27) > 2048) {
               const err79 = {
                 instancePath: instancePath + "/license/attribution",
                 schemaPath:
@@ -19544,7 +19859,7 @@ function validate295(
               }
               errors++;
             }
-            if (func2(data27) < 1) {
+            if (func57(data27) < 1) {
               const err80 = {
                 instancePath: instancePath + "/license/attribution",
                 schemaPath:
@@ -19577,7 +19892,10 @@ function validate295(
             errors++;
           }
         }
-        if (data25.redistribution !== undefined) {
+        if (
+          data25.redistribution !== undefined &&
+          func0.call(data25, "redistribution")
+        ) {
           let data28 = data25.redistribution;
           if (!(
             data28 === "allowed" ||
@@ -19590,7 +19908,7 @@ function validate295(
                 "#/definitions/TemplateLicenseV1/properties/redistribution/enum",
               keyword: "enum",
               params: {
-                allowedValues: schema364.properties.redistribution.enum,
+                allowedValues: schema385.properties.redistribution.enum,
               },
               message: "must be equal to one of the allowed values",
             };
@@ -19633,11 +19951,11 @@ function validate295(
     }
     errors++;
   }
-  validate295.errors = vErrors;
+  validate301.errors = vErrors;
   return errors === 0;
 }
 
-function validate294(
+function validate300(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -19645,7 +19963,7 @@ function validate294(
     null;
   let errors = 0;
   if (
-    !validate295(data, {
+    !validate301(data, {
       instancePath,
       parentData,
       parentDataProperty,
@@ -19654,16 +19972,16 @@ function validate294(
   ) {
     vErrors =
       vErrors === null
-        ? validate295.errors
-        : vErrors.concat(validate295.errors);
+        ? validate301.errors
+        : vErrors.concat(validate301.errors);
     errors = vErrors.length;
   }
-  validate294.errors = vErrors;
+  validate300.errors = vErrors;
   return errors === 0;
 }
 
-export const validateArtifactRefV1 = validate303;
-const schema419 = {
+export const validateArtifactRefV1 = validate309;
+const schema440 = {
   $id: "https://schemas.brick-studio.local/protocol/1/validators/ArtifactRefV1",
   $ref: "https://schemas.brick-studio.local/protocol/1#/definitions/ArtifactRefV1",
 };
@@ -19713,14 +20031,14 @@ const pattern89 = new RegExp(
   "u",
 );
 
-function validate304(
+function validate310(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.artifactId === undefined) {
+    if (data.artifactId === undefined || !func0.call(data, "artifactId")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -19735,7 +20053,7 @@ function validate304(
       }
       errors++;
     }
-    if (data.kind === undefined) {
+    if (data.kind === undefined || !func0.call(data, "kind")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -19750,7 +20068,7 @@ function validate304(
       }
       errors++;
     }
-    if (data.mediaType === undefined) {
+    if (data.mediaType === undefined || !func0.call(data, "mediaType")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -19765,7 +20083,7 @@ function validate304(
       }
       errors++;
     }
-    if (data.sha256 === undefined) {
+    if (data.sha256 === undefined || !func0.call(data, "sha256")) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -19780,7 +20098,7 @@ function validate304(
       }
       errors++;
     }
-    if (data.byteLength === undefined) {
+    if (data.byteLength === undefined || !func0.call(data, "byteLength")) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -19795,7 +20113,7 @@ function validate304(
       }
       errors++;
     }
-    if (data.casKey === undefined) {
+    if (data.casKey === undefined || !func0.call(data, "casKey")) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -19810,7 +20128,7 @@ function validate304(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "artifactId" ||
         key0 === "kind" ||
@@ -19834,10 +20152,10 @@ function validate304(
         errors++;
       }
     }
-    if (data.artifactId !== undefined) {
+    if (data.artifactId !== undefined && func0.call(data, "artifactId")) {
       let data0 = data.artifactId;
       if (typeof data0 === "string") {
-        if (func2(data0) > 128) {
+        if (func57(data0) > 128) {
           const err7 = {
             instancePath: instancePath + "/artifactId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -19852,7 +20170,7 @@ function validate304(
           }
           errors++;
         }
-        if (func2(data0) < 1) {
+        if (func57(data0) < 1) {
           const err8 = {
             instancePath: instancePath + "/artifactId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -19899,7 +20217,7 @@ function validate304(
         errors++;
       }
     }
-    if (data.kind !== undefined) {
+    if (data.kind !== undefined && func0.call(data, "kind")) {
       let data1 = data.kind;
       if (!(
         data1 === "input" ||
@@ -19931,10 +20249,10 @@ function validate304(
         errors++;
       }
     }
-    if (data.mediaType !== undefined) {
+    if (data.mediaType !== undefined && func0.call(data, "mediaType")) {
       let data2 = data.mediaType;
       if (typeof data2 === "string") {
-        if (func2(data2) > 128) {
+        if (func57(data2) > 128) {
           const err12 = {
             instancePath: instancePath + "/mediaType",
             schemaPath: "#/properties/mediaType/maxLength",
@@ -19949,7 +20267,7 @@ function validate304(
           }
           errors++;
         }
-        if (func2(data2) < 3) {
+        if (func57(data2) < 3) {
           const err13 = {
             instancePath: instancePath + "/mediaType",
             schemaPath: "#/properties/mediaType/minLength",
@@ -19998,7 +20316,7 @@ function validate304(
         errors++;
       }
     }
-    if (data.sha256 !== undefined) {
+    if (data.sha256 !== undefined && func0.call(data, "sha256")) {
       let data3 = data.sha256;
       if (typeof data3 === "string") {
         if (!pattern2.test(data3)) {
@@ -20032,7 +20350,7 @@ function validate304(
         errors++;
       }
     }
-    if (data.byteLength !== undefined) {
+    if (data.byteLength !== undefined && func0.call(data, "byteLength")) {
       let data4 = data.byteLength;
       if (!(
         typeof data4 == "number" &&
@@ -20087,7 +20405,7 @@ function validate304(
         }
       }
     }
-    if (data.casKey !== undefined) {
+    if (data.casKey !== undefined && func0.call(data, "casKey")) {
       let data5 = data.casKey;
       if (typeof data5 === "string") {
         if (!pattern2.test(data5)) {
@@ -20136,11 +20454,11 @@ function validate304(
     }
     errors++;
   }
-  validate304.errors = vErrors;
+  validate310.errors = vErrors;
   return errors === 0;
 }
 
-function validate303(
+function validate309(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -20148,7 +20466,7 @@ function validate303(
     null;
   let errors = 0;
   if (
-    !validate304(data, {
+    !validate310(data, {
       instancePath,
       parentData,
       parentDataProperty,
@@ -20157,22 +20475,22 @@ function validate303(
   ) {
     vErrors =
       vErrors === null
-        ? validate304.errors
-        : vErrors.concat(validate304.errors);
+        ? validate310.errors
+        : vErrors.concat(validate310.errors);
     errors = vErrors.length;
   }
-  validate303.errors = vErrors;
+  validate309.errors = vErrors;
   return errors === 0;
 }
 
-export const validateTrustNamespaceV1 = validate306;
-const schema424 = {
+export const validateTrustNamespaceV1 = validate312;
+const schema445 = {
   $id: "https://schemas.brick-studio.local/protocol/1/validators/TrustNamespaceV1",
   $ref: "https://schemas.brick-studio.local/protocol/1#/definitions/TrustNamespaceV1",
 };
 const schema145 = { enum: ["production", "test", "evaluation"] };
 
-function validate306(
+function validate312(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -20195,12 +20513,12 @@ function validate306(
     }
     errors++;
   }
-  validate306.errors = vErrors;
+  validate312.errors = vErrors;
   return errors === 0;
 }
 
-export const validateGenerationBudgetsV1 = validate307;
-const schema426 = {
+export const validateGenerationBudgetsV1 = validate313;
+const schema447 = {
   $id: "https://schemas.brick-studio.local/protocol/1/validators/GenerationBudgetsV1",
   $ref: "https://schemas.brick-studio.local/protocol/1#/definitions/GenerationBudgetsV1",
 };
@@ -20229,7 +20547,7 @@ const schema160 = {
   },
 };
 
-function validate307(
+function validate313(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -20237,7 +20555,10 @@ function validate307(
     null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.maxCandidates === undefined) {
+    if (
+      data.maxCandidates === undefined ||
+      !func0.call(data, "maxCandidates")
+    ) {
       const err0 = {
         instancePath,
         schemaPath:
@@ -20253,7 +20574,7 @@ function validate307(
       }
       errors++;
     }
-    if (data.maxRepairs === undefined) {
+    if (data.maxRepairs === undefined || !func0.call(data, "maxRepairs")) {
       const err1 = {
         instancePath,
         schemaPath:
@@ -20269,7 +20590,10 @@ function validate307(
       }
       errors++;
     }
-    if (data.maxProviderCalls === undefined) {
+    if (
+      data.maxProviderCalls === undefined ||
+      !func0.call(data, "maxProviderCalls")
+    ) {
       const err2 = {
         instancePath,
         schemaPath:
@@ -20285,7 +20609,7 @@ function validate307(
       }
       errors++;
     }
-    if (data.maxTokens === undefined) {
+    if (data.maxTokens === undefined || !func0.call(data, "maxTokens")) {
       const err3 = {
         instancePath,
         schemaPath:
@@ -20301,7 +20625,10 @@ function validate307(
       }
       errors++;
     }
-    if (data.maxCostMicros === undefined) {
+    if (
+      data.maxCostMicros === undefined ||
+      !func0.call(data, "maxCostMicros")
+    ) {
       const err4 = {
         instancePath,
         schemaPath:
@@ -20317,7 +20644,10 @@ function validate307(
       }
       errors++;
     }
-    if (data.maxWallTimeMs === undefined) {
+    if (
+      data.maxWallTimeMs === undefined ||
+      !func0.call(data, "maxWallTimeMs")
+    ) {
       const err5 = {
         instancePath,
         schemaPath:
@@ -20333,7 +20663,7 @@ function validate307(
       }
       errors++;
     }
-    if (data.maxRenders === undefined) {
+    if (data.maxRenders === undefined || !func0.call(data, "maxRenders")) {
       const err6 = {
         instancePath,
         schemaPath:
@@ -20349,7 +20679,10 @@ function validate307(
       }
       errors++;
     }
-    if (data.maxStoredBytes === undefined) {
+    if (
+      data.maxStoredBytes === undefined ||
+      !func0.call(data, "maxStoredBytes")
+    ) {
       const err7 = {
         instancePath,
         schemaPath:
@@ -20365,7 +20698,7 @@ function validate307(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "maxCandidates" ||
         key0 === "maxRepairs" ||
@@ -20392,7 +20725,7 @@ function validate307(
         errors++;
       }
     }
-    if (data.maxCandidates !== undefined) {
+    if (data.maxCandidates !== undefined && func0.call(data, "maxCandidates")) {
       let data0 = data.maxCandidates;
       if (!(
         typeof data0 == "number" &&
@@ -20450,7 +20783,7 @@ function validate307(
         }
       }
     }
-    if (data.maxRepairs !== undefined) {
+    if (data.maxRepairs !== undefined && func0.call(data, "maxRepairs")) {
       let data1 = data.maxRepairs;
       if (!(
         typeof data1 == "number" &&
@@ -20508,7 +20841,10 @@ function validate307(
         }
       }
     }
-    if (data.maxProviderCalls !== undefined) {
+    if (
+      data.maxProviderCalls !== undefined &&
+      func0.call(data, "maxProviderCalls")
+    ) {
       let data2 = data.maxProviderCalls;
       if (!(
         typeof data2 == "number" &&
@@ -20566,7 +20902,7 @@ function validate307(
         }
       }
     }
-    if (data.maxTokens !== undefined) {
+    if (data.maxTokens !== undefined && func0.call(data, "maxTokens")) {
       let data3 = data.maxTokens;
       if (!(
         typeof data3 == "number" &&
@@ -20624,7 +20960,7 @@ function validate307(
         }
       }
     }
-    if (data.maxCostMicros !== undefined) {
+    if (data.maxCostMicros !== undefined && func0.call(data, "maxCostMicros")) {
       let data4 = data.maxCostMicros;
       if (!(
         typeof data4 == "number" &&
@@ -20682,7 +21018,7 @@ function validate307(
         }
       }
     }
-    if (data.maxWallTimeMs !== undefined) {
+    if (data.maxWallTimeMs !== undefined && func0.call(data, "maxWallTimeMs")) {
       let data5 = data.maxWallTimeMs;
       if (!(
         typeof data5 == "number" &&
@@ -20740,7 +21076,7 @@ function validate307(
         }
       }
     }
-    if (data.maxRenders !== undefined) {
+    if (data.maxRenders !== undefined && func0.call(data, "maxRenders")) {
       let data6 = data.maxRenders;
       if (!(
         typeof data6 == "number" &&
@@ -20798,7 +21134,10 @@ function validate307(
         }
       }
     }
-    if (data.maxStoredBytes !== undefined) {
+    if (
+      data.maxStoredBytes !== undefined &&
+      func0.call(data, "maxStoredBytes")
+    ) {
       let data7 = data.maxStoredBytes;
       if (!(
         typeof data7 == "number" &&
@@ -20872,12 +21211,12 @@ function validate307(
     }
     errors++;
   }
-  validate307.errors = vErrors;
+  validate313.errors = vErrors;
   return errors === 0;
 }
 
-export const validateDataUseConsentV1 = validate308;
-const schema428 = {
+export const validateDataUseConsentV1 = validate314;
+const schema449 = {
   $id: "https://schemas.brick-studio.local/protocol/1/validators/DataUseConsentV1",
   $ref: "https://schemas.brick-studio.local/protocol/1#/definitions/DataUseConsentV1",
 };
@@ -20904,14 +21243,17 @@ const schema161 = {
   },
 };
 
-function validate309(
+function validate315(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.policyVersion === undefined) {
+    if (
+      data.policyVersion === undefined ||
+      !func0.call(data, "policyVersion")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -20926,7 +21268,10 @@ function validate309(
       }
       errors++;
     }
-    if (data.providerTransmission === undefined) {
+    if (
+      data.providerTransmission === undefined ||
+      !func0.call(data, "providerTransmission")
+    ) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -20941,7 +21286,10 @@ function validate309(
       }
       errors++;
     }
-    if (data.retainRunArtifacts === undefined) {
+    if (
+      data.retainRunArtifacts === undefined ||
+      !func0.call(data, "retainRunArtifacts")
+    ) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -20956,7 +21304,7 @@ function validate309(
       }
       errors++;
     }
-    if (data.knowledgeUse === undefined) {
+    if (data.knowledgeUse === undefined || !func0.call(data, "knowledgeUse")) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -20971,7 +21319,7 @@ function validate309(
       }
       errors++;
     }
-    if (data.benchmarkUse === undefined) {
+    if (data.benchmarkUse === undefined || !func0.call(data, "benchmarkUse")) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -20986,7 +21334,7 @@ function validate309(
       }
       errors++;
     }
-    if (data.trainingUse === undefined) {
+    if (data.trainingUse === undefined || !func0.call(data, "trainingUse")) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -21001,7 +21349,7 @@ function validate309(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "policyVersion" ||
         key0 === "providerTransmission" ||
@@ -21025,10 +21373,10 @@ function validate309(
         errors++;
       }
     }
-    if (data.policyVersion !== undefined) {
+    if (data.policyVersion !== undefined && func0.call(data, "policyVersion")) {
       let data0 = data.policyVersion;
       if (typeof data0 === "string") {
-        if (func2(data0) > 128) {
+        if (func57(data0) > 128) {
           const err7 = {
             instancePath: instancePath + "/policyVersion",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -21043,7 +21391,7 @@ function validate309(
           }
           errors++;
         }
-        if (func2(data0) < 1) {
+        if (func57(data0) < 1) {
           const err8 = {
             instancePath: instancePath + "/policyVersion",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -21090,7 +21438,10 @@ function validate309(
         errors++;
       }
     }
-    if (data.providerTransmission !== undefined) {
+    if (
+      data.providerTransmission !== undefined &&
+      func0.call(data, "providerTransmission")
+    ) {
       let data1 = data.providerTransmission;
       if (!(
         data1 === "none" ||
@@ -21114,7 +21465,10 @@ function validate309(
         errors++;
       }
     }
-    if (data.retainRunArtifacts !== undefined) {
+    if (
+      data.retainRunArtifacts !== undefined &&
+      func0.call(data, "retainRunArtifacts")
+    ) {
       if (typeof data.retainRunArtifacts !== "boolean") {
         const err12 = {
           instancePath: instancePath + "/retainRunArtifacts",
@@ -21131,7 +21485,7 @@ function validate309(
         errors++;
       }
     }
-    if (data.knowledgeUse !== undefined) {
+    if (data.knowledgeUse !== undefined && func0.call(data, "knowledgeUse")) {
       if (typeof data.knowledgeUse !== "boolean") {
         const err13 = {
           instancePath: instancePath + "/knowledgeUse",
@@ -21148,7 +21502,7 @@ function validate309(
         errors++;
       }
     }
-    if (data.benchmarkUse !== undefined) {
+    if (data.benchmarkUse !== undefined && func0.call(data, "benchmarkUse")) {
       if (typeof data.benchmarkUse !== "boolean") {
         const err14 = {
           instancePath: instancePath + "/benchmarkUse",
@@ -21165,7 +21519,7 @@ function validate309(
         errors++;
       }
     }
-    if (data.trainingUse !== undefined) {
+    if (data.trainingUse !== undefined && func0.call(data, "trainingUse")) {
       if (typeof data.trainingUse !== "boolean") {
         const err15 = {
           instancePath: instancePath + "/trainingUse",
@@ -21197,11 +21551,11 @@ function validate309(
     }
     errors++;
   }
-  validate309.errors = vErrors;
+  validate315.errors = vErrors;
   return errors === 0;
 }
 
-function validate308(
+function validate314(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -21209,7 +21563,7 @@ function validate308(
     null;
   let errors = 0;
   if (
-    !validate309(data, {
+    !validate315(data, {
       instancePath,
       parentData,
       parentDataProperty,
@@ -21218,16 +21572,16 @@ function validate308(
   ) {
     vErrors =
       vErrors === null
-        ? validate309.errors
-        : vErrors.concat(validate309.errors);
+        ? validate315.errors
+        : vErrors.concat(validate315.errors);
     errors = vErrors.length;
   }
-  validate308.errors = vErrors;
+  validate314.errors = vErrors;
   return errors === 0;
 }
 
-export const validateDeterministicMakerOutputV1 = validate311;
-const schema431 = {
+export const validateDeterministicMakerOutputV1 = validate317;
+const schema452 = {
   $id: "https://schemas.brick-studio.local/protocol/1/validators/DeterministicMakerOutputV1",
   $ref: "https://schemas.brick-studio.local/protocol/1#/definitions/DeterministicMakerOutputV1",
 };
@@ -21280,7 +21634,10 @@ function validate48(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.schemaVersion === undefined) {
+    if (
+      data.schemaVersion === undefined ||
+      !func0.call(data, "schemaVersion")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -21295,7 +21652,7 @@ function validate48(
       }
       errors++;
     }
-    if (data.operations === undefined) {
+    if (data.operations === undefined || !func0.call(data, "operations")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -21310,7 +21667,7 @@ function validate48(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(key0 === "schemaVersion" || key0 === "operations")) {
         const err2 = {
           instancePath,
@@ -21327,7 +21684,7 @@ function validate48(
         errors++;
       }
     }
-    if (data.schemaVersion !== undefined) {
+    if (data.schemaVersion !== undefined && func0.call(data, "schemaVersion")) {
       if ("lego.build-program/1" !== data.schemaVersion) {
         const err3 = {
           instancePath: instancePath + "/schemaVersion",
@@ -21344,7 +21701,7 @@ function validate48(
         errors++;
       }
     }
-    if (data.operations !== undefined) {
+    if (data.operations !== undefined && func0.call(data, "operations")) {
       let data1 = data.operations;
       if (Array.isArray(data1)) {
         if (data1.length > 1024) {
@@ -21436,7 +21793,7 @@ function validate183(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.kind === undefined) {
+    if (data.kind === undefined || !func0.call(data, "kind")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -21451,7 +21808,7 @@ function validate183(
       }
       errors++;
     }
-    if (data.program === undefined) {
+    if (data.program === undefined || !func0.call(data, "program")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -21466,7 +21823,10 @@ function validate183(
       }
       errors++;
     }
-    if (data.normalizedProgramHash === undefined) {
+    if (
+      data.normalizedProgramHash === undefined ||
+      !func0.call(data, "normalizedProgramHash")
+    ) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -21482,7 +21842,7 @@ function validate183(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "kind" ||
         key0 === "program" ||
@@ -21503,7 +21863,7 @@ function validate183(
         errors++;
       }
     }
-    if (data.kind !== undefined) {
+    if (data.kind !== undefined && func0.call(data, "kind")) {
       if ("program" !== data.kind) {
         const err4 = {
           instancePath: instancePath + "/kind",
@@ -21520,7 +21880,7 @@ function validate183(
         errors++;
       }
     }
-    if (data.program !== undefined) {
+    if (data.program !== undefined && func0.call(data, "program")) {
       if (
         !validate48(data.program, {
           instancePath: instancePath + "/program",
@@ -21536,7 +21896,10 @@ function validate183(
         errors = vErrors.length;
       }
     }
-    if (data.normalizedProgramHash !== undefined) {
+    if (
+      data.normalizedProgramHash !== undefined &&
+      func0.call(data, "normalizedProgramHash")
+    ) {
       let data2 = data.normalizedProgramHash;
       if (typeof data2 === "string") {
         if (!pattern2.test(data2)) {
@@ -21616,7 +21979,7 @@ function validate186(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.kind === undefined) {
+    if (data.kind === undefined || !func0.call(data, "kind")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -21631,7 +21994,7 @@ function validate186(
       }
       errors++;
     }
-    if (data.failure === undefined) {
+    if (data.failure === undefined || !func0.call(data, "failure")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -21646,7 +22009,7 @@ function validate186(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(key0 === "kind" || key0 === "failure")) {
         const err2 = {
           instancePath,
@@ -21663,7 +22026,7 @@ function validate186(
         errors++;
       }
     }
-    if (data.kind !== undefined) {
+    if (data.kind !== undefined && func0.call(data, "kind")) {
       if ("generationFailure" !== data.kind) {
         const err3 = {
           instancePath: instancePath + "/kind",
@@ -21680,10 +22043,10 @@ function validate186(
         errors++;
       }
     }
-    if (data.failure !== undefined) {
+    if (data.failure !== undefined && func0.call(data, "failure")) {
       let data1 = data.failure;
       if (data1 && typeof data1 == "object" && !Array.isArray(data1)) {
-        if (data1.stage === undefined) {
+        if (data1.stage === undefined || !func0.call(data1, "stage")) {
           const err4 = {
             instancePath: instancePath + "/failure",
             schemaPath:
@@ -21699,7 +22062,7 @@ function validate186(
           }
           errors++;
         }
-        if (data1.code === undefined) {
+        if (data1.code === undefined || !func0.call(data1, "code")) {
           const err5 = {
             instancePath: instancePath + "/failure",
             schemaPath:
@@ -21715,7 +22078,7 @@ function validate186(
           }
           errors++;
         }
-        if (data1.message === undefined) {
+        if (data1.message === undefined || !func0.call(data1, "message")) {
           const err6 = {
             instancePath: instancePath + "/failure",
             schemaPath:
@@ -21731,7 +22094,7 @@ function validate186(
           }
           errors++;
         }
-        for (const key1 in data1) {
+        for (const key1 of Object.keys(data1)) {
           if (!(key1 === "stage" || key1 === "code" || key1 === "message")) {
             const err7 = {
               instancePath: instancePath + "/failure",
@@ -21749,7 +22112,7 @@ function validate186(
             errors++;
           }
         }
-        if (data1.stage !== undefined) {
+        if (data1.stage !== undefined && func0.call(data1, "stage")) {
           if ("generation" !== data1.stage) {
             const err8 = {
               instancePath: instancePath + "/failure/stage",
@@ -21767,7 +22130,7 @@ function validate186(
             errors++;
           }
         }
-        if (data1.code !== undefined) {
+        if (data1.code !== undefined && func0.call(data1, "code")) {
           let data3 = data1.code;
           if (!(
             data3 === "OPERATION_BUDGET_TOO_SMALL" ||
@@ -21789,10 +22152,10 @@ function validate186(
             errors++;
           }
         }
-        if (data1.message !== undefined) {
+        if (data1.message !== undefined && func0.call(data1, "message")) {
           let data4 = data1.message;
           if (typeof data4 === "string") {
-            if (func2(data4) > 1024) {
+            if (func57(data4) > 1024) {
               const err10 = {
                 instancePath: instancePath + "/failure/message",
                 schemaPath:
@@ -21808,7 +22171,7 @@ function validate186(
               }
               errors++;
             }
-            if (func2(data4) < 1) {
+            if (func57(data4) < 1) {
               const err11 = {
                 instancePath: instancePath + "/failure/message",
                 schemaPath:
@@ -21884,7 +22247,7 @@ function validate182(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.index === undefined) {
+    if (data.index === undefined || !func0.call(data, "index")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -21899,7 +22262,7 @@ function validate182(
       }
       errors++;
     }
-    if (data.strategyId === undefined) {
+    if (data.strategyId === undefined || !func0.call(data, "strategyId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -21914,7 +22277,7 @@ function validate182(
       }
       errors++;
     }
-    if (data.shape === undefined) {
+    if (data.shape === undefined || !func0.call(data, "shape")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -21929,7 +22292,7 @@ function validate182(
       }
       errors++;
     }
-    if (data.outcome === undefined) {
+    if (data.outcome === undefined || !func0.call(data, "outcome")) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -21944,7 +22307,7 @@ function validate182(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "index" ||
         key0 === "strategyId" ||
@@ -21966,7 +22329,7 @@ function validate182(
         errors++;
       }
     }
-    if (data.index !== undefined) {
+    if (data.index !== undefined && func0.call(data, "index")) {
       let data0 = data.index;
       if (!(
         typeof data0 == "number" &&
@@ -22021,10 +22384,10 @@ function validate182(
         }
       }
     }
-    if (data.strategyId !== undefined) {
+    if (data.strategyId !== undefined && func0.call(data, "strategyId")) {
       let data1 = data.strategyId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err8 = {
             instancePath: instancePath + "/strategyId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -22039,7 +22402,7 @@ function validate182(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err9 = {
             instancePath: instancePath + "/strategyId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -22086,7 +22449,7 @@ function validate182(
         errors++;
       }
     }
-    if (data.shape !== undefined) {
+    if (data.shape !== undefined && func0.call(data, "shape")) {
       let data2 = data.shape;
       if (!(
         data2 === "tower" ||
@@ -22109,7 +22472,7 @@ function validate182(
         errors++;
       }
     }
-    if (data.outcome !== undefined) {
+    if (data.outcome !== undefined && func0.call(data, "outcome")) {
       let data3 = data.outcome;
       const _errs9 = errors;
       let valid2 = false;
@@ -22203,14 +22566,17 @@ function validate182(
   return errors === 0;
 }
 
-function validate312(
+function validate318(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.schemaVersion === undefined) {
+    if (
+      data.schemaVersion === undefined ||
+      !func0.call(data, "schemaVersion")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -22225,7 +22591,7 @@ function validate312(
       }
       errors++;
     }
-    if (data.makerVersion === undefined) {
+    if (data.makerVersion === undefined || !func0.call(data, "makerVersion")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -22240,7 +22606,7 @@ function validate312(
       }
       errors++;
     }
-    if (data.slots === undefined) {
+    if (data.slots === undefined || !func0.call(data, "slots")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -22255,7 +22621,7 @@ function validate312(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "schemaVersion" ||
         key0 === "makerVersion" ||
@@ -22276,7 +22642,7 @@ function validate312(
         errors++;
       }
     }
-    if (data.schemaVersion !== undefined) {
+    if (data.schemaVersion !== undefined && func0.call(data, "schemaVersion")) {
       if ("lego.deterministic-maker-output/1" !== data.schemaVersion) {
         const err4 = {
           instancePath: instancePath + "/schemaVersion",
@@ -22293,10 +22659,10 @@ function validate312(
         errors++;
       }
     }
-    if (data.makerVersion !== undefined) {
+    if (data.makerVersion !== undefined && func0.call(data, "makerVersion")) {
       let data1 = data.makerVersion;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err5 = {
             instancePath: instancePath + "/makerVersion",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -22311,7 +22677,7 @@ function validate312(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err6 = {
             instancePath: instancePath + "/makerVersion",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -22358,7 +22724,7 @@ function validate312(
         errors++;
       }
     }
-    if (data.slots !== undefined) {
+    if (data.slots !== undefined && func0.call(data, "slots")) {
       let data2 = data.slots;
       if (Array.isArray(data2)) {
         if (data2.length > 4) {
@@ -22439,11 +22805,11 @@ function validate312(
     }
     errors++;
   }
-  validate312.errors = vErrors;
+  validate318.errors = vErrors;
   return errors === 0;
 }
 
-function validate311(
+function validate317(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -22451,7 +22817,7 @@ function validate311(
     null;
   let errors = 0;
   if (
-    !validate312(data, {
+    !validate318(data, {
       instancePath,
       parentData,
       parentDataProperty,
@@ -22460,16 +22826,16 @@ function validate311(
   ) {
     vErrors =
       vErrors === null
-        ? validate312.errors
-        : vErrors.concat(validate312.errors);
+        ? validate318.errors
+        : vErrors.concat(validate318.errors);
     errors = vErrors.length;
   }
-  validate311.errors = vErrors;
+  validate317.errors = vErrors;
   return errors === 0;
 }
 
-export const validateDeterministicMakerCaptureManifestV1 = validate315;
-const schema434 = {
+export const validateDeterministicMakerCaptureManifestV1 = validate321;
+const schema455 = {
   $id: "https://schemas.brick-studio.local/protocol/1/validators/DeterministicMakerCaptureManifestV1",
   $ref: "https://schemas.brick-studio.local/protocol/1#/definitions/DeterministicMakerCaptureManifestV1",
 };
@@ -22700,7 +23066,7 @@ function validate193(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.attemptIndex === undefined) {
+    if (data.attemptIndex === undefined || !func0.call(data, "attemptIndex")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -22715,7 +23081,7 @@ function validate193(
       }
       errors++;
     }
-    if (data.candidateId === undefined) {
+    if (data.candidateId === undefined || !func0.call(data, "candidateId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -22730,7 +23096,7 @@ function validate193(
       }
       errors++;
     }
-    if (data.strategyId === undefined) {
+    if (data.strategyId === undefined || !func0.call(data, "strategyId")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -22745,7 +23111,7 @@ function validate193(
       }
       errors++;
     }
-    if (data.status === undefined) {
+    if (data.status === undefined || !func0.call(data, "status")) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -22760,7 +23126,7 @@ function validate193(
       }
       errors++;
     }
-    if (data.failureStage === undefined) {
+    if (data.failureStage === undefined || !func0.call(data, "failureStage")) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -22775,7 +23141,7 @@ function validate193(
       }
       errors++;
     }
-    if (data.failureCode === undefined) {
+    if (data.failureCode === undefined || !func0.call(data, "failureCode")) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -22790,7 +23156,7 @@ function validate193(
       }
       errors++;
     }
-    if (data.programHash === undefined) {
+    if (data.programHash === undefined || !func0.call(data, "programHash")) {
       const err6 = {
         instancePath,
         schemaPath: "#/required",
@@ -22805,7 +23171,10 @@ function validate193(
       }
       errors++;
     }
-    if (data.structuralHash === undefined) {
+    if (
+      data.structuralHash === undefined ||
+      !func0.call(data, "structuralHash")
+    ) {
       const err7 = {
         instancePath,
         schemaPath: "#/required",
@@ -22820,7 +23189,10 @@ function validate193(
       }
       errors++;
     }
-    if (data.compilerSnapshotHash === undefined) {
+    if (
+      data.compilerSnapshotHash === undefined ||
+      !func0.call(data, "compilerSnapshotHash")
+    ) {
       const err8 = {
         instancePath,
         schemaPath: "#/required",
@@ -22835,7 +23207,7 @@ function validate193(
       }
       errors++;
     }
-    if (data.patchHash === undefined) {
+    if (data.patchHash === undefined || !func0.call(data, "patchHash")) {
       const err9 = {
         instancePath,
         schemaPath: "#/required",
@@ -22850,7 +23222,7 @@ function validate193(
       }
       errors++;
     }
-    if (data.documentHash === undefined) {
+    if (data.documentHash === undefined || !func0.call(data, "documentHash")) {
       const err10 = {
         instancePath,
         schemaPath: "#/required",
@@ -22865,7 +23237,10 @@ function validate193(
       }
       errors++;
     }
-    if (data.validationReportHash === undefined) {
+    if (
+      data.validationReportHash === undefined ||
+      !func0.call(data, "validationReportHash")
+    ) {
       const err11 = {
         instancePath,
         schemaPath: "#/required",
@@ -22880,7 +23255,7 @@ function validate193(
       }
       errors++;
     }
-    if (data.metricsHash === undefined) {
+    if (data.metricsHash === undefined || !func0.call(data, "metricsHash")) {
       const err12 = {
         instancePath,
         schemaPath: "#/required",
@@ -22895,7 +23270,7 @@ function validate193(
       }
       errors++;
     }
-    if (data.rank === undefined) {
+    if (data.rank === undefined || !func0.call(data, "rank")) {
       const err13 = {
         instancePath,
         schemaPath: "#/required",
@@ -22910,7 +23285,10 @@ function validate193(
       }
       errors++;
     }
-    if (data.candidateDigest === undefined) {
+    if (
+      data.candidateDigest === undefined ||
+      !func0.call(data, "candidateDigest")
+    ) {
       const err14 = {
         instancePath,
         schemaPath: "#/required",
@@ -22925,8 +23303,8 @@ function validate193(
       }
       errors++;
     }
-    for (const key0 in data) {
-      if (!func8.call(schema312.properties, key0)) {
+    for (const key0 of Object.keys(data)) {
+      if (!func0.call(schema312.properties, key0)) {
         const err15 = {
           instancePath,
           schemaPath: "#/additionalProperties",
@@ -22942,7 +23320,7 @@ function validate193(
         errors++;
       }
     }
-    if (data.attemptIndex !== undefined) {
+    if (data.attemptIndex !== undefined && func0.call(data, "attemptIndex")) {
       let data0 = data.attemptIndex;
       if (!(
         typeof data0 == "number" &&
@@ -22997,10 +23375,10 @@ function validate193(
         }
       }
     }
-    if (data.candidateId !== undefined) {
+    if (data.candidateId !== undefined && func0.call(data, "candidateId")) {
       let data1 = data.candidateId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err19 = {
             instancePath: instancePath + "/candidateId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -23015,7 +23393,7 @@ function validate193(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err20 = {
             instancePath: instancePath + "/candidateId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -23062,10 +23440,10 @@ function validate193(
         errors++;
       }
     }
-    if (data.strategyId !== undefined) {
+    if (data.strategyId !== undefined && func0.call(data, "strategyId")) {
       let data2 = data.strategyId;
       if (typeof data2 === "string") {
-        if (func2(data2) > 128) {
+        if (func57(data2) > 128) {
           const err23 = {
             instancePath: instancePath + "/strategyId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -23080,7 +23458,7 @@ function validate193(
           }
           errors++;
         }
-        if (func2(data2) < 1) {
+        if (func57(data2) < 1) {
           const err24 = {
             instancePath: instancePath + "/strategyId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -23127,7 +23505,7 @@ function validate193(
         errors++;
       }
     }
-    if (data.status !== undefined) {
+    if (data.status !== undefined && func0.call(data, "status")) {
       let data3 = data.status;
       if (!(
         data3 === "failed" ||
@@ -23149,7 +23527,7 @@ function validate193(
         errors++;
       }
     }
-    if (data.failureStage !== undefined) {
+    if (data.failureStage !== undefined && func0.call(data, "failureStage")) {
       let data4 = data.failureStage;
       const _errs12 = errors;
       let valid3 = false;
@@ -23233,14 +23611,14 @@ function validate193(
         }
       }
     }
-    if (data.failureCode !== undefined) {
+    if (data.failureCode !== undefined && func0.call(data, "failureCode")) {
       let data5 = data.failureCode;
       const _errs17 = errors;
       let valid4 = false;
       let passing1 = null;
       const _errs18 = errors;
       if (typeof data5 === "string") {
-        if (func2(data5) > 128) {
+        if (func57(data5) > 128) {
           const err31 = {
             instancePath: instancePath + "/failureCode",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -23255,7 +23633,7 @@ function validate193(
           }
           errors++;
         }
-        if (func2(data5) < 1) {
+        if (func57(data5) < 1) {
           const err32 = {
             instancePath: instancePath + "/failureCode",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -23357,7 +23735,7 @@ function validate193(
         }
       }
     }
-    if (data.programHash !== undefined) {
+    if (data.programHash !== undefined && func0.call(data, "programHash")) {
       if (
         !validate191(data.programHash, {
           instancePath: instancePath + "/programHash",
@@ -23373,7 +23751,10 @@ function validate193(
         errors = vErrors.length;
       }
     }
-    if (data.structuralHash !== undefined) {
+    if (
+      data.structuralHash !== undefined &&
+      func0.call(data, "structuralHash")
+    ) {
       if (
         !validate191(data.structuralHash, {
           instancePath: instancePath + "/structuralHash",
@@ -23389,7 +23770,10 @@ function validate193(
         errors = vErrors.length;
       }
     }
-    if (data.compilerSnapshotHash !== undefined) {
+    if (
+      data.compilerSnapshotHash !== undefined &&
+      func0.call(data, "compilerSnapshotHash")
+    ) {
       if (
         !validate191(data.compilerSnapshotHash, {
           instancePath: instancePath + "/compilerSnapshotHash",
@@ -23405,7 +23789,7 @@ function validate193(
         errors = vErrors.length;
       }
     }
-    if (data.patchHash !== undefined) {
+    if (data.patchHash !== undefined && func0.call(data, "patchHash")) {
       if (
         !validate191(data.patchHash, {
           instancePath: instancePath + "/patchHash",
@@ -23421,7 +23805,7 @@ function validate193(
         errors = vErrors.length;
       }
     }
-    if (data.documentHash !== undefined) {
+    if (data.documentHash !== undefined && func0.call(data, "documentHash")) {
       if (
         !validate191(data.documentHash, {
           instancePath: instancePath + "/documentHash",
@@ -23437,7 +23821,10 @@ function validate193(
         errors = vErrors.length;
       }
     }
-    if (data.validationReportHash !== undefined) {
+    if (
+      data.validationReportHash !== undefined &&
+      func0.call(data, "validationReportHash")
+    ) {
       if (
         !validate191(data.validationReportHash, {
           instancePath: instancePath + "/validationReportHash",
@@ -23453,7 +23840,7 @@ function validate193(
         errors = vErrors.length;
       }
     }
-    if (data.metricsHash !== undefined) {
+    if (data.metricsHash !== undefined && func0.call(data, "metricsHash")) {
       if (
         !validate191(data.metricsHash, {
           instancePath: instancePath + "/metricsHash",
@@ -23469,7 +23856,7 @@ function validate193(
         errors = vErrors.length;
       }
     }
-    if (data.rank !== undefined) {
+    if (data.rank !== undefined && func0.call(data, "rank")) {
       let data13 = data.rank;
       const _errs32 = errors;
       let valid7 = false;
@@ -23583,7 +23970,10 @@ function validate193(
         }
       }
     }
-    if (data.candidateDigest !== undefined) {
+    if (
+      data.candidateDigest !== undefined &&
+      func0.call(data, "candidateDigest")
+    ) {
       let data14 = data.candidateDigest;
       if (typeof data14 === "string") {
         if (!pattern2.test(data14)) {
@@ -23636,14 +24026,17 @@ function validate193(
   return errors === 0;
 }
 
-function validate316(
+function validate322(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.schemaVersion === undefined) {
+    if (
+      data.schemaVersion === undefined ||
+      !func0.call(data, "schemaVersion")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -23658,7 +24051,10 @@ function validate316(
       }
       errors++;
     }
-    if (data.harnessVersion === undefined) {
+    if (
+      data.harnessVersion === undefined ||
+      !func0.call(data, "harnessVersion")
+    ) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -23673,7 +24069,7 @@ function validate316(
       }
       errors++;
     }
-    if (data.namespace === undefined) {
+    if (data.namespace === undefined || !func0.call(data, "namespace")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -23688,7 +24084,7 @@ function validate316(
       }
       errors++;
     }
-    if (data.integrity === undefined) {
+    if (data.integrity === undefined || !func0.call(data, "integrity")) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -23703,7 +24099,10 @@ function validate316(
       }
       errors++;
     }
-    if (data.authenticated === undefined) {
+    if (
+      data.authenticated === undefined ||
+      !func0.call(data, "authenticated")
+    ) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -23718,7 +24117,7 @@ function validate316(
       }
       errors++;
     }
-    if (data.boundary === undefined) {
+    if (data.boundary === undefined || !func0.call(data, "boundary")) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -23733,7 +24132,7 @@ function validate316(
       }
       errors++;
     }
-    if (data.jobId === undefined) {
+    if (data.jobId === undefined || !func0.call(data, "jobId")) {
       const err6 = {
         instancePath,
         schemaPath: "#/required",
@@ -23748,7 +24147,10 @@ function validate316(
       }
       errors++;
     }
-    if (data.protocolVersion === undefined) {
+    if (
+      data.protocolVersion === undefined ||
+      !func0.call(data, "protocolVersion")
+    ) {
       const err7 = {
         instancePath,
         schemaPath: "#/required",
@@ -23763,7 +24165,10 @@ function validate316(
       }
       errors++;
     }
-    if (data.generationVersion === undefined) {
+    if (
+      data.generationVersion === undefined ||
+      !func0.call(data, "generationVersion")
+    ) {
       const err8 = {
         instancePath,
         schemaPath: "#/required",
@@ -23778,7 +24183,10 @@ function validate316(
       }
       errors++;
     }
-    if (data.compilerSnapshotHash === undefined) {
+    if (
+      data.compilerSnapshotHash === undefined ||
+      !func0.call(data, "compilerSnapshotHash")
+    ) {
       const err9 = {
         instancePath,
         schemaPath: "#/required",
@@ -23793,7 +24201,10 @@ function validate316(
       }
       errors++;
     }
-    if (data.rankingPolicyHash === undefined) {
+    if (
+      data.rankingPolicyHash === undefined ||
+      !func0.call(data, "rankingPolicyHash")
+    ) {
       const err10 = {
         instancePath,
         schemaPath: "#/required",
@@ -23808,7 +24219,10 @@ function validate316(
       }
       errors++;
     }
-    if (data.replayPolicyHash === undefined) {
+    if (
+      data.replayPolicyHash === undefined ||
+      !func0.call(data, "replayPolicyHash")
+    ) {
       const err11 = {
         instancePath,
         schemaPath: "#/required",
@@ -23823,7 +24237,10 @@ function validate316(
       }
       errors++;
     }
-    if (data.baseDocumentHash === undefined) {
+    if (
+      data.baseDocumentHash === undefined ||
+      !func0.call(data, "baseDocumentHash")
+    ) {
       const err12 = {
         instancePath,
         schemaPath: "#/required",
@@ -23838,7 +24255,10 @@ function validate316(
       }
       errors++;
     }
-    if (data.truthSnapshotHash === undefined) {
+    if (
+      data.truthSnapshotHash === undefined ||
+      !func0.call(data, "truthSnapshotHash")
+    ) {
       const err13 = {
         instancePath,
         schemaPath: "#/required",
@@ -23853,7 +24273,7 @@ function validate316(
       }
       errors++;
     }
-    if (data.briefHash === undefined) {
+    if (data.briefHash === undefined || !func0.call(data, "briefHash")) {
       const err14 = {
         instancePath,
         schemaPath: "#/required",
@@ -23868,7 +24288,10 @@ function validate316(
       }
       errors++;
     }
-    if (data.normalizedBriefHash === undefined) {
+    if (
+      data.normalizedBriefHash === undefined ||
+      !func0.call(data, "normalizedBriefHash")
+    ) {
       const err15 = {
         instancePath,
         schemaPath: "#/required",
@@ -23883,7 +24306,7 @@ function validate316(
       }
       errors++;
     }
-    if (data.scopeDigest === undefined) {
+    if (data.scopeDigest === undefined || !func0.call(data, "scopeDigest")) {
       const err16 = {
         instancePath,
         schemaPath: "#/required",
@@ -23898,7 +24321,7 @@ function validate316(
       }
       errors++;
     }
-    if (data.requestHash === undefined) {
+    if (data.requestHash === undefined || !func0.call(data, "requestHash")) {
       const err17 = {
         instancePath,
         schemaPath: "#/required",
@@ -23913,7 +24336,10 @@ function validate316(
       }
       errors++;
     }
-    if (data.requestByteLength === undefined) {
+    if (
+      data.requestByteLength === undefined ||
+      !func0.call(data, "requestByteLength")
+    ) {
       const err18 = {
         instancePath,
         schemaPath: "#/required",
@@ -23928,7 +24354,10 @@ function validate316(
       }
       errors++;
     }
-    if (data.capturedProgramsHash === undefined) {
+    if (
+      data.capturedProgramsHash === undefined ||
+      !func0.call(data, "capturedProgramsHash")
+    ) {
       const err19 = {
         instancePath,
         schemaPath: "#/required",
@@ -23943,7 +24372,10 @@ function validate316(
       }
       errors++;
     }
-    if (data.capturedProgramsByteLength === undefined) {
+    if (
+      data.capturedProgramsByteLength === undefined ||
+      !func0.call(data, "capturedProgramsByteLength")
+    ) {
       const err20 = {
         instancePath,
         schemaPath: "#/required",
@@ -23959,7 +24391,10 @@ function validate316(
       }
       errors++;
     }
-    if (data.populationHash === undefined) {
+    if (
+      data.populationHash === undefined ||
+      !func0.call(data, "populationHash")
+    ) {
       const err21 = {
         instancePath,
         schemaPath: "#/required",
@@ -23974,7 +24409,10 @@ function validate316(
       }
       errors++;
     }
-    if (data.populationByteLength === undefined) {
+    if (
+      data.populationByteLength === undefined ||
+      !func0.call(data, "populationByteLength")
+    ) {
       const err22 = {
         instancePath,
         schemaPath: "#/required",
@@ -23989,7 +24427,7 @@ function validate316(
       }
       errors++;
     }
-    if (data.resultOk === undefined) {
+    if (data.resultOk === undefined || !func0.call(data, "resultOk")) {
       const err23 = {
         instancePath,
         schemaPath: "#/required",
@@ -24004,7 +24442,7 @@ function validate316(
       }
       errors++;
     }
-    if (data.candidates === undefined) {
+    if (data.candidates === undefined || !func0.call(data, "candidates")) {
       const err24 = {
         instancePath,
         schemaPath: "#/required",
@@ -24019,8 +24457,8 @@ function validate316(
       }
       errors++;
     }
-    for (const key0 in data) {
-      if (!func8.call(schema296.properties, key0)) {
+    for (const key0 of Object.keys(data)) {
+      if (!func0.call(schema296.properties, key0)) {
         const err25 = {
           instancePath,
           schemaPath: "#/additionalProperties",
@@ -24036,7 +24474,7 @@ function validate316(
         errors++;
       }
     }
-    if (data.schemaVersion !== undefined) {
+    if (data.schemaVersion !== undefined && func0.call(data, "schemaVersion")) {
       if (
         "lego.deterministic-maker-capture-manifest/1" !== data.schemaVersion
       ) {
@@ -24057,7 +24495,10 @@ function validate316(
         errors++;
       }
     }
-    if (data.harnessVersion !== undefined) {
+    if (
+      data.harnessVersion !== undefined &&
+      func0.call(data, "harnessVersion")
+    ) {
       if ("lego.harness/1" !== data.harnessVersion) {
         const err27 = {
           instancePath: instancePath + "/harnessVersion",
@@ -24074,7 +24515,7 @@ function validate316(
         errors++;
       }
     }
-    if (data.namespace !== undefined) {
+    if (data.namespace !== undefined && func0.call(data, "namespace")) {
       if ("test" !== data.namespace) {
         const err28 = {
           instancePath: instancePath + "/namespace",
@@ -24091,7 +24532,7 @@ function validate316(
         errors++;
       }
     }
-    if (data.integrity !== undefined) {
+    if (data.integrity !== undefined && func0.call(data, "integrity")) {
       if ("unsealed" !== data.integrity) {
         const err29 = {
           instancePath: instancePath + "/integrity",
@@ -24108,7 +24549,7 @@ function validate316(
         errors++;
       }
     }
-    if (data.authenticated !== undefined) {
+    if (data.authenticated !== undefined && func0.call(data, "authenticated")) {
       if (false !== data.authenticated) {
         const err30 = {
           instancePath: instancePath + "/authenticated",
@@ -24125,7 +24566,7 @@ function validate316(
         errors++;
       }
     }
-    if (data.boundary !== undefined) {
+    if (data.boundary !== undefined && func0.call(data, "boundary")) {
       if ("deterministic-recipe-results" !== data.boundary) {
         const err31 = {
           instancePath: instancePath + "/boundary",
@@ -24142,10 +24583,10 @@ function validate316(
         errors++;
       }
     }
-    if (data.jobId !== undefined) {
+    if (data.jobId !== undefined && func0.call(data, "jobId")) {
       let data6 = data.jobId;
       if (typeof data6 === "string") {
-        if (func2(data6) > 128) {
+        if (func57(data6) > 128) {
           const err32 = {
             instancePath: instancePath + "/jobId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -24160,7 +24601,7 @@ function validate316(
           }
           errors++;
         }
-        if (func2(data6) < 1) {
+        if (func57(data6) < 1) {
           const err33 = {
             instancePath: instancePath + "/jobId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -24207,10 +24648,13 @@ function validate316(
         errors++;
       }
     }
-    if (data.protocolVersion !== undefined) {
+    if (
+      data.protocolVersion !== undefined &&
+      func0.call(data, "protocolVersion")
+    ) {
       let data7 = data.protocolVersion;
       if (typeof data7 === "string") {
-        if (func2(data7) > 128) {
+        if (func57(data7) > 128) {
           const err36 = {
             instancePath: instancePath + "/protocolVersion",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -24225,7 +24669,7 @@ function validate316(
           }
           errors++;
         }
-        if (func2(data7) < 1) {
+        if (func57(data7) < 1) {
           const err37 = {
             instancePath: instancePath + "/protocolVersion",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -24272,10 +24716,13 @@ function validate316(
         errors++;
       }
     }
-    if (data.generationVersion !== undefined) {
+    if (
+      data.generationVersion !== undefined &&
+      func0.call(data, "generationVersion")
+    ) {
       let data8 = data.generationVersion;
       if (typeof data8 === "string") {
-        if (func2(data8) > 128) {
+        if (func57(data8) > 128) {
           const err40 = {
             instancePath: instancePath + "/generationVersion",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -24290,7 +24737,7 @@ function validate316(
           }
           errors++;
         }
-        if (func2(data8) < 1) {
+        if (func57(data8) < 1) {
           const err41 = {
             instancePath: instancePath + "/generationVersion",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -24337,7 +24784,10 @@ function validate316(
         errors++;
       }
     }
-    if (data.compilerSnapshotHash !== undefined) {
+    if (
+      data.compilerSnapshotHash !== undefined &&
+      func0.call(data, "compilerSnapshotHash")
+    ) {
       let data9 = data.compilerSnapshotHash;
       if (typeof data9 === "string") {
         if (!pattern2.test(data9)) {
@@ -24371,7 +24821,10 @@ function validate316(
         errors++;
       }
     }
-    if (data.rankingPolicyHash !== undefined) {
+    if (
+      data.rankingPolicyHash !== undefined &&
+      func0.call(data, "rankingPolicyHash")
+    ) {
       let data10 = data.rankingPolicyHash;
       if (typeof data10 === "string") {
         if (!pattern2.test(data10)) {
@@ -24405,7 +24858,10 @@ function validate316(
         errors++;
       }
     }
-    if (data.replayPolicyHash !== undefined) {
+    if (
+      data.replayPolicyHash !== undefined &&
+      func0.call(data, "replayPolicyHash")
+    ) {
       let data11 = data.replayPolicyHash;
       if (typeof data11 === "string") {
         if (!pattern2.test(data11)) {
@@ -24439,7 +24895,10 @@ function validate316(
         errors++;
       }
     }
-    if (data.baseDocumentHash !== undefined) {
+    if (
+      data.baseDocumentHash !== undefined &&
+      func0.call(data, "baseDocumentHash")
+    ) {
       let data12 = data.baseDocumentHash;
       if (typeof data12 === "string") {
         if (!pattern2.test(data12)) {
@@ -24473,7 +24932,10 @@ function validate316(
         errors++;
       }
     }
-    if (data.truthSnapshotHash !== undefined) {
+    if (
+      data.truthSnapshotHash !== undefined &&
+      func0.call(data, "truthSnapshotHash")
+    ) {
       let data13 = data.truthSnapshotHash;
       if (typeof data13 === "string") {
         if (!pattern2.test(data13)) {
@@ -24507,7 +24969,7 @@ function validate316(
         errors++;
       }
     }
-    if (data.briefHash !== undefined) {
+    if (data.briefHash !== undefined && func0.call(data, "briefHash")) {
       let data14 = data.briefHash;
       if (typeof data14 === "string") {
         if (!pattern2.test(data14)) {
@@ -24541,7 +25003,10 @@ function validate316(
         errors++;
       }
     }
-    if (data.normalizedBriefHash !== undefined) {
+    if (
+      data.normalizedBriefHash !== undefined &&
+      func0.call(data, "normalizedBriefHash")
+    ) {
       if (
         !validate191(data.normalizedBriefHash, {
           instancePath: instancePath + "/normalizedBriefHash",
@@ -24557,7 +25022,7 @@ function validate316(
         errors = vErrors.length;
       }
     }
-    if (data.scopeDigest !== undefined) {
+    if (data.scopeDigest !== undefined && func0.call(data, "scopeDigest")) {
       let data16 = data.scopeDigest;
       if (typeof data16 === "string") {
         if (!pattern2.test(data16)) {
@@ -24591,7 +25056,7 @@ function validate316(
         errors++;
       }
     }
-    if (data.requestHash !== undefined) {
+    if (data.requestHash !== undefined && func0.call(data, "requestHash")) {
       let data17 = data.requestHash;
       if (typeof data17 === "string") {
         if (!pattern2.test(data17)) {
@@ -24625,7 +25090,10 @@ function validate316(
         errors++;
       }
     }
-    if (data.requestByteLength !== undefined) {
+    if (
+      data.requestByteLength !== undefined &&
+      func0.call(data, "requestByteLength")
+    ) {
       let data18 = data.requestByteLength;
       if (!(
         typeof data18 == "number" &&
@@ -24680,7 +25148,10 @@ function validate316(
         }
       }
     }
-    if (data.capturedProgramsHash !== undefined) {
+    if (
+      data.capturedProgramsHash !== undefined &&
+      func0.call(data, "capturedProgramsHash")
+    ) {
       let data19 = data.capturedProgramsHash;
       if (typeof data19 === "string") {
         if (!pattern2.test(data19)) {
@@ -24714,7 +25185,10 @@ function validate316(
         errors++;
       }
     }
-    if (data.capturedProgramsByteLength !== undefined) {
+    if (
+      data.capturedProgramsByteLength !== undefined &&
+      func0.call(data, "capturedProgramsByteLength")
+    ) {
       let data20 = data.capturedProgramsByteLength;
       if (!(
         typeof data20 == "number" &&
@@ -24769,7 +25243,10 @@ function validate316(
         }
       }
     }
-    if (data.populationHash !== undefined) {
+    if (
+      data.populationHash !== undefined &&
+      func0.call(data, "populationHash")
+    ) {
       let data21 = data.populationHash;
       if (typeof data21 === "string") {
         if (!pattern2.test(data21)) {
@@ -24803,7 +25280,10 @@ function validate316(
         errors++;
       }
     }
-    if (data.populationByteLength !== undefined) {
+    if (
+      data.populationByteLength !== undefined &&
+      func0.call(data, "populationByteLength")
+    ) {
       let data22 = data.populationByteLength;
       if (!(
         typeof data22 == "number" &&
@@ -24858,7 +25338,7 @@ function validate316(
         }
       }
     }
-    if (data.resultOk !== undefined) {
+    if (data.resultOk !== undefined && func0.call(data, "resultOk")) {
       if (typeof data.resultOk !== "boolean") {
         const err73 = {
           instancePath: instancePath + "/resultOk",
@@ -24875,7 +25355,7 @@ function validate316(
         errors++;
       }
     }
-    if (data.candidates !== undefined) {
+    if (data.candidates !== undefined && func0.call(data, "candidates")) {
       let data24 = data.candidates;
       if (Array.isArray(data24)) {
         if (data24.length > 4) {
@@ -24941,11 +25421,11 @@ function validate316(
     }
     errors++;
   }
-  validate316.errors = vErrors;
+  validate322.errors = vErrors;
   return errors === 0;
 }
 
-function validate315(
+function validate321(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -24953,7 +25433,7 @@ function validate315(
     null;
   let errors = 0;
   if (
-    !validate316(data, {
+    !validate322(data, {
       instancePath,
       parentData,
       parentDataProperty,
@@ -24962,16 +25442,16 @@ function validate315(
   ) {
     vErrors =
       vErrors === null
-        ? validate316.errors
-        : vErrors.concat(validate316.errors);
+        ? validate322.errors
+        : vErrors.concat(validate322.errors);
     errors = vErrors.length;
   }
-  validate315.errors = vErrors;
+  validate321.errors = vErrors;
   return errors === 0;
 }
 
-export const validateTestRunBundleManifestV1 = validate320;
-const schema449 = {
+export const validateTestRunBundleManifestV1 = validate326;
+const schema470 = {
   $id: "https://schemas.brick-studio.local/protocol/1/validators/TestRunBundleManifestV1",
   $ref: "https://schemas.brick-studio.local/protocol/1#/definitions/TestRunBundleManifestV1",
 };
@@ -25031,7 +25511,7 @@ function validate116(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.artifactId === undefined) {
+    if (data.artifactId === undefined || !func0.call(data, "artifactId")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -25046,7 +25526,7 @@ function validate116(
       }
       errors++;
     }
-    if (data.kind === undefined) {
+    if (data.kind === undefined || !func0.call(data, "kind")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -25061,7 +25541,7 @@ function validate116(
       }
       errors++;
     }
-    if (data.mediaType === undefined) {
+    if (data.mediaType === undefined || !func0.call(data, "mediaType")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -25076,7 +25556,7 @@ function validate116(
       }
       errors++;
     }
-    if (data.sha256 === undefined) {
+    if (data.sha256 === undefined || !func0.call(data, "sha256")) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -25091,7 +25571,7 @@ function validate116(
       }
       errors++;
     }
-    if (data.byteLength === undefined) {
+    if (data.byteLength === undefined || !func0.call(data, "byteLength")) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -25106,7 +25586,7 @@ function validate116(
       }
       errors++;
     }
-    if (data.casKey === undefined) {
+    if (data.casKey === undefined || !func0.call(data, "casKey")) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -25121,7 +25601,7 @@ function validate116(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "artifactId" ||
         key0 === "kind" ||
@@ -25145,10 +25625,10 @@ function validate116(
         errors++;
       }
     }
-    if (data.artifactId !== undefined) {
+    if (data.artifactId !== undefined && func0.call(data, "artifactId")) {
       let data0 = data.artifactId;
       if (typeof data0 === "string") {
-        if (func2(data0) > 128) {
+        if (func57(data0) > 128) {
           const err7 = {
             instancePath: instancePath + "/artifactId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -25163,7 +25643,7 @@ function validate116(
           }
           errors++;
         }
-        if (func2(data0) < 1) {
+        if (func57(data0) < 1) {
           const err8 = {
             instancePath: instancePath + "/artifactId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -25210,7 +25690,7 @@ function validate116(
         errors++;
       }
     }
-    if (data.kind !== undefined) {
+    if (data.kind !== undefined && func0.call(data, "kind")) {
       let data1 = data.kind;
       if (!(
         data1 === "input" ||
@@ -25242,10 +25722,10 @@ function validate116(
         errors++;
       }
     }
-    if (data.mediaType !== undefined) {
+    if (data.mediaType !== undefined && func0.call(data, "mediaType")) {
       let data2 = data.mediaType;
       if (typeof data2 === "string") {
-        if (func2(data2) > 128) {
+        if (func57(data2) > 128) {
           const err12 = {
             instancePath: instancePath + "/mediaType",
             schemaPath: "#/properties/mediaType/maxLength",
@@ -25260,7 +25740,7 @@ function validate116(
           }
           errors++;
         }
-        if (func2(data2) < 3) {
+        if (func57(data2) < 3) {
           const err13 = {
             instancePath: instancePath + "/mediaType",
             schemaPath: "#/properties/mediaType/minLength",
@@ -25309,7 +25789,7 @@ function validate116(
         errors++;
       }
     }
-    if (data.sha256 !== undefined) {
+    if (data.sha256 !== undefined && func0.call(data, "sha256")) {
       let data3 = data.sha256;
       if (typeof data3 === "string") {
         if (!pattern2.test(data3)) {
@@ -25343,7 +25823,7 @@ function validate116(
         errors++;
       }
     }
-    if (data.byteLength !== undefined) {
+    if (data.byteLength !== undefined && func0.call(data, "byteLength")) {
       let data4 = data.byteLength;
       if (!(
         typeof data4 == "number" &&
@@ -25398,7 +25878,7 @@ function validate116(
         }
       }
     }
-    if (data.casKey !== undefined) {
+    if (data.casKey !== undefined && func0.call(data, "casKey")) {
       let data5 = data.casKey;
       if (typeof data5 === "string") {
         if (!pattern2.test(data5)) {
@@ -25474,7 +25954,7 @@ function validate206(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.sequence === undefined) {
+    if (data.sequence === undefined || !func0.call(data, "sequence")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -25489,7 +25969,7 @@ function validate206(
       }
       errors++;
     }
-    if (data.eventHash === undefined) {
+    if (data.eventHash === undefined || !func0.call(data, "eventHash")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -25504,7 +25984,7 @@ function validate206(
       }
       errors++;
     }
-    if (data.transition === undefined) {
+    if (data.transition === undefined || !func0.call(data, "transition")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -25519,7 +25999,10 @@ function validate206(
       }
       errors++;
     }
-    if (data.cancellationGeneration === undefined) {
+    if (
+      data.cancellationGeneration === undefined ||
+      !func0.call(data, "cancellationGeneration")
+    ) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -25535,7 +26018,7 @@ function validate206(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "sequence" ||
         key0 === "eventHash" ||
@@ -25557,7 +26040,7 @@ function validate206(
         errors++;
       }
     }
-    if (data.sequence !== undefined) {
+    if (data.sequence !== undefined && func0.call(data, "sequence")) {
       let data0 = data.sequence;
       if (!(
         typeof data0 == "number" &&
@@ -25612,7 +26095,7 @@ function validate206(
         }
       }
     }
-    if (data.eventHash !== undefined) {
+    if (data.eventHash !== undefined && func0.call(data, "eventHash")) {
       let data1 = data.eventHash;
       if (typeof data1 === "string") {
         if (!pattern2.test(data1)) {
@@ -25646,10 +26129,10 @@ function validate206(
         errors++;
       }
     }
-    if (data.transition !== undefined) {
+    if (data.transition !== undefined && func0.call(data, "transition")) {
       let data2 = data.transition;
       if (typeof data2 === "string") {
-        if (func2(data2) > 128) {
+        if (func57(data2) > 128) {
           const err10 = {
             instancePath: instancePath + "/transition",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -25664,7 +26147,7 @@ function validate206(
           }
           errors++;
         }
-        if (func2(data2) < 1) {
+        if (func57(data2) < 1) {
           const err11 = {
             instancePath: instancePath + "/transition",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -25711,7 +26194,10 @@ function validate206(
         errors++;
       }
     }
-    if (data.cancellationGeneration !== undefined) {
+    if (
+      data.cancellationGeneration !== undefined &&
+      func0.call(data, "cancellationGeneration")
+    ) {
       let data3 = data.cancellationGeneration;
       if (!(
         typeof data3 == "number" &&
@@ -25792,7 +26278,7 @@ function validate204(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.role === undefined) {
+    if (data.role === undefined || !func0.call(data, "role")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -25807,7 +26293,7 @@ function validate204(
       }
       errors++;
     }
-    if (data.subjectId === undefined) {
+    if (data.subjectId === undefined || !func0.call(data, "subjectId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -25822,7 +26308,7 @@ function validate204(
       }
       errors++;
     }
-    if (data.artifact === undefined) {
+    if (data.artifact === undefined || !func0.call(data, "artifact")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -25837,7 +26323,7 @@ function validate204(
       }
       errors++;
     }
-    if (data.sourceEvent === undefined) {
+    if (data.sourceEvent === undefined || !func0.call(data, "sourceEvent")) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -25852,7 +26338,7 @@ function validate204(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "role" ||
         key0 === "subjectId" ||
@@ -25874,7 +26360,7 @@ function validate204(
         errors++;
       }
     }
-    if (data.role !== undefined) {
+    if (data.role !== undefined && func0.call(data, "role")) {
       let data0 = data.role;
       if (!(data0 === "request" || data0 === "maker-output")) {
         const err5 = {
@@ -25892,10 +26378,10 @@ function validate204(
         errors++;
       }
     }
-    if (data.subjectId !== undefined) {
+    if (data.subjectId !== undefined && func0.call(data, "subjectId")) {
       let data1 = data.subjectId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err6 = {
             instancePath: instancePath + "/subjectId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -25910,7 +26396,7 @@ function validate204(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err7 = {
             instancePath: instancePath + "/subjectId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -25957,7 +26443,7 @@ function validate204(
         errors++;
       }
     }
-    if (data.artifact !== undefined) {
+    if (data.artifact !== undefined && func0.call(data, "artifact")) {
       if (
         !validate116(data.artifact, {
           instancePath: instancePath + "/artifact",
@@ -25973,7 +26459,7 @@ function validate204(
         errors = vErrors.length;
       }
     }
-    if (data.sourceEvent !== undefined) {
+    if (data.sourceEvent !== undefined && func0.call(data, "sourceEvent")) {
       if (
         !validate206(data.sourceEvent, {
           instancePath: instancePath + "/sourceEvent",
@@ -26015,7 +26501,10 @@ function validate190(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.schemaVersion === undefined) {
+    if (
+      data.schemaVersion === undefined ||
+      !func0.call(data, "schemaVersion")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -26030,7 +26519,10 @@ function validate190(
       }
       errors++;
     }
-    if (data.harnessVersion === undefined) {
+    if (
+      data.harnessVersion === undefined ||
+      !func0.call(data, "harnessVersion")
+    ) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -26045,7 +26537,7 @@ function validate190(
       }
       errors++;
     }
-    if (data.namespace === undefined) {
+    if (data.namespace === undefined || !func0.call(data, "namespace")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -26060,7 +26552,7 @@ function validate190(
       }
       errors++;
     }
-    if (data.integrity === undefined) {
+    if (data.integrity === undefined || !func0.call(data, "integrity")) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -26075,7 +26567,10 @@ function validate190(
       }
       errors++;
     }
-    if (data.authenticated === undefined) {
+    if (
+      data.authenticated === undefined ||
+      !func0.call(data, "authenticated")
+    ) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -26090,7 +26585,7 @@ function validate190(
       }
       errors++;
     }
-    if (data.boundary === undefined) {
+    if (data.boundary === undefined || !func0.call(data, "boundary")) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -26105,7 +26600,7 @@ function validate190(
       }
       errors++;
     }
-    if (data.jobId === undefined) {
+    if (data.jobId === undefined || !func0.call(data, "jobId")) {
       const err6 = {
         instancePath,
         schemaPath: "#/required",
@@ -26120,7 +26615,10 @@ function validate190(
       }
       errors++;
     }
-    if (data.protocolVersion === undefined) {
+    if (
+      data.protocolVersion === undefined ||
+      !func0.call(data, "protocolVersion")
+    ) {
       const err7 = {
         instancePath,
         schemaPath: "#/required",
@@ -26135,7 +26633,10 @@ function validate190(
       }
       errors++;
     }
-    if (data.generationVersion === undefined) {
+    if (
+      data.generationVersion === undefined ||
+      !func0.call(data, "generationVersion")
+    ) {
       const err8 = {
         instancePath,
         schemaPath: "#/required",
@@ -26150,7 +26651,10 @@ function validate190(
       }
       errors++;
     }
-    if (data.compilerSnapshotHash === undefined) {
+    if (
+      data.compilerSnapshotHash === undefined ||
+      !func0.call(data, "compilerSnapshotHash")
+    ) {
       const err9 = {
         instancePath,
         schemaPath: "#/required",
@@ -26165,7 +26669,10 @@ function validate190(
       }
       errors++;
     }
-    if (data.rankingPolicyHash === undefined) {
+    if (
+      data.rankingPolicyHash === undefined ||
+      !func0.call(data, "rankingPolicyHash")
+    ) {
       const err10 = {
         instancePath,
         schemaPath: "#/required",
@@ -26180,7 +26687,10 @@ function validate190(
       }
       errors++;
     }
-    if (data.replayPolicyHash === undefined) {
+    if (
+      data.replayPolicyHash === undefined ||
+      !func0.call(data, "replayPolicyHash")
+    ) {
       const err11 = {
         instancePath,
         schemaPath: "#/required",
@@ -26195,7 +26705,10 @@ function validate190(
       }
       errors++;
     }
-    if (data.baseDocumentHash === undefined) {
+    if (
+      data.baseDocumentHash === undefined ||
+      !func0.call(data, "baseDocumentHash")
+    ) {
       const err12 = {
         instancePath,
         schemaPath: "#/required",
@@ -26210,7 +26723,10 @@ function validate190(
       }
       errors++;
     }
-    if (data.truthSnapshotHash === undefined) {
+    if (
+      data.truthSnapshotHash === undefined ||
+      !func0.call(data, "truthSnapshotHash")
+    ) {
       const err13 = {
         instancePath,
         schemaPath: "#/required",
@@ -26225,7 +26741,7 @@ function validate190(
       }
       errors++;
     }
-    if (data.briefHash === undefined) {
+    if (data.briefHash === undefined || !func0.call(data, "briefHash")) {
       const err14 = {
         instancePath,
         schemaPath: "#/required",
@@ -26240,7 +26756,10 @@ function validate190(
       }
       errors++;
     }
-    if (data.normalizedBriefHash === undefined) {
+    if (
+      data.normalizedBriefHash === undefined ||
+      !func0.call(data, "normalizedBriefHash")
+    ) {
       const err15 = {
         instancePath,
         schemaPath: "#/required",
@@ -26255,7 +26774,7 @@ function validate190(
       }
       errors++;
     }
-    if (data.scopeDigest === undefined) {
+    if (data.scopeDigest === undefined || !func0.call(data, "scopeDigest")) {
       const err16 = {
         instancePath,
         schemaPath: "#/required",
@@ -26270,7 +26789,7 @@ function validate190(
       }
       errors++;
     }
-    if (data.requestHash === undefined) {
+    if (data.requestHash === undefined || !func0.call(data, "requestHash")) {
       const err17 = {
         instancePath,
         schemaPath: "#/required",
@@ -26285,7 +26804,10 @@ function validate190(
       }
       errors++;
     }
-    if (data.requestByteLength === undefined) {
+    if (
+      data.requestByteLength === undefined ||
+      !func0.call(data, "requestByteLength")
+    ) {
       const err18 = {
         instancePath,
         schemaPath: "#/required",
@@ -26300,7 +26822,10 @@ function validate190(
       }
       errors++;
     }
-    if (data.capturedProgramsHash === undefined) {
+    if (
+      data.capturedProgramsHash === undefined ||
+      !func0.call(data, "capturedProgramsHash")
+    ) {
       const err19 = {
         instancePath,
         schemaPath: "#/required",
@@ -26315,7 +26840,10 @@ function validate190(
       }
       errors++;
     }
-    if (data.capturedProgramsByteLength === undefined) {
+    if (
+      data.capturedProgramsByteLength === undefined ||
+      !func0.call(data, "capturedProgramsByteLength")
+    ) {
       const err20 = {
         instancePath,
         schemaPath: "#/required",
@@ -26331,7 +26859,10 @@ function validate190(
       }
       errors++;
     }
-    if (data.populationHash === undefined) {
+    if (
+      data.populationHash === undefined ||
+      !func0.call(data, "populationHash")
+    ) {
       const err21 = {
         instancePath,
         schemaPath: "#/required",
@@ -26346,7 +26877,10 @@ function validate190(
       }
       errors++;
     }
-    if (data.populationByteLength === undefined) {
+    if (
+      data.populationByteLength === undefined ||
+      !func0.call(data, "populationByteLength")
+    ) {
       const err22 = {
         instancePath,
         schemaPath: "#/required",
@@ -26361,7 +26895,7 @@ function validate190(
       }
       errors++;
     }
-    if (data.resultOk === undefined) {
+    if (data.resultOk === undefined || !func0.call(data, "resultOk")) {
       const err23 = {
         instancePath,
         schemaPath: "#/required",
@@ -26376,7 +26910,7 @@ function validate190(
       }
       errors++;
     }
-    if (data.candidates === undefined) {
+    if (data.candidates === undefined || !func0.call(data, "candidates")) {
       const err24 = {
         instancePath,
         schemaPath: "#/required",
@@ -26391,8 +26925,8 @@ function validate190(
       }
       errors++;
     }
-    for (const key0 in data) {
-      if (!func8.call(schema296.properties, key0)) {
+    for (const key0 of Object.keys(data)) {
+      if (!func0.call(schema296.properties, key0)) {
         const err25 = {
           instancePath,
           schemaPath: "#/additionalProperties",
@@ -26408,7 +26942,7 @@ function validate190(
         errors++;
       }
     }
-    if (data.schemaVersion !== undefined) {
+    if (data.schemaVersion !== undefined && func0.call(data, "schemaVersion")) {
       if (
         "lego.deterministic-maker-capture-manifest/1" !== data.schemaVersion
       ) {
@@ -26429,7 +26963,10 @@ function validate190(
         errors++;
       }
     }
-    if (data.harnessVersion !== undefined) {
+    if (
+      data.harnessVersion !== undefined &&
+      func0.call(data, "harnessVersion")
+    ) {
       if ("lego.harness/1" !== data.harnessVersion) {
         const err27 = {
           instancePath: instancePath + "/harnessVersion",
@@ -26446,7 +26983,7 @@ function validate190(
         errors++;
       }
     }
-    if (data.namespace !== undefined) {
+    if (data.namespace !== undefined && func0.call(data, "namespace")) {
       if ("test" !== data.namespace) {
         const err28 = {
           instancePath: instancePath + "/namespace",
@@ -26463,7 +27000,7 @@ function validate190(
         errors++;
       }
     }
-    if (data.integrity !== undefined) {
+    if (data.integrity !== undefined && func0.call(data, "integrity")) {
       if ("unsealed" !== data.integrity) {
         const err29 = {
           instancePath: instancePath + "/integrity",
@@ -26480,7 +27017,7 @@ function validate190(
         errors++;
       }
     }
-    if (data.authenticated !== undefined) {
+    if (data.authenticated !== undefined && func0.call(data, "authenticated")) {
       if (false !== data.authenticated) {
         const err30 = {
           instancePath: instancePath + "/authenticated",
@@ -26497,7 +27034,7 @@ function validate190(
         errors++;
       }
     }
-    if (data.boundary !== undefined) {
+    if (data.boundary !== undefined && func0.call(data, "boundary")) {
       if ("deterministic-recipe-results" !== data.boundary) {
         const err31 = {
           instancePath: instancePath + "/boundary",
@@ -26514,10 +27051,10 @@ function validate190(
         errors++;
       }
     }
-    if (data.jobId !== undefined) {
+    if (data.jobId !== undefined && func0.call(data, "jobId")) {
       let data6 = data.jobId;
       if (typeof data6 === "string") {
-        if (func2(data6) > 128) {
+        if (func57(data6) > 128) {
           const err32 = {
             instancePath: instancePath + "/jobId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -26532,7 +27069,7 @@ function validate190(
           }
           errors++;
         }
-        if (func2(data6) < 1) {
+        if (func57(data6) < 1) {
           const err33 = {
             instancePath: instancePath + "/jobId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -26579,10 +27116,13 @@ function validate190(
         errors++;
       }
     }
-    if (data.protocolVersion !== undefined) {
+    if (
+      data.protocolVersion !== undefined &&
+      func0.call(data, "protocolVersion")
+    ) {
       let data7 = data.protocolVersion;
       if (typeof data7 === "string") {
-        if (func2(data7) > 128) {
+        if (func57(data7) > 128) {
           const err36 = {
             instancePath: instancePath + "/protocolVersion",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -26597,7 +27137,7 @@ function validate190(
           }
           errors++;
         }
-        if (func2(data7) < 1) {
+        if (func57(data7) < 1) {
           const err37 = {
             instancePath: instancePath + "/protocolVersion",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -26644,10 +27184,13 @@ function validate190(
         errors++;
       }
     }
-    if (data.generationVersion !== undefined) {
+    if (
+      data.generationVersion !== undefined &&
+      func0.call(data, "generationVersion")
+    ) {
       let data8 = data.generationVersion;
       if (typeof data8 === "string") {
-        if (func2(data8) > 128) {
+        if (func57(data8) > 128) {
           const err40 = {
             instancePath: instancePath + "/generationVersion",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -26662,7 +27205,7 @@ function validate190(
           }
           errors++;
         }
-        if (func2(data8) < 1) {
+        if (func57(data8) < 1) {
           const err41 = {
             instancePath: instancePath + "/generationVersion",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -26709,7 +27252,10 @@ function validate190(
         errors++;
       }
     }
-    if (data.compilerSnapshotHash !== undefined) {
+    if (
+      data.compilerSnapshotHash !== undefined &&
+      func0.call(data, "compilerSnapshotHash")
+    ) {
       let data9 = data.compilerSnapshotHash;
       if (typeof data9 === "string") {
         if (!pattern2.test(data9)) {
@@ -26743,7 +27289,10 @@ function validate190(
         errors++;
       }
     }
-    if (data.rankingPolicyHash !== undefined) {
+    if (
+      data.rankingPolicyHash !== undefined &&
+      func0.call(data, "rankingPolicyHash")
+    ) {
       let data10 = data.rankingPolicyHash;
       if (typeof data10 === "string") {
         if (!pattern2.test(data10)) {
@@ -26777,7 +27326,10 @@ function validate190(
         errors++;
       }
     }
-    if (data.replayPolicyHash !== undefined) {
+    if (
+      data.replayPolicyHash !== undefined &&
+      func0.call(data, "replayPolicyHash")
+    ) {
       let data11 = data.replayPolicyHash;
       if (typeof data11 === "string") {
         if (!pattern2.test(data11)) {
@@ -26811,7 +27363,10 @@ function validate190(
         errors++;
       }
     }
-    if (data.baseDocumentHash !== undefined) {
+    if (
+      data.baseDocumentHash !== undefined &&
+      func0.call(data, "baseDocumentHash")
+    ) {
       let data12 = data.baseDocumentHash;
       if (typeof data12 === "string") {
         if (!pattern2.test(data12)) {
@@ -26845,7 +27400,10 @@ function validate190(
         errors++;
       }
     }
-    if (data.truthSnapshotHash !== undefined) {
+    if (
+      data.truthSnapshotHash !== undefined &&
+      func0.call(data, "truthSnapshotHash")
+    ) {
       let data13 = data.truthSnapshotHash;
       if (typeof data13 === "string") {
         if (!pattern2.test(data13)) {
@@ -26879,7 +27437,7 @@ function validate190(
         errors++;
       }
     }
-    if (data.briefHash !== undefined) {
+    if (data.briefHash !== undefined && func0.call(data, "briefHash")) {
       let data14 = data.briefHash;
       if (typeof data14 === "string") {
         if (!pattern2.test(data14)) {
@@ -26913,7 +27471,10 @@ function validate190(
         errors++;
       }
     }
-    if (data.normalizedBriefHash !== undefined) {
+    if (
+      data.normalizedBriefHash !== undefined &&
+      func0.call(data, "normalizedBriefHash")
+    ) {
       if (
         !validate191(data.normalizedBriefHash, {
           instancePath: instancePath + "/normalizedBriefHash",
@@ -26929,7 +27490,7 @@ function validate190(
         errors = vErrors.length;
       }
     }
-    if (data.scopeDigest !== undefined) {
+    if (data.scopeDigest !== undefined && func0.call(data, "scopeDigest")) {
       let data16 = data.scopeDigest;
       if (typeof data16 === "string") {
         if (!pattern2.test(data16)) {
@@ -26963,7 +27524,7 @@ function validate190(
         errors++;
       }
     }
-    if (data.requestHash !== undefined) {
+    if (data.requestHash !== undefined && func0.call(data, "requestHash")) {
       let data17 = data.requestHash;
       if (typeof data17 === "string") {
         if (!pattern2.test(data17)) {
@@ -26997,7 +27558,10 @@ function validate190(
         errors++;
       }
     }
-    if (data.requestByteLength !== undefined) {
+    if (
+      data.requestByteLength !== undefined &&
+      func0.call(data, "requestByteLength")
+    ) {
       let data18 = data.requestByteLength;
       if (!(
         typeof data18 == "number" &&
@@ -27052,7 +27616,10 @@ function validate190(
         }
       }
     }
-    if (data.capturedProgramsHash !== undefined) {
+    if (
+      data.capturedProgramsHash !== undefined &&
+      func0.call(data, "capturedProgramsHash")
+    ) {
       let data19 = data.capturedProgramsHash;
       if (typeof data19 === "string") {
         if (!pattern2.test(data19)) {
@@ -27086,7 +27653,10 @@ function validate190(
         errors++;
       }
     }
-    if (data.capturedProgramsByteLength !== undefined) {
+    if (
+      data.capturedProgramsByteLength !== undefined &&
+      func0.call(data, "capturedProgramsByteLength")
+    ) {
       let data20 = data.capturedProgramsByteLength;
       if (!(
         typeof data20 == "number" &&
@@ -27141,7 +27711,10 @@ function validate190(
         }
       }
     }
-    if (data.populationHash !== undefined) {
+    if (
+      data.populationHash !== undefined &&
+      func0.call(data, "populationHash")
+    ) {
       let data21 = data.populationHash;
       if (typeof data21 === "string") {
         if (!pattern2.test(data21)) {
@@ -27175,7 +27748,10 @@ function validate190(
         errors++;
       }
     }
-    if (data.populationByteLength !== undefined) {
+    if (
+      data.populationByteLength !== undefined &&
+      func0.call(data, "populationByteLength")
+    ) {
       let data22 = data.populationByteLength;
       if (!(
         typeof data22 == "number" &&
@@ -27230,7 +27806,7 @@ function validate190(
         }
       }
     }
-    if (data.resultOk !== undefined) {
+    if (data.resultOk !== undefined && func0.call(data, "resultOk")) {
       if (typeof data.resultOk !== "boolean") {
         const err73 = {
           instancePath: instancePath + "/resultOk",
@@ -27247,7 +27823,7 @@ function validate190(
         errors++;
       }
     }
-    if (data.candidates !== undefined) {
+    if (data.candidates !== undefined && func0.call(data, "candidates")) {
       let data24 = data.candidates;
       if (Array.isArray(data24)) {
         if (data24.length > 4) {
@@ -27317,14 +27893,17 @@ function validate190(
   return errors === 0;
 }
 
-function validate321(
+function validate327(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.schemaVersion === undefined) {
+    if (
+      data.schemaVersion === undefined ||
+      !func0.call(data, "schemaVersion")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -27339,7 +27918,7 @@ function validate321(
       }
       errors++;
     }
-    if (data.namespace === undefined) {
+    if (data.namespace === undefined || !func0.call(data, "namespace")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -27354,7 +27933,7 @@ function validate321(
       }
       errors++;
     }
-    if (data.integrity === undefined) {
+    if (data.integrity === undefined || !func0.call(data, "integrity")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -27369,7 +27948,10 @@ function validate321(
       }
       errors++;
     }
-    if (data.authenticated === undefined) {
+    if (
+      data.authenticated === undefined ||
+      !func0.call(data, "authenticated")
+    ) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -27384,7 +27966,7 @@ function validate321(
       }
       errors++;
     }
-    if (data.runId === undefined) {
+    if (data.runId === undefined || !func0.call(data, "runId")) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -27399,7 +27981,7 @@ function validate321(
       }
       errors++;
     }
-    if (data.jobId === undefined) {
+    if (data.jobId === undefined || !func0.call(data, "jobId")) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -27414,7 +27996,10 @@ function validate321(
       }
       errors++;
     }
-    if (data.coveredEventCount === undefined) {
+    if (
+      data.coveredEventCount === undefined ||
+      !func0.call(data, "coveredEventCount")
+    ) {
       const err6 = {
         instancePath,
         schemaPath: "#/required",
@@ -27429,7 +28014,10 @@ function validate321(
       }
       errors++;
     }
-    if (data.coveredEventRoot === undefined) {
+    if (
+      data.coveredEventRoot === undefined ||
+      !func0.call(data, "coveredEventRoot")
+    ) {
       const err7 = {
         instancePath,
         schemaPath: "#/required",
@@ -27444,7 +28032,10 @@ function validate321(
       }
       errors++;
     }
-    if (data.replayBoundary === undefined) {
+    if (
+      data.replayBoundary === undefined ||
+      !func0.call(data, "replayBoundary")
+    ) {
       const err8 = {
         instancePath,
         schemaPath: "#/required",
@@ -27459,7 +28050,7 @@ function validate321(
       }
       errors++;
     }
-    if (data.roles === undefined) {
+    if (data.roles === undefined || !func0.call(data, "roles")) {
       const err9 = {
         instancePath,
         schemaPath: "#/required",
@@ -27474,7 +28065,7 @@ function validate321(
       }
       errors++;
     }
-    if (data.capture === undefined) {
+    if (data.capture === undefined || !func0.call(data, "capture")) {
       const err10 = {
         instancePath,
         schemaPath: "#/required",
@@ -27489,7 +28080,10 @@ function validate321(
       }
       errors++;
     }
-    if (data.terminalIntent === undefined) {
+    if (
+      data.terminalIntent === undefined ||
+      !func0.call(data, "terminalIntent")
+    ) {
       const err11 = {
         instancePath,
         schemaPath: "#/required",
@@ -27504,8 +28098,8 @@ function validate321(
       }
       errors++;
     }
-    for (const key0 in data) {
-      if (!func8.call(schema318.properties, key0)) {
+    for (const key0 of Object.keys(data)) {
+      if (!func0.call(schema318.properties, key0)) {
         const err12 = {
           instancePath,
           schemaPath: "#/additionalProperties",
@@ -27521,7 +28115,7 @@ function validate321(
         errors++;
       }
     }
-    if (data.schemaVersion !== undefined) {
+    if (data.schemaVersion !== undefined && func0.call(data, "schemaVersion")) {
       if ("lego.test-run-bundle-manifest/1" !== data.schemaVersion) {
         const err13 = {
           instancePath: instancePath + "/schemaVersion",
@@ -27538,7 +28132,7 @@ function validate321(
         errors++;
       }
     }
-    if (data.namespace !== undefined) {
+    if (data.namespace !== undefined && func0.call(data, "namespace")) {
       if ("test" !== data.namespace) {
         const err14 = {
           instancePath: instancePath + "/namespace",
@@ -27555,7 +28149,7 @@ function validate321(
         errors++;
       }
     }
-    if (data.integrity !== undefined) {
+    if (data.integrity !== undefined && func0.call(data, "integrity")) {
       if ("unsealed" !== data.integrity) {
         const err15 = {
           instancePath: instancePath + "/integrity",
@@ -27572,7 +28166,7 @@ function validate321(
         errors++;
       }
     }
-    if (data.authenticated !== undefined) {
+    if (data.authenticated !== undefined && func0.call(data, "authenticated")) {
       if (false !== data.authenticated) {
         const err16 = {
           instancePath: instancePath + "/authenticated",
@@ -27589,10 +28183,10 @@ function validate321(
         errors++;
       }
     }
-    if (data.runId !== undefined) {
+    if (data.runId !== undefined && func0.call(data, "runId")) {
       let data4 = data.runId;
       if (typeof data4 === "string") {
-        if (func2(data4) > 128) {
+        if (func57(data4) > 128) {
           const err17 = {
             instancePath: instancePath + "/runId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -27607,7 +28201,7 @@ function validate321(
           }
           errors++;
         }
-        if (func2(data4) < 1) {
+        if (func57(data4) < 1) {
           const err18 = {
             instancePath: instancePath + "/runId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -27654,10 +28248,10 @@ function validate321(
         errors++;
       }
     }
-    if (data.jobId !== undefined) {
+    if (data.jobId !== undefined && func0.call(data, "jobId")) {
       let data5 = data.jobId;
       if (typeof data5 === "string") {
-        if (func2(data5) > 128) {
+        if (func57(data5) > 128) {
           const err21 = {
             instancePath: instancePath + "/jobId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -27672,7 +28266,7 @@ function validate321(
           }
           errors++;
         }
-        if (func2(data5) < 1) {
+        if (func57(data5) < 1) {
           const err22 = {
             instancePath: instancePath + "/jobId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -27719,7 +28313,10 @@ function validate321(
         errors++;
       }
     }
-    if (data.coveredEventCount !== undefined) {
+    if (
+      data.coveredEventCount !== undefined &&
+      func0.call(data, "coveredEventCount")
+    ) {
       let data6 = data.coveredEventCount;
       if (!(
         typeof data6 == "number" &&
@@ -27774,7 +28371,10 @@ function validate321(
         }
       }
     }
-    if (data.coveredEventRoot !== undefined) {
+    if (
+      data.coveredEventRoot !== undefined &&
+      func0.call(data, "coveredEventRoot")
+    ) {
       let data7 = data.coveredEventRoot;
       if (typeof data7 === "string") {
         if (!pattern2.test(data7)) {
@@ -27808,7 +28408,10 @@ function validate321(
         errors++;
       }
     }
-    if (data.replayBoundary !== undefined) {
+    if (
+      data.replayBoundary !== undefined &&
+      func0.call(data, "replayBoundary")
+    ) {
       if ("deterministic-recipe-results" !== data.replayBoundary) {
         const err30 = {
           instancePath: instancePath + "/replayBoundary",
@@ -27825,7 +28428,7 @@ function validate321(
         errors++;
       }
     }
-    if (data.roles !== undefined) {
+    if (data.roles !== undefined && func0.call(data, "roles")) {
       let data9 = data.roles;
       if (Array.isArray(data9)) {
         if (data9.length > 2) {
@@ -27891,7 +28494,7 @@ function validate321(
         errors++;
       }
     }
-    if (data.capture !== undefined) {
+    if (data.capture !== undefined && func0.call(data, "capture")) {
       if (
         !validate190(data.capture, {
           instancePath: instancePath + "/capture",
@@ -27907,7 +28510,10 @@ function validate321(
         errors = vErrors.length;
       }
     }
-    if (data.terminalIntent !== undefined) {
+    if (
+      data.terminalIntent !== undefined &&
+      func0.call(data, "terminalIntent")
+    ) {
       if ("exhausted" !== data.terminalIntent) {
         const err34 = {
           instancePath: instancePath + "/terminalIntent",
@@ -27939,11 +28545,11 @@ function validate321(
     }
     errors++;
   }
-  validate321.errors = vErrors;
+  validate327.errors = vErrors;
   return errors === 0;
 }
 
-function validate320(
+function validate326(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -27951,7 +28557,7 @@ function validate320(
     null;
   let errors = 0;
   if (
-    !validate321(data, {
+    !validate327(data, {
       instancePath,
       parentData,
       parentDataProperty,
@@ -27960,16 +28566,16 @@ function validate320(
   ) {
     vErrors =
       vErrors === null
-        ? validate321.errors
-        : vErrors.concat(validate321.errors);
+        ? validate327.errors
+        : vErrors.concat(validate327.errors);
     errors = vErrors.length;
   }
-  validate320.errors = vErrors;
+  validate326.errors = vErrors;
   return errors === 0;
 }
 
-export const validateTestRunBundleHandleV1 = validate325;
-const schema454 = {
+export const validateTestRunBundleHandleV1 = validate331;
+const schema475 = {
   $id: "https://schemas.brick-studio.local/protocol/1/validators/TestRunBundleHandleV1",
   $ref: "https://schemas.brick-studio.local/protocol/1#/definitions/TestRunBundleHandleV1",
 };
@@ -28002,14 +28608,17 @@ const schema327 = {
   },
 };
 
-function validate326(
+function validate332(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.schemaVersion === undefined) {
+    if (
+      data.schemaVersion === undefined ||
+      !func0.call(data, "schemaVersion")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -28024,7 +28633,7 @@ function validate326(
       }
       errors++;
     }
-    if (data.namespace === undefined) {
+    if (data.namespace === undefined || !func0.call(data, "namespace")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -28039,7 +28648,7 @@ function validate326(
       }
       errors++;
     }
-    if (data.integrity === undefined) {
+    if (data.integrity === undefined || !func0.call(data, "integrity")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -28054,7 +28663,10 @@ function validate326(
       }
       errors++;
     }
-    if (data.authenticated === undefined) {
+    if (
+      data.authenticated === undefined ||
+      !func0.call(data, "authenticated")
+    ) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -28069,7 +28681,7 @@ function validate326(
       }
       errors++;
     }
-    if (data.runId === undefined) {
+    if (data.runId === undefined || !func0.call(data, "runId")) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -28084,7 +28696,7 @@ function validate326(
       }
       errors++;
     }
-    if (data.manifestRef === undefined) {
+    if (data.manifestRef === undefined || !func0.call(data, "manifestRef")) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -28099,7 +28711,10 @@ function validate326(
       }
       errors++;
     }
-    if (data.terminalEventHash === undefined) {
+    if (
+      data.terminalEventHash === undefined ||
+      !func0.call(data, "terminalEventHash")
+    ) {
       const err6 = {
         instancePath,
         schemaPath: "#/required",
@@ -28114,7 +28729,10 @@ function validate326(
       }
       errors++;
     }
-    if (data.terminalSequence === undefined) {
+    if (
+      data.terminalSequence === undefined ||
+      !func0.call(data, "terminalSequence")
+    ) {
       const err7 = {
         instancePath,
         schemaPath: "#/required",
@@ -28129,7 +28747,7 @@ function validate326(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "schemaVersion" ||
         key0 === "namespace" ||
@@ -28155,7 +28773,7 @@ function validate326(
         errors++;
       }
     }
-    if (data.schemaVersion !== undefined) {
+    if (data.schemaVersion !== undefined && func0.call(data, "schemaVersion")) {
       if ("lego.test-run-bundle-handle/1" !== data.schemaVersion) {
         const err9 = {
           instancePath: instancePath + "/schemaVersion",
@@ -28172,7 +28790,7 @@ function validate326(
         errors++;
       }
     }
-    if (data.namespace !== undefined) {
+    if (data.namespace !== undefined && func0.call(data, "namespace")) {
       if ("test" !== data.namespace) {
         const err10 = {
           instancePath: instancePath + "/namespace",
@@ -28189,7 +28807,7 @@ function validate326(
         errors++;
       }
     }
-    if (data.integrity !== undefined) {
+    if (data.integrity !== undefined && func0.call(data, "integrity")) {
       if ("unsealed" !== data.integrity) {
         const err11 = {
           instancePath: instancePath + "/integrity",
@@ -28206,7 +28824,7 @@ function validate326(
         errors++;
       }
     }
-    if (data.authenticated !== undefined) {
+    if (data.authenticated !== undefined && func0.call(data, "authenticated")) {
       if (false !== data.authenticated) {
         const err12 = {
           instancePath: instancePath + "/authenticated",
@@ -28223,10 +28841,10 @@ function validate326(
         errors++;
       }
     }
-    if (data.runId !== undefined) {
+    if (data.runId !== undefined && func0.call(data, "runId")) {
       let data4 = data.runId;
       if (typeof data4 === "string") {
-        if (func2(data4) > 128) {
+        if (func57(data4) > 128) {
           const err13 = {
             instancePath: instancePath + "/runId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -28241,7 +28859,7 @@ function validate326(
           }
           errors++;
         }
-        if (func2(data4) < 1) {
+        if (func57(data4) < 1) {
           const err14 = {
             instancePath: instancePath + "/runId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -28288,7 +28906,7 @@ function validate326(
         errors++;
       }
     }
-    if (data.manifestRef !== undefined) {
+    if (data.manifestRef !== undefined && func0.call(data, "manifestRef")) {
       if (
         !validate116(data.manifestRef, {
           instancePath: instancePath + "/manifestRef",
@@ -28304,7 +28922,10 @@ function validate326(
         errors = vErrors.length;
       }
     }
-    if (data.terminalEventHash !== undefined) {
+    if (
+      data.terminalEventHash !== undefined &&
+      func0.call(data, "terminalEventHash")
+    ) {
       let data6 = data.terminalEventHash;
       if (typeof data6 === "string") {
         if (!pattern2.test(data6)) {
@@ -28338,7 +28959,10 @@ function validate326(
         errors++;
       }
     }
-    if (data.terminalSequence !== undefined) {
+    if (
+      data.terminalSequence !== undefined &&
+      func0.call(data, "terminalSequence")
+    ) {
       let data7 = data.terminalSequence;
       if (!(
         typeof data7 == "number" &&
@@ -28408,11 +29032,11 @@ function validate326(
     }
     errors++;
   }
-  validate326.errors = vErrors;
+  validate332.errors = vErrors;
   return errors === 0;
 }
 
-function validate325(
+function validate331(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -28420,7 +29044,7 @@ function validate325(
     null;
   let errors = 0;
   if (
-    !validate326(data, {
+    !validate332(data, {
       instancePath,
       parentData,
       parentDataProperty,
@@ -28429,16 +29053,16 @@ function validate325(
   ) {
     vErrors =
       vErrors === null
-        ? validate326.errors
-        : vErrors.concat(validate326.errors);
+        ? validate332.errors
+        : vErrors.concat(validate332.errors);
     errors = vErrors.length;
   }
-  validate325.errors = vErrors;
+  validate331.errors = vErrors;
   return errors === 0;
 }
 
-export const validateBuildBriefV1 = validate329;
-const schema458 = {
+export const validateBuildBriefV1 = validate335;
+const schema479 = {
   $id: "https://schemas.brick-studio.local/protocol/1/validators/BuildBriefV1",
   $ref: "https://schemas.brick-studio.local/protocol/1#/definitions/BuildBriefV1",
 };
@@ -28523,7 +29147,10 @@ function validate120(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.policyVersion === undefined) {
+    if (
+      data.policyVersion === undefined ||
+      !func0.call(data, "policyVersion")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -28538,7 +29165,10 @@ function validate120(
       }
       errors++;
     }
-    if (data.providerTransmission === undefined) {
+    if (
+      data.providerTransmission === undefined ||
+      !func0.call(data, "providerTransmission")
+    ) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -28553,7 +29183,10 @@ function validate120(
       }
       errors++;
     }
-    if (data.retainRunArtifacts === undefined) {
+    if (
+      data.retainRunArtifacts === undefined ||
+      !func0.call(data, "retainRunArtifacts")
+    ) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -28568,7 +29201,7 @@ function validate120(
       }
       errors++;
     }
-    if (data.knowledgeUse === undefined) {
+    if (data.knowledgeUse === undefined || !func0.call(data, "knowledgeUse")) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -28583,7 +29216,7 @@ function validate120(
       }
       errors++;
     }
-    if (data.benchmarkUse === undefined) {
+    if (data.benchmarkUse === undefined || !func0.call(data, "benchmarkUse")) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -28598,7 +29231,7 @@ function validate120(
       }
       errors++;
     }
-    if (data.trainingUse === undefined) {
+    if (data.trainingUse === undefined || !func0.call(data, "trainingUse")) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -28613,7 +29246,7 @@ function validate120(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "policyVersion" ||
         key0 === "providerTransmission" ||
@@ -28637,10 +29270,10 @@ function validate120(
         errors++;
       }
     }
-    if (data.policyVersion !== undefined) {
+    if (data.policyVersion !== undefined && func0.call(data, "policyVersion")) {
       let data0 = data.policyVersion;
       if (typeof data0 === "string") {
-        if (func2(data0) > 128) {
+        if (func57(data0) > 128) {
           const err7 = {
             instancePath: instancePath + "/policyVersion",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -28655,7 +29288,7 @@ function validate120(
           }
           errors++;
         }
-        if (func2(data0) < 1) {
+        if (func57(data0) < 1) {
           const err8 = {
             instancePath: instancePath + "/policyVersion",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -28702,7 +29335,10 @@ function validate120(
         errors++;
       }
     }
-    if (data.providerTransmission !== undefined) {
+    if (
+      data.providerTransmission !== undefined &&
+      func0.call(data, "providerTransmission")
+    ) {
       let data1 = data.providerTransmission;
       if (!(
         data1 === "none" ||
@@ -28726,7 +29362,10 @@ function validate120(
         errors++;
       }
     }
-    if (data.retainRunArtifacts !== undefined) {
+    if (
+      data.retainRunArtifacts !== undefined &&
+      func0.call(data, "retainRunArtifacts")
+    ) {
       if (typeof data.retainRunArtifacts !== "boolean") {
         const err12 = {
           instancePath: instancePath + "/retainRunArtifacts",
@@ -28743,7 +29382,7 @@ function validate120(
         errors++;
       }
     }
-    if (data.knowledgeUse !== undefined) {
+    if (data.knowledgeUse !== undefined && func0.call(data, "knowledgeUse")) {
       if (typeof data.knowledgeUse !== "boolean") {
         const err13 = {
           instancePath: instancePath + "/knowledgeUse",
@@ -28760,7 +29399,7 @@ function validate120(
         errors++;
       }
     }
-    if (data.benchmarkUse !== undefined) {
+    if (data.benchmarkUse !== undefined && func0.call(data, "benchmarkUse")) {
       if (typeof data.benchmarkUse !== "boolean") {
         const err14 = {
           instancePath: instancePath + "/benchmarkUse",
@@ -28777,7 +29416,7 @@ function validate120(
         errors++;
       }
     }
-    if (data.trainingUse !== undefined) {
+    if (data.trainingUse !== undefined && func0.call(data, "trainingUse")) {
       if (typeof data.trainingUse !== "boolean") {
         const err15 = {
           instancePath: instancePath + "/trainingUse",
@@ -28813,14 +29452,17 @@ function validate120(
   return errors === 0;
 }
 
-function validate330(
+function validate336(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.schemaVersion === undefined) {
+    if (
+      data.schemaVersion === undefined ||
+      !func0.call(data, "schemaVersion")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -28835,7 +29477,7 @@ function validate330(
       }
       errors++;
     }
-    if (data.mode === undefined) {
+    if (data.mode === undefined || !func0.call(data, "mode")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -28850,7 +29492,7 @@ function validate330(
       }
       errors++;
     }
-    if (data.prompt === undefined) {
+    if (data.prompt === undefined || !func0.call(data, "prompt")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -28865,7 +29507,10 @@ function validate330(
       }
       errors++;
     }
-    if (data.referenceArtifactIds === undefined) {
+    if (
+      data.referenceArtifactIds === undefined ||
+      !func0.call(data, "referenceArtifactIds")
+    ) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -28880,7 +29525,7 @@ function validate330(
       }
       errors++;
     }
-    if (data.baseRevision === undefined) {
+    if (data.baseRevision === undefined || !func0.call(data, "baseRevision")) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -28895,7 +29540,10 @@ function validate330(
       }
       errors++;
     }
-    if (data.baseDocumentHash === undefined) {
+    if (
+      data.baseDocumentHash === undefined ||
+      !func0.call(data, "baseDocumentHash")
+    ) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -28910,7 +29558,10 @@ function validate330(
       }
       errors++;
     }
-    if (data.allowedCatalogPartIds === undefined) {
+    if (
+      data.allowedCatalogPartIds === undefined ||
+      !func0.call(data, "allowedCatalogPartIds")
+    ) {
       const err6 = {
         instancePath,
         schemaPath: "#/required",
@@ -28926,7 +29577,10 @@ function validate330(
       }
       errors++;
     }
-    if (data.allowedColorIds === undefined) {
+    if (
+      data.allowedColorIds === undefined ||
+      !func0.call(data, "allowedColorIds")
+    ) {
       const err7 = {
         instancePath,
         schemaPath: "#/required",
@@ -28941,7 +29595,7 @@ function validate330(
       }
       errors++;
     }
-    if (data.pieceBudget === undefined) {
+    if (data.pieceBudget === undefined || !func0.call(data, "pieceBudget")) {
       const err8 = {
         instancePath,
         schemaPath: "#/required",
@@ -28956,7 +29610,10 @@ function validate330(
       }
       errors++;
     }
-    if (data.semanticRequirements === undefined) {
+    if (
+      data.semanticRequirements === undefined ||
+      !func0.call(data, "semanticRequirements")
+    ) {
       const err9 = {
         instancePath,
         schemaPath: "#/required",
@@ -28971,7 +29628,7 @@ function validate330(
       }
       errors++;
     }
-    if (data.styleTags === undefined) {
+    if (data.styleTags === undefined || !func0.call(data, "styleTags")) {
       const err10 = {
         instancePath,
         schemaPath: "#/required",
@@ -28986,7 +29643,7 @@ function validate330(
       }
       errors++;
     }
-    if (data.budgets === undefined) {
+    if (data.budgets === undefined || !func0.call(data, "budgets")) {
       const err11 = {
         instancePath,
         schemaPath: "#/required",
@@ -29001,7 +29658,7 @@ function validate330(
       }
       errors++;
     }
-    if (data.consent === undefined) {
+    if (data.consent === undefined || !func0.call(data, "consent")) {
       const err12 = {
         instancePath,
         schemaPath: "#/required",
@@ -29016,8 +29673,8 @@ function validate330(
       }
       errors++;
     }
-    for (const key0 in data) {
-      if (!func8.call(schema150.properties, key0)) {
+    for (const key0 of Object.keys(data)) {
+      if (!func0.call(schema150.properties, key0)) {
         const err13 = {
           instancePath,
           schemaPath: "#/additionalProperties",
@@ -29033,7 +29690,7 @@ function validate330(
         errors++;
       }
     }
-    if (data.schemaVersion !== undefined) {
+    if (data.schemaVersion !== undefined && func0.call(data, "schemaVersion")) {
       if ("lego.build-brief/1" !== data.schemaVersion) {
         const err14 = {
           instancePath: instancePath + "/schemaVersion",
@@ -29050,7 +29707,7 @@ function validate330(
         errors++;
       }
     }
-    if (data.mode !== undefined) {
+    if (data.mode !== undefined && func0.call(data, "mode")) {
       let data1 = data.mode;
       if (!(
         data1 === "full" ||
@@ -29075,10 +29732,10 @@ function validate330(
         errors++;
       }
     }
-    if (data.prompt !== undefined) {
+    if (data.prompt !== undefined && func0.call(data, "prompt")) {
       let data2 = data.prompt;
       if (typeof data2 === "string") {
-        if (func2(data2) > 8192) {
+        if (func57(data2) > 8192) {
           const err16 = {
             instancePath: instancePath + "/prompt",
             schemaPath: "#/definitions/LongText/maxLength",
@@ -29109,7 +29766,10 @@ function validate330(
         errors++;
       }
     }
-    if (data.referenceArtifactIds !== undefined) {
+    if (
+      data.referenceArtifactIds !== undefined &&
+      func0.call(data, "referenceArtifactIds")
+    ) {
       let data3 = data.referenceArtifactIds;
       if (Array.isArray(data3)) {
         if (data3.length > 8) {
@@ -29131,7 +29791,7 @@ function validate330(
         for (let i0 = 0; i0 < len0; i0++) {
           let data4 = data3[i0];
           if (typeof data4 === "string") {
-            if (func2(data4) > 128) {
+            if (func57(data4) > 128) {
               const err19 = {
                 instancePath: instancePath + "/referenceArtifactIds/" + i0,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -29146,7 +29806,7 @@ function validate330(
               }
               errors++;
             }
-            if (func2(data4) < 1) {
+            if (func57(data4) < 1) {
               const err20 = {
                 instancePath: instancePath + "/referenceArtifactIds/" + i0,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -29200,7 +29860,7 @@ function validate330(
         if (i1 > 1) {
           outer0: for (; i1--;) {
             for (j0 = i1; j0--;) {
-              if (func0(data3[i1], data3[j0])) {
+              if (func32(data3[i1], data3[j0])) {
                 const err23 = {
                   instancePath: instancePath + "/referenceArtifactIds",
                   schemaPath: "#/properties/referenceArtifactIds/uniqueItems",
@@ -29240,10 +29900,13 @@ function validate330(
         errors++;
       }
     }
-    if (data.referenceCameraAssumptions !== undefined) {
+    if (
+      data.referenceCameraAssumptions !== undefined &&
+      func0.call(data, "referenceCameraAssumptions")
+    ) {
       let data5 = data.referenceCameraAssumptions;
       if (typeof data5 === "string") {
-        if (func2(data5) > 256) {
+        if (func57(data5) > 256) {
           const err25 = {
             instancePath: instancePath + "/referenceCameraAssumptions",
             schemaPath: "#/definitions/ShortText/maxLength",
@@ -29274,10 +29937,10 @@ function validate330(
         errors++;
       }
     }
-    if (data.baseRevision !== undefined) {
+    if (data.baseRevision !== undefined && func0.call(data, "baseRevision")) {
       let data6 = data.baseRevision;
       if (typeof data6 === "string") {
-        if (func2(data6) > 128) {
+        if (func57(data6) > 128) {
           const err27 = {
             instancePath: instancePath + "/baseRevision",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -29292,7 +29955,7 @@ function validate330(
           }
           errors++;
         }
-        if (func2(data6) < 1) {
+        if (func57(data6) < 1) {
           const err28 = {
             instancePath: instancePath + "/baseRevision",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -29339,7 +30002,10 @@ function validate330(
         errors++;
       }
     }
-    if (data.baseDocumentHash !== undefined) {
+    if (
+      data.baseDocumentHash !== undefined &&
+      func0.call(data, "baseDocumentHash")
+    ) {
       let data7 = data.baseDocumentHash;
       if (typeof data7 === "string") {
         if (!pattern2.test(data7)) {
@@ -29373,7 +30039,10 @@ function validate330(
         errors++;
       }
     }
-    if (data.allowedCatalogPartIds !== undefined) {
+    if (
+      data.allowedCatalogPartIds !== undefined &&
+      func0.call(data, "allowedCatalogPartIds")
+    ) {
       let data8 = data.allowedCatalogPartIds;
       if (Array.isArray(data8)) {
         if (data8.length > 10000) {
@@ -29410,7 +30079,7 @@ function validate330(
         for (let i2 = 0; i2 < len1; i2++) {
           let data9 = data8[i2];
           if (typeof data9 === "string") {
-            if (func2(data9) > 128) {
+            if (func57(data9) > 128) {
               const err35 = {
                 instancePath: instancePath + "/allowedCatalogPartIds/" + i2,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -29425,7 +30094,7 @@ function validate330(
               }
               errors++;
             }
-            if (func2(data9) < 1) {
+            if (func57(data9) < 1) {
               const err36 = {
                 instancePath: instancePath + "/allowedCatalogPartIds/" + i2,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -29479,7 +30148,7 @@ function validate330(
         if (i3 > 1) {
           outer1: for (; i3--;) {
             for (j1 = i3; j1--;) {
-              if (func0(data8[i3], data8[j1])) {
+              if (func32(data8[i3], data8[j1])) {
                 const err39 = {
                   instancePath: instancePath + "/allowedCatalogPartIds",
                   schemaPath: "#/properties/allowedCatalogPartIds/uniqueItems",
@@ -29519,7 +30188,10 @@ function validate330(
         errors++;
       }
     }
-    if (data.allowedColorIds !== undefined) {
+    if (
+      data.allowedColorIds !== undefined &&
+      func0.call(data, "allowedColorIds")
+    ) {
       let data10 = data.allowedColorIds;
       if (Array.isArray(data10)) {
         if (data10.length > 256) {
@@ -29556,7 +30228,7 @@ function validate330(
         for (let i4 = 0; i4 < len2; i4++) {
           let data11 = data10[i4];
           if (typeof data11 === "string") {
-            if (func2(data11) > 128) {
+            if (func57(data11) > 128) {
               const err43 = {
                 instancePath: instancePath + "/allowedColorIds/" + i4,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -29571,7 +30243,7 @@ function validate330(
               }
               errors++;
             }
-            if (func2(data11) < 1) {
+            if (func57(data11) < 1) {
               const err44 = {
                 instancePath: instancePath + "/allowedColorIds/" + i4,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -29625,7 +30297,7 @@ function validate330(
         if (i5 > 1) {
           outer2: for (; i5--;) {
             for (j2 = i5; j2--;) {
-              if (func0(data10[i5], data10[j2])) {
+              if (func32(data10[i5], data10[j2])) {
                 const err47 = {
                   instancePath: instancePath + "/allowedColorIds",
                   schemaPath: "#/properties/allowedColorIds/uniqueItems",
@@ -29665,7 +30337,7 @@ function validate330(
         errors++;
       }
     }
-    if (data.pieceBudget !== undefined) {
+    if (data.pieceBudget !== undefined && func0.call(data, "pieceBudget")) {
       let data12 = data.pieceBudget;
       if (!(
         typeof data12 == "number" &&
@@ -29720,7 +30392,10 @@ function validate330(
         }
       }
     }
-    if (data.targetBoundsLdu !== undefined) {
+    if (
+      data.targetBoundsLdu !== undefined &&
+      func0.call(data, "targetBoundsLdu")
+    ) {
       if (
         !validate101(data.targetBoundsLdu, {
           instancePath: instancePath + "/targetBoundsLdu",
@@ -29736,7 +30411,10 @@ function validate330(
         errors = vErrors.length;
       }
     }
-    if (data.semanticRequirements !== undefined) {
+    if (
+      data.semanticRequirements !== undefined &&
+      func0.call(data, "semanticRequirements")
+    ) {
       let data14 = data.semanticRequirements;
       if (Array.isArray(data14)) {
         if (data14.length > 64) {
@@ -29758,7 +30436,7 @@ function validate330(
         for (let i6 = 0; i6 < len3; i6++) {
           let data15 = data14[i6];
           if (typeof data15 === "string") {
-            if (func2(data15) > 256) {
+            if (func57(data15) > 256) {
               const err53 = {
                 instancePath: instancePath + "/semanticRequirements/" + i6,
                 schemaPath: "#/definitions/ShortText/maxLength",
@@ -29794,7 +30472,7 @@ function validate330(
         if (i7 > 1) {
           outer3: for (; i7--;) {
             for (j3 = i7; j3--;) {
-              if (func0(data14[i7], data14[j3])) {
+              if (func32(data14[i7], data14[j3])) {
                 const err55 = {
                   instancePath: instancePath + "/semanticRequirements",
                   schemaPath: "#/properties/semanticRequirements/uniqueItems",
@@ -29834,7 +30512,7 @@ function validate330(
         errors++;
       }
     }
-    if (data.styleTags !== undefined) {
+    if (data.styleTags !== undefined && func0.call(data, "styleTags")) {
       let data16 = data.styleTags;
       if (Array.isArray(data16)) {
         if (data16.length > 32) {
@@ -29856,7 +30534,7 @@ function validate330(
         for (let i8 = 0; i8 < len4; i8++) {
           let data17 = data16[i8];
           if (typeof data17 === "string") {
-            if (func2(data17) > 128) {
+            if (func57(data17) > 128) {
               const err58 = {
                 instancePath: instancePath + "/styleTags/" + i8,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -29871,7 +30549,7 @@ function validate330(
               }
               errors++;
             }
-            if (func2(data17) < 1) {
+            if (func57(data17) < 1) {
               const err59 = {
                 instancePath: instancePath + "/styleTags/" + i8,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -29925,7 +30603,7 @@ function validate330(
         if (i9 > 1) {
           outer4: for (; i9--;) {
             for (j4 = i9; j4--;) {
-              if (func0(data16[i9], data16[j4])) {
+              if (func32(data16[i9], data16[j4])) {
                 const err62 = {
                   instancePath: instancePath + "/styleTags",
                   schemaPath: "#/properties/styleTags/uniqueItems",
@@ -29965,10 +30643,13 @@ function validate330(
         errors++;
       }
     }
-    if (data.budgets !== undefined) {
+    if (data.budgets !== undefined && func0.call(data, "budgets")) {
       let data18 = data.budgets;
       if (data18 && typeof data18 == "object" && !Array.isArray(data18)) {
-        if (data18.maxCandidates === undefined) {
+        if (
+          data18.maxCandidates === undefined ||
+          !func0.call(data18, "maxCandidates")
+        ) {
           const err64 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -29983,7 +30664,10 @@ function validate330(
           }
           errors++;
         }
-        if (data18.maxRepairs === undefined) {
+        if (
+          data18.maxRepairs === undefined ||
+          !func0.call(data18, "maxRepairs")
+        ) {
           const err65 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -29998,7 +30682,10 @@ function validate330(
           }
           errors++;
         }
-        if (data18.maxProviderCalls === undefined) {
+        if (
+          data18.maxProviderCalls === undefined ||
+          !func0.call(data18, "maxProviderCalls")
+        ) {
           const err66 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -30013,7 +30700,10 @@ function validate330(
           }
           errors++;
         }
-        if (data18.maxTokens === undefined) {
+        if (
+          data18.maxTokens === undefined ||
+          !func0.call(data18, "maxTokens")
+        ) {
           const err67 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -30028,7 +30718,10 @@ function validate330(
           }
           errors++;
         }
-        if (data18.maxCostMicros === undefined) {
+        if (
+          data18.maxCostMicros === undefined ||
+          !func0.call(data18, "maxCostMicros")
+        ) {
           const err68 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -30043,7 +30736,10 @@ function validate330(
           }
           errors++;
         }
-        if (data18.maxWallTimeMs === undefined) {
+        if (
+          data18.maxWallTimeMs === undefined ||
+          !func0.call(data18, "maxWallTimeMs")
+        ) {
           const err69 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -30058,7 +30754,10 @@ function validate330(
           }
           errors++;
         }
-        if (data18.maxRenders === undefined) {
+        if (
+          data18.maxRenders === undefined ||
+          !func0.call(data18, "maxRenders")
+        ) {
           const err70 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -30073,7 +30772,10 @@ function validate330(
           }
           errors++;
         }
-        if (data18.maxStoredBytes === undefined) {
+        if (
+          data18.maxStoredBytes === undefined ||
+          !func0.call(data18, "maxStoredBytes")
+        ) {
           const err71 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -30088,7 +30790,7 @@ function validate330(
           }
           errors++;
         }
-        for (const key1 in data18) {
+        for (const key1 of Object.keys(data18)) {
           if (!(
             key1 === "maxCandidates" ||
             key1 === "maxRepairs" ||
@@ -30115,7 +30817,10 @@ function validate330(
             errors++;
           }
         }
-        if (data18.maxCandidates !== undefined) {
+        if (
+          data18.maxCandidates !== undefined &&
+          func0.call(data18, "maxCandidates")
+        ) {
           let data19 = data18.maxCandidates;
           if (!(
             typeof data19 == "number" &&
@@ -30173,7 +30878,10 @@ function validate330(
             }
           }
         }
-        if (data18.maxRepairs !== undefined) {
+        if (
+          data18.maxRepairs !== undefined &&
+          func0.call(data18, "maxRepairs")
+        ) {
           let data20 = data18.maxRepairs;
           if (!(
             typeof data20 == "number" &&
@@ -30231,7 +30939,10 @@ function validate330(
             }
           }
         }
-        if (data18.maxProviderCalls !== undefined) {
+        if (
+          data18.maxProviderCalls !== undefined &&
+          func0.call(data18, "maxProviderCalls")
+        ) {
           let data21 = data18.maxProviderCalls;
           if (!(
             typeof data21 == "number" &&
@@ -30289,7 +31000,7 @@ function validate330(
             }
           }
         }
-        if (data18.maxTokens !== undefined) {
+        if (data18.maxTokens !== undefined && func0.call(data18, "maxTokens")) {
           let data22 = data18.maxTokens;
           if (!(
             typeof data22 == "number" &&
@@ -30347,7 +31058,10 @@ function validate330(
             }
           }
         }
-        if (data18.maxCostMicros !== undefined) {
+        if (
+          data18.maxCostMicros !== undefined &&
+          func0.call(data18, "maxCostMicros")
+        ) {
           let data23 = data18.maxCostMicros;
           if (!(
             typeof data23 == "number" &&
@@ -30405,7 +31119,10 @@ function validate330(
             }
           }
         }
-        if (data18.maxWallTimeMs !== undefined) {
+        if (
+          data18.maxWallTimeMs !== undefined &&
+          func0.call(data18, "maxWallTimeMs")
+        ) {
           let data24 = data18.maxWallTimeMs;
           if (!(
             typeof data24 == "number" &&
@@ -30463,7 +31180,10 @@ function validate330(
             }
           }
         }
-        if (data18.maxRenders !== undefined) {
+        if (
+          data18.maxRenders !== undefined &&
+          func0.call(data18, "maxRenders")
+        ) {
           let data25 = data18.maxRenders;
           if (!(
             typeof data25 == "number" &&
@@ -30521,7 +31241,10 @@ function validate330(
             }
           }
         }
-        if (data18.maxStoredBytes !== undefined) {
+        if (
+          data18.maxStoredBytes !== undefined &&
+          func0.call(data18, "maxStoredBytes")
+        ) {
           let data26 = data18.maxStoredBytes;
           if (!(
             typeof data26 == "number" &&
@@ -30595,7 +31318,7 @@ function validate330(
         errors++;
       }
     }
-    if (data.consent !== undefined) {
+    if (data.consent !== undefined && func0.call(data, "consent")) {
       if (
         !validate120(data.consent, {
           instancePath: instancePath + "/consent",
@@ -30626,11 +31349,11 @@ function validate330(
     }
     errors++;
   }
-  validate330.errors = vErrors;
+  validate336.errors = vErrors;
   return errors === 0;
 }
 
-function validate329(
+function validate335(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -30638,7 +31361,7 @@ function validate329(
     null;
   let errors = 0;
   if (
-    !validate330(data, {
+    !validate336(data, {
       instancePath,
       parentData,
       parentDataProperty,
@@ -30647,16 +31370,16 @@ function validate329(
   ) {
     vErrors =
       vErrors === null
-        ? validate330.errors
-        : vErrors.concat(validate330.errors);
+        ? validate336.errors
+        : vErrors.concat(validate336.errors);
     errors = vErrors.length;
   }
-  validate329.errors = vErrors;
+  validate335.errors = vErrors;
   return errors === 0;
 }
 
-export const validateProviderCapabilitiesV1 = validate334;
-const schema470 = {
+export const validateProviderCapabilitiesV1 = validate340;
+const schema491 = {
   $id: "https://schemas.brick-studio.local/protocol/1/validators/ProviderCapabilitiesV1",
   $ref: "https://schemas.brick-studio.local/protocol/1#/definitions/ProviderCapabilitiesV1",
 };
@@ -30727,14 +31450,17 @@ const schema163 = {
   },
 };
 
-function validate335(
+function validate341(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.schemaVersion === undefined) {
+    if (
+      data.schemaVersion === undefined ||
+      !func0.call(data, "schemaVersion")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -30749,7 +31475,7 @@ function validate335(
       }
       errors++;
     }
-    if (data.providerId === undefined) {
+    if (data.providerId === undefined || !func0.call(data, "providerId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -30764,7 +31490,10 @@ function validate335(
       }
       errors++;
     }
-    if (data.policyVersion === undefined) {
+    if (
+      data.policyVersion === undefined ||
+      !func0.call(data, "policyVersion")
+    ) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -30779,7 +31508,10 @@ function validate335(
       }
       errors++;
     }
-    if (data.supportedProtocolVersions === undefined) {
+    if (
+      data.supportedProtocolVersions === undefined ||
+      !func0.call(data, "supportedProtocolVersions")
+    ) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -30795,7 +31527,10 @@ function validate335(
       }
       errors++;
     }
-    if (data.supportedCatalogHashes === undefined) {
+    if (
+      data.supportedCatalogHashes === undefined ||
+      !func0.call(data, "supportedCatalogHashes")
+    ) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -30811,7 +31546,7 @@ function validate335(
       }
       errors++;
     }
-    if (data.inputKinds === undefined) {
+    if (data.inputKinds === undefined || !func0.call(data, "inputKinds")) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -30826,7 +31561,10 @@ function validate335(
       }
       errors++;
     }
-    if (data.supportsTools === undefined) {
+    if (
+      data.supportsTools === undefined ||
+      !func0.call(data, "supportsTools")
+    ) {
       const err6 = {
         instancePath,
         schemaPath: "#/required",
@@ -30841,7 +31579,10 @@ function validate335(
       }
       errors++;
     }
-    if (data.supportsStreaming === undefined) {
+    if (
+      data.supportsStreaming === undefined ||
+      !func0.call(data, "supportsStreaming")
+    ) {
       const err7 = {
         instancePath,
         schemaPath: "#/required",
@@ -30856,7 +31597,7 @@ function validate335(
       }
       errors++;
     }
-    if (data.cancellation === undefined) {
+    if (data.cancellation === undefined || !func0.call(data, "cancellation")) {
       const err8 = {
         instancePath,
         schemaPath: "#/required",
@@ -30871,7 +31612,7 @@ function validate335(
       }
       errors++;
     }
-    if (data.seedBehavior === undefined) {
+    if (data.seedBehavior === undefined || !func0.call(data, "seedBehavior")) {
       const err9 = {
         instancePath,
         schemaPath: "#/required",
@@ -30886,7 +31627,10 @@ function validate335(
       }
       errors++;
     }
-    if (data.maxInputBytes === undefined) {
+    if (
+      data.maxInputBytes === undefined ||
+      !func0.call(data, "maxInputBytes")
+    ) {
       const err10 = {
         instancePath,
         schemaPath: "#/required",
@@ -30901,7 +31645,10 @@ function validate335(
       }
       errors++;
     }
-    if (data.maxOutputBytes === undefined) {
+    if (
+      data.maxOutputBytes === undefined ||
+      !func0.call(data, "maxOutputBytes")
+    ) {
       const err11 = {
         instancePath,
         schemaPath: "#/required",
@@ -30916,7 +31663,7 @@ function validate335(
       }
       errors++;
     }
-    if (data.maxTokens === undefined) {
+    if (data.maxTokens === undefined || !func0.call(data, "maxTokens")) {
       const err12 = {
         instancePath,
         schemaPath: "#/required",
@@ -30931,7 +31678,7 @@ function validate335(
       }
       errors++;
     }
-    if (data.execution === undefined) {
+    if (data.execution === undefined || !func0.call(data, "execution")) {
       const err13 = {
         instancePath,
         schemaPath: "#/required",
@@ -30946,7 +31693,7 @@ function validate335(
       }
       errors++;
     }
-    if (data.retention === undefined) {
+    if (data.retention === undefined || !func0.call(data, "retention")) {
       const err14 = {
         instancePath,
         schemaPath: "#/required",
@@ -30961,7 +31708,7 @@ function validate335(
       }
       errors++;
     }
-    if (data.training === undefined) {
+    if (data.training === undefined || !func0.call(data, "training")) {
       const err15 = {
         instancePath,
         schemaPath: "#/required",
@@ -30976,7 +31723,10 @@ function validate335(
       }
       errors++;
     }
-    if (data.acceptedConsentClasses === undefined) {
+    if (
+      data.acceptedConsentClasses === undefined ||
+      !func0.call(data, "acceptedConsentClasses")
+    ) {
       const err16 = {
         instancePath,
         schemaPath: "#/required",
@@ -30992,8 +31742,8 @@ function validate335(
       }
       errors++;
     }
-    for (const key0 in data) {
-      if (!func8.call(schema163.properties, key0)) {
+    for (const key0 of Object.keys(data)) {
+      if (!func0.call(schema163.properties, key0)) {
         const err17 = {
           instancePath,
           schemaPath: "#/additionalProperties",
@@ -31009,7 +31759,7 @@ function validate335(
         errors++;
       }
     }
-    if (data.schemaVersion !== undefined) {
+    if (data.schemaVersion !== undefined && func0.call(data, "schemaVersion")) {
       if ("lego.provider-capabilities/1" !== data.schemaVersion) {
         const err18 = {
           instancePath: instancePath + "/schemaVersion",
@@ -31026,10 +31776,10 @@ function validate335(
         errors++;
       }
     }
-    if (data.providerId !== undefined) {
+    if (data.providerId !== undefined && func0.call(data, "providerId")) {
       let data1 = data.providerId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err19 = {
             instancePath: instancePath + "/providerId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -31044,7 +31794,7 @@ function validate335(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err20 = {
             instancePath: instancePath + "/providerId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -31091,10 +31841,10 @@ function validate335(
         errors++;
       }
     }
-    if (data.policyVersion !== undefined) {
+    if (data.policyVersion !== undefined && func0.call(data, "policyVersion")) {
       let data2 = data.policyVersion;
       if (typeof data2 === "string") {
-        if (func2(data2) > 128) {
+        if (func57(data2) > 128) {
           const err23 = {
             instancePath: instancePath + "/policyVersion",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -31109,7 +31859,7 @@ function validate335(
           }
           errors++;
         }
-        if (func2(data2) < 1) {
+        if (func57(data2) < 1) {
           const err24 = {
             instancePath: instancePath + "/policyVersion",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -31156,7 +31906,10 @@ function validate335(
         errors++;
       }
     }
-    if (data.supportedProtocolVersions !== undefined) {
+    if (
+      data.supportedProtocolVersions !== undefined &&
+      func0.call(data, "supportedProtocolVersions")
+    ) {
       let data3 = data.supportedProtocolVersions;
       if (Array.isArray(data3)) {
         if (data3.length > 32) {
@@ -31193,7 +31946,7 @@ function validate335(
         for (let i0 = 0; i0 < len0; i0++) {
           let data4 = data3[i0];
           if (typeof data4 === "string") {
-            if (func2(data4) > 128) {
+            if (func57(data4) > 128) {
               const err29 = {
                 instancePath: instancePath + "/supportedProtocolVersions/" + i0,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -31208,7 +31961,7 @@ function validate335(
               }
               errors++;
             }
-            if (func2(data4) < 1) {
+            if (func57(data4) < 1) {
               const err30 = {
                 instancePath: instancePath + "/supportedProtocolVersions/" + i0,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -31262,7 +32015,7 @@ function validate335(
         if (i1 > 1) {
           outer0: for (; i1--;) {
             for (j0 = i1; j0--;) {
-              if (func0(data3[i1], data3[j0])) {
+              if (func32(data3[i1], data3[j0])) {
                 const err33 = {
                   instancePath: instancePath + "/supportedProtocolVersions",
                   schemaPath:
@@ -31303,7 +32056,10 @@ function validate335(
         errors++;
       }
     }
-    if (data.supportedCatalogHashes !== undefined) {
+    if (
+      data.supportedCatalogHashes !== undefined &&
+      func0.call(data, "supportedCatalogHashes")
+    ) {
       let data5 = data.supportedCatalogHashes;
       if (Array.isArray(data5)) {
         if (data5.length > 64) {
@@ -31376,7 +32132,7 @@ function validate335(
         if (i3 > 1) {
           outer1: for (; i3--;) {
             for (j1 = i3; j1--;) {
-              if (func0(data5[i3], data5[j1])) {
+              if (func32(data5[i3], data5[j1])) {
                 const err39 = {
                   instancePath: instancePath + "/supportedCatalogHashes",
                   schemaPath: "#/properties/supportedCatalogHashes/uniqueItems",
@@ -31416,7 +32172,7 @@ function validate335(
         errors++;
       }
     }
-    if (data.inputKinds !== undefined) {
+    if (data.inputKinds !== undefined && func0.call(data, "inputKinds")) {
       let data7 = data.inputKinds;
       if (Array.isArray(data7)) {
         if (data7.length > 3) {
@@ -31475,7 +32231,7 @@ function validate335(
         if (i5 > 1) {
           outer2: for (; i5--;) {
             for (j2 = i5; j2--;) {
-              if (func0(data7[i5], data7[j2])) {
+              if (func32(data7[i5], data7[j2])) {
                 const err44 = {
                   instancePath: instancePath + "/inputKinds",
                   schemaPath: "#/properties/inputKinds/uniqueItems",
@@ -31515,7 +32271,7 @@ function validate335(
         errors++;
       }
     }
-    if (data.supportsTools !== undefined) {
+    if (data.supportsTools !== undefined && func0.call(data, "supportsTools")) {
       if (typeof data.supportsTools !== "boolean") {
         const err46 = {
           instancePath: instancePath + "/supportsTools",
@@ -31532,7 +32288,10 @@ function validate335(
         errors++;
       }
     }
-    if (data.supportsStreaming !== undefined) {
+    if (
+      data.supportsStreaming !== undefined &&
+      func0.call(data, "supportsStreaming")
+    ) {
       if (typeof data.supportsStreaming !== "boolean") {
         const err47 = {
           instancePath: instancePath + "/supportsStreaming",
@@ -31549,7 +32308,7 @@ function validate335(
         errors++;
       }
     }
-    if (data.cancellation !== undefined) {
+    if (data.cancellation !== undefined && func0.call(data, "cancellation")) {
       let data11 = data.cancellation;
       if (!(
         data11 === "real" ||
@@ -31571,7 +32330,7 @@ function validate335(
         errors++;
       }
     }
-    if (data.seedBehavior !== undefined) {
+    if (data.seedBehavior !== undefined && func0.call(data, "seedBehavior")) {
       let data12 = data.seedBehavior;
       if (!(
         data12 === "deterministic" ||
@@ -31593,7 +32352,7 @@ function validate335(
         errors++;
       }
     }
-    if (data.maxInputBytes !== undefined) {
+    if (data.maxInputBytes !== undefined && func0.call(data, "maxInputBytes")) {
       let data13 = data.maxInputBytes;
       if (!(
         typeof data13 == "number" &&
@@ -31648,7 +32407,10 @@ function validate335(
         }
       }
     }
-    if (data.maxOutputBytes !== undefined) {
+    if (
+      data.maxOutputBytes !== undefined &&
+      func0.call(data, "maxOutputBytes")
+    ) {
       let data14 = data.maxOutputBytes;
       if (!(
         typeof data14 == "number" &&
@@ -31703,7 +32465,7 @@ function validate335(
         }
       }
     }
-    if (data.maxTokens !== undefined) {
+    if (data.maxTokens !== undefined && func0.call(data, "maxTokens")) {
       let data15 = data.maxTokens;
       if (!(
         typeof data15 == "number" &&
@@ -31758,7 +32520,7 @@ function validate335(
         }
       }
     }
-    if (data.execution !== undefined) {
+    if (data.execution !== undefined && func0.call(data, "execution")) {
       let data16 = data.execution;
       if (!(data16 === "local" || data16 === "external")) {
         const err59 = {
@@ -31776,7 +32538,7 @@ function validate335(
         errors++;
       }
     }
-    if (data.retention !== undefined) {
+    if (data.retention !== undefined && func0.call(data, "retention")) {
       let data17 = data.retention;
       if (!(
         data17 === "none" ||
@@ -31798,7 +32560,7 @@ function validate335(
         errors++;
       }
     }
-    if (data.training !== undefined) {
+    if (data.training !== undefined && func0.call(data, "training")) {
       let data18 = data.training;
       if (!(
         data18 === "prohibited" ||
@@ -31820,7 +32582,10 @@ function validate335(
         errors++;
       }
     }
-    if (data.acceptedConsentClasses !== undefined) {
+    if (
+      data.acceptedConsentClasses !== undefined &&
+      func0.call(data, "acceptedConsentClasses")
+    ) {
       let data19 = data.acceptedConsentClasses;
       if (Array.isArray(data19)) {
         if (data19.length > 3) {
@@ -31884,7 +32649,7 @@ function validate335(
         if (i7 > 1) {
           outer3: for (; i7--;) {
             for (j3 = i7; j3--;) {
-              if (func0(data19[i7], data19[j3])) {
+              if (func32(data19[i7], data19[j3])) {
                 const err65 = {
                   instancePath: instancePath + "/acceptedConsentClasses",
                   schemaPath: "#/properties/acceptedConsentClasses/uniqueItems",
@@ -31939,11 +32704,11 @@ function validate335(
     }
     errors++;
   }
-  validate335.errors = vErrors;
+  validate341.errors = vErrors;
   return errors === 0;
 }
 
-function validate334(
+function validate340(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -31951,7 +32716,7 @@ function validate334(
     null;
   let errors = 0;
   if (
-    !validate335(data, {
+    !validate341(data, {
       instancePath,
       parentData,
       parentDataProperty,
@@ -31960,16 +32725,16 @@ function validate334(
   ) {
     vErrors =
       vErrors === null
-        ? validate335.errors
-        : vErrors.concat(validate335.errors);
+        ? validate341.errors
+        : vErrors.concat(validate341.errors);
     errors = vErrors.length;
   }
-  validate334.errors = vErrors;
+  validate340.errors = vErrors;
   return errors === 0;
 }
 
-export const validateRenderPacketV1 = validate337;
-const schema476 = {
+export const validateRenderPacketV1 = validate343;
+const schema497 = {
   $id: "https://schemas.brick-studio.local/protocol/1/validators/RenderPacketV1",
   $ref: "https://schemas.brick-studio.local/protocol/1#/definitions/RenderPacketV1",
 };
@@ -32044,7 +32809,7 @@ function validate126(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.viewId === undefined) {
+    if (data.viewId === undefined || !func0.call(data, "viewId")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -32059,7 +32824,7 @@ function validate126(
       }
       errors++;
     }
-    if (data.pass === undefined) {
+    if (data.pass === undefined || !func0.call(data, "pass")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -32074,7 +32839,7 @@ function validate126(
       }
       errors++;
     }
-    if (data.artifact === undefined) {
+    if (data.artifact === undefined || !func0.call(data, "artifact")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -32089,7 +32854,7 @@ function validate126(
       }
       errors++;
     }
-    if (data.width === undefined) {
+    if (data.width === undefined || !func0.call(data, "width")) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -32104,7 +32869,7 @@ function validate126(
       }
       errors++;
     }
-    if (data.height === undefined) {
+    if (data.height === undefined || !func0.call(data, "height")) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -32119,7 +32884,10 @@ function validate126(
       }
       errors++;
     }
-    if (data.devicePixelRatio === undefined) {
+    if (
+      data.devicePixelRatio === undefined ||
+      !func0.call(data, "devicePixelRatio")
+    ) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -32134,7 +32902,7 @@ function validate126(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "viewId" ||
         key0 === "pass" ||
@@ -32158,10 +32926,10 @@ function validate126(
         errors++;
       }
     }
-    if (data.viewId !== undefined) {
+    if (data.viewId !== undefined && func0.call(data, "viewId")) {
       let data0 = data.viewId;
       if (typeof data0 === "string") {
-        if (func2(data0) > 128) {
+        if (func57(data0) > 128) {
           const err7 = {
             instancePath: instancePath + "/viewId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -32176,7 +32944,7 @@ function validate126(
           }
           errors++;
         }
-        if (func2(data0) < 1) {
+        if (func57(data0) < 1) {
           const err8 = {
             instancePath: instancePath + "/viewId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -32223,7 +32991,7 @@ function validate126(
         errors++;
       }
     }
-    if (data.pass !== undefined) {
+    if (data.pass !== undefined && func0.call(data, "pass")) {
       let data1 = data.pass;
       if (!(
         data1 === "beauty" ||
@@ -32253,7 +33021,7 @@ function validate126(
         errors++;
       }
     }
-    if (data.artifact !== undefined) {
+    if (data.artifact !== undefined && func0.call(data, "artifact")) {
       if (
         !validate116(data.artifact, {
           instancePath: instancePath + "/artifact",
@@ -32269,7 +33037,7 @@ function validate126(
         errors = vErrors.length;
       }
     }
-    if (data.width !== undefined) {
+    if (data.width !== undefined && func0.call(data, "width")) {
       let data3 = data.width;
       if (!(
         typeof data3 == "number" &&
@@ -32324,7 +33092,7 @@ function validate126(
         }
       }
     }
-    if (data.height !== undefined) {
+    if (data.height !== undefined && func0.call(data, "height")) {
       let data4 = data.height;
       if (!(
         typeof data4 == "number" &&
@@ -32379,7 +33147,10 @@ function validate126(
         }
       }
     }
-    if (data.devicePixelRatio !== undefined) {
+    if (
+      data.devicePixelRatio !== undefined &&
+      func0.call(data, "devicePixelRatio")
+    ) {
       let data5 = data.devicePixelRatio;
       if (typeof data5 == "number" && isFinite(data5)) {
         if (data5 > 8 || isNaN(data5)) {
@@ -32447,14 +33218,17 @@ function validate126(
   return errors === 0;
 }
 
-function validate338(
+function validate344(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.schemaVersion === undefined) {
+    if (
+      data.schemaVersion === undefined ||
+      !func0.call(data, "schemaVersion")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -32469,7 +33243,7 @@ function validate338(
       }
       errors++;
     }
-    if (data.documentHash === undefined) {
+    if (data.documentHash === undefined || !func0.call(data, "documentHash")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -32484,7 +33258,10 @@ function validate338(
       }
       errors++;
     }
-    if (data.validationReportHash === undefined) {
+    if (
+      data.validationReportHash === undefined ||
+      !func0.call(data, "validationReportHash")
+    ) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -32499,7 +33276,10 @@ function validate338(
       }
       errors++;
     }
-    if (data.rendererSnapshotHash === undefined) {
+    if (
+      data.rendererSnapshotHash === undefined ||
+      !func0.call(data, "rendererSnapshotHash")
+    ) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -32514,7 +33294,10 @@ function validate338(
       }
       errors++;
     }
-    if (data.cameraSnapshotHash === undefined) {
+    if (
+      data.cameraSnapshotHash === undefined ||
+      !func0.call(data, "cameraSnapshotHash")
+    ) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -32529,7 +33312,10 @@ function validate338(
       }
       errors++;
     }
-    if (data.capturePolicyHash === undefined) {
+    if (
+      data.capturePolicyHash === undefined ||
+      !func0.call(data, "capturePolicyHash")
+    ) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -32544,7 +33330,10 @@ function validate338(
       }
       errors++;
     }
-    if (data.browserBuildHash === undefined) {
+    if (
+      data.browserBuildHash === undefined ||
+      !func0.call(data, "browserBuildHash")
+    ) {
       const err6 = {
         instancePath,
         schemaPath: "#/required",
@@ -32559,7 +33348,7 @@ function validate338(
       }
       errors++;
     }
-    if (data.views === undefined) {
+    if (data.views === undefined || !func0.call(data, "views")) {
       const err7 = {
         instancePath,
         schemaPath: "#/required",
@@ -32574,7 +33363,7 @@ function validate338(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "schemaVersion" ||
         key0 === "documentHash" ||
@@ -32600,7 +33389,7 @@ function validate338(
         errors++;
       }
     }
-    if (data.schemaVersion !== undefined) {
+    if (data.schemaVersion !== undefined && func0.call(data, "schemaVersion")) {
       if ("lego.render-packet/1" !== data.schemaVersion) {
         const err9 = {
           instancePath: instancePath + "/schemaVersion",
@@ -32617,7 +33406,7 @@ function validate338(
         errors++;
       }
     }
-    if (data.documentHash !== undefined) {
+    if (data.documentHash !== undefined && func0.call(data, "documentHash")) {
       let data1 = data.documentHash;
       if (typeof data1 === "string") {
         if (!pattern2.test(data1)) {
@@ -32651,7 +33440,10 @@ function validate338(
         errors++;
       }
     }
-    if (data.validationReportHash !== undefined) {
+    if (
+      data.validationReportHash !== undefined &&
+      func0.call(data, "validationReportHash")
+    ) {
       let data2 = data.validationReportHash;
       if (typeof data2 === "string") {
         if (!pattern2.test(data2)) {
@@ -32685,7 +33477,10 @@ function validate338(
         errors++;
       }
     }
-    if (data.rendererSnapshotHash !== undefined) {
+    if (
+      data.rendererSnapshotHash !== undefined &&
+      func0.call(data, "rendererSnapshotHash")
+    ) {
       let data3 = data.rendererSnapshotHash;
       if (typeof data3 === "string") {
         if (!pattern2.test(data3)) {
@@ -32719,7 +33514,10 @@ function validate338(
         errors++;
       }
     }
-    if (data.cameraSnapshotHash !== undefined) {
+    if (
+      data.cameraSnapshotHash !== undefined &&
+      func0.call(data, "cameraSnapshotHash")
+    ) {
       let data4 = data.cameraSnapshotHash;
       if (typeof data4 === "string") {
         if (!pattern2.test(data4)) {
@@ -32753,7 +33551,10 @@ function validate338(
         errors++;
       }
     }
-    if (data.capturePolicyHash !== undefined) {
+    if (
+      data.capturePolicyHash !== undefined &&
+      func0.call(data, "capturePolicyHash")
+    ) {
       let data5 = data.capturePolicyHash;
       if (typeof data5 === "string") {
         if (!pattern2.test(data5)) {
@@ -32787,7 +33588,10 @@ function validate338(
         errors++;
       }
     }
-    if (data.browserBuildHash !== undefined) {
+    if (
+      data.browserBuildHash !== undefined &&
+      func0.call(data, "browserBuildHash")
+    ) {
       let data6 = data.browserBuildHash;
       if (typeof data6 === "string") {
         if (!pattern2.test(data6)) {
@@ -32821,7 +33625,7 @@ function validate338(
         errors++;
       }
     }
-    if (data.views !== undefined) {
+    if (data.views !== undefined && func0.call(data, "views")) {
       let data7 = data.views;
       if (Array.isArray(data7)) {
         if (data7.length > 128) {
@@ -32902,11 +33706,11 @@ function validate338(
     }
     errors++;
   }
-  validate338.errors = vErrors;
+  validate344.errors = vErrors;
   return errors === 0;
 }
 
-function validate337(
+function validate343(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -32914,7 +33718,7 @@ function validate337(
     null;
   let errors = 0;
   if (
-    !validate338(data, {
+    !validate344(data, {
       instancePath,
       parentData,
       parentDataProperty,
@@ -32923,16 +33727,16 @@ function validate337(
   ) {
     vErrors =
       vErrors === null
-        ? validate338.errors
-        : vErrors.concat(validate338.errors);
+        ? validate344.errors
+        : vErrors.concat(validate344.errors);
     errors = vErrors.length;
   }
-  validate337.errors = vErrors;
+  validate343.errors = vErrors;
   return errors === 0;
 }
 
-export const validateActorObservationV1 = validate341;
-const schema484 = {
+export const validateActorObservationV1 = validate347;
+const schema505 = {
   $id: "https://schemas.brick-studio.local/protocol/1/validators/ActorObservationV1",
   $ref: "https://schemas.brick-studio.local/protocol/1#/definitions/ActorObservationV1",
 };
@@ -33034,7 +33838,7 @@ function validate132(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.controlId === undefined) {
+    if (data.controlId === undefined || !func0.call(data, "controlId")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -33049,7 +33853,7 @@ function validate132(
       }
       errors++;
     }
-    if (data.label === undefined) {
+    if (data.label === undefined || !func0.call(data, "label")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -33064,7 +33868,7 @@ function validate132(
       }
       errors++;
     }
-    if (data.state === undefined) {
+    if (data.state === undefined || !func0.call(data, "state")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -33079,7 +33883,7 @@ function validate132(
       }
       errors++;
     }
-    if (data.bounds === undefined) {
+    if (data.bounds === undefined || !func0.call(data, "bounds")) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -33094,7 +33898,10 @@ function validate132(
       }
       errors++;
     }
-    if (data.actionCategories === undefined) {
+    if (
+      data.actionCategories === undefined ||
+      !func0.call(data, "actionCategories")
+    ) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -33109,7 +33916,7 @@ function validate132(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "controlId" ||
         key0 === "label" ||
@@ -33132,10 +33939,10 @@ function validate132(
         errors++;
       }
     }
-    if (data.controlId !== undefined) {
+    if (data.controlId !== undefined && func0.call(data, "controlId")) {
       let data0 = data.controlId;
       if (typeof data0 === "string") {
-        if (func2(data0) > 128) {
+        if (func57(data0) > 128) {
           const err6 = {
             instancePath: instancePath + "/controlId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -33150,7 +33957,7 @@ function validate132(
           }
           errors++;
         }
-        if (func2(data0) < 1) {
+        if (func57(data0) < 1) {
           const err7 = {
             instancePath: instancePath + "/controlId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -33197,10 +34004,10 @@ function validate132(
         errors++;
       }
     }
-    if (data.label !== undefined) {
+    if (data.label !== undefined && func0.call(data, "label")) {
       let data1 = data.label;
       if (typeof data1 === "string") {
-        if (func2(data1) > 256) {
+        if (func57(data1) > 256) {
           const err10 = {
             instancePath: instancePath + "/label",
             schemaPath: "#/definitions/ShortText/maxLength",
@@ -33231,7 +34038,7 @@ function validate132(
         errors++;
       }
     }
-    if (data.state !== undefined) {
+    if (data.state !== undefined && func0.call(data, "state")) {
       let data2 = data.state;
       if (!(
         data2 === "enabled" ||
@@ -33253,10 +34060,10 @@ function validate132(
         errors++;
       }
     }
-    if (data.bounds !== undefined) {
+    if (data.bounds !== undefined && func0.call(data, "bounds")) {
       let data3 = data.bounds;
       if (data3 && typeof data3 == "object" && !Array.isArray(data3)) {
-        if (data3.x === undefined) {
+        if (data3.x === undefined || !func0.call(data3, "x")) {
           const err13 = {
             instancePath: instancePath + "/bounds",
             schemaPath: "#/definitions/ControlBoundsV1/required",
@@ -33271,7 +34078,7 @@ function validate132(
           }
           errors++;
         }
-        if (data3.y === undefined) {
+        if (data3.y === undefined || !func0.call(data3, "y")) {
           const err14 = {
             instancePath: instancePath + "/bounds",
             schemaPath: "#/definitions/ControlBoundsV1/required",
@@ -33286,7 +34093,7 @@ function validate132(
           }
           errors++;
         }
-        if (data3.width === undefined) {
+        if (data3.width === undefined || !func0.call(data3, "width")) {
           const err15 = {
             instancePath: instancePath + "/bounds",
             schemaPath: "#/definitions/ControlBoundsV1/required",
@@ -33301,7 +34108,7 @@ function validate132(
           }
           errors++;
         }
-        if (data3.height === undefined) {
+        if (data3.height === undefined || !func0.call(data3, "height")) {
           const err16 = {
             instancePath: instancePath + "/bounds",
             schemaPath: "#/definitions/ControlBoundsV1/required",
@@ -33316,7 +34123,7 @@ function validate132(
           }
           errors++;
         }
-        for (const key1 in data3) {
+        for (const key1 of Object.keys(data3)) {
           if (!(
             key1 === "x" ||
             key1 === "y" ||
@@ -33338,7 +34145,7 @@ function validate132(
             errors++;
           }
         }
-        if (data3.x !== undefined) {
+        if (data3.x !== undefined && func0.call(data3, "x")) {
           let data4 = data3.x;
           if (!(
             typeof data4 == "number" &&
@@ -33395,7 +34202,7 @@ function validate132(
             }
           }
         }
-        if (data3.y !== undefined) {
+        if (data3.y !== undefined && func0.call(data3, "y")) {
           let data5 = data3.y;
           if (!(
             typeof data5 == "number" &&
@@ -33452,7 +34259,7 @@ function validate132(
             }
           }
         }
-        if (data3.width !== undefined) {
+        if (data3.width !== undefined && func0.call(data3, "width")) {
           let data6 = data3.width;
           if (!(
             typeof data6 == "number" &&
@@ -33509,7 +34316,7 @@ function validate132(
             }
           }
         }
-        if (data3.height !== undefined) {
+        if (data3.height !== undefined && func0.call(data3, "height")) {
           let data7 = data3.height;
           if (!(
             typeof data7 == "number" &&
@@ -33583,7 +34390,10 @@ function validate132(
         errors++;
       }
     }
-    if (data.actionCategories !== undefined) {
+    if (
+      data.actionCategories !== undefined &&
+      func0.call(data, "actionCategories")
+    ) {
       let data8 = data.actionCategories;
       if (Array.isArray(data8)) {
         if (data8.length > 8) {
@@ -33651,7 +34461,7 @@ function validate132(
         if (i1 > 1) {
           outer0: for (; i1--;) {
             for (j0 = i1; j0--;) {
-              if (func0(data8[i1], data8[j0])) {
+              if (func32(data8[i1], data8[j0])) {
                 const err34 = {
                   instancePath: instancePath + "/actionCategories",
                   schemaPath: "#/properties/actionCategories/uniqueItems",
@@ -33710,14 +34520,17 @@ function validate132(
   return errors === 0;
 }
 
-function validate342(
+function validate348(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.schemaVersion === undefined) {
+    if (
+      data.schemaVersion === undefined ||
+      !func0.call(data, "schemaVersion")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -33732,7 +34545,10 @@ function validate342(
       }
       errors++;
     }
-    if (data.observationHash === undefined) {
+    if (
+      data.observationHash === undefined ||
+      !func0.call(data, "observationHash")
+    ) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -33747,7 +34563,7 @@ function validate342(
       }
       errors++;
     }
-    if (data.runId === undefined) {
+    if (data.runId === undefined || !func0.call(data, "runId")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -33762,7 +34578,7 @@ function validate342(
       }
       errors++;
     }
-    if (data.sequence === undefined) {
+    if (data.sequence === undefined || !func0.call(data, "sequence")) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -33777,7 +34593,10 @@ function validate342(
       }
       errors++;
     }
-    if (data.screenshotArtifact === undefined) {
+    if (
+      data.screenshotArtifact === undefined ||
+      !func0.call(data, "screenshotArtifact")
+    ) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -33792,7 +34611,10 @@ function validate342(
       }
       errors++;
     }
-    if (data.visibleTextHash === undefined) {
+    if (
+      data.visibleTextHash === undefined ||
+      !func0.call(data, "visibleTextHash")
+    ) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -33807,7 +34629,10 @@ function validate342(
       }
       errors++;
     }
-    if (data.offeredControls === undefined) {
+    if (
+      data.offeredControls === undefined ||
+      !func0.call(data, "offeredControls")
+    ) {
       const err6 = {
         instancePath,
         schemaPath: "#/required",
@@ -33822,7 +34647,7 @@ function validate342(
       }
       errors++;
     }
-    if (data.viewport === undefined) {
+    if (data.viewport === undefined || !func0.call(data, "viewport")) {
       const err7 = {
         instancePath,
         schemaPath: "#/required",
@@ -33837,7 +34662,10 @@ function validate342(
       }
       errors++;
     }
-    if (data.cameraSnapshotHash === undefined) {
+    if (
+      data.cameraSnapshotHash === undefined ||
+      !func0.call(data, "cameraSnapshotHash")
+    ) {
       const err8 = {
         instancePath,
         schemaPath: "#/required",
@@ -33852,7 +34680,10 @@ function validate342(
       }
       errors++;
     }
-    if (data.renderConfigHash === undefined) {
+    if (
+      data.renderConfigHash === undefined ||
+      !func0.call(data, "renderConfigHash")
+    ) {
       const err9 = {
         instancePath,
         schemaPath: "#/required",
@@ -33867,7 +34698,10 @@ function validate342(
       }
       errors++;
     }
-    if (data.applicationBuildHash === undefined) {
+    if (
+      data.applicationBuildHash === undefined ||
+      !func0.call(data, "applicationBuildHash")
+    ) {
       const err10 = {
         instancePath,
         schemaPath: "#/required",
@@ -33882,7 +34716,10 @@ function validate342(
       }
       errors++;
     }
-    if (data.documentRevision === undefined) {
+    if (
+      data.documentRevision === undefined ||
+      !func0.call(data, "documentRevision")
+    ) {
       const err11 = {
         instancePath,
         schemaPath: "#/required",
@@ -33897,7 +34734,7 @@ function validate342(
       }
       errors++;
     }
-    if (data.documentHash === undefined) {
+    if (data.documentHash === undefined || !func0.call(data, "documentHash")) {
       const err12 = {
         instancePath,
         schemaPath: "#/required",
@@ -33912,8 +34749,8 @@ function validate342(
       }
       errors++;
     }
-    for (const key0 in data) {
-      if (!func8.call(schema177.properties, key0)) {
+    for (const key0 of Object.keys(data)) {
+      if (!func0.call(schema177.properties, key0)) {
         const err13 = {
           instancePath,
           schemaPath: "#/additionalProperties",
@@ -33929,7 +34766,7 @@ function validate342(
         errors++;
       }
     }
-    if (data.schemaVersion !== undefined) {
+    if (data.schemaVersion !== undefined && func0.call(data, "schemaVersion")) {
       if ("lego.actor-observation/1" !== data.schemaVersion) {
         const err14 = {
           instancePath: instancePath + "/schemaVersion",
@@ -33946,7 +34783,10 @@ function validate342(
         errors++;
       }
     }
-    if (data.observationHash !== undefined) {
+    if (
+      data.observationHash !== undefined &&
+      func0.call(data, "observationHash")
+    ) {
       let data1 = data.observationHash;
       if (typeof data1 === "string") {
         if (!pattern2.test(data1)) {
@@ -33980,10 +34820,10 @@ function validate342(
         errors++;
       }
     }
-    if (data.runId !== undefined) {
+    if (data.runId !== undefined && func0.call(data, "runId")) {
       let data2 = data.runId;
       if (typeof data2 === "string") {
-        if (func2(data2) > 128) {
+        if (func57(data2) > 128) {
           const err17 = {
             instancePath: instancePath + "/runId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -33998,7 +34838,7 @@ function validate342(
           }
           errors++;
         }
-        if (func2(data2) < 1) {
+        if (func57(data2) < 1) {
           const err18 = {
             instancePath: instancePath + "/runId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -34045,7 +34885,7 @@ function validate342(
         errors++;
       }
     }
-    if (data.sequence !== undefined) {
+    if (data.sequence !== undefined && func0.call(data, "sequence")) {
       let data3 = data.sequence;
       if (!(
         typeof data3 == "number" &&
@@ -34100,7 +34940,10 @@ function validate342(
         }
       }
     }
-    if (data.screenshotArtifact !== undefined) {
+    if (
+      data.screenshotArtifact !== undefined &&
+      func0.call(data, "screenshotArtifact")
+    ) {
       if (
         !validate116(data.screenshotArtifact, {
           instancePath: instancePath + "/screenshotArtifact",
@@ -34116,7 +34959,10 @@ function validate342(
         errors = vErrors.length;
       }
     }
-    if (data.visibleTextHash !== undefined) {
+    if (
+      data.visibleTextHash !== undefined &&
+      func0.call(data, "visibleTextHash")
+    ) {
       let data5 = data.visibleTextHash;
       if (typeof data5 === "string") {
         if (!pattern2.test(data5)) {
@@ -34150,7 +34996,10 @@ function validate342(
         errors++;
       }
     }
-    if (data.offeredControls !== undefined) {
+    if (
+      data.offeredControls !== undefined &&
+      func0.call(data, "offeredControls")
+    ) {
       let data6 = data.offeredControls;
       if (Array.isArray(data6)) {
         if (data6.length > 1024) {
@@ -34201,10 +35050,10 @@ function validate342(
         errors++;
       }
     }
-    if (data.viewport !== undefined) {
+    if (data.viewport !== undefined && func0.call(data, "viewport")) {
       let data8 = data.viewport;
       if (data8 && typeof data8 == "object" && !Array.isArray(data8)) {
-        if (data8.width === undefined) {
+        if (data8.width === undefined || !func0.call(data8, "width")) {
           const err28 = {
             instancePath: instancePath + "/viewport",
             schemaPath: "#/definitions/ViewportV1/required",
@@ -34219,7 +35068,7 @@ function validate342(
           }
           errors++;
         }
-        if (data8.height === undefined) {
+        if (data8.height === undefined || !func0.call(data8, "height")) {
           const err29 = {
             instancePath: instancePath + "/viewport",
             schemaPath: "#/definitions/ViewportV1/required",
@@ -34234,7 +35083,10 @@ function validate342(
           }
           errors++;
         }
-        if (data8.devicePixelRatio === undefined) {
+        if (
+          data8.devicePixelRatio === undefined ||
+          !func0.call(data8, "devicePixelRatio")
+        ) {
           const err30 = {
             instancePath: instancePath + "/viewport",
             schemaPath: "#/definitions/ViewportV1/required",
@@ -34249,7 +35101,7 @@ function validate342(
           }
           errors++;
         }
-        for (const key1 in data8) {
+        for (const key1 of Object.keys(data8)) {
           if (!(
             key1 === "width" ||
             key1 === "height" ||
@@ -34270,7 +35122,7 @@ function validate342(
             errors++;
           }
         }
-        if (data8.width !== undefined) {
+        if (data8.width !== undefined && func0.call(data8, "width")) {
           let data9 = data8.width;
           if (!(
             typeof data9 == "number" &&
@@ -34325,7 +35177,7 @@ function validate342(
             }
           }
         }
-        if (data8.height !== undefined) {
+        if (data8.height !== undefined && func0.call(data8, "height")) {
           let data10 = data8.height;
           if (!(
             typeof data10 == "number" &&
@@ -34382,7 +35234,10 @@ function validate342(
             }
           }
         }
-        if (data8.devicePixelRatio !== undefined) {
+        if (
+          data8.devicePixelRatio !== undefined &&
+          func0.call(data8, "devicePixelRatio")
+        ) {
           let data11 = data8.devicePixelRatio;
           if (typeof data11 == "number" && isFinite(data11)) {
             if (data11 > 8 || isNaN(data11)) {
@@ -34450,7 +35305,10 @@ function validate342(
         errors++;
       }
     }
-    if (data.cameraSnapshotHash !== undefined) {
+    if (
+      data.cameraSnapshotHash !== undefined &&
+      func0.call(data, "cameraSnapshotHash")
+    ) {
       let data12 = data.cameraSnapshotHash;
       if (typeof data12 === "string") {
         if (!pattern2.test(data12)) {
@@ -34484,7 +35342,10 @@ function validate342(
         errors++;
       }
     }
-    if (data.renderConfigHash !== undefined) {
+    if (
+      data.renderConfigHash !== undefined &&
+      func0.call(data, "renderConfigHash")
+    ) {
       let data13 = data.renderConfigHash;
       if (typeof data13 === "string") {
         if (!pattern2.test(data13)) {
@@ -34518,7 +35379,10 @@ function validate342(
         errors++;
       }
     }
-    if (data.applicationBuildHash !== undefined) {
+    if (
+      data.applicationBuildHash !== undefined &&
+      func0.call(data, "applicationBuildHash")
+    ) {
       let data14 = data.applicationBuildHash;
       if (typeof data14 === "string") {
         if (!pattern2.test(data14)) {
@@ -34552,10 +35416,13 @@ function validate342(
         errors++;
       }
     }
-    if (data.documentRevision !== undefined) {
+    if (
+      data.documentRevision !== undefined &&
+      func0.call(data, "documentRevision")
+    ) {
       let data15 = data.documentRevision;
       if (typeof data15 === "string") {
-        if (func2(data15) > 128) {
+        if (func57(data15) > 128) {
           const err48 = {
             instancePath: instancePath + "/documentRevision",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -34570,7 +35437,7 @@ function validate342(
           }
           errors++;
         }
-        if (func2(data15) < 1) {
+        if (func57(data15) < 1) {
           const err49 = {
             instancePath: instancePath + "/documentRevision",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -34617,7 +35484,7 @@ function validate342(
         errors++;
       }
     }
-    if (data.documentHash !== undefined) {
+    if (data.documentHash !== undefined && func0.call(data, "documentHash")) {
       let data16 = data.documentHash;
       if (typeof data16 === "string") {
         if (!pattern2.test(data16)) {
@@ -34651,10 +35518,10 @@ function validate342(
         errors++;
       }
     }
-    if (data.activeJobId !== undefined) {
+    if (data.activeJobId !== undefined && func0.call(data, "activeJobId")) {
       let data17 = data.activeJobId;
       if (typeof data17 === "string") {
-        if (func2(data17) > 128) {
+        if (func57(data17) > 128) {
           const err54 = {
             instancePath: instancePath + "/activeJobId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -34669,7 +35536,7 @@ function validate342(
           }
           errors++;
         }
-        if (func2(data17) < 1) {
+        if (func57(data17) < 1) {
           const err55 = {
             instancePath: instancePath + "/activeJobId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -34716,10 +35583,13 @@ function validate342(
         errors++;
       }
     }
-    if (data.activeCandidateId !== undefined) {
+    if (
+      data.activeCandidateId !== undefined &&
+      func0.call(data, "activeCandidateId")
+    ) {
       let data18 = data.activeCandidateId;
       if (typeof data18 === "string") {
-        if (func2(data18) > 128) {
+        if (func57(data18) > 128) {
           const err58 = {
             instancePath: instancePath + "/activeCandidateId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -34734,7 +35604,7 @@ function validate342(
           }
           errors++;
         }
-        if (func2(data18) < 1) {
+        if (func57(data18) < 1) {
           const err59 = {
             instancePath: instancePath + "/activeCandidateId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -34796,11 +35666,11 @@ function validate342(
     }
     errors++;
   }
-  validate342.errors = vErrors;
+  validate348.errors = vErrors;
   return errors === 0;
 }
 
-function validate341(
+function validate347(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -34808,7 +35678,7 @@ function validate341(
     null;
   let errors = 0;
   if (
-    !validate342(data, {
+    !validate348(data, {
       instancePath,
       parentData,
       parentDataProperty,
@@ -34817,16 +35687,16 @@ function validate341(
   ) {
     vErrors =
       vErrors === null
-        ? validate342.errors
-        : vErrors.concat(validate342.errors);
+        ? validate348.errors
+        : vErrors.concat(validate348.errors);
     errors = vErrors.length;
   }
-  validate341.errors = vErrors;
+  validate347.errors = vErrors;
   return errors === 0;
 }
 
-export const validateMakerObservationV1 = validate346;
-const schema497 = {
+export const validateMakerObservationV1 = validate352;
+const schema518 = {
   $id: "https://schemas.brick-studio.local/protocol/1/validators/MakerObservationV1",
   $ref: "https://schemas.brick-studio.local/protocol/1#/definitions/MakerObservationV1",
 };
@@ -34895,7 +35765,10 @@ function validate118(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.schemaVersion === undefined) {
+    if (
+      data.schemaVersion === undefined ||
+      !func0.call(data, "schemaVersion")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -34910,7 +35783,7 @@ function validate118(
       }
       errors++;
     }
-    if (data.mode === undefined) {
+    if (data.mode === undefined || !func0.call(data, "mode")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -34925,7 +35798,7 @@ function validate118(
       }
       errors++;
     }
-    if (data.prompt === undefined) {
+    if (data.prompt === undefined || !func0.call(data, "prompt")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -34940,7 +35813,10 @@ function validate118(
       }
       errors++;
     }
-    if (data.referenceArtifactIds === undefined) {
+    if (
+      data.referenceArtifactIds === undefined ||
+      !func0.call(data, "referenceArtifactIds")
+    ) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -34955,7 +35831,7 @@ function validate118(
       }
       errors++;
     }
-    if (data.baseRevision === undefined) {
+    if (data.baseRevision === undefined || !func0.call(data, "baseRevision")) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -34970,7 +35846,10 @@ function validate118(
       }
       errors++;
     }
-    if (data.baseDocumentHash === undefined) {
+    if (
+      data.baseDocumentHash === undefined ||
+      !func0.call(data, "baseDocumentHash")
+    ) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -34985,7 +35864,10 @@ function validate118(
       }
       errors++;
     }
-    if (data.allowedCatalogPartIds === undefined) {
+    if (
+      data.allowedCatalogPartIds === undefined ||
+      !func0.call(data, "allowedCatalogPartIds")
+    ) {
       const err6 = {
         instancePath,
         schemaPath: "#/required",
@@ -35001,7 +35883,10 @@ function validate118(
       }
       errors++;
     }
-    if (data.allowedColorIds === undefined) {
+    if (
+      data.allowedColorIds === undefined ||
+      !func0.call(data, "allowedColorIds")
+    ) {
       const err7 = {
         instancePath,
         schemaPath: "#/required",
@@ -35016,7 +35901,7 @@ function validate118(
       }
       errors++;
     }
-    if (data.pieceBudget === undefined) {
+    if (data.pieceBudget === undefined || !func0.call(data, "pieceBudget")) {
       const err8 = {
         instancePath,
         schemaPath: "#/required",
@@ -35031,7 +35916,10 @@ function validate118(
       }
       errors++;
     }
-    if (data.semanticRequirements === undefined) {
+    if (
+      data.semanticRequirements === undefined ||
+      !func0.call(data, "semanticRequirements")
+    ) {
       const err9 = {
         instancePath,
         schemaPath: "#/required",
@@ -35046,7 +35934,7 @@ function validate118(
       }
       errors++;
     }
-    if (data.styleTags === undefined) {
+    if (data.styleTags === undefined || !func0.call(data, "styleTags")) {
       const err10 = {
         instancePath,
         schemaPath: "#/required",
@@ -35061,7 +35949,7 @@ function validate118(
       }
       errors++;
     }
-    if (data.budgets === undefined) {
+    if (data.budgets === undefined || !func0.call(data, "budgets")) {
       const err11 = {
         instancePath,
         schemaPath: "#/required",
@@ -35076,7 +35964,7 @@ function validate118(
       }
       errors++;
     }
-    if (data.consent === undefined) {
+    if (data.consent === undefined || !func0.call(data, "consent")) {
       const err12 = {
         instancePath,
         schemaPath: "#/required",
@@ -35091,8 +35979,8 @@ function validate118(
       }
       errors++;
     }
-    for (const key0 in data) {
-      if (!func8.call(schema150.properties, key0)) {
+    for (const key0 of Object.keys(data)) {
+      if (!func0.call(schema150.properties, key0)) {
         const err13 = {
           instancePath,
           schemaPath: "#/additionalProperties",
@@ -35108,7 +35996,7 @@ function validate118(
         errors++;
       }
     }
-    if (data.schemaVersion !== undefined) {
+    if (data.schemaVersion !== undefined && func0.call(data, "schemaVersion")) {
       if ("lego.build-brief/1" !== data.schemaVersion) {
         const err14 = {
           instancePath: instancePath + "/schemaVersion",
@@ -35125,7 +36013,7 @@ function validate118(
         errors++;
       }
     }
-    if (data.mode !== undefined) {
+    if (data.mode !== undefined && func0.call(data, "mode")) {
       let data1 = data.mode;
       if (!(
         data1 === "full" ||
@@ -35150,10 +36038,10 @@ function validate118(
         errors++;
       }
     }
-    if (data.prompt !== undefined) {
+    if (data.prompt !== undefined && func0.call(data, "prompt")) {
       let data2 = data.prompt;
       if (typeof data2 === "string") {
-        if (func2(data2) > 8192) {
+        if (func57(data2) > 8192) {
           const err16 = {
             instancePath: instancePath + "/prompt",
             schemaPath: "#/definitions/LongText/maxLength",
@@ -35184,7 +36072,10 @@ function validate118(
         errors++;
       }
     }
-    if (data.referenceArtifactIds !== undefined) {
+    if (
+      data.referenceArtifactIds !== undefined &&
+      func0.call(data, "referenceArtifactIds")
+    ) {
       let data3 = data.referenceArtifactIds;
       if (Array.isArray(data3)) {
         if (data3.length > 8) {
@@ -35206,7 +36097,7 @@ function validate118(
         for (let i0 = 0; i0 < len0; i0++) {
           let data4 = data3[i0];
           if (typeof data4 === "string") {
-            if (func2(data4) > 128) {
+            if (func57(data4) > 128) {
               const err19 = {
                 instancePath: instancePath + "/referenceArtifactIds/" + i0,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -35221,7 +36112,7 @@ function validate118(
               }
               errors++;
             }
-            if (func2(data4) < 1) {
+            if (func57(data4) < 1) {
               const err20 = {
                 instancePath: instancePath + "/referenceArtifactIds/" + i0,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -35275,7 +36166,7 @@ function validate118(
         if (i1 > 1) {
           outer0: for (; i1--;) {
             for (j0 = i1; j0--;) {
-              if (func0(data3[i1], data3[j0])) {
+              if (func32(data3[i1], data3[j0])) {
                 const err23 = {
                   instancePath: instancePath + "/referenceArtifactIds",
                   schemaPath: "#/properties/referenceArtifactIds/uniqueItems",
@@ -35315,10 +36206,13 @@ function validate118(
         errors++;
       }
     }
-    if (data.referenceCameraAssumptions !== undefined) {
+    if (
+      data.referenceCameraAssumptions !== undefined &&
+      func0.call(data, "referenceCameraAssumptions")
+    ) {
       let data5 = data.referenceCameraAssumptions;
       if (typeof data5 === "string") {
-        if (func2(data5) > 256) {
+        if (func57(data5) > 256) {
           const err25 = {
             instancePath: instancePath + "/referenceCameraAssumptions",
             schemaPath: "#/definitions/ShortText/maxLength",
@@ -35349,10 +36243,10 @@ function validate118(
         errors++;
       }
     }
-    if (data.baseRevision !== undefined) {
+    if (data.baseRevision !== undefined && func0.call(data, "baseRevision")) {
       let data6 = data.baseRevision;
       if (typeof data6 === "string") {
-        if (func2(data6) > 128) {
+        if (func57(data6) > 128) {
           const err27 = {
             instancePath: instancePath + "/baseRevision",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -35367,7 +36261,7 @@ function validate118(
           }
           errors++;
         }
-        if (func2(data6) < 1) {
+        if (func57(data6) < 1) {
           const err28 = {
             instancePath: instancePath + "/baseRevision",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -35414,7 +36308,10 @@ function validate118(
         errors++;
       }
     }
-    if (data.baseDocumentHash !== undefined) {
+    if (
+      data.baseDocumentHash !== undefined &&
+      func0.call(data, "baseDocumentHash")
+    ) {
       let data7 = data.baseDocumentHash;
       if (typeof data7 === "string") {
         if (!pattern2.test(data7)) {
@@ -35448,7 +36345,10 @@ function validate118(
         errors++;
       }
     }
-    if (data.allowedCatalogPartIds !== undefined) {
+    if (
+      data.allowedCatalogPartIds !== undefined &&
+      func0.call(data, "allowedCatalogPartIds")
+    ) {
       let data8 = data.allowedCatalogPartIds;
       if (Array.isArray(data8)) {
         if (data8.length > 10000) {
@@ -35485,7 +36385,7 @@ function validate118(
         for (let i2 = 0; i2 < len1; i2++) {
           let data9 = data8[i2];
           if (typeof data9 === "string") {
-            if (func2(data9) > 128) {
+            if (func57(data9) > 128) {
               const err35 = {
                 instancePath: instancePath + "/allowedCatalogPartIds/" + i2,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -35500,7 +36400,7 @@ function validate118(
               }
               errors++;
             }
-            if (func2(data9) < 1) {
+            if (func57(data9) < 1) {
               const err36 = {
                 instancePath: instancePath + "/allowedCatalogPartIds/" + i2,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -35554,7 +36454,7 @@ function validate118(
         if (i3 > 1) {
           outer1: for (; i3--;) {
             for (j1 = i3; j1--;) {
-              if (func0(data8[i3], data8[j1])) {
+              if (func32(data8[i3], data8[j1])) {
                 const err39 = {
                   instancePath: instancePath + "/allowedCatalogPartIds",
                   schemaPath: "#/properties/allowedCatalogPartIds/uniqueItems",
@@ -35594,7 +36494,10 @@ function validate118(
         errors++;
       }
     }
-    if (data.allowedColorIds !== undefined) {
+    if (
+      data.allowedColorIds !== undefined &&
+      func0.call(data, "allowedColorIds")
+    ) {
       let data10 = data.allowedColorIds;
       if (Array.isArray(data10)) {
         if (data10.length > 256) {
@@ -35631,7 +36534,7 @@ function validate118(
         for (let i4 = 0; i4 < len2; i4++) {
           let data11 = data10[i4];
           if (typeof data11 === "string") {
-            if (func2(data11) > 128) {
+            if (func57(data11) > 128) {
               const err43 = {
                 instancePath: instancePath + "/allowedColorIds/" + i4,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -35646,7 +36549,7 @@ function validate118(
               }
               errors++;
             }
-            if (func2(data11) < 1) {
+            if (func57(data11) < 1) {
               const err44 = {
                 instancePath: instancePath + "/allowedColorIds/" + i4,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -35700,7 +36603,7 @@ function validate118(
         if (i5 > 1) {
           outer2: for (; i5--;) {
             for (j2 = i5; j2--;) {
-              if (func0(data10[i5], data10[j2])) {
+              if (func32(data10[i5], data10[j2])) {
                 const err47 = {
                   instancePath: instancePath + "/allowedColorIds",
                   schemaPath: "#/properties/allowedColorIds/uniqueItems",
@@ -35740,7 +36643,7 @@ function validate118(
         errors++;
       }
     }
-    if (data.pieceBudget !== undefined) {
+    if (data.pieceBudget !== undefined && func0.call(data, "pieceBudget")) {
       let data12 = data.pieceBudget;
       if (!(
         typeof data12 == "number" &&
@@ -35795,7 +36698,10 @@ function validate118(
         }
       }
     }
-    if (data.targetBoundsLdu !== undefined) {
+    if (
+      data.targetBoundsLdu !== undefined &&
+      func0.call(data, "targetBoundsLdu")
+    ) {
       if (
         !validate101(data.targetBoundsLdu, {
           instancePath: instancePath + "/targetBoundsLdu",
@@ -35811,7 +36717,10 @@ function validate118(
         errors = vErrors.length;
       }
     }
-    if (data.semanticRequirements !== undefined) {
+    if (
+      data.semanticRequirements !== undefined &&
+      func0.call(data, "semanticRequirements")
+    ) {
       let data14 = data.semanticRequirements;
       if (Array.isArray(data14)) {
         if (data14.length > 64) {
@@ -35833,7 +36742,7 @@ function validate118(
         for (let i6 = 0; i6 < len3; i6++) {
           let data15 = data14[i6];
           if (typeof data15 === "string") {
-            if (func2(data15) > 256) {
+            if (func57(data15) > 256) {
               const err53 = {
                 instancePath: instancePath + "/semanticRequirements/" + i6,
                 schemaPath: "#/definitions/ShortText/maxLength",
@@ -35869,7 +36778,7 @@ function validate118(
         if (i7 > 1) {
           outer3: for (; i7--;) {
             for (j3 = i7; j3--;) {
-              if (func0(data14[i7], data14[j3])) {
+              if (func32(data14[i7], data14[j3])) {
                 const err55 = {
                   instancePath: instancePath + "/semanticRequirements",
                   schemaPath: "#/properties/semanticRequirements/uniqueItems",
@@ -35909,7 +36818,7 @@ function validate118(
         errors++;
       }
     }
-    if (data.styleTags !== undefined) {
+    if (data.styleTags !== undefined && func0.call(data, "styleTags")) {
       let data16 = data.styleTags;
       if (Array.isArray(data16)) {
         if (data16.length > 32) {
@@ -35931,7 +36840,7 @@ function validate118(
         for (let i8 = 0; i8 < len4; i8++) {
           let data17 = data16[i8];
           if (typeof data17 === "string") {
-            if (func2(data17) > 128) {
+            if (func57(data17) > 128) {
               const err58 = {
                 instancePath: instancePath + "/styleTags/" + i8,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -35946,7 +36855,7 @@ function validate118(
               }
               errors++;
             }
-            if (func2(data17) < 1) {
+            if (func57(data17) < 1) {
               const err59 = {
                 instancePath: instancePath + "/styleTags/" + i8,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -36000,7 +36909,7 @@ function validate118(
         if (i9 > 1) {
           outer4: for (; i9--;) {
             for (j4 = i9; j4--;) {
-              if (func0(data16[i9], data16[j4])) {
+              if (func32(data16[i9], data16[j4])) {
                 const err62 = {
                   instancePath: instancePath + "/styleTags",
                   schemaPath: "#/properties/styleTags/uniqueItems",
@@ -36040,10 +36949,13 @@ function validate118(
         errors++;
       }
     }
-    if (data.budgets !== undefined) {
+    if (data.budgets !== undefined && func0.call(data, "budgets")) {
       let data18 = data.budgets;
       if (data18 && typeof data18 == "object" && !Array.isArray(data18)) {
-        if (data18.maxCandidates === undefined) {
+        if (
+          data18.maxCandidates === undefined ||
+          !func0.call(data18, "maxCandidates")
+        ) {
           const err64 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -36058,7 +36970,10 @@ function validate118(
           }
           errors++;
         }
-        if (data18.maxRepairs === undefined) {
+        if (
+          data18.maxRepairs === undefined ||
+          !func0.call(data18, "maxRepairs")
+        ) {
           const err65 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -36073,7 +36988,10 @@ function validate118(
           }
           errors++;
         }
-        if (data18.maxProviderCalls === undefined) {
+        if (
+          data18.maxProviderCalls === undefined ||
+          !func0.call(data18, "maxProviderCalls")
+        ) {
           const err66 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -36088,7 +37006,10 @@ function validate118(
           }
           errors++;
         }
-        if (data18.maxTokens === undefined) {
+        if (
+          data18.maxTokens === undefined ||
+          !func0.call(data18, "maxTokens")
+        ) {
           const err67 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -36103,7 +37024,10 @@ function validate118(
           }
           errors++;
         }
-        if (data18.maxCostMicros === undefined) {
+        if (
+          data18.maxCostMicros === undefined ||
+          !func0.call(data18, "maxCostMicros")
+        ) {
           const err68 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -36118,7 +37042,10 @@ function validate118(
           }
           errors++;
         }
-        if (data18.maxWallTimeMs === undefined) {
+        if (
+          data18.maxWallTimeMs === undefined ||
+          !func0.call(data18, "maxWallTimeMs")
+        ) {
           const err69 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -36133,7 +37060,10 @@ function validate118(
           }
           errors++;
         }
-        if (data18.maxRenders === undefined) {
+        if (
+          data18.maxRenders === undefined ||
+          !func0.call(data18, "maxRenders")
+        ) {
           const err70 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -36148,7 +37078,10 @@ function validate118(
           }
           errors++;
         }
-        if (data18.maxStoredBytes === undefined) {
+        if (
+          data18.maxStoredBytes === undefined ||
+          !func0.call(data18, "maxStoredBytes")
+        ) {
           const err71 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -36163,7 +37096,7 @@ function validate118(
           }
           errors++;
         }
-        for (const key1 in data18) {
+        for (const key1 of Object.keys(data18)) {
           if (!(
             key1 === "maxCandidates" ||
             key1 === "maxRepairs" ||
@@ -36190,7 +37123,10 @@ function validate118(
             errors++;
           }
         }
-        if (data18.maxCandidates !== undefined) {
+        if (
+          data18.maxCandidates !== undefined &&
+          func0.call(data18, "maxCandidates")
+        ) {
           let data19 = data18.maxCandidates;
           if (!(
             typeof data19 == "number" &&
@@ -36248,7 +37184,10 @@ function validate118(
             }
           }
         }
-        if (data18.maxRepairs !== undefined) {
+        if (
+          data18.maxRepairs !== undefined &&
+          func0.call(data18, "maxRepairs")
+        ) {
           let data20 = data18.maxRepairs;
           if (!(
             typeof data20 == "number" &&
@@ -36306,7 +37245,10 @@ function validate118(
             }
           }
         }
-        if (data18.maxProviderCalls !== undefined) {
+        if (
+          data18.maxProviderCalls !== undefined &&
+          func0.call(data18, "maxProviderCalls")
+        ) {
           let data21 = data18.maxProviderCalls;
           if (!(
             typeof data21 == "number" &&
@@ -36364,7 +37306,7 @@ function validate118(
             }
           }
         }
-        if (data18.maxTokens !== undefined) {
+        if (data18.maxTokens !== undefined && func0.call(data18, "maxTokens")) {
           let data22 = data18.maxTokens;
           if (!(
             typeof data22 == "number" &&
@@ -36422,7 +37364,10 @@ function validate118(
             }
           }
         }
-        if (data18.maxCostMicros !== undefined) {
+        if (
+          data18.maxCostMicros !== undefined &&
+          func0.call(data18, "maxCostMicros")
+        ) {
           let data23 = data18.maxCostMicros;
           if (!(
             typeof data23 == "number" &&
@@ -36480,7 +37425,10 @@ function validate118(
             }
           }
         }
-        if (data18.maxWallTimeMs !== undefined) {
+        if (
+          data18.maxWallTimeMs !== undefined &&
+          func0.call(data18, "maxWallTimeMs")
+        ) {
           let data24 = data18.maxWallTimeMs;
           if (!(
             typeof data24 == "number" &&
@@ -36538,7 +37486,10 @@ function validate118(
             }
           }
         }
-        if (data18.maxRenders !== undefined) {
+        if (
+          data18.maxRenders !== undefined &&
+          func0.call(data18, "maxRenders")
+        ) {
           let data25 = data18.maxRenders;
           if (!(
             typeof data25 == "number" &&
@@ -36596,7 +37547,10 @@ function validate118(
             }
           }
         }
-        if (data18.maxStoredBytes !== undefined) {
+        if (
+          data18.maxStoredBytes !== undefined &&
+          func0.call(data18, "maxStoredBytes")
+        ) {
           let data26 = data18.maxStoredBytes;
           if (!(
             typeof data26 == "number" &&
@@ -36670,7 +37624,7 @@ function validate118(
         errors++;
       }
     }
-    if (data.consent !== undefined) {
+    if (data.consent !== undefined && func0.call(data, "consent")) {
       if (
         !validate120(data.consent, {
           instancePath: instancePath + "/consent",
@@ -36762,7 +37716,10 @@ function validate137(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.mutablePartIds === undefined) {
+    if (
+      data.mutablePartIds === undefined ||
+      !func0.call(data, "mutablePartIds")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -36777,7 +37734,10 @@ function validate137(
       }
       errors++;
     }
-    if (data.readOnlyBoundaryPartIds === undefined) {
+    if (
+      data.readOnlyBoundaryPartIds === undefined ||
+      !func0.call(data, "readOnlyBoundaryPartIds")
+    ) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -36793,7 +37753,10 @@ function validate137(
       }
       errors++;
     }
-    if (data.requiredAttachmentPorts === undefined) {
+    if (
+      data.requiredAttachmentPorts === undefined ||
+      !func0.call(data, "requiredAttachmentPorts")
+    ) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -36809,7 +37772,10 @@ function validate137(
       }
       errors++;
     }
-    if (data.allowedVolume === undefined) {
+    if (
+      data.allowedVolume === undefined ||
+      !func0.call(data, "allowedVolume")
+    ) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -36824,7 +37790,10 @@ function validate137(
       }
       errors++;
     }
-    if (data.allowedCatalogPartIds === undefined) {
+    if (
+      data.allowedCatalogPartIds === undefined ||
+      !func0.call(data, "allowedCatalogPartIds")
+    ) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -36840,7 +37809,10 @@ function validate137(
       }
       errors++;
     }
-    if (data.allowedColorIds === undefined) {
+    if (
+      data.allowedColorIds === undefined ||
+      !func0.call(data, "allowedColorIds")
+    ) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -36855,7 +37827,7 @@ function validate137(
       }
       errors++;
     }
-    if (data.budgets === undefined) {
+    if (data.budgets === undefined || !func0.call(data, "budgets")) {
       const err6 = {
         instancePath,
         schemaPath: "#/required",
@@ -36870,7 +37842,7 @@ function validate137(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "mutablePartIds" ||
         key0 === "readOnlyBoundaryPartIds" ||
@@ -36895,7 +37867,10 @@ function validate137(
         errors++;
       }
     }
-    if (data.mutablePartIds !== undefined) {
+    if (
+      data.mutablePartIds !== undefined &&
+      func0.call(data, "mutablePartIds")
+    ) {
       let data0 = data.mutablePartIds;
       if (Array.isArray(data0)) {
         if (data0.length > 10000) {
@@ -36917,7 +37892,7 @@ function validate137(
         for (let i0 = 0; i0 < len0; i0++) {
           let data1 = data0[i0];
           if (typeof data1 === "string") {
-            if (func2(data1) > 128) {
+            if (func57(data1) > 128) {
               const err9 = {
                 instancePath: instancePath + "/mutablePartIds/" + i0,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -36932,7 +37907,7 @@ function validate137(
               }
               errors++;
             }
-            if (func2(data1) < 1) {
+            if (func57(data1) < 1) {
               const err10 = {
                 instancePath: instancePath + "/mutablePartIds/" + i0,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -36986,7 +37961,7 @@ function validate137(
         if (i1 > 1) {
           outer0: for (; i1--;) {
             for (j0 = i1; j0--;) {
-              if (func0(data0[i1], data0[j0])) {
+              if (func32(data0[i1], data0[j0])) {
                 const err13 = {
                   instancePath: instancePath + "/mutablePartIds",
                   schemaPath: "#/properties/mutablePartIds/uniqueItems",
@@ -37026,7 +38001,10 @@ function validate137(
         errors++;
       }
     }
-    if (data.readOnlyBoundaryPartIds !== undefined) {
+    if (
+      data.readOnlyBoundaryPartIds !== undefined &&
+      func0.call(data, "readOnlyBoundaryPartIds")
+    ) {
       let data2 = data.readOnlyBoundaryPartIds;
       if (Array.isArray(data2)) {
         if (data2.length > 10000) {
@@ -37048,7 +38026,7 @@ function validate137(
         for (let i2 = 0; i2 < len1; i2++) {
           let data3 = data2[i2];
           if (typeof data3 === "string") {
-            if (func2(data3) > 128) {
+            if (func57(data3) > 128) {
               const err16 = {
                 instancePath: instancePath + "/readOnlyBoundaryPartIds/" + i2,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -37063,7 +38041,7 @@ function validate137(
               }
               errors++;
             }
-            if (func2(data3) < 1) {
+            if (func57(data3) < 1) {
               const err17 = {
                 instancePath: instancePath + "/readOnlyBoundaryPartIds/" + i2,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -37117,7 +38095,7 @@ function validate137(
         if (i3 > 1) {
           outer1: for (; i3--;) {
             for (j1 = i3; j1--;) {
-              if (func0(data2[i3], data2[j1])) {
+              if (func32(data2[i3], data2[j1])) {
                 const err20 = {
                   instancePath: instancePath + "/readOnlyBoundaryPartIds",
                   schemaPath:
@@ -37158,7 +38136,10 @@ function validate137(
         errors++;
       }
     }
-    if (data.requiredAttachmentPorts !== undefined) {
+    if (
+      data.requiredAttachmentPorts !== undefined &&
+      func0.call(data, "requiredAttachmentPorts")
+    ) {
       let data4 = data.requiredAttachmentPorts;
       if (Array.isArray(data4)) {
         if (data4.length > 256) {
@@ -37198,7 +38179,7 @@ function validate137(
         if (i5 > 1) {
           outer2: for (; i5--;) {
             for (j2 = i5; j2--;) {
-              if (func0(data4[i5], data4[j2])) {
+              if (func32(data4[i5], data4[j2])) {
                 const err23 = {
                   instancePath: instancePath + "/requiredAttachmentPorts",
                   schemaPath:
@@ -37239,7 +38220,7 @@ function validate137(
         errors++;
       }
     }
-    if (data.allowedVolume !== undefined) {
+    if (data.allowedVolume !== undefined && func0.call(data, "allowedVolume")) {
       if (
         !validate101(data.allowedVolume, {
           instancePath: instancePath + "/allowedVolume",
@@ -37255,7 +38236,10 @@ function validate137(
         errors = vErrors.length;
       }
     }
-    if (data.allowedCatalogPartIds !== undefined) {
+    if (
+      data.allowedCatalogPartIds !== undefined &&
+      func0.call(data, "allowedCatalogPartIds")
+    ) {
       let data7 = data.allowedCatalogPartIds;
       if (Array.isArray(data7)) {
         if (data7.length > 10000) {
@@ -37292,7 +38276,7 @@ function validate137(
         for (let i6 = 0; i6 < len3; i6++) {
           let data8 = data7[i6];
           if (typeof data8 === "string") {
-            if (func2(data8) > 128) {
+            if (func57(data8) > 128) {
               const err27 = {
                 instancePath: instancePath + "/allowedCatalogPartIds/" + i6,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -37307,7 +38291,7 @@ function validate137(
               }
               errors++;
             }
-            if (func2(data8) < 1) {
+            if (func57(data8) < 1) {
               const err28 = {
                 instancePath: instancePath + "/allowedCatalogPartIds/" + i6,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -37361,7 +38345,7 @@ function validate137(
         if (i7 > 1) {
           outer3: for (; i7--;) {
             for (j3 = i7; j3--;) {
-              if (func0(data7[i7], data7[j3])) {
+              if (func32(data7[i7], data7[j3])) {
                 const err31 = {
                   instancePath: instancePath + "/allowedCatalogPartIds",
                   schemaPath: "#/properties/allowedCatalogPartIds/uniqueItems",
@@ -37401,7 +38385,10 @@ function validate137(
         errors++;
       }
     }
-    if (data.allowedColorIds !== undefined) {
+    if (
+      data.allowedColorIds !== undefined &&
+      func0.call(data, "allowedColorIds")
+    ) {
       let data9 = data.allowedColorIds;
       if (Array.isArray(data9)) {
         if (data9.length > 256) {
@@ -37438,7 +38425,7 @@ function validate137(
         for (let i8 = 0; i8 < len4; i8++) {
           let data10 = data9[i8];
           if (typeof data10 === "string") {
-            if (func2(data10) > 128) {
+            if (func57(data10) > 128) {
               const err35 = {
                 instancePath: instancePath + "/allowedColorIds/" + i8,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -37453,7 +38440,7 @@ function validate137(
               }
               errors++;
             }
-            if (func2(data10) < 1) {
+            if (func57(data10) < 1) {
               const err36 = {
                 instancePath: instancePath + "/allowedColorIds/" + i8,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -37507,7 +38494,7 @@ function validate137(
         if (i9 > 1) {
           outer4: for (; i9--;) {
             for (j4 = i9; j4--;) {
-              if (func0(data9[i9], data9[j4])) {
+              if (func32(data9[i9], data9[j4])) {
                 const err39 = {
                   instancePath: instancePath + "/allowedColorIds",
                   schemaPath: "#/properties/allowedColorIds/uniqueItems",
@@ -37547,10 +38534,13 @@ function validate137(
         errors++;
       }
     }
-    if (data.budgets !== undefined) {
+    if (data.budgets !== undefined && func0.call(data, "budgets")) {
       let data11 = data.budgets;
       if (data11 && typeof data11 == "object" && !Array.isArray(data11)) {
-        if (data11.maxAddedParts === undefined) {
+        if (
+          data11.maxAddedParts === undefined ||
+          !func0.call(data11, "maxAddedParts")
+        ) {
           const err41 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/ScopeBudgets/required",
@@ -37565,7 +38555,10 @@ function validate137(
           }
           errors++;
         }
-        if (data11.maxRemovedParts === undefined) {
+        if (
+          data11.maxRemovedParts === undefined ||
+          !func0.call(data11, "maxRemovedParts")
+        ) {
           const err42 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/ScopeBudgets/required",
@@ -37580,7 +38573,10 @@ function validate137(
           }
           errors++;
         }
-        if (data11.maxOperations === undefined) {
+        if (
+          data11.maxOperations === undefined ||
+          !func0.call(data11, "maxOperations")
+        ) {
           const err43 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/ScopeBudgets/required",
@@ -37595,7 +38591,7 @@ function validate137(
           }
           errors++;
         }
-        for (const key1 in data11) {
+        for (const key1 of Object.keys(data11)) {
           if (!(
             key1 === "maxAddedParts" ||
             key1 === "maxRemovedParts" ||
@@ -37616,7 +38612,10 @@ function validate137(
             errors++;
           }
         }
-        if (data11.maxAddedParts !== undefined) {
+        if (
+          data11.maxAddedParts !== undefined &&
+          func0.call(data11, "maxAddedParts")
+        ) {
           let data12 = data11.maxAddedParts;
           if (!(
             typeof data12 == "number" &&
@@ -37674,7 +38673,10 @@ function validate137(
             }
           }
         }
-        if (data11.maxRemovedParts !== undefined) {
+        if (
+          data11.maxRemovedParts !== undefined &&
+          func0.call(data11, "maxRemovedParts")
+        ) {
           let data13 = data11.maxRemovedParts;
           if (!(
             typeof data13 == "number" &&
@@ -37732,7 +38734,10 @@ function validate137(
             }
           }
         }
-        if (data11.maxOperations !== undefined) {
+        if (
+          data11.maxOperations !== undefined &&
+          func0.call(data11, "maxOperations")
+        ) {
           let data14 = data11.maxOperations;
           if (!(
             typeof data14 == "number" &&
@@ -37858,7 +38863,7 @@ function validate141(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.partCount === undefined) {
+    if (data.partCount === undefined || !func0.call(data, "partCount")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -37873,7 +38878,10 @@ function validate141(
       }
       errors++;
     }
-    if (data.connectionCount === undefined) {
+    if (
+      data.connectionCount === undefined ||
+      !func0.call(data, "connectionCount")
+    ) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -37888,7 +38896,10 @@ function validate141(
       }
       errors++;
     }
-    if (data.componentCount === undefined) {
+    if (
+      data.componentCount === undefined ||
+      !func0.call(data, "componentCount")
+    ) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -37903,7 +38914,10 @@ function validate141(
       }
       errors++;
     }
-    if (data.exposedPortCount === undefined) {
+    if (
+      data.exposedPortCount === undefined ||
+      !func0.call(data, "exposedPortCount")
+    ) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -37918,7 +38932,7 @@ function validate141(
       }
       errors++;
     }
-    if (data.semanticTags === undefined) {
+    if (data.semanticTags === undefined || !func0.call(data, "semanticTags")) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -37933,7 +38947,7 @@ function validate141(
       }
       errors++;
     }
-    if (data.boundsLdu === undefined) {
+    if (data.boundsLdu === undefined || !func0.call(data, "boundsLdu")) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -37948,7 +38962,7 @@ function validate141(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "partCount" ||
         key0 === "connectionCount" ||
@@ -37972,7 +38986,7 @@ function validate141(
         errors++;
       }
     }
-    if (data.partCount !== undefined) {
+    if (data.partCount !== undefined && func0.call(data, "partCount")) {
       let data0 = data.partCount;
       if (!(
         typeof data0 == "number" &&
@@ -38027,7 +39041,10 @@ function validate141(
         }
       }
     }
-    if (data.connectionCount !== undefined) {
+    if (
+      data.connectionCount !== undefined &&
+      func0.call(data, "connectionCount")
+    ) {
       let data1 = data.connectionCount;
       if (!(
         typeof data1 == "number" &&
@@ -38082,7 +39099,10 @@ function validate141(
         }
       }
     }
-    if (data.componentCount !== undefined) {
+    if (
+      data.componentCount !== undefined &&
+      func0.call(data, "componentCount")
+    ) {
       let data2 = data.componentCount;
       if (!(
         typeof data2 == "number" &&
@@ -38137,7 +39157,10 @@ function validate141(
         }
       }
     }
-    if (data.exposedPortCount !== undefined) {
+    if (
+      data.exposedPortCount !== undefined &&
+      func0.call(data, "exposedPortCount")
+    ) {
       let data3 = data.exposedPortCount;
       if (!(
         typeof data3 == "number" &&
@@ -38192,7 +39215,7 @@ function validate141(
         }
       }
     }
-    if (data.semanticTags !== undefined) {
+    if (data.semanticTags !== undefined && func0.call(data, "semanticTags")) {
       let data4 = data.semanticTags;
       if (Array.isArray(data4)) {
         if (data4.length > 256) {
@@ -38214,7 +39237,7 @@ function validate141(
         for (let i0 = 0; i0 < len0; i0++) {
           let data5 = data4[i0];
           if (typeof data5 === "string") {
-            if (func2(data5) > 128) {
+            if (func57(data5) > 128) {
               const err20 = {
                 instancePath: instancePath + "/semanticTags/" + i0,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -38229,7 +39252,7 @@ function validate141(
               }
               errors++;
             }
-            if (func2(data5) < 1) {
+            if (func57(data5) < 1) {
               const err21 = {
                 instancePath: instancePath + "/semanticTags/" + i0,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -38283,7 +39306,7 @@ function validate141(
         if (i1 > 1) {
           outer0: for (; i1--;) {
             for (j0 = i1; j0--;) {
-              if (func0(data4[i1], data4[j0])) {
+              if (func32(data4[i1], data4[j0])) {
                 const err24 = {
                   instancePath: instancePath + "/semanticTags",
                   schemaPath: "#/properties/semanticTags/uniqueItems",
@@ -38323,7 +39346,7 @@ function validate141(
         errors++;
       }
     }
-    if (data.boundsLdu !== undefined) {
+    if (data.boundsLdu !== undefined && func0.call(data, "boundsLdu")) {
       if (
         !validate101(data.boundsLdu, {
           instancePath: instancePath + "/boundsLdu",
@@ -38365,7 +39388,10 @@ function validate113(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.schemaVersion === undefined) {
+    if (
+      data.schemaVersion === undefined ||
+      !func0.call(data, "schemaVersion")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -38380,7 +39406,10 @@ function validate113(
       }
       errors++;
     }
-    if (data.targetDocumentHash === undefined) {
+    if (
+      data.targetDocumentHash === undefined ||
+      !func0.call(data, "targetDocumentHash")
+    ) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -38395,7 +39424,10 @@ function validate113(
       }
       errors++;
     }
-    if (data.truthSnapshotHash === undefined) {
+    if (
+      data.truthSnapshotHash === undefined ||
+      !func0.call(data, "truthSnapshotHash")
+    ) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -38410,7 +39442,10 @@ function validate113(
       }
       errors++;
     }
-    if (data.validatorSetHash === undefined) {
+    if (
+      data.validatorSetHash === undefined ||
+      !func0.call(data, "validatorSetHash")
+    ) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -38425,7 +39460,7 @@ function validate113(
       }
       errors++;
     }
-    if (data.patchValid === undefined) {
+    if (data.patchValid === undefined || !func0.call(data, "patchValid")) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -38440,7 +39475,10 @@ function validate113(
       }
       errors++;
     }
-    if (data.documentGloballyValid === undefined) {
+    if (
+      data.documentGloballyValid === undefined ||
+      !func0.call(data, "documentGloballyValid")
+    ) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -38456,7 +39494,7 @@ function validate113(
       }
       errors++;
     }
-    if (data.issues === undefined) {
+    if (data.issues === undefined || !func0.call(data, "issues")) {
       const err6 = {
         instancePath,
         schemaPath: "#/required",
@@ -38471,7 +39509,7 @@ function validate113(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "schemaVersion" ||
         key0 === "targetDocumentHash" ||
@@ -38496,7 +39534,7 @@ function validate113(
         errors++;
       }
     }
-    if (data.schemaVersion !== undefined) {
+    if (data.schemaVersion !== undefined && func0.call(data, "schemaVersion")) {
       if ("lego.validation-report/1" !== data.schemaVersion) {
         const err8 = {
           instancePath: instancePath + "/schemaVersion",
@@ -38513,7 +39551,10 @@ function validate113(
         errors++;
       }
     }
-    if (data.targetDocumentHash !== undefined) {
+    if (
+      data.targetDocumentHash !== undefined &&
+      func0.call(data, "targetDocumentHash")
+    ) {
       let data1 = data.targetDocumentHash;
       if (typeof data1 === "string") {
         if (!pattern2.test(data1)) {
@@ -38547,7 +39588,10 @@ function validate113(
         errors++;
       }
     }
-    if (data.truthSnapshotHash !== undefined) {
+    if (
+      data.truthSnapshotHash !== undefined &&
+      func0.call(data, "truthSnapshotHash")
+    ) {
       let data2 = data.truthSnapshotHash;
       if (typeof data2 === "string") {
         if (!pattern2.test(data2)) {
@@ -38581,7 +39625,10 @@ function validate113(
         errors++;
       }
     }
-    if (data.validatorSetHash !== undefined) {
+    if (
+      data.validatorSetHash !== undefined &&
+      func0.call(data, "validatorSetHash")
+    ) {
       let data3 = data.validatorSetHash;
       if (typeof data3 === "string") {
         if (!pattern2.test(data3)) {
@@ -38615,7 +39662,7 @@ function validate113(
         errors++;
       }
     }
-    if (data.patchValid !== undefined) {
+    if (data.patchValid !== undefined && func0.call(data, "patchValid")) {
       if (typeof data.patchValid !== "boolean") {
         const err15 = {
           instancePath: instancePath + "/patchValid",
@@ -38632,7 +39679,10 @@ function validate113(
         errors++;
       }
     }
-    if (data.documentGloballyValid !== undefined) {
+    if (
+      data.documentGloballyValid !== undefined &&
+      func0.call(data, "documentGloballyValid")
+    ) {
       if (typeof data.documentGloballyValid !== "boolean") {
         const err16 = {
           instancePath: instancePath + "/documentGloballyValid",
@@ -38649,7 +39699,7 @@ function validate113(
         errors++;
       }
     }
-    if (data.issues !== undefined) {
+    if (data.issues !== undefined && func0.call(data, "issues")) {
       let data6 = data.issues;
       if (Array.isArray(data6)) {
         if (data6.length > 10000) {
@@ -38726,7 +39776,10 @@ function validate125(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.schemaVersion === undefined) {
+    if (
+      data.schemaVersion === undefined ||
+      !func0.call(data, "schemaVersion")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -38741,7 +39794,7 @@ function validate125(
       }
       errors++;
     }
-    if (data.documentHash === undefined) {
+    if (data.documentHash === undefined || !func0.call(data, "documentHash")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -38756,7 +39809,10 @@ function validate125(
       }
       errors++;
     }
-    if (data.validationReportHash === undefined) {
+    if (
+      data.validationReportHash === undefined ||
+      !func0.call(data, "validationReportHash")
+    ) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -38771,7 +39827,10 @@ function validate125(
       }
       errors++;
     }
-    if (data.rendererSnapshotHash === undefined) {
+    if (
+      data.rendererSnapshotHash === undefined ||
+      !func0.call(data, "rendererSnapshotHash")
+    ) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -38786,7 +39845,10 @@ function validate125(
       }
       errors++;
     }
-    if (data.cameraSnapshotHash === undefined) {
+    if (
+      data.cameraSnapshotHash === undefined ||
+      !func0.call(data, "cameraSnapshotHash")
+    ) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -38801,7 +39863,10 @@ function validate125(
       }
       errors++;
     }
-    if (data.capturePolicyHash === undefined) {
+    if (
+      data.capturePolicyHash === undefined ||
+      !func0.call(data, "capturePolicyHash")
+    ) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -38816,7 +39881,10 @@ function validate125(
       }
       errors++;
     }
-    if (data.browserBuildHash === undefined) {
+    if (
+      data.browserBuildHash === undefined ||
+      !func0.call(data, "browserBuildHash")
+    ) {
       const err6 = {
         instancePath,
         schemaPath: "#/required",
@@ -38831,7 +39899,7 @@ function validate125(
       }
       errors++;
     }
-    if (data.views === undefined) {
+    if (data.views === undefined || !func0.call(data, "views")) {
       const err7 = {
         instancePath,
         schemaPath: "#/required",
@@ -38846,7 +39914,7 @@ function validate125(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "schemaVersion" ||
         key0 === "documentHash" ||
@@ -38872,7 +39940,7 @@ function validate125(
         errors++;
       }
     }
-    if (data.schemaVersion !== undefined) {
+    if (data.schemaVersion !== undefined && func0.call(data, "schemaVersion")) {
       if ("lego.render-packet/1" !== data.schemaVersion) {
         const err9 = {
           instancePath: instancePath + "/schemaVersion",
@@ -38889,7 +39957,7 @@ function validate125(
         errors++;
       }
     }
-    if (data.documentHash !== undefined) {
+    if (data.documentHash !== undefined && func0.call(data, "documentHash")) {
       let data1 = data.documentHash;
       if (typeof data1 === "string") {
         if (!pattern2.test(data1)) {
@@ -38923,7 +39991,10 @@ function validate125(
         errors++;
       }
     }
-    if (data.validationReportHash !== undefined) {
+    if (
+      data.validationReportHash !== undefined &&
+      func0.call(data, "validationReportHash")
+    ) {
       let data2 = data.validationReportHash;
       if (typeof data2 === "string") {
         if (!pattern2.test(data2)) {
@@ -38957,7 +40028,10 @@ function validate125(
         errors++;
       }
     }
-    if (data.rendererSnapshotHash !== undefined) {
+    if (
+      data.rendererSnapshotHash !== undefined &&
+      func0.call(data, "rendererSnapshotHash")
+    ) {
       let data3 = data.rendererSnapshotHash;
       if (typeof data3 === "string") {
         if (!pattern2.test(data3)) {
@@ -38991,7 +40065,10 @@ function validate125(
         errors++;
       }
     }
-    if (data.cameraSnapshotHash !== undefined) {
+    if (
+      data.cameraSnapshotHash !== undefined &&
+      func0.call(data, "cameraSnapshotHash")
+    ) {
       let data4 = data.cameraSnapshotHash;
       if (typeof data4 === "string") {
         if (!pattern2.test(data4)) {
@@ -39025,7 +40102,10 @@ function validate125(
         errors++;
       }
     }
-    if (data.capturePolicyHash !== undefined) {
+    if (
+      data.capturePolicyHash !== undefined &&
+      func0.call(data, "capturePolicyHash")
+    ) {
       let data5 = data.capturePolicyHash;
       if (typeof data5 === "string") {
         if (!pattern2.test(data5)) {
@@ -39059,7 +40139,10 @@ function validate125(
         errors++;
       }
     }
-    if (data.browserBuildHash !== undefined) {
+    if (
+      data.browserBuildHash !== undefined &&
+      func0.call(data, "browserBuildHash")
+    ) {
       let data6 = data.browserBuildHash;
       if (typeof data6 === "string") {
         if (!pattern2.test(data6)) {
@@ -39093,7 +40176,7 @@ function validate125(
         errors++;
       }
     }
-    if (data.views !== undefined) {
+    if (data.views !== undefined && func0.call(data, "views")) {
       let data7 = data.views;
       if (Array.isArray(data7)) {
         if (data7.length > 128) {
@@ -39178,14 +40261,17 @@ function validate125(
   return errors === 0;
 }
 
-function validate347(
+function validate353(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.schemaVersion === undefined) {
+    if (
+      data.schemaVersion === undefined ||
+      !func0.call(data, "schemaVersion")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -39200,7 +40286,10 @@ function validate347(
       }
       errors++;
     }
-    if (data.observationHash === undefined) {
+    if (
+      data.observationHash === undefined ||
+      !func0.call(data, "observationHash")
+    ) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -39215,7 +40304,7 @@ function validate347(
       }
       errors++;
     }
-    if (data.jobId === undefined) {
+    if (data.jobId === undefined || !func0.call(data, "jobId")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -39230,7 +40319,7 @@ function validate347(
       }
       errors++;
     }
-    if (data.attemptId === undefined) {
+    if (data.attemptId === undefined || !func0.call(data, "attemptId")) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -39245,7 +40334,10 @@ function validate347(
       }
       errors++;
     }
-    if (data.consentPolicyHash === undefined) {
+    if (
+      data.consentPolicyHash === undefined ||
+      !func0.call(data, "consentPolicyHash")
+    ) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -39260,7 +40352,10 @@ function validate347(
       }
       errors++;
     }
-    if (data.scopePolicyHash === undefined) {
+    if (
+      data.scopePolicyHash === undefined ||
+      !func0.call(data, "scopePolicyHash")
+    ) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -39275,7 +40370,7 @@ function validate347(
       }
       errors++;
     }
-    if (data.baseRevision === undefined) {
+    if (data.baseRevision === undefined || !func0.call(data, "baseRevision")) {
       const err6 = {
         instancePath,
         schemaPath: "#/required",
@@ -39290,7 +40385,10 @@ function validate347(
       }
       errors++;
     }
-    if (data.baseDocumentHash === undefined) {
+    if (
+      data.baseDocumentHash === undefined ||
+      !func0.call(data, "baseDocumentHash")
+    ) {
       const err7 = {
         instancePath,
         schemaPath: "#/required",
@@ -39305,7 +40403,7 @@ function validate347(
       }
       errors++;
     }
-    if (data.brief === undefined) {
+    if (data.brief === undefined || !func0.call(data, "brief")) {
       const err8 = {
         instancePath,
         schemaPath: "#/required",
@@ -39320,7 +40418,7 @@ function validate347(
       }
       errors++;
     }
-    if (data.scope === undefined) {
+    if (data.scope === undefined || !func0.call(data, "scope")) {
       const err9 = {
         instancePath,
         schemaPath: "#/required",
@@ -39335,7 +40433,10 @@ function validate347(
       }
       errors++;
     }
-    if (data.documentSummary === undefined) {
+    if (
+      data.documentSummary === undefined ||
+      !func0.call(data, "documentSummary")
+    ) {
       const err10 = {
         instancePath,
         schemaPath: "#/required",
@@ -39350,7 +40451,10 @@ function validate347(
       }
       errors++;
     }
-    if (data.validationSummary === undefined) {
+    if (
+      data.validationSummary === undefined ||
+      !func0.call(data, "validationSummary")
+    ) {
       const err11 = {
         instancePath,
         schemaPath: "#/required",
@@ -39365,7 +40469,7 @@ function validate347(
       }
       errors++;
     }
-    if (data.renderPacket === undefined) {
+    if (data.renderPacket === undefined || !func0.call(data, "renderPacket")) {
       const err12 = {
         instancePath,
         schemaPath: "#/required",
@@ -39380,7 +40484,10 @@ function validate347(
       }
       errors++;
     }
-    if (data.referenceArtifacts === undefined) {
+    if (
+      data.referenceArtifacts === undefined ||
+      !func0.call(data, "referenceArtifacts")
+    ) {
       const err13 = {
         instancePath,
         schemaPath: "#/required",
@@ -39395,7 +40502,10 @@ function validate347(
       }
       errors++;
     }
-    if (data.templateSnapshotHashes === undefined) {
+    if (
+      data.templateSnapshotHashes === undefined ||
+      !func0.call(data, "templateSnapshotHashes")
+    ) {
       const err14 = {
         instancePath,
         schemaPath: "#/required",
@@ -39411,7 +40521,10 @@ function validate347(
       }
       errors++;
     }
-    if (data.lessonSnapshotHashes === undefined) {
+    if (
+      data.lessonSnapshotHashes === undefined ||
+      !func0.call(data, "lessonSnapshotHashes")
+    ) {
       const err15 = {
         instancePath,
         schemaPath: "#/required",
@@ -39426,7 +40539,10 @@ function validate347(
       }
       errors++;
     }
-    if (data.remainingBudgets === undefined) {
+    if (
+      data.remainingBudgets === undefined ||
+      !func0.call(data, "remainingBudgets")
+    ) {
       const err16 = {
         instancePath,
         schemaPath: "#/required",
@@ -39441,8 +40557,8 @@ function validate347(
       }
       errors++;
     }
-    for (const key0 in data) {
-      if (!func8.call(schema193.properties, key0)) {
+    for (const key0 of Object.keys(data)) {
+      if (!func0.call(schema193.properties, key0)) {
         const err17 = {
           instancePath,
           schemaPath: "#/additionalProperties",
@@ -39458,7 +40574,7 @@ function validate347(
         errors++;
       }
     }
-    if (data.schemaVersion !== undefined) {
+    if (data.schemaVersion !== undefined && func0.call(data, "schemaVersion")) {
       if ("lego.maker-observation/1" !== data.schemaVersion) {
         const err18 = {
           instancePath: instancePath + "/schemaVersion",
@@ -39475,7 +40591,10 @@ function validate347(
         errors++;
       }
     }
-    if (data.observationHash !== undefined) {
+    if (
+      data.observationHash !== undefined &&
+      func0.call(data, "observationHash")
+    ) {
       let data1 = data.observationHash;
       if (typeof data1 === "string") {
         if (!pattern2.test(data1)) {
@@ -39509,10 +40628,10 @@ function validate347(
         errors++;
       }
     }
-    if (data.jobId !== undefined) {
+    if (data.jobId !== undefined && func0.call(data, "jobId")) {
       let data2 = data.jobId;
       if (typeof data2 === "string") {
-        if (func2(data2) > 128) {
+        if (func57(data2) > 128) {
           const err21 = {
             instancePath: instancePath + "/jobId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -39527,7 +40646,7 @@ function validate347(
           }
           errors++;
         }
-        if (func2(data2) < 1) {
+        if (func57(data2) < 1) {
           const err22 = {
             instancePath: instancePath + "/jobId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -39574,10 +40693,10 @@ function validate347(
         errors++;
       }
     }
-    if (data.attemptId !== undefined) {
+    if (data.attemptId !== undefined && func0.call(data, "attemptId")) {
       let data3 = data.attemptId;
       if (typeof data3 === "string") {
-        if (func2(data3) > 128) {
+        if (func57(data3) > 128) {
           const err25 = {
             instancePath: instancePath + "/attemptId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -39592,7 +40711,7 @@ function validate347(
           }
           errors++;
         }
-        if (func2(data3) < 1) {
+        if (func57(data3) < 1) {
           const err26 = {
             instancePath: instancePath + "/attemptId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -39639,7 +40758,10 @@ function validate347(
         errors++;
       }
     }
-    if (data.consentPolicyHash !== undefined) {
+    if (
+      data.consentPolicyHash !== undefined &&
+      func0.call(data, "consentPolicyHash")
+    ) {
       let data4 = data.consentPolicyHash;
       if (typeof data4 === "string") {
         if (!pattern2.test(data4)) {
@@ -39673,7 +40795,10 @@ function validate347(
         errors++;
       }
     }
-    if (data.scopePolicyHash !== undefined) {
+    if (
+      data.scopePolicyHash !== undefined &&
+      func0.call(data, "scopePolicyHash")
+    ) {
       let data5 = data.scopePolicyHash;
       if (typeof data5 === "string") {
         if (!pattern2.test(data5)) {
@@ -39707,10 +40832,10 @@ function validate347(
         errors++;
       }
     }
-    if (data.baseRevision !== undefined) {
+    if (data.baseRevision !== undefined && func0.call(data, "baseRevision")) {
       let data6 = data.baseRevision;
       if (typeof data6 === "string") {
-        if (func2(data6) > 128) {
+        if (func57(data6) > 128) {
           const err33 = {
             instancePath: instancePath + "/baseRevision",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -39725,7 +40850,7 @@ function validate347(
           }
           errors++;
         }
-        if (func2(data6) < 1) {
+        if (func57(data6) < 1) {
           const err34 = {
             instancePath: instancePath + "/baseRevision",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -39772,7 +40897,10 @@ function validate347(
         errors++;
       }
     }
-    if (data.baseDocumentHash !== undefined) {
+    if (
+      data.baseDocumentHash !== undefined &&
+      func0.call(data, "baseDocumentHash")
+    ) {
       let data7 = data.baseDocumentHash;
       if (typeof data7 === "string") {
         if (!pattern2.test(data7)) {
@@ -39806,7 +40934,7 @@ function validate347(
         errors++;
       }
     }
-    if (data.brief !== undefined) {
+    if (data.brief !== undefined && func0.call(data, "brief")) {
       if (
         !validate118(data.brief, {
           instancePath: instancePath + "/brief",
@@ -39822,7 +40950,7 @@ function validate347(
         errors = vErrors.length;
       }
     }
-    if (data.scope !== undefined) {
+    if (data.scope !== undefined && func0.call(data, "scope")) {
       if (
         !validate137(data.scope, {
           instancePath: instancePath + "/scope",
@@ -39838,7 +40966,10 @@ function validate347(
         errors = vErrors.length;
       }
     }
-    if (data.documentSummary !== undefined) {
+    if (
+      data.documentSummary !== undefined &&
+      func0.call(data, "documentSummary")
+    ) {
       if (
         !validate141(data.documentSummary, {
           instancePath: instancePath + "/documentSummary",
@@ -39854,7 +40985,10 @@ function validate347(
         errors = vErrors.length;
       }
     }
-    if (data.validationSummary !== undefined) {
+    if (
+      data.validationSummary !== undefined &&
+      func0.call(data, "validationSummary")
+    ) {
       if (
         !validate113(data.validationSummary, {
           instancePath: instancePath + "/validationSummary",
@@ -39870,7 +41004,10 @@ function validate347(
         errors = vErrors.length;
       }
     }
-    if (data.parentDiffArtifact !== undefined) {
+    if (
+      data.parentDiffArtifact !== undefined &&
+      func0.call(data, "parentDiffArtifact")
+    ) {
       if (
         !validate116(data.parentDiffArtifact, {
           instancePath: instancePath + "/parentDiffArtifact",
@@ -39886,7 +41023,7 @@ function validate347(
         errors = vErrors.length;
       }
     }
-    if (data.renderPacket !== undefined) {
+    if (data.renderPacket !== undefined && func0.call(data, "renderPacket")) {
       if (
         !validate125(data.renderPacket, {
           instancePath: instancePath + "/renderPacket",
@@ -39902,7 +41039,10 @@ function validate347(
         errors = vErrors.length;
       }
     }
-    if (data.referenceArtifacts !== undefined) {
+    if (
+      data.referenceArtifacts !== undefined &&
+      func0.call(data, "referenceArtifacts")
+    ) {
       let data14 = data.referenceArtifacts;
       if (Array.isArray(data14)) {
         if (data14.length > 8) {
@@ -39953,7 +41093,10 @@ function validate347(
         errors++;
       }
     }
-    if (data.templateSnapshotHashes !== undefined) {
+    if (
+      data.templateSnapshotHashes !== undefined &&
+      func0.call(data, "templateSnapshotHashes")
+    ) {
       let data16 = data.templateSnapshotHashes;
       if (Array.isArray(data16)) {
         if (data16.length > 128) {
@@ -40011,7 +41154,7 @@ function validate347(
         if (i2 > 1) {
           outer0: for (; i2--;) {
             for (j0 = i2; j0--;) {
-              if (func0(data16[i2], data16[j0])) {
+              if (func32(data16[i2], data16[j0])) {
                 const err44 = {
                   instancePath: instancePath + "/templateSnapshotHashes",
                   schemaPath: "#/properties/templateSnapshotHashes/uniqueItems",
@@ -40051,7 +41194,10 @@ function validate347(
         errors++;
       }
     }
-    if (data.lessonSnapshotHashes !== undefined) {
+    if (
+      data.lessonSnapshotHashes !== undefined &&
+      func0.call(data, "lessonSnapshotHashes")
+    ) {
       let data18 = data.lessonSnapshotHashes;
       if (Array.isArray(data18)) {
         if (data18.length > 128) {
@@ -40109,7 +41255,7 @@ function validate347(
         if (i4 > 1) {
           outer1: for (; i4--;) {
             for (j1 = i4; j1--;) {
-              if (func0(data18[i4], data18[j1])) {
+              if (func32(data18[i4], data18[j1])) {
                 const err49 = {
                   instancePath: instancePath + "/lessonSnapshotHashes",
                   schemaPath: "#/properties/lessonSnapshotHashes/uniqueItems",
@@ -40149,10 +41295,16 @@ function validate347(
         errors++;
       }
     }
-    if (data.remainingBudgets !== undefined) {
+    if (
+      data.remainingBudgets !== undefined &&
+      func0.call(data, "remainingBudgets")
+    ) {
       let data20 = data.remainingBudgets;
       if (data20 && typeof data20 == "object" && !Array.isArray(data20)) {
-        if (data20.maxCandidates === undefined) {
+        if (
+          data20.maxCandidates === undefined ||
+          !func0.call(data20, "maxCandidates")
+        ) {
           const err51 = {
             instancePath: instancePath + "/remainingBudgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -40167,7 +41319,10 @@ function validate347(
           }
           errors++;
         }
-        if (data20.maxRepairs === undefined) {
+        if (
+          data20.maxRepairs === undefined ||
+          !func0.call(data20, "maxRepairs")
+        ) {
           const err52 = {
             instancePath: instancePath + "/remainingBudgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -40182,7 +41337,10 @@ function validate347(
           }
           errors++;
         }
-        if (data20.maxProviderCalls === undefined) {
+        if (
+          data20.maxProviderCalls === undefined ||
+          !func0.call(data20, "maxProviderCalls")
+        ) {
           const err53 = {
             instancePath: instancePath + "/remainingBudgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -40197,7 +41355,10 @@ function validate347(
           }
           errors++;
         }
-        if (data20.maxTokens === undefined) {
+        if (
+          data20.maxTokens === undefined ||
+          !func0.call(data20, "maxTokens")
+        ) {
           const err54 = {
             instancePath: instancePath + "/remainingBudgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -40212,7 +41373,10 @@ function validate347(
           }
           errors++;
         }
-        if (data20.maxCostMicros === undefined) {
+        if (
+          data20.maxCostMicros === undefined ||
+          !func0.call(data20, "maxCostMicros")
+        ) {
           const err55 = {
             instancePath: instancePath + "/remainingBudgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -40227,7 +41391,10 @@ function validate347(
           }
           errors++;
         }
-        if (data20.maxWallTimeMs === undefined) {
+        if (
+          data20.maxWallTimeMs === undefined ||
+          !func0.call(data20, "maxWallTimeMs")
+        ) {
           const err56 = {
             instancePath: instancePath + "/remainingBudgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -40242,7 +41409,10 @@ function validate347(
           }
           errors++;
         }
-        if (data20.maxRenders === undefined) {
+        if (
+          data20.maxRenders === undefined ||
+          !func0.call(data20, "maxRenders")
+        ) {
           const err57 = {
             instancePath: instancePath + "/remainingBudgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -40257,7 +41427,10 @@ function validate347(
           }
           errors++;
         }
-        if (data20.maxStoredBytes === undefined) {
+        if (
+          data20.maxStoredBytes === undefined ||
+          !func0.call(data20, "maxStoredBytes")
+        ) {
           const err58 = {
             instancePath: instancePath + "/remainingBudgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -40272,7 +41445,7 @@ function validate347(
           }
           errors++;
         }
-        for (const key1 in data20) {
+        for (const key1 of Object.keys(data20)) {
           if (!(
             key1 === "maxCandidates" ||
             key1 === "maxRepairs" ||
@@ -40299,7 +41472,10 @@ function validate347(
             errors++;
           }
         }
-        if (data20.maxCandidates !== undefined) {
+        if (
+          data20.maxCandidates !== undefined &&
+          func0.call(data20, "maxCandidates")
+        ) {
           let data21 = data20.maxCandidates;
           if (!(
             typeof data21 == "number" &&
@@ -40357,7 +41533,10 @@ function validate347(
             }
           }
         }
-        if (data20.maxRepairs !== undefined) {
+        if (
+          data20.maxRepairs !== undefined &&
+          func0.call(data20, "maxRepairs")
+        ) {
           let data22 = data20.maxRepairs;
           if (!(
             typeof data22 == "number" &&
@@ -40415,7 +41594,10 @@ function validate347(
             }
           }
         }
-        if (data20.maxProviderCalls !== undefined) {
+        if (
+          data20.maxProviderCalls !== undefined &&
+          func0.call(data20, "maxProviderCalls")
+        ) {
           let data23 = data20.maxProviderCalls;
           if (!(
             typeof data23 == "number" &&
@@ -40475,7 +41657,7 @@ function validate347(
             }
           }
         }
-        if (data20.maxTokens !== undefined) {
+        if (data20.maxTokens !== undefined && func0.call(data20, "maxTokens")) {
           let data24 = data20.maxTokens;
           if (!(
             typeof data24 == "number" &&
@@ -40533,7 +41715,10 @@ function validate347(
             }
           }
         }
-        if (data20.maxCostMicros !== undefined) {
+        if (
+          data20.maxCostMicros !== undefined &&
+          func0.call(data20, "maxCostMicros")
+        ) {
           let data25 = data20.maxCostMicros;
           if (!(
             typeof data25 == "number" &&
@@ -40591,7 +41776,10 @@ function validate347(
             }
           }
         }
-        if (data20.maxWallTimeMs !== undefined) {
+        if (
+          data20.maxWallTimeMs !== undefined &&
+          func0.call(data20, "maxWallTimeMs")
+        ) {
           let data26 = data20.maxWallTimeMs;
           if (!(
             typeof data26 == "number" &&
@@ -40649,7 +41837,10 @@ function validate347(
             }
           }
         }
-        if (data20.maxRenders !== undefined) {
+        if (
+          data20.maxRenders !== undefined &&
+          func0.call(data20, "maxRenders")
+        ) {
           let data27 = data20.maxRenders;
           if (!(
             typeof data27 == "number" &&
@@ -40707,7 +41898,10 @@ function validate347(
             }
           }
         }
-        if (data20.maxStoredBytes !== undefined) {
+        if (
+          data20.maxStoredBytes !== undefined &&
+          func0.call(data20, "maxStoredBytes")
+        ) {
           let data28 = data20.maxStoredBytes;
           if (!(
             typeof data28 == "number" &&
@@ -40796,11 +41990,11 @@ function validate347(
     }
     errors++;
   }
-  validate347.errors = vErrors;
+  validate353.errors = vErrors;
   return errors === 0;
 }
 
-function validate346(
+function validate352(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -40808,7 +42002,7 @@ function validate346(
     null;
   let errors = 0;
   if (
-    !validate347(data, {
+    !validate353(data, {
       instancePath,
       parentData,
       parentDataProperty,
@@ -40817,16 +42011,16 @@ function validate346(
   ) {
     vErrors =
       vErrors === null
-        ? validate347.errors
-        : vErrors.concat(validate347.errors);
+        ? validate353.errors
+        : vErrors.concat(validate353.errors);
     errors = vErrors.length;
   }
-  validate346.errors = vErrors;
+  validate352.errors = vErrors;
   return errors === 0;
 }
 
-export const validateCandidateProgramSubmissionV1 = validate356;
-const schema509 = {
+export const validateCandidateProgramSubmissionV1 = validate362;
+const schema530 = {
   $id: "https://schemas.brick-studio.local/protocol/1/validators/CandidateProgramSubmissionV1",
   $ref: "https://schemas.brick-studio.local/protocol/1#/definitions/CandidateProgramSubmissionV1",
 };
@@ -40849,14 +42043,17 @@ const schema212 = {
   },
 };
 
-function validate357(
+function validate363(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.schemaVersion === undefined) {
+    if (
+      data.schemaVersion === undefined ||
+      !func0.call(data, "schemaVersion")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -40871,7 +42068,7 @@ function validate357(
       }
       errors++;
     }
-    if (data.jobId === undefined) {
+    if (data.jobId === undefined || !func0.call(data, "jobId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -40886,7 +42083,7 @@ function validate357(
       }
       errors++;
     }
-    if (data.attemptId === undefined) {
+    if (data.attemptId === undefined || !func0.call(data, "attemptId")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -40901,7 +42098,10 @@ function validate357(
       }
       errors++;
     }
-    if (data.observationHash === undefined) {
+    if (
+      data.observationHash === undefined ||
+      !func0.call(data, "observationHash")
+    ) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -40916,7 +42116,7 @@ function validate357(
       }
       errors++;
     }
-    if (data.program === undefined) {
+    if (data.program === undefined || !func0.call(data, "program")) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -40931,7 +42131,7 @@ function validate357(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "schemaVersion" ||
         key0 === "jobId" ||
@@ -40954,7 +42154,7 @@ function validate357(
         errors++;
       }
     }
-    if (data.schemaVersion !== undefined) {
+    if (data.schemaVersion !== undefined && func0.call(data, "schemaVersion")) {
       if ("lego.candidate-program-submission/1" !== data.schemaVersion) {
         const err6 = {
           instancePath: instancePath + "/schemaVersion",
@@ -40971,10 +42171,10 @@ function validate357(
         errors++;
       }
     }
-    if (data.jobId !== undefined) {
+    if (data.jobId !== undefined && func0.call(data, "jobId")) {
       let data1 = data.jobId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err7 = {
             instancePath: instancePath + "/jobId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -40989,7 +42189,7 @@ function validate357(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err8 = {
             instancePath: instancePath + "/jobId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -41036,10 +42236,10 @@ function validate357(
         errors++;
       }
     }
-    if (data.attemptId !== undefined) {
+    if (data.attemptId !== undefined && func0.call(data, "attemptId")) {
       let data2 = data.attemptId;
       if (typeof data2 === "string") {
-        if (func2(data2) > 128) {
+        if (func57(data2) > 128) {
           const err11 = {
             instancePath: instancePath + "/attemptId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -41054,7 +42254,7 @@ function validate357(
           }
           errors++;
         }
-        if (func2(data2) < 1) {
+        if (func57(data2) < 1) {
           const err12 = {
             instancePath: instancePath + "/attemptId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -41101,7 +42301,10 @@ function validate357(
         errors++;
       }
     }
-    if (data.observationHash !== undefined) {
+    if (
+      data.observationHash !== undefined &&
+      func0.call(data, "observationHash")
+    ) {
       let data3 = data.observationHash;
       if (typeof data3 === "string") {
         if (!pattern2.test(data3)) {
@@ -41135,7 +42338,7 @@ function validate357(
         errors++;
       }
     }
-    if (data.program !== undefined) {
+    if (data.program !== undefined && func0.call(data, "program")) {
       if (
         !validate48(data.program, {
           instancePath: instancePath + "/program",
@@ -41166,11 +42369,11 @@ function validate357(
     }
     errors++;
   }
-  validate357.errors = vErrors;
+  validate363.errors = vErrors;
   return errors === 0;
 }
 
-function validate356(
+function validate362(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -41178,7 +42381,7 @@ function validate356(
     null;
   let errors = 0;
   if (
-    !validate357(data, {
+    !validate363(data, {
       instancePath,
       parentData,
       parentDataProperty,
@@ -41187,16 +42390,16 @@ function validate356(
   ) {
     vErrors =
       vErrors === null
-        ? validate357.errors
-        : vErrors.concat(validate357.errors);
+        ? validate363.errors
+        : vErrors.concat(validate363.errors);
     errors = vErrors.length;
   }
-  validate356.errors = vErrors;
+  validate362.errors = vErrors;
   return errors === 0;
 }
 
-export const validateAttemptTranscriptV1 = validate360;
-const schema514 = {
+export const validateAttemptTranscriptV1 = validate366;
+const schema535 = {
   $id: "https://schemas.brick-studio.local/protocol/1/validators/AttemptTranscriptV1",
   $ref: "https://schemas.brick-studio.local/protocol/1#/definitions/AttemptTranscriptV1",
 };
@@ -41263,7 +42466,7 @@ function validate154(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.status === undefined) {
+    if (data.status === undefined || !func0.call(data, "status")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -41278,7 +42481,10 @@ function validate154(
       }
       errors++;
     }
-    if (data.preDocumentHash === undefined) {
+    if (
+      data.preDocumentHash === undefined ||
+      !func0.call(data, "preDocumentHash")
+    ) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -41293,7 +42499,10 @@ function validate154(
       }
       errors++;
     }
-    if (data.postDocumentHash === undefined) {
+    if (
+      data.postDocumentHash === undefined ||
+      !func0.call(data, "postDocumentHash")
+    ) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -41308,7 +42517,7 @@ function validate154(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "status" ||
         key0 === "proposedDecisionArtifactHash" ||
@@ -41332,7 +42541,7 @@ function validate154(
         errors++;
       }
     }
-    if (data.status !== undefined) {
+    if (data.status !== undefined && func0.call(data, "status")) {
       if ("success" !== data.status) {
         const err4 = {
           instancePath: instancePath + "/status",
@@ -41349,7 +42558,10 @@ function validate154(
         errors++;
       }
     }
-    if (data.proposedDecisionArtifactHash !== undefined) {
+    if (
+      data.proposedDecisionArtifactHash !== undefined &&
+      func0.call(data, "proposedDecisionArtifactHash")
+    ) {
       let data1 = data.proposedDecisionArtifactHash;
       if (typeof data1 === "string") {
         if (!pattern2.test(data1)) {
@@ -41383,7 +42595,10 @@ function validate154(
         errors++;
       }
     }
-    if (data.executedActionArtifactHash !== undefined) {
+    if (
+      data.executedActionArtifactHash !== undefined &&
+      func0.call(data, "executedActionArtifactHash")
+    ) {
       let data2 = data.executedActionArtifactHash;
       if (typeof data2 === "string") {
         if (!pattern2.test(data2)) {
@@ -41417,7 +42632,10 @@ function validate154(
         errors++;
       }
     }
-    if (data.commandTransactionHash !== undefined) {
+    if (
+      data.commandTransactionHash !== undefined &&
+      func0.call(data, "commandTransactionHash")
+    ) {
       let data3 = data.commandTransactionHash;
       if (typeof data3 === "string") {
         if (!pattern2.test(data3)) {
@@ -41451,7 +42669,10 @@ function validate154(
         errors++;
       }
     }
-    if (data.preDocumentHash !== undefined) {
+    if (
+      data.preDocumentHash !== undefined &&
+      func0.call(data, "preDocumentHash")
+    ) {
       let data4 = data.preDocumentHash;
       if (typeof data4 === "string") {
         if (!pattern2.test(data4)) {
@@ -41485,7 +42706,10 @@ function validate154(
         errors++;
       }
     }
-    if (data.postDocumentHash !== undefined) {
+    if (
+      data.postDocumentHash !== undefined &&
+      func0.call(data, "postDocumentHash")
+    ) {
       let data5 = data.postDocumentHash;
       if (typeof data5 === "string") {
         if (!pattern2.test(data5)) {
@@ -41566,7 +42790,7 @@ function validate156(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.status === undefined) {
+    if (data.status === undefined || !func0.call(data, "status")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -41581,7 +42805,10 @@ function validate156(
       }
       errors++;
     }
-    if (data.proposedDecisionArtifactHash === undefined) {
+    if (
+      data.proposedDecisionArtifactHash === undefined ||
+      !func0.call(data, "proposedDecisionArtifactHash")
+    ) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -41599,7 +42826,7 @@ function validate156(
       }
       errors++;
     }
-    if (data.reasonCode === undefined) {
+    if (data.reasonCode === undefined || !func0.call(data, "reasonCode")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -41614,7 +42841,10 @@ function validate156(
       }
       errors++;
     }
-    if (data.preDocumentHash === undefined) {
+    if (
+      data.preDocumentHash === undefined ||
+      !func0.call(data, "preDocumentHash")
+    ) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -41629,7 +42859,10 @@ function validate156(
       }
       errors++;
     }
-    if (data.postDocumentHash === undefined) {
+    if (
+      data.postDocumentHash === undefined ||
+      !func0.call(data, "postDocumentHash")
+    ) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -41644,7 +42877,7 @@ function validate156(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "status" ||
         key0 === "proposedDecisionArtifactHash" ||
@@ -41667,7 +42900,7 @@ function validate156(
         errors++;
       }
     }
-    if (data.status !== undefined) {
+    if (data.status !== undefined && func0.call(data, "status")) {
       let data0 = data.status;
       if (!(
         data0 === "staleObservation" ||
@@ -41689,7 +42922,10 @@ function validate156(
         errors++;
       }
     }
-    if (data.proposedDecisionArtifactHash !== undefined) {
+    if (
+      data.proposedDecisionArtifactHash !== undefined &&
+      func0.call(data, "proposedDecisionArtifactHash")
+    ) {
       let data1 = data.proposedDecisionArtifactHash;
       if (typeof data1 === "string") {
         if (!pattern2.test(data1)) {
@@ -41723,10 +42959,10 @@ function validate156(
         errors++;
       }
     }
-    if (data.reasonCode !== undefined) {
+    if (data.reasonCode !== undefined && func0.call(data, "reasonCode")) {
       let data2 = data.reasonCode;
       if (typeof data2 === "string") {
-        if (func2(data2) > 128) {
+        if (func57(data2) > 128) {
           const err9 = {
             instancePath: instancePath + "/reasonCode",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -41741,7 +42977,7 @@ function validate156(
           }
           errors++;
         }
-        if (func2(data2) < 1) {
+        if (func57(data2) < 1) {
           const err10 = {
             instancePath: instancePath + "/reasonCode",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -41788,7 +43024,10 @@ function validate156(
         errors++;
       }
     }
-    if (data.preDocumentHash !== undefined) {
+    if (
+      data.preDocumentHash !== undefined &&
+      func0.call(data, "preDocumentHash")
+    ) {
       let data3 = data.preDocumentHash;
       if (typeof data3 === "string") {
         if (!pattern2.test(data3)) {
@@ -41822,7 +43061,10 @@ function validate156(
         errors++;
       }
     }
-    if (data.postDocumentHash !== undefined) {
+    if (
+      data.postDocumentHash !== undefined &&
+      func0.call(data, "postDocumentHash")
+    ) {
       let data4 = data.postDocumentHash;
       if (typeof data4 === "string") {
         if (!pattern2.test(data4)) {
@@ -41904,7 +43146,7 @@ function validate158(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.status === undefined) {
+    if (data.status === undefined || !func0.call(data, "status")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -41919,7 +43161,7 @@ function validate158(
       }
       errors++;
     }
-    if (data.reasonCode === undefined) {
+    if (data.reasonCode === undefined || !func0.call(data, "reasonCode")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -41934,7 +43176,10 @@ function validate158(
       }
       errors++;
     }
-    if (data.preDocumentHash === undefined) {
+    if (
+      data.preDocumentHash === undefined ||
+      !func0.call(data, "preDocumentHash")
+    ) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -41949,7 +43194,10 @@ function validate158(
       }
       errors++;
     }
-    if (data.postDocumentHash === undefined) {
+    if (
+      data.postDocumentHash === undefined ||
+      !func0.call(data, "postDocumentHash")
+    ) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -41964,7 +43212,7 @@ function validate158(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "status" ||
         key0 === "reasonCode" ||
@@ -41987,7 +43235,7 @@ function validate158(
         errors++;
       }
     }
-    if (data.status !== undefined) {
+    if (data.status !== undefined && func0.call(data, "status")) {
       let data0 = data.status;
       if (!(
         data0 === "timeout" ||
@@ -42012,10 +43260,10 @@ function validate158(
         errors++;
       }
     }
-    if (data.reasonCode !== undefined) {
+    if (data.reasonCode !== undefined && func0.call(data, "reasonCode")) {
       let data1 = data.reasonCode;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err6 = {
             instancePath: instancePath + "/reasonCode",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -42030,7 +43278,7 @@ function validate158(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err7 = {
             instancePath: instancePath + "/reasonCode",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -42077,7 +43325,10 @@ function validate158(
         errors++;
       }
     }
-    if (data.proposedDecisionArtifactHash !== undefined) {
+    if (
+      data.proposedDecisionArtifactHash !== undefined &&
+      func0.call(data, "proposedDecisionArtifactHash")
+    ) {
       let data2 = data.proposedDecisionArtifactHash;
       if (typeof data2 === "string") {
         if (!pattern2.test(data2)) {
@@ -42111,7 +43362,10 @@ function validate158(
         errors++;
       }
     }
-    if (data.preDocumentHash !== undefined) {
+    if (
+      data.preDocumentHash !== undefined &&
+      func0.call(data, "preDocumentHash")
+    ) {
       let data3 = data.preDocumentHash;
       if (typeof data3 === "string") {
         if (!pattern2.test(data3)) {
@@ -42145,7 +43399,10 @@ function validate158(
         errors++;
       }
     }
-    if (data.postDocumentHash !== undefined) {
+    if (
+      data.postDocumentHash !== undefined &&
+      func0.call(data, "postDocumentHash")
+    ) {
       let data4 = data.postDocumentHash;
       if (typeof data4 === "string") {
         if (!pattern2.test(data4)) {
@@ -42305,14 +43562,17 @@ function validate153(
   return errors === 0;
 }
 
-function validate361(
+function validate367(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.schemaVersion === undefined) {
+    if (
+      data.schemaVersion === undefined ||
+      !func0.call(data, "schemaVersion")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -42327,7 +43587,7 @@ function validate361(
       }
       errors++;
     }
-    if (data.runId === undefined) {
+    if (data.runId === undefined || !func0.call(data, "runId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -42342,7 +43602,7 @@ function validate361(
       }
       errors++;
     }
-    if (data.attemptId === undefined) {
+    if (data.attemptId === undefined || !func0.call(data, "attemptId")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -42357,7 +43617,7 @@ function validate361(
       }
       errors++;
     }
-    if (data.sequence === undefined) {
+    if (data.sequence === undefined || !func0.call(data, "sequence")) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -42372,7 +43632,7 @@ function validate361(
       }
       errors++;
     }
-    if (data.kind === undefined) {
+    if (data.kind === undefined || !func0.call(data, "kind")) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -42387,7 +43647,10 @@ function validate361(
       }
       errors++;
     }
-    if (data.observationHash === undefined) {
+    if (
+      data.observationHash === undefined ||
+      !func0.call(data, "observationHash")
+    ) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -42402,7 +43665,10 @@ function validate361(
       }
       errors++;
     }
-    if (data.inputArtifactHashes === undefined) {
+    if (
+      data.inputArtifactHashes === undefined ||
+      !func0.call(data, "inputArtifactHashes")
+    ) {
       const err6 = {
         instancePath,
         schemaPath: "#/required",
@@ -42417,7 +43683,7 @@ function validate361(
       }
       errors++;
     }
-    if (data.deadlineMs === undefined) {
+    if (data.deadlineMs === undefined || !func0.call(data, "deadlineMs")) {
       const err7 = {
         instancePath,
         schemaPath: "#/required",
@@ -42432,7 +43698,10 @@ function validate361(
       }
       errors++;
     }
-    if (data.startedEventHash === undefined) {
+    if (
+      data.startedEventHash === undefined ||
+      !func0.call(data, "startedEventHash")
+    ) {
       const err8 = {
         instancePath,
         schemaPath: "#/required",
@@ -42447,7 +43716,10 @@ function validate361(
       }
       errors++;
     }
-    if (data.terminalEventHash === undefined) {
+    if (
+      data.terminalEventHash === undefined ||
+      !func0.call(data, "terminalEventHash")
+    ) {
       const err9 = {
         instancePath,
         schemaPath: "#/required",
@@ -42462,7 +43734,7 @@ function validate361(
       }
       errors++;
     }
-    if (data.terminal === undefined) {
+    if (data.terminal === undefined || !func0.call(data, "terminal")) {
       const err10 = {
         instancePath,
         schemaPath: "#/required",
@@ -42477,8 +43749,8 @@ function validate361(
       }
       errors++;
     }
-    for (const key0 in data) {
-      if (!func8.call(schema216.properties, key0)) {
+    for (const key0 of Object.keys(data)) {
+      if (!func0.call(schema216.properties, key0)) {
         const err11 = {
           instancePath,
           schemaPath: "#/additionalProperties",
@@ -42494,7 +43766,7 @@ function validate361(
         errors++;
       }
     }
-    if (data.schemaVersion !== undefined) {
+    if (data.schemaVersion !== undefined && func0.call(data, "schemaVersion")) {
       if ("lego.attempt-transcript/1" !== data.schemaVersion) {
         const err12 = {
           instancePath: instancePath + "/schemaVersion",
@@ -42511,10 +43783,10 @@ function validate361(
         errors++;
       }
     }
-    if (data.runId !== undefined) {
+    if (data.runId !== undefined && func0.call(data, "runId")) {
       let data1 = data.runId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err13 = {
             instancePath: instancePath + "/runId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -42529,7 +43801,7 @@ function validate361(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err14 = {
             instancePath: instancePath + "/runId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -42576,10 +43848,10 @@ function validate361(
         errors++;
       }
     }
-    if (data.attemptId !== undefined) {
+    if (data.attemptId !== undefined && func0.call(data, "attemptId")) {
       let data2 = data.attemptId;
       if (typeof data2 === "string") {
-        if (func2(data2) > 128) {
+        if (func57(data2) > 128) {
           const err17 = {
             instancePath: instancePath + "/attemptId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -42594,7 +43866,7 @@ function validate361(
           }
           errors++;
         }
-        if (func2(data2) < 1) {
+        if (func57(data2) < 1) {
           const err18 = {
             instancePath: instancePath + "/attemptId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -42641,7 +43913,7 @@ function validate361(
         errors++;
       }
     }
-    if (data.sequence !== undefined) {
+    if (data.sequence !== undefined && func0.call(data, "sequence")) {
       let data3 = data.sequence;
       if (!(
         typeof data3 == "number" &&
@@ -42696,7 +43968,7 @@ function validate361(
         }
       }
     }
-    if (data.kind !== undefined) {
+    if (data.kind !== undefined && func0.call(data, "kind")) {
       let data4 = data.kind;
       if (!(
         data4 === "maker" ||
@@ -42719,7 +43991,10 @@ function validate361(
         errors++;
       }
     }
-    if (data.observationHash !== undefined) {
+    if (
+      data.observationHash !== undefined &&
+      func0.call(data, "observationHash")
+    ) {
       let data5 = data.observationHash;
       if (typeof data5 === "string") {
         if (!pattern2.test(data5)) {
@@ -42753,7 +44028,10 @@ function validate361(
         errors++;
       }
     }
-    if (data.inputArtifactHashes !== undefined) {
+    if (
+      data.inputArtifactHashes !== undefined &&
+      func0.call(data, "inputArtifactHashes")
+    ) {
       let data6 = data.inputArtifactHashes;
       if (Array.isArray(data6)) {
         if (data6.length > 256) {
@@ -42811,7 +44089,7 @@ function validate361(
         if (i1 > 1) {
           outer0: for (; i1--;) {
             for (j0 = i1; j0--;) {
-              if (func0(data6[i1], data6[j0])) {
+              if (func32(data6[i1], data6[j0])) {
                 const err30 = {
                   instancePath: instancePath + "/inputArtifactHashes",
                   schemaPath: "#/properties/inputArtifactHashes/uniqueItems",
@@ -42851,7 +44129,7 @@ function validate361(
         errors++;
       }
     }
-    if (data.deadlineMs !== undefined) {
+    if (data.deadlineMs !== undefined && func0.call(data, "deadlineMs")) {
       let data8 = data.deadlineMs;
       if (!(
         typeof data8 == "number" &&
@@ -42906,7 +44184,10 @@ function validate361(
         }
       }
     }
-    if (data.startedEventHash !== undefined) {
+    if (
+      data.startedEventHash !== undefined &&
+      func0.call(data, "startedEventHash")
+    ) {
       let data9 = data.startedEventHash;
       if (typeof data9 === "string") {
         if (!pattern2.test(data9)) {
@@ -42940,7 +44221,10 @@ function validate361(
         errors++;
       }
     }
-    if (data.terminalEventHash !== undefined) {
+    if (
+      data.terminalEventHash !== undefined &&
+      func0.call(data, "terminalEventHash")
+    ) {
       let data10 = data.terminalEventHash;
       if (typeof data10 === "string") {
         if (!pattern2.test(data10)) {
@@ -42974,7 +44258,7 @@ function validate361(
         errors++;
       }
     }
-    if (data.terminal !== undefined) {
+    if (data.terminal !== undefined && func0.call(data, "terminal")) {
       if (
         !validate153(data.terminal, {
           instancePath: instancePath + "/terminal",
@@ -43005,11 +44289,11 @@ function validate361(
     }
     errors++;
   }
-  validate361.errors = vErrors;
+  validate367.errors = vErrors;
   return errors === 0;
 }
 
-function validate360(
+function validate366(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -43017,7 +44301,7 @@ function validate360(
     null;
   let errors = 0;
   if (
-    !validate361(data, {
+    !validate367(data, {
       instancePath,
       parentData,
       parentDataProperty,
@@ -43026,16 +44310,16 @@ function validate360(
   ) {
     vErrors =
       vErrors === null
-        ? validate361.errors
-        : vErrors.concat(validate361.errors);
+        ? validate367.errors
+        : vErrors.concat(validate367.errors);
     errors = vErrors.length;
   }
-  validate360.errors = vErrors;
+  validate366.errors = vErrors;
   return errors === 0;
 }
 
-export const validateGenerationJobRecordV1 = validate364;
-const schema522 = {
+export const validateGenerationJobRecordV1 = validate370;
+const schema543 = {
   $id: "https://schemas.brick-studio.local/protocol/1/validators/GenerationJobRecordV1",
   $ref: "https://schemas.brick-studio.local/protocol/1#/definitions/GenerationJobRecordV1",
 };
@@ -43100,14 +44384,17 @@ const schema240 = {
   },
 };
 
-function validate365(
+function validate371(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.schemaVersion === undefined) {
+    if (
+      data.schemaVersion === undefined ||
+      !func0.call(data, "schemaVersion")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -43122,7 +44409,7 @@ function validate365(
       }
       errors++;
     }
-    if (data.namespace === undefined) {
+    if (data.namespace === undefined || !func0.call(data, "namespace")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -43137,7 +44424,7 @@ function validate365(
       }
       errors++;
     }
-    if (data.jobId === undefined) {
+    if (data.jobId === undefined || !func0.call(data, "jobId")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -43152,7 +44439,10 @@ function validate365(
       }
       errors++;
     }
-    if (data.idempotencyKey === undefined) {
+    if (
+      data.idempotencyKey === undefined ||
+      !func0.call(data, "idempotencyKey")
+    ) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -43167,7 +44457,7 @@ function validate365(
       }
       errors++;
     }
-    if (data.state === undefined) {
+    if (data.state === undefined || !func0.call(data, "state")) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -43182,7 +44472,7 @@ function validate365(
       }
       errors++;
     }
-    if (data.baseRevision === undefined) {
+    if (data.baseRevision === undefined || !func0.call(data, "baseRevision")) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -43197,7 +44487,10 @@ function validate365(
       }
       errors++;
     }
-    if (data.baseDocumentHash === undefined) {
+    if (
+      data.baseDocumentHash === undefined ||
+      !func0.call(data, "baseDocumentHash")
+    ) {
       const err6 = {
         instancePath,
         schemaPath: "#/required",
@@ -43212,7 +44505,10 @@ function validate365(
       }
       errors++;
     }
-    if (data.truthSnapshotHash === undefined) {
+    if (
+      data.truthSnapshotHash === undefined ||
+      !func0.call(data, "truthSnapshotHash")
+    ) {
       const err7 = {
         instancePath,
         schemaPath: "#/required",
@@ -43227,7 +44523,10 @@ function validate365(
       }
       errors++;
     }
-    if (data.scopeCapabilityId === undefined) {
+    if (
+      data.scopeCapabilityId === undefined ||
+      !func0.call(data, "scopeCapabilityId")
+    ) {
       const err8 = {
         instancePath,
         schemaPath: "#/required",
@@ -43242,7 +44541,7 @@ function validate365(
       }
       errors++;
     }
-    if (data.scopeDigest === undefined) {
+    if (data.scopeDigest === undefined || !func0.call(data, "scopeDigest")) {
       const err9 = {
         instancePath,
         schemaPath: "#/required",
@@ -43257,7 +44556,7 @@ function validate365(
       }
       errors++;
     }
-    if (data.briefHash === undefined) {
+    if (data.briefHash === undefined || !func0.call(data, "briefHash")) {
       const err10 = {
         instancePath,
         schemaPath: "#/required",
@@ -43272,7 +44571,7 @@ function validate365(
       }
       errors++;
     }
-    if (data.budgets === undefined) {
+    if (data.budgets === undefined || !func0.call(data, "budgets")) {
       const err11 = {
         instancePath,
         schemaPath: "#/required",
@@ -43287,7 +44586,10 @@ function validate365(
       }
       errors++;
     }
-    if (data.cancellationGeneration === undefined) {
+    if (
+      data.cancellationGeneration === undefined ||
+      !func0.call(data, "cancellationGeneration")
+    ) {
       const err12 = {
         instancePath,
         schemaPath: "#/required",
@@ -43303,7 +44605,7 @@ function validate365(
       }
       errors++;
     }
-    if (data.candidateIds === undefined) {
+    if (data.candidateIds === undefined || !func0.call(data, "candidateIds")) {
       const err13 = {
         instancePath,
         schemaPath: "#/required",
@@ -43318,7 +44620,10 @@ function validate365(
       }
       errors++;
     }
-    if (data.eventSequence === undefined) {
+    if (
+      data.eventSequence === undefined ||
+      !func0.call(data, "eventSequence")
+    ) {
       const err14 = {
         instancePath,
         schemaPath: "#/required",
@@ -43333,8 +44638,8 @@ function validate365(
       }
       errors++;
     }
-    for (const key0 in data) {
-      if (!func8.call(schema240.properties, key0)) {
+    for (const key0 of Object.keys(data)) {
+      if (!func0.call(schema240.properties, key0)) {
         const err15 = {
           instancePath,
           schemaPath: "#/additionalProperties",
@@ -43350,7 +44655,7 @@ function validate365(
         errors++;
       }
     }
-    if (data.schemaVersion !== undefined) {
+    if (data.schemaVersion !== undefined && func0.call(data, "schemaVersion")) {
       if ("lego.generation-job/1" !== data.schemaVersion) {
         const err16 = {
           instancePath: instancePath + "/schemaVersion",
@@ -43367,7 +44672,7 @@ function validate365(
         errors++;
       }
     }
-    if (data.namespace !== undefined) {
+    if (data.namespace !== undefined && func0.call(data, "namespace")) {
       let data1 = data.namespace;
       if (!(data1 === "production" || data1 === "test")) {
         const err17 = {
@@ -43385,10 +44690,10 @@ function validate365(
         errors++;
       }
     }
-    if (data.jobId !== undefined) {
+    if (data.jobId !== undefined && func0.call(data, "jobId")) {
       let data2 = data.jobId;
       if (typeof data2 === "string") {
-        if (func2(data2) > 128) {
+        if (func57(data2) > 128) {
           const err18 = {
             instancePath: instancePath + "/jobId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -43403,7 +44708,7 @@ function validate365(
           }
           errors++;
         }
-        if (func2(data2) < 1) {
+        if (func57(data2) < 1) {
           const err19 = {
             instancePath: instancePath + "/jobId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -43450,10 +44755,13 @@ function validate365(
         errors++;
       }
     }
-    if (data.idempotencyKey !== undefined) {
+    if (
+      data.idempotencyKey !== undefined &&
+      func0.call(data, "idempotencyKey")
+    ) {
       let data3 = data.idempotencyKey;
       if (typeof data3 === "string") {
-        if (func2(data3) > 128) {
+        if (func57(data3) > 128) {
           const err22 = {
             instancePath: instancePath + "/idempotencyKey",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -43468,7 +44776,7 @@ function validate365(
           }
           errors++;
         }
-        if (func2(data3) < 1) {
+        if (func57(data3) < 1) {
           const err23 = {
             instancePath: instancePath + "/idempotencyKey",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -43515,7 +44823,7 @@ function validate365(
         errors++;
       }
     }
-    if (data.state !== undefined) {
+    if (data.state !== undefined && func0.call(data, "state")) {
       let data4 = data.state;
       if (!(
         data4 === "created" ||
@@ -43544,10 +44852,10 @@ function validate365(
         errors++;
       }
     }
-    if (data.baseRevision !== undefined) {
+    if (data.baseRevision !== undefined && func0.call(data, "baseRevision")) {
       let data5 = data.baseRevision;
       if (typeof data5 === "string") {
-        if (func2(data5) > 128) {
+        if (func57(data5) > 128) {
           const err27 = {
             instancePath: instancePath + "/baseRevision",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -43562,7 +44870,7 @@ function validate365(
           }
           errors++;
         }
-        if (func2(data5) < 1) {
+        if (func57(data5) < 1) {
           const err28 = {
             instancePath: instancePath + "/baseRevision",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -43609,7 +44917,10 @@ function validate365(
         errors++;
       }
     }
-    if (data.baseDocumentHash !== undefined) {
+    if (
+      data.baseDocumentHash !== undefined &&
+      func0.call(data, "baseDocumentHash")
+    ) {
       let data6 = data.baseDocumentHash;
       if (typeof data6 === "string") {
         if (!pattern2.test(data6)) {
@@ -43643,7 +44954,10 @@ function validate365(
         errors++;
       }
     }
-    if (data.truthSnapshotHash !== undefined) {
+    if (
+      data.truthSnapshotHash !== undefined &&
+      func0.call(data, "truthSnapshotHash")
+    ) {
       let data7 = data.truthSnapshotHash;
       if (typeof data7 === "string") {
         if (!pattern2.test(data7)) {
@@ -43677,10 +44991,13 @@ function validate365(
         errors++;
       }
     }
-    if (data.scopeCapabilityId !== undefined) {
+    if (
+      data.scopeCapabilityId !== undefined &&
+      func0.call(data, "scopeCapabilityId")
+    ) {
       let data8 = data.scopeCapabilityId;
       if (typeof data8 === "string") {
-        if (func2(data8) > 128) {
+        if (func57(data8) > 128) {
           const err35 = {
             instancePath: instancePath + "/scopeCapabilityId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -43695,7 +45012,7 @@ function validate365(
           }
           errors++;
         }
-        if (func2(data8) < 1) {
+        if (func57(data8) < 1) {
           const err36 = {
             instancePath: instancePath + "/scopeCapabilityId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -43742,7 +45059,7 @@ function validate365(
         errors++;
       }
     }
-    if (data.scopeDigest !== undefined) {
+    if (data.scopeDigest !== undefined && func0.call(data, "scopeDigest")) {
       let data9 = data.scopeDigest;
       if (typeof data9 === "string") {
         if (!pattern2.test(data9)) {
@@ -43776,7 +45093,7 @@ function validate365(
         errors++;
       }
     }
-    if (data.briefHash !== undefined) {
+    if (data.briefHash !== undefined && func0.call(data, "briefHash")) {
       let data10 = data.briefHash;
       if (typeof data10 === "string") {
         if (!pattern2.test(data10)) {
@@ -43810,10 +45127,13 @@ function validate365(
         errors++;
       }
     }
-    if (data.budgets !== undefined) {
+    if (data.budgets !== undefined && func0.call(data, "budgets")) {
       let data11 = data.budgets;
       if (data11 && typeof data11 == "object" && !Array.isArray(data11)) {
-        if (data11.maxCandidates === undefined) {
+        if (
+          data11.maxCandidates === undefined ||
+          !func0.call(data11, "maxCandidates")
+        ) {
           const err43 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -43828,7 +45148,10 @@ function validate365(
           }
           errors++;
         }
-        if (data11.maxRepairs === undefined) {
+        if (
+          data11.maxRepairs === undefined ||
+          !func0.call(data11, "maxRepairs")
+        ) {
           const err44 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -43843,7 +45166,10 @@ function validate365(
           }
           errors++;
         }
-        if (data11.maxProviderCalls === undefined) {
+        if (
+          data11.maxProviderCalls === undefined ||
+          !func0.call(data11, "maxProviderCalls")
+        ) {
           const err45 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -43858,7 +45184,10 @@ function validate365(
           }
           errors++;
         }
-        if (data11.maxTokens === undefined) {
+        if (
+          data11.maxTokens === undefined ||
+          !func0.call(data11, "maxTokens")
+        ) {
           const err46 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -43873,7 +45202,10 @@ function validate365(
           }
           errors++;
         }
-        if (data11.maxCostMicros === undefined) {
+        if (
+          data11.maxCostMicros === undefined ||
+          !func0.call(data11, "maxCostMicros")
+        ) {
           const err47 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -43888,7 +45220,10 @@ function validate365(
           }
           errors++;
         }
-        if (data11.maxWallTimeMs === undefined) {
+        if (
+          data11.maxWallTimeMs === undefined ||
+          !func0.call(data11, "maxWallTimeMs")
+        ) {
           const err48 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -43903,7 +45238,10 @@ function validate365(
           }
           errors++;
         }
-        if (data11.maxRenders === undefined) {
+        if (
+          data11.maxRenders === undefined ||
+          !func0.call(data11, "maxRenders")
+        ) {
           const err49 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -43918,7 +45256,10 @@ function validate365(
           }
           errors++;
         }
-        if (data11.maxStoredBytes === undefined) {
+        if (
+          data11.maxStoredBytes === undefined ||
+          !func0.call(data11, "maxStoredBytes")
+        ) {
           const err50 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -43933,7 +45274,7 @@ function validate365(
           }
           errors++;
         }
-        for (const key1 in data11) {
+        for (const key1 of Object.keys(data11)) {
           if (!(
             key1 === "maxCandidates" ||
             key1 === "maxRepairs" ||
@@ -43960,7 +45301,10 @@ function validate365(
             errors++;
           }
         }
-        if (data11.maxCandidates !== undefined) {
+        if (
+          data11.maxCandidates !== undefined &&
+          func0.call(data11, "maxCandidates")
+        ) {
           let data12 = data11.maxCandidates;
           if (!(
             typeof data12 == "number" &&
@@ -44018,7 +45362,10 @@ function validate365(
             }
           }
         }
-        if (data11.maxRepairs !== undefined) {
+        if (
+          data11.maxRepairs !== undefined &&
+          func0.call(data11, "maxRepairs")
+        ) {
           let data13 = data11.maxRepairs;
           if (!(
             typeof data13 == "number" &&
@@ -44076,7 +45423,10 @@ function validate365(
             }
           }
         }
-        if (data11.maxProviderCalls !== undefined) {
+        if (
+          data11.maxProviderCalls !== undefined &&
+          func0.call(data11, "maxProviderCalls")
+        ) {
           let data14 = data11.maxProviderCalls;
           if (!(
             typeof data14 == "number" &&
@@ -44134,7 +45484,7 @@ function validate365(
             }
           }
         }
-        if (data11.maxTokens !== undefined) {
+        if (data11.maxTokens !== undefined && func0.call(data11, "maxTokens")) {
           let data15 = data11.maxTokens;
           if (!(
             typeof data15 == "number" &&
@@ -44192,7 +45542,10 @@ function validate365(
             }
           }
         }
-        if (data11.maxCostMicros !== undefined) {
+        if (
+          data11.maxCostMicros !== undefined &&
+          func0.call(data11, "maxCostMicros")
+        ) {
           let data16 = data11.maxCostMicros;
           if (!(
             typeof data16 == "number" &&
@@ -44250,7 +45603,10 @@ function validate365(
             }
           }
         }
-        if (data11.maxWallTimeMs !== undefined) {
+        if (
+          data11.maxWallTimeMs !== undefined &&
+          func0.call(data11, "maxWallTimeMs")
+        ) {
           let data17 = data11.maxWallTimeMs;
           if (!(
             typeof data17 == "number" &&
@@ -44308,7 +45664,10 @@ function validate365(
             }
           }
         }
-        if (data11.maxRenders !== undefined) {
+        if (
+          data11.maxRenders !== undefined &&
+          func0.call(data11, "maxRenders")
+        ) {
           let data18 = data11.maxRenders;
           if (!(
             typeof data18 == "number" &&
@@ -44366,7 +45725,10 @@ function validate365(
             }
           }
         }
-        if (data11.maxStoredBytes !== undefined) {
+        if (
+          data11.maxStoredBytes !== undefined &&
+          func0.call(data11, "maxStoredBytes")
+        ) {
           let data19 = data11.maxStoredBytes;
           if (!(
             typeof data19 == "number" &&
@@ -44440,7 +45802,10 @@ function validate365(
         errors++;
       }
     }
-    if (data.cancellationGeneration !== undefined) {
+    if (
+      data.cancellationGeneration !== undefined &&
+      func0.call(data, "cancellationGeneration")
+    ) {
       let data20 = data.cancellationGeneration;
       if (!(
         typeof data20 == "number" &&
@@ -44495,7 +45860,7 @@ function validate365(
         }
       }
     }
-    if (data.candidateIds !== undefined) {
+    if (data.candidateIds !== undefined && func0.call(data, "candidateIds")) {
       let data21 = data.candidateIds;
       if (Array.isArray(data21)) {
         if (data21.length > 16) {
@@ -44517,7 +45882,7 @@ function validate365(
         for (let i0 = 0; i0 < len0; i0++) {
           let data22 = data21[i0];
           if (typeof data22 === "string") {
-            if (func2(data22) > 128) {
+            if (func57(data22) > 128) {
               const err81 = {
                 instancePath: instancePath + "/candidateIds/" + i0,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -44532,7 +45897,7 @@ function validate365(
               }
               errors++;
             }
-            if (func2(data22) < 1) {
+            if (func57(data22) < 1) {
               const err82 = {
                 instancePath: instancePath + "/candidateIds/" + i0,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -44586,7 +45951,7 @@ function validate365(
         if (i1 > 1) {
           outer0: for (; i1--;) {
             for (j0 = i1; j0--;) {
-              if (func0(data21[i1], data21[j0])) {
+              if (func32(data21[i1], data21[j0])) {
                 const err85 = {
                   instancePath: instancePath + "/candidateIds",
                   schemaPath: "#/properties/candidateIds/uniqueItems",
@@ -44626,7 +45991,7 @@ function validate365(
         errors++;
       }
     }
-    if (data.eventSequence !== undefined) {
+    if (data.eventSequence !== undefined && func0.call(data, "eventSequence")) {
       let data23 = data.eventSequence;
       if (!(
         typeof data23 == "number" &&
@@ -44696,11 +46061,11 @@ function validate365(
     }
     errors++;
   }
-  validate365.errors = vErrors;
+  validate371.errors = vErrors;
   return errors === 0;
 }
 
-function validate364(
+function validate370(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -44708,7 +46073,7 @@ function validate364(
     null;
   let errors = 0;
   if (
-    !validate365(data, {
+    !validate371(data, {
       instancePath,
       parentData,
       parentDataProperty,
@@ -44717,16 +46082,16 @@ function validate364(
   ) {
     vErrors =
       vErrors === null
-        ? validate365.errors
-        : vErrors.concat(validate365.errors);
+        ? validate371.errors
+        : vErrors.concat(validate371.errors);
     errors = vErrors.length;
   }
-  validate364.errors = vErrors;
+  validate370.errors = vErrors;
   return errors === 0;
 }
 
-export const validateCandidateRecordV1 = validate367;
-const schema534 = {
+export const validateCandidateRecordV1 = validate373;
+const schema555 = {
   $id: "https://schemas.brick-studio.local/protocol/1/validators/CandidateRecordV1",
   $ref: "https://schemas.brick-studio.local/protocol/1#/definitions/CandidateRecordV1",
 };
@@ -44805,14 +46170,17 @@ const schema255 = {
   },
 };
 
-function validate368(
+function validate374(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.schemaVersion === undefined) {
+    if (
+      data.schemaVersion === undefined ||
+      !func0.call(data, "schemaVersion")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -44827,7 +46195,7 @@ function validate368(
       }
       errors++;
     }
-    if (data.jobId === undefined) {
+    if (data.jobId === undefined || !func0.call(data, "jobId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -44842,7 +46210,7 @@ function validate368(
       }
       errors++;
     }
-    if (data.candidateId === undefined) {
+    if (data.candidateId === undefined || !func0.call(data, "candidateId")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -44857,7 +46225,10 @@ function validate368(
       }
       errors++;
     }
-    if (data.cancellationGeneration === undefined) {
+    if (
+      data.cancellationGeneration === undefined ||
+      !func0.call(data, "cancellationGeneration")
+    ) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -44873,7 +46244,7 @@ function validate368(
       }
       errors++;
     }
-    if (data.state === undefined) {
+    if (data.state === undefined || !func0.call(data, "state")) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -44888,7 +46259,10 @@ function validate368(
       }
       errors++;
     }
-    if (data.programArtifact === undefined) {
+    if (
+      data.programArtifact === undefined ||
+      !func0.call(data, "programArtifact")
+    ) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -44903,7 +46277,7 @@ function validate368(
       }
       errors++;
     }
-    if (data.metrics === undefined) {
+    if (data.metrics === undefined || !func0.call(data, "metrics")) {
       const err6 = {
         instancePath,
         schemaPath: "#/required",
@@ -44918,8 +46292,8 @@ function validate368(
       }
       errors++;
     }
-    for (const key0 in data) {
-      if (!func8.call(schema251.properties, key0)) {
+    for (const key0 of Object.keys(data)) {
+      if (!func0.call(schema251.properties, key0)) {
         const err7 = {
           instancePath,
           schemaPath: "#/additionalProperties",
@@ -44935,7 +46309,7 @@ function validate368(
         errors++;
       }
     }
-    if (data.schemaVersion !== undefined) {
+    if (data.schemaVersion !== undefined && func0.call(data, "schemaVersion")) {
       if ("lego.candidate-record/1" !== data.schemaVersion) {
         const err8 = {
           instancePath: instancePath + "/schemaVersion",
@@ -44952,10 +46326,10 @@ function validate368(
         errors++;
       }
     }
-    if (data.jobId !== undefined) {
+    if (data.jobId !== undefined && func0.call(data, "jobId")) {
       let data1 = data.jobId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err9 = {
             instancePath: instancePath + "/jobId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -44970,7 +46344,7 @@ function validate368(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err10 = {
             instancePath: instancePath + "/jobId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -45017,10 +46391,10 @@ function validate368(
         errors++;
       }
     }
-    if (data.candidateId !== undefined) {
+    if (data.candidateId !== undefined && func0.call(data, "candidateId")) {
       let data2 = data.candidateId;
       if (typeof data2 === "string") {
-        if (func2(data2) > 128) {
+        if (func57(data2) > 128) {
           const err13 = {
             instancePath: instancePath + "/candidateId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -45035,7 +46409,7 @@ function validate368(
           }
           errors++;
         }
-        if (func2(data2) < 1) {
+        if (func57(data2) < 1) {
           const err14 = {
             instancePath: instancePath + "/candidateId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -45082,10 +46456,13 @@ function validate368(
         errors++;
       }
     }
-    if (data.parentCandidateId !== undefined) {
+    if (
+      data.parentCandidateId !== undefined &&
+      func0.call(data, "parentCandidateId")
+    ) {
       let data3 = data.parentCandidateId;
       if (typeof data3 === "string") {
-        if (func2(data3) > 128) {
+        if (func57(data3) > 128) {
           const err17 = {
             instancePath: instancePath + "/parentCandidateId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -45100,7 +46477,7 @@ function validate368(
           }
           errors++;
         }
-        if (func2(data3) < 1) {
+        if (func57(data3) < 1) {
           const err18 = {
             instancePath: instancePath + "/parentCandidateId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -45147,7 +46524,10 @@ function validate368(
         errors++;
       }
     }
-    if (data.cancellationGeneration !== undefined) {
+    if (
+      data.cancellationGeneration !== undefined &&
+      func0.call(data, "cancellationGeneration")
+    ) {
       let data4 = data.cancellationGeneration;
       if (!(
         typeof data4 == "number" &&
@@ -45202,7 +46582,7 @@ function validate368(
         }
       }
     }
-    if (data.state !== undefined) {
+    if (data.state !== undefined && func0.call(data, "state")) {
       let data5 = data.state;
       if (!(
         data5 === "received" ||
@@ -45236,7 +46616,10 @@ function validate368(
         errors++;
       }
     }
-    if (data.programArtifact !== undefined) {
+    if (
+      data.programArtifact !== undefined &&
+      func0.call(data, "programArtifact")
+    ) {
       if (
         !validate116(data.programArtifact, {
           instancePath: instancePath + "/programArtifact",
@@ -45252,7 +46635,7 @@ function validate368(
         errors = vErrors.length;
       }
     }
-    if (data.patchArtifact !== undefined) {
+    if (data.patchArtifact !== undefined && func0.call(data, "patchArtifact")) {
       if (
         !validate116(data.patchArtifact, {
           instancePath: instancePath + "/patchArtifact",
@@ -45268,7 +46651,10 @@ function validate368(
         errors = vErrors.length;
       }
     }
-    if (data.documentArtifact !== undefined) {
+    if (
+      data.documentArtifact !== undefined &&
+      func0.call(data, "documentArtifact")
+    ) {
       if (
         !validate116(data.documentArtifact, {
           instancePath: instancePath + "/documentArtifact",
@@ -45284,7 +46670,10 @@ function validate368(
         errors = vErrors.length;
       }
     }
-    if (data.validationArtifact !== undefined) {
+    if (
+      data.validationArtifact !== undefined &&
+      func0.call(data, "validationArtifact")
+    ) {
       if (
         !validate116(data.validationArtifact, {
           instancePath: instancePath + "/validationArtifact",
@@ -45300,7 +46689,10 @@ function validate368(
         errors = vErrors.length;
       }
     }
-    if (data.renderPacketArtifact !== undefined) {
+    if (
+      data.renderPacketArtifact !== undefined &&
+      func0.call(data, "renderPacketArtifact")
+    ) {
       if (
         !validate116(data.renderPacketArtifact, {
           instancePath: instancePath + "/renderPacketArtifact",
@@ -45316,7 +46708,10 @@ function validate368(
         errors = vErrors.length;
       }
     }
-    if (data.critiqueArtifact !== undefined) {
+    if (
+      data.critiqueArtifact !== undefined &&
+      func0.call(data, "critiqueArtifact")
+    ) {
       if (
         !validate116(data.critiqueArtifact, {
           instancePath: instancePath + "/critiqueArtifact",
@@ -45332,10 +46727,13 @@ function validate368(
         errors = vErrors.length;
       }
     }
-    if (data.metrics !== undefined) {
+    if (data.metrics !== undefined && func0.call(data, "metrics")) {
       let data12 = data.metrics;
       if (data12 && typeof data12 == "object" && !Array.isArray(data12)) {
-        if (data12.partCount === undefined) {
+        if (
+          data12.partCount === undefined ||
+          !func0.call(data12, "partCount")
+        ) {
           const err25 = {
             instancePath: instancePath + "/metrics",
             schemaPath: "#/definitions/CandidateMetricsV1/required",
@@ -45350,7 +46748,10 @@ function validate368(
           }
           errors++;
         }
-        if (data12.operationCount === undefined) {
+        if (
+          data12.operationCount === undefined ||
+          !func0.call(data12, "operationCount")
+        ) {
           const err26 = {
             instancePath: instancePath + "/metrics",
             schemaPath: "#/definitions/CandidateMetricsV1/required",
@@ -45365,7 +46766,10 @@ function validate368(
           }
           errors++;
         }
-        if (data12.blockingIssueCount === undefined) {
+        if (
+          data12.blockingIssueCount === undefined ||
+          !func0.call(data12, "blockingIssueCount")
+        ) {
           const err27 = {
             instancePath: instancePath + "/metrics",
             schemaPath: "#/definitions/CandidateMetricsV1/required",
@@ -45381,7 +46785,10 @@ function validate368(
           }
           errors++;
         }
-        if (data12.advisoryIssueCount === undefined) {
+        if (
+          data12.advisoryIssueCount === undefined ||
+          !func0.call(data12, "advisoryIssueCount")
+        ) {
           const err28 = {
             instancePath: instancePath + "/metrics",
             schemaPath: "#/definitions/CandidateMetricsV1/required",
@@ -45397,7 +46804,7 @@ function validate368(
           }
           errors++;
         }
-        for (const key1 in data12) {
+        for (const key1 of Object.keys(data12)) {
           if (!(
             key1 === "partCount" ||
             key1 === "operationCount" ||
@@ -45422,7 +46829,7 @@ function validate368(
             errors++;
           }
         }
-        if (data12.partCount !== undefined) {
+        if (data12.partCount !== undefined && func0.call(data12, "partCount")) {
           let data13 = data12.partCount;
           if (!(
             typeof data13 == "number" &&
@@ -45480,7 +46887,10 @@ function validate368(
             }
           }
         }
-        if (data12.operationCount !== undefined) {
+        if (
+          data12.operationCount !== undefined &&
+          func0.call(data12, "operationCount")
+        ) {
           let data14 = data12.operationCount;
           if (!(
             typeof data14 == "number" &&
@@ -45538,7 +46948,10 @@ function validate368(
             }
           }
         }
-        if (data12.blockingIssueCount !== undefined) {
+        if (
+          data12.blockingIssueCount !== undefined &&
+          func0.call(data12, "blockingIssueCount")
+        ) {
           let data15 = data12.blockingIssueCount;
           if (!(
             typeof data15 == "number" &&
@@ -45596,7 +47009,10 @@ function validate368(
             }
           }
         }
-        if (data12.advisoryIssueCount !== undefined) {
+        if (
+          data12.advisoryIssueCount !== undefined &&
+          func0.call(data12, "advisoryIssueCount")
+        ) {
           let data16 = data12.advisoryIssueCount;
           if (!(
             typeof data16 == "number" &&
@@ -45654,7 +47070,10 @@ function validate368(
             }
           }
         }
-        if (data12.intentScore !== undefined) {
+        if (
+          data12.intentScore !== undefined &&
+          func0.call(data12, "intentScore")
+        ) {
           let data17 = data12.intentScore;
           if (typeof data17 == "number" && isFinite(data17)) {
             if (data17 > 1 || isNaN(data17)) {
@@ -45706,7 +47125,10 @@ function validate368(
             errors++;
           }
         }
-        if (data12.visualScore !== undefined) {
+        if (
+          data12.visualScore !== undefined &&
+          func0.call(data12, "visualScore")
+        ) {
           let data18 = data12.visualScore;
           if (typeof data18 == "number" && isFinite(data18)) {
             if (data18 > 1 || isNaN(data18)) {
@@ -45774,7 +47196,7 @@ function validate368(
         errors++;
       }
     }
-    if (data.failureCodes !== undefined) {
+    if (data.failureCodes !== undefined && func0.call(data, "failureCodes")) {
       let data19 = data.failureCodes;
       if (Array.isArray(data19)) {
         if (data19.length > 256) {
@@ -45796,7 +47218,7 @@ function validate368(
         for (let i0 = 0; i0 < len0; i0++) {
           let data20 = data19[i0];
           if (typeof data20 === "string") {
-            if (func2(data20) > 128) {
+            if (func57(data20) > 128) {
               const err50 = {
                 instancePath: instancePath + "/failureCodes/" + i0,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -45811,7 +47233,7 @@ function validate368(
               }
               errors++;
             }
-            if (func2(data20) < 1) {
+            if (func57(data20) < 1) {
               const err51 = {
                 instancePath: instancePath + "/failureCodes/" + i0,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -45865,7 +47287,7 @@ function validate368(
         if (i1 > 1) {
           outer0: for (; i1--;) {
             for (j0 = i1; j0--;) {
-              if (func0(data19[i1], data19[j0])) {
+              if (func32(data19[i1], data19[j0])) {
                 const err54 = {
                   instancePath: instancePath + "/failureCodes",
                   schemaPath: "#/properties/failureCodes/uniqueItems",
@@ -45920,11 +47342,11 @@ function validate368(
     }
     errors++;
   }
-  validate368.errors = vErrors;
+  validate374.errors = vErrors;
   return errors === 0;
 }
 
-function validate367(
+function validate373(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -45932,7 +47354,7 @@ function validate367(
     null;
   let errors = 0;
   if (
-    !validate368(data, {
+    !validate374(data, {
       instancePath,
       parentData,
       parentDataProperty,
@@ -45941,16 +47363,16 @@ function validate367(
   ) {
     vErrors =
       vErrors === null
-        ? validate368.errors
-        : vErrors.concat(validate368.errors);
+        ? validate374.errors
+        : vErrors.concat(validate374.errors);
     errors = vErrors.length;
   }
-  validate367.errors = vErrors;
+  validate373.errors = vErrors;
   return errors === 0;
 }
 
-export const validateRunEventV1 = validate376;
-const schema541 = {
+export const validateRunEventV1 = validate382;
+const schema562 = {
   $id: "https://schemas.brick-studio.local/protocol/1/validators/RunEventV1",
   $ref: "https://schemas.brick-studio.local/protocol/1#/definitions/RunEventV1",
 };
@@ -45986,14 +47408,17 @@ const schema257 = {
   },
 };
 
-function validate377(
+function validate383(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.schemaVersion === undefined) {
+    if (
+      data.schemaVersion === undefined ||
+      !func0.call(data, "schemaVersion")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -46008,7 +47433,7 @@ function validate377(
       }
       errors++;
     }
-    if (data.runId === undefined) {
+    if (data.runId === undefined || !func0.call(data, "runId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -46023,7 +47448,7 @@ function validate377(
       }
       errors++;
     }
-    if (data.sequence === undefined) {
+    if (data.sequence === undefined || !func0.call(data, "sequence")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -46038,7 +47463,10 @@ function validate377(
       }
       errors++;
     }
-    if (data.previousEventHash === undefined) {
+    if (
+      data.previousEventHash === undefined ||
+      !func0.call(data, "previousEventHash")
+    ) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -46053,7 +47481,7 @@ function validate377(
       }
       errors++;
     }
-    if (data.actorId === undefined) {
+    if (data.actorId === undefined || !func0.call(data, "actorId")) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -46068,7 +47496,7 @@ function validate377(
       }
       errors++;
     }
-    if (data.transition === undefined) {
+    if (data.transition === undefined || !func0.call(data, "transition")) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -46083,7 +47511,10 @@ function validate377(
       }
       errors++;
     }
-    if (data.idempotencyKey === undefined) {
+    if (
+      data.idempotencyKey === undefined ||
+      !func0.call(data, "idempotencyKey")
+    ) {
       const err6 = {
         instancePath,
         schemaPath: "#/required",
@@ -46098,7 +47529,10 @@ function validate377(
       }
       errors++;
     }
-    if (data.artifactHashes === undefined) {
+    if (
+      data.artifactHashes === undefined ||
+      !func0.call(data, "artifactHashes")
+    ) {
       const err7 = {
         instancePath,
         schemaPath: "#/required",
@@ -46113,7 +47547,7 @@ function validate377(
       }
       errors++;
     }
-    if (data.eventHash === undefined) {
+    if (data.eventHash === undefined || !func0.call(data, "eventHash")) {
       const err8 = {
         instancePath,
         schemaPath: "#/required",
@@ -46128,8 +47562,8 @@ function validate377(
       }
       errors++;
     }
-    for (const key0 in data) {
-      if (!func8.call(schema257.properties, key0)) {
+    for (const key0 of Object.keys(data)) {
+      if (!func0.call(schema257.properties, key0)) {
         const err9 = {
           instancePath,
           schemaPath: "#/additionalProperties",
@@ -46145,7 +47579,7 @@ function validate377(
         errors++;
       }
     }
-    if (data.schemaVersion !== undefined) {
+    if (data.schemaVersion !== undefined && func0.call(data, "schemaVersion")) {
       if ("lego.run-event/1" !== data.schemaVersion) {
         const err10 = {
           instancePath: instancePath + "/schemaVersion",
@@ -46162,10 +47596,10 @@ function validate377(
         errors++;
       }
     }
-    if (data.runId !== undefined) {
+    if (data.runId !== undefined && func0.call(data, "runId")) {
       let data1 = data.runId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err11 = {
             instancePath: instancePath + "/runId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -46180,7 +47614,7 @@ function validate377(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err12 = {
             instancePath: instancePath + "/runId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -46227,7 +47661,7 @@ function validate377(
         errors++;
       }
     }
-    if (data.sequence !== undefined) {
+    if (data.sequence !== undefined && func0.call(data, "sequence")) {
       let data2 = data.sequence;
       if (!(
         typeof data2 == "number" &&
@@ -46282,7 +47716,10 @@ function validate377(
         }
       }
     }
-    if (data.previousEventHash !== undefined) {
+    if (
+      data.previousEventHash !== undefined &&
+      func0.call(data, "previousEventHash")
+    ) {
       let data3 = data.previousEventHash;
       if (typeof data3 === "string") {
         if (!pattern2.test(data3)) {
@@ -46316,10 +47753,10 @@ function validate377(
         errors++;
       }
     }
-    if (data.actorId !== undefined) {
+    if (data.actorId !== undefined && func0.call(data, "actorId")) {
       let data4 = data.actorId;
       if (typeof data4 === "string") {
-        if (func2(data4) > 128) {
+        if (func57(data4) > 128) {
           const err20 = {
             instancePath: instancePath + "/actorId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -46334,7 +47771,7 @@ function validate377(
           }
           errors++;
         }
-        if (func2(data4) < 1) {
+        if (func57(data4) < 1) {
           const err21 = {
             instancePath: instancePath + "/actorId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -46381,10 +47818,10 @@ function validate377(
         errors++;
       }
     }
-    if (data.transition !== undefined) {
+    if (data.transition !== undefined && func0.call(data, "transition")) {
       let data5 = data.transition;
       if (typeof data5 === "string") {
-        if (func2(data5) > 128) {
+        if (func57(data5) > 128) {
           const err24 = {
             instancePath: instancePath + "/transition",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -46399,7 +47836,7 @@ function validate377(
           }
           errors++;
         }
-        if (func2(data5) < 1) {
+        if (func57(data5) < 1) {
           const err25 = {
             instancePath: instancePath + "/transition",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -46446,10 +47883,13 @@ function validate377(
         errors++;
       }
     }
-    if (data.idempotencyKey !== undefined) {
+    if (
+      data.idempotencyKey !== undefined &&
+      func0.call(data, "idempotencyKey")
+    ) {
       let data6 = data.idempotencyKey;
       if (typeof data6 === "string") {
-        if (func2(data6) > 128) {
+        if (func57(data6) > 128) {
           const err28 = {
             instancePath: instancePath + "/idempotencyKey",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -46464,7 +47904,7 @@ function validate377(
           }
           errors++;
         }
-        if (func2(data6) < 1) {
+        if (func57(data6) < 1) {
           const err29 = {
             instancePath: instancePath + "/idempotencyKey",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -46511,7 +47951,10 @@ function validate377(
         errors++;
       }
     }
-    if (data.artifactHashes !== undefined) {
+    if (
+      data.artifactHashes !== undefined &&
+      func0.call(data, "artifactHashes")
+    ) {
       let data7 = data.artifactHashes;
       if (Array.isArray(data7)) {
         if (data7.length > 256) {
@@ -46569,7 +48012,7 @@ function validate377(
         if (i1 > 1) {
           outer0: for (; i1--;) {
             for (j0 = i1; j0--;) {
-              if (func0(data7[i1], data7[j0])) {
+              if (func32(data7[i1], data7[j0])) {
                 const err35 = {
                   instancePath: instancePath + "/artifactHashes",
                   schemaPath: "#/properties/artifactHashes/uniqueItems",
@@ -46609,7 +48052,7 @@ function validate377(
         errors++;
       }
     }
-    if (data.eventHash !== undefined) {
+    if (data.eventHash !== undefined && func0.call(data, "eventHash")) {
       let data9 = data.eventHash;
       if (typeof data9 === "string") {
         if (!pattern2.test(data9)) {
@@ -46658,11 +48101,11 @@ function validate377(
     }
     errors++;
   }
-  validate377.errors = vErrors;
+  validate383.errors = vErrors;
   return errors === 0;
 }
 
-function validate376(
+function validate382(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -46670,7 +48113,7 @@ function validate376(
     null;
   let errors = 0;
   if (
-    !validate377(data, {
+    !validate383(data, {
       instancePath,
       parentData,
       parentDataProperty,
@@ -46679,16 +48122,16 @@ function validate376(
   ) {
     vErrors =
       vErrors === null
-        ? validate377.errors
-        : vErrors.concat(validate377.errors);
+        ? validate383.errors
+        : vErrors.concat(validate383.errors);
     errors = vErrors.length;
   }
-  validate376.errors = vErrors;
+  validate382.errors = vErrors;
   return errors === 0;
 }
 
-export const validateNativeSealedRunManifestV1 = validate379;
-const schema550 = {
+export const validateNativeSealedRunManifestV1 = validate385;
+const schema571 = {
   $id: "https://schemas.brick-studio.local/protocol/1/validators/NativeSealedRunManifestV1",
   $ref: "https://schemas.brick-studio.local/protocol/1#/definitions/NativeSealedRunManifestV1",
 };
@@ -46804,7 +48247,10 @@ function validate176(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.sealedReplayLevel === undefined) {
+    if (
+      data.sealedReplayLevel === undefined ||
+      !func0.call(data, "sealedReplayLevel")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -46819,7 +48265,10 @@ function validate176(
       }
       errors++;
     }
-    if (data.earliestRetainedBoundary === undefined) {
+    if (
+      data.earliestRetainedBoundary === undefined ||
+      !func0.call(data, "earliestRetainedBoundary")
+    ) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -46835,7 +48284,7 @@ function validate176(
       }
       errors++;
     }
-    if (data.artifactRoot === undefined) {
+    if (data.artifactRoot === undefined || !func0.call(data, "artifactRoot")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -46850,7 +48299,10 @@ function validate176(
       }
       errors++;
     }
-    if (data.requiredArtifactHashes === undefined) {
+    if (
+      data.requiredArtifactHashes === undefined ||
+      !func0.call(data, "requiredArtifactHashes")
+    ) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -46866,7 +48318,10 @@ function validate176(
       }
       errors++;
     }
-    if (data.verifierVersion === undefined) {
+    if (
+      data.verifierVersion === undefined ||
+      !func0.call(data, "verifierVersion")
+    ) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -46881,7 +48336,7 @@ function validate176(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "sealedReplayLevel" ||
         key0 === "earliestRetainedBoundary" ||
@@ -46904,7 +48359,10 @@ function validate176(
         errors++;
       }
     }
-    if (data.sealedReplayLevel !== undefined) {
+    if (
+      data.sealedReplayLevel !== undefined &&
+      func0.call(data, "sealedReplayLevel")
+    ) {
       let data0 = data.sealedReplayLevel;
       if (!(
         data0 === "full" ||
@@ -46928,7 +48386,10 @@ function validate176(
         errors++;
       }
     }
-    if (data.earliestRetainedBoundary !== undefined) {
+    if (
+      data.earliestRetainedBoundary !== undefined &&
+      func0.call(data, "earliestRetainedBoundary")
+    ) {
       let data1 = data.earliestRetainedBoundary;
       if (!(
         data1 === "inputs" ||
@@ -46953,7 +48414,7 @@ function validate176(
         errors++;
       }
     }
-    if (data.artifactRoot !== undefined) {
+    if (data.artifactRoot !== undefined && func0.call(data, "artifactRoot")) {
       let data2 = data.artifactRoot;
       if (typeof data2 === "string") {
         if (!pattern2.test(data2)) {
@@ -46987,7 +48448,10 @@ function validate176(
         errors++;
       }
     }
-    if (data.requiredArtifactHashes !== undefined) {
+    if (
+      data.requiredArtifactHashes !== undefined &&
+      func0.call(data, "requiredArtifactHashes")
+    ) {
       let data3 = data.requiredArtifactHashes;
       if (Array.isArray(data3)) {
         if (data3.length > 10000) {
@@ -47045,7 +48509,7 @@ function validate176(
         if (i1 > 1) {
           outer0: for (; i1--;) {
             for (j0 = i1; j0--;) {
-              if (func0(data3[i1], data3[j0])) {
+              if (func32(data3[i1], data3[j0])) {
                 const err13 = {
                   instancePath: instancePath + "/requiredArtifactHashes",
                   schemaPath: "#/properties/requiredArtifactHashes/uniqueItems",
@@ -47085,10 +48549,13 @@ function validate176(
         errors++;
       }
     }
-    if (data.verifierVersion !== undefined) {
+    if (
+      data.verifierVersion !== undefined &&
+      func0.call(data, "verifierVersion")
+    ) {
       let data5 = data.verifierVersion;
       if (typeof data5 === "string") {
-        if (func2(data5) > 128) {
+        if (func57(data5) > 128) {
           const err15 = {
             instancePath: instancePath + "/verifierVersion",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -47103,7 +48570,7 @@ function validate176(
           }
           errors++;
         }
-        if (func2(data5) < 1) {
+        if (func57(data5) < 1) {
           const err16 = {
             instancePath: instancePath + "/verifierVersion",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -47190,7 +48657,7 @@ function validate178(
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.algorithm === undefined) {
+    if (data.algorithm === undefined || !func0.call(data, "algorithm")) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -47205,7 +48672,7 @@ function validate178(
       }
       errors++;
     }
-    if (data.keyId === undefined) {
+    if (data.keyId === undefined || !func0.call(data, "keyId")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -47220,7 +48687,7 @@ function validate178(
       }
       errors++;
     }
-    if (data.keyEpoch === undefined) {
+    if (data.keyEpoch === undefined || !func0.call(data, "keyEpoch")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -47235,7 +48702,7 @@ function validate178(
       }
       errors++;
     }
-    if (data.signature === undefined) {
+    if (data.signature === undefined || !func0.call(data, "signature")) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -47250,7 +48717,7 @@ function validate178(
       }
       errors++;
     }
-    for (const key0 in data) {
+    for (const key0 of Object.keys(data)) {
       if (!(
         key0 === "algorithm" ||
         key0 === "keyId" ||
@@ -47272,7 +48739,7 @@ function validate178(
         errors++;
       }
     }
-    if (data.algorithm !== undefined) {
+    if (data.algorithm !== undefined && func0.call(data, "algorithm")) {
       if ("Ed25519" !== data.algorithm) {
         const err5 = {
           instancePath: instancePath + "/algorithm",
@@ -47289,10 +48756,10 @@ function validate178(
         errors++;
       }
     }
-    if (data.keyId !== undefined) {
+    if (data.keyId !== undefined && func0.call(data, "keyId")) {
       let data1 = data.keyId;
       if (typeof data1 === "string") {
-        if (func2(data1) > 128) {
+        if (func57(data1) > 128) {
           const err6 = {
             instancePath: instancePath + "/keyId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -47307,7 +48774,7 @@ function validate178(
           }
           errors++;
         }
-        if (func2(data1) < 1) {
+        if (func57(data1) < 1) {
           const err7 = {
             instancePath: instancePath + "/keyId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -47354,7 +48821,7 @@ function validate178(
         errors++;
       }
     }
-    if (data.keyEpoch !== undefined) {
+    if (data.keyEpoch !== undefined && func0.call(data, "keyEpoch")) {
       let data2 = data.keyEpoch;
       if (!(
         typeof data2 == "number" &&
@@ -47409,7 +48876,7 @@ function validate178(
         }
       }
     }
-    if (data.signature !== undefined) {
+    if (data.signature !== undefined && func0.call(data, "signature")) {
       let data3 = data.signature;
       if (typeof data3 === "string") {
         if (!pattern195.test(data3)) {
@@ -47462,14 +48929,17 @@ function validate178(
   return errors === 0;
 }
 
-function validate380(
+function validate386(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
   let vErrors = null;
   let errors = 0;
   if (data && typeof data == "object" && !Array.isArray(data)) {
-    if (data.schemaVersion === undefined) {
+    if (
+      data.schemaVersion === undefined ||
+      !func0.call(data, "schemaVersion")
+    ) {
       const err0 = {
         instancePath,
         schemaPath: "#/required",
@@ -47484,7 +48954,7 @@ function validate380(
       }
       errors++;
     }
-    if (data.namespace === undefined) {
+    if (data.namespace === undefined || !func0.call(data, "namespace")) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
@@ -47499,7 +48969,7 @@ function validate380(
       }
       errors++;
     }
-    if (data.runId === undefined) {
+    if (data.runId === undefined || !func0.call(data, "runId")) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
@@ -47514,7 +48984,10 @@ function validate380(
       }
       errors++;
     }
-    if (data.terminalState === undefined) {
+    if (
+      data.terminalState === undefined ||
+      !func0.call(data, "terminalState")
+    ) {
       const err3 = {
         instancePath,
         schemaPath: "#/required",
@@ -47529,7 +49002,10 @@ function validate380(
       }
       errors++;
     }
-    if (data.baseDocumentHash === undefined) {
+    if (
+      data.baseDocumentHash === undefined ||
+      !func0.call(data, "baseDocumentHash")
+    ) {
       const err4 = {
         instancePath,
         schemaPath: "#/required",
@@ -47544,7 +49020,10 @@ function validate380(
       }
       errors++;
     }
-    if (data.truthSnapshotHash === undefined) {
+    if (
+      data.truthSnapshotHash === undefined ||
+      !func0.call(data, "truthSnapshotHash")
+    ) {
       const err5 = {
         instancePath,
         schemaPath: "#/required",
@@ -47559,7 +49038,10 @@ function validate380(
       }
       errors++;
     }
-    if (data.applicationBuildHash === undefined) {
+    if (
+      data.applicationBuildHash === undefined ||
+      !func0.call(data, "applicationBuildHash")
+    ) {
       const err6 = {
         instancePath,
         schemaPath: "#/required",
@@ -47574,7 +49056,10 @@ function validate380(
       }
       errors++;
     }
-    if (data.brokerBuildHash === undefined) {
+    if (
+      data.brokerBuildHash === undefined ||
+      !func0.call(data, "brokerBuildHash")
+    ) {
       const err7 = {
         instancePath,
         schemaPath: "#/required",
@@ -47589,7 +49074,10 @@ function validate380(
       }
       errors++;
     }
-    if (data.harnessBuildHash === undefined) {
+    if (
+      data.harnessBuildHash === undefined ||
+      !func0.call(data, "harnessBuildHash")
+    ) {
       const err8 = {
         instancePath,
         schemaPath: "#/required",
@@ -47604,7 +49092,7 @@ function validate380(
       }
       errors++;
     }
-    if (data.lockfileHash === undefined) {
+    if (data.lockfileHash === undefined || !func0.call(data, "lockfileHash")) {
       const err9 = {
         instancePath,
         schemaPath: "#/required",
@@ -47619,7 +49107,7 @@ function validate380(
       }
       errors++;
     }
-    if (data.runtimeHash === undefined) {
+    if (data.runtimeHash === undefined || !func0.call(data, "runtimeHash")) {
       const err10 = {
         instancePath,
         schemaPath: "#/required",
@@ -47634,7 +49122,7 @@ function validate380(
       }
       errors++;
     }
-    if (data.briefHash === undefined) {
+    if (data.briefHash === undefined || !func0.call(data, "briefHash")) {
       const err11 = {
         instancePath,
         schemaPath: "#/required",
@@ -47649,7 +49137,7 @@ function validate380(
       }
       errors++;
     }
-    if (data.scopeDigest === undefined) {
+    if (data.scopeDigest === undefined || !func0.call(data, "scopeDigest")) {
       const err12 = {
         instancePath,
         schemaPath: "#/required",
@@ -47664,7 +49152,7 @@ function validate380(
       }
       errors++;
     }
-    if (data.budgets === undefined) {
+    if (data.budgets === undefined || !func0.call(data, "budgets")) {
       const err13 = {
         instancePath,
         schemaPath: "#/required",
@@ -47679,7 +49167,7 @@ function validate380(
       }
       errors++;
     }
-    if (data.candidateIds === undefined) {
+    if (data.candidateIds === undefined || !func0.call(data, "candidateIds")) {
       const err14 = {
         instancePath,
         schemaPath: "#/required",
@@ -47694,7 +49182,7 @@ function validate380(
       }
       errors++;
     }
-    if (data.eventCount === undefined) {
+    if (data.eventCount === undefined || !func0.call(data, "eventCount")) {
       const err15 = {
         instancePath,
         schemaPath: "#/required",
@@ -47709,7 +49197,7 @@ function validate380(
       }
       errors++;
     }
-    if (data.eventRoot === undefined) {
+    if (data.eventRoot === undefined || !func0.call(data, "eventRoot")) {
       const err16 = {
         instancePath,
         schemaPath: "#/required",
@@ -47724,7 +49212,7 @@ function validate380(
       }
       errors++;
     }
-    if (data.artifacts === undefined) {
+    if (data.artifacts === undefined || !func0.call(data, "artifacts")) {
       const err17 = {
         instancePath,
         schemaPath: "#/required",
@@ -47739,7 +49227,10 @@ function validate380(
       }
       errors++;
     }
-    if (data.replayClosure === undefined) {
+    if (
+      data.replayClosure === undefined ||
+      !func0.call(data, "replayClosure")
+    ) {
       const err18 = {
         instancePath,
         schemaPath: "#/required",
@@ -47754,7 +49245,7 @@ function validate380(
       }
       errors++;
     }
-    if (data.finalizedAt === undefined) {
+    if (data.finalizedAt === undefined || !func0.call(data, "finalizedAt")) {
       const err19 = {
         instancePath,
         schemaPath: "#/required",
@@ -47769,7 +49260,7 @@ function validate380(
       }
       errors++;
     }
-    if (data.seal === undefined) {
+    if (data.seal === undefined || !func0.call(data, "seal")) {
       const err20 = {
         instancePath,
         schemaPath: "#/required",
@@ -47784,8 +49275,8 @@ function validate380(
       }
       errors++;
     }
-    for (const key0 in data) {
-      if (!func8.call(schema265.properties, key0)) {
+    for (const key0 of Object.keys(data)) {
+      if (!func0.call(schema265.properties, key0)) {
         const err21 = {
           instancePath,
           schemaPath: "#/additionalProperties",
@@ -47801,7 +49292,7 @@ function validate380(
         errors++;
       }
     }
-    if (data.schemaVersion !== undefined) {
+    if (data.schemaVersion !== undefined && func0.call(data, "schemaVersion")) {
       if ("lego.native-run-manifest/1" !== data.schemaVersion) {
         const err22 = {
           instancePath: instancePath + "/schemaVersion",
@@ -47818,7 +49309,7 @@ function validate380(
         errors++;
       }
     }
-    if (data.namespace !== undefined) {
+    if (data.namespace !== undefined && func0.call(data, "namespace")) {
       let data1 = data.namespace;
       if (!(data1 === "production" || data1 === "test")) {
         const err23 = {
@@ -47836,10 +49327,10 @@ function validate380(
         errors++;
       }
     }
-    if (data.runId !== undefined) {
+    if (data.runId !== undefined && func0.call(data, "runId")) {
       let data2 = data.runId;
       if (typeof data2 === "string") {
-        if (func2(data2) > 128) {
+        if (func57(data2) > 128) {
           const err24 = {
             instancePath: instancePath + "/runId",
             schemaPath: "#/definitions/Identifier/maxLength",
@@ -47854,7 +49345,7 @@ function validate380(
           }
           errors++;
         }
-        if (func2(data2) < 1) {
+        if (func57(data2) < 1) {
           const err25 = {
             instancePath: instancePath + "/runId",
             schemaPath: "#/definitions/Identifier/minLength",
@@ -47901,7 +49392,7 @@ function validate380(
         errors++;
       }
     }
-    if (data.terminalState !== undefined) {
+    if (data.terminalState !== undefined && func0.call(data, "terminalState")) {
       let data3 = data.terminalState;
       if (!(
         data3 === "succeeded" ||
@@ -47925,7 +49416,10 @@ function validate380(
         errors++;
       }
     }
-    if (data.baseDocumentHash !== undefined) {
+    if (
+      data.baseDocumentHash !== undefined &&
+      func0.call(data, "baseDocumentHash")
+    ) {
       let data4 = data.baseDocumentHash;
       if (typeof data4 === "string") {
         if (!pattern2.test(data4)) {
@@ -47959,7 +49453,10 @@ function validate380(
         errors++;
       }
     }
-    if (data.truthSnapshotHash !== undefined) {
+    if (
+      data.truthSnapshotHash !== undefined &&
+      func0.call(data, "truthSnapshotHash")
+    ) {
       let data5 = data.truthSnapshotHash;
       if (typeof data5 === "string") {
         if (!pattern2.test(data5)) {
@@ -47993,7 +49490,10 @@ function validate380(
         errors++;
       }
     }
-    if (data.applicationBuildHash !== undefined) {
+    if (
+      data.applicationBuildHash !== undefined &&
+      func0.call(data, "applicationBuildHash")
+    ) {
       let data6 = data.applicationBuildHash;
       if (typeof data6 === "string") {
         if (!pattern2.test(data6)) {
@@ -48027,7 +49527,10 @@ function validate380(
         errors++;
       }
     }
-    if (data.brokerBuildHash !== undefined) {
+    if (
+      data.brokerBuildHash !== undefined &&
+      func0.call(data, "brokerBuildHash")
+    ) {
       let data7 = data.brokerBuildHash;
       if (typeof data7 === "string") {
         if (!pattern2.test(data7)) {
@@ -48061,7 +49564,10 @@ function validate380(
         errors++;
       }
     }
-    if (data.harnessBuildHash !== undefined) {
+    if (
+      data.harnessBuildHash !== undefined &&
+      func0.call(data, "harnessBuildHash")
+    ) {
       let data8 = data.harnessBuildHash;
       if (typeof data8 === "string") {
         if (!pattern2.test(data8)) {
@@ -48095,7 +49601,7 @@ function validate380(
         errors++;
       }
     }
-    if (data.lockfileHash !== undefined) {
+    if (data.lockfileHash !== undefined && func0.call(data, "lockfileHash")) {
       let data9 = data.lockfileHash;
       if (typeof data9 === "string") {
         if (!pattern2.test(data9)) {
@@ -48129,7 +49635,7 @@ function validate380(
         errors++;
       }
     }
-    if (data.runtimeHash !== undefined) {
+    if (data.runtimeHash !== undefined && func0.call(data, "runtimeHash")) {
       let data10 = data.runtimeHash;
       if (typeof data10 === "string") {
         if (!pattern2.test(data10)) {
@@ -48163,7 +49669,7 @@ function validate380(
         errors++;
       }
     }
-    if (data.briefHash !== undefined) {
+    if (data.briefHash !== undefined && func0.call(data, "briefHash")) {
       let data11 = data.briefHash;
       if (typeof data11 === "string") {
         if (!pattern2.test(data11)) {
@@ -48197,7 +49703,7 @@ function validate380(
         errors++;
       }
     }
-    if (data.scopeDigest !== undefined) {
+    if (data.scopeDigest !== undefined && func0.call(data, "scopeDigest")) {
       let data12 = data.scopeDigest;
       if (typeof data12 === "string") {
         if (!pattern2.test(data12)) {
@@ -48231,7 +49737,10 @@ function validate380(
         errors++;
       }
     }
-    if (data.providerCapabilitiesHash !== undefined) {
+    if (
+      data.providerCapabilitiesHash !== undefined &&
+      func0.call(data, "providerCapabilitiesHash")
+    ) {
       let data13 = data.providerCapabilitiesHash;
       if (typeof data13 === "string") {
         if (!pattern2.test(data13)) {
@@ -48265,10 +49774,13 @@ function validate380(
         errors++;
       }
     }
-    if (data.budgets !== undefined) {
+    if (data.budgets !== undefined && func0.call(data, "budgets")) {
       let data14 = data.budgets;
       if (data14 && typeof data14 == "object" && !Array.isArray(data14)) {
-        if (data14.maxCandidates === undefined) {
+        if (
+          data14.maxCandidates === undefined ||
+          !func0.call(data14, "maxCandidates")
+        ) {
           const err49 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -48283,7 +49795,10 @@ function validate380(
           }
           errors++;
         }
-        if (data14.maxRepairs === undefined) {
+        if (
+          data14.maxRepairs === undefined ||
+          !func0.call(data14, "maxRepairs")
+        ) {
           const err50 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -48298,7 +49813,10 @@ function validate380(
           }
           errors++;
         }
-        if (data14.maxProviderCalls === undefined) {
+        if (
+          data14.maxProviderCalls === undefined ||
+          !func0.call(data14, "maxProviderCalls")
+        ) {
           const err51 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -48313,7 +49831,10 @@ function validate380(
           }
           errors++;
         }
-        if (data14.maxTokens === undefined) {
+        if (
+          data14.maxTokens === undefined ||
+          !func0.call(data14, "maxTokens")
+        ) {
           const err52 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -48328,7 +49849,10 @@ function validate380(
           }
           errors++;
         }
-        if (data14.maxCostMicros === undefined) {
+        if (
+          data14.maxCostMicros === undefined ||
+          !func0.call(data14, "maxCostMicros")
+        ) {
           const err53 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -48343,7 +49867,10 @@ function validate380(
           }
           errors++;
         }
-        if (data14.maxWallTimeMs === undefined) {
+        if (
+          data14.maxWallTimeMs === undefined ||
+          !func0.call(data14, "maxWallTimeMs")
+        ) {
           const err54 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -48358,7 +49885,10 @@ function validate380(
           }
           errors++;
         }
-        if (data14.maxRenders === undefined) {
+        if (
+          data14.maxRenders === undefined ||
+          !func0.call(data14, "maxRenders")
+        ) {
           const err55 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -48373,7 +49903,10 @@ function validate380(
           }
           errors++;
         }
-        if (data14.maxStoredBytes === undefined) {
+        if (
+          data14.maxStoredBytes === undefined ||
+          !func0.call(data14, "maxStoredBytes")
+        ) {
           const err56 = {
             instancePath: instancePath + "/budgets",
             schemaPath: "#/definitions/GenerationBudgetsV1/required",
@@ -48388,7 +49921,7 @@ function validate380(
           }
           errors++;
         }
-        for (const key1 in data14) {
+        for (const key1 of Object.keys(data14)) {
           if (!(
             key1 === "maxCandidates" ||
             key1 === "maxRepairs" ||
@@ -48415,7 +49948,10 @@ function validate380(
             errors++;
           }
         }
-        if (data14.maxCandidates !== undefined) {
+        if (
+          data14.maxCandidates !== undefined &&
+          func0.call(data14, "maxCandidates")
+        ) {
           let data15 = data14.maxCandidates;
           if (!(
             typeof data15 == "number" &&
@@ -48473,7 +50009,10 @@ function validate380(
             }
           }
         }
-        if (data14.maxRepairs !== undefined) {
+        if (
+          data14.maxRepairs !== undefined &&
+          func0.call(data14, "maxRepairs")
+        ) {
           let data16 = data14.maxRepairs;
           if (!(
             typeof data16 == "number" &&
@@ -48531,7 +50070,10 @@ function validate380(
             }
           }
         }
-        if (data14.maxProviderCalls !== undefined) {
+        if (
+          data14.maxProviderCalls !== undefined &&
+          func0.call(data14, "maxProviderCalls")
+        ) {
           let data17 = data14.maxProviderCalls;
           if (!(
             typeof data17 == "number" &&
@@ -48589,7 +50131,7 @@ function validate380(
             }
           }
         }
-        if (data14.maxTokens !== undefined) {
+        if (data14.maxTokens !== undefined && func0.call(data14, "maxTokens")) {
           let data18 = data14.maxTokens;
           if (!(
             typeof data18 == "number" &&
@@ -48647,7 +50189,10 @@ function validate380(
             }
           }
         }
-        if (data14.maxCostMicros !== undefined) {
+        if (
+          data14.maxCostMicros !== undefined &&
+          func0.call(data14, "maxCostMicros")
+        ) {
           let data19 = data14.maxCostMicros;
           if (!(
             typeof data19 == "number" &&
@@ -48705,7 +50250,10 @@ function validate380(
             }
           }
         }
-        if (data14.maxWallTimeMs !== undefined) {
+        if (
+          data14.maxWallTimeMs !== undefined &&
+          func0.call(data14, "maxWallTimeMs")
+        ) {
           let data20 = data14.maxWallTimeMs;
           if (!(
             typeof data20 == "number" &&
@@ -48763,7 +50311,10 @@ function validate380(
             }
           }
         }
-        if (data14.maxRenders !== undefined) {
+        if (
+          data14.maxRenders !== undefined &&
+          func0.call(data14, "maxRenders")
+        ) {
           let data21 = data14.maxRenders;
           if (!(
             typeof data21 == "number" &&
@@ -48821,7 +50372,10 @@ function validate380(
             }
           }
         }
-        if (data14.maxStoredBytes !== undefined) {
+        if (
+          data14.maxStoredBytes !== undefined &&
+          func0.call(data14, "maxStoredBytes")
+        ) {
           let data22 = data14.maxStoredBytes;
           if (!(
             typeof data22 == "number" &&
@@ -48895,7 +50449,7 @@ function validate380(
         errors++;
       }
     }
-    if (data.candidateIds !== undefined) {
+    if (data.candidateIds !== undefined && func0.call(data, "candidateIds")) {
       let data23 = data.candidateIds;
       if (Array.isArray(data23)) {
         if (data23.length > 16) {
@@ -48917,7 +50471,7 @@ function validate380(
         for (let i0 = 0; i0 < len0; i0++) {
           let data24 = data23[i0];
           if (typeof data24 === "string") {
-            if (func2(data24) > 128) {
+            if (func57(data24) > 128) {
               const err84 = {
                 instancePath: instancePath + "/candidateIds/" + i0,
                 schemaPath: "#/definitions/Identifier/maxLength",
@@ -48932,7 +50486,7 @@ function validate380(
               }
               errors++;
             }
-            if (func2(data24) < 1) {
+            if (func57(data24) < 1) {
               const err85 = {
                 instancePath: instancePath + "/candidateIds/" + i0,
                 schemaPath: "#/definitions/Identifier/minLength",
@@ -48986,7 +50540,7 @@ function validate380(
         if (i1 > 1) {
           outer0: for (; i1--;) {
             for (j0 = i1; j0--;) {
-              if (func0(data23[i1], data23[j0])) {
+              if (func32(data23[i1], data23[j0])) {
                 const err88 = {
                   instancePath: instancePath + "/candidateIds",
                   schemaPath: "#/properties/candidateIds/uniqueItems",
@@ -49026,7 +50580,7 @@ function validate380(
         errors++;
       }
     }
-    if (data.eventCount !== undefined) {
+    if (data.eventCount !== undefined && func0.call(data, "eventCount")) {
       let data25 = data.eventCount;
       if (!(
         typeof data25 == "number" &&
@@ -49081,7 +50635,7 @@ function validate380(
         }
       }
     }
-    if (data.eventRoot !== undefined) {
+    if (data.eventRoot !== undefined && func0.call(data, "eventRoot")) {
       let data26 = data.eventRoot;
       if (typeof data26 === "string") {
         if (!pattern2.test(data26)) {
@@ -49115,7 +50669,7 @@ function validate380(
         errors++;
       }
     }
-    if (data.artifacts !== undefined) {
+    if (data.artifacts !== undefined && func0.call(data, "artifacts")) {
       let data27 = data.artifacts;
       if (Array.isArray(data27)) {
         if (data27.length > 10000) {
@@ -49166,7 +50720,7 @@ function validate380(
         errors++;
       }
     }
-    if (data.replayClosure !== undefined) {
+    if (data.replayClosure !== undefined && func0.call(data, "replayClosure")) {
       if (
         !validate176(data.replayClosure, {
           instancePath: instancePath + "/replayClosure",
@@ -49182,10 +50736,10 @@ function validate380(
         errors = vErrors.length;
       }
     }
-    if (data.finalizedAt !== undefined) {
+    if (data.finalizedAt !== undefined && func0.call(data, "finalizedAt")) {
       let data30 = data.finalizedAt;
       if (typeof data30 === "string") {
-        if (func2(data30) > 40) {
+        if (func57(data30) > 40) {
           const err97 = {
             instancePath: instancePath + "/finalizedAt",
             schemaPath: "#/definitions/UtcTimestamp/maxLength",
@@ -49200,7 +50754,7 @@ function validate380(
           }
           errors++;
         }
-        if (func2(data30) < 20) {
+        if (func57(data30) < 20) {
           const err98 = {
             instancePath: instancePath + "/finalizedAt",
             schemaPath: "#/definitions/UtcTimestamp/minLength",
@@ -49252,7 +50806,7 @@ function validate380(
         errors++;
       }
     }
-    if (data.seal !== undefined) {
+    if (data.seal !== undefined && func0.call(data, "seal")) {
       if (
         !validate178(data.seal, {
           instancePath: instancePath + "/seal",
@@ -49283,11 +50837,11 @@ function validate380(
     }
     errors++;
   }
-  validate380.errors = vErrors;
+  validate386.errors = vErrors;
   return errors === 0;
 }
 
-function validate379(
+function validate385(
   data,
   { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
 ) {
@@ -49295,7 +50849,7 @@ function validate379(
     null;
   let errors = 0;
   if (
-    !validate380(data, {
+    !validate386(data, {
       instancePath,
       parentData,
       parentDataProperty,
@@ -49304,10 +50858,2226 @@ function validate379(
   ) {
     vErrors =
       vErrors === null
-        ? validate380.errors
-        : vErrors.concat(validate380.errors);
+        ? validate386.errors
+        : vErrors.concat(validate386.errors);
     errors = vErrors.length;
   }
-  validate379.errors = vErrors;
+  validate385.errors = vErrors;
+  return errors === 0;
+}
+
+export const validateRealBuildExactFiveBrokerChallengeV1 = validate391;
+const schema588 = {
+  $id: "https://schemas.brick-studio.local/protocol/1/validators/RealBuildExactFiveBrokerChallengeV1",
+  $ref: "https://schemas.brick-studio.local/protocol/1#/definitions/RealBuildExactFiveBrokerChallengeV1",
+};
+const schema330 = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "schemaVersion",
+    "namespace",
+    "purpose",
+    "scope",
+    "requestDigest",
+    "reviewPresentationDigest",
+    "trustBindingDigest",
+    "challengeNonce",
+    "issuedAtUnixMs",
+  ],
+  properties: {
+    schemaVersion: { const: "lego.real-build-exact-five-broker-challenge/1" },
+    namespace: { enum: ["production", "test"] },
+    purpose: { const: "admit-exact-five-official-frame-equivalence" },
+    scope: { const: "exact-five-source-parity-calibration-panels-only" },
+    requestDigest: { $ref: "#/definitions/Hash" },
+    reviewPresentationDigest: { $ref: "#/definitions/Hash" },
+    trustBindingDigest: { $ref: "#/definitions/Hash" },
+    challengeNonce: { $ref: "#/definitions/RealBuildExactFiveChallengeNonce" },
+    issuedAtUnixMs: { type: "integer", minimum: 0, maximum: 9007199254740991 },
+  },
+};
+const schema334 = { type: "string", pattern: "^[0-9a-f]{64}$" };
+const pattern228 = new RegExp("^[0-9a-f]{64}$", "u");
+
+function validate392(
+  data,
+  { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
+) {
+  let vErrors = null;
+  let errors = 0;
+  if (data && typeof data == "object" && !Array.isArray(data)) {
+    if (
+      data.schemaVersion === undefined ||
+      !func0.call(data, "schemaVersion")
+    ) {
+      const err0 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "schemaVersion" },
+        message: "must have required property '" + "schemaVersion" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err0];
+      } else {
+        vErrors.push(err0);
+      }
+      errors++;
+    }
+    if (data.namespace === undefined || !func0.call(data, "namespace")) {
+      const err1 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "namespace" },
+        message: "must have required property '" + "namespace" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err1];
+      } else {
+        vErrors.push(err1);
+      }
+      errors++;
+    }
+    if (data.purpose === undefined || !func0.call(data, "purpose")) {
+      const err2 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "purpose" },
+        message: "must have required property '" + "purpose" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err2];
+      } else {
+        vErrors.push(err2);
+      }
+      errors++;
+    }
+    if (data.scope === undefined || !func0.call(data, "scope")) {
+      const err3 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "scope" },
+        message: "must have required property '" + "scope" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err3];
+      } else {
+        vErrors.push(err3);
+      }
+      errors++;
+    }
+    if (
+      data.requestDigest === undefined ||
+      !func0.call(data, "requestDigest")
+    ) {
+      const err4 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "requestDigest" },
+        message: "must have required property '" + "requestDigest" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err4];
+      } else {
+        vErrors.push(err4);
+      }
+      errors++;
+    }
+    if (
+      data.reviewPresentationDigest === undefined ||
+      !func0.call(data, "reviewPresentationDigest")
+    ) {
+      const err5 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "reviewPresentationDigest" },
+        message:
+          "must have required property '" + "reviewPresentationDigest" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err5];
+      } else {
+        vErrors.push(err5);
+      }
+      errors++;
+    }
+    if (
+      data.trustBindingDigest === undefined ||
+      !func0.call(data, "trustBindingDigest")
+    ) {
+      const err6 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "trustBindingDigest" },
+        message: "must have required property '" + "trustBindingDigest" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err6];
+      } else {
+        vErrors.push(err6);
+      }
+      errors++;
+    }
+    if (
+      data.challengeNonce === undefined ||
+      !func0.call(data, "challengeNonce")
+    ) {
+      const err7 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "challengeNonce" },
+        message: "must have required property '" + "challengeNonce" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err7];
+      } else {
+        vErrors.push(err7);
+      }
+      errors++;
+    }
+    if (
+      data.issuedAtUnixMs === undefined ||
+      !func0.call(data, "issuedAtUnixMs")
+    ) {
+      const err8 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "issuedAtUnixMs" },
+        message: "must have required property '" + "issuedAtUnixMs" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err8];
+      } else {
+        vErrors.push(err8);
+      }
+      errors++;
+    }
+    for (const key0 of Object.keys(data)) {
+      if (!func0.call(schema330.properties, key0)) {
+        const err9 = {
+          instancePath,
+          schemaPath: "#/additionalProperties",
+          keyword: "additionalProperties",
+          params: { additionalProperty: key0 },
+          message: "must NOT have additional properties",
+        };
+        if (vErrors === null) {
+          vErrors = [err9];
+        } else {
+          vErrors.push(err9);
+        }
+        errors++;
+      }
+    }
+    if (data.schemaVersion !== undefined && func0.call(data, "schemaVersion")) {
+      if (
+        "lego.real-build-exact-five-broker-challenge/1" !== data.schemaVersion
+      ) {
+        const err10 = {
+          instancePath: instancePath + "/schemaVersion",
+          schemaPath: "#/properties/schemaVersion/const",
+          keyword: "const",
+          params: {
+            allowedValue: "lego.real-build-exact-five-broker-challenge/1",
+          },
+          message: "must be equal to constant",
+        };
+        if (vErrors === null) {
+          vErrors = [err10];
+        } else {
+          vErrors.push(err10);
+        }
+        errors++;
+      }
+    }
+    if (data.namespace !== undefined && func0.call(data, "namespace")) {
+      let data1 = data.namespace;
+      if (!(data1 === "production" || data1 === "test")) {
+        const err11 = {
+          instancePath: instancePath + "/namespace",
+          schemaPath: "#/properties/namespace/enum",
+          keyword: "enum",
+          params: { allowedValues: schema330.properties.namespace.enum },
+          message: "must be equal to one of the allowed values",
+        };
+        if (vErrors === null) {
+          vErrors = [err11];
+        } else {
+          vErrors.push(err11);
+        }
+        errors++;
+      }
+    }
+    if (data.purpose !== undefined && func0.call(data, "purpose")) {
+      if ("admit-exact-five-official-frame-equivalence" !== data.purpose) {
+        const err12 = {
+          instancePath: instancePath + "/purpose",
+          schemaPath: "#/properties/purpose/const",
+          keyword: "const",
+          params: {
+            allowedValue: "admit-exact-five-official-frame-equivalence",
+          },
+          message: "must be equal to constant",
+        };
+        if (vErrors === null) {
+          vErrors = [err12];
+        } else {
+          vErrors.push(err12);
+        }
+        errors++;
+      }
+    }
+    if (data.scope !== undefined && func0.call(data, "scope")) {
+      if ("exact-five-source-parity-calibration-panels-only" !== data.scope) {
+        const err13 = {
+          instancePath: instancePath + "/scope",
+          schemaPath: "#/properties/scope/const",
+          keyword: "const",
+          params: {
+            allowedValue: "exact-five-source-parity-calibration-panels-only",
+          },
+          message: "must be equal to constant",
+        };
+        if (vErrors === null) {
+          vErrors = [err13];
+        } else {
+          vErrors.push(err13);
+        }
+        errors++;
+      }
+    }
+    if (data.requestDigest !== undefined && func0.call(data, "requestDigest")) {
+      let data4 = data.requestDigest;
+      if (typeof data4 === "string") {
+        if (!pattern2.test(data4)) {
+          const err14 = {
+            instancePath: instancePath + "/requestDigest",
+            schemaPath: "#/definitions/Hash/pattern",
+            keyword: "pattern",
+            params: { pattern: "^sha256:[0-9a-f]{64}$" },
+            message: 'must match pattern "' + "^sha256:[0-9a-f]{64}$" + '"',
+          };
+          if (vErrors === null) {
+            vErrors = [err14];
+          } else {
+            vErrors.push(err14);
+          }
+          errors++;
+        }
+      } else {
+        const err15 = {
+          instancePath: instancePath + "/requestDigest",
+          schemaPath: "#/definitions/Hash/type",
+          keyword: "type",
+          params: { type: "string" },
+          message: "must be string",
+        };
+        if (vErrors === null) {
+          vErrors = [err15];
+        } else {
+          vErrors.push(err15);
+        }
+        errors++;
+      }
+    }
+    if (
+      data.reviewPresentationDigest !== undefined &&
+      func0.call(data, "reviewPresentationDigest")
+    ) {
+      let data5 = data.reviewPresentationDigest;
+      if (typeof data5 === "string") {
+        if (!pattern2.test(data5)) {
+          const err16 = {
+            instancePath: instancePath + "/reviewPresentationDigest",
+            schemaPath: "#/definitions/Hash/pattern",
+            keyword: "pattern",
+            params: { pattern: "^sha256:[0-9a-f]{64}$" },
+            message: 'must match pattern "' + "^sha256:[0-9a-f]{64}$" + '"',
+          };
+          if (vErrors === null) {
+            vErrors = [err16];
+          } else {
+            vErrors.push(err16);
+          }
+          errors++;
+        }
+      } else {
+        const err17 = {
+          instancePath: instancePath + "/reviewPresentationDigest",
+          schemaPath: "#/definitions/Hash/type",
+          keyword: "type",
+          params: { type: "string" },
+          message: "must be string",
+        };
+        if (vErrors === null) {
+          vErrors = [err17];
+        } else {
+          vErrors.push(err17);
+        }
+        errors++;
+      }
+    }
+    if (
+      data.trustBindingDigest !== undefined &&
+      func0.call(data, "trustBindingDigest")
+    ) {
+      let data6 = data.trustBindingDigest;
+      if (typeof data6 === "string") {
+        if (!pattern2.test(data6)) {
+          const err18 = {
+            instancePath: instancePath + "/trustBindingDigest",
+            schemaPath: "#/definitions/Hash/pattern",
+            keyword: "pattern",
+            params: { pattern: "^sha256:[0-9a-f]{64}$" },
+            message: 'must match pattern "' + "^sha256:[0-9a-f]{64}$" + '"',
+          };
+          if (vErrors === null) {
+            vErrors = [err18];
+          } else {
+            vErrors.push(err18);
+          }
+          errors++;
+        }
+      } else {
+        const err19 = {
+          instancePath: instancePath + "/trustBindingDigest",
+          schemaPath: "#/definitions/Hash/type",
+          keyword: "type",
+          params: { type: "string" },
+          message: "must be string",
+        };
+        if (vErrors === null) {
+          vErrors = [err19];
+        } else {
+          vErrors.push(err19);
+        }
+        errors++;
+      }
+    }
+    if (
+      data.challengeNonce !== undefined &&
+      func0.call(data, "challengeNonce")
+    ) {
+      let data7 = data.challengeNonce;
+      if (typeof data7 === "string") {
+        if (!pattern228.test(data7)) {
+          const err20 = {
+            instancePath: instancePath + "/challengeNonce",
+            schemaPath:
+              "#/definitions/RealBuildExactFiveChallengeNonce/pattern",
+            keyword: "pattern",
+            params: { pattern: "^[0-9a-f]{64}$" },
+            message: 'must match pattern "' + "^[0-9a-f]{64}$" + '"',
+          };
+          if (vErrors === null) {
+            vErrors = [err20];
+          } else {
+            vErrors.push(err20);
+          }
+          errors++;
+        }
+      } else {
+        const err21 = {
+          instancePath: instancePath + "/challengeNonce",
+          schemaPath: "#/definitions/RealBuildExactFiveChallengeNonce/type",
+          keyword: "type",
+          params: { type: "string" },
+          message: "must be string",
+        };
+        if (vErrors === null) {
+          vErrors = [err21];
+        } else {
+          vErrors.push(err21);
+        }
+        errors++;
+      }
+    }
+    if (
+      data.issuedAtUnixMs !== undefined &&
+      func0.call(data, "issuedAtUnixMs")
+    ) {
+      let data8 = data.issuedAtUnixMs;
+      if (!(
+        typeof data8 == "number" &&
+        !(data8 % 1) &&
+        !isNaN(data8) &&
+        isFinite(data8)
+      )) {
+        const err22 = {
+          instancePath: instancePath + "/issuedAtUnixMs",
+          schemaPath: "#/properties/issuedAtUnixMs/type",
+          keyword: "type",
+          params: { type: "integer" },
+          message: "must be integer",
+        };
+        if (vErrors === null) {
+          vErrors = [err22];
+        } else {
+          vErrors.push(err22);
+        }
+        errors++;
+      }
+      if (typeof data8 == "number" && isFinite(data8)) {
+        if (data8 > 9007199254740991 || isNaN(data8)) {
+          const err23 = {
+            instancePath: instancePath + "/issuedAtUnixMs",
+            schemaPath: "#/properties/issuedAtUnixMs/maximum",
+            keyword: "maximum",
+            params: { comparison: "<=", limit: 9007199254740991 },
+            message: "must be <= 9007199254740991",
+          };
+          if (vErrors === null) {
+            vErrors = [err23];
+          } else {
+            vErrors.push(err23);
+          }
+          errors++;
+        }
+        if (data8 < 0 || isNaN(data8)) {
+          const err24 = {
+            instancePath: instancePath + "/issuedAtUnixMs",
+            schemaPath: "#/properties/issuedAtUnixMs/minimum",
+            keyword: "minimum",
+            params: { comparison: ">=", limit: 0 },
+            message: "must be >= 0",
+          };
+          if (vErrors === null) {
+            vErrors = [err24];
+          } else {
+            vErrors.push(err24);
+          }
+          errors++;
+        }
+      }
+    }
+  } else {
+    const err25 = {
+      instancePath,
+      schemaPath: "#/type",
+      keyword: "type",
+      params: { type: "object" },
+      message: "must be object",
+    };
+    if (vErrors === null) {
+      vErrors = [err25];
+    } else {
+      vErrors.push(err25);
+    }
+    errors++;
+  }
+  validate392.errors = vErrors;
+  return errors === 0;
+}
+
+function validate391(
+  data,
+  { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
+) {
+  /*# sourceURL="https://schemas.brick-studio.local/protocol/1/validators/RealBuildExactFiveBrokerChallengeV1" */ let vErrors =
+    null;
+  let errors = 0;
+  if (
+    !validate392(data, {
+      instancePath,
+      parentData,
+      parentDataProperty,
+      rootData,
+    })
+  ) {
+    vErrors =
+      vErrors === null
+        ? validate392.errors
+        : vErrors.concat(validate392.errors);
+    errors = vErrors.length;
+  }
+  validate391.errors = vErrors;
+  return errors === 0;
+}
+
+export const validateRealBuildExactFiveBrokerConsumptionReceiptV1 = validate394;
+const schema594 = {
+  $id: "https://schemas.brick-studio.local/protocol/1/validators/RealBuildExactFiveBrokerConsumptionReceiptV1",
+  $ref: "https://schemas.brick-studio.local/protocol/1#/definitions/RealBuildExactFiveBrokerConsumptionReceiptV1",
+};
+const schema335 = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "schemaVersion",
+    "signatureDomain",
+    "namespace",
+    "purpose",
+    "scope",
+    "requestDigest",
+    "challengeNonce",
+    "audience",
+    "stableOrigin",
+    "pairedDeviceId",
+    "brokerInstallId",
+    "decision",
+    "reviewPresentationDigest",
+    "brokerReleaseId",
+    "brokerEventId",
+    "consumedAtUnixMs",
+    "ledgerSequence",
+    "previousLedgerRoot",
+    "consumptionEventHash",
+    "resultingLedgerRoot",
+    "seal",
+  ],
+  properties: {
+    schemaVersion: {
+      const: "lego.real-build-exact-five-broker-consumption-receipt/1",
+    },
+    signatureDomain: {
+      const:
+        "lego.real-build-exact-five-broker-consumption-receipt-signature/1",
+    },
+    namespace: { enum: ["production", "test"] },
+    purpose: { const: "admit-exact-five-official-frame-equivalence" },
+    scope: { const: "exact-five-source-parity-calibration-panels-only" },
+    requestDigest: { $ref: "#/definitions/Hash" },
+    challengeNonce: { $ref: "#/definitions/RealBuildExactFiveChallengeNonce" },
+    audience: { $ref: "#/definitions/Identifier" },
+    stableOrigin: {
+      $ref: "#/definitions/RealBuildExactFiveStableLoopbackOrigin",
+    },
+    pairedDeviceId: { $ref: "#/definitions/Identifier" },
+    brokerInstallId: { $ref: "#/definitions/Identifier" },
+    decision: { const: "approved" },
+    reviewPresentationDigest: { $ref: "#/definitions/Hash" },
+    brokerReleaseId: { $ref: "#/definitions/Identifier" },
+    brokerEventId: { $ref: "#/definitions/Identifier" },
+    consumedAtUnixMs: {
+      type: "integer",
+      minimum: 0,
+      maximum: 9007199254740991,
+    },
+    ledgerSequence: { type: "integer", minimum: 1, maximum: 9007199254740991 },
+    previousLedgerRoot: { $ref: "#/definitions/Hash" },
+    consumptionEventHash: { $ref: "#/definitions/Hash" },
+    resultingLedgerRoot: { $ref: "#/definitions/Hash" },
+    seal: { $ref: "#/definitions/RealBuildExactFiveEd25519SealV1" },
+  },
+};
+const schema339 = {
+  type: "string",
+  minLength: 14,
+  maxLength: 64,
+  pattern:
+    "^https?://(?:127\\.0\\.0\\.1|\\[::1\\]):(?:[1-9]|[1-9][0-9]{1,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$",
+};
+const pattern232 = new RegExp(
+  "^https?://(?:127\\.0\\.0\\.1|\\[::1\\]):(?:[1-9]|[1-9][0-9]{1,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$",
+  "u",
+);
+const schema348 = {
+  type: "object",
+  additionalProperties: false,
+  required: ["algorithm", "keyId", "keyEpoch", "signature"],
+  properties: {
+    algorithm: { const: "Ed25519" },
+    keyId: { $ref: "#/definitions/Identifier" },
+    keyEpoch: { type: "integer", minimum: 0, maximum: 2147483647 },
+    signature: { $ref: "#/definitions/RealBuildExactFiveEd25519Signature" },
+  },
+};
+const schema350 = { type: "string", pattern: "^[A-Za-z0-9_-]{85}[AQgw]$" };
+const pattern242 = new RegExp("^[A-Za-z0-9_-]{85}[AQgw]$", "u");
+
+function validate217(
+  data,
+  { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
+) {
+  let vErrors = null;
+  let errors = 0;
+  if (data && typeof data == "object" && !Array.isArray(data)) {
+    if (data.algorithm === undefined || !func0.call(data, "algorithm")) {
+      const err0 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "algorithm" },
+        message: "must have required property '" + "algorithm" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err0];
+      } else {
+        vErrors.push(err0);
+      }
+      errors++;
+    }
+    if (data.keyId === undefined || !func0.call(data, "keyId")) {
+      const err1 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "keyId" },
+        message: "must have required property '" + "keyId" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err1];
+      } else {
+        vErrors.push(err1);
+      }
+      errors++;
+    }
+    if (data.keyEpoch === undefined || !func0.call(data, "keyEpoch")) {
+      const err2 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "keyEpoch" },
+        message: "must have required property '" + "keyEpoch" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err2];
+      } else {
+        vErrors.push(err2);
+      }
+      errors++;
+    }
+    if (data.signature === undefined || !func0.call(data, "signature")) {
+      const err3 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "signature" },
+        message: "must have required property '" + "signature" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err3];
+      } else {
+        vErrors.push(err3);
+      }
+      errors++;
+    }
+    for (const key0 of Object.keys(data)) {
+      if (!(
+        key0 === "algorithm" ||
+        key0 === "keyId" ||
+        key0 === "keyEpoch" ||
+        key0 === "signature"
+      )) {
+        const err4 = {
+          instancePath,
+          schemaPath: "#/additionalProperties",
+          keyword: "additionalProperties",
+          params: { additionalProperty: key0 },
+          message: "must NOT have additional properties",
+        };
+        if (vErrors === null) {
+          vErrors = [err4];
+        } else {
+          vErrors.push(err4);
+        }
+        errors++;
+      }
+    }
+    if (data.algorithm !== undefined && func0.call(data, "algorithm")) {
+      if ("Ed25519" !== data.algorithm) {
+        const err5 = {
+          instancePath: instancePath + "/algorithm",
+          schemaPath: "#/properties/algorithm/const",
+          keyword: "const",
+          params: { allowedValue: "Ed25519" },
+          message: "must be equal to constant",
+        };
+        if (vErrors === null) {
+          vErrors = [err5];
+        } else {
+          vErrors.push(err5);
+        }
+        errors++;
+      }
+    }
+    if (data.keyId !== undefined && func0.call(data, "keyId")) {
+      let data1 = data.keyId;
+      if (typeof data1 === "string") {
+        if (func57(data1) > 128) {
+          const err6 = {
+            instancePath: instancePath + "/keyId",
+            schemaPath: "#/definitions/Identifier/maxLength",
+            keyword: "maxLength",
+            params: { limit: 128 },
+            message: "must NOT have more than 128 characters",
+          };
+          if (vErrors === null) {
+            vErrors = [err6];
+          } else {
+            vErrors.push(err6);
+          }
+          errors++;
+        }
+        if (func57(data1) < 1) {
+          const err7 = {
+            instancePath: instancePath + "/keyId",
+            schemaPath: "#/definitions/Identifier/minLength",
+            keyword: "minLength",
+            params: { limit: 1 },
+            message: "must NOT have fewer than 1 characters",
+          };
+          if (vErrors === null) {
+            vErrors = [err7];
+          } else {
+            vErrors.push(err7);
+          }
+          errors++;
+        }
+        if (!pattern0.test(data1)) {
+          const err8 = {
+            instancePath: instancePath + "/keyId",
+            schemaPath: "#/definitions/Identifier/pattern",
+            keyword: "pattern",
+            params: { pattern: "^[A-Za-z0-9][A-Za-z0-9._:/-]*$" },
+            message:
+              'must match pattern "' + "^[A-Za-z0-9][A-Za-z0-9._:/-]*$" + '"',
+          };
+          if (vErrors === null) {
+            vErrors = [err8];
+          } else {
+            vErrors.push(err8);
+          }
+          errors++;
+        }
+      } else {
+        const err9 = {
+          instancePath: instancePath + "/keyId",
+          schemaPath: "#/definitions/Identifier/type",
+          keyword: "type",
+          params: { type: "string" },
+          message: "must be string",
+        };
+        if (vErrors === null) {
+          vErrors = [err9];
+        } else {
+          vErrors.push(err9);
+        }
+        errors++;
+      }
+    }
+    if (data.keyEpoch !== undefined && func0.call(data, "keyEpoch")) {
+      let data2 = data.keyEpoch;
+      if (!(
+        typeof data2 == "number" &&
+        !(data2 % 1) &&
+        !isNaN(data2) &&
+        isFinite(data2)
+      )) {
+        const err10 = {
+          instancePath: instancePath + "/keyEpoch",
+          schemaPath: "#/properties/keyEpoch/type",
+          keyword: "type",
+          params: { type: "integer" },
+          message: "must be integer",
+        };
+        if (vErrors === null) {
+          vErrors = [err10];
+        } else {
+          vErrors.push(err10);
+        }
+        errors++;
+      }
+      if (typeof data2 == "number" && isFinite(data2)) {
+        if (data2 > 2147483647 || isNaN(data2)) {
+          const err11 = {
+            instancePath: instancePath + "/keyEpoch",
+            schemaPath: "#/properties/keyEpoch/maximum",
+            keyword: "maximum",
+            params: { comparison: "<=", limit: 2147483647 },
+            message: "must be <= 2147483647",
+          };
+          if (vErrors === null) {
+            vErrors = [err11];
+          } else {
+            vErrors.push(err11);
+          }
+          errors++;
+        }
+        if (data2 < 0 || isNaN(data2)) {
+          const err12 = {
+            instancePath: instancePath + "/keyEpoch",
+            schemaPath: "#/properties/keyEpoch/minimum",
+            keyword: "minimum",
+            params: { comparison: ">=", limit: 0 },
+            message: "must be >= 0",
+          };
+          if (vErrors === null) {
+            vErrors = [err12];
+          } else {
+            vErrors.push(err12);
+          }
+          errors++;
+        }
+      }
+    }
+    if (data.signature !== undefined && func0.call(data, "signature")) {
+      let data3 = data.signature;
+      if (typeof data3 === "string") {
+        if (!pattern242.test(data3)) {
+          const err13 = {
+            instancePath: instancePath + "/signature",
+            schemaPath:
+              "#/definitions/RealBuildExactFiveEd25519Signature/pattern",
+            keyword: "pattern",
+            params: { pattern: "^[A-Za-z0-9_-]{85}[AQgw]$" },
+            message: 'must match pattern "' + "^[A-Za-z0-9_-]{85}[AQgw]$" + '"',
+          };
+          if (vErrors === null) {
+            vErrors = [err13];
+          } else {
+            vErrors.push(err13);
+          }
+          errors++;
+        }
+      } else {
+        const err14 = {
+          instancePath: instancePath + "/signature",
+          schemaPath: "#/definitions/RealBuildExactFiveEd25519Signature/type",
+          keyword: "type",
+          params: { type: "string" },
+          message: "must be string",
+        };
+        if (vErrors === null) {
+          vErrors = [err14];
+        } else {
+          vErrors.push(err14);
+        }
+        errors++;
+      }
+    }
+  } else {
+    const err15 = {
+      instancePath,
+      schemaPath: "#/type",
+      keyword: "type",
+      params: { type: "object" },
+      message: "must be object",
+    };
+    if (vErrors === null) {
+      vErrors = [err15];
+    } else {
+      vErrors.push(err15);
+    }
+    errors++;
+  }
+  validate217.errors = vErrors;
+  return errors === 0;
+}
+
+function validate395(
+  data,
+  { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
+) {
+  let vErrors = null;
+  let errors = 0;
+  if (data && typeof data == "object" && !Array.isArray(data)) {
+    if (
+      data.schemaVersion === undefined ||
+      !func0.call(data, "schemaVersion")
+    ) {
+      const err0 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "schemaVersion" },
+        message: "must have required property '" + "schemaVersion" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err0];
+      } else {
+        vErrors.push(err0);
+      }
+      errors++;
+    }
+    if (
+      data.signatureDomain === undefined ||
+      !func0.call(data, "signatureDomain")
+    ) {
+      const err1 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "signatureDomain" },
+        message: "must have required property '" + "signatureDomain" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err1];
+      } else {
+        vErrors.push(err1);
+      }
+      errors++;
+    }
+    if (data.namespace === undefined || !func0.call(data, "namespace")) {
+      const err2 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "namespace" },
+        message: "must have required property '" + "namespace" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err2];
+      } else {
+        vErrors.push(err2);
+      }
+      errors++;
+    }
+    if (data.purpose === undefined || !func0.call(data, "purpose")) {
+      const err3 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "purpose" },
+        message: "must have required property '" + "purpose" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err3];
+      } else {
+        vErrors.push(err3);
+      }
+      errors++;
+    }
+    if (data.scope === undefined || !func0.call(data, "scope")) {
+      const err4 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "scope" },
+        message: "must have required property '" + "scope" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err4];
+      } else {
+        vErrors.push(err4);
+      }
+      errors++;
+    }
+    if (
+      data.requestDigest === undefined ||
+      !func0.call(data, "requestDigest")
+    ) {
+      const err5 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "requestDigest" },
+        message: "must have required property '" + "requestDigest" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err5];
+      } else {
+        vErrors.push(err5);
+      }
+      errors++;
+    }
+    if (
+      data.challengeNonce === undefined ||
+      !func0.call(data, "challengeNonce")
+    ) {
+      const err6 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "challengeNonce" },
+        message: "must have required property '" + "challengeNonce" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err6];
+      } else {
+        vErrors.push(err6);
+      }
+      errors++;
+    }
+    if (data.audience === undefined || !func0.call(data, "audience")) {
+      const err7 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "audience" },
+        message: "must have required property '" + "audience" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err7];
+      } else {
+        vErrors.push(err7);
+      }
+      errors++;
+    }
+    if (data.stableOrigin === undefined || !func0.call(data, "stableOrigin")) {
+      const err8 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "stableOrigin" },
+        message: "must have required property '" + "stableOrigin" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err8];
+      } else {
+        vErrors.push(err8);
+      }
+      errors++;
+    }
+    if (
+      data.pairedDeviceId === undefined ||
+      !func0.call(data, "pairedDeviceId")
+    ) {
+      const err9 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "pairedDeviceId" },
+        message: "must have required property '" + "pairedDeviceId" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err9];
+      } else {
+        vErrors.push(err9);
+      }
+      errors++;
+    }
+    if (
+      data.brokerInstallId === undefined ||
+      !func0.call(data, "brokerInstallId")
+    ) {
+      const err10 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "brokerInstallId" },
+        message: "must have required property '" + "brokerInstallId" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err10];
+      } else {
+        vErrors.push(err10);
+      }
+      errors++;
+    }
+    if (data.decision === undefined || !func0.call(data, "decision")) {
+      const err11 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "decision" },
+        message: "must have required property '" + "decision" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err11];
+      } else {
+        vErrors.push(err11);
+      }
+      errors++;
+    }
+    if (
+      data.reviewPresentationDigest === undefined ||
+      !func0.call(data, "reviewPresentationDigest")
+    ) {
+      const err12 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "reviewPresentationDigest" },
+        message:
+          "must have required property '" + "reviewPresentationDigest" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err12];
+      } else {
+        vErrors.push(err12);
+      }
+      errors++;
+    }
+    if (
+      data.brokerReleaseId === undefined ||
+      !func0.call(data, "brokerReleaseId")
+    ) {
+      const err13 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "brokerReleaseId" },
+        message: "must have required property '" + "brokerReleaseId" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err13];
+      } else {
+        vErrors.push(err13);
+      }
+      errors++;
+    }
+    if (
+      data.brokerEventId === undefined ||
+      !func0.call(data, "brokerEventId")
+    ) {
+      const err14 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "brokerEventId" },
+        message: "must have required property '" + "brokerEventId" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err14];
+      } else {
+        vErrors.push(err14);
+      }
+      errors++;
+    }
+    if (
+      data.consumedAtUnixMs === undefined ||
+      !func0.call(data, "consumedAtUnixMs")
+    ) {
+      const err15 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "consumedAtUnixMs" },
+        message: "must have required property '" + "consumedAtUnixMs" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err15];
+      } else {
+        vErrors.push(err15);
+      }
+      errors++;
+    }
+    if (
+      data.ledgerSequence === undefined ||
+      !func0.call(data, "ledgerSequence")
+    ) {
+      const err16 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "ledgerSequence" },
+        message: "must have required property '" + "ledgerSequence" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err16];
+      } else {
+        vErrors.push(err16);
+      }
+      errors++;
+    }
+    if (
+      data.previousLedgerRoot === undefined ||
+      !func0.call(data, "previousLedgerRoot")
+    ) {
+      const err17 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "previousLedgerRoot" },
+        message: "must have required property '" + "previousLedgerRoot" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err17];
+      } else {
+        vErrors.push(err17);
+      }
+      errors++;
+    }
+    if (
+      data.consumptionEventHash === undefined ||
+      !func0.call(data, "consumptionEventHash")
+    ) {
+      const err18 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "consumptionEventHash" },
+        message: "must have required property '" + "consumptionEventHash" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err18];
+      } else {
+        vErrors.push(err18);
+      }
+      errors++;
+    }
+    if (
+      data.resultingLedgerRoot === undefined ||
+      !func0.call(data, "resultingLedgerRoot")
+    ) {
+      const err19 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "resultingLedgerRoot" },
+        message: "must have required property '" + "resultingLedgerRoot" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err19];
+      } else {
+        vErrors.push(err19);
+      }
+      errors++;
+    }
+    if (data.seal === undefined || !func0.call(data, "seal")) {
+      const err20 = {
+        instancePath,
+        schemaPath: "#/required",
+        keyword: "required",
+        params: { missingProperty: "seal" },
+        message: "must have required property '" + "seal" + "'",
+      };
+      if (vErrors === null) {
+        vErrors = [err20];
+      } else {
+        vErrors.push(err20);
+      }
+      errors++;
+    }
+    for (const key0 of Object.keys(data)) {
+      if (!func0.call(schema335.properties, key0)) {
+        const err21 = {
+          instancePath,
+          schemaPath: "#/additionalProperties",
+          keyword: "additionalProperties",
+          params: { additionalProperty: key0 },
+          message: "must NOT have additional properties",
+        };
+        if (vErrors === null) {
+          vErrors = [err21];
+        } else {
+          vErrors.push(err21);
+        }
+        errors++;
+      }
+    }
+    if (data.schemaVersion !== undefined && func0.call(data, "schemaVersion")) {
+      if (
+        "lego.real-build-exact-five-broker-consumption-receipt/1" !==
+        data.schemaVersion
+      ) {
+        const err22 = {
+          instancePath: instancePath + "/schemaVersion",
+          schemaPath: "#/properties/schemaVersion/const",
+          keyword: "const",
+          params: {
+            allowedValue:
+              "lego.real-build-exact-five-broker-consumption-receipt/1",
+          },
+          message: "must be equal to constant",
+        };
+        if (vErrors === null) {
+          vErrors = [err22];
+        } else {
+          vErrors.push(err22);
+        }
+        errors++;
+      }
+    }
+    if (
+      data.signatureDomain !== undefined &&
+      func0.call(data, "signatureDomain")
+    ) {
+      if (
+        "lego.real-build-exact-five-broker-consumption-receipt-signature/1" !==
+        data.signatureDomain
+      ) {
+        const err23 = {
+          instancePath: instancePath + "/signatureDomain",
+          schemaPath: "#/properties/signatureDomain/const",
+          keyword: "const",
+          params: {
+            allowedValue:
+              "lego.real-build-exact-five-broker-consumption-receipt-signature/1",
+          },
+          message: "must be equal to constant",
+        };
+        if (vErrors === null) {
+          vErrors = [err23];
+        } else {
+          vErrors.push(err23);
+        }
+        errors++;
+      }
+    }
+    if (data.namespace !== undefined && func0.call(data, "namespace")) {
+      let data2 = data.namespace;
+      if (!(data2 === "production" || data2 === "test")) {
+        const err24 = {
+          instancePath: instancePath + "/namespace",
+          schemaPath: "#/properties/namespace/enum",
+          keyword: "enum",
+          params: { allowedValues: schema335.properties.namespace.enum },
+          message: "must be equal to one of the allowed values",
+        };
+        if (vErrors === null) {
+          vErrors = [err24];
+        } else {
+          vErrors.push(err24);
+        }
+        errors++;
+      }
+    }
+    if (data.purpose !== undefined && func0.call(data, "purpose")) {
+      if ("admit-exact-five-official-frame-equivalence" !== data.purpose) {
+        const err25 = {
+          instancePath: instancePath + "/purpose",
+          schemaPath: "#/properties/purpose/const",
+          keyword: "const",
+          params: {
+            allowedValue: "admit-exact-five-official-frame-equivalence",
+          },
+          message: "must be equal to constant",
+        };
+        if (vErrors === null) {
+          vErrors = [err25];
+        } else {
+          vErrors.push(err25);
+        }
+        errors++;
+      }
+    }
+    if (data.scope !== undefined && func0.call(data, "scope")) {
+      if ("exact-five-source-parity-calibration-panels-only" !== data.scope) {
+        const err26 = {
+          instancePath: instancePath + "/scope",
+          schemaPath: "#/properties/scope/const",
+          keyword: "const",
+          params: {
+            allowedValue: "exact-five-source-parity-calibration-panels-only",
+          },
+          message: "must be equal to constant",
+        };
+        if (vErrors === null) {
+          vErrors = [err26];
+        } else {
+          vErrors.push(err26);
+        }
+        errors++;
+      }
+    }
+    if (data.requestDigest !== undefined && func0.call(data, "requestDigest")) {
+      let data5 = data.requestDigest;
+      if (typeof data5 === "string") {
+        if (!pattern2.test(data5)) {
+          const err27 = {
+            instancePath: instancePath + "/requestDigest",
+            schemaPath: "#/definitions/Hash/pattern",
+            keyword: "pattern",
+            params: { pattern: "^sha256:[0-9a-f]{64}$" },
+            message: 'must match pattern "' + "^sha256:[0-9a-f]{64}$" + '"',
+          };
+          if (vErrors === null) {
+            vErrors = [err27];
+          } else {
+            vErrors.push(err27);
+          }
+          errors++;
+        }
+      } else {
+        const err28 = {
+          instancePath: instancePath + "/requestDigest",
+          schemaPath: "#/definitions/Hash/type",
+          keyword: "type",
+          params: { type: "string" },
+          message: "must be string",
+        };
+        if (vErrors === null) {
+          vErrors = [err28];
+        } else {
+          vErrors.push(err28);
+        }
+        errors++;
+      }
+    }
+    if (
+      data.challengeNonce !== undefined &&
+      func0.call(data, "challengeNonce")
+    ) {
+      let data6 = data.challengeNonce;
+      if (typeof data6 === "string") {
+        if (!pattern228.test(data6)) {
+          const err29 = {
+            instancePath: instancePath + "/challengeNonce",
+            schemaPath:
+              "#/definitions/RealBuildExactFiveChallengeNonce/pattern",
+            keyword: "pattern",
+            params: { pattern: "^[0-9a-f]{64}$" },
+            message: 'must match pattern "' + "^[0-9a-f]{64}$" + '"',
+          };
+          if (vErrors === null) {
+            vErrors = [err29];
+          } else {
+            vErrors.push(err29);
+          }
+          errors++;
+        }
+      } else {
+        const err30 = {
+          instancePath: instancePath + "/challengeNonce",
+          schemaPath: "#/definitions/RealBuildExactFiveChallengeNonce/type",
+          keyword: "type",
+          params: { type: "string" },
+          message: "must be string",
+        };
+        if (vErrors === null) {
+          vErrors = [err30];
+        } else {
+          vErrors.push(err30);
+        }
+        errors++;
+      }
+    }
+    if (data.audience !== undefined && func0.call(data, "audience")) {
+      let data7 = data.audience;
+      if (typeof data7 === "string") {
+        if (func57(data7) > 128) {
+          const err31 = {
+            instancePath: instancePath + "/audience",
+            schemaPath: "#/definitions/Identifier/maxLength",
+            keyword: "maxLength",
+            params: { limit: 128 },
+            message: "must NOT have more than 128 characters",
+          };
+          if (vErrors === null) {
+            vErrors = [err31];
+          } else {
+            vErrors.push(err31);
+          }
+          errors++;
+        }
+        if (func57(data7) < 1) {
+          const err32 = {
+            instancePath: instancePath + "/audience",
+            schemaPath: "#/definitions/Identifier/minLength",
+            keyword: "minLength",
+            params: { limit: 1 },
+            message: "must NOT have fewer than 1 characters",
+          };
+          if (vErrors === null) {
+            vErrors = [err32];
+          } else {
+            vErrors.push(err32);
+          }
+          errors++;
+        }
+        if (!pattern0.test(data7)) {
+          const err33 = {
+            instancePath: instancePath + "/audience",
+            schemaPath: "#/definitions/Identifier/pattern",
+            keyword: "pattern",
+            params: { pattern: "^[A-Za-z0-9][A-Za-z0-9._:/-]*$" },
+            message:
+              'must match pattern "' + "^[A-Za-z0-9][A-Za-z0-9._:/-]*$" + '"',
+          };
+          if (vErrors === null) {
+            vErrors = [err33];
+          } else {
+            vErrors.push(err33);
+          }
+          errors++;
+        }
+      } else {
+        const err34 = {
+          instancePath: instancePath + "/audience",
+          schemaPath: "#/definitions/Identifier/type",
+          keyword: "type",
+          params: { type: "string" },
+          message: "must be string",
+        };
+        if (vErrors === null) {
+          vErrors = [err34];
+        } else {
+          vErrors.push(err34);
+        }
+        errors++;
+      }
+    }
+    if (data.stableOrigin !== undefined && func0.call(data, "stableOrigin")) {
+      let data8 = data.stableOrigin;
+      if (typeof data8 === "string") {
+        if (func57(data8) > 64) {
+          const err35 = {
+            instancePath: instancePath + "/stableOrigin",
+            schemaPath:
+              "#/definitions/RealBuildExactFiveStableLoopbackOrigin/maxLength",
+            keyword: "maxLength",
+            params: { limit: 64 },
+            message: "must NOT have more than 64 characters",
+          };
+          if (vErrors === null) {
+            vErrors = [err35];
+          } else {
+            vErrors.push(err35);
+          }
+          errors++;
+        }
+        if (func57(data8) < 14) {
+          const err36 = {
+            instancePath: instancePath + "/stableOrigin",
+            schemaPath:
+              "#/definitions/RealBuildExactFiveStableLoopbackOrigin/minLength",
+            keyword: "minLength",
+            params: { limit: 14 },
+            message: "must NOT have fewer than 14 characters",
+          };
+          if (vErrors === null) {
+            vErrors = [err36];
+          } else {
+            vErrors.push(err36);
+          }
+          errors++;
+        }
+        if (!pattern232.test(data8)) {
+          const err37 = {
+            instancePath: instancePath + "/stableOrigin",
+            schemaPath:
+              "#/definitions/RealBuildExactFiveStableLoopbackOrigin/pattern",
+            keyword: "pattern",
+            params: {
+              pattern:
+                "^https?://(?:127\\.0\\.0\\.1|\\[::1\\]):(?:[1-9]|[1-9][0-9]{1,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$",
+            },
+            message:
+              'must match pattern "' +
+              "^https?://(?:127\\.0\\.0\\.1|\\[::1\\]):(?:[1-9]|[1-9][0-9]{1,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$" +
+              '"',
+          };
+          if (vErrors === null) {
+            vErrors = [err37];
+          } else {
+            vErrors.push(err37);
+          }
+          errors++;
+        }
+      } else {
+        const err38 = {
+          instancePath: instancePath + "/stableOrigin",
+          schemaPath:
+            "#/definitions/RealBuildExactFiveStableLoopbackOrigin/type",
+          keyword: "type",
+          params: { type: "string" },
+          message: "must be string",
+        };
+        if (vErrors === null) {
+          vErrors = [err38];
+        } else {
+          vErrors.push(err38);
+        }
+        errors++;
+      }
+    }
+    if (
+      data.pairedDeviceId !== undefined &&
+      func0.call(data, "pairedDeviceId")
+    ) {
+      let data9 = data.pairedDeviceId;
+      if (typeof data9 === "string") {
+        if (func57(data9) > 128) {
+          const err39 = {
+            instancePath: instancePath + "/pairedDeviceId",
+            schemaPath: "#/definitions/Identifier/maxLength",
+            keyword: "maxLength",
+            params: { limit: 128 },
+            message: "must NOT have more than 128 characters",
+          };
+          if (vErrors === null) {
+            vErrors = [err39];
+          } else {
+            vErrors.push(err39);
+          }
+          errors++;
+        }
+        if (func57(data9) < 1) {
+          const err40 = {
+            instancePath: instancePath + "/pairedDeviceId",
+            schemaPath: "#/definitions/Identifier/minLength",
+            keyword: "minLength",
+            params: { limit: 1 },
+            message: "must NOT have fewer than 1 characters",
+          };
+          if (vErrors === null) {
+            vErrors = [err40];
+          } else {
+            vErrors.push(err40);
+          }
+          errors++;
+        }
+        if (!pattern0.test(data9)) {
+          const err41 = {
+            instancePath: instancePath + "/pairedDeviceId",
+            schemaPath: "#/definitions/Identifier/pattern",
+            keyword: "pattern",
+            params: { pattern: "^[A-Za-z0-9][A-Za-z0-9._:/-]*$" },
+            message:
+              'must match pattern "' + "^[A-Za-z0-9][A-Za-z0-9._:/-]*$" + '"',
+          };
+          if (vErrors === null) {
+            vErrors = [err41];
+          } else {
+            vErrors.push(err41);
+          }
+          errors++;
+        }
+      } else {
+        const err42 = {
+          instancePath: instancePath + "/pairedDeviceId",
+          schemaPath: "#/definitions/Identifier/type",
+          keyword: "type",
+          params: { type: "string" },
+          message: "must be string",
+        };
+        if (vErrors === null) {
+          vErrors = [err42];
+        } else {
+          vErrors.push(err42);
+        }
+        errors++;
+      }
+    }
+    if (
+      data.brokerInstallId !== undefined &&
+      func0.call(data, "brokerInstallId")
+    ) {
+      let data10 = data.brokerInstallId;
+      if (typeof data10 === "string") {
+        if (func57(data10) > 128) {
+          const err43 = {
+            instancePath: instancePath + "/brokerInstallId",
+            schemaPath: "#/definitions/Identifier/maxLength",
+            keyword: "maxLength",
+            params: { limit: 128 },
+            message: "must NOT have more than 128 characters",
+          };
+          if (vErrors === null) {
+            vErrors = [err43];
+          } else {
+            vErrors.push(err43);
+          }
+          errors++;
+        }
+        if (func57(data10) < 1) {
+          const err44 = {
+            instancePath: instancePath + "/brokerInstallId",
+            schemaPath: "#/definitions/Identifier/minLength",
+            keyword: "minLength",
+            params: { limit: 1 },
+            message: "must NOT have fewer than 1 characters",
+          };
+          if (vErrors === null) {
+            vErrors = [err44];
+          } else {
+            vErrors.push(err44);
+          }
+          errors++;
+        }
+        if (!pattern0.test(data10)) {
+          const err45 = {
+            instancePath: instancePath + "/brokerInstallId",
+            schemaPath: "#/definitions/Identifier/pattern",
+            keyword: "pattern",
+            params: { pattern: "^[A-Za-z0-9][A-Za-z0-9._:/-]*$" },
+            message:
+              'must match pattern "' + "^[A-Za-z0-9][A-Za-z0-9._:/-]*$" + '"',
+          };
+          if (vErrors === null) {
+            vErrors = [err45];
+          } else {
+            vErrors.push(err45);
+          }
+          errors++;
+        }
+      } else {
+        const err46 = {
+          instancePath: instancePath + "/brokerInstallId",
+          schemaPath: "#/definitions/Identifier/type",
+          keyword: "type",
+          params: { type: "string" },
+          message: "must be string",
+        };
+        if (vErrors === null) {
+          vErrors = [err46];
+        } else {
+          vErrors.push(err46);
+        }
+        errors++;
+      }
+    }
+    if (data.decision !== undefined && func0.call(data, "decision")) {
+      if ("approved" !== data.decision) {
+        const err47 = {
+          instancePath: instancePath + "/decision",
+          schemaPath: "#/properties/decision/const",
+          keyword: "const",
+          params: { allowedValue: "approved" },
+          message: "must be equal to constant",
+        };
+        if (vErrors === null) {
+          vErrors = [err47];
+        } else {
+          vErrors.push(err47);
+        }
+        errors++;
+      }
+    }
+    if (
+      data.reviewPresentationDigest !== undefined &&
+      func0.call(data, "reviewPresentationDigest")
+    ) {
+      let data12 = data.reviewPresentationDigest;
+      if (typeof data12 === "string") {
+        if (!pattern2.test(data12)) {
+          const err48 = {
+            instancePath: instancePath + "/reviewPresentationDigest",
+            schemaPath: "#/definitions/Hash/pattern",
+            keyword: "pattern",
+            params: { pattern: "^sha256:[0-9a-f]{64}$" },
+            message: 'must match pattern "' + "^sha256:[0-9a-f]{64}$" + '"',
+          };
+          if (vErrors === null) {
+            vErrors = [err48];
+          } else {
+            vErrors.push(err48);
+          }
+          errors++;
+        }
+      } else {
+        const err49 = {
+          instancePath: instancePath + "/reviewPresentationDigest",
+          schemaPath: "#/definitions/Hash/type",
+          keyword: "type",
+          params: { type: "string" },
+          message: "must be string",
+        };
+        if (vErrors === null) {
+          vErrors = [err49];
+        } else {
+          vErrors.push(err49);
+        }
+        errors++;
+      }
+    }
+    if (
+      data.brokerReleaseId !== undefined &&
+      func0.call(data, "brokerReleaseId")
+    ) {
+      let data13 = data.brokerReleaseId;
+      if (typeof data13 === "string") {
+        if (func57(data13) > 128) {
+          const err50 = {
+            instancePath: instancePath + "/brokerReleaseId",
+            schemaPath: "#/definitions/Identifier/maxLength",
+            keyword: "maxLength",
+            params: { limit: 128 },
+            message: "must NOT have more than 128 characters",
+          };
+          if (vErrors === null) {
+            vErrors = [err50];
+          } else {
+            vErrors.push(err50);
+          }
+          errors++;
+        }
+        if (func57(data13) < 1) {
+          const err51 = {
+            instancePath: instancePath + "/brokerReleaseId",
+            schemaPath: "#/definitions/Identifier/minLength",
+            keyword: "minLength",
+            params: { limit: 1 },
+            message: "must NOT have fewer than 1 characters",
+          };
+          if (vErrors === null) {
+            vErrors = [err51];
+          } else {
+            vErrors.push(err51);
+          }
+          errors++;
+        }
+        if (!pattern0.test(data13)) {
+          const err52 = {
+            instancePath: instancePath + "/brokerReleaseId",
+            schemaPath: "#/definitions/Identifier/pattern",
+            keyword: "pattern",
+            params: { pattern: "^[A-Za-z0-9][A-Za-z0-9._:/-]*$" },
+            message:
+              'must match pattern "' + "^[A-Za-z0-9][A-Za-z0-9._:/-]*$" + '"',
+          };
+          if (vErrors === null) {
+            vErrors = [err52];
+          } else {
+            vErrors.push(err52);
+          }
+          errors++;
+        }
+      } else {
+        const err53 = {
+          instancePath: instancePath + "/brokerReleaseId",
+          schemaPath: "#/definitions/Identifier/type",
+          keyword: "type",
+          params: { type: "string" },
+          message: "must be string",
+        };
+        if (vErrors === null) {
+          vErrors = [err53];
+        } else {
+          vErrors.push(err53);
+        }
+        errors++;
+      }
+    }
+    if (data.brokerEventId !== undefined && func0.call(data, "brokerEventId")) {
+      let data14 = data.brokerEventId;
+      if (typeof data14 === "string") {
+        if (func57(data14) > 128) {
+          const err54 = {
+            instancePath: instancePath + "/brokerEventId",
+            schemaPath: "#/definitions/Identifier/maxLength",
+            keyword: "maxLength",
+            params: { limit: 128 },
+            message: "must NOT have more than 128 characters",
+          };
+          if (vErrors === null) {
+            vErrors = [err54];
+          } else {
+            vErrors.push(err54);
+          }
+          errors++;
+        }
+        if (func57(data14) < 1) {
+          const err55 = {
+            instancePath: instancePath + "/brokerEventId",
+            schemaPath: "#/definitions/Identifier/minLength",
+            keyword: "minLength",
+            params: { limit: 1 },
+            message: "must NOT have fewer than 1 characters",
+          };
+          if (vErrors === null) {
+            vErrors = [err55];
+          } else {
+            vErrors.push(err55);
+          }
+          errors++;
+        }
+        if (!pattern0.test(data14)) {
+          const err56 = {
+            instancePath: instancePath + "/brokerEventId",
+            schemaPath: "#/definitions/Identifier/pattern",
+            keyword: "pattern",
+            params: { pattern: "^[A-Za-z0-9][A-Za-z0-9._:/-]*$" },
+            message:
+              'must match pattern "' + "^[A-Za-z0-9][A-Za-z0-9._:/-]*$" + '"',
+          };
+          if (vErrors === null) {
+            vErrors = [err56];
+          } else {
+            vErrors.push(err56);
+          }
+          errors++;
+        }
+      } else {
+        const err57 = {
+          instancePath: instancePath + "/brokerEventId",
+          schemaPath: "#/definitions/Identifier/type",
+          keyword: "type",
+          params: { type: "string" },
+          message: "must be string",
+        };
+        if (vErrors === null) {
+          vErrors = [err57];
+        } else {
+          vErrors.push(err57);
+        }
+        errors++;
+      }
+    }
+    if (
+      data.consumedAtUnixMs !== undefined &&
+      func0.call(data, "consumedAtUnixMs")
+    ) {
+      let data15 = data.consumedAtUnixMs;
+      if (!(
+        typeof data15 == "number" &&
+        !(data15 % 1) &&
+        !isNaN(data15) &&
+        isFinite(data15)
+      )) {
+        const err58 = {
+          instancePath: instancePath + "/consumedAtUnixMs",
+          schemaPath: "#/properties/consumedAtUnixMs/type",
+          keyword: "type",
+          params: { type: "integer" },
+          message: "must be integer",
+        };
+        if (vErrors === null) {
+          vErrors = [err58];
+        } else {
+          vErrors.push(err58);
+        }
+        errors++;
+      }
+      if (typeof data15 == "number" && isFinite(data15)) {
+        if (data15 > 9007199254740991 || isNaN(data15)) {
+          const err59 = {
+            instancePath: instancePath + "/consumedAtUnixMs",
+            schemaPath: "#/properties/consumedAtUnixMs/maximum",
+            keyword: "maximum",
+            params: { comparison: "<=", limit: 9007199254740991 },
+            message: "must be <= 9007199254740991",
+          };
+          if (vErrors === null) {
+            vErrors = [err59];
+          } else {
+            vErrors.push(err59);
+          }
+          errors++;
+        }
+        if (data15 < 0 || isNaN(data15)) {
+          const err60 = {
+            instancePath: instancePath + "/consumedAtUnixMs",
+            schemaPath: "#/properties/consumedAtUnixMs/minimum",
+            keyword: "minimum",
+            params: { comparison: ">=", limit: 0 },
+            message: "must be >= 0",
+          };
+          if (vErrors === null) {
+            vErrors = [err60];
+          } else {
+            vErrors.push(err60);
+          }
+          errors++;
+        }
+      }
+    }
+    if (
+      data.ledgerSequence !== undefined &&
+      func0.call(data, "ledgerSequence")
+    ) {
+      let data16 = data.ledgerSequence;
+      if (!(
+        typeof data16 == "number" &&
+        !(data16 % 1) &&
+        !isNaN(data16) &&
+        isFinite(data16)
+      )) {
+        const err61 = {
+          instancePath: instancePath + "/ledgerSequence",
+          schemaPath: "#/properties/ledgerSequence/type",
+          keyword: "type",
+          params: { type: "integer" },
+          message: "must be integer",
+        };
+        if (vErrors === null) {
+          vErrors = [err61];
+        } else {
+          vErrors.push(err61);
+        }
+        errors++;
+      }
+      if (typeof data16 == "number" && isFinite(data16)) {
+        if (data16 > 9007199254740991 || isNaN(data16)) {
+          const err62 = {
+            instancePath: instancePath + "/ledgerSequence",
+            schemaPath: "#/properties/ledgerSequence/maximum",
+            keyword: "maximum",
+            params: { comparison: "<=", limit: 9007199254740991 },
+            message: "must be <= 9007199254740991",
+          };
+          if (vErrors === null) {
+            vErrors = [err62];
+          } else {
+            vErrors.push(err62);
+          }
+          errors++;
+        }
+        if (data16 < 1 || isNaN(data16)) {
+          const err63 = {
+            instancePath: instancePath + "/ledgerSequence",
+            schemaPath: "#/properties/ledgerSequence/minimum",
+            keyword: "minimum",
+            params: { comparison: ">=", limit: 1 },
+            message: "must be >= 1",
+          };
+          if (vErrors === null) {
+            vErrors = [err63];
+          } else {
+            vErrors.push(err63);
+          }
+          errors++;
+        }
+      }
+    }
+    if (
+      data.previousLedgerRoot !== undefined &&
+      func0.call(data, "previousLedgerRoot")
+    ) {
+      let data17 = data.previousLedgerRoot;
+      if (typeof data17 === "string") {
+        if (!pattern2.test(data17)) {
+          const err64 = {
+            instancePath: instancePath + "/previousLedgerRoot",
+            schemaPath: "#/definitions/Hash/pattern",
+            keyword: "pattern",
+            params: { pattern: "^sha256:[0-9a-f]{64}$" },
+            message: 'must match pattern "' + "^sha256:[0-9a-f]{64}$" + '"',
+          };
+          if (vErrors === null) {
+            vErrors = [err64];
+          } else {
+            vErrors.push(err64);
+          }
+          errors++;
+        }
+      } else {
+        const err65 = {
+          instancePath: instancePath + "/previousLedgerRoot",
+          schemaPath: "#/definitions/Hash/type",
+          keyword: "type",
+          params: { type: "string" },
+          message: "must be string",
+        };
+        if (vErrors === null) {
+          vErrors = [err65];
+        } else {
+          vErrors.push(err65);
+        }
+        errors++;
+      }
+    }
+    if (
+      data.consumptionEventHash !== undefined &&
+      func0.call(data, "consumptionEventHash")
+    ) {
+      let data18 = data.consumptionEventHash;
+      if (typeof data18 === "string") {
+        if (!pattern2.test(data18)) {
+          const err66 = {
+            instancePath: instancePath + "/consumptionEventHash",
+            schemaPath: "#/definitions/Hash/pattern",
+            keyword: "pattern",
+            params: { pattern: "^sha256:[0-9a-f]{64}$" },
+            message: 'must match pattern "' + "^sha256:[0-9a-f]{64}$" + '"',
+          };
+          if (vErrors === null) {
+            vErrors = [err66];
+          } else {
+            vErrors.push(err66);
+          }
+          errors++;
+        }
+      } else {
+        const err67 = {
+          instancePath: instancePath + "/consumptionEventHash",
+          schemaPath: "#/definitions/Hash/type",
+          keyword: "type",
+          params: { type: "string" },
+          message: "must be string",
+        };
+        if (vErrors === null) {
+          vErrors = [err67];
+        } else {
+          vErrors.push(err67);
+        }
+        errors++;
+      }
+    }
+    if (
+      data.resultingLedgerRoot !== undefined &&
+      func0.call(data, "resultingLedgerRoot")
+    ) {
+      let data19 = data.resultingLedgerRoot;
+      if (typeof data19 === "string") {
+        if (!pattern2.test(data19)) {
+          const err68 = {
+            instancePath: instancePath + "/resultingLedgerRoot",
+            schemaPath: "#/definitions/Hash/pattern",
+            keyword: "pattern",
+            params: { pattern: "^sha256:[0-9a-f]{64}$" },
+            message: 'must match pattern "' + "^sha256:[0-9a-f]{64}$" + '"',
+          };
+          if (vErrors === null) {
+            vErrors = [err68];
+          } else {
+            vErrors.push(err68);
+          }
+          errors++;
+        }
+      } else {
+        const err69 = {
+          instancePath: instancePath + "/resultingLedgerRoot",
+          schemaPath: "#/definitions/Hash/type",
+          keyword: "type",
+          params: { type: "string" },
+          message: "must be string",
+        };
+        if (vErrors === null) {
+          vErrors = [err69];
+        } else {
+          vErrors.push(err69);
+        }
+        errors++;
+      }
+    }
+    if (data.seal !== undefined && func0.call(data, "seal")) {
+      if (
+        !validate217(data.seal, {
+          instancePath: instancePath + "/seal",
+          parentData: data,
+          parentDataProperty: "seal",
+          rootData,
+        })
+      ) {
+        vErrors =
+          vErrors === null
+            ? validate217.errors
+            : vErrors.concat(validate217.errors);
+        errors = vErrors.length;
+      }
+    }
+  } else {
+    const err70 = {
+      instancePath,
+      schemaPath: "#/type",
+      keyword: "type",
+      params: { type: "object" },
+      message: "must be object",
+    };
+    if (vErrors === null) {
+      vErrors = [err70];
+    } else {
+      vErrors.push(err70);
+    }
+    errors++;
+  }
+  validate395.errors = vErrors;
+  return errors === 0;
+}
+
+function validate394(
+  data,
+  { instancePath = "", parentData, parentDataProperty, rootData = data } = {},
+) {
+  /*# sourceURL="https://schemas.brick-studio.local/protocol/1/validators/RealBuildExactFiveBrokerConsumptionReceiptV1" */ let vErrors =
+    null;
+  let errors = 0;
+  if (
+    !validate395(data, {
+      instancePath,
+      parentData,
+      parentDataProperty,
+      rootData,
+    })
+  ) {
+    vErrors =
+      vErrors === null
+        ? validate395.errors
+        : vErrors.concat(validate395.errors);
+    errors = vErrors.length;
+  }
+  validate394.errors = vErrors;
   return errors === 0;
 }

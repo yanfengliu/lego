@@ -43,9 +43,12 @@ const trustedUserEventMock = vi.hoisted(() => {
     { readonly requestDigest: string; readonly eventIdentityDigest: string }
   >();
   const consumedEvents = new WeakSet<object>();
+  const authenticatedResults = new WeakSet<object>();
   let nextEvent = 1;
-  let beforeReturn: (() => void) | null = null;
+  let beforeReturn: (() => Promise<void>) | null = null;
   let nextSchemaVersion: string | null = null;
+  let nextReviewPresentationDigest: string | null = null;
+  let nextTiming: "fresh" | "expired" | "future" = "fresh";
   return {
     authenticate(requestDigest: string): object {
       const event = Object.freeze({ testEvent: nextEvent });
@@ -54,16 +57,28 @@ const trustedUserEventMock = vi.hoisted(() => {
       bindingByEvent.set(event, { requestDigest, eventIdentityDigest });
       return event;
     },
-    beforeNextReturn(callback: () => void): void {
+    beforeNextReturn(callback: () => Promise<void>): void {
       beforeReturn = callback;
     },
     returnSchemaVersionOnce(schemaVersion: string): void {
       nextSchemaVersion = schemaVersion;
     },
+    returnReviewPresentationDigestOnce(reviewPresentationDigest: string): void {
+      nextReviewPresentationDigest = reviewPresentationDigest;
+    },
+    returnTimingOnce(timing: "expired" | "future"): void {
+      nextTiming = timing;
+    },
     consume: vi.fn(
-      (
+      async (
         rawEvent: unknown,
-        challenge: { readonly purpose: string; readonly requestDigest: string },
+        request: {
+          readonly namespace: string;
+          readonly purpose: string;
+          readonly scope: string;
+          readonly requestDigest: string;
+          readonly reviewPresentationDigest: string;
+        },
       ) => {
         if (rawEvent === null || typeof rawEvent !== "object") {
           throw new TypeError("Mock external broker requires an authenticated event.");
@@ -76,27 +91,50 @@ const trustedUserEventMock = vi.hoisted(() => {
           throw new TypeError("Mock external broker rejected replayed event.");
         }
         consumedEvents.add(rawEvent);
-        if (binding.requestDigest !== challenge.requestDigest) {
+        if (binding.requestDigest !== request.requestDigest) {
           throw new TypeError("Mock external broker event binds a different request.");
         }
         const callback = beforeReturn;
         beforeReturn = null;
-        callback?.();
+        if (callback !== null) await callback();
         const schemaVersion =
           nextSchemaVersion ??
           "lego.real-build-browser-output-v4-exact-five-authenticated-user-event/1";
         nextSchemaVersion = null;
-        return Object.freeze({
+        const timing = nextTiming;
+        nextTiming = "fresh";
+        const now = Date.now();
+        const issuedMilliseconds =
+          timing === "expired" ? now - 180_000 : timing === "future" ? now + 30_000 : now - 1;
+        const consumedMilliseconds = timing === "fresh" ? now : issuedMilliseconds + 1;
+        const reviewPresentationDigest =
+          nextReviewPresentationDigest ?? request.reviewPresentationDigest;
+        nextReviewPresentationDigest = null;
+        const result = Object.freeze({
           schemaVersion,
           authority: "trusted-user",
           origin: "external-authenticated-user-event",
-          purpose: challenge.purpose,
-          requestDigest: challenge.requestDigest,
+          namespace: request.namespace,
+          purpose: request.purpose,
+          scope: request.scope,
+          requestDigest: request.requestDigest,
+          reviewPresentationDigest,
+          challengeNonce: binding.eventIdentityDigest.slice("sha256:".length),
+          challengeIssuedAtUnixMs: issuedMilliseconds,
+          consumedAtUnixMs: consumedMilliseconds,
           eventIdentityDigest: binding.eventIdentityDigest,
           replayState: "consumed-one-use",
         });
+        authenticatedResults.add(result);
+        return result;
       },
     ),
+    requireAuthenticated(value: unknown): object {
+      if (value === null || typeof value !== "object" || !authenticatedResults.has(value)) {
+        throw new TypeError("Mock external broker rejected an unbranded event result.");
+      }
+      return value;
+    },
   };
 });
 
@@ -108,6 +146,8 @@ vi.mock("../e2e/real-build-browser-output-v4-exact-five-user-event", async (impo
   return {
     ...actual,
     consumeRealBuildBrowserOutputV4ExactFiveTrustedUserEvent: trustedUserEventMock.consume,
+    requireRealBuildBrowserOutputV4ExactFiveAuthenticatedTrustedUserEvent:
+      trustedUserEventMock.requireAuthenticated,
   };
 });
 
@@ -239,7 +279,7 @@ afterEach(() => {
 });
 
 describe("trusted-user exact-five source-parity admission", () => {
-  it("settles exact published W equality only for the fixed five panels", () => {
+  it("settles exact published W equality only for the fixed five panels", async () => {
     const { publication, contract, masks, truth } = fixture();
     const prior = adjudicateRealBuildSourceParityCalibration({
       contract,
@@ -268,11 +308,12 @@ describe("trusted-user exact-five source-parity admission", () => {
       truthPacketDigest: truth.packetDigest,
       comparison: "published-candidate-w-exactly-matches-inspected-human-truth",
       steps: REAL_BUILD_BROWSER_OUTPUT_V4_EXACT_FIVE_STEPS,
+      reviewPresentationDigest: expect.stringMatching(/^sha256:[0-9a-f]{64}$/u),
       authority: "absent",
     });
     expect(requireRealBuildBrowserOutputV4ExactFiveCalibrationRequest(request)).toBe(request);
     const trustedUserEvent = trustedUserEventMock.authenticate(request.requestDigest);
-    const admitted = consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(
+    const admitted = await consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(
       trustedUserEvent,
       request,
     );
@@ -313,7 +354,7 @@ describe("trusted-user exact-five source-parity admission", () => {
     ).toThrow(/privately branded result/u);
   });
 
-  it("rejects forged request and user-event shapes without reading proxy claims", () => {
+  it("rejects forged request and user-event shapes without reading proxy claims", async () => {
     const { publication, contract, truth } = fixture();
     const request = inspectRealBuildBrowserOutputV4ExactFiveCalibrationRequest(
       publication,
@@ -324,13 +365,13 @@ describe("trusted-user exact-five source-parity admission", () => {
     expect(() =>
       requireRealBuildBrowserOutputV4ExactFiveCalibrationRequest({ ...request }),
     ).toThrow(/privately branded authority-free replay result/u);
-    expect(() =>
+    await expect(
       consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(
         trustedUserEventMock.authenticate(request.requestDigest),
         { ...request },
       ),
-    ).toThrow(/privately branded authority-free replay result/u);
-    expect(() =>
+    ).rejects.toThrow(/privately branded authority-free replay result/u);
+    await expect(
       consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(
         {
           authority: "trusted-user",
@@ -339,7 +380,7 @@ describe("trusted-user exact-five source-parity admission", () => {
         },
         request,
       ),
-    ).toThrow(/unauthenticated event/u);
+    ).rejects.toThrow(/unauthenticated event/u);
     let traps = 0;
     const proxied = new Proxy(Object.freeze({}), {
       get() {
@@ -347,13 +388,13 @@ describe("trusted-user exact-five source-parity admission", () => {
         throw new Error("must not read a proxy claim");
       },
     });
-    expect(() =>
+    await expect(
       consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(proxied, request),
-    ).toThrow(/unauthenticated event/u);
+    ).rejects.toThrow(/unauthenticated event/u);
     expect(traps).toBe(0);
   });
 
-  it("admits each exact request and authenticated event identity only once", () => {
+  it("admits each exact request and authenticated event identity only once", async () => {
     const { publication, contract, truth } = fixture();
     const request = inspectRealBuildBrowserOutputV4ExactFiveCalibrationRequest(
       publication,
@@ -362,10 +403,10 @@ describe("trusted-user exact-five source-parity admission", () => {
       truth,
     );
     const trustedUserEvent = trustedUserEventMock.authenticate(request.requestDigest);
-    consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(trustedUserEvent, request);
-    expect(() =>
+    await consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(trustedUserEvent, request);
+    await expect(
       consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(trustedUserEvent, request),
-    ).toThrow(/request .* already admitted/u);
+    ).rejects.toThrow(/request .* already admitted/u);
 
     const other = fixture();
     const otherRequest = inspectRealBuildBrowserOutputV4ExactFiveCalibrationRequest(
@@ -374,19 +415,19 @@ describe("trusted-user exact-five source-parity admission", () => {
       other.publication.executionIdentityDigest,
       other.truth,
     );
-    expect(() =>
+    await expect(
       consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(trustedUserEvent, otherRequest),
-    ).toThrow(/replayed event/u);
+    ).rejects.toThrow(/replayed event/u);
     const mismatchedEvent = trustedUserEventMock.authenticate(request.requestDigest);
-    expect(() =>
+    await expect(
       consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(mismatchedEvent, otherRequest),
-    ).toThrow(/different request/u);
-    expect(() =>
+    ).rejects.toThrow(/different request/u);
+    await expect(
       consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(mismatchedEvent, request),
-    ).toThrow(/request .* already admitted|replayed event/u);
+    ).rejects.toThrow(/request .* already admitted|replayed event/u);
   });
 
-  it("reserves the request across a reentrant external event callback", () => {
+  it("reserves the request across a reentrant external event callback", async () => {
     const { publication, contract, truth } = fixture();
     const request = inspectRealBuildBrowserOutputV4ExactFiveCalibrationRequest(
       publication,
@@ -396,14 +437,17 @@ describe("trusted-user exact-five source-parity admission", () => {
     );
     const trustedUserEvent = trustedUserEventMock.authenticate(request.requestDigest);
     let nestedError: unknown = null;
-    trustedUserEventMock.beforeNextReturn(() => {
+    trustedUserEventMock.beforeNextReturn(async () => {
       try {
-        consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(trustedUserEvent, request);
+        await consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(
+          trustedUserEvent,
+          request,
+        );
       } catch (error) {
         nestedError = error;
       }
     });
-    const admitted = consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(
+    const admitted = await consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(
       trustedUserEvent,
       request,
     );
@@ -412,7 +456,7 @@ describe("trusted-user exact-five source-parity admission", () => {
     expect(requireRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(admitted)).toBe(admitted);
   });
 
-  it("rejects event schema drift, clears the reservation, and preserves per-event identity", () => {
+  it("rejects event schema drift, clears the reservation, and preserves per-event identity", async () => {
     const drift = fixture();
     const driftRequest = inspectRealBuildBrowserOutputV4ExactFiveCalibrationRequest(
       drift.publication,
@@ -423,17 +467,52 @@ describe("trusted-user exact-five source-parity admission", () => {
     trustedUserEventMock.returnSchemaVersionOnce(
       "lego.real-build-browser-output-v4-exact-five-authenticated-user-event/0",
     );
-    expect(() =>
+    await expect(
       consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(
         trustedUserEventMock.authenticate(driftRequest.requestDigest),
         driftRequest,
       ),
-    ).toThrow(/inconsistent schema/u);
-    const recovered = consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(
+    ).rejects.toThrow(/inconsistent schema/u);
+    trustedUserEventMock.returnReviewPresentationDigestOnce(`sha256:${"f".repeat(64)}`);
+    await expect(
+      consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(
+        trustedUserEventMock.authenticate(driftRequest.requestDigest),
+        driftRequest,
+      ),
+    ).rejects.toThrow(/review presentation/u);
+    const recovered = await consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(
       trustedUserEventMock.authenticate(driftRequest.requestDigest),
       driftRequest,
     );
     expect(recovered.status).toBe("admitted");
+
+    const expired = fixture();
+    const expiredRequest = inspectRealBuildBrowserOutputV4ExactFiveCalibrationRequest(
+      expired.publication,
+      expired.contract,
+      expired.publication.executionIdentityDigest,
+      expired.truth,
+    );
+    trustedUserEventMock.returnTimingOnce("expired");
+    await expect(
+      consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(
+        trustedUserEventMock.authenticate(expiredRequest.requestDigest),
+        expiredRequest,
+      ),
+    ).rejects.toThrow(/expired/u);
+    trustedUserEventMock.returnTimingOnce("future");
+    await expect(
+      consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(
+        trustedUserEventMock.authenticate(expiredRequest.requestDigest),
+        expiredRequest,
+      ),
+    ).rejects.toThrow(/future/u);
+    await expect(
+      consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(
+        trustedUserEventMock.authenticate(expiredRequest.requestDigest),
+        expiredRequest,
+      ),
+    ).resolves.toMatchObject({ status: "admitted" });
 
     const left = fixture();
     const right = fixture();
@@ -451,11 +530,11 @@ describe("trusted-user exact-five source-parity admission", () => {
     );
     const leftEvent = trustedUserEventMock.authenticate(leftRequest.requestDigest);
     const rightEvent = trustedUserEventMock.authenticate(rightRequest.requestDigest);
-    const leftAdmission = consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(
+    const leftAdmission = await consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(
       leftEvent,
       leftRequest,
     );
-    const rightAdmission = consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(
+    const rightAdmission = await consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(
       rightEvent,
       rightRequest,
     );

@@ -1,0 +1,123 @@
+{
+  "title": "Real-build exact-five broker consumption contracts",
+  "roots": ["RealBuildExactFiveBrokerChallengeV1", "RealBuildExactFiveBrokerConsumptionReceiptV1"],
+  "definitions": {
+    "RealBuildExactFiveChallengeNonce": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "RealBuildExactFiveStableLoopbackOrigin": {
+      "type": "string",
+      "minLength": 14,
+      "maxLength": 64,
+      "pattern": "^https?://(?:127\\.0\\.0\\.1|\\[::1\\]):(?:[1-9]|[1-9][0-9]{1,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$"
+    },
+    "RealBuildExactFiveEd25519Signature": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{85}[AQgw]$"
+    },
+    "RealBuildExactFiveEd25519SealV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "keyId", "keyEpoch", "signature"],
+      "properties": {
+        "algorithm": { "const": "Ed25519" },
+        "keyId": { "$ref": "#/definitions/Identifier" },
+        "keyEpoch": { "type": "integer", "minimum": 0, "maximum": 2147483647 },
+        "signature": { "$ref": "#/definitions/RealBuildExactFiveEd25519Signature" }
+      }
+    },
+    "RealBuildExactFiveBrokerChallengeV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "namespace",
+        "purpose",
+        "scope",
+        "requestDigest",
+        "reviewPresentationDigest",
+        "trustBindingDigest",
+        "challengeNonce",
+        "issuedAtUnixMs"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "lego.real-build-exact-five-broker-challenge/1" },
+        "namespace": { "enum": ["production", "test"] },
+        "purpose": { "const": "admit-exact-five-official-frame-equivalence" },
+        "scope": { "const": "exact-five-source-parity-calibration-panels-only" },
+        "requestDigest": { "$ref": "#/definitions/Hash" },
+        "reviewPresentationDigest": { "$ref": "#/definitions/Hash" },
+        "trustBindingDigest": { "$ref": "#/definitions/Hash" },
+        "challengeNonce": { "$ref": "#/definitions/RealBuildExactFiveChallengeNonce" },
+        "issuedAtUnixMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "RealBuildExactFiveBrokerConsumptionReceiptV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "signatureDomain",
+        "namespace",
+        "purpose",
+        "scope",
+        "requestDigest",
+        "challengeNonce",
+        "audience",
+        "stableOrigin",
+        "pairedDeviceId",
+        "brokerInstallId",
+        "decision",
+        "reviewPresentationDigest",
+        "brokerReleaseId",
+        "brokerEventId",
+        "consumedAtUnixMs",
+        "ledgerSequence",
+        "previousLedgerRoot",
+        "consumptionEventHash",
+        "resultingLedgerRoot",
+        "seal"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "lego.real-build-exact-five-broker-consumption-receipt/1"
+        },
+        "signatureDomain": {
+          "const": "lego.real-build-exact-five-broker-consumption-receipt-signature/1"
+        },
+        "namespace": { "enum": ["production", "test"] },
+        "purpose": { "const": "admit-exact-five-official-frame-equivalence" },
+        "scope": { "const": "exact-five-source-parity-calibration-panels-only" },
+        "requestDigest": { "$ref": "#/definitions/Hash" },
+        "challengeNonce": { "$ref": "#/definitions/RealBuildExactFiveChallengeNonce" },
+        "audience": { "$ref": "#/definitions/Identifier" },
+        "stableOrigin": { "$ref": "#/definitions/RealBuildExactFiveStableLoopbackOrigin" },
+        "pairedDeviceId": { "$ref": "#/definitions/Identifier" },
+        "brokerInstallId": { "$ref": "#/definitions/Identifier" },
+        "decision": { "const": "approved" },
+        "reviewPresentationDigest": { "$ref": "#/definitions/Hash" },
+        "brokerReleaseId": { "$ref": "#/definitions/Identifier" },
+        "brokerEventId": { "$ref": "#/definitions/Identifier" },
+        "consumedAtUnixMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "ledgerSequence": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "previousLedgerRoot": { "$ref": "#/definitions/Hash" },
+        "consumptionEventHash": { "$ref": "#/definitions/Hash" },
+        "resultingLedgerRoot": { "$ref": "#/definitions/Hash" },
+        "seal": { "$ref": "#/definitions/RealBuildExactFiveEd25519SealV1" }
+      }
+    }
+  }
+}

@@ -26,6 +26,12 @@ export type Ed25519Signature = DeepReadonly<Wire.Ed25519Signature>;
 export type NullableHash = DeepReadonly<Wire.NullableHash>;
 export type NullablePositiveInteger =
   DeepReadonly<Wire.NullablePositiveInteger>;
+export type RealBuildExactFiveChallengeNonce =
+  DeepReadonly<Wire.RealBuildExactFiveChallengeNonce>;
+export type RealBuildExactFiveStableLoopbackOrigin =
+  DeepReadonly<Wire.RealBuildExactFiveStableLoopbackOrigin>;
+export type RealBuildExactFiveEd25519Signature =
+  DeepReadonly<Wire.RealBuildExactFiveEd25519Signature>;
 export type TemplateColorValueV1 = DeepReadonly<Wire.TemplateColorValueV1>;
 export type TruthSnapshot = DeepReadonly<Wire.TruthSnapshot>;
 export type SnapshotRef = DeepReadonly<Wire.SnapshotRef>;
@@ -117,6 +123,12 @@ export type TestRunBundleManifestV1 =
 export type TestRunArtifactRoleV1 = DeepReadonly<Wire.TestRunArtifactRoleV1>;
 export type TestRunSourceEventV1 = DeepReadonly<Wire.TestRunSourceEventV1>;
 export type TestRunBundleHandleV1 = DeepReadonly<Wire.TestRunBundleHandleV1>;
+export type RealBuildExactFiveBrokerChallengeV1 =
+  DeepReadonly<Wire.RealBuildExactFiveBrokerChallengeV1>;
+export type RealBuildExactFiveBrokerConsumptionReceiptV1 =
+  DeepReadonly<Wire.RealBuildExactFiveBrokerConsumptionReceiptV1>;
+export type RealBuildExactFiveEd25519SealV1 =
+  DeepReadonly<Wire.RealBuildExactFiveEd25519SealV1>;
 export type TemplateSnapshotV1 = DeepReadonly<Wire.TemplateSnapshotV1>;
 export type TemplateColorParameterV1 =
   DeepReadonly<Wire.TemplateColorParameterV1>;

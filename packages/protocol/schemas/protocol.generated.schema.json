@@ -1,0 +1,3518 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://schemas.brick-studio.local/protocol/1",
+  "title": "LegoStudioProtocol",
+  "description": "Authoritative version-1 wire contracts for canonical brick documents, restricted generation, evidence, authority, and validation.",
+  "oneOf": [
+    {
+      "$ref": "#/definitions/TruthSnapshot"
+    },
+    {
+      "$ref": "#/definitions/RigidTransform"
+    },
+    {
+      "$ref": "#/definitions/BrickDocumentV1"
+    },
+    {
+      "$ref": "#/definitions/BuildProgramV1"
+    },
+    {
+      "$ref": "#/definitions/BuildOperation"
+    },
+    {
+      "$ref": "#/definitions/ScopeCapabilityV1"
+    },
+    {
+      "$ref": "#/definitions/AssemblyPatchV1"
+    },
+    {
+      "$ref": "#/definitions/ValidationIssue"
+    },
+    {
+      "$ref": "#/definitions/ValidationReportV1"
+    },
+    {
+      "$ref": "#/definitions/TrustNamespaceV1"
+    },
+    {
+      "$ref": "#/definitions/ArtifactRefV1"
+    },
+    {
+      "$ref": "#/definitions/BuildBriefV1"
+    },
+    {
+      "$ref": "#/definitions/ProviderCapabilitiesV1"
+    },
+    {
+      "$ref": "#/definitions/RenderPacketV1"
+    },
+    {
+      "$ref": "#/definitions/ActorObservationV1"
+    },
+    {
+      "$ref": "#/definitions/MakerObservationV1"
+    },
+    {
+      "$ref": "#/definitions/CandidateProgramSubmissionV1"
+    },
+    {
+      "$ref": "#/definitions/AttemptTranscriptV1"
+    },
+    {
+      "$ref": "#/definitions/GenerationJobRecordV1"
+    },
+    {
+      "$ref": "#/definitions/CandidateRecordV1"
+    },
+    {
+      "$ref": "#/definitions/RunEventV1"
+    },
+    {
+      "$ref": "#/definitions/NativeSealedRunManifestV1"
+    },
+    {
+      "$ref": "#/definitions/DeterministicMakerOutputV1"
+    },
+    {
+      "$ref": "#/definitions/DeterministicMakerCaptureManifestV1"
+    },
+    {
+      "$ref": "#/definitions/TestRunBundleManifestV1"
+    },
+    {
+      "$ref": "#/definitions/TestRunBundleHandleV1"
+    },
+    {
+      "$ref": "#/definitions/RealBuildExactFiveBrokerChallengeV1"
+    },
+    {
+      "$ref": "#/definitions/RealBuildExactFiveBrokerConsumptionReceiptV1"
+    },
+    {
+      "$ref": "#/definitions/TemplateSnapshotV1"
+    }
+  ],
+  "definitions": {
+    "Identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "ShortText": {
+      "type": "string",
+      "maxLength": 256
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "LduCoordinate": {
+      "type": "integer",
+      "minimum": -10000000,
+      "maximum": 10000000
+    },
+    "LduVector": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/LduCoordinate"
+      },
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "SnapshotRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "hash"],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "version": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "hash": {
+          "$ref": "#/definitions/Hash"
+        }
+      }
+    },
+    "TruthSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "catalog",
+        "connectorTaxonomy",
+        "collisionModel",
+        "transformPolicy",
+        "validatorSet"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "lego.truth-snapshot/1"
+        },
+        "catalog": {
+          "$ref": "#/definitions/SnapshotRef"
+        },
+        "connectorTaxonomy": {
+          "$ref": "#/definitions/SnapshotRef"
+        },
+        "collisionModel": {
+          "$ref": "#/definitions/SnapshotRef"
+        },
+        "transformPolicy": {
+          "$ref": "#/definitions/SnapshotRef"
+        },
+        "validatorSet": {
+          "$ref": "#/definitions/SnapshotRef"
+        }
+      }
+    },
+    "RigidTransform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["positionLdu", "orientationId"],
+      "properties": {
+        "positionLdu": {
+          "$ref": "#/definitions/LduVector"
+        },
+        "orientationId": {
+          "$ref": "#/definitions/Identifier"
+        }
+      }
+    },
+    "EntityProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source"],
+      "properties": {
+        "source": {
+          "enum": ["manual", "ai", "import", "template", "migration"]
+        },
+        "sourceId": {
+          "$ref": "#/definitions/Identifier"
+        }
+      }
+    },
+    "PartInstance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "catalogPartId",
+        "colorId",
+        "transform",
+        "submodelId",
+        "stepId",
+        "semanticTags",
+        "provenance"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "catalogPartId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "colorId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "transform": {
+          "$ref": "#/definitions/RigidTransform"
+        },
+        "submodelId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "stepId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "semanticTags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "maxItems": 32,
+          "uniqueItems": true
+        },
+        "provenance": {
+          "$ref": "#/definitions/EntityProvenance"
+        }
+      }
+    },
+    "PartPortRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["partId", "portId"],
+      "properties": {
+        "partId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "portId": {
+          "$ref": "#/definitions/Identifier"
+        }
+      }
+    },
+    "ConnectionEdge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "a", "b", "provenance"],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "kind": {
+          "const": "stud-tube"
+        },
+        "a": {
+          "$ref": "#/definitions/PartPortRef"
+        },
+        "b": {
+          "$ref": "#/definitions/PartPortRef"
+        },
+        "provenance": {
+          "$ref": "#/definitions/EntityProvenance"
+        }
+      }
+    },
+    "Submodel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "partIds"],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "name": {
+          "$ref": "#/definitions/ShortText"
+        },
+        "partIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "maxItems": 10000,
+          "uniqueItems": true
+        }
+      }
+    },
+    "BuildStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "index", "name", "partIds"],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9999
+        },
+        "name": {
+          "$ref": "#/definitions/ShortText"
+        },
+        "partIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "maxItems": 10000,
+          "uniqueItems": true
+        }
+      }
+    },
+    "SemanticRegion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "partIds"],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "label": {
+          "$ref": "#/definitions/ShortText"
+        },
+        "partIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "maxItems": 10000,
+          "uniqueItems": true
+        }
+      }
+    },
+    "DocumentConstraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxParts", "allowedCatalogPartIds", "allowedColorIds"],
+      "properties": {
+        "maxParts": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000
+        },
+        "allowedCatalogPartIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "minItems": 1,
+          "maxItems": 10000,
+          "uniqueItems": true
+        },
+        "allowedColorIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "minItems": 1,
+          "maxItems": 256,
+          "uniqueItems": true
+        }
+      }
+    },
+    "DocumentProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["origin"],
+      "properties": {
+        "origin": {
+          "enum": ["manual", "import", "migration"]
+        },
+        "sourceId": {
+          "$ref": "#/definitions/Identifier"
+        }
+      }
+    },
+    "BrickDocumentV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "id",
+        "revision",
+        "truth",
+        "name",
+        "parts",
+        "connections",
+        "submodels",
+        "steps",
+        "semanticRegions",
+        "constraints",
+        "provenance"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "lego.brick-document/1"
+        },
+        "id": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "revision": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "truth": {
+          "$ref": "#/definitions/TruthSnapshot"
+        },
+        "name": {
+          "$ref": "#/definitions/ShortText"
+        },
+        "parts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PartInstance"
+          },
+          "maxItems": 10000
+        },
+        "connections": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ConnectionEdge"
+          },
+          "maxItems": 50000
+        },
+        "submodels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Submodel"
+          },
+          "minItems": 1,
+          "maxItems": 1024
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/BuildStep"
+          },
+          "minItems": 1,
+          "maxItems": 10000
+        },
+        "semanticRegions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SemanticRegion"
+          },
+          "maxItems": 1024
+        },
+        "constraints": {
+          "$ref": "#/definitions/DocumentConstraints"
+        },
+        "provenance": {
+          "$ref": "#/definitions/DocumentProvenance"
+        }
+      }
+    },
+    "PlacePartInstruction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "operationId",
+        "localPartId",
+        "catalogPartId",
+        "colorId",
+        "transform",
+        "submodelId",
+        "stepId",
+        "semanticTags"
+      ],
+      "properties": {
+        "kind": {
+          "const": "placePart"
+        },
+        "operationId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "localPartId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "catalogPartId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "colorId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "transform": {
+          "$ref": "#/definitions/RigidTransform"
+        },
+        "submodelId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "stepId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "semanticTags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "maxItems": 32,
+          "uniqueItems": true
+        }
+      }
+    },
+    "AttachInstruction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "operationId", "a", "b", "connectionKind"],
+      "properties": {
+        "kind": {
+          "const": "attach"
+        },
+        "operationId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "a": {
+          "$ref": "#/definitions/PartPortRef"
+        },
+        "b": {
+          "$ref": "#/definitions/PartPortRef"
+        },
+        "connectionKind": {
+          "const": "stud-tube"
+        }
+      }
+    },
+    "RemovePartInstruction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "operationId", "partId"],
+      "properties": {
+        "kind": {
+          "const": "removePart"
+        },
+        "operationId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "partId": {
+          "$ref": "#/definitions/Identifier"
+        }
+      }
+    },
+    "ReplacePartInstruction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "operationId", "partId", "catalogPartId", "colorId"],
+      "properties": {
+        "kind": {
+          "const": "replacePart"
+        },
+        "operationId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "partId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "catalogPartId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "colorId": {
+          "$ref": "#/definitions/Identifier"
+        }
+      }
+    },
+    "MovePartInstruction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "operationId", "partId", "transform"],
+      "properties": {
+        "kind": {
+          "const": "movePart"
+        },
+        "operationId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "partId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "transform": {
+          "$ref": "#/definitions/RigidTransform"
+        }
+      }
+    },
+    "RecolorPartInstruction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "operationId", "partId", "colorId"],
+      "properties": {
+        "kind": {
+          "const": "recolorPart"
+        },
+        "operationId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "partId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "colorId": {
+          "$ref": "#/definitions/Identifier"
+        }
+      }
+    },
+    "AssignStepInstruction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "operationId", "partId", "stepId"],
+      "properties": {
+        "kind": {
+          "const": "assignStep"
+        },
+        "operationId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "partId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "stepId": {
+          "$ref": "#/definitions/Identifier"
+        }
+      }
+    },
+    "TemplateParameter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "value"],
+      "properties": {
+        "name": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "value": {
+          "oneOf": [
+            {
+              "type": "string",
+              "maxLength": 256
+            },
+            {
+              "type": "number",
+              "minimum": -10000000,
+              "maximum": 10000000
+            },
+            {
+              "type": "boolean"
+            }
+          ]
+        }
+      }
+    },
+    "InstantiateTemplateInstruction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "operationId",
+        "instanceLocalId",
+        "templateId",
+        "parameters",
+        "transform",
+        "submodelId",
+        "stepId"
+      ],
+      "properties": {
+        "kind": {
+          "const": "instantiateTemplate"
+        },
+        "operationId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "instanceLocalId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "templateId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "templateVersion": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "templateHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TemplateParameter"
+          },
+          "maxItems": 64
+        },
+        "transform": {
+          "$ref": "#/definitions/RigidTransform"
+        },
+        "submodelId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "stepId": {
+          "$ref": "#/definitions/Identifier"
+        }
+      }
+    },
+    "ProgramOperation": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/PlacePartInstruction"
+        },
+        {
+          "$ref": "#/definitions/AttachInstruction"
+        },
+        {
+          "$ref": "#/definitions/RemovePartInstruction"
+        },
+        {
+          "$ref": "#/definitions/ReplacePartInstruction"
+        },
+        {
+          "$ref": "#/definitions/MovePartInstruction"
+        },
+        {
+          "$ref": "#/definitions/RecolorPartInstruction"
+        },
+        {
+          "$ref": "#/definitions/AssignStepInstruction"
+        },
+        {
+          "$ref": "#/definitions/InstantiateTemplateInstruction"
+        }
+      ]
+    },
+    "BuildProgramV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "operations"],
+      "properties": {
+        "schemaVersion": {
+          "const": "lego.build-program/1"
+        },
+        "operations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ProgramOperation"
+          },
+          "minItems": 1,
+          "maxItems": 1024
+        }
+      }
+    },
+    "AddPartOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "operationId", "part", "semanticRegionIds"],
+      "properties": {
+        "kind": {
+          "const": "addPart"
+        },
+        "operationId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "part": {
+          "$ref": "#/definitions/PartInstance"
+        },
+        "semanticRegionIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "uniqueItems": true,
+          "maxItems": 1024
+        }
+      }
+    },
+    "RemovePartOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "operationId", "part", "semanticRegionIds"],
+      "properties": {
+        "kind": {
+          "const": "removePart"
+        },
+        "operationId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "part": {
+          "$ref": "#/definitions/PartInstance"
+        },
+        "semanticRegionIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "uniqueItems": true,
+          "maxItems": 1024
+        }
+      }
+    },
+    "UpdatePartOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "operationId", "before", "after"],
+      "properties": {
+        "kind": {
+          "const": "updatePart"
+        },
+        "operationId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "before": {
+          "$ref": "#/definitions/PartInstance"
+        },
+        "after": {
+          "$ref": "#/definitions/PartInstance"
+        }
+      }
+    },
+    "AddConnectionOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "operationId", "connection"],
+      "properties": {
+        "kind": {
+          "const": "addConnection"
+        },
+        "operationId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "connection": {
+          "$ref": "#/definitions/ConnectionEdge"
+        }
+      }
+    },
+    "RemoveConnectionOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "operationId", "connection"],
+      "properties": {
+        "kind": {
+          "const": "removeConnection"
+        },
+        "operationId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "connection": {
+          "$ref": "#/definitions/ConnectionEdge"
+        }
+      }
+    },
+    "BuildOperation": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/AddPartOperation"
+        },
+        {
+          "$ref": "#/definitions/RemovePartOperation"
+        },
+        {
+          "$ref": "#/definitions/UpdatePartOperation"
+        },
+        {
+          "$ref": "#/definitions/AddConnectionOperation"
+        },
+        {
+          "$ref": "#/definitions/RemoveConnectionOperation"
+        },
+        {
+          "$ref": "#/definitions/AddStepOperation"
+        },
+        {
+          "$ref": "#/definitions/RemoveStepOperation"
+        }
+      ]
+    },
+    "AllowedVolume": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minLdu", "maxLdu"],
+      "properties": {
+        "minLdu": {
+          "$ref": "#/definitions/LduVector"
+        },
+        "maxLdu": {
+          "$ref": "#/definitions/LduVector"
+        }
+      }
+    },
+    "ScopeBudgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxAddedParts", "maxRemovedParts", "maxOperations"],
+      "properties": {
+        "maxAddedParts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "maxRemovedParts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "maxOperations": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000
+        }
+      }
+    },
+    "ScopeCapabilityV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "capabilityId",
+        "baseRevision",
+        "baseDocumentHash",
+        "frozenPartIds",
+        "mutablePartIds",
+        "requiredAttachmentPorts",
+        "allowedVolume",
+        "allowedCatalogPartIds",
+        "allowedColorIds",
+        "budgets"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "lego.scope-capability/1"
+        },
+        "capabilityId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "baseRevision": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "baseDocumentHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "frozenPartIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "maxItems": 10000,
+          "uniqueItems": true
+        },
+        "mutablePartIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "maxItems": 10000,
+          "uniqueItems": true
+        },
+        "requiredAttachmentPorts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PartPortRef"
+          },
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "allowedVolume": {
+          "$ref": "#/definitions/AllowedVolume"
+        },
+        "allowedCatalogPartIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "minItems": 1,
+          "maxItems": 10000,
+          "uniqueItems": true
+        },
+        "allowedColorIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "minItems": 1,
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "budgets": {
+          "$ref": "#/definitions/ScopeBudgets"
+        }
+      }
+    },
+    "GenerationProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["jobId", "candidateId", "compilerSnapshotHash", "buildProgramHash"],
+      "properties": {
+        "jobId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "candidateId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "compilerSnapshotHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "buildProgramHash": {
+          "$ref": "#/definitions/Hash"
+        }
+      }
+    },
+    "AssemblyPatchV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "baseRevision",
+        "baseDocumentHash",
+        "truthSnapshotHash",
+        "scopeCapabilityId",
+        "scopeDigest",
+        "operations",
+        "provenance"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "lego.assembly-patch/1"
+        },
+        "baseRevision": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "baseDocumentHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "truthSnapshotHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "scopeCapabilityId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "scopeDigest": {
+          "$ref": "#/definitions/Hash"
+        },
+        "operations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/BuildOperation"
+          },
+          "minItems": 1,
+          "maxItems": 10000
+        },
+        "provenance": {
+          "$ref": "#/definitions/GenerationProvenance"
+        }
+      }
+    },
+    "ValidationIssue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "issueId",
+        "validatorId",
+        "code",
+        "severity",
+        "message",
+        "path",
+        "partIds",
+        "connectionIds",
+        "scope"
+      ],
+      "properties": {
+        "issueId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "validatorId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "code": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 64,
+          "pattern": "^[A-Z][A-Z0-9_]*$"
+        },
+        "severity": {
+          "enum": ["blocking", "advisory"]
+        },
+        "message": {
+          "$ref": "#/definitions/ShortText"
+        },
+        "path": {
+          "type": "string",
+          "maxLength": 512,
+          "pattern": "^(/([^~/]|~0|~1)*)*$"
+        },
+        "partIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "connectionIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "scope": {
+          "enum": ["patch", "document"]
+        }
+      }
+    },
+    "ValidationReportV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "targetDocumentHash",
+        "truthSnapshotHash",
+        "validatorSetHash",
+        "patchValid",
+        "documentGloballyValid",
+        "issues"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "lego.validation-report/1"
+        },
+        "targetDocumentHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "truthSnapshotHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "validatorSetHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "patchValid": {
+          "type": "boolean"
+        },
+        "documentGloballyValid": {
+          "type": "boolean"
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ValidationIssue"
+          },
+          "maxItems": 10000
+        }
+      }
+    },
+    "AddStepOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "operationId", "step"],
+      "properties": {
+        "kind": {
+          "const": "addStep"
+        },
+        "operationId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "step": {
+          "$ref": "#/definitions/BuildStep"
+        }
+      }
+    },
+    "RemoveStepOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "operationId", "step"],
+      "properties": {
+        "kind": {
+          "const": "removeStep"
+        },
+        "operationId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "step": {
+          "$ref": "#/definitions/BuildStep"
+        }
+      }
+    },
+    "LongText": {
+      "type": "string",
+      "maxLength": 8192
+    },
+    "UtcTimestamp": {
+      "type": "string",
+      "minLength": 20,
+      "maxLength": 40,
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,9})?Z$"
+    },
+    "Ed25519Signature": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{86}$"
+    },
+    "TrustNamespaceV1": {
+      "enum": ["production", "test", "evaluation"]
+    },
+    "ArtifactRefV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactId", "kind", "mediaType", "sha256", "byteLength", "casKey"],
+      "properties": {
+        "artifactId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "kind": {
+          "enum": [
+            "input",
+            "program",
+            "patch",
+            "document",
+            "validation",
+            "render",
+            "critique",
+            "metrics",
+            "transcript",
+            "source",
+            "bundle",
+            "report",
+            "export"
+          ]
+        },
+        "mediaType": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 128,
+          "pattern": "^[a-z0-9][a-z0-9.+-]*/[a-z0-9][a-z0-9.+-]*$"
+        },
+        "sha256": {
+          "$ref": "#/definitions/Hash"
+        },
+        "byteLength": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1073741824
+        },
+        "casKey": {
+          "$ref": "#/definitions/Hash"
+        }
+      }
+    },
+    "GenerationBudgetsV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maxCandidates",
+        "maxRepairs",
+        "maxProviderCalls",
+        "maxTokens",
+        "maxCostMicros",
+        "maxWallTimeMs",
+        "maxRenders",
+        "maxStoredBytes"
+      ],
+      "properties": {
+        "maxCandidates": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16
+        },
+        "maxRepairs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32
+        },
+        "maxProviderCalls": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 64
+        },
+        "maxTokens": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000000
+        },
+        "maxCostMicros": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000000000
+        },
+        "maxWallTimeMs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 86400000
+        },
+        "maxRenders": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1024
+        },
+        "maxStoredBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1073741824
+        }
+      }
+    },
+    "DataUseConsentV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policyVersion",
+        "providerTransmission",
+        "retainRunArtifacts",
+        "knowledgeUse",
+        "benchmarkUse",
+        "trainingUse"
+      ],
+      "properties": {
+        "policyVersion": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "providerTransmission": {
+          "enum": ["none", "text-only", "text-and-approved-assets"]
+        },
+        "retainRunArtifacts": {
+          "type": "boolean"
+        },
+        "knowledgeUse": {
+          "type": "boolean"
+        },
+        "benchmarkUse": {
+          "type": "boolean"
+        },
+        "trainingUse": {
+          "type": "boolean"
+        }
+      }
+    },
+    "BuildBriefV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "mode",
+        "prompt",
+        "referenceArtifactIds",
+        "baseRevision",
+        "baseDocumentHash",
+        "allowedCatalogPartIds",
+        "allowedColorIds",
+        "pieceBudget",
+        "semanticRequirements",
+        "styleTags",
+        "budgets",
+        "consent"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "lego.build-brief/1"
+        },
+        "mode": {
+          "enum": ["full", "insertion", "completion", "replacement", "repair", "variant"]
+        },
+        "prompt": {
+          "$ref": "#/definitions/LongText"
+        },
+        "referenceArtifactIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "maxItems": 8,
+          "uniqueItems": true
+        },
+        "referenceCameraAssumptions": {
+          "$ref": "#/definitions/ShortText"
+        },
+        "baseRevision": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "baseDocumentHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "allowedCatalogPartIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "minItems": 1,
+          "maxItems": 10000,
+          "uniqueItems": true
+        },
+        "allowedColorIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "minItems": 1,
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "pieceBudget": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000
+        },
+        "targetBoundsLdu": {
+          "$ref": "#/definitions/AllowedVolume"
+        },
+        "semanticRequirements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ShortText"
+          },
+          "maxItems": 64,
+          "uniqueItems": true
+        },
+        "styleTags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "maxItems": 32,
+          "uniqueItems": true
+        },
+        "budgets": {
+          "$ref": "#/definitions/GenerationBudgetsV1"
+        },
+        "consent": {
+          "$ref": "#/definitions/DataUseConsentV1"
+        }
+      }
+    },
+    "ProviderCapabilitiesV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "providerId",
+        "policyVersion",
+        "supportedProtocolVersions",
+        "supportedCatalogHashes",
+        "inputKinds",
+        "supportsTools",
+        "supportsStreaming",
+        "cancellation",
+        "seedBehavior",
+        "maxInputBytes",
+        "maxOutputBytes",
+        "maxTokens",
+        "execution",
+        "retention",
+        "training",
+        "acceptedConsentClasses"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "lego.provider-capabilities/1"
+        },
+        "providerId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "policyVersion": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "supportedProtocolVersions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true
+        },
+        "supportedCatalogHashes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Hash"
+          },
+          "minItems": 1,
+          "maxItems": 64,
+          "uniqueItems": true
+        },
+        "inputKinds": {
+          "type": "array",
+          "items": {
+            "enum": ["text", "image", "mesh"]
+          },
+          "minItems": 1,
+          "maxItems": 3,
+          "uniqueItems": true
+        },
+        "supportsTools": {
+          "type": "boolean"
+        },
+        "supportsStreaming": {
+          "type": "boolean"
+        },
+        "cancellation": {
+          "enum": ["real", "best-effort", "none"]
+        },
+        "seedBehavior": {
+          "enum": ["deterministic", "best-effort", "none"]
+        },
+        "maxInputBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1073741824
+        },
+        "maxOutputBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777216
+        },
+        "maxTokens": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000000
+        },
+        "execution": {
+          "enum": ["local", "external"]
+        },
+        "retention": {
+          "enum": ["none", "transient", "provider-policy"]
+        },
+        "training": {
+          "enum": ["prohibited", "opt-out", "allowed-with-consent"]
+        },
+        "acceptedConsentClasses": {
+          "type": "array",
+          "items": {
+            "enum": ["none", "text-only", "text-and-approved-assets"]
+          },
+          "minItems": 1,
+          "maxItems": 3,
+          "uniqueItems": true
+        }
+      }
+    },
+    "RenderViewArtifactV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["viewId", "pass", "artifact", "width", "height", "devicePixelRatio"],
+      "properties": {
+        "viewId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "pass": {
+          "enum": [
+            "beauty",
+            "silhouette",
+            "depth",
+            "normal",
+            "part-id",
+            "connections",
+            "collision",
+            "disconnected",
+            "exposed-ports",
+            "support",
+            "closeup"
+          ]
+        },
+        "artifact": {
+          "$ref": "#/definitions/ArtifactRefV1"
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8192
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8192
+        },
+        "devicePixelRatio": {
+          "type": "number",
+          "minimum": 0.25,
+          "maximum": 8
+        }
+      }
+    },
+    "RenderPacketV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "documentHash",
+        "validationReportHash",
+        "rendererSnapshotHash",
+        "cameraSnapshotHash",
+        "capturePolicyHash",
+        "browserBuildHash",
+        "views"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "lego.render-packet/1"
+        },
+        "documentHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "validationReportHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "rendererSnapshotHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "cameraSnapshotHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "capturePolicyHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "browserBuildHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "views": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/RenderViewArtifactV1"
+          },
+          "minItems": 7,
+          "maxItems": 128
+        }
+      }
+    },
+    "ControlBoundsV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "width", "height"],
+      "properties": {
+        "x": {
+          "type": "integer",
+          "minimum": -65536,
+          "maximum": 65536
+        },
+        "y": {
+          "type": "integer",
+          "minimum": -65536,
+          "maximum": 65536
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        }
+      }
+    },
+    "OfferedControlV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["controlId", "label", "state", "bounds", "actionCategories"],
+      "properties": {
+        "controlId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "label": {
+          "$ref": "#/definitions/ShortText"
+        },
+        "state": {
+          "enum": ["enabled", "disabled", "selected"]
+        },
+        "bounds": {
+          "$ref": "#/definitions/ControlBoundsV1"
+        },
+        "actionCategories": {
+          "type": "array",
+          "items": {
+            "enum": ["click", "type", "select", "drag", "orbit", "zoom", "cancel", "preview"]
+          },
+          "minItems": 1,
+          "maxItems": 8,
+          "uniqueItems": true
+        }
+      }
+    },
+    "ViewportV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height", "devicePixelRatio"],
+      "properties": {
+        "width": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16384
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16384
+        },
+        "devicePixelRatio": {
+          "type": "number",
+          "minimum": 0.25,
+          "maximum": 8
+        }
+      }
+    },
+    "ActorObservationV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "observationHash",
+        "runId",
+        "sequence",
+        "screenshotArtifact",
+        "visibleTextHash",
+        "offeredControls",
+        "viewport",
+        "cameraSnapshotHash",
+        "renderConfigHash",
+        "applicationBuildHash",
+        "documentRevision",
+        "documentHash"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "lego.actor-observation/1"
+        },
+        "observationHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "runId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "screenshotArtifact": {
+          "$ref": "#/definitions/ArtifactRefV1"
+        },
+        "visibleTextHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "offeredControls": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/OfferedControlV1"
+          },
+          "maxItems": 1024
+        },
+        "viewport": {
+          "$ref": "#/definitions/ViewportV1"
+        },
+        "cameraSnapshotHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "renderConfigHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "applicationBuildHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "documentRevision": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "documentHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "activeJobId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "activeCandidateId": {
+          "$ref": "#/definitions/Identifier"
+        }
+      }
+    },
+    "MakerScopeProjectionV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mutablePartIds",
+        "readOnlyBoundaryPartIds",
+        "requiredAttachmentPorts",
+        "allowedVolume",
+        "allowedCatalogPartIds",
+        "allowedColorIds",
+        "budgets"
+      ],
+      "properties": {
+        "mutablePartIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "maxItems": 10000,
+          "uniqueItems": true
+        },
+        "readOnlyBoundaryPartIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "maxItems": 10000,
+          "uniqueItems": true
+        },
+        "requiredAttachmentPorts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PartPortRef"
+          },
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "allowedVolume": {
+          "$ref": "#/definitions/AllowedVolume"
+        },
+        "allowedCatalogPartIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "minItems": 1,
+          "maxItems": 10000,
+          "uniqueItems": true
+        },
+        "allowedColorIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "minItems": 1,
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "budgets": {
+          "$ref": "#/definitions/ScopeBudgets"
+        }
+      }
+    },
+    "MakerDocumentSummaryV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "partCount",
+        "connectionCount",
+        "componentCount",
+        "exposedPortCount",
+        "semanticTags",
+        "boundsLdu"
+      ],
+      "properties": {
+        "partCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "connectionCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 50000
+        },
+        "componentCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "exposedPortCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100000
+        },
+        "semanticTags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "boundsLdu": {
+          "$ref": "#/definitions/AllowedVolume"
+        }
+      }
+    },
+    "MakerObservationV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "observationHash",
+        "jobId",
+        "attemptId",
+        "consentPolicyHash",
+        "scopePolicyHash",
+        "baseRevision",
+        "baseDocumentHash",
+        "brief",
+        "scope",
+        "documentSummary",
+        "validationSummary",
+        "renderPacket",
+        "referenceArtifacts",
+        "templateSnapshotHashes",
+        "lessonSnapshotHashes",
+        "remainingBudgets"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "lego.maker-observation/1"
+        },
+        "observationHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "jobId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "attemptId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "consentPolicyHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "scopePolicyHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "baseRevision": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "baseDocumentHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "brief": {
+          "$ref": "#/definitions/BuildBriefV1"
+        },
+        "scope": {
+          "$ref": "#/definitions/MakerScopeProjectionV1"
+        },
+        "documentSummary": {
+          "$ref": "#/definitions/MakerDocumentSummaryV1"
+        },
+        "validationSummary": {
+          "$ref": "#/definitions/ValidationReportV1"
+        },
+        "parentDiffArtifact": {
+          "$ref": "#/definitions/ArtifactRefV1"
+        },
+        "renderPacket": {
+          "$ref": "#/definitions/RenderPacketV1"
+        },
+        "referenceArtifacts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ArtifactRefV1"
+          },
+          "maxItems": 8
+        },
+        "templateSnapshotHashes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Hash"
+          },
+          "maxItems": 128,
+          "uniqueItems": true
+        },
+        "lessonSnapshotHashes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Hash"
+          },
+          "maxItems": 128,
+          "uniqueItems": true
+        },
+        "remainingBudgets": {
+          "$ref": "#/definitions/GenerationBudgetsV1"
+        }
+      }
+    },
+    "CandidateProgramSubmissionV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "jobId", "attemptId", "observationHash", "program"],
+      "properties": {
+        "schemaVersion": {
+          "const": "lego.candidate-program-submission/1"
+        },
+        "jobId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "attemptId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "observationHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "program": {
+          "$ref": "#/definitions/BuildProgramV1"
+        }
+      }
+    },
+    "AttemptSuccessTerminalV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "preDocumentHash", "postDocumentHash"],
+      "properties": {
+        "status": {
+          "const": "success"
+        },
+        "proposedDecisionArtifactHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "executedActionArtifactHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "commandTransactionHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "preDocumentHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "postDocumentHash": {
+          "$ref": "#/definitions/Hash"
+        }
+      }
+    },
+    "AttemptNoMutationTerminalV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "proposedDecisionArtifactHash",
+        "reasonCode",
+        "preDocumentHash",
+        "postDocumentHash"
+      ],
+      "properties": {
+        "status": {
+          "enum": ["staleObservation", "capabilityRejected", "controlUnavailable"]
+        },
+        "proposedDecisionArtifactHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "reasonCode": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "preDocumentHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "postDocumentHash": {
+          "$ref": "#/definitions/Hash"
+        }
+      }
+    },
+    "AttemptFailureTerminalV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reasonCode", "preDocumentHash", "postDocumentHash"],
+      "properties": {
+        "status": {
+          "enum": [
+            "timeout",
+            "malformedOutput",
+            "refusal",
+            "cancelled",
+            "crash",
+            "persistenceFailed"
+          ]
+        },
+        "reasonCode": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "proposedDecisionArtifactHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "preDocumentHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "postDocumentHash": {
+          "$ref": "#/definitions/Hash"
+        }
+      }
+    },
+    "AttemptTerminalV1": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/AttemptSuccessTerminalV1"
+        },
+        {
+          "$ref": "#/definitions/AttemptNoMutationTerminalV1"
+        },
+        {
+          "$ref": "#/definitions/AttemptFailureTerminalV1"
+        }
+      ]
+    },
+    "AttemptTranscriptV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "runId",
+        "attemptId",
+        "sequence",
+        "kind",
+        "observationHash",
+        "inputArtifactHashes",
+        "deadlineMs",
+        "startedEventHash",
+        "terminalEventHash",
+        "terminal"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "lego.attempt-transcript/1"
+        },
+        "runId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "attemptId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "kind": {
+          "enum": ["maker", "provider", "browser", "critic"]
+        },
+        "observationHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "inputArtifactHashes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Hash"
+          },
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "deadlineMs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 86400000
+        },
+        "startedEventHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "terminalEventHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "terminal": {
+          "$ref": "#/definitions/AttemptTerminalV1"
+        }
+      }
+    },
+    "GenerationJobRecordV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "namespace",
+        "jobId",
+        "idempotencyKey",
+        "state",
+        "baseRevision",
+        "baseDocumentHash",
+        "truthSnapshotHash",
+        "scopeCapabilityId",
+        "scopeDigest",
+        "briefHash",
+        "budgets",
+        "cancellationGeneration",
+        "candidateIds",
+        "eventSequence"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "lego.generation-job/1"
+        },
+        "namespace": {
+          "enum": ["production", "test"]
+        },
+        "jobId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "idempotencyKey": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "state": {
+          "enum": [
+            "created",
+            "queued",
+            "running",
+            "draining",
+            "cancelling",
+            "cancelled",
+            "succeeded",
+            "failed",
+            "exhausted",
+            "persistenceFailed"
+          ]
+        },
+        "baseRevision": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "baseDocumentHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "truthSnapshotHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "scopeCapabilityId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "scopeDigest": {
+          "$ref": "#/definitions/Hash"
+        },
+        "briefHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "budgets": {
+          "$ref": "#/definitions/GenerationBudgetsV1"
+        },
+        "cancellationGeneration": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "candidateIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "maxItems": 16,
+          "uniqueItems": true
+        },
+        "eventSequence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "CandidateMetricsV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["partCount", "operationCount", "blockingIssueCount", "advisoryIssueCount"],
+      "properties": {
+        "partCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "operationCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "blockingIssueCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "advisoryIssueCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "intentScore": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "visualScore": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "CandidateRecordV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "jobId",
+        "candidateId",
+        "cancellationGeneration",
+        "state",
+        "programArtifact",
+        "metrics"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "lego.candidate-record/1"
+        },
+        "jobId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "candidateId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "parentCandidateId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "cancellationGeneration": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "state": {
+          "enum": [
+            "received",
+            "compiled",
+            "compileRejected",
+            "hardValid",
+            "hardInvalid",
+            "diagnosticRendered",
+            "diagnosticReviewed",
+            "rendered",
+            "critiqued",
+            "ranked",
+            "presented",
+            "archived",
+            "cancelled",
+            "processingFailed",
+            "persistenceFailed"
+          ]
+        },
+        "programArtifact": {
+          "$ref": "#/definitions/ArtifactRefV1"
+        },
+        "patchArtifact": {
+          "$ref": "#/definitions/ArtifactRefV1"
+        },
+        "documentArtifact": {
+          "$ref": "#/definitions/ArtifactRefV1"
+        },
+        "validationArtifact": {
+          "$ref": "#/definitions/ArtifactRefV1"
+        },
+        "renderPacketArtifact": {
+          "$ref": "#/definitions/ArtifactRefV1"
+        },
+        "critiqueArtifact": {
+          "$ref": "#/definitions/ArtifactRefV1"
+        },
+        "metrics": {
+          "$ref": "#/definitions/CandidateMetricsV1"
+        },
+        "failureCodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "maxItems": 256,
+          "uniqueItems": true
+        }
+      }
+    },
+    "Ed25519SealV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "keyId", "keyEpoch", "signature"],
+      "properties": {
+        "algorithm": {
+          "const": "Ed25519"
+        },
+        "keyId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "keyEpoch": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "signature": {
+          "$ref": "#/definitions/Ed25519Signature"
+        }
+      }
+    },
+    "ReplayClosureCertificateV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sealedReplayLevel",
+        "earliestRetainedBoundary",
+        "artifactRoot",
+        "requiredArtifactHashes",
+        "verifierVersion"
+      ],
+      "properties": {
+        "sealedReplayLevel": {
+          "enum": ["full", "downstream-only", "metadata-only"]
+        },
+        "earliestRetainedBoundary": {
+          "enum": ["inputs", "provider-response", "program", "metadata"]
+        },
+        "artifactRoot": {
+          "$ref": "#/definitions/Hash"
+        },
+        "requiredArtifactHashes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Hash"
+          },
+          "maxItems": 10000,
+          "uniqueItems": true
+        },
+        "verifierVersion": {
+          "$ref": "#/definitions/Identifier"
+        }
+      }
+    },
+    "RunEventV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "runId",
+        "sequence",
+        "previousEventHash",
+        "actorId",
+        "transition",
+        "idempotencyKey",
+        "artifactHashes",
+        "eventHash"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "lego.run-event/1"
+        },
+        "runId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "previousEventHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "actorId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "transition": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "idempotencyKey": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "artifactHashes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Hash"
+          },
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "eventHash": {
+          "$ref": "#/definitions/Hash"
+        }
+      }
+    },
+    "NativeSealedRunManifestV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "namespace",
+        "runId",
+        "terminalState",
+        "baseDocumentHash",
+        "truthSnapshotHash",
+        "applicationBuildHash",
+        "brokerBuildHash",
+        "harnessBuildHash",
+        "lockfileHash",
+        "runtimeHash",
+        "briefHash",
+        "scopeDigest",
+        "budgets",
+        "candidateIds",
+        "eventCount",
+        "eventRoot",
+        "artifacts",
+        "replayClosure",
+        "finalizedAt",
+        "seal"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "lego.native-run-manifest/1"
+        },
+        "namespace": {
+          "enum": ["production", "test"]
+        },
+        "runId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "terminalState": {
+          "enum": ["succeeded", "exhausted", "failed", "cancelled", "persistenceFailed"]
+        },
+        "baseDocumentHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "truthSnapshotHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "applicationBuildHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "brokerBuildHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "harnessBuildHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "lockfileHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "runtimeHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "briefHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "scopeDigest": {
+          "$ref": "#/definitions/Hash"
+        },
+        "providerCapabilitiesHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "budgets": {
+          "$ref": "#/definitions/GenerationBudgetsV1"
+        },
+        "candidateIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "maxItems": 16,
+          "uniqueItems": true
+        },
+        "eventCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "eventRoot": {
+          "$ref": "#/definitions/Hash"
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ArtifactRefV1"
+          },
+          "maxItems": 10000
+        },
+        "replayClosure": {
+          "$ref": "#/definitions/ReplayClosureCertificateV1"
+        },
+        "finalizedAt": {
+          "$ref": "#/definitions/UtcTimestamp"
+        },
+        "seal": {
+          "$ref": "#/definitions/Ed25519SealV1"
+        }
+      }
+    },
+    "DeterministicMakerGenerationFailureV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stage", "code", "message"],
+      "properties": {
+        "stage": {
+          "const": "generation"
+        },
+        "code": {
+          "enum": ["OPERATION_BUDGET_TOO_SMALL", "NO_CONNECTION_PATH"]
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        }
+      }
+    },
+    "DeterministicMakerProgramOutcomeV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "program", "normalizedProgramHash"],
+      "properties": {
+        "kind": {
+          "const": "program"
+        },
+        "program": {
+          "$ref": "#/definitions/BuildProgramV1"
+        },
+        "normalizedProgramHash": {
+          "$ref": "#/definitions/Hash"
+        }
+      }
+    },
+    "DeterministicMakerFailureOutcomeV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "failure"],
+      "properties": {
+        "kind": {
+          "const": "generationFailure"
+        },
+        "failure": {
+          "$ref": "#/definitions/DeterministicMakerGenerationFailureV1"
+        }
+      }
+    },
+    "DeterministicMakerOutputSlotV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["index", "strategyId", "shape", "outcome"],
+      "properties": {
+        "index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "strategyId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "shape": {
+          "enum": ["tower", "staircase", "spire", "column"]
+        },
+        "outcome": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/DeterministicMakerProgramOutcomeV1"
+            },
+            {
+              "$ref": "#/definitions/DeterministicMakerFailureOutcomeV1"
+            }
+          ]
+        }
+      }
+    },
+    "DeterministicMakerOutputV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "makerVersion", "slots"],
+      "properties": {
+        "schemaVersion": {
+          "const": "lego.deterministic-maker-output/1"
+        },
+        "makerVersion": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "slots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/DeterministicMakerOutputSlotV1"
+          },
+          "minItems": 0,
+          "maxItems": 4
+        }
+      }
+    },
+    "NullableHash": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/Hash"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "NullablePositiveInteger": {
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "CandidateReplayCheckpointV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attemptIndex",
+        "candidateId",
+        "strategyId",
+        "status",
+        "failureStage",
+        "failureCode",
+        "programHash",
+        "structuralHash",
+        "compilerSnapshotHash",
+        "patchHash",
+        "documentHash",
+        "validationReportHash",
+        "metricsHash",
+        "rank",
+        "candidateDigest"
+      ],
+      "properties": {
+        "attemptIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "candidateId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "strategyId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "status": {
+          "enum": ["failed", "duplicate", "hard-valid"]
+        },
+        "failureStage": {
+          "oneOf": [
+            {
+              "enum": ["generation", "compile", "validation", "deduplication"]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "failureCode": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/Identifier"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "programHash": {
+          "$ref": "#/definitions/NullableHash"
+        },
+        "structuralHash": {
+          "$ref": "#/definitions/NullableHash"
+        },
+        "compilerSnapshotHash": {
+          "$ref": "#/definitions/NullableHash"
+        },
+        "patchHash": {
+          "$ref": "#/definitions/NullableHash"
+        },
+        "documentHash": {
+          "$ref": "#/definitions/NullableHash"
+        },
+        "validationReportHash": {
+          "$ref": "#/definitions/NullableHash"
+        },
+        "metricsHash": {
+          "$ref": "#/definitions/NullableHash"
+        },
+        "rank": {
+          "$ref": "#/definitions/NullablePositiveInteger"
+        },
+        "candidateDigest": {
+          "$ref": "#/definitions/Hash"
+        }
+      }
+    },
+    "DeterministicMakerCaptureManifestV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "harnessVersion",
+        "namespace",
+        "integrity",
+        "authenticated",
+        "boundary",
+        "jobId",
+        "protocolVersion",
+        "generationVersion",
+        "compilerSnapshotHash",
+        "rankingPolicyHash",
+        "replayPolicyHash",
+        "baseDocumentHash",
+        "truthSnapshotHash",
+        "briefHash",
+        "normalizedBriefHash",
+        "scopeDigest",
+        "requestHash",
+        "requestByteLength",
+        "capturedProgramsHash",
+        "capturedProgramsByteLength",
+        "populationHash",
+        "populationByteLength",
+        "resultOk",
+        "candidates"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "lego.deterministic-maker-capture-manifest/1"
+        },
+        "harnessVersion": {
+          "const": "lego.harness/1"
+        },
+        "namespace": {
+          "const": "test"
+        },
+        "integrity": {
+          "const": "unsealed"
+        },
+        "authenticated": {
+          "const": false
+        },
+        "boundary": {
+          "const": "deterministic-recipe-results"
+        },
+        "jobId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "protocolVersion": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "generationVersion": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "compilerSnapshotHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "rankingPolicyHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "replayPolicyHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "baseDocumentHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "truthSnapshotHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "briefHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "normalizedBriefHash": {
+          "$ref": "#/definitions/NullableHash"
+        },
+        "scopeDigest": {
+          "$ref": "#/definitions/Hash"
+        },
+        "requestHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "requestByteLength": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777216
+        },
+        "capturedProgramsHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "capturedProgramsByteLength": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777216
+        },
+        "populationHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "populationByteLength": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777216
+        },
+        "resultOk": {
+          "type": "boolean"
+        },
+        "candidates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CandidateReplayCheckpointV1"
+          },
+          "maxItems": 4
+        }
+      }
+    },
+    "TestRunSourceEventV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sequence", "eventHash", "transition", "cancellationGeneration"],
+      "properties": {
+        "sequence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "eventHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "transition": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "cancellationGeneration": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        }
+      }
+    },
+    "TestRunArtifactRoleV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "subjectId", "artifact", "sourceEvent"],
+      "properties": {
+        "role": {
+          "enum": ["request", "maker-output"]
+        },
+        "subjectId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "artifact": {
+          "$ref": "#/definitions/ArtifactRefV1"
+        },
+        "sourceEvent": {
+          "$ref": "#/definitions/TestRunSourceEventV1"
+        }
+      }
+    },
+    "TestRunBundleManifestV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "namespace",
+        "integrity",
+        "authenticated",
+        "runId",
+        "jobId",
+        "coveredEventCount",
+        "coveredEventRoot",
+        "replayBoundary",
+        "roles",
+        "capture",
+        "terminalIntent"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "lego.test-run-bundle-manifest/1"
+        },
+        "namespace": {
+          "const": "test"
+        },
+        "integrity": {
+          "const": "unsealed"
+        },
+        "authenticated": {
+          "const": false
+        },
+        "runId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "jobId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "coveredEventCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "coveredEventRoot": {
+          "$ref": "#/definitions/Hash"
+        },
+        "replayBoundary": {
+          "const": "deterministic-recipe-results"
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TestRunArtifactRoleV1"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "capture": {
+          "$ref": "#/definitions/DeterministicMakerCaptureManifestV1"
+        },
+        "terminalIntent": {
+          "const": "exhausted"
+        }
+      }
+    },
+    "TestRunBundleHandleV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "namespace",
+        "integrity",
+        "authenticated",
+        "runId",
+        "manifestRef",
+        "terminalEventHash",
+        "terminalSequence"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "lego.test-run-bundle-handle/1"
+        },
+        "namespace": {
+          "const": "test"
+        },
+        "integrity": {
+          "const": "unsealed"
+        },
+        "authenticated": {
+          "const": false
+        },
+        "runId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "manifestRef": {
+          "$ref": "#/definitions/ArtifactRefV1"
+        },
+        "terminalEventHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "terminalSequence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "RealBuildExactFiveChallengeNonce": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "RealBuildExactFiveStableLoopbackOrigin": {
+      "type": "string",
+      "minLength": 14,
+      "maxLength": 64,
+      "pattern": "^https?://(?:127\\.0\\.0\\.1|\\[::1\\]):(?:[1-9]|[1-9][0-9]{1,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$"
+    },
+    "RealBuildExactFiveEd25519Signature": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{85}[AQgw]$"
+    },
+    "RealBuildExactFiveEd25519SealV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "keyId", "keyEpoch", "signature"],
+      "properties": {
+        "algorithm": {
+          "const": "Ed25519"
+        },
+        "keyId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "keyEpoch": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "signature": {
+          "$ref": "#/definitions/RealBuildExactFiveEd25519Signature"
+        }
+      }
+    },
+    "RealBuildExactFiveBrokerChallengeV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "namespace",
+        "purpose",
+        "scope",
+        "requestDigest",
+        "reviewPresentationDigest",
+        "trustBindingDigest",
+        "challengeNonce",
+        "issuedAtUnixMs"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "lego.real-build-exact-five-broker-challenge/1"
+        },
+        "namespace": {
+          "enum": ["production", "test"]
+        },
+        "purpose": {
+          "const": "admit-exact-five-official-frame-equivalence"
+        },
+        "scope": {
+          "const": "exact-five-source-parity-calibration-panels-only"
+        },
+        "requestDigest": {
+          "$ref": "#/definitions/Hash"
+        },
+        "reviewPresentationDigest": {
+          "$ref": "#/definitions/Hash"
+        },
+        "trustBindingDigest": {
+          "$ref": "#/definitions/Hash"
+        },
+        "challengeNonce": {
+          "$ref": "#/definitions/RealBuildExactFiveChallengeNonce"
+        },
+        "issuedAtUnixMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "RealBuildExactFiveBrokerConsumptionReceiptV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "signatureDomain",
+        "namespace",
+        "purpose",
+        "scope",
+        "requestDigest",
+        "challengeNonce",
+        "audience",
+        "stableOrigin",
+        "pairedDeviceId",
+        "brokerInstallId",
+        "decision",
+        "reviewPresentationDigest",
+        "brokerReleaseId",
+        "brokerEventId",
+        "consumedAtUnixMs",
+        "ledgerSequence",
+        "previousLedgerRoot",
+        "consumptionEventHash",
+        "resultingLedgerRoot",
+        "seal"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "lego.real-build-exact-five-broker-consumption-receipt/1"
+        },
+        "signatureDomain": {
+          "const": "lego.real-build-exact-five-broker-consumption-receipt-signature/1"
+        },
+        "namespace": {
+          "enum": ["production", "test"]
+        },
+        "purpose": {
+          "const": "admit-exact-five-official-frame-equivalence"
+        },
+        "scope": {
+          "const": "exact-five-source-parity-calibration-panels-only"
+        },
+        "requestDigest": {
+          "$ref": "#/definitions/Hash"
+        },
+        "challengeNonce": {
+          "$ref": "#/definitions/RealBuildExactFiveChallengeNonce"
+        },
+        "audience": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "stableOrigin": {
+          "$ref": "#/definitions/RealBuildExactFiveStableLoopbackOrigin"
+        },
+        "pairedDeviceId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "brokerInstallId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "decision": {
+          "const": "approved"
+        },
+        "reviewPresentationDigest": {
+          "$ref": "#/definitions/Hash"
+        },
+        "brokerReleaseId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "brokerEventId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "consumedAtUnixMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "ledgerSequence": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "previousLedgerRoot": {
+          "$ref": "#/definitions/Hash"
+        },
+        "consumptionEventHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "resultingLedgerRoot": {
+          "$ref": "#/definitions/Hash"
+        },
+        "seal": {
+          "$ref": "#/definitions/RealBuildExactFiveEd25519SealV1"
+        }
+      }
+    },
+    "TemplateColorParameterV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "name", "allowedColorIds"],
+      "properties": {
+        "kind": {
+          "const": "color-enum"
+        },
+        "name": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "allowedColorIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true
+        },
+        "defaultColorId": {
+          "$ref": "#/definitions/Identifier"
+        }
+      }
+    },
+    "TemplateLiteralColorV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "colorId"],
+      "properties": {
+        "kind": {
+          "const": "literal"
+        },
+        "colorId": {
+          "$ref": "#/definitions/Identifier"
+        }
+      }
+    },
+    "TemplateParameterColorV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "parameterName"],
+      "properties": {
+        "kind": {
+          "const": "parameter"
+        },
+        "parameterName": {
+          "$ref": "#/definitions/Identifier"
+        }
+      }
+    },
+    "TemplateColorValueV1": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/TemplateLiteralColorV1"
+        },
+        {
+          "$ref": "#/definitions/TemplateParameterColorV1"
+        }
+      ]
+    },
+    "TemplateFixedPartV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["localPartId", "catalogPartId", "color", "transform", "semanticTags"],
+      "properties": {
+        "localPartId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "catalogPartId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "color": {
+          "$ref": "#/definitions/TemplateColorValueV1"
+        },
+        "transform": {
+          "$ref": "#/definitions/RigidTransform"
+        },
+        "semanticTags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "maxItems": 32,
+          "uniqueItems": true
+        }
+      }
+    },
+    "TemplateLocalPortRefV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["localPartId", "portId"],
+      "properties": {
+        "localPartId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "portId": {
+          "$ref": "#/definitions/Identifier"
+        }
+      }
+    },
+    "TemplateInternalConnectionV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["localConnectionId", "kind", "a", "b"],
+      "properties": {
+        "localConnectionId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "kind": {
+          "const": "stud-tube"
+        },
+        "a": {
+          "$ref": "#/definitions/TemplateLocalPortRefV1"
+        },
+        "b": {
+          "$ref": "#/definitions/TemplateLocalPortRefV1"
+        }
+      }
+    },
+    "TemplateExternalPortV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "endpoint"],
+      "properties": {
+        "name": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "endpoint": {
+          "$ref": "#/definitions/TemplateLocalPortRefV1"
+        }
+      }
+    },
+    "TemplateClearanceVolumeV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minLdu", "maxLdu"],
+      "properties": {
+        "minLdu": {
+          "$ref": "#/definitions/LduVector"
+        },
+        "maxLdu": {
+          "$ref": "#/definitions/LduVector"
+        }
+      }
+    },
+    "TemplateProvenanceV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["origin", "sourceId"],
+      "properties": {
+        "origin": {
+          "enum": ["project", "imported", "generated"]
+        },
+        "sourceId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "sourceHash": {
+          "$ref": "#/definitions/Hash"
+        }
+      }
+    },
+    "TemplateLicenseV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["spdxExpression", "attribution", "redistribution"],
+      "properties": {
+        "spdxExpression": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9 .()+\\-:]+$"
+        },
+        "attribution": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "redistribution": {
+          "enum": ["allowed", "restricted", "evaluation-only"]
+        }
+      }
+    },
+    "TemplateSnapshotV1": {
+      "type": "object",
+      "description": "Intrinsic immutable fixed-graph data. Admission must separately validate catalog parts, colors, transforms, and ports against the pinned catalog, truth, and admission-policy snapshots before compiler use.",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "id",
+        "version",
+        "contentHash",
+        "status",
+        "catalogHash",
+        "truthSnapshotHash",
+        "admissionPolicyHash",
+        "parameters",
+        "parts",
+        "internalConnections",
+        "externalPorts",
+        "clearanceVolume",
+        "evidenceRunIds",
+        "counterexampleRunIds",
+        "benchmarkReportIds",
+        "provenance",
+        "license"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "lego.template-snapshot/1"
+        },
+        "id": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "parentId": {
+          "$ref": "#/definitions/Identifier"
+        },
+        "contentHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "status": {
+          "enum": ["draft", "trial", "canary", "stable", "rejected", "deprecated"]
+        },
+        "catalogHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "truthSnapshotHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "admissionPolicyHash": {
+          "$ref": "#/definitions/Hash"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TemplateColorParameterV1"
+          },
+          "maxItems": 16
+        },
+        "parts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TemplateFixedPartV1"
+          },
+          "minItems": 1,
+          "maxItems": 256
+        },
+        "internalConnections": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TemplateInternalConnectionV1"
+          },
+          "maxItems": 1024
+        },
+        "externalPorts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TemplateExternalPortV1"
+          },
+          "minItems": 1,
+          "maxItems": 64
+        },
+        "clearanceVolume": {
+          "$ref": "#/definitions/TemplateClearanceVolumeV1"
+        },
+        "evidenceRunIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "counterexampleRunIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "benchmarkReportIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Identifier"
+          },
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "provenance": {
+          "$ref": "#/definitions/TemplateProvenanceV1"
+        },
+        "license": {
+          "$ref": "#/definitions/TemplateLicenseV1"
+        }
+      }
+    }
+  }
+}

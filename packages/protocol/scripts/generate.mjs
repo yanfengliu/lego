@@ -138,11 +138,15 @@ const validatorDefinitions = {
   validateCandidateRecordV1: "CandidateRecordV1",
   validateRunEventV1: "RunEventV1",
   validateNativeSealedRunManifestV1: "NativeSealedRunManifestV1",
+  validateRealBuildExactFiveBrokerChallengeV1: "RealBuildExactFiveBrokerChallengeV1",
+  validateRealBuildExactFiveBrokerConsumptionReceiptV1:
+    "RealBuildExactFiveBrokerConsumptionReceiptV1",
 };
 
 const ajv = new Ajv({
   allErrors: true,
   code: { esm: true, lines: true, source: true },
+  ownProperties: true,
   strict: true,
 });
 ajv.addSchema(schema);
@@ -178,6 +182,13 @@ const outputs = new Map([
   ["public-types.generated.ts", await format(publicTypes, { parser: "typescript" })],
   ["validators.generated.js", await format(esmValidators, { parser: "babel" })],
   ["validators.generated.d.ts", await format(validatorDeclarations, { parser: "typescript" })],
+  [
+    "../../schemas/protocol.generated.schema.json",
+    await format(`${JSON.stringify(schema, null, 2)}\n`, {
+      parser: "json",
+      printWidth: 100,
+    }),
+  ],
 ]);
 
 if (!checkOnly) {

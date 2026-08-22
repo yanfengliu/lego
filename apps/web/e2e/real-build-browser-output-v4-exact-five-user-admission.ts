@@ -19,13 +19,16 @@ import { REAL_BUILD_SOURCE_PARITY_CALIBRATION_PANEL_PAGES } from "./real-build-o
 import { requireInspectedRealBuildSourceParityCalibrationPacket } from "./real-build-observation-source-parity-calibration-truth";
 import {
   consumeRealBuildBrowserOutputV4ExactFiveTrustedUserEvent,
-  type RealBuildBrowserOutputV4ExactFiveTrustedUserEventChallenge,
+  requireRealBuildBrowserOutputV4ExactFiveAuthenticatedTrustedUserEvent,
+  type RealBuildBrowserOutputV4ExactFiveTrustedUserEventRequest,
 } from "./real-build-browser-output-v4-exact-five-user-event";
 
 export const REAL_BUILD_BROWSER_OUTPUT_V4_EXACT_FIVE_STEPS =
   REAL_BUILD_SOURCE_PARITY_CALIBRATION_PANEL_PAGES;
 
 export const REAL_BUILD_BROWSER_OUTPUT_V4_EXACT_FIVE_UNREVIEWED_STEPS = 354 as const;
+export const MAXIMUM_REAL_BUILD_BROWSER_OUTPUT_V4_EXACT_FIVE_IN_FLIGHT_ADMISSIONS = 64;
+export const MAXIMUM_REAL_BUILD_BROWSER_OUTPUT_V4_EXACT_FIVE_RETAINED_ADMISSIONS = 4_096;
 
 export const REAL_BUILD_BROWSER_OUTPUT_V4_EXACT_FIVE_ABSENT_COMPLETION_AUTHORITY =
   intrinsicRealBuildFreeze({
@@ -54,6 +57,7 @@ export interface RealBuildBrowserOutputV4ExactFiveCalibrationRequestInspection {
   readonly executionIdentityDigest: Sha256Digest;
   readonly calibrationDigest: Sha256Digest;
   readonly truthPacketDigest: Sha256Digest;
+  readonly reviewPresentationDigest: Sha256Digest;
   readonly comparison: "published-candidate-w-exactly-matches-inspected-human-truth";
   readonly steps: typeof REAL_BUILD_BROWSER_OUTPUT_V4_EXACT_FIVE_STEPS;
   readonly requestDigest: Sha256Digest;
@@ -88,6 +92,8 @@ const admissions = new WeakSet<object>();
 const inFlightRequests = new Set<Sha256Digest>();
 const consumedRequests = new Set<Sha256Digest>();
 const consumedEvents = new Set<Sha256Digest>();
+let inFlightAdmissionCount = 0;
+let retainedAdmissionCount = 0;
 
 const APPLY = Reflect.apply;
 const WEAK_SET_ADD = WeakSet.prototype.add;
@@ -95,6 +101,7 @@ const WEAK_SET_HAS = WeakSet.prototype.has;
 const SET_ADD = Set.prototype.add;
 const SET_DELETE = Set.prototype.delete;
 const SET_HAS = Set.prototype.has;
+const DATE_NOW = Date.now;
 
 function weakSetAdd(set: WeakSet<object>, value: object): void {
   APPLY(WEAK_SET_ADD, set, [value]);
@@ -253,11 +260,20 @@ export function inspectRealBuildBrowserOutputV4ExactFiveCalibrationRequest(
       `Exact-five calibration request requires all five published W masks to exactly match the inspected human-truth packet; comparison was ${adjudication.comparison} with differing steps [${adjudication.differingSteps.join(", ")}].`,
     );
   }
+  const reviewPresentationDigest = canonicalDigest({
+    schemaVersion: "lego.real-build-browser-output-v4-exact-five-review-presentation/1",
+    executionIdentityDigest,
+    calibrationDigest: contract.calibrationDigest,
+    truthPacketDigest: truth.packetDigest,
+    comparison: "published-candidate-w-exactly-matches-inspected-human-truth",
+    steps: REAL_BUILD_BROWSER_OUTPUT_V4_EXACT_FIVE_STEPS,
+  });
   const base = intrinsicRealBuildFreeze({
     schemaVersion: "lego.real-build-browser-output-v4-exact-five-calibration-request/1" as const,
     executionIdentityDigest,
     calibrationDigest: contract.calibrationDigest,
     truthPacketDigest: truth.packetDigest,
+    reviewPresentationDigest,
     comparison: "published-candidate-w-exactly-matches-inspected-human-truth" as const,
     steps: REAL_BUILD_BROWSER_OUTPUT_V4_EXACT_FIVE_STEPS,
     authority: "absent" as const,
@@ -287,10 +303,10 @@ export function requireRealBuildBrowserOutputV4ExactFiveCalibrationRequest(
  * current repository event seam always refuses, so no production caller can
  * originate this admission yet.
  */
-export function consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(
+export async function consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(
   rawTrustedUserEvent: unknown,
   rawRequest: unknown,
-): RealBuildBrowserOutputV4ExactFiveCalibrationAdmission {
+): Promise<RealBuildBrowserOutputV4ExactFiveCalibrationAdmission> {
   const request = requireRealBuildBrowserOutputV4ExactFiveCalibrationRequest(rawRequest);
   if (setHas(consumedRequests, request.requestDigest)) {
     throw new TypeError(
@@ -302,36 +318,87 @@ export function consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(
       `Exact-five calibration request ${request.requestDigest} is already being consumed; reentrant admission is forbidden.`,
     );
   }
-  const challenge: RealBuildBrowserOutputV4ExactFiveTrustedUserEventChallenge =
-    intrinsicRealBuildFreeze({
-      schemaVersion: "lego.real-build-browser-output-v4-exact-five-user-event-challenge/1" as const,
-      purpose: "admit-exact-five-official-frame-equivalence" as const,
-      requestDigest: request.requestDigest,
-    });
+  if (
+    inFlightAdmissionCount >= MAXIMUM_REAL_BUILD_BROWSER_OUTPUT_V4_EXACT_FIVE_IN_FLIGHT_ADMISSIONS
+  ) {
+    throw new RangeError(
+      `Exact-five calibration admission already has ${inFlightAdmissionCount} in-flight requests; maximum is ${MAXIMUM_REAL_BUILD_BROWSER_OUTPUT_V4_EXACT_FIVE_IN_FLIGHT_ADMISSIONS}.`,
+    );
+  }
+  if (
+    retainedAdmissionCount + inFlightAdmissionCount >=
+    MAXIMUM_REAL_BUILD_BROWSER_OUTPUT_V4_EXACT_FIVE_RETAINED_ADMISSIONS
+  ) {
+    throw new RangeError(
+      `Exact-five calibration admission retained or reserved ${retainedAdmissionCount + inFlightAdmissionCount} request/event replay pairs; maximum is ${MAXIMUM_REAL_BUILD_BROWSER_OUTPUT_V4_EXACT_FIVE_RETAINED_ADMISSIONS} for this process session.`,
+    );
+  }
   setAdd(inFlightRequests, request.requestDigest);
+  inFlightAdmissionCount += 1;
   try {
-    const event = consumeRealBuildBrowserOutputV4ExactFiveTrustedUserEvent(
-      rawTrustedUserEvent,
-      challenge,
+    const eventRequest: RealBuildBrowserOutputV4ExactFiveTrustedUserEventRequest =
+      intrinsicRealBuildFreeze({
+        schemaVersion: "lego.real-build-browser-output-v4-exact-five-user-event-request/1",
+        namespace: "production",
+        purpose: "admit-exact-five-official-frame-equivalence",
+        scope: "exact-five-source-parity-calibration-panels-only",
+        requestDigest: request.requestDigest,
+        reviewPresentationDigest: request.reviewPresentationDigest,
+      });
+    const event = requireRealBuildBrowserOutputV4ExactFiveAuthenticatedTrustedUserEvent(
+      await consumeRealBuildBrowserOutputV4ExactFiveTrustedUserEvent(
+        rawTrustedUserEvent,
+        eventRequest,
+      ),
     );
     const schemaVersion = event.schemaVersion;
     const authority = event.authority;
     const origin = event.origin;
+    const namespace = event.namespace;
     const purpose = event.purpose;
+    const scope = event.scope;
     const eventRequestDigest = event.requestDigest;
+    const reviewPresentationDigest = event.reviewPresentationDigest;
+    const challengeNonce = event.challengeNonce;
+    const challengeIssuedAtUnixMs = event.challengeIssuedAtUnixMs;
+    const consumedAtUnixMs = event.consumedAtUnixMs;
     const replayState = event.replayState;
     const eventIdentityDigest = event.eventIdentityDigest;
     if (
       schemaVersion !== "lego.real-build-browser-output-v4-exact-five-authenticated-user-event/1" ||
       authority !== "trusted-user" ||
       origin !== "external-authenticated-user-event" ||
-      purpose !== challenge.purpose ||
+      namespace !== "production" ||
+      purpose !== eventRequest.purpose ||
+      scope !== eventRequest.scope ||
       eventRequestDigest !== request.requestDigest ||
+      reviewPresentationDigest !== request.reviewPresentationDigest ||
+      typeof challengeNonce !== "string" ||
+      !/^[0-9a-f]{64}$/u.test(challengeNonce) ||
       replayState !== "consumed-one-use" ||
       !/^sha256:[0-9a-f]{64}$/u.test(eventIdentityDigest)
     ) {
       throw new TypeError(
-        "External exact-five trusted-user event consumer returned an inconsistent schema, request, purpose, origin, authority, identity, or replay state.",
+        "External exact-five trusted-user event consumer returned an inconsistent schema, request, review presentation, scope, purpose, origin, authority, identity, nonce, or replay state.",
+      );
+    }
+    const challengeIssued = challengeIssuedAtUnixMs;
+    const challengeExpires = challengeIssued + 2 * 60 * 1_000;
+    const eventConsumed = consumedAtUnixMs;
+    const now = APPLY(DATE_NOW, Date, []) as number;
+    if (
+      !Number.isSafeInteger(challengeIssued) ||
+      !Number.isSafeInteger(eventConsumed) ||
+      challengeIssued < 0 ||
+      eventConsumed < 0 ||
+      eventConsumed < challengeIssued ||
+      eventConsumed > challengeExpires ||
+      eventConsumed > now ||
+      now < challengeIssued ||
+      now > challengeExpires
+    ) {
+      throw new TypeError(
+        "External exact-five trusted-user event consumer returned a future, expired, or non-two-minute challenge consumption.",
       );
     }
     if (setHas(consumedEvents, eventIdentityDigest)) {
@@ -341,6 +408,7 @@ export function consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(
     }
     setAdd(consumedRequests, request.requestDigest);
     setAdd(consumedEvents, eventIdentityDigest);
+    retainedAdmissionCount += 1;
     const admission = intrinsicRealBuildFreeze({
       schemaVersion:
         "lego.real-build-browser-output-v4-exact-five-calibration-admission/1" as const,
@@ -368,6 +436,7 @@ export function consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmission(
     return admission;
   } finally {
     setDelete(inFlightRequests, request.requestDigest);
+    inFlightAdmissionCount -= 1;
   }
 }
 
