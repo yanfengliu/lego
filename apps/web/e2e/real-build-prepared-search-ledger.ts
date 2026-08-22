@@ -1,3 +1,4 @@
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import {
   requireRealBuildPreparedSearchBatchInspection,
   requireRealBuildPreparedSearchBatchPreflight,
@@ -51,6 +52,11 @@ interface MutableLedgerState {
 
 const states = new WeakMap<object, MutableLedgerState>();
 const reservedBatches = new WeakSet<object>();
+const SAFE_REFLECT_APPLY = Reflect.apply;
+const SAFE_WEAK_MAP_GET = WeakMap.prototype.get;
+const SAFE_WEAK_MAP_SET = WeakMap.prototype.set;
+const SAFE_WEAK_SET_ADD = WeakSet.prototype.add;
+const SAFE_WEAK_SET_HAS = WeakSet.prototype.has;
 
 function requireCount(value: unknown, path: string): number {
   if (
@@ -69,7 +75,8 @@ function requireState(value: unknown): MutableLedgerState {
   if (value === null || typeof value !== "object") {
     throw new TypeError("Prepared search ledger must be a module-created private ledger.");
   }
-  const state = states.get(value);
+  const state = SAFE_REFLECT_APPLY(SAFE_WEAK_MAP_GET, states, [value]) as
+    MutableLedgerState | undefined;
   if (state === undefined) {
     throw new TypeError("Prepared search ledger must be a module-created private ledger.");
   }
@@ -81,14 +88,17 @@ export function createRealBuildPreparedSearchLedger(
   budget: unknown,
 ): RealBuildPreparedSearchLedger {
   const maximum = requireCount(budget, "Prepared search ledger budget");
-  const ledger = Object.freeze({ budget: maximum }) as RealBuildPreparedSearchLedger;
-  states.set(ledger, {
-    budget: maximum,
-    reserved: 0,
-    refused: false,
-    reservationCount: 0,
-    failure: null,
-  });
+  const ledger = intrinsicRealBuildFreeze({ budget: maximum }) as RealBuildPreparedSearchLedger;
+  SAFE_REFLECT_APPLY(SAFE_WEAK_MAP_SET, states, [
+    ledger,
+    {
+      budget: maximum,
+      reserved: 0,
+      refused: false,
+      reservationCount: 0,
+      failure: null,
+    },
+  ]);
   return ledger;
 }
 
@@ -96,7 +106,7 @@ export function snapshotRealBuildPreparedSearchLedger(
   value: unknown,
 ): RealBuildPreparedSearchLedgerSnapshot {
   const state = requireState(value);
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     budget: state.budget,
     reserved: state.reserved,
     refused: state.refused,
@@ -131,13 +141,13 @@ function reservePreparedSearchCount(
   count: number,
   label: "preflight" | "inspection",
 ): RealBuildPreparedSearchReservation {
-  if (reservedBatches.has(batch)) {
+  if (SAFE_REFLECT_APPLY(SAFE_WEAK_SET_HAS, reservedBatches, [batch]) as boolean) {
     throw new TypeError(`Prepared search ${label} may be reserved exactly once.`);
   }
-  reservedBatches.add(batch);
+  SAFE_REFLECT_APPLY(SAFE_WEAK_SET_ADD, reservedBatches, [batch]);
   const reservedBefore = state.reserved;
   if (state.refused) {
-    return Object.freeze({
+    return intrinsicRealBuildFreeze({
       admitted: false,
       refusal: "ledger-already-refused",
       reservedBefore,
@@ -151,14 +161,14 @@ function reservePreparedSearchCount(
   state.reservationCount += 1;
   if (count > state.budget - reservedBefore) {
     state.refused = true;
-    state.failure = Object.freeze({
+    state.failure = intrinsicRealBuildFreeze({
       preflightIdentity,
       reservationNumber: state.reservationCount,
       requested: count,
       reservedBefore,
       budget: state.budget,
     });
-    return Object.freeze({
+    return intrinsicRealBuildFreeze({
       admitted: false,
       refusal: "budget-exceeded",
       reservedBefore,
@@ -170,7 +180,7 @@ function reservePreparedSearchCount(
     });
   }
   state.reserved += count;
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     admitted: true,
     refusal: null,
     reservedBefore,
@@ -205,11 +215,11 @@ export function reserveRealBuildPreparedSearchInspectionBatch(
 export function isReservedRealBuildPreparedSearchBatchPreflight(
   value: RealBuildPreparedSearchBatchPreflight,
 ): boolean {
-  return reservedBatches.has(value);
+  return SAFE_REFLECT_APPLY(SAFE_WEAK_SET_HAS, reservedBatches, [value]) as boolean;
 }
 
 export function isReservedRealBuildPreparedSearchBatchInspection(
   value: RealBuildPreparedSearchBatchInspection,
 ): boolean {
-  return reservedBatches.has(value);
+  return SAFE_REFLECT_APPLY(SAFE_WEAK_SET_HAS, reservedBatches, [value]) as boolean;
 }

@@ -1,3 +1,4 @@
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import {
   closureCandidateId,
   closureDigest,
@@ -74,7 +75,7 @@ export function parseClosureSource(
   ) {
     throw new TypeError(`${path} source and exclusion masks must share one exact raster.`);
   }
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     sourceId: closureSourceId(row.sourceId, `${path}.sourceId`),
     preparedRunInputDigest: closureDigest(
       row.preparedRunInputDigest,
@@ -126,7 +127,7 @@ export function parseClosureCamera(
   ) {
     throw new TypeError(`${path}.cameraId must be a compiled-observation-camera:sha256 ID.`);
   }
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     cameraId: row.cameraId as RealBuildCompiledObservationCameraCommitment["cameraId"],
     sourceId: closureSourceId(row.sourceId, `${path}.sourceId`),
     candidateId: closureCandidateId(row.candidateId, `${path}.candidateId`),

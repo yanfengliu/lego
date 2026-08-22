@@ -29,7 +29,10 @@ function sameValidation(
 
 function validateSelectionShape(evidence: RealBuildCompiledPlacementLineageEvidence): void {
   const selection = evidence.selection;
-  const uniqueLineages = new Set(selection.selectedLineageIds);
+  const uniqueLineages = new Set<string>();
+  for (let index = 0; index < selection.selectedLineageIds.length; index += 1) {
+    uniqueLineages.add(selection.selectedLineageIds[index]!);
+  }
   if (uniqueLineages.size !== selection.selectedLineageIds.length) {
     throw new TypeError("compiledLineage.selection.selectedLineageIds must be unique.");
   }
@@ -162,7 +165,8 @@ function validateAcceptedTransition(
   const expectedTransitionIds: string[] = [];
   const seenTransitionIds = new Set<string>();
   const parentRevisions = new Set<string>();
-  for (const lineageId of accepted.lineageIds) {
+  for (let index = 0; index < accepted.lineageIds.length; index += 1) {
+    const lineageId = accepted.lineageIds[index]!;
     const edge = graph.edgesByChildLineage.get(lineageId);
     if (edge === undefined) {
       throw new TypeError(

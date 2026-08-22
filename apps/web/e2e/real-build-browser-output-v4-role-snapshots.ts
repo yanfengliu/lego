@@ -1,3 +1,4 @@
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import type {
   RealBuildBrowserBranchEvidenceV1,
   RealBuildBrowserBranchObservationReference,
@@ -17,6 +18,12 @@ const TYPED_ARRAY_BYTE_OFFSET = Object.getOwnPropertyDescriptor(
   "byteOffset",
 )?.get;
 const TYPED_ARRAY_SET = Uint8Array.prototype.set;
+const ARRAY_FIND = Array.prototype.find;
+const OBJECT_FREEZE = intrinsicRealBuildFreeze;
+const REFLECT_APPLY = Reflect.apply;
+const WEAK_MAP_GET = WeakMap.prototype.get;
+const WEAK_MAP_HAS = WeakMap.prototype.has;
+const WEAK_MAP_SET = WeakMap.prototype.set;
 
 export interface RealBuildBrowserBranchStepEvidenceBytes {
   readonly compiledLineage: Uint8Array;
@@ -32,11 +39,11 @@ function copyReference(
   if (TYPED_ARRAY_BUFFER === undefined || TYPED_ARRAY_BYTE_OFFSET === undefined) {
     throw new TypeError("Verified browser branch role intrinsics are unavailable.");
   }
-  const buffer = Reflect.apply(TYPED_ARRAY_BUFFER, role, []) as ArrayBuffer;
-  const byteOffset = Reflect.apply(TYPED_ARRAY_BYTE_OFFSET, role, []) as number;
+  const buffer = REFLECT_APPLY(TYPED_ARRAY_BUFFER, role, []) as ArrayBuffer;
+  const byteOffset = REFLECT_APPLY(TYPED_ARRAY_BYTE_OFFSET, role, []) as number;
   const source = new BYTE_ARRAY(buffer, byteOffset + reference.offset, reference.bytes);
   const result = new BYTE_ARRAY(reference.bytes);
-  Reflect.apply(TYPED_ARRAY_SET, result, [source]);
+  REFLECT_APPLY(TYPED_ARRAY_SET, result, [source]);
   return result;
 }
 
@@ -48,7 +55,7 @@ export function createRealBuildBrowserBranchRoleSnapshotRegistry() {
     compiled: Uint8Array,
     observations: Uint8Array,
   ): void => {
-    snapshots.set(evidence, Object.freeze({ compiled, observations }));
+    REFLECT_APPLY(WEAK_MAP_SET, snapshots, [evidence, OBJECT_FREEZE({ compiled, observations })]);
   };
   const read = (
     inspectedEvidence: unknown,
@@ -57,7 +64,9 @@ export function createRealBuildBrowserBranchRoleSnapshotRegistry() {
     if (
       inspectedEvidence === null ||
       typeof inspectedEvidence !== "object" ||
-      !snapshots.has(inspectedEvidence as RealBuildBrowserBranchEvidenceV1)
+      !REFLECT_APPLY(WEAK_MAP_HAS, snapshots, [
+        inspectedEvidence as RealBuildBrowserBranchEvidenceV1,
+      ])
     ) {
       throw new TypeError(
         "Browser branch step bytes require the exact result of role transport inspection.",
@@ -71,12 +80,15 @@ export function createRealBuildBrowserBranchRoleSnapshotRegistry() {
       throw new RangeError("Browser branch step number must be a safe integer from 1 through 359.");
     }
     const evidence = inspectedEvidence as RealBuildBrowserBranchEvidenceV1;
-    const step = evidence.steps.find(({ stepNumber: candidate }) => candidate === stepNumber);
+    const step = REFLECT_APPLY(ARRAY_FIND, evidence.steps, [
+      ({ stepNumber: candidate }: RealBuildBrowserBranchEvidenceV1["steps"][number]) =>
+        candidate === stepNumber,
+    ]) as RealBuildBrowserBranchEvidenceV1["steps"][number] | undefined;
     if (step === undefined) {
       throw new TypeError(`Browser branch evidence has no indexed step ${String(stepNumber)}.`);
     }
-    const roles = snapshots.get(evidence)!;
-    return Object.freeze({
+    const roles = REFLECT_APPLY(WEAK_MAP_GET, snapshots, [evidence]) as VerifiedBranchRoleSnapshots;
+    return OBJECT_FREEZE({
       compiledLineage: copyReference(roles.compiled, step.compiledLineage),
       observationClosure:
         step.observationClosure === null
@@ -86,5 +98,5 @@ export function createRealBuildBrowserBranchRoleSnapshotRegistry() {
         step.observations === null ? null : copyReference(roles.observations, step.observations),
     });
   };
-  return Object.freeze({ retain, read });
+  return OBJECT_FREEZE({ retain, read });
 }

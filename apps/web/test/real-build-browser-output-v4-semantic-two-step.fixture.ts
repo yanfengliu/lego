@@ -2,6 +2,7 @@ import type { RealBuildCompiledPlacementLineageEvidence } from "../e2e/real-buil
 import {
   decodeRealBuildAtomicCompiledBranchEvidenceWire,
   executeRealBuildAtomicCompiledBranchBatch,
+  type RealBuildAtomicCompiledBranchBatchResult,
 } from "../e2e/real-build-atomic-compiled-branch-batch";
 import type { RealBuildLineageIdentity } from "../e2e/real-build-candidate-lineage-identity";
 import {
@@ -26,6 +27,7 @@ export interface RealBuildBrowserOutputV4SemanticCompiledStepFixture {
   readonly stepNumber: 1 | 2;
   readonly pieceCount: number;
   readonly preparedStep: RealBuildPreparedStepInspection;
+  readonly batchResult: RealBuildAtomicCompiledBranchBatchResult;
   readonly lineageBytes: Uint8Array;
   readonly lineage: RealBuildCompiledPlacementLineageEvidence;
 }
@@ -206,10 +208,12 @@ function compileStep(input: {
   }));
   const result = executeRealBuildAtomicCompiledBranchBatch({
     preparedStep: input.preparedStep,
-    rootCandidate: {
-      documentSnapshot: input.rootDocumentSnapshot,
-      identities: input.rootIdentities,
-    },
+    rootCandidates: [
+      {
+        documentSnapshot: input.rootDocumentSnapshot,
+        identities: input.rootIdentities,
+      },
+    ],
     enumeratedParents,
     ledger: createRealBuildPreparedSearchLedger(input.rootIdentities.length),
   });
@@ -235,6 +239,7 @@ function compileStep(input: {
     stepNumber,
     pieceCount: input.preparedStep.expectedAtomicPieces.length,
     preparedStep: input.preparedStep,
+    batchResult: result,
     lineageBytes,
     lineage,
   });

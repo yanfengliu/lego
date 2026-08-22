@@ -1,22 +1,16 @@
+import {
+  intrinsicRealBuildFreeze,
+  stabilizeRealBuildJsonArrayIteration,
+} from "./real-build-intrinsic-freeze";
 import { sha256Hex, type Sha256Digest } from "@lego-studio/brick-kernel";
+
+import { snapshotHostileUint8Array } from "./real-build-hostile-uint8array";
 
 import {
   MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_BYTES,
   MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_JSON_DEPTH,
   MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_JSON_VALUES,
 } from "./real-build-compiled-placement-lineage-types";
-
-const TYPED_ARRAY_PROTOTYPE = Object.getPrototypeOf(Uint8Array.prototype) as object;
-const TYPED_ARRAY_LENGTH = Object.getOwnPropertyDescriptor(TYPED_ARRAY_PROTOTYPE, "length")?.get;
-const TYPED_ARRAY_BUFFER = Object.getOwnPropertyDescriptor(TYPED_ARRAY_PROTOTYPE, "buffer")?.get;
-const TYPED_ARRAY_TAG = Object.getOwnPropertyDescriptor(
-  TYPED_ARRAY_PROTOTYPE,
-  Symbol.toStringTag,
-)?.get;
-const SHARED_BYTE_LENGTH =
-  typeof SharedArrayBuffer === "undefined"
-    ? undefined
-    : Object.getOwnPropertyDescriptor(SharedArrayBuffer.prototype, "byteLength")?.get;
 
 export interface RealBuildCompiledPlacementLineageWireInspection {
   readonly value: unknown;
@@ -33,52 +27,15 @@ function snapshotCompiledLineageBytes(value: unknown, maximumBytes: number): Uin
       `Compiled lineage maximumBytes must be 1 through ${MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_BYTES}.`,
     );
   }
-  let length: number;
-  let buffer: ArrayBufferLike;
-  let tag: string;
-  try {
-    if (
-      TYPED_ARRAY_LENGTH === undefined ||
-      TYPED_ARRAY_BUFFER === undefined ||
-      TYPED_ARRAY_TAG === undefined
-    ) {
-      throw null;
-    }
-    length = TYPED_ARRAY_LENGTH.call(value) as number;
-    buffer = TYPED_ARRAY_BUFFER.call(value) as ArrayBufferLike;
-    tag = TYPED_ARRAY_TAG.call(value) as string;
-  } catch {
-    throw new TypeError("Compiled lineage wire input must be a genuine Uint8Array.");
-  }
-  if (tag !== "Uint8Array") {
-    throw new TypeError("Compiled lineage wire input must be a genuine Uint8Array.");
-  }
-  if (length > maximumBytes) {
-    throw new RangeError(
+  return snapshotHostileUint8Array(value, {
+    maximumBytes,
+    typeError: "Compiled lineage wire input must be a genuine Uint8Array.",
+    oversizeError: (length) =>
       `Compiled lineage wire input contains ${length} bytes above maximumBytes ${maximumBytes}; no text was decoded or parsed.`,
-    );
-  }
-  if (SHARED_BYTE_LENGTH !== undefined) {
-    let shared = false;
-    try {
-      SHARED_BYTE_LENGTH.call(buffer);
-      shared = true;
-    } catch {
-      // Ordinary ArrayBuffer storage rejects the SharedArrayBuffer intrinsic.
-    }
-    if (shared) {
-      throw new TypeError(
-        "Compiled lineage wire input cannot use concurrently mutable SharedArrayBuffer storage.",
-      );
-    }
-  }
-  const snapshot = new Uint8Array(length);
-  try {
-    Uint8Array.prototype.set.call(snapshot, value as Uint8Array);
-  } catch {
-    throw new TypeError("Compiled lineage wire bytes changed or detached during bounded copying.");
-  }
-  return snapshot;
+    sharedError:
+      "Compiled lineage wire input cannot use concurrently mutable SharedArrayBuffer storage.",
+    copyError: "Compiled lineage wire bytes changed or detached during bounded copying.",
+  });
 }
 
 /** Conservatively bounds hostile JSON expansion before JSON.parse allocates it. */
@@ -133,7 +90,8 @@ export function inspectRealBuildCompiledPlacementLineageWire(
   } catch {
     throw new TypeError("Compiled lineage wire input is not valid JSON.");
   }
-  return Object.freeze({
+  stabilizeRealBuildJsonArrayIteration(parsed);
+  return intrinsicRealBuildFreeze({
     value: parsed,
     bytesDigest: `sha256:${sha256Hex(bytes)}` as Sha256Digest,
   });

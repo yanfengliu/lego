@@ -11,6 +11,10 @@ import {
   realBuildDocumentCandidateId,
 } from "../e2e/real-build-candidate-lineage-identity";
 import { createRealBuildCandidateDocumentSnapshot } from "../e2e/real-build-candidate-document-snapshot";
+import {
+  bindRealBuildExactRootLineageIdentity,
+  deriveRealBuildExactLineageIdentity,
+} from "../e2e/real-build-exact-lineage-identity";
 import type { RealBuildOptions, RealBuildPanelSpec } from "../e2e/real-build-safety";
 import { completeRealBuildTestOptions } from "./real-build-test-options";
 
@@ -71,19 +75,23 @@ export function preparedSearchEmptyParent() {
     maxParts: 1_464,
   });
   const documentHash = documentStructuralHash(document);
-  const identity = createRealBuildLineageIdentity({
-    candidateId: realBuildDocumentCandidateId(documentHash),
-    documentHash,
-    parent: null,
-    throughStepNumber: 0,
-    localIdentity: { kind: "decision", id: "prepared-search-empty-root" },
+  const documentSnapshot = createRealBuildCandidateDocumentSnapshot({
+    canonicalDocument: canonicalBrickDocument(document),
+    expectedDocumentHash: documentHash,
+  });
+  const identity = bindRealBuildExactRootLineageIdentity({
+    documentSnapshot,
+    identity: createRealBuildLineageIdentity({
+      candidateId: realBuildDocumentCandidateId(documentHash),
+      documentHash,
+      parent: null,
+      throughStepNumber: 0,
+      localIdentity: { kind: "decision", id: "prepared-search-empty-root" },
+    }),
   });
   return Object.freeze({
     identity,
-    documentSnapshot: createRealBuildCandidateDocumentSnapshot({
-      canonicalDocument: canonicalBrickDocument(document),
-      expectedDocumentHash: documentHash,
-    }),
+    documentSnapshot,
   });
 }
 
@@ -94,12 +102,19 @@ export function preparedSearchParent() {
     maxParts: 1_464,
   });
   const rootHash = documentStructuralHash(empty);
-  const rootIdentity = createRealBuildLineageIdentity({
-    candidateId: realBuildDocumentCandidateId(rootHash),
-    documentHash: rootHash,
-    parent: null,
-    throughStepNumber: 0,
-    localIdentity: { kind: "decision", id: "prepared-search-empty-root" },
+  const rootSnapshot = createRealBuildCandidateDocumentSnapshot({
+    canonicalDocument: canonicalBrickDocument(empty),
+    expectedDocumentHash: rootHash,
+  });
+  const rootIdentity = bindRealBuildExactRootLineageIdentity({
+    documentSnapshot: rootSnapshot,
+    identity: createRealBuildLineageIdentity({
+      candidateId: realBuildDocumentCandidateId(rootHash),
+      documentHash: rootHash,
+      parent: null,
+      throughStepNumber: 0,
+      localIdentity: { kind: "decision", id: "prepared-search-empty-root" },
+    }),
   });
   const document = applyBuildOperations(empty, [
     {
@@ -110,9 +125,14 @@ export function preparedSearchParent() {
     },
   ]);
   const documentHash = documentStructuralHash(document);
-  const identity = createRealBuildLineageIdentity({
+  const documentSnapshot = createRealBuildCandidateDocumentSnapshot({
+    canonicalDocument: canonicalBrickDocument(document),
+    expectedDocumentHash: documentHash,
+  });
+  const identity = deriveRealBuildExactLineageIdentity({
     candidateId: realBuildDocumentCandidateId(documentHash),
     documentHash,
+    documentSnapshot,
     parent: rootIdentity,
     throughStepNumber: 1,
     localIdentity: { kind: "decision", id: "prepared-search-root" },
@@ -120,10 +140,7 @@ export function preparedSearchParent() {
   return Object.freeze({
     rootIdentity,
     identity,
-    documentSnapshot: createRealBuildCandidateDocumentSnapshot({
-      canonicalDocument: canonicalBrickDocument(document),
-      expectedDocumentHash: documentHash,
-    }),
+    documentSnapshot,
   });
 }
 

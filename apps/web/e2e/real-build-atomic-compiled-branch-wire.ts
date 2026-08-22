@@ -1,3 +1,4 @@
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import { sha256Hex, type Sha256Digest } from "@lego-studio/brick-kernel";
 
 import { MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_BYTES } from "./real-build-compiled-placement-lineage-types";
@@ -43,7 +44,7 @@ export function createRealBuildAtomicCompiledBranchEvidenceWire(
       `Atomic compiled evidence contains ${bytes.byteLength} bytes above ${MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_BYTES}.`,
     );
   }
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     encoding: "base64",
     byteLength: bytes.byteLength,
     digest: `sha256:${sha256Hex(bytes)}`,

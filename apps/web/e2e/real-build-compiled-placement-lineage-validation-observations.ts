@@ -43,7 +43,8 @@ function validateReferenceRanges(
     );
   }
   const uniqueByRange = new Map<string, RangedReference>();
-  for (const entry of references) {
+  for (let index = 0; index < references.length; index += 1) {
+    const entry = references[index]!;
     const key = `${entry.reference.offset}:${entry.reference.bytes}`;
     const prior = uniqueByRange.get(key);
     if (prior !== undefined && !sameReference(prior.reference, entry.reference)) {
@@ -58,7 +59,8 @@ function validateReferenceRanges(
   );
   let nextOffset = 0;
   let previous: RangedReference | undefined;
-  for (const entry of ordered) {
+  for (let index = 0; index < ordered.length; index += 1) {
+    const entry = ordered[index]!;
     if (
       previous !== undefined &&
       entry.reference.offset < previous.reference.offset + previous.reference.bytes
@@ -208,9 +210,10 @@ function validateSelectionScores(
       "compiledLineage.selection.selectedLineageIds must exactly retain every best-scoring lineage in observation order.",
     );
   }
-  const candidateIds = new Set(
-    winningLineages.map((lineageId) => graph.edgesByChildLineage.get(lineageId)!.child.candidateId),
-  );
+  const candidateIds = new Set<string>();
+  for (let index = 0; index < winningLineages.length; index += 1) {
+    candidateIds.add(graph.edgesByChildLineage.get(winningLineages[index]!)!.child.candidateId);
+  }
   if (
     candidateIds.size !== 1 ||
     selection.selectedCandidateId === null ||
@@ -229,7 +232,8 @@ export function validateRealBuildCompiledObservations(
   const observationIds = new Set<string>();
   const lineagePanels = new Set<string>();
   const references: RangedReference[] = [];
-  for (const [index, observation] of evidence.observationRefs.entries()) {
+  for (let index = 0; index < evidence.observationRefs.length; index += 1) {
+    const observation = evidence.observationRefs[index]!;
     const path = `compiledLineage.observationRefs[${index}]`;
     if (observationIds.has(observation.observationId)) {
       throw new TypeError(`${path}.observationId duplicates an earlier observation.`);
@@ -244,11 +248,14 @@ export function validateRealBuildCompiledObservations(
     validateObservationShape(observation, index, evidence);
     observationIds.add(observation.observationId);
     lineagePanels.add(lineagePanel);
-    for (const [field, reference] of [
+    const fields = [
       ["sourceMask", observation.sourceMask],
       ["candidateMask", observation.candidateMask],
       ["excludedMask", observation.excludedMask],
-    ] as const) {
+    ] as const;
+    for (let fieldIndex = 0; fieldIndex < fields.length; fieldIndex += 1) {
+      const field = fields[fieldIndex]![0];
+      const reference = fields[fieldIndex]![1];
       if (reference !== null) references.push({ path: `${path}.${field}`, reference });
     }
   }

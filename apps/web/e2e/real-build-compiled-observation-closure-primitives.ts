@@ -1,3 +1,4 @@
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import type { Sha256Digest } from "@lego-studio/brick-kernel";
 
 import type {
@@ -166,7 +167,7 @@ export function closureMaskReference(
   closureInteger(row.bytes, `${path}.bytes`, bytes, bytes);
   if (offset > MAXIMUM_REAL_BUILD_COMPILED_OBSERVATION_ROLE_BYTES - bytes)
     throw new RangeError(`${path} range exceeds the local role ceiling.`);
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     role: "branch-observation-bytes",
     offset,
     bytes,

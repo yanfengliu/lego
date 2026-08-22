@@ -1,3 +1,4 @@
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import { sha256Hex } from "@lego-studio/brick-kernel";
 
 import {
@@ -297,12 +298,12 @@ function finishSelection(
     throw new TypeError(
       "Closure acceptedTransition does not reproduce its selected compiled edges and receipts.",
     );
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     closure: input.closure,
     reproducible:
       failedIds.length === 0 &&
       input.closure.observations.every(({ status }) => status === "scored"),
-    failedObservationIds: Object.freeze([...failedIds]),
+    failedObservationIds: intrinsicRealBuildFreeze([...failedIds]),
     provenanceAuthority: "absent",
     authority: "absent",
   });

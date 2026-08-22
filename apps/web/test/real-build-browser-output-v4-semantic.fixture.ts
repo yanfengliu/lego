@@ -224,6 +224,8 @@ export function rebindObservationClosureForLineage(
         ...rest,
         preparedRunInputDigest: lineage.preparedStep.preparedRunInputDigest,
         preparedStepIdentity: lineage.preparedStep.printedStepIdentity,
+        compiledThroughStepNumber: lineage.throughStepNumber,
+        registrationPanelStepNumber: lineage.throughStepNumber,
       };
       const rebound = {
         sourceId: deriveRealBuildCompiledObservationSourceId(committed),

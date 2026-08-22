@@ -308,12 +308,12 @@ describe("compiled placement lineage evidence generation 1", () => {
     ).toThrow(/hash or UTF-8 length/iu);
     expect(() =>
       parseRealBuildCompiledPlacementLineage(bytes({ ...source, childCandidates: [] })),
-    ).toThrow(/does not name retained exact child bytes/iu);
+    ).toThrow(/does not reproduce any retained exact child byte payload/iu);
     expect(() =>
       parseRealBuildCompiledPlacementLineage(
         bytes({ ...source, childCandidates: [child, { ...child }] }),
       ),
-    ).toThrow(/duplicates a child candidate/iu);
+    ).toThrow(/duplicates an exact child canonical byte payload group/iu);
 
     const root = source.rootCandidates[0]!;
     const orphan = {

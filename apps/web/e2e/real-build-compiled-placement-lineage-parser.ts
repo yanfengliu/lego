@@ -1,3 +1,4 @@
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import {
   parseCompiledAcceptedTransition,
   parseCompiledChildCandidate,
@@ -126,7 +127,7 @@ function parseTerminalFailure(value: unknown): RealBuildCompiledPlacementTermina
     throw new TypeError(`${path}.code is not a known stable compiled-placement failure code.`);
   }
   const issue = compiledEvidenceRecord(row.issue, `${path}.issue`, ["code", "path", "reason"]);
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     schemaVersion: "lego.real-build-compiled-placement-terminal-failure/1",
     proposalId:
       row.proposalId === null ? null : compiledEvidenceDigest(row.proposalId, `${path}.proposalId`),
@@ -147,7 +148,7 @@ function parseTerminalFailure(value: unknown): RealBuildCompiledPlacementTermina
       1,
       MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_TRANSITIONS,
     ),
-    issue: Object.freeze({
+    issue: intrinsicRealBuildFreeze({
       code: compiledEvidenceString(issue.code, `${path}.issue.code`, 256),
       path: compiledEvidenceString(issue.path, `${path}.issue.path`, 256),
       reason: compiledEvidenceString(issue.reason, `${path}.issue.reason`, 1_024),
@@ -190,7 +191,7 @@ function parseObservation(value: unknown, index: number): RealBuildCompiledObser
   if (row.cameraEvidenceId !== null && typeof row.cameraEvidenceId !== "string") {
     throw new TypeError(`${path}.cameraEvidenceId must be null or a bounded string.`);
   }
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     observationId: compiledEvidenceString(row.observationId, `${path}.observationId`),
     lineageId: compiledEvidenceLineageId(row.lineageId, `${path}.lineageId`),
     sourceEvidenceId: compiledEvidenceString(row.sourceEvidenceId, `${path}.sourceEvidenceId`),
@@ -219,7 +220,7 @@ function parseObservationBytes(value: unknown): RealBuildCompiledObservationByte
   if (row.role !== "branch-observation-bytes") {
     throw new TypeError(`${path}.role must be branch-observation-bytes.`);
   }
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     role: "branch-observation-bytes",
     bytes: compiledEvidenceInteger(row.bytes, `${path}.bytes`, 1, 512 * 1024 * 1024),
     digest: compiledEvidenceDigest(row.digest, `${path}.digest`),
@@ -243,7 +244,7 @@ function parseSelection(value: unknown): RealBuildCompiledLineageSelection {
   if (row.selectedCandidateId !== null && typeof row.selectedCandidateId !== "string") {
     throw new TypeError(`${path}.selectedCandidateId must be null or a document candidate ID.`);
   }
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     status: row.status,
     decisionPanelStepNumber:
       row.decisionPanelStepNumber === null
@@ -258,7 +259,7 @@ function parseSelection(value: unknown): RealBuildCompiledLineageSelection {
       row.selectedCandidateId === null
         ? null
         : compiledEvidenceCandidateId(row.selectedCandidateId, `${path}.selectedCandidateId`),
-    selectedLineageIds: Object.freeze(
+    selectedLineageIds: intrinsicRealBuildFreeze(
       compiledEvidenceArray(row.selectedLineageIds, `${path}.selectedLineageIds`, 8_192).map(
         (id, index) => compiledEvidenceLineageId(id, `${path}.selectedLineageIds[${index}]`),
       ),
@@ -283,7 +284,7 @@ function parseCompletionAuthority(
       `${path} must explicitly retain absent/false compiled-placement-lineage-is-inspection-only authority.`,
     );
   }
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     status: "absent",
     authorized: false,
     reason: "compiled-placement-lineage-is-inspection-only",
@@ -300,7 +301,7 @@ function parseRealBuildCompiledPlacementLineageInertJsonValue(
       `compiledLineage.schemaVersion must be ${REAL_BUILD_COMPILED_PLACEMENT_LINEAGE_SCHEMA_VERSION}.`,
     );
   }
-  const evidence: RealBuildCompiledPlacementLineageEvidence = Object.freeze({
+  const evidence: RealBuildCompiledPlacementLineageEvidence = intrinsicRealBuildFreeze({
     schemaVersion: REAL_BUILD_COMPILED_PLACEMENT_LINEAGE_SCHEMA_VERSION,
     status: parseStatus(row.status),
     throughStepNumber: compiledEvidenceInteger(
@@ -310,7 +311,7 @@ function parseRealBuildCompiledPlacementLineageInertJsonValue(
       359,
     ),
     preparedStep: parseCompiledPreparedStep(row.preparedStep),
-    rootCandidates: Object.freeze(
+    rootCandidates: intrinsicRealBuildFreeze(
       compiledEvidenceArray(
         row.rootCandidates,
         "compiledLineage.rootCandidates",
@@ -321,21 +322,21 @@ function parseRealBuildCompiledPlacementLineageInertJsonValue(
     searchRequest: parseCompiledSearchRequest(row.searchRequest),
     searchReservation: parseCompiledReservation(row.searchReservation),
     terminalFailure: parseTerminalFailure(row.terminalFailure),
-    childCandidates: Object.freeze(
+    childCandidates: intrinsicRealBuildFreeze(
       compiledEvidenceArray(
         row.childCandidates,
         "compiledLineage.childCandidates",
         MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_TRANSITIONS,
       ).map(parseCompiledChildCandidate),
     ),
-    uniqueTransitions: Object.freeze(
+    uniqueTransitions: intrinsicRealBuildFreeze(
       compiledEvidenceArray(
         row.uniqueTransitions,
         "compiledLineage.uniqueTransitions",
         MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_TRANSITIONS,
       ).map(parseCompiledTransition),
     ),
-    lineageEdges: Object.freeze(
+    lineageEdges: intrinsicRealBuildFreeze(
       compiledEvidenceArray(
         row.lineageEdges,
         "compiledLineage.lineageEdges",
@@ -343,7 +344,7 @@ function parseRealBuildCompiledPlacementLineageInertJsonValue(
       ).map(parseCompiledLineageEdge),
     ),
     observationBytes: parseObservationBytes(row.observationBytes),
-    observationRefs: Object.freeze(
+    observationRefs: intrinsicRealBuildFreeze(
       compiledEvidenceArray(
         row.observationRefs,
         "compiledLineage.observationRefs",
@@ -373,7 +374,7 @@ export function inspectRealBuildCompiledPlacementLineageWork(
 ): RealBuildCompiledPlacementLineageWorkInspection {
   const wire = inspectRealBuildCompiledPlacementLineageWire(value, maximumBytes);
   const evidence = parseRealBuildCompiledPlacementLineageInertJsonValue(wire.value);
-  const inspection = Object.freeze({
+  const inspection = intrinsicRealBuildFreeze({
     schemaVersion: REAL_BUILD_COMPILED_PLACEMENT_LINEAGE_WORK_INSPECTION_SCHEMA_VERSION,
     compiledLineageBytesDigest: wire.bytesDigest,
     evidence,
@@ -390,7 +391,7 @@ export function inspectRealBuildCompiledPlacementLineageReplayWork(
   const inspection = requireWorkInspection(value);
   const cached = replayWorkInspectionByWorkInspection.get(inspection);
   if (cached !== undefined) return cached;
-  const replayInspection = Object.freeze({
+  const replayInspection = intrinsicRealBuildFreeze({
     schemaVersion: REAL_BUILD_COMPILED_PLACEMENT_LINEAGE_REPLAY_WORK_INSPECTION_SCHEMA_VERSION,
     compiledLineageBytesDigest: inspection.compiledLineageBytesDigest,
     work: measureRealBuildCompiledPlacementLineageReplayWork(inspection.evidence),

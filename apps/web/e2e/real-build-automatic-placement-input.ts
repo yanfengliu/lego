@@ -1,3 +1,4 @@
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import type { RigidTransform } from "@lego-studio/protocol";
 
 import {
@@ -120,7 +121,7 @@ function position(value: unknown, path: string): readonly [number, number, numbe
     }
     result.push(coordinate as number);
   }
-  return Object.freeze(result) as unknown as readonly [number, number, number];
+  return intrinsicRealBuildFreeze(result) as unknown as readonly [number, number, number];
 }
 
 function snapshotConnection(
@@ -133,7 +134,7 @@ function snapshotConnection(
   const kind = data(target, "kind", `${path}.target`);
   const snappedTarget =
     kind === "base"
-      ? Object.freeze({
+      ? intrinsicRealBuildFreeze({
           kind,
           partId: identifier(data(target, "partId", `${path}.target`), `${path}.target.partId`),
         })
@@ -143,7 +144,7 @@ function snapshotConnection(
             if (!Number.isSafeInteger(targetIndex) || (targetIndex as number) < 0) {
               throw new TypeError(`${path}.target.witnessIndex must be a non-negative integer.`);
             }
-            return Object.freeze({ kind, witnessIndex: targetIndex as number });
+            return intrinsicRealBuildFreeze({ kind, witnessIndex: targetIndex as number });
           })()
         : (() => {
             throw new TypeError(`${path}.target.kind must be base or witness.`);
@@ -151,7 +152,7 @@ function snapshotConnection(
   if (data(value, "connectionKind", path) !== "stud-tube") {
     throw new TypeError(`${path}.connectionKind must be stud-tube in protocol generation 1.`);
   }
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     target: snappedTarget,
     targetPortId: identifier(data(value, "targetPortId", path), `${path}.targetPortId`),
     candidatePortId: identifier(data(value, "candidatePortId", path), `${path}.candidatePortId`),
@@ -209,7 +210,7 @@ export function snapshotRealBuildAutomaticPlacementInput(
       );
     }
     witnesses.push(
-      Object.freeze({
+      intrinsicRealBuildFreeze({
         catalogPartId: identifier(
           data(row, "catalogPartId", `Automatic placement witnesses[${index}]`),
           `Witness ${index} catalogPartId`,
@@ -218,7 +219,7 @@ export function snapshotRealBuildAutomaticPlacementInput(
           data(row, "colorId", `Automatic placement witnesses[${index}]`),
           `Witness ${index} colorId`,
         ),
-        transform: Object.freeze({
+        transform: intrinsicRealBuildFreeze({
           positionLdu: position(
             data(transform, "positionLdu", "transform"),
             `Witness ${index} positionLdu`,
@@ -228,14 +229,14 @@ export function snapshotRealBuildAutomaticPlacementInput(
             `Witness ${index} orientationId`,
           ),
         }),
-        connections: Object.freeze(snappedConnections),
+        connections: intrinsicRealBuildFreeze(snappedConnections),
       }),
     );
   }
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     documentSnapshot,
     printedStepNumber: printedStepNumber as number,
     printedStep,
-    witnesses: Object.freeze(witnesses),
+    witnesses: intrinsicRealBuildFreeze(witnesses),
   });
 }

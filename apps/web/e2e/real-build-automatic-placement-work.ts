@@ -1,3 +1,4 @@
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import { canonicalStringify } from "@lego-studio/brick-kernel";
 import type { BrickDocumentV1 } from "@lego-studio/protocol";
 
@@ -119,7 +120,7 @@ export function measureRealBuildAutomaticPlacementWork(input: {
     safeSum("base-plus-proposal byte count", [input.base.canonicalByteLength, proposalBytes]),
     combinedOperations,
   ]);
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     placementOperations,
     preparationOperations,
     combinedOperations,
@@ -134,7 +135,7 @@ export function measureRealBuildAutomaticPlacementBaseWork(
   document: BrickDocumentV1,
   canonicalByteLength: number,
 ): RealBuildAutomaticPlacementBaseWork {
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     canonicalByteLength,
     graphEntries: safeSum("base-graph entry count", [
       document.parts.length,

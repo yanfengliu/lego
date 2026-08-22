@@ -1,3 +1,4 @@
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import {
   canonicalBrickDocument,
   canonicalDigest,
@@ -11,7 +12,10 @@ import type { RealBuildCandidateDocumentSnapshot } from "./real-build-candidate-
 import {
   assertRealBuildLineageParent,
   realBuildDocumentCandidateId,
+  snapshotRealBuildLineageIdentity,
+  type RealBuildLineageIdentity,
 } from "./real-build-candidate-lineage-identity";
+import type { RealBuildExactLineageIdentity } from "./real-build-exact-lineage-identity";
 import { deriveRealBuildCompiledTransitionId } from "./real-build-compiled-placement-lineage-digest";
 import type {
   RealBuildCompiledLineageEdge,
@@ -34,7 +38,7 @@ interface RootLineageBinding {
 
 interface RootIndex {
   readonly byLineage: ReadonlyMap<string, RootLineageBinding>;
-  readonly byCandidate: ReadonlyMap<string, RootLineageBinding>;
+  readonly byCanonicalHash: ReadonlyMap<string, RootLineageBinding>;
 }
 
 export interface RealBuildCompiledGraphIndex {
@@ -49,6 +53,17 @@ export interface RealBuildCompiledGraphIndex {
 interface ChildCandidateBinding {
   readonly row: RealBuildCompiledLineageChildCandidate;
   readonly snapshot: RealBuildCandidateDocumentSnapshot;
+}
+
+function isExactIdentity(
+  identity: RealBuildLineageIdentity,
+): identity is RealBuildExactLineageIdentity {
+  return (
+    "exactLineageId" in identity &&
+    "parentExactLineageId" in identity &&
+    "canonicalBytesHash" in identity &&
+    "canonicalByteLength" in identity
+  );
 }
 
 function sameValidation(
@@ -72,16 +87,17 @@ function sameValidation(
 
 function validateRoots(evidence: RealBuildCompiledPlacementLineageEvidence) {
   const roots = new Map<string, RootLineageBinding>();
-  const rootsByCandidate = new Map<string, RootLineageBinding>();
+  const rootsByCanonicalHash = new Map<string, RootLineageBinding>();
   const canonicalHashes = new Set<string>();
   let aggregateBytes = 0;
-  for (const [groupIndex, group] of evidence.rootCandidates.entries()) {
+  for (let groupIndex = 0; groupIndex < evidence.rootCandidates.length; groupIndex += 1) {
+    const group = evidence.rootCandidates[groupIndex]!;
     const path = `compiledLineage.rootCandidates[${groupIndex}]`;
-    if (rootsByCandidate.has(group.candidateId) || canonicalHashes.has(group.canonicalBytesHash)) {
-      throw new TypeError(`${path} duplicates a root candidate or canonical byte payload group.`);
+    if (canonicalHashes.has(group.canonicalBytesHash)) {
+      throw new TypeError(`${path} duplicates an exact root canonical byte payload group.`);
     }
     if (group.candidateId !== realBuildDocumentCandidateId(group.documentHash)) {
-      throw new TypeError(`${path}.candidateId must equal its exact canonical document hash.`);
+      throw new TypeError(`${path}.candidateId must equal its structural document hash.`);
     }
     const snapshot = createRealBuildCandidateDocumentSnapshot({
       canonicalDocument: group.canonicalBytes,
@@ -99,11 +115,15 @@ function validateRoots(evidence: RealBuildCompiledPlacementLineageEvidence) {
         `compiledLineage unique root canonical bytes exceed ${MAXIMUM_REAL_BUILD_PREPARED_SEARCH_UNIQUE_DOCUMENT_BYTES}.`,
       );
     }
-    for (const [identityIndex, identity] of group.identities.entries()) {
+    for (let identityIndex = 0; identityIndex < group.identities.length; identityIndex += 1) {
+      const identity = group.identities[identityIndex]!;
       const identityPath = `${path}.identities[${identityIndex}]`;
       if (
         identity.candidateId !== group.candidateId ||
         identity.documentHash !== group.documentHash ||
+        (isExactIdentity(identity) &&
+          (identity.canonicalBytesHash !== group.canonicalBytesHash ||
+            identity.canonicalByteLength !== group.canonicalByteLength)) ||
         identity.throughStepNumber !== evidence.throughStepNumber - 1
       ) {
         throw new TypeError(
@@ -115,13 +135,13 @@ function validateRoots(evidence: RealBuildCompiledPlacementLineageEvidence) {
       }
       roots.set(identity.lineageId, { snapshot, identity });
     }
-    rootsByCandidate.set(group.candidateId, {
+    rootsByCanonicalHash.set(group.canonicalBytesHash, {
       snapshot,
       identity: group.identities[0]!,
     });
     canonicalHashes.add(group.canonicalBytesHash);
   }
-  return Object.freeze({ byLineage: roots, byCandidate: rootsByCandidate });
+  return intrinsicRealBuildFreeze({ byLineage: roots, byCanonicalHash: rootsByCanonicalHash });
 }
 
 function validateReservation(evidence: RealBuildCompiledPlacementLineageEvidence): void {
@@ -186,13 +206,14 @@ function validateChildCandidates(
   const children = new Map<string, ChildCandidateBinding>();
   const canonicalHashes = new Set<string>();
   let aggregateBytes = 0;
-  for (const [index, row] of evidence.childCandidates.entries()) {
+  for (let index = 0; index < evidence.childCandidates.length; index += 1) {
+    const row = evidence.childCandidates[index]!;
     const path = `compiledLineage.childCandidates[${index}]`;
-    if (children.has(row.candidateId) || canonicalHashes.has(row.canonicalBytesHash)) {
-      throw new TypeError(`${path} duplicates a child candidate or canonical byte payload group.`);
+    if (canonicalHashes.has(row.canonicalBytesHash)) {
+      throw new TypeError(`${path} duplicates an exact child canonical byte payload group.`);
     }
     if (row.candidateId !== realBuildDocumentCandidateId(row.documentHash)) {
-      throw new TypeError(`${path}.candidateId must equal its exact canonical document hash.`);
+      throw new TypeError(`${path}.candidateId must equal its structural document hash.`);
     }
     const snapshot = createRealBuildCandidateDocumentSnapshot({
       canonicalDocument: row.canonicalBytes,
@@ -210,7 +231,7 @@ function validateChildCandidates(
         `compiledLineage unique child canonical bytes exceed ${MAXIMUM_REAL_BUILD_PREPARED_SEARCH_UNIQUE_DOCUMENT_BYTES}.`,
       );
     }
-    children.set(row.candidateId, Object.freeze({ row, snapshot }));
+    children.set(row.canonicalBytesHash, intrinsicRealBuildFreeze({ row, snapshot }));
     canonicalHashes.add(row.canonicalBytesHash);
   }
   return children;
@@ -220,27 +241,23 @@ function replayTransition(
   transition: RealBuildCompiledPlacementTransitionEvidence,
   index: number,
   evidence: RealBuildCompiledPlacementLineageEvidence,
-  rootsByCandidate: ReadonlyMap<string, RootLineageBinding>,
+  rootsByCanonicalHash: ReadonlyMap<string, RootLineageBinding>,
   childCandidates: ReadonlyMap<string, ChildCandidateBinding>,
-): void {
+): Sha256Digest {
   const path = `compiledLineage.uniqueTransitions[${index}]`;
   const { transitionId, ...committed } = transition;
   if (transitionId !== deriveRealBuildCompiledTransitionId(committed)) {
     throw new TypeError(`${path}.transitionId does not commit its exact retained transition.`);
   }
-  const parent = rootsByCandidate.get(transition.parentCandidateId);
+  const receipt = transition.receipt;
+  const parent = rootsByCanonicalHash.get(receipt.baseCanonicalBytesHash);
   if (parent === undefined) {
-    throw new TypeError(`${path}.parentCandidateId does not name a retained root candidate.`);
-  }
-  const retainedChild = childCandidates.get(transition.childCandidateId);
-  if (retainedChild === undefined) {
-    throw new TypeError(`${path}.childCandidateId does not name retained exact child bytes.`);
+    throw new TypeError(`${path}.receipt does not name retained exact root canonical bytes.`);
   }
   if (
     transition.parentCandidateId !== realBuildDocumentCandidateId(transition.parentDocumentHash) ||
     transition.childCandidateId !== realBuildDocumentCandidateId(transition.childDocumentHash) ||
     transition.parentDocumentHash !== parent.identity.documentHash ||
-    transition.childDocumentHash !== retainedChild.row.documentHash ||
     transition.printedStep.name !== evidence.preparedStep.compilerMetadata.name ||
     transition.printedStep.sourceActionDigest !== evidence.preparedStep.actionEvidenceDigest
   ) {
@@ -259,7 +276,6 @@ function replayTransition(
     witnesses,
   });
   if (!replay.ok) throw new TypeError(`${path} does not reproduce a successful Node compilation.`);
-  const receipt = transition.receipt;
   const compilerInputDigest = canonicalDigest({
     schemaVersion: "lego.real-build-automatic-placement-input/2",
     baseCanonicalBytesHash: parent.snapshot.canonicalBytesHash,
@@ -271,6 +287,14 @@ function replayTransition(
   });
   const childDocumentHash = replay.validationReport.targetDocumentHash as Sha256Digest;
   const replayedCanonicalBytes = canonicalBrickDocument(replay.document);
+  const replayedChild = createRealBuildCandidateDocumentSnapshot({
+    canonicalDocument: replayedCanonicalBytes,
+    expectedDocumentHash: childDocumentHash,
+  });
+  const retainedChild = childCandidates.get(replayedChild.canonicalBytesHash);
+  if (retainedChild === undefined) {
+    throw new TypeError(`${path} does not reproduce any retained exact child byte payload.`);
+  }
   if (
     receipt.compilerSnapshotHash !== replay.automaticPlacement.compilerSnapshotHash ||
     receipt.compilerInputDigest !== compilerInputDigest ||
@@ -286,25 +310,31 @@ function replayTransition(
     receipt.finalDocumentHash !== childDocumentHash ||
     receipt.finalRevision !== replay.document.revision ||
     transition.childDocumentHash !== childDocumentHash ||
+    transition.childDocumentHash !== retainedChild.row.documentHash ||
     replayedCanonicalBytes !== retainedChild.snapshot.canonicalBytes ||
     !sameValidation(receipt.validation, replay.validationReport)
   ) {
     throw new TypeError(`${path}.receipt does not exactly reproduce the current Node compiler.`);
   }
+  return replayedChild.canonicalBytesHash;
 }
 
 function validateEdges(
   evidence: RealBuildCompiledPlacementLineageEvidence,
   roots: ReadonlyMap<string, RootLineageBinding>,
+  childCandidates: ReadonlyMap<string, ChildCandidateBinding>,
   transitions: ReadonlyMap<
     RealBuildCompiledTransitionId,
     RealBuildCompiledPlacementTransitionEvidence
   >,
+  transitionChildCanonicalHashes: ReadonlyMap<RealBuildCompiledTransitionId, Sha256Digest>,
 ) {
   const edges = new Map<string, RealBuildCompiledLineageEdge>();
   const referenced = new Set<RealBuildCompiledTransitionId>();
+  const referencedChildCanonicalHashes = new Set<string>();
   const proposalIds = new Set<string>();
-  for (const [index, edge] of evidence.lineageEdges.entries()) {
+  for (let index = 0; index < evidence.lineageEdges.length; index += 1) {
+    const edge = evidence.lineageEdges[index]!;
     const path = `compiledLineage.lineageEdges[${index}]`;
     const parent = roots.get(edge.parentLineageId);
     const transition = transitions.get(edge.transitionId);
@@ -317,7 +347,39 @@ function validateEdges(
     if (edge.child.throughStepNumber !== evidence.throughStepNumber) {
       throw new TypeError(`${path}.child does not end at compiledLineage.throughStepNumber.`);
     }
-    assertRealBuildLineageParent(edge.child, parent.identity);
+    assertRealBuildLineageParent(
+      snapshotRealBuildLineageIdentity(edge.child),
+      snapshotRealBuildLineageIdentity(parent.identity),
+    );
+    if (isExactIdentity(edge.child) || isExactIdentity(parent.identity)) {
+      if (
+        !isExactIdentity(edge.child) ||
+        !isExactIdentity(parent.identity) ||
+        edge.child.parentExactLineageId !== parent.identity.exactLineageId
+      ) {
+        throw new TypeError(`${path}.child does not bind its exact canonical parent lineage.`);
+      }
+      const child = childCandidates.get(edge.child.canonicalBytesHash);
+      if (
+        child === undefined ||
+        edge.child.canonicalBytesHash !== transitionChildCanonicalHashes.get(edge.transitionId) ||
+        edge.child.canonicalByteLength !== child.row.canonicalByteLength ||
+        edge.child.documentHash !== child.row.documentHash
+      ) {
+        throw new TypeError(
+          `${path}.child does not bind the exact child bytes reproduced by its transition.`,
+        );
+      }
+      referencedChildCanonicalHashes.add(edge.child.canonicalBytesHash);
+    } else {
+      const matches = [...childCandidates.entries()].filter(
+        ([, child]) => child.row.candidateId === edge.child.candidateId,
+      );
+      if (matches.length !== 1) {
+        throw new TypeError(`${path}.child does not uniquely name retained child bytes.`);
+      }
+      referencedChildCanonicalHashes.add(matches[0]![0]);
+    }
     const expectedProposalId = deriveRealBuildPreparedSearchProposalId({
       printedStepIdentity: evidence.preparedStep.printedStepIdentity,
       parentLineageId: parent.identity.lineageId,
@@ -347,7 +409,7 @@ function validateEdges(
       throw new TypeError(`compiledLineage.uniqueTransitions contains orphan ${transitionId}.`);
     }
   }
-  return edges;
+  return intrinsicRealBuildFreeze({ edges, referencedChildCanonicalHashes });
 }
 
 export function validateRealBuildCompiledGraph(
@@ -360,27 +422,42 @@ export function validateRealBuildCompiledGraph(
     RealBuildCompiledTransitionId,
     RealBuildCompiledPlacementTransitionEvidence
   >();
-  for (const [index, transition] of evidence.uniqueTransitions.entries()) {
+  const transitionChildCanonicalHashes = new Map<RealBuildCompiledTransitionId, Sha256Digest>();
+  for (let index = 0; index < evidence.uniqueTransitions.length; index += 1) {
+    const transition = evidence.uniqueTransitions[index]!;
     if (transitions.has(transition.transitionId)) {
       throw new TypeError(`compiledLineage.uniqueTransitions[${index}] repeats an ID.`);
     }
-    replayTransition(transition, index, evidence, roots.byCandidate, childCandidates);
+    const childCanonicalBytesHash = replayTransition(
+      transition,
+      index,
+      evidence,
+      roots.byCanonicalHash,
+      childCandidates,
+    );
     transitions.set(transition.transitionId, transition);
+    transitionChildCanonicalHashes.set(transition.transitionId, childCanonicalBytesHash);
   }
   if (!evidence.searchReservation.admitted && transitions.size > 0) {
     throw new TypeError("A refused compiledLineage search cannot retain transitions.");
   }
-  const referencedChildren = new Set<string>(
-    [...transitions.values()].map(({ childCandidateId }) => childCandidateId),
+  const validatedEdges = validateEdges(
+    evidence,
+    roots.byLineage,
+    childCandidates,
+    transitions,
+    transitionChildCanonicalHashes,
   );
-  for (const candidateId of childCandidates.keys()) {
-    if (!referencedChildren.has(candidateId)) {
-      throw new TypeError(`compiledLineage.childCandidates contains orphan ${candidateId}.`);
+  for (const canonicalBytesHash of childCandidates.keys()) {
+    if (!validatedEdges.referencedChildCanonicalHashes.has(canonicalBytesHash)) {
+      throw new TypeError(
+        `compiledLineage.childCandidates contains orphan exact bytes ${canonicalBytesHash}.`,
+      );
     }
   }
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     rootsByLineage: roots.byLineage,
     transitionsById: transitions,
-    edgesByChildLineage: validateEdges(evidence, roots.byLineage, transitions),
+    edgesByChildLineage: validatedEdges.edges,
   });
 }

@@ -44,7 +44,8 @@ export function validateRealBuildCompiledSearchRequest(
       readonly row: RealBuildCompiledPlacementLineageEvidence["searchRequest"]["parents"][number];
     }
   >();
-  for (const [index, row] of request.parents.entries()) {
+  for (let index = 0; index < request.parents.length; index += 1) {
+    const row = request.parents[index]!;
     const path = `compiledLineage.searchRequest.parents[${index}]`;
     const root = roots.get(row.parentLineageId);
     if (root === undefined || requestParents.has(row.parentLineageId)) {
@@ -72,7 +73,8 @@ export function validateRealBuildCompiledSearchRequest(
   let witnessCount = 0;
   let connectionCount = 0;
   let programOperationCount = 0;
-  for (const [index, proposal] of request.proposals.entries()) {
+  for (let index = 0; index < request.proposals.length; index += 1) {
+    const proposal = request.proposals[index]!;
     const path = `compiledLineage.searchRequest.proposals[${index}]`;
     const parent = requestParents.get(proposal.parentLineageId);
     if (parent === undefined)
@@ -133,7 +135,8 @@ export function validateRealBuildCompiledSearchRequest(
     }
   }
 
-  for (const [index, parent] of request.parents.entries()) {
+  for (let index = 0; index < request.parents.length; index += 1) {
+    const parent = request.parents[index]!;
     if (parent.offeredLineages !== (offeredByParent.get(parent.parentLineageId) ?? 0)) {
       throw new TypeError(
         `compiledLineage.searchRequest.parents[${index}].offeredLineages does not equal its ordered proposals.`,

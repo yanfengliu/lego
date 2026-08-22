@@ -2,6 +2,8 @@
 
 Current state belongs in the design documents; this index records only behaviour changes, measured results, and links to the matching detailed history.
 
+- [2026-08-22 (exact multi-root compilation and branch-role finalization)](detailed/2026-08-21_2026-08-22.md) — One inspection-only atomic batch now covers distinct exact root documents under one reservation, binds structurally equal parents to their canonical bytes through exact lineage digests, pre-admits every zero-frontier terminal shape, and feeds a transport-only contiguous-prefix finalizer that admits cumulative work before copying observation roles and publishes only private fresh-copy storage.
+
 - [2026-08-21 through 2026-08-22 (refusal-only branch semantic inspection)](detailed/2026-08-21_2026-08-22.md) — The external branch roles now have a local authority-absent semantic consumer that exact-binds prepared steps and proposals, requires legacy observation state empty, charges every retained lineage/closure row class before reconstruction, rejects orphan source/camera tables before replay, and applies conservative aggregate compiler-work admission without redefining the established public lineage `/1` parser; genuine compiler-produced paths pass 1+1 work and refuse graph- and byte-over-budget pairs before second-step replay.
 
 - [2026-08-14 (strict part-identification transport boundary)](detailed/2026-08-13_2026-08-14.md) — The writable legacy answer transport is retired after a model child created local files; 73 `/4` replies remain quarantined, while exact card bytes, one MCP image tool, sanitized downstream proof, and content-addressed `/5` checkpoint lineage now fail closed behind a provider-disabled Gate-0 boundary.

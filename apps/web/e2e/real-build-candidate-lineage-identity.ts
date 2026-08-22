@@ -1,3 +1,4 @@
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import { canonicalStringify, sha256Hex, type Sha256Digest } from "@lego-studio/brick-kernel";
 
 export const REAL_BUILD_ID_MAXIMUM_LENGTH = 256;
@@ -100,7 +101,8 @@ function snapshotIdentityProperties(
   }
 
   const descriptors = new Map<string, PropertyDescriptor>();
-  for (const key of keys) {
+  for (let index = 0; index < keys.length; index += 1) {
+    const key = keys[index]!;
     let descriptor: PropertyDescriptor | undefined;
     try {
       descriptor = Object.getOwnPropertyDescriptor(input, key);
@@ -114,7 +116,8 @@ function snapshotIdentityProperties(
   }
 
   const snapshot: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
-  for (const key of keys) {
+  for (let index = 0; index < keys.length; index += 1) {
+    const key = keys[index]!;
     const descriptor = descriptors.get(key)!;
     if (!("value" in descriptor))
       throw new TypeError(
@@ -182,7 +185,7 @@ function snapshotLocalIdentity(input: unknown): RealBuildLineageLocalIdentity {
       `Real-build lineage localIdentity.id must be a 1-${REAL_BUILD_ID_MAXIMUM_LENGTH} character ASCII identifier using letters, digits, dot, underscore, colon, at, or hyphen.`,
     );
   }
-  return Object.freeze({ id, kind });
+  return intrinsicRealBuildFreeze({ id, kind });
 }
 
 export function realBuildDocumentCandidateId(documentHash: unknown): RealBuildDocumentCandidateId {
@@ -205,7 +208,7 @@ export function snapshotRealBuildCandidateIdentity(input: unknown): RealBuildCan
       `Real-build candidate identity candidateId must equal document:${documentHash}; the candidate identity cannot differ from its canonical document hash.`,
     );
   }
-  return Object.freeze({ candidateId: expectedCandidateId, documentHash });
+  return intrinsicRealBuildFreeze({ candidateId: expectedCandidateId, documentHash });
 }
 
 function requireValidatedParent(value: unknown): RealBuildLineageIdentity | null {
@@ -275,7 +278,7 @@ function buildLineageIdentity(
       throughStepNumber,
       localIdentity,
     });
-    identity = Object.freeze({
+    identity = intrinsicRealBuildFreeze({
       candidateId,
       documentHash,
       lineageId,
@@ -297,7 +300,7 @@ function buildLineageIdentity(
       throughStepNumber,
       localIdentity,
     });
-    identity = Object.freeze({
+    identity = intrinsicRealBuildFreeze({
       candidateId,
       documentHash,
       lineageId,
@@ -404,7 +407,7 @@ export function snapshotRealBuildLineageIdentity(input: unknown): DetachedRealBu
       throughStepNumber,
       localIdentity,
     });
-    identity = Object.freeze({
+    identity = intrinsicRealBuildFreeze({
       ...candidate,
       lineageId: claimedLineageId,
       lineageOrigin: "root",
@@ -431,7 +434,7 @@ export function snapshotRealBuildLineageIdentity(input: unknown): DetachedRealBu
       throughStepNumber,
       localIdentity,
     });
-    identity = Object.freeze({
+    identity = intrinsicRealBuildFreeze({
       ...candidate,
       lineageId: claimedLineageId,
       lineageOrigin: "descendant",

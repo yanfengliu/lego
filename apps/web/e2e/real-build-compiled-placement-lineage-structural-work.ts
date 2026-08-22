@@ -1,3 +1,4 @@
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import type { RealBuildCompiledPlacementLineageEvidence } from "./real-build-compiled-placement-lineage-types";
 import { preparedSearchUtf8ByteLength } from "./real-build-prepared-search-boundary";
 
@@ -23,7 +24,8 @@ export function measureRealBuildCompiledPlacementLineageStructuralWork(
 ): RealBuildCompiledPlacementLineageWork {
   let placementWitnesses = 0;
   let placementProgramOperations = 0;
-  for (const proposal of evidence.searchRequest.proposals) {
+  for (let index = 0; index < evidence.searchRequest.proposals.length; index += 1) {
+    const proposal = evidence.searchRequest.proposals[index]!;
     placementWitnesses += proposal.pieces.length;
     placementProgramOperations += proposal.pieces.reduce(
       (total, piece) => total + 1 + piece.connections.length,
@@ -32,14 +34,15 @@ export function measureRealBuildCompiledPlacementLineageStructuralWork(
   }
   let transitionPlacementWitnesses = 0;
   let transitionPlacementProgramOperations = 0;
-  for (const transition of evidence.uniqueTransitions) {
+  for (let index = 0; index < evidence.uniqueTransitions.length; index += 1) {
+    const transition = evidence.uniqueTransitions[index]!;
     transitionPlacementWitnesses += transition.pieces.length;
     transitionPlacementProgramOperations += transition.pieces.reduce(
       (total, piece) => total + 1 + piece.connections.length,
       0,
     );
   }
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     rootCandidateGroups: evidence.rootCandidates.length,
     rootLineages: evidence.rootCandidates.reduce(
       (total, candidate) => total + candidate.identities.length,

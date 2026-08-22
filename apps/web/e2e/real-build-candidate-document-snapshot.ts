@@ -1,4 +1,8 @@
 import {
+  intrinsicRealBuildFreeze,
+  stabilizeRealBuildJsonArrayIteration,
+} from "./real-build-intrinsic-freeze";
+import {
   canonicalStringify,
   documentStructuralHash,
   normalizeBrickDocument,
@@ -29,6 +33,9 @@ export type RealBuildCandidateDocumentSnapshot = Readonly<{
 }>;
 
 const snapshots = new WeakSet<object>();
+const SAFE_REFLECT_APPLY = Reflect.apply;
+const SAFE_WEAK_SET_ADD = WeakSet.prototype.add;
+const SAFE_WEAK_SET_HAS = WeakSet.prototype.has;
 
 function dataProperty(value: unknown, key: string, label: string): unknown {
   if (value === null || (typeof value !== "object" && typeof value !== "function")) {
@@ -121,7 +128,8 @@ function deepFreezeParsedJson(value: unknown): void {
       }
     }
   }
-  for (let index = objects.length - 1; index >= 0; index -= 1) Object.freeze(objects[index]!);
+  for (let index = objects.length - 1; index >= 0; index -= 1)
+    intrinsicRealBuildFreeze(objects[index]!);
 }
 
 /**
@@ -166,6 +174,7 @@ export function createRealBuildCandidateDocumentSnapshot(input: {
   } catch {
     throw new TypeError("Candidate canonicalDocument is not valid bounded JSON.");
   }
+  stabilizeRealBuildJsonArrayIteration(parsed);
   if (!validateBrickDocumentV1(parsed)) {
     throw new TypeError("Candidate canonicalDocument is not a valid BrickDocumentV1.");
   }
@@ -187,14 +196,14 @@ export function createRealBuildCandidateDocumentSnapshot(input: {
     );
   }
   deepFreezeParsedJson(parsed);
-  const snapshot = Object.freeze({
+  const snapshot = intrinsicRealBuildFreeze({
     canonicalBytes: canonicalDocument,
     canonicalByteLength,
     canonicalBytesHash: `sha256:${sha256Hex(canonicalDocument)}`,
     document: parsed,
     documentHash: measuredHash,
   }) as RealBuildCandidateDocumentSnapshot;
-  snapshots.add(snapshot);
+  SAFE_REFLECT_APPLY(SAFE_WEAK_SET_ADD, snapshots, [snapshot]);
   return snapshot;
 }
 
@@ -230,7 +239,11 @@ export function requireRealBuildCandidateDocumentSnapshot(
 export function requireRealBuildCandidateDocumentSnapshotValue(
   value: unknown,
 ): RealBuildCandidateDocumentSnapshot {
-  if (value === null || typeof value !== "object" || !snapshots.has(value)) {
+  if (
+    value === null ||
+    typeof value !== "object" ||
+    !(SAFE_REFLECT_APPLY(SAFE_WEAK_SET_HAS, snapshots, [value]) as boolean)
+  ) {
     throw new TypeError(
       "Candidate document must be the exact immutable snapshot returned by this module.",
     );

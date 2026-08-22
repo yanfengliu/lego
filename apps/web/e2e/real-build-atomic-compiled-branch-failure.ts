@@ -1,3 +1,4 @@
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import type { RealBuildAtomicCompiledBranchBatchPreparation } from "./real-build-atomic-compiled-branch-batch-input";
 import type { RealBuildAtomicCompiledPhysicalWorkPlan } from "./real-build-atomic-compiled-branch-work";
 import { deriveRealBuildCompiledTerminalFailureDigest } from "./real-build-compiled-placement-lineage-digest";
@@ -34,13 +35,13 @@ export function projectRealBuildAtomicCompilationFailure(
   const issues = "issues" in value && Array.isArray(value.issues) ? value.issues : [];
   const issue = issues[0];
   if (issue === null || typeof issue !== "object") {
-    return Object.freeze({
+    return intrinsicRealBuildFreeze({
       code: "COMPILATION_FAILED_WITHOUT_ISSUE",
       path: "compiler",
       reason: "The deterministic compiler refused the proposal without one retained issue.",
     });
   }
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     code: bounded("code" in issue ? issue.code : null, "COMPILATION_FAILED", 256),
     path: bounded("path" in issue ? issue.path : null, "compiler", 256),
     reason: bounded(
@@ -67,7 +68,7 @@ export function sameRealBuildAtomicFailureIssue(
 export function realBuildAtomicLocalFailureIssue(
   reason: string,
 ): RealBuildAtomicStableFailureIssue {
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     code: "LOCAL_EVIDENCE_CLOSURE_FAILED",
     path: "compiledLineage",
     reason,
@@ -86,7 +87,7 @@ export function createRealBuildAtomicTerminalFailure(input: {
 }): RealBuildCompiledPlacementTerminalFailure {
   const proposalId =
     input.workIndex === null ? null : input.workPlan.unique[input.workIndex]!.proposal.proposalId;
-  const failure = Object.freeze({
+  const failure = intrinsicRealBuildFreeze({
     schemaVersion: "lego.real-build-compiled-placement-terminal-failure/1" as const,
     proposalId,
     phase: input.phase,
@@ -95,7 +96,7 @@ export function createRealBuildAtomicTerminalFailure(input: {
     uniquePhysicalTransitionCount: input.workPlan.unique.length,
     issue: input.issue,
   });
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     ...failure,
     failureDigest: deriveRealBuildCompiledTerminalFailureDigest({
       throughStepNumber: input.preparation.preparedStep.stepNumber,

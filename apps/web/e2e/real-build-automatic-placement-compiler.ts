@@ -1,3 +1,4 @@
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import {
   BUILTIN_COMPILER_SNAPSHOT_HASH,
   canonicalDigest,
@@ -159,9 +160,9 @@ function programFor(
       `Automatic placement requires ${required.size} base attachment ports above the ${REAL_BUILD_AUTOMATIC_MAXIMUM_REQUIRED_BASE_PORTS} scope limit.`,
     );
   }
-  return Object.freeze({
-    operations: Object.freeze(operations),
-    requiredPorts: Object.freeze([...required.values()]),
+  return intrinsicRealBuildFreeze({
+    operations: intrinsicRealBuildFreeze(operations),
+    requiredPorts: intrinsicRealBuildFreeze([...required.values()]),
   });
 }
 

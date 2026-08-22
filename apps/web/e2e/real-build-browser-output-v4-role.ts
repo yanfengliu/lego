@@ -1,3 +1,4 @@
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import { createHash } from "node:crypto";
 
 import type { Sha256Digest } from "@lego-studio/brick-kernel";
@@ -20,6 +21,18 @@ import {
   createRealBuildBrowserBranchRoleSnapshotRegistry,
   type RealBuildBrowserBranchStepEvidenceBytes,
 } from "./real-build-browser-output-v4-role-snapshots";
+import {
+  MAXIMUM_REAL_BUILD_BROWSER_BRANCH_INDEX_BYTES,
+  MAXIMUM_REAL_BUILD_BROWSER_BRANCH_ROLE_BYTES,
+  MAXIMUM_REAL_BUILD_BROWSER_BRANCH_ROLE_BYTES_TOTAL,
+} from "./real-build-browser-output-v4-role-limits";
+import { createIntrinsicUint8Array, setIntrinsicUint8Array } from "./real-build-hostile-uint8array";
+
+export {
+  MAXIMUM_REAL_BUILD_BROWSER_BRANCH_INDEX_BYTES,
+  MAXIMUM_REAL_BUILD_BROWSER_BRANCH_ROLE_BYTES,
+  MAXIMUM_REAL_BUILD_BROWSER_BRANCH_ROLE_BYTES_TOTAL,
+} from "./real-build-browser-output-v4-role-limits";
 
 export type { RealBuildBrowserBranchStepEvidenceBytes } from "./real-build-browser-output-v4-role-snapshots";
 
@@ -32,14 +45,12 @@ export function readRealBuildBrowserBranchStepEvidenceBytes(
   return VERIFIED_ROLE_SNAPSHOTS.read(inspectedEvidence, stepNumber);
 }
 
-export const MAXIMUM_REAL_BUILD_BROWSER_BRANCH_INDEX_BYTES = 8 * 1024 * 1024;
-export const MAXIMUM_REAL_BUILD_BROWSER_BRANCH_ROLE_BYTES = 512 * 1024 * 1024;
-export const MAXIMUM_REAL_BUILD_BROWSER_BRANCH_ROLE_BYTES_TOTAL = 512 * 1024 * 1024;
-
 const MAXIMUM_BRANCH_INDEX_JSON_DEPTH = 64;
 const MAXIMUM_BRANCH_INDEX_JSON_VALUES = 32_768;
 const MAXIMUM_BRANCH_STEPS = 359;
 const DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/u;
+const SAFE_NUMBER_IS_SAFE_INTEGER = Number.isSafeInteger;
+const SAFE_REFLECT_APPLY = Reflect.apply;
 const TYPED_ARRAY_PROTOTYPE = Object.getPrototypeOf(Uint8Array.prototype) as object;
 const TYPED_ARRAY_LENGTH = Object.getOwnPropertyDescriptor(TYPED_ARRAY_PROTOTYPE, "length")?.get;
 const TYPED_ARRAY_BUFFER = Object.getOwnPropertyDescriptor(TYPED_ARRAY_PROTOTYPE, "buffer")?.get;
@@ -74,20 +85,20 @@ function inspectGenuineBytes(value: unknown, label: string): InspectedBytes {
     ) {
       throw null;
     }
-    length = TYPED_ARRAY_LENGTH.call(value) as number;
-    buffer = TYPED_ARRAY_BUFFER.call(value) as ArrayBufferLike;
-    tag = TYPED_ARRAY_TAG.call(value) as string;
+    length = SAFE_REFLECT_APPLY(TYPED_ARRAY_LENGTH, value, []) as number;
+    buffer = SAFE_REFLECT_APPLY(TYPED_ARRAY_BUFFER, value, []) as ArrayBufferLike;
+    tag = SAFE_REFLECT_APPLY(TYPED_ARRAY_TAG, value, []) as string;
   } catch {
     throw new TypeError(`${label} must be a genuine Uint8Array.`);
   }
   if (tag !== "Uint8Array") throw new TypeError(`${label} must be a genuine Uint8Array.`);
-  if (!Number.isSafeInteger(length) || length < 0) {
+  if (!SAFE_NUMBER_IS_SAFE_INTEGER(length) || length < 0) {
     throw new TypeError(`${label} must expose a stable non-negative safe byte length.`);
   }
   if (SHARED_BYTE_LENGTH !== undefined) {
     let shared = false;
     try {
-      SHARED_BYTE_LENGTH.call(buffer);
+      SAFE_REFLECT_APPLY(SHARED_BYTE_LENGTH, buffer, []);
       shared = true;
     } catch {
       // Ordinary ArrayBuffer storage rejects the SharedArrayBuffer intrinsic.
@@ -100,9 +111,9 @@ function inspectGenuineBytes(value: unknown, label: string): InspectedBytes {
 }
 
 function copyInspectedBytes(input: InspectedBytes, label: string): Uint8Array {
-  const snapshot = new Uint8Array(input.length);
+  const snapshot = createIntrinsicUint8Array(input.length);
   try {
-    Uint8Array.prototype.set.call(snapshot, input.value as Uint8Array);
+    setIntrinsicUint8Array(snapshot, input.value as Uint8Array);
   } catch {
     throw new TypeError(`${label} changed or detached during bounded copying.`);
   }
@@ -185,7 +196,7 @@ function parseRoleDescriptor<Role extends RealBuildBrowserBranchRoleName>(
 ): RealBuildBrowserBranchRoleDescriptor<Role> {
   const row = exactRecord(value, path, ["role", "bytes", "digest"]);
   if (row.role !== expectedRole) throw new TypeError(`${path}.role must be ${expectedRole}.`);
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     role: expectedRole,
     bytes: integer(row.bytes, `${path}.bytes`, 0, MAXIMUM_REAL_BUILD_BROWSER_BRANCH_ROLE_BYTES),
     digest: digest(row.digest, `${path}.digest`),
@@ -204,7 +215,7 @@ function parseCompiledReference(
   if (row.encoding !== "utf8-json/1") {
     throw new TypeError(`${path}.encoding must be utf8-json/1.`);
   }
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     role: "compiled-branch-evidence-bytes",
     offset: integer(row.offset, `${path}.offset`, 0, MAXIMUM_REAL_BUILD_BROWSER_BRANCH_ROLE_BYTES),
     bytes: integer(row.bytes, `${path}.bytes`, 1, maximumBytes),
@@ -224,7 +235,7 @@ function parseObservationReference(
   if (row.encoding !== "raw-bytes/1") {
     throw new TypeError(`${path}.encoding must be raw-bytes/1.`);
   }
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     role: "branch-observation-bytes",
     offset: integer(row.offset, `${path}.offset`, 0, MAXIMUM_REAL_BUILD_BROWSER_BRANCH_ROLE_BYTES),
     bytes: integer(
@@ -308,7 +319,7 @@ function parseBranchEvidence(bytes: unknown): RealBuildBrowserBranchEvidenceV1 {
       );
     }
     steps.push(
-      Object.freeze({
+      intrinsicRealBuildFreeze({
         stepNumber,
         compiledLineage: parseCompiledReference(
           step.compiledLineage,
@@ -339,11 +350,11 @@ function parseBranchEvidence(bytes: unknown): RealBuildBrowserBranchEvidenceV1 {
       `Browser branch-evidence declares ${compiledBranchRole.bytes + observationRole.bytes} role bytes; combined maximum is ${MAXIMUM_REAL_BUILD_BROWSER_BRANCH_ROLE_BYTES_TOTAL}.`,
     );
   }
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     schemaVersion: REAL_BUILD_BROWSER_BRANCH_EVIDENCE_SCHEMA_VERSION,
     compiledBranchRole,
     observationRole,
-    steps: Object.freeze(steps),
+    steps: intrinsicRealBuildFreeze(steps),
   });
 }
 

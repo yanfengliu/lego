@@ -1,3 +1,4 @@
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import {
   measureRealBuildAutomaticPlacementBaseWork,
   measureRealBuildAutomaticPlacementWork,
@@ -48,12 +49,13 @@ function compilerWitnesses(
 export function measureRealBuildCompiledPlacementLineageReplayWork(
   evidence: RealBuildCompiledPlacementLineageEvidence,
 ): RealBuildCompiledPlacementLineageReplayWork {
-  const rootsByCandidate = new Map<string, RootWork>();
+  const rootsByCanonicalHash = new Map<string, RootWork>();
   const rootsByLineage = new Map<string, RootWork>();
-  for (const [index, group] of evidence.rootCandidates.entries()) {
+  for (let index = 0; index < evidence.rootCandidates.length; index += 1) {
+    const group = evidence.rootCandidates[index]!;
     const path = `compiledLineage.rootCandidates[${index}]`;
-    if (rootsByCandidate.has(group.candidateId)) {
-      throw new TypeError(`${path}.candidateId duplicates an earlier root candidate.`);
+    if (rootsByCanonicalHash.has(group.canonicalBytesHash)) {
+      throw new TypeError(`${path}.canonicalBytesHash duplicates exact root bytes.`);
     }
     const snapshot = createRealBuildCandidateDocumentSnapshot({
       canonicalDocument: group.canonicalBytes,
@@ -65,15 +67,16 @@ export function measureRealBuildCompiledPlacementLineageReplayWork(
     ) {
       throw new TypeError(`${path} canonical byte hash or UTF-8 length does not reproduce.`);
     }
-    const root = Object.freeze({
+    const root = intrinsicRealBuildFreeze({
       snapshot,
       base: measureRealBuildAutomaticPlacementBaseWork(
         snapshot.document,
         snapshot.canonicalByteLength,
       ),
     });
-    rootsByCandidate.set(group.candidateId, root);
-    for (const [identityIndex, identity] of group.identities.entries()) {
+    rootsByCanonicalHash.set(group.canonicalBytesHash, root);
+    for (let identityIndex = 0; identityIndex < group.identities.length; identityIndex += 1) {
+      const identity = group.identities[identityIndex]!;
       if (rootsByLineage.has(identity.lineageId)) {
         throw new TypeError(`${path}.identities[${identityIndex}].lineageId is duplicated.`);
       }
@@ -112,12 +115,13 @@ export function measureRealBuildCompiledPlacementLineageReplayWork(
     compilerByteVisits = safeAdd("compiler byte-visit count", compilerByteVisits, work.byteVisits);
   };
 
-  for (const [index, transition] of evidence.uniqueTransitions.entries()) {
+  for (let index = 0; index < evidence.uniqueTransitions.length; index += 1) {
+    const transition = evidence.uniqueTransitions[index]!;
     chargeAttempt(
-      rootsByCandidate.get(transition.parentCandidateId),
+      rootsByCanonicalHash.get(transition.receipt.baseCanonicalBytesHash),
       transition.printedStep,
       transition.pieces,
-      `compiledLineage.uniqueTransitions[${index}].parentCandidateId`,
+      `compiledLineage.uniqueTransitions[${index}].receipt.baseCanonicalBytesHash`,
     );
   }
   if (evidence.terminalFailure?.code === "automatic-compilation-failed") {
@@ -137,7 +141,7 @@ export function measureRealBuildCompiledPlacementLineageReplayWork(
     );
   }
 
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     compilerReplayOperations,
     compilerGraphVisits,
     compilerByteVisits,
@@ -164,7 +168,14 @@ export function requireRealBuildCompiledPlacementLineageReplayWorkWithinLimits(
       REAL_BUILD_AUTOMATIC_MAXIMUM_BYTE_VISITS,
     ],
   ] as const;
-  const exceeded = bounds.find(([, value, maximum]) => value > maximum);
+  let exceeded: (typeof bounds)[number] | undefined;
+  for (let index = 0; index < bounds.length; index += 1) {
+    const bound = bounds[index]!;
+    if (bound[1] > bound[2]) {
+      exceeded = bound;
+      break;
+    }
+  }
   if (exceeded !== undefined) {
     throw new RangeError(
       `Compiled lineage replay preflight aggregates ${exceeded[1]} ${exceeded[0]}; maximum is ${exceeded[2]}. Split or refuse the retained search before compiler replay.`,

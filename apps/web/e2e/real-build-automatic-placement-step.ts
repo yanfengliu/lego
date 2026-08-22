@@ -1,3 +1,4 @@
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import { COLOR_DEFINITIONS, PART_DEFINITIONS } from "@lego-studio/catalog";
 import {
   applyBuildOperations,
@@ -157,7 +158,7 @@ export function snapshotRealBuildAutomaticPrintedStepMetadata(
       "Automatic printed-step metadata.sourceActionDigest must be an exact sha256 digest.",
     );
   }
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     name,
     sourceActionDigest: sourceActionDigest as `sha256:${string}`,
   });
@@ -253,7 +254,7 @@ function requireExactPriorPrintedSteps(
       );
     }
     return [
-      Object.freeze({
+      intrinsicRealBuildFreeze({
         kind: "removeStep" as const,
         operationId: "remove-empty-root-bootstrap-step",
         step: bootstrap,
@@ -294,7 +295,7 @@ export function prepareRealBuildAutomaticPrintedStep(input: {
   readonly compilerInputDigest: `sha256:${string}`;
 }): RealBuildPreparedAutomaticPrintedStep {
   const prefixOperations = requireExactPriorPrintedSteps(input.document, input.printedStepNumber);
-  const step: BuildStep = Object.freeze({
+  const step: BuildStep = intrinsicRealBuildFreeze({
     id: deterministicId("real-build-step", {
       compilerInputDigest: input.compilerInputDigest,
       printedStepNumber: input.printedStepNumber,
@@ -302,9 +303,9 @@ export function prepareRealBuildAutomaticPrintedStep(input: {
     }),
     index: input.printedStepNumber - 1,
     name: input.metadata.name,
-    partIds: Object.freeze([]),
+    partIds: intrinsicRealBuildFreeze([]),
   });
-  const addStepOperation = Object.freeze({
+  const addStepOperation = intrinsicRealBuildFreeze({
     kind: "addStep" as const,
     operationId: deterministicId("add-printed-step", {
       compilerInputDigest: input.compilerInputDigest,
@@ -312,7 +313,7 @@ export function prepareRealBuildAutomaticPrintedStep(input: {
     }),
     step,
   });
-  const preparationOperations = Object.freeze([...prefixOperations, addStepOperation]);
+  const preparationOperations = intrinsicRealBuildFreeze([...prefixOperations, addStepOperation]);
   let documentWithStep: BrickDocumentV1;
   try {
     documentWithStep = applyBuildOperations(input.document, preparationOperations);
@@ -321,7 +322,7 @@ export function prepareRealBuildAutomaticPrintedStep(input: {
       `Automatic printed step ${input.printedStepNumber} could not be added to the exact retained parent document.`,
     );
   }
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     addStepOperation,
     preparationOperations,
     documentWithStep,

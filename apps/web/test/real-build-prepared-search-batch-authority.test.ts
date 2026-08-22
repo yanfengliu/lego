@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { createRealBuildCandidateDocumentSnapshot } from "../e2e/real-build-candidate-document-snapshot";
 import { createRealBuildLineageIdentity } from "../e2e/real-build-candidate-lineage-identity";
+import { deriveRealBuildExactLineageIdentity } from "../e2e/real-build-exact-lineage-identity";
 import {
   createRealBuildPreparedSearchBatchPreflight,
   inspectRealBuildPreparedSearchBatch,
@@ -130,6 +131,61 @@ describe("prepared search batch prerequisite", () => {
     expect(() => inspectRealBuildPreparedSearchBatch(differingInput)).toThrow(
       /share the exact branded parent snapshot reference/u,
     );
+  });
+
+  it("refuses a late generic row after exact convergent parents bind distinct bytes", () => {
+    const first = inspectionInput();
+    const otherDocument = {
+      ...first.parent.documentSnapshot.document,
+      id: "second-exact-parent",
+      name: "Second exact cosmetic name",
+    };
+    expect(documentStructuralHash(otherDocument)).toBe(first.parent.identity.documentHash);
+    const otherSnapshot = createRealBuildCandidateDocumentSnapshot({
+      canonicalDocument: canonicalBrickDocument(otherDocument),
+      expectedDocumentHash: first.parent.identity.documentHash,
+    });
+    const secondExact = deriveRealBuildExactLineageIdentity({
+      candidateId: first.parent.identity.candidateId,
+      documentHash: first.parent.identity.documentHash,
+      documentSnapshot: otherSnapshot,
+      parent: first.parent.rootIdentity,
+      throughStepNumber: 1,
+      localIdentity: { kind: "decision", id: "prepared-search-second-exact" },
+    });
+    const lateRoot = createRealBuildLineageIdentity({
+      candidateId: first.parent.rootIdentity.candidateId,
+      documentHash: first.parent.rootIdentity.documentHash,
+      parent: null,
+      throughStepNumber: 0,
+      localIdentity: { kind: "decision", id: "prepared-search-late-root" },
+    });
+    const lateGeneric = createRealBuildLineageIdentity({
+      candidateId: first.parent.identity.candidateId,
+      documentHash: first.parent.identity.documentHash,
+      parent: lateRoot,
+      throughStepNumber: 1,
+      localIdentity: { kind: "decision", id: "prepared-search-late-generic" },
+    });
+
+    expect(() =>
+      inspectRealBuildPreparedSearchBatch({
+        preparedStep: first.preparedStep,
+        parents: [
+          { ...first.parent, children: [{ pieces: preparedWitnesses() }] },
+          {
+            identity: secondExact,
+            documentSnapshot: otherSnapshot,
+            children: [{ pieces: preparedWitnesses() }],
+          },
+          {
+            identity: lateGeneric,
+            documentSnapshot: first.parent.documentSnapshot,
+            children: [{ pieces: preparedWitnesses() }],
+          },
+        ],
+      }),
+    ).toThrow(/share the exact branded parent snapshot reference/u);
   });
 
   it("admits an inspection-only ground-supported first witness with zero connections", () => {

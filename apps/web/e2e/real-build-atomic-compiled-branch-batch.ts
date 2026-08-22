@@ -1,18 +1,28 @@
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import type { Sha256Digest } from "@lego-studio/brick-kernel";
 
-import { compileRealBuildAutomaticPlacement } from "./real-build-automatic-placement-compiler";
+import { compileRealBuildAutomaticPlacement as compilePlacement } from "./real-build-automatic-placement-compiler";
 import {
   prepareRealBuildAtomicCompiledBranchBatch,
-  requireRealBuildAtomicCompiledBranchBatchPreparation,
-  type RealBuildAtomicCompiledBranchBatchPreparation,
+  requireRealBuildAtomicCompiledBranchParentIdentity,
+  requireRealBuildAtomicCompiledBranchBatchPreparation as requireBatchPreparation,
+  type RealBuildAtomicCompiledBranchBatchPreparation as BatchPreparation,
 } from "./real-build-atomic-compiled-branch-batch-input";
+import { createRealBuildCandidateDocumentSnapshot } from "./real-build-candidate-document-snapshot";
 import {
-  createRealBuildAtomicTerminalFailure,
+  createRealBuildAtomicTerminalFailure as createTerminalFailure,
   projectRealBuildAtomicCompilationFailure,
-  realBuildAtomicLocalFailureIssue,
+  realBuildAtomicLocalFailureIssue as localFailureIssue,
   sameRealBuildAtomicFailureIssue,
   type RealBuildAtomicStableFailureIssue,
 } from "./real-build-atomic-compiled-branch-failure";
+import {
+  budgetRefusedEvidence,
+  emptyDecision,
+  evidenceBase,
+  failedEvidence,
+  preparedStepEvidence,
+} from "./real-build-atomic-compiled-branch-evidence";
 import {
   compileRealBuildAtomicPhysicalWork,
   createRealBuildAtomicCompiledChildRegistry,
@@ -26,24 +36,29 @@ import {
   type RealBuildAtomicCompiledWorkResult,
 } from "./real-build-atomic-compiled-branch-work";
 import {
+  preflightRealBuildAtomicCompiledTerminalEnvelope,
+  requireRealBuildAtomicCompiledLineageMaximumBytes,
+  serializeRealBuildAtomicCompiledPlacementLineageEvidence,
+} from "./real-build-atomic-compiled-branch-terminal-envelope";
+import {
   createRealBuildAtomicCompiledBranchEvidenceWire,
   decodeRealBuildAtomicCompiledBranchEvidenceWire,
   type RealBuildAtomicCompiledBranchEvidenceWire,
 } from "./real-build-atomic-compiled-branch-wire";
-import {
-  deriveRealBuildLineageIdentity,
-  realBuildDocumentCandidateId,
-} from "./real-build-candidate-lineage-identity";
+import { deriveRealBuildExactLineageIdentity } from "./real-build-exact-lineage-identity";
 import { parseRealBuildCompiledPlacementLineage } from "./real-build-compiled-placement-lineage";
 import type {
   RealBuildCompiledLineageEdge,
   RealBuildCompiledPlacementLineageEvidence,
   RealBuildCompiledPlacementTerminalFailure,
-  RealBuildCompiledSearchRequest,
 } from "./real-build-compiled-placement-lineage-types";
+import { MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_BYTES } from "./real-build-compiled-placement-lineage-types";
 import { MAXIMUM_REAL_BUILD_PREPARED_SEARCH_UNIQUE_DOCUMENT_BYTES } from "./real-build-prepared-search-boundary";
 import type { RealBuildPreparedSearchReservation } from "./real-build-prepared-search-ledger";
-import { reserveRealBuildPreparedSearchInspectionBatch } from "./real-build-prepared-search-ledger";
+import {
+  isReservedRealBuildPreparedSearchBatchInspection,
+  reserveRealBuildPreparedSearchInspectionBatch,
+} from "./real-build-prepared-search-ledger";
 
 export type { RealBuildAtomicCompiledBranchCompiler } from "./real-build-atomic-compiled-branch-work";
 export { decodeRealBuildAtomicCompiledBranchEvidenceWire } from "./real-build-atomic-compiled-branch-wire";
@@ -62,92 +77,45 @@ export interface RealBuildAtomicCompiledBranchBatchResult {
   readonly acceptedDocument: null;
 }
 
-const COMPLETION_AUTHORITY = Object.freeze({
-  status: "absent" as const,
-  authorized: false as const,
-  reason: "compiled-placement-lineage-is-inspection-only" as const,
-});
+const batchResults = new WeakSet<object>();
+const SAFE_REFLECT_APPLY = Reflect.apply;
+const SAFE_MAP = Map;
+const SAFE_MAP_GET = Map.prototype.get;
+const SAFE_MAP_SET = Map.prototype.set;
+const SAFE_WEAK_SET_ADD = WeakSet.prototype.add;
+const SAFE_WEAK_SET_HAS = WeakSet.prototype.has;
 
-const SCORE_AUTHORITY = Object.freeze({
+function mapGet<K, V>(map: ReadonlyMap<K, V>, key: K): V | undefined {
+  return SAFE_REFLECT_APPLY(SAFE_MAP_GET, map, [key]) as V | undefined;
+}
+
+function mapSet<K, V>(map: Map<K, V>, key: K, value: V): void {
+  SAFE_REFLECT_APPLY(SAFE_MAP_SET, map, [key, value]);
+}
+
+const SCORE_AUTHORITY = intrinsicRealBuildFreeze({
   status: "absent" as const,
   authorized: false as const,
   reason: "compiled-branch-batch-has-no-score-authority" as const,
 });
 
-function rootCandidates(
-  preparation: RealBuildAtomicCompiledBranchBatchPreparation,
-): RealBuildCompiledPlacementLineageEvidence["rootCandidates"] {
-  const snapshot = preparation.rootDocumentSnapshot;
-  return Object.freeze([
-    Object.freeze({
-      candidateId: realBuildDocumentCandidateId(snapshot.documentHash),
-      documentHash: snapshot.documentHash,
-      identities: preparation.rootIdentities,
-      canonicalBytes: snapshot.canonicalBytes,
-      canonicalBytesHash: snapshot.canonicalBytesHash,
-      canonicalByteLength: snapshot.canonicalByteLength,
-    }),
-  ]);
-}
-
-function preparedStepEvidence(
-  preparation: RealBuildAtomicCompiledBranchBatchPreparation,
-): RealBuildCompiledPlacementLineageEvidence["preparedStep"] {
-  return Object.freeze({
-    preparedRunInputDigest: preparation.preparedStep.preparedRunInputDigest,
-    printedStepIdentity: preparation.preparedStep.printedStepIdentity,
-    actionEvidenceDigest: preparation.printedStep.sourceActionDigest,
-    compilerMetadata: preparation.printedStep,
-  });
-}
-
-function searchRequest(
-  preparation: RealBuildAtomicCompiledBranchBatchPreparation,
-): RealBuildCompiledSearchRequest {
-  const inspection = preparation.searchInspection;
-  return Object.freeze({
-    preflightIdentity: inspection.preflightIdentity,
-    parents: Object.freeze(
-      inspection.parentBindings.map((binding) =>
-        Object.freeze({
-          parentLineageId: binding.parentLineageId,
-          candidateId: binding.identity.candidateId,
-          documentHash: binding.identity.documentHash,
-          canonicalDocumentDigest: binding.canonicalDocumentDigest,
-          offeredLineages: binding.offeredLineages,
-        }),
-      ),
-    ),
-    proposals: inspection.proposals,
-    offeredLineages: inspection.offeredLineages,
-    witnessCount: inspection.witnessCount,
-    connectionCount: inspection.connectionCount,
-    programOperationCount: inspection.programOperationCount,
-  });
-}
-
-function emptyDecision(status: "unresolved" | "not-applicable") {
-  return Object.freeze({
-    status,
-    decisionPanelStepNumber: null,
-    selectedCandidateId: null,
-    selectedLineageIds: Object.freeze([]),
-    bestScore: null,
-    runnerUpScore: null,
-    margin: null,
-  });
-}
-
 function closeResult(
   status: RealBuildAtomicCompiledBranchBatchResult["status"],
   evidence: RealBuildCompiledPlacementLineageEvidence,
+  maximumCompiledLineageBytes: number,
 ): RealBuildAtomicCompiledBranchBatchResult {
-  const bytes = new TextEncoder().encode(JSON.stringify(evidence));
+  const bytes = serializeRealBuildAtomicCompiledPlacementLineageEvidence(evidence);
+  if (bytes.byteLength > maximumCompiledLineageBytes) {
+    throw new RangeError(
+      `Atomic compiled evidence contains ${bytes.byteLength} serialized bytes above maximum ${maximumCompiledLineageBytes}.`,
+    );
+  }
   const evidenceWire = createRealBuildAtomicCompiledBranchEvidenceWire(bytes);
   const parsed = parseRealBuildCompiledPlacementLineage(
     decodeRealBuildAtomicCompiledBranchEvidenceWire(evidenceWire),
+    maximumCompiledLineageBytes,
   );
-  return Object.freeze({
+  const result = intrinsicRealBuildFreeze({
     status,
     evidence: parsed,
     evidenceWire,
@@ -156,55 +124,35 @@ function closeResult(
     acceptedTransition: null,
     acceptedDocument: null,
   });
-}
-
-function evidenceBase(
-  preparation: RealBuildAtomicCompiledBranchBatchPreparation,
-  reservation: RealBuildPreparedSearchReservation,
-) {
-  return {
-    schemaVersion: "lego.real-build-compiled-placement-lineage/1" as const,
-    throughStepNumber: preparation.preparedStep.stepNumber,
-    preparedStep: preparedStepEvidence(preparation),
-    rootCandidates: rootCandidates(preparation),
-    searchRequest: searchRequest(preparation),
-    searchReservation: reservation,
-    observationBytes: null,
-    observationRefs: Object.freeze([]),
-    acceptedTransition: null,
-    completionAuthority: COMPLETION_AUTHORITY,
-  };
+  SAFE_REFLECT_APPLY(SAFE_WEAK_SET_ADD, batchResults, [result]);
+  return result;
 }
 
 function failedResult(
-  preparation: RealBuildAtomicCompiledBranchBatchPreparation,
+  preparation: BatchPreparation,
   reservation: RealBuildPreparedSearchReservation,
   failure: RealBuildCompiledPlacementTerminalFailure,
+  maximumCompiledLineageBytes: number,
 ) {
-  return closeResult("failed", {
-    ...evidenceBase(preparation, reservation),
-    status: "failed",
-    terminalFailure: failure,
-    childCandidates: Object.freeze([]),
-    uniqueTransitions: Object.freeze([]),
-    lineageEdges: Object.freeze([]),
-    selection: emptyDecision("not-applicable"),
-  });
+  return closeResult(
+    "failed",
+    failedEvidence(preparation, reservation, failure),
+    maximumCompiledLineageBytes,
+  );
 }
 
 function classifyFailedCompilation(
-  preparation: RealBuildAtomicCompiledBranchBatchPreparation,
+  preparation: BatchPreparation,
   reservation: RealBuildPreparedSearchReservation,
   workPlan: RealBuildAtomicCompiledPhysicalWorkPlan,
   index: number,
   injectedIssue: RealBuildAtomicStableFailureIssue,
+  maximumCompiledLineageBytes: number,
 ): RealBuildAtomicCompiledBranchBatchResult {
   let actualIssue: RealBuildAtomicStableFailureIssue | null = null;
   try {
     actualIssue = projectRealBuildAtomicCompilationFailure(
-      compileRealBuildAutomaticPlacement(
-        realBuildAtomicCompilerInput(preparation, workPlan.unique[index]!.proposal),
-      ),
+      compilePlacement(realBuildAtomicCompilerInput(preparation, workPlan.unique[index]!.proposal)),
     );
   } catch {
     // A thrown compiler path is a local closure failure, not a deterministic refusal claim.
@@ -213,7 +161,7 @@ function classifyFailedCompilation(
   return failedResult(
     preparation,
     reservation,
-    createRealBuildAtomicTerminalFailure({
+    createTerminalFailure({
       preparation,
       preparedStep: preparedStepEvidence(preparation),
       reservation,
@@ -223,21 +171,23 @@ function classifyFailedCompilation(
       code: genuine ? "automatic-compilation-failed" : "compiled-evidence-closure-failed",
       issue: genuine
         ? injectedIssue
-        : realBuildAtomicLocalFailureIssue(
+        : localFailureIssue(
             "The supplied compiler refusal did not reproduce under the current Node compiler.",
           ),
     }),
+    maximumCompiledLineageBytes,
   );
 }
 
 function executeAdmitted(
-  preparation: RealBuildAtomicCompiledBranchBatchPreparation,
+  preparation: BatchPreparation,
   reservation: RealBuildPreparedSearchReservation,
   workPlan: RealBuildAtomicCompiledPhysicalWorkPlan,
   compiler: RealBuildAtomicCompiledBranchCompiler,
   childRegistry: RealBuildAtomicCompiledChildRegistry,
+  maximumCompiledLineageBytes: number,
 ): RealBuildAtomicCompiledBranchBatchResult {
-  const workResults = new Map<Sha256Digest, RealBuildAtomicCompiledWorkResult>();
+  const workResults = new SAFE_MAP<Sha256Digest, RealBuildAtomicCompiledWorkResult>();
   let activeIndex = 0;
   for (; activeIndex < workPlan.unique.length; activeIndex += 1) {
     const work = workPlan.unique[activeIndex]!;
@@ -249,14 +199,21 @@ function executeAdmitted(
         if (issue === null) {
           throw new TypeError("The supplied compiler returned no stable failure issue.");
         }
-        return classifyFailedCompilation(preparation, reservation, workPlan, activeIndex, issue);
+        return classifyFailedCompilation(
+          preparation,
+          reservation,
+          workPlan,
+          activeIndex,
+          issue,
+          maximumCompiledLineageBytes,
+        );
       }
       compiled = supplied;
     } catch {
       return failedResult(
         preparation,
         reservation,
-        createRealBuildAtomicTerminalFailure({
+        createTerminalFailure({
           preparation,
           preparedStep: preparedStepEvidence(preparation),
           reservation,
@@ -264,14 +221,15 @@ function executeAdmitted(
           workIndex: activeIndex,
           phase: "evidence-closure",
           code: "compiled-evidence-closure-failed",
-          issue: realBuildAtomicLocalFailureIssue(
+          issue: localFailureIssue(
             "The supplied compiler threw while compiling this isolated proposal.",
           ),
         }),
+        maximumCompiledLineageBytes,
       );
     }
     try {
-      compiled = Object.freeze({
+      compiled = intrinsicRealBuildFreeze({
         transition: compiled.transition,
         childCandidate: childRegistry.admit(compiled.childCandidate),
       });
@@ -279,7 +237,7 @@ function executeAdmitted(
       return failedResult(
         preparation,
         reservation,
-        createRealBuildAtomicTerminalFailure({
+        createTerminalFailure({
           preparation,
           preparedStep: preparedStepEvidence(preparation),
           reservation,
@@ -287,17 +245,18 @@ function executeAdmitted(
           workIndex: activeIndex,
           phase: "evidence-closure",
           code: "compiled-evidence-closure-failed",
-          issue: realBuildAtomicLocalFailureIssue(
+          issue: localFailureIssue(
             "This compiled child exceeded the aggregate exact-byte limit or aliased retained bytes.",
           ),
         }),
+        maximumCompiledLineageBytes,
       );
     }
     try {
       const replayed = compileRealBuildAtomicPhysicalWork(
         preparation,
         work.proposal,
-        compileRealBuildAutomaticPlacement,
+        compilePlacement,
       );
       if (
         !isRealBuildAtomicCompiledWorkResult(replayed) ||
@@ -309,7 +268,7 @@ function executeAdmitted(
       return failedResult(
         preparation,
         reservation,
-        createRealBuildAtomicTerminalFailure({
+        createTerminalFailure({
           preparation,
           preparedStep: preparedStepEvidence(preparation),
           reservation,
@@ -317,37 +276,47 @@ function executeAdmitted(
           workIndex: activeIndex,
           phase: "evidence-closure",
           code: "compiled-evidence-closure-failed",
-          issue: realBuildAtomicLocalFailureIssue(
+          issue: localFailureIssue(
             "The supplied compiler result did not reproduce under the current Node compiler.",
           ),
         }),
+        maximumCompiledLineageBytes,
       );
     }
-    workResults.set(work.digest, compiled);
+    mapSet(workResults, work.digest, compiled);
   }
 
-  const bindings = new Map(
-    preparation.searchInspection.parentBindings.map((binding) => [
-      binding.parentLineageId,
-      binding,
-    ]),
-  );
+  const bindings = new SAFE_MAP<
+    string,
+    BatchPreparation["searchInspection"]["parentBindings"][number]
+  >();
+  for (const binding of preparation.searchInspection.parentBindings) {
+    mapSet(bindings, binding.parentLineageId, binding);
+  }
   const edges: RealBuildCompiledLineageEdge[] = [];
   for (const proposal of preparation.searchInspection.proposals) {
-    const planned = workPlan.byProposalId.get(proposal.proposalId)!;
-    const workIndex = workPlan.indexByDigest.get(planned.digest)!;
+    const planned = mapGet(workPlan.byProposalId, proposal.proposalId)!;
+    const workIndex = mapGet(workPlan.indexByDigest, planned.digest)!;
     try {
-      const work = workResults.get(planned.digest)!;
-      const binding = bindings.get(proposal.parentLineageId)!;
-      const child = deriveRealBuildLineageIdentity({
+      const work = mapGet(workResults, planned.digest)!;
+      const binding = mapGet(bindings, proposal.parentLineageId)!;
+      const childSnapshot = createRealBuildCandidateDocumentSnapshot({
+        canonicalDocument: work.childCandidate.canonicalBytes,
+        expectedDocumentHash: work.childCandidate.documentHash,
+      });
+      const child = deriveRealBuildExactLineageIdentity({
         candidateId: work.transition.childCandidateId,
         documentHash: work.transition.childDocumentHash,
-        parent: binding.identity,
+        documentSnapshot: childSnapshot,
+        parent: requireRealBuildAtomicCompiledBranchParentIdentity(
+          preparation,
+          binding.identity.lineageId,
+        ),
         throughStepNumber: preparation.preparedStep.stepNumber,
         localIdentity: { kind: "decision", id: `compiled-proposal:${proposal.proposalId}` },
       });
       edges.push(
-        Object.freeze({
+        intrinsicRealBuildFreeze({
           parentLineageId: proposal.parentLineageId,
           proposalId: proposal.proposalId,
           child,
@@ -358,7 +327,7 @@ function executeAdmitted(
       return failedResult(
         preparation,
         reservation,
-        createRealBuildAtomicTerminalFailure({
+        createTerminalFailure({
           preparation,
           preparedStep: preparedStepEvidence(preparation),
           reservation,
@@ -366,32 +335,37 @@ function executeAdmitted(
           workIndex,
           phase: "evidence-closure",
           code: "compiled-evidence-closure-failed",
-          issue: realBuildAtomicLocalFailureIssue(
+          issue: localFailureIssue(
             "This compiled work failed exact child and lineage-edge closure.",
           ),
         }),
+        maximumCompiledLineageBytes,
       );
     }
   }
   try {
-    return closeResult("compiled", {
-      ...evidenceBase(preparation, reservation),
-      status: "unresolved",
-      terminalFailure: null,
-      childCandidates: childRegistry.values(),
-      uniqueTransitions: Object.freeze(
-        [...workResults.values()].map(({ transition }) => transition),
-      ),
-      lineageEdges: Object.freeze(edges),
-      selection: emptyDecision("unresolved"),
-    });
+    return closeResult(
+      "compiled",
+      {
+        ...evidenceBase(preparation, reservation),
+        status: "unresolved",
+        terminalFailure: null,
+        childCandidates: childRegistry.values(),
+        uniqueTransitions: intrinsicRealBuildFreeze(
+          [...workResults.values()].map(({ transition }) => transition),
+        ),
+        lineageEdges: intrinsicRealBuildFreeze(edges),
+        selection: emptyDecision("unresolved"),
+      },
+      maximumCompiledLineageBytes,
+    );
   } catch {
     // Every unique work and edge has already closed independently in order;
     // this context cannot truthfully attribute an aggregate envelope defect to one work.
     return failedResult(
       preparation,
       reservation,
-      createRealBuildAtomicTerminalFailure({
+      createTerminalFailure({
         preparation,
         preparedStep: preparedStepEvidence(preparation),
         reservation,
@@ -399,57 +373,96 @@ function executeAdmitted(
         workIndex: null,
         phase: "aggregate-evidence-closure",
         code: "compiled-evidence-closure-failed",
-        issue: realBuildAtomicLocalFailureIssue(
+        issue: localFailureIssue(
           "The independently closed works could not be encoded as one aggregate frontier envelope.",
         ),
       }),
+      maximumCompiledLineageBytes,
     );
   }
 }
 
 function executePreparedBatch(
-  preparation: RealBuildAtomicCompiledBranchBatchPreparation,
+  preparation: BatchPreparation,
   compiler: RealBuildAtomicCompiledBranchCompiler,
   maximumUniqueChildCanonicalBytes = MAXIMUM_REAL_BUILD_PREPARED_SEARCH_UNIQUE_DOCUMENT_BYTES,
+  maximumCompiledLineageBytes = MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_BYTES,
 ): RealBuildAtomicCompiledBranchBatchResult {
+  const maximumEvidenceBytes = requireRealBuildAtomicCompiledLineageMaximumBytes(
+    maximumCompiledLineageBytes,
+  );
   const childRegistry = createRealBuildAtomicCompiledChildRegistry(
     maximumUniqueChildCanonicalBytes,
   );
   const workPlan = planRealBuildAtomicCompiledPhysicalWork(preparation);
+  if (isReservedRealBuildPreparedSearchBatchInspection(preparation.searchInspection)) {
+    throw new TypeError("Prepared search inspection may be reserved exactly once.");
+  }
+  preflightRealBuildAtomicCompiledTerminalEnvelope(
+    preparation,
+    workPlan,
+    preparedStepEvidence(preparation),
+    maximumEvidenceBytes,
+    (reservation, terminalFailure) =>
+      terminalFailure === null
+        ? budgetRefusedEvidence(preparation, reservation)
+        : failedEvidence(preparation, reservation, terminalFailure),
+  );
   const reservation = reserveRealBuildPreparedSearchInspectionBatch(
     preparation.ledger,
     preparation.searchInspection,
   );
   if (!reservation.admitted) {
-    return closeResult("budget-refused", {
-      ...evidenceBase(preparation, reservation),
-      status: "budget-refused",
-      terminalFailure: null,
-      childCandidates: Object.freeze([]),
-      uniqueTransitions: Object.freeze([]),
-      lineageEdges: Object.freeze([]),
-      selection: emptyDecision("not-applicable"),
-    });
+    return closeResult(
+      "budget-refused",
+      budgetRefusedEvidence(preparation, reservation),
+      maximumEvidenceBytes,
+    );
   }
-  return executeAdmitted(preparation, reservation, workPlan, compiler, childRegistry);
+  return executeAdmitted(
+    preparation,
+    reservation,
+    workPlan,
+    compiler,
+    childRegistry,
+    maximumEvidenceBytes,
+  );
 }
 
 /** Inspection-only atomic root-to-child compilation; it never selects or accepts a document. */
 export function executeRealBuildAtomicCompiledBranchBatch(
   input: unknown,
-  compiler: RealBuildAtomicCompiledBranchCompiler = compileRealBuildAutomaticPlacement,
+  compiler: RealBuildAtomicCompiledBranchCompiler = compilePlacement,
 ): RealBuildAtomicCompiledBranchBatchResult {
   return executePreparedBatch(prepareRealBuildAtomicCompiledBranchBatch(input), compiler);
 }
 
 export function executePreparedRealBuildAtomicCompiledBranchBatch(
   preparation: unknown,
-  compiler: RealBuildAtomicCompiledBranchCompiler = compileRealBuildAutomaticPlacement,
+  compiler: RealBuildAtomicCompiledBranchCompiler = compilePlacement,
   maximumUniqueChildCanonicalBytes = MAXIMUM_REAL_BUILD_PREPARED_SEARCH_UNIQUE_DOCUMENT_BYTES,
+  maximumCompiledLineageBytes = MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_BYTES,
 ): RealBuildAtomicCompiledBranchBatchResult {
   return executePreparedBatch(
-    requireRealBuildAtomicCompiledBranchBatchPreparation(preparation),
+    requireBatchPreparation(preparation),
     compiler,
     maximumUniqueChildCanonicalBytes,
+    maximumCompiledLineageBytes,
   );
+}
+
+/** Checks private provenance before a transport producer reads retained batch evidence. */
+export function requireRealBuildAtomicCompiledBranchBatchResult(
+  value: unknown,
+): RealBuildAtomicCompiledBranchBatchResult {
+  if (
+    value === null ||
+    typeof value !== "object" ||
+    !(SAFE_REFLECT_APPLY(SAFE_WEAK_SET_HAS, batchResults, [value]) as boolean)
+  ) {
+    throw new TypeError(
+      "Atomic compiled branch result must be the exact immutable result returned by this module.",
+    );
+  }
+  return value as RealBuildAtomicCompiledBranchBatchResult;
 }

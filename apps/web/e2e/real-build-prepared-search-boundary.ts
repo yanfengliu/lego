@@ -1,3 +1,4 @@
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 export const MAXIMUM_REAL_BUILD_PREPARED_SEARCH_PARENTS = 8_192;
 export const MAXIMUM_REAL_BUILD_PREPARED_SEARCH_CHILDREN = 8_192;
 export const MAXIMUM_REAL_BUILD_PREPARED_SEARCH_WITNESSES = 32_768;
@@ -130,7 +131,7 @@ function snapshotPosition(value: unknown, path: string): readonly [number, numbe
     }
     coordinates.push(coordinate as number);
   }
-  return Object.freeze(coordinates) as unknown as readonly [number, number, number];
+  return intrinsicRealBuildFreeze(coordinates) as unknown as readonly [number, number, number];
 }
 
 function snapshotConnection(
@@ -142,7 +143,7 @@ function snapshotConnection(
   const targetKind = preparedSearchData(target, "kind", `${path}.target`);
   let detachedTarget: RealBuildPreparedPlacementConnection["target"];
   if (targetKind === "base") {
-    detachedTarget = Object.freeze({
+    detachedTarget = intrinsicRealBuildFreeze({
       kind: "base" as const,
       partId: boundedString(
         preparedSearchData(target, "partId", `${path}.target`),
@@ -160,7 +161,7 @@ function snapshotConnection(
         `${path}.target.witnessIndex must name an earlier witness from 0 through ${witnessIndex - 1}.`,
       );
     }
-    detachedTarget = Object.freeze({
+    detachedTarget = intrinsicRealBuildFreeze({
       kind: "witness" as const,
       witnessIndex: targetIndex as number,
     });
@@ -170,7 +171,7 @@ function snapshotConnection(
   if (preparedSearchData(value, "connectionKind", path) !== "stud-tube") {
     throw new TypeError(`${path}.connectionKind must be "stud-tube".`);
   }
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     target: detachedTarget,
     targetPortId: boundedString(
       preparedSearchData(value, "targetPortId", path),
@@ -221,7 +222,7 @@ export function snapshotPreparedPlacementWitness(
       ),
     );
   }
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     identityKey: boundedString(
       preparedSearchData(value, "identityKey", path),
       `${path}.identityKey`,
@@ -231,13 +232,13 @@ export function snapshotPreparedPlacementWitness(
       `${path}.catalogPartId`,
     ),
     colorId: boundedString(preparedSearchData(value, "colorId", path), `${path}.colorId`),
-    transform: Object.freeze({
+    transform: intrinsicRealBuildFreeze({
       positionLdu: snapshotPosition(
         preparedSearchData(transform, "positionLdu", `${path}.transform`),
         `${path}.transform.positionLdu`,
       ),
       orientationId,
     }),
-    connections: Object.freeze(connections),
+    connections: intrinsicRealBuildFreeze(connections),
   });
 }

@@ -1,3 +1,4 @@
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import {
   parseClosureCamera,
   parseClosureSource,
@@ -119,7 +120,7 @@ export function parseRealBuildCompiledObservationClosure(
       "compiledObservationClosure must explicitly retain absent completion authority.",
     );
   }
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     schemaVersion: REAL_BUILD_COMPILED_OBSERVATION_CLOSURE_SCHEMA_VERSION,
     compiledLineageBytesDigest: closureDigest(
       row.compiledLineageBytesDigest,
@@ -127,21 +128,21 @@ export function parseRealBuildCompiledObservationClosure(
     ),
     roleBytes,
     roleDigest,
-    sources: Object.freeze(
+    sources: intrinsicRealBuildFreeze(
       closureArray(
         row.sources,
         "compiledObservationClosure.sources",
         MAXIMUM_REAL_BUILD_COMPILED_OBSERVATION_TABLE_ROWS,
       ).map(parseClosureSource),
     ),
-    cameras: Object.freeze(
+    cameras: intrinsicRealBuildFreeze(
       closureArray(
         row.cameras,
         "compiledObservationClosure.cameras",
         MAXIMUM_REAL_BUILD_COMPILED_OBSERVATION_TABLE_ROWS,
       ).map(parseClosureCamera),
     ),
-    observations: Object.freeze(
+    observations: intrinsicRealBuildFreeze(
       closureArray(
         row.observations,
         "compiledObservationClosure.observations",
@@ -150,7 +151,7 @@ export function parseRealBuildCompiledObservationClosure(
     ),
     selection: parseClosureSelection(row.selection),
     acceptedTransition: parseClosureAcceptedTransition(row.acceptedTransition),
-    completionAuthority: Object.freeze({
+    completionAuthority: intrinsicRealBuildFreeze({
       status: "absent",
       authorized: false,
       reason: "compiled-observation-closure-is-inspection-only",

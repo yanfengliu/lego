@@ -1,3 +1,4 @@
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import {
   MAXIMUM_REAL_BUILD_PREPARED_SEARCH_PARENTS,
   MAXIMUM_REAL_BUILD_PREPARED_SEARCH_WITNESSES,
@@ -30,7 +31,7 @@ function parseParent(value: unknown, index: number): RealBuildCompiledSearchRequ
     "canonicalDocumentDigest",
     "offeredLineages",
   ]);
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     parentLineageId: compiledEvidenceLineageId(row.parentLineageId, `${path}.parentLineageId`),
     candidateId: compiledEvidenceCandidateId(row.candidateId, `${path}.candidateId`),
     documentHash: compiledEvidenceDigest(row.documentHash, `${path}.documentHash`),
@@ -56,7 +57,7 @@ function parseProposal(value: unknown, index: number): RealBuildCompiledSearchRe
     "connectionCount",
     "programOperationCount",
   ]);
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     proposalId: compiledEvidenceDigest(row.proposalId, `${path}.proposalId`),
     parentLineageId: compiledEvidenceLineageId(row.parentLineageId, `${path}.parentLineageId`),
     pieces: parseCompiledPlacementPieces(row.pieces, `${path}.pieces`),
@@ -86,9 +87,9 @@ export function parseCompiledSearchRequest(value: unknown): RealBuildCompiledSea
     "connectionCount",
     "programOperationCount",
   ]);
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     preflightIdentity: compiledEvidenceDigest(row.preflightIdentity, `${path}.preflightIdentity`),
-    parents: Object.freeze(
+    parents: intrinsicRealBuildFreeze(
       compiledEvidenceArray(
         row.parents,
         `${path}.parents`,
@@ -96,7 +97,7 @@ export function parseCompiledSearchRequest(value: unknown): RealBuildCompiledSea
         1,
       ).map(parseParent),
     ),
-    proposals: Object.freeze(
+    proposals: intrinsicRealBuildFreeze(
       compiledEvidenceArray(row.proposals, `${path}.proposals`, MAXIMUM_PROPOSALS, 1).map(
         parseProposal,
       ),

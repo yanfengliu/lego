@@ -1,3 +1,4 @@
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import type { Sha256Digest } from "@lego-studio/brick-kernel";
 
 import {
@@ -8,6 +9,7 @@ import {
   type RealBuildLineageId,
   type RealBuildLineageIdentity,
 } from "./real-build-candidate-lineage-identity";
+import { snapshotRealBuildExactLineageIdentity } from "./real-build-exact-lineage-identity";
 import {
   MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_MASK_PIXELS,
   MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_ROLE_BYTES,
@@ -121,7 +123,7 @@ export function compiledEvidenceLineageIdentity(
   value: unknown,
   path: string,
 ): RealBuildLineageIdentity {
-  compiledEvidenceRecord(value, path, [
+  const baseKeys = [
     "candidateId",
     "documentHash",
     "lineageId",
@@ -130,13 +132,33 @@ export function compiledEvidenceLineageIdentity(
     "originLineageId",
     "parentLineageId",
     "throughStepNumber",
-  ]);
+  ];
+  const actual =
+    value !== null && typeof value === "object" && !Array.isArray(value) ? Object.keys(value) : [];
+  const exactKeys = [
+    "candidateId",
+    "documentHash",
+    "lineageId",
+    "lineageOrigin",
+    "localIdentity",
+    "originLineageId",
+    "parentLineageId",
+    "throughStepNumber",
+    "exactLineageId",
+    "parentExactLineageId",
+    "canonicalBytesHash",
+    "canonicalByteLength",
+  ];
+  const exact = exactKeys.every((key) => actual.includes(key));
+  compiledEvidenceRecord(value, path, exact ? exactKeys : baseKeys);
   compiledEvidenceRecord(
     (value as Record<string, unknown>).localIdentity,
     `${path}.localIdentity`,
     ["id", "kind"],
   );
-  return snapshotRealBuildLineageIdentity(value);
+  return exact
+    ? snapshotRealBuildExactLineageIdentity(value)
+    : snapshotRealBuildLineageIdentity(value);
 }
 
 export function compiledEvidenceNullableScore(value: unknown, path: string): number | null {
@@ -196,7 +218,7 @@ export function compiledEvidenceMaskReference(
   if (offset > MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_ROLE_BYTES - bytes) {
     throw new RangeError(`${path} byte range exceeds the bounded branch-observation role.`);
   }
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     role: "branch-observation-bytes",
     offset,
     bytes,

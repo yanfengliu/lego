@@ -1,3 +1,4 @@
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import { canonicalDigest, canonicalStringify, type Sha256Digest } from "@lego-studio/brick-kernel";
 
 import {
@@ -5,6 +6,10 @@ import {
   type RealBuildLineageId,
   type RealBuildLineageIdentity,
 } from "./real-build-candidate-lineage-identity";
+import {
+  snapshotRealBuildExactLineageIdentity as snapshotExactIdentity,
+  type RealBuildExactLineageIdentity as ExactLineageIdentity,
+} from "./real-build-exact-lineage-identity";
 import {
   requireRealBuildCandidateDocumentSnapshot,
   type RealBuildCandidateDocumentSnapshot,
@@ -41,7 +46,7 @@ declare const preparedSearchBatchAuthorityType: unique symbol;
 
 export interface RealBuildPreparedSearchParentBinding {
   readonly parentLineageId: RealBuildLineageId;
-  readonly identity: RealBuildLineageIdentity;
+  readonly identity: RealBuildLineageIdentity | ExactLineageIdentity;
   readonly documentSnapshot: RealBuildCandidateDocumentSnapshot;
   readonly canonicalDocumentDigest: Sha256Digest;
   readonly offeredLineages: number;
@@ -100,9 +105,38 @@ const documentDigestCache = new WeakMap<
 interface ValidatedPreparedSearchParent {
   readonly path: string;
   readonly planned: PlannedPreparedSearchParent;
-  readonly identity: RealBuildLineageIdentity;
+  readonly identity: RealBuildLineageIdentity | ExactLineageIdentity;
   readonly documentSnapshot: RealBuildCandidateDocumentSnapshot;
   readonly byteLength: number;
+}
+
+const EXACT_IDENTITY_FIELDS = [
+  "exactLineageId",
+  "parentExactLineageId",
+  "canonicalBytesHash",
+  "canonicalByteLength",
+] as const;
+
+function snapshotParentIdentity(value: unknown): RealBuildLineageIdentity | ExactLineageIdentity {
+  let exactFieldCount = 0;
+  for (let index = 0; index < EXACT_IDENTITY_FIELDS.length; index += 1) {
+    let descriptor: PropertyDescriptor | undefined;
+    try {
+      descriptor = Object.getOwnPropertyDescriptor(value, EXACT_IDENTITY_FIELDS[index]!);
+    } catch {
+      throw new TypeError(
+        "Prepared search parent identity exact fields could not be inspected safely.",
+      );
+    }
+    if (descriptor !== undefined) exactFieldCount += 1;
+  }
+  if (exactFieldCount === 0) return snapshotRealBuildLineageIdentity(value);
+  if (exactFieldCount !== EXACT_IDENTITY_FIELDS.length) {
+    throw new TypeError(
+      "Prepared search parent identity must provide either no exact fields or the complete exact lineage binding.",
+    );
+  }
+  return snapshotExactIdentity(value);
 }
 
 function snapshotProposalPieces(
@@ -156,7 +190,7 @@ function snapshotProposalPieces(
     }
     pieces.push(witness);
   }
-  return Object.freeze(pieces);
+  return intrinsicRealBuildFreeze(pieces);
 }
 
 function validatePreparedSearchParents(
@@ -164,17 +198,22 @@ function validatePreparedSearchParents(
   structural: RealBuildPreparedSearchPlan,
 ): readonly ValidatedPreparedSearchParent[] {
   const seenLineages = new Set<string>();
-  const snapshotByCandidate = new Map<string, RealBuildCandidateDocumentSnapshot>();
   const snapshotByCanonicalHash = new Map<Sha256Digest, RealBuildCandidateDocumentSnapshot>();
+  const structuralBindings = new Map<
+    string,
+    {
+      snapshot: RealBuildCandidateDocumentSnapshot;
+      exactOnly: boolean;
+      hasDistinctSnapshot: boolean;
+    }
+  >();
   const uniqueSnapshots = new Set<RealBuildCandidateDocumentSnapshot>();
   const validated: ValidatedPreparedSearchParent[] = [];
   let aggregateBytes = 0;
   for (let parentIndex = 0; parentIndex < structural.parentCount; parentIndex += 1) {
     const path = `Prepared search parents[${parentIndex}]`;
     const planned = structural.parents[parentIndex]!;
-    const identity = snapshotRealBuildLineageIdentity(
-      preparedSearchData(planned.row, "identity", path),
-    );
+    const identity = snapshotParentIdentity(preparedSearchData(planned.row, "identity", path));
     if (identity.throughStepNumber + 1 !== preparedStep.stepNumber) {
       throw new RangeError(
         `Prepared search parent ${identity.lineageId} ends at step ${identity.throughStepNumber}; required exact prefix step ${preparedStep.stepNumber - 1}.`,
@@ -188,9 +227,43 @@ function validatePreparedSearchParents(
       preparedSearchData(planned.row, "documentSnapshot", path),
       identity,
     );
+    const exactIdentity = "exactLineageId" in identity ? identity : null;
+    if (
+      exactIdentity !== null &&
+      (exactIdentity.canonicalBytesHash !== documentSnapshot.canonicalBytesHash ||
+        exactIdentity.canonicalByteLength !== documentSnapshot.canonicalByteLength)
+    ) {
+      throw new TypeError(
+        `Prepared search parent ${identity.lineageId} exact identity does not bind its retained canonical document bytes.`,
+      );
+    }
+    const structuralKey = `${identity.candidateId}\0${identity.documentHash}`;
+    const structuralBinding = structuralBindings.get(structuralKey);
+    if (structuralBinding === undefined) {
+      structuralBindings.set(structuralKey, {
+        snapshot: documentSnapshot,
+        exactOnly: exactIdentity !== null,
+        hasDistinctSnapshot: false,
+      });
+    } else if (structuralBinding.snapshot === documentSnapshot) {
+      if (exactIdentity === null) {
+        if (structuralBinding.hasDistinctSnapshot) {
+          throw new TypeError(
+            "Prepared search convergent candidate/hash parents must share the exact branded parent snapshot reference unless every distinct byte string has its own exact lineage binding.",
+          );
+        }
+        structuralBinding.exactOnly = false;
+      }
+    } else if (!structuralBinding.exactOnly || exactIdentity === null) {
+      throw new TypeError(
+        "Prepared search convergent candidate/hash parents must share the exact branded parent snapshot reference unless every distinct byte string has its own exact lineage binding.",
+      );
+    } else {
+      structuralBinding.hasDistinctSnapshot = true;
+    }
     let measured = documentByteLengthCache.get(documentSnapshot);
     if (measured === undefined) {
-      measured = Object.freeze({
+      measured = intrinsicRealBuildFreeze({
         byteLength: preparedSearchUtf8ByteLength(
           documentSnapshot.canonicalBytes,
           MAXIMUM_REAL_BUILD_PREPARED_SEARCH_UNIQUE_DOCUMENT_BYTES,
@@ -198,14 +271,6 @@ function validatePreparedSearchParents(
       });
       documentByteLengthCache.set(documentSnapshot, measured);
     }
-    const candidateKey = `${identity.candidateId}\0${identity.documentHash}`;
-    const priorCandidateSnapshot = snapshotByCandidate.get(candidateKey);
-    if (priorCandidateSnapshot !== undefined && priorCandidateSnapshot !== documentSnapshot) {
-      throw new TypeError(
-        `Prepared search candidate ${identity.candidateId}/${identity.documentHash} is bound through more than one snapshot object; convergent lineages must share the exact branded parent snapshot reference.`,
-      );
-    }
-    snapshotByCandidate.set(candidateKey, documentSnapshot);
     const priorHashSnapshot = snapshotByCanonicalHash.get(documentSnapshot.canonicalBytesHash);
     if (priorHashSnapshot !== undefined && priorHashSnapshot !== documentSnapshot) {
       throw new TypeError(
@@ -222,9 +287,11 @@ function validatePreparedSearchParents(
         );
       }
     }
-    validated.push(Object.freeze({ path, planned, identity, documentSnapshot, ...measured }));
+    validated.push(
+      intrinsicRealBuildFreeze({ path, planned, identity, documentSnapshot, ...measured }),
+    );
   }
-  return Object.freeze(validated);
+  return intrinsicRealBuildFreeze(validated);
 }
 
 function snapshotPreflight(
@@ -242,7 +309,7 @@ function snapshotPreflight(
   for (const { path, planned: plannedParent, identity, documentSnapshot } of validatedParents) {
     let cached = documentDigestCache.get(documentSnapshot);
     if (cached === undefined) {
-      cached = Object.freeze({
+      cached = intrinsicRealBuildFreeze({
         digest: deriveRealBuildPreparedSearchCanonicalDocumentDigest(
           documentSnapshot.canonicalBytesHash,
         ),
@@ -254,7 +321,7 @@ function snapshotPreflight(
     const basePartIds = new Set(documentSnapshot.document.parts.map(({ id }) => id));
     const childCount = plannedParent.children.length;
     parentBindings.push(
-      Object.freeze({
+      intrinsicRealBuildFreeze({
         parentLineageId: identity.lineageId,
         identity,
         documentSnapshot,
@@ -277,7 +344,7 @@ function snapshotPreflight(
       }
       seenRequests.add(requestKey);
       proposals.push(
-        Object.freeze({
+        intrinsicRealBuildFreeze({
           proposalId: deriveRealBuildPreparedSearchProposalId({
             printedStepIdentity: preparedStep.printedStepIdentity,
             parentLineageId: identity.lineageId,
@@ -301,7 +368,7 @@ function snapshotPreflight(
       offeredLineages,
     }),
   );
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     preflightIdentity: canonicalDigest({
       schemaVersion: "lego.real-build-prepared-search-preflight/1",
       printedStepIdentity: preparedStep.printedStepIdentity,
@@ -309,9 +376,9 @@ function snapshotPreflight(
       proposals,
     }),
     stepNumber: preparedStep.stepNumber,
-    parentBindings: Object.freeze(parentBindings),
+    parentBindings: intrinsicRealBuildFreeze(parentBindings),
     expectedAtomicPieces: preparedStep.expectedAtomicPieces,
-    proposals: Object.freeze(proposals),
+    proposals: intrinsicRealBuildFreeze(proposals),
     offeredLineages: structural.childCount,
     witnessCount: structural.witnessCount,
     connectionCount: structural.connectionCount,
@@ -336,7 +403,7 @@ export function inspectRealBuildPreparedSearchBatch(
   const fields = inputFields(input);
   const preparedStep = requireRealBuildPreparedStepInspection(fields.preparedStep);
   const snapshot = snapshotPreflight(preparedStep, fields.parents);
-  const inspection = Object.freeze({
+  const inspection = intrinsicRealBuildFreeze({
     ...snapshot,
     authority: "absent" as const,
     refusal: "automatic-compiled-placement-authority-unavailable" as const,

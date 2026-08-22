@@ -1,3 +1,4 @@
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import {
   requireRealBuildCandidateDocumentSnapshotValue,
   type RealBuildCandidateDocumentSnapshot,
@@ -118,7 +119,7 @@ function position(value: unknown, path: string): readonly [number, number, numbe
     }
     result.push(coordinate as number);
   }
-  return Object.freeze(result) as unknown as readonly [number, number, number];
+  return intrinsicRealBuildFreeze(result) as unknown as readonly [number, number, number];
 }
 
 /**
@@ -142,7 +143,7 @@ export function snapshotRealBuildEnumeratedPlacementOffer(
     const rowPath = `${path}.connections[${index}]`;
     const row = entry(rows, index, `${path}.connections`);
     connections.push(
-      Object.freeze({
+      intrinsicRealBuildFreeze({
         targetPartId: identifier(data(row, "targetPartId", rowPath), `${rowPath}.targetPartId`),
         targetPortId: identifier(data(row, "targetPortId", rowPath), `${rowPath}.targetPortId`),
         candidatePortId: identifier(
@@ -165,16 +166,16 @@ export function snapshotRealBuildEnumeratedPlacementOffer(
   if (typeof restsOnBuildPlate !== "boolean") {
     throw new TypeError(`${path}.restsOnBuildPlate must be a boolean measured by the enumerator.`);
   }
-  const result = Object.freeze({
+  const result = intrinsicRealBuildFreeze({
     catalogPartId: identifier(data(value, "catalogPartId", path), `${path}.catalogPartId`),
-    transform: Object.freeze({
+    transform: intrinsicRealBuildFreeze({
       positionLdu: position(
         data(transform, "positionLdu", `${path}.transform`),
         `${path}.transform.positionLdu`,
       ),
       orientationId,
     }),
-    connections: Object.freeze(connections),
+    connections: intrinsicRealBuildFreeze(connections),
     restsOnBuildPlate,
   });
   placementOffers.add(result);
@@ -290,11 +291,11 @@ export function projectRealBuildEnumeratedPlacementWitnesses(
           `Enumerated placement offer ${index} connection ${connectionIndex} targets unknown part ${JSON.stringify(connection.targetPartId)}; it must name the exact base or an earlier witness part ID.`,
         );
       }
-      return Object.freeze({
+      return intrinsicRealBuildFreeze({
         target:
           priorWitness === undefined
-            ? Object.freeze({ kind: "base" as const, partId: connection.targetPartId })
-            : Object.freeze({ kind: "witness" as const, witnessIndex: priorWitness }),
+            ? intrinsicRealBuildFreeze({ kind: "base" as const, partId: connection.targetPartId })
+            : intrinsicRealBuildFreeze({ kind: "witness" as const, witnessIndex: priorWitness }),
         targetPortId: connection.targetPortId,
         candidatePortId: connection.candidatePortId,
         connectionKind: "stud-tube" as const,
@@ -306,16 +307,16 @@ export function projectRealBuildEnumeratedPlacementWitnesses(
       );
     }
     witnesses.push(
-      Object.freeze({
+      intrinsicRealBuildFreeze({
         identityKey,
         catalogPartId,
         colorId,
         transform: offer.transform,
-        connections: Object.freeze(connections),
+        connections: intrinsicRealBuildFreeze(connections),
       }),
     );
   }
-  return Object.freeze(witnesses);
+  return intrinsicRealBuildFreeze(witnesses);
 }
 
 export type RealBuildEnumeratedPlacementWitnessInput = Readonly<{

@@ -1,3 +1,4 @@
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import {
   MAXIMUM_REAL_BUILD_PREPARED_SEARCH_CONNECTIONS,
   MAXIMUM_REAL_BUILD_PREPARED_SEARCH_PIECES,
@@ -31,7 +32,7 @@ function parseCompiledCandidateBytes(
   path: string,
 ): Omit<RealBuildCompiledLineageChildCandidate, "candidateId" | "documentHash"> {
   const row = value as Record<string, unknown>;
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     canonicalBytes: compiledEvidenceString(
       row.canonicalBytes,
       `${path}.canonicalBytes`,
@@ -62,7 +63,7 @@ export function parseCompiledPreparedStep(value: unknown): RealBuildCompiledPrep
     "compiledLineage.preparedStep.compilerMetadata",
     ["name", "sourceActionDigest"],
   );
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     preparedRunInputDigest: compiledEvidenceDigest(
       row.preparedRunInputDigest,
       "compiledLineage.preparedStep.preparedRunInputDigest",
@@ -75,7 +76,7 @@ export function parseCompiledPreparedStep(value: unknown): RealBuildCompiledPrep
       row.actionEvidenceDigest,
       "compiledLineage.preparedStep.actionEvidenceDigest",
     ),
-    compilerMetadata: Object.freeze({
+    compilerMetadata: intrinsicRealBuildFreeze({
       name: compiledEvidenceString(
         compilerMetadata.name,
         "compiledLineage.preparedStep.compilerMetadata.name",
@@ -102,10 +103,10 @@ export function parseCompiledRootCandidate(
     "canonicalBytesHash",
     "canonicalByteLength",
   ]);
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     candidateId: compiledEvidenceCandidateId(row.candidateId, `${path}.candidateId`),
     documentHash: compiledEvidenceDigest(row.documentHash, `${path}.documentHash`),
-    identities: Object.freeze(
+    identities: intrinsicRealBuildFreeze(
       compiledEvidenceArray(row.identities, `${path}.identities`, 8_192, 1).map(
         (identity, identityIndex) =>
           compiledEvidenceLineageIdentity(identity, `${path}.identities[${identityIndex}]`),
@@ -127,7 +128,7 @@ export function parseCompiledChildCandidate(
     "canonicalBytesHash",
     "canonicalByteLength",
   ]);
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     candidateId: compiledEvidenceCandidateId(row.candidateId, `${path}.candidateId`),
     documentHash: compiledEvidenceDigest(row.documentHash, `${path}.documentHash`),
     ...parseCompiledCandidateBytes(row, path),
@@ -166,7 +167,7 @@ export function parseCompiledReservation(value: unknown): RealBuildCompiledSearc
       "requested",
       "budget",
     ]);
-    terminalFailure = Object.freeze({
+    terminalFailure = intrinsicRealBuildFreeze({
       preflightIdentity: compiledEvidenceDigest(
         failure.preflightIdentity,
         `${failurePath}.preflightIdentity`,
@@ -187,7 +188,7 @@ export function parseCompiledReservation(value: unknown): RealBuildCompiledSearc
       budget: compiledEvidenceInteger(failure.budget, `${failurePath}.budget`, 0, 8_192),
     });
   }
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     budget: compiledEvidenceInteger(row.budget, `${path}.budget`, 0, 8_192),
     reservedBefore: compiledEvidenceInteger(row.reservedBefore, `${path}.reservedBefore`, 0, 8_192),
     requested: compiledEvidenceInteger(row.requested, `${path}.requested`, 0, 8_192),
@@ -249,7 +250,7 @@ function exactWitnessShape(value: unknown, path: string, witnessIndex: number): 
 }
 
 export function parseCompiledPlacementPieces(value: unknown, path: string) {
-  return Object.freeze(
+  return intrinsicRealBuildFreeze(
     compiledEvidenceArray(value, path, MAXIMUM_REAL_BUILD_PREPARED_SEARCH_PIECES, 1).map(
       (piece, pieceIndex) => {
         const piecePath = `${path}[${pieceIndex}]`;
@@ -277,7 +278,7 @@ function parseCompiledValidation(
     );
   }
   compiledEvidenceArray(row.blockingIssues, `${path}.blockingIssues`, 0);
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     targetDocumentHash: compiledEvidenceDigest(
       row.targetDocumentHash,
       `${path}.targetDocumentHash`,
@@ -285,7 +286,7 @@ function parseCompiledValidation(
     truthSnapshotHash: compiledEvidenceDigest(row.truthSnapshotHash, `${path}.truthSnapshotHash`),
     validatorSetHash: compiledEvidenceDigest(row.validatorSetHash, `${path}.validatorSetHash`),
     documentGloballyValid: true,
-    blockingIssues: Object.freeze([]) as readonly [],
+    blockingIssues: intrinsicRealBuildFreeze([]) as readonly [],
   });
 }
 
@@ -313,7 +314,7 @@ function parseCompiledReceipt(
   if (row.schemaVersion !== "lego.real-build-automatic-placement-receipt/1") {
     throw new TypeError(`${path}.schemaVersion must be automatic-placement-receipt/1.`);
   }
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     schemaVersion: "lego.real-build-automatic-placement-receipt/1",
     compilerSnapshotHash: compiledEvidenceDigest(
       row.compilerSnapshotHash,
@@ -374,7 +375,7 @@ export function parseCompiledTransition(
     "sourceActionDigest",
   ]);
   const pieces = parseCompiledPlacementPieces(row.pieces, `${path}.pieces`);
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     transitionId: compiledEvidenceTransitionId(row.transitionId, `${path}.transitionId`),
     parentCandidateId: compiledEvidenceCandidateId(
       row.parentCandidateId,
@@ -386,7 +387,7 @@ export function parseCompiledTransition(
     ),
     childCandidateId: compiledEvidenceCandidateId(row.childCandidateId, `${path}.childCandidateId`),
     childDocumentHash: compiledEvidenceDigest(row.childDocumentHash, `${path}.childDocumentHash`),
-    printedStep: Object.freeze({
+    printedStep: intrinsicRealBuildFreeze({
       name: compiledEvidenceString(printedStep.name, `${path}.printedStep.name`, 256),
       sourceActionDigest: compiledEvidenceDigest(
         printedStep.sourceActionDigest,
@@ -409,7 +410,7 @@ export function parseCompiledLineageEdge(
     "child",
     "transitionId",
   ]);
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     parentLineageId: compiledEvidenceLineageId(row.parentLineageId, `${path}.parentLineageId`),
     proposalId: compiledEvidenceDigest(row.proposalId, `${path}.proposalId`),
     child: compiledEvidenceLineageIdentity(row.child, `${path}.child`),
@@ -433,15 +434,15 @@ export function parseCompiledAcceptedTransition(
     "placedPieces",
     "validation",
   ]);
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     candidateId: compiledEvidenceCandidateId(row.candidateId, `${path}.candidateId`),
     documentHash: compiledEvidenceDigest(row.documentHash, `${path}.documentHash`),
-    lineageIds: Object.freeze(
+    lineageIds: intrinsicRealBuildFreeze(
       compiledEvidenceArray(row.lineageIds, `${path}.lineageIds`, 8_192, 1).map((id, index) =>
         compiledEvidenceLineageId(id, `${path}.lineageIds[${index}]`),
       ),
     ),
-    transitionIds: Object.freeze(
+    transitionIds: intrinsicRealBuildFreeze(
       compiledEvidenceArray(row.transitionIds, `${path}.transitionIds`, 8_192, 1).map((id, index) =>
         compiledEvidenceTransitionId(id, `${path}.transitionIds[${index}]`),
       ),

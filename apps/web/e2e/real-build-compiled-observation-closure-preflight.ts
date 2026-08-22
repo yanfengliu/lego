@@ -1,3 +1,4 @@
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import { createRealBuildCandidateDocumentSnapshot } from "./real-build-candidate-document-snapshot";
 import {
   deriveRealBuildCompiledObservationCameraId,
@@ -84,7 +85,7 @@ function exactMaskRanges(
       `Closure mask ranges cover ${next} bytes, not declared ${closure.roleBytes}.`,
     );
   }
-  return Object.freeze(ranges);
+  return intrinsicRealBuildFreeze(ranges);
 }
 
 function parentRevisions(
@@ -320,7 +321,7 @@ function buildPreflight(input: {
     );
   }
   const parentRevisionByLineage = parentRevisions(lineage);
-  const preflight = Object.freeze({
+  const preflight = intrinsicRealBuildFreeze({
     lineage,
     closure,
     policy,

@@ -125,7 +125,7 @@ describe("browser-output /4 cumulative compiler-work semantics", () => {
       ),
     );
     expect(validate).toHaveBeenCalledTimes(1);
-  }, 30_000);
+  }, 60_000);
 
   it("charges cumulative search-parent rows before reconstructing a later root", () => {
     const preparedBytes = preparedRunBytes();

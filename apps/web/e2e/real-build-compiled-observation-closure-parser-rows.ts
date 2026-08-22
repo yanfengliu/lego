@@ -1,3 +1,4 @@
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import {
   closureArray,
   closureCameraId,
@@ -21,7 +22,7 @@ import type {
 function parseShift(value: unknown, path: string): readonly [number, number] | null {
   if (value === null) return null;
   const pair = closureArray(value, path, 2, 2);
-  return Object.freeze(
+  return intrinsicRealBuildFreeze(
     pair.map((component, index) => {
       if (!Number.isSafeInteger(component)) {
         throw new RangeError(`${path}[${index}] must be a safe integer.`);
@@ -58,7 +59,7 @@ function parseFailure(value: unknown, path: string): RealBuildCompiledObservatio
   if (row.stage !== expectedStage) {
     throw new TypeError(`${path} code and stage must be coherent.`);
   }
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     schemaVersion: "lego.real-build-compiled-observation-failure/1",
     code: row.code,
     stage: expectedStage,
@@ -88,7 +89,7 @@ export function parseClosureObservation(
     row.outcome === null || row.outcome === "source-mask-empty"
       ? row.outcome
       : parseFailure(row.outcome, `${path}.outcome`);
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     observationId: closureObservationId(row.observationId, `${path}.observationId`),
     lineageId: closureLineageId(row.lineageId, `${path}.lineageId`),
     sourceId: row.sourceId === null ? null : closureSourceId(row.sourceId, `${path}.sourceId`),
@@ -119,7 +120,7 @@ export function parseClosureSelection(value: unknown): RealBuildCompiledObservat
   ) {
     throw new TypeError(`${path}.status must be selected, unresolved, or unverified-failure.`);
   }
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     status: row.status,
     decisionSourceId:
       row.decisionSourceId === null
@@ -133,7 +134,7 @@ export function parseClosureSelection(value: unknown): RealBuildCompiledObservat
       row.selectedCandidateId === null
         ? null
         : closureCandidateId(row.selectedCandidateId, `${path}.selectedCandidateId`),
-    selectedLineageIds: Object.freeze(
+    selectedLineageIds: intrinsicRealBuildFreeze(
       closureArray(row.selectedLineageIds, `${path}.selectedLineageIds`, 8_192).map((id, index) =>
         closureLineageId(id, `${path}.selectedLineageIds[${index}]`),
       ),
@@ -157,15 +158,15 @@ export function parseClosureAcceptedTransition(
     "canonicalStepId",
     "placedPieces",
   ]);
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     candidateId: closureCandidateId(row.candidateId, `${path}.candidateId`),
     documentHash: closureDigest(row.documentHash, `${path}.documentHash`),
-    lineageIds: Object.freeze(
+    lineageIds: intrinsicRealBuildFreeze(
       closureArray(row.lineageIds, `${path}.lineageIds`, 8_192, 1).map((id, index) =>
         closureLineageId(id, `${path}.lineageIds[${index}]`),
       ),
     ),
-    transitionIds: Object.freeze(
+    transitionIds: intrinsicRealBuildFreeze(
       closureArray(row.transitionIds, `${path}.transitionIds`, 8_192, 1).map((id, index) =>
         closureTransitionId(id, `${path}.transitionIds[${index}]`),
       ),

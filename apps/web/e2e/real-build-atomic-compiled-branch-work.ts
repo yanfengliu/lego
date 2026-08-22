@@ -1,3 +1,4 @@
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import {
   canonicalBrickDocument,
   canonicalDigest,
@@ -10,7 +11,10 @@ import {
   compileRealBuildAutomaticPlacement,
   isRealBuildAutomaticPlacementCompilationResult,
 } from "./real-build-automatic-placement-compiler";
-import type { RealBuildAtomicCompiledBranchBatchPreparation } from "./real-build-atomic-compiled-branch-batch-input";
+import {
+  requireRealBuildAtomicCompiledBranchParentSnapshot,
+  type RealBuildAtomicCompiledBranchBatchPreparation,
+} from "./real-build-atomic-compiled-branch-batch-input";
 import { createRealBuildCandidateDocumentSnapshot } from "./real-build-candidate-document-snapshot";
 import { realBuildDocumentCandidateId } from "./real-build-candidate-lineage-identity";
 import { deriveRealBuildCompiledTransitionId } from "./real-build-compiled-placement-lineage-digest";
@@ -75,26 +79,18 @@ export function createRealBuildAtomicCompiledChildRegistry(
       `Atomic compiled child byte limit must be 1 through ${MAXIMUM_REAL_BUILD_PREPARED_SEARCH_UNIQUE_DOCUMENT_BYTES}.`,
     );
   }
-  const byCandidate = new Map<string, RealBuildCompiledLineageChildCandidate>();
   const byCanonicalHash = new Map<Sha256Digest, RealBuildCompiledLineageChildCandidate>();
   let retainedBytes = 0;
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     admit(child: RealBuildCompiledLineageChildCandidate) {
-      const candidateMatch = byCandidate.get(child.candidateId);
       const hashMatch = byCanonicalHash.get(child.canonicalBytesHash);
-      if (candidateMatch !== undefined || hashMatch !== undefined) {
-        const shared = candidateMatch ?? hashMatch!;
-        if (
-          (candidateMatch !== undefined &&
-            hashMatch !== undefined &&
-            candidateMatch !== hashMatch) ||
-          !sameChildCandidate(shared, child)
-        ) {
+      if (hashMatch !== undefined) {
+        if (!sameChildCandidate(hashMatch, child)) {
           throw new TypeError(
-            "One compiled child candidate or canonical hash aliases non-identical exact bytes.",
+            "One compiled child canonical hash aliases non-identical exact bytes.",
           );
         }
-        return shared;
+        return hashMatch;
       }
       if (child.canonicalByteLength > maximumUniqueCanonicalBytes - retainedBytes) {
         throw new RangeError(
@@ -102,12 +98,11 @@ export function createRealBuildAtomicCompiledChildRegistry(
         );
       }
       retainedBytes += child.canonicalByteLength;
-      byCandidate.set(child.candidateId, child);
       byCanonicalHash.set(child.canonicalBytesHash, child);
       return child;
     },
     values() {
-      return Object.freeze([...byCandidate.values()]);
+      return intrinsicRealBuildFreeze([...byCanonicalHash.values()]);
     },
   });
 }
@@ -127,13 +122,17 @@ export function realBuildAtomicCompilerInput(
   preparation: RealBuildAtomicCompiledBranchBatchPreparation,
   proposal: RealBuildPreparedSearchProposal,
 ) {
-  return Object.freeze({
-    documentSnapshot: preparation.rootDocumentSnapshot,
+  const documentSnapshot = requireRealBuildAtomicCompiledBranchParentSnapshot(
+    preparation,
+    proposal.parentLineageId,
+  );
+  return intrinsicRealBuildFreeze({
+    documentSnapshot,
     printedStepNumber: preparation.preparedStep.stepNumber,
     printedStep: preparation.printedStep,
-    witnesses: Object.freeze(
+    witnesses: intrinsicRealBuildFreeze(
       proposal.pieces.map(({ catalogPartId, colorId, transform, connections }) =>
-        Object.freeze({ catalogPartId, colorId, transform, connections }),
+        intrinsicRealBuildFreeze({ catalogPartId, colorId, transform, connections }),
       ),
     ),
   });
@@ -143,10 +142,13 @@ export function realBuildAtomicCompilerInput(
 export function planRealBuildAtomicCompiledPhysicalWork(
   preparation: RealBuildAtomicCompiledBranchBatchPreparation,
 ): RealBuildAtomicCompiledPhysicalWorkPlan {
-  const snapshot = preparation.rootDocumentSnapshot;
   const uniqueByDigest = new Map<Sha256Digest, RealBuildAtomicCompiledPhysicalWork>();
   const byProposalId = new Map<Sha256Digest, RealBuildAtomicCompiledPhysicalWork>();
   for (const proposal of preparation.searchInspection.proposals) {
+    const snapshot = requireRealBuildAtomicCompiledBranchParentSnapshot(
+      preparation,
+      proposal.parentLineageId,
+    );
     const canonicalBytes = canonicalStringify({
       schemaVersion: "lego.real-build-atomic-compiled-physical-work/1",
       parentCandidateId: realBuildDocumentCandidateId(snapshot.documentHash),
@@ -172,7 +174,7 @@ export function planRealBuildAtomicCompiledPhysicalWork(
     }
     const work =
       prior ??
-      Object.freeze({
+      intrinsicRealBuildFreeze({
         digest,
         canonicalBytes,
         parentCanonicalBytes: snapshot.canonicalBytes,
@@ -181,8 +183,8 @@ export function planRealBuildAtomicCompiledPhysicalWork(
     uniqueByDigest.set(digest, work);
     byProposalId.set(proposal.proposalId, work);
   }
-  return Object.freeze({
-    unique: Object.freeze([...uniqueByDigest.values()]),
+  return intrinsicRealBuildFreeze({
+    unique: intrinsicRealBuildFreeze([...uniqueByDigest.values()]),
     byProposalId,
     indexByDigest: new Map([...uniqueByDigest.values()].map((work, index) => [work.digest, index])),
   });
@@ -202,12 +204,12 @@ function validationEvidence(
       "Atomic compiled branch compiler returned success without one globally valid blocking-issue-free document.",
     );
   }
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     targetDocumentHash: report.targetDocumentHash as Sha256Digest,
     truthSnapshotHash: report.truthSnapshotHash as Sha256Digest,
     validatorSetHash: report.validatorSetHash as Sha256Digest,
     documentGloballyValid: true,
-    blockingIssues: Object.freeze([]) as readonly [],
+    blockingIssues: intrinsicRealBuildFreeze([]) as readonly [],
   });
 }
 
@@ -223,7 +225,10 @@ export function compileRealBuildAtomicPhysicalWork(
     );
   }
   if (!compilation.ok) return compilation;
-  const snapshot = preparation.rootDocumentSnapshot;
+  const snapshot = requireRealBuildAtomicCompiledBranchParentSnapshot(
+    preparation,
+    proposal.parentLineageId,
+  );
   const childDocumentHash = documentStructuralHash(compilation.document) as Sha256Digest;
   const childSnapshot = createRealBuildCandidateDocumentSnapshot({
     canonicalDocument: canonicalBrickDocument(compilation.document),
@@ -261,12 +266,12 @@ export function compileRealBuildAtomicPhysicalWork(
       validation: validationEvidence(compilation.validationReport),
     },
   };
-  return Object.freeze({
-    transition: Object.freeze({
+  return intrinsicRealBuildFreeze({
+    transition: intrinsicRealBuildFreeze({
       transitionId: deriveRealBuildCompiledTransitionId(withoutId),
       ...withoutId,
     }),
-    childCandidate: Object.freeze({
+    childCandidate: intrinsicRealBuildFreeze({
       candidateId: childCandidateId,
       documentHash: childDocumentHash,
       canonicalBytes: childSnapshot.canonicalBytes,

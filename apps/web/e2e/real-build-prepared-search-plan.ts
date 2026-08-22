@@ -1,3 +1,4 @@
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import {
   MAXIMUM_REAL_BUILD_PREPARED_SEARCH_CHILDREN,
   MAXIMUM_REAL_BUILD_PREPARED_SEARCH_CONNECTIONS,
@@ -113,7 +114,10 @@ export function planRealBuildPreparedSearchStructure(
           );
         }
         witnesses.push(
-          Object.freeze({ value: witness, connections: Object.freeze(plannedConnections) }),
+          intrinsicRealBuildFreeze({
+            value: witness,
+            connections: intrinsicRealBuildFreeze(plannedConnections),
+          }),
         );
       }
       const proposalOperations = pieceCount + proposalConnections;
@@ -125,21 +129,26 @@ export function planRealBuildPreparedSearchStructure(
         );
       }
       plannedChildren.push(
-        Object.freeze({
-          witnesses: Object.freeze(witnesses),
+        intrinsicRealBuildFreeze({
+          witnesses: intrinsicRealBuildFreeze(witnesses),
           connectionCount: proposalConnections,
           programOperationCount: proposalOperations,
         }),
       );
     }
-    plan.push(Object.freeze({ row: parent, children: Object.freeze(plannedChildren) }));
+    plan.push(
+      intrinsicRealBuildFreeze({
+        row: parent,
+        children: intrinsicRealBuildFreeze(plannedChildren),
+      }),
+    );
   }
-  return Object.freeze({
+  return intrinsicRealBuildFreeze({
     parentCount,
     childCount,
     witnessCount,
     connectionCount,
     programOperationCount,
-    parents: Object.freeze(plan),
+    parents: intrinsicRealBuildFreeze(plan),
   });
 }

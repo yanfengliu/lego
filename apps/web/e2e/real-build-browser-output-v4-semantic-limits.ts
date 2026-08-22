@@ -1,8 +1,9 @@
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import { MAXIMUM_REAL_BUILD_COMPILED_OBSERVATION_TABLE_ROWS } from "./real-build-compiled-observation-closure-types";
 import { MAXIMUM_REAL_BUILD_PREPARED_SEARCH_PARENTS } from "./real-build-prepared-search-boundary";
 
 /** Cross-step row ceilings applied before lineage reconstruction or replay. */
-export const REAL_BUILD_BROWSER_BRANCH_SEMANTIC_ROW_LIMITS = Object.freeze({
+export const REAL_BUILD_BROWSER_BRANCH_SEMANTIC_ROW_LIMITS = intrinsicRealBuildFreeze({
   searchParents: MAXIMUM_REAL_BUILD_PREPARED_SEARCH_PARENTS,
   sources: MAXIMUM_REAL_BUILD_COMPILED_OBSERVATION_TABLE_ROWS,
   cameras: MAXIMUM_REAL_BUILD_COMPILED_OBSERVATION_TABLE_ROWS,

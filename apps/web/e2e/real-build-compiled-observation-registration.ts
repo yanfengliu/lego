@@ -1,3 +1,4 @@
+import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import { MAXIMUM_REAL_BUILD_COMPILED_OBSERVATION_RASTER_PIXELS } from "./real-build-compiled-observation-closure-types";
 
 export interface RealBuildCompiledRegistrationResult {
@@ -144,7 +145,8 @@ export function createRealBuildCompiledObservationRegistrationVerifier(maximumPi
         count += 1;
       }
     }
-    const result = count === 0 ? null : Object.freeze({ x: sumX / count, y: sumY / count });
+    const result =
+      count === 0 ? null : intrinsicRealBuildFreeze({ x: sumX / count, y: sumY / count });
     centroids.set(bytes, result);
     return result;
   };
@@ -179,7 +181,7 @@ export function createRealBuildCompiledObservationRegistrationVerifier(maximumPi
         }
       }
     }
-    return Object.freeze({
+    return intrinsicRealBuildFreeze({
       score: denominatorPixels === 0 ? 0 : intersectionPixels / denominatorPixels,
       sourcePixels,
       intersectionPixels,
@@ -230,9 +232,9 @@ export function createRealBuildCompiledObservationRegistrationVerifier(maximumPi
       }
     }
     const exact = agreementAt(input, best.dx, best.dy, 1);
-    return Object.freeze({
+    return intrinsicRealBuildFreeze({
       ...exact,
-      shiftPx: Object.freeze([best.dx || 0, best.dy || 0]) as readonly [number, number],
+      shiftPx: intrinsicRealBuildFreeze([best.dx || 0, best.dy || 0]) as readonly [number, number],
     });
   };
 
@@ -256,5 +258,5 @@ export function createRealBuildCompiledObservationRegistrationVerifier(maximumPi
     return count;
   };
 
-  return Object.freeze({ register, countVisibleSource });
+  return intrinsicRealBuildFreeze({ register, countVisibleSource });
 }
