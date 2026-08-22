@@ -302,6 +302,26 @@ describe("stud connection discovery", () => {
     expect(discovered).toHaveLength(4);
     expect(discovered.every(({ targetPartId }) => targetPartId === "upper")).toBe(true);
   });
+
+  it("does not mistake a 28802 side stud for an upright clutch at the same point", () => {
+    const bracket = partAt("bracket", "builtin:bracket-1x2-1x4-rounded-bottom", [0, 0, 0]);
+    const sideStud = definition(bracket.catalogPartId).connectors.find(
+      (connector) => connector.kind === "stud" && connector.normal[2] === -1,
+    )!;
+    const clutch = definition(BRICK_1X1).connectors.find(
+      (connector) => connector.kind === "undersideClutch",
+    )!;
+    const candidate = partAt("candidate", BRICK_1X1, [
+      sideStud.positionLdu[0] - clutch.positionLdu[0],
+      sideStud.positionLdu[1] - clutch.positionLdu[1],
+      sideStud.positionLdu[2] - clutch.positionLdu[2],
+    ]);
+
+    expect(transformLduPoint(candidate.transform, clutch.positionLdu)).toEqual(
+      transformLduPoint(bracket.transform, sideStud.positionLdu),
+    );
+    expect(findStudConnections(candidate, [bracket])).toEqual([]);
+  });
 });
 
 describe("ground convention", () => {

@@ -1,14 +1,30 @@
-import { isPinnedModelIdentity } from "./part-identification-model.mjs";
 import {
   PART_IDENTIFICATION_DIFFERENCES,
   PART_IDENTIFICATION_MAX_NOTE_LENGTH,
 } from "./part-identification-prompt.mjs";
 import { authenticateJsonArtifact, sha256Digest } from "./part-identification-artifact-source.mjs";
+import {
+  copyArray,
+  exactOwnKeys,
+  isArray,
+  isOrdinaryObject,
+  own,
+  ownKeys,
+  sameOrderedStrings,
+  sortedUniqueStrings,
+} from "./part-identification-safe-shape.mjs";
 
 export const PART_CARDS_SCHEMA = "lego.part-identification-cards/4";
-export const PART_ANSWERS_SCHEMA = "lego.part-identification-answers/4";
 const SHA256 = /^sha256:[0-9a-f]{64}$/u;
 const ELEMENT_ID = /^\d{3,12}$/u;
+const stringify = JSON.stringify;
+const numberIsFinite = Number.isFinite;
+const numberIsInteger = Number.isInteger;
+const objectCreate = Object.create;
+const defineProperty = Object.defineProperty;
+const regexpTest = Function.call.bind(RegExp.prototype.test);
+const stringCharCodeAt = Function.call.bind(String.prototype.charCodeAt);
+const stringTrim = Function.call.bind(String.prototype.trim);
 
 const ANSWER_KINDS = new Set([
   "brick",
@@ -27,7 +43,12 @@ export function hasUsableAnswer(answer) {
 }
 
 export function usableAnswerCount(answers) {
-  return Object.values(answers).filter(hasUsableAnswer).length;
+  const keys = ownKeys(answers);
+  let count = 0;
+  for (let index = 0; index < keys.length; index += 1) {
+    if (hasUsableAnswer(answers[keys[index]])) count += 1;
+  }
+  return count;
 }
 /**
  * The keys every answer carries, and the one key it may omit.
@@ -51,11 +72,17 @@ export const ANSWER_FIELDS = [
   "studsWide",
 ];
 export const OPTIONAL_ANSWER_FIELDS = ["note"];
-const ANSWER_KEY_SETS = new Set([
-  ANSWER_FIELDS.join(","),
-  [...ANSWER_FIELDS, ...OPTIONAL_ANSWER_FIELDS].sort().join(","),
-]);
 const ANSWER_DIFFERENCES = new Set(PART_IDENTIFICATION_DIFFERENCES);
+const setHas = Function.call.bind(Set.prototype.has);
+
+function joinStrings(values, separator) {
+  let result = "";
+  for (let index = 0; index < values.length; index += 1) {
+    if (index > 0) result += separator;
+    result += values[index];
+  }
+  return result;
+}
 /**
  * A note travels on one line inside one JSON object, so braces and line breaks
  * are structurally forbidden rather than merely discouraged: the reply is split
@@ -64,10 +91,10 @@ const ANSWER_DIFFERENCES = new Set(PART_IDENTIFICATION_DIFFERENCES);
  * one answer at a boundary that says so, not a silently truncated record.
  */
 const noteHasForbiddenCharacter = (text) => {
-  for (const character of text) {
-    const code = character.codePointAt(0);
+  for (let index = 0; index < text.length; index += 1) {
+    const code = stringCharCodeAt(text, index);
     if (code < 0x20 || code === 0x7f) return true;
-    if (character === "{" || character === "}") return true;
+    if (code === 0x7b || code === 0x7d) return true;
   }
   return false;
 };
@@ -75,7 +102,7 @@ const noteHasForbiddenCharacter = (text) => {
 export class PartIdentificationArtifactBindingError extends Error {
   constructor(artifactRole, mismatches) {
     super(
-      `${artifactRole} binding failed: ${mismatches.join("; ")}. ` +
+      `${artifactRole} binding failed: ${joinStrings(mismatches, "; ")}. ` +
         "Archive legacy answers and rerun the bounded vision pass; cluster indexes cannot cross a match or prompt change.",
     );
     this.name = "PartIdentificationArtifactBindingError";
@@ -85,20 +112,19 @@ export class PartIdentificationArtifactBindingError extends Error {
 }
 
 export function deriveCardRunId(featuresDigest, matchDigest, cards) {
-  const canonicalCards = Object.fromEntries(
-    Object.entries(cards ?? {})
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([cardId, entry]) => [
-        cardId,
-        {
-          sha256: entry?.sha256,
-          candidateElementIds: Array.isArray(entry?.candidateElementIds)
-            ? [...entry.candidateElementIds]
-            : entry?.candidateElementIds,
-        },
-      ]),
-  );
-  return sha256Digest(JSON.stringify({ featuresDigest, matchDigest, cards: canonicalCards })).slice(
+  const keys = sortedUniqueStrings(ownKeys(cards));
+  const canonicalCards = Object.create(null);
+  for (let index = 0; index < keys.length; index += 1) {
+    const cardId = keys[index];
+    const entry = cards[cardId];
+    canonicalCards[cardId] = {
+      sha256: entry?.sha256,
+      candidateElementIds: isArray(entry?.candidateElementIds)
+        ? copyArray(entry.candidateElementIds)
+        : entry?.candidateElementIds,
+    };
+  }
+  return sha256Digest(stringify({ featuresDigest, matchDigest, cards: canonicalCards })).slice(
     "sha256:".length,
     "sha256:".length + 24,
   );
@@ -107,176 +133,120 @@ export function deriveCardRunId(featuresDigest, matchDigest, cards) {
 export function assertCardsArtifact(artifact, { featuresDigest, matchDigest, clusters }) {
   const boundArtifact = authenticateJsonArtifact(artifact, "part-identification cards");
   const manifest = boundArtifact.value;
-  const boundClusters = Array.isArray(clusters) ? clusters : [];
-  const indexes = boundClusters.map((cluster) => cluster?.clusterIndex);
-  const expectedCards = indexes.map((index) => `card-${String(index).padStart(4, "0")}`).sort();
-  const actualCards =
-    typeof manifest?.cards === "object" && manifest.cards !== null && !Array.isArray(manifest.cards)
-      ? Object.keys(manifest.cards).sort()
-      : [];
+  const boundClusters = isArray(clusters) ? clusters : [];
+  const indexes = new Array(boundClusters.length);
+  const expectedCardIds = new Array(boundClusters.length);
+  let invalid = boundClusters.length === 0;
+  for (let index = 0; index < boundClusters.length; index += 1) {
+    const clusterIndex = boundClusters[index]?.clusterIndex;
+    indexes[index] = clusterIndex;
+    expectedCardIds[index] = `card-${String(clusterIndex).padStart(4, "0")}`;
+    if (!numberIsInteger(clusterIndex) || clusterIndex < 0) invalid = true;
+    for (let prior = 0; prior < index; prior += 1) {
+      if (indexes[prior] === clusterIndex) invalid = true;
+    }
+  }
+  const expectedCards = sortedUniqueStrings(expectedCardIds) ?? [];
+  const actualCards = sortedUniqueStrings(ownKeys(manifest?.cards)) ?? [];
   const expectedRunId = deriveCardRunId(featuresDigest, matchDigest, manifest?.cards);
   if (
+    invalid ||
+    !isOrdinaryObject(manifest) ||
+    !exactOwnKeys(manifest, [
+      "cards",
+      "featuresDigest",
+      "imagesFile",
+      "matchDigest",
+      "runId",
+      "schemaVersion",
+    ]) ||
     manifest?.schemaVersion !== PART_CARDS_SCHEMA ||
     manifest.featuresDigest !== featuresDigest ||
     manifest.matchDigest !== matchDigest ||
     manifest.runId !== expectedRunId ||
     manifest.imagesFile !== `runs/${expectedRunId}/images.bin` ||
-    expectedCards.length === 0 ||
-    new Set(indexes).size !== indexes.length ||
-    !indexes.every((index) => Number.isInteger(index) && index >= 0) ||
-    typeof manifest.cards !== "object" ||
-    manifest.cards === null ||
-    Array.isArray(manifest.cards) ||
-    actualCards.length !== expectedCards.length ||
-    !actualCards.every((card, index) => card === expectedCards[index]) ||
-    Object.keys(manifest).sort().join(",") !==
-      "cards,featuresDigest,imagesFile,matchDigest,runId,schemaVersion" ||
-    boundClusters.some((cluster) => {
-      const cardId = `card-${String(cluster?.clusterIndex).padStart(4, "0")}`;
-      const entry = manifest.cards[cardId];
-      const ids = entry?.candidateElementIds;
-      return (
-        !Array.isArray(cluster?.candidates) ||
-        typeof entry !== "object" ||
-        entry === null ||
-        Array.isArray(entry) ||
-        Object.keys(entry).sort().join(",") !== "candidateElementIds,file,sha256" ||
-        entry.file !== `runs/${expectedRunId}/${cardId}.png` ||
-        !SHA256.test(entry.sha256 ?? "") ||
-        !Array.isArray(ids) ||
-        ids.length < 1 ||
-        ids.length > cluster.candidates.length ||
-        new Set(ids).size !== ids.length ||
-        ids.some(
-          (elementId, candidateIndex) =>
-            !ELEMENT_ID.test(elementId) ||
-            elementId !== cluster.candidates[candidateIndex]?.elementId,
-        )
-      );
-    })
+    !isOrdinaryObject(manifest.cards) ||
+    !sameOrderedStrings(actualCards, expectedCards)
   ) {
     throw new Error(
       `Vision cards must use ${PART_CARDS_SCHEMA}, bind exact features/match digests ${featuresDigest}/${matchDigest}, derive one canonical 24-hex immutable run, and contain exactly one run-contained card digest/file plus the exact displayed ordered candidate prefix for each of ${expectedCards.length} match clusters with no extras. Regenerate cards from the unchanged feature galleries after every feature, match, or display-count change; never repair a pointer by rebinding partial files.`,
     );
   }
+  for (let clusterIndex = 0; clusterIndex < boundClusters.length; clusterIndex += 1) {
+    const cluster = boundClusters[clusterIndex];
+    const cardId = `card-${String(cluster.clusterIndex).padStart(4, "0")}`;
+    const entry = manifest.cards[cardId];
+    const ids = entry?.candidateElementIds;
+    let invalidEntry =
+      !isArray(cluster?.candidates) ||
+      !exactOwnKeys(entry, ["candidateElementIds", "file", "sha256"]) ||
+      entry.file !== `runs/${expectedRunId}/${cardId}.png` ||
+      !regexpTest(SHA256, entry.sha256 ?? "") ||
+      !isArray(ids) ||
+      ids.length < 1 ||
+      ids.length > cluster.candidates.length;
+    if (!invalidEntry) {
+      for (let candidateIndex = 0; candidateIndex < ids.length; candidateIndex += 1) {
+        for (let prior = 0; prior < candidateIndex; prior += 1) {
+          if (ids[prior] === ids[candidateIndex]) invalidEntry = true;
+        }
+        if (
+          !regexpTest(ELEMENT_ID, ids[candidateIndex]) ||
+          ids[candidateIndex] !== cluster.candidates[candidateIndex]?.elementId
+        ) {
+          invalidEntry = true;
+        }
+      }
+    }
+    if (invalidEntry) {
+      throw new Error(
+        `Vision cards must use ${PART_CARDS_SCHEMA}, bind exact features/match digests ${featuresDigest}/${matchDigest}, derive one canonical 24-hex immutable run, and contain exactly one run-contained card digest/file plus the exact displayed ordered candidate prefix for each of ${expectedCards.length} match clusters with no extras. Regenerate cards from the unchanged feature galleries after every feature, match, or display-count change; never repair a pointer by rebinding partial files.`,
+      );
+    }
+  }
   return manifest;
 }
 
-export function boundAnswers(
-  artifact,
-  { model, matchDigest, cardsDigest, promptDigest, clusters, cards },
-) {
-  const boundArtifact = authenticateJsonArtifact(artifact, "part-identification answers");
-  const bundle = boundArtifact.value;
-  const allowed = new Set(
-    Array.isArray(clusters) ? clusters.map(({ clusterIndex }) => clusterIndex) : [],
-  );
-  const answerKeys =
-    typeof bundle?.answers === "object" && bundle.answers !== null && !Array.isArray(bundle.answers)
-      ? Object.keys(bundle.answers)
-      : [];
-  const mismatches = [];
-  if (bundle?.schemaVersion !== PART_ANSWERS_SCHEMA) {
-    mismatches.push(
-      `schemaVersion observed ${JSON.stringify(bundle?.schemaVersion)} but required ${JSON.stringify(PART_ANSWERS_SCHEMA)}`,
-    );
-  }
-  if (bundle?.model !== model) {
-    mismatches.push(
-      `model observed ${JSON.stringify(bundle?.model)} but required ${JSON.stringify(model)}`,
-    );
-  }
-  if (!isPinnedModelIdentity(bundle?.modelIdentity, model)) {
-    mismatches.push(
-      `modelIdentity did not reproduce the pinned identity for ${JSON.stringify(model)}`,
-    );
-  }
-  if (bundle?.matchDigest !== matchDigest) {
-    mismatches.push(
-      `matchDigest observed ${JSON.stringify(bundle?.matchDigest)} but required ${JSON.stringify(matchDigest)}`,
-    );
-  }
-  if (!SHA256.test(bundle?.cardsDigest ?? "") || bundle?.cardsDigest !== cardsDigest) {
-    mismatches.push(
-      `cardsDigest observed ${JSON.stringify(bundle?.cardsDigest)} but required ${JSON.stringify(cardsDigest)}`,
-    );
-  }
-  if (!SHA256.test(bundle?.promptDigest ?? "") || bundle?.promptDigest !== promptDigest) {
-    mismatches.push(
-      `promptDigest observed ${JSON.stringify(bundle?.promptDigest)} but required ${JSON.stringify(promptDigest)}`,
-    );
-  }
-  if (
-    typeof bundle?.answers !== "object" ||
-    bundle.answers === null ||
-    Array.isArray(bundle.answers)
-  ) {
-    mismatches.push(
-      `answers observed ${Array.isArray(bundle?.answers) ? "an array" : typeof bundle?.answers} but required an object keyed by cluster index`,
-    );
-  }
-  const invalidAnswerKeys = answerKeys.filter(
-    (key) => !/^(0|[1-9]\d*)$/u.test(key) || !allowed.has(Number(key)),
-  );
-  if (invalidAnswerKeys.length > 0) {
-    mismatches.push(
-      `answer cluster indexes ${JSON.stringify(invalidAnswerKeys)} were absent from the required match clusters ${JSON.stringify([...allowed].sort((left, right) => left - right))}`,
-    );
-  }
-  const invalidAnswers = answerKeys.filter((key) => !validAnswerRecord(bundle.answers[key]));
-  if (invalidAnswers.length > 0) {
-    mismatches.push(
-      `answer records ${JSON.stringify(invalidAnswers)} were not null or exact bounded ${ANSWER_FIELDS.join("/")} objects with an optional bounded note`,
-    );
-  }
-  // A second choice is a candidate number exactly as a pick is, so it is held to
-  // the same rule: both have to be numbers the exact bound card actually showed,
-  // or the assignment would discount an element nobody was ever asked about.
-  const unseenPicks = answerKeys.filter((key) => {
-    const answer = bundle.answers[key];
-    if (answer === null || !validAnswerRecord(answer)) return false;
-    if (answer.pick === 0 && answer.alsoCouldBe === 0) return false;
-    const cardId = `card-${String(Number(key)).padStart(4, "0")}`;
-    const displayed = cards?.[cardId]?.candidateElementIds;
-    if (!Array.isArray(displayed)) return true;
-    return answer.pick > displayed.length || answer.alsoCouldBe > displayed.length;
-  });
-  if (unseenPicks.length > 0) {
-    mismatches.push(
-      `answer records ${JSON.stringify(unseenPicks)} named picked or second-choice candidates that their exact bound cards did not display`,
-    );
-  }
-  if (mismatches.length > 0) {
-    throw new PartIdentificationArtifactBindingError("identification-answers", mismatches);
-  }
-  return bundle.answers;
-}
-
-function validAnswerRecord(answer) {
+export function validAnswerRecord(answer) {
   if (answer === null) return true;
-  if (typeof answer !== "object" || Array.isArray(answer)) return false;
-  if (!ANSWER_KEY_SETS.has(Object.keys(answer).sort().join(","))) return false;
+  if (!isOrdinaryObject(answer)) return false;
   if (
-    !ANSWER_KINDS.has(answer.kind) ||
-    !Number.isInteger(answer.studsLong) ||
+    !exactOwnKeys(answer, ANSWER_FIELDS) &&
+    !exactOwnKeys(answer, [
+      "alsoCouldBe",
+      "colour",
+      "confidence",
+      "differsFromPick",
+      "kind",
+      "note",
+      "pick",
+      "studsLong",
+      "studsWide",
+    ])
+  ) {
+    return false;
+  }
+  if (
+    !setHas(ANSWER_KINDS, answer.kind) ||
+    !numberIsInteger(answer.studsLong) ||
     answer.studsLong < 0 ||
     answer.studsLong > 64 ||
-    !Number.isInteger(answer.studsWide) ||
+    !numberIsInteger(answer.studsWide) ||
     answer.studsWide < 0 ||
     answer.studsWide > 64 ||
     typeof answer.colour !== "string" ||
     answer.colour.length < 1 ||
     answer.colour.length > 64 ||
-    !Number.isInteger(answer.pick) ||
+    !numberIsInteger(answer.pick) ||
     answer.pick < 0 ||
     answer.pick > 64 ||
-    !Number.isInteger(answer.alsoCouldBe) ||
+    !numberIsInteger(answer.alsoCouldBe) ||
     answer.alsoCouldBe < 0 ||
     answer.alsoCouldBe > 64 ||
-    !Number.isFinite(answer.confidence) ||
+    !numberIsFinite(answer.confidence) ||
     answer.confidence < 0 ||
     answer.confidence > 1 ||
-    !ANSWER_DIFFERENCES.has(answer.differsFromPick)
+    !setHas(ANSWER_DIFFERENCES, answer.differsFromPick)
   ) {
     return false;
   }
@@ -290,10 +260,10 @@ function validAnswerRecord(answer) {
   // is no pick to differ from, and declaring a difference from a candidate that
   // was never named describes nothing.
   if ((answer.pick === 0) !== (answer.differsFromPick === "not-on-card")) return false;
-  if (Object.hasOwn(answer, "note")) {
+  if (own(answer, "note")) {
     if (
       typeof answer.note !== "string" ||
-      answer.note.trim().length === 0 ||
+      stringTrim(answer.note).length === 0 ||
       answer.note.length > PART_IDENTIFICATION_MAX_NOTE_LENGTH ||
       noteHasForbiddenCharacter(answer.note)
     ) {
@@ -312,9 +282,9 @@ function validAnswerRecord(answer) {
 export function assertAnswerRecord(answer, label = "Part-identification answer") {
   if (!validAnswerRecord(answer)) {
     throw new Error(
-      `${label} must be null or an exact bounded ${ANSWER_FIELDS.join("/")} object, with an optional non-empty ` +
+      `${label} must be null or an exact bounded ${joinStrings(ANSWER_FIELDS, "/")} object, with an optional non-empty ` +
         `note of at most ${PART_IDENTIFICATION_MAX_NOTE_LENGTH} characters carrying no braces or control characters. ` +
-        `differsFromPick must be one of ${PART_IDENTIFICATION_DIFFERENCES.join(", ")}, must be "not-on-card" exactly ` +
+        `differsFromPick must be one of ${joinStrings(PART_IDENTIFICATION_DIFFERENCES, ", ")}, must be "not-on-card" exactly ` +
         'when pick is 0, and must carry a note whenever it is not "nothing"; alsoCouldBe must be 0 or a second, different candidate number.',
     );
   }
@@ -332,28 +302,49 @@ export function assertAnswerRecord(answer, label = "Part-identification answer")
  * downstream.
  */
 export function canonicalAnswerRecord(answer) {
-  if (typeof answer !== "object" || answer === null || Array.isArray(answer)) return answer;
-  if (!Object.hasOwn(answer, "note")) return answer;
-  if (typeof answer.note === "string" && answer.note.trim().length === 0) {
-    return Object.fromEntries(Object.entries(answer).filter(([key]) => key !== "note"));
+  if (!isOrdinaryObject(answer)) return answer;
+  const hasNote = own(answer, "note");
+  const expectedFields = hasNote
+    ? [
+        "alsoCouldBe",
+        "colour",
+        "confidence",
+        "differsFromPick",
+        "kind",
+        "note",
+        "pick",
+        "studsLong",
+        "studsWide",
+      ]
+    : ANSWER_FIELDS;
+  if (!exactOwnKeys(answer, expectedFields) || !hasNote) return answer;
+  const trimmed = typeof answer.note === "string" ? stringTrim(answer.note) : null;
+  if (trimmed !== null && trimmed.length === 0) {
+    const withoutNote = objectCreate(null);
+    const keys = ownKeys(answer);
+    for (let index = 0; index < keys.length; index += 1) {
+      if (keys[index] !== "note") {
+        defineProperty(withoutNote, keys[index], {
+          value: answer[keys[index]],
+          enumerable: true,
+          configurable: true,
+          writable: true,
+        });
+      }
+    }
+    return withoutNote;
   }
   if (typeof answer.note !== "string") return answer;
-  return answer.note === answer.note.trim() ? answer : { ...answer, note: answer.note.trim() };
+  if (answer.note === trimmed) return answer;
+  const canonical = objectCreate(null);
+  const keys = ownKeys(answer);
+  for (let index = 0; index < keys.length; index += 1) {
+    defineProperty(canonical, keys[index], {
+      value: keys[index] === "note" ? trimmed : answer[keys[index]],
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
+  }
+  return canonical;
 }
-
-export const answerBundle = ({
-  model,
-  modelIdentity,
-  matchDigest,
-  cardsDigest,
-  promptDigest,
-  answers,
-}) => ({
-  schemaVersion: PART_ANSWERS_SCHEMA,
-  model,
-  modelIdentity,
-  matchDigest,
-  cardsDigest,
-  promptDigest,
-  answers,
-});

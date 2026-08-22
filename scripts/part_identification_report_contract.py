@@ -37,7 +37,7 @@ FEATURES_SCHEMA = "lego.part-identification-features/3"
 MATCH_SCHEMA = "lego.part-identification-match/3"
 DISTANCES_SCHEMA = "lego.part-identification-distances/3"
 CARDS_SCHEMA = "lego.part-identification-cards/4"
-ANSWERS_SCHEMA = "lego.part-identification-answers/4"
+ANSWERS_SCHEMA = "lego.part-identification-answers/5"
 SCORE_SCHEMA = "lego.part-identification-score/2"
 SCORE_SUMMARY_SCHEMA = "lego.part-identification-score-summary/2"
 TRUTH_SCHEMA = "lego.part-identification-truth/3"
@@ -459,7 +459,7 @@ def require_adjudication_chain(
     match_digest: str,
     cards_digest: str,
 ) -> None:
-    """Require cards/4 and answers/4 to bind the exact match generation."""
+    """Require cards/4 and replay-verified answers/5 to bind the exact match generation."""
 
     cards_value = _mapping(cards, "Part-identification cards")
     answers_value = _mapping(answers, "Part-identification answers")

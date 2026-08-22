@@ -9,8 +9,14 @@ import {
   type LduVector3,
   type PartDefinition,
 } from "@lego-studio/catalog";
-import { getUprightOrientation, transformLduPoint } from "@lego-studio/brick-kernel";
+import {
+  getUprightOrientation,
+  rotateLduVector,
+  transformLduPoint,
+} from "@lego-studio/brick-kernel";
 import type { PartInstance, RigidTransform } from "@lego-studio/protocol";
+
+import { connectorAxesAlign } from "./connector-frame-alignment";
 
 /**
  * Placement lattice, in canonical -Y-up LDU.
@@ -273,11 +279,19 @@ export function endpointKey(partId: string, portId: string): string {
 function connectorFrames(
   part: Pick<PartInstance, "id" | "catalogPartId" | "transform">,
   kind: ConnectorKind,
-): readonly { readonly portId: string; readonly position: LduVector3 }[] {
+): readonly {
+  readonly kind: ConnectorKind;
+  readonly normal: LduVector3;
+  readonly portId: string;
+  readonly position: LduVector3;
+}[] {
   const definition = requireDefinition(part.catalogPartId);
+  const orientation = getUprightOrientation(part.transform.orientationId);
   return definition.connectors
     .filter((connector) => connector.kind === kind)
     .map((connector) => ({
+      kind: connector.kind,
+      normal: rotateLduVector(orientation.matrix, connector.normal),
       portId: connector.id,
       position: transformLduPoint(part.transform, connector.positionLdu),
     }));
@@ -321,7 +335,8 @@ export function findStudConnections(
         const match = candidatePorts.find(
           (candidatePort) =>
             !usedCandidatePorts.has(candidatePort.portId) &&
-            samePosition(candidatePort.position, target.position),
+            samePosition(candidatePort.position, target.position) &&
+            connectorAxesAlign(candidatePort, target),
         );
         if (!match) continue;
         usedCandidatePorts.add(match.portId);

@@ -41,6 +41,19 @@ export interface MeasuredLdcadShadowSource {
   readonly shadowFiles: readonly string[];
 }
 
+export type MeasuredStudRow =
+  | readonly [x: number, y: number, z: number, radiusLdu: number, heightLdu: number]
+  | readonly [
+      x: number,
+      y: number,
+      z: number,
+      radiusLdu: number,
+      heightLdu: number,
+      normalX: number,
+      normalY: number,
+      normalZ: number,
+    ];
+
 /**
  * A part declared from measured source rather than from parameters.
  *
@@ -61,6 +74,9 @@ export interface MeasuredPartBlueprint {
   /** The LDraw design number, which is this part's identity in every source. */
   readonly designId: string;
   readonly ldrawId: `${string}.dat`;
+  /** Explicit only when ordinary family/footprint naming would misidentify the part. */
+  readonly catalogId?: `builtin:${string}`;
+  readonly displayName?: string;
   readonly family: PartFamily;
   readonly widthStuds: number;
   readonly lengthStuds: number;
@@ -83,17 +99,12 @@ export interface MeasuredPartBlueprint {
   readonly exactBodyBoundsLdu: ExactLduBoundsDeclaration;
   readonly exactBoundsLdu: ExactLduBoundsDeclaration;
   /**
-   * One row per stud: the connector seat, then the measured radius and height of
-   * the collision cylinder whose lower face is that seat. Connector and body
-   * are the same feature, so they are declared once and expanded together.
+   * One row per stud: the connector seat, outward normal, then the measured
+   * radius and height of the collision cylinder whose inward face is that seat.
+   * Connector and body are the same feature, so they are declared once and
+   * expanded together.
    */
-  readonly studsLdu: readonly (readonly [
-    x: number,
-    y: number,
-    z: number,
-    radiusLdu: number,
-    heightLdu: number,
-  ])[];
+  readonly studsLdu: readonly MeasuredStudRow[];
   /** Underside clutch seats from the declaration's one authored connector source. */
   readonly clutchesLdu: readonly (readonly [x: number, y: number, z: number])[];
   /**

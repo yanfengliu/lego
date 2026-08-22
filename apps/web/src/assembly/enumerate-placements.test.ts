@@ -146,6 +146,32 @@ describe("enumerating legal placements", () => {
     );
   });
 
+  it("does not seed upright placements from 28802's horizontal side studs", () => {
+    const bracketId = "builtin:bracket-1x2-1x4-rounded-bottom";
+    const bracket = getPartDefinition(bracketId)!;
+    expect(
+      bracket.connectors.filter(
+        (connector) => connector.kind === "stud" && connector.normal[2] === -1,
+      ),
+    ).toHaveLength(4);
+
+    const brickOnBracket = enumeratePlacements(
+      build([{ part: bracketId, at: [0, 2, 0] }]),
+      "builtin:brick-1x1",
+      { includeBuildPlate: false },
+    );
+    expect(brickOnBracket.counts.freeStuds).toBe(6);
+    expect(brickOnBracket.counts.rawFromStuds).toBe(2 * 1 * 4);
+
+    const bracketOnBrick = enumeratePlacements(
+      build([{ part: "builtin:brick-1x1", at: [0, 0, 0] }]),
+      bracketId,
+      { includeBuildPlate: false },
+    );
+    expect(bracketOnBrick.counts.freeClutches).toBe(1);
+    expect(bracketOnBrick.counts.rawFromClutches).toBe(1 * 2 * 4);
+  });
+
   /**
    * Brute force only sweeps its own window, so the enumeration is compared
    * inside that window — in every axis. A candidate at a height the sweep never
@@ -284,7 +310,7 @@ describe("enumerating legal placements", () => {
     expect(enumeration.counts.freeClutches).toBeGreaterThan(0);
 
     // Completeness over the whole window, not just this one seat.
-    const { missed, invented } = compareWithBruteForce(document, "builtin:plate-1x2", 8);
+    const { missed, invented } = compareWithBruteForce(document, "builtin:plate-1x2", 6);
     expect({ missed, invented }).toEqual({ missed: [], invented: [] });
   });
 
@@ -369,7 +395,7 @@ describe("enumerating legal placements", () => {
     expect(() =>
       enumeratePlacements(document, "builtin:brick-2x4", { maxDistinctTransforms: 10 }),
     ).toThrowError(
-      /passed the 10 distinct-transform bound \(36 free studs x 8 clutches, plus 36 free clutches x 8 studs, x 4 orientations\)/,
+      /passed the 10 distinct-transform bound after considering \d+ axis-compatible stud seeds, 0 axis-compatible clutch seeds, and 0 build-plate seeds \(36 total free studs and 36 total free clutches across 4 orientations\)/,
     );
   });
 

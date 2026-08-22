@@ -8,14 +8,11 @@ import {
   encodeCardImageBundle,
 } from "../../../scripts/part-identification-card-images.mjs";
 import {
-  PART_ANSWERS_SCHEMA,
   PART_CARDS_SCHEMA,
   PART_FEATURES_SCHEMA,
 } from "../../../scripts/part-identification-artifacts.mjs";
-import {
-  PART_IDENTIFICATION_MODEL_ID,
-  PART_IDENTIFICATION_MODEL_IDENTITY,
-} from "../../../scripts/part-identification-model.mjs";
+import { PART_IDENTIFICATION_MODEL_ID } from "../../../scripts/part-identification-model.mjs";
+import { syntheticPartIdentificationAnswerClosure } from "../../../scripts/part-identification-synthetic-proof-fixture.mjs";
 import { deriveCalloutManifestRunId } from "../e2e/callout-run-id";
 import type { CalloutManifest } from "../e2e/callout-types";
 import { PART_IDENTIFICATION_PROMPT_DIGEST } from "../../../scripts/part-identification-prompt.mjs";
@@ -276,24 +273,20 @@ function closureFixture(): {
   const cardImages = cardImageBundleArtifact(
     encodeCardImageBundle(cards.value, { "card-0000": cardPng }),
   );
-  const answers = artifact({
-    schemaVersion: PART_ANSWERS_SCHEMA,
-    model: PART_IDENTIFICATION_MODEL_ID,
-    modelIdentity: PART_IDENTIFICATION_MODEL_IDENTITY,
-    matchDigest: match.digest,
+  const { answersArtifact: answers, traceArtifacts } = syntheticPartIdentificationAnswerClosure({
+    cardId: "card-0000",
+    image: cardPng,
     cardsDigest: cards.digest,
-    promptDigest: PART_IDENTIFICATION_PROMPT_DIGEST,
-    answers: {
-      0: {
-        kind: "brick",
-        studsLong: 1,
-        studsWide: 1,
-        colour: "black",
-        pick: 1,
-        alsoCouldBe: 0,
-        differsFromPick: "nothing",
-        confidence: 0.9,
-      },
+    matchDigest: match.digest,
+    answer: {
+      kind: "brick",
+      studsLong: 1,
+      studsWide: 1,
+      colour: "black",
+      pick: 1,
+      alsoCouldBe: 0,
+      differsFromPick: "nothing",
+      confidence: 0.9,
     },
   });
   const elementResolution = artifact(elements);
@@ -314,6 +307,8 @@ function closureFixture(): {
     cardsArtifact: cards,
     cardImagesArtifact: cardImages,
     answersArtifact: answers,
+    traceRoot: null,
+    traceArtifacts,
     elementsArtifact: elementResolution,
     pairJudgedArtifact: pairJudged,
     source: "adjudicated" as const,
@@ -337,6 +332,8 @@ function closureFixture(): {
       cards,
       cardImages,
       answers,
+      traceRoot: null,
+      traceArtifacts,
       elementResolution,
       pairJudged,
       requestedLastStep: 1,
@@ -350,6 +347,8 @@ describe("real-build identification closure", () => {
     const prepared = prepareRealBuildIdentificationClosure(fixture.input);
 
     expect(prepared.cardImagesArtifact).toEqual(fixture.input.cardImages);
+    expect(prepared.traceRoot).toBeNull();
+    expect(prepared.traceArtifacts).toBe(fixture.input.traceArtifacts);
     expect(() =>
       coverageTestOnly.verifyBookletCatalogCoverageClosure(prepared, fixture.manifestExpectation),
     ).not.toThrow();
@@ -364,6 +363,34 @@ describe("real-build identification closure", () => {
       ).toThrow(/requires exact retained.*all three roles/u);
     },
   );
+
+  it("authenticates the generation-local match schema before requiring the /5 proof trace", () => {
+    const fixture = closureFixture();
+    const legacyMatch = artifact({
+      ...(fixture.input.match.value as Record<string, unknown>),
+      schemaVersion: "lego.part-identification-match/2",
+    });
+    const withoutTrace = {
+      ...fixture.input,
+      traceRoot: null,
+      traceArtifacts: null,
+    } satisfies RealBuildIdentificationClosureInput;
+
+    expect(() =>
+      coverageTestOnly.verifyBookletCatalogCoverageClosure(
+        prepareRealBuildIdentificationClosure({ ...withoutTrace, match: legacyMatch }),
+        fixture.manifestExpectation,
+      ),
+    ).toThrow(
+      /Part-identification match must use lego\.part-identification-match\/3[\s\S]*received schemaVersion="lego\.part-identification-match\/2"/u,
+    );
+    expect(() =>
+      coverageTestOnly.verifyBookletCatalogCoverageClosure(
+        prepareRealBuildIdentificationClosure(withoutTrace),
+        fixture.manifestExpectation,
+      ),
+    ).toThrow(/Answer checkpoint lineage requires its exact retained output root/u);
+  });
 
   it.each(["cards", "cardImages", "answers"] as const)(
     "rejects a deterministic closure that smuggles the %s role",
@@ -465,7 +492,7 @@ describe("real-build identification closure", () => {
     ).toThrow(/strict UTF-8 JSON/u);
   });
 
-  it("attributes stale schema-3 match, cards, and prompt bindings to the answer role", () => {
+  it("attributes stale /5 match, cards, and prompt bindings to the answer role", () => {
     const fixture = closureFixture();
     const staleAnswers = artifact({
       ...(fixture.input.answers!.value as Record<string, unknown>),

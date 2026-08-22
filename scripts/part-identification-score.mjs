@@ -145,6 +145,8 @@ export async function commandScore(argv, { option, inventoryHeld, elementNames }
           promptDigest: PART_IDENTIFICATION_PROMPT_DIGEST,
           clusters: match.clusters,
           cards: cards.cards,
+          cardImages: cardImages.images,
+          traceRoot: OUT,
         });
   if (source !== "deterministic" && answers === null) {
     throw new Error(

@@ -1,3 +1,5 @@
+import { exactOwnKeys, isOrdinaryObject } from "./part-identification-safe-shape.mjs";
+
 export const PART_IDENTIFICATION_MODEL_ID = "claude-opus-5";
 
 export const PART_IDENTIFICATION_MODEL_IDENTITY = Object.freeze({
@@ -24,12 +26,9 @@ export function responseModelIdentity(payload, requestedModelId) {
     payload?.is_error !== false ||
     typeof payload.result !== "string" ||
     payload.result.length === 0 ||
-    typeof payload.modelUsage !== "object" ||
-    payload.modelUsage === null ||
-    Array.isArray(payload.modelUsage) ||
-    Object.keys(payload.modelUsage).length !== 1 ||
-    typeof usage !== "object" ||
-    usage === null ||
+    !isOrdinaryObject(payload.modelUsage) ||
+    !exactOwnKeys(payload.modelUsage, [requestedModelId]) ||
+    !isOrdinaryObject(usage) ||
     usage.canonicalModel !== expected.canonicalModel ||
     usage.provider !== expected.provider
   ) {
@@ -44,13 +43,10 @@ export function responseModelIdentity(payload, requestedModelId) {
 export function isPinnedModelIdentity(value, model) {
   const expected = requirePinnedPartIdentificationModel(model);
   return (
-    typeof value === "object" &&
-    value !== null &&
+    exactOwnKeys(value, ["requestedModelId", "responseModelId", "canonicalModel", "provider"]) &&
     value.requestedModelId === expected.requestedModelId &&
     value.responseModelId === expected.responseModelId &&
     value.canonicalModel === expected.canonicalModel &&
-    value.provider === expected.provider &&
-    Object.keys(value).sort().join(",") ===
-      "canonicalModel,provider,requestedModelId,responseModelId"
+    value.provider === expected.provider
   );
 }

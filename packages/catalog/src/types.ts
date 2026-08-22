@@ -54,7 +54,8 @@ export type PartFamily =
   | "arch"
   | "curved-slope"
   | "cheese-slope"
-  | "corner-plate";
+  | "corner-plate"
+  | "bracket";
 /**
  * The ways two parts can meet.
  *
@@ -165,6 +166,24 @@ export interface UprightOrientation {
   readonly upAxis: readonly [0, -1, 0];
 }
 
+/**
+ * The serialized local frame label carried by a connector.
+ *
+ * For newly measured stud frames this label names the exact outward-normal
+ * axis. Legacy non-stud ports can retain `connector-up` even when their
+ * separately authoritative `normal` points sideways, so consumers must not
+ * invert this label into a general connector normal. Axis names cover
+ * source-authored studs on a side face without pretending that the upright-only
+ * part transform policy can rotate an ordinary clutch onto that face.
+ */
+export type ConnectorOrientationId =
+  | "connector-up"
+  | "connector-down"
+  | "connector-x-negative"
+  | "connector-x-positive"
+  | "connector-z-negative"
+  | "connector-z-positive";
+
 export interface ConnectorPortDefinition {
   readonly id: string;
   readonly kind: ConnectorKind;
@@ -173,7 +192,7 @@ export interface ConnectorPortDefinition {
   readonly gender: ConnectorGender;
   readonly positionLdu: LduVector3;
   readonly normal: LduVector3;
-  readonly orientationId: "connector-up" | "connector-down";
+  readonly orientationId: ConnectorOrientationId;
   readonly capacity: 1;
   readonly compatibleKinds: readonly ConnectorKind[];
 }
@@ -220,8 +239,9 @@ export interface CollisionCylinder {
    */
   readonly tag: "stud" | "body";
   /**
-   * The axis the cylinder stands on. A stud is always vertical; a wheel lies on
-   * its side. Declaring it wrong makes the bounding box wrong on two axes, and
+   * The axis the cylinder stands on. A source-measured stud can point outward
+   * from any axis-aligned face; a wheel likewise lies on its side. Declaring the
+   * axis wrong makes the bounding box wrong on two axes, and
    * short in one of them — which lets a real overlap go unreported.
    */
   readonly axis: "x" | "y" | "z";
@@ -414,7 +434,7 @@ export interface ParametricGeometryRecipe {
     readonly kind: ConnectorKind;
     readonly positionLdu: LduVector3;
     readonly normal: LduVector3;
-    readonly orientationId: "connector-up" | "connector-down";
+    readonly orientationId: ConnectorOrientationId;
   }[];
   /**
    * `modelled-shell-cavity` means the underside is real geometry: the body union

@@ -15,7 +15,7 @@ FIXTURE_WRITER = Path(__file__).with_name(
 )
 TEST_VERIFIER = Path(__file__).with_name("part-identification-report-test-verifier.mjs")
 EXPECTED_SCORE_BYTES = 14_512
-EXPECTED_SCORE_DIGEST = "sha256:d53f848d907c3039298f3e67468c9dbc903d6e9de1e5e6c9dc3cdace86265d8f"
+EXPECTED_SCORE_DIGEST = "sha256:3a3ec171ebdae9294599e4d0488938bf80e5887374ccfa607aefd29ed6ad0d33"
 TEST_ROOT_MARKER = ".lego-report-contract-fixture-root"
 TEST_ROOT_MARKER_CONTENT = "lego-report-contract-fixture/1\n"
 
@@ -51,5 +51,7 @@ def materialize_report_contract_fixture(
     score_digest = "sha256:" + hashlib.sha256(score_bytes).hexdigest()
     if len(score_bytes) != EXPECTED_SCORE_BYTES or score_digest != EXPECTED_SCORE_DIGEST:
         raise RuntimeError(
-            "Canonical score fixture moved from its independently reviewed exact byte length/digest."
+            "Canonical score fixture moved from its independently reviewed exact byte length/digest: "
+            f"observed {len(score_bytes)} bytes {score_digest}; expected "
+            f"{EXPECTED_SCORE_BYTES} bytes {EXPECTED_SCORE_DIGEST}."
         )

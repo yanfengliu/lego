@@ -3,6 +3,32 @@ import { TextDecoder } from "node:util";
 const MAX_JSON_DEPTH = 128;
 const MAX_JSON_VALUES = 4_000_000;
 const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
+const bufferFromIntrinsic = Buffer.from;
+const bufferFrom = (bytes) => bufferFromIntrinsic(bytes);
+const decodeUtf8 = Function.call.bind(TextDecoder.prototype.decode, decoder);
+const defineProperty = Object.defineProperty;
+const hasOwn = Function.call.bind(Object.prototype.hasOwnProperty);
+const jsonParse = JSON.parse;
+const jsonStringify = JSON.stringify;
+const numberIntrinsic = Number;
+const numberIsFinite = Number.isFinite;
+const objectCreate = Object.create;
+const regexpTest = Function.call.bind(RegExp.prototype.test);
+const stringCharCodeAt = Function.call.bind(String.prototype.charCodeAt);
+const stringSlice = Function.call.bind(String.prototype.slice);
+
+function validSimpleEscape(character) {
+  return (
+    character === '"' ||
+    character === "\\" ||
+    character === "/" ||
+    character === "b" ||
+    character === "f" ||
+    character === "n" ||
+    character === "r" ||
+    character === "t"
+  );
+}
 
 class StrictJsonParser {
   constructor(text) {
@@ -55,13 +81,13 @@ class StrictJsonParser {
     if (character === "-" || (character >= "0" && character <= "9")) {
       return this.parseNumber();
     }
-    this.fail(`Expected a JSON value, received ${JSON.stringify(character ?? "end of input")}`);
+    this.fail(`Expected a JSON value, received ${jsonStringify(character ?? "end of input")}`);
   }
 
   parseObject(depth) {
     this.index += 1;
     const result = {};
-    const keys = new Set();
+    const keys = objectCreate(null);
     this.skipWhitespace();
     if (this.text[this.index] === "}") {
       this.index += 1;
@@ -70,14 +96,14 @@ class StrictJsonParser {
     for (;;) {
       if (this.text[this.index] !== '"') this.fail("Expected a quoted JSON object key");
       const key = this.parseString();
-      if (keys.has(key)) this.fail(`JSON object repeats key ${JSON.stringify(key)}`);
-      keys.add(key);
+      if (hasOwn(keys, key)) this.fail(`JSON object repeats key ${jsonStringify(key)}`);
+      keys[key] = true;
       this.skipWhitespace();
       if (this.text[this.index] !== ":") this.fail("Expected ':' after JSON object key");
       this.index += 1;
       this.skipWhitespace();
       const value = this.parseValue(depth);
-      Object.defineProperty(result, key, {
+      defineProperty(result, key, {
         value,
         enumerable: true,
         configurable: true,
@@ -103,7 +129,7 @@ class StrictJsonParser {
       return result;
     }
     for (;;) {
-      result.push(this.parseValue(depth));
+      result[result.length] = this.parseValue(depth);
       this.skipWhitespace();
       if (this.text[this.index] === "]") {
         this.index += 1;
@@ -119,24 +145,24 @@ class StrictJsonParser {
     const start = this.index;
     this.index += 1;
     while (this.index < this.text.length) {
-      const code = this.text.charCodeAt(this.index);
+      const code = stringCharCodeAt(this.text, this.index);
       if (code === 0x22) {
         this.index += 1;
-        return JSON.parse(this.text.slice(start, this.index));
+        return jsonParse(stringSlice(this.text, start, this.index));
       }
       if (code < 0x20) this.fail("JSON string contains an unescaped control character");
       if (code === 0x5c) {
         this.index += 1;
         const escaped = this.text[this.index];
         if (escaped === "u") {
-          const digits = this.text.slice(this.index + 1, this.index + 5);
-          if (!/^[0-9a-fA-F]{4}$/u.test(digits))
+          const digits = stringSlice(this.text, this.index + 1, this.index + 5);
+          if (!regexpTest(/^[0-9a-fA-F]{4}$/u, digits))
             this.fail("JSON string has an invalid Unicode escape");
           this.index += 5;
           continue;
         }
-        if (!['"', "\\", "/", "b", "f", "n", "r", "t"].includes(escaped)) {
-          this.fail(`JSON string has invalid escape ${JSON.stringify(escaped)}`);
+        if (!validSimpleEscape(escaped)) {
+          this.fail(`JSON string has invalid escape ${jsonStringify(escaped)}`);
         }
       }
       this.index += 1;
@@ -145,7 +171,7 @@ class StrictJsonParser {
   }
 
   parseLiteral(token, value) {
-    if (this.text.slice(this.index, this.index + token.length) !== token) {
+    if (stringSlice(this.text, this.index, this.index + token.length) !== token) {
       this.fail(`Expected JSON literal ${token}`);
     }
     this.index += token.length;
@@ -157,31 +183,32 @@ class StrictJsonParser {
     if (this.text[this.index] === "-") this.index += 1;
     if (this.text[this.index] === "0") {
       this.index += 1;
-      if (/\d/u.test(this.text[this.index] ?? "")) this.fail("JSON number has a leading zero");
-    } else if (/[1-9]/u.test(this.text[this.index] ?? "")) {
-      while (/\d/u.test(this.text[this.index] ?? "")) this.index += 1;
+      if (regexpTest(/\d/u, this.text[this.index] ?? ""))
+        this.fail("JSON number has a leading zero");
+    } else if (regexpTest(/[1-9]/u, this.text[this.index] ?? "")) {
+      while (regexpTest(/\d/u, this.text[this.index] ?? "")) this.index += 1;
     } else {
       this.fail("JSON number has no integer digits");
     }
     if (this.text[this.index] === ".") {
       this.index += 1;
-      if (!/\d/u.test(this.text[this.index] ?? "")) this.fail("JSON fraction has no digits");
-      while (/\d/u.test(this.text[this.index] ?? "")) this.index += 1;
+      if (!regexpTest(/\d/u, this.text[this.index] ?? "")) this.fail("JSON fraction has no digits");
+      while (regexpTest(/\d/u, this.text[this.index] ?? "")) this.index += 1;
     }
     if (this.text[this.index] === "e" || this.text[this.index] === "E") {
       this.index += 1;
       if (this.text[this.index] === "+" || this.text[this.index] === "-") this.index += 1;
-      if (!/\d/u.test(this.text[this.index] ?? "")) this.fail("JSON exponent has no digits");
-      while (/\d/u.test(this.text[this.index] ?? "")) this.index += 1;
+      if (!regexpTest(/\d/u, this.text[this.index] ?? "")) this.fail("JSON exponent has no digits");
+      while (regexpTest(/\d/u, this.text[this.index] ?? "")) this.index += 1;
     }
-    const value = Number(this.text.slice(start, this.index));
-    if (!Number.isFinite(value)) this.fail("JSON number is outside the finite JavaScript range");
+    const value = numberIntrinsic(stringSlice(this.text, start, this.index));
+    if (!numberIsFinite(value)) this.fail("JSON number is outside the finite JavaScript range");
     return value;
   }
 }
 
 /** Decode exact UTF-8 and reject duplicate keys rather than silently replacing them. */
 export function parseStrictJsonBytes(bytes) {
-  const text = decoder.decode(Buffer.from(bytes));
+  const text = decodeUtf8(bufferFrom(bytes));
   return new StrictJsonParser(text).parse();
 }

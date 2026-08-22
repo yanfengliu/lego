@@ -19,7 +19,7 @@ from part_admission_geometry import (
     projection_volumes,
     sample_triangle,
 )
-from part_admission_lattice import lattice_cell_centers, measure_lattice
+from part_admission_lattice import lattice_cell_centers, lattice_score, measure_lattice
 from part_admission_surface import BODY_ROLE, CLUTCH_ROLE, MeasuredSurface, STUD_ROLE
 from part_admission_ldraw_candidate import (
     PRIMITIVE_ROLE_PINS,
@@ -354,6 +354,50 @@ class ScoreTests(unittest.TestCase):
         )
         self.assertEqual(lattice["solid"]["footprintCells"], [1, 4])  # type: ignore[index]
 
+    def test_directional_connector_faces_use_their_own_tangent_lattices(self) -> None:
+        bracket = validate_candidate(
+            candidate_document(
+                [box_body((-40.0, -10.0, -14.0), (40.0, 10.0, 10.0))],
+                [
+                    {
+                        "kind": "stud",
+                        "gender": "male",
+                        "positionLdu": [-30.0, 0.0, -14.0],
+                        "normal": [0.0, 0.0, -1.0],
+                    },
+                    {
+                        "kind": "stud",
+                        "gender": "male",
+                        "positionLdu": [-10.0, 0.0, -14.0],
+                        "normal": [0.0, 0.0, -1.0],
+                    },
+                    {
+                        "kind": "stud",
+                        "gender": "male",
+                        "positionLdu": [-10.0, -10.0, 0.0],
+                        "normal": [0.0, -1.0, 0.0],
+                    },
+                    {
+                        "kind": "undersideClutch",
+                        "gender": "female",
+                        "positionLdu": [-10.0, 10.0, 0.0],
+                        "normal": [0.0, 1.0, 0.0],
+                    },
+                ],
+            )
+        )
+        lattice = measure_lattice(bracket)
+
+        self.assertTrue(lattice["latticeAlignable"])
+        self.assertEqual(lattice["connectorPitch"]["connectorsOnCommonGrid"], 4)  # type: ignore[index]
+        self.assertEqual(len(lattice["connectorPitch"]["groups"]), 3)  # type: ignore[index]
+        self.assertEqual(
+            lattice["solid"]["plateHeightCriterion"],  # type: ignore[index]
+            "not-applicable-directional-connector-envelope",
+        )
+        self.assertIsNone(lattice["solid"]["plateHeightConforms"])  # type: ignore[index]
+        self.assertEqual(lattice_score(lattice), 1.0)
+
     def test_lattice_cell_centers_pick_the_phase_that_covers_with_fewest_cells(self) -> None:
         self.assertEqual(lattice_cell_centers(-10.0, 10.0), [0.0])
         self.assertEqual(lattice_cell_centers(-20.0, 20.0), [-10.0, 10.0])
@@ -382,6 +426,32 @@ class LDrawCandidateTests(unittest.TestCase):
         self.assertGreater(float(union["volumeLdu3"]), 40.0 * 8.0 * 20.0)  # type: ignore[arg-type]
         scorecard = score_candidate(candidate, plate_surface(), 1.0)
         self.assertEqual(scorecard["collisionContainment"]["pointsOutside"], 0)  # type: ignore[index]
+
+    def test_side_stud_discovery_matches_position_and_outward_normal(self) -> None:
+        body = box_surface((-10.0, 0.0, -10.0), (10.0, 8.0, 10.0))
+        side_stud = box_surface((-6.0, -2.0, -14.0), (6.0, 10.0, -10.0))
+        surface = MeasuredSurface(
+            design_id="side-stud",
+            triangles=tuple([*body, *side_stud]),
+            roles=tuple([*[BODY_ROLE for _ in body], *[STUD_ROLE for _ in side_stud]]),
+        )
+        raw = column_candidate(surface, 2.0)
+        candidate = validate_candidate(raw)
+        self.assertEqual(
+            [(row.position, row.normal) for row in candidate.male_connectors],
+            [((0.0, 4.0, -10.0), (0.0, 0.0, -1.0))],
+        )
+        self.assertNotIn(
+            "male-connector-over-claim",
+            [row["code"] for row in score_candidate(candidate, surface, 2.0)["hardFails"]],  # type: ignore[index]
+        )
+
+        raw["connectors"][0]["normal"] = [0.0, -1.0, 0.0]  # type: ignore[index]
+        wrong_normal = score_candidate(validate_candidate(raw), surface, 2.0)
+        self.assertIn(
+            "male-connector-over-claim",
+            [row["code"] for row in wrong_normal["hardFails"]],  # type: ignore[index]
+        )
 
     def test_a_wall_on_a_column_boundary_opens_no_column_outside_the_part(self) -> None:
         cells = _height_field(box_surface(PLATE_MIN, PLATE_MAX), 4.0)

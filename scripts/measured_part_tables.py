@@ -2,7 +2,7 @@
 
 The catalog's generated mesh modules, measured blueprints, render-only
 blueprints and per-file attribution are emitted from one measurement, so their
-values stay aligned. Twelve measured definitions consume every field. Twelve
+values stay aligned. Fourteen measured definitions consume every field. Twelve
 `/13` render promotions intentionally consume only mesh and visual bounds while
 `part-factory.ts` retains their preceding physical semantics.
 
@@ -33,6 +33,11 @@ from ldcad_shadow_connectors import (
 from ldcad_shadow_source import VerifiedShadowLibrary
 from ldraw_source_archive import LDrawSourceLibrary, SourceRecord
 from ldraw_surface_expander import ExpandedTriangle, expand_surface
+from measured_stud_tables import (
+    MeasuredStudRow,
+    compile_measured_stud_rows,
+    require_matching_stud_frames,
+)
 from part_admission_ldraw_candidate import DEFAULT_COLUMN_LDU, column_candidate, role_classifier
 from part_admission_surface import STUD_ROLE, MeasuredSurface
 
@@ -106,6 +111,8 @@ class MeasuredPartPlan:
     connector_grid_center_ldu: tuple[int, int]
     connector_source: str
     builder_connectivity_fact: BuilderConnectivityFact | None = None
+    catalog_id: str | None = None
+    display_name: str | None = None
 
     def __post_init__(self) -> None:
         if self.orientation_id not in UPRIGHT_ORIENTATIONS:
@@ -170,6 +177,16 @@ class RenderOnlyPartPlan:
             )
 
 
+def measured_part_catalog_id(plan: MeasuredPartPlan | RenderOnlyPartPlan) -> str:
+    """Return the exact catalog identity the emission report must retain."""
+
+    explicit = plan.catalog_id if isinstance(plan, MeasuredPartPlan) else None
+    if explicit is not None:
+        return explicit
+    suffix = "" if plan.variant is None else f"-{plan.variant}"
+    return f"builtin:{plan.family}-{plan.width_studs}x{plan.length_studs}{suffix}"
+
+
 @dataclass(frozen=True)
 class MeasuredPart:
     """One part measured end to end, in the catalog frame its plan declares."""
@@ -183,7 +200,7 @@ class MeasuredPart:
     stud_triangle_count: int
     exact_body_bounds: tuple[tuple[str, str, str], tuple[str, str, str]]
     exact_bounds: tuple[tuple[str, str, str], tuple[str, str, str]]
-    studs_ldu: tuple[tuple[float, float, float, float, float], ...]
+    studs_ldu: tuple[MeasuredStudRow, ...]
     clutches_ldu: tuple[Vector3, ...]
     body_boxes_ldu: tuple[float, ...]
     root: SourceRecord
@@ -216,6 +233,36 @@ class RenderOnlyPart:
     @property
     def mesh_asset_id(self) -> str:
         return f"ldraw:official:{self.plan.design_id}.dat"
+
+
+def measured_part_report_row(part: MeasuredPart) -> dict[str, object]:
+    """Canonical evidence row for one fully measured source expansion."""
+
+    return {
+        "designId": part.plan.design_id,
+        "catalogId": measured_part_catalog_id(part.plan),
+        "connectorSource": part.plan.connector_source,
+        "studs": len(part.studs_ldu),
+        "clutches": len(part.clutches_ldu),
+        "collisionBoxes": len(part.body_boxes_ldu) // 6,
+        "meshTriangles": part.body_triangle_count + part.stud_triangle_count,
+        "closureFileCount": len(part.closure),
+        "shadowFiles": list(part.shadow_files),
+    }
+
+
+def render_only_part_report_row(part: RenderOnlyPart) -> dict[str, object]:
+    """Canonical evidence row for one render-only source expansion."""
+
+    return {
+        "designId": part.plan.design_id,
+        "catalogId": measured_part_catalog_id(part.plan),
+        "connectorSource": "preserved-catalog-definition-not-read-by-generator",
+        "sourceStudFrameWitnesses": len(part.source_stud_seats_ldu),
+        "meshTriangles": part.body_triangle_count + part.stud_triangle_count,
+        "closureFileCount": len(part.closure),
+        "structuralFieldsEmitted": 0,
+    }
 
 
 def float32(value: float) -> float:
@@ -432,19 +479,13 @@ def _clamped_column_boxes(
 
 def _stud_rows(
     candidate: dict[str, object], plan: MeasuredPartPlan | RenderOnlyPartPlan
-) -> tuple[tuple[float, float, float, float, float], ...]:
-    """One row per measured stud: its seat, then its own collision cylinder."""
-
-    rows: list[tuple[float, float, float, float, float]] = []
-    for body in candidate["bodies"]:  # type: ignore[union-attr]
-        if body["kind"] != "cylinder":  # type: ignore[index]
-            continue
-        center = frame_point(body["centerLdu"], plan)  # type: ignore[index,arg-type]
-        height = float(body["heightLdu"])  # type: ignore[index]
-        rows.append(
-            (center[0], center[1] + height / 2, center[2], float(body["radiusLdu"]), height)  # type: ignore[index]
-        )
-    return tuple(sorted(rows))
+) -> tuple[MeasuredStudRow, ...]:
+    return compile_measured_stud_rows(
+        candidate,
+        plan.design_id,
+        lambda point: frame_point(point, plan),
+        lambda direction: frame_direction(direction, plan),
+    )
 
 
 def measure_render_only_part(
@@ -479,9 +520,7 @@ def measure_render_only_part(
         for point in triangle
     ]
     all_points = [point for triangle in surface.triangles for point in triangle]
-    source_stud_seats = tuple(
-        (x, y, z) for x, y, z, _radius, _height in _stud_rows(column_candidate(surface, column_ldu), plan)
-    )
+    source_stud_seats = tuple(row[:3] for row in _stud_rows(column_candidate(surface, column_ldu), plan))
     return RenderOnlyPart(
         plan=plan,
         surface=surface,
@@ -547,14 +586,13 @@ def measure_part(
             [float(value) for value in row["positionLdu"]]  # type: ignore[union-attr]
             for row in emit_clutch_connectors(composition.snaps)
         ]
-        if not emit_stud_connectors(composition.snaps) and any(
-            role == STUD_ROLE for role in surface.roles
-        ):
-            raise ValueError(
-                f"Part {plan.design_id} has stud geometry but its shadow walk composed no male "
-                "stud, so the composition could not be validated before its female claims were "
-                "read."
-            )
+        shadow_studs = emit_stud_connectors(composition.snaps)
+        visible_studs = [
+            row
+            for row in candidate["connectors"]  # type: ignore[union-attr]
+            if row["kind"] == "stud"  # type: ignore[index]
+        ]
+        require_matching_stud_frames(plan.design_id, shadow_studs, visible_studs)
         shadow_files = tuple(composition.shadow_files_used)
 
     return MeasuredPart(
@@ -604,6 +642,8 @@ def scoreable_candidate(part: MeasuredPart) -> dict[str, object]:
         connector_grid_center_ldu=part.plan.connector_grid_center_ldu,
         connector_source=part.plan.connector_source,
         builder_connectivity_fact=part.plan.builder_connectivity_fact,
+        catalog_id=part.plan.catalog_id,
+        display_name=part.plan.display_name,
     )
     clutches = [
         frame_point(

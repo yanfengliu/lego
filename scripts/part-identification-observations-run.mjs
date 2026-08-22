@@ -21,14 +21,16 @@ import {
 import { observationRecords, observationReport } from "./part-identification-observations.mjs";
 import { handednessVerdicts } from "./part-identification-handedness.mjs";
 import { mirrorPairedPicks } from "./part-identification-mirror-pairs.mjs";
-import { readBoundCardImages } from "./part-identification-card-images.mjs";
+import { verifyRetainedCardImageClosure } from "./part-identification-card-images.mjs";
 import {
   DEFAULT_MAX_REASKS,
+  MAX_REASKS,
   REASK_REASONS,
   askReaskBatch,
   boundReasks,
   planReasks,
   reaskBundle,
+  requirePartIdentificationReaskAuthorization,
 } from "./part-identification-reask.mjs";
 
 /**
@@ -83,6 +85,7 @@ export function loadObservationInputs(model, out = OUT) {
     matchDigest: artifacts.match.digest,
     clusters: match.clusters,
   });
+  const cardImageClosure = verifyRetainedCardImageClosure(join(out, "cards"), cardsManifest);
   const answers = boundAnswers(answersArtifact, {
     model,
     matchDigest: artifacts.match.digest,
@@ -90,6 +93,8 @@ export function loadObservationInputs(model, out = OUT) {
     promptDigest: PART_IDENTIFICATION_PROMPT_DIGEST,
     clusters: match.clusters,
     cards: cardsManifest.cards,
+    cardImages: cardImageClosure.images,
+    traceRoot: out,
   });
   const resolutionPath = join(out, "element-resolution.json");
   const names = existsSync(resolutionPath)
@@ -106,13 +111,7 @@ export function loadObservationInputs(model, out = OUT) {
   const pairs = mirrorPairedPicks(match, answers, names, cardsManifest.cards);
   const handedness = handednessVerdicts(
     pairs,
-    pairs.length === 0
-      ? new Map()
-      : readBoundCardImages(
-          join(out, "cards"),
-          cardsManifest,
-          pairs.map(({ cardId }) => cardId),
-        ),
+    pairs.length === 0 ? new Map() : cardImageClosure.images,
   );
   return {
     model,
@@ -194,6 +193,13 @@ export async function commandReask(argv, { option }) {
   const model = option(argv, "model", PART_IDENTIFICATION_MODEL_ID);
   const max = Number(option(argv, "max", String(DEFAULT_MAX_REASKS)));
   const expectedModelIdentity = requirePinnedPartIdentificationModel(model);
+  if (!Number.isInteger(max) || max < 0 || max > MAX_REASKS) {
+    throw new Error(
+      `Re-ask budget must be an integer from 0 through ${MAX_REASKS}; received ${JSON.stringify(max)}. ` +
+        `The bound exists so a widened schema cannot turn one offline pass into an unbounded conversation.`,
+    );
+  }
+  requirePartIdentificationReaskAuthorization();
   const inputs = loadObservationInputs(model, out);
   if (inputs === null) {
     throw new Error(

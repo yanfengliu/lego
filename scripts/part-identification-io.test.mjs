@@ -15,6 +15,7 @@ import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  boundedDirectoryFiles,
   MAX_NODE_TIMER_MS,
   readBoundedFile,
   readContainedFile,
@@ -26,6 +27,20 @@ import { writeNestedArtifact } from "./part-identification.mjs";
 import { processExists } from "./part-identification-test-fixture.mjs";
 
 describe("part-identification contained filesystem and child boundary", () => {
+  it("stops directory enumeration at the first entry beyond its fixed limit", () => {
+    const directory = mkdtempSync(join(tmpdir(), "lego-bounded-directory-"));
+    try {
+      writeFileSync(join(directory, "one.json"), "1");
+      writeFileSync(join(directory, "two.json"), "2");
+      writeFileSync(join(directory, "three.json"), "3");
+      expect(() =>
+        boundedDirectoryFiles(directory, { label: "Bounded test directory", maxEntries: 2 }),
+      ).toThrow(/more than 2 entries/u);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("publishes nested artifacts atomically and refuses traversal or oversized reads", () => {
     const directory = mkdtempSync(join(tmpdir(), "lego-contained-artifact-"));
     try {

@@ -131,6 +131,10 @@ export interface RealBuildIdentificationClosureInput {
   readonly cards?: RawJsonArtifact | null;
   readonly cardImages?: RawBinaryArtifact | null;
   readonly answers?: RawJsonArtifact | null;
+  /** Filesystem root for retained content-addressed call proofs and answer checkpoints. */
+  readonly traceRoot?: string | null;
+  /** Exact in-memory trace bytes used by replay-only and synthetic closures. */
+  readonly traceArtifacts?: Readonly<Record<string, Uint8Array>> | null;
   readonly elementResolution: RawJsonArtifact;
   /**
    * The retained blind pair-judging verdicts. Mandatory in both identification
@@ -211,15 +215,19 @@ export function prepareRealBuildIdentificationClosure(input: RealBuildIdentifica
     (input.cards == null || input.cardImages == null || input.answers == null)
   ) {
     throw new TypeError(
-      "Adjudicated coverage requires exact retained identification-card manifest, card-image bundle, and answer bytes; regenerate or retain all three roles.",
+      "Adjudicated coverage requires exact retained identification-card manifest, card-image bundle, and answer bytes across all three roles; regenerate or retain every role.",
     );
   }
   if (
     mode.source === "deterministic" &&
-    (input.cards != null || input.cardImages != null || input.answers != null)
+    (input.cards != null ||
+      input.cardImages != null ||
+      input.answers != null ||
+      input.traceRoot != null ||
+      input.traceArtifacts != null)
   ) {
     throw new TypeError(
-      "Deterministic coverage must omit adjudication card-manifest, card-image, and answer roles; those bytes are neither read nor retained for deterministic replay.",
+      "Deterministic coverage must omit adjudication card-manifest, card-image, and answer roles plus their proof trace; those bytes are neither read nor retained for deterministic replay.",
     );
   }
   const cardsArtifact =
@@ -243,6 +251,8 @@ export function prepareRealBuildIdentificationClosure(input: RealBuildIdentifica
     cardsArtifact,
     cardImagesArtifact,
     answersArtifact,
+    traceRoot: mode.source === "deterministic" ? null : (input.traceRoot ?? null),
+    traceArtifacts: mode.source === "deterministic" ? null : (input.traceArtifacts ?? null),
     pairJudgedArtifact,
     elementsArtifact: elementResolutionArtifact,
     source: mode.source,

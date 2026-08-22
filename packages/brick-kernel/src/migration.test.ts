@@ -264,6 +264,11 @@ describe("migrateDocumentTruth", () => {
       "8fc01861ec059da71eb09c3273815f7ea49eec62",
       "sha256:de62fae6dbc8095dfd460983e5e845ddfac4bf9ec2ea1f99572bc46026941cb5",
     ],
+    [
+      "builtin.basic-parts/14",
+      "5d90788b0c10576ae1fef592206a66540dbcb131",
+      "sha256:db8c1740f23c65a4c0046c679e321a559623ac18a9c3fe59357b912e3a48a1b3",
+    ],
   ])("pins reviewed %s truth from commit %s", (catalogVersion, sourceCommit, truthHash) => {
     expect(
       REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS.find(
@@ -274,13 +279,13 @@ describe("migrateDocumentTruth", () => {
   });
 
   it("admits no historical truth snapshots beyond the reviewed table", () => {
-    expect(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS).toHaveLength(15);
+    expect(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS).toHaveLength(16);
     expect(
       new Set(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS.map(({ sourceCommit }) => sourceCommit)).size,
-    ).toBe(15);
+    ).toBe(16);
     expect(
       new Set(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS.map(({ truthHash }) => truthHash)).size,
-    ).toBe(15);
+    ).toBe(16);
   });
 
   it("pins the legacy fixture to a reviewed historical truth snapshot", () => {
@@ -388,13 +393,13 @@ describe("migrateDocumentTruth", () => {
     expect(document.parts).toEqual(savedAtTwelve.parts);
   });
 
-  it("carries /13 forward and reports the complete new quarter-round definition", () => {
+  it("carries /13 forward and reports both complete additive definitions", () => {
     const savedAtThirteen = historicalDocument({
       id: "thirteen",
       name: "Saved at /13",
       catalogVersion: "builtin.basic-parts/13",
       catalogHash: "sha256:100283423bf1cfecfdfec5ba2216d1834a9eb19b1757c71772f7fa53223190d6",
-      allowedCatalogPartCount: PART_DEFINITIONS.length - 1,
+      allowedCatalogPartCount: PART_DEFINITIONS.length - 2,
     });
 
     expect(canonicalDigest(savedAtThirteen.truth)).toBe(
@@ -403,13 +408,40 @@ describe("migrateDocumentTruth", () => {
     const { document, report } = migrateDocumentTruth(savedAtThirteen);
 
     expect(report.migrated).toBe(true);
-    expect(report.addedCatalogPartIds).toEqual(["builtin:tile-1x1-quarter-round"]);
+    expect(report.addedCatalogPartIds).toEqual([
+      "builtin:tile-1x1-quarter-round",
+      "builtin:bracket-1x2-1x4-rounded-bottom",
+    ]);
     expect(report.catalogInterpretationChanges).toEqual([]);
     expectOnlyCatalogChange(report, "builtin.basic-parts/13");
     expect(document.parts).toEqual(savedAtThirteen.parts);
   });
 
-  it("carries a /6 document forward and names the nine parts it gained", () => {
+  it("carries /14 forward and reports only the complete 28802 definition", () => {
+    const savedAtFourteen = historicalDocument({
+      id: "fourteen",
+      name: "Saved at /14",
+      catalogVersion: "builtin.basic-parts/14",
+      catalogHash: "sha256:c2a3556085f8a3a3efe66a2f52d2a70378be04ff52c53a57fbff2f2701cd194c",
+      connectorHash: "sha256:537ec8b084b9ac9633c4511817204fcd2037e123d96b7628c3e6b803b32a31cf",
+      collisionHash: "sha256:a219f827b9dcceda98b7f320bb53c9f7fa172d515a8081af4b97623975aaf97b",
+      transformHash: "sha256:a005d64462b0805e82b28f8571e40aeb48d6b3602b8fe5db01a4e1cf56635896",
+      allowedCatalogPartCount: PART_DEFINITIONS.length - 1,
+    });
+
+    expect(canonicalDigest(savedAtFourteen.truth)).toBe(
+      "sha256:db8c1740f23c65a4c0046c679e321a559623ac18a9c3fe59357b912e3a48a1b3",
+    );
+    const { document, report } = migrateDocumentTruth(savedAtFourteen);
+
+    expect(report.migrated).toBe(true);
+    expect(report.addedCatalogPartIds).toEqual(["builtin:bracket-1x2-1x4-rounded-bottom"]);
+    expect(report.catalogInterpretationChanges).toEqual([]);
+    expectOnlyCatalogChange(report, "builtin.basic-parts/14");
+    expect(document.parts).toEqual(savedAtFourteen.parts);
+  });
+
+  it("carries a /6 document forward and names the ten parts it gained", () => {
     const document = historicalDocument({
       id: "six",
       name: "Saved at /6",
@@ -438,14 +470,16 @@ describe("migrateDocumentTruth", () => {
       "builtin:wedge-plate-3x3-cut-corner",
       "builtin:corner-plate-2x2-round",
       "builtin:tile-1x1-quarter-round",
+      "builtin:bracket-1x2-1x4-rounded-bottom",
     ]);
     expect(report.addedColorIds).toEqual([]);
     expectOnlyCatalogChange(report, "builtin.basic-parts/6");
   });
 
-  it("carries a /7 document forward and names the four parts it gained", () => {
-    // Three additions have no Builder record; 25269's record is not consumed.
-    // The LDCad shadow library authors all four clutch fields.
+  it("carries a /7 document forward and names the five parts it gained", () => {
+    // Three earlier additions have no Builder record; 25269's record is not consumed.
+    // Builder maps the observed 28802 element to contradictory 10201, so that
+    // claim is refused. LDCad routes own the admitted clutch fields for all five.
     const document = historicalDocument({
       id: "seven",
       name: "Saved at /7",
@@ -469,6 +503,7 @@ describe("migrateDocumentTruth", () => {
       "builtin:wedge-plate-3x3-cut-corner",
       "builtin:corner-plate-2x2-round",
       "builtin:tile-1x1-quarter-round",
+      "builtin:bracket-1x2-1x4-rounded-bottom",
     ]);
     expect(report.addedColorIds).toEqual([]);
     expectOnlyCatalogChange(report, "builtin.basic-parts/7");

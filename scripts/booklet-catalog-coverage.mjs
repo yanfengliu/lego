@@ -98,6 +98,8 @@ function compileBookletCatalogCoverageClosureWithExpectation(input, manifestExpe
   const cardsArtifactInput = input.cardsArtifact;
   const cardImagesArtifactInput = input.cardImagesArtifact;
   const answersArtifactInput = input.answersArtifact;
+  const traceRoot = input.traceRoot;
+  const traceArtifacts = input.traceArtifacts;
   const pairJudgedArtifactInput = input.pairJudgedArtifact;
   const manifestBytes = input.manifestBytes;
   const lastStep = input.lastStep;
@@ -161,12 +163,17 @@ function compileBookletCatalogCoverageClosureWithExpectation(input, manifestExpe
       promptDigest: PART_IDENTIFICATION_PROMPT_DIGEST,
       clusters: match.clusters,
       cards: cards.cards,
+      cardImages: cardImages.images,
+      traceRoot,
+      traceArtifacts,
     });
   } else if (
     model !== null ||
     cardsArtifactInput !== null ||
     cardImagesArtifactInput != null ||
-    answersArtifactInput !== null
+    answersArtifactInput !== null ||
+    traceRoot != null ||
+    traceArtifacts != null
   ) {
     throw new Error(
       "Deterministic coverage must not smuggle model, card-image, or answer artifacts into its closure.",
@@ -422,6 +429,8 @@ export function runBookletCatalogCoverageCli(argv = process.argv.slice(2), conte
     cardsArtifact,
     cardImagesArtifact,
     answersArtifact,
+    traceRoot: source === "deterministic" ? null : IDENTIFICATION,
+    traceArtifacts: null,
     pairJudgedArtifact,
     elementsArtifact,
     source,

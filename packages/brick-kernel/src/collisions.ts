@@ -8,6 +8,11 @@ import type { ConnectionEdge, PartInstance } from "@lego-studio/protocol";
 
 import { getUprightOrientation, rotateLduVector, transformLduPoint } from "./transforms.ts";
 import { MAX_COLLISION_COMPARISONS, MAX_COLLISION_FINDINGS } from "./truth-manifests.ts";
+import {
+  axisAlignedStudIntersectsVerticalPrism,
+  axisAlignedStudsIntersect,
+  type CollisionAxis,
+} from "./axis-stud-collision.ts";
 
 export interface CollisionFinding {
   readonly validatorId: "kernel.collision";
@@ -61,6 +66,7 @@ interface WorldStud extends PrimitiveBounds {
   readonly sourceIndex: number;
   readonly center: LduVector3;
   readonly radiusLdu: number;
+  readonly axis: CollisionAxis;
 }
 
 type WorldPrimitive = WorldBody | WorldStud;
@@ -210,6 +216,12 @@ function makeWorldPrimitives(parts: readonly PartInstance[]): WorldPrimitive[] {
             : [primitive.radiusLdu, halfHeight, primitive.radiusLdu];
       const orientation = getUprightOrientation(part.transform.orientationId);
       const rotatedHalf = rotateLduVector(orientation.matrix, localHalf);
+      const localAxis: LduVector3 =
+        primitive.axis === "x" ? [1, 0, 0] : primitive.axis === "y" ? [0, 1, 0] : [0, 0, 1];
+      const rotatedAxis = rotateLduVector(orientation.matrix, localAxis);
+      const axisIndex = rotatedAxis.findIndex((coordinate) => Math.abs(coordinate) === 1);
+      const axis = "xyz"[axisIndex] as "x" | "y" | "z" | undefined;
+      if (axis === undefined) continue;
       const half: LduVector3 = [
         Math.abs(rotatedHalf[0]),
         Math.abs(rotatedHalf[1]),
@@ -239,6 +251,7 @@ function makeWorldPrimitives(parts: readonly PartInstance[]): WorldPrimitive[] {
         sourceIndex,
         center,
         radiusLdu: primitive.radiusLdu,
+        axis,
         min: [center[0] - half[0], center[1] - half[1], center[2] - half[2]],
         max: [center[0] + half[0], center[1] + half[1], center[2] + half[2]],
       });
@@ -449,53 +462,14 @@ function boundsOverlap(left: PrimitiveBounds, right: PrimitiveBounds): boolean {
   );
 }
 
-function studIntersectsBody(stud: WorldStud, body: WorldBody): boolean {
-  if (stud.min[1] >= body.max[1] || body.min[1] >= stud.max[1]) {
-    return false;
-  }
-  const section = counterClockwise(body.sectionXZ);
-  const point: Point2 = [stud.center[0], stud.center[2]];
-  if (
-    section.every(
-      (start, index) => edgeSide(start, section[(index + 1) % section.length]!, point) >= 0,
-    )
-  ) {
-    return true;
-  }
-  const radiusSquared = stud.radiusLdu * stud.radiusLdu;
-  return section.some((start, index) => {
-    const end = section[(index + 1) % section.length]!;
-    const dx = end[0] - start[0];
-    const dz = end[1] - start[1];
-    const lengthSquared = dx * dx + dz * dz;
-    const t =
-      lengthSquared === 0
-        ? 0
-        : Math.max(
-            0,
-            Math.min(1, ((point[0] - start[0]) * dx + (point[1] - start[1]) * dz) / lengthSquared),
-          );
-    const closestX = start[0] + t * dx;
-    const closestZ = start[1] + t * dz;
-    const awayX = point[0] - closestX;
-    const awayZ = point[1] - closestZ;
-    return awayX * awayX + awayZ * awayZ < radiusSquared;
-  });
-}
-
-function studsIntersect(left: WorldStud, right: WorldStud): boolean {
-  if (left.min[1] >= right.max[1] || right.min[1] >= left.max[1]) return false;
-  const dx = left.center[0] - right.center[0];
-  const dz = left.center[2] - right.center[2];
-  const combinedRadius = left.radiusLdu + right.radiusLdu;
-  return dx * dx + dz * dz < combinedRadius * combinedRadius;
-}
-
 function penetrationCoveredByAllowance(
   stud: WorldStud,
   body: WorldBody,
   allowedPenetrations: ReadonlyMap<string, readonly AllowedPenetration[]>,
 ): boolean {
+  // Current allowances are the vertical tube-seat model. A validated edge may
+  // never reinterpret one as clearance for a horizontal stud.
+  if (stud.axis !== "y") return false;
   const candidates = allowedPenetrations.get(
     penetrationKey(stud.part.id, stud.primitiveId, body.part.id),
   );
@@ -700,12 +674,12 @@ export function findCatalogCollisions(
       if (left.kind === "body" && right.kind === "body") {
         collides = bodiesOverlap(left, right);
       } else if (left.kind === "stud" && right.kind === "stud") {
-        collides = studsIntersect(left, right);
+        collides = axisAlignedStudsIntersect(left, right);
       } else {
         const stud = left.kind === "stud" ? left : (right as WorldStud);
         const body = left.kind === "body" ? left : (right as WorldBody);
         collides =
-          studIntersectsBody(stud, body) &&
+          axisAlignedStudIntersectsVerticalPrism(stud, body) &&
           !penetrationCoveredByAllowance(stud, body, allowedPenetrations);
       }
       if (!collides) continue;
@@ -753,11 +727,11 @@ function primitivesCollide(
   allowedPenetrations: ReadonlyMap<string, readonly AllowedPenetration[]>,
 ): boolean {
   if (left.kind === "body" && right.kind === "body") return bodiesOverlap(left, right);
-  if (left.kind === "stud" && right.kind === "stud") return studsIntersect(left, right);
+  if (left.kind === "stud" && right.kind === "stud") return axisAlignedStudsIntersect(left, right);
   const stud = left.kind === "stud" ? left : (right as WorldStud);
   const body = left.kind === "body" ? left : (right as WorldBody);
   return (
-    studIntersectsBody(stud, body) &&
+    axisAlignedStudIntersectsVerticalPrism(stud, body) &&
     !penetrationCoveredByAllowance(stud, body, allowedPenetrations)
   );
 }

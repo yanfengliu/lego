@@ -582,4 +582,42 @@ describe("mesh part catalog admission", () => {
       "MESH_ADMISSION_CONNECTOR_COLLISION_MISMATCH",
     );
   });
+
+  it("admits horizontal stud frames only when orientation, seat, axis, and cylinder agree", () => {
+    const bracket = getPartDefinition("builtin:bracket-1x2-1x4-rounded-bottom")!;
+    const sideStud = bracket.connectors.find(
+      ({ kind, normal }) => kind === "stud" && normal[2] === -1,
+    )!;
+    expect(validateMeshPartDefinitionAdmission(bracket)).toEqual({ accepted: true, issues: [] });
+
+    const wrongOrientation: PartDefinition = {
+      ...bracket,
+      connectors: bracket.connectors.map((connector) =>
+        connector.id === sideStud.id ? { ...connector, orientationId: "connector-up" } : connector,
+      ),
+    };
+    const wrongSeat: PartDefinition = {
+      ...bracket,
+      connectors: bracket.connectors.map((connector) =>
+        connector.id === sideStud.id
+          ? { ...connector, positionLdu: [connector.positionLdu[0], connector.positionLdu[1], -13] }
+          : connector,
+      ),
+    };
+    const wrongAxis: PartDefinition = {
+      ...bracket,
+      collision: {
+        ...bracket.collision,
+        primitives: bracket.collision.primitives.map((primitive) =>
+          primitive.id === sideStud.id && primitive.kind === "cylinder"
+            ? { ...primitive, axis: "y" }
+            : primitive,
+        ),
+      },
+    };
+
+    expect(issueCodes(wrongOrientation)).toContain("MESH_ADMISSION_CONNECTOR_INVALID");
+    expect(issueCodes(wrongSeat)).toContain("MESH_ADMISSION_VERTICAL_EXTENTS_INVALID");
+    expect(issueCodes(wrongAxis)).toContain("MESH_ADMISSION_CONNECTOR_COLLISION_MISMATCH");
+  });
 });

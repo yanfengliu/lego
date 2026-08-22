@@ -79,6 +79,9 @@ export async function writePythonReportContractFixture(rootInput, coverageSource
     ["scripts/fixtures/part-identification-truth-first50.json", fixture.pairJudgedArtifact],
   ];
   for (const [relativePath, artifact] of artifacts) write(root, relativePath, artifact.bytes);
+  for (const [relativePath, bytes] of Object.entries(fixture.traceArtifacts)) {
+    write(root, `output/part-identification/${relativePath}`, bytes);
+  }
   write(root, "output/callout-thumbnails/manifest.json", fixture.manifestBytes);
   write(
     root,
@@ -108,6 +111,8 @@ export async function writePythonReportContractFixture(rootInput, coverageSource
           cardsArtifact: null,
           cardImagesArtifact: null,
           answersArtifact: null,
+          traceRoot: null,
+          traceArtifacts: null,
         };
   const coverage = coverageTestOnly.compileBookletCatalogCoverageClosure(
     coverageInput,

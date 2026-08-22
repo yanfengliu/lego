@@ -11,7 +11,7 @@ import { decodeFrozenLegacyPngCaptureV2 } from "../e2e/real-build-artifact-legac
 import { projectLegacyRealBuildCompletionFailuresV4 } from "../e2e/real-build-artifact-legacy-completion-projection";
 import {
   assertFrozenLegacyAdditiveCatalogV2,
-  createFrozenLegacyAdditiveCatalogBasisV14,
+  createFrozenLegacyAdditiveCatalogBasisV15,
 } from "../e2e/real-build-artifact-legacy-document-v2";
 import { assertFrozenLegacyIdentityProjectionV2 } from "../e2e/real-build-artifact-legacy-identity-predicates";
 import { verifyRealBuildArtifactManifest } from "../e2e/real-build-artifact-current-verification";
@@ -385,7 +385,7 @@ describe("legacy artifact-manifest /3 inspection", () => {
     expect(document.constraints.allowedCatalogPartIds).not.toContain(
       "builtin:tile-1x1-quarter-round",
     );
-    const active = createFrozenLegacyAdditiveCatalogBasisV14();
+    const active = createFrozenLegacyAdditiveCatalogBasisV15();
     const driftedTruth = structuredClone(active) as MutableCatalogCompatibilityBasis;
     driftedTruth.truth = {
       ...driftedTruth.truth,
@@ -411,6 +411,12 @@ describe("legacy artifact-manifest /3 inspection", () => {
     addedPart.parts[0]!.catalogPartId = "builtin:tile-1x1-quarter-round";
     expect(() =>
       assertFrozenLegacyAdditiveCatalogV2(addedPart as unknown as BrickDocumentV1),
+    ).toThrow(/did not exist in frozen catalog \/13/u);
+
+    const secondAddedPart = structuredClone(document) as unknown as MutableLegacyDocument;
+    secondAddedPart.parts[0]!.catalogPartId = "builtin:bracket-1x2-1x4-rounded-bottom";
+    expect(() =>
+      assertFrozenLegacyAdditiveCatalogV2(secondAddedPart as unknown as BrickDocumentV1),
     ).toThrow(/did not exist in frozen catalog \/13/u);
   });
 

@@ -2,17 +2,12 @@ import { createHash } from "node:crypto";
 import { crc32, deflateSync } from "node:zlib";
 
 import {
-  PART_ANSWERS_SCHEMA,
   PART_CARDS_SCHEMA,
   PART_FEATURES_SCHEMA,
   deriveCardRunId,
   jsonArtifactFromBytes,
 } from "./part-identification-artifacts.mjs";
-import {
-  PART_IDENTIFICATION_MODEL_ID,
-  PART_IDENTIFICATION_MODEL_IDENTITY,
-} from "./part-identification-model.mjs";
-import { PART_IDENTIFICATION_PROMPT_DIGEST } from "./part-identification-prompt.mjs";
+import { PART_IDENTIFICATION_MODEL_ID } from "./part-identification-model.mjs";
 import {
   cardImageBundleArtifact,
   encodeCardImageBundle,
@@ -24,6 +19,7 @@ import {
   partIdentificationMatchValue,
 } from "./part-identification-derivation.mjs";
 import { chiralCard } from "./part-identification-card-test-fixture.mjs";
+import { syntheticPartIdentificationAnswerClosure } from "./part-identification-synthetic-proof-fixture.mjs";
 import { __testOnly } from "./booklet-catalog-coverage.mjs";
 import { deriveCalloutManifestRunId } from "../apps/web/e2e/callout-run-id.ts";
 
@@ -364,24 +360,20 @@ export function closureFixture() {
   const cardImagesArtifact = cardImageBundleArtifact(
     encodeCardImageBundle(cardsArtifact.value, new Map([["card-0000", cardImage]])),
   );
-  const answersArtifact = artifact({
-    schemaVersion: PART_ANSWERS_SCHEMA,
-    model: PART_IDENTIFICATION_MODEL_ID,
-    modelIdentity: PART_IDENTIFICATION_MODEL_IDENTITY,
-    matchDigest: matchArtifact.digest,
+  const { answersArtifact, traceArtifacts } = syntheticPartIdentificationAnswerClosure({
+    cardId: "card-0000",
+    image: cardImage,
     cardsDigest: cardsArtifact.digest,
-    promptDigest: PART_IDENTIFICATION_PROMPT_DIGEST,
-    answers: {
-      0: {
-        kind: "brick",
-        studsLong: 1,
-        studsWide: 1,
-        colour: "black",
-        pick: 1,
-        alsoCouldBe: 0,
-        differsFromPick: "nothing",
-        confidence: 0.9,
-      },
+    matchDigest: matchArtifact.digest,
+    answer: {
+      kind: "brick",
+      studsLong: 1,
+      studsWide: 1,
+      colour: "black",
+      pick: 1,
+      alsoCouldBe: 0,
+      differsFromPick: "nothing",
+      confidence: 0.9,
     },
   });
   const elements = {
@@ -396,6 +388,7 @@ export function closureFixture() {
     cardsArtifact,
     cardImagesArtifact,
     answersArtifact,
+    traceArtifacts,
     pairJudgedArtifact: pairJudgedArtifactFor(),
     elementsArtifact: artifact(elements),
     source: "adjudicated",
@@ -462,24 +455,20 @@ export function chiralClosureFixture({ pick = 1 } = {}) {
   const cardImagesArtifact = cardImageBundleArtifact(
     encodeCardImageBundle(cardsArtifact.value, new Map([["card-0000", cardImage]])),
   );
-  const answersArtifact = artifact({
-    schemaVersion: PART_ANSWERS_SCHEMA,
-    model: PART_IDENTIFICATION_MODEL_ID,
-    modelIdentity: PART_IDENTIFICATION_MODEL_IDENTITY,
-    matchDigest: matchArtifact.digest,
+  const { answersArtifact, traceArtifacts } = syntheticPartIdentificationAnswerClosure({
+    cardId: "card-0000",
+    image: cardImage,
     cardsDigest: cardsArtifact.digest,
-    promptDigest: PART_IDENTIFICATION_PROMPT_DIGEST,
-    answers: {
-      0: {
-        kind: "wedge",
-        studsLong: 6,
-        studsWide: 2,
-        colour: "White",
-        pick,
-        alsoCouldBe: 0,
-        differsFromPick: "nothing",
-        confidence: 0.9,
-      },
+    matchDigest: matchArtifact.digest,
+    answer: {
+      kind: "wedge",
+      studsLong: 6,
+      studsWide: 2,
+      colour: "White",
+      pick,
+      alsoCouldBe: 0,
+      differsFromPick: "nothing",
+      confidence: 0.9,
     },
   });
   const elements = {
@@ -496,6 +485,7 @@ export function chiralClosureFixture({ pick = 1 } = {}) {
     cardsArtifact,
     cardImagesArtifact,
     answersArtifact,
+    traceArtifacts,
     pairJudgedArtifact: pairJudgedArtifactFor(),
     elementsArtifact: artifact(elements),
     source: "adjudicated",

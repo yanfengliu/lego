@@ -68,6 +68,35 @@ describe("upright transform policy", () => {
     );
   });
 
+  it("keeps 28802's side studs fail-closed under the unchanged upright-only policy", () => {
+    const bracket: PartInstance = {
+      ...basePart,
+      id: "bracket",
+      catalogPartId: "builtin:bracket-1x2-1x4-rounded-bottom",
+    };
+    expect(getConnectorWorldFrame(bracket, "stud:0").normal).toEqual([0, 0, -1]);
+    for (const orientationId of ORIENTATION_IDS) {
+      expect(() =>
+        createAttachedTransform(
+          bracket,
+          "stud:0",
+          "builtin:brick-1x1",
+          "undersideClutch:0:0",
+          orientationId,
+        ),
+      ).toThrow(/Attached connector axes do not line up/u);
+    }
+    expect(
+      createAttachedTransform(
+        bracket,
+        "stud:1",
+        "builtin:brick-1x1",
+        "undersideClutch:0:0",
+        "upright-yaw-0",
+      ),
+    ).toEqual({ positionLdu: [-10, -22, 0], orientationId: "upright-yaw-0" });
+  });
+
   it("rejects same-kind, missing, and unknown-orientation connections", () => {
     expect(() =>
       createAttachedTransform(

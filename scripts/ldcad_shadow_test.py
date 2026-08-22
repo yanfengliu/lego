@@ -419,7 +419,17 @@ class ShapeDiscriminationTests(unittest.TestCase):
     def test_studs_and_clutches_are_emitted_from_the_same_walk_without_crossing(self) -> None:
         snaps = self._snaps("SNAP_CYL [gender=M] [caps=one] [secs=R 6 4]")
         self.assertEqual(emit_clutch_connectors(snaps), [])
-        self.assertEqual(len(emit_stud_connectors(snaps)), 1)
+        self.assertEqual(
+            emit_stud_connectors(snaps),
+            [
+                {
+                    "kind": "stud",
+                    "gender": "male",
+                    "positionLdu": [0.0, 0.0, 0.0],
+                    "normal": [0.0, -1.0, 0.0],
+                }
+            ],
+        )
 
 
 

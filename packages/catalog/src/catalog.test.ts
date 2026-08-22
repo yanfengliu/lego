@@ -34,6 +34,7 @@ const PART_FAMILY_NAMES = [
   "curved-slope",
   "cheese-slope",
   "corner-plate",
+  "bracket",
 ] as const satisfies readonly PartFamily[];
 
 /** A height its family does not fix, so the part declares its own. */
@@ -143,11 +144,14 @@ const EXPECTED_PART_IDS = [
   // builtin.basic-parts/14: one complete source-declared part, appended so no
   // existing catalog row moves.
   "builtin:tile-1x1-quarter-round",
+  // builtin.basic-parts/15: one distinct measured bracket, never an alias of
+  // the rounded-corner 10201/2436b design.
+  "builtin:bracket-1x2-1x4-rounded-bottom",
 ] as const;
 
 describe("starter catalog", () => {
-  it("publishes the quarter-round tile admission as version 14", () => {
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/14");
+  it("publishes the rounded-bottom bracket admission as version 15", () => {
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/15");
   });
 
   it("pins 25269's exact LDCad route and raw-to-catalog central clutch", () => {
@@ -247,6 +251,7 @@ describe("starter catalog", () => {
       "curved-slope": 4,
       "cheese-slope": 2,
       "corner-plate": 5,
+      bracket: 1,
     });
     // Every part belongs to a family the palette knows how to show.
     expect(

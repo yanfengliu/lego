@@ -30,6 +30,7 @@ export const MIGRATABLE_CATALOG_VERSIONS: readonly string[] = Object.freeze([
   "builtin.basic-parts/11",
   "builtin.basic-parts/12",
   "builtin.basic-parts/13",
+  "builtin.basic-parts/14",
   BUILTIN_CATALOG_VERSION,
 ]);
 
@@ -157,6 +158,15 @@ export const REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS = Object.freeze([
     catalogVersion: "builtin.basic-parts/13",
     sourceCommit: "8fc01861ec059da71eb09c3273815f7ea49eec62",
     truthHash: "sha256:de62fae6dbc8095dfd460983e5e845ddfac4bf9ec2ea1f99572bc46026941cb5",
+  },
+  // The snapshot /15 replaced. /15 appends 28802 as one complete measured
+  // definition, adding exact catalog geometry, connector frames and collision
+  // truth without reinterpreting an existing definition. Horizontal placement
+  // remains outside the unchanged upright transform policy.
+  {
+    catalogVersion: "builtin.basic-parts/14",
+    sourceCommit: "5d90788b0c10576ae1fef592206a66540dbcb131",
+    truthHash: "sha256:db8c1740f23c65a4c0046c679e321a559623ac18a9c3fe59357b912e3a48a1b3",
   },
 ] as const);
 

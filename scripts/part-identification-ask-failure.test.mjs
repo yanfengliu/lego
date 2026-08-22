@@ -1,5 +1,7 @@
-import { EventEmitter } from "node:events";
-import { PassThrough } from "node:stream";
+import { randomUUID } from "node:crypto";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { describe, expect, it, vi } from "vitest";
 
@@ -7,11 +9,11 @@ import {
   askBatch,
   claudeFailureStderrDiagnostic,
   claudeFailureStdoutDiagnostic,
+  commandAsk,
   pendingAnswerClusterIndexes,
 } from "./part-identification-ask.mjs";
-import { sha256Digest } from "./part-identification-artifacts.mjs";
+import { runPartIdentificationCli } from "./part-identification.mjs";
 import { PART_IDENTIFICATION_MODEL_ID } from "./part-identification-model.mjs";
-import { canonicalPng } from "./part-identification-test-fixture.mjs";
 
 const oauthFailure = {
   type: "result",
@@ -117,38 +119,57 @@ describe("part-identification Claude failure diagnostics", () => {
     );
   });
 
-  it("surfaces the safe stdout cause on a nonzero bounded vision call", async () => {
-    const png = canonicalPng(2, 2, 7);
-    const spawnImpl = vi.fn(() => {
-      const child = new EventEmitter();
-      child.stdout = new PassThrough();
-      child.stderr = new PassThrough();
-      child.kill = vi.fn(() => true);
-      child.pid = 10_004;
-      queueMicrotask(() => {
-        child.stdout.end(JSON.stringify(oauthFailure));
-        child.stderr.end("credential=secret session_id=private card-0000 C:/private/input.png");
-        child.emit("close", 1, null);
-      });
-      return child;
-    });
-    let failure;
+  it("rejects the removed child hook before any provider launch", async () => {
+    const spawnImpl = vi.fn();
+    await expect(
+      askBatch(["card-0000"], PART_IDENTIFICATION_MODEL_ID, "unused", { spawnImpl }),
+    ).rejects.toThrow(/removed local-path provider hook/u);
+    expect(spawnImpl).not.toHaveBeenCalled();
+  });
+
+  it("refuses valid pilot flags at authorization before artifacts, journal, or provider", async () => {
+    const out = join(tmpdir(), `lego-disabled-part-id-${process.pid}-${randomUUID()}`);
+    expect(existsSync(out)).toBe(false);
+    await expect(
+      commandAsk([
+        "--out",
+        out,
+        "--jobs",
+        "4",
+        "--batch",
+        "6",
+        "--max-calls",
+        "1",
+        "--pilot",
+        "true",
+      ]),
+    ).rejects.toThrow(/pilot is disabled.*Gate-0 record before any provider process may launch/u);
+    expect(existsSync(out)).toBe(false);
+  });
+
+  it("refuses the re-ask CLI before reading answers, writing output, or reaching a provider", async () => {
+    const out = mkdtempSync(join(tmpdir(), "lego-disabled-part-id-reask-"));
+    const answers = join(out, `answers-${PART_IDENTIFICATION_MODEL_ID}.json`);
+    const sentinel = "this malformed answer file must not be read\n";
+    writeFileSync(answers, sentinel);
     try {
-      await askBatch(["card-0000"], PART_IDENTIFICATION_MODEL_ID, "unused", {
-        cardImages: new Map([["card-0000", png]]),
-        cardDigests: new Map([["card-0000", sha256Digest(png)]]),
-        spawnImpl,
-      });
-    } catch (error) {
-      failure = error;
+      await expect(
+        runPartIdentificationCli([
+          "reask",
+          "--out",
+          out,
+          "--model",
+          PART_IDENTIFICATION_MODEL_ID,
+          "--max",
+          "24",
+        ]),
+      ).rejects.toThrow(
+        /re-ask is disabled before artifact reads, output writes, or provider work/u,
+      );
+      expect(readFileSync(answers, "utf8")).toBe(sentinel);
+      expect(existsSync(join(out, `reasks-${PART_IDENTIFICATION_MODEL_ID}.json`))).toBe(false);
+    } finally {
+      rmSync(out, { recursive: true, force: true });
     }
-    expect(failure).toBeInstanceOf(Error);
-    expect(failure.message).toMatch(
-      /exited 1; stderr: \d+ UTF-8 bytes omitted; stdout: JSON error \(stdoutBytes=\d+, api_error_status=401, terminal_reason="api_error", remediation="reauthenticate with \\"claude auth login --claudeai/u,
-    );
-    expect(failure.message).not.toContain("credential=secret");
-    expect(failure.message).not.toContain("session_id=private");
-    expect(failure.message).not.toContain("OAuth access token has expired");
-    expect(spawnImpl).toHaveBeenCalledOnce();
   });
 });

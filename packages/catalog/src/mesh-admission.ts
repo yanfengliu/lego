@@ -6,6 +6,7 @@ import {
   connectorAccepts,
 } from "./constants.ts";
 import { MAX_EXACT_LDU_MAGNITUDE } from "./exact-ldu.ts";
+import { connectorAxisFrame } from "./connector-axis.ts";
 import {
   MESH_RENDER_QUANTIZATION_TOLERANCE_LDU,
   isLowercaseSha256,
@@ -265,7 +266,6 @@ function collisionPrimitiveBounds(primitive: CollisionPrimitive): LduBounds | nu
   if (primitive.kind === "cylinder") {
     if (
       (primitive.tag !== "body" && primitive.tag !== "stud") ||
-      (primitive.tag === "stud" && primitive.axis !== "y") ||
       (primitive.axis !== "x" && primitive.axis !== "y" && primitive.axis !== "z") ||
       primitive.centerLdu.length !== 3 ||
       !primitive.centerLdu.every(isMeasuredLdu) ||
@@ -487,7 +487,9 @@ export function validateMeshPartDefinitionAdmission(
   // official 54200 and 85984 surfaces reach 15.6 of their nominal 16 LDU. Its
   // tight mesh bounds, not an invented cap, remain the visible truth. This is
   // a measured half-LDU exception, not permission for nominal height to float.
-  const hasTopStud = definition.connectors.some(({ kind }) => kind === "stud");
+  const hasTopStud = definition.connectors.some(
+    ({ kind, normal }) => kind === "stud" && normal[0] === 0 && normal[1] === -1 && normal[2] === 0,
+  );
   const nominalTopY = -dimensions.heightLdu / 2;
   const topEndsTooFarInside =
     dimensionsValid &&
@@ -516,12 +518,10 @@ export function validateMeshPartDefinitionAdmission(
       (total, coordinate) => total + Math.abs(coordinate),
       0,
     );
-    const verticalConnectorDirectionValid =
+    const axisFrame = connectorAxisFrame(connector.normal);
+    const connectorDirectionValid =
       connector.kind === "stud"
-        ? connector.orientationId === "connector-up" &&
-          connector.normal[0] === 0 &&
-          connector.normal[1] === -1 &&
-          connector.normal[2] === 0
+        ? axisFrame?.orientationId === connector.orientationId
         : connector.kind === "undersideClutch"
           ? connector.orientationId === "connector-down" &&
             connector.normal[0] === 0 &&
@@ -536,9 +536,10 @@ export function validateMeshPartDefinitionAdmission(
       connector.gender === taxonomy.gender &&
       connector.profileId === taxonomy.profileId &&
       connector.capacity === 1 &&
-      (connector.orientationId === "connector-up" ||
+      (connector.kind === "stud" ||
+        connector.orientationId === "connector-up" ||
         connector.orientationId === "connector-down") &&
-      verticalConnectorDirectionValid &&
+      connectorDirectionValid &&
       Array.isArray(connector.compatibleKinds) &&
       connector.compatibleKinds.length === expectedCompatibleKinds.length &&
       connector.compatibleKinds.every(
@@ -557,13 +558,17 @@ export function validateMeshPartDefinitionAdmission(
       add(
         "MESH_ADMISSION_CONNECTOR_INVALID",
         `/connectors/${index}`,
-        `Part ${definition.id} connector ${JSON.stringify(connector.id)} needs a unique non-empty id, the catalog taxonomy fields for kind ${connector.kind}, a safe-integer in-bounds position, and one axis-unit safe-integer normal; studs require connector-up/[0,-1,0] and undersideClutch ports require connector-down/[0,1,0]. Received position=${JSON.stringify(connector.positionLdu)}, orientation=${JSON.stringify(connector.orientationId)}, normal=${JSON.stringify(connector.normal)}.`,
+        `Part ${definition.id} connector ${JSON.stringify(connector.id)} needs a unique non-empty id, the catalog taxonomy fields for kind ${connector.kind}, a safe-integer in-bounds position, and one axis-unit safe-integer normal; a stud's orientation must name its outward normal axis, while undersideClutch ports remain connector-down/[0,1,0]. Received position=${JSON.stringify(connector.positionLdu)}, orientation=${JSON.stringify(connector.orientationId)}, normal=${JSON.stringify(connector.normal)}.`,
       );
     }
     if (
       bodyBoundsValid &&
       ((connector.kind === "stud" &&
-        connector.positionLdu[1] !== definition.bodyBoundsLdu.min[1]) ||
+        (axisFrame === undefined ||
+          connector.positionLdu[axisFrame.axisIndex] !==
+            (axisFrame.sign < 0
+              ? definition.bodyBoundsLdu.min[axisFrame.axisIndex]
+              : definition.bodyBoundsLdu.max[axisFrame.axisIndex]))) ||
         (connector.kind === "undersideClutch" &&
           (connector.positionLdu[1] < definition.bodyBoundsLdu.min[1] ||
             connector.positionLdu[1] > definition.bodyBoundsLdu.max[1])))
@@ -571,9 +576,9 @@ export function validateMeshPartDefinitionAdmission(
       connectorRepresentationValid = false;
       add(
         "MESH_ADMISSION_VERTICAL_EXTENTS_INVALID",
-        `/connectors/${index}/positionLdu/1`,
+        `/connectors/${index}/positionLdu`,
         connector.kind === "stud"
-          ? `Part ${definition.id} stud connector ${connector.id} must stand on the represented top body plane Y=${definition.bodyBoundsLdu.min[1]}; received Y=${connector.positionLdu[1]}.`
+          ? `Part ${definition.id} stud connector ${connector.id} must seat on the represented body face selected by outward normal [${connector.normal.join(", ")}]; received position [${connector.positionLdu.join(", ")}].`
           : `Part ${definition.id} underside connector ${connector.id} seats at Y=${connector.positionLdu[1]}, outside the represented body's [${definition.bodyBoundsLdu.min[1]}, ${definition.bodyBoundsLdu.max[1]}] range. A stepped underside may seat above the lowest plane — 93273 seats two clutches 8 LDU up — but never outside the part.`,
       );
     }
@@ -698,13 +703,12 @@ export function validateMeshPartDefinitionAdmission(
     cylinder: (typeof studCylinders)[number],
   ): boolean =>
     connector.id === cylinder.id &&
-    connector.normal[0] === 0 &&
-    connector.normal[1] === -1 &&
-    connector.normal[2] === 0 &&
-    cylinder.axis === "y" &&
-    cylinder.centerLdu[0] === connector.positionLdu[0] &&
-    cylinder.centerLdu[2] === connector.positionLdu[2] &&
-    cylinder.centerLdu[1] + cylinder.heightLdu / 2 === connector.positionLdu[1];
+    connectorAxisFrame(connector.normal)?.axis === cylinder.axis &&
+    cylinder.centerLdu.every(
+      (coordinate, axis) =>
+        coordinate ===
+        connector.positionLdu[axis]! + (connector.normal[axis]! * cylinder.heightLdu) / 2,
+    );
   for (const connector of studConnectors) {
     const matches = studCylinders.filter((cylinder) =>
       studRepresentationsMatch(connector, cylinder),
@@ -713,7 +717,7 @@ export function validateMeshPartDefinitionAdmission(
       add(
         "MESH_ADMISSION_CONNECTOR_COLLISION_MISMATCH",
         `/connectors/${definition.connectors.indexOf(connector)}`,
-        `Part ${definition.id} stud connector ${connector.id} needs exactly one same-id vertical stud collision cylinder at the same X/Z whose lower face meets connector Y=${connector.positionLdu[1]}; found ${matches.length}. Connector and collision declarations are independent, so mesh admission requires their represented attachment feature to agree.`,
+        `Part ${definition.id} stud connector ${connector.id} needs exactly one same-id stud collision cylinder on its outward-normal axis whose inward face meets connector position [${connector.positionLdu.join(", ")}]; found ${matches.length}. Connector and collision declarations are independent, so mesh admission requires their represented attachment feature to agree.`,
       );
     }
   }
@@ -725,7 +729,7 @@ export function validateMeshPartDefinitionAdmission(
       add(
         "MESH_ADMISSION_CONNECTOR_COLLISION_MISMATCH",
         `/collision/primitives/${definition.collision.primitives.indexOf(cylinder)}`,
-        `Part ${definition.id} stud collision cylinder ${cylinder.id} needs exactly one same-id stud connector on its lower face; found ${matches.length}. Orphan collision studs cannot be admitted as connector truth.`,
+        `Part ${definition.id} stud collision cylinder ${cylinder.id} needs exactly one same-id stud connector on its inward face; found ${matches.length}. Orphan collision studs cannot be admitted as connector truth.`,
       );
     }
   }

@@ -1,6 +1,7 @@
 import type {
   BodyArcFeature,
   ConnectorKind,
+  ConnectorOrientationId,
   LduBounds,
   LduVector3,
   PartialOverhangClutchEvidence,
@@ -55,7 +56,7 @@ export interface PartBlueprint {
     readonly kind: ConnectorKind;
     readonly positionLdu: LduVector3;
     readonly normal: LduVector3;
-    readonly orientationId: "connector-up" | "connector-down";
+    readonly orientationId: ConnectorOrientationId;
   }[];
   /**
    * Body extents in LDU, for a part the stud footprint does not describe. An

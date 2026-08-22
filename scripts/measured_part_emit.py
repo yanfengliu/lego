@@ -1,7 +1,7 @@
 """Render the catalog's generated measured-part tables as TypeScript.
 
 Every table here comes from one measured source expansion, so its generated
-fields stay aligned. Twelve measured definitions supply full declarations.
+fields stay aligned. Fourteen measured source rows supply full declarations.
 Render-only definitions are emitted through a separate table that has no field
 for connectors, allowances or collision, so those facts cannot leak from the
 measurement path. The emitter canonicalizes this output with the
@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Sequence
 
 from ldcad_shadow_connectors import SHADOW_COMPOSITION_ID
-from ldraw_source_archive import SourceRecord
+from ldraw_source_archive import SourceRecord, canonical_bytes, sha256_prefixed
 from measured_part_tables import (
     BUILDER_CONNECTIVITY_CONNECTOR_SOURCE,
     BUILDER_CONNECTOR_SOURCE,
@@ -296,6 +296,10 @@ def render_blueprints(
         lines.append("  {")
         lines.append(f"    designId: {_string(plan.design_id)},")
         lines.append(f"    ldrawId: {_string(f'{plan.design_id}.dat')},")
+        if plan.catalog_id is not None:
+            lines.append(f"    catalogId: {_string(plan.catalog_id)},")
+        if plan.display_name is not None:
+            lines.append(f"    displayName: {_string(plan.display_name)},")
         lines.append(f"    family: {_string(plan.family)},")
         lines.append(f"    widthStuds: {plan.width_studs},")
         lines.append(f"    lengthStuds: {plan.length_studs},")
@@ -458,6 +462,26 @@ def render_bundled_sources(
     )
     for design_id, indices in closures.items():
         lines.append(f"  {_string(design_id)}: [{', '.join(str(index) for index in indices)}],")
+    lines.append("});")
+    lines.append("")
+    lines.append("export interface BundledLdrawClosureManifest {")
+    lines.append("  readonly bytes: number;")
+    lines.append("  readonly manifestSha256: `sha256:${string}`;")
+    lines.append("}")
+    lines.append("")
+    lines.append("/** Canonical full-record digest and byte count for each exact closure. */")
+    lines.append(
+        "export const BUNDLED_LDRAW_CLOSURE_MANIFESTS: "
+        "Readonly<Record<string, BundledLdrawClosureManifest>> = Object.freeze({"
+    )
+    for part in parts:
+        manifest = [record.manifest_record() for record in part.closure]
+        lines.append(
+            f"  {_string(part.plan.design_id)}: {{ "
+            f"bytes: {sum(record.byte_length for record in part.closure)}, "
+            f"manifestSha256: {_string(sha256_prefixed(canonical_bytes(manifest)))} "
+            "},"
+        )
     lines.append("});")
     lines.append("")
     lines.append("/** The archive the files above were read from, byte-pinned. */")

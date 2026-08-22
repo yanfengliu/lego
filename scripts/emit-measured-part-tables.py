@@ -47,7 +47,13 @@ from measured_part_plan import (
     BUNDLED_LDRAW_ARCHIVE_RECORD,
     RENDER_ONLY_PART_PLANS,
 )
-from measured_part_tables import measure_part, measure_render_only_part, scoreable_candidate
+from measured_part_tables import (
+    measure_part,
+    measure_render_only_part,
+    measured_part_report_row,
+    render_only_part_report_row,
+    scoreable_candidate,
+)
 from part_admission_contract import validate_candidate
 from part_admission_evidence import PILOT_DESIGN_IDS, bind_to_pilot, parse_pilot, write_output_report
 from part_admission_scorecard import DEFAULT_SAMPLE_SPACING_LDU, score_candidate
@@ -296,38 +302,8 @@ def main() -> None:
         },
         "sourceBinding": bindings,
         "generatedFiles": written,
-        "parts": [
-            {
-                "designId": part.plan.design_id,
-                "catalogId": (
-                    f"builtin:{part.plan.family}-{part.plan.width_studs}x{part.plan.length_studs}"
-                    + ("" if part.plan.variant is None else f"-{part.plan.variant}")
-                ),
-                "connectorSource": part.plan.connector_source,
-                "studs": len(part.studs_ldu),
-                "clutches": len(part.clutches_ldu),
-                "collisionBoxes": len(part.body_boxes_ldu) // 6,
-                "meshTriangles": part.body_triangle_count + part.stud_triangle_count,
-                "closureFileCount": len(part.closure),
-                "shadowFiles": list(part.shadow_files),
-            }
-            for part in measured_parts
-        ]
-        + [
-            {
-                "designId": part.plan.design_id,
-                "catalogId": (
-                    f"builtin:{part.plan.family}-{part.plan.width_studs}x{part.plan.length_studs}"
-                    + ("" if part.plan.variant is None else f"-{part.plan.variant}")
-                ),
-                "connectorSource": "preserved-catalog-definition-not-read-by-generator",
-                "sourceStudFrameWitnesses": len(part.source_stud_seats_ldu),
-                "meshTriangles": part.body_triangle_count + part.stud_triangle_count,
-                "closureFileCount": len(part.closure),
-                "structuralFieldsEmitted": 0,
-            }
-            for part in render_only_parts
-        ],
+        "parts": [measured_part_report_row(part) for part in measured_parts]
+        + [render_only_part_report_row(part) for part in render_only_parts],
         "scorecards": scorecards,
     }
     digest = write_output_report(arguments.report, report)

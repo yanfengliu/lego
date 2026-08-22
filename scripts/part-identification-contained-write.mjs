@@ -203,6 +203,7 @@ function combineFailure(failure, cleanup, message) {
 export function writeContainedFileAtomic(root, canonicalPath, bytes, options = {}) {
   const payload = Buffer.from(bytes);
   const label = options.label ?? "Output";
+  const exclusive = options.exclusive === true;
   const rootPath = ordinaryDirectoryPath(root, {
     create: true,
     label: options.rootLabel ?? "Declared output root",
@@ -232,13 +233,20 @@ export function writeContainedFileAtomic(root, canonicalPath, bytes, options = {
         `${label} target ${JSON.stringify(candidate)} is not an ordinary file beneath the declared root.`,
       );
     }
+    if (exclusive) {
+      throw new Error(
+        `${label} target ${JSON.stringify(candidate)} already exists; immutable content-addressed publication never replaces retained bytes.`,
+      );
+    }
   }
   options.__testHooks?.afterPreflight?.();
 
-  const temporary = resolve(
-    parent,
-    `.${basename(candidate)}.${process.pid}.${randomBytes(12).toString("hex")}.tmp`,
-  );
+  const temporary = exclusive
+    ? candidate
+    : resolve(
+        parent,
+        `.${basename(candidate)}.${process.pid}.${randomBytes(12).toString("hex")}.tmp`,
+      );
   let descriptor = null;
   let temporaryState = null;
   let published = false;
@@ -272,13 +280,13 @@ export function writeContainedFileAtomic(root, canonicalPath, bytes, options = {
     if (!sameFileState(temporaryState, temporaryPathState)) {
       throw new Error(`${label} temporary path was replaced or changed before publication.`);
     }
-    if (existsSync(candidate)) {
+    if (!exclusive && existsSync(candidate)) {
       const target = lstatSync(candidate, { bigint: true });
       if (!target.isFile() || target.isSymbolicLink()) {
         throw new Error(`${label} target became a link or non-file before publication.`);
       }
     }
-    renameSync(temporary, candidate);
+    if (!exclusive) renameSync(temporary, candidate);
     published = true;
     options.__testHooks?.afterRename?.();
 

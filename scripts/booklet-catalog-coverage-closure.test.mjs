@@ -143,6 +143,8 @@ describe("booklet catalog coverage closure compiler", () => {
       cardsArtifact: null,
       cardImagesArtifact: null,
       answersArtifact: null,
+      traceRoot: null,
+      traceArtifacts: null,
     };
     let sourceReads = 0;
     Object.defineProperty(deterministicInput, "source", {
@@ -192,6 +194,8 @@ describe("booklet catalog coverage closure compiler", () => {
             cardsArtifact: null,
             cardImagesArtifact: null,
             answersArtifact: null,
+            traceRoot: null,
+            traceArtifacts: null,
             featuresArtifact,
             matchArtifact,
             distancesArtifact,

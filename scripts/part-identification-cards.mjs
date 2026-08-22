@@ -50,6 +50,9 @@ import {
 const OUT = "output/part-identification";
 const MAX_RETAINED_CARD_RUN_BYTES = 512 * 1024 * 1024;
 const MAX_RETAINED_CARD_RUNS = 64;
+const WINDOWS_STAGED_RUN_SETTLE_MS = 2_000;
+const WINDOWS_STAGED_RUN_POLL_MS = 10;
+const WINDOWS_STAGED_RUN_WAIT = new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT));
 const WINDOWS_EXACT_DIRECTORY_CLEANUP = fileURLToPath(
   new URL("./windows-lock-exact-files.ps1", import.meta.url),
 );
@@ -162,6 +165,21 @@ function assertExactRunDirectory(cardsRoot, manifest, runPath) {
 
 function sameDirectoryIdentity(left, right) {
   return left.ino === right.ino && (left.dev === 0n || right.dev === 0n || left.dev === right.dev);
+}
+
+function waitForStagedRunNamespaceRemoval(cardsRoot, stagingRunPath) {
+  const pathSegments = stagingRunPath.split("/");
+  const stagingName = pathSegments.pop();
+  const parent = join(cardsRoot, ...pathSegments);
+  const deadline = Date.now() + WINDOWS_STAGED_RUN_SETTLE_MS;
+  // A delete-pending Windows directory can already fail direct stat/existence
+  // checks while its name is still observable in the parent namespace.
+  while (readdirSync(parent).some((name) => name.toLowerCase() === stagingName.toLowerCase())) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) return false;
+    Atomics.wait(WINDOWS_STAGED_RUN_WAIT, 0, 0, Math.min(WINDOWS_STAGED_RUN_POLL_MS, remaining));
+  }
+  return true;
 }
 
 function ordinaryRunEntries(directory, label, { allowEmpty = false } = {}) {
@@ -287,9 +305,18 @@ function cleanupStagedCardRun(cardsRoot, stagingRunPath) {
       ],
       { encoding: "utf8", timeout: 30_000, windowsHide: true, maxBuffer: 128 * 1024 },
     );
-    if (result.status !== 0 || result.error !== undefined || existsSync(directory)) {
+    const namespaceRemoved =
+      result.status === 0 &&
+      result.error === undefined &&
+      waitForStagedRunNamespaceRemoval(cardsRoot, stagingRunPath);
+    if (!namespaceRemoved) {
+      const stderr = result.stderr?.trim();
       const detail =
-        result.error?.message ?? result.stderr?.trim() ?? `PowerShell exited ${result.status}`;
+        result.error?.message ??
+        (stderr ||
+          (result.status === 0
+            ? `PowerShell exited 0 but the parent directory still listed the staged run after ${WINDOWS_STAGED_RUN_SETTLE_MS} ms`
+            : `PowerShell exited ${result.status}`));
       throw new Error(
         `Task-owned staged card run ${JSON.stringify(stagingRunPath)} could not be removed through exact Windows file/directory handles: ${detail}. No replacement path was recursively removed.`,
         result.error === undefined ? undefined : { cause: result.error },

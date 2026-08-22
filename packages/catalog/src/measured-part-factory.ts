@@ -29,6 +29,7 @@ import {
 import { deepFreeze } from "./freeze.ts";
 import { meshAssetContentHash, resolvePreloadedMeshAsset } from "./mesh-assets.ts";
 import { meshUndersideIsDrawn } from "./mesh-underside.ts";
+import { compileMeasuredStud } from "./measured-stud.ts";
 import { SET_6651557_MESH_ASSETS } from "./mesh-assets-6651557.ts";
 import type { MeasuredPartBlueprint } from "./measured-part-types.ts";
 import { SET_6651557_MEASURED_BLUEPRINTS } from "./part-blueprints-6651557-measured.ts";
@@ -243,40 +244,10 @@ export const makeMeasuredPartDefinition = (blueprint: MeasuredPartBlueprint): Pa
   }));
   const allowances: CollisionAllowance[] = [];
 
-  blueprint.studsLdu.forEach(([x, y, z, radiusLdu, studHeightLdu], index) => {
-    if (y !== bodyBoundsLdu.min[1]) {
-      fail(
-        blueprint,
-        `stud ${index} seats at y=${y} but the measured top plane is y=${bodyBoundsLdu.min[1]}; a stud stands on the part's own top surface.`,
-      );
-    }
-    if (!(radiusLdu > 0) || !(studHeightLdu > 0)) {
-      fail(
-        blueprint,
-        `stud ${index} measures radius ${radiusLdu} and height ${studHeightLdu} LDU; both must be positive.`,
-      );
-    }
-    connectors.push({
-      id: `stud:${index}`,
-      kind: "stud",
-      geometryRole: "stud",
-      profileId: "stud-tube/1",
-      gender: "male",
-      positionLdu: [x, y, z],
-      normal: [0, -1, 0],
-      orientationId: "connector-up",
-      capacity: 1,
-      compatibleKinds: ["undersideClutch"],
-    });
-    primitives.push({
-      id: `stud:${index}`,
-      kind: "cylinder",
-      tag: "stud",
-      axis: "y",
-      centerLdu: [x, y - studHeightLdu / 2, z],
-      radiusLdu,
-      heightLdu: studHeightLdu,
-    });
+  blueprint.studsLdu.forEach((row, index) => {
+    const stud = compileMeasuredStud(blueprint, bodyBoundsLdu, row, index);
+    connectors.push(stud.connector);
+    primitives.push(stud.primitive);
   });
 
   blueprint.clutchesLdu.forEach(([x, y, z], index) => {
@@ -383,12 +354,21 @@ export const makeMeasuredPartDefinition = (blueprint: MeasuredPartBlueprint): Pa
         : "semantic-tube-seat-offsets";
 
   const variantSuffix = variant === undefined ? "" : `-${variant}`;
-  const displayName =
+  const defaultDisplayName =
     `${FAMILY_DISPLAY_NAMES[family]} ${widthStuds} x ${lengthStuds}` +
     (variant === undefined ? "" : ` ${variant[0]!.toUpperCase()}${variant.slice(1)}`);
+  const id =
+    blueprint.catalogId ?? `builtin:${family}-${widthStuds}x${lengthStuds}${variantSuffix}`;
+  const displayName = blueprint.displayName ?? defaultDisplayName;
+  if (!id.startsWith("builtin:") || displayName.trim().length === 0) {
+    fail(
+      blueprint,
+      `names catalog identity ${JSON.stringify(id)} / ${JSON.stringify(displayName)}; a measured override is a builtin id and a non-empty display name.`,
+    );
+  }
 
   return deepFreeze({
-    id: `builtin:${family}-${widthStuds}x${lengthStuds}${variantSuffix}`,
+    id,
     family,
     displayName,
     aliases: makeAliases(displayName, ldrawId),

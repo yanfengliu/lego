@@ -117,6 +117,7 @@ function loadRun(argv, { option, inventoryHeld, elementNames }) {
           matchDigest: artifacts.match.digest,
           clusters: match.clusters,
         });
+  let cardImages = null;
   if (cards !== null) {
     const cardsRoot = join(OUT, "cards");
     const cardImagesPath = join(cardsRoot, ...cards.imagesFile.split("/"));
@@ -125,7 +126,7 @@ function loadRun(argv, { option, inventoryHeld, elementNames }) {
         `Source ${JSON.stringify(source)} requires a retained card-image bundle at ${cardImagesPath}; regenerate cards first.`,
       );
     }
-    verifyRetainedCardImageClosure(cardsRoot, cards);
+    cardImages = verifyRetainedCardImageClosure(cardsRoot, cards);
   }
   const answers =
     source !== "deterministic" && existsSync(answersPath)
@@ -136,6 +137,8 @@ function loadRun(argv, { option, inventoryHeld, elementNames }) {
           promptDigest: PART_IDENTIFICATION_PROMPT_DIGEST,
           clusters: match.clusters,
           cards: cards.cards,
+          cardImages: cardImages.images,
+          traceRoot: OUT,
         })
       : null;
   const { held } = inventoryHeld();

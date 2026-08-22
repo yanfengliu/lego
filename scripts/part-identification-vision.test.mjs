@@ -1,17 +1,7 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { EventEmitter } from "node:events";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import { PassThrough } from "node:stream";
-
 import { describe, expect, it, vi } from "vitest";
 
 import { askBatch, settleVisionWorkers } from "./part-identification-ask.mjs";
-import {
-  assertAnswerRecord,
-  canonicalAnswerRecord,
-  sha256Digest,
-} from "./part-identification-artifacts.mjs";
+import { assertAnswerRecord, canonicalAnswerRecord } from "./part-identification-artifacts.mjs";
 import { pairCost } from "./part-assignment.mjs";
 import {
   PART_IDENTIFICATION_MODEL_ID,
@@ -29,41 +19,14 @@ import {
   describesSameThing,
   readWhatTheCallObserved,
 } from "./part-identification-score.mjs";
-import { canonicalPng } from "./part-identification-test-fixture.mjs";
 import { COLOR_DEFINITIONS } from "../packages/catalog/src/colors.ts";
 
-/** The one reply shape the bounded child parser accepts, for a single answered card. */
-function visionReply() {
-  return JSON.stringify({
-    is_error: false,
-    result:
-      'card-0000 {"kind":"brick","studsLong":1,"studsWide":1,"colour":"black","pick":1,"alsoCouldBe":0,"differsFromPick":"nothing","confidence":0.9}',
-    modelUsage: {
-      [PART_IDENTIFICATION_MODEL_ID]: {
-        canonicalModel: PART_IDENTIFICATION_MODEL_IDENTITY.canonicalModel,
-        provider: PART_IDENTIFICATION_MODEL_IDENTITY.provider,
-      },
-    },
-  });
-}
-
 describe("part-identification vision call boundary", () => {
-  it("rejects a same-length card mutation against the manifest digest before model launch", async () => {
-    const original = canonicalPng(2, 2, 7);
-    const replacement = canonicalPng(2, 2, 11);
-    expect(replacement).toHaveLength(original.length);
-    const originalDigest = sha256Digest(original);
-    const images = new Map([["card-0000", Buffer.from(original)]]);
-    replacement.copy(images.get("card-0000"));
+  it("rejects removed local-path provider hooks before they can launch", async () => {
     const spawnImpl = vi.fn();
-
     await expect(
-      askBatch(["card-0000"], PART_IDENTIFICATION_MODEL_ID, "unused", {
-        cardImages: images,
-        cardDigests: new Map([["card-0000", originalDigest]]),
-        spawnImpl,
-      }),
-    ).rejects.toThrow(/hash to .*exact cards manifest requires/);
+      askBatch(["card-0000"], PART_IDENTIFICATION_MODEL_ID, "unused", { spawnImpl }),
+    ).rejects.toThrow(/removed local-path provider hook/u);
     expect(spawnImpl).not.toHaveBeenCalled();
   });
 
@@ -79,114 +42,6 @@ describe("part-identification vision call boundary", () => {
       settleVisionWorkers([Promise.reject(new Error("first worker failed")), sibling]),
     ).rejects.toThrow(/every sibling worker and owned child process finished/);
     expect(siblingFinished).toBe(true);
-  });
-
-  it("feeds the model a locked one-use snapshot of authenticated retained card bytes", async () => {
-    if (process.platform !== "win32") return;
-    const directory = mkdtempSync(join(tmpdir(), "lego-model-card-snapshot-"));
-    const cardsDirectory = join(directory, "cards");
-    mkdirSync(cardsDirectory);
-    const retained = canonicalPng(2, 2, 7);
-    const authenticated = Buffer.from(retained);
-    const replacement = canonicalPng(2, 2, 11);
-    const canonicalPath = join(cardsDirectory, "card-0000.png");
-    writeFileSync(canonicalPath, retained);
-    let observed = null;
-    let snapshotRoot = null;
-    let snapshotMutationDenied = false;
-    const spawnImpl = vi.fn((_command, args) => {
-      const instruction = args[1];
-      const snapshotPath = /^Read these 1 images: ([^\r\n]+)/u.exec(instruction)?.[1];
-      expect(snapshotPath).toBeTruthy();
-      snapshotRoot = dirname(snapshotPath);
-      writeFileSync(canonicalPath, replacement);
-      retained.fill(0);
-      try {
-        writeFileSync(snapshotPath, replacement);
-      } catch {
-        snapshotMutationDenied = true;
-      }
-      observed = readFileSync(snapshotPath);
-      writeFileSync(canonicalPath, authenticated);
-      const child = new EventEmitter();
-      child.stdout = new PassThrough();
-      child.stderr = new PassThrough();
-      child.kill = vi.fn(() => true);
-      child.pid = 10_001;
-      queueMicrotask(() => {
-        child.stdout.write(visionReply());
-        child.emit("close", 0, null);
-      });
-      return child;
-    });
-    try {
-      const reply = await askBatch(["card-0000"], PART_IDENTIFICATION_MODEL_ID, directory, {
-        cardImages: new Map([["card-0000", retained]]),
-        cardDigests: new Map([["card-0000", sha256Digest(authenticated)]]),
-        spawnImpl,
-      });
-      expect(reply.answers.get("card-0000")).toMatchObject({ pick: 1 });
-      expect(observed).toEqual(authenticated);
-      expect(snapshotMutationDenied).toBe(true);
-      expect(existsSync(snapshotRoot)).toBe(false);
-    } finally {
-      rmSync(directory, { recursive: true, force: true });
-    }
-  });
-
-  it("discards a model result when the exact-lock helper exits cleanly before release", async () => {
-    if (process.platform !== "win32") return;
-    const retained = canonicalPng(2, 2, 7);
-    const replacement = canonicalPng(2, 2, 11);
-    let snapshotRoot = null;
-    let observed = null;
-    const lockSpawnImpl = vi.fn(() => {
-      const child = new EventEmitter();
-      child.stdout = new PassThrough();
-      child.stderr = new PassThrough();
-      child.stdin = new PassThrough();
-      child.exitCode = null;
-      child.kill = vi.fn(() => true);
-      queueMicrotask(() => {
-        child.stdout.write("READY\n");
-        queueMicrotask(() => {
-          child.exitCode = 0;
-          child.emit("close", 0, null);
-        });
-      });
-      return child;
-    });
-    const spawnImpl = vi.fn((_command, args) => {
-      const snapshotPath = /^Read these 1 images: ([^\r\n]+)/u.exec(args[1])?.[1];
-      snapshotRoot = dirname(snapshotPath);
-      const child = new EventEmitter();
-      child.stdout = new PassThrough();
-      child.stderr = new PassThrough();
-      child.kill = vi.fn(() => true);
-      child.pid = 10_002;
-      setTimeout(() => {
-        writeFileSync(snapshotPath, replacement);
-        observed = readFileSync(snapshotPath);
-        writeFileSync(snapshotPath, retained);
-        child.stdout.write(visionReply());
-        child.emit("close", 0, null);
-      }, 10);
-      return child;
-    });
-    try {
-      await expect(
-        askBatch(["card-0000"], PART_IDENTIFICATION_MODEL_ID, "unused", {
-          cardImages: new Map([["card-0000", retained]]),
-          cardDigests: new Map([["card-0000", sha256Digest(retained)]]),
-          lockSpawnImpl,
-          spawnImpl,
-        }),
-      ).rejects.toThrow(/after readiness but before explicit release/);
-      expect(spawnImpl).toHaveBeenCalledOnce();
-      expect(observed).toEqual(replacement);
-    } finally {
-      if (snapshotRoot !== null) rmSync(snapshotRoot, { recursive: true, force: true });
-    }
   });
 
   it("fails closed on incomplete descriptions, mutable model aliases, and extra model usage", async () => {
@@ -391,78 +246,40 @@ const wedgeClaim = (answer, handedness = null) =>
   ).get(0);
 
 describe("part-identification reply boundary with free text", () => {
-  const png = canonicalPng(2, 2, 7);
-  const replyingWith = (result) =>
-    vi.fn(() => {
-      const child = new EventEmitter();
-      child.stdout = new PassThrough();
-      child.stderr = new PassThrough();
-      child.kill = vi.fn(() => true);
-      child.pid = 10_003;
-      queueMicrotask(() => {
-        child.stdout.write(
-          JSON.stringify({
-            is_error: false,
-            result,
-            modelUsage: {
-              [PART_IDENTIFICATION_MODEL_ID]: {
-                canonicalModel: PART_IDENTIFICATION_MODEL_IDENTITY.canonicalModel,
-                provider: PART_IDENTIFICATION_MODEL_IDENTITY.provider,
-              },
-            },
-          }),
-        );
-        child.emit("close", 0, null);
-      });
-      return child;
-    });
   const ask = (result, cardIds = ["card-0000"]) =>
     askBatch(cardIds, PART_IDENTIFICATION_MODEL_ID, "unused", {
-      cardImages: new Map(cardIds.map((id) => [id, Buffer.from(png)])),
-      cardDigests: new Map(cardIds.map((id) => [id, sha256Digest(png)])),
-      spawnImpl: replyingWith(result),
+      transport: vi.fn(async () => ({
+        terminalResult: result,
+        modelIdentity: PART_IDENTIFICATION_MODEL_IDENTITY,
+      })),
     });
   const line = (cardId, note) =>
     `${cardId} {"kind":"wedge","studsLong":6,"studsWide":2,"colour":"White","pick":1,"alsoCouldBe":0,` +
     `"differsFromPick":"nothing","confidence":0.86${note === null ? "" : `,"note":${JSON.stringify(note)}`}}`;
 
-  // Each ask() drives the real Windows exact-lock helper, which is a PowerShell
-  // process start per call. Three of them on a loaded machine outrun the 5 s
-  // default with nothing wrong, and stubbing the helper is not available here:
-  // the success path requires it to perform the snapshot cleanup it owns.
-  const REAL_LOCK_HELPER_BUDGET_MS = 60_000;
+  it("keeps a written observation, drops a blank one, and refuses one it cannot carry", async () => {
+    const written = await ask(
+      line("card-0000", "candidate 2 is the mirror; the query's taper runs right"),
+    );
+    expect(written.answers.get("card-0000")?.note).toBe(
+      "candidate 2 is the mirror; the query's taper runs right",
+    );
+    const blank = await ask(line("card-0000", "   "));
+    expect(blank.answers.get("card-0000")).not.toHaveProperty("note");
+    // A brace cannot travel in a note: the reply is carved per line before it is
+    // parsed. The answer is lost, but the run says which schema rule lost it
+    // instead of reporting a model that would not answer.
+    const braced = await ask(line("card-0000", "the { in this note"));
+    expect(braced.answers.has("card-0000")).toBe(false);
+    expect(braced.rejected.get("card-0000")).toMatch(/braces/);
+  });
 
-  it(
-    "keeps a written observation, drops a blank one, and refuses one it cannot carry",
-    async () => {
-      const written = await ask(
-        line("card-0000", "candidate 2 is the mirror; the query's taper runs right"),
-      );
-      expect(written.answers.get("card-0000")?.note).toBe(
-        "candidate 2 is the mirror; the query's taper runs right",
-      );
-      const blank = await ask(line("card-0000", "   "));
-      expect(blank.answers.get("card-0000")).not.toHaveProperty("note");
-      // A brace cannot travel in a note: the reply is carved per line before it is
-      // parsed. The answer is lost, but the run says which schema rule lost it
-      // instead of reporting a model that would not answer.
-      const braced = await ask(line("card-0000", "the { in this note"));
-      expect(braced.answers.has("card-0000")).toBe(false);
-      expect(braced.rejected.get("card-0000")).toMatch(/braces/);
-    },
-    REAL_LOCK_HELPER_BUDGET_MS,
-  );
-
-  it(
-    "reads the card id from before the JSON, so a note naming another card cannot retag it",
-    async () => {
-      const misplaced = `${line("", "see card-0000 for the mirror").trim()} — card-0001`;
-      const reply = await ask(misplaced, ["card-0000", "card-0001"]);
-      expect(reply.answers.has("card-0000")).toBe(false);
-      expect(reply.answers.has("card-0001")).toBe(false);
-    },
-    REAL_LOCK_HELPER_BUDGET_MS,
-  );
+  it("reads the card id from before the JSON, so a note naming another card cannot retag it", async () => {
+    const misplaced = `${line("", "see card-0000 for the mirror").trim()} — card-0001`;
+    await expect(ask(misplaced, ["card-0000", "card-0001"])).rejects.toThrow(
+      /not exactly one requested card id followed by one JSON object/u,
+    );
+  });
 });
 
 describe("part-identification difference vocabulary", () => {

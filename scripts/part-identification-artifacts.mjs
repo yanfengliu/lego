@@ -30,18 +30,23 @@ export {
 export {
   ANSWER_FIELDS,
   OPTIONAL_ANSWER_FIELDS,
-  PART_ANSWERS_SCHEMA,
   PART_CARDS_SCHEMA,
   PartIdentificationArtifactBindingError,
-  answerBundle,
   assertAnswerRecord,
   assertCardsArtifact,
-  boundAnswers,
   canonicalAnswerRecord,
   deriveCardRunId,
   hasUsableAnswer,
   usableAnswerCount,
 } from "./part-identification-artifact-vision.mjs";
+export {
+  PART_ANSWERS_SCHEMA,
+  answerBundle,
+  boundAnswerCheckpoint,
+  boundAnswers,
+  publishPartIdentificationAnswerCheckpoint,
+} from "./part-identification-answer-checkpoint.mjs";
+export { auditPartIdentificationAnswerCheckpointStore } from "./part-identification-answer-lineage.mjs";
 
 export const PART_FEATURES_SCHEMA = "lego.part-identification-features/3";
 export { PART_DISTANCES_SCHEMA, PART_MATCH_SCHEMA };

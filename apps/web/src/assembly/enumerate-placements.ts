@@ -1,10 +1,10 @@
+import { getPartDefinition, type LduVector3, type PartDefinition } from "@lego-studio/catalog";
 import {
-  STUD_PITCH_LDU,
-  getPartDefinition,
-  type LduVector3,
-  type PartDefinition,
-} from "@lego-studio/catalog";
-import { createCollisionWorld, transformLduPoint } from "@lego-studio/brick-kernel";
+  createCollisionWorld,
+  getUprightOrientation,
+  rotateLduVector,
+  transformLduPoint,
+} from "@lego-studio/brick-kernel";
 import type {
   BrickDocumentV1,
   ConnectionEdge,
@@ -16,9 +16,10 @@ import {
   GROUND_UNDERSIDE_LDU,
   bodyBoundsLdu,
   endpointKey,
-  worldFootprint,
   type DiscoveredConnection,
 } from "../placement";
+import { connectorAxesAlign } from "../connector-frame-alignment";
+import { buildPlateOrigins } from "./build-plate-origins";
 
 /**
  * Every legal place one part could go on the current assembly.
@@ -60,9 +61,9 @@ export interface PlacementEnumerationCounts {
   readonly freeStuds: number;
   /** Underside clutches on the assembly with no connection already using them. */
   readonly freeClutches: number;
-  /** (free stud x candidate clutch x orientation) triples, before deduplication. */
+  /** Axis-compatible (free stud, candidate clutch, orientation) triples. */
   readonly rawFromStuds: number;
-  /** (free clutch x candidate stud x orientation) triples: the part goes under. */
+  /** Axis-compatible (free clutch, candidate stud, orientation) triples. */
   readonly rawFromClutches: number;
   readonly rawFromBuildPlate: number;
   readonly distinctTransforms: number;
@@ -144,6 +145,8 @@ function positionKey(position: LduVector3): string {
 }
 
 interface PortIndexEntry {
+  readonly kind: "stud" | "undersideClutch";
+  readonly normal: LduVector3;
   readonly partId: string;
   readonly portId: string;
 }
@@ -167,10 +170,14 @@ function indexFreePorts(
       if (connector.kind !== kind) continue;
       if (occupied.has(endpointKey(part.id, connector.id))) continue;
       const key = positionKey(transformLduPoint(part.transform, connector.positionLdu));
+      const orientation = getUprightOrientation(part.transform.orientationId);
+      const normal = rotateLduVector(orientation.matrix, connector.normal);
       // Two free ports of the same kind at one point means the assembly is
       // already invalid there; keep the first so enumeration stays a pure
       // function of the document rather than of iteration order.
-      if (!index.has(key)) index.set(key, { partId: part.id, portId: connector.id });
+      if (!index.has(key)) {
+        index.set(key, { kind: connector.kind, normal, partId: part.id, portId: connector.id });
+      }
     }
   }
   return index;
@@ -182,6 +189,8 @@ interface RotatedPorts {
 }
 
 interface RotatedPort {
+  readonly kind: "stud" | "undersideClutch";
+  readonly normal: LduVector3;
   readonly portId: string;
   readonly offset: LduVector3;
 }
@@ -193,9 +202,12 @@ function rotatedPorts(
   kind: "stud" | "undersideClutch",
 ): readonly RotatedPort[] {
   const rotation: RigidTransform = { positionLdu: [0, 0, 0], orientationId };
+  const orientation = getUprightOrientation(orientationId);
   return definition.connectors
     .filter((connector) => connector.kind === kind)
     .map((connector) => ({
+      kind,
+      normal: rotateLduVector(orientation.matrix, connector.normal),
       portId: connector.id,
       offset: transformLduPoint(rotation, connector.positionLdu),
     }));
@@ -278,20 +290,14 @@ export function enumeratePlacements(
   let rawFromStuds = 0;
   let rawFromClutches = 0;
   let rawFromBuildPlate = 0;
-  const candidateClutchCount = definition.connectors.filter(
-    (connector) => connector.kind === "undersideClutch",
-  ).length;
-  const candidateStudCount = definition.connectors.filter(
-    (connector) => connector.kind === "stud",
-  ).length;
-
   const remember = (origin: LduVector3, orientationId: string): void => {
     const key = `${positionKey(origin)}|${orientationId}`;
     if (!origins.has(key)) origins.set(key, { origin, orientationId });
     if (origins.size > maxDistinctTransforms) {
       throw new PlacementEnumerationError(
         `Enumerating ${catalogPartId} over ${document.parts.length} parts passed the ${maxDistinctTransforms} distinct-transform bound ` +
-          `(${freeStuds.size} free studs x ${candidateClutchCount} clutches, plus ${freeClutches.size} free clutches x ${candidateStudCount} studs, x ${orientationIds.length} orientations). ` +
+          `after considering ${rawFromStuds} axis-compatible stud seeds, ${rawFromClutches} axis-compatible clutch seeds, and ${rawFromBuildPlate} build-plate seeds ` +
+          `(${freeStuds.size} total free studs and ${freeClutches.size} total free clutches across ${orientationIds.length} orientations). ` +
           `Nothing was truncated — a silently capped count would read as a tractable step that is not one. ` +
           `Raise maxDistinctTransforms deliberately, narrow orientationIds, or prune the assembly before enumerating.`,
       );
@@ -301,9 +307,10 @@ export function enumeratePlacements(
   for (const orientationId of orientationIds) {
     const ports = portsByOrientation.get(orientationId)!;
     // The candidate goes on top: its clutches land on free studs.
-    for (const studPosition of freeStuds.keys()) {
+    for (const [studPosition, stud] of freeStuds) {
       const [x, y, z] = studPosition.split(",").map(Number) as [number, number, number];
       for (const clutch of ports.clutches) {
+        if (!connectorAxesAlign(stud, clutch)) continue;
         rawFromStuds += 1;
         remember([x - clutch.offset[0], y - clutch.offset[1], z - clutch.offset[2]], orientationId);
       }
@@ -311,9 +318,10 @@ export function enumeratePlacements(
     // The candidate goes underneath: its studs land on free clutches. The two
     // sets are disjoint in general — a seat under the assembly is not a seat on
     // it — so this is reachability, not a duplicate spelling of the loop above.
-    for (const clutchPosition of freeClutches.keys()) {
+    for (const [clutchPosition, clutch] of freeClutches) {
       const [x, y, z] = clutchPosition.split(",").map(Number) as [number, number, number];
       for (const stud of ports.studs) {
+        if (!connectorAxesAlign(clutch, stud)) continue;
         rawFromClutches += 1;
         remember([x - stud.offset[0], y - stud.offset[1], z - stud.offset[2]], orientationId);
       }
@@ -435,6 +443,7 @@ function discoverConnections(
       ];
       const target = index.get(positionKey(world));
       if (!target || target.partId === candidateId) continue;
+      if (!connectorAxesAlign(port, target)) continue;
       const targetKey = endpointKey(target.partId, target.portId);
       if (usedCandidatePorts.has(port.portId) || usedTargets.has(targetKey)) continue;
       usedCandidatePorts.add(port.portId);
@@ -453,43 +462,4 @@ function discoverConnections(
       left.targetPortId.localeCompare(right.targetPortId) ||
       left.candidatePortId.localeCompare(right.candidatePortId),
   );
-}
-
-/**
- * Lattice positions where the part would rest on the build plate, bounded by
- * the assembly's own footprint plus one part's reach. The plate is unbounded,
- * so without that bound this is not an enumeration at all.
- */
-function buildPlateOrigins(
-  document: BrickDocumentV1,
-  definition: PartDefinition,
-  orientationId: string,
-): readonly LduVector3[] {
-  const y = GROUND_UNDERSIDE_LDU - definition.dimensions.heightLdu / 2;
-  const placed = document.parts.filter((part) => getPartDefinition(part.catalogPartId));
-  if (placed.length === 0) return [[0, y, 0]];
-
-  const boxes = placed.map((part) => bodyBoundsLdu(part));
-  const reach = Math.max(definition.dimensions.widthLdu, definition.dimensions.lengthLdu);
-  const minX = Math.min(...boxes.map((box) => box.min[0])) - reach;
-  const maxX = Math.max(...boxes.map((box) => box.max[0])) + reach;
-  const minZ = Math.min(...boxes.map((box) => box.min[2])) - reach;
-  const maxZ = Math.max(...boxes.map((box) => box.max[2])) + reach;
-
-  // A part's origin sits on the stud lattice, offset by half a pitch when its
-  // footprint has an odd number of studs in that axis — the same rule the
-  // editor's own lateral snap applies.
-  const footprint = worldFootprint(definition, orientationId);
-  const origins: LduVector3[] = [];
-  for (let x = alignedStart(minX, footprint.originOffsetX); x <= maxX; x += STUD_PITCH_LDU) {
-    for (let z = alignedStart(minZ, footprint.originOffsetZ); z <= maxZ; z += STUD_PITCH_LDU) {
-      origins.push([x, y, z]);
-    }
-  }
-  return origins;
-}
-
-/** First lattice origin at or above `from` for a footprint this many studs wide. */
-function alignedStart(from: number, offset: number): number {
-  return Math.ceil((from - offset) / STUD_PITCH_LDU) * STUD_PITCH_LDU + offset;
 }

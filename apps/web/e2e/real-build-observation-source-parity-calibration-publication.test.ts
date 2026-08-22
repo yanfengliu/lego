@@ -291,6 +291,18 @@ describe("source-bound exact-five calibration publication", () => {
   });
 
   it("refuses forged summary identity, authority, and content-addressed path", () => {
+    const repoRoot = root();
+    publishRealBuildSourceParityCalibration(input(repoRoot));
+    const summaryPath = join(
+      repoRoot,
+      REAL_BUILD_SOURCE_PARITY_CALIBRATION_PUBLICATION_SUMMARY_PATH,
+    );
+    const originalSummaryBytes = readFileSync(summaryPath);
+    const originalSummary = JSON.parse(originalSummaryBytes.toString("utf8")) as Mutable<
+      Record<string, unknown>
+    >;
+    const sentinel = artifactContentPath(repoRoot, originalSummary);
+    const sentinelBytes = readFileSync(sentinel);
     for (const { mutate, expected } of [
       {
         mutate: (summary: Mutable<Record<string, unknown>>) => {
@@ -311,29 +323,29 @@ describe("source-bound exact-five calibration publication", () => {
         expected: /runDirectory/u,
       },
     ]) {
-      const repoRoot = root();
-      publishRealBuildSourceParityCalibration(input(repoRoot));
-      const summaryPath = join(
-        repoRoot,
-        REAL_BUILD_SOURCE_PARITY_CALIBRATION_PUBLICATION_SUMMARY_PATH,
-      );
-      const summary = JSON.parse(readFileSync(summaryPath, "utf8")) as Mutable<
+      const summary = JSON.parse(originalSummaryBytes.toString("utf8")) as Mutable<
         Record<string, unknown>
       >;
       mutate(summary);
       writeFileSync(summaryPath, canonicalStringify(summary));
-      const sentinel = artifactContentPath(repoRoot, summary);
       rmSync(sentinel);
-      expect(() =>
-        parsePublishedRealBuildSourceParityCalibration({
-          repoRoot,
-          summaryPath: REAL_BUILD_SOURCE_PARITY_CALIBRATION_PUBLICATION_SUMMARY_PATH,
-        }),
-      ).toThrow(expected);
+      try {
+        expect(() =>
+          parsePublishedRealBuildSourceParityCalibration({
+            repoRoot,
+            summaryPath: REAL_BUILD_SOURCE_PARITY_CALIBRATION_PUBLICATION_SUMMARY_PATH,
+          }),
+        ).toThrow(expected);
+      } finally {
+        writeFileSync(summaryPath, originalSummaryBytes);
+        writeFileSync(sentinel, sentinelBytes);
+      }
     }
   });
 
   it("re-reads and rejects tampering in every retained byte class", () => {
+    const repoRoot = root();
+    const artifact = publishRealBuildSourceParityCalibration(input(repoRoot));
     for (const select of [
       (summary: RealBuildSourceParityCalibrationPublicationSummary) => summary.captureManifest.file,
       (summary: RealBuildSourceParityCalibrationPublicationSummary) =>
@@ -342,15 +354,19 @@ describe("source-bound exact-five calibration publication", () => {
       (summary: RealBuildSourceParityCalibrationPublicationSummary) => summary.pngs[0]!.file,
       (summary: RealBuildSourceParityCalibrationPublicationSummary) => summary.provenance[0]!.file,
     ] as const) {
-      const repoRoot = root();
-      const artifact = publishRealBuildSourceParityCalibration(input(repoRoot));
-      mutateFile(join(repoRoot, select(artifact.summary)));
-      expect(() =>
-        parsePublishedRealBuildSourceParityCalibration({
-          repoRoot,
-          summaryPath: REAL_BUILD_SOURCE_PARITY_CALIBRATION_PUBLICATION_SUMMARY_PATH,
-        }),
-      ).toThrow(/hashes to|CONTENT_DIGEST_MISMATCH|digest/iu);
+      const path = join(repoRoot, select(artifact.summary));
+      const originalBytes = readFileSync(path);
+      mutateFile(path);
+      try {
+        expect(() =>
+          parsePublishedRealBuildSourceParityCalibration({
+            repoRoot,
+            summaryPath: REAL_BUILD_SOURCE_PARITY_CALIBRATION_PUBLICATION_SUMMARY_PATH,
+          }),
+        ).toThrow(/hashes to|CONTENT_DIGEST_MISMATCH|digest/iu);
+      } finally {
+        writeFileSync(path, originalBytes);
+      }
     }
   });
 });

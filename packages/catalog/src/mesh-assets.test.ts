@@ -62,8 +62,8 @@ function recipe(
 
 describe("preloaded mesh asset resolution", () => {
   it("keeps the exact promotions in place and appends the new source mesh", () => {
-    // Sixteen existing rows render exact source meshes at /13; /14 appends one
-    // complete measured part. These literals pin the remaining parametric
+    // Sixteen existing rows render exact source meshes at /13; /14 and /15 each
+    // append one complete measured part. These literals pin the remaining parametric
     // geometry identities and full definitions; the full-definition digest
     // moves with catalog-version provenance.
     const promotedIds = new Set([
@@ -89,8 +89,8 @@ describe("preloaded mesh asset resolution", () => {
     const legacyRows = legacyParts.map(({ id, geometry }) => [id, geometry.contentHash]);
     const legacyHashes = JSON.stringify(legacyRows);
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/14");
-    expect(PART_DEFINITIONS).toHaveLength(86);
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/15");
+    expect(PART_DEFINITIONS).toHaveLength(87);
     expect(
       PART_DEFINITIONS.filter(isMeshPartDefinition)
         .filter(({ geometry }) => geometry.collisionMode === "preserved-catalog-recipe")
@@ -101,7 +101,7 @@ describe("preloaded mesh asset resolution", () => {
         ({ geometry }) => geometry.generatorId !== "builtin:preloaded-mesh-reference/1",
       ),
     ).toBe(true);
-    expect(meshParts).toHaveLength(25);
+    expect(meshParts).toHaveLength(26);
     expect(
       meshParts
         .filter(({ geometry }) => geometry.collisionMode !== "preserved-catalog-recipe")
@@ -119,7 +119,7 @@ describe("preloaded mesh asset resolution", () => {
         .map(({ id }) => id),
     ).toEqual(["builtin:axle-1x2", "builtin:axle-1x4", "builtin:wheel-1x2"]);
     expect(createHash("sha256").update(JSON.stringify(legacyParts)).digest("hex")).toBe(
-      "4c570f6156a55d71e2e0b18e95d4b6bc6702274a3e5bc58b655470a7a456a461",
+      "f21fdb9e016b1b6fba7bb25776f4b91eacff6d949bd938f5fd3cc94868df3984",
     );
   });
 

@@ -12,6 +12,7 @@ import type {
   CollisionAllowance,
   CollisionPrimitive,
   ConnectorKind,
+  ConnectorOrientationId,
   ConnectorPortDefinition,
   LduBounds,
   LduVector3,
@@ -157,7 +158,7 @@ const makePort = (
   kind: ConnectorKind,
   positionLdu: LduVector3,
   normal: LduVector3,
-  orientationId: "connector-up" | "connector-down",
+  orientationId: ConnectorOrientationId,
 ): ConnectorPortDefinition => {
   const rule = CONNECTOR_KIND_RULES[kind];
   return {

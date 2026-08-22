@@ -205,6 +205,26 @@ describe("part-identification artifact bindings", () => {
     expect(() => jsonArtifactFromBytes(Buffer.from('{"outer":{"same":1,"s\\u0061me":2}}'))).toThrow(
       /repeats key "same"/,
     );
+    expect(() => jsonArtifactFromBytes(Buffer.from('{"__proto__":1,"\\u005f_proto__":2}'))).toThrow(
+      /repeats key "__proto__"/,
+    );
+    const prototypeKey = jsonArtifactFromBytes(
+      Buffer.from('{"__proto__":{"polluted":true},"safe":1}'),
+    ).value;
+    expect(Object.getPrototypeOf(prototypeKey)).toBe(Object.prototype);
+    expect(Object.prototype.hasOwnProperty.call(prototypeKey, "__proto__")).toBe(true);
+    expect(prototypeKey.__proto__).toEqual({ polluted: true });
+    expect({}.polluted).toBeUndefined();
+  });
+
+  it("parses a wide unique-key object without quadratic duplicate-key work", () => {
+    const entries = new Array(50_000);
+    for (let index = 0; index < entries.length; index += 1) {
+      entries[index] = `"wide-${index}":${index}`;
+    }
+    const value = jsonArtifactFromBytes(Buffer.from(`{${entries.join(",")}}`)).value;
+    expect(Object.keys(value)).toHaveLength(entries.length);
+    expect(value["wide-49999"]).toBe(49_999);
   });
 
   it("rejects stale feature digests, invalid partitions, and reranked candidates", () => {
@@ -455,12 +475,13 @@ describe("part-identification artifact bindings", () => {
     expect(() => assertBoundMatchArtifacts(artifacts)).toThrow(/does not equal the bounded/);
   });
 
-  it("binds answers to model, match, cards, prompt, indexes, and exact schema", () => {
+  it("refuses a legacy answer payload even when it is relabeled with the /5 schema", () => {
     const matchDigest = digest("d");
     const cardsDigest = digest("c");
     const promptDigest = digest("1");
     const answers = { 0: answer() };
-    expect(
+    let observed;
+    try {
       boundAnswers(answersArtifact({ matchDigest, cardsDigest, promptDigest, answers }), {
         model: PART_IDENTIFICATION_MODEL_ID,
         matchDigest,
@@ -468,47 +489,13 @@ describe("part-identification artifact bindings", () => {
         promptDigest,
         clusters,
         cards,
-      }),
-    ).toEqual(answers);
-
-    for (const changed of [
-      { matchDigest: digest("e") },
-      { promptDigest: digest("2") },
-      { answers: { 1: answer() } },
-      { answers: { 0: { pick: 1 } } },
-      {
-        modelIdentity: {
-          ...PART_IDENTIFICATION_MODEL_IDENTITY,
-          responseModelId: "moving-alias",
-        },
-      },
-    ]) {
-      const value = {
-        schemaVersion: PART_ANSWERS_SCHEMA,
-        model: PART_IDENTIFICATION_MODEL_ID,
-        modelIdentity: PART_IDENTIFICATION_MODEL_IDENTITY,
-        matchDigest,
-        cardsDigest,
-        promptDigest,
-        answers,
-        ...changed,
-      };
-      let observed;
-      try {
-        boundAnswers(artifact(value), {
-          model: PART_IDENTIFICATION_MODEL_ID,
-          matchDigest,
-          cardsDigest,
-          promptDigest,
-          clusters,
-          cards,
-        });
-      } catch (error) {
-        observed = error;
-      }
-      expect(observed).toBeInstanceOf(PartIdentificationArtifactBindingError);
-      expect(observed).toMatchObject({ artifactRole: "identification-answers" });
+      });
+    } catch (error) {
+      observed = error;
     }
+    expect(observed).toBeInstanceOf(PartIdentificationArtifactBindingError);
+    expect(observed).toMatchObject({ artifactRole: "identification-answers" });
+    expect(observed.message).toMatch(/legacy or mixed transport checkpoints cannot resume/u);
   });
 
   it("requires exactly one canonical card digest per match cluster", () => {
@@ -577,29 +564,5 @@ describe("part-identification artifact bindings", () => {
         /exactly one run-contained card digest\/file plus the exact displayed ordered candidate prefix/,
       );
     }
-  });
-
-  it("rejects a pick beyond the exact candidates displayed on its bound card", () => {
-    const matchDigest = digest("d");
-    const cardsDigest = digest("c");
-    const promptDigest = digest("1");
-    expect(() =>
-      boundAnswers(
-        answersArtifact({
-          matchDigest,
-          cardsDigest,
-          promptDigest,
-          answers: { 0: answer({ pick: 2 }) },
-        }),
-        {
-          model: PART_IDENTIFICATION_MODEL_ID,
-          matchDigest,
-          cardsDigest,
-          promptDigest,
-          clusters,
-          cards,
-        },
-      ),
-    ).toThrow(/did not display/);
   });
 });

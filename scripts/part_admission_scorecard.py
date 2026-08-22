@@ -170,16 +170,17 @@ def measure_over_claim(candidate: Candidate, surface: MeasuredSurface) -> dict[s
 
 
 def _match(
-    candidate_positions: Sequence[Vector3],
-    truth_positions: Sequence[Vector3],
+    candidate_frames: Sequence[tuple[Vector3, Vector3]],
+    truth_frames: Sequence[tuple[Vector3, Vector3]],
     tolerance: float,
 ) -> dict[str, object]:
     pairs = sorted(
         (
             (math.dist(candidate_position, truth_position), left, right)
-            for left, candidate_position in enumerate(candidate_positions)
-            for right, truth_position in enumerate(truth_positions)
-            if math.dist(candidate_position, truth_position) <= tolerance
+            for left, (candidate_position, candidate_normal) in enumerate(candidate_frames)
+            for right, (truth_position, truth_normal) in enumerate(truth_frames)
+            if candidate_normal == truth_normal
+            and math.dist(candidate_position, truth_position) <= tolerance
         ),
         key=lambda row: (row[0], row[1], row[2]),
     )
@@ -203,8 +204,8 @@ def _match(
         matched.append((left, right, distance))
     return {
         "matched": len(matched),
-        "unmatchedInCandidate": len(candidate_positions) - len(matched),
-        "unmatchedInSource": len(truth_positions) - len(matched),
+        "unmatchedInCandidate": len(candidate_frames) - len(matched),
+        "unmatchedInSource": len(truth_frames) - len(matched),
         "maximumPositionErrorLdu": max((distance for _, _, distance in matched), default=None),
         "ambiguousPairsWithinTolerance": max(0, ambiguous),
         "matchToleranceLdu": tolerance,
@@ -216,13 +217,13 @@ def measure_connectors(
 ) -> dict[str, object]:
     truth = measured_connectors(surface)
     male = _match(
-        [row.position for row in candidate.male_connectors],
-        [row.position for row in truth["male"]],
+        [(row.position, row.normal) for row in candidate.male_connectors],
+        [(row.position, row.normal) for row in truth["male"]],
         CONNECTOR_MATCH_TOLERANCE_LDU,
     )
     female = _match(
-        [row.position for row in candidate.female_connectors],
-        [row.position for row in truth["female"]],
+        [(row.position, row.normal) for row in candidate.female_connectors],
+        [(row.position, row.normal) for row in truth["female"]],
         CONNECTOR_MATCH_TOLERANCE_LDU,
     )
     male["truthSource"] = "ldraw-visible-stud-primitive-components"
@@ -252,8 +253,9 @@ def _positions(connectors: Sequence[MeasuredConnector]) -> list[dict[str, object
     return [
         {
             "positionLdu": [round(value, 9) for value in row.position],
+            "normal": [round(value, 9) for value in row.normal],
             "measuredRadiusLdu": round(row.radius_ldu, 9),
-            "measuredHeightLdu": round(row.y_max - row.y_min, 9),
+            "measuredHeightLdu": round(row.height_ldu, 9),
         }
         for row in connectors
     ]

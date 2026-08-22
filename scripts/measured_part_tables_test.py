@@ -43,9 +43,11 @@ from measured_part_tables import (
     exact_decimal_text,
     frame_box,
     frame_point,
+    measured_part_report_row,
     merged_mesh,
     require_front_side_surface,
 )
+from measured_stud_tables import compile_measured_stud_rows, require_matching_stud_frames
 from part_admission_surface import BODY_ROLE, MeasuredSurface, STUD_ROLE
 
 ARCHIVE_SHA256 = "6009f2e94204c4d3a63a4c812010b5c90bad8c5acb19b882c859fdac63734eae"
@@ -57,6 +59,45 @@ SHADOW_IDENTITY = {
 BUILDER_RECORDS = {
     "unit": {"revision": "A", "recordSha256": "sha256:ab", "frameSha256": "sha256:cd"}
 }
+
+
+class MeasuredStudRowTests(unittest.TestCase):
+    def test_a_side_stud_keeps_its_outward_frame_and_axis(self) -> None:
+        candidate = {
+            "connectors": [
+                {"kind": "stud", "positionLdu": [0, 0, 0], "normal": [0, 0, -1]}
+            ],
+            "bodies": [
+                {
+                    "kind": "cylinder",
+                    "tag": "stud",
+                    "axis": "z",
+                    "centerLdu": [0, 0, -2],
+                    "radiusLdu": 6,
+                    "heightLdu": 4,
+                }
+            ],
+        }
+
+        self.assertEqual(
+            compile_measured_stud_rows(
+                candidate,
+                "side",
+                lambda point: point,
+                lambda normal: normal,
+            ),
+            ((0.0, 0.0, 0.0, 6.0, 4.0, 0.0, 0.0, -1.0),),
+        )
+
+    def test_shadow_and_visible_stud_frames_must_match_in_position_and_normal(self) -> None:
+        shadow = [{"positionLdu": [0, 0, 0], "normal": [0, 0, -1]}]
+        require_matching_stud_frames("side", shadow, list(shadow))
+        with self.assertRaisesRegex(ValueError, "do not exactly match"):
+            require_matching_stud_frames(
+                "side",
+                shadow,
+                [{"positionLdu": [0, 0, 0], "normal": [0, -1, 0]}],
+            )
 
 
 def plan(**overrides: object) -> MeasuredPartPlan:
@@ -521,6 +562,38 @@ class RenderTests(unittest.TestCase):
 
 
 class PlanTests(unittest.TestCase):
+    def test_emission_report_uses_the_explicit_28802_catalog_identity(self) -> None:
+        part = measured(
+            plan=ADMITTED_PART_PLANS[13],
+            studs_ldu=((0.0, 0.0, 0.0, 1.0, 1.0),) * 6,
+            clutches_ldu=((0.0, 0.0, 0.0),) * 2,
+            body_boxes_ldu=(0.0,) * (23 * 6),
+            body_triangle_count=500,
+            stud_triangle_count=118,
+            closure=(record("parts/28802.dat", "sha256:11"),) * 19,
+            shadow_files=("p/stud.dat", "p/stud2.dat", "p/stud3.dat", "parts/28802.dat"),
+        )
+
+        self.assertEqual(
+            measured_part_report_row(part),
+            {
+                "designId": "28802",
+                "catalogId": "builtin:bracket-1x2-1x4-rounded-bottom",
+                "connectorSource": LDCAD_SHADOW_CONNECTOR_SOURCE,
+                "studs": 6,
+                "clutches": 2,
+                "collisionBoxes": 23,
+                "meshTriangles": 618,
+                "closureFileCount": 19,
+                "shadowFiles": [
+                    "p/stud.dat",
+                    "p/stud2.dat",
+                    "p/stud3.dat",
+                    "parts/28802.dat",
+                ],
+            },
+        )
+
     def test_every_admitted_plan_has_a_distinct_catalog_identity(self) -> None:
         identities = [
             (row.family, row.width_studs, row.length_studs, row.variant)
@@ -546,6 +619,7 @@ class PlanTests(unittest.TestCase):
                 "30565",
                 "80015",
                 "25269",
+                "28802",
             ],
         )
         self.assertTrue(all(row.connector_source == "builder" for row in ADMITTED_PART_PLANS[:5]))
@@ -562,6 +636,18 @@ class PlanTests(unittest.TestCase):
         self.assertEqual(
             ADMITTED_PART_PLANS[12].connector_source,
             LDCAD_SHADOW_CONNECTOR_SOURCE,
+        )
+        self.assertEqual(
+            (
+                ADMITTED_PART_PLANS[13].connector_source,
+                ADMITTED_PART_PLANS[13].catalog_id,
+                ADMITTED_PART_PLANS[13].display_name,
+            ),
+            (
+                LDCAD_SHADOW_CONNECTOR_SOURCE,
+                "builtin:bracket-1x2-1x4-rounded-bottom",
+                "Bracket 1 x 2 - 1 x 4 Rounded Bottom",
+            ),
         )
 
     def test_render_only_roots_are_distinct_and_cannot_name_a_connector_source(self) -> None:

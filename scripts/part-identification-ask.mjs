@@ -1,60 +1,65 @@
 import { existsSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { join } from "node:path";
 
 import { option } from "./part-identification.mjs";
 import {
   answerBundle,
-  assertAnswerRecord,
+  auditPartIdentificationAnswerCheckpointStore,
   assertBoundMatchArtifacts,
   assertCardsArtifact,
-  boundAnswers,
-  canonicalAnswerRecord,
   hasUsableAnswer,
+  publishPartIdentificationAnswerCheckpoint,
   readJsonArtifact,
   usableAnswerCount,
 } from "./part-identification-artifacts.mjs";
-import {
-  CHILD_TIMEOUT_MS,
-  MAX_CHILD_STDERR_BYTES,
-  MAX_CHILD_STDOUT_BYTES,
-  runBoundedChild,
-  writeContainedFile,
-} from "./part-identification-io.mjs";
 import { verifyRetainedCardImageClosure } from "./part-identification-card-images.mjs";
+import {
+  finalizePartIdentificationCallProof,
+  publishPartIdentificationCallProof,
+} from "./part-identification-call-proof.mjs";
+import {
+  createPartIdentificationProofBudget,
+  estimatePartIdentificationProofReservation,
+  runPartIdentificationClaudeTransport,
+} from "./part-identification-claude-transport.mjs";
+import { partIdentificationInstructionBytes } from "./part-identification-instruction.mjs";
+import { createPartIdentificationMcpRequest } from "./part-identification-mcp-server.mjs";
+import { writeContainedFile } from "./part-identification-io.mjs";
+import {
+  isPinnedModelIdentity,
+  PART_IDENTIFICATION_MODEL_ID,
+  requirePinnedPartIdentificationModel,
+} from "./part-identification-model.mjs";
+import { parsePartIdentificationAnswerLines } from "./part-identification-answer-lines.mjs";
 import {
   PART_IDENTIFICATION_PROMPT,
   PART_IDENTIFICATION_PROMPT_DIGEST,
 } from "./part-identification-prompt.mjs";
-import { parseStrictJsonBytes } from "./part-identification-strict-json.mjs";
 import { MAX_QUOTED_REFUSAL } from "./part-identification-reask.mjs";
-import { quoteLine } from "./generated-file-staleness.mjs";
+import { parseStrictJsonBytes } from "./part-identification-strict-json.mjs";
+import { isArray } from "./part-identification-safe-shape.mjs";
+import { auditPartIdentificationProofStore } from "./part-identification-proof-store.mjs";
 import {
-  PART_IDENTIFICATION_MODEL_ID,
-  requirePinnedPartIdentificationModel,
-  responseModelIdentity,
-} from "./part-identification-model.mjs";
-import { withCardCallSnapshot } from "./part-identification-call-snapshot.mjs";
-
-/**
- * The vision call that proposes a part identity.
- *
- * It only ever proposes. Every answer is checked before it becomes a claim —
- * the pick has to be a number on the card it was asked about, the element
- * behind that number has to be one the printed inventory lists, and the free
- * description given in the same reply has to agree with that element's
- * published name. See `part-identification-score.mjs` for the checks.
- */
+  PART_IDENTIFICATION_MAX_AGGREGATE_PROOF_BYTES,
+  PART_IDENTIFICATION_MAX_ATTEMPTS,
+  PART_IDENTIFICATION_MAX_ATTEMPTS_PER_CARD,
+  PART_IDENTIFICATION_MAX_BATCH_CARDS,
+  PART_IDENTIFICATION_MAX_CALLS,
+  PART_IDENTIFICATION_MAX_COST_MICROUSD,
+  PART_IDENTIFICATION_MAX_WALL_TIME_MS,
+  PART_IDENTIFICATION_TRANSPORT_CONTRACT_DIGEST,
+} from "./part-identification-transport-contract.mjs";
+import { quoteLine } from "./generated-file-staleness.mjs";
 
 const OUT = "output/part-identification";
-
-function writeJson(path, value) {
-  writeContainedFile(dirname(path), basename(path), `${JSON.stringify(value, null, 1)}\n`, {
-    label: "Part-identification answers",
-    pathLabel: "Answers file",
-  });
-}
-
 const PROMPT = PART_IDENTIFICATION_PROMPT;
+const own = Function.call.bind(Object.prototype.hasOwnProperty);
+
+function requireReviewedPilotAuthorization() {
+  throw new Error(
+    "The isolated hardened pilot is disabled: no reviewed, card-digest-bound provider policy and privacy authorization artifact exists yet. Add and verify that immutable Gate-0 record before any provider process may launch; --pilot true alone is not authorization.",
+  );
+}
 
 function pendingAnswerClusterIndexes(clusters, answers, { only = null, inRange = null } = {}) {
   return clusters
@@ -83,14 +88,12 @@ function claudeFailureStdoutDiagnostic(stdout) {
   }
   const fields = [`stdoutBytes=${bytes.length}`];
   const status = payload.api_error_status;
-  const hasApiStatus = Number.isInteger(status) && status >= 100 && status <= 599;
-  if (hasApiStatus) {
+  if (Number.isInteger(status) && status >= 100 && status <= 599) {
     fields.push(`api_error_status=${status}`);
   }
   const reason = payload.terminal_reason;
-  if (reason === "api_error") {
-    fields.push(`terminal_reason=${quoteLine(reason)}`);
-  } else if (typeof reason === "string" && reason.length > 0) {
+  if (reason === "api_error") fields.push(`terminal_reason=${quoteLine(reason)}`);
+  else if (typeof reason === "string" && reason.length > 0) {
     fields.push(`terminalReasonBytes=${Buffer.byteLength(reason, "utf8")} omitted`);
   }
   const remediation =
@@ -111,146 +114,65 @@ function claudeFailureStderrDiagnostic(stderr) {
   return bytes.length === 0 ? "empty" : `${bytes.length} UTF-8 bytes omitted`;
 }
 
-/**
- * The child environment for one vision call.
- *
- * The consent that permits this call covers booklet crops reaching the pinned
- * model, and nothing else. Left to itself the CLI also runs a small background
- * model over the same session for conversation bookkeeping, which both widens
- * that scope and puts a second entry in `modelUsage` — so the response can no
- * longer prove that one pinned model, and only that model, produced the answer.
- * Turning the non-essential traffic off is what makes the single-entry check in
- * `responseModelIdentity` an enforceable statement rather than one that fails
- * against every real CLI.
- */
-function visionChildEnv(base = process.env) {
-  return { ...base, CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1" };
-}
-
-/**
- * The vision call, headless.
- *
- * `claude -p` is a real executable on every platform this runs on, so it is
- * spawned directly. Going through a shell on Windows concatenated the argument
- * array into one string, and every call returned in a tenth of a second having
- * done nothing — which reads as an unparseable answer rather than as a failure
- * to run, so the error is named here instead.
- *
- * Several cards go into one call because almost all of the cost is per call,
- * not per card: one card took 3m23s and six took 2m45s. Each answer is tagged
- * with the card it belongs to and matched back by that tag, so a call that
- * answers about five of six loses one answer rather than shifting all of them.
- */
 async function askBatch(cardIds, model, out = OUT, context = {}) {
   requirePinnedPartIdentificationModel(model);
+  let invalidCardIds = !isArray(cardIds);
+  if (!invalidCardIds) {
+    for (let index = 0; index < cardIds.length; index += 1) {
+      let duplicate = false;
+      for (let prior = 0; prior < index; prior += 1) {
+        if (cardIds[prior] === cardIds[index]) duplicate = true;
+      }
+      if (
+        typeof cardIds[index] !== "string" ||
+        !/^card-\d{4}$/u.test(cardIds[index]) ||
+        duplicate
+      ) {
+        invalidCardIds = true;
+      }
+    }
+  }
   if (
-    !Array.isArray(cardIds) ||
+    invalidCardIds ||
     cardIds.length < 1 ||
-    cardIds.length > 12 ||
-    new Set(cardIds).size !== cardIds.length ||
-    cardIds.some((id) => typeof id !== "string" || !/^card-\d{4}$/u.test(id))
+    cardIds.length > PART_IDENTIFICATION_MAX_BATCH_CARDS
   ) {
     throw new Error(
-      `Vision batch requires 1 through 12 unique canonical card-NNNN ids; received ${JSON.stringify(cardIds)}.`,
+      `Vision batch requires 1 through ${PART_IDENTIFICATION_MAX_BATCH_CARDS} unique canonical card-NNNN ids; received ${JSON.stringify(cardIds)}.`,
     );
   }
   void out;
-  const result = await withCardCallSnapshot(
+  for (const key of ["spawnImpl", "command", "env", "lockSpawnImpl"]) {
+    if (own(context, key)) {
+      throw new Error(
+        `Vision batch context ${JSON.stringify(key)} is a removed local-path provider hook; use the strict MCP test transport, which cannot publish a call proof.`,
+      );
+    }
+  }
+  const injectedTransport = own(context, "transport");
+  const transport = await (context.transport ?? runPartIdentificationClaudeTransport)({
     cardIds,
-    context.cardImages,
-    context.cardDigests,
-    async (paths, inheritFds) => {
-      const instruction =
-        `Read these ${cardIds.length} images: ${paths.join(" ")}\n\n` +
-        `Answer separately about each, in the order given, one line per image, ` +
-        `each line beginning with the image's card id (${cardIds.join(", ")}) followed by the JSON. ` +
-        `No prose, no code fences.\n\n${PROMPT}`;
-      return runBoundedChild(
-        context.command ?? process.env.CLAUDE_CLI ?? "claude",
-        ["-p", instruction, "--model", model, "--allowedTools", "Read", "--output-format", "json"],
-        {
-          label: `Pinned Claude vision call for ${cardIds.join(", ")}`,
-          timeoutMs: context.timeoutMs ?? CHILD_TIMEOUT_MS,
-          maxStdoutBytes: context.maxStdoutBytes ?? MAX_CHILD_STDOUT_BYTES,
-          maxStderrBytes: context.maxStderrBytes ?? MAX_CHILD_STDERR_BYTES,
-          spawnImpl: context.spawnImpl,
-          env: visionChildEnv(context.env),
-          inheritFds,
-        },
-      );
-    },
-    { __testHooks: { lockSpawnImpl: context.lockSpawnImpl } },
-  );
-  if (result.code !== 0) {
-    throw new Error(
-      `Pinned Claude vision call for ${cardIds.join(", ")} exited ${result.code}${result.signal === null ? "" : ` (${result.signal})`}; stderr: ${claudeFailureStderrDiagnostic(result.stderr)}; stdout: ${claudeFailureStdoutDiagnostic(result.stdout)}. No answer was retained.`,
-    );
+    images: context.cardImages,
+    digests: context.cardDigests,
+    cardsDigest: context.cardsDigest,
+    model,
+    proofBudget: context.proofBudget,
+  });
+  const parsed = parsePartIdentificationAnswerLines(transport.terminalResult, cardIds);
+  if (injectedTransport) {
+    return { ...parsed, modelIdentity: transport.modelIdentity, callProof: null };
   }
-  let payload;
   try {
-    payload = parseStrictJsonBytes(Buffer.from(result.stdout, "utf8"));
-  } catch (error) {
-    throw new Error(
-      `Pinned Claude vision call for ${cardIds.join(", ")} returned non-JSON metadata: ${error instanceof Error ? error.message : String(error)}.`,
-      { cause: error },
-    );
+    return {
+      ...parsed,
+      modelIdentity: transport.modelIdentity,
+      callProof: finalizePartIdentificationCallProof(transport, parsed.parsedAnswers),
+      reservationTicket: transport.reservationTicket,
+    };
+  } catch (cause) {
+    transport.reservationTicket.release();
+    throw cause;
   }
-  const modelIdentity = responseModelIdentity(payload, model);
-  const answers = new Map();
-  const rejected = new Map();
-  const duplicates = new Set();
-  for (const line of payload.result.split("\n")) {
-    const opened = line.indexOf("{");
-    const closed = line.lastIndexOf("}");
-    // The card id is read from the text before the JSON starts. Scanning the
-    // whole line would let a written note that mentions another card retag the
-    // answer, which is the one way free text could corrupt a record rather than
-    // merely fail to parse.
-    const tag = /(card-\d{4})/u.exec(opened < 0 ? line : line.slice(0, opened));
-    if (!tag || opened < 0 || closed < opened || !cardIds.includes(tag[1])) continue;
-    if (answers.has(tag[1]) || rejected.has(tag[1])) {
-      duplicates.add(tag[1]);
-      continue;
-    }
-    try {
-      // Carving the object with a brace-free regex was safe only while no field
-      // could contain a brace. A note may legally contain one inside its JSON
-      // string, so the whole first-brace-to-last-brace span is handed to the
-      // strict parser instead: it either yields exactly one well-formed object
-      // or it throws, where the regex would have silently produced no match.
-      answers.set(
-        tag[1],
-        assertAnswerRecord(
-          canonicalAnswerRecord(
-            parseStrictJsonBytes(Buffer.from(line.slice(opened, closed + 1), "utf8")),
-          ),
-          `Answer for ${tag[1]}`,
-        ),
-      );
-    } catch (error) {
-      // A malformed or schema-invalid line loses one answer, never the batch
-      // alignment — but it says so. A silent drop reports a whole schema change
-      // as "answered N drawings, N with no usable reply", which reads as a model
-      // that would not answer rather than as a call and a validator that no
-      // longer agree.
-      //
-      // The refused text travels with the reason, because the reason alone is
-      // not enough to act on. A re-ask refused during this session named the
-      // rule it broke and discarded the line, and finding out which rule it had
-      // actually broken cost a second live call — on a reply that turned out to
-      // be correct. Quoted rather than pasted: this is untrusted model output
-      // and an escape or control character in it must be visible, not rendered.
-      rejected.set(
-        tag[1],
-        `${error instanceof Error ? error.message : String(error)} Refused text: ${quoteLine(line, MAX_QUOTED_REFUSAL)}`,
-      );
-    }
-  }
-  for (const id of duplicates) {
-    answers.delete(id);
-    rejected.delete(id);
-  }
-  return { answers, rejected, modelIdentity };
 }
 
 const cardId = (clusterIndex) => `card-${String(clusterIndex).padStart(4, "0")}`;
@@ -274,6 +196,8 @@ async function commandAsk(argv) {
   const expectedModelIdentity = requirePinnedPartIdentificationModel(model);
   const jobs = Number(option(argv, "jobs", "4"));
   const batch = Number(option(argv, "batch", "6"));
+  const maxCalls = Number(option(argv, "max-calls", "1"));
+  const pilot = option(argv, "pilot", "false");
   const only = option(argv, "only", null);
   const lastStep = option(argv, "last-step", null);
   if (!Number.isInteger(jobs) || jobs < 1 || jobs > 8) {
@@ -281,24 +205,27 @@ async function commandAsk(argv) {
       `--jobs must be an integer from 1 through 8; received ${JSON.stringify(jobs)}.`,
     );
   }
-  if (!Number.isInteger(batch) || batch < 1 || batch > 12) {
+  if (!Number.isInteger(batch) || batch < 1 || batch > PART_IDENTIFICATION_MAX_BATCH_CARDS) {
     throw new Error(
-      `--batch must be an integer from 1 through 12; received ${JSON.stringify(batch)}.`,
+      `--batch must be an integer from 1 through ${PART_IDENTIFICATION_MAX_BATCH_CARDS}; received ${JSON.stringify(batch)}.`,
     );
   }
-  if (only !== null && (!/^\d+$/u.test(only) || Number(only) > 4_000)) {
+  if (maxCalls !== 1) {
     throw new Error(
-      `--only must be a cluster index from 0 through 4000; received ${JSON.stringify(only)}.`,
+      `--max-calls is temporarily pinned to 1 until a representative hardened six-card pilot measures token and cost ceilings; received ${JSON.stringify(maxCalls)}.`,
     );
   }
-  if (
-    lastStep !== null &&
-    (!/^\d+$/u.test(lastStep) || Number(lastStep) < 1 || Number(lastStep) > 359)
-  ) {
+  if (pilot !== "true") {
     throw new Error(
-      `--last-step must be an integer from 1 through 359; received ${JSON.stringify(lastStep)}.`,
+      "Canonical /5 provider calls remain disabled until one isolated hardened pilot freezes measured token/cost limits and the provider authorization record; pass --pilot true only after the required privacy/policy evidence exists.",
     );
   }
+  if (batch !== PART_IDENTIFICATION_MAX_BATCH_CARDS || only !== null || lastStep !== null) {
+    throw new Error(
+      "The isolated hardened pilot requires --batch 6 with no --only or --last-step narrowing so it can select the measurable worst authenticated packet.",
+    );
+  }
+  requireReviewedPilotAuthorization();
   const featuresArtifact = readJsonArtifact(
     join(out, "features.json"),
     "part-identification features",
@@ -308,7 +235,7 @@ async function commandAsk(argv) {
     join(out, "distances.json"),
     "part-identification distances",
   );
-  const { features, match, artifacts } = assertBoundMatchArtifacts({
+  const { match, artifacts } = assertBoundMatchArtifacts({
     featuresArtifact,
     matchArtifact,
     distancesArtifact,
@@ -341,88 +268,199 @@ async function commandAsk(argv) {
       { cause },
     );
   }
-  const answersPath = join(out, `answers-${model}.json`);
-  const answers = existsSync(answersPath)
-    ? boundAnswers(readJsonArtifact(answersPath, `vision answers for ${model}`), {
-        model,
-        matchDigest: artifacts.match.digest,
-        cardsDigest: cardsArtifact.digest,
-        promptDigest: PART_IDENTIFICATION_PROMPT_DIGEST,
-        clusters: match.clusters,
-        cards: cardsManifest.cards,
-      })
-    : {};
-  const writeAnswers = () =>
-    writeJson(
-      answersPath,
+  const generationOut = join(
+    out,
+    "transport-pilot",
+    PART_IDENTIFICATION_TRANSPORT_CONTRACT_DIGEST.slice("sha256:".length),
+  );
+  const answersPath = join(generationOut, `pilot-answers-${model}.json`);
+  const launchJournalPath = join(generationOut, "pilot-launch.json");
+  if (existsSync(launchJournalPath)) {
+    throw new Error(
+      `The isolated hardened pilot generation already charged its one provider launch at ${launchJournalPath}; archive it and review the retained result or failure before any new generation.`,
+    );
+  }
+  const hasAnswers = existsSync(answersPath);
+  if (hasAnswers) {
+    throw new Error(
+      `The isolated hardened pilot generation already has ${answersPath}; archive the complete generation before changing the transport contract.`,
+    );
+  }
+  auditPartIdentificationAnswerCheckpointStore(generationOut);
+  const checkpoint = { answers: {}, attempts: {}, calls: {}, checkpointReference: null };
+  let answers = checkpoint.answers;
+  let attempts = checkpoint.attempts;
+  let calls = checkpoint.calls;
+  let predecessor = checkpoint.checkpointReference;
+  const retainedProofBytes = auditPartIdentificationProofStore(generationOut, calls);
+  if (retainedProofBytes > PART_IDENTIFICATION_MAX_AGGREGATE_PROOF_BYTES) {
+    throw new Error(
+      `Retained call proofs use ${retainedProofBytes} bytes above the strict ${PART_IDENTIFICATION_MAX_AGGREGATE_PROOF_BYTES}-byte run ceiling.`,
+    );
+  }
+  const proofBudget = createPartIdentificationProofBudget(retainedProofBytes);
+  const writeAnswers = () => {
+    predecessor = publishPartIdentificationAnswerCheckpoint(
+      generationOut,
+      `pilot-answers-${model}.json`,
       answerBundle({
         model,
         modelIdentity: expectedModelIdentity,
         matchDigest: artifacts.match.digest,
         cardsDigest: cardsArtifact.digest,
         promptDigest: PART_IDENTIFICATION_PROMPT_DIGEST,
+        predecessor,
+        calls,
+        attempts,
         answers,
       }),
     );
-
-  // A vision pass over the whole book is hours of wall clock, so it can be
-  // restricted to the drawings the first N steps use — the range that carries
-  // judged truth, and therefore the range where the delta is measurable.
-  let inRange = null;
-  if (lastStep !== null) {
-    inRange = new Set();
-    for (const cluster of match.clusters) {
-      const uses = cluster.members.some((member) => {
-        const callout = features.callouts[member];
-        return callout.stepNumber !== null && callout.stepNumber <= Number(lastStep);
-      });
-      if (uses) inRange.add(cluster.clusterIndex);
+  };
+  const pending = pendingAnswerClusterIndexes(match.clusters, answers);
+  const planned = [];
+  for (let at = 0; at < pending.length; at += batch) planned.push(pending.slice(at, at + batch));
+  let pilotChunk = null;
+  let pilotBytes = -1;
+  for (let index = 0; index < planned.length; index += 1) {
+    if (planned[index].length !== PART_IDENTIFICATION_MAX_BATCH_CARDS) continue;
+    let bytes = 0;
+    for (let cardIndex = 0; cardIndex < planned[index].length; cardIndex += 1) {
+      bytes += retained.images.get(cardId(planned[index][cardIndex])).byteLength;
+    }
+    if (bytes > pilotBytes) {
+      pilotBytes = bytes;
+      pilotChunk = planned[index];
     }
   }
-
-  const pending = pendingAnswerClusterIndexes(match.clusters, answers, { only, inRange });
-  const chunks = [];
-  for (let at = 0; at < pending.length; at += batch) chunks.push(pending.slice(at, at + batch));
-  console.log(
-    `${pending.length} drawings to ask in ${chunks.length} calls of up to ${batch}, ` +
-      `${usableAnswerCount(answers)} already answered`,
+  if (pilotChunk === null)
+    throw new Error("No complete six-card packet exists for the hardened pilot.");
+  const chunks = [pilotChunk];
+  let existingAttemptCount = 0;
+  for (const records of Object.values(attempts)) existingAttemptCount += records.length;
+  if (
+    Object.keys(calls).length + chunks.length > PART_IDENTIFICATION_MAX_CALLS ||
+    existingAttemptCount + chunks.reduce((total, chunk) => total + chunk.length, 0) >
+      PART_IDENTIFICATION_MAX_ATTEMPTS
+  ) {
+    throw new Error("Planned strict calls or attempts exceed the cumulative generation contract.");
+  }
+  for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex += 1) {
+    for (let cardIndex = 0; cardIndex < chunks[chunkIndex].length; cardIndex += 1) {
+      const key = String(chunks[chunkIndex][cardIndex]);
+      if ((attempts[key]?.length ?? 0) >= PART_IDENTIFICATION_MAX_ATTEMPTS_PER_CARD) {
+        throw new Error(`Card ${cardId(Number(key))} exhausted its two immutable attempts.`);
+      }
+    }
+  }
+  const pilotCardIds = pilotChunk.map(cardId);
+  const cardDigests = new Map(
+    Object.entries(cardsManifest.cards).map(([id, card]) => [id, card.sha256]),
   );
-
-  let done = 0;
+  const pilotRequest = createPartIdentificationMcpRequest({
+    cardIds: pilotCardIds,
+    images: retained.images,
+    digests: cardDigests,
+    model,
+    cardsDigest: cardsArtifact.digest,
+    promptDigest: PART_IDENTIFICATION_PROMPT_DIGEST,
+    instructionBytes: partIdentificationInstructionBytes(pilotCardIds),
+  });
+  const pilotProofReservation = estimatePartIdentificationProofReservation(pilotRequest);
+  writeContainedFile(
+    generationOut,
+    "pilot-launch.json",
+    Buffer.from(
+      JSON.stringify({
+        schemaVersion: "lego.part-identification-pilot-launch/1",
+        transportContractDigest: PART_IDENTIFICATION_TRANSPORT_CONTRACT_DIGEST,
+        requestDigest: pilotRequest.requestDigest,
+        orderedCards: pilotRequest.cards.map(({ cardId: id, byteLength, digest }) => ({
+          cardId: id,
+          byteLength,
+          digest,
+        })),
+        proofByteReservation: pilotProofReservation,
+        conservativeCostMicrousdCharge: PART_IDENTIFICATION_MAX_COST_MICROUSD,
+        conservativeWallTimeMsCharge: PART_IDENTIFICATION_MAX_WALL_TIME_MS,
+        outcome: "reserved-before-provider-launch",
+      }),
+    ),
+    {
+      label: "One-shot hardened pilot launch reservation",
+      pathLabel: "Pilot launch journal",
+      maxBytes: 64 * 1024,
+      exclusive: true,
+    },
+  );
+  console.log(
+    `${pending.length} drawings pending; this hardened pilot will make ${chunks.length} of ${planned.length} planned calls, ${usableAnswerCount(answers)} already answered`,
+  );
   const rejections = new Map();
   const queue = [...chunks];
-  const workers = Array.from({ length: jobs }, async () => {
+  const workers = Array.from({ length: Math.min(jobs, maxCalls) }, async () => {
     for (;;) {
       const chunk = queue.shift();
       if (!chunk) return;
-      const replies = await askBatch(chunk.map(cardId), model, out, {
+      const replies = await askBatch(chunk.map(cardId), model, generationOut, {
         cardImages: retained.images,
-        cardDigests: new Map(
-          Object.entries(cardsManifest.cards).map(([id, card]) => [id, card.sha256]),
-        ),
+        cardDigests,
+        cardsDigest: cardsArtifact.digest,
+        proofBudget,
       });
-      for (const clusterIndex of chunk) {
+      if (!isPinnedModelIdentity(replies.modelIdentity, model)) {
+        throw new Error(`Pinned model identity changed while answering ${chunk.join(", ")}.`);
+      }
+      let proofReference;
+      try {
+        proofReference = publishPartIdentificationCallProof(generationOut, replies.callProof);
+        replies.reservationTicket.commit(proofReference.byteLength);
+      } catch (cause) {
+        replies.reservationTicket?.release();
+        throw cause;
+      }
+      const callDigest = proofReference.digest;
+      if (own(calls, callDigest)) {
+        throw new Error(
+          `Strict call proof ${callDigest} already exists in this checkpoint; duplicate call ownership was refused.`,
+        );
+      }
+      const nextCalls = {
+        ...calls,
+        [callDigest]: { proof: proofReference, orderedCardIds: chunk.map(cardId) },
+      };
+      const nextAnswers = { ...answers };
+      const nextAttempts = { ...attempts };
+      for (let index = 0; index < replies.parsedAnswers.length; index += 1) {
+        const parsed = replies.parsedAnswers[index];
+        const clusterIndex = chunk[index];
         const id = cardId(clusterIndex);
-        answers[clusterIndex] = replies.answers.get(id) ?? null;
+        if (parsed.cardId !== id) {
+          throw new Error(
+            `Strict call proof answer ${index} belongs to ${JSON.stringify(parsed.cardId)} instead of ${id}.`,
+          );
+        }
+        nextAnswers[clusterIndex] = parsed.answer;
+        nextAttempts[clusterIndex] = [
+          ...(attempts[clusterIndex] ?? []),
+          {
+            callDigest,
+            cardId: id,
+            answerDigest: parsed.answerDigest,
+            outcome: parsed.outcome,
+          },
+        ];
         const reason = replies.rejected?.get(id);
         if (reason !== undefined) rejections.set(id, reason);
       }
-      if (JSON.stringify(replies.modelIdentity) !== JSON.stringify(expectedModelIdentity)) {
-        throw new Error(`Pinned model identity changed while answering ${chunk.join(", ")}.`);
-      }
-      done += 1;
+      calls = nextCalls;
+      answers = nextAnswers;
+      attempts = nextAttempts;
       writeAnswers();
-      if (done % 4 === 0) console.log(`  ${done}/${chunks.length} calls`);
     }
   });
   await settleVisionWorkers(workers);
-  writeAnswers();
   const refused = Object.values(answers).filter((answer) => answer === null).length;
   console.log(`answered ${usableAnswerCount(answers)} drawings, ${refused} with no usable reply`);
-  // A reply the validator threw out is a different event from a reply that never
-  // arrived, and only one of the two is fixed by asking again. Printing the first
-  // distinct reasons is what makes a prompt and a schema that have drifted apart
-  // visible in the run that produced them.
   if (rejections.size > 0) {
     const reasons = [...new Set(rejections.values())].slice(0, 3);
     console.log(

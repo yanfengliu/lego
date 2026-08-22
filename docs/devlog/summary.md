@@ -2,6 +2,10 @@
 
 Current state belongs in the design documents; this index records only behaviour changes, measured results, and links to the matching detailed history.
 
+- [2026-08-14 (strict part-identification transport boundary)](detailed/2026-08-13_2026-08-14.md) — The writable legacy answer transport is retired after a model child created local files; 73 `/4` replies remain quarantined, while exact card bytes, one MCP image tool, sanitized downstream proof, and content-addressed `/5` checkpoint lineage now fail closed behind a provider-disabled Gate-0 boundary.
+
+- [2026-08-14 (measured 28802 catalog growth)](detailed/2026-08-13_2026-08-14.md) — Catalog `/15` grows 86 → 87 definitions with the distinct step-26 `28802` rounded-bottom bracket: 618 official-source triangles, 23 collision boxes, six directional stud frames, two LDCad clutches, and all eight source-normal exterior views reviewed `same`; the contradictory Builder `10201` record remains counterevidence and does not advance the ledger.
+
 - [2026-08-14 (measured 25269 catalog growth)](detailed/2026-08-13_2026-08-14.md) — Catalog `/14` grows 85 → 86 definitions with the step-18 `25269` quarter tile: 96 official-source triangles, 26 collision boxes, one separately attributed LDCad clutch, and all eight source-normal exterior views reviewed `same`; `28802` and fresh v6 adjudication remain open.
 
 - [2026-08-14 (manifest-v6 callout correction)](detailed/2026-08-13_2026-08-14.md) — Full-booklet component-group conservation now separates the duplicated printed-step-18 crops; deterministic identification moves to 288 groups and new source-bound cards, while fresh answers, coverage, and ledger publication remain honestly blocked by Claude OAuth 401.

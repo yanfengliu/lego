@@ -407,14 +407,18 @@ def emit_clutch_connectors(
 
 
 def emit_stud_connectors(snaps: Sequence[ShadowSnap]) -> list[dict[str, object]]:
-    """The male studs the same walk carries, used to check the walk itself."""
+    """The male studs the same walk carries, with normals pointing out of the part."""
 
     seen: set[tuple[tuple[float, ...], tuple[float, ...]]] = set()
     connectors: list[dict[str, object]] = []
     for snap in snaps:
         if not snap.is_stud:
             continue
-        normal = axis_normal(snap.mouth_normal)
+        # LDCad's cylinder direction points from the open mouth into a male snap.
+        # Catalog connector normals point from the seat out of the owning part,
+        # so a stud uses the opposite direction while an anti-stud keeps the
+        # mouth direction emitted by `emit_clutch_connectors`.
+        normal = axis_normal(tuple(-value for value in snap.mouth_normal))
         if normal is None:
             continue
         try:

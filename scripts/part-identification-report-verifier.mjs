@@ -21,10 +21,18 @@ import {
   ActionLedgerVerificationError,
   verifyCanonicalActionLedger,
 } from "./part-identification-action-ledger-verifier.mjs";
-import { MAX_JSON_ARTIFACT_BYTES, readBoundedFile } from "./part-identification-io.mjs";
+import {
+  MAX_JSON_ARTIFACT_BYTES,
+  readBoundedFile,
+  readContainedFile,
+} from "./part-identification-io.mjs";
 import { option } from "./part-identification.mjs";
 import { parseStrictJsonBytes } from "./part-identification-strict-json.mjs";
 import { verifyBookletCatalogCoverageClosure } from "./booklet-catalog-coverage.mjs";
+import {
+  PART_IDENTIFICATION_MAX_CALLS,
+  PART_IDENTIFICATION_MAX_PROOF_BYTES,
+} from "./part-identification-transport-contract.mjs";
 
 const SCHEMA = "lego.part-identification-report-verification/1";
 const MAX_REQUEST_BYTES = 64 * 1024;
@@ -130,6 +138,17 @@ function verifyAdjudication(request) {
       matchDigest: matchArtifact.digest,
       clusters: matchArtifact.value.clusters,
     });
+    stage = "cardImages";
+    const cardsSpec = artifactSpec(request, "cards");
+    const cardImagesBytes = readBoundedFile(
+      join(dirname(cardsSpec.path), ...cards.imagesFile.split("/")),
+      {
+        label: "Adjudication retained card-image bundle",
+        maxBytes: MAX_CARD_IMAGE_BUNDLE_BYTES,
+      },
+    );
+    const cardImagesArtifact = { bytes: cardImagesBytes, digest: sha256Digest(cardImagesBytes) };
+    const authenticatedCardImages = authenticateCardImageBundle(cardImagesArtifact, cards);
     stage = "answers";
     boundAnswers(answersArtifact, {
       model: PART_IDENTIFICATION_MODEL_ID,
@@ -138,6 +157,8 @@ function verifyAdjudication(request) {
       promptDigest: PART_IDENTIFICATION_PROMPT_DIGEST,
       clusters: matchArtifact.value.clusters,
       cards: cards.cards,
+      cardImages: authenticatedCardImages.images,
+      traceRoot: dirname(artifactSpec(request, "answers").path),
     });
   } catch (error) {
     if (error instanceof SafeVerificationError) throw error;
@@ -169,6 +190,8 @@ function verifyCoverage(request, coverageClosureVerifier) {
     cardsArtifact: adjudicated ? jsonArtifact(request, "cards") : null,
     cardImagesArtifact: adjudicated ? binaryArtifact(request, "cardImages") : null,
     answersArtifact: adjudicated ? jsonArtifact(request, "answers") : null,
+    traceRoot: adjudicated ? dirname(artifactSpec(request, "answers").path) : null,
+    traceArtifacts: null,
     pairJudgedArtifact: jsonArtifact(request, "pairJudged"),
     manifestBytes: jsonArtifact(request, "calloutManifest").bytes,
     lastStep: coverageArtifact.value?.lastStep,
@@ -180,6 +203,58 @@ function writeArtifact(root, relativePath, bytes) {
   const destination = join(root, ...relativePath.split("/"));
   mkdirSync(dirname(destination), { recursive: true });
   writeFileSync(destination, bytes);
+}
+
+function retainedTraceBytes(traceRoot, reference, label, maxBytes) {
+  const bytes = readContainedFile(traceRoot, reference.path, {
+    label,
+    pathLabel: `${label} path`,
+    maxBytes,
+  });
+  if (bytes.length !== reference.byteLength || sha256Digest(bytes) !== reference.digest) {
+    throw new Error(`${label} does not reproduce its retained byte length and digest.`);
+  }
+  return bytes;
+}
+
+function stageAnswerTraceClosure(destinationRoot, traceRoot, answersArtifact) {
+  const currentPath = `answer-checkpoints/sha256/${answersArtifact.digest.slice("sha256:".length)}.json`;
+  writeArtifact(
+    destinationRoot,
+    `output/part-identification/${currentPath}`,
+    answersArtifact.bytes,
+  );
+  const calls = answersArtifact.value.calls;
+  const callDigests = Object.keys(calls);
+  for (let index = 0; index < callDigests.length; index += 1) {
+    const reference = calls[callDigests[index]].proof;
+    writeArtifact(
+      destinationRoot,
+      `output/part-identification/${reference.path}`,
+      retainedTraceBytes(
+        traceRoot,
+        reference,
+        "Sanitized score-reproduction call proof",
+        PART_IDENTIFICATION_MAX_PROOF_BYTES,
+      ),
+    );
+  }
+  let predecessor = answersArtifact.value.predecessor;
+  let nodes = 1;
+  while (predecessor !== null) {
+    nodes += 1;
+    if (nodes > PART_IDENTIFICATION_MAX_CALLS) {
+      throw new Error("Score-reproduction answer checkpoint lineage exceeds its node ceiling.");
+    }
+    const bytes = retainedTraceBytes(
+      traceRoot,
+      predecessor,
+      "Score-reproduction answer checkpoint",
+      MAX_JSON_ARTIFACT_BYTES,
+    );
+    writeArtifact(destinationRoot, `output/part-identification/${predecessor.path}`, bytes);
+    predecessor = parseStrictJsonBytes(bytes).predecessor;
+  }
 }
 
 async function verifyScoreSummary(request, requestDirectory) {
@@ -227,6 +302,7 @@ async function verifyScoreSummary(request, requestDirectory) {
       matchDigest: matchArtifact.digest,
       clusters: identified.match.clusters,
     });
+    const authenticatedCardImages = authenticateCardImageBundle(cardImagesArtifact, cards);
     boundAnswers(answersArtifact, {
       model: PART_IDENTIFICATION_MODEL_ID,
       matchDigest: matchArtifact.digest,
@@ -234,8 +310,9 @@ async function verifyScoreSummary(request, requestDirectory) {
       promptDigest: PART_IDENTIFICATION_PROMPT_DIGEST,
       clusters: identified.match.clusters,
       cards: cards.cards,
+      cardImages: authenticatedCardImages.images,
+      traceRoot: dirname(artifactSpec(request, "answers").path),
     });
-    const authenticatedCardImages = authenticateCardImageBundle(cardImagesArtifact, cards);
 
     const temporaryRoot = join(requestDirectory, "score-work");
     mkdirSync(temporaryRoot);
@@ -273,6 +350,11 @@ async function verifyScoreSummary(request, requestDirectory) {
           imageBytes,
         );
       }
+      stageAnswerTraceClosure(
+        temporaryRoot,
+        dirname(artifactSpec(request, "answers").path),
+        answersArtifact,
+      );
       const inventoryHeld = () => ({
         held: new Map(inventoryEntries.map(({ elementId, quantity }) => [elementId, quantity])),
         digest: labelsArtifact.digest,

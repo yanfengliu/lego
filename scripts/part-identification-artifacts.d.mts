@@ -2,7 +2,7 @@ export const PART_FEATURES_SCHEMA: "lego.part-identification-features/3";
 export const PART_MATCH_SCHEMA: "lego.part-identification-match/3";
 export const PART_DISTANCES_SCHEMA: "lego.part-identification-distances/3";
 export const PART_CARDS_SCHEMA: "lego.part-identification-cards/4";
-export const PART_ANSWERS_SCHEMA: "lego.part-identification-answers/4";
+export const PART_ANSWERS_SCHEMA: "lego.part-identification-answers/5";
 export const PART_SCORE_SCHEMA: "lego.part-identification-score/2";
 export const PART_SCORE_SUMMARY_SCHEMA: "lego.part-identification-score-summary/2";
 export const DESCRIPTOR_GRID_CELLS: number;
@@ -127,7 +127,12 @@ export function boundAnswers(
     readonly cardsDigest: string;
     readonly promptDigest: string;
     readonly clusters: readonly { readonly clusterIndex: number }[];
-    readonly cards: Readonly<Record<string, { readonly candidateElementIds: readonly string[] }>>;
+    readonly cards: Readonly<
+      Record<string, { readonly sha256: string; readonly candidateElementIds: readonly string[] }>
+    >;
+    readonly cardImages: ReadonlyMap<string, Uint8Array>;
+    readonly traceRoot?: string;
+    readonly traceArtifacts?: Readonly<Record<string, Uint8Array>>;
   },
 ): Readonly<Record<string, PartIdentificationAnswer | null>>;
 
@@ -161,5 +166,8 @@ export function answerBundle(input: {
   readonly matchDigest: string;
   readonly cardsDigest: string;
   readonly promptDigest: string;
+  readonly predecessor: unknown;
+  readonly calls: Readonly<Record<string, unknown>>;
+  readonly attempts: Readonly<Record<string, readonly unknown[]>>;
   readonly answers: Readonly<Record<string, PartIdentificationAnswer | null>>;
 }): unknown;

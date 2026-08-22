@@ -3,9 +3,9 @@ import {
   closeSync,
   fstatSync,
   lstatSync,
+  opendirSync,
   openSync,
   readFileSync,
-  readdirSync,
   realpathSync,
 } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
@@ -215,20 +215,28 @@ export function boundedDirectoryFiles(root, options = {}) {
   const rootPath = assertOrdinaryDirectoryPath(root, {
     label: options.label ?? "Input directory",
   });
-  const entries = readdirSync(rootPath, { withFileTypes: true });
-  if (entries.length > limit) {
-    throw new Error(
-      `${options.label ?? "Input directory"} ${JSON.stringify(root)} contains ${entries.length} entries, above the ${limit}-entry limit. Narrow or regenerate the retained gallery.`,
-    );
-  }
   const files = [];
-  for (const entry of entries) {
-    if (entry.isSymbolicLink()) {
-      throw new Error(
-        `${options.label ?? "Input directory"} ${JSON.stringify(root)} contains linked entry ${JSON.stringify(entry.name)}; retained inputs must be regular files beneath their declared root.`,
-      );
+  let entries = 0;
+  const directory = opendirSync(rootPath);
+  try {
+    for (;;) {
+      const entry = directory.readSync();
+      if (entry === null) break;
+      entries += 1;
+      if (entries > limit) {
+        throw new Error(
+          `${options.label ?? "Input directory"} ${JSON.stringify(root)} contains more than ${limit} entries, above the ${limit}-entry limit. Narrow or regenerate the retained gallery.`,
+        );
+      }
+      if (entry.isSymbolicLink()) {
+        throw new Error(
+          `${options.label ?? "Input directory"} ${JSON.stringify(root)} contains linked entry ${JSON.stringify(entry.name)}; retained inputs must be regular files beneath their declared root.`,
+        );
+      }
+      if (entry.isFile()) files[files.length] = entry.name;
     }
-    if (entry.isFile()) files.push(entry.name);
+  } finally {
+    directory.closeSync();
   }
   return files;
 }

@@ -28,7 +28,7 @@ export interface BundledLdrawSourceFile {
   readonly licenseExpression: string;
 }
 
-/** Every file in the 25 bundled closures, deduplicated and path-ordered. */
+/** Every file in the 26 bundled closures, deduplicated and path-ordered. */
 export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Object.freeze([
   // prettier-ignore
   { path: "p/1-16chrd.dat", bytes: 701, sha256: "sha256:e429dd760eb6f0cf460a74e6ebf52c023bedbdea82de7801efa1694b5a1a82e8", title: "Chord 0.0625", author: "Philippe Hurbain [Philo]", ldrawOrg: "Primitive UPDATE 2015-01", licenseExpression: "CC-BY-4.0" },
@@ -199,6 +199,8 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
   // prettier-ignore
   { path: "p/box3u4a.dat", bytes: 545, sha256: "sha256:15463f41f9947dd75486dc7af3231b1037704f1b654c2555e3ba705817a2db75", title: "Box with 3 Faces without 4 Adjacent Edges", author: "Niels Karsdorp [nielsk]", ldrawOrg: "Primitive UPDATE 2009-01", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
+  { path: "p/box3u5p.dat", bytes: 658, sha256: "sha256:0f52d5c372a303f508113ace2c7cba6d52b46171052e76a88266679a74f17ea5", title: "Box with  3 Faces without  5 Edges", author: "Willy Tschager [Holly-Wood]", ldrawOrg: "Primitive UPDATE 2024-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
   { path: "p/box3u6a.dat", bytes: 514, sha256: "sha256:11f6175e76c3bd1e857a216f80b7e7d81288ec130a33d9b242d1fa3d448cb873", title: "Box with 3 Faces without 4 Adjacent and 2 Parallel Edges", author: "Massimo Maso [Sirio]", ldrawOrg: "Primitive UPDATE 2022-02", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
   { path: "p/box3u8p.dat", bytes: 737, sha256: "sha256:0f6187106f023d041dcfd2a24e9f5a2a0c37b5c41b0ff171267ae776a8f16760", title: "Box with 3 Faces and 4 Parallel Edges", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2012-01", licenseExpression: "CC-BY-4.0" },
@@ -239,6 +241,8 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
   // prettier-ignore
   { path: "p/stud.dat", bytes: 698, sha256: "sha256:db037d518d7c08bcdc1f0e7497f4f98e97d99850531dd62d602965520f3bf8f4", title: "Stud", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2012-01", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
+  { path: "p/stud2.dat", bytes: 930, sha256: "sha256:5ed3702c7d7000bfac2906f12b74ae312c59194a8e3b504952820c826b51c810", title: "Stud Open", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2009-02", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
   { path: "p/stud2a.dat", bytes: 866, sha256: "sha256:61fbed54b085a30490045309778d1e2a6d95485e6558996b12674f848028d557", title: "Stud Open without Base Edges", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2009-02", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
   { path: "p/stud3.dat", bytes: 710, sha256: "sha256:d29e9160faeaf85b2b72a098e89a81f41e0082517a82065d7b1f149b5fd2addd", title: "Stud Tube Solid", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2012-01", licenseExpression: "CC-BY-4.0" },
@@ -267,6 +271,8 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
   // prettier-ignore
   { path: "p/stug-4x4.dat", bytes: 741, sha256: "sha256:d167d3367e9d6346e217331f3d35c7b2700d1c87f35e87b40cb3a702afa90e54", title: "Stud Group  4 x  4", author: "Tore Eriksson [Tore_Eriksson]", ldrawOrg: "Primitive UPDATE 2011-01", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
+  { path: "p/stug2-4x1.dat", bytes: 424, sha256: "sha256:179d252971d76f12196c7c2c3b6f89bb6c7eab21d9df9625f44a8064e49e4996", title: "Stud Open Group  4 x  1", author: "Steffen [Steffen]", ldrawOrg: "Primitive UPDATE 2011-02", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
   { path: "p/stug2.dat", bytes: 307, sha256: "sha256:e1dfe5f5e0c433cd406467d366d278518cde9d7e83cc5d4229c451adf52fcc71", title: "~Moved to stug-2x2", author: "[PTadmin]", ldrawOrg: "Primitive UPDATE 2011-01", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
   { path: "p/stug3-1x2.dat", bytes: 347, sha256: "sha256:e78926d1494fa67b984f390aa1c05d01c35eff99030209e9bbee4e15bfcc0ecb", title: "Stud Tube Solid Group  1 x  2", author: "Steffen [Steffen]", ldrawOrg: "Primitive UPDATE 2013-02", licenseExpression: "CC-BY-4.0" },
@@ -284,6 +290,8 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
   { path: "parts/2450.dat", bytes: 2313, sha256: "sha256:5bdb50ad11b750ca1621a7c1717f1dee4af58ae8816af3c77f4af75f7e72f408", title: "Plate  3 x  3 without Corner", author: "James Jessiman", ldrawOrg: "Part UPDATE 2024-03", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
   { path: "parts/25269.dat", bytes: 352, sha256: "sha256:27d965f14caa2c9ebb13c07190f5683da8aca2471671e469e923b623e7978e6c", title: "Tile  1 x  1 Corner Round", author: "Magnus Forsberg [MagFors]", ldrawOrg: "Part UPDATE 2019-02", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/28802.dat", bytes: 1634, sha256: "sha256:aaa44c27ae9885a6b463aa477fcd1b2b153fa540aba626823bc3bb0844b0780c", title: "Bracket  1 x  2 -  1 x  4 with Rounded Bottom Corners", author: "Vincent Messenet [Cheenzo]", ldrawOrg: "Part UPDATE 2020-02", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
   { path: "parts/30357.dat", bytes: 1308, sha256: "sha256:a4d5a169af2b78840aae6122b49981ce7db81ef40713ff994615764b5760edcf", title: "Plate  3 x  3 with  2 x  2 Corner Round", author: "Vincent Messenet [Cheenzo]", ldrawOrg: "Part UPDATE 2026-01", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
@@ -366,57 +374,173 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
 
 /** Which of those files each bundled part's exact closure references. */
 export const BUNDLED_LDRAW_CLOSURES: Readonly<Record<string, readonly number[]>> = Object.freeze({
-  "5092": [77, 78, 91, 94, 98, 137, 156],
-  "35480": [26, 27, 28, 29, 30, 31, 32, 49, 52, 53, 54, 76, 81, 104, 105, 131],
-  "51739": [34, 35, 36, 37, 41, 49, 52, 53, 55, 77, 78, 83, 91, 94, 98, 103, 107, 114, 139, 158],
-  "77844": [49, 52, 53, 77, 82, 103, 105, 110, 113, 119, 144],
-  "93273": [11, 25, 28, 29, 49, 52, 53, 69, 71, 72, 77, 86, 94, 95, 96, 97, 98, 99, 105, 148, 165],
+  "5092": [77, 78, 92, 95, 99, 141, 160],
+  "35480": [26, 27, 28, 29, 30, 31, 32, 49, 52, 53, 54, 76, 81, 106, 107, 135],
+  "51739": [34, 35, 36, 37, 41, 49, 52, 53, 55, 77, 78, 83, 92, 95, 99, 104, 109, 116, 143, 162],
+  "77844": [49, 52, 53, 77, 82, 104, 107, 112, 115, 122, 148],
+  "93273": [11, 25, 28, 29, 49, 52, 53, 69, 71, 72, 77, 87, 95, 96, 97, 98, 99, 100, 107, 152, 169],
   "30357": [
-    17, 18, 19, 20, 24, 49, 52, 53, 55, 56, 57, 58, 59, 65, 66, 67, 68, 77, 93, 97, 103, 107, 113,
-    115, 121, 127, 162,
+    17, 18, 19, 20, 24, 49, 52, 53, 55, 56, 57, 58, 59, 65, 66, 67, 68, 77, 94, 98, 104, 109, 115,
+    117, 124, 131, 166,
   ],
-  "2450": [49, 52, 53, 55, 77, 88, 95, 96, 97, 98, 100, 103, 107, 114, 125],
+  "2450": [49, 52, 53, 55, 77, 89, 96, 97, 98, 99, 101, 104, 109, 116, 128],
   "79491": [
-    0, 1, 3, 8, 9, 10, 13, 14, 17, 20, 49, 52, 53, 77, 78, 80, 87, 93, 94, 97, 98, 103, 105, 145,
+    0, 1, 3, 8, 9, 10, 13, 14, 17, 20, 49, 52, 53, 77, 78, 80, 88, 94, 95, 98, 99, 104, 107, 149,
   ],
-  "30503": [49, 52, 53, 55, 77, 88, 95, 97, 98, 100, 103, 107, 109, 110, 111, 121, 128],
-  "6106": [49, 52, 53, 55, 77, 85, 88, 94, 98, 103, 107, 114, 117, 118, 122, 142],
+  "30503": [49, 52, 53, 55, 77, 89, 96, 98, 99, 101, 104, 109, 111, 112, 113, 124, 132],
+  "6106": [49, 52, 53, 55, 77, 86, 89, 95, 99, 104, 109, 116, 119, 121, 125, 146],
   "30565": [
-    1, 2, 3, 4, 5, 9, 10, 13, 15, 16, 17, 18, 19, 20, 21, 49, 52, 53, 55, 64, 70, 74, 77, 94, 97,
-    103, 107, 116, 121, 123, 129, 151, 153,
+    1, 2, 3, 4, 5, 9, 10, 13, 15, 16, 17, 18, 19, 20, 21, 49, 52, 53, 55, 64, 70, 74, 77, 95, 98,
+    104, 109, 118, 124, 126, 133, 155, 157,
   ],
   "80015": [
     1, 2, 3, 9, 10, 13, 15, 16, 18, 19, 20, 21, 22, 23, 35, 36, 37, 39, 40, 49, 52, 53, 60, 61, 62,
-    63, 64, 72, 74, 78, 85, 87, 88, 92, 94, 97, 98, 103, 105, 109, 113, 146, 150, 151, 163,
+    63, 64, 72, 74, 78, 86, 88, 89, 93, 95, 98, 99, 104, 107, 111, 115, 150, 154, 155, 167,
   ],
-  "25269": [0, 1, 3, 9, 12, 13, 77, 93, 96, 97, 98, 126, 152],
+  "25269": [0, 1, 3, 9, 12, 13, 77, 94, 97, 98, 99, 129, 156],
+  "28802": [8, 9, 10, 13, 49, 52, 53, 54, 84, 87, 89, 91, 98, 104, 105, 107, 115, 120, 130],
   "41770a": [
     0, 1, 2, 3, 7, 9, 10, 13, 15, 16, 17, 18, 19, 20, 22, 23, 24, 26, 27, 28, 31, 33, 35, 36, 37,
-    39, 40, 49, 52, 53, 55, 93, 94, 98, 103, 107, 111, 134, 154,
+    39, 40, 49, 52, 53, 55, 94, 95, 99, 104, 109, 113, 138, 158,
   ],
   "41769a": [
     0, 1, 2, 3, 7, 9, 10, 13, 15, 16, 17, 18, 19, 20, 22, 23, 24, 26, 27, 28, 31, 33, 35, 36, 37,
-    39, 40, 49, 52, 53, 55, 93, 94, 98, 103, 107, 111, 133, 154,
+    39, 40, 49, 52, 53, 55, 94, 95, 99, 104, 109, 113, 137, 158,
   ],
   "43723a": [
-    7, 9, 10, 13, 15, 31, 35, 36, 37, 42, 43, 44, 45, 46, 47, 48, 49, 50, 52, 53, 75, 77, 78, 94,
-    95, 97, 98, 103, 110, 136, 155,
+    7, 9, 10, 13, 15, 31, 35, 36, 37, 42, 43, 44, 45, 46, 47, 48, 49, 50, 52, 53, 75, 77, 78, 95,
+    96, 98, 99, 104, 112, 140, 159,
   ],
   "43722a": [
-    7, 9, 10, 13, 15, 31, 35, 36, 37, 42, 43, 44, 45, 46, 47, 48, 49, 50, 52, 53, 75, 77, 78, 94,
-    95, 97, 98, 103, 110, 135, 155,
+    7, 9, 10, 13, 15, 31, 35, 36, 37, 42, 43, 44, 45, 46, 47, 48, 49, 50, 52, 53, 75, 77, 78, 95,
+    96, 98, 99, 104, 112, 139, 159,
   ],
   "54383": [
     0, 1, 2, 3, 6, 9, 10, 13, 15, 16, 17, 18, 19, 20, 35, 36, 37, 39, 40, 42, 43, 44, 49, 50, 52,
-    53, 55, 86, 93, 94, 96, 97, 98, 103, 107, 108, 110, 112, 120, 141, 160,
+    53, 55, 87, 94, 95, 97, 98, 99, 104, 109, 110, 112, 114, 123, 145, 164,
   ],
-  "3659": [38, 45, 47, 49, 52, 53, 82, 91, 103, 132],
-  "3455": [49, 52, 53, 82, 91, 103, 130],
-  "11477": [11, 25, 28, 29, 72, 73, 74, 77, 78, 79, 86, 94, 98, 99, 124, 149],
-  "50950": [72, 73, 74, 77, 79, 84, 97, 98, 99, 101, 102, 138, 157],
-  "61678": [56, 57, 59, 77, 86, 90, 94, 95, 97, 98, 143, 161],
-  "54200": [89, 94, 98, 140, 159],
-  "85984": [49, 51, 52, 53, 89, 94, 98, 106, 147, 164],
+  "3659": [38, 45, 47, 49, 52, 53, 82, 92, 104, 136],
+  "3455": [49, 52, 53, 82, 92, 104, 134],
+  "11477": [11, 25, 28, 29, 72, 73, 74, 77, 78, 79, 87, 95, 99, 100, 127, 153],
+  "50950": [72, 73, 74, 77, 79, 85, 98, 99, 100, 102, 103, 142, 161],
+  "61678": [56, 57, 59, 77, 87, 91, 95, 96, 98, 99, 147, 165],
+  "54200": [90, 95, 99, 144, 163],
+  "85984": [49, 51, 52, 53, 90, 95, 99, 108, 151, 168],
+});
+
+export interface BundledLdrawClosureManifest {
+  readonly bytes: number;
+  readonly manifestSha256: `sha256:${string}`;
+}
+
+/** Canonical full-record digest and byte count for each exact closure. */
+export const BUNDLED_LDRAW_CLOSURE_MANIFESTS: Readonly<
+  Record<string, BundledLdrawClosureManifest>
+> = Object.freeze({
+  "5092": {
+    bytes: 6349,
+    manifestSha256: "sha256:7b52a9855245d765f26489ae5fb927eaa261f9a987858f15ec96b8656d47eafb",
+  },
+  "35480": {
+    bytes: 18047,
+    manifestSha256: "sha256:402f77d27d816224d6562f8163c243e706edaf29c9a651156fc5d120bc388919",
+  },
+  "51739": {
+    bytes: 19038,
+    manifestSha256: "sha256:15a44537f88e8cda20b70c7c7fc153cfc0484f982798548799b17e7798b154b6",
+  },
+  "77844": {
+    bytes: 10248,
+    manifestSha256: "sha256:c11f339145f8367d8e8ed13b091446ac5367c9c7c1377471177f5b40b1dec3c1",
+  },
+  "93273": {
+    bytes: 23826,
+    manifestSha256: "sha256:7d9b50285e0cb54bae70e3953f86008964a7cf931d5f5cfa0e0ca2859077e22e",
+  },
+  "30357": {
+    bytes: 22240,
+    manifestSha256: "sha256:fdf82f1a585919f4075176bf5c8e3671c4c509027da066cd58bff5dac2cddd61",
+  },
+  "2450": {
+    bytes: 16059,
+    manifestSha256: "sha256:c5775c401fa6e90914f61f87462adec5a93985a0ab9f0eef20d8652d4324f33c",
+  },
+  "79491": {
+    bytes: 21128,
+    manifestSha256: "sha256:5a3011b7f2cf06db4b5e1837b10267868955354acdc194a1d37d9124ca428221",
+  },
+  "30503": {
+    bytes: 16274,
+    manifestSha256: "sha256:7f702930e08f034cbc6d7c826dbb0926ce7141d1567b59bfa6141f58d5e1e530",
+  },
+  "6106": {
+    bytes: 19357,
+    manifestSha256: "sha256:d1a133da41def2c33aeb8b309e315e270896d2f993eac3a93722192c88d9c352",
+  },
+  "30565": {
+    bytes: 30912,
+    manifestSha256: "sha256:1f4d6ef3f417a73a26984e721b7c00d01b7d3981eae983c9cb57ece46e996885",
+  },
+  "80015": {
+    bytes: 41452,
+    manifestSha256: "sha256:2df076d5a85863265f2b90a5c992766ad217c07be4ec64112934ed5d1f3f9020",
+  },
+  "25269": {
+    bytes: 11225,
+    manifestSha256: "sha256:0d3cfb170d2ef2b725a9cb3e685d97bb0d33537a40b8916c9bb2de0aeb67e385",
+  },
+  "28802": {
+    bytes: 17940,
+    manifestSha256: "sha256:e8c326b7fe592ceb83142f62eca6ce3c74c60bad83d3b095a12c80ffece54806",
+  },
+  "41770a": {
+    bytes: 35931,
+    manifestSha256: "sha256:6eaa68a2a6c031acd1cd610f4fc555fa50cb42b0410658820fdc216272eb11c1",
+  },
+  "41769a": {
+    bytes: 35882,
+    manifestSha256: "sha256:339cba4e5c7087454b830ecd653cd62bc52a9d1a6a8046546503cb38604fd30c",
+  },
+  "43723a": {
+    bytes: 28359,
+    manifestSha256: "sha256:7a2f1ea0d2399872d36b7baa937208bec798c182dd97ea92e52ccddef5e92d35",
+  },
+  "43722a": {
+    bytes: 28356,
+    manifestSha256: "sha256:24b108d262c4ee1c87b56ae26f96ff1e9625455776b23c39b960971d08bb6a92",
+  },
+  "54383": {
+    bytes: 37063,
+    manifestSha256: "sha256:a5c869dd19cd7258d554d7e39f75812e75cec5d1e5a375f96eea9da183f9e78f",
+  },
+  "3659": {
+    bytes: 13438,
+    manifestSha256: "sha256:5a14d1ace2d081545e8501407640b3b19ab4e1ef187f750a4c667d5b8568e5ac",
+  },
+  "3455": {
+    bytes: 13295,
+    manifestSha256: "sha256:69d67bb5a3bba79f6dc9945a7a540b37d0b8d37c537662281291b4afc483436a",
+  },
+  "11477": {
+    bytes: 13619,
+    manifestSha256: "sha256:c14718f2de902c7445d4af67d11d6b7019e8fc7f94f974ae686f4f6e755fd76c",
+  },
+  "50950": {
+    bytes: 10969,
+    manifestSha256: "sha256:53eb208aedf20f59869c7944cda4aa1328510a76b16c5381c10fa433f4ba625f",
+  },
+  "61678": {
+    bytes: 12736,
+    manifestSha256: "sha256:1ee0f1b5881f98c7aebbf1c4d1ce5602e3c3f5bc0285c817b110fb09a032ae94",
+  },
+  "54200": {
+    bytes: 7147,
+    manifestSha256: "sha256:17c9c0f38eefbac5a6c337a7819b4d9580f2302effedf7246a630399f998930c",
+  },
+  "85984": {
+    bytes: 16413,
+    manifestSha256: "sha256:265bc66f799249c1d60cba08d3538227dc563ba96878e143f192964d84b21b2b",
+  },
 });
 
 /** The archive the files above were read from, byte-pinned. */

@@ -3,19 +3,7 @@ import { createHash } from "node:crypto";
 import { mirrorTwinCandidate } from "./part-identification-mirror-pairs.mjs";
 import { visionPick } from "./part-identification-score.mjs";
 import { PART_IDENTIFICATION_MAX_NOTE_LENGTH } from "./part-identification-prompt.mjs";
-import { quoteLine } from "./generated-file-staleness.mjs";
-import {
-  CHILD_TIMEOUT_MS,
-  MAX_CHILD_STDERR_BYTES,
-  MAX_CHILD_STDOUT_BYTES,
-  runBoundedChild,
-} from "./part-identification-io.mjs";
-import { parseStrictJsonBytes } from "./part-identification-strict-json.mjs";
-import {
-  requirePinnedPartIdentificationModel,
-  responseModelIdentity,
-} from "./part-identification-model.mjs";
-import { withCardCallSnapshot } from "./part-identification-call-snapshot.mjs";
+import { requirePinnedPartIdentificationModel } from "./part-identification-model.mjs";
 
 /**
  * One pointed follow-up question, where the first answer left exactly two candidates standing.
@@ -56,6 +44,12 @@ export const REASK_GENERATION = 1;
 /** Default and hard ceiling on how many follow-up calls one pass may make. */
 export const DEFAULT_MAX_REASKS = 24;
 export const MAX_REASKS = 64;
+export const PART_IDENTIFICATION_REASK_DISABLED_MESSAGE =
+  "Part-identification re-ask is disabled before artifact reads, output writes, or provider work: no reviewed card-digest-bound provider policy/privacy authorization and immutable launch-settlement lineage exists, and re-ask lacks its own strict one-shot MCP call-proof/checkpoint contract.";
+
+export function requirePartIdentificationReaskAuthorization() {
+  throw new Error(PART_IDENTIFICATION_REASK_DISABLED_MESSAGE);
+}
 
 /**
  * Enough of a refused reply to see which rule it broke.
@@ -238,90 +232,10 @@ export function assertReaskReply(reply, between, label = "Re-ask reply") {
  */
 export async function askReaskBatch(targets, model, context = {}) {
   requirePinnedPartIdentificationModel(model);
-  if (!Array.isArray(targets) || targets.length < 1 || targets.length > 6) {
-    throw new Error(
-      `A re-ask batch carries 1 through 6 targets; received ${Array.isArray(targets) ? targets.length : typeof targets}.`,
-    );
-  }
-  const cardIds = targets.map(({ cardId }) => cardId);
-  if (new Set(cardIds).size !== cardIds.length) {
-    throw new Error(
-      `A re-ask batch must name each card once; received ${JSON.stringify(cardIds)}.`,
-    );
-  }
-  const result = await withCardCallSnapshot(
-    cardIds,
-    context.cardImages,
-    context.cardDigests,
-    async (paths, inheritFds) => {
-      const questions = targets.map(
-        (target, index) =>
-          `${target.cardId} (${paths[index]}): is the query candidate ${target.between[0]} or candidate ${target.between[1]}? ` +
-          REASK_REASONS[target.reason].hint,
-      );
-      const instruction =
-        `Read these ${targets.length} images and answer one question about each, in the order given:\n` +
-        `${questions.join("\n")}\n\n${PART_REASK_PROMPT}`;
-      return runBoundedChild(
-        context.command ?? process.env.CLAUDE_CLI ?? "claude",
-        ["-p", instruction, "--model", model, "--allowedTools", "Read", "--output-format", "json"],
-        {
-          label: `Pinned Claude re-ask call for ${cardIds.join(", ")}`,
-          timeoutMs: context.timeoutMs ?? CHILD_TIMEOUT_MS,
-          maxStdoutBytes: context.maxStdoutBytes ?? MAX_CHILD_STDOUT_BYTES,
-          maxStderrBytes: context.maxStderrBytes ?? MAX_CHILD_STDERR_BYTES,
-          spawnImpl: context.spawnImpl,
-          // The consent covering this call is the same consent covering the
-          // first pass, and it is only enforceable while the response can prove
-          // one pinned model produced it.
-          env: { ...(context.env ?? process.env), CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1" },
-          inheritFds,
-        },
-      );
-    },
-    { __testHooks: { lockSpawnImpl: context.lockSpawnImpl } },
-  );
-  if (result.code !== 0) {
-    throw new Error(
-      `Pinned Claude re-ask call for ${cardIds.join(", ")} exited ${result.code}${result.signal === null ? "" : ` (${result.signal})`}; stderr: ${result.stderr.trim() || "empty"}. No re-ask was retained.`,
-    );
-  }
-  const payload = parseStrictJsonBytes(Buffer.from(result.stdout, "utf8"));
-  const modelIdentity = responseModelIdentity(payload, model);
-  const byCard = new Map(targets.map((target) => [target.cardId, target]));
-  const replies = new Map();
-  const rejected = new Map();
-  for (const line of payload.result.split("\n")) {
-    const opened = line.indexOf("{");
-    const closed = line.lastIndexOf("}");
-    const tag = /(card-\d{4})/u.exec(opened < 0 ? line : line.slice(0, opened));
-    if (!tag || opened < 0 || closed < opened || !byCard.has(tag[1])) continue;
-    if (replies.has(tag[1]) || rejected.has(tag[1])) continue;
-    try {
-      replies.set(
-        tag[1],
-        assertReaskReply(
-          parseStrictJsonBytes(Buffer.from(line.slice(opened, closed + 1), "utf8")),
-          byCard.get(tag[1]).between,
-          `Re-ask reply for ${tag[1]}`,
-        ),
-      );
-    } catch (error) {
-      // The refused text travels with the reason. Reporting only "it did not
-      // validate" costs a whole live call to find out what actually came back:
-      // the first re-ask this code ever made was refused, and diagnosing it
-      // meant asking the same question again and hoping for the same reply.
-      // Quoted rather than pasted, so an escape or a stray control character in
-      // untrusted model output is visible instead of rendered.
-      rejected.set(
-        tag[1],
-        `${error instanceof Error ? error.message : String(error)} Refused text: ${quoteLine(line, MAX_QUOTED_REFUSAL)}`,
-      );
-    }
-  }
-  return { replies, rejected, modelIdentity };
+  void targets;
+  void context;
+  requirePartIdentificationReaskAuthorization();
 }
-
 export const reaskBundle = ({
   model,
   modelIdentity,

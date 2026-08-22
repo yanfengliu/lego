@@ -9,14 +9,16 @@ fails, not just a verdict.
 from __future__ import annotations
 
 import math
+from collections import defaultdict
 from typing import Sequence
 
-from part_admission_contract import Candidate
+from part_admission_contract import Candidate, Connector
 
 STUD_PITCH_LDU = 20.0
 STUD_LATTICE_PHASE_LDU = 10.0
 PLATE_HEIGHT_LDU = 8.0
 LATTICE_TOLERANCE_LDU = 1e-6
+AXIS_NAMES = ("x", "y", "z")
 
 
 def lattice_cell_centers(low: float, high: float) -> list[float]:
@@ -62,6 +64,111 @@ def _phase(values: Sequence[float]) -> tuple[float, float, int]:
     )
 
 
+def _axis_normal(normal: Sequence[float]) -> tuple[int, int] | None:
+    normal_axis = [
+        index
+        for index, value in enumerate(normal)
+        if abs(abs(value) - 1.0) <= LATTICE_TOLERANCE_LDU
+    ]
+    if len(normal_axis) != 1:
+        return None
+    axis = normal_axis[0]
+    if any(
+        abs(value) > LATTICE_TOLERANCE_LDU
+        for index, value in enumerate(normal)
+        if index != axis
+    ):
+        return None
+    return axis, -1 if normal[axis] < 0 else 1
+
+
+def _connector_pitch(candidate: Candidate) -> dict[str, object] | None:
+    if not candidate.connectors:
+        return None
+    grouped: dict[tuple[int, int] | None, list[Connector]] = defaultdict(list)
+    for connector in candidate.connectors:
+        grouped[_axis_normal(connector.normal)].append(connector)
+    groups: list[dict[str, object]] = []
+    total_on_grid = 0
+    maximum_deviation = 0.0
+    all_integer = True
+    all_stud_phase = True
+    all_axis_aligned = None not in grouped
+    for normal_key, connectors in sorted(
+        grouped.items(), key=lambda row: (row[0] is None, row[0] or (3, 0))
+    ):
+        if normal_key is None:
+            groups.append(
+                {
+                    "normal": None,
+                    "normalIsAxisAligned": False,
+                    "connectorCount": len(connectors),
+                    "tangentAxes": [],
+                    "commonPhaseLdu": {},
+                    "maximumPitchDeviationLdu": None,
+                    "connectorsOnCommonGrid": 0,
+                    "phaseIsIntegerLdu": False,
+                    "phaseMatchesStudCentreLattice": False,
+                }
+            )
+            all_integer = False
+            all_stud_phase = False
+            continue
+        normal_axis, sign = normal_key
+        tangent_axes = [axis for axis in range(3) if axis != normal_axis]
+        phases: dict[str, float] = {}
+        deviations: list[float] = []
+        on_grid: list[int] = []
+        integer_deviations: list[float] = []
+        stud_deviations: list[float] = []
+        for axis in tangent_axes:
+            phase, deviation, aligned = _phase(
+                [connector.position[axis] for connector in connectors]
+            )
+            phases[AXIS_NAMES[axis]] = round(phase, 9)
+            deviations.append(deviation)
+            on_grid.append(aligned)
+            integer_deviations.append(abs(phase - round(phase)))
+            stud_deviations.append(
+                min(
+                    abs(phase - target)
+                    for target in (0.0, STUD_LATTICE_PHASE_LDU, STUD_PITCH_LDU)
+                )
+            )
+        group_deviation = max(deviations)
+        group_on_grid = min(on_grid)
+        group_integer = max(integer_deviations) <= LATTICE_TOLERANCE_LDU
+        group_stud_phase = max(stud_deviations) <= LATTICE_TOLERANCE_LDU
+        total_on_grid += group_on_grid
+        maximum_deviation = max(maximum_deviation, group_deviation)
+        all_integer = all_integer and group_integer
+        all_stud_phase = all_stud_phase and group_stud_phase
+        normal = [0, 0, 0]
+        normal[normal_axis] = sign
+        groups.append(
+            {
+                "normal": normal,
+                "normalIsAxisAligned": True,
+                "connectorCount": len(connectors),
+                "tangentAxes": [AXIS_NAMES[axis] for axis in tangent_axes],
+                "commonPhaseLdu": phases,
+                "maximumPitchDeviationLdu": round(group_deviation, 9),
+                "connectorsOnCommonGrid": group_on_grid,
+                "phaseIsIntegerLdu": group_integer,
+                "phaseMatchesStudCentreLattice": group_stud_phase,
+            }
+        )
+    return {
+        "state": "grouped-by-outward-normal",
+        "groups": groups,
+        "maximumPitchDeviationLdu": round(maximum_deviation, 9),
+        "connectorsOnCommonGrid": total_on_grid,
+        "phaseIsIntegerLdu": all_integer,
+        "phaseMatchesStudCentreLattice": all_stud_phase,
+        "normalsAreAxisAligned": all_axis_aligned,
+    }
+
+
 def measure_lattice(candidate: Candidate) -> dict[str, object]:
     rows = [
         {
@@ -70,22 +177,7 @@ def measure_lattice(candidate: Candidate) -> dict[str, object]:
         }
         for connector in candidate.connectors
     ]
-    pitch: dict[str, object] | None = None
-    if candidate.connectors:
-        phase_x, deviation_x, on_grid_x = _phase([row.position[0] for row in candidate.connectors])
-        phase_z, deviation_z, on_grid_z = _phase([row.position[2] for row in candidate.connectors])
-        integer_phase = max(abs(phase_x - round(phase_x)), abs(phase_z - round(phase_z)))
-        stud_phase = max(
-            min(abs(phase - target) for target in (0.0, STUD_LATTICE_PHASE_LDU, STUD_PITCH_LDU))
-            for phase in (phase_x, phase_z)
-        )
-        pitch = {
-            "commonPhaseLdu": {"x": round(phase_x, 9), "z": round(phase_z, 9)},
-            "maximumPitchDeviationLdu": round(max(deviation_x, deviation_z), 9),
-            "connectorsOnCommonGrid": min(on_grid_x, on_grid_z),
-            "phaseIsIntegerLdu": integer_phase <= LATTICE_TOLERANCE_LDU,
-            "phaseMatchesStudCentreLattice": stud_phase <= LATTICE_TOLERANCE_LDU,
-        }
+    pitch = _connector_pitch(candidate)
     solid = [body for body in candidate.bodies if body.tag == "body"] or list(candidate.bodies)
     height = max(body.maximum[1] for body in solid) - min(body.minimum[1] for body in solid)
     height_residual = min(
@@ -103,10 +195,18 @@ def measure_lattice(candidate: Candidate) -> dict[str, object]:
         centers = lattice_cell_centers(low, high)
         cells.append(len(centers))
         slack.append(STUD_PITCH_LDU * len(centers) - (high - low))
-    alignable = (
+    directional_envelope = any(
+        (normal_axis := _axis_normal(connector.normal)) is not None and normal_axis[0] != 1
+        for connector in candidate.connectors
+    )
+    plate_height_applies = not directional_envelope
+    pitch_alignable = (
         (pitch is None or bool(pitch["phaseIsIntegerLdu"]))
         and (pitch is None or float(pitch["maximumPitchDeviationLdu"]) <= LATTICE_TOLERANCE_LDU)  # type: ignore[arg-type]
-        and height_residual <= LATTICE_TOLERANCE_LDU
+        and (pitch is None or bool(pitch["normalsAreAxisAligned"]))
+    )
+    alignable = pitch_alignable and (
+        not plate_height_applies or height_residual <= LATTICE_TOLERANCE_LDU
     )
     return {
         "connectorCount": len(rows),
@@ -115,6 +215,14 @@ def measure_lattice(candidate: Candidate) -> dict[str, object]:
             "heightLdu": height,
             "heightInPlates": height / PLATE_HEIGHT_LDU,
             "plateHeightResidualLdu": height_residual,
+            "plateHeightCriterion": (
+                "applicable-vertical-or-connectorless-envelope"
+                if plate_height_applies
+                else "not-applicable-directional-connector-envelope"
+            ),
+            "plateHeightConforms": (
+                height_residual <= LATTICE_TOLERANCE_LDU if plate_height_applies else None
+            ),
             "planExtentsLdu": [plan[1] - plan[0], plan[3] - plan[2]],
             "footprintCells": cells,
             "footprintSlackLdu": slack,
@@ -135,10 +243,10 @@ def lattice_score(lattice: dict[str, object]) -> float:
     if isinstance(pitch, dict):
         total = int(lattice["connectorCount"])  # type: ignore[arg-type]
         parts.append(float(pitch["connectorsOnCommonGrid"]) / total if total else 1.0)
-        parts.append(1.0 if pitch["phaseIsIntegerLdu"] else 0.0)
-    solid = lattice["solid"]
-    if isinstance(solid, dict):
         parts.append(
-            1.0 if float(solid["plateHeightResidualLdu"]) <= LATTICE_TOLERANCE_LDU else 0.0
+            1.0 if pitch["phaseIsIntegerLdu"] and pitch["normalsAreAxisAligned"] else 0.0
         )
+    solid = lattice["solid"]
+    if isinstance(solid, dict) and solid["plateHeightConforms"] is not None:
+        parts.append(1.0 if solid["plateHeightConforms"] else 0.0)
     return sum(parts) / len(parts) if parts else 0.0

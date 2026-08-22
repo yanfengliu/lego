@@ -84,14 +84,14 @@ describe("underside measured from a bundled mesh", () => {
   });
 
   it("reports every shipped mesh part as drawing the underside it claims", () => {
-    // Not a restatement of the code: these twenty-five are bundled LDraw surfaces, and
+    // Not a restatement of the code: these twenty-six are bundled LDraw surfaces, and
     // LDraw models a plate's cavity, so the expected answer here is a fact about
     // the source rather than about the measurement. `35480` is the one that
     // reads `open` at both clutches, because its studs are open and the hole
     // runs through the part.
     const mesh = PART_DEFINITIONS.filter(isMeshPartDefinition);
 
-    expect(mesh).toHaveLength(25);
+    expect(mesh).toHaveLength(26);
     expect(
       mesh.map(({ id, geometry }) => [
         id,
@@ -274,6 +274,13 @@ describe("underside measured from a bundled mesh", () => {
         "mesh-derived-height-field",
         "bundled-source-mesh",
         "none",
+        "modelled-shell-cavity",
+      ],
+      [
+        "builtin:bracket-1x2-1x4-rounded-bottom",
+        "mesh-derived-height-field",
+        "bundled-source-mesh",
+        "measured-stud-seats",
         "modelled-shell-cavity",
       ],
     ]);

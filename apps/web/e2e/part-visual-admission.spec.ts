@@ -230,6 +230,7 @@ const ALL_SOURCE_NORMAL_MESH_PART_IDS = [
   "builtin:wedge-plate-3x3-cut-corner",
   "builtin:corner-plate-2x2-round",
   "builtin:tile-1x1-quarter-round",
+  "builtin:bracket-1x2-1x4-rounded-bottom",
 ] as const;
 
 function requiredRealPartIds(): readonly string[] {

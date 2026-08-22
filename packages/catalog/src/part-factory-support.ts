@@ -121,6 +121,7 @@ export const FAMILY_DISPLAY_NAMES: Readonly<Record<PartFamily, string>> = Object
   "curved-slope": "Curved slope",
   "cheese-slope": "Cheese slope",
   "corner-plate": "Corner plate",
+  bracket: "Bracket",
 });
 
 export const studModeFor = (

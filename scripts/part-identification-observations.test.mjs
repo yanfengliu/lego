@@ -308,7 +308,7 @@ describe("the unread-output gate", () => {
     });
     expect(
       collectedObservations({
-        schemaVersion: "lego.part-identification-answers/4",
+        schemaVersion: "lego.part-identification-answers/5",
         answers: {
           0: { differsFromPick: "nothing", alsoCouldBe: 0 },
           1: { differsFromPick: "mirrored", alsoCouldBe: 0, note: "candidate 2 is the mirror" },

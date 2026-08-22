@@ -53,6 +53,13 @@ describe("matchesPartQuery", () => {
     expect(matchesPartQuery(quarterRound, "1x1")).toBe(true);
   });
 
+  it("keeps 28802 discoverable by identifier, family, both named faces, and shape", () => {
+    const bracket = part("builtin:bracket-1x2-1x4-rounded-bottom");
+    for (const query of ["28802", "bracket", "1x2", "1x4", "rounded bottom"]) {
+      expect(matchesPartQuery(bracket, query), query).toBe(true);
+    }
+  });
+
   it("does not match an unrelated query", () => {
     expect(matchesPartQuery(brick2x4, "wheel")).toBe(false);
     expect(matchesPartQuery(brick2x4, "9x9")).toBe(false);

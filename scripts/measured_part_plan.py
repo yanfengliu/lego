@@ -39,6 +39,8 @@ def _plan(
     connector_grid_center_ldu: tuple[int, int] = (0, 0),
     connector_source: str = BUILDER_CONNECTOR_SOURCE,
     builder_connectivity_fact: BuilderConnectivityFact | None = None,
+    catalog_id: str | None = None,
+    display_name: str | None = None,
 ) -> MeasuredPartPlan:
     return MeasuredPartPlan(
         design_id=design_id,
@@ -53,6 +55,8 @@ def _plan(
         connector_grid_center_ldu=connector_grid_center_ldu,
         connector_source=connector_source,
         builder_connectivity_fact=builder_connectivity_fact,
+        catalog_id=catalog_id,
+        display_name=display_name,
     )
 
 
@@ -187,6 +191,22 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         1,
         variant="quarter-round",
         connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
+    ),
+    # builtin.basic-parts/15: 28802 is a distinct rounded-bottom bracket. Its
+    # official closure supplies the exact mesh and collision height field; the
+    # pinned LDCad walk authors both female clutches and verifies all six visible
+    # male stud frames, including four studs whose outward normal is horizontal.
+    _plan(
+        "28802",
+        "bracket",
+        4,
+        1,
+        variant="rounded-bottom",
+        height_ldu=20,
+        translation_ldu=(0, -10, 0),
+        connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
+        catalog_id="builtin:bracket-1x2-1x4-rounded-bottom",
+        display_name="Bracket 1 x 2 - 1 x 4 Rounded Bottom",
     ),
 )
 

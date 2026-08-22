@@ -62,17 +62,38 @@ def _bounds(triangles: Sequence[Triangle]) -> tuple[Vector3, Vector3] | None:
 
 @dataclass(frozen=True)
 class MeasuredConnector:
-    center_xz: tuple[float, float]
+    center: Vector3
     radius_ldu: float
-    y_min: float
-    y_max: float
-    base_y: float
+    minimum: Vector3
+    maximum: Vector3
+    axis: int
+    seat: Vector3
     normal: Vector3
     triangle_count: int
 
     @property
     def position(self) -> Vector3:
-        return (self.center_xz[0], self.base_y, self.center_xz[1])
+        return self.seat
+
+    @property
+    def center_xz(self) -> tuple[float, float]:
+        return (self.center[0], self.center[2])
+
+    @property
+    def y_min(self) -> float:
+        return self.minimum[1]
+
+    @property
+    def y_max(self) -> float:
+        return self.maximum[1]
+
+    @property
+    def base_y(self) -> float:
+        return self.seat[1]
+
+    @property
+    def height_ldu(self) -> float:
+        return self.maximum[self.axis] - self.minimum[self.axis]
 
 
 def _cluster_connectors(
@@ -81,36 +102,53 @@ def _cluster_connectors(
     connectors: list[MeasuredConnector] = []
     for members in connected_surface_components(triangles):
         points = [point for index in members for point in triangles[index]]
-        min_x = min(point[0] for point in points)
-        max_x = max(point[0] for point in points)
-        min_z = min(point[2] for point in points)
-        max_z = max(point[2] for point in points)
-        min_y = min(point[1] for point in points)
-        max_y = max(point[1] for point in points)
-        center = ((min_x + max_x) / 2, (min_z + max_z) / 2)
-        radius = max(math.hypot(point[0] - center[0], point[2] - center[1]) for point in points)
+        minimum = tuple(min(point[axis] for point in points) for axis in range(3))
+        maximum = tuple(max(point[axis] for point in points) for axis in range(3))
+        center = tuple((minimum[axis] + maximum[axis]) / 2 for axis in range(3))
         if face == "top":
-            base_y, normal = max_y, (0.0, -1.0, 0.0)
-            if body_bounds is not None and abs(min_y - body_bounds[1][1]) < abs(
-                max_y - body_bounds[0][1]
-            ):
-                base_y, normal = min_y, (0.0, 1.0, 0.0)
+            extents = tuple(maximum[axis] - minimum[axis] for axis in range(3))
+            shortest = min(extents)
+            axes = [axis for axis, extent in enumerate(extents) if abs(extent - shortest) <= 1e-9]
+            if len(axes) != 1:
+                raise ValueError(
+                    f"Visible stud component has extents {list(extents)}; exactly one short "
+                    "cylinder axis is required to measure its outward connector frame."
+                )
+            axis = axes[0]
+            seats_on_min_face = body_bounds is None or abs(maximum[axis] - body_bounds[0][axis]) <= abs(
+                minimum[axis] - body_bounds[1][axis]
+            )
+            seat = list(center)
+            seat[axis] = maximum[axis] if seats_on_min_face else minimum[axis]
+            normal = [0.0, 0.0, 0.0]
+            normal[axis] = -1.0 if seats_on_min_face else 1.0
         else:
-            base_y, normal = max_y, (0.0, 1.0, 0.0)
+            axis = 1
+            seat = [center[0], maximum[1], center[2]]
+            normal = [0.0, 1.0, 0.0]
             if body_bounds is not None:
-                base_y = body_bounds[1][1]
+                seat[1] = body_bounds[1][1]
+        perpendicular = [other for other in range(3) if other != axis]
+        radius = max(
+            math.hypot(
+                point[perpendicular[0]] - center[perpendicular[0]],
+                point[perpendicular[1]] - center[perpendicular[1]],
+            )
+            for point in points
+        )
         connectors.append(
             MeasuredConnector(
-                center_xz=center,
+                center=center,  # type: ignore[arg-type]
                 radius_ldu=radius,
-                y_min=min_y,
-                y_max=max_y,
-                base_y=base_y,
-                normal=normal,
+                minimum=minimum,  # type: ignore[arg-type]
+                maximum=maximum,  # type: ignore[arg-type]
+                axis=axis,
+                seat=tuple(seat),  # type: ignore[arg-type]
+                normal=tuple(normal),  # type: ignore[arg-type]
                 triangle_count=len(members),
             )
         )
-    return sorted(connectors, key=lambda row: (row.center_xz[0], row.center_xz[1]))
+    return sorted(connectors, key=lambda row: (row.position, row.normal))
 
 
 def measured_connectors(surface: MeasuredSurface) -> dict[str, list[MeasuredConnector]]:

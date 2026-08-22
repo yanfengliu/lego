@@ -41,6 +41,10 @@ PRIMITIVE_ROLE_PINS: dict[SourceKey, tuple[str, str]] = {
         "sha256:db037d518d7c08bcdc1f0e7497f4f98e97d99850531dd62d602965520f3bf8f4",
         STUD_ROLE,
     ),
+    ("official", "p/stud2.dat"): (
+        "sha256:5ed3702c7d7000bfac2906f12b74ae312c59194a8e3b504952820c826b51c810",
+        STUD_ROLE,
+    ),
     ("official", "p/stud2a.dat"): (
         "sha256:61fbed54b085a30490045309778d1e2a6d95485e6558996b12674f848028d557",
         STUD_ROLE,
@@ -59,6 +63,10 @@ PRIMITIVE_ROLE_PINS: dict[SourceKey, tuple[str, str]] = {
     ),
     ("official", "p/stug-3x1.dat"): (
         "sha256:9ae441c03c2e73972a26d74f7ead4de280947397dc09e2fd9857ca73ec87181a",
+        STUD_ROLE,
+    ),
+    ("official", "p/stug2-4x1.dat"): (
+        "sha256:179d252971d76f12196c7c2c3b6f89bb6c7eab21d9df9625f44a8064e49e4996",
         STUD_ROLE,
     ),
     ("official", "p/stud3.dat"): (
@@ -229,32 +237,56 @@ def _greedy_rectangles(cells: set[tuple[int, int]]) -> list[tuple[int, int, int,
 
 
 def _stud_cylinders(
-    triangles: Sequence[Triangle], solid_bounds: tuple[float, float]
+    triangles: Sequence[Triangle], solid_bounds: tuple[Vector3, Vector3]
 ) -> list[dict[str, object]]:
+    """One axis-aware cylinder and outward connector per visible stud component."""
+
     cylinders: list[dict[str, object]] = []
     for members in connected_surface_components(triangles):
         points = [point for index in members for point in triangles[index]]
-        center_x = (min(p[0] for p in points) + max(p[0] for p in points)) / 2
-        center_z = (min(p[2] for p in points) + max(p[2] for p in points)) / 2
-        radius = max(math.hypot(p[0] - center_x, p[2] - center_z) for p in points)
-        low = min(p[1] for p in points)
-        high = max(p[1] for p in points)
-        base = high if abs(high - solid_bounds[0]) <= abs(low - solid_bounds[1]) else low
+        low = tuple(min(point[axis] for point in points) for axis in range(3))
+        high = tuple(max(point[axis] for point in points) for axis in range(3))
+        extents = tuple(high[axis] - low[axis] for axis in range(3))
+        shortest = min(extents)
+        axes = [axis for axis, extent in enumerate(extents) if abs(extent - shortest) <= 1e-9]
+        if len(axes) != 1:
+            raise ValueError(
+                f"Stud component in measured surface has extents {list(extents)}; exactly one "
+                "short cylinder axis is required before its connector normal can be emitted."
+            )
+        axis = axes[0]
+        perpendicular = [other for other in range(3) if other != axis]
+        center = tuple((low[coordinate] + high[coordinate]) / 2 for coordinate in range(3))
+        radius = max(
+            math.hypot(
+                point[perpendicular[0]] - center[perpendicular[0]],
+                point[perpendicular[1]] - center[perpendicular[1]],
+            )
+            for point in points
+        )
+        seats_on_min_face = abs(high[axis] - solid_bounds[0][axis]) <= abs(
+            low[axis] - solid_bounds[1][axis]
+        )
+        seat = high[axis] if seats_on_min_face else low[axis]
+        position = list(center)
+        position[axis] = seat
+        normal = [0.0, 0.0, 0.0]
+        normal[axis] = -1.0 if seats_on_min_face else 1.0
         cylinders.append(
             {
                 "body": {
                     "kind": "cylinder",
                     "tag": "stud",
-                    "axis": "y",
-                    "centerLdu": [center_x, (low + high) / 2, center_z],
+                    "axis": "xyz"[axis],
+                    "centerLdu": list(center),
                     "radiusLdu": radius,
-                    "heightLdu": high - low,
+                    "heightLdu": extents[axis],
                 },
                 "connector": {
                     "kind": "stud",
                     "gender": "male",
-                    "positionLdu": [center_x, base, center_z],
-                    "normal": [0.0, -1.0, 0.0] if base == high else [0.0, 1.0, 0.0],
+                    "positionLdu": position,
+                    "normal": normal,
                 },
             }
         )
@@ -374,9 +406,12 @@ def column_candidate(
                     "maxLdu": [(last_x + 1) * column_ldu, high, (last_z + 1) * column_ldu],
                 }
             )
-    solid_low = min(float(body["minLdu"][1]) for body in bodies)  # type: ignore[index]
-    solid_high = max(float(body["maxLdu"][1]) for body in bodies)  # type: ignore[index]
-    studs = _stud_cylinders(surface.by_role(STUD_ROLE), (solid_low, solid_high))
+    solid_points = [point for triangle in solid_triangles for point in triangle]
+    solid_bounds = (
+        tuple(min(point[axis] for point in solid_points) for axis in range(3)),
+        tuple(max(point[axis] for point in solid_points) for axis in range(3)),
+    )
+    studs = _stud_cylinders(surface.by_role(STUD_ROLE), solid_bounds)  # type: ignore[arg-type]
     connectors = [row["connector"] for row in studs]
     bodies.extend(row["body"] for row in studs)  # type: ignore[misc]
     plan_bounds = (
@@ -389,7 +424,7 @@ def column_candidate(
         (float(row["connector"]["positionLdu"][0]), float(row["connector"]["positionLdu"][2]))  # type: ignore[index]
         for row in studs
     ]
-    clutches = _clutch_connectors(bodies, stud_centers, plan_bounds, solid_high)
+    clutches = _clutch_connectors(bodies, stud_centers, plan_bounds, solid_bounds[1][1])
     connectors.extend(clutches)
     candidate = {
         "schemaVersion": CANDIDATE_SCHEMA_VERSION,

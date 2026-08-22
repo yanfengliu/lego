@@ -66,8 +66,14 @@ import type {
  * closure, its single centre clutch is authored by the LDCad shadow subpart,
  * and its conservative collision columns are measured from that same closure.
  * No existing part, connector, allowance, collision recipe, or identity moves.
+ *
+ * /15 adds distinct bracket `28802.dat` with its exact official LDraw mesh,
+ * outward-normal stud frames and LDCad-authored clutch cells, plus conservative
+ * collision input measured from that closure. The upright transform policy is
+ * unchanged: the horizontal stud frames are represented and validated, but an
+ * upright clutch cannot be rotated onto them by this catalog release.
  */
-export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/14" as const;
+export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/15" as const;
 export const CONNECTOR_TAXONOMY_VERSION = "stud-tube/1" as const;
 export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/2" as const;
 export const TRANSFORM_POLICY_VERSION = "upright-quarter-turns-negative-y-up/1" as const;

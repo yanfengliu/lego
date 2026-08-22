@@ -5,9 +5,7 @@ import { dirname, join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { deriveCalloutManifestRunId } from "../apps/web/e2e/callout-run-id.ts";
-import { commandAsk } from "./part-identification-ask.mjs";
 import {
-  PART_ANSWERS_SCHEMA,
   PART_CARDS_SCHEMA,
   PART_FEATURES_SCHEMA,
   deriveCardRunId,
@@ -17,11 +15,9 @@ import { commandCards } from "./part-identification-cards.mjs";
 import {
   cardImageBundleArtifact,
   encodeCardImageBundle,
+  verifyRetainedCardImageClosure,
 } from "./part-identification-card-images.mjs";
 import { writeContainedFile } from "./part-identification-io.mjs";
-import { PART_IDENTIFICATION_MODEL_ID } from "./part-identification-model.mjs";
-import { PART_IDENTIFICATION_MODEL_IDENTITY } from "./part-identification-model.mjs";
-import { PART_IDENTIFICATION_PROMPT_DIGEST } from "./part-identification-prompt.mjs";
 import { option, writeNestedArtifact } from "./part-identification.mjs";
 import {
   derivePartIdentificationMatch,
@@ -413,7 +409,7 @@ describe("part-identification card publication", () => {
 });
 
 describe("part-identification card closure before a vision call", () => {
-  it("rejects a mutated card even when its cluster already has an answer", async () => {
+  it("rejects a mutated retained card before any vision consumer can use it", () => {
     const directory = mkdtempSync(join(tmpdir(), "lego-card-closure-"));
     const cardsDirectory = join(directory, "cards");
     mkdirSync(cardsDirectory);
@@ -452,29 +448,9 @@ describe("part-identification card closure before a vision call", () => {
       const cardPath = join(cardsDirectory, ...manifest.cards["card-0000"].file.split("/"));
       mkdirSync(dirname(cardPath), { recursive: true });
       writeFileSync(cardPath, canonicalPng(3, 2, 1));
-      writeArtifact(join(directory, `answers-${PART_IDENTIFICATION_MODEL_ID}.json`), {
-        schemaVersion: PART_ANSWERS_SCHEMA,
-        model: PART_IDENTIFICATION_MODEL_ID,
-        modelIdentity: PART_IDENTIFICATION_MODEL_IDENTITY,
-        matchDigest: matchArtifact.digest,
-        cardsDigest: cardsArtifact.digest,
-        promptDigest: PART_IDENTIFICATION_PROMPT_DIGEST,
-        answers: {
-          0: {
-            kind: "brick",
-            studsLong: 1,
-            studsWide: 1,
-            colour: "black",
-            pick: 1,
-            alsoCouldBe: 0,
-            differsFromPick: "nothing",
-            confidence: 0.9,
-          },
-        },
-      });
-      await expect(
-        commandAsk(["--out", directory, "--model", PART_IDENTIFICATION_MODEL_ID]),
-      ).rejects.toThrow(/including already-answered clusters/);
+      expect(() => verifyRetainedCardImageClosure(cardsDirectory, manifest)).toThrow(
+        /retained card.*hash|manifest requires/u,
+      );
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
