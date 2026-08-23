@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createNarrowingRenderBudgetLedger } from "../e2e/real-build-deferral";
+import { createNarrowingSubjectRenderBudgetLedger } from "../e2e/real-build-narrowing-subject-budget";
 import {
   runFartherPanelDriver,
   type FartherDriverChild,
@@ -404,6 +405,64 @@ describe("real-build farther driver", () => {
     expect(Object.isFrozen(result.completedAlternatives[0]!.lineage)).toBe(true);
     expect(result.evidence.narrowingLedger.failedReservation).toBeNull();
     expect(result.evidence.candidateLedger.failedReservation).toBeNull();
+  });
+
+  it("uses the opted-in subject ledger as the authoritative physical-render budget", () => {
+    const probe = harness({ budget: 8_192 });
+    const depthNarrowingLedger = createNarrowingSubjectRenderBudgetLedger(8_192);
+    const physicalRenders = [3_000, 3_559] as const;
+    const subjectWork = [vi.fn(), vi.fn()];
+    const result = runFartherPanelDriver({
+      ...probe.input,
+      depthNarrowingLedger,
+      expandParent: ({ parent, depthNarrowingLedger: sharedSubject, candidateLedger }) => {
+        expect(sharedSubject).toBe(depthNarrowingLedger);
+        const family = Number(parent.candidateId.at(-1));
+        const measurement = measured.origins[family]!;
+        const committedBefore = sharedSubject!.committed;
+        const attempt = sharedSubject!.tryLease(physicalRenders[family]!, (lease) => {
+          subjectWork[family]!();
+          lease.charge(physicalRenders[family]!);
+        });
+        expect(attempt.admitted).toBe(true);
+        const children = makeChildren(family, measurement.childIds.length);
+        for (let index = 0; index < children.length; index += 1) {
+          expect(candidateLedger.tryReserve(1)).toBe(true);
+        }
+        return {
+          expansion: {
+            parentCandidateId: parent.candidateId,
+            narrowingRenders: sharedSubject!.committed - committedBefore,
+            offeredPerPiece: measurement.offeredPerPiece,
+            carriedPerPiece: measurement.carriedPerPiece,
+            children: children.map(({ candidateId, document, documentHash: hash, pieces }) => ({
+              candidateId,
+              document,
+              documentHash: hash,
+              pieces,
+            })),
+          },
+          children,
+          narrowingBudgetExhausted: false,
+          candidateBudgetExhausted: false,
+          failure: null,
+        };
+      },
+    });
+
+    expect(result.refusal).toBeNull();
+    expect(probe.ledger.reserved).toBe(0);
+    expect(depthNarrowingLedger.committed).toBe(6_559);
+    expect(result.parentAttempts.map(({ expansion }) => expansion.narrowingRenders)).toEqual([
+      3_000, 3_559,
+    ]);
+    expect(result.evidence.narrowingLedger).toEqual({
+      maximum: 8_192,
+      reserved: 6_559,
+      refusedReservation: false,
+      failedReservation: null,
+    });
+    expect(subjectWork.map((spy) => spy.mock.calls.length)).toEqual([1, 1]);
   });
 
   it("continues from occluded N+1 to K and returns typed not-observable when K reveals none", () => {

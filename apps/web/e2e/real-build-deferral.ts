@@ -1,153 +1,48 @@
 import type { StepFailure } from "./real-build-safety";
+import type {
+  NarrowingSubjectRenderBudgetLedger,
+  NarrowingSubjectRenderLease,
+} from "./real-build-narrowing-subject-budget";
+
+export {
+  createNarrowingSubjectRenderBudgetLedger,
+  type NarrowingSubjectRenderBudgetLedger,
+  type NarrowingSubjectRenderLease,
+  type NarrowingSubjectRenderLeaseAttempt,
+} from "./real-build-narrowing-subject-budget";
 
 /**
  * Settling a printed step that its own panel cannot answer.
  *
- * The first printed step has nothing built to outline, so the panel prints no
- * highlight at all: `scoreStepDelta` gets a null region IoU and an empty stroke
- * mask, and every candidate scores exactly zero. That is a fact about the
- * booklet rather than a defect, and it is not a reason to guess — but it is also
- * not a dead end, because panel N+1 draws everything placed at step N as already
- * built. So a step with no local scoring signal carries its candidates forward
- * one panel and is settled there, against the art that shows what it built.
+ * A signal-less panel carries the whole candidate step to N+1, whose built art shows what N placed; a highlighted panel can reach the same path when its own score cannot distinguish the best two. `DeferralTrigger` names those two cases.
  *
- * A panel can fail to answer in a second way, and it arrives through a different
- * door: the panel draws a highlight, the candidates are scored against it, and
- * the drawing does not distinguish the best two. `DeferralTrigger` below is the
- * one place that names both.
- *
- * Two things are deliberately *not* done here.
- *
- * The document never branches. One settled prefix exists at all times; the
- * lookahead only moves *when* step N settles, not how many documents the run
- * carries. Every contract downstream of the decision — the eager step report,
- * the canonical step id, the identity registrations, the per-step validation the
- * Node finalizer recomputes from the final document's prefix — is a contract
- * about the settled prefix, and all of them survive untouched.
- *
- * And a deferral refuses rather than guesses. If the panel it defers to does not
- * show the winning candidate, or does not separate it from the runner-up, the
- * step fails with its own named code. Which of those two questions the decision
- * actually rests on is settled below, in the metric it is measured in.
+ * Lookahead moves when the one settled prefix commits but never branches the document, and it refuses unless the later panel both corroborates and separates its winner.
  */
 
 /**
- * How far the best candidate must beat the runner-up on the lookahead panel.
+ * Noise floor, not discriminator: probe 7762ebe measured right-pick margins 0.2085/0.0622, wrong-pick margins 0.1776/0.0238, so no margin separates truth; the former 0.0878 also mixed unrelated metrics and falsely refused one of two right picks.
  *
- * **This is a noise floor, not a discriminator, and it cannot be anything else
- * on the data that exists.** The quantity gated here is
- * `registerPrefixAgreement`'s agreement, and in that quantity
- * `output/build-search/step1-deferral.json` (probe 7762ebe) recorded two
- * observations, *both right picks*: 0.2085 at panel 2 and 0.0622 at panel 3. The
- * false-accept rate of any bar on that data has denominator zero, so no value
- * here is calibrated — a bar can only be bounded above by the right answers it
- * would refuse, and 0.0622 bounds it below 0.0622.
- *
- * The previous value, 0.0878, was a maximum over a *different* quantity: three
- * `bestScore` margins and one `anchorIou`, spanning 0.076 to 0.514, against a
- * gated metric spanning 0.507 to 0.903. Their rank correlations with the gated
- * metric flip sign panel to panel (Spearman rho of `bestScore` −0.600 at panel 2
- * and +0.800 at panel 3; of `anchorIou` +1.000 and −0.400), so they do not order
- * candidates the same way and a bar measured in one does not bound the other. In
- * the gated metric that bar had a false-refusal rate of 1 in 2: it refuses the
- * measured right pick at panel 3.
- *
- * Margin cannot be made to work by choosing a better number either. Ablating the
- * right branch — the enumerator failing to offer the drawn placement is not
- * hypothetical, `truthEnumerated` is false for all four branches at panel 2 —
- * gives wrong-pick margins of 0.1776 and 0.0238. The minimum right margin
- * (0.0622) is below the maximum wrong one (0.1776), and the same interleaving
- * holds for the ratio, so no threshold on margin separates right from wrong on
- * this data.
- *
- * What is left for it to say is "these two candidates are not distinguishable by
- * this registration", and that has a measured size: replaying the search at
- * stride 1 instead of stride 4 moves the reported agreement by up to 0.009916,
- * and a margin differences two independently registered agreements, so it
- * carries up to twice that in pure search noise. Hence 0.02. Its false-accept
- * rate is 2 in 2 by construction; the gate that decides is the one below.
+ * Stride-4 registration differs from stride 1 by at most 0.009916 per agreement, so a two-agreement margin carries twice that search noise. The absolute-agreement gate below decides correctness.
  */
 export const DEFERRED_STEP_MINIMUM_MARGIN = 0.02;
 
 /**
- * How much the winning candidate must agree with the lookahead panel outright.
+ * Absolute agreement is the measured discriminator: right picks 0.9031/0.8898 and best wrong picks 0.6946/0.8276 leave the window (0.827593, 0.889836], with zero observed false refusals in three and false accepts in two.
  *
- * This is the discriminator. Of every quantity the probe recorded, the winner's
- * own absolute agreement is the only one that separates the right pick from the
- * wrong one: right picks scored 0.9031 (panel 2) and 0.8898 (panel 3), and the
- * best wrong candidate — the right branch ablated away, so the set no longer
- * contains the answer — scored 0.6946 and 0.8276. The separating window is
- * (0.827593, 0.889836], and 0.85 sits inside it. On every observation that
- * exists: false-refusal 0 of 3, false-accept 0 of 2.
- *
- * Its headroom is stated rather than hidden, because it is thin. 0.85 is 6.3 px
- * of registration error away from the panel-2 observation and 4.5 px from the
- * panel-3 one, and one pixel of registration error moves this agreement by up to
- * 0.0328. It is also not obviously portable across panels: the excluded region is
- * 106% of the built art at panel 2 and 236% at panel 3. What recommends it over
- * a margin is that it does not degrade as candidates are added, and production
- * runs a 400-candidate product in which the runner-up is a near-duplicate by
- * construction.
+ * Headroom is thin: 0.85 is 6.3 px and 4.5 px from the two observations, one pixel can move agreement by 0.0328, and excluded art measured 106%/236% of built art. Unlike margin, it does not degrade as near-duplicate candidates are added.
  */
 export const DEFERRED_STEP_MINIMUM_AGREEMENT = 0.85;
 
-/**
- * How many printed steps forward a deferral may look.
- *
- * One, because one is all that has ever been measured. The panel-3 observation
- * that would license two is oracle-conditioned — its prefixes were built from
- * the official transform of step 2 rotated into each branch, which no run can
- * do — and a real two-panel rule would carry step-2 candidates forward from a
- * set the probe showed does not contain the answer. Reachability comes before
- * ranking, so this stays at one until a second reach is measured without an
- * oracle.
- */
+/** One is the only measured reach; the apparent panel-3 evidence used oracle-built step-2 prefixes and cannot license two. */
 export const DEFERRED_STEP_MAXIMUM_REACH_STEPS = 1;
 
-/**
- * Why a printed step is being settled by a later panel than its own.
- *
- * `no-local-signal` is the first printed step's case: the panel prints no
- * highlight at all, so `scoreStepDelta` has nothing to compare against and every
- * candidate scores exactly zero.
- *
- * `unseparated-by-own-panel` is the same fact reached from the other side. The
- * panel did print a highlight, every eligible candidate was scored against it,
- * and the best two came back indistinguishable — which is what a booklet draws
- * whenever the shape it is drawing does not change under the displacement that
- * separates two seats. A long thin plate slid along its own axis barely changes
- * its silhouette, so the panel's own art cannot say which of the two it drew.
- *
- * Both are "this panel cannot answer", and the booklet supplies the same remedy
- * for both: panel N+1 draws everything placed at step N as already built,
- * seated and unhighlighted, so it is an independent witness that panel N is not.
- */
+/** `no-local-signal` means no highlight could score; `unseparated-by-own-panel` means every eligible placement was scored but the drawing could not distinguish the best two. Both defer to N+1's independent built-art witness. */
 export type DeferralTrigger = "no-local-signal" | "unseparated-by-own-panel";
 
 /**
- * Whether a step's own panel scored its candidates and could not choose.
+ * Only a fully scored close or tied field earns lookahead; missing candidates, incomplete scoring, resource exhaustion, and malformed scores are run defects, not evidence that the drawing is ambiguous.
  *
- * Deliberately narrow, and the narrowness is the point: what earns a lookahead
- * is evidence that the *drawing* does not distinguish two placements, not any
- * failure to reach a decision. `zero-placement-score` says nothing scored at
- * all, `no-placement-candidate` that nothing was eligible,
- * `incomplete-placement-scoring` that not every eligible candidate was scored,
- * and `resource-budget-exhausted` that the search could not be afforded. Each of
- * those is a defect in how this step was looked at, and answering it with the
- * next panel would use a second picture to paper over the first one never having
- * been read properly.
- *
- * Deferring is not deciding. The step still has to clear the lookahead's own
- * gates, and if panel N+1 cannot separate the two either it refuses by name —
- * `weak-deferred-agreement` or `ambiguous-deferred-placement` — rather than
- * picking the survivor of two inconclusive comparisons.
- *
- * The scores are required as well as the code because `selectUniquePlacementScore`
- * spends `ambiguous-placement-score` on two unrelated things: a margin below the
- * minimum, and non-finite scoring evidence or an invalid minimum margin. Only
- * the first is a fact about the drawing. The second is a defect in the run, and
- * a defect that deferred would be a defect that reached a later panel and
- * settled there.
+ * Scores accompany the failure code because `ambiguous-placement-score` also names non-finite evidence and invalid margins. Deferral still must clear N+1's absolute-agreement and separation gates.
  */
 export function ownPanelCannotSeparate(input: {
   readonly failure: StepFailure | null;
@@ -174,21 +69,7 @@ export function describeDeferralTrigger(trigger: DeferralTrigger): string {
     : "scored every eligible candidate against its own printed highlight and could not separate the best two";
 }
 
-/**
- * Shifts the coarse registration search samples, in pixels of stride.
- *
- * The search maximises agreement over translation because the panel's camera
- * fit pins angle and scale but not where the drawing sits on the page. Sampling
- * every fourth pixel in each axis costs a sixteenth of the work; the reported
- * agreement is then recomputed at full resolution at the chosen shift, so no
- * reported number is a subsample.
- *
- * What the subsampling costs was measured rather than assumed, because this
- * docstring used to claim it moved the chosen shift "by at most a pixel":
- * replaying the same search at stride 1 on the probe's eight mask pairs moves
- * the optimum by up to 7.3 px and reports an agreement up to 0.009916 below the
- * stride-1 optimum. `DEFERRED_STEP_MINIMUM_MARGIN` is sized from that number.
- */
+/** Coarse translation costs one sixteenth of full sampling, then reports the winning shift at full resolution. Against the probe's eight pairs it moved the optimum by up to 7.3 px and agreement by 0.009916; the margin floor is sized from that measurement. */
 const REGISTRATION_SAMPLE_STRIDE = 4;
 const REGISTRATION_SCALES = [8, 3, 1] as const;
 const REGISTRATION_RADIUS = 4;
@@ -270,14 +151,7 @@ function agreementAt(input: PrefixAgreementInput, dx: number, dy: number, stride
   return union === 0 ? 0 : intersection / union;
 }
 
-/**
- * Best agreement between a candidate prefix and the lookahead panel's built art,
- * maximised over translation.
- *
- * The exclusion is applied in panel space rather than model space, because it is
- * a fact about where the page stopped showing built art rather than about where
- * any candidate put a brick.
- */
+/** Best translated agreement; exclusion stays in panel space because it names where the page stopped drawing, not where a candidate put a brick. */
 export function registerPrefixAgreement(input: PrefixAgreementInput): PrefixAgreement {
   const expected = input.width * input.height;
   if (
@@ -331,14 +205,7 @@ export interface DeferredPlacementDecision<T> {
   readonly failure: StepFailure | null;
 }
 
-/**
- * Refuses a deferral that would look further forward than has been measured.
- *
- * Separate from the decision procedure because the caller must be able to refuse
- * before it renders a few hundred candidate prefixes, and because a refusal that
- * arrives after scoring publishes a margin and an agreement that nothing
- * calibrates.
- */
+/** Refuses unmeasured reach before rendering or publishing an uncalibrated score. */
 export function deferredReachFailure(input: {
   readonly stepNumber: number;
   readonly lookaheadStepNumber: number;
@@ -358,13 +225,7 @@ export function deferredReachFailure(input: {
   };
 }
 
-/**
- * Picks the deferred step's placement, or refuses and says which gate refused.
- *
- * The candidate list is the whole printed step, not one piece: a step whose
- * panel says nothing cannot settle its pieces one at a time, because the second
- * piece is enumerated on top of the first.
- */
+/** Picks or refuses a whole printed-step candidate; pieces cannot settle independently because each is enumerated on the preceding one. */
 export function selectDeferredPlacement<T>(input: {
   readonly stepNumber: number;
   readonly trigger: DeferralTrigger;
@@ -697,6 +558,13 @@ export function createNarrowingRenderBudgetLedger(budget: number): NarrowingRend
   });
 }
 
+export interface WholeStepNarrowingBatchPlan<O> {
+  /** Worst-case physical subject rasters held atomically before execute runs. */
+  readonly maximumSubjectRenders: number;
+  /** Executes synchronously; each actual subject raster must be charged before it begins. */
+  readonly execute: (lease: NarrowingSubjectRenderLease) => readonly O[];
+}
+
 /**
  * The placements a panel's own score cannot tell apart from its best one.
  *
@@ -744,9 +612,19 @@ interface WholeStepEnumerationInput<D, O> {
         readonly offered: readonly O[];
       }) => readonly O[])
     | null;
+  /** Opt-in physical-render planner; mutually exclusive with the historical logical-row narrow. */
+  readonly prepareNarrowing?: (input: {
+    readonly document: D;
+    readonly stepId: string | null;
+    readonly catalogPartId: string;
+    readonly colorId: string;
+    readonly offered: readonly O[];
+  }) => WholeStepNarrowingBatchPlan<O>;
   readonly narrowingRenderBudget: number;
   /** Optional authoritative aggregate allowance shared across parent enumerations. */
   readonly narrowingRenderBudgetLedger?: NarrowingRenderBudgetLedger;
+  /** Authoritative physical-subject allowance used only with prepareNarrowing. */
+  readonly narrowingSubjectRenderBudgetLedger?: NarrowingSubjectRenderBudgetLedger;
   /** Optional authoritative aggregate complete-leaf allowance. */
   readonly candidateBudgetLedger?: WholeStepCandidateBudgetLedger;
   /**
@@ -832,6 +710,27 @@ function snapshotWholeStepTransform(
 export function enumerateWholeStepCandidates<D, O = WholeStepPlacementTransform>(
   input: WholeStepEnumerationInput<D, O> & WholeStepTransformAdapter<O>,
 ): WholeStepEnumeration<D, O> {
+  if (input.narrow !== null && input.prepareNarrowing !== undefined) {
+    throw new TypeError(
+      "Whole-step enumeration accepts either historical narrow or prepareNarrowing, not both.",
+    );
+  }
+  if (
+    input.prepareNarrowing !== undefined &&
+    input.narrowingSubjectRenderBudgetLedger === undefined
+  ) {
+    throw new TypeError(
+      "Whole-step prepareNarrowing requires a narrowingSubjectRenderBudgetLedger so its maximum is held before work.",
+    );
+  }
+  if (
+    input.prepareNarrowing === undefined &&
+    input.narrowingSubjectRenderBudgetLedger !== undefined
+  ) {
+    throw new TypeError(
+      "Whole-step narrowingSubjectRenderBudgetLedger is only valid with prepareNarrowing.",
+    );
+  }
   const transformOf =
     input.transformOf ??
     ((offeredCandidate: O) => offeredCandidate as unknown as WholeStepPlacementTransform);
@@ -904,7 +803,34 @@ export function enumerateWholeStepCandidates<D, O = WholeStepPlacementTransform>
     let carried: readonly O[] = offered;
     // A single offer is already decided, and rendering it would spend the
     // narrowing budget to confirm a set of one.
-    if (input.narrow !== null && offered.length > 1) {
+    if (input.prepareNarrowing !== undefined && offered.length > 1) {
+      const plan = input.prepareNarrowing({
+        document: partial.document,
+        stepId: partial.stepId,
+        catalogPartId: piece.catalogPartId,
+        colorId: piece.colorId,
+        offered,
+      });
+      if (
+        !Number.isSafeInteger(plan.maximumSubjectRenders) ||
+        plan.maximumSubjectRenders < 0 ||
+        typeof plan.execute !== "function"
+      ) {
+        throw new TypeError(
+          `Whole-step narrowing plan for piece ${pieceIndex} ${piece.catalogPartId} must expose a non-negative safe-integer maximumSubjectRenders and a synchronous execute callback.`,
+        );
+      }
+      const attempt = input.narrowingSubjectRenderBudgetLedger!.tryLease(
+        plan.maximumSubjectRenders,
+        plan.execute,
+      );
+      if (!attempt.admitted) {
+        overNarrowingBudget = true;
+        return;
+      }
+      narrowingRenders += attempt.charged;
+      carried = attempt.value;
+    } else if (input.narrow !== null && offered.length > 1) {
       narrowingRenders += offered.length;
       if (input.narrowingRenderBudgetLedger === undefined) {
         if (narrowingRenders > input.narrowingRenderBudget) {

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   createNarrowingRenderBudgetLedger,
+  createNarrowingSubjectRenderBudgetLedger,
   createWholeStepCandidateBudgetLedger,
 } from "../e2e/real-build-deferral";
 import {
@@ -17,7 +18,12 @@ import { completeRealBuildTestOptions } from "./real-build-test-options";
 type TestDocument = {
   readonly id: string;
   readonly revision: number;
-  readonly parts: readonly { readonly id: string; readonly colorId: string }[];
+  readonly parts: readonly {
+    readonly id: string;
+    readonly catalogPartId: string;
+    readonly colorId: string;
+    readonly transform: { readonly positionLdu: readonly number[]; readonly orientationId: string };
+  }[];
 };
 
 const hashDocument = (document: TestDocument): string =>
@@ -104,7 +110,12 @@ const evidence: PanelRasterEvidence = {
   arrowFamily: [],
 };
 
-function expansionHarness(observe: boolean, onDispose = vi.fn(), rejectCompletedBatch = false) {
+function expansionHarness(
+  observe: boolean,
+  onDispose = vi.fn(),
+  rejectCompletedBatch = false,
+  optimized = false,
+) {
   const candidates = [0, 1].map((index) => ({
     catalogPartId: "builtin:brick-2x4",
     transform: {
@@ -120,7 +131,14 @@ function expansionHarness(observe: boolean, onDispose = vi.fn(), rejectCompleted
   const parentDocument: TestDocument = {
     id: "origin-0",
     revision: 0,
-    parts: [{ id: "origin-part-0", colorId: "builtin:black" }],
+    parts: [
+      {
+        id: "origin-part-0",
+        catalogPartId: "builtin:brick-2x4",
+        colorId: "builtin:black",
+        transform: { positionLdu: [0, 0, 0], orientationId: "upright-yaw-0" },
+      },
+    ],
   };
   const options = {
     ...completeRealBuildTestOptions(7),
@@ -140,11 +158,21 @@ function expansionHarness(observe: boolean, onDispose = vi.fn(), rejectCompleted
         createInstructionRenderer: () => ({
           render: (document: TestDocument) =>
             rgba(document.parts.some(({ colorId }) => colorId === "builtin:magenta")),
+          captureDepthSurface: () => ({ subjectKey: "prefix" }),
+          captureSparseDepthSurface: () => ({ subjectKey: "probe", nonClearPixels: 1 }),
           dispose: onDispose,
         }),
-        deriveBrickScene: (document: TestDocument) => ({ root: document, dispose: () => {} }),
+        deriveBrickScene: (document: TestDocument) => ({
+          root: document,
+          partObjects: new Map(document.parts.map(({ id }) => [id, { visible: true }])),
+          dispose: () => {},
+        }),
         setInstructionSilhouetteMode: () => {},
         createOrthographicViewCamera: () => ({}),
+        composeInstructionDepthPrefixWithSparseProbe: () => ({
+          status: "composed",
+          probeVisibleMask: new Uint8Array([1, 0, 0, 0]),
+        }),
       },
       kernel: { documentStructuralHash, sha256Hex },
       assembly: {
@@ -168,6 +196,7 @@ function expansionHarness(observe: boolean, onDispose = vi.fn(), rejectCompleted
       },
     },
     ledger: createNarrowingRenderBudgetLedger(16),
+    ...(optimized ? { depthNarrowingLedger: createNarrowingSubjectRenderBudgetLedger(16) } : {}),
     candidateLedger: createWholeStepCandidateBudgetLedger(16),
     ...(observe
       ? {
@@ -190,7 +219,15 @@ function expansionHarness(observe: boolean, onDispose = vi.fn(), rejectCompleted
         document: {
           id: `${base.id}-next-${transformKey}`,
           revision: base.revision + 1,
-          parts: [...base.parts, { id: partId, colorId }],
+          parts: [
+            ...base.parts,
+            {
+              id: partId,
+              catalogPartId: "builtin:brick-2x4",
+              colorId,
+              transform: transform as TestDocument["parts"][number]["transform"],
+            },
+          ],
         },
         partId,
         stepId: "step-006",
@@ -266,6 +303,28 @@ describe("farther-step narrowing observation", () => {
       },
     ]);
     expect(observed.renders[0]!.transform).not.toBe(observed.renders[1]!.transform);
+  });
+
+  it("keeps row evidence and children identical while charging only depth-layer subjects", () => {
+    const legacy = expansionHarness(true);
+    const optimized = expansionHarness(true, vi.fn(), false, true);
+
+    expect(optimized.result.failure).toBeNull();
+    expect(optimized.result.children).toEqual(legacy.result.children);
+    expect(optimized.batches).toEqual(legacy.batches);
+    expect(optimized.renders).toEqual(legacy.renders);
+    expect(optimized.outcomes).toEqual(legacy.outcomes);
+    expect(optimized.result.expansion.narrowingRenders).toBe(3);
+    expect(optimized.result.depthNarrowing).toMatchObject({
+      logicalRows: 2,
+      prefixCaptures: 1,
+      probeCaptures: 2,
+      fallbackCaptures: 0,
+      subjectRenders: 3,
+      depthPackPasses: 3,
+      cacheMisses: 2,
+      cacheHits: 0,
+    });
   });
 
   it("disposes the renderer when a diagnostic observer rejects a completed batch", () => {

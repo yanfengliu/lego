@@ -195,7 +195,10 @@ export async function executeStep7Gate3PostResultObserverClosure(input: {
   return Object.freeze({ sourceExecution, servedJavaScript });
 }
 
-export async function executeStep7Gate3HostRun(prepared: PreparedStep7Gate3HostRun) {
+export async function executeStep7Gate3HostRun(
+  prepared: PreparedStep7Gate3HostRun,
+  executionMode: "whole-scene" | "depth-composed" = "whole-scene",
+) {
   const {
     page,
     expectedViteOrigin,
@@ -309,11 +312,16 @@ export async function executeStep7Gate3HostRun(prepared: PreparedStep7Gate3HostR
     expect(executionPolicyControl.sharedWorkerBlocked).toBe(true);
     expect(executionPolicyControl.sharedWorkerFailureName).toBe("SecurityError");
     result = (await page.evaluate(
-      async ({ moduleUrl, input, expectedInputDigest }) => {
+      async ({ moduleUrl, input, expectedInputDigest, executionMode: browserExecutionMode }) => {
         const driver = await import(/* @vite-ignore */ moduleUrl);
-        return driver.runStep7Gate3Diagnostic(input, expectedInputDigest);
+        return driver.runStep7Gate3Diagnostic(input, expectedInputDigest, browserExecutionMode);
       },
-      { moduleUrl: driverUrl, input: exactBrowserInput, expectedInputDigest: browserInputDigest },
+      {
+        moduleUrl: driverUrl,
+        input: exactBrowserInput,
+        expectedInputDigest: browserInputDigest,
+        executionMode,
+      },
     )) as Step7Gate3BrowserResult;
     blankRunnerAfter = await snapshotBlankRunnerState(page);
     expect(blankRunnerAfter).toEqual(blankRunnerBefore);

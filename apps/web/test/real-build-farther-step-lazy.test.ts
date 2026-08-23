@@ -14,7 +14,12 @@ import { completeRealBuildTestOptions } from "./real-build-test-options";
 type Document = {
   readonly id: string;
   readonly revision: number;
-  readonly parts: readonly { readonly id: string; readonly colorId: string }[];
+  readonly parts: readonly {
+    readonly id: string;
+    readonly catalogPartId: string;
+    readonly colorId: string;
+    readonly transform: unknown;
+  }[];
   readonly calibratedHash?: string;
 };
 
@@ -147,7 +152,14 @@ const origins = (calibrated = false): readonly DeferredUnresolvedCandidate<Docum
     const document: Document = {
       id: candidateId,
       revision: 0,
-      parts: [{ id: `origin-part-${index}`, colorId: "builtin:black" }],
+      parts: [
+        {
+          id: `origin-part-${index}`,
+          catalogPartId: "builtin:brick-2x4",
+          colorId: "builtin:black",
+          transform: { positionLdu: [index * 20, 8, 0], orientationId: "upright-yaw-0" },
+        },
+      ],
       ...(calibratedHash === undefined ? {} : { calibratedHash }),
     };
     return {
@@ -202,14 +214,24 @@ const harness = (
               : behavior.revealingK && document.id.startsWith("origin-0-next-")
                 ? rgba("background")
                 : rgba(),
+        captureDepthSurface: () => ({}),
+        captureSparseDepthSurface: () => ({ nonClearPixels: 1 }),
         dispose: () => {},
       }),
       deriveBrickScene: (document: Document) => {
         behavior.onDeriveScene?.(document);
-        return { root: document, dispose: () => {} };
+        return {
+          root: document,
+          partObjects: new Map(document.parts.map(({ id }) => [id, { visible: true }])),
+          dispose: () => {},
+        };
       },
       setInstructionSilhouetteMode: () => {},
       createOrthographicViewCamera: () => ({}),
+      composeInstructionDepthPrefixWithSparseProbe: () => ({
+        status: "composed",
+        probeVisibleMask: new Uint8Array([1, 0, 0, 0]),
+      }),
     },
     kernel: { documentStructuralHash: hashDocument },
     assembly: {
@@ -221,13 +243,13 @@ const harness = (
       rankStepDelta: () => 0,
     },
   };
-  const place = (base: Document, _catalogPartId: string, transform: unknown, colorId: string) => {
+  const place = (base: Document, catalogPartId: string, transform: unknown, colorId: string) => {
     const transformKey = (transform as { readonly positionLdu: readonly number[] }).positionLdu[0];
     const partId = `${base.id}-part-${base.parts.length}-${transformKey}`;
     const document = {
       id: `${base.id}-next-${transformKey}`,
       revision: base.revision + 1,
-      parts: [...base.parts, { id: partId, colorId }],
+      parts: [...base.parts, { id: partId, catalogPartId, colorId, transform }],
     };
     placedDocuments.push(document);
     return {

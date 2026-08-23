@@ -1,4 +1,5 @@
 import { createNarrowingRenderBudgetLedger } from "./real-build-deferral";
+import { createNarrowingSubjectRenderBudgetLedger } from "./real-build-narrowing-subject-budget";
 import type { DeferredUnresolvedCandidate } from "./real-build-deferred-step";
 import { runFartherPanelDriver } from "./real-build-farther-driver";
 import { attemptMeasuredFartherOrigin, fartherFailure } from "./real-build-farther-origin-attempt";
@@ -95,6 +96,9 @@ export async function attemptFartherPrintedStep<D>(input: {
   // score rows before its continuation authorizes the asynchronous PDF load.
   let fartherEvidence: PanelRasterEvidence | null = null;
   const ledger = createNarrowingRenderBudgetLedger(options.deferredNarrowingRenderBudget);
+  const depthNarrowingLedger = createNarrowingSubjectRenderBudgetLedger(
+    options.deferredNarrowingRenderBudget,
+  );
   // N+1 was already scored by `settleDeferredPrintedStep`; use those exact
   // document-bound numbers and score-bearing renders instead of repeating the
   // work. They remain inspectable even if aggregate carry refuses before the
@@ -180,13 +184,14 @@ export async function attemptFartherPrintedStep<D>(input: {
     })),
     maximumCandidates: options.deferredCandidateBudget,
     narrowingLedger: ledger,
+    depthNarrowingLedger,
     minimumAgreement: options.minimumDeferredAgreement,
     minimumMargin: options.minimumDeferredAgreementMargin,
     maximumPanelRenders: options.fartherPanelRenderBudget,
     maximumReachSteps: options.fartherPanelMaximumReachSteps,
     fartherPanelsAvailableAfterK: false,
     hashDocument: (document) => modules.kernel.documentStructuralHash(document) as string,
-    expandParent: ({ parent, ledger: sharedLedger, candidateLedger }) =>
+    expandParent: ({ parent, ledger: sharedLedger, depthNarrowingLedger, candidateLedger }) =>
       expandFartherPrintedStep<D>({
         parentCandidateId: parent.candidateId,
         parentDocument: parent.document,
@@ -199,6 +204,7 @@ export async function attemptFartherPrintedStep<D>(input: {
         options,
         modules,
         ledger: sharedLedger,
+        ...(depthNarrowingLedger === undefined ? {} : { depthNarrowingLedger }),
         candidateLedger,
         place: input.place,
       }),

@@ -5,6 +5,7 @@ import type {
   FartherNarrowingBatchOutcomeObservation,
   FartherNarrowingRenderObservation,
 } from "./real-build-farther-step";
+import type { DepthNarrowingStatistics } from "./real-build-farther-depth-narrowing";
 import type { FartherPlacementWitness } from "./real-build-farther-panel-types";
 import {
   REAL_BUILD_PRODUCTION_DEFERRED_CANDIDATE_BUDGET,
@@ -132,9 +133,22 @@ export interface ReservationObservation {
   readonly accepted: boolean;
 }
 
+export interface SubjectRenderLeaseObservation {
+  readonly sourceParentCandidateId: string;
+  readonly parentCandidateId: string;
+  readonly committedBefore: number;
+  readonly maximumRequested: number;
+  readonly committedAfter: number;
+  readonly admitted: boolean;
+  readonly charged: number;
+  readonly released: number;
+}
+
 export interface RendererObservation {
   created: number;
   renderCalls: number;
+  depthSurfaceCalls?: number;
+  sparseDepthSurfaceCalls?: number;
   disposeCalls: number;
 }
 
@@ -155,6 +169,7 @@ export interface ParentObservation {
   }[];
   readonly renderer: Readonly<RendererObservation>;
   readonly candidateLedgerDelta: number;
+  readonly depthNarrowing?: DepthNarrowingStatistics;
 }
 
 export interface Step7Gate3BrowserResult {
@@ -170,6 +185,7 @@ export interface Step7Gate3BrowserResult {
   readonly inputDocumentFrozen: boolean;
   readonly inputDocumentMutation: boolean;
   readonly observationMode: Step7Gate3BrowserInput["observationMode"];
+  readonly narrowingExecutionMode?: "depth-composed";
   readonly sourceBaseDocumentHash: string;
   readonly migrationReport: {
     readonly schemaVersion: string;
@@ -224,9 +240,12 @@ export interface Step7Gate3BrowserResult {
   readonly batchOutcomes: readonly FartherNarrowingBatchOutcomeObservation[];
   readonly renders: readonly FartherNarrowingRenderObservation[];
   readonly reservations: readonly ReservationObservation[];
+  readonly subjectRenderLeases?: readonly SubjectRenderLeaseObservation[];
   readonly sharedRenderDemand: number;
+  readonly subjectRenderDemand?: number;
   readonly candidateDemand: number;
   readonly narrowingRefused: boolean;
+  readonly subjectRenderRefused?: boolean;
   readonly candidateRefused: boolean;
   readonly production8192ShadowRefusal: {
     readonly sourceParentCandidateId: string;

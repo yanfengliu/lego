@@ -4,12 +4,15 @@ import {
   INSTRUCTION_DEPTH_CLEAR,
   INSTRUCTION_DEPTH_COMPOSITION_SCHEMA,
   MAX_INSTRUCTION_DEPTH_COMPOSITION_PIXELS,
+  composeInstructionDepthPrefixWithSparseProbe,
   composeInstructionDepthSurfaces,
   createInstructionDepthCompatibility,
+  createInstructionSparseDepthSurfaceFromReadback,
   createInstructionDepthSurfaceFromReadback,
   type InstructionDepthCameraState,
   type InstructionDepthCompatibility,
   type InstructionDepthSurface,
+  type InstructionSparseDepthSurface,
 } from "./instruction-depth-composition.ts";
 const BACKGROUND_HEX = 0x010203;
 const IDENTITY = Object.freeze([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
@@ -68,6 +71,22 @@ function surface(input: {
   readonly camera?: InstructionDepthCameraState;
 }): InstructionDepthSurface {
   return createInstructionDepthSurfaceFromReadback({
+    subjectKey: input.subjectKey,
+    compatibility: input.compatibility ?? compatibility(),
+    camera: input.camera ?? camera(),
+    color: rgba(input.color),
+    depth: new Uint32Array(input.depth),
+  });
+}
+
+function sparseSurface(input: {
+  readonly subjectKey: string;
+  readonly color: readonly number[];
+  readonly depth: readonly number[];
+  readonly compatibility?: InstructionDepthCompatibility;
+  readonly camera?: InstructionDepthCameraState;
+}): InstructionSparseDepthSurface {
+  return createInstructionSparseDepthSurfaceFromReadback({
     subjectKey: input.subjectKey,
     compatibility: input.compatibility ?? compatibility(),
     camera: input.camera ?? camera(),
@@ -277,5 +296,92 @@ describe("exact instruction depth composition", () => {
       status: "refused",
       reason: "unrecognized-surface",
     });
+  });
+
+  it("composes a sparse probe against the dense prefix without retaining clear pixels", () => {
+    const prefix = surface({
+      subjectKey: "dense-prefix",
+      color: [0xaa0000, 0x00aa00, BACKGROUND_HEX],
+      depth: [100, 300, INSTRUCTION_DEPTH_CLEAR],
+    });
+    const probe = sparseSurface({
+      subjectKey: "sparse-probe",
+      color: [0x0000aa, 0xaaaa00, BACKGROUND_HEX],
+      depth: [200, 250, INSTRUCTION_DEPTH_CLEAR],
+    });
+
+    expect(probe.nonClearPixels).toBe(2);
+    expect([...probe.copyPixelIndices()]).toEqual([0, 1]);
+    expect([...probe.copyDepth()]).toEqual([200, 250]);
+    expect(composeInstructionDepthPrefixWithSparseProbe(prefix, probe)).toMatchObject({
+      status: "composed",
+      probeVisiblePixels: 1,
+      probeVisibleMask: new Uint8Array([0, 1, 0]),
+      prefixSubjectKey: "dense-prefix",
+      probeSubjectKey: "sparse-probe",
+    });
+  });
+
+  it("refuses sparse equal-depth ties, incompatible frames, and structural forgeries", () => {
+    const prefix = surface({
+      subjectKey: "sparse-prefix",
+      color: [0xaa0000, BACKGROUND_HEX, BACKGROUND_HEX],
+      depth: [123, INSTRUCTION_DEPTH_CLEAR, INSTRUCTION_DEPTH_CLEAR],
+    });
+    const tie = sparseSurface({
+      subjectKey: "sparse-tie",
+      color: [0x0000aa, BACKGROUND_HEX, BACKGROUND_HEX],
+      depth: [123, INSTRUCTION_DEPTH_CLEAR, INSTRUCTION_DEPTH_CLEAR],
+    });
+    const otherFrame = sparseSurface({
+      subjectKey: "sparse-other-frame",
+      compatibility: compatibility({ rendererInstanceKey: "test-renderer:other" }),
+      color: [0x0000aa, BACKGROUND_HEX, BACKGROUND_HEX],
+      depth: [100, INSTRUCTION_DEPTH_CLEAR, INSTRUCTION_DEPTH_CLEAR],
+    });
+    const fake = {
+      subjectKey: "sparse-fake",
+      compatibility: compatibility(),
+      camera: camera(),
+      nonClearPixels: 1,
+      copyPixelIndices: () => new Uint32Array([0]),
+      copyDepth: () => new Uint32Array([100]),
+    };
+
+    expect(composeInstructionDepthPrefixWithSparseProbe(prefix, tie)).toMatchObject({
+      status: "refused",
+      reason: "equal-depth-tie",
+      pixelIndex: 0,
+      depth: 123,
+    });
+    expect(composeInstructionDepthPrefixWithSparseProbe(prefix, otherFrame)).toMatchObject({
+      status: "refused",
+      reason: "incompatible-frame",
+    });
+    expect(composeInstructionDepthPrefixWithSparseProbe(prefix, fake)).toMatchObject({
+      status: "refused",
+      reason: "unrecognized-surface",
+    });
+  });
+
+  it("copies sparse readbacks defensively and never exposes mutable cached entries", () => {
+    const inputColor = rgba([0xaa0000, BACKGROUND_HEX, 0x00aa00]);
+    const inputDepth = new Uint32Array([100, INSTRUCTION_DEPTH_CLEAR, 300]);
+    const retained = createInstructionSparseDepthSurfaceFromReadback({
+      subjectKey: "sparse-immutable",
+      compatibility: compatibility(),
+      camera: camera(),
+      color: inputColor,
+      depth: inputDepth,
+    });
+    inputColor[0] = 0;
+    inputDepth[0] = 999;
+    const copiedIndices = retained.copyPixelIndices();
+    const copiedDepth = retained.copyDepth();
+    copiedIndices[0] = 2;
+    copiedDepth[0] = 999;
+
+    expect([...retained.copyPixelIndices()]).toEqual([0, 2]);
+    expect([...retained.copyDepth()]).toEqual([100, 300]);
   });
 });

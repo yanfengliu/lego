@@ -53,9 +53,11 @@ type BrowserModule = ReturnType<typeof JSON.parse>;
 /**
  * A document's silhouette at this step's camera, with some parts keyed apart.
  *
- * `all` is everything drawn and `probe` is only the named parts, which is what
- * lets one render answer both "what does the assembly look like" and "which of
- * those pixels belong to the piece being placed".
+ * `all` is everything drawn. `probe` is every pixel rendered with the reserved
+ * magenta key: normally that is only the named parts, but a document that
+ * already contains magenta also contributes those visible pixels. Callers that
+ * require exact named-part isolation must detect that collision and retain the
+ * whole-scene color-keyed semantics.
  */
 export function createStepSilhouette(input: {
   readonly rendering: BrowserModule;

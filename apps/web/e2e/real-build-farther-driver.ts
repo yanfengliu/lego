@@ -6,6 +6,7 @@ import {
   type NarrowingRenderBudgetLedger,
   type WholeStepCandidateBudgetLedger,
 } from "./real-build-deferral";
+import type { NarrowingSubjectRenderBudgetLedger } from "./real-build-narrowing-subject-budget";
 import {
   carryFartherFrontier,
   createFartherOriginFrontier,
@@ -134,6 +135,8 @@ export interface FartherDriverInput<
   readonly expectedAtomicPieces: readonly FartherAtomicPieceIdentity[];
   readonly maximumCandidates: number;
   readonly narrowingLedger: NarrowingRenderBudgetLedger;
+  /** Opts the driver into refundable physical subject-render accounting. */
+  readonly depthNarrowingLedger?: NarrowingSubjectRenderBudgetLedger;
   readonly minimumAgreement: number;
   readonly minimumMargin: number;
   readonly maximumPanelRenders: number;
@@ -144,6 +147,7 @@ export interface FartherDriverInput<
     readonly parent: FartherCandidate<D>;
     readonly origin: O;
     readonly ledger: NarrowingRenderBudgetLedger;
+    readonly depthNarrowingLedger?: NarrowingSubjectRenderBudgetLedger;
     readonly candidateLedger: WholeStepCandidateBudgetLedger;
   }) => FartherDriverExpansionOutput<D, C>;
   /** Exact N+1 scores already measured by the deferring step. */
@@ -219,6 +223,13 @@ export function runFartherPanelDriver<
   let carryEvidence: FartherCarryEvidence | null = null;
   let panelEvidence: FirstRevealingPanelResult["evidence"] | null = null;
   let candidateLedger: WholeStepCandidateBudgetLedger | null = null;
+  const subjectLedger = input.depthNarrowingLedger;
+  const narrowingBudget = subjectLedger?.budget ?? input.narrowingLedger.budget;
+  const narrowingReserved = () => subjectLedger?.committed ?? input.narrowingLedger.reserved;
+  const narrowingRefused = () =>
+    subjectLedger?.refusedReservation ?? input.narrowingLedger.refusedReservation;
+  const narrowingFailure = () =>
+    subjectLedger?.failedReservation ?? input.narrowingLedger.failedReservation;
   const freezeFailure = (
     failure: BudgetReservationFailure | null | undefined,
   ): BudgetReservationFailure | null =>
@@ -246,10 +257,10 @@ export function runFartherPanelDriver<
         carry: carryEvidence,
         panels: panelEvidence,
         narrowingLedger: Object.freeze({
-          maximum: input.narrowingLedger.budget,
-          reserved: input.narrowingLedger.reserved,
-          refusedReservation: input.narrowingLedger.refusedReservation,
-          failedReservation: freezeFailure(input.narrowingLedger.failedReservation),
+          maximum: narrowingBudget,
+          reserved: narrowingReserved(),
+          refusedReservation: narrowingRefused(),
+          failedReservation: freezeFailure(narrowingFailure()),
         }),
         candidateLedger: Object.freeze({
           maximum: input.maximumCandidates,
@@ -272,7 +283,14 @@ export function runFartherPanelDriver<
     input.narrowingLedger.refusedReservation ||
     input.narrowingLedger.failedReservation !== null ||
     !Number.isSafeInteger(input.narrowingLedger.budget) ||
-    input.narrowingLedger.budget < 0
+    input.narrowingLedger.budget < 0 ||
+    (subjectLedger !== undefined &&
+      (subjectLedger.budget !== input.narrowingLedger.budget ||
+        subjectLedger.committed !== 0 ||
+        subjectLedger.held !== 0 ||
+        subjectLedger.activeLease ||
+        subjectLedger.refusedReservation ||
+        subjectLedger.failedReservation !== null))
   ) {
     return failInput(
       input.originStepNumber,
@@ -280,7 +298,12 @@ export function runFartherPanelDriver<
         `candidate/narrowing budget; received step ${input.interveningStepNumber}, candidate budget ` +
         `${String(input.maximumCandidates)}, and narrowing budget/reserved/refused ` +
         `${input.narrowingLedger.budget}/${input.narrowingLedger.reserved}/` +
-        `${String(input.narrowingLedger.refusedReservation)}/${JSON.stringify(input.narrowingLedger.failedReservation)}.`,
+        `${String(input.narrowingLedger.refusedReservation)}/${JSON.stringify(input.narrowingLedger.failedReservation)}` +
+        (subjectLedger === undefined
+          ? "."
+          : ` with depth budget/committed/held/active/refused ${subjectLedger.budget}/` +
+            `${subjectLedger.committed}/${subjectLedger.held}/${String(subjectLedger.activeLease)}/` +
+            `${String(subjectLedger.refusedReservation)}/${JSON.stringify(subjectLedger.failedReservation)}.`),
     );
   }
   candidateLedger = createWholeStepCandidateBudgetLedger(input.maximumCandidates);
@@ -370,7 +393,7 @@ export function runFartherPanelDriver<
     if (beforeParent !== null || beforeOrigin !== null) {
       return failInput(input.originStepNumber, beforeParent ?? beforeOrigin!);
     }
-    const reservedBefore = input.narrowingLedger.reserved;
+    const reservedBefore = narrowingReserved();
     const candidatesReservedBefore = candidateLedger.reserved;
     let output: FartherDriverExpansionOutput<D, C>;
     try {
@@ -378,6 +401,7 @@ export function runFartherPanelDriver<
         parent,
         origin,
         ledger: input.narrowingLedger,
+        ...(subjectLedger === undefined ? {} : { depthNarrowingLedger: subjectLedger }),
         candidateLedger,
       });
     } catch (error) {
@@ -392,25 +416,19 @@ export function runFartherPanelDriver<
     if (callbackHashError !== null) {
       return failInput(input.interveningStepNumber, callbackHashError);
     }
-    const reservedAfter = input.narrowingLedger.reserved;
+    const reservedAfter = narrowingReserved();
     const candidatesReservedAfter = candidateLedger.reserved;
     const expansion = output.expansion;
     if (
-      input.narrowingLedger.refusedReservation !==
-        (input.narrowingLedger.failedReservation !== null) ||
-      !isCoherentBudgetFailure(
-        input.narrowingLedger.failedReservation,
-        reservedAfter,
-        input.narrowingLedger.budget,
-      ) ||
-      output.narrowingBudgetExhausted !== input.narrowingLedger.refusedReservation
+      narrowingRefused() !== (narrowingFailure() !== null) ||
+      !isCoherentBudgetFailure(narrowingFailure(), reservedAfter, narrowingBudget) ||
+      output.narrowingBudgetExhausted !== narrowingRefused()
     ) {
       return failInput(
         input.interveningStepNumber,
         `Expansion for parent ${JSON.stringify(parent.candidateId)} reported narrowing-budget exhaustion ` +
           `${String(output.narrowingBudgetExhausted)}, but the shared narrowing ledger recorded ` +
-          `${String(input.narrowingLedger.refusedReservation)} with witness ` +
-          `${JSON.stringify(input.narrowingLedger.failedReservation)}.`,
+          `${String(narrowingRefused())} with witness ${JSON.stringify(narrowingFailure())}.`,
       );
     }
     if (
@@ -521,7 +539,7 @@ export function runFartherPanelDriver<
         expectedAtomicPieces: input.expectedAtomicPieces,
         expansions: attempts.map(({ expansion: measured }) => measured),
         maximumCandidates: input.maximumCandidates,
-        maximumNarrowingRenders: input.narrowingLedger.budget,
+        maximumNarrowingRenders: narrowingBudget,
       }).evidence;
       const code = output.narrowingBudgetExhausted
         ? "aggregate-narrowing-budget-exhausted"
@@ -535,7 +553,7 @@ export function runFartherPanelDriver<
           input.interveningStepNumber,
           output.narrowingBudgetExhausted
             ? `Step ${input.interveningStepNumber} refused parent ${JSON.stringify(parent.candidateId)} when ` +
-                `its next narrowing batch exceeded the shared ${input.narrowingLedger.budget}-render budget. ` +
+                `its next narrowing batch exceeded the shared ${narrowingBudget}-render budget. ` +
                 `The batch work was not invoked and no partial frontier was admitted.`
             : (output.failure?.message ??
                 `Step ${input.interveningStepNumber} exceeded its aggregate candidate budget; no partial frontier was admitted.`),
@@ -550,7 +568,7 @@ export function runFartherPanelDriver<
     expectedAtomicPieces: input.expectedAtomicPieces,
     expansions: attempts.map(({ expansion }) => expansion),
     maximumCandidates: input.maximumCandidates,
-    maximumNarrowingRenders: input.narrowingLedger.budget,
+    maximumNarrowingRenders: narrowingBudget,
   });
   carryEvidence = carried.evidence;
   if (carried.frontier === null) return finish({ refusal: carried.refusal });

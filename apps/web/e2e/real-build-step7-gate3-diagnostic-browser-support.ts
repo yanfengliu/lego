@@ -37,6 +37,18 @@ export function instrumentRendering(
               return Reflect.apply(value, target, renderArguments);
             };
           }
+          if (property === "captureDepthSurface" && typeof value === "function") {
+            return (...renderArguments: unknown[]) => {
+              owner.depthSurfaceCalls = (owner.depthSurfaceCalls ?? 0) + 1;
+              return Reflect.apply(value, target, renderArguments);
+            };
+          }
+          if (property === "captureSparseDepthSurface" && typeof value === "function") {
+            return (...renderArguments: unknown[]) => {
+              owner.sparseDepthSurfaceCalls = (owner.sparseDepthSurfaceCalls ?? 0) + 1;
+              return Reflect.apply(value, target, renderArguments);
+            };
+          }
           if (property === "dispose" && typeof value === "function") {
             return (...disposeArguments: unknown[]) => {
               owner.disposeCalls += 1;

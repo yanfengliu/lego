@@ -2,6 +2,7 @@ import {
   enumerateWholeStepCandidates,
   placementsOwnPanelCannotSeparate,
   type NarrowingRenderBudgetLedger,
+  type NarrowingSubjectRenderBudgetLedger,
   type WholeStepCandidateBudgetLedger,
   type WholeStepPlacementTransform,
 } from "./real-build-deferral";
@@ -14,6 +15,11 @@ import type {
   FartherParentExpansion,
   FartherPlacementWitness,
 } from "./real-build-farther-panel-types";
+import {
+  createStepDepthNarrowingComposer,
+  type DepthNarrowingStatistics,
+  type StepDepthNarrowingComposer,
+} from "./real-build-farther-depth-narrowing";
 import type { PanelRasterEvidence } from "./real-build-panel-raster";
 import type { PreparedRealBuildModules } from "./real-build-browser-preflight";
 import { anchorStepCamera, createStepSilhouette } from "./real-build-step-camera";
@@ -36,6 +42,7 @@ export interface FartherStepExpansionResult<D> {
   readonly children: readonly FartherStepChildMetadata<D>[];
   readonly narrowingBudgetExhausted: boolean;
   readonly candidateBudgetExhausted: boolean;
+  readonly depthNarrowing: DepthNarrowingStatistics | null;
   readonly failure: StepFailure | null;
 }
 
@@ -125,6 +132,8 @@ export function expandFartherPrintedStep<D>(input: {
   readonly options: RealBuildOptions;
   readonly modules: Pick<PreparedRealBuildModules, "rendering" | "kernel" | "assembly">;
   readonly ledger: NarrowingRenderBudgetLedger;
+  /** Opts this parent into physical depth-layer accounting; the historical ledger stays untouched. */
+  readonly depthNarrowingLedger?: NarrowingSubjectRenderBudgetLedger;
   readonly candidateLedger?: WholeStepCandidateBudgetLedger;
   readonly narrowingObserver?: FartherNarrowingObserver;
   readonly place: FartherStepPlace<D>;
@@ -151,6 +160,7 @@ export function expandFartherPrintedStep<D>(input: {
       children: [],
       narrowingBudgetExhausted: false,
       candidateBudgetExhausted: false,
+      depthNarrowing: null,
       failure: {
         code: "deferred-panel-unscored",
         stage: "evidence",
@@ -165,6 +175,7 @@ export function expandFartherPrintedStep<D>(input: {
   const { width, height, builtMask, highlight } = evidence;
   const frame = frameFor(evidence);
   const renderer = rendering.createInstructionRenderer({ width, height });
+  let depthComposer: StepDepthNarrowingComposer<D> | null = null;
   try {
     const silhouetteAtTurn = (turnDegrees: number) =>
       createStepSilhouette({
@@ -196,11 +207,23 @@ export function expandFartherPrintedStep<D>(input: {
         children: [],
         narrowingBudgetExhausted: false,
         candidateBudgetExhausted: false,
+        depthNarrowing: null,
         failure: anchored.failure,
       };
     }
     const centre = anchored.centrePx;
     const silhouette = silhouetteAtTurn(anchored.anchorTurnDegrees);
+    if (input.depthNarrowingLedger !== undefined) {
+      depthComposer = createStepDepthNarrowingComposer<D>({
+        rendering,
+        renderer,
+        view: { ...view, azimuthDegrees: view.azimuthDegrees + anchored.anchorTurnDegrees },
+        frame,
+        centrePx: centre,
+        widthPx: width,
+        heightPx: height,
+      });
+    }
     const renderAndScore = (
       document: D,
       stepId: string | null,
@@ -230,7 +253,36 @@ export function expandFartherPrintedStep<D>(input: {
       });
     };
 
-    const reservedBefore = input.ledger.reserved;
+    const reservedBefore = input.depthNarrowingLedger?.committed ?? input.ledger.reserved;
+    const legacyNarrow = ({
+      document,
+      stepId,
+      catalogPartId,
+      colorId,
+      offered,
+    }: {
+      readonly document: D;
+      readonly stepId: string | null;
+      readonly catalogPartId: string;
+      readonly colorId: string;
+      readonly offered: readonly PlacementTransform[];
+    }): readonly PlacementTransform[] => {
+      const observation = narrowingObservations.beginBatch(
+        document,
+        catalogPartId,
+        colorId,
+        offered.length,
+      );
+      const carried = placementsOwnPanelCannotSeparate({
+        scored: offered.map((transform, rowIndex) => ({
+          candidate: transform,
+          score: renderAndScore(document, stepId, catalogPartId, transform, observation, rowIndex),
+        })),
+        minimumMargin: options.minimumScoreMargin,
+      });
+      narrowingObservations.endBatch(observation, offered, carried);
+      return carried;
+    };
     const enumeration = enumerateWholeStepCandidates<D>({
       baseDocument: input.parentDocument,
       stepId: input.parentStepId,
@@ -253,32 +305,76 @@ export function expandFartherPrintedStep<D>(input: {
         }
         return [...distinct.values()];
       },
-      narrow: ({ document, stepId, catalogPartId, colorId, offered }) => {
-        const observation = narrowingObservations.beginBatch(
-          document,
-          catalogPartId,
-          colorId,
-          offered.length,
-        );
-        const carried = placementsOwnPanelCannotSeparate({
-          scored: offered.map((transform, rowIndex) => ({
-            candidate: transform,
-            score: renderAndScore(
-              document,
-              stepId,
-              catalogPartId,
-              transform,
-              observation,
-              rowIndex,
-            ),
-          })),
-          minimumMargin: options.minimumScoreMargin,
-        });
-        narrowingObservations.endBatch(observation, offered, carried);
-        return carried;
-      },
+      narrow: input.depthNarrowingLedger === undefined ? legacyNarrow : null,
+      ...(input.depthNarrowingLedger === undefined || depthComposer === null
+        ? {}
+        : {
+            narrowingSubjectRenderBudgetLedger: input.depthNarrowingLedger,
+            prepareNarrowing: ({ document, stepId, catalogPartId, colorId, offered }) => ({
+              maximumSubjectRenders: depthComposer!.maximumSubjectRenders(offered.length),
+              execute: (lease) => {
+                const observation = narrowingObservations.beginBatch(
+                  document,
+                  catalogPartId,
+                  colorId,
+                  offered.length,
+                );
+                const chargeSubjectRender = () => lease.charge(1);
+                depthComposer!.beginBatch(
+                  document,
+                  `${input.parentCandidateId}\u0000${kernel.documentStructuralHash(document) as string}\u0000${catalogPartId}`,
+                  chargeSubjectRender,
+                );
+                try {
+                  const carried = placementsOwnPanelCannotSeparate({
+                    scored: offered.map((transform, rowIndex) => {
+                      const probe = input.place(
+                        document,
+                        catalogPartId,
+                        transform,
+                        "builtin:magenta",
+                        spec.stepNumber,
+                        stepId,
+                      );
+                      const mask = depthComposer!.probeMask({
+                        baseDocument: document,
+                        placedDocument: probe.document,
+                        probePartId: probe.partId,
+                        catalogPartId,
+                        chargeSubjectRender,
+                        fallbackWholeSceneMask: () =>
+                          silhouette(probe.document, probe.partId, centre).probe,
+                      });
+                      return {
+                        candidate: transform,
+                        score: narrowingObservations.score({
+                          token: observation,
+                          rowIndex,
+                          transform,
+                          mask,
+                          highlight,
+                          scoreStepDelta: (probeMask, panelHighlight) =>
+                            assembly.scoreStepDelta(probeMask, panelHighlight, {
+                              tolerancePx: 3,
+                            }),
+                          rankStepDelta: (score) => assembly.rankStepDelta(score) as number,
+                        }),
+                      };
+                    }),
+                    minimumMargin: options.minimumScoreMargin,
+                  });
+                  narrowingObservations.endBatch(observation, offered, carried);
+                  return carried;
+                } finally {
+                  depthComposer!.endBatch();
+                }
+              },
+            }),
+          }),
       narrowingRenderBudget: options.deferredNarrowingRenderBudget,
-      narrowingRenderBudgetLedger: input.ledger,
+      ...(input.depthNarrowingLedger === undefined
+        ? { narrowingRenderBudgetLedger: input.ledger }
+        : {}),
       ...(input.candidateLedger === undefined
         ? {}
         : { candidateBudgetLedger: input.candidateLedger }),
@@ -288,7 +384,8 @@ export function expandFartherPrintedStep<D>(input: {
         input.place(document, catalogPartId, transform, colorId, spec.stepNumber, stepId),
       budget: options.deferredCandidateBudget,
     });
-    const narrowingRenders = input.ledger.reserved - reservedBefore;
+    const narrowingRenders =
+      (input.depthNarrowingLedger?.committed ?? input.ledger.reserved) - reservedBefore;
     const offeredPerPiece = spec.pieces.map((_piece, index) => enumeration.perPiece[index] ?? 0);
     const carriedPerPiece = spec.pieces.map(
       (_piece, index) => enumeration.perPieceCarried[index] ?? 0,
@@ -325,9 +422,11 @@ export function expandFartherPrintedStep<D>(input: {
       children: Object.freeze(children),
       narrowingBudgetExhausted: enumeration.overNarrowingBudget,
       candidateBudgetExhausted: enumeration.overBudget,
+      depthNarrowing: depthComposer?.statistics() ?? null,
       failure: null,
     };
   } finally {
+    depthComposer?.dispose();
     renderer.dispose();
   }
 }

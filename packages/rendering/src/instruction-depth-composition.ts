@@ -60,6 +60,16 @@ interface SurfaceStorage {
 
 const surfaceStorage = new WeakMap<object, SurfaceStorage>();
 
+interface SparseSurfaceStorage {
+  readonly copyPixelIndices: () => Uint32Array;
+  readonly copyDepth: () => Uint32Array;
+  readonly compatibilityKey: string;
+  readonly cameraKey: string;
+  readonly pixelCount: number;
+}
+
+const sparseSurfaceStorage = new WeakMap<object, SparseSurfaceStorage>();
+
 function storageOf(surface: InstructionDepthSurface): SurfaceStorage | undefined {
   return surfaceStorage.get(surface);
 }
@@ -70,6 +80,17 @@ export interface InstructionDepthReadback {
   readonly camera: InstructionDepthCameraState;
   readonly color: Uint8Array | Uint8ClampedArray;
   readonly depth: Uint32Array;
+}
+
+export interface InstructionSparseDepthSurface {
+  readonly subjectKey: string;
+  readonly compatibility: InstructionDepthCompatibility;
+  readonly camera: InstructionDepthCameraState;
+  readonly nonClearPixels: number;
+  /** Returns sorted top-to-bottom pixel indices with a non-clear stored depth. */
+  copyPixelIndices(): Uint32Array;
+  /** Returns the corresponding unsigned 24-bit stored-depth codes. */
+  copyDepth(): Uint32Array;
 }
 
 export type InstructionDepthCompositionResult =
@@ -194,9 +215,9 @@ function normalizeCamera(value: InstructionDepthCameraState): InstructionDepthCa
 }
 
 /**
- * Adapts a caller-asserted readback into an immutable surface for pure composition analysis. This
- * factory authenticates neither its renderer nor its scene partition; no runtime capture adapter or
- * production call site exists. The private brand prevents structural substitution after creation.
+ * Adapts a readback into an immutable composition surface. The instruction renderer now supplies
+ * the production readback, while this factory still authenticates neither a caller nor an arbitrary
+ * scene partition by itself. The private brand prevents structural substitution after creation.
  */
 export function createInstructionDepthSurfaceFromReadback(
   input: InstructionDepthReadback,
@@ -255,6 +276,131 @@ export function createInstructionDepthSurfaceFromReadback(
     } satisfies SurfaceStorage),
   );
   return surface;
+}
+
+/**
+ * Compresses a validated opaque readback to the non-clear fragments needed for probe composition.
+ * The private brand and defensive copies preserve the dense surface's substitution boundary while
+ * avoiding one full-raster depth allocation per cached candidate layer.
+ */
+export function createInstructionSparseDepthSurfaceFromReadback(
+  input: InstructionDepthReadback,
+): InstructionSparseDepthSurface {
+  const dense = createInstructionDepthSurfaceFromReadback(input);
+  const depths = dense.copyDepth();
+  let nonClearPixels = 0;
+  for (const depth of depths) if (depth !== INSTRUCTION_DEPTH_CLEAR) nonClearPixels += 1;
+  const pixelIndices = new Uint32Array(nonClearPixels);
+  const sparseDepths = new Uint32Array(nonClearPixels);
+  let next = 0;
+  for (let pixel = 0; pixel < depths.length; pixel += 1) {
+    const depth = depths[pixel]!;
+    if (depth === INSTRUCTION_DEPTH_CLEAR) continue;
+    pixelIndices[next] = pixel;
+    sparseDepths[next] = depth;
+    next += 1;
+  }
+  const compatibilityKey = JSON.stringify(dense.compatibility);
+  const cameraKey = JSON.stringify(dense.camera);
+  const surface = Object.freeze({
+    subjectKey: dense.subjectKey,
+    compatibility: dense.compatibility,
+    camera: dense.camera,
+    nonClearPixels,
+    copyPixelIndices: () => pixelIndices.slice(),
+    copyDepth: () => sparseDepths.slice(),
+  });
+  sparseSurfaceStorage.set(
+    surface,
+    Object.freeze({
+      copyPixelIndices: () => pixelIndices.slice(),
+      copyDepth: () => sparseDepths.slice(),
+      compatibilityKey,
+      cameraKey,
+      pixelCount: depths.length,
+    }),
+  );
+  return surface;
+}
+
+export type InstructionSparseDepthCompositionResult =
+  | {
+      readonly status: "composed";
+      readonly probeVisibleMask: Uint8Array;
+      readonly probeVisiblePixels: number;
+      readonly prefixSubjectKey: string;
+      readonly probeSubjectKey: string;
+    }
+  | Extract<InstructionDepthCompositionResult, { readonly status: "refused" }>;
+
+/**
+ * Composes one dense prefix with one sparse isolated probe. Only probe fragments can alter the
+ * probe-visible mask, so clear probe pixels need neither storage nor comparison. Any equal stored
+ * depth still refuses before returning a mask because LEQUAL ownership depends on whole-scene order.
+ */
+export function composeInstructionDepthPrefixWithSparseProbe(
+  prefix: InstructionDepthSurface,
+  probe: InstructionSparseDepthSurface,
+): InstructionSparseDepthCompositionResult {
+  const prefixStorage = storageOf(prefix);
+  const probeStorage = sparseSurfaceStorage.get(probe);
+  if (prefixStorage === undefined || probeStorage === undefined) {
+    return {
+      status: "refused",
+      reason: "unrecognized-surface",
+      message:
+        `The prefix must be an immutable dense surface and the probe an immutable sparse surface ` +
+        `created by the instruction-depth factories.`,
+    };
+  }
+  if (
+    prefixStorage.compatibilityKey !== probeStorage.compatibilityKey ||
+    prefixStorage.cameraKey !== probeStorage.cameraKey ||
+    prefix.compatibility.width * prefix.compatibility.height !== probeStorage.pixelCount
+  ) {
+    return {
+      status: "refused",
+      reason: "incompatible-frame",
+      message: `Prefix ${JSON.stringify(prefix.subjectKey)} and sparse probe ${JSON.stringify(probe.subjectKey)} do not share the same declared renderer instance, viewport, background, depth state, and camera state.`,
+    };
+  }
+  const prefixDepths = prefixStorage.copyDepth();
+  const probePixelIndices = probeStorage.copyPixelIndices();
+  const probeDepths = probeStorage.copyDepth();
+  const width = prefix.compatibility.width;
+  for (let entry = 0; entry < probeDepths.length; entry += 1) {
+    const pixel = probePixelIndices[entry]!;
+    const prefixDepth = prefixDepths[pixel]!;
+    const probeDepth = probeDepths[entry]!;
+    if (prefixDepth === probeDepth) {
+      return {
+        status: "refused",
+        reason: "equal-depth-tie",
+        message: `Prefix ${JSON.stringify(prefix.subjectKey)} and sparse probe ${JSON.stringify(probe.subjectKey)} both resolve to depth ${prefixDepth} at pixel ${pixel}; LEQUAL ownership depends on whole-scene draw order.`,
+        pixelIndex: pixel,
+        x: pixel % width,
+        y: Math.floor(pixel / width),
+        depth: prefixDepth,
+      };
+    }
+  }
+  const probeVisibleMask = new Uint8Array(prefixDepths.length);
+  let probeVisiblePixels = 0;
+  for (let entry = 0; entry < probeDepths.length; entry += 1) {
+    const pixel = probePixelIndices[entry]!;
+    const prefixDepth = prefixDepths[pixel]!;
+    const probeDepth = probeDepths[entry]!;
+    if (prefixDepth !== INSTRUCTION_DEPTH_CLEAR && probeDepth > prefixDepth) continue;
+    probeVisibleMask[pixel] = 1;
+    probeVisiblePixels += 1;
+  }
+  return {
+    status: "composed",
+    probeVisibleMask,
+    probeVisiblePixels,
+    prefixSubjectKey: prefix.subjectKey,
+    probeSubjectKey: probe.subjectKey,
+  };
 }
 
 /**

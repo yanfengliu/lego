@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   createNarrowingRenderBudgetLedger,
+  createNarrowingSubjectRenderBudgetLedger,
   createWholeStepCandidateBudgetLedger,
   enumerateWholeStepCandidates,
   type WholeStepPlacementTransform,
@@ -110,6 +111,83 @@ describe("whole-step enumeration budgets and identical pieces", () => {
     expect(enumeration.overNarrowingBudget).toBe(true);
     expect(enumeration.candidates).toEqual([]);
     expect(narrowCalls).toBe(0);
+  });
+
+  it("leases the planned physical maximum before work and reports only charged renders", () => {
+    const ledger = createNarrowingSubjectRenderBudgetLedger(5);
+    const events: string[] = [];
+    const enumeration = enumerateWholeStepCandidates<SyntheticDocument>({
+      baseDocument: { placements: [] },
+      stepId: null,
+      pieces: [{ catalogPartId: "piece", colorId: "black" }],
+      enumerateDistinct: () => [placement("A"), placement("B"), placement("C")],
+      narrow: null,
+      prepareNarrowing: ({ offered }) => {
+        events.push("planned");
+        return {
+          maximumSubjectRenders: 5,
+          execute: (lease) => {
+            events.push("executed");
+            lease.charge(2);
+            return offered.slice(0, 2);
+          },
+        };
+      },
+      narrowingRenderBudget: 5,
+      narrowingSubjectRenderBudgetLedger: ledger,
+      place: placeSynthetic,
+      budget: 100,
+    });
+
+    expect(events).toEqual(["planned", "executed"]);
+    expect(enumeration).toMatchObject({
+      overNarrowingBudget: false,
+      narrowingRenders: 2,
+      perPiece: [3],
+      perPieceCarried: [2],
+    });
+    expect(enumeration.candidates.map(({ document }) => document.placements)).toEqual([
+      ["A"],
+      ["B"],
+    ]);
+    expect(ledger).toMatchObject({ committed: 2, held: 0, activeLease: false });
+  });
+
+  it("refuses a planned physical maximum before execute, placement, or partial frontier work", () => {
+    const ledger = createNarrowingSubjectRenderBudgetLedger(4);
+    let executeCalls = 0;
+    let placeCalls = 0;
+    const enumeration = enumerateWholeStepCandidates<SyntheticDocument>({
+      baseDocument: { placements: [] },
+      stepId: null,
+      pieces: [{ catalogPartId: "piece", colorId: "black" }],
+      enumerateDistinct: () => [placement("A"), placement("B"), placement("C")],
+      narrow: null,
+      prepareNarrowing: ({ offered }) => ({
+        maximumSubjectRenders: 5,
+        execute: () => {
+          executeCalls += 1;
+          return offered;
+        },
+      }),
+      narrowingRenderBudget: 4,
+      narrowingSubjectRenderBudgetLedger: ledger,
+      place: (document, catalogPartId, transform, colorId, stepId) => {
+        placeCalls += 1;
+        return placeSynthetic(document, catalogPartId, transform, colorId, stepId);
+      },
+      budget: 100,
+    });
+
+    expect(executeCalls).toBe(0);
+    expect(placeCalls).toBe(0);
+    expect(enumeration).toMatchObject({
+      overNarrowingBudget: true,
+      narrowingRenders: 0,
+      candidates: [],
+      exploredCandidates: [],
+    });
+    expect(ledger.failedReservation).toEqual({ reservedBefore: 0, requested: 5, budget: 4 });
   });
 
   it("shares one aggregate complete-candidate budget without erasing earlier leaves", () => {

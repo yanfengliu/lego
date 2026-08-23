@@ -19,6 +19,7 @@ import { settleDeferredPrintedStep } from "../e2e/real-build-deferred-step";
 import { settleFartherOriginPieceReports } from "../e2e/real-build-farther-step";
 import { MAXIMUM_REAL_BUILD_FARTHER_CAPTURES } from "../e2e/real-build-farther-report-types";
 import {
+  createNarrowingSubjectRenderBudgetLedger,
   DEFERRED_STEP_MINIMUM_AGREEMENT,
   DEFERRED_STEP_MINIMUM_MARGIN,
   ownPanelCannotSeparate,
@@ -772,5 +773,123 @@ describe("own-panel separation", () => {
     expect(
       ownPanelCannotSeparate({ failure: ambiguous, scores: [0.27], minimumMargin: 0.01 }),
     ).toBe(false);
+  });
+});
+
+describe("narrowing subject-render leases", () => {
+  it("rejects an unaffordable maximum before invoking work", () => {
+    const ledger = createNarrowingSubjectRenderBudgetLedger(5);
+    let calls = 0;
+
+    const attempt = ledger.tryLease(6, () => {
+      calls += 1;
+      return "unreachable";
+    });
+
+    expect(attempt).toEqual({
+      admitted: false,
+      failure: { reservedBefore: 0, requested: 6, budget: 5 },
+    });
+    expect(calls).toBe(0);
+    expect(ledger).toMatchObject({
+      committed: 0,
+      held: 0,
+      activeLease: false,
+      refusedReservation: true,
+    });
+  });
+
+  it("bounds charges by the pre-work maximum and closes escaped leases", () => {
+    const ledger = createNarrowingSubjectRenderBudgetLedger(10);
+    let escapedLease: Parameters<Parameters<typeof ledger.tryLease>[1]>[0] | null = null;
+
+    const attempt = ledger.tryLease(4, (lease) => {
+      escapedLease = lease;
+      expect(ledger).toMatchObject({ committed: 0, held: 4, activeLease: true });
+      lease.charge(2);
+      expect(ledger).toMatchObject({ committed: 2, held: 2, activeLease: true });
+      expect(() => lease.charge(3)).toThrow(/exceed the lease by 1.*pre-work maximum/u);
+      return "scored";
+    });
+
+    expect(attempt).toEqual({ admitted: true, value: "scored", charged: 2, released: 2 });
+    expect(ledger).toMatchObject({ committed: 2, held: 0, activeLease: false });
+    expect(() => escapedLease!.charge(1)).toThrow(/closed.*inside its lease callback/u);
+  });
+
+  it("releases unused capacity when a successful lease closes", () => {
+    const ledger = createNarrowingSubjectRenderBudgetLedger(10);
+
+    expect(
+      ledger.tryLease(8, (lease) => {
+        lease.charge(3);
+        return 3;
+      }),
+    ).toEqual({ admitted: true, value: 3, charged: 3, released: 5 });
+    expect(ledger).toMatchObject({ committed: 3, held: 0, refusedReservation: false });
+    expect(ledger.tryLease(7, () => "uses released capacity")).toEqual({
+      admitted: true,
+      value: "uses released capacity",
+      charged: 0,
+      released: 7,
+    });
+  });
+
+  it("keeps the first budget refusal sticky", () => {
+    const ledger = createNarrowingSubjectRenderBudgetLedger(5);
+    ledger.tryLease(2, (lease) => lease.charge(2));
+    let retriedWork = 0;
+
+    const refused = ledger.tryLease(4, () => "unreachable");
+    const retry = ledger.tryLease(3, () => {
+      retriedWork += 1;
+    });
+
+    expect(refused).toEqual({
+      admitted: false,
+      failure: { reservedBefore: 2, requested: 4, budget: 5 },
+    });
+    expect(retry).toEqual(refused);
+    expect(retriedWork).toBe(0);
+    expect(ledger.failedReservation).toEqual({ reservedBefore: 2, requested: 4, budget: 5 });
+  });
+
+  it("commits charged work and releases the remainder when work throws", () => {
+    const ledger = createNarrowingSubjectRenderBudgetLedger(10);
+    const failure = new Error("injected render failure");
+
+    expect(() =>
+      ledger.tryLease(6, (lease) => {
+        lease.charge(2);
+        throw failure;
+      }),
+    ).toThrow(failure);
+    expect(ledger).toMatchObject({
+      committed: 2,
+      held: 0,
+      activeLease: false,
+      refusedReservation: false,
+    });
+    expect(ledger.tryLease(8, () => "remaining capacity")).toMatchObject({ admitted: true });
+  });
+
+  it("refuses a second active lease without disturbing the first", () => {
+    const ledger = createNarrowingSubjectRenderBudgetLedger(10);
+    let nestedWork = 0;
+
+    const outer = ledger.tryLease(5, (lease) => {
+      lease.charge(1);
+      expect(() =>
+        ledger.tryLease(1, () => {
+          nestedWork += 1;
+        }),
+      ).toThrow(/another lease is active.*Finish the active lease callback first/u);
+      expect(ledger).toMatchObject({ committed: 1, held: 4, activeLease: true });
+      return "outer";
+    });
+
+    expect(outer).toEqual({ admitted: true, value: "outer", charged: 1, released: 4 });
+    expect(nestedWork).toBe(0);
+    expect(ledger).toMatchObject({ committed: 1, held: 0, activeLease: false });
   });
 });

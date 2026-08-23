@@ -6,6 +6,7 @@ export * from "./constants.ts";
 export * from "./coordinates.ts";
 export { createCatalogPartGeometry, createPlacementGhost, type GhostVerdict } from "./geometry.ts";
 export * from "./instruction-finish.ts";
+export * from "./instruction-depth-composition.ts";
 export * from "./instruction-view.ts";
 export { disposeObjectTree } from "./lifecycle.ts";
 export { createPartMaterialCache, type PartMaterialCache } from "./material-cache.ts";

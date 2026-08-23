@@ -1,7 +1,10 @@
 import {
   createNarrowingRenderBudgetLedger,
+  createNarrowingSubjectRenderBudgetLedger,
   createWholeStepCandidateBudgetLedger,
   type NarrowingRenderBudgetLedger,
+  type NarrowingSubjectRenderLease,
+  type NarrowingSubjectRenderBudgetLedger,
 } from "./real-build-deferral";
 import {
   expandFartherPrintedStep,
@@ -27,6 +30,7 @@ import {
   type ParentObservation,
   type RendererObservation,
   type ReservationObservation,
+  type SubjectRenderLeaseObservation,
   type Step7Gate3BrowserInput,
   type Step7Gate3BrowserResult,
 } from "./real-build-step7-gate3-diagnostic-browser-contract";
@@ -90,11 +94,18 @@ export async function reconstructStep7Gate3ParentsOnly(
 export async function runStep7Gate3Diagnostic(
   input: Step7Gate3BrowserInput,
   expectedBrowserInputDigest: string,
+  executionMode: "whole-scene" | "depth-composed" = "whole-scene",
 ): Promise<Step7Gate3BrowserResult> {
+  if (executionMode !== "whole-scene" && executionMode !== "depth-composed") {
+    throw new TypeError(
+      `Step-7 Gate-3 execution mode must be "whole-scene" or "depth-composed"; received ${JSON.stringify(executionMode)}.`,
+    );
+  }
   const batches: FartherNarrowingBatchObservation[] = [];
   const batchOutcomes: FartherNarrowingBatchOutcomeObservation[] = [];
   const renders: FartherNarrowingRenderObservation[] = [];
   const reservations: ReservationObservation[] = [];
+  const subjectRenderLeases: SubjectRenderLeaseObservation[] = [];
   const parents: ParentObservation[] = [];
   const parentStarts: { sourceParentCandidateId: string; parentCandidateId: string }[] = [];
   const parentTerminals: { sourceParentCandidateId: string; parentCandidateId: string }[] = [];
@@ -110,6 +121,7 @@ export async function runStep7Gate3Diagnostic(
   let loadingTask: ReturnType<typeof JSON.parse> | null = null;
   let renderedPage: Awaited<ReturnType<typeof renderRealBuildPageCanvas>> | null = null;
   let rawLedger: ReturnType<typeof createNarrowingRenderBudgetLedger> | null = null;
+  let rawSubjectLedger: ReturnType<typeof createNarrowingSubjectRenderBudgetLedger> | null = null;
   let candidateLedger: ReturnType<typeof createWholeStepCandidateBudgetLedger> | null = null;
   let failure: string | null = null;
   let inputBytesBefore: string | null = null;
@@ -222,6 +234,50 @@ export async function runStep7Gate3Diagnostic(
         return accepted;
       },
     });
+    rawSubjectLedger =
+      executionMode === "depth-composed"
+        ? createNarrowingSubjectRenderBudgetLedger(STEP7_GATE3_PRODUCTION_NARROWING_LIMIT)
+        : null;
+    const subjectLedger: NarrowingSubjectRenderBudgetLedger | undefined =
+      rawSubjectLedger === null
+        ? undefined
+        : Object.freeze({
+            get budget() {
+              return rawSubjectLedger!.budget;
+            },
+            get committed() {
+              return rawSubjectLedger!.committed;
+            },
+            get held() {
+              return rawSubjectLedger!.held;
+            },
+            get activeLease() {
+              return rawSubjectLedger!.activeLease;
+            },
+            get refusedReservation() {
+              return rawSubjectLedger!.refusedReservation;
+            },
+            get failedReservation() {
+              return rawSubjectLedger!.failedReservation;
+            },
+            tryLease<T>(requested: number, work: (lease: NarrowingSubjectRenderLease) => T) {
+              const reservedBefore = rawSubjectLedger!.committed;
+              const attempt = rawSubjectLedger!.tryLease<T>(requested, work);
+              subjectRenderLeases.push(
+                Object.freeze({
+                  sourceParentCandidateId: activeSourceParentId,
+                  parentCandidateId: activeParentId,
+                  committedBefore: reservedBefore,
+                  maximumRequested: requested,
+                  committedAfter: rawSubjectLedger!.committed,
+                  admitted: attempt.admitted,
+                  charged: attempt.admitted ? attempt.charged : 0,
+                  released: attempt.admitted ? attempt.released : 0,
+                }),
+              );
+              return attempt;
+            },
+          });
     candidateLedger = createWholeStepCandidateBudgetLedger(STEP7_GATE3_CANDIDATE_LIMIT);
     const currentRenderer: { value: RendererObservation | null } = { value: null };
     const rendering = instrumentRendering(modules.rendering, currentRenderer);
@@ -234,7 +290,7 @@ export async function runStep7Gate3Diagnostic(
         parentCandidateId: parent.candidateId,
       });
       parentStarts.push(marker);
-      const renderer = { created: 0, renderCalls: 0, disposeCalls: 0 };
+      const renderer: RendererObservation = { created: 0, renderCalls: 0, disposeCalls: 0 };
       currentRenderer.value = renderer;
       const candidateBefore = candidateLedger.reserved;
       const beforeRasterHash = modules.kernel.documentStructuralHash(parent.document) as string;
@@ -247,15 +303,30 @@ export async function runStep7Gate3Diagnostic(
         parentStepId: null,
         spec: input.panel as unknown as RealBuildPanelSpec,
         evidence,
-        options: input.options as unknown as RealBuildOptions,
+        options:
+          executionMode === "depth-composed"
+            ? ({
+                ...input.options,
+                deferredNarrowingRenderBudget: STEP7_GATE3_PRODUCTION_NARROWING_LIMIT,
+              } as unknown as RealBuildOptions)
+            : (input.options as unknown as RealBuildOptions),
         modules: { rendering, kernel: modules.kernel, assembly: modules.assembly },
         ledger,
+        ...(subjectLedger === undefined ? {} : { depthNarrowingLedger: subjectLedger }),
         candidateLedger,
         narrowingObserver: {
           beginBatch(observation: FartherNarrowingBatchObservation) {
             if (batches.length >= STEP7_GATE3_MAXIMUM_BATCHES) {
               throw new RangeError(
                 `Step-7 diagnostic exceeded ${STEP7_GATE3_MAXIMUM_BATCHES} narrowing batches.`,
+              );
+            }
+            if (
+              executionMode === "depth-composed" &&
+              !ledger.tryReserve(observation.offeredCount)
+            ) {
+              throw new RangeError(
+                `Step-7 depth diagnostic logical-row shadow refused batch ${observation.batchIndex} for parent ${observation.parentCandidateId}.`,
               );
             }
             batches.push(observation);
@@ -310,12 +381,22 @@ export async function runStep7Gate3Diagnostic(
       const parentRenderRows = renders.filter(
         ({ parentCandidateId }) => parentCandidateId === activeParentId,
       ).length;
-      if (
-        renderer.created !== 1 ||
-        renderer.disposeCalls !== 1 ||
-        renderer.renderCalls !== result.expansion.narrowingRenders + 4 ||
-        result.expansion.narrowingRenders !== parentRenderRows
-      ) {
+      const depthStats = result.depthNarrowing;
+      const rendererAccountingMatches =
+        executionMode === "depth-composed"
+          ? depthStats !== null &&
+            renderer.created === 1 &&
+            renderer.disposeCalls === 1 &&
+            renderer.renderCalls === depthStats.fallbackCaptures + 4 &&
+            renderer.depthSurfaceCalls === depthStats.prefixCaptures &&
+            renderer.sparseDepthSurfaceCalls === depthStats.probeCaptures &&
+            result.expansion.narrowingRenders === depthStats.subjectRenders &&
+            depthStats.logicalRows === parentRenderRows
+          : renderer.created === 1 &&
+            renderer.disposeCalls === 1 &&
+            renderer.renderCalls === result.expansion.narrowingRenders + 4 &&
+            result.expansion.narrowingRenders === parentRenderRows;
+      if (!rendererAccountingMatches) {
         throw new TypeError(
           `Parent ${activeParentId} renderer accounting was ${JSON.stringify(renderer)} for ${parentRenderRows} narrowing rows.`,
         );
@@ -328,12 +409,16 @@ export async function runStep7Gate3Diagnostic(
           reconstructedDocumentHash: parent.documentHash,
           hashAfterRasterPreparation: beforeRasterHash,
           hashAfterExpansion: afterExpansionHash,
-          narrowingRenders: result.expansion.narrowingRenders,
+          narrowingRenders:
+            executionMode === "depth-composed"
+              ? parentRenderRows
+              : result.expansion.narrowingRenders,
           offeredPerPiece: result.expansion.offeredPerPiece,
           carriedPerPiece: result.expansion.carriedPerPiece,
           completeLeaves: Object.freeze(completeLeaves),
           renderer: Object.freeze({ ...renderer }),
           candidateLedgerDelta: candidateLedger.reserved - candidateBefore,
+          ...(depthStats === null ? {} : { depthNarrowing: depthStats }),
         }),
       );
       parentTerminals.push(marker);
@@ -389,6 +474,10 @@ export async function runStep7Gate3Diagnostic(
     }
   }
 
+  const sharedRenderDemand = rawLedger?.reserved ?? 0;
+  const narrowingRefused = rawLedger?.refusedReservation ?? false;
+  const subjectRenderDemand = rawSubjectLedger?.committed ?? 0;
+  const subjectRenderRefused = rawSubjectLedger?.refusedReservation ?? false;
   const fullWorkloadComplete =
     failure === null &&
     cleanupFailures.length === 0 &&
@@ -407,8 +496,10 @@ export async function runStep7Gate3Diagnostic(
     inputDocumentFrozen &&
     !inputDocumentMutation &&
     rawLedger !== null &&
+    (executionMode === "whole-scene" || rawSubjectLedger !== null) &&
     candidateLedger !== null &&
-    !rawLedger.refusedReservation &&
+    !narrowingRefused &&
+    !subjectRenderRefused &&
     !candidateLedger.refusedReservation;
   return {
     schemaVersion: "lego.step7-gate3-diagnostic-browser-result/1",
@@ -423,6 +514,9 @@ export async function runStep7Gate3Diagnostic(
     inputDocumentFrozen,
     inputDocumentMutation,
     observationMode: input.observationMode,
+    ...(executionMode === "depth-composed"
+      ? { narrowingExecutionMode: "depth-composed" as const }
+      : {}),
     sourceBaseDocumentHash: input.baseDocumentHash,
     migrationReport,
     migrationPartsPreserved,
@@ -442,9 +536,16 @@ export async function runStep7Gate3Diagnostic(
     batchOutcomes: Object.freeze(batchOutcomes),
     renders: Object.freeze(renders),
     reservations: Object.freeze(reservations),
-    sharedRenderDemand: rawLedger?.reserved ?? 0,
+    ...(executionMode === "depth-composed"
+      ? {
+          subjectRenderLeases: Object.freeze(subjectRenderLeases),
+          subjectRenderDemand,
+          subjectRenderRefused,
+        }
+      : {}),
+    sharedRenderDemand,
     candidateDemand: candidateLedger?.reserved ?? 0,
-    narrowingRefused: rawLedger?.refusedReservation ?? false,
+    narrowingRefused,
     candidateRefused: candidateLedger?.refusedReservation ?? false,
     production8192ShadowRefusal: productionShadowRefusal(reservations),
     cleanupFailures: Object.freeze(cleanupFailures),
