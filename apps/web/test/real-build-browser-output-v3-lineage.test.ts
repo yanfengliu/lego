@@ -238,7 +238,7 @@ describe("real-build browser-output generation 3", () => {
 
     const defect = panelCameraEvidenceDefect(root, report, 0, 8_192, state);
     expect(defect).toContain("could not be safely inspected");
-    expect(defect).toContain("hostile thrown object");
+    expect(defect).toContain("a thrown non-primitive value");
     expect(defect!.length).toBeLessThan(1_024);
     expect(state).toMatchObject({ seededRoot: false, reservedAfter: 0, blockingStep: null });
     expect(state.eligibleParents).toHaveLength(0);
@@ -257,6 +257,6 @@ describe("real-build browser-output generation 3", () => {
 
     const defect = panelCameraEvidenceDefect(root, rootRefusalReport(), 0, 8_192, state);
     expect(defect).toContain("could not be safely inspected");
-    expect(defect).toContain("hostile thrown object");
+    expect(defect).toContain("a thrown non-primitive value");
   });
 });

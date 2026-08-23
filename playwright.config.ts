@@ -389,6 +389,7 @@ export default {
   use: {
     baseURL: `http://127.0.0.1:${port}`,
     headless: true,
+    serviceWorkers: "block",
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
     viewport: { width: 1440, height: 1000 },

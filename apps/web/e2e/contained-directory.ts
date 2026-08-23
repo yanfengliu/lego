@@ -6,10 +6,8 @@ import {
   lstatSync,
   mkdirSync,
   openSync,
-  readdirSync,
   realpathSync,
   renameSync,
-  rmdirSync,
   unlinkSync,
 } from "node:fs";
 import { dirname } from "node:path";
@@ -24,14 +22,26 @@ import {
   type ComparableFileState,
   type ContainedPathPreflight,
 } from "./bounded-file-read";
+import {
+  createContainedDirectoryOwnership,
+  assertContainedDirectoryOwnership,
+  type ContainedDirectoryIdentity,
+} from "./contained-directory-ownership";
+import {
+  removeContainedDirectoryTreeWithAdapter,
+  type ContainedDirectoryRemovalAdapter,
+  type ContainedDirectoryRemovalTestHooks,
+} from "./contained-directory-removal";
+import { normalizeThrownWithoutProbing } from "./non-probing-error";
+
+export type { ContainedDirectoryIdentity } from "./contained-directory-ownership";
 
 const SAFE_RELATIVE_DIRECTORY_PATTERN = /^[A-Za-z0-9._@/-]+$/u;
-const MAXIMUM_REMOVAL_ENTRIES = 25_000;
 
 export interface ContainedDirectoryRaceTestHooks {
   readonly afterPreflight?: () => void;
   readonly afterMutation?: () => void;
-  readonly beforeGuardCleanupUnlink?: () => void;
+  readonly beforeGuardCleanupUnlink?: (guardPath: string) => void;
 }
 
 function normalizeDirectoryCandidate(candidate: string, label: string): string {
@@ -74,9 +84,25 @@ function sameObjectIdentity(left: ComparableFileState, right: ComparableFileStat
   return left.ino === right.ino && (left.dev === 0n || right.dev === 0n || left.dev === right.dev);
 }
 
+function matchesDirectoryIdentity(
+  expected: ContainedDirectoryIdentity,
+  actual: ComparableFileState,
+): boolean {
+  return (
+    expected.ino === actual.ino &&
+    (expected.dev === 0n || actual.dev === 0n || expected.dev === actual.dev)
+  );
+}
+
 function combineFailure(primary: unknown, cleanup: unknown, label: string): never {
-  const primaryError = primary instanceof Error ? primary : new Error(String(primary));
-  const cleanupError = cleanup instanceof Error ? cleanup : new Error(String(cleanup));
+  const primaryError = normalizeThrownWithoutProbing(
+    primary,
+    `${label} failed without a readable error.`,
+  );
+  const cleanupError = normalizeThrownWithoutProbing(
+    cleanup,
+    `${label} guard cleanup failed without a readable error.`,
+  );
   throw new AggregateError(
     [primaryError, cleanupError],
     `${label} failed and guard cleanup failed.`,
@@ -93,7 +119,7 @@ function withDirectoryGuard<T>(
   if (process.platform !== "win32") {
     throw new BoundedFileReadError(
       "PATH_POLICY_VIOLATION",
-      `${label} requires Windows directory share-mode pinning; this path-based implementation fails closed on ${process.platform} because POSIX permits displacement around open guard files.`,
+      `${label} uses a Windows-only cooperative directory-operation guard and is unsupported on ${process.platform}. The guard detects some accidental changes but is not malicious-peer protection.`,
     );
   }
   const guardName = `.lego-contained-guard-${randomUUID()}`;
@@ -103,6 +129,7 @@ function withDirectoryGuard<T>(
   let descriptor: number | null = null;
   let guardState: ComparableFileState | null = null;
   let result: T | undefined;
+  let actionFailed = false;
   let primaryFailure: unknown = null;
   let cleanupFailure: unknown = null;
   try {
@@ -125,6 +152,7 @@ function withDirectoryGuard<T>(
       );
     }
   } catch (error) {
+    actionFailed = true;
     primaryFailure = error;
   } finally {
     try {
@@ -140,8 +168,15 @@ function withDirectoryGuard<T>(
             `${label} guard cleanup refused a replaced path.`,
           );
         } else {
-          hooks?.beforeGuardCleanupUnlink?.();
-          unlinkSync(guard.target);
+          if (hooks?.beforeGuardCleanupUnlink !== undefined) {
+            hooks.beforeGuardCleanupUnlink(guard.target);
+            cleanupFailure = new BoundedFileReadError(
+              "PATH_POLICY_VIOLATION",
+              `${label} retained its guard pathname because a test-only retention seam ran; cooperative test teardown must remove the task-owned root later.`,
+            );
+          } else {
+            unlinkSync(guard.target);
+          }
         }
       }
     } catch (error) {
@@ -162,15 +197,15 @@ function withDirectoryGuard<T>(
       }
     }
   }
-  if (primaryFailure !== null && cleanupFailure !== null) {
+  if (actionFailed && cleanupFailure !== null) {
     combineFailure(primaryFailure, cleanupFailure, label);
   }
   if (cleanupFailure !== null) throw cleanupFailure;
-  if (primaryFailure !== null) throw primaryFailure;
+  if (actionFailed) throw primaryFailure;
   return result as T;
 }
 
-/** Creates each missing directory under a guarded, identity-checked parent. */
+/** Cooperatively creates missing directories and detects some accidental parent changes. */
 export function ensureContainedDirectoryTree(
   root: string,
   candidate: string,
@@ -201,7 +236,7 @@ export function ensureContainedDirectoryTree(
   return dirname(preflightContainedPath(root, `${normalized}/.probe`, label).target);
 }
 
-/** Runs an operation while an empty exact-handle guard pins its final parent directory. */
+/** Runs an operation under a cooperative guard; callers must exclude concurrent writers. */
 export function withContainedDirectory<T>(
   root: string,
   candidate: string,
@@ -213,13 +248,80 @@ export function withContainedDirectory<T>(
   return withDirectoryGuard(root, normalized, label, () => action(directory));
 }
 
-/** Renames one direct contained directory and proves the same identity arrived at the target. */
+/** Cooperatively creates one absent directory and records its observed filesystem identity. */
+export function createContainedDirectoryExclusive(
+  root: string,
+  candidate: string,
+  label: string,
+): ContainedDirectoryIdentity {
+  const normalized = normalizeDirectoryCandidate(candidate, label);
+  const segments = normalized.split("/");
+  const parent = segments.length === 1 ? null : segments.slice(0, -1).join("/");
+  if (parent !== null) ensureContainedDirectoryTree(root, parent, `${label} parent`);
+  return withDirectoryGuard(root, parent, label, () => {
+    const preflight = preflightContainedPath(root, normalized, label);
+    if (existsSync(preflight.target)) {
+      throw new BoundedFileReadError(
+        "WRITE_FAILED",
+        `${label} already exists and cannot be created exclusively: ${preflight.target}.`,
+      );
+    }
+    mkdirSync(preflight.target);
+    assertAncestorSnapshotsStable(preflight, label);
+    return createContainedDirectoryOwnership({
+      root,
+      directoryCandidate: normalized,
+      directoryTarget: preflight.target,
+      directoryState: checkedDirectoryState(preflight, label),
+      label,
+    });
+  });
+}
+
+/** Runs against one observed directory identity when callers exclude concurrent writers. */
+export function withExistingContainedDirectory<T>(
+  root: string,
+  candidate: string,
+  label: string,
+  action: (directory: string) => T,
+  expectedIdentity?: ContainedDirectoryIdentity,
+): T {
+  const normalized = normalizeDirectoryCandidate(candidate, label);
+  return withDirectoryGuard(root, normalized, label, () => {
+    const preflight = preflightContainedPath(root, normalized, label);
+    const before = checkedDirectoryState(preflight, label);
+    if (expectedIdentity !== undefined && !matchesDirectoryIdentity(expectedIdentity, before)) {
+      throw new BoundedFileReadError(
+        "PATH_POLICY_VIOLATION",
+        `${label} is not the exact directory identity supplied by its owner.`,
+      );
+    }
+    if (expectedIdentity !== undefined) {
+      assertContainedDirectoryOwnership(root, normalized, expectedIdentity, label);
+    }
+    const result = action(preflight.target);
+    assertAncestorSnapshotsStable(preflight, label);
+    if (!sameObjectIdentity(before, checkedDirectoryState(preflight, label))) {
+      throw new BoundedFileReadError(
+        "PATH_POLICY_VIOLATION",
+        `${label} changed identity during its cooperative operation.`,
+      );
+    }
+    if (expectedIdentity !== undefined) {
+      assertContainedDirectoryOwnership(root, normalized, expectedIdentity, `${label} closure`);
+    }
+    return result;
+  });
+}
+
+/** Cooperatively renames a directory and detects some sequential identity changes. */
 export function renameContainedDirectoryAtomic(
   root: string,
   sourceCandidate: string,
   targetCandidate: string,
   label: string,
   hooks?: ContainedDirectoryRaceTestHooks,
+  expectedIdentity?: ContainedDirectoryIdentity,
 ): string {
   const sourceName = normalizeDirectoryCandidate(sourceCandidate, `${label} source`);
   const targetName = normalizeDirectoryCandidate(targetCandidate, `${label} target`);
@@ -231,10 +333,22 @@ export function renameContainedDirectoryAtomic(
       const source = preflightContainedPath(root, sourceName, `${label} source`);
       const target = preflightContainedPath(root, targetName, `${label} target`);
       const sourceState = checkedDirectoryState(source, `${label} source`);
+      if (
+        expectedIdentity !== undefined &&
+        !matchesDirectoryIdentity(expectedIdentity, sourceState)
+      ) {
+        throw new BoundedFileReadError(
+          "PATH_POLICY_VIOLATION",
+          `${label} source is not the exact directory identity supplied by its owner.`,
+        );
+      }
+      if (expectedIdentity !== undefined) {
+        assertContainedDirectoryOwnership(root, sourceName, expectedIdentity, `${label} source`);
+      }
       if (existsSync(target.target)) {
         throw new BoundedFileReadError(
           "WRITE_FAILED",
-          `${label} target already exists and cannot be atomically published: ${target.target}.`,
+          `${label} target already exists and cooperative rename will not replace it: ${target.target}.`,
         );
       }
       hooks?.afterPreflight?.();
@@ -247,8 +361,11 @@ export function renameContainedDirectoryAtomic(
       if (!sameObjectIdentity(sourceState, targetState)) {
         throw new BoundedFileReadError(
           "PATH_POLICY_VIOLATION",
-          `${label} target is not the verified source directory identity.`,
+          `${label} target is not the sequentially observed source directory identity.`,
         );
+      }
+      if (expectedIdentity !== undefined) {
+        assertContainedDirectoryOwnership(root, targetName, expectedIdentity, `${label} target`);
       }
       return target.target;
     },
@@ -256,7 +373,7 @@ export function renameContainedDirectoryAtomic(
   );
 }
 
-/** Pins a regular file's existing parent for the full write, cleanup, and return boundary. */
+/** Runs with a cooperative parent marker; this does not make pathname cleanup race-safe. */
 export function withContainedFileParent<T>(
   root: string,
   candidate: string,
@@ -270,73 +387,29 @@ export function withContainedFileParent<T>(
   return withDirectoryGuard(root, parent, label, action);
 }
 
-/** Removes a bounded task-owned tree only after a full no-link walk under a root guard. */
-export function removeContainedDirectoryTree(root: string, candidate: string, label: string): void {
-  const normalized = normalizeDirectoryCandidate(candidate, label);
-  withDirectoryGuard(root, null, label, () => {
-    const preflight = preflightContainedPath(root, normalized, label);
-    const before = checkedDirectoryState(preflight, label);
-    let entries = 0;
-    const removeContents = (directoryCandidate: string): void => {
-      withDirectoryGuard(root, directoryCandidate, label, () => {
-        const directory = preflightContainedPath(root, `${directoryCandidate}/.probe`, label);
-        for (const name of readdirSync(dirname(directory.target))) {
-          if (name.startsWith(".lego-contained-guard-")) continue;
-          entries += 1;
-          if (entries > MAXIMUM_REMOVAL_ENTRIES) {
-            throw new BoundedFileReadError(
-              "SIZE_OUT_OF_RANGE",
-              `${label} contains more than ${MAXIMUM_REMOVAL_ENTRIES} entries; bounded cleanup refused it.`,
-            );
-          }
-          const childCandidate = `${directoryCandidate}/${name}`;
-          const child = preflightContainedPath(root, childCandidate, label);
-          const stat = lstatSync(child.target, { bigint: true });
-          const state = comparableFileState(stat, `${label} removal entry ${child.target}`);
-          if (stat.isSymbolicLink()) {
-            throw new BoundedFileReadError(
-              "PATH_POLICY_VIOLATION",
-              `${label} removal refused symlink or junction ${child.target}.`,
-            );
-          }
-          assertAncestorSnapshotsStable(child, label);
-          if (stat.isDirectory()) {
-            removeContents(childCandidate);
-            assertAncestorSnapshotsStable(child, label);
-            const emptyState = checkedDirectoryState(child, label);
-            if (!sameObjectIdentity(state, emptyState)) {
-              throw new BoundedFileReadError(
-                "PATH_POLICY_VIOLATION",
-                `${label} removal directory changed identity before deletion: ${child.target}.`,
-              );
-            }
-            rmdirSync(child.target);
-          } else if (stat.isFile()) {
-            if (!inside(child.rootRealpath, realpathSync.native(child.target))) {
-              throw new BoundedFileReadError(
-                "PATH_POLICY_VIOLATION",
-                `${label} removal file escaped its real root: ${child.target}.`,
-              );
-            }
-            unlinkSync(child.target);
-          } else {
-            throw new BoundedFileReadError(
-              "PATH_POLICY_VIOLATION",
-              `${label} removal refused non-file entry ${child.target}.`,
-            );
-          }
-        }
-      });
-    };
-    removeContents(normalized);
-    assertAncestorSnapshotsStable(preflight, label);
-    if (!sameObjectIdentity(before, checkedDirectoryState(preflight, label))) {
-      throw new BoundedFileReadError(
-        "PATH_POLICY_VIOLATION",
-        `${label} changed identity during its bounded cleanup walk.`,
-      );
-    }
-    rmdirSync(preflight.target);
-    assertAncestorSnapshotsStable(preflight, label);
+const REMOVAL_ADAPTER: ContainedDirectoryRemovalAdapter = Object.freeze({
+  normalize: normalizeDirectoryCandidate,
+  withGuard: <T>(root: string, candidate: string | null, label: string, action: () => T): T =>
+    withDirectoryGuard(root, candidate, label, action),
+  checkedDirectoryState,
+  sameObjectIdentity,
+});
+
+/**
+ * Cooperative teardown only: removes a bounded task-owned tree when no concurrent writer or
+ * replacement can exist. Evidence publication and failure rollback must not call it.
+ */
+export function removeContainedDirectoryTree(
+  root: string,
+  candidate: string,
+  label: string,
+  hooks?: ContainedDirectoryRemovalTestHooks,
+): void {
+  removeContainedDirectoryTreeWithAdapter({
+    adapter: REMOVAL_ADAPTER,
+    root,
+    candidate,
+    label,
+    ...(hooks === undefined ? {} : { hooks }),
   });
 }

@@ -172,7 +172,9 @@ describe("real-build runner panel-camera generation cutover", () => {
     });
     const outcome = output.reports[0]!.outcome;
     if (outcome.status !== "failed") throw new Error("Expected hostile page rejection to fail.");
-    expect(outcome.failure.message).toContain("hostile thrown object");
+    expect(outcome.failure.message).toContain(
+      "Booklet page 1 for printed step 1 could not be rendered: a thrown non-primitive value",
+    );
     expect(outcome.failure.message.length).toBeLessThan(2_048);
     expect(output.documentJson).not.toBeNull();
     expect(deriveEvidence).not.toHaveBeenCalled();
@@ -406,7 +408,15 @@ describe("real-build runner panel-camera generation cutover", () => {
       reports: [{ stepNumber: 1, panelCamera: { status: "seeded" } }],
     });
     if (output.status !== "failed") throw new Error("Expected hostile cleanup to fail.");
-    expect(output.failure.message).toContain("hostile thrown object");
+    expect(output.failure.message).toContain(
+      "Real-build cleanup for booklet page 1 failed after task-owned evidence had been retained: a thrown non-primitive value",
+    );
+    expect(output.failure.message).toContain(
+      "Real-build cleanup for PDF document failed after task-owned evidence had been retained: a thrown non-primitive value",
+    );
+    expect(output.failure.message).toContain(
+      "Real-build cleanup for PDF loading task failed after task-owned evidence had been retained: a thrown non-primitive value",
+    );
     expect(output.failure.message.length).toBeLessThan(4_096);
     expect(output.documentJson).not.toBeNull();
     expect(JSON.parse(output.documentJson!).parts).toHaveLength(0);

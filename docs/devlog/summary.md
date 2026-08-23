@@ -2,6 +2,8 @@
 
 Current state belongs in the design documents; this index records only behaviour changes, measured results, and links to the matching detailed history.
 
+- [2026-08-23 (current-source step-7 workload denominator)](detailed/2026-08-22_2026-08-23.md) — All four retained `/13` parents now close before any `/15` migration under module-private production pins; the closed-observer, local-diagnostic-only control with no production or document authority reproduces 14,172 narrowing-render rows, 30 batches, 17 immutable leaves and the exact 8,037 + 599 > 8,192 production-shadow refusal, while the caller-asserted 6,444-layer estimate remains unintegrated and neither number authorizes changing 8,192.
+
 - [2026-08-22 (canonical protocol time and exact-five exchange semantics)](detailed/2026-08-21_2026-08-22.md) — Signed timestamps, signatures and anchored ASCII scalars now have cross-engine canonical wire spellings, while exact-five structural roots, detached boolean-only cross-record checks, bounded diagnostics, four-sample wall timing and private monotonic expiry remain explicit without turning caller data into freshness or authority.
 
 - [2026-08-22 (exact-one-use six-card Gate 0)](detailed/2026-08-21_2026-08-22.md) — Strict `/5` first-pass execution now requires an exact retained request, fresh configured-policy evidence, an explicitly unauthenticated local assertion, one fixed-checkout global slot, an exact held Windows executable launched atomically inside a Job Object, and immutable terminal settlement; the six-card pilot remains unrun and grants no consent, provider, catalog, document or production authority.

@@ -1,6 +1,7 @@
 import type { RealBuildBrowserOutput } from "./real-build-browser-output";
 import type { RealBuildOptions, StepFailure } from "./real-build-safety";
 import { describeBrowserThrown } from "./real-build-browser-error-boundary";
+import { INSTRUCTION_PDF_LIMITS } from "../src/instructions/instruction-source";
 
 // These modules execute inside the untrusted browser probe. Their output is
 // parsed and recomputed by the typed Node finalizer rather than trusted here.
@@ -10,6 +11,27 @@ type PdfLoadingTask = UntrustedBrowserModule;
 type PdfDocument = UntrustedBrowserModule;
 
 const PREPARATION_FAILURES = new WeakMap<object, StepFailure>();
+
+const declaredPdfContentLength = (response: Response): number | null => {
+  const header = response.headers.get("content-length");
+  if (header === null) return null;
+  if (!/^(?:0|[1-9][0-9]*)$/u.test(header)) {
+    throw new TypeError(`Real-build PDF Content-Length ${JSON.stringify(header)} is not decimal.`);
+  }
+  const bytes = Number(header);
+  if (!Number.isSafeInteger(bytes)) {
+    throw new RangeError(`Real-build PDF Content-Length ${header} exceeds safe integer range.`);
+  }
+  return bytes;
+};
+
+const cancelResponseBody = async (response: Response): Promise<void> => {
+  try {
+    await response.body?.cancel();
+  } catch {
+    // The bounded source refusal remains primary if transport cleanup fails.
+  }
+};
 
 export class BrowserPreparationError extends Error {
   constructor(
@@ -109,7 +131,19 @@ export async function prepareDigestBoundPdf(
   try {
     const response = await fetch(options.pdfUrl, { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`);
+    const declaredBytes = declaredPdfContentLength(response);
+    if (declaredBytes !== null && declaredBytes > INSTRUCTION_PDF_LIMITS.maxBytes) {
+      await cancelResponseBody(response);
+      throw new RangeError(
+        `Real-build PDF declares ${declaredBytes} bytes; maximum is ${INSTRUCTION_PDF_LIMITS.maxBytes}.`,
+      );
+    }
     data = new Uint8Array(await response.arrayBuffer());
+    if (data.byteLength > INSTRUCTION_PDF_LIMITS.maxBytes) {
+      throw new RangeError(
+        `Real-build PDF materialized ${data.byteLength} bytes; maximum is ${INSTRUCTION_PDF_LIMITS.maxBytes}.`,
+      );
+    }
     fetchedPdfDigest = await browserDigest(data);
   } catch (error) {
     throw new BrowserPreparationError(
@@ -134,7 +168,7 @@ export async function prepareDigestBoundPdf(
         `${options.inputDigests.pdf}. PDF parsing was not attempted.`,
     });
   }
-  const loadingTask = pdfjs.getDocument({ data });
+  const loadingTask = pdfjs.getDocument({ data, isEvalSupported: false });
   try {
     const pdf = await loadingTask.promise;
     return { pdf, loadingTask, fetchedPdfDigest };

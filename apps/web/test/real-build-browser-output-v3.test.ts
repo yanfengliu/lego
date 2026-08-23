@@ -440,7 +440,7 @@ describe("real-build browser-output generation 3", () => {
       hostile,
       MEASUREMENT_BOUNDARY,
     );
-    expect(hostileDefect).toMatch(/could not be safely inspected.*hostile thrown object/iu);
+    expect(hostileDefect).toMatch(/could not be safely inspected.*a thrown non-primitive value/iu);
     expect(hostileDefect!.length).toBeLessThan(2_048);
     expect(hostile.acceptedDocumentHash).toBe(sourceHash);
     expect(hostile.reservedAfter).toBe(8);
