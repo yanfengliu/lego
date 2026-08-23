@@ -12,8 +12,8 @@ import {
   MEASURED_FARTHER_ORIGIN_REQUIRED_SOURCE_PATHS,
   MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION,
   MEASURED_FARTHER_ORIGIN_SOURCE_MANIFEST_PATH,
-  MEASURED_FARTHER_ORIGIN_VERIFIER_ENTRY_SOURCE_PATHS,
-  MEASURED_FARTHER_ORIGIN_VERIFIER_SCRIPT_SOURCE_PATHS,
+  MEASURED_FARTHER_ORIGIN_ENTRY_SOURCE_PATHS,
+  MEASURED_FARTHER_ORIGIN_RUNTIME_SOURCE_PATHS,
   isMeasuredFartherOriginSourcePath,
 } from "../e2e/real-build-farther-origin-source-manifest";
 import {
@@ -33,7 +33,7 @@ const DIFFERENT_DIGEST = `sha256:${"b".repeat(64)}`;
 const codeUnitCompare = (left: string, right: string): number =>
   left < right ? -1 : left > right ? 1 : 0;
 
-function runtimeImportSpecifiersFromText(path: string, text: string): readonly string[] {
+function runtimeSourceSpecifiersFromText(path: string, text: string): readonly string[] {
   const source = ts.createSourceFile(
     path,
     text,
@@ -52,6 +52,12 @@ function runtimeImportSpecifiersFromText(path: string, text: string): readonly s
     ts.isStringLiteral(expression) || ts.isNoSubstitutionTemplateLiteral(expression)
       ? expression.text
       : null;
+  const isImportMetaUrl = (expression: ts.Expression): boolean =>
+    ts.isPropertyAccessExpression(expression) &&
+    expression.name.text === "url" &&
+    ts.isMetaProperty(expression.expression) &&
+    expression.expression.keywordToken === ts.SyntaxKind.ImportKeyword &&
+    expression.expression.name.text === "meta";
   const importClauseRuns = (clause: ts.ImportClause | undefined): boolean => {
     if (clause === undefined) return true;
     if (clause.isTypeOnly) return false;
@@ -103,6 +109,20 @@ function runtimeImportSpecifiersFromText(path: string, text: string): readonly s
         );
       }
       specifiers.push(specifier);
+    } else if (
+      ts.isNewExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === "URL" &&
+      node.arguments?.length === 2 &&
+      isImportMetaUrl(node.arguments[1]!)
+    ) {
+      const specifier = literalModuleSpecifier(node.arguments[0]!);
+      if (specifier === null) {
+        throw new TypeError(
+          `Verifier module ${path} contains a computed import-relative file URL; source attestation requires a literal path.`,
+        );
+      }
+      if (posix.extname(specifier) !== "") specifiers.push(specifier);
     }
     ts.forEachChild(node, visit);
   };
@@ -110,11 +130,17 @@ function runtimeImportSpecifiersFromText(path: string, text: string): readonly s
   return specifiers;
 }
 
-function runtimeImportSpecifiers(path: string): readonly string[] {
-  return runtimeImportSpecifiersFromText(path, readFileSync(path, "utf8"));
+function runtimeSourceSpecifiers(path: string): readonly string[] {
+  return runtimeSourceSpecifiersFromText(path, readFileSync(path, "utf8"));
 }
 
-function resolveRuntimeImport(importer: string, specifier: string): string | null {
+function powershellRuntimeSourceSpecifiersFromText(text: string): readonly string[] {
+  return [...text.matchAll(/^\s*"([^"\r\n]+\.(?:cs|ps1))",?\s*$/gmu)].map((match) =>
+    match[1]!.startsWith(".") ? match[1]! : `./${match[1]!}`,
+  );
+}
+
+function resolveRuntimeSource(importer: string, specifier: string): string | null {
   if (!specifier.startsWith(".")) return null;
   const base = posix.normalize(posix.join(posix.dirname(importer), specifier));
   if (base.startsWith("../") || posix.isAbsolute(base)) {
@@ -122,27 +148,28 @@ function resolveRuntimeImport(importer: string, specifier: string): string | nul
       `Verifier import ${JSON.stringify(specifier)} from ${importer} escapes the repository.`,
     );
   }
-  const candidates = /\.[cm]?[jt]sx?$|\.json$/u.test(base)
-    ? [base]
-    : [
-        `${base}.ts`,
-        `${base}.tsx`,
-        `${base}.mts`,
-        `${base}.cts`,
-        `${base}.mjs`,
-        `${base}.cjs`,
-        `${base}.js`,
-        `${base}.jsx`,
-        `${base}.json`,
-        `${base}/index.ts`,
-        `${base}/index.tsx`,
-        `${base}/index.mts`,
-        `${base}/index.cts`,
-        `${base}/index.mjs`,
-        `${base}/index.cjs`,
-        `${base}/index.js`,
-        `${base}/index.jsx`,
-      ];
+  const candidates =
+    posix.extname(base) !== ""
+      ? [base]
+      : [
+          `${base}.ts`,
+          `${base}.tsx`,
+          `${base}.mts`,
+          `${base}.cts`,
+          `${base}.mjs`,
+          `${base}.cjs`,
+          `${base}.js`,
+          `${base}.jsx`,
+          `${base}.json`,
+          `${base}/index.ts`,
+          `${base}/index.tsx`,
+          `${base}/index.mts`,
+          `${base}/index.cts`,
+          `${base}/index.mjs`,
+          `${base}/index.cjs`,
+          `${base}/index.js`,
+          `${base}/index.jsx`,
+        ];
   const resolved = candidates.find(
     (candidate) => existsSync(candidate) && statSync(candidate).isFile(),
   );
@@ -154,17 +181,22 @@ function resolveRuntimeImport(importer: string, specifier: string): string | nul
   return resolved;
 }
 
-function verifierRuntimeModuleClosure(): readonly string[] {
-  const pending = [...MEASURED_FARTHER_ORIGIN_VERIFIER_ENTRY_SOURCE_PATHS];
+function measuredRuntimeSourceClosure(): readonly string[] {
+  const pending = [...MEASURED_FARTHER_ORIGIN_ENTRY_SOURCE_PATHS];
   const visited = new Set<string>();
   while (pending.length > 0) {
     const path = pending.shift()!;
     if (visited.has(path)) continue;
     visited.add(path);
-    for (const specifier of runtimeImportSpecifiers(path)) {
-      const resolved = resolveRuntimeImport(path, specifier);
+    const specifiers = /\.[cm]?[jt]sx?$/u.test(path)
+      ? runtimeSourceSpecifiers(path)
+      : path.endsWith(".ps1")
+        ? powershellRuntimeSourceSpecifiersFromText(readFileSync(path, "utf8"))
+        : [];
+    for (const specifier of specifiers) {
+      const resolved = resolveRuntimeSource(path, specifier);
       if (resolved === null || visited.has(resolved)) continue;
-      if (/\.[cm]?[jt]sx?$/u.test(resolved)) pending.push(resolved);
+      if (/\.[cm]?[jt]sx?$|\.ps1$/u.test(resolved)) pending.push(resolved);
       else visited.add(resolved);
     }
   }
@@ -246,26 +278,38 @@ function attestedFixture() {
 }
 
 describe("measured farther-origin source attestation", () => {
-  it("tracks literal dynamic-template and CommonJS imports and refuses computed paths", () => {
+  it("tracks literal dynamic, CommonJS, and import-relative file dependencies and refuses computed paths", () => {
     expect(
-      runtimeImportSpecifiersFromText(
+      runtimeSourceSpecifiersFromText(
         "scripts/entry.mjs",
         'import(`./dynamic.mjs`); require("./common.cjs");',
       ),
     ).toEqual(["./dynamic.mjs", "./common.cjs"]);
 
     expect(() =>
-      runtimeImportSpecifiersFromText(
+      runtimeSourceSpecifiersFromText(
         "scripts/computed-dynamic.mjs",
         "const suffix = 'child'; import(`./${suffix}.mjs`);",
       ),
     ).toThrow(/computed dynamic import.*literal module path/u);
     expect(() =>
-      runtimeImportSpecifiersFromText(
+      runtimeSourceSpecifiersFromText(
         "scripts/computed-require.cjs",
         "const child = './child.cjs'; require(child);",
       ),
     ).toThrow(/computed CommonJS require.*literal module path/u);
+    expect(
+      runtimeSourceSpecifiersFromText(
+        "scripts/entry.mjs",
+        'new URL("./launcher.ps1", import.meta.url);',
+      ),
+    ).toEqual(["./launcher.ps1"]);
+    expect(() =>
+      runtimeSourceSpecifiersFromText(
+        "scripts/computed-file.mjs",
+        "const name = './launcher.ps1'; new URL(name, import.meta.url);",
+      ),
+    ).toThrow(/computed import-relative file URL.*literal path/u);
   });
 
   it("imports its pure manifest and Node derivation directly without a Vite transform", () => {
@@ -313,8 +357,8 @@ describe("measured farther-origin source attestation", () => {
     ).not.toEqual(baseline);
   });
 
-  it("attests the exact transitive verifier script closure without a broad scripts root", () => {
-    const scriptClosure = verifierRuntimeModuleClosure().filter((path) =>
+  it("attests the exact verifier and production-evidence runtime-source closure without a broad scripts root", () => {
+    const scriptClosure = measuredRuntimeSourceClosure().filter((path) =>
       path.startsWith("scripts/"),
     );
     const declaredScriptRoots = REAL_BUILD_SOURCE_ROOTS.filter(
@@ -322,11 +366,11 @@ describe("measured farther-origin source attestation", () => {
         path.startsWith("scripts/") && path !== "scripts/windows-lock-real-build-snapshot.ps1",
     );
 
-    expect(scriptClosure).toEqual(MEASURED_FARTHER_ORIGIN_VERIFIER_SCRIPT_SOURCE_PATHS);
-    expect(declaredScriptRoots).toEqual(MEASURED_FARTHER_ORIGIN_VERIFIER_SCRIPT_SOURCE_PATHS);
+    expect(scriptClosure).toEqual(MEASURED_FARTHER_ORIGIN_RUNTIME_SOURCE_PATHS);
+    expect(declaredScriptRoots).toEqual(MEASURED_FARTHER_ORIGIN_RUNTIME_SOURCE_PATHS);
     expect(REAL_BUILD_SOURCE_ROOTS).not.toContain("scripts");
     expect(
-      MEASURED_FARTHER_ORIGIN_VERIFIER_SCRIPT_SOURCE_PATHS.every((path) =>
+      MEASURED_FARTHER_ORIGIN_RUNTIME_SOURCE_PATHS.every((path) =>
         isMeasuredFartherOriginSourcePath(path),
       ),
     ).toBe(true);
@@ -351,10 +395,10 @@ describe("measured farther-origin source attestation", () => {
       }),
     ).toThrow(/malformed digest/u);
 
-    const missingVerifierScript = { ...canonicalFixtureSnapshots() };
-    delete missingVerifierScript["scripts/part-identification-score-truth.mjs"];
-    expect(() => deriveMeasuredFartherOriginSourceAttestation(missingVerifierScript)).toThrow(
-      /missing 1 result-determining verifier script path/u,
+    const missingRuntimeSource = { ...canonicalFixtureSnapshots() };
+    delete missingRuntimeSource["scripts/part-identification-score-truth.mjs"];
+    expect(() => deriveMeasuredFartherOriginSourceAttestation(missingRuntimeSource)).toThrow(
+      /missing 1 result-determining runtime source path/u,
     );
   });
 

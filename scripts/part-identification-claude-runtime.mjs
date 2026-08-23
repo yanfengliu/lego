@@ -1,26 +1,30 @@
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import {
-  existsSync,
   closeSync,
+  existsSync,
   fstatSync,
   lstatSync,
   mkdtempSync,
   opendirSync,
   openSync,
   readSync,
-  realpathSync,
   rmSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, delimiter, join, relative, resolve, sep } from "node:path";
+import { basename, join, relative, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import {
-  PART_IDENTIFICATION_CLAUDE_BINARY_BYTES,
-  PART_IDENTIFICATION_CLAUDE_BINARY_DIGEST,
+  resolveClaudeBinary,
+  resolveClaudeBinaryWithPin,
+} from "./part-identification-claude-binary.mjs";
+import {
   PART_IDENTIFICATION_CLAUDE_CLI_VERSION,
   PART_IDENTIFICATION_ENV_ALLOWLIST,
   PART_IDENTIFICATION_PROVIDER_ENV_ALLOWLIST,
 } from "./part-identification-transport-contract.mjs";
+import { TRUSTED_WINDOWS_POWERSHELL } from "./part-identification-windows-trust.mjs";
 
 const own = Function.call.bind(Object.prototype.hasOwnProperty);
 const arrayIsArray = Array.isArray;
@@ -29,7 +33,31 @@ const defineProperty = Object.defineProperty;
 const bufferEquals = Function.call.bind(Buffer.prototype.equals);
 const stringIncludes = Function.call.bind(String.prototype.includes);
 const stringStartsWith = Function.call.bind(String.prototype.startsWith);
-const MAX_CLAUDE_BINARY_BYTES = 384 * 1024 * 1024;
+const arrayJoin = Function.call.bind(Array.prototype.join);
+const jsonStringify = JSON.stringify;
+const hashPrototype = Object.getPrototypeOf(createHash("sha256"));
+const hashUpdate = Function.call.bind(hashPrototype.update);
+const hashDigest = Function.call.bind(hashPrototype.digest);
+const WINDOWS_EXACT_DIRECTORY_CLEANUP = fileURLToPath(
+  new URL("./windows-lock-exact-files.ps1", import.meta.url),
+);
+const WINDOWS_CLEANUP_WAIT = new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT));
+
+function digestBytes(bytes) {
+  const hash = createHash("sha256");
+  hashUpdate(hash, bytes);
+  return `sha256:${hashDigest(hash, "hex")}`;
+}
+
+function windowsCleanupSpecification(root, identity, expectedFiles) {
+  const files = new Array(expectedFiles.length);
+  for (let index = 0; index < expectedFiles.length; index += 1) {
+    const file = expectedFiles[index];
+    files[index] =
+      `{"name":${jsonStringify(file.name)},"digest":${jsonStringify(digestBytes(file.bytes))}}`;
+  }
+  return `{"root":{"path":${jsonStringify(root)},"inode":${jsonStringify(identity.ino.toString())},"device":${jsonStringify(identity.dev.toString())}},"files":[${arrayJoin(files, ",")}]}`;
+}
 
 export function boundedPartIdentificationEnvironment(source) {
   const env = createObject(null);
@@ -189,7 +217,7 @@ export function auditPartIdentificationTaskRoot(root, identity, expectedFiles) {
   }
 }
 
-export function cleanupPartIdentificationTaskRoot(root, identity) {
+export function cleanupPartIdentificationTaskRoot(root, identity, expectedFiles = []) {
   const temporaryRoot = resolve(tmpdir());
   const target = resolve(root);
   const fromTemporary = relative(temporaryRoot, target);
@@ -208,131 +236,61 @@ export function cleanupPartIdentificationTaskRoot(root, identity) {
       `Refusing to clean a replaced or non-task Claude root ${JSON.stringify(target)}.`,
     );
   }
+  auditPartIdentificationTaskRoot(target, identity, expectedFiles);
+  if (process.platform === "win32") {
+    const specification = Buffer.from(
+      windowsCleanupSpecification(target, identity, expectedFiles),
+      "utf8",
+    ).toString("base64");
+    const result = spawnSync(
+      TRUSTED_WINDOWS_POWERSHELL,
+      [
+        "-NoLogo",
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        WINDOWS_EXACT_DIRECTORY_CLEANUP,
+        "-Specification",
+        specification,
+      ],
+      {
+        encoding: "utf8",
+        input: "",
+        timeout: 15_000,
+        windowsHide: true,
+        maxBuffer: 128 * 1024,
+      },
+    );
+    if (result.status !== 0 || result.error !== undefined) {
+      const detail =
+        result.error?.message ?? (result.stderr.trim() || `PowerShell exited ${result.status}`);
+      throw new Error(
+        `Task-owned Claude root could not be removed through exact file/directory handles: ${detail}. No recursive path deletion was attempted.`,
+        result.error === undefined ? undefined : { cause: result.error },
+      );
+    }
+    const deadline = Date.now() + 2_000;
+    while (existsSync(target) && Date.now() < deadline) {
+      Atomics.wait(WINDOWS_CLEANUP_WAIT, 0, 0, 10);
+    }
+    if (existsSync(target)) {
+      throw new Error(
+        "Task-owned Claude root is still visible after exact-handle cleanup; no replacement path was recursively removed.",
+      );
+    }
+    return;
+  }
   rmSync(target, { recursive: true, force: true });
   if (existsSync(target)) throw new Error("Task-owned Claude root still exists after cleanup.");
 }
 
-function executableNames() {
-  return process.platform === "win32" ? ["claude.exe"] : ["claude"];
-}
+export { resolveClaudeBinary };
 
-function binaryState(stats) {
-  return {
-    dev: stats.dev,
-    ino: stats.ino,
-    size: stats.size,
-    mtimeNs: stats.mtimeNs,
-    ctimeNs: stats.ctimeNs,
-  };
-}
-
-function sameBinaryState(left, right) {
-  return (
-    left.dev === right.dev &&
-    left.ino === right.ino &&
-    left.size === right.size &&
-    left.mtimeNs === right.mtimeNs &&
-    left.ctimeNs === right.ctimeNs
-  );
-}
-
-function hashDescriptor(descriptor, byteLength) {
-  const hash = createHash("sha256");
-  const chunk = Buffer.allocUnsafe(1024 * 1024);
-  let offset = 0;
-  while (offset < byteLength) {
-    const count = readSync(
-      descriptor,
-      chunk,
-      0,
-      Math.min(chunk.length, byteLength - offset),
-      offset,
-    );
-    if (count < 1) throw new Error(`Claude binary stopped after ${offset} of ${byteLength} bytes.`);
-    hash.update(chunk.subarray(0, count));
-    offset += count;
-  }
-  return `sha256:${hash.digest("hex")}`;
-}
-
-export function assertClaudeBinaryStable(binary) {
-  const descriptorState = binaryState(fstatSync(binary.descriptor, { bigint: true }));
-  const pathStats = lstatSync(binary.path, { bigint: true });
-  const pathState = binaryState(pathStats);
-  if (
-    !pathStats.isFile() ||
-    pathStats.isSymbolicLink() ||
-    !sameBinaryState(binary.identity, descriptorState) ||
-    !sameBinaryState(binary.identity, pathState)
-  ) {
-    throw new Error(
-      "Pinned Claude binary changed identity or content metadata around provider launch.",
-    );
-  }
-}
-
-export function closeClaudeBinary(binary) {
-  closeSync(binary.descriptor);
-}
-
-export function resolveClaudeBinary(environment) {
-  const pathValue = environment.PATH;
-  if (typeof pathValue !== "string" || pathValue.length === 0) {
-    throw new Error("Strict Claude transport requires an allowlisted PATH to resolve one binary.");
-  }
-  const directories = pathValue.split(delimiter);
-  const names = executableNames();
-  if (directories.length > 512) throw new Error("Claude PATH contains more than 512 entries.");
-  for (let directoryIndex = 0; directoryIndex < directories.length; directoryIndex += 1) {
-    const directory = directories[directoryIndex];
-    if (directory.length === 0 || directory.length > 32_768) continue;
-    for (let nameIndex = 0; nameIndex < names.length; nameIndex += 1) {
-      const candidate = resolve(directory, names[nameIndex]);
-      if (!existsSync(candidate)) continue;
-      const candidateStats = lstatSync(candidate, { bigint: true });
-      if (!candidateStats.isFile() || candidateStats.isSymbolicLink()) continue;
-      const target = realpathSync(candidate);
-      if (resolve(target).toLowerCase() !== resolve(candidate).toLowerCase()) continue;
-      const stats = lstatSync(candidate, { bigint: true });
-      if (
-        !stats.isFile() ||
-        stats.isSymbolicLink() ||
-        stats.size > BigInt(MAX_CLAUDE_BINARY_BYTES)
-      ) {
-        continue;
-      }
-      let descriptor;
-      let retained = false;
-      try {
-        descriptor = openSync(candidate, "r");
-        const before = fstatSync(descriptor, { bigint: true });
-        const identity = binaryState(before);
-        if (!before.isFile() || !sameBinaryState(identity, binaryState(stats))) continue;
-        const byteLength = Number(before.size);
-        const digest = hashDescriptor(descriptor, byteLength);
-        const after = fstatSync(descriptor, { bigint: true });
-        const pathAfter = lstatSync(candidate, { bigint: true });
-        if (
-          !sameBinaryState(identity, binaryState(after)) ||
-          !sameBinaryState(identity, binaryState(pathAfter)) ||
-          byteLength !== PART_IDENTIFICATION_CLAUDE_BINARY_BYTES ||
-          digest !== PART_IDENTIFICATION_CLAUDE_BINARY_DIGEST
-        ) {
-          continue;
-        }
-        retained = true;
-        return {
-          path: candidate,
-          descriptor,
-          identity,
-          evidence: { byteLength, digest },
-        };
-      } finally {
-        if (!retained && descriptor !== undefined) closeSync(descriptor);
-      }
-    }
-  }
-  throw new Error(
-    "Could not resolve one ordinary bounded Claude binary from the allowlisted PATH.",
-  );
-}
+export const __testOnly = Object.freeze({
+  windowsCleanupSpecification,
+  resolveClaudeBinaryWithPin(environment, pin) {
+    return resolveClaudeBinaryWithPin(environment, pin);
+  },
+});

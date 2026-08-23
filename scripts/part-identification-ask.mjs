@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 
-import { option } from "./part-identification.mjs";
+import { option } from "./part-identification-cli-option.mjs";
 import {
   answerBundle,
   auditPartIdentificationAnswerCheckpointStore,
@@ -19,12 +19,12 @@ import {
 } from "./part-identification-call-proof.mjs";
 import {
   createPartIdentificationProofBudget,
-  estimatePartIdentificationProofReservation,
   runPartIdentificationClaudeTransport,
 } from "./part-identification-claude-transport.mjs";
-import { partIdentificationInstructionBytes } from "./part-identification-instruction.mjs";
-import { createPartIdentificationMcpRequest } from "./part-identification-mcp-server.mjs";
-import { writeContainedFile } from "./part-identification-io.mjs";
+import {
+  openPartIdentificationGate0Admission,
+  settlePartIdentificationGate0Launch,
+} from "./part-identification-gate0-store.mjs";
 import {
   isPinnedModelIdentity,
   PART_IDENTIFICATION_MODEL_ID,
@@ -45,8 +45,6 @@ import {
   PART_IDENTIFICATION_MAX_ATTEMPTS_PER_CARD,
   PART_IDENTIFICATION_MAX_BATCH_CARDS,
   PART_IDENTIFICATION_MAX_CALLS,
-  PART_IDENTIFICATION_MAX_COST_MICROUSD,
-  PART_IDENTIFICATION_MAX_WALL_TIME_MS,
   PART_IDENTIFICATION_TRANSPORT_CONTRACT_DIGEST,
 } from "./part-identification-transport-contract.mjs";
 import { quoteLine } from "./generated-file-staleness.mjs";
@@ -55,10 +53,14 @@ const OUT = "output/part-identification";
 const PROMPT = PART_IDENTIFICATION_PROMPT;
 const own = Function.call.bind(Object.prototype.hasOwnProperty);
 
-function requireReviewedPilotAuthorization() {
-  throw new Error(
-    "The isolated hardened pilot is disabled: no reviewed, card-digest-bound provider policy and privacy authorization artifact exists yet. Add and verify that immutable Gate-0 record before any provider process may launch; --pilot true alone is not authorization.",
-  );
+function requireReviewedPilotAuthorization(argv) {
+  const authorizationDigest = option(argv, "gate0-authorization", null);
+  if (!/^sha256:[0-9a-f]{64}$/u.test(authorizationDigest ?? "")) {
+    throw new Error(
+      "The isolated hardened pilot requires --gate0-authorization sha256:<64 lowercase hex> naming one current immutable local authorization; --pilot true alone is not authorization.",
+    );
+  }
+  return openPartIdentificationGate0Admission({ authorizationDigest });
 }
 
 function pendingAnswerClusterIndexes(clusters, answers, { only = null, inRange = null } = {}) {
@@ -157,20 +159,41 @@ async function askBatch(cardIds, model, out = OUT, context = {}) {
     cardsDigest: context.cardsDigest,
     model,
     proofBudget: context.proofBudget,
+    gate0Admission: context.gate0Admission,
   });
-  const parsed = parsePartIdentificationAnswerLines(transport.terminalResult, cardIds);
   if (injectedTransport) {
+    const parsed = parsePartIdentificationAnswerLines(transport.terminalResult, cardIds);
     return { ...parsed, modelIdentity: transport.modelIdentity, callProof: null };
   }
+  let failureCategory = "provider-terminal";
   try {
+    const parsed = parsePartIdentificationAnswerLines(transport.terminalResult, cardIds);
+    if (!isPinnedModelIdentity(transport.modelIdentity, model)) {
+      throw new Error(`Pinned model identity changed while answering ${cardIds.join(", ")}.`);
+    }
+    failureCategory = "proof-finalization";
     return {
       ...parsed,
       modelIdentity: transport.modelIdentity,
       callProof: finalizePartIdentificationCallProof(transport, parsed.parsedAnswers),
       reservationTicket: transport.reservationTicket,
+      gate0Ticket: transport.gate0Ticket,
     };
   } catch (cause) {
     transport.reservationTicket.release();
+    if (transport.gate0Ticket === undefined) throw cause;
+    try {
+      settlePartIdentificationGate0Launch(transport.gate0Ticket, {
+        status: "failure",
+        evidence: failureCategory,
+      });
+    } catch (settlementFailure) {
+      throw new AggregateError(
+        [cause, settlementFailure],
+        "Call-proof finalization and its Gate-0 failure settlement both failed.",
+        { cause: settlementFailure },
+      );
+    }
     throw cause;
   }
 }
@@ -217,15 +240,15 @@ async function commandAsk(argv) {
   }
   if (pilot !== "true") {
     throw new Error(
-      "Canonical /5 provider calls remain disabled until one isolated hardened pilot freezes measured token/cost limits and the provider authorization record; pass --pilot true only after the required privacy/policy evidence exists.",
+      "Canonical /5 provider calls remain disabled outside the one bounded six-card Gate-0 pilot; pass --pilot true only with its current exact --gate0-authorization digest.",
     );
   }
   if (batch !== PART_IDENTIFICATION_MAX_BATCH_CARDS || only !== null || lastStep !== null) {
     throw new Error(
-      "The isolated hardened pilot requires --batch 6 with no --only or --last-step narrowing so it can select the measurable worst authenticated packet.",
+      "The isolated hardened pilot requires --batch 6 with no --only or --last-step narrowing so it can select the measurable worst retained packet.",
     );
   }
-  requireReviewedPilotAuthorization();
+  const gate0Admission = requireReviewedPilotAuthorization(argv);
   const featuresArtifact = readJsonArtifact(
     join(out, "features.json"),
     "part-identification features",
@@ -352,45 +375,8 @@ async function commandAsk(argv) {
       }
     }
   }
-  const pilotCardIds = pilotChunk.map(cardId);
   const cardDigests = new Map(
     Object.entries(cardsManifest.cards).map(([id, card]) => [id, card.sha256]),
-  );
-  const pilotRequest = createPartIdentificationMcpRequest({
-    cardIds: pilotCardIds,
-    images: retained.images,
-    digests: cardDigests,
-    model,
-    cardsDigest: cardsArtifact.digest,
-    promptDigest: PART_IDENTIFICATION_PROMPT_DIGEST,
-    instructionBytes: partIdentificationInstructionBytes(pilotCardIds),
-  });
-  const pilotProofReservation = estimatePartIdentificationProofReservation(pilotRequest);
-  writeContainedFile(
-    generationOut,
-    "pilot-launch.json",
-    Buffer.from(
-      JSON.stringify({
-        schemaVersion: "lego.part-identification-pilot-launch/1",
-        transportContractDigest: PART_IDENTIFICATION_TRANSPORT_CONTRACT_DIGEST,
-        requestDigest: pilotRequest.requestDigest,
-        orderedCards: pilotRequest.cards.map(({ cardId: id, byteLength, digest }) => ({
-          cardId: id,
-          byteLength,
-          digest,
-        })),
-        proofByteReservation: pilotProofReservation,
-        conservativeCostMicrousdCharge: PART_IDENTIFICATION_MAX_COST_MICROUSD,
-        conservativeWallTimeMsCharge: PART_IDENTIFICATION_MAX_WALL_TIME_MS,
-        outcome: "reserved-before-provider-launch",
-      }),
-    ),
-    {
-      label: "One-shot hardened pilot launch reservation",
-      pathLabel: "Pilot launch journal",
-      maxBytes: 64 * 1024,
-      exclusive: true,
-    },
   );
   console.log(
     `${pending.length} drawings pending; this hardened pilot will make ${chunks.length} of ${planned.length} planned calls, ${usableAnswerCount(answers)} already answered`,
@@ -406,16 +392,34 @@ async function commandAsk(argv) {
         cardDigests,
         cardsDigest: cardsArtifact.digest,
         proofBudget,
+        gate0Admission,
       });
-      if (!isPinnedModelIdentity(replies.modelIdentity, model)) {
-        throw new Error(`Pinned model identity changed while answering ${chunk.join(", ")}.`);
-      }
       let proofReference;
+      let gate0TerminalPublished = false;
       try {
         proofReference = publishPartIdentificationCallProof(generationOut, replies.callProof);
+        settlePartIdentificationGate0Launch(replies.gate0Ticket, {
+          status: "success",
+          evidence: replies.callProof,
+        });
+        gate0TerminalPublished = true;
         replies.reservationTicket.commit(proofReference.byteLength);
       } catch (cause) {
         replies.reservationTicket?.release();
+        if (replies.gate0Ticket !== undefined && !gate0TerminalPublished) {
+          try {
+            settlePartIdentificationGate0Launch(replies.gate0Ticket, {
+              status: "failure",
+              evidence: "proof-finalization",
+            });
+          } catch (settlementFailure) {
+            throw new AggregateError(
+              [cause, settlementFailure],
+              "Proof publication and its Gate-0 failure settlement both failed.",
+              { cause: settlementFailure },
+            );
+          }
+        }
         throw cause;
       }
       const callDigest = proofReference.digest;

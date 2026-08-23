@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import {
   isMeasuredFartherOriginSourcePath,
   MEASURED_FARTHER_ORIGIN_REQUIRED_SOURCE_PATHS,
-  MEASURED_FARTHER_ORIGIN_VERIFIER_SCRIPT_SOURCE_PATHS,
+  MEASURED_FARTHER_ORIGIN_RUNTIME_SOURCE_PATHS,
   REAL_BUILD_SOURCE_ATTESTATION_SCHEMA_VERSION,
   type RealBuildSourceAttestation,
 } from "./real-build-farther-origin-source-manifest.ts";
@@ -42,13 +42,13 @@ export function deriveMeasuredFartherOriginSourceAttestation(
     if (isMeasuredFartherOriginSourcePath(path)) rows.push({ path, digest });
   }
   const selected = new Set(rows.map(({ path }) => path));
-  const missingVerifierScripts = MEASURED_FARTHER_ORIGIN_VERIFIER_SCRIPT_SOURCE_PATHS.filter(
+  const missingRuntimeSources = MEASURED_FARTHER_ORIGIN_RUNTIME_SOURCE_PATHS.filter(
     (path) => !selected.has(path),
   );
-  if (missingVerifierScripts.length > 0) {
+  if (missingRuntimeSources.length > 0) {
     throw new TypeError(
-      `Measured farther-origin source closure is missing ${missingVerifierScripts.length} ` +
-        `result-determining verifier script path(s): ${missingVerifierScripts.slice(0, 8).join(", ")}.`,
+      `Measured farther-origin source closure is missing ${missingRuntimeSources.length} ` +
+        `result-determining runtime source path(s): ${missingRuntimeSources.slice(0, 8).join(", ")}.`,
     );
   }
   const missing = MEASURED_FARTHER_ORIGIN_REQUIRED_SOURCE_PATHS.filter(

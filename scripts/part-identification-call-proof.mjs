@@ -291,6 +291,43 @@ export function finalizePartIdentificationCallProof(transport, parsedAnswers) {
   return finalized;
 }
 
+/** Reopens only the opaque result minted by the production transport/finalizer chain. */
+export function inspectFinalizedPartIdentificationCallProof(finalized) {
+  if (finalized?.[FINALIZED_PROOF] !== true) {
+    throw new PartIdentificationCallProofError(
+      "Gate-0 settlement requires a production-branded finalized call proof.",
+    );
+  }
+  const value = verifyPartIdentificationCallProof(finalized.value);
+  const bytes = proofBytes(value);
+  const observedDigest = sha256(bytes);
+  if (
+    !Buffer.isBuffer(finalized.bytes) ||
+    !bytes.equals(finalized.bytes) ||
+    finalized.digest !== observedDigest
+  ) {
+    throw new PartIdentificationCallProofError(
+      "Finalized call proof bytes and digest no longer reproduce the verified proof.",
+    );
+  }
+  return Object.freeze({
+    bytes,
+    byteLength: bytes.length,
+    digest: observedDigest,
+    request: Object.freeze({
+      requestDigest: value.request.requestDigest,
+      cardsDigest: value.request.cardsDigest,
+      promptDigest: value.request.promptDigest,
+      instruction: value.request.instruction,
+      orderedCards: value.request.orderedCards,
+      modelIdentity: value.request.modelIdentity,
+    }),
+    usage: value.terminal.usage,
+    elapsedMs: value.terminal.elapsedMs,
+    providerTurns: PART_IDENTIFICATION_TRANSPORT_CONTRACT.maxTurns,
+  });
+}
+
 export function publishPartIdentificationCallProof(out, proof) {
   if (proof?.[FINALIZED_PROOF] !== true) {
     throw new PartIdentificationCallProofError(

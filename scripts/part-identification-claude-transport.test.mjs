@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
 import { describe, expect, it } from "vitest";
@@ -10,10 +10,11 @@ import {
   verifyPartIdentificationCallProof,
 } from "./part-identification-call-proof.mjs";
 import {
-  createPartIdentificationClaudeTransportForTest,
   parsePartIdentificationClaudeStream,
   runPartIdentificationClaudeTransport,
 } from "./part-identification-claude-transport.mjs";
+import { createPartIdentificationClaudeTransportForTest } from "./part-identification-claude-transport-test-only.mjs";
+import * as supportedTransport from "./part-identification-claude-transport.mjs";
 import {
   partIdentificationInstructionBytes,
   PART_IDENTIFICATION_PROMPT_DIGEST,
@@ -27,6 +28,8 @@ import {
   PART_IDENTIFICATION_MODEL_IDENTITY,
 } from "./part-identification-model.mjs";
 import {
+  PART_IDENTIFICATION_CLAUDE_BINARY_BYTES,
+  PART_IDENTIFICATION_CLAUDE_BINARY_DIGEST,
   PART_IDENTIFICATION_CLAUDE_CLI_VERSION,
   PART_IDENTIFICATION_CLAUDE_TOOL,
   PART_IDENTIFICATION_MAX_EVENTS,
@@ -166,9 +169,13 @@ const input = () => ({
 });
 
 describe("strict part-identification Claude transport", () => {
-  it("keeps every production provider entrypoint disabled until Gate-0 evidence exists", () => {
-    expect(() => runPartIdentificationClaudeTransport(input())).toThrow(
-      /provider execution is disabled.*provider policy\/privacy authorization/u,
+  it("keeps the injectable runner outside the supported production surface", () => {
+    expect(supportedTransport).not.toHaveProperty("createPartIdentificationClaudeTransportForTest");
+  });
+
+  it("refuses production before any preflight without an opaque Gate-0 admission", async () => {
+    await expect(runPartIdentificationClaudeTransport(input())).rejects.toThrow(
+      /admission capability is absent or foreign/u,
     );
   });
 
@@ -215,6 +222,11 @@ describe("strict part-identification Claude transport", () => {
     expect(() =>
       verifyPartIdentificationCallProof({ ...result.proof, parsedAnswers: parsed.parsedAnswers }),
     ).not.toThrow();
+    expect(result.proof.cliContract.binary).toEqual({
+      byteLength: PART_IDENTIFICATION_CLAUDE_BINARY_BYTES,
+      digest: PART_IDENTIFICATION_CLAUDE_BINARY_DIGEST,
+      version: PART_IDENTIFICATION_CLAUDE_CLI_VERSION,
+    });
     expect(result.modelIdentity).toEqual(PART_IDENTIFICATION_MODEL_IDENTITY);
   });
 
@@ -341,7 +353,7 @@ describe("strict part-identification Claude transport", () => {
     );
   });
 
-  it("refuses a persistent child-created file, retains no result, and cleans it", async () => {
+  it("refuses a persistent child-created file and quarantines the exact task root", async () => {
     let cwd;
     let resolved = false;
     const transport = createPartIdentificationClaudeTransportForTest({
@@ -358,6 +370,8 @@ describe("strict part-identification Claude transport", () => {
       (error) => expect(error.message).toMatch(/persistent child-created entry/u),
     );
     expect(resolved).toBe(false);
+    expect(existsSync(cwd)).toBe(true);
+    rmSync(cwd, { recursive: true, force: true });
     expect(existsSync(cwd)).toBe(false);
   });
 

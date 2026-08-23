@@ -26,7 +26,7 @@ import {
   readBoundedFile,
   readContainedFile,
 } from "./part-identification-io.mjs";
-import { option } from "./part-identification.mjs";
+import { option } from "./part-identification-cli-option.mjs";
 import { parseStrictJsonBytes } from "./part-identification-strict-json.mjs";
 import { verifyBookletCatalogCoverageClosure } from "./booklet-catalog-coverage.mjs";
 import {

@@ -1,41 +1,38 @@
-import {
-  closeSync,
-  fstatSync,
-  mkdirSync,
-  openSync,
-  rmSync,
-  symlinkSync,
-  utimesSync,
-  writeFileSync,
-} from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
-  auditPartIdentificationTaskRoot,
-  assertClaudeBinaryStable,
   assertPinnedClaudeVersionResult,
+  auditPartIdentificationTaskRoot,
+  cleanupPartIdentificationTaskRoot,
   createPartIdentificationTaskRoot,
-  resolveClaudeBinary,
+  __testOnly,
 } from "./part-identification-claude-runtime.mjs";
-import { PART_IDENTIFICATION_CLAUDE_CLI_VERSION } from "./part-identification-transport-contract.mjs";
+import {
+  PART_IDENTIFICATION_CLAUDE_BINARY_BYTES,
+  PART_IDENTIFICATION_CLAUDE_BINARY_DIGEST,
+  PART_IDENTIFICATION_CLAUDE_CLI_VERSION,
+} from "./part-identification-transport-contract.mjs";
 
 const roots = [];
+
 afterEach(() => {
   while (roots.length > 0) rmSync(roots.pop(), { recursive: true, force: true });
 });
-function root() {
+
+function temporaryRoot() {
   const value = join(tmpdir(), `lego-claude-runtime-${process.pid}-${Date.now()}-${roots.length}`);
   mkdirSync(value);
   roots.push(value);
   return value;
 }
-const executableName = process.platform === "win32" ? "claude.exe" : "claude";
 
-describe("pinned Claude runtime identity", () => {
-  it("refuses an oversized rewritten task file before reading it and stops at one extra entry", () => {
+describe("pinned Claude runtime contract", () => {
+  it("refuses an oversized rewritten task file and stops at one extra entry", () => {
     const oversized = createPartIdentificationTaskRoot();
     roots.push(oversized.root);
     const requestBytes = Buffer.from("bound request");
@@ -62,7 +59,7 @@ describe("pinned Claude runtime identity", () => {
     ).toThrow(/more than 2 entries/u);
   });
 
-  it("requires the exact version output and empty stderr", () => {
+  it("requires exact version output, success, and empty stderr", () => {
     expect(
       assertPinnedClaudeVersionResult({
         code: 0,
@@ -81,58 +78,79 @@ describe("pinned Claude runtime identity", () => {
     }
   });
 
-  it("rejects a wrong ordinary binary, command shim, and symlink candidate", () => {
-    const wrongRoot = root();
-    writeFileSync(join(wrongRoot, executableName), "not the pinned binary");
-    expect(() => resolveClaudeBinary({ PATH: wrongRoot })).toThrow(/Could not resolve/u);
-    if (process.platform === "win32") {
-      const shimRoot = root();
-      writeFileSync(join(shimRoot, "claude.cmd"), "@echo wrong");
-      expect(() => resolveClaudeBinary({ PATH: shimRoot })).toThrow(/Could not resolve/u);
-    }
-    const linkRoot = root();
-    const target = join(linkRoot, "target.bin");
-    writeFileSync(target, "target");
-    try {
-      symlinkSync(target, join(linkRoot, executableName), "file");
-      expect(() => resolveClaudeBinary({ PATH: linkRoot })).toThrow(/Could not resolve/u);
-    } catch (error) {
-      if (error.code !== "EPERM" || process.platform !== "win32") throw error;
-      const actual = join(linkRoot, "actual-bin");
-      const linked = join(linkRoot, "linked-bin");
-      mkdirSync(actual);
-      writeFileSync(join(actual, executableName), "target");
-      symlinkSync(actual, linked, "junction");
-      expect(() => resolveClaudeBinary({ PATH: linked })).toThrow(/Could not resolve/u);
-    }
+  it("derives only the pinned version-store path and ignores ambient PATH", () => {
+    const profile = temporaryRoot();
+    const binary = __testOnly.resolveClaudeBinaryWithPin(
+      {
+        USERPROFILE: profile,
+        PATH: [join(profile, "hostile-a"), join(profile, "hostile-b")].join(";"),
+      },
+      {
+        byteLength: PART_IDENTIFICATION_CLAUDE_BINARY_BYTES,
+        digest: PART_IDENTIFICATION_CLAUDE_BINARY_DIGEST,
+      },
+    );
+    expect(binary).toEqual({
+      path: join(profile, ".local", "share", "claude", "versions", "2.1.232"),
+      exactExecutablePin: {
+        byteLength: PART_IDENTIFICATION_CLAUDE_BINARY_BYTES,
+        digest: PART_IDENTIFICATION_CLAUDE_BINARY_DIGEST,
+      },
+      evidence: {
+        byteLength: PART_IDENTIFICATION_CLAUDE_BINARY_BYTES,
+        digest: PART_IDENTIFICATION_CLAUDE_BINARY_DIGEST,
+      },
+    });
+    expect(existsSync(join(profile, "hostile-a"))).toBe(false);
+    expect(existsSync(join(profile, "hostile-b"))).toBe(false);
   });
 
-  it("detects path metadata replacement around a held descriptor", () => {
-    const out = root();
-    const path = join(out, "held.bin");
-    writeFileSync(path, "held bytes");
-    const descriptor = openSync(path, "r");
-    try {
-      const stats = fstatSync(descriptor, { bigint: true });
-      const binary = {
-        path,
-        descriptor,
-        identity: {
-          dev: stats.dev,
-          ino: stats.ino,
-          size: stats.size,
-          mtimeNs: stats.mtimeNs,
-          ctimeNs: stats.ctimeNs,
-        },
-      };
-      expect(() => assertClaudeBinaryStable(binary)).not.toThrow();
-      const changed = new Date(Date.now() + 10_000);
-      utimesSync(path, changed, changed);
-      expect(() => assertClaudeBinaryStable(binary)).toThrow(
-        /changed identity or content metadata/u,
-      );
-    } finally {
-      closeSync(descriptor);
-    }
+  it("rejects inherited, accessor, malformed, and relative launch inputs", () => {
+    const profile = temporaryRoot();
+    const valid = {
+      byteLength: 10,
+      digest: `sha256:${"1".repeat(64)}`,
+    };
+    expect(() => __testOnly.resolveClaudeBinaryWithPin({ USERPROFILE: "relative" }, valid)).toThrow(
+      /absolute/u,
+    );
+    expect(() =>
+      __testOnly.resolveClaudeBinaryWithPin({ USERPROFILE: profile }, Object.create(valid)),
+    ).toThrow(/exact SHA-256/u);
+    const accessor = {};
+    Object.defineProperty(accessor, "byteLength", { get: () => 10 });
+    Object.defineProperty(accessor, "digest", { get: () => valid.digest });
+    expect(() => __testOnly.resolveClaudeBinaryWithPin({ USERPROFILE: profile }, accessor)).toThrow(
+      /exact SHA-256/u,
+    );
+  });
+
+  it("cleans an exact ordinary task root after its files are removed", () => {
+    const task = createPartIdentificationTaskRoot();
+    roots.push(task.root);
+    cleanupPartIdentificationTaskRoot(task.root, task.identity);
+    expect(existsSync(task.root)).toBe(false);
+    roots.pop();
+  });
+
+  it("serializes every cleanup file after ambient Array.join poisoning", () => {
+    const code = `
+      const runtime = await import(${JSON.stringify(new URL("./part-identification-claude-runtime.mjs", import.meta.url).href)});
+      Array.prototype.join = () => "";
+      const value = JSON.parse(runtime.__testOnly.windowsCleanupSpecification(
+        "C:/task-root",
+        { ino: 11n, dev: 22n },
+        [
+          { name: "request.json", bytes: Buffer.from("request") },
+          { name: "mcp.json", bytes: Buffer.from("config") },
+        ],
+      ));
+      if (value.files.length !== 2 || value.files[0].name !== "request.json" || value.files[1].name !== "mcp.json") process.exit(7);
+    `;
+    const child = spawnSync(process.execPath, ["--input-type=module", "-e", code], {
+      encoding: "utf8",
+      windowsHide: true,
+    });
+    expect(child.status, child.stderr).toBe(0);
   });
 });

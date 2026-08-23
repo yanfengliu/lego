@@ -5,8 +5,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { __testOnly as coverageTestOnly } from "./booklet-catalog-coverage.mjs";
 import { closureFixture } from "./booklet-catalog-coverage-test-fixture.mjs";
 import { authenticateCardImageBundle } from "./part-identification-card-images.mjs";
+import { option } from "./part-identification-cli-option.mjs";
 import { PART_IDENTIFICATION_MODEL_ID } from "./part-identification-model.mjs";
-import { option } from "./part-identification.mjs";
 import { commandSummary } from "./part-identification-score.mjs";
 import { jsonArtifactFromBytes, sha256Digest } from "./part-identification-artifacts.mjs";
 import {

@@ -4,6 +4,12 @@ import { pathToFileURL } from "node:url";
 
 import { commandAsk } from "./part-identification-ask.mjs";
 import { commandCards } from "./part-identification-cards.mjs";
+import { option } from "./part-identification-cli-option.mjs";
+import {
+  commandGate0Authorize,
+  commandGate0Propose,
+  PART_IDENTIFICATION_GATE0_APPROVAL_PHRASE,
+} from "./part-identification-gate0-workflow.mjs";
 import { commandPairsheet, commandSheets } from "./part-identification-sheets.mjs";
 import { commandScore, commandSummary } from "./part-identification-score.mjs";
 import { commandObservations, commandReask } from "./part-identification-observations-run.mjs";
@@ -54,7 +60,9 @@ export function usage() {
     "  tiles      [--callouts DIR --inventory DIR]   re-cut both galleries to their ink",
     "  labelsheet [--last-step 50]                   numbered sheets to read ground truth off",
     "  cards      [--k 6] [--callouts DIR --inventory DIR]  draw source-bound cards plus exact replay bundle",
-    `  ask        [--model ${PART_IDENTIFICATION_MODEL_ID}] [--jobs 4] --batch 6 --max-calls 1 --pilot true  disabled pending reviewed Gate-0 authorization`,
+    "  gate0-propose [--out DIR]                      fetch policy pages and retain an exact proposal; no authorization, Claude executable, or model-bearing call",
+    `  gate0-authorize --proposal sha256:... --approval ${PART_IDENTIFICATION_GATE0_APPROVAL_PHRASE}  record one short-lived local assertion; no Claude executable or model-bearing call`,
+    `  ask        [--model ${PART_IDENTIFICATION_MODEL_ID}] --batch 6 --max-calls 1 --pilot true --gate0-authorization sha256:...`,
     "  pairsheet  [--source ...] [--assign ...]      callout beside claimed element, to judge",
     "  score      [--source deterministic|adjudicated] [--assign ...]  conservation and accuracy",
     "  observations [--model M]                      what the call wrote, grouped and read",
@@ -65,20 +73,6 @@ export function usage() {
     "",
     `every command reads and writes ${OUT}/`,
   ].join("\n");
-}
-
-function option(argv, name, fallback) {
-  const flag = `--${name}`;
-  const positions = argv.flatMap((value, index) => (value === flag ? [index] : []));
-  if (positions.length === 0) return fallback;
-  if (positions.length > 1) {
-    throw new Error(`${flag} may be provided only once; received ${positions.length} occurrences.`);
-  }
-  const at = positions[0];
-  if (at === argv.length - 1 || argv[at + 1].startsWith("--")) {
-    throw new Error(`${flag} requires a value; received no value.`);
-  }
-  return argv[at + 1];
 }
 
 function writeJson(path, value) {
@@ -429,6 +423,8 @@ const COMMANDS = {
   tiles: commandTiles,
   labelsheet: commandLabelsheet,
   cards: (argv) => commandCards(argv, { option, writeJson, writeNestedArtifact }),
+  "gate0-propose": commandGate0Propose,
+  "gate0-authorize": commandGate0Authorize,
   ask: commandAsk,
   pairsheet: (argv) => commandPairsheet(argv, helpers),
   score: (argv) => commandScore(argv, helpers),

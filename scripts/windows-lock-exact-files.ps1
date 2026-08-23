@@ -11,6 +11,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using System.Text;
 using Microsoft.Win32.SafeHandles;
 
 public static class LegoExactReadLock {
@@ -80,6 +81,31 @@ public static class LegoExactReadLock {
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool CloseHandle(IntPtr handle);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern uint GetFinalPathNameByHandle(
+        IntPtr file,
+        StringBuilder path,
+        uint pathLength,
+        uint flags
+    );
+
+    public static string FinalDosPath(IntPtr handle) {
+        StringBuilder path = new StringBuilder(32768);
+        uint count = GetFinalPathNameByHandle(handle, path, (uint)path.Capacity, 0);
+        if (count == 0) {
+            throw new Win32Exception(Marshal.GetLastWin32Error(), "Cannot resolve the exact locked directory path");
+        }
+        if (count >= path.Capacity) {
+            throw new InvalidOperationException("Exact locked directory path exceeds 32767 characters");
+        }
+        string value = path.ToString();
+        if (!value.StartsWith(@"\\?\", StringComparison.Ordinal) ||
+            value.StartsWith(@"\\?\UNC\", StringComparison.OrdinalIgnoreCase)) {
+            throw new InvalidOperationException("Exact locked directory must resolve to a local DOS path");
+        }
+        return Path.GetFullPath(value.Substring(4));
+    }
 
     public static IntPtr OpenExact(string path, string expectedDigest) {
         IntPtr file = CreateFileW(
@@ -175,8 +201,17 @@ $rootHandle = [LegoExactReadLock]::OpenDirectoryExact(
   $spec.root.device
 )
 try {
+  $finalRoot = [LegoExactReadLock]::FinalDosPath($rootHandle)
   foreach ($record in $spec.files) {
-    $handles.Add([LegoExactReadLock]::OpenExact($record.path, $record.digest))
+    $name = if ($record.PSObject.Properties.Name -contains "name") {
+      [string]$record.name
+    } else {
+      [IO.Path]::GetFileName([string]$record.path)
+    }
+    if ([string]::IsNullOrWhiteSpace($name) -or [IO.Path]::GetFileName($name) -cne $name) {
+      throw "Exact locked file name is not one ordinary leaf."
+    }
+    $handles.Add([LegoExactReadLock]::OpenExact([IO.Path]::Combine($finalRoot, $name), $record.digest))
   }
   [Console]::Out.WriteLine("READY")
   [Console]::Out.Flush()

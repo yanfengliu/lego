@@ -29,13 +29,61 @@ const MAX_STDIN_BYTES =
   MAX_PART_IDENTIFICATION_MCP_MESSAGES * MAX_PART_IDENTIFICATION_MCP_LINE_BYTES;
 const CARD_ID = /^card-\d{4}$/u;
 const SHA256 = /^sha256:[0-9a-f]{64}$/u;
-const PNG_SIGNATURE = Buffer.from("89504e470d0a1a0a", "hex");
+const bufferFrom = Buffer.from;
+const bufferToString = Function.call.bind(Buffer.prototype.toString);
+const bufferSubarray = Function.call.bind(Buffer.prototype.subarray);
+const bufferEquals = Function.call.bind(Buffer.prototype.equals);
+const PNG_SIGNATURE = bufferFrom("89504e470d0a1a0a", "hex");
 const stringify = JSON.stringify;
+const arrayJoin = Function.call.bind(Array.prototype.join);
+const stringSlice = Function.call.bind(String.prototype.slice);
+const hashPrototype = Object.getPrototypeOf(createHash("sha256"));
+const hashUpdate = Function.call.bind(hashPrototype.update);
+const hashDigest = Function.call.bind(hashPrototype.digest);
 const NativeMap = Map;
 const mapGet = Function.call.bind(Map.prototype.get);
 
-const sha256 = (bytes) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
-const jsonBytes = (value) => Buffer.from(stringify(value), "utf8");
+const sha256 = (bytes) => {
+  const hash = createHash("sha256");
+  hashUpdate(hash, bytes);
+  return `sha256:${hashDigest(hash, "hex")}`;
+};
+const encodedString = (value) => stringify(value);
+const encodedInteger = (value) => stringify(value);
+
+function instructionJson(value) {
+  return `{"byteLength":${encodedInteger(value.byteLength)},"digest":${encodedString(value.digest)}}`;
+}
+
+function cardJson(value) {
+  return (
+    `{"cardId":${encodedString(value.cardId)},"byteLength":${encodedInteger(value.byteLength)},` +
+    `"digest":${encodedString(value.digest)},"base64":${encodedString(value.base64)}}`
+  );
+}
+
+function orderedCardsJson(cards) {
+  const held = new Array(cards.length);
+  for (let index = 0; index < cards.length; index += 1) held[index] = cardJson(cards[index]);
+  return `[${arrayJoin(held, ",")}]`;
+}
+
+function requestCoreJson(request) {
+  return (
+    `{"schemaVersion":${encodedString(request.schemaVersion)},"model":${encodedString(request.model)},` +
+    `"cardsDigest":${encodedString(request.cardsDigest)},"promptDigest":${encodedString(request.promptDigest)},` +
+    `"transportContractDigest":${encodedString(request.transportContractDigest)},` +
+    `"instruction":${instructionJson(request.instruction)},"cards":${orderedCardsJson(request.cards)}}`
+  );
+}
+
+function requestArtifactJson(request) {
+  const core = requestCoreJson(request);
+  return `${stringSlice(core, 0, -1)},"requestDigest":${encodedString(request.requestDigest)}}`;
+}
+
+const requestCoreBytes = (value) => bufferFrom(requestCoreJson(value), "utf8");
+const requestArtifactBytes = (value) => bufferFrom(requestArtifactJson(value), "utf8");
 
 function duplicateStringBefore(values, index) {
   for (let prior = 0; prior < index; prior += 1) {
@@ -71,9 +119,9 @@ function verifiedBase64(value, byteLength, digest, label) {
   if (typeof value !== "string" || value.length === 0 || value.length > 12 * 1024 * 1024) {
     throw new PartIdentificationMcpError(`${label} base64 is missing or exceeds its bound.`);
   }
-  const bytes = Buffer.from(value, "base64");
+  const bytes = bufferFrom(value, "base64");
   if (
-    bytes.toString("base64") !== value ||
+    bufferToString(bytes, "base64") !== value ||
     !Number.isSafeInteger(byteLength) ||
     byteLength < 1 ||
     byteLength > MAX_IMAGE_ARTIFACT_BYTES ||
@@ -85,7 +133,10 @@ function verifiedBase64(value, byteLength, digest, label) {
       `${label} base64, byteLength, and SHA-256 digest do not describe the same bounded bytes.`,
     );
   }
-  if (bytes.length < PNG_SIGNATURE.length || !bytes.subarray(0, 8).equals(PNG_SIGNATURE)) {
+  if (
+    bytes.length < PNG_SIGNATURE.length ||
+    !bufferEquals(bufferSubarray(bytes, 0, 8), PNG_SIGNATURE)
+  ) {
     throw new PartIdentificationMcpError(`${label} is not a PNG byte stream.`);
   }
   return bytes;
@@ -182,13 +233,19 @@ export function verifyPartIdentificationMcpRequest(value) {
       );
     }
   }
-  const observedDigest = sha256(jsonBytes(requestCore(value)));
+  const observedDigest = sha256(requestCoreBytes(requestCore(value)));
   if (value.requestDigest !== observedDigest) {
     throw new PartIdentificationMcpError(
       `Part-identification MCP request digest is ${JSON.stringify(value.requestDigest)}, but its exact ordered instruction/card core hashes to ${observedDigest}.`,
     );
   }
   return value;
+}
+
+/** Exact fixed-field request bytes, immune to inherited toJSON and key insertion order. */
+export function partIdentificationMcpVerifiedRequestArtifact(verifiedRequest) {
+  const bytes = requestArtifactBytes(verifiedRequest);
+  return Object.freeze({ bytes, byteLength: bytes.length, digest: sha256(bytes) });
 }
 
 function sourceBytes(images, digests, cardId) {
@@ -204,19 +261,19 @@ function sourceBytes(images, digests, cardId) {
       `No authenticated retained PNG bytes and manifest digest were supplied for ${cardId}.`,
     );
   }
-  const held = Buffer.from(bytes);
+  const held = bufferFrom(bytes);
   if (
     held.length < 1 ||
     held.length > MAX_IMAGE_ARTIFACT_BYTES ||
     sha256(held) !== digest ||
     held.length < 8 ||
-    !held.subarray(0, 8).equals(PNG_SIGNATURE)
+    !bufferEquals(bufferSubarray(held, 0, 8), PNG_SIGNATURE)
   ) {
     throw new PartIdentificationMcpError(
       `Authenticated retained bytes for ${cardId} do not reproduce its bounded PNG and manifest digest.`,
     );
   }
-  return { cardId, byteLength: held.length, digest, base64: held.toString("base64") };
+  return { cardId, byteLength: held.length, digest, base64: bufferToString(held, "base64") };
 }
 
 export function createPartIdentificationMcpRequest({
@@ -245,7 +302,7 @@ export function createPartIdentificationMcpRequest({
       );
     }
   }
-  const instruction = Buffer.from(instructionBytes ?? []);
+  const instruction = bufferFrom(instructionBytes ?? []);
   if (instruction.length < 1 || instruction.length > MAX_PART_IDENTIFICATION_INSTRUCTION_BYTES) {
     throw new PartIdentificationMcpError(
       `Part-identification instruction requires 1 through ${MAX_PART_IDENTIFICATION_INSTRUCTION_BYTES} bytes; received ${instruction.length}.`,
@@ -268,7 +325,7 @@ export function createPartIdentificationMcpRequest({
   };
   return verifyPartIdentificationMcpRequest({
     ...core,
-    requestDigest: sha256(jsonBytes(core)),
+    requestDigest: sha256(requestCoreBytes(core)),
   });
 }
 

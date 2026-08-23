@@ -127,7 +127,29 @@ describe("part-identification Claude failure diagnostics", () => {
     expect(spawnImpl).not.toHaveBeenCalled();
   });
 
-  it("refuses valid pilot flags at authorization before artifacts, journal, or provider", async () => {
+  it("forwards the opaque Gate-0 admission to the selected transport", async () => {
+    const gate0Admission = Object.freeze(Object.create(null));
+    const transport = vi.fn(async () => ({
+      terminalResult:
+        'card-0000 {"kind":"brick","studsLong":1,"studsWide":1,"colour":"black","pick":1,"alsoCouldBe":0,"differsFromPick":"nothing","confidence":0.9}',
+      modelIdentity: {
+        requestedModelId: PART_IDENTIFICATION_MODEL_ID,
+        responseModelId: PART_IDENTIFICATION_MODEL_ID,
+        canonicalModel: "claude-opus-5",
+        provider: "anthropic",
+      },
+    }));
+
+    await askBatch(["card-0000"], PART_IDENTIFICATION_MODEL_ID, "unused", {
+      transport,
+      gate0Admission,
+    });
+
+    expect(transport).toHaveBeenCalledOnce();
+    expect(transport.mock.calls[0][0].gate0Admission).toBe(gate0Admission);
+  });
+
+  it("refuses pilot flags without an exact Gate-0 digest before artifacts or provider", async () => {
     const out = join(tmpdir(), `lego-disabled-part-id-${process.pid}-${randomUUID()}`);
     expect(existsSync(out)).toBe(false);
     await expect(
@@ -143,7 +165,7 @@ describe("part-identification Claude failure diagnostics", () => {
         "--pilot",
         "true",
       ]),
-    ).rejects.toThrow(/pilot is disabled.*Gate-0 record before any provider process may launch/u);
+    ).rejects.toThrow(/requires --gate0-authorization/u);
     expect(existsSync(out)).toBe(false);
   });
 

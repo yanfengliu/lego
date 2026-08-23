@@ -14,8 +14,19 @@ export const MEASURED_FARTHER_ORIGIN_VERIFIER_ENTRY_SOURCE_PATHS = Object.freeze
   "apps/web/e2e/real-build-input-limits.ts",
 ]);
 
-/** Exact executable script closure reached from the verifier entry modules. */
-export const MEASURED_FARTHER_ORIGIN_VERIFIER_SCRIPT_SOURCE_PATHS = Object.freeze([
+/** Production entry modules that create the exact evidence later consumed by the verifier. */
+export const MEASURED_FARTHER_ORIGIN_PRODUCER_ENTRY_SOURCE_PATHS = Object.freeze([
+  "scripts/part-identification-ask.mjs",
+  "scripts/part-identification-gate0-workflow.mjs",
+]);
+
+export const MEASURED_FARTHER_ORIGIN_ENTRY_SOURCE_PATHS = Object.freeze([
+  ...MEASURED_FARTHER_ORIGIN_VERIFIER_ENTRY_SOURCE_PATHS,
+  ...MEASURED_FARTHER_ORIGIN_PRODUCER_ENTRY_SOURCE_PATHS,
+]);
+
+/** Exact executable source closure, including runtime-loaded PowerShell/C#, reached from verifier and producer entries. */
+export const MEASURED_FARTHER_ORIGIN_RUNTIME_SOURCE_PATHS = Object.freeze([
   "scripts/booklet-catalog-coverage-report.mjs",
   "scripts/booklet-catalog-coverage.mjs",
   "scripts/bounded-observed-value.mjs",
@@ -30,18 +41,39 @@ export const MEASURED_FARTHER_ORIGIN_VERIFIER_SCRIPT_SOURCE_PATHS = Object.freez
   "scripts/part-identification-artifact-source.mjs",
   "scripts/part-identification-artifact-vision.mjs",
   "scripts/part-identification-artifacts.mjs",
+  "scripts/part-identification-ask.mjs",
+  "scripts/part-identification-bounded-child.mjs",
   "scripts/part-identification-call-proof-contract.mjs",
   "scripts/part-identification-call-proof-digest.mjs",
   "scripts/part-identification-call-proof.mjs",
   "scripts/part-identification-card-images.mjs",
   "scripts/part-identification-claims.mjs",
+  "scripts/part-identification-claude-binary.mjs",
   "scripts/part-identification-claude-error.mjs",
   "scripts/part-identification-claude-runtime.mjs",
   "scripts/part-identification-claude-stream.mjs",
+  "scripts/part-identification-claude-transport-engine.mjs",
   "scripts/part-identification-claude-transport.mjs",
+  "scripts/part-identification-cli-option.mjs",
   "scripts/part-identification-contained-path.mjs",
   "scripts/part-identification-contained-write.mjs",
   "scripts/part-identification-derivation.mjs",
+  "scripts/part-identification-gate0-foundation.mjs",
+  "scripts/part-identification-gate0-json.mjs",
+  "scripts/part-identification-gate0-ledger.mjs",
+  "scripts/part-identification-gate0-pilot-slot.mjs",
+  "scripts/part-identification-gate0-policy.mjs",
+  "scripts/part-identification-gate0-prepared.mjs",
+  "scripts/part-identification-gate0-proposal.mjs",
+  "scripts/part-identification-gate0-request.mjs",
+  "scripts/part-identification-gate0-root.mjs",
+  "scripts/part-identification-gate0-settlement-evidence.mjs",
+  "scripts/part-identification-gate0-store-capabilities.mjs",
+  "scripts/part-identification-gate0-store-io.mjs",
+  "scripts/part-identification-gate0-store-paths.mjs",
+  "scripts/part-identification-gate0-store-records.mjs",
+  "scripts/part-identification-gate0-store.mjs",
+  "scripts/part-identification-gate0-workflow.mjs",
   "scripts/part-identification-handedness.mjs",
   "scripts/part-identification-immutable-cas.mjs",
   "scripts/part-identification-instruction.mjs",
@@ -51,6 +83,10 @@ export const MEASURED_FARTHER_ORIGIN_VERIFIER_SCRIPT_SOURCE_PATHS = Object.freez
   "scripts/part-identification-model.mjs",
   "scripts/part-identification-pair-judged.mjs",
   "scripts/part-identification-prompt.mjs",
+  "scripts/part-identification-proof-reservation.mjs",
+  "scripts/part-identification-proof-store.mjs",
+  "scripts/part-identification-reask.mjs",
+  "scripts/part-identification-safe-json.mjs",
   "scripts/part-identification-safe-shape.mjs",
   "scripts/part-identification-score-observations.mjs",
   "scripts/part-identification-score-truth.mjs",
@@ -58,9 +94,15 @@ export const MEASURED_FARTHER_ORIGIN_VERIFIER_SCRIPT_SOURCE_PATHS = Object.freez
   "scripts/part-identification-strict-json.mjs",
   "scripts/part-identification-transport-contract.mjs",
   "scripts/part-identification-truth-key.mjs",
+  "scripts/part-identification-windows-trust.mjs",
   "scripts/part-thumbnail-canvas.mjs",
   "scripts/part-thumbnail-image-guard.mjs",
   "scripts/part-thumbnail-image.mjs",
+  "scripts/windows-bounded-child-native.cs",
+  "scripts/windows-bounded-child.cs",
+  "scripts/windows-bounded-child.ps1",
+  "scripts/windows-lock-exact-files.ps1",
+  "scripts/windows-open-file-disposition.ps1",
 ]);
 
 /**
@@ -87,7 +129,7 @@ export const MEASURED_FARTHER_ORIGIN_EXACT_SOURCE_PATHS = Object.freeze([
   "package-lock.json",
   "package.json",
   "playwright.config.ts",
-  ...MEASURED_FARTHER_ORIGIN_VERIFIER_SCRIPT_SOURCE_PATHS,
+  ...MEASURED_FARTHER_ORIGIN_RUNTIME_SOURCE_PATHS,
   "tsconfig.json",
 ]);
 
@@ -132,7 +174,7 @@ export const MEASURED_FARTHER_ORIGIN_REQUIRED_SOURCE_PATHS = Object.freeze([
   "packages/rendering/src/index.ts",
   "packages/rendering/src/camera-fit-lattice.ts",
   "package-lock.json",
-  ...MEASURED_FARTHER_ORIGIN_VERIFIER_SCRIPT_SOURCE_PATHS,
+  ...MEASURED_FARTHER_ORIGIN_RUNTIME_SOURCE_PATHS,
 ]);
 
 export const MEASURED_FARTHER_ORIGIN_SOURCE_MANIFEST_PATH =
@@ -170,7 +212,7 @@ export function isRealBuildSourceAttestation(value: unknown): value is RealBuild
 export const MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION: RealBuildSourceAttestation = Object.freeze(
   {
     schemaVersion: REAL_BUILD_SOURCE_ATTESTATION_SCHEMA_VERSION,
-    fileCount: 3_472,
-    digest: "sha256:d9f989fdda28e3eabcd5222858b09422a8d31ad2652842f0ef6cd9bc3e7d3775",
+    fileCount: 3_503,
+    digest: "sha256:0bed09a34603f8a1b9c419951df16c4ae74f08fe9f537577df477e978d03983e",
   },
 );

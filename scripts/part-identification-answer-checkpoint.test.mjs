@@ -17,7 +17,7 @@ import {
   answerRecordDigest,
   verifyPartIdentificationCallProof,
 } from "./part-identification-call-proof.mjs";
-import { createPartIdentificationClaudeTransportForTest } from "./part-identification-claude-transport.mjs";
+import { createPartIdentificationClaudeTransportForTest } from "./part-identification-claude-transport-test-only.mjs";
 import {
   partIdentificationInstructionBytes,
   PART_IDENTIFICATION_PROMPT_DIGEST,

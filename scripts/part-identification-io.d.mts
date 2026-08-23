@@ -71,10 +71,23 @@ export function runBoundedChild(
     readonly maxStderrBytes?: number;
     readonly label?: string;
     readonly spawnImpl?: (...args: unknown[]) => unknown;
+    readonly exactExecutablePin?: {
+      readonly byteLength: number;
+      readonly digest: `sha256:${string}`;
+    };
+    /** Test-only synchronization inside the production Windows launcher. */
+    readonly __testHooks?: {
+      readonly onPinnedExecutableReady: () => void;
+      readonly postVerificationDelayMs: number;
+    };
   },
 ): Promise<{
   readonly code: number | null;
   readonly signal: NodeJS.Signals | null;
   readonly stdout: string;
   readonly stderr: string;
+  readonly executableEvidence?: {
+    readonly byteLength: number;
+    readonly digest: `sha256:${string}`;
+  };
 }>;
