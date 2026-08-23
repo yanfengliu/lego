@@ -2,6 +2,8 @@
 
 Current state belongs in the design documents; this index records only behaviour changes, measured results, and links to the matching detailed history.
 
+- [2026-08-22 (canonical protocol time and exact-five exchange semantics)](detailed/2026-08-21_2026-08-22.md) — Signed timestamps, signatures and anchored ASCII scalars now have cross-engine canonical wire spellings, while exact-five structural roots, detached boolean-only cross-record checks, bounded diagnostics, four-sample wall timing and private monotonic expiry remain explicit without turning caller data into freshness or authority.
+
 - [2026-08-22 (exact-one-use six-card Gate 0)](detailed/2026-08-21_2026-08-22.md) — Strict `/5` first-pass execution now requires an exact retained request, fresh configured-policy evidence, an explicitly unauthenticated local assertion, one fixed-checkout global slot, an exact held Windows executable launched atomically inside a Job Object, and immutable terminal settlement; the six-card pilot remains unrun and grants no consent, provider, catalog, document or production authority.
 
 - [2026-08-22 (all-359 source parity and authority-free exact-five receipts)](detailed/2026-08-21_2026-08-22.md) — The real booklet's complete 359-panel source stream now has retained source-parity diagnostics at aggregate assembly IoU 0.9655393602555469, while exported closed broker schemas, canonical Ed25519 receipt verification, one-attempt replay/fork controls and a module-owned event capability make exact-five admission inspectable without claiming the absent production broker, live `/4` producer, inventory closure or reconstruction authority.

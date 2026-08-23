@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { basename, dirname, join, relative, resolve } from "node:path";
+import { isCanonicalUtcTimestamp } from "@lego-studio/protocol";
 
 import type { RealBuildInputDigests } from "./real-build-safety";
 import { writeContainedRegularFileAtomic } from "./contained-atomic-write";
@@ -67,7 +68,7 @@ export function planAtomicRunDirectory(input: {
 } {
   validateRealBuildOutputRoot(input.outputRoot);
   const rawTimestamp = input.timestamp ?? new Date().toISOString();
-  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u.test(rawTimestamp)) {
+  if (!isCanonicalUtcTimestamp(rawTimestamp)) {
     throw new TypeError(
       `Real-build timestamp must be canonical UTC ISO-8601; received ${rawTimestamp}.`,
     );

@@ -18,8 +18,6 @@ import {
   validateGenerationJobRecordV1 as generatedValidateGenerationJobRecordV1,
   validateMakerObservationV1 as generatedValidateMakerObservationV1,
   validateNativeSealedRunManifestV1 as generatedValidateNativeSealedRunManifestV1,
-  validateRealBuildExactFiveBrokerChallengeV1 as generatedValidateRealBuildExactFiveBrokerChallengeV1,
-  validateRealBuildExactFiveBrokerConsumptionReceiptV1 as generatedValidateRealBuildExactFiveBrokerConsumptionReceiptV1,
   validateProviderCapabilitiesV1 as generatedValidateProviderCapabilitiesV1,
   validateRenderPacketV1 as generatedValidateRenderPacketV1,
   validateRigidTransform as generatedValidateRigidTransform,
@@ -52,8 +50,6 @@ import type {
   GenerationJobRecordV1,
   MakerObservationV1,
   NativeSealedRunManifestV1,
-  RealBuildExactFiveBrokerChallengeV1,
-  RealBuildExactFiveBrokerConsumptionReceiptV1,
   ProviderCapabilitiesV1,
   RenderPacketV1,
   RigidTransform,
@@ -69,9 +65,12 @@ import type {
 } from "./generated/public-types.generated.js";
 
 import { checkTemplateSnapshotSemantics } from "./template-snapshot.ts";
+import { isCanonicalUtcTimestamp } from "./utc-timestamp.ts";
 
 export type * from "./generated/public-types.generated.js";
+export * from "./real-build-exact-five-broker.ts";
 export * from "./template-snapshot.ts";
+export * from "./utc-timestamp.ts";
 
 export const PROTOCOL_VERSION = "lego.protocol/1" as const;
 
@@ -316,10 +315,6 @@ export const validateCandidateRecordV1 = withSemanticValidation<CandidateRecordV
         ),
 );
 export const validateRunEventV1 = generatedValidateRunEventV1 as ProtocolValidator<RunEventV1>;
-export const validateRealBuildExactFiveBrokerChallengeV1 =
-  generatedValidateRealBuildExactFiveBrokerChallengeV1 as ProtocolValidator<RealBuildExactFiveBrokerChallengeV1>;
-export const validateRealBuildExactFiveBrokerConsumptionReceiptV1 =
-  generatedValidateRealBuildExactFiveBrokerConsumptionReceiptV1 as ProtocolValidator<RealBuildExactFiveBrokerConsumptionReceiptV1>;
 export const validateDeterministicMakerOutputV1 =
   withSemanticValidation<DeterministicMakerOutputV1>(
     generatedValidateDeterministicMakerOutputV1,
@@ -491,6 +486,12 @@ export const validateTestRunBundleHandleV1 = withSemanticValidation<TestRunBundl
 export const validateNativeSealedRunManifestV1 = withSemanticValidation<NativeSealedRunManifestV1>(
   generatedValidateNativeSealedRunManifestV1,
   (value) => {
+    if (!isCanonicalUtcTimestamp(value.finalizedAt)) {
+      return semanticError(
+        "/finalizedAt",
+        "Sealed run finalizedAt must be one real canonical UTC millisecond instant",
+      );
+    }
     if (value.candidateIds.length > value.budgets.maxCandidates) {
       return semanticError("/candidateIds", "Run candidates exceed the sealed candidate budget");
     }

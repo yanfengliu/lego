@@ -65,11 +65,16 @@ export type AttemptTerminalV1 =
   | AttemptSuccessTerminalV1
   | AttemptNoMutationTerminalV1
   | AttemptFailureTerminalV1;
+/**
+ * One real Gregorian UTC instant in the only signed-wire spelling YYYY-MM-DDTHH:mm:ss.sssZ. Consumers must reject, never normalize, a different spelling or impossible date.
+ */
 export type UtcTimestamp = string;
 export type Ed25519Signature = string;
 export type NullableHash = Hash | null;
 export type NullablePositiveInteger = number | null;
+export type RealBuildExactFiveDigest = string;
 export type RealBuildExactFiveChallengeNonce = string;
+export type RealBuildExactFiveIdentifier = string;
 export type RealBuildExactFiveStableLoopbackOrigin = string;
 export type RealBuildExactFiveEd25519Signature = string;
 export type TemplateColorValueV1 =
@@ -777,43 +782,49 @@ export interface TestRunBundleHandleV1 {
   terminalEventHash: Hash;
   terminalSequence: number;
 }
+/**
+ * Structural wire schema only. The exchange parser checks cross-record binding and temporal order relative to a caller-provided clock sample; only the bounded inspector supplies a held local clock, verifies the signature, and checks the exact live issued challenge. Neither schema nor exchange parsing grants authority.
+ */
 export interface RealBuildExactFiveBrokerChallengeV1 {
   schemaVersion: "lego.real-build-exact-five-broker-challenge/1";
   namespace: "production" | "test";
   purpose: "admit-exact-five-official-frame-equivalence";
   scope: "exact-five-source-parity-calibration-panels-only";
-  requestDigest: Hash;
-  reviewPresentationDigest: Hash;
-  trustBindingDigest: Hash;
+  requestDigest: RealBuildExactFiveDigest;
+  reviewPresentationDigest: RealBuildExactFiveDigest;
+  trustBindingDigest: RealBuildExactFiveDigest;
   challengeNonce: RealBuildExactFiveChallengeNonce;
   issuedAtUnixMs: number;
 }
+/**
+ * Structural wire schema only. The exchange parser checks cross-record binding and temporal order relative to a caller-provided clock sample; only the bounded inspector supplies a held local clock, verifies the signature, and checks the exact live issued challenge. Neither schema nor exchange parsing grants authority.
+ */
 export interface RealBuildExactFiveBrokerConsumptionReceiptV1 {
   schemaVersion: "lego.real-build-exact-five-broker-consumption-receipt/1";
   signatureDomain: "lego.real-build-exact-five-broker-consumption-receipt-signature/1";
   namespace: "production" | "test";
   purpose: "admit-exact-five-official-frame-equivalence";
   scope: "exact-five-source-parity-calibration-panels-only";
-  requestDigest: Hash;
+  requestDigest: RealBuildExactFiveDigest;
   challengeNonce: RealBuildExactFiveChallengeNonce;
-  audience: Identifier;
+  audience: RealBuildExactFiveIdentifier;
   stableOrigin: RealBuildExactFiveStableLoopbackOrigin;
-  pairedDeviceId: Identifier;
-  brokerInstallId: Identifier;
+  pairedDeviceId: RealBuildExactFiveIdentifier;
+  brokerInstallId: RealBuildExactFiveIdentifier;
   decision: "approved";
-  reviewPresentationDigest: Hash;
-  brokerReleaseId: Identifier;
-  brokerEventId: Identifier;
+  reviewPresentationDigest: RealBuildExactFiveDigest;
+  brokerReleaseId: RealBuildExactFiveIdentifier;
+  brokerEventId: RealBuildExactFiveIdentifier;
   consumedAtUnixMs: number;
   ledgerSequence: number;
-  previousLedgerRoot: Hash;
-  consumptionEventHash: Hash;
-  resultingLedgerRoot: Hash;
+  previousLedgerRoot: RealBuildExactFiveDigest;
+  consumptionEventHash: RealBuildExactFiveDigest;
+  resultingLedgerRoot: RealBuildExactFiveDigest;
   seal: RealBuildExactFiveEd25519SealV1;
 }
 export interface RealBuildExactFiveEd25519SealV1 {
   algorithm: "Ed25519";
-  keyId: Identifier;
+  keyId: RealBuildExactFiveIdentifier;
   keyEpoch: number;
   signature: RealBuildExactFiveEd25519Signature;
 }

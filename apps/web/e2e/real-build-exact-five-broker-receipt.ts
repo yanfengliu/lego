@@ -1,5 +1,9 @@
 import {
+  assertRealBuildExactFiveBrokerConsumptionTimelineV1,
+  assertRealBuildExactFiveBrokerMonotonicTimelineV1,
   assertProtocolValue,
+  parseRealBuildExactFiveBrokerConsumptionExchangeV1,
+  REAL_BUILD_EXACT_FIVE_BROKER_CHALLENGE_LIFETIME_MS,
   validateRealBuildExactFiveBrokerChallengeV1,
   type RealBuildExactFiveBrokerChallengeV1,
 } from "@lego-studio/protocol";
@@ -29,10 +33,12 @@ export {
   type RealBuildExactFiveBrokerReceiptSignatureHeader,
 } from "./real-build-exact-five-broker-receipt-wire";
 
-export const REAL_BUILD_EXACT_FIVE_BROKER_CHALLENGE_LIFETIME_MS = 2 * 60 * 1_000;
+export { REAL_BUILD_EXACT_FIVE_BROKER_CHALLENGE_LIFETIME_MS };
 export const MAXIMUM_REAL_BUILD_EXACT_FIVE_BROKER_IN_FLIGHT_RECEIPTS = 64;
 export const MAXIMUM_REAL_BUILD_EXACT_FIVE_BROKER_VERIFIED_RECEIPTS = 4_096;
 const DATE_NOW = Date.now;
+const PERFORMANCE = globalThis.performance;
+const PERFORMANCE_NOW = Performance.prototype.now;
 const CRYPTO = globalThis.crypto;
 const GET_RANDOM_VALUES = Crypto.prototype.getRandomValues;
 const SUBTLE = CRYPTO.subtle;
@@ -100,12 +106,17 @@ type SnapshottedRealBuildExactFiveBrokerTrustPin = Readonly<{
 interface IssuedRealBuildExactFiveBrokerChallenge {
   readonly challenge: RealBuildExactFiveBrokerChallengeV1;
   readonly trust: SnapshottedRealBuildExactFiveBrokerTrustPin;
+  readonly issuedMonotonicMs: number;
 }
 
 const issuedChallenges = new WeakMap<object, IssuedRealBuildExactFiveBrokerChallenge>();
 
 function apply<T>(fn: (...args: never[]) => T, receiver: unknown, args: unknown[]): T {
   return REFLECT_APPLY(fn, receiver, args) as T;
+}
+
+function monotonicNow(): number {
+  return apply<number>(PERFORMANCE_NOW, PERFORMANCE, []);
 }
 
 function setAdd<T>(set: Set<T>, value: T): void {
@@ -143,14 +154,17 @@ function copyBytes(source: Uint8Array): Uint8Array {
 }
 
 function exactDigest(value: unknown, path: string): Sha256Digest {
-  if (typeof value !== "string" || !/^sha256:[0-9a-f]{64}$/u.test(value)) {
+  const match = typeof value === "string" ? /^sha256:[0-9a-f]{64}/u.exec(value) : null;
+  if (match === null || match[0] !== value) {
     throw new TypeError(`${path} must be one lowercase sha256:<64 hex> digest.`);
   }
   return value as Sha256Digest;
 }
 
 function exactIdentifier(value: unknown, path: string): string {
-  if (typeof value !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/u.test(value)) {
+  const match =
+    typeof value === "string" ? /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}/u.exec(value) : null;
+  if (match === null || match[0] !== value) {
     throw new TypeError(`${path} must be one bounded protocol identifier.`);
   }
   return value;
@@ -180,9 +194,13 @@ function snapshotTrustPin(
   const stableOrigin = raw.stableOrigin;
   const stableOriginMatch =
     typeof stableOrigin === "string"
-      ? /^https?:\/\/(?:127\.0\.0\.1|\[::1\]):([1-9][0-9]{0,4})$/u.exec(stableOrigin)
+      ? /^https?:\/\/(?:127\.0\.0\.1|\[::1\]):([1-9][0-9]{0,4})/u.exec(stableOrigin)
       : null;
-  if (stableOriginMatch === null || Number(stableOriginMatch[1]) > 65_535) {
+  if (
+    stableOriginMatch === null ||
+    stableOriginMatch[0] !== stableOrigin ||
+    Number(stableOriginMatch[1]) > 65_535
+  ) {
     throw new TypeError("Exact-five broker trust pin requires one numeric loopback origin.");
   }
   const publicKey = snapshotHostileUint8Array(raw.publicKey, {
@@ -254,6 +272,7 @@ export function createRealBuildExactFiveBrokerChallenge(input: {
     challengeNonce += HEX[(byte >>> 4) & 0xf]! + HEX[byte & 0xf]!;
   }
   const issuedMilliseconds = apply<number>(DATE_NOW, Date, []);
+  const issuedMonotonicMs = monotonicNow();
   const challenge = intrinsicRealBuildFreeze({
     schemaVersion: "lego.real-build-exact-five-broker-challenge/1" as const,
     namespace: trust.pin.namespace,
@@ -279,6 +298,7 @@ export function createRealBuildExactFiveBrokerChallenge(input: {
     intrinsicRealBuildFreeze({
       challenge,
       trust,
+      issuedMonotonicMs,
     }),
   );
   return challenge;
@@ -303,22 +323,22 @@ export async function inspectRealBuildExactFiveBrokerConsumptionReceipt(input: {
     throw new TypeError("Exact-five broker challenge was already consumed; replay is forbidden.");
   }
   weakSetAdd(consumedChallenges, challenge as object);
-  const receipt = parseRealBuildExactFiveBrokerConsumptionReceipt(input.receiptBytes);
+  const inspectionStartedMonotonicMs = monotonicNow();
+  assertRealBuildExactFiveBrokerMonotonicTimelineV1({
+    issuedAtMonotonicMs: issued.issuedMonotonicMs,
+    inspectionStartedAtMonotonicMs: inspectionStartedMonotonicMs,
+    inspectionFinishedAtMonotonicMs: inspectionStartedMonotonicMs,
+  });
+  const parsedReceipt = parseRealBuildExactFiveBrokerConsumptionReceipt(input.receiptBytes);
+  const now = apply<number>(DATE_NOW, Date, []);
+  const { receipt } = parseRealBuildExactFiveBrokerConsumptionExchangeV1({
+    challenge: issuedChallenge,
+    receipt: parsedReceipt,
+    observedAtUnixMs: now,
+  });
   const { pin, publicKey } = issued.trust;
   if (
-    receipt.namespace !== issuedChallenge.namespace ||
     receipt.namespace !== pin.namespace ||
-    receipt.purpose !== issuedChallenge.purpose ||
-    receipt.scope !== issuedChallenge.scope ||
-    receipt.requestDigest !== issuedChallenge.requestDigest ||
-    receipt.challengeNonce !== issuedChallenge.challengeNonce ||
-    receipt.reviewPresentationDigest !== issuedChallenge.reviewPresentationDigest
-  ) {
-    throw new TypeError(
-      "Exact-five broker receipt does not bind the exact live challenge namespace, purpose, scope, request, review presentation, and nonce.",
-    );
-  }
-  if (
     receipt.audience !== pin.audience ||
     receipt.stableOrigin !== pin.stableOrigin ||
     receipt.pairedDeviceId !== pin.pairedDeviceId ||
@@ -354,23 +374,6 @@ export async function inspectRealBuildExactFiveBrokerConsumptionReceipt(input: {
   if (receipt.resultingLedgerRoot !== expectedResultingLedgerRoot) {
     throw new TypeError(
       `Exact-five broker receipt resultingLedgerRoot must recompute as ${expectedResultingLedgerRoot}.`,
-    );
-  }
-  const challengeIssued = issuedChallenge.issuedAtUnixMs;
-  const challengeExpires = challengeIssued + REAL_BUILD_EXACT_FIVE_BROKER_CHALLENGE_LIFETIME_MS;
-  const receiptConsumed = receipt.consumedAtUnixMs;
-  const now = apply<number>(DATE_NOW, Date, []);
-  if (
-    !Number.isSafeInteger(challengeIssued) ||
-    !Number.isSafeInteger(receiptConsumed) ||
-    receiptConsumed < challengeIssued ||
-    receiptConsumed > challengeExpires ||
-    receiptConsumed > now ||
-    now < challengeIssued ||
-    now > challengeExpires
-  ) {
-    throw new TypeError(
-      "Exact-five broker receipt requires one current consumption inside the fresh two-minute challenge window.",
     );
   }
   const signatureHeader = intrinsicRealBuildFreeze({
@@ -443,11 +446,17 @@ export async function inspectRealBuildExactFiveBrokerConsumptionReceipt(input: {
     ]);
     if (!valid) throw new TypeError("Exact-five broker receipt Ed25519 signature is invalid.");
     const verifiedAt = apply<number>(DATE_NOW, Date, []);
-    if (verifiedAt < now || verifiedAt < receiptConsumed || verifiedAt > challengeExpires) {
-      throw new TypeError(
-        "Exact-five broker receipt verification crossed its challenge expiry or the verification clock moved outside the consumed interval.",
-      );
-    }
+    assertRealBuildExactFiveBrokerConsumptionTimelineV1({
+      issuedAtUnixMs: issuedChallenge.issuedAtUnixMs,
+      consumedAtUnixMs: receipt.consumedAtUnixMs,
+      inspectionStartedAtUnixMs: now,
+      inspectionFinishedAtUnixMs: verifiedAt,
+    });
+    assertRealBuildExactFiveBrokerMonotonicTimelineV1({
+      issuedAtMonotonicMs: issued.issuedMonotonicMs,
+      inspectionStartedAtMonotonicMs: inspectionStartedMonotonicMs,
+      inspectionFinishedAtMonotonicMs: monotonicNow(),
+    });
     setAdd(verifiedBrokerEventIds, scopedBrokerEventId);
     setAdd(verifiedLedgerTransitions, ledgerTransitionSlot);
     verifiedReceiptCount += 1;

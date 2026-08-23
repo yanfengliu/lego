@@ -37,7 +37,8 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 128,
-      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+      "not": { "pattern": "[\\r\\n\\u000B\\u000C\\u0085\\u2028\\u2029]" }
     },
     "ShortText": {
       "type": "string",
@@ -45,7 +46,10 @@
     },
     "Hash": {
       "type": "string",
-      "pattern": "^sha256:[0-9a-f]{64}$"
+      "minLength": 71,
+      "maxLength": 71,
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "not": { "pattern": "[\\r\\n\\u000B\\u000C\\u0085\\u2028\\u2029]" }
     },
     "LduCoordinate": {
       "type": "integer",
@@ -1020,7 +1024,8 @@
           "type": "string",
           "minLength": 2,
           "maxLength": 64,
-          "pattern": "^[A-Z][A-Z0-9_]*$"
+          "pattern": "^[A-Z][A-Z0-9_]*$",
+          "not": { "pattern": "[^A-Z0-9_]" }
         },
         "severity": {
           "enum": ["blocking", "advisory"]
@@ -1031,7 +1036,8 @@
         "path": {
           "type": "string",
           "maxLength": 512,
-          "pattern": "^(/([^~/]|~0|~1)*)*$"
+          "pattern": "^(?:/|(?![\\s\\S]))",
+          "not": { "pattern": "~(?![01])" }
         },
         "partIds": {
           "type": "array",

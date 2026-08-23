@@ -8,13 +8,13 @@ import {
   PART_VISUAL_ADMISSION_VIEW_NAMES,
   type PartVisualAdmissionViewName,
 } from "../../../packages/rendering/src/part-visual-admission-policy.ts";
+import { isCanonicalUtcTimestamp } from "../../../packages/protocol/src/utc-timestamp.ts";
 
 import type { PartVisualAdmissionPacket } from "./part-visual-admission-artifacts.ts";
 
 export const PART_VISUAL_ADMISSION_REVIEW_SCHEMA = "lego.part-visual-admission-review/1" as const;
 
 const DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/u;
-const TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u;
 const REVIEW_OUTCOMES = ["same", "different", "not-observable"] as const;
 const PACKET_IMAGE_KEYS = [
   "side",
@@ -128,12 +128,10 @@ export function requirePartVisualAdmissionReviewText(
 }
 
 export function requirePartVisualAdmissionReviewTimestamp(value: unknown, label: string): string {
-  if (typeof value !== "string" || !TIMESTAMP_PATTERN.test(value)) {
-    throw new TypeError(`${label} must be canonical UTC ISO-8601 with millisecond precision.`);
-  }
-  const parsed = new Date(value);
-  if (!Number.isFinite(parsed.getTime()) || parsed.toISOString() !== value) {
-    throw new TypeError(`${label} is not a real canonical UTC instant: ${JSON.stringify(value)}.`);
+  if (!isCanonicalUtcTimestamp(value)) {
+    throw new TypeError(
+      `${label} must be one real canonical UTC instant in YYYY-MM-DDTHH:mm:ss.sssZ form.`,
+    );
   }
   return value;
 }

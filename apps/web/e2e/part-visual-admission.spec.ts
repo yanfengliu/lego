@@ -121,6 +121,7 @@ function publish(
   manifestPath: string,
   browser: Browser,
   outputRoot: string,
+  timestamp?: string,
 ) {
   const source = readVerifiedMaterializedLDrawClosure(manifestPath);
   return publishPartVisualAdmissionPacket({
@@ -128,6 +129,7 @@ function publish(
     source,
     capture: result,
     browserVersion: browser.version(),
+    ...(timestamp === undefined ? {} : { timestamp }),
   });
 }
 
@@ -153,6 +155,17 @@ test("synthetic asymmetric source and production candidate emit one clean immuta
       meshAsset: SYNTHETIC_VISUAL_ADMISSION_ASSET,
     },
   });
+  for (const timestamp of ["2026-02-30T00:00:00.000Z", "2026-01-01T24:00:00.000Z"]) {
+    expect(() =>
+      publish(
+        result,
+        manifestPath,
+        browser,
+        testInfo.outputPath(`invalid-timestamp-${timestamp.slice(0, 10)}`),
+        timestamp,
+      ),
+    ).toThrow(/canonical UTC/u);
+  }
   const publication = publish(result, manifestPath, browser, testInfo.outputPath("packet-output"));
   await testInfo.attach("part-visual-admission-packet", {
     path: publication.packetPath,

@@ -9,6 +9,7 @@ import {
   encodeRealBuildExactFiveBrokerReceiptSigningBytes,
   inspectRealBuildExactFiveBrokerConsumptionReceipt,
   MAXIMUM_REAL_BUILD_EXACT_FIVE_BROKER_RECEIPT_BYTES,
+  REAL_BUILD_EXACT_FIVE_BROKER_CHALLENGE_LIFETIME_MS,
   type RealBuildExactFiveBrokerConsumptionReceiptCore,
   type RealBuildExactFiveBrokerConsumptionEventInput,
   type RealBuildExactFiveBrokerTrustPin,
@@ -296,6 +297,26 @@ describe("exact-five broker consumption receipt", () => {
         trustPin: trustPin({ stableOrigin: "http://127.0.0.1:65536" }),
       }),
     ).toThrow(/numeric loopback origin/u);
+    for (const [patch, message] of [
+      [{ keyId: "test-broker-key\n" }, /bounded protocol identifier/u],
+      [{ stableOrigin: "http://127.0.0.1:5173\n" }, /numeric loopback origin/u],
+      [{ ledgerRoot: `${digest("newline-ledger")}\n` as Sha256Digest }, /lowercase sha256/u],
+    ] as const) {
+      expect(() =>
+        createRealBuildExactFiveBrokerChallenge({
+          requestDigest: digest("line-terminator-trust"),
+          reviewPresentationDigest: PRESENTATION_HASH,
+          trustPin: trustPin(patch),
+        }),
+      ).toThrow(message);
+    }
+    expect(() =>
+      createRealBuildExactFiveBrokerChallenge({
+        requestDigest: `${digest("newline-request")}\n` as Sha256Digest,
+        reviewPresentationDigest: PRESENTATION_HASH,
+        trustPin: trustPin(),
+      }),
+    ).toThrow(/lowercase sha256/u);
     expect(() =>
       createRealBuildExactFiveBrokerChallenge({
         requestDigest: digest("bad-key"),
@@ -334,7 +355,7 @@ describe("exact-five broker consumption receipt", () => {
           challenge: mismatch.challenge,
         }),
         JSON.stringify(patch),
-      ).rejects.toThrow(/does not bind the exact live challenge|does not bind the pinned/u);
+      ).rejects.toThrow(/does not equal (?:the )?live challenge|does not bind the pinned/u);
     }
     for (const header of [
       { algorithm: "Ed25519" as const, keyId: "other-key", keyEpoch: 7 },
@@ -398,6 +419,37 @@ describe("exact-five broker consumption receipt", () => {
       }),
     ).rejects.toThrow(/resultingLedgerRoot must recompute/u);
 
+    const preIssued = await fixture();
+    const preIssuedCore = rederiveCore(preIssued.core, {
+      consumedAtUnixMs: preIssued.challenge.issuedAtUnixMs - 1,
+    });
+    await expect(
+      inspectRealBuildExactFiveBrokerConsumptionReceipt({
+        receiptBytes: await receiptBytes(preIssuedCore),
+        challenge: preIssued.challenge,
+      }),
+    ).rejects.toThrow(/consumedAtUnixMs .* precedes issuedAtUnixMs/u);
+    await expect(
+      inspectRealBuildExactFiveBrokerConsumptionReceipt({
+        receiptBytes: preIssued.bytes,
+        challenge: preIssued.challenge,
+      }),
+    ).rejects.toThrow(/already consumed/u);
+
+    const beyondWindow = await fixture();
+    const beyondWindowCore = rederiveCore(beyondWindow.core, {
+      consumedAtUnixMs:
+        beyondWindow.challenge.issuedAtUnixMs +
+        REAL_BUILD_EXACT_FIVE_BROKER_CHALLENGE_LIFETIME_MS +
+        1,
+    });
+    await expect(
+      inspectRealBuildExactFiveBrokerConsumptionReceipt({
+        receiptBytes: await receiptBytes(beyondWindowCore),
+        challenge: beyondWindow.challenge,
+      }),
+    ).rejects.toThrow(/observedAtUnixMs .* precedes receipt consumedAtUnixMs/u);
+
     const future = await fixture();
     const futureCore = rederiveCore(future.core, { consumedAtUnixMs: Date.now() + 30_000 });
     await expect(
@@ -405,7 +457,7 @@ describe("exact-five broker consumption receipt", () => {
         receiptBytes: await receiptBytes(futureCore),
         challenge: future.challenge,
       }),
-    ).rejects.toThrow(/current consumption inside the fresh two-minute challenge window/u);
+    ).rejects.toThrow(/observedAtUnixMs .* precedes receipt consumedAtUnixMs/u);
 
     const first = await fixture();
     await inspectRealBuildExactFiveBrokerConsumptionReceipt({

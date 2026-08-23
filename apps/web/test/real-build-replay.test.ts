@@ -93,6 +93,20 @@ describe("real-build replay closure", () => {
     ).toEqual([]);
   });
 
+  it("rejects calendar-invalid publication timestamps instead of normalizing run identities", () => {
+    for (const timestamp of ["2026-02-30T00:00:00.000Z", "2026-01-01T24:00:00.000Z"]) {
+      expect(() =>
+        planAtomicRunDirectory({
+          outputRoot: `output/real-build-invalid-timestamp-${randomUUID()}`,
+          inputDigests,
+          runContractDigest: REAL_BUILD_TEST_DIGEST,
+          timestamp,
+          nonce: randomUUID(),
+        }),
+      ).toThrow(/canonical UTC/u);
+    }
+  });
+
   it("never weakens a latched publication verifier after a pre-rename failure", () => {
     const outputRoot = `output/real-build-publication-verifier-test-${randomUUID()}`;
     const absoluteOutputRoot = join(process.cwd(), outputRoot);

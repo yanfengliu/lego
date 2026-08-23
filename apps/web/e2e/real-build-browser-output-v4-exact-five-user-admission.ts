@@ -1,4 +1,5 @@
 import { canonicalDigest, type Sha256Digest } from "@lego-studio/brick-kernel";
+import { validateRealBuildExactFiveBrokerConsumptionTimelineV1 } from "@lego-studio/protocol";
 
 import { unpackRealBuildCompiledBinaryMaskMsb } from "./real-build-compiled-observation-registration";
 import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
@@ -382,20 +383,14 @@ export async function consumeRealBuildBrowserOutputV4ExactFiveCalibrationAdmissi
         "External exact-five trusted-user event consumer returned an inconsistent schema, request, review presentation, scope, purpose, origin, authority, identity, nonce, or replay state.",
       );
     }
-    const challengeIssued = challengeIssuedAtUnixMs;
-    const challengeExpires = challengeIssued + 2 * 60 * 1_000;
-    const eventConsumed = consumedAtUnixMs;
     const now = APPLY(DATE_NOW, Date, []) as number;
     if (
-      !Number.isSafeInteger(challengeIssued) ||
-      !Number.isSafeInteger(eventConsumed) ||
-      challengeIssued < 0 ||
-      eventConsumed < 0 ||
-      eventConsumed < challengeIssued ||
-      eventConsumed > challengeExpires ||
-      eventConsumed > now ||
-      now < challengeIssued ||
-      now > challengeExpires
+      !validateRealBuildExactFiveBrokerConsumptionTimelineV1({
+        issuedAtUnixMs: challengeIssuedAtUnixMs,
+        consumedAtUnixMs,
+        inspectionStartedAtUnixMs: now,
+        inspectionFinishedAtUnixMs: now,
+      })
     ) {
       throw new TypeError(
         "External exact-five trusted-user event consumer returned a future, expired, or non-two-minute challenge consumption.",

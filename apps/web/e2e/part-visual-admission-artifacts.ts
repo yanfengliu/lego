@@ -11,6 +11,7 @@ import {
   PART_VISUAL_ADMISSION_VIEW_POLICY,
   PART_VISUAL_ADMISSION_VIEW_POLICY_HASH,
 } from "@lego-studio/rendering";
+import { isCanonicalUtcTimestamp } from "@lego-studio/protocol";
 import { createHash, randomUUID } from "node:crypto";
 import {
   closeSync,
@@ -362,7 +363,7 @@ export function publishPartVisualAdmissionPacket(input: {
   }
 
   const createdAt = input.timestamp ?? new Date().toISOString();
-  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u.test(createdAt)) {
+  if (!isCanonicalUtcTimestamp(createdAt)) {
     throw new TypeError(`Visual-admission timestamp must be canonical UTC ISO-8601: ${createdAt}.`);
   }
   const nonce = input.nonce ?? randomUUID();

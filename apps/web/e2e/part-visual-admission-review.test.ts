@@ -14,6 +14,7 @@ import {
   type PartVisualAdmissionReviewRecord,
   type PartVisualAdmissionViewReviewInput,
 } from "./part-visual-admission-review.ts";
+import { requirePartVisualAdmissionReviewTimestamp } from "./part-visual-admission-review-verification.ts";
 
 const sha256 = (bytes: Uint8Array) =>
   `sha256:${createHash("sha256").update(bytes).digest("hex")}` as const;
@@ -245,7 +246,21 @@ describe("part visual-admission review sidecar", () => {
     impossibleTimestamp.createdAt = "2026-02-30T00:00:00.000Z";
     expect(() =>
       verifyPartVisualAdmissionReviewRecord(packet, rehashedReview(impossibleTimestamp)),
-    ).toThrow(/not a real canonical UTC instant/);
+    ).toThrow(/must be one real canonical UTC instant/);
+
+    let toJsonCalls = 0;
+    expect(() =>
+      requirePartVisualAdmissionReviewTimestamp(
+        {
+          toJSON: () => {
+            toJsonCalls += 1;
+            return "2026-08-11T01:00:00.000Z";
+          },
+        },
+        "Hostile timestamp",
+      ),
+    ).toThrow(/must be one real canonical UTC instant/);
+    expect(toJsonCalls).toBe(0);
   });
 
   it("batch publication re-verifies aggregate and packet-bound PNG/RGBA hashes", () => {

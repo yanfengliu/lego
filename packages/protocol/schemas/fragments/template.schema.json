@@ -117,7 +117,8 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 128,
-          "pattern": "^[A-Za-z0-9 .()+\\-:]+$"
+          "pattern": "^[A-Za-z0-9 .()+\\-:]+$",
+          "not": { "pattern": "[^A-Za-z0-9 .()+\\-:]" }
         },
         "attribution": { "type": "string", "minLength": 1, "maxLength": 2048 },
         "redistribution": { "enum": ["allowed", "restricted", "evaluation-only"] }

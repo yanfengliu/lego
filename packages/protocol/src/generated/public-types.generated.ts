@@ -26,8 +26,12 @@ export type Ed25519Signature = DeepReadonly<Wire.Ed25519Signature>;
 export type NullableHash = DeepReadonly<Wire.NullableHash>;
 export type NullablePositiveInteger =
   DeepReadonly<Wire.NullablePositiveInteger>;
+export type RealBuildExactFiveDigest =
+  DeepReadonly<Wire.RealBuildExactFiveDigest>;
 export type RealBuildExactFiveChallengeNonce =
   DeepReadonly<Wire.RealBuildExactFiveChallengeNonce>;
+export type RealBuildExactFiveIdentifier =
+  DeepReadonly<Wire.RealBuildExactFiveIdentifier>;
 export type RealBuildExactFiveStableLoopbackOrigin =
   DeepReadonly<Wire.RealBuildExactFiveStableLoopbackOrigin>;
 export type RealBuildExactFiveEd25519Signature =

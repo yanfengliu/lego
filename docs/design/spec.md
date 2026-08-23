@@ -170,7 +170,7 @@ Split a package only when a boundary has real behavior.
 - Pure TypeScript owns model semantics, commands, import/export normalization and validators. The browser and current companion test slice use those rules; a future released broker must use the same packages. A future worker may call them, but its validity claims are never authoritative.
 - Vitest covers pure domain behavior; Playwright covers interaction, deterministic capture, booklet runs, and visual workflows.
 - Python is confined to derivation tooling — LDraw, LDCad and Builder source measurement — and never becomes the source of truth for model validity.
-- Cross-language messages conform to versioned JSON Schema and contract tests.
+- Cross-language messages conform to versioned JSON Schema and contract tests. Each claimed closed shape or canonical scalar spelling requires an explicit schema gate; relationships across messages require an explicitly exported semantic contract.
 - The manual editor starts and remains usable without the broker and without any model.
 
 ### Target production runtime topology (unbuilt)

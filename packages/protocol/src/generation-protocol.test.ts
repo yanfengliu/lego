@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+
+import Ajv from "ajv";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -13,6 +16,7 @@ import {
   validateProviderCapabilitiesV1,
   validateRenderPacketV1,
   validateRunEventV1,
+  SCHEMA_IDS,
   type ActorObservationV1,
   type ArtifactRefV1,
   type AttemptTranscriptV1,
@@ -318,9 +322,20 @@ const manifest = {
     requiredArtifactHashes: [HASH],
     verifierVersion: "closure-verifier-1",
   },
-  finalizedAt: "2026-07-09T12:00:00Z",
+  finalizedAt: "2026-07-09T12:00:00.000Z",
   seal,
 } satisfies NativeSealedRunManifestV1;
+
+function externalNativeSealedRunManifestValidator() {
+  const exportedSchema = JSON.parse(
+    readFileSync(new URL(import.meta.resolve("@lego-studio/protocol/schema")), "utf8"),
+  ) as object;
+  const externalAjv = new Ajv({ strict: true });
+  externalAjv.addSchema(exportedSchema);
+  const validate = externalAjv.getSchema(SCHEMA_IDS.nativeSealedRunManifestV1);
+  if (validate === undefined) throw new Error("Exported native sealed-run schema is unavailable.");
+  return validate;
+}
 
 const providerCapabilities = {
   schemaVersion: "lego.provider-capabilities/1",
@@ -405,5 +420,63 @@ describe("generation and authority protocol validators", () => {
       false,
     );
     expect(validateNativeSealedRunManifestV1({ ...manifest, extraRoot: HASH })).toBe(false);
+  });
+
+  it("accepts only real canonical millisecond timestamps in signed manifests", () => {
+    const externalValidate = externalNativeSealedRunManifestValidator();
+    for (const timestamp of [
+      "2026-07-09T12:00:00.000Z",
+      "2024-02-29T23:59:59.999Z",
+      "2000-02-29T00:00:00.000Z",
+    ]) {
+      expect(validateNativeSealedRunManifestV1({ ...manifest, finalizedAt: timestamp })).toBe(true);
+      expect(externalValidate({ ...manifest, finalizedAt: timestamp })).toBe(true);
+    }
+    for (const timestamp of [
+      "2023-02-29T00:00:00.000Z",
+      "2026-02-30T00:00:00.000Z",
+      "1900-02-29T00:00:00.000Z",
+      "2026-00-01T00:00:00.000Z",
+      "2026-13-01T00:00:00.000Z",
+      "2026-01-00T00:00:00.000Z",
+      "2026-04-31T00:00:00.000Z",
+      "2026-01-01T24:00:00.000Z",
+      "2026-01-01T00:60:00.000Z",
+      "2026-01-01T00:00:60.000Z",
+      "2026-01-01T00:00:00Z",
+      "2026-01-01T00:00:00.0Z",
+      "2026-01-01T00:00:00.0000Z",
+      "2026-01-01T00:00:00.000+00:00",
+      "2026-01-01T00:00:00.000z",
+      " 2026-01-01T00:00:00.000Z",
+      "2026-01-01T00:00:00.000Zextra",
+    ]) {
+      expect(validateNativeSealedRunManifestV1({ ...manifest, finalizedAt: timestamp })).toBe(
+        false,
+      );
+      expect(externalValidate({ ...manifest, finalizedAt: timestamp })).toBe(false);
+    }
+  });
+
+  it("rejects non-canonical Ed25519 signature tail bits", () => {
+    const externalValidate = externalNativeSealedRunManifestValidator();
+    expect(
+      validateNativeSealedRunManifestV1({
+        ...manifest,
+        seal: { ...manifest.seal, signature: `${"A".repeat(85)}B` },
+      }),
+    ).toBe(false);
+    expect(
+      validateNativeSealedRunManifestV1({
+        ...manifest,
+        seal: { ...manifest.seal, signature: `${"A".repeat(86)}\n` },
+      }),
+    ).toBe(false);
+    expect(
+      externalValidate({
+        ...manifest,
+        seal: { ...manifest.seal, signature: `${"A".repeat(86)}\n` },
+      }),
+    ).toBe(false);
   });
 });

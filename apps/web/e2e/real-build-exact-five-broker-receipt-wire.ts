@@ -62,7 +62,8 @@ function encodeText(value: string): Uint8Array {
 }
 
 function exactDigest(value: unknown, path: string): Sha256Digest {
-  if (typeof value !== "string" || !/^sha256:[0-9a-f]{64}$/u.test(value)) {
+  const match = typeof value === "string" ? /^sha256:[0-9a-f]{64}/u.exec(value) : null;
+  if (match === null || match[0] !== value) {
     throw new TypeError(`${path} must be one lowercase sha256:<64 hex> digest.`);
   }
   return value as Sha256Digest;
