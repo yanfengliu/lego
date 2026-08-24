@@ -1,27 +1,6 @@
-"""Measure one admitted part completely, from the pinned sources it is declared from.
-
-The catalog's generated mesh modules, measured blueprints, render-only
-blueprints and per-file attribution are emitted from one measurement, so their
-values stay aligned. Twenty rows take the full-measurement generator route:
-sixteen are current fully measured catalog definitions, while four special-
-plate render promotions preserve their preceding catalog physical semantics.
-Twelve `/13` render promotions intentionally consume only mesh and visual bounds
-while `part-factory.ts` retains their preceding physical semantics.
-
-The distinct render-only route expands a pinned official LDraw root into mesh,
-bounds, stud-frame witnesses and attribution only. It deliberately has no
-connector source, clutch rows, allowances or collision decomposition, because
-those physical semantics remain the preceding catalog definition's bytes.
-
-`measured_part_emit.py` renders the tables and `emit-measured-part-tables.py`
-drives both.
-
-Nothing here decides that a part may be admitted. It measures; the caller scores
-the result with the existing part-admission scorer and refuses on a hard fail.
-"""
+"""Measure admitted parts once for aligned mesh, physical, and source tables."""
 
 from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import Sequence
 
@@ -50,6 +29,7 @@ from measured_part_geometry import (
     require_front_side_surface,
 )
 from measured_stud_tables import MeasuredStudRow, require_matching_stud_frames
+from measured_source_connectors import source_connectors_for
 from part_admission_ldraw_candidate import DEFAULT_COLUMN_LDU, column_candidate, role_classifier
 from part_admission_surface import STUD_ROLE, MeasuredSurface
 
@@ -61,8 +41,6 @@ CONNECTOR_SOURCES = (
     BUILDER_CONNECTIVITY_CONNECTOR_SOURCE,
     LDCAD_SHADOW_CONNECTOR_SOURCE,
 )
-
-
 @dataclass(frozen=True)
 class BuilderConnectivityFact:
     """One byte-pinned Builder field whose full clutch set is already settled."""
@@ -202,6 +180,7 @@ class MeasuredPart:
     exact_bounds: tuple[tuple[str, str, str], tuple[str, str, str]]
     studs_ldu: tuple[MeasuredStudRow, ...]
     clutches_ldu: tuple[Vector3, ...]
+    source_connectors_ldu: tuple[tuple[str, Vector3, Vector3], ...]
     body_boxes_ldu: tuple[float, ...]
     root: SourceRecord
     closure: tuple[SourceRecord, ...]
@@ -251,6 +230,8 @@ def measured_part_report_row(part: MeasuredPart) -> dict[str, object]:
         ),
         "studs": len(part.studs_ldu),
         "clutches": len(part.clutches_ldu),
+        "sourceConnectors": len(part.source_connectors_ldu),
+        "sourceConnectorKinds": sorted({row[0] for row in part.source_connectors_ldu}),
         "collisionBoxes": len(part.body_boxes_ldu) // 6,
         "meshTriangles": part.body_triangle_count + part.stud_triangle_count,
         "closureFileCount": len(part.closure),
@@ -384,11 +365,13 @@ def measure_part(
                 "Builder-to-LDraw frame report has no record for that design."
             )
         shadow_files: tuple[str, ...] = ()
+        source_connectors: list[tuple[str, Sequence[float], Sequence[float]]] = []
     elif plan.connector_source == BUILDER_CONNECTIVITY_CONNECTOR_SOURCE:
         fact = plan.builder_connectivity_fact
         assert fact is not None
         source_clutches = [list(position) for position in fact.clutches_source_ldu]
         shadow_files = ()
+        source_connectors = []
     else:
         composition = compose_part_snaps(library, shadow, root_key)
         source_clutches = [
@@ -396,6 +379,9 @@ def measure_part(
             for row in emit_clutch_connectors(composition.snaps)
         ]
         shadow_studs = emit_stud_connectors(composition.snaps)
+        source_connectors = source_connectors_for(
+            plan.design_id, composition.snaps, composition.shadow_files_used
+        )
         visible_studs = [
             row
             for row in candidate["connectors"]  # type: ignore[union-attr]
@@ -416,6 +402,16 @@ def measure_part(
         exact_bounds=_exact_bounds(all_points, plan, "visual bounds"),
         studs_ldu=_stud_rows(candidate, plan),
         clutches_ldu=tuple(sorted(frame_point(row, plan) for row in source_clutches)),
+        source_connectors_ldu=tuple(
+            sorted(
+                (
+                    kind,
+                    frame_point(position, plan),
+                    frame_direction(normal, plan),
+                )
+                for kind, position, normal in source_connectors
+            )
+        ),
         body_boxes_ldu=_clamped_column_boxes(candidate, plan, solid_bounds),
         root=library.record(root_key),
         closure=tuple(library.closure(root_key)),
@@ -465,6 +461,20 @@ def scoreable_candidate(part: MeasuredPart) -> dict[str, object]:
         )
         for row in part.clutches_ldu
     ]
+    source_connectors = [
+        {
+            "kind": kind,
+            "gender": "male",
+            "positionLdu": list(
+                frame_point(
+                    tuple(position[axis] - part.plan.translation_ldu[axis] for axis in range(3)),
+                    unframe,
+                )
+            ),
+            "normal": list(frame_direction(normal, unframe)),
+        }
+        for kind, position, normal in part.source_connectors_ldu
+    ]
     candidate = dict(part.candidate)
     candidate["connectors"] = [
         row for row in candidate["connectors"] if row["kind"] == "stud"  # type: ignore[union-attr,index]
@@ -476,7 +486,7 @@ def scoreable_candidate(part: MeasuredPart) -> dict[str, object]:
             "normal": [0.0, 1.0, 0.0],
         }
         for position in clutches
-    ]
+    ] + source_connectors
     candidate["derivation"] = (
         f"{part.plan.connector_source} connectors over "
         f"{candidate['derivation']}"  # type: ignore[index]

@@ -324,6 +324,23 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         display_name="Slope 45 1 x 2",
         validated_connection_stud_profile="nominal-stud-tube/1",
     ),
+    # builtin.basic-parts/22: step 45 first uses 4519, the three-module axle.
+    # Its exact official root already lies on the catalog's x-axis convention.
+    # The pinned LDCad part shadow contributes one centred, sliding, capless
+    # male A6x60 shaft; the narrow source gate projects only that exact fact to
+    # the three discrete seats the existing axle definitions use. LDraw owns
+    # the body and collision field but does not author those connection seats.
+    _plan(
+        "4519",
+        "axle",
+        1,
+        3,
+        height_ldu=12,
+        translation_ldu=(0, 0, 0),
+        connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
+        catalog_id="builtin:axle-1x3",
+        display_name="Technic Axle 3",
+    ),
 )
 
 

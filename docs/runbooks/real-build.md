@@ -28,7 +28,7 @@ python -B scripts/generate-set-6651557-source-pilot.py --official $officialArchi
 python -B scripts/derive-builder-ldraw-frame.py --official $officialArchive --unofficial $unofficialArchive --native-pack $nativePack --pilot output/real-build/set-6651557-source-pilot.json --output output/real-build/set-6651557-builder-ldraw-frame.json
 ```
 
-Then remeasure, score, canonicalize, and compare the generated catalog outputs. The mesh registry indexes four bounded chunks so no generated source file approaches the 1 MiB text ceiling; the render-only generated type cannot carry connector, allowance, or collision truth. `--check` runs the workspace-pinned Prettier and refuses any byte drift, while report schema `/4` distinguishes full-measured from render-only authority, binds the exact pilot and Builder-frame inputs, and records the optional source-bounded validated-connection stud profile without weakening ordinary collision. [Part-model catalog truth](../design/part-model.md#current-catalog) owns the current `/17` counts, mesh deltas, and migration interpretation.
+Then remeasure, score, canonicalize, and compare the generated catalog outputs. The generator owns 14 tracked outputs: the mesh registry, six bounded measured mesh shards A through F, one render-only mesh shard, the measured blueprint root plus bounded D, E, and F shards, one render-only blueprint shard, and the bundled-source table. The render-only generated type cannot carry connector, allowance, or collision truth. `--check` runs the workspace-pinned Prettier and refuses any byte drift, while report schema `/5` distinguishes full-measured from render-only authority, binds the exact pilot and Builder-frame inputs, records optional source-bounded connector rows such as the three discrete `4519` axle seats, and retains the optional validated-connection stud profile without weakening ordinary collision. [Part-model catalog truth](../design/part-model.md#current-catalog) owns the current `/22` counts, mesh deltas, and migration interpretation.
 
 ```powershell
 $shadowLibrary = "C:\tmp\ldcad-shadow-20260802"
@@ -36,7 +36,7 @@ $shadowLibrary = "C:\tmp\ldcad-shadow-20260802"
 python -B scripts/emit-measured-part-tables.py --official $officialArchive --unofficial $unofficialArchive --shadow $shadowLibrary --pilot output/real-build/set-6651557-source-pilot.json --builder-frame output/real-build/set-6651557-builder-ldraw-frame.json --report output/real-build/set-6651557-measured-part-emission-check.json --check
 ```
 
-For an intentional catalog-truth update, run the final command once without `--check`, review all eight generated TypeScript diffs, and rerun it with `--check`. Never hand-edit `mesh-assets-6651557.ts`, its `mesh-assets-6651557-measured-{a,b,c}.ts` and `mesh-assets-6651557-render-only.ts` chunks, `part-blueprints-6651557-measured.ts`, `part-blueprints-6651557-render-only.ts`, or `ldraw-bundled-sources-6651557.ts`.
+For an intentional catalog-truth update, run the final command once without `--check`, review all 14 generated TypeScript diffs, and rerun it with `--check`. Never hand-edit `mesh-assets-6651557.ts`, its `mesh-assets-6651557-measured-{a,b,c,d,e,f}.ts` and `mesh-assets-6651557-render-only.ts` chunks, `part-blueprints-6651557-measured.ts`, its `part-blueprints-6651557-measured-{d,e,f}.ts` shards, `part-blueprints-6651557-render-only.ts`, or `ldraw-bundled-sources-6651557.ts`.
 
 ## Run the retained build
 

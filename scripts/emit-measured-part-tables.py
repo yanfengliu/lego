@@ -59,9 +59,10 @@ from part_admission_evidence import PILOT_DESIGN_IDS, bind_to_pilot, parse_pilot
 from part_admission_scorecard import DEFAULT_SAMPLE_SPACING_LDU, score_candidate
 from set_6651557_ldraw_source_audit_plan import ARCHIVE_PINS
 
-REPORT_SCHEMA_VERSION = "lego.measured-part-admission-emission/4"
+REPORT_SCHEMA_VERSION = "lego.measured-part-admission-emission/5"
 MEASURED_D_SHARD_START = 18
 MEASURED_E_SHARD_START = 19
+MEASURED_F_SHARD_START = 20
 GENERATED_FILES = {
     "meshAssets": "packages/catalog/src/mesh-assets-6651557.ts",
     "meshAssetsMeasuredA": "packages/catalog/src/mesh-assets-6651557-measured-a.ts",
@@ -69,10 +70,12 @@ GENERATED_FILES = {
     "meshAssetsMeasuredC": "packages/catalog/src/mesh-assets-6651557-measured-c.ts",
     "meshAssetsMeasuredD": "packages/catalog/src/mesh-assets-6651557-measured-d.ts",
     "meshAssetsMeasuredE": "packages/catalog/src/mesh-assets-6651557-measured-e.ts",
+    "meshAssetsMeasuredF": "packages/catalog/src/mesh-assets-6651557-measured-f.ts",
     "meshAssetsRenderOnly": "packages/catalog/src/mesh-assets-6651557-render-only.ts",
     "blueprints": "packages/catalog/src/part-blueprints-6651557-measured.ts",
     "blueprintsMeasuredD": "packages/catalog/src/part-blueprints-6651557-measured-d.ts",
     "blueprintsMeasuredE": "packages/catalog/src/part-blueprints-6651557-measured-e.ts",
+    "blueprintsMeasuredF": "packages/catalog/src/part-blueprints-6651557-measured-f.ts",
     "renderOnlyBlueprints": "packages/catalog/src/part-blueprints-6651557-render-only.ts",
     "bundledSources": "packages/catalog/src/ldraw-bundled-sources-6651557.ts",
 }
@@ -195,6 +198,7 @@ def main() -> None:
                 f"{float(scorecard['score']['composite']):.6f} "  # type: ignore[index,arg-type]
                 f"bodies={scorecard['bodyBudget']['bodyCount']} "  # type: ignore[index]
                 f"studs={len(part.studs_ldu)} clutches={len(part.clutches_ldu)} "
+                f"sourceConnectors={len(part.source_connectors_ldu)} "
                 f"clutchRoom={scorecard['clutchRoom']['clutchesWithRoom']}"  # type: ignore[index]
                 f"/{scorecard['clutchRoom']['declaredClutches']} "  # type: ignore[index]
                 f"triangles={part.body_triangle_count + part.stud_triangle_count} "
@@ -255,9 +259,14 @@ def main() -> None:
             "SET_6651557_MEASURED_MESH_ASSETS_D",
         ),
         "meshAssetsMeasuredE": render_mesh_asset_chunk(
-            measured_parts[MEASURED_E_SHARD_START:],
+            measured_parts[MEASURED_E_SHARD_START:MEASURED_F_SHARD_START],
             archive_sha256,
             "SET_6651557_MEASURED_MESH_ASSETS_E",
+        ),
+        "meshAssetsMeasuredF": render_mesh_asset_chunk(
+            measured_parts[MEASURED_F_SHARD_START:],
+            archive_sha256,
+            "SET_6651557_MEASURED_MESH_ASSETS_F",
         ),
         "meshAssetsRenderOnly": render_mesh_asset_chunk(
             render_only_parts,
@@ -287,11 +296,22 @@ def main() -> None:
             ),
         ),
         "blueprintsMeasuredE": render_blueprints(
-            measured_parts[MEASURED_E_SHARD_START:],
+            measured_parts[MEASURED_E_SHARD_START:MEASURED_F_SHARD_START],
             archive_sha256,
             builder,
             dict(shadow.identity()),
             export_name="SET_6651557_MEASURED_BLUEPRINTS_E",
+            appended_shard=(
+                "SET_6651557_MEASURED_BLUEPRINTS_F",
+                "./part-blueprints-6651557-measured-f.ts",
+            ),
+        ),
+        "blueprintsMeasuredF": render_blueprints(
+            measured_parts[MEASURED_F_SHARD_START:],
+            archive_sha256,
+            builder,
+            dict(shadow.identity()),
+            export_name="SET_6651557_MEASURED_BLUEPRINTS_F",
         ),
         "renderOnlyBlueprints": render_render_only_blueprints(
             render_only_parts, archive_sha256

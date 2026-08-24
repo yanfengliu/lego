@@ -103,6 +103,13 @@ describe("matchesPartQuery", () => {
     }
   });
 
+  it("keeps 4519 discoverable by identifier, axle family, and 1x3 size", () => {
+    const axle = part("builtin:axle-1x3");
+    for (const query of ["4519", "axle", "technic", "1x3", "3x1"]) {
+      expect(matchesPartQuery(axle, query), query).toBe(true);
+    }
+  });
+
   it("does not match an unrelated query", () => {
     expect(matchesPartQuery(brick2x4, "wheel")).toBe(false);
     expect(matchesPartQuery(brick2x4, "9x9")).toBe(false);

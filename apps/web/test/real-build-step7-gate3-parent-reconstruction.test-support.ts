@@ -25,6 +25,7 @@ const ADDED_AFTER_13 = new Set([
   "builtin:bracket-2x2-1x2-vertical-studs",
   "builtin:brick-1x2-grille",
   "builtin:slope-1x2-45",
+  "builtin:axle-1x3",
 ]);
 const compareStrings = (left: string, right: string): number =>
   left < right ? -1 : left > right ? 1 : 0;
@@ -32,19 +33,19 @@ const compareStrings = (left: string, right: string): number =>
 export const SYNTHETIC_PARENT_MIGRATIONS = [
   {
     sourceDocumentHash: "sha256:550741e43f99fc0f93b3bdd76f2122f201958768b344b7c48c56bdfa74576c16",
-    currentDocumentHash: "sha256:726096d7e08fa857e68abe20ac208292548b52e38c2457de8aa6bc2018b28821",
+    currentDocumentHash: "sha256:45f7d9db406603064457db7a06b04d808a94c52b65f1f0858415500a2ff0ccc4",
   },
   {
     sourceDocumentHash: "sha256:754d1af102f30708241201d51f7101429545116c8ba8bafdd7787e4940763cbb",
-    currentDocumentHash: "sha256:a492aba9fb9dccf0c100143540bf6d75d28495c9e10311b901779aeb07eeed57",
+    currentDocumentHash: "sha256:168607403acc82935c7bd40609847f928380712d4fc4bfd28b7fa83b50af8b6b",
   },
   {
     sourceDocumentHash: "sha256:c3a74e18fe2052f626ffe1aeb1a82c5f18ebb503c2b711184f39dc26e956ed6a",
-    currentDocumentHash: "sha256:0cfcae543c79ac23369ee91af57da1bb32f18c5c5f78b99fe16eaba59aef1cae",
+    currentDocumentHash: "sha256:df9154caa34dcd2b6a7513959fdf75b13288b08b0304f3663588c11cf4c79c40",
   },
   {
     sourceDocumentHash: "sha256:05c63816199829b436a995382878f66627881052e1d5e88ccd440230c1b1357c",
-    currentDocumentHash: "sha256:902abf636a7548cf6c5f37462a1805b918200c81f09d5e4922000276e7feaaf4",
+    currentDocumentHash: "sha256:f5df192b80d9beee9fec573ae4b8ddad06eebb5c8aa9437a7d8590ec6096acff",
   },
 ] as const satisfies readonly Step7Gate3ParentMigrationPin[];
 
@@ -275,7 +276,7 @@ export function runGate3ParentReconstruction(
           documentStructuralHash: (document) => {
             const parentIndex = parentIndexFromDocument(document);
             const phase: HashPhase =
-              document.truth.catalog.version === "builtin.basic-parts/21" ? "current" : "source";
+              document.truth.catalog.version === "builtin.basic-parts/22" ? "current" : "source";
             events.push(`hash:${phase}:${parentIndex}`);
             const measured = documentStructuralHash(document);
             if (options.mutateDetachedHashPhase === phase) mutateMaxParts(document);

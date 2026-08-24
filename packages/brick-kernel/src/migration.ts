@@ -39,6 +39,7 @@ export const MIGRATABLE_CATALOG_VERSIONS: readonly string[] = Object.freeze([
   "builtin.basic-parts/18",
   "builtin.basic-parts/19",
   "builtin.basic-parts/20",
+  "builtin.basic-parts/21",
   BUILTIN_CATALOG_VERSION,
 ]);
 
@@ -231,6 +232,15 @@ export const REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS = Object.freeze([
     catalogVersion: "builtin.basic-parts/20",
     sourceCommit: "e037b7e60e1240ddf196d381850ae49bc8c80e9b",
     truthHash: "sha256:9c4c32efcaf9bc5f2a251e77188134075f58ca536c6da6148e34b93419d84ad2",
+  },
+  // The snapshot /22 replaces. /22 appends 4519 as one complete measured
+  // definition: exact official geometry and collision columns plus three axle
+  // seats projected from the exact pinned LDCad A6x60 shaft. No preceding
+  // definition changes interpretation.
+  {
+    catalogVersion: "builtin.basic-parts/21",
+    sourceCommit: "98dc1e82b309eb52a6a32e0928ce075acb3e93ed",
+    truthHash: "sha256:44044c90de3bb380f32c26db561bad1bd0f247c22ea35c54d75aa5ec6ef8f9a1",
   },
 ] as const);
 

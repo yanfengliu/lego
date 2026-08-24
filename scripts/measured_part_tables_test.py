@@ -19,6 +19,7 @@ from measured_part_geometry_test import (
     MeshMergeTests,
 )
 from measured_part_plan_test import PlanTests
+from measured_part_source_connector_test import MeasuredSourceConnectorTests
 
 __all__ = [
     "ExactBoundTests",
@@ -28,6 +29,7 @@ __all__ = [
     "NumberLiteralTests",
     "PlanTests",
     "RenderTests",
+    "MeasuredSourceConnectorTests",
 ]
 
 
@@ -45,6 +47,8 @@ class MeasuredPartFileBoundaryTests(unittest.TestCase):
             "measured_part_geometry_test.py",
             "measured_part_emit_test.py",
             "measured_part_plan_test.py",
+            "measured_part_source_connector_test.py",
+            "measured_source_connectors.py",
             "measured_part_test_support.py",
         )
 

@@ -40,6 +40,8 @@ class PlanTests(unittest.TestCase):
                 "connectorSource": LDCAD_SHADOW_CONNECTOR_SOURCE,
                 "studs": 6,
                 "clutches": 2,
+                "sourceConnectors": 0,
+                "sourceConnectorKinds": [],
                 "collisionBoxes": 23,
                 "meshTriangles": 618,
                 "closureFileCount": 19,
@@ -84,6 +86,7 @@ class PlanTests(unittest.TestCase):
                 "41682",
                 "2877",
                 "3040",
+                "4519",
             ],
         )
         self.assertTrue(all(row.connector_source == "builder" for row in ADMITTED_PART_PLANS[:5]))
@@ -202,6 +205,36 @@ class PlanTests(unittest.TestCase):
             ),
         )
         self.assertIsNone(ADMITTED_PART_PLANS[18].validated_connection_stud_profile)
+
+    def test_4519_plan_pins_only_the_exact_ldcad_axle_route(self) -> None:
+        axle = ADMITTED_PART_PLANS[20]
+
+        self.assertEqual(
+            (
+                axle.design_id,
+                axle.connector_source,
+                axle.catalog_id,
+                axle.display_name,
+                axle.family,
+                axle.width_studs,
+                axle.length_studs,
+                axle.height_ldu,
+                axle.orientation_id,
+                axle.translation_ldu,
+            ),
+            (
+                "4519",
+                LDCAD_SHADOW_CONNECTOR_SOURCE,
+                "builtin:axle-1x3",
+                "Technic Axle 3",
+                "axle",
+                1,
+                3,
+                12,
+                "upright-yaw-0",
+                (0, 0, 0),
+            ),
+        )
 
     def test_3040_plan_and_builder_packet_pin_one_identity_frame_and_source(self) -> None:
         plan_3040 = ADMITTED_PART_PLANS[19]

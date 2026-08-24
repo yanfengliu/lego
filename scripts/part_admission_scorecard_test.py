@@ -20,8 +20,10 @@ from part_admission_geometry import (
     sample_triangle,
 )
 from part_admission_lattice import lattice_cell_centers, lattice_score, measure_lattice
+from part_admission_clutch import measure_clutch_room
 from part_admission_surface import BODY_ROLE, CLUTCH_ROLE, MeasuredSurface, STUD_ROLE
 from part_admission_scorecard import (
+    measure_connectors,
     measure_union_volume,
     measured_connectors,
     score_candidate,
@@ -234,6 +236,29 @@ class GeometryTests(unittest.TestCase):
 
 
 class ScoreTests(unittest.TestCase):
+    def test_a_source_gated_axle_is_not_misread_as_a_visible_stud_or_clutch(self) -> None:
+        candidate = validate_candidate(
+            candidate_document(
+                [box_body((-30.0, -6.0, -6.0), (30.0, 6.0, 6.0))],
+                [
+                    {
+                        "kind": "axle",
+                        "gender": "male",
+                        "positionLdu": [-20.0, 0.0, 0.0],
+                        "normal": [-1.0, 0.0, 0.0],
+                    }
+                ],
+            )
+        )
+
+        measured = measure_connectors(candidate, plate_surface())
+
+        self.assertEqual(candidate.stud_connectors, ())
+        self.assertEqual(len(candidate.axle_connectors), 1)
+        self.assertEqual(measured["male"]["unmatchedInCandidate"], 0)  # type: ignore[index]
+        self.assertEqual(measured["sourceAuthoredUnscored"]["count"], 1)  # type: ignore[index]
+        self.assertEqual(measure_clutch_room(candidate, ())["declaredClutches"], 0)
+
     def test_an_exact_box_candidate_scores_clean(self) -> None:
         candidate = validate_candidate(candidate_document([box_body(PLATE_MIN, PLATE_MAX)], []))
         scorecard = score_candidate(candidate, plate_surface(), 1.0)

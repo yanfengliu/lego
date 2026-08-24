@@ -1,5 +1,8 @@
 import {
   COLLISION_MODEL_VERSION,
+  CONNECTOR_KIND_RULES,
+  connectorAccepts,
+  LDCAD_SHADOW_AXLE_CONNECTOR_PROVENANCE,
   LDCAD_SHADOW_CONNECTOR_PROVENANCE,
   LDRAW_BUNDLED_GEOMETRY_PROVENANCE,
   MEASURED_PART_CATALOG_PROVENANCE,
@@ -20,6 +23,7 @@ import type {
 } from "./types.ts";
 
 import { AVAILABLE_COLOR_IDS } from "./colors.ts";
+import { connectorAxisFrame } from "./connector-axis.ts";
 import { validatePinnedClutchOffsets } from "./connector-backing-policy.ts";
 import {
   assertNumericBoundsContainExact,
@@ -54,25 +58,31 @@ function fail(blueprint: MeasuredPartBlueprint, message: string): never {
 }
 
 /**
- * Which authored source made this part's clutch cells, and the catalog
+ * Which authored source made this part's connector rows, and the catalog
  * provenance that says so.
  *
- * A female connector is not recoverable from LDraw geometry — an underside is a
- * cavity and the measured tubes sit half a stud pitch off the cell lattice — so
- * every clutch here is an authored claim by a named third party. Exactly one
- * source may make it, because a part that names two has no single licence,
- * attribution or evidence chain, and a part that names none is claiming a grip
- * nothing authored.
+ * A clutch cell and an axle seat are not recoverable from visible LDraw geometry
+ * alone, so every such row is an authored claim by a named third party. Exactly
+ * one source may make them, because a part that names two has no single licence,
+ * attribution or evidence chain, and a part that names none is claiming a
+ * connection nothing authored.
  */
 function connectorProvenance(blueprint: MeasuredPartBlueprint): SourceProvenance {
   const builder = blueprint.builderSource !== undefined;
   const builderConnectivity = blueprint.builderConnectivitySource !== undefined;
   const shadow = blueprint.ldcadShadowSource !== undefined;
+  const sourceConnectors = blueprint.sourceConnectorsLdu ?? [];
   const sourceCount = Number(builder) + Number(builderConnectivity) + Number(shadow);
   if (sourceCount !== 1) {
     fail(
       blueprint,
-      `declares ${sourceCount} authored connector sources for its ${blueprint.clutchesLdu.length} clutch cells; a clutch is one authored claim, so exactly one Builder frame, pinned Builder connectivity fact, or LDCad shadow walk must make it.`,
+      `declares ${sourceCount} authored connector sources for its ${blueprint.clutchesLdu.length} clutch cells and ${sourceConnectors.length} source connector rows; each is an authored claim, so exactly one Builder frame, pinned Builder connectivity fact, or LDCad shadow walk must make it.`,
+    );
+  }
+  if (sourceConnectors.length > 0 && !shadow) {
+    fail(
+      blueprint,
+      `declares ${sourceConnectors.length} source connector rows without an LDCad shadow walk; the measured route currently admits only the exact shadow-authored axle lane.`,
     );
   }
   if (builderConnectivity) {
@@ -82,7 +92,11 @@ function connectorProvenance(blueprint: MeasuredPartBlueprint): SourceProvenance
       blueprint.builderConnectivitySource!,
     );
   }
-  return shadow ? LDCAD_SHADOW_CONNECTOR_PROVENANCE : MEASURED_PART_CATALOG_PROVENANCE;
+  return shadow
+    ? sourceConnectors.length > 0
+      ? LDCAD_SHADOW_AXLE_CONNECTOR_PROVENANCE
+      : LDCAD_SHADOW_CONNECTOR_PROVENANCE
+    : MEASURED_PART_CATALOG_PROVENANCE;
 }
 
 function unionOf(boxes: readonly LduBounds[]): LduBounds {
@@ -279,6 +293,43 @@ export const makeMeasuredPartDefinition = (blueprint: MeasuredPartBlueprint): Pa
       radiusLdu: STUD_RADIUS_LDU,
       maxInsertionDepthLdu: STUD_HEIGHT_LDU,
       requiresValidatedConnection: true,
+    });
+  });
+
+  (blueprint.sourceConnectorsLdu ?? []).forEach((source, index) => {
+    if (source.kind !== "axle") {
+      fail(
+        blueprint,
+        `source connector ${index} names kind ${JSON.stringify(source.kind)}; the measured route currently admits only the exact LDCad A6x60 axle lane.`,
+      );
+    }
+    if (!source.positionLdu.every(Number.isSafeInteger)) {
+      fail(
+        blueprint,
+        `source connector ${index} seats at [${source.positionLdu.join(", ")}]; an authored axle seat must remain on exact whole-LDU coordinates.`,
+      );
+    }
+    const frame = connectorAxisFrame(source.normal);
+    if (frame === undefined) {
+      fail(
+        blueprint,
+        `source connector ${index} has normal [${source.normal.join(", ")}]; the exact shaft gate emits one signed unit axis.`,
+      );
+    }
+    const rule = CONNECTOR_KIND_RULES[source.kind];
+    connectors.push({
+      id: `${source.kind}:${index}`,
+      kind: source.kind,
+      geometryRole: rule.geometryRole,
+      profileId: rule.profileId,
+      gender: rule.gender,
+      positionLdu: source.positionLdu,
+      normal: source.normal,
+      // Existing non-stud ports retain the neutral serialized frame label;
+      // their separately authoritative normal carries the shaft axis.
+      orientationId: "connector-up",
+      capacity: 1,
+      compatibleKinds: connectorAccepts(source.kind),
     });
   });
 

@@ -1,4 +1,9 @@
-import type { PartFamily, PartialOverhangClutchEvidence } from "./types.ts";
+import type {
+  ConnectorKind,
+  LduVector3,
+  PartFamily,
+  PartialOverhangClutchEvidence,
+} from "./types.ts";
 
 import type { ExactLduBoundsDeclaration } from "./exact-ldu.ts";
 
@@ -55,12 +60,26 @@ export type MeasuredStudRow =
     ];
 
 /**
+ * A non-stud connector derived from the declaration's pinned authored source.
+ *
+ * The measured route deliberately admits only an axle today. LDraw supplies its
+ * visible body but not its usable seats; the exact LDCad A6x60 shaft gate emits
+ * those seats and the factory derives the catalog profile from the existing
+ * connector taxonomy rather than repeating it in generated data.
+ */
+export interface MeasuredSourceConnectorRow {
+  readonly kind: Extract<ConnectorKind, "axle">;
+  readonly positionLdu: LduVector3;
+  readonly normal: LduVector3;
+}
+
+/**
  * A part declared from measured source rather than from parameters.
  *
  * The four layers still come from one declaration, but each field states which
  * source measured it: the mesh and the collision decomposition are the expanded
- * LDraw surface, the bounds are the exact LDraw closure, and the female
- * connectors are an authored claim carried through a pinned frame. A declaration
+ * LDraw surface, the bounds are the exact LDraw closure, and the authored
+ * connector rows are claims carried through a pinned frame. A declaration
  * selects exactly one reviewed Builder, Builder-connectivity, or LDCad source;
  * mere record presence selects nothing. Nothing here is generated from a width
  * and a length, so nothing here may be inferred.
@@ -112,6 +131,8 @@ export interface MeasuredPartBlueprint {
   readonly studsLdu: readonly MeasuredStudRow[];
   /** Underside clutch seats from the declaration's one authored connector source. */
   readonly clutchesLdu: readonly (readonly [x: number, y: number, z: number])[];
+  /** Authored non-stud seats; absent on the immutable pre-4519 shards. */
+  readonly sourceConnectorsLdu?: readonly MeasuredSourceConnectorRow[];
   /**
    * The per-column height-field decomposition, flattened to
    * `[minX, minY, minZ, maxX, maxY, maxZ]` sextuples so a part with hundreds of
@@ -120,9 +141,9 @@ export interface MeasuredPartBlueprint {
   readonly bodyBoxesLdu: readonly number[];
   readonly ldrawSource: MeasuredLdrawSource;
   /**
-   * Where the female connectors came from. Exactly one of these is present, and
-   * the factory refuses a declaration carrying more or fewer: a clutch cell is
-   * a physical claim, so the part has to name the authored source that made it.
+   * Where the authored connector rows came from. Exactly one of these is present,
+   * and the factory refuses a declaration carrying more or fewer: a clutch cell
+   * or axle seat is a physical claim, so the part has to name its authored source.
    */
   readonly builderSource?: MeasuredBuilderSource;
   readonly builderConnectivitySource?: PartialOverhangClutchEvidence;

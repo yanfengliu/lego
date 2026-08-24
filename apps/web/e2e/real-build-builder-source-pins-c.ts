@@ -107,7 +107,7 @@ export const BUILDER_STEP1_DESIGN_SOURCES_C = [
       "sha256:8f58e5415f2192d3fab6785fe839e9c1fb794ac6149baf79523eaf87fa4d0dd8",
     uniqueBuilderVertexCount: 20,
     expectedCatalogDefinitionDigest:
-      "sha256:7427a3be762f818112017240befe0c6e6fb5bbb75878e1f52bc67875ca5611cd",
+      "sha256:61e96ff92f40ed176d9d7f1d3f215e5cbae3a390284c0be2fc58e2da0f1c6ca7",
     expectedCatalogGeometryDigest:
       "sha256:9609b5e640a81310f4aad2d3691f7b1a287e77a4562c038bc13e47e0b847b8c8",
     expectedCatalogConnectorDigest:
@@ -156,7 +156,7 @@ export const BUILDER_STEP1_DESIGN_SOURCES_C = [
       "sha256:6b78c4e78e0acc17e2df3d2ccf69aabc36df5a785d3f028a31163cdedfbf56b6",
     uniqueBuilderVertexCount: 112,
     expectedCatalogDefinitionDigest:
-      "sha256:cb50945243b1b51da78bde1300bbab0a10f070d565b79a826c557396736d5899",
+      "sha256:3a22751cf6440ec69942b26368adc355572086dd4fd15e58652e3502a9554ec5",
     expectedCatalogGeometryDigest:
       "sha256:bb518781e8e4a4a37d1406f1e5ccf6a1721a02de2554dd400ff51f68a3b69f53",
     expectedCatalogConnectorDigest:
@@ -210,7 +210,7 @@ export const BUILDER_STEP1_DESIGN_SOURCES_C = [
       "sha256:1447d2ef86bd2bd0ea8674b41b9e203b16921c2ad4c5b9d44e5d11d77357bf11",
     uniqueBuilderVertexCount: 158,
     expectedCatalogDefinitionDigest:
-      "sha256:5f5b17c6c8f10d2fc8078263b0c696281d3c6aef690b15c3986671ed0c89aa00",
+      "sha256:fede45d9be483f53263943a8e6d2b71d57d2639a1775ad5fd5f129db2b40f5ae",
     expectedCatalogGeometryDigest:
       "sha256:db59918cf9167cd90db296665988ccb1a949bb1a06b19d7266dcbb54e3a71207",
     expectedCatalogConnectorDigest:
@@ -267,7 +267,7 @@ export const BUILDER_STEP1_DESIGN_SOURCES_C = [
       "sha256:61a7c44034d7644c49dbae31b0fc4a0142bef7e5916275033613c8910ef653fe",
     uniqueBuilderVertexCount: 18,
     expectedCatalogDefinitionDigest:
-      "sha256:f985e98ba18fe352191f2b9208d7b1fca4189e7b16d16fdb61410e6fbdb76038",
+      "sha256:fec402c59a0d4c8c6be04a4c37bdf6d79143742ff3de9c6eccf3a4267cbd8db3",
     expectedCatalogGeometryDigest:
       "sha256:485c312ece17cd248064e619f5c494881869ffb0142327ad7b642d8353a62579",
     expectedCatalogConnectorDigest:
@@ -340,7 +340,7 @@ export const BUILDER_STEP1_DESIGN_SOURCES_C = [
       "sha256:8759be69637f09efa275ee3b9a11e7c8779d964a5c9bf6bcb2e4ed1f942934f5",
     uniqueBuilderVertexCount: 18,
     expectedCatalogDefinitionDigest:
-      "sha256:6bc38c99ef11d912bab15d146966ce7b6f3d9675e950201291c8375b59b5a0b2",
+      "sha256:70bf8c20975435ee66e4563c0d7a292e7b8de4d1baf1d18ea3d9e5a6825c4768",
     expectedCatalogGeometryDigest:
       "sha256:918ee0c76576878fa24a246b876831f6edfbb9931f960d9910ad502a5f22baa9",
     expectedCatalogConnectorDigest:

@@ -183,11 +183,12 @@ describe("set 6651557 quarantined coverage ledger", () => {
       ),
     ).toBe(true);
     expect(ledger.requiredLeaves).toHaveLength(121);
-    expect(admittedRequiredLeafIds).toHaveLength(15);
+    expect(admittedRequiredLeafIds).toHaveLength(16);
     expect(admittedRequiredLeafIds).toEqual([
       "2450",
       "2877",
       "3040",
+      "4519",
       "5092",
       "11253",
       "15254",
@@ -202,7 +203,7 @@ describe("set 6651557 quarantined coverage ledger", () => {
       "93273",
     ]);
     expect(sha256IdSet(admittedRequiredLeafIds)).toBe(
-      "sha256:fddf845fbe1b91beacc1469483424777860316ce56266bbfcc56937ff60253b8",
+      "sha256:6a0f740749980db97f031d45a4cf539b8460b579cc9f4abf8ac706642a78bb30",
     );
   });
 

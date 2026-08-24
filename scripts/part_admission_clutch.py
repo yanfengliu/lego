@@ -126,7 +126,7 @@ def measure_clutch_room(
 
     rows = [
         measure_one_clutch(connector, triangles, spacing_ldu)
-        for connector in candidate.female_connectors
+        for connector in candidate.clutch_connectors
     ]
     without_room = [row for row in rows if not row["hasRoomForStud"]]
     return {

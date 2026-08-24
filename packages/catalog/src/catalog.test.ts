@@ -167,11 +167,14 @@ const EXPECTED_PART_IDS = [
   // builtin.basic-parts/21: one exact 1 x 2 straight slope with one official
   // stud and two Builder-authored underside clutches in an exact reviewed frame.
   "builtin:slope-1x2-45",
+  // builtin.basic-parts/22: the exact three-module Technic axle surface and
+  // three discrete axle ports derived from its one pinned LDCad shaft segment.
+  "builtin:axle-1x3",
 ] as const;
 
 describe("starter catalog", () => {
-  it("publishes the straight-slope admission as version 21", () => {
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/21");
+  it("publishes the three-module axle admission as version 22", () => {
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/22");
   });
 
   it("pins 25269's exact LDCad route and raw-to-catalog central clutch", () => {
@@ -265,7 +268,7 @@ describe("starter catalog", () => {
       "grille-tile": 1,
       "wedge-plate": 9,
       "technic-brick": 1,
-      axle: 2,
+      axle: 3,
       wheel: 1,
       arch: 3,
       slope: 1,

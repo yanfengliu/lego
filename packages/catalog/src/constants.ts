@@ -104,8 +104,14 @@ import { deepFreeze } from "./freeze.ts";
  * moved-to official closure supplies the 45-degree shell, one top stud, and
  * conservative collision input; a checksum-pinned underside tube plus that stud
  * establishes the exact Builder revision-F frame that supplies two clutches.
+ *
+ * /22 adds `4519.dat`, the three-module Technic axle, as one complete measured
+ * definition. Its exact official closure supplies the shaft surface and
+ * conservative collision field. The pinned LDCad shadow's one centred,
+ * sliding, capless male A6x60 segment exclusively authors three discrete axle
+ * seats through the existing axle taxonomy. No preceding definition changes.
  */
-export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/21" as const;
+export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/22" as const;
 export const CONNECTOR_TAXONOMY_VERSION = "stud-tube/1" as const;
 export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/3" as const;
 export const TRANSFORM_POLICY_VERSION = "upright-quarter-turns-negative-y-up/1" as const;
@@ -200,7 +206,7 @@ export const MEASURED_PART_CATALOG_PROVENANCE: SourceProvenance = Object.freeze(
 });
 
 /**
- * Catalog truth for a measured part whose female connectors the LDCad shadow
+ * Catalog truth for a measured part whose connector rows the LDCad shadow
  * library authored. Designs 30357, 2450 and 79491 have no LEGO Builder record.
  * Builder metadata also names 25269, 35787 and 11253, but these connector
  * admissions do not use those unframed fields: the exact shadow walks directly
@@ -228,6 +234,13 @@ export const LDCAD_SHADOW_CONNECTOR_PROVENANCE: SourceProvenance = Object.freeze
   redistributionAllowed: true,
   trainingUseAllowed: false,
   externalGeometryBundled: false,
+});
+
+/** Additive axle attribution; older LDCad-backed definitions retain their exact bytes. */
+export const LDCAD_SHADOW_AXLE_CONNECTOR_PROVENANCE: SourceProvenance = Object.freeze({
+  ...LDCAD_SHADOW_CONNECTOR_PROVENANCE,
+  attribution:
+    "Copyright (c) 2026 Yanfeng Liu. Axle seats derived from the LDCad Shadow Library by Roland Melkert and its per-file !HISTORY contributors, CC BY-SA 4.0; this part uses the exact capless, centred, sliding A6x60 shaft projection. ShareAlike attaches to this derived connector data on redistribution. Extents, collision and render mesh are the official LDraw closure named on the part.",
 });
 
 export const LDRAW_91988_FRAME_PROVENANCE: SourceProvenance = Object.freeze({

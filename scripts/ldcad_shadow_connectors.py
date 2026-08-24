@@ -11,8 +11,7 @@ Everything here is exact rational arithmetic over the LDraw transforms, so a
 composed position is either an exact number or a refusal — a connector is a
 physical claim and a rounded one is a different claim.
 
-This module measures. It emits no `PartDefinition`, claims no catalog frame and
-admits nothing.
+This module measures. It emits no `PartDefinition`, claims no catalog frame and admits nothing.
 """
 
 from __future__ import annotations
@@ -72,6 +71,11 @@ class ShadowSnap:
     position: Rational3
     orientation: Matrix3
     sections: tuple[Section, ...]
+    caps: str
+    slide: bool
+    centered: bool
+    grid_count: int
+    transform_modifiers: tuple[str | None, str | None]
     source_path: str
     source_line: int
 
@@ -97,6 +101,11 @@ class ShadowSnap:
             position=tuple(placed[axis] + translation[axis] for axis in range(3)),  # type: ignore[arg-type]
             orientation=matrix_product(matrix, self.orientation),
             sections=self.sections,
+            caps=self.caps,
+            slide=self.slide,
+            centered=self.centered,
+            grid_count=self.grid_count,
+            transform_modifiers=self.transform_modifiers,
             source_path=self.source_path,
             source_line=self.source_line,
         )
@@ -130,6 +139,29 @@ class ShadowSnap:
             and self.sections[0].radius == STUD_RADIUS_LDU
         )
 
+    @property
+    def is_axle_shaft(self) -> bool:
+        return (
+            self.command == "SNAP_CYL"
+            and self.gender == "M"
+            and self.caps == "none"
+            and self.slide
+            and self.centered
+            and self.grid_count == 1
+            and self.transform_modifiers == (None, None)
+            and len(self.sections) == 1
+            and self.sections[0].variant == "A"
+            and self.sections[0].radius == 6
+            and self.sections[0].length == 60
+            and all(
+                sorted(abs(value) for value in values) == [0, 0, 1]
+                for values in (
+                    *(self.orientation[row * 3 : row * 3 + 3] for row in range(3)),
+                    *(self.orientation[column::3] for column in range(3))
+                )
+            )
+        )
+
 
 def _gender(meta: ShadowMeta) -> str:
     value = (meta.text("gender") or "").strip().upper()
@@ -155,7 +187,8 @@ def snap_instances(meta: ShadowMeta) -> list[ShadowSnap]:
         shift = apply_matrix(orientation, (Fraction(0), total / 2, Fraction(0)))
         position = tuple(position[axis] + shift[axis] for axis in range(3))  # type: ignore[assignment]
     snaps = []
-    for cell in parse_grid(meta):
+    grid = parse_grid(meta)
+    for cell in grid:
         offset = apply_matrix(orientation, cell)
         snaps.append(
             ShadowSnap(
@@ -166,6 +199,11 @@ def snap_instances(meta: ShadowMeta) -> list[ShadowSnap]:
                 position=tuple(position[axis] + offset[axis] for axis in range(3)),  # type: ignore[arg-type]
                 orientation=orientation,
                 sections=sections,
+                caps=(meta.text("caps") or "").strip().lower(),
+                slide=meta.flag("slide"),
+                centered=meta.flag("center"),
+                grid_count=len(grid),
+                transform_modifiers=(meta.text("scale"), meta.text("mirror")),
                 source_path=meta.source_path,
                 source_line=meta.line_number,
             )
@@ -456,5 +494,6 @@ def snap_census(snaps: Sequence[ShadowSnap]) -> dict[str, object]:
         "totalSnaps": len(snaps),
         "antiStuds": sum(1 for snap in snaps if snap.is_anti_stud),
         "studs": sum(1 for snap in snaps if snap.is_stud),
+        "axleShafts": sum(1 for snap in snaps if snap.is_axle_shaft),
         "byCommandGenderShape": dict(sorted(rows.items())),
     }

@@ -2,8 +2,10 @@
 
 One place says what a candidate may claim: the catalog's own four collision body
 kinds, its three-to-eight vertex plan limit, and connectors that carry a kind, a
-gender, a position and a normal. Reading a declaration either yields this exact
-shape or says which field is wrong and what would satisfy it.
+gender, a position and a normal. Studs and clutch cells are scored against LDraw;
+the narrow axle kind is retained for a separate exact LDCad-source gate. Reading
+a declaration either yields this exact shape or says which field is wrong and
+what would satisfy it.
 
 It is a candidate, not a part: nothing here is admitted to the catalog, and the
 frame is the LDraw part-local one because no LDraw-to-catalog frame is
@@ -237,14 +239,14 @@ def _connector(index: int, value: object) -> Connector:
         raise ValueError(f"connectors[{index}] must be an object; received {type(value).__name__}.")
     kind = value.get("kind")
     gender = value.get("gender")
-    if kind not in ("stud", "undersideClutch"):
+    if kind not in ("stud", "undersideClutch", "axle"):
         raise ValueError(
-            f"connectors[{index}].kind is {kind!r}; this scorer measures 'stud' and "
-            "'undersideClutch' only."
+            f"connectors[{index}].kind is {kind!r}; this scorer accepts 'stud', "
+            "'undersideClutch', and the separately source-gated 'axle' kind only."
         )
     if gender not in ("male", "female"):
         raise ValueError(f"connectors[{index}].gender is {gender!r}; it must be 'male' or 'female'.")
-    expected = "male" if kind == "stud" else "female"
+    expected = "female" if kind == "undersideClutch" else "male"
     if gender != expected:
         raise ValueError(
             f"connectors[{index}] declares kind {kind!r} with gender {gender!r}; a {kind} is always "
@@ -273,6 +275,18 @@ class Candidate:
     @property
     def female_connectors(self) -> tuple[Connector, ...]:
         return tuple(row for row in self.connectors if row.gender == "female")
+
+    @property
+    def stud_connectors(self) -> tuple[Connector, ...]:
+        return tuple(row for row in self.connectors if row.kind == "stud")
+
+    @property
+    def clutch_connectors(self) -> tuple[Connector, ...]:
+        return tuple(row for row in self.connectors if row.kind == "undersideClutch")
+
+    @property
+    def axle_connectors(self) -> tuple[Connector, ...]:
+        return tuple(row for row in self.connectors if row.kind == "axle")
 
 
 def validate_candidate(value: object) -> Candidate:

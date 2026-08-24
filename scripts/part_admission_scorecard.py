@@ -217,12 +217,12 @@ def measure_connectors(
 ) -> dict[str, object]:
     truth = measured_connectors(surface)
     male = _match(
-        [(row.position, row.normal) for row in candidate.male_connectors],
+        [(row.position, row.normal) for row in candidate.stud_connectors],
         [(row.position, row.normal) for row in truth["male"]],
         CONNECTOR_MATCH_TOLERANCE_LDU,
     )
     female = _match(
-        [(row.position, row.normal) for row in candidate.female_connectors],
+        [(row.position, row.normal) for row in candidate.clutch_connectors],
         [(row.position, row.normal) for row in truth["female"]],
         CONNECTOR_MATCH_TOLERANCE_LDU,
     )
@@ -242,11 +242,33 @@ def measure_connectors(
         "measures a declared clutch is the clutchRoom section"
     )
     female["tubeOffsetFromStudLatticeLdu"] = _tube_offsets(
-        truth["female"], [row.position for row in candidate.male_connectors]
+        truth["female"], [row.position for row in candidate.stud_connectors]
     )
     female["scored"] = False
     male["scored"] = True
-    return {"male": male, "female": female}
+    source_authored = [
+        {
+            "kind": row.kind,
+            "positionLdu": [round(value, 9) for value in row.position],
+            "normal": [round(value, 9) for value in row.normal],
+        }
+        for row in candidate.axle_connectors
+    ]
+    return {
+        "male": male,
+        "female": female,
+        "sourceAuthoredUnscored": {
+            "count": len(source_authored),
+            "connectors": source_authored,
+            "truthSource": "separate-exact-ldcad-shadow-gate",
+            "scored": False,
+            "caveat": (
+                "LDraw surface primitives do not author axle connection seats. These rows remain "
+                "visible in the scorecard but are admitted only when the measured-table driver "
+                "derives them from its pinned exact LDCad shadow route."
+            ),
+        },
+    }
 
 
 def _positions(connectors: Sequence[MeasuredConnector]) -> list[dict[str, object]]:

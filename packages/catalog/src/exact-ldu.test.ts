@@ -23,9 +23,8 @@ import {
 import type { ExactLduBoundsDeclaration } from "./exact-ldu.ts";
 
 /**
- * The measured bounds of the nine audited set 6651557 source-pilot closures,
- * copied from `output/real-build/set-6651557-source-pilot.json`, plus 41682's
- * catalog-frame bound from the retained measured-part emission and scorecard.
+ * The measured bounds retained across the set 6651557 source-pilot and
+ * append-only catalog admissions, copied from their emitted exact declarations.
  *
  * 93273 is the one this representation exists for: -16.00016098 is not a
  * float64, and it is one of the pilot identities that motivated this type.
@@ -35,6 +34,7 @@ const MEASURED_BOUND_FIXTURES: Readonly<Record<string, ExactLduBoundsDeclaration
   "5092": { min: ["-20", "0", "-10"], max: ["17", "8", "10"] },
   "2877": { min: ["-20", "-4", "-10"], max: ["20", "24", "10"] },
   "3040": { min: ["-10", "-4", "-30"], max: ["10", "24", "10"] },
+  "4519": { min: ["-29.5", "-6", "-6"], max: ["29.5", "6", "6"] },
   "30357": { min: ["-10", "-4", "-10"], max: ["50", "8", "50"] },
   "35480": { min: ["-20", "-4", "-10"], max: ["20", "8", "10"] },
   "51739": { min: ["-38.5", "-4", "-20"], max: ["38.5", "8", "20"] },

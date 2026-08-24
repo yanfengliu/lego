@@ -72,6 +72,7 @@ def measured(**overrides: object) -> MeasuredPart:
         "exact_bounds": (("-10", "-8", "-20"), ("10", "4", "20")),
         "studs_ldu": ((0.0, -4.0, -10.0, 6.0, 4.0),),
         "clutches_ldu": ((0.0, 4.0, -10.0),),
+        "source_connectors_ldu": (),
         "body_boxes_ldu": (-10.0, -4.0, -20.0, 10.0, 4.0, 20.0),
         "root": record("parts/unit.dat", "sha256:11"),
         "closure": (record("parts/unit.dat", "sha256:11"), record("p/stud.dat", "sha256:22")),

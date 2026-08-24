@@ -94,6 +94,11 @@ describe("reviewed migration history", () => {
       "e037b7e60e1240ddf196d381850ae49bc8c80e9b",
       "sha256:9c4c32efcaf9bc5f2a251e77188134075f58ca536c6da6148e34b93419d84ad2",
     ],
+    [
+      "builtin.basic-parts/21",
+      "98dc1e82b309eb52a6a32e0928ce075acb3e93ed",
+      "sha256:44044c90de3bb380f32c26db561bad1bd0f247c22ea35c54d75aa5ec6ef8f9a1",
+    ],
   ])("pins reviewed %s truth from commit %s", (catalogVersion, sourceCommit, truthHash) => {
     expect(
       REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS.find(
@@ -104,13 +109,13 @@ describe("reviewed migration history", () => {
   });
 
   it("admits no historical truth snapshots beyond the reviewed table", () => {
-    expect(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS).toHaveLength(22);
+    expect(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS).toHaveLength(23);
     expect(
       new Set(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS.map(({ sourceCommit }) => sourceCommit)).size,
-    ).toBe(22);
+    ).toBe(23);
     expect(
       new Set(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS.map(({ truthHash }) => truthHash)).size,
-    ).toBe(22);
+    ).toBe(23);
   });
 
   it("binds every reviewed truth hash to its exact immutable catalog roster", () => {
