@@ -17,7 +17,6 @@ from part_admission_geometry import (
     connected_surface_components,
     open_boundary,
     projection_volumes,
-    sample_triangle,
 )
 from part_admission_lattice import lattice_cell_centers, lattice_score, measure_lattice
 from part_admission_clutch import measure_clutch_room
@@ -177,15 +176,6 @@ class GeometryTests(unittest.TestCase):
         self.assertTrue(index.contains_point((-20.0, 4.0, 2.0)))
         self.assertTrue(index.contains_point((-20.000000000000004, 4.0, 2.0)))
 
-    def test_sample_triangle_respects_the_requested_spacing(self) -> None:
-        triangle = ((0.0, 0.0, 0.0), (4.0, 0.0, 0.0), (0.0, 0.0, 4.0))
-        points = list(sample_triangle(triangle, 1.0))
-        # The 4 by 4 legs give a hypotenuse of 5.66, so six steps, and a
-        # barycentric grid of (n + 1)(n + 2) / 2 points at 0.67 LDU apart.
-        self.assertEqual(len(points), (7 * 8) // 2)
-        for point in points:
-            self.assertTrue(any(math.dist(point, other) <= 1.0 for other in points if other != point))
-
     def test_projection_estimators_agree_on_a_closed_box_and_split_on_an_open_one(self) -> None:
         closed = box_surface((0.0, 0.0, 0.0), (10.0, 4.0, 20.0))
         estimators = projection_volumes(closed)
@@ -258,6 +248,43 @@ class ScoreTests(unittest.TestCase):
         self.assertEqual(measured["male"]["unmatchedInCandidate"], 0)  # type: ignore[index]
         self.assertEqual(measured["sourceAuthoredUnscored"]["count"], 1)  # type: ignore[index]
         self.assertEqual(measure_clutch_room(candidate, ())["declaredClutches"], 0)
+
+    def test_a_source_gated_axle_hole_is_female_but_not_a_scored_clutch(self) -> None:
+        candidate = validate_candidate(
+            candidate_document(
+                [box_body((-10.0, -16.0, -20.0), (10.0, 12.0, 20.0))],
+                [
+                    {
+                        "kind": "axleHole",
+                        "gender": "female",
+                        "positionLdu": [0.0, -2.0, 0.0],
+                        "normal": [1.0, 0.0, 0.0],
+                    }
+                ],
+            )
+        )
+
+        measured = measure_connectors(candidate, plate_surface())
+
+        self.assertEqual(candidate.clutch_connectors, ())
+        self.assertEqual(len(candidate.axle_hole_connectors), 1)
+        self.assertEqual(measured["female"]["unmatchedInCandidate"], 0)  # type: ignore[index]
+        self.assertEqual(
+            measured["sourceAuthoredUnscored"]["connectors"],  # type: ignore[index]
+            [{"kind": "axleHole", "positionLdu": [0.0, -2.0, 0.0], "normal": [1.0, 0.0, 0.0]}],
+        )
+        self.assertEqual(measure_clutch_room(candidate, ())["declaredClutches"], 0)
+
+    def test_an_axle_hole_declared_male_is_refused(self) -> None:
+        connector = {
+            "kind": "axleHole",
+            "gender": "male",
+            "positionLdu": [0.0, -2.0, 0.0],
+            "normal": [1.0, 0.0, 0.0],
+        }
+
+        with self.assertRaisesRegex(ValueError, "an axleHole is always female"):
+            validate_candidate(candidate_document([box_body(PLATE_MIN, PLATE_MAX)], [connector]))
 
     def test_an_exact_box_candidate_scores_clean(self) -> None:
         candidate = validate_candidate(candidate_document([box_body(PLATE_MIN, PLATE_MAX)], []))

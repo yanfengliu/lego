@@ -72,7 +72,7 @@ class RenderTests(unittest.TestCase):
         self.assertIn("--pilot <set-6651557-source-pilot.json>", rendered)
         self.assertIn("--builder-frame <set-6651557-builder-ldraw-frame.json>", rendered)
 
-    def test_append_only_f_shards_follow_e_without_rewriting_2877_or_3040(self) -> None:
+    def test_append_only_g_shards_follow_f_without_rewriting_prior_admissions(self) -> None:
         mesh_aggregator = render_mesh_asset_aggregator()
         self.assertIn(
             'import { SET_6651557_MEASURED_MESH_ASSETS_D } from "./mesh-assets-6651557-measured-d.ts";',
@@ -84,6 +84,10 @@ class RenderTests(unittest.TestCase):
         )
         self.assertIn(
             'import { SET_6651557_MEASURED_MESH_ASSETS_F } from "./mesh-assets-6651557-measured-f.ts";',
+            mesh_aggregator,
+        )
+        self.assertIn(
+            'import { SET_6651557_MEASURED_MESH_ASSETS_G } from "./mesh-assets-6651557-measured-g.ts";',
             mesh_aggregator,
         )
         self.assertLess(
@@ -100,6 +104,10 @@ class RenderTests(unittest.TestCase):
         )
         self.assertLess(
             mesh_aggregator.index("...SET_6651557_MEASURED_MESH_ASSETS_F"),
+            mesh_aggregator.index("...SET_6651557_MEASURED_MESH_ASSETS_G"),
+        )
+        self.assertLess(
+            mesh_aggregator.index("...SET_6651557_MEASURED_MESH_ASSETS_G"),
             mesh_aggregator.index("...SET_6651557_RENDER_ONLY_MESH_ASSETS"),
         )
 
@@ -108,19 +116,19 @@ class RenderTests(unittest.TestCase):
             ARCHIVE_SHA256,
             BUILDER_RECORDS,
             SHADOW_IDENTITY,
-            export_name="SET_6651557_MEASURED_BLUEPRINTS_E",
+            export_name="SET_6651557_MEASURED_BLUEPRINTS_F",
             appended_shard=(
-                "SET_6651557_MEASURED_BLUEPRINTS_F",
-                "./part-blueprints-6651557-measured-f.ts",
+                "SET_6651557_MEASURED_BLUEPRINTS_G",
+                "./part-blueprints-6651557-measured-g.ts",
             ),
         )
         self.assertIn(
-            'import { SET_6651557_MEASURED_BLUEPRINTS_F } from "./part-blueprints-6651557-measured-f.ts";',
+            'import { SET_6651557_MEASURED_BLUEPRINTS_G } from "./part-blueprints-6651557-measured-g.ts";',
             blueprint_aggregator,
         )
         self.assertLess(
             blueprint_aggregator.index('designId: "unit"'),
-            blueprint_aggregator.index("...SET_6651557_MEASURED_BLUEPRINTS_F"),
+            blueprint_aggregator.index("...SET_6651557_MEASURED_BLUEPRINTS_G"),
         )
 
     def test_check_mode_refuses_a_canonical_generated_file_drift(self) -> None:
@@ -179,6 +187,24 @@ class RenderTests(unittest.TestCase):
         self.assertIn('kind: "axle"', axle)
         self.assertIn("positionLdu: [-20, 0, 0]", axle)
         self.assertIn("normal: [-1, 0, 0]", axle)
+
+    def test_an_exact_source_axle_hole_row_round_trips_without_becoming_a_clutch(self) -> None:
+        rendered = render_blueprints(
+            [
+                measured(
+                    plan=plan(connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE),
+                    source_connectors_ldu=(("axleHole", (0.0, -2.0, 0.0), (1.0, 0.0, 0.0)),),
+                )
+            ],
+            ARCHIVE_SHA256,
+            BUILDER_RECORDS,
+            SHADOW_IDENTITY,
+        )
+
+        self.assertIn('kind: "axleHole"', rendered)
+        self.assertIn("positionLdu: [0, -2, 0]", rendered)
+        self.assertIn("normal: [1, 0, 0]", rendered)
+        self.assertEqual(rendered.count("clutchesLdu:"), 1)
 
     def test_a_builder_connectivity_part_emits_the_seven_seat_evidence(self) -> None:
         rendered = render_blueprints(
@@ -255,7 +281,7 @@ class RenderTests(unittest.TestCase):
         driver = (repository / "scripts/emit-measured-part-tables.py").read_text(encoding="utf-8")
 
         self.assertIn(
-            'REPORT_SCHEMA_VERSION = "lego.measured-part-admission-emission/5"',
+            'REPORT_SCHEMA_VERSION = "lego.measured-part-admission-emission/6"',
             driver,
         )
         self.assertIn('"fullMeasuredParts": len(measured_parts)', driver)
@@ -306,6 +332,7 @@ class RenderTests(unittest.TestCase):
                 "mesh-assets-6651557-measured-d.ts",
                 "mesh-assets-6651557-measured-e.ts",
                 "mesh-assets-6651557-measured-f.ts",
+                "mesh-assets-6651557-measured-g.ts",
                 "mesh-assets-6651557-render-only.ts",
             ],
         )
@@ -316,6 +343,7 @@ class RenderTests(unittest.TestCase):
                 "part-blueprints-6651557-measured-d.ts",
                 "part-blueprints-6651557-measured-e.ts",
                 "part-blueprints-6651557-measured-f.ts",
+                "part-blueprints-6651557-measured-g.ts",
                 "part-blueprints-6651557-measured.ts",
             ],
         )
@@ -343,6 +371,7 @@ class RenderTests(unittest.TestCase):
         self.assertEqual(mesh_ids["mesh-assets-6651557-measured-d.ts"], ["2877"])
         self.assertEqual(mesh_ids["mesh-assets-6651557-measured-e.ts"], ["3040"])
         self.assertEqual(mesh_ids["mesh-assets-6651557-measured-f.ts"], ["4519"])
+        self.assertEqual(mesh_ids["mesh-assets-6651557-measured-g.ts"], ["32064"])
         self.assertEqual(
             blueprint_ids["part-blueprints-6651557-measured.ts"],
             admitted_ids[:18],
@@ -358,6 +387,10 @@ class RenderTests(unittest.TestCase):
         self.assertEqual(
             blueprint_ids["part-blueprints-6651557-measured-f.ts"],
             ["4519"],
+        )
+        self.assertEqual(
+            blueprint_ids["part-blueprints-6651557-measured-g.ts"],
+            ["32064"],
         )
         generated = [
             *mesh_chunks,

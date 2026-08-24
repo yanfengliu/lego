@@ -133,8 +133,8 @@ describe("15254 thin-top arch catalog truth", () => {
       bytes: 18_061,
       manifestSha256: "sha256:45ddc1adf831202895cbfb51c38f7b443fd7702514ac13c429369188e9452e20",
     });
-    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(33);
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(199);
+    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(34);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(206);
   });
 
   it("binds the revision-J Builder record, reviewed bytes, and exact frame", () => {
@@ -263,7 +263,7 @@ describe("15254 thin-top arch catalog truth", () => {
   it("keeps every /17 part payload byte unchanged after restoring its historical truth label", () => {
     const priorParts = PART_DEFINITIONS.slice(0, 89);
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/22",
+      "builtin.basic-parts/23",
       "builtin.basic-parts/17",
     );
     const rows = priorParts.map(({ id, connectors, collision }) => ({ id, connectors, collision }));

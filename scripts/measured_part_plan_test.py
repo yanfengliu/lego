@@ -87,6 +87,7 @@ class PlanTests(unittest.TestCase):
                 "2877",
                 "3040",
                 "4519",
+                "32064",
             ],
         )
         self.assertTrue(all(row.connector_source == "builder" for row in ADMITTED_PART_PLANS[:5]))
@@ -234,6 +235,64 @@ class PlanTests(unittest.TestCase):
                 "upright-yaw-0",
                 (0, 0, 0),
             ),
+        )
+
+    def test_32064_plan_pins_the_official_alias_frame_and_axle_hole_route(self) -> None:
+        axle_hole = ADMITTED_PART_PLANS[21]
+
+        self.assertEqual(
+            (
+                axle_hole.design_id,
+                axle_hole.ldraw_path,
+                axle_hole.connector_source,
+                axle_hole.catalog_id,
+                axle_hole.display_name,
+                axle_hole.family,
+                axle_hole.width_studs,
+                axle_hole.length_studs,
+                axle_hole.height_ldu,
+                axle_hole.orientation_id,
+                axle_hole.translation_ldu,
+            ),
+            (
+                "32064",
+                "parts/32064.dat",
+                LDCAD_SHADOW_CONNECTOR_SOURCE,
+                "builtin:technic-brick-1x2-axle-hole",
+                "Technic Brick 1 x 2 with Axle Hole",
+                "technic-brick",
+                1,
+                2,
+                24,
+                "upright-yaw-90",
+                (0, -12, 0),
+            ),
+        )
+
+        row = measured_part_report_row(
+            measured(
+                plan=axle_hole,
+                studs_ldu=((0.0, -12.0, -10.0, 6.0, 4.0),) * 2,
+                clutches_ldu=((0.0, 12.0, -10.0), (0.0, 12.0, 10.0)),
+                source_connectors_ldu=(("axleHole", (0.0, -2.0, 0.0), (1.0, 0.0, 0.0)),),
+                body_boxes_ldu=(0.0,) * (23 * 6),
+                body_triangle_count=266,
+                stud_triangle_count=192,
+                closure=(record("parts/32064.dat", "sha256:11"),) * 23,
+            )
+        )
+        self.assertEqual(
+            (
+                row["catalogId"],
+                row["studs"],
+                row["clutches"],
+                row["sourceConnectors"],
+                row["sourceConnectorKinds"],
+                row["collisionBoxes"],
+                row["meshTriangles"],
+                row["closureFileCount"],
+            ),
+            ("builtin:technic-brick-1x2-axle-hole", 2, 2, 1, ["axleHole"], 23, 458, 23),
         )
 
     def test_3040_plan_and_builder_packet_pin_one_identity_frame_and_source(self) -> None:

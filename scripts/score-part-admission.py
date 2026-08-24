@@ -44,7 +44,20 @@ from part_admission_scorecard import (
 from part_admission_surface import MeasuredSurface
 from set_6651557_ldraw_source_audit_plan import ARCHIVE_PINS
 
-SCORECARD_SCHEMA_VERSION = "lego.part-admission-scorecard/1"
+SCORECARD_SCHEMA_VERSION = "lego.part-admission-scorecard/2"
+
+
+def score_report_candidate(
+    candidate: object, surface: MeasuredSurface, sample_spacing_ldu: float
+) -> dict[str, object]:
+    """Score one report row with the requested and achieved sampling grid disclosed."""
+
+    return score_candidate(
+        validate_candidate(candidate),
+        surface,
+        sample_spacing_ldu,
+        include_sampling_diagnostics=True,
+    )
 
 
 def summarize(scorecards: list[dict[str, object]]) -> dict[str, object]:
@@ -120,9 +133,7 @@ def main() -> None:
         for design_id in PILOT_DESIGN_IDS:
             surface = surfaces[design_id]
             candidate = column_candidate(surface, column_ldu)
-            scorecard = score_candidate(
-                validate_candidate(candidate), surface, arguments.sample_spacing_ldu
-            )
+            scorecard = score_report_candidate(candidate, surface, arguments.sample_spacing_ldu)
             scorecards.append(scorecard)
             print(
                 f"column={column_ldu:g} {design_id}: "
@@ -133,8 +144,8 @@ def main() -> None:
             )
             if column_ldu == arguments.column_ldu and not arguments.skip_inset_probe:
                 inset_scorecards.append(
-                    score_candidate(
-                        validate_candidate(horizontally_inset_candidate(candidate)),
+                    score_report_candidate(
+                        horizontally_inset_candidate(candidate),
                         surface,
                         arguments.sample_spacing_ldu,
                     )

@@ -22,6 +22,7 @@ from part_admission_contract import (
     CONTAINMENT_EPSILON_LDU,
     Candidate,
     MAX_SURFACE_SAMPLES,
+    MAX_TRIANGLE_SUBDIVISION,
     Vector3,
 )
 from part_admission_clutch import clutch_hard_fails, measure_clutch_room
@@ -33,6 +34,7 @@ from part_admission_geometry import (
     polygon_area,
     projection_volumes,
     sample_triangle,
+    triangle_sampling_plan,
 )
 from part_admission_lattice import STUD_PITCH_LDU, measure_lattice, lattice_score
 from part_admission_surface import MeasuredConnector, MeasuredSurface, measured_connectors
@@ -44,7 +46,10 @@ CATALOG_MAX_PLAN_VERTICES = 8
 
 
 def measure_containment(
-    candidate: Candidate, surface: MeasuredSurface, spacing_ldu: float
+    candidate: Candidate,
+    surface: MeasuredSurface,
+    spacing_ldu: float,
+    include_sampling_diagnostics: bool = False,
 ) -> dict[str, object]:
     """Sample every triangle of the real surface and test it against the union."""
 
@@ -55,7 +60,15 @@ def measure_containment(
     per_role_outside: dict[str, int] = {}
     escapes: list[dict[str, object]] = []
     worst = 0.0
+    maximum_effective_spacing = 0.0
+    triangles_capped = 0
     for triangle, role in zip(surface.triangles, surface.roles):
+        sampling_plan = triangle_sampling_plan(triangle, spacing_ldu)
+        maximum_effective_spacing = max(
+            maximum_effective_spacing, sampling_plan.effective_spacing_ldu
+        )
+        if sampling_plan.was_capped:
+            triangles_capped += 1
         for point in sample_triangle(triangle, spacing_ldu):
             sampled += 1
             per_role_sampled[role] = per_role_sampled.get(role, 0) + 1
@@ -79,7 +92,7 @@ def measure_containment(
                         "escapeLowerBoundLdu": round(distance, 9),
                     }
                 )
-    return {
+    result: dict[str, object] = {
         "sampleSpacingLdu": spacing_ldu,
         "containmentEpsilonLdu": CONTAINMENT_EPSILON_LDU,
         "pointsSampled": sampled,
@@ -89,6 +102,16 @@ def measure_containment(
         "maximumEscapeLowerBoundLdu": round(worst, 9),
         "worstEscapes": escapes,
     }
+    if include_sampling_diagnostics:
+        result.update(
+            {
+                "requestedSampleSpacingLdu": spacing_ldu,
+                "maximumEffectiveSampleSpacingLdu": round(maximum_effective_spacing, 9),
+                "maximumTriangleSubdivisions": MAX_TRIANGLE_SUBDIVISION,
+                "trianglesCappedBySubdivisionLimit": triangles_capped,
+            }
+        )
+    return result
 
 
 def _bodies_overlap(left: Body, right: Body) -> float:
@@ -252,7 +275,7 @@ def measure_connectors(
             "positionLdu": [round(value, 9) for value in row.position],
             "normal": [round(value, 9) for value in row.normal],
         }
-        for row in candidate.axle_connectors
+        for row in candidate.source_authored_connectors
     ]
     return {
         "male": male,
@@ -263,7 +286,8 @@ def measure_connectors(
             "truthSource": "separate-exact-ldcad-shadow-gate",
             "scored": False,
             "caveat": (
-                "LDraw surface primitives do not author axle connection seats. These rows remain "
+                "LDraw surface primitives do not author axle or axle-hole connection seats. These "
+                "rows remain "
                 "visible in the scorecard but are admitted only when the measured-table driver "
                 "derives them from its pinned exact LDCad shadow route."
             ),
@@ -330,6 +354,8 @@ def score_candidate(
     candidate: Candidate,
     surface: MeasuredSurface,
     sample_spacing_ldu: float = DEFAULT_SAMPLE_SPACING_LDU,
+    *,
+    include_sampling_diagnostics: bool = False,
 ) -> dict[str, object]:
     """One scorecard. Reports numbers; admits nothing."""
 
@@ -338,7 +364,12 @@ def score_candidate(
             f"Candidate designId {candidate.design_id!r} does not match the measured surface "
             f"{surface.design_id!r}; a scorecard may only compare one part with its own source."
         )
-    containment = measure_containment(candidate, surface, sample_spacing_ldu)
+    containment = measure_containment(
+        candidate,
+        surface,
+        sample_spacing_ldu,
+        include_sampling_diagnostics,
+    )
     over_claim = measure_over_claim(candidate, surface)
     connectors = measure_connectors(candidate, surface)
     lattice = measure_lattice(candidate)

@@ -40,6 +40,7 @@ export const MIGRATABLE_CATALOG_VERSIONS: readonly string[] = Object.freeze([
   "builtin.basic-parts/19",
   "builtin.basic-parts/20",
   "builtin.basic-parts/21",
+  "builtin.basic-parts/22",
   BUILTIN_CATALOG_VERSION,
 ]);
 
@@ -241,6 +242,15 @@ export const REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS = Object.freeze([
     catalogVersion: "builtin.basic-parts/21",
     sourceCommit: "98dc1e82b309eb52a6a32e0928ce075acb3e93ed",
     truthHash: "sha256:44044c90de3bb380f32c26db561bad1bd0f247c22ea35c54d75aa5ec6ef8f9a1",
+  },
+  // The snapshot /23 replaces. /23 appends 32064 as one complete measured
+  // definition: exact moved-to official geometry and collision columns plus a
+  // transverse female axle-hole endpoint projected from the pinned LDCad A6x1
+  // segment. No preceding definition changes interpretation.
+  {
+    catalogVersion: "builtin.basic-parts/22",
+    sourceCommit: "94db468e6a5045a0a7732f8f4adc128e90f025b6",
+    truthHash: "sha256:7f64021239ab6395a3666f1f72908fd420b73065909822bc68e5226785bfa12e",
   },
 ] as const);
 

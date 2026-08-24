@@ -91,7 +91,7 @@ describe("underside measured from a bundled mesh", () => {
     // runs through the part.
     const mesh = PART_DEFINITIONS.filter(isMeshPartDefinition);
 
-    expect(mesh).toHaveLength(33);
+    expect(mesh).toHaveLength(34);
     expect(
       mesh.map(({ id, geometry }) => [
         id,
@@ -326,6 +326,13 @@ describe("underside measured from a bundled mesh", () => {
         "modelled-shell-cavity",
       ],
       ["builtin:axle-1x3", "mesh-derived-height-field", "bundled-source-mesh", "none", "none"],
+      [
+        "builtin:technic-brick-1x2-axle-hole",
+        "mesh-derived-height-field",
+        "bundled-source-mesh",
+        "measured-stud-seats",
+        "modelled-shell-cavity",
+      ],
     ]);
   });
 });

@@ -464,7 +464,7 @@ def scoreable_candidate(part: MeasuredPart) -> dict[str, object]:
     source_connectors = [
         {
             "kind": kind,
-            "gender": "male",
+            "gender": "female" if kind == "axleHole" else "male",
             "positionLdu": list(
                 frame_point(
                     tuple(position[axis] - part.plan.translation_ldu[axis] for axis in range(3)),

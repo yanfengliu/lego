@@ -3,9 +3,9 @@
 One place says what a candidate may claim: the catalog's own four collision body
 kinds, its three-to-eight vertex plan limit, and connectors that carry a kind, a
 gender, a position and a normal. Studs and clutch cells are scored against LDraw;
-the narrow axle kind is retained for a separate exact LDCad-source gate. Reading
-a declaration either yields this exact shape or says which field is wrong and
-what would satisfy it.
+the narrow axle and axle-hole kinds are retained for separate exact LDCad-source
+gates. Reading a declaration either yields this exact shape or says which field
+is wrong and what would satisfy it.
 
 It is a candidate, not a part: nothing here is admitted to the catalog, and the
 frame is the LDraw part-local one because no LDraw-to-catalog frame is
@@ -239,17 +239,19 @@ def _connector(index: int, value: object) -> Connector:
         raise ValueError(f"connectors[{index}] must be an object; received {type(value).__name__}.")
     kind = value.get("kind")
     gender = value.get("gender")
-    if kind not in ("stud", "undersideClutch", "axle"):
+    if kind not in ("stud", "undersideClutch", "axle", "axleHole"):
         raise ValueError(
             f"connectors[{index}].kind is {kind!r}; this scorer accepts 'stud', "
-            "'undersideClutch', and the separately source-gated 'axle' kind only."
+            "'undersideClutch', and the separately source-gated 'axle' and "
+            "'axleHole' kinds only."
         )
     if gender not in ("male", "female"):
         raise ValueError(f"connectors[{index}].gender is {gender!r}; it must be 'male' or 'female'.")
-    expected = "female" if kind == "undersideClutch" else "male"
+    expected = "female" if kind in ("undersideClutch", "axleHole") else "male"
     if gender != expected:
+        article = "an" if kind in ("undersideClutch", "axle", "axleHole") else "a"
         raise ValueError(
-            f"connectors[{index}] declares kind {kind!r} with gender {gender!r}; a {kind} is always "
+            f"connectors[{index}] declares kind {kind!r} with gender {gender!r}; {article} {kind} is always "
             f"{expected}."
         )
     return Connector(
@@ -287,6 +289,14 @@ class Candidate:
     @property
     def axle_connectors(self) -> tuple[Connector, ...]:
         return tuple(row for row in self.connectors if row.kind == "axle")
+
+    @property
+    def axle_hole_connectors(self) -> tuple[Connector, ...]:
+        return tuple(row for row in self.connectors if row.kind == "axleHole")
+
+    @property
+    def source_authored_connectors(self) -> tuple[Connector, ...]:
+        return tuple(row for row in self.connectors if row.kind in ("axle", "axleHole"))
 
 
 def validate_candidate(value: object) -> Candidate:

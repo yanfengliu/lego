@@ -3,6 +3,7 @@ import {
   CONNECTOR_KIND_RULES,
   connectorAccepts,
   LDCAD_SHADOW_AXLE_CONNECTOR_PROVENANCE,
+  LDCAD_SHADOW_AXLE_HOLE_CONNECTOR_PROVENANCE,
   LDCAD_SHADOW_CONNECTOR_PROVENANCE,
   LDRAW_BUNDLED_GEOMETRY_PROVENANCE,
   MEASURED_PART_CATALOG_PROVENANCE,
@@ -61,11 +62,11 @@ function fail(blueprint: MeasuredPartBlueprint, message: string): never {
  * Which authored source made this part's connector rows, and the catalog
  * provenance that says so.
  *
- * A clutch cell and an axle seat are not recoverable from visible LDraw geometry
- * alone, so every such row is an authored claim by a named third party. Exactly
- * one source may make them, because a part that names two has no single licence,
- * attribution or evidence chain, and a part that names none is claiming a
- * connection nothing authored.
+ * A clutch cell, axle seat or axle-hole seat is not recoverable from visible
+ * LDraw geometry alone, so every such row is an authored claim by a named third
+ * party. Exactly one source may make them, because a part that names two has no
+ * single licence, attribution or evidence chain, and a part that names none is
+ * claiming a connection nothing authored.
  */
 function connectorProvenance(blueprint: MeasuredPartBlueprint): SourceProvenance {
   const builder = blueprint.builderSource !== undefined;
@@ -82,7 +83,7 @@ function connectorProvenance(blueprint: MeasuredPartBlueprint): SourceProvenance
   if (sourceConnectors.length > 0 && !shadow) {
     fail(
       blueprint,
-      `declares ${sourceConnectors.length} source connector rows without an LDCad shadow walk; the measured route currently admits only the exact shadow-authored axle lane.`,
+      `declares ${sourceConnectors.length} source connector rows without an LDCad shadow walk; the measured route currently admits only exact shadow-authored axle and axle-hole lanes.`,
     );
   }
   if (builderConnectivity) {
@@ -92,11 +93,18 @@ function connectorProvenance(blueprint: MeasuredPartBlueprint): SourceProvenance
       blueprint.builderConnectivitySource!,
     );
   }
-  return shadow
-    ? sourceConnectors.length > 0
-      ? LDCAD_SHADOW_AXLE_CONNECTOR_PROVENANCE
-      : LDCAD_SHADOW_CONNECTOR_PROVENANCE
-    : MEASURED_PART_CATALOG_PROVENANCE;
+  if (!shadow) return MEASURED_PART_CATALOG_PROVENANCE;
+  if (sourceConnectors.length === 0) return LDCAD_SHADOW_CONNECTOR_PROVENANCE;
+  if (sourceConnectors.every(({ kind }) => kind === "axle")) {
+    return LDCAD_SHADOW_AXLE_CONNECTOR_PROVENANCE;
+  }
+  if (sourceConnectors.every(({ kind }) => kind === "axleHole")) {
+    return LDCAD_SHADOW_AXLE_HOLE_CONNECTOR_PROVENANCE;
+  }
+  fail(
+    blueprint,
+    `mixes source connector kinds [${sourceConnectors.map(({ kind }) => kind).join(", ")}]; one exact LDCad projection lane must own every source connector row on a measured part.`,
+  );
 }
 
 function unionOf(boxes: readonly LduBounds[]): LduBounds {
@@ -297,23 +305,23 @@ export const makeMeasuredPartDefinition = (blueprint: MeasuredPartBlueprint): Pa
   });
 
   (blueprint.sourceConnectorsLdu ?? []).forEach((source, index) => {
-    if (source.kind !== "axle") {
+    if (source.kind !== "axle" && source.kind !== "axleHole") {
       fail(
         blueprint,
-        `source connector ${index} names kind ${JSON.stringify(source.kind)}; the measured route currently admits only the exact LDCad A6x60 axle lane.`,
+        `source connector ${index} names kind ${JSON.stringify(source.kind)}; the measured route currently admits only the exact LDCad axle and axle-hole lanes.`,
       );
     }
     if (!source.positionLdu.every(Number.isSafeInteger)) {
       fail(
         blueprint,
-        `source connector ${index} seats at [${source.positionLdu.join(", ")}]; an authored axle seat must remain on exact whole-LDU coordinates.`,
+        `source connector ${index} seats at [${source.positionLdu.join(", ")}]; an authored axle or axle-hole seat must remain on exact whole-LDU coordinates.`,
       );
     }
     const frame = connectorAxisFrame(source.normal);
     if (frame === undefined) {
       fail(
         blueprint,
-        `source connector ${index} has normal [${source.normal.join(", ")}]; the exact shaft gate emits one signed unit axis.`,
+        `source connector ${index} has normal [${source.normal.join(", ")}]; an exact shaft or bore gate emits one signed unit axis.`,
       );
     }
     const rule = CONNECTOR_KIND_RULES[source.kind];

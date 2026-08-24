@@ -5,6 +5,7 @@ import unittest
 from fractions import Fraction
 from pathlib import Path
 
+from ldcad_shadow_axle_hole_test import ExactAxleHoleTests
 from ldcad_shadow_axle_test import ExactAxleShaftTests
 from ldcad_shadow_connectors import (
     ShadowSnap,

@@ -62,13 +62,13 @@ export type MeasuredStudRow =
 /**
  * A non-stud connector derived from the declaration's pinned authored source.
  *
- * The measured route deliberately admits only an axle today. LDraw supplies its
- * visible body but not its usable seats; the exact LDCad A6x60 shaft gate emits
- * those seats and the factory derives the catalog profile from the existing
- * connector taxonomy rather than repeating it in generated data.
+ * The measured route deliberately admits only the exact axle and axle-hole
+ * projections gated from LDCad today. LDraw supplies their visible bodies but
+ * not their usable seats; the factory derives each catalog profile from the
+ * existing connector taxonomy rather than repeating it in generated data.
  */
 export interface MeasuredSourceConnectorRow {
-  readonly kind: Extract<ConnectorKind, "axle">;
+  readonly kind: Extract<ConnectorKind, "axle" | "axleHole">;
   readonly positionLdu: LduVector3;
   readonly normal: LduVector3;
 }

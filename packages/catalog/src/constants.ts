@@ -110,8 +110,14 @@ import { deepFreeze } from "./freeze.ts";
  * conservative collision field. The pinned LDCad shadow's one centred,
  * sliding, capless male A6x60 segment exclusively authors three discrete axle
  * seats through the existing axle taxonomy. No preceding definition changes.
+ *
+ * /23 adds `32064.dat`, the 1 x 2 Technic brick with one axle hole, as one
+ * complete measured definition. Its moved-to official closure supplies the
+ * open-sided shell, two studs, and conservative collision field. The pinned
+ * LDCad shadow's one capless, sliding, female A6x1 segment exclusively authors
+ * the transverse axle-hole endpoint. No preceding definition changes.
  */
-export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/22" as const;
+export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/23" as const;
 export const CONNECTOR_TAXONOMY_VERSION = "stud-tube/1" as const;
 export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/3" as const;
 export const TRANSFORM_POLICY_VERSION = "upright-quarter-turns-negative-y-up/1" as const;
@@ -241,6 +247,13 @@ export const LDCAD_SHADOW_AXLE_CONNECTOR_PROVENANCE: SourceProvenance = Object.f
   ...LDCAD_SHADOW_CONNECTOR_PROVENANCE,
   attribution:
     "Copyright (c) 2026 Yanfeng Liu. Axle seats derived from the LDCad Shadow Library by Roland Melkert and its per-file !HISTORY contributors, CC BY-SA 4.0; this part uses the exact capless, centred, sliding A6x60 shaft projection. ShareAlike attaches to this derived connector data on redistribution. Extents, collision and render mesh are the official LDraw closure named on the part.",
+});
+
+/** Additive axle-hole attribution; every older LDCad-backed definition retains its exact bytes. */
+export const LDCAD_SHADOW_AXLE_HOLE_CONNECTOR_PROVENANCE: SourceProvenance = Object.freeze({
+  ...LDCAD_SHADOW_CONNECTOR_PROVENANCE,
+  attribution:
+    "Copyright (c) 2026 Yanfeng Liu. Axle-hole seats derived from the LDCad Shadow Library by Roland Melkert and its per-file !HISTORY contributors, CC BY-SA 4.0; this part uses the exact capless, sliding, YOnly-scaled female A6 segment midpoint projection. ShareAlike attaches to this derived connector data on redistribution. Extents, collision and render mesh are the official LDraw closure named on the part.",
 });
 
 export const LDRAW_91988_FRAME_PROVENANCE: SourceProvenance = Object.freeze({

@@ -36,6 +36,7 @@ const ALL_PARTS = [
   "builtin:brick-1x2-grille",
   "builtin:slope-1x2-45",
   "builtin:axle-1x3",
+  "builtin:technic-brick-1x2-axle-hole",
 ];
 
 function fail(message) {

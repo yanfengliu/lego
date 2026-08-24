@@ -14,8 +14,8 @@ HEADER = (
     "0 Author: Repository Test\n"
     "0 !LICENSE CC BY-SA 4.0, see LICENSE.md\n\n"
 )
-EXACT_4519 = (
-    "SNAP_CYL [gender=M] [caps=none] [secs=A 6 60] [center=true] [slide=true] "
+SYNTHETIC_4519_SEMANTICS = (
+    "SNAP_CYL [slide=true] [secs=A 6 60] [center=true] [caps=none] [gender=M] "
     "[ori=0 -1 0 1 0 0 0 0 1]"
 )
 PINNED_SHADOW_ROOT = Path("C:/tmp/ldcad-shadow-20260802")
@@ -35,7 +35,7 @@ def one_snap(line: str):
 
 class ExactAxleShaftTests(unittest.TestCase):
     def test_4519_projects_its_exact_sixty_ldu_segment_to_three_axle_ports(self) -> None:
-        snap = one_snap(EXACT_4519)
+        snap = one_snap(SYNTHETIC_4519_SEMANTICS)
 
         self.assertTrue(snap.is_axle_shaft)
         emitted = emit_axle_connectors([snap])
@@ -71,7 +71,7 @@ class ExactAxleShaftTests(unittest.TestCase):
         self.assertEqual(snap_census([snap])["axleShafts"], 1)
 
     def test_composition_keeps_axle_metadata_and_rotates_the_exact_segment(self) -> None:
-        snap = one_snap(EXACT_4519).transformed(
+        snap = one_snap(SYNTHETIC_4519_SEMANTICS).transformed(
             (0, 0, 1, 0, 1, 0, -1, 0, 0),
             (0, 0, 0),
         )
@@ -102,8 +102,8 @@ class ExactAxleShaftTests(unittest.TestCase):
             "[ori=0.70710678 -0.70710678 0 0.70710678 0.70710678 0 0 0 1]",
             "SNAP_CYL [gender=M] [caps=none] [secs=A 6 60] [center=true] [slide=true] "
             "[ori=0 -1 0 0.5 0 0 0 0 1]",
-            EXACT_4519 + " [scale=YOnly]",
-            EXACT_4519 + " [mirror=cor]",
+            SYNTHETIC_4519_SEMANTICS + " [scale=YOnly]",
+            SYNTHETIC_4519_SEMANTICS + " [mirror=cor]",
         )
 
         for line in rejected:
@@ -113,14 +113,14 @@ class ExactAxleShaftTests(unittest.TestCase):
                 self.assertEqual(emit_axle_connectors([snap]), [])
 
     def test_a_grid_of_similar_segments_is_not_the_single_authored_4519_shaft(self) -> None:
-        snaps = snaps_for(EXACT_4519 + " [grid=C 2 1 20 0]")
+        snaps = snaps_for(SYNTHETIC_4519_SEMANTICS + " [grid=C 2 1 20 0]")
 
         self.assertEqual(len(snaps), 2)
         self.assertTrue(all(not snap.is_axle_shaft for snap in snaps))
         self.assertEqual(emit_axle_connectors(snaps), [])
 
     def test_a_fractional_segment_start_is_not_rounded_into_catalog_truth(self) -> None:
-        snap = one_snap(EXACT_4519 + " [pos=0.5 0 0]")
+        snap = one_snap(SYNTHETIC_4519_SEMANTICS + " [pos=0.5 0 0]")
         rejections: list[str] = []
 
         self.assertEqual(
@@ -132,8 +132,8 @@ class ExactAxleShaftTests(unittest.TestCase):
         self.assertEqual(rejections, ["fractional-axle-segment-start"])
 
     def test_an_integer_that_float64_cannot_represent_rejects_only_that_snap(self) -> None:
-        huge = one_snap(EXACT_4519 + " [pos=9007199254740993 0 0]")
-        exact = one_snap(EXACT_4519)
+        huge = one_snap(SYNTHETIC_4519_SEMANTICS + " [pos=9007199254740993 0 0]")
+        exact = one_snap(SYNTHETIC_4519_SEMANTICS)
         rejections: list[str] = []
 
         emitted = emit_axle_connectors(
@@ -145,7 +145,7 @@ class ExactAxleShaftTests(unittest.TestCase):
 
     def test_a_malformed_slide_flag_is_refused_during_parsing(self) -> None:
         with self.assertRaises(ValueError) as error:
-            one_snap(EXACT_4519.replace("slide=true", "slide=sometimes"))
+            one_snap(SYNTHETIC_4519_SEMANTICS.replace("slide=true", "slide=sometimes"))
         self.assertIn("a boolean shadow parameter is true or false", str(error.exception))
 
     @unittest.skipUnless(PINNED_SHADOW_ROOT.is_dir(), "pinned local shadow checkout is absent")

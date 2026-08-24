@@ -42,9 +42,9 @@ describe("4519 three-module axle catalog truth", () => {
     const part = getPartDefinition(PART_ID)!;
     const blueprint = SET_6651557_MEASURED_BLUEPRINTS.find(({ designId }) => designId === "4519")!;
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/22");
-    expect(PART_DEFINITIONS).toHaveLength(94);
-    expect(PART_DEFINITIONS.at(-1)?.id).toBe(PART_ID);
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/23");
+    expect(PART_DEFINITIONS).toHaveLength(95);
+    expect(PART_DEFINITIONS.at(-2)?.id).toBe(PART_ID);
     expect(part).toMatchObject({
       id: PART_ID,
       family: "axle",
@@ -84,8 +84,8 @@ describe("4519 three-module axle catalog truth", () => {
       bytes: 10_983,
       manifestSha256: "sha256:6349bb679ab7388ed086d151d855cf4b002bcd99a79c8814a5bfba0a097b9e12",
     });
-    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(33);
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(199);
+    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(34);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(206);
   });
 
   it("uses only the exact LDCad 4519 route for three discrete axle ports", () => {

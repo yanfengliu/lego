@@ -20,6 +20,8 @@ from measured_part_geometry_test import (
 )
 from measured_part_plan_test import PlanTests
 from measured_part_source_connector_test import MeasuredSourceConnectorTests
+from measured_part_tables import scoreable_candidate
+from measured_part_test_support import measured, plan
 
 __all__ = [
     "ExactBoundTests",
@@ -30,7 +32,36 @@ __all__ = [
     "PlanTests",
     "RenderTests",
     "MeasuredSourceConnectorTests",
+    "AxleHoleRoundTripTests",
 ]
+
+
+class AxleHoleRoundTripTests(unittest.TestCase):
+    def test_scoreable_candidate_restores_the_exact_source_local_axle_hole_frame(self) -> None:
+        part = measured(
+            plan=plan(
+                orientation_id="upright-yaw-90",
+                translation_ldu=(0, -12, 0),
+                connector_source="ldcad-shadow",
+            ),
+            clutches_ldu=(),
+            source_connectors_ldu=(("axleHole", (0.0, -2.0, 0.0), (1.0, 0.0, 0.0)),),
+            candidate={"connectors": [], "derivation": "unit source candidate"},
+        )
+
+        candidate = scoreable_candidate(part)
+
+        self.assertEqual(
+            candidate["connectors"],
+            [
+                {
+                    "kind": "axleHole",
+                    "gender": "female",
+                    "positionLdu": [0.0, 10.0, 0.0],
+                    "normal": [0.0, 0.0, 1.0],
+                }
+            ],
+        )
 
 
 class MeasuredPartFileBoundaryTests(unittest.TestCase):

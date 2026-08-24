@@ -127,6 +127,7 @@ const PART_IDS_V18 = extend(PART_IDS_V17, ["builtin:arch-1x6-thin-top"]);
 const PART_IDS_V19 = extend(PART_IDS_V18, ["builtin:bracket-2x2-1x2-vertical-studs"]);
 const PART_IDS_V20 = extend(PART_IDS_V19, ["builtin:brick-1x2-grille"]);
 const PART_IDS_V21 = extend(PART_IDS_V20, ["builtin:slope-1x2-45"]);
+const PART_IDS_V22 = extend(PART_IDS_V21, ["builtin:axle-1x3"]);
 
 const COLOR_IDS_V1 = Object.freeze([
   "builtin:black",
@@ -223,6 +224,7 @@ export const REVIEWED_HISTORICAL_CATALOG_ROSTERS_BY_TRUTH_HASH: Readonly<
   "sha256:e34fcc8ac627f0dcfdb1d779246a723101d765f931830a4c06514d9daff75c26": roster(PART_IDS_V19),
   "sha256:9c4c32efcaf9bc5f2a251e77188134075f58ca536c6da6148e34b93419d84ad2": roster(PART_IDS_V20),
   "sha256:44044c90de3bb380f32c26db561bad1bd0f247c22ea35c54d75aa5ec6ef8f9a1": roster(PART_IDS_V21),
+  "sha256:7f64021239ab6395a3666f1f72908fd420b73065909822bc68e5226785bfa12e": roster(PART_IDS_V22),
 });
 
 export function getReviewedHistoricalCatalogRoster(

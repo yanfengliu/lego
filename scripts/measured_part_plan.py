@@ -341,6 +341,24 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         catalog_id="builtin:axle-1x3",
         display_name="Technic Axle 3",
     ),
+    # builtin.basic-parts/23: the official 32064 alias resolves to 32064a, the
+    # one-hole Technic brick in the printed and official inventories. Its exact
+    # closure supplies the open-sided shell, two top studs and conservative
+    # collision height field. The pinned LDCad composition authors the two
+    # underside clutches and the one transverse female axle-hole seat; Builder's
+    # revision-I record remains counterevidence and grants no connector authority.
+    _plan(
+        "32064",
+        "technic-brick",
+        1,
+        2,
+        height_ldu=BRICK_HEIGHT_LDU,
+        orientation_id="upright-yaw-90",
+        translation_ldu=(0, -12, 0),
+        connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
+        catalog_id="builtin:technic-brick-1x2-axle-hole",
+        display_name="Technic Brick 1 x 2 with Axle Hole",
+    ),
 )
 
 

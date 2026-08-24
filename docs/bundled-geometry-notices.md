@@ -2,9 +2,11 @@
 
 > Generated from the catalog by `packages/catalog/src/bundled-geometry-notices.test.ts`, which fails if this file and the catalog disagree. Do not edit by hand.
 
-The render mesh of the parts below is real LDraw geometry, bundled and redistributed under the [Creative Commons Attribution 4.0 International licence](https://creativecommons.org/licenses/by/4.0/). Of the 199 source files, 198 declare CC BY 4.0 and `parts/30503.dat` declares `CC-BY-2.0 OR CC-BY-4.0`; this bundle selects its CC BY 4.0 option. Attribution therefore names every file whose triangles are bundled with its author, title, licence and content hash rather than flattening it into project-owned data.
+The render mesh of the parts below is real LDraw geometry, bundled and redistributed under the [Creative Commons Attribution 4.0 International licence](https://creativecommons.org/licenses/by/4.0/). Of the 206 source files, 204 declare CC BY 4.0 and `parts/30503.dat` plus `parts/32064a.dat` declare `CC-BY-2.0 OR CC-BY-4.0`; this bundle selects their CC BY 4.0 option. Attribution therefore names every file whose triangles are bundled with its author, title, licence and content hash rather than flattening it into project-owned data.
 
 Permission to reuse this geometry is **not** permission to train on it. That right is not held, and no bundled file is designated as a model-training or benchmark corpus.
+
+Catalog `/23` adds the fully measured `32064` Technic Brick 1 x 2 with Axle Hole. Its moved-to official 23-file closure supplies the exact open-sided shell, 458 triangles, and a conservative field of 23 body boxes plus two source-radius stud cylinders; the checksum-pinned LDCad female A6 x 1 route authors one transverse axle-hole endpoint at `[0,-2,0]` in catalog space. The retained Builder revision-I binary slice has no reviewed frame row and remains counterevidence only. This admission does not claim continuous sliding, axle-through-bore collision relief, grip, stability, insertion access, or a trusted step placement; a structurally compatible axle edge can therefore remain blocked by body collision.
 
 The geometry supplies the expanded source-derived triangles, LDraw hard-edge normals, and envelope used by the app and palette. Catalog `/22` adds the fully measured `4519` Technic Axle 3: its official 4-file closure supplies the exact shaft-and-end surface, 176 triangles, and a 41-box conservative collision field, while the checksum-pinned direct LDCad `SNAP_CYL` A6 x 60 route authors three discrete axle seats at -20, 0, and 20 LDU along the source axis. This admission does not claim continuous sliding, grip, stability, axle-through-bore collision relief, or a trusted step-45 crop identity. Catalog `/21` added the fully measured `3040` 45-degree 1 x 2 slope: its official 11-file closure supplies the exact sloped shell, one source-stud surface, and the underside tube surfaces, while the checksum-pinned native Builder revision-F record authors two underside clutch cells through one exact reviewed Builder-to-catalog frame; its conservative collision field carries 67 boxes plus one source-radius stud cylinder. Catalog `/20` added the fully measured `2877` grille brick: its official 7-file closure supplies the exact grille shell and two source-stud surfaces, while the checksum-pinned native Builder revision-E record authors two underside clutch cells through one exact reviewed Builder-to-catalog frame; its conservative collision field carries 26 boxes plus two source-radius stud cylinders. Catalog `/19` added the fully measured `41682` vertical-stud bracket: its official 14-file closure supplies the exact horizontal plate, vertical wall, and two source-stud surfaces, while the pinned LDCad route authors four underside clutch cells and the two horizontal stud frames; its conservative collision field carries 54 boxes plus two source-radius stud cylinders. The side studs remain represented and collision-checked but unusable under the unchanged upright-only transform policy. Catalog `/18` added the fully measured `15254` thin-top arch: its official 15-file closure supplies the exact shell, six source-authored studs, and a 167-box conservative collision height field, while the checksum-pinned native Builder revision-J record authors two end clutch cells through one exact symmetry-canonicalized Builder-to-catalog frame. Catalog `/17` added the fully measured `11253` roller skate: its official 17-file closure supplies the exact irregular footwear-and-roller surface, one source-authored stud, and a 78-box conservative collision height field, while the pinned LDCad Shadow Library walk authors one clutch cell; the stud's exact source cylinder remains ordinary collision truth at radius `6.0001514980873605` LDU, and a separately cross-bound nominal 6 LDU profile may be used only by its exact validated stud-clutch edge. The unframed native Builder record remains count-only counterevidence. Catalog `/16` added the fully measured `35787` triangular tile: its official 22-file closure supplies the exact canonical diagonal surface and source-derived collision height field, while the pinned LDCad Shadow Library subpart authors three clutch cells; the unframed native Builder field remains counterevidence and is not merged. Catalog `/15` added the fully measured `28802` rounded-bottom bracket: its official 19-file closure supplies the exact render surface and source-derived collision height field, while the pinned LDCad route authors six outward stud frames and two clutch cells. Four studs face horizontally and remain unusable under the unchanged upright-only transform policy. Catalog `/14` added the fully measured `25269` quarter tile with a source-derived collision height field and one LDCad-authored clutch cell. The preceding `/13` change moved render geometry and normals for 24 catalog parts: 23 generated meshes use corrected source-exact triangulation, while `54200` replaced its `/12` parametric drawing with its exact mesh. The sixteen in-place `/12` and `/13` render promotions still preserve their prior conservative collision recipes instead of deriving collision from the mesh.
 
@@ -47,10 +49,11 @@ Source archive: `ldraw-complete-2026-07`, 144722356 bytes, `sha256:6009f2e94204c
 | `builtin:brick-1x2-grille` | `2877.dat` | Brick  1 x  2 with Grille | James Jessiman | `CC-BY-4.0` | 7 |
 | `builtin:slope-1x2-45` | `3040.dat` | ~Moved to 3040b | [PTadmin] | `CC-BY-4.0` | 11 |
 | `builtin:axle-1x3` | `4519.dat` | Technic Axle  3 | James Jessiman | `CC-BY-4.0` | 4 |
+| `builtin:technic-brick-1x2-axle-hole` | `32064.dat` | ~Moved to 32064a | [PTadmin] | `CC-BY-4.0` | 23 |
 
 ## Every bundled file
 
-The 199 files below comprise 198 `CC-BY-4.0` declarations and one `CC-BY-2.0 OR CC-BY-4.0` declaration.
+The 206 files below comprise 204 `CC-BY-4.0` declarations and two `CC-BY-2.0 OR CC-BY-4.0` declarations.
 
 | File | Title | Author | Licence | LDraw.org status | SHA-256 |
 | --- | --- | --- | --- | --- | --- |
@@ -144,7 +147,10 @@ The 199 files below comprise 198 `CC-BY-4.0` declarations and one `CC-BY-2.0 OR 
 | `p/8/2-4cyli.dat` | Cylinder 0.5 | Philippe Hurbain [Philo] | `CC-BY-4.0` | 8_Primitive UPDATE 2016-01 | `9e5869a3bf444fcda1cc9908ef96ce782b53fc68f94eaf6903a0dbca6c582215` |
 | `p/8/2-4cylo.dat` | Cylinder Open 0.5 | Magnus Forsberg [MagFors] | `CC-BY-4.0` | 8_Primitive UPDATE 2017-01 | `cf7a9969c8d7396d17966b65c8ea48ea36445e98580dc76d18e5aa1fc5afd54f` |
 | `p/8/2-4edge.dat` | Circle 0.5 | Philippe Hurbain [Philo] | `CC-BY-4.0` | 8_Primitive UPDATE 2016-01 | `3154ed3f142d644552b2533457c13c56ef326b0f7d31ea425585d6cdde2a3129` |
+| `p/axl5ho10.dat` | Technic Axle Hole Rounded Tooth Surface | Magnus Forsberg [MagFors] | `CC-BY-4.0` | Primitive UPDATE 2022-01 | `5658b3df4183184a5d5104624ff85b3048a658972991b1dfc489dc05728278ba` |
+| `p/axl5hol9.dat` | Technic Axle Hole Rounded Tooth Outer Edges | Magnus Forsberg [MagFors] | `CC-BY-4.0` | Primitive UPDATE 2022-01 | `d46a457be819e6b46b7fc85f8610b8850e0d0a40556c65b74dbda04179b68a20` |
 | `p/axleend2.dat` | Technic Axle End Beveled | Magnus Forsberg [MagFors] | `CC-BY-4.0` | Primitive UPDATE 2025-09 | `cedcec0918b69285f612c94d1f6532f7352a08f18b2749dde6f6a5235c1a0c73` |
+| `p/axlehol5.dat` | Technic Axle Hole Open Two Opposite Sides | James Jessiman | `CC-BY-4.0` | Primitive UPDATE 2022-02 | `5977860888c76d8170d9ec33c93f6c431133bfdc79435e7eac9c32bb15c0a83d` |
 | `p/axlehol8.dat` | Technic Axle Perimeter | Steve Bliss [sbliss] | `CC-BY-4.0` | Primitive UPDATE 2024-01 | `e3cf8856c972ecaf486a344c171cb4ab601efcb08956bd7b6cfafa39b0439493` |
 | `p/box2-11.dat` | Box with 2 Faces without 11 Edges | Steffen [Steffen] | `CC-BY-4.0` | Primitive UPDATE 2005-01 | `7f29fb8601b419207b5c855af8fad8abb55a967ec73f3d8be841d370c360b97c` |
 | `p/box2-5.dat` | Box with 2 Faces without 5 Edges | Steffen [Steffen] | `CC-BY-4.0` | Primitive UPDATE 2003-03 | `8f297b754f87da1dbe19eec8704a5ce03a23b794ccd7cd015508e3758a206174` |
@@ -193,6 +199,7 @@ The 199 files below comprise 198 `CC-BY-4.0` declarations and one `CC-BY-2.0 OR 
 | `p/stug-3x1.dat` | Stud Group  3 x  1 | Magnus Forsberg [MagFors] | `CC-BY-4.0` | Primitive UPDATE 2012-01 | `9ae441c03c2e73972a26d74f7ead4de280947397dc09e2fd9857ca73ec87181a` |
 | `p/stug-3x3.dat` | Stud Group  3 x  3 | Steve Bliss [sbliss] | `CC-BY-4.0` | Primitive UPDATE 2011-01 | `ec81497656a4a77a32cc09b131026c9882ab2da35944f701aa7575d43667d7f0` |
 | `p/stug-4x4.dat` | Stud Group  4 x  4 | Tore Eriksson [Tore_Eriksson] | `CC-BY-4.0` | Primitive UPDATE 2011-01 | `d167d3367e9d6346e217331f3d35c7b2700d1c87f35e87b40cb3a702afa90e54` |
+| `p/stug2-1x2.dat` | Stud Open Group  1 x  2 | Steffen [Steffen] | `CC-BY-4.0` | Primitive UPDATE 2011-02 | `9cd034fe99c6efd6e158c73a8a95d7b0e6ff4f1671a7ee22e2323c74a43b7f1e` |
 | `p/stug2-4x1.dat` | Stud Open Group  4 x  1 | Steffen [Steffen] | `CC-BY-4.0` | Primitive UPDATE 2011-02 | `179d252971d76f12196c7c2c3b6f89bb6c7eab21d9df9625f44a8064e49e4996` |
 | `p/stug2.dat` | ~Moved to stug-2x2 | [PTadmin] | `CC-BY-4.0` | Primitive UPDATE 2011-01 | `e1dfe5f5e0c433cd406467d366d278518cde9d7e83cc5d4229c451adf52fcc71` |
 | `p/stug3-1x2.dat` | Stud Tube Solid Group  1 x  2 | Steffen [Steffen] | `CC-BY-4.0` | Primitive UPDATE 2013-02 | `e78926d1494fa67b984f390aa1c05d01c35eff99030209e9bbee4e15bfcc0ecb` |
@@ -212,6 +219,8 @@ The 199 files below comprise 198 `CC-BY-4.0` declarations and one `CC-BY-2.0 OR 
 | `parts/3040b.dat` | Slope Brick 45  2 x  1 | James Jessiman | `CC-BY-4.0` | Part UPDATE 2004-04 | `47a73c42c206e34c11f6d54a48ee186e53a5a941d56923b5221bd244f7926fed` |
 | `parts/30503.dat` | Plate  4 x  4 without Corner | Ronald Scott Moody [rmoody] | `CC-BY-2.0 OR CC-BY-4.0` | Part UPDATE 2013-02 | `132b14ffca8e2f2b6296a0a1bcff77187d064c00340ac36fa0cb4784cbc8b56c` |
 | `parts/30565.dat` | Plate  4 x  4 with Corner Round | Gerald Lasser [GeraldLasser] | `CC-BY-4.0` | Part UPDATE 2024-06 | `e201a60e7f8e8ab15a86e8449c0e722a1b1ebe8015a5021ac5ca9aa1fd462f39` |
+| `parts/32064.dat` | ~Moved to 32064a | [PTadmin] | `CC-BY-4.0` | Part UPDATE 2009-03 | `b6240d5798083701834cec8f566d7fca05cbc51123fad8500d3125fa68b4c465` |
+| `parts/32064a.dat` | Technic Brick  1 x  2 with Axlehole with Open Sides and Stud Blocker | Lutz Uhlmann [El-Lutzo] | `CC-BY-2.0 OR CC-BY-4.0` | Part UPDATE 2022-02 | `b35a848b805493527b83b3a087d0a7f139084834c1f3325045905aa09ded26d2` |
 | `parts/3455.dat` | Arch  1 x  6 | James Jessiman | `CC-BY-4.0` | Part UPDATE 2005-01 | `6e8fcdca71b4dd1a875b926ed5b28889fc4a47a01272b6550987338f0619083b` |
 | `parts/35480.dat` | Plate  1 x  2 with Round Ends and 2 Open Studs | Magnus Forsberg [MagFors] | `CC-BY-4.0` | Part UPDATE 2018-01 | `61d6d988e6549678ec0b6343bf7554ff14781006321da10da9adbbf4e68f2613` |
 | `parts/35787.dat` | Tile  2 x  2 Triangular | Gerald Lasser [GeraldLasser] | `CC-BY-4.0` | Part UPDATE 2018-02 | `15504e50d1cf297ead59fb2120663613049fddf604181c1af99479cf9a9a3602` |
@@ -240,6 +249,7 @@ The 199 files below comprise 198 `CC-BY-4.0` declarations and one `CC-BY-2.0 OR 
 | `parts/s/25269s01.dat` | ~Tile  1 x  1 Corner Round without Top Surface | Magnus Forsberg [MagFors] | `CC-BY-4.0` | Subpart UPDATE 2019-02 | `104059a3b2702cce52f7626190f0876ae91972c9d9751c0bed4a0f686d6378fe` |
 | `parts/s/3040s01.dat` | ~Slope Brick 45  2 x  1 without Front Face | Orion Pobursky [OrionP] | `CC-BY-4.0` | Subpart UPDATE 2004-01 | `e350abf28f7b7e91b9dfbc7f6780974f0841960a0c8d50b7abf5a9e8c9550bf5` |
 | `parts/s/30565s01.dat` | ~Plate  4 x  4 Round 1/8 | Gerald Lasser [GeraldLasser] | `CC-BY-4.0` | Subpart UPDATE 2024-06 | `69b36b94a6b6313e379a36b26a1a1f9a3f18b452bf98547a7e16f21b3ecf086b` |
+| `parts/s/32064s01.dat` | ~Technic Brick  1 x  2 with Axlehole | Magnus Forsberg [MagFors] | `CC-BY-4.0` | Subpart UPDATE 2022-02 | `e89d5e33547325f5a84aa9b0c374f3cd997eae841057dc2697e76f5dc1cfd502` |
 | `parts/s/35787s01.dat` | ~Tile  2 x  2 Triangular without Top Surface | Gerald Lasser [GeraldLasser] | `CC-BY-4.0` | Subpart UPDATE 2026-01 | `11b63d550c632afaa6b0178c233ae8d87a624bad04ce90d86d22702af1107729` |
 | `parts/s/41770as01.dat` | ~Wing  2 x  4 Left without Chamfer without Studs | Takeshi Takahashi [RainbowDolphin] | `CC-BY-4.0` | Subpart UPDATE 2026-05 | `8d88de31c2ec2050977671b63f6115ae47b72f2c01d9f863bd34ecc00760165d` |
 | `parts/s/43722as01.dat` | ~Wing  2 x  3 Right without Chamfer without Studs and Top Face | Donald Sutter [technog] | `CC-BY-4.0` | Subpart UPDATE 2026-05 | `e2dddcddb4bf0c30f9ba2f5880d9bca822bde31d07a3bfb094b8b2c4b8711d68` |
@@ -256,20 +266,35 @@ The 199 files below comprise 198 `CC-BY-4.0` declarations and one `CC-BY-2.0 OR 
 
 ## Derived connector data
 
+For `32064`, the exact capless, sliding female A6 x 1 route authors one transverse axle-hole endpoint. Its retained Builder revision-I slice has no reviewed frame row and remains counterevidence only, while the conservative body boxes remain independent collision truth.
+
 The parts below take connector frames from the [LDCad Shadow Library](https://github.com/RolandMelkert/LDCadShadowLibrary), which is licensed [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). LEGO Builder has no record of the first three designs or `41682`; the exact `41682` shadow route authors four clutch cells and two outward side-stud frames that are independently reconciled with the official visible surface. Builder metadata does name `25269`, but record presence grants no connector authority; the shadow subpart directly authors its single central seat, so that admission does not consume or reinterpret the Builder record. For `28802`, the inspected Builder source instead identifies `10201`; that contradictory record is refused, while the exact shadow route authors two clutch cells and six outward stud frames that are independently reconciled with the official visible surface. Builder also names `35787`, but its type-23 field has no reviewed Builder-to-catalog frame and exposes only one family-15 node where the exact shadow subpart authors three cells. The catalog therefore selects the exclusive three-cell LDCad route. Builder's `11253` record likewise has no reviewed Builder-to-catalog frame; its one clutch agrees only in count with the exact one-cell shadow route and grants no connector authority. Both native records remain retained counterevidence and are not merged into the selected routes. For `4519`, the direct exact capless, centred and sliding A6 x 60 shaft route authors three discrete axle seats; those seats do not by themselves authorize continuous sliding or collision relief through a bore. Connector positions and female cells are not recoverable from LDraw geometry alone, so the named authored source is retained separately from the visible mesh and collision measurement.
 
 No shadow file is bundled. What is admitted is derived data: connector frames and positions composed through each part's own LDraw reference tree in exact rational arithmetic. ShareAlike still attaches to that derived data if it is redistributed — the licence's sui generis database-rights clause reaches an extracted database too — and reading and sharing the library is **not** permission to train on it, which stays an unheld right.
 
+Exact admitted-route `!HISTORY` attribution: Jason McReynolds, Philippe Hurbain, Roland Melkert. The notice generator maps every shadow file named by a catalog-authoritative connector route to its pinned header contributor and refuses an unmapped path.
+
 Source: `set-6651557/1; LDCadShadowLibrary commit 15aa1e718b6a8da37d24fc7af5e52e262c041bfb; whole-tree manifest sha256 668bc047a45e5560ff0fbbd69e9eb5adafab127781720bcb069a1554cb3f0c0f; composed by ldcad-shadow-composed-over-ldraw-tree/1`.
 
-| Catalog part | LDraw file | Stud frames | Clutch cells | Axle seats |
-| --- | --- | --- | --- | --- |
-| `builtin:plate-3x3-corner-round` | `30357.dat` | 8 | 8 | 0 |
-| `builtin:wedge-plate-3x3-cut-corner` | `2450.dat` | 6 | 6 | 0 |
-| `builtin:corner-plate-2x2-round` | `79491.dat` | 2 | 2 | 0 |
-| `builtin:tile-1x1-quarter-round` | `25269.dat` | 0 | 1 | 0 |
-| `builtin:bracket-1x2-1x4-rounded-bottom` | `28802.dat` | 6 | 2 | 0 |
-| `builtin:tile-2x2-triangular` | `35787.dat` | 0 | 3 | 0 |
-| `builtin:roller-skate` | `11253.dat` | 1 | 1 | 0 |
-| `builtin:bracket-2x2-1x2-vertical-studs` | `41682.dat` | 2 | 4 | 0 |
-| `builtin:axle-1x3` | `4519.dat` | 0 | 0 | 3 |
+Catalog-carried attribution: Copyright (c) 2026 Yanfeng Liu. Axle seats derived from the LDCad Shadow Library by Roland Melkert and its per-file !HISTORY contributors, CC BY-SA 4.0; this part uses the exact capless, centred, sliding A6x60 shaft projection. ShareAlike attaches to this derived connector data on redistribution. Extents, collision and render mesh are the official LDraw closure named on the part.
+
+Source: `set-6651557/1; LDCadShadowLibrary commit 15aa1e718b6a8da37d24fc7af5e52e262c041bfb; whole-tree manifest sha256 668bc047a45e5560ff0fbbd69e9eb5adafab127781720bcb069a1554cb3f0c0f; composed by ldcad-shadow-composed-over-ldraw-tree/1`.
+
+Catalog-carried attribution: Copyright (c) 2026 Yanfeng Liu. Axle-hole seats derived from the LDCad Shadow Library by Roland Melkert and its per-file !HISTORY contributors, CC BY-SA 4.0; this part uses the exact capless, sliding, YOnly-scaled female A6 segment midpoint projection. ShareAlike attaches to this derived connector data on redistribution. Extents, collision and render mesh are the official LDraw closure named on the part.
+
+Source: `set-6651557/1; LDCadShadowLibrary commit 15aa1e718b6a8da37d24fc7af5e52e262c041bfb; whole-tree manifest sha256 668bc047a45e5560ff0fbbd69e9eb5adafab127781720bcb069a1554cb3f0c0f; composed by ldcad-shadow-composed-over-ldraw-tree/1`.
+
+Catalog-carried attribution: Copyright (c) 2026 Yanfeng Liu. Underside clutch cells derived from the LDCad Shadow Library by Roland Melkert and its per-file !HISTORY contributors, CC BY-SA 4.0; ShareAlike attaches to this derived connector data on redistribution. Extents, collision and render mesh are the official LDraw closure named on the part.
+
+| Catalog part | LDraw file | Stud frames | Clutch cells | Axle seats | Axle-hole seats |
+| --- | --- | --- | --- | --- | --- |
+| `builtin:plate-3x3-corner-round` | `30357.dat` | 8 | 8 | 0 | 0 |
+| `builtin:wedge-plate-3x3-cut-corner` | `2450.dat` | 6 | 6 | 0 | 0 |
+| `builtin:corner-plate-2x2-round` | `79491.dat` | 2 | 2 | 0 | 0 |
+| `builtin:tile-1x1-quarter-round` | `25269.dat` | 0 | 1 | 0 | 0 |
+| `builtin:bracket-1x2-1x4-rounded-bottom` | `28802.dat` | 6 | 2 | 0 | 0 |
+| `builtin:tile-2x2-triangular` | `35787.dat` | 0 | 3 | 0 | 0 |
+| `builtin:roller-skate` | `11253.dat` | 1 | 1 | 0 | 0 |
+| `builtin:bracket-2x2-1x2-vertical-studs` | `41682.dat` | 2 | 4 | 0 | 0 |
+| `builtin:axle-1x3` | `4519.dat` | 0 | 0 | 3 | 0 |
+| `builtin:technic-brick-1x2-axle-hole` | `32064.dat` | 2 | 2 | 0 | 1 |

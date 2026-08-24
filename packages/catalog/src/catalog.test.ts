@@ -170,11 +170,14 @@ const EXPECTED_PART_IDS = [
   // builtin.basic-parts/22: the exact three-module Technic axle surface and
   // three discrete axle ports derived from its one pinned LDCad shaft segment.
   "builtin:axle-1x3",
+  // builtin.basic-parts/23: one exact 1 x 2 Technic brick with two studs, two
+  // underside clutches, and one transverse axle hole from its pinned shadow.
+  "builtin:technic-brick-1x2-axle-hole",
 ] as const;
 
 describe("starter catalog", () => {
-  it("publishes the three-module axle admission as version 22", () => {
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/22");
+  it("publishes the axle-hole brick admission as version 23", () => {
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/23");
   });
 
   it("pins 25269's exact LDCad route and raw-to-catalog central clutch", () => {
@@ -267,7 +270,7 @@ describe("starter catalog", () => {
       "jumper-plate": 3,
       "grille-tile": 1,
       "wedge-plate": 9,
-      "technic-brick": 1,
+      "technic-brick": 2,
       axle: 3,
       wheel: 1,
       arch: 3,

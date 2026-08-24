@@ -221,8 +221,28 @@ class PlanIndex:
         return min(body_exterior_distance(self.bodies[body_index], point) for body_index in found)
 
 
-def sample_triangle(triangle: Triangle, spacing_ldu: float) -> Iterator[Vector3]:
-    """Barycentric grid over one triangle, at most `spacing_ldu` apart."""
+@dataclass(frozen=True)
+class TriangleSamplingPlan:
+    steps: int
+    effective_spacing_ldu: float
+    was_capped: bool
+
+
+def triangle_sampling_plan(
+    triangle: Triangle, spacing_ldu: float
+) -> TriangleSamplingPlan:
+    """Resolve a requested spacing to the exact bounded grid that will be sampled."""
+
+    if (
+        isinstance(spacing_ldu, bool)
+        or not isinstance(spacing_ldu, (int, float))
+        or not math.isfinite(float(spacing_ldu))
+        or float(spacing_ldu) <= 0
+    ):
+        raise ValueError(
+            "Sample spacing must be a finite number greater than 0 LDU; "
+            f"received {spacing_ldu!r}."
+        )
 
     first, second, third = triangle
     longest = max(
@@ -230,13 +250,34 @@ def sample_triangle(triangle: Triangle, spacing_ldu: float) -> Iterator[Vector3]
         math.dist(second, third),
         math.dist(third, first),
     )
-    steps = max(1, min(MAX_TRIANGLE_SUBDIVISION, math.ceil(longest / spacing_ldu)))
+    spacing = float(spacing_ldu)
+    if longest > spacing * MAX_TRIANGLE_SUBDIVISION:
+        return TriangleSamplingPlan(
+            steps=MAX_TRIANGLE_SUBDIVISION,
+            effective_spacing_ldu=longest / MAX_TRIANGLE_SUBDIVISION,
+            was_capped=True,
+        )
+
+    required = max(1, math.ceil(longest / spacing))
+    steps = min(MAX_TRIANGLE_SUBDIVISION, required)
+    return TriangleSamplingPlan(
+        steps=steps,
+        effective_spacing_ldu=longest / steps,
+        was_capped=required > MAX_TRIANGLE_SUBDIVISION,
+    )
+
+
+def sample_triangle(triangle: Triangle, spacing_ldu: float) -> Iterator[Vector3]:
+    """Barycentric grid whose exact achieved spacing is available from its plan."""
+
+    plan = triangle_sampling_plan(triangle, spacing_ldu)
+    first, second, third = triangle
     edge_one = tuple(second[axis] - first[axis] for axis in range(3))
     edge_two = tuple(third[axis] - first[axis] for axis in range(3))
-    for row in range(steps + 1):
-        for column in range(steps - row + 1):
-            u = row / steps
-            v = column / steps
+    for row in range(plan.steps + 1):
+        for column in range(plan.steps - row + 1):
+            u = row / plan.steps
+            v = column / plan.steps
             yield (
                 first[0] + edge_one[0] * u + edge_two[0] * v,
                 first[1] + edge_one[1] * u + edge_two[1] * v,

@@ -21,9 +21,9 @@ function apply<T>(fn: (...args: never[]) => T, receiver: unknown, args: unknown[
 export const STEP7_GATE3_SOURCE_TRUTH_HASH =
   "sha256:de62fae6dbc8095dfd460983e5e845ddfac4bf9ec2ea1f99572bc46026941cb5";
 export const STEP7_GATE3_TARGET_TRUTH_HASH =
-  "sha256:7f64021239ab6395a3666f1f72908fd420b73065909822bc68e5226785bfa12e";
+  "sha256:af781e7356e28622fb13afcb571d28495a0962d6aa78ef70d988126a9c4aeefb";
 export const STEP7_GATE3_SOURCE_CATALOG_VERSION = "builtin.basic-parts/13";
-export const STEP7_GATE3_TARGET_CATALOG_VERSION = "builtin.basic-parts/22";
+export const STEP7_GATE3_TARGET_CATALOG_VERSION = "builtin.basic-parts/23";
 const ADDED_CATALOG_PART_IDS = [
   "builtin:tile-1x1-quarter-round",
   "builtin:bracket-1x2-1x4-rounded-bottom",
@@ -34,6 +34,7 @@ const ADDED_CATALOG_PART_IDS = [
   "builtin:brick-1x2-grille",
   "builtin:slope-1x2-45",
   "builtin:axle-1x3",
+  "builtin:technic-brick-1x2-axle-hole",
 ] as const;
 
 const EXPECTED_TARGET_TRUTH: BrickDocumentV1["truth"] = SAFE_OBJECT_FREEZE({
@@ -41,22 +42,22 @@ const EXPECTED_TARGET_TRUTH: BrickDocumentV1["truth"] = SAFE_OBJECT_FREEZE({
   catalog: {
     id: "builtin.basic-parts",
     version: STEP7_GATE3_TARGET_CATALOG_VERSION,
-    hash: "sha256:3700b53f804db905fc0b7b1f41f5e2b5d3f60f79dd6ee6ae0bc1f33ed2f99176",
+    hash: "sha256:d7df28c96d3b4d8c31267289a972f0441c9b275ab1d65aa21a2247ca7f1d7a19",
   },
   connectorTaxonomy: {
     id: "stud-tube",
     version: "stud-tube/1",
-    hash: "sha256:ba08980d0b651273651f5abd00a9eda0da412ef1ce82fbf8252f09dbff6db1fc",
+    hash: "sha256:57eb657485d5049c5e3624e2811886473b0f230463815fd6ddfd677329b8c62f",
   },
   collisionModel: {
     id: "rectilinear-stud-clearance",
     version: "rectilinear-stud-clearance/3",
-    hash: "sha256:29d9de56ab3e4215749d51b14923457528f2afd04ce6c149731802db65e748b0",
+    hash: "sha256:daeb4dcd18ecb29153b425c6c9db060b087a5486e0238dbe3673cfdd521e6cfa",
   },
   transformPolicy: {
     id: "upright-quarter-turns-negative-y-up",
     version: "upright-quarter-turns-negative-y-up/1",
-    hash: "sha256:3ac16864f8a77c198b0cf78d055bedfee61990c84ff2a14fbe2ef2684632071d",
+    hash: "sha256:397a1cddf7cba68e3fae67753075cdd82003f5a0d2d00ebbae066848610d3d27",
   },
   validatorSet: {
     id: "lego.kernel-validators",
@@ -125,7 +126,7 @@ export function assertExactStep7Gate3FinalMigration(
     exactPlainDataBytes(EXPECTED_MIGRATION_REPORT, "Expected Step-7 migration report")
   ) {
     throw new SAFE_TYPE_ERROR(
-      "Step-7 source parent did not complete the exact reviewed /13 to /22 migration.",
+      "Step-7 source parent did not complete the exact reviewed /13 to /23 migration.",
     );
   }
   const sourceClone = detachExactPlainData(source, "Expected migration source clone").value;

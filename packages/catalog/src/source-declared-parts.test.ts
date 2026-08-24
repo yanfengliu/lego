@@ -18,13 +18,13 @@ import { SET_6651557_MEASURED_BLUEPRINTS } from "./part-blueprints-6651557-measu
 import { SET_6651557_MESH_ASSETS } from "./mesh-assets-6651557.ts";
 
 /**
- * What the seventeen fully measured catalog parts are, written out rather than recomputed.
+ * What the eighteen fully measured catalog parts are, written out rather than recomputed.
  *
  * These are facts about real parts: the extents come from the exact expanded
  * LDraw closure, the collision column count from its per-column height field at
  * 1 LDU, and the connector counts from an authored connector source
  * carried through the per-part frame — Builder-derived records for eight parts
- * and the LDCad shadow library's snap metas for nine. Four of the LDCad-sourced
+ * and the LDCad shadow library's snap metas for ten. Four of the LDCad-sourced
  * designs have no Builder record; 25269 deliberately selects the independently
  * authored shadow route instead of treating record presence as connector truth,
  * while 28802 refuses a contradictory Builder identity and retains the exact
@@ -386,6 +386,29 @@ const ADMITTED = [
     vertices: 162,
     closureFiles: 4,
   },
+  // builtin.basic-parts/23. The moved-to official closure supplies the open
+  // Technic-brick shell; one pinned LDCad A6x1 segment supplies its transverse
+  // female axle-hole endpoint without claiming collision clearance through it.
+  {
+    id: "builtin:technic-brick-1x2-axle-hole",
+    ldrawId: "32064.dat",
+    family: "technic-brick",
+    widthStuds: 1,
+    lengthStuds: 2,
+    heightLdu: 24,
+    orientationId: "upright-yaw-90",
+    translationLdu: [0, -12, 0],
+    connectorGridCenterLdu: [0, 0],
+    bodyBoundsLdu: { min: [-10, -12, -20], max: [10, 12, 20] },
+    boundsLdu: { min: [-10, -16, -20], max: [10, 12, 20] },
+    studs: 2,
+    clutches: 2,
+    axleHoles: 1,
+    bodyBoxes: 23,
+    triangles: 458,
+    vertices: 576,
+    closureFiles: 23,
+  },
 ] as const;
 
 /** Every part whose connector rows the LDCad shadow library authors. */
@@ -399,6 +422,7 @@ const LDCAD_CONNECTOR_PART_IDS = [
   "builtin:roller-skate",
   "builtin:bracket-2x2-1x2-vertical-studs",
   "builtin:axle-1x3",
+  "builtin:technic-brick-1x2-axle-hole",
 ] as const;
 
 /** The three plate-lattice parts whose clutch cells Builder could not supply. */
@@ -421,7 +445,7 @@ const bodyBoxes = (part: PartDefinition): readonly Extract<CollisionPrimitive, {
   );
 
 describe("set 6651557 parts declared from measured source", () => {
-  it("admits all seventeen through the production mesh gate", () => {
+  it("admits all eighteen through the production mesh gate", () => {
     for (const expected of ADMITTED) {
       expect([expected.id, validateMeshPartDefinitionAdmission(require(expected.id))]).toEqual([
         expected.id,
@@ -453,6 +477,7 @@ describe("set 6651557 parts declared from measured source", () => {
         studs: part.connectors.filter(({ kind }) => kind === "stud").length,
         clutches: part.connectors.filter(({ kind }) => kind === "undersideClutch").length,
         axles: part.connectors.filter(({ kind }) => kind === "axle").length,
+        axleHoles: part.connectors.filter(({ kind }) => kind === "axleHole").length,
         bodyBoxes: bodyBoxes(part).length,
         triangles: (asset.indices?.length ?? asset.positionsLdu.length) / 3,
         vertices: asset.positionsLdu.length / 3,
@@ -471,6 +496,7 @@ describe("set 6651557 parts declared from measured source", () => {
         studs: expected.studs,
         clutches: expected.clutches,
         axles: "axles" in expected ? expected.axles : 0,
+        axleHoles: "axleHoles" in expected ? expected.axleHoles : 0,
         bodyBoxes: expected.bodyBoxes,
         triangles: expected.triangles,
         vertices: expected.vertices,
@@ -550,7 +576,7 @@ describe("set 6651557 parts declared from measured source", () => {
     expect(BUNDLED_LDRAW_ARCHIVE.sha256).toBe(
       "sha256:6009f2e94204c4d3a63a4c812010b5c90bad8c5acb19b882c859fdac63734eae",
     );
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(199);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(206);
     for (const file of BUNDLED_LDRAW_SOURCE_FILES) {
       expect(file.author.trim().length).toBeGreaterThan(0);
       expect(file.title.trim().length).toBeGreaterThan(0);
@@ -560,14 +586,17 @@ describe("set 6651557 parts declared from measured source", () => {
       BUNDLED_LDRAW_SOURCE_FILES.filter(({ licenseExpression }) =>
         licenseExpression.includes("CC-BY-2.0"),
       ).map(({ path, licenseExpression }) => [path, licenseExpression]),
-    ).toEqual([["parts/30503.dat", "CC-BY-2.0 OR CC-BY-4.0"]]);
+    ).toEqual([
+      ["parts/30503.dat", "CC-BY-2.0 OR CC-BY-4.0"],
+      ["parts/32064a.dat", "CC-BY-2.0 OR CC-BY-4.0"],
+    ]);
     expect(
       BUNDLED_LDRAW_SOURCE_FILES.filter(
         ({ licenseExpression }) => licenseExpression === "CC-BY-4.0",
       ),
-    ).toHaveLength(198);
-    // 28 named authors across 199 files: attribution is retained per file, never flattened.
-    expect(new Set(BUNDLED_LDRAW_SOURCE_FILES.map(({ author }) => author)).size).toBe(28);
+    ).toHaveLength(204);
+    // 29 named authors across 206 files: attribution is retained per file, never flattened.
+    expect(new Set(BUNDLED_LDRAW_SOURCE_FILES.map(({ author }) => author)).size).toBe(29);
 
     for (const expected of ADMITTED) {
       const closure = BUNDLED_LDRAW_CLOSURES[expected.ldrawId.replace(".dat", "")]!;
@@ -675,7 +704,7 @@ describe("set 6651557 parts declared from measured source", () => {
     );
   });
 
-  it("compiles only exact axis-aligned LDCad source axle rows through the shared taxonomy", () => {
+  it("compiles only exact axis-aligned LDCad shaft or bore rows through the shared taxonomy", () => {
     const declared: readonly MeasuredPartBlueprint[] = SET_6651557_MEASURED_BLUEPRINTS;
     const shadowBlueprint = declared.find(({ designId }) => designId === "30357")!;
     const builderBlueprint = declared.find(({ designId }) => designId === "77844")!;
@@ -705,6 +734,6 @@ describe("set 6651557 parts declared from measured source", () => {
         ...shadowBlueprint,
         sourceConnectorsLdu: [{ kind: "axle", positionLdu: [-20, 0, 0], normal: [1, 1, 0] }],
       }),
-    ).toThrow(/exact shaft gate emits one signed unit axis/u);
+    ).toThrow(/exact shaft or bore gate emits one signed unit axis/u);
   });
 });

@@ -171,6 +171,7 @@ import { SET_6651557_MEASURED_MESH_ASSETS_C } from "./mesh-assets-6651557-measur
 import { SET_6651557_MEASURED_MESH_ASSETS_D } from "./mesh-assets-6651557-measured-d.ts";
 import { SET_6651557_MEASURED_MESH_ASSETS_E } from "./mesh-assets-6651557-measured-e.ts";
 import { SET_6651557_MEASURED_MESH_ASSETS_F } from "./mesh-assets-6651557-measured-f.ts";
+import { SET_6651557_MEASURED_MESH_ASSETS_G } from "./mesh-assets-6651557-measured-g.ts";
 import { SET_6651557_RENDER_ONLY_MESH_ASSETS } from "./mesh-assets-6651557-render-only.ts";
 
 export const SET_6651557_MESH_ASSETS: Readonly<Record<string, PreloadedMeshAsset>> = Object.freeze({
@@ -180,6 +181,7 @@ export const SET_6651557_MESH_ASSETS: Readonly<Record<string, PreloadedMeshAsset
   ...SET_6651557_MEASURED_MESH_ASSETS_D,
   ...SET_6651557_MEASURED_MESH_ASSETS_E,
   ...SET_6651557_MEASURED_MESH_ASSETS_F,
+  ...SET_6651557_MEASURED_MESH_ASSETS_G,
   ...SET_6651557_RENDER_ONLY_MESH_ASSETS,
 });
 """

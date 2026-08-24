@@ -17,7 +17,7 @@ import {
 } from "./migration-historical-fixtures.test-support.ts";
 
 describe("reviewed historical connection semantics", () => {
-  it("binds all 23 reviewed truths to immutable exhaustive authority rows", () => {
+  it("binds all 24 reviewed truths to immutable exhaustive authority rows", () => {
     const truthHashes = REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS.map(({ truthHash }) => truthHash);
     const rows = Object.entries(REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH);
 
@@ -80,6 +80,24 @@ describe("reviewed historical connection semantics", () => {
       sourceEndpointCount: 2269,
       sourceEndpointMapDigest:
         "sha256:f84f1e0ec3e1d628b1bd49d869e6b9f3dbdb9d95be87b2fa81b396a566462d2b",
+      sourcePairCount: 3,
+      sourcePairMapDigest:
+        "sha256:7431a242907aa9829ead6a279d0b530fe5f5d00ee31e6ddc1576fe66a8a07add",
+      endpointDeltas: [],
+      pairDeltas: [],
+    });
+  });
+
+  it("pins the complete /22 connector authority that /23 extends additively", () => {
+    expect(
+      REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH[
+        "sha256:7f64021239ab6395a3666f1f72908fd420b73065909822bc68e5226785bfa12e"
+      ],
+    ).toEqual({
+      sourceCommit: "94db468e6a5045a0a7732f8f4adc128e90f025b6",
+      sourceEndpointCount: 2272,
+      sourceEndpointMapDigest:
+        "sha256:006157a4816e7dc9a001b0c15a7c2e45fdbaeb611142b428458457f2ea4b8ff2",
       sourcePairCount: 3,
       sourcePairMapDigest:
         "sha256:7431a242907aa9829ead6a279d0b530fe5f5d00ee31e6ddc1576fe66a8a07add",

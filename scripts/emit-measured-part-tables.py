@@ -59,10 +59,11 @@ from part_admission_evidence import PILOT_DESIGN_IDS, bind_to_pilot, parse_pilot
 from part_admission_scorecard import DEFAULT_SAMPLE_SPACING_LDU, score_candidate
 from set_6651557_ldraw_source_audit_plan import ARCHIVE_PINS
 
-REPORT_SCHEMA_VERSION = "lego.measured-part-admission-emission/5"
+REPORT_SCHEMA_VERSION = "lego.measured-part-admission-emission/6"
 MEASURED_D_SHARD_START = 18
 MEASURED_E_SHARD_START = 19
 MEASURED_F_SHARD_START = 20
+MEASURED_G_SHARD_START = 21
 GENERATED_FILES = {
     "meshAssets": "packages/catalog/src/mesh-assets-6651557.ts",
     "meshAssetsMeasuredA": "packages/catalog/src/mesh-assets-6651557-measured-a.ts",
@@ -71,11 +72,13 @@ GENERATED_FILES = {
     "meshAssetsMeasuredD": "packages/catalog/src/mesh-assets-6651557-measured-d.ts",
     "meshAssetsMeasuredE": "packages/catalog/src/mesh-assets-6651557-measured-e.ts",
     "meshAssetsMeasuredF": "packages/catalog/src/mesh-assets-6651557-measured-f.ts",
+    "meshAssetsMeasuredG": "packages/catalog/src/mesh-assets-6651557-measured-g.ts",
     "meshAssetsRenderOnly": "packages/catalog/src/mesh-assets-6651557-render-only.ts",
     "blueprints": "packages/catalog/src/part-blueprints-6651557-measured.ts",
     "blueprintsMeasuredD": "packages/catalog/src/part-blueprints-6651557-measured-d.ts",
     "blueprintsMeasuredE": "packages/catalog/src/part-blueprints-6651557-measured-e.ts",
     "blueprintsMeasuredF": "packages/catalog/src/part-blueprints-6651557-measured-f.ts",
+    "blueprintsMeasuredG": "packages/catalog/src/part-blueprints-6651557-measured-g.ts",
     "renderOnlyBlueprints": "packages/catalog/src/part-blueprints-6651557-render-only.ts",
     "bundledSources": "packages/catalog/src/ldraw-bundled-sources-6651557.ts",
 }
@@ -192,6 +195,7 @@ def main() -> None:
                 validate_candidate(scoreable_candidate(part)),
                 part.surface,
                 arguments.sample_spacing_ldu,
+                include_sampling_diagnostics=True,
             )
             print(
                 f"{plan.design_id}: composite="
@@ -264,9 +268,14 @@ def main() -> None:
             "SET_6651557_MEASURED_MESH_ASSETS_E",
         ),
         "meshAssetsMeasuredF": render_mesh_asset_chunk(
-            measured_parts[MEASURED_F_SHARD_START:],
+            measured_parts[MEASURED_F_SHARD_START:MEASURED_G_SHARD_START],
             archive_sha256,
             "SET_6651557_MEASURED_MESH_ASSETS_F",
+        ),
+        "meshAssetsMeasuredG": render_mesh_asset_chunk(
+            measured_parts[MEASURED_G_SHARD_START:],
+            archive_sha256,
+            "SET_6651557_MEASURED_MESH_ASSETS_G",
         ),
         "meshAssetsRenderOnly": render_mesh_asset_chunk(
             render_only_parts,
@@ -307,11 +316,22 @@ def main() -> None:
             ),
         ),
         "blueprintsMeasuredF": render_blueprints(
-            measured_parts[MEASURED_F_SHARD_START:],
+            measured_parts[MEASURED_F_SHARD_START:MEASURED_G_SHARD_START],
             archive_sha256,
             builder,
             dict(shadow.identity()),
             export_name="SET_6651557_MEASURED_BLUEPRINTS_F",
+            appended_shard=(
+                "SET_6651557_MEASURED_BLUEPRINTS_G",
+                "./part-blueprints-6651557-measured-g.ts",
+            ),
+        ),
+        "blueprintsMeasuredG": render_blueprints(
+            measured_parts[MEASURED_G_SHARD_START:],
+            archive_sha256,
+            builder,
+            dict(shadow.identity()),
+            export_name="SET_6651557_MEASURED_BLUEPRINTS_G",
         ),
         "renderOnlyBlueprints": render_render_only_blueprints(
             render_only_parts, archive_sha256
