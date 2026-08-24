@@ -31,6 +31,7 @@ export const MIGRATABLE_CATALOG_VERSIONS: readonly string[] = Object.freeze([
   "builtin.basic-parts/12",
   "builtin.basic-parts/13",
   "builtin.basic-parts/14",
+  "builtin.basic-parts/15",
   BUILTIN_CATALOG_VERSION,
 ]);
 
@@ -167,6 +168,15 @@ export const REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS = Object.freeze([
     catalogVersion: "builtin.basic-parts/14",
     sourceCommit: "5d90788b0c10576ae1fef592206a66540dbcb131",
     truthHash: "sha256:db8c1740f23c65a4c0046c679e321a559623ac18a9c3fe59357b912e3a48a1b3",
+  },
+  // The snapshot /16 replaced. /16 appends 35787 as one complete measured
+  // definition: exact official geometry and collision columns plus three
+  // LDCad-authored clutch cells. The native Builder field remains unframed
+  // counterevidence and changes no preceding catalog definition.
+  {
+    catalogVersion: "builtin.basic-parts/15",
+    sourceCommit: "8ac4c6e9518e7b00fd0ed23ad44c6f38b657efe3",
+    truthHash: "sha256:f8e7efbd1bc969ac699fd68db9696af693898a15ffb7901821e676d843240e2f",
   },
 ] as const);
 

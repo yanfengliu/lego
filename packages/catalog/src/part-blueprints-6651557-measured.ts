@@ -825,4 +825,53 @@ export const SET_6651557_MEASURED_BLUEPRINTS = [
       shadowFiles: ["p/stud.dat", "p/stud2.dat", "p/stud3.dat", "parts/28802.dat"],
     },
   },
+  {
+    designId: "35787",
+    ldrawId: "35787.dat",
+    catalogId: "builtin:tile-2x2-triangular",
+    displayName: "Tile 2 x 2 Triangular",
+    family: "tile",
+    widthStuds: 2,
+    lengthStuds: 2,
+    variant: "triangular",
+    heightLdu: 8,
+    meshAssetId: "ldraw:official:35787.dat",
+    assetToCatalogFrame: {
+      schemaVersion: "mesh-asset-to-catalog-frame/1",
+      orientationId: "upright-yaw-0",
+      translationLdu: [0, -4, 0],
+    },
+    connectorGridCenterLdu: [0, 0],
+    exactBodyBoundsLdu: {
+      min: ["-20", "-4", "-20"],
+      max: ["17", "4", "17"],
+    },
+    exactBoundsLdu: {
+      min: ["-20", "-4", "-20"],
+      max: ["17", "4", "17"],
+    },
+    studsLdu: [],
+    clutchesLdu: [
+      [-10, 4, -10],
+      [-10, 4, 10],
+      [10, 4, -10],
+    ],
+    // prettier-ignore
+    bodyBoxesLdu: [-16, -4, -16, 16, 0, -15, -16, -4, -15, 15, 0, -14, -16, -4, -14, 14, 0, -13, -16, -4, -13, 13, 0, -12, -16, -4, -12, 12, 0, -11, -16, -4, -11, 11, 0, -10, -16, -4, -10, 10, 0, -9, -16, -4, -9, 9, 0, -8, -16, -4, -8, -4, 0, -7, 4, -4, -8, 8, 0, -7, -16, -4, -7, -6, 0, -6, 6, -4, -7, 7, 0, -6, -16, -4, -6, -7, 0, -4, -3, -4, -5, -1, 0, -4, -16, -4, -4, -8, 0, 9, -4, -4, -4, -2, 0, -3, -5, -4, -3, -3, 0, -2, -5, -4, -2, -4, 0, -1, -8, -4, 4, -7, 0, 8, -7, -4, 6, -6, 0, 7, -16, -4, 9, -9, 0, 10, -16, -4, 10, -10, 0, 11, -16, -4, 11, -11, 0, 12, -16, -4, 12, -12, 0, 13, -16, -4, 13, -13, 0, 14, -16, -4, 14, -14, 0, 15, -16, -4, 15, -15, 0, 16, -20, -4, -20, 17, 3, -19, -20, -4, -19, -19, 3, 17, 5, -4, -7, 6, 3, -5, 4, -4, -5, 5, 3, -4, 3, -4, -4, 4, 3, -2, 2, -4, -3, 3, 3, -2, 1, -4, -2, 2, 3, -1, 0, -4, -1, 1, 3, 0, -1, -4, 0, 0, 3, 1, -2, -4, 1, -1, 3, 2, -3, -4, 2, -2, 3, 3, -4, -4, 3, -3, 3, 4, -5, -4, 4, -4, 3, 5, -7, -4, 5, -5, 3, 6, -19, -4, -19, 17, 4, -16, -19, -4, -16, -16, 4, 17, -4, -4, -8, 4, 4, -5, -6, -4, -7, -4, 4, -3, 4, -4, -7, 5, 4, -5, -7, -4, -6, -6, 4, 5, -4, -4, -5, -3, 4, -4, -1, -4, -5, 4, 4, -4, -8, -4, -4, -7, 4, 4, -2, -4, -4, 3, 4, -3, -6, -4, -3, -5, 4, 5, -3, -4, -3, 2, 4, -2, -4, -4, -2, 1, 4, -1, -5, -4, -1, 0, 4, 0, -5, -4, 0, -1, 4, 1, -5, -4, 1, -2, 4, 2, -5, -4, 2, -3, 4, 3, -5, -4, 3, -4, 4, 4, 9, -2.5876329609999997, -9, 10, -1.178926582, -8, -3, -0.4690824029999998, 3, -2, 3, 4, -4, -0.2925365229999999, 4, -3, 0, 5, -5, -0.11599064299999995, 5, -4, 0, 6, 5, 0, -5, 6, 3, -4, 4, 0, -4, 5, 3, -3, 2, 0, -2, 3, 3, -1],
+    ldrawSource: {
+      title: "Tile  2 x  2 Triangular",
+      author: "Gerald Lasser [GeraldLasser]",
+      ldrawOrg: "Part UPDATE 2018-02",
+      licenseExpression: "CC-BY-4.0",
+      rootSha256: "sha256:15504e50d1cf297ead59fb2120663613049fddf604181c1af99479cf9a9a3602",
+      closureFileCount: 22,
+    },
+    ldcadShadowSource: {
+      libraryId: "ldcad-shadow-library",
+      commit: "15aa1e718b6a8da37d24fc7af5e52e262c041bfb",
+      manifestSha256: "sha256:668bc047a45e5560ff0fbbd69e9eb5adafab127781720bcb069a1554cb3f0c0f",
+      compositionId: "ldcad-shadow-composed-over-ldraw-tree/1",
+      shadowFiles: ["parts/s/35787s01.dat"],
+    },
+  },
 ] as const satisfies readonly MeasuredPartBlueprint[];

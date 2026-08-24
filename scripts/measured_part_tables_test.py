@@ -620,6 +620,7 @@ class PlanTests(unittest.TestCase):
                 "80015",
                 "25269",
                 "28802",
+                "35787",
             ],
         )
         self.assertTrue(all(row.connector_source == "builder" for row in ADMITTED_PART_PLANS[:5]))
@@ -647,6 +648,18 @@ class PlanTests(unittest.TestCase):
                 LDCAD_SHADOW_CONNECTOR_SOURCE,
                 "builtin:bracket-1x2-1x4-rounded-bottom",
                 "Bracket 1 x 2 - 1 x 4 Rounded Bottom",
+            ),
+        )
+        self.assertEqual(
+            (
+                ADMITTED_PART_PLANS[14].connector_source,
+                ADMITTED_PART_PLANS[14].catalog_id,
+                ADMITTED_PART_PLANS[14].display_name,
+            ),
+            (
+                LDCAD_SHADOW_CONNECTOR_SOURCE,
+                "builtin:tile-2x2-triangular",
+                "Tile 2 x 2 Triangular",
             ),
         )
 

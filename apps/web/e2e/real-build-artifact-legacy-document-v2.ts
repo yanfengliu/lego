@@ -48,31 +48,31 @@ const LEGACY_TRUTH_V2 = Object.freeze({
 
 /**
  * The only reviewed successor this frozen validator may use as a semantic
- * compatibility oracle. `/14` and `/15` each append one part without changing
+ * compatibility oracle. `/14`, `/15`, and `/16` each append one part without changing
  * an existing catalog interpretation; pinning every component makes a later
  * change fail closed.
  */
-const ADDITIVE_SUCCESSOR_TRUTH_V15 = Object.freeze({
+const ADDITIVE_SUCCESSOR_TRUTH_V16 = Object.freeze({
   schemaVersion: "lego.truth-snapshot/1",
   catalog: {
     id: "builtin.basic-parts",
-    version: "builtin.basic-parts/15",
-    hash: "sha256:08e3812b08d6dd9f0b397dd6d79c6ae89c834e43900508ee00410dfb692f9905",
+    version: "builtin.basic-parts/16",
+    hash: "sha256:e80f7c99912fba393a549b53549e3f8b9578b48fe5331682ad5e140edca600f6",
   },
   connectorTaxonomy: {
     id: "stud-tube",
     version: "stud-tube/1",
-    hash: "sha256:e64815499844dfc745d8d12c3caa0ff2a0ef55777b627f604a44506478999513",
+    hash: "sha256:6f19cd949127543229d54366a37dd377cb7fbcd8042115c9339aabbbfe4deddc",
   },
   collisionModel: {
     id: "rectilinear-stud-clearance",
     version: "rectilinear-stud-clearance/2",
-    hash: "sha256:a8a000c6402260d5302cd14c613d6577e74e44811b6f431fbb4269c2cfe75e04",
+    hash: "sha256:8c32b975cd25b5b0417432f28789a1124b97053f1d056ab1b547730ec6899599",
   },
   transformPolicy: {
     id: "upright-quarter-turns-negative-y-up",
     version: "upright-quarter-turns-negative-y-up/1",
-    hash: "sha256:80594a60bb36cb7d9def2c92566aef0d67181c0c9e9983214a673dae59315a53",
+    hash: "sha256:34aa4fb3af8d22fbb565fd67beaf48f824a888f68390c6183bab6657768819b2",
   },
   validatorSet: {
     id: "lego.kernel-validators",
@@ -87,12 +87,13 @@ const LEGACY_BRICK_KERNEL_VERSION = "lego.brick-kernel/1";
 const ADDITIVE_CATALOG_PART_IDS = Object.freeze([
   "builtin:tile-1x1-quarter-round",
   "builtin:bracket-1x2-1x4-rounded-bottom",
+  "builtin:tile-2x2-triangular",
 ]);
-/** Measured identically at retained /13 HEAD 8fc0186 and the /15 85-row projection. */
+/** Measured identically at retained /13 HEAD 8fc0186 and the /16 85-row projection. */
 const LEGACY_VALIDATOR_SEMANTICS_HASH =
   "sha256:dc519548463dc42a7d87e8283ec474aa35fc3e40fce04439e96e70c34d4ce4d3";
 
-interface CatalogCompatibilityBasisV15 {
+interface CatalogCompatibilityBasisV16 {
   readonly truth: TruthSnapshot;
   readonly constraints: Pick<
     BrickDocumentV1["constraints"],
@@ -101,7 +102,7 @@ interface CatalogCompatibilityBasisV15 {
   readonly validatorSemanticsHash: string;
 }
 
-function activePredecessorValidatorSemanticsHashV15(): string {
+function activePredecessorValidatorSemanticsHashV16(): string {
   return canonicalDigest({
     orientations: UPRIGHT_ORIENTATIONS,
     connectorPairRules: CONNECTOR_PAIR_RULES,
@@ -118,7 +119,7 @@ function activePredecessorValidatorSemanticsHashV15(): string {
   });
 }
 
-export function createFrozenLegacyAdditiveCatalogBasisV15(): CatalogCompatibilityBasisV15 {
+export function createFrozenLegacyAdditiveCatalogBasisV16(): CatalogCompatibilityBasisV16 {
   const active = createEmptyBrickDocument({
     id: "legacy-v2-compatibility-basis",
     name: "Legacy v2 compatibility basis",
@@ -126,7 +127,7 @@ export function createFrozenLegacyAdditiveCatalogBasisV15(): CatalogCompatibilit
   return {
     truth: active.truth,
     constraints: active.constraints,
-    validatorSemanticsHash: activePredecessorValidatorSemanticsHashV15(),
+    validatorSemanticsHash: activePredecessorValidatorSemanticsHashV16(),
   };
 }
 
@@ -136,7 +137,7 @@ export function createFrozenLegacyAdditiveCatalogBasisV15(): CatalogCompatibilit
  */
 export function assertFrozenLegacyAdditiveCatalogV2(
   document: BrickDocumentV1,
-  active: CatalogCompatibilityBasisV15 = createFrozenLegacyAdditiveCatalogBasisV15(),
+  active: CatalogCompatibilityBasisV16 = createFrozenLegacyAdditiveCatalogBasisV16(),
 ): void {
   if (JSON.stringify(document.truth) !== JSON.stringify(LEGACY_TRUTH_V2)) {
     throw new TypeError(
@@ -148,9 +149,9 @@ export function assertFrozenLegacyAdditiveCatalogV2(
       "Legacy diagnostic document truth does not reproduce the pinned generation /2 truth hash.",
     );
   }
-  if (JSON.stringify(active.truth) !== JSON.stringify(ADDITIVE_SUCCESSOR_TRUTH_V15)) {
+  if (JSON.stringify(active.truth) !== JSON.stringify(ADDITIVE_SUCCESSOR_TRUTH_V16)) {
     throw new TypeError(
-      "Legacy diagnostic validation requires exact reviewed additive catalog successor builtin.basic-parts/15.",
+      "Legacy diagnostic validation requires exact reviewed additive catalog successor builtin.basic-parts/16.",
     );
   }
   if (active.validatorSemanticsHash !== LEGACY_VALIDATOR_SEMANTICS_HASH) {
@@ -167,7 +168,7 @@ export function assertFrozenLegacyAdditiveCatalogV2(
   );
   if (
     addedPartCounts.some((count) => count !== 1) ||
-    successorPartIds.length !== 87 ||
+    successorPartIds.length !== 88 ||
     precedingPartIds.length !== 85 ||
     JSON.stringify(document.constraints.allowedCatalogPartIds) !==
       JSON.stringify(precedingPartIds) ||
@@ -175,7 +176,7 @@ export function assertFrozenLegacyAdditiveCatalogV2(
       JSON.stringify(active.constraints.allowedColorIds)
   ) {
     throw new TypeError(
-      "Legacy diagnostic catalog constraints are not the exact 85-part predecessor of reviewed additive catalogs /14 and /15.",
+      "Legacy diagnostic catalog constraints are not the exact 85-part predecessor of reviewed additive catalogs /14, /15, and /16.",
     );
   }
   const referencedAddedPart = document.parts.find(({ catalogPartId }) =>
@@ -209,9 +210,9 @@ export function createFrozenLegacyEmptyBrickDocumentV2(options: {
   return document;
 }
 
-function additiveCompatibilityProjectionV15(
+function additiveCompatibilityProjectionV16(
   document: BrickDocumentV1,
-  active: CatalogCompatibilityBasisV15 = createFrozenLegacyAdditiveCatalogBasisV15(),
+  active: CatalogCompatibilityBasisV16 = createFrozenLegacyAdditiveCatalogBasisV16(),
 ): BrickDocumentV1 {
   assertFrozenLegacyAdditiveCatalogV2(document, active);
   return {
@@ -225,8 +226,8 @@ function additiveCompatibilityProjectionV15(
  * then binds the result back to the untouched historical bytes and hashes.
  */
 export function validateFrozenLegacyBrickDocumentV2(document: BrickDocumentV1): ValidationReportV1 {
-  const active = createFrozenLegacyAdditiveCatalogBasisV15();
-  const projected = additiveCompatibilityProjectionV15(document, active);
+  const active = createFrozenLegacyAdditiveCatalogBasisV16();
+  const projected = additiveCompatibilityProjectionV16(document, active);
   const validation = validateBrickDocument(projected);
   if (
     validation.truthSnapshotHash !== canonicalDigest(active.truth) ||
@@ -236,7 +237,7 @@ export function validateFrozenLegacyBrickDocumentV2(document: BrickDocumentV1): 
       "Legacy compatibility projection did not reproduce its exact active truth and structural hash.",
     );
   }
-  if (validation.validatorSetHash !== ADDITIVE_SUCCESSOR_TRUTH_V15.validatorSet.hash) {
+  if (validation.validatorSetHash !== ADDITIVE_SUCCESSOR_TRUTH_V16.validatorSet.hash) {
     throw new TypeError(
       "Legacy compatibility projection was not evaluated by the pinned generation-2 validator set.",
     );
@@ -317,7 +318,7 @@ export function assertFrozenLegacyDocumentProjectionV2(input: {
       "Legacy diagnostic document is not globally valid or does not reproduce its exact structural hash under frozen truth.",
     );
   }
-  const sequence = deriveBuildSequence(additiveCompatibilityProjectionV15(input.document));
+  const sequence = deriveBuildSequence(additiveCompatibilityProjectionV16(input.document));
   if (!sequence.buildable) {
     throw new TypeError(
       `Legacy diagnostic document has an unbuildable prefix at step ${String(sequence.firstUnbuildableStepIndex)}.`,
@@ -326,7 +327,7 @@ export function assertFrozenLegacyDocumentProjectionV2(input: {
   for (const report of input.reports) {
     const prefix = canonicalPrefixDocument(input.document, report.stepNumber);
     const validation = validateFrozenLegacyBrickDocumentV2(prefix);
-    const prefixSequence = deriveBuildSequence(additiveCompatibilityProjectionV15(prefix));
+    const prefixSequence = deriveBuildSequence(additiveCompatibilityProjectionV16(prefix));
     assertPinnedLegacyReport(validation, `Legacy printed-step ${report.stepNumber} prefix`);
     const expectedBlocking = blockingIssues(validation);
     if (

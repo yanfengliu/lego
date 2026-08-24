@@ -113,8 +113,8 @@ describe("28802 rounded-bottom bracket catalog truth", () => {
       bytes: 17_940,
       manifestSha256: "sha256:e8c326b7fe592ceb83142f62eca6ce3c74c60bad83d3b095a12c80ffece54806",
     });
-    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(26);
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(170);
+    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(27);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(177);
     expect(new Set(BUNDLED_LDRAW_SOURCE_FILES.map(({ author }) => author))).toHaveLength(27);
   });
 
@@ -228,9 +228,11 @@ describe("28802 rounded-bottom bracket catalog truth", () => {
   });
 
   it("keeps every /14 definition and collision byte unchanged behind the additive /15 row", () => {
-    const priorParts = PART_DEFINITIONS.filter(({ id }) => id !== PART_ID);
+    const priorParts = PART_DEFINITIONS.filter(
+      ({ id }) => id !== PART_ID && id !== "builtin:tile-2x2-triangular",
+    );
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/15",
+      "builtin.basic-parts/16",
       "builtin.basic-parts/14",
     );
     const rows = priorParts.map(({ id, connectors, collision }) => ({ id, connectors, collision }));

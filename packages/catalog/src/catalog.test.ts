@@ -147,11 +147,14 @@ const EXPECTED_PART_IDS = [
   // builtin.basic-parts/15: one distinct measured bracket, never an alias of
   // the rounded-corner 10201/2436b design.
   "builtin:bracket-1x2-1x4-rounded-bottom",
+  // builtin.basic-parts/16: one exact triangular tile with three underside-seat
+  // centres on or inside its occupied half of the 2 x 2 footprint.
+  "builtin:tile-2x2-triangular",
 ] as const;
 
 describe("starter catalog", () => {
-  it("publishes the rounded-bottom bracket admission as version 15", () => {
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/15");
+  it("publishes the triangular-tile admission as version 16", () => {
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/16");
   });
 
   it("pins 25269's exact LDCad route and raw-to-catalog central clutch", () => {
@@ -240,7 +243,7 @@ describe("starter catalog", () => {
     expect(perFamily).toEqual({
       brick: 15,
       plate: 30,
-      tile: 11,
+      tile: 12,
       "jumper-plate": 3,
       "grille-tile": 1,
       "wedge-plate": 9,

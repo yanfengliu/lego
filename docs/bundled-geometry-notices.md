@@ -2,11 +2,11 @@
 
 > Generated from the catalog by `packages/catalog/src/bundled-geometry-notices.test.ts`, which fails if this file and the catalog disagree. Do not edit by hand.
 
-The render mesh of the parts below is real LDraw geometry, bundled and redistributed under the [Creative Commons Attribution 4.0 International licence](https://creativecommons.org/licenses/by/4.0/). Of the 170 source files, 169 declare CC BY 4.0 and `parts/30503.dat` declares `CC-BY-2.0 OR CC-BY-4.0`; this bundle selects its CC BY 4.0 option. Attribution therefore names every file whose triangles are bundled with its author, title, licence and content hash rather than flattening it into project-owned data.
+The render mesh of the parts below is real LDraw geometry, bundled and redistributed under the [Creative Commons Attribution 4.0 International licence](https://creativecommons.org/licenses/by/4.0/). Of the 177 source files, 176 declare CC BY 4.0 and `parts/30503.dat` declares `CC-BY-2.0 OR CC-BY-4.0`; this bundle selects its CC BY 4.0 option. Attribution therefore names every file whose triangles are bundled with its author, title, licence and content hash rather than flattening it into project-owned data.
 
 Permission to reuse this geometry is **not** permission to train on it. That right is not held, and no bundled file is designated as a model-training or benchmark corpus.
 
-The geometry supplies the expanded source-derived triangles, LDraw hard-edge normals, and envelope used by the app and palette. Catalog `/15` adds the fully measured `28802` rounded-bottom bracket: its official 19-file closure supplies the exact render surface and source-derived collision height field, while the pinned LDCad Shadow Library route authors six outward stud frames and two clutch cells. Four studs face horizontally and remain unusable under the unchanged upright-only transform policy. Catalog `/14` added the fully measured `25269` quarter tile with a source-derived collision height field and one LDCad-authored clutch cell. The preceding `/13` change moved render geometry and normals for 24 catalog parts: 23 generated meshes use corrected source-exact triangulation, while `54200` replaced its `/12` parametric drawing with its exact mesh. The sixteen in-place `/12` and `/13` render promotions still preserve their prior conservative collision recipes instead of deriving collision from the mesh.
+The geometry supplies the expanded source-derived triangles, LDraw hard-edge normals, and envelope used by the app and palette. Catalog `/16` adds the fully measured `35787` triangular tile: its official 22-file closure supplies the exact canonical diagonal surface and source-derived collision height field, while the pinned LDCad Shadow Library subpart authors three clutch cells; the unframed native Builder field remains counterevidence and is not merged. Catalog `/15` added the fully measured `28802` rounded-bottom bracket: its official 19-file closure supplies the exact render surface and source-derived collision height field, while the pinned LDCad route authors six outward stud frames and two clutch cells. Four studs face horizontally and remain unusable under the unchanged upright-only transform policy. Catalog `/14` added the fully measured `25269` quarter tile with a source-derived collision height field and one LDCad-authored clutch cell. The preceding `/13` change moved render geometry and normals for 24 catalog parts: 23 generated meshes use corrected source-exact triangulation, while `54200` replaced its `/12` parametric drawing with its exact mesh. The sixteen in-place `/12` and `/13` render promotions still preserve their prior conservative collision recipes instead of deriving collision from the mesh.
 
 Source archive: `ldraw-complete-2026-07`, 144722356 bytes, `sha256:6009f2e94204c4d3a63a4c812010b5c90bad8c5acb19b882c859fdac63734eae`, from https://library.ldraw.org/library/official.
 
@@ -40,10 +40,11 @@ Source archive: `ldraw-complete-2026-07`, 144722356 bytes, `sha256:6009f2e94204c
 | `builtin:corner-plate-2x2-round` | `79491.dat` | Plate  2 x  2 with Corner Round | Gerald Lasser [GeraldLasser] | `CC-BY-4.0` | 24 |
 | `builtin:tile-1x1-quarter-round` | `25269.dat` | Tile  1 x  1 Corner Round | Magnus Forsberg [MagFors] | `CC-BY-4.0` | 13 |
 | `builtin:bracket-1x2-1x4-rounded-bottom` | `28802.dat` | Bracket  1 x  2 -  1 x  4 with Rounded Bottom Corners | Vincent Messenet [Cheenzo] | `CC-BY-4.0` | 19 |
+| `builtin:tile-2x2-triangular` | `35787.dat` | Tile  2 x  2 Triangular | Gerald Lasser [GeraldLasser] | `CC-BY-4.0` | 22 |
 
 ## Every bundled file
 
-The 170 files below comprise 169 `CC-BY-4.0` declarations and one `CC-BY-2.0 OR CC-BY-4.0` declaration.
+The 177 files below comprise 176 `CC-BY-4.0` declarations and one `CC-BY-2.0 OR CC-BY-4.0` declaration.
 
 | File | Title | Author | Licence | LDraw.org status | SHA-256 |
 | --- | --- | --- | --- | --- | --- |
@@ -81,6 +82,7 @@ The 170 files below comprise 169 `CC-BY-4.0` declarations and one `CC-BY-2.0 OR 
 | `p/2-4ring3.dat` | Ring  3 x 0.5 | James Jessiman | `CC-BY-4.0` | Primitive UPDATE 2012-01 | `045613f5bb90e0c283211b1fa261cc66f8ee8ab968dc9763222e7e592cbf83fc` |
 | `p/2-4ring4.dat` | Ring  4 x 0.5 | Paul Easter [pneaster] | `CC-BY-4.0` | Primitive UPDATE 2012-01 | `55bd36c735c720ee8160709a3b6a3a02d828ec12ef56bcbbaf2eafa066de99b6` |
 | `p/2-4stud4.dat` | Stud Tube Open 0.5 | Willy Tschager [Holly-Wood] | `CC-BY-4.0` | Primitive UPDATE 2024-01 | `7afa4b4fd96a1fab9ecf90c1828968b5997d311ec6eb32021d1ac30334d36c7e` |
+| `p/2-4stud4t45.dat` | Stud Tube Open with Groove for 45 Degree Plate Edges | Magnus Forsberg [MagFors] | `CC-BY-4.0` | Primitive UPDATE 2026-01 | `86dcd81d51a7537612d5703db90af852daf1f2a7eabdaaccbd87ae07c5d0b941` |
 | `p/3-16chrd.dat` | Chord 0.1875 | Niels Karsdorp [nielsk] | `CC-BY-4.0` | Primitive UPDATE 2009-01 | `2bb493e8b5b56a5d63bfa7356a0ed5d6403a68e5e9a983e13a57541783ad19c1` |
 | `p/3-16cyli.dat` | Cylinder 0.1875 | Mark Kennedy [mkennedy] | `CC-BY-4.0` | Primitive UPDATE 2005-01 | `f50d12a37a22ae4a5f37a017b8e39d1e729577b0a4aa376ca685b210806b49c8` |
 | `p/3-16cylo.dat` | Cylinder Open 0.1875 | J.C. Tchang [tchang] | `CC-BY-4.0` | Primitive UPDATE 2013-01 | `a5c8370842299035a9cc14308301614c6fb169fb873a7950c888928cd8d9181c` |
@@ -123,6 +125,10 @@ The 170 files below comprise 169 `CC-BY-4.0` declarations and one `CC-BY-2.0 OR 
 | `p/48/1-8cyli.dat` | Hi-Res Cylinder 0.125 | Steve Bliss [sbliss] | `CC-BY-4.0` | 48_Primitive UPDATE 2004-04 | `494069ca353e41885bf8f5b6b3ddc9b62aabeca3eedfe6aa5597ac8f12ca12b9` |
 | `p/48/1-8edge.dat` | Hi-Res Circle 0.125 | [PTadmin] | `CC-BY-4.0` | 48_Primitive UPDATE 2017-01 | `eec30153f06bac336ca71ae16b31c5d0c7ae432acb5e91befe37fdb7b6bb1c8e` |
 | `p/7-16ring3.dat` | Ring  3 x 0.4375 | Alex Taylor [anathema] | `CC-BY-4.0` | Primitive UPDATE 2024-02 | `586ca9d96aafb0d4224fe43eb866cc0bff6d19ff1bc13092dd6869eee73f7089` |
+| `p/8/2-4chrd.dat` | Chord 0.5 | Magnus Forsberg [MagFors] | `CC-BY-4.0` | 8_Primitive UPDATE 2017-01 | `2caebc5de687f190e7ef2f25724665284bf0139e4db42844d0e2691128b9c0ea` |
+| `p/8/2-4cyli.dat` | Cylinder 0.5 | Philippe Hurbain [Philo] | `CC-BY-4.0` | 8_Primitive UPDATE 2016-01 | `9e5869a3bf444fcda1cc9908ef96ce782b53fc68f94eaf6903a0dbca6c582215` |
+| `p/8/2-4cylo.dat` | Cylinder Open 0.5 | Magnus Forsberg [MagFors] | `CC-BY-4.0` | 8_Primitive UPDATE 2017-01 | `cf7a9969c8d7396d17966b65c8ea48ea36445e98580dc76d18e5aa1fc5afd54f` |
+| `p/8/2-4edge.dat` | Circle 0.5 | Philippe Hurbain [Philo] | `CC-BY-4.0` | 8_Primitive UPDATE 2016-01 | `3154ed3f142d644552b2533457c13c56ef326b0f7d31ea425585d6cdde2a3129` |
 | `p/box2-11.dat` | Box with 2 Faces without 11 Edges | Steffen [Steffen] | `CC-BY-4.0` | Primitive UPDATE 2005-01 | `7f29fb8601b419207b5c855af8fad8abb55a967ec73f3d8be841d370c360b97c` |
 | `p/box2-5.dat` | Box with 2 Faces without 5 Edges | Steffen [Steffen] | `CC-BY-4.0` | Primitive UPDATE 2003-03 | `8f297b754f87da1dbe19eec8704a5ce03a23b794ccd7cd015508e3758a206174` |
 | `p/box2-7.dat` | Box with  2 Faces without  7 Edges | Willy Tschager [Holly-Wood] | `CC-BY-4.0` | Primitive UPDATE 2024-01 | `e0474c5ad7fb9ff77b67883a5b1e327d028e3eb4e59921a626b4215632dd9f00` |
@@ -183,6 +189,7 @@ The 170 files below comprise 169 `CC-BY-4.0` declarations and one `CC-BY-2.0 OR 
 | `parts/30565.dat` | Plate  4 x  4 with Corner Round | Gerald Lasser [GeraldLasser] | `CC-BY-4.0` | Part UPDATE 2024-06 | `e201a60e7f8e8ab15a86e8449c0e722a1b1ebe8015a5021ac5ca9aa1fd462f39` |
 | `parts/3455.dat` | Arch  1 x  6 | James Jessiman | `CC-BY-4.0` | Part UPDATE 2005-01 | `6e8fcdca71b4dd1a875b926ed5b28889fc4a47a01272b6550987338f0619083b` |
 | `parts/35480.dat` | Plate  1 x  2 with Round Ends and 2 Open Studs | Magnus Forsberg [MagFors] | `CC-BY-4.0` | Part UPDATE 2018-01 | `61d6d988e6549678ec0b6343bf7554ff14781006321da10da9adbbf4e68f2613` |
+| `parts/35787.dat` | Tile  2 x  2 Triangular | Gerald Lasser [GeraldLasser] | `CC-BY-4.0` | Part UPDATE 2018-02 | `15504e50d1cf297ead59fb2120663613049fddf604181c1af99479cf9a9a3602` |
 | `parts/3659.dat` | Arch  1 x  4 | James Jessiman | `CC-BY-4.0` | Part UPDATE 2010-03 | `7544bbc1fae27eb339ee29a72900d411ade577a78a1686227af32ac0efce150c` |
 | `parts/41769a.dat` | Wing  2 x  4 Right without Chamfer | Takeshi Takahashi [RainbowDolphin] | `CC-BY-4.0` | Part UPDATE 2026-05 | `0b069ab042f2cc8297a52e76b49a06e504cd4e9a51f02d6aea8c63f686c28ff8` |
 | `parts/41770a.dat` | Wing  2 x  4 Left without Chamfer | Takeshi Takahashi [RainbowDolphin] | `CC-BY-4.0` | Part UPDATE 2026-05 | `59648c2ca07a51d82fdc9aabf4edb65f4942760dc9df3b64946d13fd82b0303d` |
@@ -205,6 +212,7 @@ The 170 files below comprise 169 `CC-BY-4.0` declarations and one `CC-BY-2.0 OR 
 | `parts/s/22888s02.dat` | ~Plate  4 x  8 Round 1/8 - Common Geometry | Gerald Lasser [GeraldLasser] | `CC-BY-4.0` | Subpart UPDATE 2024-06 | `5afa0d11ed4cfc3f4669b214f53539794f8b6547f14654a991ef67b217215c7d` |
 | `parts/s/25269s01.dat` | ~Tile  1 x  1 Corner Round without Top Surface | Magnus Forsberg [MagFors] | `CC-BY-4.0` | Subpart UPDATE 2019-02 | `104059a3b2702cce52f7626190f0876ae91972c9d9751c0bed4a0f686d6378fe` |
 | `parts/s/30565s01.dat` | ~Plate  4 x  4 Round 1/8 | Gerald Lasser [GeraldLasser] | `CC-BY-4.0` | Subpart UPDATE 2024-06 | `69b36b94a6b6313e379a36b26a1a1f9a3f18b452bf98547a7e16f21b3ecf086b` |
+| `parts/s/35787s01.dat` | ~Tile  2 x  2 Triangular without Top Surface | Gerald Lasser [GeraldLasser] | `CC-BY-4.0` | Subpart UPDATE 2026-01 | `11b63d550c632afaa6b0178c233ae8d87a624bad04ce90d86d22702af1107729` |
 | `parts/s/41770as01.dat` | ~Wing  2 x  4 Left without Chamfer without Studs | Takeshi Takahashi [RainbowDolphin] | `CC-BY-4.0` | Subpart UPDATE 2026-05 | `8d88de31c2ec2050977671b63f6115ae47b72f2c01d9f863bd34ecc00760165d` |
 | `parts/s/43722as01.dat` | ~Wing  2 x  3 Right without Chamfer without Studs and Top Face | Donald Sutter [technog] | `CC-BY-4.0` | Subpart UPDATE 2026-05 | `e2dddcddb4bf0c30f9ba2f5880d9bca822bde31d07a3bfb094b8b2c4b8711d68` |
 | `parts/s/5092s01.dat` | ~Tile  1 x  2 Cut Right 45 Degree without Patternable Surfaces | Gerald Lasser [GeraldLasser] | `CC-BY-4.0` | Subpart UPDATE 2025-03 | `02161d4d43cf5d1a4ceb1d3c7440d75bd6789eb2b032a420750ee8363fdc6d81` |
@@ -220,7 +228,7 @@ The 170 files below comprise 169 `CC-BY-4.0` declarations and one `CC-BY-2.0 OR 
 
 ## Derived connector data
 
-The parts below take their connector cells from the [LDCad Shadow Library](https://github.com/RolandMelkert/LDCadShadowLibrary), which is licensed [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). LEGO Builder has no record of the first three designs. Builder metadata does name `25269`, but record presence grants no connector authority; the shadow subpart directly authors its single central seat, so that admission does not consume or reinterpret the Builder record. For `28802`, the inspected Builder source instead identifies `10201`; that contradictory record is refused, while the exact shadow route authors two clutch cells and six outward stud frames that are independently reconciled with the official visible surface. A female connector is not recoverable from LDraw geometry alone, so the named authored source is retained separately from the visible mesh and collision measurement.
+The parts below take their connector cells from the [LDCad Shadow Library](https://github.com/RolandMelkert/LDCadShadowLibrary), which is licensed [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). LEGO Builder has no record of the first three designs. Builder metadata does name `25269`, but record presence grants no connector authority; the shadow subpart directly authors its single central seat, so that admission does not consume or reinterpret the Builder record. For `28802`, the inspected Builder source instead identifies `10201`; that contradictory record is refused, while the exact shadow route authors two clutch cells and six outward stud frames that are independently reconciled with the official visible surface. Builder also names `35787`, but its type-23 field has no reviewed Builder-to-catalog frame and exposes only one family-15 node where the exact shadow subpart authors three cells. The Builder record remains retained counterevidence; the catalog selects the exclusive three-cell LDCad route and does not merge the sources. A female connector is not recoverable from LDraw geometry alone, so the named authored source is retained separately from the visible mesh and collision measurement.
 
 No shadow file is bundled. What is admitted is derived data: connector frames and positions composed through each part's own LDraw reference tree in exact rational arithmetic. ShareAlike still attaches to that derived data if it is redistributed — the licence's sui generis database-rights clause reaches an extracted database too — and reading and sharing the library is **not** permission to train on it, which stays an unheld right.
 
@@ -233,3 +241,4 @@ Source: `set-6651557/1; LDCadShadowLibrary commit 15aa1e718b6a8da37d24fc7af5e52e
 | `builtin:corner-plate-2x2-round` | `79491.dat` | 2 | 2 |
 | `builtin:tile-1x1-quarter-round` | `25269.dat` | 0 | 1 |
 | `builtin:bracket-1x2-1x4-rounded-bottom` | `28802.dat` | 6 | 2 |
+| `builtin:tile-2x2-triangular` | `35787.dat` | 0 | 3 |

@@ -208,6 +208,24 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         catalog_id="builtin:bracket-1x2-1x4-rounded-bottom",
         display_name="Bracket 1 x 2 - 1 x 4 Rounded Bottom",
     ),
+    # builtin.basic-parts/16: the pinned official-model inventory distribution
+    # records eighteen 35787 triangular tiles. The official root supplies the
+    # exact canonical diagonal mesh and conservative collision height field. Its
+    # exact LDCad subpart authors three female cells whose centres lie on or
+    # inside the occupied triangular half. The pinned Builder native pack retains
+    # one unframed family-15 clutch node in a type-23 Custom2DField plus three
+    # Slider primitives, but has no reviewed frame for this design; retain that
+    # contradiction as counterevidence and grant it no connector authority.
+    _plan(
+        "35787",
+        "tile",
+        2,
+        2,
+        variant="triangular",
+        connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
+        catalog_id="builtin:tile-2x2-triangular",
+        display_name="Tile 2 x 2 Triangular",
+    ),
 )
 
 

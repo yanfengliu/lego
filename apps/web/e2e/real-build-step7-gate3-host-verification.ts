@@ -167,20 +167,21 @@ export function verifyStep7Gate3HostRun(
   expect(result.migrationReport).toEqual({
     schemaVersion: "lego.truth-migration/2",
     fromCatalogVersion: "builtin.basic-parts/13",
-    toCatalogVersion: "builtin.basic-parts/15",
+    toCatalogVersion: "builtin.basic-parts/16",
     fromTruthHash: "sha256:de62fae6dbc8095dfd460983e5e845ddfac4bf9ec2ea1f99572bc46026941cb5",
-    toTruthHash: "sha256:f8e7efbd1bc969ac699fd68db9696af693898a15ffb7901821e676d843240e2f",
+    toTruthHash: "sha256:71c76ba1d6740cbaf89b1ab721dba2ffa3136e9d742198b289373ad2205be1be",
     addedColorIds: [],
     addedCatalogPartIds: [
       "builtin:tile-1x1-quarter-round",
       "builtin:bracket-1x2-1x4-rounded-bottom",
+      "builtin:tile-2x2-triangular",
     ],
     catalogInterpretationChanges: [],
     truthComponentChanges: [
       {
         component: "catalog",
         fromVersion: "builtin.basic-parts/13",
-        toVersion: "builtin.basic-parts/15",
+        toVersion: "builtin.basic-parts/16",
       },
     ],
     migrated: true,

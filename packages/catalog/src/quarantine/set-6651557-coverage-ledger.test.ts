@@ -160,6 +160,47 @@ describe("set 6651557 quarantined coverage ledger", () => {
     );
   });
 
+  it("measures ten current catalog admissions without rewriting the frozen /6 baseline", () => {
+    const requiredLeafIds = new Set(ledger.requiredLeaves.map(({ designId }) => designId));
+    const currentCatalogDesignIds = new Set<string>();
+
+    for (const part of publicCatalog.PART_DEFINITIONS) {
+      for (const alias of part.aliases) {
+        if (alias.namespace !== "ldraw") continue;
+        const match = /^(\d+)[a-z]?\.dat$/iu.exec(alias.value);
+        if (match?.[1] !== undefined) currentCatalogDesignIds.add(match[1]);
+      }
+    }
+
+    const admittedRequiredLeafIds = sortedNumerically(
+      [...currentCatalogDesignIds].filter((designId) => requiredLeafIds.has(designId)),
+    );
+
+    expect(ledger.baselineCatalog.version).toBe("builtin.basic-parts/6");
+    expect(
+      ledger.requiredLeaves.every(
+        ({ catalogAdmissionAtBaseline }) => catalogAdmissionAtBaseline === "unadmitted",
+      ),
+    ).toBe(true);
+    expect(ledger.requiredLeaves).toHaveLength(121);
+    expect(admittedRequiredLeafIds).toHaveLength(10);
+    expect(admittedRequiredLeafIds).toEqual([
+      "2450",
+      "5092",
+      "25269",
+      "30357",
+      "35480",
+      "35787",
+      "51739",
+      "77844",
+      "79491",
+      "93273",
+    ]);
+    expect(sha256IdSet(admittedRequiredLeafIds)).toBe(
+      "sha256:6c9839c2158ecb3cf4baa41c528796c161f4e40a87fd1907e8089d433e0913c8",
+    );
+  });
+
   it("retains the 76382 component multiset while refusing to claim relative transforms", () => {
     expect(ledger.composites).toEqual([
       {

@@ -18,17 +18,19 @@ import { SET_6651557_MEASURED_BLUEPRINTS } from "./part-blueprints-6651557-measu
 import { SET_6651557_MESH_ASSETS } from "./mesh-assets-6651557.ts";
 
 /**
- * What the ten fully measured catalog parts are, written out rather than recomputed.
+ * What the eleven fully measured catalog parts are, written out rather than recomputed.
  *
  * These are facts about real parts: the extents come from the exact expanded
  * LDraw closure, the collision column count from its per-column height field at
  * 1 LDU, and the connector counts from an authored connector source
  * carried through the per-part frame — LEGO Builder's field for five parts and
- * the LDCad shadow library's snap metas for five. Three of the LDCad-sourced
+ * the LDCad shadow library's snap metas for six. Three of the LDCad-sourced
  * designs have no Builder record; 25269 deliberately selects the independently
  * authored shadow route instead of treating record presence as connector truth,
  * while 28802 refuses a contradictory Builder identity and retains the exact
- * shadow route for its six stud frames and two clutches.
+ * shadow route for its six stud frames and two clutches. 35787 retains its
+ * unframed native field as counterevidence and admits only the exact shadow
+ * subpart's three clutch cells.
  * Vertex counts include coincident rows split across source-authored normal
  * islands, so they pin the exact render representation rather than only unique
  * positions. A change here is a change to measured render or physical evidence,
@@ -233,6 +235,27 @@ const ADMITTED = [
     vertices: 663,
     closureFiles: 19,
   },
+  // builtin.basic-parts/16. The official and shadow subparts share the exact
+  // upright frame; the unframed Builder native field is retained but unused.
+  {
+    id: "builtin:tile-2x2-triangular",
+    ldrawId: "35787.dat",
+    family: "tile",
+    widthStuds: 2,
+    lengthStuds: 2,
+    heightLdu: 8,
+    orientationId: "upright-yaw-0",
+    translationLdu: [0, -4, 0],
+    connectorGridCenterLdu: [0, 0],
+    bodyBoundsLdu: { min: [-20, -4, -20], max: [17, 4, 17] },
+    boundsLdu: { min: [-20, -4, -20], max: [17, 4, 17] },
+    studs: 0,
+    clutches: 3,
+    bodyBoxes: 66,
+    triangles: 128,
+    vertices: 161,
+    closureFiles: 22,
+  },
 ] as const;
 
 /** Every part whose clutch cells the LDCad shadow library authors. */
@@ -242,6 +265,7 @@ const LDCAD_CONNECTOR_PART_IDS = [
   "builtin:corner-plate-2x2-round",
   "builtin:tile-1x1-quarter-round",
   "builtin:bracket-1x2-1x4-rounded-bottom",
+  "builtin:tile-2x2-triangular",
 ] as const;
 
 /** The three whose clutch cells no LEGO Builder record could have supplied. */
@@ -264,7 +288,7 @@ const bodyBoxes = (part: PartDefinition): readonly Extract<CollisionPrimitive, {
   );
 
 describe("set 6651557 parts declared from measured source", () => {
-  it("admits all ten through the production mesh gate", () => {
+  it("admits all eleven through the production mesh gate", () => {
     for (const expected of ADMITTED) {
       expect([expected.id, validateMeshPartDefinitionAdmission(require(expected.id))]).toEqual([
         expected.id,
@@ -391,7 +415,7 @@ describe("set 6651557 parts declared from measured source", () => {
     expect(BUNDLED_LDRAW_ARCHIVE.sha256).toBe(
       "sha256:6009f2e94204c4d3a63a4c812010b5c90bad8c5acb19b882c859fdac63734eae",
     );
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(170);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(177);
     for (const file of BUNDLED_LDRAW_SOURCE_FILES) {
       expect(file.author.trim().length).toBeGreaterThan(0);
       expect(file.title.trim().length).toBeGreaterThan(0);
@@ -406,8 +430,8 @@ describe("set 6651557 parts declared from measured source", () => {
       BUNDLED_LDRAW_SOURCE_FILES.filter(
         ({ licenseExpression }) => licenseExpression === "CC-BY-4.0",
       ),
-    ).toHaveLength(169);
-    // 27 named authors across 170 files: attribution is retained per file, never flattened.
+    ).toHaveLength(176);
+    // 27 named authors across 177 files: attribution is retained per file, never flattened.
     expect(new Set(BUNDLED_LDRAW_SOURCE_FILES.map(({ author }) => author)).size).toBe(27);
 
     for (const expected of ADMITTED) {

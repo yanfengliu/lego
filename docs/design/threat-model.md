@@ -1,6 +1,6 @@
 # Current implementation threat model
 
-Status date: 2026-08-22
+Status date: 2026-08-23
 
 This document covers executable code in the repository today: the browser editor and its booklet-reading modules, protocol, catalog, brick kernel, renderer, opt-in real-booklet tooling, source-derivation scripts, and the companion package's library-level content-addressed store, unsealed test ledger, and test run recorder.
 
@@ -164,8 +164,8 @@ This model does not protect against an attacker who already controls the reposit
 - IndexedDB is not an authoritative ledger or credential store. Storage failure, corruption recovery, quota behavior, and retained-data controls remain browser delivery risks.
 - The catalog and collision model do not establish clutch strength, insertion accessibility, mass, cost, inventory availability, or physical stability.
 - Sixteen catalog parts use bundled source meshes and source-derived visual bounds while deliberately retaining their preceding conservative collision recipes; those recipes may fill visible cavities, so render agreement is not a hollow-collision or physical-insertion claim.
-- `npm run parts:check` is green for all 87 definitions and runs inside `npm run verify`. Its seven declaration rules do not establish connector provenance, collision fidelity, source/render visual agreement, or hidden interior truth.
-- The part visual-admission harness operates only as developer tooling over explicitly supplied local archives and ignored output. The `/13` batch has 192 separately reviewed native-resolution pairs with visible outcome `same`; the separate `/14` `25269` and `/15` `28802` packets add eight original 640 × 640 pairs each, also reviewed `same`. Packet hashes, metrics, and review records do not provide production sealing, rights to transmit an image, or physical equivalence beyond the observed views.
+- `npm run parts:check` is green for all 88 definitions and runs inside `npm run verify`. Its seven declaration rules do not establish connector provenance, collision fidelity, source/render visual agreement, or hidden interior truth.
+- The part visual-admission harness operates only as developer tooling over explicitly supplied local archives and ignored output. The `/13` batch has 192 separately reviewed native-resolution pairs with visible outcome `same`; the separate `/14` `25269`, `/15` `28802`, and `/16` `35787` packets add eight original 640 × 640 pairs each, also reviewed `same`. Packet hashes, metrics, and review records do not provide production sealing, rights to transmit an image, or physical equivalence beyond the observed views.
 - The multi-panel checker has no source-authorizing PDF/crop producer, no broker consent preflight, no real-build consumer, no durable append-only store across process failure, and no successful retained live verdict. Its mocked tests prove only the local contracts they exercise.
 - The integrated farther-panel driver is bounded to its configured reach and currently proves only one intervening-step carry. It is not generic deep backtracking, does not grant a model-checker verdict authority, and cannot certify a hidden relation merely because a later source panel was retained but never scored.
 - The atomic compiled-branch batch, compiled-observation sidecar, branch-role index, streamed source/camera/transition roles, detached `/4` envelope and terminal reader are standalone inspection-only code. They cross-bind prepared PDF/page/crop and H/P/D/W evidence to exact children, D4 registrations, selected lineages, reports and terminal bytes, but deliberately do not prove that the exact PDF render execution produced those source roles, authenticate the opaque provisional identity, authorize a physical frame, or accept a user action.
