@@ -302,6 +302,28 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         catalog_id="builtin:brick-1x2-grille",
         display_name="Brick 1 x 2 with Grille",
     ),
+    # builtin.basic-parts/21: step 43 first uses the 3040 45-degree slope. Its
+    # moved-to official root resolves to the exact 3040b shell, whose visible
+    # stud and checksum-pinned stud3a underside tube provide an exact Builder
+    # frame modulo the source's x reflection. The framed revision-F field
+    # exclusively authors the two underside clutch cells; LDCad's square S6
+    # rows are diagnostic only and grant no connector authority. The official
+    # stud primitive is the nominal six-LDU round profile; its triangulated
+    # source radius is slightly above six, so validated stud/tube connections
+    # use the already admitted nominal source-rounding normalization while
+    # ordinary collision retains the measured radius.
+    _plan(
+        "3040",
+        "slope",
+        1,
+        2,
+        variant="45",
+        height_ldu=BRICK_HEIGHT_LDU,
+        translation_ldu=(0, -12, 10),
+        catalog_id="builtin:slope-1x2-45",
+        display_name="Slope 45 1 x 2",
+        validated_connection_stud_profile="nominal-stud-tube/1",
+    ),
 )
 
 

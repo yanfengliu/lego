@@ -31,9 +31,10 @@ PILOT_DESIGN_IDS = (
     "93273",
     "15254",
     "2877",
+    "3040",
 )
-PILOT_BYTES = 13_138
-PILOT_SHA256 = "95261febe75acd715dffa6f315a56154bd80a7d61c45b9db6e0e2c34d15deffc"
+PILOT_BYTES = 14_663
+PILOT_SHA256 = "a52e927a7901ab7fbcc680d7be14d397326f23bfa014e9b8c02aeceb5eeb1018"
 PILOT_SCHEMA_VERSION = "lego.set-6651557-source-pilot/1"
 MEASUREMENT_ONLY = "measurement-only-not-catalog-admitted"
 
@@ -60,7 +61,7 @@ def parse_pilot(data: bytes, source: object = "captured source-pilot bytes") -> 
 
 
 def read_pilot(path: Path) -> dict[str, object]:
-    """The approved eight-part source pilot, or a refusal naming what differs."""
+    """The approved nine-part source pilot, or a refusal naming what differs."""
 
     resolved = path.resolve(strict=True)
     return parse_pilot(resolved.read_bytes(), resolved)

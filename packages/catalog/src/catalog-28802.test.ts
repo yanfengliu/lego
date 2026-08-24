@@ -113,8 +113,8 @@ describe("28802 rounded-bottom bracket catalog truth", () => {
       bytes: 17_940,
       manifestSha256: "sha256:e8c326b7fe592ceb83142f62eca6ce3c74c60bad83d3b095a12c80ffece54806",
     });
-    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(31);
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(191);
+    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(32);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(195);
     expect(new Set(BUNDLED_LDRAW_SOURCE_FILES.map(({ author }) => author))).toHaveLength(28);
   });
 
@@ -230,7 +230,7 @@ describe("28802 rounded-bottom bracket catalog truth", () => {
   it("keeps every /14 part payload byte unchanged after restoring its historical truth labels", () => {
     const priorParts = PART_DEFINITIONS.slice(0, 86);
     const priorDefinitionBytes = JSON.stringify(priorParts)
-      .replaceAll("builtin.basic-parts/20", "builtin.basic-parts/14")
+      .replaceAll("builtin.basic-parts/21", "builtin.basic-parts/14")
       .replaceAll("rectilinear-stud-clearance/3", "rectilinear-stud-clearance/2");
     const rows = priorParts.map(({ id, connectors, collision }) => ({ id, connectors, collision }));
     const collisionRows = priorParts.map(({ id, collision }) => ({ id, collision }));

@@ -31,6 +31,7 @@ const PART_FAMILY_NAMES = [
   "axle",
   "wheel",
   "arch",
+  "slope",
   "curved-slope",
   "cheese-slope",
   "corner-plate",
@@ -163,11 +164,14 @@ const EXPECTED_PART_IDS = [
   // builtin.basic-parts/20: one 1 x 2 grille brick with two official source
   // studs and two Builder-authored underside clutches in an exact reviewed frame.
   "builtin:brick-1x2-grille",
+  // builtin.basic-parts/21: one exact 1 x 2 straight slope with one official
+  // stud and two Builder-authored underside clutches in an exact reviewed frame.
+  "builtin:slope-1x2-45",
 ] as const;
 
 describe("starter catalog", () => {
-  it("publishes the grille brick admission as version 20", () => {
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/20");
+  it("publishes the straight-slope admission as version 21", () => {
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/21");
   });
 
   it("pins 25269's exact LDCad route and raw-to-catalog central clutch", () => {
@@ -264,6 +268,7 @@ describe("starter catalog", () => {
       axle: 2,
       wheel: 1,
       arch: 3,
+      slope: 1,
       "curved-slope": 4,
       "cheese-slope": 2,
       "corner-plate": 5,

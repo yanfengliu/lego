@@ -108,8 +108,8 @@ describe("41682 vertical-stud bracket catalog truth", () => {
       bytes: 15_430,
       manifestSha256: "sha256:b16625dfbd49f9c365f06e4b088fd0e1a8e469e649e2b028041767b5f09a03e6",
     });
-    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(31);
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(191);
+    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(32);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(195);
   });
 
   it("uses only the pinned LDCad walk for four clutches and two side studs", () => {
@@ -195,7 +195,7 @@ describe("41682 vertical-stud bracket catalog truth", () => {
   it("keeps every /18 part payload byte unchanged after restoring its truth label", () => {
     const priorParts = PART_DEFINITIONS.slice(0, 90);
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/20",
+      "builtin.basic-parts/21",
       "builtin.basic-parts/18",
     );
     const connectorCollision = priorParts.map(({ id, connectors, collision }) => ({

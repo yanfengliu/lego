@@ -62,7 +62,7 @@ function recipe(
 
 describe("preloaded mesh asset resolution", () => {
   it("keeps the exact promotions in place and appends the new source mesh", () => {
-    // Sixteen existing rows render exact source meshes at /13; /14 through /20
+    // Sixteen existing rows render exact source meshes at /13; /14 through /21
     // each append one complete measured part. These literals pin the remaining
     // parametric geometry identities and full definitions; the full-definition
     // digest moves with catalog-version provenance.
@@ -86,11 +86,14 @@ describe("preloaded mesh asset resolution", () => {
     ]);
     const legacyParts = PART_DEFINITIONS.slice(0, 77).filter(({ id }) => !promotedIds.has(id));
     const meshParts = PART_DEFINITIONS.filter(isMeshPartDefinition);
+    const fullyMeasuredParts = meshParts.filter(
+      ({ geometry }) => geometry.collisionMode !== "preserved-catalog-recipe",
+    );
     const legacyRows = legacyParts.map(({ id, geometry }) => [id, geometry.contentHash]);
     const legacyHashes = JSON.stringify(legacyRows);
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/20");
-    expect(PART_DEFINITIONS).toHaveLength(92);
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/21");
+    expect(PART_DEFINITIONS).toHaveLength(93);
     expect(
       PART_DEFINITIONS.filter(isMeshPartDefinition)
         .filter(({ geometry }) => geometry.collisionMode === "preserved-catalog-recipe")
@@ -101,11 +104,12 @@ describe("preloaded mesh asset resolution", () => {
         ({ geometry }) => geometry.generatorId !== "builtin:preloaded-mesh-reference/1",
       ),
     ).toBe(true);
-    expect(meshParts).toHaveLength(31);
+    expect(meshParts).toHaveLength(32);
+    expect(fullyMeasuredParts).toHaveLength(16);
     expect(
-      meshParts
-        .filter(({ geometry }) => geometry.collisionMode !== "preserved-catalog-recipe")
-        .every(({ geometry }) => geometry.collisionMode === "mesh-derived-height-field"),
+      fullyMeasuredParts.every(
+        ({ geometry }) => geometry.collisionMode === "mesh-derived-height-field",
+      ),
     ).toBe(true);
     expect(createHash("sha256").update(legacyHashes).digest("hex")).toBe(
       "1a24d723074372b10e3d5bb7b52a4487ef3c4f93e12ed9019da123e7103635b5",
@@ -122,7 +126,7 @@ describe("preloaded mesh asset resolution", () => {
       createHash("sha256")
         .update(
           JSON.stringify(legacyParts)
-            .replaceAll("builtin.basic-parts/20", "builtin.basic-parts/15")
+            .replaceAll("builtin.basic-parts/21", "builtin.basic-parts/15")
             .replaceAll("rectilinear-stud-clearance/3", "rectilinear-stud-clearance/2"),
         )
         .digest("hex"),

@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
-import json
 import os
 import stat
 from pathlib import Path
@@ -21,6 +19,7 @@ from ldraw_source_archive import LDrawSourceLibrary, VerifiedArchive, canonical_
 from ldraw_surface_expander import ExpandedTriangle, ancestry_role_classifier, expand_surface
 from set_6651557_ldraw_source_audit_plan import ARCHIVE_PINS
 from discover_builder_shell_core import atomic_write_relative_windows
+from source_pilot_input_validation import parse_strict_json, read_pinned_file, sha256_hex
 
 
 PILOT_DESIGN_IDS = (
@@ -32,6 +31,7 @@ PILOT_DESIGN_IDS = (
     "93273",
     "15254",
     "2877",
+    "3040",
 )
 VISIBLE_STUD_PRIMITIVES = frozenset(
     {
@@ -54,115 +54,15 @@ MAX_JSON_STRING_CHARACTERS = 2_000_000
 MAX_JSON_AGGREGATE_STRING_CHARACTERS = 4_000_000
 
 
-def sha256_hex(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
-
-
-def read_pinned_file(path: Path, expected_bytes: int, expected_sha256: str) -> bytes:
-    resolved = path.resolve(strict=True)
-    with resolved.open("rb") as stream:
-        before = os.fstat(stream.fileno())
-        data = stream.read(expected_bytes + 1)
-        after = os.fstat(stream.fileno())
-    if (before.st_dev, before.st_ino, before.st_size) != (
-        after.st_dev,
-        after.st_ino,
-        after.st_size,
-    ):
-        raise ValueError(f"Pinned input changed identity or size during its held-handle read: {resolved}")
-    if len(data) != expected_bytes or before.st_size != expected_bytes:
-        raise ValueError(
-            f"Pinned input {resolved} has {before.st_size} bytes and yielded {len(data)}; "
-            f"expected exactly {expected_bytes}."
-        )
-    actual_sha256 = sha256_hex(data)
-    if actual_sha256 != expected_sha256:
-        raise ValueError(
-            f"Pinned input {resolved} is sha256:{actual_sha256}; expected "
-            f"sha256:{expected_sha256}. Re-acquire the reviewed bytes; do not update the pin."
-        )
-    return data
-
-
 def strict_json(data: bytes, label: str) -> object:
-    try:
-        text = data.decode("utf-8")
-    except UnicodeDecodeError as error:
-        raise ValueError(f"{label} is not strict UTF-8 at byte {error.start}.") from error
-
-    depth = 0
-    in_string = False
-    escaped = False
-    for offset, character in enumerate(text):
-        if in_string:
-            if escaped:
-                escaped = False
-            elif character == "\\":
-                escaped = True
-            elif character == '"':
-                in_string = False
-            continue
-        if character == '"':
-            in_string = True
-        elif character in "[{":
-            depth += 1
-            if depth > MAX_JSON_DEPTH:
-                raise ValueError(
-                    f"{label} exceeds the maximum JSON depth {MAX_JSON_DEPTH} at character {offset}."
-                )
-        elif character in "]}":
-            depth -= 1
-            if depth < 0:
-                break
-
-    def no_duplicates(pairs: list[tuple[str, object]]) -> dict[str, object]:
-        result: dict[str, object] = {}
-        for key, value in pairs:
-            if key in result:
-                raise ValueError(f"{label} repeats JSON key {key!r}.")
-            result[key] = value
-        return result
-
-    def no_constant(value: str) -> object:
-        raise ValueError(f"{label} contains forbidden non-finite JSON token {value}.")
-
-    try:
-        value = json.loads(text, object_pairs_hook=no_duplicates, parse_constant=no_constant)
-    except json.JSONDecodeError as error:
-        raise ValueError(
-            f"{label} is malformed JSON at line {error.lineno}, column {error.colno}: {error.msg}"
-        ) from error
-    except RecursionError as error:
-        raise ValueError(
-            f"{label} exceeds the maximum JSON depth {MAX_JSON_DEPTH}; reduce nesting."
-        ) from error
-
-    nodes = 0
-    aggregate_string_characters = 0
-    stack: list[object] = [value]
-    while stack:
-        current = stack.pop()
-        nodes += 1
-        if nodes > MAX_JSON_NODES:
-            raise ValueError(f"{label} exceeds the maximum JSON node count {MAX_JSON_NODES}.")
-        if isinstance(current, str):
-            if len(current) > MAX_JSON_STRING_CHARACTERS:
-                raise ValueError(
-                    f"{label} contains a {len(current)}-character string; maximum is "
-                    f"{MAX_JSON_STRING_CHARACTERS}."
-                )
-            aggregate_string_characters += len(current)
-        elif isinstance(current, list):
-            stack.extend(current)
-        elif isinstance(current, dict):
-            stack.extend(current.values())
-            stack.extend(current.keys())
-    if aggregate_string_characters > MAX_JSON_AGGREGATE_STRING_CHARACTERS:
-        raise ValueError(
-            f"{label} contains {aggregate_string_characters} aggregate string characters; "
-            f"maximum is {MAX_JSON_AGGREGATE_STRING_CHARACTERS}."
-        )
-    return value
+    return parse_strict_json(
+        data,
+        label,
+        max_depth=MAX_JSON_DEPTH,
+        max_nodes=MAX_JSON_NODES,
+        max_string_characters=MAX_JSON_STRING_CHARACTERS,
+        max_aggregate_string_characters=MAX_JSON_AGGREGATE_STRING_CHARACTERS,
+    )
 
 
 def triangle_points(
@@ -452,7 +352,7 @@ def frame_count(row: dict[str, object], section: str, frame: str) -> int:
 
 def main() -> None:
     repository = Path(__file__).resolve().parents[1]
-    parser = argparse.ArgumentParser(description="Measure the fixed eight-part 6651557 source pilot without admitting catalog truth.")
+    parser = argparse.ArgumentParser(description="Measure the fixed nine-part 6651557 source pilot without admitting catalog truth.")
     parser.add_argument("--official", type=Path, required=True)
     parser.add_argument("--unofficial", type=Path, required=True)
     parser.add_argument("--native-pack", type=Path, required=True)

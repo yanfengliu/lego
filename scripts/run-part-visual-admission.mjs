@@ -34,6 +34,7 @@ const ALL_PARTS = [
   "builtin:arch-1x6-thin-top",
   "builtin:bracket-2x2-1x2-vertical-studs",
   "builtin:brick-1x2-grille",
+  "builtin:slope-1x2-45",
 ];
 
 function fail(message) {

@@ -99,8 +99,13 @@ import { deepFreeze } from "./freeze.ts";
  * exact official closure supplies the asymmetric grille shell, two top studs,
  * and conservative collision input; the checksum-pinned Builder revision-E
  * field supplies two underside clutches through the shell-selected exact frame.
+ *
+ * /21 adds straight slope `3040.dat` as one complete measured definition. Its
+ * moved-to official closure supplies the 45-degree shell, one top stud, and
+ * conservative collision input; a checksum-pinned underside tube plus that stud
+ * establishes the exact Builder revision-F frame that supplies two clutches.
  */
-export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/20" as const;
+export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/21" as const;
 export const CONNECTOR_TAXONOMY_VERSION = "stud-tube/1" as const;
 export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/3" as const;
 export const TRANSFORM_POLICY_VERSION = "upright-quarter-turns-negative-y-up/1" as const;

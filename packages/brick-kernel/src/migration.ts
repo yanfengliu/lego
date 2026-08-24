@@ -38,6 +38,7 @@ export const MIGRATABLE_CATALOG_VERSIONS: readonly string[] = Object.freeze([
   "builtin.basic-parts/17",
   "builtin.basic-parts/18",
   "builtin.basic-parts/19",
+  "builtin.basic-parts/20",
   BUILTIN_CATALOG_VERSION,
 ]);
 
@@ -221,6 +222,15 @@ export const REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS = Object.freeze([
     catalogVersion: "builtin.basic-parts/19",
     sourceCommit: "a49137131566247daeb01d80ff88302b41bcf538",
     truthHash: "sha256:e34fcc8ac627f0dcfdb1d779246a723101d765f931830a4c06514d9daff75c26",
+  },
+  // The snapshot /21 replaces. /21 appends 3040 as one complete measured
+  // definition: exact moved-alias official geometry, one visible stud and
+  // collision columns, plus two Builder-authored clutches through the exact
+  // stud-and-tube-anchored frame. No preceding definition changes meaning.
+  {
+    catalogVersion: "builtin.basic-parts/20",
+    sourceCommit: "e037b7e60e1240ddf196d381850ae49bc8c80e9b",
+    truthHash: "sha256:9c4c32efcaf9bc5f2a251e77188134075f58ca536c6da6148e34b93419d84ad2",
   },
 ] as const);
 

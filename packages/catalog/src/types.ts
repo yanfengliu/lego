@@ -52,6 +52,7 @@ export type PartFamily =
   | "axle"
   | "wheel"
   | "arch"
+  | "slope"
   | "curved-slope"
   | "cheese-slope"
   | "corner-plate"

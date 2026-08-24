@@ -18,7 +18,7 @@ import { SET_6651557_MEASURED_BLUEPRINTS } from "./part-blueprints-6651557-measu
 import { SET_6651557_MESH_ASSETS } from "./mesh-assets-6651557.ts";
 
 /**
- * What the fifteen fully measured catalog parts are, written out rather than recomputed.
+ * What the sixteen fully measured catalog parts are, written out rather than recomputed.
  *
  * These are facts about real parts: the extents come from the exact expanded
  * LDraw closure, the collision column count from its per-column height field at
@@ -341,6 +341,28 @@ const ADMITTED = [
     vertices: 375,
     closureFiles: 7,
   },
+  // builtin.basic-parts/21. The moved-to official root supplies one top stud;
+  // its checksum-pinned underside tube and the stud establish the exact Builder
+  // frame that exclusively authors the two underside clutches.
+  {
+    id: "builtin:slope-1x2-45",
+    ldrawId: "3040.dat",
+    family: "slope",
+    widthStuds: 1,
+    lengthStuds: 2,
+    heightLdu: 24,
+    orientationId: "upright-yaw-0",
+    translationLdu: [0, -12, 10],
+    connectorGridCenterLdu: [0, 0],
+    bodyBoundsLdu: { min: [-10, -12, -20], max: [10, 12, 20] },
+    boundsLdu: { min: [-10, -16, -20], max: [10, 12, 20] },
+    studs: 1,
+    clutches: 2,
+    bodyBoxes: 67,
+    triangles: 178,
+    vertices: 184,
+    closureFiles: 11,
+  },
 ] as const;
 
 /** Every part whose clutch cells the LDCad shadow library authors. */
@@ -375,7 +397,7 @@ const bodyBoxes = (part: PartDefinition): readonly Extract<CollisionPrimitive, {
   );
 
 describe("set 6651557 parts declared from measured source", () => {
-  it("admits all fifteen through the production mesh gate", () => {
+  it("admits all sixteen through the production mesh gate", () => {
     for (const expected of ADMITTED) {
       expect([expected.id, validateMeshPartDefinitionAdmission(require(expected.id))]).toEqual([
         expected.id,
@@ -502,7 +524,7 @@ describe("set 6651557 parts declared from measured source", () => {
     expect(BUNDLED_LDRAW_ARCHIVE.sha256).toBe(
       "sha256:6009f2e94204c4d3a63a4c812010b5c90bad8c5acb19b882c859fdac63734eae",
     );
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(191);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(195);
     for (const file of BUNDLED_LDRAW_SOURCE_FILES) {
       expect(file.author.trim().length).toBeGreaterThan(0);
       expect(file.title.trim().length).toBeGreaterThan(0);
@@ -517,8 +539,8 @@ describe("set 6651557 parts declared from measured source", () => {
       BUNDLED_LDRAW_SOURCE_FILES.filter(
         ({ licenseExpression }) => licenseExpression === "CC-BY-4.0",
       ),
-    ).toHaveLength(190);
-    // 28 named authors across 191 files: attribution is retained per file, never flattened.
+    ).toHaveLength(194);
+    // 28 named authors across 195 files: attribution is retained per file, never flattened.
     expect(new Set(BUNDLED_LDRAW_SOURCE_FILES.map(({ author }) => author)).size).toBe(28);
 
     for (const expected of ADMITTED) {

@@ -167,9 +167,9 @@ export function verifyStep7Gate3HostRun(
   expect(result.migrationReport).toEqual({
     schemaVersion: "lego.truth-migration/2",
     fromCatalogVersion: "builtin.basic-parts/13",
-    toCatalogVersion: "builtin.basic-parts/20",
+    toCatalogVersion: "builtin.basic-parts/21",
     fromTruthHash: "sha256:de62fae6dbc8095dfd460983e5e845ddfac4bf9ec2ea1f99572bc46026941cb5",
-    toTruthHash: "sha256:9c4c32efcaf9bc5f2a251e77188134075f58ca536c6da6148e34b93419d84ad2",
+    toTruthHash: "sha256:44044c90de3bb380f32c26db561bad1bd0f247c22ea35c54d75aa5ec6ef8f9a1",
     addedColorIds: [],
     addedCatalogPartIds: [
       "builtin:tile-1x1-quarter-round",
@@ -179,13 +179,14 @@ export function verifyStep7Gate3HostRun(
       "builtin:arch-1x6-thin-top",
       "builtin:bracket-2x2-1x2-vertical-studs",
       "builtin:brick-1x2-grille",
+      "builtin:slope-1x2-45",
     ],
     catalogInterpretationChanges: [],
     truthComponentChanges: [
       {
         component: "catalog",
         fromVersion: "builtin.basic-parts/13",
-        toVersion: "builtin.basic-parts/20",
+        toVersion: "builtin.basic-parts/21",
       },
       {
         component: "collision-model",

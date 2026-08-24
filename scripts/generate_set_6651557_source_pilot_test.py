@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import importlib.util
+import io
 import json
 import sys
 import tempfile
@@ -61,7 +63,11 @@ class Set6651557SourcePilotTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Re-acquire the reviewed bytes"):
                 PILOT.read_pinned_file(path, 8, "0" * 64)
 
-    def test_requires_all_eight_exact_unadmitted_audit_routes(self) -> None:
+    def test_requires_all_nine_exact_unadmitted_audit_routes(self) -> None:
+        self.assertEqual(
+            PILOT.PILOT_DESIGN_IDS,
+            ("5092", "30357", "35480", "51739", "77844", "93273", "15254", "2877", "3040"),
+        )
         rows = [
             {
                 "designId": design_id,
@@ -81,6 +87,51 @@ class Set6651557SourcePilotTests(unittest.TestCase):
         rows[0]["state"] = "catalog-admitted"
         with self.assertRaisesRegex(ValueError, "reviewed unresolved-admission route"):
             PILOT.audited_roots({"parts": rows})
+
+    def test_command_help_names_the_fixed_nine_part_packet(self) -> None:
+        stdout = io.StringIO()
+        with mock.patch.object(sys, "argv", [str(SCRIPT_PATH), "--help"]):
+            with contextlib.redirect_stdout(stdout), self.assertRaises(SystemExit) as caught:
+                PILOT.main()
+
+        self.assertEqual(caught.exception.code, 0)
+        self.assertIn(
+            "Measure the fixed nine-part 6651557 source pilot without admitting catalog truth.",
+            " ".join(stdout.getvalue().split()),
+        )
+
+    def test_stud3a_enters_only_the_new_3040_closure_in_the_tracked_audit(self) -> None:
+        audit_path = (
+            SCRIPT_PATH.parents[1]
+            / "packages/catalog/src/quarantine/set-6651557-ldraw-source-audit.generated.json"
+        )
+        audit = PILOT.strict_json(audit_path.read_bytes(), audit_path)
+        roots = PILOT.audited_roots(audit)
+        files = PILOT.audited_file_table(audit)
+        stud3a = ("official", "p/stud3a.dat")
+
+        def closure(root: tuple[str, str]) -> set[tuple[str, str]]:
+            pending = [root]
+            seen: set[tuple[str, str]] = set()
+            while pending:
+                key = pending.pop()
+                if key in seen:
+                    continue
+                seen.add(key)
+                pending.extend(files[key][1])
+            return seen
+
+        closures = {design_id: closure(root) for design_id, root in roots.items()}
+        self.assertEqual(
+            [design_id for design_id, keys in closures.items() if stud3a in keys],
+            ["3040"],
+        )
+        self.assertTrue(
+            all(
+                stud3a not in closures[design_id]
+                for design_id in PILOT.PILOT_DESIGN_IDS[:-1]
+            )
+        )
 
     def test_audit_file_table_binds_manifest_digest_and_direct_references(self) -> None:
         row = {

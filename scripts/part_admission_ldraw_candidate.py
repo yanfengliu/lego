@@ -33,9 +33,9 @@ from part_admission_surface import BODY_ROLE, CLUTCH_ROLE, MeasuredSurface, STUD
 
 SourceKey = tuple[str, str]
 
-# The pilot's visible-stud policy, plus the two underside tube primitives the six
-# pilot closures actually reference. Digests are pinned so a renamed or edited
-# primitive cannot silently change what counts as a stud.
+# The pilot's visible-stud policy, plus the checksum-specific underside tube
+# primitives its closures actually reference. Digests are pinned so a renamed
+# or edited primitive cannot silently change what counts as a stud or tube.
 PRIMITIVE_ROLE_PINS: dict[SourceKey, tuple[str, str]] = {
     ("official", "p/stud.dat"): (
         "sha256:db037d518d7c08bcdc1f0e7497f4f98e97d99850531dd62d602965520f3bf8f4",
@@ -75,6 +75,10 @@ PRIMITIVE_ROLE_PINS: dict[SourceKey, tuple[str, str]] = {
     ),
     ("official", "p/stud3.dat"): (
         "sha256:d29e9160faeaf85b2b72a098e89a81f41e0082517a82065d7b1f149b5fd2addd",
+        CLUTCH_ROLE,
+    ),
+    ("official", "p/stud3a.dat"): (
+        "sha256:91b1f54ed55b2f57dd73225da3198b5198e31f7587a5e8b7d3351b1478c8881c",
         CLUTCH_ROLE,
     ),
     ("official", "p/stud4.dat"): (

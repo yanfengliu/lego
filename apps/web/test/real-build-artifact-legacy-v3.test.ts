@@ -11,7 +11,7 @@ import { decodeFrozenLegacyPngCaptureV2 } from "../e2e/real-build-artifact-legac
 import { projectLegacyRealBuildCompletionFailuresV4 } from "../e2e/real-build-artifact-legacy-completion-projection";
 import {
   assertFrozenLegacyAdditiveCatalogV2,
-  createFrozenLegacyAdditiveCatalogBasisV20,
+  createFrozenLegacyAdditiveCatalogBasisV21,
 } from "../e2e/real-build-artifact-legacy-document-v2";
 import { assertFrozenLegacyIdentityProjectionV2 } from "../e2e/real-build-artifact-legacy-identity-predicates";
 import { verifyRealBuildArtifactManifest } from "../e2e/real-build-artifact-current-verification";
@@ -385,7 +385,7 @@ describe("legacy artifact-manifest /3 inspection", () => {
     expect(document.constraints.allowedCatalogPartIds).not.toContain(
       "builtin:tile-1x1-quarter-round",
     );
-    const active = createFrozenLegacyAdditiveCatalogBasisV20();
+    const active = createFrozenLegacyAdditiveCatalogBasisV21();
     const driftedTruth = structuredClone(active) as MutableCatalogCompatibilityBasis;
     driftedTruth.truth = {
       ...driftedTruth.truth,

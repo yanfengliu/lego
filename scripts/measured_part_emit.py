@@ -25,6 +25,12 @@ from measured_part_tables import (
     MeasuredPart,
     RenderOnlyPart,
 )
+from measured_part_typescript_literals import (
+    exact_bounds_lines as _exact_bounds_lines,
+    number_literal,
+    numbers as _numbers,
+    string_literal as _string,
+)
 
 MeshTablePart = MeasuredPart | RenderOnlyPart
 
@@ -91,48 +97,6 @@ def enforce_generated_check(drifted: Sequence[str]) -> None:
         f"{', '.join(drifted)}. Run this command without --check against the same pinned "
         "inputs, review the resulting diff, and commit the regenerated tables."
     )
-
-
-def number_literal(value: float) -> str:
-    """One measured LDU coordinate as the shortest TypeScript number that is it.
-
-    An integral measurement prints without a fractional part, matching what a
-    TypeScript number literal round-trips to, so the table reads as the integer
-    lattice it mostly is.
-    """
-
-    if value != value or value in (float("inf"), float("-inf")):
-        raise ValueError(f"Cannot emit non-finite measured coordinate {value!r}.")
-    if float(value).is_integer() and abs(value) < 2**53:
-        return str(int(value))
-    return repr(float(value))
-
-
-def _numbers(values: Sequence[float]) -> str:
-    return ", ".join(number_literal(value) for value in values)
-
-
-def _string(value: str) -> str:
-    if "\\" in value or '"' in value or "\n" in value or "\r" in value:
-        raise ValueError(
-            f"Measured source text {value!r} contains a character this emitter does not "
-            "escape; widen the escaping deliberately rather than emitting broken TypeScript."
-        )
-    return f'"{value}"'
-
-
-def _exact_bounds_lines(
-    field: str, bounds: tuple[tuple[str, str, str], tuple[str, str, str]]
-) -> list[str]:
-    """An exact bound stays one axis per line, however short its numbers are.
-
-    A newline after the brace is what stops prettier collapsing the pair onto one
-    line, so the six measured decimals of a part stay readable side by side.
-    """
-
-    minimum = ", ".join(_string(value) for value in bounds[0])
-    maximum = ", ".join(_string(value) for value in bounds[1])
-    return [f"    {field}: {{", f"      min: [{minimum}],", f"      max: [{maximum}],", "    },"]
 
 
 def render_mesh_asset_chunk(
@@ -205,6 +169,7 @@ import { SET_6651557_MEASURED_MESH_ASSETS_A } from "./mesh-assets-6651557-measur
 import { SET_6651557_MEASURED_MESH_ASSETS_B } from "./mesh-assets-6651557-measured-b.ts";
 import { SET_6651557_MEASURED_MESH_ASSETS_C } from "./mesh-assets-6651557-measured-c.ts";
 import { SET_6651557_MEASURED_MESH_ASSETS_D } from "./mesh-assets-6651557-measured-d.ts";
+import { SET_6651557_MEASURED_MESH_ASSETS_E } from "./mesh-assets-6651557-measured-e.ts";
 import { SET_6651557_RENDER_ONLY_MESH_ASSETS } from "./mesh-assets-6651557-render-only.ts";
 
 export const SET_6651557_MESH_ASSETS: Readonly<Record<string, PreloadedMeshAsset>> = Object.freeze({
@@ -212,6 +177,7 @@ export const SET_6651557_MESH_ASSETS: Readonly<Record<string, PreloadedMeshAsset
   ...SET_6651557_MEASURED_MESH_ASSETS_B,
   ...SET_6651557_MEASURED_MESH_ASSETS_C,
   ...SET_6651557_MEASURED_MESH_ASSETS_D,
+  ...SET_6651557_MEASURED_MESH_ASSETS_E,
   ...SET_6651557_RENDER_ONLY_MESH_ASSETS,
 });
 """

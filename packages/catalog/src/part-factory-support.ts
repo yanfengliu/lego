@@ -100,7 +100,9 @@ export const unionOfBoxes = (boxes: readonly LduBounds[]): LduBounds => ({
 
 export const familyHeightLdu = (family: PartFamily): number => {
   if (family === "brick" || family === "technic-brick") return BRICK_HEIGHT_LDU;
-  if (family === "arch" || family === "curved-slope") return BRICK_HEIGHT_LDU;
+  if (family === "arch" || family === "slope" || family === "curved-slope") {
+    return BRICK_HEIGHT_LDU;
+  }
   if (family === "cheese-slope") return CHEESE_SLOPE_HEIGHT_LDU;
   if (family === "axle") return AXLE_THICKNESS_LDU;
   if (family === "wheel") return WHEEL_DIAMETER_LDU;
@@ -118,6 +120,7 @@ export const FAMILY_DISPLAY_NAMES: Readonly<Record<PartFamily, string>> = Object
   axle: "Axle",
   wheel: "Wheel",
   arch: "Arch",
+  slope: "Slope",
   "curved-slope": "Curved slope",
   "cheese-slope": "Cheese slope",
   "corner-plate": "Corner plate",

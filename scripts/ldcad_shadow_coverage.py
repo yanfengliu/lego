@@ -30,8 +30,8 @@ from ldraw_source_archive import LDrawSourceLibrary
 # written: the frame pins it carries stay exactly as
 # scripts/derive-builder-ldraw-frame.py produced them, and a byte that differs
 # is a refusal rather than a re-pin.
-BUILDER_FRAME_BYTES = 68_026
-BUILDER_FRAME_SHA256 = "61614220fe9adef700aa0d74110ad6193a08e4164c7ef0ab3cf4921709136dfb"
+BUILDER_FRAME_BYTES = 76_611
+BUILDER_FRAME_SHA256 = "a0efc10d4756f48ac5d4004dc4c812720121a10b2264e61394a509c7d6128afc"
 BUILDER_FRAME_SCHEMA = "lego.builder-ldraw-frame-report/1"
 BUILDER_FEMALE_FAMILY = 15
 POSITION_TOLERANCE_LDU = 1e-9

@@ -96,6 +96,13 @@ describe("matchesPartQuery", () => {
     }
   });
 
+  it("keeps 3040 discoverable by identifier, straight-slope family, angle, and size", () => {
+    const slope = part("builtin:slope-1x2-45");
+    for (const query of ["3040", "slope", "45", "1x2", "2x1"]) {
+      expect(matchesPartQuery(slope, query), query).toBe(true);
+    }
+  });
+
   it("does not match an unrelated query", () => {
     expect(matchesPartQuery(brick2x4, "wheel")).toBe(false);
     expect(matchesPartQuery(brick2x4, "9x9")).toBe(false);
@@ -121,6 +128,12 @@ describe("searchParts", () => {
   it("filters the singleton minifig-accessory family", () => {
     expect(searchParts({ query: "", family: "minifig-accessory" }).map(({ id }) => id)).toEqual([
       "builtin:roller-skate",
+    ]);
+  });
+
+  it("filters the singleton straight-slope family", () => {
+    expect(searchParts({ query: "", family: "slope" }).map(({ id }) => id)).toEqual([
+      "builtin:slope-1x2-45",
     ]);
   });
 

@@ -11,14 +11,14 @@ changes the digest and stops the run.
 Two derivation classes, and the difference matters:
 
   * `exact-lattice-correspondence` — Builder's authored nodes land on the
-    LDraw-measured stud and tube centres by exact rational equality. Six of the
-    seven parts with Builder records.
+    LDraw-measured stud and tube centres by exact rational equality. Seven of
+    the eight pilot parts with Builder records.
   * `registered-discrete-search` — 5092 expands to 84 body triangles with no stud
     and no tube primitive at all, so there is nothing to correspond with. Its
     turn and translation come from a search over the eight axis maps and the
     10 LDU half-stud translation lattice, scored by how far Builder's own shell
     vertices land from the LDraw surface. That is a fit. It is recorded as a fit,
-    with its residual, and it is weaker evidence than the other five.
+    with its residual, and it is weaker evidence than the seven exact frames.
 
 Nothing here admits a part or claims a catalog frame.
 """
@@ -96,6 +96,15 @@ _PINS: tuple[tuple[str, str, str, str, tuple[int, int, int], str, str], ...] = (
         EXACT,
         "234d34ebbabe20f9d2a4b351b31ed2922356b63c7a0bd01203b2bb22ccbff78d",
     ),
+    (
+        "3040",
+        "F",
+        "63ab72a4ff3b2d85b58af6586a1592124ab42019a84cb5faef137ee699836b28",
+        "turn0",
+        (0, 24, 0),
+        EXACT,
+        "65d6be01240cad2790e9fb54fabb056b99c232c26736b33b7340f8a85511a4bf",
+    ),
 )
 
 PINNED_FRAMES: dict[str, BuilderLdrawFrame] = {
@@ -123,6 +132,9 @@ PINNED_FRAME_DIGESTS: dict[str, str] = {
 # The appended 2877 frame retains two connector-observable orientation classes;
 # Builder's own asymmetric grille shell selects turn180 at 0.291634 mean LDU
 # surface distance over turn0 at 0.763225, a 2.617x separation.
+# The appended 3040 frame instead has one stud and one checksum-pinned underside
+# tube anchor. Its proper turn0 frame and reflected equivalent are one exact
+# source-symmetry class, so the proper frame is canonical without a fitted tie.
 UNAVAILABLE_DESIGN_IDS = ("30357",)
 
 
