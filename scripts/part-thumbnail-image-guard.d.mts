@@ -24,3 +24,8 @@ export function assertCanonicalCardPng(
   bytes: Uint8Array,
   label?: string,
 ): { readonly width: number; readonly height: number };
+
+export function decodeCanonicalCardRgba(
+  bytes: Uint8Array,
+  label?: string,
+): { readonly width: number; readonly height: number; readonly data: Uint8Array };
