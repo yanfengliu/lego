@@ -116,8 +116,14 @@ import { deepFreeze } from "./freeze.ts";
  * open-sided shell, two studs, and conservative collision field. The pinned
  * LDCad shadow's one capless, sliding, female A6x1 segment exclusively authors
  * the transverse axle-hole endpoint. No preceding definition changes.
+ *
+ * /24 adds `11212.dat`, the regular 3 x 3 plate, as one complete measured
+ * definition. Its exact official closure supplies the shell, nine visible
+ * studs, and conservative collision field. The pinned LDCad shadow authors the
+ * matching regular 3 x 3 grid of nine underside clutches. No preceding
+ * definition changes.
  */
-export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/23" as const;
+export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/24" as const;
 export const CONNECTOR_TAXONOMY_VERSION = "stud-tube/1" as const;
 export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/3" as const;
 export const TRANSFORM_POLICY_VERSION = "upright-quarter-turns-negative-y-up/1" as const;

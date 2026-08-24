@@ -16,6 +16,7 @@ import {
   type Step7Gate3HostFailureStage,
 } from "./real-build-step7-gate3-host-retention";
 import { verifyStep7Gate3HostRun } from "./real-build-step7-gate3-host-verification";
+import { resolveStep7Gate3InvocationPolicy } from "./real-build-step7-gate3-runner-policy";
 import { hasSampleBooklet } from "./sample-booklet";
 
 const REQUIRED = process.env.LEGO_GATE3_STEP7_DIAGNOSTIC === "1";
@@ -27,11 +28,13 @@ test("measures the current additive-migration continuation of all four retained 
   baseURL,
 }) => {
   test.setTimeout(7_200_000);
-  test.skip(
-    !REQUIRED && !PREWARM && !PARENT_ONLY,
-    "set LEGO_GATE3_STEP7_DIAGNOSTIC=1 or LEGO_GATE3_STEP7_PARENT_ONLY=1 for a Gate-3 control",
-  );
-  test.skip(!hasSampleBooklet && !PREWARM, "no sample booklet");
+  const invocationPolicy = resolveStep7Gate3InvocationPolicy({
+    diagnostic: REQUIRED,
+    parentOnly: PARENT_ONLY,
+    prewarm: PREWARM,
+    sampleBookletAvailable: hasSampleBooklet,
+  });
+  if (invocationPolicy.status === "skip") test.skip(true, invocationPolicy.reason);
 
   let stage: Step7Gate3HostFailureStage = "preparation";
   let prepared: PreparedStep7Gate3HostRun | null = null;

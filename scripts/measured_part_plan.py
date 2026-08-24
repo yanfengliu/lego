@@ -359,6 +359,19 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         catalog_id="builtin:technic-brick-1x2-axle-hole",
         display_name="Technic Brick 1 x 2 with Axle Hole",
     ),
+    # builtin.basic-parts/24: step 59 first uses the regular 3 x 3 plate. Its
+    # exact official closure supplies the shell and nine visible studs. The
+    # pinned LDCad root independently authors the matching regular 3 x 3 grid
+    # of nine underside clutches. The square plate is quarter-turn symmetric,
+    # and yaw zero is the canonical catalog frame.
+    _plan(
+        "11212",
+        "plate",
+        3,
+        3,
+        connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
+        validated_connection_stud_profile="nominal-stud-tube/1",
+    ),
 )
 
 

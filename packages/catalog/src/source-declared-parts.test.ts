@@ -18,13 +18,13 @@ import { SET_6651557_MEASURED_BLUEPRINTS } from "./part-blueprints-6651557-measu
 import { SET_6651557_MESH_ASSETS } from "./mesh-assets-6651557.ts";
 
 /**
- * What the eighteen fully measured catalog parts are, written out rather than recomputed.
+ * What the nineteen fully measured catalog parts are, written out rather than recomputed.
  *
  * These are facts about real parts: the extents come from the exact expanded
  * LDraw closure, the collision column count from its per-column height field at
  * 1 LDU, and the connector counts from an authored connector source
  * carried through the per-part frame — Builder-derived records for eight parts
- * and the LDCad shadow library's snap metas for ten. Four of the LDCad-sourced
+ * and the LDCad shadow library's snap metas for eleven. Four of the LDCad-sourced
  * designs have no Builder record; 25269 deliberately selects the independently
  * authored shadow route instead of treating record presence as connector truth,
  * while 28802 refuses a contradictory Builder identity and retains the exact
@@ -409,6 +409,30 @@ const ADMITTED = [
     vertices: 576,
     closureFiles: 23,
   },
+  // builtin.basic-parts/24. The regular square source and connector lattice are
+  // quarter-turn symmetric, with yaw zero selected as the canonical declared
+  // frame. Its exact LDCad shadow route authors all nine underside clutches; the
+  // nominal stud profile applies only to validated stud/clutch edges, while
+  // ordinary collision keeps the measured stud radius.
+  {
+    id: "builtin:plate-3x3",
+    ldrawId: "11212.dat",
+    family: "plate",
+    widthStuds: 3,
+    lengthStuds: 3,
+    heightLdu: 8,
+    orientationId: "upright-yaw-0",
+    translationLdu: [0, -4, 0],
+    connectorGridCenterLdu: [0, 0],
+    bodyBoundsLdu: { min: [-30, -4, -30], max: [30, 4, 30] },
+    boundsLdu: { min: [-30, -8, -30], max: [30, 4, 30] },
+    studs: 9,
+    clutches: 9,
+    bodyBoxes: 129,
+    triangles: 844,
+    vertices: 873,
+    closureFiles: 10,
+  },
 ] as const;
 
 /** Every part whose connector rows the LDCad shadow library authors. */
@@ -423,6 +447,7 @@ const LDCAD_CONNECTOR_PART_IDS = [
   "builtin:bracket-2x2-1x2-vertical-studs",
   "builtin:axle-1x3",
   "builtin:technic-brick-1x2-axle-hole",
+  "builtin:plate-3x3",
 ] as const;
 
 /** The three plate-lattice parts whose clutch cells Builder could not supply. */
@@ -445,7 +470,7 @@ const bodyBoxes = (part: PartDefinition): readonly Extract<CollisionPrimitive, {
   );
 
 describe("set 6651557 parts declared from measured source", () => {
-  it("admits all eighteen through the production mesh gate", () => {
+  it("admits all nineteen through the production mesh gate", () => {
     for (const expected of ADMITTED) {
       expect([expected.id, validateMeshPartDefinitionAdmission(require(expected.id))]).toEqual([
         expected.id,
@@ -576,7 +601,7 @@ describe("set 6651557 parts declared from measured source", () => {
     expect(BUNDLED_LDRAW_ARCHIVE.sha256).toBe(
       "sha256:6009f2e94204c4d3a63a4c812010b5c90bad8c5acb19b882c859fdac63734eae",
     );
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(206);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(207);
     for (const file of BUNDLED_LDRAW_SOURCE_FILES) {
       expect(file.author.trim().length).toBeGreaterThan(0);
       expect(file.title.trim().length).toBeGreaterThan(0);
@@ -594,9 +619,9 @@ describe("set 6651557 parts declared from measured source", () => {
       BUNDLED_LDRAW_SOURCE_FILES.filter(
         ({ licenseExpression }) => licenseExpression === "CC-BY-4.0",
       ),
-    ).toHaveLength(204);
-    // 29 named authors across 206 files: attribution is retained per file, never flattened.
-    expect(new Set(BUNDLED_LDRAW_SOURCE_FILES.map(({ author }) => author)).size).toBe(29);
+    ).toHaveLength(205);
+    // 30 named authors across 207 files: attribution is retained per file, never flattened.
+    expect(new Set(BUNDLED_LDRAW_SOURCE_FILES.map(({ author }) => author)).size).toBe(30);
 
     for (const expected of ADMITTED) {
       const closure = BUNDLED_LDRAW_CLOSURES[expected.ldrawId.replace(".dat", "")]!;

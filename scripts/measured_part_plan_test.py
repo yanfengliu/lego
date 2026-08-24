@@ -88,6 +88,7 @@ class PlanTests(unittest.TestCase):
                 "3040",
                 "4519",
                 "32064",
+                "11212",
             ],
         )
         self.assertTrue(all(row.connector_source == "builder" for row in ADMITTED_PART_PLANS[:5]))
@@ -293,6 +294,42 @@ class PlanTests(unittest.TestCase):
                 row["closureFileCount"],
             ),
             ("builtin:technic-brick-1x2-axle-hole", 2, 2, 1, ["axleHole"], 23, 458, 23),
+        )
+
+    def test_11212_plan_pins_the_regular_plate_frame_and_shadow_grid(self) -> None:
+        plate = ADMITTED_PART_PLANS[22]
+
+        self.assertEqual(
+            (
+                plate.design_id,
+                plate.ldraw_path,
+                plate.connector_source,
+                plate.catalog_id,
+                plate.display_name,
+                plate.family,
+                plate.width_studs,
+                plate.length_studs,
+                plate.height_ldu,
+                plate.orientation_id,
+                plate.translation_ldu,
+                plate.connector_grid_center_ldu,
+                plate.validated_connection_stud_profile,
+            ),
+            (
+                "11212",
+                "parts/11212.dat",
+                LDCAD_SHADOW_CONNECTOR_SOURCE,
+                None,
+                None,
+                "plate",
+                3,
+                3,
+                8,
+                "upright-yaw-0",
+                (0, -4, 0),
+                (0, 0),
+                "nominal-stud-tube/1",
+            ),
         )
 
     def test_3040_plan_and_builder_packet_pin_one_identity_frame_and_source(self) -> None:

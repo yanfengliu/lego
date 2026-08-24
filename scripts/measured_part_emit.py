@@ -1,7 +1,7 @@
 """Render the catalog's generated measured-part tables as TypeScript.
 
 Every table here comes from one measured source expansion, so its generated
-fields stay aligned. Fourteen measured source rows supply full declarations.
+fields stay aligned. Measured source rows supply full declarations.
 Render-only definitions are emitted through a separate table that has no field
 for connectors, allowances or collision, so those facts cannot leak from the
 measurement path. The emitter canonicalizes this output with the

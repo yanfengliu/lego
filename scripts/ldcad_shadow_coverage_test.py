@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from builder_native_source import NATIVE_PACK_BYTES, NATIVE_PACK_SHA256
 from ldcad_shadow_coverage import (
     BUILDER_FRAME_BYTES,
     BUILDER_FRAME_SHA256,
@@ -192,6 +193,7 @@ class LiveMeasurementRegressionTests(unittest.TestCase):
         self.assertEqual(anti_studs, 18_024)
 
     def test_the_report_stays_measurement_only(self) -> None:
+        self.assertEqual(self.report["schemaVersion"], "lego.ldcad-shadow-connector-report/2")
         authority = self.report["authority"]
         self.assertEqual(authority["state"], "measurement-only-not-catalog-admitted")
         for claim in (
@@ -204,6 +206,19 @@ class LiveMeasurementRegressionTests(unittest.TestCase):
             "runtimeExposed",
         ):
             self.assertFalse(authority[claim], claim)
+
+    def test_the_report_binds_the_native_pack_behind_builder_record_counts(self) -> None:
+        self.assertEqual(
+            self.report["inputs"]["nativePack"],
+            {
+                "bytes": NATIVE_PACK_BYTES,
+                "sha256": f"sha256:{NATIVE_PACK_SHA256}",
+                "role": (
+                    "checksum-pinned source of record-level clutch-count counterevidence; "
+                    "it grants no catalog frame or connector authority"
+                ),
+            },
+        )
 
     def test_ldcad_rescues_30357_with_eight_clutches_on_its_own_stud_lattice(self) -> None:
         part = self.parts["30357"]

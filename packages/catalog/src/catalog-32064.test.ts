@@ -121,15 +121,18 @@ const readSourceAuditFiles = (): readonly SourceAuditFile[] => {
 };
 
 describe("32064 Technic brick with axle-hole catalog truth", () => {
-  it("appends the exact /23 identity and G source-to-catalog frame", () => {
+  it("retains the exact /23 identity and G source-to-catalog frame under /24", () => {
     const part = getPartDefinition(PART_ID)!;
-    const [blueprint] = SET_6651557_MEASURED_BLUEPRINTS_G;
+    const blueprint = SET_6651557_MEASURED_BLUEPRINTS_G.find(
+      ({ designId }) => designId === "32064",
+    );
+    if (blueprint === undefined) throw new Error("32064 blueprint is missing");
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/23");
-    expect(PART_DEFINITIONS).toHaveLength(95);
-    expect(PART_DEFINITIONS.at(-1)?.id).toBe(PART_ID);
-    expect(SET_6651557_MEASURED_BLUEPRINTS.at(-1)).toBe(blueprint);
-    expect(SET_6651557_MEASURED_BLUEPRINTS_G).toHaveLength(1);
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/24");
+    expect(PART_DEFINITIONS).toHaveLength(96);
+    expect(PART_DEFINITIONS.at(-2)?.id).toBe(PART_ID);
+    expect(SET_6651557_MEASURED_BLUEPRINTS.at(-2)).toBe(blueprint);
+    expect(SET_6651557_MEASURED_BLUEPRINTS_G).toHaveLength(2);
     expect(part).toMatchObject({
       id: PART_ID,
       family: "technic-brick",

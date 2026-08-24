@@ -173,11 +173,14 @@ const EXPECTED_PART_IDS = [
   // builtin.basic-parts/23: one exact 1 x 2 Technic brick with two studs, two
   // underside clutches, and one transverse axle hole from its pinned shadow.
   "builtin:technic-brick-1x2-axle-hole",
+  // builtin.basic-parts/24: one exact regular 3 x 3 plate with nine studs and
+  // nine underside clutches from the pinned official and shadow closures.
+  "builtin:plate-3x3",
 ] as const;
 
 describe("starter catalog", () => {
-  it("publishes the axle-hole brick admission as version 23", () => {
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/23");
+  it("publishes the regular 3 x 3 plate admission as version 24", () => {
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/24");
   });
 
   it("pins 25269's exact LDCad route and raw-to-catalog central clutch", () => {
@@ -265,7 +268,7 @@ describe("starter catalog", () => {
     );
     expect(perFamily).toEqual({
       brick: 16,
-      plate: 30,
+      plate: 31,
       tile: 12,
       "jumper-plate": 3,
       "grille-tile": 1,

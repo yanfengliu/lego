@@ -32,7 +32,8 @@ export interface MeasuredBuilderSource {
  * A shadow file is metadata a third party wrote about a part it does not own,
  * inherited through the same type-1 matrix that places the geometry, so the
  * evidence is the walk rather than one file: the composition identifier says how
- * the walk was performed and `shadowFiles` names every file that contributed.
+ * the walk was performed and `shadowFiles` names every file whose shadow record
+ * was consulted, including a present file whose metas are all disabled.
  * The library is CC BY-SA 4.0, which is why the commit and whole-tree manifest
  * digest are carried here rather than left in a report — attribution has to
  * travel with the derived data.

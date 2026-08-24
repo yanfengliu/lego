@@ -35,6 +35,7 @@ import json
 import time
 from pathlib import Path
 
+from builder_native_source import NATIVE_PACK_BYTES, NATIVE_PACK_SHA256
 from ldcad_shadow_connectors import (
     SHADOW_COMPOSITION_ID,
     ShadowSnap,
@@ -76,7 +77,7 @@ from part_admission_scorecard import DEFAULT_SAMPLE_SPACING_LDU, score_candidate
 from part_admission_surface import measured_connectors
 from set_6651557_ldraw_source_audit_plan import ARCHIVE_PINS
 
-REPORT_SCHEMA_VERSION = "lego.ldcad-shadow-connector-report/1"
+REPORT_SCHEMA_VERSION = "lego.ldcad-shadow-connector-report/2"
 MAX_RECORDED_REJECTIONS = 64
 
 
@@ -254,6 +255,14 @@ def main() -> None:
                 "bytes": BUILDER_FRAME_BYTES,
                 "sha256": f"sha256:{BUILDER_FRAME_SHA256}",
                 "role": "read-only comparison target; its frame pins are not touched",
+            },
+            "nativePack": {
+                "bytes": NATIVE_PACK_BYTES,
+                "sha256": f"sha256:{NATIVE_PACK_SHA256}",
+                "role": (
+                    "checksum-pinned source of record-level clutch-count counterevidence; "
+                    "it grants no catalog frame or connector authority"
+                ),
             },
             "officialArchive": {
                 "bytes": ARCHIVE_PINS[0].byte_length,

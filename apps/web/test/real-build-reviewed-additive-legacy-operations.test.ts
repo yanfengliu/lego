@@ -26,9 +26,9 @@ describe("reviewed additive legacy operation projection", () => {
     expect(migrateDocumentTruth(source).report).toMatchObject({
       migrated: true,
       fromCatalogVersion: "builtin.basic-parts/13",
-      toCatalogVersion: "builtin.basic-parts/23",
+      toCatalogVersion: "builtin.basic-parts/24",
       fromTruthHash: "sha256:de62fae6dbc8095dfd460983e5e845ddfac4bf9ec2ea1f99572bc46026941cb5",
-      toTruthHash: "sha256:af781e7356e28622fb13afcb571d28495a0962d6aa78ef70d988126a9c4aeefb",
+      toTruthHash: "sha256:09288fc048ec112225b9e605df7af2d2e9692031b9eb7a89755575956af4c10d",
       addedCatalogPartIds: [
         "builtin:tile-1x1-quarter-round",
         "builtin:bracket-1x2-1x4-rounded-bottom",
@@ -40,6 +40,7 @@ describe("reviewed additive legacy operation projection", () => {
         "builtin:slope-1x2-45",
         "builtin:axle-1x3",
         "builtin:technic-brick-1x2-axle-hole",
+        "builtin:plate-3x3",
       ],
       catalogInterpretationChanges: [],
       blockingReasons: [],
@@ -65,7 +66,7 @@ describe("reviewed additive legacy operation projection", () => {
         },
         applyBuildOperations: (document, operations) => {
           events.push(`apply:${document.truth.catalog.version}`);
-          if (document.truth.catalog.version !== "builtin.basic-parts/23") {
+          if (document.truth.catalog.version !== "builtin.basic-parts/24") {
             throw new TypeError("test sentinel saw current operations receive historical truth");
           }
           return applyBuildOperations(
@@ -78,7 +79,7 @@ describe("reviewed additive legacy operation projection", () => {
 
     expect(events).toEqual([
       "migrate:builtin.basic-parts/13",
-      "apply:builtin.basic-parts/23",
+      "apply:builtin.basic-parts/24",
       "migrate:builtin.basic-parts/13",
     ]);
     expect(reconstructed.truth).toEqual(source.truth);
@@ -190,7 +191,7 @@ describe("step-7 Gate-3 parent migration boundary", () => {
 
   it("rejects a migrated structural hash that drifts from the independent pins", () => {
     expect(() => runGate3ParentReconstruction({ tamperCurrentHashIndex: 2 })).toThrowError(
-      /required pinned current hash sha256:3eea35e613f45a9a3e47a0d9ae5b210ac6ad302ac0113288dc58cb2f63f1a793/u,
+      /required pinned current hash sha256:fb127bf5210e9d193009808daa622ad59132ab97e6c79c6f60da36c36a5658a2/u,
     );
   });
 
@@ -223,7 +224,7 @@ describe("step-7 Gate-3 parent migration boundary", () => {
 
   it("rejects identical unreviewed fields in all four migration reports", () => {
     expect(() => runGate3ParentReconstruction({ addUnreviewedReportField: true })).toThrowError(
-      /did not complete the exact reviewed \/13 to \/23 migration/u,
+      /did not complete the exact reviewed \/13 to \/24 migration/u,
     );
   });
 
