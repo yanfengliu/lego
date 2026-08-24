@@ -23,14 +23,15 @@ import {
 import type { ExactLduBoundsDeclaration } from "./exact-ldu.ts";
 
 /**
- * The measured bounds of the seven audited set 6651557 LDraw closures, copied
- * from `output/real-build/set-6651557-source-pilot.json`.
+ * The measured bounds of the seven audited set 6651557 source-pilot closures,
+ * copied from `output/real-build/set-6651557-source-pilot.json`, plus 41682's
+ * catalog-frame bound from the retained measured-part emission and scorecard.
  *
  * 93273 is the one this representation exists for: -16.00016098 is not a
- * float64, and it is one of the seven parts that must be admitted. 51739's
- * +/-38.5 is a double and still has to survive the same path unchanged.
+ * float64, and it is one of the pilot identities that motivated this type.
+ * 51739's +/-38.5 is a double and still has to survive the same path unchanged.
  */
-const PILOT_BOUNDS: Readonly<Record<string, ExactLduBoundsDeclaration>> = {
+const MEASURED_BOUND_FIXTURES: Readonly<Record<string, ExactLduBoundsDeclaration>> = {
   "5092": { min: ["-20", "0", "-10"], max: ["17", "8", "10"] },
   "30357": { min: ["-10", "-4", "-10"], max: ["50", "8", "50"] },
   "35480": { min: ["-20", "-4", "-10"], max: ["20", "8", "10"] },
@@ -38,11 +39,12 @@ const PILOT_BOUNDS: Readonly<Record<string, ExactLduBoundsDeclaration>> = {
   "77844": { min: ["-10", "-4", "-10"], max: ["50", "8", "50"] },
   "93273": { min: ["-10", "-16.00016098", "-40"], max: ["10", "0", "40"] },
   "15254": { min: ["-60", "-4", "-10"], max: ["60", "48", "10"] },
+  "41682": { min: ["-20", "-14", "-20"], max: ["20", "14", "20"] },
 };
 
 describe("exact LDU round trips", () => {
-  it("round-trips every measured set 6651557 pilot bound exactly", () => {
-    for (const [designId, declaration] of Object.entries(PILOT_BOUNDS)) {
+  it("round-trips every retained pilot and 41682 emission bound exactly", () => {
+    for (const [designId, declaration] of Object.entries(MEASURED_BOUND_FIXTURES)) {
       const parsed = parseExactLduBounds(declaration, `${designId} bodyBoundsLdu`);
       expect(formatExactLduBounds(parsed), designId).toEqual(declaration);
     }
@@ -71,8 +73,8 @@ describe("exact LDU round trips", () => {
     expect(compareNumberToExactLdu(38.5, high, "51739 max x")).toBe(0);
   });
 
-  it("projects every pilot bound to a float64 that never shrinks the exact solid", () => {
-    for (const [designId, declaration] of Object.entries(PILOT_BOUNDS)) {
+  it("projects every retained measured bound to a float64 that never shrinks the exact solid", () => {
+    for (const [designId, declaration] of Object.entries(MEASURED_BOUND_FIXTURES)) {
       const exact = parseExactLduBounds(declaration, designId);
       const numeric = exactLduBoundsToNumbers(exact);
 
@@ -263,7 +265,7 @@ describe("exact LDU rejections", () => {
   });
 
   it("refuses a float64 projection that would shrink the exact solid", () => {
-    const exact = parseExactLduBounds(PILOT_BOUNDS["93273"]!, "93273");
+    const exact = parseExactLduBounds(MEASURED_BOUND_FIXTURES["93273"]!, "93273");
     const shrunkMin = { ...exactLduBoundsToNumbers(exact) };
     const shrunk = { min: [shrunkMin.min[0], -16, shrunkMin.min[2]] as const, max: shrunkMin.max };
 

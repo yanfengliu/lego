@@ -2,19 +2,20 @@ import type { BrickDocumentV1 } from "@lego-studio/protocol";
 
 import {
   assertFrozenLegacyAdditiveCatalogV2,
-  createFrozenLegacyAdditiveCatalogBasisV18,
+  createFrozenLegacyAdditiveCatalogBasisV19,
 } from "./real-build-artifact-legacy-document-v2";
 
 const SOURCE_CATALOG_VERSION = "builtin.basic-parts/13";
-const TARGET_CATALOG_VERSION = "builtin.basic-parts/18";
+const TARGET_CATALOG_VERSION = "builtin.basic-parts/19";
 const SOURCE_TRUTH_HASH = "sha256:de62fae6dbc8095dfd460983e5e845ddfac4bf9ec2ea1f99572bc46026941cb5";
-const TARGET_TRUTH_HASH = "sha256:8172cc4f993b46bb9fa8f782bb2b295c516e95c16f2d6861e4a18219ef2e1b20";
+const TARGET_TRUTH_HASH = "sha256:e34fcc8ac627f0dcfdb1d779246a723101d765f931830a4c06514d9daff75c26";
 const ADDED_CATALOG_PART_IDS = [
   "builtin:tile-1x1-quarter-round",
   "builtin:bracket-1x2-1x4-rounded-bottom",
   "builtin:tile-2x2-triangular",
   "builtin:roller-skate",
   "builtin:arch-1x6-thin-top",
+  "builtin:bracket-2x2-1x2-vertical-studs",
 ] as const;
 
 interface ReviewedAdditiveMigration {
@@ -47,7 +48,7 @@ const compareStrings = (left: string, right: string): number =>
   left < right ? -1 : left > right ? 1 : 0;
 
 function assertCanonicalFrozenAdditiveCatalog(document: BrickDocumentV1): void {
-  const active = createFrozenLegacyAdditiveCatalogBasisV18();
+  const active = createFrozenLegacyAdditiveCatalogBasisV19();
   assertFrozenLegacyAdditiveCatalogV2(document, {
     ...active,
     constraints: {
@@ -74,12 +75,12 @@ function assertExactReviewedAdditiveMigration(
       JSON.stringify(ADDED_CATALOG_PART_IDS) ||
     migration.report.catalogInterpretationChanges.length !== 0 ||
     JSON.stringify(migration.report.truthComponentChanges) !==
-      '[{"component":"catalog","fromVersion":"builtin.basic-parts/13","toVersion":"builtin.basic-parts/18"},{"component":"collision-model","fromVersion":"rectilinear-stud-clearance/2","toVersion":"rectilinear-stud-clearance/3"},{"component":"validator-set","fromVersion":"lego.kernel-validators/2","toVersion":"lego.kernel-validators/3"}]' ||
+      '[{"component":"catalog","fromVersion":"builtin.basic-parts/13","toVersion":"builtin.basic-parts/19"},{"component":"collision-model","fromVersion":"rectilinear-stud-clearance/2","toVersion":"rectilinear-stud-clearance/3"},{"component":"validator-set","fromVersion":"lego.kernel-validators/2","toVersion":"lego.kernel-validators/3"}]' ||
     migration.report.blockingReasons.length !== 0 ||
     JSON.stringify(migration.document.parts) !== JSON.stringify(source.parts)
   ) {
     throw new TypeError(
-      `Legacy operation projection requires the exact reviewed /13 to /18 catalog-additive migration with the new-row-only collision and validator profile boundary; received ${JSON.stringify(migration.report)}.`,
+      `Legacy operation projection requires the exact reviewed /13 to /19 catalog-additive migration with the new-row-only collision and validator profile boundary; received ${JSON.stringify(migration.report)}.`,
     );
   }
 }
@@ -110,7 +111,7 @@ export function applyReviewedAdditiveLegacyBuildOperations(
   const sourceAllowedPartIds = new Set(base.constraints.allowedCatalogPartIds);
   if (ADDED_CATALOG_PART_IDS.some((id) => sourceAllowedPartIds.has(id))) {
     throw new TypeError(
-      "Reviewed /13 source constraints already contain a /14, /15, /16, /17, or /18 part ID.",
+      "Reviewed /13 source constraints already contain a /14, /15, /16, /17, /18, or /19 part ID.",
     );
   }
   const migration = dependencies.migrateDocumentTruth(structuredClone(base));

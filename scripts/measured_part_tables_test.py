@@ -688,6 +688,7 @@ class PlanTests(unittest.TestCase):
                 "35787",
                 "11253",
                 "15254",
+                "41682",
             ],
         )
         self.assertTrue(all(row.connector_source == "builder" for row in ADMITTED_PART_PLANS[:5]))
@@ -768,6 +769,25 @@ class PlanTests(unittest.TestCase):
             )
         )
         self.assertIsNone(ADMITTED_PART_PLANS[16].validated_connection_stud_profile)
+        self.assertEqual(
+            (
+                ADMITTED_PART_PLANS[17].connector_source,
+                ADMITTED_PART_PLANS[17].catalog_id,
+                ADMITTED_PART_PLANS[17].display_name,
+                ADMITTED_PART_PLANS[17].height_ldu,
+                ADMITTED_PART_PLANS[17].orientation_id,
+                ADMITTED_PART_PLANS[17].translation_ldu,
+            ),
+            (
+                LDCAD_SHADOW_CONNECTOR_SOURCE,
+                "builtin:bracket-2x2-1x2-vertical-studs",
+                "Bracket 2 x 2 with 1 x 2 Vertical Studs",
+                28,
+                "upright-yaw-0",
+                (0, 6, 0),
+            ),
+        )
+        self.assertIsNone(ADMITTED_PART_PLANS[17].validated_connection_stud_profile)
 
     def test_11253_report_retains_the_reviewed_stud_profile(self) -> None:
         row = measured_part_report_row(

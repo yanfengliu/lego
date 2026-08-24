@@ -313,6 +313,11 @@ describe("migrateDocumentTruth", () => {
       "4cb37ef80c045ab5b7732dd9021938590ecbb086",
       "sha256:d21bdecc6a269b1b92e0915664cae9a147168fe8d7576ee17213e8e9446c7926",
     ],
+    [
+      "builtin.basic-parts/18",
+      "201fafba454d1db74a986ef0087f84530f96214e",
+      "sha256:8172cc4f993b46bb9fa8f782bb2b295c516e95c16f2d6861e4a18219ef2e1b20",
+    ],
   ])("pins reviewed %s truth from commit %s", (catalogVersion, sourceCommit, truthHash) => {
     expect(
       REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS.find(
@@ -323,13 +328,13 @@ describe("migrateDocumentTruth", () => {
   });
 
   it("admits no historical truth snapshots beyond the reviewed table", () => {
-    expect(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS).toHaveLength(19);
+    expect(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS).toHaveLength(20);
     expect(
       new Set(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS.map(({ sourceCommit }) => sourceCommit)).size,
-    ).toBe(19);
+    ).toBe(20);
     expect(
       new Set(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS.map(({ truthHash }) => truthHash)).size,
-    ).toBe(19);
+    ).toBe(20);
   });
 
   it("binds every reviewed truth hash to its exact immutable catalog roster", () => {
@@ -429,6 +434,7 @@ describe("migrateDocumentTruth", () => {
       "builtin:tile-2x2-triangular",
       "builtin:roller-skate",
       "builtin:arch-1x6-thin-top",
+      "builtin:bracket-2x2-1x2-vertical-studs",
     ]);
     expect(report.catalogInterpretationChanges).toEqual([
       {
@@ -472,18 +478,19 @@ describe("migrateDocumentTruth", () => {
       "builtin:tile-2x2-triangular",
       "builtin:roller-skate",
       "builtin:arch-1x6-thin-top",
+      "builtin:bracket-2x2-1x2-vertical-studs",
     ]);
     expect(report.catalogInterpretationChanges).toEqual(VERSION_13_INTERPRETATION_CHANGES);
     expect(document.parts).toEqual(savedAtTwelve.parts);
   });
 
-  it("carries /13 forward and reports all five complete additive definitions", () => {
+  it("carries /13 forward and reports all six complete additive definitions", () => {
     const savedAtThirteen = historicalDocument({
       id: "thirteen",
       name: "Saved at /13",
       catalogVersion: "builtin.basic-parts/13",
       catalogHash: "sha256:100283423bf1cfecfdfec5ba2216d1834a9eb19b1757c71772f7fa53223190d6",
-      allowedCatalogPartCount: PART_DEFINITIONS.length - 5,
+      allowedCatalogPartCount: PART_DEFINITIONS.length - 6,
     });
 
     expect(canonicalDigest(savedAtThirteen.truth)).toBe(
@@ -498,13 +505,14 @@ describe("migrateDocumentTruth", () => {
       "builtin:tile-2x2-triangular",
       "builtin:roller-skate",
       "builtin:arch-1x6-thin-top",
+      "builtin:bracket-2x2-1x2-vertical-studs",
     ]);
     expect(report.catalogInterpretationChanges).toEqual([]);
     expectReviewedCurrentTruthChanges(report, "builtin.basic-parts/13");
     expect(document.parts).toEqual(savedAtThirteen.parts);
   });
 
-  it("carries /14 forward and reports the complete 28802, 35787, 11253 and 15254 definitions", () => {
+  it("carries /14 forward and reports the five complete additive definitions", () => {
     const savedAtFourteen = historicalDocument({
       id: "fourteen",
       name: "Saved at /14",
@@ -513,7 +521,7 @@ describe("migrateDocumentTruth", () => {
       connectorHash: "sha256:537ec8b084b9ac9633c4511817204fcd2037e123d96b7628c3e6b803b32a31cf",
       collisionHash: "sha256:a219f827b9dcceda98b7f320bb53c9f7fa172d515a8081af4b97623975aaf97b",
       transformHash: "sha256:a005d64462b0805e82b28f8571e40aeb48d6b3602b8fe5db01a4e1cf56635896",
-      allowedCatalogPartCount: PART_DEFINITIONS.length - 4,
+      allowedCatalogPartCount: PART_DEFINITIONS.length - 5,
     });
 
     expect(canonicalDigest(savedAtFourteen.truth)).toBe(
@@ -527,13 +535,14 @@ describe("migrateDocumentTruth", () => {
       "builtin:tile-2x2-triangular",
       "builtin:roller-skate",
       "builtin:arch-1x6-thin-top",
+      "builtin:bracket-2x2-1x2-vertical-studs",
     ]);
     expect(report.catalogInterpretationChanges).toEqual([]);
     expectReviewedCurrentTruthChanges(report, "builtin.basic-parts/14");
     expect(document.parts).toEqual(savedAtFourteen.parts);
   });
 
-  it("carries /15 forward and reports the complete 35787, 11253 and 15254 definitions", () => {
+  it("carries /15 forward and reports the four complete additive definitions", () => {
     const savedAtFifteen = historicalDocument({
       id: "fifteen",
       name: "Saved at /15",
@@ -542,7 +551,7 @@ describe("migrateDocumentTruth", () => {
       connectorHash: "sha256:e64815499844dfc745d8d12c3caa0ff2a0ef55777b627f604a44506478999513",
       collisionHash: "sha256:a8a000c6402260d5302cd14c613d6577e74e44811b6f431fbb4269c2cfe75e04",
       transformHash: "sha256:80594a60bb36cb7d9def2c92566aef0d67181c0c9e9983214a673dae59315a53",
-      allowedCatalogPartCount: PART_DEFINITIONS.length - 3,
+      allowedCatalogPartCount: PART_DEFINITIONS.length - 4,
     });
 
     expect(canonicalDigest(savedAtFifteen.truth)).toBe(
@@ -555,13 +564,14 @@ describe("migrateDocumentTruth", () => {
       "builtin:tile-2x2-triangular",
       "builtin:roller-skate",
       "builtin:arch-1x6-thin-top",
+      "builtin:bracket-2x2-1x2-vertical-studs",
     ]);
     expect(report.catalogInterpretationChanges).toEqual([]);
     expectReviewedCurrentTruthChanges(report, "builtin.basic-parts/15");
     expect(document.parts).toEqual(savedAtFifteen.parts);
   });
 
-  it("carries /16 forward and reports the complete 11253 and 15254 definitions", () => {
+  it("carries /16 forward and reports the three complete additive definitions", () => {
     const savedAtSixteen = historicalDocument({
       id: "sixteen",
       name: "Saved at /16",
@@ -570,7 +580,7 @@ describe("migrateDocumentTruth", () => {
       connectorHash: "sha256:6f19cd949127543229d54366a37dd377cb7fbcd8042115c9339aabbbfe4deddc",
       collisionHash: "sha256:8c32b975cd25b5b0417432f28789a1124b97053f1d056ab1b547730ec6899599",
       transformHash: "sha256:34aa4fb3af8d22fbb565fd67beaf48f824a888f68390c6183bab6657768819b2",
-      allowedCatalogPartCount: PART_DEFINITIONS.length - 2,
+      allowedCatalogPartCount: PART_DEFINITIONS.length - 3,
     });
 
     expect(canonicalDigest(savedAtSixteen.truth)).toBe(
@@ -582,13 +592,14 @@ describe("migrateDocumentTruth", () => {
     expect(report.addedCatalogPartIds).toEqual([
       "builtin:roller-skate",
       "builtin:arch-1x6-thin-top",
+      "builtin:bracket-2x2-1x2-vertical-studs",
     ]);
     expect(report.catalogInterpretationChanges).toEqual([]);
     expectReviewedCurrentTruthChanges(report, "builtin.basic-parts/16");
     expect(document.parts).toEqual(savedAtSixteen.parts);
   });
 
-  it("carries /17 forward and reports only the complete 15254 definition", () => {
+  it("carries /17 forward and reports the complete 15254 and 41682 definitions", () => {
     const savedAtSeventeen = historicalDocument({
       id: "seventeen",
       name: "Saved at /17",
@@ -600,7 +611,7 @@ describe("migrateDocumentTruth", () => {
       transformHash: "sha256:3ee89b8113966fac1783cbf13e1a4e0edd12d227128f06e210412dc9d51ebc24",
       validatorVersion: "lego.kernel-validators/3",
       validatorHash: "sha256:fb0676931eb66a0096f393794d0be1297227811a77b986c0a1d05847ee3127d4",
-      allowedCatalogPartCount: PART_DEFINITIONS.length - 1,
+      allowedCatalogPartCount: PART_DEFINITIONS.length - 2,
     });
 
     expect(canonicalDigest(savedAtSeventeen.truth)).toBe(
@@ -609,7 +620,10 @@ describe("migrateDocumentTruth", () => {
     const { document, report } = migrateDocumentTruth(savedAtSeventeen);
 
     expect(report.migrated).toBe(true);
-    expect(report.addedCatalogPartIds).toEqual(["builtin:arch-1x6-thin-top"]);
+    expect(report.addedCatalogPartIds).toEqual([
+      "builtin:arch-1x6-thin-top",
+      "builtin:bracket-2x2-1x2-vertical-studs",
+    ]);
     expect(report.catalogInterpretationChanges).toEqual([]);
     expect(report.truthComponentChanges).toEqual([
       {
@@ -619,6 +633,43 @@ describe("migrateDocumentTruth", () => {
       },
     ]);
     expect(document.parts).toEqual(savedAtSeventeen.parts);
+  });
+
+  it("carries /18 forward and reports only the complete 41682 definition", () => {
+    const savedAtEighteen = historicalDocument({
+      id: "eighteen",
+      name: "Saved at /18",
+      catalogVersion: "builtin.basic-parts/18",
+      catalogHash: "sha256:9e5b17400da2280cb46f97ff69aec063c07a5474f3153a5826b3b88043c36ff6",
+      connectorHash: "sha256:c852c97a2cc665a624e78c656ffcba43b6792a1e04ba91bc4059b3f0558baac0",
+      collisionVersion: "rectilinear-stud-clearance/3",
+      collisionHash: "sha256:f09f42d55dbe7e3bf48b2681499f4475dca3ee686caeac1f417d78dee955bddd",
+      transformHash: "sha256:e557ade41c1f739dbf41c59033bd59adab18d87e444321567db4c0d7fa44a41b",
+      validatorVersion: "lego.kernel-validators/3",
+      validatorHash: "sha256:fb0676931eb66a0096f393794d0be1297227811a77b986c0a1d05847ee3127d4",
+      allowedCatalogPartCount: PART_DEFINITIONS.length - 1,
+    });
+
+    expect(canonicalDigest(savedAtEighteen.truth)).toBe(
+      "sha256:8172cc4f993b46bb9fa8f782bb2b295c516e95c16f2d6861e4a18219ef2e1b20",
+    );
+    const { document, report } = migrateDocumentTruth(savedAtEighteen);
+
+    expect(report.migrated).toBe(true);
+    expect(report.blockingReasons).toEqual([]);
+    expect(report.toTruthHash).toBe(
+      "sha256:e34fcc8ac627f0dcfdb1d779246a723101d765f931830a4c06514d9daff75c26",
+    );
+    expect(report.addedCatalogPartIds).toEqual(["builtin:bracket-2x2-1x2-vertical-studs"]);
+    expect(report.catalogInterpretationChanges).toEqual([]);
+    expect(report.truthComponentChanges).toEqual([
+      {
+        component: "catalog",
+        fromVersion: "builtin.basic-parts/18",
+        toVersion: BUILTIN_CATALOG_VERSION,
+      },
+    ]);
+    expect(document.parts).toEqual(savedAtEighteen.parts);
   });
 
   it.each([
@@ -642,6 +693,17 @@ describe("migrateDocumentTruth", () => {
       collisionHash: "sha256:a8a000c6402260d5302cd14c613d6577e74e44811b6f431fbb4269c2cfe75e04",
       transformHash: "sha256:80594a60bb36cb7d9def2c92566aef0d67181c0c9e9983214a673dae59315a53",
       futurePartId: "builtin:tile-2x2-triangular",
+    },
+    {
+      catalogVersion: "builtin.basic-parts/18",
+      catalogHash: "sha256:9e5b17400da2280cb46f97ff69aec063c07a5474f3153a5826b3b88043c36ff6",
+      connectorHash: "sha256:c852c97a2cc665a624e78c656ffcba43b6792a1e04ba91bc4059b3f0558baac0",
+      collisionVersion: "rectilinear-stud-clearance/3",
+      collisionHash: "sha256:f09f42d55dbe7e3bf48b2681499f4475dca3ee686caeac1f417d78dee955bddd",
+      transformHash: "sha256:e557ade41c1f739dbf41c59033bd59adab18d87e444321567db4c0d7fa44a41b",
+      validatorVersion: "lego.kernel-validators/3",
+      validatorHash: "sha256:fb0676931eb66a0096f393794d0be1297227811a77b986c0a1d05847ee3127d4",
+      futurePartId: "builtin:bracket-2x2-1x2-vertical-studs",
     },
   ] as const)(
     "refuses $catalogVersion constraints and parts that pre-seed its immediate successor",
@@ -805,7 +867,7 @@ describe("migrateDocumentTruth", () => {
     );
   });
 
-  it("carries a /6 document forward and names the twelve parts it gained", () => {
+  it("carries a /6 document forward and names the fourteen parts it gained", () => {
     const document = historicalDocument({
       id: "six",
       name: "Saved at /6",
@@ -838,16 +900,18 @@ describe("migrateDocumentTruth", () => {
       "builtin:tile-2x2-triangular",
       "builtin:roller-skate",
       "builtin:arch-1x6-thin-top",
+      "builtin:bracket-2x2-1x2-vertical-studs",
     ]);
     expect(report.addedColorIds).toEqual([]);
     expectReviewedCurrentTruthChanges(report, "builtin.basic-parts/6");
   });
 
-  it("carries a /7 document forward and names the seven parts it gained", () => {
+  it("carries a /7 document forward and names the nine parts it gained", () => {
     // Three earlier additions have no Builder record; 25269's record is not consumed.
     // Builder maps the observed 28802 element to contradictory 10201, so that
-    // claim is refused. 35787's unframed native field is also refused. LDCad
-    // routes own the admitted clutch fields for all six.
+    // claim is refused. 35787's unframed field and 11253's count-only record are
+    // also refused, while 41682 has no Builder record. LDCad routes own the
+    // admitted clutch fields for all eight.
     const document = historicalDocument({
       id: "seven",
       name: "Saved at /7",
@@ -875,6 +939,7 @@ describe("migrateDocumentTruth", () => {
       "builtin:tile-2x2-triangular",
       "builtin:roller-skate",
       "builtin:arch-1x6-thin-top",
+      "builtin:bracket-2x2-1x2-vertical-studs",
     ]);
     expect(report.addedColorIds).toEqual([]);
     expectReviewedCurrentTruthChanges(report, "builtin.basic-parts/7");

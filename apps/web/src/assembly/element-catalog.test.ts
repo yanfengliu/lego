@@ -47,7 +47,7 @@ describe("resolveElementPart", () => {
     expect(resolved.note).toContain("print suffix");
   });
 
-  it("resolves all six measured booklet additions without substitution", () => {
+  it("resolves the first six measured booklet additions without substitution", () => {
     const additions = [
       ["91988", "Plate 2 x 14", "builtin:plate-2x14"],
       ["30503", "Wedge Plate 4 x 4 Cut Corner", "builtin:wedge-plate-4x4-cut-corner"],
@@ -81,6 +81,11 @@ describe("resolveElementPart", () => {
     // The fix names both admission paths, because there are now two.
     expect(resolved.note).toContain("part-blueprints-6651557-measured.ts");
     expect(resolved.note).toContain("part-blueprints.ts");
+    expect(resolved.note).toContain("exact LDraw closure");
+    expect(resolved.note).toContain("reviewed source-to-catalog frame");
+    expect(resolved.note).toContain("connector authority");
+    expect(resolved.note).toContain("collision decomposition");
+    expect(resolved.note).not.toContain("Builder frame");
     expect(resolved.note).toContain("BUILTIN_CATALOG_VERSION");
   });
 

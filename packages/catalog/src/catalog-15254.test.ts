@@ -4,7 +4,6 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
-  BUILTIN_CATALOG_VERSION,
   PART_DEFINITIONS,
   getPartDefinition,
   resolvePartId,
@@ -83,13 +82,11 @@ const EXPECTED_CLOSURE = [
 ] as const;
 
 describe("15254 thin-top arch catalog truth", () => {
-  it("appends the exact /18 identity and pins its upright catalog frame", () => {
+  it("retains the exact /18 admission position and pins its upright catalog frame", () => {
     const part = getPartDefinition(PART_ID)!;
     const blueprint = SET_6651557_MEASURED_BLUEPRINTS.find(({ designId }) => designId === "15254")!;
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/18");
-    expect(PART_DEFINITIONS).toHaveLength(90);
-    expect(PART_DEFINITIONS.at(-1)?.id).toBe(PART_ID);
+    expect(PART_DEFINITIONS[89]?.id).toBe(PART_ID);
     expect(part).toMatchObject({
       id: PART_ID,
       family: "arch",
@@ -136,8 +133,8 @@ describe("15254 thin-top arch catalog truth", () => {
       bytes: 18_061,
       manifestSha256: "sha256:45ddc1adf831202895cbfb51c38f7b443fd7702514ac13c429369188e9452e20",
     });
-    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(29);
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(189);
+    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(30);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(190);
   });
 
   it("binds the revision-J Builder record, reviewed bytes, and exact frame", () => {
@@ -264,9 +261,9 @@ describe("15254 thin-top arch catalog truth", () => {
   });
 
   it("keeps every /17 part payload byte unchanged after restoring its historical truth label", () => {
-    const priorParts = PART_DEFINITIONS.filter(({ id }) => id !== PART_ID);
+    const priorParts = PART_DEFINITIONS.slice(0, 89);
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/18",
+      "builtin.basic-parts/19",
       "builtin.basic-parts/17",
     );
     const rows = priorParts.map(({ id, connectors, collision }) => ({ id, connectors, collision }));

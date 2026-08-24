@@ -12,11 +12,11 @@ import { createBuiltinTruthSnapshot, getBuiltinTruthDigestInputs } from "./facto
  * are literals rather than recomputed expectations on purpose: a test that
  * derives what it checks from the code it is checking cannot notice a change.
  *
- * Measured at catalog builtin.basic-parts/18 with 90 definitions. /18 appends
- * 15254 as one complete measured thin-top arch: its official LDraw closure
- * supplies the exact shell, six source studs and conservative collision
- * columns, while the exact pinned Builder frame supplies the two end clutch
- * cells. After restoring historical truth labels, predecessor semantic
+ * Measured at catalog builtin.basic-parts/19 with 91 definitions. /19 appends
+ * 41682 as one complete measured bracket: its official LDraw closure supplies
+ * the exact plate, wall, two side studs and conservative collision columns,
+ * while the exact pinned LDCad walk supplies those directional stud frames and
+ * four underside clutch cells. After restoring historical truth labels, predecessor semantic
  * payloads are unchanged. The active catalog input also moves global catalog
  * provenance labels, while the connector and transform manifests gain only
  * the additive row. Collision model `/3` and validator set `/3` do not change
@@ -92,10 +92,10 @@ import { createBuiltinTruthSnapshot, getBuiltinTruthDigestInputs } from "./facto
  *   validatorSet       sha256:cb2767cfa8c8d7adfe145bef950b49428d8c8fced235a04b5f984c29799a031e
  */
 const PINNED_TRUTH_HASHES = {
-  catalog: "sha256:9e5b17400da2280cb46f97ff69aec063c07a5474f3153a5826b3b88043c36ff6",
-  connectorTaxonomy: "sha256:c852c97a2cc665a624e78c656ffcba43b6792a1e04ba91bc4059b3f0558baac0",
-  collisionModel: "sha256:f09f42d55dbe7e3bf48b2681499f4475dca3ee686caeac1f417d78dee955bddd",
-  transformPolicy: "sha256:e557ade41c1f739dbf41c59033bd59adab18d87e444321567db4c0d7fa44a41b",
+  catalog: "sha256:90eae14b0755f6c2b9d5515f4e5db53966d938b5d9867ee1aed90b09ea247016",
+  connectorTaxonomy: "sha256:03ccce5b7d3ad14c6b9c9749abb3a806139ade4f786919d54e989ca1a14c6750",
+  collisionModel: "sha256:911806345cb509dad7c3b0c923f8d87364c66e71627ffec9bd934b4df344f3fd",
+  transformPolicy: "sha256:d2888660cff26c2f5665e76c02fecc532b3a04aada1810695495230eb5f664d9",
   validatorSet: "sha256:fb0676931eb66a0096f393794d0be1297227811a77b986c0a1d05847ee3127d4",
 } as const;
 
@@ -110,9 +110,9 @@ const PINNED_TRUTH_HASHES = {
  * version bump: parts in place changed what they draw.
  */
 const PINNED_GEOMETRY_ROSTER_SHA256 =
-  "d08772ba9a824b20ace6a53f09188e743ced92af56a0620991ba14d3629d9ce0";
+  "9eac091d9eced1d6debe63f9e848b736c9f521fc48ba322c5a9d5264c2f63cf8";
 
-const PINNED_PART_COUNT = 90;
+const PINNED_PART_COUNT = 91;
 /**
  * 1_204_568 at builtin.basic-parts/6, 1_298_834 at /7, 1_358_361 at /8,
  * 1_359_123 at /9, 1_504_522 at /12, 1_508_599 at /13, and 1_516_304 at /14.
@@ -120,9 +120,10 @@ const PINNED_PART_COUNT = 90;
  * directed connectors and axis-aware collision evidence all enter together.
  * /16 appends the complete 35787 mesh, three clutch cells and 66 collision rows;
  * /17 appends the complete 11253 mesh, two connectors and 79 collision rows;
- * /18 appends the complete 15254 mesh, eight connectors and 173 collision rows.
+ * /18 appends the complete 15254 mesh, eight connectors and 173 collision rows;
+ * /19 appends the complete 41682 mesh, six connectors and 56 collision rows.
  */
-const PINNED_CATALOG_SERIALIZED_LENGTH = 1_575_730;
+const PINNED_CATALOG_SERIALIZED_LENGTH = 1_587_906;
 
 describe("builtin truth digest stability", () => {
   it("keeps the five pinned truth hashes byte-identical", () => {
@@ -141,7 +142,7 @@ describe("builtin truth digest stability", () => {
     const truth = createBuiltinTruthSnapshot();
 
     expect(truth.catalog.hash).toBe(PINNED_TRUTH_HASHES.catalog);
-    expect(truth.catalog.version).toBe("builtin.basic-parts/18");
+    expect(truth.catalog.version).toBe("builtin.basic-parts/19");
     expect(truth.connectorTaxonomy.hash).toBe(PINNED_TRUTH_HASHES.connectorTaxonomy);
     expect(truth.collisionModel.hash).toBe(PINNED_TRUTH_HASHES.collisionModel);
     expect(truth.transformPolicy.hash).toBe(PINNED_TRUTH_HASHES.transformPolicy);

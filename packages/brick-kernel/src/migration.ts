@@ -36,6 +36,7 @@ export const MIGRATABLE_CATALOG_VERSIONS: readonly string[] = Object.freeze([
   "builtin.basic-parts/15",
   "builtin.basic-parts/16",
   "builtin.basic-parts/17",
+  "builtin.basic-parts/18",
   BUILTIN_CATALOG_VERSION,
 ]);
 
@@ -201,6 +202,15 @@ export const REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS = Object.freeze([
     catalogVersion: "builtin.basic-parts/17",
     sourceCommit: "4cb37ef80c045ab5b7732dd9021938590ecbb086",
     truthHash: "sha256:d21bdecc6a269b1b92e0915664cae9a147168fe8d7576ee17213e8e9446c7926",
+  },
+  // The snapshot /19 replaced. /19 appends 41682 as one complete measured
+  // definition: exact official geometry and collision columns plus four
+  // LDCad-authored underside clutches and two directional stud frames. No
+  // preceding catalog definition changes interpretation.
+  {
+    catalogVersion: "builtin.basic-parts/18",
+    sourceCommit: "201fafba454d1db74a986ef0087f84530f96214e",
+    truthHash: "sha256:8172cc4f993b46bb9fa8f782bb2b295c516e95c16f2d6861e4a18219ef2e1b20",
   },
 ] as const);
 

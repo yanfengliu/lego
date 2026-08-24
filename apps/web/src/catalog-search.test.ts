@@ -82,6 +82,13 @@ describe("matchesPartQuery", () => {
     }
   });
 
+  it("keeps 41682 discoverable by identifier, bracket shape, vertical studs, and 2x2 size", () => {
+    const bracket = part("builtin:bracket-2x2-1x2-vertical-studs");
+    for (const query of ["41682", "bracket", "vertical studs", "2x2"]) {
+      expect(matchesPartQuery(bracket, query), query).toBe(true);
+    }
+  });
+
   it("does not match an unrelated query", () => {
     expect(matchesPartQuery(brick2x4, "wheel")).toBe(false);
     expect(matchesPartQuery(brick2x4, "9x9")).toBe(false);

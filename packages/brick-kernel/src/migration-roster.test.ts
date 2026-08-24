@@ -190,7 +190,7 @@ describe("historical catalog roster migration", () => {
 
     expect(report.migrated).toBe(true);
     expect(report.blockingReasons).toEqual([]);
-    expect(report.addedCatalogPartIds).toHaveLength(88);
+    expect(report.addedCatalogPartIds).toHaveLength(89);
     expect(report.addedColorIds).toHaveLength(44);
     expect(validateBrickDocument(document).documentGloballyValid).toBe(true);
   });

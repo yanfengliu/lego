@@ -184,7 +184,7 @@ export function resolveElementPart(element: BookletElement): ElementResolution {
         .map(({ value }) => `${value}.dat`)
         .join(", ")}. ` +
       `Nothing else may stand in for it — a step that places a different shape rebuilds a model that is wrong while looking right. ` +
-      `Admit ${element.partNum}: from measured source into packages/catalog/src/part-blueprints-6651557-measured.ts, which needs its LDraw closure, Builder frame and column decomposition, or parametrically into packages/catalog/src/part-blueprints.ts if the shape really is describable by the generators. Either way bump BUILTIN_CATALOG_VERSION and extend MIGRATABLE_CATALOG_VERSIONS.`,
+      `Admit ${element.partNum}: from measured source into packages/catalog/src/part-blueprints-6651557-measured.ts, which needs its exact LDraw closure, reviewed source-to-catalog frame, connector authority and collision decomposition, or parametrically into packages/catalog/src/part-blueprints.ts if the shape really is describable by the generators. Either way bump BUILTIN_CATALOG_VERSION and extend MIGRATABLE_CATALOG_VERSIONS.`,
   };
 }
 

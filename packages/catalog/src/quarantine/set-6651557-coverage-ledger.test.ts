@@ -160,7 +160,7 @@ describe("set 6651557 quarantined coverage ledger", () => {
     );
   });
 
-  it("measures twelve current catalog admissions without rewriting the frozen /6 baseline", () => {
+  it("measures thirteen current catalog admissions without rewriting the frozen /6 baseline", () => {
     const requiredLeafIds = new Set(ledger.requiredLeaves.map(({ designId }) => designId));
     const currentCatalogDesignIds = new Set<string>();
 
@@ -183,7 +183,7 @@ describe("set 6651557 quarantined coverage ledger", () => {
       ),
     ).toBe(true);
     expect(ledger.requiredLeaves).toHaveLength(121);
-    expect(admittedRequiredLeafIds).toHaveLength(12);
+    expect(admittedRequiredLeafIds).toHaveLength(13);
     expect(admittedRequiredLeafIds).toEqual([
       "2450",
       "5092",
@@ -193,13 +193,14 @@ describe("set 6651557 quarantined coverage ledger", () => {
       "30357",
       "35480",
       "35787",
+      "41682",
       "51739",
       "77844",
       "79491",
       "93273",
     ]);
     expect(sha256IdSet(admittedRequiredLeafIds)).toBe(
-      "sha256:71e5507265f41c349e127b7c8ca29bb1e15d927fc89363cfc43c2554772c957a",
+      "sha256:e5f3931d7bc1908df68dcae51df9c044bef6e8a72a216abbe3df6aa087706452",
     );
   });
 

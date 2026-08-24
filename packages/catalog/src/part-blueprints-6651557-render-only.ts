@@ -22,11 +22,8 @@ export const SET_6651557_RENDER_ONLY_BLUEPRINTS = [
     variant: "left",
     heightLdu: 8,
     meshAssetId: "ldraw:official:41770a.dat",
-    assetToCatalogFrame: {
-      schemaVersion: "mesh-asset-to-catalog-frame/1",
-      orientationId: "upright-yaw-0",
-      translationLdu: [0, -4, 0],
-    },
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, -4, 0] },
     exactBodyBoundsLdu: {
       min: ["-20", "-4", "-40"],
       max: ["20", "4", "40"],
@@ -59,11 +56,8 @@ export const SET_6651557_RENDER_ONLY_BLUEPRINTS = [
     variant: "right",
     heightLdu: 8,
     meshAssetId: "ldraw:official:41769a.dat",
-    assetToCatalogFrame: {
-      schemaVersion: "mesh-asset-to-catalog-frame/1",
-      orientationId: "upright-yaw-0",
-      translationLdu: [0, -4, 0],
-    },
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, -4, 0] },
     exactBodyBoundsLdu: {
       min: ["-20", "-4", "-40"],
       max: ["20", "4", "40"],
@@ -96,11 +90,8 @@ export const SET_6651557_RENDER_ONLY_BLUEPRINTS = [
     variant: "left",
     heightLdu: 8,
     meshAssetId: "ldraw:official:43723a.dat",
-    assetToCatalogFrame: {
-      schemaVersion: "mesh-asset-to-catalog-frame/1",
-      orientationId: "upright-yaw-0",
-      translationLdu: [0, -4, 0],
-    },
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, -4, 0] },
     exactBodyBoundsLdu: {
       min: ["-20", "-4", "-30"],
       max: ["20", "4", "30"],
@@ -132,11 +123,8 @@ export const SET_6651557_RENDER_ONLY_BLUEPRINTS = [
     variant: "right",
     heightLdu: 8,
     meshAssetId: "ldraw:official:43722a.dat",
-    assetToCatalogFrame: {
-      schemaVersion: "mesh-asset-to-catalog-frame/1",
-      orientationId: "upright-yaw-0",
-      translationLdu: [0, -4, 0],
-    },
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, -4, 0] },
     exactBodyBoundsLdu: {
       min: ["-20", "-4", "-30"],
       max: ["20", "4", "30"],
@@ -168,11 +156,8 @@ export const SET_6651557_RENDER_ONLY_BLUEPRINTS = [
     variant: "right",
     heightLdu: 8,
     meshAssetId: "ldraw:official:54383.dat",
-    assetToCatalogFrame: {
-      schemaVersion: "mesh-asset-to-catalog-frame/1",
-      orientationId: "upright-yaw-0",
-      translationLdu: [0, -4, 0],
-    },
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, -4, 0] },
     exactBodyBoundsLdu: {
       min: ["-29", "-4", "-60"],
       max: ["30", "4", "60"],
@@ -209,11 +194,8 @@ export const SET_6651557_RENDER_ONLY_BLUEPRINTS = [
     lengthStuds: 4,
     heightLdu: 24,
     meshAssetId: "ldraw:official:3659.dat",
-    assetToCatalogFrame: {
-      schemaVersion: "mesh-asset-to-catalog-frame/1",
-      orientationId: "upright-yaw-90",
-      translationLdu: [0, -12, 0],
-    },
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-90", translationLdu: [0, -12, 0] },
     exactBodyBoundsLdu: {
       min: ["-10", "-12", "-40"],
       max: ["10", "12", "40"],
@@ -245,11 +227,8 @@ export const SET_6651557_RENDER_ONLY_BLUEPRINTS = [
     lengthStuds: 6,
     heightLdu: 24,
     meshAssetId: "ldraw:official:3455.dat",
-    assetToCatalogFrame: {
-      schemaVersion: "mesh-asset-to-catalog-frame/1",
-      orientationId: "upright-yaw-90",
-      translationLdu: [0, -12, 0],
-    },
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-90", translationLdu: [0, -12, 0] },
     exactBodyBoundsLdu: {
       min: ["-10", "-12", "-60"],
       max: ["10", "12", "60"],
@@ -283,11 +262,8 @@ export const SET_6651557_RENDER_ONLY_BLUEPRINTS = [
     lengthStuds: 2,
     heightLdu: 16,
     meshAssetId: "ldraw:official:11477.dat",
-    assetToCatalogFrame: {
-      schemaVersion: "mesh-asset-to-catalog-frame/1",
-      orientationId: "upright-yaw-0",
-      translationLdu: [0, 8, 0],
-    },
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, 8, 0] },
     exactBodyBoundsLdu: {
       min: ["-10", "-8.00006098", "-20"],
       max: ["10", "8", "20"],
@@ -314,11 +290,8 @@ export const SET_6651557_RENDER_ONLY_BLUEPRINTS = [
     lengthStuds: 3,
     heightLdu: 24,
     meshAssetId: "ldraw:official:50950.dat",
-    assetToCatalogFrame: {
-      schemaVersion: "mesh-asset-to-catalog-frame/1",
-      orientationId: "upright-yaw-0",
-      translationLdu: [0, -12, 0],
-    },
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, -12, 0] },
     exactBodyBoundsLdu: {
       min: ["-10", "-12", "-30"],
       max: ["10", "12", "30"],
@@ -345,11 +318,8 @@ export const SET_6651557_RENDER_ONLY_BLUEPRINTS = [
     lengthStuds: 4,
     heightLdu: 24,
     meshAssetId: "ldraw:official:61678.dat",
-    assetToCatalogFrame: {
-      schemaVersion: "mesh-asset-to-catalog-frame/1",
-      orientationId: "upright-yaw-0",
-      translationLdu: [0, -12, 0],
-    },
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, -12, 0] },
     exactBodyBoundsLdu: {
       min: ["-10", "-12", "-40"],
       max: ["10", "12", "40"],
@@ -376,11 +346,8 @@ export const SET_6651557_RENDER_ONLY_BLUEPRINTS = [
     lengthStuds: 1,
     heightLdu: 16,
     meshAssetId: "ldraw:official:54200.dat",
-    assetToCatalogFrame: {
-      schemaVersion: "mesh-asset-to-catalog-frame/1",
-      orientationId: "upright-yaw-0",
-      translationLdu: [0, 8, 0],
-    },
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, 8, 0] },
     exactBodyBoundsLdu: {
       min: ["-10", "-7.6", "-10"],
       max: ["10", "8", "10"],
@@ -407,11 +374,8 @@ export const SET_6651557_RENDER_ONLY_BLUEPRINTS = [
     lengthStuds: 1,
     heightLdu: 16,
     meshAssetId: "ldraw:official:85984.dat",
-    assetToCatalogFrame: {
-      schemaVersion: "mesh-asset-to-catalog-frame/1",
-      orientationId: "upright-yaw-0",
-      translationLdu: [0, 8, 0],
-    },
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, 8, 0] },
     exactBodyBoundsLdu: {
       min: ["-20", "-7.6", "-10"],
       max: ["20", "8", "10"],

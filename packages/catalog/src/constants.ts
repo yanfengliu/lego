@@ -89,8 +89,13 @@ import { deepFreeze } from "./freeze.ts";
  * exact official closure supplies the shell, six studs, and conservative
  * collision input; the checksum-pinned Builder revision-J field supplies two
  * end clutches through one exact, symmetry-canonicalized per-part frame.
+ *
+ * /19 adds bracket `41682.dat` as one complete measured definition. Its exact
+ * official closure supplies the horizontal plate, vertical wall, two side
+ * studs, and conservative collision input; the pinned LDCad shadow walk owns
+ * those two directional stud frames and the four underside clutch cells.
  */
-export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/18" as const;
+export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/19" as const;
 export const CONNECTOR_TAXONOMY_VERSION = "stud-tube/1" as const;
 export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/3" as const;
 export const TRANSFORM_POLICY_VERSION = "upright-quarter-turns-negative-y-up/1" as const;

@@ -307,11 +307,13 @@ def render_blueprints(
             lines.append(f"    variant: {_string(plan.variant)},")
         lines.append(f"    heightLdu: {plan.height_ldu},")
         lines.append(f"    meshAssetId: {_string(part.mesh_asset_id)},")
-        lines.append("    assetToCatalogFrame: {")
-        lines.append('      schemaVersion: "mesh-asset-to-catalog-frame/1",')
-        lines.append(f"      orientationId: {_string(plan.orientation_id)},")
-        lines.append(f"      translationLdu: [{_numbers(plan.translation_ldu)}],")
-        lines.append("    },")
+        lines.append("    // prettier-ignore")
+        lines.append(
+            "    assetToCatalogFrame: { "
+            'schemaVersion: "mesh-asset-to-catalog-frame/1", '
+            f"orientationId: {_string(plan.orientation_id)}, "
+            f"translationLdu: [{_numbers(plan.translation_ldu)}] }},"
+        )
         lines.append(
             f"    connectorGridCenterLdu: [{_numbers(plan.connector_grid_center_ldu)}],"
         )
@@ -365,11 +367,13 @@ def render_render_only_blueprints(
             lines.append(f"    variant: {_string(plan.variant)},")
         lines.append(f"    heightLdu: {plan.height_ldu},")
         lines.append(f"    meshAssetId: {_string(part.mesh_asset_id)},")
-        lines.append("    assetToCatalogFrame: {")
-        lines.append('      schemaVersion: "mesh-asset-to-catalog-frame/1",')
-        lines.append(f"      orientationId: {_string(plan.orientation_id)},")
-        lines.append(f"      translationLdu: [{_numbers(plan.translation_ldu)}],")
-        lines.append("    },")
+        lines.append("    // prettier-ignore")
+        lines.append(
+            "    assetToCatalogFrame: { "
+            'schemaVersion: "mesh-asset-to-catalog-frame/1", '
+            f"orientationId: {_string(plan.orientation_id)}, "
+            f"translationLdu: [{_numbers(plan.translation_ldu)}] }},"
+        )
         lines.extend(_exact_bounds_lines("exactBodyBoundsLdu", part.exact_body_bounds))
         lines.extend(_exact_bounds_lines("exactBoundsLdu", part.exact_bounds))
         source_studs = ", ".join(

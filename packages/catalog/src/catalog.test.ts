@@ -157,11 +157,14 @@ const EXPECTED_PART_IDS = [
   // builtin.basic-parts/18: one thin-top arch with six official source studs
   // and two Builder-authored end clutches in an exact reviewed frame.
   "builtin:arch-1x6-thin-top",
+  // builtin.basic-parts/19: one centred 2 x 2 bracket with four underside
+  // clutches and two independently authored side-facing stud frames.
+  "builtin:bracket-2x2-1x2-vertical-studs",
 ] as const;
 
 describe("starter catalog", () => {
-  it("publishes the thin-top arch admission as version 18", () => {
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/18");
+  it("publishes the vertical-stud bracket admission as version 19", () => {
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/19");
   });
 
   it("pins 25269's exact LDCad route and raw-to-catalog central clutch", () => {
@@ -261,7 +264,7 @@ describe("starter catalog", () => {
       "curved-slope": 4,
       "cheese-slope": 2,
       "corner-plate": 5,
-      bracket: 1,
+      bracket: 2,
       "minifig-accessory": 1,
     });
     // Every part belongs to a family the palette knows how to show.

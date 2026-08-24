@@ -23,11 +23,8 @@ export const SET_6651557_MEASURED_BLUEPRINTS = [
     variant: "cut-right-45",
     heightLdu: 8,
     meshAssetId: "ldraw:official:5092.dat",
-    assetToCatalogFrame: {
-      schemaVersion: "mesh-asset-to-catalog-frame/1",
-      orientationId: "upright-yaw-90",
-      translationLdu: [0, -4, 0],
-    },
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-90", translationLdu: [0, -4, 0] },
     connectorGridCenterLdu: [0, 0],
     exactBodyBoundsLdu: {
       min: ["-10", "-4", "-17"],
@@ -64,11 +61,8 @@ export const SET_6651557_MEASURED_BLUEPRINTS = [
     variant: "round-end",
     heightLdu: 8,
     meshAssetId: "ldraw:official:35480.dat",
-    assetToCatalogFrame: {
-      schemaVersion: "mesh-asset-to-catalog-frame/1",
-      orientationId: "upright-yaw-90",
-      translationLdu: [0, -4, 0],
-    },
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-90", translationLdu: [0, -4, 0] },
     connectorGridCenterLdu: [0, 0],
     exactBodyBoundsLdu: {
       min: ["-10", "-4", "-20"],
@@ -111,11 +105,8 @@ export const SET_6651557_MEASURED_BLUEPRINTS = [
     variant: "wing",
     heightLdu: 8,
     meshAssetId: "ldraw:official:51739.dat",
-    assetToCatalogFrame: {
-      schemaVersion: "mesh-asset-to-catalog-frame/1",
-      orientationId: "upright-yaw-90",
-      translationLdu: [0, -4, 0],
-    },
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-90", translationLdu: [0, -4, 0] },
     connectorGridCenterLdu: [0, 0],
     exactBodyBoundsLdu: {
       min: ["-20", "-4", "-38.5"],
@@ -161,11 +152,8 @@ export const SET_6651557_MEASURED_BLUEPRINTS = [
     lengthStuds: 3,
     heightLdu: 8,
     meshAssetId: "ldraw:official:77844.dat",
-    assetToCatalogFrame: {
-      schemaVersion: "mesh-asset-to-catalog-frame/1",
-      orientationId: "upright-yaw-0",
-      translationLdu: [0, -4, 0],
-    },
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, -4, 0] },
     connectorGridCenterLdu: [20, 20],
     exactBodyBoundsLdu: {
       min: ["-10", "-4", "-10"],
@@ -214,11 +202,8 @@ export const SET_6651557_MEASURED_BLUEPRINTS = [
     variant: "double",
     heightLdu: 16,
     meshAssetId: "ldraw:official:93273.dat",
-    assetToCatalogFrame: {
-      schemaVersion: "mesh-asset-to-catalog-frame/1",
-      orientationId: "upright-yaw-0",
-      translationLdu: [0, 8, 0],
-    },
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, 8, 0] },
     connectorGridCenterLdu: [0, 0],
     exactBodyBoundsLdu: {
       min: ["-10", "-8.00016098", "-40"],
@@ -260,11 +245,8 @@ export const SET_6651557_MEASURED_BLUEPRINTS = [
     variant: "corner-round",
     heightLdu: 8,
     meshAssetId: "ldraw:official:30357.dat",
-    assetToCatalogFrame: {
-      schemaVersion: "mesh-asset-to-catalog-frame/1",
-      orientationId: "upright-yaw-0",
-      translationLdu: [0, -4, 0],
-    },
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, -4, 0] },
     connectorGridCenterLdu: [20, 20],
     exactBodyBoundsLdu: {
       min: ["-10", "-4", "-10"],
@@ -321,11 +303,8 @@ export const SET_6651557_MEASURED_BLUEPRINTS = [
     variant: "cut-corner",
     heightLdu: 8,
     meshAssetId: "ldraw:official:2450.dat",
-    assetToCatalogFrame: {
-      schemaVersion: "mesh-asset-to-catalog-frame/1",
-      orientationId: "upright-yaw-0",
-      translationLdu: [0, -4, 0],
-    },
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, -4, 0] },
     connectorGridCenterLdu: [0, 0],
     exactBodyBoundsLdu: {
       min: ["-30", "-4", "-30"],
@@ -378,11 +357,8 @@ export const SET_6651557_MEASURED_BLUEPRINTS = [
     variant: "round",
     heightLdu: 8,
     meshAssetId: "ldraw:official:79491.dat",
-    assetToCatalogFrame: {
-      schemaVersion: "mesh-asset-to-catalog-frame/1",
-      orientationId: "upright-yaw-0",
-      translationLdu: [0, -4, 0],
-    },
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, -4, 0] },
     connectorGridCenterLdu: [10, 10],
     exactBodyBoundsLdu: {
       min: ["-10", "-4", "-10"],
@@ -427,11 +403,8 @@ export const SET_6651557_MEASURED_BLUEPRINTS = [
     variant: "cut-corner",
     heightLdu: 8,
     meshAssetId: "ldraw:official:30503.dat",
-    assetToCatalogFrame: {
-      schemaVersion: "mesh-asset-to-catalog-frame/1",
-      orientationId: "upright-yaw-0",
-      translationLdu: [0, -4, 0],
-    },
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, -4, 0] },
     connectorGridCenterLdu: [0, 0],
     exactBodyBoundsLdu: {
       min: ["-40", "-4", "-40"],
@@ -492,11 +465,8 @@ export const SET_6651557_MEASURED_BLUEPRINTS = [
     variant: "cut-corner",
     heightLdu: 8,
     meshAssetId: "ldraw:official:6106.dat",
-    assetToCatalogFrame: {
-      schemaVersion: "mesh-asset-to-catalog-frame/1",
-      orientationId: "upright-yaw-0",
-      translationLdu: [0, -4, 0],
-    },
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, -4, 0] },
     connectorGridCenterLdu: [0, 0],
     exactBodyBoundsLdu: {
       min: ["-60", "-4", "-60"],
@@ -589,11 +559,8 @@ export const SET_6651557_MEASURED_BLUEPRINTS = [
     variant: "round",
     heightLdu: 8,
     meshAssetId: "ldraw:official:30565.dat",
-    assetToCatalogFrame: {
-      schemaVersion: "mesh-asset-to-catalog-frame/1",
-      orientationId: "upright-yaw-0",
-      translationLdu: [0, -4, 0],
-    },
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, -4, 0] },
     connectorGridCenterLdu: [0, 0],
     exactBodyBoundsLdu: {
       min: ["-40", "-4", "-40"],
@@ -656,11 +623,8 @@ export const SET_6651557_MEASURED_BLUEPRINTS = [
     variant: "quarter-ring",
     heightLdu: 8,
     meshAssetId: "ldraw:official:80015.dat",
-    assetToCatalogFrame: {
-      schemaVersion: "mesh-asset-to-catalog-frame/1",
-      orientationId: "upright-yaw-0",
-      translationLdu: [0, -4, 0],
-    },
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, -4, 0] },
     connectorGridCenterLdu: [30, -30],
     exactBodyBoundsLdu: {
       min: ["-20", "-4", "-80"],
@@ -736,11 +700,8 @@ export const SET_6651557_MEASURED_BLUEPRINTS = [
     variant: "quarter-round",
     heightLdu: 8,
     meshAssetId: "ldraw:official:25269.dat",
-    assetToCatalogFrame: {
-      schemaVersion: "mesh-asset-to-catalog-frame/1",
-      orientationId: "upright-yaw-0",
-      translationLdu: [0, -4, 0],
-    },
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, -4, 0] },
     connectorGridCenterLdu: [0, 0],
     exactBodyBoundsLdu: {
       min: ["-10", "-4", "-10"],
@@ -781,11 +742,8 @@ export const SET_6651557_MEASURED_BLUEPRINTS = [
     variant: "rounded-bottom",
     heightLdu: 20,
     meshAssetId: "ldraw:official:28802.dat",
-    assetToCatalogFrame: {
-      schemaVersion: "mesh-asset-to-catalog-frame/1",
-      orientationId: "upright-yaw-0",
-      translationLdu: [0, -10, 0],
-    },
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, -10, 0] },
     connectorGridCenterLdu: [0, 0],
     exactBodyBoundsLdu: {
       min: ["-40", "-10", "-14"],
@@ -836,11 +794,8 @@ export const SET_6651557_MEASURED_BLUEPRINTS = [
     variant: "triangular",
     heightLdu: 8,
     meshAssetId: "ldraw:official:35787.dat",
-    assetToCatalogFrame: {
-      schemaVersion: "mesh-asset-to-catalog-frame/1",
-      orientationId: "upright-yaw-0",
-      translationLdu: [0, -4, 0],
-    },
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, -4, 0] },
     connectorGridCenterLdu: [0, 0],
     exactBodyBoundsLdu: {
       min: ["-20", "-4", "-20"],
@@ -885,11 +840,8 @@ export const SET_6651557_MEASURED_BLUEPRINTS = [
     variant: "roller-skate",
     heightLdu: 8,
     meshAssetId: "ldraw:official:11253.dat",
-    assetToCatalogFrame: {
-      schemaVersion: "mesh-asset-to-catalog-frame/1",
-      orientationId: "upright-yaw-0",
-      translationLdu: [0, -4, 0],
-    },
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, -4, 0] },
     connectorGridCenterLdu: [0, 0],
     validatedConnectionStudProfile: "nominal-stud-tube/1",
     exactBodyBoundsLdu: {
@@ -931,11 +883,8 @@ export const SET_6651557_MEASURED_BLUEPRINTS = [
     variant: "thin-top",
     heightLdu: 48,
     meshAssetId: "ldraw:official:15254.dat",
-    assetToCatalogFrame: {
-      schemaVersion: "mesh-asset-to-catalog-frame/1",
-      orientationId: "upright-yaw-90",
-      translationLdu: [0, -24, 0],
-    },
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-90", translationLdu: [0, -24, 0] },
     connectorGridCenterLdu: [0, 0],
     exactBodyBoundsLdu: {
       min: ["-10", "-24", "-60"],
@@ -971,6 +920,56 @@ export const SET_6651557_MEASURED_BLUEPRINTS = [
       revision: "J",
       recordSha256: "sha256:0ae335fc6d5ee2adf9e2aadf4dc71bce8db432d9ce1dc5283fbe1da7456ff6f2",
       frameSha256: "sha256:3fab6aeb6e5bcbab80d312937e62d53d86e671816b6f8e1c3eaecc89afc728c5",
+    },
+  },
+  {
+    designId: "41682",
+    ldrawId: "41682.dat",
+    catalogId: "builtin:bracket-2x2-1x2-vertical-studs",
+    displayName: "Bracket 2 x 2 with 1 x 2 Vertical Studs",
+    family: "bracket",
+    widthStuds: 2,
+    lengthStuds: 2,
+    variant: "vertical-studs",
+    heightLdu: 28,
+    meshAssetId: "ldraw:official:41682.dat",
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, 6, 0] },
+    connectorGridCenterLdu: [0, 0],
+    exactBodyBoundsLdu: {
+      min: ["-20", "-14", "-20"],
+      max: ["20", "14", "20"],
+    },
+    exactBoundsLdu: {
+      min: ["-20", "-14", "-20"],
+      max: ["20", "14", "20"],
+    },
+    studsLdu: [
+      [-10, -4, -4, 6.0001514980873605, 4, 0, 0, -1],
+      [10, -4, -4, 6.0001514980873605, 4, 0, 0, -1],
+    ],
+    clutchesLdu: [
+      [-10, 14, -10],
+      [-10, 14, 10],
+      [10, 14, -10],
+      [10, 14, 10],
+    ],
+    // prettier-ignore
+    bodyBoxesLdu: [-16, -14, -4, -8, 10, 4, -4, -14, -4, 4, 10, 4, 8, -14, -4, 16, 10, 4, -5, -14, -3, -4, 10, 3, 4, -14, -3, 5, 10, 3, -12, -14, 4, -11, 10, 5, -20, -14, -4, -16, 14, 4, -8, -14, -4, -4, 14, -3, 4, -14, -4, 8, 14, -3, 16, -14, -4, 20, 14, 4, -8, -14, -3, -5, 14, 4, 5, -14, -3, 8, 14, 4, -5, -14, 3, -4, 14, 4, 4, -14, 3, 5, 14, 4, -17, -14, 4, -16, 14, 5, -16, 6, -16, 16, 10, -8, -16, 6, -8, -4, 10, -7, 4, 6, -8, 16, 10, -7, -16, 6, -7, -6, 10, -6, 6, 6, -7, 16, 10, -6, -16, 6, -6, -7, 10, -4, 7, 6, -6, 16, 10, -4, -3, 6, -5, 3, 10, -4, -16, 6, 4, -12, 10, 16, -11, 6, 4, -7, 10, 16, -3, 6, 4, 3, 10, 5, 7, 6, 4, 16, 10, 16, -12, 6, 5, -11, 10, 16, -7, 6, 6, -6, 10, 16, 6, 6, 6, 7, 10, 16, -6, 6, 7, -4, 10, 16, 4, 6, 7, 6, 10, 16, -4, 6, 8, 4, 10, 16, -20, 6, -20, 20, 14, -16, -20, 6, -16, -16, 14, -4, 16, 6, -16, 20, 14, -4, -4, 6, -8, 4, 14, -5, -6, 6, -7, -4, 14, -4, 4, 6, -7, 6, 14, -4, -7, 6, -6, -6, 14, -4, 6, 6, -6, 7, 14, -4, -4, 6, -5, -3, 14, -4, 3, 6, -5, 4, 14, -4, -20, 6, 4, -17, 14, 20, -7, 6, 4, -3, 14, 6, 3, 6, 4, 7, 14, 6, 16, 6, 4, 20, 14, 20, -17, 6, 5, -16, 14, 20, -3, 6, 5, 3, 14, 8, -6, 6, 6, -3, 14, 7, 3, 6, 6, 6, 14, 7, -4, 6, 7, -3, 14, 8, 3, 6, 7, 4, 14, 8, -16, 6, 16, 16, 14, 20],
+    ldrawSource: {
+      title: "Bracket  2 x  2 -  1 x  2 Up Centred",
+      author: "Gerald Lasser [GeraldLasser]",
+      ldrawOrg: "Part UPDATE 2019-01",
+      licenseExpression: "CC-BY-4.0",
+      rootSha256: "sha256:5cfa8cee2d25fca26c2283a12b43978f4861359bc69affc26c337c3bdfcfb8f2",
+      closureFileCount: 14,
+    },
+    ldcadShadowSource: {
+      libraryId: "ldcad-shadow-library",
+      commit: "15aa1e718b6a8da37d24fc7af5e52e262c041bfb",
+      manifestSha256: "sha256:668bc047a45e5560ff0fbbd69e9eb5adafab127781720bcb069a1554cb3f0c0f",
+      compositionId: "ldcad-shadow-composed-over-ldraw-tree/1",
+      shadowFiles: ["p/stud.dat", "p/stud3.dat", "p/stud4.dat", "parts/41682.dat"],
     },
   },
 ] as const satisfies readonly MeasuredPartBlueprint[];

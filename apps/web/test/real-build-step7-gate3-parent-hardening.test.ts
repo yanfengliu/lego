@@ -26,19 +26,19 @@ import {
 const REAL_PARENT_MIGRATIONS = [
   {
     sourceDocumentHash: "sha256:a806c6e4db60f71f1193cf7f28aa99189f7666278b64bff6beb075d2646d27e4",
-    currentDocumentHash: "sha256:bb9fcbd5a632adbed13e4268b4629c4f6a6654ef28e3b8818eed7aae9293c6da",
+    currentDocumentHash: "sha256:529c58b15b47ab1c22dfbf9261103cf2ef866cd3e79dba769abd0e2847bf4ae2",
   },
   {
     sourceDocumentHash: "sha256:e637dbcdbad7994ae642f3ab8e3d9c366864730b0d957e2ac75836e150edf1bf",
-    currentDocumentHash: "sha256:5c6412fc209ec08b4cb504f934f4de601831df658f161201cc79e68e799f4d28",
+    currentDocumentHash: "sha256:d23e7f512c76f409d90447f10557c459df1c65e27414ff264a31bed3f613752d",
   },
   {
     sourceDocumentHash: "sha256:d3c69d1704953033eeca63f5702d237cf8a066fc83d3a46e12d1eea23a2f5898",
-    currentDocumentHash: "sha256:9bb8ca32ab827a8d6f79de992ba90f60f695ce1f2da94926c01e05efa6c1071d",
+    currentDocumentHash: "sha256:a01ee1b65aa53d78dfe1c6cb870394258f9f47be8136767ffc0e30696e0dd721",
   },
   {
     sourceDocumentHash: "sha256:0ecf6da53de325a283cc64d5c317583d831c82ab707d64b8b21eb6765169f1c1",
-    currentDocumentHash: "sha256:6ce1e1a18a1496617295a9ed80f2cfde12b9a9b6d984c3add585c32aebc9b8ea",
+    currentDocumentHash: "sha256:2642931112fbfc8d0c1e77e4d364dfec964c7016108802e31465141c1139488e",
   },
 ] as const satisfies readonly Step7Gate3ParentMigrationPin[];
 

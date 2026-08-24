@@ -264,6 +264,25 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         catalog_id="builtin:arch-1x6-thin-top",
         display_name="Arch 1 x 6 x 2 Thin Top",
     ),
+    # builtin.basic-parts/19: step 40 first uses the 41682 bracket. Its exact
+    # official closure supplies the horizontal plate, vertical wall and two
+    # side-facing stud surfaces. The pinned LDCad root independently authors
+    # the four underside clutches and both directional studs; all six frames
+    # land on one normal-grouped 20-LDU lattice and every clutch has measured
+    # room for a nominal stud. Builder has no record for this design and grants
+    # no authority.
+    _plan(
+        "41682",
+        "bracket",
+        2,
+        2,
+        variant="vertical-studs",
+        height_ldu=28,
+        translation_ldu=(0, 6, 0),
+        connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
+        catalog_id="builtin:bracket-2x2-1x2-vertical-studs",
+        display_name="Bracket 2 x 2 with 1 x 2 Vertical Studs",
+    ),
 )
 
 

@@ -3,11 +3,11 @@ import type { ExactLdu, ExactLduBounds, ExactLduVector3, LduBounds, LduVector3 }
 /**
  * The fixed decimal scale of an exact LDU quantity: one unit is 10^-9 LDU.
  *
- * Measured, not chosen. Every composed coordinate in the seven audited set 6651557
- * LDraw closures is a terminating decimal needing at most nine fractional
- * digits, and the deepest of them — 93273's -16.00016098 — is not a float64.
- * Nine digits covers the measurement; the safe-integer range covers the
- * magnitude.
+ * Measured, not chosen. The retained set 6651557 source-pilot and measured-part
+ * emissions through catalog /19 use terminating decimals needing at most nine
+ * fractional digits, and the deepest of them — 93273's -16.00016098 — is not a
+ * float64. Nine digits covers the measurement; the safe-integer range covers
+ * the magnitude.
  */
 export const EXACT_LDU_SCALE_EXPONENT = 9;
 
