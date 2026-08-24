@@ -40,6 +40,7 @@ from measured_part_tables import (
     MeasuredPartPlan,
     RenderOnlyPart,
     RenderOnlyPartPlan,
+    _clamped_source_candidate,
     exact_decimal_text,
     frame_box,
     frame_point,
@@ -219,6 +220,44 @@ class FrameTests(unittest.TestCase):
 
         self.assertIn("guessed", str(caught.exception))
         self.assertIn(LDCAD_SHADOW_CONNECTOR_SOURCE, str(caught.exception))
+
+    def test_boundary_only_columns_are_dropped_before_scoring_and_emission(self) -> None:
+        candidate = {
+            "derivation": "unit-height-field",
+            "bodies": [
+                {
+                    "kind": "box",
+                    "tag": "body",
+                    "minLdu": [-1.0, 0.0, 10.0],
+                    "maxLdu": [0.0, 0.001, 11.0],
+                },
+                {
+                    "kind": "box",
+                    "tag": "body",
+                    "minLdu": [-1.0, 0.0, 9.0],
+                    "maxLdu": [0.0, 1.0, 10.0],
+                },
+                {
+                    "kind": "cylinder",
+                    "tag": "stud",
+                    "axis": "y",
+                    "centerLdu": [0.0, -2.0, 0.0],
+                    "radiusLdu": 6.0,
+                    "heightLdu": 4.0,
+                },
+            ],
+            "connectors": [],
+        }
+
+        clipped = _clamped_source_candidate(
+            candidate,
+            ((-10.0, 0.0, -10.0), (10.0, 8.0, 10.0)),
+        )
+
+        self.assertEqual(len(clipped["bodies"]), 2)
+        self.assertEqual(clipped["bodies"][0]["maxLdu"], [0.0, 1.0, 10.0])
+        self.assertEqual(clipped["bodies"][1]["kind"], "cylinder")
+        self.assertIn("clipped to measured solid bounds", clipped["derivation"])
 
     def test_a_builder_connectivity_fact_is_required_exactly_for_its_source(self) -> None:
         with self.assertRaises(ValueError):
@@ -648,6 +687,7 @@ class PlanTests(unittest.TestCase):
                 "28802",
                 "35787",
                 "11253",
+                "15254",
             ],
         )
         self.assertTrue(all(row.connector_source == "builder" for row in ADMITTED_PART_PLANS[:5]))
@@ -703,12 +743,31 @@ class PlanTests(unittest.TestCase):
                 "nominal-stud-tube/1",
             ),
         )
+        self.assertEqual(
+            (
+                ADMITTED_PART_PLANS[16].connector_source,
+                ADMITTED_PART_PLANS[16].catalog_id,
+                ADMITTED_PART_PLANS[16].display_name,
+                ADMITTED_PART_PLANS[16].height_ldu,
+                ADMITTED_PART_PLANS[16].orientation_id,
+                ADMITTED_PART_PLANS[16].translation_ldu,
+            ),
+            (
+                "builder",
+                "builtin:arch-1x6-thin-top",
+                "Arch 1 x 6 x 2 Thin Top",
+                48,
+                "upright-yaw-90",
+                (0, -24, 0),
+            ),
+        )
         self.assertTrue(
             all(
                 row.validated_connection_stud_profile is None
                 for row in ADMITTED_PART_PLANS[:15]
             )
         )
+        self.assertIsNone(ADMITTED_PART_PLANS[16].validated_connection_stud_profile)
 
     def test_11253_report_retains_the_reviewed_stud_profile(self) -> None:
         row = measured_part_report_row(

@@ -12,18 +12,15 @@ import { createBuiltinTruthSnapshot, getBuiltinTruthDigestInputs } from "./facto
  * are literals rather than recomputed expectations on purpose: a test that
  * derives what it checks from the code it is checking cannot notice a change.
  *
- * Measured at catalog builtin.basic-parts/17 with 89 definitions. /17 appends
- * 11253 as one complete measured roller skate: its official LDraw closure
- * supplies the irregular mesh, local-deck stud and conservative collision
- * columns. Its 16-gon source radius remains collision truth while a separately
- * admitted nominal profile governs only validated stud-clutch penetration; the
- * exact LDCad walk supplies one clutch cell. The native
- * Builder record remains unframed count-only counterevidence. After restoring
- * historical truth labels, predecessor semantic payloads are unchanged. The
- * active catalog input also moves global catalog provenance labels, while the
- * connector and transform manifests gain only the additive row. Collision
- * model `/3` admits the new-row-only cross-bound nominal profile, and validator
- * set `/3` records its bounded connection-only behavior.
+ * Measured at catalog builtin.basic-parts/18 with 90 definitions. /18 appends
+ * 15254 as one complete measured thin-top arch: its official LDraw closure
+ * supplies the exact shell, six source studs and conservative collision
+ * columns, while the exact pinned Builder frame supplies the two end clutch
+ * cells. After restoring historical truth labels, predecessor semantic
+ * payloads are unchanged. The active catalog input also moves global catalog
+ * provenance labels, while the connector and transform manifests gain only
+ * the additive row. Collision model `/3` and validator set `/3` do not change
+ * their version labels, but the collision digest includes the new exact row.
  *
  * What they were at builtin.basic-parts/16, HEAD d58ea05:
  *   catalog            sha256:e80f7c99912fba393a549b53549e3f8b9578b48fe5331682ad5e140edca600f6
@@ -95,10 +92,10 @@ import { createBuiltinTruthSnapshot, getBuiltinTruthDigestInputs } from "./facto
  *   validatorSet       sha256:cb2767cfa8c8d7adfe145bef950b49428d8c8fced235a04b5f984c29799a031e
  */
 const PINNED_TRUTH_HASHES = {
-  catalog: "sha256:c3d7b89c6424a9c7cd1e64c1f672aece15340a6bad5a064106f22dcf21512482",
-  connectorTaxonomy: "sha256:4d42fd2f6536488797a91766825555d79013f4bb3a71b67fb2f5f10b102e3429",
-  collisionModel: "sha256:bf4d637eae33f2076f3172a131ea941b6fc4656652b47e2e4cb54ad4bc84d89f",
-  transformPolicy: "sha256:3ee89b8113966fac1783cbf13e1a4e0edd12d227128f06e210412dc9d51ebc24",
+  catalog: "sha256:9e5b17400da2280cb46f97ff69aec063c07a5474f3153a5826b3b88043c36ff6",
+  connectorTaxonomy: "sha256:c852c97a2cc665a624e78c656ffcba43b6792a1e04ba91bc4059b3f0558baac0",
+  collisionModel: "sha256:f09f42d55dbe7e3bf48b2681499f4475dca3ee686caeac1f417d78dee955bddd",
+  transformPolicy: "sha256:e557ade41c1f739dbf41c59033bd59adab18d87e444321567db4c0d7fa44a41b",
   validatorSet: "sha256:fb0676931eb66a0096f393794d0be1297227811a77b986c0a1d05847ee3127d4",
 } as const;
 
@@ -113,18 +110,19 @@ const PINNED_TRUTH_HASHES = {
  * version bump: parts in place changed what they draw.
  */
 const PINNED_GEOMETRY_ROSTER_SHA256 =
-  "b628a7bdec3cb22fefe55bc992a4d7ce551a09fb783c19bfeb156231ac938cc2";
+  "d08772ba9a824b20ace6a53f09188e743ced92af56a0620991ba14d3629d9ce0";
 
-const PINNED_PART_COUNT = 89;
+const PINNED_PART_COUNT = 90;
 /**
  * 1_204_568 at builtin.basic-parts/6, 1_298_834 at /7, 1_358_361 at /8,
  * 1_359_123 at /9, 1_504_522 at /12, 1_508_599 at /13, and 1_516_304 at /14.
  * The /15 increase records the complete 28802 definition: source mesh, eight
  * directed connectors and axis-aware collision evidence all enter together.
  * /16 appends the complete 35787 mesh, three clutch cells and 66 collision rows;
- * /17 appends the complete 11253 mesh, two connectors and 79 collision rows.
+ * /17 appends the complete 11253 mesh, two connectors and 79 collision rows;
+ * /18 appends the complete 15254 mesh, eight connectors and 173 collision rows.
  */
-const PINNED_CATALOG_SERIALIZED_LENGTH = 1_551_952;
+const PINNED_CATALOG_SERIALIZED_LENGTH = 1_575_730;
 
 describe("builtin truth digest stability", () => {
   it("keeps the five pinned truth hashes byte-identical", () => {
@@ -143,7 +141,7 @@ describe("builtin truth digest stability", () => {
     const truth = createBuiltinTruthSnapshot();
 
     expect(truth.catalog.hash).toBe(PINNED_TRUTH_HASHES.catalog);
-    expect(truth.catalog.version).toBe("builtin.basic-parts/17");
+    expect(truth.catalog.version).toBe("builtin.basic-parts/18");
     expect(truth.connectorTaxonomy.hash).toBe(PINNED_TRUTH_HASHES.connectorTaxonomy);
     expect(truth.collisionModel.hash).toBe(PINNED_TRUTH_HASHES.collisionModel);
     expect(truth.transformPolicy.hash).toBe(PINNED_TRUTH_HASHES.transformPolicy);

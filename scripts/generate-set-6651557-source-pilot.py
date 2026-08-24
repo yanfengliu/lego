@@ -23,12 +23,13 @@ from set_6651557_ldraw_source_audit_plan import ARCHIVE_PINS
 from discover_builder_shell_core import atomic_write_relative_windows
 
 
-PILOT_DESIGN_IDS = ("5092", "30357", "35480", "51739", "77844", "93273")
+PILOT_DESIGN_IDS = ("5092", "30357", "35480", "51739", "77844", "93273", "15254")
 VISIBLE_STUD_PRIMITIVES = frozenset(
     {
         "p/stud.dat",
         "p/stud2a.dat",
         "p/stug-1x3.dat",
+        "p/stug-1x6.dat",
         "p/stug-2x1.dat",
         "p/stug-2x2.dat",
         "p/stug-3x1.dat",
@@ -442,7 +443,7 @@ def frame_count(row: dict[str, object], section: str, frame: str) -> int:
 
 def main() -> None:
     repository = Path(__file__).resolve().parents[1]
-    parser = argparse.ArgumentParser(description="Measure the fixed six-part 6651557 source pilot without admitting catalog truth.")
+    parser = argparse.ArgumentParser(description="Measure the fixed seven-part 6651557 source pilot without admitting catalog truth.")
     parser.add_argument("--official", type=Path, required=True)
     parser.add_argument("--unofficial", type=Path, required=True)
     parser.add_argument("--native-pack", type=Path, required=True)

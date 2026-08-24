@@ -53,6 +53,10 @@ PRIMITIVE_ROLE_PINS: dict[SourceKey, tuple[str, str]] = {
         "sha256:f24de368545aa96580b811daa6c25e18f5bfdbaca1d4b11addcfa7cbb625f4c9",
         STUD_ROLE,
     ),
+    ("official", "p/stug-1x6.dat"): (
+        "sha256:907b74bad03688f6d2f22220db6ec4a6c922203a3e3001aa24f214c6ed48a226",
+        STUD_ROLE,
+    ),
     ("official", "p/stug-2x1.dat"): (
         "sha256:03d08cea230e892e1b6cbfe523c19b568a834c5888aac5c789d1fb8d6ee93d96",
         STUD_ROLE,

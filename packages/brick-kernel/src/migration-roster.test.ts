@@ -190,7 +190,7 @@ describe("historical catalog roster migration", () => {
 
     expect(report.migrated).toBe(true);
     expect(report.blockingReasons).toEqual([]);
-    expect(report.addedCatalogPartIds).toHaveLength(87);
+    expect(report.addedCatalogPartIds).toHaveLength(88);
     expect(report.addedColorIds).toHaveLength(44);
     expect(validateBrickDocument(document).documentGloballyValid).toBe(true);
   });
@@ -258,6 +258,71 @@ describe("historical catalog roster migration", () => {
     expect(report.migrated).toBe(false);
     expect(report.blockingReasons).toContain(
       `Connection future-axle-edge endpoint axle/axle:2 did not exist in reviewed source truth ${reviewed.truthHash}; migration cannot legitimize a later connector`,
+    );
+  });
+
+  it("refuses a dangling endpoint whose historical catalog identity cannot be authenticated", () => {
+    const reviewed = REVIEWED_TRUTHS_V4[2]!;
+    const technicBrick = createPartInstance({
+      id: "technic",
+      catalogPartId: "builtin:technic-brick-1x2",
+    });
+    const base = documentAtReviewedTruth({
+      id: "v4-61-dangling-future-port",
+      name: "Dangling later-port injection",
+      truth: reviewed.truth,
+    });
+    const historical = withPartsAndConnection(base, [technicBrick], {
+      id: "dangling-future-edge",
+      kind: "stud-tube",
+      a: { partId: technicBrick.id, portId: "pinHole:0" },
+      b: { partId: "missing-axle", portId: "axle:2" },
+      provenance: { source: "manual" },
+    });
+
+    const { document, report } = migrateDocumentTruth(historical);
+
+    expect(document).toBe(historical);
+    expect(report.migrated).toBe(false);
+    expect(report.blockingReasons).toContain(
+      `Connection dangling-future-edge endpoint missing-axle/axle:2 references missing part missing-axle under reviewed source truth ${reviewed.truthHash}; add that source-truth-valid part instance or remove the dangling connection before migration`,
+    );
+  });
+
+  it("refuses a duplicate part ID before an alias can authenticate removed endpoint semantics", () => {
+    const reviewed = REVIEWED_TRUTHS_V4[1]!;
+    const wedge = createPartInstance({
+      id: "dup",
+      catalogPartId: "builtin:wedge-plate-2x4-left",
+    });
+    const alias = createPartInstance({
+      id: "dup",
+      catalogPartId: "builtin:plate-2x4",
+    });
+    const plate = createPartInstance({
+      id: "plate",
+      catalogPartId: "builtin:plate-1x1",
+      transform: { positionLdu: [10, 8, 10], orientationId: "upright-yaw-0" },
+    });
+    const base = documentAtReviewedTruth({
+      id: "v4-59-duplicate-part-alias",
+      name: "Duplicate part endpoint alias",
+      truth: reviewed.truth,
+    });
+    const historical = withPartsAndConnection(base, [wedge, alias, plate], {
+      id: "duplicate-alias-edge",
+      kind: "stud-tube",
+      a: { partId: "dup", portId: "undersideClutch:1:2" },
+      b: { partId: plate.id, portId: "stud:0:0" },
+      provenance: { source: "manual" },
+    });
+
+    const { document, report } = migrateDocumentTruth(historical);
+
+    expect(document).toBe(historical);
+    expect(report.migrated).toBe(false);
+    expect(report.blockingReasons).toContain(
+      `Connection duplicate-alias-edge endpoint dup/undersideClutch:1:2 resolves to multiple source part instances with duplicate ID dup under reviewed source truth ${reviewed.truthHash}; make part IDs unique before migration so connector semantics can be authenticated`,
     );
   });
 

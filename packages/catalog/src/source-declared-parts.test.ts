@@ -18,12 +18,12 @@ import { SET_6651557_MEASURED_BLUEPRINTS } from "./part-blueprints-6651557-measu
 import { SET_6651557_MESH_ASSETS } from "./mesh-assets-6651557.ts";
 
 /**
- * What the twelve fully measured catalog parts are, written out rather than recomputed.
+ * What the thirteen fully measured catalog parts are, written out rather than recomputed.
  *
  * These are facts about real parts: the extents come from the exact expanded
  * LDraw closure, the collision column count from its per-column height field at
  * 1 LDU, and the connector counts from an authored connector source
- * carried through the per-part frame — LEGO Builder's field for five parts and
+ * carried through the per-part frame — LEGO Builder's field for six parts and
  * the LDCad shadow library's snap metas for seven. Three of the LDCad-sourced
  * designs have no Builder record; 25269 deliberately selects the independently
  * authored shadow route instead of treating record presence as connector truth,
@@ -278,6 +278,27 @@ const ADMITTED = [
     vertices: 705,
     closureFiles: 17,
   },
+  // builtin.basic-parts/18. The source-derived arch surface supplies six studs;
+  // the exact pinned Builder frame supplies only its two end clutch cells.
+  {
+    id: "builtin:arch-1x6-thin-top",
+    ldrawId: "15254.dat",
+    family: "arch",
+    widthStuds: 1,
+    lengthStuds: 6,
+    heightLdu: 48,
+    orientationId: "upright-yaw-90",
+    translationLdu: [0, -24, 0],
+    connectorGridCenterLdu: [0, 0],
+    bodyBoundsLdu: { min: [-10, -24, -60], max: [10, 24, 60] },
+    boundsLdu: { min: [-10, -28, -60], max: [10, 24, 60] },
+    studs: 6,
+    clutches: 2,
+    bodyBoxes: 167,
+    triangles: 548,
+    vertices: 594,
+    closureFiles: 15,
+  },
 ] as const;
 
 /** Every part whose clutch cells the LDCad shadow library authors. */
@@ -311,7 +332,7 @@ const bodyBoxes = (part: PartDefinition): readonly Extract<CollisionPrimitive, {
   );
 
 describe("set 6651557 parts declared from measured source", () => {
-  it("admits all twelve through the production mesh gate", () => {
+  it("admits all thirteen through the production mesh gate", () => {
     for (const expected of ADMITTED) {
       expect([expected.id, validateMeshPartDefinitionAdmission(require(expected.id))]).toEqual([
         expected.id,
@@ -438,7 +459,7 @@ describe("set 6651557 parts declared from measured source", () => {
     expect(BUNDLED_LDRAW_ARCHIVE.sha256).toBe(
       "sha256:6009f2e94204c4d3a63a4c812010b5c90bad8c5acb19b882c859fdac63734eae",
     );
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(184);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(189);
     for (const file of BUNDLED_LDRAW_SOURCE_FILES) {
       expect(file.author.trim().length).toBeGreaterThan(0);
       expect(file.title.trim().length).toBeGreaterThan(0);
@@ -453,9 +474,9 @@ describe("set 6651557 parts declared from measured source", () => {
       BUNDLED_LDRAW_SOURCE_FILES.filter(
         ({ licenseExpression }) => licenseExpression === "CC-BY-4.0",
       ),
-    ).toHaveLength(183);
-    // 27 named authors across 184 files: attribution is retained per file, never flattened.
-    expect(new Set(BUNDLED_LDRAW_SOURCE_FILES.map(({ author }) => author)).size).toBe(27);
+    ).toHaveLength(188);
+    // 28 named authors across 189 files: attribution is retained per file, never flattened.
+    expect(new Set(BUNDLED_LDRAW_SOURCE_FILES.map(({ author }) => author)).size).toBe(28);
 
     for (const expected of ADMITTED) {
       const closure = BUNDLED_LDRAW_CLOSURES[expected.ldrawId.replace(".dat", "")]!;

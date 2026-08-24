@@ -245,6 +245,25 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         display_name="Roller Skate",
         validated_connection_stud_profile="nominal-stud-tube/1",
     ),
+    # builtin.basic-parts/18: 15254 is the five-piece thin-top arch first used
+    # by printed step 28. Its official closure supplies the six visible studs,
+    # exact shell and conservative collision height field. The pinned Builder
+    # revision-J record supplies the two end clutches through an exact six-stud
+    # correspondence; both proper frames and their two mirrored equivalents are
+    # one connector-observable symmetry class. LDCad's S6x44 rows remain
+    # excluded because they are not the standard round R6x4 anti-stud profile.
+    _plan(
+        "15254",
+        "arch",
+        1,
+        6,
+        variant="thin-top",
+        height_ldu=48,
+        orientation_id="upright-yaw-90",
+        translation_ldu=(0, -24, 0),
+        catalog_id="builtin:arch-1x6-thin-top",
+        display_name="Arch 1 x 6 x 2 Thin Top",
+    ),
 )
 
 

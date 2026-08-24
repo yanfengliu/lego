@@ -61,7 +61,7 @@ class Set6651557SourcePilotTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Re-acquire the reviewed bytes"):
                 PILOT.read_pinned_file(path, 8, "0" * 64)
 
-    def test_requires_all_six_exact_unadmitted_audit_routes(self) -> None:
+    def test_requires_all_seven_exact_unadmitted_audit_routes(self) -> None:
         rows = [
             {
                 "designId": design_id,

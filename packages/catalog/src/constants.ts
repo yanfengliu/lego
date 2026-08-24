@@ -84,8 +84,13 @@ import { deepFreeze } from "./freeze.ts";
  * Its exact official closure supplies the irregular footwear-and-roller surface
  * and conservative collision input; the LDCad shadow walk owns its one underside
  * clutch. The unframed native Builder record remains count-only counterevidence.
+ *
+ * /18 adds thin-top arch `15254.dat` as one complete measured definition. Its
+ * exact official closure supplies the shell, six studs, and conservative
+ * collision input; the checksum-pinned Builder revision-J field supplies two
+ * end clutches through one exact, symmetry-canonicalized per-part frame.
  */
-export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/17" as const;
+export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/18" as const;
 export const CONNECTOR_TAXONOMY_VERSION = "stud-tube/1" as const;
 export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/3" as const;
 export const TRANSFORM_POLICY_VERSION = "upright-quarter-turns-negative-y-up/1" as const;

@@ -11,14 +11,14 @@ changes the digest and stops the run.
 Two derivation classes, and the difference matters:
 
   * `exact-lattice-correspondence` — Builder's authored nodes land on the
-    LDraw-measured stud and tube centres by exact rational equality. Four of the
-    five parts.
+    LDraw-measured stud and tube centres by exact rational equality. Five of the
+    six parts with Builder records.
   * `registered-discrete-search` — 5092 expands to 84 body triangles with no stud
     and no tube primitive at all, so there is nothing to correspond with. Its
     turn and translation come from a search over the eight axis maps and the
     10 LDU half-stud translation lattice, scored by how far Builder's own shell
     vertices land from the LDraw surface. That is a fit. It is recorded as a fit,
-    with its residual, and it is weaker evidence than the other four.
+    with its residual, and it is weaker evidence than the other five.
 
 Nothing here admits a part or claims a catalog frame.
 """
@@ -78,6 +78,15 @@ _PINS: tuple[tuple[str, str, str, str, tuple[int, int, int], str, str], ...] = (
         EXACT,
         "a28a51b7dddf06067c2563e2f63d8389fff26d7bbce8703d18ae140c19f26d2d",
     ),
+    (
+        "15254",
+        "J",
+        "0ae335fc6d5ee2adf9e2aadf4dc71bce8db432d9ce1dc5283fbe1da7456ff6f2",
+        "turn0",
+        (-50, 48, 0),
+        EXACT,
+        "3fab6aeb6e5bcbab80d312937e62d53d86e671816b6f8e1c3eaecc89afc728c5",
+    ),
 )
 
 PINNED_FRAMES: dict[str, BuilderLdrawFrame] = {
@@ -99,7 +108,9 @@ PINNED_FRAME_DIGESTS: dict[str, str] = {
 # 30357 has no entry, and that is a measurement rather than an omission: the
 # 107-record Builder pack does not contain it, so it has no authored node lattice,
 # no frame, and no female connectors. It falls back to the LDraw geometric rule,
-# which emits zero clutch cells.
+# which emits zero clutch cells. The later 15254 extension remains in the same
+# report because its pinned six-stud correspondence exercises the same frame
+# derivation, while its Builder field exclusively authors the two end clutches.
 UNAVAILABLE_DESIGN_IDS = ("30357",)
 
 

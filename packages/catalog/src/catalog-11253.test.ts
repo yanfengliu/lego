@@ -122,8 +122,8 @@ describe("11253 roller-skate catalog truth", () => {
       bytes: 28_352,
       manifestSha256: "sha256:a95ff67e17b326856aec2d59be0d8062c91dd5093dd380bdf61c610fda2bad60",
     });
-    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(28);
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(184);
+    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(29);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(189);
   });
 
   it("retains Builder only as counterevidence and selects one exact LDCad route", () => {
@@ -311,9 +311,11 @@ describe("11253 roller-skate catalog truth", () => {
   });
 
   it("keeps every /16 part payload byte unchanged after restoring its historical truth labels", () => {
-    const priorParts = PART_DEFINITIONS.filter(({ id }) => id !== PART_ID);
+    const priorParts = PART_DEFINITIONS.filter(
+      ({ id }) => id !== PART_ID && id !== "builtin:arch-1x6-thin-top",
+    );
     const priorDefinitionBytes = JSON.stringify(priorParts)
-      .replaceAll("builtin.basic-parts/17", "builtin.basic-parts/16")
+      .replaceAll("builtin.basic-parts/18", "builtin.basic-parts/16")
       .replaceAll("rectilinear-stud-clearance/3", "rectilinear-stud-clearance/2");
     const rows = priorParts.map(({ id, connectors, collision }) => ({ id, connectors, collision }));
     const collisionRows = priorParts.map(({ id, collision }) => ({ id, collision }));

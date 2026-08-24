@@ -22,9 +22,9 @@ from ldraw_surface_expander import expand_surface
 from part_admission_ldraw_candidate import role_classifier
 from part_admission_surface import MeasuredSurface, STUD_ROLE
 
-PILOT_DESIGN_IDS = ("5092", "30357", "35480", "51739", "77844", "93273")
-PILOT_BYTES = 10_130
-PILOT_SHA256 = "368753adec40d517c5063cbe23f28b9ff21108f0f8824bb0671b8c2575794613"
+PILOT_DESIGN_IDS = ("5092", "30357", "35480", "51739", "77844", "93273", "15254")
+PILOT_BYTES = 11_665
+PILOT_SHA256 = "3fe52abfb6746998340b91f5aa1c081091695cf3e9c7675af4bf6cc0b73b11dd"
 PILOT_SCHEMA_VERSION = "lego.set-6651557-source-pilot/1"
 MEASUREMENT_ONLY = "measurement-only-not-catalog-admitted"
 
@@ -51,7 +51,7 @@ def parse_pilot(data: bytes, source: object = "captured source-pilot bytes") -> 
 
 
 def read_pilot(path: Path) -> dict[str, object]:
-    """The approved six-part source pilot, or a refusal naming what differs."""
+    """The approved seven-part source pilot, or a refusal naming what differs."""
 
     resolved = path.resolve(strict=True)
     return parse_pilot(resolved.read_bytes(), resolved)

@@ -31,6 +31,7 @@ const ALL_PARTS = [
   "builtin:bracket-1x2-1x4-rounded-bottom",
   "builtin:tile-2x2-triangular",
   "builtin:roller-skate",
+  "builtin:arch-1x6-thin-top",
 ];
 
 function fail(message) {

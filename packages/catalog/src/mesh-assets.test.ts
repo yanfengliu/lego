@@ -89,8 +89,8 @@ describe("preloaded mesh asset resolution", () => {
     const legacyRows = legacyParts.map(({ id, geometry }) => [id, geometry.contentHash]);
     const legacyHashes = JSON.stringify(legacyRows);
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/17");
-    expect(PART_DEFINITIONS).toHaveLength(89);
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/18");
+    expect(PART_DEFINITIONS).toHaveLength(90);
     expect(
       PART_DEFINITIONS.filter(isMeshPartDefinition)
         .filter(({ geometry }) => geometry.collisionMode === "preserved-catalog-recipe")
@@ -101,7 +101,7 @@ describe("preloaded mesh asset resolution", () => {
         ({ geometry }) => geometry.generatorId !== "builtin:preloaded-mesh-reference/1",
       ),
     ).toBe(true);
-    expect(meshParts).toHaveLength(28);
+    expect(meshParts).toHaveLength(29);
     expect(
       meshParts
         .filter(({ geometry }) => geometry.collisionMode !== "preserved-catalog-recipe")
@@ -122,7 +122,7 @@ describe("preloaded mesh asset resolution", () => {
       createHash("sha256")
         .update(
           JSON.stringify(legacyParts)
-            .replaceAll("builtin.basic-parts/17", "builtin.basic-parts/15")
+            .replaceAll("builtin.basic-parts/18", "builtin.basic-parts/15")
             .replaceAll("rectilinear-stud-clearance/3", "rectilinear-stud-clearance/2"),
         )
         .digest("hex"),

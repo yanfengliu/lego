@@ -154,11 +154,14 @@ const EXPECTED_PART_IDS = [
   // builtin.basic-parts/17: one irregular minifig accessory with an official
   // stud and one independently authored underside clutch.
   "builtin:roller-skate",
+  // builtin.basic-parts/18: one thin-top arch with six official source studs
+  // and two Builder-authored end clutches in an exact reviewed frame.
+  "builtin:arch-1x6-thin-top",
 ] as const;
 
 describe("starter catalog", () => {
-  it("publishes the roller-skate admission as version 17", () => {
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/17");
+  it("publishes the thin-top arch admission as version 18", () => {
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/18");
   });
 
   it("pins 25269's exact LDCad route and raw-to-catalog central clutch", () => {
@@ -254,7 +257,7 @@ describe("starter catalog", () => {
       "technic-brick": 1,
       axle: 2,
       wheel: 1,
-      arch: 2,
+      arch: 3,
       "curved-slope": 4,
       "cheese-slope": 2,
       "corner-plate": 5,

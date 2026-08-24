@@ -75,6 +75,13 @@ describe("matchesPartQuery", () => {
     expect(matchesPartQuery(rollerSkate, "plate")).toBe(false);
   });
 
+  it("keeps 15254 discoverable by identifier, arch shape, thin top, and 1x6 size", () => {
+    const arch = part("builtin:arch-1x6-thin-top");
+    for (const query of ["15254", "arch", "thin top", "1x6", "6x1"]) {
+      expect(matchesPartQuery(arch, query), query).toBe(true);
+    }
+  });
+
   it("does not match an unrelated query", () => {
     expect(matchesPartQuery(brick2x4, "wheel")).toBe(false);
     expect(matchesPartQuery(brick2x4, "9x9")).toBe(false);

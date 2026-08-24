@@ -23,11 +23,11 @@ import {
 import type { ExactLduBoundsDeclaration } from "./exact-ldu.ts";
 
 /**
- * The measured bounds of the six audited set 6651557 LDraw closures, copied
+ * The measured bounds of the seven audited set 6651557 LDraw closures, copied
  * from `output/real-build/set-6651557-source-pilot.json`.
  *
  * 93273 is the one this representation exists for: -16.00016098 is not a
- * float64, and it is one of the six parts that must be admitted. 51739's
+ * float64, and it is one of the seven parts that must be admitted. 51739's
  * +/-38.5 is a double and still has to survive the same path unchanged.
  */
 const PILOT_BOUNDS: Readonly<Record<string, ExactLduBoundsDeclaration>> = {
@@ -37,6 +37,7 @@ const PILOT_BOUNDS: Readonly<Record<string, ExactLduBoundsDeclaration>> = {
   "51739": { min: ["-38.5", "-4", "-20"], max: ["38.5", "8", "20"] },
   "77844": { min: ["-10", "-4", "-10"], max: ["50", "8", "50"] },
   "93273": { min: ["-10", "-16.00016098", "-40"], max: ["10", "0", "40"] },
+  "15254": { min: ["-60", "-4", "-10"], max: ["60", "48", "10"] },
 };
 
 describe("exact LDU round trips", () => {

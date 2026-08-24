@@ -107,7 +107,7 @@ def _signed_permutation(values: Sequence[Fraction], label: str) -> tuple[int, ..
     if matrix != transpose:
         raise ValueError(
             f"{label} rotation {list(matrix)} is not symmetric, so reading it row-major and "
-            "column-major give different frames. The six-part pilot only ever carries the identity, "
+            "column-major give different frames. The seven-part pilot only ever carries the identity, "
             "so nothing here establishes which order Builder stores; measure a rotated field before "
             "accepting one."
         )
@@ -198,4 +198,3 @@ def builder_field_nodes(record: dict[str, object]) -> tuple[BuilderNode, ...]:
             "lattice to derive a frame from."
         )
     return tuple(nodes)
-

@@ -27,9 +27,9 @@ export interface ReviewedHistoricalConnectionSemantics {
 }
 
 export const CURRENT_CONNECTION_SEMANTICS_AUTHORITY = deepFreeze({
-  truthHash: "sha256:d21bdecc6a269b1b92e0915664cae9a147168fe8d7576ee17213e8e9446c7926",
-  endpointCount: 2248,
-  endpointMapDigest: "sha256:df77717eff73f86b966ab4543bdf67cff3d2087b9bbc172e2199803b3996a87c",
+  truthHash: "sha256:8172cc4f993b46bb9fa8f782bb2b295c516e95c16f2d6861e4a18219ef2e1b20",
+  endpointCount: 2256,
+  endpointMapDigest: "sha256:960172943e8082add409c5964db59831d0270aa012c933cc816dc6fbeab145bc",
   pairCount: 3,
   pairMapDigest: "sha256:7431a242907aa9829ead6a279d0b530fe5f5d00ee31e6ddc1576fe66a8a07add",
 } as const);
@@ -260,6 +260,13 @@ export const REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH: Readonly<
     3,
     CURRENT_PAIR_DIGEST,
   ),
+  "sha256:d21bdecc6a269b1b92e0915664cae9a147168fe8d7576ee17213e8e9446c7926": authority(
+    "4cb37ef80c045ab5b7732dd9021938590ecbb086",
+    2248,
+    "sha256:df77717eff73f86b966ab4543bdf67cff3d2087b9bbc172e2199803b3996a87c",
+    3,
+    CURRENT_PAIR_DIGEST,
+  ),
 });
 
 const LIVE_CONNECTION_SEMANTICS = projectConnectionSemantics(
@@ -330,23 +337,37 @@ export function historicalConnectionSemanticsBlockingReasons(
   const pairDeltas = new Map(
     authority.pairDeltas.map((delta) => [connectionPairKey(delta.male, delta.female), delta]),
   );
-  const partById = new Map(document.parts.map((part) => [part.id, part]));
+  const partById = new Map<string, BrickDocumentV1["parts"][number]>();
+  const duplicatePartIds = new Set<string>();
+  for (const part of document.parts) {
+    if (partById.has(part.id)) duplicatePartIds.add(part.id);
+    else partById.set(part.id, part);
+  }
   const blockingReasons: string[] = [];
 
   for (const connection of document.connections) {
     const resolved = [];
     for (const endpoint of [connection.a, connection.b]) {
+      const label = `${endpoint.partId}/${endpoint.portId}`;
+      if (duplicatePartIds.has(endpoint.partId)) {
+        blockingReasons.push(
+          `Connection ${connection.id} endpoint ${label} resolves to multiple source part instances with duplicate ID ${endpoint.partId} under reviewed source truth ${sourceTruthHash}; make part IDs unique before migration so connector semantics can be authenticated`,
+        );
+        continue;
+      }
       const instance = partById.get(endpoint.partId);
-      // A dangling part reference stays draft-invalid under the same validator;
-      // there is no catalog identity whose historical semantics could drift.
-      if (instance === undefined) continue;
+      if (instance === undefined) {
+        blockingReasons.push(
+          `Connection ${connection.id} endpoint ${label} references missing part ${endpoint.partId} under reviewed source truth ${sourceTruthHash}; add that source-truth-valid part instance or remove the dangling connection before migration`,
+        );
+        continue;
+      }
       const definition = getPartDefinition(instance.catalogPartId);
       if (definition === undefined) continue;
       const connector = definition.connectors.find(({ id }) => id === endpoint.portId);
       const delta = endpointDeltas.get(
         connectionEndpointKey(instance.catalogPartId, endpoint.portId),
       );
-      const label = `${endpoint.partId}/${endpoint.portId}`;
       if (delta?.sourceDigest === null) {
         blockingReasons.push(
           `Connection ${connection.id} endpoint ${label} did not exist in reviewed source truth ${sourceTruthHash}; migration cannot legitimize a later connector`,

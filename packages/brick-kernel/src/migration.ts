@@ -35,6 +35,7 @@ export const MIGRATABLE_CATALOG_VERSIONS: readonly string[] = Object.freeze([
   "builtin.basic-parts/14",
   "builtin.basic-parts/15",
   "builtin.basic-parts/16",
+  "builtin.basic-parts/17",
   BUILTIN_CATALOG_VERSION,
 ]);
 
@@ -191,6 +192,15 @@ export const REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS = Object.freeze([
     catalogVersion: "builtin.basic-parts/16",
     sourceCommit: "d58ea055120ea8e99a30faab35384a7a54f18de2",
     truthHash: "sha256:71c76ba1d6740cbaf89b1ab721dba2ffa3136e9d742198b289373ad2205be1be",
+  },
+  // The snapshot /18 replaced. /18 appends 15254 as one complete measured
+  // definition: exact official geometry, visible studs and collision columns,
+  // plus two Builder-authored end clutches through a checksum-pinned exact
+  // frame. No preceding catalog definition changes interpretation.
+  {
+    catalogVersion: "builtin.basic-parts/17",
+    sourceCommit: "4cb37ef80c045ab5b7732dd9021938590ecbb086",
+    truthHash: "sha256:d21bdecc6a269b1b92e0915664cae9a147168fe8d7576ee17213e8e9446c7926",
   },
 ] as const);
 

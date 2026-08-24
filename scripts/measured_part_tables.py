@@ -2,9 +2,11 @@
 
 The catalog's generated mesh modules, measured blueprints, render-only
 blueprints and per-file attribution are emitted from one measurement, so their
-values stay aligned. Fourteen measured definitions consume every field. Twelve
-`/13` render promotions intentionally consume only mesh and visual bounds while
-`part-factory.ts` retains their preceding physical semantics.
+values stay aligned. Seventeen rows take the full-measurement generator route:
+thirteen are current fully measured catalog definitions, while four special-
+plate render promotions preserve their preceding catalog physical semantics.
+Twelve `/13` render promotions intentionally consume only mesh and visual bounds
+while `part-factory.ts` retains their preceding physical semantics.
 
 The distinct render-only route expands a pinned official LDraw root into mesh,
 bounds, stud-frame witnesses and attribution only. It deliberately has no
@@ -485,10 +487,46 @@ def _clamped_column_boxes(
             continue
         minimum = [max(float(body["minLdu"][axis]), solid[0][axis]) for axis in range(3)]  # type: ignore[index]
         maximum = [min(float(body["maxLdu"][axis]), solid[1][axis]) for axis in range(3)]  # type: ignore[index]
+        if any(maximum[axis] <= minimum[axis] for axis in range(3)):
+            continue
         low, high = frame_box(minimum, maximum, plan)
         flat.extend(low)
         flat.extend(high)
     return tuple(flat)
+
+
+def _clamped_source_candidate(
+    candidate: dict[str, object], solid: tuple[Vector3, Vector3]
+) -> dict[str, object]:
+    """The scoreable source-frame bodies after the same clipping emission uses.
+
+    A boundary-only height-field cell can touch the measured solid on a plane
+    and collapse to zero width when clipped. Such a cell has no collision volume
+    and the runtime contract refuses it. Drop it here, before both scoring and
+    emission, so the scorecard measures exactly the positive-volume boxes that
+    enter the catalog.
+    """
+
+    bodies: list[dict[str, object]] = []
+    for body in candidate["bodies"]:  # type: ignore[union-attr]
+        row = dict(body)  # type: ignore[arg-type]
+        if row["kind"] == "box":
+            minimum = [
+                max(float(row["minLdu"][axis]), solid[0][axis]) for axis in range(3)  # type: ignore[index]
+            ]
+            maximum = [
+                min(float(row["maxLdu"][axis]), solid[1][axis]) for axis in range(3)  # type: ignore[index]
+            ]
+            if any(maximum[axis] <= minimum[axis] for axis in range(3)):
+                continue
+            row["minLdu"] = minimum
+            row["maxLdu"] = maximum
+        bodies.append(row)
+    return {
+        **candidate,
+        "derivation": f"{candidate['derivation']} clipped to measured solid bounds",
+        "bodies": bodies,
+    }
 
 
 def _stud_rows(
@@ -579,7 +617,8 @@ def measure_part(
         for point in triangle
     ]
     all_points = [point for triangle in surface.triangles for point in triangle]
-    candidate = column_candidate(surface, column_ldu)
+    solid_bounds = _bounds(solid_points)
+    candidate = _clamped_source_candidate(column_candidate(surface, column_ldu), solid_bounds)
 
     if plan.connector_source == BUILDER_CONNECTOR_SOURCE:
         source_clutches = builder_clutches.get(plan.design_id)
@@ -621,7 +660,7 @@ def measure_part(
         exact_bounds=_exact_bounds(all_points, plan, "visual bounds"),
         studs_ldu=_stud_rows(candidate, plan),
         clutches_ldu=tuple(sorted(frame_point(row, plan) for row in source_clutches)),
-        body_boxes_ldu=_clamped_column_boxes(candidate, plan, _bounds(solid_points)),
+        body_boxes_ldu=_clamped_column_boxes(candidate, plan, solid_bounds),
         root=library.record(root_key),
         closure=tuple(library.closure(root_key)),
         shadow_files=shadow_files,

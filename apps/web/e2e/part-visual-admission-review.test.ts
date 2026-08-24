@@ -19,6 +19,11 @@ import { requirePartVisualAdmissionReviewTimestamp } from "./part-visual-admissi
 const sha256 = (bytes: Uint8Array) =>
   `sha256:${createHash("sha256").update(bytes).digest("hex")}` as const;
 
+function visualReviewTestDirectory(prefix: string): string {
+  mkdirSync("test-results", { recursive: true });
+  return mkdtempSync(join("test-results", prefix));
+}
+
 function pendingPacket(
   imageBytes = Buffer.from([1]),
   catalogPartId = "3001",
@@ -184,7 +189,7 @@ describe("part visual-admission review sidecar", () => {
   });
 
   it("refuses a retained PNG that no longer matches its pending packet", () => {
-    const root = mkdtempSync(join("test-results", "visual-admission-review-"));
+    const root = visualReviewTestDirectory("visual-admission-review-");
     cleanup.push(root);
     const run = join(root, "runs", "unit-run");
     const bytes = Buffer.from([1]);
@@ -264,7 +269,7 @@ describe("part visual-admission review sidecar", () => {
   });
 
   it("batch publication re-verifies aggregate and packet-bound PNG/RGBA hashes", () => {
-    const root = mkdtempSync(join("test-results", "visual-admission-review-batch-"));
+    const root = visualReviewTestDirectory("visual-admission-review-batch-");
     cleanup.push(root);
     const fixture = writePacketRun(root, { review: true });
     const captureBatchPath = writeCaptureBatch(root, fixture.packet, fixture.catalogPartId);
@@ -293,7 +298,7 @@ describe("part visual-admission review sidecar", () => {
   });
 
   it("batch publication re-reads every packet PNG after the review sidecar is created", () => {
-    const root = mkdtempSync(join("test-results", "visual-admission-review-batch-png-"));
+    const root = visualReviewTestDirectory("visual-admission-review-batch-png-");
     cleanup.push(root);
     const fixture = writePacketRun(root, { review: true });
     const captureBatchPath = writeCaptureBatch(root, fixture.packet, fixture.catalogPartId);
@@ -308,8 +313,8 @@ describe("part visual-admission review sidecar", () => {
   });
 
   it("rejects a packet path whose in-repository ancestor is a symlink or junction", () => {
-    const linkedRoot = mkdtempSync(join("test-results", "visual-admission-review-link-"));
-    const targetRoot = mkdtempSync(join("test-results", "visual-admission-review-target-"));
+    const linkedRoot = visualReviewTestDirectory("visual-admission-review-link-");
+    const targetRoot = visualReviewTestDirectory("visual-admission-review-target-");
     cleanup.push(linkedRoot, targetRoot);
     writePacketRun(targetRoot);
     symlinkSync(

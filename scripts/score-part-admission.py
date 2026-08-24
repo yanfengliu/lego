@@ -1,4 +1,4 @@
-"""Score the six-part 6651557 pilot's candidate declarations and record the number.
+"""Score the seven-part 6651557 pilot's candidate declarations and record the number.
 
 Run:
   python -B scripts/score-part-admission.py \

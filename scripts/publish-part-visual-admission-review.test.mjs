@@ -22,6 +22,11 @@ import {
   verifyPacketPngBinding,
 } from "./part-visual-admission-pair-files.mjs";
 
+function visualReviewTestDirectory(prefix) {
+  mkdirSync("test-results", { recursive: true });
+  return mkdtempSync(join("test-results", prefix));
+}
+
 describe("part visual-admission review CLI", () => {
   it("names both supported publication modes when arguments are incomplete", () => {
     const result = spawnSync(
@@ -37,7 +42,7 @@ describe("part visual-admission review CLI", () => {
   });
 
   it("names a JSON null input as a malformed review-input schema", () => {
-    const directory = mkdtempSync(join("test-results", "visual-review-cli-"));
+    const directory = visualReviewTestDirectory("visual-review-cli-");
     try {
       const input = join(directory, "review-input.json");
       writeFileSync(input, "null\n");
@@ -64,7 +69,7 @@ describe("part visual-admission review CLI", () => {
   });
 
   it("refuses a review input reached through a linked directory ancestor", () => {
-    const directory = mkdtempSync(join("test-results", "visual-review-link-"));
+    const directory = visualReviewTestDirectory("visual-review-link-");
     const outside = mkdtempSync(join(tmpdir(), "lego-visual-review-outside-"));
     const linked = join(directory, "linked");
     try {
@@ -92,7 +97,7 @@ describe("part visual-admission review CLI", () => {
   });
 
   it("refuses a capture batch reached through a linked directory ancestor", () => {
-    const directory = mkdtempSync(join("test-results", "visual-pairs-link-"));
+    const directory = visualReviewTestDirectory("visual-pairs-link-");
     const outside = mkdtempSync(join(tmpdir(), "lego-visual-pairs-outside-"));
     const linked = join(directory, "linked");
     try {
@@ -121,7 +126,7 @@ describe("part visual-admission review CLI", () => {
   }, 15_000);
 
   it("refuses a native-pair output reached through a linked directory ancestor", () => {
-    const directory = mkdtempSync(join("test-results", "visual-pairs-output-link-"));
+    const directory = visualReviewTestDirectory("visual-pairs-output-link-");
     const outside = mkdtempSync(join(tmpdir(), "lego-visual-pairs-output-outside-"));
     const linked = join(directory, "linked");
     try {
@@ -152,7 +157,7 @@ describe("part visual-admission review CLI", () => {
   }, 15_000);
 
   it("bounds the opened descriptor and rejects a path replacement after lstat", () => {
-    const directory = mkdtempSync(join("test-results", "visual-pairs-exact-file-"));
+    const directory = visualReviewTestDirectory("visual-pairs-exact-file-");
     try {
       const path = join(directory, "pair.png");
       const replacement = join(directory, "replacement.png");
@@ -179,7 +184,7 @@ describe("part visual-admission review CLI", () => {
   });
 
   it("rejects a staging-directory replacement even when the rename itself succeeds", () => {
-    const directory = mkdtempSync(join("test-results", "visual-pairs-publish-swap-"));
+    const directory = visualReviewTestDirectory("visual-pairs-publish-swap-");
     const staging = join(directory, "staging");
     const replacement = join(directory, "replacement");
     const displaced = join(directory, "displaced");
@@ -211,7 +216,7 @@ describe("part visual-admission review CLI", () => {
   });
 
   it("does not recursively clean a replacement that appears after the identity match", () => {
-    const directory = mkdtempSync(join("test-results", "visual-pairs-cleanup-swap-"));
+    const directory = visualReviewTestDirectory("visual-pairs-cleanup-swap-");
     const staging = join(directory, "staging");
     const replacement = join(directory, "replacement");
     const displaced = join(directory, "displaced");
