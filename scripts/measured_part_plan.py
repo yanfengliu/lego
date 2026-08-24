@@ -41,6 +41,7 @@ def _plan(
     builder_connectivity_fact: BuilderConnectivityFact | None = None,
     catalog_id: str | None = None,
     display_name: str | None = None,
+    validated_connection_stud_profile: str | None = None,
 ) -> MeasuredPartPlan:
     return MeasuredPartPlan(
         design_id=design_id,
@@ -57,6 +58,7 @@ def _plan(
         builder_connectivity_fact=builder_connectivity_fact,
         catalog_id=catalog_id,
         display_name=display_name,
+        validated_connection_stud_profile=validated_connection_stud_profile,
     )
 
 
@@ -225,6 +227,23 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
         catalog_id="builtin:tile-2x2-triangular",
         display_name="Tile 2 x 2 Triangular",
+    ),
+    # builtin.basic-parts/17: 11253 is minifig footwear rather than a plate-
+    # shaped envelope, so its palette family names that role. The official
+    # closure supplies the exact roller and shoe surface plus its one visible
+    # stud. The exact LDCad shadow walk authors the single underside clutch;
+    # Builder agrees only on the unframed clutch count and remains
+    # counterevidence rather than a connector source.
+    _plan(
+        "11253",
+        "minifig-accessory",
+        1,
+        1,
+        variant="roller-skate",
+        connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
+        catalog_id="builtin:roller-skate",
+        display_name="Roller Skate",
+        validated_connection_stud_profile="nominal-stud-tube/1",
     ),
 )
 

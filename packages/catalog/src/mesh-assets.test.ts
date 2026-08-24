@@ -62,7 +62,7 @@ function recipe(
 
 describe("preloaded mesh asset resolution", () => {
   it("keeps the exact promotions in place and appends the new source mesh", () => {
-    // Sixteen existing rows render exact source meshes at /13; /14, /15, and /16
+    // Sixteen existing rows render exact source meshes at /13; /14 through /17
     // each append one complete measured part. These literals pin the remaining
     // parametric geometry identities and full definitions; the full-definition
     // digest moves with catalog-version provenance.
@@ -89,8 +89,8 @@ describe("preloaded mesh asset resolution", () => {
     const legacyRows = legacyParts.map(({ id, geometry }) => [id, geometry.contentHash]);
     const legacyHashes = JSON.stringify(legacyRows);
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/16");
-    expect(PART_DEFINITIONS).toHaveLength(88);
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/17");
+    expect(PART_DEFINITIONS).toHaveLength(89);
     expect(
       PART_DEFINITIONS.filter(isMeshPartDefinition)
         .filter(({ geometry }) => geometry.collisionMode === "preserved-catalog-recipe")
@@ -101,7 +101,7 @@ describe("preloaded mesh asset resolution", () => {
         ({ geometry }) => geometry.generatorId !== "builtin:preloaded-mesh-reference/1",
       ),
     ).toBe(true);
-    expect(meshParts).toHaveLength(27);
+    expect(meshParts).toHaveLength(28);
     expect(
       meshParts
         .filter(({ geometry }) => geometry.collisionMode !== "preserved-catalog-recipe")
@@ -121,10 +121,9 @@ describe("preloaded mesh asset resolution", () => {
     expect(
       createHash("sha256")
         .update(
-          JSON.stringify(legacyParts).replaceAll(
-            "builtin.basic-parts/16",
-            "builtin.basic-parts/15",
-          ),
+          JSON.stringify(legacyParts)
+            .replaceAll("builtin.basic-parts/17", "builtin.basic-parts/15")
+            .replaceAll("rectilinear-stud-clearance/3", "rectilinear-stud-clearance/2"),
         )
         .digest("hex"),
     ).toBe("f21fdb9e016b1b6fba7bb25776f4b91eacff6d949bd938f5fd3cc94868df3984");

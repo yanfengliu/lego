@@ -24,6 +24,7 @@
     "schema:generate": "npm run schema:generate --workspace @lego-studio/protocol",
     "schema:check": "npm run schema:check --workspace @lego-studio/protocol",
     "node:check": "node scripts/check-node-consumers.mjs",
+    "migration-history:check": "node --experimental-strip-types scripts/check-historical-connection-semantics.mjs",
     "observations:check": "node scripts/check-observation-consumers.mjs",
     "parts:check": "node scripts/check-part-standard.mjs",
     "parts:visual-capture": "node scripts/run-part-visual-admission.mjs",
@@ -39,7 +40,7 @@
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "npm run schema:check && npm run node:check && npm run observations:check && npm run bom:check && npm run parts:check && npm run lessons:check && npm run notices:check && npm run format:check && npm run lint && npm run typecheck && npm run test:python && npm run test && npm run test:browser && npm run build",
+    "verify": "npm run schema:check && npm run node:check && npm run migration-history:check && npm run observations:check && npm run bom:check && npm run parts:check && npm run lessons:check && npm run notices:check && npm run format:check && npm run lint && npm run typecheck && npm run test:python && npm run test && npm run test:browser && npm run build",
     "audit:runtime": "npm audit --omit=dev --audit-level=high",
     "audit": "npm audit --audit-level=high",
     "lessons:check": "node scripts/check-lessons.mjs"

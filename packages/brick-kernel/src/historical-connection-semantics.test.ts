@@ -1,0 +1,186 @@
+import { CONNECTOR_PAIR_RULES, PART_DEFINITIONS } from "@lego-studio/catalog";
+import { describe, expect, it } from "vitest";
+
+import {
+  connectionEndpointKey,
+  projectConnectionSemantics,
+} from "./connection-semantics-projection.ts";
+import {
+  CURRENT_CONNECTION_SEMANTICS_AUTHORITY,
+  REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH,
+  historicalConnectionSemanticsBlockingReasons,
+} from "./historical-connection-semantics.ts";
+import { REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS } from "./migration.ts";
+import {
+  REVIEWED_TRUTH_V1,
+  documentAtReviewedTruth,
+} from "./migration-historical-fixtures.test-support.ts";
+
+describe("reviewed historical connection semantics", () => {
+  it("binds all 18 reviewed truths to immutable exhaustive authority rows", () => {
+    const truthHashes = REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS.map(({ truthHash }) => truthHash);
+    const rows = Object.entries(REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH);
+
+    expect(rows.map(([truthHash]) => truthHash)).toEqual(truthHashes);
+    expect(Object.isFrozen(REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH)).toBe(true);
+    expect(rows.every(([, row]) => Object.isFrozen(row))).toBe(true);
+    expect(rows.reduce((count, [, row]) => count + row.endpointDeltas.length, 0)).toBe(22);
+    expect(rows.flatMap(([, row]) => row.pairDeltas)).toEqual([]);
+    for (const [, row] of rows) {
+      const keys = row.endpointDeltas.map(({ partId, portId }) =>
+        connectionEndpointKey(partId, portId),
+      );
+      expect(new Set(keys).size).toBe(keys.length);
+    }
+  });
+
+  it("pins the complete live target and every delta's target endpoint", () => {
+    const live = projectConnectionSemantics(PART_DEFINITIONS, CONNECTOR_PAIR_RULES, "live-strict");
+
+    expect({
+      endpointCount: live.endpointCount,
+      endpointMapDigest: live.endpointMapDigest,
+      pairCount: live.pairCount,
+      pairMapDigest: live.pairMapDigest,
+    }).toEqual({
+      endpointCount: CURRENT_CONNECTION_SEMANTICS_AUTHORITY.endpointCount,
+      endpointMapDigest: CURRENT_CONNECTION_SEMANTICS_AUTHORITY.endpointMapDigest,
+      pairCount: CURRENT_CONNECTION_SEMANTICS_AUTHORITY.pairCount,
+      pairMapDigest: CURRENT_CONNECTION_SEMANTICS_AUTHORITY.pairMapDigest,
+    });
+    for (const row of Object.values(REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH)) {
+      for (const delta of row.endpointDeltas) {
+        expect(
+          live.endpointDigests.get(connectionEndpointKey(delta.partId, delta.portId)) ?? null,
+        ).toBe(delta.targetDigest);
+      }
+    }
+  });
+
+  it("fails closed when the live target no longer matches its reviewed projection", () => {
+    const historical = documentAtReviewedTruth({
+      id: "target-drift",
+      name: "Target drift",
+      truth: REVIEWED_TRUTH_V1,
+    });
+    const truncatedTarget = projectConnectionSemantics(
+      PART_DEFINITIONS.slice(0, -1),
+      CONNECTOR_PAIR_RULES,
+      "live-strict",
+    );
+
+    expect(
+      historicalConnectionSemanticsBlockingReasons(
+        historical,
+        "sha256:0f6b9dcb03a9dd570b4ccc68f41a015bb33422e5cf6c1fe032f1a15bfbd76a8a",
+        CURRENT_CONNECTION_SEMANTICS_AUTHORITY.truthHash,
+        truncatedTarget,
+      ),
+    ).toEqual([
+      `Current connector endpoint projection is ${truncatedTarget.endpointCount}/${truncatedTarget.endpointMapDigest}, expected ${CURRENT_CONNECTION_SEMANTICS_AUTHORITY.endpointCount}/${CURRENT_CONNECTION_SEMANTICS_AUTHORITY.endpointMapDigest}; run npm run migration-history:check and review the complete delta`,
+    ]);
+  });
+
+  it("does not normalize a missing live connector gender into the reviewed target", () => {
+    const mutatedParts = structuredClone(PART_DEFINITIONS) as unknown as {
+      id: string;
+      connectors: { id: string; gender?: unknown }[];
+    }[];
+    const brick = mutatedParts.find(({ id }) => id === "builtin:brick-1x1")!;
+    const stud = brick.connectors.find(({ id }) => id === "stud:0:0")!;
+    delete stud.gender;
+    const mutatedTarget = projectConnectionSemantics(
+      mutatedParts as unknown as typeof PART_DEFINITIONS,
+      CONNECTOR_PAIR_RULES,
+      "live-strict",
+    );
+    const historical = documentAtReviewedTruth({
+      id: "missing-live-gender",
+      name: "Missing live gender",
+      truth: REVIEWED_TRUTH_V1,
+    });
+
+    expect(mutatedTarget.endpointMapDigest).not.toBe(
+      CURRENT_CONNECTION_SEMANTICS_AUTHORITY.endpointMapDigest,
+    );
+    expect(
+      historicalConnectionSemanticsBlockingReasons(
+        historical,
+        "sha256:0f6b9dcb03a9dd570b4ccc68f41a015bb33422e5cf6c1fe032f1a15bfbd76a8a",
+        CURRENT_CONNECTION_SEMANTICS_AUTHORITY.truthHash,
+        mutatedTarget,
+      ),
+    ).toEqual([
+      `Current connector endpoint projection is ${mutatedTarget.endpointCount}/${mutatedTarget.endpointMapDigest}, expected ${CURRENT_CONNECTION_SEMANTICS_AUTHORITY.endpointCount}/${CURRENT_CONNECTION_SEMANTICS_AUTHORITY.endpointMapDigest}; run npm run migration-history:check and review the complete delta`,
+    ]);
+  });
+
+  it("includes future connector fields in the live endpoint authority", () => {
+    const mutatedParts = structuredClone(PART_DEFINITIONS) as unknown as {
+      id: string;
+      connectors: (Record<string, unknown> & { id: string })[];
+    }[];
+    const brick = mutatedParts.find(({ id }) => id === "builtin:brick-1x1")!;
+    const stud = brick.connectors.find(({ id }) => id === "stud:0:0")!;
+    stud.futureRuntimeSemantics = "must-move-the-root";
+
+    const mutatedTarget = projectConnectionSemantics(
+      mutatedParts as unknown as typeof PART_DEFINITIONS,
+      CONNECTOR_PAIR_RULES,
+      "live-strict",
+    );
+
+    expect(mutatedTarget.endpointMapDigest).not.toBe(
+      CURRENT_CONNECTION_SEMANTICS_AUTHORITY.endpointMapDigest,
+    );
+    expect(mutatedTarget.pairMapDigest).toBe(CURRENT_CONNECTION_SEMANTICS_AUTHORITY.pairMapDigest);
+  });
+
+  it("deep-freezes live pair rows and distinguishes a missing live axis rule", () => {
+    const firstRule = CONNECTOR_PAIR_RULES[0]!;
+    const originalAxis = firstRule.axisMatching;
+    expect(Object.isFrozen(firstRule)).toBe(true);
+    expect(Reflect.set(firstRule, "axisMatching", "collinear")).toBe(false);
+    expect(firstRule.axisMatching).toBe(originalAxis);
+
+    const rulesWithoutAxis = CONNECTOR_PAIR_RULES.map((rule, index) => {
+      if (index !== 0) return rule;
+      const withoutAxis = { ...rule } as Record<string, unknown>;
+      delete withoutAxis.axisMatching;
+      return withoutAxis;
+    });
+    const mutatedTarget = projectConnectionSemantics(
+      PART_DEFINITIONS,
+      rulesWithoutAxis as unknown as typeof CONNECTOR_PAIR_RULES,
+      "live-strict",
+    );
+
+    expect(mutatedTarget.endpointMapDigest).not.toBe(
+      CURRENT_CONNECTION_SEMANTICS_AUTHORITY.endpointMapDigest,
+    );
+    expect(mutatedTarget.pairMapDigest).not.toBe(
+      CURRENT_CONNECTION_SEMANTICS_AUTHORITY.pairMapDigest,
+    );
+  });
+
+  it("includes future pair-rule fields in both live authorities", () => {
+    const mutatedRules = structuredClone(CONNECTOR_PAIR_RULES) as unknown as Record<
+      string,
+      unknown
+    >[];
+    mutatedRules[0]!.futureRuntimeSemantics = "must-move-both-roots";
+
+    const mutatedTarget = projectConnectionSemantics(
+      PART_DEFINITIONS,
+      mutatedRules as unknown as typeof CONNECTOR_PAIR_RULES,
+      "live-strict",
+    );
+
+    expect(mutatedTarget.endpointMapDigest).not.toBe(
+      CURRENT_CONNECTION_SEMANTICS_AUTHORITY.endpointMapDigest,
+    );
+    expect(mutatedTarget.pairMapDigest).not.toBe(
+      CURRENT_CONNECTION_SEMANTICS_AUTHORITY.pairMapDigest,
+    );
+  });
+});

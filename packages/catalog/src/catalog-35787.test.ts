@@ -176,8 +176,8 @@ describe("35787 triangular tile catalog truth", () => {
       bytes: 16_184,
       manifestSha256: "sha256:64d0e836c0fc63f1a604c98f13ec5529a755589648675887c3896404b7bf7091",
     });
-    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(27);
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(177);
+    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(28);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(184);
   });
 
   it("retains the native Builder record only as counterevidence and selects one exact LDCad route", () => {
@@ -304,12 +304,13 @@ describe("35787 triangular tile catalog truth", () => {
     }
   });
 
-  it("keeps every /15 definition and collision byte unchanged behind the additive /16 row", () => {
-    const priorParts = PART_DEFINITIONS.filter(({ id }) => id !== PART_ID);
-    const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/16",
-      "builtin.basic-parts/15",
+  it("keeps every /15 part payload byte unchanged after restoring its historical truth labels", () => {
+    const priorParts = PART_DEFINITIONS.filter(
+      ({ id }) => id !== PART_ID && id !== "builtin:roller-skate",
     );
+    const priorDefinitionBytes = JSON.stringify(priorParts)
+      .replaceAll("builtin.basic-parts/17", "builtin.basic-parts/15")
+      .replaceAll("rectilinear-stud-clearance/3", "rectilinear-stud-clearance/2");
     const rows = priorParts.map(({ id, connectors, collision }) => ({ id, connectors, collision }));
     const collisionRows = priorParts.map(({ id, collision }) => ({ id, collision }));
 
@@ -317,8 +318,22 @@ describe("35787 triangular tile catalog truth", () => {
     expect({
       definitionBytes: priorDefinitionBytes.length,
       definitionHash: createHash("sha256").update(priorDefinitionBytes).digest("hex"),
-      connectorCollisionHash: createHash("sha256").update(JSON.stringify(rows)).digest("hex"),
-      collisionHash: createHash("sha256").update(JSON.stringify(collisionRows)).digest("hex"),
+      connectorCollisionHash: createHash("sha256")
+        .update(
+          JSON.stringify(rows).replaceAll(
+            "rectilinear-stud-clearance/3",
+            "rectilinear-stud-clearance/2",
+          ),
+        )
+        .digest("hex"),
+      collisionHash: createHash("sha256")
+        .update(
+          JSON.stringify(collisionRows).replaceAll(
+            "rectilinear-stud-clearance/3",
+            "rectilinear-stud-clearance/2",
+          ),
+        )
+        .digest("hex"),
     }).toEqual({
       definitionBytes: 1_482_732,
       definitionHash: "5b69d9e01889d473e1dd3260624f64ff7d27ebae049eb00ee53e9fef59d23d15",

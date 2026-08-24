@@ -315,6 +315,11 @@ def render_blueprints(
         lines.append(
             f"    connectorGridCenterLdu: [{_numbers(plan.connector_grid_center_ldu)}],"
         )
+        if plan.validated_connection_stud_profile is not None:
+            lines.append(
+                "    validatedConnectionStudProfile: "
+                f"{_string(plan.validated_connection_stud_profile)},"
+            )
         lines.extend(_exact_bounds_lines("exactBodyBoundsLdu", part.exact_body_bounds))
         lines.extend(_exact_bounds_lines("exactBoundsLdu", part.exact_bounds))
         studs = ", ".join(f"[{_numbers(row)}]" for row in part.studs_ldu)

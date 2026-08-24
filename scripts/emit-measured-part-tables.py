@@ -59,7 +59,7 @@ from part_admission_evidence import PILOT_DESIGN_IDS, bind_to_pilot, parse_pilot
 from part_admission_scorecard import DEFAULT_SAMPLE_SPACING_LDU, score_candidate
 from set_6651557_ldraw_source_audit_plan import ARCHIVE_PINS
 
-REPORT_SCHEMA_VERSION = "lego.measured-part-admission-emission/3"
+REPORT_SCHEMA_VERSION = "lego.measured-part-admission-emission/4"
 GENERATED_FILES = {
     "meshAssets": "packages/catalog/src/mesh-assets-6651557.ts",
     "meshAssetsMeasuredA": "packages/catalog/src/mesh-assets-6651557-measured-a.ts",

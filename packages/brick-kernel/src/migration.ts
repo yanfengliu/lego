@@ -10,6 +10,8 @@ import type { BrickDocumentV1 } from "@lego-studio/protocol";
 import { canonicalDigest, canonicalSha256 } from "./canonical.ts";
 import { normalizeBrickDocument } from "./document.ts";
 import { createBuiltinTruthSnapshot } from "./factory.ts";
+import { getReviewedHistoricalCatalogRoster } from "./historical-catalog-rosters.ts";
+import { historicalConnectionSemanticsBlockingReasons } from "./historical-connection-semantics.ts";
 
 /**
  * Catalog versions this kernel knows how to carry forward. A version outside
@@ -32,6 +34,7 @@ export const MIGRATABLE_CATALOG_VERSIONS: readonly string[] = Object.freeze([
   "builtin.basic-parts/13",
   "builtin.basic-parts/14",
   "builtin.basic-parts/15",
+  "builtin.basic-parts/16",
   BUILTIN_CATALOG_VERSION,
 ]);
 
@@ -177,6 +180,17 @@ export const REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS = Object.freeze([
     catalogVersion: "builtin.basic-parts/15",
     sourceCommit: "8ac4c6e9518e7b00fd0ed23ad44c6f38b657efe3",
     truthHash: "sha256:f8e7efbd1bc969ac699fd68db9696af693898a15ffb7901821e676d843240e2f",
+  },
+  // The snapshot /17 replaced. /17 appends 11253 as one complete measured
+  // definition: exact official geometry and collision columns plus one
+  // LDCad-authored clutch cell. The unframed native Builder record remains
+  // count-only counterevidence. /17 is catalog-additive and moves global
+  // catalog, collision, and validator labels; predecessor semantic payloads
+  // are byte-identical only after their historical truth labels are restored.
+  {
+    catalogVersion: "builtin.basic-parts/16",
+    sourceCommit: "d58ea055120ea8e99a30faab35384a7a54f18de2",
+    truthHash: "sha256:71c76ba1d6740cbaf89b1ab721dba2ffa3136e9d742198b289373ad2205be1be",
   },
 ] as const);
 
@@ -396,6 +410,7 @@ export function migrateDocumentTruth(document: BrickDocumentV1): {
   }
 
   const blockingReasons: string[] = [];
+  const sourceRoster = getReviewedHistoricalCatalogRoster(fromTruthHash);
   if (!MIGRATABLE_TRUTH_HASHES.has(fromTruthHash)) {
     blockingReasons.push(
       `Truth snapshot ${fromTruthHash} is not one of the reviewed historical builtin snapshots; unknown or cross-mixed truth cannot be reinterpreted as ${toTruthHash}`,
@@ -405,6 +420,49 @@ export function migrateDocumentTruth(document: BrickDocumentV1): {
     blockingReasons.push(
       `Catalog version ${fromCatalogVersion} has no migration to ${toCatalogVersion}; known source versions are ${MIGRATABLE_CATALOG_VERSIONS.join(", ")}`,
     );
+  }
+  if (sourceRoster === undefined) {
+    blockingReasons.push(
+      `Truth snapshot ${fromTruthHash} has no reviewed catalog roster; migration cannot infer historical part or color membership from caller-owned constraints`,
+    );
+  } else {
+    const sourcePartIds = new Set(sourceRoster.catalogPartIds);
+    const sourceColorIds = new Set(sourceRoster.colorIds);
+    for (const part of document.parts) {
+      if (!sourcePartIds.has(part.catalogPartId)) {
+        blockingReasons.push(
+          `Part ${part.id} uses catalog part ${part.catalogPartId}, which reviewed source truth ${fromTruthHash} (${fromCatalogVersion}) did not define; the part cannot be legitimized by migration`,
+        );
+      }
+      if (!sourceColorIds.has(part.colorId)) {
+        blockingReasons.push(
+          `Part ${part.id} uses color ${part.colorId}, which reviewed source truth ${fromTruthHash} (${fromCatalogVersion}) did not define; the color cannot be legitimized by migration`,
+        );
+      }
+    }
+  }
+  if (sourceRoster !== undefined && MIGRATABLE_TRUTH_HASHES.has(fromTruthHash)) {
+    blockingReasons.push(
+      ...historicalConnectionSemanticsBlockingReasons(document, fromTruthHash, toTruthHash),
+    );
+  }
+  if (sourceRoster !== undefined) {
+    const sourcePartIds = new Set(sourceRoster.catalogPartIds);
+    const sourceColorIds = new Set(sourceRoster.colorIds);
+    for (const catalogPartId of document.constraints.allowedCatalogPartIds) {
+      if (!sourcePartIds.has(catalogPartId)) {
+        blockingReasons.push(
+          `Document constraints allow catalog part ${catalogPartId}, which reviewed source truth ${fromTruthHash} (${fromCatalogVersion}) did not define; remove the future ID or load the document under the truth that introduced it`,
+        );
+      }
+    }
+    for (const colorId of document.constraints.allowedColorIds) {
+      if (!sourceColorIds.has(colorId)) {
+        blockingReasons.push(
+          `Document constraints allow color ${colorId}, which reviewed source truth ${fromTruthHash} (${fromCatalogVersion}) did not define; remove the future ID or load the document under the truth that introduced it`,
+        );
+      }
+    }
   }
   const compatibleComponents = [
     {
@@ -423,7 +481,11 @@ export function migrateDocumentTruth(document: BrickDocumentV1): {
       label: "Collision model",
       source: document.truth.collisionModel,
       expected: expectedTruth.collisionModel,
-      versions: ["rectilinear-stud-clearance/1", expectedTruth.collisionModel.version],
+      versions: [
+        "rectilinear-stud-clearance/1",
+        "rectilinear-stud-clearance/2",
+        expectedTruth.collisionModel.version,
+      ],
     },
     {
       label: "Transform policy",
@@ -435,7 +497,11 @@ export function migrateDocumentTruth(document: BrickDocumentV1): {
       label: "Validator set",
       source: document.truth.validatorSet,
       expected: expectedTruth.validatorSet,
-      versions: ["lego.kernel-validators/1", expectedTruth.validatorSet.version],
+      versions: [
+        "lego.kernel-validators/1",
+        "lego.kernel-validators/2",
+        expectedTruth.validatorSet.version,
+      ],
     },
   ] as const;
   for (const { label, source, expected, versions } of compatibleComponents) {
@@ -464,7 +530,7 @@ export function migrateDocumentTruth(document: BrickDocumentV1): {
       );
     }
   }
-  if (blockingReasons.length > 0) {
+  if (sourceRoster === undefined || blockingReasons.length > 0) {
     return {
       document,
       report: { ...base, migrated: false, blockingReasons: blockingReasons.slice(0, 32) },
@@ -473,6 +539,8 @@ export function migrateDocumentTruth(document: BrickDocumentV1): {
 
   const colorIds = COLOR_DEFINITIONS.map(({ id }) => id);
   const catalogPartIds = PART_DEFINITIONS.map(({ id }) => id);
+  // These caller-owned constraints are safe delta inputs only after every ID
+  // above has been proved a member of the exact reviewed source roster.
   const previousColorIds = new Set(document.constraints.allowedColorIds);
   const previousPartIds = new Set(document.constraints.allowedCatalogPartIds);
 

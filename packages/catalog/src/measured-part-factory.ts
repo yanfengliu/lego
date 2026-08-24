@@ -245,7 +245,7 @@ export const makeMeasuredPartDefinition = (blueprint: MeasuredPartBlueprint): Pa
   const allowances: CollisionAllowance[] = [];
 
   blueprint.studsLdu.forEach((row, index) => {
-    const stud = compileMeasuredStud(blueprint, bodyBoundsLdu, row, index);
+    const stud = compileMeasuredStud(blueprint, bodyBoxes, row, index);
     connectors.push(stud.connector);
     primitives.push(stud.primitive);
   });
@@ -395,7 +395,14 @@ export const makeMeasuredPartDefinition = (blueprint: MeasuredPartBlueprint): Pa
     },
     connectors,
     legalOrientationIds: LEGAL_ORIENTATION_IDS,
-    collision: { modelVersion: COLLISION_MODEL_VERSION, primitives, allowances },
+    collision: {
+      modelVersion: COLLISION_MODEL_VERSION,
+      ...(blueprint.validatedConnectionStudProfile === undefined
+        ? {}
+        : { validatedConnectionStudProfile: blueprint.validatedConnectionStudProfile }),
+      primitives,
+      allowances,
+    },
     availableColorIds: AVAILABLE_COLOR_IDS,
     substitutionGroupId: `${family}:${widthStuds}x${lengthStuds}${variantSuffix}`,
     inventory: {

@@ -122,6 +122,7 @@ export const FAMILY_DISPLAY_NAMES: Readonly<Record<PartFamily, string>> = Object
   "cheese-slope": "Cheese slope",
   "corner-plate": "Corner plate",
   bracket: "Bracket",
+  "minifig-accessory": "Minifig accessory",
 });
 
 export const studModeFor = (

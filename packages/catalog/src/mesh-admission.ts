@@ -1,5 +1,6 @@
 import {
   CONNECTOR_KIND_RULES,
+  STUD_HEIGHT_LDU,
   STUD_PITCH_LDU,
   STUD_RADIUS_LDU,
   UPRIGHT_ORIENTATIONS,
@@ -7,6 +8,11 @@ import {
 } from "./constants.ts";
 import { MAX_EXACT_LDU_MAGNITUDE } from "./exact-ldu.ts";
 import { connectorAxisFrame } from "./connector-axis.ts";
+import {
+  NOMINAL_STUD_SOURCE_RADIUS_MAX_ROUNDING_DELTA_LDU,
+  NOMINAL_STUD_TUBE_VALIDATED_CONNECTION_PROFILE,
+  studSeatTouchesOutwardBoxFace,
+} from "./measured-stud.ts";
 import {
   MESH_RENDER_QUANTIZATION_TOLERANCE_LDU,
   isLowercaseSha256,
@@ -264,6 +270,7 @@ function collisionPrimitiveBounds(primitive: CollisionPrimitive): LduBounds | nu
     };
   }
   if (primitive.kind === "cylinder") {
+    const connectionProfileRadius = primitive.validatedConnectionProfileRadiusLdu;
     if (
       (primitive.tag !== "body" && primitive.tag !== "stud") ||
       (primitive.axis !== "x" && primitive.axis !== "y" && primitive.axis !== "z") ||
@@ -272,7 +279,12 @@ function collisionPrimitiveBounds(primitive: CollisionPrimitive): LduBounds | nu
       !isMeasuredLdu(primitive.radiusLdu) ||
       primitive.radiusLdu <= 0 ||
       !isMeasuredLdu(primitive.heightLdu) ||
-      primitive.heightLdu <= 0
+      primitive.heightLdu <= 0 ||
+      (connectionProfileRadius !== undefined &&
+        (primitive.tag !== "stud" ||
+          !isMeasuredLdu(connectionProfileRadius) ||
+          connectionProfileRadius <= 0 ||
+          connectionProfileRadius > primitive.radiusLdu))
     ) {
       return null;
     }
@@ -510,6 +522,12 @@ export function validateMeshPartDefinitionAdmission(
 
   const connectorIds = new Set<string>();
   let connectorRepresentationValid = true;
+  const bodyCollisionBoxes = definition.collision.primitives
+    .filter(
+      (primitive): primitive is Extract<CollisionPrimitive, { kind: "box" }> =>
+        primitive.kind === "box" && primitive.tag === "body",
+    )
+    .map(({ minLdu, maxLdu }) => ({ min: minLdu, max: maxLdu }));
   for (let index = 0; index < definition.connectors.length; index += 1) {
     const connector = definition.connectors[index]!;
     const taxonomy = CONNECTOR_KIND_RULES[connector.kind];
@@ -565,10 +583,15 @@ export function validateMeshPartDefinitionAdmission(
       bodyBoundsValid &&
       ((connector.kind === "stud" &&
         (axisFrame === undefined ||
-          connector.positionLdu[axisFrame.axisIndex] !==
+          (connector.positionLdu[axisFrame.axisIndex] !==
             (axisFrame.sign < 0
               ? definition.bodyBoundsLdu.min[axisFrame.axisIndex]
-              : definition.bodyBoundsLdu.max[axisFrame.axisIndex]))) ||
+              : definition.bodyBoundsLdu.max[axisFrame.axisIndex]) &&
+            !studSeatTouchesOutwardBoxFace(
+              bodyCollisionBoxes,
+              connector.positionLdu,
+              connector.normal,
+            )))) ||
         (connector.kind === "undersideClutch" &&
           (connector.positionLdu[1] < definition.bodyBoundsLdu.min[1] ||
             connector.positionLdu[1] > definition.bodyBoundsLdu.max[1])))
@@ -578,7 +601,7 @@ export function validateMeshPartDefinitionAdmission(
         "MESH_ADMISSION_VERTICAL_EXTENTS_INVALID",
         `/connectors/${index}/positionLdu`,
         connector.kind === "stud"
-          ? `Part ${definition.id} stud connector ${connector.id} must seat on the represented body face selected by outward normal [${connector.normal.join(", ")}]; received position [${connector.positionLdu.join(", ")}].`
+          ? `Part ${definition.id} stud connector ${connector.id} must seat either on the global represented body face or on a centre-line-exposed local body collision-box face selected by outward normal [${connector.normal.join(", ")}]; received position [${connector.positionLdu.join(", ")}].`
           : `Part ${definition.id} underside connector ${connector.id} seats at Y=${connector.positionLdu[1]}, outside the represented body's [${definition.bodyBoundsLdu.min[1]}, ${definition.bodyBoundsLdu.max[1]}] range. A stepped underside may seat above the lowest plane — 93273 seats two clutches 8 LDU up — but never outside the part.`,
       );
     }
@@ -698,6 +721,51 @@ export function validateMeshPartDefinitionAdmission(
     (primitive): primitive is Extract<CollisionPrimitive, { kind: "cylinder" }> =>
       primitive.kind === "cylinder" && primitive.tag === "stud",
   );
+  const validatedConnectionStudProfile = definition.collision.validatedConnectionStudProfile;
+  if (validatedConnectionStudProfile === undefined) {
+    const profiledCylinderIndex = definition.collision.primitives.findIndex(
+      (primitive) =>
+        primitive.kind === "cylinder" &&
+        primitive.validatedConnectionProfileRadiusLdu !== undefined,
+    );
+    if (profiledCylinderIndex !== -1) {
+      add(
+        "MESH_ADMISSION_CONNECTOR_COLLISION_MISMATCH",
+        `/collision/primitives/${profiledCylinderIndex}/validatedConnectionProfileRadiusLdu`,
+        `Part ${definition.id} declares a per-stud validated connection radius without collision.validatedConnectionStudProfile. Ordinary collision keeps the measured radius; a smaller connection-only profile must be named and admitted at the collision-definition level.`,
+      );
+    }
+  } else if (validatedConnectionStudProfile !== NOMINAL_STUD_TUBE_VALIDATED_CONNECTION_PROFILE) {
+    add(
+      "MESH_ADMISSION_COLLISION_INVALID",
+      "/collision/validatedConnectionStudProfile",
+      `Part ${definition.id} names validated connection stud profile ${JSON.stringify(validatedConnectionStudProfile)}; the only admitted source-rounding normalization is ${NOMINAL_STUD_TUBE_VALIDATED_CONNECTION_PROFILE}.`,
+    );
+  } else {
+    if (studCylinders.length === 0) {
+      add(
+        "MESH_ADMISSION_CONNECTOR_COLLISION_MISMATCH",
+        "/collision/validatedConnectionStudProfile",
+        `Part ${definition.id} names ${NOMINAL_STUD_TUBE_VALIDATED_CONNECTION_PROFILE} but has no stud collision cylinder for that profile to bind.`,
+      );
+    }
+    for (const cylinder of studCylinders) {
+      const sourceRoundingDeltaLdu = cylinder.radiusLdu - STUD_RADIUS_LDU;
+      if (
+        cylinder.validatedConnectionProfileRadiusLdu !== STUD_RADIUS_LDU ||
+        cylinder.heightLdu !== STUD_HEIGHT_LDU ||
+        sourceRoundingDeltaLdu < 0 ||
+        sourceRoundingDeltaLdu > NOMINAL_STUD_SOURCE_RADIUS_MAX_ROUNDING_DELTA_LDU
+      ) {
+        const primitiveIndex = definition.collision.primitives.indexOf(cylinder);
+        add(
+          "MESH_ADMISSION_CONNECTOR_COLLISION_MISMATCH",
+          `/collision/primitives/${primitiveIndex}`,
+          `Part ${definition.id} stud cylinder ${cylinder.id} is bound to ${NOMINAL_STUD_TUBE_VALIDATED_CONNECTION_PROFILE}, which requires validatedConnectionProfileRadiusLdu ${STUD_RADIUS_LDU}, source height ${STUD_HEIGHT_LDU}, and measured radius delta in [0, ${NOMINAL_STUD_SOURCE_RADIUS_MAX_ROUNDING_DELTA_LDU}] LDU; received profile radius ${String(cylinder.validatedConnectionProfileRadiusLdu)}, source radius ${cylinder.radiusLdu}, height ${cylinder.heightLdu}, and delta ${sourceRoundingDeltaLdu}.`,
+        );
+      }
+    }
+  }
   const studRepresentationsMatch = (
     connector: (typeof studConnectors)[number],
     cylinder: (typeof studCylinders)[number],

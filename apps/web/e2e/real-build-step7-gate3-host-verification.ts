@@ -167,21 +167,32 @@ export function verifyStep7Gate3HostRun(
   expect(result.migrationReport).toEqual({
     schemaVersion: "lego.truth-migration/2",
     fromCatalogVersion: "builtin.basic-parts/13",
-    toCatalogVersion: "builtin.basic-parts/16",
+    toCatalogVersion: "builtin.basic-parts/17",
     fromTruthHash: "sha256:de62fae6dbc8095dfd460983e5e845ddfac4bf9ec2ea1f99572bc46026941cb5",
-    toTruthHash: "sha256:71c76ba1d6740cbaf89b1ab721dba2ffa3136e9d742198b289373ad2205be1be",
+    toTruthHash: "sha256:d21bdecc6a269b1b92e0915664cae9a147168fe8d7576ee17213e8e9446c7926",
     addedColorIds: [],
     addedCatalogPartIds: [
       "builtin:tile-1x1-quarter-round",
       "builtin:bracket-1x2-1x4-rounded-bottom",
       "builtin:tile-2x2-triangular",
+      "builtin:roller-skate",
     ],
     catalogInterpretationChanges: [],
     truthComponentChanges: [
       {
         component: "catalog",
         fromVersion: "builtin.basic-parts/13",
-        toVersion: "builtin.basic-parts/16",
+        toVersion: "builtin.basic-parts/17",
+      },
+      {
+        component: "collision-model",
+        fromVersion: "rectilinear-stud-clearance/2",
+        toVersion: "rectilinear-stud-clearance/3",
+      },
+      {
+        component: "validator-set",
+        fromVersion: "lego.kernel-validators/2",
+        toVersion: "lego.kernel-validators/3",
       },
     ],
     migrated: true,

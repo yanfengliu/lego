@@ -8,6 +8,7 @@ import type {
   SourceProvenance,
   UprightOrientation,
 } from "./types.ts";
+import { deepFreeze } from "./freeze.ts";
 
 /**
  * /2 grew the palette to the full solid set; /3 added tiles and the larger brick
@@ -78,10 +79,15 @@ import type {
  * collision input; the exact LDCad subpart owns three underside clutch cells.
  * The native Builder record's unframed connector field remains counterevidence,
  * not a merged source.
+ *
+ * /17 adds minifig roller skate `11253.dat` as one complete measured definition.
+ * Its exact official closure supplies the irregular footwear-and-roller surface
+ * and conservative collision input; the LDCad shadow walk owns its one underside
+ * clutch. The unframed native Builder record remains count-only counterevidence.
  */
-export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/16" as const;
+export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/17" as const;
 export const CONNECTOR_TAXONOMY_VERSION = "stud-tube/1" as const;
-export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/2" as const;
+export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/3" as const;
 export const TRANSFORM_POLICY_VERSION = "upright-quarter-turns-negative-y-up/1" as const;
 
 export const STUD_PITCH_LDU = 20 as const;
@@ -176,10 +182,11 @@ export const MEASURED_PART_CATALOG_PROVENANCE: SourceProvenance = Object.freeze(
 /**
  * Catalog truth for a measured part whose female connectors the LDCad shadow
  * library authored. Designs 30357, 2450 and 79491 have no LEGO Builder record.
- * Builder metadata also names 25269 and 35787, but these connector admissions do
- * not use those unframed fields: the exact shadow subparts directly author their
- * clutch cells. The distinct 28802 admission likewise keeps its reviewed LDCad
- * route exclusive rather than merging a contradictory Builder identity.
+ * Builder metadata also names 25269, 35787 and 11253, but these connector
+ * admissions do not use those unframed fields: the exact shadow walks directly
+ * author their clutch cells. The distinct 28802 admission likewise keeps its
+ * reviewed LDCad route exclusive rather than merging a contradictory Builder
+ * identity.
  *
  * The library is CC BY-SA 4.0, and the owner directed on 2026-08-05 that licence
  * must not block this private, noncommercial work. What that decision does not
@@ -262,7 +269,7 @@ export interface ConnectorPairRule {
   readonly axisMatching: ConnectorAxisMatching;
 }
 
-export const CONNECTOR_PAIR_RULES: readonly ConnectorPairRule[] = Object.freeze([
+export const CONNECTOR_PAIR_RULES: readonly ConnectorPairRule[] = deepFreeze([
   {
     male: "stud",
     female: "undersideClutch",

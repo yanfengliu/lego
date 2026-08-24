@@ -470,6 +470,28 @@ class RenderTests(unittest.TestCase):
 
         self.assertNotIn("variant:", rendered)
 
+    def test_a_reviewed_stud_profile_is_emitted_only_when_the_plan_names_it(self) -> None:
+        legacy = render_blueprints(
+            [measured()], ARCHIVE_SHA256, BUILDER_RECORDS, SHADOW_IDENTITY
+        )
+        profiled = render_blueprints(
+            [
+                measured(
+                    plan=plan(
+                        validated_connection_stud_profile="nominal-stud-tube/1"
+                    )
+                )
+            ],
+            ARCHIVE_SHA256,
+            BUILDER_RECORDS,
+            SHADOW_IDENTITY,
+        )
+
+        self.assertNotIn("validatedConnectionStudProfile", legacy)
+        self.assertIn(
+            'validatedConnectionStudProfile: "nominal-stud-tube/1"', profiled
+        )
+
     def test_render_only_emission_has_no_connector_collision_or_allowance_authority(self) -> None:
         rendered = render_render_only_blueprints([render_only()], ARCHIVE_SHA256)
 
@@ -488,12 +510,12 @@ class RenderTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, rendered)
 
-    def test_emission_report_schema_distinguishes_render_only_authority(self) -> None:
+    def test_emission_report_schema_distinguishes_render_only_and_profile_authority(self) -> None:
         repository = Path(__file__).resolve().parents[1]
         driver = (repository / "scripts/emit-measured-part-tables.py").read_text(encoding="utf-8")
 
         self.assertIn(
-            'REPORT_SCHEMA_VERSION = "lego.measured-part-admission-emission/3"',
+            'REPORT_SCHEMA_VERSION = "lego.measured-part-admission-emission/4"',
             driver,
         )
         self.assertIn('"fullMeasuredParts": len(measured_parts)', driver)
@@ -562,6 +584,10 @@ class RenderTests(unittest.TestCase):
 
 
 class PlanTests(unittest.TestCase):
+    def test_plan_refuses_an_unknown_validated_connection_stud_profile(self) -> None:
+        with self.assertRaisesRegex(ValueError, "only admitted source-rounding normalization"):
+            plan(validated_connection_stud_profile="invented-profile/1")
+
     def test_emission_report_uses_the_explicit_28802_catalog_identity(self) -> None:
         part = measured(
             plan=ADMITTED_PART_PLANS[13],
@@ -621,6 +647,7 @@ class PlanTests(unittest.TestCase):
                 "25269",
                 "28802",
                 "35787",
+                "11253",
             ],
         )
         self.assertTrue(all(row.connector_source == "builder" for row in ADMITTED_PART_PLANS[:5]))
@@ -661,6 +688,35 @@ class PlanTests(unittest.TestCase):
                 "builtin:tile-2x2-triangular",
                 "Tile 2 x 2 Triangular",
             ),
+        )
+        self.assertEqual(
+            (
+                ADMITTED_PART_PLANS[15].connector_source,
+                ADMITTED_PART_PLANS[15].catalog_id,
+                ADMITTED_PART_PLANS[15].display_name,
+                ADMITTED_PART_PLANS[15].validated_connection_stud_profile,
+            ),
+            (
+                LDCAD_SHADOW_CONNECTOR_SOURCE,
+                "builtin:roller-skate",
+                "Roller Skate",
+                "nominal-stud-tube/1",
+            ),
+        )
+        self.assertTrue(
+            all(
+                row.validated_connection_stud_profile is None
+                for row in ADMITTED_PART_PLANS[:15]
+            )
+        )
+
+    def test_11253_report_retains_the_reviewed_stud_profile(self) -> None:
+        row = measured_part_report_row(
+            measured(plan=ADMITTED_PART_PLANS[15])
+        )
+
+        self.assertEqual(
+            row["validatedConnectionStudProfile"], "nominal-stud-tube/1"
         )
 
     def test_render_only_roots_are_distinct_and_cannot_name_a_connector_source(self) -> None:

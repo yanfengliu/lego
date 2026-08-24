@@ -931,8 +931,8 @@ export function createPreloadedMeshAssetResolver(
   };
 }
 
-// The closed production registry contains the 27 LDraw meshes admitted through
-// catalog builtin.basic-parts/16. It cannot be mutated at runtime; a new asset
+// The closed production registry contains the 28 LDraw meshes admitted through
+// catalog builtin.basic-parts/17. It cannot be mutated at runtime; a new asset
 // enters only through a reviewed catalog admission.
 const PRELOADED_PRODUCTION_MESH_ASSETS = SET_6651557_MESH_ASSETS;
 

@@ -66,6 +66,7 @@ interface WorldStud extends PrimitiveBounds {
   readonly sourceIndex: number;
   readonly center: LduVector3;
   readonly radiusLdu: number;
+  readonly validatedConnectionProfileRadiusLdu?: number;
   readonly axis: CollisionAxis;
 }
 
@@ -251,6 +252,12 @@ function makeWorldPrimitives(parts: readonly PartInstance[]): WorldPrimitive[] {
         sourceIndex,
         center,
         radiusLdu: primitive.radiusLdu,
+        ...(definition.collision.validatedConnectionStudProfile !== "nominal-stud-tube/1" ||
+        primitive.validatedConnectionProfileRadiusLdu === undefined
+          ? {}
+          : {
+              validatedConnectionProfileRadiusLdu: primitive.validatedConnectionProfileRadiusLdu,
+            }),
         axis,
         min: [center[0] - half[0], center[1] - half[1], center[2] - half[2]],
         max: [center[0] + half[0], center[1] + half[1], center[2] + half[2]],
@@ -478,7 +485,12 @@ function penetrationCoveredByAllowance(
   const overlapMinY = Math.max(stud.min[1], body.min[1]);
   const overlapMaxY = Math.min(stud.max[1], body.max[1]);
   return candidates.some(({ allowance }) => {
-    const radialClearance = allowance.radiusLdu - stud.radiusLdu;
+    // Broad phase and ordinary contact keep the conservative measured radius.
+    // Only this exact validated connector edge may use a separately admitted
+    // nominal stud-tube profile to decide whether its intended penetration is
+    // covered by the clutch allowance.
+    const connectionRadiusLdu = stud.validatedConnectionProfileRadiusLdu ?? stud.radiusLdu;
+    const radialClearance = allowance.radiusLdu - connectionRadiusLdu;
     if (radialClearance < 0) return false;
     const dx = allowance.center[0] - stud.center[0];
     const dz = allowance.center[2] - stud.center[2];

@@ -28,7 +28,7 @@ python -B scripts/generate-set-6651557-source-pilot.py --official $officialArchi
 python -B scripts/derive-builder-ldraw-frame.py --official $officialArchive --unofficial $unofficialArchive --native-pack $nativePack --pilot output/real-build/set-6651557-source-pilot.json --output output/real-build/set-6651557-builder-ldraw-frame.json
 ```
 
-Then remeasure, score, canonicalize, and compare the generated catalog outputs. The mesh registry indexes four bounded chunks so no generated source file approaches the 1 MiB text ceiling; the render-only generated type cannot carry connector, allowance, or collision truth. `--check` runs the workspace-pinned Prettier and refuses any byte drift, while report schema `/3` distinguishes full-measured from render-only authority and binds the exact pilot and Builder-frame inputs. [Part-model catalog truth](../design/part-model.md#current-catalog) owns the current `/16` counts, mesh deltas, and migration interpretation.
+Then remeasure, score, canonicalize, and compare the generated catalog outputs. The mesh registry indexes four bounded chunks so no generated source file approaches the 1 MiB text ceiling; the render-only generated type cannot carry connector, allowance, or collision truth. `--check` runs the workspace-pinned Prettier and refuses any byte drift, while report schema `/4` distinguishes full-measured from render-only authority, binds the exact pilot and Builder-frame inputs, and records the optional source-bounded validated-connection stud profile without weakening ordinary collision. [Part-model catalog truth](../design/part-model.md#current-catalog) owns the current `/17` counts, mesh deltas, and migration interpretation.
 
 ```powershell
 $shadowLibrary = "C:\tmp\ldcad-shadow-20260802"

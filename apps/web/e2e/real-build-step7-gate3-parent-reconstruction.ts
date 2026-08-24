@@ -65,19 +65,19 @@ export function isStep7Gate3PrivatePinResult(
 const EXPECTED_PARENT_MIGRATIONS = SAFE_OBJECT_FREEZE([
   {
     sourceDocumentHash: "sha256:a806c6e4db60f71f1193cf7f28aa99189f7666278b64bff6beb075d2646d27e4",
-    currentDocumentHash: "sha256:80e882693cd60e00a23572d5bf93813ef533ebdfc6930b4fda1808859d16ffb7",
+    currentDocumentHash: "sha256:2067af739eb181c8ebf4b1ae78711129c28d2ec22679e27c77c40a51c0f2a061",
   },
   {
     sourceDocumentHash: "sha256:e637dbcdbad7994ae642f3ab8e3d9c366864730b0d957e2ac75836e150edf1bf",
-    currentDocumentHash: "sha256:28da7f35f9ece20e3c86fce37384ed7509e423858b91cf2050e43e0b5f4905d7",
+    currentDocumentHash: "sha256:fc1b1ab3e99654ab3b59feab238c994dfd11652cf9acaae4bc0e56e5013be970",
   },
   {
     sourceDocumentHash: "sha256:d3c69d1704953033eeca63f5702d237cf8a066fc83d3a46e12d1eea23a2f5898",
-    currentDocumentHash: "sha256:5f262ca30a4e73fb43e1abc42ef1a2460078795a714fe61bb6b9102233471b23",
+    currentDocumentHash: "sha256:928bcfc4cafa071df072372c90ced72942798ad9ea10c3c06934dd5a414323c2",
   },
   {
     sourceDocumentHash: "sha256:0ecf6da53de325a283cc64d5c317583d831c82ab707d64b8b21eb6765169f1c1",
-    currentDocumentHash: "sha256:ffb8747ba638143d63e4a29225b53df32c26d35a15520da2158c00eb18cede91",
+    currentDocumentHash: "sha256:f4f57a3bdf72e52a14249b1e253d0e153ea309d004b3527d366bbbea89bda426",
   },
 ]);
 

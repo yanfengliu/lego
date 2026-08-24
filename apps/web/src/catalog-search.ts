@@ -14,6 +14,7 @@ export const PART_FAMILY_ORDER: readonly PartFamily[] = Object.freeze([
   "technic-brick",
   "axle",
   "wheel",
+  "minifig-accessory",
   "tile",
   "grille-tile",
 ]);
@@ -33,6 +34,7 @@ export const PART_FAMILY_LABELS: Readonly<Record<PartFamily, string>> = Object.f
   "cheese-slope": "Cheese slopes",
   "corner-plate": "Corner plates",
   bracket: "Brackets",
+  "minifig-accessory": "Minifig accessories",
 });
 
 /**

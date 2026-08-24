@@ -67,6 +67,14 @@ describe("matchesPartQuery", () => {
     }
   });
 
+  it("keeps 11253 discoverable as minifig footwear rather than a plate", () => {
+    const rollerSkate = part("builtin:roller-skate");
+    for (const query of ["11253", "roller", "skate", "minifig", "accessory", "1x1"]) {
+      expect(matchesPartQuery(rollerSkate, query), query).toBe(true);
+    }
+    expect(matchesPartQuery(rollerSkate, "plate")).toBe(false);
+  });
+
   it("does not match an unrelated query", () => {
     expect(matchesPartQuery(brick2x4, "wheel")).toBe(false);
     expect(matchesPartQuery(brick2x4, "9x9")).toBe(false);
@@ -87,6 +95,12 @@ describe("searchParts", () => {
     const tiles = searchParts({ query: "", family: "tile" });
     expect(tiles.length).toBeGreaterThan(0);
     expect(tiles.every(({ family }) => family === "tile")).toBe(true);
+  });
+
+  it("filters the singleton minifig-accessory family", () => {
+    expect(searchParts({ query: "", family: "minifig-accessory" }).map(({ id }) => id)).toEqual([
+      "builtin:roller-skate",
+    ]);
   });
 
   it("combines a family filter with a size query", () => {

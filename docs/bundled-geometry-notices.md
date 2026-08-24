@@ -2,11 +2,11 @@
 
 > Generated from the catalog by `packages/catalog/src/bundled-geometry-notices.test.ts`, which fails if this file and the catalog disagree. Do not edit by hand.
 
-The render mesh of the parts below is real LDraw geometry, bundled and redistributed under the [Creative Commons Attribution 4.0 International licence](https://creativecommons.org/licenses/by/4.0/). Of the 177 source files, 176 declare CC BY 4.0 and `parts/30503.dat` declares `CC-BY-2.0 OR CC-BY-4.0`; this bundle selects its CC BY 4.0 option. Attribution therefore names every file whose triangles are bundled with its author, title, licence and content hash rather than flattening it into project-owned data.
+The render mesh of the parts below is real LDraw geometry, bundled and redistributed under the [Creative Commons Attribution 4.0 International licence](https://creativecommons.org/licenses/by/4.0/). Of the 184 source files, 183 declare CC BY 4.0 and `parts/30503.dat` declares `CC-BY-2.0 OR CC-BY-4.0`; this bundle selects its CC BY 4.0 option. Attribution therefore names every file whose triangles are bundled with its author, title, licence and content hash rather than flattening it into project-owned data.
 
 Permission to reuse this geometry is **not** permission to train on it. That right is not held, and no bundled file is designated as a model-training or benchmark corpus.
 
-The geometry supplies the expanded source-derived triangles, LDraw hard-edge normals, and envelope used by the app and palette. Catalog `/16` adds the fully measured `35787` triangular tile: its official 22-file closure supplies the exact canonical diagonal surface and source-derived collision height field, while the pinned LDCad Shadow Library subpart authors three clutch cells; the unframed native Builder field remains counterevidence and is not merged. Catalog `/15` added the fully measured `28802` rounded-bottom bracket: its official 19-file closure supplies the exact render surface and source-derived collision height field, while the pinned LDCad route authors six outward stud frames and two clutch cells. Four studs face horizontally and remain unusable under the unchanged upright-only transform policy. Catalog `/14` added the fully measured `25269` quarter tile with a source-derived collision height field and one LDCad-authored clutch cell. The preceding `/13` change moved render geometry and normals for 24 catalog parts: 23 generated meshes use corrected source-exact triangulation, while `54200` replaced its `/12` parametric drawing with its exact mesh. The sixteen in-place `/12` and `/13` render promotions still preserve their prior conservative collision recipes instead of deriving collision from the mesh.
+The geometry supplies the expanded source-derived triangles, LDraw hard-edge normals, and envelope used by the app and palette. Catalog `/17` adds the fully measured `11253` roller skate: its official 17-file closure supplies the exact irregular footwear-and-roller surface, one source-authored stud, and a 78-box conservative collision height field, while the pinned LDCad Shadow Library walk authors one clutch cell; the stud's exact source cylinder remains ordinary collision truth at radius `6.0001514980873605` LDU, and a separately cross-bound nominal 6 LDU profile may be used only by its exact validated stud-clutch edge. The unframed native Builder record remains count-only counterevidence. Catalog `/16` added the fully measured `35787` triangular tile: its official 22-file closure supplies the exact canonical diagonal surface and source-derived collision height field, while the pinned LDCad Shadow Library subpart authors three clutch cells; the unframed native Builder field remains counterevidence and is not merged. Catalog `/15` added the fully measured `28802` rounded-bottom bracket: its official 19-file closure supplies the exact render surface and source-derived collision height field, while the pinned LDCad route authors six outward stud frames and two clutch cells. Four studs face horizontally and remain unusable under the unchanged upright-only transform policy. Catalog `/14` added the fully measured `25269` quarter tile with a source-derived collision height field and one LDCad-authored clutch cell. The preceding `/13` change moved render geometry and normals for 24 catalog parts: 23 generated meshes use corrected source-exact triangulation, while `54200` replaced its `/12` parametric drawing with its exact mesh. The sixteen in-place `/12` and `/13` render promotions still preserve their prior conservative collision recipes instead of deriving collision from the mesh.
 
 Source archive: `ldraw-complete-2026-07`, 144722356 bytes, `sha256:6009f2e94204c4d3a63a4c812010b5c90bad8c5acb19b882c859fdac63734eae`, from https://library.ldraw.org/library/official.
 
@@ -41,10 +41,11 @@ Source archive: `ldraw-complete-2026-07`, 144722356 bytes, `sha256:6009f2e94204c
 | `builtin:tile-1x1-quarter-round` | `25269.dat` | Tile  1 x  1 Corner Round | Magnus Forsberg [MagFors] | `CC-BY-4.0` | 13 |
 | `builtin:bracket-1x2-1x4-rounded-bottom` | `28802.dat` | Bracket  1 x  2 -  1 x  4 with Rounded Bottom Corners | Vincent Messenet [Cheenzo] | `CC-BY-4.0` | 19 |
 | `builtin:tile-2x2-triangular` | `35787.dat` | Tile  2 x  2 Triangular | Gerald Lasser [GeraldLasser] | `CC-BY-4.0` | 22 |
+| `builtin:roller-skate` | `11253.dat` | Minifig Roller Skate | Magnus Forsberg [MagFors] | `CC-BY-4.0` | 17 |
 
 ## Every bundled file
 
-The 177 files below comprise 176 `CC-BY-4.0` declarations and one `CC-BY-2.0 OR CC-BY-4.0` declaration.
+The 184 files below comprise 183 `CC-BY-4.0` declarations and one `CC-BY-2.0 OR CC-BY-4.0` declaration.
 
 | File | Title | Author | Licence | LDraw.org status | SHA-256 |
 | --- | --- | --- | --- | --- | --- |
@@ -74,8 +75,10 @@ The 177 files below comprise 176 `CC-BY-4.0` declarations and one `CC-BY-2.0 OR 
 | `p/1-8stud4.dat` | Stud Tube Open 0.125 | Massimo Maso [Sirio] | `CC-BY-4.0` | Primitive UPDATE 2019-01 | `9395515b1e38008dab61d9a971d9564e36ea6fbe4a32a244c789e8e5a2a58f6d` |
 | `p/1-8tndis.dat` | Disc Negative Truncated 0.125 | Massimo Maso [Sirio] | `CC-BY-4.0` | Primitive UPDATE 2022-02 | `5e3bd48d2e7565fc97a8936255339d9682897b43a38f69da43571f42a4a2248e` |
 | `p/2-4chrd.dat` | Chord 0.5 | Philippe Hurbain [Philo] | `CC-BY-4.0` | Primitive UPDATE 2014-01 | `3b0dfcf2cb881fae0acfe1e53b703104768878636477e540d0c893fc3fd87f8f` |
+| `p/2-4cylc.dat` | Cylinder Closed 0.5 | Alex Taylor [anathema] | `CC-BY-4.0` | Primitive UPDATE 2009-02 | `a5b68e5d662209f4139803034f45330ba677b1aff449fb609d95a6f27ddc5469` |
 | `p/2-4cyli.dat` | Cylinder 0.5 | James Jessiman | `CC-BY-4.0` | Primitive UPDATE 2005-01 | `d486780f0f84893899d9eadcd13150f13a42e15e77a3cda38cdf24ded98862c6` |
 | `p/2-4cylo.dat` | Cylinder Open 0.5 | Max Martin Richter [MMR1988] | `CC-BY-4.0` | Primitive UPDATE 2010-03 | `4fa9f597d775c7f15e3fc66f60e20d914134d13004b485488b7dbff684776232` |
+| `p/2-4disc.dat` | Disc 0.5 | James Jessiman | `CC-BY-4.0` | Primitive UPDATE 2002-02 | `1d4662b73e3196fadeb5ecf2fd27f3dbf7cecce0802cf3d7108ab67bb380eb15` |
 | `p/2-4edge.dat` | Circle 0.5 | James Jessiman | `CC-BY-4.0` | Primitive UPDATE 2017-01 | `665400f76566b161c28303cdadce40d17d979a8ff9a8a133675af2d17fbe6763` |
 | `p/2-4ndis.dat` | Disc Negative 0.5 | James Jessiman | `CC-BY-4.0` | Primitive UPDATE 2012-01 | `7557eae598be3f530b840471535198e6b07b03486ffbcc18a00e862c3d25d925` |
 | `p/2-4ring2.dat` | Ring  2 x 0.5 | Chris Dee [cwdee] | `CC-BY-4.0` | Primitive UPDATE 2012-01 | `dc1748fff34bb0cae3ba1d480921c2f73de4ea1d0532799356b2014a28c8f393` |
@@ -98,11 +101,13 @@ The 177 files below comprise 176 `CC-BY-4.0` declarations and one `CC-BY-2.0 OR 
 | `p/3-8cylo.dat` | Cylinder Open 0.375 | J.C. Tchang [tchang] | `CC-BY-4.0` | Primitive UPDATE 2013-01 | `f5e90ea29201b4cea569e2effe32eee5fe95146e3eadcddc054a881ef4f839bd` |
 | `p/3-8edge.dat` | Circle 0.375 | James Jessiman | `CC-BY-4.0` | Primitive UPDATE 2017-01 | `a590f230678d592d514a9c5e307c6a30945e50e4c529fc06accf37530d0e0ed5` |
 | `p/3-8ring3.dat` | Ring  3 x 0.375 | Niels Karsdorp [nielsk] | `CC-BY-4.0` | Primitive UPDATE 2005-01 | `c44e0a5db0b1fc228aa513880a7717cab472194b576a75a89fd71e4059d6d8a2` |
+| `p/4-4cylc.dat` | Cylinder Closed 1.0 | Alex Taylor [anathema] | `CC-BY-4.0` | Primitive UPDATE 2009-02 | `0183cffc7f56a2f3e5e3511f0d07ac484d3039c2d41bee802a94344ec95ec8bd` |
 | `p/4-4cyli.dat` | Cylinder 1.0 | James Jessiman | `CC-BY-4.0` | Primitive UPDATE 2005-01 | `4a742c2765b6ebf98245baaf8a160a4ff587fc93d36c8ee2b9074712a2f968c4` |
 | `p/4-4cylo.dat` | Cylinder Open 1.0 | Mark Kennedy [mkennedy] | `CC-BY-4.0` | Primitive UPDATE 2010-01 | `d6ca97ee2e75918b3309a5c88aafcd2455b3a316f7cef8963517c19f1d86b38f` |
 | `p/4-4cyls.dat` | Cylinder Sloped 1.0 | Donald Sutter [technog] | `CC-BY-4.0` | Primitive UPDATE 2012-01 | `eb26a554261899f82fda150ee70827a010b7d29206b5b577b2ee5831851d8f29` |
 | `p/4-4disc.dat` | Disc 1.0 | James Jessiman | `CC-BY-4.0` | Primitive UPDATE 2002-02 | `a00b5547776f61a7389d303616987c76b3c4de86ad8ec32f22857e1bd5e5e40f` |
 | `p/4-4edge.dat` | Circle 1.0 | James Jessiman | `CC-BY-4.0` | Primitive UPDATE 2017-01 | `54a52196e421fd1717d291ff52ea57553b1fb238907c1678cc1f1a84c698b1da` |
+| `p/4-4ring1.dat` | Ring  1 x 1.0 | James Jessiman | `CC-BY-4.0` | Primitive UPDATE 2009-01 | `4ae21061a6d0c9c80c608decb750f16fe1d113d84e08ef2f6082bcbb0f55194c` |
 | `p/4-4ring2.dat` | Ring  2 x 1.0 | James Jessiman | `CC-BY-4.0` | Primitive UPDATE 2009-01 | `6fb38804b1f5e9bee8c0b80caf1397b09454fc58b048dc19045b6f37c8762ab0` |
 | `p/4-4ring3.dat` | Ring  3 x 1.0 | James Jessiman | `CC-BY-4.0` | Primitive UPDATE 2009-01 | `1f2835ac308154edc2d6f479d8e742a55be981f6167b20bfa100c195bc0731dd` |
 | `p/48/1-12chrd.dat` | Hi-Res Chord 0.0833 | Willy Tschager [Holly-Wood] | `CC-BY-4.0` | 48_Primitive UPDATE 2024-01 | `fe2a0252d971dc65126755c4fdb7db900e229dfdce712b42ce9510c7b0390e26` |
@@ -143,8 +148,10 @@ The 177 files below comprise 176 `CC-BY-4.0` declarations and one `CC-BY-2.0 OR 
 | `p/box4-1.dat` | Box with 4 Faces without 1 Edge | Tore Eriksson [Tore_Eriksson] | `CC-BY-4.0` | Primitive UPDATE 2012-01 | `2ed58df5da841827dfc5f9ac11c0bd7ffd8a455e46f166638e635f61a014b44d` |
 | `p/box4-2p.dat` | Box with  4 Faces without  2 Parallel Edges | Willy Tschager [Holly-Wood] | `CC-BY-4.0` | Primitive UPDATE 2024-01 | `a4cb5395b3ec8bba18d81e36c32f43cb9349a55fe97729c367afaa5e1e8b7f0f` |
 | `p/box4-4a.dat` | Box with  4 Faces without  4 Adjacent Edges | Willy Tschager [Holly-Wood] | `CC-BY-4.0` | Primitive UPDATE 2024-01 | `58c69e00462c0a74c1bd6d75d757d826ae13e98bd3928b0e685209003bfbee54` |
+| `p/box4-7a.dat` | Box with  4 Faces without  7 Adjacent Edges | Willy Tschager [Holly-Wood] | `CC-BY-4.0` | Primitive UPDATE 2024-01 | `93ac5f1805fc4e785c9532c0b40851a9d03da37241f85d5513b059c4358839f4` |
 | `p/box4.dat` | Box with 4 Faces (2 Parallel Pairs) and All Edges | James Jessiman | `CC-BY-4.0` | Primitive UPDATE 2012-01 | `2cbfcf075ef5c87c6a5f543f837972a78d43274ac7771b92229b5fe5da797c1e` |
 | `p/box5-1.dat` | Box with 5 Faces without 1 Edge | J.C. Tchang [tchang] | `CC-BY-4.0` | Primitive UPDATE 2014-01 | `c23e2cb13761c0af92c930af610075d82370a7f2ea89194fa808f0c4cf877bf2` |
+| `p/box5-4a.dat` | Box with  5 Faces without  4 Adjacent Edges | Willy Tschager [Holly-Wood] | `CC-BY-4.0` | Primitive UPDATE 2024-01 | `70d5f7f2d0720b84a06100b12b449b8ad37d66a02fc4650b31d556d7b1d0fe41` |
 | `p/box5.dat` | Box with 5 Faces and All Edges | James Jessiman | `CC-BY-4.0` | Primitive UPDATE 2012-01 | `ccb7b8a1d36692335b10ea6aa196849afcad4b15331683ed8112a10b50977318` |
 | `p/boxjcyl4.dat` | Box to Cylinder Joint 1: 4 | Philippe Hurbain [Philo] | `CC-BY-4.0` | Primitive UPDATE 2024-07 | `ceb4a5fd46fbff7d2e396afbc308379b914b99556b30a136cfb578a3dc360877` |
 | `p/empty.dat` | Empty | Steffen [Steffen] | `CC-BY-4.0` | Primitive UPDATE 2025-08 | `192c9b9ee2e425cfbc9e9b12ff61ee0f05ae1cb0c12dc37d5590adb6abb65128` |
@@ -180,6 +187,7 @@ The 177 files below comprise 176 `CC-BY-4.0` declarations and one `CC-BY-2.0 OR 
 | `p/stug4-2x2.dat` | Stud Tube Open Group  2 x  2 | Steffen [Steffen] | `CC-BY-4.0` | Primitive UPDATE 2011-01 | `cf6e68b84d37562ed1a035015c23f804157ce6a80a7632a179e4def8ddcacfcb` |
 | `p/stug4.dat` | ~Moved to stug-4x4 | [PTadmin] | `CC-BY-4.0` | Primitive UPDATE 2011-01 | `977530a161304abc45fa2dbcac0e8a7df389d8ab3838a82702032a74dca9021f` |
 | `p/tri3a4.dat` | Triangular Prism with 3 Adjacent Faces without 4 Edges | Magnus Forsberg [MagFors] | `CC-BY-4.0` | Primitive UPDATE 2017-01 | `8c1cf47d85e2d2b429c0ac404108a9e91048fe7c9501b527dda55e75ad11bc4e` |
+| `parts/11253.dat` | Minifig Roller Skate | Magnus Forsberg [MagFors] | `CC-BY-4.0` | Part UPDATE 2013-01 | `73bd3e4ac6080ee535bf4a0ba514322abe3e9d8ff073e2d6b789f0ed105a00fc` |
 | `parts/11477.dat` | Slope Brick Curved  2 x  1 | Owen Burgoyne [C3POwen] | `CC-BY-4.0` | Part UPDATE 2013-01 | `fed74af9f56bcb149a7f67af4b427c261b41d24d15ed7a3466e24170377a0ba6` |
 | `parts/2450.dat` | Plate  3 x  3 without Corner | James Jessiman | `CC-BY-4.0` | Part UPDATE 2024-03 | `5bdb50ad11b750ca1621a7c1717f1dee4af58ae8816af3c77f4af75f7e72f408` |
 | `parts/25269.dat` | Tile  1 x  1 Corner Round | Magnus Forsberg [MagFors] | `CC-BY-4.0` | Part UPDATE 2019-02 | `27d965f14caa2c9ebb13c07190f5683da8aca2471671e469e923b623e7978e6c` |
@@ -228,7 +236,7 @@ The 177 files below comprise 176 `CC-BY-4.0` declarations and one `CC-BY-2.0 OR 
 
 ## Derived connector data
 
-The parts below take their connector cells from the [LDCad Shadow Library](https://github.com/RolandMelkert/LDCadShadowLibrary), which is licensed [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). LEGO Builder has no record of the first three designs. Builder metadata does name `25269`, but record presence grants no connector authority; the shadow subpart directly authors its single central seat, so that admission does not consume or reinterpret the Builder record. For `28802`, the inspected Builder source instead identifies `10201`; that contradictory record is refused, while the exact shadow route authors two clutch cells and six outward stud frames that are independently reconciled with the official visible surface. Builder also names `35787`, but its type-23 field has no reviewed Builder-to-catalog frame and exposes only one family-15 node where the exact shadow subpart authors three cells. The Builder record remains retained counterevidence; the catalog selects the exclusive three-cell LDCad route and does not merge the sources. A female connector is not recoverable from LDraw geometry alone, so the named authored source is retained separately from the visible mesh and collision measurement.
+The parts below take their connector cells from the [LDCad Shadow Library](https://github.com/RolandMelkert/LDCadShadowLibrary), which is licensed [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). LEGO Builder has no record of the first three designs. Builder metadata does name `25269`, but record presence grants no connector authority; the shadow subpart directly authors its single central seat, so that admission does not consume or reinterpret the Builder record. For `28802`, the inspected Builder source instead identifies `10201`; that contradictory record is refused, while the exact shadow route authors two clutch cells and six outward stud frames that are independently reconciled with the official visible surface. Builder also names `35787`, but its type-23 field has no reviewed Builder-to-catalog frame and exposes only one family-15 node where the exact shadow subpart authors three cells. The catalog therefore selects the exclusive three-cell LDCad route. Builder's `11253` record likewise has no reviewed Builder-to-catalog frame; its one clutch agrees only in count with the exact one-cell shadow route and grants no connector authority. Both native records remain retained counterevidence and are not merged into the selected routes. A female connector is not recoverable from LDraw geometry alone, so the named authored source is retained separately from the visible mesh and collision measurement.
 
 No shadow file is bundled. What is admitted is derived data: connector frames and positions composed through each part's own LDraw reference tree in exact rational arithmetic. ShareAlike still attaches to that derived data if it is redistributed — the licence's sui generis database-rights clause reaches an extracted database too — and reading and sharing the library is **not** permission to train on it, which stays an unheld right.
 
@@ -242,3 +250,4 @@ Source: `set-6651557/1; LDCadShadowLibrary commit 15aa1e718b6a8da37d24fc7af5e52e
 | `builtin:tile-1x1-quarter-round` | `25269.dat` | 0 | 1 |
 | `builtin:bracket-1x2-1x4-rounded-bottom` | `28802.dat` | 6 | 2 |
 | `builtin:tile-2x2-triangular` | `35787.dat` | 0 | 3 |
+| `builtin:roller-skate` | `11253.dat` | 1 | 1 |

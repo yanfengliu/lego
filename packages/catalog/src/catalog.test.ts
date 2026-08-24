@@ -35,6 +35,7 @@ const PART_FAMILY_NAMES = [
   "cheese-slope",
   "corner-plate",
   "bracket",
+  "minifig-accessory",
 ] as const satisfies readonly PartFamily[];
 
 /** A height its family does not fix, so the part declares its own. */
@@ -150,11 +151,14 @@ const EXPECTED_PART_IDS = [
   // builtin.basic-parts/16: one exact triangular tile with three underside-seat
   // centres on or inside its occupied half of the 2 x 2 footprint.
   "builtin:tile-2x2-triangular",
+  // builtin.basic-parts/17: one irregular minifig accessory with an official
+  // stud and one independently authored underside clutch.
+  "builtin:roller-skate",
 ] as const;
 
 describe("starter catalog", () => {
-  it("publishes the triangular-tile admission as version 16", () => {
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/16");
+  it("publishes the roller-skate admission as version 17", () => {
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/17");
   });
 
   it("pins 25269's exact LDCad route and raw-to-catalog central clutch", () => {
@@ -255,6 +259,7 @@ describe("starter catalog", () => {
       "cheese-slope": 2,
       "corner-plate": 5,
       bracket: 1,
+      "minifig-accessory": 1,
     });
     // Every part belongs to a family the palette knows how to show.
     expect(

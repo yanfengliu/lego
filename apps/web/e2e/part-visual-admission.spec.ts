@@ -245,6 +245,7 @@ const ALL_SOURCE_NORMAL_MESH_PART_IDS = [
   "builtin:tile-1x1-quarter-round",
   "builtin:bracket-1x2-1x4-rounded-bottom",
   "builtin:tile-2x2-triangular",
+  "builtin:roller-skate",
 ] as const;
 
 function requiredRealPartIds(): readonly string[] {

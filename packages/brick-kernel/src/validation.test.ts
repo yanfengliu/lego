@@ -243,6 +243,74 @@ describe("hard document validation", () => {
     expect(tooLowCodes).toContain("PART_BODY_COLLISION");
   });
 
+  it("seats 11253's rounded source stud through its validated nominal connection profile", () => {
+    const skate = createPartInstance({
+      id: "skate",
+      catalogPartId: "builtin:roller-skate",
+    });
+    const plate = createPartInstance({
+      id: "plate",
+      catalogPartId: "builtin:plate-1x1",
+      transform: { positionLdu: [0, -8, 0], orientationId: "upright-yaw-0" },
+    });
+    const edge: ConnectionEdge = {
+      id: "skate-to-plate",
+      kind: "stud-tube",
+      a: { partId: "skate", portId: "stud:0" },
+      b: { partId: "plate", portId: "undersideClutch:0:0" },
+      provenance: { source: "manual" },
+    };
+
+    expect(codes(withParts([skate, plate]))).toEqual(
+      expect.arrayContaining(["DISCONNECTED_ASSEMBLY", "PART_STUD_BODY_COLLISION"]),
+    );
+    const report = validateBrickDocument(withParts([skate, plate], [edge]));
+    expect(report.issues).toEqual([]);
+    expect(report.documentGloballyValid).toBe(true);
+    expect(validateValidationReportV1(report)).toBe(true);
+
+    const thirdBody = createPartInstance({
+      id: "blocker",
+      catalogPartId: "builtin:plate-1x1",
+      transform: { positionLdu: [0, -8, 0], orientationId: "upright-yaw-0" },
+    });
+    expect(validateBrickDocument(withParts([skate, plate, thirdBody], [edge])).issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "PART_STUD_BODY_COLLISION",
+          partIds: ["blocker", "skate"],
+        }),
+      ]),
+    );
+
+    const misalignedPlate = createPartInstance({
+      id: "misaligned-plate",
+      catalogPartId: "builtin:plate-1x1",
+      transform: { positionLdu: [1, -8, 0], orientationId: "upright-yaw-0" },
+    });
+    const misalignedEdge: ConnectionEdge = {
+      ...edge,
+      id: "skate-to-misaligned-plate",
+      b: { partId: "misaligned-plate", portId: "undersideClutch:0:0" },
+    };
+    const misalignedReport = validateBrickDocument(
+      withParts([skate, misalignedPlate], [misalignedEdge]),
+    );
+    expect(misalignedReport.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "CONNECTION_TRANSFORM_MISMATCH",
+          partIds: ["misaligned-plate", "skate"],
+          connectionIds: ["skate-to-misaligned-plate"],
+        }),
+        expect.objectContaining({
+          code: "PART_STUD_BODY_COLLISION",
+          partIds: ["misaligned-plate", "skate"],
+        }),
+      ]),
+    );
+  });
+
   it("detects overlapping catalog stud cylinders", () => {
     const document = withParts([
       createPartInstance({ id: "left" }),

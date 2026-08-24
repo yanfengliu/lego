@@ -28,7 +28,7 @@ export interface BundledLdrawSourceFile {
   readonly licenseExpression: string;
 }
 
-/** Every file in the 27 bundled closures, deduplicated and path-ordered. */
+/** Every file in the 28 bundled closures, deduplicated and path-ordered. */
 export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Object.freeze([
   // prettier-ignore
   { path: "p/1-16chrd.dat", bytes: 701, sha256: "sha256:e429dd760eb6f0cf460a74e6ebf52c023bedbdea82de7801efa1694b5a1a82e8", title: "Chord 0.0625", author: "Philippe Hurbain [Philo]", ldrawOrg: "Primitive UPDATE 2015-01", licenseExpression: "CC-BY-4.0" },
@@ -83,9 +83,13 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
   // prettier-ignore
   { path: "p/2-4chrd.dat", bytes: 490, sha256: "sha256:3b0dfcf2cb881fae0acfe1e53b703104768878636477e540d0c893fc3fd87f8f", title: "Chord 0.5", author: "Philippe Hurbain [Philo]", ldrawOrg: "Primitive UPDATE 2014-01", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
+  { path: "p/2-4cylc.dat", bytes: 428, sha256: "sha256:a5b68e5d662209f4139803034f45330ba677b1aff449fb609d95a6f27ddc5469", title: "Cylinder Closed 0.5", author: "Alex Taylor [anathema]", ldrawOrg: "Primitive UPDATE 2009-02", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
   { path: "p/2-4cyli.dat", bytes: 1543, sha256: "sha256:d486780f0f84893899d9eadcd13150f13a42e15e77a3cda38cdf24ded98862c6", title: "Cylinder 0.5", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2005-01", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
   { path: "p/2-4cylo.dat", bytes: 387, sha256: "sha256:4fa9f597d775c7f15e3fc66f60e20d914134d13004b485488b7dbff684776232", title: "Cylinder Open 0.5", author: "Max Martin Richter [MMR1988]", ldrawOrg: "Primitive UPDATE 2010-03", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/2-4disc.dat", bytes: 803, sha256: "sha256:1d4662b73e3196fadeb5ecf2fd27f3dbf7cecce0802cf3d7108ab67bb380eb15", title: "Disc 0.5", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2002-02", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
   { path: "p/2-4edge.dat", bytes: 683, sha256: "sha256:665400f76566b161c28303cdadce40d17d979a8ff9a8a133675af2d17fbe6763", title: "Circle 0.5", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2017-01", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
@@ -131,6 +135,8 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
   // prettier-ignore
   { path: "p/3-8ring3.dat", bytes: 804, sha256: "sha256:c44e0a5db0b1fc228aa513880a7717cab472194b576a75a89fd71e4059d6d8a2", title: "Ring  3 x 0.375", author: "Niels Karsdorp [nielsk]", ldrawOrg: "Primitive UPDATE 2005-01", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
+  { path: "p/4-4cylc.dat", bytes: 476, sha256: "sha256:0183cffc7f56a2f3e5e3511f0d07ac484d3039c2d41bee802a94344ec95ec8bd", title: "Cylinder Closed 1.0", author: "Alex Taylor [anathema]", ldrawOrg: "Primitive UPDATE 2009-02", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
   { path: "p/4-4cyli.dat", bytes: 2687, sha256: "sha256:4a742c2765b6ebf98245baaf8a160a4ff587fc93d36c8ee2b9074712a2f968c4", title: "Cylinder 1.0", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2005-01", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
   { path: "p/4-4cylo.dat", bytes: 383, sha256: "sha256:d6ca97ee2e75918b3309a5c88aafcd2455b3a316f7cef8963517c19f1d86b38f", title: "Cylinder Open 1.0", author: "Mark Kennedy [mkennedy]", ldrawOrg: "Primitive UPDATE 2010-01", licenseExpression: "CC-BY-4.0" },
@@ -140,6 +146,8 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
   { path: "p/4-4disc.dat", bytes: 1137, sha256: "sha256:a00b5547776f61a7389d303616987c76b3c4de86ad8ec32f22857e1bd5e5e40f", title: "Disc 1.0", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2002-02", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
   { path: "p/4-4edge.dat", bytes: 1084, sha256: "sha256:54a52196e421fd1717d291ff52ea57553b1fb238907c1678cc1f1a84c698b1da", title: "Circle 1.0", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2017-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/4-4ring1.dat", bytes: 1641, sha256: "sha256:4ae21061a6d0c9c80c608decb750f16fe1d113d84e08ef2f6082bcbb0f55194c", title: "Ring  1 x 1.0", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2009-01", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
   { path: "p/4-4ring2.dat", bytes: 1628, sha256: "sha256:6fb38804b1f5e9bee8c0b80caf1397b09454fc58b048dc19045b6f37c8762ab0", title: "Ring  2 x 1.0", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2009-01", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
@@ -221,9 +229,13 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
   // prettier-ignore
   { path: "p/box4-4a.dat", bytes: 1067, sha256: "sha256:58c69e00462c0a74c1bd6d75d757d826ae13e98bd3928b0e685209003bfbee54", title: "Box with  4 Faces without  4 Adjacent Edges", author: "Willy Tschager [Holly-Wood]", ldrawOrg: "Primitive UPDATE 2024-01", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
+  { path: "p/box4-7a.dat", bytes: 1008, sha256: "sha256:93ac5f1805fc4e785c9532c0b40851a9d03da37241f85d5513b059c4358839f4", title: "Box with  4 Faces without  7 Adjacent Edges", author: "Willy Tschager [Holly-Wood]", ldrawOrg: "Primitive UPDATE 2024-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
   { path: "p/box4.dat", bytes: 948, sha256: "sha256:2cbfcf075ef5c87c6a5f543f837972a78d43274ac7771b92229b5fe5da797c1e", title: "Box with 4 Faces (2 Parallel Pairs) and All Edges", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2012-01", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
   { path: "p/box5-1.dat", bytes: 655, sha256: "sha256:c23e2cb13761c0af92c930af610075d82370a7f2ea89194fa808f0c4cf877bf2", title: "Box with 5 Faces without 1 Edge", author: "J.C. Tchang [tchang]", ldrawOrg: "Primitive UPDATE 2014-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/box5-4a.dat", bytes: 752, sha256: "sha256:70d5f7f2d0720b84a06100b12b449b8ad37d66a02fc4650b31d556d7b1d0fe41", title: "Box with  5 Faces without  4 Adjacent Edges", author: "Willy Tschager [Holly-Wood]", ldrawOrg: "Primitive UPDATE 2024-01", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
   { path: "p/box5.dat", bytes: 963, sha256: "sha256:ccb7b8a1d36692335b10ea6aa196849afcad4b15331683ed8112a10b50977318", title: "Box with 5 Faces and All Edges", author: "James Jessiman", ldrawOrg: "Primitive UPDATE 2012-01", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
@@ -294,6 +306,8 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
   { path: "p/stug4.dat", bytes: 307, sha256: "sha256:977530a161304abc45fa2dbcac0e8a7df389d8ab3838a82702032a74dca9021f", title: "~Moved to stug-4x4", author: "[PTadmin]", ldrawOrg: "Primitive UPDATE 2011-01", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
   { path: "p/tri3a4.dat", bytes: 468, sha256: "sha256:8c1cf47d85e2d2b429c0ac404108a9e91048fe7c9501b527dda55e75ad11bc4e", title: "Triangular Prism with 3 Adjacent Faces without 4 Edges", author: "Magnus Forsberg [MagFors]", ldrawOrg: "Primitive UPDATE 2017-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/11253.dat", bytes: 12837, sha256: "sha256:73bd3e4ac6080ee535bf4a0ba514322abe3e9d8ff073e2d6b789f0ed105a00fc", title: "Minifig Roller Skate", author: "Magnus Forsberg [MagFors]", ldrawOrg: "Part UPDATE 2013-01", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
   { path: "parts/11477.dat", bytes: 374, sha256: "sha256:fed74af9f56bcb149a7f67af4b427c261b41d24d15ed7a3466e24170377a0ba6", title: "Slope Brick Curved  2 x  1", author: "Owen Burgoyne [C3POwen]", ldrawOrg: "Part UPDATE 2013-01", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
@@ -388,61 +402,65 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
 
 /** Which of those files each bundled part's exact closure references. */
 export const BUNDLED_LDRAW_CLOSURES: Readonly<Record<string, readonly number[]>> = Object.freeze({
-  "5092": [82, 83, 97, 100, 104, 147, 167],
-  "35480": [26, 27, 28, 29, 30, 31, 32, 50, 53, 54, 55, 81, 86, 111, 112, 140],
-  "51739": [35, 36, 37, 38, 42, 50, 53, 54, 56, 82, 83, 88, 97, 100, 104, 109, 114, 121, 149, 169],
-  "77844": [50, 53, 54, 82, 87, 109, 112, 117, 120, 127, 154],
+  "5092": [86, 87, 103, 106, 110, 154, 174],
+  "35480": [27, 28, 30, 31, 32, 33, 34, 53, 56, 57, 59, 85, 90, 117, 118, 147],
+  "51739": [37, 38, 39, 40, 44, 53, 56, 57, 60, 86, 87, 92, 103, 106, 110, 115, 120, 127, 156, 176],
+  "77844": [53, 56, 57, 86, 91, 115, 118, 123, 126, 133, 161],
   "93273": [
-    11, 25, 28, 29, 50, 53, 54, 70, 72, 73, 82, 92, 100, 101, 102, 103, 104, 105, 112, 158, 176,
+    11, 25, 30, 31, 53, 56, 57, 74, 76, 77, 86, 96, 106, 107, 108, 109, 110, 111, 118, 165, 183,
   ],
   "30357": [
-    17, 18, 19, 20, 24, 50, 53, 54, 56, 57, 58, 59, 60, 66, 67, 68, 69, 82, 99, 103, 109, 114, 120,
-    122, 129, 136, 173,
+    17, 18, 19, 20, 24, 53, 56, 57, 60, 61, 62, 63, 64, 70, 71, 72, 73, 86, 105, 109, 115, 120, 126,
+    128, 135, 143, 180,
   ],
-  "2450": [50, 53, 54, 56, 82, 94, 101, 102, 103, 104, 106, 109, 114, 121, 133],
+  "2450": [53, 56, 57, 60, 86, 98, 107, 108, 109, 110, 112, 115, 120, 127, 140],
   "79491": [
-    0, 1, 3, 8, 9, 10, 13, 14, 17, 20, 50, 53, 54, 82, 83, 85, 93, 99, 100, 103, 104, 109, 112, 155,
+    0, 1, 3, 8, 9, 10, 13, 14, 17, 20, 53, 56, 57, 86, 87, 89, 97, 105, 106, 109, 110, 115, 118,
+    162,
   ],
-  "30503": [50, 53, 54, 56, 82, 94, 101, 103, 104, 106, 109, 114, 116, 117, 118, 129, 137],
-  "6106": [50, 53, 54, 56, 82, 91, 94, 100, 104, 109, 114, 121, 124, 126, 130, 152],
+  "30503": [53, 56, 57, 60, 86, 98, 107, 109, 110, 112, 115, 120, 122, 123, 124, 135, 144],
+  "6106": [53, 56, 57, 60, 86, 95, 98, 106, 110, 115, 120, 127, 130, 132, 136, 159],
   "30565": [
-    1, 2, 3, 4, 5, 9, 10, 13, 15, 16, 17, 18, 19, 20, 21, 50, 53, 54, 56, 65, 71, 75, 82, 100, 103,
-    109, 114, 123, 129, 131, 138, 161, 163,
+    1, 2, 3, 4, 5, 9, 10, 13, 15, 16, 17, 18, 19, 20, 21, 53, 56, 57, 60, 69, 75, 79, 86, 106, 109,
+    115, 120, 129, 135, 137, 145, 168, 170,
   ],
   "80015": [
-    1, 2, 3, 9, 10, 13, 15, 16, 18, 19, 20, 21, 22, 23, 36, 37, 38, 40, 41, 50, 53, 54, 61, 62, 63,
-    64, 65, 73, 75, 83, 91, 93, 94, 98, 100, 103, 104, 109, 112, 116, 120, 156, 160, 161, 174,
+    1, 2, 3, 9, 10, 13, 15, 16, 18, 19, 20, 21, 22, 23, 38, 39, 40, 42, 43, 53, 56, 57, 65, 66, 67,
+    68, 69, 77, 79, 87, 95, 97, 98, 104, 106, 109, 110, 115, 118, 122, 126, 163, 167, 168, 181,
   ],
-  "25269": [0, 1, 3, 9, 12, 13, 82, 99, 102, 103, 104, 134, 162],
-  "28802": [8, 9, 10, 13, 50, 53, 54, 55, 89, 92, 94, 96, 103, 109, 110, 112, 120, 125, 135],
-  "35787": [0, 1, 2, 3, 9, 10, 13, 15, 16, 34, 77, 78, 79, 80, 82, 83, 99, 100, 103, 104, 141, 164],
+  "25269": [0, 1, 3, 9, 12, 13, 86, 105, 108, 109, 110, 141, 169],
+  "28802": [8, 9, 10, 13, 53, 56, 57, 59, 93, 96, 98, 101, 109, 115, 116, 118, 126, 131, 142],
+  "35787": [
+    0, 1, 2, 3, 9, 10, 13, 15, 16, 36, 81, 82, 83, 84, 86, 87, 105, 106, 109, 110, 148, 171,
+  ],
+  "11253": [12, 13, 26, 27, 29, 30, 47, 50, 52, 53, 56, 57, 58, 99, 102, 115, 138],
   "41770a": [
-    0, 1, 2, 3, 7, 9, 10, 13, 15, 16, 17, 18, 19, 20, 22, 23, 24, 26, 27, 28, 31, 33, 36, 37, 38,
-    40, 41, 50, 53, 54, 56, 99, 100, 104, 109, 114, 118, 144, 165,
+    0, 1, 2, 3, 7, 9, 10, 13, 15, 16, 17, 18, 19, 20, 22, 23, 24, 27, 28, 30, 33, 35, 38, 39, 40,
+    42, 43, 53, 56, 57, 60, 105, 106, 110, 115, 120, 124, 151, 172,
   ],
   "41769a": [
-    0, 1, 2, 3, 7, 9, 10, 13, 15, 16, 17, 18, 19, 20, 22, 23, 24, 26, 27, 28, 31, 33, 36, 37, 38,
-    40, 41, 50, 53, 54, 56, 99, 100, 104, 109, 114, 118, 143, 165,
+    0, 1, 2, 3, 7, 9, 10, 13, 15, 16, 17, 18, 19, 20, 22, 23, 24, 27, 28, 30, 33, 35, 38, 39, 40,
+    42, 43, 53, 56, 57, 60, 105, 106, 110, 115, 120, 124, 150, 172,
   ],
   "43723a": [
-    7, 9, 10, 13, 15, 31, 36, 37, 38, 43, 44, 45, 46, 47, 48, 49, 50, 51, 53, 54, 76, 82, 83, 100,
-    101, 103, 104, 109, 117, 146, 166,
+    7, 9, 10, 13, 15, 33, 38, 39, 40, 45, 46, 47, 48, 49, 50, 51, 53, 54, 56, 57, 80, 86, 87, 106,
+    107, 109, 110, 115, 123, 153, 173,
   ],
   "43722a": [
-    7, 9, 10, 13, 15, 31, 36, 37, 38, 43, 44, 45, 46, 47, 48, 49, 50, 51, 53, 54, 76, 82, 83, 100,
-    101, 103, 104, 109, 117, 145, 166,
+    7, 9, 10, 13, 15, 33, 38, 39, 40, 45, 46, 47, 48, 49, 50, 51, 53, 54, 56, 57, 80, 86, 87, 106,
+    107, 109, 110, 115, 123, 152, 173,
   ],
   "54383": [
-    0, 1, 2, 3, 6, 9, 10, 13, 15, 16, 17, 18, 19, 20, 36, 37, 38, 40, 41, 43, 44, 45, 50, 51, 53,
-    54, 56, 92, 99, 100, 102, 103, 104, 109, 114, 115, 117, 119, 128, 151, 171,
+    0, 1, 2, 3, 6, 9, 10, 13, 15, 16, 17, 18, 19, 20, 38, 39, 40, 42, 43, 45, 46, 47, 53, 54, 56,
+    57, 60, 96, 105, 106, 108, 109, 110, 115, 120, 121, 123, 125, 134, 158, 178,
   ],
-  "3659": [39, 46, 48, 50, 53, 54, 87, 97, 109, 142],
-  "3455": [50, 53, 54, 87, 97, 109, 139],
-  "11477": [11, 25, 28, 29, 73, 74, 75, 82, 83, 84, 92, 100, 104, 105, 132, 159],
-  "50950": [73, 74, 75, 82, 84, 90, 103, 104, 105, 107, 108, 148, 168],
-  "61678": [57, 58, 60, 82, 92, 96, 100, 101, 103, 104, 153, 172],
-  "54200": [95, 100, 104, 150, 170],
-  "85984": [50, 52, 53, 54, 95, 100, 104, 113, 157, 175],
+  "3659": [41, 48, 50, 53, 56, 57, 91, 103, 115, 149],
+  "3455": [53, 56, 57, 91, 103, 115, 146],
+  "11477": [11, 25, 30, 31, 77, 78, 79, 86, 87, 88, 96, 106, 110, 111, 139, 166],
+  "50950": [77, 78, 79, 86, 88, 94, 109, 110, 111, 113, 114, 155, 175],
+  "61678": [61, 62, 64, 86, 96, 101, 106, 107, 109, 110, 160, 179],
+  "54200": [100, 106, 110, 157, 177],
+  "85984": [53, 55, 56, 57, 100, 106, 110, 119, 164, 182],
 });
 
 export interface BundledLdrawClosureManifest {
@@ -513,6 +531,10 @@ export const BUNDLED_LDRAW_CLOSURE_MANIFESTS: Readonly<
   "35787": {
     bytes: 16184,
     manifestSha256: "sha256:64d0e836c0fc63f1a604c98f13ec5529a755589648675887c3896404b7bf7091",
+  },
+  "11253": {
+    bytes: 28352,
+    manifestSha256: "sha256:a95ff67e17b326856aec2d59be0d8062c91dd5093dd380bdf61c610fda2bad60",
   },
   "41770a": {
     bytes: 35931,

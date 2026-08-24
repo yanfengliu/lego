@@ -55,7 +55,8 @@ export type PartFamily =
   | "curved-slope"
   | "cheese-slope"
   | "corner-plate"
-  | "bracket";
+  | "bracket"
+  | "minifig-accessory";
 /**
  * The ways two parts can meet.
  *
@@ -247,6 +248,12 @@ export interface CollisionCylinder {
   readonly axis: "x" | "y" | "z";
   readonly centerLdu: LduVector3;
   readonly radiusLdu: number;
+  /**
+   * Nominal radius used only when a validated connector edge authorizes this
+   * stud to enter a matching clutch allowance. Ordinary collision, bounds, and
+   * unconnected contact continue to use the conservative measured radius above.
+   */
+  readonly validatedConnectionProfileRadiusLdu?: number;
   readonly heightLdu: number;
 }
 
@@ -284,6 +291,8 @@ export interface CollisionAllowance {
 
 export interface PartCollisionDefinition {
   readonly modelVersion: string;
+  /** Cross-binds any per-stud nominal connection radius to one reviewed profile. */
+  readonly validatedConnectionStudProfile?: "nominal-stud-tube/1";
   readonly primitives: readonly CollisionPrimitive[];
   readonly allowances: readonly CollisionAllowance[];
 }

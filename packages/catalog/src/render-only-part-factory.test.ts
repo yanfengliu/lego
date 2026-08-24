@@ -80,7 +80,12 @@ describe("render-only part promotion", () => {
         `${id} partial-overhang evidence`,
       ).toBe(preceding.geometry.partialOverhangClutchEvidence);
       expect(renderPromotionStructuralBytes(directlyPromoted), id).toBe(precedingBytes);
-      actualHashes[id] = structuralHash(precedingBytes);
+      const historicalPrecedingBytes = precedingBytes.replaceAll(
+        "rectilinear-stud-clearance/3",
+        "rectilinear-stud-clearance/2",
+      );
+      expect(historicalPrecedingBytes, `${id} historical collision label`).not.toBe(precedingBytes);
+      actualHashes[id] = structuralHash(historicalPrecedingBytes);
     }
 
     expect(actualHashes).toEqual({

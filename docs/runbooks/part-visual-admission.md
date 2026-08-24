@@ -31,6 +31,8 @@ The source uses Three's independent `LDrawLoader` over the exact materialized cl
 
 The ignored output contains one immutable run directory per part with `packet.json` and all 16 raw PNGs, plus one batch manifest binding the requested catalog IDs, relative packet paths, and packet hashes.
 
+A catalog or part-definition truth change invalidates every packet that was bound as current, even when mesh hashes, frames, renderer inputs, and decoded pixels stay unchanged. Capture every affected definition again under the new truth. Exact old/new PNG and decoded-RGBA identity, together with unchanged mesh, frame, source manifest, camera, and renderer bindings, may justify transferring an already-inspected outcome into a new review sidecar that states that evidence; it never rebinds or relabels the old packet as current.
+
 ## Inspect
 
 Inspect every raw source/candidate pair at native size; a contact sheet is an unbound navigation aid and never replaces the packet-bound PNG pair.

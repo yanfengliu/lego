@@ -113,6 +113,7 @@ class MeasuredPartPlan:
     builder_connectivity_fact: BuilderConnectivityFact | None = None
     catalog_id: str | None = None
     display_name: str | None = None
+    validated_connection_stud_profile: str | None = None
 
     def __post_init__(self) -> None:
         if self.orientation_id not in UPRIGHT_ORIENTATIONS:
@@ -139,6 +140,12 @@ class MeasuredPartPlan:
                 f"Part {self.design_id} translates its source frame by "
                 f"{list(self.translation_ldu)}; the translation is whole LDU so the raw frame "
                 "is carried exactly rather than resampled."
+            )
+        if self.validated_connection_stud_profile not in (None, "nominal-stud-tube/1"):
+            raise ValueError(
+                f"Part {self.design_id} names validated connection stud profile "
+                f"{self.validated_connection_stud_profile!r}; the only admitted "
+                "source-rounding normalization is 'nominal-stud-tube/1'."
             )
 
 
@@ -242,6 +249,13 @@ def measured_part_report_row(part: MeasuredPart) -> dict[str, object]:
         "designId": part.plan.design_id,
         "catalogId": measured_part_catalog_id(part.plan),
         "connectorSource": part.plan.connector_source,
+        **(
+            {}
+            if part.plan.validated_connection_stud_profile is None
+            else {
+                "validatedConnectionStudProfile": part.plan.validated_connection_stud_profile
+            }
+        ),
         "studs": len(part.studs_ldu),
         "clutches": len(part.clutches_ldu),
         "collisionBoxes": len(part.body_boxes_ldu) // 6,

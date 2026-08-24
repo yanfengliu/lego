@@ -2,17 +2,18 @@ import type { BrickDocumentV1 } from "@lego-studio/protocol";
 
 import {
   assertFrozenLegacyAdditiveCatalogV2,
-  createFrozenLegacyAdditiveCatalogBasisV16,
+  createFrozenLegacyAdditiveCatalogBasisV17,
 } from "./real-build-artifact-legacy-document-v2";
 
 const SOURCE_CATALOG_VERSION = "builtin.basic-parts/13";
-const TARGET_CATALOG_VERSION = "builtin.basic-parts/16";
+const TARGET_CATALOG_VERSION = "builtin.basic-parts/17";
 const SOURCE_TRUTH_HASH = "sha256:de62fae6dbc8095dfd460983e5e845ddfac4bf9ec2ea1f99572bc46026941cb5";
-const TARGET_TRUTH_HASH = "sha256:71c76ba1d6740cbaf89b1ab721dba2ffa3136e9d742198b289373ad2205be1be";
+const TARGET_TRUTH_HASH = "sha256:d21bdecc6a269b1b92e0915664cae9a147168fe8d7576ee17213e8e9446c7926";
 const ADDED_CATALOG_PART_IDS = [
   "builtin:tile-1x1-quarter-round",
   "builtin:bracket-1x2-1x4-rounded-bottom",
   "builtin:tile-2x2-triangular",
+  "builtin:roller-skate",
 ] as const;
 
 interface ReviewedAdditiveMigration {
@@ -45,7 +46,7 @@ const compareStrings = (left: string, right: string): number =>
   left < right ? -1 : left > right ? 1 : 0;
 
 function assertCanonicalFrozenAdditiveCatalog(document: BrickDocumentV1): void {
-  const active = createFrozenLegacyAdditiveCatalogBasisV16();
+  const active = createFrozenLegacyAdditiveCatalogBasisV17();
   assertFrozenLegacyAdditiveCatalogV2(document, {
     ...active,
     constraints: {
@@ -72,12 +73,12 @@ function assertExactReviewedAdditiveMigration(
       JSON.stringify(ADDED_CATALOG_PART_IDS) ||
     migration.report.catalogInterpretationChanges.length !== 0 ||
     JSON.stringify(migration.report.truthComponentChanges) !==
-      '[{"component":"catalog","fromVersion":"builtin.basic-parts/13","toVersion":"builtin.basic-parts/16"}]' ||
+      '[{"component":"catalog","fromVersion":"builtin.basic-parts/13","toVersion":"builtin.basic-parts/17"},{"component":"collision-model","fromVersion":"rectilinear-stud-clearance/2","toVersion":"rectilinear-stud-clearance/3"},{"component":"validator-set","fromVersion":"lego.kernel-validators/2","toVersion":"lego.kernel-validators/3"}]' ||
     migration.report.blockingReasons.length !== 0 ||
     JSON.stringify(migration.document.parts) !== JSON.stringify(source.parts)
   ) {
     throw new TypeError(
-      `Legacy operation projection requires the exact reviewed additive /13 to /16 migration; received ${JSON.stringify(migration.report)}.`,
+      `Legacy operation projection requires the exact reviewed /13 to /17 catalog-additive migration with the new-row-only collision and validator profile boundary; received ${JSON.stringify(migration.report)}.`,
     );
   }
 }
@@ -86,11 +87,14 @@ function assertExactReviewedAdditiveMigration(
  * Reconstructs retained /13 diagnostic parents with current operation code.
  *
  * Current operation admission intentionally refuses a historical truth
- * snapshot. For this one exact additive migration, current truth may be used as
- * a transient execution precondition and then replaced with the unchanged
- * source truth. Exact retained structural hashes dispose of the result; they do
- * not claim historical revision or wire-byte identity. This helper grants no
- * general legacy execution or document-migration authority.
+ * snapshot. For this one exact migration, catalog additions plus collision and
+ * validator `/3` semantics scoped to the new 11253 row may be used as a
+ * transient execution precondition and then replaced with the unchanged source
+ * truth. The frozen compatibility guard proves every source-allowlisted part
+ * retains its prior connector/collision bytes and carries no nominal profile.
+ * Exact retained structural hashes dispose of the result; they do not claim
+ * historical revision or wire-byte identity. This helper grants no general
+ * legacy execution or document-migration authority.
  */
 export function applyReviewedAdditiveLegacyBuildOperations(
   base: BrickDocumentV1,
@@ -105,7 +109,7 @@ export function applyReviewedAdditiveLegacyBuildOperations(
   const sourceAllowedPartIds = new Set(base.constraints.allowedCatalogPartIds);
   if (ADDED_CATALOG_PART_IDS.some((id) => sourceAllowedPartIds.has(id))) {
     throw new TypeError(
-      "Reviewed /13 source constraints already contain a /14, /15, or /16 part ID.",
+      "Reviewed /13 source constraints already contain a /14, /15, /16, or /17 part ID.",
     );
   }
   const migration = dependencies.migrateDocumentTruth(structuredClone(base));

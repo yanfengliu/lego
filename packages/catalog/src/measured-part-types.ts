@@ -91,6 +91,11 @@ export interface MeasuredPartBlueprint {
   };
   readonly connectorGridCenterLdu: readonly [x: number, z: number];
   /**
+   * A reviewed normalization for source studs whose rounded polygon radius is
+   * slightly larger than the nominal stud-tube connection profile.
+   */
+  readonly validatedConnectionStudProfile?: "nominal-stud-tube/1";
+  /**
    * Body and visual extents as the exact decimal text the audited closure
    * prints. The float64 pair every consumer reads is derived from these rather
    * than authored beside them, so one part states its extents once and the two
