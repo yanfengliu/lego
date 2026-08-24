@@ -61,7 +61,7 @@ class Set6651557SourcePilotTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Re-acquire the reviewed bytes"):
                 PILOT.read_pinned_file(path, 8, "0" * 64)
 
-    def test_requires_all_seven_exact_unadmitted_audit_routes(self) -> None:
+    def test_requires_all_eight_exact_unadmitted_audit_routes(self) -> None:
         rows = [
             {
                 "designId": design_id,
@@ -72,8 +72,11 @@ class Set6651557SourcePilotTests(unittest.TestCase):
         ]
 
         self.assertEqual(
-            PILOT.audited_roots({"parts": rows})["51739"],
-            ("official", "parts/51739.dat"),
+            PILOT.audited_roots({"parts": rows}),
+            {
+                design_id: ("official", f"parts/{design_id}.dat")
+                for design_id in PILOT.PILOT_DESIGN_IDS
+            },
         )
         rows[0]["state"] = "catalog-admitted"
         with self.assertRaisesRegex(ValueError, "reviewed unresolved-admission route"):

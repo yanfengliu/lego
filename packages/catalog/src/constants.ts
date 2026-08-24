@@ -94,8 +94,13 @@ import { deepFreeze } from "./freeze.ts";
  * official closure supplies the horizontal plate, vertical wall, two side
  * studs, and conservative collision input; the pinned LDCad shadow walk owns
  * those two directional stud frames and the four underside clutch cells.
+ *
+ * /20 adds grille brick `2877.dat` as one complete measured definition. Its
+ * exact official closure supplies the asymmetric grille shell, two top studs,
+ * and conservative collision input; the checksum-pinned Builder revision-E
+ * field supplies two underside clutches through the shell-selected exact frame.
  */
-export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/19" as const;
+export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/20" as const;
 export const CONNECTOR_TAXONOMY_VERSION = "stud-tube/1" as const;
 export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/3" as const;
 export const TRANSFORM_POLICY_VERSION = "upright-quarter-turns-negative-y-up/1" as const;

@@ -3,7 +3,6 @@ import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import {
-  BUILTIN_CATALOG_VERSION,
   PART_DEFINITIONS,
   getPartDefinition,
   resolvePartId,
@@ -66,13 +65,11 @@ const EXPECTED_CLOSURE = [
 ] as const;
 
 describe("41682 vertical-stud bracket catalog truth", () => {
-  it("appends the exact /19 identity and its measured upright frame", () => {
+  it("retains the exact /19 admission position and its measured upright frame", () => {
     const part = getPartDefinition(PART_ID)!;
     const blueprint = SET_6651557_MEASURED_BLUEPRINTS.find(({ designId }) => designId === "41682")!;
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/19");
-    expect(PART_DEFINITIONS).toHaveLength(91);
-    expect(PART_DEFINITIONS.at(-1)?.id).toBe(PART_ID);
+    expect(PART_DEFINITIONS[90]?.id).toBe(PART_ID);
     expect(part).toMatchObject({
       id: PART_ID,
       family: "bracket",
@@ -111,8 +108,8 @@ describe("41682 vertical-stud bracket catalog truth", () => {
       bytes: 15_430,
       manifestSha256: "sha256:b16625dfbd49f9c365f06e4b088fd0e1a8e469e649e2b028041767b5f09a03e6",
     });
-    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(30);
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(190);
+    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(31);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(191);
   });
 
   it("uses only the pinned LDCad walk for four clutches and two side studs", () => {
@@ -196,9 +193,9 @@ describe("41682 vertical-stud bracket catalog truth", () => {
   });
 
   it("keeps every /18 part payload byte unchanged after restoring its truth label", () => {
-    const priorParts = PART_DEFINITIONS.filter(({ id }) => id !== PART_ID);
+    const priorParts = PART_DEFINITIONS.slice(0, 90);
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/19",
+      "builtin.basic-parts/20",
       "builtin.basic-parts/18",
     );
     const connectorCollision = priorParts.map(({ id, connectors, collision }) => ({

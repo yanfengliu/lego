@@ -12,6 +12,7 @@ header does.
 
 from __future__ import annotations
 
+import re
 import unittest
 from pathlib import Path
 
@@ -24,6 +25,7 @@ from measured_part_emit import (
     number_literal,
     render_blueprints,
     render_bundled_sources,
+    render_mesh_asset_aggregator,
     render_mesh_assets,
     render_render_only_blueprints,
 )
@@ -444,6 +446,40 @@ class RenderTests(unittest.TestCase):
         self.assertIn("--pilot <set-6651557-source-pilot.json>", rendered)
         self.assertIn("--builder-frame <set-6651557-builder-ldraw-frame.json>", rendered)
 
+    def test_append_only_d_shards_follow_the_preexisting_measurements(self) -> None:
+        mesh_aggregator = render_mesh_asset_aggregator()
+        self.assertIn(
+            'import { SET_6651557_MEASURED_MESH_ASSETS_D } from "./mesh-assets-6651557-measured-d.ts";',
+            mesh_aggregator,
+        )
+        self.assertLess(
+            mesh_aggregator.index("...SET_6651557_MEASURED_MESH_ASSETS_C"),
+            mesh_aggregator.index("...SET_6651557_MEASURED_MESH_ASSETS_D"),
+        )
+        self.assertLess(
+            mesh_aggregator.index("...SET_6651557_MEASURED_MESH_ASSETS_D"),
+            mesh_aggregator.index("...SET_6651557_RENDER_ONLY_MESH_ASSETS"),
+        )
+
+        blueprint_aggregator = render_blueprints(
+            [measured()],
+            ARCHIVE_SHA256,
+            BUILDER_RECORDS,
+            SHADOW_IDENTITY,
+            appended_shard=(
+                "SET_6651557_MEASURED_BLUEPRINTS_D",
+                "./part-blueprints-6651557-measured-d.ts",
+            ),
+        )
+        self.assertIn(
+            'import { SET_6651557_MEASURED_BLUEPRINTS_D } from "./part-blueprints-6651557-measured-d.ts";',
+            blueprint_aggregator,
+        )
+        self.assertLess(
+            blueprint_aggregator.index('designId: "unit"'),
+            blueprint_aggregator.index("...SET_6651557_MEASURED_BLUEPRINTS_D"),
+        )
+
     def test_check_mode_refuses_a_canonical_generated_file_drift(self) -> None:
         with self.assertRaisesRegex(SystemExit, "do not reproduce.*mesh-assets-6651557"):
             enforce_generated_check(["packages/catalog/src/mesh-assets-6651557.ts"])
@@ -602,13 +638,52 @@ class RenderTests(unittest.TestCase):
                 "mesh-assets-6651557-measured-a.ts",
                 "mesh-assets-6651557-measured-b.ts",
                 "mesh-assets-6651557-measured-c.ts",
+                "mesh-assets-6651557-measured-d.ts",
                 "mesh-assets-6651557-render-only.ts",
             ],
         )
+        blueprint_chunks = sorted(catalog.glob("part-blueprints-6651557-measured*.ts"))
+        self.assertEqual(
+            [path.name for path in blueprint_chunks],
+            [
+                "part-blueprints-6651557-measured-d.ts",
+                "part-blueprints-6651557-measured.ts",
+            ],
+        )
+        admitted_ids = [row.design_id for row in ADMITTED_PART_PLANS]
+        mesh_ids = {
+            path.name: re.findall(
+                r'^    "ldraw:official:([^"]+)\.dat": \{$',
+                path.read_text(encoding="utf-8"),
+                re.MULTILINE,
+            )
+            for path in mesh_chunks
+        }
+        blueprint_ids = {
+            path.name: re.findall(
+                r'^    designId: "([^"]+)",$',
+                path.read_text(encoding="utf-8"),
+                re.MULTILINE,
+            )
+            for path in blueprint_chunks
+        }
+        self.assertEqual(
+            mesh_ids["mesh-assets-6651557-measured-c.ts"],
+            admitted_ids[9:18],
+        )
+        self.assertEqual(mesh_ids["mesh-assets-6651557-measured-d.ts"], ["2877"])
+        self.assertEqual(
+            blueprint_ids["part-blueprints-6651557-measured.ts"],
+            admitted_ids[:18],
+        )
+        self.assertEqual(
+            blueprint_ids["part-blueprints-6651557-measured-d.ts"],
+            ["2877"],
+        )
         generated = [
             *mesh_chunks,
+            *blueprint_chunks,
             catalog / "mesh-assets-6651557.ts",
-            catalog / "part-blueprints-6651557-measured.ts",
             catalog / "part-blueprints-6651557-render-only.ts",
             catalog / "ldraw-bundled-sources-6651557.ts",
         ]
@@ -689,6 +764,7 @@ class PlanTests(unittest.TestCase):
                 "11253",
                 "15254",
                 "41682",
+                "2877",
             ],
         )
         self.assertTrue(all(row.connector_source == "builder" for row in ADMITTED_PART_PLANS[:5]))
@@ -788,6 +864,25 @@ class PlanTests(unittest.TestCase):
             ),
         )
         self.assertIsNone(ADMITTED_PART_PLANS[17].validated_connection_stud_profile)
+        self.assertEqual(
+            (
+                ADMITTED_PART_PLANS[18].connector_source,
+                ADMITTED_PART_PLANS[18].catalog_id,
+                ADMITTED_PART_PLANS[18].display_name,
+                ADMITTED_PART_PLANS[18].height_ldu,
+                ADMITTED_PART_PLANS[18].orientation_id,
+                ADMITTED_PART_PLANS[18].translation_ldu,
+            ),
+            (
+                "builder",
+                "builtin:brick-1x2-grille",
+                "Brick 1 x 2 with Grille",
+                24,
+                "upright-yaw-90",
+                (0, -12, 0),
+            ),
+        )
+        self.assertIsNone(ADMITTED_PART_PLANS[18].validated_connection_stud_profile)
 
     def test_11253_report_retains_the_reviewed_stud_profile(self) -> None:
         row = measured_part_report_row(

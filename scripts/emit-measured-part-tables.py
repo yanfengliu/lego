@@ -60,13 +60,16 @@ from part_admission_scorecard import DEFAULT_SAMPLE_SPACING_LDU, score_candidate
 from set_6651557_ldraw_source_audit_plan import ARCHIVE_PINS
 
 REPORT_SCHEMA_VERSION = "lego.measured-part-admission-emission/4"
+MEASURED_D_SHARD_START = 18
 GENERATED_FILES = {
     "meshAssets": "packages/catalog/src/mesh-assets-6651557.ts",
     "meshAssetsMeasuredA": "packages/catalog/src/mesh-assets-6651557-measured-a.ts",
     "meshAssetsMeasuredB": "packages/catalog/src/mesh-assets-6651557-measured-b.ts",
     "meshAssetsMeasuredC": "packages/catalog/src/mesh-assets-6651557-measured-c.ts",
+    "meshAssetsMeasuredD": "packages/catalog/src/mesh-assets-6651557-measured-d.ts",
     "meshAssetsRenderOnly": "packages/catalog/src/mesh-assets-6651557-render-only.ts",
     "blueprints": "packages/catalog/src/part-blueprints-6651557-measured.ts",
+    "blueprintsMeasuredD": "packages/catalog/src/part-blueprints-6651557-measured-d.ts",
     "renderOnlyBlueprints": "packages/catalog/src/part-blueprints-6651557-render-only.ts",
     "bundledSources": "packages/catalog/src/ldraw-bundled-sources-6651557.ts",
 }
@@ -239,7 +242,14 @@ def main() -> None:
             measured_parts[6:9], archive_sha256, "SET_6651557_MEASURED_MESH_ASSETS_B"
         ),
         "meshAssetsMeasuredC": render_mesh_asset_chunk(
-            measured_parts[9:], archive_sha256, "SET_6651557_MEASURED_MESH_ASSETS_C"
+            measured_parts[9:MEASURED_D_SHARD_START],
+            archive_sha256,
+            "SET_6651557_MEASURED_MESH_ASSETS_C",
+        ),
+        "meshAssetsMeasuredD": render_mesh_asset_chunk(
+            measured_parts[MEASURED_D_SHARD_START:],
+            archive_sha256,
+            "SET_6651557_MEASURED_MESH_ASSETS_D",
         ),
         "meshAssetsRenderOnly": render_mesh_asset_chunk(
             render_only_parts,
@@ -248,7 +258,21 @@ def main() -> None:
             render_only=True,
         ),
         "blueprints": render_blueprints(
-            measured_parts, archive_sha256, builder, dict(shadow.identity())
+            measured_parts[:MEASURED_D_SHARD_START],
+            archive_sha256,
+            builder,
+            dict(shadow.identity()),
+            appended_shard=(
+                "SET_6651557_MEASURED_BLUEPRINTS_D",
+                "./part-blueprints-6651557-measured-d.ts",
+            ),
+        ),
+        "blueprintsMeasuredD": render_blueprints(
+            measured_parts[MEASURED_D_SHARD_START:],
+            archive_sha256,
+            builder,
+            dict(shadow.identity()),
+            export_name="SET_6651557_MEASURED_BLUEPRINTS_D",
         ),
         "renderOnlyBlueprints": render_render_only_blueprints(
             render_only_parts, archive_sha256

@@ -283,6 +283,25 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         catalog_id="builtin:bracket-2x2-1x2-vertical-studs",
         display_name="Bracket 2 x 2 with 1 x 2 Vertical Studs",
     ),
+    # builtin.basic-parts/20: step 35 first uses the 2877 grille brick. Its
+    # exact official closure supplies the asymmetric grille shell and two top
+    # studs. The checksum-pinned Builder revision-E record has two exact frame
+    # classes after the stud correspondence; Builder's own asymmetric shell
+    # selects turn180, and its framed type-22 field exclusively authors the two
+    # underside clutch cells. LDCad's square S6x20 rows are not standard round
+    # R6x4 anti-studs and grant no connector authority.
+    _plan(
+        "2877",
+        "brick",
+        1,
+        2,
+        variant="grille",
+        height_ldu=BRICK_HEIGHT_LDU,
+        orientation_id="upright-yaw-90",
+        translation_ldu=(0, -12, 0),
+        catalog_id="builtin:brick-1x2-grille",
+        display_name="Brick 1 x 2 with Grille",
+    ),
 )
 
 

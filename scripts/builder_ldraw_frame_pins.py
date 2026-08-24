@@ -11,8 +11,8 @@ changes the digest and stops the run.
 Two derivation classes, and the difference matters:
 
   * `exact-lattice-correspondence` — Builder's authored nodes land on the
-    LDraw-measured stud and tube centres by exact rational equality. Five of the
-    six parts with Builder records.
+    LDraw-measured stud and tube centres by exact rational equality. Six of the
+    seven parts with Builder records.
   * `registered-discrete-search` — 5092 expands to 84 body triangles with no stud
     and no tube primitive at all, so there is nothing to correspond with. Its
     turn and translation come from a search over the eight axis maps and the
@@ -87,6 +87,15 @@ _PINS: tuple[tuple[str, str, str, str, tuple[int, int, int], str, str], ...] = (
         EXACT,
         "3fab6aeb6e5bcbab80d312937e62d53d86e671816b6f8e1c3eaecc89afc728c5",
     ),
+    (
+        "2877",
+        "E",
+        "10259d71b0993d4131d2267fcd9247a20f8593bb542a1d1eee36ad4041f029b8",
+        "turn180",
+        (10, 24, 0),
+        EXACT,
+        "234d34ebbabe20f9d2a4b351b31ed2922356b63c7a0bd01203b2bb22ccbff78d",
+    ),
 )
 
 PINNED_FRAMES: dict[str, BuilderLdrawFrame] = {
@@ -111,6 +120,9 @@ PINNED_FRAME_DIGESTS: dict[str, str] = {
 # which emits zero clutch cells. The later 15254 extension remains in the same
 # report because its pinned six-stud correspondence exercises the same frame
 # derivation, while its Builder field exclusively authors the two end clutches.
+# The appended 2877 frame retains two connector-observable orientation classes;
+# Builder's own asymmetric grille shell selects turn180 at 0.291634 mean LDU
+# surface distance over turn0 at 0.763225, a 2.617x separation.
 UNAVAILABLE_DESIGN_IDS = ("30357",)
 
 

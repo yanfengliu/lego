@@ -12,6 +12,7 @@
 //     --builder-frame <set-6651557-builder-ldraw-frame.json>
 
 import type { MeasuredPartBlueprint } from "./measured-part-types.ts";
+import { SET_6651557_MEASURED_BLUEPRINTS_D } from "./part-blueprints-6651557-measured-d.ts";
 
 export const SET_6651557_MEASURED_BLUEPRINTS = [
   {
@@ -972,4 +973,5 @@ export const SET_6651557_MEASURED_BLUEPRINTS = [
       shadowFiles: ["p/stud.dat", "p/stud3.dat", "p/stud4.dat", "parts/41682.dat"],
     },
   },
+  ...SET_6651557_MEASURED_BLUEPRINTS_D,
 ] as const satisfies readonly MeasuredPartBlueprint[];

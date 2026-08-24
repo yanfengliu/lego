@@ -17,7 +17,7 @@ import {
 } from "./migration-historical-fixtures.test-support.ts";
 
 describe("reviewed historical connection semantics", () => {
-  it("binds all 20 reviewed truths to immutable exhaustive authority rows", () => {
+  it("binds all 21 reviewed truths to immutable exhaustive authority rows", () => {
     const truthHashes = REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS.map(({ truthHash }) => truthHash);
     const rows = Object.entries(REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH);
 
@@ -32,6 +32,24 @@ describe("reviewed historical connection semantics", () => {
       );
       expect(new Set(keys).size).toBe(keys.length);
     }
+  });
+
+  it("pins the complete /19 connector authority that /20 extends additively", () => {
+    expect(
+      REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH[
+        "sha256:e34fcc8ac627f0dcfdb1d779246a723101d765f931830a4c06514d9daff75c26"
+      ],
+    ).toEqual({
+      sourceCommit: "a49137131566247daeb01d80ff88302b41bcf538",
+      sourceEndpointCount: 2262,
+      sourceEndpointMapDigest:
+        "sha256:4224f8ca202557d357bd4c7a94707fc9d3e58617e2d87a8e8e16059d516a58ba",
+      sourcePairCount: 3,
+      sourcePairMapDigest:
+        "sha256:7431a242907aa9829ead6a279d0b530fe5f5d00ee31e6ddc1576fe66a8a07add",
+      endpointDeltas: [],
+      pairDeltas: [],
+    });
   });
 
   it("pins the complete live target and every delta's target endpoint", () => {

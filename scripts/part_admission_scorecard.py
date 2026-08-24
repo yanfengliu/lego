@@ -2,7 +2,7 @@
 
 This scores candidates. It never admits one: no `PartDefinition` is emitted, no
 frame is claimed, and the authority state stays measurement-only, exactly like
-the seven-part 6651557 source pilot it reads its surfaces from.
+the eight-part 6651557 source pilot it reads its surfaces from.
 
 The five axes are collision containment, connector coverage, lattice
 conformance, conservatism direction, and body budget. Conservatism is not a low

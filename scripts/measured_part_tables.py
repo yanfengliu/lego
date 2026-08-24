@@ -2,8 +2,8 @@
 
 The catalog's generated mesh modules, measured blueprints, render-only
 blueprints and per-file attribution are emitted from one measurement, so their
-values stay aligned. Eighteen rows take the full-measurement generator route:
-fourteen are current fully measured catalog definitions, while four special-
+values stay aligned. Nineteen rows take the full-measurement generator route:
+fifteen are current fully measured catalog definitions, while four special-
 plate render promotions preserve their preceding catalog physical semantics.
 Twelve `/13` render promotions intentionally consume only mesh and visual bounds
 while `part-factory.ts` retains their preceding physical semantics.

@@ -160,11 +160,14 @@ const EXPECTED_PART_IDS = [
   // builtin.basic-parts/19: one centred 2 x 2 bracket with four underside
   // clutches and two independently authored side-facing stud frames.
   "builtin:bracket-2x2-1x2-vertical-studs",
+  // builtin.basic-parts/20: one 1 x 2 grille brick with two official source
+  // studs and two Builder-authored underside clutches in an exact reviewed frame.
+  "builtin:brick-1x2-grille",
 ] as const;
 
 describe("starter catalog", () => {
-  it("publishes the vertical-stud bracket admission as version 19", () => {
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/19");
+  it("publishes the grille brick admission as version 20", () => {
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/20");
   });
 
   it("pins 25269's exact LDCad route and raw-to-catalog central clutch", () => {
@@ -251,7 +254,7 @@ describe("starter catalog", () => {
       ]),
     );
     expect(perFamily).toEqual({
-      brick: 15,
+      brick: 16,
       plate: 30,
       tile: 12,
       "jumper-plate": 3,

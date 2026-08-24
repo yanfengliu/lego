@@ -89,6 +89,13 @@ describe("matchesPartQuery", () => {
     }
   });
 
+  it("keeps 2877 discoverable by identifier, grille brick shape, and 1x2 size", () => {
+    const grilleBrick = part("builtin:brick-1x2-grille");
+    for (const query of ["2877", "grille", "brick", "1x2", "2x1"]) {
+      expect(matchesPartQuery(grilleBrick, query), query).toBe(true);
+    }
+  });
+
   it("does not match an unrelated query", () => {
     expect(matchesPartQuery(brick2x4, "wheel")).toBe(false);
     expect(matchesPartQuery(brick2x4, "9x9")).toBe(false);
