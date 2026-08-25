@@ -39,6 +39,7 @@ const ALL_PARTS = [
   "builtin:technic-brick-1x2-axle-hole",
   "builtin:plate-3x3",
   "builtin:plate-2x2-two-studs",
+  "builtin:plate-1x5",
 ];
 
 function fail(message) {

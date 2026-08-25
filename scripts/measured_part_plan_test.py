@@ -90,6 +90,7 @@ class PlanTests(unittest.TestCase):
                 "32064",
                 "11212",
                 "33909",
+                "78329",
             ],
         )
         self.assertTrue(all(row.connector_source == "builder" for row in ADMITTED_PART_PLANS[:5]))
@@ -371,6 +372,32 @@ class PlanTests(unittest.TestCase):
             ),
         )
 
+    def test_78329_plan_pins_the_width_first_regular_plate_frame(self) -> None:
+        plate = ADMITTED_PART_PLANS[24]
+        self.assertEqual(
+            (
+                plate.design_id,
+                plate.ldraw_path,
+                plate.connector_source,
+                plate.family,
+                plate.width_studs,
+                plate.length_studs,
+                plate.orientation_id,
+                plate.translation_ldu,
+                plate.validated_connection_stud_profile,
+            ),
+            (
+                "78329",
+                "parts/78329.dat",
+                LDCAD_SHADOW_CONNECTOR_SOURCE,
+                "plate",
+                1,
+                5,
+                "upright-yaw-90",
+                (0, -4, 0),
+                "nominal-stud-tube/1",
+            ),
+        )
     def test_3040_plan_and_builder_packet_pin_one_identity_frame_and_source(self) -> None:
         plan_3040 = ADMITTED_PART_PLANS[19]
         self.assertEqual(

@@ -2,9 +2,11 @@
 
 > Generated from the catalog by `packages/catalog/src/bundled-geometry-notices.test.ts`, which fails if this file and the catalog disagree. Do not edit by hand.
 
-The render mesh of the parts below is real LDraw geometry, bundled and redistributed under the [Creative Commons Attribution 4.0 International licence](https://creativecommons.org/licenses/by/4.0/). Of the 208 source files, 206 declare CC BY 4.0 and `parts/30503.dat` plus `parts/32064a.dat` declare `CC-BY-2.0 OR CC-BY-4.0`; this bundle selects their CC BY 4.0 option. Attribution therefore names every file whose triangles are bundled with its author, title, licence and content hash rather than flattening it into project-owned data.
+The render mesh of the parts below is real LDraw geometry, bundled and redistributed under the [Creative Commons Attribution 4.0 International licence](https://creativecommons.org/licenses/by/4.0/). Of the 211 source files, 209 declare CC BY 4.0 and `parts/30503.dat` plus `parts/32064a.dat` declare `CC-BY-2.0 OR CC-BY-4.0`; this bundle selects their CC BY 4.0 option. Attribution therefore names every file whose triangles are bundled with its author, title, licence and content hash rather than flattening it into project-owned data.
 
 Permission to reuse this geometry is **not** permission to train on it. That right is not held, and no bundled file is designated as a model-training or benchmark corpus.
+
+Catalog `/26` adds the fully measured `78329` Plate 1 x 5. Its official 9-file closure supplies the regular five-stud shell, 460 triangles, and a conservative field of 39 body boxes plus five source-radius stud cylinders; the checksum-pinned LDCad composition authors the matching five-cell underside clutch line and independently repeats the five visible stud frames. The width-first catalog frame uses yaw 90 and translation `[0,-4,0]`. The exact source stud radius remains ordinary collision truth at `6.0001514980873605` LDU, while the separately cross-bound nominal 6 LDU profile applies only when a validated stud/clutch edge authorizes insertion. This admission does not claim clutch strength, physical stability, insertion access, or a trusted step placement.
 
 Catalog `/25` adds the fully measured `33909` Plate 2 x 2 with 2 Studs on One Edge. Its official 9-file closure supplies the exact two-stud edge-plate shell, 220 triangles, and a conservative field of 41 body boxes plus two source-radius stud cylinders; the checksum-pinned LDCad composition authors the matching four-cell underside clutch lattice and independently repeats the two visible stud frames. Yaw 0 is retained as the measured canonical orientation. The exact source stud radius remains ordinary collision truth at `6.0001514980873605` LDU, while the separately cross-bound nominal 6 LDU profile applies only when a validated stud/clutch edge authorizes insertion. Revision-E record metadata from the checksum-pinned native pack reports four clutches but supplies no reviewed frame, so it remains count-only corroboration. This admission does not claim clutch strength, physical stability, insertion access, or a trusted step-76 placement.
 
@@ -56,10 +58,11 @@ Source archive: `ldraw-complete-2026-07`, 144722356 bytes, `sha256:6009f2e94204c
 | `builtin:technic-brick-1x2-axle-hole` | `32064.dat` | ~Moved to 32064a | [PTadmin] | `CC-BY-4.0` | 23 |
 | `builtin:plate-3x3` | `11212.dat` | Plate  3 x  3 | Rolf Osterthun [Rolf] | `CC-BY-4.0` | 10 |
 | `builtin:plate-2x2-two-studs` | `33909.dat` | Plate  2 x  2 with 2 Studs on One Edge | Magnus Forsberg [MagFors] | `CC-BY-4.0` | 9 |
+| `builtin:plate-1x5` | `78329.dat` | Plate  1 x  5 | Gerald Lasser [GeraldLasser] | `CC-BY-4.0` | 9 |
 
 ## Every bundled file
 
-The 208 files below comprise 206 `CC-BY-4.0` declarations and two `CC-BY-2.0 OR CC-BY-4.0` declarations.
+The 211 files below comprise 209 `CC-BY-4.0` declarations and two `CC-BY-2.0 OR CC-BY-4.0` declarations.
 
 | File | Title | Author | Licence | LDraw.org status | SHA-256 |
 | --- | --- | --- | --- | --- | --- |
@@ -199,6 +202,7 @@ The 208 files below comprise 206 `CC-BY-4.0` declarations and two `CC-BY-2.0 OR 
 | `p/stug-1x2.dat` | Stud Group  1 x  2 | Steffen [Steffen] | `CC-BY-4.0` | Primitive UPDATE 2011-01 | `5842fa1baf6ea7f18fe4e355238cd733ff9bdbdc3d722be5cf8988f1c5fce414` |
 | `p/stug-1x3.dat` | Stud Group  1 x  3 | Steffen [Steffen] | `CC-BY-4.0` | Primitive UPDATE 2012-01 | `f24de368545aa96580b811daa6c25e18f5bfdbaca1d4b11addcfa7cbb625f4c9` |
 | `p/stug-1x4.dat` | Stud Group  1 x  4 | Steffen [Steffen] | `CC-BY-4.0` | Primitive UPDATE 2011-01 | `e88852b15ca37121e12f7052a234e4a90dc99a8c6d22d45e041f47103c2fb71c` |
+| `p/stug-1x5.dat` | Stud Group  1 x  5 | Steffen [Steffen] | `CC-BY-4.0` | Primitive UPDATE 2013-01 | `9d7c7dc1ea19c9370dd1dc439aee1a69fb6deb190a09f7b1561a1a34ae7103b4` |
 | `p/stug-1x6.dat` | Stud Group  1 x  6 | Steffen [Steffen] | `CC-BY-4.0` | Primitive UPDATE 2011-01 | `907b74bad03688f6d2f22220db6ec4a6c922203a3e3001aa24f214c6ed48a226` |
 | `p/stug-2x1.dat` | Stud Group  2 x  1 | Magnus Forsberg [MagFors] | `CC-BY-4.0` | Primitive UPDATE 2011-01 | `03d08cea230e892e1b6cbfe523c19b568a834c5888aac5c789d1fb8d6ee93d96` |
 | `p/stug-2x2.dat` | Stud Group  2 x  2 | Steffen [Steffen] | `CC-BY-4.0` | Primitive UPDATE 2012-01 | `16114159ea25719341a852d5403dc9982a6211f2fcb23f5c4c3eac05a2ad43f7` |
@@ -209,6 +213,7 @@ The 208 files below comprise 206 `CC-BY-4.0` declarations and two `CC-BY-2.0 OR 
 | `p/stug2-4x1.dat` | Stud Open Group  4 x  1 | Steffen [Steffen] | `CC-BY-4.0` | Primitive UPDATE 2011-02 | `179d252971d76f12196c7c2c3b6f89bb6c7eab21d9df9625f44a8064e49e4996` |
 | `p/stug2.dat` | ~Moved to stug-2x2 | [PTadmin] | `CC-BY-4.0` | Primitive UPDATE 2011-01 | `e1dfe5f5e0c433cd406467d366d278518cde9d7e83cc5d4229c451adf52fcc71` |
 | `p/stug3-1x2.dat` | Stud Tube Solid Group  1 x  2 | Steffen [Steffen] | `CC-BY-4.0` | Primitive UPDATE 2013-02 | `e78926d1494fa67b984f390aa1c05d01c35eff99030209e9bbee4e15bfcc0ecb` |
+| `p/stug3-1x4.dat` | Stud Tube Solid Group  1 x  4 | Steffen [Steffen] | `CC-BY-4.0` | Primitive UPDATE 2012-01 | `cae88c418acb36719fb6bc1d56916ab7e0734ffaf9204d7e3077a3c45ae7c79a` |
 | `p/stug4-1x3.dat` | Stud Tube Open Group  1 x  3 | Steffen [Steffen] | `CC-BY-4.0` | Primitive UPDATE 2011-01 | `29afffc8e5e9f4cd96a8e4d3031b9bea98416c344214e2969b22a0edc01f7980` |
 | `p/stug4-2x2.dat` | Stud Tube Open Group  2 x  2 | Steffen [Steffen] | `CC-BY-4.0` | Primitive UPDATE 2011-01 | `cf6e68b84d37562ed1a035015c23f804157ce6a80a7632a179e4def8ddcacfcb` |
 | `p/stug4.dat` | ~Moved to stug-4x4 | [PTadmin] | `CC-BY-4.0` | Primitive UPDATE 2011-01 | `977530a161304abc45fa2dbcac0e8a7df389d8ab3838a82702032a74dca9021f` |
@@ -247,6 +252,7 @@ The 208 files below comprise 206 `CC-BY-4.0` declarations and two `CC-BY-2.0 OR 
 | `parts/6106.dat` | Plate  6 x  6 without Corner | Steve Bliss [sbliss] | `CC-BY-4.0` | Part UPDATE 2024-03 | `1fa164e7f76d0b46ffa950c7accc257b32f5d158d180030fbd2fcd4fab1bf9a5` |
 | `parts/61678.dat` | Slope Brick Curved  4 x  1 | Tim Gould [timgould] | `CC-BY-4.0` | Part UPDATE 2014-01 | `e06daaca0499570e65d18b3e969be2e7be66896e0735b829c579bfcb6caa1eb8` |
 | `parts/77844.dat` | Plate  3 x  3 Corner | Gerald Lasser [GeraldLasser] | `CC-BY-4.0` | Part UPDATE 2024-05 | `3a1abf0ad321a6ac2b57c242c23d076f9e1abcfb976931a29fbef8192917dea0` |
+| `parts/78329.dat` | Plate  1 x  5 | Gerald Lasser [GeraldLasser] | `CC-BY-4.0` | Part UPDATE 2022-01 | `79ec75c5092750b0f2022dab9c7561376d8b2b33fc3dea7059081ef273d4f7fc` |
 | `parts/79491.dat` | Plate  2 x  2 with Corner Round | Gerald Lasser [GeraldLasser] | `CC-BY-4.0` | Part UPDATE 2024-06 | `91a622f303437d48e8bc721cb86ecef1204c4a49d219a4c98992c7669af536e7` |
 | `parts/80015.dat` | Plate  5 x  5 with  4 x  4 Corner Round and  4 x  4 with  3 x  3 Corner Round Cutout | Gerald Lasser [GeraldLasser] | `CC-BY-4.0` | Part UPDATE 2024-05 | `b2c08c34303be83aaba7ab12aecf0ce203773e32189691f2c2b59b2a789d29d5` |
 | `parts/85984.dat` | Slope Brick 31  1 x  2 x  0.667 | Magnus Forsberg [MagFors] | `CC-BY-4.0` | Part UPDATE 2020-02 | `4ec471415207722114f48abb384626d3dbda59796803cafc7feaf824ed88d426` |
@@ -273,6 +279,8 @@ The 208 files below comprise 206 `CC-BY-4.0` declarations and two `CC-BY-2.0 OR 
 | `parts/s/93273s01.dat` | ~Slope Brick Curved  4 x  1 Double without Top Surface | Magnus Forsberg [MagFors] | `CC-BY-4.0` | Subpart UPDATE 2023-04 | `95d97ee75937fa8baa4b0fca339143ed3a5d1b812e4b2e76ef20d2a4c4622489` |
 
 ## Derived connector data
+
+For `78329`, the exact LDCad regular-grid route authors five underside clutch cells and independently repeats the five visible stud frames. The width-first yaw-90 catalog frame is shared by geometry and connectors. The connection-only nominal stud profile is cross-bound to the part collision record; it does not alter the exact source radius used for ordinary collision.
 
 For `33909`, the exact LDCad regular-grid route authors four underside clutch cells and independently repeats the two visible stud frames. Revision-E record metadata from the checksum-pinned native pack reports four clutches but supplies no reviewed frame, so it remains count-only corroboration. The connection-only nominal stud profile is cross-bound to the part collision record; it does not alter the exact source radius used for ordinary collision.
 
@@ -312,3 +320,4 @@ Catalog-carried attribution: Copyright (c) 2026 Yanfeng Liu. Underside clutch ce
 | `builtin:technic-brick-1x2-axle-hole` | `32064.dat` | 2 | 2 | 0 | 1 |
 | `builtin:plate-3x3` | `11212.dat` | 9 | 9 | 0 | 0 |
 | `builtin:plate-2x2-two-studs` | `33909.dat` | 2 | 4 | 0 | 0 |
+| `builtin:plate-1x5` | `78329.dat` | 5 | 5 | 0 | 0 |

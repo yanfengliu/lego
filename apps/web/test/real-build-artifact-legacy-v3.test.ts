@@ -11,7 +11,7 @@ import { decodeFrozenLegacyPngCaptureV2 } from "../e2e/real-build-artifact-legac
 import { projectLegacyRealBuildCompletionFailuresV4 } from "../e2e/real-build-artifact-legacy-completion-projection";
 import {
   assertFrozenLegacyAdditiveCatalogV2,
-  createFrozenLegacyAdditiveCatalogBasisV25,
+  createFrozenLegacyAdditiveCatalogBasisV26,
 } from "../e2e/real-build-artifact-legacy-document-v2";
 import { assertFrozenLegacyIdentityProjectionV2 } from "../e2e/real-build-artifact-legacy-identity-predicates";
 import { verifyRealBuildArtifactManifest } from "../e2e/real-build-artifact-current-verification";
@@ -37,6 +37,10 @@ const RETAINED_PRODUCTION_REPLAY_CLOSURE = {
   bytes: 725_460,
   digest: "sha256:a8562c9ae06569f54e8df4ac7b3ec28d6975466ea77a8e662116e70da61b88ef",
   manifestDigest: "sha256:1c27df8a95c655f7508436489e8e31f486f806c7a5382df76d53e0a80801a66c",
+} as const;
+const RETAINED_PRODUCTION_DIAGNOSTIC_PREFIX = {
+  bytes: 14_896,
+  digest: "sha256:2edf84fbf1eab57e86cd2670f9bdb5e60a7ac33dbda454f22d9c9a85cbf8b70f",
 } as const;
 const RETAINED_PRODUCTION_REPLAY_ROLES = {
   "prepared-options": {
@@ -385,7 +389,7 @@ describe("legacy artifact-manifest /3 inspection", () => {
     expect(document.constraints.allowedCatalogPartIds).not.toContain(
       "builtin:tile-1x1-quarter-round",
     );
-    const active = createFrozenLegacyAdditiveCatalogBasisV25();
+    const active = createFrozenLegacyAdditiveCatalogBasisV26();
     const driftedTruth = structuredClone(active) as MutableCatalogCompatibilityBasis;
     driftedTruth.truth = {
       ...driftedTruth.truth,
@@ -404,6 +408,30 @@ describe("legacy artifact-manifest /3 inspection", () => {
     const nonAdditive = structuredClone(active) as MutableCatalogCompatibilityBasis;
     nonAdditive.constraints.allowedCatalogPartIds[0] = "builtin:forged-reinterpretation";
     expect(() => assertFrozenLegacyAdditiveCatalogV2(document, nonAdditive)).toThrow(
+      /exact 85-part predecessor/u,
+    );
+
+    const reordered = structuredClone(document) as BrickDocumentV1 & {
+      constraints: { allowedCatalogPartIds: string[]; allowedColorIds: string[] };
+    };
+    reordered.constraints.allowedCatalogPartIds.reverse();
+    reordered.constraints.allowedColorIds.reverse();
+    expect(() => assertFrozenLegacyAdditiveCatalogV2(reordered)).not.toThrow();
+
+    const duplicate = structuredClone(document) as BrickDocumentV1 & {
+      constraints: { allowedCatalogPartIds: string[] };
+    };
+    duplicate.constraints.allowedCatalogPartIds[0] =
+      duplicate.constraints.allowedCatalogPartIds[1]!;
+    expect(() => assertFrozenLegacyAdditiveCatalogV2(duplicate)).toThrow(
+      /exact 85-part predecessor/u,
+    );
+
+    const duplicateColor = structuredClone(document) as BrickDocumentV1 & {
+      constraints: { allowedColorIds: string[] };
+    };
+    duplicateColor.constraints.allowedColorIds[0] = duplicateColor.constraints.allowedColorIds[1]!;
+    expect(() => assertFrozenLegacyAdditiveCatalogV2(duplicateColor)).toThrow(
       /exact 85-part predecessor/u,
     );
 
@@ -611,6 +639,28 @@ describe("legacy artifact-manifest /3 inspection", () => {
       expect(inspectFrozenLegacyBrowserOutputV2(browserOutput, preparedOptions)).toBe(
         browserOutput,
       );
+      const diagnosticDocument = JSON.parse(
+        readContainedBoundedRegularFile(RETAINED_PRODUCTION_RUN, "diagnostic-prefix.json", {
+          label: "exact retained diagnostic prefix",
+          maximumBytes: RETAINED_PRODUCTION_DIAGNOSTIC_PREFIX.bytes,
+          exactBytes: RETAINED_PRODUCTION_DIAGNOSTIC_PREFIX.bytes,
+          expectedSha256: RETAINED_PRODUCTION_DIAGNOSTIC_PREFIX.digest,
+        }).toString("utf8"),
+      );
+      const projectedFailures = projectLegacyRealBuildCompletionFailuresV4({
+        output: browserOutput,
+        options: preparedOptions,
+        diagnosticDocument,
+      });
+      expect(projectedFailures.map(({ code }) => code)).toEqual([
+        "run-incomplete",
+        "visual-evidence-unverified",
+        "visual-evidence-unverified",
+        "visual-evidence-unverified",
+        "visual-evidence-unverified",
+        "visual-evidence-unverified",
+        "official-frame-calibration-missing",
+      ]);
     },
     120_000,
   );

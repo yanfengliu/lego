@@ -179,4 +179,56 @@ export const SET_6651557_MEASURED_BLUEPRINTS_G = [
       shadowFiles: ["p/stud.dat", "p/stud4.dat", "parts/33909.dat"],
     },
   },
+  {
+    designId: "78329",
+    ldrawId: "78329.dat",
+    family: "plate",
+    widthStuds: 1,
+    lengthStuds: 5,
+    heightLdu: 8,
+    meshAssetId: "ldraw:official:78329.dat",
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-90", translationLdu: [0, -4, 0] },
+    connectorGridCenterLdu: [0, 0],
+    validatedConnectionStudProfile: "nominal-stud-tube/1",
+    exactBodyBoundsLdu: {
+      min: ["-10", "-4", "-50"],
+      max: ["10", "4", "50"],
+    },
+    exactBoundsLdu: {
+      min: ["-10", "-8", "-50"],
+      max: ["10", "4", "50"],
+    },
+    studsLdu: [
+      [0, -4, -40, 6.0001514980873605, 4],
+      [0, -4, -20, 6.0001514980873605, 4],
+      [0, -4, 0, 6.0001514980873605, 4],
+      [0, -4, 20, 6.0001514980873605, 4],
+      [0, -4, 40, 6.0001514980873605, 4],
+    ],
+    clutchesLdu: [
+      [0, 4, -40],
+      [0, 4, -20],
+      [0, 4, 0],
+      [0, 4, 20],
+      [0, 4, 40],
+    ],
+    // prettier-ignore
+    bodyBoxesLdu: [-6, -4, -46, -4, 0, 46, -4, -4, 33, -3, 0, 46, -4, -4, 13, -3, 0, 27, -4, -4, -7, -3, 0, 7, -4, -4, -27, -3, 0, -13, -4, -4, -46, -3, 0, -33, -3, -4, 34, 6, 0, 46, -3, -4, 14, 6, 0, 26, -3, -4, -6, 6, 0, 6, -3, -4, -26, 6, 0, -14, -3, -4, -46, 6, 0, -34, 3, -4, 33, 6, 0, 34, 3, -4, 26, 6, 0, 27, 3, -4, 13, 6, 0, 14, 3, -4, 6, 6, 0, 7, 3, -4, -7, 6, 0, -6, 3, -4, -14, 6, 0, -13, 3, -4, -27, 6, 0, -26, 3, -4, -34, 6, 0, -33, 4, -4, 27, 6, 0, 33, 4, -4, 7, 6, 0, 13, 4, -4, -13, 6, 0, -7, 4, -4, -33, 6, 0, -27, -10, -4, -50, -6, 4, 50, -6, -4, 46, 10, 4, 50, -6, -4, -50, 10, 4, -46, -4, -4, 27, 4, 4, 33, -4, -4, 7, 4, 4, 13, -4, -4, -13, 4, 4, -7, -4, -4, -33, 4, 4, -27, -3, -4, 33, 3, 4, 34, -3, -4, 26, 3, 4, 27, -3, -4, 13, 3, 4, 14, -3, -4, 6, 3, 4, 7, -3, -4, -7, 3, 4, -6, -3, -4, -14, 3, 4, -13, -3, -4, -27, 3, 4, -26, -3, -4, -34, 3, 4, -33, 6, -4, -46, 10, 4, 46],
+    ldrawSource: {
+      title: "Plate  1 x  5",
+      author: "Gerald Lasser [GeraldLasser]",
+      ldrawOrg: "Part UPDATE 2022-01",
+      licenseExpression: "CC-BY-4.0",
+      rootSha256: "sha256:79ec75c5092750b0f2022dab9c7561376d8b2b33fc3dea7059081ef273d4f7fc",
+      closureFileCount: 9,
+    },
+    ldcadShadowSource: {
+      libraryId: "ldcad-shadow-library",
+      commit: "15aa1e718b6a8da37d24fc7af5e52e262c041bfb",
+      manifestSha256: "sha256:668bc047a45e5560ff0fbbd69e9eb5adafab127781720bcb069a1554cb3f0c0f",
+      compositionId: "ldcad-shadow-composed-over-ldraw-tree/1",
+      shadowFiles: ["p/stud.dat", "p/stud3.dat", "parts/78329.dat"],
+    },
+  },
 ] as const satisfies readonly MeasuredPartBlueprint[];

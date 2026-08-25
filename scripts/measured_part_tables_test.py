@@ -71,6 +71,7 @@ class MeasuredPartFileBoundaryTests(unittest.TestCase):
             "generate-set-6651557-source-pilot.py",
             "source_pilot_input_validation.py",
             "measured_part_emit.py",
+            "measured_part_plan.py",
             "measured_part_typescript_literals.py",
             "measured_part_tables.py",
             "measured_part_geometry.py",

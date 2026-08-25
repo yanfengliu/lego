@@ -62,7 +62,7 @@ function recipe(
 
 describe("preloaded mesh asset resolution", () => {
   it("keeps the exact promotions in place and appends the new source mesh", () => {
-    // Sixteen existing rows render exact source meshes at /13; /14 through /25
+    // Sixteen existing rows render exact source meshes at /13; /14 through /26
     // each append one complete measured part. These literals pin the remaining
     // parametric geometry identities and full definitions; the full-definition
     // digest moves with catalog-version provenance.
@@ -92,8 +92,8 @@ describe("preloaded mesh asset resolution", () => {
     const legacyRows = legacyParts.map(({ id, geometry }) => [id, geometry.contentHash]);
     const legacyHashes = JSON.stringify(legacyRows);
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/25");
-    expect(PART_DEFINITIONS).toHaveLength(97);
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/26");
+    expect(PART_DEFINITIONS).toHaveLength(98);
     expect(
       PART_DEFINITIONS.filter(isMeshPartDefinition)
         .filter(({ geometry }) => geometry.collisionMode === "preserved-catalog-recipe")
@@ -104,8 +104,8 @@ describe("preloaded mesh asset resolution", () => {
         ({ geometry }) => geometry.generatorId !== "builtin:preloaded-mesh-reference/1",
       ),
     ).toBe(true);
-    expect(meshParts).toHaveLength(36);
-    expect(fullyMeasuredParts).toHaveLength(20);
+    expect(meshParts).toHaveLength(37);
+    expect(fullyMeasuredParts).toHaveLength(21);
     expect(
       fullyMeasuredParts.every(
         ({ geometry }) => geometry.collisionMode === "mesh-derived-height-field",
@@ -126,7 +126,7 @@ describe("preloaded mesh asset resolution", () => {
       createHash("sha256")
         .update(
           JSON.stringify(legacyParts)
-            .replaceAll("builtin.basic-parts/25", "builtin.basic-parts/15")
+            .replaceAll("builtin.basic-parts/26", "builtin.basic-parts/15")
             .replaceAll("rectilinear-stud-clearance/3", "rectilinear-stud-clearance/2"),
         )
         .digest("hex"),

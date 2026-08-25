@@ -6,38 +6,37 @@ import { createEmptyBrickDocument, createPartInstance } from "./factory.ts";
 import { getReviewedHistoricalCatalogRoster } from "./historical-catalog-rosters.ts";
 import { migrateDocumentTruth } from "./migration.ts";
 
-const V24_TRUTH_HASH = "sha256:09288fc048ec112225b9e605df7af2d2e9692031b9eb7a89755575956af4c10d";
+const V25_TRUTH_HASH = "sha256:364ef046160736292eb51b331ce27ff246fa8940e16b256d53a68b9656a6018f";
 const V26_TRUTH_HASH = "sha256:3226590b11882fea03d8a6370d4ca3c6c8201feaddb56882a243a69acba627e9";
-const V25_PART_ID = "builtin:plate-2x2-two-studs";
 const V26_PART_ID = "builtin:plate-1x5";
 
-function documentSavedAtV24(): BrickDocumentV1 {
-  const current = createEmptyBrickDocument({ id: "v24", name: "Saved at /24" });
-  const roster = getReviewedHistoricalCatalogRoster(V24_TRUTH_HASH);
-  if (roster === undefined) throw new Error("The reviewed /24 roster fixture is missing.");
+function documentSavedAtV25(): BrickDocumentV1 {
+  const current = createEmptyBrickDocument({ id: "v25", name: "Saved at /25" });
+  const roster = getReviewedHistoricalCatalogRoster(V25_TRUTH_HASH);
+  if (roster === undefined) throw new Error("The reviewed /25 roster fixture is missing.");
   return {
     ...current,
     truth: {
       schemaVersion: "lego.truth-snapshot/1",
       catalog: {
         id: "builtin.basic-parts",
-        version: "builtin.basic-parts/24",
-        hash: "sha256:8cf9f35a1a692f285994c1819d1063fde6912f7b0ef949fcca1ae2adadeaa65e",
+        version: "builtin.basic-parts/25",
+        hash: "sha256:77f8faaacf9e0ad21f74bab3a06daab8e5cb4df088ee672d21da1e639ad76036",
       },
       connectorTaxonomy: {
         id: "stud-tube",
         version: "stud-tube/1",
-        hash: "sha256:c88a4334befcea378749b7a31d7c46fb0d0a5818f5a5914c608e0ed9ef506623",
+        hash: "sha256:5c1ee759633b3962e41e26a3f94f296fdd07b3450381f2613ee018caba8ba48d",
       },
       collisionModel: {
         id: "rectilinear-stud-clearance",
         version: "rectilinear-stud-clearance/3",
-        hash: "sha256:5e4de952a9aa7b49211e563ef2d397572b805ffa6f80b3f96995a7511daff693",
+        hash: "sha256:8a39981fddfbd1d4e9a5e4a21656105094a11dbdfb35305cb4da07c51263c742",
       },
       transformPolicy: {
         id: "upright-quarter-turns-negative-y-up",
         version: "upright-quarter-turns-negative-y-up/1",
-        hash: "sha256:cf509b04cfab06646a74144cdcda8efc2f6313f7658fe7d2c08d77f53af7e56a",
+        hash: "sha256:e8066b7f1c3c18530536525bbc569a6dff4b311d4c2002c2d0c55f2cde30c4f5",
       },
       validatorSet: {
         id: "lego.kernel-validators",
@@ -45,38 +44,34 @@ function documentSavedAtV24(): BrickDocumentV1 {
         hash: "sha256:fb0676931eb66a0096f393794d0be1297227811a77b986c0a1d05847ee3127d4",
       },
     },
-    constraints: {
-      ...current.constraints,
-      allowedCatalogPartIds: roster.catalogPartIds,
-    },
+    constraints: { ...current.constraints, allowedCatalogPartIds: roster.catalogPartIds },
   };
 }
 
-describe("builtin.basic-parts/24 migration", () => {
-  it("adds only the complete measured 33909 and 78329 definitions when /24 advances to /26", () => {
-    const saved = documentSavedAtV24();
-
+describe("builtin.basic-parts/25 migration", () => {
+  it("adds only the complete measured 78329 definition when /25 advances to /26", () => {
+    const saved = documentSavedAtV25();
     const { document, report } = migrateDocumentTruth(saved);
 
     expect(report.migrated).toBe(true);
     expect(report.blockingReasons).toEqual([]);
-    expect(report.fromTruthHash).toBe(V24_TRUTH_HASH);
+    expect(report.fromTruthHash).toBe(V25_TRUTH_HASH);
     expect(report.toTruthHash).toBe(V26_TRUTH_HASH);
-    expect(report.addedCatalogPartIds).toEqual([V25_PART_ID, V26_PART_ID]);
+    expect(report.addedCatalogPartIds).toEqual([V26_PART_ID]);
     expect(report.catalogInterpretationChanges).toEqual([]);
     expect(report.truthComponentChanges).toEqual([
       {
         component: "catalog",
-        fromVersion: "builtin.basic-parts/24",
+        fromVersion: "builtin.basic-parts/25",
         toVersion: BUILTIN_CATALOG_VERSION,
       },
     ]);
     expect(document.parts).toEqual(saved.parts);
   });
 
-  it("refuses a /24 document that pre-seeds 33909 in constraints and parts", () => {
-    const saved = documentSavedAtV24();
-    const part = createPartInstance({ id: "future-two-stud-plate", catalogPartId: V25_PART_ID });
+  it("refuses a /25 document that pre-seeds 78329 in constraints and parts", () => {
+    const saved = documentSavedAtV25();
+    const part = createPartInstance({ id: "future-plate-1x5", catalogPartId: V26_PART_ID });
     const forged: BrickDocumentV1 = {
       ...saved,
       parts: [part],
@@ -84,7 +79,7 @@ describe("builtin.basic-parts/24 migration", () => {
       steps: [{ ...saved.steps[0]!, partIds: [part.id] }],
       constraints: {
         ...saved.constraints,
-        allowedCatalogPartIds: [...saved.constraints.allowedCatalogPartIds, V25_PART_ID],
+        allowedCatalogPartIds: [...saved.constraints.allowedCatalogPartIds, V26_PART_ID],
       },
     };
 
@@ -92,7 +87,7 @@ describe("builtin.basic-parts/24 migration", () => {
 
     expect(report.migrated).toBe(false);
     expect(report.blockingReasons).toContain(
-      `Part future-two-stud-plate uses catalog part ${V25_PART_ID}, which reviewed source truth ${V24_TRUTH_HASH} (builtin.basic-parts/24) did not define; the part cannot be legitimized by migration`,
+      `Part future-plate-1x5 uses catalog part ${V26_PART_ID}, which reviewed source truth ${V25_TRUTH_HASH} (builtin.basic-parts/25) did not define; the part cannot be legitimized by migration`,
     );
   });
 });

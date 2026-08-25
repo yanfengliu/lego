@@ -179,11 +179,14 @@ const EXPECTED_PART_IDS = [
   // builtin.basic-parts/25: one exact 2 x 2 plate with two studs along one edge
   // and four regular underside clutches from the pinned source closures.
   "builtin:plate-2x2-two-studs",
+  // builtin.basic-parts/26: one exact regular 1 x 5 plate with five studs and
+  // five underside clutches from the pinned source closures.
+  "builtin:plate-1x5",
 ] as const;
 
 describe("starter catalog", () => {
-  it("publishes the two-stud 2 x 2 plate admission as version 25", () => {
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/25");
+  it("publishes the regular 1 x 5 plate admission as version 26", () => {
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/26");
   });
 
   it("pins 25269's exact LDCad route and raw-to-catalog central clutch", () => {
@@ -271,7 +274,7 @@ describe("starter catalog", () => {
     );
     expect(perFamily).toEqual({
       brick: 16,
-      plate: 32,
+      plate: 33,
       tile: 12,
       "jumper-plate": 3,
       "grille-tile": 1,

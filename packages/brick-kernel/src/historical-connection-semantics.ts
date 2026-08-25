@@ -27,9 +27,9 @@ export interface ReviewedHistoricalConnectionSemantics {
 }
 
 export const CURRENT_CONNECTION_SEMANTICS_AUTHORITY = deepFreeze({
-  truthHash: "sha256:364ef046160736292eb51b331ce27ff246fa8940e16b256d53a68b9656a6018f",
-  endpointCount: 2301,
-  endpointMapDigest: "sha256:0d2515f203b36c14ea14c3ab70c22aa3adcefef088ea0ba03ea3d9d3f2d52d54",
+  truthHash: "sha256:3226590b11882fea03d8a6370d4ca3c6c8201feaddb56882a243a69acba627e9",
+  endpointCount: 2311,
+  endpointMapDigest: "sha256:ff3ec2777e568cdab960bea84bdf54dd6aafb26497c262ebdfa42487312c3f93",
   pairCount: 3,
   pairMapDigest: "sha256:7431a242907aa9829ead6a279d0b530fe5f5d00ee31e6ddc1576fe66a8a07add",
 } as const);
@@ -313,6 +313,13 @@ export const REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH: Readonly<
     "ec2387bf8b3b1a8d70a11e95c6c6547049037886",
     2295,
     "sha256:6dfd3657c9d4d3af8815fa6dad9cb2906416436239a07cfdcb968932b90f2ab1",
+    3,
+    CURRENT_PAIR_DIGEST,
+  ),
+  "sha256:364ef046160736292eb51b331ce27ff246fa8940e16b256d53a68b9656a6018f": authority(
+    "cf8996f015eee595d76ef79f06c15169f674aca6",
+    2301,
+    "sha256:0d2515f203b36c14ea14c3ab70c22aa3adcefef088ea0ba03ea3d9d3f2d52d54",
     3,
     CURRENT_PAIR_DIGEST,
   ),

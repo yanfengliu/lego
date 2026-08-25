@@ -128,8 +128,14 @@ import { deepFreeze } from "./freeze.ts";
  * asymmetric stud surface and conservative collision field. The pinned LDCad
  * shadow authors the matching two stud frames and four regular underside
  * clutches. No preceding definition changes.
+ *
+ * /26 adds `78329.dat`, the regular 1 x 5 plate, as one complete measured
+ * definition. Its exact official closure supplies the shell, five visible
+ * studs, and conservative collision field. The pinned LDCad shadow authors the
+ * matching five-stud and five-clutch line after the source frame's quarter turn.
+ * No preceding definition changes.
  */
-export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/25" as const;
+export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/26" as const;
 export const CONNECTOR_TAXONOMY_VERSION = "stud-tube/1" as const;
 export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/3" as const;
 export const TRANSFORM_POLICY_VERSION = "upright-quarter-turns-negative-y-up/1" as const;

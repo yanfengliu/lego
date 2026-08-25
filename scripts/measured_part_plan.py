@@ -390,6 +390,21 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         display_name="Plate 2 x 2 with 2 Studs on One Edge",
         validated_connection_stud_profile="nominal-stud-tube/1",
     ),
+    # builtin.basic-parts/26: seven stale quarantine locators associate steps
+    # 265, 268, 271, 274, 277, 282 and 336 with the regular 1 x 5 plate, but all
+    # are self-contradicted and supply no printed-identity authority. The exact
+    # official closure supplies the five-stud surface and conservative collision
+    # field. A quarter turn selects the catalog's width-first frame; the exact
+    # LDCad walk authors all five studs and five underside clutches.
+    _plan(
+        "78329",
+        "plate",
+        1,
+        5,
+        orientation_id="upright-yaw-90",
+        connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
+        validated_connection_stud_profile="nominal-stud-tube/1",
+    ),
 )
 
 
@@ -472,7 +487,6 @@ RENDER_ONLY_PART_PLANS: tuple[RenderOnlyPartPlan, ...] = (
         "85984", "cheese-slope", 2, 1, height_ldu=16, translation_ldu=(0, 8, 0)
     ),
 )
-
 # The archive the bundled geometry is read from, byte-pinned. It is repeated in
 # the emitted attribution table so a reader can check the files without this
 # script, and it must stay equal to ARCHIVE_PINS[0].

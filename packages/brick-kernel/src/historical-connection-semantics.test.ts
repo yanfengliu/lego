@@ -17,7 +17,7 @@ import {
 } from "./migration-historical-fixtures.test-support.ts";
 
 describe("reviewed historical connection semantics", () => {
-  it("binds all 26 reviewed truths to immutable exhaustive authority rows", () => {
+  it("binds all 27 reviewed truths to immutable exhaustive authority rows", () => {
     const truthHashes = REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS.map(({ truthHash }) => truthHash);
     const rows = Object.entries(REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH);
 
