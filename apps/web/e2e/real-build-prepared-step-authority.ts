@@ -419,6 +419,24 @@ export function requireRealBuildPreparedObservationPolicyInspection(
   return value as RealBuildPreparedObservationPolicyInspection;
 }
 
+/**
+ * Retains the prepared-run binding while making a multi-shard observation policy
+ * deliberately incapable of selecting within any shard that has a runner-up.
+ */
+export function deferRealBuildPreparedObservationPolicyForGlobalAggregation(
+  value: unknown,
+): RealBuildPreparedObservationPolicyInspection {
+  const policy = requireRealBuildPreparedObservationPolicyInspection(value);
+  const deferred = Object.freeze({
+    preparedRunInputDigest: policy.preparedRunInputDigest,
+    minimumScore: 1,
+    minimumMargin: 1,
+    authority: "absent" as const,
+  });
+  observationPolicies.add(deferred);
+  return deferred;
+}
+
 export function requireRealBuildPreparedStepInspection(
   value: unknown,
 ): RealBuildPreparedStepInspection {

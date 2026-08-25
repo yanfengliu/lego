@@ -1,3 +1,5 @@
+import { canonicalDigest, type Sha256Digest } from "@lego-studio/brick-kernel";
+
 import type { FittedPanelView } from "../src/assembly/panel-face";
 import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import {
@@ -28,15 +30,20 @@ export type RealBuildStepOneMaskRendererFactory = (input: {
   readonly document: unknown;
 }) => RealBuildStepOnePreparedMaskRenderer;
 
-interface RealBuildStepOneMaskRendererMetadata {
+export interface RealBuildStepOneMaskRendererFactoryConfigurationInspection {
+  readonly configurationDigest: Sha256Digest;
   readonly widthPx: number;
   readonly heightPx: number;
-  readonly frameWidthPx: number;
-  readonly frameHeightPx: number;
+  readonly frame: StepCameraFrame;
+  readonly fittedView: FittedPanelView;
+  readonly centrePx: readonly [number, number];
   readonly registrationPanelStepNumber: number;
 }
 
-const TRUSTED_FACTORIES = new WeakMap<object, RealBuildStepOneMaskRendererMetadata>();
+const TRUSTED_FACTORIES = new WeakMap<
+  object,
+  RealBuildStepOneMaskRendererFactoryConfigurationInspection
+>();
 const SAFE_REFLECT_APPLY = Reflect.apply;
 const SAFE_OBJECT = Object;
 const SAFE_GET_OWN_PROPERTY_DESCRIPTOR = Object.getOwnPropertyDescriptor;
@@ -173,6 +180,24 @@ export function createRealBuildStepOneSilhouetteRendererFactory(input: {
     intrinsicRealBuildFreeze({ ...input.fittedView }),
     zeroRegistration,
   );
+  const configurationDigest = canonicalDigest({
+    schema: "real-build-step-one-mask-renderer-configuration/v1",
+    raster: { widthPx, heightPx },
+    frame: {
+      widthPx: frame.widthPx,
+      heightPx: frame.heightPx,
+      target: [...frame.target],
+      sceneRadius: frame.sceneRadius,
+    },
+    fittedView: {
+      azimuthDegrees: fittedView.azimuthDegrees,
+      elevationDegrees: fittedView.elevationDegrees,
+      pixelsPerUnit: fittedView.pixelsPerUnit,
+      ...(fittedView.upSign === undefined ? {} : { upSign: fittedView.upSign }),
+    },
+    centrePx: [...centrePx],
+    registrationPanelStepNumber,
+  });
   const rendering = intrinsicRealBuildFreeze({
     deriveBrickScene(document: unknown, options: unknown): unknown {
       return SAFE_REFLECT_APPLY(deriveBrickScene, suppliedRendering, [document, options]);
@@ -220,14 +245,51 @@ export function createRealBuildStepOneSilhouetteRendererFactory(input: {
   TRUSTED_FACTORIES.set(
     factory,
     intrinsicRealBuildFreeze({
+      configurationDigest,
       widthPx,
       heightPx,
-      frameWidthPx,
-      frameHeightPx,
+      frame,
+      fittedView,
+      centrePx,
       registrationPanelStepNumber,
     }),
   );
   return factory;
+}
+
+/** Reads the immutable configuration commitment after validating its detached source binding. */
+export function inspectRealBuildStepOneMaskRendererFactoryConfiguration(
+  value: unknown,
+  source: {
+    readonly widthPx: number;
+    readonly heightPx: number;
+    readonly registrationPanelStepNumber: number;
+  },
+): RealBuildStepOneMaskRendererFactoryConfigurationInspection {
+  const metadata = typeof value === "function" ? TRUSTED_FACTORIES.get(value) : undefined;
+  if (metadata === undefined) {
+    throw new TypeError(
+      "Step-one compiled camera diagnostic requires the exact renderer factory returned by createRealBuildStepOneSilhouetteRendererFactory.",
+    );
+  }
+  const sourceWidthPx = positiveSafeInteger(source.widthPx, "Step-one source widthPx");
+  const sourceHeightPx = positiveSafeInteger(source.heightPx, "Step-one source heightPx");
+  const sourcePanelStepNumber = positiveSafeInteger(
+    source.registrationPanelStepNumber,
+    "Step-one source registrationPanelStepNumber",
+  );
+  if (
+    metadata.widthPx !== sourceWidthPx ||
+    metadata.heightPx !== sourceHeightPx ||
+    metadata.frame.widthPx !== sourceWidthPx ||
+    metadata.frame.heightPx !== sourceHeightPx ||
+    metadata.registrationPanelStepNumber !== sourcePanelStepNumber
+  ) {
+    throw new RangeError(
+      `Step-one renderer factory is bound to raster ${metadata.widthPx}x${metadata.heightPx}, frame ${metadata.frame.widthPx}x${metadata.frame.heightPx}, panel ${metadata.registrationPanelStepNumber}; the detached source requires raster and frame ${sourceWidthPx}x${sourceHeightPx}, panel ${sourcePanelStepNumber}.`,
+    );
+  }
+  return metadata;
 }
 
 /** Prevents a caller callback from claiming scene reuse or a raster binding it does not own. */
@@ -239,22 +301,6 @@ export function requireRealBuildStepOneMaskRendererFactory(
     readonly registrationPanelStepNumber: number;
   },
 ): RealBuildStepOneMaskRendererFactory {
-  const metadata = typeof value === "function" ? TRUSTED_FACTORIES.get(value) : undefined;
-  if (metadata === undefined) {
-    throw new TypeError(
-      "Step-one compiled camera diagnostic requires the exact renderer factory returned by createRealBuildStepOneSilhouetteRendererFactory.",
-    );
-  }
-  if (
-    metadata.widthPx !== source.widthPx ||
-    metadata.heightPx !== source.heightPx ||
-    metadata.frameWidthPx !== source.widthPx ||
-    metadata.frameHeightPx !== source.heightPx ||
-    metadata.registrationPanelStepNumber !== source.registrationPanelStepNumber
-  ) {
-    throw new RangeError(
-      `Step-one renderer factory is bound to raster ${metadata.widthPx}x${metadata.heightPx}, frame ${metadata.frameWidthPx}x${metadata.frameHeightPx}, panel ${metadata.registrationPanelStepNumber}; the detached source requires raster and frame ${source.widthPx}x${source.heightPx}, panel ${source.registrationPanelStepNumber}.`,
-    );
-  }
+  inspectRealBuildStepOneMaskRendererFactoryConfiguration(value, source);
   return value as RealBuildStepOneMaskRendererFactory;
 }

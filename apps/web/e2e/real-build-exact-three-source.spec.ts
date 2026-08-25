@@ -11,6 +11,7 @@ import type {
 import { deriveScopedRealBuildPanelEvidence } from "./real-build-panel-evidence";
 import { bookletProbeUrls, hasSampleBooklet } from "./sample-booklet";
 import { ASSEMBLY_MODULE_URL, workspaceModuleUrl } from "./workspace-module";
+import { runAndVerifyRealBuildStepOneProperC4BrowserIntegration } from "./real-build-step-one-proper-c4-browser-integration-host";
 
 const ENABLED = process.env.LEGO_REAL_BUILD_EXACT_THREE_SOURCE === "1";
 const RUNNER_URL = workspaceModuleUrl("apps/web/e2e/real-build-exact-three-source-browser.ts");
@@ -462,10 +463,16 @@ test("captures fresh page-11 RGBA for exact panels 2, 3 and 4", async ({ page })
           .screenshot({ path: `${OUTPUT}/step-${stepNumber}-${scale}.png` });
       }
     }
+
+    await runAndVerifyRealBuildStepOneProperC4BrowserIntegration({
+      page,
+      inspection,
+      outputDirectory: OUTPUT,
+    });
   } finally {
     await page.evaluate(() => {
       document
-        .querySelectorAll("canvas[data-exact-three-step]")
+        .querySelectorAll("canvas[data-exact-three-step], canvas[data-proper-c4-current-contact]")
         .forEach((canvas) => canvas.remove());
     });
   }

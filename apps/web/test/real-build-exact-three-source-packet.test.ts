@@ -5,6 +5,7 @@ import { createRealBuildBrowserOutputV4SourceEvidencePanel } from "../e2e/real-b
 import { sourceEvidenceDigest } from "../e2e/real-build-browser-output-v4-source-evidence-primitives";
 import type { RealBuildBrowserOutputV4SourceEvidencePanelArtifact } from "../e2e/real-build-browser-output-v4-source-evidence-types";
 import {
+  readRealBuildExactThreeCompiledObservationSource,
   readRealBuildExactThreeSourcePacket,
   requireRealBuildExactThreeSourcePacketInspection,
 } from "../e2e/real-build-exact-three-source-packet-reader";
@@ -184,6 +185,32 @@ describe("exact-three authority-absent source packet", () => {
     expect(() => requireRealBuildExactThreeSourcePacketInspection({ ...inspection })).toThrow(
       /privately branded/iu,
     );
+    const compiledSource = readRealBuildExactThreeCompiledObservationSource(inspection, 1);
+    const descriptor = inspection.manifest.panels[0]!.sourceArtifactDescriptor;
+    expect(compiledSource).toMatchObject({
+      observationMode: "lookahead",
+      registrationPanelStepNumber: 2,
+      pageNumber: 11,
+      widthPx: descriptor.workWidth,
+      heightPx: descriptor.workHeight,
+      panelDigest: inspection.manifest.panels[0]!.callerSourcePanelCommitmentDigest,
+      cropDigest: descriptor.cropDescriptorDigest,
+      sourceDescriptorDigest: descriptor.lookahead.sourceDescriptorDigest,
+      exclusionDescriptorDigest: descriptor.lookahead.exclusionDescriptorDigest,
+      measure: descriptor.lookahead.measure,
+    });
+    const sourceReference = descriptor.masks.find(({ name }) => name === "lookahead-source")!;
+    const exclusionReference = descriptor.masks.find(({ name }) => name === "lookahead-exclusion")!;
+    expect(`sha256:${sha256Hex(compiledSource.sourceMask)}`).toBe(sourceReference.unpackedDigest);
+    expect(`sha256:${sha256Hex(compiledSource.excludedMask!)}`).toBe(
+      exclusionReference.unpackedDigest,
+    );
+    compiledSource.sourceMask.fill(0);
+    expect(
+      `sha256:${sha256Hex(
+        readRealBuildExactThreeCompiledObservationSource(inspection, 1).sourceMask,
+      )}`,
+    ).toBe(sourceReference.unpackedDigest);
   });
 
   it("detaches scoped input, source artifacts, and every returned byte role", () => {

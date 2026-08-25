@@ -13,6 +13,7 @@ import {
 import { runRealBuildStepOneCompiledCameraDiagnostic } from "../e2e/real-build-step-one-compiled-camera-diagnostic";
 import {
   createRealBuildStepOneSilhouetteRendererFactory,
+  inspectRealBuildStepOneMaskRendererFactoryConfiguration,
   requireRealBuildStepOneMaskRendererFactory,
 } from "../e2e/real-build-step-one-silhouette-renderer";
 import {
@@ -44,6 +45,10 @@ function testRendererFactory(input: {
   readonly widthPx: number;
   readonly heightPx: number;
   readonly registrationPanelStepNumber?: number;
+  readonly fittedView?: typeof TEST_VIEW & { readonly upSign?: 1 | -1 };
+  readonly frameTarget?: readonly [number, number, number];
+  readonly sceneRadius?: number;
+  readonly centrePx?: readonly [number, number];
   readonly renderMask: (view: typeof TEST_VIEW) => Uint8Array;
   readonly onPrepare?: () => void;
   readonly onDispose?: () => void;
@@ -69,14 +74,14 @@ function testRendererFactory(input: {
         return rgbaMask(mask, readback);
       },
     },
-    fittedView: TEST_VIEW,
+    fittedView: input.fittedView ?? TEST_VIEW,
     frame: {
       widthPx: input.widthPx,
       heightPx: input.heightPx,
-      target: [0, 0, 0],
-      sceneRadius: 1,
+      target: input.frameTarget ?? [0, 0, 0],
+      sceneRadius: input.sceneRadius ?? 1,
     },
-    centrePx: [input.widthPx / 2, input.heightPx / 2],
+    centrePx: input.centrePx ?? [input.widthPx / 2, input.heightPx / 2],
     widthPx: input.widthPx,
     heightPx: input.heightPx,
     registrationPanelStepNumber: input.registrationPanelStepNumber ?? 2,
@@ -436,6 +441,46 @@ describe("step-one compiled camera diagnostic", () => {
       throw new Error("mutated render must not run");
     };
 
+    const inspection = inspectRealBuildStepOneMaskRendererFactoryConfiguration(factory, {
+      widthPx: 2,
+      heightPx: 2,
+      registrationPanelStepNumber: 2,
+    });
+    expect(inspection).toEqual({
+      configurationDigest: canonicalDigest({
+        schema: "real-build-step-one-mask-renderer-configuration/v1",
+        raster: { widthPx: 2, heightPx: 2 },
+        frame: {
+          widthPx: 2,
+          heightPx: 2,
+          target: [1, 2, 3],
+          sceneRadius: 4,
+        },
+        fittedView: TEST_VIEW,
+        centrePx: [1, 1],
+        registrationPanelStepNumber: 2,
+      }),
+      widthPx: 2,
+      heightPx: 2,
+      frame: {
+        widthPx: 2,
+        heightPx: 2,
+        target: [1, 2, 3],
+        sceneRadius: 4,
+      },
+      fittedView: TEST_VIEW,
+      centrePx: [1, 1],
+      registrationPanelStepNumber: 2,
+    });
+    expect(Object.isFrozen(inspection)).toBe(true);
+    expect(Object.isFrozen(inspection.frame)).toBe(true);
+    expect(Object.isFrozen(inspection.frame.target)).toBe(true);
+    expect(Object.isFrozen(inspection.fittedView)).toBe(true);
+    expect(Object.isFrozen(inspection.centrePx)).toBe(true);
+    expect(() => {
+      (inspection.frame.target as unknown as number[])[0] = 0;
+    }).toThrow(TypeError);
+
     const required = requireRealBuildStepOneMaskRendererFactory(factory, {
       widthPx: 2,
       heightPx: 2,
@@ -475,6 +520,75 @@ describe("step-one compiled camera diagnostic", () => {
       })),
     );
     expect(disposals).toBe(1);
+  });
+
+  it("commits every semantics-bearing renderer configuration field independently", () => {
+    const digestFor = (input: {
+      readonly widthPx?: number;
+      readonly heightPx?: number;
+      readonly registrationPanelStepNumber?: number;
+      readonly fittedView?: typeof TEST_VIEW & { readonly upSign?: 1 | -1 };
+      readonly frameTarget?: readonly [number, number, number];
+      readonly sceneRadius?: number;
+      readonly centrePx?: readonly [number, number];
+    }): string => {
+      const widthPx = input.widthPx ?? 2;
+      const heightPx = input.heightPx ?? 2;
+      const registrationPanelStepNumber = input.registrationPanelStepNumber ?? 2;
+      const factory = testRendererFactory({
+        widthPx,
+        heightPx,
+        registrationPanelStepNumber,
+        ...(input.fittedView === undefined ? {} : { fittedView: input.fittedView }),
+        ...(input.frameTarget === undefined ? {} : { frameTarget: input.frameTarget }),
+        ...(input.sceneRadius === undefined ? {} : { sceneRadius: input.sceneRadius }),
+        ...(input.centrePx === undefined ? {} : { centrePx: input.centrePx }),
+        renderMask: () => SOURCE_MASK,
+      });
+      return inspectRealBuildStepOneMaskRendererFactoryConfiguration(factory, {
+        widthPx,
+        heightPx,
+        registrationPanelStepNumber,
+      }).configurationDigest;
+    };
+
+    const digests = [
+      digestFor({}),
+      digestFor({ widthPx: 3 }),
+      digestFor({ heightPx: 3 }),
+      digestFor({ frameTarget: [1, 0, 0] }),
+      digestFor({ sceneRadius: 2 }),
+      digestFor({ fittedView: { ...TEST_VIEW, azimuthDegrees: 11 } }),
+      digestFor({ fittedView: { ...TEST_VIEW, elevationDegrees: 21 } }),
+      digestFor({ fittedView: { ...TEST_VIEW, pixelsPerUnit: 2 } }),
+      digestFor({ fittedView: { ...TEST_VIEW, upSign: -1 } }),
+      digestFor({ centrePx: [0, 1] }),
+      digestFor({ registrationPanelStepNumber: 3 }),
+    ];
+    expect(new Set(digests)).toHaveLength(digests.length);
+  });
+
+  it("refuses configuration inspection when the source binding is detached", () => {
+    const factory = testRendererFactory({
+      widthPx: 2,
+      heightPx: 2,
+      registrationPanelStepNumber: 2,
+      renderMask: () => SOURCE_MASK,
+    });
+    expect(() =>
+      inspectRealBuildStepOneMaskRendererFactoryConfiguration(factory, {
+        widthPx: 4,
+        heightPx: 1,
+        registrationPanelStepNumber: 2,
+      }),
+    ).toThrow(/bound to raster 2x2/u);
+    expect(() =>
+      inspectRealBuildStepOneMaskRendererFactoryConfiguration(factory, {
+        widthPx: 2,
+        heightPx: 2,
+        registrationPanelStepNumber: 3,
+      }),
+    ).toThrow(/panel 2/u);
   });
 
   it("refuses non-square raster and wrong-panel factory bindings before rendering", () => {

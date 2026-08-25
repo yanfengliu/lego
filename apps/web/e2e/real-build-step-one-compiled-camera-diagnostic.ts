@@ -18,7 +18,10 @@ import {
 } from "./real-build-exact-lineage-identity";
 import type { RealBuildEnumeratedPlacementOffer } from "./real-build-enumerated-placement-witness";
 import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
-import { createRealBuildPanelCameraBranchBudgetLedger } from "./real-build-panel-camera-branch-budget";
+import {
+  createRealBuildPanelCameraBranchBudgetLedger,
+  type RealBuildPanelCameraBranchBudgetLedger,
+} from "./real-build-panel-camera-branch-budget";
 import {
   resolveRealBuildPanelCameraFrontier,
   type RealBuildPanelCameraFrontierResolution,
@@ -35,7 +38,10 @@ import {
   snapshotRealBuildCompiledObservationSource,
   type RealBuildCompiledObservationSourceInput,
 } from "./real-build-compiled-observation-source";
-import { createRealBuildPreparedSearchLedger } from "./real-build-prepared-search-ledger";
+import {
+  createRealBuildPreparedSearchLedger,
+  type RealBuildPreparedSearchLedger,
+} from "./real-build-prepared-search-ledger";
 import {
   requireRealBuildPreparedObservationPolicyInspection,
   requireRealBuildPreparedStepInspection,
@@ -136,6 +142,8 @@ export function runRealBuildStepOneCompiledCameraDiagnostic(input: {
   readonly candidates: readonly RealBuildStepOneCompiledCandidate[];
   readonly searchBudget: number;
   readonly cameraBranchBudget: number;
+  readonly searchLedger?: RealBuildPreparedSearchLedger;
+  readonly cameraLedger?: RealBuildPanelCameraBranchBudgetLedger;
   readonly source: RealBuildCompiledObservationSourceInput;
   readonly prepareModelMaskRenderer: RealBuildStepOneMaskRendererFactory;
   readonly compiler?: RealBuildAtomicCompiledBranchCompiler;
@@ -144,6 +152,12 @@ export function runRealBuildStepOneCompiledCameraDiagnostic(input: {
   const policy = requireRealBuildPreparedObservationPolicyInspection(input.policy);
   const rootSnapshot = requireRealBuildCandidateDocumentSnapshotValue(input.rootDocumentSnapshot);
   const source = snapshotRealBuildCompiledObservationSource(input.source);
+  if (
+    (input.searchLedger !== undefined && input.searchLedger.budget !== input.searchBudget) ||
+    (input.cameraLedger !== undefined && input.cameraLedger.budget !== input.cameraBranchBudget)
+  ) {
+    throw new RangeError("Step-one diagnostic shared ledgers must match their declared budgets.");
+  }
   if (
     preparedStep.stepNumber !== 1 ||
     source.observationMode !== "lookahead" ||
@@ -227,7 +241,7 @@ export function runRealBuildStepOneCompiledCameraDiagnostic(input: {
     preparedStep,
     rootCandidates: [{ documentSnapshot: rootSnapshot, identities: roots }],
     enumeratedParents,
-    ledger: createRealBuildPreparedSearchLedger(input.searchBudget),
+    ledger: input.searchLedger ?? createRealBuildPreparedSearchLedger(input.searchBudget),
   };
   const batch = executeRealBuildAtomicCompiledBranchBatch(batchInput, countedCompiler);
   const base = {
@@ -383,7 +397,9 @@ export function runRealBuildStepOneCompiledCameraDiagnostic(input: {
       excludedMask: source.excludedMask === null ? null : new Uint8Array(source.excludedMask),
       widthPx: source.widthPx,
       heightPx: source.heightPx,
-      ledger: createRealBuildPanelCameraBranchBudgetLedger(input.cameraBranchBudget),
+      ledger:
+        input.cameraLedger ??
+        createRealBuildPanelCameraBranchBudgetLedger(input.cameraBranchBudget),
       hashDocument: (document) => documentStructuralHash(document) as Sha256Digest,
     });
   } catch (caught) {

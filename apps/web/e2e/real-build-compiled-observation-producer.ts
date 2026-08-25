@@ -64,8 +64,17 @@ export interface RealBuildCompiledObservationProduction {
   readonly inspection: RealBuildCompiledObservationClosureInspection;
   readonly cameraCount: number;
   readonly observationCount: number;
+  readonly cameraHypotheses: readonly RealBuildCompiledObservationCameraHypothesis[];
   readonly acceptedDocument: null;
   readonly authority: "absent";
+}
+
+export interface RealBuildCompiledObservationCameraHypothesis {
+  readonly cameraId: string;
+  readonly candidateId: string;
+  readonly documentHash: Sha256Digest;
+  readonly hypothesis: StepCameraLatticeHypothesis;
+  readonly maskDigest: Sha256Digest;
 }
 
 type CameraRow = RealBuildCompiledObservationCameraCommitment & {
@@ -419,6 +428,17 @@ export function produceRealBuildCompiledObservationClosure(input: {
     inspection,
     cameraCount: cameraRows.length,
     observationCount: observations.length,
+    cameraHypotheses: intrinsicRealBuildFreeze(
+      cameraRows.map((camera) =>
+        intrinsicRealBuildFreeze({
+          cameraId: camera.cameraId,
+          candidateId: camera.candidateId,
+          documentHash: camera.documentHash,
+          hypothesis: intrinsicRealBuildFreeze({ ...camera.hypothesis }),
+          maskDigest: camera.candidateMask.digest,
+        }),
+      ),
+    ),
     acceptedDocument: null,
     authority: "absent" as const,
   });

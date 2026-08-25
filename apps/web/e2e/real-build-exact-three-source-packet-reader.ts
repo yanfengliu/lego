@@ -13,6 +13,11 @@ import {
   sourceEvidenceParseCanonicalJson,
 } from "./real-build-browser-output-v4-source-evidence-primitives";
 import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
+import { deriveRealBuildExactThreeCompiledObservationSource } from "./real-build-exact-three-compiled-source";
+import {
+  snapshotRealBuildCompiledObservationSource,
+  type RealBuildCompiledObservationSourceInput,
+} from "./real-build-compiled-observation-source";
 import { stepPanelEvidenceDigest } from "./real-build-panel-evidence-digest";
 import {
   MAXIMUM_REAL_BUILD_EXACT_THREE_SOURCE_PACKET_HIGH_BYTES,
@@ -38,6 +43,7 @@ import {
 } from "./real-build-exact-three-source-packet-types";
 
 const INSPECTIONS = new WeakSet<object>();
+const COMPILED_SOURCES = new WeakMap<object, readonly RealBuildCompiledObservationSourceInput[]>();
 const REFLECT_APPLY = Reflect.apply;
 const WEAK_SET_ADD = WeakSet.prototype.add;
 const WEAK_SET_HAS = WeakSet.prototype.has;
@@ -313,6 +319,7 @@ export function readRealBuildExactThreeSourcePacket(
   const rawPanels = sourceEvidenceDenseArray(root.panels, 3, 3, "manifest.panels");
   const offsets = [0, 0, 0];
   const panels: RealBuildExactThreeSourcePacketPanel[] = [];
+  const compiledSources: RealBuildCompiledObservationSourceInput[] = [];
   const observedPages: number[] = [];
   for (let index = 0; index < 3; index += 1) {
     const path = `manifest.panels[${index}]`;
@@ -421,6 +428,10 @@ export function readRealBuildExactThreeSourcePacket(
       sourceArtifactDescriptor: reproduced.descriptor,
       roleSlices: slices,
     });
+    compiledSources[index] = deriveRealBuildExactThreeCompiledObservationSource(
+      panels[index]!,
+      masks,
+    );
   }
   for (let roleIndex = 0; roleIndex < 3; roleIndex += 1) {
     if (offsets[roleIndex] !== roleBytes[roleIndex]!.byteLength) {
@@ -456,7 +467,18 @@ export function readRealBuildExactThreeSourcePacket(
     acceptedDocument: null,
   });
   REFLECT_APPLY(WEAK_SET_ADD, INSPECTIONS, [inspection]);
+  COMPILED_SOURCES.set(inspection, intrinsicRealBuildFreeze(compiledSources));
   return inspection;
+}
+
+export function readRealBuildExactThreeCompiledObservationSource(
+  inspection: unknown,
+  placementStepNumber: 1 | 2 | 3,
+): RealBuildCompiledObservationSourceInput {
+  requireRealBuildExactThreeSourcePacketInspection(inspection);
+  const source = COMPILED_SOURCES.get(inspection as object)?.[placementStepNumber - 1];
+  if (source === undefined) throw new TypeError("Exact-three compiled source was not retained.");
+  return snapshotRealBuildCompiledObservationSource(source);
 }
 
 export function requireRealBuildExactThreeSourcePacketInspection(

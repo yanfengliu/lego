@@ -1,8 +1,5 @@
-import { types as nodeTypes } from "node:util";
-
 import { canonicalDigest, canonicalStringify, type Sha256Digest } from "@lego-studio/brick-kernel";
 
-import { snapshotDenseDataArray, snapshotExactDataObject } from "./bounded-data-snapshot";
 import {
   requireRealBuildCandidateDocumentSnapshotValue,
   type RealBuildCandidateDocumentSnapshot,
@@ -18,6 +15,11 @@ import {
   requireRealBuildPreparedStepInspection,
   type RealBuildPreparedStepInspection,
 } from "./real-build-prepared-step-authority";
+import {
+  requireRealBuildStepOneProperC4DataContainer,
+  snapshotRealBuildStepOneProperC4DataArray as snapshotDenseDataArray,
+  snapshotRealBuildStepOneProperC4DataObject as snapshotExactDataObject,
+} from "./real-build-step-one-proper-c4-data-snapshot";
 
 export const MAXIMUM_REAL_BUILD_STEP_ONE_PROPER_C4_ORBITS = 128;
 const MAXIMUM_RAW_CANDIDATES = 1_024;
@@ -176,9 +178,7 @@ function snapshotRawRoster(
   const mutableContainers = new WeakSet<object>();
   const retained: InternalRow[] = [];
   const uniqueContainer = (value: unknown, label: string): void => {
-    if (value === null || typeof value !== "object" || nodeTypes.isProxy(value)) {
-      throw new TypeError(`${label} must be a non-Proxy ordinary container.`);
-    }
+    requireRealBuildStepOneProperC4DataContainer(value, label);
     if (mutableContainers.has(value)) {
       throw new TypeError(`${label} is a shared mutable container alias.`);
     }
