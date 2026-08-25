@@ -122,8 +122,14 @@ import { deepFreeze } from "./freeze.ts";
  * studs, and conservative collision field. The pinned LDCad shadow authors the
  * matching regular 3 x 3 grid of nine underside clutches. No preceding
  * definition changes.
+ *
+ * /25 adds `33909.dat`, the 2 x 2 plate with two studs on one edge, as one
+ * complete measured definition. Its exact official closure supplies the
+ * asymmetric stud surface and conservative collision field. The pinned LDCad
+ * shadow authors the matching two stud frames and four regular underside
+ * clutches. No preceding definition changes.
  */
-export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/24" as const;
+export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/25" as const;
 export const CONNECTOR_TAXONOMY_VERSION = "stud-tube/1" as const;
 export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/3" as const;
 export const TRANSFORM_POLICY_VERSION = "upright-quarter-turns-negative-y-up/1" as const;

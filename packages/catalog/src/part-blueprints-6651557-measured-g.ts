@@ -128,4 +128,55 @@ export const SET_6651557_MEASURED_BLUEPRINTS_G = [
       shadowFiles: ["p/stud.dat", "p/stud4.dat", "parts/11212.dat"],
     },
   },
+  {
+    designId: "33909",
+    ldrawId: "33909.dat",
+    catalogId: "builtin:plate-2x2-two-studs",
+    displayName: "Plate 2 x 2 with 2 Studs on One Edge",
+    family: "plate",
+    widthStuds: 2,
+    lengthStuds: 2,
+    variant: "two-studs",
+    heightLdu: 8,
+    meshAssetId: "ldraw:official:33909.dat",
+    // prettier-ignore
+    assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, -4, 0] },
+    connectorGridCenterLdu: [0, 0],
+    validatedConnectionStudProfile: "nominal-stud-tube/1",
+    exactBodyBoundsLdu: {
+      min: ["-20", "-4", "-20"],
+      max: ["20", "4", "20"],
+    },
+    exactBoundsLdu: {
+      min: ["-20", "-8", "-20"],
+      max: ["20", "4", "20"],
+    },
+    studsLdu: [
+      [-10, -4, 10, 6.0001514980873605, 4],
+      [10, -4, 10, 6.0001514980873605, 4],
+    ],
+    clutchesLdu: [
+      [-10, 4, -10],
+      [-10, 4, 10],
+      [10, 4, -10],
+      [10, 4, 10],
+    ],
+    // prettier-ignore
+    bodyBoxesLdu: [-16, -4, -16, 16, 0, -8, -16, -4, -8, -4, 0, -7, 4, -4, -8, 16, 0, -7, -16, -4, -7, -6, 0, -6, 6, -4, -7, 16, 0, -6, -16, -4, -6, -7, 0, -4, 7, -4, -6, 16, 0, -4, -3, -4, -5, 3, 0, 5, -16, -4, -4, -8, 0, 16, -4, -4, -4, -3, 0, 4, 3, -4, -4, 4, 0, 4, 8, -4, -4, 16, 0, 16, -5, -4, -3, -4, 0, 3, 4, -4, -3, 5, 0, 3, -8, -4, 4, -7, 0, 16, 7, -4, 4, 8, 0, 16, -7, -4, 6, -6, 0, 16, 6, -4, 6, 7, 0, 16, -6, -4, 7, -4, 0, 16, 4, -4, 7, 6, 0, 16, -4, -4, 8, 4, 0, 16, -20, -4, -20, 20, 4, -16, -20, -4, -16, -16, 4, 20, 16, -4, -16, 20, 4, 20, -4, -4, -8, 4, 4, -5, -6, -4, -7, -4, 4, -3, 4, -4, -7, 6, 4, -3, -7, -4, -6, -6, 4, 6, 6, -4, -6, 7, 4, 6, -4, -4, -5, -3, 4, -4, 3, -4, -5, 4, 4, -4, -8, -4, -4, -7, 4, 4, 7, -4, -4, 8, 4, 4, -6, -4, -3, -5, 4, 7, 5, -4, -3, 6, 4, 7, -5, -4, 3, -4, 4, 7, 4, -4, 3, 5, 4, 7, -4, -4, 4, -3, 4, 8, 3, -4, 4, 4, 4, 8, -3, -4, 5, 3, 4, 8, -16, -4, 16, 16, 4, 20],
+    ldrawSource: {
+      title: "Plate  2 x  2 with 2 Studs on One Edge",
+      author: "Magnus Forsberg [MagFors]",
+      ldrawOrg: "Part UPDATE 2020-01",
+      licenseExpression: "CC-BY-4.0",
+      rootSha256: "sha256:8da6789db82746f179997ed4b917d00d34d03a6486d6aa27c76d17c9b21d8609",
+      closureFileCount: 9,
+    },
+    ldcadShadowSource: {
+      libraryId: "ldcad-shadow-library",
+      commit: "15aa1e718b6a8da37d24fc7af5e52e262c041bfb",
+      manifestSha256: "sha256:668bc047a45e5560ff0fbbd69e9eb5adafab127781720bcb069a1554cb3f0c0f",
+      compositionId: "ldcad-shadow-composed-over-ldraw-tree/1",
+      shadowFiles: ["p/stud.dat", "p/stud4.dat", "parts/33909.dat"],
+    },
+  },
 ] as const satisfies readonly MeasuredPartBlueprint[];

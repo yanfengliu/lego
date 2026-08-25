@@ -89,6 +89,7 @@ class PlanTests(unittest.TestCase):
                 "4519",
                 "32064",
                 "11212",
+                "33909",
             ],
         )
         self.assertTrue(all(row.connector_source == "builder" for row in ADMITTED_PART_PLANS[:5]))
@@ -324,6 +325,44 @@ class PlanTests(unittest.TestCase):
                 "plate",
                 3,
                 3,
+                8,
+                "upright-yaw-0",
+                (0, -4, 0),
+                (0, 0),
+                "nominal-stud-tube/1",
+            ),
+        )
+
+    def test_33909_plan_pins_the_two_stud_edge_and_regular_clutch_grid(self) -> None:
+        plate = ADMITTED_PART_PLANS[23]
+
+        self.assertEqual(
+            (
+                plate.design_id,
+                plate.ldraw_path,
+                plate.connector_source,
+                plate.catalog_id,
+                plate.display_name,
+                plate.family,
+                plate.width_studs,
+                plate.length_studs,
+                plate.variant,
+                plate.height_ldu,
+                plate.orientation_id,
+                plate.translation_ldu,
+                plate.connector_grid_center_ldu,
+                plate.validated_connection_stud_profile,
+            ),
+            (
+                "33909",
+                "parts/33909.dat",
+                LDCAD_SHADOW_CONNECTOR_SOURCE,
+                "builtin:plate-2x2-two-studs",
+                "Plate 2 x 2 with 2 Studs on One Edge",
+                "plate",
+                2,
+                2,
+                "two-studs",
                 8,
                 "upright-yaw-0",
                 (0, -4, 0),

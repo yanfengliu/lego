@@ -117,6 +117,13 @@ describe("matchesPartQuery", () => {
     }
   });
 
+  it("keeps 33909 discoverable by identifier, plate family, two-stud edge, and 2x2 size", () => {
+    const twoStudPlate = part("builtin:plate-2x2-two-studs");
+    for (const query of ["33909", "plate", "2 studs", "one edge", "2x2"]) {
+      expect(matchesPartQuery(twoStudPlate, query), query).toBe(true);
+    }
+  });
+
   it("does not match an unrelated query", () => {
     expect(matchesPartQuery(brick2x4, "wheel")).toBe(false);
     expect(matchesPartQuery(brick2x4, "9x9")).toBe(false);

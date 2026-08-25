@@ -2,9 +2,11 @@
 
 > Generated from the catalog by `packages/catalog/src/bundled-geometry-notices.test.ts`, which fails if this file and the catalog disagree. Do not edit by hand.
 
-The render mesh of the parts below is real LDraw geometry, bundled and redistributed under the [Creative Commons Attribution 4.0 International licence](https://creativecommons.org/licenses/by/4.0/). Of the 207 source files, 205 declare CC BY 4.0 and `parts/30503.dat` plus `parts/32064a.dat` declare `CC-BY-2.0 OR CC-BY-4.0`; this bundle selects their CC BY 4.0 option. Attribution therefore names every file whose triangles are bundled with its author, title, licence and content hash rather than flattening it into project-owned data.
+The render mesh of the parts below is real LDraw geometry, bundled and redistributed under the [Creative Commons Attribution 4.0 International licence](https://creativecommons.org/licenses/by/4.0/). Of the 208 source files, 206 declare CC BY 4.0 and `parts/30503.dat` plus `parts/32064a.dat` declare `CC-BY-2.0 OR CC-BY-4.0`; this bundle selects their CC BY 4.0 option. Attribution therefore names every file whose triangles are bundled with its author, title, licence and content hash rather than flattening it into project-owned data.
 
 Permission to reuse this geometry is **not** permission to train on it. That right is not held, and no bundled file is designated as a model-training or benchmark corpus.
+
+Catalog `/25` adds the fully measured `33909` Plate 2 x 2 with 2 Studs on One Edge. Its official 9-file closure supplies the exact two-stud edge-plate shell, 220 triangles, and a conservative field of 41 body boxes plus two source-radius stud cylinders; the checksum-pinned LDCad composition authors the matching four-cell underside clutch lattice and independently repeats the two visible stud frames. Yaw 0 is retained as the measured canonical orientation. The exact source stud radius remains ordinary collision truth at `6.0001514980873605` LDU, while the separately cross-bound nominal 6 LDU profile applies only when a validated stud/clutch edge authorizes insertion. Revision-E record metadata from the checksum-pinned native pack reports four clutches but supplies no reviewed frame, so it remains count-only corroboration. This admission does not claim clutch strength, physical stability, insertion access, or a trusted step-76 placement.
 
 Catalog `/24` adds the fully measured `11212` Plate 3 x 3. Its official 10-file closure supplies the regular square shell, 844 triangles, and a conservative field of 129 body boxes plus nine source-radius stud cylinders; the checksum-pinned LDCad composition authors the matching nine-cell underside clutch lattice. The square geometry is quarter-turn symmetric, with yaw 0 retained as the canonical representative. The exact source stud radius remains ordinary collision truth at `6.0001514980873605` LDU, while the separately cross-bound nominal 6 LDU profile applies only when a validated stud/clutch edge authorizes insertion. Revision-I record metadata from the checksum-pinned native pack reports nine clutches but supplies no reviewed frame, so it remains count-only counterevidence. This admission does not claim clutch strength, physical stability, insertion access, or a trusted step-59 placement.
 
@@ -53,10 +55,11 @@ Source archive: `ldraw-complete-2026-07`, 144722356 bytes, `sha256:6009f2e94204c
 | `builtin:axle-1x3` | `4519.dat` | Technic Axle  3 | James Jessiman | `CC-BY-4.0` | 4 |
 | `builtin:technic-brick-1x2-axle-hole` | `32064.dat` | ~Moved to 32064a | [PTadmin] | `CC-BY-4.0` | 23 |
 | `builtin:plate-3x3` | `11212.dat` | Plate  3 x  3 | Rolf Osterthun [Rolf] | `CC-BY-4.0` | 10 |
+| `builtin:plate-2x2-two-studs` | `33909.dat` | Plate  2 x  2 with 2 Studs on One Edge | Magnus Forsberg [MagFors] | `CC-BY-4.0` | 9 |
 
 ## Every bundled file
 
-The 207 files below comprise 205 `CC-BY-4.0` declarations and two `CC-BY-2.0 OR CC-BY-4.0` declarations.
+The 208 files below comprise 206 `CC-BY-4.0` declarations and two `CC-BY-2.0 OR CC-BY-4.0` declarations.
 
 | File | Title | Author | Licence | LDraw.org status | SHA-256 |
 | --- | --- | --- | --- | --- | --- |
@@ -225,6 +228,7 @@ The 207 files below comprise 205 `CC-BY-4.0` declarations and two `CC-BY-2.0 OR 
 | `parts/30565.dat` | Plate  4 x  4 with Corner Round | Gerald Lasser [GeraldLasser] | `CC-BY-4.0` | Part UPDATE 2024-06 | `e201a60e7f8e8ab15a86e8449c0e722a1b1ebe8015a5021ac5ca9aa1fd462f39` |
 | `parts/32064.dat` | ~Moved to 32064a | [PTadmin] | `CC-BY-4.0` | Part UPDATE 2009-03 | `b6240d5798083701834cec8f566d7fca05cbc51123fad8500d3125fa68b4c465` |
 | `parts/32064a.dat` | Technic Brick  1 x  2 with Axlehole with Open Sides and Stud Blocker | Lutz Uhlmann [El-Lutzo] | `CC-BY-2.0 OR CC-BY-4.0` | Part UPDATE 2022-02 | `b35a848b805493527b83b3a087d0a7f139084834c1f3325045905aa09ded26d2` |
+| `parts/33909.dat` | Plate  2 x  2 with 2 Studs on One Edge | Magnus Forsberg [MagFors] | `CC-BY-4.0` | Part UPDATE 2020-01 | `8da6789db82746f179997ed4b917d00d34d03a6486d6aa27c76d17c9b21d8609` |
 | `parts/3455.dat` | Arch  1 x  6 | James Jessiman | `CC-BY-4.0` | Part UPDATE 2005-01 | `6e8fcdca71b4dd1a875b926ed5b28889fc4a47a01272b6550987338f0619083b` |
 | `parts/35480.dat` | Plate  1 x  2 with Round Ends and 2 Open Studs | Magnus Forsberg [MagFors] | `CC-BY-4.0` | Part UPDATE 2018-01 | `61d6d988e6549678ec0b6343bf7554ff14781006321da10da9adbbf4e68f2613` |
 | `parts/35787.dat` | Tile  2 x  2 Triangular | Gerald Lasser [GeraldLasser] | `CC-BY-4.0` | Part UPDATE 2018-02 | `15504e50d1cf297ead59fb2120663613049fddf604181c1af99479cf9a9a3602` |
@@ -270,6 +274,8 @@ The 207 files below comprise 205 `CC-BY-4.0` declarations and two `CC-BY-2.0 OR 
 
 ## Derived connector data
 
+For `33909`, the exact LDCad regular-grid route authors four underside clutch cells and independently repeats the two visible stud frames. Revision-E record metadata from the checksum-pinned native pack reports four clutches but supplies no reviewed frame, so it remains count-only corroboration. The connection-only nominal stud profile is cross-bound to the part collision record; it does not alter the exact source radius used for ordinary collision.
+
 For `11212`, the exact LDCad regular-grid route authors nine underside clutch cells and independently repeats the nine visible stud frames. Revision-I record metadata from the checksum-pinned native pack reports nine clutches but supplies no reviewed frame, so it remains count-only counterevidence. The connection-only nominal stud profile is cross-bound to the part collision record; it does not alter the exact source radius used for ordinary collision.
 
 For `32064`, the exact capless, sliding female A6 x 1 route authors one transverse axle-hole endpoint. Revision-I record metadata from the checksum-pinned native pack supplies no reviewed frame and remains counterevidence only, while the conservative body boxes remain independent collision truth.
@@ -305,3 +311,4 @@ Catalog-carried attribution: Copyright (c) 2026 Yanfeng Liu. Underside clutch ce
 | `builtin:axle-1x3` | `4519.dat` | 0 | 0 | 3 | 0 |
 | `builtin:technic-brick-1x2-axle-hole` | `32064.dat` | 2 | 2 | 0 | 1 |
 | `builtin:plate-3x3` | `11212.dat` | 9 | 9 | 0 | 0 |
+| `builtin:plate-2x2-two-studs` | `33909.dat` | 2 | 4 | 0 | 0 |

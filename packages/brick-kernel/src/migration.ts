@@ -42,6 +42,7 @@ export const MIGRATABLE_CATALOG_VERSIONS: readonly string[] = Object.freeze([
   "builtin.basic-parts/21",
   "builtin.basic-parts/22",
   "builtin.basic-parts/23",
+  "builtin.basic-parts/24",
   BUILTIN_CATALOG_VERSION,
 ]);
 
@@ -261,6 +262,15 @@ export const REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS = Object.freeze([
     catalogVersion: "builtin.basic-parts/23",
     sourceCommit: "d99b74d355684c8ceaca0ad6f2df76d96ebe4937",
     truthHash: "sha256:af781e7356e28622fb13afcb571d28495a0962d6aa78ef70d988126a9c4aeefb",
+  },
+  // The snapshot /25 replaces. /25 appends 33909 as one complete measured
+  // definition: exact official geometry, two visible studs and conservative
+  // collision columns, plus the matching four-cell LDCad-authored underside
+  // clutch grid. No preceding definition changes interpretation.
+  {
+    catalogVersion: "builtin.basic-parts/24",
+    sourceCommit: "ec2387bf8b3b1a8d70a11e95c6c6547049037886",
+    truthHash: "sha256:09288fc048ec112225b9e605df7af2d2e9692031b9eb7a89755575956af4c10d",
   },
 ] as const);
 

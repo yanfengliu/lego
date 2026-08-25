@@ -372,6 +372,24 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
         validated_connection_stud_profile="nominal-stud-tube/1",
     ),
+    # builtin.basic-parts/25: a stale quarantine locator associates step 76
+    # with the 2 x 2 plate with two studs along one edge, but supplies no
+    # printed-identity authority. Its exact official closure supplies the
+    # asymmetric stud surface and conservative collision field. The pinned
+    # LDCad walk directly authors both visible studs and all four regular
+    # underside clutches; Builder's unframed revision-E record remains
+    # count-only counterevidence.
+    _plan(
+        "33909",
+        "plate",
+        2,
+        2,
+        variant="two-studs",
+        connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
+        catalog_id="builtin:plate-2x2-two-studs",
+        display_name="Plate 2 x 2 with 2 Studs on One Edge",
+        validated_connection_stud_profile="nominal-stud-tube/1",
+    ),
 )
 
 

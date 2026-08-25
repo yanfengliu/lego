@@ -7,8 +7,9 @@ import { getReviewedHistoricalCatalogRoster } from "./historical-catalog-rosters
 import { migrateDocumentTruth } from "./migration.ts";
 
 const V23_TRUTH_HASH = "sha256:af781e7356e28622fb13afcb571d28495a0962d6aa78ef70d988126a9c4aeefb";
-const V24_TRUTH_HASH = "sha256:09288fc048ec112225b9e605df7af2d2e9692031b9eb7a89755575956af4c10d";
+const V25_TRUTH_HASH = "sha256:364ef046160736292eb51b331ce27ff246fa8940e16b256d53a68b9656a6018f";
 const V24_PART_ID = "builtin:plate-3x3";
+const V25_PART_ID = "builtin:plate-2x2-two-studs";
 
 function documentSavedAtV23(): BrickDocumentV1 {
   const current = createEmptyBrickDocument({ id: "v23", name: "Saved at /23" });
@@ -52,7 +53,7 @@ function documentSavedAtV23(): BrickDocumentV1 {
 }
 
 describe("builtin.basic-parts/23 migration", () => {
-  it("adds only the complete measured 11212 definition when /23 advances to /24", () => {
+  it("adds only the complete measured 11212 and 33909 definitions when /23 advances to /25", () => {
     const saved = documentSavedAtV23();
 
     const { document, report } = migrateDocumentTruth(saved);
@@ -60,8 +61,8 @@ describe("builtin.basic-parts/23 migration", () => {
     expect(report.migrated).toBe(true);
     expect(report.blockingReasons).toEqual([]);
     expect(report.fromTruthHash).toBe(V23_TRUTH_HASH);
-    expect(report.toTruthHash).toBe(V24_TRUTH_HASH);
-    expect(report.addedCatalogPartIds).toEqual([V24_PART_ID]);
+    expect(report.toTruthHash).toBe(V25_TRUTH_HASH);
+    expect(report.addedCatalogPartIds).toEqual([V24_PART_ID, V25_PART_ID]);
     expect(report.catalogInterpretationChanges).toEqual([]);
     expect(report.truthComponentChanges).toEqual([
       {

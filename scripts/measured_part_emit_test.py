@@ -371,7 +371,9 @@ class RenderTests(unittest.TestCase):
         self.assertEqual(mesh_ids["mesh-assets-6651557-measured-d.ts"], ["2877"])
         self.assertEqual(mesh_ids["mesh-assets-6651557-measured-e.ts"], ["3040"])
         self.assertEqual(mesh_ids["mesh-assets-6651557-measured-f.ts"], ["4519"])
-        self.assertEqual(mesh_ids["mesh-assets-6651557-measured-g.ts"], ["32064", "11212"])
+        self.assertEqual(
+            mesh_ids["mesh-assets-6651557-measured-g.ts"], ["32064", "11212", "33909"]
+        )
         self.assertEqual(
             blueprint_ids["part-blueprints-6651557-measured.ts"],
             admitted_ids[:18],
@@ -390,7 +392,7 @@ class RenderTests(unittest.TestCase):
         )
         self.assertEqual(
             blueprint_ids["part-blueprints-6651557-measured-g.ts"],
-            ["32064", "11212"],
+            ["32064", "11212", "33909"],
         )
         generated = [
             *mesh_chunks,

@@ -19,9 +19,17 @@ import { SET_6651557_MESH_ASSETS } from "./mesh-assets-6651557.ts";
 import { SET_6651557_MEASURED_BLUEPRINTS } from "./part-blueprints-6651557-measured.ts";
 import { SET_6651557_MEASURED_BLUEPRINTS_G } from "./part-blueprints-6651557-measured-g.ts";
 
-const PART_ID = "builtin:plate-3x3";
-const GRID_LDU = [-20, 0, 20] as const;
-const SEATS_LDU = GRID_LDU.flatMap((x) => GRID_LDU.map((z) => [x, z] as const));
+const PART_ID = "builtin:plate-2x2-two-studs";
+const STUDS_LDU = [
+  [-10, -4, 10, 6.0001514980873605, 4],
+  [10, -4, 10, 6.0001514980873605, 4],
+] as const;
+const CLUTCHES_LDU = [
+  [-10, 4, -10],
+  [-10, 4, 10],
+  [10, 4, -10],
+  [10, 4, 10],
+] as const;
 
 const EXPECTED_CLOSURE = [
   [
@@ -48,47 +56,42 @@ const EXPECTED_CLOSURE = [
   ["p/stud.dat", 698, "sha256:db037d518d7c08bcdc1f0e7497f4f98e97d99850531dd62d602965520f3bf8f4"],
   ["p/stud4.dat", 935, "sha256:871cdcab26e7f5113488a24c453d6fabda75b275b06de592e0bfaad4292c12a3"],
   [
-    "p/stug-3x3.dat",
-    869,
-    "sha256:ec81497656a4a77a32cc09b131026c9882ab2da35944f701aa7575d43667d7f0",
+    "p/stug-1x2.dat",
+    333,
+    "sha256:5842fa1baf6ea7f18fe4e355238cd733ff9bdbdc3d722be5cf8988f1c5fce414",
   ],
   [
-    "p/stug4-2x2.dat",
-    435,
-    "sha256:cf6e68b84d37562ed1a035015c23f804157ce6a80a7632a179e4def8ddcacfcb",
-  ],
-  [
-    "parts/11212.dat",
-    642,
-    "sha256:c527adbbc5db2983cdc9d0b28481d57a248fd0125d8aa00c13aebd7c32b6633f",
+    "parts/33909.dat",
+    738,
+    "sha256:8da6789db82746f179997ed4b917d00d34d03a6486d6aa27c76d17c9b21d8609",
   ],
 ] as const;
 
-describe("11212 regular 3 x 3 plate catalog truth", () => {
-  it("appends the exact /24 identity in the canonical square frame", () => {
+describe("33909 two-stud-edge plate catalog truth", () => {
+  it("appends the exact /25 identity in the regular 2 x 2 frame", () => {
     const part = getPartDefinition(PART_ID)!;
     const blueprint = SET_6651557_MEASURED_BLUEPRINTS_G.find(
-      ({ designId }) => designId === "11212",
+      ({ designId }) => designId === "33909",
     );
-    if (blueprint?.designId !== "11212") throw new Error("11212 blueprint is missing");
+    if (blueprint?.designId !== "33909") throw new Error("33909 blueprint is missing");
 
     expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/25");
     expect(PART_DEFINITIONS).toHaveLength(97);
-    expect(PART_DEFINITIONS.at(-2)?.id).toBe(PART_ID);
-    expect(SET_6651557_MEASURED_BLUEPRINTS.at(-2)).toBe(blueprint);
+    expect(PART_DEFINITIONS.at(-1)?.id).toBe(PART_ID);
+    expect(SET_6651557_MEASURED_BLUEPRINTS.at(-1)).toBe(blueprint);
     expect(SET_6651557_MEASURED_BLUEPRINTS_G).toHaveLength(3);
     expect(part).toMatchObject({
       id: PART_ID,
       family: "plate",
-      displayName: "Plate 3 x 3",
-      dimensions: { widthStuds: 3, lengthStuds: 3, heightLdu: 8 },
-      bodyBoundsLdu: { min: [-30, -4, -30], max: [30, 4, 30] },
-      boundsLdu: { min: [-30, -8, -30], max: [30, 4, 30] },
-      substitutionGroupId: "plate:3x3",
+      displayName: "Plate 2 x 2 with 2 Studs on One Edge",
+      dimensions: { widthStuds: 2, lengthStuds: 2, heightLdu: 8 },
+      bodyBoundsLdu: { min: [-20, -4, -20], max: [20, 4, 20] },
+      boundsLdu: { min: [-20, -8, -20], max: [20, 4, 20] },
+      substitutionGroupId: "plate:2x2-two-studs",
     });
-    expect(resolvePartId("11212.dat")).toBe(PART_ID);
-    expect(resolvePartId("ldraw:11212.dat")).toBe(PART_ID);
-    expect(resolvePartId("Plate 3 x 3")).toBe(PART_ID);
+    expect(resolvePartId("33909.dat")).toBe(PART_ID);
+    expect(resolvePartId("ldraw:33909.dat")).toBe(PART_ID);
+    expect(resolvePartId("Plate 2 x 2 with 2 Studs on One Edge")).toBe(PART_ID);
     expect(blueprint.assetToCatalogFrame).toEqual({
       schemaVersion: "mesh-asset-to-catalog-frame/1",
       orientationId: "upright-yaw-0",
@@ -98,38 +101,38 @@ describe("11212 regular 3 x 3 plate catalog truth", () => {
     expect(blueprint.validatedConnectionStudProfile).toBe("nominal-stud-tube/1");
   });
 
-  it("pins the exact official ten-file closure and source provenance", () => {
-    const rows = BUNDLED_LDRAW_CLOSURES["11212"]!.map((index) => {
+  it("pins the exact official nine-file closure and source provenance", () => {
+    const rows = BUNDLED_LDRAW_CLOSURES["33909"]!.map((index) => {
       const { path, bytes, sha256 } = BUNDLED_LDRAW_SOURCE_FILES[index]!;
       return [path, bytes, sha256] as const;
     });
     const blueprint = SET_6651557_MEASURED_BLUEPRINTS_G.find(
-      ({ designId }) => designId === "11212",
+      ({ designId }) => designId === "33909",
     );
 
     expect(rows).toEqual(EXPECTED_CLOSURE);
     expect(blueprint?.ldrawSource).toEqual({
-      title: "Plate  3 x  3",
-      author: "Rolf Osterthun [Rolf]",
-      ldrawOrg: "Part UPDATE 2012-03",
+      title: "Plate  2 x  2 with 2 Studs on One Edge",
+      author: "Magnus Forsberg [MagFors]",
+      ldrawOrg: "Part UPDATE 2020-01",
       licenseExpression: "CC-BY-4.0",
-      rootSha256: "sha256:c527adbbc5db2983cdc9d0b28481d57a248fd0125d8aa00c13aebd7c32b6633f",
-      closureFileCount: 10,
+      rootSha256: "sha256:8da6789db82746f179997ed4b917d00d34d03a6486d6aa27c76d17c9b21d8609",
+      closureFileCount: 9,
     });
-    expect(BUNDLED_LDRAW_CLOSURE_MANIFESTS["11212"]).toEqual({
-      bytes: 11_078,
-      manifestSha256: "sha256:8ff079db5d230fbba570a54ef1718c37a33db1059b31034fdd5a5ba9f12e0c73",
+    expect(BUNDLED_LDRAW_CLOSURE_MANIFESTS["33909"]).toEqual({
+      bytes: 10_203,
+      manifestSha256: "sha256:72174370ab6b3d2e0d00d7b72a0687a67da1cccd4014f1f799e113eecb504a15",
     });
     expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(36);
     expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(208);
   });
 
-  it("records the consulted LDCad route and its active regular clutch lattice", () => {
+  it("records only the consulted LDCad route as active connector authority", () => {
     const part = getPartDefinition(PART_ID)!;
     const blueprint = SET_6651557_MEASURED_BLUEPRINTS_G.find(
-      ({ designId }) => designId === "11212",
+      ({ designId }) => designId === "33909",
     );
-    if (blueprint === undefined) throw new Error("11212 has no G measured blueprint");
+    if (blueprint === undefined) throw new Error("33909 has no G measured blueprint");
 
     expect("builderSource" in blueprint).toBe(false);
     expect("builderConnectivitySource" in blueprint).toBe(false);
@@ -138,12 +141,10 @@ describe("11212 regular 3 x 3 plate catalog truth", () => {
       commit: "15aa1e718b6a8da37d24fc7af5e52e262c041bfb",
       manifestSha256: "sha256:668bc047a45e5560ff0fbbd69e9eb5adafab127781720bcb069a1554cb3f0c0f",
       compositionId: "ldcad-shadow-composed-over-ldraw-tree/1",
-      shadowFiles: ["p/stud.dat", "p/stud4.dat", "parts/11212.dat"],
+      shadowFiles: ["p/stud.dat", "p/stud4.dat", "parts/33909.dat"],
     });
-    expect(blueprint.studsLdu).toEqual(
-      SEATS_LDU.map(([x, z]) => [x, -4, z, 6.0001514980873605, 4]),
-    );
-    expect(blueprint.clutchesLdu).toEqual(SEATS_LDU.map(([x, z]) => [x, 4, z]));
+    expect(blueprint.studsLdu).toEqual(STUDS_LDU);
+    expect(blueprint.clutchesLdu).toEqual(CLUTCHES_LDU);
     expect(
       part.connectors.map(({ id, kind, gender, positionLdu, normal, compatibleKinds }) => ({
         id,
@@ -154,29 +155,29 @@ describe("11212 regular 3 x 3 plate catalog truth", () => {
         compatibleKinds,
       })),
     ).toEqual([
-      ...SEATS_LDU.map(([x, z], index) => ({
+      ...STUDS_LDU.map(([x, y, z], index) => ({
         id: `stud:${index}`,
         kind: "stud",
         gender: "male",
-        positionLdu: [x, -4, z],
+        positionLdu: [x, y, z],
         normal: [0, -1, 0],
         compatibleKinds: ["undersideClutch"],
       })),
-      ...SEATS_LDU.map(([x, z], index) => ({
+      ...CLUTCHES_LDU.map(([x, y, z], index) => ({
         id: `undersideClutch:${index}`,
         kind: "undersideClutch",
         gender: "female",
-        positionLdu: [x, 4, z],
+        positionLdu: [x, y, z],
         normal: [0, 1, 0],
         compatibleKinds: ["stud"],
       })),
     ]);
   });
 
-  it("binds 844 triangles, 129 body boxes, and nine nominal-profile studs", () => {
+  it("binds 220 triangles, 41 body boxes, and two nominal-profile studs", () => {
     const part = getPartDefinition(PART_ID)!;
-    const asset = SET_6651557_MESH_ASSETS["ldraw:official:11212.dat"]!;
-    if (asset.indices === undefined) throw new Error("11212 mesh is unexpectedly unindexed");
+    const asset = SET_6651557_MESH_ASSETS["ldraw:official:33909.dat"]!;
+    if (asset.indices === undefined) throw new Error("33909 mesh is unexpectedly unindexed");
     const boxes = part.collision.primitives.filter(
       (primitive): primitive is Extract<CollisionPrimitive, { kind: "box" }> =>
         primitive.kind === "box",
@@ -187,33 +188,33 @@ describe("11212 regular 3 x 3 plate catalog truth", () => {
     );
 
     expect(asset.groups).toEqual([
-      { role: "body", triangleStart: 0, triangleCount: 412 },
-      { role: "stud", triangleStart: 412, triangleCount: 432 },
+      { role: "body", triangleStart: 0, triangleCount: 124 },
+      { role: "stud", triangleStart: 124, triangleCount: 96 },
     ]);
-    expect(asset.indices.length / 3).toBe(844);
-    expect(asset.positionsLdu.length / 3).toBe(873);
-    expect(part.collision.primitives).toHaveLength(138);
-    expect(boxes).toHaveLength(129);
+    expect(asset.indices.length / 3).toBe(220);
+    expect(asset.positionsLdu.length / 3).toBe(242);
+    expect(part.collision.primitives).toHaveLength(43);
+    expect(boxes).toHaveLength(41);
     expect(cylinders).toEqual(
-      SEATS_LDU.map(([x, z], index) => ({
+      STUDS_LDU.map(([x, y, z, radiusLdu, heightLdu], index) => ({
         id: `stud:${index}`,
         kind: "cylinder",
         tag: "stud",
         axis: "y",
-        centerLdu: [x, -6, z],
-        radiusLdu: 6.0001514980873605,
+        centerLdu: [x, y - heightLdu / 2, z],
+        radiusLdu,
         validatedConnectionProfileRadiusLdu: 6,
-        heightLdu: 4,
+        heightLdu,
       })),
     );
     expect(part.collision.validatedConnectionStudProfile).toBe("nominal-stud-tube/1");
     expect(part.collision.allowances).toEqual(
-      SEATS_LDU.map(([x, z], index) => ({
+      CLUTCHES_LDU.map(([x, y, z], index) => ({
         id: `tubeSeat:${index}`,
         portId: `undersideClutch:${index}`,
         portKind: "undersideClutch",
         incomingPrimitiveTag: "stud",
-        centerLdu: [x, 2, z],
+        centerLdu: [x, y - 2, z],
         radiusLdu: 6,
         maxInsertionDepthLdu: 4,
         requiresValidatedConnection: true,
@@ -222,11 +223,11 @@ describe("11212 regular 3 x 3 plate catalog truth", () => {
     expect(validateMeshPartDefinitionAdmission(part)).toEqual({ accepted: true, issues: [] });
   });
 
-  it("keeps every /23 part payload byte unchanged after restoring its historical truth label", () => {
-    const priorParts = PART_DEFINITIONS.slice(0, 95);
+  it("keeps every /24 part payload byte unchanged after restoring its historical truth label", () => {
+    const priorParts = PART_DEFINITIONS.slice(0, 96);
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
       "builtin.basic-parts/25",
-      "builtin.basic-parts/23",
+      "builtin.basic-parts/24",
     );
     const connectorCollision = priorParts.map(({ id, connectors, collision }) => ({
       id,
@@ -235,7 +236,7 @@ describe("11212 regular 3 x 3 plate catalog truth", () => {
     }));
     const collision = priorParts.map(({ id, collision: value }) => ({ id, collision: value }));
 
-    expect(priorParts).toHaveLength(95);
+    expect(priorParts).toHaveLength(96);
     expect({
       definitionBytes: priorDefinitionBytes.length,
       definitionHash: createHash("sha256").update(priorDefinitionBytes).digest("hex"),
@@ -244,10 +245,10 @@ describe("11212 regular 3 x 3 plate catalog truth", () => {
         .digest("hex"),
       collisionHash: createHash("sha256").update(JSON.stringify(collision)).digest("hex"),
     }).toEqual({
-      definitionBytes: 1_583_353,
-      definitionHash: "ceff2b3acbb53f647eea56d6ae4d271c1c048f94c7a035faf8a60b2979521ba3",
-      connectorCollisionHash: "cd14902b4fda0525457091ed7e59820113cf52dd5cbcf15d0c88f58690bc486f",
-      collisionHash: "2c6a27bf11f5f9d16ef8535b053df64b8c46940af4875a94b3380cf0d52b7bee",
+      definitionBytes: 1_606_585,
+      definitionHash: "3566725e03af2594ed53d28d4934da46668519951bf881a76a11e318cfd03e62",
+      connectorCollisionHash: "7ef5cca1588e22c34727d72d3d959e5501012bdf0562700075f35e5019f6e03f",
+      collisionHash: "0ac4669aa3fa3cbc776faf2765eb44bd90f0a0999509d294463c57f6a4f6c47e",
     });
   });
 });
