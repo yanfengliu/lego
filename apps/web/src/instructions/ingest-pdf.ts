@@ -77,6 +77,34 @@ function elementsOf(items: readonly PdfTextItem[]): InstructionTextElement[] {
     .filter(({ text }) => text.length > 0);
 }
 
+function boundTextElements(
+  elements: readonly InstructionTextElement[],
+  limits: InstructionLimits,
+  pageWidthPt: number,
+  pageHeightPt: number,
+): readonly InstructionTextElement[] {
+  const bounded: InstructionTextElement[] = [];
+  let chars = 0;
+  for (const element of elements) {
+    if (
+      ![element.heightPt, element.xPt, element.yPt].every(Number.isFinite) ||
+      element.heightPt < 0 ||
+      element.heightPt > limits.maxPageExtentPt ||
+      element.xPt < 0 ||
+      element.xPt > pageWidthPt ||
+      element.yPt < 0 ||
+      element.yPt > pageHeightPt
+    ) {
+      continue;
+    }
+    const nextChars = chars + (bounded.length === 0 ? 0 : 1) + element.text.length;
+    if (nextChars > limits.maxTextCharsPerPage) break;
+    bounded.push(element);
+    chars = nextChars;
+  }
+  return bounded;
+}
+
 export interface IngestOptions {
   readonly limits?: InstructionLimits;
   readonly loadPdf?: PdfLoader;
@@ -136,8 +164,9 @@ export async function ingestInstructionPdf(
         widthPt: viewport.width,
         heightPt: viewport.height,
         text,
-        // Elements are capped alongside the text so one page cannot blow the budget.
-        textElements: textTruncated ? elements.slice(0, limits.maxTextCharsPerPage) : elements,
+        // Positioned elements obey the same character budget as their joined
+        // text; counting elements let one enormous glyph run bypass the cap.
+        textElements: boundTextElements(elements, limits, viewport.width, viewport.height),
         textTruncated,
       });
       page.cleanup?.();

@@ -1,4 +1,8 @@
-import type { InstructionSourceV1, InstructionTextElement } from "./instruction-source";
+import type {
+  InstructionPage,
+  InstructionSourceV1,
+  InstructionTextElement,
+} from "./instruction-source";
 
 /**
  * Divides a booklet page into the step panels printed on it.
@@ -37,6 +41,11 @@ export interface StepPanel {
   readonly labelXPt: number;
   readonly labelYPt: number;
   readonly quantities: readonly number[];
+}
+
+export interface StepPanelPageIndexEntry {
+  readonly stepNumber: number;
+  readonly pageNumber: number;
 }
 
 export interface RegionLike {
@@ -194,14 +203,13 @@ function contains(bounds: PanelBounds, xPt: number, yPt: number): boolean {
   return xPt >= bounds.minXPt && xPt < bounds.maxXPt && yPt >= bounds.minYPt && yPt < bounds.maxYPt;
 }
 
-/** Every step panel in a booklet, in page then reading order. */
-export function deriveStepPanels(
-  source: InstructionSourceV1,
+function deriveStepPanelsFromPages(
+  pages: readonly InstructionPage[],
   { stepNumberHeightPt, calloutBoxesByPage }: DerivePanelsOptions,
 ): readonly StepPanel[] {
   const panels: StepPanel[] = [];
 
-  for (const page of source.pages) {
+  for (const page of pages) {
     const labels = page.textElements
       .filter((element) => isStepLabel(element, stepNumberHeightPt))
       .sort((left, right) => left.xPt - right.xPt);
@@ -235,6 +243,72 @@ export function deriveStepPanels(
   }
 
   return panels;
+}
+
+/**
+ * The page carrying each step label, without deriving panel cells or quantities.
+ *
+ * This uses the same label predicate as full panel derivation so a caller can
+ * select complete pages before paying to derive their joint geometry.
+ */
+export function indexStepPanelPages(
+  source: InstructionSourceV1,
+  stepNumberHeightPt: number,
+): readonly StepPanelPageIndexEntry[] {
+  return source.pages.flatMap((page) =>
+    page.textElements
+      .filter((element) => isStepLabel(element, stepNumberHeightPt))
+      .map(({ text }) => ({ stepNumber: Number(text), pageNumber: page.pageNumber })),
+  );
+}
+
+/** Every step panel in a booklet, in page then reading order. */
+export function deriveStepPanels(
+  source: InstructionSourceV1,
+  options: DerivePanelsOptions,
+): readonly StepPanel[] {
+  return deriveStepPanelsFromPages(source.pages, options);
+}
+
+/**
+ * Every panel on selected pages, using the same booklet-global step glyph size.
+ *
+ * Callers must select pages only after deriving that global size. Keeping every
+ * panel on each selected page is essential: row and column cuts are joint facts
+ * of all labels and callout boxes printed on that page, even when a later stage
+ * emits only a subset of its steps.
+ */
+export function deriveStepPanelsForPages(
+  source: InstructionSourceV1,
+  pageNumbers: readonly number[],
+  options: DerivePanelsOptions,
+): readonly StepPanel[] {
+  if (pageNumbers.length < 1 || pageNumbers.length > source.pageCount) {
+    throw new RangeError(
+      `Selected panel pages must contain 1 through ${source.pageCount} page numbers; observed ${pageNumbers.length}.`,
+    );
+  }
+  const selected = new Set<number>();
+  for (const pageNumber of pageNumbers) {
+    if (
+      !Number.isSafeInteger(pageNumber) ||
+      pageNumber < 1 ||
+      pageNumber > source.pageCount ||
+      selected.has(pageNumber)
+    ) {
+      throw new RangeError(
+        `Selected panel page ${String(pageNumber)} must be one unique safe integer from 1 through ${source.pageCount}.`,
+      );
+    }
+    selected.add(pageNumber);
+  }
+  const pages = source.pages.filter(({ pageNumber }) => selected.has(pageNumber));
+  if (pages.length !== selected.size) {
+    throw new TypeError(
+      "Selected panel pages name a page absent from the exact instruction source.",
+    );
+  }
+  return deriveStepPanelsFromPages(pages, options);
 }
 
 /**

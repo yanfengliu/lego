@@ -111,6 +111,15 @@ describe("source-parity browser input errors", () => {
     expect(reads).toBe(0);
   });
 
+  it("refuses an authority-absent three-row projection as full source parity", () => {
+    const input = validInput();
+    (input as unknown as { panels: unknown[] }).panels = input.panels.slice(0, 3);
+
+    expect(() => snapshotRealBuildSourceParityBrowserInput(input)).toThrow(
+      /panels\.length observed 3; expected 359 through 359/u,
+    );
+  });
+
   it("refuses a URL accessor without invoking it before measurement", () => {
     const input = validInput();
     let reads = 0;

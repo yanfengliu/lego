@@ -1,10 +1,8 @@
-import {
-  extractBookletStructure,
-  selectStepNumberHeight,
-} from "../src/instructions/booklet-structure";
+import { selectStepNumberHeight } from "../src/instructions/booklet-structure";
 import { ingestInstructionPdf, type PdfDocument } from "../src/instructions/ingest-pdf";
 import {
   INSTRUCTION_PDF_LIMITS,
+  assertPageExtent,
   type InstructionSourceV1,
 } from "../src/instructions/instruction-source";
 import {
@@ -14,10 +12,15 @@ import {
 } from "../src/instructions/page-shapes";
 import {
   deriveStepPanels,
+  deriveStepPanelsForPages,
+  indexStepPanelPages,
   type PanelCalloutBox,
+  type StepPanelPageIndexEntry,
   type StepPanel,
 } from "../src/instructions/step-panels";
 import { readBoundedRegularFile } from "./bounded-file-read";
+import { snapshotBoundedInstructionPages } from "./bounded-instruction-source";
+import { snapshotBoundedPlainUint8Array } from "./bounded-uint8-snapshot";
 import { SAMPLE_BOOKLET_PATH } from "./sample-booklet";
 
 /**
@@ -74,18 +77,7 @@ export async function readSampleBooklet(): Promise<SampleBooklet> {
   return { bytes, source };
 }
 
-/**
- * Every printed step, with the cell of its page it owns.
- *
- * Pass callout boxes where they are known: they put a row cut between one
- * step's artwork and the next step's callout box instead of at the midpoint
- * between step numbers, which lands inside the artwork above it.
- */
-export function sampleBookletPanels(
-  source: InstructionSourceV1,
-  calloutBoxesByPage?: ReadonlyMap<number, readonly PanelCalloutBox[]> | undefined,
-): readonly StepPanel[] {
-  extractBookletStructure(source);
+function sampleBookletStepNumberHeight(source: InstructionSourceV1): number {
   const sightings = source.pages.flatMap((page) =>
     page.textElements
       .filter(({ text }) => /^\d{1,4}$/.test(text))
@@ -101,7 +93,54 @@ export function sampleBookletPanels(
       "No step-number glyph height stood out in the booklet's bare integers, so panels cannot be derived; the booklet may not be an instruction booklet.",
     );
   }
-  return deriveStepPanels(source, { stepNumberHeightPt, calloutBoxesByPage });
+  return stepNumberHeightPt;
+}
+
+export interface SampleBookletPanelIndex {
+  readonly stepNumberHeightPt: number;
+  readonly entries: readonly StepPanelPageIndexEntry[];
+}
+
+/** Indexes every step label without materializing any panel geometry. */
+export function sampleBookletPanelIndex(source: InstructionSourceV1): SampleBookletPanelIndex {
+  const stepNumberHeightPt = sampleBookletStepNumberHeight(source);
+  return {
+    stepNumberHeightPt,
+    entries: indexStepPanelPages(source, stepNumberHeightPt),
+  };
+}
+
+/**
+ * Every printed step, with the cell of its page it owns.
+ *
+ * Pass callout boxes where they are known: they put a row cut between one
+ * step's artwork and the next step's callout box instead of at the midpoint
+ * between step numbers, which lands inside the artwork above it.
+ */
+export function sampleBookletPanels(
+  source: InstructionSourceV1,
+  calloutBoxesByPage?: ReadonlyMap<number, readonly PanelCalloutBox[]> | undefined,
+): readonly StepPanel[] {
+  return deriveStepPanels(source, {
+    stepNumberHeightPt: sampleBookletStepNumberHeight(source),
+    calloutBoxesByPage,
+  });
+}
+
+/**
+ * Derives every panel on selected pages while keeping step-size inference global.
+ * A caller may project individual steps only after this page-complete result exists.
+ */
+export function sampleBookletPanelsForPages(
+  source: InstructionSourceV1,
+  pageNumbers: readonly number[],
+  calloutBoxesByPage?: ReadonlyMap<number, readonly PanelCalloutBox[]> | undefined,
+  stepNumberHeightPt = sampleBookletStepNumberHeight(source),
+): readonly StepPanel[] {
+  return deriveStepPanelsForPages(source, pageNumbers, {
+    stepNumberHeightPt,
+    calloutBoxesByPage,
+  });
 }
 
 export interface SampleCallout {
@@ -159,6 +198,35 @@ export interface SampleCalloutBox {
   readonly box: PanelCalloutBox;
 }
 
+export interface SampleBookletShapePage {
+  getViewport(options: { readonly scale: number }): {
+    readonly width: number;
+    readonly height: number;
+  };
+  getOperatorList(): Promise<unknown>;
+  cleanup?: () => Promise<void> | void;
+}
+
+export interface SampleBookletShapeDocument {
+  getPage(pageNumber: number): Promise<SampleBookletShapePage>;
+}
+
+export interface SampleBookletLoadingTask {
+  readonly promise: Promise<SampleBookletShapeDocument>;
+  destroy(): Promise<void> | void;
+}
+
+export type SampleBookletGetDocument = (bytes: Uint8Array) => SampleBookletLoadingTask;
+
+export interface SampleBookletCalloutBoxOptions {
+  /** Trusted test-only adapter; production evidence always uses the fixed pdfjs loader. */
+  readonly getDocument?: SampleBookletGetDocument;
+}
+
+function combinedFailures(primary: unknown, cleanup: unknown, message: string): AggregateError {
+  return new AggregateError([primary, cleanup], message, { cause: primary });
+}
+
 /**
  * The `Nx` callouts on the given pages with the box each sits in, before any
  * step is known. Panels need these to place their row cuts, so this cannot
@@ -168,10 +236,38 @@ export async function sampleBookletCalloutBoxes(
   bytes: Buffer,
   source: InstructionSourceV1,
   pages: readonly number[],
+  options: SampleBookletCalloutBoxOptions = {},
 ): Promise<ReadonlyMap<number, readonly SampleCalloutBox[]>> {
+  const byteSnapshot = snapshotBoundedPlainUint8Array(bytes, {
+    label: "Panel callout PDF",
+    minimumBytes: 1,
+    maximumBytes: INSTRUCTION_PDF_LIMITS.maxBytes,
+  });
+  const sourcePages = snapshotBoundedInstructionPages(source, pages, "Panel callout source");
   const { getDocument, OPS } = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  const document = await getDocument({ data: new Uint8Array(bytes), isEvalSupported: false })
-    .promise;
+  const loadingTask = (
+    options.getDocument ??
+    ((pdfBytes) =>
+      getDocument({
+        data: pdfBytes,
+        isEvalSupported: false,
+      }) as unknown as SampleBookletLoadingTask)
+  )(byteSnapshot);
+  let document: SampleBookletShapeDocument;
+  try {
+    document = await loadingTask.promise;
+  } catch (error) {
+    try {
+      await loadingTask.destroy();
+    } catch (cleanupError) {
+      throw combinedFailures(
+        error,
+        cleanupError,
+        "Panel callout PDF loading failed and its loading task could not be destroyed.",
+      );
+    }
+    throw error;
+  }
   const codes = {
     setFillRGBColor: OPS.setFillRGBColor,
     constructPath: OPS.constructPath,
@@ -184,65 +280,128 @@ export async function sampleBookletCalloutBoxes(
   };
 
   const byPage = new Map<number, SampleCalloutBox[]>();
-  for (const pageNumber of pages) {
-    const sourcePage = source.pages.find((page) => page.pageNumber === pageNumber);
-    if (!sourcePage) continue;
+  let primaryFailure: unknown;
+  let failed = false;
+  try {
+    for (const sourcePage of sourcePages) {
+      const pageNumber = sourcePage.pageNumber;
 
-    // The text layer draws a label's glyph run more than once at the very same
-    // spot — six "4x" at one point on page 111 — and each repeat would become
-    // its own callout for the same picture.
-    const seen = new Set<string>();
-    const labels = sourcePage.textElements
-      .map((element) => ({ element, match: /^(\d{1,3})x$/.exec(element.text) }))
-      .filter(({ match }) => match !== null)
-      .map(({ element, match }) => ({
-        quantity: Number(match![1]),
-        xPt: element.xPt,
-        yPt: element.yPt,
-      }))
-      .filter(({ quantity, xPt, yPt }) => {
-        const key = `${quantity}@${xPt.toFixed(1)},${yPt.toFixed(1)}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-    if (labels.length === 0) continue;
+      // The text layer draws a label's glyph run more than once at the very same
+      // spot — six "4x" at one point on page 111 — and each repeat would become
+      // its own callout for the same picture.
+      const seen = new Set<string>();
+      const labels = sourcePage.textElements
+        .map((element) => ({ element, match: /^(\d{1,3})x$/.exec(element.text) }))
+        .filter(({ match }) => match !== null)
+        .map(({ element, match }) => ({
+          quantity: Number(match![1]),
+          xPt: element.xPt,
+          yPt: element.yPt,
+        }))
+        .filter(({ quantity, xPt, yPt }) => {
+          const key = `${quantity}@${xPt.toFixed(1)},${yPt.toFixed(1)}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+      if (labels.length === 0) continue;
 
-    const page = await document.getPage(pageNumber);
-    const viewport = page.getViewport({ scale: 1 });
-    const pageArea = viewport.width * viewport.height;
-    const boxes = extractPageShapes(
-      (await page.getOperatorList()) as unknown as OperatorList,
-      codes,
-    ).filter(({ bounds }) => {
-      const width = bounds.maxXPt - bounds.minXPt;
-      const height = bounds.maxYPt - bounds.minYPt;
-      return width > 25 && height > 25 && width * height < pageArea * 0.5;
-    });
+      const page = await document.getPage(pageNumber);
+      let pageFailure: unknown;
+      let pageFailed = false;
+      try {
+        const viewport = page.getViewport({ scale: 1 });
+        assertPageExtent(pageNumber, viewport.width, viewport.height);
+        if (viewport.width !== sourcePage.widthPt || viewport.height !== sourcePage.heightPt) {
+          throw new TypeError(
+            `Panel callout PDF page ${pageNumber} measures ${viewport.width} x ${viewport.height} pt, but the caller-supplied text source declares ${sourcePage.widthPt} x ${sourcePage.heightPt} pt. Re-ingest the exact PDF before probing it.`,
+          );
+        }
+        const pageArea = viewport.width * viewport.height;
+        const boxes = extractPageShapes(
+          (await page.getOperatorList()) as OperatorList,
+          codes,
+        ).filter(({ bounds }) => {
+          const width = bounds.maxXPt - bounds.minXPt;
+          const height = bounds.maxYPt - bounds.minYPt;
+          return (
+            bounds.minXPt >= 0 &&
+            bounds.maxXPt <= viewport.width &&
+            bounds.minYPt >= 0 &&
+            bounds.maxYPt <= viewport.height &&
+            width > 25 &&
+            height > 25 &&
+            width * height < pageArea * 0.5
+          );
+        });
 
-    const entries: SampleCalloutBox[] = [];
-    for (const label of labels) {
-      const containing = boxes
-        .filter(
-          ({ bounds }) =>
-            label.xPt >= bounds.minXPt &&
-            label.xPt <= bounds.maxXPt &&
-            label.yPt >= bounds.minYPt &&
-            label.yPt <= bounds.maxYPt,
-        )
-        .sort(
-          (left, right) =>
-            (left.bounds.maxXPt - left.bounds.minXPt) * (left.bounds.maxYPt - left.bounds.minYPt) -
-            (right.bounds.maxXPt - right.bounds.minXPt) *
-              (right.bounds.maxYPt - right.bounds.minYPt),
-        );
-      const box = containing[0]?.bounds;
-      if (!box) continue;
-      entries.push({ quantity: label.quantity, labelXPt: label.xPt, labelYPt: label.yPt, box });
+        const entries: SampleCalloutBox[] = [];
+        for (const label of labels) {
+          const containing = boxes
+            .filter(
+              ({ bounds }) =>
+                label.xPt >= bounds.minXPt &&
+                label.xPt <= bounds.maxXPt &&
+                label.yPt >= bounds.minYPt &&
+                label.yPt <= bounds.maxYPt,
+            )
+            .sort(
+              (left, right) =>
+                (left.bounds.maxXPt - left.bounds.minXPt) *
+                  (left.bounds.maxYPt - left.bounds.minYPt) -
+                (right.bounds.maxXPt - right.bounds.minXPt) *
+                  (right.bounds.maxYPt - right.bounds.minYPt),
+            );
+          const box = containing[0]?.bounds;
+          if (!box) continue;
+          entries.push({ quantity: label.quantity, labelXPt: label.xPt, labelYPt: label.yPt, box });
+        }
+        byPage.set(pageNumber, entries);
+      } catch (error) {
+        pageFailure = error;
+        pageFailed = true;
+      }
+      try {
+        await page.cleanup?.();
+      } catch (cleanupError) {
+        if (pageFailed) {
+          throw combinedFailures(
+            pageFailure,
+            cleanupError,
+            `Panel callout extraction and page cleanup both failed on page ${pageNumber}.`,
+          );
+        }
+        throw cleanupError;
+      }
+      if (pageFailed) throw pageFailure;
     }
-    byPage.set(pageNumber, entries);
+  } catch (error) {
+    primaryFailure = error;
+    failed = true;
   }
-  await document.destroy();
+  const cleanupFailures: unknown[] = [];
+  try {
+    // pdfjs' PDFDocumentProxy.destroy delegates to this exact owner. Calling
+    // only the task avoids double-destroy while also covering injected loaders.
+    await loadingTask.destroy();
+  } catch (error) {
+    cleanupFailures.push(error);
+  }
+  if (failed) {
+    if (cleanupFailures.length > 0) {
+      throw new AggregateError(
+        [primaryFailure, ...cleanupFailures],
+        "Panel callout extraction failed and PDF cleanup also failed.",
+        { cause: primaryFailure },
+      );
+    }
+    throw primaryFailure;
+  }
+  if (cleanupFailures.length > 0) {
+    throw new AggregateError(cleanupFailures, "Panel callout PDF cleanup failed.", {
+      cause: cleanupFailures[0],
+    });
+  }
   return byPage;
 }
 

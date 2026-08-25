@@ -4,6 +4,8 @@ import type { InstructionSourceV1, InstructionTextElement } from "./instruction-
 import {
   assignRegionsToPanels,
   deriveStepPanels,
+  deriveStepPanelsForPages,
+  indexStepPanelPages,
   panelCellsFor,
   summarizePanels,
 } from "./step-panels";
@@ -174,6 +176,45 @@ describe("deriveStepPanels", () => {
 
     expect(panels).toHaveLength(1);
     expect(panels[0]!.pageNumber).toBe(2);
+  });
+
+  it("derives every joint panel on selected pages without materializing the other pages", () => {
+    const source = sourceOf([
+      [element("1", STEP, 40, 500), element("2", STEP, 41, 200)],
+      [element("3", STEP, 40, 500), element("4", STEP, 41, 200)],
+      [element("5", STEP, 40, 500)],
+    ]);
+    const boxes = new Map([[2, [{ minXPt: 30, maxXPt: 200, minYPt: 250, maxYPt: 300 }]]]);
+    const full = deriveStepPanels(source, {
+      stepNumberHeightPt: STEP,
+      calloutBoxesByPage: boxes,
+    });
+    const selected = deriveStepPanelsForPages(source, [2], {
+      stepNumberHeightPt: STEP,
+      calloutBoxesByPage: boxes,
+    });
+
+    expect(selected).toEqual(full.filter(({ pageNumber }) => pageNumber === 2));
+    expect(selected.map(({ stepNumber }) => stepNumber)).toEqual([3, 4]);
+    expect(selected[0]!.bounds.minYPt).toBe(302);
+    expect(indexStepPanelPages(source, STEP)).toEqual([
+      { stepNumber: 1, pageNumber: 1 },
+      { stepNumber: 2, pageNumber: 1 },
+      { stepNumber: 3, pageNumber: 2 },
+      { stepNumber: 4, pageNumber: 2 },
+      { stepNumber: 5, pageNumber: 3 },
+    ]);
+  });
+
+  it("refuses duplicate or absent selected pages", () => {
+    const source = sourceOf([[element("1", STEP, 40)], [element("2", STEP, 40)]]);
+
+    expect(() => deriveStepPanelsForPages(source, [1, 1], { stepNumberHeightPt: STEP })).toThrow(
+      /unique safe integer/u,
+    );
+    expect(() => deriveStepPanelsForPages(source, [3], { stepNumberHeightPt: STEP })).toThrow(
+      /unique safe integer/u,
+    );
   });
 });
 

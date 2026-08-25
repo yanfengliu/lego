@@ -113,6 +113,38 @@ describe("ingestInstructionPdf", () => {
     expect(summarizeInstructionSource(source).truncatedPages).toEqual([1]);
   });
 
+  it("bounds positioned element characters rather than only their element count", async () => {
+    const oversizedToken = "x".repeat(INSTRUCTION_PDF_LIMITS.maxTextCharsPerPage + 1);
+    const source = await ingestInstructionPdf(fakeFile("one-token.pdf", 1024), {
+      loadPdf: loaderFor(fakeDocument([fakePage(595, 842, oversizedToken)])),
+    });
+
+    expect(source.pages[0]!.text).toHaveLength(INSTRUCTION_PDF_LIMITS.maxTextCharsPerPage);
+    expect(source.pages[0]!.textElements).toEqual([]);
+    expect(source.pages[0]!.textTruncated).toBe(true);
+  });
+
+  it("drops positioned geometry outside the same finite page-space ceiling", async () => {
+    const page: PdfPage = {
+      getViewport: () => ({ width: 595, height: 842 }),
+      getTextContent: async () => ({
+        items: [
+          { str: "hostile", height: 1e308, transform: [1, 0, 0, 1, 1e308, 1e308] },
+          { str: "step", height: 26, transform: [1, 0, 0, 1, 40, 500] },
+        ],
+      }),
+      cleanup: vi.fn(),
+    };
+    const source = await ingestInstructionPdf(fakeFile("geometry.pdf", 1024), {
+      loadPdf: loaderFor(fakeDocument([page])),
+    });
+
+    expect(source.pages[0]!.text).toBe("hostile step");
+    expect(source.pages[0]!.textElements).toEqual([
+      { text: "step", heightPt: 26, xPt: 40, yPt: 500 },
+    ]);
+  });
+
   it("stops when the whole document's text exceeds its budget", async () => {
     const page = fakePage(595, 842, "y ".repeat(INSTRUCTION_PDF_LIMITS.maxTextCharsPerPage));
     const many = Array.from(
