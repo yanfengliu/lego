@@ -5,11 +5,16 @@ import { applyBuildOperations, canonicalDigest, sha256Hex } from "@lego-studio/b
 import { compileRealBuildAutomaticPlacement } from "../e2e/real-build-automatic-placement-compiler";
 import { produceRealBuildCompiledObservationClosure } from "../e2e/real-build-compiled-observation-producer";
 import { snapshotRealBuildEnumeratedPlacementOffer } from "../e2e/real-build-enumerated-placement-witness";
+import { PANEL_CAMERA_ANGULAR_HYPOTHESES } from "../e2e/real-build-panel-camera-resolver-boundary";
 import {
   inspectRealBuildPreparedObservationPolicy,
   inspectRealBuildPreparedStepInput,
 } from "../e2e/real-build-prepared-step-authority";
 import { runRealBuildStepOneCompiledCameraDiagnostic } from "../e2e/real-build-step-one-compiled-camera-diagnostic";
+import {
+  createRealBuildStepOneSilhouetteRendererFactory,
+  requireRealBuildStepOneMaskRendererFactory,
+} from "../e2e/real-build-step-one-silhouette-renderer";
 import {
   enumeratePlacements,
   placementOccupancyKey,
@@ -24,6 +29,59 @@ import {
 
 const SOURCE_MASK = new Uint8Array([1, 1, 0, 0]);
 const WEAKER_MASK = new Uint8Array([1, 0, 0, 0]);
+const TEST_VIEW = { azimuthDegrees: 10, elevationDegrees: 20, pixelsPerUnit: 1 };
+
+function rgbaMask(mask: Uint8Array, reusable?: Uint8Array): Uint8Array {
+  const pixels = reusable ?? new Uint8Array(mask.length * 4);
+  for (let index = 0; index < mask.length; index += 1) {
+    const offset = index * 4;
+    pixels.set(mask[index] === 1 ? [0, 0, 0, 0xff] : [0x89, 0x90, 0x93, 0xff], offset);
+  }
+  return pixels;
+}
+
+function testRendererFactory(input: {
+  readonly widthPx: number;
+  readonly heightPx: number;
+  readonly registrationPanelStepNumber?: number;
+  readonly renderMask: (view: typeof TEST_VIEW) => Uint8Array;
+  readonly onPrepare?: () => void;
+  readonly onDispose?: () => void;
+  readonly reuseReadback?: boolean;
+  readonly throwOnSilhouetteSetup?: boolean;
+}) {
+  let readback: Uint8Array | undefined;
+  return createRealBuildStepOneSilhouetteRendererFactory({
+    rendering: {
+      deriveBrickScene: (document: unknown) => {
+        input.onPrepare?.();
+        return { root: { document }, dispose: () => input.onDispose?.() };
+      },
+      setInstructionSilhouetteMode: () => {
+        if (input.throwOnSilhouetteSetup) throw new Error("synthetic silhouette setup loss");
+      },
+      createOrthographicViewCamera: (view: typeof TEST_VIEW) => ({ view }),
+    },
+    renderer: {
+      render: (_root, camera) => {
+        const mask = input.renderMask((camera as { view: typeof TEST_VIEW }).view);
+        if (input.reuseReadback) readback ??= new Uint8Array(mask.length * 4);
+        return rgbaMask(mask, readback);
+      },
+    },
+    fittedView: TEST_VIEW,
+    frame: {
+      widthPx: input.widthPx,
+      heightPx: input.heightPx,
+      target: [0, 0, 0],
+      sceneRadius: 1,
+    },
+    centrePx: [input.widthPx / 2, input.heightPx / 2],
+    widthPx: input.widthPx,
+    heightPx: input.heightPx,
+    registrationPanelStepNumber: input.registrationPanelStepNumber ?? 2,
+  });
+}
 
 function distinct(candidates: readonly PlacementCandidate[]) {
   const seen = new Set<string>();
@@ -58,6 +116,16 @@ function fixture(
   cameraBranchBudget = 64,
   candidatePositions: readonly number[] = [0],
   mutateSourceOnFirstRender = false,
+  rendererBehavior: {
+    readonly throwFromRender?: number;
+    readonly reuseSharedBuffer?: boolean;
+    readonly throwOnDispose?: boolean;
+    readonly factoryWidthPx?: number;
+    readonly factoryHeightPx?: number;
+    readonly registrationPanelStepNumber?: number;
+    readonly externalCounts?: { preparations: number; renders: number; disposals: number };
+    readonly throwOnSilhouetteSetup?: boolean;
+  } = {},
 ) {
   const bytes = preparedSearchOptionsBytes(1, 1);
   const preparedStep = inspectRealBuildPreparedStepInput(bytes, 1);
@@ -66,7 +134,13 @@ function fixture(
   const piece = preparedStep.expectedAtomicPieces[0]!;
   const compiler = vi.fn(compileRealBuildAutomaticPlacement);
   const sourceMask = new Uint8Array(SOURCE_MASK);
+  let rendererPreparations = 0;
   let renders = 0;
+  let rendererDisposals = 0;
+  let liveRenderers = 0;
+  let maxLiveRenderers = 0;
+  const rendererEvents: string[] = [];
+  const sharedMask = new Uint8Array(SOURCE_MASK);
   const result = runRealBuildStepOneCompiledCameraDiagnostic({
     preparedStep,
     policy,
@@ -102,16 +176,68 @@ function fixture(
       sourceMask,
       excludedMask: null,
     },
-    renderModelMask: ({ hypothesis }) => {
-      renders += 1;
-      if (mutateSourceOnFirstRender && renders === 1) sourceMask.fill(0);
-      return hypothesis.latticeHand === "as-fitted" && hypothesis.turnDegrees === 0
-        ? SOURCE_MASK
-        : WEAKER_MASK;
-    },
+    prepareModelMaskRenderer: testRendererFactory({
+      widthPx: rendererBehavior.factoryWidthPx ?? 2,
+      heightPx: rendererBehavior.factoryHeightPx ?? 2,
+      ...(rendererBehavior.registrationPanelStepNumber === undefined
+        ? {}
+        : { registrationPanelStepNumber: rendererBehavior.registrationPanelStepNumber }),
+      reuseReadback: rendererBehavior.reuseSharedBuffer === true,
+      throwOnSilhouetteSetup: rendererBehavior.throwOnSilhouetteSetup === true,
+      onPrepare: () => {
+        rendererPreparations += 1;
+        if (rendererBehavior.externalCounts !== undefined) {
+          rendererBehavior.externalCounts.preparations += 1;
+        }
+        liveRenderers += 1;
+        maxLiveRenderers = Math.max(maxLiveRenderers, liveRenderers);
+        rendererEvents.push(`prepare-${rendererPreparations}`);
+      },
+      onDispose: () => {
+        rendererDisposals += 1;
+        if (rendererBehavior.externalCounts !== undefined) {
+          rendererBehavior.externalCounts.disposals += 1;
+        }
+        liveRenderers -= 1;
+        rendererEvents.push(`dispose-${rendererDisposals}`);
+        if (rendererBehavior.throwOnDispose) throw new Error("synthetic disposal loss");
+      },
+      renderMask: (view) => {
+        renders += 1;
+        if (rendererBehavior.externalCounts !== undefined) {
+          rendererBehavior.externalCounts.renders += 1;
+        }
+        if (
+          rendererBehavior.throwFromRender !== undefined &&
+          renders >= rendererBehavior.throwFromRender
+        ) {
+          throw new Error("synthetic persistent render loss");
+        }
+        if (mutateSourceOnFirstRender && renders === 1) sourceMask.fill(0);
+        const mask =
+          view.azimuthDegrees === TEST_VIEW.azimuthDegrees &&
+          view.elevationDegrees === TEST_VIEW.elevationDegrees
+            ? SOURCE_MASK
+            : WEAKER_MASK;
+        if (!rendererBehavior.reuseSharedBuffer) return mask;
+        sharedMask.set(mask);
+        return sharedMask;
+      },
+    }),
     compiler,
   });
-  return { result, compiler, renders, parent, policy, sourceMask };
+  return {
+    result,
+    compiler,
+    rendererPreparations,
+    renders,
+    rendererDisposals,
+    maxLiveRenderers,
+    rendererEvents,
+    parent,
+    policy,
+    sourceMask,
+  };
 }
 
 function runResourceBoundDiagnostic(
@@ -158,10 +284,14 @@ function runResourceBoundDiagnostic(
       sourceMask,
       excludedMask: null,
     },
-    renderModelMask: () => {
-      counters.renderCalls += 1;
-      return sourceMask;
-    },
+    prepareModelMaskRenderer: testRendererFactory({
+      widthPx,
+      heightPx,
+      renderMask: () => {
+        counters.renderCalls += 1;
+        return sourceMask;
+      },
+    }),
     compiler: (input) => {
       counters.compilerCalls += 1;
       return compileRealBuildAutomaticPlacement(input);
@@ -187,7 +317,9 @@ describe("step-one compiled camera diagnostic", () => {
     expect(result.batch.evidence.childCandidates).toHaveLength(1);
     expect(result.batch.evidence.uniqueTransitions).toHaveLength(1);
     expect(source.compiler).toHaveBeenCalledOnce();
+    expect(source.rendererPreparations).toBe(1);
     expect(source.renders).toBe(8);
+    expect(source.rendererDisposals).toBe(1);
     expect(result.metrics).toEqual({
       rootCount: 8,
       offeredLineageEdges: 8,
@@ -195,7 +327,9 @@ describe("step-one compiled camera diagnostic", () => {
       uniquePhysicalTransitions: 1,
       uniqueChildDocuments: 1,
       logicalCameraBranches: 64,
+      rendererPreparations: 1,
       renderCalls: 8,
+      rendererDisposals: 1,
     });
 
     expect(result.frontier.candidates).toHaveLength(1);
@@ -231,6 +365,137 @@ describe("step-one compiled camera diagnostic", () => {
       latticeDeterminant: 1,
       turnDegrees: 0,
     });
+  });
+
+  it("snapshots the complete renderer configuration before caller mutation", () => {
+    const masks = [
+      new Uint8Array([1, 0, 0, 0]),
+      new Uint8Array([0, 1, 0, 0]),
+      new Uint8Array([0, 0, 1, 0]),
+      new Uint8Array([0, 0, 0, 1]),
+      new Uint8Array([1, 1, 0, 0]),
+      new Uint8Array([0, 1, 1, 0]),
+      new Uint8Array([0, 0, 1, 1]),
+      new Uint8Array([1, 0, 0, 1]),
+    ];
+    const views: unknown[] = [];
+    const frames: unknown[] = [];
+    let renderIndex = 0;
+    let disposals = 0;
+    const rendering = {
+      deriveBrickScene: (document: unknown) => ({
+        root: { document },
+        dispose: () => {
+          disposals += 1;
+        },
+      }),
+      setInstructionSilhouetteMode: () => undefined,
+      createOrthographicViewCamera: (view: unknown, frame: unknown) => {
+        views.push(view);
+        frames.push(frame);
+        return { view };
+      },
+    };
+    const renderer = {
+      render: () => rgbaMask(masks[renderIndex++]!),
+    };
+    const fittedView = { ...TEST_VIEW };
+    const frame = {
+      widthPx: 2,
+      heightPx: 2,
+      target: [1, 2, 3] as [number, number, number],
+      sceneRadius: 4,
+    };
+    const centrePx = [1, 1] as [number, number];
+    const configuration = {
+      rendering,
+      renderer,
+      fittedView,
+      frame,
+      centrePx,
+      widthPx: 2,
+      heightPx: 2,
+      registrationPanelStepNumber: 2,
+    };
+    const factory = createRealBuildStepOneSilhouetteRendererFactory(configuration);
+
+    configuration.widthPx = 1;
+    configuration.heightPx = 4;
+    configuration.registrationPanelStepNumber = 3;
+    fittedView.azimuthDegrees = 999;
+    frame.widthPx = 1;
+    frame.heightPx = 4;
+    frame.target[0] = 999;
+    frame.sceneRadius = 999;
+    centrePx[0] = 999;
+    centrePx[1] = 999;
+    rendering.deriveBrickScene = () => {
+      throw new Error("mutated derive must not run");
+    };
+    renderer.render = () => {
+      throw new Error("mutated render must not run");
+    };
+
+    const required = requireRealBuildStepOneMaskRendererFactory(factory, {
+      widthPx: 2,
+      heightPx: 2,
+      registrationPanelStepNumber: 2,
+    });
+    expect(() =>
+      requireRealBuildStepOneMaskRendererFactory(factory, {
+        widthPx: 2,
+        heightPx: 2,
+        registrationPanelStepNumber: 3,
+      }),
+    ).toThrow(/panel 2/u);
+    const prepared = required({ candidateId: "mutation-control", document: { parts: [] } });
+    const digests: string[] = [];
+    try {
+      for (const hypothesis of PANEL_CAMERA_ANGULAR_HYPOTHESES) {
+        digests.push(`sha256:${sha256Hex(prepared.render(hypothesis))}`);
+      }
+    } finally {
+      prepared.dispose();
+    }
+
+    expect(digests).toEqual(masks.map((mask) => `sha256:${sha256Hex(mask)}`));
+    expect(views).toHaveLength(8);
+    expect(views[0]).toMatchObject({
+      azimuthDegrees: TEST_VIEW.azimuthDegrees,
+      elevationDegrees: TEST_VIEW.elevationDegrees,
+      centerXPx: 1,
+      centerYPx: 1,
+    });
+    expect(frames).toEqual(
+      Array.from({ length: 8 }, () => ({
+        widthPx: 2,
+        heightPx: 2,
+        target: [1, 2, 3],
+        sceneRadius: 4,
+      })),
+    );
+    expect(disposals).toBe(1);
+  });
+
+  it("refuses non-square raster and wrong-panel factory bindings before rendering", () => {
+    const transposed = { preparations: 0, renders: 0, disposals: 0 };
+    expect(() =>
+      fixture(8, 64, [0], false, {
+        factoryWidthPx: 1,
+        factoryHeightPx: 4,
+        externalCounts: transposed,
+      }),
+    ).toThrow(/bound to raster 1x4/u);
+    expect(transposed).toEqual({ preparations: 0, renders: 0, disposals: 0 });
+
+    const wrongPanel = { preparations: 0, renders: 0, disposals: 0 };
+    expect(() =>
+      fixture(8, 64, [0], false, {
+        registrationPanelStepNumber: 3,
+        externalCounts: wrongPanel,
+      }),
+    ).toThrow(/panel 3/u);
+    expect(wrongPanel).toEqual({ preparations: 0, renders: 0, disposals: 0 });
   });
 
   it("detaches source evidence before a renderer mutates its caller-owned mask", () => {
@@ -363,7 +628,9 @@ describe("step-one compiled camera diagnostic", () => {
       uniquePhysicalTransitions: 2,
       uniqueChildDocuments: 2,
       logicalCameraBranches: 128,
+      rendererPreparations: 2,
       renderCalls: 16,
+      rendererDisposals: 2,
     });
     expect(source.result.batch.evidence.lineageEdges).toHaveLength(16);
     expect(source.result.frontier.observations).toHaveLength(128);
@@ -371,6 +638,61 @@ describe("step-one compiled camera diagnostic", () => {
     expect(source.result.observation.observationCount).toBe(16);
     expect(source.result.observation.inspection.closure.selection.status).toBe("unresolved");
     expect(source.result.observation.inspection.closure.acceptedTransition).toBeNull();
+    expect(source.maxLiveRenderers).toBe(1);
+    expect(source.rendererEvents).toEqual(["prepare-1", "dispose-1", "prepare-2", "dispose-2"]);
+  });
+
+  it("copies reusable render buffers and disposes the prepared renderer after a failed view", () => {
+    const shared = fixture(8, 64, [0], false, { reuseSharedBuffer: true });
+    expect(shared.result.status).toBe("observed");
+    expect(shared.result.frontier?.candidates[0]?.renderMaskDigests[0]).toBe(
+      `sha256:${sha256Hex(SOURCE_MASK)}`,
+    );
+    expect(shared.result.frontier?.candidates[0]?.renderMaskDigests[1]).toBe(
+      `sha256:${sha256Hex(WEAKER_MASK)}`,
+    );
+    expect(shared.rendererPreparations).toBe(1);
+    expect(shared.rendererDisposals).toBe(1);
+
+    const failed = fixture(8, 64, [0], false, { throwFromRender: 2 });
+    expect(failed.result.status).toBe("camera-failed");
+    expect(failed.renders).toBe(8);
+    expect(failed.rendererPreparations).toBe(1);
+    expect(failed.rendererDisposals).toBe(1);
+    expect(failed.result.metrics).toMatchObject({
+      rendererPreparations: 1,
+      renderCalls: 8,
+      rendererDisposals: 1,
+    });
+  });
+
+  it("refuses the diagnostic when prepared-renderer cleanup fails", () => {
+    expect(() => fixture(8, 64, [0], false, { throwOnDispose: true })).toThrow(
+      /could not dispose every prepared renderer/u,
+    );
+  });
+
+  it("does not prepare a later child after an earlier child cleanup failure", () => {
+    const counts = { preparations: 0, renders: 0, disposals: 0 };
+    expect(() =>
+      fixture(16, 128, [0, 20], false, {
+        throwOnDispose: true,
+        externalCounts: counts,
+      }),
+    ).toThrow(/could not dispose every prepared renderer/u);
+    expect(counts).toEqual({ preparations: 1, renders: 8, disposals: 1 });
+  });
+
+  it("propagates fatal setup-and-cleanup failure through the branded factory", () => {
+    const counts = { preparations: 0, renders: 0, disposals: 0 };
+    expect(() =>
+      fixture(16, 128, [0, 20], false, {
+        throwOnSilhouetteSetup: true,
+        throwOnDispose: true,
+        externalCounts: counts,
+      }),
+    ).toThrow(/partially prepared scene could not be disposed/u);
+    expect(counts).toEqual({ preparations: 1, renders: 0, disposals: 1 });
   });
 
   it("carries one no-model two-part /26 enumerator witness through the same absent-authority closure", () => {
@@ -436,10 +758,15 @@ describe("step-one compiled camera diagnostic", () => {
         sourceMask: SOURCE_MASK,
         excludedMask: null,
       },
-      renderModelMask: ({ hypothesis }) =>
-        hypothesis.latticeHand === "as-fitted" && hypothesis.turnDegrees === 0
-          ? SOURCE_MASK
-          : WEAKER_MASK,
+      prepareModelMaskRenderer: testRendererFactory({
+        widthPx: 2,
+        heightPx: 2,
+        renderMask: (view) =>
+          view.azimuthDegrees === TEST_VIEW.azimuthDegrees &&
+          view.elevationDegrees === TEST_VIEW.elevationDegrees
+            ? SOURCE_MASK
+            : WEAKER_MASK,
+      }),
       compiler,
     });
 
@@ -457,7 +784,9 @@ describe("step-one compiled camera diagnostic", () => {
       uniquePhysicalTransitions: 1,
       uniqueChildDocuments: 1,
       logicalCameraBranches: 64,
+      rendererPreparations: 1,
       renderCalls: 8,
+      rendererDisposals: 1,
     });
     expect(result.observation.inspection.closure.acceptedTransition?.placedPieces).toBe(2);
     expect(result.observation.inspection.authority).toBe("absent");
@@ -476,7 +805,9 @@ describe("step-one compiled camera diagnostic", () => {
     expect(source.result.metrics).toMatchObject({
       suppliedCompilerCalls: 1,
       logicalCameraBranches: 64,
+      rendererPreparations: 0,
       renderCalls: 0,
+      rendererDisposals: 0,
     });
     expect(source.result.observation).toBeNull();
     expect(source.result.acceptedDocument).toBeNull();

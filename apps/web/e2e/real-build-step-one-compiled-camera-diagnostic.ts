@@ -42,7 +42,16 @@ import {
   type RealBuildPreparedObservationPolicyInspection,
   type RealBuildPreparedStepInspection,
 } from "./real-build-prepared-step-authority";
-import type { StepCameraLatticeHypothesis } from "./real-build-step-camera";
+import {
+  isStepSilhouetteCleanupFailure,
+  type StepCameraLatticeHypothesis,
+} from "./real-build-step-camera";
+import {
+  inspectRealBuildStepOnePreparedMaskRenderer,
+  requireRealBuildStepOneMaskRendererFactory,
+  type RealBuildStepOneMaskRendererFactory,
+  type RealBuildStepOnePreparedMaskRendererBoundary,
+} from "./real-build-step-one-silhouette-renderer";
 
 export interface RealBuildStepOneCompiledCandidate {
   readonly partIds: readonly string[];
@@ -56,7 +65,9 @@ export interface RealBuildStepOneCompiledCameraMetrics {
   readonly uniquePhysicalTransitions: number;
   readonly uniqueChildDocuments: number;
   readonly logicalCameraBranches: number;
+  readonly rendererPreparations: number;
   readonly renderCalls: number;
+  readonly rendererDisposals: number;
 }
 
 interface ResultBase {
@@ -95,7 +106,9 @@ function metrics(input: {
   readonly batch: RealBuildAtomicCompiledBranchBatchResult;
   readonly compilerCalls: number;
   readonly frontier: RealBuildPanelCameraFrontierResolution<unknown> | null;
+  readonly rendererPreparations: number;
   readonly renderCalls: number;
+  readonly rendererDisposals: number;
 }): RealBuildStepOneCompiledCameraMetrics {
   return intrinsicRealBuildFreeze({
     rootCount: input.rootCount,
@@ -104,9 +117,13 @@ function metrics(input: {
     uniquePhysicalTransitions: input.batch.evidence.uniqueTransitions.length,
     uniqueChildDocuments: input.batch.evidence.childCandidates.length,
     logicalCameraBranches: input.frontier?.reservation.requested ?? 0,
+    rendererPreparations: input.rendererPreparations,
     renderCalls: input.renderCalls,
+    rendererDisposals: input.rendererDisposals,
   });
 }
+
+const SAFE_REFLECT_APPLY = Reflect.apply;
 
 /**
  * Private step-1/panel-2 lookahead diagnostic. It executes branch work and exact replay,
@@ -120,11 +137,7 @@ export function runRealBuildStepOneCompiledCameraDiagnostic(input: {
   readonly searchBudget: number;
   readonly cameraBranchBudget: number;
   readonly source: RealBuildCompiledObservationSourceInput;
-  readonly renderModelMask: (input: {
-    readonly candidateId: string;
-    readonly document: RealBuildCandidateDocumentSnapshot["document"];
-    readonly hypothesis: StepCameraLatticeHypothesis;
-  }) => Uint8Array;
+  readonly prepareModelMaskRenderer: RealBuildStepOneMaskRendererFactory;
   readonly compiler?: RealBuildAtomicCompiledBranchCompiler;
 }): RealBuildStepOneCompiledCameraDiagnosticResult {
   const preparedStep = requireRealBuildPreparedStepInspection(input.preparedStep);
@@ -156,9 +169,10 @@ export function runRealBuildStepOneCompiledCameraDiagnostic(input: {
       "Step-one compiled camera diagnostic requires at least one whole-step offer.",
     );
   }
-  if (typeof input.renderModelMask !== "function") {
-    throw new TypeError("Step-one compiled camera diagnostic requires one render callback.");
-  }
+  const prepareModelMaskRenderer = requireRealBuildStepOneMaskRendererFactory(
+    input.prepareModelMaskRenderer,
+    source,
+  );
   // Candidate snapshots pin deterministic array iteration with private own symbols. The camera
   // boundary intentionally accepts only plain JSON containers, so cross it from the already
   // bounded canonical bytes rather than smuggling one boundary's in-process instrumentation.
@@ -234,7 +248,9 @@ export function runRealBuildStepOneCompiledCameraDiagnostic(input: {
         batch,
         compilerCalls,
         frontier: null,
+        rendererPreparations: 0,
         renderCalls: 0,
+        rendererDisposals: 0,
       }),
     });
   }
@@ -269,33 +285,126 @@ export function runRealBuildStepOneCompiledCameraDiagnostic(input: {
     };
   });
   const captured = new Map<string, Uint8Array>();
+  const preparedRenderers = new Map<
+    string,
+    | { readonly status: "failed" }
+    | ({
+        readonly status: "ready";
+        disposed: boolean;
+        remainingRenders: number;
+      } & RealBuildStepOnePreparedMaskRendererBoundary)
+  >();
+  let rendererPreparations = 0;
   let renderCalls = 0;
+  let rendererDisposals = 0;
+  let rendererDisposalFailed = false;
+  let rendererSetupCleanupFailure: TypeError | null = null;
+  const disposePreparedRenderer = (
+    prepared: Extract<
+      typeof preparedRenderers extends Map<string, infer V> ? V : never,
+      { status: "ready" }
+    >,
+  ): void => {
+    if (prepared.disposed) return;
+    prepared.disposed = true;
+    try {
+      SAFE_REFLECT_APPLY(prepared.dispose, prepared.owner, []);
+      rendererDisposals += 1;
+    } catch {
+      rendererDisposalFailed = true;
+    }
+  };
   const captureKey = (candidateId: string, hypothesis: StepCameraLatticeHypothesis) =>
     `${candidateId}\0${hypothesis.latticeHand}\0${hypothesis.turnDegrees}`;
-  const frontier = resolveRealBuildPanelCameraFrontier({
-    prefixes,
-    registrationPanelStepNumber: 2,
-    renderModelMask: ({ candidateId, document, hypothesis }) => {
-      renderCalls += 1;
-      const mask = input.renderModelMask({ candidateId, document, hypothesis });
-      const snapshot = snapshotPanelCameraBinaryMask(
-        mask,
-        source.widthPx * source.heightPx,
-        `Step-one diagnostic ${captureKey(candidateId, hypothesis)}`,
-      );
-      const key = captureKey(candidateId, hypothesis);
-      if (captured.has(key))
-        throw new TypeError("Step-one diagnostic repeated one physical render.");
-      captured.set(key, snapshot);
-      return snapshot;
-    },
-    builtMask: new Uint8Array(source.sourceMask),
-    excludedMask: source.excludedMask === null ? null : new Uint8Array(source.excludedMask),
-    widthPx: source.widthPx,
-    heightPx: source.heightPx,
-    ledger: createRealBuildPanelCameraBranchBudgetLedger(input.cameraBranchBudget),
-    hashDocument: (document) => documentStructuralHash(document) as Sha256Digest,
-  });
+  let frontier: RealBuildPanelCameraFrontierResolution<unknown> | undefined;
+  let frontierFailure = false;
+  let frontierThrown: unknown;
+  try {
+    frontier = resolveRealBuildPanelCameraFrontier({
+      prefixes,
+      registrationPanelStepNumber: 2,
+      renderModelMask: ({ candidateId, document, hypothesis }) => {
+        if (rendererDisposalFailed || rendererSetupCleanupFailure !== null) {
+          throw new TypeError(
+            "a prior child renderer cleanup failed, so no later child renderer may be prepared",
+          );
+        }
+        let prepared = preparedRenderers.get(candidateId);
+        if (prepared === undefined) {
+          let supplied: unknown;
+          try {
+            supplied = SAFE_REFLECT_APPLY(prepareModelMaskRenderer, undefined, [
+              intrinsicRealBuildFreeze({ candidateId, document }),
+            ]);
+            prepared = {
+              status: "ready" as const,
+              disposed: false,
+              remainingRenders: 8,
+              ...inspectRealBuildStepOnePreparedMaskRenderer(supplied),
+            };
+            rendererPreparations += 1;
+            preparedRenderers.set(candidateId, prepared);
+          } catch (caught) {
+            preparedRenderers.set(candidateId, { status: "failed" });
+            if (isStepSilhouetteCleanupFailure(caught)) {
+              rendererSetupCleanupFailure = caught;
+            }
+            throw new TypeError(
+              "the per-document camera renderer factory threw or returned an invalid renderer",
+              { cause: caught },
+            );
+          }
+        }
+        if (prepared.status === "failed") {
+          throw new TypeError("the per-document camera renderer factory already failed");
+        }
+        if (prepared.disposed || prepared.remainingRenders < 1) {
+          throw new TypeError("Step-one diagnostic attempted to reuse a disposed child renderer.");
+        }
+        try {
+          renderCalls += 1;
+          const mask = SAFE_REFLECT_APPLY(prepared.render, prepared.owner, [hypothesis]);
+          const snapshot = snapshotPanelCameraBinaryMask(
+            mask,
+            source.widthPx * source.heightPx,
+            `Step-one diagnostic ${captureKey(candidateId, hypothesis)}`,
+          );
+          const key = captureKey(candidateId, hypothesis);
+          if (captured.has(key))
+            throw new TypeError("Step-one diagnostic repeated one physical render.");
+          captured.set(key, snapshot);
+          return snapshot;
+        } finally {
+          prepared.remainingRenders -= 1;
+          if (prepared.remainingRenders === 0) disposePreparedRenderer(prepared);
+        }
+      },
+      builtMask: new Uint8Array(source.sourceMask),
+      excludedMask: source.excludedMask === null ? null : new Uint8Array(source.excludedMask),
+      widthPx: source.widthPx,
+      heightPx: source.heightPx,
+      ledger: createRealBuildPanelCameraBranchBudgetLedger(input.cameraBranchBudget),
+      hashDocument: (document) => documentStructuralHash(document) as Sha256Digest,
+    });
+  } catch (caught) {
+    frontierFailure = true;
+    frontierThrown = caught;
+  } finally {
+    for (const prepared of preparedRenderers.values()) {
+      if (prepared.status !== "ready" || prepared.disposed) continue;
+      disposePreparedRenderer(prepared);
+    }
+  }
+  if (rendererSetupCleanupFailure !== null) throw rendererSetupCleanupFailure;
+  if (rendererDisposalFailed) {
+    throw new TypeError(
+      "Step-one compiled camera diagnostic could not dispose every prepared renderer; discard its result and clean the task-owned render context.",
+    );
+  }
+  if (frontierFailure) throw frontierThrown;
+  if (frontier === undefined) {
+    throw new TypeError("Step-one compiled camera diagnostic produced no camera frontier.");
+  }
   const expectedExcludedMaskDigest =
     source.excludedMask === null ? null : `sha256:${sha256Hex(source.excludedMask)}`;
   if (
@@ -309,7 +418,15 @@ export function runRealBuildStepOneCompiledCameraDiagnostic(input: {
     );
   }
   const completedMetrics = () =>
-    metrics({ rootCount: roots.length, batch, compilerCalls, frontier, renderCalls });
+    metrics({
+      rootCount: roots.length,
+      batch,
+      compilerCalls,
+      frontier,
+      rendererPreparations,
+      renderCalls,
+      rendererDisposals,
+    });
   if (frontier.status === "budget-refused" || frontier.status === "failed") {
     return intrinsicRealBuildFreeze({
       ...base,

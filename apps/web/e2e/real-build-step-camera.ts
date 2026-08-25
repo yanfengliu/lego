@@ -1,6 +1,14 @@
-import { instructionSilhouetteMasks, maskCentroid, shiftedMaskIou } from "./real-build-contract";
+import { maskCentroid, shiftedMaskIou } from "./real-build-contract";
 import type { StepFailure } from "./real-build-safety";
 import type { LatticeHand } from "../src/assembly/panel-face";
+
+export {
+  createStepSilhouette,
+  isStepSilhouetteCleanupFailure,
+  prepareStepSilhouette,
+  type PreparedStepSilhouette,
+  type SilhouetteMasks,
+} from "./real-build-step-silhouette";
 
 /**
  * Where a printed step's camera points, and how a candidate is drawn through it.
@@ -35,68 +43,6 @@ export interface StepCameraFrame {
   readonly heightPx: number;
   readonly target: readonly [number, number, number];
   readonly sceneRadius: number;
-}
-
-export interface SilhouetteMasks {
-  readonly all: Uint8Array;
-  readonly probe: Uint8Array;
-}
-
-/** The colour the probe part is painted, and the key its silhouette is read at. */
-const PROBE_COLOR_ID = "builtin:magenta";
-const PROBE_KEY_HEX = 0x923978;
-
-// The browser probe's modules are untrusted dynamic imports; the typed Node
-// finalizer recomputes everything they produce.
-type BrowserModule = ReturnType<typeof JSON.parse>;
-
-/**
- * A document's silhouette at this step's camera, with some parts keyed apart.
- *
- * `all` is everything drawn. `probe` is every pixel rendered with the reserved
- * magenta key: normally that is only the named parts, but a document that
- * already contains magenta also contributes those visible pixels. Callers that
- * require exact named-part isolation must detect that collision and retain the
- * whole-scene color-keyed semantics.
- */
-export function createStepSilhouette(input: {
-  readonly rendering: BrowserModule;
-  readonly renderer: { readonly render: (root: unknown, camera: unknown) => ArrayLike<number> };
-  readonly view: StepCameraView;
-  readonly frame: StepCameraFrame;
-  readonly widthPx: number;
-  readonly heightPx: number;
-}): (
-  subject: unknown,
-  probePartIds: string | readonly string[] | null,
-  centrePx: readonly [number, number],
-) => SilhouetteMasks {
-  const { rendering, renderer, view, frame, widthPx, heightPx } = input;
-  return (subject, probePartIds, centrePx) => {
-    const subjectParts = (subject as { parts: { id: string }[] }).parts;
-    const probed = new Set(
-      probePartIds === null ? [] : typeof probePartIds === "string" ? [probePartIds] : probePartIds,
-    );
-    const painted = {
-      ...(subject as object),
-      parts: subjectParts.map((part) =>
-        probed.has(part.id) ? { ...part, colorId: PROBE_COLOR_ID } : part,
-      ),
-    };
-    const scene = rendering.deriveBrickScene(painted, { finish: "instruction" });
-    let pixels: Uint8Array;
-    try {
-      rendering.setInstructionSilhouetteMode(scene.root, true);
-      const camera = rendering.createOrthographicViewCamera(
-        { ...view, centerXPx: centrePx[0], centerYPx: centrePx[1] },
-        frame,
-      );
-      pixels = new Uint8Array(renderer.render(scene.root, camera));
-    } finally {
-      scene.dispose();
-    }
-    return instructionSilhouetteMasks(pixels, widthPx, heightPx, PROBE_KEY_HEX);
-  };
 }
 
 export interface StepCameraAnchor {
