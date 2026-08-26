@@ -72,11 +72,11 @@ describe("11212 regular 3 x 3 plate catalog truth", () => {
     );
     if (blueprint?.designId !== "11212") throw new Error("11212 blueprint is missing");
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/27");
-    expect(PART_DEFINITIONS).toHaveLength(102);
-    expect(PART_DEFINITIONS.at(-7)?.id).toBe(PART_ID);
-    expect(SET_6651557_MEASURED_BLUEPRINTS.at(-7)).toBe(blueprint);
-    expect(SET_6651557_MEASURED_BLUEPRINTS_G).toHaveLength(8);
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/28");
+    expect(PART_DEFINITIONS).toHaveLength(104);
+    expect(PART_DEFINITIONS.at(-9)?.id).toBe(PART_ID);
+    expect(SET_6651557_MEASURED_BLUEPRINTS.at(-9)).toBe(blueprint);
+    expect(SET_6651557_MEASURED_BLUEPRINTS_G).toHaveLength(10);
     expect(part).toMatchObject({
       id: PART_ID,
       family: "plate",
@@ -120,8 +120,8 @@ describe("11212 regular 3 x 3 plate catalog truth", () => {
       bytes: 11_078,
       manifestSha256: "sha256:8ff079db5d230fbba570a54ef1718c37a33db1059b31034fdd5a5ba9f12e0c73",
     });
-    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(41);
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(224);
+    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(43);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(228);
   });
 
   it("records the consulted LDCad route and its active regular clutch lattice", () => {
@@ -225,7 +225,7 @@ describe("11212 regular 3 x 3 plate catalog truth", () => {
   it("keeps every /23 part payload byte unchanged after restoring its historical truth label", () => {
     const priorParts = PART_DEFINITIONS.slice(0, 95);
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/27",
+      "builtin.basic-parts/28",
       "builtin.basic-parts/23",
     );
     const connectorCollision = priorParts.map(({ id, connectors, collision }) => ({

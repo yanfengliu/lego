@@ -67,11 +67,11 @@ describe("78329 regular 1 x 5 plate catalog truth", () => {
     );
     if (blueprint?.designId !== "78329") throw new Error("78329 blueprint is missing");
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/27");
-    expect(PART_DEFINITIONS).toHaveLength(102);
-    expect(PART_DEFINITIONS.at(-5)?.id).toBe(PART_ID);
-    expect(SET_6651557_MEASURED_BLUEPRINTS.at(-5)).toBe(blueprint);
-    expect(SET_6651557_MEASURED_BLUEPRINTS_G).toHaveLength(8);
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/28");
+    expect(PART_DEFINITIONS).toHaveLength(104);
+    expect(PART_DEFINITIONS.at(-7)?.id).toBe(PART_ID);
+    expect(SET_6651557_MEASURED_BLUEPRINTS.at(-7)).toBe(blueprint);
+    expect(SET_6651557_MEASURED_BLUEPRINTS_G).toHaveLength(10);
     expect(part).toMatchObject({
       id: PART_ID,
       family: "plate",
@@ -114,8 +114,8 @@ describe("78329 regular 1 x 5 plate catalog truth", () => {
       bytes: 8_761,
       manifestSha256: "sha256:d203ae681cfa3842e210b894d46e69e555e64e638796d260c3a2cabdb474f283",
     });
-    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(41);
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(224);
+    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(43);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(228);
   });
 
   it("binds only the exact LDCad route and regular connector line", () => {
@@ -173,7 +173,7 @@ describe("78329 regular 1 x 5 plate catalog truth", () => {
   it("keeps every /25 part payload byte unchanged after restoring its historical truth label", () => {
     const priorParts = PART_DEFINITIONS.slice(0, 97);
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/27",
+      "builtin.basic-parts/28",
       "builtin.basic-parts/25",
     );
     const connectorCollision = priorParts.map(({ id, connectors, collision }) => ({

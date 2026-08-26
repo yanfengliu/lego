@@ -132,6 +132,12 @@ const PART_IDS_V23 = extend(PART_IDS_V22, ["builtin:technic-brick-1x2-axle-hole"
 const PART_IDS_V24 = extend(PART_IDS_V23, ["builtin:plate-3x3"]);
 const PART_IDS_V25 = extend(PART_IDS_V24, ["builtin:plate-2x2-two-studs"]);
 const PART_IDS_V26 = extend(PART_IDS_V25, ["builtin:plate-1x5"]);
+const PART_IDS_V27 = extend(PART_IDS_V26, [
+  "builtin:tile-1x2-chamfered-indented",
+  "builtin:technic-brick-1x1-axle-hole",
+  "builtin:slope-1x1-double-45",
+  "builtin:curved-slope-1x1-outside-bow",
+]);
 
 const COLOR_IDS_V1 = Object.freeze([
   "builtin:black",
@@ -233,6 +239,7 @@ export const REVIEWED_HISTORICAL_CATALOG_ROSTERS_BY_TRUTH_HASH: Readonly<
   "sha256:09288fc048ec112225b9e605df7af2d2e9692031b9eb7a89755575956af4c10d": roster(PART_IDS_V24),
   "sha256:364ef046160736292eb51b331ce27ff246fa8940e16b256d53a68b9656a6018f": roster(PART_IDS_V25),
   "sha256:3226590b11882fea03d8a6370d4ca3c6c8201feaddb56882a243a69acba627e9": roster(PART_IDS_V26),
+  "sha256:614c61787b6c45d645e3e84c71dd931a15c258535a1959ee4b3aa1906303b70f": roster(PART_IDS_V27),
 });
 
 export function getReviewedHistoricalCatalogRoster(

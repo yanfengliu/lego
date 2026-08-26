@@ -1,4 +1,9 @@
-import { COLOR_DEFINITIONS, PART_DEFINITIONS, resolvePartId } from "@lego-studio/catalog";
+import {
+  COLOR_DEFINITIONS,
+  PART_DEFINITIONS,
+  isInterchangeableLdrawMouldRevisionBase,
+  resolvePartId,
+} from "@lego-studio/catalog";
 
 /**
  * The bridge from what a booklet names to what this catalog can place.
@@ -12,12 +17,15 @@ import { COLOR_DEFINITIONS, PART_DEFINITIONS, resolvePartId } from "@lego-studio
  * number to `ldrawId` and the only real work is knowing which spellings of a
  * design number mean the same shape.
  *
- * Two of them do. A trailing lowercase letter is a mould revision — `3069b` is
+ * Two common transformations do. An interchangeable trailing lowercase letter
+ * is a mould revision — `3069b` is
  * the grooved tile that replaced `3069`, `41769a` the wedge plate that replaced
  * `41769` — and a `pr####` or `pat####` suffix is the same mould with something
  * printed on it. Both are the same solid, so both resolve, and both say so:
  * `outcome` is `variant` rather than `exact` and `note` names what was dropped.
- * A caller that must not accept an approximation can filter on that.
+ * Families such as `2453` and `3245` use the suffix for a physically distinct
+ * construction and therefore resolve only by the exact published suffix. A
+ * caller that must not accept an approximation can filter on the outcome.
  *
  * Nothing else is tolerated. A design number the catalog does not carry comes
  * back `absent` naming the number and the printed name, because the honest
@@ -70,8 +78,9 @@ const MOULD_LETTER = /[a-z]$/i;
  * Design-number spellings to try, most exact first.
  *
  * Only ever removes: a print or pattern suffix, which leaves the undecorated
- * mould, and one trailing mould-revision letter. It never adds a letter that
- * was not printed and never truncates digits, so `3021` cannot reach `3020`.
+ * mould, and one explicitly interchangeable trailing mould-revision letter.
+ * It never adds a letter for a non-interchangeable family and never truncates
+ * digits, so `3021` cannot reach `3020`.
  */
 function spellings(partNum: string): readonly { readonly value: string; readonly note: string }[] {
   const tried: { value: string; note: string }[] = [{ value: partNum, note: "" }];
@@ -86,6 +95,7 @@ function spellings(partNum: string): readonly { readonly value: string; readonly
     if (!MOULD_LETTER.test(base.value)) continue;
     const bare = base.value.slice(0, -1);
     if (bare.length === 0 || !/\d$/.test(bare)) continue;
+    if (!isInterchangeableLdrawMouldRevisionBase(bare)) continue;
     tried.push({
       value: bare,
       note: [
@@ -100,6 +110,7 @@ function spellings(partNum: string): readonly { readonly value: string; readonly
   // catalog carries a revision. Only the revisions the catalog itself holds are
   // offered, so this cannot invent a part.
   for (const base of [...tried]) {
+    if (!isInterchangeableLdrawMouldRevisionBase(base.value)) continue;
     for (const candidate of catalogDesignNumbers()) {
       if (candidate === base.value) continue;
       if (!MOULD_LETTER.test(candidate)) continue;

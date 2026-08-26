@@ -39,11 +39,19 @@ const ADDED_CATALOG_PART_IDS = [
   "builtin:plate-2x2-two-studs",
   "builtin:plate-1x5",
 ] as const;
-const CURRENT_RUNTIME_ADDED_CATALOG_PART_IDS = [
+const CURRENT_RUNTIME_ADDED_CATALOG_PART_IDS_V27 = [
   "builtin:tile-1x2-chamfered-indented",
   "builtin:technic-brick-1x1-axle-hole",
   "builtin:slope-1x1-double-45",
   "builtin:curved-slope-1x1-outside-bow",
+] as const;
+const CURRENT_RUNTIME_ADDED_CATALOG_PART_IDS_V28 = [
+  "builtin:brick-1x2x2-without-understud",
+  "builtin:brick-1x1x5-solid-stud",
+] as const;
+const CURRENT_RUNTIME_ADDED_CATALOG_PART_IDS = [
+  ...CURRENT_RUNTIME_ADDED_CATALOG_PART_IDS_V27,
+  ...CURRENT_RUNTIME_ADDED_CATALOG_PART_IDS_V28,
 ] as const;
 
 const EXPECTED_TARGET_TRUTH: BrickDocumentV1["truth"] = SAFE_OBJECT_FREEZE({
@@ -79,23 +87,23 @@ const CURRENT_RUNTIME_TRUTH: BrickDocumentV1["truth"] = SAFE_OBJECT_FREEZE({
   schemaVersion: "lego.truth-snapshot/1",
   catalog: {
     id: "builtin.basic-parts",
-    version: "builtin.basic-parts/27",
-    hash: "sha256:ffb0eb6e68edcb91298b04a3c899a11417b70b07aac062c42f4c1051c20f50ee",
+    version: "builtin.basic-parts/28",
+    hash: "sha256:15decef17024421dec825287923d2ae0142973f83281b3479b0eeeb5e5ddd837",
   },
   connectorTaxonomy: {
     id: "stud-tube",
     version: "stud-tube/1",
-    hash: "sha256:5153c1c3d58db63962698768885c0630b1c2c926a220e5895e7d55442ebbc7f1",
+    hash: "sha256:41b9011f2ae13baadd4bc173936ea962d5ef6419809bc17fa3dcfcf01e83a553",
   },
   collisionModel: {
     id: "rectilinear-stud-clearance",
     version: "rectilinear-stud-clearance/3",
-    hash: "sha256:1e727bf61b482bcaf8587f44175e46238926126de241ae0248a5e23b942118bd",
+    hash: "sha256:11a791eaed761857eeb7446a4feaa278635593a8767e0d6d7ed9426d0cebeabd",
   },
   transformPolicy: {
     id: "upright-quarter-turns-negative-y-up",
     version: "upright-quarter-turns-negative-y-up/1",
-    hash: "sha256:ec8ce034cb7f39169783692259ec25bb028b95bce6d456917f88bd9bebebb03d",
+    hash: "sha256:b67a6b5226f97eeef8d18dc038df8e6e51da51843b0846cb64a61c328f46eb9a",
   },
   validatorSet: {
     id: "lego.kernel-validators",
@@ -155,9 +163,9 @@ const EXPECTED_CURRENT_RUNTIME_MIGRATION_REPORT: Step7Gate3MigrationResult["repo
   SAFE_OBJECT_FREEZE({
     schemaVersion: "lego.truth-migration/2",
     fromCatalogVersion: STEP7_GATE3_SOURCE_CATALOG_VERSION,
-    toCatalogVersion: "builtin.basic-parts/27",
+    toCatalogVersion: "builtin.basic-parts/28",
     fromTruthHash: STEP7_GATE3_SOURCE_TRUTH_HASH,
-    toTruthHash: "sha256:614c61787b6c45d645e3e84c71dd931a15c258535a1959ee4b3aa1906303b70f",
+    toTruthHash: "sha256:643185fe21f0d0c77a7aada8b170395f11bb7da1079f97d5c0cd0a03d7464f1b",
     addedColorIds: SAFE_OBJECT_FREEZE([]),
     addedCatalogPartIds: SAFE_OBJECT_FREEZE([
       ...ADDED_CATALOG_PART_IDS,
@@ -168,7 +176,7 @@ const EXPECTED_CURRENT_RUNTIME_MIGRATION_REPORT: Step7Gate3MigrationResult["repo
       SAFE_OBJECT_FREEZE({
         component: "catalog",
         fromVersion: STEP7_GATE3_SOURCE_CATALOG_VERSION,
-        toVersion: "builtin.basic-parts/27",
+        toVersion: "builtin.basic-parts/28",
       }),
       SAFE_OBJECT_FREEZE({
         component: "collision-model",
@@ -249,9 +257,9 @@ export function assertExactStep7Gate3FinalMigration(
 }
 
 /**
- * Projects the one exact live `/13` -> `/27` migration back onto the retained
- * additive `/26` boundary used by Gate-3 evidence. The four `/27` rows and its
- * validator `/4` shared-capacity rule never enter the projected document.
+ * Projects the one exact live `/13` -> `/28` migration back onto the retained
+ * additive `/26` boundary used by Gate-3 evidence. The four `/27` and two `/28`
+ * rows plus validator `/4` semantics never enter the projected document.
  */
 export function projectExactCurrentMigrationToFrozenV26(
   source: BrickDocumentV1,
@@ -267,7 +275,7 @@ export function projectExactCurrentMigrationToFrozenV26(
       exactPlainDataBytes(CURRENT_RUNTIME_TRUTH, "Expected current runtime truth")
   ) {
     throw new SAFE_TYPE_ERROR(
-      "Frozen /26 projection requires the exact reviewed /13 to /27 runtime migration bridge.",
+      "Frozen /26 projection requires the exact reviewed /13 to /28 runtime migration bridge.",
     );
   }
   const expectedRuntimeRevision = `revision-${apply<string>(
@@ -282,7 +290,7 @@ export function projectExactCurrentMigrationToFrozenV26(
   )}`;
   const runtimePartIds = current.document.constraints.allowedCatalogPartIds;
   let runtimeRowsExact =
-    current.document.revision === expectedRuntimeRevision && runtimePartIds.length === 102;
+    current.document.revision === expectedRuntimeRevision && runtimePartIds.length === 104;
   for (
     let index = 0;
     runtimeRowsExact && index < CURRENT_RUNTIME_ADDED_CATALOG_PART_IDS.length;
@@ -297,7 +305,7 @@ export function projectExactCurrentMigrationToFrozenV26(
   }
   if (!runtimeRowsExact) {
     throw new SAFE_TYPE_ERROR(
-      "Frozen /26 projection requires all four exact additive /27 runtime rows and its exact revision.",
+      "Frozen /26 projection requires all six exact additive /27 and /28 runtime rows and its exact revision.",
     );
   }
 

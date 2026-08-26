@@ -143,8 +143,12 @@ import { GENERATED_NON_UPRIGHT_PROPER_ORIENTATIONS } from "./proper-orientations
  * Their pinned official closures supply exact render geometry and conservative
  * collision fields, while their reviewed source routes supply connector rows.
  * No preceding definition changes interpretation.
+ *
+ * /28 appends exact suffixed definitions `3245c.dat` and `2453b.dat`. Their
+ * official roots supply geometry while exact LDCad routes supply connector
+ * rows; no bare or cross-suffix alias is admitted and no printed frame follows.
  */
-export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/27" as const;
+export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/28" as const;
 export const CONNECTOR_TAXONOMY_VERSION = "stud-tube/1" as const;
 export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/3" as const;
 export const TRANSFORM_POLICY_VERSION = "upright-quarter-turns-negative-y-up/1" as const;

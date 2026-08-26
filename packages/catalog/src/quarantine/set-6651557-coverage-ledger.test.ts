@@ -167,8 +167,14 @@ describe("set 6651557 quarantined coverage ledger", () => {
     for (const part of publicCatalog.PART_DEFINITIONS) {
       for (const alias of part.aliases) {
         if (alias.namespace !== "ldraw") continue;
-        const match = /^(\d+)[a-z]?\.dat$/iu.exec(alias.value);
-        if (match?.[1] !== undefined) currentCatalogDesignIds.add(match[1]);
+        const match = /^(\d+)([a-z])?\.dat$/iu.exec(alias.value);
+        if (match?.[1] === undefined) continue;
+        if (
+          match[2] === undefined ||
+          publicCatalog.isInterchangeableLdrawMouldRevisionBase(match[1])
+        ) {
+          currentCatalogDesignIds.add(match[1]);
+        }
       }
     }
 
@@ -184,6 +190,8 @@ describe("set 6651557 quarantined coverage ledger", () => {
     ).toBe(true);
     expect(ledger.requiredLeaves).toHaveLength(121);
     expect(admittedRequiredLeafIds).toHaveLength(24);
+    expect(currentCatalogDesignIds).not.toContain("2453");
+    expect(currentCatalogDesignIds).not.toContain("3245");
     expect(admittedRequiredLeafIds).toEqual([
       "2450",
       "2877",

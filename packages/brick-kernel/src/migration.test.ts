@@ -207,6 +207,16 @@ const VERSION_27_ADDITIVE_PART_IDS = [
   "builtin:curved-slope-1x1-outside-bow",
 ] as const;
 
+const VERSION_28_ADDITIVE_PART_IDS = [
+  "builtin:brick-1x2x2-without-understud",
+  "builtin:brick-1x1x5-solid-stud",
+] as const;
+
+const VERSION_27_AND_28_ADDITIVE_PART_IDS = [
+  ...VERSION_27_ADDITIVE_PART_IDS,
+  ...VERSION_28_ADDITIVE_PART_IDS,
+] as const;
+
 const POST_V13_ADDITIVE_PART_IDS = [
   "builtin:tile-1x1-quarter-round",
   "builtin:bracket-1x2-1x4-rounded-bottom",
@@ -221,7 +231,7 @@ const POST_V13_ADDITIVE_PART_IDS = [
   "builtin:plate-3x3",
   "builtin:plate-2x2-two-studs",
   "builtin:plate-1x5",
-  ...VERSION_27_ADDITIVE_PART_IDS,
+  ...VERSION_27_AND_28_ADDITIVE_PART_IDS,
 ] as const;
 
 const VERSION_13_INTERPRETATION_CHANGES = [
@@ -373,19 +383,19 @@ describe("migrateDocumentTruth", () => {
       "builtin:plate-3x3",
       "builtin:plate-2x2-two-studs",
       "builtin:plate-1x5",
-      ...VERSION_27_ADDITIVE_PART_IDS,
+      ...VERSION_27_AND_28_ADDITIVE_PART_IDS,
     ]);
     expect(report.catalogInterpretationChanges).toEqual(VERSION_13_INTERPRETATION_CHANGES);
     expect(document.parts).toEqual(savedAtTwelve.parts);
   });
 
-  it("carries /13 forward and reports all seventeen complete additive definitions", () => {
+  it("carries /13 forward and reports all nineteen complete additive definitions", () => {
     const savedAtThirteen = historicalDocument({
       id: "thirteen",
       name: "Saved at /13",
       catalogVersion: "builtin.basic-parts/13",
       catalogHash: "sha256:100283423bf1cfecfdfec5ba2216d1834a9eb19b1757c71772f7fa53223190d6",
-      allowedCatalogPartCount: PART_DEFINITIONS.length - 17,
+      allowedCatalogPartCount: PART_DEFINITIONS.length - 19,
     });
 
     expect(canonicalDigest(savedAtThirteen.truth)).toBe(
@@ -408,14 +418,14 @@ describe("migrateDocumentTruth", () => {
       "builtin:plate-3x3",
       "builtin:plate-2x2-two-studs",
       "builtin:plate-1x5",
-      ...VERSION_27_ADDITIVE_PART_IDS,
+      ...VERSION_27_AND_28_ADDITIVE_PART_IDS,
     ]);
     expect(report.catalogInterpretationChanges).toEqual([]);
     expectReviewedCurrentTruthChanges(report, "builtin.basic-parts/13");
     expect(document.parts).toEqual(savedAtThirteen.parts);
   });
 
-  it("carries /14 forward and reports the sixteen complete additive definitions", () => {
+  it("carries /14 forward and reports the eighteen complete additive definitions", () => {
     const savedAtFourteen = historicalDocument({
       id: "fourteen",
       name: "Saved at /14",
@@ -424,7 +434,7 @@ describe("migrateDocumentTruth", () => {
       connectorHash: "sha256:537ec8b084b9ac9633c4511817204fcd2037e123d96b7628c3e6b803b32a31cf",
       collisionHash: "sha256:a219f827b9dcceda98b7f320bb53c9f7fa172d515a8081af4b97623975aaf97b",
       transformHash: "sha256:a005d64462b0805e82b28f8571e40aeb48d6b3602b8fe5db01a4e1cf56635896",
-      allowedCatalogPartCount: PART_DEFINITIONS.length - 16,
+      allowedCatalogPartCount: PART_DEFINITIONS.length - 18,
     });
 
     expect(canonicalDigest(savedAtFourteen.truth)).toBe(
@@ -439,7 +449,7 @@ describe("migrateDocumentTruth", () => {
     expect(document.parts).toEqual(savedAtFourteen.parts);
   });
 
-  it("carries /15 forward and reports the fifteen complete additive definitions", () => {
+  it("carries /15 forward and reports the seventeen complete additive definitions", () => {
     const savedAtFifteen = historicalDocument({
       id: "fifteen",
       name: "Saved at /15",
@@ -448,7 +458,7 @@ describe("migrateDocumentTruth", () => {
       connectorHash: "sha256:e64815499844dfc745d8d12c3caa0ff2a0ef55777b627f604a44506478999513",
       collisionHash: "sha256:a8a000c6402260d5302cd14c613d6577e74e44811b6f431fbb4269c2cfe75e04",
       transformHash: "sha256:80594a60bb36cb7d9def2c92566aef0d67181c0c9e9983214a673dae59315a53",
-      allowedCatalogPartCount: PART_DEFINITIONS.length - 15,
+      allowedCatalogPartCount: PART_DEFINITIONS.length - 17,
     });
 
     expect(canonicalDigest(savedAtFifteen.truth)).toBe(
@@ -463,7 +473,7 @@ describe("migrateDocumentTruth", () => {
     expect(document.parts).toEqual(savedAtFifteen.parts);
   });
 
-  it("carries /16 forward and reports the fourteen complete additive definitions", () => {
+  it("carries /16 forward and reports the sixteen complete additive definitions", () => {
     const savedAtSixteen = historicalDocument({
       id: "sixteen",
       name: "Saved at /16",
@@ -472,7 +482,7 @@ describe("migrateDocumentTruth", () => {
       connectorHash: "sha256:6f19cd949127543229d54366a37dd377cb7fbcd8042115c9339aabbbfe4deddc",
       collisionHash: "sha256:8c32b975cd25b5b0417432f28789a1124b97053f1d056ab1b547730ec6899599",
       transformHash: "sha256:34aa4fb3af8d22fbb565fd67beaf48f824a888f68390c6183bab6657768819b2",
-      allowedCatalogPartCount: PART_DEFINITIONS.length - 14,
+      allowedCatalogPartCount: PART_DEFINITIONS.length - 16,
     });
 
     expect(canonicalDigest(savedAtSixteen.truth)).toBe(
@@ -487,7 +497,7 @@ describe("migrateDocumentTruth", () => {
     expect(document.parts).toEqual(savedAtSixteen.parts);
   });
 
-  it("carries /17 forward and reports the next thirteen complete measured definitions", () => {
+  it("carries /17 forward and reports the next fifteen complete measured definitions", () => {
     const savedAtSeventeen = historicalDocument({
       id: "seventeen",
       name: "Saved at /17",
@@ -499,7 +509,7 @@ describe("migrateDocumentTruth", () => {
       transformHash: "sha256:3ee89b8113966fac1783cbf13e1a4e0edd12d227128f06e210412dc9d51ebc24",
       validatorVersion: "lego.kernel-validators/3",
       validatorHash: "sha256:fb0676931eb66a0096f393794d0be1297227811a77b986c0a1d05847ee3127d4",
-      allowedCatalogPartCount: PART_DEFINITIONS.length - 13,
+      allowedCatalogPartCount: PART_DEFINITIONS.length - 15,
     });
 
     expect(canonicalDigest(savedAtSeventeen.truth)).toBe(
@@ -525,7 +535,7 @@ describe("migrateDocumentTruth", () => {
     expect(document.parts).toEqual(savedAtSeventeen.parts);
   });
 
-  it("carries /18 forward and reports the next twelve complete measured definitions", () => {
+  it("carries /18 forward and reports the next fourteen complete measured definitions", () => {
     const savedAtEighteen = historicalDocument({
       id: "eighteen",
       name: "Saved at /18",
@@ -537,7 +547,7 @@ describe("migrateDocumentTruth", () => {
       transformHash: "sha256:e557ade41c1f739dbf41c59033bd59adab18d87e444321567db4c0d7fa44a41b",
       validatorVersion: "lego.kernel-validators/3",
       validatorHash: "sha256:fb0676931eb66a0096f393794d0be1297227811a77b986c0a1d05847ee3127d4",
-      allowedCatalogPartCount: PART_DEFINITIONS.length - 12,
+      allowedCatalogPartCount: PART_DEFINITIONS.length - 14,
     });
     expect(canonicalDigest(savedAtEighteen.truth)).toBe(
       "sha256:8172cc4f993b46bb9fa8f782bb2b295c516e95c16f2d6861e4a18219ef2e1b20",
@@ -547,7 +557,7 @@ describe("migrateDocumentTruth", () => {
     expect(report.migrated).toBe(true);
     expect(report.blockingReasons).toEqual([]);
     expect(report.toTruthHash).toBe(
-      "sha256:614c61787b6c45d645e3e84c71dd931a15c258535a1959ee4b3aa1906303b70f",
+      "sha256:643185fe21f0d0c77a7aada8b170395f11bb7da1079f97d5c0cd0a03d7464f1b",
     );
     expect(report.addedCatalogPartIds).toEqual(POST_V13_ADDITIVE_PART_IDS.slice(5));
     expect(report.catalogInterpretationChanges).toEqual([]);
@@ -566,7 +576,7 @@ describe("migrateDocumentTruth", () => {
     expect(document.parts).toEqual(savedAtEighteen.parts);
   });
 
-  it("carries /19 forward and reports the next eleven complete measured definitions", () => {
+  it("carries /19 forward and reports the next thirteen complete measured definitions", () => {
     const savedAtNineteen = historicalDocument({
       id: "nineteen",
       name: "Saved at /19",
@@ -578,7 +588,7 @@ describe("migrateDocumentTruth", () => {
       transformHash: "sha256:d2888660cff26c2f5665e76c02fecc532b3a04aada1810695495230eb5f664d9",
       validatorVersion: "lego.kernel-validators/3",
       validatorHash: "sha256:fb0676931eb66a0096f393794d0be1297227811a77b986c0a1d05847ee3127d4",
-      allowedCatalogPartCount: PART_DEFINITIONS.length - 11,
+      allowedCatalogPartCount: PART_DEFINITIONS.length - 13,
     });
     expect(canonicalDigest(savedAtNineteen.truth)).toBe(
       "sha256:e34fcc8ac627f0dcfdb1d779246a723101d765f931830a4c06514d9daff75c26",
@@ -588,7 +598,7 @@ describe("migrateDocumentTruth", () => {
     expect(report.migrated).toBe(true);
     expect(report.blockingReasons).toEqual([]);
     expect(report.toTruthHash).toBe(
-      "sha256:614c61787b6c45d645e3e84c71dd931a15c258535a1959ee4b3aa1906303b70f",
+      "sha256:643185fe21f0d0c77a7aada8b170395f11bb7da1079f97d5c0cd0a03d7464f1b",
     );
     expect(report.addedCatalogPartIds).toEqual(POST_V13_ADDITIVE_PART_IDS.slice(6));
     expect(report.catalogInterpretationChanges).toEqual([]);
@@ -813,7 +823,7 @@ describe("migrateDocumentTruth", () => {
     );
   });
 
-  it("carries a /6 document forward and names the twenty-five parts it gained", () => {
+  it("carries a /6 document forward and names the twenty-seven parts it gained", () => {
     const document = historicalDocument({
       id: "six",
       name: "Saved at /6",
@@ -854,13 +864,13 @@ describe("migrateDocumentTruth", () => {
       "builtin:plate-3x3",
       "builtin:plate-2x2-two-studs",
       "builtin:plate-1x5",
-      ...VERSION_27_ADDITIVE_PART_IDS,
+      ...VERSION_27_AND_28_ADDITIVE_PART_IDS,
     ]);
     expect(report.addedColorIds).toEqual([]);
     expectReviewedCurrentTruthChanges(report, "builtin.basic-parts/6");
   });
 
-  it("carries a /7 document forward and names the twenty parts it gained", () => {
+  it("carries a /7 document forward and names the twenty-two parts it gained", () => {
     const document = historicalDocument({
       id: "seven",
       name: "Saved at /7",
@@ -895,7 +905,7 @@ describe("migrateDocumentTruth", () => {
       "builtin:plate-3x3",
       "builtin:plate-2x2-two-studs",
       "builtin:plate-1x5",
-      ...VERSION_27_ADDITIVE_PART_IDS,
+      ...VERSION_27_AND_28_ADDITIVE_PART_IDS,
     ]);
     expect(report.addedColorIds).toEqual([]);
     expectReviewedCurrentTruthChanges(report, "builtin.basic-parts/7");

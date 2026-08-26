@@ -111,6 +111,7 @@ class MeasuredPartFileBoundaryTests(unittest.TestCase):
             "measured_part_geometry_test.py",
             "measured_part_emit_test.py",
             "measured_part_plan_test.py",
+            "measured_part_suffix_plan_test.py",
             "measured_part_source_connector_test.py",
             "measured_source_connectors.py",
             "measured_part_test_support.py",

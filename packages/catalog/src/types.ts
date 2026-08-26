@@ -207,6 +207,8 @@ export interface ConnectorPortDefinition {
    * overlap, though: 99563's centre seat excludes either half-pitch outer seat,
    * while the two outer seats may be occupied together. Each string names one
    * part-local cell; a connection consumes every cell named by both endpoints.
+   * This covers exact half-pitch seats such as 99563 and 3245c without
+   * treating their center and outer positions as three independent cells.
    * The catalog admission gate rejects empty, duplicate, or uncalibrated claims so
    * this cannot be used as an unreviewed escape from the ordinary stud lattice.
    */

@@ -96,6 +96,8 @@ class PlanTests(unittest.TestCase):
                 "73230",
                 "35464",
                 "49307",
+                "3245c",
+                "2453b",
             ],
         )
         self.assertTrue(all(row.connector_source == "builder" for row in ADMITTED_PART_PLANS[:5]))

@@ -175,7 +175,7 @@ class PinnedBuilderSquareClutchControlTests(unittest.TestCase):
         self.assertEqual(room["declaredClutches"], len(rows))
         self.assertEqual(room["clutchesWithRoom"], len(rows))
 
-    def test_four_exact_root_routes_emit_only_their_opted_in_square_clutches(self) -> None:
+    def test_five_exact_root_routes_emit_only_their_opted_in_square_clutches(self) -> None:
         expectations = {
             "99563": {
                 "files": ["parts/96910.dat"],
@@ -197,6 +197,11 @@ class PinnedBuilderSquareClutchControlTests(unittest.TestCase):
                 "rows": [([0.0, 0.0, 0.0], [0.0, 1.0, 0.0])],
                 "lengths": ["6"],
             },
+            "2453b": {
+                "files": ["p/stud.dat", "parts/2453b.dat"],
+                "rows": [([0.0, 120.0, 0.0], [0.0, 1.0, 0.0])],
+                "lengths": ["116"],
+            },
         }
         for design_id, expected in expectations.items():
             with self.subTest(design_id=design_id):
@@ -217,6 +222,27 @@ class PinnedBuilderSquareClutchControlTests(unittest.TestCase):
                     expected["lengths"],
                 )
                 self.assert_clutches_have_source_room(design_id, root, rows)
+
+    def test_3245c_keeps_inherited_square_rows_non_authoritative(self) -> None:
+        root = self.library.exact("official", "parts/3245c.dat")
+        composition = compose_part_snaps(self.library, self.shadow, root)
+        square_snaps = [snap for snap in composition.snaps if is_square_s6_clutch_socket(snap)]
+        rows = emit_clutch_connectors(composition.snaps)
+
+        self.assertEqual(
+            composition.shadow_files_used,
+            ["p/stud.dat", "parts/3245a.dat", "parts/3245c.dat", "parts/s/3245cs01.dat"],
+        )
+        self.assertEqual(len(square_snaps), 2)
+        self.assertEqual(
+            [(row["positionLdu"], row["normal"]) for row in rows],
+            [
+                ([-10.0, 48.0, 0.0], [0.0, 1.0, 0.0]),
+                ([0.0, 48.0, 0.0], [0.0, 1.0, 0.0]),
+                ([10.0, 48.0, 0.0], [0.0, 1.0, 0.0]),
+            ],
+        )
+        self.assert_clutches_have_source_room("3245c", root, rows)
 
     def test_square_interpretation_matches_three_independent_builder_frames_and_geometry(self) -> None:
         expectations = {

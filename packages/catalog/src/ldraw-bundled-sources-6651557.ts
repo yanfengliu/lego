@@ -28,7 +28,7 @@ export interface BundledLdrawSourceFile {
   readonly licenseExpression: string;
 }
 
-/** Every file in the 41 bundled closures, deduplicated and path-ordered. */
+/** Every file in the 43 bundled closures, deduplicated and path-ordered. */
 export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Object.freeze([
   // prettier-ignore
   { path: "p/1-16chrd.dat", bytes: 701, sha256: "sha256:e429dd760eb6f0cf460a74e6ebf52c023bedbdea82de7801efa1694b5a1a82e8", title: "Chord 0.0625", author: "Philippe Hurbain [Philo]", ldrawOrg: "Primitive UPDATE 2015-01", licenseExpression: "CC-BY-4.0" },
@@ -267,6 +267,8 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
   // prettier-ignore
   { path: "p/box4o4a.dat", bytes: 827, sha256: "sha256:a66f3fc32d0209b5b2432c82414997dc0910c48a074be1d96ef5ec088a2594dd", title: "Box with 4 Faces (2 Parallel Pairs) without Bottom Edges", author: "Donald Sutter [technog]", ldrawOrg: "Primitive UPDATE 2012-01", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
+  { path: "p/box4t.dat", bytes: 963, sha256: "sha256:9e85c281fff9c33ce26931d772310c8faeeaba4dca1036acf1e6ac578dc50c00", title: "Box with 4 Adjacent Faces and All Edges", author: "Tore Eriksson [Tore_Eriksson]", ldrawOrg: "Primitive UPDATE 2003-02", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
   { path: "p/box5-1.dat", bytes: 655, sha256: "sha256:c23e2cb13761c0af92c930af610075d82370a7f2ea89194fa808f0c4cf877bf2", title: "Box with 5 Faces without 1 Edge", author: "J.C. Tchang [tchang]", ldrawOrg: "Primitive UPDATE 2014-01", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
   { path: "p/box5-4a.dat", bytes: 752, sha256: "sha256:70d5f7f2d0720b84a06100b12b449b8ad37d66a02fc4650b31d556d7b1d0fe41", title: "Box with  5 Faces without  4 Adjacent Edges", author: "Willy Tschager [Holly-Wood]", ldrawOrg: "Primitive UPDATE 2024-01", licenseExpression: "CC-BY-4.0" },
@@ -361,6 +363,8 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
   // prettier-ignore
   { path: "parts/2450.dat", bytes: 2313, sha256: "sha256:5bdb50ad11b750ca1621a7c1717f1dee4af58ae8816af3c77f4af75f7e72f408", title: "Plate  3 x  3 without Corner", author: "James Jessiman", ldrawOrg: "Part UPDATE 2024-03", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
+  { path: "parts/2453b.dat", bytes: 801, sha256: "sha256:3c7caddd91a2467243cf3f3bd0bdd8ee8fa1cbd5435591a6491841ee1ca49b01", title: "Brick  1 x  1 x  5 with Solid Stud", author: "Merlijn Wissink [legolijntje]", ldrawOrg: "Part UPDATE 2025-09", licenseExpression: "CC-BY-2.0 OR CC-BY-4.0" },
+  // prettier-ignore
   { path: "parts/25269.dat", bytes: 352, sha256: "sha256:27d965f14caa2c9ebb13c07190f5683da8aca2471671e469e923b623e7978e6c", title: "Tile  1 x  1 Corner Round", author: "Magnus Forsberg [MagFors]", ldrawOrg: "Part UPDATE 2019-02", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
   { path: "parts/2877.dat", bytes: 5566, sha256: "sha256:46c3a0dc6329d3f0be9b3b4485b5e2e41295bad750a0f4c4b6a2e6631c0c0029", title: "Brick  1 x  2 with Grille", author: "James Jessiman", ldrawOrg: "Part UPDATE 2003-03", licenseExpression: "CC-BY-4.0" },
@@ -380,6 +384,8 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
   { path: "parts/32064.dat", bytes: 322, sha256: "sha256:b6240d5798083701834cec8f566d7fca05cbc51123fad8500d3125fa68b4c465", title: "~Moved to 32064a", author: "[PTadmin]", ldrawOrg: "Part UPDATE 2009-03", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
   { path: "parts/32064a.dat", bytes: 6122, sha256: "sha256:b35a848b805493527b83b3a087d0a7f139084834c1f3325045905aa09ded26d2", title: "Technic Brick  1 x  2 with Axlehole with Open Sides and Stud Blocker", author: "Lutz Uhlmann [El-Lutzo]", ldrawOrg: "Part UPDATE 2022-02", licenseExpression: "CC-BY-2.0 OR CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/3245c.dat", bytes: 485, sha256: "sha256:9cc04bca1050e0b16a00c76a432f9cbb769655dc79188a0df3cffa2229dc6615", title: "Brick  1 x  2 x  2 without Understud", author: "Stephan Meisinger [smr]", ldrawOrg: "Part UPDATE 2017-01", licenseExpression: "CC-BY-2.0 OR CC-BY-4.0" },
   // prettier-ignore
   { path: "parts/33909.dat", bytes: 738, sha256: "sha256:8da6789db82746f179997ed4b917d00d34d03a6486d6aa27c76d17c9b21d8609", title: "Plate  2 x  2 with 2 Studs on One Edge", author: "Magnus Forsberg [MagFors]", ldrawOrg: "Part UPDATE 2020-01", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
@@ -453,6 +459,8 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
   // prettier-ignore
   { path: "parts/s/32064s01.dat", bytes: 1455, sha256: "sha256:e89d5e33547325f5a84aa9b0c374f3cd997eae841057dc2697e76f5dc1cfd502", title: "~Technic Brick  1 x  2 with Axlehole", author: "Magnus Forsberg [MagFors]", ldrawOrg: "Subpart UPDATE 2022-02", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
+  { path: "parts/s/3245cs01.dat", bytes: 1165, sha256: "sha256:805379d3a543a51601cef5c832eaa75c4afd626f7e144defd679a0441132ce20", title: "~Brick  1 x  2 x  2 without Understud - without Front Face", author: "Damien Roux [Darats]", ldrawOrg: "Subpart UPDATE 2017-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
   { path: "parts/s/35787s01.dat", bytes: 2162, sha256: "sha256:11b63d550c632afaa6b0178c233ae8d87a624bad04ce90d86d22702af1107729", title: "~Tile  2 x  2 Triangular without Top Surface", author: "Gerald Lasser [GeraldLasser]", ldrawOrg: "Subpart UPDATE 2026-01", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
   { path: "parts/s/41770as01.dat", bytes: 6907, sha256: "sha256:8d88de31c2ec2050977671b63f6115ae47b72f2c01d9f863bd34ecc00760165d", title: "~Wing  2 x  4 Left without Chamfer without Studs", author: "Takeshi Takahashi [RainbowDolphin]", ldrawOrg: "Subpart UPDATE 2026-05", licenseExpression: "CC-BY-4.0" },
@@ -482,83 +490,85 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
 
 /** Which of those files each bundled part's exact closure references. */
 export const BUNDLED_LDRAW_CLOSURES: Readonly<Record<string, readonly number[]>> = Object.freeze({
-  "5092": [100, 101, 120, 123, 127, 188, 214],
-  "35480": [29, 30, 32, 33, 34, 35, 36, 55, 58, 59, 62, 99, 105, 136, 137, 178],
+  "5092": [100, 101, 121, 124, 128, 191, 218],
+  "35480": [29, 30, 32, 33, 34, 35, 36, 55, 58, 59, 62, 99, 105, 137, 138, 181],
   "51739": [
-    39, 40, 41, 42, 46, 55, 58, 59, 63, 100, 101, 107, 120, 123, 127, 133, 139, 147, 190, 216,
+    39, 40, 41, 42, 46, 55, 58, 59, 63, 100, 101, 107, 121, 124, 128, 134, 140, 148, 193, 220,
   ],
-  "77844": [55, 58, 59, 100, 106, 133, 137, 142, 146, 154, 196],
+  "77844": [55, 58, 59, 100, 106, 134, 138, 143, 147, 155, 199],
   "93273": [
-    13, 27, 32, 33, 55, 58, 59, 77, 79, 80, 100, 112, 123, 124, 125, 126, 127, 128, 137, 201, 223,
+    13, 27, 32, 33, 55, 58, 59, 77, 79, 80, 100, 112, 124, 125, 126, 127, 128, 129, 138, 204, 227,
   ],
   "30357": [
-    19, 20, 21, 22, 26, 55, 58, 59, 63, 64, 65, 66, 67, 73, 74, 75, 76, 100, 122, 126, 133, 139,
-    146, 148, 157, 168, 220,
+    19, 20, 21, 22, 26, 55, 58, 59, 63, 64, 65, 66, 67, 73, 74, 75, 76, 100, 123, 127, 134, 140,
+    147, 149, 158, 170, 224,
   ],
-  "2450": [55, 58, 59, 63, 100, 114, 124, 125, 126, 127, 130, 133, 139, 147, 164],
+  "2450": [55, 58, 59, 63, 100, 114, 125, 126, 127, 128, 131, 134, 140, 148, 165],
   "79491": [
-    0, 1, 3, 8, 10, 11, 15, 16, 19, 22, 55, 58, 59, 100, 101, 104, 113, 122, 123, 126, 127, 133,
-    137, 198,
+    0, 1, 3, 8, 10, 11, 15, 16, 19, 22, 55, 58, 59, 100, 101, 104, 113, 123, 124, 127, 128, 134,
+    138, 201,
   ],
-  "30503": [55, 58, 59, 63, 100, 114, 124, 126, 127, 130, 133, 139, 141, 142, 143, 157, 171],
-  "6106": [55, 58, 59, 63, 100, 111, 114, 123, 127, 133, 139, 147, 150, 153, 158, 193],
+  "30503": [55, 58, 59, 63, 100, 114, 125, 127, 128, 131, 134, 140, 142, 143, 144, 158, 173],
+  "6106": [55, 58, 59, 63, 100, 111, 114, 124, 128, 134, 140, 148, 151, 154, 159, 196],
   "30565": [
-    1, 2, 3, 4, 5, 10, 11, 15, 17, 18, 19, 20, 21, 22, 23, 55, 58, 59, 63, 72, 78, 82, 100, 123,
-    126, 133, 139, 149, 157, 159, 172, 206, 209,
+    1, 2, 3, 4, 5, 10, 11, 15, 17, 18, 19, 20, 21, 22, 23, 55, 58, 59, 63, 72, 78, 82, 100, 124,
+    127, 134, 140, 150, 158, 160, 174, 209, 212,
   ],
   "80015": [
     1, 2, 3, 10, 11, 15, 17, 18, 20, 21, 22, 23, 24, 25, 40, 41, 42, 44, 45, 55, 58, 59, 68, 69, 70,
-    71, 72, 80, 82, 101, 111, 113, 114, 121, 123, 126, 127, 133, 137, 141, 146, 199, 205, 206, 221,
+    71, 72, 80, 82, 101, 111, 113, 114, 122, 124, 127, 128, 134, 138, 142, 147, 202, 208, 209, 225,
   ],
-  "25269": [0, 1, 3, 10, 14, 15, 100, 122, 125, 126, 127, 165, 207],
-  "28802": [8, 10, 11, 15, 55, 58, 59, 62, 108, 112, 114, 118, 126, 133, 134, 137, 146, 152, 167],
+  "25269": [0, 1, 3, 10, 14, 15, 100, 123, 126, 127, 128, 167, 210],
+  "28802": [8, 10, 11, 15, 55, 58, 59, 62, 108, 112, 114, 119, 127, 134, 135, 138, 147, 153, 169],
   "35787": [
-    0, 1, 2, 3, 10, 11, 15, 17, 18, 38, 88, 89, 90, 91, 100, 101, 122, 123, 126, 127, 179, 211,
+    0, 1, 2, 3, 10, 11, 15, 17, 18, 38, 88, 89, 90, 91, 100, 101, 123, 124, 127, 128, 182, 215,
   ],
-  "11253": [14, 15, 28, 29, 31, 32, 49, 52, 54, 55, 58, 59, 61, 115, 119, 133, 161],
-  "15254": [55, 58, 59, 79, 83, 84, 85, 86, 106, 107, 120, 128, 133, 145, 163],
-  "41682": [55, 58, 59, 63, 112, 114, 120, 123, 133, 137, 139, 146, 159, 181],
-  "2877": [55, 58, 59, 120, 133, 137, 166],
-  "3040": [12, 29, 32, 55, 58, 59, 133, 138, 169, 170, 208],
-  "4519": [94, 98, 103, 186],
+  "11253": [14, 15, 28, 29, 31, 32, 49, 52, 54, 55, 58, 59, 61, 115, 120, 134, 162],
+  "15254": [55, 58, 59, 79, 83, 84, 85, 86, 106, 107, 121, 129, 134, 146, 164],
+  "41682": [55, 58, 59, 63, 112, 114, 121, 124, 134, 138, 140, 147, 160, 184],
+  "2877": [55, 58, 59, 121, 134, 138, 168],
+  "3040": [12, 29, 32, 55, 58, 59, 134, 139, 171, 172, 211],
+  "4519": [94, 98, 103, 189],
   "32064": [
-    0, 19, 20, 21, 22, 43, 55, 59, 62, 92, 93, 97, 101, 106, 122, 123, 126, 127, 134, 151, 173, 174,
-    210,
+    0, 19, 20, 21, 22, 43, 55, 59, 62, 92, 93, 97, 101, 106, 123, 124, 127, 128, 135, 152, 175, 176,
+    213,
   ],
-  "11212": [55, 58, 59, 63, 120, 133, 139, 149, 157, 160],
-  "33909": [55, 58, 59, 63, 120, 133, 139, 141, 175],
-  "78329": [55, 58, 59, 120, 133, 137, 144, 155, 197],
-  "99563": [8, 9, 15, 16, 116, 120, 126, 129, 202, 203],
-  "73230": [0, 19, 55, 59, 60, 62, 92, 93, 95, 96, 110, 117, 122, 123, 124, 127, 134, 195],
-  "35464": [100, 116, 117, 135, 177],
-  "49307": [27, 29, 30, 32, 116, 117, 187],
+  "11212": [55, 58, 59, 63, 121, 134, 140, 150, 158, 161],
+  "33909": [55, 58, 59, 63, 121, 134, 140, 142, 178],
+  "78329": [55, 58, 59, 121, 134, 138, 145, 156, 200],
+  "99563": [8, 9, 15, 16, 116, 121, 127, 130, 205, 206],
+  "73230": [0, 19, 55, 59, 60, 62, 92, 93, 95, 96, 110, 117, 123, 124, 125, 128, 135, 198],
+  "35464": [100, 116, 117, 136, 180],
+  "49307": [27, 29, 30, 32, 116, 117, 190],
+  "3245c": [55, 58, 59, 100, 107, 118, 127, 134, 177, 214],
+  "2453b": [55, 58, 59, 121, 134, 166],
   "41770a": [
     0, 1, 2, 3, 7, 10, 11, 15, 17, 18, 19, 20, 21, 22, 24, 25, 26, 29, 30, 32, 35, 37, 40, 41, 42,
-    44, 45, 55, 58, 59, 63, 122, 123, 127, 133, 139, 143, 183, 212,
+    44, 45, 55, 58, 59, 63, 123, 124, 128, 134, 140, 144, 186, 216,
   ],
   "41769a": [
     0, 1, 2, 3, 7, 10, 11, 15, 17, 18, 19, 20, 21, 22, 24, 25, 26, 29, 30, 32, 35, 37, 40, 41, 42,
-    44, 45, 55, 58, 59, 63, 122, 123, 127, 133, 139, 143, 182, 212,
+    44, 45, 55, 58, 59, 63, 123, 124, 128, 134, 140, 144, 185, 216,
   ],
   "43723a": [
     7, 10, 11, 15, 17, 35, 40, 41, 42, 47, 48, 49, 50, 51, 52, 53, 55, 56, 58, 59, 87, 100, 101,
-    123, 124, 126, 127, 133, 142, 185, 213,
+    124, 125, 127, 128, 134, 143, 188, 217,
   ],
   "43722a": [
     7, 10, 11, 15, 17, 35, 40, 41, 42, 47, 48, 49, 50, 51, 52, 53, 55, 56, 58, 59, 87, 100, 101,
-    123, 124, 126, 127, 133, 142, 184, 213,
+    124, 125, 127, 128, 134, 143, 187, 217,
   ],
   "54383": [
     0, 1, 2, 3, 6, 10, 11, 15, 17, 18, 19, 20, 21, 22, 40, 41, 42, 44, 45, 47, 48, 49, 55, 56, 58,
-    59, 63, 112, 122, 123, 125, 126, 127, 133, 139, 140, 142, 145, 156, 192, 218,
+    59, 63, 112, 123, 124, 126, 127, 128, 134, 140, 141, 143, 146, 157, 195, 222,
   ],
-  "3659": [43, 50, 52, 55, 58, 59, 106, 120, 133, 180],
-  "3455": [55, 58, 59, 106, 120, 133, 176],
-  "11477": [13, 27, 32, 33, 80, 81, 82, 100, 101, 102, 112, 123, 127, 128, 162, 204],
-  "50950": [80, 81, 82, 100, 102, 109, 126, 127, 128, 131, 132, 189, 215],
-  "61678": [64, 65, 67, 100, 112, 118, 123, 124, 126, 127, 194, 219],
-  "54200": [116, 123, 127, 191, 217],
-  "85984": [55, 57, 58, 59, 116, 123, 127, 138, 200, 222],
+  "3659": [43, 50, 52, 55, 58, 59, 106, 121, 134, 183],
+  "3455": [55, 58, 59, 106, 121, 134, 179],
+  "11477": [13, 27, 32, 33, 80, 81, 82, 100, 101, 102, 112, 124, 128, 129, 163, 207],
+  "50950": [80, 81, 82, 100, 102, 109, 127, 128, 129, 132, 133, 192, 219],
+  "61678": [64, 65, 67, 100, 112, 119, 124, 125, 127, 128, 197, 223],
+  "54200": [116, 124, 128, 194, 221],
+  "85984": [55, 57, 58, 59, 116, 124, 128, 139, 203, 226],
 });
 
 export interface BundledLdrawClosureManifest {
@@ -685,6 +695,14 @@ export const BUNDLED_LDRAW_CLOSURE_MANIFESTS: Readonly<
   "49307": {
     bytes: 5912,
     manifestSha256: "sha256:dfe1399ae48a4097300f04b2181e8733521e3d8d14c8c3468aeda09e59c36dce",
+  },
+  "3245c": {
+    bytes: 9967,
+    manifestSha256: "sha256:94cc72df7dd05ebf10c7804c1e779c484177e2a7b3246a5690189cce976d1d9c",
+  },
+  "2453b": {
+    bytes: 7370,
+    manifestSha256: "sha256:28333adba88bce3f02b75f74ee3b16e320580ff837c08c5067091e22c6ebb1f9",
   },
   "41770a": {
     bytes: 35931,

@@ -35,6 +35,8 @@ const ADDED_AFTER_13 = new Set([
   "builtin:technic-brick-1x1-axle-hole",
   "builtin:slope-1x1-double-45",
   "builtin:curved-slope-1x1-outside-bow",
+  "builtin:brick-1x2x2-without-understud",
+  "builtin:brick-1x1x5-solid-stud",
 ]);
 const compareStrings = (left: string, right: string): number =>
   left < right ? -1 : left > right ? 1 : 0;

@@ -40,6 +40,27 @@ describe("resolveElementPart", () => {
     expect(resolved.note).toContain("41769a");
   });
 
+  it("requires exact suffixes for physically distinct 3245 and 2453 constructions", () => {
+    expect(resolveElementPart(element("3245c", "Brick 1 x 2 x 2 Without Understud"))).toMatchObject(
+      {
+        outcome: "exact",
+        catalogPartId: "builtin:brick-1x2x2-without-understud",
+        note: null,
+      },
+    );
+    expect(resolveElementPart(element("2453b", "Brick 1 x 1 x 5 with Solid Stud"))).toMatchObject({
+      outcome: "exact",
+      catalogPartId: "builtin:brick-1x1x5-solid-stud",
+      note: null,
+    });
+
+    for (const partNum of ["3245", "3245a", "3245b", "2453", "2453a", "2453c"]) {
+      expect(
+        resolveElementPart(element(partNum, "Different or unspecified construction")),
+      ).toMatchObject({ outcome: "absent", catalogPartId: null });
+    }
+  });
+
   it("strips a print suffix to reach the undecorated mould", () => {
     const resolved = resolveElementPart(element("4162pr0074", "Tile 1 x 8 with print"));
     expect(resolved.outcome).toBe("variant");

@@ -118,11 +118,11 @@ describe("semantic booklet catalog coverage hostile boundary", () => {
 
     expect(report).toMatchObject({
       catalog: {
-        version: "builtin.basic-parts/27",
-        digest: "sha256:ffb0eb6e68edcb91298b04a3c899a11417b70b07aac062c42f4c1051c20f50ee",
+        version: "builtin.basic-parts/28",
+        digest: "sha256:15decef17024421dec825287923d2ae0142973f83281b3479b0eeeb5e5ddd837",
       },
       inputDigests: {
-        catalog: "sha256:ffb0eb6e68edcb91298b04a3c899a11417b70b07aac062c42f4c1051c20f50ee",
+        catalog: "sha256:15decef17024421dec825287923d2ae0142973f83281b3479b0eeeb5e5ddd837",
         prefix50SemanticClosure: semanticDigest,
       },
       calloutsConsidered: 1,
@@ -213,11 +213,11 @@ realDescribe("current prefix-50 semantic booklet catalog coverage", () => {
         calloutManifest: CURRENT_LEGACY_RECUT_PINS.currentManifest.digest,
         elementResolution: CURRENT_PREFIX50_SEMANTIC_CLOSURE_PINS.elementResolution.digest,
         prefix50SemanticClosure: CURRENT_PREFIX50_SEMANTIC_CLOSURE_PINS.expectedArtifact.digest,
-        catalog: "sha256:ffb0eb6e68edcb91298b04a3c899a11417b70b07aac062c42f4c1051c20f50ee",
+        catalog: "sha256:15decef17024421dec825287923d2ae0142973f83281b3479b0eeeb5e5ddd837",
       },
       catalog: {
-        version: "builtin.basic-parts/27",
-        digest: "sha256:ffb0eb6e68edcb91298b04a3c899a11417b70b07aac062c42f4c1051c20f50ee",
+        version: "builtin.basic-parts/28",
+        digest: "sha256:15decef17024421dec825287923d2ae0142973f83281b3479b0eeeb5e5ddd837",
       },
       expectedPrintedSteps: 359,
       lastStep: 50,
@@ -274,37 +274,24 @@ realDescribe("current prefix-50 semantic booklet catalog coverage", () => {
     });
   });
 
-  it("measures only the two remaining catalog blockers without substituting a part", () => {
+  it("measures complete prefix catalog coverage without granting exact legacy identity bindings", () => {
     expect(report.coverage).toMatchObject({
-      stepsCovered: 44,
+      stepsCovered: 49,
       stepsTotal: 49,
-      coveredPrefixLength: 29,
-      piecesPlaceable: 308,
+      coveredPrefixLength: 49,
+      piecesPlaceable: 320,
       piecesTotal: 320,
     });
-    expect(report.coverage.missingDesigns).toEqual([
-      expect.objectContaining({
-        partNum: "3245c",
-        callouts: 3,
-        pieces: 7,
-        steps: [30, 31, 32],
-      }),
-      expect.objectContaining({
-        partNum: "2453b",
-        callouts: 2,
-        pieces: 5,
-        steps: [49, 50],
-      }),
-    ]);
+    expect(report.coverage.missingDesigns).toEqual([]);
     expect(
       Object.values(report.byCallout).filter(({ resolution }) => resolution?.outcome === "absent"),
-    ).toHaveLength(5);
+    ).toHaveLength(0);
   });
 
   it("independently reproduces exact bytes and rejects a one-byte report edit", async () => {
-    expect(bytes).toHaveLength(592_243);
+    expect(bytes).toHaveLength(588_467);
     expect(digest(bytes)).toBe(
-      "sha256:c7dd0ef1e5783384a44e123546efce82bb0da2ebc69364dc7780b2bddfa53e0b",
+      "sha256:a12d5744f3f4417628e53227aaa4c35d9aee0eba5fdce7b865087e6f97dfbfad",
     );
     await expect(
       verifySemanticBookletCatalogCoverage({ ...input, coverageBytes: bytes }),

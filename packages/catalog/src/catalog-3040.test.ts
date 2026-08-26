@@ -94,9 +94,9 @@ describe("3040 straight-slope catalog truth", () => {
     const part = getPartDefinition(PART_ID)!;
     const blueprint = SET_6651557_MEASURED_BLUEPRINTS.find(({ designId }) => designId === "3040")!;
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/27");
-    expect(PART_DEFINITIONS).toHaveLength(102);
-    expect(PART_DEFINITIONS.at(-10)?.id).toBe(PART_ID);
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/28");
+    expect(PART_DEFINITIONS).toHaveLength(104);
+    expect(PART_DEFINITIONS.at(-12)?.id).toBe(PART_ID);
     expect(part).toMatchObject({
       id: PART_ID,
       family: "slope",
@@ -151,8 +151,8 @@ describe("3040 straight-slope catalog truth", () => {
       bytes: 13_050,
       manifestSha256: "sha256:2770e66191388e6ffc5b85c85782f9dabe63d3e90d36ea60ef876da33a44329a",
     });
-    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(41);
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(224);
+    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(43);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(228);
   });
 
   it("binds stud3a's exact source identity to the diagnostic clutch-tube role", () => {
@@ -336,7 +336,7 @@ describe("3040 straight-slope catalog truth", () => {
   it("keeps every /20 part payload byte unchanged after restoring its historical truth label", () => {
     const priorParts = PART_DEFINITIONS.slice(0, 92);
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/27",
+      "builtin.basic-parts/28",
       "builtin.basic-parts/20",
     );
     const connectorCollision = priorParts.map(({ id, connectors, collision }) => ({

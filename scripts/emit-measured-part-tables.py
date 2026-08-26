@@ -64,6 +64,7 @@ MEASURED_D_SHARD_START = 18
 MEASURED_E_SHARD_START = 19
 MEASURED_F_SHARD_START = 20
 MEASURED_G_SHARD_START = 21
+MEASURED_H_SHARD_START = 29
 GENERATED_FILES = {
     "meshAssets": "packages/catalog/src/mesh-assets-6651557.ts",
     "meshAssetsMeasuredA": "packages/catalog/src/mesh-assets-6651557-measured-a.ts",
@@ -73,12 +74,14 @@ GENERATED_FILES = {
     "meshAssetsMeasuredE": "packages/catalog/src/mesh-assets-6651557-measured-e.ts",
     "meshAssetsMeasuredF": "packages/catalog/src/mesh-assets-6651557-measured-f.ts",
     "meshAssetsMeasuredG": "packages/catalog/src/mesh-assets-6651557-measured-g.ts",
+    "meshAssetsMeasuredH": "packages/catalog/src/mesh-assets-6651557-measured-h.ts",
     "meshAssetsRenderOnly": "packages/catalog/src/mesh-assets-6651557-render-only.ts",
     "blueprints": "packages/catalog/src/part-blueprints-6651557-measured.ts",
     "blueprintsMeasuredD": "packages/catalog/src/part-blueprints-6651557-measured-d.ts",
     "blueprintsMeasuredE": "packages/catalog/src/part-blueprints-6651557-measured-e.ts",
     "blueprintsMeasuredF": "packages/catalog/src/part-blueprints-6651557-measured-f.ts",
     "blueprintsMeasuredG": "packages/catalog/src/part-blueprints-6651557-measured-g.ts",
+    "blueprintsMeasuredH": "packages/catalog/src/part-blueprints-6651557-measured-h.ts",
     "renderOnlyBlueprints": "packages/catalog/src/part-blueprints-6651557-render-only.ts",
     "bundledSources": "packages/catalog/src/ldraw-bundled-sources-6651557.ts",
 }
@@ -273,9 +276,14 @@ def main() -> None:
             "SET_6651557_MEASURED_MESH_ASSETS_F",
         ),
         "meshAssetsMeasuredG": render_mesh_asset_chunk(
-            measured_parts[MEASURED_G_SHARD_START:],
+            measured_parts[MEASURED_G_SHARD_START:MEASURED_H_SHARD_START],
             archive_sha256,
             "SET_6651557_MEASURED_MESH_ASSETS_G",
+        ),
+        "meshAssetsMeasuredH": render_mesh_asset_chunk(
+            measured_parts[MEASURED_H_SHARD_START:],
+            archive_sha256,
+            "SET_6651557_MEASURED_MESH_ASSETS_H",
         ),
         "meshAssetsRenderOnly": render_mesh_asset_chunk(
             render_only_parts,
@@ -327,11 +335,22 @@ def main() -> None:
             ),
         ),
         "blueprintsMeasuredG": render_blueprints(
-            measured_parts[MEASURED_G_SHARD_START:],
+            measured_parts[MEASURED_G_SHARD_START:MEASURED_H_SHARD_START],
             archive_sha256,
             builder,
             dict(shadow.identity()),
             export_name="SET_6651557_MEASURED_BLUEPRINTS_G",
+            appended_shard=(
+                "SET_6651557_MEASURED_BLUEPRINTS_H",
+                "./part-blueprints-6651557-measured-h.ts",
+            ),
+        ),
+        "blueprintsMeasuredH": render_blueprints(
+            measured_parts[MEASURED_H_SHARD_START:],
+            archive_sha256,
+            builder,
+            dict(shadow.identity()),
+            export_name="SET_6651557_MEASURED_BLUEPRINTS_H",
         ),
         "renderOnlyBlueprints": render_render_only_blueprints(
             render_only_parts, archive_sha256

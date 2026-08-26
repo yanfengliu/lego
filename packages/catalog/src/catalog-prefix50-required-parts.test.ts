@@ -15,6 +15,7 @@ import {
 } from "./ldraw-bundled-sources-6651557.ts";
 import { SET_6651557_MESH_ASSETS } from "./mesh-assets-6651557.ts";
 import { SET_6651557_MEASURED_BLUEPRINTS_G } from "./part-blueprints-6651557-measured-g.ts";
+import { SET_6651557_MEASURED_BLUEPRINTS_H } from "./part-blueprints-6651557-measured-h.ts";
 
 const REQUIRED = [
   {
@@ -92,11 +93,69 @@ const REQUIRED = [
 ] as const;
 
 describe("bounded first-50 required catalog tranche", () => {
-  it("appends four exact /27 definitions without moving the /26 roster", () => {
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/27");
-    expect(PART_DEFINITIONS).toHaveLength(102);
-    expect(PART_DEFINITIONS.slice(-4).map(({ id }) => id)).toEqual(REQUIRED.map(({ id }) => id));
-    expect(SET_6651557_MEASURED_BLUEPRINTS_G).toHaveLength(8);
+  it("retains the four exact /27 definitions before the /28 suffix tranche", () => {
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/28");
+    expect(PART_DEFINITIONS).toHaveLength(104);
+    expect(PART_DEFINITIONS.slice(-6, -2).map(({ id }) => id)).toEqual(
+      REQUIRED.map(({ id }) => id),
+    );
+    expect(SET_6651557_MEASURED_BLUEPRINTS_G).toHaveLength(10);
+    expect(SET_6651557_MEASURED_BLUEPRINTS_H).toHaveLength(2);
+  });
+
+  it("appends only the two exact-suffix /28 definitions", () => {
+    expect(PART_DEFINITIONS.slice(-2).map(({ id }) => id)).toEqual([
+      "builtin:brick-1x2x2-without-understud",
+      "builtin:brick-1x1x5-solid-stud",
+    ]);
+    expect(
+      SET_6651557_MEASURED_BLUEPRINTS_H.map(({ designId, ldrawSource }) => ({
+        designId,
+        rootSha256: ldrawSource.rootSha256,
+      })),
+    ).toEqual([
+      {
+        designId: "3245c",
+        rootSha256: "sha256:9cc04bca1050e0b16a00c76a432f9cbb769655dc79188a0df3cffa2229dc6615",
+      },
+      {
+        designId: "2453b",
+        rootSha256: "sha256:3c7caddd91a2467243cf3f3bd0bdd8ee8fa1cbd5435591a6491841ee1ca49b01",
+      },
+    ]);
+    expect(BUNDLED_LDRAW_CLOSURE_MANIFESTS["3245c"]).toEqual({
+      bytes: 9_967,
+      manifestSha256: "sha256:94cc72df7dd05ebf10c7804c1e779c484177e2a7b3246a5690189cce976d1d9c",
+    });
+    expect(BUNDLED_LDRAW_CLOSURE_MANIFESTS["2453b"]).toEqual({
+      bytes: 7_370,
+      manifestSha256: "sha256:28333adba88bce3f02b75f74ee3b16e320580ff837c08c5067091e22c6ebb1f9",
+    });
+  });
+
+  it("binds 3245c's three half-pitch seats to two exact capacity cells", () => {
+    const part = getPartDefinition("builtin:brick-1x2x2-without-understud")!;
+    expect(
+      part.connectors
+        .filter(({ kind }) => kind === "undersideClutch")
+        .map(({ positionLdu, sharedCapacityGroupIds }) => ({
+          positionLdu,
+          sharedCapacityGroupIds,
+        })),
+    ).toEqual([
+      {
+        positionLdu: [0, 24, -10],
+        sharedCapacityGroupIds: ["3245c:negative-z-half"],
+      },
+      {
+        positionLdu: [0, 24, 0],
+        sharedCapacityGroupIds: ["3245c:negative-z-half", "3245c:positive-z-half"],
+      },
+      {
+        positionLdu: [0, 24, 10],
+        sharedCapacityGroupIds: ["3245c:positive-z-half"],
+      },
+    ]);
   });
 
   it.each(REQUIRED)(
@@ -245,9 +304,26 @@ describe("bounded first-50 required catalog tranche", () => {
   });
 
   it("retains per-file attribution for every newly bundled source file", () => {
-    const newFiles = BUNDLED_LDRAW_SOURCE_FILES.slice(211);
+    const newFiles = BUNDLED_LDRAW_SOURCE_FILES.slice(211, 224);
     expect(newFiles).toHaveLength(13);
     expect(newFiles.every(({ licenseExpression }) => licenseExpression === "CC-BY-4.0")).toBe(true);
     expect(newFiles.every(({ author, title }) => author.length > 0 && title.length > 0)).toBe(true);
+
+    const suffixPaths = new Set([
+      "p/box4t.dat",
+      "parts/2453b.dat",
+      "parts/3245c.dat",
+      "parts/s/3245cs01.dat",
+    ]);
+    expect(
+      BUNDLED_LDRAW_SOURCE_FILES.filter(({ path }) => suffixPaths.has(path)).map(
+        ({ path, licenseExpression }) => ({ path, licenseExpression }),
+      ),
+    ).toEqual([
+      { path: "p/box4t.dat", licenseExpression: "CC-BY-4.0" },
+      { path: "parts/2453b.dat", licenseExpression: "CC-BY-2.0 OR CC-BY-4.0" },
+      { path: "parts/3245c.dat", licenseExpression: "CC-BY-2.0 OR CC-BY-4.0" },
+      { path: "parts/s/3245cs01.dat", licenseExpression: "CC-BY-4.0" },
+    ]);
   });
 });

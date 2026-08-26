@@ -72,7 +72,7 @@ class RenderTests(unittest.TestCase):
         self.assertIn("--pilot <set-6651557-source-pilot.json>", rendered)
         self.assertIn("--builder-frame <set-6651557-builder-ldraw-frame.json>", rendered)
 
-    def test_append_only_g_shards_follow_f_without_rewriting_prior_admissions(self) -> None:
+    def test_append_only_h_shards_follow_g_without_rewriting_prior_admissions(self) -> None:
         mesh_aggregator = render_mesh_asset_aggregator()
         self.assertIn(
             'import { SET_6651557_MEASURED_MESH_ASSETS_D } from "./mesh-assets-6651557-measured-d.ts";',
@@ -88,6 +88,10 @@ class RenderTests(unittest.TestCase):
         )
         self.assertIn(
             'import { SET_6651557_MEASURED_MESH_ASSETS_G } from "./mesh-assets-6651557-measured-g.ts";',
+            mesh_aggregator,
+        )
+        self.assertIn(
+            'import { SET_6651557_MEASURED_MESH_ASSETS_H } from "./mesh-assets-6651557-measured-h.ts";',
             mesh_aggregator,
         )
         self.assertLess(
@@ -108,6 +112,10 @@ class RenderTests(unittest.TestCase):
         )
         self.assertLess(
             mesh_aggregator.index("...SET_6651557_MEASURED_MESH_ASSETS_G"),
+            mesh_aggregator.index("...SET_6651557_MEASURED_MESH_ASSETS_H"),
+        )
+        self.assertLess(
+            mesh_aggregator.index("...SET_6651557_MEASURED_MESH_ASSETS_H"),
             mesh_aggregator.index("...SET_6651557_RENDER_ONLY_MESH_ASSETS"),
         )
 
@@ -333,6 +341,7 @@ class RenderTests(unittest.TestCase):
                 "mesh-assets-6651557-measured-e.ts",
                 "mesh-assets-6651557-measured-f.ts",
                 "mesh-assets-6651557-measured-g.ts",
+                "mesh-assets-6651557-measured-h.ts",
                 "mesh-assets-6651557-render-only.ts",
             ],
         )
@@ -344,6 +353,7 @@ class RenderTests(unittest.TestCase):
                 "part-blueprints-6651557-measured-e.ts",
                 "part-blueprints-6651557-measured-f.ts",
                 "part-blueprints-6651557-measured-g.ts",
+                "part-blueprints-6651557-measured-h.ts",
                 "part-blueprints-6651557-measured.ts",
             ],
         )
@@ -375,6 +385,7 @@ class RenderTests(unittest.TestCase):
             mesh_ids["mesh-assets-6651557-measured-g.ts"],
             ["32064", "11212", "33909", "78329", "99563", "73230", "35464", "49307"],
         )
+        self.assertEqual(mesh_ids["mesh-assets-6651557-measured-h.ts"], ["3245c", "2453b"])
         self.assertEqual(
             blueprint_ids["part-blueprints-6651557-measured.ts"],
             admitted_ids[:18],
@@ -394,6 +405,9 @@ class RenderTests(unittest.TestCase):
         self.assertEqual(
             blueprint_ids["part-blueprints-6651557-measured-g.ts"],
             ["32064", "11212", "33909", "78329", "99563", "73230", "35464", "49307"],
+        )
+        self.assertEqual(
+            blueprint_ids["part-blueprints-6651557-measured-h.ts"], ["3245c", "2453b"]
         )
         generated = [
             *mesh_chunks,

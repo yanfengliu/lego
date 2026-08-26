@@ -19,13 +19,13 @@ import { SET_6651557_MEASURED_BLUEPRINTS } from "./part-blueprints-6651557-measu
 import { SET_6651557_MESH_ASSETS } from "./mesh-assets-6651557.ts";
 
 /**
- * What the twenty-five fully measured catalog parts are, written out rather than recomputed.
+ * What the twenty-seven fully measured catalog parts are, written out rather than recomputed.
  *
  * These are facts about real parts: the extents come from the exact expanded
  * LDraw closure, the collision column count from its per-column height field at
  * 1 LDU, and the connector counts from an authored connector source
  * carried through the per-part frame — Builder-derived records for eight parts
- * and the LDCad shadow library's snap metas for seventeen. Four of the LDCad-sourced
+ * and the LDCad shadow library's snap metas for nineteen. Four of the LDCad-sourced
  * designs have no Builder record; 25269 deliberately selects the independently
  * authored shadow route instead of treating record presence as connector truth,
  * while 28802 refuses a contradictory Builder identity and retains the exact
@@ -559,6 +559,47 @@ const ADMITTED = [
     vertices: 120,
     closureFiles: 7,
   },
+  // builtin.basic-parts/28. Exact suffixed LDraw roots and LDCad declarations
+  // define generic catalog geometry and connectors without reinterpreting the
+  // quarantined Builder or booklet variant diagnostics.
+  {
+    id: "builtin:brick-1x2x2-without-understud",
+    ldrawId: "3245c.dat",
+    family: "brick",
+    widthStuds: 1,
+    lengthStuds: 2,
+    heightLdu: 48,
+    orientationId: "upright-yaw-90",
+    translationLdu: [0, -24, 0],
+    connectorGridCenterLdu: [0, 0],
+    bodyBoundsLdu: { min: [-10, -24, -20], max: [10, 24, 20] },
+    boundsLdu: { min: [-10, -28, -20], max: [10, 24, 20] },
+    studs: 2,
+    clutches: 3,
+    bodyBoxes: 25,
+    triangles: 152,
+    vertices: 206,
+    closureFiles: 10,
+  },
+  {
+    id: "builtin:brick-1x1x5-solid-stud",
+    ldrawId: "2453b.dat",
+    family: "brick",
+    widthStuds: 1,
+    lengthStuds: 1,
+    heightLdu: 120,
+    orientationId: "upright-yaw-0",
+    translationLdu: [0, -60, 0],
+    connectorGridCenterLdu: [0, 0],
+    bodyBoundsLdu: { min: [-10, -60, -10], max: [10, 60, 10] },
+    boundsLdu: { min: [-10, -64, -10], max: [10, 60, 10] },
+    studs: 1,
+    clutches: 1,
+    bodyBoxes: 5,
+    triangles: 76,
+    vertices: 97,
+    closureFiles: 6,
+  },
 ] as const;
 
 /** Every part whose connector rows the LDCad shadow library authors. */
@@ -580,6 +621,8 @@ const LDCAD_CONNECTOR_PART_IDS = [
   "builtin:technic-brick-1x1-axle-hole",
   "builtin:slope-1x1-double-45",
   "builtin:curved-slope-1x1-outside-bow",
+  "builtin:brick-1x2x2-without-understud",
+  "builtin:brick-1x1x5-solid-stud",
 ] as const;
 
 /** The three plate-lattice parts whose clutch cells Builder could not supply. */
@@ -602,7 +645,7 @@ const bodyBoxes = (part: PartDefinition): readonly Extract<CollisionPrimitive, {
   );
 
 describe("set 6651557 parts declared from measured source", () => {
-  it("admits all twenty-five through the production mesh gate", () => {
+  it("admits all twenty-seven through the production mesh gate", () => {
     for (const expected of ADMITTED) {
       expect([expected.id, validateMeshPartDefinitionAdmission(require(expected.id))]).toEqual([
         expected.id,
@@ -733,7 +776,7 @@ describe("set 6651557 parts declared from measured source", () => {
     expect(BUNDLED_LDRAW_ARCHIVE.sha256).toBe(
       "sha256:6009f2e94204c4d3a63a4c812010b5c90bad8c5acb19b882c859fdac63734eae",
     );
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(224);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(228);
     for (const file of BUNDLED_LDRAW_SOURCE_FILES) {
       expect(file.author.trim().length).toBeGreaterThan(0);
       expect(file.title.trim().length).toBeGreaterThan(0);
@@ -744,16 +787,18 @@ describe("set 6651557 parts declared from measured source", () => {
         licenseExpression.includes("CC-BY-2.0"),
       ).map(({ path, licenseExpression }) => [path, licenseExpression]),
     ).toEqual([
+      ["parts/2453b.dat", "CC-BY-2.0 OR CC-BY-4.0"],
       ["parts/30503.dat", "CC-BY-2.0 OR CC-BY-4.0"],
       ["parts/32064a.dat", "CC-BY-2.0 OR CC-BY-4.0"],
+      ["parts/3245c.dat", "CC-BY-2.0 OR CC-BY-4.0"],
     ]);
     expect(
       BUNDLED_LDRAW_SOURCE_FILES.filter(
         ({ licenseExpression }) => licenseExpression === "CC-BY-4.0",
       ),
-    ).toHaveLength(222);
-    // 30 named authors across 224 files: attribution is retained per file, never flattened.
-    expect(new Set(BUNDLED_LDRAW_SOURCE_FILES.map(({ author }) => author)).size).toBe(30);
+    ).toHaveLength(224);
+    // 33 named authors across 228 files: attribution is retained per file, never flattened.
+    expect(new Set(BUNDLED_LDRAW_SOURCE_FILES.map(({ author }) => author)).size).toBe(33);
 
     for (const expected of ADMITTED) {
       const closure = BUNDLED_LDRAW_CLOSURES[expected.ldrawId.replace(".dat", "")]!;
@@ -775,7 +820,7 @@ describe("set 6651557 parts declared from measured source", () => {
 
       expect(provenance.sourceType).toBe("external-bundled-geometry");
       expect(provenance.externalGeometryBundled).toBe(true);
-      expect(provenance.licenseExpression).toBe("CC-BY-4.0");
+      expect(["CC-BY-4.0", "CC-BY-2.0 OR CC-BY-4.0"]).toContain(provenance.licenseExpression);
       expect(provenance.redistributionAllowed).toBe(true);
       expect(provenance.trainingUseAllowed).toBe(false);
       expect(provenance.attribution).toMatch(/reuse is not permission to train/u);
@@ -832,6 +877,9 @@ describe("set 6651557 parts declared from measured source", () => {
       ["builtin:tile-1x2-chamfered-indented", "undersideClutch:0"],
       ["builtin:tile-1x2-chamfered-indented", "undersideClutch:1"],
       ["builtin:tile-1x2-chamfered-indented", "undersideClutch:2"],
+      ["builtin:brick-1x2x2-without-understud", "undersideClutch:0"],
+      ["builtin:brick-1x2x2-without-understud", "undersideClutch:1"],
+      ["builtin:brick-1x2x2-without-understud", "undersideClutch:2"],
     ]);
     for (const { part } of carryingClaims) {
       expect(part.geometry.generatorId).toBe("builtin:preloaded-mesh-reference/1");

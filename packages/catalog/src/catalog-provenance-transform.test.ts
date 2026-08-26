@@ -53,14 +53,18 @@ describe("catalog provenance and transforms", () => {
     expect(getPartDefinition("ldraw:3024.dat")).toBe(getPartDefinition("builtin:plate-1x1"));
 
     for (const part of PART_DEFINITIONS) {
-      // A generated recipe is ours; a bundled LDraw mesh is not. 30503's own
-      // source header is the one dual-licensed root in the current closure.
+      // A generated recipe is ours; a bundled LDraw mesh is not. Three current
+      // root headers retain their exact dual-license declarations.
       const bundled = part.geometry.generatorId === "builtin:preloaded-mesh-reference/1";
       expect(part.geometry.provenance.sourceType).toBe(
         bundled ? "external-bundled-geometry" : "project-authored",
       );
       expect(part.geometry.provenance.licenseExpression).toBe(
-        part.id === "builtin:wedge-plate-4x4-cut-corner"
+        [
+          "builtin:wedge-plate-4x4-cut-corner",
+          "builtin:brick-1x2x2-without-understud",
+          "builtin:brick-1x1x5-solid-stud",
+        ].includes(part.id)
           ? "CC-BY-2.0 OR CC-BY-4.0"
           : bundled
             ? "CC-BY-4.0"

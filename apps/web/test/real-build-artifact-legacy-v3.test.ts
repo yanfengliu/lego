@@ -407,6 +407,12 @@ describe("legacy artifact-manifest /3 inspection", () => {
     expect(active.constraints.allowedCatalogPartIds).not.toContain(
       "builtin:tile-1x2-chamfered-indented",
     );
+    expect(active.constraints.allowedCatalogPartIds).not.toContain(
+      "builtin:brick-1x2x2-without-understud",
+    );
+    expect(active.constraints.allowedCatalogPartIds).not.toContain(
+      "builtin:brick-1x1x5-solid-stud",
+    );
     const driftedTruth = structuredClone(active) as MutableCatalogCompatibilityBasis;
     driftedTruth.truth = {
       ...driftedTruth.truth,

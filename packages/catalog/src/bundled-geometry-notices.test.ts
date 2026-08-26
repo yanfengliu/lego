@@ -28,12 +28,15 @@ const LDCAD_HISTORY_CONTRIBUTORS_BY_FILE: Readonly<Record<string, readonly strin
   "p/stud4.dat": ["Roland Melkert"],
   "parts/11212.dat": ["Roland Melkert"],
   "parts/11253.dat": ["Jason McReynolds"],
+  "parts/2453b.dat": ["Roland Melkert"],
   "parts/2450.dat": ["Roland Melkert"],
   "parts/28802.dat": ["Philippe Hurbain"],
   "parts/30357.dat": ["Roland Melkert"],
   "parts/30503.dat": ["Roland Melkert"],
   "parts/30565.dat": ["Roland Melkert"],
   "parts/32064a.dat": ["Roland Melkert"],
+  "parts/3245a.dat": ["Roland Melkert"],
+  "parts/3245c.dat": ["Roland Melkert"],
   "parts/33909.dat": ["Roland Melkert"],
   "parts/35464.dat": ["Roland Melkert"],
   "parts/41682.dat": ["Roland Melkert"],
@@ -45,6 +48,7 @@ const LDCAD_HISTORY_CONTRIBUTORS_BY_FILE: Readonly<Record<string, readonly strin
   "parts/79491.dat": ["Philippe Hurbain"],
   "parts/96910.dat": ["Roland Melkert"],
   "parts/s/25269s01.dat": ["Roland Melkert"],
+  "parts/s/3245cs01.dat": ["Roland Melkert"],
   "parts/s/35787s01.dat": ["Roland Melkert"],
 };
 
@@ -108,9 +112,22 @@ function renderNotices(): string {
   }
   const ccBy4Count = licenseCounts.get("CC-BY-4.0") ?? 0;
   const dualLicenseCount = licenseCounts.get("CC-BY-2.0 OR CC-BY-4.0") ?? 0;
-  if (licenseCounts.size !== 2 || dualLicenseCount !== 2) {
+  const dualLicenseFiles = BUNDLED_LDRAW_SOURCE_FILES.filter(
+    ({ licenseExpression }) => licenseExpression === "CC-BY-2.0 OR CC-BY-4.0",
+  ).map(({ path }) => path);
+  const expectedDualLicenseFiles = [
+    "parts/2453b.dat",
+    "parts/30503.dat",
+    "parts/32064a.dat",
+    "parts/3245c.dat",
+  ];
+  if (
+    licenseCounts.size !== 2 ||
+    dualLicenseCount !== 4 ||
+    JSON.stringify(dualLicenseFiles) !== JSON.stringify(expectedDualLicenseFiles)
+  ) {
     throw new Error(
-      `Bundled LDraw licence summary expected CC-BY-4.0 plus two dual-licensed roots; received ${JSON.stringify(Object.fromEntries(licenseCounts))}. Review every new licence before regenerating notices.`,
+      `Bundled LDraw licence summary expected CC-BY-4.0 plus four exact dual-licensed roots ${JSON.stringify(expectedDualLicenseFiles)}; received counts ${JSON.stringify(Object.fromEntries(licenseCounts))} and roots ${JSON.stringify(dualLicenseFiles)}. Review every new licence before regenerating notices.`,
     );
   }
   const partRows = meshParts.map((part) => {
@@ -128,9 +145,11 @@ function renderNotices(): string {
     "",
     "> Generated from the catalog by `packages/catalog/src/bundled-geometry-notices.test.ts`, which fails if this file and the catalog disagree. Do not edit by hand.",
     "",
-    `The render mesh of the parts below is real LDraw geometry, bundled and redistributed under the [Creative Commons Attribution 4.0 International licence](https://creativecommons.org/licenses/by/4.0/). Of the ${BUNDLED_LDRAW_SOURCE_FILES.length} source files, ${ccBy4Count} declare CC BY 4.0 and \`parts/30503.dat\` plus \`parts/32064a.dat\` declare \`CC-BY-2.0 OR CC-BY-4.0\`; this bundle selects their CC BY 4.0 option. Attribution therefore names every file whose triangles are bundled with its author, title, licence and content hash rather than flattening it into project-owned data.`,
+    `The render mesh of the parts below is real LDraw geometry, bundled and redistributed under the [Creative Commons Attribution 4.0 International licence](https://creativecommons.org/licenses/by/4.0/). Of the ${BUNDLED_LDRAW_SOURCE_FILES.length} source files, ${ccBy4Count} declare CC BY 4.0 and ${dualLicenseFiles.map((path) => `\`${path}\``).join(", ")} declare \`CC-BY-2.0 OR CC-BY-4.0\`; this bundle selects their CC BY 4.0 option. Attribution therefore names every file whose triangles are bundled with its author, title, licence and content hash rather than flattening it into project-owned data.`,
     "",
     "Permission to reuse this geometry is **not** permission to train on it. That right is not held, and no bundled file is designated as a model-training or benchmark corpus.",
+    "",
+    "Catalog `/28` adds two exact-suffix fully measured parts without treating the suffixes as interchangeable. `3245c` Brick 1 x 2 x 2 Without Understud uses an official 10-file closure, 152 triangles, 25 conservative body boxes plus two source-radius stud cylinders, and an exact LDCad route for two top studs and three half-pitch underside seats. Its two outer seats consume separate capacity cells while the center consumes both, so the two outers may coexist and the center conflicts with either. `2453b` Brick 1 x 1 x 5 with Solid Stud uses an official 6-file closure, 76 triangles, five conservative body boxes plus one source-radius stud cylinder, and an exact LDCad route for its top stud and one explicitly opted-in square-S6 underside socket. These generic catalog facts do not reinterpret the unresolved `3245;M` Builder record, the suffix-absent `2453;I` record, or any booklet pixel diagnostic. They grant no source-execution, printed identity, physical assignment, frame, placement, action-ledger, replay, document mutation, acceptance, or completion authority.",
     "",
     "Catalog `/27` adds four fully measured parts required by the bounded printed-step-50 prefix. `99563` Tile 1 x 2 Chamfered with 2 Top Indentations uses an official 10-file closure, 228 triangles, and 20 conservative body boxes; its exact LDCad route authors three half-pitch underside seats at z = -10, 0, and 10 LDU. Each outer seat consumes its adjacent half-capacity cell and the center consumes both, so the center conflicts with either outer while the two outer seats may coexist; these are exact occupancy semantics, not three independent full-pitch cells. `73230` Technic Brick 1 x 1 with Axle Hole uses an official 18-file closure, 294 triangles, 10 conservative body boxes plus one source-radius stud cylinder, and an exact LDCad route for its top stud, underside clutch, and transverse axle-hole endpoint at `[0,-2,0]` with normal `[-1,0,0]`. `35464` Slope 45 1 x 1 Double and `49307` Curved Slope 1 x 1 Outside Bow use official 5- and 7-file closures, 52 and 100 triangles, 75 conservative body boxes each, and one exact central LDCad underside seat each. Their catalog-local source frames and connector rows create no source-execution, prepared-run, printed-step physical-frame, placement, replay, or completion authority; they also make no claim of clutch strength, physical stability, insertion access, continuous axle sliding, or axle-bore collision relief.",
     "",
@@ -154,13 +173,17 @@ function renderNotices(): string {
     "",
     "## Every bundled file",
     "",
-    `The ${BUNDLED_LDRAW_SOURCE_FILES.length} files below comprise ${ccBy4Count} \`CC-BY-4.0\` declarations and two \`CC-BY-2.0 OR CC-BY-4.0\` declarations.`,
+    `The ${BUNDLED_LDRAW_SOURCE_FILES.length} files below comprise ${ccBy4Count} \`CC-BY-4.0\` declarations and four \`CC-BY-2.0 OR CC-BY-4.0\` declarations.`,
     "",
     "| File | Title | Author | Licence | LDraw.org status | SHA-256 |",
     "| --- | --- | --- | --- | --- | --- |",
     ...fileRows,
     "",
     "## Derived connector data",
+    "",
+    "For `3245c`, the exact LDCad route authors two top studs and three round half-pitch underside seats; two inherited square-S6 declarations remain excluded. The negative outer and center seats share one capacity cell, while the center and positive outer share another. This admits exact generic connector occupancy without authenticating the unresolved Builder variant, a printed element, or a placement frame.",
+    "",
+    "For `2453b`, the exact LDCad route authors one top stud and one square-S6 underside socket. The socket passes the same bounded source-room control as the earlier calibrated square-S6 routes, but it does not identify an unsuffixed `2453` record or authorize a printed placement.",
     "",
     "For `99563`, the exact LDCad route authors three half-pitch underside seats. The negative outer and center seats share one capacity cell; the center and positive outer seats share another. The center therefore excludes either outer while the two outers can be occupied together. This is deterministic connector occupancy only and does not authenticate any booklet placement or physical-performance claim.",
     "",

@@ -5,5 +5,6 @@ export * from "./mesh-assets.ts";
 export * from "./ldraw-bundled-sources-6651557.ts";
 export * from "./mesh-admission.ts";
 export * from "./mass-properties.ts";
+export * from "./ldraw-variant-policy.ts";
 export * from "./constants.ts";
 export type * from "./types.ts";

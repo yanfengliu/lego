@@ -188,11 +188,14 @@ const EXPECTED_PART_IDS = [
   "builtin:technic-brick-1x1-axle-hole",
   "builtin:slope-1x1-double-45",
   "builtin:curved-slope-1x1-outside-bow",
+  // builtin.basic-parts/28: exact suffix-only measured definitions.
+  "builtin:brick-1x2x2-without-understud",
+  "builtin:brick-1x1x5-solid-stud",
 ] as const;
 
 describe("starter catalog", () => {
-  it("publishes the four-part printed-prefix admission as version 27", () => {
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/27");
+  it("publishes the exact-suffix catalog admission as version 28", () => {
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/28");
   });
 
   it("pins 25269's exact LDCad route and raw-to-catalog central clutch", () => {
@@ -279,7 +282,7 @@ describe("starter catalog", () => {
       ]),
     );
     expect(perFamily).toEqual({
-      brick: 16,
+      brick: 18,
       plate: 33,
       tile: 13,
       "jumper-plate": 3,

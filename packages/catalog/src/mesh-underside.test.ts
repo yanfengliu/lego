@@ -91,7 +91,7 @@ describe("underside measured from a bundled mesh", () => {
     // runs through the part.
     const mesh = PART_DEFINITIONS.filter(isMeshPartDefinition);
 
-    expect(mesh).toHaveLength(41);
+    expect(mesh).toHaveLength(43);
     expect(
       mesh.map(({ id, geometry }) => [
         id,
@@ -380,6 +380,20 @@ describe("underside measured from a bundled mesh", () => {
         "mesh-derived-height-field",
         "bundled-source-mesh",
         "none",
+        "modelled-shell-cavity",
+      ],
+      [
+        "builtin:brick-1x2x2-without-understud",
+        "mesh-derived-height-field",
+        "bundled-source-mesh",
+        "measured-stud-seats",
+        "modelled-shell-cavity",
+      ],
+      [
+        "builtin:brick-1x1x5-solid-stud",
+        "mesh-derived-height-field",
+        "bundled-source-mesh",
+        "measured-stud-seats",
         "modelled-shell-cavity",
       ],
     ]);

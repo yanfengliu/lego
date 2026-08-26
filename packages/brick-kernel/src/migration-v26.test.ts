@@ -7,11 +7,13 @@ import { getReviewedHistoricalCatalogRoster } from "./historical-catalog-rosters
 import { migrateDocumentTruth } from "./migration.ts";
 
 const V26_TRUTH_HASH = "sha256:3226590b11882fea03d8a6370d4ca3c6c8201feaddb56882a243a69acba627e9";
-const V27_PART_IDS = [
+const POST_V26_PART_IDS = [
   "builtin:tile-1x2-chamfered-indented",
   "builtin:technic-brick-1x1-axle-hole",
   "builtin:slope-1x1-double-45",
   "builtin:curved-slope-1x1-outside-bow",
+  "builtin:brick-1x2x2-without-understud",
+  "builtin:brick-1x1x5-solid-stud",
 ] as const;
 
 function documentSavedAtV26(): BrickDocumentV1 {
@@ -53,14 +55,14 @@ function documentSavedAtV26(): BrickDocumentV1 {
 }
 
 describe("builtin.basic-parts/26 migration", () => {
-  it("adds only the four complete measured definitions when /26 advances to /27", () => {
+  it("adds only the six complete measured definitions when /26 advances to /28", () => {
     const saved = documentSavedAtV26();
     const { document, report } = migrateDocumentTruth(saved);
 
     expect(report.migrated).toBe(true);
     expect(report.blockingReasons).toEqual([]);
     expect(report.fromTruthHash).toBe(V26_TRUTH_HASH);
-    expect(report.addedCatalogPartIds).toEqual(V27_PART_IDS);
+    expect(report.addedCatalogPartIds).toEqual(POST_V26_PART_IDS);
     expect(report.catalogInterpretationChanges).toEqual([]);
     expect(report.truthComponentChanges).toEqual([
       {
@@ -79,7 +81,7 @@ describe("builtin.basic-parts/26 migration", () => {
 
   it("refuses a /26 document that pre-seeds a /27 part in constraints and parts", () => {
     const saved = documentSavedAtV26();
-    const futurePartId = V27_PART_IDS[0];
+    const futurePartId = POST_V26_PART_IDS[0];
     const part = createPartInstance({ id: "future-chamfered-tile", catalogPartId: futurePartId });
     const forged: BrickDocumentV1 = {
       ...saved,

@@ -5,7 +5,7 @@ import { canonicalDigest } from "./canonical.ts";
 import { createBuiltinTruthSnapshot, getBuiltinTruthDigestInputs } from "./factory.ts";
 
 describe("source-frame orientation infrastructure truth boundary", () => {
-  it("keeps placement truth upright while /27 exposes 24 source frames", () => {
+  it("keeps placement truth upright while /28 exposes 24 source frames", () => {
     const digestInputs = getBuiltinTruthDigestInputs();
     const truth = createBuiltinTruthSnapshot();
 
@@ -16,23 +16,23 @@ describe("source-frame orientation infrastructure truth boundary", () => {
       schemaVersion: "lego.truth-snapshot/1",
       catalog: {
         id: "builtin.basic-parts",
-        version: "builtin.basic-parts/27",
-        hash: "sha256:ffb0eb6e68edcb91298b04a3c899a11417b70b07aac062c42f4c1051c20f50ee",
+        version: "builtin.basic-parts/28",
+        hash: "sha256:15decef17024421dec825287923d2ae0142973f83281b3479b0eeeb5e5ddd837",
       },
       connectorTaxonomy: {
         id: "stud-tube",
         version: "stud-tube/1",
-        hash: "sha256:5153c1c3d58db63962698768885c0630b1c2c926a220e5895e7d55442ebbc7f1",
+        hash: "sha256:41b9011f2ae13baadd4bc173936ea962d5ef6419809bc17fa3dcfcf01e83a553",
       },
       collisionModel: {
         id: "rectilinear-stud-clearance",
         version: "rectilinear-stud-clearance/3",
-        hash: "sha256:1e727bf61b482bcaf8587f44175e46238926126de241ae0248a5e23b942118bd",
+        hash: "sha256:11a791eaed761857eeb7446a4feaa278635593a8767e0d6d7ed9426d0cebeabd",
       },
       transformPolicy: {
         id: "upright-quarter-turns-negative-y-up",
         version: "upright-quarter-turns-negative-y-up/1",
-        hash: "sha256:ec8ce034cb7f39169783692259ec25bb028b95bce6d456917f88bd9bebebb03d",
+        hash: "sha256:b67a6b5226f97eeef8d18dc038df8e6e51da51843b0846cb64a61c328f46eb9a",
       },
       validatorSet: {
         id: "lego.kernel-validators",
@@ -41,7 +41,7 @@ describe("source-frame orientation infrastructure truth boundary", () => {
       },
     });
     expect(canonicalDigest(truth)).toBe(
-      "sha256:614c61787b6c45d645e3e84c71dd931a15c258535a1959ee4b3aa1906303b70f",
+      "sha256:643185fe21f0d0c77a7aada8b170395f11bb7da1079f97d5c0cd0a03d7464f1b",
     );
   });
 });

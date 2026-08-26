@@ -11,7 +11,7 @@ const TARGET_CATALOG_VERSION = "builtin.basic-parts/26";
 const SOURCE_TRUTH_HASH = "sha256:de62fae6dbc8095dfd460983e5e845ddfac4bf9ec2ea1f99572bc46026941cb5";
 const TARGET_TRUTH_HASH = "sha256:3226590b11882fea03d8a6370d4ca3c6c8201feaddb56882a243a69acba627e9";
 const CURRENT_RUNTIME_TRUTH_HASH =
-  "sha256:614c61787b6c45d645e3e84c71dd931a15c258535a1959ee4b3aa1906303b70f";
+  "sha256:643185fe21f0d0c77a7aada8b170395f11bb7da1079f97d5c0cd0a03d7464f1b";
 const ADDED_CATALOG_PART_IDS = [
   "builtin:tile-1x1-quarter-round",
   "builtin:bracket-1x2-1x4-rounded-bottom",
@@ -100,7 +100,7 @@ function assertExactReviewedAdditiveMigration(
  *
  * Current operation admission intentionally refuses a historical truth
  * snapshot. For this one exact bridge, operations execute transiently under
- * pinned `/27` runtime truth and are then replaced with the unchanged source
+ * pinned `/28` runtime truth and are then replaced with the unchanged source
  * truth. The separately projected migration truth, report, revision, and
  * additive roster remain frozen at `/26`; the compatibility guard proves every
  * source-allowlisted part retains its prior connector/collision bytes and
@@ -153,7 +153,7 @@ export function applyReviewedAdditiveLegacyBuildOperations(
     JSON.stringify(applied.truth) !== JSON.stringify(currentMigration.document.truth)
   ) {
     throw new TypeError(
-      "Reviewed legacy operation execution did not retain exact /27 runtime truth.",
+      "Reviewed legacy operation execution did not retain exact /28 runtime truth.",
     );
   }
   const restored: BrickDocumentV1 = {

@@ -7,17 +7,19 @@ import { getReviewedHistoricalCatalogRoster } from "./historical-catalog-rosters
 import { migrateDocumentTruth } from "./migration.ts";
 
 const V21_TRUTH_HASH = "sha256:44044c90de3bb380f32c26db561bad1bd0f247c22ea35c54d75aa5ec6ef8f9a1";
-const V27_TRUTH_HASH = "sha256:614c61787b6c45d645e3e84c71dd931a15c258535a1959ee4b3aa1906303b70f";
+const V28_TRUTH_HASH = "sha256:643185fe21f0d0c77a7aada8b170395f11bb7da1079f97d5c0cd0a03d7464f1b";
 const V22_PART_ID = "builtin:axle-1x3";
 const V23_PART_ID = "builtin:technic-brick-1x2-axle-hole";
 const V24_PART_ID = "builtin:plate-3x3";
 const V25_PART_ID = "builtin:plate-2x2-two-studs";
 const V26_PART_ID = "builtin:plate-1x5";
-const V27_PART_IDS = [
+const POST_V26_PART_IDS = [
   "builtin:tile-1x2-chamfered-indented",
   "builtin:technic-brick-1x1-axle-hole",
   "builtin:slope-1x1-double-45",
   "builtin:curved-slope-1x1-outside-bow",
+  "builtin:brick-1x2x2-without-understud",
+  "builtin:brick-1x1x5-solid-stud",
 ] as const;
 
 function documentSavedAtV21(): BrickDocumentV1 {
@@ -62,7 +64,7 @@ function documentSavedAtV21(): BrickDocumentV1 {
 }
 
 describe("builtin.basic-parts/21 migration", () => {
-  it("adds only the complete measured definitions from /22 through /27", () => {
+  it("adds only the complete measured definitions from /22 through /28", () => {
     const saved = documentSavedAtV21();
 
     const { document, report } = migrateDocumentTruth(saved);
@@ -70,14 +72,14 @@ describe("builtin.basic-parts/21 migration", () => {
     expect(report.migrated).toBe(true);
     expect(report.blockingReasons).toEqual([]);
     expect(report.fromTruthHash).toBe(V21_TRUTH_HASH);
-    expect(report.toTruthHash).toBe(V27_TRUTH_HASH);
+    expect(report.toTruthHash).toBe(V28_TRUTH_HASH);
     expect(report.addedCatalogPartIds).toEqual([
       V22_PART_ID,
       V23_PART_ID,
       V24_PART_ID,
       V25_PART_ID,
       V26_PART_ID,
-      ...V27_PART_IDS,
+      ...POST_V26_PART_IDS,
     ]);
     expect(report.catalogInterpretationChanges).toEqual([]);
     expect(report.truthComponentChanges).toEqual([

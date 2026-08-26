@@ -381,13 +381,9 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
         validated_connection_stud_profile="nominal-stud-tube/1",
     ),
-    # builtin.basic-parts/25: a stale quarantine locator associates step 76
-    # with the 2 x 2 plate with two studs along one edge, but supplies no
-    # printed-identity authority. Its exact official closure supplies the
-    # asymmetric stud surface and conservative collision field. The pinned
-    # LDCad walk directly authors both visible studs and all four regular
-    # underside clutches; Builder's unframed revision-E record remains
-    # count-only counterevidence.
+    # builtin.basic-parts/25: the exact official closure supplies the asymmetric
+    # shell while LDCad authors two studs and four clutches. A stale step-76
+    # locator and unframed Builder record grant no printed identity or frame.
     _plan(
         "33909",
         "plate",
@@ -399,12 +395,8 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         display_name="Plate 2 x 2 with 2 Studs on One Edge",
         validated_connection_stud_profile="nominal-stud-tube/1",
     ),
-    # builtin.basic-parts/26: seven stale quarantine locators associate steps
-    # 265, 268, 271, 274, 277, 282 and 336 with the regular 1 x 5 plate, but all
-    # are self-contradicted and supply no printed-identity authority. The exact
-    # official closure supplies the five-stud surface and conservative collision
-    # field. A quarter turn selects the catalog's width-first frame; the exact
-    # LDCad walk authors all five studs and five underside clutches.
+    # builtin.basic-parts/26: exact official geometry and the LDCad five-by-five
+    # connector line admit 78329; stale locators grant no printed identity.
     _plan(
         "78329",
         "plate",
@@ -414,11 +406,8 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
         validated_connection_stud_profile="nominal-stud-tube/1",
     ),
-    # builtin.basic-parts/27: the bounded first-50 tranche appends four exact
-    # official roots together. Each square-S6 socket is admitted only by the
-    # design-scoped opt-in whose semantics are calibrated against the pinned
-    # 2877, 3040 and 15254 Builder clutch frames; arbitrary square barrels stay
-    # rejected. None of these declarations authenticates a printed placement.
+    # builtin.basic-parts/27: four exact roots. Square-S6 sockets require their
+    # design-scoped opt-in; none authenticates a printed placement.
     _plan(
         "99563",
         "tile",
@@ -475,6 +464,29 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
         catalog_id="builtin:curved-slope-1x1-outside-bow",
         display_name="Curved Slope 1 x 1 x 2/3 Outside Bow",
+        allow_ldcad_square_s6_clutches=True,
+    ),
+    # builtin.basic-parts/28: exact suffixed roots only. These generic catalog
+    # facts do not reinterpret the quarantined Builder or booklet diagnostics.
+    _plan(
+        "3245c", "brick", 1, 2, variant="without-understud", height_ldu=48,
+        orientation_id="upright-yaw-90", translation_ldu=(0, -24, 0),
+        connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
+        catalog_id="builtin:brick-1x2x2-without-understud",
+        display_name="Brick 1 x 2 x 2 Without Understud",
+        validated_connection_stud_profile="nominal-stud-tube/1",
+        clutch_shared_capacity_groups=(
+            ((0, 24, -10), ("3245c:negative-z-half",)),
+            ((0, 24, 0), ("3245c:negative-z-half", "3245c:positive-z-half")),
+            ((0, 24, 10), ("3245c:positive-z-half",)),
+        ),
+    ),
+    _plan(
+        "2453b", "brick", 1, 1, variant="solid-stud", height_ldu=120,
+        translation_ldu=(0, -60, 0), connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
+        catalog_id="builtin:brick-1x1x5-solid-stud",
+        display_name="Brick 1 x 1 x 5 with Solid Stud",
+        validated_connection_stud_profile="nominal-stud-tube/1",
         allow_ldcad_square_s6_clutches=True,
     ),
 )

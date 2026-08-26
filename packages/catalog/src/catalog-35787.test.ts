@@ -176,8 +176,8 @@ describe("35787 triangular tile catalog truth", () => {
       bytes: 16_184,
       manifestSha256: "sha256:64d0e836c0fc63f1a604c98f13ec5529a755589648675887c3896404b7bf7091",
     });
-    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(41);
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(224);
+    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(43);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(228);
   });
 
   it("retains the native Builder record only as counterevidence and selects one exact LDCad route", () => {
@@ -307,7 +307,7 @@ describe("35787 triangular tile catalog truth", () => {
   it("keeps every /15 part payload byte unchanged after restoring its historical truth labels", () => {
     const priorParts = PART_DEFINITIONS.slice(0, 87);
     const priorDefinitionBytes = JSON.stringify(priorParts)
-      .replaceAll("builtin.basic-parts/27", "builtin.basic-parts/15")
+      .replaceAll("builtin.basic-parts/28", "builtin.basic-parts/15")
       .replaceAll("rectilinear-stud-clearance/3", "rectilinear-stud-clearance/2");
     const rows = priorParts.map(({ id, connectors, collision }) => ({ id, connectors, collision }));
     const collisionRows = priorParts.map(({ id, collision }) => ({ id, collision }));
