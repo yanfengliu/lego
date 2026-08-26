@@ -15,8 +15,41 @@ export interface ConnectorWorldFrame {
   readonly partId: string;
   readonly portId: string;
   readonly kind: ConnectorPortDefinition["kind"];
+  readonly sharedCapacityGroupIds: readonly string[];
   readonly positionLdu: LduVector3;
   readonly normal: LduVector3;
+}
+
+/**
+ * Every part-local unit of connector capacity consumed by one endpoint.
+ * Port identity is always one claim; source-reviewed shared cells add claims
+ * without weakening that ordinary one-connection-per-port rule.
+ */
+export function connectorCapacityClaimKeys(
+  frame: Pick<ConnectorWorldFrame, "partId" | "portId" | "sharedCapacityGroupIds">,
+): readonly string[] {
+  return [
+    `${frame.partId}\u0000port\u0000${frame.portId}`,
+    ...frame.sharedCapacityGroupIds.map(
+      (groupId) => `${frame.partId}\u0000shared-capacity\u0000${groupId}`,
+    ),
+  ];
+}
+
+/** Formats one internal capacity key without exposing its NUL-delimited encoding. */
+export function describeConnectorCapacityClaimKey(key: string): string {
+  const [partId, claimKind, claimId, ...remainder] = key.split("\u0000");
+  if (
+    partId === undefined ||
+    claimId === undefined ||
+    remainder.length > 0 ||
+    (claimKind !== "port" && claimKind !== "shared-capacity")
+  ) {
+    return `connector capacity claim ${JSON.stringify(key)}`;
+  }
+  return claimKind === "port"
+    ? `port ${claimId} on part ${partId}`
+    : `shared connector-capacity cell ${claimId} on part ${partId}`;
 }
 
 export class TransformPolicyError extends Error {
@@ -189,6 +222,7 @@ export function getConnectorWorldFrame(
     partId: part.id,
     portId,
     kind: port.kind,
+    sharedCapacityGroupIds: port.sharedCapacityGroupIds ?? [],
     positionLdu: transformLduPoint(part.transform, port.positionLdu),
     normal: rotateLduVector(orientation.matrix, port.normal),
   };

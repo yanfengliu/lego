@@ -13,12 +13,13 @@ import type {
   RigidTransform,
 } from "@lego-studio/protocol";
 
+import { assessSupport, findStudConnections, type DiscoveredConnection } from "./placement";
 import {
-  assessSupport,
-  endpointKey,
-  findStudConnections,
-  type DiscoveredConnection,
-} from "./placement";
+  capacityEndpointForConnector,
+  connectorCapacityIsFree,
+  occupiedConnectorCapacityClaims,
+  reserveConnectorCapacity,
+} from "./connector-capacity";
 
 export class ManualCommandError extends Error {
   public constructor(message: string) {
@@ -28,12 +29,7 @@ export class ManualCommandError extends Error {
 }
 
 function occupiedPorts(document: BrickDocumentV1): ReadonlySet<string> {
-  return new Set(
-    document.connections.flatMap(({ a, b }) => [
-      endpointKey(a.partId, a.portId),
-      endpointKey(b.partId, b.portId),
-    ]),
-  );
+  return occupiedConnectorCapacityClaims(document.parts, document.connections);
 }
 
 function requirePart(document: BrickDocumentV1, partId: string): PartInstance {
@@ -100,8 +96,12 @@ export function createAddPartTransaction(
     const occupied = occupiedPorts(document);
     targetPortId = targetDefinition.connectors
       .filter(({ kind }) => kind === "stud")
-      .map(({ id }) => id)
-      .find((portId) => !occupied.has(endpointKey(selectedTargetPart.id, portId)));
+      .find((connector) =>
+        connectorCapacityIsFree(
+          capacityEndpointForConnector(selectedTargetPart.id, connector),
+          occupied,
+        ),
+      )?.id;
     if (!targetPortId) throw new ManualCommandError("The selected part has no free top stud");
     const undersidePort = definition.connectors.find(({ kind }) => kind === "undersideClutch");
     if (!undersidePort) throw new ManualCommandError("The new part has no underside clutch port");
@@ -140,7 +140,8 @@ export function createAddPartTransaction(
     const attachmentPairs = targetDefinition.connectors
       .filter(
         (connector) =>
-          connector.kind === "stud" && !occupied.has(endpointKey(targetPart.id, connector.id)),
+          connector.kind === "stud" &&
+          connectorCapacityIsFree(capacityEndpointForConnector(targetPart.id, connector), occupied),
       )
       .flatMap((targetConnector) => {
         const targetFrame = getConnectorWorldFrame(targetPart, targetConnector.id);
@@ -162,26 +163,37 @@ export function createAddPartTransaction(
           left.targetConnector.id.localeCompare(right.targetConnector.id) ||
           left.newConnector.id.localeCompare(right.newConnector.id),
       );
-    attachmentPairs.forEach(({ targetConnector, newConnector }, index) => {
-      const connectionSeed = {
-        ...seed,
-        kind: "addConnection",
-        index,
-        targetPortId: targetConnector.id,
-        newPortId: newConnector.id,
-      };
-      operations.push({
-        kind: "addConnection",
-        operationId: nextId("manual-operation", connectionSeed),
-        connection: {
-          id: nextId("manual-connection", connectionSeed),
-          kind: "stud-tube",
-          a: { partId: targetPart.id, portId: targetConnector.id },
-          b: { partId, portId: newConnector.id },
-          provenance: { source: "manual" },
-        },
+    const reservedCapacityClaims = new Set(occupied);
+    attachmentPairs
+      .filter(({ targetConnector, newConnector }) =>
+        reserveConnectorCapacity(
+          [
+            capacityEndpointForConnector(targetPart.id, targetConnector),
+            capacityEndpointForConnector(partId, newConnector),
+          ],
+          reservedCapacityClaims,
+        ),
+      )
+      .forEach(({ targetConnector, newConnector }, index) => {
+        const connectionSeed = {
+          ...seed,
+          kind: "addConnection",
+          index,
+          targetPortId: targetConnector.id,
+          newPortId: newConnector.id,
+        };
+        operations.push({
+          kind: "addConnection",
+          operationId: nextId("manual-operation", connectionSeed),
+          connection: {
+            id: nextId("manual-connection", connectionSeed),
+            kind: "stud-tube",
+            a: { partId: targetPart.id, portId: targetConnector.id },
+            b: { partId, portId: newConnector.id },
+            provenance: { source: "manual" },
+          },
+        });
       });
-    });
   }
 
   return { label: `Add ${definition.displayName}`, operations, partId };
@@ -340,9 +352,10 @@ function rediscoverAfterDetach(
   incident: readonly ConnectionEdge[],
 ): readonly DiscoveredConnection[] {
   const remainingOccupied = new Set(
-    document.connections
-      .filter((connection) => !incident.includes(connection))
-      .flatMap(({ a, b }) => [endpointKey(a.partId, a.portId), endpointKey(b.partId, b.portId)]),
+    occupiedConnectorCapacityClaims(
+      document.parts,
+      document.connections.filter((connection) => !incident.includes(connection)),
+    ),
   );
   return findStudConnections(
     after,

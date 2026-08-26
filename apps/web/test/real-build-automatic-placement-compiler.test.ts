@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyBuildOperations,
   canonicalDigest,
+  createAttachedTransform,
   createEmptyBrickDocument,
   canonicalBrickDocument,
   documentStructuralHash,
@@ -20,6 +21,7 @@ import { createRealBuildCandidateDocumentSnapshot } from "../e2e/real-build-cand
 import { realBuildDocumentCandidateId } from "../e2e/real-build-candidate-lineage-identity";
 import {
   prepareRealBuildAutomaticPrintedStep,
+  REAL_BUILD_AUTOMATIC_PLACEMENT_COMPILER_MANIFEST,
   REAL_BUILD_AUTOMATIC_PLACEMENT_COMPILER_SNAPSHOT_HASH,
 } from "../e2e/real-build-automatic-placement-step";
 
@@ -55,7 +57,138 @@ const placementInput = (document = emptyPrintedPrefix(), digestDigit = "1") => (
 const place = (document = emptyPrintedPrefix()) =>
   compileRealBuildAutomaticPlacement(placementInput(document));
 
+const capacityWitnesses = (portsByTile: readonly (readonly string[])[]) => {
+  const tiles = portsByTile.map((_, index) => ({
+    id: `capacity-tile-${index}`,
+    catalogPartId: "builtin:tile-1x2-chamfered-indented",
+    transform: {
+      positionLdu: [index * 80, 8, 0] as [number, number, number],
+      orientationId: "upright-yaw-0",
+    },
+  }));
+  return [
+    ...tiles.map(({ catalogPartId, transform }) => ({
+      catalogPartId,
+      colorId: "builtin:black",
+      transform,
+      connections: [],
+    })),
+    ...portsByTile.flatMap((ports, tileIndex) =>
+      ports.map((candidateTargetPortId) => ({
+        catalogPartId: "builtin:brick-1x1",
+        colorId: "builtin:red",
+        transform: createAttachedTransform(
+          tiles[tileIndex]!,
+          candidateTargetPortId,
+          "builtin:brick-1x1",
+          "stud:0:0",
+          "upright-yaw-0",
+        ),
+        connections: [
+          {
+            target: { kind: "witness" as const, witnessIndex: tileIndex },
+            targetPortId: candidateTargetPortId,
+            candidatePortId: "stud:0:0",
+            connectionKind: "stud-tube" as const,
+          },
+        ],
+      })),
+    ),
+  ];
+};
+
+const compileCapacityStepOne = (portsByTile: readonly (readonly string[])[]) =>
+  compileRealBuildAutomaticPlacement({
+    documentSnapshot: snapshot(emptyPrintedPrefix("capacity", "Capacity preflight")),
+    printedStepNumber: 1,
+    printedStep: {
+      name: "Printed capacity step 1",
+      sourceActionDigest: sourceActionDigest("c"),
+    },
+    witnesses: capacityWitnesses(portsByTile),
+  });
+
 describe("automatic printed-step placement compiler", () => {
+  it("pins shared-capacity preflight in automatic compiler snapshot version 3", () => {
+    expect(REAL_BUILD_AUTOMATIC_PLACEMENT_COMPILER_MANIFEST).toMatchObject({
+      compilerVersion: "lego.real-build-automatic-placement-compiler/3",
+      connectorCapacityPolicy: "part-local-exact-port-plus-source-reviewed-shared-cells/1",
+    });
+    expect(REAL_BUILD_AUTOMATIC_PLACEMENT_COMPILER_SNAPSHOT_HASH).toBe(
+      canonicalDigest(REAL_BUILD_AUTOMATIC_PLACEMENT_COMPILER_MANIFEST),
+    );
+    expect(REAL_BUILD_AUTOMATIC_PLACEMENT_COMPILER_SNAPSHOT_HASH).toBe(
+      "sha256:5d657ffa305adec6dfdac37a91ce53f7c830a2a0a406eb7dd57b7c5c1a10383d",
+    );
+  });
+
+  it("preflights candidate-local shared capacity without changing exact-port semantics", () => {
+    expect(() => compileCapacityStepOne([["undersideClutch:0", "undersideClutch:1"]])).toThrow(
+      /Automatic placement witness 2 connection 0 consumes shared connector-capacity cell 99563:negative-z-half .* already reserved by Automatic placement witness 1 connection 0; choose a non-overlapping endpoint/u,
+    );
+
+    const outerPair = compileCapacityStepOne([["undersideClutch:0", "undersideClutch:2"]]);
+    expect(outerPair.ok).toBe(true);
+
+    const isolatedCenters = compileCapacityStepOne([["undersideClutch:1"], ["undersideClutch:1"]]);
+    expect(isolatedCenters).toMatchObject({
+      ok: false,
+      issues: [
+        {
+          code: "PATCH_INTRODUCES_BLOCKING_ISSUE",
+          message: expect.stringMatching(/DISCONNECTED_ASSEMBLY/u),
+        },
+      ],
+    });
+
+    expect(() => compileCapacityStepOne([["undersideClutch:0", "undersideClutch:0"]])).toThrow(
+      /Automatic placement witness 2 connection 0 consumes port undersideClutch:0 .* already reserved by Automatic placement witness 1 connection 0; choose a non-overlapping endpoint/u,
+    );
+  });
+
+  it("seeds retained shared-capacity claims before compiling a later step", () => {
+    const first = compileCapacityStepOne([["undersideClutch:0"]]);
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    const tile = first.document.parts.find(
+      ({ catalogPartId }) => catalogPartId === "builtin:tile-1x2-chamfered-indented",
+    )!;
+    const inputFor = (targetPortId: string) => ({
+      documentSnapshot: snapshot(first.document),
+      printedStepNumber: 2,
+      printedStep: {
+        name: "Printed capacity step 2",
+        sourceActionDigest: sourceActionDigest("d"),
+      },
+      witnesses: [
+        {
+          catalogPartId: "builtin:brick-1x1",
+          colorId: "builtin:blue",
+          transform: createAttachedTransform(
+            tile,
+            targetPortId,
+            "builtin:brick-1x1",
+            "stud:0:0",
+            "upright-yaw-0",
+          ),
+          connections: [
+            {
+              target: { kind: "base" as const, partId: tile.id },
+              targetPortId,
+              candidatePortId: "stud:0:0",
+              connectionKind: "stud-tube" as const,
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(() => compileRealBuildAutomaticPlacement(inputFor("undersideClutch:1"))).toThrow(
+      /consumes shared connector-capacity cell 99563:negative-z-half .* already reserved by Automatic placement base connection .*; choose a non-overlapping endpoint/u,
+    );
+    expect(compileRealBuildAutomaticPlacement(inputFor("undersideClutch:2")).ok).toBe(true);
+  });
+
   it("attributes generated parts to the candidate and reproduces its patch", () => {
     const base = emptyPrintedPrefix();
     const result = place(base);

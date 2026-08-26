@@ -10,7 +10,12 @@ import type {
 } from "@lego-studio/protocol";
 
 import { canonicalStringify } from "./canonical.ts";
-import { getConnectorWorldFrame, transformLduPoint } from "./transforms.ts";
+import {
+  connectorCapacityClaimKeys,
+  describeConnectorCapacityClaimKey,
+  getConnectorWorldFrame,
+  transformLduPoint,
+} from "./transforms.ts";
 import { validateBrickDocument } from "./validation.ts";
 
 export type ScopePolicyIssueCode =
@@ -195,23 +200,43 @@ export function collectScopePolicyIssues(
   }
 
   const requiredPorts = new Set(scope.requiredAttachmentPorts.map(portRefKey));
-  const occupiedBasePorts = new Set(
-    base.connections.flatMap((connection) => [portRefKey(connection.a), portRefKey(connection.b)]),
-  );
+  const occupiedBaseCapacityClaims = new Map<string, string>();
+  for (const connection of base.connections) {
+    for (const endpoint of [connection.a, connection.b]) {
+      const part = baseParts.get(endpoint.partId);
+      if (!part) continue;
+      try {
+        for (const claim of connectorCapacityClaimKeys(
+          getConnectorWorldFrame(part, endpoint.portId),
+        )) {
+          if (!occupiedBaseCapacityClaims.has(claim)) {
+            occupiedBaseCapacityClaims.set(claim, connection.id);
+          }
+        }
+      } catch {
+        // Invalid base endpoints are diagnosed by document validation; scope
+        // policy must not invent capacity claims for a port it cannot resolve.
+      }
+    }
+  }
+  const requiredCapacityOwners = new Map<
+    string,
+    { readonly index: number; readonly port: PartPortRef }
+  >();
   for (let index = 0; index < scope.requiredAttachmentPorts.length; index += 1) {
     const requiredPort = scope.requiredAttachmentPorts[index]!;
-    const required = portRefKey(requiredPort);
     const basePart = baseParts.get(requiredPort.partId);
-    let resolvesOnBase = false;
+    let requiredCapacityClaims: readonly string[] = [];
     if (basePart) {
       try {
-        getConnectorWorldFrame(basePart, requiredPort.portId);
-        resolvesOnBase = true;
+        requiredCapacityClaims = connectorCapacityClaimKeys(
+          getConnectorWorldFrame(basePart, requiredPort.portId),
+        );
       } catch {
         // Malformed required ports fail scope before result evaluation.
       }
     }
-    if (!resolvesOnBase) {
+    if (requiredCapacityClaims.length === 0) {
       issues.push(
         scopeIssue(
           "SCOPE_REQUIRED_ATTACHMENT_INVALID",
@@ -219,14 +244,39 @@ export function collectScopePolicyIssues(
           `/scope/requiredAttachmentPorts/${index}`,
         ),
       );
-    } else if (occupiedBasePorts.has(required)) {
-      issues.push(
-        scopeIssue(
-          "SCOPE_REQUIRED_ATTACHMENT_OCCUPIED",
-          "A required patch attachment port is already occupied in the base document",
-          "/scope/requiredAttachmentPorts",
-        ),
+    } else {
+      const baseConflict = requiredCapacityClaims.find((claim) =>
+        occupiedBaseCapacityClaims.has(claim),
       );
+      if (baseConflict !== undefined) {
+        issues.push(
+          scopeIssue(
+            "SCOPE_REQUIRED_ATTACHMENT_OCCUPIED",
+            `Required attachment ${requiredPort.partId}/${requiredPort.portId} consumes ${describeConnectorCapacityClaimKey(baseConflict)}, already occupied by base connection ${occupiedBaseCapacityClaims.get(baseConflict)}; remove that requirement or choose a non-overlapping base port.`,
+            `/scope/requiredAttachmentPorts/${index}`,
+          ),
+        );
+      }
+
+      const requiredConflict = requiredCapacityClaims.find((claim) =>
+        requiredCapacityOwners.has(claim),
+      );
+      if (requiredConflict !== undefined) {
+        const prior = requiredCapacityOwners.get(requiredConflict)!;
+        issues.push(
+          scopeIssue(
+            "SCOPE_REQUIRED_ATTACHMENT_OCCUPIED",
+            `Required attachment ${requiredPort.partId}/${requiredPort.portId} conflicts with required attachment ${prior.port.partId}/${prior.port.portId} at ${describeConnectorCapacityClaimKey(requiredConflict)}; a capability must name attachment ports that can remain usable together.`,
+            `/scope/requiredAttachmentPorts/${index}`,
+          ),
+        );
+      }
+
+      for (const claim of requiredCapacityClaims) {
+        if (!requiredCapacityOwners.has(claim)) {
+          requiredCapacityOwners.set(claim, { index, port: requiredPort });
+        }
+      }
     }
   }
 

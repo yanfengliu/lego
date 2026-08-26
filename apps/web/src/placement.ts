@@ -17,6 +17,13 @@ import {
 import type { PartInstance, RigidTransform } from "@lego-studio/protocol";
 
 import { connectorAxesAlign } from "./connector-frame-alignment";
+import {
+  capacityClaimsForEndpoint,
+  capacityEndpointForConnector,
+  connectorCapacityIsFree,
+  reserveConnectorCapacity,
+  type ConnectorCapacityEndpoint,
+} from "./connector-capacity";
 
 /**
  * Placement lattice, in canonical -Y-up LDU.
@@ -273,26 +280,27 @@ export interface DiscoveredConnection {
 
 /** Matches the kernel's endpoint key so occupancy sets can be shared verbatim. */
 export function endpointKey(partId: string, portId: string): string {
-  return `${partId}\u0000${portId}`;
+  return capacityClaimsForEndpoint({ partId, portId, sharedCapacityGroupIds: [] })[0]!;
 }
+
+type PlacementConnectorFrame = ConnectorCapacityEndpoint & {
+  readonly kind: ConnectorKind;
+  readonly normal: LduVector3;
+  readonly position: LduVector3;
+};
 
 function connectorFrames(
   part: Pick<PartInstance, "id" | "catalogPartId" | "transform">,
   kind: ConnectorKind,
-): readonly {
-  readonly kind: ConnectorKind;
-  readonly normal: LduVector3;
-  readonly portId: string;
-  readonly position: LduVector3;
-}[] {
+): readonly PlacementConnectorFrame[] {
   const definition = requireDefinition(part.catalogPartId);
   const orientation = getUprightOrientation(part.transform.orientationId);
   return definition.connectors
     .filter((connector) => connector.kind === kind)
     .map((connector) => ({
+      ...capacityEndpointForConnector(part.id, connector),
       kind: connector.kind,
       normal: rotateLduVector(orientation.matrix, connector.normal),
-      portId: connector.id,
       position: transformLduPoint(part.transform, connector.positionLdu),
     }));
 }
@@ -309,7 +317,7 @@ function samePosition(left: LduVector3, right: LduVector3): boolean {
 export function findStudConnections(
   candidate: Pick<PartInstance, "id" | "catalogPartId" | "transform">,
   parts: readonly PartInstance[],
-  occupiedEndpoints: ReadonlySet<string> = new Set(),
+  occupiedCapacityClaims: ReadonlySet<string> = new Set(),
 ): readonly DiscoveredConnection[] {
   // Every pairing the taxonomy allows, not only studs and clutches. An axle
   // held in a bearing is as attached as a brick pressed onto studs, and a rule
@@ -321,7 +329,7 @@ export function findStudConnections(
     ),
   );
   const discovered: DiscoveredConnection[] = [];
-  const usedCandidatePorts = new Set<string>();
+  const reservedCapacityClaims = new Set<string>(occupiedCapacityClaims);
 
   for (const part of [...parts].sort((left, right) => (left.id < right.id ? -1 : 1))) {
     if (part.id === candidate.id || !getPartDefinition(part.catalogPartId)) continue;
@@ -331,15 +339,15 @@ export function findStudConnections(
     );
     for (const [candidatePorts, targetKind] of pairings) {
       for (const target of connectorFrames(part, targetKind)) {
-        if (occupiedEndpoints.has(endpointKey(part.id, target.portId))) continue;
+        if (!connectorCapacityIsFree(target, reservedCapacityClaims)) continue;
         const match = candidatePorts.find(
           (candidatePort) =>
-            !usedCandidatePorts.has(candidatePort.portId) &&
+            connectorCapacityIsFree(candidatePort, reservedCapacityClaims) &&
             samePosition(candidatePort.position, target.position) &&
             connectorAxesAlign(candidatePort, target),
         );
         if (!match) continue;
-        usedCandidatePorts.add(match.portId);
+        if (!reserveConnectorCapacity([target, match], reservedCapacityClaims)) continue;
         discovered.push({
           targetPartId: part.id,
           targetPortId: target.portId,

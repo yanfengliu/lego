@@ -28,6 +28,10 @@ from measured_part_geometry import (
     merged_mesh,
     require_front_side_surface,
 )
+from measured_part_report_rows import (
+    build_measured_part_report_row,
+    build_render_only_part_report_row,
+)
 from measured_stud_tables import MeasuredStudRow, require_matching_stud_frames
 from measured_source_connectors import source_connectors_for
 from part_admission_ldraw_candidate import DEFAULT_COLUMN_LDU, column_candidate, role_classifier
@@ -86,6 +90,10 @@ class MeasuredPartPlan:
     catalog_id: str | None = None
     display_name: str | None = None
     validated_connection_stud_profile: str | None = None
+    allow_ldcad_square_s6_clutches: bool = False
+    clutch_shared_capacity_groups: tuple[
+        tuple[tuple[int, int, int], tuple[str, ...]], ...
+    ] = ()
 
     def __post_init__(self) -> None:
         if self.orientation_id not in PROPER_ORIENTATIONS:
@@ -99,6 +107,18 @@ class MeasuredPartPlan:
                 f"Part {self.design_id} names connector source {self.connector_source!r}; "
                 f"the admitted sources are {list(CONNECTOR_SOURCES)}."
             )
+        if type(self.allow_ldcad_square_s6_clutches) is not bool:
+            raise ValueError("The square-S6 opt-in must be an explicit boolean.")
+        if self.allow_ldcad_square_s6_clutches and self.connector_source != "ldcad-shadow":
+            raise ValueError("Square-S6 authority is source-specific; only an 'ldcad-shadow' plan may grant it.")
+        capacity_positions = [position for position, _ in self.clutch_shared_capacity_groups]
+        if len(set(capacity_positions)) != len(capacity_positions):
+            raise ValueError("Shared clutch-capacity declarations must name unique exact seats.")
+        for position, groups in self.clutch_shared_capacity_groups:
+            if not all(type(value) is int for value in position):
+                raise ValueError("Shared clutch-capacity seats must use whole-LDU integer positions.")
+            if not groups or len(set(groups)) != len(groups) or any(not group.strip() for group in groups):
+                raise ValueError("Shared clutch-capacity groups must be non-empty unique text per seat.")
         has_connectivity_fact = self.builder_connectivity_fact is not None
         expects_connectivity_fact = self.connector_source == BUILDER_CONNECTIVITY_CONNECTOR_SOURCE
         if has_connectivity_fact != expects_connectivity_fact:
@@ -218,40 +238,13 @@ class RenderOnlyPart:
 def measured_part_report_row(part: MeasuredPart) -> dict[str, object]:
     """Canonical evidence row for one fully measured source expansion."""
 
-    return {
-        "designId": part.plan.design_id,
-        "catalogId": measured_part_catalog_id(part.plan),
-        "connectorSource": part.plan.connector_source,
-        **(
-            {}
-            if part.plan.validated_connection_stud_profile is None
-            else {
-                "validatedConnectionStudProfile": part.plan.validated_connection_stud_profile
-            }
-        ),
-        "studs": len(part.studs_ldu),
-        "clutches": len(part.clutches_ldu),
-        "sourceConnectors": len(part.source_connectors_ldu),
-        "sourceConnectorKinds": sorted({row[0] for row in part.source_connectors_ldu}),
-        "collisionBoxes": len(part.body_boxes_ldu) // 6,
-        "meshTriangles": part.body_triangle_count + part.stud_triangle_count,
-        "closureFileCount": len(part.closure),
-        "shadowFiles": list(part.shadow_files),
-    }
+    return build_measured_part_report_row(part, measured_part_catalog_id(part.plan))
 
 
 def render_only_part_report_row(part: RenderOnlyPart) -> dict[str, object]:
     """Canonical evidence row for one render-only source expansion."""
 
-    return {
-        "designId": part.plan.design_id,
-        "catalogId": measured_part_catalog_id(part.plan),
-        "connectorSource": "preserved-catalog-definition-not-read-by-generator",
-        "sourceStudFrameWitnesses": len(part.source_stud_seats_ldu),
-        "meshTriangles": part.body_triangle_count + part.stud_triangle_count,
-        "closureFileCount": len(part.closure),
-        "structuralFieldsEmitted": 0,
-    }
+    return build_render_only_part_report_row(part, measured_part_catalog_id(part.plan))
 
 
 def _bounds(points: Sequence[Vector3]) -> tuple[Vector3, Vector3]:
@@ -377,7 +370,9 @@ def measure_part(
         composition = compose_part_snaps(library, shadow, root_key)
         source_clutches = [
             [float(value) for value in row["positionLdu"]]  # type: ignore[union-attr]
-            for row in emit_clutch_connectors(composition.snaps)
+            for row in emit_clutch_connectors(
+                composition.snaps, allow_square_s6=plan.allow_ldcad_square_s6_clutches
+            )
         ]
         shadow_studs = emit_stud_connectors(composition.snaps)
         source_connectors = source_connectors_for(

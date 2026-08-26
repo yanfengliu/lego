@@ -7,9 +7,15 @@ import { getReviewedHistoricalCatalogRoster } from "./historical-catalog-rosters
 import { migrateDocumentTruth } from "./migration.ts";
 
 const V24_TRUTH_HASH = "sha256:09288fc048ec112225b9e605df7af2d2e9692031b9eb7a89755575956af4c10d";
-const V26_TRUTH_HASH = "sha256:3226590b11882fea03d8a6370d4ca3c6c8201feaddb56882a243a69acba627e9";
+const V27_TRUTH_HASH = "sha256:614c61787b6c45d645e3e84c71dd931a15c258535a1959ee4b3aa1906303b70f";
 const V25_PART_ID = "builtin:plate-2x2-two-studs";
 const V26_PART_ID = "builtin:plate-1x5";
+const V27_PART_IDS = [
+  "builtin:tile-1x2-chamfered-indented",
+  "builtin:technic-brick-1x1-axle-hole",
+  "builtin:slope-1x1-double-45",
+  "builtin:curved-slope-1x1-outside-bow",
+] as const;
 
 function documentSavedAtV24(): BrickDocumentV1 {
   const current = createEmptyBrickDocument({ id: "v24", name: "Saved at /24" });
@@ -53,7 +59,7 @@ function documentSavedAtV24(): BrickDocumentV1 {
 }
 
 describe("builtin.basic-parts/24 migration", () => {
-  it("adds only the complete measured 33909 and 78329 definitions when /24 advances to /26", () => {
+  it("adds only the complete measured definitions when /24 advances to /27", () => {
     const saved = documentSavedAtV24();
 
     const { document, report } = migrateDocumentTruth(saved);
@@ -61,14 +67,19 @@ describe("builtin.basic-parts/24 migration", () => {
     expect(report.migrated).toBe(true);
     expect(report.blockingReasons).toEqual([]);
     expect(report.fromTruthHash).toBe(V24_TRUTH_HASH);
-    expect(report.toTruthHash).toBe(V26_TRUTH_HASH);
-    expect(report.addedCatalogPartIds).toEqual([V25_PART_ID, V26_PART_ID]);
+    expect(report.toTruthHash).toBe(V27_TRUTH_HASH);
+    expect(report.addedCatalogPartIds).toEqual([V25_PART_ID, V26_PART_ID, ...V27_PART_IDS]);
     expect(report.catalogInterpretationChanges).toEqual([]);
     expect(report.truthComponentChanges).toEqual([
       {
         component: "catalog",
         fromVersion: "builtin.basic-parts/24",
         toVersion: BUILTIN_CATALOG_VERSION,
+      },
+      {
+        component: "validator-set",
+        fromVersion: "lego.kernel-validators/3",
+        toVersion: "lego.kernel-validators/4",
       },
     ]);
     expect(document.parts).toEqual(saved.parts);

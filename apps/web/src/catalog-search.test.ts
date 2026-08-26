@@ -159,9 +159,10 @@ describe("searchParts", () => {
     ]);
   });
 
-  it("filters the singleton straight-slope family", () => {
+  it("filters the straight-slope family", () => {
     expect(searchParts({ query: "", family: "slope" }).map(({ id }) => id)).toEqual([
       "builtin:slope-1x2-45",
+      "builtin:slope-1x1-double-45",
     ]);
   });
 

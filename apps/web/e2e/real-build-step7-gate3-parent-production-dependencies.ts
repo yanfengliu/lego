@@ -9,6 +9,7 @@ import type { BrickDocumentV1 } from "@lego-studio/protocol";
 import { createPlacePartTransaction } from "../src/manual-commands";
 import { createCanonicalPrintedStepPlacer } from "./real-build-fixed-actions";
 import { applyReviewedAdditiveLegacyBuildOperations } from "./real-build-reviewed-additive-legacy-operations";
+import { projectExactCurrentMigrationToFrozenV26 } from "./real-build-step7-gate3-parent-migration-contract";
 import { groupPlacementOperationsInPrintedStep } from "./real-build-safety";
 import type { Step7Gate3ParentReconstructionDependencies } from "./real-build-step7-gate3-parent-reconstruction-types";
 
@@ -50,5 +51,6 @@ export const STEP7_GATE3_PRODUCTION_PARENT_DEPENDENCIES: Step7Gate3ParentReconst
       );
       return SAFE_OBJECT_FREEZE({ document: placed.document, stepId: placed.stepId });
     },
-    migrateDocumentTruth,
+    migrateDocumentTruth: (document) =>
+      projectExactCurrentMigrationToFrozenV26(document, migrateDocumentTruth(document)),
   });

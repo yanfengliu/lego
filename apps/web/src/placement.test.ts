@@ -7,9 +7,10 @@ import {
   type PartDefinition,
 } from "@lego-studio/catalog";
 import { createPartInstance, transformLduPoint } from "@lego-studio/brick-kernel";
-import type { PartInstance } from "@lego-studio/protocol";
+import type { ConnectionEdge, PartInstance } from "@lego-studio/protocol";
 import { describe, expect, it } from "vitest";
 
+import { occupiedConnectorCapacityClaims } from "./connector-capacity";
 import {
   GROUND_UNDERSIDE_LDU,
   PlacementError,
@@ -27,6 +28,8 @@ const BRICK_2X4 = "builtin:brick-2x4";
 const BRICK_2X2 = "builtin:brick-2x2";
 const BRICK_1X1 = "builtin:brick-1x1";
 const PLATE_2X2 = "builtin:plate-2x2";
+const PLATE_1X1 = "builtin:plate-1x1";
+const TILE_99563 = "builtin:tile-1x2-chamfered-indented";
 
 function partAt(
   id: string,
@@ -321,6 +324,99 @@ describe("stud connection discovery", () => {
       transformLduPoint(bracket.transform, sideStud.positionLdu),
     );
     expect(findStudConnections(candidate, [bracket])).toEqual([]);
+  });
+
+  function tileEdge(tileId: string, lowerId: string, clutchIndex: 0 | 1 | 2): ConnectionEdge {
+    return {
+      id: `${lowerId}-to-${tileId}`,
+      kind: "stud-tube",
+      a: { partId: lowerId, portId: "stud:0:0" },
+      b: { partId: tileId, portId: `undersideClutch:${clutchIndex}` },
+      provenance: { source: "manual" },
+    };
+  }
+
+  it("discovers both 99563 outer seats without also consuming their shared center", () => {
+    const tile = partAt("tile", TILE_99563, [0, 0, 0]);
+    const negative = partAt("negative", PLATE_1X1, [0, 8, -10]);
+    const positive = partAt("positive", PLATE_1X1, [0, 8, 10]);
+    const center = partAt("center", PLATE_1X1, [0, 8, 0]);
+
+    expect(findStudConnections(tile, [positive, negative])).toEqual([
+      {
+        targetPartId: "negative",
+        targetPortId: "stud:0:0",
+        candidatePortId: "undersideClutch:0",
+      },
+      {
+        targetPartId: "positive",
+        targetPortId: "stud:0:0",
+        candidatePortId: "undersideClutch:2",
+      },
+    ]);
+    expect(findStudConnections(tile, [center])).toEqual([
+      {
+        targetPartId: "center",
+        targetPortId: "stud:0:0",
+        candidatePortId: "undersideClutch:1",
+      },
+    ]);
+  });
+
+  it("blocks center against either occupied outer, keeps the other outer free, and scopes groups per instance", () => {
+    const tile = partAt("tile", TILE_99563, [0, 0, 0]);
+    const negative = partAt("negative", PLATE_1X1, [0, 8, -10]);
+    const positive = partAt("positive", PLATE_1X1, [0, 8, 10]);
+    const center = partAt("center", PLATE_1X1, [0, 8, 0]);
+
+    const negativeOccupied = occupiedConnectorCapacityClaims(
+      [tile, negative],
+      [tileEdge(tile.id, negative.id, 0)],
+    );
+    expect(findStudConnections(center, [tile], negativeOccupied)).toEqual([]);
+    expect(findStudConnections(positive, [tile], negativeOccupied)).toEqual([
+      {
+        targetPartId: "tile",
+        targetPortId: "undersideClutch:2",
+        candidatePortId: "stud:0:0",
+      },
+    ]);
+
+    const centerOccupied = occupiedConnectorCapacityClaims(
+      [tile, center],
+      [tileEdge(tile.id, center.id, 1)],
+    );
+    expect(findStudConnections(negative, [tile], centerOccupied)).toEqual([]);
+    expect(findStudConnections(positive, [tile], centerOccupied)).toEqual([]);
+
+    const otherTile = partAt("other-tile", TILE_99563, [40, 0, 0]);
+    const otherCenter = partAt("other-center", PLATE_1X1, [40, 8, 0]);
+    expect(findStudConnections(otherCenter, [otherTile], negativeOccupied)).toEqual([
+      {
+        targetPartId: "other-tile",
+        targetPortId: "undersideClutch:1",
+        candidatePortId: "stud:0:0",
+      },
+    ]);
+  });
+
+  it("derives the same shared occupancy and discoveries in either connection order", () => {
+    const tile = partAt("tile", TILE_99563, [0, 0, 0]);
+    const negative = partAt("negative", PLATE_1X1, [0, 8, -10]);
+    const positive = partAt("positive", PLATE_1X1, [0, 8, 10]);
+    const center = partAt("center", PLATE_1X1, [0, 8, 0]);
+    const edges = [tileEdge(tile.id, negative.id, 0), tileEdge(tile.id, positive.id, 2)];
+    const forward = occupiedConnectorCapacityClaims([tile, negative, positive], edges);
+    const reverse = occupiedConnectorCapacityClaims(
+      [positive, negative, tile],
+      [...edges].reverse(),
+    );
+
+    expect([...reverse].sort()).toEqual([...forward].sort());
+    expect(findStudConnections(center, [tile], reverse)).toEqual(
+      findStudConnections(center, [tile], forward),
+    );
+    expect(findStudConnections(center, [tile], forward)).toEqual([]);
   });
 });
 

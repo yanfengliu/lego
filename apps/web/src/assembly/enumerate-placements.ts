@@ -12,12 +12,14 @@ import type {
   RigidTransform,
 } from "@lego-studio/protocol";
 
+import { GROUND_UNDERSIDE_LDU, bodyBoundsLdu, type DiscoveredConnection } from "../placement";
 import {
-  GROUND_UNDERSIDE_LDU,
-  bodyBoundsLdu,
-  endpointKey,
-  type DiscoveredConnection,
-} from "../placement";
+  capacityEndpointForConnector,
+  connectorCapacityIsFree,
+  occupiedConnectorCapacityClaims,
+  reserveConnectorCapacity,
+  type ConnectorCapacityEndpoint,
+} from "../connector-capacity";
 import { connectorAxesAlign } from "../connector-frame-alignment";
 import { buildPlateOrigins } from "./build-plate-origins";
 
@@ -144,11 +146,9 @@ function positionKey(position: LduVector3): string {
   return `${position[0]},${position[1]},${position[2]}`;
 }
 
-interface PortIndexEntry {
+interface PortIndexEntry extends ConnectorCapacityEndpoint {
   readonly kind: "stud" | "undersideClutch";
   readonly normal: LduVector3;
-  readonly partId: string;
-  readonly portId: string;
 }
 
 /**
@@ -168,7 +168,8 @@ function indexFreePorts(
     if (!definition) continue;
     for (const connector of definition.connectors) {
       if (connector.kind !== kind) continue;
-      if (occupied.has(endpointKey(part.id, connector.id))) continue;
+      const capacityEndpoint = capacityEndpointForConnector(part.id, connector);
+      if (!connectorCapacityIsFree(capacityEndpoint, occupied)) continue;
       const key = positionKey(transformLduPoint(part.transform, connector.positionLdu));
       const orientation = getUprightOrientation(part.transform.orientationId);
       const normal = rotateLduVector(orientation.matrix, connector.normal);
@@ -176,7 +177,7 @@ function indexFreePorts(
       // already invalid there; keep the first so enumeration stays a pure
       // function of the document rather than of iteration order.
       if (!index.has(key)) {
-        index.set(key, { kind: connector.kind, normal, partId: part.id, portId: connector.id });
+        index.set(key, { ...capacityEndpoint, kind: connector.kind, normal });
       }
     }
   }
@@ -188,10 +189,9 @@ interface RotatedPorts {
   readonly studs: readonly RotatedPort[];
 }
 
-interface RotatedPort {
+interface RotatedPort extends ConnectorCapacityEndpoint {
   readonly kind: "stud" | "undersideClutch";
   readonly normal: LduVector3;
-  readonly portId: string;
   readonly offset: LduVector3;
 }
 
@@ -206,9 +206,9 @@ function rotatedPorts(
   return definition.connectors
     .filter((connector) => connector.kind === kind)
     .map((connector) => ({
+      ...capacityEndpointForConnector("enumeration-candidate", connector),
       kind,
       normal: rotateLduVector(orientation.matrix, connector.normal),
-      portId: connector.id,
       offset: transformLduPoint(rotation, connector.positionLdu),
     }));
 }
@@ -266,11 +266,7 @@ export function enumeratePlacements(
   }
   const maxDistinctTransforms = options.maxDistinctTransforms ?? DEFAULT_MAX_DISTINCT_TRANSFORMS;
 
-  const occupied = new Set<string>();
-  for (const connection of document.connections) {
-    occupied.add(endpointKey(connection.a.partId, connection.a.portId));
-    occupied.add(endpointKey(connection.b.partId, connection.b.portId));
-  }
+  const occupied = occupiedConnectorCapacityClaims(document.parts, document.connections);
   const freeStuds = indexFreePorts(document.parts, occupied, "stud");
   const freeClutches = indexFreePorts(document.parts, occupied, "undersideClutch");
   // Built once for the whole enumeration. Rebuilding the neighbourhood per
@@ -428,8 +424,7 @@ function discoverConnections(
   freeClutches: ReadonlyMap<string, PortIndexEntry>,
 ): readonly DiscoveredConnection[] {
   const discovered: DiscoveredConnection[] = [];
-  const usedCandidatePorts = new Set<string>();
-  const usedTargets = new Set<string>();
+  const reservedCapacityClaims = new Set<string>();
 
   for (const [offsets, index] of [
     [ports.clutches, freeStuds],
@@ -444,10 +439,7 @@ function discoverConnections(
       const target = index.get(positionKey(world));
       if (!target || target.partId === candidateId) continue;
       if (!connectorAxesAlign(port, target)) continue;
-      const targetKey = endpointKey(target.partId, target.portId);
-      if (usedCandidatePorts.has(port.portId) || usedTargets.has(targetKey)) continue;
-      usedCandidatePorts.add(port.portId);
-      usedTargets.add(targetKey);
+      if (!reserveConnectorCapacity([port, target], reservedCapacityClaims)) continue;
       discovered.push({
         targetPartId: target.partId,
         targetPortId: target.portId,

@@ -10,6 +10,7 @@ import {
   type Step7Gate3ParentReconstructionDependencies,
   type Step7Gate3ParentReconstructionResult,
 } from "../e2e/real-build-step7-gate3-parent-reconstruction";
+import { projectExactCurrentMigrationToFrozenV26 } from "../e2e/real-build-step7-gate3-parent-migration-contract";
 import {
   STEP7_GATE3_CALLER_PIN_AUTHORITY,
   STEP7_GATE3_PRIVATE_PIN_AUTHORITY,
@@ -144,7 +145,7 @@ describe("step-7 Gate-3 parent reconstruction hardening", () => {
       },
       migrateDocumentTruth: (document) => {
         forgedDependencyCalls += 1;
-        return migrateDocumentTruth(document);
+        return projectExactCurrentMigrationToFrozenV26(document, migrateDocumentTruth(document));
       },
       documentStructuralHash: (document) => {
         forgedDependencyCalls += 1;

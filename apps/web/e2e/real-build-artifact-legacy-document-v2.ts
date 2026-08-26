@@ -81,6 +81,36 @@ const ADDITIVE_SUCCESSOR_TRUTH_V26 = Object.freeze({
   },
 });
 
+/** Exact live truth allowed to execute the detached `/26` compatibility projection. */
+const CURRENT_RUNTIME_TRUTH_V27 = Object.freeze({
+  schemaVersion: "lego.truth-snapshot/1",
+  catalog: {
+    id: "builtin.basic-parts",
+    version: "builtin.basic-parts/27",
+    hash: "sha256:ffb0eb6e68edcb91298b04a3c899a11417b70b07aac062c42f4c1051c20f50ee",
+  },
+  connectorTaxonomy: {
+    id: "stud-tube",
+    version: "stud-tube/1",
+    hash: "sha256:5153c1c3d58db63962698768885c0630b1c2c926a220e5895e7d55442ebbc7f1",
+  },
+  collisionModel: {
+    id: "rectilinear-stud-clearance",
+    version: "rectilinear-stud-clearance/3",
+    hash: "sha256:1e727bf61b482bcaf8587f44175e46238926126de241ae0248a5e23b942118bd",
+  },
+  transformPolicy: {
+    id: "upright-quarter-turns-negative-y-up",
+    version: "upright-quarter-turns-negative-y-up/1",
+    hash: "sha256:ec8ce034cb7f39169783692259ec25bb028b95bce6d456917f88bd9bebebb03d",
+  },
+  validatorSet: {
+    id: "lego.kernel-validators",
+    version: "lego.kernel-validators/4",
+    hash: "sha256:ac785c8f5ac9f2d642bf53c8ef51764b7954c981355b1d7d508a2228a5f1bf55",
+  },
+});
+
 const LEGACY_TRUTH_HASH = "sha256:de62fae6dbc8095dfd460983e5e845ddfac4bf9ec2ea1f99572bc46026941cb5";
 const LEGACY_VALIDATOR_HASH = LEGACY_TRUTH_V2.validatorSet.hash;
 const LEGACY_BRICK_KERNEL_VERSION = "lego.brick-kernel/1";
@@ -98,6 +128,16 @@ const ADDITIVE_CATALOG_PART_IDS = Object.freeze([
   "builtin:plate-3x3",
   "builtin:plate-2x2-two-studs",
   "builtin:plate-1x5",
+]);
+const CURRENT_RUNTIME_ADDITIVE_PART_IDS_V27 = Object.freeze([
+  "builtin:tile-1x2-chamfered-indented",
+  "builtin:technic-brick-1x1-axle-hole",
+  "builtin:slope-1x1-double-45",
+  "builtin:curved-slope-1x1-outside-bow",
+]);
+const ALL_POST_LEGACY_CATALOG_PART_IDS = Object.freeze([
+  ...ADDITIVE_CATALOG_PART_IDS,
+  ...CURRENT_RUNTIME_ADDITIVE_PART_IDS_V27,
 ]);
 /**
  * Measured identically at retained /13 HEAD 8fc0186 and the /26 85-row
@@ -130,7 +170,7 @@ function activePredecessorValidatorSemanticsHashV26(): string {
     orientations: UPRIGHT_ORIENTATIONS,
     connectorPairRules: CONNECTOR_PAIR_RULES,
     colorIds: COLOR_DEFINITIONS.map(({ id }) => id),
-    parts: PART_DEFINITIONS.filter(({ id }) => !ADDITIVE_CATALOG_PART_IDS.includes(id)).map(
+    parts: PART_DEFINITIONS.filter(({ id }) => !ALL_POST_LEGACY_CATALOG_PART_IDS.includes(id)).map(
       ({ id, availableColorIds, legalOrientationIds, connectors, collision }) => ({
         id,
         availableColorIds,
@@ -147,10 +187,42 @@ export function createFrozenLegacyAdditiveCatalogBasisV26(): CatalogCompatibilit
     id: "legacy-v2-compatibility-basis",
     name: "Legacy v2 compatibility basis",
   });
+  const activePartIds = active.constraints.allowedCatalogPartIds;
+  const runtimeAddedPartCounts = CURRENT_RUNTIME_ADDITIVE_PART_IDS_V27.map(
+    (addedPartId) => activePartIds.filter((partId) => partId === addedPartId).length,
+  );
+  const v26PartIds = activePartIds.filter(
+    (partId) => !CURRENT_RUNTIME_ADDITIVE_PART_IDS_V27.includes(partId),
+  );
+  if (
+    JSON.stringify(active.truth) !== JSON.stringify(CURRENT_RUNTIME_TRUTH_V27) ||
+    runtimeAddedPartCounts.some((count) => count !== 1) ||
+    activePartIds.length !== 102 ||
+    v26PartIds.length !== 98
+  ) {
+    throw new TypeError(
+      "Legacy diagnostic validation requires the exact reviewed additive /27 runtime bridge over frozen builtin.basic-parts/26.",
+    );
+  }
   return {
-    truth: active.truth,
-    constraints: active.constraints,
+    truth: structuredClone(ADDITIVE_SUCCESSOR_TRUTH_V26) as TruthSnapshot,
+    constraints: {
+      ...active.constraints,
+      allowedCatalogPartIds: v26PartIds,
+    },
     validatorSemanticsHash: activePredecessorValidatorSemanticsHashV26(),
+  };
+}
+
+function currentRuntimeCompatibilityProjectionV27(document: BrickDocumentV1): BrickDocumentV1 {
+  const active = createEmptyBrickDocument({
+    id: "legacy-v2-current-runtime-projection",
+    name: "Legacy v2 current runtime projection",
+  });
+  createFrozenLegacyAdditiveCatalogBasisV26();
+  return {
+    ...structuredClone(document),
+    truth: structuredClone(active.truth),
   };
 }
 
@@ -184,7 +256,7 @@ export function assertFrozenLegacyAdditiveCatalogV2(
   }
   const profiledPredecessor = PART_DEFINITIONS.find(
     ({ id, collision }) =>
-      !ADDITIVE_CATALOG_PART_IDS.includes(id) &&
+      !ALL_POST_LEGACY_CATALOG_PART_IDS.includes(id) &&
       (collision.validatedConnectionStudProfile !== undefined ||
         collision.primitives.some(
           (primitive) =>
@@ -241,7 +313,7 @@ export function createFrozenLegacyEmptyBrickDocumentV2(options: {
     constraints: {
       ...active.constraints,
       allowedCatalogPartIds: active.constraints.allowedCatalogPartIds.filter(
-        (partId) => !ADDITIVE_CATALOG_PART_IDS.includes(partId),
+        (partId) => !ALL_POST_LEGACY_CATALOG_PART_IDS.includes(partId),
       ),
     },
   };
@@ -266,19 +338,20 @@ function additiveCompatibilityProjectionV26(
  */
 export function validateFrozenLegacyBrickDocumentV2(document: BrickDocumentV1): ValidationReportV1 {
   const active = createFrozenLegacyAdditiveCatalogBasisV26();
-  const projected = additiveCompatibilityProjectionV26(document, active);
+  additiveCompatibilityProjectionV26(document, active);
+  const projected = currentRuntimeCompatibilityProjectionV27(document);
   const validation = validateBrickDocument(projected);
   if (
-    validation.truthSnapshotHash !== canonicalDigest(active.truth) ||
+    validation.truthSnapshotHash !== canonicalDigest(CURRENT_RUNTIME_TRUTH_V27) ||
     validation.targetDocumentHash !== documentStructuralHash(projected)
   ) {
     throw new TypeError(
       "Legacy compatibility projection did not reproduce its exact active truth and structural hash.",
     );
   }
-  if (validation.validatorSetHash !== ADDITIVE_SUCCESSOR_TRUTH_V26.validatorSet.hash) {
+  if (validation.validatorSetHash !== CURRENT_RUNTIME_TRUTH_V27.validatorSet.hash) {
     throw new TypeError(
-      "Legacy compatibility projection was not evaluated by the pinned generation-3 validator set under the predecessor semantic guard.",
+      "Legacy compatibility projection was not evaluated by the exact generation-4 runtime bridge under the frozen /26 predecessor semantic guard.",
     );
   }
   return {
@@ -357,7 +430,7 @@ export function assertFrozenLegacyDocumentProjectionV2(input: {
       "Legacy diagnostic document is not globally valid or does not reproduce its exact structural hash under frozen truth.",
     );
   }
-  const sequence = deriveBuildSequence(additiveCompatibilityProjectionV26(input.document));
+  const sequence = deriveBuildSequence(currentRuntimeCompatibilityProjectionV27(input.document));
   if (!sequence.buildable) {
     throw new TypeError(
       `Legacy diagnostic document has an unbuildable prefix at step ${String(sequence.firstUnbuildableStepIndex)}.`,
@@ -366,7 +439,7 @@ export function assertFrozenLegacyDocumentProjectionV2(input: {
   for (const report of input.reports) {
     const prefix = canonicalPrefixDocument(input.document, report.stepNumber);
     const validation = validateFrozenLegacyBrickDocumentV2(prefix);
-    const prefixSequence = deriveBuildSequence(additiveCompatibilityProjectionV26(prefix));
+    const prefixSequence = deriveBuildSequence(currentRuntimeCompatibilityProjectionV27(prefix));
     assertPinnedLegacyReport(validation, `Legacy printed-step ${report.stepNumber} prefix`);
     const expectedBlocking = blockingIssues(validation);
     if (

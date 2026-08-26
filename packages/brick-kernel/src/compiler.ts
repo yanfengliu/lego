@@ -29,7 +29,7 @@ import {
 import { applyBuildOperations, OperationApplicationError } from "./operations.ts";
 import { assessPatchHardValidation, collectScopePolicyIssues } from "./patch-policy.ts";
 
-export const BUILD_PROGRAM_COMPILER_VERSION = "lego.build-program-compiler/2" as const;
+export const BUILD_PROGRAM_COMPILER_VERSION = "lego.build-program-compiler/3" as const;
 export const BUILD_PROGRAM_COMPILER_MANIFEST = deepFreeze({
   schemaVersion: "lego.build-program-compiler-manifest/1",
   compilerVersion: BUILD_PROGRAM_COMPILER_VERSION,
@@ -41,7 +41,7 @@ export const BUILD_PROGRAM_COMPILER_MANIFEST = deepFreeze({
   truthSnapshotPolicy: "exact-active-bundle-migration-required/1",
   scopeBudgetPolicy: "independent-pre-append-hard-ceilings/1",
   scopeVolumePolicy: "authoritative-full-bounds-fail-closed/1",
-  requiredAttachmentPolicy: "retained-base-port-and-final-surviving-edge/2",
+  requiredAttachmentPolicy: "retained-base-shared-capacity-and-final-surviving-edge/3",
   deterministicIdPolicy: "canonical-json-sha256-first-96-bits/1",
   supportedInstructionKinds: [
     "placePart",

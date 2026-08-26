@@ -337,6 +337,58 @@ describe("enumerating legal placements", () => {
     }
   });
 
+  it("keeps 99563's two outer seats together and returns a validator-accepted candidate", () => {
+    const document = build([{ part: "builtin:plate-1x2", at: [0, 8, 0] }]);
+    const enumeration = enumeratePlacements(document, "builtin:tile-1x2-chamfered-indented", {
+      includeBuildPlate: false,
+      orientationIds: ["upright-yaw-0"],
+    });
+    const outerPair = enumeration.candidates.find(
+      ({ transform }) => transform.positionLdu.join(",") === "0,0,0",
+    );
+
+    expect(outerPair?.connections.map(({ candidatePortId }) => candidatePortId)).toEqual([
+      "undersideClutch:0",
+      "undersideClutch:2",
+    ]);
+    const applied = applyBuildOperations(
+      document,
+      createPlacePartTransaction(document, {
+        catalogPartId: outerPair!.catalogPartId,
+        colorId: "builtin:red",
+        transform: outerPair!.transform,
+      }).operations,
+    );
+    const report = validateBrickDocument(applied);
+    expect(report.issues.filter(({ severity }) => severity === "blocking")).toEqual([]);
+    expect(report.documentGloballyValid).toBe(true);
+  });
+
+  it("does not seed 99563's outer seats after its shared center is occupied", () => {
+    const document = build([
+      { part: "builtin:plate-1x1", at: [0, 8, 0] },
+      { part: "builtin:tile-1x2-chamfered-indented", at: [0, 0, 0] },
+    ]);
+    const tile = document.parts.find(
+      ({ catalogPartId }) => catalogPartId === "builtin:tile-1x2-chamfered-indented",
+    )!;
+    expect(document.connections).toEqual([
+      expect.objectContaining({
+        b: { partId: tile.id, portId: "undersideClutch:1" },
+      }),
+    ]);
+
+    const enumeration = enumeratePlacements(document, "builtin:plate-1x1", {
+      includeBuildPlate: false,
+      orientationIds: ["upright-yaw-0"],
+    });
+    expect(
+      enumeration.candidates.flatMap(({ connections }) =>
+        connections.filter(({ targetPartId }) => targetPartId === tile.id),
+      ),
+    ).toEqual([]);
+  });
+
   it("every candidate really applies and validates", () => {
     const document = build([
       { part: "builtin:plate-4x4", at: [0, 8, 0] },

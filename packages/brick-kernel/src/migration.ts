@@ -44,6 +44,7 @@ export const MIGRATABLE_CATALOG_VERSIONS: readonly string[] = Object.freeze([
   "builtin.basic-parts/23",
   "builtin.basic-parts/24",
   "builtin.basic-parts/25",
+  "builtin.basic-parts/26",
   BUILTIN_CATALOG_VERSION,
 ]);
 
@@ -281,6 +282,15 @@ export const REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS = Object.freeze([
     catalogVersion: "builtin.basic-parts/25",
     sourceCommit: "cf8996f015eee595d76ef79f06c15169f674aca6",
     truthHash: "sha256:364ef046160736292eb51b331ce27ff246fa8940e16b256d53a68b9656a6018f",
+  },
+  // The snapshot /27 replaces. /27 appends four complete measured definitions
+  // in generated order: 99563, 73230, 35464, and 49307. Geometry, connector,
+  // collision, and source-frame truth are additive; no preceding definition is
+  // reinterpreted, so a /26 document carries forward explicitly.
+  {
+    catalogVersion: "builtin.basic-parts/26",
+    sourceCommit: "2361a30117f7a393e12c8563fc9a66d140bff323",
+    truthHash: "sha256:3226590b11882fea03d8a6370d4ca3c6c8201feaddb56882a243a69acba627e9",
   },
 ] as const);
 
@@ -590,6 +600,7 @@ export function migrateDocumentTruth(document: BrickDocumentV1): {
       versions: [
         "lego.kernel-validators/1",
         "lego.kernel-validators/2",
+        "lego.kernel-validators/3",
         expectedTruth.validatorSet.version,
       ],
     },

@@ -55,9 +55,9 @@ describe("2877 grille brick catalog truth", () => {
     const part = getPartDefinition(PART_ID)!;
     const blueprint = SET_6651557_MEASURED_BLUEPRINTS.find(({ designId }) => designId === "2877")!;
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/26");
-    expect(PART_DEFINITIONS).toHaveLength(98);
-    expect(PART_DEFINITIONS.at(-7)?.id).toBe(PART_ID);
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/27");
+    expect(PART_DEFINITIONS).toHaveLength(102);
+    expect(PART_DEFINITIONS.at(-11)?.id).toBe(PART_ID);
     expect(part).toMatchObject({
       id: PART_ID,
       family: "brick",
@@ -104,8 +104,8 @@ describe("2877 grille brick catalog truth", () => {
       bytes: 12_845,
       manifestSha256: "sha256:61128d15f095eaa9353037ebae2d3e8413835db9c01870b979221dd5bc55afd2",
     });
-    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(37);
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(211);
+    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(41);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(224);
   });
 
   it("binds the revision-E Builder record, reviewed bytes, and exact frame", () => {
@@ -235,7 +235,7 @@ describe("2877 grille brick catalog truth", () => {
   it("keeps every /19 part payload byte unchanged after restoring its historical truth label", () => {
     const priorParts = PART_DEFINITIONS.slice(0, 91);
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/26",
+      "builtin.basic-parts/27",
       "builtin.basic-parts/19",
     );
     const connectorCollision = priorParts.map(({ id, connectors, collision }) => ({

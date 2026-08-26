@@ -132,6 +132,12 @@ export interface MeasuredPartBlueprint {
   readonly studsLdu: readonly MeasuredStudRow[];
   /** Underside clutch seats from the declaration's one authored connector source. */
   readonly clutchesLdu: readonly (readonly [x: number, y: number, z: number])[];
+  /**
+   * Part-local shared capacity cells aligned one-for-one with `clutchesLdu`.
+   * Present only for a reviewed source socket with mutually overlapping seats;
+   * an empty row means the corresponding ordinary seat has no shared claim.
+   */
+  readonly clutchSharedCapacityGroupIds?: readonly (readonly string[])[];
   /** Authored non-stud seats; absent on the immutable pre-4519 shards. */
   readonly sourceConnectorsLdu?: readonly MeasuredSourceConnectorRow[];
   /**

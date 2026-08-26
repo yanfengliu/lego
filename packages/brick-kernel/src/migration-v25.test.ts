@@ -7,8 +7,14 @@ import { getReviewedHistoricalCatalogRoster } from "./historical-catalog-rosters
 import { migrateDocumentTruth } from "./migration.ts";
 
 const V25_TRUTH_HASH = "sha256:364ef046160736292eb51b331ce27ff246fa8940e16b256d53a68b9656a6018f";
-const V26_TRUTH_HASH = "sha256:3226590b11882fea03d8a6370d4ca3c6c8201feaddb56882a243a69acba627e9";
+const V27_TRUTH_HASH = "sha256:614c61787b6c45d645e3e84c71dd931a15c258535a1959ee4b3aa1906303b70f";
 const V26_PART_ID = "builtin:plate-1x5";
+const V27_PART_IDS = [
+  "builtin:tile-1x2-chamfered-indented",
+  "builtin:technic-brick-1x1-axle-hole",
+  "builtin:slope-1x1-double-45",
+  "builtin:curved-slope-1x1-outside-bow",
+] as const;
 
 function documentSavedAtV25(): BrickDocumentV1 {
   const current = createEmptyBrickDocument({ id: "v25", name: "Saved at /25" });
@@ -49,21 +55,26 @@ function documentSavedAtV25(): BrickDocumentV1 {
 }
 
 describe("builtin.basic-parts/25 migration", () => {
-  it("adds only the complete measured 78329 definition when /25 advances to /26", () => {
+  it("adds only the complete measured definitions when /25 advances to /27", () => {
     const saved = documentSavedAtV25();
     const { document, report } = migrateDocumentTruth(saved);
 
     expect(report.migrated).toBe(true);
     expect(report.blockingReasons).toEqual([]);
     expect(report.fromTruthHash).toBe(V25_TRUTH_HASH);
-    expect(report.toTruthHash).toBe(V26_TRUTH_HASH);
-    expect(report.addedCatalogPartIds).toEqual([V26_PART_ID]);
+    expect(report.toTruthHash).toBe(V27_TRUTH_HASH);
+    expect(report.addedCatalogPartIds).toEqual([V26_PART_ID, ...V27_PART_IDS]);
     expect(report.catalogInterpretationChanges).toEqual([]);
     expect(report.truthComponentChanges).toEqual([
       {
         component: "catalog",
         fromVersion: "builtin.basic-parts/25",
         toVersion: BUILTIN_CATALOG_VERSION,
+      },
+      {
+        component: "validator-set",
+        fromVersion: "lego.kernel-validators/3",
+        toVersion: "lego.kernel-validators/4",
       },
     ]);
     expect(document.parts).toEqual(saved.parts);

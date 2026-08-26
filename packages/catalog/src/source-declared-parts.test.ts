@@ -7,6 +7,7 @@ import {
 } from "./ldraw-bundled-sources-6651557.ts";
 import {
   getPartDefinition,
+  PART_DEFINITIONS,
   resolvePartId,
   validateMeshPartDefinitionAdmission,
   type CollisionPrimitive,
@@ -18,13 +19,13 @@ import { SET_6651557_MEASURED_BLUEPRINTS } from "./part-blueprints-6651557-measu
 import { SET_6651557_MESH_ASSETS } from "./mesh-assets-6651557.ts";
 
 /**
- * What the twenty-one fully measured catalog parts are, written out rather than recomputed.
+ * What the twenty-five fully measured catalog parts are, written out rather than recomputed.
  *
  * These are facts about real parts: the extents come from the exact expanded
  * LDraw closure, the collision column count from its per-column height field at
  * 1 LDU, and the connector counts from an authored connector source
  * carried through the per-part frame — Builder-derived records for eight parts
- * and the LDCad shadow library's snap metas for thirteen. Four of the LDCad-sourced
+ * and the LDCad shadow library's snap metas for seventeen. Four of the LDCad-sourced
  * designs have no Builder record; 25269 deliberately selects the independently
  * authored shadow route instead of treating record presence as connector truth,
  * while 28802 refuses a contradictory Builder identity and retains the exact
@@ -477,6 +478,87 @@ const ADMITTED = [
     vertices: 489,
     closureFiles: 9,
   },
+  // builtin.basic-parts/27. These four bounded-prefix parts retain exact
+  // official LDraw render/collision truth and exact LDCad connector routes.
+  // The half-pitch 99563 center seat consumes both adjacent capacity cells;
+  // it does not create a third independent full-pitch attachment cell.
+  {
+    id: "builtin:tile-1x2-chamfered-indented",
+    ldrawId: "99563.dat",
+    family: "tile",
+    widthStuds: 1,
+    lengthStuds: 2,
+    heightLdu: 8,
+    orientationId: "upright-yaw-90",
+    translationLdu: [0, -4, 0],
+    connectorGridCenterLdu: [0, 0],
+    bodyBoundsLdu: { min: [-10, -4, -20], max: [10, 4, 20] },
+    boundsLdu: { min: [-10, -4, -20], max: [10, 4, 20] },
+    studs: 0,
+    clutches: 3,
+    bodyBoxes: 20,
+    triangles: 228,
+    vertices: 256,
+    closureFiles: 10,
+  },
+  {
+    id: "builtin:technic-brick-1x1-axle-hole",
+    ldrawId: "73230.dat",
+    family: "technic-brick",
+    widthStuds: 1,
+    lengthStuds: 1,
+    heightLdu: 24,
+    orientationId: "upright-yaw-90",
+    translationLdu: [0, -12, 0],
+    connectorGridCenterLdu: [0, 0],
+    bodyBoundsLdu: { min: [-10, -12, -10], max: [10, 12, 10] },
+    boundsLdu: { min: [-10, -16, -10], max: [10, 12, 10] },
+    studs: 1,
+    clutches: 1,
+    axleHoles: 1,
+    bodyBoxes: 10,
+    triangles: 294,
+    vertices: 356,
+    closureFiles: 18,
+  },
+  {
+    id: "builtin:slope-1x1-double-45",
+    ldrawId: "35464.dat",
+    family: "slope",
+    widthStuds: 1,
+    lengthStuds: 1,
+    heightLdu: 16,
+    orientationId: "upright-yaw-0",
+    translationLdu: [0, 8, 0],
+    connectorGridCenterLdu: [0, 0],
+    bodyBoundsLdu: { min: [-10, -8, -10], max: [10, 8, 10] },
+    boundsLdu: { min: [-10, -8, -10], max: [10, 8, 10] },
+    studs: 0,
+    clutches: 1,
+    bodyBoxes: 75,
+    triangles: 52,
+    vertices: 84,
+    closureFiles: 5,
+  },
+  {
+    id: "builtin:curved-slope-1x1-outside-bow",
+    ldrawId: "49307.dat",
+    family: "curved-slope",
+    widthStuds: 1,
+    lengthStuds: 1,
+    heightLdu: 16,
+    orientationId: "upright-yaw-0",
+    translationLdu: [0, 8, 0],
+    connectorGridCenterLdu: [0, 0],
+    bodyBoundsLdu: { min: [-10, -8, -10], max: [10, 8, 10] },
+    boundsLdu: { min: [-10, -8, -10], max: [10, 8, 10] },
+    studs: 0,
+    clutches: 1,
+    bodyBoxes: 75,
+    triangles: 100,
+    vertices: 120,
+    closureFiles: 7,
+  },
 ] as const;
 
 /** Every part whose connector rows the LDCad shadow library authors. */
@@ -494,6 +576,10 @@ const LDCAD_CONNECTOR_PART_IDS = [
   "builtin:plate-3x3",
   "builtin:plate-2x2-two-studs",
   "builtin:plate-1x5",
+  "builtin:tile-1x2-chamfered-indented",
+  "builtin:technic-brick-1x1-axle-hole",
+  "builtin:slope-1x1-double-45",
+  "builtin:curved-slope-1x1-outside-bow",
 ] as const;
 
 /** The three plate-lattice parts whose clutch cells Builder could not supply. */
@@ -516,7 +602,7 @@ const bodyBoxes = (part: PartDefinition): readonly Extract<CollisionPrimitive, {
   );
 
 describe("set 6651557 parts declared from measured source", () => {
-  it("admits all twenty-one through the production mesh gate", () => {
+  it("admits all twenty-five through the production mesh gate", () => {
     for (const expected of ADMITTED) {
       expect([expected.id, validateMeshPartDefinitionAdmission(require(expected.id))]).toEqual([
         expected.id,
@@ -647,7 +733,7 @@ describe("set 6651557 parts declared from measured source", () => {
     expect(BUNDLED_LDRAW_ARCHIVE.sha256).toBe(
       "sha256:6009f2e94204c4d3a63a4c812010b5c90bad8c5acb19b882c859fdac63734eae",
     );
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(211);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(224);
     for (const file of BUNDLED_LDRAW_SOURCE_FILES) {
       expect(file.author.trim().length).toBeGreaterThan(0);
       expect(file.title.trim().length).toBeGreaterThan(0);
@@ -665,8 +751,8 @@ describe("set 6651557 parts declared from measured source", () => {
       BUNDLED_LDRAW_SOURCE_FILES.filter(
         ({ licenseExpression }) => licenseExpression === "CC-BY-4.0",
       ),
-    ).toHaveLength(209);
-    // 30 named authors across 211 files: attribution is retained per file, never flattened.
+    ).toHaveLength(222);
+    // 30 named authors across 224 files: attribution is retained per file, never flattened.
     expect(new Set(BUNDLED_LDRAW_SOURCE_FILES.map(({ author }) => author)).size).toBe(30);
 
     for (const expected of ADMITTED) {
@@ -732,6 +818,24 @@ describe("set 6651557 parts declared from measured source", () => {
       );
       // Reading and sharing under CC BY-SA is still not permission to train.
       expect(provenance.trainingUseAllowed).toBe(false);
+    }
+  });
+
+  it("restricts shared connector-capacity claims to admitted mesh definitions", () => {
+    const carryingClaims = PART_DEFINITIONS.flatMap((part) =>
+      part.connectors
+        .filter(({ sharedCapacityGroupIds }) => sharedCapacityGroupIds !== undefined)
+        .map((connector) => ({ connector, part })),
+    );
+
+    expect(carryingClaims.map(({ connector, part }) => [part.id, connector.id])).toEqual([
+      ["builtin:tile-1x2-chamfered-indented", "undersideClutch:0"],
+      ["builtin:tile-1x2-chamfered-indented", "undersideClutch:1"],
+      ["builtin:tile-1x2-chamfered-indented", "undersideClutch:2"],
+    ]);
+    for (const { part } of carryingClaims) {
+      expect(part.geometry.generatorId).toBe("builtin:preloaded-mesh-reference/1");
+      expect(validateMeshPartDefinitionAdmission(part)).toEqual({ accepted: true, issues: [] });
     }
   });
 

@@ -6,7 +6,8 @@ import unittest
 
 from builder_ldraw_frame_pins import EXACT, PINNED_FRAME_DIGESTS, PINNED_FRAMES
 from builder_native_source import NATIVE_RECORD_SHA256, NATIVE_REVIEW_RECORD_SHA256
-from measured_part_plan import ADMITTED_PART_PLANS, RENDER_ONLY_PART_PLANS
+from measured_part_plan import ADMITTED_PART_PLANS
+from measured_part_plan_catalog_contract_test import PlanCatalogContractTests
 from measured_part_tables import (
     BUILDER_CONNECTIVITY_CONNECTOR_SOURCE,
     LDCAD_SHADOW_CONNECTOR_SOURCE,
@@ -91,6 +92,10 @@ class PlanTests(unittest.TestCase):
                 "11212",
                 "33909",
                 "78329",
+                "99563",
+                "73230",
+                "35464",
+                "49307",
             ],
         )
         self.assertTrue(all(row.connector_source == "builder" for row in ADMITTED_PART_PLANS[:5]))
@@ -398,6 +403,34 @@ class PlanTests(unittest.TestCase):
                 "nominal-stud-tube/1",
             ),
         )
+
+    def test_99563_plan_cross_binds_each_half_pitch_seat_to_capacity_cells(self) -> None:
+        tile = ADMITTED_PART_PLANS[25]
+
+        self.assertEqual(tile.design_id, "99563")
+        self.assertEqual(
+            tile.clutch_shared_capacity_groups,
+            (
+                ((0, 4, -10), ("99563:negative-z-half",)),
+                (
+                    (0, 4, 0),
+                    ("99563:negative-z-half", "99563:positive-z-half"),
+                ),
+                ((0, 4, 10), ("99563:positive-z-half",)),
+            ),
+        )
+
+    def test_shared_clutch_capacity_plan_refuses_ambiguous_declarations(self) -> None:
+        with self.assertRaisesRegex(ValueError, "unique exact seats"):
+            plan(
+                clutch_shared_capacity_groups=(
+                    ((0, 4, 0), ("left",)),
+                    ((0, 4, 0), ("right",)),
+                )
+            )
+        with self.assertRaisesRegex(ValueError, "non-empty unique text"):
+            plan(clutch_shared_capacity_groups=(((0, 4, 0), ("",)),))
+
     def test_3040_plan_and_builder_packet_pin_one_identity_frame_and_source(self) -> None:
         plan_3040 = ADMITTED_PART_PLANS[19]
         self.assertEqual(
@@ -453,47 +486,6 @@ class PlanTests(unittest.TestCase):
             NATIVE_REVIEW_RECORD_SHA256["3040"],
             "17afd7907052b6e3e78343a6d26af45c81b7d277d80128b35e9f02c483905075",
         )
-
-    def test_11253_report_retains_the_reviewed_stud_profile(self) -> None:
-        row = measured_part_report_row(
-            measured(plan=ADMITTED_PART_PLANS[15])
-        )
-
-        self.assertEqual(
-            row["validatedConnectionStudProfile"], "nominal-stud-tube/1"
-        )
-
-    def test_render_only_roots_are_distinct_and_cannot_name_a_connector_source(self) -> None:
-        self.assertEqual(
-            [row.design_id for row in RENDER_ONLY_PART_PLANS],
-            [
-                "41770a",
-                "41769a",
-                "43723a",
-                "43722a",
-                "54383",
-                "3659",
-                "3455",
-                "11477",
-                "50950",
-                "61678",
-                "54200",
-                "85984",
-            ],
-        )
-        self.assertTrue(
-            all(not hasattr(row, "connector_source") for row in RENDER_ONLY_PART_PLANS)
-        )
-        self.assertEqual(
-            len(
-                {
-                    (row.family, row.width_studs, row.length_studs, row.variant)
-                    for row in RENDER_ONLY_PART_PLANS
-                }
-            ),
-            len(RENDER_ONLY_PART_PLANS),
-        )
-
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

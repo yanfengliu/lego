@@ -272,6 +272,16 @@ export const makeMeasuredPartDefinition = (blueprint: MeasuredPartBlueprint): Pa
     primitives.push(stud.primitive);
   });
 
+  if (
+    blueprint.clutchSharedCapacityGroupIds !== undefined &&
+    blueprint.clutchSharedCapacityGroupIds.length !== blueprint.clutchesLdu.length
+  ) {
+    fail(
+      blueprint,
+      `declares ${blueprint.clutchSharedCapacityGroupIds.length} clutch shared-capacity rows for ${blueprint.clutchesLdu.length} underside clutches; the generated rows must stay aligned one-for-one.`,
+    );
+  }
+
   blueprint.clutchesLdu.forEach(([x, y, z], index) => {
     if (!Number.isSafeInteger(y) || y < bodyBoundsLdu.min[1] || y > bodyBoundsLdu.max[1]) {
       fail(
@@ -290,6 +300,9 @@ export const makeMeasuredPartDefinition = (blueprint: MeasuredPartBlueprint): Pa
       normal: [0, 1, 0],
       orientationId: "connector-down",
       capacity: 1,
+      ...(blueprint.clutchSharedCapacityGroupIds?.[index]?.length
+        ? { sharedCapacityGroupIds: blueprint.clutchSharedCapacityGroupIds[index] }
+        : {}),
       compatibleKinds: ["stud"],
     });
     allowances.push({

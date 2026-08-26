@@ -136,8 +136,15 @@ import { GENERATED_NON_UPRIGHT_PROPER_ORIENTATIONS } from "./proper-orientations
  * studs, and conservative collision field. The pinned LDCad shadow authors the
  * matching five-stud and five-clutch line after the source frame's quarter turn.
  * No preceding definition changes.
+ *
+ * /27 appends four complete measured definitions in printed-prefix admission
+ * order: chamfered tile `99563.dat`, 1 x 1 axle-hole Technic brick `73230.dat`,
+ * double 45-degree slope `35464.dat`, and outside-bow curved slope `49307.dat`.
+ * Their pinned official closures supply exact render geometry and conservative
+ * collision fields, while their reviewed source routes supply connector rows.
+ * No preceding definition changes interpretation.
  */
-export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/26" as const;
+export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/27" as const;
 export const CONNECTOR_TAXONOMY_VERSION = "stud-tube/1" as const;
 export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/3" as const;
 export const TRANSFORM_POLICY_VERSION = "upright-quarter-turns-negative-y-up/1" as const;

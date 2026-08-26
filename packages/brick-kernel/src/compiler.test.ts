@@ -91,13 +91,16 @@ const stackProgram: BuildProgramV1 = {
 };
 
 describe("restricted BuildProgram compiler", () => {
-  it("pins scope hardening behavior in compiler snapshot version 2", () => {
-    expect(BUILD_PROGRAM_COMPILER_VERSION).toBe("lego.build-program-compiler/2");
+  it("pins shared-capacity scope behavior in compiler snapshot version 3", () => {
+    expect(BUILD_PROGRAM_COMPILER_VERSION).toBe("lego.build-program-compiler/3");
     expect(BUILD_PROGRAM_COMPILER_MANIFEST).toMatchObject({
       scopeVolumePolicy: "authoritative-full-bounds-fail-closed/1",
-      requiredAttachmentPolicy: "retained-base-port-and-final-surviving-edge/2",
+      requiredAttachmentPolicy: "retained-base-shared-capacity-and-final-surviving-edge/3",
     });
     expect(BUILTIN_COMPILER_SNAPSHOT_HASH).toBe(canonicalDigest(BUILD_PROGRAM_COMPILER_MANIFEST));
+    expect(BUILTIN_COMPILER_SNAPSHOT_HASH).toBe(
+      "sha256:c1f284ebfce1e262e58be877eba73acf364d161d1df2c6b13374470e9f6f17ef",
+    );
   });
 
   it("compiles untrusted place instructions into a schema-valid immutable patch", () => {

@@ -18,6 +18,7 @@ from measured_part_geometry_test import (
     MeasuredStudRowTests,
     MeshMergeTests,
 )
+from measured_part_plan_catalog_contract_test import PlanCatalogContractTests
 from measured_part_plan_test import PlanTests
 from measured_part_source_connector_test import MeasuredSourceConnectorTests
 from measured_part_tables import scoreable_candidate
@@ -29,6 +30,7 @@ __all__ = [
     "MeasuredStudRowTests",
     "MeshMergeTests",
     "NumberLiteralTests",
+    "PlanCatalogContractTests",
     "PlanTests",
     "RenderTests",
     "MeasuredSourceConnectorTests",
@@ -97,7 +99,11 @@ class MeasuredPartFileBoundaryTests(unittest.TestCase):
             "generate-set-6651557-source-pilot.py",
             "source_pilot_input_validation.py",
             "measured_part_emit.py",
+            "measured_part_emit_headers.py",
             "measured_part_plan.py",
+            "measured_part_plan_catalog_contract_test.py",
+            "measured_part_render_only_plan.py",
+            "measured_part_report_rows.py",
             "measured_part_typescript_literals.py",
             "measured_part_tables.py",
             "measured_part_geometry.py",

@@ -75,11 +75,11 @@ describe("33909 two-stud-edge plate catalog truth", () => {
     );
     if (blueprint?.designId !== "33909") throw new Error("33909 blueprint is missing");
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/26");
-    expect(PART_DEFINITIONS).toHaveLength(98);
-    expect(PART_DEFINITIONS.at(-2)?.id).toBe(PART_ID);
-    expect(SET_6651557_MEASURED_BLUEPRINTS.at(-2)).toBe(blueprint);
-    expect(SET_6651557_MEASURED_BLUEPRINTS_G).toHaveLength(4);
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/27");
+    expect(PART_DEFINITIONS).toHaveLength(102);
+    expect(PART_DEFINITIONS.at(-6)?.id).toBe(PART_ID);
+    expect(SET_6651557_MEASURED_BLUEPRINTS.at(-6)).toBe(blueprint);
+    expect(SET_6651557_MEASURED_BLUEPRINTS_G).toHaveLength(8);
     expect(part).toMatchObject({
       id: PART_ID,
       family: "plate",
@@ -123,8 +123,8 @@ describe("33909 two-stud-edge plate catalog truth", () => {
       bytes: 10_203,
       manifestSha256: "sha256:72174370ab6b3d2e0d00d7b72a0687a67da1cccd4014f1f799e113eecb504a15",
     });
-    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(37);
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(211);
+    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(41);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(224);
   });
 
   it("records only the consulted LDCad route as active connector authority", () => {
@@ -226,7 +226,7 @@ describe("33909 two-stud-edge plate catalog truth", () => {
   it("keeps every /24 part payload byte unchanged after restoring its historical truth label", () => {
     const priorParts = PART_DEFINITIONS.slice(0, 96);
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/26",
+      "builtin.basic-parts/27",
       "builtin.basic-parts/24",
     );
     const connectorCollision = priorParts.map(({ id, connectors, collision }) => ({

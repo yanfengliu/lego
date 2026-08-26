@@ -26,9 +26,9 @@ describe("reviewed additive legacy operation projection", () => {
     expect(migrateDocumentTruth(source).report).toMatchObject({
       migrated: true,
       fromCatalogVersion: "builtin.basic-parts/13",
-      toCatalogVersion: "builtin.basic-parts/26",
+      toCatalogVersion: "builtin.basic-parts/27",
       fromTruthHash: "sha256:de62fae6dbc8095dfd460983e5e845ddfac4bf9ec2ea1f99572bc46026941cb5",
-      toTruthHash: "sha256:3226590b11882fea03d8a6370d4ca3c6c8201feaddb56882a243a69acba627e9",
+      toTruthHash: "sha256:614c61787b6c45d645e3e84c71dd931a15c258535a1959ee4b3aa1906303b70f",
       addedCatalogPartIds: [
         "builtin:tile-1x1-quarter-round",
         "builtin:bracket-1x2-1x4-rounded-bottom",
@@ -43,6 +43,10 @@ describe("reviewed additive legacy operation projection", () => {
         "builtin:plate-3x3",
         "builtin:plate-2x2-two-studs",
         "builtin:plate-1x5",
+        "builtin:tile-1x2-chamfered-indented",
+        "builtin:technic-brick-1x1-axle-hole",
+        "builtin:slope-1x1-double-45",
+        "builtin:curved-slope-1x1-outside-bow",
       ],
       catalogInterpretationChanges: [],
       blockingReasons: [],
@@ -68,7 +72,7 @@ describe("reviewed additive legacy operation projection", () => {
         },
         applyBuildOperations: (document, operations) => {
           events.push(`apply:${document.truth.catalog.version}`);
-          if (document.truth.catalog.version !== "builtin.basic-parts/26") {
+          if (document.truth.catalog.version !== "builtin.basic-parts/27") {
             throw new TypeError("test sentinel saw current operations receive historical truth");
           }
           return applyBuildOperations(
@@ -81,7 +85,7 @@ describe("reviewed additive legacy operation projection", () => {
 
     expect(events).toEqual([
       "migrate:builtin.basic-parts/13",
-      "apply:builtin.basic-parts/26",
+      "apply:builtin.basic-parts/27",
       "migrate:builtin.basic-parts/13",
     ]);
     expect(reconstructed.truth).toEqual(source.truth);
@@ -114,6 +118,40 @@ describe("reviewed additive legacy operation projection", () => {
     ).toThrowError(
       /Reviewed \/13 operation result contains disallowed catalog part builtin:tile-1x1-quarter-round/,
     );
+  });
+
+  it("refuses runtime migration drift before projecting the frozen /26 boundary", () => {
+    const source = legacyThirteenDocument();
+    const exact = migrateDocumentTruth(source);
+    const driftedReport = structuredClone(exact);
+    Object.assign(driftedReport.report, { toCatalogVersion: "builtin.basic-parts/26" });
+    expect(() =>
+      applyReviewedAdditiveLegacyBuildOperations(source, [], {
+        truthDigest: canonicalDigest,
+        migrateDocumentTruth: () => driftedReport,
+        applyBuildOperations: (document) => document,
+      }),
+    ).toThrow(/exact reviewed \/13 to \/27 runtime migration bridge/u);
+
+    const missingRuntimeRow = {
+      ...structuredClone(exact),
+      document: {
+        ...structuredClone(exact.document),
+        constraints: {
+          ...structuredClone(exact.document.constraints),
+          allowedCatalogPartIds: exact.document.constraints.allowedCatalogPartIds.filter(
+            (id) => id !== "builtin:tile-1x2-chamfered-indented",
+          ),
+        },
+      },
+    };
+    expect(() =>
+      applyReviewedAdditiveLegacyBuildOperations(source, [], {
+        truthDigest: canonicalDigest,
+        migrateDocumentTruth: () => missingRuntimeRow,
+        applyBuildOperations: (document) => document,
+      }),
+    ).toThrow(/all four exact additive \/27 runtime rows/u);
   });
 });
 

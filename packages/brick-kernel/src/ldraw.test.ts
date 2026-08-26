@@ -218,6 +218,84 @@ describe("strict LDraw subset", () => {
     expect(imported.connections.map(withoutProvenance)).toEqual(connections.map(withoutProvenance));
   });
 
+  it("enforces 99563 shared seat capacity during deterministic LDraw inference", () => {
+    const tile = createPartInstance({
+      id: "tile",
+      catalogPartId: "builtin:tile-1x2-chamfered-indented",
+    });
+    const lower = (id: string, zLdu: number) =>
+      createPartInstance({
+        id,
+        catalogPartId: "builtin:plate-1x1",
+        transform: { positionLdu: [0, 8, zLdu], orientationId: "upright-yaw-0" },
+      });
+    const edge = (lowerId: string, clutchIndex: 0 | 1 | 2): ConnectionEdge => ({
+      id: `${lowerId}-to-tile`,
+      kind: "stud-tube",
+      a: { partId: lowerId, portId: "stud:0:0" },
+      b: { partId: tile.id, portId: `undersideClutch:${clutchIndex}` },
+      provenance: { source: "manual" },
+    });
+    const document = (
+      id: string,
+      lowers: readonly ReturnType<typeof lower>[],
+      connections: readonly ConnectionEdge[],
+    ): BrickDocumentV1 => {
+      const base = createEmptyBrickDocument({ id, name: id });
+      const parts = [tile, ...lowers];
+      return {
+        ...base,
+        parts,
+        connections,
+        submodels: [{ ...base.submodels[0]!, partIds: parts.map(({ id: partId }) => partId) }],
+        steps: [{ ...base.steps[0]!, partIds: parts.map(({ id: partId }) => partId) }],
+      };
+    };
+
+    const center = lower("center", 0);
+    const centerDocument = document("99563-center", [center], [edge(center.id, 1)]);
+    const centerRoundTrip = importBrickDocumentFromLDraw(
+      exportBrickDocumentToLDraw(centerDocument),
+    );
+    expect(centerRoundTrip.connections).toHaveLength(1);
+    expect(centerRoundTrip.connections[0]?.b.portId).toBe("undersideClutch:1");
+
+    const negative = lower("negative", -10);
+    const positive = lower("positive", 10);
+    const outerDocument = document(
+      "99563-outers",
+      [negative, positive],
+      [edge(negative.id, 0), edge(positive.id, 2)],
+    );
+    const outerMpd = exportBrickDocumentToLDraw(outerDocument);
+    const outerRoundTrip = importBrickDocumentFromLDraw(outerMpd);
+    expect(outerRoundTrip.connections.map(({ b }) => b.portId)).toEqual([
+      "undersideClutch:0",
+      "undersideClutch:2",
+    ]);
+
+    const centerPartLine = exportBrickDocumentToLDraw(centerDocument)
+      .split("\n")
+      .find((line) => line.startsWith("1 ") && line.endsWith(" 3024.dat"));
+    if (centerPartLine === undefined) throw new Error("Center control omitted the 3024 part line");
+    const ambiguousLines = outerMpd.split("\n");
+    const negativeMetadataIndex = ambiguousLines.findIndex((line) =>
+      line.startsWith("0 !BRICK-STUDIO PART negative "),
+    );
+    if (negativeMetadataIndex < 0 || ambiguousLines[negativeMetadataIndex + 1] === undefined) {
+      throw new Error("Outer control omitted the negative part record");
+    }
+    ambiguousLines[negativeMetadataIndex + 1] = centerPartLine;
+    const ambiguous = ambiguousLines
+      .join("\n")
+      .replace(
+        "negative stud:0:0 tile undersideClutch:0",
+        "negative stud:0:0 tile undersideClutch:1",
+      );
+
+    expectImportCode(ambiguous, "CONNECTION_MISMATCH");
+  });
+
   it.each([
     [
       "unsupported geometry line",

@@ -1,8 +1,15 @@
-import { canonicalBrickDocument, documentStructuralHash } from "@lego-studio/brick-kernel";
+import {
+  canonicalBrickDocument,
+  createAttachedTransform,
+  documentStructuralHash,
+} from "@lego-studio/brick-kernel";
 import { describe, expect, it } from "vitest";
 
 import { createRealBuildCandidateDocumentSnapshot } from "../e2e/real-build-candidate-document-snapshot";
-import { createRealBuildLineageIdentity } from "../e2e/real-build-candidate-lineage-identity";
+import {
+  createRealBuildLineageIdentity,
+  realBuildDocumentCandidateId,
+} from "../e2e/real-build-candidate-lineage-identity";
 import { deriveRealBuildExactLineageIdentity } from "../e2e/real-build-exact-lineage-identity";
 import {
   createRealBuildPreparedSearchBatchPreflight,
@@ -21,8 +28,10 @@ import {
   reserveRealBuildPreparedSearchBatch,
   snapshotRealBuildPreparedSearchLedger,
 } from "../e2e/real-build-prepared-search-ledger";
+import { encodeRealBuildPreparedRunInput } from "../e2e/real-build-prepared-run-input-parser";
 import { inspectRealBuildPreparedStepInput } from "../e2e/real-build-prepared-step-authority";
 import {
+  preparedSearchOptions,
   preparedSearchOptionsBytes,
   preparedSearchEmptyParent,
   preparedSearchParent,
@@ -44,6 +53,172 @@ function inspectionInput(pieceCount = 1, children?: readonly unknown[]) {
         },
       ],
     },
+  };
+}
+
+function capacityParent(partIds: readonly string[]) {
+  const parent = preparedSearchParent();
+  const templatePart = parent.documentSnapshot.document.parts[0]!;
+  const document = {
+    ...parent.documentSnapshot.document,
+    parts: partIds.map((id, index) => ({
+      ...templatePart,
+      id,
+      catalogPartId: "builtin:brick-1x1",
+      transform: {
+        positionLdu: [index * 80, 0, 0] as [number, number, number],
+        orientationId: "upright-yaw-0",
+      },
+    })),
+  };
+  const documentHash = documentStructuralHash(document);
+  const documentSnapshot = createRealBuildCandidateDocumentSnapshot({
+    canonicalDocument: canonicalBrickDocument(document),
+    expectedDocumentHash: documentHash,
+  });
+  const identity = deriveRealBuildExactLineageIdentity({
+    candidateId: realBuildDocumentCandidateId(documentHash),
+    documentHash,
+    documentSnapshot,
+    parent: parent.rootIdentity,
+    throughStepNumber: 1,
+    localIdentity: { kind: "decision", id: `prepared-capacity-${partIds.join("-")}` },
+  });
+  return { ...parent, identity, documentSnapshot };
+}
+
+function capacityPreparedStep(pieceCount: number) {
+  const options = preparedSearchOptions(pieceCount);
+  const panels = [...options.panels];
+  const panel = panels[1]!;
+  panels[1] = {
+    ...panel,
+    pieces: panel.pieces.map((piece) => ({
+      ...piece,
+      designId: "99563",
+      catalogPartId: "builtin:tile-1x2-chamfered-indented",
+    })),
+  };
+  return inspectRealBuildPreparedStepInput(
+    encodeRealBuildPreparedRunInput({ ...options, panels }),
+    2,
+  );
+}
+
+function capacityInspectionInput(
+  connectionsByPiece: readonly (readonly {
+    readonly partIndex: number;
+    readonly candidatePortId: string;
+  }[])[],
+) {
+  const connectionCount = connectionsByPiece.reduce(
+    (total, connections) => total + connections.length,
+    0,
+  );
+  const partIds = Array.from({ length: connectionCount }, (_, index) => `capacity-base-${index}`);
+  const parent = capacityParent(partIds);
+  const pieces = preparedWitnesses(connectionsByPiece.length).map((piece, index) => ({
+    ...piece,
+    catalogPartId: "builtin:tile-1x2-chamfered-indented",
+    connections: connectionsByPiece[index]!.map((connection) => ({
+      target: { kind: "base" as const, partId: partIds[connection.partIndex]! },
+      targetPortId: "stud:0:0",
+      candidatePortId: connection.candidatePortId,
+      connectionKind: "stud-tube" as const,
+    })),
+  }));
+  return {
+    preparedStep: capacityPreparedStep(connectionsByPiece.length),
+    parents: [{ ...parent, children: [{ pieces }] }],
+  };
+}
+
+function occupiedParentInspectionInput(targetPortId: string, reverseConnections: boolean) {
+  const parent = preparedSearchParent();
+  const template = parent.documentSnapshot.document.parts[0]!;
+  const retainedBrick = (id: string, x: number) => ({
+    ...template,
+    id,
+    catalogPartId: "builtin:brick-1x1",
+    transform: {
+      positionLdu: [x, 0, 0] as [number, number, number],
+      orientationId: "upright-yaw-0",
+    },
+  });
+  const retained99563 = (id: string, brick: ReturnType<typeof retainedBrick>, portId: string) => ({
+    ...template,
+    id,
+    catalogPartId: "builtin:tile-1x2-chamfered-indented",
+    transform: createAttachedTransform(
+      brick,
+      "stud:0:0",
+      "builtin:tile-1x2-chamfered-indented",
+      portId,
+      "upright-yaw-0",
+    ),
+  });
+  const brickA = retainedBrick("retained-brick-a", 0);
+  const brickB = retainedBrick("retained-brick-b", 200);
+  const tileA = retained99563("retained-99563-a", brickA, "undersideClutch:0");
+  const tileB = retained99563("retained-99563-b", brickB, "undersideClutch:2");
+  const connections = [
+    {
+      id: "retained-connection-a",
+      kind: "stud-tube" as const,
+      a: { partId: brickA.id, portId: "stud:0:0" },
+      b: { partId: tileA.id, portId: "undersideClutch:0" },
+      provenance: { source: "manual" as const },
+    },
+    {
+      id: "retained-connection-b",
+      kind: "stud-tube" as const,
+      a: { partId: brickB.id, portId: "stud:0:0" },
+      b: { partId: tileB.id, portId: "undersideClutch:2" },
+      provenance: { source: "manual" as const },
+    },
+  ];
+  const document = {
+    ...parent.documentSnapshot.document,
+    parts: [brickA, tileA, brickB, tileB],
+    connections: reverseConnections ? [...connections].reverse() : connections,
+  };
+  const documentHash = documentStructuralHash(document);
+  const documentSnapshot = createRealBuildCandidateDocumentSnapshot({
+    canonicalDocument: canonicalBrickDocument(document),
+    expectedDocumentHash: documentHash,
+  });
+  const identity = deriveRealBuildExactLineageIdentity({
+    candidateId: realBuildDocumentCandidateId(documentHash),
+    documentHash,
+    documentSnapshot,
+    parent: parent.rootIdentity,
+    throughStepNumber: 1,
+    localIdentity: { kind: "decision", id: `occupied-parent-${String(reverseConnections)}` },
+  });
+  const piece = preparedWitnesses()[0]!;
+  const pieces = [
+    {
+      ...piece,
+      transform: createAttachedTransform(
+        tileA,
+        targetPortId,
+        piece.catalogPartId,
+        "stud:0:0",
+        "upright-yaw-0",
+      ),
+      connections: [
+        {
+          target: { kind: "base" as const, partId: tileA.id },
+          targetPortId,
+          candidatePortId: "stud:0:0",
+          connectionKind: "stud-tube" as const,
+        },
+      ],
+    },
+  ];
+  return {
+    preparedStep: inspectRealBuildPreparedStepInput(preparedSearchOptionsBytes(), 2),
+    parents: [{ identity, documentSnapshot, children: [{ pieces }] }],
   };
 }
 
@@ -333,7 +508,9 @@ describe("prepared search batch prerequisite", () => {
     }));
     expect(() =>
       inspectRealBuildPreparedSearchBatch(inspectionInput(1, [{ pieces: duplicatePorts }]).input),
-    ).toThrow(/reuses an occupied connection port/u);
+    ).toThrow(
+      /connections\[1\] consumes port stud:0:0 .* already reserved by .*connections\[0\]; choose a non-overlapping endpoint/u,
+    );
 
     const detachedBase = preparedWitnesses().map((piece) => ({
       ...piece,
@@ -392,6 +569,99 @@ describe("prepared search batch prerequisite", () => {
         inspectionInput(2, [{ pieces: tooManyOperations }]).input,
       ),
     ).toThrow(/automatic compiler limit is 1024/u);
+  });
+
+  it("refuses 99563 center-plus-outer use of one source-reviewed half-slot", () => {
+    expect(() =>
+      inspectRealBuildPreparedSearchBatch(
+        capacityInspectionInput([
+          [
+            { partIndex: 0, candidatePortId: "undersideClutch:0" },
+            { partIndex: 1, candidatePortId: "undersideClutch:1" },
+          ],
+        ]),
+      ),
+    ).toThrow(
+      /pieces\[0\]\.connections\[1\] consumes shared connector-capacity cell 99563:negative-z-half .* already reserved by .*pieces\[0\]\.connections\[0\]; choose a non-overlapping endpoint/u,
+    );
+  });
+
+  it("allows both independent outer seats on one 99563 instance", () => {
+    const result = inspectRealBuildPreparedSearchBatch(
+      capacityInspectionInput([
+        [
+          { partIndex: 0, candidatePortId: "undersideClutch:0" },
+          { partIndex: 1, candidatePortId: "undersideClutch:2" },
+        ],
+      ]),
+    );
+
+    expect(result).toMatchObject({
+      witnessCount: 1,
+      connectionCount: 2,
+      authority: "absent",
+      refusal: "automatic-compiled-placement-authority-unavailable",
+    });
+  });
+
+  it("isolates identical shared-capacity claims by exact proposed part instance", () => {
+    const result = inspectRealBuildPreparedSearchBatch(
+      capacityInspectionInput([
+        [{ partIndex: 0, candidatePortId: "undersideClutch:1" }],
+        [{ partIndex: 1, candidatePortId: "undersideClutch:1" }],
+      ]),
+    );
+
+    expect(result).toMatchObject({
+      witnessCount: 2,
+      connectionCount: 2,
+      authority: "absent",
+    });
+  });
+
+  it("retains exact-endpoint duplicate refusal under shared-capacity accounting", () => {
+    expect(() =>
+      inspectRealBuildPreparedSearchBatch(
+        capacityInspectionInput([
+          [
+            { partIndex: 0, candidatePortId: "undersideClutch:0" },
+            { partIndex: 1, candidatePortId: "undersideClutch:0" },
+          ],
+        ]),
+      ),
+    ).toThrow(
+      /pieces\[0\]\.connections\[1\] consumes port undersideClutch:0 .* already reserved by .*pieces\[0\]\.connections\[0\]; choose a non-overlapping endpoint/u,
+    );
+  });
+
+  it("refuses a port label that is absent from the bound catalog part", () => {
+    expect(() =>
+      inspectRealBuildPreparedSearchBatch(
+        capacityInspectionInput([
+          [{ partIndex: 0, candidatePortId: "undersideClutch:not-source-authored" }],
+        ]),
+      ),
+    ).toThrow(
+      /Unknown port undersideClutch:not-source-authored on builtin:tile-1x2-chamfered-indented/u,
+    );
+  });
+
+  it("seeds 99563 capacity from exact parent connections independent of row order", () => {
+    for (const reverseConnections of [false, true]) {
+      expect(() =>
+        inspectRealBuildPreparedSearchBatch(
+          occupiedParentInspectionInput("undersideClutch:1", reverseConnections),
+        ),
+      ).toThrow(
+        /consumes shared connector-capacity cell 99563:negative-z-half .* already reserved by Prepared search parent connection "retained-connection-a"; choose a non-overlapping endpoint/u,
+      );
+
+      expect(
+        inspectRealBuildPreparedSearchBatch(
+          occupiedParentInspectionInput("undersideClutch:2", reverseConnections),
+        ),
+      ).toMatchObject({ authority: "absent", witnessCount: 1, connectionCount: 1 });
+    }
   });
 
   it("checks parent, child, and aggregate witness bounds before identity inspection", () => {

@@ -21,6 +21,7 @@ AXLE_HOLE_META = (
     "[slide=true] [caps=none] [gender=F]\n"
 )
 AXLE_HOLE_CLOSURE = ["p/axlehol5.dat", "p/stud2.dat", "parts/32064a.dat"]
+AXLE_HOLE4_CLOSURE = ["p/axlehol4.dat", "p/stud2.dat", "parts/73230.dat"]
 
 
 def composed_axle_hole():
@@ -39,6 +40,27 @@ def composed_axle_hole():
             Fraction(0),
         ),
         (Fraction(0), Fraction(10), Fraction(30)),
+    )
+
+
+def composed_axle_hole4():
+    meta = parse_shadow_metas(
+        AXLE_HOLE_META.replace("pos=0 2 0", "pos=0 1 0"), "p/axlehol4.dat"
+    )[0]
+    source = snap_instances(meta)[0]
+    return source.transformed(
+        (
+            Fraction(1),
+            Fraction(0),
+            Fraction(0),
+            Fraction(0),
+            Fraction(0),
+            Fraction(1),
+            Fraction(0),
+            Fraction(20),
+            Fraction(0),
+        ),
+        (Fraction(0), Fraction(10), Fraction(-10)),
     )
 
 
@@ -100,6 +122,35 @@ class MeasuredSourceConnectorTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "measured 2 declarations"):
             source_connectors_for("32064", [snap, snap], AXLE_HOLE_CLOSURE)
+
+    def test_axlehol4_projection_is_bound_to_73230s_exact_composed_route(self) -> None:
+        snap = composed_axle_hole4()
+        expected = [("axleHole", [0.0, 10.0, 0.0], [0.0, 0.0, -1.0])]
+
+        self.assertEqual(source_connectors_for("73230", [snap], AXLE_HOLE4_CLOSURE), expected)
+        with self.assertRaisesRegex(ValueError, "shadow closure"):
+            source_connectors_for("73230", [snap], ["p/axlehol4.dat"])
+        with self.assertRaisesRegex(ValueError, "p/axlehol4.dat"):
+            source_connectors_for(
+                "73230",
+                [replace(snap, source_path="p/axlehol5.dat")],
+                AXLE_HOLE4_CLOSURE,
+            )
+        with self.assertRaisesRegex(ValueError, "32064/32064a or 73230"):
+            source_connectors_for("other", [snap], AXLE_HOLE4_CLOSURE)
+
+    def test_square_clutch_plan_opt_in_is_literal_and_source_scoped(self) -> None:
+        self.assertFalse(plan().allow_ldcad_square_s6_clutches)
+        with self.assertRaisesRegex(ValueError, "explicit boolean"):
+            plan(allow_ldcad_square_s6_clutches=1)
+        with self.assertRaisesRegex(ValueError, "only an 'ldcad-shadow' plan"):
+            plan(allow_ldcad_square_s6_clutches=True)
+
+        enabled = plan(
+            connector_source="ldcad-shadow",
+            allow_ldcad_square_s6_clutches=True,
+        )
+        self.assertTrue(enabled.allow_ldcad_square_s6_clutches)
 
     def test_scoreable_candidate_restores_the_exact_source_local_axle_frame(self) -> None:
         part = measured(

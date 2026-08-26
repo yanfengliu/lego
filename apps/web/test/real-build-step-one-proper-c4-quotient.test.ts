@@ -1,6 +1,13 @@
-import { applyBuildOperations } from "@lego-studio/brick-kernel";
+import {
+  applyBuildOperations,
+  canonicalBrickDocument,
+  createEmptyBrickDocument,
+  documentStructuralHash,
+} from "@lego-studio/brick-kernel";
 import { describe, expect, it } from "vitest";
 
+import { createFrozenLegacyAdditiveCatalogBasisV26 } from "../e2e/real-build-artifact-legacy-document-v2";
+import { createRealBuildCandidateDocumentSnapshot } from "../e2e/real-build-candidate-document-snapshot";
 import {
   snapshotRealBuildEnumeratedPlacementOffer,
   type RealBuildEnumeratedPlacementOffer,
@@ -111,6 +118,28 @@ function currentControl() {
   };
 }
 
+function frozenV26RootDocumentSnapshot() {
+  const current = createEmptyBrickDocument({
+    id: "prepared-search-empty-parent",
+    name: "Prepared search empty parent",
+    maxParts: 1_464,
+  });
+  const basis = createFrozenLegacyAdditiveCatalogBasisV26();
+  const document = {
+    ...structuredClone(current),
+    truth: structuredClone(basis.truth),
+    constraints: {
+      ...structuredClone(current.constraints),
+      allowedCatalogPartIds: [...basis.constraints.allowedCatalogPartIds],
+      allowedColorIds: [...basis.constraints.allowedColorIds],
+    },
+  };
+  return createRealBuildCandidateDocumentSnapshot({
+    canonicalDocument: canonicalBrickDocument(document),
+    expectedDocumentHash: documentStructuralHash(document),
+  });
+}
+
 interface MutableOffer {
   catalogPartId: string;
   transform: { positionLdu: [number, number, number]; orientationId: string };
@@ -200,7 +229,7 @@ function syntheticProperOrbits(groupCount: number): ReturnType<typeof currentCon
 }
 
 describe("step-one proper-C4 executable quotient", () => {
-  it("reduces the exact current /26 400-row population to 100 free proper-yaw orbits", () => {
+  it("rebinds the exact 400-row population to the current shared-capacity compiler", () => {
     const input = currentControl();
     const result = inspectRealBuildStepOneProperC4Quotient(input);
 
@@ -247,8 +276,27 @@ describe("step-one proper-C4 executable quotient", () => {
       "sha256:24e68a134cf86c181ede701c2f189d1f2816af4a83510e2a841f270249d5ce72",
     );
     expect(result.quotientDigest).toBe(
+      "sha256:67c9642155e95db895d03a9fd8b9df9521d73fd3cf8ef91a4aa9f9b0e5ef0190",
+    );
+  });
+
+  it("retains the frozen /26 quotient as a non-authoritative evidence projection", () => {
+    const current = currentControl();
+    const result = inspectRealBuildStepOneProperC4Quotient({
+      rootDocumentSnapshot: frozenV26RootDocumentSnapshot(),
+      preparedStep: current.preparedStep,
+      rawCandidates: current.rawCandidates,
+    });
+
+    expect(result.rawRosterDigest).toBe(
+      "sha256:24e68a134cf86c181ede701c2f189d1f2816af4a83510e2a841f270249d5ce72",
+    );
+    expect(result.quotientDigest).toBe(
       "sha256:e9f23510849153d022bb0aafd6dbf5281bbf6c519c7aff8d14bdefd0fd1145b9",
     );
+    expect(result.acceptedDocument).toBeNull();
+    expect(result.placementAuthority).toBe("absent");
+    expect(result.completionAuthority).toEqual({ status: "absent", authorized: false });
   });
 
   it("refuses missing, duplicate-yaw, reflected, connection-drifted, and support-drifted rows", () => {

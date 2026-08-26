@@ -1,4 +1,4 @@
-"""Exact LDCad source bridge for 32064a's inherited axle hole."""
+"""Exact LDCad source bridge for the inherited 32064a and 73230 axle holes."""
 
 from __future__ import annotations
 
@@ -7,13 +7,13 @@ from typing import Callable, Sequence
 
 from ldcad_shadow_connectors import ShadowSnap, exact_float
 
-AXLE_HOLE_SOURCE_PATH = "p/axlehol5.dat"
+AXLE_HOLE_SOURCE_PATHS = frozenset(("p/axlehol4.dat", "p/axlehol5.dat"))
 AXLE_HOLE_SOURCE_LENGTH_LDU = Fraction(1)
 AXLE_HOLE_COMPOSED_LENGTH_LDU = Fraction(20)
 
 
 def is_axle_hole_declaration(snap: ShadowSnap) -> bool:
-    """Whether one snap is the exact scalable axle-hole declaration 32064a uses."""
+    """Whether one snap is the exact scalable axle-hole declaration both routes use."""
 
     return (
         snap.command == "SNAP_CYL"
@@ -54,7 +54,7 @@ def emit_axle_hole_connectors(
     for snap in snaps:
         if not is_axle_hole_declaration(snap):
             continue
-        if snap.source_path != AXLE_HOLE_SOURCE_PATH:
+        if snap.source_path not in AXLE_HOLE_SOURCE_PATHS:
             if on_reject is not None:
                 on_reject("unexpected-axle-hole-source-path", snap)
             continue

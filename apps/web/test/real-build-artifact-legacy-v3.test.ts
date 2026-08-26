@@ -402,6 +402,11 @@ describe("legacy artifact-manifest /3 inspection", () => {
       "builtin:tile-1x1-quarter-round",
     );
     const active = createFrozenLegacyAdditiveCatalogBasisV26();
+    expect(active.truth.catalog.version).toBe("builtin.basic-parts/26");
+    expect(active.constraints.allowedCatalogPartIds).toHaveLength(98);
+    expect(active.constraints.allowedCatalogPartIds).not.toContain(
+      "builtin:tile-1x2-chamfered-indented",
+    );
     const driftedTruth = structuredClone(active) as MutableCatalogCompatibilityBasis;
     driftedTruth.truth = {
       ...driftedTruth.truth,

@@ -31,6 +31,7 @@ from ldcad_shadow_metas import (
     parse_sections,
 )
 from ldcad_shadow_source import VerifiedShadowLibrary
+import ldcad_shadow_square_clutches as square_clutches
 from ldraw_source_archive import MAX_RECURSION_DEPTH, LDrawSourceLibrary
 
 SHADOW_COMPOSITION_ID = "ldcad-shadow-composed-over-ldraw-tree/1"
@@ -397,20 +398,18 @@ def exact_float(value: Fraction, label: str) -> float:
 def emit_clutch_connectors(
     snaps: Sequence[ShadowSnap],
     *,
+    allow_square_s6: bool = False,
     on_reject: Callable[[str, ShadowSnap], None] | None = None,
 ) -> list[dict[str, object]]:
-    """Deduplicated under-stud clutch candidates, in LDraw part-local LDU.
+    """Deduplicated under-stud clutch candidates, in LDraw part-local LDU."""
 
-    The library legitimately states the same grip twice — `5092.dat` and
-    `s/5092s01.dat` each declare the clutch at (-10, 8, 0) — so identical
-    position-and-normal pairs collapse to one connector rather than counting as
-    two grips.
-    """
-
+    allow_square_s6 = square_clutches.require_square_s6_opt_in(allow_square_s6)
     seen: dict[tuple[tuple[float, ...], tuple[float, ...]], None] = {}
     connectors: list[dict[str, object]] = []
     for snap in snaps:
-        if not snap.is_anti_stud:
+        if not snap.is_anti_stud and not (
+            allow_square_s6 and square_clutches.is_square_s6_clutch_socket(snap)
+        ):
             continue
         normal = axis_normal(snap.mouth_normal)
         if normal is None:

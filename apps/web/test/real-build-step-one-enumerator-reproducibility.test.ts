@@ -7,6 +7,7 @@ import {
 } from "@lego-studio/brick-kernel";
 import { BUILTIN_CATALOG_VERSION } from "@lego-studio/catalog";
 
+import { createFrozenLegacyAdditiveCatalogBasisV26 } from "../e2e/real-build-artifact-legacy-document-v2";
 import { snapshotRealBuildEnumeratedPlacementOffer } from "../e2e/real-build-enumerated-placement-witness";
 import {
   enumeratePlacements,
@@ -28,29 +29,49 @@ function distinct(candidates: readonly PlacementCandidate[]): readonly Placement
   });
 }
 
-describe("current /26 step-one catalog enumeration", () => {
+describe("current /27 step-one catalog enumeration", () => {
   it("retains the complete 4 by 100 no-model offer product without target transforms", () => {
     const empty = createEmptyBrickDocument({
       id: "step-one-enumerator-reproducibility",
       name: "Step-one enumerator reproducibility",
       maxParts: 1_464,
     });
-    const first = distinct(
-      enumeratePlacements(empty, FIRST_PART, { includeBuildPlate: true }).candidates,
-    );
-    const branches = first.map((firstCandidate) => {
-      const transaction = createPlacePartTransaction(empty, {
-        catalogPartId: firstCandidate.catalogPartId,
-        colorId: "builtin:black",
-        transform: firstCandidate.transform,
+    const enumerateBranches = (root: typeof empty) => {
+      const first = distinct(
+        enumeratePlacements(root, FIRST_PART, { includeBuildPlate: true }).candidates,
+      );
+      const branches = first.map((firstCandidate) => {
+        const transaction = createPlacePartTransaction(root, {
+          catalogPartId: firstCandidate.catalogPartId,
+          colorId: "builtin:black",
+          transform: firstCandidate.transform,
+        });
+        const firstDocument = applyBuildOperations(root, transaction.operations);
+        const second = distinct(enumeratePlacements(firstDocument, SECOND_PART, {}).candidates);
+        return {
+          first: snapshotRealBuildEnumeratedPlacementOffer(firstCandidate),
+          second: second.map((candidate) => snapshotRealBuildEnumeratedPlacementOffer(candidate)),
+        };
       });
-      const firstDocument = applyBuildOperations(empty, transaction.operations);
-      const second = distinct(enumeratePlacements(firstDocument, SECOND_PART, {}).candidates);
-      return {
-        first: snapshotRealBuildEnumeratedPlacementOffer(firstCandidate),
-        second: second.map((candidate) => snapshotRealBuildEnumeratedPlacementOffer(candidate)),
-      };
-    });
+      return { first, branches };
+    };
+    const { first, branches } = enumerateBranches(empty);
+    // The offers execute only under current /27 truth; this frozen catalog label
+    // preserves the reviewed /26 digest envelope as evidence, never placement authority.
+    const frozenBasis = createFrozenLegacyAdditiveCatalogBasisV26();
+    expect(frozenBasis.constraints.allowedCatalogPartIds).toHaveLength(98);
+    expect(
+      frozenBasis.constraints.allowedCatalogPartIds.includes("builtin:tile-1x2-chamfered-indented"),
+    ).toBe(false);
+    expect(
+      canonicalDigest({
+        schemaVersion: "lego.real-build-step-one-enumerator-reproducibility/1",
+        catalogVersion: frozenBasis.truth.catalog.version,
+        firstPart: FIRST_PART,
+        secondPart: SECOND_PART,
+        branches,
+      }),
+    ).toBe("sha256:18647bdea99ba4756aee66466ef6193efc6eda36d1417bd7318a7f5fe4bf0469");
     const digest = canonicalDigest({
       schemaVersion: "lego.real-build-step-one-enumerator-reproducibility/1",
       catalogVersion: BUILTIN_CATALOG_VERSION,
@@ -83,6 +104,6 @@ describe("current /26 step-one catalog enumeration", () => {
           ({ connections, restsOnBuildPlate }) => connections.length > 0 && !restsOnBuildPlate,
         ),
     ).toBe(true);
-    expect(digest).toBe("sha256:18647bdea99ba4756aee66466ef6193efc6eda36d1417bd7318a7f5fe4bf0469");
+    expect(digest).toBe("sha256:b2017d3bb498038b3ddbdadb96a764109af3dc5a0364e6a8a7c48a78e138fd13");
   });
 });

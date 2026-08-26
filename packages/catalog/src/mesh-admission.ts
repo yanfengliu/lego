@@ -351,6 +351,35 @@ function onStudLattice(coordinate: number): boolean {
   );
 }
 
+function declaredSharedCapacityGroups(
+  connector: PartDefinition["connectors"][number],
+): readonly string[] {
+  return connector.sharedCapacityGroupIds ?? [];
+}
+
+/**
+ * Connector ids and shared-capacity labels are bookkeeping, not physical
+ * coordinates. Two same-kind ports at the same position and outward normal
+ * therefore describe the same attachment frame even if those labels differ.
+ */
+function connectorPhysicalFrameKey(connector: PartDefinition["connectors"][number]): string {
+  return JSON.stringify([connector.kind, connector.positionLdu, connector.normal]);
+}
+
+function sharedCapacityGroupsAreRepresentable(
+  connector: PartDefinition["connectors"][number],
+): boolean {
+  const groups = connector.sharedCapacityGroupIds;
+  return (
+    groups === undefined ||
+    (connector.kind === "undersideClutch" &&
+      Array.isArray(groups) &&
+      groups.length > 0 &&
+      new Set(groups).size === groups.length &&
+      groups.every((groupId) => typeof groupId === "string" && groupId.trim().length > 0))
+  );
+}
+
 function resolvedMeshBounds(
   asset: ResolvedMeshAsset,
   selectedRole?: PreloadedMeshGroup["role"],
@@ -521,6 +550,7 @@ export function validateMeshPartDefinitionAdmission(
   }
 
   const connectorIds = new Set<string>();
+  const connectorFrameOwners = new Map<string, { readonly id: string; readonly index: number }>();
   let connectorRepresentationValid = true;
   const bodyCollisionBoxes = definition.collision.primitives
     .filter(
@@ -546,14 +576,18 @@ export function validateMeshPartDefinitionAdmission(
             connector.normal[1] === 1 &&
             connector.normal[2] === 0
           : true;
+    const physicalFrameKey = connectorPhysicalFrameKey(connector);
+    const priorFrameOwner = connectorFrameOwners.get(physicalFrameKey);
     const valid =
       connector.id.trim().length > 0 &&
       !connectorIds.has(connector.id) &&
+      priorFrameOwner === undefined &&
       taxonomy !== undefined &&
       connector.geometryRole === taxonomy.geometryRole &&
       connector.gender === taxonomy.gender &&
       connector.profileId === taxonomy.profileId &&
       connector.capacity === 1 &&
+      sharedCapacityGroupsAreRepresentable(connector) &&
       (connector.kind === "stud" ||
         connector.orientationId === "connector-up" ||
         connector.orientationId === "connector-down") &&
@@ -571,12 +605,15 @@ export function validateMeshPartDefinitionAdmission(
       ) &&
       (!visualBoundsValid || pointInside(definition.boundsLdu, connector.positionLdu));
     connectorIds.add(connector.id);
+    if (priorFrameOwner === undefined) {
+      connectorFrameOwners.set(physicalFrameKey, { id: connector.id, index });
+    }
     if (!valid) {
       connectorRepresentationValid = false;
       add(
         "MESH_ADMISSION_CONNECTOR_INVALID",
         `/connectors/${index}`,
-        `Part ${definition.id} connector ${JSON.stringify(connector.id)} needs a unique non-empty id, the catalog taxonomy fields for kind ${connector.kind}, a safe-integer in-bounds position, and one axis-unit safe-integer normal; a stud's orientation must name its outward normal axis, while undersideClutch ports remain connector-down/[0,1,0]. Received position=${JSON.stringify(connector.positionLdu)}, orientation=${JSON.stringify(connector.orientationId)}, normal=${JSON.stringify(connector.normal)}.`,
+        `Part ${definition.id} connector ${JSON.stringify(connector.id)} needs a unique non-empty id and physical frame (kind + position + normal), the catalog taxonomy fields for kind ${connector.kind}, a safe-integer in-bounds position, and one axis-unit safe-integer normal; a stud's orientation must name its outward normal axis, while undersideClutch ports remain connector-down/[0,1,0]. Optional sharedCapacityGroupIds are allowed only as a non-empty unique string list on an underside clutch. Received position=${JSON.stringify(connector.positionLdu)}, orientation=${JSON.stringify(connector.orientationId)}, normal=${JSON.stringify(connector.normal)}, sharedCapacityGroupIds=${JSON.stringify(connector.sharedCapacityGroupIds)}${priorFrameOwner === undefined ? "" : `; this physical frame is already declared by connector ${JSON.stringify(priorFrameOwner.id)} at /connectors/${priorFrameOwner.index}, and changing connector ids or shared-capacity labels cannot create a second attachment frame`}.`,
       );
     }
     if (
@@ -612,19 +649,83 @@ export function validateMeshPartDefinitionAdmission(
     const firstZ = gridCenter[1] - ((dimensions.lengthStuds - 1) * STUD_PITCH_LDU) / 2;
     const originOffsetX = placementResidue(firstX);
     const originOffsetZ = placementResidue(firstZ);
+    const undersideClutches = definition.connectors.filter(
+      (connector) => connector.kind === "undersideClutch",
+    );
+    const isOnPrimaryGrid = (connector: (typeof undersideClutches)[number]): boolean =>
+      onStudLattice(connector.positionLdu[0] + originOffsetX) &&
+      onStudLattice(connector.positionLdu[2] + originOffsetZ);
+    const calibratedSharedGroups = new Set<string>();
     for (let index = 0; index < definition.connectors.length; index += 1) {
       const connector = definition.connectors[index]!;
       if (connector.kind !== "undersideClutch") continue;
-      if (
-        !onStudLattice(connector.positionLdu[0] + originOffsetX) ||
-        !onStudLattice(connector.positionLdu[2] + originOffsetZ)
-      ) {
+      if (!isOnPrimaryGrid(connector)) {
+        const [seatX, seatY, seatZ] = connector.positionLdu;
+        const groups = declaredSharedCapacityGroups(connector);
+        const peerPairs: (readonly [
+          (typeof undersideClutches)[number],
+          (typeof undersideClutches)[number],
+        ])[] = [];
+        for (let leftIndex = 0; leftIndex < undersideClutches.length; leftIndex += 1) {
+          const left = undersideClutches[leftIndex]!;
+          if (!isOnPrimaryGrid(left) || left.positionLdu[1] !== seatY) continue;
+          for (
+            let rightIndex = leftIndex + 1;
+            rightIndex < undersideClutches.length;
+            rightIndex += 1
+          ) {
+            const right = undersideClutches[rightIndex]!;
+            if (!isOnPrimaryGrid(right) || right.positionLdu[1] !== seatY) continue;
+            const oppositeHalfPitch =
+              left.positionLdu[0] + right.positionLdu[0] === 2 * seatX &&
+              left.positionLdu[2] + right.positionLdu[2] === 2 * seatZ &&
+              ((Math.abs(left.positionLdu[0] - seatX) === STUD_PITCH_LDU / 2 &&
+                left.positionLdu[2] === seatZ &&
+                right.positionLdu[2] === seatZ) ||
+                (Math.abs(left.positionLdu[2] - seatZ) === STUD_PITCH_LDU / 2 &&
+                  left.positionLdu[0] === seatX &&
+                  right.positionLdu[0] === seatX));
+            const leftGroups = declaredSharedCapacityGroups(left);
+            const rightGroups = declaredSharedCapacityGroups(right);
+            if (
+              oppositeHalfPitch &&
+              groups.length === 2 &&
+              leftGroups.length === 1 &&
+              rightGroups.length === 1 &&
+              leftGroups[0] !== rightGroups[0] &&
+              new Set([...leftGroups, ...rightGroups]).size === groups.length &&
+              groups.every(
+                (groupId) => leftGroups.includes(groupId) || rightGroups.includes(groupId),
+              )
+            ) {
+              peerPairs.push([left, right]);
+            }
+          }
+        }
+        if (peerPairs.length === 1) {
+          for (const groupId of groups) calibratedSharedGroups.add(groupId);
+          continue;
+        }
         add(
           "MESH_ADMISSION_CONNECTOR_GRID_MISMATCH",
           `/connectors/${index}/positionLdu`,
-          `Part ${definition.id} underside connector ${connector.id} at [${connector.positionLdu[0]}, ${connector.positionLdu[2]}] is incompatible with connectorGridCenterLdu [${gridCenter.join(", ")}], ${dimensions.widthStuds}x${dimensions.lengthStuds} footprint parity, and the placement lattice; snapped world coordinates must have residue ${STUD_PITCH_LDU / 2} modulo ${STUD_PITCH_LDU}.`,
+          `Part ${definition.id} underside connector ${connector.id} at [${connector.positionLdu[0]}, ${connector.positionLdu[2]}] is incompatible with connectorGridCenterLdu [${gridCenter.join(", ")}], ${dimensions.widthStuds}x${dimensions.lengthStuds} footprint parity, and the placement lattice. An alternate seat is admitted only exactly half-pitch between one unambiguous pair of primary-grid peers, with two shared capacity groups that correspond one-to-one to those peers; found ${peerPairs.length} calibrated peer pairs.`,
         );
       }
+    }
+    const groupMembers = new Map<string, number>();
+    for (const connector of undersideClutches) {
+      for (const groupId of declaredSharedCapacityGroups(connector)) {
+        groupMembers.set(groupId, (groupMembers.get(groupId) ?? 0) + 1);
+      }
+    }
+    for (const [groupId, memberCount] of groupMembers) {
+      if (memberCount === 2 && calibratedSharedGroups.has(groupId)) continue;
+      add(
+        "MESH_ADMISSION_CONNECTOR_GRID_MISMATCH",
+        "/connectors",
+        `Part ${definition.id} shared connector-capacity group ${JSON.stringify(groupId)} has ${memberCount} member(s) and calibratedAlternate=${calibratedSharedGroups.has(groupId)}; each admitted group must bind exactly one off-grid half-pitch seat to exactly one primary-grid peer.`,
+      );
     }
   }
 

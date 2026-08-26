@@ -4,8 +4,11 @@ import {
   canonicalDigest,
   canonicalSha256,
   compileBuildProgram,
+  connectorCapacityClaimKeys,
   deepFreeze,
+  describeConnectorCapacityClaimKey,
   documentStructuralHash,
+  getConnectorWorldFrame,
   verifyAssemblyPatchAgainstCapability,
   type CompilationResult,
 } from "@lego-studio/brick-kernel";
@@ -45,6 +48,32 @@ import {
 } from "./real-build-automatic-placement-step";
 
 const automaticPlacementCompilationResults = new WeakSet<object>();
+
+type AutomaticCapacityPart = Parameters<typeof getConnectorWorldFrame>[0];
+
+function reserveAutomaticConnectorCapacity(
+  occupied: Map<string, string>,
+  endpoints: readonly {
+    readonly part: AutomaticCapacityPart;
+    readonly portId: string;
+  }[],
+  label: string,
+): void {
+  const claims = endpoints.flatMap(({ part, portId }) =>
+    connectorCapacityClaimKeys(getConnectorWorldFrame(part, portId)),
+  );
+  const pending = new Map<string, string>();
+  for (const claim of claims) {
+    const priorOwner = occupied.get(claim) ?? pending.get(claim);
+    if (priorOwner !== undefined) {
+      throw new TypeError(
+        `${label} consumes ${describeConnectorCapacityClaimKey(claim)}, already reserved by ${priorOwner}; choose a non-overlapping endpoint.`,
+      );
+    }
+    pending.set(claim, label);
+  }
+  for (const [claim, owner] of pending) occupied.set(claim, owner);
+}
 
 function retainAutomaticPlacementCompilationResult<
   T extends RealBuildAutomaticPlacementCompilationResult,
@@ -100,10 +129,32 @@ function programFor(
 } {
   const operations: ProgramOperation[] = [];
   const localPartIds: string[] = [];
-  const retained = new Set(document.parts.map(({ id }) => id));
+  const localParts: AutomaticCapacityPart[] = [];
+  const retained = new Map(document.parts.map((part) => [part.id, part]));
+  const occupiedCapacityClaims = new Map<string, string>();
+  for (const connection of document.connections) {
+    reserveAutomaticConnectorCapacity(
+      occupiedCapacityClaims,
+      [connection.a, connection.b].map(({ partId, portId }) => {
+        const part = retained.get(partId);
+        if (part === undefined) {
+          throw new TypeError(
+            `Automatic placement base connection ${JSON.stringify(connection.id)} names missing part ${JSON.stringify(partId)}.`,
+          );
+        }
+        return { part, portId };
+      }),
+      `Automatic placement base connection ${JSON.stringify(connection.id)}`,
+    );
+  }
   const required = new Map<string, { partId: string; portId: string }>();
   witnesses.forEach((witness, index) => {
     const localPartId = deterministicId("candidate-part", { proposalId, index, witness });
+    const localPart = {
+      id: localPartId,
+      catalogPartId: witness.catalogPartId,
+      transform: witness.transform,
+    };
     operations.push({
       kind: "placePart",
       operationId: `place-${index + 1}`,
@@ -139,6 +190,23 @@ function programFor(
         `Automatic placement witness ${index} is not supported: ${support.reason}`,
       );
     discovered.forEach((connection, connectionIndex) => {
+      const targetPart =
+        connection.target.kind === "base"
+          ? retained.get(connection.targetPartId)
+          : localParts[connection.target.witnessIndex];
+      if (targetPart === undefined) {
+        throw new TypeError(
+          `Witness ${index} connection ${connectionIndex} target is absent from the exact base and earlier witness set.`,
+        );
+      }
+      reserveAutomaticConnectorCapacity(
+        occupiedCapacityClaims,
+        [
+          { part: targetPart, portId: connection.targetPortId },
+          { part: localPart, portId: connection.candidatePortId },
+        ],
+        `Automatic placement witness ${index} connection ${connectionIndex}`,
+      );
       operations.push({
         kind: "attach",
         operationId: `attach-${index + 1}-${connectionIndex + 1}`,
@@ -154,6 +222,7 @@ function programFor(
       }
     });
     localPartIds.push(localPartId);
+    localParts.push(localPart);
   });
   if (required.size > REAL_BUILD_AUTOMATIC_MAXIMUM_REQUIRED_BASE_PORTS) {
     throw new RangeError(

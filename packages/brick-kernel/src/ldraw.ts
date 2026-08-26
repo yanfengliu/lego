@@ -18,7 +18,7 @@ import {
 import { normalizeBrickDocument } from "./document.ts";
 import { createEmptyBrickDocument } from "./factory.ts";
 import { sha256Hex } from "./canonical.ts";
-import { getConnectorWorldFrame } from "./transforms.ts";
+import { connectorCapacityClaimKeys, getConnectorWorldFrame } from "./transforms.ts";
 import { validateBrickDocument } from "./validation.ts";
 
 const FORMAT_VERSION = "lego.ldraw-subset/1";
@@ -406,10 +406,12 @@ function inferConnections(parts: readonly PartInstance[]): InferredConnection[] 
       if (stud.partId === clutch.partId) continue;
       const a = { partId: stud.partId, portId: stud.portId };
       const b = { partId: clutch.partId, portId: clutch.portId };
-      const aKey = endpointKey(a.partId, a.portId);
-      const bKey = endpointKey(b.partId, b.portId);
-      useCounts.set(aKey, (useCounts.get(aKey) ?? 0) + 1);
-      useCounts.set(bKey, (useCounts.get(bKey) ?? 0) + 1);
+      for (const claim of [
+        ...connectorCapacityClaimKeys(stud),
+        ...connectorCapacityClaimKeys(clutch),
+      ]) {
+        useCounts.set(claim, (useCounts.get(claim) ?? 0) + 1);
+      }
       if (inferred.length >= LDRAW_LIMITS.maxConnections) {
         fail("LIMIT_EXCEEDED", "Inferred connection count exceeds the supported limit");
       }
@@ -418,7 +420,10 @@ function inferConnections(parts: readonly PartInstance[]): InferredConnection[] 
   }
 
   if ([...useCounts.values()].some((count) => count > 1)) {
-    fail("CONNECTION_MISMATCH", "Transforms produce an ambiguous multiply occupied port");
+    fail(
+      "CONNECTION_MISMATCH",
+      "Transforms produce an ambiguous multiply occupied port or shared connector-capacity cell",
+    );
   }
   return inferred.sort((left, right) => compareStrings(left.key, right.key));
 }

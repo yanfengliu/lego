@@ -17,7 +17,12 @@ import { canonicalDigest, canonicalSha256, deepFreeze } from "./canonical.ts";
 import { findCatalogCollisions } from "./collisions.ts";
 import { documentStructuralHash, normalizeBrickDocument } from "./document.ts";
 import { createBuiltinTruthSnapshot } from "./factory.ts";
-import { getConnectorWorldFrame, TransformPolicyError } from "./transforms.ts";
+import {
+  connectorCapacityClaimKeys,
+  describeConnectorCapacityClaimKey,
+  getConnectorWorldFrame,
+  TransformPolicyError,
+} from "./transforms.ts";
 import { MAX_EVIDENCE_IDS_PER_ISSUE, MAX_VALIDATION_ISSUES } from "./truth-manifests.ts";
 
 interface IssueInput {
@@ -33,6 +38,12 @@ interface IssueInput {
 
 function compareStrings(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
+}
+
+function diagnosticEvidenceId(value: string): string {
+  return value.length <= 64
+    ? value
+    : `${value.slice(0, 32)}...sha256:${canonicalSha256(value).slice(0, 16)}`;
 }
 
 function makeIssue(input: IssueInput): ValidationIssue {
@@ -117,7 +128,7 @@ function validateConnections(
   issues: ValidationIssue[],
 ): ConnectionEdge[] {
   const validConnections: ConnectionEdge[] = [];
-  const occupiedPorts = new Map<string, string>();
+  const occupiedCapacityClaims = new Map<string, string>();
   const endpointPairs = new Map<string, string>();
 
   for (let index = 0; index < document.connections.length; index += 1) {
@@ -237,25 +248,39 @@ function validateConnections(
       continue;
     }
 
-    const occupied = [aKey, bKey]
-      .map((key) => occupiedPorts.get(key))
-      .filter((value): value is string => value !== undefined);
+    const capacityClaims = [
+      ...connectorCapacityClaimKeys(aFrame),
+      ...connectorCapacityClaimKeys(bFrame),
+    ];
+    const occupied = capacityClaims
+      .flatMap((claim) => {
+        const priorConnectionId = occupiedCapacityClaims.get(claim);
+        return priorConnectionId === undefined ? [] : [{ claim, priorConnectionId }];
+      })
+      .sort(
+        (left, right) =>
+          compareStrings(left.claim, right.claim) ||
+          compareStrings(left.priorConnectionId, right.priorConnectionId),
+      );
     if (occupied.length > 0) {
+      const first = occupied[0]!;
       issues.push(
         makeIssue({
           validatorId: "kernel.connections",
           code: "PORT_CAPACITY_EXCEEDED",
-          message: `Connection ${connection.id} reuses an occupied port`,
+          message: `Use a non-overlapping endpoint. Prior connection ${diagnosticEvidenceId(first.priorConnectionId)} conflicts at ${describeConnectorCapacityClaimKey(first.claim)}. Full part and connection IDs are retained in issue evidence.`,
           path,
           partIds: [aPart.id, bPart.id],
-          connectionIds: [...occupied, connection.id],
+          connectionIds: [
+            ...occupied.map(({ priorConnectionId }) => priorConnectionId),
+            connection.id,
+          ],
         }),
       );
       continue;
     }
 
-    occupiedPorts.set(aKey, connection.id);
-    occupiedPorts.set(bKey, connection.id);
+    for (const claim of capacityClaims) occupiedCapacityClaims.set(claim, connection.id);
     endpointPairs.set(pairKey, connection.id);
     validConnections.push(connection);
   }

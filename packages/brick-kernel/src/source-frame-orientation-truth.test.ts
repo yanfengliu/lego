@@ -5,7 +5,7 @@ import { canonicalDigest } from "./canonical.ts";
 import { createBuiltinTruthSnapshot, getBuiltinTruthDigestInputs } from "./factory.ts";
 
 describe("source-frame orientation infrastructure truth boundary", () => {
-  it("keeps the exact /26 saved-document truth while exposing 24 source frames", () => {
+  it("keeps placement truth upright while /27 exposes 24 source frames", () => {
     const digestInputs = getBuiltinTruthDigestInputs();
     const truth = createBuiltinTruthSnapshot();
 
@@ -16,32 +16,32 @@ describe("source-frame orientation infrastructure truth boundary", () => {
       schemaVersion: "lego.truth-snapshot/1",
       catalog: {
         id: "builtin.basic-parts",
-        version: "builtin.basic-parts/26",
-        hash: "sha256:f86310b89f3224cff7a8d571de5a26fd36440ab46235abf1cf530e2f65f41b37",
+        version: "builtin.basic-parts/27",
+        hash: "sha256:ffb0eb6e68edcb91298b04a3c899a11417b70b07aac062c42f4c1051c20f50ee",
       },
       connectorTaxonomy: {
         id: "stud-tube",
         version: "stud-tube/1",
-        hash: "sha256:93f0a5fc899083be25c5364266e7046b397683204e0e0991f106425ec5a99059",
+        hash: "sha256:5153c1c3d58db63962698768885c0630b1c2c926a220e5895e7d55442ebbc7f1",
       },
       collisionModel: {
         id: "rectilinear-stud-clearance",
         version: "rectilinear-stud-clearance/3",
-        hash: "sha256:7e9905d9f988c288eaeddee3d7befb7af79266518612bbba171d9b7f7fb1c463",
+        hash: "sha256:1e727bf61b482bcaf8587f44175e46238926126de241ae0248a5e23b942118bd",
       },
       transformPolicy: {
         id: "upright-quarter-turns-negative-y-up",
         version: "upright-quarter-turns-negative-y-up/1",
-        hash: "sha256:a8694ddcdc39da5afd946a6012ac2588233bebe2eed457e8501cf572661b2956",
+        hash: "sha256:ec8ce034cb7f39169783692259ec25bb028b95bce6d456917f88bd9bebebb03d",
       },
       validatorSet: {
         id: "lego.kernel-validators",
-        version: "lego.kernel-validators/3",
-        hash: "sha256:fb0676931eb66a0096f393794d0be1297227811a77b986c0a1d05847ee3127d4",
+        version: "lego.kernel-validators/4",
+        hash: "sha256:ac785c8f5ac9f2d642bf53c8ef51764b7954c981355b1d7d508a2228a5f1bf55",
       },
     });
     expect(canonicalDigest(truth)).toBe(
-      "sha256:3226590b11882fea03d8a6370d4ca3c6c8201feaddb56882a243a69acba627e9",
+      "sha256:614c61787b6c45d645e3e84c71dd931a15c258535a1959ee4b3aa1906303b70f",
     );
   });
 });

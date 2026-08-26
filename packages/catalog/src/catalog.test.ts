@@ -182,11 +182,17 @@ const EXPECTED_PART_IDS = [
   // builtin.basic-parts/26: one exact regular 1 x 5 plate with five studs and
   // five underside clutches from the pinned source closures.
   "builtin:plate-1x5",
+  // builtin.basic-parts/27: four exact measured parts appended in the generated
+  // printed-prefix admission order; no preceding catalog row moves.
+  "builtin:tile-1x2-chamfered-indented",
+  "builtin:technic-brick-1x1-axle-hole",
+  "builtin:slope-1x1-double-45",
+  "builtin:curved-slope-1x1-outside-bow",
 ] as const;
 
 describe("starter catalog", () => {
-  it("publishes the regular 1 x 5 plate admission as version 26", () => {
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/26");
+  it("publishes the four-part printed-prefix admission as version 27", () => {
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/27");
   });
 
   it("pins 25269's exact LDCad route and raw-to-catalog central clutch", () => {
@@ -275,16 +281,16 @@ describe("starter catalog", () => {
     expect(perFamily).toEqual({
       brick: 16,
       plate: 33,
-      tile: 12,
+      tile: 13,
       "jumper-plate": 3,
       "grille-tile": 1,
       "wedge-plate": 9,
-      "technic-brick": 2,
+      "technic-brick": 3,
       axle: 3,
       wheel: 1,
       arch: 3,
-      slope: 1,
-      "curved-slope": 4,
+      slope: 2,
+      "curved-slope": 5,
       "cheese-slope": 2,
       "corner-plate": 5,
       bracket: 2,

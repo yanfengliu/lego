@@ -10,6 +10,7 @@ import type { BrickDocumentV1 } from "@lego-studio/protocol";
 
 import { createPlacePartTransaction } from "../src/manual-commands";
 import { applyReviewedAdditiveLegacyBuildOperations } from "../e2e/real-build-reviewed-additive-legacy-operations";
+import { projectExactCurrentMigrationToFrozenV26 } from "../e2e/real-build-step7-gate3-parent-migration-contract";
 import {
   reconstructStep7Gate3ParentsAgainstCallerPins,
   type Step7Gate3ParentMigrationPin,
@@ -30,6 +31,10 @@ const ADDED_AFTER_13 = new Set([
   "builtin:plate-3x3",
   "builtin:plate-2x2-two-studs",
   "builtin:plate-1x5",
+  "builtin:tile-1x2-chamfered-indented",
+  "builtin:technic-brick-1x1-axle-hole",
+  "builtin:slope-1x1-double-45",
+  "builtin:curved-slope-1x1-outside-bow",
 ]);
 const compareStrings = (left: string, right: string): number =>
   left < right ? -1 : left > right ? 1 : 0;
@@ -232,7 +237,10 @@ export function runGate3ParentReconstruction(
           migrateDocumentTruth: (document) => {
             const parentIndex = parentIndexFromDocument(document);
             events.push(`final-migrate:${parentIndex}`);
-            const migrated = migrateDocumentTruth(document);
+            const migrated = projectExactCurrentMigrationToFrozenV26(
+              document,
+              migrateDocumentTruth(document),
+            );
             const migratedDocument =
               parentIndex === 0 && options.mutateFirstMigration !== undefined
                 ? options.mutateFirstMigration(structuredClone(migrated.document))

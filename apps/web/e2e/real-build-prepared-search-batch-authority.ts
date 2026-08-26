@@ -1,5 +1,12 @@
 import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
-import { canonicalDigest, canonicalStringify, type Sha256Digest } from "@lego-studio/brick-kernel";
+import {
+  canonicalDigest,
+  canonicalStringify,
+  connectorCapacityClaimKeys,
+  describeConnectorCapacityClaimKey,
+  getConnectorWorldFrame,
+  type Sha256Digest,
+} from "@lego-studio/brick-kernel";
 
 import {
   snapshotRealBuildLineageIdentity,
@@ -116,7 +123,17 @@ const EXACT_IDENTITY_FIELDS = [
   "canonicalBytesHash",
   "canonicalByteLength",
 ] as const;
-
+type PreparedCapacityPart = Parameters<typeof getConnectorWorldFrame>[0];
+const witnessCapacityPart = (
+  witness: RealBuildPreparedPlacementWitness,
+  witnessIndex: number,
+): PreparedCapacityPart => ({
+  id: `prepared-witness:${witnessIndex}`,
+  catalogPartId: witness.catalogPartId,
+  transform: witness.transform,
+});
+const endpointCapacityClaims = (part: PreparedCapacityPart, portId: string): readonly string[] =>
+  connectorCapacityClaimKeys(getConnectorWorldFrame(part, portId));
 function snapshotParentIdentity(value: unknown): RealBuildLineageIdentity | ExactLineageIdentity {
   let exactFieldCount = 0;
   for (let index = 0; index < EXACT_IDENTITY_FIELDS.length; index += 1) {
@@ -138,15 +155,15 @@ function snapshotParentIdentity(value: unknown): RealBuildLineageIdentity | Exac
   }
   return snapshotExactIdentity(value);
 }
-
 function snapshotProposalPieces(
   planned: PlannedPreparedSearchChild,
   path: string,
   expected: readonly RealBuildPreparedAtomicPiece[],
-  basePartIds: ReadonlySet<string>,
+  basePartsById: ReadonlyMap<string, PreparedCapacityPart>,
+  parentCapacityClaims: ReadonlyMap<string, string>,
 ): readonly RealBuildPreparedPlacementWitness[] {
   const pieces: RealBuildPreparedPlacementWitness[] = [];
-  const occupiedEndpoints = new Set<string>();
+  const occupiedCapacityClaims = new Map(parentCapacityClaims);
   for (let index = 0; index < expected.length; index += 1) {
     const witness = snapshotPreparedPlacementWitness(
       planned.witnesses[index]!.value,
@@ -164,35 +181,45 @@ function snapshotProposalPieces(
         `${path}[${index}] does not match prepared identity/catalog/color ${JSON.stringify(declared.identityKey)}/${JSON.stringify(declared.catalogPartId)}/${JSON.stringify(declared.colorId)}.`,
       );
     }
-    if (witness.connections.length === 0 && (basePartIds.size > 0 || index > 0)) {
+    if (witness.connections.length === 0 && (basePartsById.size > 0 || index > 0)) {
       throw new TypeError(
         `${path}[${index}] is unconnected; only the first witness over an exact empty parent may use ground support without an attachment.`,
       );
     }
-    for (const connection of witness.connections) {
-      if (connection.target.kind === "base" && !basePartIds.has(connection.target.partId)) {
-        throw new TypeError(
-          `${path}[${index}] connection target ${JSON.stringify(connection.target.partId)} is not an exact part in the bound parent snapshot.`,
+    for (const [connectionIndex, connection] of witness.connections.entries()) {
+      let targetPart: PreparedCapacityPart;
+      if (connection.target.kind === "base") {
+        const retainedPart = basePartsById.get(connection.target.partId);
+        if (retainedPart === undefined)
+          throw new TypeError(
+            `${path}[${index}] connection target ${JSON.stringify(connection.target.partId)} is not an exact part in the bound parent snapshot.`,
+          );
+        targetPart = retainedPart;
+      } else {
+        targetPart = witnessCapacityPart(
+          pieces[connection.target.witnessIndex]!,
+          connection.target.witnessIndex,
         );
       }
-      const targetKey =
-        connection.target.kind === "base"
-          ? `base:${connection.target.partId}:${connection.targetPortId}`
-          : `witness:${connection.target.witnessIndex}:${connection.targetPortId}`;
-      const candidateKey = `witness:${index}:${connection.candidatePortId}`;
-      if (occupiedEndpoints.has(targetKey) || occupiedEndpoints.has(candidateKey)) {
-        throw new TypeError(
-          `${path}[${index}] reuses an occupied connection port; one retained or candidate port may bind once.`,
-        );
+      const claims = [
+        ...endpointCapacityClaims(targetPart, connection.targetPortId),
+        ...endpointCapacityClaims(witnessCapacityPart(witness, index), connection.candidatePortId),
+      ];
+      const owner = `${path}[${index}].connections[${connectionIndex}]`;
+      for (const claim of claims) {
+        const priorOwner = occupiedCapacityClaims.get(claim);
+        if (priorOwner !== undefined) {
+          throw new TypeError(
+            `${owner} consumes ${describeConnectorCapacityClaimKey(claim)}, already reserved by ${priorOwner}; choose a non-overlapping endpoint.`,
+          );
+        }
+        occupiedCapacityClaims.set(claim, owner);
       }
-      occupiedEndpoints.add(targetKey);
-      occupiedEndpoints.add(candidateKey);
     }
     pieces.push(witness);
   }
   return intrinsicRealBuildFreeze(pieces);
 }
-
 function validatePreparedSearchParents(
   preparedStep: RealBuildPreparedStepAuthority | RealBuildPreparedStepInspection,
   structural: RealBuildPreparedSearchPlan,
@@ -318,7 +345,32 @@ function snapshotPreflight(
       documentDigestCache.set(documentSnapshot, cached);
     }
     const canonicalDocumentDigest = cached.digest;
-    const basePartIds = new Set(documentSnapshot.document.parts.map(({ id }) => id));
+    const basePartsById = new Map(
+      documentSnapshot.document.parts.map((part) => [
+        part.id,
+        { ...part, id: `prepared-base:${part.id}` },
+      ]),
+    );
+    const parentCapacityClaims = new Map<string, string>();
+    for (const connection of documentSnapshot.document.connections) {
+      const owner = `Prepared search parent connection ${JSON.stringify(connection.id)}`;
+      for (const { partId, portId } of [connection.a, connection.b]) {
+        const part = basePartsById.get(partId);
+        if (part === undefined)
+          throw new TypeError(
+            `Prepared search parent connection endpoint ${JSON.stringify(partId)} is absent.`,
+          );
+        for (const claim of endpointCapacityClaims(part, portId)) {
+          const priorOwner = parentCapacityClaims.get(claim);
+          if (priorOwner !== undefined) {
+            throw new TypeError(
+              `${owner} consumes ${describeConnectorCapacityClaimKey(claim)}, already reserved by ${priorOwner}; choose a non-overlapping endpoint.`,
+            );
+          }
+          parentCapacityClaims.set(claim, owner);
+        }
+      }
+    }
     const childCount = plannedParent.children.length;
     parentBindings.push(
       intrinsicRealBuildFreeze({
@@ -336,7 +388,8 @@ function snapshotPreflight(
         plannedChild,
         `${childPath}.pieces`,
         preparedStep.expectedAtomicPieces,
-        basePartIds,
+        basePartsById,
+        parentCapacityClaims,
       );
       const requestKey = `${identity.lineageId}\0${canonicalStringify(pieces)}`;
       if (seenRequests.has(requestKey)) {

@@ -1,10 +1,9 @@
 """Which parts the catalog admits from measured source, and under what identity.
 
-This is the one hand-authored input to the generated tables, and it is
-deliberately small: a catalog id, a lattice height, the proper rotation and
-whole-LDU translation that normalize the source frame, and which authored source
-the female connectors come from. Every number in the emitted tables is measured
-from the pinned archives instead.
+This hand-authored input carries identity, lattice height, source frame,
+connector source, and reviewed connector-capacity membership. Capacity-seat
+positions are checked fail-closed against measured clutch rows; group membership
+remains authored policy. Every other emitted number is measured from pinned archives.
 
 Order is contract. A new part is appended rather than interleaved, because
 catalog order is part of the truth digest and appending is what proves the parts
@@ -20,6 +19,10 @@ from measured_part_tables import (
     BuilderConnectivityFact,
     MeasuredPartPlan,
     RenderOnlyPartPlan,
+)
+from measured_part_render_only_plan import (
+    BUNDLED_LDRAW_ARCHIVE_RECORD,
+    RENDER_ONLY_PART_PLANS,
 )
 
 PLATE_HEIGHT_LDU = 8
@@ -42,6 +45,10 @@ def _plan(
     catalog_id: str | None = None,
     display_name: str | None = None,
     validated_connection_stud_profile: str | None = None,
+    allow_ldcad_square_s6_clutches: bool = False,
+    clutch_shared_capacity_groups: tuple[
+        tuple[tuple[int, int, int], tuple[str, ...]], ...
+    ] = (),
 ) -> MeasuredPartPlan:
     return MeasuredPartPlan(
         design_id=design_id,
@@ -59,6 +66,8 @@ def _plan(
         catalog_id=catalog_id,
         display_name=display_name,
         validated_connection_stud_profile=validated_connection_stud_profile,
+        allow_ldcad_square_s6_clutches=allow_ldcad_square_s6_clutches,
+        clutch_shared_capacity_groups=clutch_shared_capacity_groups,
     )
 
 
@@ -405,95 +414,67 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
         validated_connection_stud_profile="nominal-stud-tube/1",
     ),
-)
-
-
-def _render_only_plan(
-    design_id: str,
-    family: str,
-    width_studs: int,
-    length_studs: int,
-    *,
-    variant: str | None = None,
-    height_ldu: int = PLATE_HEIGHT_LDU,
-    orientation_id: str = "upright-yaw-0",
-    translation_ldu: tuple[int, int, int] = (0, -4, 0),
-) -> RenderOnlyPartPlan:
-    return RenderOnlyPartPlan(
-        design_id=design_id,
-        ldraw_path=f"parts/{design_id}.dat",
-        family=family,
-        width_studs=width_studs,
-        length_studs=length_studs,
-        variant=variant,
-        height_ldu=height_ldu,
-        orientation_id=orientation_id,
-        translation_ldu=translation_ldu,
-    )
-
-
-# builtin.basic-parts/13: exact official-LDraw render surfaces for the twelve
-# remaining parts whose parametric recipe drew no usable underside. These plans
-# deliberately carry no connector, allowance or collision source. TypeScript
-# promotes only their mesh, exact visual bounds and source attribution over the
-# preceding catalog definitions, and asserts the structural bytes did not move.
-RENDER_ONLY_PART_PLANS: tuple[RenderOnlyPartPlan, ...] = (
-    _render_only_plan("41770a", "wedge-plate", 2, 4, variant="left"),
-    _render_only_plan("41769a", "wedge-plate", 2, 4, variant="right"),
-    _render_only_plan("43723a", "wedge-plate", 2, 3, variant="left"),
-    _render_only_plan("43722a", "wedge-plate", 2, 3, variant="right"),
-    _render_only_plan("54383", "wedge-plate", 3, 6, variant="right"),
-    _render_only_plan(
-        "3659",
-        "arch",
+    # builtin.basic-parts/27: the bounded first-50 tranche appends four exact
+    # official roots together. Each square-S6 socket is admitted only by the
+    # design-scoped opt-in whose semantics are calibrated against the pinned
+    # 2877, 3040 and 15254 Builder clutch frames; arbitrary square barrels stay
+    # rejected. None of these declarations authenticates a printed placement.
+    _plan(
+        "99563",
+        "tile",
         1,
-        4,
+        2,
+        variant="chamfered-indented",
+        orientation_id="upright-yaw-90",
+        connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
+        catalog_id="builtin:tile-1x2-chamfered-indented",
+        display_name="Tile 1 x 2 Chamfered with 2 Top Indentations",
+        allow_ldcad_square_s6_clutches=True,
+        clutch_shared_capacity_groups=(
+            ((0, 4, -10), ("99563:negative-z-half",)),
+            ((0, 4, 0), ("99563:negative-z-half", "99563:positive-z-half")),
+            ((0, 4, 10), ("99563:positive-z-half",)),
+        ),
+    ),
+    _plan(
+        "73230",
+        "technic-brick",
+        1,
+        1,
+        variant="axle-hole",
         height_ldu=BRICK_HEIGHT_LDU,
         orientation_id="upright-yaw-90",
         translation_ldu=(0, -12, 0),
+        connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
+        catalog_id="builtin:technic-brick-1x1-axle-hole",
+        display_name="Technic Brick 1 x 1 with Axle Hole",
+        validated_connection_stud_profile="nominal-stud-tube/1",
+        allow_ldcad_square_s6_clutches=True,
     ),
-    _render_only_plan(
-        "3455",
-        "arch",
+    _plan(
+        "35464",
+        "slope",
         1,
-        6,
-        height_ldu=BRICK_HEIGHT_LDU,
-        orientation_id="upright-yaw-90",
-        translation_ldu=(0, -12, 0),
+        1,
+        variant="double-45",
+        height_ldu=16,
+        translation_ldu=(0, 8, 0),
+        connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
+        catalog_id="builtin:slope-1x1-double-45",
+        display_name="Slope 45 1 x 1 Double",
+        allow_ldcad_square_s6_clutches=True,
     ),
-    _render_only_plan(
-        "11477", "curved-slope", 1, 2, height_ldu=16, translation_ldu=(0, 8, 0)
-    ),
-    _render_only_plan(
-        "50950",
+    _plan(
+        "49307",
         "curved-slope",
         1,
-        3,
-        height_ldu=BRICK_HEIGHT_LDU,
-        translation_ldu=(0, -12, 0),
-    ),
-    _render_only_plan(
-        "61678",
-        "curved-slope",
         1,
-        4,
-        height_ldu=BRICK_HEIGHT_LDU,
-        translation_ldu=(0, -12, 0),
-    ),
-    _render_only_plan(
-        "54200", "cheese-slope", 1, 1, height_ldu=16, translation_ldu=(0, 8, 0)
-    ),
-    _render_only_plan(
-        "85984", "cheese-slope", 2, 1, height_ldu=16, translation_ldu=(0, 8, 0)
+        variant="outside-bow",
+        height_ldu=16,
+        translation_ldu=(0, 8, 0),
+        connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
+        catalog_id="builtin:curved-slope-1x1-outside-bow",
+        display_name="Curved Slope 1 x 1 x 2/3 Outside Bow",
+        allow_ldcad_square_s6_clutches=True,
     ),
 )
-# The archive the bundled geometry is read from, byte-pinned. It is repeated in
-# the emitted attribution table so a reader can check the files without this
-# script, and it must stay equal to ARCHIVE_PINS[0].
-BUNDLED_LDRAW_ARCHIVE_RECORD: dict[str, object] = {
-    "archiveId": "official",
-    "source": "https://library.ldraw.org/library/official",
-    "version": "ldraw-complete-2026-07",
-    "bytes": 144_722_356,
-    "sha256": "sha256:6009f2e94204c4d3a63a4c812010b5c90bad8c5acb19b882c859fdac63734eae",
-}

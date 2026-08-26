@@ -43,7 +43,7 @@ export const REAL_BUILD_AUTOMATIC_MAXIMUM_LDU = 10_000_000;
 
 export const REAL_BUILD_AUTOMATIC_PLACEMENT_COMPILER_MANIFEST = deepFreeze({
   schemaVersion: "lego.real-build-automatic-placement-compiler-manifest/1",
-  compilerVersion: "lego.real-build-automatic-placement-compiler/2",
+  compilerVersion: "lego.real-build-automatic-placement-compiler/3",
   kernelCompilerSnapshotHash: BUILTIN_COMPILER_SNAPSHOT_HASH,
   acceptedInputSchema: "lego.real-build-automatic-placement-input/2",
   emittedProgramSchema: "lego.real-build-automatic-printed-step-program/1",
@@ -52,6 +52,7 @@ export const REAL_BUILD_AUTOMATIC_PLACEMENT_COMPILER_MANIFEST = deepFreeze({
   transitionPolicy: "one-atomic-step-preparation-plus-restricted-placement-program/1",
   provenancePolicy: "recompile-with-final-structural-document-candidate-id/1",
   validationPolicy: "kernel-compile-twice-then-combined-independent-hard-replay/1",
+  connectorCapacityPolicy: "part-local-exact-port-plus-source-reviewed-shared-cells/1",
   workPolicy: "preflight-three-whole-transition-passes/1",
   supportPolicy: "web-placement-build-plate-or-declared-connection/1",
   limits: {

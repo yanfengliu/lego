@@ -9,7 +9,12 @@ from ldcad_shadow_axle_holes import (
     emit_axle_hole_connectors,
     is_axle_hole_declaration,
 )
-from ldcad_shadow_connectors import compose_part_snaps, snap_instances
+from ldcad_shadow_connectors import (
+    compose_part_snaps,
+    emit_clutch_connectors,
+    emit_stud_connectors,
+    snap_instances,
+)
 from ldcad_shadow_metas import parse_shadow_metas
 from ldcad_shadow_source import VerifiedShadowLibrary
 from ldraw_source_archive import LDrawSourceLibrary, VerifiedArchive
@@ -24,6 +29,7 @@ EXACT_AXLE_HOLE = (
     "SNAP_CYL [id=axleHole] [pos=0 2 0] [secs=A 6 1] [scale=YOnly] "
     "[slide=true] [caps=none] [gender=F]"
 )
+EXACT_AXLE_HOLE4 = EXACT_AXLE_HOLE.replace("pos=0 2 0", "pos=0 1 0")
 EXACT_32064A_MATRIX = (
     Fraction(0),
     Fraction(0),
@@ -36,6 +42,18 @@ EXACT_32064A_MATRIX = (
     Fraction(0),
 )
 EXACT_32064A_TRANSLATION = (Fraction(0), Fraction(10), Fraction(30))
+EXACT_73230_MATRIX = (
+    Fraction(1),
+    Fraction(0),
+    Fraction(0),
+    Fraction(0),
+    Fraction(0),
+    Fraction(1),
+    Fraction(0),
+    Fraction(20),
+    Fraction(0),
+)
+EXACT_73230_TRANSLATION = (Fraction(0), Fraction(10), Fraction(-10))
 PINNED_OFFICIAL = Path("C:/tmp/ldraw-complete-2026-07.zip")
 PINNED_UNOFFICIAL = Path("C:/tmp/ldraw-unofficial-2026-08-02.zip")
 PINNED_SHADOW = Path("C:/tmp/ldcad-shadow-20260802")
@@ -51,6 +69,12 @@ def source_snap(line: str = EXACT_AXLE_HOLE, path: str = "p/axlehol5.dat"):
 
 def composed_snap():
     return source_snap().transformed(EXACT_32064A_MATRIX, EXACT_32064A_TRANSLATION)
+
+
+def composed_73230_snap():
+    return source_snap(EXACT_AXLE_HOLE4, "p/axlehol4.dat").transformed(
+        EXACT_73230_MATRIX, EXACT_73230_TRANSLATION
+    )
 
 
 class ExactAxleHoleTests(unittest.TestCase):
@@ -76,6 +100,28 @@ class ExactAxleHoleTests(unittest.TestCase):
         self.assertEqual(source["endLdu"], [0.0, 10.0, 10.0])
         self.assertEqual(source["midpointLdu"], [0.0, 10.0, 0.0])
         self.assertEqual(source["segmentLengthLdu"], 20.0)
+
+    def test_73230_projects_axlehol4_to_its_exact_opposed_frame(self) -> None:
+        snap = composed_73230_snap()
+
+        self.assertTrue(is_axle_hole_declaration(snap))
+        emitted = emit_axle_hole_connectors([snap])
+
+        self.assertEqual(
+            [
+                (row["kind"], row["gender"], row["positionLdu"], row["normal"])
+                for row in emitted
+            ],
+            [("axleHole", "female", [0.0, 10.0, 0.0], [0.0, 0.0, -1.0])],
+        )
+        source = emitted[0]["source"]
+        self.assertIsInstance(source, dict)
+        assert isinstance(source, dict)
+        self.assertEqual(source["path"], "p/axlehol4.dat")
+        self.assertEqual(source["startLdu"], [0.0, 10.0, 10.0])
+        self.assertEqual(source["endLdu"], [0.0, 10.0, -10.0])
+        self.assertEqual(source["midpointLdu"], [0.0, 10.0, 0.0])
+        self.assertEqual(source["direction"], [0.0, 0.0, -1.0])
 
     def test_only_the_exact_female_capless_sliding_a6_yonly_shape_is_eligible(self) -> None:
         variants = (
@@ -218,6 +264,55 @@ class ExactAxleHoleTests(unittest.TestCase):
                 for row in emit_axle_hole_connectors(composition.snaps)
             ],
             [([0.0, 10.0, 0.0], [0.0, 0.0, 1.0])],
+        )
+
+    @unittest.skipUnless(
+        PINNED_OFFICIAL.is_file() and PINNED_UNOFFICIAL.is_file() and PINNED_SHADOW.is_dir(),
+        "pinned local LDraw and LDCad inputs are absent",
+    )
+    def test_pinned_73230_composition_matches_the_exact_axlehol4_bridge(self) -> None:
+        paths = {"official": PINNED_OFFICIAL, "unofficial": PINNED_UNOFFICIAL}
+        library = LDrawSourceLibrary(
+            [VerifiedArchive(paths[pin.archive_id], pin) for pin in ARCHIVE_PINS]
+        )
+        try:
+            composition = compose_part_snaps(
+                library,
+                VerifiedShadowLibrary(PINNED_SHADOW),
+                library.exact("official", "parts/73230.dat"),
+            )
+        finally:
+            library.close()
+
+        self.assertEqual(
+            composition.shadow_files_used,
+            ["p/axlehol4.dat", "p/stud2.dat", "parts/73230.dat"],
+        )
+        eligible = [snap for snap in composition.snaps if is_axle_hole_declaration(snap)]
+        self.assertEqual(len(eligible), 1)
+        self.assertEqual(
+            [
+                (row["positionLdu"], row["normal"])
+                for row in emit_stud_connectors(composition.snaps)
+            ],
+            [([0.0, 0.0, 0.0], [0.0, -1.0, 0.0])],
+        )
+        self.assertEqual(emit_clutch_connectors(composition.snaps), [])
+        self.assertEqual(
+            [
+                (row["positionLdu"], row["normal"])
+                for row in emit_clutch_connectors(
+                    composition.snaps, allow_square_s6=True
+                )
+            ],
+            [([0.0, 24.0, 0.0], [0.0, 1.0, 0.0])],
+        )
+        self.assertEqual(
+            [
+                (row["positionLdu"], row["normal"])
+                for row in emit_axle_hole_connectors(composition.snaps)
+            ],
+            [([0.0, 10.0, 0.0], [0.0, 0.0, -1.0])],
         )
 
 

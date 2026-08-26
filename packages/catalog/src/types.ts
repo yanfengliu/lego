@@ -199,6 +199,18 @@ export interface ConnectorPortDefinition {
   readonly normal: LduVector3;
   readonly orientationId: ConnectorOrientationId;
   readonly capacity: 1;
+  /**
+   * Additional capacity cells this port consumes on its own part instance.
+   *
+   * Most connectors need only their own `capacity: 1`. A source-authored
+   * continuous socket can expose several discrete seats whose stud envelopes
+   * overlap, though: 99563's centre seat excludes either half-pitch outer seat,
+   * while the two outer seats may be occupied together. Each string names one
+   * part-local cell; a connection consumes every cell named by both endpoints.
+   * The catalog admission gate rejects empty, duplicate, or uncalibrated claims so
+   * this cannot be used as an unreviewed escape from the ordinary stud lattice.
+   */
+  readonly sharedCapacityGroupIds?: readonly string[];
   readonly compatibleKinds: readonly ConnectorKind[];
 }
 
