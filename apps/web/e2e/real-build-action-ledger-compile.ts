@@ -7,6 +7,8 @@ import {
   type AssembledRealBuildActionLedger,
   type EmittedRealBuildActionLedger,
 } from "./real-build-action-ledger";
+import { realBuildActionLedgerCurrentPrefixFailures } from "./real-build-action-ledger-provenance";
+import { preflightRealBuildActionLedger } from "./real-build-ledger-bounds";
 import {
   identifyRealBuildIdentificationMode,
   verifyRealBuildIdentificationClosure,
@@ -38,6 +40,8 @@ import {
   type BuilderCanonicalCalibration,
 } from "./real-build-ledger";
 import { deriveRealBuildPanelEvidence } from "./real-build-panel-evidence";
+import { REAL_BUILD_PRODUCTION_EXPECTED_PRINTED_STEPS } from "./real-build-production-policy";
+import { parseRealBuildRequestedLastStep } from "./real-build-requested-last-step";
 import { readTransitionClassificationBundle } from "./real-build-transition-classification";
 import type { StepFailure } from "./real-build-safety";
 
@@ -51,7 +55,7 @@ import type { StepFailure } from "./real-build-safety";
  * publisher applies `requirePublishableRealBuildActionLedger` before writing.
  */
 
-export const REAL_BUILD_ACTION_LEDGER_PRINTED_STEPS = 359 as const;
+export const REAL_BUILD_ACTION_LEDGER_PRINTED_STEPS = REAL_BUILD_PRODUCTION_EXPECTED_PRINTED_STEPS;
 
 export interface CompiledRealBuildActionLedger {
   readonly assembled: AssembledRealBuildActionLedger;
@@ -60,14 +64,85 @@ export interface CompiledRealBuildActionLedger {
   readonly encodedDigest: string;
   readonly inputFailures: readonly StepFailure[];
   readonly validationFailures: readonly StepFailure[];
+  readonly expectedPrintedSteps: typeof REAL_BUILD_ACTION_LEDGER_PRINTED_STEPS;
+  readonly requestedLastStep: number;
   readonly validatedThroughStep: number;
 }
 
 const MAXIMUM_PUBLISH_FAILURE_CATEGORIES = 8;
 
 export function requirePublishableRealBuildActionLedger(
-  compiled: Pick<CompiledRealBuildActionLedger, "validatedThroughStep" | "validationFailures">,
+  compiled: Pick<
+    CompiledRealBuildActionLedger,
+    | "encoded"
+    | "emitted"
+    | "expectedPrintedSteps"
+    | "requestedLastStep"
+    | "validatedThroughStep"
+    | "validationFailures"
+  >,
 ): void {
+  if (compiled.expectedPrintedSteps !== REAL_BUILD_ACTION_LEDGER_PRINTED_STEPS) {
+    throw new TypeError(
+      `Refusing to publish an action ledger without the fixed ` +
+        `${REAL_BUILD_ACTION_LEDGER_PRINTED_STEPS}-step source/index contract; no ledger file was written.`,
+    );
+  }
+  if (
+    !Number.isSafeInteger(compiled.requestedLastStep) ||
+    compiled.requestedLastStep < 1 ||
+    compiled.requestedLastStep > REAL_BUILD_ACTION_LEDGER_PRINTED_STEPS
+  ) {
+    throw new TypeError(
+      `Refusing to publish an action ledger with invalid requestedLastStep ` +
+        `${JSON.stringify(compiled.requestedLastStep)}; expected one safe integer from 1 through ` +
+        `${REAL_BUILD_ACTION_LEDGER_PRINTED_STEPS}, and no ledger file was written.`,
+    );
+  }
+  if (compiled.validatedThroughStep === 0) {
+    throw new TypeError(
+      `Refusing to publish an empty action ledger for requested printed steps ` +
+        `1..${compiled.requestedLastStep}. The first requested step was not corroborated, so no assembled ` +
+        `prefix exists and no ledger file was written.`,
+    );
+  }
+  if (
+    !Number.isSafeInteger(compiled.validatedThroughStep) ||
+    compiled.validatedThroughStep < 0 ||
+    compiled.validatedThroughStep > compiled.requestedLastStep
+  ) {
+    throw new TypeError(
+      `Refusing to publish an action ledger whose validated prefix ${compiled.validatedThroughStep} is ` +
+        `outside requested printed steps 1..${compiled.requestedLastStep}; no ledger file was written.`,
+    );
+  }
+  const shape = preflightRealBuildActionLedger(compiled.emitted);
+  if (shape.failure !== null) {
+    throw new TypeError(
+      `Refusing to publish an action ledger outside the closed current /3 schema: ` +
+        `${shape.failure.message} No ledger file was written.`,
+    );
+  }
+  const canonicalBytes = encodeRealBuildActionLedger(shape.ledger);
+  if (!canonicalBytes.equals(Buffer.from(compiled.encoded))) {
+    throw new TypeError(
+      `Refusing to publish action-ledger bytes that are not the exact canonical re-encoding of the ` +
+        `closed current /3 object; no ledger file was written.`,
+    );
+  }
+  const boundaryFailures = realBuildActionLedgerCurrentPrefixFailures({
+    schemaVersion: shape.ledger.schemaVersion,
+    provenance: shape.ledger.provenance,
+    steps: shape.ledger.steps,
+    requestedLastStep: compiled.requestedLastStep,
+    validationLastStep: compiled.validatedThroughStep,
+  });
+  if (boundaryFailures.length > 0) {
+    throw new TypeError(
+      `Refusing to publish an action ledger outside the current closed /3 prefix contract: ` +
+        `${boundaryFailures[0]} No ledger file was written.`,
+    );
+  }
   if (compiled.validationFailures.length === 0) return;
   const counts = new Map<string, number>();
   for (const failure of compiled.validationFailures) {
@@ -90,8 +165,46 @@ export function requirePublishableRealBuildActionLedger(
   );
 }
 
+export function requireRealBuildActionLedgerRequestedLastStep(value: unknown): number {
+  if (
+    !Number.isSafeInteger(value) ||
+    (value as number) < 1 ||
+    (value as number) > REAL_BUILD_ACTION_LEDGER_PRINTED_STEPS
+  ) {
+    throw new TypeError(
+      `Action-ledger compiler requestedLastStep must be a safe integer from 1 through ` +
+        `${REAL_BUILD_ACTION_LEDGER_PRINTED_STEPS}; received ${JSON.stringify(value)}.`,
+    );
+  }
+  return value as number;
+}
+
+export function requireRealBuildActionLedgerCoveragePrefix(
+  coverageLastStep: number,
+  requestedLastStep: number,
+): void {
+  if (coverageLastStep === requestedLastStep) return;
+  throw new TypeError(
+    `Action-ledger compilation requested printed steps 1..${requestedLastStep}, but retained catalog ` +
+      `coverage was compiled through step ${coverageLastStep}. Republish ${COVERAGE_PATH} with ` +
+      `--last-step ${requestedLastStep}; the full 359-step callout manifest remains the source/index ` +
+      `contract, while identity compilation and verification stay inside the requested prefix.`,
+  );
+}
+
+export const parseRealBuildActionLedgerRequestedLastStep = parseRealBuildRequestedLastStep;
+
+export interface CompileRealBuildActionLedgerOptions {
+  readonly requestedLastStep: number;
+}
+
 /** Compiles the ledger for the requested prefix and re-validates the exact bytes it would write. */
-export async function compileRealBuildActionLedger(): Promise<CompiledRealBuildActionLedger> {
+export async function compileRealBuildActionLedger(
+  options: CompileRealBuildActionLedgerOptions,
+): Promise<CompiledRealBuildActionLedger> {
+  const requestedLastStep = requireRealBuildActionLedgerRequestedLastStep(
+    options.requestedLastStep,
+  );
   const inputFailures: StepFailure[] = [];
   const coverageInput = readJsonArtifact<Record<string, unknown>>(COVERAGE_PATH, inputFailures);
   const manifestInput = readJsonArtifact<CalloutManifest>(MANIFEST_PATH, inputFailures);
@@ -110,10 +223,8 @@ export async function compileRealBuildActionLedger(): Promise<CompiledRealBuildA
   const pairJudgedInput = readJsonArtifact<unknown>(PAIR_JUDGED_TRUTH_PATH, inputFailures);
   const officialModelBytes = readBinaryInput(OFFICIAL_MODEL_PATH, inputFailures);
   const builderGeometryBytes = readBinaryInput(BUILDER_GEOMETRY_PATH, inputFailures);
-  const mode = identifyRealBuildIdentificationMode(
-    coverageInput,
-    REAL_BUILD_ACTION_LEDGER_PRINTED_STEPS,
-  );
+  const mode = identifyRealBuildIdentificationMode(coverageInput, requestedLastStep);
+  requireRealBuildActionLedgerCoveragePrefix(mode.lastStep, requestedLastStep);
   const adjudication = readIdentificationAdjudicationInputs(mode.source, inputFailures);
   if (inputFailures.length > 0) {
     throw new TypeError(
@@ -162,7 +273,7 @@ export async function compileRealBuildActionLedger(): Promise<CompiledRealBuildA
     answers: adjudication.answers,
     elementResolution: elementsInput,
     pairJudged: pairJudgedInput,
-    requestedLastStep: REAL_BUILD_ACTION_LEDGER_PRINTED_STEPS,
+    requestedLastStep,
   }) as { readonly byCallout?: unknown };
   const rawIndex = reproducedCoverage.byCallout;
   if (typeof rawIndex !== "object" || rawIndex === null || Array.isArray(rawIndex)) {
@@ -185,25 +296,38 @@ export async function compileRealBuildActionLedger(): Promise<CompiledRealBuildA
     panelEvidenceByStep,
     transitionClassificationsByStep: transitions.byStep,
     expectedPrintedSteps: REAL_BUILD_ACTION_LEDGER_PRINTED_STEPS,
+    requestedLastStep,
   });
-  const emitted = emittedRealBuildActionLedger(assembled, REAL_BUILD_ACTION_LEDGER_PRINTED_STEPS);
+  const emitted = emittedRealBuildActionLedger(assembled);
   const encoded = encodeRealBuildActionLedger(emitted);
   const encodedDigest = sha256Digest(encoded);
-  const validatedThroughStep = Math.max(1, assembled.alignedThroughStep);
-  const validationFailures = validateRealBuildActionLedger({
-    ledger: assembled.ledger,
-    ledgerDigest: encodedDigest,
-    lastStep: validatedThroughStep,
-    official,
-    pdfDigest: bindings.pdfDigest,
-    coverageDigest: bindings.coverageDigest,
-    calloutManifestDigest: bindings.calloutManifestDigest,
-    builderCalibrationDigest: bindings.builderCalibrationDigest,
-    transitionClassificationsDigest: bindings.transitionClassificationsDigest,
-    coverageByCallout,
-    panelEvidenceByStep,
-    transitionClassificationsByStep: transitions.byStep,
-  });
+  const validatedThroughStep = assembled.alignedThroughStep;
+  const validationFailures: readonly StepFailure[] =
+    validatedThroughStep === 0
+      ? [
+          {
+            code: "action-ledger-incomplete",
+            stage: "input",
+            message:
+              `Action-ledger assembly corroborated no requested printed step within 1..${requestedLastStep}. ` +
+              `${assembled.stopReason}`,
+          },
+        ]
+      : validateRealBuildActionLedger({
+          ledger: emitted,
+          ledgerDigest: encodedDigest,
+          requestedLastStep,
+          lastStep: validatedThroughStep,
+          official,
+          pdfDigest: bindings.pdfDigest,
+          coverageDigest: bindings.coverageDigest,
+          calloutManifestDigest: bindings.calloutManifestDigest,
+          builderCalibrationDigest: bindings.builderCalibrationDigest,
+          transitionClassificationsDigest: bindings.transitionClassificationsDigest,
+          coverageByCallout,
+          panelEvidenceByStep,
+          transitionClassificationsByStep: transitions.byStep,
+        });
   return {
     assembled,
     emitted,
@@ -211,6 +335,8 @@ export async function compileRealBuildActionLedger(): Promise<CompiledRealBuildA
     encodedDigest,
     inputFailures,
     validationFailures,
+    expectedPrintedSteps: REAL_BUILD_ACTION_LEDGER_PRINTED_STEPS,
+    requestedLastStep,
     validatedThroughStep,
   };
 }

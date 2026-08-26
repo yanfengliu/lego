@@ -23,6 +23,7 @@ import {
   OFFICIAL_REAL_BUILD_ACCOUNTING,
 } from "./real-build-contract";
 import { REAL_BUILD_DIAGNOSTIC_PREFIX_FILE } from "./real-build-diagnostic-prefix";
+import { encodeCanonicalRealBuildJson } from "./real-build-json-admission";
 import { summariseDeferrals } from "./real-build-deferral";
 import { finalizeExecutedRealBuildResult, realBuildExecutionFailure } from "./real-build-finalize";
 import { deriveMeasuredFartherOriginSourceAttestation } from "./real-build-farther-origin-source-attestation";
@@ -43,8 +44,17 @@ import {
   writeRealBuildReplayClosure,
 } from "./real-build-replay";
 import { realBuildFartherCapturePath } from "./real-build-score";
+import { encodeRealBuildPreparedRunInput } from "./real-build-prepared-run-input-parser";
+import { encodeRealBuildRetainedPanelSource } from "./real-build-replay-panel-source";
 import type { PreparedRealBuildPanelPlan } from "./real-build-run-panel-plan";
-import { realBuildRunBudgets, realBuildRunThresholds } from "./real-build-run-contract";
+import {
+  assertRealBuildRetainedActionPrefix,
+  encodeCurrentRealBuildRunContract,
+  REAL_BUILD_PANEL_SOURCE_ROLE,
+  realBuildRunBudgets,
+  realBuildRunThresholds,
+  selectRealBuildExecutablePanels,
+} from "./real-build-run-contract";
 import {
   isAtomicStepComplete,
   type RealBuildOptions,
@@ -66,6 +76,8 @@ export async function executeAndPublishRealBuildPlan(input: {
     bootstrapSource,
     inputDigests,
     identificationClosureDigests,
+    source,
+    panelFaceSourcePageShapes,
     specs,
     options,
     effectiveOutputRoot,
@@ -111,10 +123,19 @@ export async function executeAndPublishRealBuildPlan(input: {
   );
   const measuredFartherOriginSourceAttestation =
     deriveMeasuredFartherOriginSourceAttestation(codeSnapshots);
+  const executableSpecs = selectRealBuildExecutablePanels(specs, options.lastStep);
+  const panelSourceBytes = encodeRealBuildRetainedPanelSource({
+    pdfBytes,
+    source,
+    requestedLastStep: options.lastStep,
+    pageShapes: panelFaceSourcePageShapes,
+  });
   const runContract = createRealBuildRunContract({
     inputDigests,
     identificationClosure: identificationClosureDigests,
-    panels: specs,
+    panelSourceDigest: sha256Digest(panelSourceBytes),
+    panels: executableSpecs,
+    passivePanels: options.passivePanels,
     budgets: realBuildRunBudgets(options),
     thresholds: realBuildRunThresholds(options),
     codeSnapshots,
@@ -157,6 +178,7 @@ export async function executeAndPublishRealBuildPlan(input: {
     };
     const executionOptions: RealBuildOptions = {
       ...options,
+      panels: executableSpecs,
       measuredFartherOriginSourceAttestation,
       pdfjsUrl: mirrorUrl("node_modules/pdfjs-dist/build/pdf.mjs"),
       workerUrl: mirrorUrl("node_modules/pdfjs-dist/build/pdf.worker.mjs"),
@@ -167,6 +189,7 @@ export async function executeAndPublishRealBuildPlan(input: {
       commandsUrl: mirrorUrl("apps/web/src/manual-commands.ts"),
       assemblyUrl: mirrorUrl("apps/web/src/assembly/index.ts"),
     };
+    assertRealBuildRetainedActionPrefix({ contract: runContract, options: executionOptions });
     const executionDriverUrl = mirrorUrl("apps/web/e2e/real-build-run.ts");
 
     let retainedBrowserOutput: RealBuildBrowserOutput | null = null;
@@ -362,11 +385,12 @@ export async function executeAndPublishRealBuildPlan(input: {
     writeContainedRegularFileAtomic(
       run.directory,
       "score.json",
-      `${JSON.stringify(score, null, 1)}\n`,
+      encodeCanonicalRealBuildJson(score, "pretty-one-space-line"),
       { label: "real-build score" },
     );
     const replayRoles = [
       { role: "pdf", bytes: pdfBytes },
+      { role: REAL_BUILD_PANEL_SOURCE_ROLE, bytes: panelSourceBytes },
       { role: "callout-manifest", bytes: manifestInput.bytes },
       { role: "coverage", bytes: coverageInput.bytes },
       { role: "official-model", bytes: officialModelBytes },
@@ -393,14 +417,14 @@ export async function executeAndPublishRealBuildPlan(input: {
             { role: "identification-answers", bytes: identificationAnswersInput.bytes },
           ]
         : []),
-      { role: "run-contract", bytes: Buffer.from(JSON.stringify(runContract)) },
-      { role: "prepared-options", bytes: Buffer.from(JSON.stringify(executionOptions)) },
+      { role: "run-contract", bytes: encodeCurrentRealBuildRunContract(runContract) },
+      { role: "prepared-options", bytes: encodeRealBuildPreparedRunInput(executionOptions) },
       ...(retainedBrowserOutput === null
         ? []
         : [
             {
               role: "browser-output",
-              bytes: Buffer.from(JSON.stringify(retainedBrowserOutput)),
+              bytes: encodeCanonicalRealBuildJson(retainedBrowserOutput),
             },
           ]),
     ];

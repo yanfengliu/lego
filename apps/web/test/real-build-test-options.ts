@@ -137,6 +137,7 @@ function completeCoverage(): RealBuildOptions["coverageByCallout"] {
 }
 
 export function completeRealBuildTestOptions(lastStep: number): RealBuildOptions {
+  const sourcePanels = completePanels();
   return {
     pdfjsUrl: "fixture:pdfjs",
     workerUrl: "fixture:worker",
@@ -147,7 +148,21 @@ export function completeRealBuildTestOptions(lastStep: number): RealBuildOptions
     commandsUrl: "fixture:commands",
     assemblyUrl: "fixture:assembly",
     measuredFartherOriginSourceAttestation: null,
-    panels: completePanels(),
+    panels: sourcePanels.slice(0, lastStep),
+    passivePanels: sourcePanels
+      .slice(lastStep, Math.min(359, lastStep + 2))
+      .map(
+        ({ stepNumber, pageNumber, panelFace, minXPt, maxXPt, minYPt, maxYPt, calloutBoxes }) => ({
+          stepNumber,
+          pageNumber,
+          panelFace,
+          minXPt,
+          maxXPt,
+          minYPt,
+          maxYPt,
+          calloutBoxes,
+        }),
+      ),
     expectedPrintedSteps: 359,
     lastStep,
     renderScale: 6,
@@ -177,6 +192,10 @@ export function completeRealBuildTestOptions(lastStep: number): RealBuildOptions
       pdf: REAL_BUILD_TEST_DIGEST,
       calloutManifest: REAL_BUILD_TEST_DIGEST,
     },
-    coverageByCallout: completeCoverage(),
+    coverageByCallout: Object.fromEntries(
+      Object.entries(completeCoverage()).filter(
+        ([, claim]) => claim !== null && claim.stepNumber !== null && claim.stepNumber <= lastStep,
+      ),
+    ),
   };
 }

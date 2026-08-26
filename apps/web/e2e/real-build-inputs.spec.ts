@@ -6,6 +6,7 @@ import { writeContainedRegularFileAtomic } from "./contained-atomic-write";
 import { sha256Digest } from "./real-build-artifacts";
 import {
   compileRealBuildActionLedger,
+  parseRealBuildActionLedgerRequestedLastStep,
   requirePublishableRealBuildActionLedger,
 } from "./real-build-action-ledger-compile";
 import { createBuilderCanonicalCalibration } from "./real-build-builder-calibration";
@@ -94,6 +95,10 @@ test("regenerates the catalog-derived real-build inputs in chain order", async (
   );
   test.skip(!hasSampleBooklet, "no sample booklet");
 
+  const requestedLastStep = parseRealBuildActionLedgerRequestedLastStep(
+    process.env.LEGO_REAL_BUILD_LAST_STEP,
+  );
+
   const rebuilt: string[] = [];
 
   // Stage 1 — reviewed source pins. Refused, never edited here.
@@ -126,7 +131,7 @@ test("regenerates the catalog-derived real-build inputs in chain order", async (
       "--assign",
       mode.assign,
       "--last-step",
-      "359",
+      String(requestedLastStep),
     ];
     const result = spawnSync(process.execPath, argv, { encoding: "utf8", cwd: process.cwd() });
     if (result.status !== 0) {
@@ -148,7 +153,7 @@ test("regenerates the catalog-derived real-build inputs in chain order", async (
   rebuilt.push(BUILDER_CALIBRATION_PATH);
 
   // Stage 4 — action ledger, which binds the digests of stages 2 and 3.
-  const compiled = await compileRealBuildActionLedger();
+  const compiled = await compileRealBuildActionLedger({ requestedLastStep });
   requirePublishableRealBuildActionLedger(compiled);
   writeContainedRegularFileAtomic(process.cwd(), ACTION_LEDGER_PATH, compiled.encoded, {
     label: `Action ledger ${ACTION_LEDGER_PATH}`,
@@ -160,7 +165,8 @@ test("regenerates the catalog-derived real-build inputs in chain order", async (
   process.stdout.write(
     `rebuilt in chain order: ${rebuilt.join(", ")}\n` +
       `  catalog ${calibration.designFrames[0]?.catalogVersion ?? "unknown"}; ` +
-      `ledger ${compiled.assembled.ledger.steps.length} steps, ` +
+      `ledger ${compiled.assembled.ledger.steps.length} of ${compiled.requestedLastStep} requested ` +
+      `steps in the ${compiled.expectedPrintedSteps}-step source/index contract, ` +
       `${compiled.assembled.directPieceCount} direct pieces, ` +
       `${compiled.validationFailures.length} remaining evidence failures through printed step ` +
       `${compiled.validatedThroughStep}\n` +

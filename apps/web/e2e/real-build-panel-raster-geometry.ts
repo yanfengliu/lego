@@ -6,14 +6,14 @@ import {
   type PanelArtStagePixelRectangle,
 } from "../src/assembly/panel-art-stages";
 import type { PreparedRealBuildModules } from "./real-build-browser-preflight";
-import type { RealBuildOptions, RealBuildPanelSpec } from "./real-build-safety";
+import type { RealBuildOptions, RealBuildPanelRasterSpec } from "./real-build-safety";
 
 export type PageCanvas = HTMLCanvasElement;
 export const MAXIMUM_REAL_BUILD_PAGE_RASTER_PIXELS = 33_554_432;
 
 export interface PanelCropGeometry {
   readonly stepNumber: number;
-  readonly panelFace: RealBuildPanelSpec["panelFace"];
+  readonly panelFace: RealBuildPanelRasterSpec["panelFace"];
   readonly sourceX: number;
   readonly sourceY: number;
   readonly sourceW: number;
@@ -26,7 +26,7 @@ export interface PanelCropGeometry {
   readonly renderScale: number;
   readonly workFactor: number;
   readonly pageHeight: number;
-  readonly calloutBoxes: RealBuildPanelSpec["calloutBoxes"];
+  readonly calloutBoxes: RealBuildPanelRasterSpec["calloutBoxes"];
 }
 
 const PANEL_SPEC_KEYS = [
@@ -77,7 +77,7 @@ function dataProperty(
 function snapshotCalloutBox(
   value: unknown,
   path: string,
-): RealBuildPanelSpec["calloutBoxes"][number] {
+): RealBuildPanelRasterSpec["calloutBoxes"][number] {
   const descriptors = ordinaryDescriptors(value, path);
   const actualKeys = Reflect.ownKeys(descriptors);
   if (
@@ -114,7 +114,7 @@ function snapshotCalloutBox(
 function snapshotCalloutBoxes(
   value: unknown,
   stepNumber: number,
-): RealBuildPanelSpec["calloutBoxes"] {
+): RealBuildPanelRasterSpec["calloutBoxes"] {
   if (!Array.isArray(value)) {
     throw new TypeError(
       `Real-build panel ${stepNumber} calloutBoxes must be one exact ordinary dense array before crop allocation.`,
@@ -147,7 +147,7 @@ function snapshotCalloutBoxes(
       `Real-build panel ${stepNumber} calloutBoxes must be one exact ordinary dense array; observed ${actualKeys.length - 1} indexed or extra properties for length ${String(length)}.`,
     );
   }
-  const boxes: RealBuildPanelSpec["calloutBoxes"][number][] = [];
+  const boxes: RealBuildPanelRasterSpec["calloutBoxes"][number][] = [];
   for (let index = 0; index < (length as number); index += 1) {
     const item = dataProperty(
       descriptors,
@@ -172,7 +172,7 @@ function positiveFinite(value: unknown, label: string): number {
 export function inspectRealBuildPanelCropGeometry(
   pageWidth: number,
   pageHeight: number,
-  spec: RealBuildPanelSpec,
+  spec: RealBuildPanelRasterSpec,
   options: Pick<RealBuildOptions, "renderScale" | "panelWidth" | "workFactor">,
 ): PanelCropGeometry {
   const renderScale = positiveFinite(options.renderScale, "renderScale");
@@ -202,7 +202,7 @@ export function inspectRealBuildPanelCropGeometry(
       `Real-build panel spec.stepNumber must be a positive safe integer; received ${String(stepNumber)}.`,
     );
   }
-  const panelFace = specValues.panelFace as RealBuildPanelSpec["panelFace"];
+  const panelFace = specValues.panelFace as RealBuildPanelRasterSpec["panelFace"];
   const minXPt = specValues.minXPt;
   const maxXPt = specValues.maxXPt;
   const minYPt = specValues.minYPt;
@@ -293,7 +293,7 @@ export function mappedPanelCalloutRectangles(input: {
   readonly sourceYPx: number;
   readonly ratio: number;
   readonly pageHeightPx: number;
-  readonly boxes: RealBuildPanelSpec["calloutBoxes"];
+  readonly boxes: RealBuildPanelRasterSpec["calloutBoxes"];
 }): readonly PanelArtStagePixelRectangle[] {
   const margin = 4;
   const rectangles: PanelArtStagePixelRectangle[] = [];

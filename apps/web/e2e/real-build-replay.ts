@@ -31,10 +31,13 @@ import {
 } from "./real-build-replay-policy";
 import {
   parseRealBuildRunContract,
+  REAL_BUILD_PANEL_SOURCE_ROLE,
   verifyRealBuildRunContract,
   verifyRealBuildRunContractRoleDigests,
 } from "./real-build-run-contract";
 import { verifyLegacyRealBuildRunContractV2 } from "./real-build-run-contract-legacy-v2";
+import { verifyLegacyRealBuildRunContractV3 } from "./real-build-run-contract-legacy-v3";
+import { parseRealBuildPreparedRunInput } from "./real-build-prepared-run-input-parser";
 import {
   REAL_BUILD_REPLAY_CLOSURE_SCHEMA,
   type RealBuildReplayClosureManifest,
@@ -53,8 +56,20 @@ import {
   writeRealBuildReplayClosureUnverified,
   type RealBuildReplayClosureWriteInput,
 } from "./real-build-replay-write";
-import { parseFatalUtf8Json } from "./strict-json";
 import { assertRealBuildEnvironment } from "./real-build-environment";
+import { admitCanonicalRealBuildActionLedgerBytes } from "./real-build-action-ledger-admission";
+import { assertRealBuildActionLedgerMatchesPreparedOptions } from "./real-build-run-action-ledger-binding";
+import type { RealBuildActionLedger } from "./real-build-ledger-contract";
+import type { OfficialModelIndex } from "./real-build-ledger";
+import { reconstructRealBuildOfficialReplay } from "./real-build-replay-official";
+import { verifyRealBuildReplayActionLedgerSemantics } from "./real-build-replay-action-ledger";
+import { replayRealBuildPanelSource } from "./real-build-replay-panel-source";
+import {
+  assertCanonicalRealBuildJsonBytes,
+  encodeCanonicalRealBuildJson,
+  parseCanonicalRealBuildJson,
+  parseDuplicateFreeRealBuildJson,
+} from "./real-build-json-admission";
 
 export {
   captureRealBuildSourceBundle,
@@ -110,11 +125,12 @@ export function writeRealBuildReplayClosure(
 export function verifyRealBuildReplayClosureData(
   directory: string,
 ): VerifiedRealBuildReplayClosure {
-  const parsed = parseFatalUtf8Json<RealBuildReplayClosureManifest>(
-    readContainedBoundedRegularFile(directory, "replay-closure.json", {
-      label: "replay closure manifest",
-      maximumBytes: MAXIMUM_REPLAY_MANIFEST_BYTES,
-    }),
+  const replayManifestBytes = readContainedBoundedRegularFile(directory, "replay-closure.json", {
+    label: "replay closure manifest",
+    maximumBytes: MAXIMUM_REPLAY_MANIFEST_BYTES,
+  });
+  const parsed = parseDuplicateFreeRealBuildJson<RealBuildReplayClosureManifest>(
+    replayManifestBytes,
     "replay closure manifest",
   );
   if (
@@ -228,11 +244,22 @@ export function verifyRealBuildReplayClosureData(
     "replay role run-contract",
     true,
   )!;
-  parseFatalUtf8Json<unknown>(retainedContractBytes, "replay run-contract role");
   const retainedContract = parseRealBuildRunContract(retainedContractBytes);
+  if (retainedContract.schemaVersion === "lego.real-build-run-contract/4") {
+    assertCanonicalRealBuildJsonBytes(
+      replayManifestBytes,
+      parsed,
+      "current replay closure manifest",
+      "pretty-one-space-line",
+    );
+  }
   assertExactReplayRoles(
     roleNames,
-    expectedReplayRoles(parsed.replayLevel, retainedContract.identificationClosure.source),
+    expectedReplayRoles(
+      parsed.replayLevel,
+      retainedContract.identificationClosure.source,
+      retainedContract.schemaVersion,
+    ),
   );
   const roleBytes = new Map<string, Buffer>();
   for (const role of parsed.roles) {
@@ -241,21 +268,78 @@ export function verifyRealBuildReplayClosureData(
       readCas(role, replayRoleMaximumBytes(role.role), `replay role ${role.role}`, true)!,
     );
   }
-  const environment = parseFatalUtf8Json<Record<string, unknown>>(
-    roleBytes.get("environment")!,
-    "replay environment role",
-  );
+  let admittedActionLedger: RealBuildActionLedger | null = null;
+  if (retainedContract.schemaVersion === "lego.real-build-run-contract/4") {
+    admittedActionLedger = admitCanonicalRealBuildActionLedgerBytes({
+      bytes: roleBytes.get("action-ledger")!,
+      label: "replay action-ledger role",
+      mode: parsed.replayLevel === "downstream-only" ? "exact-execution" : "retained-prefix",
+      requestedLastStep: retainedContract.budgets.lastStep!,
+    });
+  }
+  const environment =
+    retainedContract.schemaVersion === "lego.real-build-run-contract/4"
+      ? parseCanonicalRealBuildJson<Record<string, unknown>>(
+          roleBytes.get("environment")!,
+          "current replay environment role",
+        )
+      : parseDuplicateFreeRealBuildJson<Record<string, unknown>>(
+          roleBytes.get("environment")!,
+          "legacy replay environment role",
+        );
   assertRealBuildEnvironment(environment, retainedContract.contractDigest);
   const roleDigests = Object.fromEntries(
     parsed.roles.map(({ role, digest: roleDigest }) => [role, roleDigest]),
   );
   verifyRealBuildRunContractRoleDigests(retainedContract, roleDigests);
-  const preparedOptions = parseFatalUtf8Json<unknown>(
-    roleBytes.get("prepared-options")!,
-    "replay prepared-options role",
+  const replayedPanelSource =
+    retainedContract.schemaVersion === "lego.real-build-run-contract/4"
+      ? replayRealBuildPanelSource({
+          pdfBytes: roleBytes.get("pdf")!,
+          retainedSourceBytes: roleBytes.get(REAL_BUILD_PANEL_SOURCE_ROLE)!,
+          manifestBytes: roleBytes.get("callout-manifest")!,
+        })
+      : null;
+  let calibratedOfficial: OfficialModelIndex | null = null;
+  if (retainedContract.schemaVersion === "lego.real-build-run-contract/4") {
+    calibratedOfficial = reconstructRealBuildOfficialReplay({ roleBytes, roleDigests });
+  }
+  const preparedOptions =
+    retainedContract.schemaVersion === "lego.real-build-run-contract/4"
+      ? parseRealBuildPreparedRunInput(roleBytes.get("prepared-options")!).options
+      : parseDuplicateFreeRealBuildJson<unknown>(
+          roleBytes.get("prepared-options")!,
+          "legacy replay prepared-options role",
+        );
+  assertSourceExactIdentificationRoles(roleNames, retainedContract.identificationClosure.source);
+  const reconstructedCoverage = reconstructRealBuildIdentificationReplay(
+    roleBytes,
+    retainedContract,
   );
-  if (retainedContract.schemaVersion === "lego.real-build-run-contract/3") {
+  if (retainedContract.schemaVersion === "lego.real-build-run-contract/4") {
+    assertRealBuildActionLedgerMatchesPreparedOptions({
+      ledger: admittedActionLedger!,
+      ledgerDigest: roleDigests["action-ledger"]!,
+      options: preparedOptions as RealBuildOptions,
+      official: calibratedOfficial!,
+    });
+    verifyRealBuildReplayActionLedgerSemantics({
+      ledger: admittedActionLedger!,
+      ledgerDigest: roleDigests["action-ledger"]!,
+      options: preparedOptions as RealBuildOptions,
+      official: calibratedOfficial!,
+      reconstructedCoverage,
+      replayedPanelSource: replayedPanelSource!,
+      transitionClassificationsBytes: roleBytes.get("transition-classifications")!,
+    });
     verifyRealBuildRunContract({
+      contract: retainedContract,
+      options: preparedOptions as RealBuildOptions,
+      roleDigests,
+      sourceFiles: parsed.sourceBundle.files,
+    });
+  } else if (retainedContract.schemaVersion === "lego.real-build-run-contract/3") {
+    verifyLegacyRealBuildRunContractV3({
       contract: retainedContract,
       options: preparedOptions as RealBuildOptions,
       roleDigests,
@@ -270,19 +354,27 @@ export function verifyRealBuildReplayClosureData(
     });
   }
   if (parsed.replayLevel === "downstream-only") {
-    const browserOutput = parseFatalUtf8Json<unknown>(
-      roleBytes.get("browser-output")!,
-      "replay browser-output role",
-    );
-    if (retainedContract.schemaVersion === "lego.real-build-run-contract/3") {
+    const browserOutput =
+      retainedContract.schemaVersion === "lego.real-build-run-contract/4"
+        ? parseCanonicalRealBuildJson<unknown>(
+            roleBytes.get("browser-output")!,
+            "current replay browser-output role",
+          )
+        : parseDuplicateFreeRealBuildJson<unknown>(
+            roleBytes.get("browser-output")!,
+            "legacy replay browser-output role",
+          );
+    if (retainedContract.schemaVersion !== "lego.real-build-run-contract/2") {
       assertReadableRealBuildBrowserOutput(browserOutput, preparedOptions as RealBuildOptions);
     } else {
       inspectFrozenLegacyBrowserOutputV2(browserOutput, preparedOptions as RealBuildOptions);
     }
   }
-  assertSourceExactIdentificationRoles(roleNames, retainedContract.identificationClosure.source);
-  reconstructRealBuildIdentificationReplay(roleBytes, retainedContract);
-  if (replayDigest(JSON.stringify(parsed.sourceBundle.files)) !== parsed.sourceBundle.digest) {
+  const reproducedSourceBundleDigest =
+    retainedContract.schemaVersion === "lego.real-build-run-contract/4"
+      ? replayDigest(encodeCanonicalRealBuildJson(parsed.sourceBundle.files))
+      : replayDigest(JSON.stringify(parsed.sourceBundle.files));
+  if (reproducedSourceBundleDigest !== parsed.sourceBundle.digest) {
     throw new TypeError("Replay source-bundle listing digest is invalid.");
   }
   const bootstrapFiles = parsed.sourceBundle.files.filter(
@@ -295,7 +387,7 @@ export function verifyRealBuildReplayClosureData(
     throw new TypeError("Replay source bundle is missing its bootstrap source-root policy.");
   }
   const reproducedBootstrap = createRealBuildBootstrapSourceManifest({
-    files: bootstrapFiles,
+    files: bootstrapFiles.map(({ path, digest, bytes }) => ({ path, digest, bytes })),
     sourceRootsPolicyDigest: sourceRootPolicy.digest,
   });
   if (reproducedBootstrap.manifestDigest !== environment.bootstrapSourceManifestDigest) {
@@ -321,7 +413,7 @@ export function verifyRealBuildReplayClosureData(
   ) {
     throw new TypeError("Replay environment digest is not bound to the reserved environment role.");
   }
-  return { manifest: parsed, roleBytes };
+  return { manifest: parsed, roleBytes, admittedActionLedger };
 }
 
 export function verifyRealBuildReplayClosure(directory: string): RealBuildReplayClosureManifest {

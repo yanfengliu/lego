@@ -6,6 +6,7 @@ import { writeContainedRegularFileAtomic } from "./contained-atomic-write";
 import { sha256Digest } from "./real-build-artifacts";
 import {
   compileRealBuildActionLedger,
+  parseRealBuildActionLedgerRequestedLastStep,
   REAL_BUILD_ACTION_LEDGER_PRINTED_STEPS,
   requirePublishableRealBuildActionLedger,
 } from "./real-build-action-ledger-compile";
@@ -38,7 +39,10 @@ test("publishes the booklet's action ledger", async () => {
   );
   test.skip(!hasSampleBooklet, "no sample booklet");
 
-  const compiled = await compileRealBuildActionLedger();
+  const requestedLastStep = parseRealBuildActionLedgerRequestedLastStep(
+    process.env.LEGO_REAL_BUILD_LAST_STEP,
+  );
+  const compiled = await compileRealBuildActionLedger({ requestedLastStep });
   requirePublishableRealBuildActionLedger(compiled);
   const { ledger } = compiled.assembled;
 
@@ -111,7 +115,8 @@ test("publishes the booklet's action ledger", async () => {
   }
   process.stdout.write(
     `${written.replaceAll("\\", "/")}: ${ledger.steps.length} of ` +
-      `${REAL_BUILD_ACTION_LEDGER_PRINTED_STEPS} printed steps, ` +
+      `${compiled.requestedLastStep} requested printed steps within the ` +
+      `${REAL_BUILD_ACTION_LEDGER_PRINTED_STEPS}-step source/index contract, ` +
       `${compiled.assembled.directPieceCount} direct piece identities ` +
       `[${[...byConfidence].map(([name, count]) => `${name}=${count}`).join(", ") || "none"}], ` +
       `${compiled.assembled.transitionStepCount} transitions, ` +

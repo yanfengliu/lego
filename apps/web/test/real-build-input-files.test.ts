@@ -369,7 +369,7 @@ describe("bounded real-build input reads", () => {
     const artifacts = await import("../e2e/real-build-artifacts");
 
     expect(() => artifacts.verifyRealBuildArtifactManifest(temporaryRoot)).toThrow(
-      /artifact manifest is not canonical UTF-8/u,
+      /current artifact manifest must be duplicate-free finite UTF-8 JSON.*encoded data was not valid/u,
     );
   });
 

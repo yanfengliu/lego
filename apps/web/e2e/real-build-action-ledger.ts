@@ -8,11 +8,13 @@ import type { CalloutResolution } from "./real-build-input-files";
 import { requireTrustedIdentificationConfidence } from "./real-build-identification-trust";
 import {
   pieceEvidenceDigest,
+  REAL_BUILD_ACTION_LEDGER_GENERATOR,
   REAL_BUILD_ACTION_LEDGER_SCHEMA,
   type LedgerPieceIdentity,
   type LedgerStep,
   type OfficialModelIndex,
   type RealBuildActionLedger,
+  type RealBuildActionLedgerCore,
   type TransitionClassificationEvidence,
 } from "./real-build-ledger";
 
@@ -33,9 +35,6 @@ import {
  * written out as `vision-kept`, because a generated record that certifies its
  * own inputs is worth nothing to the validator that reads it.
  */
-
-export const REAL_BUILD_ACTION_LEDGER_GENERATOR =
-  "apps/web/e2e/real-build-action-ledger.spec.ts" as const;
 
 export interface OfficialBuilderIdentity {
   readonly kind: "direct" | "multi-build-copy";
@@ -123,8 +122,12 @@ export function formatActionLedgerRefusalOutput(
 }
 
 export interface AssembledRealBuildActionLedger {
-  readonly ledger: RealBuildActionLedger;
+  readonly ledger: RealBuildActionLedgerCore;
   readonly refusals: readonly ActionLedgerRefusal[];
+  /** Full printed-booklet source/index population retained by this compilation. */
+  readonly expectedPrintedSteps: 359;
+  /** Inclusive action-ledger prefix the caller asked this compilation to assemble. */
+  readonly requestedLastStep: number;
   readonly alignedThroughStep: number;
   readonly stopReason: string;
   readonly directPieceCount: number;
@@ -207,6 +210,32 @@ export interface AssembleRealBuildActionLedgerInput {
     Record<number, TransitionClassificationEvidence>
   >;
   readonly expectedPrintedSteps: number;
+  readonly requestedLastStep: number;
+}
+
+const MAXIMUM_REAL_BUILD_PRINTED_STEPS = 359;
+
+function assertActionLedgerStepBounds(input: AssembleRealBuildActionLedgerInput): void {
+  if (
+    !Number.isSafeInteger(input.expectedPrintedSteps) ||
+    input.expectedPrintedSteps !== MAXIMUM_REAL_BUILD_PRINTED_STEPS
+  ) {
+    throw new TypeError(
+      `Action-ledger expectedPrintedSteps must preserve the fixed ` +
+        `${MAXIMUM_REAL_BUILD_PRINTED_STEPS}-step source/index contract; received ` +
+        `${JSON.stringify(input.expectedPrintedSteps)}.`,
+    );
+  }
+  if (
+    !Number.isSafeInteger(input.requestedLastStep) ||
+    input.requestedLastStep < 1 ||
+    input.requestedLastStep > input.expectedPrintedSteps
+  ) {
+    throw new TypeError(
+      `Action-ledger requestedLastStep must be a safe integer from 1 through expectedPrintedSteps ` +
+        `${input.expectedPrintedSteps}; received ${JSON.stringify(input.requestedLastStep)}.`,
+    );
+  }
 }
 
 /**
@@ -219,6 +248,7 @@ export interface AssembleRealBuildActionLedgerInput {
 export function assembleRealBuildActionLedger(
   input: AssembleRealBuildActionLedgerInput,
 ): AssembledRealBuildActionLedger {
+  assertActionLedgerStepBounds(input);
   for (const [field, value] of Object.entries(input.bindings)) {
     if (!DIGEST_PATTERN.test(value)) {
       throw new TypeError(
@@ -235,10 +265,17 @@ export function assembleRealBuildActionLedger(
   let directPieceCount = 0;
   let transitionStepCount = 0;
   let stopReason =
-    `the cumulative quantity cursor was corroborated through printed step ${input.expectedPrintedSteps}; ` +
-    `this does not claim every retained callout was admitted as a ledger action.`;
+    input.requestedLastStep === input.expectedPrintedSteps
+      ? `the cumulative quantity cursor was corroborated through requested printed step ` +
+        `${input.requestedLastStep}, which exhausts the ${input.expectedPrintedSteps}-step source/index ` +
+        `contract; this does not claim every retained callout was admitted as a ledger action.`
+      : `the cumulative quantity cursor was corroborated through requested printed step ` +
+        `${input.requestedLastStep} of the ${input.expectedPrintedSteps}-step source/index contract; ` +
+        `printed steps ${input.requestedLastStep + 1}..${input.expectedPrintedSteps} remain in that declared ` +
+        `contract and were intentionally not assembled or corroborated by this action ledger; this does not ` +
+        `claim every retained callout was admitted as a ledger action.`;
 
-  for (let stepNumber = 1; stepNumber <= input.expectedPrintedSteps; stepNumber += 1) {
+  for (let stepNumber = 1; stepNumber <= input.requestedLastStep; stepNumber += 1) {
     const panel = input.panelEvidenceByStep[stepNumber];
     if (panel === undefined) {
       stopReason =
@@ -401,6 +438,8 @@ export function assembleRealBuildActionLedger(
       steps,
     },
     refusals,
+    expectedPrintedSteps: MAXIMUM_REAL_BUILD_PRINTED_STEPS,
+    requestedLastStep: input.requestedLastStep,
     alignedThroughStep: steps.length,
     stopReason,
     directPieceCount,
@@ -408,30 +447,18 @@ export function assembleRealBuildActionLedger(
   };
 }
 
-export interface EmittedRealBuildActionLedger extends RealBuildActionLedger {
-  /** Repeated inside the file so a reader of the JSON alone cannot mistake it for authority. */
-  readonly provenance: {
-    readonly generator: typeof REAL_BUILD_ACTION_LEDGER_GENERATOR;
-    readonly authenticated: false;
-    readonly expectedPrintedSteps: number;
-    readonly alignedThroughStep: number;
-    readonly stopReason: string;
-    readonly directPieceCount: number;
-    readonly transitionStepCount: number;
-    readonly refusals: readonly ActionLedgerRefusal[];
-  };
-}
+export type EmittedRealBuildActionLedger = RealBuildActionLedger;
 
 export function emittedRealBuildActionLedger(
   assembled: AssembledRealBuildActionLedger,
-  expectedPrintedSteps: number,
 ): EmittedRealBuildActionLedger {
   return {
     ...assembled.ledger,
     provenance: {
       generator: REAL_BUILD_ACTION_LEDGER_GENERATOR,
       authenticated: false,
-      expectedPrintedSteps,
+      expectedPrintedSteps: assembled.expectedPrintedSteps,
+      requestedLastStep: assembled.requestedLastStep,
       alignedThroughStep: assembled.alignedThroughStep,
       stopReason: assembled.stopReason,
       directPieceCount: assembled.directPieceCount,

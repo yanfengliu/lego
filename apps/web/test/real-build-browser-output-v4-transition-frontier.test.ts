@@ -33,6 +33,7 @@ import {
   inspectRealBuildPreparedPanelFromRunInput,
   inspectRealBuildPreparedRunInput,
 } from "../e2e/real-build-prepared-step-authority";
+import { encodeRealBuildPreparedRunInput } from "../e2e/real-build-prepared-run-input-parser";
 import { stepPanelEvidenceDigest } from "../e2e/real-build-ledger-contract";
 import { preparedSearchOptions } from "./real-build-prepared-search.fixture";
 
@@ -65,7 +66,7 @@ function preparedTransition(
     action: { ...panel.action, panelEvidenceDigest },
   };
   const run = inspectRealBuildPreparedRunInput(
-    new TextEncoder().encode(JSON.stringify({ ...options, panels })),
+    encodeRealBuildPreparedRunInput({ ...options, panels }),
   );
   return inspectRealBuildPreparedPanelFromRunInput(run, 3);
 }

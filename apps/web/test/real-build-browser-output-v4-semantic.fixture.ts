@@ -16,6 +16,7 @@ import type {
 } from "../e2e/real-build-compiled-observation-closure-types";
 import { deriveRealBuildCompiledSearchRequestPreflightIdentity } from "../e2e/real-build-compiled-placement-lineage-digest";
 import type { RealBuildCompiledPlacementLineageEvidence } from "../e2e/real-build-compiled-placement-lineage-types";
+import { encodeRealBuildPreparedRunInput } from "../e2e/real-build-prepared-run-input-parser";
 import {
   inspectRealBuildPreparedObservationPolicy,
   inspectRealBuildPreparedRunInput,
@@ -77,7 +78,11 @@ export function preparedRunBytes(minimumScore = 0.6): Uint8Array {
         : piece,
     ),
   };
-  return jsonBytes({ ...options, minimumDeferredAgreement: minimumScore, panels });
+  return encodeRealBuildPreparedRunInput({
+    ...options,
+    minimumDeferredAgreement: minimumScore,
+    panels,
+  });
 }
 
 export function bindLineageToPreparedRun(

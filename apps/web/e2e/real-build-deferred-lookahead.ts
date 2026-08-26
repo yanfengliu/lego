@@ -3,7 +3,12 @@ import type { DeferralEvidence } from "./real-build-deferral";
 import type { FartherPlacementWitness } from "./real-build-farther-panel-types";
 import type { RuntimeBrickIdentity } from "./real-build-fixed-actions";
 import type { PanelRasterEvidence } from "./real-build-panel-raster";
-import type { RealBuildOptions, RealBuildPanelSpec, StepFailure } from "./real-build-safety";
+import type {
+  RealBuildOptions,
+  RealBuildPanelRasterSpec,
+  RealBuildPanelSpec,
+  StepFailure,
+} from "./real-build-safety";
 import { anchorStepCamera } from "./real-build-step-camera";
 import { classifyRealBuildLookaheadMeasure } from "./real-build-lookahead-measure";
 
@@ -77,7 +82,7 @@ export interface DeferredUnresolvedCandidate<D> {
 export function prepareDeferredLookahead(input: {
   readonly spec: RealBuildPanelSpec;
   readonly lookahead: {
-    readonly spec: RealBuildPanelSpec;
+    readonly spec: RealBuildPanelRasterSpec;
     readonly evidence: PanelRasterEvidence;
   };
   readonly options: RealBuildOptions;

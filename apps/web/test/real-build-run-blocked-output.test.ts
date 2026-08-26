@@ -10,12 +10,12 @@ const deriveEvidence = vi.hoisted(() => vi.fn());
 
 function positiveSecondStepOptions(samePage: boolean): RealBuildOptions {
   const options = completeRealBuildTestOptions(2);
-  const source = options.panels[357]!;
+  const complete = completeRealBuildTestOptions(359);
+  const source = complete.panels[357]!;
   if (source.action.kind !== "place-callouts" || source.pieces.length === 0) {
     throw new Error("The complete fixture must retain direct pieces at printed step 358.");
   }
-  const sourceAction = source.action;
-  const [piece, ...remaining] = source.pieces;
+  const [piece] = source.pieces;
   const pageNumber = samePage ? 1 : 2;
   const panels = options.panels.map((panel): RealBuildPanelSpec => {
     if (panel.stepNumber === 2) {
@@ -33,16 +33,6 @@ function positiveSecondStepOptions(samePage: boolean): RealBuildOptions {
         classifiedPhysicalCalloutPieces: 1,
       };
     }
-    if (panel.stepNumber === 358) {
-      return {
-        ...source,
-        action: { ...sourceAction, assembledPieces: remaining.length },
-        pieces: remaining,
-        mappedCalloutKeys: remaining.map(({ calloutKey }) => calloutKey),
-        calloutPieces: remaining.length,
-        classifiedPhysicalCalloutPieces: remaining.length,
-      };
-    }
     return panel;
   });
   return {
@@ -52,7 +42,7 @@ function positiveSecondStepOptions(samePage: boolean): RealBuildOptions {
     coverageByCallout: {
       ...options.coverageByCallout,
       [piece!.calloutKey]: {
-        ...options.coverageByCallout[piece!.calloutKey]!,
+        ...complete.coverageByCallout[piece!.calloutKey]!,
         pageNumber,
         stepNumber: 2,
       },

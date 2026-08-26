@@ -14,6 +14,7 @@ import {
   type RealBuildBrowserOutputV4SourceEvidencePanelArtifact,
 } from "../e2e/real-build-browser-output-v4-source-evidence-types";
 import { createRealBuildBrowserOutputV4SourceEvidenceManifest } from "../e2e/real-build-browser-output-v4-source-evidence-writer";
+import { encodeRealBuildPreparedRunInput } from "../e2e/real-build-prepared-run-input-parser";
 import { inspectRealBuildPreparedRunInput } from "../e2e/real-build-prepared-step-authority";
 import {
   SOURCE_EVIDENCE_TEST_PDF_DIGEST as PDF_DIGEST,
@@ -369,12 +370,10 @@ describe("browser-output /4 streamed source evidence", () => {
 
   it("requires the exact prepared-run inspection and persists the provenance limitation", () => {
     const changedRun = inspectRealBuildPreparedRunInput(
-      ENCODER.encode(
-        JSON.stringify({
-          ...PREPARED_OPTIONS,
-          minimumScoreMargin: PREPARED_OPTIONS.minimumScoreMargin + 0.001,
-        }),
-      ),
+      encodeRealBuildPreparedRunInput({
+        ...PREPARED_OPTIONS,
+        minimumScoreMargin: PREPARED_OPTIONS.minimumScoreMargin + 0.001,
+      }),
     );
     expect(() => beginSourceEvidenceInspection(manifestBytes, changedRun)).toThrow(
       /does not bind the supplied exact prepared-run/iu,

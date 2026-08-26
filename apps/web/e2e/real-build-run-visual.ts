@@ -28,11 +28,13 @@ import type {
   RealBuildFartherCapture,
   RealBuildFartherEvidence,
   RealBuildOptions,
+  RealBuildPanelRasterSpec,
   RealBuildPanelSpec,
   RealBuildPieceReport,
   StepFailure,
   WholeStepVisualEvidence,
 } from "./real-build-safety";
+import { selectRealBuildDeferredPanelRoles } from "./real-build-run-panel-window";
 
 type BrowserModule = ReturnType<typeof JSON.parse>;
 
@@ -251,8 +253,9 @@ export interface RunDeferredPanelCoordinator<D> {
  */
 export function createRunDeferredPanelCoordinator<D>(input: {
   readonly spec: RealBuildPanelSpec;
-  readonly deferralTarget: RealBuildPanelSpec | null;
-  readonly orderedPanels: readonly RealBuildPanelSpec[];
+  readonly deferralTarget: RealBuildPanelRasterSpec | null;
+  readonly executionPanels: readonly RealBuildPanelSpec[];
+  readonly observationPanels: readonly RealBuildPanelRasterSpec[];
   readonly currentPageNumber: number;
   readonly currentPageCanvas: PageCanvas;
   readonly pdf: PreparedRealBuildModules["pdfjs"];
@@ -262,11 +265,13 @@ export function createRunDeferredPanelCoordinator<D>(input: {
   readonly place: Place<D>;
 }): RunDeferredPanelCoordinator<D> {
   let lookahead: {
-    readonly spec: RealBuildPanelSpec;
+    readonly spec: RealBuildPanelRasterSpec;
     readonly evidence: PanelRasterEvidence;
   } | null = null;
 
-  const loadPanelEvidence = async (spec: RealBuildPanelSpec): Promise<PanelRasterEvidence> => {
+  const loadPanelEvidence = async (
+    spec: RealBuildPanelRasterSpec,
+  ): Promise<PanelRasterEvidence> => {
     const page =
       spec.pageNumber === input.currentPageNumber
         ? { canvas: input.currentPageCanvas, dispose: () => {} }
@@ -347,8 +352,24 @@ export function createRunDeferredPanelCoordinator<D>(input: {
         placement: null,
       };
     }
-    const fartherTarget =
-      input.orderedPanels.find((panel) => panel.stepNumber > intervening.spec.stepNumber) ?? null;
+    const roles = selectRealBuildDeferredPanelRoles({
+      interveningRasterPanel: intervening.spec,
+      executionPanels: input.executionPanels,
+      observationPanels: input.observationPanels,
+    });
+    if (roles.interveningExecutionPanel === null) {
+      // The passive suffix may settle the final requested step from source art,
+      // but its own action is outside the requested execution prefix. Do not
+      // expand it, emit a report for it, or let it mutate any candidate document.
+      return {
+        deferral: settledDeferral.evidence,
+        farther: null,
+        fartherCaptures: [],
+        failure: settledDeferral.failure,
+        pieceReports: settledDeferral.pieceReports,
+        placement: null,
+      };
+    }
     const fartherAttempt = await attemptFartherPrintedStep({
       originSpec: input.spec,
       originStatus:
@@ -358,11 +379,14 @@ export function createRunDeferredPanelCoordinator<D>(input: {
         settlementInput.ownPanelMargin === null ? null : input.options.minimumScoreMargin,
       baseDocument: input.baseDocument,
       origins: settledDeferral.unresolvedCandidates,
-      interveningSpec: intervening.spec,
+      interveningSpec: roles.interveningExecutionPanel,
       interveningEvidence: intervening.evidence,
-      fartherSpec: fartherTarget,
+      fartherSpec: roles.fartherExecutionPanel,
+      fartherRasterSpec: roles.fartherRasterPanel,
       loadFartherEvidence:
-        fartherTarget === null ? null : async () => loadPanelEvidence(fartherTarget),
+        roles.fartherRasterPanel === null
+          ? null
+          : async () => loadPanelEvidence(roles.fartherRasterPanel!),
       options: input.options,
       modules: input.modules,
       place: input.place,

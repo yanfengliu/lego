@@ -35,6 +35,9 @@ describe("real-build input chain", () => {
     }
     // The ledger is last: it binds the digests of everything above it.
     expect(REAL_BUILD_INPUT_CHAIN.at(-1)?.artifact).toBe("output/real-build/action-ledger.json");
+    expect(REAL_BUILD_INPUT_CHAIN.at(-1)?.command).toContain("LEGO_REAL_BUILD_LAST_STEP=<1..359>");
+    expect(REAL_BUILD_INPUT_CHAIN_ENTRY_POINT).toContain("LEGO_REAL_BUILD_LAST_STEP=<1..359>");
+    expect(REAL_BUILD_INPUT_CHAIN[1]?.command).toContain("--last-step <1..359>");
   });
 
   it("recovers a later stage by naming its command, its order, and every earlier stage", () => {

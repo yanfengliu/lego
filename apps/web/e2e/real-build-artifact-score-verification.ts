@@ -1,4 +1,4 @@
-import { documentStructuralHash } from "@lego-studio/brick-kernel";
+import { canonicalStringify, documentStructuralHash } from "@lego-studio/brick-kernel";
 import { validateBrickDocumentV1, type BrickDocumentV1 } from "@lego-studio/protocol";
 
 import {
@@ -23,7 +23,7 @@ import {
   type RealBuildOptions,
   type RealBuildResult,
 } from "./real-build-safety";
-import { parseFatalUtf8Json } from "./strict-json";
+import { parseCanonicalRealBuildJson } from "./real-build-json-admission";
 
 interface ArtifactEntry {
   readonly bytes: number;
@@ -70,10 +70,14 @@ function isNullableDigest(value: unknown): value is string | null {
   return value === null || (typeof value === "string" && /^sha256:[0-9a-f]{64}$/u.test(value));
 }
 
+const hasSameCanonicalJson = (left: unknown, right: unknown): boolean =>
+  canonicalStringify(left) === canonicalStringify(right);
+
 export function verifyRealBuildArtifactScore(input: RealBuildArtifactScoreVerificationInput): void {
-  const score = parseFatalUtf8Json<Record<string, unknown>>(
+  const score = parseCanonicalRealBuildJson<Record<string, unknown>>(
     input.scoreBytes,
-    "retained score artifact",
+    "current retained score artifact",
+    "pretty-one-space-line",
   );
   if (
     !exactObjectKeys(score, [
@@ -98,9 +102,9 @@ export function verifyRealBuildArtifactScore(input: RealBuildArtifactScoreVerifi
     ]) ||
     score.schemaVersion !== REAL_BUILD_SCORE_SCHEMA ||
     score.runId !== input.runId ||
-    JSON.stringify(score.authority) !== JSON.stringify(input.authority) ||
-    JSON.stringify(score.inputDigests) !== JSON.stringify(input.retainedContract.inputDigests) ||
-    JSON.stringify(score.accounting) !== JSON.stringify(input.preparedOptions.accounting) ||
+    !hasSameCanonicalJson(score.authority, input.authority) ||
+    !hasSameCanonicalJson(score.inputDigests, input.retainedContract.inputDigests) ||
+    !hasSameCanonicalJson(score.accounting, input.preparedOptions.accounting) ||
     score.lastStep !== input.retainedContract.budgets.lastStep ||
     score.lastStep !== input.preparedOptions.lastStep ||
     !["completed", "prefix-complete", "incomplete", "input-rejected"].includes(
@@ -108,7 +112,7 @@ export function verifyRealBuildArtifactScore(input: RealBuildArtifactScoreVerifi
     ) ||
     !isNullableDigest(score.structuralHash) ||
     score.structuralHash !== input.declaredFinalStructuralHash ||
-    JSON.stringify(score.diagnosticPrefix) !== JSON.stringify(input.declaredDiagnosticPrefix) ||
+    !hasSameCanonicalJson(score.diagnosticPrefix, input.declaredDiagnosticPrefix) ||
     !Array.isArray(score.steps) ||
     score.steps.length > input.maximumPrintedSteps ||
     !Array.isArray(score.inputFailures) ||
@@ -127,9 +131,9 @@ export function verifyRealBuildArtifactScore(input: RealBuildArtifactScoreVerifi
     );
   }
   if (input.replayLevel === "downstream-only") {
-    const browserOutput = parseFatalUtf8Json<unknown>(
+    const browserOutput = parseCanonicalRealBuildJson<unknown>(
       input.browserOutputBytes!,
-      "artifact browser-output role",
+      "current artifact browser-output role",
     );
     assertReadableRealBuildBrowserOutput(browserOutput, input.preparedOptions);
     const reproducedResult = finalizeExecutedRealBuildResult({
@@ -142,7 +146,7 @@ export function verifyRealBuildArtifactScore(input: RealBuildArtifactScoreVerifi
       accounting: input.preparedOptions.accounting,
       lastStep: input.preparedOptions.lastStep,
     });
-    if (JSON.stringify(score) !== JSON.stringify(reproducedScore)) {
+    if (!hasSameCanonicalJson(score, reproducedScore)) {
       throw new TypeError(
         "Retained score does not exactly reproduce from the independently finalized browser output and prepared options.",
       );
@@ -276,7 +280,7 @@ export function verifyRealBuildArtifactScore(input: RealBuildArtifactScoreVerifi
         ? `stepsComplete ${score.stepsComplete} against ${completedSteps} row(s) that satisfy atomic completion`
         : score.piecesPlaced !== piecesPlaced
           ? `piecesPlaced ${score.piecesPlaced} against ${piecesPlaced} summed over the rows`
-          : JSON.stringify(score.failures) !== JSON.stringify(derivedFailures)
+          : !hasSameCanonicalJson(score.failures, derivedFailures)
             ? `${score.failures.length} retained failure(s) against ${derivedFailures.length} derived from rows whose outcome is failed`
             : null;
   if (totalsMismatch !== null) {
@@ -392,6 +396,7 @@ export function verifyRealBuildArtifactScore(input: RealBuildArtifactScoreVerifi
     assertRealBuildDiagnosticPrefixDocument(
       input.diagnosticPrefixBytes!,
       score.diagnosticPrefix as never,
+      { requireCurrentCanonicalBytes: true },
     );
   }
   if (score.structuralHash === null && score.finalParts !== 0) {
@@ -400,7 +405,10 @@ export function verifyRealBuildArtifactScore(input: RealBuildArtifactScoreVerifi
     );
   }
   if (input.documentBytes !== null) {
-    const document = parseFatalUtf8Json<unknown>(input.documentBytes, "retained document artifact");
+    const document = parseCanonicalRealBuildJson<unknown>(
+      input.documentBytes,
+      "current retained document artifact",
+    );
     if (
       !validateBrickDocumentV1(document) ||
       documentStructuralHash(document as BrickDocumentV1) !== score.structuralHash ||

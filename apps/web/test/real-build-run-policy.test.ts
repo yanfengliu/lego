@@ -140,10 +140,11 @@ describe("real booklet run policy and artifacts", () => {
   });
 
   it("refuses a pruned render budget smaller than the exhaustive one", () => {
-    const panels = Array.from({ length: 359 }, (_, index) => transitionPanel(index + 1));
+    const panels = [transitionPanel(1)];
     const digest = `sha256:${"a".repeat(64)}`;
     const coherent = {
       panels,
+      passivePanels: [],
       expectedPrintedSteps: 359,
       lastStep: 1,
       accounting: OFFICIAL_REAL_BUILD_ACCOUNTING,
@@ -229,7 +230,9 @@ describe("real booklet run policy and artifacts", () => {
         answers: null,
         pairJudged: sha256Digest("pair-judged"),
       },
+      panelSourceDigest: sha256Digest("panel-source"),
       panels: [transitionPanel(1)],
+      passivePanels: [],
       budgets: {
         lastStep: 1,
         expectedPrintedSteps: 359,

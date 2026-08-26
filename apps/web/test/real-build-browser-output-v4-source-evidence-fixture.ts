@@ -1,22 +1,44 @@
 import { sha256Hex, type Sha256Digest } from "@lego-studio/brick-kernel";
 
 import { downsampleRaster } from "../src/assembly/panel-art";
+import type { RealBuildBrowserOutputV4PreparedSourcePanel } from "../e2e/real-build-browser-output-v4-source-evidence-prepared";
 import { stepPanelEvidenceDigest } from "../e2e/real-build-panel-evidence-digest";
+import { encodeRealBuildPreparedRunInput } from "../e2e/real-build-prepared-run-input-parser";
 import { inspectRealBuildPreparedRunInput } from "../e2e/real-build-prepared-step-authority";
 import { completeRealBuildTestOptions } from "./real-build-test-options";
 
-const ENCODER = new TextEncoder();
 export const SOURCE_EVIDENCE_TEST_PDF_DIGEST =
   `sha256:${sha256Hex("source-evidence-test-pdf")}` as Sha256Digest;
+const SOURCE_BOUNDS = { minXPt: 0, maxXPt: 100, minYPt: 0, maxYPt: 0.1 } as const;
+const SOURCE_CALLOUT_BOXES: readonly [] = Object.freeze([]);
+
+export const SOURCE_EVIDENCE_TEST_SOURCE_PANELS: readonly RealBuildBrowserOutputV4PreparedSourcePanel[] =
+  Object.freeze(
+    Array.from({ length: 359 }, (_, index) => {
+      const stepNumber = index + 1;
+      const pageNumber = stepNumber;
+      return Object.freeze({
+        stepNumber,
+        pageNumber,
+        ...SOURCE_BOUNDS,
+        calloutBoxes: SOURCE_CALLOUT_BOXES,
+        panelEvidenceDigest: stepPanelEvidenceDigest({
+          pdfDigest: SOURCE_EVIDENCE_TEST_PDF_DIGEST,
+          stepNumber,
+          pageNumber,
+          bounds: SOURCE_BOUNDS,
+          calloutBoxes: SOURCE_CALLOUT_BOXES,
+        }) as Sha256Digest,
+      });
+    }),
+  );
 
 export const SOURCE_EVIDENCE_TEST_PREPARED_OPTIONS = (() => {
-  const base = completeRealBuildTestOptions(359);
-  const bounds = { minXPt: 0, maxXPt: 100, minYPt: 0, maxYPt: 0.1 };
-  const calloutBoxes: readonly [] = [];
+  const base = completeRealBuildTestOptions(50);
   const panels = base.panels.map((panel) => ({
     ...panel,
-    ...bounds,
-    calloutBoxes,
+    ...SOURCE_BOUNDS,
+    calloutBoxes: SOURCE_CALLOUT_BOXES,
     action:
       panel.action.kind === "transition"
         ? {
@@ -25,8 +47,8 @@ export const SOURCE_EVIDENCE_TEST_PREPARED_OPTIONS = (() => {
               pdfDigest: SOURCE_EVIDENCE_TEST_PDF_DIGEST,
               stepNumber: panel.stepNumber,
               pageNumber: panel.pageNumber,
-              bounds,
-              calloutBoxes,
+              bounds: SOURCE_BOUNDS,
+              calloutBoxes: SOURCE_CALLOUT_BOXES,
             }),
           }
         : panel.action,
@@ -34,6 +56,11 @@ export const SOURCE_EVIDENCE_TEST_PREPARED_OPTIONS = (() => {
   return {
     ...base,
     panels,
+    passivePanels: base.passivePanels.map((panel) => ({
+      ...panel,
+      ...SOURCE_BOUNDS,
+      calloutBoxes: SOURCE_CALLOUT_BOXES,
+    })),
     inputDigests: { ...base.inputDigests, pdf: SOURCE_EVIDENCE_TEST_PDF_DIGEST },
     coverageInputBindings: {
       ...base.coverageInputBindings,
@@ -43,12 +70,12 @@ export const SOURCE_EVIDENCE_TEST_PREPARED_OPTIONS = (() => {
 })();
 
 export const SOURCE_EVIDENCE_TEST_PREPARED_RUN = inspectRealBuildPreparedRunInput(
-  ENCODER.encode(JSON.stringify(SOURCE_EVIDENCE_TEST_PREPARED_OPTIONS)),
+  encodeRealBuildPreparedRunInput(SOURCE_EVIDENCE_TEST_PREPARED_OPTIONS),
 );
 
 export function sourceEvidenceTestPanelInput(stepNumber: number, heightPt = 0.1) {
-  const preparedPanel = SOURCE_EVIDENCE_TEST_PREPARED_OPTIONS.panels[stepNumber - 1]!;
-  const pageNumber = preparedPanel.pageNumber;
+  const sourcePanel = SOURCE_EVIDENCE_TEST_SOURCE_PANELS[stepNumber - 1]!;
+  const pageNumber = sourcePanel.pageNumber;
   const bounds = { minXPt: 0, maxXPt: 100, minYPt: 0, maxYPt: heightPt };
   const calloutBoxes: readonly [] = [];
   const panel = {

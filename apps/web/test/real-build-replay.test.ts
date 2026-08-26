@@ -6,20 +6,24 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 vi.mock("../e2e/real-build-identification-closure", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../e2e/real-build-identification-closure")>();
-  const { __testOnly } = await import("../../../scripts/booklet-catalog-coverage.mjs");
-  const { SYNTHETIC_IDENTIFICATION_MANIFEST_EXPECTATION } =
-    await import("./real-build-identification-golden");
   return {
     ...actual,
     verifyRealBuildIdentificationClosure: (
       input: Parameters<typeof actual.prepareRealBuildIdentificationClosure>[0],
-    ) =>
-      __testOnly.verifyBookletCatalogCoverageClosure(
-        actual.prepareRealBuildIdentificationClosure(input),
-        SYNTHETIC_IDENTIFICATION_MANIFEST_EXPECTATION,
-      ),
+    ) => {
+      const prepared = actual.prepareRealBuildIdentificationClosure(input);
+      return JSON.parse(
+        new TextDecoder("utf8", { fatal: true }).decode(prepared.coverageBytes),
+      ) as unknown;
+    },
   };
 });
+
+const reconstructOfficialMock = vi.hoisted(() => vi.fn());
+
+vi.mock("../e2e/real-build-replay-official", () => ({
+  reconstructRealBuildOfficialReplay: reconstructOfficialMock,
+}));
 
 import {
   beginAtomicRun,
@@ -30,6 +34,9 @@ import {
   verifyRealBuildArtifactManifest,
   writeRealBuildArtifactManifest,
 } from "../e2e/real-build-artifacts";
+import { admitCanonicalRealBuildActionLedgerBytes } from "../e2e/real-build-action-ledger-admission";
+import { encodeRealBuildActionLedger } from "../e2e/real-build-action-ledger";
+import { actionEvidenceDigest } from "../e2e/real-build-ledger";
 import { finalizeExecutedRealBuildResult } from "../e2e/real-build-finalize";
 import {
   replayRealBuildFinalization,
@@ -48,22 +55,57 @@ import {
   createRealBuildBootstrapSourceManifest,
   REAL_BUILD_SOURCE_ROOT_POLICY_PATH,
 } from "../e2e/real-build-bootstrap-source";
-import { realBuildRunBudgets, realBuildRunThresholds } from "../e2e/real-build-run-contract";
+import {
+  encodeCurrentRealBuildRunContract,
+  realBuildRunBudgets,
+  realBuildRunThresholds,
+} from "../e2e/real-build-run-contract";
+import { encodeRealBuildPreparedRunInput } from "../e2e/real-build-prepared-run-input-parser";
+import {
+  canonicalRealBuildJsonClone,
+  encodeCanonicalRealBuildJson,
+} from "../e2e/real-build-json-admission";
 import { REAL_BUILD_TEST_DIGEST } from "./real-build-test-options";
-import { SYNTHETIC_IDENTIFICATION_GOLDEN } from "./real-build-identification-golden";
+import { realBuildLedgerTestFixture } from "./real-build-ledger-test-fixture";
 import { currentArtifactServedEvidence } from "./real-build-current-artifact-served-fixture";
 import {
   replayBrowserOutput as browserOutput,
+  replayIdentificationClosureDigests as identificationClosure,
   replayInputDigests as inputDigests,
   replayOptions as options,
+  replayPanelSourceDigest as panelSourceDigest,
   replayRawRoleBytes as rawRoleBytes,
 } from "./real-build-replay-fixture";
+
+const replayOfficialFixture = realBuildLedgerTestFixture().official;
+reconstructOfficialMock.mockImplementation(
+  (input: { readonly roleDigests: Readonly<Record<string, string>> }) => ({
+    ...replayOfficialFixture,
+    digest: input.roleDigests["official-model"]!,
+    calibrationDigest: input.roleDigests["builder-calibration"]!,
+    builderGeometryDigest: input.roleDigests["builder-geometry"]!,
+    instructionBrickRefs: new Set([...replayOfficialFixture.instructionBrickRefs, "brick-b"]),
+    directBrickRefs: new Set([...replayOfficialFixture.directBrickRefs, "brick-b"]),
+  }),
+);
 
 /** Run roots this file leaves behind, which must be none. */
 function replayTestRoots(): readonly string[] {
   const output = join(process.cwd(), "output");
   if (!existsSync(output)) return [];
   return readdirSync(output).filter((name) => name.startsWith("real-build-replay-test-"));
+}
+
+function encodeRehashedReplayManifest(value: Record<string, unknown>): Uint8Array {
+  const withoutDigest = canonicalRealBuildJsonClone(value);
+  delete withoutDigest.manifestDigest;
+  return encodeCanonicalRealBuildJson(
+    {
+      ...withoutDigest,
+      manifestDigest: sha256Digest(encodeCanonicalRealBuildJson(withoutDigest)),
+    },
+    "pretty-one-space-line",
+  );
 }
 
 describe("real-build replay closure", () => {
@@ -170,18 +212,10 @@ describe("real-build replay closure", () => {
       );
       const runContract = createRealBuildRunContract({
         inputDigests,
-        identificationClosure: {
-          source: "deterministic",
-          features: SYNTHETIC_IDENTIFICATION_GOLDEN.features.digest,
-          match: SYNTHETIC_IDENTIFICATION_GOLDEN.match.digest,
-          distances: SYNTHETIC_IDENTIFICATION_GOLDEN.distances.digest,
-          elements: SYNTHETIC_IDENTIFICATION_GOLDEN.elementResolution.digest,
-          cards: null,
-          cardImages: null,
-          answers: null,
-          pairJudged: SYNTHETIC_IDENTIFICATION_GOLDEN.pairJudged.digest,
-        },
+        identificationClosure,
+        panelSourceDigest,
         panels: options.panels,
+        passivePanels: options.passivePanels,
         budgets: realBuildRunBudgets(options),
         thresholds: realBuildRunThresholds(options),
         codeSnapshots,
@@ -213,40 +247,326 @@ describe("real-build replay closure", () => {
         pdfBytes: rawRoleBytes.pdf!.byteLength,
         pdfDigest: inputDigests.pdf,
       });
+      const legacyActionLedgerBytes = Buffer.from(
+        Buffer.from(rawRoleBytes["action-ledger"]!)
+          .toString("utf8")
+          .replace("lego.real-build-action-ledger/3", "lego.real-build-action-ledger/2"),
+        "utf8",
+      );
+      const legacyInputDigests = {
+        ...inputDigests,
+        actionLedger: sha256Digest(legacyActionLedgerBytes),
+      };
+      const legacyOptions = { ...options, inputDigests: legacyInputDigests };
+      const legacyLedgerContract = createRealBuildRunContract({
+        inputDigests: legacyInputDigests,
+        identificationClosure: runContract.identificationClosure,
+        panelSourceDigest: runContract.panelSourceDigest,
+        panels: legacyOptions.panels,
+        passivePanels: legacyOptions.passivePanels,
+        budgets: realBuildRunBudgets(legacyOptions),
+        thresholds: realBuildRunThresholds(legacyOptions),
+        codeSnapshots,
+      });
+      const legacyProbeDirectory = join(run.directory, "legacy-ledger-probe");
+      mkdirSync(legacyProbeDirectory);
+      expect(() =>
+        writeRealBuildReplayClosure({
+          directory: legacyProbeDirectory,
+          repoRoot: sourceMirror.root,
+          roles: [
+            ...Object.entries(rawRoleBytes).map(([role, bytes]) => ({
+              role,
+              bytes: role === "action-ledger" ? legacyActionLedgerBytes : bytes,
+            })),
+            {
+              role: "prepared-options",
+              bytes: encodeRealBuildPreparedRunInput(legacyOptions),
+            },
+            {
+              role: "run-contract",
+              bytes: encodeCurrentRealBuildRunContract(legacyLedgerContract),
+            },
+          ],
+          sourceFiles: sourceMirror.files.map(({ path }) => path),
+          environment: {
+            schemaVersion: "lego.real-build-environment/1",
+            node: process.version,
+            platform: process.platform,
+            arch: process.arch,
+            versions: process.versions,
+            browser: { name: "chromium", version: "test" },
+            playwright: "@playwright/test (exact package bytes retained in source bundle)",
+            replayProtocol: 1,
+            bootstrapSourceManifestDigest: bootstrapManifest.manifestDigest,
+            runContractDigest: legacyLedgerContract.contractDigest,
+            servedResponseManifestDigest: sha256Digest(served.manifestBytes),
+          },
+          browserOutputRetained: false,
+        }),
+      ).toThrow(/action-ledger.*lego\.real-build-action-ledger\/3/su);
+      const replayEnvironment = {
+        schemaVersion: "lego.real-build-environment/1" as const,
+        node: process.version,
+        platform: process.platform,
+        arch: process.arch,
+        versions: process.versions,
+        browser: { name: "chromium", version: "test" },
+        playwright: "@playwright/test (exact package bytes retained in source bundle)",
+        replayProtocol: 1 as const,
+        bootstrapSourceManifestDigest: bootstrapManifest.manifestDigest,
+        runContractDigest: runContract.contractDigest,
+        servedResponseManifestDigest: sha256Digest(served.manifestBytes),
+      };
+      const currentReplayRoles = (
+        preparedOptionsBytes: Uint8Array,
+        retainedRunContract = runContract,
+        roleOverrides: Readonly<Record<string, Uint8Array>> = {},
+      ) => [
+        ...Object.entries(rawRoleBytes).map(([role, bytes]) => ({
+          role,
+          bytes: roleOverrides[role] ?? bytes,
+        })),
+        {
+          role: "browser-output",
+          bytes: encodeCanonicalRealBuildJson(retainedBrowserOutput),
+        },
+        { role: "prepared-options", bytes: preparedOptionsBytes },
+        {
+          role: "run-contract",
+          bytes: encodeCurrentRealBuildRunContract(retainedRunContract),
+        },
+      ];
+      const admittedLedger = admitCanonicalRealBuildActionLedgerBytes({
+        bytes: rawRoleBytes["action-ledger"]!,
+        label: "replay mismatch control ledger",
+        mode: "exact-execution",
+        requestedLastStep: 1,
+      });
+      const contradictoryStep = {
+        ...admittedLedger.steps[0]!,
+        action: {
+          kind: "transition" as const,
+          transition: "rotation" as const,
+          classificationEvidenceDigest: REAL_BUILD_TEST_DIGEST,
+        },
+      };
+      const contradictoryLedger = {
+        ...admittedLedger,
+        steps: [contradictoryStep],
+        provenance: {
+          ...admittedLedger.provenance,
+          directPieceCount: 0,
+          transitionStepCount: 1,
+        },
+      };
+      const contradictoryLedgerBytes = encodeRealBuildActionLedger(contradictoryLedger);
+      expect(() =>
+        admitCanonicalRealBuildActionLedgerBytes({
+          bytes: contradictoryLedgerBytes,
+          label: "replay mismatch contradictory ledger",
+          mode: "exact-execution",
+          requestedLastStep: 1,
+        }),
+      ).not.toThrow();
+      const contradictoryInputDigests = {
+        ...inputDigests,
+        actionLedger: sha256Digest(contradictoryLedgerBytes),
+      };
+      const contradictoryPanel = {
+        ...options.panels[0]!,
+        action: {
+          ...options.panels[0]!.action,
+          evidenceDigest: actionEvidenceDigest({
+            ledgerDigest: contradictoryInputDigests.actionLedger,
+            officialModelDigest: contradictoryInputDigests.officialModel,
+            builderCalibrationDigest: contradictoryInputDigests.builderCalibration,
+            transitionClassificationsDigest: contradictoryInputDigests.transitionClassifications,
+            step: contradictoryStep,
+          }),
+        },
+      };
+      const contradictoryOptions = {
+        ...options,
+        inputDigests: contradictoryInputDigests,
+        panels: [contradictoryPanel],
+      };
+      const contradictoryContract = createRealBuildRunContract({
+        inputDigests: contradictoryInputDigests,
+        identificationClosure: runContract.identificationClosure,
+        panelSourceDigest: runContract.panelSourceDigest,
+        panels: contradictoryOptions.panels,
+        passivePanels: contradictoryOptions.passivePanels,
+        budgets: realBuildRunBudgets(contradictoryOptions),
+        thresholds: realBuildRunThresholds(contradictoryOptions),
+        codeSnapshots,
+      });
+      const contradictoryDirectory = join(run.directory, "contradictory-action-ledger-probe");
+      mkdirSync(contradictoryDirectory);
+      expect(() =>
+        writeRealBuildReplayClosure({
+          directory: contradictoryDirectory,
+          repoRoot: sourceMirror.root,
+          roles: [
+            ...Object.entries(rawRoleBytes).map(([role, bytes]) => ({
+              role,
+              bytes: role === "action-ledger" ? contradictoryLedgerBytes : bytes,
+            })),
+            {
+              role: "prepared-options",
+              bytes: encodeRealBuildPreparedRunInput(contradictoryOptions),
+            },
+            {
+              role: "run-contract",
+              bytes: encodeCurrentRealBuildRunContract(contradictoryContract),
+            },
+          ],
+          sourceFiles: sourceMirror.files.map(({ path }) => path),
+          environment: {
+            ...replayEnvironment,
+            runContractDigest: contradictoryContract.contractDigest,
+          },
+          browserOutputRetained: false,
+        }),
+      ).toThrow(/does not exactly reproduce the prepared-options action/u);
+      const sourceContradictoryOptions = {
+        ...options,
+        panels: [{ ...options.panels[0]!, minXPt: 0.01 }],
+      };
+      const sourceContradictoryContract = createRealBuildRunContract({
+        inputDigests,
+        identificationClosure: runContract.identificationClosure,
+        panelSourceDigest: runContract.panelSourceDigest,
+        panels: sourceContradictoryOptions.panels,
+        passivePanels: sourceContradictoryOptions.passivePanels,
+        budgets: realBuildRunBudgets(sourceContradictoryOptions),
+        thresholds: realBuildRunThresholds(sourceContradictoryOptions),
+        codeSnapshots,
+      });
+      const sourceContradictoryDirectory = join(run.directory, "contradictory-panel-source-probe");
+      mkdirSync(sourceContradictoryDirectory);
+      expect(() =>
+        writeRealBuildReplayClosure({
+          directory: sourceContradictoryDirectory,
+          repoRoot: sourceMirror.root,
+          roles: currentReplayRoles(
+            encodeRealBuildPreparedRunInput(sourceContradictoryOptions),
+            sourceContradictoryContract,
+          ),
+          sourceFiles: sourceMirror.files.map(({ path }) => path),
+          environment: {
+            ...replayEnvironment,
+            runContractDigest: sourceContradictoryContract.contractDigest,
+          },
+          browserOutputRetained: true,
+        }),
+      ).toThrow(/independently replayed retained 359-step panel source/u);
+      const faceContradictoryOptions = {
+        ...options,
+        passivePanels: [
+          {
+            ...options.passivePanels[0]!,
+            panelFace:
+              options.passivePanels[0]!.panelFace === "studs-up"
+                ? ("underside" as const)
+                : ("studs-up" as const),
+          },
+          ...options.passivePanels.slice(1),
+        ],
+      };
+      const faceContradictoryContract = createRealBuildRunContract({
+        inputDigests,
+        identificationClosure: runContract.identificationClosure,
+        panelSourceDigest: runContract.panelSourceDigest,
+        panels: faceContradictoryOptions.panels,
+        passivePanels: faceContradictoryOptions.passivePanels,
+        budgets: realBuildRunBudgets(faceContradictoryOptions),
+        thresholds: realBuildRunThresholds(faceContradictoryOptions),
+        codeSnapshots,
+      });
+      const faceContradictoryDirectory = join(
+        run.directory,
+        "contradictory-panel-face-source-probe",
+      );
+      mkdirSync(faceContradictoryDirectory);
+      expect(() =>
+        writeRealBuildReplayClosure({
+          directory: faceContradictoryDirectory,
+          repoRoot: sourceMirror.root,
+          roles: currentReplayRoles(
+            encodeRealBuildPreparedRunInput(faceContradictoryOptions),
+            faceContradictoryContract,
+          ),
+          sourceFiles: sourceMirror.files.map(({ path }) => path),
+          environment: {
+            ...replayEnvironment,
+            runContractDigest: faceContradictoryContract.contractDigest,
+          },
+          browserOutputRetained: true,
+        }),
+      ).toThrow(/page\/face\/bounds\/calloutBoxes.*independently replayed/u);
+      const widenedPanelSource = JSON.parse(
+        Buffer.from(rawRoleBytes["panel-source"]!).toString("utf8"),
+      ) as {
+        requestedLastStep: number;
+        pageShapes: Array<{ pageNumber: number; shapes: unknown[] }>;
+      };
+      widenedPanelSource.requestedLastStep = 2;
+      widenedPanelSource.pageShapes.push({ pageNumber: 5, shapes: [] });
+      const widenedPanelSourceBytes = encodeCanonicalRealBuildJson(widenedPanelSource);
+      const widenedPanelSourceContract = createRealBuildRunContract({
+        inputDigests,
+        identificationClosure: runContract.identificationClosure,
+        panelSourceDigest: sha256Digest(widenedPanelSourceBytes),
+        panels: options.panels,
+        passivePanels: options.passivePanels,
+        budgets: realBuildRunBudgets(options),
+        thresholds: realBuildRunThresholds(options),
+        codeSnapshots,
+      });
+      const widenedPanelSourceDirectory = join(
+        run.directory,
+        "contradictory-panel-source-request-probe",
+      );
+      mkdirSync(widenedPanelSourceDirectory);
+      expect(() =>
+        writeRealBuildReplayClosure({
+          directory: widenedPanelSourceDirectory,
+          repoRoot: sourceMirror.root,
+          roles: currentReplayRoles(
+            encodeRealBuildPreparedRunInput(options),
+            widenedPanelSourceContract,
+            { "panel-source": widenedPanelSourceBytes },
+          ),
+          sourceFiles: sourceMirror.files.map(({ path }) => path),
+          environment: {
+            ...replayEnvironment,
+            runContractDigest: widenedPanelSourceContract.contractDigest,
+          },
+          browserOutputRetained: true,
+        }),
+      ).toThrow(/panel-source requestedLastStep 2.*prepared-options lastStep 1/u);
+      const noncanonicalPreparedProbeDirectory = join(run.directory, "noncanonical-prepared-probe");
+      mkdirSync(noncanonicalPreparedProbeDirectory);
+      const canonicalPreparedOptions = encodeRealBuildPreparedRunInput(options);
+      expect(() =>
+        writeRealBuildReplayClosure({
+          directory: noncanonicalPreparedProbeDirectory,
+          repoRoot: sourceMirror.root,
+          roles: currentReplayRoles(Buffer.concat([Buffer.from(" "), canonicalPreparedOptions])),
+          sourceFiles: sourceMirror.files.map(({ path }) => path),
+          environment: replayEnvironment,
+          browserOutputRetained: true,
+        }),
+      ).toThrow(/canonical compact JSON bytes/u);
       writeFileSync(join(run.directory, served.runnerFile), served.runnerBytes);
       writeFileSync(join(run.directory, served.manifestFile), served.manifestBytes);
       const replayClosure = writeRealBuildReplayClosure({
         directory: run.directory,
         repoRoot: sourceMirror.root,
-        roles: [
-          ...Object.entries(rawRoleBytes).map(([role, bytes]) => ({ role, bytes })),
-          {
-            role: "browser-output",
-            bytes: new TextEncoder().encode(JSON.stringify(retainedBrowserOutput)),
-          },
-          {
-            role: "prepared-options",
-            bytes: new TextEncoder().encode(JSON.stringify(options)),
-          },
-          {
-            role: "run-contract",
-            bytes: new TextEncoder().encode(JSON.stringify(runContract)),
-          },
-        ],
+        roles: currentReplayRoles(canonicalPreparedOptions),
         sourceFiles: sourceMirror.files.map(({ path }) => path),
-        environment: {
-          schemaVersion: "lego.real-build-environment/1",
-          node: process.version,
-          platform: process.platform,
-          arch: process.arch,
-          versions: process.versions,
-          browser: { name: "chromium", version: "test" },
-          playwright: "@playwright/test (exact package bytes retained in source bundle)",
-          replayProtocol: 1,
-          bootstrapSourceManifestDigest: bootstrapManifest.manifestDigest,
-          runContractDigest: runContract.contractDigest,
-          servedResponseManifestDigest: sha256Digest(served.manifestBytes),
-        },
+        environment: replayEnvironment,
         browserOutputRetained: true,
       });
       const result = finalizeExecutedRealBuildResult({
@@ -262,16 +582,15 @@ describe("real-build replay closure", () => {
       });
       writeFileSync(
         join(run.directory, "score.json"),
-        `${JSON.stringify(
+        encodeCanonicalRealBuildJson(
           createRealBuildScore({
             runId: plan.runId,
             result,
             accounting: options.accounting,
             lastStep: options.lastStep,
           }),
-          null,
-          1,
-        )}\n`,
+          "pretty-one-space-line",
+        ),
       );
       writeRealBuildArtifactManifest({
         directory: run.directory,
@@ -310,9 +629,10 @@ describe("real-build replay closure", () => {
       );
       expect(closure).toMatchObject({ authority: "local-diagnostic", authenticated: false });
       const verified = verifyRealBuildReplayClosureData(published);
-      expect(verified.roleBytes.get("official-model")).toBe(
+      expect(verified.roleBytes.get("official-model")).not.toBe(
         verified.roleBytes.get("action-ledger"),
       );
+      expect(verified.roleBytes.get("action-ledger")).toEqual(rawRoleBytes["action-ledger"]);
       expect(JSON.parse(readFileSync(plan.pointerPath, "utf8"))).toEqual({
         schemaVersion: "lego.real-build-run-pointer/2",
         runId: plan.runId,
@@ -324,11 +644,42 @@ describe("real-build replay closure", () => {
       const artifactManifestPath = join(published, "artifact-manifest.json");
       const originalScore = readFileSync(scorePath);
       const originalArtifactManifest = readFileSync(artifactManifestPath);
+      const duplicateArtifactManifest = originalArtifactManifest
+        .toString("utf8")
+        .replace('"runContract":', '"runContract":{},"runContract":');
+      writeFileSync(artifactManifestPath, duplicateArtifactManifest);
+      expect(() => verifyRealBuildArtifactManifest(published, plan.runId)).toThrow(
+        /duplicate-free finite UTF-8/u,
+      );
+      writeFileSync(artifactManifestPath, originalArtifactManifest);
+
+      const duplicateScoreBytes = Buffer.from(
+        originalScore.toString("utf8").replace('"steps":', '"steps":[],"steps":'),
+      );
+      const duplicateScoreManifest = JSON.parse(originalArtifactManifest.toString("utf8")) as {
+        artifacts: { file: string; bytes: number; digest: string }[];
+      };
+      const duplicateScoreEntry = duplicateScoreManifest.artifacts.find(
+        ({ file }) => file === "score.json",
+      )!;
+      duplicateScoreEntry.bytes = duplicateScoreBytes.length;
+      duplicateScoreEntry.digest = sha256Digest(duplicateScoreBytes);
+      writeFileSync(scorePath, duplicateScoreBytes);
+      writeFileSync(
+        artifactManifestPath,
+        encodeCanonicalRealBuildJson(duplicateScoreManifest, "pretty-one-space-line"),
+      );
+      expect(() => verifyRealBuildArtifactManifest(published, plan.runId)).toThrow(
+        /duplicate-free finite UTF-8/u,
+      );
+      writeFileSync(scorePath, originalScore);
+      writeFileSync(artifactManifestPath, originalArtifactManifest);
+
       const forgedScore = JSON.parse(originalScore.toString("utf8")) as {
         steps: Record<string, unknown>[];
       };
       delete forgedScore.steps[0]!.fit;
-      const forgedScoreBytes = Buffer.from(`${JSON.stringify(forgedScore, null, 1)}\n`);
+      const forgedScoreBytes = encodeCanonicalRealBuildJson(forgedScore, "pretty-one-space-line");
       writeFileSync(scorePath, forgedScoreBytes);
       const forgedArtifactManifest = JSON.parse(originalArtifactManifest.toString("utf8")) as {
         artifacts: { file: string; bytes: number; digest: string }[];
@@ -338,7 +689,10 @@ describe("real-build replay closure", () => {
       )!;
       scoreEntry.bytes = forgedScoreBytes.length;
       scoreEntry.digest = sha256Digest(forgedScoreBytes);
-      writeFileSync(artifactManifestPath, `${JSON.stringify(forgedArtifactManifest, null, 1)}\n`);
+      writeFileSync(
+        artifactManifestPath,
+        encodeCanonicalRealBuildJson(forgedArtifactManifest, "pretty-one-space-line"),
+      );
       expect(() => verifyRealBuildArtifactManifest(published, plan.runId)).toThrow(
         /does not exactly reproduce/u,
       );
@@ -349,8 +703,9 @@ describe("real-build replay closure", () => {
         schemaVersion: string;
       };
       mixedGenerationScore.schemaVersion = "lego.real-build-score/4";
-      const mixedGenerationScoreBytes = Buffer.from(
-        `${JSON.stringify(mixedGenerationScore, null, 1)}\n`,
+      const mixedGenerationScoreBytes = encodeCanonicalRealBuildJson(
+        mixedGenerationScore,
+        "pretty-one-space-line",
       );
       writeFileSync(scorePath, mixedGenerationScoreBytes);
       const mixedGenerationManifest = JSON.parse(originalArtifactManifest.toString("utf8")) as {
@@ -361,7 +716,10 @@ describe("real-build replay closure", () => {
       )!;
       mixedGenerationEntry.bytes = mixedGenerationScoreBytes.length;
       mixedGenerationEntry.digest = sha256Digest(mixedGenerationScoreBytes);
-      writeFileSync(artifactManifestPath, `${JSON.stringify(mixedGenerationManifest, null, 1)}\n`);
+      writeFileSync(
+        artifactManifestPath,
+        encodeCanonicalRealBuildJson(mixedGenerationManifest, "pretty-one-space-line"),
+      );
       expect(() => verifyRealBuildArtifactManifest(published, plan.runId)).toThrow(
         /Retained score must bind/u,
       );
@@ -380,7 +738,7 @@ describe("real-build replay closure", () => {
         authenticated: false,
         replayLevel: "downstream-only",
         contractDigest: runContract.contractDigest,
-        contractSchemaVersion: "lego.real-build-run-contract/3",
+        contractSchemaVersion: "lego.real-build-run-contract/4",
       });
       expect(inspected.roleTrace.map(({ role }) => role)).toContain("builder-geometry");
       expect(inspected.roleTrace.map(({ role }) => role)).toEqual(
@@ -403,11 +761,15 @@ describe("real-build replay closure", () => {
 
       const manifestPath = join(published, "replay-closure.json");
       const originalManifest = readFileSync(manifestPath);
+      writeFileSync(
+        manifestPath,
+        originalManifest.toString("utf8").replace('"roles":', '"roles":[],"roles":'),
+      );
+      expect(() => verifyRealBuildReplayClosure(published)).toThrow(/duplicate-free finite UTF-8/u);
+      writeFileSync(manifestPath, originalManifest);
       const selfRehashed = JSON.parse(originalManifest.toString("utf8")) as Record<string, unknown>;
       selfRehashed.authenticated = true;
-      delete selfRehashed.manifestDigest;
-      selfRehashed.manifestDigest = sha256Digest(JSON.stringify(selfRehashed));
-      writeFileSync(manifestPath, `${JSON.stringify(selfRehashed, null, 1)}\n`);
+      writeFileSync(manifestPath, encodeRehashedReplayManifest(selfRehashed));
       expect(() => verifyRealBuildReplayClosure(published)).toThrow(/schema is malformed/u);
       writeFileSync(manifestPath, originalManifest);
 
@@ -429,9 +791,7 @@ describe("real-build replay closure", () => {
         if (roleName === "environment") forged.environmentDigest = roleDigest;
         mkdirSync(join(published, "cas", "sha256", hex.slice(0, 2)), { recursive: true });
         writeFileSync(join(published, entry.casPath), bytes);
-        delete forged.manifestDigest;
-        forged.manifestDigest = sha256Digest(JSON.stringify(forged));
-        writeFileSync(manifestPath, `${JSON.stringify(forged, null, 1)}\n`);
+        writeFileSync(manifestPath, encodeRehashedReplayManifest(forged));
       };
       rewriteReservedJsonRole("browser-output", Buffer.from("{}"));
       expect(() => verifyRealBuildReplayClosure(published)).toThrow(
@@ -444,32 +804,46 @@ describe("real-build replay closure", () => {
       expect(() => verifyRealBuildReplayClosure(published)).toThrow(
         /browser-output must be an executed or failed object/u,
       );
+      const duplicateBrowserOutput = new TextDecoder()
+        .decode(encodeCanonicalRealBuildJson(browserOutput()))
+        .replace('"reports":', '"reports":[],"reports":');
+      rewriteReservedJsonRole("browser-output", Buffer.from(duplicateBrowserOutput));
+      expect(() => verifyRealBuildReplayClosure(published)).toThrow(/duplicate-free finite UTF-8/u);
       rewriteReservedJsonRole(
         "browser-output",
-        Buffer.from(
-          JSON.stringify({
-            ...browserOutput(),
-            reports: [
-              {
-                stepNumber: 1,
-                pageNumber: 1,
-                pieces: [],
-                action: {},
-                outcome: {},
-                validation: { attempted: true, blockingIssues: [] },
-                elapsedMs: 0,
-                panelPng: null,
-                buildPng: null,
-              },
-            ],
-          }),
-        ),
+        encodeCanonicalRealBuildJson({
+          ...browserOutput(),
+          reports: [
+            {
+              stepNumber: 1,
+              pageNumber: 1,
+              pieces: [],
+              action: {},
+              outcome: {},
+              validation: { attempted: true, blockingIssues: [] },
+              elapsedMs: 0,
+              panelPng: null,
+              buildPng: null,
+            },
+          ],
+        }),
       );
       expect(() => verifyRealBuildReplayClosure(published)).toThrow(
         /complete prepared-panel boundary shape/u,
       );
       rewriteReservedJsonRole("environment", Buffer.from([0xc3, 0x28]));
-      expect(() => verifyRealBuildReplayClosure(published)).toThrow(/not canonical UTF-8/u);
+      expect(() => verifyRealBuildReplayClosure(published)).toThrow(/duplicate-free finite UTF-8/u);
+      const environmentRole = closure.roles.find(({ role }) => role === "environment")!;
+      const originalEnvironment = readFileSync(join(published, environmentRole.casPath));
+      rewriteReservedJsonRole(
+        "environment",
+        Buffer.from(
+          originalEnvironment
+            .toString("utf8")
+            .replace('"schemaVersion":', '"schemaVersion":"hidden","schemaVersion":'),
+        ),
+      );
+      expect(() => verifyRealBuildReplayClosure(published)).toThrow(/duplicate-free finite UTF-8/u);
       writeFileSync(manifestPath, originalManifest);
 
       const browserRole = closure.roles.find(({ role }) => role === "browser-output")!;
@@ -479,20 +853,18 @@ describe("real-build replay closure", () => {
       );
       writeFileSync(
         join(published, browserRole.casPath),
-        new TextEncoder().encode(JSON.stringify(browserOutput())),
+        encodeCanonicalRealBuildJson(browserOutput()),
       );
 
       writeFileSync(manifestPath, Buffer.from([0xff]));
-      expect(() => verifyRealBuildReplayClosure(published)).toThrow(/not canonical UTF-8/u);
+      expect(() => verifyRealBuildReplayClosure(published)).toThrow(/duplicate-free finite UTF-8/u);
 
       const oversizedRoleManifest = JSON.parse(originalManifest.toString("utf8")) as {
         roles: { role: string; bytes: number }[];
         manifestDigest?: string;
       };
       oversizedRoleManifest.roles.find(({ role }) => role === "pdf")!.bytes = 96 * 1024 * 1024 + 1;
-      delete oversizedRoleManifest.manifestDigest;
-      oversizedRoleManifest.manifestDigest = sha256Digest(JSON.stringify(oversizedRoleManifest));
-      writeFileSync(manifestPath, `${JSON.stringify(oversizedRoleManifest, null, 1)}\n`);
+      writeFileSync(manifestPath, encodeRehashedReplayManifest(oversizedRoleManifest));
       expect(() => verifyRealBuildReplayClosure(published)).toThrow(
         /Replay role pdf.*role-specific requirement/u,
       );

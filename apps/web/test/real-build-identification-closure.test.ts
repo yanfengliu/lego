@@ -579,6 +579,22 @@ describe("real-build identification closure", () => {
     },
   );
 
+  it("rejects broader retained coverage instead of filtering and republishing its tail", () => {
+    const fixture = closureFixture();
+    const coverageValue = structuredClone(fixture.input.coverage.value) as Record<string, unknown>;
+    coverageValue.lastStep = 359;
+
+    expect(() =>
+      prepareRealBuildIdentificationClosure({
+        ...fixture.input,
+        coverage: artifact(coverageValue),
+        requestedLastStep: 1,
+      }),
+    ).toThrow(
+      /exact requested compiled prefix 1; broader or shorter coverage cannot supply identity authority/u,
+    );
+  });
+
   it.each([
     [Number.NaN, "NaN"],
     [Number.POSITIVE_INFINITY, "Infinity"],

@@ -21,6 +21,7 @@ describe("unbound catalog coverage", () => {
     return validateRealBuildActionLedger({
       ledger: fixture.ledger,
       ledgerDigest: sha256Digest(JSON.stringify(fixture.ledger)),
+      requestedLastStep: 359,
       lastStep: 359,
       official: fixture.official,
       pdfDigest: fixture.pdfDigest,

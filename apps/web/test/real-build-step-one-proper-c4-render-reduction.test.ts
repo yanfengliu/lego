@@ -14,6 +14,7 @@ import {
   inspectRealBuildPreparedObservationPolicy,
   inspectRealBuildPreparedStepInput,
 } from "../e2e/real-build-prepared-step-authority";
+import { encodeRealBuildPreparedRunInput } from "../e2e/real-build-prepared-run-input-parser";
 import { inspectRealBuildStepOneProperC4Quotient } from "../e2e/real-build-step-one-proper-c4-quotient";
 import {
   requireRealBuildStepOneProperC4RenderReductionInspection,
@@ -108,7 +109,7 @@ function currentCatalogStepOneBytes(): Uint8Array {
       colorId: "builtin:black",
     })),
   };
-  return new TextEncoder().encode(JSON.stringify({ ...options, panels }));
+  return encodeRealBuildPreparedRunInput({ ...options, panels });
 }
 
 function buildCurrentControl() {
@@ -343,7 +344,7 @@ describe("step-one proper-C4 twenty-closure render reduction", () => {
     const { compiler, equivariance, result } = runReduction(counts);
 
     expect(result.quotientDigest).toBe(
-      "sha256:660f8c7c8ea2eac42e7c006acd911099ac28e10af2b8e055adad711cd9643421",
+      "sha256:e9f23510849153d022bb0aafd6dbf5281bbf6c519c7aff8d14bdefd0fd1145b9",
     );
     expect(currentControl().quotient.rawRosterDigest).toBe(
       "sha256:24e68a134cf86c181ede701c2f189d1f2816af4a83510e2a841f270249d5ce72",

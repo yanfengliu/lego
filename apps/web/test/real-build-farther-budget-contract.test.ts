@@ -39,7 +39,7 @@ const isFrozenLegacyBrowserOutput = (
   }
 };
 
-const basePrepared = options(1);
+const basePrepared = options(2);
 const prepared = {
   ...basePrepared,
   deferredCandidateBudget: 2,
@@ -206,8 +206,12 @@ const parses = (value: unknown): boolean =>
   isRealBuildFartherEvidence(value, 1, 0, deferral, prepared);
 
 const retainedOutput = () => {
-  const base = frozenLegacyBrowserOutput(1);
+  const base = frozenLegacyBrowserOutput(2);
   const farther = evidence("aggregate-candidate-budget-exhausted");
+  const terminalReport = {
+    ...base.reports[1]!,
+    action: prepared.panels[1]!.action,
+  };
   return {
     ...base,
     reports: [
@@ -245,6 +249,7 @@ const retainedOutput = () => {
           },
         ],
       },
+      terminalReport,
     ],
   };
 };
@@ -337,6 +342,7 @@ describe("real-build farther aggregate reservation witnesses", () => {
               farther: null,
               fartherCaptures: [],
             },
+            ...honest.reports.slice(1),
           ],
         },
         prepared,
@@ -354,6 +360,7 @@ describe("real-build farther aggregate reservation witnesses", () => {
               farther: null,
               fartherCaptures: [],
             },
+            ...honest.reports.slice(1),
           ],
         },
         prepared,
@@ -365,7 +372,10 @@ describe("real-build farther aggregate reservation witnesses", () => {
     const honest = retainedOutput();
     const withoutFarther = {
       ...honest,
-      reports: [{ ...honest.reports[0]!, farther: null, fartherCaptures: [] }],
+      reports: [
+        { ...honest.reports[0]!, farther: null, fartherCaptures: [] },
+        ...honest.reports.slice(1),
+      ],
     };
     expect(
       isFrozenLegacyBrowserOutput(withoutFarther, {
@@ -394,7 +404,10 @@ describe("real-build farther aggregate reservation witnesses", () => {
       isFrozenLegacyBrowserOutput(
         {
           ...withoutFarther,
-          reports: [{ ...withoutFarther.reports[0]!, deferral: earlyRefusal }],
+          reports: [
+            { ...withoutFarther.reports[0]!, deferral: earlyRefusal },
+            ...withoutFarther.reports.slice(1),
+          ],
         },
         prepared,
       ),
@@ -443,6 +456,7 @@ describe("real-build farther aggregate reservation witnesses", () => {
           },
           pieces: [weakDeferredPiece],
         },
+        ...honest.reports.slice(1),
       ],
     };
     expect(isFrozenLegacyBrowserOutput(failed, prepared)).toBe(true);
@@ -453,11 +467,17 @@ describe("real-build farther aggregate reservation witnesses", () => {
           reports: [
             {
               ...failed.reports[0]!,
-              outcome: { ...failed.reports[0]!.outcome, attemptedMechanism: "highlight" },
+              outcome: {
+                status: "failed" as const,
+                mechanism: "deferred" as const,
+                attemptedMechanism: "highlight" as const,
+                failure: weakDeferredPiece.failure,
+              },
               deferral: null,
               farther: null,
               fartherCaptures: [],
             },
+            ...failed.reports.slice(1),
           ],
         },
         prepared,

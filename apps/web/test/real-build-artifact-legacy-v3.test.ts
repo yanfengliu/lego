@@ -116,6 +116,18 @@ function legacyFixture() {
     structuralHash: diagnostic.structuralHash,
     parts: diagnostic.parts,
   };
+  const frameMismatches = assertFrozenLegacyIdentityProjectionV2({
+    panels: replayOptions.panels.filter(({ stepNumber }) => stepNumber <= replayOptions.lastStep),
+    reports: current.reports,
+    document,
+    bindings: browserOutput.identityBindings,
+  });
+  const firstFrameMismatch = frameMismatches[0];
+  if (firstFrameMismatch === undefined) {
+    throw new TypeError(
+      "Synthetic legacy artifact fixture requires an official-frame calibration mismatch.",
+    );
+  }
   const scoreSteps = reports.map(({ panelPng, buildPng, fartherCaptures, ...report }) => ({
     ...report,
     panelPng:
@@ -162,10 +174,10 @@ function legacyFixture() {
         stage: "validation",
         stepNumber: 1,
         message:
-          `1 visually searched placement(s) differ from their raw calibrated official-model transforms; the ` +
-          `first is ${replayOptions.panels[0]!.pieces[1]!.identityKey} at printed step 1: searched ` +
-          `{"positionLdu":[0,-24,0],"orientationId":"upright-yaw-0"}, official ` +
-          `{"positionLdu":[0,24,0],"orientationId":"upright-yaw-0"}. The repository has no independently ` +
+          `${frameMismatches.length} visually searched placement(s) differ from their raw calibrated ` +
+          `official-model transforms; the first is ${firstFrameMismatch.identityKey} at printed step ` +
+          `${firstFrameMismatch.stepNumber}: searched ${JSON.stringify(firstFrameMismatch.transform)}, ` +
+          `official ${JSON.stringify(firstFrameMismatch.officialTransform)}. The repository has no independently ` +
           `proven proper world-frame mapping from the booklet search branch to the official target. The exact ` +
           `valid candidate bytes remain diagnostic, but target equivalence and completion are unavailable; do ` +
           `not treat a reflection as a frame or use the official transforms to choose the visual-search answer.`,

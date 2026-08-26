@@ -459,6 +459,7 @@ describe("consumption by the action ledger", () => {
       validateRealBuildActionLedger({
         ledger,
         ledgerDigest: sha256Digest(JSON.stringify(ledger)),
+        requestedLastStep: TERMINAL_STEP,
         lastStep: TERMINAL_STEP,
         official: fixture.official,
         pdfDigest: fixture.pdfDigest,

@@ -46,6 +46,7 @@ export type {
   RealBuildAccounting,
   RealBuildInputDigests,
   RealBuildOptions,
+  RealBuildPanelRasterSpec,
   RealBuildPanelSpec,
   RealBuildStepAction,
 } from "./real-build-options-types";

@@ -13,11 +13,11 @@ import type {
 } from "../e2e/real-build-browser-output-v4-source-evidence-types";
 import { createRealBuildBrowserOutputV4SourceEvidenceManifest } from "../e2e/real-build-browser-output-v4-source-evidence-writer";
 import { stepPanelEvidenceDigest } from "../e2e/real-build-panel-evidence-digest";
+import { encodeRealBuildPreparedRunInput } from "../e2e/real-build-prepared-run-input-parser";
 import { inspectRealBuildPreparedRunInput } from "../e2e/real-build-prepared-step-authority";
 import type { RealBuildOptions, RealBuildPanelSpec } from "../e2e/real-build-safety";
 import { completeRealBuildTestOptions } from "./real-build-test-options";
 
-const ENCODER = new TextEncoder();
 const HIGH_WIDTH = 1_000;
 const PANEL_BOUNDS = { minXPt: 0, maxXPt: 100, minYPt: 0, maxYPt: 1 } as const;
 
@@ -157,7 +157,7 @@ export function unpackSelectedSourceMask(
 
 export function realBuildBrowserOutputV4SelectedSourceFixture() {
   const options = preparedOptions();
-  const preparedRunInputBytes = ENCODER.encode(JSON.stringify(options));
+  const preparedRunInputBytes = encodeRealBuildPreparedRunInput(options);
   const preparedRun = inspectRealBuildPreparedRunInput(preparedRunInputBytes);
   const artifacts = Array.from({ length: 359 }, (_, index) => panelArtifact(options, index + 1));
   const manifestBytes = createRealBuildBrowserOutputV4SourceEvidenceManifest({

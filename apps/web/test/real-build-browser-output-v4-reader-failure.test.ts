@@ -11,8 +11,9 @@ import {
   inspectRealBuildPreparedPanelFromRunInput,
   inspectRealBuildPreparedRunInput,
 } from "../e2e/real-build-prepared-step-authority";
+import { encodeRealBuildPreparedRunInput } from "../e2e/real-build-prepared-run-input-parser";
 import type { RealBuildStepReport } from "../e2e/real-build-safety";
-import { SOURCE_EVIDENCE_TEST_PREPARED_OPTIONS } from "./real-build-browser-output-v4-source-evidence-fixture";
+import { completeRealBuildTestOptions } from "./real-build-test-options";
 
 const DIGEST_A = `sha256:${"a".repeat(64)}`;
 const DIGEST_B = `sha256:${"b".repeat(64)}`;
@@ -84,7 +85,8 @@ function step(input: {
 
 describe("browser-output /4 terminal failure projection", () => {
   it("refuses missing-role projection when prepared placement prerequisites remain unresolved", () => {
-    const stepIndex = SOURCE_EVIDENCE_TEST_PREPARED_OPTIONS.panels.findIndex(
+    const prerequisiteOptions = completeRealBuildTestOptions(359);
+    const stepIndex = prerequisiteOptions.panels.findIndex(
       ({ action }) => action.kind === "place-callouts",
     );
     expect(stepIndex).toBeGreaterThanOrEqual(0);
@@ -92,12 +94,10 @@ describe("browser-output /4 terminal failure projection", () => {
       { unresolvedCallouts: ["callout:unresolved"] },
       { missingDesigns: ["design:missing"] },
     ]) {
-      const panels = [...SOURCE_EVIDENCE_TEST_PREPARED_OPTIONS.panels];
+      const panels = [...prerequisiteOptions.panels];
       panels[stepIndex] = { ...panels[stepIndex]!, ...prerequisitePatch };
       const preparedRun = inspectRealBuildPreparedRunInput(
-        new TextEncoder().encode(
-          JSON.stringify({ ...SOURCE_EVIDENCE_TEST_PREPARED_OPTIONS, panels }),
-        ),
+        encodeRealBuildPreparedRunInput({ ...prerequisiteOptions, panels }),
       );
       const preparedPanel = inspectRealBuildPreparedPanelFromRunInput(preparedRun, stepIndex + 1);
 

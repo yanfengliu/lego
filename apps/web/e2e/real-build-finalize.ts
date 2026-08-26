@@ -1,4 +1,5 @@
 import {
+  canonicalStringify,
   deriveBuildSequence,
   documentStructuralHash,
   validateBrickDocument,
@@ -406,7 +407,7 @@ function auditCanonicalOutput(
       structurallyTrusted && !targetTrusted
         ? createRealBuildDiagnosticPrefix(input.document)
         : null,
-    documentJson: targetTrusted ? JSON.stringify(input.document) : null,
+    documentJson: targetTrusted ? canonicalStringify(input.document) : null,
     structuralHash: targetTrusted ? candidateHash : null,
     finalParts: targetTrusted ? input.document.parts.length : 0,
   };

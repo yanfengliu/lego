@@ -27,6 +27,7 @@ import {
 import { createRealBuildBrowserOutputV4SourceEvidenceManifest } from "../e2e/real-build-browser-output-v4-source-evidence-writer";
 import { unexecutedStepReport } from "../e2e/real-build-contract";
 import { stepPanelEvidenceDigest } from "../e2e/real-build-panel-evidence-digest";
+import { encodeRealBuildPreparedRunInput } from "../e2e/real-build-prepared-run-input-parser";
 import { inspectRealBuildPreparedRunInput } from "../e2e/real-build-prepared-step-authority";
 import type { RealBuildOptions, RealBuildPanelSpec, StepFailure } from "../e2e/real-build-safety";
 import { completeRealBuildTestOptions } from "./real-build-test-options";
@@ -61,7 +62,7 @@ function tinyPreparedRun(): { readonly bytes: Uint8Array; readonly options: Real
     };
   });
   const options = { ...base, panels };
-  return { bytes: new TextEncoder().encode(JSON.stringify(options)), options };
+  return { bytes: encodeRealBuildPreparedRunInput(options), options };
 }
 
 function sourceInspection(preparedBytes: Uint8Array, options: RealBuildOptions) {
@@ -256,7 +257,10 @@ describe("browser-output /4 prepared/source/camera provenance cross-binding", ()
     });
 
     expect(inspection).toMatchObject({
-      preparedPanels: 359,
+      schemaVersion: "lego.real-build-browser-output-v4-provenance-inspection/2",
+      sourceIndexPanels: 359,
+      preparedActionPanels: 359,
+      passiveObservationPanels: 0,
       indexedBranchSteps: 0,
       cameraRows: 0,
       derivationReproducible: true,

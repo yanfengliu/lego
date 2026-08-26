@@ -140,6 +140,7 @@ export async function writePythonReportContractFixture(rootInput, coverageSource
         digest: sha256Digest(TEST_BUILDER_GEOMETRY_BYTES),
       },
       transitionClassifications: transitionsArtifact,
+      requestedLastStep: 1,
     });
     write(root, "output/real-build/action-ledger.json", ledgerFixture.encoded);
   }

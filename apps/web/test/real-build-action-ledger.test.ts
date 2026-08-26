@@ -31,7 +31,9 @@ import { buildTransitionClassificationEntry } from "../e2e/real-build-transition
 const CATALOG_PART = "builtin:brick-1x1";
 const OTHER_CATALOG_PART = "builtin:brick-1x2";
 const SUCCESSFUL_CURSOR_RESULT =
-  "the cumulative quantity cursor was corroborated through printed step 1; " +
+  "the cumulative quantity cursor was corroborated through requested printed step 1 of the 359-step " +
+  "source/index contract; printed steps 2..359 remain in that declared contract and were intentionally " +
+  "not assembled or corroborated by this action ledger; " +
   "this does not claim every retained callout was admitted as a ledger action.";
 
 type OfficialDesignFixture = readonly [brickRef: string, designId: string, itemNos?: string];
@@ -242,7 +244,8 @@ describe("assembleRealBuildActionLedger", () => {
       coverageByCallout,
       panelEvidenceByStep: panels,
       transitionClassificationsByStep: transitions,
-      expectedPrintedSteps: 3,
+      expectedPrintedSteps: 359,
+      requestedLastStep: 3,
     });
     expect(assembled.alignedThroughStep).toBe(3);
     expect(assembled.directPieceCount).toBe(2);
@@ -255,10 +258,11 @@ describe("assembleRealBuildActionLedger", () => {
     });
     expect(
       validateRealBuildActionLedger({
-        ledger: assembled.ledger,
+        ledger: emittedRealBuildActionLedger(assembled),
         ledgerDigest: sha256Digest(
-          encodeRealBuildActionLedger(emittedRealBuildActionLedger(assembled, 3)),
+          encodeRealBuildActionLedger(emittedRealBuildActionLedger(assembled)),
         ),
+        requestedLastStep: 3,
         lastStep: 3,
         official,
         pdfDigest: BINDINGS.pdfDigest,
@@ -290,7 +294,8 @@ describe("assembleRealBuildActionLedger", () => {
       },
       panelEvidenceByStep: panels,
       transitionClassificationsByStep: {},
-      expectedPrintedSteps: 1,
+      expectedPrintedSteps: 359,
+      requestedLastStep: 1,
     });
     expect(assembled.directPieceCount).toBe(0);
     expect(assembled.ledger.steps[0]!.callouts).toEqual([]);
@@ -317,7 +322,8 @@ describe("assembleRealBuildActionLedger", () => {
       },
       panelEvidenceByStep: panels,
       transitionClassificationsByStep: {},
-      expectedPrintedSteps: 1,
+      expectedPrintedSteps: 359,
+      requestedLastStep: 1,
     });
     expect(assembled.alignedThroughStep).toBe(0);
     expect(assembled.stopReason).toContain("p1|q1|x1.000|y1.000");
@@ -345,7 +351,8 @@ describe("assembleRealBuildActionLedger", () => {
       },
       panelEvidenceByStep: panels,
       transitionClassificationsByStep: {},
-      expectedPrintedSteps: 1,
+      expectedPrintedSteps: 359,
+      requestedLastStep: 1,
     });
     expect(assembled.alignedThroughStep).toBe(1);
     expect(assembled.stopReason).toBe(SUCCESSFUL_CURSOR_RESULT);
@@ -384,7 +391,8 @@ describe("assembleRealBuildActionLedger", () => {
       },
       panelEvidenceByStep: panelEvidence([1]),
       transitionClassificationsByStep: {},
-      expectedPrintedSteps: 1,
+      expectedPrintedSteps: 359,
+      requestedLastStep: 1,
     });
     expect(assembled.alignedThroughStep).toBe(0);
     expect(assembled.ledger.steps).toEqual([]);
@@ -418,7 +426,8 @@ describe("assembleRealBuildActionLedger", () => {
       },
       panelEvidenceByStep: panels,
       transitionClassificationsByStep: {},
-      expectedPrintedSteps: 1,
+      expectedPrintedSteps: 359,
+      requestedLastStep: 1,
     });
     expect(assembled.alignedThroughStep).toBe(0);
     expect(assembled.stopReason).toContain('claims element "9999999"');
@@ -446,7 +455,8 @@ describe("assembleRealBuildActionLedger", () => {
       },
       panelEvidenceByStep: panelEvidence([1]),
       transitionClassificationsByStep: {},
-      expectedPrintedSteps: 1,
+      expectedPrintedSteps: 359,
+      requestedLastStep: 1,
     });
     expect(assembled.alignedThroughStep).toBe(0);
     expect(assembled.stopReason).toContain("quantity-derived cursor");
@@ -478,7 +488,8 @@ describe("assembleRealBuildActionLedger", () => {
         },
         panelEvidenceByStep: panelEvidence([1]),
         transitionClassificationsByStep: {},
-        expectedPrintedSteps: 1,
+        expectedPrintedSteps: 359,
+        requestedLastStep: 1,
       });
       expect(assembled.alignedThroughStep).toBe(0);
       expect(assembled.stopReason).toContain(`has ${itemNos.length} itemNos`);
@@ -507,7 +518,8 @@ describe("assembleRealBuildActionLedger", () => {
       },
       panelEvidenceByStep: panelEvidence([1]),
       transitionClassificationsByStep: {},
-      expectedPrintedSteps: 1,
+      expectedPrintedSteps: 359,
+      requestedLastStep: 1,
     });
     expect(assembled.alignedThroughStep).toBe(0);
     expect(assembled.stopReason).toContain("only 1 of 2 printed unit(s) matched");
@@ -531,7 +543,8 @@ describe("assembleRealBuildActionLedger", () => {
       },
       panelEvidenceByStep: panelEvidence([1]),
       transitionClassificationsByStep: {},
-      expectedPrintedSteps: 1,
+      expectedPrintedSteps: 359,
+      requestedLastStep: 1,
     });
     expect(assembled.alignedThroughStep).toBe(1);
     expect(assembled.stopReason).toBe(SUCCESSFUL_CURSOR_RESULT);
@@ -558,7 +571,8 @@ describe("assembleRealBuildActionLedger", () => {
       },
       panelEvidenceByStep: panels,
       transitionClassificationsByStep: {},
-      expectedPrintedSteps: 2,
+      expectedPrintedSteps: 359,
+      requestedLastStep: 2,
     });
     expect(assembled.alignedThroughStep).toBe(1);
     expect(assembled.stopReason).toContain("printed step 2");
@@ -578,7 +592,8 @@ describe("assembleRealBuildActionLedger", () => {
       },
       panelEvidenceByStep: panels,
       transitionClassificationsByStep: {},
-      expectedPrintedSteps: 1,
+      expectedPrintedSteps: 359,
+      requestedLastStep: 1,
     });
     expect(assembled.directPieceCount).toBe(0);
     expect(assembled.ledger.steps[0]!.callouts).toEqual([]);
@@ -619,7 +634,8 @@ describe("assembleRealBuildActionLedger", () => {
         },
         panelEvidenceByStep: panelEvidence([1]),
         transitionClassificationsByStep: {},
-        expectedPrintedSteps: 1,
+        expectedPrintedSteps: 359,
+        requestedLastStep: 1,
       });
       expect(assembled.alignedThroughStep).toBe(0);
       expect(assembled.directPieceCount).toBe(0);
@@ -649,7 +665,8 @@ describe("assembleRealBuildActionLedger", () => {
       },
       panelEvidenceByStep: panelEvidence([1]),
       transitionClassificationsByStep: {},
-      expectedPrintedSteps: 1,
+      expectedPrintedSteps: 359,
+      requestedLastStep: 1,
     });
     expect(assembled.alignedThroughStep).toBe(1);
     expect(assembled.directPieceCount).toBe(0);
@@ -679,13 +696,15 @@ describe("assembleRealBuildActionLedger", () => {
       coverageByCallout,
       panelEvidenceByStep: panels,
       transitionClassificationsByStep: {},
-      expectedPrintedSteps: 1,
+      expectedPrintedSteps: 359,
+      requestedLastStep: 1,
     });
     expect(assembled.directPieceCount).toBe(1);
     expect(assembled.refusals).toEqual([]);
     const failures = validateRealBuildActionLedger({
-      ledger: assembled.ledger,
+      ledger: emittedRealBuildActionLedger(assembled),
       ledgerDigest: sha256Digest("fixture-ledger-bytes"),
+      requestedLastStep: 1,
       lastStep: 1,
       official,
       pdfDigest: BINDINGS.pdfDigest,
@@ -716,7 +735,8 @@ describe("assembleRealBuildActionLedger", () => {
       },
       panelEvidenceByStep: panels,
       transitionClassificationsByStep: {},
-      expectedPrintedSteps: 2,
+      expectedPrintedSteps: 359,
+      requestedLastStep: 2,
     });
     expect(assembled.alignedThroughStep).toBe(1);
     expect(assembled.stopReason).toContain("rotation, attachment, or final view");
@@ -730,7 +750,8 @@ describe("assembleRealBuildActionLedger", () => {
         coverageByCallout: {},
         panelEvidenceByStep: panelEvidence([1]),
         transitionClassificationsByStep: {},
-        expectedPrintedSteps: 1,
+        expectedPrintedSteps: 359,
+        requestedLastStep: 1,
       }),
     ).toThrow(/coverageDigest is "not-a-digest".*sha256:<64 hex>/su);
   });
@@ -865,33 +886,5 @@ describe("flattenOfficialBuilderIdentities", () => {
       { kind: "direct", brickRef: "brick-a", sourceBrickRef: null },
       { kind: "direct", brickRef: "brick-b", sourceBrickRef: null },
     ]);
-  });
-});
-
-describe("encodeRealBuildActionLedger", () => {
-  it("emits reproducible bytes that carry the refusals as unauthenticated provenance", () => {
-    const official = calibratedOfficial([["brick-a", "3005"]]);
-    const panels = panelEvidence([1]);
-    const assembled = assembleRealBuildActionLedger({
-      official,
-      bindings: BINDINGS,
-      coverageByCallout: {
-        "p1|q1|x1.000|y1.000": claim({
-          stepNumber: 1,
-          quantity: 1,
-          partNum: "3005",
-          confidence: "refused",
-        }),
-      },
-      panelEvidenceByStep: panels,
-      transitionClassificationsByStep: {},
-      expectedPrintedSteps: 1,
-    });
-    const emitted = emittedRealBuildActionLedger(assembled, 1);
-    expect(emitted.provenance.authenticated).toBe(false);
-    expect(emitted.provenance.refusals).toHaveLength(1);
-    expect(encodeRealBuildActionLedger(emitted).equals(encodeRealBuildActionLedger(emitted))).toBe(
-      true,
-    );
   });
 });

@@ -19,6 +19,8 @@ from part_identification_verification_bridge import verify_action_ledger
 SHA256 = re.compile(r"^sha256:[0-9a-f]{64}$")
 MAX_LEDGER_STEPS = 359
 MAX_LEDGER_IDENTITIES = 4_000
+CURRENT_ACTION_LEDGER_SCHEMA = "lego.real-build-action-ledger/3"
+CURRENT_ACTION_LEDGER_GENERATOR = "apps/web/e2e/real-build-action-ledger.spec.ts"
 
 
 def _mapping(value: object, label: str) -> Mapping:
@@ -100,9 +102,9 @@ def require_action_ledger_report_chain(
         },
         "Action ledger",
     )
-    if value["schemaVersion"] != "lego.real-build-action-ledger/2":
+    if value["schemaVersion"] != CURRENT_ACTION_LEDGER_SCHEMA:
         raise ArtifactContractError(
-            "Action ledger must use lego.real-build-action-ledger/2; received "
+            f"Action ledger must use {CURRENT_ACTION_LEDGER_SCHEMA}; received "
             f"{bounded_observed(value['schemaVersion'])}."
         )
     coverage_value = _mapping(coverage, "Action-ledger coverage")
@@ -293,6 +295,7 @@ def require_action_ledger_report_chain(
             "generator",
             "authenticated",
             "expectedPrintedSteps",
+            "requestedLastStep",
             "alignedThroughStep",
             "stopReason",
             "directPieceCount",
@@ -301,26 +304,68 @@ def require_action_ledger_report_chain(
         },
         "Action ledger provenance",
     )
-    _bounded_string(provenance["generator"], "Action ledger provenance.generator", 512)
+    generator = _bounded_string(
+        provenance["generator"], "Action ledger provenance.generator", 512
+    )
+    if generator != CURRENT_ACTION_LEDGER_GENERATOR:
+        raise ArtifactContractError(
+            "Action ledger provenance.generator must name the current action-ledger publisher; "
+            f"received {bounded_observed(generator)}."
+        )
     if provenance["authenticated"] is not False:
         raise ArtifactContractError(
             "Action ledger provenance.authenticated must remain false; this local diagnostic is not authority."
         )
     _whole(provenance["expectedPrintedSteps"], "Action ledger expectedPrintedSteps", 359, 359)
-    if provenance["alignedThroughStep"] != len(steps):
+    requested_last_step = _whole(
+        provenance["requestedLastStep"],
+        "Action ledger requestedLastStep",
+        1,
+        provenance["expectedPrintedSteps"],
+    )
+    coverage_last_step = _whole(
+        coverage_value.get("lastStep"),
+        "Action-ledger coverage.lastStep",
+        1,
+        MAX_LEDGER_STEPS,
+    )
+    if coverage_last_step != requested_last_step:
+        raise ArtifactContractError(
+            f"Action ledger requestedLastStep is {requested_last_step}, but exact coverage.lastStep is "
+            f"{coverage_last_step}. Regenerate both artifacts for the same bounded prefix."
+        )
+    aligned_through_step = _whole(
+        provenance["alignedThroughStep"],
+        "Action ledger provenance.alignedThroughStep",
+        1,
+        requested_last_step,
+    )
+    if aligned_through_step != len(steps):
         raise ArtifactContractError(
             "Action ledger provenance.alignedThroughStep is "
-            f"{bounded_observed(provenance['alignedThroughStep'])}, "
+            f"{aligned_through_step}, "
             f"but the dense retained prefix contains {len(steps)} steps."
         )
     _bounded_string(provenance["stopReason"], "Action ledger provenance.stopReason", 16_384)
-    if provenance["directPieceCount"] != accepted_count:
+    direct_piece_count = _whole(
+        provenance["directPieceCount"],
+        "Action ledger provenance.directPieceCount",
+        0,
+        MAX_LEDGER_IDENTITIES,
+    )
+    if direct_piece_count != accepted_count:
         raise ArtifactContractError(
             "Action ledger provenance.directPieceCount is "
             f"{bounded_observed(provenance['directPieceCount'])}, "
             f"but exact accepted action.pieces contain {accepted_count}."
         )
-    if provenance["transitionStepCount"] != transition_count:
+    transition_step_count = _whole(
+        provenance["transitionStepCount"],
+        "Action ledger provenance.transitionStepCount",
+        0,
+        MAX_LEDGER_STEPS,
+    )
+    if transition_step_count != transition_count:
         raise ArtifactContractError(
             "Action ledger provenance.transitionStepCount is "
             f"{bounded_observed(provenance['transitionStepCount'])}, "
@@ -335,8 +380,11 @@ def require_action_ledger_report_chain(
         label = f"Action ledger provenance.refusals[{index}]"
         refusal = _mapping(raw_refusal, label)
         _exact_fields(refusal, {"stepNumber", "calloutKey", "brickRef", "reason"}, label)
-        _whole(refusal["stepNumber"], f"{label}.stepNumber", 1, 359)
-        if not isinstance(refusal["calloutKey"], str) or CALLOUT_KEY.fullmatch(refusal["calloutKey"]) is None:
+        _whole(refusal["stepNumber"], f"{label}.stepNumber", 1, requested_last_step)
+        if refusal["calloutKey"] is not None and (
+            not isinstance(refusal["calloutKey"], str)
+            or CALLOUT_KEY.fullmatch(refusal["calloutKey"]) is None
+        ):
             raise ArtifactContractError(
                 f"{label}.calloutKey must be one canonical ASCII identity; received "
                 f"{bounded_observed(refusal['calloutKey'])}."

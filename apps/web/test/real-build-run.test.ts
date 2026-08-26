@@ -29,7 +29,7 @@ import {
   preflightRealBuildOptions,
 } from "../e2e/real-build-contract";
 import { realBuildExecutionFailure } from "../e2e/real-build-finalize";
-import { completeRealBuildTestOptions } from "./real-build-test-options";
+import { completeRealBuildTestOptions, realBuildTransitionPanel } from "./real-build-test-options";
 
 const TEST_DIGEST = `sha256:${"a".repeat(64)}`;
 const TEST_CLASSIFICATION_DIGEST = `sha256:${"b".repeat(64)}`;
@@ -422,6 +422,7 @@ describe("real booklet build safety", () => {
     panels[0] = { ...panels[0]!, pageNumber: 11, mappedCalloutKeys: ["p11-c0.png"] };
     const failures = preflightRealBuildOptions({
       panels,
+      passivePanels: [],
       expectedPrintedSteps: 359,
       lastStep: 359,
       accounting: OFFICIAL_REAL_BUILD_ACCOUNTING,
@@ -624,6 +625,7 @@ describe("real booklet build safety", () => {
     const digest = `sha256:${"a".repeat(64)}`;
     const input = {
       panels,
+      passivePanels: [],
       expectedPrintedSteps: 359,
       lastStep: 359,
       accounting: OFFICIAL_REAL_BUILD_ACCOUNTING,
@@ -706,6 +708,7 @@ describe("real booklet build safety", () => {
     expect(
       preflightRealBuildOptions({
         panels: badPanels,
+        passivePanels: [],
         expectedPrintedSteps: 359,
         lastStep: 359,
         accounting: OFFICIAL_REAL_BUILD_ACCOUNTING,
@@ -762,11 +765,10 @@ describe("real booklet build safety", () => {
     ).toMatchObject({ code: "input-digest-mismatch", inputKey: identity });
   });
 
-  it("validates only requested step actions while retaining the complete 359-panel container", () => {
+  it("validates only the exact requested action prefix while source indexing remains separate", () => {
     const options = completeRealBuildTestOptions(2);
-    const panels = [...options.panels];
-    panels[2] = {
-      ...panels[2]!,
+    const tailAction: RealBuildPanelSpec = {
+      ...realBuildTransitionPanel(3),
       coverageFailures: [
         {
           code: "coverage-key-mismatch",
@@ -776,8 +778,21 @@ describe("real booklet build safety", () => {
       ],
     };
 
-    expect(preflightRealBuildOptions({ ...options, panels })).toEqual([]);
-    expect(preflightRealBuildOptions({ ...options, panels, lastStep: 3 })).toEqual(
+    expect(preflightRealBuildOptions(options)).toEqual([]);
+    expect(
+      preflightRealBuildOptions({ ...options, panels: [...options.panels, tailAction] }),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "printed-step-sequence-invalid", inputKey: "panels" }),
+      ]),
+    );
+    const throughThree = completeRealBuildTestOptions(3);
+    expect(
+      preflightRealBuildOptions({
+        ...throughThree,
+        panels: [...throughThree.panels.slice(0, 2), tailAction],
+      }),
+    ).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ code: "coverage-key-mismatch", stepNumber: 3 }),
       ]),

@@ -10,7 +10,10 @@ import {
   type OfficialModelIndex,
   type RealBuildActionLedger,
 } from "../e2e/real-build-ledger";
-import { realBuildLedgerTestFixture } from "./real-build-ledger-test-fixture";
+import {
+  realBuildLedgerPrefix,
+  realBuildLedgerTestFixture,
+} from "./real-build-ledger-test-fixture";
 
 describe("real build ledger exact element binding", () => {
   it("rejects swapped same-design Brick refs after every attacker-controlled digest is recomputed", () => {
@@ -116,16 +119,17 @@ describe("real build ledger exact element binding", () => {
         ...fixture.ledger.steps.slice(2),
       ];
     };
-    const ledger = (ledgerSteps: readonly LedgerStep[]): RealBuildActionLedger => ({
-      ...fixture.ledger,
-      officialModelDigest,
-      coverageDigest,
-      steps: ledgerSteps,
-    });
+    const ledger = (ledgerSteps: readonly LedgerStep[]): RealBuildActionLedger =>
+      realBuildLedgerPrefix(
+        { ...fixture.ledger, officialModelDigest, coverageDigest },
+        2,
+        ledgerSteps.slice(0, 2),
+      );
     const validate = (candidate: RealBuildActionLedger) =>
       validateRealBuildActionLedger({
         ledger: candidate,
         ledgerDigest: sha256Digest(JSON.stringify(candidate)),
+        requestedLastStep: 2,
         lastStep: 2,
         official,
         pdfDigest: fixture.pdfDigest,

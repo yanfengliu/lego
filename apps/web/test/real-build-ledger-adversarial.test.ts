@@ -12,7 +12,10 @@ import {
   type LedgerStep,
   type RealBuildActionLedger,
 } from "../e2e/real-build-ledger";
-import { realBuildLedgerTestFixture } from "./real-build-ledger-test-fixture";
+import {
+  realBuildLedgerPrefix,
+  realBuildLedgerTestFixture,
+} from "./real-build-ledger-test-fixture";
 import { REAL_BUILD_TEST_DIGEST } from "./real-build-test-options";
 
 describe("real build adversarial ledger contracts", () => {
@@ -22,6 +25,7 @@ describe("real build adversarial ledger contracts", () => {
       validateRealBuildActionLedger({
         ledger,
         ledgerDigest: sha256Digest(JSON.stringify(ledger)),
+        requestedLastStep: 359,
         lastStep: 359,
         official: fixture.official,
         pdfDigest: fixture.pdfDigest,
@@ -159,12 +163,13 @@ describe("real build adversarial ledger contracts", () => {
     ).toContain("does not equal calibrated official Bone truth");
   });
 
-  it("validates an action-ledger prefix without trusting or requiring its unrequested tail", () => {
+  it("separates an artifact request from its aligned rows and refuses execution gaps or raw tails", () => {
     const fixture = realBuildLedgerTestFixture();
     const validate = (ledger: RealBuildActionLedger, lastStep: number) =>
       validateRealBuildActionLedger({
         ledger,
         ledgerDigest: sha256Digest(JSON.stringify(ledger)),
+        requestedLastStep: ledger.provenance.requestedLastStep,
         lastStep,
         official: fixture.official,
         pdfDigest: fixture.pdfDigest,
@@ -176,32 +181,37 @@ describe("real build adversarial ledger contracts", () => {
         panelEvidenceByStep: fixture.panelEvidenceByStep,
         transitionClassificationsByStep: fixture.transitionClassificationsByStep,
       });
-    const prefixLedger: RealBuildActionLedger = {
-      ...fixture.ledger,
-      steps: fixture.ledger.steps.slice(0, 2),
-    };
-    const invalidTailLedger: RealBuildActionLedger = {
-      ...fixture.ledger,
-      steps: [
-        ...fixture.ledger.steps.slice(0, 2),
-        { ...fixture.ledger.steps[2]!, panelEvidenceDigest: REAL_BUILD_TEST_DIGEST },
-        ...fixture.ledger.steps.slice(3),
-      ],
-    };
+    const prefixLedger = realBuildLedgerPrefix(
+      fixture.ledger,
+      50,
+      fixture.ledger.steps.slice(0, 2),
+    );
+    const invalidTailLedger = realBuildLedgerPrefix(fixture.ledger, 2, [
+      ...fixture.ledger.steps.slice(0, 2),
+      { ...fixture.ledger.steps[2]!, panelEvidenceDigest: REAL_BUILD_TEST_DIGEST },
+      ...fixture.ledger.steps.slice(3),
+    ]);
 
     expect(validate(prefixLedger, 2)).toEqual([]);
-    expect(validate(invalidTailLedger, 2)).toEqual([]);
-    expect(validate(prefixLedger, 359)).toEqual(
-      expect.arrayContaining([expect.objectContaining({ code: "action-ledger-incomplete" })]),
-    );
-    expect(validate(invalidTailLedger, 359)).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          code: "action-ledger-incomplete",
-          stepNumber: 3,
-        }),
-      ]),
-    );
+    expect(
+      validate(prefixLedger, 50)
+        .map(({ message }) => message)
+        .join(" "),
+    ).toContain("validated printed step 1..50");
+    expect(
+      validate(invalidTailLedger, 2)
+        .map(({ message }) => message)
+        .join(" "),
+    ).toMatch(/row 3 lies above requestedLastStep 2|no row above that request/u);
+    const legacyV2 = {
+      ...realBuildLedgerPrefix(fixture.ledger, 2),
+      schemaVersion: "lego.real-build-action-ledger/2",
+    } as unknown as RealBuildActionLedger;
+    expect(
+      validate(legacyV2, 2)
+        .map(({ message }) => message)
+        .join(" "),
+    ).toContain("lego.real-build-action-ledger/3");
   });
 
   it("refuses oversized top-level and nested rows before invoking array work", () => {
@@ -210,6 +220,7 @@ describe("real build adversarial ledger contracts", () => {
       validateRealBuildActionLedger({
         ledger,
         ledgerDigest: fixture.ledgerDigest,
+        requestedLastStep: lastStep,
         lastStep,
         official: fixture.official,
         pdfDigest: fixture.pdfDigest,
@@ -243,6 +254,17 @@ describe("real build adversarial ledger contracts", () => {
     const oversizedCallouts = trapArrayWork(
       Array.from({ length: 1_466 }, () => firstStep.callouts[0]!),
     );
+    let hostileRowReads = 0;
+    const millionRowSparse: LedgerStep[] = [];
+    Object.defineProperty(millionRowSparse, "0", {
+      enumerable: true,
+      configurable: true,
+      get: () => {
+        hostileRowReads += 1;
+        throw new Error("oversized hostile row getter was inspected");
+      },
+    });
+    millionRowSparse.length = 1_000_000;
 
     expect(validate({ ...fixture.ledger, steps: oversizedSteps })).toEqual([
       expect.objectContaining({
@@ -250,6 +272,13 @@ describe("real build adversarial ledger contracts", () => {
         message: expect.stringContaining("1 through 359"),
       }),
     ]);
+    expect(validate({ ...fixture.ledger, steps: millionRowSparse })).toEqual([
+      expect.objectContaining({
+        code: "action-ledger-incomplete",
+        message: expect.stringContaining("1 through 359"),
+      }),
+    ]);
+    expect(hostileRowReads).toBe(0);
     expect(
       validate({
         ...fixture.ledger,
@@ -296,6 +325,44 @@ describe("real build adversarial ledger contracts", () => {
     ]);
   });
 
+  it("rejects accessor-backed schema fields without invoking their getters", () => {
+    const fixture = realBuildLedgerTestFixture();
+    let getterReads = 0;
+    const hostile = { ...fixture.ledger } as RealBuildActionLedger;
+    Object.defineProperty(hostile, "provenance", {
+      enumerable: true,
+      configurable: true,
+      get: () => {
+        getterReads += 1;
+        throw new Error("hostile provenance getter was invoked");
+      },
+    });
+
+    const failures = validateRealBuildActionLedger({
+      ledger: hostile,
+      ledgerDigest: fixture.ledgerDigest,
+      requestedLastStep: 359,
+      lastStep: 359,
+      official: fixture.official,
+      pdfDigest: fixture.pdfDigest,
+      coverageDigest: fixture.coverageDigest,
+      calloutManifestDigest: fixture.manifestDigest,
+      builderCalibrationDigest: fixture.builderCalibrationDigest,
+      transitionClassificationsDigest: fixture.transitionClassificationsDigest,
+      coverageByCallout: fixture.coverageByCallout,
+      panelEvidenceByStep: fixture.panelEvidenceByStep,
+      transitionClassificationsByStep: fixture.transitionClassificationsByStep,
+    });
+
+    expect(failures).toEqual([
+      expect.objectContaining({
+        code: "action-ledger-incomplete",
+        message: expect.stringContaining("descriptor-safe data"),
+      }),
+    ]);
+    expect(getterReads).toBe(0);
+  });
+
   it("caps hostile validation failures with an explicit terminal sentinel", () => {
     const fixture = realBuildLedgerTestFixture();
     const firstStep = fixture.ledger.steps[0]!;
@@ -322,6 +389,7 @@ describe("real build adversarial ledger contracts", () => {
     const failures = validateRealBuildActionLedger({
       ledger,
       ledgerDigest: fixture.ledgerDigest,
+      requestedLastStep: ledger.provenance.requestedLastStep,
       lastStep: 1,
       official: fixture.official,
       pdfDigest: fixture.pdfDigest,
@@ -349,6 +417,7 @@ describe("real build adversarial ledger contracts", () => {
       validateRealBuildActionLedger({
         ledger,
         ledgerDigest: sha256Digest(JSON.stringify(ledger)),
+        requestedLastStep: 3,
         lastStep: 3,
         official: fixture.official,
         pdfDigest: fixture.pdfDigest,
@@ -360,16 +429,14 @@ describe("real build adversarial ledger contracts", () => {
         panelEvidenceByStep: fixture.panelEvidenceByStep,
         transitionClassificationsByStep: fixture.transitionClassificationsByStep,
       });
-    const replaceThirdAction = (action: LedgerStep["action"]): RealBuildActionLedger => ({
-      ...fixture.ledger,
-      steps: [
+    const baseline = realBuildLedgerPrefix(fixture.ledger, 3);
+    const replaceThirdAction = (action: LedgerStep["action"]): RealBuildActionLedger =>
+      realBuildLedgerPrefix(fixture.ledger, 3, [
         ...fixture.ledger.steps.slice(0, 2),
         { ...fixture.ledger.steps[2]!, action },
-        ...fixture.ledger.steps.slice(3),
-      ],
-    });
+      ]);
 
-    expect(validate(fixture.ledger)).toEqual([]);
+    expect(validate(baseline)).toEqual([]);
     const emptyPlacement = validate(
       replaceThirdAction({ kind: "place-callouts", pieces: [], omittedPieces: [] }),
     );
@@ -387,11 +454,14 @@ describe("real build adversarial ledger contracts", () => {
     );
     expect(unknownAction).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ code: "action-ledger-incomplete", stepNumber: 3 }),
+        expect.objectContaining({
+          code: "action-ledger-incomplete",
+          inputKey: "actionLedger.steps",
+        }),
       ]),
     );
     expect(unknownAction.map(({ message }) => message).join(" ")).toContain(
-      "has no recognized action kind",
+      "action.kind is outside the current /3 action union",
     );
   });
 
@@ -481,6 +551,7 @@ describe("real build adversarial ledger contracts", () => {
     const failures = validateRealBuildActionLedger({
       ledger,
       ledgerDigest: sha256Digest(JSON.stringify(ledger)),
+      requestedLastStep: 359,
       lastStep: 359,
       official: unframedOfficial,
       pdfDigest: fixture.pdfDigest,

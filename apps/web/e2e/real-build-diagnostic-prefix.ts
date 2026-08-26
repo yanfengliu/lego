@@ -1,7 +1,11 @@
-import { documentStructuralHash } from "@lego-studio/brick-kernel";
+import { canonicalStringify, documentStructuralHash } from "@lego-studio/brick-kernel";
 import { validateBrickDocumentV1, type BrickDocumentV1 } from "@lego-studio/protocol";
 
 import type { RealBuildDiagnosticPrefix } from "./real-build-result";
+import {
+  assertCanonicalRealBuildJsonBytes,
+  parseDuplicateFreeRealBuildJson,
+} from "./real-build-json-admission";
 
 export const REAL_BUILD_DIAGNOSTIC_PREFIX_FILE = "diagnostic-prefix.json" as const;
 
@@ -14,7 +18,7 @@ export function createRealBuildDiagnosticPrefix(
     schemaVersion: "lego.real-build-diagnostic-prefix/1",
     throughStepNumber: document.steps.length,
     targetEquivalence: "unreconciled",
-    documentJson: JSON.stringify(document),
+    documentJson: canonicalStringify(document),
     structuralHash: documentStructuralHash(document),
     parts: document.parts.length,
   };
@@ -63,15 +67,11 @@ export function isRealBuildDiagnosticPrefixSummary(
 export function assertRealBuildDiagnosticPrefixDocument(
   bytes: Uint8Array,
   summary: RealBuildDiagnosticPrefixSummary,
+  options: { readonly requireCurrentCanonicalBytes?: boolean } = {},
 ): void {
-  let value: unknown;
-  try {
-    value = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
-  } catch (error) {
-    throw new TypeError(
-      `Retained diagnostic-prefix.json is not strict UTF-8 JSON: ${error instanceof Error ? error.message : String(error)}.`,
-      { cause: error },
-    );
+  const value = parseDuplicateFreeRealBuildJson<unknown>(bytes, "retained diagnostic-prefix.json");
+  if (options.requireCurrentCanonicalBytes === true) {
+    assertCanonicalRealBuildJsonBytes(bytes, value, "current retained diagnostic-prefix.json");
   }
   if (!validateBrickDocumentV1(value)) {
     throw new TypeError("Retained diagnostic-prefix.json is not a valid BrickDocumentV1.");

@@ -173,11 +173,12 @@ function describeCoverageMode(
     !Number.isSafeInteger(lastStep) ||
     (lastStep as number) < 1 ||
     (lastStep as number) > MAXIMUM_REAL_BUILD_PRINTED_STEPS ||
-    (lastStep as number) < requestedLastStep
+    lastStep !== requestedLastStep
   ) {
     throw new TypeError(
       `Coverage must declare a deterministic/adjudicated source, compatible model, supported assignment, ` +
-        `and a safe compiled prefix from ${requestedLastStep} through ${MAXIMUM_REAL_BUILD_PRINTED_STEPS}; ` +
+        `and the exact requested compiled prefix ${requestedLastStep}; broader or shorter coverage cannot ` +
+        `supply identity authority for this run. ` +
         `received source=${boundedObserved(source)}, model=${boundedObserved(model)}, ` +
         `assignment=${boundedObserved(assignment)}, lastStep=${boundedObserved(lastStep)}.`,
     );

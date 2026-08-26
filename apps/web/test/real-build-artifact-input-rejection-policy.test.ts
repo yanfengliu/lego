@@ -32,7 +32,7 @@ describe("current artifact input-rejection policy", () => {
       writeRealBuildArtifactManifest({
         directory: "unread-because-policy-fails-first",
         runId: "forged-input-rejection",
-        runContract: { schemaVersion: "lego.real-build-run-contract/3" } as never,
+        runContract: { schemaVersion: "lego.real-build-run-contract/4" } as never,
         result: forgedResult as never,
         artifactFiles: [],
         replayClosure: {
@@ -45,7 +45,7 @@ describe("current artifact input-rejection policy", () => {
       writeRealBuildArtifactManifest({
         directory: "unread-because-finalizer-brand-fails-first",
         runId: "forged-input-rejection",
-        runContract: { schemaVersion: "lego.real-build-run-contract/3" } as never,
+        runContract: { schemaVersion: "lego.real-build-run-contract/4" } as never,
         result: forgedResult as never,
         artifactFiles: [],
         replayClosure: {

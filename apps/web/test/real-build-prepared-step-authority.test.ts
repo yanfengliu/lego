@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { encodeCanonicalRealBuildJson } from "../e2e/real-build-json-admission";
+
 import {
   inspectRealBuildPreparedBrowserOutputBoundaryFromRunInput,
   inspectRealBuildPreparedPanelFromRunInput,
@@ -15,8 +17,21 @@ import {
   preparedSearchOptions,
   preparedSearchOptionsBytes,
 } from "./real-build-prepared-search.fixture";
+import { completeRealBuildTestOptions } from "./real-build-test-options";
+
+const wire = (value: unknown): Uint8Array => encodeCanonicalRealBuildJson(value);
 
 describe("prepared real-build step prerequisite", () => {
+  it("rejects a semantically identical prepared input whose object members are reordered", () => {
+    const canonical = preparedSearchOptionsBytes();
+    const parsed = JSON.parse(new TextDecoder().decode(canonical)) as Record<string, unknown>;
+    const reordered = Object.fromEntries(Object.entries(parsed).reverse());
+
+    expect(() =>
+      inspectRealBuildPreparedRunInput(new TextEncoder().encode(JSON.stringify(reordered))),
+    ).toThrow(/canonical compact JSON bytes/u);
+  });
+
   it("derives exact ordered physical identities from complete preflight-valid run bytes", () => {
     const inspection = inspectRealBuildPreparedStepInput(preparedSearchOptionsBytes(2), 2);
 
@@ -56,10 +71,7 @@ describe("prepared real-build step prerequisite", () => {
       ...panels[1]!,
       pieces: [{ ...first, identityKey: "direct-renamed" }],
     };
-    const changed = inspectRealBuildPreparedStepInput(
-      new TextEncoder().encode(JSON.stringify({ ...mutated, panels })),
-      2,
-    );
+    const changed = inspectRealBuildPreparedStepInput(wire({ ...mutated, panels }), 2);
 
     expect(changed.expectedAtomicPieces[0]!.identityKey).toBe("direct-renamed");
     expect(changed.printedStepIdentity).not.toBe(original.printedStepIdentity);
@@ -146,9 +158,7 @@ describe("prepared real-build step prerequisite", () => {
     const options = preparedSearchOptions();
     const panels = [...options.panels];
     panels[1] = { ...panels[1]!, maxXPt: panels[1]!.maxXPt + 1 };
-    const changedRun = inspectRealBuildPreparedRunInput(
-      new TextEncoder().encode(JSON.stringify({ ...options, panels })),
-    );
+    const changedRun = inspectRealBuildPreparedRunInput(wire({ ...options, panels }));
     const changed = inspectRealBuildPreparedPanelFromRunInput(changedRun, 2);
 
     expect(changed.cropDigest).not.toBe(original.cropDigest);
@@ -171,10 +181,7 @@ describe("prepared real-build step prerequisite", () => {
       ...panel,
       action: { ...panel.action, evidenceDigest: `sha256:${"e".repeat(64)}` },
     };
-    const changed = inspectRealBuildPreparedStepInput(
-      new TextEncoder().encode(JSON.stringify({ ...mutated, panels })),
-      2,
-    );
+    const changed = inspectRealBuildPreparedStepInput(wire({ ...mutated, panels }), 2);
 
     expect(original.compilerMetadata).toEqual({
       name: "Printed step 2",
@@ -229,10 +236,7 @@ describe("prepared real-build step prerequisite", () => {
     );
     const options = preparedSearchOptions();
     expect(() =>
-      inspectRealBuildPreparedStepInput(
-        new TextEncoder().encode(JSON.stringify({ ...options, panelCameraBranchBudget: 7 })),
-        2,
-      ),
+      inspectRealBuildPreparedStepInput(wire({ ...options, panelCameraBranchBudget: 7 }), 2),
     ).toThrow(/failed deterministic preflight/u);
   });
 
@@ -246,5 +250,52 @@ describe("prepared real-build step prerequisite", () => {
     expect(() => inspectRealBuildPreparedStepInput(expanded, 2)).toThrow(
       /exceeds 2000000 structural values.*not parsed/u,
     );
+  });
+
+  it("refuses prepared bytes whose unknown fields or suffix rows would be projected away", () => {
+    const options = preparedSearchOptions();
+    const nestedTail = [...options.panels];
+    nestedTail[0] = { ...nestedTail[0]!, tailActions: [{ stepNumber: 359 }] } as never;
+    expect(() =>
+      inspectRealBuildPreparedRunInput(wire({ ...options, panels: nestedTail })),
+    ).toThrow(/outside the exact requested action\/passive\/coverage boundary/u);
+
+    const [coverageKey, coverageClaim] = Object.entries(options.coverageByCallout)[0]!;
+    expect(() =>
+      inspectRealBuildPreparedRunInput(
+        wire({
+          ...options,
+          coverageByCallout: {
+            ...options.coverageByCallout,
+            [coverageKey]: { ...coverageClaim, stepNumber: 359 },
+          },
+        }),
+      ),
+    ).toThrow(/outside the exact requested action\/passive\/coverage boundary/u);
+
+    const prefix = completeRealBuildTestOptions(50);
+    expect(() =>
+      inspectRealBuildPreparedRunInput(
+        wire({
+          ...prefix,
+          passivePanels: [
+            ...prefix.passivePanels,
+            { ...prefix.passivePanels.at(-1)!, stepNumber: 53 },
+          ],
+        }),
+      ),
+    ).toThrow(/outside the exact requested action\/passive\/coverage boundary/u);
+  });
+
+  it("requires one canonical raw JSON spelling before prepared provenance is derived", () => {
+    const canonical = new TextDecoder().decode(preparedSearchOptionsBytes());
+    expect(() =>
+      inspectRealBuildPreparedRunInput(new TextEncoder().encode(` ${canonical}`)),
+    ).toThrow(/canonical compact JSON bytes/u);
+    expect(() =>
+      inspectRealBuildPreparedRunInput(
+        new TextEncoder().encode(canonical.replace('"lastStep":358', '"lastStep":3.58e2')),
+      ),
+    ).toThrow(/canonical compact JSON bytes/u);
   });
 });

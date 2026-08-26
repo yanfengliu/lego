@@ -19,7 +19,8 @@ import { COVERAGE_PATH } from "./real-build-input-files";
 import { validateRealBuildActionLedger } from "./real-build-ledger";
 import type { PreparedRealBuildInputs } from "./real-build-run-input-preparation";
 import { bindCalloutsToBookletPanels, type RealBuildOptions } from "./real-build-safety";
-import { buildRealBuildPanelSpecs } from "./real-build-panel-specs";
+import { planRealBuildRunPanelWindow } from "./real-build-run-panel-window";
+import { produceRealBuildRunPanelInputs } from "./real-build-run-panel-production";
 import {
   ASSEMBLY_MODULE_URL,
   BRICK_KERNEL_MODULE_URL,
@@ -47,13 +48,21 @@ export async function prepareRealBuildPanelPlan(input: PreparedRealBuildInputs) 
     verifiedCoverage,
     coverageClosureRejection,
   } = input;
+  const requestedLastStep = lastStep;
+  const fartherPanelMaximumReachSteps = 2;
   const { panels, calloutBoxesByStep, panelEvidenceByStep } = await deriveRealBuildPanelEvidence({
     pdfBytes,
     source,
     pdfDigest: inputDigests.pdf,
   });
+  const panelWindow = planRealBuildRunPanelWindow({
+    panels,
+    requestedLastStep,
+    expectedPrintedSteps: EXPECTED_PRINTED_STEPS,
+    maximumPassiveLookaheadSteps: fartherPanelMaximumReachSteps,
+  });
   const panelBindings = bindCalloutsToBookletPanels({
-    lastStep: Number.isInteger(lastStep) ? lastStep : 1,
+    lastStep: requestedLastStep,
     manifestCallouts: manifestRows.trusted,
     panels,
     sourcePages: source.pages,
@@ -64,7 +73,8 @@ export async function prepareRealBuildPanelPlan(input: PreparedRealBuildInputs) 
       ...validateRealBuildActionLedger({
         ledger: ledgerInput.value,
         ledgerDigest: inputDigests.actionLedger,
-        lastStep: Number.isInteger(lastStep) ? lastStep : 1,
+        requestedLastStep,
+        lastStep: requestedLastStep,
         official: officialModel,
         pdfDigest: inputDigests.pdf,
         coverageDigest: inputDigests.coverage,
@@ -85,31 +95,30 @@ export async function prepareRealBuildPanelPlan(input: PreparedRealBuildInputs) 
   // holds rather than read from a side artifact, so it cannot drift from the
   // pages being scored.
   //
-  // Only over the requested prefix: the fold is a running parity from step 1, so
-  // it is meaningful exactly on a contiguous run of steps whose icons have all
-  // been read. Steps past the prefix get no face and the run refuses them, which
-  // is why the panels are filtered by step and not merely by page.
-  const facePanels = panels.filter(
-    ({ stepNumber }) => stepNumber <= (Number.isInteger(lastStep) ? lastStep : 1),
+  // Fold through only the requested prefix plus its bounded passive observation
+  // suffix. A final requested placement may need N+1 (and the existing bounded
+  // farther policy may inspect N+2), but those suffix rows never enter execution.
+  const facePanels = panelWindow.observationPanels;
+  const faceShapesByPage = await sampleBookletPageShapes(
+    pdfBytes,
+    facePanels.map(({ pageNumber }) => pageNumber),
   );
   const faceFeatures = deriveTransitionPanelFeatures({
     panels: facePanels,
     calloutBoxesByStep,
     panelEvidenceByStep,
-    shapesByPage: await sampleBookletPageShapes(
-      pdfBytes,
-      facePanels.map(({ pageNumber }) => pageNumber),
-    ),
+    shapesByPage: faceShapesByPage,
     expectedPrintedSteps: EXPECTED_PRINTED_STEPS,
   });
   const facesByStep = new Map(
     faceFeatures.map(({ stepNumber, panelFace }) => [stepNumber, panelFace]),
   );
 
-  const specs = buildRealBuildPanelSpecs({
+  const producedPanels = produceRealBuildRunPanelInputs({
     repoRoot: process.cwd(),
     calloutDirectory: CALLOUT_DIRECTORY,
-    panels,
+    panelWindow,
+    requestedLastStep,
     facesByStep,
     calloutBoxesByStep,
     stepByCalloutIdentity: panelBindings.stepByIdentity,
@@ -119,6 +128,7 @@ export async function prepareRealBuildPanelPlan(input: PreparedRealBuildInputs) 
     coverageByCallout: byCallout,
     inputDigests,
   });
+  const { specs, passivePanels } = producedPanels;
 
   const options: RealBuildOptions = {
     ...bookletProbeUrls(),
@@ -129,8 +139,9 @@ export async function prepareRealBuildPanelPlan(input: PreparedRealBuildInputs) 
     assemblyUrl: ASSEMBLY_MODULE_URL,
     measuredFartherOriginSourceAttestation: null,
     panels: specs,
+    passivePanels,
     expectedPrintedSteps: EXPECTED_PRINTED_STEPS,
-    lastStep: Number.isInteger(lastStep) ? lastStep : 1,
+    lastStep: requestedLastStep,
     renderScale: 6,
     panelWidth: 1_000,
     workFactor: 2,
@@ -175,7 +186,7 @@ export async function prepareRealBuildPanelPlan(input: PreparedRealBuildInputs) 
     // the same measured render cost of about 21ms, 8192 is roughly three minutes
     // of rendering for one printed step.
     deferredNarrowingRenderBudget: REAL_BUILD_PRODUCTION_DEFERRED_NARROWING_RENDER_BUDGET,
-    fartherPanelMaximumReachSteps: 2,
+    fartherPanelMaximumReachSteps,
     fartherPanelRenderBudget: 16,
     minimumDeferredAgreementMargin: DEFERRED_STEP_MINIMUM_MARGIN,
     minimumDeferredAgreement: DEFERRED_STEP_MINIMUM_AGREEMENT,
@@ -195,11 +206,14 @@ export async function prepareRealBuildPanelPlan(input: PreparedRealBuildInputs) 
     // Execution never sees an unbound closure — the refusal below is unconditional
     // — so the executable options carry the ordinary index shape and the nullable
     // verdict is handed to preflight, which is the code that must not evaluate.
-    coverageByCallout: byCallout ?? {},
+    coverageByCallout: producedPanels.coverageByCallout ?? {},
   };
   const evaluatedFailures = [
     ...preparationFailures,
-    ...preflightRealBuildOptions({ ...options, coverageByCallout: byCallout }),
+    ...preflightRealBuildOptions({
+      ...options,
+      coverageByCallout: producedPanels.coverageByCallout,
+    }),
   ];
   const inputFailures =
     coverageClosureRejection === null
@@ -215,7 +229,12 @@ export async function prepareRealBuildPanelPlan(input: PreparedRealBuildInputs) 
           ...evaluatedFailures,
         ];
 
-  return { ...input, specs, options, inputFailures };
+  const panelFaceSourcePageShapes = Object.freeze(
+    [...faceShapesByPage.entries()].map(([pageNumber, shapes]) =>
+      Object.freeze({ pageNumber, shapes }),
+    ),
+  );
+  return { ...input, specs, options, panelFaceSourcePageShapes, inputFailures };
 }
 
 export type PreparedRealBuildPanelPlan = Awaited<ReturnType<typeof prepareRealBuildPanelPlan>>;

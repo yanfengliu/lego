@@ -1,4 +1,4 @@
-import { canonicalDigest, sha256Hex, type Sha256Digest } from "@lego-studio/brick-kernel";
+import type { Sha256Digest } from "@lego-studio/brick-kernel";
 
 import {
   placementSignalFailure,
@@ -7,7 +7,6 @@ import {
   stepPrerequisiteFailure,
   type StepFailure,
   type RealBuildOptions,
-  type RealBuildPanelSpec,
   type RealBuildPieceReport,
   type RealBuildStepReport,
   type StepOutcome,
@@ -18,7 +17,6 @@ import type { RealBuildBrowserOutput } from "./real-build-browser-output";
 import {
   executeCanonicalTransition,
   preflightRealBuildOptions,
-  selectRequestedPanelPages,
   validateRealBuildCandidate,
 } from "./real-build-contract";
 import {
@@ -51,13 +49,7 @@ import {
 import { createRealBuildRunPlacer } from "./real-build-run-placer";
 import { createRealBuildRunPageCursor } from "./real-build-run-page-cursor";
 import { retainedRealBuildRunOutput } from "./real-build-run-output";
-import {
-  deriveRealBuildProvisionalRunPreparationFacts,
-  deriveRealBuildProvisionalStepPreparationFacts,
-  snapshotRealBuildProvisionalFitScalars,
-} from "./real-build-run-provisional-preparation";
-import { MAXIMUM_REAL_BUILD_PREPARED_STEP_PIECES } from "./real-build-prepared-step-authority";
-import { MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION } from "./real-build-farther-origin-source-manifest";
+import { createRealBuildRunProvisionalAuthority } from "./real-build-run-provisional-authority";
 import { describeBrowserThrown } from "./real-build-browser-error-boundary";
 import { realBuildCleanupFailure, retainRealBuildCleanupFailure } from "./real-build-run-cleanup";
 import {
@@ -73,7 +65,6 @@ import {
   snapshotRealBuildRunInput,
 } from "./real-build-run-input-snapshot";
 
-/** One tolerance for every work-raster boundary comparison in this run. */
 const STROKE_TOLERANCE_PX = 3;
 
 export async function runRealBuild(
@@ -139,124 +130,15 @@ export async function runRealBuild(
     try {
       const driftFailure = realBuildRunInputDriftFailure(inputSnapshot);
       if (driftFailure !== null) throw new BrowserPreparationError(driftFailure);
-      const provisionalPreparation =
-        options.measuredFartherOriginSourceAttestation?.schemaVersion !==
-          MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION.schemaVersion ||
-        options.measuredFartherOriginSourceAttestation.fileCount !==
-          MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION.fileCount ||
-        options.measuredFartherOriginSourceAttestation.digest !==
-          MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION.digest
-          ? null
-          : (() => {
-              const moduleRequests = Object.freeze({
-                pdfjs: options.pdfjsUrl,
-                worker: options.workerUrl,
-                lattice: options.latticeUrl,
-                rendering: options.renderingUrl,
-                kernel: options.kernelUrl,
-                commands: options.commandsUrl,
-                assembly: options.assemblyUrl,
-              });
-              const moduleRequestDigest = canonicalDigest({ moduleRequests });
-              const runFacts = deriveRealBuildProvisionalRunPreparationFacts(
-                inputSnapshot.canonical,
-                canonicalDigest(options.measuredFartherOriginSourceAttestation),
-                moduleRequestDigest,
-                options.inputDigests.pdf,
-                fetchedPdfDigest,
-              );
-              const states = new WeakMap<object, readonly unknown[]>();
-              const consumed = new WeakSet<object>();
-              const run = Object.freeze(Object.create(null)) as object;
-              const moduleObjects = Object.freeze([
-                pdfjs,
-                lattice,
-                rendering,
-                kernel,
-                commands,
-                assembly,
-              ]);
-              const runState = Object.freeze([options, moduleObjects, pdf, loadingTask, runFacts]);
-              states.set(run, runState);
-              return (
-                panel: RealBuildPanelSpec,
-                page: object & { readonly canvas: unknown },
-                pageCanvas: unknown,
-                raster: ReturnType<typeof derivePanelRasterEvidence>,
-              ) => {
-                if (
-                  panel.action.kind !== "place-callouts" ||
-                  panel.action.evidenceDigest === null ||
-                  panel.panelFace === null ||
-                  panel.pieces.length < 1 ||
-                  panel.pieces.length > MAXIMUM_REAL_BUILD_PREPARED_STEP_PIECES ||
-                  panel.omittedPieces.length !== 0 ||
-                  panel.omittedPhysicalPieces !== 0 ||
-                  panel.coverageFailures.length !== 0 ||
-                  panel.missingDesigns.length !== 0 ||
-                  panel.unresolvedCallouts.length !== 0
-                ) {
-                  return;
-                }
-                const deriveFacts = () => {
-                  const fit = snapshotRealBuildProvisionalFitScalars(raster.fitSolution);
-                  return deriveRealBuildProvisionalStepPreparationFacts(
-                    runFacts.preparationIdentity,
-                    runFacts.preparedRunInputDigest,
-                    runFacts.fetchedPdfDigest,
-                    canonicalDigest(panel),
-                    canonicalDigest(panel.action),
-                    canonicalDigest({ pieces: panel.pieces, omittedPieces: panel.omittedPieces }),
-                    panel.stepNumber,
-                    panel.pageNumber,
-                    panel.panelFace,
-                    panel.action.kind,
-                    panel.action.evidenceDigest,
-                    panel.minXPt,
-                    panel.maxXPt,
-                    panel.minYPt,
-                    panel.maxYPt,
-                    raster.width,
-                    raster.height,
-                    raster.workPixels.length,
-                    raster.builtMask.length,
-                    `sha256:${sha256Hex(Uint8Array.from(raster.workPixels))}`,
-                    `sha256:${sha256Hex(raster.builtMask)}`,
-                    fit.azimuthDegrees,
-                    fit.elevationDegrees,
-                    fit.pixelsPerUnit,
-                    fit.residualPx,
-                    fit.upSign,
-                    raster.fitFailure,
-                    raster.fitCoherence,
-                  );
-                };
-                const facts = deriveFacts();
-                const authority = Object.freeze(Object.create(null)) as object;
-                const stepState = Object.freeze([
-                  run,
-                  panel,
-                  panel.action,
-                  page,
-                  pageCanvas,
-                  raster,
-                  facts,
-                ]);
-                states.set(authority, stepState);
-                const reproduced = deriveFacts();
-                if (
-                  states.get(run) !== runState ||
-                  states.get(authority) !== stepState ||
-                  consumed.has(authority) ||
-                  reproduced.printedStepIdentity !== facts.printedStepIdentity
-                ) {
-                  throw new TypeError(
-                    `Printed step ${panel.stepNumber} provisional preparation did not preserve its exact browser-local run, module, PDF, panel, page, crop, face, action, and raster binding.`,
-                  );
-                }
-                consumed.add(authority);
-              };
-            })();
+      const provisionalPreparation = createRealBuildRunProvisionalAuthority({
+        options,
+        canonicalRunInput: inputSnapshot.canonical,
+        fetchedPdfDigest,
+        moduleObjects: [pdfjs, lattice, rendering, kernel, commands, assembly],
+        pdf,
+        loadingTask,
+      });
+
       const reports: RealBuildStepReport[] = [];
       let document_ = kernel.createEmptyBrickDocument({
         id: "real-build",
@@ -265,7 +147,6 @@ export async function runRealBuild(
       });
       let blockingStep: number | null = null;
       const partIdByIdentity = new Map<string, RuntimeBrickIdentity>();
-
       const rootDocumentHash = kernel.documentStructuralHash(document_) as Sha256Digest;
       const rootPanelCamera = createRealBuildRunRootPanelCamera({
         document: document_ as { readonly parts: readonly unknown[] },
@@ -275,8 +156,10 @@ export async function runRealBuild(
       });
 
       const place = createRealBuildRunPlacer(commands, kernel);
-      const { panels: selectedPanels } = selectRequestedPanelPages(options);
-      const orderedPanels = [...selectedPanels].sort(
+      const executionPanels = [...options.panels].sort(
+        (left, right) => left.stepNumber - right.stepNumber,
+      );
+      const observationPanels = [...executionPanels, ...options.passivePanels].sort(
         (left, right) => left.stepNumber - right.stepNumber,
       );
 
@@ -284,7 +167,7 @@ export async function runRealBuild(
       const pageCursor = createRealBuildRunPageCursor(pdf, options.renderScale);
       let pageCleanupFailure: StepFailure | null = null;
       try {
-        for (const spec of orderedPanels) {
+        for (const spec of executionPanels) {
           const expectedStepNumber = reports.length + 1;
           if (spec.stepNumber !== expectedStepNumber) {
             throw new BrowserPreparationError({
@@ -413,7 +296,7 @@ export async function runRealBuild(
             // is not known until they have been scored. Resolving it is a
             // lookup; *rasterising* it is not, so that stays on demand below.
             const deferralTarget = placesCallouts
-              ? (orderedPanels.find((panel) => panel.stepNumber > spec.stepNumber) ?? null)
+              ? (observationPanels.find((panel) => panel.stepNumber > spec.stepNumber) ?? null)
               : null;
             let deferral: DeferralEvidence | null = null;
             let farther: RealBuildStepReport["farther"] = null;
@@ -607,7 +490,8 @@ export async function runRealBuild(
               const deferredPanels = createRunDeferredPanelCoordinator({
                 spec,
                 deferralTarget,
-                orderedPanels,
+                executionPanels,
+                observationPanels,
                 currentPageNumber: spec.pageNumber,
                 currentPageCanvas: pageCanvas,
                 pdf,

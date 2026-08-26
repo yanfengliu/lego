@@ -33,6 +33,7 @@ import {
   serializeRealBuildBrowserOutputV4TransitionEvidenceManifest,
 } from "../e2e/real-build-browser-output-v4-transition-frontier";
 import { unexecutedStepReport } from "../e2e/real-build-contract";
+import { encodeRealBuildPreparedRunInput } from "../e2e/real-build-prepared-run-input-parser";
 import { inspectRealBuildPreparedPanelFromRunInput } from "../e2e/real-build-prepared-step-authority";
 import type { RealBuildStepReport, StepFailure } from "../e2e/real-build-safety";
 import {
@@ -41,9 +42,7 @@ import {
   sourceEvidenceTestPanelInput,
 } from "./real-build-browser-output-v4-source-evidence-fixture";
 
-const PREPARED_BYTES = new TextEncoder().encode(
-  JSON.stringify(SOURCE_EVIDENCE_TEST_PREPARED_OPTIONS),
-);
+const PREPARED_BYTES = encodeRealBuildPreparedRunInput(SOURCE_EVIDENCE_TEST_PREPARED_OPTIONS);
 
 function digest(bytes: Uint8Array): Sha256Digest {
   return `sha256:${sha256Hex(bytes)}`;

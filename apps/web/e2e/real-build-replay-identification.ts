@@ -65,7 +65,10 @@ export function reconstructRealBuildIdentificationReplay(
     return { bytes, digest: contract.identificationClosure.cardImages! };
   };
   const coverage = artifact(REAL_BUILD_INPUT_ROLE_BY_DIGEST.coverage);
-  const requestedLastStep = contract.budgets.lastStep ?? Number.NaN;
+  const requestedLastStep =
+    contract.schemaVersion === "lego.real-build-run-contract/4"
+      ? (contract.budgets.lastStep ?? Number.NaN)
+      : 359;
   const mode = identifyRealBuildIdentificationMode(coverage, requestedLastStep);
   const coverageBindings = coverage.value as {
     readonly inputDigests?: { readonly pdf?: unknown; readonly calloutManifest?: unknown };

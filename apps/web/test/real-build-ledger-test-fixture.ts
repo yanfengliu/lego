@@ -4,6 +4,8 @@ import { sha256Digest } from "../e2e/real-build-artifacts";
 import {
   parseOfficialModelIndex,
   pieceEvidenceDigest,
+  REAL_BUILD_ACTION_LEDGER_GENERATOR,
+  REAL_BUILD_ACTION_LEDGER_SCHEMA,
   stepPanelEvidenceDigest,
   transitionClassificationEvidenceDigest,
   type BuilderCanonicalCalibration,
@@ -19,9 +21,11 @@ import { REAL_BUILD_TEST_DIGEST } from "./real-build-test-options";
 import { builderCuboidGeometry } from "./real-build-frame-test-fixture";
 
 export interface RealBuildLedgerTestFixture {
+  readonly officialModelBytes: Uint8Array;
   readonly rawOfficial: ReturnType<typeof parseOfficialModelIndex>;
   readonly official: ReturnType<typeof parseOfficialModelIndex>;
   readonly calibration: BuilderCanonicalCalibration;
+  readonly builderCalibrationBytes: Uint8Array;
   readonly ledger: RealBuildActionLedger;
   readonly ledgerDigest: string;
   readonly pdfDigest: string;
@@ -38,6 +42,34 @@ export interface RealBuildLedgerTestFixture {
   readonly panelEvidenceByStep: Readonly<
     Record<number, { readonly pageNumber: number; readonly digest: string }>
   >;
+}
+
+/** Rebinds a test ledger to exactly one current /3 prefix after a test mutates its rows. */
+export function realBuildLedgerPrefix(
+  ledger: RealBuildActionLedger,
+  requestedLastStep: number,
+  steps: readonly LedgerStep[] = ledger.steps.slice(0, requestedLastStep),
+): RealBuildActionLedger {
+  const directPieceCount = steps.reduce(
+    (count, step) =>
+      count + (step.action.kind === "place-callouts" ? step.action.pieces.length : 0),
+    0,
+  );
+  const transitionStepCount = steps.filter(({ action }) => action.kind === "transition").length;
+  return {
+    ...ledger,
+    steps,
+    provenance: {
+      ...ledger.provenance,
+      requestedLastStep,
+      alignedThroughStep: steps.length,
+      directPieceCount,
+      transitionStepCount,
+      refusals: ledger.provenance.refusals.filter(
+        ({ stepNumber }) => stepNumber <= requestedLastStep,
+      ),
+    },
+  };
 }
 
 const FIXTURE_CASE_BRICK_REFS = ["brick-a", "brick-b", "cal-c", "cal-d"] as const;
@@ -78,16 +110,15 @@ export function realBuildLedgerTestFixture(): RealBuildLedgerTestFixture {
     `<BINode uuid="fixture-aggregate-node" buildingInstructionRef="fixture-aggregate"/>` +
     `<Dependency predecessorRef="fixture-primary-node" successorRef="fixture-aggregate-node"/>` +
     `</BIGraph>`;
-  const rawOfficial = parseOfficialModelIndex(
-    new TextEncoder().encode(
-      `<Root><Bricks>` +
-        physicalBrick("brick-a", "1,0,0,0,1,0,0,0,1,0,0,0") +
-        physicalBrick("brick-b", "0,0,1,0,1,0,-1,0,0,0.8,0,0") +
-        physicalBrick("cal-c", "-1,0,0,0,1,0,0,0,-1,1.6,0,0") +
-        physicalBrick("cal-d", "0,0,-1,0,1,0,1,0,0,2.4,0,0") +
-        `</Bricks>${instructions}</Root>`,
-    ),
+  const officialModelBytes = new TextEncoder().encode(
+    `<Root><Bricks>` +
+      physicalBrick("brick-a", "1,0,0,0,1,0,0,0,1,0,0,0") +
+      physicalBrick("brick-b", "0,0,1,0,1,0,-1,0,0,0.8,0,0") +
+      physicalBrick("cal-c", "-1,0,0,0,1,0,0,0,-1,1.6,0,0") +
+      physicalBrick("cal-d", "0,0,-1,0,1,0,1,0,0,2.4,0,0") +
+      `</Bricks>${instructions}</Root>`,
   );
+  const rawOfficial = parseOfficialModelIndex(officialModelBytes);
   const catalogToBuilderLocalTransform = {
     positionLdu: [0, 0, 0] as const,
     orientationId: "upright-yaw-0",
@@ -175,6 +206,7 @@ export function realBuildLedgerTestFixture(): RealBuildLedgerTestFixture {
       },
     ],
   };
+  const builderCalibrationBytes = new TextEncoder().encode(JSON.stringify(calibration));
   const builderCalibrationDigest = sha256Digest(JSON.stringify(calibration));
   // Synthetic v2 ledger tests cannot cross the production calibration's source
   // pins, so the origin normalization is the fixture's own: the anchor lands on
@@ -347,7 +379,7 @@ export function realBuildLedgerTestFixture(): RealBuildLedgerTestFixture {
     action: { kind: "multi-build-copy", sourceStepNumber: 1, copies: [copy] },
   };
   const ledger: RealBuildActionLedger = {
-    schemaVersion: "lego.real-build-action-ledger/2",
+    schemaVersion: REAL_BUILD_ACTION_LEDGER_SCHEMA,
     pdfDigest,
     officialModelDigest: official.digest,
     coverageDigest,
@@ -355,11 +387,24 @@ export function realBuildLedgerTestFixture(): RealBuildLedgerTestFixture {
     builderCalibrationDigest,
     transitionClassificationsDigest,
     steps,
+    provenance: {
+      generator: REAL_BUILD_ACTION_LEDGER_GENERATOR,
+      authenticated: false,
+      expectedPrintedSteps: 359,
+      requestedLastStep: 359,
+      alignedThroughStep: 359,
+      stopReason: "fixture retains the complete 359-step action-ledger prefix",
+      directPieceCount: 1,
+      transitionStepCount: 357,
+      refusals: [],
+    },
   };
   return {
+    officialModelBytes,
     rawOfficial,
     official,
     calibration,
+    builderCalibrationBytes,
     ledger,
     ledgerDigest: sha256Digest(JSON.stringify(ledger)),
     pdfDigest,

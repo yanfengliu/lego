@@ -19,7 +19,9 @@ export type {
   OfficialModelIndex,
 } from "./real-build-official";
 
-export const REAL_BUILD_ACTION_LEDGER_SCHEMA = "lego.real-build-action-ledger/2" as const;
+export const REAL_BUILD_ACTION_LEDGER_SCHEMA = "lego.real-build-action-ledger/3" as const;
+export const REAL_BUILD_ACTION_LEDGER_GENERATOR =
+  "apps/web/e2e/real-build-action-ledger.spec.ts" as const;
 
 export interface LedgerPieceIdentity {
   readonly brickRef: string;
@@ -68,7 +70,7 @@ export interface LedgerStep {
   readonly action: LedgerStepAction;
 }
 
-export interface RealBuildActionLedger {
+export interface RealBuildActionLedgerCore {
   readonly schemaVersion: typeof REAL_BUILD_ACTION_LEDGER_SCHEMA;
   readonly pdfDigest: string;
   readonly officialModelDigest: string;
@@ -77,6 +79,28 @@ export interface RealBuildActionLedger {
   readonly builderCalibrationDigest: string;
   readonly transitionClassificationsDigest: string;
   readonly steps: readonly LedgerStep[];
+}
+
+export interface RealBuildActionLedgerProvenance {
+  readonly generator: typeof REAL_BUILD_ACTION_LEDGER_GENERATOR;
+  readonly authenticated: false;
+  readonly expectedPrintedSteps: 359;
+  readonly requestedLastStep: number;
+  readonly alignedThroughStep: number;
+  readonly stopReason: string;
+  readonly directPieceCount: number;
+  readonly transitionStepCount: number;
+  readonly refusals: readonly {
+    readonly stepNumber: number;
+    readonly calloutKey: string | null;
+    readonly brickRef: string | null;
+    readonly reason: string;
+  }[];
+}
+
+/** Current emitted artifact. Version 3 makes its requested-prefix provenance mandatory. */
+export interface RealBuildActionLedger extends RealBuildActionLedgerCore {
+  readonly provenance: RealBuildActionLedgerProvenance;
 }
 
 export interface TransitionClassificationEvidence {

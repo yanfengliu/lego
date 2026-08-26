@@ -8,7 +8,7 @@ import {
 import { MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION } from "../e2e/real-build-farther-origin-source-manifest";
 import { attemptFartherPrintedStep } from "../e2e/real-build-farther-step";
 import type { PanelRasterEvidence } from "../e2e/real-build-panel-raster";
-import type { RealBuildPanelSpec } from "../e2e/real-build-safety";
+import type { RealBuildPanelRasterSpec, RealBuildPanelSpec } from "../e2e/real-build-safety";
 import { completeRealBuildTestOptions } from "./real-build-test-options";
 
 type Document = {
@@ -273,6 +273,7 @@ const harness = (
       interveningSpec: behavior.calibratedOriginProbe ? measuredSpec(6) : spec(6),
       interveningEvidence: evidence(true),
       fartherSpec: behavior.calibratedOriginProbe ? measuredSpec(7) : spec(7),
+      fartherRasterSpec: behavior.calibratedOriginProbe ? measuredSpec(7) : spec(7),
       options: {
         ...calibratedOptions,
         workFactor: behavior.calibratedOriginProbe ? 2 : 1,
@@ -317,6 +318,48 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("farther-step lazy K evidence", () => {
+  it("routes passive step 7 through generic raster scoring without measured-spec comparison", async () => {
+    const probe = harness(1, 8_192, { calibratedOriginProbe: true });
+    const measuredFarther = measuredSpec(7);
+    let authorityReads = 0;
+    const passive = Object.fromEntries(
+      [
+        "stepNumber",
+        "pageNumber",
+        "panelFace",
+        "minXPt",
+        "maxXPt",
+        "minYPt",
+        "maxYPt",
+        "calloutBoxes",
+      ].map((key) => [key, measuredFarther[key as keyof RealBuildPanelSpec]]),
+    ) as unknown as RealBuildPanelRasterSpec;
+    for (const field of ["action", "pieces", "mappedCalloutKeys"]) {
+      Object.defineProperty(passive, field, {
+        enumerable: true,
+        get() {
+          authorityReads += 1;
+          throw new Error(`passive ${field} must remain outside measured comparison`);
+        },
+      });
+    }
+    const loadFartherEvidence = vi.fn(async () => evidence(true));
+    const scoreMeasuredOriginPanel = vi.fn(measuredOriginScore);
+
+    const result = await attemptFartherPrintedStep({
+      ...probe.input,
+      fartherSpec: null,
+      fartherRasterSpec: passive,
+      loadFartherEvidence,
+      scoreMeasuredOriginPanel,
+    });
+
+    expect(scoreMeasuredOriginPanel).not.toHaveBeenCalled();
+    expect(loadFartherEvidence).toHaveBeenCalledOnce();
+    expect(result.evidence.panels.map(({ stepNumber }) => stepNumber)).toEqual([6, 7]);
+    expect(authorityReads).toBe(0);
+  });
+
   it("lets a farther origin panel reveal N before any intervening parent expands", async () => {
     const probe = harness(2, 8_192, {
       revealOriginK: true,

@@ -32,11 +32,11 @@ const RIGHT = { positionLdu: [0, -24, 0] as const, orientationId: "upright-yaw-0
 
 function identityOptions(): RealBuildOptions {
   const trusted = completeRealBuildTestOptions(1);
-  const sourcePanel = trusted.panels[357]!;
+  const complete = completeRealBuildTestOptions(359);
+  const sourcePanel = complete.panels[357]!;
   if (sourcePanel.action.kind !== "place-callouts") {
     throw new TypeError("The complete fixture must retain its direct-piece panel at step 358.");
   }
-  const removedCallouts = new Set(sourcePanel.pieces.slice(-2).map(({ calloutKey }) => calloutKey));
   const panel: RealBuildPanelSpec = {
     ...realBuildTransitionPanel(1),
     action: { kind: "place-callouts", assembledPieces: 2, evidenceDigest: DIGEST },
@@ -70,27 +70,11 @@ function identityOptions(): RealBuildOptions {
     classifiedPhysicalCalloutPieces: 2,
     mappedCalloutKeys: ["p1-left.png", "p1-right.png"],
   };
-  const rebalancedSourcePanel: RealBuildPanelSpec = {
-    ...sourcePanel,
-    pieces: sourcePanel.pieces.slice(0, -2),
-    mappedCalloutKeys: sourcePanel.mappedCalloutKeys.slice(0, -2),
-    calloutPieces: sourcePanel.calloutPieces - 2,
-    classifiedPhysicalCalloutPieces: sourcePanel.classifiedPhysicalCalloutPieces - 2,
-    action: { ...sourcePanel.action, assembledPieces: sourcePanel.action.assembledPieces - 2 },
-  };
   return {
     ...trusted,
-    panels: trusted.panels.map((candidate) => {
-      if (candidate.stepNumber === 1) return panel;
-      if (candidate.stepNumber === 358) return rebalancedSourcePanel;
-      return candidate;
-    }),
+    panels: [panel],
     coverageByCallout: {
-      ...Object.fromEntries(
-        Object.entries(trusted.coverageByCallout).filter(
-          ([calloutKey]) => !removedCallouts.has(calloutKey),
-        ),
-      ),
+      ...trusted.coverageByCallout,
       "p1-left.png": {
         pageNumber: 1,
         stepNumber: 1,
@@ -113,7 +97,9 @@ function identityOptions(): RealBuildOptions {
 
 function interruptedPrefixOptions(): RealBuildOptions {
   const trusted = identityOptions();
-  const sourcePanel = trusted.panels[357]!;
+  const throughTwo = completeRealBuildTestOptions(2);
+  const complete = completeRealBuildTestOptions(359);
+  const sourcePanel = complete.panels[357]!;
   if (sourcePanel.action.kind !== "place-callouts") {
     throw new TypeError("The complete fixture must retain its direct-piece panel at step 358.");
   }
@@ -126,27 +112,15 @@ function interruptedPrefixOptions(): RealBuildOptions {
     classifiedPhysicalCalloutPieces: 1,
     mappedCalloutKeys: [moved.calloutKey],
   };
-  const rebalancedSourcePanel: RealBuildPanelSpec = {
-    ...sourcePanel,
-    pieces: sourcePanel.pieces.slice(0, -1),
-    mappedCalloutKeys: sourcePanel.mappedCalloutKeys.slice(0, -1),
-    calloutPieces: sourcePanel.calloutPieces - 1,
-    classifiedPhysicalCalloutPieces: sourcePanel.classifiedPhysicalCalloutPieces - 1,
-    action: { ...sourcePanel.action, assembledPieces: sourcePanel.action.assembledPieces - 1 },
-  };
   return {
     ...trusted,
     lastStep: 2,
-    panels: trusted.panels.map((panel) =>
-      panel.stepNumber === 2
-        ? secondPanel
-        : panel.stepNumber === 358
-          ? rebalancedSourcePanel
-          : panel,
-    ),
+    panels: [trusted.panels[0]!, secondPanel],
+    passivePanels: throughTwo.passivePanels,
     coverageByCallout: {
       ...trusted.coverageByCallout,
       [moved.calloutKey]: {
+        ...complete.coverageByCallout[moved.calloutKey]!,
         pageNumber: 2,
         stepNumber: 2,
         quantity: 1,

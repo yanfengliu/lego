@@ -63,7 +63,8 @@ export interface RealBuildInputDigests {
   readonly transitionClassifications: string;
 }
 
-export interface RealBuildPanelSpec {
+/** Source-panel fields sufficient to derive and score one booklet raster. */
+export interface RealBuildPanelRasterSpec {
   readonly stepNumber: number;
   readonly pageNumber: number;
   /**
@@ -87,6 +88,10 @@ export interface RealBuildPanelSpec {
     readonly minYPt: number;
     readonly maxYPt: number;
   }[];
+}
+
+/** An executable panel whose action and identities are authorized for this run prefix. */
+export interface RealBuildPanelSpec extends RealBuildPanelRasterSpec {
   readonly mappedCalloutKeys: readonly string[];
   readonly action: RealBuildStepAction;
   readonly pieces: readonly {
@@ -135,7 +140,10 @@ export interface RealBuildOptions {
   readonly commandsUrl: string;
   readonly assemblyUrl: string;
   readonly measuredFartherOriginSourceAttestation: RealBuildSourceAttestation | null;
+  /** Executable action-bearing panels, exactly steps 1..lastStep. */
   readonly panels: readonly RealBuildPanelSpec[];
+  /** Bounded source-only suffix. These rows can be rasterized but carry no action or identity. */
+  readonly passivePanels: readonly RealBuildPanelRasterSpec[];
   readonly expectedPrintedSteps: 359;
   readonly lastStep: number;
   readonly renderScale: number;

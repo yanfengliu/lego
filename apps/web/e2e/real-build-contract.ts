@@ -13,6 +13,7 @@ import {
 } from "./real-build-safety";
 import { LOCAL_REAL_BUILD_AUTHORITY } from "./real-build-authority";
 import { isRealBuildSourceAttestation } from "./real-build-farther-origin-source-manifest";
+import { preflightRealBuildPanelPrefix } from "./real-build-panel-prefix-preflight";
 
 /**
  * Set 6651557's inventory and assembled model are not the same quantity.
@@ -47,6 +48,7 @@ export const OFFICIAL_REAL_BUILD_ACCOUNTING = {
 /** Returns every input-contract problem so the scoreboard can retain them together. */
 export function preflightRealBuildOptions(input: {
   readonly panels: readonly RealBuildPanelSpec[];
+  readonly passivePanels: RealBuildOptions["passivePanels"];
   readonly expectedPrintedSteps: number;
   readonly lastStep: number;
   readonly accounting: RealBuildAccounting;
@@ -208,63 +210,7 @@ export function preflightRealBuildOptions(input: {
         `least the exhaustive one.`,
     });
   }
-  const numbers = input.panels.map(({ stepNumber }) => stepNumber);
-  const unique = new Set(numbers);
-  const expected = Array.from({ length: input.expectedPrintedSteps }, (_, index) => index + 1);
-  if (
-    input.expectedPrintedSteps !== 359 ||
-    numbers.length !== expected.length ||
-    unique.size !== numbers.length ||
-    expected.some((step) => !unique.has(step))
-  ) {
-    const missing = expected.filter((step) => !unique.has(step));
-    const duplicates = [...unique].filter(
-      (step) => numbers.filter((candidate) => candidate === step).length > 1,
-    );
-    failures.push({
-      code: "printed-step-sequence-invalid",
-      stage: "input",
-      inputKey: "panels",
-      message:
-        `The real build requires one panel for every printed step 1..359; received ${numbers.length} ` +
-        `panels and ${unique.size} unique numbers. Missing: ${missing.join(", ") || "none"}; ` +
-        `duplicates: ${duplicates.join(", ") || "none"}. Rotation and attachment steps must be explicit ` +
-        `zero-piece transitions rather than omitted.`,
-    });
-  }
-  const panelsByPrintedStep = [...input.panels].sort(
-    (left, right) => left.stepNumber - right.stepNumber,
-  );
-  const reversedPage = panelsByPrintedStep.find(
-    (panel, index) => index > 0 && panel.pageNumber < panelsByPrintedStep[index - 1]!.pageNumber,
-  );
-  if (reversedPage !== undefined) {
-    const prior = panelsByPrintedStep[panelsByPrintedStep.indexOf(reversedPage) - 1]!;
-    failures.push({
-      code: "printed-step-sequence-invalid",
-      stage: "input",
-      inputKey: "panels",
-      message:
-        `Printed step ${reversedPage.stepNumber} is assigned to booklet page ${reversedPage.pageNumber}, ` +
-        `which precedes step ${prior.stepNumber} on page ${prior.pageNumber}. Printed-step execution must ` +
-        `advance monotonically through booklet pages so page grouping cannot execute a later step before ` +
-        `its retained predecessor. Correct the panel page binding before the browser loads the PDF.`,
-    });
-  }
-  if (
-    !Number.isInteger(input.lastStep) ||
-    input.lastStep < 1 ||
-    input.lastStep > input.expectedPrintedSteps
-  ) {
-    failures.push({
-      code: "printed-step-sequence-invalid",
-      stage: "input",
-      inputKey: "lastStep",
-      message:
-        `The requested real-build prefix must end at an integer printed step from 1 through ` +
-        `${input.expectedPrintedSteps}; received ${input.lastStep}.`,
-    });
-  }
+  failures.push(...preflightRealBuildPanelPrefix(input));
   const requestedPanels = input.panels.filter(({ stepNumber }) => stepNumber <= input.lastStep);
   const identityStep = new Map<string, number>();
   for (const panel of requestedPanels) {

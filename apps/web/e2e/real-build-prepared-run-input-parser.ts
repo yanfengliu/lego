@@ -1,5 +1,10 @@
 import { preflightRealBuildOptions } from "./real-build-contract";
 import { snapshotHostileUint8Array } from "./real-build-hostile-uint8array";
+import {
+  encodeCanonicalRealBuildJson,
+  parseCanonicalRealBuildJson,
+} from "./real-build-json-admission";
+import { snapshotPanelCameraCanonicalDocument } from "./real-build-panel-camera-json-snapshot";
 import { snapshotRealBuildRunInput } from "./real-build-run-input-snapshot";
 import type { RealBuildOptions } from "./real-build-safety";
 
@@ -67,15 +72,37 @@ export function parseRealBuildPreparedRunInput(value: unknown): {
   requireBoundedJsonStructure(text);
   let parsed: unknown;
   try {
-    parsed = JSON.parse(text) as unknown;
-  } catch {
-    throw new TypeError("Prepared run input is not valid JSON.");
+    parsed = parseCanonicalRealBuildJson<unknown>(bytes, "current prepared run input");
+  } catch (error) {
+    throw new TypeError(
+      `Prepared run input must be exact duplicate-free canonical compact JSON bytes: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
+    );
   }
   let snapshot: ReturnType<typeof snapshotRealBuildRunInput>;
   try {
     snapshot = snapshotRealBuildRunInput(parsed as RealBuildOptions);
   } catch {
     throw new TypeError("Prepared run input is not bounded detached real-build option data.");
+  }
+  let rawCanonical: string;
+  try {
+    rawCanonical = snapshotPanelCameraCanonicalDocument<{
+      readonly parts: readonly [RealBuildOptions];
+    }>(Object.freeze({ parts: Object.freeze([parsed as RealBuildOptions]) }), {
+      maximumCanonicalBytes: MAXIMUM_REAL_BUILD_PREPARED_RUN_INPUT_BYTES,
+      maximumNodes: MAXIMUM_PREPARED_RUN_JSON_NODES,
+      maximumDepth: MAXIMUM_PREPARED_RUN_JSON_DEPTH,
+      maximumArrayLength: 200_000,
+      maximumParts: 1,
+    }).canonical;
+  } catch {
+    throw new TypeError("Prepared run input is not one bounded canonical plain-data object.");
+  }
+  if (rawCanonical !== snapshot.canonical) {
+    throw new TypeError(
+      "Prepared run input contains fields or rows outside the exact requested action/passive/coverage boundary; no projected digest was issued.",
+    );
   }
   let failures: ReturnType<typeof preflightRealBuildOptions>;
   try {
@@ -90,4 +117,22 @@ export function parseRealBuildPreparedRunInput(value: unknown): {
     );
   }
   return { options: snapshot.options, canonical: snapshot.canonical };
+}
+
+/** Produces the one current prepared-options byte representation accepted by the parser. */
+export function encodeRealBuildPreparedRunInput(value: RealBuildOptions): Uint8Array {
+  let snapshot: ReturnType<typeof snapshotRealBuildRunInput>;
+  try {
+    snapshot = snapshotRealBuildRunInput(value);
+  } catch {
+    throw new TypeError("Prepared run input is not bounded detached real-build option data.");
+  }
+  const failures = preflightRealBuildOptions(snapshot.options);
+  if (failures.length > 0) {
+    const first = failures[0]!;
+    throw new TypeError(
+      `Prepared run input failed deterministic preflight with ${first.code} at ${first.stage}; no current bytes were encoded.`,
+    );
+  }
+  return encodeCanonicalRealBuildJson(snapshot.options);
 }

@@ -45,6 +45,7 @@ export {
 } from "./real-build-artifact-legacy-v3";
 export { createRealBuildScore, REAL_BUILD_SCORE_SCHEMA } from "./real-build-score";
 import { realBuildDiagnosticPrefixSummary } from "./real-build-diagnostic-prefix";
+import { encodeCanonicalRealBuildJson } from "./real-build-json-admission";
 
 export {
   beginAtomicRun,
@@ -193,11 +194,11 @@ export function writeRealBuildArtifactManifest(input: {
   readonly replayClosure: RealBuildReplayClosureManifest;
 }): string {
   if (
-    input.runContract.schemaVersion !== "lego.real-build-run-contract/3" ||
+    input.runContract.schemaVersion !== "lego.real-build-run-contract/4" ||
     input.replayClosure.schemaVersion !== "lego.real-build-replay-closure/3"
   ) {
     throw new TypeError(
-      "Current artifact-manifest /4 publication requires exact run-contract /3 and replay-closure /3 inputs; legacy generations are inspection-only.",
+      "Current artifact-manifest /4 publication requires exact run-contract /4 and replay-closure /3 inputs; legacy generations are inspection-only.",
     );
   }
   assertCurrentArtifactReplayBoundaryVerifiable(input.replayClosure, "publish");
@@ -269,7 +270,7 @@ export function writeRealBuildArtifactManifest(input: {
     },
     artifacts,
   };
-  const manifestBytes = Buffer.from(`${JSON.stringify(manifest, null, 1)}\n`);
+  const manifestBytes = encodeCanonicalRealBuildJson(manifest, "pretty-one-space-line");
   if (manifestBytes.length > MAXIMUM_ARTIFACT_MANIFEST_BYTES) {
     throw new TypeError(
       `Real-build artifact manifest is ${manifestBytes.length} bytes; maximum is ${MAXIMUM_ARTIFACT_MANIFEST_BYTES}.`,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { verifyRealBuildCompiledObservationClosure } from "../e2e/real-build-compiled-observation-closure";
+import { encodeRealBuildPreparedRunInput } from "../e2e/real-build-prepared-run-input-parser";
 import { inspectRealBuildPreparedObservationPolicy } from "../e2e/real-build-prepared-step-authority";
 import {
   commitCompiledObservation,
@@ -15,7 +16,7 @@ function preparedPolicy(patch: {
   readonly minimumDeferredAgreementMargin?: number;
 }) {
   return inspectRealBuildPreparedObservationPolicy(
-    encodeCompiledObservationClosure({ ...preparedSearchOptions(1, 1), ...patch }),
+    encodeRealBuildPreparedRunInput({ ...preparedSearchOptions(1, 1), ...patch }),
   );
 }
 

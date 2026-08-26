@@ -7,6 +7,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from part_action_ledger_report_contract import require_action_ledger_report_chain
 from part_identification_report_contract import (
@@ -98,6 +99,14 @@ class ActionLedgerReportContractTests(unittest.TestCase):
     def test_one_exact_bounded_direct_piece_is_accepted(self) -> None:
         require_action_ledger_report_chain(**closure(self.root))
 
+    def test_current_v3_is_required_and_legacy_v2_is_not_admitted(self) -> None:
+        arguments = closure(self.root)
+        arguments["ledger"]["schemaVersion"] = "lego.real-build-action-ledger/2"
+        with self.assertRaisesRegex(
+            ArtifactContractError, "must use lego.real-build-action-ledger/3"
+        ):
+            require_action_ledger_report_chain(**arguments)
+
     def test_every_consumed_digest_edge_is_required(self) -> None:
         arguments = closure(self.root)
         for field, declared in (
@@ -148,6 +157,61 @@ class ActionLedgerReportContractTests(unittest.TestCase):
         arguments["ledger"]["provenance"]["directPieceCount"] = 0
         with self.assertRaisesRegex(
             ArtifactContractError, "directPieceCount is 0.*action.pieces contain 1"
+        ):
+            require_action_ledger_report_chain(**arguments)
+
+    def test_requested_prefix_is_required_and_bounded_by_the_printed_booklet(self) -> None:
+        for requested, message in (
+            (None, "must contain exactly.*requestedLastStep"),
+            (0, "requestedLastStep.*from 1 through 359"),
+            (360, "requestedLastStep.*from 1 through 359"),
+        ):
+            with self.subTest(requested=requested):
+                arguments = closure(self.root)
+                provenance = arguments["ledger"]["provenance"]
+                if requested is None:
+                    del provenance["requestedLastStep"]
+                else:
+                    provenance["requestedLastStep"] = requested
+                with self.assertRaisesRegex(ArtifactContractError, message):
+                    require_action_ledger_report_chain(**arguments)
+
+    def test_requested_prefix_must_match_coverage_but_may_retain_honest_partial_progress(self) -> None:
+        arguments = closure(self.root)
+        arguments["ledger"]["provenance"]["requestedLastStep"] = 50
+        with self.assertRaisesRegex(
+            ArtifactContractError, "requestedLastStep is 50.*coverage.lastStep is 1"
+        ):
+            require_action_ledger_report_chain(**arguments)
+
+        arguments["coverage"]["lastStep"] = 50
+        with patch("part_action_ledger_report_contract.verify_action_ledger"):
+            require_action_ledger_report_chain(**arguments)
+
+    def test_tail_rows_and_extra_provenance_fields_are_rejected(self) -> None:
+        arguments = closure(self.root)
+        arguments["ledger"]["provenance"]["unexpectedTailPermission"] = True
+        with self.assertRaisesRegex(ArtifactContractError, "must contain exactly"):
+            require_action_ledger_report_chain(**arguments)
+
+        arguments = closure(self.root)
+        arguments["ledger"]["steps"].append(
+            {
+                "stepNumber": 2,
+                "pageNumber": 11,
+                "panelEvidenceDigest": sha("a"),
+                "callouts": [],
+                "action": {
+                    "kind": "transition",
+                    "transition": "rotation",
+                    "classificationEvidenceDigest": sha("b"),
+                },
+            }
+        )
+        arguments["ledger"]["provenance"]["alignedThroughStep"] = 2
+        arguments["ledger"]["provenance"]["transitionStepCount"] = 1
+        with self.assertRaisesRegex(
+            ArtifactContractError, "alignedThroughStep.*from 1 through 1"
         ):
             require_action_ledger_report_chain(**arguments)
 

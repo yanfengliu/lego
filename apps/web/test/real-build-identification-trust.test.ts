@@ -150,6 +150,7 @@ describe("action ledger validation across both trust sources", () => {
     return validateRealBuildActionLedger({
       ledger,
       ledgerDigest: sha256Digest(JSON.stringify(ledger)),
+      requestedLastStep: 359,
       lastStep: 359,
       official: fixture.official,
       pdfDigest: fixture.pdfDigest,

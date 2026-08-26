@@ -12,6 +12,7 @@ import {
 import { parseRealBuildCompiledPlacementLineage } from "../e2e/real-build-compiled-placement-lineage";
 import { snapshotRealBuildEnumeratedPlacementOffer } from "../e2e/real-build-enumerated-placement-witness";
 import { createRealBuildPreparedSearchLedger } from "../e2e/real-build-prepared-search-ledger";
+import { encodeRealBuildPreparedRunInput } from "../e2e/real-build-prepared-run-input-parser";
 import {
   inspectRealBuildPreparedStepInput,
   type RealBuildPreparedStepInspection,
@@ -23,7 +24,6 @@ import type { RealBuildOptions, RealBuildPanelSpec } from "../e2e/real-build-saf
 import { preparedSearchEmptyParent } from "./real-build-prepared-search.fixture";
 import { completeRealBuildTestOptions } from "./real-build-test-options";
 
-const encoder = new TextEncoder();
 const MAXIMUM_FIXTURE_PIECES_PER_STEP = 511;
 
 export interface RealBuildBrowserOutputV4SemanticCompiledStepFixture {
@@ -157,7 +157,7 @@ function preparedTwoStepRunInputBytes(
     }
   }
 
-  return encoder.encode(JSON.stringify({ ...options, panels, coverageByCallout }));
+  return encodeRealBuildPreparedRunInput({ ...options, panels, coverageByCallout });
 }
 
 function requireExactPreparedRows(

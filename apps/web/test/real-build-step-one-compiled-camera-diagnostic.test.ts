@@ -10,6 +10,7 @@ import {
   inspectRealBuildPreparedObservationPolicy,
   inspectRealBuildPreparedStepInput,
 } from "../e2e/real-build-prepared-step-authority";
+import { encodeRealBuildPreparedRunInput } from "../e2e/real-build-prepared-run-input-parser";
 import { runRealBuildStepOneCompiledCameraDiagnostic } from "../e2e/real-build-step-one-compiled-camera-diagnostic";
 import {
   createRealBuildStepOneSilhouetteRendererFactory,
@@ -113,7 +114,7 @@ function currentCatalogStepOneBytes() {
       colorId: "builtin:black",
     })),
   };
-  return new TextEncoder().encode(JSON.stringify({ ...options, panels }));
+  return encodeRealBuildPreparedRunInput({ ...options, panels });
 }
 
 function fixture(

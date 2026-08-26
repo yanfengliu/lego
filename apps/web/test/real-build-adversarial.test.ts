@@ -416,34 +416,11 @@ describe("real build adversarial completion and ledger contracts", () => {
       mappedCalloutKeys: ["p1-c0.png"],
       action: { kind: "place-callouts", assembledPieces: 1, evidenceDigest: DIGEST },
     };
-    const sourcePanel = trustedOptions.panels[357]!;
-    if (sourcePanel.action.kind !== "place-callouts") {
-      throw new TypeError("The complete fixture must retain its direct-piece panel at step 358.");
-    }
-    const rebalancedSourcePanel: RealBuildPanelSpec = {
-      ...sourcePanel,
-      pieces: sourcePanel.pieces.slice(0, -1),
-      mappedCalloutKeys: sourcePanel.mappedCalloutKeys.slice(0, -1),
-      calloutPieces: sourcePanel.calloutPieces - 1,
-      classifiedPhysicalCalloutPieces: sourcePanel.classifiedPhysicalCalloutPieces - 1,
-      action: {
-        ...sourcePanel.action,
-        assembledPieces: sourcePanel.action.assembledPieces - 1,
-      },
-    };
     const identityOptions: RealBuildOptions = {
       ...trustedOptions,
-      panels: trustedOptions.panels.map((candidate) => {
-        if (candidate.stepNumber === 1) return panel;
-        if (candidate.stepNumber === 358) return rebalancedSourcePanel;
-        return candidate;
-      }),
+      panels: [panel],
       coverageByCallout: {
-        ...Object.fromEntries(
-          Object.entries(trustedOptions.coverageByCallout).filter(
-            ([key]) => key !== "fixture-direct-1376",
-          ),
-        ),
+        ...trustedOptions.coverageByCallout,
         "p1-c0.png": {
           pageNumber: 1,
           stepNumber: 1,

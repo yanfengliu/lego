@@ -1,4 +1,5 @@
 import type { StepFailure } from "./real-build-safety";
+import { realBuildActionLedgerCurrentPrefixFailures } from "./real-build-action-ledger-provenance";
 import {
   TRUSTED_IDENTIFICATION_CONFIDENCES_SENTENCE,
   isTrustedIdentificationConfidence,
@@ -8,9 +9,8 @@ import {
   coverageStepNumbers,
   ledgerStepActionAuthorityFailure,
 } from "./real-build-ledger-action-authority";
-import { boundedLedgerFailures, preflightActionLedgerRows } from "./real-build-ledger-bounds";
+import { boundedLedgerFailures, preflightRealBuildActionLedger } from "./real-build-ledger-bounds";
 import {
-  REAL_BUILD_ACTION_LEDGER_SCHEMA,
   isUnauthenticatedTransitionClassification,
   officialItemNoMatchesCoverageClaim,
   pieceEvidenceDigest,
@@ -43,7 +43,8 @@ const sameTransform = (left: LedgerTransform | null, right: LedgerTransform | nu
 export function validateRealBuildActionLedger(input: {
   readonly ledger: RealBuildActionLedger;
   readonly ledgerDigest: string;
-  readonly lastStep: number;
+  readonly requestedLastStep: number; // Provenance request may exceed honest alignment.
+  readonly lastStep: number; // Exact semantic prefix; execution passes its request.
   readonly official: OfficialModelIndex;
   readonly pdfDigest: string;
   readonly coverageDigest: string;
@@ -60,62 +61,71 @@ export function validateRealBuildActionLedger(input: {
 }): readonly StepFailure[] {
   const failures = boundedLedgerFailures();
   try {
-    const boundedRows = preflightActionLedgerRows(input.ledger.steps);
-    if (boundedRows.failure !== null) return [boundedRows.failure];
-    const ledgerSteps = boundedRows.steps;
-    if (!Number.isInteger(input.lastStep) || input.lastStep < 1 || input.lastStep > 359) {
+    const boundedLedger = preflightRealBuildActionLedger(input.ledger);
+    if (boundedLedger.failure !== null) return [boundedLedger.failure];
+    const ledger = boundedLedger.ledger;
+    const ledgerSteps = ledger.steps;
+    if (
+      !Number.isInteger(input.requestedLastStep) ||
+      input.requestedLastStep < 1 ||
+      input.requestedLastStep > 359
+    ) {
       return [
         failure(
           undefined,
-          `Action ledger validation requires a requested last step from 1 through 359; received ${input.lastStep}.`,
+          `Action ledger validation requires artifact requestedLastStep from 1 through 359; received ` +
+            `${input.requestedLastStep}.`,
         ),
       ];
     }
     if (
+      !Number.isInteger(input.lastStep) ||
+      input.lastStep < 1 ||
+      input.lastStep > input.requestedLastStep
+    ) {
+      return [
+        failure(
+          undefined,
+          `Action ledger validation lastStep must be from 1 through artifact requestedLastStep ` +
+            `${input.requestedLastStep}; received ${input.lastStep}.`,
+        ),
+      ];
+    }
+    for (const message of realBuildActionLedgerCurrentPrefixFailures({
+      schemaVersion: ledger.schemaVersion,
+      provenance: ledger.provenance,
+      steps: ledgerSteps,
+      requestedLastStep: input.requestedLastStep,
+      validationLastStep: input.lastStep,
+    })) {
+      failures.add(failure(undefined, message));
+    }
+    if (
       !/^sha256:[0-9a-f]{64}$/u.test(input.ledgerDigest) ||
-      input.ledger.schemaVersion !== REAL_BUILD_ACTION_LEDGER_SCHEMA ||
-      input.ledger.pdfDigest !== input.pdfDigest ||
-      input.ledger.officialModelDigest !== input.official.digest ||
-      input.ledger.coverageDigest !== input.coverageDigest ||
-      input.ledger.calloutManifestDigest !== input.calloutManifestDigest ||
-      input.ledger.builderCalibrationDigest !== input.builderCalibrationDigest ||
+      ledger.pdfDigest !== input.pdfDigest ||
+      ledger.officialModelDigest !== input.official.digest ||
+      ledger.coverageDigest !== input.coverageDigest ||
+      ledger.calloutManifestDigest !== input.calloutManifestDigest ||
+      ledger.builderCalibrationDigest !== input.builderCalibrationDigest ||
       input.official.calibrationDigest !== input.builderCalibrationDigest ||
-      input.ledger.transitionClassificationsDigest !== input.transitionClassificationsDigest ||
-      !/^sha256:[0-9a-f]{64}$/u.test(input.ledger.transitionClassificationsDigest)
+      ledger.transitionClassificationsDigest !== input.transitionClassificationsDigest ||
+      !/^sha256:[0-9a-f]{64}$/u.test(ledger.transitionClassificationsDigest)
     ) {
       failures.add(
         failure(
           undefined,
           `Action ledger bindings do not match the exact official model, coverage, and callout manifest. ` +
-            `Ledger ${input.ledger.pdfDigest}/${input.ledger.officialModelDigest}/` +
-            `${input.ledger.coverageDigest}/` +
-            `${input.ledger.calloutManifestDigest}/${input.ledger.builderCalibrationDigest}/` +
-            `${input.ledger.transitionClassificationsDigest}; live ${input.official.digest}/` +
+            `Ledger ${ledger.pdfDigest}/${ledger.officialModelDigest}/` +
+            `${ledger.coverageDigest}/` +
+            `${ledger.calloutManifestDigest}/${ledger.builderCalibrationDigest}/` +
+            `${ledger.transitionClassificationsDigest}; live ${input.official.digest}/` +
             `${input.coverageDigest}/${input.calloutManifestDigest}/${input.builderCalibrationDigest} ` +
             `with PDF ${input.pdfDigest}.`,
         ),
       );
     }
     const fullRun = input.lastStep === 359;
-    const requestedLedgerSteps = fullRun
-      ? ledgerSteps
-      : ledgerSteps.filter(({ stepNumber }) => stepNumber <= input.lastStep);
-    const ordered = [...requestedLedgerSteps].sort(
-      (left, right) => left.stepNumber - right.stepNumber,
-    );
-    if (
-      ordered.length !== input.lastStep ||
-      ordered.some(({ stepNumber }, index) => stepNumber !== index + 1)
-    ) {
-      failures.add(
-        failure(
-          undefined,
-          `Action ledger must contain each requested printed step 1..${input.lastStep} exactly once${
-            fullRun ? "." : "; later tail steps are outside this prefix and are not validated."
-          }`,
-        ),
-      );
-    }
+    const ordered = [...ledgerSteps].sort((left, right) => left.stepNumber - right.stepNumber);
     const established = new Map<
       string,
       { readonly stepNumber: number; readonly piece: LedgerPieceIdentity }

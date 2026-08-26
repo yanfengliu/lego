@@ -12,17 +12,14 @@ import {
 import {
   expandFartherPrintedStep,
   type FartherStepChildMetadata,
-  type FartherStepPlace,
 } from "./real-build-farther-step-expansion";
-import type { FartherPrintedStepAttempt } from "./real-build-farther-step-attempt-types";
-import type { PanelRasterEvidence } from "./real-build-panel-raster";
-import { rgbaPngDataUrl, type PreparedRealBuildModules } from "./real-build-browser-preflight";
 import type {
-  RealBuildFartherCapture,
-  RealBuildFartherEvidence,
-  RealBuildOptions,
-  RealBuildPanelSpec,
-} from "./real-build-safety";
+  FartherPrintedStepAttempt,
+  FartherPrintedStepInput,
+} from "./real-build-farther-step-attempt-types";
+import type { PanelRasterEvidence } from "./real-build-panel-raster";
+import { rgbaPngDataUrl } from "./real-build-browser-preflight";
+import type { RealBuildFartherCapture, RealBuildFartherEvidence } from "./real-build-safety";
 
 /**
  * Browser binding for the first complete N/N+1/K farther search.
@@ -34,22 +31,9 @@ import type {
  * booklet driver. Every parent uses one shared narrowing ledger, and an
  * over-limit batch is rejected before its scoring callback runs.
  */
-export async function attemptFartherPrintedStep<D>(input: {
-  readonly originSpec: RealBuildPanelSpec;
-  readonly originStatus: "no-local-signal" | "unseparated";
-  readonly originMargin: number | null;
-  readonly originMinimumMargin: number | null;
-  readonly baseDocument: D;
-  readonly origins: readonly DeferredUnresolvedCandidate<D>[];
-  readonly interveningSpec: RealBuildPanelSpec;
-  readonly interveningEvidence: PanelRasterEvidence;
-  readonly fartherSpec: RealBuildPanelSpec | null;
-  readonly loadFartherEvidence: (() => Promise<PanelRasterEvidence>) | null;
-  readonly options: RealBuildOptions;
-  readonly modules: Pick<PreparedRealBuildModules, "rendering" | "kernel" | "assembly">;
-  readonly place: FartherStepPlace<D>;
-  readonly scoreMeasuredOriginPanel?: typeof scoreFartherDocumentsAgainstPanel;
-}): Promise<FartherPrintedStepAttempt<D>> {
+export async function attemptFartherPrintedStep<D>(
+  input: FartherPrintedStepInput<D>,
+): Promise<FartherPrintedStepAttempt<D>> {
   const { originSpec, interveningSpec, options, modules } = input;
   // The asynchronous K loader is outside the deterministic driver. Snapshot
   // every origin field it could otherwise rewrite while preserving the exact
@@ -210,7 +194,7 @@ export async function attemptFartherPrintedStep<D>(input: {
       }),
     originPanelObservation: interveningScore.observation,
     scoreFrontierPanel:
-      input.fartherSpec === null || input.loadFartherEvidence === null
+      input.fartherRasterSpec === null || input.loadFartherEvidence === null
         ? null
         : ({ alternatives, reservation }) => {
             pendingK.value = {
@@ -234,7 +218,12 @@ export async function attemptFartherPrintedStep<D>(input: {
           descendantSettled: driven.decision.descendantSettled,
         };
   const continuation = pendingK.value;
-  if (continuation !== null && input.fartherSpec !== null && input.loadFartherEvidence !== null) {
+  if (
+    continuation !== null &&
+    input.fartherRasterSpec !== null &&
+    input.loadFartherEvidence !== null
+  ) {
+    const fartherRasterSpec = input.fartherRasterSpec;
     const describeThrown = (error: unknown): string => {
       try {
         return error instanceof Error ? error.message : String(error);
@@ -289,16 +278,16 @@ export async function attemptFartherPrintedStep<D>(input: {
       Object.freeze({
         code: "farther-input-invalid",
         stage: "input",
-        stepNumber: input.fartherSpec!.stepNumber,
+        stepNumber: fartherRasterSpec.stepNumber,
         message,
       });
     const incompletePanelRefusal = (phase: "loading" | "scoring", error: unknown): FartherRefusal =>
       Object.freeze({
         code: "incomplete-panel-evidence",
         stage: "evidence",
-        stepNumber: input.fartherSpec!.stepNumber,
+        stepNumber: fartherRasterSpec.stepNumber,
         message:
-          `Panel ${input.fartherSpec!.stepNumber} ${phase} callback threw: ${describeThrown(error)}. ` +
+          `Panel ${fartherRasterSpec.stepNumber} ${phase} callback threw: ${describeThrown(error)}. ` +
           `Required one complete raster and exactly one finite agreement score for each of the ` +
           `${continuation.reservedPanelRenders} reserved frontier candidates; prior N+1 and carry evidence ` +
           `were retained and no partial K panel was admitted.`,
@@ -319,7 +308,7 @@ export async function attemptFartherPrintedStep<D>(input: {
         }
         phase = "scoring";
         fartherScore = scoreFartherDocumentsAgainstPanel({
-          spec: input.fartherSpec,
+          spec: fartherRasterSpec,
           evidence: fartherEvidence,
           anchorDocument: input.baseDocument,
           candidates: continuation.alternatives,
@@ -429,8 +418,8 @@ export async function attemptFartherPrintedStep<D>(input: {
   }
   if (
     fartherEvidence !== null &&
-    input.fartherSpec !== null &&
-    admittedPanelSteps.has(input.fartherSpec.stepNumber)
+    input.fartherRasterSpec !== null &&
+    admittedPanelSteps.has(input.fartherRasterSpec.stepNumber)
   ) {
     addScoreCaptures(fartherScore, fartherEvidence, true);
   }

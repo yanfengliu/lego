@@ -1,6 +1,7 @@
 import { isDeepStrictEqual } from "node:util";
 
 import { sha256Digest } from "./part-identification-artifacts.mjs";
+import { inspectCurrentActionLedgerPrefix } from "./part-identification-action-ledger-prefix.mjs";
 import { importRepositoryTypeScript } from "./part-identification-typescript-runtime.mjs";
 
 const moduleUrl = (relativePath) => new URL(relativePath, import.meta.url).href;
@@ -24,8 +25,20 @@ export function canonicalValidationFailureCode(failures) {
   return `canonical-validation-${failures.length}-${parts.join("-")}`;
 }
 
+function retainedActionLedgerPrefix(ledger) {
+  try {
+    return inspectCurrentActionLedgerPrefix(ledger).requestedLastStep;
+  } catch {
+    throw new ActionLedgerVerificationError("prefix-contract");
+  }
+}
+
 /** Reproduce and validate one action ledger exclusively from authenticated raw roles. */
 export async function verifyCanonicalActionLedger(input) {
+  const requestedLastStep = retainedActionLedgerPrefix(input.ledger.value);
+  if (input.coverage.value?.lastStep !== requestedLastStep) {
+    throw new ActionLedgerVerificationError("prefix-contract");
+  }
   const [actionModule, bookletModule, ledgerModule, officialModule, panelModule, transitionModule] =
     await Promise.all([
       importRepositoryTypeScript(moduleUrl("../apps/web/e2e/real-build-action-ledger.ts")),
@@ -91,8 +104,12 @@ export async function verifyCanonicalActionLedger(input) {
     panelEvidenceByStep,
     transitionClassificationsByStep: transitions.byStep,
     expectedPrintedSteps: 359,
+    requestedLastStep,
   });
-  const emitted = actionModule.emittedRealBuildActionLedger(assembled, 359);
+  if (assembled.alignedThroughStep === 0) {
+    throw new ActionLedgerVerificationError("empty-prefix");
+  }
+  const emitted = actionModule.emittedRealBuildActionLedger(assembled);
   const encoded = actionModule.encodeRealBuildActionLedger(emitted);
   if (
     sha256Digest(encoded) !== input.ledger.digest ||
@@ -103,7 +120,8 @@ export async function verifyCanonicalActionLedger(input) {
   const validationFailures = ledgerModule.validateRealBuildActionLedger({
     ledger: input.ledger.value,
     ledgerDigest: input.ledger.digest,
-    lastStep: Math.max(1, assembled.alignedThroughStep),
+    requestedLastStep,
+    lastStep: assembled.alignedThroughStep,
     official,
     pdfDigest,
     coverageDigest: bindings.coverageDigest,

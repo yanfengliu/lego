@@ -5,6 +5,7 @@ import {
   inspectRealBuildPreparedStepInput,
   requireRealBuildPreparedObservationPolicyInspection,
 } from "../e2e/real-build-prepared-step-authority";
+import { encodeRealBuildPreparedRunInput } from "../e2e/real-build-prepared-run-input-parser";
 import { snapshotRealBuildRunInput } from "../e2e/real-build-run-input-snapshot";
 import { deriveRealBuildProvisionalRunPreparationFacts } from "../e2e/real-build-run-provisional-preparation";
 import {
@@ -18,7 +19,7 @@ function preparedPolicyBytes(
     minimumDeferredAgreementMargin: number;
   }>,
 ): Uint8Array {
-  return new TextEncoder().encode(JSON.stringify({ ...preparedSearchOptions(), ...patch }));
+  return encodeRealBuildPreparedRunInput({ ...preparedSearchOptions(), ...patch });
 }
 
 describe("prepared real-build observation policy", () => {
@@ -43,7 +44,7 @@ describe("prepared real-build observation policy", () => {
   it("matches provisional preparation's canonical prepared-run digest", () => {
     const options = preparedSearchOptions();
     const policy = inspectRealBuildPreparedObservationPolicy(
-      new TextEncoder().encode(JSON.stringify(options)),
+      encodeRealBuildPreparedRunInput(options),
     );
     const digest = `sha256:${"a".repeat(64)}`;
     const provisional = deriveRealBuildProvisionalRunPreparationFacts(

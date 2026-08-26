@@ -3,7 +3,9 @@ import { join } from "node:path";
 
 import { BUILTIN_CATALOG } from "../packages/catalog/src/index.ts";
 import { sha256Digest } from "./part-identification-artifacts.mjs";
+import { inspectCurrentActionLedgerPrefix } from "./part-identification-action-ledger-prefix.mjs";
 import { readBoundedFile } from "./part-identification-io.mjs";
+import { parseStrictJsonBytes } from "./part-identification-strict-json.mjs";
 import { importRepositoryTypeScript } from "./part-identification-typescript-runtime.mjs";
 import { readPanel, writeReading } from "./panel-placement-ask.mjs";
 import { PANEL_PLACEMENT_PROMPT_DIGEST } from "./panel-placement-prompt.mjs";
@@ -46,6 +48,33 @@ function boundedFailureCategories(failures) {
 
 /** Pure fail-closed verdict over the canonical compilation and the one retained byte sequence. */
 export function panelPlacementLedgerVerificationFailure(retainedBytes, compiled) {
+  if (
+    compiled.expectedPrintedSteps !== 359 ||
+    !Number.isSafeInteger(compiled.requestedLastStep) ||
+    compiled.requestedLastStep < 1 ||
+    compiled.requestedLastStep > 359
+  ) {
+    return "canonical compilation did not carry the explicit 359-step source contract and requested prefix";
+  }
+  let emittedPrefix;
+  try {
+    emittedPrefix = inspectCurrentActionLedgerPrefix(compiled.emitted);
+    if (emittedPrefix.requestedLastStep !== compiled.requestedLastStep) {
+      return "canonical compilation emitted a different requested prefix";
+    }
+  } catch {
+    return "canonical compilation did not emit one bounded current /3 prefix";
+  }
+  if (
+    !Number.isSafeInteger(compiled.validatedThroughStep) ||
+    compiled.validatedThroughStep !== emittedPrefix.alignedThroughStep
+  ) {
+    return (
+      `canonical compilation validated through ${compiled.validatedThroughStep}, but its retained requested ` +
+      `prefix 1..${compiled.requestedLastStep} is honestly aligned only through ` +
+      `${emittedPrefix.alignedThroughStep}`
+    );
+  }
   if (compiled.validationFailures.length > 0) {
     return (
       `canonical validation rejected ${compiled.validationFailures.length} failure(s) through assembled step ` +
@@ -62,9 +91,21 @@ export function panelPlacementLedgerVerificationFailure(retainedBytes, compiled)
   return null;
 }
 
-async function compileCanonicalActionLedger() {
+async function compileCanonicalActionLedger(requestedLastStep) {
   const module = await importRepositoryTypeScript(COMPILER_URL);
-  return module.compileRealBuildActionLedger();
+  return module.compileRealBuildActionLedger({ requestedLastStep });
+}
+
+export function panelPlacementRequestedLastStep(retainedBytes) {
+  const retained = parseStrictJsonBytes(retainedBytes);
+  try {
+    return inspectCurrentActionLedgerPrefix(retained).requestedLastStep;
+  } catch {
+    throw new TypeError(
+      "Panel placement requires one bounded current /3 action ledger with the 359-step source/index and an " +
+        "explicit requestedLastStep from 1 through 359.",
+    );
+  }
 }
 
 /** Returns only the in-memory ledger whose complete source closure and retained bytes were verified. */
@@ -78,9 +119,10 @@ export async function readVerifiedPanelPlacementLedger({
   compile = compileCanonicalActionLedger,
 } = {}) {
   const retainedBytes = readRetainedBytes(ledgerPath);
+  const requestedLastStep = panelPlacementRequestedLastStep(retainedBytes);
   let compiled;
   try {
-    compiled = await compile();
+    compiled = await compile(requestedLastStep);
   } catch {
     throw new TypeError(
       "Panel placement refused the action ledger because canonical source-closure compilation failed. " +

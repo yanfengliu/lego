@@ -16,6 +16,7 @@ import {
   deriveRealBuildExactLineageIdentity,
 } from "../e2e/real-build-exact-lineage-identity";
 import type { RealBuildOptions, RealBuildPanelSpec } from "../e2e/real-build-safety";
+import { encodeRealBuildPreparedRunInput } from "../e2e/real-build-prepared-run-input-parser";
 import { completeRealBuildTestOptions } from "./real-build-test-options";
 
 export function preparedSearchOptions(pieceCount = 1, stepNumber = 2): RealBuildOptions {
@@ -65,7 +66,7 @@ export function preparedSearchOptions(pieceCount = 1, stepNumber = 2): RealBuild
 }
 
 export function preparedSearchOptionsBytes(pieceCount = 1, stepNumber = 2): Uint8Array {
-  return new TextEncoder().encode(JSON.stringify(preparedSearchOptions(pieceCount, stepNumber)));
+  return encodeRealBuildPreparedRunInput(preparedSearchOptions(pieceCount, stepNumber));
 }
 
 export function preparedSearchEmptyParent() {

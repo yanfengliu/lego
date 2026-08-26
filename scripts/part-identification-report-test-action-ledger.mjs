@@ -13,6 +13,21 @@ export const TEST_TRANSITION_CLASSIFICATIONS = Object.freeze({
   fixture: "transition-classifications",
 });
 
+function syntheticRequestedLastStep(input) {
+  const requestedLastStep =
+    input.requestedLastStep ?? input.ledger?.value?.provenance?.requestedLastStep;
+  if (
+    !Number.isSafeInteger(requestedLastStep) ||
+    requestedLastStep < 1 ||
+    requestedLastStep > 359
+  ) {
+    throw new Error(
+      "Synthetic action-ledger fixture requires an explicit prefix from 1 through 359.",
+    );
+  }
+  return requestedLastStep;
+}
+
 const moduleUrl = (relativePath) => new URL(relativePath, import.meta.url).href;
 
 function syntheticOfficial(input) {
@@ -60,6 +75,7 @@ function exactTestInputs(input) {
 /** Canonical one-piece ledger used only by the explicit synthetic test verifier. */
 export async function reproduceSyntheticActionLedger(input) {
   exactTestInputs(input);
+  const requestedLastStep = syntheticRequestedLastStep(input);
   const [actionModule, ledgerModule] = await Promise.all([
     importRepositoryTypeScript(moduleUrl("../apps/web/e2e/real-build-action-ledger.ts")),
     importRepositoryTypeScript(moduleUrl("../apps/web/e2e/real-build-ledger.ts")),
@@ -83,12 +99,14 @@ export async function reproduceSyntheticActionLedger(input) {
     panelEvidenceByStep,
     transitionClassificationsByStep: {},
     expectedPrintedSteps: 359,
+    requestedLastStep,
   });
-  const ledger = actionModule.emittedRealBuildActionLedger(assembled, 359);
+  const ledger = actionModule.emittedRealBuildActionLedger(assembled);
   const encoded = actionModule.encodeRealBuildActionLedger(ledger);
   const validationFailures = ledgerModule.validateRealBuildActionLedger({
     ledger,
     ledgerDigest: sha256Digest(encoded),
+    requestedLastStep,
     lastStep: 1,
     official,
     pdfDigest: bindings.pdfDigest,

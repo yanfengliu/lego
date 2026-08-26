@@ -2,6 +2,7 @@ import { expect, type Page } from "@playwright/test";
 
 import { preparedSearchOptions } from "../test/real-build-prepared-search.fixture";
 import type { RealBuildExactThreeSourcePacketInspection } from "./real-build-exact-three-source-packet-types";
+import { encodeRealBuildPreparedRunInput } from "./real-build-prepared-run-input-parser";
 
 const INTEGRATION_URL: string = "/e2e/real-build-step-one-proper-c4-browser-integration.ts";
 
@@ -20,7 +21,7 @@ function currentCatalogStepOneBytes(): Uint8Array {
       colorId: "builtin:black",
     })),
   };
-  return new TextEncoder().encode(JSON.stringify({ ...options, panels }));
+  return encodeRealBuildPreparedRunInput({ ...options, panels });
 }
 
 const bytesBase64 = (bytes: Uint8Array): string => Buffer.from(bytes).toString("base64");
@@ -56,7 +57,7 @@ export async function runAndVerifyRealBuildStepOneProperC4BrowserIntegration(inp
     "sha256:24e68a134cf86c181ede701c2f189d1f2816af4a83510e2a841f270249d5ce72",
   );
   expect(c4.quotientDigest).toBe(
-    "sha256:660f8c7c8ea2eac42e7c006acd911099ac28e10af2b8e055adad711cd9643421",
+    "sha256:e9f23510849153d022bb0aafd6dbf5281bbf6c519c7aff8d14bdefd0fd1145b9",
   );
   expect(c4.equivariance).toMatchObject({
     exactParity: true,

@@ -3,7 +3,7 @@ import { registerPrefixAgreement } from "./real-build-deferral";
 import type { FartherPanelObservationInput } from "./real-build-farther-panel-types";
 import type { PanelRasterEvidence } from "./real-build-panel-raster";
 import { rgbaPngDataUrl, type PreparedRealBuildModules } from "./real-build-browser-preflight";
-import type { RealBuildOptions, RealBuildPanelSpec } from "./real-build-safety";
+import type { RealBuildOptions, RealBuildPanelRasterSpec } from "./real-build-safety";
 import { anchorStepCamera } from "./real-build-step-camera";
 
 export interface FartherPanelScoreResult {
@@ -41,7 +41,7 @@ const frameFor = (evidence: PanelRasterEvidence) => ({
 
 /** Scores exact documents against one farther panel using one base-bound quarter turn. */
 export function scoreFartherDocumentsAgainstPanel<D>(input: {
-  readonly spec: RealBuildPanelSpec;
+  readonly spec: RealBuildPanelRasterSpec;
   readonly evidence: PanelRasterEvidence;
   readonly anchorDocument: D;
   readonly candidates: readonly { readonly candidateId: string; readonly document: D }[];

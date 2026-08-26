@@ -30,10 +30,15 @@ import {
   verifyRealBuildRunContract,
   type CurrentRealBuildRunContract,
 } from "./real-build-run-contract";
+import { parseRealBuildPreparedRunInput } from "./real-build-prepared-run-input-parser";
 import { realBuildFartherCapturePath } from "./real-build-score";
-import type { RealBuildOptions, RealBuildResult } from "./real-build-safety";
+import type { RealBuildResult } from "./real-build-safety";
 import { verifyRealBuildServedResponseEvidence } from "./real-build-served-response-verification";
-import { parseFatalUtf8Json } from "./strict-json";
+import {
+  assertCanonicalRealBuildJsonBytes,
+  parseCanonicalRealBuildJson,
+  parseDuplicateFreeRealBuildJson,
+} from "./real-build-json-admission";
 
 interface ValidationSnapshot {
   readonly truthSnapshotHash: string | null;
@@ -100,7 +105,7 @@ function assertCurrentManifestShape(
     !REAL_BUILD_RUN_ID_PATTERN.test(value.runId) ||
     (expectedRunId !== undefined && value.runId !== expectedRunId) ||
     !isRecord(value.runContract) ||
-    value.runContract.schemaVersion !== "lego.real-build-run-contract/3" ||
+    value.runContract.schemaVersion !== "lego.real-build-run-contract/4" ||
     !isRecord(value.truthSnapshots) ||
     !hasExactKeys(value.truthSnapshots, [
       "availability",
@@ -128,7 +133,7 @@ function assertCurrentManifestShape(
     !DIGEST_PATTERN.test(String(value.replayClosure.environmentDigest))
   ) {
     throw new TypeError(
-      "Current real-build artifact manifest must be exact schema /4 over run-contract /3.",
+      "Current real-build artifact manifest must be exact schema /4 over run-contract /4.",
     );
   }
   const snapshots = value.truthSnapshots.validationSnapshots;
@@ -162,8 +167,17 @@ export function verifyRealBuildArtifactManifest(
       maximumBytes: MAXIMUM_ARTIFACT_MANIFEST_BYTES,
     },
   );
-  const manifest = parseFatalUtf8Json<unknown>(artifactManifestBytes, "artifact manifest");
+  const manifest = parseDuplicateFreeRealBuildJson<unknown>(
+    artifactManifestBytes,
+    "current artifact manifest",
+  );
   assertCurrentManifestShape(manifest, expectedRunId);
+  assertCanonicalRealBuildJsonBytes(
+    artifactManifestBytes,
+    manifest,
+    "current artifact manifest",
+    "pretty-one-space-line",
+  );
   const verifiedClosure = verifyRealBuildReplayClosureData(directory);
   const closure = verifiedClosure.manifest;
   if (
@@ -182,20 +196,19 @@ export function verifyRealBuildArtifactManifest(
     verifiedClosure.roleBytes.get("run-contract")!,
   );
   if (
-    retainedContract.schemaVersion !== "lego.real-build-run-contract/3" ||
+    retainedContract.schemaVersion !== "lego.real-build-run-contract/4" ||
     JSON.stringify(retainedContract) !== JSON.stringify(manifest.runContract)
   ) {
     throw new TypeError(
-      "Current artifact manifest requires the exact retained run-contract /3 role.",
+      "Current artifact manifest requires the exact retained run-contract /4 role.",
     );
   }
-  const preparedOptions = parseFatalUtf8Json<RealBuildOptions>(
+  const preparedOptions = parseRealBuildPreparedRunInput(
     verifiedClosure.roleBytes.get("prepared-options")!,
-    "artifact prepared-options role",
-  );
-  const environment = parseFatalUtf8Json<RealBuildEnvironment>(
+  ).options;
+  const environment = parseCanonicalRealBuildJson<RealBuildEnvironment>(
     verifiedClosure.roleBytes.get("environment")!,
-    "artifact environment role",
+    "current artifact environment role",
   );
   assertRealBuildEnvironment(environment, retainedContract.contractDigest);
   verifyRealBuildRunContract({
@@ -241,9 +254,9 @@ export function verifyRealBuildArtifactManifest(
     expectedArtifactPaths.add(REAL_BUILD_DIAGNOSTIC_PREFIX_FILE);
   }
   if (closure.replayLevel === "downstream-only") {
-    const browserOutput = parseFatalUtf8Json<unknown>(
+    const browserOutput = parseCanonicalRealBuildJson<unknown>(
       verifiedClosure.roleBytes.get("browser-output")!,
-      "artifact browser-output path projection",
+      "current artifact browser-output path projection",
     );
     assertReadableRealBuildBrowserOutput(browserOutput, preparedOptions);
     for (const report of (browserOutput as RealBuildBrowserOutput).reports) {

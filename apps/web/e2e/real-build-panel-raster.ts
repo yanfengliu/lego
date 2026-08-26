@@ -15,7 +15,7 @@ export type {
   RawPanelArrowMeasurement,
   RealBuildArrowFamilyAssembly,
 } from "./real-build-panel-arrow-evidence";
-import type { RealBuildOptions, RealBuildPanelSpec } from "./real-build-safety";
+import type { RealBuildOptions, RealBuildPanelRasterSpec } from "./real-build-safety";
 import {
   inspectRealBuildPanelCropGeometry,
   mappedPanelCalloutRectangles,
@@ -113,7 +113,7 @@ export interface PanelRasterEvidence {
 
 export function derivePanelRasterEvidence(input: {
   readonly pageCanvas: PageCanvas;
-  readonly spec: RealBuildPanelSpec;
+  readonly spec: RealBuildPanelRasterSpec;
   readonly options: Pick<
     RealBuildOptions,
     "renderScale" | "panelWidth" | "workFactor" | "proximityMarginPx"

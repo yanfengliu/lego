@@ -20,6 +20,7 @@ import {
   createRealBuildRunContract,
   REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST,
   REAL_BUILD_INPUT_ROLE_BY_DIGEST,
+  REAL_BUILD_PANEL_SOURCE_ROLE,
   realBuildRunBudgets,
   realBuildRunThresholds,
   verifyRealBuildRunContract,
@@ -243,6 +244,7 @@ const identificationClosure = {
 const roleDigests = Object.fromEntries(
   [
     ...Object.values(REAL_BUILD_INPUT_ROLE_BY_DIGEST),
+    REAL_BUILD_PANEL_SOURCE_ROLE,
     REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.features,
     REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.match,
     REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.distances,
@@ -255,7 +257,9 @@ function contractFor(options: RealBuildOptions, codeSnapshots: Readonly<Record<s
   return createRealBuildRunContract({
     inputDigests: options.inputDigests,
     identificationClosure,
+    panelSourceDigest: REAL_BUILD_TEST_DIGEST,
     panels: options.panels,
+    passivePanels: options.passivePanels,
     budgets: realBuildRunBudgets(options),
     thresholds: realBuildRunThresholds(options),
     codeSnapshots,

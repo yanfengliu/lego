@@ -1,11 +1,69 @@
 import { describe, expect, it } from "vitest";
 
 import { preflightRealBuildOptions } from "../e2e/real-build-contract";
+import { preflightRealBuildPanelPrefix } from "../e2e/real-build-panel-prefix-preflight";
 import { completeRealBuildTestOptions } from "./real-build-test-options";
 
 describe("trusted real-build test options", () => {
-  it("satisfies the complete 359-step and 1464-identity preflight contract", () => {
+  it("satisfies a bounded executable prefix under the fixed 359-step source contract", () => {
     expect(preflightRealBuildOptions(completeRealBuildTestOptions(2))).toEqual([]);
+  });
+
+  it("refuses hostile huge prefix bounds without allocating from them", () => {
+    const options = completeRealBuildTestOptions(1);
+    const failures = preflightRealBuildPanelPrefix({
+      panels: options.panels,
+      passivePanels: options.passivePanels,
+      expectedPrintedSteps: Number.MAX_SAFE_INTEGER,
+      lastStep: Number.MAX_SAFE_INTEGER,
+      fartherPanelMaximumReachSteps: options.fartherPanelMaximumReachSteps,
+    });
+
+    expect(failures).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ inputKey: "lastStep" }),
+        expect.objectContaining({ inputKey: "panels" }),
+      ]),
+    );
+  });
+
+  it("accepts an optional passive raster subset and rejects passive authority or excess reach", () => {
+    const options = completeRealBuildTestOptions(2);
+    expect(preflightRealBuildOptions({ ...options, passivePanels: [] })).toEqual([]);
+    expect(
+      preflightRealBuildOptions({
+        ...options,
+        passivePanels: options.passivePanels.slice(0, 1),
+      }),
+    ).toEqual([]);
+
+    const authorityBearingPassive = {
+      ...options.passivePanels[0]!,
+      action: options.panels[0]!.action,
+    };
+    expect(
+      preflightRealBuildOptions({ ...options, passivePanels: [authorityBearingPassive] }),
+    ).toEqual(expect.arrayContaining([expect.objectContaining({ inputKey: "passivePanels" })]));
+
+    const beyondReach = {
+      ...options.passivePanels[0]!,
+      stepNumber: options.lastStep + options.fartherPanelMaximumReachSteps + 1,
+    };
+    expect(preflightRealBuildOptions({ ...options, passivePanels: [beyondReach] })).toEqual(
+      expect.arrayContaining([expect.objectContaining({ inputKey: "passivePanels" })]),
+    );
+
+    const uninspectablePassive = new Proxy(options.passivePanels[0]!, {
+      ownKeys() {
+        throw new TypeError("hostile descriptor trap");
+      },
+    });
+    expect(() =>
+      preflightRealBuildOptions({ ...options, passivePanels: [uninspectablePassive] }),
+    ).not.toThrow();
+    expect(
+      preflightRealBuildOptions({ ...options, passivePanels: [uninspectablePassive] }),
+    ).toEqual(expect.arrayContaining([expect.objectContaining({ inputKey: "passivePanels" })]));
   });
 
   // The prefix case above exercises neither full-set clause: preflight requires

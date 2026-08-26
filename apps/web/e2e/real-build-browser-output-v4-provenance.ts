@@ -31,6 +31,7 @@ import {
   type RealBuildBrowserOutputV4ProvenanceInput,
 } from "./real-build-browser-output-v4-provenance-input";
 import { stepPanelEvidenceDigest } from "./real-build-panel-evidence-digest";
+import type { RealBuildPanelRasterSpec } from "./real-build-safety";
 
 export const REAL_BUILD_BROWSER_OUTPUT_V4_DERIVATION_AUTHORITY = intrinsicRealBuildFreeze({
   status: "absent" as const,
@@ -49,8 +50,10 @@ export interface RealBuildBrowserOutputV4ProvenanceStepInspection {
 }
 
 export interface RealBuildBrowserOutputV4ProvenanceInspection {
-  readonly schemaVersion: "lego.real-build-browser-output-v4-provenance-inspection/1";
-  readonly preparedPanels: 359;
+  readonly schemaVersion: "lego.real-build-browser-output-v4-provenance-inspection/2";
+  readonly sourceIndexPanels: 359;
+  readonly preparedActionPanels: number;
+  readonly passiveObservationPanels: number;
   readonly indexedBranchSteps: number;
   readonly cameraRows: number;
   readonly steps: readonly RealBuildBrowserOutputV4ProvenanceStepInspection[];
@@ -100,7 +103,7 @@ function sameBounds(
 function bindPreparedPanels(
   envelope: RealBuildBrowserOutputV4EnvelopeInspection,
   source: RealBuildBrowserOutputV4SourceEvidenceInspection,
-): void {
+): ReadonlyMap<number, RealBuildPanelRasterSpec> {
   const manifest = source.manifest;
   const prepared = envelope.preparedBoundary;
   if (
@@ -110,15 +113,28 @@ function bindPreparedPanels(
     manifest.rasterPolicy.panelWidth !== prepared.panelWidth ||
     manifest.rasterPolicy.workFactor !== prepared.workFactor ||
     manifest.panels.length !== 359 ||
-    prepared.panels.length !== 359
+    prepared.panels.length !== prepared.lastStep ||
+    prepared.passivePanels.length > prepared.fartherPanelMaximumReachSteps
   ) {
     throw new TypeError(
       "Browser output /4 source manifest does not bind the exact prepared run, PDF, raster policy, and 359-panel set.",
     );
   }
-  for (let index = 0; index < 359; index += 1) {
-    const actual = manifest.panels[index]!;
-    const expected = prepared.panels[index]!;
+  const preparedPanels = [...prepared.panels, ...prepared.passivePanels];
+  const byStep = new Map<number, RealBuildPanelRasterSpec>();
+  for (let index = 0; index < preparedPanels.length; index += 1) {
+    const expected = preparedPanels[index]!;
+    const expectedStepNumber = index + 1;
+    const actual = manifest.panels[expected.stepNumber - 1];
+    if (
+      actual === undefined ||
+      expected.stepNumber !== expectedStepNumber ||
+      byStep.has(expected.stepNumber)
+    ) {
+      throw new TypeError(
+        `Browser output /4 prepared action/passive window must be an ordered unique prefix; row ${index} names ${expected.stepNumber}.`,
+      );
+    }
     const expectedPanelEvidenceDigest = stepPanelEvidenceDigest({
       pdfDigest: manifest.pdfDigest,
       stepNumber: expected.stepNumber,
@@ -142,8 +158,7 @@ function bindPreparedPanels(
       highHeight: actual.highHeight,
     });
     if (
-      actual.stepNumber !== index + 1 ||
-      expected.stepNumber !== index + 1 ||
+      actual.stepNumber !== expected.stepNumber ||
       actual.pageNumber !== expected.pageNumber ||
       !sameBounds(actual, expected) ||
       actual.calloutBoxes.length !== expected.calloutBoxes.length ||
@@ -154,10 +169,12 @@ function bindPreparedPanels(
       actual.cropDescriptorDigest !== expectedCropDescriptorDigest
     ) {
       throw new TypeError(
-        `Browser output /4 source panel ${index + 1} does not preserve its exact prepared page, crop, or callouts.`,
+        `Browser output /4 source panel ${expected.stepNumber} does not preserve its exact prepared page, crop, or callouts.`,
       );
     }
+    byStep.set(expected.stepNumber, expected);
   }
+  return byStep;
 }
 
 function sameMaskReference(
@@ -278,7 +295,7 @@ function bindCameraCommitment(
   source: RealBuildCompiledObservationSourceCommitment,
   row: RealBuildBrowserCameraEvidenceRow,
   detailed: RealBuildBrowserBranchDetailedInspection["steps"][number],
-  preparedPanel: RealBuildBrowserOutputV4EnvelopeInspection["preparedBoundary"]["panels"][number],
+  preparedPanel: RealBuildPanelRasterSpec,
 ): void {
   exactChild(detailed.lineageInspection.evidence.childCandidates, row);
   if (
@@ -330,7 +347,7 @@ export function inspectRealBuildBrowserOutputV4Provenance(
       "Browser output /4 prepared-run digest differs across envelope, branch, and source inspections.",
     );
   }
-  bindPreparedPanels(envelope, source);
+  const preparedPanelsByStep = bindPreparedPanels(envelope, source);
   if (
     !sameRole(branch.branch.compiledBranchRole, envelope.envelope.evidence.compiledBranchRole) ||
     !sameRole(branch.branch.observationRole, envelope.envelope.evidence.branchObservationRole) ||
@@ -370,10 +387,11 @@ export function inspectRealBuildBrowserOutputV4Provenance(
     }
     const sources = new Map(closure.sources.map((source) => [source.sourceId, source]));
     for (const sourceCommitment of closure.sources) {
+      const preparedPanel = preparedPanelsByStep.get(sourceCommitment.registrationPanelStepNumber);
       const panel = source.manifest.panels[sourceCommitment.registrationPanelStepNumber - 1];
-      if (panel === undefined) {
+      if (preparedPanel === undefined || panel === undefined) {
         throw new TypeError(
-          `Browser branch step ${detailed.stepNumber} source ${sourceCommitment.sourceId} names missing panel ${sourceCommitment.registrationPanelStepNumber}.`,
+          `Browser branch step ${detailed.stepNumber} source ${sourceCommitment.sourceId} names panel ${sourceCommitment.registrationPanelStepNumber} outside the prepared action/passive window.`,
         );
       }
       bindSourceCommitment(sourceCommitment, detailed, panel);
@@ -386,8 +404,7 @@ export function inspectRealBuildBrowserOutputV4Provenance(
           `Browser branch step ${detailed.stepNumber} camera ${cameraCommitment.cameraId} has no exact external row or source.`,
         );
       }
-      const panel =
-        envelope.preparedBoundary.panels[row.preparedPanel.registrationPanelStepNumber - 1];
+      const panel = preparedPanelsByStep.get(row.preparedPanel.registrationPanelStepNumber);
       if (panel === undefined) {
         throw new TypeError(
           `Browser camera ${row.cameraId} names missing prepared panel ${row.preparedPanel.registrationPanelStepNumber}.`,
@@ -443,8 +460,10 @@ export function inspectRealBuildBrowserOutputV4Provenance(
     );
   }
   const inspection = intrinsicRealBuildFreeze({
-    schemaVersion: "lego.real-build-browser-output-v4-provenance-inspection/1" as const,
-    preparedPanels: 359 as const,
+    schemaVersion: "lego.real-build-browser-output-v4-provenance-inspection/2" as const,
+    sourceIndexPanels: 359 as const,
+    preparedActionPanels: envelope.preparedBoundary.panels.length,
+    passiveObservationPanels: envelope.preparedBoundary.passivePanels.length,
     indexedBranchSteps: branch.steps.length,
     cameraRows: camera.manifest.rows.length,
     steps: intrinsicRealBuildFreeze(steps),

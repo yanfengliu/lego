@@ -1,11 +1,10 @@
-import { TextDecoder } from "node:util";
-
 const MAX_JSON_DEPTH = 128;
 const MAX_JSON_VALUES = 4_000_000;
-const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
-const bufferFromIntrinsic = Buffer.from;
-const bufferFrom = (bytes) => bufferFromIntrinsic(bytes);
-const decodeUtf8 = Function.call.bind(TextDecoder.prototype.decode, decoder);
+const TextDecoderIntrinsic = globalThis.TextDecoder;
+const Uint8ArrayIntrinsic = globalThis.Uint8Array;
+const decoder = new TextDecoderIntrinsic("utf-8", { fatal: true, ignoreBOM: true });
+const copyBytes = (bytes) => new Uint8ArrayIntrinsic(bytes);
+const decodeUtf8 = Function.call.bind(TextDecoderIntrinsic.prototype.decode, decoder);
 const defineProperty = Object.defineProperty;
 const hasOwn = Function.call.bind(Object.prototype.hasOwnProperty);
 const jsonParse = JSON.parse;
@@ -209,6 +208,6 @@ class StrictJsonParser {
 
 /** Decode exact UTF-8 and reject duplicate keys rather than silently replacing them. */
 export function parseStrictJsonBytes(bytes) {
-  const text = decodeUtf8(bufferFrom(bytes));
+  const text = decodeUtf8(copyBytes(bytes));
   return new StrictJsonParser(text).parse();
 }

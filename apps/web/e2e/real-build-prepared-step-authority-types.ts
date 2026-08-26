@@ -1,7 +1,7 @@
 import type { Sha256Digest } from "@lego-studio/brick-kernel";
 
 import type { RealBuildBrowserOutputBoundary } from "./real-build-browser-output-types";
-import type { RealBuildPanelSpec } from "./real-build-safety";
+import type { RealBuildPanelRasterSpec, RealBuildPanelSpec } from "./real-build-safety";
 
 declare const preparedStepAuthorityType: unique symbol;
 
@@ -53,6 +53,8 @@ export type RealBuildPreparedRunInputInspection = Readonly<{
 export type RealBuildPreparedBrowserOutputBoundaryInspection = Readonly<
   RealBuildBrowserOutputBoundary & {
     readonly preparedRunInputDigest: Sha256Digest;
+    /** Bounded source-bound observation rows. These carry no action or piece fields. */
+    readonly passivePanels: readonly RealBuildPanelRasterSpec[];
     readonly authority: "absent";
   }
 >;

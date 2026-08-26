@@ -83,7 +83,8 @@ import {
 
 function attestedDirectStepOneOptions(): RealBuildOptions {
   const options = completeRealBuildTestOptions(1);
-  const movedPiece = options.panels[357]!.pieces[0]!;
+  const complete = completeRealBuildTestOptions(359);
+  const movedPiece = complete.panels[357]!.pieces[0]!;
   const panels: RealBuildPanelSpec[] = options.panels.map((panel) => {
     if (panel.stepNumber === 1) {
       return {
@@ -99,19 +100,6 @@ function attestedDirectStepOneOptions(): RealBuildOptions {
         classifiedPhysicalCalloutPieces: 1,
       };
     }
-    if (panel.stepNumber === 358) {
-      if (panel.action.kind !== "place-callouts") {
-        throw new TypeError("The test fixture requires printed step 358 to place callouts.");
-      }
-      return {
-        ...panel,
-        action: { ...panel.action, assembledPieces: 1_394 },
-        pieces: panel.pieces.slice(1),
-        mappedCalloutKeys: panel.mappedCalloutKeys.slice(1),
-        calloutPieces: 1_394,
-        classifiedPhysicalCalloutPieces: 1_394,
-      };
-    }
     return panel;
   });
   return {
@@ -121,7 +109,7 @@ function attestedDirectStepOneOptions(): RealBuildOptions {
     coverageByCallout: {
       ...options.coverageByCallout,
       [movedPiece.calloutKey]: {
-        ...options.coverageByCallout[movedPiece.calloutKey]!,
+        ...complete.coverageByCallout[movedPiece.calloutKey]!,
         pageNumber: 1,
         stepNumber: 1,
       },
@@ -306,7 +294,7 @@ describe("real-build runner panel-camera generation cutover", () => {
     expect(placementCallback).not.toHaveBeenCalled();
   });
 
-  it("executes shuffled input globally by printed step and reuses one page raster on demand", async () => {
+  it("refuses shuffled executable panels before any page or placement work", async () => {
     const options = { ...completeRealBuildTestOptions(3), panelCameraBranchBudget: 8 };
     const panels = options.panels.map((panel) =>
       panel.stepNumber <= 3 ? { ...panel, pageNumber: 1 } : panel,
@@ -315,11 +303,14 @@ describe("real-build runner panel-camera generation cutover", () => {
 
     const output = await runRealBuild({ ...options, panels });
 
-    expect(output.reports.map(({ stepNumber }) => stepNumber)).toEqual([1, 2, 3]);
-    expect(renderPage).toHaveBeenCalledTimes(1);
-    expect(renderPage).toHaveBeenCalledWith(expect.anything(), 1, options.renderScale);
-    expect(deriveEvidence.mock.calls.map(([input]) => input.spec.stepNumber)).toEqual([1]);
-    expect(pageDispose).toHaveBeenCalledOnce();
+    expect(output).toMatchObject({
+      status: "failed",
+      reports: [],
+      failure: { code: "printed-step-sequence-invalid", stage: "input" },
+    });
+    expect(renderPage).not.toHaveBeenCalled();
+    expect(deriveEvidence).not.toHaveBeenCalled();
+    expect(pageDispose).not.toHaveBeenCalled();
     expect(placementCallback).not.toHaveBeenCalled();
   });
 

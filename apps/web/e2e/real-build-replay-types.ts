@@ -1,4 +1,5 @@
 import type { RealBuildSourceSnapshot } from "./real-build-replay-files";
+import type { RealBuildActionLedger } from "./real-build-ledger-contract";
 
 export const REAL_BUILD_REPLAY_CLOSURE_SCHEMA = "lego.real-build-replay-closure/3" as const;
 
@@ -25,6 +26,8 @@ export interface RealBuildReplayClosureManifest {
 export interface VerifiedRealBuildReplayClosure {
   readonly manifest: RealBuildReplayClosureManifest;
   readonly roleBytes: ReadonlyMap<string, Buffer>;
+  /** Closed current /3 ledger, or null for frozen legacy run-contract generations. */
+  readonly admittedActionLedger: RealBuildActionLedger | null;
 }
 
 export interface RealBuildReplayInspection {
@@ -33,7 +36,10 @@ export interface RealBuildReplayInspection {
   readonly replayLevel: RealBuildReplayClosureManifest["replayLevel"];
   readonly contractDigest: string | null;
   readonly contractSchemaVersion:
-    "lego.real-build-run-contract/2" | "lego.real-build-run-contract/3" | null;
+    | "lego.real-build-run-contract/2"
+    | "lego.real-build-run-contract/3"
+    | "lego.real-build-run-contract/4"
+    | null;
   readonly roleTrace: readonly {
     readonly role: string;
     readonly digest: string;

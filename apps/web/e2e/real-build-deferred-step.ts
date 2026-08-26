@@ -17,6 +17,7 @@ import { MAXIMUM_REAL_BUILD_FARTHER_CAPTURES } from "./real-build-farther-report
 import type { PanelRasterEvidence } from "./real-build-panel-raster";
 import type {
   RealBuildOptions,
+  RealBuildPanelRasterSpec,
   RealBuildPanelSpec,
   RealBuildPieceReport,
   StepFailure,
@@ -94,7 +95,7 @@ export function settleDeferredPrintedStep<D>(input: {
       }) => readonly PlacementTransform[])
     | null;
   readonly lookahead: {
-    readonly spec: RealBuildPanelSpec;
+    readonly spec: RealBuildPanelRasterSpec;
     readonly evidence: PanelRasterEvidence;
   } | null;
   readonly options: RealBuildOptions;

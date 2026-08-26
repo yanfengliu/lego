@@ -34,6 +34,7 @@ import {
   verifyRealBuildIdentificationClosure,
   type RealBuildIdentificationMode,
 } from "./real-build-identification-closure";
+import { admitCanonicalRealBuildActionLedgerBytes } from "./real-build-action-ledger-admission";
 import {
   applyBuilderCanonicalCalibration,
   parseOfficialModelIndex,
@@ -43,12 +44,10 @@ import {
   type RealBuildActionLedger,
 } from "./real-build-ledger";
 import { inspectRealBuildManifestRows } from "./real-build-manifest-consumption";
-import {
-  REAL_BUILD_PRODUCTION_EXPECTED_PRINTED_STEPS as EXPECTED_PRINTED_STEPS,
-  REAL_BUILD_PRODUCTION_MINIMUM_EXCLUSIVE_HIGHLIGHT_PIXELS_PER_PIECE as MINIMUM_EXCLUSIVE_HIGHLIGHT_PIXELS_PER_PIECE,
-} from "./real-build-production-policy";
+import { REAL_BUILD_PRODUCTION_MINIMUM_EXCLUSIVE_HIGHLIGHT_PIXELS_PER_PIECE as MINIMUM_EXCLUSIVE_HIGHLIGHT_PIXELS_PER_PIECE } from "./real-build-production-policy";
 import type { StepFailure } from "./real-build-safety";
 import { readTransitionClassificationBundle } from "./real-build-transition-classification";
+import { parseRealBuildRequestedLastStep } from "./real-build-requested-last-step";
 import type { RealBuildIdentificationClosureDigests } from "./real-build-run-contract";
 
 const OUTPUT_ROOT = process.env.LEGO_REAL_BUILD_OUT ?? "output/real-build";
@@ -65,16 +64,7 @@ export async function prepareRealBuildInputs() {
     preparationFailures.push(contractFailure("LEGO_REAL_BUILD_OUT", String(error)));
     effectiveOutputRoot = "output/real-build";
   }
-  const lastStep = Number(process.env.LEGO_REAL_BUILD_LAST_STEP ?? 12);
-  if (!Number.isInteger(lastStep) || lastStep < 1 || lastStep > EXPECTED_PRINTED_STEPS) {
-    preparationFailures.push(
-      contractFailure(
-        "LEGO_REAL_BUILD_LAST_STEP",
-        `LEGO_REAL_BUILD_LAST_STEP must be an integer from 1 through 359; received ${lastStep}.`,
-      ),
-    );
-  }
-  const requestedLastStep = Number.isInteger(lastStep) ? lastStep : 1;
+  const lastStep = parseRealBuildRequestedLastStep(process.env.LEGO_REAL_BUILD_LAST_STEP);
   const coverageInput = readJsonArtifact<{
     readonly schemaVersion?: string;
     readonly byCallout?: unknown;
@@ -89,10 +79,27 @@ export async function prepareRealBuildInputs() {
     HIGHLIGHT_RENDERER_CASES_PATH,
     preparationFailures,
   );
-  const ledgerInput = readJsonArtifact<RealBuildActionLedger>(
-    ACTION_LEDGER_PATH,
-    preparationFailures,
-  );
+  const ledgerFailureCountBeforeRead = preparationFailures.length;
+  const rawLedgerInput = readJsonArtifact<unknown>(ACTION_LEDGER_PATH, preparationFailures);
+  let admittedLedger = {} as RealBuildActionLedger;
+  if (preparationFailures.length === ledgerFailureCountBeforeRead) {
+    try {
+      admittedLedger = admitCanonicalRealBuildActionLedgerBytes({
+        bytes: rawLedgerInput.bytes,
+        label: `Required real-build input ${ACTION_LEDGER_PATH}`,
+        mode: "exact-execution",
+        requestedLastStep: lastStep,
+      });
+    } catch (error) {
+      preparationFailures.push(
+        contractFailure(
+          ACTION_LEDGER_PATH,
+          error instanceof Error ? error.message : "Action ledger current /3 admission failed.",
+        ),
+      );
+    }
+  }
+  const ledgerInput = { ...rawLedgerInput, value: admittedLedger };
   const builderCalibrationInput = readJsonArtifact<BuilderCanonicalCalibration>(
     BUILDER_CALIBRATION_PATH,
     preparationFailures,
@@ -123,7 +130,7 @@ export async function prepareRealBuildInputs() {
   );
   let identificationMode: RealBuildIdentificationMode | null = null;
   try {
-    identificationMode = identifyRealBuildIdentificationMode(coverageInput, requestedLastStep);
+    identificationMode = identifyRealBuildIdentificationMode(coverageInput, lastStep);
   } catch (error) {
     preparationFailures.push(
       contractFailure(
@@ -282,7 +289,7 @@ export async function prepareRealBuildInputs() {
       answers: identificationAnswersInput,
       elementResolution: elementResolutionInput,
       pairJudged: pairJudgedTruthInput,
-      requestedLastStep,
+      requestedLastStep: lastStep,
     });
     if (typeof reproduced !== "object" || reproduced === null || Array.isArray(reproduced)) {
       throw new TypeError("The identification compiler returned a non-object coverage report.");

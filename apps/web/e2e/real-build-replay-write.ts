@@ -23,16 +23,22 @@ import {
 import {
   parseRealBuildRunContract,
   REAL_BUILD_INPUT_ROLE_BY_DIGEST,
+  REAL_BUILD_PANEL_SOURCE_ROLE,
   verifyRealBuildRunContractRoleDigests,
 } from "./real-build-run-contract";
 import {
   REAL_BUILD_REPLAY_CLOSURE_SCHEMA,
   type RealBuildReplayClosureManifest,
 } from "./real-build-replay-types";
-import { parseFatalUtf8Json } from "./strict-json";
+import { parseRealBuildPreparedRunInput } from "./real-build-prepared-run-input-parser";
 import { assertRealBuildEnvironment } from "./real-build-environment";
 import { assertReadableRealBuildBrowserOutput } from "./real-build-browser-output";
-import type { RealBuildOptions } from "./real-build-safety";
+import {
+  canonicalRealBuildJsonClone,
+  encodeCanonicalRealBuildJson,
+  parseCanonicalRealBuildJson,
+  parseDuplicateFreeRealBuildJson,
+} from "./real-build-json-admission";
 import {
   createRealBuildBootstrapSourceManifest,
   REAL_BUILD_SOURCE_ROOT_POLICY_PATH,
@@ -123,9 +129,16 @@ export function canonicalReplayManifestDigest(
 export function expectedReplayRoles(
   replayLevel: RealBuildReplayClosureManifest["replayLevel"],
   identificationSource: "deterministic" | "adjudicated",
+  contractSchemaVersion:
+    | "lego.real-build-run-contract/2"
+    | "lego.real-build-run-contract/3"
+    | "lego.real-build-run-contract/4",
 ): ReadonlySet<string> {
   return new Set([
     ...(replayLevel === "downstream-only" ? REQUIRED_DOWNSTREAM_ROLES : REQUIRED_METADATA_ROLES),
+    ...(contractSchemaVersion === "lego.real-build-run-contract/4"
+      ? [REAL_BUILD_PANEL_SOURCE_ROLE]
+      : []),
     ...(identificationSource === "adjudicated" ? CONDITIONAL_IDENTIFICATION_ROLES : []),
     "environment",
   ]);
@@ -204,45 +217,55 @@ export function writeRealBuildReplayClosureUnverified(
   if (runContractBytes === undefined) {
     throw new TypeError("Every replay closure requires its digest-bound run-contract role.");
   }
-  parseFatalUtf8Json<unknown>(runContractBytes, "replay run-contract role");
   const runContract = parseRealBuildRunContract(runContractBytes);
-  if (runContract.schemaVersion !== "lego.real-build-run-contract/3") {
+  if (runContract.schemaVersion !== "lego.real-build-run-contract/4") {
     throw new TypeError(
-      "New replay publication requires run-contract /3; retained generation-2 bytes are inspection-only and cannot be republished as current evidence.",
+      "New replay publication requires run-contract /4; retained generation-2 and generation-3 bytes are inspection-only and cannot be republished as current evidence.",
     );
   }
   const replayLevel = input.browserOutputRetained ? "downstream-only" : "metadata-only";
   assertExactReplayRoles(
     new Set([...roleNames, "environment"]),
-    expectedReplayRoles(replayLevel, runContract.identificationClosure.source),
+    expectedReplayRoles(
+      replayLevel,
+      runContract.identificationClosure.source,
+      runContract.schemaVersion,
+    ),
   );
   const preparedOptionsBytes = roleSnapshots.find(({ role }) => role === "prepared-options")?.bytes;
   if (preparedOptionsBytes === undefined) {
     throw new TypeError("Every replay closure requires retained prepared-options bytes.");
   }
-  const preparedOptions = parseFatalUtf8Json<RealBuildOptions>(
-    preparedOptionsBytes,
-    "replay prepared-options role",
-  );
+  const preparedOptions = parseRealBuildPreparedRunInput(preparedOptionsBytes).options;
   if (replayLevel === "downstream-only") {
     const browserOutputBytes = roleSnapshots.find(({ role }) => role === "browser-output")?.bytes;
     if (browserOutputBytes === undefined) {
       throw new TypeError("Downstream replay requires retained browser-output bytes.");
     }
-    const browserOutput = parseFatalUtf8Json<unknown>(
+    const browserOutput = parseCanonicalRealBuildJson<unknown>(
       browserOutputBytes,
-      "replay browser-output role",
+      "current replay browser-output role",
     );
     assertReadableRealBuildBrowserOutput(browserOutput, preparedOptions);
   }
-  const environmentBytes = encodeBoundedJson(
+  const boundedEnvironmentBytes = encodeBoundedJson(
     input.environment,
     REAL_BUILD_REPLAY_ROLE_BYTE_LIMITS.environment!,
     "replay environment",
   );
-  const environment = parseFatalUtf8Json<Record<string, unknown>>(
+  const boundedEnvironment = parseDuplicateFreeRealBuildJson<Record<string, unknown>>(
+    boundedEnvironmentBytes,
+    "bounded replay environment",
+  );
+  const environmentBytes = encodeCanonicalRealBuildJson(boundedEnvironment);
+  if (environmentBytes.length > REAL_BUILD_REPLAY_ROLE_BYTE_LIMITS.environment!) {
+    throw new TypeError(
+      `Canonical replay environment encoded to ${environmentBytes.length} bytes; maximum is ${REAL_BUILD_REPLAY_ROLE_BYTE_LIMITS.environment}.`,
+    );
+  }
+  const environment = parseCanonicalRealBuildJson<Record<string, unknown>>(
     environmentBytes,
-    "replay environment",
+    "current replay environment",
   );
   assertRealBuildEnvironment(environment, runContract.contractDigest);
   assertReplayDeclaredBudgets({
@@ -322,9 +345,9 @@ export function writeRealBuildReplayClosureUnverified(
   });
   const sourceBundle = {
     files: sourceBundleFiles,
-    digest: replayDigest(JSON.stringify(sourceBundleFiles)),
+    digest: replayDigest(encodeCanonicalRealBuildJson(sourceBundleFiles)),
   };
-  const base: Omit<RealBuildReplayClosureManifest, "manifestDigest"> = {
+  const base = canonicalRealBuildJsonClone<Omit<RealBuildReplayClosureManifest, "manifestDigest">>({
     schemaVersion: REAL_BUILD_REPLAY_CLOSURE_SCHEMA,
     authority: "local-diagnostic",
     authenticated: false,
@@ -333,9 +356,12 @@ export function writeRealBuildReplayClosureUnverified(
     roles,
     sourceBundle,
     environmentDigest: roles.find(({ role }) => role === "environment")!.digest,
-  };
-  const manifest = { ...base, manifestDigest: canonicalReplayManifestDigest(base) };
-  const manifestBytes = Buffer.from(`${JSON.stringify(manifest, null, 1)}\n`);
+  });
+  const manifest = canonicalRealBuildJsonClone<RealBuildReplayClosureManifest>({
+    ...base,
+    manifestDigest: canonicalReplayManifestDigest(base),
+  });
+  const manifestBytes = encodeCanonicalRealBuildJson(manifest, "pretty-one-space-line");
   if (manifestBytes.length > MAXIMUM_REPLAY_MANIFEST_BYTES) {
     throw new TypeError(
       `Replay closure manifest is ${manifestBytes.length} bytes; maximum is ${MAXIMUM_REPLAY_MANIFEST_BYTES}.`,

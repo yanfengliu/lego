@@ -1,6 +1,15 @@
 import { createEmptyBrickDocument, createPartInstance } from "@lego-studio/brick-kernel";
 
+import type { InstructionSourceV1 } from "../src/instructions/instruction-source";
+
 import { sha256Digest } from "../e2e/real-build-artifacts";
+import { encodeRealBuildActionLedger } from "../e2e/real-build-action-ledger";
+import {
+  actionEvidenceDigest,
+  pieceEvidenceDigest,
+  stepPanelEvidenceDigest,
+  type LedgerStep,
+} from "../e2e/real-build-ledger";
 import {
   createFrozenLegacyEmptyBrickDocumentV2,
   validateFrozenLegacyBrickDocumentV2,
@@ -13,8 +22,15 @@ import {
 import {
   REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST,
   REAL_BUILD_INPUT_ROLE_BY_DIGEST,
+  REAL_BUILD_PANEL_SOURCE_ROLE,
 } from "../e2e/real-build-run-contract";
+import { encodeRealBuildRetainedPanelSource } from "../e2e/real-build-replay-panel-source";
 import { unexecutedStepReport } from "../e2e/real-build-contract";
+import { encodeCanonicalRealBuildJson } from "../e2e/real-build-json-admission";
+import {
+  assembleTransitionClassificationBundle,
+  encodeTransitionClassificationBundle,
+} from "../e2e/real-build-transition-classification";
 import {
   stepPrerequisiteFacts,
   type RealBuildOptions,
@@ -32,6 +48,10 @@ import {
   observedPanelCameraEvidence,
   seededPanelCameraEvidence,
 } from "./real-build-panel-camera-evidence.fixture";
+import {
+  realBuildLedgerPrefix,
+  realBuildLedgerTestFixture,
+} from "./real-build-ledger-test-fixture";
 
 const DIGEST = REAL_BUILD_TEST_DIGEST;
 const PNG = "data:image/png;base64,iVBORw0KGgo=";
@@ -39,27 +59,148 @@ const ACTUAL_TRANSFORMS = [
   { positionLdu: [0, 0, 0] as const, orientationId: "upright-yaw-0" as const },
   { positionLdu: [0, -24, 0] as const, orientationId: "upright-yaw-0" as const },
 ];
-const OFFICIAL_TRANSFORMS = [
-  ACTUAL_TRANSFORMS[0],
-  { positionLdu: [0, 24, 0] as const, orientationId: "upright-yaw-0" as const },
-];
+const ledgerFixture = realBuildLedgerTestFixture();
+const REPLAY_BRICK_REFS = ["brick-a", "brick-b"] as const;
+const OFFICIAL_TRANSFORMS = REPLAY_BRICK_REFS.map((brickRef) => {
+  const transform = ledgerFixture.official.bricks[brickRef]?.canonicalTransform ?? null;
+  if (transform === null) {
+    throw new TypeError(`Replay fixture official Brick ${brickRef} lost its calibrated transform.`);
+  }
+  return transform;
+});
 
-const sharedOpaqueRoleBytes = new TextEncoder().encode("shared-opaque-role-bytes");
-export const replayRawRoleBytes = {
+const baseOptions = completeRealBuildTestOptions(1);
+const completeOptions = completeRealBuildTestOptions(359);
+const sourcePanel = completeOptions.panels[357]!;
+if (sourcePanel.action.kind !== "place-callouts") {
+  throw new TypeError("The complete fixture must retain its direct-piece panel at step 358.");
+}
+const movedPieces = sourcePanel.pieces.slice(-2);
+if (movedPieces.length !== 2) {
+  throw new TypeError("The replay fixture requires two direct pieces for its connected prefix.");
+}
+
+const replayPdfBytes = new TextEncoder().encode("synthetic-booklet");
+const replayPdfDigest = sha256Digest(replayPdfBytes);
+const replayCallouts = [
+  {
+    identity: "p2|q1|x0.200|y0.200",
+    file: "runs/000000000000000000000001/p2-q1-x0d200-y0d200.png",
+    pageNumber: 2,
+    stepNumber: 1,
+    quantity: 1,
+    xPt: 0.2,
+    yPt: 0.2,
+    heightPt: 0.1,
+    boxMethod: "vector-smallest",
+    box: { minXPt: 0.1, maxXPt: 0.3, minYPt: 0.1, maxYPt: 0.3 },
+    evidenceKind: "part-art",
+    sha256: sha256Digest("replay-crop-a"),
+  },
+  {
+    identity: "p2|q1|x0.700|y0.700",
+    file: "runs/000000000000000000000001/p2-q1-x0d700-y0d700.png",
+    pageNumber: 2,
+    stepNumber: 1,
+    quantity: 1,
+    xPt: 0.7,
+    yPt: 0.7,
+    heightPt: 0.1,
+    boxMethod: "vector-smallest",
+    box: { minXPt: 0.6, maxXPt: 0.8, minYPt: 0.6, maxYPt: 0.8 },
+    evidenceKind: "part-art",
+    sha256: sha256Digest("replay-crop-b"),
+  },
+] as const;
+
+export const replayInstructionSource: InstructionSourceV1 = {
+  schemaVersion: "lego.instruction-source/1",
+  contentHash: replayPdfDigest,
+  fileName: "synthetic-booklet.pdf",
+  byteLength: replayPdfBytes.byteLength,
+  pageCount: 360,
+  pages: Array.from({ length: 360 }, (_, index) => {
+    const pageNumber = index + 1;
+    const stepNumber = index;
+    const quantityElements =
+      stepNumber === 1
+        ? [
+            { text: "1x", heightPt: 0.1, xPt: 0.2, yPt: 0.2 },
+            { text: "1x", heightPt: 0.1, xPt: 0.7, yPt: 0.7 },
+          ]
+        : [];
+    return {
+      pageNumber,
+      widthPt: 1,
+      heightPt: 1,
+      text:
+        stepNumber === 0
+          ? ""
+          : [String(stepNumber), ...quantityElements.map(({ text }) => text)].join(" "),
+      textElements:
+        stepNumber === 0
+          ? []
+          : [{ text: String(stepNumber), heightPt: 10, xPt: 0.5, yPt: 0.5 }, ...quantityElements],
+      textTruncated: false,
+    };
+  }),
+  provenance: { origin: "user-supplied", ingestedBy: "lego-studio:pdf-ingest/1" },
+};
+export const replayPanelSourceBytes = encodeRealBuildRetainedPanelSource({
+  pdfBytes: replayPdfBytes,
+  source: replayInstructionSource,
+  requestedLastStep: 1,
+  pageShapes: [2, 3, 4].map((pageNumber) => ({ pageNumber, shapes: [] })),
+});
+export const replayPanelSourceDigest = sha256Digest(replayPanelSourceBytes);
+
+export const replayManifestBytes = encodeCanonicalRealBuildJson(
+  {
+    schemaVersion: "lego.callout-thumbnails/6",
+    sourceHash: replayPdfDigest,
+    pageSelection: "full booklet",
+    pagesCropped: 1,
+    calloutCount: replayCallouts.length,
+    accounting: {
+      rawNxIdentityCount: 2,
+      rawNxQuantityTotal: 2,
+      physicalPartArtIdentityCount: 2,
+      physicalPartArtQuantityTotal: 2,
+      semanticIdentityCount: 0,
+      semanticQuantityTotal: 0,
+    },
+    failures: [],
+    callouts: replayCallouts,
+  },
+  "pretty-one-space-line",
+);
+const replayManifestDigest = sha256Digest(replayManifestBytes);
+
+const transitionClassificationsBytes = encodeTransitionClassificationBundle(
+  assembleTransitionClassificationBundle({
+    pdfDigest: replayPdfDigest,
+    classifierId: "synthetic-replay-transition-fixture",
+    printedStepCount: 359,
+    unclassifiedSteps: [],
+    entries: [ledgerFixture.transitionClassificationsByStep[3]!],
+  }),
+);
+
+const rawRoleBytesWithoutCoverageOrActionLedger = {
   ...Object.fromEntries(
     Object.values(REAL_BUILD_INPUT_ROLE_BY_DIGEST).map((role) => [
       role,
       new TextEncoder().encode(`retained-${role}`),
     ]),
   ),
-  [REAL_BUILD_INPUT_ROLE_BY_DIGEST.pdf]: new TextEncoder().encode("synthetic-booklet"),
-  [REAL_BUILD_INPUT_ROLE_BY_DIGEST.officialModel]: sharedOpaqueRoleBytes,
-  [REAL_BUILD_INPUT_ROLE_BY_DIGEST.actionLedger]: sharedOpaqueRoleBytes,
+  [REAL_BUILD_INPUT_ROLE_BY_DIGEST.pdf]: replayPdfBytes,
+  [REAL_BUILD_INPUT_ROLE_BY_DIGEST.officialModel]: ledgerFixture.officialModelBytes,
+  [REAL_BUILD_INPUT_ROLE_BY_DIGEST.builderCalibration]: ledgerFixture.builderCalibrationBytes,
   [REAL_BUILD_INPUT_ROLE_BY_DIGEST.highlightCalibration]:
     encodeHighlightRendererCompatibilityInputClosure(Buffer.from("{}"), Buffer.from("{}")),
   [REAL_BUILD_INPUT_ROLE_BY_DIGEST.builderGeometry]: Buffer.alloc(BUILDER_GEOMETRY_EXACT_BYTES),
-  [REAL_BUILD_INPUT_ROLE_BY_DIGEST.calloutManifest]: syntheticIdentificationGoldenBytes("manifest"),
-  [REAL_BUILD_INPUT_ROLE_BY_DIGEST.coverage]: syntheticIdentificationGoldenBytes("coverage"),
+  [REAL_BUILD_INPUT_ROLE_BY_DIGEST.calloutManifest]: replayManifestBytes,
+  [REAL_BUILD_INPUT_ROLE_BY_DIGEST.transitionClassifications]: transitionClassificationsBytes,
   [REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.features]:
     syntheticIdentificationGoldenBytes("features"),
   [REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.match]: syntheticIdentificationGoldenBytes("match"),
@@ -71,6 +212,195 @@ export const replayRawRoleBytes = {
     syntheticIdentificationGoldenBytes("pairJudged"),
 } as Readonly<Record<string, Uint8Array>>;
 
+const rawRoleDigest = (role: string): string =>
+  sha256Digest(rawRoleBytesWithoutCoverageOrActionLedger[role]!);
+export const replayCoverageBytes = encodeCanonicalRealBuildJson(
+  {
+    schemaVersion: "lego.real-build-catalog-coverage/2",
+    inputDigests: {
+      pdf: replayPdfDigest,
+      calloutManifest: replayManifestDigest,
+      features: rawRoleDigest(REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.features),
+      match: rawRoleDigest(REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.match),
+      distances: rawRoleDigest(REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.distances),
+      elementResolution: rawRoleDigest(REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.elements),
+      pairJudged: rawRoleDigest(REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.pairJudged),
+    },
+    what: "Synthetic two-piece replay coverage used to exercise retained semantic bindings.",
+    identification: { source: "deterministic", model: null, assignment: "nearest" },
+    lastStep: 1,
+    calloutsConsidered: 2,
+    calloutsUnidentified: 0,
+    coverage: {
+      schemaVersion: "lego.element-catalog/1",
+      steps: [
+        {
+          stepNumber: 1,
+          pieces: 2,
+          placeablePieces: 2,
+          covered: true,
+          parts: [
+            {
+              catalogPartId: "builtin:brick-1x1",
+              colorId: "builtin:black",
+              quantity: 1,
+              outcome: "exact",
+            },
+            {
+              catalogPartId: "builtin:brick-1x1",
+              colorId: "builtin:red",
+              quantity: 1,
+              outcome: "exact",
+            },
+          ],
+          missing: [],
+        },
+      ],
+      stepsCovered: 1,
+      stepsTotal: 1,
+      firstCoveredStep: 1,
+      coveredPrefixLength: 1,
+      piecesPlaceable: 2,
+      piecesTotal: 2,
+      missingDesigns: [],
+    },
+    byCallout: Object.fromEntries(
+      replayCallouts.map((callout, index) => [
+        callout.identity,
+        {
+          identity: callout.identity,
+          file: callout.file,
+          pageNumber: callout.pageNumber,
+          stepNumber: callout.stepNumber,
+          quantity: callout.quantity,
+          cropDigest: callout.sha256,
+          inputDigest: replayManifestDigest,
+          elementId: "300501",
+          identificationConfidence: "vision-kept",
+          resolution: {
+            schemaVersion: "lego.element-catalog/1",
+            elementId: "300501",
+            partNum: "3005",
+            name: "Brick 1 x 1",
+            colorId: index === 0 ? "builtin:black" : "builtin:red",
+            outcome: "exact",
+            catalogPartId: "builtin:brick-1x1",
+            note: null,
+          },
+          unidentifiedBecause: null,
+        },
+      ]),
+    ),
+  },
+  "pretty-one-space-line",
+);
+
+const rawRoleBytesWithoutActionLedger = {
+  ...rawRoleBytesWithoutCoverageOrActionLedger,
+  [REAL_BUILD_INPUT_ROLE_BY_DIGEST.coverage]: replayCoverageBytes,
+} as Readonly<Record<string, Uint8Array>>;
+
+const roleDigest = (role: string): string => sha256Digest(rawRoleBytesWithoutActionLedger[role]!);
+const replayPieces = movedPieces.map((piece, index) => ({
+  ...piece,
+  identityKey: REPLAY_BRICK_REFS[index]!,
+  colorId: index === 0 ? "builtin:black" : "builtin:red",
+  calloutKey: replayCallouts[index]!.identity,
+  identificationConfidence: "vision-kept" as const,
+  cropDigest: replayCallouts[index]!.sha256,
+  identificationInputDigest: replayManifestDigest,
+  expectedTransform: OFFICIAL_TRANSFORMS[index]!,
+}));
+const replayPanelPageNumber = 2;
+const replayPanelBounds = { minXPt: 0, maxXPt: 1, minYPt: 0, maxYPt: 1 } as const;
+const replayPanelCalloutBoxes = replayCallouts.map(({ box }) => box);
+const replayPanelEvidenceDigest = stepPanelEvidenceDigest({
+  pdfDigest: replayPdfDigest,
+  stepNumber: 1,
+  pageNumber: replayPanelPageNumber,
+  bounds: replayPanelBounds,
+  calloutBoxes: replayPanelCalloutBoxes,
+});
+const replayLedgerPieces = replayPieces.map((piece) => {
+  const withoutEvidence = {
+    brickRef: piece.identityKey,
+    designId: piece.designId,
+    materialId: piece.materialId,
+    catalogPartId: piece.catalogPartId,
+    colorId: piece.colorId,
+    calloutKey: piece.calloutKey,
+    identificationConfidence: piece.identificationConfidence,
+    cropDigest: piece.cropDigest,
+    identificationInputDigest: piece.identificationInputDigest,
+    transform: null,
+  } as const;
+  return {
+    ...withoutEvidence,
+    evidenceDigest: pieceEvidenceDigest({
+      pdfDigest: replayPdfDigest,
+      panelEvidenceDigest: replayPanelEvidenceDigest,
+      officialModelDigest: roleDigest(REAL_BUILD_INPUT_ROLE_BY_DIGEST.officialModel),
+      coverageDigest: roleDigest(REAL_BUILD_INPUT_ROLE_BY_DIGEST.coverage),
+      calloutManifestDigest: replayManifestDigest,
+      builderCalibrationDigest: roleDigest(REAL_BUILD_INPUT_ROLE_BY_DIGEST.builderCalibration),
+      stepNumber: 1,
+      pageNumber: replayPanelPageNumber,
+      piece: withoutEvidence,
+    }),
+  };
+});
+const replayLedgerStep: LedgerStep = {
+  stepNumber: 1,
+  pageNumber: replayPanelPageNumber,
+  panelEvidenceDigest: replayPanelEvidenceDigest,
+  callouts: replayPieces.map((piece) => ({
+    calloutKey: piece.calloutKey,
+    physicalBrickRefs: [piece.identityKey],
+    semanticMultiplierQuantity: 0,
+  })),
+  action: {
+    kind: "place-callouts",
+    pieces: replayLedgerPieces,
+    omittedPieces: [],
+  },
+};
+const sourceLedger = ledgerFixture.ledger;
+const replayActionLedger = realBuildLedgerPrefix(
+  {
+    ...sourceLedger,
+    pdfDigest: roleDigest(REAL_BUILD_INPUT_ROLE_BY_DIGEST.pdf),
+    officialModelDigest: roleDigest(REAL_BUILD_INPUT_ROLE_BY_DIGEST.officialModel),
+    coverageDigest: roleDigest(REAL_BUILD_INPUT_ROLE_BY_DIGEST.coverage),
+    calloutManifestDigest: roleDigest(REAL_BUILD_INPUT_ROLE_BY_DIGEST.calloutManifest),
+    builderCalibrationDigest: roleDigest(REAL_BUILD_INPUT_ROLE_BY_DIGEST.builderCalibration),
+    transitionClassificationsDigest: roleDigest(
+      REAL_BUILD_INPUT_ROLE_BY_DIGEST.transitionClassifications,
+    ),
+  },
+  1,
+  [replayLedgerStep],
+);
+const actionLedgerBytes = encodeRealBuildActionLedger(replayActionLedger);
+export const replayRawRoleBytes = {
+  ...rawRoleBytesWithoutActionLedger,
+  [REAL_BUILD_INPUT_ROLE_BY_DIGEST.actionLedger]: actionLedgerBytes,
+  [REAL_BUILD_PANEL_SOURCE_ROLE]: replayPanelSourceBytes,
+} as Readonly<Record<string, Uint8Array>>;
+
+export const replayIdentificationClosureDigests = {
+  source: "deterministic" as const,
+  features: sha256Digest(replayRawRoleBytes[REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.features]!),
+  match: sha256Digest(replayRawRoleBytes[REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.match]!),
+  distances: sha256Digest(replayRawRoleBytes[REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.distances]!),
+  elements: sha256Digest(replayRawRoleBytes[REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.elements]!),
+  cards: null,
+  cardImages: null,
+  answers: null,
+  pairJudged: sha256Digest(
+    replayRawRoleBytes[REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.pairJudged]!,
+  ),
+};
+
 export const replayInputDigests = Object.fromEntries(
   Object.entries(REAL_BUILD_INPUT_ROLE_BY_DIGEST).map(([inputKey, role]) => [
     inputKey,
@@ -78,52 +408,43 @@ export const replayInputDigests = Object.fromEntries(
   ]),
 ) as unknown as ReturnType<typeof completeRealBuildTestOptions>["inputDigests"];
 
-const baseOptions = completeRealBuildTestOptions(1);
-const sourcePanel = baseOptions.panels[357]!;
-if (sourcePanel.action.kind !== "place-callouts") {
-  throw new TypeError("The complete fixture must retain its direct-piece panel at step 358.");
-}
-const movedPieces = sourcePanel.pieces.slice(-2);
-if (movedPieces.length !== 2) {
-  throw new TypeError("The replay fixture requires two direct pieces for its connected prefix.");
-}
-const replayPieces = movedPieces.map((piece, index) => ({
-  ...piece,
-  ...(index === 1 ? { colorId: "builtin:red" } : {}),
-  expectedTransform: OFFICIAL_TRANSFORMS[index]!,
-}));
 const panel: RealBuildPanelSpec = {
   ...realBuildTransitionPanel(1),
-  action: { kind: "place-callouts", assembledPieces: 2, evidenceDigest: DIGEST },
+  pageNumber: replayPanelPageNumber,
+  ...replayPanelBounds,
+  calloutBoxes: replayPanelCalloutBoxes,
+  action: {
+    kind: "place-callouts",
+    assembledPieces: 2,
+    evidenceDigest: actionEvidenceDigest({
+      ledgerDigest: replayInputDigests.actionLedger,
+      officialModelDigest: replayInputDigests.officialModel,
+      builderCalibrationDigest: replayInputDigests.builderCalibration,
+      transitionClassificationsDigest: replayInputDigests.transitionClassifications,
+      step: replayLedgerStep,
+    }),
+  },
   pieces: replayPieces,
   calloutPieces: 2,
   classifiedPhysicalCalloutPieces: 2,
   mappedCalloutKeys: replayPieces.map(({ calloutKey }) => calloutKey),
 };
-const rebalancedSourcePanel: RealBuildPanelSpec = {
-  ...sourcePanel,
-  pieces: sourcePanel.pieces.slice(0, -2),
-  mappedCalloutKeys: sourcePanel.mappedCalloutKeys.slice(0, -2),
-  calloutPieces: sourcePanel.calloutPieces - 2,
-  classifiedPhysicalCalloutPieces: sourcePanel.classifiedPhysicalCalloutPieces - 2,
-  action: { ...sourcePanel.action, assembledPieces: sourcePanel.action.assembledPieces - 2 },
-};
-
 export const replayOptions: RealBuildOptions = {
   ...baseOptions,
   inputDigests: replayInputDigests,
   highlightCalibrationDigest: replayInputDigests.highlightCalibration,
-  panels: baseOptions.panels.map((candidate) => {
-    if (candidate.stepNumber === 1) return panel;
-    if (candidate.stepNumber === 358) return rebalancedSourcePanel;
-    return candidate;
-  }),
+  panels: [panel],
+  passivePanels: baseOptions.passivePanels.map((passive) => ({
+    ...passive,
+    pageNumber: passive.stepNumber + 1,
+  })),
   coverageByCallout: {
     ...baseOptions.coverageByCallout,
     ...Object.fromEntries(
       replayPieces.map((piece) => [
         piece.calloutKey,
         {
+          identity: piece.calloutKey,
           pageNumber: panel.pageNumber,
           stepNumber: 1,
           quantity: 1,
@@ -204,7 +525,7 @@ export function legacyDiagnosticReplayBrowserOutput(): RealBuildBrowserOutput {
     attemptedPieces: 2,
     placedPieces: 2,
     action: panel.action,
-    actionEvidenceDigest: DIGEST,
+    actionEvidenceDigest: panel.action.evidenceDigest,
     canonicalStepId: "step-1",
     prerequisites: stepPrerequisiteFacts({
       stepNumber: 1,

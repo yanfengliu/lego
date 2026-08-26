@@ -39,7 +39,7 @@ export const REAL_BUILD_INPUT_CHAIN: readonly RealBuildInputChainStage[] = [
     artifact: "output/real-build/catalog-coverage.json",
     derivedFrom: ["the pinned catalog", "the callout manifest", "the identification closure"],
     command:
-      "node scripts/booklet-catalog-coverage.mjs --source <deterministic|adjudicated> --model <pinned-id> --assign <nearest|one-to-one|quantity-informed> --last-step 359",
+      "node scripts/booklet-catalog-coverage.mjs --source <deterministic|adjudicated> --model <pinned-id> --assign <nearest|one-to-one|quantity-informed> --last-step <1..359>",
   },
   {
     order: 3,
@@ -57,12 +57,12 @@ export const REAL_BUILD_INPUT_CHAIN: readonly RealBuildInputChainStage[] = [
       "the official model",
     ],
     command:
-      "LEGO_REAL_BUILD_PUBLISH_ACTION_LEDGER=1 npx playwright test apps/web/e2e/real-build-action-ledger.spec.ts",
+      "LEGO_REAL_BUILD_LAST_STEP=<1..359> LEGO_REAL_BUILD_PUBLISH_ACTION_LEDGER=1 npx playwright test apps/web/e2e/real-build-action-ledger.spec.ts",
   },
 ] as const;
 
 export const REAL_BUILD_INPUT_CHAIN_ENTRY_POINT =
-  "LEGO_REAL_BUILD_REGENERATE_INPUTS=1 npx playwright test apps/web/e2e/real-build-inputs.spec.ts" as const;
+  "LEGO_REAL_BUILD_LAST_STEP=<1..359> LEGO_REAL_BUILD_REGENERATE_INPUTS=1 npx playwright test apps/web/e2e/real-build-inputs.spec.ts" as const;
 
 function stageFor(artifact: string): RealBuildInputChainStage {
   const stage = REAL_BUILD_INPUT_CHAIN.find((candidate) => candidate.artifact === artifact);

@@ -39,6 +39,7 @@ export const REAL_BUILD_REPLAY_ROLE_BYTE_LIMITS = {
     ]),
   ),
   "run-contract": 8 * 1024 * 1024,
+  "panel-source": 32 * 1024 * 1024,
   "prepared-options": 16 * 1024 * 1024,
   "browser-output": 64 * 1024 * 1024,
   environment: 1024 * 1024,
@@ -46,6 +47,7 @@ export const REAL_BUILD_REPLAY_ROLE_BYTE_LIMITS = {
 
 const DERIVED_JSON_ROLE_MINIMUM_BYTES: Readonly<Record<string, number>> = {
   "run-contract": 2,
+  "panel-source": 2,
   "prepared-options": 2,
   "browser-output": 2,
   environment: 2,

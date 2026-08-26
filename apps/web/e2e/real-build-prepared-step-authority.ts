@@ -378,6 +378,7 @@ export function inspectRealBuildPreparedBrowserOutputBoundaryFromRunInput(
     maxParts: options.maxParts,
     inputDigests: options.inputDigests,
     panels: options.panels,
+    passivePanels: options.passivePanels,
     blindRenderBudget: options.blindRenderBudget,
     explodedGhostRenderBudget: options.explodedGhostRenderBudget,
     deferredCandidateBudget: options.deferredCandidateBudget,
