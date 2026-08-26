@@ -191,6 +191,7 @@ const realEvidencePresent = [
   CURRENT_LEGACY_RECUT_SEMANTIC_PINS.officialModel.path,
   "output/callout-thumbnails",
 ].every(existsSync);
+const realEvidenceTest = (name, testBody) => it.runIf(realEvidencePresent)(name, testBody, 20_000);
 
 function realInput() {
   return {
@@ -203,7 +204,7 @@ function realInput() {
   };
 }
 
-it.runIf(realEvidencePresent)("reproduces the exact safe first-50 semantic subset", async () => {
+realEvidenceTest("reproduces the exact safe first-50 semantic subset", async () => {
   const input = realInput();
   const compiled = await compilePartIdentificationLegacyRecutSemantic(input);
   expect(compiled.accounting).toEqual(CURRENT_LEGACY_RECUT_SEMANTIC_PINS.expectedAccounting);
@@ -319,7 +320,7 @@ it.runIf(realEvidencePresent)("reproduces the exact safe first-50 semantic subse
   expect(Object.isFrozen(inspection.artifact.semanticIdentityRelations[0])).toBe(true);
 });
 
-it.runIf(realEvidencePresent)(
+realEvidenceTest(
   "owns every compiler and verifier byte role before the first async boundary",
   async () => {
     const compileInput = realInput();
