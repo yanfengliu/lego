@@ -242,8 +242,8 @@ def verify_identification(
 
 
 def verify_adjudication(
-    cards: object,
-    answers: object,
+    cards: object | None,
+    answers: object | None,
     *,
     features_digest: str,
     match_digest: str,
@@ -285,6 +285,7 @@ def verify_coverage(
         "elementResolution",
         "calloutManifest",
         "pairJudged",
+        "sourceArtRebound",
         "cards",
         "answers",
     }
@@ -293,6 +294,10 @@ def verify_coverage(
     if "cardImages" in role_digests:
         artifacts["cardImages"] = _artifact(
             _binary_record_for_digest(role_digests["cardImages"], "cardImages")
+        )
+    if "pdf" in role_digests:
+        artifacts["pdf"] = _artifact(
+            _binary_record_for_digest(role_digests["pdf"], "pdf")
         )
     _run("coverage", artifacts)
 
@@ -326,10 +331,23 @@ def verify_action_ledger(
     ledger: object,
     coverage: object,
     features: object,
+    match: object,
+    distances: object,
+    element_resolution: object,
+    pair_judged: object,
+    cards: object,
+    answers: object,
     *,
     ledger_digest: str,
     coverage_digest: str,
     features_digest: str,
+    match_digest: str,
+    distances_digest: str,
+    element_resolution_digest: str,
+    pair_judged_digest: str,
+    cards_digest: str | None,
+    card_images_digest: str | None,
+    answers_digest: str | None,
     role_digests: dict[str, str],
 ) -> None:
     """Reproduce exact ledger bytes with the canonical TypeScript compiler and validator."""
@@ -344,8 +362,61 @@ def verify_action_ledger(
         "features": _artifact(
             _json_record_for_value(features, features_digest, "Action-ledger features")
         ),
+        "match": _artifact(
+            _json_record_for_value(match, match_digest, "Action-ledger match")
+        ),
+        "distances": _artifact(
+            _json_record_for_value(
+                distances, distances_digest, "Action-ledger distances"
+            )
+        ),
+        "elementResolution": _artifact(
+            _json_record_for_value(
+                element_resolution,
+                element_resolution_digest,
+                "Action-ledger element resolution",
+            )
+        ),
+        "pairJudged": _artifact(
+            _json_record_for_value(
+                pair_judged, pair_judged_digest, "Action-ledger pair truth"
+            )
+        ),
     }
-    for role in ("calloutManifest", "builderCalibration", "transitionClassifications"):
+    identification = coverage.get("identification") if isinstance(coverage, dict) else None
+    coverage_source = (
+        identification.get("source") if isinstance(identification, dict) else None
+    )
+    optional_roles = (cards, cards_digest, card_images_digest, answers, answers_digest)
+    if coverage_source == "adjudicated":
+        if any(role is None for role in optional_roles):
+            raise ArtifactContractError(
+                "Adjudicated action-ledger verification requires cards, card images, and answers."
+            )
+        artifacts["cards"] = _artifact(
+            _json_record_for_value(cards, cards_digest, "Action-ledger cards")
+        )
+        artifacts["cardImages"] = _artifact(
+            _binary_record_for_digest(card_images_digest, "Action-ledger card images")
+        )
+        artifacts["answers"] = _artifact(
+            _json_record_for_value(answers, answers_digest, "Action-ledger answers")
+        )
+    elif coverage_source == "deterministic":
+        if any(role is not None for role in optional_roles):
+            raise ArtifactContractError(
+                "Deterministic action-ledger verification must omit adjudication roles."
+            )
+    else:
+        raise ArtifactContractError(
+            "Action-ledger coverage has no current adjudicated or deterministic source."
+        )
+    for role in (
+        "calloutManifest",
+        "sourceArtRebound",
+        "builderCalibration",
+        "transitionClassifications",
+    ):
         artifacts[role] = _artifact(_json_record_for_digest(role_digests[role], role))
     for role in ("officialModel", "bookletPdf", "builderGeometry"):
         artifacts[role] = _artifact(_binary_record_for_digest(role_digests[role], role))

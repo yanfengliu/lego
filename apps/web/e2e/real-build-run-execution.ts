@@ -9,7 +9,6 @@ import {
   sha256Digest,
   snapshotRealBuildCodeRoots,
   validateRealBuildArtifactFilePlan,
-  verifyRealBuildArtifactManifest,
   writeRealBuildArtifactManifest,
 } from "./real-build-artifacts";
 import { assertRealBuildBootstrapSourceLockHeld } from "./real-build-bootstrap-source";
@@ -96,6 +95,7 @@ export async function executeAndPublishRealBuildPlan(input: {
     identificationDistancesInput,
     elementResolutionInput,
     pairJudgedTruthInput,
+    sourceArtReboundInput,
     identificationMode,
     identificationCardsInput,
     identificationCardImagesInput,
@@ -404,6 +404,7 @@ export async function executeAndPublishRealBuildPlan(input: {
       { role: "identification-distances", bytes: identificationDistancesInput.bytes },
       { role: "element-resolution", bytes: elementResolutionInput.bytes },
       { role: "pair-judged-truth", bytes: pairJudgedTruthInput.bytes },
+      { role: "source-art-rebound", bytes: sourceArtReboundInput.bytes },
       ...(identificationMode?.source === "adjudicated" &&
       identificationCardsInput !== null &&
       identificationCardImagesInput !== null &&
@@ -429,7 +430,7 @@ export async function executeAndPublishRealBuildPlan(input: {
           ]),
     ];
     sourceLock.assertHeld();
-    const replayClosure = writeRealBuildReplayClosure({
+    const replayClosure = await writeRealBuildReplayClosure({
       directory: run.directory,
       repoRoot: sourceMirror.root,
       roles: replayRoles,
@@ -469,7 +470,8 @@ export async function executeAndPublishRealBuildPlan(input: {
     }
   }
   assertRealBuildBootstrapSourceLockHeld();
-  const published = await run.publish(verifyRealBuildArtifactManifest);
+  await run.preparePublication();
+  const published = run.publish();
   console.log(
     `${result.authority.kind}/${result.status}: ${result.steps.filter(isAtomicStepComplete).length}/${result.steps.length} steps complete; ` +
       `${result.steps.reduce((total, step) => total + step.placedPieces, 0)} piece(s) placed; ` +

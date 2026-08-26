@@ -7,12 +7,12 @@ export const MAXIMUM_REPLAY_MANIFEST_BYTES = 16 * 1024 * 1024;
  * Bound on declared replay roles, set above the number the run can actually
  * emit rather than at it.
  *
- * 20 was below that number. `real-build.spec.ts` declares fourteen input roles,
+ * 20 was below that number. `real-build.spec.ts` now declares fifteen input roles,
  * three more when identification is adjudicated, `run-contract`,
- * `prepared-options`, and `browser-output` — twenty — and
- * `writeRealBuildReplayClosure` adds `environment`, for twenty-one. Only the
+ * `prepared-options`, and `browser-output` — twenty-one — and
+ * `writeRealBuildReplayClosure` adds `environment`, for twenty-two. Only the
  * last of those is conditional on the browser having run to completion, so
- * every run that failed earlier declared twenty and passed, and the first run
+ * every run that failed earlier declared twenty-one and passed, and the first run
  * ever to execute the browser tripped a limit that had been one too small since
  * it was written. A bound no input can move, tripped only by success, is the
  * shape of a check that has never been exercised.

@@ -52,7 +52,7 @@ function boundedNullableString(value: unknown, maximum: number): boolean {
   );
 }
 
-/** Returns one bounded reason when current /3 prefix provenance cannot bind the supplied run. */
+/** Returns one bounded reason when current /4 prefix provenance cannot bind the supplied run. */
 export function realBuildActionLedgerProvenanceFailure(input: {
   readonly provenance: unknown;
   readonly steps: readonly LedgerStep[];
@@ -60,7 +60,7 @@ export function realBuildActionLedgerProvenanceFailure(input: {
 }): string | null {
   const provenance = dataRecord(input.provenance, PROVENANCE_KEYS);
   if (provenance === null) {
-    return "Action ledger /3 provenance must contain exactly the current bounded data fields.";
+    return "Action ledger /4 provenance must contain exactly the current bounded data fields.";
   }
   const value = (key: (typeof PROVENANCE_KEYS)[number]): unknown => provenance[key]!.value;
   const requestedLastStep = value("requestedLastStep");
@@ -70,13 +70,15 @@ export function realBuildActionLedgerProvenanceFailure(input: {
     value("authenticated") !== false ||
     value("expectedPrintedSteps") !== 359 ||
     !Number.isSafeInteger(requestedLastStep) ||
+    (requestedLastStep as number) < 1 ||
+    (requestedLastStep as number) > 50 ||
     requestedLastStep !== input.requestedLastStep ||
     !Number.isSafeInteger(alignedThroughStep) ||
     alignedThroughStep !== input.steps.length ||
     (alignedThroughStep as number) > (requestedLastStep as number)
   ) {
     return (
-      `Action ledger /3 provenance must bind generator ${REAL_BUILD_ACTION_LEDGER_GENERATOR}, ` +
+      `Action ledger /4 provenance must bind generator ${REAL_BUILD_ACTION_LEDGER_GENERATOR}, ` +
       `authenticated=false, expectedPrintedSteps=359, requestedLastStep=${input.requestedLastStep}, ` +
       `and alignedThroughStep equal to its ${input.steps.length} retained rows without crossing the request.`
     );
@@ -87,7 +89,7 @@ export function realBuildActionLedgerProvenanceFailure(input: {
     stopReason.length < 1 ||
     stopReason.length > MAXIMUM_STOP_REASON_CHARACTERS
   ) {
-    return `Action ledger /3 provenance.stopReason must contain 1 through ${MAXIMUM_STOP_REASON_CHARACTERS} characters.`;
+    return `Action ledger /4 provenance.stopReason must contain 1 through ${MAXIMUM_STOP_REASON_CHARACTERS} characters.`;
   }
   let directPieceCount = 0;
   let transitionStepCount = 0;
@@ -102,18 +104,18 @@ export function realBuildActionLedgerProvenanceFailure(input: {
     value("transitionStepCount") !== transitionStepCount
   ) {
     return (
-      `Action ledger /3 provenance counts must equal ${directPieceCount} direct action pieces and ` +
+      `Action ledger /4 provenance counts must equal ${directPieceCount} direct action pieces and ` +
       `${transitionStepCount} transition rows in the retained prefix.`
     );
   }
   const refusals = value("refusals");
   if (!Array.isArray(refusals) || refusals.length > MAXIMUM_PROVENANCE_REFUSALS) {
-    return `Action ledger /3 provenance.refusals must be an array of at most ${MAXIMUM_PROVENANCE_REFUSALS} records.`;
+    return `Action ledger /4 provenance.refusals must be an array of at most ${MAXIMUM_PROVENANCE_REFUSALS} records.`;
   }
   for (let index = 0; index < refusals.length; index += 1) {
     const refusal = dataRecord(refusals[index], REFUSAL_KEYS);
     if (refusal === null) {
-      return `Action ledger /3 provenance refusal ${index} must contain exactly the bounded refusal fields.`;
+      return `Action ledger /4 provenance refusal ${index} must contain exactly the bounded refusal fields.`;
     }
     const refusalValue = (key: (typeof REFUSAL_KEYS)[number]): unknown => refusal[key]!.value;
     if (
@@ -126,7 +128,7 @@ export function realBuildActionLedgerProvenanceFailure(input: {
       (refusalValue("reason") as string).length < 1 ||
       (refusalValue("reason") as string).length > MAXIMUM_REFUSAL_REASON_CHARACTERS
     ) {
-      return `Action ledger /3 provenance refusal ${index} exceeds its requested-step, identity, or diagnostic bounds.`;
+      return `Action ledger /4 provenance refusal ${index} exceeds its requested-step, identity, or diagnostic bounds.`;
     }
   }
   return null;
@@ -153,7 +155,7 @@ export function realBuildActionLedgerCurrentPrefixFailures(input: {
   if (tailStep !== undefined) {
     failures.push(
       `Action ledger row ${tailStep.stepNumber} lies above requestedLastStep ${input.requestedLastStep}; ` +
-        `current /3 ledgers must be compiled for exactly one bounded prefix and may not retain a broader ` +
+        `current /4 ledgers must be compiled for exactly one bounded prefix and may not retain a broader ` +
         `raw action tail for a narrower run.`,
     );
   }

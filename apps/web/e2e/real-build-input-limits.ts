@@ -108,6 +108,11 @@ export const REAL_BUILD_RAW_REPLAY_ROLE_BYTE_POLICIES = {
     maximumBytes: 256 * KIBIBYTE,
     allowEmpty: true,
   },
+  "source-art-rebound": {
+    minimumNonEmptyBytes: 1,
+    maximumBytes: 256 * KIBIBYTE,
+    allowEmpty: true,
+  },
   "identification-cards": { minimumNonEmptyBytes: 1, maximumBytes: 2 * MEBIBYTE, allowEmpty: true },
   "identification-card-images": {
     minimumNonEmptyBytes: IDENTIFICATION_CARD_IMAGES_MINIMUM_BYTES,

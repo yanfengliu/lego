@@ -100,12 +100,14 @@ export function planAtomicRunDirectory(input: {
 /** Publishes synchronously so no caller-visible await gap can interleave with guarded renames. */
 export function beginAtomicRun(
   plan: ReturnType<typeof planAtomicRunDirectory>,
-  __testHooks?: { readonly afterDirectoryRename?: () => void },
+  __testHooks?: {
+    readonly beforeArtifactVerification?: (directory: string) => void;
+    readonly afterDirectoryRename?: () => void;
+  },
 ): {
   readonly directory: string;
-  publish: (
-    verify?: (directory: string, expectedRunId: string) => RealBuildPublicationVerifierResult,
-  ) => string;
+  readonly preparePublication: () => Promise<RealBuildPublicationVerification>;
+  publish: () => string;
 } {
   const runsCandidate = normalizeRealBuildRelativePath(
     relative(process.cwd(), resolve(dirname(plan.temporaryDirectory))).replaceAll("\\", "/"),
@@ -123,49 +125,91 @@ export function beginAtomicRun(
   let finalVerifier:
     ((directory: string, expectedRunId: string) => RealBuildPublicationVerifierResult) | null =
     null;
-  let verifierLatched = false;
+  let publicationPreparationStarted = false;
+  let publicationPrepared = false;
   let sourceMirrorRemoved = false;
+  const removeTransientSourceMirror = (): void => {
+    if (sourceMirrorRemoved) return;
+    try {
+      removeContainedDirectoryTree(
+        plan.temporaryDirectory,
+        "source-snapshot",
+        "transient real-build source execution mirror",
+      );
+      sourceMirrorRemoved = true;
+    } catch (error) {
+      throw new Error(
+        `Real-build run ${plan.runId} cannot verify or publish until its bounded transient source execution mirror is safely removed. Close task-owned readers and retry: ${error instanceof Error ? error.message : String(error)}.`,
+        { cause: error },
+      );
+    }
+  };
   return {
     directory: plan.temporaryDirectory,
-    publish: (verify) => {
-      if (pointerWritten) throw new Error(`Real-build run ${plan.runId} was already published.`);
-      if (!verifierLatched) {
-        if (verify === undefined) {
-          throw new Error(
-            `Real-build run ${plan.runId} requires an artifact-manifest verifier before publication.`,
-          );
-        }
-        finalVerifier = verify;
-        verifierLatched = true;
-      } else if (verify !== undefined && verify !== finalVerifier) {
+    preparePublication: async () => {
+      if (
+        pointerWritten ||
+        directoryPublished ||
+        publicationPreparationStarted ||
+        publicationPrepared
+      ) {
         throw new Error(
-          `Real-build run ${plan.runId} publication verifier was already latched and cannot be replaced.`,
+          `Real-build run ${plan.runId} cannot prepare publication more than once or after its directory or pointer was published.`,
         );
       }
-      const verifier = finalVerifier;
-      if (verifier === null) {
-        throw new Error(`Real-build run ${plan.runId} has no latched publication verifier.`);
-      }
-      if (!directoryPublished) {
-        if (!sourceMirrorRemoved) {
-          try {
-            removeContainedDirectoryTree(
-              plan.temporaryDirectory,
-              "source-snapshot",
-              "transient real-build source execution mirror",
-            );
-            sourceMirrorRemoved = true;
-          } catch (error) {
-            throw new Error(
-              `Real-build run ${plan.runId} cannot publish until its bounded transient source execution mirror is safely removed. Close task-owned readers and retry: ${error instanceof Error ? error.message : String(error)}.`,
-              { cause: error },
-            );
-          }
+      publicationPreparationStarted = true;
+      removeTransientSourceMirror();
+      try {
+        const verifierModule = await import("./real-build-artifact-current-verification");
+        __testHooks?.beforeArtifactVerification?.(plan.temporaryDirectory);
+        const prepared = await verifierModule.prepareRealBuildArtifactManifestVerification(
+          plan.temporaryDirectory,
+          plan.runId,
+        );
+        if (pointerWritten || directoryPublished) {
+          throw new Error(
+            `Real-build run ${plan.runId} changed publication state during asynchronous verification.`,
+          );
         }
         publicationVerification = normalizePublicationVerification(
+          prepared.verification,
+          plan.runId,
+        );
+        finalVerifier = (directory, expectedRunId) => {
+          __testHooks?.beforeArtifactVerification?.(directory);
+          return verifierModule.verifyPreparedRealBuildArtifactManifest(
+            directory,
+            expectedRunId,
+            prepared.proof,
+          );
+        };
+        publicationPrepared = true;
+        return publicationVerification;
+      } finally {
+        publicationPreparationStarted = false;
+      }
+    },
+    publish: () => {
+      if (pointerWritten) throw new Error(`Real-build run ${plan.runId} was already published.`);
+      const verifier = finalVerifier;
+      if (!publicationPrepared || verifier === null || publicationVerification === null) {
+        throw new Error(
+          `Real-build run ${plan.runId} requires one completed asynchronous artifact-manifest verification before publication.`,
+        );
+      }
+      if (!directoryPublished) {
+        removeTransientSourceMirror();
+        const retainedTemporaryVerification = normalizePublicationVerification(
           verifier(plan.temporaryDirectory, plan.runId),
           plan.runId,
         );
+        if (
+          JSON.stringify(retainedTemporaryVerification) !== JSON.stringify(publicationVerification)
+        ) {
+          throw new Error(
+            `Real-build run ${plan.runId} temporary closure changed after asynchronous verification.`,
+          );
+        }
         try {
           renameContainedDirectoryAtomic(
             dirname(plan.temporaryDirectory),

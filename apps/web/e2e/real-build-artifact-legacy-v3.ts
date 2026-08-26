@@ -15,15 +15,20 @@ import { isLocalRealBuildAuthority } from "./real-build-authority";
 import {
   isRealBuildDiagnosticPrefixSummary,
   REAL_BUILD_DIAGNOSTIC_PREFIX_FILE,
+  type RealBuildDiagnosticPrefixSummary,
 } from "./real-build-diagnostic-prefix";
 import { assertRealBuildEnvironment, type RealBuildEnvironment } from "./real-build-environment";
-import { verifyRealBuildReplayClosureData } from "./real-build-replay";
+import {
+  prepareRealBuildReplayVerification,
+  verifyPreparedRealBuildReplayClosureData,
+} from "./real-build-replay";
 import { verifyLegacyRealBuildRunContractV2 } from "./real-build-run-contract-legacy-v2";
 import {
   parseRealBuildRunContract,
   type LegacyRealBuildRunContractV2,
 } from "./real-build-run-contract";
 import { realBuildFartherCapturePath } from "./real-build-score";
+import type { RealBuildResult } from "./real-build-safety";
 import { verifyRealBuildServedResponseEvidence } from "./real-build-served-response-verification";
 import { parseFatalUtf8Json } from "./strict-json";
 
@@ -46,6 +51,26 @@ interface ValidationSnapshot {
   readonly truthSnapshotHash: string | null;
   readonly validatorSetHash: string | null;
   readonly targetDocumentHash: string | null;
+}
+
+interface BoundLegacyArtifactManifestV3 {
+  readonly authority: RealBuildResult["authority"];
+  readonly runId: string;
+  readonly runContract: Record<string, unknown>;
+  readonly truthSnapshots: {
+    readonly availability: "captured" | "unavailable";
+    readonly validationSnapshots: readonly ValidationSnapshot[];
+    readonly finalStructuralHash: null;
+    readonly diagnosticPrefix: RealBuildDiagnosticPrefixSummary;
+  };
+  readonly replayClosure: {
+    readonly manifestDigest: string;
+    readonly replayLevel: "downstream-only";
+    readonly earliestBoundary: "browser-output";
+    readonly sourceBundleDigest: string;
+    readonly environmentDigest: string;
+  };
+  readonly artifacts: unknown;
 }
 
 const DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/u;
@@ -72,7 +97,7 @@ const isNullableDigest = (value: unknown): value is string | null =>
 export function inspectLegacyRealBuildArtifactManifestV3(
   directory: string,
   expectedRunId?: string,
-): LegacyRealBuildArtifactInspectionV3 {
+): Promise<LegacyRealBuildArtifactInspectionV3> {
   const manifestBytes = readContainedBoundedRegularFile(directory, "artifact-manifest.json", {
     label: "legacy artifact manifest",
     maximumBytes: MAXIMUM_ARTIFACT_MANIFEST_BYTES,
@@ -129,7 +154,8 @@ export function inspectLegacyRealBuildArtifactManifestV3(
       "Legacy artifact inspection requires exact manifest /3, run-contract /2, downstream browser evidence, and a diagnostic-only truth tuple.",
     );
   }
-  const snapshots = manifest.truthSnapshots.validationSnapshots as unknown[];
+  const boundManifest = manifest as unknown as BoundLegacyArtifactManifestV3;
+  const snapshots = boundManifest.truthSnapshots.validationSnapshots;
   if (
     snapshots.some(
       (snapshot) =>
@@ -139,129 +165,147 @@ export function inspectLegacyRealBuildArtifactManifestV3(
         !isNullableDigest(snapshot.validatorSetHash) ||
         !isNullableDigest(snapshot.targetDocumentHash),
     ) ||
-    manifest.truthSnapshots.availability !== (snapshots.length > 0 ? "captured" : "unavailable")
+    boundManifest.truthSnapshots.availability !==
+      (snapshots.length > 0 ? "captured" : "unavailable")
   ) {
     throw new TypeError(
       "Legacy artifact truthSnapshots must be the exact bounded captured validation digest set.",
     );
   }
-  const replay = verifyRealBuildReplayClosureData(directory);
-  const closure = replay.manifest;
-  if (
-    closure.replayLevel !== "downstream-only" ||
-    closure.earliestBoundary !== "browser-output" ||
-    closure.manifestDigest !== manifest.replayClosure.manifestDigest ||
-    closure.sourceBundle.digest !== manifest.replayClosure.sourceBundleDigest ||
-    closure.environmentDigest !== manifest.replayClosure.environmentDigest ||
-    closure.authority !== (manifest.authority as { kind: string }).kind ||
-    closure.authenticated !== (manifest.authority as { authenticated: boolean }).authenticated
-  ) {
-    throw new TypeError("Legacy artifact manifest does not bind its verified replay closure.");
-  }
-  const retainedContract = parseRealBuildRunContract(replay.roleBytes.get("run-contract")!);
-  if (
-    retainedContract.schemaVersion !== "lego.real-build-run-contract/2" ||
-    JSON.stringify(retainedContract) !== JSON.stringify(manifest.runContract)
-  ) {
-    throw new TypeError(
-      "Legacy artifact manifest must contain the exact retained run-contract /2 role.",
+  return prepareRealBuildReplayVerification(directory).then(({ proof }) => {
+    const reboundManifestBytes = readContainedBoundedRegularFile(
+      directory,
+      "artifact-manifest.json",
+      {
+        label: "legacy artifact manifest after asynchronous replay verification",
+        maximumBytes: MAXIMUM_ARTIFACT_MANIFEST_BYTES,
+      },
     );
-  }
-  const preparedOptions = parseFatalUtf8Json<unknown>(
-    replay.roleBytes.get("prepared-options")!,
-    "legacy artifact prepared-options role",
-  );
-  verifyLegacyRealBuildRunContractV2({
-    contract: retainedContract,
-    options: preparedOptions,
-    roleDigests: Object.fromEntries(closure.roles.map(({ role, digest }) => [role, digest])),
-    sourceFiles: closure.sourceBundle.files,
-  });
-  const browserOutput = parseFatalUtf8Json<Record<string, unknown>>(
-    replay.roleBytes.get("browser-output")!,
-    "legacy artifact browser-output role",
-  );
-  if (browserOutput.schemaVersion !== "lego.real-build-browser-output/2") {
-    throw new TypeError("Legacy artifact-manifest /3 requires exact browser-output /2 bytes.");
-  }
-  const environment = parseFatalUtf8Json<RealBuildEnvironment>(
-    replay.roleBytes.get("environment")!,
-    "legacy artifact environment role",
-  );
-  assertRealBuildEnvironment(environment, retainedContract.contractDigest);
-  const retained = verifyRealBuildRetainedArtifacts(directory, manifest.artifacts);
-  if (retained.documentBytes !== null) {
-    throw new TypeError(
-      "Legacy artifact-manifest /3 may inspect its diagnostic prefix, never a current canonical document.",
+    if (!reboundManifestBytes.equals(manifestBytes)) {
+      throw new TypeError(
+        "Legacy artifact manifest changed during asynchronous replay verification; retry from one immutable retained directory.",
+      );
+    }
+    const replay = verifyPreparedRealBuildReplayClosureData(directory, proof);
+    const closure = replay.manifest;
+    if (
+      closure.replayLevel !== "downstream-only" ||
+      closure.earliestBoundary !== "browser-output" ||
+      closure.manifestDigest !== boundManifest.replayClosure.manifestDigest ||
+      closure.sourceBundle.digest !== boundManifest.replayClosure.sourceBundleDigest ||
+      closure.environmentDigest !== boundManifest.replayClosure.environmentDigest ||
+      closure.authority !== boundManifest.authority.kind ||
+      closure.authenticated !== boundManifest.authority.authenticated
+    ) {
+      throw new TypeError("Legacy artifact manifest does not bind its verified replay closure.");
+    }
+    const retainedContract = parseRealBuildRunContract(replay.roleBytes.get("run-contract")!);
+    if (
+      retainedContract.schemaVersion !== "lego.real-build-run-contract/2" ||
+      JSON.stringify(retainedContract) !== JSON.stringify(boundManifest.runContract)
+    ) {
+      throw new TypeError(
+        "Legacy artifact manifest must contain the exact retained run-contract /2 role.",
+      );
+    }
+    const preparedOptions = parseFatalUtf8Json<unknown>(
+      replay.roleBytes.get("prepared-options")!,
+      "legacy artifact prepared-options role",
     );
-  }
-  const score = parseFatalUtf8Json<Record<string, unknown>>(
-    retained.scoreBytes,
-    "legacy retained score artifact schema",
-  );
-  if (score.schemaVersion !== "lego.real-build-score/4") {
-    throw new TypeError("Legacy artifact-manifest /3 requires exact score /4 bytes.");
-  }
-  verifyLegacyRealBuildArtifactScoreV4({
-    scoreBytes: retained.scoreBytes,
-    diagnosticPrefixBytes: retained.diagnosticPrefixBytes,
-    artifactEntries: retained.artifactEntries,
-    declaredValidationSnapshots: snapshots as ValidationSnapshot[],
-    declaredFinalStructuralHash: null,
-    declaredDiagnosticPrefix: manifest.truthSnapshots.diagnosticPrefix,
-    runId: manifest.runId,
-    authority: manifest.authority,
-    retainedContract: retainedContract as LegacyRealBuildRunContractV2,
-    preparedOptions,
-    browserOutputBytes: replay.roleBytes.get("browser-output")!,
-    maximumPrintedSteps: MAXIMUM_REAL_BUILD_PRINTED_STEPS,
-    sha256Digest,
+    verifyLegacyRealBuildRunContractV2({
+      contract: retainedContract,
+      options: preparedOptions,
+      roleDigests: Object.fromEntries(closure.roles.map(({ role, digest }) => [role, digest])),
+      sourceFiles: closure.sourceBundle.files,
+    });
+    const browserOutput = parseFatalUtf8Json<Record<string, unknown>>(
+      replay.roleBytes.get("browser-output")!,
+      "legacy artifact browser-output role",
+    );
+    if (browserOutput.schemaVersion !== "lego.real-build-browser-output/2") {
+      throw new TypeError("Legacy artifact-manifest /3 requires exact browser-output /2 bytes.");
+    }
+    const environment = parseFatalUtf8Json<RealBuildEnvironment>(
+      replay.roleBytes.get("environment")!,
+      "legacy artifact environment role",
+    );
+    assertRealBuildEnvironment(environment, retainedContract.contractDigest);
+    const retained = verifyRealBuildRetainedArtifacts(directory, boundManifest.artifacts);
+    if (retained.documentBytes !== null) {
+      throw new TypeError(
+        "Legacy artifact-manifest /3 may inspect its diagnostic prefix, never a current canonical document.",
+      );
+    }
+    const score = parseFatalUtf8Json<Record<string, unknown>>(
+      retained.scoreBytes,
+      "legacy retained score artifact schema",
+    );
+    if (score.schemaVersion !== "lego.real-build-score/4") {
+      throw new TypeError("Legacy artifact-manifest /3 requires exact score /4 bytes.");
+    }
+    verifyLegacyRealBuildArtifactScoreV4({
+      scoreBytes: retained.scoreBytes,
+      diagnosticPrefixBytes: retained.diagnosticPrefixBytes,
+      artifactEntries: retained.artifactEntries,
+      declaredValidationSnapshots: snapshots,
+      declaredFinalStructuralHash: null,
+      declaredDiagnosticPrefix: boundManifest.truthSnapshots.diagnosticPrefix,
+      runId: boundManifest.runId,
+      authority: boundManifest.authority,
+      retainedContract: retainedContract as LegacyRealBuildRunContractV2,
+      preparedOptions,
+      browserOutputBytes: replay.roleBytes.get("browser-output")!,
+      maximumPrintedSteps: MAXIMUM_REAL_BUILD_PRINTED_STEPS,
+      sha256Digest,
+    });
+    const servedResponseFiles = verifyRealBuildServedResponseEvidence({
+      directory,
+      expectedManifestDigest: environment.servedResponseManifestDigest,
+      sourceFiles: closure.sourceBundle.files,
+      requireRunner: true,
+      frozenLegacyArtifactManifestV3RunId: boundManifest.runId,
+    });
+    for (const file of servedResponseFiles) {
+      if (!retained.artifactPaths.has(file)) {
+        throw new TypeError(`Legacy served-response evidence ${file} is undeclared.`);
+      }
+    }
+    const expectedArtifactPaths = new Set<string>([
+      "score.json",
+      REAL_BUILD_DIAGNOSTIC_PREFIX_FILE,
+      ...servedResponseFiles,
+    ]);
+    for (const report of browserOutput.reports as unknown[]) {
+      if (!isRecord(report)) {
+        throw new TypeError(
+          "Legacy browser-output /2 report disappeared after replay verification.",
+        );
+      }
+      const stepNumber = report.stepNumber as number;
+      if (report.panelPng !== null) {
+        expectedArtifactPaths.add(`step-${String(stepNumber).padStart(3, "0")}-panel.png`);
+      }
+      if (report.buildPng !== null) {
+        expectedArtifactPaths.add(`step-${String(stepNumber).padStart(3, "0")}-build.png`);
+      }
+      for (const capture of report.fartherCaptures as readonly Record<string, unknown>[]) {
+        expectedArtifactPaths.add(realBuildFartherCapturePath(stepNumber, capture as never));
+      }
+    }
+    assertExactRealBuildArtifactPaths(retained.artifactPaths, expectedArtifactPaths, "legacy");
+    return {
+      kind: "legacy-artifact-inspection",
+      authority: "inspection-only",
+      authenticated: false,
+      runId: boundManifest.runId,
+      artifactManifestSchemaVersion: LEGACY_REAL_BUILD_ARTIFACT_MANIFEST_SCHEMA_V3,
+      runContractSchemaVersion: "lego.real-build-run-contract/2",
+      browserOutputSchemaVersion: "lego.real-build-browser-output/2",
+      scoreSchemaVersion: "lego.real-build-score/4",
+      verifiedDigests: {
+        replayClosure: closure.manifestDigest,
+        artifactManifest: sha256Digest(manifestBytes),
+      },
+    };
   });
-  const servedResponseFiles = verifyRealBuildServedResponseEvidence({
-    directory,
-    expectedManifestDigest: environment.servedResponseManifestDigest,
-    sourceFiles: closure.sourceBundle.files,
-    requireRunner: true,
-    frozenLegacyArtifactManifestV3RunId: manifest.runId,
-  });
-  for (const file of servedResponseFiles) {
-    if (!retained.artifactPaths.has(file)) {
-      throw new TypeError(`Legacy served-response evidence ${file} is undeclared.`);
-    }
-  }
-  const expectedArtifactPaths = new Set<string>([
-    "score.json",
-    REAL_BUILD_DIAGNOSTIC_PREFIX_FILE,
-    ...servedResponseFiles,
-  ]);
-  for (const report of browserOutput.reports as unknown[]) {
-    if (!isRecord(report)) {
-      throw new TypeError("Legacy browser-output /2 report disappeared after replay verification.");
-    }
-    const stepNumber = report.stepNumber as number;
-    if (report.panelPng !== null) {
-      expectedArtifactPaths.add(`step-${String(stepNumber).padStart(3, "0")}-panel.png`);
-    }
-    if (report.buildPng !== null) {
-      expectedArtifactPaths.add(`step-${String(stepNumber).padStart(3, "0")}-build.png`);
-    }
-    for (const capture of report.fartherCaptures as readonly Record<string, unknown>[]) {
-      expectedArtifactPaths.add(realBuildFartherCapturePath(stepNumber, capture as never));
-    }
-  }
-  assertExactRealBuildArtifactPaths(retained.artifactPaths, expectedArtifactPaths, "legacy");
-  return {
-    kind: "legacy-artifact-inspection",
-    authority: "inspection-only",
-    authenticated: false,
-    runId: manifest.runId,
-    artifactManifestSchemaVersion: LEGACY_REAL_BUILD_ARTIFACT_MANIFEST_SCHEMA_V3,
-    runContractSchemaVersion: "lego.real-build-run-contract/2",
-    browserOutputSchemaVersion: "lego.real-build-browser-output/2",
-    scoreSchemaVersion: "lego.real-build-score/4",
-    verifiedDigests: {
-      replayClosure: closure.manifestDigest,
-      artifactManifest: sha256Digest(manifestBytes),
-    },
-  };
 }

@@ -26,7 +26,7 @@ export interface RealBuildReplayClosureManifest {
 export interface VerifiedRealBuildReplayClosure {
   readonly manifest: RealBuildReplayClosureManifest;
   readonly roleBytes: ReadonlyMap<string, Buffer>;
-  /** Closed current /3 ledger, or null for frozen legacy run-contract generations. */
+  /** Closed current /4 ledger, or null for frozen legacy run-contract generations. */
   readonly admittedActionLedger: RealBuildActionLedger | null;
 }
 
@@ -39,6 +39,7 @@ export interface RealBuildReplayInspection {
     | "lego.real-build-run-contract/2"
     | "lego.real-build-run-contract/3"
     | "lego.real-build-run-contract/4"
+    | "lego.real-build-run-contract/5"
     | null;
   readonly roleTrace: readonly {
     readonly role: string;

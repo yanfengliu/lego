@@ -37,6 +37,7 @@ import {
 } from "./real-build-run-contract";
 import { verifyLegacyRealBuildRunContractV2 } from "./real-build-run-contract-legacy-v2";
 import { verifyLegacyRealBuildRunContractV3 } from "./real-build-run-contract-legacy-v3";
+import { verifyLegacyRealBuildRunContractV4 } from "./real-build-run-contract-legacy-v4";
 import { parseRealBuildPreparedRunInput } from "./real-build-prepared-run-input-parser";
 import {
   REAL_BUILD_REPLAY_CLOSURE_SCHEMA,
@@ -113,18 +114,16 @@ function readReplayBytes(
 }
 
 /** Writes exact input/output/environment/source bytes to CAS and atomically closes the manifest. */
-export function writeRealBuildReplayClosure(
+export async function writeRealBuildReplayClosure(
   input: RealBuildReplayClosureWriteInput,
-): RealBuildReplayClosureManifest {
+): Promise<RealBuildReplayClosureManifest> {
   const manifest = writeRealBuildReplayClosureUnverified(input);
-  verifyRealBuildReplayClosure(input.directory);
+  await verifyRealBuildReplayClosure(input.directory);
   return manifest;
 }
 
 /** Verifies each unique CAS digest once and returns the already-verified role buffers. */
-export function verifyRealBuildReplayClosureData(
-  directory: string,
-): VerifiedRealBuildReplayClosure {
+function loadRealBuildReplayClosureData(directory: string) {
   const replayManifestBytes = readContainedBoundedRegularFile(directory, "replay-closure.json", {
     label: "replay closure manifest",
     maximumBytes: MAXIMUM_REPLAY_MANIFEST_BYTES,
@@ -245,7 +244,10 @@ export function verifyRealBuildReplayClosureData(
     true,
   )!;
   const retainedContract = parseRealBuildRunContract(retainedContractBytes);
-  if (retainedContract.schemaVersion === "lego.real-build-run-contract/4") {
+  if (
+    retainedContract.schemaVersion === "lego.real-build-run-contract/4" ||
+    retainedContract.schemaVersion === "lego.real-build-run-contract/5"
+  ) {
     assertCanonicalRealBuildJsonBytes(
       replayManifestBytes,
       parsed,
@@ -269,7 +271,7 @@ export function verifyRealBuildReplayClosureData(
     );
   }
   let admittedActionLedger: RealBuildActionLedger | null = null;
-  if (retainedContract.schemaVersion === "lego.real-build-run-contract/4") {
+  if (retainedContract.schemaVersion === "lego.real-build-run-contract/5") {
     admittedActionLedger = admitCanonicalRealBuildActionLedgerBytes({
       bytes: roleBytes.get("action-ledger")!,
       label: "replay action-ledger role",
@@ -278,7 +280,8 @@ export function verifyRealBuildReplayClosureData(
     });
   }
   const environment =
-    retainedContract.schemaVersion === "lego.real-build-run-contract/4"
+    retainedContract.schemaVersion === "lego.real-build-run-contract/4" ||
+    retainedContract.schemaVersion === "lego.real-build-run-contract/5"
       ? parseCanonicalRealBuildJson<Record<string, unknown>>(
           roleBytes.get("environment")!,
           "current replay environment role",
@@ -293,7 +296,8 @@ export function verifyRealBuildReplayClosureData(
   );
   verifyRealBuildRunContractRoleDigests(retainedContract, roleDigests);
   const replayedPanelSource =
-    retainedContract.schemaVersion === "lego.real-build-run-contract/4"
+    retainedContract.schemaVersion === "lego.real-build-run-contract/4" ||
+    retainedContract.schemaVersion === "lego.real-build-run-contract/5"
       ? replayRealBuildPanelSource({
           pdfBytes: roleBytes.get("pdf")!,
           retainedSourceBytes: roleBytes.get(REAL_BUILD_PANEL_SOURCE_ROLE)!,
@@ -301,31 +305,68 @@ export function verifyRealBuildReplayClosureData(
         })
       : null;
   let calibratedOfficial: OfficialModelIndex | null = null;
-  if (retainedContract.schemaVersion === "lego.real-build-run-contract/4") {
+  if (
+    retainedContract.schemaVersion === "lego.real-build-run-contract/4" ||
+    retainedContract.schemaVersion === "lego.real-build-run-contract/5"
+  ) {
     calibratedOfficial = reconstructRealBuildOfficialReplay({ roleBytes, roleDigests });
   }
   const preparedOptions =
-    retainedContract.schemaVersion === "lego.real-build-run-contract/4"
+    retainedContract.schemaVersion === "lego.real-build-run-contract/4" ||
+    retainedContract.schemaVersion === "lego.real-build-run-contract/5"
       ? parseRealBuildPreparedRunInput(roleBytes.get("prepared-options")!).options
       : parseDuplicateFreeRealBuildJson<unknown>(
           roleBytes.get("prepared-options")!,
           "legacy replay prepared-options role",
         );
-  assertSourceExactIdentificationRoles(roleNames, retainedContract.identificationClosure.source);
-  const reconstructedCoverage = reconstructRealBuildIdentificationReplay(
-    roleBytes,
-    retainedContract,
+  assertSourceExactIdentificationRoles(
+    roleNames,
+    retainedContract.identificationClosure.source,
+    retainedContract.schemaVersion === "lego.real-build-run-contract/5",
   );
-  if (retainedContract.schemaVersion === "lego.real-build-run-contract/4") {
+  return {
+    parsed,
+    replayManifestBytes,
+    retainedContract,
+    roleBytes,
+    admittedActionLedger,
+    environment,
+    roleDigests,
+    replayedPanelSource,
+    calibratedOfficial,
+    preparedOptions,
+    readCas,
+  };
+}
+
+function finishRealBuildReplayClosureData(
+  loaded: ReturnType<typeof loadRealBuildReplayClosureData>,
+  reconstructedCoverage: unknown,
+): VerifiedRealBuildReplayClosure {
+  const {
+    parsed,
+    retainedContract,
+    roleBytes,
+    admittedActionLedger,
+    environment,
+    roleDigests,
+    replayedPanelSource,
+    calibratedOfficial,
+    preparedOptions,
+    readCas,
+  } = loaded;
+  if (retainedContract.schemaVersion === "lego.real-build-run-contract/5") {
     assertRealBuildActionLedgerMatchesPreparedOptions({
       ledger: admittedActionLedger!,
       ledgerDigest: roleDigests["action-ledger"]!,
+      sourceArtReboundDigest: retainedContract.identificationClosure.sourceArtRebound,
       options: preparedOptions as RealBuildOptions,
       official: calibratedOfficial!,
     });
     verifyRealBuildReplayActionLedgerSemantics({
       ledger: admittedActionLedger!,
       ledgerDigest: roleDigests["action-ledger"]!,
+      sourceArtReboundDigest: retainedContract.identificationClosure.sourceArtRebound,
       options: preparedOptions as RealBuildOptions,
       official: calibratedOfficial!,
       reconstructedCoverage,
@@ -333,6 +374,13 @@ export function verifyRealBuildReplayClosureData(
       transitionClassificationsBytes: roleBytes.get("transition-classifications")!,
     });
     verifyRealBuildRunContract({
+      contract: retainedContract,
+      options: preparedOptions as RealBuildOptions,
+      roleDigests,
+      sourceFiles: parsed.sourceBundle.files,
+    });
+  } else if (retainedContract.schemaVersion === "lego.real-build-run-contract/4") {
+    verifyLegacyRealBuildRunContractV4({
       contract: retainedContract,
       options: preparedOptions as RealBuildOptions,
       roleDigests,
@@ -355,7 +403,8 @@ export function verifyRealBuildReplayClosureData(
   }
   if (parsed.replayLevel === "downstream-only") {
     const browserOutput =
-      retainedContract.schemaVersion === "lego.real-build-run-contract/4"
+      retainedContract.schemaVersion === "lego.real-build-run-contract/4" ||
+      retainedContract.schemaVersion === "lego.real-build-run-contract/5"
         ? parseCanonicalRealBuildJson<unknown>(
             roleBytes.get("browser-output")!,
             "current replay browser-output role",
@@ -371,7 +420,8 @@ export function verifyRealBuildReplayClosureData(
     }
   }
   const reproducedSourceBundleDigest =
-    retainedContract.schemaVersion === "lego.real-build-run-contract/4"
+    retainedContract.schemaVersion === "lego.real-build-run-contract/4" ||
+    retainedContract.schemaVersion === "lego.real-build-run-contract/5"
       ? replayDigest(encodeCanonicalRealBuildJson(parsed.sourceBundle.files))
       : replayDigest(JSON.stringify(parsed.sourceBundle.files));
   if (reproducedSourceBundleDigest !== parsed.sourceBundle.digest) {
@@ -416,36 +466,130 @@ export function verifyRealBuildReplayClosureData(
   return { manifest: parsed, roleBytes, admittedActionLedger };
 }
 
-export function verifyRealBuildReplayClosure(directory: string): RealBuildReplayClosureManifest {
-  return verifyRealBuildReplayClosureData(directory).manifest;
+declare const PREPARED_REPLAY_VERIFICATION_BRAND: unique symbol;
+
+/** Opaque proof retained only across the no-await publication handoff. */
+export interface PreparedRealBuildReplayVerification {
+  readonly [PREPARED_REPLAY_VERIFICATION_BRAND]: true;
 }
 
-export function readRealBuildReplayRole(directory: string, role: string): Buffer {
-  const verified = verifyRealBuildReplayClosureData(directory);
-  const bytes = verified.roleBytes.get(role);
-  if (bytes === undefined) throw new TypeError(`Replay closure has no role ${role}.`);
-  return bytes;
+export interface PreparedRealBuildReplayVerificationResult {
+  readonly verified: VerifiedRealBuildReplayClosure;
+  readonly proof: PreparedRealBuildReplayVerification;
+}
+
+interface PreparedReplayVerificationState {
+  readonly fingerprint: string;
+  readonly reconstructedCoverage: unknown;
+}
+
+const preparedReplayVerificationStates = new WeakMap<
+  PreparedRealBuildReplayVerification,
+  PreparedReplayVerificationState
+>();
+
+function replayVerificationFingerprint(
+  loaded: ReturnType<typeof loadRealBuildReplayClosureData>,
+): string {
+  return replayDigest(
+    encodeCanonicalRealBuildJson({
+      manifestDigest: loaded.parsed.manifestDigest,
+      contractDigest: loaded.retainedContract.contractDigest,
+      roles: loaded.parsed.roles.map(({ role, digest, bytes }) => ({ role, digest, bytes })),
+    }),
+  );
+}
+
+type ReplayCoverageReconstructor = (
+  roleBytes: ReadonlyMap<string, Buffer>,
+  contract: ReturnType<typeof parseRealBuildRunContract>,
+) => unknown | Promise<unknown>;
+
+function prepareReplayVerification(
+  directory: string,
+  reconstructCoverage: ReplayCoverageReconstructor = reconstructRealBuildIdentificationReplay,
+): Promise<PreparedRealBuildReplayVerificationResult> {
+  const loaded = loadRealBuildReplayClosureData(directory);
+  const reconstruction = reconstructCoverage(loaded.roleBytes, loaded.retainedContract);
+  return Promise.resolve(reconstruction).then((reconstructedCoverage) => {
+    const verified = finishRealBuildReplayClosureData(loaded, reconstructedCoverage);
+    const proof = Object.freeze({}) as PreparedRealBuildReplayVerification;
+    preparedReplayVerificationStates.set(proof, {
+      fingerprint: replayVerificationFingerprint(loaded),
+      reconstructedCoverage,
+    });
+    return { verified, proof };
+  });
+}
+
+export function prepareRealBuildReplayVerification(
+  directory: string,
+): Promise<PreparedRealBuildReplayVerificationResult> {
+  return prepareReplayVerification(directory);
+}
+
+export function verifyRealBuildReplayClosureData(
+  directory: string,
+): Promise<VerifiedRealBuildReplayClosure> {
+  return prepareReplayVerification(directory).then(({ verified }) => verified);
+}
+
+/** Synchronously rereads every retained role and accepts only an exact preverified async proof. */
+export function verifyPreparedRealBuildReplayClosureData(
+  directory: string,
+  proof: PreparedRealBuildReplayVerification,
+): VerifiedRealBuildReplayClosure {
+  const proofState = preparedReplayVerificationStates.get(proof);
+  if (proofState === undefined) {
+    throw new TypeError(
+      "Prepared replay verification must be the private proof returned by the asynchronous retained-PDF verifier.",
+    );
+  }
+  const loaded = loadRealBuildReplayClosureData(directory);
+  if (replayVerificationFingerprint(loaded) !== proofState.fingerprint) {
+    throw new TypeError(
+      "Replay closure roles or run contract changed after asynchronous source-art verification; verify the exact retained bytes again before publication.",
+    );
+  }
+  return finishRealBuildReplayClosureData(loaded, proofState.reconstructedCoverage);
+}
+
+export function verifyRealBuildReplayClosure(
+  directory: string,
+): Promise<RealBuildReplayClosureManifest> {
+  return verifyRealBuildReplayClosureData(directory).then(({ manifest }) => manifest);
+}
+
+export function readRealBuildReplayRole(directory: string, role: string): Promise<Buffer> {
+  return verifyRealBuildReplayClosureData(directory).then((verified) => {
+    const bytes = verified.roleBytes.get(role);
+    if (bytes === undefined) throw new TypeError(`Replay closure has no role ${role}.`);
+    return bytes;
+  });
 }
 
 /** Verifies retained bytes and contracts without loading or executing retained source. */
-export function inspectRealBuildReplayClosure(directory: string): RealBuildReplayInspection {
-  const { manifest, roleBytes } = verifyRealBuildReplayClosureData(directory);
-  let contractDigest: string | null = null;
-  let contractSchemaVersion: RealBuildReplayInspection["contractSchemaVersion"] = null;
-  if (manifest.replayLevel === "downstream-only") {
-    const contract = parseRealBuildRunContract(roleBytes.get("run-contract")!);
-    contractDigest = contract.contractDigest;
-    contractSchemaVersion = contract.schemaVersion;
-  }
-  return {
-    authority: "local-diagnostic",
-    authenticated: false,
-    replayLevel: manifest.replayLevel,
-    contractDigest,
-    contractSchemaVersion,
-    roleTrace: manifest.roles.map(({ role, digest, bytes }) => ({ role, digest, bytes })),
-    sourceTrace: manifest.sourceBundle.files,
-  };
+export function inspectRealBuildReplayClosure(
+  directory: string,
+): Promise<RealBuildReplayInspection> {
+  return verifyRealBuildReplayClosureData(directory).then(({ manifest, roleBytes }) => {
+    let contractDigest: string | null = null;
+    let contractSchemaVersion: RealBuildReplayInspection["contractSchemaVersion"] = null;
+    if (manifest.replayLevel === "downstream-only") {
+      const contract = parseRealBuildRunContract(roleBytes.get("run-contract")!);
+      contractDigest = contract.contractDigest;
+      contractSchemaVersion = contract.schemaVersion;
+    }
+    return {
+      authority: "local-diagnostic",
+      authenticated: false,
+      replayLevel: manifest.replayLevel,
+      contractDigest,
+      contractSchemaVersion,
+      roleTrace: manifest.roles.map(({ role, digest, bytes }) => ({ role, digest, bytes })),
+      sourceTrace: manifest.sourceBundle.files,
+    };
+  });
 }
 
 export const replayRealBuildFinalization = (directory: string): Promise<never> =>

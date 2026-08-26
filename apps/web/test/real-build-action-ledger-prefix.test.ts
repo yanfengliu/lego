@@ -16,6 +16,7 @@ function fixtureBindings(
     pdfDigest: fixture.pdfDigest,
     coverageDigest: fixture.coverageDigest,
     calloutManifestDigest: fixture.manifestDigest,
+    sourceArtReboundDigest: fixture.sourceArtReboundDigest,
     builderCalibrationDigest: fixture.builderCalibrationDigest,
     transitionClassificationsDigest: fixture.transitionClassificationsDigest,
   };

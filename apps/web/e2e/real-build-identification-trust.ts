@@ -23,6 +23,12 @@
  *   it rather than inheriting it. Earned per judged pair, by two raters,
  *   answering a narrow question.
  *
+ * - `source-art-rebound` — the exact embedded-source-art relation independently
+ *   reproduced from the retained PDF and complete callout manifest agrees with
+ *   the catalog identity already carried by that callout. The relation binds the
+ *   source drawing; it does not admit a catalog part, place a Brick, or certify
+ *   completion by itself.
+ *
  * They are separate values on purpose. A pair-judged identity was established by
  * a different mechanism with different evidence, and collapsing it into
  * `vision-kept` would make it impossible to tell later which of the two actually
@@ -35,7 +41,11 @@
  * positive evidence that the claim is wrong, and the coverage compiler strips
  * the resolution from any callout carrying it.
  */
-export const TRUSTED_IDENTIFICATION_CONFIDENCES = ["vision-kept", "pair-judged-same"] as const;
+export const TRUSTED_IDENTIFICATION_CONFIDENCES = [
+  "vision-kept",
+  "pair-judged-same",
+  "source-art-rebound",
+] as const;
 
 export type TrustedIdentificationConfidence = (typeof TRUSTED_IDENTIFICATION_CONFIDENCES)[number];
 
@@ -49,6 +59,25 @@ export function isTrustedIdentificationConfidence(
 export const TRUSTED_IDENTIFICATION_CONFIDENCES_SENTENCE = TRUSTED_IDENTIFICATION_CONFIDENCES.map(
   (confidence) => JSON.stringify(confidence),
 ).join(" and ");
+
+/**
+ * Selects the retained input whose exact bytes earned a trusted confidence.
+ *
+ * The two direct identification paths remain manifest-bound. A source-art
+ * rebound is deliberately rebound-artifact-bound, so replacing that relation
+ * cannot inherit an earlier callout's positive label.
+ */
+export function trustedIdentificationInputDigest(
+  confidence: TrustedIdentificationConfidence,
+  bindings: {
+    readonly calloutManifestDigest: string;
+    readonly sourceArtReboundDigest: string;
+  },
+): string {
+  return confidence === "source-art-rebound"
+    ? bindings.sourceArtReboundDigest
+    : bindings.calloutManifestDigest;
+}
 
 /**
  * Carries a coverage claim's own confidence into a generated record.

@@ -31,6 +31,7 @@ export interface RealBuildLedgerTestFixture {
   readonly pdfDigest: string;
   readonly coverageDigest: string;
   readonly manifestDigest: string;
+  readonly sourceArtReboundDigest: string;
   readonly builderCalibrationDigest: string;
   readonly builderGeometryBytes: Buffer;
   readonly builderGeometryDigest: string;
@@ -44,7 +45,7 @@ export interface RealBuildLedgerTestFixture {
   >;
 }
 
-/** Rebinds a test ledger to exactly one current /3 prefix after a test mutates its rows. */
+/** Rebinds a test ledger to exactly one current /4 prefix after a test mutates its rows. */
 export function realBuildLedgerPrefix(
   ledger: RealBuildActionLedger,
   requestedLastStep: number,
@@ -253,6 +254,7 @@ export function realBuildLedgerTestFixture(): RealBuildLedgerTestFixture {
   const pdfDigest = sha256Digest("pdf");
   const coverageDigest = sha256Digest("coverage");
   const manifestDigest = sha256Digest("manifest");
+  const sourceArtReboundDigest = sha256Digest("source-art-rebound");
   const panelDigest = (stepNumber: number) =>
     stepPanelEvidenceDigest({
       pdfDigest,
@@ -281,6 +283,7 @@ export function realBuildLedgerTestFixture(): RealBuildLedgerTestFixture {
       officialModelDigest: official.digest,
       coverageDigest,
       calloutManifestDigest: manifestDigest,
+      sourceArtReboundDigest,
       builderCalibrationDigest,
       stepNumber: 1,
       pageNumber: 1,
@@ -310,6 +313,7 @@ export function realBuildLedgerTestFixture(): RealBuildLedgerTestFixture {
       officialModelDigest: official.digest,
       coverageDigest,
       calloutManifestDigest: manifestDigest,
+      sourceArtReboundDigest,
       builderCalibrationDigest,
       stepNumber: 2,
       pageNumber: 2,
@@ -317,7 +321,7 @@ export function realBuildLedgerTestFixture(): RealBuildLedgerTestFixture {
     }),
   };
   const transitionClassificationsByStep = Object.fromEntries(
-    Array.from({ length: 357 }, (_, index) => {
+    Array.from({ length: 48 }, (_, index) => {
       const stepNumber = index + 3;
       const classification = {
         stepNumber,
@@ -348,7 +352,7 @@ export function realBuildLedgerTestFixture(): RealBuildLedgerTestFixture {
   const transitionClassificationsDigest = sha256Digest(
     JSON.stringify(transitionClassificationsByStep),
   );
-  const steps: LedgerStep[] = Array.from({ length: 359 }, (_, index) => ({
+  const steps: LedgerStep[] = Array.from({ length: 50 }, (_, index) => ({
     stepNumber: index + 1,
     pageNumber: index + 1,
     panelEvidenceDigest: panelDigest(index + 1),
@@ -384,6 +388,7 @@ export function realBuildLedgerTestFixture(): RealBuildLedgerTestFixture {
     officialModelDigest: official.digest,
     coverageDigest,
     calloutManifestDigest: manifestDigest,
+    sourceArtReboundDigest,
     builderCalibrationDigest,
     transitionClassificationsDigest,
     steps,
@@ -391,11 +396,12 @@ export function realBuildLedgerTestFixture(): RealBuildLedgerTestFixture {
       generator: REAL_BUILD_ACTION_LEDGER_GENERATOR,
       authenticated: false,
       expectedPrintedSteps: 359,
-      requestedLastStep: 359,
-      alignedThroughStep: 359,
-      stopReason: "fixture retains the complete 359-step action-ledger prefix",
+      requestedLastStep: 50,
+      alignedThroughStep: 50,
+      stopReason:
+        "fixture retains the requested 50-step action prefix while the source/index contract remains 359",
       directPieceCount: 1,
-      transitionStepCount: 357,
+      transitionStepCount: 48,
       refusals: [],
     },
   };
@@ -410,6 +416,7 @@ export function realBuildLedgerTestFixture(): RealBuildLedgerTestFixture {
     pdfDigest,
     coverageDigest,
     manifestDigest,
+    sourceArtReboundDigest,
     builderCalibrationDigest,
     builderGeometryBytes: builderGeometry.bytes,
     builderGeometryDigest: builderGeometry.digest,

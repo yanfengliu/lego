@@ -1,6 +1,6 @@
 """Run the depletion walk over the published booklet artifacts and score it.
 
-Reads only. It opens one exact current coverage/2 source closure, hands its
+Reads only. It opens one exact current coverage/3 source closure, hands its
 plain identification data to `booklet_depletion_walk`, and writes one report to
 `output/booklet-depletion-walk.json` with the digest of every input beside every
 number, so a later reader can tell whether a figure came from the artifacts they
@@ -13,7 +13,7 @@ them is a narrowed candidate list and the evidence behind it, which is a
 different claim from a verdict.
 
     python -B scripts/booklet_depletion_report.py
-    python -B scripts/booklet_depletion_report.py --coverage <path>   # current coverage/2 only
+    python -B scripts/booklet_depletion_report.py --coverage <path>   # current coverage/3 only
 """
 
 from __future__ import annotations
@@ -65,7 +65,7 @@ def claims_from_coverage(coverage: dict) -> list[Claim]:
     if not isinstance(by_callout, dict) or not by_callout:
         raise ValueError(
             "the coverage artifact has no non-empty `byCallout` map, so there are no claims to "
-            "walk. This report reads `lego.real-build-catalog-coverage/2`; point --coverage at "
+            "walk. This report reads `lego.real-build-catalog-coverage/3`; point --coverage at "
             "such a file."
         )
     return [
@@ -333,7 +333,7 @@ def main() -> int:
     parser.add_argument(
         "--coverage",
         default=str(COVERAGE),
-        help="one retained current lego.real-build-catalog-coverage/2 artifact",
+        help="one retained current lego.real-build-catalog-coverage/3 artifact",
     )
     parser.add_argument("--out", default=str(REPORT))
     args = parser.parse_args()

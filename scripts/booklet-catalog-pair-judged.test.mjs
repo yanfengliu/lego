@@ -10,6 +10,7 @@ import {
   identificationArtifactsFor,
   manifestFor,
   pairJudgedArtifactFor,
+  sourceArtReboundTestClosure,
 } from "./booklet-catalog-coverage-test-fixture.mjs";
 import { PART_TRUTH_SCHEMA, cropDigestKey } from "./part-identification-truth-key.mjs";
 import { pairJudgedVerdictsByCalloutIndexFromParsedJson as pairJudgedVerdictsByCalloutIndex } from "./part-identification-pair-judged.mjs";
@@ -50,9 +51,9 @@ function compile(verdicts, overrides = {}) {
 const onlyClaim = (report) => Object.values(report.byCallout)[0];
 
 describe("pair-judged identity as a coverage trust source", () => {
-  it("emits its own confidence rather than masquerading as vision-kept", () => {
-    const judged = onlyClaim(compile([verdict(true)]));
-    const unjudged = onlyClaim(compile([]));
+  it("emits its own confidence rather than masquerading as vision-kept", async () => {
+    const judged = onlyClaim(await compile([verdict(true)]));
+    const unjudged = onlyClaim(await compile([]));
 
     expect(judged.identificationConfidence).toBe("pair-judged-same");
     expect(judged.resolution).not.toBeNull();
@@ -61,8 +62,8 @@ describe("pair-judged identity as a coverage trust source", () => {
     expect(unjudged.identificationConfidence).toBe("vision-kept");
   });
 
-  it("refuses the identity when the verdict says the two drawings are different parts", () => {
-    const report = compile([verdict(false)]);
+  it("refuses the identity when the verdict says the two drawings are different parts", async () => {
+    const report = await compile([verdict(false)]);
     const claim = onlyClaim(report);
 
     expect(claim.identificationConfidence).toBe("pair-judged-different");
@@ -75,23 +76,23 @@ describe("pair-judged identity as a coverage trust source", () => {
     expect(claim.unidentifiedBecause).toMatch(/re-asserting element 300501 cannot/u);
   });
 
-  it("refuses even a claim the vision pass kept, because judging saw more than agreement", () => {
-    const kept = onlyClaim(compile([]));
-    const refused = onlyClaim(compile([verdict(false)]));
+  it("refuses even a claim the vision pass kept, because judging saw more than agreement", async () => {
+    const kept = onlyClaim(await compile([]));
+    const refused = onlyClaim(await compile([verdict(false)]));
 
     expect(kept.identificationConfidence).toBe("vision-kept");
     expect(kept.resolution).not.toBeNull();
     expect(refused.resolution).toBeNull();
   });
 
-  it("binds the judged bytes into the report's published provenance", () => {
+  it("binds the judged bytes into the report's published provenance", async () => {
     const bound = pairJudgedArtifactFor([verdict(true)]);
-    const report = compile([verdict(true)]);
+    const report = await compile([verdict(true)]);
 
     expect(report.inputDigests.pairJudged).toBe(bound.digest);
     // A different verdict file is a different report, even when the outcome is
     // the same: the trust source is part of what produced these bytes.
-    expect(compile([]).inputDigests.pairJudged).not.toBe(bound.digest);
+    expect((await compile([])).inputDigests.pairJudged).not.toBe(bound.digest);
   });
 
   it("refuses to publish a pair-judged confidence with no bound judged digest", () => {
@@ -111,21 +112,21 @@ describe("pair-judged identity as a coverage trust source", () => {
     ).toThrow(/no pairJudged digest/u);
   });
 
-  it("refuses to compile coverage at all without the judged role", () => {
+  it("refuses to compile coverage at all without the judged role", async () => {
     const fixture = closureFixture();
     const { manifestExpectation, ...withJudged } = fixture;
     const withoutJudged = { ...withJudged, pairJudgedArtifact: null };
 
-    expect(() =>
+    await expect(
       __testOnly.compileBookletCatalogCoverageClosure(withoutJudged, manifestExpectation),
-    ).toThrow(/part-identification-truth-first50\.json/u);
+    ).rejects.toThrow(/part-identification-truth-first50\.json/u);
   });
 
-  it("stops binding when the crop or the claim moves, instead of inheriting the verdict", () => {
+  it("stops binding when the crop or the claim moves, instead of inheriting the verdict", async () => {
     const otherCrop = onlyClaim(
-      compile([verdict(true, { judgedCropSha256: digest("elsewhere") })]),
+      await compile([verdict(true, { judgedCropSha256: digest("elsewhere") })]),
     );
-    const otherElement = onlyClaim(compile([verdict(true, { elementId: "999999" })]));
+    const otherElement = onlyClaim(await compile([verdict(true, { elementId: "999999" })]));
 
     expect(otherCrop.identificationConfidence).toBe("vision-kept");
     expect(otherElement.identificationConfidence).toBe("vision-kept");
@@ -196,15 +197,15 @@ describe("pair-judged identity as a coverage trust source", () => {
     ]);
   });
 
-  it("does not reproduce coverage whose pair-judged trust the retained verdicts contradict", () => {
+  it("does not reproduce coverage whose pair-judged trust the retained verdicts contradict", async () => {
     const fixture = closureFixture();
-    const trusted = __testOnly.compileBookletCatalogCoverageClosure(
+    const trusted = await __testOnly.compileBookletCatalogCoverageClosure(
       { ...fixture, pairJudgedArtifact: pairJudgedArtifactFor([verdict(true)]) },
       fixture.manifestExpectation,
     );
     const coverageBytes = Buffer.from(`${JSON.stringify(trusted, null, 1)}\n`);
 
-    expect(() =>
+    await expect(
       __testOnly.verifyBookletCatalogCoverageClosure(
         {
           ...fixture,
@@ -213,7 +214,7 @@ describe("pair-judged identity as a coverage trust source", () => {
         },
         fixture.manifestExpectation,
       ),
-    ).toThrow(/do not exactly reproduce/u);
+    ).rejects.toThrow(/do not exactly reproduce/u);
   });
 
   it("rejects a verdict map that names a crop nobody was shown", () => {
@@ -251,7 +252,7 @@ describe("pair-judged identity as a coverage trust source", () => {
  */
 describe("judged verdicts do not extrapolate past the range that was judged", () => {
   /** A coherent deterministic closure whose one callout sits on the given printed step. */
-  function closureAtStep(stepNumber, judgedLastStep) {
+  async function closureAtStep(stepNumber, judgedLastStep) {
     const fixture = closureFixture();
     const baseManifest = JSON.parse(fixture.manifestBytes.toString("utf8"));
     const manifest = manifestFor(baseManifest.callouts.map((entry) => ({ ...entry, stepNumber })));
@@ -285,6 +286,7 @@ describe("judged verdicts do not extrapolate past the range that was judged", ()
           verdicts: [verdict(true)],
           unjudgeable: [],
         }),
+        ...sourceArtReboundTestClosure(manifestBytes),
         elementsArtifact: fixture.elementsArtifact,
         source: "deterministic",
         model: null,
@@ -295,8 +297,8 @@ describe("judged verdicts do not extrapolate past the range that was judged", ()
     );
   }
 
-  it("binds inside the judged range and falls back to geometry outside it", () => {
-    expect(onlyClaim(closureAtStep(2, 2)).identificationConfidence).toBe("pair-judged-same");
-    expect(onlyClaim(closureAtStep(3, 2)).identificationConfidence).toBe("geometry");
+  it("binds inside the judged range and falls back to geometry outside it", async () => {
+    expect(onlyClaim(await closureAtStep(2, 2)).identificationConfidence).toBe("pair-judged-same");
+    expect(onlyClaim(await closureAtStep(3, 2)).identificationConfidence).toBe("geometry");
   });
 });

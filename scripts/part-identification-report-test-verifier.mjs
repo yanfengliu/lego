@@ -1,4 +1,5 @@
 import { __testOnly as coverageTestOnly } from "./booklet-catalog-coverage.mjs";
+import { sourceArtReboundTestClosure } from "./booklet-catalog-coverage-test-fixture.mjs";
 import { sha256Digest } from "./part-identification-artifacts.mjs";
 import { runVerifierCli } from "./part-identification-report-verifier.mjs";
 import { verifySyntheticActionLedger } from "./part-identification-report-test-action-ledger.mjs";
@@ -44,13 +45,56 @@ const EXPECTATIONS = new Map([
   ],
 ]);
 
-function verifyFixtureCoverage(input) {
+async function verifyFixtureCoverage(input) {
   const expectation = EXPECTATIONS.get(sha256Digest(input.manifestBytes));
   if (expectation === undefined) throw new Error("Unknown report-contract test manifest.");
-  coverageTestOnly.verifyBookletCatalogCoverageClosure(input, expectation);
+  const testRebound = sourceArtReboundTestClosure(input.manifestBytes, {
+    pdfBytes: input.pdfBytes,
+    sourceArtReboundArtifact: input.sourceArtReboundArtifact,
+  });
+  await coverageTestOnly.verifyBookletCatalogCoverageClosure(
+    input,
+    expectation,
+    testRebound.__testOnlySourceArtReboundVerifier,
+  );
+}
+
+async function verifyFixtureActionLedger(input) {
+  const manifestBytes = input.calloutManifest.bytes;
+  const expectation = EXPECTATIONS.get(sha256Digest(manifestBytes));
+  if (expectation === undefined) throw new Error("Unknown report-contract test manifest.");
+  const testRebound = sourceArtReboundTestClosure(manifestBytes, {
+    pdfBytes: input.bookletPdf.bytes,
+    sourceArtReboundArtifact: input.sourceArtRebound,
+  });
+  await coverageTestOnly.verifyBookletCatalogCoverageClosure(
+    {
+      coverageBytes: input.coverage.bytes,
+      source: input.coverage.value.identification.source,
+      assignment: input.coverage.value.identification.assignment,
+      model: input.coverage.value.identification.model,
+      featuresArtifact: input.features,
+      matchArtifact: input.match,
+      distancesArtifact: input.distances,
+      elementsArtifact: input.elementResolution,
+      cardsArtifact: input.cards,
+      cardImagesArtifact: input.cardImages,
+      answersArtifact: input.answers,
+      traceRoot: input.traceRoot,
+      traceArtifacts: null,
+      pairJudgedArtifact: input.pairJudged,
+      sourceArtReboundArtifact: input.sourceArtRebound,
+      pdfBytes: input.bookletPdf.bytes,
+      manifestBytes,
+      lastStep: input.coverage.value.lastStep,
+    },
+    expectation,
+    testRebound.__testOnlySourceArtReboundVerifier,
+  );
+  await verifySyntheticActionLedger(input);
 }
 
 await runVerifierCli({
-  actionLedgerVerifier: verifySyntheticActionLedger,
+  actionLedgerVerifier: verifyFixtureActionLedger,
   coverageClosureVerifier: verifyFixtureCoverage,
 });

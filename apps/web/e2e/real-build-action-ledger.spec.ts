@@ -65,6 +65,7 @@ test("publishes the booklet's action ledger", async () => {
           officialModelDigest: ledger.officialModelDigest,
           coverageDigest: ledger.coverageDigest,
           calloutManifestDigest: ledger.calloutManifestDigest,
+          sourceArtReboundDigest: ledger.sourceArtReboundDigest,
           builderCalibrationDigest: ledger.builderCalibrationDigest,
           stepNumber: step.stepNumber,
           pageNumber: step.pageNumber,

@@ -47,6 +47,7 @@ export async function prepareRealBuildPanelPlan(input: PreparedRealBuildInputs) 
     highlightCalibrationDigest,
     verifiedCoverage,
     coverageClosureRejection,
+    sourceArtReboundInput,
   } = input;
   const requestedLastStep = lastStep;
   const fartherPanelMaximumReachSteps = 2;
@@ -81,6 +82,7 @@ export async function prepareRealBuildPanelPlan(input: PreparedRealBuildInputs) 
         // Deliberately nullable: with no bound coverage the ledger's own
         // structure is still checked, but nothing is compared to a claim.
         calloutManifestDigest: inputDigests.calloutManifest,
+        sourceArtReboundDigest: sourceArtReboundInput.digest,
         builderCalibrationDigest: inputDigests.builderCalibration,
         transitionClassificationsDigest: inputDigests.transitionClassifications,
         coverageByCallout: byCallout,

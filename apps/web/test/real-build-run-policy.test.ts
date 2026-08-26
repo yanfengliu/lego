@@ -229,6 +229,7 @@ describe("real booklet run policy and artifacts", () => {
         cardImages: null,
         answers: null,
         pairJudged: sha256Digest("pair-judged"),
+        sourceArtRebound: sha256Digest("source-art-rebound"),
       },
       panelSourceDigest: sha256Digest("panel-source"),
       panels: [transitionPanel(1)],

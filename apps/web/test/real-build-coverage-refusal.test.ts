@@ -21,12 +21,13 @@ describe("unbound catalog coverage", () => {
     return validateRealBuildActionLedger({
       ledger: fixture.ledger,
       ledgerDigest: sha256Digest(JSON.stringify(fixture.ledger)),
-      requestedLastStep: 359,
-      lastStep: 359,
+      requestedLastStep: 50,
+      lastStep: 50,
       official: fixture.official,
       pdfDigest: fixture.pdfDigest,
       coverageDigest: fixture.coverageDigest,
       calloutManifestDigest: fixture.manifestDigest,
+      sourceArtReboundDigest: fixture.sourceArtReboundDigest,
       builderCalibrationDigest: fixture.builderCalibrationDigest,
       transitionClassificationsDigest: fixture.transitionClassificationsDigest,
       coverageByCallout,
@@ -56,14 +57,6 @@ describe("unbound catalog coverage", () => {
         message:
           "Bound coverage contains zero retained callouts for printed step 2, so the ledger must " +
           "retain its reproduced transition action and classification instead of multi-build-copy.",
-      },
-      {
-        code: "action-ledger-incomplete",
-        stage: "input",
-        message:
-          "Action ledger covers 0/1 direct and 0/1 MultiBuild identities through requested step 359; " +
-          "exact callout binding is required for the prefix, and full official identity conservation " +
-          "is additionally required at step 359.",
       },
     ]);
     // No index at all is not a disagreement: there is nothing to disagree with.

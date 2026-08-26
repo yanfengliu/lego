@@ -22,6 +22,7 @@ import {
 } from "./real-build-replay-policy";
 import {
   parseRealBuildRunContract,
+  REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST,
   REAL_BUILD_INPUT_ROLE_BY_DIGEST,
   REAL_BUILD_PANEL_SOURCE_ROLE,
   verifyRealBuildRunContractRoleDigests,
@@ -132,12 +133,17 @@ export function expectedReplayRoles(
   contractSchemaVersion:
     | "lego.real-build-run-contract/2"
     | "lego.real-build-run-contract/3"
-    | "lego.real-build-run-contract/4",
+    | "lego.real-build-run-contract/4"
+    | "lego.real-build-run-contract/5",
 ): ReadonlySet<string> {
   return new Set([
     ...(replayLevel === "downstream-only" ? REQUIRED_DOWNSTREAM_ROLES : REQUIRED_METADATA_ROLES),
-    ...(contractSchemaVersion === "lego.real-build-run-contract/4"
+    ...(contractSchemaVersion === "lego.real-build-run-contract/4" ||
+    contractSchemaVersion === "lego.real-build-run-contract/5"
       ? [REAL_BUILD_PANEL_SOURCE_ROLE]
+      : []),
+    ...(contractSchemaVersion === "lego.real-build-run-contract/5"
+      ? [REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.sourceArtRebound]
       : []),
     ...(identificationSource === "adjudicated" ? CONDITIONAL_IDENTIFICATION_ROLES : []),
     "environment",
@@ -218,9 +224,9 @@ export function writeRealBuildReplayClosureUnverified(
     throw new TypeError("Every replay closure requires its digest-bound run-contract role.");
   }
   const runContract = parseRealBuildRunContract(runContractBytes);
-  if (runContract.schemaVersion !== "lego.real-build-run-contract/4") {
+  if (runContract.schemaVersion !== "lego.real-build-run-contract/5") {
     throw new TypeError(
-      "New replay publication requires run-contract /4; retained generation-2 and generation-3 bytes are inspection-only and cannot be republished as current evidence.",
+      "New replay publication requires run-contract /5; retained generations 2 through 4 are inspection-only and cannot be republished as current evidence.",
     );
   }
   const replayLevel = input.browserOutputRetained ? "downstream-only" : "metadata-only";
@@ -280,6 +286,7 @@ export function writeRealBuildReplayClosureUnverified(
   assertSourceExactIdentificationRoles(
     new Set(roleNames),
     runContract.identificationClosure.source,
+    true,
   );
   let sourceAggregateBytes = 0;
   const sourceBuffers = normalizedSources

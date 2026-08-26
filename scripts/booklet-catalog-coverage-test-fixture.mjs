@@ -281,6 +281,10 @@ export function build(overrides = {}) {
       assignment: "one-to-one",
       lastStep: 1,
       ...input,
+      identificationDigests: {
+        sourceArtRebound: digest("source-art-rebound"),
+        ...(input.identificationDigests ?? {}),
+      },
     },
     manifestExpectation,
   );
@@ -288,6 +292,79 @@ export function build(overrides = {}) {
 
 export const artifact = (value) =>
   jsonArtifactFromBytes(Buffer.from(JSON.stringify(value)), "coverage fixture artifact");
+
+const SOURCE_ART_MEMBERS = Object.freeze([
+  Object.freeze({
+    identity: "p11|q1|x90.511|y212.112",
+    stepNumber: 2,
+    cropSha256: digest("source-art-step-2"),
+  }),
+  Object.freeze({
+    identity: "p11|q1|x506.064|y212.112",
+    stepNumber: 4,
+    cropSha256: digest("source-art-step-4"),
+  }),
+  Object.freeze({
+    identity: "p20|q1|x36.320|y430.691",
+    stepNumber: 16,
+    cropSha256: digest("source-art-step-16"),
+  }),
+]);
+
+export function sourceArtReboundTestClosure(manifestBytes, overrides = {}) {
+  const pdfBytes = overrides.pdfBytes ?? Buffer.from("booklet");
+  const sourceArtReboundArtifact =
+    overrides.sourceArtReboundArtifact ??
+    artifact({ schemaVersion: "test.source-art-rebound-bytes/1" });
+  const members = overrides.members ?? SOURCE_ART_MEMBERS;
+  const projection = Object.freeze({
+    schemaVersion: "lego.part-identification-source-art-rebound/1",
+    artifactSha256: sourceArtReboundArtifact.digest,
+    inputDigests: Object.freeze({
+      pdfSha256: digest(pdfBytes),
+      manifestSha256: digest(manifestBytes),
+    }),
+    expectedPrintedSteps: 359,
+    authorizedThroughStep: 50,
+    calloutCount: 881,
+    physicalRowsScanned: 859,
+    semanticRowsPreservedAsCounterevidence: 22,
+    genericContainmentAmbiguities: 18,
+    fixedGeometryRows: 7,
+    classDigest: digest("source-art-class"),
+    outcomeDigest: digest("source-art-outcome"),
+    reference: members[1],
+    members,
+    counterevidence: Object.freeze([]),
+    authority: Object.freeze({
+      semanticIdentity: "absent",
+      catalogAdmission: "absent",
+      placement: "absent",
+      completion: "absent",
+    }),
+    ...overrides.projection,
+  });
+  const branded = new WeakSet();
+  const verifier = Object.freeze({
+    async verify(input) {
+      if (
+        digest(input.artifactBytes) !== sourceArtReboundArtifact.digest ||
+        digest(input.pdfBytes) !== digest(pdfBytes) ||
+        digest(input.manifestBytes) !== digest(manifestBytes)
+      ) {
+        throw new Error("Synthetic source-art rebound verifier received detached raw bytes.");
+      }
+      const token = Object.freeze({ kind: "verified-test-source-art-rebound" });
+      branded.add(token);
+      return token;
+    },
+    inspect(token) {
+      if (!branded.has(token)) throw new Error("Synthetic source-art rebound token is unbranded.");
+      return projection;
+    },
+  });
+  return { pdfBytes, sourceArtReboundArtifact, __testOnlySourceArtReboundVerifier: verifier };
+}
 
 /** Exact /3 match-distance closure for one already-authenticated feature fixture. */
 export function identificationArtifactsFor(featuresArtifact, candidateLimit = 6) {
@@ -390,6 +467,7 @@ export function closureFixture() {
     answersArtifact,
     traceArtifacts,
     pairJudgedArtifact: pairJudgedArtifactFor(),
+    ...sourceArtReboundTestClosure(manifestBytes),
     elementsArtifact: artifact(elements),
     source: "adjudicated",
     model: PART_IDENTIFICATION_MODEL_ID,
@@ -487,6 +565,7 @@ export function chiralClosureFixture({ pick = 1 } = {}) {
     answersArtifact,
     traceArtifacts,
     pairJudgedArtifact: pairJudgedArtifactFor(),
+    ...sourceArtReboundTestClosure(manifestBytes),
     elementsArtifact: artifact(elements),
     source: "adjudicated",
     model: PART_IDENTIFICATION_MODEL_ID,

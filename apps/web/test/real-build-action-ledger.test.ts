@@ -70,6 +70,7 @@ const BINDINGS: RealBuildActionLedgerBindings = {
   pdfDigest: sha256Digest("fixture-pdf"),
   coverageDigest: sha256Digest("fixture-coverage"),
   calloutManifestDigest: sha256Digest("fixture-manifest"),
+  sourceArtReboundDigest: sha256Digest("fixture-source-art-rebound"),
   builderCalibrationDigest: sha256Digest("fixture-calibration"),
   transitionClassificationsDigest: sha256Digest("fixture-transitions"),
 };
@@ -185,13 +186,17 @@ function claim(input: {
   readonly catalogPartId?: string | null;
   readonly elementId?: string | null;
 }): CalloutResolution {
+  const confidence = input.confidence ?? "vision-kept";
   return {
     pageNumber: input.stepNumber,
     stepNumber: input.stepNumber,
     quantity: input.quantity,
-    identificationConfidence: input.confidence ?? "vision-kept",
+    identificationConfidence: confidence,
     cropDigest: sha256Digest(`crop-${input.stepNumber}-${input.partNum}`),
-    inputDigest: BINDINGS.calloutManifestDigest,
+    inputDigest:
+      confidence === "source-art-rebound"
+        ? BINDINGS.sourceArtReboundDigest
+        : BINDINGS.calloutManifestDigest,
     elementId: input.elementId === undefined ? input.partNum : input.elementId,
     resolution: {
       catalogPartId: input.catalogPartId === undefined ? CATALOG_PART : input.catalogPartId,
@@ -235,7 +240,12 @@ describe("assembleRealBuildActionLedger", () => {
     const panels = panelEvidence([1, 2, 3]);
     const coverageByCallout = {
       "p1|q1|x1.000|y1.000": claim({ stepNumber: 1, quantity: 1, partNum: "3005" }),
-      "p3|q1|x1.000|y1.000": claim({ stepNumber: 3, quantity: 1, partNum: "3004" }),
+      "p3|q1|x1.000|y1.000": claim({
+        stepNumber: 3,
+        quantity: 1,
+        partNum: "3004",
+        confidence: "source-art-rebound",
+      }),
     };
     const transitions = transitionAt(2, panels);
     const assembled = assembleRealBuildActionLedger({
@@ -251,6 +261,11 @@ describe("assembleRealBuildActionLedger", () => {
     expect(assembled.directPieceCount).toBe(2);
     expect(assembled.transitionStepCount).toBe(1);
     expect(assembled.refusals).toEqual([]);
+    expect(
+      assembled.ledger.steps[2]?.action.kind === "place-callouts"
+        ? assembled.ledger.steps[2].action.pieces[0]?.identificationInputDigest
+        : null,
+    ).toBe(BINDINGS.sourceArtReboundDigest);
     expect(assembled.ledger.steps[1]!.action).toEqual({
       kind: "transition",
       transition: "rotation",
@@ -268,6 +283,7 @@ describe("assembleRealBuildActionLedger", () => {
         pdfDigest: BINDINGS.pdfDigest,
         coverageDigest: BINDINGS.coverageDigest,
         calloutManifestDigest: BINDINGS.calloutManifestDigest,
+        sourceArtReboundDigest: BINDINGS.sourceArtReboundDigest,
         builderCalibrationDigest: BINDINGS.builderCalibrationDigest,
         transitionClassificationsDigest: BINDINGS.transitionClassificationsDigest,
         coverageByCallout,
@@ -304,7 +320,7 @@ describe("assembleRealBuildActionLedger", () => {
     // Names every trust source a callout could have been established by, so the
     // refusal says what would satisfy it rather than only what failed.
     expect(assembled.refusals[0]!.reason).toContain(
-      'only "vision-kept" and "pair-judged-same" callouts may become a ledger piece',
+      'only "vision-kept" and "pair-judged-same" and "source-art-rebound" callouts may become a ledger piece',
     );
     expect(JSON.stringify(assembled.ledger)).not.toContain("self-contradicted");
   });
@@ -330,7 +346,7 @@ describe("assembleRealBuildActionLedger", () => {
     expect(assembled.stopReason).toContain("9999");
   });
 
-  it("corroborates the already quantity-cut disputed rows while keeping unresolved 28802 refused", () => {
+  it("lets source-art rebound corroborate a callout but never supply the missing catalog authority", () => {
     const official = calibratedOfficial([
       ["brick-a", "10201", "6168620"],
       ["brick-b", "10201", "6168620"],
@@ -346,7 +362,7 @@ describe("assembleRealBuildActionLedger", () => {
           partNum: "28802",
           elementId: "6168620",
           catalogPartId: null,
-          confidence: "pair-judged-same",
+          confidence: "source-art-rebound",
         }),
       },
       panelEvidenceByStep: panels,
@@ -710,6 +726,7 @@ describe("assembleRealBuildActionLedger", () => {
       pdfDigest: BINDINGS.pdfDigest,
       coverageDigest: BINDINGS.coverageDigest,
       calloutManifestDigest: BINDINGS.calloutManifestDigest,
+      sourceArtReboundDigest: BINDINGS.sourceArtReboundDigest,
       builderCalibrationDigest: BINDINGS.builderCalibrationDigest,
       transitionClassificationsDigest: BINDINGS.transitionClassificationsDigest,
       coverageByCallout,
@@ -797,6 +814,7 @@ describe("pieceRefusal", () => {
         claim: acceptedClaim,
         official: baseOfficial,
         calloutManifestDigest: BINDINGS.calloutManifestDigest,
+        sourceArtReboundDigest: BINDINGS.sourceArtReboundDigest,
       }),
       pieceRefusal({
         stepNumber: 1,
@@ -805,6 +823,7 @@ describe("pieceRefusal", () => {
         claim: { ...acceptedClaim, identificationConfidence: hostile.confidence },
         official: baseOfficial,
         calloutManifestDigest: BINDINGS.calloutManifestDigest,
+        sourceArtReboundDigest: BINDINGS.sourceArtReboundDigest,
       }),
       pieceRefusal({
         stepNumber: 1,
@@ -818,6 +837,7 @@ describe("pieceRefusal", () => {
         }),
         official: hostileOfficial,
         calloutManifestDigest: BINDINGS.calloutManifestDigest,
+        sourceArtReboundDigest: BINDINGS.sourceArtReboundDigest,
       }),
       pieceRefusal({
         stepNumber: 1,
@@ -826,6 +846,7 @@ describe("pieceRefusal", () => {
         claim: { ...acceptedClaim, cropDigest: hostile.cropDigest },
         official: baseOfficial,
         calloutManifestDigest: BINDINGS.calloutManifestDigest,
+        sourceArtReboundDigest: BINDINGS.sourceArtReboundDigest,
       }),
       pieceRefusal({
         stepNumber: 1,
@@ -834,6 +855,7 @@ describe("pieceRefusal", () => {
         claim: { ...acceptedClaim, inputDigest: hostile.inputDigest },
         official: baseOfficial,
         calloutManifestDigest: hostile.manifestDigest,
+        sourceArtReboundDigest: BINDINGS.sourceArtReboundDigest,
       }),
     ];
     expect(reasons).not.toContain(null);

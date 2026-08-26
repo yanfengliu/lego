@@ -22,7 +22,7 @@ interface ActionLedgerJsonContainer {
 function snapshotActionLedgerBytes(value: unknown, label: string): Uint8Array {
   return snapshotHostileUint8Array(value, {
     maximumBytes: MAXIMUM_ACTION_LEDGER_BYTES,
-    typeError: `${label} must be a genuine Uint8Array of current /3 UTF-8 JSON bytes.`,
+    typeError: `${label} must be a genuine Uint8Array of current /4 UTF-8 JSON bytes.`,
     oversizeError: (length) =>
       `${label} contains ${length} bytes, exceeding the ${MAXIMUM_ACTION_LEDGER_BYTES}-byte ` +
       `action-ledger limit; no JSON was parsed.`,
@@ -107,7 +107,7 @@ function requireBoundedActionLedgerJsonContainers(bytes: Uint8Array, label: stri
 }
 
 /**
- * Admits only duplicate-free, canonically encoded current /3 bytes and returns the closed clone
+ * Admits only duplicate-free, canonically encoded current /4 bytes and returns the closed clone
  * produced by the descriptor-safe shape preflight. A retained artifact may be a nonempty aligned
  * prefix; live execution additionally requires that prefix to reach the requested last step.
  */
@@ -124,23 +124,19 @@ export function admitCanonicalRealBuildActionLedgerBytes(input: {
     parsed = parseStrictJsonBytes(bytes);
   } catch {
     throw new TypeError(
-      `${input.label} must be duplicate-free finite UTF-8 JSON before current /3 admission.`,
+      `${input.label} must be duplicate-free finite UTF-8 JSON before current /4 admission.`,
     );
   }
   const shape = preflightRealBuildActionLedger(parsed);
   if (shape.failure !== null) {
     throw new TypeError(
-      `${input.label} failed the closed current /3 schema: ${shape.failure.message}`,
+      `${input.label} failed the closed current /4 schema: ${shape.failure.message}`,
     );
   }
   const requestedLastStep = input.requestedLastStep ?? shape.ledger.provenance.requestedLastStep;
-  if (
-    !Number.isSafeInteger(requestedLastStep) ||
-    requestedLastStep < 1 ||
-    requestedLastStep > 359
-  ) {
+  if (!Number.isSafeInteger(requestedLastStep) || requestedLastStep < 1 || requestedLastStep > 50) {
     throw new TypeError(
-      `${input.label} requires one requestedLastStep integer from 1 through 359.`,
+      `${input.label} requires one requestedLastStep integer from 1 through the current prefix boundary 50.`,
     );
   }
   const boundaryFailures = realBuildActionLedgerCurrentPrefixFailures({
@@ -153,13 +149,13 @@ export function admitCanonicalRealBuildActionLedgerBytes(input: {
   });
   if (boundaryFailures.length > 0) {
     throw new TypeError(
-      `${input.label} failed current /3 prefix provenance: ${boundaryFailures[0]}`,
+      `${input.label} failed current /4 prefix provenance: ${boundaryFailures[0]}`,
     );
   }
   const canonical = encodeRealBuildActionLedger(shape.ledger);
   if (!canonical.equals(Buffer.from(bytes))) {
     throw new TypeError(
-      `${input.label} is not the exact canonical current /3 encoding; re-encode the closed ledger object.`,
+      `${input.label} is not the exact canonical current /4 encoding; re-encode the closed ledger object.`,
     );
   }
   return shape.ledger;

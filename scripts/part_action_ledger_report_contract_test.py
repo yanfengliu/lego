@@ -13,6 +13,7 @@ from part_action_ledger_report_contract import require_action_ledger_report_chai
 from part_identification_report_contract import (
     ArtifactContractError,
     read_binary_artifact,
+    read_card_images_artifact,
     read_json_artifact,
     read_text_artifact,
 )
@@ -51,7 +52,32 @@ def closure(root: Path) -> dict:
     ledger, ledger_digest = json_role("output/real-build/action-ledger.json", "Test ledger")
     coverage, coverage_digest = json_role("output/real-build/catalog-coverage.json", "Test coverage")
     features, features_digest = json_role("output/part-identification/features.json", "Test features")
+    match, match_digest = json_role("output/part-identification/match.json", "Test match")
+    distances, distances_digest = json_role(
+        "output/part-identification/distances.json", "Test distances"
+    )
+    element_resolution, element_resolution_digest = json_role(
+        "output/part-identification/element-resolution.json", "Test element resolution"
+    )
+    pair_judged, pair_judged_digest = json_role(
+        "scripts/fixtures/part-identification-truth-first50.json", "Test pair truth"
+    )
+    if coverage["identification"]["source"] == "adjudicated":
+        cards, cards_digest = json_role(
+            "output/part-identification/cards/manifest.json", "Test cards"
+        )
+        answers, answers_digest = json_role(
+            "output/part-identification/answers-claude-opus-5.json", "Test answers"
+        )
+        _, card_images_digest = read_card_images_artifact(
+            root / "output/part-identification/cards", cards
+        )
+    else:
+        cards = cards_digest = card_images_digest = answers = answers_digest = None
     _, manifest_digest = json_role("output/callout-thumbnails/manifest.json", "Test manifest")
+    _, source_art_rebound_digest = json_role(
+        "output/part-identification/source-art-rebound.json", "Test source-art rebound"
+    )
     _, calibration_digest = json_role(
         "output/real-build/builder-canonical-calibration.json", "Test calibration"
     )
@@ -79,7 +105,21 @@ def closure(root: Path) -> dict:
         "coverage_digest": coverage_digest,
         "features": features,
         "features_digest": features_digest,
+        "match": match,
+        "match_digest": match_digest,
+        "distances": distances,
+        "distances_digest": distances_digest,
+        "element_resolution": element_resolution,
+        "element_resolution_digest": element_resolution_digest,
+        "pair_judged": pair_judged,
+        "pair_judged_digest": pair_judged_digest,
+        "cards": cards,
+        "cards_digest": cards_digest,
+        "card_images_digest": card_images_digest,
+        "answers": answers,
+        "answers_digest": answers_digest,
         "callout_manifest_digest": manifest_digest,
+        "source_art_rebound_digest": source_art_rebound_digest,
         "official_model_text": official_text,
         "official_model_digest": official_digest,
         "builder_calibration_digest": calibration_digest,
@@ -99,11 +139,88 @@ class ActionLedgerReportContractTests(unittest.TestCase):
     def test_one_exact_bounded_direct_piece_is_accepted(self) -> None:
         require_action_ledger_report_chain(**closure(self.root))
 
-    def test_current_v3_is_required_and_legacy_v2_is_not_admitted(self) -> None:
+    def test_deterministic_closure_omits_adjudication_roles_and_rejects_extras(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            materialize_report_contract_fixture(root, coverage_source="deterministic")
+            arguments = closure(root)
+            for field in (
+                "cards",
+                "cards_digest",
+                "card_images_digest",
+                "answers",
+                "answers_digest",
+            ):
+                self.assertIsNone(arguments[field])
+            require_action_ledger_report_chain(**arguments)
+
+            arguments["cards"] = {}
+            arguments["cards_digest"] = sha("a")
+            arguments["card_images_digest"] = sha("b")
+            arguments["answers"] = {}
+            arguments["answers_digest"] = sha("c")
+            with self.assertRaisesRegex(
+                ArtifactContractError, "Deterministic.*must omit"
+            ):
+                require_action_ledger_report_chain(**arguments)
+
+    def test_adjudicated_closure_requires_every_adjudication_role(self) -> None:
         arguments = closure(self.root)
-        arguments["ledger"]["schemaVersion"] = "lego.real-build-action-ledger/2"
+        for field in (
+            "cards",
+            "cards_digest",
+            "card_images_digest",
+            "answers",
+            "answers_digest",
+        ):
+            arguments[field] = None
+        with self.assertRaisesRegex(ArtifactContractError, "Adjudicated.*requires exact"):
+            require_action_ledger_report_chain(**arguments)
+
+    def test_registered_mandatory_roles_cannot_be_swapped(self) -> None:
+        arguments = closure(self.root)
+        arguments["match"] = arguments["distances"]
+        arguments["match_digest"] = arguments["distances_digest"]
+        with self.assertRaisesRegex(ArtifactContractError, "Canonical JavaScript action-ledger"):
+            require_action_ledger_report_chain(**arguments)
+
+    def test_canonical_replay_reopens_the_complete_raw_identification_closure(self) -> None:
+        for field in (
+            "match",
+            "distances",
+            "element_resolution",
+            "pair_judged",
+            "cards",
+            "answers",
+        ):
+            with self.subTest(field=field):
+                arguments = closure(self.root)
+                arguments[field]["postReadMutation"] = True
+                with self.assertRaisesRegex(
+                    ArtifactContractError, "changed after its bounded read"
+                ):
+                    require_action_ledger_report_chain(**arguments)
+
+        for field in (
+            "match_digest",
+            "distances_digest",
+            "element_resolution_digest",
+            "pair_judged_digest",
+            "cards_digest",
+            "card_images_digest",
+            "answers_digest",
+        ):
+            with self.subTest(field=field):
+                arguments = closure(self.root)
+                arguments[field] = sha("f")
+                with self.assertRaises(ArtifactContractError):
+                    require_action_ledger_report_chain(**arguments)
+
+    def test_current_v4_is_required_and_legacy_v3_is_not_admitted(self) -> None:
+        arguments = closure(self.root)
+        arguments["ledger"]["schemaVersion"] = "lego.real-build-action-ledger/3"
         with self.assertRaisesRegex(
-            ArtifactContractError, "must use lego.real-build-action-ledger/3"
+            ArtifactContractError, "must use lego.real-build-action-ledger/4"
         ):
             require_action_ledger_report_chain(**arguments)
 
@@ -113,6 +230,7 @@ class ActionLedgerReportContractTests(unittest.TestCase):
             ("coverage_digest", "coverageDigest"),
             ("official_model_digest", "officialModelDigest"),
             ("callout_manifest_digest", "calloutManifestDigest"),
+            ("source_art_rebound_digest", "sourceArtReboundDigest"),
             ("builder_calibration_digest", "builderCalibrationDigest"),
             ("transition_classifications_digest", "transitionClassificationsDigest"),
         ):
@@ -152,6 +270,23 @@ class ActionLedgerReportContractTests(unittest.TestCase):
                 with self.assertRaisesRegex(ArtifactContractError, message):
                     require_action_ledger_report_chain(**arguments)
 
+    def test_source_art_confidence_requires_exact_rebound_input_and_no_transform(self) -> None:
+        arguments = closure(self.root)
+        piece = arguments["ledger"]["steps"][0]["action"]["pieces"][0]
+        claim = arguments["coverage"]["byCallout"][piece["calloutKey"]]
+        piece["identificationConfidence"] = "source-art-rebound"
+        claim["identificationConfidence"] = "source-art-rebound"
+        with self.assertRaisesRegex(ArtifactContractError, "requires exact retained input"):
+            require_action_ledger_report_chain(**arguments)
+
+        arguments = closure(self.root)
+        arguments["ledger"]["steps"][0]["action"]["pieces"][0]["transform"] = {
+            "orientationId": "upright-yaw-0",
+            "positionLdu": [0, 0, 0],
+        }
+        with self.assertRaisesRegex(ArtifactContractError, "cannot author placement authority"):
+            require_action_ledger_report_chain(**arguments)
+
     def test_provenance_counts_cannot_hide_extra_or_missing_direct_pieces(self) -> None:
         arguments = closure(self.root)
         arguments["ledger"]["provenance"]["directPieceCount"] = 0
@@ -163,8 +298,8 @@ class ActionLedgerReportContractTests(unittest.TestCase):
     def test_requested_prefix_is_required_and_bounded_by_the_printed_booklet(self) -> None:
         for requested, message in (
             (None, "must contain exactly.*requestedLastStep"),
-            (0, "requestedLastStep.*from 1 through 359"),
-            (360, "requestedLastStep.*from 1 through 359"),
+            (0, "requestedLastStep.*from 1 through 50"),
+            (51, "requestedLastStep.*from 1 through 50"),
         ):
             with self.subTest(requested=requested):
                 arguments = closure(self.root)

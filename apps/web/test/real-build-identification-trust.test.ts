@@ -48,8 +48,12 @@ const resolve = (identificationConfidence: string) =>
   );
 
 describe("identification confidences a placement may be built on", () => {
-  it("names both trust sources and keeps them distinguishable", () => {
-    expect([...TRUSTED_IDENTIFICATION_CONFIDENCES]).toEqual(["vision-kept", "pair-judged-same"]);
+  it("names all three trust sources and keeps them distinguishable", () => {
+    expect([...TRUSTED_IDENTIFICATION_CONFIDENCES]).toEqual([
+      "vision-kept",
+      "pair-judged-same",
+      "source-art-rebound",
+    ]);
     expect(isTrustedIdentificationConfidence("pair-judged-different")).toBe(false);
     expect(isTrustedIdentificationConfidence("geometry")).toBe(false);
   });
@@ -105,6 +109,7 @@ describe("action ledger validation across both trust sources", () => {
   function withDirectConfidence(
     ledgerConfidence: LedgerPieceIdentity["identificationConfidence"],
     coverageConfidence: string,
+    identificationInputDigest?: string,
   ) {
     const fixture = realBuildLedgerTestFixture();
     const step = fixture.ledger.steps[0]!;
@@ -117,6 +122,11 @@ describe("action ledger validation across both trust sources", () => {
     const restated: Omit<LedgerPieceIdentity, "evidenceDigest"> = {
       ...base,
       identificationConfidence: ledgerConfidence,
+      identificationInputDigest:
+        identificationInputDigest ??
+        (ledgerConfidence === "source-art-rebound"
+          ? fixture.sourceArtReboundDigest
+          : fixture.manifestDigest),
     };
     const ledger: RealBuildActionLedger = {
       ...fixture.ledger,
@@ -135,6 +145,7 @@ describe("action ledger validation across both trust sources", () => {
                       officialModelDigest: fixture.official.digest,
                       coverageDigest: fixture.coverageDigest,
                       calloutManifestDigest: fixture.manifestDigest,
+                      sourceArtReboundDigest: fixture.sourceArtReboundDigest,
                       builderCalibrationDigest: fixture.builderCalibrationDigest,
                       stepNumber: entry.stepNumber,
                       pageNumber: entry.pageNumber,
@@ -150,19 +161,28 @@ describe("action ledger validation across both trust sources", () => {
     return validateRealBuildActionLedger({
       ledger,
       ledgerDigest: sha256Digest(JSON.stringify(ledger)),
-      requestedLastStep: 359,
-      lastStep: 359,
+      requestedLastStep: 50,
+      lastStep: 50,
       official: fixture.official,
       pdfDigest: fixture.pdfDigest,
       coverageDigest: fixture.coverageDigest,
       calloutManifestDigest: fixture.manifestDigest,
+      sourceArtReboundDigest: fixture.sourceArtReboundDigest,
       builderCalibrationDigest: fixture.builderCalibrationDigest,
       transitionClassificationsDigest: fixture.transitionClassificationsDigest,
       coverageByCallout: Object.fromEntries(
         Object.entries(fixture.coverageByCallout).map(([key, claim]) => [
           key,
           key === piece.calloutKey
-            ? { ...claim, identificationConfidence: coverageConfidence }
+            ? {
+                ...claim,
+                identificationConfidence: coverageConfidence,
+                inputDigest:
+                  identificationInputDigest ??
+                  (coverageConfidence === "source-art-rebound"
+                    ? fixture.sourceArtReboundDigest
+                    : fixture.manifestDigest),
+              }
             : claim,
         ]),
       ),
@@ -174,6 +194,7 @@ describe("action ledger validation across both trust sources", () => {
   it("accepts a direct piece established by blind pair judging", () => {
     expect(withDirectConfidence("vision-kept", "vision-kept")).toEqual([]);
     expect(withDirectConfidence("pair-judged-same", "pair-judged-same")).toEqual([]);
+    expect(withDirectConfidence("source-art-rebound", "source-art-rebound")).toEqual([]);
   });
 
   it("refuses a direct piece whose callout was judged to be a different part", () => {
@@ -185,6 +206,18 @@ describe("action ledger validation across both trust sources", () => {
       expect.arrayContaining([expect.objectContaining({ code: "action-ledger-incomplete" })]),
     );
     expect(failures.map(({ message }) => message).join(" ")).toContain("pair-judged-different");
+  });
+
+  it("refuses a source-art confidence whose otherwise coherent claim still binds the manifest", () => {
+    const fixture = realBuildLedgerTestFixture();
+    const failures = withDirectConfidence(
+      "source-art-rebound",
+      "source-art-rebound",
+      fixture.manifestDigest,
+    );
+    expect(failures.map(({ message }) => message).join(" ")).toContain(
+      "exact manifest or rebound artifact",
+    );
   });
 
   it("refuses a ledger that relabels a pair-judged identity as vision-kept", () => {

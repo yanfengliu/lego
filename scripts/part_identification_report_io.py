@@ -39,6 +39,7 @@ RETRIEVAL_REPORT_INPUTS = {
     "elementResolution": "output/part-identification/element-resolution.json",
     "inventoryLabels": "output/inventory-thumbnails/labels.json",
     "truthFirstFifty": "scripts/fixtures/part-identification-truth-first50.json",
+    "sourceArtRebound": "output/part-identification/source-art-rebound.json",
     "actionLedger": "output/real-build/action-ledger.json",
     "coverage": "output/real-build/catalog-coverage.json",
     "builderCalibration": "output/real-build/builder-canonical-calibration.json",

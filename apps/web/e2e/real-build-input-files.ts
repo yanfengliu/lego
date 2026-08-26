@@ -98,6 +98,9 @@ export const ELEMENT_RESOLUTION_PATH =
  */
 export const PAIR_JUDGED_TRUTH_PATH =
   process.env.LEGO_REAL_BUILD_PAIR_JUDGED_TRUTH ?? PART_TRUTH_PATH;
+export const SOURCE_ART_REBOUND_PATH =
+  process.env.LEGO_REAL_BUILD_SOURCE_ART_REBOUND ??
+  "output/part-identification/source-art-rebound.json";
 export const HIGHLIGHT_RENDERER_COMPATIBILITY_PATH =
   process.env.LEGO_REAL_BUILD_HIGHLIGHT_RENDERER_COMPATIBILITY ??
   "output/real-build/highlight-renderer-compatibility.json";
@@ -163,6 +166,11 @@ const jsonInputPolicies = (): readonly (InputSizePolicy & { readonly path: strin
     path: PAIR_JUDGED_TRUTH_PATH,
     description: "blind pair-judging verdict JSON",
     maximumBytes: REAL_BUILD_RAW_REPLAY_ROLE_BYTE_POLICIES["pair-judged-truth"].maximumBytes,
+  },
+  {
+    path: SOURCE_ART_REBOUND_PATH,
+    description: "source-art rebound JSON",
+    maximumBytes: REAL_BUILD_RAW_REPLAY_ROLE_BYTE_POLICIES["source-art-rebound"].maximumBytes,
   },
   {
     path: COVERAGE_PATH,

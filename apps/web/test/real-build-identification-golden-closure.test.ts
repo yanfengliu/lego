@@ -87,10 +87,12 @@ describe("real-build deterministic identification golden closure", () => {
     expect(benchmark.winningMargin).toBe(selected.points - runnerUp.points);
   });
 
-  it("reproduces independently pinned deterministic golden bytes and digests", () => {
+  it("reproduces independently pinned deterministic golden bytes and digests", async () => {
     const input: RealBuildIdentificationClosureInput = {
       coverage: goldenArtifact("coverage"),
+      pdf: null,
       manifest: goldenArtifact("manifest"),
+      sourceArtRebound: null,
       features: goldenArtifact("features"),
       match: goldenArtifact("match"),
       distances: goldenArtifact("distances"),
@@ -108,18 +110,20 @@ describe("real-build deterministic identification golden closure", () => {
         SYNTHETIC_IDENTIFICATION_GOLDEN[role].digest,
       );
     }
-    expect(() =>
+    await expect(
       coverageTestOnly.verifyBookletCatalogCoverageClosure(
         prepareRealBuildIdentificationClosure(input),
         SYNTHETIC_IDENTIFICATION_MANIFEST_EXPECTATION,
       ),
-    ).not.toThrow();
+    ).resolves.toBeDefined();
   });
 
   it("does not require or bind adjudication roles for deterministic coverage", () => {
     const input: RealBuildIdentificationClosureInput = {
       coverage: goldenArtifact("coverage"),
+      pdf: null,
       manifest: goldenArtifact("manifest"),
+      sourceArtRebound: null,
       features: goldenArtifact("features"),
       match: goldenArtifact("match"),
       distances: goldenArtifact("distances"),
@@ -132,6 +136,8 @@ describe("real-build deterministic identification golden closure", () => {
       cardsArtifact: null,
       cardImagesArtifact: null,
       answersArtifact: null,
+      pdfBytes: null,
+      sourceArtReboundArtifact: null,
     });
   });
 });

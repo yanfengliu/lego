@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -58,6 +59,7 @@ REQUIRED_JSON = {
     "builderCalibration": "output/real-build/builder-canonical-calibration.json",
     "transitionClassifications": "output/real-build/transition-classifications.json",
     "calloutManifest": "output/callout-thumbnails/manifest.json",
+    "sourceArtRebound": "output/part-identification/source-art-rebound.json",
 }
 OFFICIAL_MODEL = "output/official-model/vx1087034_21066_a.xml"
 BOOKLET_PDF = "recipes/6651557.pdf"
@@ -69,6 +71,18 @@ MAX_DESCRIPTION_RANKING_SORT_ITEMS = 8_000_000
 ELEMENT_ID = re.compile(r"^[0-9]{3,12}$")
 PART_NUMBER = re.compile(r"^[0-9][0-9a-z]{0,31}$", re.IGNORECASE)
 SIGNED_ASCII_INTEGER = re.compile(r"^-?[0-9]+$")
+
+
+def _uses_adjudicated_coverage(value: object) -> bool:
+    """Inspect only validated JSON shapes without pre-empting canonical rejection."""
+
+    if not isinstance(value, Mapping):
+        return False
+    identification = value.get("identification")
+    return (
+        isinstance(identification, Mapping)
+        and identification.get("source") == "adjudicated"
+    )
 
 
 def require_description_report_work_budget(
@@ -266,6 +280,7 @@ def load_description_inputs(repository_root: Path) -> DescriptionReportInputs:
         card_images_role = card_images_path.relative_to(repository_root).as_posix()
         pins[card_images_role] = card_images_digest
         if coverage is not None:
+            adjudicated_coverage = _uses_adjudicated_coverage(coverage)
             require_coverage_chain(
                 coverage,
                 coverage_digest=pins[COVERAGE],
@@ -273,13 +288,25 @@ def load_description_inputs(repository_root: Path) -> DescriptionReportInputs:
                 match_digest=pins[REQUIRED_JSON["match"]],
                 distances_digest=pins[REQUIRED_JSON["distances"]],
                 element_resolution_digest=pins[REQUIRED_JSON["inventory"]],
+                source_art_rebound_digest=pins[
+                    REQUIRED_JSON["sourceArtRebound"]
+                ],
                 consumed_role_digests={
                     "pdf": values["features"]["inputDigests"]["pdf"],
                     "calloutManifest": pins[REQUIRED_JSON["calloutManifest"]],
-                    "cards": pins[REQUIRED_JSON["cards"]],
-                    "cardImages": card_images_digest,
-                    "answers": pins[REQUIRED_JSON["answers"]],
+                    **(
+                        {
+                            "cards": pins[REQUIRED_JSON["cards"]],
+                            "cardImages": card_images_digest,
+                            "answers": pins[REQUIRED_JSON["answers"]],
+                        }
+                        if adjudicated_coverage
+                        else {}
+                    ),
                     "pairJudged": pins[REQUIRED_JSON["truth"]],
+                    "sourceArtRebound": pins[
+                        REQUIRED_JSON["sourceArtRebound"]
+                    ],
                 },
             )
             require_action_ledger_report_chain(
@@ -289,7 +316,25 @@ def load_description_inputs(repository_root: Path) -> DescriptionReportInputs:
                 coverage_digest=pins[COVERAGE],
                 features=values["features"],
                 features_digest=pins[REQUIRED_JSON["features"]],
+                match=values["match"],
+                match_digest=pins[REQUIRED_JSON["match"]],
+                distances=values["distances"],
+                distances_digest=pins[REQUIRED_JSON["distances"]],
+                element_resolution=values["inventory"],
+                element_resolution_digest=pins[REQUIRED_JSON["inventory"]],
+                pair_judged=values["truth"],
+                pair_judged_digest=pins[REQUIRED_JSON["truth"]],
+                cards=values["cards"] if adjudicated_coverage else None,
+                cards_digest=(
+                    pins[REQUIRED_JSON["cards"]] if adjudicated_coverage else None
+                ),
+                card_images_digest=(card_images_digest if adjudicated_coverage else None),
+                answers=values["answers"] if adjudicated_coverage else None,
+                answers_digest=(
+                    pins[REQUIRED_JSON["answers"]] if adjudicated_coverage else None
+                ),
                 callout_manifest_digest=pins[REQUIRED_JSON["calloutManifest"]],
+                source_art_rebound_digest=pins[REQUIRED_JSON["sourceArtRebound"]],
                 official_model_text=official_xml,
                 official_model_digest=official_digest,
                 builder_calibration_digest=pins[REQUIRED_JSON["builderCalibration"]],

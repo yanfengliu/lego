@@ -17,23 +17,35 @@ const artifact = (path) => {
   return { path, digest: sha256Digest(bytes) };
 };
 
-const actionRequest = (root) => ({
-  schemaVersion: "lego.part-identification-report-verification/1",
-  kind: "action-ledger",
-  artifacts: Object.fromEntries(
-    Object.entries({
-      actionLedger: "output/real-build/action-ledger.json",
-      coverage: "output/real-build/catalog-coverage.json",
-      features: "output/part-identification/features.json",
-      calloutManifest: "output/callout-thumbnails/manifest.json",
-      builderCalibration: "output/real-build/builder-canonical-calibration.json",
-      transitionClassifications: "output/real-build/transition-classifications.json",
-      officialModel: "output/official-model/vx1087034_21066_a.xml",
-      bookletPdf: "recipes/6651557.pdf",
-      builderGeometry: "output/real-build/builder-shell-geometry.bin",
-    }).map(([role, path]) => [role, artifact(join(root, path))]),
-  ),
-});
+const actionRequest = (root) => {
+  const cardsPath = "output/part-identification/cards/manifest.json";
+  const cards = JSON.parse(readFileSync(join(root, cardsPath), "utf8"));
+  return {
+    schemaVersion: "lego.part-identification-report-verification/1",
+    kind: "action-ledger",
+    artifacts: Object.fromEntries(
+      Object.entries({
+        actionLedger: "output/real-build/action-ledger.json",
+        coverage: "output/real-build/catalog-coverage.json",
+        features: "output/part-identification/features.json",
+        match: "output/part-identification/match.json",
+        distances: "output/part-identification/distances.json",
+        elementResolution: "output/part-identification/element-resolution.json",
+        pairJudged: "scripts/fixtures/part-identification-truth-first50.json",
+        cards: cardsPath,
+        cardImages: `output/part-identification/cards/${cards.imagesFile}`,
+        answers: "output/part-identification/answers-claude-opus-5.json",
+        calloutManifest: "output/callout-thumbnails/manifest.json",
+        sourceArtRebound: "output/part-identification/source-art-rebound.json",
+        builderCalibration: "output/real-build/builder-canonical-calibration.json",
+        transitionClassifications: "output/real-build/transition-classifications.json",
+        officialModel: "output/official-model/vx1087034_21066_a.xml",
+        bookletPdf: "recipes/6651557.pdf",
+        builderGeometry: "output/real-build/builder-shell-geometry.bin",
+      }).map(([role, path]) => [role, artifact(join(root, path))]),
+    ),
+  };
+};
 
 describe("production Python report verifier", () => {
   it("does not activate a synthetic coverage expectation from public content or paths", async () => {
@@ -61,6 +73,10 @@ describe("production Python report verifier", () => {
           pairJudged: artifact(
             join(root, "scripts/fixtures/part-identification-truth-first50.json"),
           ),
+          sourceArtRebound: artifact(
+            join(root, "output/part-identification/source-art-rebound.json"),
+          ),
+          pdf: artifact(join(root, "recipes/6651557.pdf")),
           cards: artifact(cardsPath),
           cardImages: artifact(join(dirname(cardsPath), cards.imagesFile)),
           answers: artifact(join(root, "output/part-identification/answers-claude-opus-5.json")),

@@ -19,7 +19,7 @@ from part_identification_verification_bridge import verify_action_ledger
 SHA256 = re.compile(r"^sha256:[0-9a-f]{64}$")
 MAX_LEDGER_STEPS = 359
 MAX_LEDGER_IDENTITIES = 4_000
-CURRENT_ACTION_LEDGER_SCHEMA = "lego.real-build-action-ledger/3"
+CURRENT_ACTION_LEDGER_SCHEMA = "lego.real-build-action-ledger/4"
 CURRENT_ACTION_LEDGER_GENERATOR = "apps/web/e2e/real-build-action-ledger.spec.ts"
 
 
@@ -73,7 +73,21 @@ def require_action_ledger_report_chain(
     coverage_digest: str,
     features: object,
     features_digest: str,
+    match: object,
+    match_digest: str,
+    distances: object,
+    distances_digest: str,
+    element_resolution: object,
+    element_resolution_digest: str,
+    pair_judged: object,
+    pair_judged_digest: str,
+    cards: object | None,
+    cards_digest: str | None,
+    card_images_digest: str | None,
+    answers: object | None,
+    answers_digest: str | None,
     callout_manifest_digest: str,
+    source_art_rebound_digest: str,
     official_model_text: str,
     official_model_digest: str,
     builder_calibration_digest: str,
@@ -86,6 +100,14 @@ def require_action_ledger_report_chain(
     ledger_digest = _digest(ledger_digest, "Action-ledger retained bytes digest")
     coverage_digest = _digest(coverage_digest, "Action-ledger coverage byte digest")
     features_digest = _digest(features_digest, "Action-ledger features byte digest")
+    match_digest = _digest(match_digest, "Action-ledger match byte digest")
+    distances_digest = _digest(distances_digest, "Action-ledger distances byte digest")
+    element_resolution_digest = _digest(
+        element_resolution_digest, "Action-ledger element-resolution byte digest"
+    )
+    pair_judged_digest = _digest(
+        pair_judged_digest, "Action-ledger pair-truth byte digest"
+    )
     value = _mapping(ledger, "Action ledger")
     _exact_fields(
         value,
@@ -95,6 +117,7 @@ def require_action_ledger_report_chain(
             "officialModelDigest",
             "coverageDigest",
             "calloutManifestDigest",
+            "sourceArtReboundDigest",
             "builderCalibrationDigest",
             "transitionClassificationsDigest",
             "steps",
@@ -108,6 +131,35 @@ def require_action_ledger_report_chain(
             f"{bounded_observed(value['schemaVersion'])}."
         )
     coverage_value = _mapping(coverage, "Action-ledger coverage")
+    identification = _mapping(
+        coverage_value.get("identification"), "Action-ledger coverage identification"
+    )
+    coverage_source = identification.get("source")
+    if coverage_source not in {"adjudicated", "deterministic"}:
+        raise ArtifactContractError(
+            "Action-ledger coverage identification.source must be adjudicated or deterministic."
+        )
+    adjudication_roles = (
+        cards,
+        cards_digest,
+        card_images_digest,
+        answers,
+        answers_digest,
+    )
+    if coverage_source == "adjudicated":
+        if any(role is None for role in adjudication_roles):
+            raise ArtifactContractError(
+                "Adjudicated action-ledger coverage requires exact cards, card-images, and answers roles."
+            )
+        cards_digest = _digest(cards_digest, "Action-ledger cards byte digest")
+        card_images_digest = _digest(
+            card_images_digest, "Action-ledger card-images byte digest"
+        )
+        answers_digest = _digest(answers_digest, "Action-ledger answers byte digest")
+    elif any(role is not None for role in adjudication_roles):
+        raise ArtifactContractError(
+            "Deterministic action-ledger coverage must omit cards, card-images, and answers roles."
+        )
     features_value = _mapping(features, "Action-ledger features")
     input_digests = _mapping(features_value.get("inputDigests"), "Action-ledger feature digests")
     coverage_digests = _mapping(
@@ -125,6 +177,10 @@ def require_action_ledger_report_chain(
         "coverageCalloutManifestDigest": (
             value["calloutManifestDigest"],
             coverage_digests.get("calloutManifest"),
+        ),
+        "sourceArtReboundDigest": (
+            value["sourceArtReboundDigest"],
+            source_art_rebound_digest,
         ),
         "builderCalibrationDigest": (
             value["builderCalibrationDigest"],
@@ -241,6 +297,8 @@ def require_action_ledger_report_chain(
                             step_callouts=step_callouts,
                             coverage_by_callout=coverage_by_callout,
                             official_bricks=official,
+                            callout_manifest_digest=callout_manifest_digest,
+                            source_art_rebound_digest=source_art_rebound_digest,
                         )
         elif kind == "multi-build-copy":
             _exact_fields(action, {"kind", "sourceStepNumber", "copies"}, f"Action ledger step {step_number}.action")
@@ -321,7 +379,7 @@ def require_action_ledger_report_chain(
         provenance["requestedLastStep"],
         "Action ledger requestedLastStep",
         1,
-        provenance["expectedPrintedSteps"],
+        50,
     )
     coverage_last_step = _whole(
         coverage_value.get("lastStep"),
@@ -394,12 +452,28 @@ def require_action_ledger_report_chain(
         _bounded_string(refusal["reason"], f"{label}.reason", 16_384)
 
     verify_action_ledger(
-        value, coverage_value, features_value,
+        value,
+        coverage_value,
+        features_value,
+        match,
+        distances,
+        element_resolution,
+        pair_judged,
+        cards,
+        answers,
         ledger_digest=ledger_digest,
         coverage_digest=coverage_digest,
         features_digest=features_digest,
+        match_digest=match_digest,
+        distances_digest=distances_digest,
+        element_resolution_digest=element_resolution_digest,
+        pair_judged_digest=pair_judged_digest,
+        cards_digest=cards_digest,
+        card_images_digest=card_images_digest,
+        answers_digest=answers_digest,
         role_digests={
             "calloutManifest": callout_manifest_digest, "officialModel": official_model_digest,
+            "sourceArtRebound": source_art_rebound_digest,
             "builderCalibration": builder_calibration_digest, "bookletPdf": booklet_pdf_digest,
             "transitionClassifications": transition_classifications_digest,
             "builderGeometry": builder_geometry_digest,

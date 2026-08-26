@@ -16,13 +16,9 @@ export const TEST_TRANSITION_CLASSIFICATIONS = Object.freeze({
 function syntheticRequestedLastStep(input) {
   const requestedLastStep =
     input.requestedLastStep ?? input.ledger?.value?.provenance?.requestedLastStep;
-  if (
-    !Number.isSafeInteger(requestedLastStep) ||
-    requestedLastStep < 1 ||
-    requestedLastStep > 359
-  ) {
+  if (!Number.isSafeInteger(requestedLastStep) || requestedLastStep < 1 || requestedLastStep > 50) {
     throw new Error(
-      "Synthetic action-ledger fixture requires an explicit prefix from 1 through 359.",
+      "Synthetic action-ledger fixture requires an explicit current prefix from 1 through 50 while preserving expectedPrintedSteps=359.",
     );
   }
   return requestedLastStep;
@@ -85,6 +81,7 @@ export async function reproduceSyntheticActionLedger(input) {
     pdfDigest: input.bookletPdf.digest,
     coverageDigest: input.coverage.digest,
     calloutManifestDigest: input.calloutManifest.digest,
+    sourceArtReboundDigest: input.sourceArtRebound.digest,
     builderCalibrationDigest: input.builderCalibration.digest,
     transitionClassificationsDigest: input.transitionClassifications.digest,
   };
@@ -112,6 +109,7 @@ export async function reproduceSyntheticActionLedger(input) {
     pdfDigest: bindings.pdfDigest,
     coverageDigest: bindings.coverageDigest,
     calloutManifestDigest: bindings.calloutManifestDigest,
+    sourceArtReboundDigest: bindings.sourceArtReboundDigest,
     builderCalibrationDigest: bindings.builderCalibrationDigest,
     transitionClassificationsDigest: bindings.transitionClassificationsDigest,
     coverageByCallout,

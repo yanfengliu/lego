@@ -26,6 +26,7 @@ function emittedPrefix(
     officialModelDigest: DIGEST,
     coverageDigest: DIGEST,
     calloutManifestDigest: DIGEST,
+    sourceArtReboundDigest: DIGEST,
     builderCalibrationDigest: DIGEST,
     transitionClassificationsDigest: DIGEST,
     steps: Array.from({ length: alignedThroughStep }, (_, index) => ({
@@ -81,13 +82,13 @@ describe("action-ledger publisher write barrier", () => {
     ).not.toThrow();
   });
 
-  it("rejects legacy /2 bytes and any action row above the artifact request", () => {
+  it("rejects legacy /3 bytes and any action row above the artifact request", () => {
     const legacy = {
       ...emittedPrefix(),
-      schemaVersion: "lego.real-build-action-ledger/2",
+      schemaVersion: "lego.real-build-action-ledger/3",
     } as unknown as RealBuildActionLedger;
     expect(() => requirePublishableRealBuildActionLedger(publishable({ emitted: legacy }))).toThrow(
-      /current closed \/3 prefix contract.*lego\.real-build-action-ledger\/3/su,
+      /current closed \/4 prefix contract.*lego\.real-build-action-ledger\/4/su,
     );
 
     const base = emittedPrefix();
@@ -114,7 +115,7 @@ describe("action-ledger publisher write barrier", () => {
       },
     };
     expect(() => requirePublishableRealBuildActionLedger(publishable({ emitted: tail }))).toThrow(
-      /current closed \/3 prefix contract.*without crossing the request/su,
+      /closed current \/4 schema.*alignedThroughStep must be an integer from 1 through 50/su,
     );
   });
 
@@ -158,7 +159,7 @@ describe("action-ledger publisher write barrier", () => {
       requirePublishableRealBuildActionLedger(
         publishable({ requestedLastStep: 0, validatedThroughStep: 0 }),
       ),
-    ).toThrow(/invalid requestedLastStep 0.*from 1 through 359/su);
+    ).toThrow(/invalid requestedLastStep 0.*from 1 through 50/su);
   });
 
   it("rejects before write with bounded categories instead of raw failure text", () => {
@@ -189,7 +190,6 @@ describe("action-ledger requested prefix environment", () => {
   it.each([
     ["1", 1],
     ["50", 50],
-    ["359", 359],
   ])("parses %s as %i", (value, expected) => {
     expect(parseRealBuildActionLedgerRequestedLastStep(value)).toBe(expected);
   });
@@ -200,7 +200,7 @@ describe("action-ledger requested prefix environment", () => {
     );
   });
 
-  it.each(["", "0", "360", "1.5", "1e2", " 50", "50 ", "x".repeat(1_000)])(
+  it.each(["", "0", "51", "359", "360", "1.5", "1e2", " 50", "50 ", "x".repeat(1_000)])(
     "rejects non-canonical or out-of-range value %s with bounded output",
     (value) => {
       let caught: unknown;
@@ -210,14 +210,14 @@ describe("action-ledger requested prefix environment", () => {
         caught = error;
       }
       expect(caught).toBeInstanceOf(TypeError);
-      expect((caught as Error).message).toContain("from 1 through 359");
+      expect((caught as Error).message).toContain("from 1 through 50");
       expect((caught as Error).message.length).toBeLessThan(300);
     },
   );
 
   it.each([0, 360, 1.5, Number.NaN])("rejects invalid programmatic compiler prefix %s", (value) => {
     expect(() => requireRealBuildActionLedgerRequestedLastStep(value)).toThrow(
-      /compiler requestedLastStep must be a safe integer from 1 through 359/u,
+      /compiler requestedLastStep must be a safe integer from 1 through 50/u,
     );
   });
 

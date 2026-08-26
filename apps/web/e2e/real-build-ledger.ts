@@ -3,6 +3,7 @@ import { realBuildActionLedgerCurrentPrefixFailures } from "./real-build-action-
 import {
   TRUSTED_IDENTIFICATION_CONFIDENCES_SENTENCE,
   isTrustedIdentificationConfidence,
+  trustedIdentificationInputDigest,
 } from "./real-build-identification-trust";
 import { officialTransformFailure } from "./real-build-official";
 import {
@@ -49,6 +50,7 @@ export function validateRealBuildActionLedger(input: {
   readonly pdfDigest: string;
   readonly coverageDigest: string;
   readonly calloutManifestDigest: string;
+  readonly sourceArtReboundDigest: string;
   readonly builderCalibrationDigest: string;
   readonly transitionClassificationsDigest: string;
   readonly coverageByCallout: Readonly<Record<string, CoverageLedgerClaim>> | null;
@@ -68,12 +70,13 @@ export function validateRealBuildActionLedger(input: {
     if (
       !Number.isInteger(input.requestedLastStep) ||
       input.requestedLastStep < 1 ||
-      input.requestedLastStep > 359
+      input.requestedLastStep > 50
     ) {
       return [
         failure(
           undefined,
-          `Action ledger validation requires artifact requestedLastStep from 1 through 359; received ` +
+          `Action ledger validation requires artifact requestedLastStep from 1 through the current ` +
+            `reconstruction boundary 50 while retaining expectedPrintedSteps=359; received ` +
             `${input.requestedLastStep}.`,
         ),
       ];
@@ -106,6 +109,7 @@ export function validateRealBuildActionLedger(input: {
       ledger.officialModelDigest !== input.official.digest ||
       ledger.coverageDigest !== input.coverageDigest ||
       ledger.calloutManifestDigest !== input.calloutManifestDigest ||
+      ledger.sourceArtReboundDigest !== input.sourceArtReboundDigest ||
       ledger.builderCalibrationDigest !== input.builderCalibrationDigest ||
       input.official.calibrationDigest !== input.builderCalibrationDigest ||
       ledger.transitionClassificationsDigest !== input.transitionClassificationsDigest ||
@@ -114,12 +118,15 @@ export function validateRealBuildActionLedger(input: {
       failures.add(
         failure(
           undefined,
-          `Action ledger bindings do not match the exact official model, coverage, and callout manifest. ` +
+          `Action ledger bindings do not match the exact official model, coverage, callout manifest, and ` +
+            `source-art rebound. ` +
             `Ledger ${ledger.pdfDigest}/${ledger.officialModelDigest}/` +
             `${ledger.coverageDigest}/` +
-            `${ledger.calloutManifestDigest}/${ledger.builderCalibrationDigest}/` +
+            `${ledger.calloutManifestDigest}/${ledger.sourceArtReboundDigest}/` +
+            `${ledger.builderCalibrationDigest}/` +
             `${ledger.transitionClassificationsDigest}; live ${input.official.digest}/` +
-            `${input.coverageDigest}/${input.calloutManifestDigest}/${input.builderCalibrationDigest} ` +
+            `${input.coverageDigest}/${input.calloutManifestDigest}/${input.sourceArtReboundDigest}/` +
+            `${input.builderCalibrationDigest} ` +
             `with PDF ${input.pdfDigest}.`,
         ),
       );
@@ -206,6 +213,7 @@ export function validateRealBuildActionLedger(input: {
           officialModelDigest: input.official.digest,
           coverageDigest: input.coverageDigest,
           calloutManifestDigest: input.calloutManifestDigest,
+          sourceArtReboundDigest: input.sourceArtReboundDigest,
           builderCalibrationDigest: input.builderCalibrationDigest,
           stepNumber: step.stepNumber,
           pageNumber: step.pageNumber,
@@ -320,7 +328,8 @@ export function validateRealBuildActionLedger(input: {
               !isTrustedIdentificationConfidence(piece.identificationConfidence) ||
               !/^sha256:[0-9a-f]{64}$/u.test(piece.cropDigest ?? "") ||
               !/^sha256:[0-9a-f]{64}$/u.test(piece.identificationInputDigest) ||
-              piece.identificationInputDigest !== input.calloutManifestDigest ||
+              piece.identificationInputDigest !==
+                trustedIdentificationInputDigest(piece.identificationConfidence, input) ||
               piece.transform !== null)
           ) {
             failures.add(
@@ -328,7 +337,8 @@ export function validateRealBuildActionLedger(input: {
                 step.stepNumber,
                 `Direct Brick ${piece.brickRef} must bind one exact coverage callout whose identification ` +
                   `confidence is ${TRUSTED_IDENTIFICATION_CONFIDENCES_SENTENCE}, with retained crop/input ` +
-                  `digests; it declares ${JSON.stringify(piece.identificationConfidence)}. Its placement ` +
+                  `digests, including the exact manifest or rebound artifact that earned that confidence; ` +
+                  `it declares ${JSON.stringify(piece.identificationConfidence)}. Its placement ` +
                   `transform is decided by the independent visual search, not ignored ledger data.`,
               ),
             );

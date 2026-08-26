@@ -11,6 +11,9 @@ const MAX_IMAGE_BYTES = 64 * 1024 * 1024;
 const IMAGE_WAIT_MS = 5_000;
 const SHA256 = /^sha256:[0-9a-f]{64}$/u;
 
+export const PDF_SOURCE_ART_PDFJS_VERSION = EXPECTED_PDFJS_VERSION;
+export const PDF_SOURCE_ART_RASTER_SCALE = RASTER_SCALE;
+
 const sha256 = (bytes) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 
 function exactKeys(value, keys) {
@@ -194,6 +197,16 @@ function contains(outer, inner) {
   );
 }
 
+export function containingPdfSourceArtImageOperators(images, bounds) {
+  assertInclusiveBounds(bounds, "PDF source-art containment bounds");
+  if (!Array.isArray(images) || images.length > 100_000) {
+    throw new Error(
+      `PDF source-art containment requires at most 100000 enumerated image operators; received ${Array.isArray(images) ? images.length : typeof images}.`,
+    );
+  }
+  return images.filter((image) => contains(image?.projectedBoundsPxAtScale8 ?? null, bounds));
+}
+
 function enumerateImageOperators(pdfjs, operatorList, pageHeightPt, witnessKey) {
   let transform = [1, 0, 0, 1, 0, 0];
   const stack = [];
@@ -305,6 +318,40 @@ function assertDecodedImage(image, witnessKey) {
     );
   }
   return { data, height, kind, width };
+}
+
+export function enumeratePdfSourceArtImageOperators(
+  pdfjs,
+  operatorList,
+  pageHeightPt,
+  label = "PDF source-art page",
+) {
+  return enumerateImageOperators(pdfjs, operatorList, pageHeightPt, label);
+}
+
+export async function resolveDecodedPdfSourceArtImage(page, operator, label) {
+  if (
+    typeof operator?.objectId !== "string" ||
+    operator.objectId.length < 1 ||
+    operator.objectId.length > 128 ||
+    !Number.isSafeInteger(operator.operatorIndex) ||
+    operator.operatorIndex < 0
+  ) {
+    throw new Error(
+      `${label} must name one bounded enumerated PDF image operator before decoded source art can be resolved.`,
+    );
+  }
+  const image = assertDecodedImage(await resolvedPageImage(page, operator.objectId, label), label);
+  const data = Uint8Array.from(
+    new Uint8Array(image.data.buffer, image.data.byteOffset, image.data.byteLength),
+  );
+  return {
+    data,
+    decodedPixelSha256: sha256(data),
+    height: image.height,
+    kind: image.kind,
+    width: image.width,
+  };
 }
 
 export async function measurePdfSourceArtImages({ pdfBytes, expectedPdfSha256, witnesses }) {

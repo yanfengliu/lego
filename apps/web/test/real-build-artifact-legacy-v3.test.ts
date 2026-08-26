@@ -608,7 +608,7 @@ describe("legacy artifact-manifest /3 inspection", () => {
         /exact schema \/4/u,
       );
       expect(() => inspectLegacyRealBuildArtifactManifestV3(RETAINED_PRODUCTION_RUN)).toThrow(
-        /Part-identification match must use lego\.part-identification-match\/3[\s\S]*received schemaVersion="lego\.part-identification-match\/2"[\s\S]*Regenerate match and distances/u,
+        /Catalog coverage declares schema "lego\.real-build-catalog-coverage\/1"[\s\S]*accepts current lego\.real-build-catalog-coverage\/3 or frozen legacy lego\.real-build-catalog-coverage\/2 bytes only/u,
       );
 
       const replayClosureBytes = readContainedBoundedRegularFile(

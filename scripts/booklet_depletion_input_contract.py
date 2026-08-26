@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -10,7 +9,7 @@ from pathlib import Path
 from part_identification_descriptor_contract import bounded_observed
 from part_identification_report_contract import (
     ArtifactContractError,
-    read_bounded_bytes,
+    read_binary_artifact,
     read_card_images_artifact,
     read_json_artifact,
     require_adjudication_chain,
@@ -30,6 +29,7 @@ REQUIRED_JSON = {
     "distances": "output/part-identification/distances.json",
     "calloutManifest": "output/callout-thumbnails/manifest.json",
     "pairJudged": "scripts/fixtures/part-identification-truth-first50.json",
+    "sourceArtRebound": "output/part-identification/source-art-rebound.json",
 }
 ADJUDICATED_JSON = {
     "cards": "output/part-identification/cards/manifest.json",
@@ -102,12 +102,11 @@ def _load(repository_root: Path, coverage_path: Path) -> DepletionReportInputs:
     values = {role: artifact[0] for role, artifact in artifacts.items()}
     role_digests = {role: artifact[1] for role, artifact in artifacts.items()}
     coverage, coverage_digest = _json(coverage_path, "Depletion-report coverage")
-    pdf_bytes = read_bounded_bytes(
+    _, role_digests["pdf"] = read_binary_artifact(
         repository_root / PDF,
         "Depletion-report source PDF",
         max_bytes=MAX_BOOKLET_PDF_BYTES,
     )
-    role_digests["pdf"] = "sha256:" + hashlib.sha256(pdf_bytes).hexdigest()
 
     require_identification_chain(
         values["features"],
@@ -154,6 +153,7 @@ def _load(repository_root: Path, coverage_path: Path) -> DepletionReportInputs:
         match_digest=role_digests["match"],
         distances_digest=role_digests["distances"],
         element_resolution_digest=role_digests["elementResolution"],
+        source_art_rebound_digest=role_digests["sourceArtRebound"],
         consumed_role_digests=role_digests,
     )
     return DepletionReportInputs(
@@ -170,7 +170,7 @@ def _load(repository_root: Path, coverage_path: Path) -> DepletionReportInputs:
 def load_depletion_inputs(
     repository_root: Path, coverage_path: Path | None = None
 ) -> DepletionReportInputs:
-    """Read and authenticate one current coverage/2 closure before walking claims."""
+    """Read and authenticate one current coverage/3 closure before walking claims."""
 
     resolved_coverage = repository_root / COVERAGE if coverage_path is None else coverage_path
     try:

@@ -52,7 +52,7 @@ export function panelPlacementLedgerVerificationFailure(retainedBytes, compiled)
     compiled.expectedPrintedSteps !== 359 ||
     !Number.isSafeInteger(compiled.requestedLastStep) ||
     compiled.requestedLastStep < 1 ||
-    compiled.requestedLastStep > 359
+    compiled.requestedLastStep > 50
   ) {
     return "canonical compilation did not carry the explicit 359-step source contract and requested prefix";
   }
@@ -63,7 +63,7 @@ export function panelPlacementLedgerVerificationFailure(retainedBytes, compiled)
       return "canonical compilation emitted a different requested prefix";
     }
   } catch {
-    return "canonical compilation did not emit one bounded current /3 prefix";
+    return "canonical compilation did not emit one bounded current /4 prefix";
   }
   if (
     !Number.isSafeInteger(compiled.validatedThroughStep) ||
@@ -102,8 +102,8 @@ export function panelPlacementRequestedLastStep(retainedBytes) {
     return inspectCurrentActionLedgerPrefix(retained).requestedLastStep;
   } catch {
     throw new TypeError(
-      "Panel placement requires one bounded current /3 action ledger with the 359-step source/index and an " +
-        "explicit requestedLastStep from 1 through 359.",
+      "Panel placement requires one bounded current /4 action ledger with the 359-step source/index and an " +
+        "explicit requestedLastStep from 1 through 50.",
     );
   }
 }
@@ -204,11 +204,11 @@ export function panelPlacementBriefs(ledger, steps) {
     if (
       !Number.isSafeInteger(stepNumber) ||
       stepNumber < 1 ||
-      stepNumber > 359 ||
+      stepNumber > 50 ||
       seen.has(stepNumber)
     ) {
       throw new RangeError(
-        `Panel-placement requested step at index ${index} must be one unique integer from 1 through 359.`,
+        `Panel-placement requested step at index ${index} must be one unique integer from 1 through 50.`,
       );
     }
     seen.add(stepNumber);

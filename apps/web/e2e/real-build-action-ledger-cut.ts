@@ -4,6 +4,7 @@ import type { OfficialBuilderIdentity } from "./real-build-action-ledger";
 import {
   TRUSTED_IDENTIFICATION_CONFIDENCES_SENTENCE,
   isTrustedIdentificationConfidence,
+  trustedIdentificationInputDigest,
 } from "./real-build-identification-trust";
 
 /**
@@ -212,6 +213,7 @@ export function pieceRefusal(input: {
   readonly claim: CalloutResolution;
   readonly official: OfficialModelIndex;
   readonly calloutManifestDigest: string;
+  readonly sourceArtReboundDigest: string;
 }): string | null {
   const brick = input.official.bricks[input.identity.brickRef];
   if (brick === undefined) {
@@ -262,12 +264,17 @@ export function pieceRefusal(input: {
       `of a retained crop.`
     );
   }
-  if (input.claim.inputDigest !== input.calloutManifestDigest) {
+  const expectedIdentificationInputDigest = trustedIdentificationInputDigest(
+    input.claim.identificationConfidence,
+    input,
+  );
+  if (input.claim.inputDigest !== expectedIdentificationInputDigest) {
     return (
       `callout ${quotedDiagnosticValue(input.calloutKey)} was identified from input ` +
-      `${quotedDiagnosticValue(input.claim.inputDigest ?? "missing")}, but this run reads callout manifest ` +
-      `${quotedDiagnosticValue(input.calloutManifestDigest)}. Re-run identification against the exact ` +
-      `manifest being built.`
+      `${quotedDiagnosticValue(input.claim.inputDigest ?? "missing")}, but confidence ` +
+      `${quotedDiagnosticValue(input.claim.identificationConfidence)} requires exact retained input ` +
+      `${quotedDiagnosticValue(expectedIdentificationInputDigest)}. Re-run identification or source-art rebound ` +
+      `against the exact artifacts being built.`
     );
   }
   return null;

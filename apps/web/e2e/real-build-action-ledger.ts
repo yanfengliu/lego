@@ -5,7 +5,10 @@ import {
   uncorroboratedElementCut,
 } from "./real-build-action-ledger-cut";
 import type { CalloutResolution } from "./real-build-input-files";
-import { requireTrustedIdentificationConfidence } from "./real-build-identification-trust";
+import {
+  requireTrustedIdentificationConfidence,
+  trustedIdentificationInputDigest,
+} from "./real-build-identification-trust";
 import {
   pieceEvidenceDigest,
   REAL_BUILD_ACTION_LEDGER_GENERATOR,
@@ -138,6 +141,7 @@ export interface RealBuildActionLedgerBindings {
   readonly pdfDigest: string;
   readonly coverageDigest: string;
   readonly calloutManifestDigest: string;
+  readonly sourceArtReboundDigest: string;
   readonly builderCalibrationDigest: string;
   readonly transitionClassificationsDigest: string;
 }
@@ -164,6 +168,10 @@ function directPiece(input: {
   readonly bindings: RealBuildActionLedgerBindings;
 }): LedgerPieceIdentity {
   const brick = input.official.bricks[input.brickRef]!;
+  const identificationConfidence = requireTrustedIdentificationConfidence(
+    input.claim.identificationConfidence,
+    input.calloutKey,
+  );
   const base: Omit<LedgerPieceIdentity, "evidenceDigest"> = {
     brickRef: input.brickRef,
     designId: brick.designId,
@@ -175,12 +183,12 @@ function directPiece(input: {
     // identity written out as vision-kept would be the ledger relabelling the
     // evidence that produced it, and the validator's coverage-match check would
     // then be comparing the ledger against a claim it had already rewritten.
-    identificationConfidence: requireTrustedIdentificationConfidence(
-      input.claim.identificationConfidence,
-      input.calloutKey,
-    ),
+    identificationConfidence,
     cropDigest: input.claim.cropDigest!,
-    identificationInputDigest: input.bindings.calloutManifestDigest,
+    identificationInputDigest: trustedIdentificationInputDigest(
+      identificationConfidence,
+      input.bindings,
+    ),
     transform: null,
   };
   return {
@@ -191,6 +199,7 @@ function directPiece(input: {
       officialModelDigest: input.official.digest,
       coverageDigest: input.bindings.coverageDigest,
       calloutManifestDigest: input.bindings.calloutManifestDigest,
+      sourceArtReboundDigest: input.bindings.sourceArtReboundDigest,
       builderCalibrationDigest: input.bindings.builderCalibrationDigest,
       stepNumber: input.stepNumber,
       pageNumber: input.pageNumber,
@@ -214,6 +223,7 @@ export interface AssembleRealBuildActionLedgerInput {
 }
 
 const MAXIMUM_REAL_BUILD_PRINTED_STEPS = 359;
+export const MAXIMUM_REAL_BUILD_ACTION_LEDGER_REQUESTED_LAST_STEP = 50;
 
 function assertActionLedgerStepBounds(input: AssembleRealBuildActionLedgerInput): void {
   if (
@@ -229,10 +239,11 @@ function assertActionLedgerStepBounds(input: AssembleRealBuildActionLedgerInput)
   if (
     !Number.isSafeInteger(input.requestedLastStep) ||
     input.requestedLastStep < 1 ||
-    input.requestedLastStep > input.expectedPrintedSteps
+    input.requestedLastStep > MAXIMUM_REAL_BUILD_ACTION_LEDGER_REQUESTED_LAST_STEP
   ) {
     throw new TypeError(
-      `Action-ledger requestedLastStep must be a safe integer from 1 through expectedPrintedSteps ` +
+      `Action-ledger requestedLastStep must be a safe integer from 1 through the reconstruction boundary ` +
+        `${MAXIMUM_REAL_BUILD_ACTION_LEDGER_REQUESTED_LAST_STEP}, while expectedPrintedSteps remains ` +
         `${input.expectedPrintedSteps}; received ${JSON.stringify(input.requestedLastStep)}.`,
     );
   }
@@ -349,6 +360,7 @@ export function assembleRealBuildActionLedger(
         claim: row.claim,
         official: input.official,
         calloutManifestDigest: input.bindings.calloutManifestDigest,
+        sourceArtReboundDigest: input.bindings.sourceArtReboundDigest,
       });
       if (refusal !== null) {
         stepRefusals.push({
@@ -433,6 +445,7 @@ export function assembleRealBuildActionLedger(
       officialModelDigest: input.official.digest,
       coverageDigest: input.bindings.coverageDigest,
       calloutManifestDigest: input.bindings.calloutManifestDigest,
+      sourceArtReboundDigest: input.bindings.sourceArtReboundDigest,
       builderCalibrationDigest: input.bindings.builderCalibrationDigest,
       transitionClassificationsDigest: input.bindings.transitionClassificationsDigest,
       steps,

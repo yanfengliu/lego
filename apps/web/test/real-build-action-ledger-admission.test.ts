@@ -12,7 +12,7 @@ import {
 const rawBytes = (value: unknown): Buffer =>
   Buffer.from(`${JSON.stringify(value, null, 1)}\n`, "utf8");
 
-describe("current /3 action-ledger raw admission", () => {
+describe("current /4 action-ledger raw admission", () => {
   it("admits canonical exact execution and separates retained partial artifacts", () => {
     const fixture = realBuildLedgerTestFixture();
     const exact = realBuildLedgerPrefix(fixture.ledger, 3);
@@ -62,7 +62,7 @@ describe("current /3 action-ledger raw admission", () => {
 
     expect(() => admit(duplicateSchema)).toThrow(/duplicate-free/u);
     expect(() => admit(duplicateRequest)).toThrow(/duplicate-free/u);
-    expect(() => admit(exponentRequest)).toThrow(/exact canonical current \/3 encoding/u);
+    expect(() => admit(exponentRequest)).toThrow(/exact canonical current \/4 encoding/u);
   });
 
   it("rejects impossible raw container fan-out before strict parsing allocates rows", () => {
@@ -103,7 +103,7 @@ describe("current /3 action-ledger raw admission", () => {
       ledger: null,
       failure: expect.objectContaining({
         code: "action-ledger-incomplete",
-        message: expect.stringContaining("exactly its current /3 fields"),
+        message: expect.stringContaining("exactly its current /4 fields"),
       }),
     });
     expect(descriptorReads).toBe(0);
@@ -236,7 +236,7 @@ describe("current /3 action-ledger raw admission", () => {
             requestedLastStep: 3,
           }),
         label,
-      ).toThrow(/closed current \/3 schema/u);
+      ).toThrow(/closed current \/4 schema/u);
     }
   });
 
@@ -244,7 +244,7 @@ describe("current /3 action-ledger raw admission", () => {
     const baseline = realBuildLedgerPrefix(realBuildLedgerTestFixture().ledger, 3);
     const legacy = {
       ...baseline,
-      schemaVersion: "lego.real-build-action-ledger/2",
+      schemaVersion: "lego.real-build-action-ledger/3",
     } as unknown as RealBuildActionLedger;
     const tailed = {
       ...baseline,
@@ -258,7 +258,7 @@ describe("current /3 action-ledger raw admission", () => {
         requestedLastStep,
       });
 
-    expect(() => admit(legacy, 3)).toThrow(/lego\.real-build-action-ledger\/3/u);
+    expect(() => admit(legacy, 3)).toThrow(/lego\.real-build-action-ledger\/4/u);
     expect(() => admit(tailed, 2)).toThrow(/without crossing the request|above requestedLastStep/u);
   });
 });

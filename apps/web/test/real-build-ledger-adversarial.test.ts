@@ -25,12 +25,13 @@ describe("real build adversarial ledger contracts", () => {
       validateRealBuildActionLedger({
         ledger,
         ledgerDigest: sha256Digest(JSON.stringify(ledger)),
-        requestedLastStep: 359,
-        lastStep: 359,
+        requestedLastStep: 50,
+        lastStep: 50,
         official: fixture.official,
         pdfDigest: fixture.pdfDigest,
         coverageDigest: fixture.coverageDigest,
         calloutManifestDigest: fixture.manifestDigest,
+        sourceArtReboundDigest: fixture.sourceArtReboundDigest,
         builderCalibrationDigest: fixture.builderCalibrationDigest,
         transitionClassificationsDigest: fixture.transitionClassificationsDigest,
         coverageByCallout: fixture.coverageByCallout,
@@ -75,6 +76,7 @@ describe("real build adversarial ledger contracts", () => {
           officialModelDigest: fixture.official.digest,
           coverageDigest: fixture.coverageDigest,
           calloutManifestDigest: fixture.manifestDigest,
+          sourceArtReboundDigest: fixture.sourceArtReboundDigest,
           builderCalibrationDigest: fixture.builderCalibrationDigest,
           stepNumber: copyStep.stepNumber,
           pageNumber: copyStep.pageNumber,
@@ -140,7 +142,7 @@ describe("real build adversarial ledger contracts", () => {
       validate(omittedCopy)
         .map(({ message }) => message)
         .join(" "),
-    ).toMatch(/MultiBuild identities|ledger classification/u);
+    ).toMatch(/MultiBuild identities|ledger classification|transition-classification claim/u);
     expect(
       validate(wrongDirect)
         .map(({ message }) => message)
@@ -175,6 +177,7 @@ describe("real build adversarial ledger contracts", () => {
         pdfDigest: fixture.pdfDigest,
         coverageDigest: fixture.coverageDigest,
         calloutManifestDigest: fixture.manifestDigest,
+        sourceArtReboundDigest: fixture.sourceArtReboundDigest,
         builderCalibrationDigest: fixture.builderCalibrationDigest,
         transitionClassificationsDigest: fixture.transitionClassificationsDigest,
         coverageByCallout: fixture.coverageByCallout,
@@ -203,15 +206,15 @@ describe("real build adversarial ledger contracts", () => {
         .map(({ message }) => message)
         .join(" "),
     ).toMatch(/row 3 lies above requestedLastStep 2|no row above that request/u);
-    const legacyV2 = {
+    const legacyV3 = {
       ...realBuildLedgerPrefix(fixture.ledger, 2),
-      schemaVersion: "lego.real-build-action-ledger/2",
+      schemaVersion: "lego.real-build-action-ledger/3",
     } as unknown as RealBuildActionLedger;
     expect(
-      validate(legacyV2, 2)
+      validate(legacyV3, 2)
         .map(({ message }) => message)
         .join(" "),
-    ).toContain("lego.real-build-action-ledger/3");
+    ).toContain("lego.real-build-action-ledger/4");
   });
 
   it("refuses oversized top-level and nested rows before invoking array work", () => {
@@ -226,6 +229,7 @@ describe("real build adversarial ledger contracts", () => {
         pdfDigest: fixture.pdfDigest,
         coverageDigest: fixture.coverageDigest,
         calloutManifestDigest: fixture.manifestDigest,
+        sourceArtReboundDigest: fixture.sourceArtReboundDigest,
         builderCalibrationDigest: fixture.builderCalibrationDigest,
         transitionClassificationsDigest: fixture.transitionClassificationsDigest,
         coverageByCallout: fixture.coverageByCallout,
@@ -341,12 +345,13 @@ describe("real build adversarial ledger contracts", () => {
     const failures = validateRealBuildActionLedger({
       ledger: hostile,
       ledgerDigest: fixture.ledgerDigest,
-      requestedLastStep: 359,
-      lastStep: 359,
+      requestedLastStep: 50,
+      lastStep: 50,
       official: fixture.official,
       pdfDigest: fixture.pdfDigest,
       coverageDigest: fixture.coverageDigest,
       calloutManifestDigest: fixture.manifestDigest,
+      sourceArtReboundDigest: fixture.sourceArtReboundDigest,
       builderCalibrationDigest: fixture.builderCalibrationDigest,
       transitionClassificationsDigest: fixture.transitionClassificationsDigest,
       coverageByCallout: fixture.coverageByCallout,
@@ -395,6 +400,7 @@ describe("real build adversarial ledger contracts", () => {
       pdfDigest: fixture.pdfDigest,
       coverageDigest: fixture.coverageDigest,
       calloutManifestDigest: fixture.manifestDigest,
+      sourceArtReboundDigest: fixture.sourceArtReboundDigest,
       builderCalibrationDigest: fixture.builderCalibrationDigest,
       transitionClassificationsDigest: fixture.transitionClassificationsDigest,
       coverageByCallout: fixture.coverageByCallout,
@@ -423,6 +429,7 @@ describe("real build adversarial ledger contracts", () => {
         pdfDigest: fixture.pdfDigest,
         coverageDigest: fixture.coverageDigest,
         calloutManifestDigest: fixture.manifestDigest,
+        sourceArtReboundDigest: fixture.sourceArtReboundDigest,
         builderCalibrationDigest: fixture.builderCalibrationDigest,
         transitionClassificationsDigest: fixture.transitionClassificationsDigest,
         coverageByCallout: fixture.coverageByCallout,
@@ -461,7 +468,7 @@ describe("real build adversarial ledger contracts", () => {
       ]),
     );
     expect(unknownAction.map(({ message }) => message).join(" ")).toContain(
-      "action.kind is outside the current /3 action union",
+      "action.kind is outside the current /4 action union",
     );
   });
 
@@ -551,12 +558,13 @@ describe("real build adversarial ledger contracts", () => {
     const failures = validateRealBuildActionLedger({
       ledger,
       ledgerDigest: sha256Digest(JSON.stringify(ledger)),
-      requestedLastStep: 359,
-      lastStep: 359,
+      requestedLastStep: 50,
+      lastStep: 50,
       official: unframedOfficial,
       pdfDigest: fixture.pdfDigest,
       coverageDigest: fixture.coverageDigest,
       calloutManifestDigest: fixture.manifestDigest,
+      sourceArtReboundDigest: fixture.sourceArtReboundDigest,
       builderCalibrationDigest: calibrationDigest,
       transitionClassificationsDigest: fixture.transitionClassificationsDigest,
       coverageByCallout: fixture.coverageByCallout,

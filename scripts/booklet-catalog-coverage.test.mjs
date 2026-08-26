@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import * as coverageModule from "./booklet-catalog-coverage.mjs";
+import {
+  bookletCatalogCoverageUsage,
+  runBookletCatalogCoverageCliWithCompiler,
+} from "./booklet-catalog-coverage-cli.mjs";
+import { buildBookletCatalogCoverageReportV2WithExpectation } from "./booklet-catalog-coverage-report.mjs";
 import { FULL_CALLOUT_MANIFEST_EXPECTATION } from "./part-identification-artifacts.mjs";
 import {
   build,
@@ -12,16 +17,53 @@ import {
 
 const { __testOnly } = coverageModule;
 
+function prefixScopeFixture(lastStep) {
+  const base = fixture();
+  const manifest = manifestFor(
+    base.manifest.callouts.map((callout, index) => ({
+      ...callout,
+      stepNumber: index === 0 ? 1 : 51,
+    })),
+  );
+  const manifestBytes = Buffer.from(`${JSON.stringify(manifest, null, 1)}\n`);
+  const features = {
+    inputDigests: { pdf: manifest.sourceHash, calloutManifest: digest(manifestBytes) },
+    callouts: manifest.callouts.map((callout, index) => ({
+      ...callout,
+      descriptor: base.features.callouts[index].descriptor,
+    })),
+  };
+  const claims = new Map([
+    [0, { elementId: "300501", clusterIndex: 0, picked: "vision-kept" }],
+    [1, { elementId: "300501", clusterIndex: 1, picked: "vision-kept" }],
+  ]);
+  return {
+    input: {
+      manifestBytes,
+      features,
+      claims,
+      elements: base.elements,
+      source: "adjudicated",
+      model: "fixture-model",
+      assignment: "one-to-one",
+      lastStep,
+      identificationDigests: { sourceArtRebound: digest("source-art-rebound") },
+    },
+    manifest,
+    manifestExpectation: expectationFor(manifest),
+  };
+}
+
 describe("booklet catalog coverage report builder", () => {
   it("does not expose the unauthenticated raw verdict-map builder as production API", () => {
     expect(coverageModule).not.toHaveProperty("buildBookletCatalogCoverageReport");
     expect(coverageModule).toHaveProperty("compileBookletCatalogCoverageClosure");
   });
 
-  it.each([0, 360, Number.MAX_SAFE_INTEGER + 1])(
-    "rejects a coverage prefix outside the real 1..359 booklet at %s",
+  it.each([0, 51, 360, Number.MAX_SAFE_INTEGER + 1])(
+    "rejects a current coverage prefix outside the authorized 1..50 range at %s",
     (lastStep) => {
-      expect(() => build({ lastStep })).toThrow(/safe integer from 1 through 359/u);
+      expect(() => build({ lastStep })).toThrow(/safe integer from 1 through 50/u);
     },
   );
 
@@ -39,7 +81,78 @@ describe("booklet catalog coverage report builder", () => {
     } catch (error) {
       message = error instanceof Error ? error.message : String(error);
     }
-    expect(message).toContain(`safe integer from 1 through 359; received ${expected}`);
+    expect(message).toContain(`safe integer from 1 through 50; received ${expected}`);
+  });
+
+  it("rejects a CLI prefix beyond 50 before reading or compiling artifacts", async () => {
+    let compiled = false;
+    await expect(
+      runBookletCatalogCoverageCliWithCompiler(async () => {
+        compiled = true;
+        throw new Error("compiler must not run");
+      }, ["--source", "deterministic", "--last-step", "51"]),
+    ).rejects.toThrow(/integer from 1 through 50/u);
+    expect(compiled).toBe(false);
+    expect(bookletCatalogCoverageUsage()).toContain("--last-step 1..50");
+  });
+
+  it.each([1, 50])(
+    "retains the full source index but nulls every step-51 identity/catalog claim at prefix %s",
+    (lastStep) => {
+      const { input, manifest, manifestExpectation } = prefixScopeFixture(lastStep);
+      const report = __testOnly.buildBookletCatalogCoverageReport(input, manifestExpectation);
+      const prefix = report.byCallout[manifest.callouts[0].identity];
+      const suffix = report.byCallout[manifest.callouts[1].identity];
+
+      expect(Object.keys(report.byCallout)).toEqual(
+        manifest.callouts.map(({ identity }) => identity),
+      );
+      expect(prefix).toMatchObject({
+        elementId: "300501",
+        identificationConfidence: "vision-kept",
+        resolution: { catalogPartId: "builtin:brick-1x1", outcome: "exact" },
+      });
+      expect(suffix).toEqual({
+        identity: manifest.callouts[1].identity,
+        file: manifest.callouts[1].file,
+        pageNumber: manifest.callouts[1].pageNumber,
+        stepNumber: 51,
+        quantity: manifest.callouts[1].quantity,
+        cropDigest: manifest.callouts[1].sha256,
+        inputDigest: digest(input.manifestBytes),
+        elementId: null,
+        identificationConfidence: null,
+        resolution: null,
+        unidentifiedBecause: null,
+      });
+      expect(report).toMatchObject({
+        lastStep,
+        calloutsConsidered: 1,
+        calloutsUnidentified: 0,
+        coverage: { piecesPlaceable: 1, piecesTotal: 1 },
+      });
+    },
+  );
+
+  it("keeps frozen coverage/2 suffix claims and its 359-step range unchanged", () => {
+    const { input, manifest, manifestExpectation } = prefixScopeFixture(50);
+    const legacy = buildBookletCatalogCoverageReportV2WithExpectation(
+      { ...input, identificationDigests: {} },
+      manifestExpectation,
+    );
+
+    expect(legacy.schemaVersion).toBe("lego.real-build-catalog-coverage/2");
+    expect(legacy.byCallout[manifest.callouts[1].identity]).toMatchObject({
+      elementId: "300501",
+      identificationConfidence: "vision-kept",
+      resolution: { catalogPartId: "builtin:brick-1x1", outcome: "exact" },
+    });
+    expect(() =>
+      buildBookletCatalogCoverageReportV2WithExpectation(
+        { ...input, lastStep: 359, identificationDigests: {} },
+        manifestExpectation,
+      ),
+    ).not.toThrow();
   });
 
   it("bounds a large wrong-type lastStep diagnostic", () => {
@@ -65,6 +178,7 @@ describe("booklet catalog coverage report builder", () => {
       model: null,
       assignment: "one-to-one",
       lastStep: 1,
+      identificationDigests: { sourceArtRebound: digest("source-art-rebound") },
     };
 
     // No identificationDigests.features and no features.inputDigests: the report
@@ -121,13 +235,14 @@ describe("booklet catalog coverage report builder", () => {
         model: "fixture-model",
         assignment: "one-to-one",
         lastStep: 1,
+        identificationDigests: { sourceArtRebound: digest("source-art-rebound") },
       },
       input.manifestExpectation,
     );
     const manifestDigest = digest(input.manifestBytes);
 
     expect(report).toMatchObject({
-      schemaVersion: "lego.real-build-catalog-coverage/2",
+      schemaVersion: "lego.real-build-catalog-coverage/3",
       inputDigests: {
         pdf: input.manifest.sourceHash,
         calloutManifest: manifestDigest,
@@ -181,6 +296,7 @@ describe("booklet catalog coverage report builder", () => {
         model: "fixture-model",
         assignment: "one-to-one",
         lastStep: 1,
+        identificationDigests: { sourceArtRebound: digest("source-art-rebound") },
       },
       input.manifestExpectation,
     );
@@ -215,6 +331,7 @@ describe("booklet catalog coverage report builder", () => {
       "match",
       "distances",
       "elementResolution",
+      "sourceArtRebound",
     ]);
   });
 
@@ -455,6 +572,7 @@ describe("booklet catalog coverage report builder", () => {
           model: "fixture-model",
           assignment: "one-to-one",
           lastStep: 1,
+          identificationDigests: { sourceArtRebound: digest("source-art-rebound") },
         },
         FULL_CALLOUT_MANIFEST_EXPECTATION,
       ),

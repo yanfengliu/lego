@@ -19,26 +19,26 @@ import {
 } from "./booklet-catalog-coverage-test-fixture.mjs";
 
 describe("booklet catalog coverage closure compiler", () => {
-  it("prints truthful help without reading stale retained artifacts", () => {
+  it("prints truthful help without reading stale retained artifacts", async () => {
     const output = [];
-    expect(runBookletCatalogCoverageCli(["--help"], { stdout: (line) => output.push(line) })).toBe(
-      0,
-    );
+    expect(
+      await runBookletCatalogCoverageCli(["--help"], { stdout: (line) => output.push(line) }),
+    ).toBe(0);
     expect(output.join("\n")).toMatch(/Adjudicated example.*Deterministic example/s);
     expect(output.join("\n")).toMatch(/element-resolution\.json is a retained prerequisite/);
     expect(output.join("\n")).toMatch(/has no resolve command/);
   });
 
-  it("recompiles the complete prompt/model-bound closure and rejects a rehashed confidence edit", () => {
+  it("recompiles the complete prompt/model-bound closure and rejects a rehashed confidence edit", async () => {
     const closure = closureFixture();
     const { manifestExpectation, ...closureInput } = closure;
-    const report = __testOnly.compileBookletCatalogCoverageClosure(
+    const report = await __testOnly.compileBookletCatalogCoverageClosure(
       closureInput,
       manifestExpectation,
     );
     const coverageBytes = Buffer.from(`${JSON.stringify(report, null, 1)}\n`);
     expect(
-      __testOnly.verifyBookletCatalogCoverageClosure(
+      await __testOnly.verifyBookletCatalogCoverageClosure(
         { ...closureInput, coverageBytes },
         manifestExpectation,
       ),
@@ -47,7 +47,7 @@ describe("booklet catalog coverage closure compiler", () => {
     const forged = structuredClone(report);
     forged.byCallout[Object.keys(forged.byCallout)[0]].identificationConfidence =
       "self-contradicted";
-    expect(() =>
+    await expect(
       __testOnly.verifyBookletCatalogCoverageClosure(
         {
           ...closureInput,
@@ -55,8 +55,8 @@ describe("booklet catalog coverage closure compiler", () => {
         },
         manifestExpectation,
       ),
-    ).toThrow(/rehashed confidence or resolution edit/u);
-    expect(() => compileBookletCatalogCoverageClosure(closure)).toThrow(
+    ).rejects.toThrow(/rehashed confidence or resolution edit/u);
+    await expect(compileBookletCatalogCoverageClosure(closure)).rejects.toThrow(
       /does not accept a caller-supplied manifestExpectation/,
     );
 
@@ -67,7 +67,7 @@ describe("booklet catalog coverage closure compiler", () => {
         new Map([["card-0000", forgedImage]]),
       ),
     );
-    expect(() =>
+    await expect(
       __testOnly.compileBookletCatalogCoverageClosure(
         {
           ...closureInput,
@@ -75,10 +75,39 @@ describe("booklet catalog coverage closure compiler", () => {
         },
         manifestExpectation,
       ),
-    ).toThrow(/hashes to .*manifest requires/u);
+    ).rejects.toThrow(/hashes to .*manifest requires/u);
   });
 
-  it("snapshots every closure input once before validating and publishing its digests", () => {
+  it("replays retained coverage/2 bytes without requiring or reinterpreting rebound inputs", async () => {
+    const closure = closureFixture();
+    const { manifestExpectation, ...currentInput } = closure;
+    const legacyInput = { ...currentInput };
+    delete legacyInput.pdfBytes;
+    delete legacyInput.sourceArtReboundArtifact;
+    delete legacyInput.__testOnlySourceArtReboundVerifier;
+    const report = await __testOnly.compileBookletCatalogCoverageClosureV2(
+      legacyInput,
+      manifestExpectation,
+    );
+    const coverageBytes = Buffer.from(`${JSON.stringify(report, null, 1)}\n`);
+
+    expect(report.schemaVersion).toBe("lego.real-build-catalog-coverage/2");
+    expect(report.inputDigests).not.toHaveProperty("sourceArtRebound");
+    await expect(
+      __testOnly.verifyBookletCatalogCoverageClosureV2(
+        { ...legacyInput, coverageBytes },
+        manifestExpectation,
+      ),
+    ).resolves.toEqual(report);
+    await expect(
+      __testOnly.verifyBookletCatalogCoverageClosure(
+        { ...legacyInput, coverageBytes },
+        manifestExpectation,
+      ),
+    ).resolves.toEqual(report);
+  });
+
+  it("snapshots every closure input once before validating and publishing its digests", async () => {
     const closure = closureFixture();
     const { manifestExpectation, ...closureInput } = closure;
     const arbitraryCardsForAnswers = artifact({ unrelated: "cards-for-answers" });
@@ -119,7 +148,7 @@ describe("booklet catalog coverage closure compiler", () => {
       });
     }
 
-    const report = __testOnly.compileBookletCatalogCoverageClosure(
+    const report = await __testOnly.compileBookletCatalogCoverageClosure(
       accessorInput,
       manifestExpectation,
     );
@@ -133,7 +162,7 @@ describe("booklet catalog coverage closure compiler", () => {
     expect(report.byCallout[Object.keys(report.byCallout)[0]].elementId).toBe("300501");
   });
 
-  it("cannot validate deterministic inputs and later publish them as adjudicated", () => {
+  it("cannot validate deterministic inputs and later publish them as adjudicated", async () => {
     const closure = closureFixture();
     const { manifestExpectation, ...adjudicatedInput } = closure;
     const deterministicInput = {
@@ -155,7 +184,7 @@ describe("booklet catalog coverage closure compiler", () => {
       },
     });
 
-    const report = __testOnly.compileBookletCatalogCoverageClosure(
+    const report = await __testOnly.compileBookletCatalogCoverageClosure(
       deterministicInput,
       manifestExpectation,
     );
@@ -167,7 +196,7 @@ describe("booklet catalog coverage closure compiler", () => {
     expect(report.inputDigests).not.toHaveProperty("answers");
   });
 
-  it("requires authenticated feature bytes to bind the exact retained PDF and manifest", () => {
+  it("requires authenticated feature bytes to bind the exact retained PDF and manifest", async () => {
     const closure = closureFixture();
     const { manifestExpectation, ...adjudicatedInput } = closure;
     const cases = [
@@ -185,7 +214,7 @@ describe("booklet catalog coverage closure compiler", () => {
       });
       const { matchArtifact, distancesArtifact } = identificationArtifactsFor(featuresArtifact);
 
-      expect(() =>
+      await expect(
         __testOnly.compileBookletCatalogCoverageClosure(
           {
             ...adjudicatedInput,
@@ -202,7 +231,7 @@ describe("booklet catalog coverage closure compiler", () => {
           },
           manifestExpectation,
         ),
-      ).toThrow(/features bind PDF\/manifest digests/u);
+      ).rejects.toThrow(/features bind PDF\/manifest digests/u);
     }
   });
 
@@ -217,9 +246,12 @@ describe("booklet catalog coverage closure compiler", () => {
    * and a suite that only checked for a refusal would go green on the blindness it
    * is meant to catch.
    */
-  it("decides a mirror-paired pick from the card bytes it already binds", () => {
+  it("decides a mirror-paired pick from the card bytes it already binds", async () => {
     const { manifestExpectation, calloutIdentity, ...keptInput } = chiralClosureFixture();
-    const kept = __testOnly.compileBookletCatalogCoverageClosure(keptInput, manifestExpectation);
+    const kept = await __testOnly.compileBookletCatalogCoverageClosure(
+      keptInput,
+      manifestExpectation,
+    );
 
     expect(kept.byCallout[calloutIdentity]).toMatchObject({
       elementId: "6392746",
@@ -230,7 +262,7 @@ describe("booklet catalog coverage closure compiler", () => {
     const swappedExpectation = swappedInput.manifestExpectation;
     delete swappedInput.manifestExpectation;
     delete swappedInput.calloutIdentity;
-    const swapped = __testOnly.compileBookletCatalogCoverageClosure(
+    const swapped = await __testOnly.compileBookletCatalogCoverageClosure(
       swappedInput,
       swappedExpectation,
     );
@@ -238,7 +270,7 @@ describe("booklet catalog coverage closure compiler", () => {
     expect(swapped.byCallout[calloutIdentity].identificationConfidence).toBe("handedness-refuted");
   });
 
-  it("accepts bounded published print, pattern, and assembly design-number spellings", () => {
+  it("accepts bounded published print, pattern, and assembly design-number spellings", async () => {
     const closure = closureFixture();
     const { manifestExpectation, ...adjudicatedInput } = closure;
     const elementsArtifact = artifact({
@@ -269,11 +301,11 @@ describe("booklet catalog coverage closure compiler", () => {
       },
     });
 
-    expect(() =>
+    await expect(
       __testOnly.compileBookletCatalogCoverageClosure(
         { ...adjudicatedInput, elementsArtifact },
         manifestExpectation,
       ),
-    ).not.toThrow();
+    ).resolves.toBeDefined();
   });
 });

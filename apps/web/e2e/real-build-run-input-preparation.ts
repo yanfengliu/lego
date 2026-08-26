@@ -23,6 +23,7 @@ import {
   readBinaryInput,
   readIdentificationAdjudicationInputs,
   readJsonArtifact,
+  SOURCE_ART_REBOUND_PATH,
   TRANSITION_CLASSIFICATIONS_PATH,
   verifyHighlightRendererCompatibilityInput,
   type CalloutManifest,
@@ -68,7 +69,11 @@ export async function prepareRealBuildInputs() {
   const coverageInput = readJsonArtifact<{
     readonly schemaVersion?: string;
     readonly byCallout?: unknown;
-    readonly inputDigests?: { readonly pdf?: string; readonly calloutManifest?: string };
+    readonly inputDigests?: {
+      readonly pdf?: string;
+      readonly calloutManifest?: string;
+      readonly sourceArtRebound?: string;
+    };
   }>(COVERAGE_PATH, preparationFailures);
   const manifestInput = readJsonArtifact<CalloutManifest>(MANIFEST_PATH, preparationFailures);
   const highlightCompatibilityInput = readJsonArtifact<unknown>(
@@ -128,6 +133,10 @@ export async function prepareRealBuildInputs() {
     PAIR_JUDGED_TRUTH_PATH,
     preparationFailures,
   );
+  const sourceArtReboundInput = readJsonArtifact<unknown>(
+    SOURCE_ART_REBOUND_PATH,
+    preparationFailures,
+  );
   let identificationMode: RealBuildIdentificationMode | null = null;
   try {
     identificationMode = identifyRealBuildIdentificationMode(coverageInput, lastStep);
@@ -171,6 +180,7 @@ export async function prepareRealBuildInputs() {
     distances: identificationDistancesInput.digest,
     elements: elementResolutionInput.digest,
     pairJudged: pairJudgedTruthInput.digest,
+    sourceArtRebound: sourceArtReboundInput.digest,
     cards: identificationCardsInput?.digest ?? null,
     cardImages: identificationCardImagesInput?.digest ?? null,
     answers: identificationAnswersInput?.digest ?? null,
@@ -278,7 +288,8 @@ export async function prepareRealBuildInputs() {
   } | null = null;
   let coverageClosureRejection: string | null = null;
   try {
-    const reproduced = verifyRealBuildIdentificationClosure({
+    const reproduced = await verifyRealBuildIdentificationClosure({
+      pdf: { bytes: pdfBytes, digest: inputDigests.pdf },
       coverage: coverageInput,
       manifest: manifestInput,
       features: identificationFeaturesInput,
@@ -289,15 +300,16 @@ export async function prepareRealBuildInputs() {
       answers: identificationAnswersInput,
       elementResolution: elementResolutionInput,
       pairJudged: pairJudgedTruthInput,
+      sourceArtRebound: sourceArtReboundInput,
       requestedLastStep: lastStep,
     });
     if (typeof reproduced !== "object" || reproduced === null || Array.isArray(reproduced)) {
       throw new TypeError("The identification compiler returned a non-object coverage report.");
     }
     const candidate = reproduced as { readonly schemaVersion?: string };
-    if (candidate.schemaVersion !== "lego.real-build-catalog-coverage/2") {
+    if (candidate.schemaVersion !== "lego.real-build-catalog-coverage/3") {
       throw new TypeError(
-        `Reproduced coverage must use lego.real-build-catalog-coverage/2; received ${JSON.stringify(candidate.schemaVersion ?? "missing")}.`,
+        `Reproduced coverage must use lego.real-build-catalog-coverage/3; received ${JSON.stringify(candidate.schemaVersion ?? "missing")}.`,
       );
     }
     verifiedCoverage = candidate;
@@ -308,8 +320,8 @@ export async function prepareRealBuildInputs() {
     preparationFailures.push(
       contractFailure(
         COVERAGE_PATH,
-        `Catalog coverage was rejected before use because the bounded manifest, features, match, ` +
-          `distances, cards, card-images, answers, pair-judged, and element-resolution bytes did not reproduce its exact closure: ` +
+        `Catalog coverage was rejected before use because the bounded PDF, manifest, source-art rebound, ` +
+          `features, match, distances, cards, card-images, answers, pair-judged, and element-resolution bytes did not reproduce its exact closure: ` +
           `${coverageClosureRejection}.`,
       ),
     );
@@ -376,6 +388,7 @@ export async function prepareRealBuildInputs() {
     identificationDistancesInput,
     elementResolutionInput,
     pairJudgedTruthInput,
+    sourceArtReboundInput,
     identificationMode,
     identificationCardsInput,
     identificationCardImagesInput,

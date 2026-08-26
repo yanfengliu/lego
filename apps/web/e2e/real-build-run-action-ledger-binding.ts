@@ -156,10 +156,11 @@ function exactSame(left: unknown, right: unknown): boolean {
   return canonicalStringify(left) === canonicalStringify(right);
 }
 
-/** Cross-binds the retained current /3 ledger to the action semantics the browser executes. */
+/** Cross-binds the retained current /4 ledger to the action semantics the browser executes. */
 export function assertRealBuildActionLedgerMatchesPreparedOptions(input: {
   readonly ledger: RealBuildActionLedger;
   readonly ledgerDigest: string;
+  readonly sourceArtReboundDigest: string;
   readonly options: RealBuildOptions;
   readonly official: OfficialModelIndex;
 }): void {
@@ -169,6 +170,7 @@ export function assertRealBuildActionLedgerMatchesPreparedOptions(input: {
     officialModelDigest: options.inputDigests.officialModel,
     coverageDigest: options.inputDigests.coverage,
     calloutManifestDigest: options.inputDigests.calloutManifest,
+    sourceArtReboundDigest: input.sourceArtReboundDigest,
     builderCalibrationDigest: options.inputDigests.builderCalibration,
     transitionClassificationsDigest: options.inputDigests.transitionClassifications,
   };
@@ -177,6 +179,7 @@ export function assertRealBuildActionLedgerMatchesPreparedOptions(input: {
     officialModelDigest: ledger.officialModelDigest,
     coverageDigest: ledger.coverageDigest,
     calloutManifestDigest: ledger.calloutManifestDigest,
+    sourceArtReboundDigest: ledger.sourceArtReboundDigest,
     builderCalibrationDigest: ledger.builderCalibrationDigest,
     transitionClassificationsDigest: ledger.transitionClassificationsDigest,
   };

@@ -14,7 +14,9 @@ SHA256 = re.compile(r"^sha256:[0-9a-f]{64}$")
 CALLOUT_KEY = re.compile(
     r"^p[0-9]+\|q[0-9]+\|x-?[0-9]+\.[0-9]{3}\|y-?[0-9]+\.[0-9]{3}$"
 )
-TRUSTED_CONFIDENCES = frozenset({"vision-kept", "pair-judged-same"})
+TRUSTED_CONFIDENCES = frozenset(
+    {"vision-kept", "pair-judged-same", "source-art-rebound"}
+)
 PIECE_FIELDS = {
     "brickRef", "designId", "materialId", "catalogPartId", "colorId", "calloutKey",
     "identificationConfidence", "cropDigest", "identificationInputDigest", "evidenceDigest",
@@ -111,6 +113,8 @@ def require_direct_piece_binding(
     step_callouts: Mapping[str, set[str]],
     coverage_by_callout: Mapping,
     official_bricks: Mapping[str, Mapping],
+    callout_manifest_digest: str,
+    source_art_rebound_digest: str,
 ) -> None:
     callout_key = piece["calloutKey"]
     if not isinstance(callout_key, str):
@@ -139,6 +143,23 @@ def require_direct_piece_binding(
             f"{label} does not reproduce its exact trusted coverage claim for {callout_key}: "
             f"{bounded_observed(mismatches or piece['identificationConfidence'])}. "
             "Regenerate coverage and the action ledger together."
+        )
+    expected_input_digest = (
+        source_art_rebound_digest
+        if piece["identificationConfidence"] == "source-art-rebound"
+        else callout_manifest_digest
+    )
+    if piece["identificationInputDigest"] != expected_input_digest:
+        raise ArtifactContractError(
+            f"{label}.identificationInputDigest is {bounded_observed(piece['identificationInputDigest'])}, "
+            f"but confidence {bounded_observed(piece['identificationConfidence'])} requires exact retained "
+            f"input {expected_input_digest}. Regenerate the action ledger from the exact manifest and "
+            "source-art rebound closure."
+        )
+    if piece["transform"] is not None:
+        raise ArtifactContractError(
+            f"{label}.transform must remain null: the relation may identify source art but cannot author "
+            "placement authority."
         )
     official = official_bricks.get(piece["brickRef"])
     element_id = claim.get("elementId")

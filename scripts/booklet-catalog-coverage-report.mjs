@@ -13,7 +13,8 @@ import {
   summarizeCatalogCoverage,
 } from "../apps/web/src/assembly/element-catalog.ts";
 
-const COVERAGE_SCHEMA = "lego.real-build-catalog-coverage/2";
+const COVERAGE_SCHEMA = "lego.real-build-catalog-coverage/3";
+const LEGACY_COVERAGE_SCHEMA = "lego.real-build-catalog-coverage/2";
 const FULL_SHA256 = /^sha256:[0-9a-f]{64}$/u;
 const FEATURE_BINDING_FIELDS = [
   "identity",
@@ -41,10 +42,12 @@ const IDENTIFICATION_DIGEST_ROLES = new Set([
   // pinned constant for the same reason cards and answers are: a trust source
   // that is not in the digests can be swapped without the coverage bytes moving.
   "pairJudged",
+  "sourceArtRebound",
 ]);
 const SHA256_DIGEST = /^sha256:[0-9a-f]{64}$/u;
 const MAX_COVERAGE_CALLOUTS = 4_000;
-const MAXIMUM_BOOKLET_PRINTED_STEPS = 359;
+const CURRENT_MAXIMUM_BOOKLET_PRINTED_STEP = 50;
+const LEGACY_MAXIMUM_BOOKLET_PRINTED_STEP = 359;
 
 function parseManifest(manifestBytes, expectation) {
   const artifact = jsonArtifactFromBytes(manifestBytes, "Callout manifest");
@@ -228,7 +231,11 @@ function assertFeaturesBindManifest(features, manifest) {
  * Claims stay index-bound only after every identity-bearing feature field has been
  * proven byte-for-byte equivalent to the exact v6 manifest entry at that index.
  */
-export function buildBookletCatalogCoverageReportWithExpectation(input, manifestExpectation) {
+function buildBookletCatalogCoverageReportInternal(
+  input,
+  manifestExpectation,
+  { maximumLastStep, prefixScopedClaims, schemaVersion, sourceArtReboundRequired },
+) {
   const manifestBytes = input.manifestBytes;
   const features = snapshotCoverageFeatures(input.features);
   const claims = snapshotCoverageClaims(
@@ -246,9 +253,9 @@ export function buildBookletCatalogCoverageReportWithExpectation(input, manifest
   const lastStep = input.lastStep;
   const identificationDigests = snapshotIdentificationDigests(input.identificationDigests);
 
-  if (!Number.isSafeInteger(lastStep) || lastStep < 1 || lastStep > MAXIMUM_BOOKLET_PRINTED_STEPS) {
+  if (!Number.isSafeInteger(lastStep) || lastStep < 1 || lastStep > maximumLastStep) {
     throw new Error(
-      `lastStep must be a safe integer from 1 through ${MAXIMUM_BOOKLET_PRINTED_STEPS}; received ${boundedObserved(lastStep)}. Recompile coverage for a real printed-booklet prefix.`,
+      `lastStep must be a safe integer from 1 through ${maximumLastStep}; received ${boundedObserved(lastStep)}. Recompile coverage for the authorized printed-booklet prefix.`,
     );
   }
   if (!(claims instanceof Map)) {
@@ -264,6 +271,11 @@ export function buildBookletCatalogCoverageReportWithExpectation(input, manifest
   if (judgedVerdicts !== null && identificationDigests.pairJudged === undefined) {
     throw new Error(
       `Coverage was given ${judgedVerdicts.size} pair-judged verdict(s) but no pairJudged digest, so nothing in the published report would bind the bytes that granted or refused the trust. Compile through the closure, which authenticates ${PART_TRUTH_PATH} and publishes its digest as the pairJudged role.`,
+    );
+  }
+  if (sourceArtReboundRequired && identificationDigests.sourceArtRebound === undefined) {
+    throw new Error(
+      "Coverage/3 requires the verified source-art-rebound artifact digest even when the requested prefix ends before its step-4 anchor. Compile through the raw PDF/manifest verifier; omitting the role cannot disable relation counterevidence or change the report generation.",
     );
   }
 
@@ -294,6 +306,30 @@ export function buildBookletCatalogCoverageReportWithExpectation(input, manifest
   for (let index = 0; index < features.callouts.length; index += 1) {
     const callout = features.callouts[index];
     if (callout.evidenceKind !== "part-art") continue;
+    const binding = {
+      identity: callout.identity,
+      file: callout.file,
+      pageNumber: callout.pageNumber,
+      stepNumber: callout.stepNumber,
+      quantity: callout.quantity,
+      cropDigest: callout.sha256,
+      inputDigest: manifestDigest,
+    };
+    const insideRequestedPrefix = callout.stepNumber >= 1 && callout.stepNumber <= lastStep;
+    if (prefixScopedClaims && !insideRequestedPrefix) {
+      // Coverage/3 retains the complete 359-step source/index closure, but a
+      // row outside the requested prefix is indexing only. In particular, a
+      // full-booklet assignment cannot leak element, confidence, catalog, or
+      // placement-like authority into steps the reconstruction did not ask for.
+      byCallout[callout.identity] = {
+        ...binding,
+        elementId: null,
+        identificationConfidence: null,
+        resolution: null,
+        unidentifiedBecause: null,
+      };
+      continue;
+    }
     const claim = claims.get(index);
     const elementId = claim?.elementId ?? null;
     const judgedEntry = judgedVerdicts?.get(index) ?? null;
@@ -321,15 +357,6 @@ export function buildBookletCatalogCoverageReportWithExpectation(input, manifest
           ? PAIR_JUDGED_DIFFERENT_CONFIDENCE
           : (claim?.picked ?? null);
     const element = elementId === null ? null : elements[elementId];
-    const binding = {
-      identity: callout.identity,
-      file: callout.file,
-      pageNumber: callout.pageNumber,
-      stepNumber: callout.stepNumber,
-      quantity: callout.quantity,
-      cropDigest: callout.sha256,
-      inputDigest: manifestDigest,
-    };
     if (judged === "different" || element === null || element === undefined) {
       unidentified += 1;
       byCallout[callout.identity] = {
@@ -363,7 +390,7 @@ export function buildBookletCatalogCoverageReportWithExpectation(input, manifest
       resolution,
       unidentifiedBecause: null,
     };
-    if (callout.stepNumber >= 1 && callout.stepNumber <= lastStep) {
+    if (insideRequestedPrefix) {
       requirements.push({
         stepNumber: callout.stepNumber,
         quantity: callout.quantity,
@@ -373,7 +400,7 @@ export function buildBookletCatalogCoverageReportWithExpectation(input, manifest
   }
 
   return {
-    schemaVersion: COVERAGE_SCHEMA,
+    schemaVersion,
     inputDigests: {
       pdf: manifest.sourceHash,
       calloutManifest: manifestDigest,
@@ -394,4 +421,23 @@ export function buildBookletCatalogCoverageReportWithExpectation(input, manifest
     coverage: summarizeCatalogCoverage(requirements),
     byCallout,
   };
+}
+
+export function buildBookletCatalogCoverageReportWithExpectation(input, manifestExpectation) {
+  return buildBookletCatalogCoverageReportInternal(input, manifestExpectation, {
+    maximumLastStep: CURRENT_MAXIMUM_BOOKLET_PRINTED_STEP,
+    prefixScopedClaims: true,
+    schemaVersion: COVERAGE_SCHEMA,
+    sourceArtReboundRequired: true,
+  });
+}
+
+/** Frozen report-shape seam for exact replay of retained coverage/2 bytes only. */
+export function buildBookletCatalogCoverageReportV2WithExpectation(input, manifestExpectation) {
+  return buildBookletCatalogCoverageReportInternal(input, manifestExpectation, {
+    maximumLastStep: LEGACY_MAXIMUM_BOOKLET_PRINTED_STEP,
+    prefixScopedClaims: false,
+    schemaVersion: LEGACY_COVERAGE_SCHEMA,
+    sourceArtReboundRequired: false,
+  });
 }

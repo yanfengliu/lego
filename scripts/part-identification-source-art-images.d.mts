@@ -1,4 +1,6 @@
 export const PDF_EMBEDDED_SOURCE_ART_MEASUREMENT_SCHEMA: "lego.pdf-embedded-source-art-measurement/1";
+export const PDF_SOURCE_ART_PDFJS_VERSION: "5.4.149";
+export const PDF_SOURCE_ART_RASTER_SCALE: 8;
 
 export interface EmbeddedSourceArtBounds {
   readonly left: number;
@@ -35,6 +37,43 @@ export interface MeasuredEmbeddedSourceArtWitness {
   readonly transform: readonly [number, number, number, number, number, number];
   readonly width: number;
 }
+
+export interface EnumeratedPdfSourceArtImageOperator {
+  readonly objectId: string;
+  readonly operatorIndex: number;
+  readonly projectedBoundsPxAtScale8: EmbeddedSourceArtBounds | null;
+  readonly transform: readonly [number, number, number, number, number, number];
+}
+
+export function enumeratePdfSourceArtImageOperators(
+  pdfjs: {
+    readonly OPS: Readonly<Record<string, number>>;
+    readonly Util: { transform(left: readonly number[], right: readonly number[]): number[] };
+  },
+  operatorList: {
+    readonly fnArray: readonly number[];
+    readonly argsArray: readonly unknown[];
+  },
+  pageHeightPt: number,
+  label?: string,
+): EnumeratedPdfSourceArtImageOperator[];
+
+export function containingPdfSourceArtImageOperators(
+  images: readonly EnumeratedPdfSourceArtImageOperator[],
+  bounds: EmbeddedSourceArtBounds,
+): EnumeratedPdfSourceArtImageOperator[];
+
+export function resolveDecodedPdfSourceArtImage(
+  page: unknown,
+  operator: EnumeratedPdfSourceArtImageOperator,
+  label: string,
+): Promise<{
+  readonly data: Uint8Array;
+  readonly decodedPixelSha256: `sha256:${string}`;
+  readonly height: number;
+  readonly kind: 2;
+  readonly width: number;
+}>;
 
 export function measurePdfSourceArtImages(input: {
   readonly pdfBytes: Uint8Array;

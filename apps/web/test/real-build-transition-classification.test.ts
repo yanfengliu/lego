@@ -424,6 +424,7 @@ describe("bundle assembly", () => {
 describe("consumption by the action ledger", () => {
   test("accepts transitions this builder produced for the ledger's own panels", () => {
     const fixture = realBuildLedgerTestFixture();
+    const requestedLastStep = fixture.ledger.provenance.requestedLastStep;
     const built = new Map<number, ReturnType<typeof buildTransitionClassificationEntry>>();
     const steps = fixture.ledger.steps.map((step) => {
       if (step.action.kind !== "transition") return step;
@@ -459,12 +460,13 @@ describe("consumption by the action ledger", () => {
       validateRealBuildActionLedger({
         ledger,
         ledgerDigest: sha256Digest(JSON.stringify(ledger)),
-        requestedLastStep: TERMINAL_STEP,
-        lastStep: TERMINAL_STEP,
+        requestedLastStep,
+        lastStep: requestedLastStep,
         official: fixture.official,
         pdfDigest: fixture.pdfDigest,
         coverageDigest: fixture.coverageDigest,
         calloutManifestDigest: fixture.manifestDigest,
+        sourceArtReboundDigest: fixture.sourceArtReboundDigest,
         builderCalibrationDigest: fixture.builderCalibrationDigest,
         transitionClassificationsDigest: fixture.transitionClassificationsDigest,
         coverageByCallout: fixture.coverageByCallout,

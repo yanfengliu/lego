@@ -371,6 +371,9 @@ describe("bounded real-build input reads", () => {
     expect(() => artifacts.verifyRealBuildArtifactManifest(temporaryRoot)).toThrow(
       /current artifact manifest must be duplicate-free finite UTF-8 JSON.*encoded data was not valid/u,
     );
+    expect(() => artifacts.prepareRealBuildArtifactManifestVerification(temporaryRoot)).toThrow(
+      /current artifact manifest must be duplicate-free finite UTF-8 JSON.*encoded data was not valid/u,
+    );
   });
 
   it("rejects an oversized retained artifact manifest before reading its contents", async () => {
@@ -380,6 +383,9 @@ describe("bounded real-build input reads", () => {
     const artifacts = await import("../e2e/real-build-artifacts");
 
     expect(() => artifacts.verifyRealBuildArtifactManifest(temporaryRoot)).toThrow(
+      /artifact manifest.*16777217 bytes.*rejected before any contents were read/u,
+    );
+    expect(() => artifacts.prepareRealBuildArtifactManifestVerification(temporaryRoot)).toThrow(
       /artifact manifest.*16777217 bytes.*rejected before any contents were read/u,
     );
     expect(readObservation.count).toBe(0);

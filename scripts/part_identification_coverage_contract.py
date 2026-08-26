@@ -1,4 +1,4 @@
-"""Coverage/2 role-set and retained-byte closure for Python reports."""
+"""Coverage/3 role-set and retained-byte closure for Python reports."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from part_identification_report_io import ArtifactContractError
 from part_identification_verification_bridge import verify_coverage
 
 
-COVERAGE_SCHEMA = "lego.real-build-catalog-coverage/2"
+COVERAGE_SCHEMA = "lego.real-build-catalog-coverage/3"
 SHA256 = re.compile(r"^sha256:[0-9a-f]{64}$")
 ALLOWED_ROLES = {
     "pdf",
@@ -23,6 +23,7 @@ ALLOWED_ROLES = {
     "answers",
     "elementResolution",
     "pairJudged",
+    "sourceArtRebound",
 }
 BASE_ROLES = {
     "pdf",
@@ -32,6 +33,7 @@ BASE_ROLES = {
     "distances",
     "elementResolution",
     "pairJudged",
+    "sourceArtRebound",
 }
 ADJUDICATION_ROLES = {"cards", "cardImages", "answers"}
 
@@ -60,10 +62,11 @@ def require_coverage_chain(
     match_digest: str,
     distances_digest: str,
     element_resolution_digest: str,
+    source_art_rebound_digest: str | None = None,
     consumed_role_digests: Mapping[str, str] | None = None,
     legacy_tuple: Mapping[str, str] | None = None,
 ) -> None:
-    """Require coverage/2, or one explicitly named immutable legacy tuple."""
+    """Require coverage/3, or one explicitly named immutable legacy tuple."""
 
     value = _mapping(coverage, "Catalog coverage")
     actual = {
@@ -75,6 +78,10 @@ def require_coverage_chain(
             element_resolution_digest, "Element-resolution byte digest"
         ),
     }
+    if source_art_rebound_digest is not None:
+        actual["sourceArtRebound"] = _digest(
+            source_art_rebound_digest, "Source-art-rebound byte digest"
+        )
     consumed = {
         role: _digest(digest, f"Consumed coverage role {role} byte digest")
         for role, digest in (consumed_role_digests or {}).items()
@@ -93,6 +100,10 @@ def require_coverage_chain(
             f"{bounded_observed(value.get('schemaVersion'))}; current reports require "
             f"{COVERAGE_SCHEMA}. Legacy coverage is readable only with its explicit full historical closure tuple."
         )
+    if source_art_rebound_digest is None:
+        raise ArtifactContractError(
+            "Coverage/3 requires the exact source-art-rebound byte digest. Read the retained rebound artifact through the bounded report reader before verifying coverage."
+        )
     bindings = _mapping(value.get("inputDigests"), "Coverage inputDigests")
     identification = _mapping(value.get("identification"), "Coverage identification")
     source = identification.get("source")
@@ -104,12 +115,18 @@ def require_coverage_chain(
     expected = BASE_ROLES | (ADJUDICATION_ROLES if source == "adjudicated" else set())
     if set(bindings) != expected:
         raise ArtifactContractError(
-            f"Coverage/2 {source} inputDigests must contain exactly {sorted(expected)}; received "
+            f"Coverage/3 {source} inputDigests must contain exactly {sorted(expected)}; received "
             f"{sorted(bindings)}. Restore the compiler-authenticated closure roles."
         )
     for role, digest in bindings.items():
         _digest(digest, f"Coverage {role} digest")
-    for role in ("features", "match", "distances", "elementResolution"):
+    for role in (
+        "features",
+        "match",
+        "distances",
+        "elementResolution",
+        "sourceArtRebound",
+    ):
         if bindings.get(role) != actual[role]:
             raise ArtifactContractError(
                 f"Coverage binds {role} {bounded_observed(bindings.get(role))}, but the retained {role} bytes hash to "
@@ -125,7 +142,16 @@ def require_coverage_chain(
         coverage,
         coverage_digest=actual["coverage"],
         role_digests={
-            **{role: actual[role] for role in ("features", "match", "distances", "elementResolution")},
+            **{
+                role: actual[role]
+                for role in (
+                    "features",
+                    "match",
+                    "distances",
+                    "elementResolution",
+                    "sourceArtRebound",
+                )
+            },
             **consumed,
         },
     )

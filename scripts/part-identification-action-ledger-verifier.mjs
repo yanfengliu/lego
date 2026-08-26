@@ -1,5 +1,6 @@
 import { isDeepStrictEqual } from "node:util";
 
+import { verifyBookletCatalogCoverageClosure } from "./booklet-catalog-coverage.mjs";
 import { sha256Digest } from "./part-identification-artifacts.mjs";
 import { inspectCurrentActionLedgerPrefix } from "./part-identification-action-ledger-prefix.mjs";
 import { importRepositoryTypeScript } from "./part-identification-typescript-runtime.mjs";
@@ -56,6 +57,7 @@ export async function verifyCanonicalActionLedger(input) {
     pdfDigest,
     coverageDigest: input.coverage.digest,
     calloutManifestDigest: input.calloutManifest.digest,
+    sourceArtReboundDigest: input.sourceArtRebound.digest,
     builderCalibrationDigest: input.builderCalibration.digest,
     transitionClassificationsDigest: input.transitionClassifications.digest,
   };
@@ -66,7 +68,27 @@ export async function verifyCanonicalActionLedger(input) {
   ) {
     throw new Error("Ledger source bindings do not reproduce the authenticated PDF and manifest.");
   }
-  const coverageByCallout = input.coverage.value?.byCallout;
+  const reproducedCoverage = await verifyBookletCatalogCoverageClosure({
+    coverageBytes: input.coverage.bytes,
+    source: input.coverage.value?.identification?.source,
+    assignment: input.coverage.value?.identification?.assignment,
+    model: input.coverage.value?.identification?.model,
+    featuresArtifact: input.features,
+    matchArtifact: input.match,
+    distancesArtifact: input.distances,
+    elementsArtifact: input.elementResolution,
+    cardsArtifact: input.cards,
+    cardImagesArtifact: input.cardImages,
+    answersArtifact: input.answers,
+    traceRoot: input.traceRoot,
+    traceArtifacts: null,
+    pairJudgedArtifact: input.pairJudged,
+    sourceArtReboundArtifact: input.sourceArtRebound,
+    pdfBytes: input.bookletPdf.bytes,
+    manifestBytes: input.calloutManifest.bytes,
+    lastStep: requestedLastStep,
+  });
+  const coverageByCallout = reproducedCoverage.byCallout;
   if (
     typeof coverageByCallout !== "object" ||
     coverageByCallout === null ||
@@ -126,6 +148,7 @@ export async function verifyCanonicalActionLedger(input) {
     pdfDigest,
     coverageDigest: bindings.coverageDigest,
     calloutManifestDigest: bindings.calloutManifestDigest,
+    sourceArtReboundDigest: bindings.sourceArtReboundDigest,
     builderCalibrationDigest: bindings.builderCalibrationDigest,
     transitionClassificationsDigest: bindings.transitionClassificationsDigest,
     coverageByCallout,

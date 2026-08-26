@@ -24,7 +24,13 @@ import {
   type RealBuildDiagnosticPrefixSummary,
 } from "./real-build-diagnostic-prefix";
 import { assertRealBuildEnvironment, type RealBuildEnvironment } from "./real-build-environment";
-import { verifyRealBuildReplayClosureData } from "./real-build-replay";
+import {
+  prepareRealBuildReplayVerification,
+  verifyPreparedRealBuildReplayClosureData,
+  type PreparedRealBuildReplayVerification,
+  type PreparedRealBuildReplayVerificationResult,
+} from "./real-build-replay";
+import type { VerifiedRealBuildReplayClosure } from "./real-build-replay-types";
 import {
   parseRealBuildRunContract,
   verifyRealBuildRunContract,
@@ -67,6 +73,11 @@ interface CurrentArtifactManifest {
   readonly artifacts: unknown;
 }
 
+interface BoundCurrentArtifactManifest {
+  readonly bytes: Buffer;
+  readonly value: CurrentArtifactManifest;
+}
+
 const DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/u;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -105,7 +116,7 @@ function assertCurrentManifestShape(
     !REAL_BUILD_RUN_ID_PATTERN.test(value.runId) ||
     (expectedRunId !== undefined && value.runId !== expectedRunId) ||
     !isRecord(value.runContract) ||
-    value.runContract.schemaVersion !== "lego.real-build-run-contract/4" ||
+    value.runContract.schemaVersion !== "lego.real-build-run-contract/5" ||
     !isRecord(value.truthSnapshots) ||
     !hasExactKeys(value.truthSnapshots, [
       "availability",
@@ -133,7 +144,7 @@ function assertCurrentManifestShape(
     !DIGEST_PATTERN.test(String(value.replayClosure.environmentDigest))
   ) {
     throw new TypeError(
-      "Current real-build artifact manifest must be exact schema /4 over run-contract /4.",
+      "Current real-build artifact manifest must be exact schema /4 over run-contract /5.",
     );
   }
   const snapshots = value.truthSnapshots.validationSnapshots;
@@ -154,31 +165,34 @@ function assertCurrentManifestShape(
   }
 }
 
-export function verifyRealBuildArtifactManifest(
+function bindCurrentArtifactManifest(
   directory: string,
   expectedRunId?: string,
-): RealBuildPublicationVerification {
-  const expectedCheckoutRoot = resolve(process.cwd()).replaceAll("\\", "/");
-  const artifactManifestBytes = readContainedBoundedRegularFile(
-    directory,
-    "artifact-manifest.json",
-    {
-      label: "artifact manifest",
-      maximumBytes: MAXIMUM_ARTIFACT_MANIFEST_BYTES,
-    },
-  );
-  const manifest = parseDuplicateFreeRealBuildJson<unknown>(
-    artifactManifestBytes,
-    "current artifact manifest",
-  );
-  assertCurrentManifestShape(manifest, expectedRunId);
+): BoundCurrentArtifactManifest {
+  const bytes = readContainedBoundedRegularFile(directory, "artifact-manifest.json", {
+    label: "artifact manifest",
+    maximumBytes: MAXIMUM_ARTIFACT_MANIFEST_BYTES,
+  });
+  const value = parseDuplicateFreeRealBuildJson<unknown>(bytes, "current artifact manifest");
+  assertCurrentManifestShape(value, expectedRunId);
   assertCanonicalRealBuildJsonBytes(
-    artifactManifestBytes,
-    manifest,
+    bytes,
+    value,
     "current artifact manifest",
     "pretty-one-space-line",
   );
-  const verifiedClosure = verifyRealBuildReplayClosureData(directory);
+  return { bytes, value };
+}
+
+function verifyRealBuildArtifactManifestWithReplay(
+  directory: string,
+  expectedRunId: string | undefined,
+  verifiedClosure: VerifiedRealBuildReplayClosure,
+): RealBuildPublicationVerification {
+  const expectedCheckoutRoot = resolve(process.cwd()).replaceAll("\\", "/");
+  const boundManifest = bindCurrentArtifactManifest(directory, expectedRunId);
+  const artifactManifestBytes = boundManifest.bytes;
+  const manifest = boundManifest.value;
   const closure = verifiedClosure.manifest;
   if (
     closure.manifestDigest !== manifest.replayClosure.manifestDigest ||
@@ -196,11 +210,11 @@ export function verifyRealBuildArtifactManifest(
     verifiedClosure.roleBytes.get("run-contract")!,
   );
   if (
-    retainedContract.schemaVersion !== "lego.real-build-run-contract/4" ||
+    retainedContract.schemaVersion !== "lego.real-build-run-contract/5" ||
     JSON.stringify(retainedContract) !== JSON.stringify(manifest.runContract)
   ) {
     throw new TypeError(
-      "Current artifact manifest requires the exact retained run-contract /4 role.",
+      "Current artifact manifest requires the exact retained run-contract /5 role.",
     );
   }
   const preparedOptions = parseRealBuildPreparedRunInput(
@@ -278,4 +292,99 @@ export function verifyRealBuildArtifactManifest(
     artifactManifestDigest: sha256Digest(artifactManifestBytes),
   };
 }
+
+declare const PREPARED_ARTIFACT_VERIFICATION_BRAND: unique symbol;
+
+/** Opaque full-artifact proof carried across the asynchronous verification handoff. */
+export interface PreparedRealBuildArtifactVerification {
+  readonly [PREPARED_ARTIFACT_VERIFICATION_BRAND]: true;
+}
+
+interface PreparedArtifactVerificationState {
+  readonly replayProof: PreparedRealBuildReplayVerification;
+  readonly verification: RealBuildPublicationVerification;
+}
+
+const preparedArtifactVerificationStates = new WeakMap<
+  PreparedRealBuildArtifactVerification,
+  PreparedArtifactVerificationState
+>();
+
+function prepareArtifactManifestVerificationWithReplay(
+  directory: string,
+  expectedRunId: string | undefined,
+  replay: PreparedRealBuildReplayVerificationResult,
+): {
+  readonly verification: RealBuildPublicationVerification;
+  readonly proof: PreparedRealBuildArtifactVerification;
+} {
+  const verification = verifyRealBuildArtifactManifestWithReplay(
+    directory,
+    expectedRunId,
+    replay.verified,
+  );
+  const proof = Object.freeze({}) as PreparedRealBuildArtifactVerification;
+  preparedArtifactVerificationStates.set(proof, {
+    replayProof: replay.proof,
+    verification,
+  });
+  return { verification, proof };
+}
+
+export function prepareRealBuildArtifactManifestVerification(
+  directory: string,
+  expectedRunId?: string,
+): Promise<{
+  readonly verification: RealBuildPublicationVerification;
+  readonly proof: PreparedRealBuildArtifactVerification;
+}> {
+  bindCurrentArtifactManifest(directory, expectedRunId);
+  return prepareRealBuildReplayVerification(directory).then((replay) => {
+    const verifiedReplay = verifyPreparedRealBuildReplayClosureData(directory, replay.proof);
+    return prepareArtifactManifestVerificationWithReplay(directory, expectedRunId, {
+      ...replay,
+      verified: verifiedReplay,
+    });
+  });
+}
+
+export function verifyPreparedRealBuildArtifactManifest(
+  directory: string,
+  expectedRunId: string,
+  proof: PreparedRealBuildArtifactVerification,
+): RealBuildPublicationVerification {
+  const proofState = preparedArtifactVerificationStates.get(proof);
+  if (proofState === undefined) {
+    throw new TypeError(
+      "Prepared artifact verification must be the private proof returned by the asynchronous retained-PDF verifier.",
+    );
+  }
+  const verifiedClosure = verifyPreparedRealBuildReplayClosureData(
+    directory,
+    proofState.replayProof,
+  );
+  const verification = verifyRealBuildArtifactManifestWithReplay(
+    directory,
+    expectedRunId,
+    verifiedClosure,
+  );
+  if (JSON.stringify(verification) !== JSON.stringify(proofState.verification)) {
+    throw new TypeError(
+      "Artifact publication bindings changed after asynchronous verification; verify the exact retained directory again.",
+    );
+  }
+  return verification;
+}
+
+export function verifyRealBuildArtifactManifest(
+  directory: string,
+  expectedRunId?: string,
+): Promise<RealBuildPublicationVerification> {
+  bindCurrentArtifactManifest(directory, expectedRunId);
+  return prepareRealBuildReplayVerification(directory).then(({ proof }) => {
+    const verifiedClosure = verifyPreparedRealBuildReplayClosureData(directory, proof);
+    return verifyRealBuildArtifactManifestWithReplay(directory, expectedRunId, verifiedClosure);
+  });
+}
+
 import { resolve } from "node:path";

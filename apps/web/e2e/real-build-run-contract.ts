@@ -58,6 +58,7 @@ export const REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST = {
   match: "identification-match",
   distances: "identification-distances",
   elements: "element-resolution",
+  sourceArtRebound: "source-art-rebound",
   cards: "identification-cards",
   cardImages: "identification-card-images",
   answers: "identification-answers",
@@ -67,7 +68,7 @@ export const REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST = {
 /** Retained source text from which replay independently re-derives all 359 panel cells. */
 export const REAL_BUILD_PANEL_SOURCE_ROLE = "panel-source" as const;
 
-export interface RealBuildIdentificationClosureDigests {
+export interface LegacyRealBuildIdentificationClosureDigests {
   readonly source: "deterministic" | "adjudicated";
   readonly features: string;
   readonly match: string;
@@ -80,9 +81,16 @@ export interface RealBuildIdentificationClosureDigests {
   readonly pairJudged: string;
 }
 
-interface RealBuildRunContractFields {
+export interface RealBuildIdentificationClosureDigests extends LegacyRealBuildIdentificationClosureDigests {
+  /** Recomputed raw-PDF relation proof; it is not semantic identity or placement authority by itself. */
+  readonly sourceArtRebound: string;
+}
+
+interface RealBuildRunContractFields<
+  IdentificationClosure extends LegacyRealBuildIdentificationClosureDigests,
+> {
   readonly inputDigests: RealBuildInputDigests;
-  readonly identificationClosure: RealBuildIdentificationClosureDigests;
+  readonly identificationClosure: IdentificationClosure;
   readonly normalizedPanelsDigest: string;
   readonly actionLedger: readonly unknown[];
   readonly actionLedgerDigest: string;
@@ -98,17 +106,17 @@ interface RealBuildRunContractFields {
 }
 
 /** Frozen inspection shape for already-retained generation-2 contract bytes. */
-export interface LegacyRealBuildRunContractV2 extends RealBuildRunContractFields {
+export interface LegacyRealBuildRunContractV2 extends RealBuildRunContractFields<LegacyRealBuildIdentificationClosureDigests> {
   readonly schemaVersion: "lego.real-build-run-contract/2";
 }
 
 /** Frozen inspection shape for pre-prefix generation-3 contract bytes. */
-export interface LegacyRealBuildRunContractV3 extends RealBuildRunContractFields {
+export interface LegacyRealBuildRunContractV3 extends RealBuildRunContractFields<LegacyRealBuildIdentificationClosureDigests> {
   readonly schemaVersion: "lego.real-build-run-contract/3";
 }
 
-/** Current contract generation; only this shape may verify current prepared options. */
-export interface CurrentRealBuildRunContract extends RealBuildRunContractFields {
+/** Frozen inspection shape for the pre-rebound bounded-prefix contract. */
+export interface LegacyRealBuildRunContractV4 extends RealBuildRunContractFields<LegacyRealBuildIdentificationClosureDigests> {
   readonly schemaVersion: "lego.real-build-run-contract/4";
   /** Exact bounded instruction-source bytes used to reconstruct panel geometry during replay. */
   readonly panelSourceDigest: string;
@@ -116,8 +124,20 @@ export interface CurrentRealBuildRunContract extends RealBuildRunContractFields 
   readonly normalizedPassivePanelsDigest: string;
 }
 
+/** Current contract generation; only this shape may verify current prepared options. */
+export interface CurrentRealBuildRunContract extends RealBuildRunContractFields<RealBuildIdentificationClosureDigests> {
+  readonly schemaVersion: "lego.real-build-run-contract/5";
+  /** Exact bounded instruction-source bytes used to reconstruct panel geometry during replay. */
+  readonly panelSourceDigest: string;
+  /** Exact ordered raster-only suffix whose pixels may score the final executable step. */
+  readonly normalizedPassivePanelsDigest: string;
+}
+
 export type RealBuildRunContract =
-  LegacyRealBuildRunContractV2 | LegacyRealBuildRunContractV3 | CurrentRealBuildRunContract;
+  | LegacyRealBuildRunContractV2
+  | LegacyRealBuildRunContractV3
+  | LegacyRealBuildRunContractV4
+  | CurrentRealBuildRunContract;
 
 const REAL_BUILD_RUN_CONTRACT_KEYS = [
   "schemaVersion",
@@ -261,7 +281,7 @@ export function createRealBuildRunContract(input: {
   const executablePanels = selectRealBuildExecutablePanels(input.panels, input.budgets.lastStep!);
   const actionLedger = canonicalClone(normalizedActions(executablePanels));
   const base = canonicalClone({
-    schemaVersion: "lego.real-build-run-contract/4" as const,
+    schemaVersion: "lego.real-build-run-contract/5" as const,
     inputDigests: input.inputDigests,
     identificationClosure: input.identificationClosure,
     panelSourceDigest: input.panelSourceDigest,
@@ -299,13 +319,15 @@ export function parseRealBuildRunContract(bytes: Uint8Array): RealBuildRunContra
     !isRecord(parsedValue) ||
     !hasExactKeys(
       parsedValue,
-      parsedValue.schemaVersion === "lego.real-build-run-contract/4"
+      parsedValue.schemaVersion === "lego.real-build-run-contract/4" ||
+        parsedValue.schemaVersion === "lego.real-build-run-contract/5"
         ? CURRENT_REAL_BUILD_RUN_CONTRACT_KEYS
         : REAL_BUILD_RUN_CONTRACT_KEYS,
     ) ||
     (parsedValue.schemaVersion !== "lego.real-build-run-contract/2" &&
       parsedValue.schemaVersion !== "lego.real-build-run-contract/3" &&
-      parsedValue.schemaVersion !== "lego.real-build-run-contract/4") ||
+      parsedValue.schemaVersion !== "lego.real-build-run-contract/4" &&
+      parsedValue.schemaVersion !== "lego.real-build-run-contract/5") ||
     typeof parsedValue.contractDigest !== "string" ||
     !/^sha256:[0-9a-f]{64}$/u.test(parsedValue.contractDigest) ||
     (parsedValue.schemaVersion === "lego.real-build-run-contract/2"
@@ -323,10 +345,12 @@ export function parseRealBuildRunContract(bytes: Uint8Array): RealBuildRunContra
     !isRecord(parsedValue.codeSnapshots) ||
     typeof parsedValue.normalizedPanelsDigest !== "string" ||
     !/^sha256:[0-9a-f]{64}$/u.test(parsedValue.normalizedPanelsDigest) ||
-    (parsedValue.schemaVersion === "lego.real-build-run-contract/4" &&
+    ((parsedValue.schemaVersion === "lego.real-build-run-contract/4" ||
+      parsedValue.schemaVersion === "lego.real-build-run-contract/5") &&
       (typeof parsedValue.panelSourceDigest !== "string" ||
         !/^sha256:[0-9a-f]{64}$/u.test(parsedValue.panelSourceDigest))) ||
-    (parsedValue.schemaVersion === "lego.real-build-run-contract/4" &&
+    ((parsedValue.schemaVersion === "lego.real-build-run-contract/4" ||
+      parsedValue.schemaVersion === "lego.real-build-run-contract/5") &&
       (typeof parsedValue.normalizedPassivePanelsDigest !== "string" ||
         !/^sha256:[0-9a-f]{64}$/u.test(parsedValue.normalizedPassivePanelsDigest))) ||
     typeof parsedValue.actionLedgerDigest !== "string" ||
@@ -335,12 +359,20 @@ export function parseRealBuildRunContract(bytes: Uint8Array): RealBuildRunContra
     throw new TypeError("Retained real-build run contract has a malformed schema.");
   }
   const parsed = parsedValue as unknown as RealBuildRunContract;
-  if (parsed.schemaVersion === "lego.real-build-run-contract/4") {
-    assertCanonicalRealBuildJsonBytes(bytes, parsed, "retained current real-build run contract /4");
+  if (
+    parsed.schemaVersion === "lego.real-build-run-contract/4" ||
+    parsed.schemaVersion === "lego.real-build-run-contract/5"
+  ) {
+    assertCanonicalRealBuildJsonBytes(
+      bytes,
+      parsed,
+      `retained canonical real-build run contract ${parsed.schemaVersion.slice(-2)}`,
+    );
   }
   const { contractDigest, ...base } = parsed;
   const reproducedDigest =
-    parsed.schemaVersion === "lego.real-build-run-contract/4"
+    parsed.schemaVersion === "lego.real-build-run-contract/4" ||
+    parsed.schemaVersion === "lego.real-build-run-contract/5"
       ? sha256(canonicalStringify(base))
       : sha256(JSON.stringify(base));
   if (reproducedDigest !== contractDigest) {
@@ -365,7 +397,8 @@ export function verifyRealBuildRunContractRoleDigests(
     }
   }
   if (
-    contract.schemaVersion === "lego.real-build-run-contract/4" &&
+    (contract.schemaVersion === "lego.real-build-run-contract/4" ||
+      contract.schemaVersion === "lego.real-build-run-contract/5") &&
     roleDigests[REAL_BUILD_PANEL_SOURCE_ROLE] !== contract.panelSourceDigest
   ) {
     throw new TypeError(
@@ -380,6 +413,9 @@ export function verifyRealBuildRunContractRoleDigests(
     !/^sha256:[0-9a-f]{64}$/u.test(identification.distances) ||
     !/^sha256:[0-9a-f]{64}$/u.test(identification.elements) ||
     !/^sha256:[0-9a-f]{64}$/u.test(identification.pairJudged) ||
+    (contract.schemaVersion === "lego.real-build-run-contract/5" &&
+      (!("sourceArtRebound" in identification) ||
+        !/^sha256:[0-9a-f]{64}$/u.test(identification.sourceArtRebound))) ||
     (identification.source === "deterministic" &&
       (identification.cards !== null ||
         identification.cardImages !== null ||
@@ -393,13 +429,29 @@ export function verifyRealBuildRunContractRoleDigests(
       "Run contract identification closure must contain mandatory raw digests and source-exact conditional adjudication digests.",
     );
   }
-  for (const key of ["features", "match", "distances", "elements", "pairJudged"] as const) {
+  const mandatoryDigestKeys = ["features", "match", "distances", "elements", "pairJudged"] as const;
+  for (const key of mandatoryDigestKeys) {
     const role = REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST[key];
     if (identification[key] !== roleDigests[role]) {
       throw new TypeError(
         `Run contract identification ${key} digest is not bound to retained raw role ${role}.`,
       );
     }
+  }
+  if (contract.schemaVersion === "lego.real-build-run-contract/5") {
+    const role = REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.sourceArtRebound;
+    if (
+      !("sourceArtRebound" in identification) ||
+      identification.sourceArtRebound !== roleDigests[role]
+    ) {
+      throw new TypeError(
+        `Run contract identification sourceArtRebound digest is not bound to retained raw role ${role}.`,
+      );
+    }
+  } else if (REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.sourceArtRebound in roleDigests) {
+    throw new TypeError(
+      `Legacy run contract ${contract.schemaVersion} must omit the future retained raw role ${REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.sourceArtRebound}.`,
+    );
   }
   for (const key of ["cards", "cardImages", "answers"] as const) {
     const role = REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST[key];
@@ -470,11 +522,11 @@ export function verifyRealBuildRunContract(input: {
   readonly roleDigests: Readonly<Record<string, string>>;
   readonly sourceFiles: readonly RealBuildSourceSnapshot[];
 }): void {
-  if (input.contract.schemaVersion !== "lego.real-build-run-contract/4") {
+  if (input.contract.schemaVersion !== "lego.real-build-run-contract/5") {
     throw new TypeError(
-      "Current prepared real-build options cannot verify against retained run-contract /2 or /3 " +
-        "bytes; generations 2 and 3 are frozen for parsing and inspection only, while current " +
-        "generation requires run-contract /4 prefix semantics.",
+      "Current prepared real-build options cannot verify against retained run-contract /2, /3, or /4 " +
+        "bytes; generations 2 through 4 are frozen for parsing and inspection only, while current " +
+        "generation requires run-contract /5 source-art rebound semantics.",
     );
   }
   assertRealBuildRetainedActionPrefix({ contract: input.contract, options: input.options });
@@ -511,7 +563,7 @@ export function verifyRealBuildRunContract(input: {
     ) {
       throw new TypeError(
         "Prepared measured farther-origin source attestation does not reproduce from both " +
-          "run-contract /4 codeSnapshots and the exact retained source bundle.",
+          "run-contract /5 codeSnapshots and the exact retained source bundle.",
       );
     }
   }

@@ -4,6 +4,7 @@ import {
   assembleRealBuildActionLedger,
   emittedRealBuildActionLedger,
   encodeRealBuildActionLedger,
+  MAXIMUM_REAL_BUILD_ACTION_LEDGER_REQUESTED_LAST_STEP,
   type AssembledRealBuildActionLedger,
   type EmittedRealBuildActionLedger,
 } from "./real-build-action-ledger";
@@ -27,6 +28,7 @@ import {
   readBinaryInput,
   readIdentificationAdjudicationInputs,
   readJsonArtifact,
+  SOURCE_ART_REBOUND_PATH,
   TRANSITION_CLASSIFICATIONS_PATH,
   type CalloutManifest,
   type CalloutResolution,
@@ -41,7 +43,6 @@ import {
 } from "./real-build-ledger";
 import { deriveRealBuildPanelEvidence } from "./real-build-panel-evidence";
 import { REAL_BUILD_PRODUCTION_EXPECTED_PRINTED_STEPS } from "./real-build-production-policy";
-import { parseRealBuildRequestedLastStep } from "./real-build-requested-last-step";
 import { readTransitionClassificationBundle } from "./real-build-transition-classification";
 import type { StepFailure } from "./real-build-safety";
 
@@ -91,11 +92,12 @@ export function requirePublishableRealBuildActionLedger(
   if (
     !Number.isSafeInteger(compiled.requestedLastStep) ||
     compiled.requestedLastStep < 1 ||
-    compiled.requestedLastStep > REAL_BUILD_ACTION_LEDGER_PRINTED_STEPS
+    compiled.requestedLastStep > MAXIMUM_REAL_BUILD_ACTION_LEDGER_REQUESTED_LAST_STEP
   ) {
     throw new TypeError(
       `Refusing to publish an action ledger with invalid requestedLastStep ` +
         `${JSON.stringify(compiled.requestedLastStep)}; expected one safe integer from 1 through ` +
+        `${MAXIMUM_REAL_BUILD_ACTION_LEDGER_REQUESTED_LAST_STEP} while the source/index contract remains ` +
         `${REAL_BUILD_ACTION_LEDGER_PRINTED_STEPS}, and no ledger file was written.`,
     );
   }
@@ -119,7 +121,7 @@ export function requirePublishableRealBuildActionLedger(
   const shape = preflightRealBuildActionLedger(compiled.emitted);
   if (shape.failure !== null) {
     throw new TypeError(
-      `Refusing to publish an action ledger outside the closed current /3 schema: ` +
+      `Refusing to publish an action ledger outside the closed current /4 schema: ` +
         `${shape.failure.message} No ledger file was written.`,
     );
   }
@@ -127,7 +129,7 @@ export function requirePublishableRealBuildActionLedger(
   if (!canonicalBytes.equals(Buffer.from(compiled.encoded))) {
     throw new TypeError(
       `Refusing to publish action-ledger bytes that are not the exact canonical re-encoding of the ` +
-        `closed current /3 object; no ledger file was written.`,
+        `closed current /4 object; no ledger file was written.`,
     );
   }
   const boundaryFailures = realBuildActionLedgerCurrentPrefixFailures({
@@ -139,7 +141,7 @@ export function requirePublishableRealBuildActionLedger(
   });
   if (boundaryFailures.length > 0) {
     throw new TypeError(
-      `Refusing to publish an action ledger outside the current closed /3 prefix contract: ` +
+      `Refusing to publish an action ledger outside the current closed /4 prefix contract: ` +
         `${boundaryFailures[0]} No ledger file was written.`,
     );
   }
@@ -166,14 +168,11 @@ export function requirePublishableRealBuildActionLedger(
 }
 
 export function requireRealBuildActionLedgerRequestedLastStep(value: unknown): number {
-  if (
-    !Number.isSafeInteger(value) ||
-    (value as number) < 1 ||
-    (value as number) > REAL_BUILD_ACTION_LEDGER_PRINTED_STEPS
-  ) {
+  if (!Number.isSafeInteger(value) || (value as number) < 1 || (value as number) > 50) {
     throw new TypeError(
       `Action-ledger compiler requestedLastStep must be a safe integer from 1 through ` +
-        `${REAL_BUILD_ACTION_LEDGER_PRINTED_STEPS}; received ${JSON.stringify(value)}.`,
+        `50 while the source/index contract remains ${REAL_BUILD_ACTION_LEDGER_PRINTED_STEPS}; received ` +
+        `${JSON.stringify(value)}.`,
     );
   }
   return value as number;
@@ -192,7 +191,21 @@ export function requireRealBuildActionLedgerCoveragePrefix(
   );
 }
 
-export const parseRealBuildActionLedgerRequestedLastStep = parseRealBuildRequestedLastStep;
+export function parseRealBuildActionLedgerRequestedLastStep(value: string | undefined): number {
+  const boundedValue =
+    value === undefined
+      ? "missing"
+      : JSON.stringify(value.length <= 80 ? value : `${value.slice(0, 80)}...`);
+  if (value === undefined || !/^[1-9][0-9]?$/u.test(value)) {
+    throw new TypeError(
+      `LEGO_REAL_BUILD_LAST_STEP must be set explicitly to an integer from 1 through ` +
+        `${MAXIMUM_REAL_BUILD_ACTION_LEDGER_REQUESTED_LAST_STEP} while the source/index contract remains ` +
+        `${REAL_BUILD_ACTION_LEDGER_PRINTED_STEPS}; no implicit full-booklet prefix is selected. ` +
+        `Received ${boundedValue}.`,
+    );
+  }
+  return requireRealBuildActionLedgerRequestedLastStep(Number(value));
+}
 
 export interface CompileRealBuildActionLedgerOptions {
   readonly requestedLastStep: number;
@@ -221,6 +234,7 @@ export async function compileRealBuildActionLedger(
   const distancesInput = readJsonArtifact<unknown>(IDENTIFICATION_DISTANCES_PATH, inputFailures);
   const elementsInput = readJsonArtifact<unknown>(ELEMENT_RESOLUTION_PATH, inputFailures);
   const pairJudgedInput = readJsonArtifact<unknown>(PAIR_JUDGED_TRUTH_PATH, inputFailures);
+  const sourceArtReboundInput = readJsonArtifact<unknown>(SOURCE_ART_REBOUND_PATH, inputFailures);
   const officialModelBytes = readBinaryInput(OFFICIAL_MODEL_PATH, inputFailures);
   const builderGeometryBytes = readBinaryInput(BUILDER_GEOMETRY_PATH, inputFailures);
   const mode = identifyRealBuildIdentificationMode(coverageInput, requestedLastStep);
@@ -238,6 +252,7 @@ export async function compileRealBuildActionLedger(
     pdfDigest: sha256Digest(pdfBytes),
     coverageDigest: coverageInput.digest,
     calloutManifestDigest: manifestInput.digest,
+    sourceArtReboundDigest: sourceArtReboundInput.digest,
     builderCalibrationDigest: builderCalibrationInput.digest,
     transitionClassificationsDigest: transitionInput.digest,
   };
@@ -262,9 +277,11 @@ export async function compileRealBuildActionLedger(
         `steps cannot be reused: ${transitions.rejections.slice(0, 8).join(" ")}`,
     );
   }
-  const reproducedCoverage = verifyRealBuildIdentificationClosure({
+  const reproducedCoverage = (await verifyRealBuildIdentificationClosure({
     coverage: coverageInput,
+    pdf: { bytes: pdfBytes, digest: bindings.pdfDigest },
     manifest: manifestInput,
+    sourceArtRebound: sourceArtReboundInput,
     features: featuresInput,
     match: matchInput,
     distances: distancesInput,
@@ -274,7 +291,7 @@ export async function compileRealBuildActionLedger(
     elementResolution: elementsInput,
     pairJudged: pairJudgedInput,
     requestedLastStep,
-  }) as { readonly byCallout?: unknown };
+  })) as { readonly byCallout?: unknown };
   const rawIndex = reproducedCoverage.byCallout;
   if (typeof rawIndex !== "object" || rawIndex === null || Array.isArray(rawIndex)) {
     throw new TypeError(
@@ -322,6 +339,7 @@ export async function compileRealBuildActionLedger(
           pdfDigest: bindings.pdfDigest,
           coverageDigest: bindings.coverageDigest,
           calloutManifestDigest: bindings.calloutManifestDigest,
+          sourceArtReboundDigest: bindings.sourceArtReboundDigest,
           builderCalibrationDigest: bindings.builderCalibrationDigest,
           transitionClassificationsDigest: bindings.transitionClassificationsDigest,
           coverageByCallout,

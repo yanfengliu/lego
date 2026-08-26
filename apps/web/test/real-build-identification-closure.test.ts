@@ -112,10 +112,7 @@ function goldenArtifact(role: keyof typeof SYNTHETIC_IDENTIFICATION_GOLDEN): Raw
   };
 }
 
-function closureFixture(): {
-  readonly input: RealBuildIdentificationClosureInput;
-  readonly manifestExpectation: unknown;
-} {
+async function closureFixture() {
   const identity = "p11|q1|x43.074|y486.271";
   const pdfDigest = sha256Digest("synthetic-booklet");
   const identitySetDigest = sha256Digest(identity);
@@ -299,6 +296,59 @@ function closureFixture(): {
     verdicts: [],
     unjudgeable: [],
   });
+  const pdf = {
+    bytes: Buffer.from("synthetic-booklet"),
+    digest: pdfDigest,
+  };
+  const sourceArtRebound = artifact({ schemaVersion: "test.source-art-rebound-bytes/1" });
+  const sourceArtMembers = Object.freeze([
+    Object.freeze({
+      identity: "p11|q1|x90.511|y212.112",
+      stepNumber: 2,
+      cropSha256: sha256Digest("source-art-step-2"),
+    }),
+    Object.freeze({
+      identity: "p11|q1|x506.064|y212.112",
+      stepNumber: 4,
+      cropSha256: sha256Digest("source-art-step-4"),
+    }),
+    Object.freeze({
+      identity: "p20|q1|x36.320|y430.691",
+      stepNumber: 16,
+      cropSha256: sha256Digest("source-art-step-16"),
+    }),
+  ]);
+  const sourceArtProjection = Object.freeze({
+    schemaVersion: "lego.part-identification-source-art-rebound/1",
+    artifactSha256: sourceArtRebound.digest,
+    reference: sourceArtMembers[1],
+    members: sourceArtMembers,
+  });
+  const verifiedSourceArt = new WeakSet<object>();
+  const sourceArtReboundVerifier = Object.freeze({
+    async verify(input: {
+      artifactBytes: Uint8Array;
+      pdfBytes: Uint8Array;
+      manifestBytes: Uint8Array;
+    }) {
+      if (
+        sha256Digest(input.artifactBytes) !== sourceArtRebound.digest ||
+        sha256Digest(input.pdfBytes) !== pdf.digest ||
+        sha256Digest(input.manifestBytes) !== manifest.digest
+      ) {
+        throw new Error("Synthetic source-art verifier received detached raw bytes.");
+      }
+      const token = Object.freeze({ kind: "verified-test-source-art-rebound" });
+      verifiedSourceArt.add(token);
+      return token;
+    },
+    inspect(token: object) {
+      if (!verifiedSourceArt.has(token)) {
+        throw new Error("Synthetic source-art verifier requires its private token.");
+      }
+      return sourceArtProjection;
+    },
+  });
   const compilerInput = {
     manifestBytes: manifest.bytes,
     featuresArtifact: features,
@@ -311,61 +361,111 @@ function closureFixture(): {
     traceArtifacts,
     elementsArtifact: elementResolution,
     pairJudgedArtifact: pairJudged,
+    sourceArtReboundArtifact: sourceArtRebound,
+    pdfBytes: pdf.bytes,
     source: "adjudicated" as const,
     model: PART_IDENTIFICATION_MODEL_ID,
     assignment: "nearest" as const,
     lastStep: 1,
   };
-  const coverageValue = coverageTestOnly.compileBookletCatalogCoverageClosure(
-    compilerInput,
-    manifestExpectation,
-  );
+  const [coverageValue, legacyCoverageValue] = await Promise.all([
+    coverageTestOnly.compileBookletCatalogCoverageClosure(
+      compilerInput,
+      manifestExpectation,
+      sourceArtReboundVerifier,
+    ),
+    coverageTestOnly.compileBookletCatalogCoverageClosureV2(compilerInput, manifestExpectation),
+  ]);
   const coverage = artifact(coverageValue);
+  const legacyCoverage = artifact(legacyCoverageValue);
+  const commonInput = {
+    manifest,
+    features,
+    match,
+    distances,
+    cards,
+    cardImages,
+    answers,
+    traceRoot: null,
+    traceArtifacts,
+    elementResolution,
+    pairJudged,
+    requestedLastStep: 1,
+  };
   return {
     manifestExpectation,
     input: {
+      ...commonInput,
       coverage,
-      manifest,
-      features,
-      match,
-      distances,
-      cards,
-      cardImages,
-      answers,
-      traceRoot: null,
-      traceArtifacts,
-      elementResolution,
-      pairJudged,
-      requestedLastStep: 1,
+      pdf,
+      sourceArtRebound,
     },
+    legacyInput: {
+      ...commonInput,
+      coverage: legacyCoverage,
+      pdf: null,
+      sourceArtRebound: null,
+    } satisfies RealBuildIdentificationClosureInput,
+    sourceArtReboundVerifier,
   };
 }
 
 describe("real-build identification closure", () => {
-  it("binds the exact retained card-image bytes and digest for adjudicated coverage", () => {
-    const fixture = closureFixture();
+  it("binds the exact retained card-image bytes and digest for adjudicated coverage", async () => {
+    const fixture = await closureFixture();
     const prepared = prepareRealBuildIdentificationClosure(fixture.input);
 
     expect(prepared.cardImagesArtifact).toEqual(fixture.input.cardImages);
     expect(prepared.traceRoot).toBeNull();
     expect(prepared.traceArtifacts).toBe(fixture.input.traceArtifacts);
-    expect(() =>
-      coverageTestOnly.verifyBookletCatalogCoverageClosure(prepared, fixture.manifestExpectation),
-    ).not.toThrow();
+    await expect(
+      coverageTestOnly.verifyBookletCatalogCoverageClosure(
+        prepared,
+        fixture.manifestExpectation,
+        fixture.sourceArtReboundVerifier,
+      ),
+    ).resolves.toBeDefined();
   });
+
+  it.each(["pdf", "sourceArtRebound"] as const)(
+    "requires the current coverage/3 %s role",
+    async (role) => {
+      const fixture = await closureFixture();
+      expect(() =>
+        prepareRealBuildIdentificationClosure({ ...fixture.input, [role]: null }),
+      ).toThrow(
+        /coverage\/3 requires the exact retained instruction-booklet PDF and source-art-rebound/u,
+      );
+    },
+  );
+
+  it.each(["pdf", "sourceArtRebound"] as const)(
+    "does not reinterpret frozen coverage/2 when the new %s role is supplied",
+    async (role) => {
+      const fixture = await closureFixture();
+      expect(() =>
+        prepareRealBuildIdentificationClosure({
+          ...fixture.legacyInput,
+          [role]: fixture.input[role],
+        }),
+      ).toThrow(
+        /Frozen catalog coverage\/2 must omit instruction-booklet PDF and source-art-rebound/u,
+      );
+    },
+  );
 
   it.each(["cards", "cardImages", "answers"] as const)(
     "requires the adjudicated %s role together with the other two roles",
-    (role) => {
-      const fixture = closureFixture();
+    async (role) => {
+      const fixture = await closureFixture();
       expect(() =>
         prepareRealBuildIdentificationClosure({ ...fixture.input, [role]: null }),
       ).toThrow(/requires exact retained.*all three roles/u);
     },
   );
 
-  it("authenticates the generation-local match schema before requiring the /5 proof trace", () => {
-    const fixture = closureFixture();
+  it("authenticates the generation-local match schema before requiring the /5 proof trace", async () => {
+    const fixture = await closureFixture();
     const legacyMatch = artifact({
       ...(fixture.input.match.value as Record<string, unknown>),
       schemaVersion: "lego.part-identification-match/2",
@@ -376,26 +476,28 @@ describe("real-build identification closure", () => {
       traceArtifacts: null,
     } satisfies RealBuildIdentificationClosureInput;
 
-    expect(() =>
+    await expect(
       coverageTestOnly.verifyBookletCatalogCoverageClosure(
         prepareRealBuildIdentificationClosure({ ...withoutTrace, match: legacyMatch }),
         fixture.manifestExpectation,
+        fixture.sourceArtReboundVerifier,
       ),
-    ).toThrow(
+    ).rejects.toThrow(
       /Part-identification match must use lego\.part-identification-match\/3[\s\S]*received schemaVersion="lego\.part-identification-match\/2"/u,
     );
-    expect(() =>
+    await expect(
       coverageTestOnly.verifyBookletCatalogCoverageClosure(
         prepareRealBuildIdentificationClosure(withoutTrace),
         fixture.manifestExpectation,
+        fixture.sourceArtReboundVerifier,
       ),
-    ).toThrow(/Answer checkpoint lineage requires its exact retained output root/u);
+    ).rejects.toThrow(/Answer checkpoint lineage requires its exact retained output root/u);
   });
 
   it.each(["cards", "cardImages", "answers"] as const)(
     "rejects a deterministic closure that smuggles the %s role",
-    (role) => {
-      const fixture = closureFixture();
+    async (role) => {
+      const fixture = await closureFixture();
       const deterministic = {
         coverage: goldenArtifact("coverage"),
         manifest: goldenArtifact("manifest"),
@@ -413,8 +515,8 @@ describe("real-build identification closure", () => {
     },
   );
 
-  it("rejects card-image bytes or a digest that does not bind those exact bytes", () => {
-    const fixture = closureFixture();
+  it("rejects card-image bytes or a digest that does not bind those exact bytes", async () => {
+    const fixture = await closureFixture();
     expect(() =>
       prepareRealBuildIdentificationClosure({
         ...fixture.input,
@@ -432,9 +534,9 @@ describe("real-build identification closure", () => {
     ).toThrow(/Identification card images declares digest.*bounded bytes hash/u);
   });
 
-  it("keeps the real-build entrypoint pinned to the complete official manifest", () => {
-    const fixture = closureFixture();
-    expect(() => verifyRealBuildIdentificationClosure(fixture.input)).toThrow(
+  it("keeps the real-build entrypoint pinned to the complete official manifest", async () => {
+    const fixture = await closureFixture();
+    await expect(verifyRealBuildIdentificationClosure(fixture.legacyInput)).rejects.toThrow(
       /not the independently pinned full-booklet publication/u,
     );
   });
@@ -443,8 +545,8 @@ describe("real-build identification closure", () => {
     ["coverage", "coverage"],
     ["features", "features"],
     ["element resolution", "elementResolution"],
-  ] as const)("rejects a %s byte edit with independently retained fields", (_label, role) => {
-    const fixture = closureFixture();
+  ] as const)("rejects a %s byte edit with independently retained fields", async (_label, role) => {
+    const fixture = await closureFixture();
     expect(() =>
       prepareRealBuildIdentificationClosure({
         ...fixture.input,
@@ -457,8 +559,8 @@ describe("real-build identification closure", () => {
     ["coverage", "coverage"],
     ["features", "features"],
     ["element resolution", "elementResolution"],
-  ] as const)("rejects an independently forged %s digest", (_label, role) => {
-    const fixture = closureFixture();
+  ] as const)("rejects an independently forged %s digest", async (_label, role) => {
+    const fixture = await closureFixture();
     expect(() =>
       prepareRealBuildIdentificationClosure({
         ...fixture.input,
@@ -471,8 +573,8 @@ describe("real-build identification closure", () => {
     ["coverage", "coverage"],
     ["features", "features"],
     ["element resolution", "elementResolution"],
-  ] as const)("rejects an independently forged %s parsed value", (_label, role) => {
-    const fixture = closureFixture();
+  ] as const)("rejects an independently forged %s parsed value", async (_label, role) => {
+    const fixture = await closureFixture();
     expect(() =>
       prepareRealBuildIdentificationClosure({
         ...fixture.input,
@@ -481,8 +583,8 @@ describe("real-build identification closure", () => {
     ).toThrow(/supplied value does not equal the value parsed from its bounded bytes/u);
   });
 
-  it("rejects malformed strict UTF-8 JSON before consulting declared artifact fields", () => {
-    const fixture = closureFixture();
+  it("rejects malformed strict UTF-8 JSON before consulting declared artifact fields", async () => {
+    const fixture = await closureFixture();
     const bytes = Buffer.from([0xff]);
     expect(() =>
       prepareRealBuildIdentificationClosure({
@@ -492,8 +594,8 @@ describe("real-build identification closure", () => {
     ).toThrow(/strict UTF-8 JSON/u);
   });
 
-  it("attributes stale /5 match, cards, and prompt bindings to the answer role", () => {
-    const fixture = closureFixture();
+  it("attributes stale /5 match, cards, and prompt bindings to the answer role", async () => {
+    const fixture = await closureFixture();
     const staleAnswers = artifact({
       ...(fixture.input.answers!.value as Record<string, unknown>),
       matchDigest: sha256Digest("stale-match"),
@@ -502,12 +604,13 @@ describe("real-build identification closure", () => {
     });
     let failure: unknown;
     try {
-      coverageTestOnly.verifyBookletCatalogCoverageClosure(
+      await coverageTestOnly.verifyBookletCatalogCoverageClosure(
         prepareRealBuildIdentificationClosure({
           ...fixture.input,
           answers: staleAnswers,
         }),
         fixture.manifestExpectation,
+        fixture.sourceArtReboundVerifier,
       );
     } catch (error) {
       failure = attributeRealBuildIdentificationClosureError(error);
@@ -525,22 +628,23 @@ describe("real-build identification closure", () => {
     );
   });
 
-  it("rejects a locally rehashed confidence edit", () => {
-    const fixture = closureFixture();
+  it("rejects a locally rehashed confidence edit", async () => {
+    const fixture = await closureFixture();
     const forgedValue = structuredClone(fixture.input.coverage.value) as {
       byCallout: Record<string, { identificationConfidence: string }>;
     };
     const identity = Object.keys(forgedValue.byCallout)[0]!;
     forgedValue.byCallout[identity]!.identificationConfidence = "self-contradicted";
-    expect(() =>
+    await expect(
       coverageTestOnly.verifyBookletCatalogCoverageClosure(
         prepareRealBuildIdentificationClosure({
           ...fixture.input,
           coverage: artifact(forgedValue),
         }),
         fixture.manifestExpectation,
+        fixture.sourceArtReboundVerifier,
       ),
-    ).toThrow(/rehashed confidence or resolution edit/u);
+    ).rejects.toThrow(/rehashed confidence or resolution edit/u);
   });
 
   it.each([
@@ -550,8 +654,8 @@ describe("real-build identification closure", () => {
     ["compiled prefix", { lastStep: 0 }],
     ["beyond-booklet prefix", { lastStep: 360 }],
     ["unsafe prefix", { lastStep: Number.MAX_SAFE_INTEGER + 1 }],
-  ])("rejects an invalid %s declaration before compiling", (_label, identificationEdit) => {
-    const fixture = closureFixture();
+  ])("rejects an invalid %s declaration before compiling", async (_label, identificationEdit) => {
+    const fixture = await closureFixture();
     const coverageValue = structuredClone(fixture.input.coverage.value) as {
       identification: Record<string, unknown>;
       lastStep: number;
@@ -571,16 +675,16 @@ describe("real-build identification closure", () => {
 
   it.each([0, 360, Number.MAX_SAFE_INTEGER + 1])(
     "rejects requestedLastStep outside the real 1..359 booklet at %s",
-    (requestedLastStep) => {
-      const fixture = closureFixture();
+    async (requestedLastStep) => {
+      const fixture = await closureFixture();
       expect(() =>
         prepareRealBuildIdentificationClosure({ ...fixture.input, requestedLastStep }),
       ).toThrow(/Requested identification prefix must be a safe integer from 1 through 359/u);
     },
   );
 
-  it("rejects broader retained coverage instead of filtering and republishing its tail", () => {
-    const fixture = closureFixture();
+  it("rejects broader retained coverage instead of filtering and republishing its tail", async () => {
+    const fixture = await closureFixture();
     const coverageValue = structuredClone(fixture.input.coverage.value) as Record<string, unknown>;
     coverageValue.lastStep = 359;
 
@@ -604,8 +708,8 @@ describe("real-build identification closure", () => {
     [1n, "1n"],
   ])(
     "reports hostile requestedLastStep %s without losing or serializing it",
-    (requestedLastStep, expected) => {
-      const fixture = closureFixture();
+    async (requestedLastStep, expected) => {
+      const fixture = await closureFixture();
       let message = "";
       try {
         prepareRealBuildIdentificationClosure({
@@ -626,17 +730,23 @@ describe("real-build identification closure", () => {
     [true, "true"],
     [[], "Array(length=0)"],
     [{ unexpected: true }, "Object(keys=1)"],
-  ])("reports hostile compiled-prefix value %s before authentication", (lastStep, expected) => {
-    const fixture = closureFixture();
-    const coverageValue = structuredClone(fixture.input.coverage.value) as Record<string, unknown>;
-    coverageValue.lastStep = lastStep;
-    const coverage = artifact(coverageValue);
-    let message = "";
-    try {
-      prepareRealBuildIdentificationClosure({ ...fixture.input, coverage });
-    } catch (error) {
-      message = error instanceof Error ? error.message : String(error);
-    }
-    expect(message).toContain(`lastStep=${expected}`);
-  });
+  ])(
+    "reports hostile compiled-prefix value %s before authentication",
+    async (lastStep, expected) => {
+      const fixture = await closureFixture();
+      const coverageValue = structuredClone(fixture.input.coverage.value) as Record<
+        string,
+        unknown
+      >;
+      coverageValue.lastStep = lastStep;
+      const coverage = artifact(coverageValue);
+      let message = "";
+      try {
+        prepareRealBuildIdentificationClosure({ ...fixture.input, coverage });
+      } catch (error) {
+        message = error instanceof Error ? error.message : String(error);
+      }
+      expect(message).toContain(`lastStep=${expected}`);
+    },
+  );
 });

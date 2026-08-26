@@ -22,6 +22,7 @@ const TOP_LEVEL_KEYS = [
   "officialModelDigest",
   "coverageDigest",
   "calloutManifestDigest",
+  "sourceArtReboundDigest",
   "builderCalibrationDigest",
   "transitionClassificationsDigest",
   "steps",
@@ -59,7 +60,7 @@ class LedgerShapeError extends Error {}
 
 function recordKeys(value: unknown, label: string): readonly PropertyKey[] {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new LedgerShapeError(`${label} must be a current /3 JSON object.`);
+    throw new LedgerShapeError(`${label} must be a current /4 JSON object.`);
   }
   try {
     return Reflect.ownKeys(value);
@@ -78,7 +79,7 @@ function exactRecord(
     keys.length !== expectedKeys.length ||
     keys.some((key) => typeof key !== "string" || !expectedKeys.includes(key))
   ) {
-    throw new LedgerShapeError(`${label} must contain exactly its current /3 fields.`);
+    throw new LedgerShapeError(`${label} must contain exactly its current /4 fields.`);
   }
   const values: Record<string, unknown> = {};
   for (const key of expectedKeys) {
@@ -98,7 +99,7 @@ function exactRecord(
 
 function ownDataValue(value: unknown, key: string, label: string): unknown {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new LedgerShapeError(`${label} must be a current /3 JSON object.`);
+    throw new LedgerShapeError(`${label} must be a current /4 JSON object.`);
   }
   let descriptor: PropertyDescriptor | undefined;
   try {
@@ -150,7 +151,7 @@ function arrayValues(
     keys.length !== expectedKeys.length ||
     keys.some((key) => typeof key !== "string" || !expectedKeys.includes(key))
   ) {
-    throw new LedgerShapeError(`${label} must contain only dense current /3 array entries.`);
+    throw new LedgerShapeError(`${label} must contain only dense current /4 array entries.`);
   }
   return expectedKeys.slice(0, -1).map((key) => {
     let descriptor: PropertyDescriptor | undefined;
@@ -225,10 +226,11 @@ function pieceValue(
   if (
     confidence !== "vision-kept" &&
     confidence !== "pair-judged-same" &&
+    confidence !== "source-art-rebound" &&
     confidence !== "official-model"
   ) {
     throw new LedgerShapeError(
-      `${label}.identificationConfidence ${JSON.stringify(confidence)} is outside the /3 enum.`,
+      `${label}.identificationConfidence ${JSON.stringify(confidence)} is outside the /4 enum.`,
     );
   }
   const brickRef = boundedString(piece.brickRef, `${label}.brickRef`, 256);
@@ -335,7 +337,7 @@ function actionValue(value: unknown, label: string, counters: ShapeCounters): Le
       action.transition !== "attachment" &&
       action.transition !== "final-view"
     ) {
-      throw new LedgerShapeError(`${label}.transition is outside the /3 enum.`);
+      throw new LedgerShapeError(`${label}.transition is outside the /4 enum.`);
     }
     return {
       kind: "transition",
@@ -346,7 +348,7 @@ function actionValue(value: unknown, label: string, counters: ShapeCounters): Le
       ),
     };
   }
-  throw new LedgerShapeError(`${label}.kind is outside the current /3 action union.`);
+  throw new LedgerShapeError(`${label}.kind is outside the current /4 action union.`);
 }
 
 function stepValue(value: unknown, index: number, counters: ShapeCounters): LedgerStep {
@@ -424,20 +426,20 @@ function provenanceValue(value: unknown): RealBuildActionLedgerProvenance {
     expectedPrintedSteps: whole(
       provenance.expectedPrintedSteps,
       "Action ledger provenance.expectedPrintedSteps",
-      1,
+      359,
       359,
     ) as 359,
     requestedLastStep: whole(
       provenance.requestedLastStep,
       "Action ledger provenance.requestedLastStep",
       1,
-      359,
+      50,
     ),
     alignedThroughStep: whole(
       provenance.alignedThroughStep,
       "Action ledger provenance.alignedThroughStep",
       1,
-      359,
+      50,
     ),
     stopReason: boundedString(provenance.stopReason, "Action ledger provenance.stopReason", 16_384),
     directPieceCount: whole(
@@ -463,7 +465,7 @@ const limitFailure = (message: string): StepFailure => ({
   message,
 });
 
-/** Rebuilds only a closed descriptor-safe /3 ledger before semantic admission. */
+/** Rebuilds only a closed descriptor-safe /4 ledger before semantic admission. */
 export function preflightRealBuildActionLedger(
   value: unknown,
 ):
@@ -491,6 +493,10 @@ export function preflightRealBuildActionLedger(
           top.calloutManifestDigest,
           "Action ledger calloutManifestDigest",
         ),
+        sourceArtReboundDigest: digestValue(
+          top.sourceArtReboundDigest,
+          "Action ledger sourceArtReboundDigest",
+        ),
         builderCalibrationDigest: digestValue(
           top.builderCalibrationDigest,
           "Action ledger builderCalibrationDigest",
@@ -510,7 +516,7 @@ export function preflightRealBuildActionLedger(
       failure: limitFailure(
         error instanceof LedgerShapeError
           ? error.message
-          : "Action ledger /3 shape could not be inspected as bounded descriptor-safe data.",
+          : "Action ledger /4 shape could not be inspected as bounded descriptor-safe data.",
       ),
     };
   }

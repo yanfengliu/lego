@@ -128,6 +128,7 @@ function assertPreparedPanelGeometryMatchesRetainedSource(
 export function verifyRealBuildReplayActionLedgerSemantics(input: {
   readonly ledger: RealBuildActionLedger;
   readonly ledgerDigest: string;
+  readonly sourceArtReboundDigest: string;
   readonly options: RealBuildOptions;
   readonly official: OfficialModelIndex;
   readonly reconstructedCoverage: unknown;
@@ -177,6 +178,7 @@ export function verifyRealBuildReplayActionLedgerSemantics(input: {
     pdfDigest: input.options.inputDigests.pdf,
     coverageDigest: input.options.inputDigests.coverage,
     calloutManifestDigest: input.options.inputDigests.calloutManifest,
+    sourceArtReboundDigest: input.sourceArtReboundDigest,
     builderCalibrationDigest: input.options.inputDigests.builderCalibration,
     transitionClassificationsDigest: input.options.inputDigests.transitionClassifications,
     coverageByCallout,
@@ -185,7 +187,7 @@ export function verifyRealBuildReplayActionLedgerSemantics(input: {
   });
   if (failures.length > 0) {
     throw new TypeError(
-      `Replay action-ledger /3 does not reproduce retained coverage, panel, official-model, or transition evidence: ${failures
+      `Replay action-ledger /4 does not reproduce retained coverage, panel, official-model, or transition evidence: ${failures
         .slice(0, 4)
         .map(({ message }) => message)
         .join(" ")}`,

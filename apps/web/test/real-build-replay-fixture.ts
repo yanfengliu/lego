@@ -210,13 +210,24 @@ const rawRoleBytesWithoutCoverageOrActionLedger = {
     syntheticIdentificationGoldenBytes("elementResolution"),
   [REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.pairJudged]:
     syntheticIdentificationGoldenBytes("pairJudged"),
+  [REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.sourceArtRebound]: encodeCanonicalRealBuildJson({
+    schemaVersion: "lego.part-identification-source-art-rebound/1",
+    syntheticReplayFixture: true,
+    authority: {
+      sourceExecution: "absent",
+      preparedRun: "absent",
+      physicalFrame: "absent",
+      placement: "absent",
+      completion: "absent",
+    },
+  }),
 } as Readonly<Record<string, Uint8Array>>;
 
 const rawRoleDigest = (role: string): string =>
   sha256Digest(rawRoleBytesWithoutCoverageOrActionLedger[role]!);
 export const replayCoverageBytes = encodeCanonicalRealBuildJson(
   {
-    schemaVersion: "lego.real-build-catalog-coverage/2",
+    schemaVersion: "lego.real-build-catalog-coverage/3",
     inputDigests: {
       pdf: replayPdfDigest,
       calloutManifest: replayManifestDigest,
@@ -225,6 +236,7 @@ export const replayCoverageBytes = encodeCanonicalRealBuildJson(
       distances: rawRoleDigest(REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.distances),
       elementResolution: rawRoleDigest(REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.elements),
       pairJudged: rawRoleDigest(REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.pairJudged),
+      sourceArtRebound: rawRoleDigest(REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.sourceArtRebound),
     },
     what: "Synthetic two-piece replay coverage used to exercise retained semantic bindings.",
     identification: { source: "deterministic", model: null, assignment: "nearest" },
@@ -342,6 +354,7 @@ const replayLedgerPieces = replayPieces.map((piece) => {
       officialModelDigest: roleDigest(REAL_BUILD_INPUT_ROLE_BY_DIGEST.officialModel),
       coverageDigest: roleDigest(REAL_BUILD_INPUT_ROLE_BY_DIGEST.coverage),
       calloutManifestDigest: replayManifestDigest,
+      sourceArtReboundDigest: roleDigest(REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.sourceArtRebound),
       builderCalibrationDigest: roleDigest(REAL_BUILD_INPUT_ROLE_BY_DIGEST.builderCalibration),
       stepNumber: 1,
       pageNumber: replayPanelPageNumber,
@@ -372,6 +385,7 @@ const replayActionLedger = realBuildLedgerPrefix(
     officialModelDigest: roleDigest(REAL_BUILD_INPUT_ROLE_BY_DIGEST.officialModel),
     coverageDigest: roleDigest(REAL_BUILD_INPUT_ROLE_BY_DIGEST.coverage),
     calloutManifestDigest: roleDigest(REAL_BUILD_INPUT_ROLE_BY_DIGEST.calloutManifest),
+    sourceArtReboundDigest: roleDigest(REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.sourceArtRebound),
     builderCalibrationDigest: roleDigest(REAL_BUILD_INPUT_ROLE_BY_DIGEST.builderCalibration),
     transitionClassificationsDigest: roleDigest(
       REAL_BUILD_INPUT_ROLE_BY_DIGEST.transitionClassifications,
@@ -398,6 +412,9 @@ export const replayIdentificationClosureDigests = {
   answers: null,
   pairJudged: sha256Digest(
     replayRawRoleBytes[REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.pairJudged]!,
+  ),
+  sourceArtRebound: sha256Digest(
+    replayRawRoleBytes[REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.sourceArtRebound]!,
   ),
 };
 

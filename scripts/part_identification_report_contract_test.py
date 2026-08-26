@@ -18,6 +18,7 @@ import score_description_retrieval as description_report
 from part_identification_report_contract import (
     ArtifactContractError,
     read_bounded_bytes,
+    read_binary_artifact,
     read_card_images_artifact,
     read_json_artifact,
     require_adjudication_chain,
@@ -96,6 +97,7 @@ class ReportClosureTests(unittest.TestCase):
         self.match_digest = "sha256:" + "b" * 64
         self.distances_digest = "sha256:" + "c" * 64
         self.resolution_digest = "sha256:" + "d" * 64
+        self.source_art_rebound_digest = "sha256:" + "4" * 64
         self.coverage_digest = "sha256:" + "e" * 64
         self.features = {
             "schemaVersion": "lego.part-identification-features/3",
@@ -117,7 +119,7 @@ class ReportClosureTests(unittest.TestCase):
             "rows": [[0.0]],
         }
         self.coverage = {
-            "schemaVersion": "lego.real-build-catalog-coverage/2",
+            "schemaVersion": "lego.real-build-catalog-coverage/3",
             "identification": {"source": "deterministic"},
             "inputDigests": {
                 "pdf": "sha256:" + "1" * 64,
@@ -127,6 +129,7 @@ class ReportClosureTests(unittest.TestCase):
                 "distances": self.distances_digest,
                 "elementResolution": self.resolution_digest,
                 "pairJudged": "sha256:" + "3" * 64,
+                "sourceArtRebound": self.source_art_rebound_digest,
             },
         }
 
@@ -172,6 +175,7 @@ class ReportClosureTests(unittest.TestCase):
                 match_digest=self.match_digest,
                 distances_digest=self.distances_digest,
                 element_resolution_digest=self.resolution_digest,
+                source_art_rebound_digest=self.source_art_rebound_digest,
             )
 
     def test_element_ids_are_unique_code_point_sorted_and_rows_are_finite(self) -> None:
@@ -586,8 +590,6 @@ class ReportClosureTests(unittest.TestCase):
 class CanonicalContentAuthenticationTests(unittest.TestCase):
     """Independently rehashed derived content cannot certify itself."""
 
-    GOLDEN_ROOT = Path("apps/web/test/fixtures/real-build-identification-golden")
-
     def setUp(self) -> None:
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
@@ -604,6 +606,10 @@ class CanonicalContentAuthenticationTests(unittest.TestCase):
             "inventoryLabels": self.root / "output/inventory-thumbnails/labels.json",
             "truthFirstFifty": self.root
             / "scripts/fixtures/part-identification-truth-first50.json",
+            "sourceArtRebound": self.root
+            / "output/part-identification/source-art-rebound.json",
+            "calloutManifest": self.root / "output/callout-thumbnails/manifest.json",
+            "coverage": self.root / "output/real-build/catalog-coverage.json",
             "score": self.root / "output/part-identification/score.json",
         }
         self.artifacts = {
@@ -614,6 +620,11 @@ class CanonicalContentAuthenticationTests(unittest.TestCase):
         cards = self.artifacts["cards"][0]
         _, self.digests["cardImages"] = read_card_images_artifact(
             self.paths["cards"].parent, cards
+        )
+        _, self.digests["pdf"] = read_binary_artifact(
+            self.root / "recipes/6651557.pdf",
+            "Fixture source PDF",
+            max_bytes=1024,
         )
 
     def require_identification(self, *, match=None, distances=None) -> None:
@@ -694,46 +705,34 @@ class CanonicalContentAuthenticationTests(unittest.TestCase):
             require_score_summary_chain(changed[0], digests=self.digests)
 
     def test_rehashed_coverage_by_callout_is_rejected(self) -> None:
-        roles = {
-            "calloutManifest": "manifest.json",
-            "features": "features.json",
-            "match": "match.json",
-            "distances": "distances.json",
-            "elementResolution": "element-resolution.json",
-            "pairJudged": "pair-judged-truth.json",
-            "coverage": "coverage.json",
-        }
-        golden = {
-            role: read_json_artifact(self.GOLDEN_ROOT / file, f"Golden {role}")
-            for role, file in roles.items()
-        }
-        coverage = copy.deepcopy(golden["coverage"][0])
+        coverage = copy.deepcopy(self.artifacts["coverage"][0])
         only = next(iter(coverage["byCallout"].values()))
         only["quantity"] += 1
         changed_path = self.root / "coverage-mutated.json"
         write_json(changed_path, coverage)
         changed = read_json_artifact(changed_path, "Mutated coverage")
         require_identification_chain(
-            golden["features"][0],
-            golden["match"][0],
-            golden["distances"][0],
-            features_digest=golden["features"][1],
-            match_digest=golden["match"][1],
-            distances_digest=golden["distances"][1],
-            callout_manifest_digest=golden["calloutManifest"][1],
+            self.artifacts["features"][0],
+            self.artifacts["match"][0],
+            self.artifacts["distances"][0],
+            features_digest=self.digests["features"],
+            match_digest=self.digests["match"],
+            distances_digest=self.digests["distances"],
+            callout_manifest_digest=self.digests["calloutManifest"],
         )
         with self.assertRaisesRegex(ArtifactContractError, "Canonical JavaScript"):
             require_coverage_chain(
                 changed[0],
                 coverage_digest=changed[1],
-                features_digest=golden["features"][1],
-                match_digest=golden["match"][1],
-                distances_digest=golden["distances"][1],
-                element_resolution_digest=golden["elementResolution"][1],
+                features_digest=self.digests["features"],
+                match_digest=self.digests["match"],
+                distances_digest=self.digests["distances"],
+                element_resolution_digest=self.digests["elementResolution"],
+                source_art_rebound_digest=self.digests["sourceArtRebound"],
                 consumed_role_digests={
-                    "calloutManifest": golden["calloutManifest"][1],
-                    "pairJudged": golden["pairJudged"][1],
-                    "pdf": golden["features"][0]["inputDigests"]["pdf"],
+                    "calloutManifest": self.digests["calloutManifest"],
+                    "pairJudged": self.digests["truthFirstFifty"],
+                    "pdf": self.digests["pdf"],
                 },
             )
 

@@ -119,6 +119,12 @@ class DescriptionInputContractTests(unittest.TestCase):
             answers_digest = "sha256:" + hashlib.sha256(answers_path.read_bytes()).hexdigest()
         truth_path = root / "scripts/fixtures/part-identification-truth-first50.json"
         truth_digest = "sha256:" + hashlib.sha256(truth_path.read_bytes()).hexdigest()
+        source_art_rebound_path = (
+            root / "output/part-identification/source-art-rebound.json"
+        )
+        source_art_rebound_digest = (
+            "sha256:" + hashlib.sha256(source_art_rebound_path.read_bytes()).hexdigest()
+        )
         if coverage_schema is None:
             return
         roles = {
@@ -129,6 +135,7 @@ class DescriptionInputContractTests(unittest.TestCase):
             "distances": distances_digest,
             "elementResolution": inventory_digest,
             "pairJudged": truth_digest,
+            "sourceArtRebound": source_art_rebound_digest,
         }
         if coverage_source == "adjudicated":
             roles.update(
@@ -164,7 +171,7 @@ class DescriptionInputContractTests(unittest.TestCase):
     def test_one_exact_current_closure_is_accepted(self) -> None:
         loaded = self.load_case()
         self.assertEqual(
-            loaded.coverage["schemaVersion"], "lego.real-build-catalog-coverage/2"
+            loaded.coverage["schemaVersion"], "lego.real-build-catalog-coverage/3"
         )
         self.assertTrue(any(path.endswith("/images.bin") for path in loaded.pins))
 
@@ -177,13 +184,13 @@ class DescriptionInputContractTests(unittest.TestCase):
             self.load_case(distance_match_digest=sha("f"))
 
     def test_coverage_v1_has_no_implicit_compatibility_path(self) -> None:
-        with self.assertRaisesRegex(SystemExit, "coverage/2"):
+        with self.assertRaisesRegex(SystemExit, "coverage/3"):
             self.load_case(coverage_schema="lego.real-build-catalog-coverage/1")
 
     def test_coverage_from_another_features_file_is_refused(self) -> None:
         with self.assertRaisesRegex(SystemExit, "Coverage binds features"):
             self.load_case(
-                coverage_schema="lego.real-build-catalog-coverage/2",
+                coverage_schema="lego.real-build-catalog-coverage/3",
                 coverage_features_digest=sha("e"),
             )
 
@@ -196,20 +203,57 @@ class DescriptionInputContractTests(unittest.TestCase):
             self.load_case(stale_feature_manifest=True)
 
     def test_every_consumed_coverage_role_binds_its_exact_bytes(self) -> None:
-        for role in ("pdf", "calloutManifest", "cards", "cardImages", "answers", "pairJudged"):
+        for role in (
+            "pdf",
+            "calloutManifest",
+            "cards",
+            "cardImages",
+            "answers",
+            "pairJudged",
+            "sourceArtRebound",
+        ):
             with self.subTest(role=role):
-                with self.assertRaisesRegex(SystemExit, f"consumed role {role}"):
+                expected = (
+                    "Coverage binds sourceArtRebound"
+                    if role == "sourceArtRebound"
+                    else f"consumed role {role}"
+                )
+                with self.assertRaisesRegex(SystemExit, expected):
                     self.load_case(
-                        coverage_schema="lego.real-build-catalog-coverage/2",
+                        coverage_schema="lego.real-build-catalog-coverage/3",
                         stale_coverage_role=role,
                     )
 
-    def test_deterministic_coverage_cannot_cover_consumed_adjudication(self) -> None:
-        with self.assertRaisesRegex(SystemExit, "consumed role cards"):
-            self.load_case(
-                coverage_schema="lego.real-build-catalog-coverage/2",
-                coverage_source="deterministic",
-            )
+    def test_deterministic_coverage_reaches_ledger_verification_without_adjudication_roles(
+        self,
+    ) -> None:
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        materialize_report_contract_fixture(root, coverage_source="deterministic")
+
+        loaded = load_description_inputs(root)
+
+        self.assertEqual(loaded.coverage["identification"]["source"], "deterministic")
+        self.assertNotIn("cards", loaded.coverage["inputDigests"])
+        self.assertNotIn("cardImages", loaded.coverage["inputDigests"])
+        self.assertNotIn("answers", loaded.coverage["inputDigests"])
+
+    def test_malformed_coverage_identification_uses_bounded_contract_error(self) -> None:
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        materialize_report_contract_fixture(root)
+        coverage_path = root / "output/real-build/catalog-coverage.json"
+        coverage = json.loads(coverage_path.read_text(encoding="utf-8"))
+        coverage["identification"] = None
+        write_json(coverage_path, coverage)
+
+        with self.assertRaisesRegex(
+            SystemExit,
+            "Coverage identification must be a JSON object",
+        ):
+            load_description_inputs(root)
 
     def test_element_resolution_rejects_empty_malformed_and_unicode_id_records(self) -> None:
         for inventory, message in (

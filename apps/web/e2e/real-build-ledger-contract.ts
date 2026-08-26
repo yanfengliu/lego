@@ -19,7 +19,7 @@ export type {
   OfficialModelIndex,
 } from "./real-build-official";
 
-export const REAL_BUILD_ACTION_LEDGER_SCHEMA = "lego.real-build-action-ledger/3" as const;
+export const REAL_BUILD_ACTION_LEDGER_SCHEMA = "lego.real-build-action-ledger/4" as const;
 export const REAL_BUILD_ACTION_LEDGER_GENERATOR =
   "apps/web/e2e/real-build-action-ledger.spec.ts" as const;
 
@@ -76,6 +76,7 @@ export interface RealBuildActionLedgerCore {
   readonly officialModelDigest: string;
   readonly coverageDigest: string;
   readonly calloutManifestDigest: string;
+  readonly sourceArtReboundDigest: string;
   readonly builderCalibrationDigest: string;
   readonly transitionClassificationsDigest: string;
   readonly steps: readonly LedgerStep[];
@@ -98,7 +99,7 @@ export interface RealBuildActionLedgerProvenance {
   }[];
 }
 
-/** Current emitted artifact. Version 3 makes its requested-prefix provenance mandatory. */
+/** Current emitted artifact. Version 4 binds the independently replayed source-art relation. */
 export interface RealBuildActionLedger extends RealBuildActionLedgerCore {
   readonly provenance: RealBuildActionLedgerProvenance;
 }
@@ -224,6 +225,7 @@ export function pieceEvidenceDigest(input: {
   readonly officialModelDigest: string;
   readonly coverageDigest: string;
   readonly calloutManifestDigest: string;
+  readonly sourceArtReboundDigest: string;
   readonly builderCalibrationDigest: string;
   readonly stepNumber: number;
   readonly pageNumber: number;

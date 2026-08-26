@@ -1,7 +1,10 @@
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 
-import { verifyBookletCatalogCoverageClosure } from "../../../scripts/booklet-catalog-coverage.mjs";
+import {
+  verifyBookletCatalogCoverageClosure,
+  verifyBookletCatalogCoverageClosureV2,
+} from "../../../scripts/booklet-catalog-coverage.mjs";
 import { PartIdentificationArtifactBindingError } from "../../../scripts/part-identification-artifacts.mjs";
 import { parseStrictJsonBytes } from "../../../scripts/part-identification-strict-json.mjs";
 import { MAXIMUM_REAL_BUILD_PRINTED_STEPS } from "./real-build-artifact-policy";
@@ -93,6 +96,7 @@ function bindRawBinaryArtifact(artifact: RawBinaryArtifact, label: string): RawB
 }
 
 interface CoverageDescriptor {
+  readonly schemaVersion?: unknown;
   readonly identification?: {
     readonly source?: unknown;
     readonly model?: unknown;
@@ -124,7 +128,9 @@ export class RealBuildIdentificationClosureError extends Error {
 
 export interface RealBuildIdentificationClosureInput {
   readonly coverage: RawJsonArtifact;
+  readonly pdf?: RawBinaryArtifact | null;
   readonly manifest: RawJsonArtifact;
+  readonly sourceArtRebound?: RawJsonArtifact | null;
   readonly features: RawJsonArtifact;
   readonly match: RawJsonArtifact;
   readonly distances: RawJsonArtifact;
@@ -201,7 +207,33 @@ export function identifyRealBuildIdentificationMode(
 
 export function prepareRealBuildIdentificationClosure(input: RealBuildIdentificationClosureInput) {
   const coverageArtifact = bindRawJsonArtifact(input.coverage, "Catalog coverage");
+  const coverageSchemaVersion = (coverageArtifact.value as CoverageDescriptor).schemaVersion;
+  if (
+    coverageSchemaVersion !== "lego.real-build-catalog-coverage/2" &&
+    coverageSchemaVersion !== "lego.real-build-catalog-coverage/3"
+  ) {
+    throw new TypeError(
+      `Catalog coverage declares schema ${boundedObserved(coverageSchemaVersion)}; identification closure replay accepts current lego.real-build-catalog-coverage/3 or frozen legacy lego.real-build-catalog-coverage/2 bytes only.`,
+    );
+  }
+  const usesSourceArtRebound = coverageSchemaVersion === "lego.real-build-catalog-coverage/3";
+  if (usesSourceArtRebound && (input.pdf == null || input.sourceArtRebound == null)) {
+    throw new TypeError(
+      "Catalog coverage/3 requires the exact retained instruction-booklet PDF and source-art-rebound artifact roles; restore and supply both roles for independent replay.",
+    );
+  }
+  if (!usesSourceArtRebound && (input.pdf != null || input.sourceArtRebound != null)) {
+    throw new TypeError(
+      "Frozen catalog coverage/2 must omit instruction-booklet PDF and source-art-rebound roles; legacy bytes are inspected under their original closure and are never reinterpreted as coverage/3.",
+    );
+  }
+  const pdfArtifact = usesSourceArtRebound
+    ? bindRawBinaryArtifact(input.pdf!, "Instruction booklet PDF")
+    : null;
   const manifestArtifact = bindRawJsonArtifact(input.manifest, "Callout manifest");
+  const sourceArtReboundArtifact = usesSourceArtRebound
+    ? bindRawJsonArtifact(input.sourceArtRebound!, "Source-art rebound")
+    : null;
   const featuresArtifact = bindRawJsonArtifact(input.features, "Identification features");
   const matchArtifact = bindRawJsonArtifact(input.match, "Identification match");
   const distancesArtifact = bindRawJsonArtifact(input.distances, "Identification distances");
@@ -246,6 +278,8 @@ export function prepareRealBuildIdentificationClosure(input: RealBuildIdentifica
   return {
     coverageBytes: coverageArtifact.bytes,
     manifestBytes: manifestArtifact.bytes,
+    pdfBytes: pdfArtifact?.bytes ?? null,
+    sourceArtReboundArtifact,
     featuresArtifact,
     matchArtifact,
     distancesArtifact,
@@ -277,9 +311,20 @@ export function attributeRealBuildIdentificationClosureError(error: unknown): Er
 /** Recompiles coverage from every identity-bearing raw artifact before the browser can use it. */
 export function verifyRealBuildIdentificationClosure(
   input: RealBuildIdentificationClosureInput,
-): unknown {
+): Promise<unknown> {
   try {
-    return verifyBookletCatalogCoverageClosure(prepareRealBuildIdentificationClosure(input));
+    const prepared = prepareRealBuildIdentificationClosure(input);
+    const verification =
+      prepared.pdfBytes === null
+        ? verifyBookletCatalogCoverageClosureV2(prepared)
+        : verifyBookletCatalogCoverageClosure({
+            ...prepared,
+            pdfBytes: prepared.pdfBytes,
+            sourceArtReboundArtifact: prepared.sourceArtReboundArtifact!,
+          });
+    return Promise.resolve(verification).catch((error: unknown) => {
+      throw attributeRealBuildIdentificationClosureError(error);
+    });
   } catch (error) {
     throw attributeRealBuildIdentificationClosureError(error);
   }

@@ -1,4 +1,4 @@
-const CURRENT_SCHEMA = "lego.real-build-action-ledger/3";
+const CURRENT_SCHEMA = "lego.real-build-action-ledger/4";
 const CURRENT_GENERATOR = "apps/web/e2e/real-build-action-ledger.spec.ts";
 const TOP_LEVEL_KEYS = [
   "schemaVersion",
@@ -6,6 +6,7 @@ const TOP_LEVEL_KEYS = [
   "officialModelDigest",
   "coverageDigest",
   "calloutManifestDigest",
+  "sourceArtReboundDigest",
   "builderCalibrationDigest",
   "transitionClassificationsDigest",
   "steps",
@@ -44,16 +45,29 @@ function boundedNullableString(value, maximum) {
   );
 }
 
-/** Inspects only the current closed /3 prefix boundary shared by MJS consumers. */
+/** Inspects only the current closed /4 prefix boundary shared by MJS consumers. */
 export function inspectCurrentActionLedgerPrefix(value) {
-  const ledger = exactRecord(value, TOP_LEVEL_KEYS, "Action ledger /3");
+  const ledger = exactRecord(value, TOP_LEVEL_KEYS, "Action ledger /4");
   if (ledger.schemaVersion !== CURRENT_SCHEMA) {
     throw new TypeError(`Action ledger must use the current ${CURRENT_SCHEMA} schema.`);
   }
-  if (!Array.isArray(ledger.steps) || ledger.steps.length < 1 || ledger.steps.length > 359) {
-    throw new TypeError("Action ledger /3 steps must contain 1 through 359 bounded rows.");
+  for (const field of [
+    "pdfDigest",
+    "officialModelDigest",
+    "coverageDigest",
+    "calloutManifestDigest",
+    "sourceArtReboundDigest",
+    "builderCalibrationDigest",
+    "transitionClassificationsDigest",
+  ]) {
+    if (typeof ledger[field] !== "string" || !/^sha256:[0-9a-f]{64}$/u.test(ledger[field])) {
+      throw new TypeError(`Action ledger /4 ${field} must be one lowercase sha256 digest.`);
+    }
   }
-  const provenance = exactRecord(ledger.provenance, PROVENANCE_KEYS, "Action ledger /3 provenance");
+  if (!Array.isArray(ledger.steps) || ledger.steps.length < 1 || ledger.steps.length > 50) {
+    throw new TypeError("Action ledger /4 steps must contain 1 through 50 bounded rows.");
+  }
+  const provenance = exactRecord(ledger.provenance, PROVENANCE_KEYS, "Action ledger /4 provenance");
   const requestedLastStep = provenance.requestedLastStep;
   if (
     provenance.generator !== CURRENT_GENERATOR ||
@@ -61,14 +75,14 @@ export function inspectCurrentActionLedgerPrefix(value) {
     provenance.expectedPrintedSteps !== 359 ||
     !Number.isSafeInteger(requestedLastStep) ||
     requestedLastStep < 1 ||
-    requestedLastStep > 359 ||
+    requestedLastStep > 50 ||
     !Number.isSafeInteger(provenance.alignedThroughStep) ||
     provenance.alignedThroughStep < 1 ||
     provenance.alignedThroughStep > requestedLastStep ||
     provenance.alignedThroughStep !== ledger.steps.length
   ) {
     throw new TypeError(
-      "Action ledger /3 provenance must bind the current generator, authenticated=false, the 359-step " +
+      "Action ledger /4 provenance must bind the current generator, authenticated=false, the 359-step " +
         "source/index, and one nonempty aligned prefix bounded by its explicit request.",
     );
   }
@@ -78,7 +92,7 @@ export function inspectCurrentActionLedgerPrefix(value) {
     provenance.stopReason.length > 16_384
   ) {
     throw new TypeError(
-      "Action ledger /3 provenance.stopReason is outside its bounded string contract.",
+      "Action ledger /4 provenance.stopReason is outside its bounded string contract.",
     );
   }
   let directPieceCount = 0;
@@ -95,19 +109,19 @@ export function inspectCurrentActionLedgerPrefix(value) {
       step.action === null ||
       Array.isArray(step.action)
     ) {
-      throw new TypeError("Action ledger /3 rows must be dense and bounded by requestedLastStep.");
+      throw new TypeError("Action ledger /4 rows must be dense and bounded by requestedLastStep.");
     }
     if (step.action.kind === "place-callouts") {
       if (!Array.isArray(step.action.pieces) || step.action.pieces.length > MAXIMUM_IDENTITIES) {
         throw new TypeError(
-          "Action ledger /3 direct action pieces exceed their bounded array contract.",
+          "Action ledger /4 direct action pieces exceed their bounded array contract.",
         );
       }
       directPieceCount += step.action.pieces.length;
     } else if (step.action.kind === "transition") {
       transitionStepCount += 1;
     } else if (step.action.kind !== "multi-build-copy") {
-      throw new TypeError("Action ledger /3 contains an unknown action kind.");
+      throw new TypeError("Action ledger /4 contains an unknown action kind.");
     }
   }
   if (
@@ -117,17 +131,17 @@ export function inspectCurrentActionLedgerPrefix(value) {
     provenance.transitionStepCount !== transitionStepCount
   ) {
     throw new TypeError(
-      "Action ledger /3 provenance counts do not match its retained action rows.",
+      "Action ledger /4 provenance counts do not match its retained action rows.",
     );
   }
   if (!Array.isArray(provenance.refusals) || provenance.refusals.length > MAXIMUM_IDENTITIES) {
-    throw new TypeError("Action ledger /3 provenance.refusals exceeds its bounded array contract.");
+    throw new TypeError("Action ledger /4 provenance.refusals exceeds its bounded array contract.");
   }
   for (let index = 0; index < provenance.refusals.length; index += 1) {
     const refusal = exactRecord(
       provenance.refusals[index],
       REFUSAL_KEYS,
-      `Action ledger /3 provenance refusal ${index}`,
+      `Action ledger /4 provenance refusal ${index}`,
     );
     if (
       !Number.isSafeInteger(refusal.stepNumber) ||
@@ -140,7 +154,7 @@ export function inspectCurrentActionLedgerPrefix(value) {
       refusal.reason.length > 16_384
     ) {
       throw new TypeError(
-        `Action ledger /3 provenance refusal ${index} exceeds its prefix bounds.`,
+        `Action ledger /4 provenance refusal ${index} exceeds its prefix bounds.`,
       );
     }
   }

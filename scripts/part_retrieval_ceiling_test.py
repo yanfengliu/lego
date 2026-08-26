@@ -12,6 +12,7 @@ message naming the drift rather than passing stale numbers.
 from __future__ import annotations
 
 import json
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -23,6 +24,10 @@ from part_action_ledger_report_contract_test import (  # noqa: F401
 )
 from part_identification_descriptor_contract_test import (  # noqa: F401
     DescriptorDiagnosticTests,
+)
+from part_identification_report_contract_test_fixture import (
+    materialize_report_contract_fixture,
+    report_contract_test_verifier_patch,
 )
 from part_retrieval_ceiling import (
     DISPLAYED_K,
@@ -55,6 +60,7 @@ from part_retrieval_ceiling_report import (
     verified_vision_confound,
     verified_rank_rows,
 )
+from part_retrieval_ceiling_report_inputs import load_verified_retrieval_inputs
 
 # The generation every live number below was measured against.
 PINNED = {
@@ -111,6 +117,41 @@ class ReportSchemaTests(unittest.TestCase):
 
     def test_bounded_float_noise_and_exact_candidate_prefix_are_accepted(self) -> None:
         self.assertEqual(verified_rank_rows([[0.25]], 5e-13, True), [[1]])
+
+    def test_deterministic_coverage_reaches_ledger_verification_without_adjudication_roles(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            materialize_report_contract_fixture(root, coverage_source="deterministic")
+            with report_contract_test_verifier_patch():
+                loaded = load_verified_retrieval_inputs(
+                    quick=True,
+                    repository_root=root,
+                )
+
+        self.assertEqual(
+            loaded.action_ledger["coverageDigest"],
+            loaded.digests["coverage"],
+        )
+
+    def test_malformed_coverage_identification_uses_bounded_contract_error(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            materialize_report_contract_fixture(root)
+            coverage_path = root / "output/real-build/catalog-coverage.json"
+            coverage = json.loads(coverage_path.read_text(encoding="utf-8"))
+            coverage["identification"] = None
+            coverage_path.write_text(json.dumps(coverage) + "\n", encoding="utf-8")
+            with report_contract_test_verifier_patch():
+                with self.assertRaisesRegex(
+                    SystemExit,
+                    "Coverage identification must be a JSON object",
+                ):
+                    load_verified_retrieval_inputs(
+                        quick=True,
+                        repository_root=root,
+                    )
 
 
 def descriptor(grid, detail=None, aspect=1.0, ink=0.5, mean=(0, 0, 0), light=128):

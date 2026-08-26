@@ -97,6 +97,7 @@ class DepletionInputClosureTests(unittest.TestCase):
                 "distances",
                 "elementResolution",
                 "pairJudged",
+                "sourceArtRebound",
                 "cards",
                 "cardImages",
                 "answers",
@@ -118,6 +119,7 @@ class DepletionInputClosureTests(unittest.TestCase):
             "answers": "answers",
             "pdf": "PDF",
             "calloutManifest": "callout manifest",
+            "sourceArtRebound": "sourceArtRebound",
         }
         for role in (
             "pairJudged",
@@ -126,6 +128,7 @@ class DepletionInputClosureTests(unittest.TestCase):
             "answers",
             "pdf",
             "calloutManifest",
+            "sourceArtRebound",
         ):
             with self.subTest(role=role):
                 root, paths = self.case()
@@ -150,6 +153,7 @@ class DepletionInputClosureTests(unittest.TestCase):
             "answers",
             "pdf",
             "calloutManifest",
+            "sourceArtRebound",
         ):
             with self.subTest(role=role):
                 root, paths = self.case()
@@ -166,6 +170,7 @@ class DepletionInputClosureTests(unittest.TestCase):
             "distances",
             "elementResolution",
             "pairJudged",
+            "sourceArtRebound",
             "cards",
             "cardImages",
             "answers",
@@ -184,5 +189,5 @@ class DepletionInputClosureTests(unittest.TestCase):
         coverage = json.loads(paths["coverage"].read_text(encoding="utf-8"))
         coverage["schemaVersion"] = "lego.real-build-catalog-coverage/1"
         write_json(paths["coverage"], coverage)
-        with self.assertRaisesRegex(SystemExit, "coverage/2"):
+        with self.assertRaisesRegex(SystemExit, "coverage/3"):
             self.load(root, paths)

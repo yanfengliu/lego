@@ -239,6 +239,7 @@ const identificationClosure = {
   cardImages: null,
   answers: null,
   pairJudged: REAL_BUILD_TEST_DIGEST,
+  sourceArtRebound: REAL_BUILD_TEST_DIGEST,
 };
 
 const roleDigests = Object.fromEntries(
@@ -250,6 +251,7 @@ const roleDigests = Object.fromEntries(
     REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.distances,
     REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.elements,
     REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.pairJudged,
+    REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.sourceArtRebound,
   ].map((role) => [role, REAL_BUILD_TEST_DIGEST]),
 );
 

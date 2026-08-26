@@ -16,6 +16,7 @@ import {
 import { encodeCanonicalRealBuildJson } from "../e2e/real-build-json-admission";
 import { verifyLegacyRealBuildRunContractV2 } from "../e2e/real-build-run-contract-legacy-v2";
 import { verifyLegacyRealBuildRunContractV3 } from "../e2e/real-build-run-contract-legacy-v3";
+import { verifyLegacyRealBuildRunContractV4 } from "../e2e/real-build-run-contract-legacy-v4";
 import {
   deriveLegacyMeasuredFartherOriginSourceAttestationV2,
   LEGACY_MEASURED_FARTHER_ORIGIN_REQUIRED_SOURCE_PATHS_V2,
@@ -41,7 +42,13 @@ const TEST_ROLE_DIGESTS = Object.fromEntries(
     REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.distances,
     REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.elements,
     REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.pairJudged,
+    REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.sourceArtRebound,
   ].map((role) => [role, REAL_BUILD_TEST_DIGEST]),
+);
+const LEGACY_TEST_ROLE_DIGESTS = Object.fromEntries(
+  Object.entries(TEST_ROLE_DIGESTS).filter(
+    ([role]) => role !== REAL_BUILD_IDENTIFICATION_ROLE_BY_DIGEST.sourceArtRebound,
+  ),
 );
 
 const FROZEN_LEGACY_RUN_CONTRACT_V2 = {
@@ -117,6 +124,7 @@ describe("real-build run contract", () => {
         cardImages: null,
         answers: null,
         pairJudged: REAL_BUILD_TEST_DIGEST,
+        sourceArtRebound: REAL_BUILD_TEST_DIGEST,
       },
       panelSourceDigest: REAL_BUILD_TEST_DIGEST,
       panels: options.panels,
@@ -139,7 +147,7 @@ describe("real-build run contract", () => {
       });
 
     expect(verify).not.toThrow();
-    expect(contract.schemaVersion).toBe("lego.real-build-run-contract/4");
+    expect(contract.schemaVersion).toBe("lego.real-build-run-contract/5");
     expect(contract.budgets).toMatchObject({
       panelCameraBranchBudget: 8_192,
       fartherPanelMaximumReachSteps: 2,
@@ -299,6 +307,7 @@ describe("real-build run contract", () => {
     for (const mismatchedGeneration of [
       "lego.real-build-run-contract/3",
       "lego.real-build-run-contract/4",
+      "lego.real-build-run-contract/5",
     ]) {
       expect(() =>
         parseRealBuildRunContract(
@@ -318,7 +327,7 @@ describe("real-build run contract", () => {
         roleDigests: {},
         sourceFiles: [],
       }),
-    ).toThrow(/run-contract \/2 or \/3 bytes/u);
+    ).toThrow(/run-contract \/2, \/3, or \/4 bytes/u);
   });
 
   it("reproduces frozen generation-3 all-panel semantics for inspection only", () => {
@@ -375,7 +384,7 @@ describe("real-build run contract", () => {
       verifyLegacyRealBuildRunContractV3({
         contract: parsed,
         options: candidateOptions,
-        roleDigests: TEST_ROLE_DIGESTS,
+        roleDigests: LEGACY_TEST_ROLE_DIGESTS,
         sourceFiles,
       });
     expect(inspect).not.toThrow();
@@ -392,10 +401,74 @@ describe("real-build run contract", () => {
       verifyRealBuildRunContract({
         contract: parsed,
         options,
+        roleDigests: LEGACY_TEST_ROLE_DIGESTS,
+        sourceFiles,
+      }),
+    ).toThrow(/run-contract \/2, \/3, or \/4 bytes/u);
+  });
+
+  it("reproduces frozen generation-4 bounded-prefix semantics without rebound authority", () => {
+    const options = completeRealBuildTestOptions(1);
+    const sourceFiles = [{ path: "inputs/booklet.pdf", digest: REAL_BUILD_TEST_DIGEST, bytes: 1 }];
+    const current = createRealBuildRunContract({
+      inputDigests: options.inputDigests,
+      identificationClosure: {
+        source: "deterministic",
+        features: REAL_BUILD_TEST_DIGEST,
+        match: REAL_BUILD_TEST_DIGEST,
+        distances: REAL_BUILD_TEST_DIGEST,
+        elements: REAL_BUILD_TEST_DIGEST,
+        cards: null,
+        cardImages: null,
+        answers: null,
+        pairJudged: REAL_BUILD_TEST_DIGEST,
+        sourceArtRebound: REAL_BUILD_TEST_DIGEST,
+      },
+      panelSourceDigest: REAL_BUILD_TEST_DIGEST,
+      panels: options.panels,
+      passivePanels: options.passivePanels,
+      budgets: realBuildRunBudgets(options),
+      thresholds: realBuildRunThresholds(options),
+      codeSnapshots: { "inputs/booklet.pdf": REAL_BUILD_TEST_DIGEST },
+    });
+    const { sourceArtRebound: _futureRole, ...legacyIdentificationClosure } =
+      current.identificationClosure;
+    const { contractDigest: _currentDigest, ...currentBase } = current;
+    expect(_futureRole).toBe(REAL_BUILD_TEST_DIGEST);
+    expect(_currentDigest).toBe(current.contractDigest);
+    const base = {
+      ...currentBase,
+      schemaVersion: "lego.real-build-run-contract/4" as const,
+      identificationClosure: legacyIdentificationClosure,
+    };
+    const frozenContract = { ...base, contractDigest: canonicalDigest(base) };
+    const parsed = parseRealBuildRunContract(encodeCanonicalRealBuildJson(frozenContract));
+    if (parsed.schemaVersion !== "lego.real-build-run-contract/4") throw new Error("unreachable");
+
+    expect(() =>
+      verifyLegacyRealBuildRunContractV4({
+        contract: parsed,
+        options,
+        roleDigests: LEGACY_TEST_ROLE_DIGESTS,
+        sourceFiles,
+      }),
+    ).not.toThrow();
+    expect(() =>
+      verifyRealBuildRunContract({
+        contract: parsed,
+        options,
+        roleDigests: LEGACY_TEST_ROLE_DIGESTS,
+        sourceFiles,
+      }),
+    ).toThrow(/run-contract \/2, \/3, or \/4 bytes/u);
+    expect(() =>
+      verifyLegacyRealBuildRunContractV4({
+        contract: parsed,
+        options,
         roleDigests: TEST_ROLE_DIGESTS,
         sourceFiles,
       }),
-    ).toThrow(/run-contract \/2 or \/3 bytes/u);
+    ).toThrow(/future retained raw role source-art-rebound/u);
   });
 
   it("reproduces exact generation-2 options without synthesizing the new camera budget", () => {
@@ -424,7 +497,7 @@ describe("real-build run contract", () => {
       codeSnapshots: { "inputs/booklet.pdf": REAL_BUILD_TEST_DIGEST },
     };
     const contract = { ...base, contractDigest: digest(base) };
-    const roleDigests = TEST_ROLE_DIGESTS;
+    const roleDigests = LEGACY_TEST_ROLE_DIGESTS;
 
     expect(() =>
       verifyLegacyRealBuildRunContractV2({
@@ -470,7 +543,7 @@ describe("real-build run contract", () => {
     expect(snapshots).not.toHaveProperty("apps/web/e2e/real-build-panel-camera-registration.ts");
   });
 
-  it("requires one exact bounded panel-camera branch budget in /4", () => {
+  it("requires one exact bounded panel-camera branch budget in /5", () => {
     const options = completeRealBuildTestOptions(1);
     const current = createRealBuildRunContract({
       inputDigests: options.inputDigests,
@@ -484,6 +557,7 @@ describe("real-build run contract", () => {
         cardImages: null,
         answers: null,
         pairJudged: REAL_BUILD_TEST_DIGEST,
+        sourceArtRebound: REAL_BUILD_TEST_DIGEST,
       },
       panelSourceDigest: REAL_BUILD_TEST_DIGEST,
       panels: options.panels,

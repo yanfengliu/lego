@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { __testOnly } from "./part-identification-source-art-images.mjs";
+import {
+  __testOnly,
+  containingPdfSourceArtImageOperators,
+  enumeratePdfSourceArtImageOperators,
+  resolveDecodedPdfSourceArtImage,
+} from "./part-identification-source-art-images.mjs";
 
 const {
   assertDecodedImage,
@@ -160,5 +165,44 @@ describe("embedded PDF source-art measurement controls", () => {
       bottom: 639,
     });
     expect(projectedBounds([2, 0.1, 0, 3, 10, 20], 100)).toBeNull();
+  });
+
+  it("exposes bounded containment without choosing an ambiguous candidate", () => {
+    const images = enumeratePdfSourceArtImageOperators(
+      pdfjs,
+      {
+        fnArray: [1, 3, 4, 4, 2],
+        argsArray: [[], [20, 0, 0, 20, 0, 0], ["a"], ["b"], []],
+      },
+      100,
+      "public-helper",
+    );
+    expect(
+      containingPdfSourceArtImageOperators(images, {
+        left: 10,
+        top: 650,
+        right: 20,
+        bottom: 700,
+      }),
+    ).toHaveLength(2);
+  });
+
+  it("resolves and owns exact decoded RGB bytes through the public helper", async () => {
+    const source = new Uint8Array([1, 2, 3, 4, 5, 6]);
+    const page = {
+      commonObjs: { has: () => false, get: () => undefined },
+      objs: {
+        has: (key) => key === "image",
+        get: () => ({ data: source, height: 1, kind: 2, width: 2 }),
+      },
+    };
+    const decoded = await resolveDecodedPdfSourceArtImage(
+      page,
+      { objectId: "image", operatorIndex: 1 },
+      "public-resolve",
+    );
+    source[0] = 99;
+    expect([...decoded.data]).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(decoded.decodedPixelSha256).toMatch(/^sha256:[0-9a-f]{64}$/u);
   });
 });

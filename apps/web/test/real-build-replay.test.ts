@@ -37,6 +37,7 @@ import {
 import { admitCanonicalRealBuildActionLedgerBytes } from "../e2e/real-build-action-ledger-admission";
 import { encodeRealBuildActionLedger } from "../e2e/real-build-action-ledger";
 import { actionEvidenceDigest } from "../e2e/real-build-ledger";
+import { inspectLegacyRealBuildArtifactManifestV3 } from "../e2e/real-build-artifact-legacy-v3";
 import { finalizeExecutedRealBuildResult } from "../e2e/real-build-finalize";
 import {
   replayRealBuildFinalization,
@@ -149,7 +150,7 @@ describe("real-build replay closure", () => {
     }
   });
 
-  it("never weakens a latched publication verifier after a pre-rename failure", () => {
+  it("ignores caller-supplied verifier callbacks and requires the module-owned artifact proof", async () => {
     const outputRoot = `output/real-build-publication-verifier-test-${randomUUID()}`;
     const absoluteOutputRoot = join(process.cwd(), outputRoot);
     try {
@@ -162,23 +163,32 @@ describe("real-build replay closure", () => {
       });
       const run = beginAtomicRun(plan);
       mkdirSync(join(run.directory, "source-snapshot"));
-      let calls = 0;
-      const requiredVerifier = (): never => {
-        calls += 1;
-        throw new Error("forced artifact verifier failure");
-      };
-
-      expect(() => run.publish(requiredVerifier)).toThrow(/forced artifact verifier failure/u);
-      expect(() => run.publish()).toThrow(/forced artifact verifier failure/u);
-      expect(calls).toBe(2);
-      expect(existsSync(plan.finalDirectory)).toBe(false);
-      expect(() =>
-        run.publish(() => ({
+      const fakePrepare = vi.fn(async () => ({
+        verification: {
           runId: plan.runId,
           replayClosureDigest: REAL_BUILD_TEST_DIGEST,
           artifactManifestDigest: REAL_BUILD_TEST_DIGEST,
-        })),
-      ).toThrow(/verifier was already latched/u);
+        },
+        proof: Object.freeze({}),
+      }));
+      const fakeVerify = vi.fn(() => ({
+        runId: plan.runId,
+        replayClosureDigest: REAL_BUILD_TEST_DIGEST,
+        artifactManifestDigest: REAL_BUILD_TEST_DIGEST,
+      }));
+
+      await expect(
+        (
+          run.preparePublication as unknown as (
+            prepare: typeof fakePrepare,
+            verify: typeof fakeVerify,
+          ) => Promise<unknown>
+        )(fakePrepare, fakeVerify),
+      ).rejects.toThrow(/artifact manifest/u);
+      expect(fakePrepare).not.toHaveBeenCalled();
+      expect(fakeVerify).not.toHaveBeenCalled();
+      expect(() => run.publish()).toThrow(/requires one completed asynchronous/u);
+      expect(existsSync(plan.finalDirectory)).toBe(false);
     } finally {
       rmSync(absoluteOutputRoot, { recursive: true, force: true });
     }
@@ -228,7 +238,16 @@ describe("real-build replay closure", () => {
         nonce: randomUUID(),
       });
       let injectedPostRenameFailure = false;
+      let tamperBeforeFinalVerification = false;
+      const verifiedDirectories: string[] = [];
       const run = beginAtomicRun(plan, {
+        beforeArtifactVerification: (directory) => {
+          verifiedDirectories.push(directory);
+          if (tamperBeforeFinalVerification && directory === plan.finalDirectory) {
+            tamperBeforeFinalVerification = false;
+            writeFileSync(join(directory, "replay-closure.json"), "tampered");
+          }
+        },
         afterDirectoryRename: () => {
           if (injectedPostRenameFailure) return;
           injectedPostRenameFailure = true;
@@ -250,7 +269,7 @@ describe("real-build replay closure", () => {
       const legacyActionLedgerBytes = Buffer.from(
         Buffer.from(rawRoleBytes["action-ledger"]!)
           .toString("utf8")
-          .replace("lego.real-build-action-ledger/3", "lego.real-build-action-ledger/2"),
+          .replace("lego.real-build-action-ledger/4", "lego.real-build-action-ledger/3"),
         "utf8",
       );
       const legacyInputDigests = {
@@ -270,7 +289,7 @@ describe("real-build replay closure", () => {
       });
       const legacyProbeDirectory = join(run.directory, "legacy-ledger-probe");
       mkdirSync(legacyProbeDirectory);
-      expect(() =>
+      await expect(
         writeRealBuildReplayClosure({
           directory: legacyProbeDirectory,
           repoRoot: sourceMirror.root,
@@ -304,7 +323,7 @@ describe("real-build replay closure", () => {
           },
           browserOutputRetained: false,
         }),
-      ).toThrow(/action-ledger.*lego\.real-build-action-ledger\/3/su);
+      ).rejects.toThrow(/action-ledger.*lego\.real-build-action-ledger\/3/su);
       const replayEnvironment = {
         schemaVersion: "lego.real-build-environment/1" as const,
         node: process.version,
@@ -403,7 +422,7 @@ describe("real-build replay closure", () => {
       });
       const contradictoryDirectory = join(run.directory, "contradictory-action-ledger-probe");
       mkdirSync(contradictoryDirectory);
-      expect(() =>
+      await expect(
         writeRealBuildReplayClosure({
           directory: contradictoryDirectory,
           repoRoot: sourceMirror.root,
@@ -428,7 +447,7 @@ describe("real-build replay closure", () => {
           },
           browserOutputRetained: false,
         }),
-      ).toThrow(/does not exactly reproduce the prepared-options action/u);
+      ).rejects.toThrow(/does not exactly reproduce the prepared-options action/u);
       const sourceContradictoryOptions = {
         ...options,
         panels: [{ ...options.panels[0]!, minXPt: 0.01 }],
@@ -445,7 +464,7 @@ describe("real-build replay closure", () => {
       });
       const sourceContradictoryDirectory = join(run.directory, "contradictory-panel-source-probe");
       mkdirSync(sourceContradictoryDirectory);
-      expect(() =>
+      await expect(
         writeRealBuildReplayClosure({
           directory: sourceContradictoryDirectory,
           repoRoot: sourceMirror.root,
@@ -460,7 +479,7 @@ describe("real-build replay closure", () => {
           },
           browserOutputRetained: true,
         }),
-      ).toThrow(/independently replayed retained 359-step panel source/u);
+      ).rejects.toThrow(/independently replayed retained 359-step panel source/u);
       const faceContradictoryOptions = {
         ...options,
         passivePanels: [
@@ -489,7 +508,7 @@ describe("real-build replay closure", () => {
         "contradictory-panel-face-source-probe",
       );
       mkdirSync(faceContradictoryDirectory);
-      expect(() =>
+      await expect(
         writeRealBuildReplayClosure({
           directory: faceContradictoryDirectory,
           repoRoot: sourceMirror.root,
@@ -504,7 +523,7 @@ describe("real-build replay closure", () => {
           },
           browserOutputRetained: true,
         }),
-      ).toThrow(/page\/face\/bounds\/calloutBoxes.*independently replayed/u);
+      ).rejects.toThrow(/page\/face\/bounds\/calloutBoxes.*independently replayed/u);
       const widenedPanelSource = JSON.parse(
         Buffer.from(rawRoleBytes["panel-source"]!).toString("utf8"),
       ) as {
@@ -529,7 +548,7 @@ describe("real-build replay closure", () => {
         "contradictory-panel-source-request-probe",
       );
       mkdirSync(widenedPanelSourceDirectory);
-      expect(() =>
+      await expect(
         writeRealBuildReplayClosure({
           directory: widenedPanelSourceDirectory,
           repoRoot: sourceMirror.root,
@@ -545,11 +564,11 @@ describe("real-build replay closure", () => {
           },
           browserOutputRetained: true,
         }),
-      ).toThrow(/panel-source requestedLastStep 2.*prepared-options lastStep 1/u);
+      ).rejects.toThrow(/panel-source requestedLastStep 2.*prepared-options lastStep 1/u);
       const noncanonicalPreparedProbeDirectory = join(run.directory, "noncanonical-prepared-probe");
       mkdirSync(noncanonicalPreparedProbeDirectory);
       const canonicalPreparedOptions = encodeRealBuildPreparedRunInput(options);
-      expect(() =>
+      await expect(
         writeRealBuildReplayClosure({
           directory: noncanonicalPreparedProbeDirectory,
           repoRoot: sourceMirror.root,
@@ -558,10 +577,11 @@ describe("real-build replay closure", () => {
           environment: replayEnvironment,
           browserOutputRetained: true,
         }),
-      ).toThrow(/canonical compact JSON bytes/u);
+      ).rejects.toThrow(/canonical compact JSON bytes/u);
+
       writeFileSync(join(run.directory, served.runnerFile), served.runnerBytes);
       writeFileSync(join(run.directory, served.manifestFile), served.manifestBytes);
-      const replayClosure = writeRealBuildReplayClosure({
+      const replayClosure = await writeRealBuildReplayClosure({
         directory: run.directory,
         repoRoot: sourceMirror.root,
         roles: currentReplayRoles(canonicalPreparedOptions),
@@ -602,15 +622,9 @@ describe("real-build replay closure", () => {
       });
       mkdirSync(plan.pointerPath);
       const prePublishManifest = readFileSync(join(run.directory, "replay-closure.json"));
-      const verifiedDirectories: string[] = [];
-      const verifyClosure = (directory: string) => {
-        verifiedDirectories.push(directory);
-        return verifyRealBuildArtifactManifest(directory, plan.runId);
-      };
-      expect(() => run.publish(verifyClosure)).toThrow(
-        /directory committed.*pointer was not written/u,
-      );
-      writeFileSync(join(plan.finalDirectory, "replay-closure.json"), "tampered");
+      await run.preparePublication();
+      expect(() => run.publish()).toThrow(/directory committed.*pointer was not written/u);
+      tamperBeforeFinalVerification = true;
       expect(() => run.publish()).toThrow();
       expect(existsSync(plan.pointerPath)).toBe(true);
       writeFileSync(join(plan.finalDirectory, "replay-closure.json"), prePublishManifest);
@@ -623,12 +637,12 @@ describe("real-build replay closure", () => {
         expect.arrayContaining([plan.temporaryDirectory, plan.finalDirectory]),
       );
       expect(existsSync(join(published, "source-snapshot"))).toBe(false);
-      const closure = verifyRealBuildReplayClosure(published);
+      const closure = await verifyRealBuildReplayClosure(published);
       const artifactManifestDigest = sha256Digest(
         readFileSync(join(published, "artifact-manifest.json")),
       );
       expect(closure).toMatchObject({ authority: "local-diagnostic", authenticated: false });
-      const verified = verifyRealBuildReplayClosureData(published);
+      const verified = await verifyRealBuildReplayClosureData(published);
       expect(verified.roleBytes.get("official-model")).not.toBe(
         verified.roleBytes.get("action-ledger"),
       );
@@ -640,10 +654,81 @@ describe("real-build replay closure", () => {
         artifactManifestDigest,
       });
 
+      const replayClosurePath = join(published, "replay-closure.json");
+      const stableReplayClosure = readFileSync(replayClosurePath);
+      const pendingArtifactVerification = verifyRealBuildArtifactManifest(published, plan.runId);
+      try {
+        writeFileSync(replayClosurePath, Buffer.from([0xff]));
+        await expect(pendingArtifactVerification).rejects.toThrow(
+          /replay closure manifest must be duplicate-free finite UTF-8 JSON/u,
+        );
+      } finally {
+        writeFileSync(replayClosurePath, stableReplayClosure);
+      }
+
+      const sourceArtReboundRole = closure.roles.find(({ role }) => role === "source-art-rebound")!;
+      const sourceArtReboundPath = join(published, sourceArtReboundRole.casPath);
+      const stableSourceArtRebound = readFileSync(sourceArtReboundPath);
+      const pendingCasVerification = verifyRealBuildArtifactManifest(published, plan.runId);
+      const changedSourceArtRebound = Buffer.from(stableSourceArtRebound);
+      changedSourceArtRebound[0] = changedSourceArtRebound[0]! ^ 0xff;
+      try {
+        writeFileSync(sourceArtReboundPath, changedSourceArtRebound);
+        await expect(pendingCasVerification).rejects.toThrow(
+          /replay role source-art-rebound.*hashes to.*caller pinned/su,
+        );
+      } finally {
+        writeFileSync(sourceArtReboundPath, stableSourceArtRebound);
+      }
+
       const scorePath = join(published, "score.json");
       const artifactManifestPath = join(published, "artifact-manifest.json");
       const originalScore = readFileSync(scorePath);
       const originalArtifactManifest = readFileSync(artifactManifestPath);
+      const currentArtifactManifest = JSON.parse(originalArtifactManifest.toString("utf8")) as {
+        authority: Record<string, unknown>;
+        runId: string;
+        replayClosure: Record<string, unknown>;
+        artifacts: unknown;
+      };
+      const legacyArtifactManifest = {
+        schemaVersion: "lego.real-build-artifact-manifest/3",
+        authority: currentArtifactManifest.authority,
+        runId: currentArtifactManifest.runId,
+        runContract: { schemaVersion: "lego.real-build-run-contract/2" },
+        truthSnapshots: {
+          availability: "unavailable",
+          validationSnapshots: [],
+          finalStructuralHash: null,
+          diagnosticPrefix: {
+            schemaVersion: "lego.real-build-diagnostic-prefix/1",
+            throughStepNumber: 1,
+            targetEquivalence: "unreconciled",
+            structuralHash: REAL_BUILD_TEST_DIGEST,
+            parts: 1,
+          },
+        },
+        replayClosure: currentArtifactManifest.replayClosure,
+        artifacts: currentArtifactManifest.artifacts,
+      };
+      writeFileSync(
+        artifactManifestPath,
+        encodeCanonicalRealBuildJson(legacyArtifactManifest, "pretty-one-space-line"),
+      );
+      const pendingLegacyCasVerification = inspectLegacyRealBuildArtifactManifestV3(
+        published,
+        plan.runId,
+      );
+      try {
+        writeFileSync(sourceArtReboundPath, changedSourceArtRebound);
+        await expect(pendingLegacyCasVerification).rejects.toThrow(
+          /replay role source-art-rebound.*hashes to.*caller pinned/su,
+        );
+      } finally {
+        writeFileSync(sourceArtReboundPath, stableSourceArtRebound);
+        writeFileSync(artifactManifestPath, originalArtifactManifest);
+      }
+
       const duplicateArtifactManifest = originalArtifactManifest
         .toString("utf8")
         .replace('"runContract":', '"runContract":{},"runContract":');
@@ -669,7 +754,7 @@ describe("real-build replay closure", () => {
         artifactManifestPath,
         encodeCanonicalRealBuildJson(duplicateScoreManifest, "pretty-one-space-line"),
       );
-      expect(() => verifyRealBuildArtifactManifest(published, plan.runId)).toThrow(
+      await expect(verifyRealBuildArtifactManifest(published, plan.runId)).rejects.toThrow(
         /duplicate-free finite UTF-8/u,
       );
       writeFileSync(scorePath, originalScore);
@@ -693,7 +778,7 @@ describe("real-build replay closure", () => {
         artifactManifestPath,
         encodeCanonicalRealBuildJson(forgedArtifactManifest, "pretty-one-space-line"),
       );
-      expect(() => verifyRealBuildArtifactManifest(published, plan.runId)).toThrow(
+      await expect(verifyRealBuildArtifactManifest(published, plan.runId)).rejects.toThrow(
         /does not exactly reproduce/u,
       );
       writeFileSync(scorePath, originalScore);
@@ -720,25 +805,25 @@ describe("real-build replay closure", () => {
         artifactManifestPath,
         encodeCanonicalRealBuildJson(mixedGenerationManifest, "pretty-one-space-line"),
       );
-      expect(() => verifyRealBuildArtifactManifest(published, plan.runId)).toThrow(
+      await expect(verifyRealBuildArtifactManifest(published, plan.runId)).rejects.toThrow(
         /Retained score must bind/u,
       );
       writeFileSync(scorePath, originalScore);
       writeFileSync(artifactManifestPath, originalArtifactManifest);
 
       writeFileSync(join(published, "document.json"), "{}\n");
-      expect(() => verifyRealBuildArtifactManifest(published, plan.runId)).toThrow(
+      await expect(verifyRealBuildArtifactManifest(published, plan.runId)).rejects.toThrow(
         /undeclared reserved evidence file.*document\.json/u,
       );
       rmSync(join(published, "document.json"));
 
-      const inspected = inspectRealBuildReplayClosure(published);
+      const inspected = await inspectRealBuildReplayClosure(published);
       expect(inspected).toMatchObject({
         authority: "local-diagnostic",
         authenticated: false,
         replayLevel: "downstream-only",
         contractDigest: runContract.contractDigest,
-        contractSchemaVersion: "lego.real-build-run-contract/4",
+        contractSchemaVersion: "lego.real-build-run-contract/5",
       });
       expect(inspected.roleTrace.map(({ role }) => role)).toContain("builder-geometry");
       expect(inspected.roleTrace.map(({ role }) => role)).toEqual(
@@ -794,21 +879,23 @@ describe("real-build replay closure", () => {
         writeFileSync(manifestPath, encodeRehashedReplayManifest(forged));
       };
       rewriteReservedJsonRole("browser-output", Buffer.from("{}"));
-      expect(() => verifyRealBuildReplayClosure(published)).toThrow(
+      await expect(verifyRealBuildReplayClosure(published)).rejects.toThrow(
         /browser-output must be an executed or failed object/u,
       );
       rewriteReservedJsonRole(
         "browser-output",
         Buffer.from('{"schemaVersion":"lego.real-build-browser-output/2"}'),
       );
-      expect(() => verifyRealBuildReplayClosure(published)).toThrow(
+      await expect(verifyRealBuildReplayClosure(published)).rejects.toThrow(
         /browser-output must be an executed or failed object/u,
       );
       const duplicateBrowserOutput = new TextDecoder()
         .decode(encodeCanonicalRealBuildJson(browserOutput()))
         .replace('"reports":', '"reports":[],"reports":');
       rewriteReservedJsonRole("browser-output", Buffer.from(duplicateBrowserOutput));
-      expect(() => verifyRealBuildReplayClosure(published)).toThrow(/duplicate-free finite UTF-8/u);
+      await expect(verifyRealBuildReplayClosure(published)).rejects.toThrow(
+        /duplicate-free finite UTF-8/u,
+      );
       rewriteReservedJsonRole(
         "browser-output",
         encodeCanonicalRealBuildJson({
@@ -828,7 +915,7 @@ describe("real-build replay closure", () => {
           ],
         }),
       );
-      expect(() => verifyRealBuildReplayClosure(published)).toThrow(
+      await expect(verifyRealBuildReplayClosure(published)).rejects.toThrow(
         /complete prepared-panel boundary shape/u,
       );
       rewriteReservedJsonRole("environment", Buffer.from([0xc3, 0x28]));

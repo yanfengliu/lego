@@ -38,7 +38,12 @@ export {
   sha256Digest,
   validateRealBuildArtifactFilePlan,
 } from "./real-build-artifact-policy";
-export { verifyRealBuildArtifactManifest } from "./real-build-artifact-current-verification";
+export {
+  prepareRealBuildArtifactManifestVerification,
+  verifyPreparedRealBuildArtifactManifest,
+  verifyRealBuildArtifactManifest,
+  type PreparedRealBuildArtifactVerification,
+} from "./real-build-artifact-current-verification";
 export {
   inspectLegacyRealBuildArtifactManifestV3,
   type LegacyRealBuildArtifactInspectionV3,
@@ -194,11 +199,11 @@ export function writeRealBuildArtifactManifest(input: {
   readonly replayClosure: RealBuildReplayClosureManifest;
 }): string {
   if (
-    input.runContract.schemaVersion !== "lego.real-build-run-contract/4" ||
+    input.runContract.schemaVersion !== "lego.real-build-run-contract/5" ||
     input.replayClosure.schemaVersion !== "lego.real-build-replay-closure/3"
   ) {
     throw new TypeError(
-      "Current artifact-manifest /4 publication requires exact run-contract /4 and replay-closure /3 inputs; legacy generations are inspection-only.",
+      "Current artifact-manifest /4 publication requires exact run-contract /5 and replay-closure /3 inputs; legacy generations are inspection-only.",
     );
   }
   assertCurrentArtifactReplayBoundaryVerifiable(input.replayClosure, "publish");

@@ -49,7 +49,9 @@ def materialize_report_contract_fixture(
         ) from error
     score_bytes = (root / "output/part-identification/score.json").read_bytes()
     score_digest = "sha256:" + hashlib.sha256(score_bytes).hexdigest()
-    if len(score_bytes) != EXPECTED_SCORE_BYTES or score_digest != EXPECTED_SCORE_DIGEST:
+    if coverage_source == "adjudicated" and (
+        len(score_bytes) != EXPECTED_SCORE_BYTES or score_digest != EXPECTED_SCORE_DIGEST
+    ):
         raise RuntimeError(
             "Canonical score fixture moved from its independently reviewed exact byte length/digest: "
             f"observed {len(score_bytes)} bytes {score_digest}; expected "

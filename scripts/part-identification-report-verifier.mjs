@@ -57,6 +57,14 @@ function exactObject(value, label) {
   return value;
 }
 
+function exactArtifactRoles(request, expectedRoles) {
+  const roles = Object.keys(exactObject(request.artifacts, "Artifacts")).sort();
+  const expected = [...expectedRoles].sort();
+  if (!isDeepStrictEqual(roles, expected)) {
+    throw new Error("Action-ledger artifacts do not match the exact coverage source mode.");
+  }
+}
+
 function artifactSpec(request, role) {
   const spec = exactObject(request.artifacts?.[role], `Artifact ${role}`);
   if (
@@ -92,6 +100,29 @@ function binaryArtifact(request, role, maximumBytes = MAX_CARD_IMAGE_BUNDLE_BYTE
 async function verifyActionLedger(request, actionLedgerVerifier) {
   let stage = "inputs";
   try {
+    const coverage = jsonArtifact(request, "coverage");
+    const source = coverage.value?.identification?.source;
+    if (source !== "adjudicated" && source !== "deterministic") {
+      throw new Error("Action-ledger coverage has no current identification source.");
+    }
+    const adjudicated = source === "adjudicated";
+    exactArtifactRoles(request, [
+      "actionLedger",
+      "coverage",
+      "features",
+      "match",
+      "distances",
+      "elementResolution",
+      "pairJudged",
+      ...(adjudicated ? ["cards", "cardImages", "answers"] : []),
+      "calloutManifest",
+      "sourceArtRebound",
+      "builderCalibration",
+      "transitionClassifications",
+      "officialModel",
+      "bookletPdf",
+      "builderGeometry",
+    ]);
     const builderGeometry = binaryArtifact(
       request,
       "builderGeometry",
@@ -102,9 +133,18 @@ async function verifyActionLedger(request, actionLedgerVerifier) {
     }
     const input = {
       ledger: jsonArtifact(request, "actionLedger"),
-      coverage: jsonArtifact(request, "coverage"),
+      coverage,
       features: jsonArtifact(request, "features"),
+      match: jsonArtifact(request, "match"),
+      distances: jsonArtifact(request, "distances"),
+      elementResolution: jsonArtifact(request, "elementResolution"),
+      pairJudged: jsonArtifact(request, "pairJudged"),
+      cards: adjudicated ? jsonArtifact(request, "cards") : null,
+      cardImages: adjudicated ? binaryArtifact(request, "cardImages") : null,
+      answers: adjudicated ? jsonArtifact(request, "answers") : null,
+      traceRoot: adjudicated ? dirname(artifactSpec(request, "answers").path) : null,
       calloutManifest: jsonArtifact(request, "calloutManifest"),
+      sourceArtRebound: jsonArtifact(request, "sourceArtRebound"),
       builderCalibration: jsonArtifact(request, "builderCalibration"),
       transitionClassifications: jsonArtifact(request, "transitionClassifications"),
       officialModel: binaryArtifact(request, "officialModel", OFFICIAL_MODEL_MAX_BYTES),
@@ -174,7 +214,7 @@ function verifyIdentification(request) {
   });
 }
 
-function verifyCoverage(request, coverageClosureVerifier) {
+async function verifyCoverage(request, coverageClosureVerifier) {
   const coverageArtifact = jsonArtifact(request, "coverage");
   const source = coverageArtifact.value?.identification?.source;
   const adjudicated = source === "adjudicated";
@@ -193,10 +233,12 @@ function verifyCoverage(request, coverageClosureVerifier) {
     traceRoot: adjudicated ? dirname(artifactSpec(request, "answers").path) : null,
     traceArtifacts: null,
     pairJudgedArtifact: jsonArtifact(request, "pairJudged"),
+    sourceArtReboundArtifact: jsonArtifact(request, "sourceArtRebound"),
+    pdfBytes: binaryArtifact(request, "pdf", MAX_BOOKLET_PDF_BYTES).bytes,
     manifestBytes: jsonArtifact(request, "calloutManifest").bytes,
     lastStep: coverageArtifact.value?.lastStep,
   };
-  coverageClosureVerifier(input);
+  await coverageClosureVerifier(input);
 }
 
 function writeArtifact(root, relativePath, bytes) {
@@ -431,7 +473,7 @@ export async function dispatch(
   exactObject(request.artifacts, "Artifacts");
   if (request.kind === "identification") verifyIdentification(request);
   else if (request.kind === "adjudication") verifyAdjudication(request);
-  else if (request.kind === "coverage") verifyCoverage(request, coverageClosureVerifier);
+  else if (request.kind === "coverage") await verifyCoverage(request, coverageClosureVerifier);
   else if (request.kind === "score-summary") await verifyScoreSummary(request, requestDirectory);
   else if (request.kind === "action-ledger") {
     await verifyActionLedger(request, actionLedgerVerifier);

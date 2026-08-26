@@ -3,7 +3,11 @@ import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { __testOnly as coverageTestOnly } from "./booklet-catalog-coverage.mjs";
-import { closureFixture } from "./booklet-catalog-coverage-test-fixture.mjs";
+import {
+  closureFixture,
+  digest,
+  pairJudgedArtifactFor,
+} from "./booklet-catalog-coverage-test-fixture.mjs";
 import { authenticateCardImageBundle } from "./part-identification-card-images.mjs";
 import { option } from "./part-identification-cli-option.mjs";
 import { PART_IDENTIFICATION_MODEL_ID } from "./part-identification-model.mjs";
@@ -58,10 +62,25 @@ function requireEmptyMarkedTestRoot(root) {
 export async function writePythonReportContractFixture(rootInput, coverageSource = "adjudicated") {
   const root = resolve(rootInput);
   requireEmptyMarkedTestRoot(root);
-  const fixture = closureFixture();
   if (coverageSource !== "adjudicated" && coverageSource !== "deterministic") {
     throw new Error("Report fixture coverage source must be adjudicated or deterministic.");
   }
+  const baseFixture = closureFixture();
+  const fixture =
+    coverageSource === "deterministic"
+      ? {
+          ...baseFixture,
+          pairJudgedArtifact: pairJudgedArtifactFor([
+            {
+              n: 1,
+              judgedCropSha256: digest("crop-one"),
+              elementId: "300501",
+              same: true,
+              note: "synthetic deterministic closure",
+            },
+          ]),
+        }
+      : baseFixture;
   const labelsArtifact = jsonArtifact({
     entries: [{ elementId: "300501", quantity: 1 }],
   });
@@ -77,6 +96,7 @@ export async function writePythonReportContractFixture(rootInput, coverageSource
     ["output/part-identification/element-resolution.json", fixture.elementsArtifact],
     ["output/inventory-thumbnails/labels.json", labelsArtifact],
     ["scripts/fixtures/part-identification-truth-first50.json", fixture.pairJudgedArtifact],
+    ["output/part-identification/source-art-rebound.json", fixture.sourceArtReboundArtifact],
   ];
   for (const [relativePath, artifact] of artifacts) write(root, relativePath, artifact.bytes);
   for (const [relativePath, bytes] of Object.entries(fixture.traceArtifacts)) {
@@ -114,7 +134,7 @@ export async function writePythonReportContractFixture(rootInput, coverageSource
           traceRoot: null,
           traceArtifacts: null,
         };
-  const coverage = coverageTestOnly.compileBookletCatalogCoverageClosure(
+  const coverage = await coverageTestOnly.compileBookletCatalogCoverageClosure(
     coverageInput,
     fixture.manifestExpectation,
   );
@@ -125,25 +145,24 @@ export async function writePythonReportContractFixture(rootInput, coverageSource
   write(root, "output/real-build/builder-canonical-calibration.json", calibrationArtifact.bytes);
   write(root, "output/real-build/transition-classifications.json", transitionsArtifact.bytes);
   write(root, "output/official-model/vx1087034_21066_a.xml", TEST_OFFICIAL_MODEL_BYTES);
-  if (coverageSource === "adjudicated") {
-    const ledgerFixture = await reproduceSyntheticActionLedger({
-      coverage: coverageArtifact,
-      calloutManifest: jsonArtifactFromBytes(fixture.manifestBytes, "report fixture manifest"),
-      officialModel: {
-        bytes: TEST_OFFICIAL_MODEL_BYTES,
-        digest: sha256Digest(TEST_OFFICIAL_MODEL_BYTES),
-      },
-      bookletPdf: { bytes: TEST_BOOKLET_BYTES, digest: sha256Digest(TEST_BOOKLET_BYTES) },
-      builderCalibration: calibrationArtifact,
-      builderGeometry: {
-        bytes: TEST_BUILDER_GEOMETRY_BYTES,
-        digest: sha256Digest(TEST_BUILDER_GEOMETRY_BYTES),
-      },
-      transitionClassifications: transitionsArtifact,
-      requestedLastStep: 1,
-    });
-    write(root, "output/real-build/action-ledger.json", ledgerFixture.encoded);
-  }
+  const ledgerFixture = await reproduceSyntheticActionLedger({
+    coverage: coverageArtifact,
+    calloutManifest: jsonArtifactFromBytes(fixture.manifestBytes, "report fixture manifest"),
+    sourceArtRebound: fixture.sourceArtReboundArtifact,
+    officialModel: {
+      bytes: TEST_OFFICIAL_MODEL_BYTES,
+      digest: sha256Digest(TEST_OFFICIAL_MODEL_BYTES),
+    },
+    bookletPdf: { bytes: TEST_BOOKLET_BYTES, digest: sha256Digest(TEST_BOOKLET_BYTES) },
+    builderCalibration: calibrationArtifact,
+    builderGeometry: {
+      bytes: TEST_BUILDER_GEOMETRY_BYTES,
+      digest: sha256Digest(TEST_BUILDER_GEOMETRY_BYTES),
+    },
+    transitionClassifications: transitionsArtifact,
+    requestedLastStep: 1,
+  });
+  write(root, "output/real-build/action-ledger.json", ledgerFixture.encoded);
 
   const inventoryHeld = () => ({
     held: new Map(

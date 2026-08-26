@@ -27,7 +27,9 @@ export const MEASURED_FARTHER_ORIGIN_ENTRY_SOURCE_PATHS = Object.freeze([
 
 /** Exact executable source closure, including runtime-loaded PowerShell/C#, reached from verifier and producer entries. */
 export const MEASURED_FARTHER_ORIGIN_RUNTIME_SOURCE_PATHS = Object.freeze([
+  "scripts/booklet-catalog-coverage-cli.mjs",
   "scripts/booklet-catalog-coverage-report.mjs",
+  "scripts/booklet-catalog-coverage-source-art-rebound.mjs",
   "scripts/booklet-catalog-coverage.mjs",
   "scripts/bounded-observed-value.mjs",
   "scripts/callout-component-ownership.mjs",
@@ -91,6 +93,10 @@ export const MEASURED_FARTHER_ORIGIN_RUNTIME_SOURCE_PATHS = Object.freeze([
   "scripts/part-identification-score-observations.mjs",
   "scripts/part-identification-score-truth.mjs",
   "scripts/part-identification-score.mjs",
+  "scripts/part-identification-source-art-contribution.mjs",
+  "scripts/part-identification-source-art-images.mjs",
+  "scripts/part-identification-source-art-rebound-render.mjs",
+  "scripts/part-identification-source-art-rebound.mjs",
   "scripts/part-identification-strict-json.mjs",
   "scripts/part-identification-transport-contract.mjs",
   "scripts/part-identification-truth-key.mjs",
@@ -212,7 +218,7 @@ export function isRealBuildSourceAttestation(value: unknown): value is RealBuild
 export const MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION: RealBuildSourceAttestation = Object.freeze(
   {
     schemaVersion: REAL_BUILD_SOURCE_ATTESTATION_SCHEMA_VERSION,
-    fileCount: 3_650,
-    digest: "sha256:7fabfaed3744ecaf01549f6e0e600547ac540171999087a5d57a5f8b87db2215",
+    fileCount: 3_660,
+    digest: "sha256:fb901a8bf7b93616e4d345c1c6050d729ef35a6da3d11008555bead458abdd99",
   },
 );

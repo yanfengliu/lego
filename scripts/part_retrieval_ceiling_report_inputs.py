@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Callable
 
@@ -25,6 +26,18 @@ from part_identification_report_io import (
 )
 from part_retrieval_ceiling import REPOSITORY_ROOT
 from part_retrieval_work_contract import require_report_comparison_budget
+
+
+def _uses_adjudicated_coverage(value: object) -> bool:
+    """Inspect only validated JSON shapes without pre-empting canonical rejection."""
+
+    if not isinstance(value, Mapping):
+        return False
+    identification = value.get("identification")
+    return (
+        isinstance(identification, Mapping)
+        and identification.get("source") == "adjudicated"
+    )
 
 
 @dataclass(frozen=True)
@@ -137,6 +150,7 @@ def load_verified_retrieval_inputs(
         _, digests["cardImages"] = read_card_images_artifact(
             paths["cards"].parent, cards
         )
+        adjudicated_coverage = _uses_adjudicated_coverage(coverage)
         require_coverage_chain(
             coverage,
             coverage_digest=digests["coverage"],
@@ -144,13 +158,21 @@ def load_verified_retrieval_inputs(
             match_digest=digests["match"],
             distances_digest=digests["distances"],
             element_resolution_digest=digests["elementResolution"],
+            source_art_rebound_digest=digests["sourceArtRebound"],
             consumed_role_digests={
                 "pdf": features["inputDigests"]["pdf"],
                 "calloutManifest": digests["calloutManifest"],
-                "cards": digests["cards"],
-                "cardImages": digests["cardImages"],
-                "answers": digests["answers"],
+                **(
+                    {
+                        "cards": digests["cards"],
+                        "cardImages": digests["cardImages"],
+                        "answers": digests["answers"],
+                    }
+                    if adjudicated_coverage
+                    else {}
+                ),
                 "pairJudged": digests["truthFirstFifty"],
+                "sourceArtRebound": digests["sourceArtRebound"],
             },
         )
         require_action_ledger_report_chain(
@@ -160,7 +182,21 @@ def load_verified_retrieval_inputs(
             coverage_digest=digests["coverage"],
             features=features,
             features_digest=digests["features"],
+            match=match,
+            match_digest=digests["match"],
+            distances=distances,
+            distances_digest=digests["distances"],
+            element_resolution=resolution,
+            element_resolution_digest=digests["elementResolution"],
+            pair_judged=truth_fixture,
+            pair_judged_digest=digests["truthFirstFifty"],
+            cards=cards if adjudicated_coverage else None,
+            cards_digest=digests["cards"] if adjudicated_coverage else None,
+            card_images_digest=(digests["cardImages"] if adjudicated_coverage else None),
+            answers=answers if adjudicated_coverage else None,
+            answers_digest=digests["answers"] if adjudicated_coverage else None,
             callout_manifest_digest=digests["calloutManifest"],
+            source_art_rebound_digest=digests["sourceArtRebound"],
             official_model_text=official_model,
             official_model_digest=digests["officialModel"],
             builder_calibration_digest=digests["builderCalibration"],
