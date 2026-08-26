@@ -139,7 +139,7 @@ describe("preloaded mesh asset resolution", () => {
       ...recipe(asset),
       assetToCatalogFrame: {
         schemaVersion: "mesh-asset-to-catalog-frame/1",
-        orientationId: "upright-yaw-90",
+        orientationId: "proper-m-p000n000n",
         translationLdu: [3, -4, 5],
       },
     };
@@ -154,7 +154,7 @@ describe("preloaded mesh asset resolution", () => {
 
     expect(resolution.ok).toBe(true);
     if (!resolution.ok) return;
-    const framedPositions = [3, -4, 5, 3, -4, -15, 3, -12, 5, 13, -4, 5];
+    const framedPositions = [3, -4, 5, 23, -4, 5, 3, 4, 5, 3, -4, -5];
     const rendererPositions = framedPositions.map((coordinate, index) =>
       Math.fround(coordinate * MESH_RENDER_UNITS_PER_LDU * (index % 3 === 1 ? -1 : 1)),
     );
@@ -404,6 +404,13 @@ describe("preloaded mesh asset resolution", () => {
           translationLdu: [0, 0.5, 0],
         },
       };
+      const reflectionFrame: MeshReferenceGeometryRecipe = {
+        ...validRecipe,
+        assetToCatalogFrame: {
+          ...validRecipe.assetToCatalogFrame,
+          orientationId: "proper-m-p000p000n",
+        },
+      };
       return [
         ["missing", createPreloadedMeshAssetResolver({}), validRecipe, "MESH_ASSET_MISSING"],
         [
@@ -485,6 +492,12 @@ describe("preloaded mesh asset resolution", () => {
           "frame-invalid",
           createPreloadedMeshAssetResolver({ [ASSET_ID]: valid }),
           invalidFrame,
+          "MESH_FRAME_INVALID",
+        ],
+        [
+          "frame-reflection",
+          createPreloadedMeshAssetResolver({ [ASSET_ID]: valid }),
+          reflectionFrame,
           "MESH_FRAME_INVALID",
         ],
       ] as const;

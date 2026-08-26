@@ -3,10 +3,10 @@ import {
   PROJECT_CATALOG_PROVENANCE,
   PROJECT_GEOMETRY_PROVENANCE,
   PROJECT_PLAN_GEOMETRY_PROVENANCE,
+  PROPER_ORIENTATIONS,
   STUD_HEIGHT_LDU,
   STUD_PITCH_LDU,
   STUD_RADIUS_LDU,
-  UPRIGHT_ORIENTATIONS,
 } from "./constants.ts";
 import type {
   CollisionPrimitive,
@@ -92,7 +92,7 @@ export const makePartDefinition = (blueprint: PartBlueprint): ParametricPartDefi
   validatePartialOverhangClutchEvidence(blueprint);
   if (
     blueprint.ldrawFrame !== undefined &&
-    !UPRIGHT_ORIENTATIONS.some(({ id }) => id === blueprint.ldrawFrame?.ldrawToCatalogOrientationId)
+    !PROPER_ORIENTATIONS.some(({ id }) => id === blueprint.ldrawFrame?.ldrawToCatalogOrientationId)
   ) {
     throw new Error(
       `${blueprint.ldrawId} names unknown LDraw-to-catalog orientation ${blueprint.ldrawFrame.ldrawToCatalogOrientationId}`,

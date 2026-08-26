@@ -1,7 +1,7 @@
 import { deepFreeze, type Sha256Digest } from "@lego-studio/brick-kernel";
 import {
   MESH_RENDER_UNITS_PER_LDU,
-  UPRIGHT_ORIENTATIONS,
+  PROPER_ORIENTATIONS,
   type MeshReferenceGeometryRecipe,
 } from "@lego-studio/catalog";
 import { Box3, Matrix4, OrthographicCamera, PerspectiveCamera, Vector3 } from "three";
@@ -168,10 +168,10 @@ export function ldrawAssetToCatalogThreeMatrix(
       `Visual admission requires mesh-asset-to-catalog-frame/1; received ${JSON.stringify(frame.schemaVersion)}.`,
     );
   }
-  const orientation = UPRIGHT_ORIENTATIONS.find(({ id }) => id === frame.orientationId);
+  const orientation = PROPER_ORIENTATIONS.find(({ id }) => id === frame.orientationId);
   if (orientation === undefined) {
     throw new TypeError(
-      `Visual admission frame ${JSON.stringify(frame.orientationId)} is not one of ${UPRIGHT_ORIENTATIONS.map(({ id }) => id).join(", ")}.`,
+      `Visual admission frame ${JSON.stringify(frame.orientationId)} is not one of the ${PROPER_ORIENTATIONS.length} proper source/catalog orientations.`,
     );
   }
   if (

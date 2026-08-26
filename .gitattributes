@@ -55,6 +55,8 @@ scripts/fixtures/** -text
 # and something else checks the result matches byte for byte.
 packages/catalog/src/quarantine/** -text
 *.generated.* -text
+# This importable Python module cannot carry a `.generated.` infix but is checked byte-for-byte.
+scripts/proper_orientations_generated.py -text
 
 # That claim was written as `*.generated.json`, which protected the one file the
 # incident named and left the rest of the class translated. A fresh worktree

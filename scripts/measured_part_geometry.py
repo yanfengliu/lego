@@ -15,6 +15,7 @@ from typing import Protocol, Sequence
 from ldraw_surface_expander import ExpandedTriangle
 from measured_stud_tables import MeasuredStudRow, compile_measured_stud_rows
 from part_admission_surface import STUD_ROLE, MeasuredSurface
+from proper_orientations_generated import PROPER_ORIENTATIONS
 
 Vector3 = tuple[float, float, float]
 
@@ -26,16 +27,6 @@ class FramePlan(Protocol):
     orientation_id: str
     translation_ldu: tuple[int, int, int]
 
-
-# The catalog's four upright orientations, from packages/catalog/src/constants.ts.
-# A measured part's source-to-catalog frame is one of these plus a whole-LDU
-# translation, applied exactly once.
-UPRIGHT_ORIENTATIONS: dict[str, tuple[int, ...]] = {
-    "upright-yaw-0": (1, 0, 0, 0, 1, 0, 0, 0, 1),
-    "upright-yaw-90": (0, 0, 1, 0, 1, 0, -1, 0, 0),
-    "upright-yaw-180": (-1, 0, 0, 0, 1, 0, 0, 0, -1),
-    "upright-yaw-270": (0, 0, -1, 0, 1, 0, 1, 0, 0),
-}
 
 # packages/catalog/src/mesh-assets.ts: the renderer scales catalog LDU by this
 # and allocates the result as Float32, so two vertices closer than that cannot be
@@ -54,7 +45,7 @@ def float32(value: float) -> float:
 def frame_point(point: Sequence[float], plan: FramePlan) -> Vector3:
     """One source-local LDU point in the catalog frame, applied exactly once."""
 
-    matrix = UPRIGHT_ORIENTATIONS[plan.orientation_id]
+    matrix = PROPER_ORIENTATIONS[plan.orientation_id]
     return tuple(  # type: ignore[return-value]
         matrix[row * 3 + 0] * point[0]
         + matrix[row * 3 + 1] * point[1]
@@ -67,7 +58,7 @@ def frame_point(point: Sequence[float], plan: FramePlan) -> Vector3:
 def frame_direction(direction: Sequence[float], plan: FramePlan) -> Vector3:
     """Rotate an asset-local direction into the catalog frame without translation."""
 
-    matrix = UPRIGHT_ORIENTATIONS[plan.orientation_id]
+    matrix = PROPER_ORIENTATIONS[plan.orientation_id]
     return tuple(  # type: ignore[return-value]
         matrix[row * 3 + 0] * direction[0]
         + matrix[row * 3 + 1] * direction[1]
@@ -76,12 +67,39 @@ def frame_direction(direction: Sequence[float], plan: FramePlan) -> Vector3:
     )
 
 
+def inverse_orientation_id(orientation_id: str) -> str:
+    """Return the registry id for one proper orientation's exact inverse."""
+
+    matrix = PROPER_ORIENTATIONS[orientation_id]
+    inverse = (
+        matrix[0],
+        matrix[3],
+        matrix[6],
+        matrix[1],
+        matrix[4],
+        matrix[7],
+        matrix[2],
+        matrix[5],
+        matrix[8],
+    )
+    inverse_id = next(
+        (candidate_id for candidate_id, candidate in PROPER_ORIENTATIONS.items() if candidate == inverse),
+        None,
+    )
+    if inverse_id is None:
+        raise ValueError(
+            f"Proper source/catalog orientation {orientation_id!r} has no registry inverse; "
+            "regenerate the complete 24-member orientation table."
+        )
+    return inverse_id
+
+
 def frame_box(
     minimum: Sequence[float],
     maximum: Sequence[float],
     plan: FramePlan,
 ) -> tuple[Vector3, Vector3]:
-    """An axis-aligned box carried through a quarter turn, corner by corner."""
+    """An axis-aligned box carried through a proper source frame, corner by corner."""
 
     corners = [
         frame_point((x, y, z), plan)

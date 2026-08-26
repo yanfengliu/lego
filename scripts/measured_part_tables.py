@@ -15,7 +15,6 @@ from ldraw_surface_expander import expand_surface
 from measured_part_geometry import (
     MAX_EXACT_FRACTIONAL_DIGITS,
     MESH_RENDER_UNITS_PER_LDU,
-    UPRIGHT_ORIENTATIONS,
     Vector3,
     _clamped_column_boxes,
     _clamped_source_candidate,
@@ -25,6 +24,7 @@ from measured_part_geometry import (
     frame_box,
     frame_direction,
     frame_point,
+    inverse_orientation_id,
     merged_mesh,
     require_front_side_surface,
 )
@@ -32,6 +32,7 @@ from measured_stud_tables import MeasuredStudRow, require_matching_stud_frames
 from measured_source_connectors import source_connectors_for
 from part_admission_ldraw_candidate import DEFAULT_COLUMN_LDU, column_candidate, role_classifier
 from part_admission_surface import STUD_ROLE, MeasuredSurface
+from proper_orientations_generated import PROPER_ORIENTATIONS
 
 BUILDER_CONNECTOR_SOURCE = "builder"
 BUILDER_CONNECTIVITY_CONNECTOR_SOURCE = "builder-connectivity-fact"
@@ -67,7 +68,7 @@ class MeasuredPartPlan:
 
     Everything else is measured. This carries only what measurement cannot
     decide: the catalog identity, the lattice height the placement rests on, and
-    the quarter turn plus whole-LDU translation that normalizes the source frame.
+    the proper rotation plus whole-LDU translation that normalizes the source frame.
     """
 
     design_id: str
@@ -87,11 +88,11 @@ class MeasuredPartPlan:
     validated_connection_stud_profile: str | None = None
 
     def __post_init__(self) -> None:
-        if self.orientation_id not in UPRIGHT_ORIENTATIONS:
+        if self.orientation_id not in PROPER_ORIENTATIONS:
             raise ValueError(
                 f"Part {self.design_id} names source-to-catalog orientation "
                 f"{self.orientation_id!r}; the catalog frame is one of "
-                f"{sorted(UPRIGHT_ORIENTATIONS)}."
+                f"{sorted(PROPER_ORIENTATIONS)}."
             )
         if self.connector_source not in CONNECTOR_SOURCES:
             raise ValueError(
@@ -141,11 +142,11 @@ class RenderOnlyPartPlan:
     translation_ldu: tuple[int, int, int]
 
     def __post_init__(self) -> None:
-        if self.orientation_id not in UPRIGHT_ORIENTATIONS:
+        if self.orientation_id not in PROPER_ORIENTATIONS:
             raise ValueError(
                 f"Render-only part {self.design_id} names source-to-catalog orientation "
                 f"{self.orientation_id!r}; the catalog frame is one of "
-                f"{sorted(UPRIGHT_ORIENTATIONS)}."
+                f"{sorted(PROPER_ORIENTATIONS)}."
             )
         if not all(isinstance(value, int) for value in self.translation_ldu):
             raise ValueError(
@@ -428,12 +429,7 @@ def scoreable_candidate(part: MeasuredPart) -> dict[str, object]:
     the declaration actually emitted rather than about a differently framed one.
     """
 
-    inverse = {
-        "upright-yaw-0": "upright-yaw-0",
-        "upright-yaw-90": "upright-yaw-270",
-        "upright-yaw-180": "upright-yaw-180",
-        "upright-yaw-270": "upright-yaw-90",
-    }[part.plan.orientation_id]
+    inverse = inverse_orientation_id(part.plan.orientation_id)
     unframe = MeasuredPartPlan(
         design_id=part.plan.design_id,
         ldraw_path=part.plan.ldraw_path,

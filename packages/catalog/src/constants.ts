@@ -5,10 +5,12 @@ import type {
   ConnectorGeometryRole,
   ConnectorKind,
   ConnectorRotation,
+  ProperOrientation,
   SourceProvenance,
   UprightOrientation,
 } from "./types.ts";
 import { deepFreeze } from "./freeze.ts";
+import { GENERATED_NON_UPRIGHT_PROPER_ORIENTATIONS } from "./proper-orientations.generated.ts";
 
 /**
  * /2 grew the palette to the full solid set; /3 added tiles and the larger brick
@@ -312,6 +314,15 @@ export const UPRIGHT_ORIENTATIONS: readonly UprightOrientation[] = Object.freeze
     matrix: Object.freeze([0, 0, -1, 0, 1, 0, 1, 0, 0] as const),
     upAxis: Object.freeze([0, -1, 0] as const),
   }),
+]);
+
+/**
+ * Source/catalog-frame vocabulary. Placement legality remains the four-row
+ * `UPRIGHT_ORIENTATIONS` subset carried by every current part definition.
+ */
+export const PROPER_ORIENTATIONS: readonly ProperOrientation[] = Object.freeze([
+  ...UPRIGHT_ORIENTATIONS,
+  ...GENERATED_NON_UPRIGHT_PROPER_ORIENTATIONS,
 ]);
 
 /**

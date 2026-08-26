@@ -66,6 +66,11 @@ class FrameTests(unittest.TestCase):
 
         self.assertEqual(frame_point((3.0, 5.0, 7.0), turned), (7.0, 1.0, -3.0))
 
+    def test_a_non_upright_proper_source_frame_is_applied_exactly_once(self) -> None:
+        turned = plan(orientation_id="proper-m-p000n000n")
+
+        self.assertEqual(frame_point((3.0, 5.0, 7.0), turned), (3.0, -9.0, -7.0))
+
     def test_a_turned_box_keeps_its_corners_ordered(self) -> None:
         low, high = frame_box(
             (-1.0, 0.0, -2.0),

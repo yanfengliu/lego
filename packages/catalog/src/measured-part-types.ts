@@ -86,9 +86,9 @@ export interface MeasuredSourceConnectorRow {
  * and a length, so nothing here may be inferred.
  *
  * `assetToCatalogFrame` is the explicit source-to-catalog frame a part whose
- * source frame is not centred must carry. It is a quarter turn about the
- * vertical axis and an integer LDU translation, applied exactly once, so the
- * raw source frame is preserved rather than silently recentred.
+ * source frame is not centred must carry. It is one determinant+1 signed-
+ * permutation orientation and an integer LDU translation, applied exactly
+ * once, so the raw source frame is preserved rather than silently recentred.
  */
 export interface MeasuredPartBlueprint {
   /** The LDraw design number, which is this part's identity in every source. */

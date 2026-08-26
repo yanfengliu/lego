@@ -7,10 +7,10 @@ import {
   LDCAD_SHADOW_CONNECTOR_PROVENANCE,
   LDRAW_BUNDLED_GEOMETRY_PROVENANCE,
   MEASURED_PART_CATALOG_PROVENANCE,
+  PROPER_ORIENTATIONS,
   STUD_HEIGHT_LDU,
   STUD_PITCH_LDU,
   STUD_RADIUS_LDU,
-  UPRIGHT_ORIENTATIONS,
 } from "./constants.ts";
 import type {
   CollisionAllowance,
@@ -194,10 +194,10 @@ export const makeMeasuredPartDefinition = (blueprint: MeasuredPartBlueprint): Pa
     connectorGridCenterLdu,
   } = blueprint;
 
-  if (!UPRIGHT_ORIENTATIONS.some(({ id }) => id === assetToCatalogFrame.orientationId)) {
+  if (!PROPER_ORIENTATIONS.some(({ id }) => id === assetToCatalogFrame.orientationId)) {
     fail(
       blueprint,
-      `names source-to-catalog orientation ${JSON.stringify(assetToCatalogFrame.orientationId)}; the frame is one of ${UPRIGHT_ORIENTATIONS.map(({ id }) => id).join(", ")}.`,
+      `names source-to-catalog orientation ${JSON.stringify(assetToCatalogFrame.orientationId)}; require one of the ${PROPER_ORIENTATIONS.length} proper source/catalog orientations.`,
     );
   }
   if (!assetToCatalogFrame.translationLdu.every(Number.isSafeInteger)) {

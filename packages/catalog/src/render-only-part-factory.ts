@@ -1,4 +1,4 @@
-import { STUD_HEIGHT_LDU, STUD_PITCH_LDU, UPRIGHT_ORIENTATIONS } from "./constants.ts";
+import { PROPER_ORIENTATIONS, STUD_HEIGHT_LDU, STUD_PITCH_LDU } from "./constants.ts";
 import { deepFreeze } from "./freeze.ts";
 import {
   assertNumericBoundsContainExact,
@@ -120,10 +120,10 @@ export function promoteRenderOnlyPart(
       `does not match the preceding catalog's LDraw identity; expected an ldraw:${blueprint.ldrawId} alias before replacing its picture.`,
     );
   }
-  if (!UPRIGHT_ORIENTATIONS.some(({ id }) => id === blueprint.assetToCatalogFrame.orientationId)) {
+  if (!PROPER_ORIENTATIONS.some(({ id }) => id === blueprint.assetToCatalogFrame.orientationId)) {
     fail(
       blueprint,
-      `names source-to-catalog orientation ${JSON.stringify(blueprint.assetToCatalogFrame.orientationId)}; require one of ${UPRIGHT_ORIENTATIONS.map(({ id }) => id).join(", ")}.`,
+      `names source-to-catalog orientation ${JSON.stringify(blueprint.assetToCatalogFrame.orientationId)}; require one of the ${PROPER_ORIENTATIONS.length} proper source/catalog orientations.`,
     );
   }
   if (!blueprint.assetToCatalogFrame.translationLdu.every(Number.isSafeInteger)) {

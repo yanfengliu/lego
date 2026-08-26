@@ -63,6 +63,32 @@ class AxleHoleRoundTripTests(unittest.TestCase):
             ],
         )
 
+    def test_scoreable_candidate_inverts_a_non_upright_source_frame(self) -> None:
+        part = measured(
+            plan=plan(
+                orientation_id="proper-m-p0000n0p0",
+                translation_ldu=(5, -12, 7),
+                connector_source="ldcad-shadow",
+            ),
+            clutches_ldu=(),
+            source_connectors_ldu=(("axleHole", (8.0, -15.0, 5.0), (0.0, 0.0, 1.0)),),
+            candidate={"connectors": [], "derivation": "unit source candidate"},
+        )
+
+        candidate = scoreable_candidate(part)
+
+        self.assertEqual(
+            candidate["connectors"],
+            [
+                {
+                    "kind": "axleHole",
+                    "gender": "female",
+                    "positionLdu": [3.0, -2.0, 3.0],
+                    "normal": [0.0, 1.0, 0.0],
+                }
+            ],
+        )
+
 
 class MeasuredPartFileBoundaryTests(unittest.TestCase):
     def test_refactored_python_modules_stay_below_500_physical_lines(self) -> None:

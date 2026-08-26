@@ -1,6 +1,7 @@
 import {
   COLOR_DEFINITIONS,
   PART_DEFINITIONS,
+  PROPER_ORIENTATIONS,
   UPRIGHT_ORIENTATIONS,
   getPartDefinition,
   type LduVector3,
@@ -116,11 +117,14 @@ const colorById = new Map(COLOR_DEFINITIONS.map((color) => [color.id, color] as 
 const colorByLdrawCode = new Map(
   COLOR_DEFINITIONS.map((color) => [String(color.ldrawCode), color] as const),
 );
-const orientationByMatrix = new Map(
+const placementOrientationByMatrix = new Map(
   UPRIGHT_ORIENTATIONS.map((orientation) => [orientation.matrix.join(" "), orientation] as const),
 );
-const orientationById = new Map(
-  UPRIGHT_ORIENTATIONS.map((orientation) => [orientation.id, orientation] as const),
+const sourceOrientationByMatrix = new Map(
+  PROPER_ORIENTATIONS.map((orientation) => [orientation.matrix.join(" "), orientation] as const),
+);
+const sourceOrientationById = new Map(
+  PROPER_ORIENTATIONS.map((orientation) => [orientation.id, orientation] as const),
 );
 
 function multiplyOrientationMatrices(
@@ -154,7 +158,7 @@ const inverseOrientationMatrix = (matrix: OrientationMatrix): OrientationMatrix 
 
 function ldrawToCatalogOrientation(catalogPartId: string) {
   const definition = getPartDefinition(catalogPartId);
-  const orientation = orientationById.get(
+  const orientation = sourceOrientationById.get(
     definition?.ldrawFrame?.ldrawToCatalogOrientationId ?? "upright-yaw-0",
   );
   if (!definition || !orientation) {
@@ -609,16 +613,16 @@ function parsePartLine(raw: string, metadata: PartMetadata, lineNumber: number):
     );
   }
   const matrixToken = tokens.slice(5, 14).join(" ");
-  const ldrawOrientation = orientationByMatrix.get(matrixToken);
+  const ldrawOrientation = sourceOrientationByMatrix.get(matrixToken);
   if (!ldrawOrientation)
-    fail("UNSUPPORTED_MATRIX", "Matrix is not a supported upright rotation", lineNumber);
+    fail("UNSUPPORTED_MATRIX", "Matrix is not a supported proper signed permutation", lineNumber);
   const catalogPartId = partIdByLdrawAlias.get(fileName)!;
   const frameCorrection = ldrawToCatalogOrientation(catalogPartId);
   const catalogMatrix = multiplyOrientationMatrices(
     ldrawOrientation.matrix,
     inverseOrientationMatrix(frameCorrection.matrix),
   );
-  const orientation = orientationByMatrix.get(catalogMatrix.join(" "));
+  const orientation = placementOrientationByMatrix.get(catalogMatrix.join(" "));
   if (!orientation) {
     fail(
       "UNSUPPORTED_MATRIX",

@@ -1,9 +1,9 @@
 import {
   CONNECTOR_KIND_RULES,
+  PROPER_ORIENTATIONS,
   STUD_HEIGHT_LDU,
   STUD_PITCH_LDU,
   STUD_RADIUS_LDU,
-  UPRIGHT_ORIENTATIONS,
   connectorAccepts,
 } from "./constants.ts";
 import { MAX_EXACT_LDU_MAGNITUDE } from "./exact-ldu.ts";
@@ -137,7 +137,7 @@ function validAssetFrame(
   return (
     frame !== undefined &&
     frame.schemaVersion === "mesh-asset-to-catalog-frame/1" &&
-    UPRIGHT_ORIENTATIONS.some(({ id }) => id === frame.orientationId) &&
+    PROPER_ORIENTATIONS.some(({ id }) => id === frame.orientationId) &&
     Array.isArray(frame.translationLdu) &&
     frame.translationLdu.length === 3 &&
     frame.translationLdu.every(Number.isSafeInteger)
@@ -443,7 +443,7 @@ export function validateMeshPartDefinitionAdmission(
     add(
       "MESH_ADMISSION_FRAME_INVALID",
       "/geometry/assetToCatalogFrame",
-      `Part ${definition.id} needs a versioned mesh asset-to-catalog frame with a valid upright orientation and exactly three safe-integer LDU translations; PartDefinition.ldrawFrame is not used for mesh normalization. Received ${JSON.stringify(recipe.assetToCatalogFrame)}.`,
+      `Part ${definition.id} needs a versioned mesh asset-to-catalog frame with one of the 24 proper source/catalog orientations and exactly three safe-integer LDU translations; PartDefinition.ldrawFrame is not used for mesh normalization. Received ${JSON.stringify(recipe.assetToCatalogFrame)}.`,
     );
   }
 

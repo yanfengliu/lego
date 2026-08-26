@@ -1,7 +1,7 @@
 """Which parts the catalog admits from measured source, and under what identity.
 
 This is the one hand-authored input to the generated tables, and it is
-deliberately small: a catalog id, a lattice height, the quarter turn and
+deliberately small: a catalog id, a lattice height, the proper rotation and
 whole-LDU translation that normalize the source frame, and which authored source
 the female connectors come from. Every number in the emitted tables is measured
 from the pinned archives instead.

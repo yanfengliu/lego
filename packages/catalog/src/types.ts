@@ -161,10 +161,13 @@ export interface LduBounds {
   readonly max: LduVector3;
 }
 
-export interface UprightOrientation {
+export interface ProperOrientation {
   readonly id: string;
-  readonly quarterTurns: 0 | 1 | 2 | 3;
   readonly matrix: OrientationMatrix;
+}
+
+export interface UprightOrientation extends ProperOrientation {
+  readonly quarterTurns: 0 | 1 | 2 | 3;
   readonly upAxis: readonly [0, -1, 0];
 }
 

@@ -71,6 +71,28 @@ describe("part visual-admission camera and frame policy", () => {
     expect(new Vector3(2, 3, 5).applyMatrix4(matrix).toArray()).toEqual([0.8, 0.2, 0.15]);
   });
 
+  it("accepts a non-upright proper source frame without widening placement", () => {
+    const matrix = ldrawAssetToCatalogThreeMatrix({
+      schemaVersion: "mesh-asset-to-catalog-frame/1",
+      orientationId: "proper-m-p000n000n",
+      translationLdu: [11, -7, 5],
+    });
+    // The proper frame maps raw [x,y,z] to catalog [x,-y,-z], then Three flips Y.
+    expect(new Vector3(2, 3, 5).applyMatrix4(matrix).toArray()).toEqual([0.65, 0.5, 0]);
+  });
+
+  it("refuses a reflection-derived frame ID and an unknown orientation", () => {
+    for (const orientationId of ["proper-m-p000p000n", "unknown-frame"]) {
+      expect(() =>
+        ldrawAssetToCatalogThreeMatrix({
+          schemaVersion: "mesh-asset-to-catalog-frame/1",
+          orientationId,
+          translationLdu: [0, 0, 0],
+        }),
+      ).toThrow(/24 proper source\/catalog orientations/);
+    }
+  });
+
   it("fits every corner of both differently sized surfaces inside one shared frustum", () => {
     const source = new Box3(new Vector3(-4, -2, -1), new Vector3(7, 3, 2));
     const candidate = new Box3(new Vector3(-2, -6, -9), new Vector3(3, 8, 5));

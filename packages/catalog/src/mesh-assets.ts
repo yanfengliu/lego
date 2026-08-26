@@ -1,7 +1,7 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils.js";
 
-import { UPRIGHT_ORIENTATIONS } from "./constants.ts";
+import { PROPER_ORIENTATIONS } from "./constants.ts";
 import { SET_6651557_MESH_ASSETS } from "./mesh-assets-6651557.ts";
 import type { LduVector3, MeshReferenceGeometryRecipe } from "./types.ts";
 
@@ -213,7 +213,7 @@ function resolveRecipeFrame(recipe: MeshReferenceGeometryRecipe):
       `Mesh asset ${recipe.assetId} has no assetToCatalogFrame; declare the versioned orientation and safe-integer LDU translation that normalize immutable asset-local coordinates into catalog coordinates. PartDefinition.ldrawFrame is interchange-only and is not a substitute.`,
     );
   }
-  const orientation = UPRIGHT_ORIENTATIONS.find(({ id }) => id === frame.orientationId);
+  const orientation = PROPER_ORIENTATIONS.find(({ id }) => id === frame.orientationId);
   const translation = frame.translationLdu;
   if (
     frame.schemaVersion !== "mesh-asset-to-catalog-frame/1" ||
@@ -224,7 +224,7 @@ function resolveRecipeFrame(recipe: MeshReferenceGeometryRecipe):
   ) {
     return failure(
       "MESH_FRAME_INVALID",
-      `Mesh asset ${recipe.assetId} has invalid assetToCatalogFrame ${JSON.stringify(frame)}; require schemaVersion mesh-asset-to-catalog-frame/1, one of ${UPRIGHT_ORIENTATIONS.map(({ id }) => id).join(", ")}, and exactly three safe-integer translation LDU coordinates.`,
+      `Mesh asset ${recipe.assetId} has invalid assetToCatalogFrame ${JSON.stringify(frame)}; require schemaVersion mesh-asset-to-catalog-frame/1, one of the ${PROPER_ORIENTATIONS.length} proper source/catalog orientations, and exactly three safe-integer translation LDU coordinates.`,
     );
   }
   return {
