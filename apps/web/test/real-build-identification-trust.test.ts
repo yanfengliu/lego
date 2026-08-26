@@ -56,6 +56,7 @@ describe("identification confidences a placement may be built on", () => {
     ]);
     expect(isTrustedIdentificationConfidence("pair-judged-different")).toBe(false);
     expect(isTrustedIdentificationConfidence("geometry")).toBe(false);
+    expect(isTrustedIdentificationConfidence("prefix50-semantic-closure")).toBe(false);
   });
 
   it("resolves a pair-judged callout and refuses a judged mismatch", () => {
@@ -70,6 +71,10 @@ describe("identification confidences a placement may be built on", () => {
       "description-unverifiable",
       "vision-overruled",
       "geometry",
+      // Coverage/4 publishes independently verified semantic identity only. A
+      // separate versioned closure must bind that evidence before it can mint
+      // action or placement authority.
+      "prefix50-semantic-closure",
       "unanswered",
       // A card that displayed both hands of a mirror pair cannot be separated by
       // kind, stud size and colour, so a pick there is not built on until the

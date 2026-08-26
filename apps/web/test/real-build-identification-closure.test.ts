@@ -411,6 +411,23 @@ async function closureFixture() {
 }
 
 describe("real-build identification closure", () => {
+  it("refuses semantic coverage/4 until a separate action-authority closure exists", async () => {
+    const fixture = await closureFixture();
+    const semanticCoverage = artifact({
+      ...(fixture.input.coverage.value as Record<string, unknown>),
+      schemaVersion: "lego.real-build-catalog-coverage/4",
+    });
+
+    expect(() =>
+      prepareRealBuildIdentificationClosure({
+        ...fixture.input,
+        coverage: semanticCoverage,
+      }),
+    ).toThrow(
+      /identification closure replay accepts current lego\.real-build-catalog-coverage\/3 or frozen legacy lego\.real-build-catalog-coverage\/2 bytes only/u,
+    );
+  });
+
   it("binds the exact retained card-image bytes and digest for adjudicated coverage", async () => {
     const fixture = await closureFixture();
     const prepared = prepareRealBuildIdentificationClosure(fixture.input);
