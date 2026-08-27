@@ -1,12 +1,13 @@
 """Build the exact Builder Shell and expanded LDraw geometry bundle the real build reads.
 
 One output: `output/real-build/builder-shell-geometry.bin`, the concatenation of
-every design's decoded Builder Shell triangles followed by every design's
-expanded LDraw triangles, at the byte offsets `builder_calibration_sources.py`
-pins. It is the *geometry* half of the calibration and nothing else; the frames
-themselves are derived in `apps/web/e2e/real-build-builder-calibration.ts` from
-these bytes and the reviewed source pins, so there is exactly one implementation
-of the frame rule rather than two that have to agree.
+each decoded Builder Shell and expanded LDraw slice in its exact pinned byte
+order. The frozen fifteen-row prefix keeps its historical all-Shell/all-LDraw
+layout byte-for-byte; additive rows append their paired slices. It is the
+*geometry* half of the calibration and nothing else; the frames themselves are
+derived in `apps/web/e2e/real-build-builder-calibration.ts` from these bytes and
+the reviewed source pins, so there is exactly one implementation of the frame
+rule rather than two that have to agree.
 
 Every run re-expands the pinned archives, re-encodes the reviewed Shell reports,
 and refuses to write anything unless each slice reproduces its reviewed digest
@@ -741,7 +742,7 @@ def main() -> int:
         args.ldraw_unofficial, LDRAW_UNOFFICIAL_DIGEST, "Unofficial LDraw archive", 120_000_000
     )
 
-    builder_slices: list[bytes] = []
+    sections: list[tuple[int, bytes, dict[str, object], str]] = []
     for design in DESIGNS:
         report = json.loads(
             bounded_bytes(
@@ -750,7 +751,17 @@ def main() -> int:
                 f"{design['designRevision']} Shell report",
             )
         )
-        builder_slices.append(encode_shell(report, design)[0])
+        builder = encode_shell(report, design)[0]
+        builder_pin = design["builderGeometry"]
+        assert isinstance(builder_pin, dict)
+        sections.append(
+            (
+                int(builder_pin["byteOffset"]),
+                builder,
+                builder_pin,
+                f"{design['designRevision']} Builder Shell",
+            )
+        )
     library = LDrawLibrary(
         [
             ("Official LDraw archive", ldraw_official),
@@ -759,30 +770,43 @@ def main() -> int:
         LDRAW_CLOSURE_FILES,
     )
     try:
-        ldraw_slices = [
-            encode_ldraw(library.triangles(f"{design['designId']}.dat"), design)
-            for design in DESIGNS
-        ]
+        for design in DESIGNS:
+            ldraw = encode_ldraw(library.triangles(f"{design['designId']}.dat"), design)
+            ldraw_pin = design["ldrawReferenceGeometry"]
+            assert isinstance(ldraw_pin, dict)
+            sections.append(
+                (
+                    int(ldraw_pin["byteOffset"]),
+                    ldraw,
+                    ldraw_pin,
+                    f"{design['designRevision']} expanded LDraw",
+                )
+            )
         library.assert_complete_closure()
     finally:
         library.close()
-    geometry = b"".join((*builder_slices, *ldraw_slices))
+    geometry_parts: list[bytes] = []
+    offset = 0
+    for pinned_offset, payload, section, label in sorted(sections, key=lambda row: row[0]):
+        if pinned_offset != offset:
+            raise ValueError(
+                f"Reviewed slice layout has a gap or reorder at byte {offset}; {label} starts at "
+                f"the pinned byte {pinned_offset}."
+            )
+        if len(payload) != int(section["byteLength"]):
+            raise ValueError(
+                f"{label} encoded to {len(payload)} bytes; its reviewed slice pins "
+                f"{section['byteLength']}."
+            )
+        geometry_parts.append(payload)
+        offset += len(payload)
+    geometry = b"".join(geometry_parts)
     geometry_digest = sha256(geometry)
     if len(geometry) != GEOMETRY_BUNDLE_BYTES or geometry_digest != EXPECTED_GEOMETRY_DIGEST:
         raise ValueError(
             f"Combined geometry differs: {len(geometry)} bytes sha256:{geometry_digest}; expected "
             f"{GEOMETRY_BUNDLE_BYTES}/sha256:{EXPECTED_GEOMETRY_DIGEST}"
         )
-    offset = 0
-    for section in [design["builderGeometry"] for design in DESIGNS] + [
-        design["ldrawReferenceGeometry"] for design in DESIGNS
-    ]:
-        if section["byteOffset"] != offset:  # type: ignore[index]
-            raise ValueError(
-                f"Reviewed slice layout has a gap or reorder at byte {offset}; the pin says "
-                f"{section['byteOffset']}."  # type: ignore[index]
-            )
-        offset += int(section["byteLength"])  # type: ignore[index,arg-type]
     if offset != len(geometry):
         raise ValueError(f"Reviewed slices cover {offset} bytes, not the {len(geometry)} written.")
     write_atomic(args.out_geometry.resolve(), geometry)

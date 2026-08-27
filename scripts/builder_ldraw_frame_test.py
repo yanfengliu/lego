@@ -126,12 +126,34 @@ class NodeLatticeTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "field type 7; this derivation reads 23"):
             builder_field_nodes(record)
 
-    def test_a_rotation_whose_storage_order_matters_is_refused(self) -> None:
+    def test_a_rotation_is_read_column_major(self) -> None:
         record = plate_1x2_record()
         record["connectivityPrimitives"][0]["attributes"]["transformation"] = (  # type: ignore[index]
-            "0,0,1,0,1,0,-1,0,0,0,0,0"
+            "0,0,1,0,1,0,-1,0,0,-0.4,0.32,-0.4"
         )
-        with self.assertRaisesRegex(ValueError, "not symmetric"):
+        studs = [node for node in builder_field_nodes(record) if node.family in MALE_FAMILIES]
+        self.assertEqual(studs[0].builder, (Fraction(-4, 5), Fraction(8, 25), Fraction(0)))
+        self.assertEqual(studs[1].builder, (Fraction(-4, 5), Fraction(8, 25), Fraction(4, 5)))
+
+    def test_a_measured_floating_residue_snaps_but_a_real_rotation_does_not(self) -> None:
+        record = plate_1x2_record()
+        record["connectivityPrimitives"][0]["attributes"]["transformation"] = (  # type: ignore[index]
+            "2.220446049e-16,0,1,0,1,0,-1,0,2.220446049e-16,-0.4,0.32,-0.4"
+        )
+        studs = [node for node in builder_field_nodes(record) if node.family in MALE_FAMILIES]
+        self.assertEqual(studs[1].builder, (Fraction(-4, 5), Fraction(8, 25), Fraction(4, 5)))
+        record["connectivityPrimitives"][0]["attributes"]["transformation"] = (  # type: ignore[index]
+            "0.000001,0,1,0,1,0,-1,0,0.000001,0,0,0"
+        )
+        with self.assertRaisesRegex(ValueError, "serialized residue"):
+            builder_field_nodes(record)
+
+    def test_a_reflected_field_is_not_a_proper_local_frame(self) -> None:
+        record = plate_1x2_record()
+        record["connectivityPrimitives"][0]["attributes"]["transformation"] = (  # type: ignore[index]
+            "-1,0,0,0,1,0,0,0,1,0,0,0"
+        )
+        with self.assertRaisesRegex(ValueError, "determinant -1"):
             builder_field_nodes(record)
 
     def test_a_record_with_no_field_says_so(self) -> None:

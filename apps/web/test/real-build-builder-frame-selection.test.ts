@@ -1,18 +1,20 @@
 import { getPartDefinition } from "@lego-studio/catalog";
-import type { CollisionPrimitive, PartDefinition } from "@lego-studio/catalog";
+import type { CollisionPrimitive, PartDefinition, ResolvedMeshAsset } from "@lego-studio/catalog";
 import { describe, expect, it } from "vitest";
 
 import {
   deriveCatalogToBuilderFrames,
   FRAME_WITNESS_MINIMUM_MARGIN_MICRO_RATIO,
   invertUpright,
+  isCatalogPartSelfSymmetry,
+  isResolvedMeshAssetSelfSymmetry,
   residualTransform,
+  selectCatalogToBuilderAnchorFrame,
   selectCatalogToBuilderFrame,
 } from "../e2e/real-build-builder-frame-selection";
 import type { LedgerTransform } from "../e2e/real-build-official";
 
 type Point = readonly [number, number, number];
-
 const studCenters = (partId: string): Point[] => {
   const definition = getPartDefinition(partId);
   if (definition === undefined) throw new Error(`missing catalog part ${partId}`);
@@ -230,6 +232,169 @@ describe("catalog-to-Builder frame selection", () => {
     ).toThrow(/separates the best two by only 1.5x.*4x is required/su);
   });
 
+  it("refuses an inequivalent exact-zero witness tie but accepts zero against positive", () => {
+    const definition = getPartDefinition("builtin:wedge-plate-2x4-wing")!;
+    const catalog = studCenters(definition.id);
+    const frame: LedgerTransform = {
+      positionLdu: [30, -4, -10],
+      orientationId: "upright-yaw-270",
+    };
+    const builder = move(catalog, frame);
+
+    expect(() =>
+      selectCatalogToBuilderFrame({
+        definition,
+        designRevision: "51739;H",
+        catalogStudCenters: catalog,
+        builderStudCenters: builder,
+        measure: () => [0],
+      }),
+    ).toThrow(/surface witness exactly ties the best two at 0 LDU mean.*stays uncalibrated/su);
+
+    const uniqueExact = selectCatalogToBuilderFrame({
+      definition,
+      designRevision: "51739;H",
+      catalogStudCenters: catalog,
+      builderStudCenters: builder,
+      measure: (candidate) => (candidate.orientationId === frame.orientationId ? [0] : [1_000_000]),
+    });
+    expect(uniqueExact).toMatchObject({
+      transform: frame,
+      method: "ldraw-surface-witness",
+      witnessMarginMicroRatio: "infinite",
+    });
+  });
+
+  it("keeps the selected frame under 2 LDU without hiding the inequivalent runner-up", () => {
+    const definition = getPartDefinition("builtin:wedge-plate-2x4-wing")!;
+    const catalog = studCenters(definition.id);
+    const frame: LedgerTransform = {
+      positionLdu: [30, -4, -10],
+      orientationId: "upright-yaw-270",
+    };
+    const select = (measure: (candidate: LedgerTransform) => readonly number[]) =>
+      selectCatalogToBuilderAnchorFrame({
+        definition,
+        designRevision: "project-authored-hard-surface-bound;1",
+        catalogAnchorCenters: catalog,
+        builderAnchorCenters: move(catalog, frame),
+        anchorDescription: "project-authored exact anchor centers",
+        measure,
+      });
+
+    expect(() => select(() => [2_000_001])).toThrow(
+      /best representative whose independent source-surface maximum is 2.000001 LDU/u,
+    );
+
+    expect(() =>
+      select((candidate) =>
+        candidate.orientationId === frame.orientationId ? [1_000_000] : [2_000_001],
+      ),
+    ).toThrow(/separates the best two by only 2.000001x.*4x is required/su);
+
+    expect(() =>
+      select((candidate) => {
+        if (candidate.orientationId === frame.orientationId) return [1_000_000];
+        if (candidate.orientationId === "upright-yaw-0") return [1_500_000];
+        return [2_000_001];
+      }),
+    ).toThrow(/separates the best two by only 1.5x.*4x is required/su);
+
+    expect(() =>
+      select((candidate) =>
+        candidate.orientationId === frame.orientationId
+          ? [1_000_000, 1_500_000]
+          : [4_999_999, 5_000_000],
+      ),
+    ).toThrow(/separates the best two by only 3.9999996x.*4x is required/su);
+
+    const exactFourfold = select((candidate) => {
+      if (candidate.orientationId === frame.orientationId) return [400_000];
+      if (candidate.orientationId === "upright-yaw-0") return [2_000_001];
+      return [2_000_001];
+    });
+    expect(exactFourfold.method).toBe("ldraw-surface-witness");
+    expect(exactFourfold.witnessMarginMicroRatio).toBe(5_000_003);
+  });
+
+  it("proves the current resolved 35480 and 3659 meshes under their exact half turns", () => {
+    const halfTurn: LedgerTransform = {
+      positionLdu: [0, 0, 0],
+      orientationId: "upright-yaw-180",
+    };
+    expect(
+      isCatalogPartSelfSymmetry(getPartDefinition("builtin:plate-1x2-round-end")!, halfTurn),
+    ).toBe(true);
+    expect(isCatalogPartSelfSymmetry(getPartDefinition("builtin:arch-1x4")!, halfTurn)).toBe(true);
+  });
+
+  it("requires the effective placement grid center and legal yaws to share the quotient symmetry", () => {
+    const plate = getPartDefinition("builtin:plate-8x8")!;
+    const quarterTurn: LedgerTransform = {
+      positionLdu: [0, 0, 0],
+      orientationId: "upright-yaw-90",
+    };
+    expect(isCatalogPartSelfSymmetry(plate, quarterTurn)).toBe(true);
+    expect(
+      isCatalogPartSelfSymmetry({ ...plate, connectorGridCenterLdu: [10, 0] }, quarterTurn),
+    ).toBe(false);
+    expect(
+      isCatalogPartSelfSymmetry({ ...plate, legalOrientationIds: ["upright-yaw-0"] }, quarterTurn),
+    ).toBe(false);
+  });
+
+  it("refuses resolved-mesh coverage, normal, index, and group drift hidden by aggregates", () => {
+    const halfTurn: LedgerTransform = {
+      positionLdu: [0, 0, 0],
+      orientationId: "upright-yaw-180",
+    };
+    const mesh = (overrides: Partial<ResolvedMeshAsset> = {}): ResolvedMeshAsset => ({
+      assetId: "test:exact-indexed-half-turn/1",
+      positionsLdu: [-2, 0, -1, -2, 0, 1, -1, 0, 0, 2, 0, 1, 2, 0, -1, 1, 0, 0],
+      normalsCatalogLocal: [0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0],
+      indices: [0, 1, 2, 3, 4, 5],
+      groups: [{ role: "body", triangleStart: 0, triangleCount: 2 }],
+      componentFirstTriangles: [0, 1],
+      extremalTriangles: [0, 1],
+      vertexCount: 6,
+      triangleCount: 2,
+      ...overrides,
+    });
+    expect(isResolvedMeshAssetSelfSymmetry(mesh(), halfTurn)).toBe(true);
+
+    const coverage = mesh({ indices: [0, 1, 2, 3, 5, 4] });
+    expect(() => isResolvedMeshAssetSelfSymmetry(coverage, halfTurn)).toThrow(
+      /exact indexed vertices/u,
+    );
+
+    const normals = [...mesh().normalsCatalogLocal!];
+    normals[9] = 1;
+    normals[10] = 0;
+    expect(() =>
+      isResolvedMeshAssetSelfSymmetry(mesh({ normalsCatalogLocal: normals }), halfTurn),
+    ).toThrow(/exact indexed vertices/u);
+
+    const duplicated = mesh({
+      positionsLdu: [...mesh().positionsLdu, -2, 0, -1],
+      normalsCatalogLocal: [...mesh().normalsCatalogLocal!, 0, 1, 0],
+      indices: [6, 1, 2, 3, 4, 5],
+      vertexCount: 7,
+    });
+    expect(() => isResolvedMeshAssetSelfSymmetry(duplicated, halfTurn)).toThrow(
+      /ambiguous vertex bijection/u,
+    );
+
+    const groups = mesh({
+      groups: [
+        { role: "body", triangleStart: 0, triangleCount: 1 },
+        { role: "stud", triangleStart: 1, triangleCount: 1 },
+      ],
+    });
+    expect(() => isResolvedMeshAssetSelfSymmetry(groups, halfTurn)).toThrow(
+      /exact indexed vertices/u,
+    );
+  });
+
   it("leaves no frame at all when one stud centre moves off the lattice", () => {
     const catalog = studCenters("builtin:plate-2x6");
     const frame: LedgerTransform = { positionLdu: [50, -4, 10], orientationId: "upright-yaw-90" };
@@ -253,7 +418,7 @@ describe("catalog-to-Builder frame selection", () => {
     const catalog = studCenters("builtin:plate-2x6");
 
     expect(() => deriveCatalogToBuilderFrames(catalog, catalog.slice(1))).toThrow(
-      /11 centers while the catalog has 12/u,
+      /11 centers while the catalog anchor set has 12/u,
     );
   });
 

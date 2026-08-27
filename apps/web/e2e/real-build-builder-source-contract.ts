@@ -1,5 +1,10 @@
 export type BuilderFramePoint = readonly [number, number, number];
 
+export type BuilderFrameAnchorRole =
+  | "top-field-to-catalog-stud"
+  | "underside-field-to-catalog-clutch"
+  | "builder-shell-to-catalog-ldraw-surface";
+
 export interface BuilderTriangleSlicePin {
   readonly format: "lego.builder-shell-triangles-f32le/1" | "lego.ldraw-expanded-triangles-f32le/1";
   readonly byteOffset: number;
@@ -29,8 +34,13 @@ export interface BuilderDesignSourcePin {
     readonly positionLdu: readonly [number, number, number];
     readonly orientationId: string;
   };
-  readonly builderStudCentersLdu: readonly BuilderFramePoint[];
-  readonly builderStudCentersDigest: `sha256:${string}`;
+  /** Legacy exact type-23 representation retained byte-for-byte for the original fifteen rows. */
+  readonly builderStudCentersLdu?: readonly BuilderFramePoint[];
+  readonly builderStudCentersDigest?: `sha256:${string}`;
+  /** Additive prefix-50 representation; the role fixes which independent catalog surface it binds. */
+  readonly builderAnchorRole?: BuilderFrameAnchorRole;
+  readonly builderAnchorCentersLdu?: readonly BuilderFramePoint[];
+  readonly builderAnchorCentersDigest?: `sha256:${string}`;
   readonly uniqueBuilderVertexCount: number;
   readonly expectedCatalogDefinitionDigest: `sha256:${string}`;
   readonly expectedCatalogGeometryDigest: `sha256:${string}`;
@@ -52,8 +62,8 @@ export const BUILDER_STEP1_OFFICIAL_MODEL_DIGEST =
 
 export const BUILDER_STEP1_GEOMETRY_BUNDLE = {
   format: "lego.builder-shell-and-ldraw-triangles-f32le/2",
-  byteLength: 1_091_772,
-  digest: "sha256:da8260f77540db459bd745d75ebb072d1b08d357d1628569a06c58d6aed77c55",
+  byteLength: 1_814_364,
+  digest: "sha256:d3636d02dca8a5bec1b1c759cd38cae705547cf0af9f57e6377325cb57d86d0f",
 } as const;
 
 export const LDRAW_OFFICIAL_ARCHIVE =

@@ -1,0 +1,8 @@
+from __future__ import annotations
+
+from builder_calibration_shell_pins_a import SUPPORTED_SHELLS_A
+from builder_calibration_shell_pins_b import SUPPORTED_SHELLS_B
+from builder_calibration_shell_pins_c import SUPPORTED_SHELLS_C
+from builder_calibration_shell_pins_d import SUPPORTED_SHELLS_D
+
+SUPPORTED_SHELLS = (*SUPPORTED_SHELLS_A, *SUPPORTED_SHELLS_B, *SUPPORTED_SHELLS_C, *SUPPORTED_SHELLS_D,)

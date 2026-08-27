@@ -547,7 +547,8 @@ describe("real build adversarial ledger contracts", () => {
             canonicalTransform: null,
             canonicalTransformFailure:
               `Design revision ${brick.designRevision} has no independently verified ` +
-              `code-pinned Builder type-23 plus independent LDraw surface calibration.`,
+              `code-pinned Builder v8 local-frame calibration from an exact authored anchor role ` +
+              `plus independent LDraw surface.`,
             calibratedCatalogPartId: null,
             frameEvidenceDigest: null,
           },

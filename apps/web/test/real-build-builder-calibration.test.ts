@@ -259,7 +259,7 @@ describe("Builder canonical calibration v8", () => {
 
   it("rejects connector-center tampering before geometry can choose a registration", () => {
     const fixture = sourceNativeFixture();
-    const changedCenters = fixture.source.builderStudCentersLdu.map((point, index) =>
+    const changedCenters = fixture.source.builderStudCentersLdu!.map((point, index) =>
       index === 0 ? ([point[0] + 1, point[1], point[2]] as Point) : point,
     );
     const source: BuilderDesignSourcePin = {
@@ -294,7 +294,7 @@ describe("Builder canonical calibration v8", () => {
     const geometryBytes = readRequiredRealBuildInput(GEOMETRY_BUNDLE_FILE);
     const calibrationBytes = readRequiredRealBuildInput(CALIBRATION_FILE);
     // A catalog bump makes the retained report stale, and the byte comparison
-    // further down would then report that as a fifteen-frame object diff.
+    // further down would then report that as a large frame-object diff.
     // Say it in one sentence first.
     expect(retainedCalibrationCatalogState(calibrationBytes)).toBe(IN_STEP);
     const official = parseOfficialModelIndex(officialBytes);
@@ -364,6 +364,33 @@ describe("Builder canonical calibration v8", () => {
       "54383;F builtin:wedge-plate-3x6-right upright-yaw-90 50/-4/20 1 1 unique-stud-correspondence null 1299038",
       "60479;F builtin:plate-1x12 upright-yaw-90 110/-4/0 2 1 catalog-part-self-symmetry null 1299038",
       "91988;F builtin:plate-2x14 upright-yaw-90 130/-4/10 2 1 catalog-part-self-symmetry null 1299039",
+      "2420;H builtin:corner-plate-2x2 upright-yaw-180 10/-4/-10 1 1 unique-anchor-correspondence null 1672365",
+      "2431;R builtin:tile-1x4 upright-yaw-90 30/-4/0 2 1 catalog-part-self-symmetry null 1299039",
+      "25269;O builtin:tile-1x1-quarter-round upright-yaw-90 0/-4/0 4 4 ldraw-surface-witness 4182577 1287888",
+      "3004;P builtin:brick-1x2 upright-yaw-90 10/-12/0 2 1 catalog-part-self-symmetry null 1323204",
+      "3005;L builtin:brick-1x1 upright-yaw-0 0/-12/0 4 1 catalog-part-self-symmetry null 1299016",
+      "3010;J builtin:brick-1x4 upright-yaw-90 30/-12/0 2 1 catalog-part-self-symmetry null 1299040",
+      "3022;I builtin:plate-2x2 upright-yaw-0 10/-4/10 4 1 catalog-part-self-symmetry null 1299024",
+      "3023;S builtin:plate-1x2 upright-yaw-90 10/-4/0 2 1 catalog-part-self-symmetry null 1541103",
+      "3029;F builtin:plate-4x12 upright-yaw-90 110/-4/30 2 1 catalog-part-self-symmetry null 1299039",
+      "3031;H builtin:plate-4x4 upright-yaw-0 30/-4/30 4 1 catalog-part-self-symmetry null 1299039",
+      "3040;F builtin:slope-1x2-45 upright-yaw-0 0/-12/-10 4 4 ldraw-surface-witness 17973605 1299040",
+      "3068;T builtin:tile-2x2 upright-yaw-0 10/-4/10 4 1 catalog-part-self-symmetry null 1299094",
+      "3070;L builtin:tile-1x1 upright-yaw-0 0/-4/0 4 1 catalog-part-self-symmetry null 1299038",
+      "34103;J builtin:jumper-plate-1x3 upright-yaw-90 20/-4/0 2 1 catalog-part-self-symmetry null 1299038",
+      "35480;K builtin:plate-1x2-round-end upright-yaw-90 10/-4/0 2 1 catalog-part-self-symmetry null 1480224",
+      "3623;P builtin:plate-1x3 upright-yaw-90 20/-4/0 2 1 catalog-part-self-symmetry null 1299038",
+      "3659;E builtin:arch-1x4 upright-yaw-90 30/-12/0 2 1 catalog-part-self-symmetry null 1299277",
+      "3666;K builtin:plate-1x6 upright-yaw-90 50/-4/0 2 1 catalog-part-self-symmetry null 1299038",
+      "3710;L builtin:plate-1x4 upright-yaw-90 30/-4/0 2 1 catalog-part-self-symmetry null 1299038",
+      "3958;H builtin:plate-6x6 upright-yaw-0 50/-4/50 4 1 catalog-part-self-symmetry null 1299038",
+      "4162;O builtin:tile-1x8 upright-yaw-90 70/-4/0 2 1 catalog-part-self-symmetry null 1299038",
+      "50746;E builtin:cheese-slope-1x1 upright-yaw-0 0/-8/0 4 4 ldraw-surface-witness 5754878 1074842",
+      "63864;M builtin:tile-1x3 upright-yaw-90 20/-4/0 2 1 catalog-part-self-symmetry null 1299039",
+      "6636;N builtin:tile-1x6 upright-yaw-90 50/-4/0 2 1 catalog-part-self-symmetry null 1299038",
+      "77844;B builtin:corner-plate-3x3 upright-yaw-180 40/-4/0 1 1 unique-anchor-correspondence null 1299038",
+      "87079;K builtin:tile-2x4 upright-yaw-90 30/-4/10 2 1 catalog-part-self-symmetry null 1299041",
+      "87580;P builtin:jumper-plate-2x2 upright-yaw-0 10/-4/10 4 1 catalog-part-self-symmetry null 1299038",
     ]);
     // Every Builder Shell vertex of every design is inside the 2 LDU the
     // independent LDraw surface has to corroborate it within.

@@ -1,7 +1,24 @@
 import { UPRIGHT_ORIENTATIONS } from "@lego-studio/catalog";
 import type { PartDefinition } from "@lego-studio/catalog";
 
+import {
+  InconclusiveSymmetry,
+  applyUpright,
+  isCatalogPartSelfSymmetry,
+  normalizeZero,
+  orientationOf,
+  residualTransform,
+} from "./real-build-builder-frame-geometry";
+import type { Point } from "./real-build-builder-frame-geometry";
 import type { LedgerTransform } from "./real-build-official";
+
+export {
+  applyUpright,
+  invertUpright,
+  isCatalogPartSelfSymmetry,
+  isResolvedMeshAssetSelfSymmetry,
+  residualTransform,
+} from "./real-build-builder-frame-geometry";
 
 /**
  * Choosing one catalog-to-Builder frame when the stud lattice admits several.
@@ -32,7 +49,13 @@ import type { LedgerTransform } from "./real-build-official";
  */
 
 export type FrameSelectionMethod =
-  "unique-stud-correspondence" | "catalog-part-self-symmetry" | "ldraw-surface-witness";
+  | "unique-stud-correspondence"
+  | "unique-anchor-correspondence"
+  | "catalog-part-self-symmetry"
+  | "surface-registration-catalog-symmetry"
+  | "ldraw-surface-bound"
+  | "ldraw-surface-witness"
+  | "ldraw-surface-registration";
 
 /** The runner-up must be at least this many times worse, in mean surface distance. */
 export const FRAME_WITNESS_MINIMUM_MARGIN_MICRO_RATIO = 4_000_000;
@@ -42,292 +65,14 @@ export interface FrameSelection {
   readonly candidateCount: number;
   readonly equivalenceClassCount: number;
   readonly method: FrameSelectionMethod;
-  /** Runner-up mean over chosen mean, scaled by 10^6; null when nothing competes. */
-  readonly witnessMarginMicroRatio: number | null;
+  /** Runner-up mean over chosen mean, scaled by 10^6; explicit infinity; null only without competition. */
+  readonly witnessMarginMicroRatio: number | "infinite" | null;
 }
 
-type Point = readonly [number, number, number];
-
-const normalizeZero = (value: number): number => (Object.is(value, -0) ? 0 : value);
-
-function orientationOf(id: string): (typeof UPRIGHT_ORIENTATIONS)[number] {
-  const orientation = UPRIGHT_ORIENTATIONS.find((candidate) => candidate.id === id);
-  if (orientation === undefined) {
-    throw new TypeError(
-      `Upright orientation ${JSON.stringify(id)} is not one of ` +
-        `${UPRIGHT_ORIENTATIONS.map(({ id: known }) => known).join(", ")}.`,
-    );
-  }
-  return orientation;
-}
-
-export function applyUpright(transform: LedgerTransform, point: Point): Point {
-  const { matrix } = orientationOf(transform.orientationId);
-  return [0, 1, 2].map((row) =>
-    normalizeZero(
-      transform.positionLdu[row]! +
-        [0, 1, 2].reduce((sum, column) => sum + matrix[row * 3 + column]! * point[column]!, 0),
-    ),
-  ) as unknown as Point;
-}
-
-export function invertUpright(transform: LedgerTransform): LedgerTransform {
-  const inverse = UPRIGHT_ORIENTATIONS.find(
-    ({ quarterTurns }) =>
-      quarterTurns === (4 - orientationOf(transform.orientationId).quarterTurns) % 4,
-  )!;
-  const rotated = applyUpright(
-    { positionLdu: [0, 0, 0], orientationId: inverse.id },
-    transform.positionLdu as unknown as Point,
-  );
-  return {
-    positionLdu: rotated.map((coordinate) =>
-      normalizeZero(-coordinate),
-    ) as unknown as LedgerTransform["positionLdu"],
-    orientationId: inverse.id,
-  };
-}
-
-/** The residual `left^-1 . right`: what one candidate frame does that the other does not. */
-export function residualTransform(left: LedgerTransform, right: LedgerTransform): LedgerTransform {
-  const inverse = invertUpright(left);
-  const composedOrientation = UPRIGHT_ORIENTATIONS.find(
-    ({ quarterTurns }) =>
-      quarterTurns ===
-      (orientationOf(inverse.orientationId).quarterTurns +
-        orientationOf(right.orientationId).quarterTurns) %
-        4,
-  )!;
-  return {
-    positionLdu: applyUpright(
-      inverse,
-      right.positionLdu as unknown as Point,
-    ) as unknown as LedgerTransform["positionLdu"],
-    orientationId: composedOrientation.id,
-  };
-}
-
-const key = (value: unknown): string => JSON.stringify(value);
-
-function sortedKeys(values: readonly unknown[]): string {
-  return JSON.stringify([...values.map(key)].sort((left, right) => left.localeCompare(right)));
-}
-
-function boundsKey(
-  transform: LedgerTransform | null,
-  bounds: { readonly min: Point; readonly max: Point },
-): string {
-  const corners: Point[] = [];
-  for (const x of [bounds.min[0], bounds.max[0]]) {
-    for (const y of [bounds.min[1], bounds.max[1]]) {
-      for (const z of [bounds.min[2], bounds.max[2]]) {
-        corners.push(transform === null ? [x, y, z] : applyUpright(transform, [x, y, z]));
-      }
-    }
-  }
-  return key({
-    min: [0, 1, 2].map((axis) => Math.min(...corners.map((corner) => corner[axis]!))),
-    max: [0, 1, 2].map((axis) => Math.max(...corners.map((corner) => corner[axis]!))),
-  });
-}
-
-/** Raised when the proof cannot describe a part, never when a part is simply not symmetric. */
-class InconclusiveSymmetry extends Error {}
-
-interface TaggedBox {
-  readonly tag: string;
-  readonly min: Point;
-  readonly max: Point;
-}
-
-function transformedBox(transform: LedgerTransform | null, box: TaggedBox): TaggedBox {
-  if (transform === null) return box;
-  const corners: Point[] = [];
-  for (const x of [box.min[0], box.max[0]]) {
-    for (const y of [box.min[1], box.max[1]]) {
-      for (const z of [box.min[2], box.max[2]]) {
-        corners.push(applyUpright(transform, [x, y, z]));
-      }
-    }
-  }
-  return {
-    tag: box.tag,
-    min: [0, 1, 2].map((axis) => Math.min(...corners.map((c) => c[axis]!))) as unknown as Point,
-    max: [0, 1, 2].map((axis) => Math.max(...corners.map((c) => c[axis]!))) as unknown as Point,
-  };
-}
-
-const boxCovers = (boxes: readonly TaggedBox[], point: Point): boolean =>
-  boxes.some(({ min, max }) => [0, 1, 2].every((a) => point[a]! > min[a]! && point[a]! < max[a]!));
-
-/**
- * Whether two sets of axis-aligned boxes occupy the same volume, tag by tag.
- *
- * A decomposition is not the part. `part-shell.ts` cuts a shell's walls into
- * boxes by sweeping x before z, so a square plate's wall ring comes out as two
- * boxes running the full length and two inset between them — a set that a
- * quarter turn does not map onto itself, though the ring it describes maps onto
- * itself exactly. Comparing the chopping called such a part asymmetric and sent
- * every square plate to the surface witness; comparing the volume asks the
- * question the proof means to ask, and keeps asking it correctly when step 4 of
- * the part-geometry plan re-derives a body into boxes nobody chose by hand.
- *
- * Exact rather than sampled: every coordinate of both sets is cut into one
- * shared grid, so each cell lies wholly inside or wholly outside every box and
- * its centre decides it.
- */
-function sameBoxVolume(left: readonly TaggedBox[], right: readonly TaggedBox[]): boolean {
-  for (const tag of new Set([...left, ...right].map((box) => box.tag))) {
-    const here = left.filter((box) => box.tag === tag);
-    const there = right.filter((box) => box.tag === tag);
-    const edges = [0, 1, 2].map((axis) =>
-      [...new Set([...here, ...there].flatMap((box) => [box.min[axis]!, box.max[axis]!]))].sort(
-        (a, b) => a - b,
-      ),
-    );
-    for (let xi = 0; xi + 1 < edges[0]!.length; xi += 1) {
-      for (let yi = 0; yi + 1 < edges[1]!.length; yi += 1) {
-        for (let zi = 0; zi + 1 < edges[2]!.length; zi += 1) {
-          const center: Point = [
-            (edges[0]![xi]! + edges[0]![xi + 1]!) / 2,
-            (edges[1]![yi]! + edges[1]![yi + 1]!) / 2,
-            (edges[2]![zi]! + edges[2]![zi + 1]!) / 2,
-          ];
-          if (boxCovers(here, center) !== boxCovers(there, center)) return false;
-        }
-      }
-    }
-  }
-  return true;
-}
-
-function primitiveKey(
-  definitionId: string,
-  transform: LedgerTransform | null,
-  primitive: Record<string, unknown>,
-): string {
-  const kind = String(primitive.kind);
-  if (kind === "cylinder") {
-    if (primitive.axis !== "y") {
-      throw new InconclusiveSymmetry(
-        `Catalog part ${definitionId} declares a collision cylinder on axis ` +
-          `${JSON.stringify(primitive.axis)}; the Builder frame self-symmetry proof only covers the ` +
-          `vertical axis a quarter turn preserves. Settle this design's frame with the surface ` +
-          `witness or extend the proof deliberately.`,
-      );
-    }
-    return key({
-      kind,
-      tag: primitive.tag,
-      axis: primitive.axis,
-      center:
-        transform === null
-          ? (primitive.centerLdu as Point)
-          : applyUpright(transform, primitive.centerLdu as Point),
-      radiusLdu: primitive.radiusLdu,
-      heightLdu: primitive.heightLdu,
-    });
-  }
-  throw new InconclusiveSymmetry(
-    `Catalog part ${definitionId} declares a ${JSON.stringify(kind)} collision primitive, and the ` +
-      `Builder frame self-symmetry proof covers only box — compared as occupied volume — and ` +
-      `cylinder. Two exact frames cannot be declared equivalent on a body this proof cannot ` +
-      `rotate; settle the design with the surface witness or extend the proof deliberately.`,
-  );
-}
-
-/**
- * Whether one upright transform maps the whole catalog part onto itself.
- *
- * Everything a placement is judged by has to be invariant, not merely the studs
- * that produced the candidate frames: the connector graph, the collision union,
- * the clutch allowances, both bounds, and the footprint the lattice indexes.
- */
-function isCatalogPartSelfSymmetry(
-  definition: PartDefinition,
-  transform: LedgerTransform,
-): boolean {
-  if (definition.geometry.generatorId === "builtin:preloaded-mesh-reference/1") {
-    throw new InconclusiveSymmetry(
-      `Catalog part ${definition.id} draws a bundled source mesh, whose shape this proof cannot ` +
-        `rotate, so two exact Builder frames cannot be declared equivalent for it. Settle the ` +
-        `design's frame with the independent LDraw surface witness.`,
-    );
-  }
-  if (
-    definition.dimensions.widthLdu !== definition.dimensions.lengthLdu &&
-    orientationOf(transform.orientationId).quarterTurns % 2 === 1
-  ) {
-    return false;
-  }
-  const connectors = (mapped: LedgerTransform | null): string =>
-    sortedKeys(
-      definition.connectors.map((connector) => ({
-        kind: connector.kind,
-        geometryRole: connector.geometryRole,
-        profileId: connector.profileId,
-        gender: connector.gender,
-        orientationId: connector.orientationId,
-        capacity: connector.capacity,
-        compatibleKinds: [...connector.compatibleKinds].sort(),
-        positionLdu:
-          mapped === null
-            ? connector.positionLdu
-            : applyUpright(mapped, connector.positionLdu as Point),
-        normal:
-          mapped === null
-            ? connector.normal
-            : applyUpright(
-                { positionLdu: [0, 0, 0], orientationId: mapped.orientationId },
-                connector.normal as Point,
-              ),
-      })),
-    );
-  // Boxes are compared as the volume they occupy and everything else by its own
-  // key, because a box is the one primitive whose decomposition is a choice.
-  const boxes = (mapped: LedgerTransform | null): TaggedBox[] =>
-    definition.collision.primitives
-      .filter((primitive) => primitive.kind === "box")
-      .map((primitive) =>
-        transformedBox(mapped, {
-          tag: primitive.tag,
-          min: primitive.minLdu as unknown as Point,
-          max: primitive.maxLdu as unknown as Point,
-        }),
-      );
-  const primitives = (mapped: LedgerTransform | null): string =>
-    sortedKeys(
-      definition.collision.primitives
-        .filter((primitive) => primitive.kind !== "box")
-        .map((primitive) =>
-          primitiveKey(definition.id, mapped, primitive as unknown as Record<string, unknown>),
-        ),
-    );
-  const allowances = (mapped: LedgerTransform | null): string =>
-    sortedKeys(
-      definition.collision.allowances.map((allowance) => ({
-        portKind: allowance.portKind,
-        incomingPrimitiveTag: allowance.incomingPrimitiveTag,
-        radiusLdu: allowance.radiusLdu,
-        maxInsertionDepthLdu: allowance.maxInsertionDepthLdu,
-        requiresValidatedConnection: allowance.requiresValidatedConnection,
-        centerLdu:
-          mapped === null
-            ? allowance.centerLdu
-            : applyUpright(mapped, allowance.centerLdu as Point),
-      })),
-    );
-  return (
-    connectors(null) === connectors(transform) &&
-    sameBoxVolume(boxes(null), boxes(transform)) &&
-    primitives(null) === primitives(transform) &&
-    allowances(null) === allowances(transform) &&
-    boundsKey(null, definition.bodyBoundsLdu as { min: Point; max: Point }) ===
-      boundsKey(transform, definition.bodyBoundsLdu as { min: Point; max: Point }) &&
-    boundsKey(null, definition.boundsLdu as { min: Point; max: Point }) ===
-      boundsKey(transform, definition.boundsLdu as { min: Point; max: Point })
-  );
-}
+const SURFACE_REGISTRATION_TRANSLATION_STEP_LDU = 10;
+const SURFACE_REGISTRATION_TRANSLATION_REACH_LDU = 80;
+const SURFACE_REGISTRATION_BOX_SLACK_LDU = 10;
+const SURFACE_REGISTRATION_VERTICAL_ENDPOINT_DRIFT_LDU = 2;
 
 function canonicalOrder(left: LedgerTransform, right: LedgerTransform): number {
   return (
@@ -340,35 +85,38 @@ function canonicalOrder(left: LedgerTransform, right: LedgerTransform): number {
 }
 
 /**
- * Every upright frame under which the catalog stud set lands exactly on the Builder one.
+ * Every upright frame under which one exact catalog anchor set lands on its Builder counterpart.
  *
  * The comparison is exact integer equality on both sets, in both directions, so
- * a missing stud, an extra stud, or a clutch centre substituted for a stud
+ * a missing anchor, an extra anchor, or a center from a different authored role
  * leaves no candidate at all rather than a near fit.
  */
 export function deriveCatalogToBuilderFrames(
-  catalogStudCenters: readonly Point[],
-  builderStudCenters: readonly Point[],
+  catalogAnchorCenters: readonly Point[],
+  builderAnchorCenters: readonly Point[],
 ): LedgerTransform[] {
-  if (catalogStudCenters.length < 1 || catalogStudCenters.length !== builderStudCenters.length) {
+  if (
+    catalogAnchorCenters.length < 1 ||
+    catalogAnchorCenters.length !== builderAnchorCenters.length
+  ) {
     throw new TypeError(
-      `Builder type-23 stud set has ${builderStudCenters.length} centers while the catalog has ` +
-        `${catalogStudCenters.length}; a missing, extra, or clutch-center substitution cannot calibrate a frame.`,
+      `Builder anchor set has ${builderAnchorCenters.length} centers while the catalog anchor set has ` +
+        `${catalogAnchorCenters.length}; a missing, extra, or cross-role substitution cannot calibrate a frame.`,
     );
   }
   const expected = JSON.stringify(
-    [...builderStudCenters]
+    [...builderAnchorCenters]
       .map((point) => point.map(normalizeZero))
       .sort((left, right) => left[0]! - right[0]! || left[1]! - right[1]! || left[2]! - right[2]!),
   );
-  const first = catalogStudCenters[0]!;
+  const first = catalogAnchorCenters[0]!;
   const found = new Map<string, LedgerTransform>();
   for (const orientation of UPRIGHT_ORIENTATIONS) {
     const rotatedFirst = applyUpright(
       { positionLdu: [0, 0, 0], orientationId: orientation.id },
       first,
     );
-    for (const target of builderStudCenters) {
+    for (const target of builderAnchorCenters) {
       const candidate: LedgerTransform = {
         positionLdu: target.map(
           (coordinate, axis) => coordinate - rotatedFirst[axis]!,
@@ -376,7 +124,7 @@ export function deriveCatalogToBuilderFrames(
         orientationId: orientation.id,
       };
       const mapped = JSON.stringify(
-        catalogStudCenters
+        catalogAnchorCenters
           .map((point) => applyUpright(candidate, point))
           .sort(
             (left, right) => left[0]! - right[0]! || left[1]! - right[1]! || left[2]! - right[2]!,
@@ -410,6 +158,191 @@ export function selectCatalogToBuilderFrame(input: {
         `frame at all, so the two sources do not describe the same stud lattice.`,
     );
   }
+  return selectFrameCandidates({
+    definition,
+    designRevision,
+    candidates,
+    measure,
+    candidateDescription: "Builder type-23 centers",
+    uniqueMethod: "unique-stud-correspondence",
+    symmetryMethod: "catalog-part-self-symmetry",
+    witnessMethod: "ldraw-surface-witness",
+    applyHardSurfaceBound: false,
+  });
+}
+
+export function selectCatalogToBuilderAnchorFrame(input: {
+  readonly definition: PartDefinition;
+  readonly designRevision: string;
+  readonly catalogAnchorCenters: readonly Point[];
+  readonly builderAnchorCenters: readonly Point[];
+  readonly anchorDescription: string;
+  readonly measure: (frame: LedgerTransform) => readonly number[];
+}): FrameSelection {
+  const {
+    definition,
+    designRevision,
+    catalogAnchorCenters,
+    builderAnchorCenters,
+    anchorDescription,
+    measure,
+  } = input;
+  const candidates = deriveCatalogToBuilderFrames(catalogAnchorCenters, builderAnchorCenters);
+  if (candidates.length === 0) {
+    throw new TypeError(
+      `${anchorDescription} for ${designRevision} yields no upright local frame, so the two exact ` +
+        `source surfaces do not describe the same anchor lattice.`,
+    );
+  }
+  return selectFrameCandidates({
+    definition,
+    designRevision,
+    candidates,
+    measure,
+    candidateDescription: anchorDescription,
+    uniqueMethod: "unique-anchor-correspondence",
+    symmetryMethod: "catalog-part-self-symmetry",
+    witnessMethod: "ldraw-surface-witness",
+    applyHardSurfaceBound: true,
+  });
+}
+
+function pointBounds(points: readonly Point[]): { readonly min: Point; readonly max: Point } {
+  if (points.length === 0) throw new TypeError("A surface registration needs at least one point.");
+  return {
+    min: [0, 1, 2].map((axis) =>
+      Math.min(...points.map((point) => point[axis]!)),
+    ) as unknown as Point,
+    max: [0, 1, 2].map((axis) =>
+      Math.max(...points.map((point) => point[axis]!)),
+    ) as unknown as Point,
+  };
+}
+
+function transformedBounds(transform: LedgerTransform, bounds: { min: Point; max: Point }) {
+  const corners: Point[] = [];
+  for (const x of [bounds.min[0], bounds.max[0]]) {
+    for (const y of [bounds.min[1], bounds.max[1]]) {
+      for (const z of [bounds.min[2], bounds.max[2]]) {
+        corners.push(applyUpright(transform, [x, y, z]));
+      }
+    }
+  }
+  return pointBounds(corners);
+}
+
+/** The bounded proper-upright registration used only when no authored node lattice exists. */
+export function deriveCatalogToBuilderSurfaceFrames(
+  catalogSurfacePoints: readonly Point[],
+  builderSurfacePoints: readonly Point[],
+): LedgerTransform[] {
+  const catalog = pointBounds(catalogSurfacePoints);
+  const builder = pointBounds(builderSurfacePoints);
+  const lowOffset = builder.min[1] - catalog.min[1];
+  const highOffset = builder.max[1] - catalog.max[1];
+  if (Math.abs(lowOffset - highOffset) > SURFACE_REGISTRATION_VERTICAL_ENDPOINT_DRIFT_LDU) {
+    throw new TypeError(
+      `Builder and catalog surface Y endpoints imply offsets ${lowOffset} and ${highOffset} LDU; ` +
+        `their ${Math.abs(lowOffset - highOffset)} LDU disagreement exceeds the ` +
+        `${SURFACE_REGISTRATION_VERTICAL_ENDPOINT_DRIFT_LDU} LDU source-surface bound.`,
+    );
+  }
+  const measuredVertical = (lowOffset + highOffset) / 2;
+  const vertical = Math.round(measuredVertical);
+  if (Math.abs(measuredVertical - vertical) > 0.001) {
+    throw new TypeError(
+      `Builder/catalog surface registration implies non-integral vertical offset ` +
+        `${measuredVertical} LDU; the local frame remains uncalibrated.`,
+    );
+  }
+  const found: LedgerTransform[] = [];
+  for (const orientation of UPRIGHT_ORIENTATIONS) {
+    for (
+      let x = -SURFACE_REGISTRATION_TRANSLATION_REACH_LDU;
+      x <= SURFACE_REGISTRATION_TRANSLATION_REACH_LDU;
+      x += SURFACE_REGISTRATION_TRANSLATION_STEP_LDU
+    ) {
+      for (
+        let z = -SURFACE_REGISTRATION_TRANSLATION_REACH_LDU;
+        z <= SURFACE_REGISTRATION_TRANSLATION_REACH_LDU;
+        z += SURFACE_REGISTRATION_TRANSLATION_STEP_LDU
+      ) {
+        const candidate: LedgerTransform = {
+          positionLdu: [x, vertical, z],
+          orientationId: orientation.id,
+        };
+        const mapped = transformedBounds(candidate, catalog);
+        if (
+          [0, 1, 2].every(
+            (axis) =>
+              Math.abs(mapped.min[axis]! - builder.min[axis]!) <=
+                SURFACE_REGISTRATION_BOX_SLACK_LDU &&
+              Math.abs(mapped.max[axis]! - builder.max[axis]!) <=
+                SURFACE_REGISTRATION_BOX_SLACK_LDU,
+          )
+        ) {
+          found.push(candidate);
+        }
+      }
+    }
+  }
+  return found.sort(canonicalOrder);
+}
+
+export function selectCatalogToBuilderSurfaceFrame(input: {
+  readonly definition: PartDefinition;
+  readonly designRevision: string;
+  readonly catalogSurfacePoints: readonly Point[];
+  readonly builderSurfacePoints: readonly Point[];
+  readonly measure: (frame: LedgerTransform) => readonly number[];
+}): FrameSelection {
+  const { definition, designRevision, catalogSurfacePoints, builderSurfacePoints, measure } = input;
+  const candidates = deriveCatalogToBuilderSurfaceFrames(
+    catalogSurfacePoints,
+    builderSurfacePoints,
+  );
+  if (candidates.length < 2) {
+    throw new TypeError(
+      `Bounded proper-upright surface registration for ${designRevision} leaves ` +
+        `${candidates.length} candidate frames; at least two are required before a geometric ` +
+        `winner or catalog-symmetry quotient can be measured.`,
+    );
+  }
+  return selectFrameCandidates({
+    definition,
+    designRevision,
+    candidates,
+    measure,
+    candidateDescription: "bounded proper-upright surface registration",
+    uniqueMethod: "ldraw-surface-registration",
+    symmetryMethod: "surface-registration-catalog-symmetry",
+    witnessMethod: "ldraw-surface-registration",
+    applyHardSurfaceBound: true,
+  });
+}
+
+function selectFrameCandidates(input: {
+  readonly definition: PartDefinition;
+  readonly designRevision: string;
+  readonly candidates: readonly LedgerTransform[];
+  readonly measure: (frame: LedgerTransform) => readonly number[];
+  readonly candidateDescription: string;
+  readonly uniqueMethod: FrameSelectionMethod;
+  readonly symmetryMethod: FrameSelectionMethod;
+  readonly witnessMethod: FrameSelectionMethod;
+  readonly applyHardSurfaceBound: boolean;
+}): FrameSelection {
+  const {
+    definition,
+    designRevision,
+    candidates,
+    measure,
+    candidateDescription,
+    uniqueMethod,
+    symmetryMethod,
+    witnessMethod,
+    applyHardSurfaceBound,
+  } = input;
   const classes: LedgerTransform[][] = [];
   let inconclusive: string | null = null;
   const equivalent = (group: LedgerTransform[], candidate: LedgerTransform): boolean => {
@@ -436,30 +369,84 @@ export function selectCatalogToBuilderFrame(input: {
       transform: representatives[0]!,
       candidateCount: candidates.length,
       equivalenceClassCount: 1,
-      method: candidates.length === 1 ? "unique-stud-correspondence" : "catalog-part-self-symmetry",
+      method: candidates.length === 1 ? uniqueMethod : symmetryMethod,
       witnessMarginMicroRatio: null,
     };
   }
-  const scored = representatives
+  const allScored = representatives
     .map((transform) => {
       const distances = measure(transform);
+      if (
+        distances.length < 1 ||
+        !distances.every((value) => Number.isSafeInteger(value) && value >= 0)
+      ) {
+        throw new TypeError(
+          `${candidateDescription} for ${designRevision} produced an empty, negative, fractional, or ` +
+            `unsafe-integer micro-LDU surface measurement; exact witness arithmetic is required.`,
+        );
+      }
       const total = distances.reduce((sum, value) => sum + value, 0);
-      return { transform, mean: total / Math.max(1, distances.length) };
+      if (!Number.isSafeInteger(total)) {
+        throw new TypeError(
+          `${candidateDescription} for ${designRevision} produced a surface-distance total outside ` +
+            `safe exact integer arithmetic.`,
+        );
+      }
+      return {
+        transform,
+        total,
+        count: distances.length,
+        mean: total / distances.length,
+        maximum: Math.max(0, ...distances),
+      };
     })
-    .sort(
-      (left, right) => left.mean - right.mean || canonicalOrder(left.transform, right.transform),
-    );
-  const best = scored[0]!;
-  const runnerUp = scored[1]!;
-  const margin =
-    best.mean <= 0 ? Number.POSITIVE_INFINITY : Math.round((runnerUp.mean / best.mean) * 1_000_000);
-  if (!(margin >= FRAME_WITNESS_MINIMUM_MARGIN_MICRO_RATIO)) {
+    .sort((left, right) => {
+      const comparison =
+        BigInt(left.total) * BigInt(right.count) - BigInt(right.total) * BigInt(left.count);
+      return comparison < 0n
+        ? -1
+        : comparison > 0n
+          ? 1
+          : canonicalOrder(left.transform, right.transform);
+    });
+  const best = allScored[0]!;
+  if (applyHardSurfaceBound && best.maximum > 2_000_000) {
     throw new TypeError(
-      `Builder type-23 centers for ${designRevision} admit ${candidates.length} exact upright frames in ` +
+      `${candidateDescription} for ${designRevision} selects a best representative whose independent ` +
+        `source-surface maximum is ${best.maximum / 1_000_000} LDU; at most 2 LDU is required. ` +
+        `A frame cannot be retained when its own corroboration bound fails.`,
+    );
+  }
+  const runnerUp = allScored[1]!;
+  if (best.total === 0 && runnerUp.total === 0) {
+    throw new TypeError(
+      `${candidateDescription} for ${designRevision} admits ${candidates.length} upright frames in ` +
         `${representatives.length} classes that ${definition.id}'s own symmetry cannot account for, and the ` +
-        `independent LDraw surface witness separates the best two by only ${margin / 1_000_000}x ` +
+        `independent LDraw surface witness exactly ties the best two at 0 LDU mean; ` +
+        `${FRAME_WITNESS_MINIMUM_MARGIN_MICRO_RATIO / 1_000_000}x separation is required. A candidate local ` +
+        `frame is not automatically the right frame, so this design stays uncalibrated rather than guessed.` +
+        (inconclusive === null
+          ? ""
+          : ` Some residual pairs could not even be tested for symmetry: ${inconclusive}`),
+    );
+  }
+  const exactMarginPasses =
+    best.total === 0 ||
+    BigInt(runnerUp.total) * BigInt(best.count) * 1_000_000n >=
+      BigInt(best.total) *
+        BigInt(runnerUp.count) *
+        BigInt(FRAME_WITNESS_MINIMUM_MARGIN_MICRO_RATIO);
+  const rawMargin = best.total === 0 ? Number.POSITIVE_INFINITY : runnerUp.mean / best.mean;
+  const margin = Number.isFinite(rawMargin)
+    ? Math.round(rawMargin * 1_000_000)
+    : Number.POSITIVE_INFINITY;
+  if (!exactMarginPasses) {
+    throw new TypeError(
+      `${candidateDescription} for ${designRevision} admits ${candidates.length} upright frames in ` +
+        `${representatives.length} classes that ${definition.id}'s own symmetry cannot account for, and the ` +
+        `independent LDraw surface witness separates the best two by only ${rawMargin}x ` +
         `(${best.mean / 1_000_000} LDU against ${runnerUp.mean / 1_000_000} LDU mean); ` +
-        `${FRAME_WITNESS_MINIMUM_MARGIN_MICRO_RATIO / 1_000_000}x is required. A frame that fits the studs ` +
+        `${FRAME_WITNESS_MINIMUM_MARGIN_MICRO_RATIO / 1_000_000}x is required. A candidate local frame ` +
         `is not automatically the right frame, so this design stays uncalibrated rather than guessed.` +
         (inconclusive === null
           ? ""
@@ -470,7 +457,7 @@ export function selectCatalogToBuilderFrame(input: {
     transform: best.transform,
     candidateCount: candidates.length,
     equivalenceClassCount: representatives.length,
-    method: "ldraw-surface-witness",
-    witnessMarginMicroRatio: Number.isFinite(margin) ? margin : null,
+    method: witnessMethod,
+    witnessMarginMicroRatio: Number.isFinite(margin) ? margin : "infinite",
   };
 }

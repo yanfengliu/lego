@@ -9,7 +9,9 @@ import { createEmptyBrickDocument } from "@lego-studio/brick-kernel";
 
 import { enumeratePlacements } from "../src/assembly/enumerate-placements";
 import {
+  selectCatalogToBuilderAnchorFrame,
   selectCatalogToBuilderFrame,
+  selectCatalogToBuilderSurfaceFrame,
   type FrameSelectionMethod,
 } from "./real-build-builder-frame-selection";
 import { realBuildInputChainRecovery } from "./real-build-input-chain";
@@ -30,7 +32,7 @@ import type {
 } from "./real-build-official";
 
 export const BUILDER_CANONICAL_CALIBRATION_SCHEMA = "lego.builder-canonical-calibration/8" as const;
-export const BUILDER_FRAME_EVIDENCE_PROTOCOL = "builder-type23-frame-plus-ldraw-surface/3" as const;
+export const BUILDER_FRAME_EVIDENCE_PROTOCOL = "builder-anchor-frame-plus-ldraw-surface/4" as const;
 
 type FramePoint = BuilderFramePoint;
 type FrameTriangle = readonly [FramePoint, FramePoint, FramePoint];
@@ -52,7 +54,7 @@ export interface BuilderFrameEvidence {
   readonly frameCandidateCount: number;
   readonly frameEquivalenceClassCount: number;
   readonly frameSelection: FrameSelectionMethod;
-  readonly frameWitnessMarginMicroRatio: number | null;
+  readonly frameWitnessMarginMicroRatio: number | "infinite" | null;
 }
 
 export interface BuilderCanonicalCalibration {
@@ -97,7 +99,7 @@ export interface BuilderCanonicalCalibration {
       readonly frameCandidateCount: number;
       readonly frameEquivalenceClassCount: number;
       readonly frameSelection: FrameSelectionMethod;
-      readonly frameWitnessMarginMicroRatio: number | null;
+      readonly frameWitnessMarginMicroRatio: number | "infinite" | null;
     };
   }[];
 }
@@ -448,16 +450,45 @@ export function createBuilderFrameEvidence(input: {
         realBuildInputChainRecovery("apps/web/e2e/real-build-builder-sources.ts"),
     );
   }
-  const pinnedCenters = sortedPoints(source.builderStudCentersLdu);
-  if (digest(JSON.stringify(pinnedCenters)) !== source.builderStudCentersDigest) {
+  const usesLegacyStudPin =
+    source.builderAnchorRole === undefined &&
+    source.builderAnchorCentersLdu === undefined &&
+    source.builderAnchorCentersDigest === undefined &&
+    source.builderStudCentersLdu !== undefined &&
+    source.builderStudCentersDigest !== undefined;
+  const usesRoleBoundAnchorPin =
+    source.builderAnchorRole !== undefined &&
+    source.builderAnchorCentersLdu !== undefined &&
+    source.builderAnchorCentersDigest !== undefined &&
+    source.builderStudCentersLdu === undefined &&
+    source.builderStudCentersDigest === undefined;
+  if (usesLegacyStudPin === usesRoleBoundAnchorPin) {
     throw new TypeError(
-      `Pinned Builder type-23 centers for ${source.designRevision} do not reproduce ` +
-        `${source.builderStudCentersDigest}.`,
+      `Pinned Builder source ${source.designRevision} must carry exactly one complete legacy ` +
+        `type-23 or role-bound anchor representation; mixed, partial, or absent authority is refused.`,
     );
   }
-  const catalogStudCenters = definition.connectors
-    .filter(({ kind }) => kind === "stud")
-    .map(({ positionLdu }) => positionLdu as FramePoint);
+  const anchorRole = usesLegacyStudPin
+    ? ("top-field-to-catalog-stud" as const)
+    : source.builderAnchorRole!;
+  const pinnedCenters = sortedPoints(
+    usesLegacyStudPin ? source.builderStudCentersLdu! : source.builderAnchorCentersLdu!,
+  );
+  const pinnedCentersDigest = usesLegacyStudPin
+    ? source.builderStudCentersDigest!
+    : source.builderAnchorCentersDigest!;
+  if (digest(JSON.stringify(pinnedCenters)) !== pinnedCentersDigest) {
+    throw new TypeError(
+      `Pinned Builder ${anchorRole} centers for ${source.designRevision} do not reproduce ` +
+        `${pinnedCentersDigest}.`,
+    );
+  }
+  if ((anchorRole === "builder-shell-to-catalog-ldraw-surface") !== (pinnedCenters.length === 0)) {
+    throw new TypeError(
+      `Pinned Builder ${anchorRole} for ${source.designRevision} carries ${pinnedCenters.length} ` +
+        `centers; surface registration requires exactly zero and a lattice role requires at least one.`,
+    );
+  }
   const builderTriangles = decodeTriangles(builderGeometryBundleBytes, source.builderGeometry);
   const sourceLdrawTriangles = decodeTriangles(
     builderGeometryBundleBytes,
@@ -508,13 +539,41 @@ export function createBuilderFrameEvidence(input: {
       }
       return Math.round(nearest * 1_000_000);
     });
-  const selection = selectCatalogToBuilderFrame({
-    definition,
-    designRevision: source.designRevision,
-    catalogStudCenters,
-    builderStudCenters: pinnedCenters,
-    measure: surfaceDistances,
-  });
+  const selection = (() => {
+    if (anchorRole === "builder-shell-to-catalog-ldraw-surface") {
+      return selectCatalogToBuilderSurfaceFrame({
+        definition,
+        designRevision: source.designRevision,
+        catalogSurfacePoints: ldrawTriangles.flat(),
+        builderSurfacePoints: [...uniqueBuilderPoints.values()],
+        measure: surfaceDistances,
+      });
+    }
+    const connectorKind = anchorRole === "top-field-to-catalog-stud" ? "stud" : "undersideClutch";
+    const catalogAnchorCenters = definition.connectors
+      .filter(({ kind }) => kind === connectorKind)
+      .map(({ positionLdu }) => positionLdu as FramePoint);
+    if (usesLegacyStudPin) {
+      return selectCatalogToBuilderFrame({
+        definition,
+        designRevision: source.designRevision,
+        catalogStudCenters: catalogAnchorCenters,
+        builderStudCenters: pinnedCenters,
+        measure: surfaceDistances,
+      });
+    }
+    return selectCatalogToBuilderAnchorFrame({
+      definition,
+      designRevision: source.designRevision,
+      catalogAnchorCenters,
+      builderAnchorCenters: pinnedCenters,
+      anchorDescription:
+        anchorRole === "top-field-to-catalog-stud"
+          ? "Builder top-field and catalog stud centers"
+          : "Builder underside-field and catalog clutch centers",
+      measure: surfaceDistances,
+    });
+  })();
   const catalogToBuilderLocalTransform = selection.transform;
   const distancesMicroLdu = surfaceDistances(catalogToBuilderLocalTransform);
   const ordered = [...distancesMicroLdu].sort((left, right) => left - right);
@@ -604,7 +663,7 @@ function expectedFrameReport(
   };
 }
 
-/** Recomputes the deterministic v6 report from reviewed pins; no output field authorizes itself. */
+/** Recomputes the deterministic v8 report from reviewed pins; no output field authorizes itself. */
 export function createBuilderCanonicalCalibration(
   official: OfficialModelIndex,
   builderGeometryBundleBytes: Uint8Array,
@@ -612,7 +671,7 @@ export function createBuilderCanonicalCalibration(
 ): BuilderCanonicalCalibration {
   if (official.digest !== BUILDER_STEP1_OFFICIAL_MODEL_DIGEST) {
     throw new TypeError(
-      `Builder v6 calibration is pinned to official model ${BUILDER_STEP1_OFFICIAL_MODEL_DIGEST}; ` +
+      `Builder v8 calibration is pinned to official model ${BUILDER_STEP1_OFFICIAL_MODEL_DIGEST}; ` +
         `received ${official.digest}. Rehashing a modified model cannot update this reviewed source pin.`,
     );
   }
@@ -622,7 +681,7 @@ export function createBuilderCanonicalCalibration(
     digest(builderGeometryBundleBytes) !== BUILDER_STEP1_GEOMETRY_BUNDLE.digest
   ) {
     throw new TypeError(
-      `Builder v6 requires the exact ${BUILDER_STEP1_GEOMETRY_BUNDLE.byteLength}-byte reviewed geometry ` +
+      `Builder v8 requires the exact ${BUILDER_STEP1_GEOMETRY_BUNDLE.byteLength}-byte reviewed geometry ` +
         `bundle ${BUILDER_STEP1_GEOMETRY_BUNDLE.digest}; appended, truncated, swapped, or tandem-rehashed ` +
         `bytes are forbidden.`,
     );
@@ -673,7 +732,7 @@ function parseCanonicalCalibration(calibrationBytes: Uint8Array): BuilderCanonic
   const maximumCalibrationBytes = 64 * 1_024;
   if (calibrationBytes.length > maximumCalibrationBytes) {
     throw new TypeError(
-      `Builder calibration is ${calibrationBytes.length} bytes; the canonical v6 report is bounded to ` +
+      `Builder calibration is ${calibrationBytes.length} bytes; the canonical v8 report is bounded to ` +
         `${maximumCalibrationBytes} bytes. Remove unrelated or repeated data instead of increasing the limit.`,
     );
   }
@@ -705,7 +764,7 @@ function addTranslation(transform: LedgerTransform, offset: FramePoint): LedgerT
   };
 }
 
-/** Applies only the reviewed retained-21066 v6 registry; callers cannot substitute trust pins. */
+/** Applies only the reviewed retained-21066 v8 registry; callers cannot substitute trust pins. */
 export function applyBuilderCanonicalCalibration(
   official: OfficialModelIndex,
   calibrationBytes: Uint8Array,
@@ -822,8 +881,8 @@ export function applyBuilderCanonicalCalibration(
             canonicalTransform: null,
             canonicalTransformFailure:
               resolved.failure ??
-              `Design revision ${brick.designRevision} has no independently verified code-pinned Builder type-23 plus ` +
-                `independent LDraw surface calibration.`,
+              `Design revision ${brick.designRevision} has no independently verified code-pinned Builder v8 ` +
+                `local-frame calibration from an exact authored anchor role plus independent LDraw surface.`,
             calibratedCatalogPartId: null,
             frameEvidenceDigest: null,
           },

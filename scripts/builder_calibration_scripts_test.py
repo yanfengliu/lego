@@ -13,9 +13,12 @@ import sys
 import tempfile
 import unittest
 import zipfile
+from fractions import Fraction
 from pathlib import Path
 from types import ModuleType
 from unittest import mock
+
+from builder_ldraw_field import BuilderNode
 
 
 SCRIPTS = Path(__file__).resolve().parent
@@ -32,7 +35,131 @@ def load_script(name: str, file_name: str) -> ModuleType:
 
 GENERATOR = load_script("builder_calibration_generator", "generate-builder-calibration.py")
 EXTRACTOR = load_script("builder_shell_extractor", "extract-builder-shell.py")
+PREFIX_CONTRACT = load_script(
+    "builder_calibration_prefix_contract", "builder_calibration_prefix_contract.py"
+)
 SNAPSHOT = EXTRACTOR.SNAPSHOT
+
+
+class PrefixSourceContractTests(unittest.TestCase):
+    evidence_directory = SCRIPTS.parent / "output" / "real-build" / "builder-prefix-source"
+
+    def test_exact_evidence_derives_checksum_refusals_and_binds_native_connectivity(self) -> None:
+        report = PREFIX_CONTRACT.validate_prefix_sources([], self.evidence_directory)
+        prefix_mismatches = {
+            row["designRevision"]
+            for row in report["checksumMismatches"]
+            if row["designRevision"]
+            in {
+                "3003;S",
+                "3069;Q",
+                "3245;M",
+                "3622;J",
+                "30357;H",
+                "41682;H",
+                "41769;G",
+                "41770;H",
+                "99563;G",
+            }
+        }
+        self.assertEqual(
+            prefix_mismatches,
+            {
+                "3003;S",
+                "3069;Q",
+                "3245;M",
+                "3622;J",
+                "30357;H",
+                "41682;H",
+                "41769;G",
+                "41770;H",
+                "99563;G",
+            },
+        )
+
+    def test_exact_35787_audit_refuses_surface_fallback_over_underside_lattice(self) -> None:
+        audit = PREFIX_CONTRACT._verified_json(self.evidence_directory, "audit")
+        record = next(
+            row
+            for row in audit["parts"]
+            if row["id"] == "35787" and row["annotations"]["revision"] == "N"
+        )
+        self.assertEqual(
+            PREFIX_CONTRACT._anchor_centers(
+                record, "underside-field-to-catalog-clutch"
+            ),
+            [[20, 0, 0]],
+        )
+        with self.assertRaisesRegex(
+            ValueError,
+            "surface-only registration.*0 authored top-field and 1 authored underside-field.*0 recognized male, 1 recognized female",
+        ):
+            PREFIX_CONTRACT._anchor_centers(
+                record, "builder-shell-to-catalog-ldraw-surface"
+            )
+
+    def test_surface_fallback_refuses_an_unmapped_authored_lattice(self) -> None:
+        unmapped = BuilderNode(
+            field_index=0,
+            field_type=23,
+            col=0,
+            row=0,
+            code="2:0:0",
+            family=2,
+            builder=(Fraction(0), Fraction(0), Fraction(0)),
+            axis=(0, -1, 0),
+        )
+        with mock.patch.object(
+            PREFIX_CONTRACT, "builder_field_nodes", return_value=[unmapped]
+        ):
+            self.assertEqual(
+                PREFIX_CONTRACT._anchor_centers(
+                    {"id": "hostile-unmapped"}, "top-field-to-catalog-stud"
+                ),
+                [],
+            )
+            with self.assertRaisesRegex(
+                ValueError,
+                "surface-only registration.*1 authored top-field.*0 recognized male",
+            ):
+                PREFIX_CONTRACT._anchor_centers(
+                    {"id": "hostile-unmapped"},
+                    "builder-shell-to-catalog-ldraw-surface",
+                )
+
+    def test_fractional_role_bound_center_has_an_actionable_refusal(self) -> None:
+        node = BuilderNode(
+            field_index=0,
+            field_type=23,
+            col=0,
+            row=0,
+            code="0:4:1",
+            family=0,
+            builder=(Fraction(1, 100), Fraction(0), Fraction(0)),
+            axis=(0, -1, 0),
+        )
+        with self.assertRaisesRegex(
+            ValueError,
+            r"Builder record fixture top-field-to-catalog-stud node is not an exact whole-LDU center: \['1/4', '0', '0'\]",
+        ):
+            PREFIX_CONTRACT._framed_centers(
+                [node], "Builder record fixture top-field-to-catalog-stud"
+            )
+
+    def test_prefix_contract_caps_stdin_before_json_allocation(self) -> None:
+        result = subprocess.run(
+            [sys.executable, "-B", str(SCRIPTS / "builder_calibration_prefix_contract.py")],
+            input=b"x" * (PREFIX_CONTRACT.MAX_STDIN_BYTES + 1),
+            capture_output=True,
+            check=False,
+            timeout=30,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(
+            f"stdin exceeds {PREFIX_CONTRACT.MAX_STDIN_BYTES} bytes".encode(),
+            result.stderr,
+        )
 
 
 class BoundedInputTests(unittest.TestCase):
@@ -398,14 +525,17 @@ class FrameAndShellTests(unittest.TestCase):
         metadata-only closure that decides which LDraw files may contribute.
         """
 
-        offset = 0
-        for section in [design["builderGeometry"] for design in GENERATOR.DESIGNS] + [
+        sections = [design["builderGeometry"] for design in GENERATOR.DESIGNS] + [
             design["ldrawReferenceGeometry"] for design in GENERATOR.DESIGNS
-        ]:
+        ]
+        offset = 0
+        for section in sorted(sections, key=lambda candidate: candidate["byteOffset"]):
             self.assertEqual(section["byteOffset"], offset)
             self.assertEqual(section["byteLength"], section["triangleCount"] * 36)
             offset += section["byteLength"]
         self.assertEqual(offset, GENERATOR.GEOMETRY_BUNDLE_BYTES)
+        self.assertEqual(len(GENERATOR.DESIGNS), 42)
+        self.assertEqual(len(GENERATOR.LDRAW_CLOSURE_FILES), 183)
         self.assertEqual(
             GENERATOR.sha256(GENERATOR.canonical_json(GENERATOR.LDRAW_CLOSURE_MANIFEST)),
             GENERATOR.LDRAW_CLOSURE_DIGEST,

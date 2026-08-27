@@ -5,6 +5,16 @@ import type {
 import { BUILDER_STEP1_DESIGN_SOURCES_A } from "./real-build-builder-source-pins-a";
 import { BUILDER_STEP1_DESIGN_SOURCES_B } from "./real-build-builder-source-pins-b";
 import { BUILDER_STEP1_DESIGN_SOURCES_C } from "./real-build-builder-source-pins-c";
+import { BUILDER_PREFIX50_DESIGN_SOURCES_D } from "./real-build-builder-source-pins-d";
+import { BUILDER_PREFIX50_DESIGN_SOURCES_E } from "./real-build-builder-source-pins-e";
+import { BUILDER_PREFIX50_DESIGN_SOURCES_F } from "./real-build-builder-source-pins-f";
+import { BUILDER_PREFIX50_DESIGN_SOURCES_G } from "./real-build-builder-source-pins-g";
+import { BUILDER_PREFIX50_DESIGN_SOURCES_H } from "./real-build-builder-source-pins-h";
+import { BUILDER_PREFIX50_DESIGN_SOURCES_I } from "./real-build-builder-source-pins-i";
+import { BUILDER_PREFIX50_DESIGN_SOURCES_J } from "./real-build-builder-source-pins-j";
+import { BUILDER_PREFIX50_DESIGN_SOURCES_K } from "./real-build-builder-source-pins-k";
+import { BUILDER_PREFIX50_DESIGN_SOURCES_L } from "./real-build-builder-source-pins-l";
+import { BUILDER_PREFIX50_DESIGN_SOURCES_M } from "./real-build-builder-source-pins-m";
 
 export {
   BUILDER_STEP1_GEOMETRY_BUNDLE,
@@ -14,18 +24,20 @@ export {
 export type {
   BuilderCalibrationCasePin,
   BuilderDesignSourcePin,
+  BuilderFrameAnchorRole,
   BuilderFramePoint,
   BuilderTriangleSlicePin,
 } from "./real-build-builder-source-contract";
 
 /**
- * Every design revision the set 6651557 build places whose Builder frame is pinned.
+ * The exact first-50 design revisions whose Builder frame currently has a complete proof.
  *
  * A row is a *source* pin, not a result: the exact Builder bundle and decoded
  * Shell it came from, the two byte slices it owns in the geometry bundle, its
- * authored type-23 stud lattice, and the catalog digests it was reviewed
- * against. The catalog-to-Builder frame is derived from these on every run and
- * is deliberately absent here, so a wrong frame cannot be pinned into existence.
+ * authored role-bound anchor surface (or the explicit no-anchor surface role),
+ * and the catalog digests it was reviewed against. The catalog-to-Builder frame
+ * is derived from these on every run and is deliberately absent here, so a
+ * wrong frame cannot be pinned into existence.
  *
  * `ldrawToCatalogLocalTransform` is the one measured choice a row carries. It is
  * derived once from the LDraw-measured stud centres against the same catalog
@@ -33,16 +45,30 @@ export type {
  * land within 2 LDU of the LDraw surface it places, which a wrong quarter turn
  * misses by tens of LDU.
  *
- * 41769;G is absent and that is a measurement, not an omission. The 175-brick
- * Builder manifest lists it at revision G with md5 cab7c4020d384b66e079c5c86bb40f03,
- * but the local 159-bundle capture does not hold it, so there is no Shell mesh to
- * corroborate a frame with and no type-23 field to derive one from. Its catalog
- * part `builtin:wedge-plate-2x4-right` already exists; only the source is missing.
+ * The 42 retained rows cover 192 of the prefix's 320 pieces. Absence is a
+ * measurement, not an implied frame: nine checksum-mismatched revisions, the
+ * 10201;H identity contradiction, the unconsumed 2453;I identity route, ten
+ * diagnostic-only frame exclusions, one surface-only row whose audited record
+ * carries an authored underside lattice, and two rows whose audited type-23
+ * families are not recognized studs remain outside this registry. Revision
+ * 15573;L's recognized underside lattice also has three cells where its catalog
+ * part has two clutches. These local frame diagnostics grant no world placement,
+ * execution, mutation, acceptance, or completion authority.
  */
 export const BUILDER_STEP1_DESIGN_SOURCES = [
   ...BUILDER_STEP1_DESIGN_SOURCES_A,
   ...BUILDER_STEP1_DESIGN_SOURCES_B,
   ...BUILDER_STEP1_DESIGN_SOURCES_C,
+  ...BUILDER_PREFIX50_DESIGN_SOURCES_D,
+  ...BUILDER_PREFIX50_DESIGN_SOURCES_E,
+  ...BUILDER_PREFIX50_DESIGN_SOURCES_F,
+  ...BUILDER_PREFIX50_DESIGN_SOURCES_G,
+  ...BUILDER_PREFIX50_DESIGN_SOURCES_H,
+  ...BUILDER_PREFIX50_DESIGN_SOURCES_I,
+  ...BUILDER_PREFIX50_DESIGN_SOURCES_J,
+  ...BUILDER_PREFIX50_DESIGN_SOURCES_K,
+  ...BUILDER_PREFIX50_DESIGN_SOURCES_L,
+  ...BUILDER_PREFIX50_DESIGN_SOURCES_M,
 ] as const satisfies readonly BuilderDesignSourcePin[];
 
 /**

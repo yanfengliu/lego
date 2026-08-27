@@ -619,7 +619,7 @@ describe("legacy artifact-manifest /3 inspection", () => {
         /exact schema \/4/u,
       );
       expect(() => inspectLegacyRealBuildArtifactManifestV3(RETAINED_PRODUCTION_RUN)).toThrow(
-        /Catalog coverage declares schema "lego\.real-build-catalog-coverage\/1"[\s\S]*accepts current lego\.real-build-catalog-coverage\/3 or frozen legacy lego\.real-build-catalog-coverage\/2 bytes only/u,
+        /Replay role builder-geometry declares 1091772 bytes; its role-specific requirement is exactly 1814364\./u,
       );
 
       const replayClosureBytes = readContainedBoundedRegularFile(

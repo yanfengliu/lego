@@ -191,7 +191,7 @@ export function realBuildLedgerTestFixture(): RealBuildLedgerTestFixture {
         connectorFrameDigest,
         collisionFrameDigest,
         verification: {
-          protocol: "builder-type23-frame-plus-ldraw-surface/3",
+          protocol: "builder-anchor-frame-plus-ldraw-surface/4",
           inputDigest,
           evidenceDigest: frameEvidenceDigest,
           uniqueBuilderVertexCount: 8,

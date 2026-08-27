@@ -16,6 +16,8 @@ from pathlib import Path, PurePosixPath
 from types import ModuleType
 from typing import Callable
 
+from builder_calibration_shell_pins import SUPPORTED_SHELLS as PROVED_SUPPORTED_SHELLS
+
 
 MAX_BUNDLE_BYTES = 1_000_000
 MAX_BUNDLE_OBJECTS = 100_000
@@ -49,7 +51,7 @@ bounded_bytes = SNAPSHOT.bounded_bytes
 # exact identity its bundle, its decoded Shell and its serialized layout must
 # reproduce. Adding a row is a review step: the tuple comes from the pinned
 # asset audit, and a bundle that does not match all of it is not decoded.
-SUPPORTED_SHELLS = (
+FROZEN_STEP1_SUPPORTED_SHELLS = (
     {
         "designRevision": "30565;E",
         "bundleSha256": "955ce425a8ddf4b12d320260d627df3f3fb46c52fedaf70f1d562b0e1efa7c93",
@@ -216,6 +218,11 @@ SUPPORTED_SHELLS = (
         "triangles": 28,
     },
 )
+if PROVED_SUPPORTED_SHELLS[: len(FROZEN_STEP1_SUPPORTED_SHELLS)] != FROZEN_STEP1_SUPPORTED_SHELLS:
+    raise RuntimeError("Expanded Builder Shell pins do not preserve the frozen fifteen-row prefix")
+SUPPORTED_SHELLS = PROVED_SUPPORTED_SHELLS
+
+
 def supported_shell(
     bundle_sha256: str,
     shell_path_id: str,

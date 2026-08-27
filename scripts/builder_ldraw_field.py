@@ -9,10 +9,11 @@ tube and rail that make a clutch grip, 18, 22 and 23 mark planes and edges, and
 29 marks a node the part deliberately does not have.
 
 Positions are exact rationals, never floats, because the whole point of this
-lattice is that it lands on the stud grid exactly or not at all. Anything that
-would make a node position inexact — a rotation that is not an axis permutation,
-a grid whose length does not match its declared size, a field type with no
-gender — is refused here and named, rather than carried forward as a small error.
+lattice is that it lands on the stud grid exactly or not at all. Builder stores
+the matrix column-major; the two rotated retained designs established that order
+independently from their Shell surfaces. Serialized residues within 1e-12 of an
+exact signed permutation are snapped to that exact value, while anything else
+that would make a node position inexact is refused and named.
 """
 
 from __future__ import annotations
@@ -26,6 +27,7 @@ FIELD_NODE_PITCH_BUILDER = Fraction(2, 5)
 FIELD_NODE_PITCH_LDU = 10
 STUD_PITCH_LDU = 20
 MAX_FIELD_NODES = 4_096
+SIGNED_PERMUTATION_RESIDUE = Fraction(1, 1_000_000_000_000)
 
 TOP_FIELD_TYPE = 23
 UNDERSIDE_FIELD_TYPE = 22
@@ -78,40 +80,42 @@ class BuilderNode:
 
 
 def _signed_permutation(values: Sequence[Fraction], label: str) -> tuple[int, ...]:
-    """An exact axis permutation, refused unless its storage order cannot matter.
+    """Return Builder's column-major matrix as one exact row-major permutation."""
 
-    `builder_native_source` reads these nine numbers row-major and
-    `derive-builder-ldraw-frames.py` reads them column-major; every pilot field
-    is the identity, so the pilot does not settle which is right. A symmetric
-    matrix reads the same either way, and anything else is refused rather than
-    guessed.
-    """
-
-    if any(value.denominator != 1 or value not in (-1, 0, 1) for value in values[:9]):
+    snapped: list[int] = []
+    for value in values[:9]:
+        nearest = min((-1, 0, 1), key=lambda candidate: abs(value - candidate))
+        if abs(value - nearest) > SIGNED_PERMUTATION_RESIDUE:
+            break
+        snapped.append(nearest)
+    if len(snapped) != 9:
         raise ValueError(
             f"{label} rotation is {[str(v) for v in values[:9]]}; this derivation accepts only an "
-            "exact signed permutation of the axes, because a node lattice rotated by anything else "
-            "is no longer an exact rational LDU position. Measure that field before fitting it."
+            "exact signed permutation of the axes, apart from a measured serialized residue no "
+            f"larger than {float(SIGNED_PERMUTATION_RESIDUE):g}. A node lattice rotated by "
+            "anything else is no longer an exact rational LDU position."
         )
-    matrix = tuple(int(value) for value in values[:9])
+    stored = tuple(snapped)
     for index in range(3):
-        row = [matrix[index * 3 + column] for column in range(3)]
-        column = [matrix[row_index * 3 + index] for row_index in range(3)]
+        row = [stored[index * 3 + column] for column in range(3)]
+        column = [stored[row_index * 3 + index] for row_index in range(3)]
         if sum(abs(value) for value in row) != 1 or sum(abs(value) for value in column) != 1:
             raise ValueError(
-                f"{label} rotation {list(matrix)} is not a permutation of the three axes: row "
+                f"{label} rotation {list(stored)} is not a permutation of the three axes: row "
                 f"{index} is {row} and column {index} is {column}, and each must carry exactly one "
                 "entry of magnitude one."
             )
-    transpose = tuple(matrix[column * 3 + row] for row in range(3) for column in range(3))
-    if matrix != transpose:
+    determinant = (
+        stored[0] * (stored[4] * stored[8] - stored[5] * stored[7])
+        - stored[1] * (stored[3] * stored[8] - stored[5] * stored[6])
+        + stored[2] * (stored[3] * stored[7] - stored[4] * stored[6])
+    )
+    if determinant != 1:
         raise ValueError(
-            f"{label} rotation {list(matrix)} is not symmetric, so reading it row-major and "
-    "column-major give different frames. The nine-part pilot only ever carries the identity, "
-            "so nothing here establishes which order Builder stores; measure a rotated field before "
-            "accepting one."
+            f"{label} rotation {list(stored)} has determinant {determinant}; a reflected Builder "
+            "field cannot establish a proper local frame."
         )
-    return matrix
+    return tuple(stored[column * 3 + row] for row in range(3) for column in range(3))
 
 
 def builder_field_nodes(record: dict[str, object]) -> tuple[BuilderNode, ...]:
