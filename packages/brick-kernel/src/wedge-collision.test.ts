@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import { PROPER_ORIENTATIONS } from "@lego-studio/catalog";
+
 import { createCollisionWorld, findCatalogCollisions } from "./collisions.ts";
-import { transformLduPoint } from "./transforms.ts";
+import { composeRigidTransforms, transformLduPoint } from "./transforms.ts";
 import type { PartInstance } from "@lego-studio/protocol";
 
 /**
@@ -103,5 +105,30 @@ describe("wedge body collision", () => {
 
     expect(findCatalogCollisions([turned, turnedProbe(inEmptyCorner)], [])).toEqual([]);
     expect(codesFor([turned, turnedProbe(onTheSpine)])).toContain("PART_BODY_COLLISION");
+  });
+
+  it("preserves the empty and solid corners through every proper global rotation", () => {
+    for (const { id: orientationId } of PROPER_ORIENTATIONS) {
+      const globalRotation = { positionLdu: [0, 0, 0] as const, orientationId };
+      const rotate = (source: PartInstance): PartInstance => ({
+        ...source,
+        transform: composeRigidTransforms(globalRotation, source.transform),
+      });
+      const rotatedWedge = rotate(left);
+      const rotatedEmpty = rotate(inEmptyCorner);
+      const rotatedSolid = rotate(onTheSpine);
+
+      expect(findCatalogCollisions([rotatedWedge, rotatedEmpty], []), orientationId).toEqual([]);
+      expect(
+        findCatalogCollisions([rotatedWedge, rotatedSolid], []).map(({ code }) => code),
+        orientationId,
+      ).toContain("PART_BODY_COLLISION");
+      const world = createCollisionWorld([rotatedWedge]);
+      expect(world.findCollisionsWith(rotatedEmpty, []), orientationId).toEqual([]);
+      expect(
+        world.findCollisionsWith(rotatedSolid, []).map(({ code }) => code),
+        orientationId,
+      ).toContain("PART_BODY_COLLISION");
+    }
   });
 });

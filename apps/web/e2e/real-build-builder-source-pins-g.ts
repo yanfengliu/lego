@@ -17,7 +17,7 @@ export const BUILDER_PREFIX50_DESIGN_SOURCES_G = [
         "sha256:6009f2e94204c4d3a63a4c812010b5c90bad8c5acb19b882c859fdac63734eae",
       ldrawUnofficialArchiveSha256:
         "sha256:09ec08007203b66e79b1f857aa4804cbee26e1337e177a7c3a87adc1268e44d4",
-      ldrawClosureSha256: "sha256:5f352e55531f0e2cab5fd4ddc0ce2b554e8ec9c24e7ac296359fa843abe8be6e",
+      ldrawClosureSha256: "sha256:72ca520b68934fdaa384e9bbc961090538f0b4ee1269773675db1adcf3cc7fdd",
     },
     builderGeometry: {
       format: "lego.builder-shell-triangles-f32le/1",
@@ -84,7 +84,7 @@ export const BUILDER_PREFIX50_DESIGN_SOURCES_G = [
         "sha256:6009f2e94204c4d3a63a4c812010b5c90bad8c5acb19b882c859fdac63734eae",
       ldrawUnofficialArchiveSha256:
         "sha256:09ec08007203b66e79b1f857aa4804cbee26e1337e177a7c3a87adc1268e44d4",
-      ldrawClosureSha256: "sha256:5f352e55531f0e2cab5fd4ddc0ce2b554e8ec9c24e7ac296359fa843abe8be6e",
+      ldrawClosureSha256: "sha256:72ca520b68934fdaa384e9bbc961090538f0b4ee1269773675db1adcf3cc7fdd",
     },
     builderGeometry: {
       format: "lego.builder-shell-triangles-f32le/1",
@@ -134,7 +134,7 @@ export const BUILDER_PREFIX50_DESIGN_SOURCES_G = [
         "sha256:6009f2e94204c4d3a63a4c812010b5c90bad8c5acb19b882c859fdac63734eae",
       ldrawUnofficialArchiveSha256:
         "sha256:09ec08007203b66e79b1f857aa4804cbee26e1337e177a7c3a87adc1268e44d4",
-      ldrawClosureSha256: "sha256:5f352e55531f0e2cab5fd4ddc0ce2b554e8ec9c24e7ac296359fa843abe8be6e",
+      ldrawClosureSha256: "sha256:72ca520b68934fdaa384e9bbc961090538f0b4ee1269773675db1adcf3cc7fdd",
     },
     builderGeometry: {
       format: "lego.builder-shell-triangles-f32le/1",

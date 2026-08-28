@@ -1,5 +1,6 @@
 import { getPartDefinition, type LduVector3, type PartDefinition } from "@lego-studio/catalog";
 import {
+  COLLISION_WORLD_WORK_KEYS,
   createCollisionWorld,
   getUprightOrientation,
   rotateLduVector,
@@ -22,16 +23,22 @@ import {
 } from "../connector-capacity";
 import { connectorAxesAlign } from "../connector-frame-alignment";
 import { buildPlateOrigins } from "./build-plate-origins";
+import {
+  emptyPlacementEnumerationWork,
+  type MutablePlacementEnumerationWork,
+} from "./enumerate-placement-work";
+
+export type {
+  PlacementEnumerationWork,
+  PlacementEnumerationWorkObserver,
+} from "./enumerate-placement-work";
 
 /**
  * Every legal place one part could go on the current assembly.
  *
  * This is the branching factor of the whole closed-loop search, so it is
- * enumerated from connections rather than swept over a lattice: a placement is
- * legal because some of its ports meet a free port of the assembly, and there
- * are far fewer free ports than lattice cells. Solving `origin = port -
- * rotate(port)` turns each (free port, candidate port, orientation) triple
- * straight into an exact integer origin.
+ * enumerated from connections rather than swept over a lattice. Solving
+ * `origin = port - rotate(port)` maps each compatible port pair to one origin.
  *
  * A stud-tube joint has two sides and the enumeration seeds from both. The
  * candidate's clutches landing on the assembly's free studs is the part going
@@ -102,6 +109,8 @@ export interface PlacementEnumerationOptions {
    * is exempt, and that exemption is automatic.
    */
   readonly allowDetached?: boolean;
+  /** Receives deterministic work without changing branching-factor counts. */
+  readonly observeWork?: import("./enumerate-placement-work").PlacementEnumerationWorkObserver;
 }
 
 export class PlacementEnumerationError extends Error {
@@ -161,14 +170,18 @@ function indexFreePorts(
   parts: readonly PartInstance[],
   occupied: ReadonlySet<string>,
   kind: "stud" | "undersideClutch",
+  work?: MutablePlacementEnumerationWork,
 ): Map<string, PortIndexEntry> {
   const index = new Map<string, PortIndexEntry>();
   for (const part of parts) {
+    if (work) work.freePortPartsVisited += 1;
     const definition = getPartDefinition(part.catalogPartId);
     if (!definition) continue;
     for (const connector of definition.connectors) {
+      if (work) work.freePortConnectorVisits += 1;
       if (connector.kind !== kind) continue;
       const capacityEndpoint = capacityEndpointForConnector(part.id, connector);
+      if (work) work.freePortCapacityChecks += 1;
       if (!connectorCapacityIsFree(capacityEndpoint, occupied)) continue;
       const key = positionKey(transformLduPoint(part.transform, connector.positionLdu));
       const orientation = getUprightOrientation(part.transform.orientationId);
@@ -265,13 +278,23 @@ export function enumeratePlacements(
     }
   }
   const maxDistinctTransforms = options.maxDistinctTransforms ?? DEFAULT_MAX_DISTINCT_TRANSFORMS;
+  const work = options.observeWork ? emptyPlacementEnumerationWork() : undefined;
 
+  if (work) work.occupiedCapacitySeedEdges = document.connections.length;
   const occupied = occupiedConnectorCapacityClaims(document.parts, document.connections);
-  const freeStuds = indexFreePorts(document.parts, occupied, "stud");
-  const freeClutches = indexFreePorts(document.parts, occupied, "undersideClutch");
+  if (work) work.occupiedCapacityClaims = occupied.size;
+  const freeStuds = indexFreePorts(document.parts, occupied, "stud", work);
+  const freeClutches = indexFreePorts(document.parts, occupied, "undersideClutch", work);
   // Built once for the whole enumeration. Rebuilding the neighbourhood per
   // candidate is what made this quadratic in assembly size.
-  const world = createCollisionWorld(document.parts);
+  const world = createCollisionWorld(
+    document.parts,
+    work
+      ? (delta) => {
+          for (const key of COLLISION_WORLD_WORK_KEYS) work[key] += delta[key];
+        }
+      : undefined,
+  );
   const portsByOrientation = new Map(
     orientationIds.map((orientationId) => [
       orientationId,
@@ -287,6 +310,7 @@ export function enumeratePlacements(
   let rawFromClutches = 0;
   let rawFromBuildPlate = 0;
   const remember = (origin: LduVector3, orientationId: string): void => {
+    if (work) work.originProposals += 1;
     const key = `${positionKey(origin)}|${orientationId}`;
     if (!origins.has(key)) origins.set(key, { origin, orientationId });
     if (origins.size > maxDistinctTransforms) {
@@ -306,6 +330,7 @@ export function enumeratePlacements(
     for (const [studPosition, stud] of freeStuds) {
       const [x, y, z] = studPosition.split(",").map(Number) as [number, number, number];
       for (const clutch of ports.clutches) {
+        if (work) work.seedAxisChecks += 1;
         if (!connectorAxesAlign(stud, clutch)) continue;
         rawFromStuds += 1;
         remember([x - clutch.offset[0], y - clutch.offset[1], z - clutch.offset[2]], orientationId);
@@ -317,6 +342,7 @@ export function enumeratePlacements(
     for (const [clutchPosition, clutch] of freeClutches) {
       const [x, y, z] = clutchPosition.split(",").map(Number) as [number, number, number];
       for (const stud of ports.studs) {
+        if (work) work.seedAxisChecks += 1;
         if (!connectorAxesAlign(clutch, stud)) continue;
         rawFromClutches += 1;
         remember([x - stud.offset[0], y - stud.offset[1], z - stud.offset[2]], orientationId);
@@ -345,6 +371,7 @@ export function enumeratePlacements(
   const candidateId = "enumeration-candidate";
 
   for (const { origin, orientationId } of origins.values()) {
+    if (work) work.candidateTransformsVisited += 1;
     const transform: RigidTransform = { positionLdu: origin, orientationId };
     const candidate: PartInstance = {
       id: candidateId,
@@ -358,7 +385,14 @@ export function enumeratePlacements(
     };
     const ports = portsByOrientation.get(orientationId)!;
     const box = bodyBoundsLdu(candidate);
-    const connections = discoverConnections(ports, transform, candidateId, freeStuds, freeClutches);
+    const connections = discoverConnections(
+      ports,
+      transform,
+      candidateId,
+      freeStuds,
+      freeClutches,
+      work,
+    );
     const restsOnBuildPlate = box.max[1] === GROUND_UNDERSIDE_LDU;
     if (connections.length === 0) {
       if (!restsOnBuildPlate) rejectedUnsupported += 1;
@@ -389,7 +423,11 @@ export function enumeratePlacements(
     candidates.push({ catalogPartId, transform, connections, restsOnBuildPlate });
   }
 
-  candidates.sort(compareCandidates);
+  candidates.sort((left, right) => {
+    if (work) work.candidateSortComparisons += 1;
+    return compareCandidates(left, right);
+  });
+  options.observeWork?.(Object.freeze({ ...work! }));
   return {
     schemaVersion: PLACEMENT_ENUMERATION_VERSION,
     catalogPartId,
@@ -422,6 +460,7 @@ function discoverConnections(
   candidateId: string,
   freeStuds: ReadonlyMap<string, PortIndexEntry>,
   freeClutches: ReadonlyMap<string, PortIndexEntry>,
+  work?: MutablePlacementEnumerationWork,
 ): readonly DiscoveredConnection[] {
   const discovered: DiscoveredConnection[] = [];
   const reservedCapacityClaims = new Set<string>();
@@ -431,6 +470,7 @@ function discoverConnections(
     [ports.studs, freeClutches],
   ] as const) {
     for (const port of offsets) {
+      if (work) work.connectorPortLookups += 1;
       const world: LduVector3 = [
         port.offset[0] + transform.positionLdu[0],
         port.offset[1] + transform.positionLdu[1],
@@ -440,6 +480,7 @@ function discoverConnections(
       if (!target || target.partId === candidateId) continue;
       if (!connectorAxesAlign(port, target)) continue;
       if (!reserveConnectorCapacity([port, target], reservedCapacityClaims)) continue;
+      if (work) work.connectorDiscoveries += 1;
       discovered.push({
         targetPartId: target.partId,
         targetPortId: target.portId,

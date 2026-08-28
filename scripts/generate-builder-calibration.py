@@ -65,7 +65,9 @@ LDRAW_CLOSURE_LICENSE = "Licensed under CC BY 4.0 : see CAreadme.txt"
 LDRAW_CLOSURE_MANIFEST = {
     "schemaVersion": "lego.builder-ldraw-closure/2",
     "archiveSha256": f"sha256:{LDRAW_OFFICIAL_DIGEST}",
-    "roots": sorted(f"{design['designId']}.dat" for design in DESIGNS),
+    "roots": sorted(
+        f"{design.get('ldrawDesignId', design['designId'])}.dat" for design in DESIGNS
+    ),
     "files": [list(record) for record in LDRAW_CLOSURE_FILES],
 }
 
@@ -771,7 +773,8 @@ def main() -> int:
     )
     try:
         for design in DESIGNS:
-            ldraw = encode_ldraw(library.triangles(f"{design['designId']}.dat"), design)
+            ldraw_design_id = design.get("ldrawDesignId", design["designId"])
+            ldraw = encode_ldraw(library.triangles(f"{ldraw_design_id}.dat"), design)
             ldraw_pin = design["ldrawReferenceGeometry"]
             assert isinstance(ldraw_pin, dict)
             sections.append(

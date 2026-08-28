@@ -6,10 +6,13 @@ export * from "./build-comparison.ts";
 export * from "./build-sequence.ts";
 export * from "./canonical.ts";
 export {
+  COLLISION_WORLD_WORK_KEYS,
   createCollisionWorld,
   findCatalogCollisions,
   type CollisionFinding,
   type CollisionWorld,
+  type CollisionWorldWork,
+  type CollisionWorldWorkObserver,
 } from "./collisions.ts";
 export * from "./compiler.ts";
 export * from "./document.ts";

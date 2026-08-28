@@ -214,4 +214,9 @@ LDRAW_CLOSURE_FILES_C: tuple = (('parts/3710.dat',
   '8d73b808e1e1dd46bbca13104de8779c6da6270131e65c7028a84ac41f198506',
   'Philippe Hurbain [Philo]',
   'Subpart UPDATE 2025-04',
-  'Licensed under CC BY 4.0 : see CAreadme.txt'))
+  'Licensed under CC BY 4.0 : see CAreadme.txt'),
+ ('parts/2453b.dat',
+  '3c7caddd91a2467243cf3f3bd0bdd8ee8fa1cbd5435591a6491841ee1ca49b01',
+  'Merlijn Wissink [legolijntje]',
+  'Part UPDATE 2025-09',
+  'Licensed under CC BY 2.0 and CC BY 4.0 : see CAreadme.txt'))

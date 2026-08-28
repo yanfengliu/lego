@@ -1,4 +1,5 @@
 import {
+  PROPER_ORIENTATIONS,
   UPRIGHT_ORIENTATIONS,
   connectorPairRule,
   getPartDefinition,
@@ -6,6 +7,7 @@ import {
   type LduVector3,
   type OrientationMatrix,
   type PartDefinition,
+  type ProperOrientation,
   type UprightOrientation,
 } from "@lego-studio/catalog";
 import { validateRigidTransform } from "@lego-studio/protocol";
@@ -63,6 +65,15 @@ export function getUprightOrientation(orientationId: string): UprightOrientation
   const orientation = UPRIGHT_ORIENTATIONS.find(({ id }) => id === orientationId);
   if (!orientation) {
     throw new TransformPolicyError(`Unknown upright orientation: ${orientationId}`);
+  }
+  return orientation;
+}
+
+/** Resolves the complete determinant-positive signed-permutation transform vocabulary. */
+export function getProperOrientation(orientationId: string): ProperOrientation {
+  const orientation = PROPER_ORIENTATIONS.find(({ id }) => id === orientationId);
+  if (!orientation) {
+    throw new TransformPolicyError(`Unknown proper orientation: ${orientationId}`);
   }
   return orientation;
 }
@@ -129,15 +140,16 @@ function requireRigidTransform(value: unknown, label: string): RigidTransform {
     throw new TransformPolicyError(`${label} transform violates the rigid-transform policy`);
   }
   const transform = value as RigidTransform;
-  getUprightOrientation(transform.orientationId);
+  getProperOrientation(transform.orientationId);
   return transform;
 }
 
 /**
  * Composes a parent/world transform with a local transform under the finite
- * upright orientation policy. The exact matrix product must resolve back to a
- * catalog orientation; arbitrary matrices and fractional coordinates are not
- * representable in the canonical document. Inputs are inert value records
+ * proper orientation vocabulary. The exact matrix product must resolve back to
+ * a determinant-positive signed permutation; arbitrary matrices and fractional
+ * coordinates are not representable. Catalog legality remains a separate
+ * validation policy. Inputs are inert value records
  * (such as parsed JSON); active Proxy traps must be rejected at the caller's
  * trust boundary because JavaScript cannot inspect them without executing code.
  */
@@ -155,18 +167,18 @@ export function composeRigidTransforms(
   }
   const parent = requireRigidTransform(detached.parent, "Parent");
   const local = requireRigidTransform(detached.local, "Local");
-  const parentOrientation = getUprightOrientation(parent.orientationId);
-  const localOrientation = getUprightOrientation(local.orientationId);
+  const parentOrientation = getProperOrientation(parent.orientationId);
+  const localOrientation = getProperOrientation(local.orientationId);
   const composedMatrix = multiplyOrientationMatrices(
     parentOrientation.matrix,
     localOrientation.matrix,
   );
-  const composedOrientation = UPRIGHT_ORIENTATIONS.find(({ matrix }) =>
+  const composedOrientation = PROPER_ORIENTATIONS.find(({ matrix }) =>
     matrix.every((value, index) => value === composedMatrix[index]),
   );
   if (!composedOrientation) {
     throw new TransformPolicyError(
-      `Upright orientation policy is not closed for ${parent.orientationId} and ${local.orientationId}`,
+      `Proper orientation vocabulary is not closed for ${parent.orientationId} and ${local.orientationId}`,
     );
   }
 
@@ -186,7 +198,7 @@ export function composeRigidTransforms(
 }
 
 export function transformLduPoint(transform: RigidTransform, point: LduVector3): LduVector3 {
-  const rotated = rotateLduVector(getUprightOrientation(transform.orientationId).matrix, point);
+  const rotated = rotateLduVector(getProperOrientation(transform.orientationId).matrix, point);
   return [
     transform.positionLdu[0] + rotated[0],
     transform.positionLdu[1] + rotated[1],
@@ -216,7 +228,7 @@ export function getConnectorWorldFrame(
 ): ConnectorWorldFrame {
   const definition = requirePartDefinition(part.catalogPartId);
   const port = requirePort(definition, portId);
-  const orientation = getUprightOrientation(part.transform.orientationId);
+  const orientation = getProperOrientation(part.transform.orientationId);
 
   return {
     partId: part.id,

@@ -456,4 +456,5 @@ it.runIf(realEvidencePresent)(
     expect(Object.isFrozen(inspection.artifact.relations[0].comparison)).toBe(true);
     expect(inspection.artifact.authority).toEqual(ABSENT_AUTHORITY);
   },
+  30_000,
 );

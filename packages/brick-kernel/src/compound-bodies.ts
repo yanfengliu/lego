@@ -9,8 +9,12 @@ import {
 import type { BrickDocumentV1, ConnectionEdge, PartInstance } from "@lego-studio/protocol";
 
 import type { AssemblyGraph } from "./assemblies.ts";
-import { getConnectorWorldFrame, rotateLduVector, transformLduPoint } from "./transforms.ts";
-import { getUprightOrientation } from "./transforms.ts";
+import {
+  getConnectorWorldFrame,
+  getProperOrientation,
+  rotateLduVector,
+  transformLduPoint,
+} from "./transforms.ts";
 
 /**
  * What an engine needs, without naming one.
@@ -27,7 +31,7 @@ import { getUprightOrientation } from "./transforms.ts";
  * assert on it directly.
  */
 
-export const COMPOUND_BODY_SCHEMA_VERSION = "lego.compound-bodies/2" as const;
+export const COMPOUND_BODY_SCHEMA_VERSION = "lego.compound-bodies/4" as const;
 
 export interface BodyBoxShape {
   readonly kind: "box";
@@ -47,6 +51,7 @@ export interface BodyWedgeShape {
 
 export interface BodyCylinderShape {
   readonly kind: "cylinder";
+  readonly axis: "x" | "y" | "z";
   readonly centerLdu: LduVector3;
   readonly radiusLdu: number;
   readonly heightLdu: number;
@@ -62,7 +67,16 @@ export interface BodyConvexPrismShape {
   readonly centerLdu: LduVector3;
 }
 
-export type BodyShape = BodyBoxShape | BodyWedgeShape | BodyCylinderShape | BodyConvexPrismShape;
+export interface BodyConvexHullShape {
+  readonly kind: "convex-hull";
+  /** Exact vertices in the same frame as the containing body. */
+  readonly verticesLdu: readonly LduVector3[];
+  /** Geometric centre for inspection and parity with the other shape records. */
+  readonly centerLdu: LduVector3;
+}
+
+export type BodyShape =
+  BodyBoxShape | BodyWedgeShape | BodyCylinderShape | BodyConvexPrismShape | BodyConvexHullShape;
 
 export interface CompoundBody {
   readonly id: string;
@@ -100,11 +114,83 @@ const subtract = (point: LduVector3, origin: LduVector3): LduVector3 => [
   point[2] - origin[2],
 ];
 
+type PlanPoint = readonly [x: number, z: number];
+
+function clipPlanToHalfPlane(
+  polygon: readonly PlanPoint[],
+  normal: readonly [number, number],
+  offset: number,
+): readonly PlanPoint[] {
+  const [nx, nz] = normal;
+  const inside = ([x, z]: PlanPoint) => nx * x + nz * z <= offset;
+  const clipped: PlanPoint[] = [];
+  for (let index = 0; index < polygon.length; index += 1) {
+    const current = polygon[index]!;
+    const previous = polygon[(index + polygon.length - 1) % polygon.length]!;
+    if (inside(current) !== inside(previous)) {
+      const currentDistance = nx * current[0] + nz * current[1] - offset;
+      const previousDistance = nx * previous[0] + nz * previous[1] - offset;
+      const t = previousDistance / (previousDistance - currentDistance);
+      clipped.push([
+        previous[0] + t * (current[0] - previous[0]),
+        previous[1] + t * (current[1] - previous[1]),
+      ]);
+    }
+    if (inside(current)) clipped.push(current);
+  }
+  return clipped;
+}
+
+function wedgePlan(
+  primitive: Extract<CollisionPrimitive, { kind: "wedge" }>,
+): readonly PlanPoint[] {
+  return clipPlanToHalfPlane(
+    [
+      [primitive.minLdu[0], primitive.minLdu[2]],
+      [primitive.maxLdu[0], primitive.minLdu[2]],
+      [primitive.maxLdu[0], primitive.maxLdu[2]],
+      [primitive.minLdu[0], primitive.maxLdu[2]],
+    ],
+    primitive.cutNormalXZ,
+    primitive.cutOffsetLdu,
+  );
+}
+
+function worldConvexHullShape(
+  part: PartInstance,
+  plan: readonly PlanPoint[],
+  minYLdu: number,
+  maxYLdu: number,
+): BodyConvexHullShape {
+  const verticesLdu = plan.flatMap(([x, z]) => [
+    transformLduPoint(part.transform, [x, minYLdu, z]),
+    transformLduPoint(part.transform, [x, maxYLdu, z]),
+  ]);
+  const centerLdu: LduVector3 = [
+    verticesLdu.reduce((sum, vertex) => sum + vertex[0], 0) / verticesLdu.length,
+    verticesLdu.reduce((sum, vertex) => sum + vertex[1], 0) / verticesLdu.length,
+    verticesLdu.reduce((sum, vertex) => sum + vertex[2], 0) / verticesLdu.length,
+  ];
+  return { kind: "convex-hull", verticesLdu, centerLdu };
+}
+
 /** A part's collision primitive carried into the document's frame. */
 function worldShape(part: PartInstance, primitive: CollisionPrimitive): BodyShape {
+  const orientation = getProperOrientation(part.transform.orientationId);
   if (primitive.kind === "cylinder") {
+    const localAxis: LduVector3 =
+      primitive.axis === "x" ? [1, 0, 0] : primitive.axis === "y" ? [0, 1, 0] : [0, 0, 1];
+    const rotatedAxis = rotateLduVector(orientation.matrix, localAxis);
+    const axisIndex = rotatedAxis.findIndex((coordinate) => Math.abs(coordinate) === 1);
+    const axis = "xyz"[axisIndex] as "x" | "y" | "z" | undefined;
+    if (axis === undefined) {
+      throw new TypeError(
+        `Proper orientation ${orientation.id} did not preserve cylinder axis ${primitive.axis}.`,
+      );
+    }
     return {
       kind: "cylinder",
+      axis,
       centerLdu: transformLduPoint(part.transform, primitive.centerLdu),
       radiusLdu: primitive.radiusLdu,
       heightLdu: primitive.heightLdu,
@@ -112,6 +198,14 @@ function worldShape(part: PartInstance, primitive: CollisionPrimitive): BodyShap
   }
 
   if (primitive.kind === "convex-prism") {
+    if (Math.abs(orientation.matrix[4]) !== 1) {
+      return worldConvexHullShape(
+        part,
+        primitive.verticesXZLdu,
+        primitive.minYLdu,
+        primitive.maxYLdu,
+      );
+    }
     const verticesXZLdu = primitive.verticesXZLdu.map(([x, z]) => {
       const point = transformLduPoint(part.transform, [x, 0, z]);
       return [point[0], point[2]] as const;
@@ -133,29 +227,17 @@ function worldShape(part: PartInstance, primitive: CollisionPrimitive): BodyShap
     };
   }
 
-  const localCenter: LduVector3 = [
-    (primitive.minLdu[0] + primitive.maxLdu[0]) / 2,
-    (primitive.minLdu[1] + primitive.maxLdu[1]) / 2,
-    (primitive.minLdu[2] + primitive.maxLdu[2]) / 2,
-  ];
-  const centerLdu = transformLduPoint(part.transform, localCenter);
-  const localHalf: LduVector3 = [
-    (primitive.maxLdu[0] - primitive.minLdu[0]) / 2,
-    (primitive.maxLdu[1] - primitive.minLdu[1]) / 2,
-    (primitive.maxLdu[2] - primitive.minLdu[2]) / 2,
-  ];
-  // Only quarter turns about the vertical, so a box stays axis aligned and its
-  // half extents merely swap on x and z. Taking the absolute value keeps them
-  // positive through a turn that negates one.
-  const orientation = getUprightOrientation(part.transform.orientationId);
-  const rotatedHalf = rotateLduVector(orientation.matrix, localHalf);
-  const halfExtentsLdu: LduVector3 = [
-    Math.abs(rotatedHalf[0]),
-    Math.abs(rotatedHalf[1]),
-    Math.abs(rotatedHalf[2]),
-  ];
+  const box = worldBoxShape(part, primitive.minLdu, primitive.maxLdu);
 
-  if (primitive.kind === "box") return { kind: "box", halfExtentsLdu, centerLdu };
+  if (primitive.kind === "box") return box;
+  if (Math.abs(orientation.matrix[4]) !== 1) {
+    return worldConvexHullShape(
+      part,
+      wedgePlan(primitive),
+      primitive.minLdu[1],
+      primitive.maxLdu[1],
+    );
+  }
 
   // The sloped face is a plane, so its normal rotates as a direction and its
   // offset is that normal dotted with any point still on the plane.
@@ -168,18 +250,49 @@ function worldShape(part: PartInstance, primitive: CollisionPrimitive): BodyShap
     (nz * primitive.cutOffsetLdu) / lengthSquared,
   ]);
   return {
+    ...box,
     kind: "wedge",
-    halfExtentsLdu,
-    centerLdu,
     cutNormalXZ: [rotatedNormal[0], rotatedNormal[2]],
     cutOffsetLdu: rotatedNormal[0] * onPlane[0] + rotatedNormal[2] * onPlane[2],
   };
+}
+
+function worldBoxShape(part: PartInstance, minLdu: LduVector3, maxLdu: LduVector3): BodyBoxShape {
+  const localCenter: LduVector3 = [
+    (minLdu[0] + maxLdu[0]) / 2,
+    (minLdu[1] + maxLdu[1]) / 2,
+    (minLdu[2] + maxLdu[2]) / 2,
+  ];
+  const centerLdu = transformLduPoint(part.transform, localCenter);
+  const localHalf: LduVector3 = [
+    (maxLdu[0] - minLdu[0]) / 2,
+    (maxLdu[1] - minLdu[1]) / 2,
+    (maxLdu[2] - minLdu[2]) / 2,
+  ];
+  // Every proper orientation is a signed permutation, so boxes remain axis
+  // aligned even when a former vertical dimension becomes horizontal.
+  const orientation = getProperOrientation(part.transform.orientationId);
+  const rotatedHalf = rotateLduVector(orientation.matrix, localHalf);
+  const halfExtentsLdu: LduVector3 = [
+    Math.abs(rotatedHalf[0]),
+    Math.abs(rotatedHalf[1]),
+    Math.abs(rotatedHalf[2]),
+  ];
+
+  return { kind: "box", halfExtentsLdu, centerLdu };
 }
 
 function shapeInBodySpace(shape: BodyShape, origin: LduVector3): BodyShape {
   const centerLdu = subtract(shape.centerLdu, origin);
   if (shape.kind === "cylinder") return { ...shape, centerLdu };
   if (shape.kind === "box") return { ...shape, centerLdu };
+  if (shape.kind === "convex-hull") {
+    return {
+      ...shape,
+      centerLdu,
+      verticesLdu: shape.verticesLdu.map((vertex) => subtract(vertex, origin)),
+    };
+  }
   if (shape.kind === "convex-prism") {
     return {
       ...shape,

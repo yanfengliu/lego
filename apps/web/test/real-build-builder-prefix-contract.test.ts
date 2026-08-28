@@ -1,57 +1,26 @@
-import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 
 import { BUILTIN_CATALOG_VERSION, getPartDefinition } from "@lego-studio/catalog";
 import { describe, expect, it } from "vitest";
 
-import { sha256Digest } from "../e2e/real-build-artifacts";
-import type { BuilderCanonicalCalibration } from "../e2e/real-build-builder-calibration";
-import {
-  applyBuilderCanonicalCalibration,
-  parseOfficialModelIndex,
-} from "../e2e/real-build-official";
+import { BUILDER_PREFIX50_ACTION_SOURCE_ROWS_COMMITMENT } from "../e2e/real-build-builder-proper-world-diagnostic";
+import { parseOfficialModelIndex } from "../e2e/real-build-official";
 import { assertDerivedLdrawToCatalogTransforms } from "../e2e/real-build-builder-ldraw-frame-contract";
 import {
   BUILDER_STEP1_DESIGN_SOURCES,
   type BuilderDesignSourcePin,
 } from "../e2e/real-build-builder-sources";
-import { assertExactPrefixWorldCensus } from "./real-build-builder-prefix-world-contract";
-
-const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
-const file = (path: string): Buffer => readFileSync(resolve(root, path));
-const sha256 = (bytes: Uint8Array): string =>
-  `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
-
-const INPUTS = {
-  official: {
-    path: "output/official-model/vx1087034_21066_a.xml",
-    bytes: 1_903_169,
-    digest: "sha256:c0564fd86ede633f6cb18738f999fbb70ee948ba93a55cc8d338b4b5f02b5922",
-  },
-  geometry: {
-    path: "output/real-build/builder-shell-geometry.bin",
-    bytes: 1_814_364,
-    digest: "sha256:d3636d02dca8a5bec1b1c759cd38cae705547cf0af9f57e6377325cb57d86d0f",
-  },
-  calibration: {
-    path: "output/real-build/builder-canonical-calibration.json",
-    bytes: 53_743,
-    digest: "sha256:5946b95a61ddde56ff5627b8c054627a78e436f7404a48a8e485e00efc94c219",
-  },
-  coverage: {
-    path: "output/real-build/catalog-coverage.json",
-    bytes: 588_467,
-    digest: "sha256:a12d5744f3f4417628e53227aaa4c35d9aee0eba5fdce7b865087e6f97dfbfad",
-  },
-  actionPreparation: {
-    path: "output/real-build/action-preparation.json",
-    bytes: 317_116,
-    digest: "sha256:edd2096efe55e6e68385dc7f5b735222a9cdf01ae5625528dae2d1edde0fcbbc",
-  },
-} as const;
+import {
+  PREFIX_INPUTS as INPUTS,
+  actionRows,
+  parseJson,
+  readRepositoryFile as file,
+  repositoryRoot as root,
+  sha256,
+  type ActionArtifact,
+  type CoverageArtifact,
+} from "./real-build-builder-prefix-fixture";
 
 const EXPECTED_EXCLUSION_CENSUS = {
   "3003;S": [1, "checksum-mismatch"],
@@ -64,7 +33,6 @@ const EXPECTED_EXCLUSION_CENSUS = {
   "41770;H": [1, "checksum-mismatch"],
   "99563;G": [4, "checksum-mismatch"],
   "10201;H": [2, "identity-contradiction"],
-  "2453;I": [5, "identity-route-unconsumed"],
   "15573;L": [33, "recognized-anchor-cardinality-mismatch"],
   "3024;N": [2, "recognized-anchor-route-absent"],
   "11253;G": [4, null],
@@ -79,56 +47,6 @@ const EXPECTED_EXCLUSION_CENSUS = {
   "73230;D": [2, null],
   "93273;M": [1, null],
 } as const;
-
-interface ActionMember {
-  readonly sourceBuilderIdentityOrdinal: number;
-  readonly builderBrickRef: string;
-  readonly designRevision: string;
-  readonly calloutIdentity: string;
-}
-
-interface ActionCallout {
-  readonly identity: string;
-  readonly catalogPartId: string;
-  readonly preparedBuilderBrickRefs: readonly string[];
-}
-
-interface ActionPhase {
-  readonly sequence: number;
-  readonly members: readonly ActionMember[];
-}
-
-interface ActionStep {
-  readonly stepNumber: number;
-  readonly callouts: readonly ActionCallout[];
-  readonly phases: readonly ActionPhase[];
-}
-
-interface ActionArtifact {
-  readonly schemaVersion: string;
-  readonly authority: Readonly<Record<string, boolean | string>>;
-  readonly steps: readonly ActionStep[];
-}
-
-interface CoverageArtifact {
-  readonly schemaVersion: string;
-  readonly byCallout: Readonly<
-    Record<
-      string,
-      {
-        readonly resolution: {
-          readonly catalogPartId: string;
-          readonly partNum: string;
-        };
-        readonly semanticEvidence: {
-          readonly officialDesignId: string;
-          readonly publishedPartNum: string;
-          readonly publishedMatchesOfficialDesignId: boolean;
-        } | null;
-      }
-    >
-  >;
-}
 
 interface PrefixSourceReport {
   readonly schemaVersion: string;
@@ -150,8 +68,6 @@ interface PrefixSourceReport {
     readonly authoredUndersideFieldCount: number | null;
   }[];
 }
-
-const parseJson = <T>(bytes: Uint8Array): T => JSON.parse(bytes.toString()) as T;
 
 function runPythonSourceContract(sources: readonly BuilderDesignSourcePin[]) {
   return spawnSync(
@@ -178,16 +94,8 @@ function officialPrefixRefs(official: ReturnType<typeof parseOfficialModelIndex>
     );
 }
 
-function actionRows(artifact: ActionArtifact) {
-  return artifact.steps.flatMap((step) =>
-    step.phases.flatMap((phase) =>
-      phase.members.map((member) => ({ ...member, stepNumber: step.stepNumber })),
-    ),
-  );
-}
-
 describe("first-50 Builder source and frame census contract", () => {
-  it("derives the exact 42/192 local subset and the distinct 177-world-transform subset", () => {
+  it("derives the exact 43/197 local subset and the distinct 182-world-transform subset", () => {
     const inputBytes = Object.fromEntries(
       Object.entries(INPUTS).map(([name, pin]) => {
         const bytes = file(pin.path);
@@ -201,7 +109,7 @@ describe("first-50 Builder source and frame census contract", () => {
     expect(python.status, python.stderr).toBe(0);
     const sourceReport = parseJson<PrefixSourceReport>(Buffer.from(python.stdout));
     expect(sourceReport.schemaVersion).toBe("lego.builder-prefix-source-contract/1");
-    expect(sourceReport.sourceRows).toBe(42);
+    expect(sourceReport.sourceRows).toBe(43);
     expect(sourceReport.rows.map(({ designRevision }) => designRevision)).toEqual(
       BUILDER_STEP1_DESIGN_SOURCES.map(({ designRevision }) => designRevision),
     );
@@ -233,6 +141,22 @@ describe("first-50 Builder source and frame census contract", () => {
       officialRows.map(({ sourceBuilderIdentityOrdinal }) => sourceBuilderIdentityOrdinal),
     ).toEqual(Array.from({ length: 320 }, (_, index) => index + 1));
     expect(officialRows.map(({ builderBrickRef }) => builderBrickRef)).toEqual(prefixRefs);
+    const committedSourceRowsBytes = Buffer.from(
+      JSON.stringify(
+        officialRows.map(
+          ({ stepNumber, sourceBuilderIdentityOrdinal, builderBrickRef, designRevision }) => ({
+            stepNumber,
+            sourceBuilderIdentityOrdinal,
+            builderBrickRef,
+            designRevision,
+          }),
+        ),
+      ),
+    );
+    expect([committedSourceRowsBytes.length, sha256(committedSourceRowsBytes)]).toEqual([
+      43_528,
+      BUILDER_PREFIX50_ACTION_SOURCE_ROWS_COMMITMENT,
+    ]);
 
     const semanticCatalogByBrick = new Map<string, string>();
     for (const step of action.steps) {
@@ -264,14 +188,14 @@ describe("first-50 Builder source and frame census contract", () => {
     }
     expect(revisionCounts.size).toBe(66);
     expect([...revisionCounts].filter(([revision]) => sourceByRevision.has(revision))).toHaveLength(
-      42,
+      43,
     );
     expect(
       [...revisionCounts].reduce(
         (total, [revision, count]) => total + (sourceByRevision.has(revision) ? count : 0),
         0,
       ),
-    ).toBe(192);
+    ).toBe(197);
     const checksumMismatches = new Set(
       sourceReport.checksumMismatches
         .map(({ designRevision }) => designRevision)
@@ -317,6 +241,25 @@ describe("first-50 Builder source and frame census contract", () => {
       ["builtin:brick-1x1x5-solid-stud", "2453b", "2453", "2453b", false],
       ["builtin:brick-1x1x5-solid-stud", "2453b", "2453", "2453b", false],
     ]);
+    expect(sourceByRevision.get("2453;I")).toMatchObject({
+      catalogPartId: "builtin:brick-1x1x5-solid-stud",
+      opaqueIdentityRoute: {
+        routeId: "builder-2453-I-6595205-to-2453b/1",
+        itemNo: "6595205",
+        exactLdrawId: "2453b.dat",
+        builderToCatalogLocalMatrix: [25, 0, 0, 0, -25, 0, 0, 0, -25],
+        builderToCatalogLocalTranslationLdu: [0, 60, 0],
+      },
+      ldrawToCatalogLocalTransform: {
+        positionLdu: [0, -60, 0],
+        orientationId: "upright-yaw-0",
+      },
+    });
+    expect(
+      rows
+        .filter(({ designRevision }) => designRevision === "2453;I")
+        .map(({ builderBrickRef }) => official.bricks[builderBrickRef]!.itemNos),
+    ).toEqual(Array.from({ length: 5 }, () => ["6595205"]));
     expect(identityByRevision.get("35787;N")).toMatchObject({
       nativeConnectivityBound: true,
       declaredDesignIds: ["35787"],
@@ -383,15 +326,13 @@ describe("first-50 Builder source and frame census contract", () => {
             ? "checksum-mismatch"
             : revision === "10201;H"
               ? "identity-contradiction"
-              : revision === "2453;I"
-                ? "identity-route-unconsumed"
-                : revision === "35787;N"
-                  ? "authored-lattice-surface-contradiction"
-                  : revision === "3024;N"
-                    ? "recognized-anchor-route-absent"
-                    : revision === "15573;L"
-                      ? "recognized-anchor-cardinality-mismatch"
-                      : null;
+              : revision === "35787;N"
+                ? "authored-lattice-surface-contradiction"
+                : revision === "3024;N"
+                  ? "recognized-anchor-route-absent"
+                  : revision === "15573;L"
+                    ? "recognized-anchor-cardinality-mismatch"
+                    : null;
           return [revision, [count, executedEvidenceClass]];
         }),
     );
@@ -412,25 +353,11 @@ describe("first-50 Builder source and frame census contract", () => {
         (total, [revision, count]) => total + (sourceByRevision.has(revision) ? 0 : count),
         0,
       ),
-    ).toBe(128);
+    ).toBe(123);
     expect([...sourceByRevision.keys(), ...Object.keys(EXPECTED_EXCLUSION_CENSUS)].sort()).toEqual(
       [...revisionCounts.keys()].sort(),
     );
 
-    const calibrated = applyBuilderCanonicalCalibration(
-      official,
-      inputBytes.calibration,
-      sha256Digest(inputBytes.calibration),
-      inputBytes.geometry,
-      sha256Digest(inputBytes.geometry),
-    );
-    assertExactPrefixWorldCensus({
-      rows,
-      localRevisions: new Set(sourceByRevision.keys()),
-      official,
-      calibrated,
-      calibration: parseJson<BuilderCanonicalCalibration>(inputBytes.calibration),
-    });
     expect(action.authority).toMatchObject({
       physicalFrame: false,
       placement: false,

@@ -6,6 +6,10 @@ import {
   getPartDefinition,
 } from "@lego-studio/catalog";
 import { createEmptyBrickDocument } from "@lego-studio/brick-kernel";
+import {
+  isConsumedBuilder2453DiagnosticRegistryRoute,
+  type ConsumedBuilder2453DiagnosticRegistryRoute,
+} from "../../../scripts/part-identification-2453-builder-registry-route.mjs";
 
 import { enumeratePlacements } from "../src/assembly/enumerate-placements";
 import {
@@ -25,11 +29,19 @@ import {
   type BuilderFramePoint,
   type BuilderTriangleSlicePin,
 } from "./real-build-builder-sources";
-import type {
-  BuilderBoneTransform,
-  LedgerTransform,
-  OfficialModelIndex,
-} from "./real-build-official";
+import { isModuleOwnedBuilderOpaqueIdentitySource } from "./real-build-builder-source-pins-m";
+import type { LedgerTransform, OfficialModelIndex } from "./real-build-official";
+import {
+  composeBuilderTransforms,
+  resolveBuilderBoneTransform,
+} from "./real-build-builder-transforms";
+
+export {
+  composeBuilderProperTransforms,
+  composeBuilderTransforms,
+  resolveBuilderBoneProperTransform,
+  resolveBuilderBoneTransform,
+} from "./real-build-builder-transforms";
 
 export const BUILDER_CANONICAL_CALIBRATION_SCHEMA = "lego.builder-canonical-calibration/8" as const;
 export const BUILDER_FRAME_EVIDENCE_PROTOCOL = "builder-anchor-frame-plus-ldraw-surface/4" as const;
@@ -145,114 +157,6 @@ function inverseTransformFramePoint(
       0,
     ),
   ) as unknown as FramePoint;
-}
-
-function multiplyMatrices(left: readonly number[], right: readonly number[]): readonly number[] {
-  return Array.from({ length: 9 }, (_, index) => {
-    const row = Math.floor(index / 3);
-    const column = index % 3;
-    return [0, 1, 2].reduce(
-      (sum, offset) => sum + left[row * 3 + offset]! * right[offset * 3 + column]!,
-      0,
-    );
-  });
-}
-
-export function composeBuilderTransforms(
-  world: LedgerTransform,
-  catalogToBuilder: LedgerTransform,
-  tolerance = 0.000001,
-): LedgerTransform | null {
-  const worldOrientation = UPRIGHT_ORIENTATIONS.find(({ id }) => id === world.orientationId);
-  const localOrientation = UPRIGHT_ORIENTATIONS.find(
-    ({ id }) => id === catalogToBuilder.orientationId,
-  );
-  if (worldOrientation === undefined || localOrientation === undefined) return null;
-  const matrix = multiplyMatrices(worldOrientation.matrix, localOrientation.matrix);
-  const orientation = UPRIGHT_ORIENTATIONS.find(({ matrix: candidate }) =>
-    candidate.every((expected, index) => Math.abs(expected - matrix[index]!) <= tolerance),
-  );
-  if (orientation === undefined) return null;
-  const rotatedLocal = [0, 1, 2].map((row) =>
-    [0, 1, 2].reduce(
-      (sum, column) =>
-        sum + worldOrientation.matrix[row * 3 + column]! * catalogToBuilder.positionLdu[column]!,
-      0,
-    ),
-  );
-  return {
-    positionLdu: world.positionLdu.map(
-      (coordinate, axis) => coordinate + rotatedLocal[axis]!,
-    ) as unknown as LedgerTransform["positionLdu"],
-    orientationId: orientation.id,
-  };
-}
-
-/**
- * The one change of basis from LXFML's right-handed Y-up frame to LDraw's
- * right-handed Y-down frame: a 180-degree rotation about x, `diag(1,-1,-1)`,
- * determinant +1. It is the frame the rest of the repository already declares —
- * `scripts/builder_ldraw_frame.py` writes it as `diag(25,-25,-25)` including the
- * 25 LDU-per-stud scale, and `docs/design/part-model.md` states it in words.
- *
- * The sign vector is shared with the position mapping in
- * `resolveBuilderBoneTransform` because a change of basis has to be one thing:
- * conjugating the rotation by one `S` while scaling the translation by another
- * is not a rigid motion at all, so the two are declared together and must move
- * together. Reading the rotation through `diag(1,-1,1)` and the position through
- * `diag(1,-1,1)` was self-consistent but improper — determinant -1 — and it
- * mirrored every world placement in the model while leaving each part's own
- * local frame, and therefore every per-part surface check, exactly as correct as
- * before.
- */
-const LDD_TO_LDRAW_BASIS_SIGNS = [1, -1, -1] as const;
-
-function transformedMatrix(matrix: BuilderBoneTransform["matrix"]): readonly number[] {
-  const signs = LDD_TO_LDRAW_BASIS_SIGNS;
-  return matrix.map((_, index) => {
-    const row = Math.floor(index / 3);
-    const column = index % 3;
-    return matrix[column * 3 + row]! * signs[row]! * signs[column]!;
-  });
-}
-
-export function resolveBuilderBoneTransform(transform: BuilderBoneTransform): {
-  readonly transform: LedgerTransform | null;
-  readonly failure: string | null;
-} {
-  const matrix = transformedMatrix(transform.matrix);
-  const orientation = UPRIGHT_ORIENTATIONS.find(({ matrix: candidate }) =>
-    candidate.every((expected, index) => Math.abs(expected - matrix[index]!) <= 0.000001),
-  );
-  if (orientation === undefined) {
-    return {
-      transform: null,
-      failure:
-        `Builder Bone orientation [${transform.matrix.join(",")}] cannot be expressed by the current ` +
-        `canonical upright quarter-turn protocol. Add a reviewed transform type; rounding or substituting an ` +
-        `upright orientation is forbidden.`,
-    };
-  }
-  const scaled = [
-    (LDD_TO_LDRAW_BASIS_SIGNS[0] * transform.position[0]) / 0.04,
-    (LDD_TO_LDRAW_BASIS_SIGNS[1] * transform.position[1]) / 0.04,
-    (LDD_TO_LDRAW_BASIS_SIGNS[2] * transform.position[2]) / 0.04,
-  ] as const;
-  const rounded = scaled.map(Math.round) as [number, number, number];
-  const residual = Math.max(...scaled.map((value, index) => Math.abs(value - rounded[index]!)));
-  if (residual > 0.001) {
-    return {
-      transform: null,
-      failure:
-        `Builder Bone position [${transform.position.join(",")}] is ${residual} LDU off the integer ` +
-        `construction lattice after the versioned axis/unit calibration. Off-lattice placement is not ` +
-        `representable by the current protocol.`,
-    };
-  }
-  return {
-    transform: { positionLdu: rounded, orientationId: orientation.id },
-    failure: null,
-  };
 }
 
 function sliceBytes(bundleBytes: Uint8Array, reference: BuilderTriangleSlicePin): Buffer {
@@ -540,6 +444,69 @@ export function createBuilderFrameEvidence(input: {
       return Math.round(nearest * 1_000_000);
     });
   const selection = (() => {
+    const opaqueRoute = source.opaqueIdentityRoute;
+    if (opaqueRoute !== undefined) {
+      const expectedRoute = {
+        routeId: "builder-2453-I-6595205-to-2453b/1",
+        itemNo: "6595205",
+        exactLdrawId: "2453b.dat",
+        builderToCatalogLocalMatrix: [25, 0, 0, 0, -25, 0, 0, 0, -25],
+        builderToCatalogLocalTranslationLdu: [0, 60, 0],
+        proofDigest: "sha256:087a8f0308bdf83a7a585196acb4f695409350367e311b38dbb7920038d1f5d4",
+      } as const;
+      if (
+        !isModuleOwnedBuilderOpaqueIdentitySource(source) ||
+        source.designRevision !== "2453;I" ||
+        source.catalogPartId !== "builtin:brick-1x1x5-solid-stud" ||
+        JSON.stringify(opaqueRoute) !== JSON.stringify(expectedRoute) ||
+        anchorRole !== "top-field-to-catalog-stud"
+      ) {
+        throw new TypeError(
+          `Opaque Builder local-part-frame authority requires the exact module-owned source object ` +
+            `for the 2453;I / 6595205 / 2453b route admitted by its evidence token; a structured ` +
+            `clone or caller-shaped source row cannot mint that identity.`,
+        );
+      }
+      const transform = {
+        positionLdu: opaqueRoute.builderToCatalogLocalTranslationLdu.map((coordinate) =>
+          normalizeZero(-coordinate),
+        ) as unknown as LedgerTransform["positionLdu"],
+        orientationId: "upright-yaw-0",
+      } as const;
+      if (JSON.stringify(source.ldrawToCatalogLocalTransform) !== JSON.stringify(transform)) {
+        throw new TypeError(
+          `Opaque Builder local-part-frame route ${opaqueRoute.routeId} does not invert exactly into ` +
+            `the independently pinned 2453b LDraw/catalog frame.`,
+        );
+      }
+      const catalogStudCenters = definition.connectors
+        .filter(({ kind }) => kind === "stud")
+        .map(({ positionLdu }) => positionLdu as FramePoint);
+      const routedBuilderCenters = sortedPoints(
+        catalogStudCenters.map((point) => {
+          const transformed = transformFramePoint(transform, point);
+          if (transformed === null) {
+            throw new TypeError(
+              `Opaque Builder local-part-frame route ${opaqueRoute.routeId} is not upright.`,
+            );
+          }
+          return transformed;
+        }),
+      );
+      if (JSON.stringify(routedBuilderCenters) !== JSON.stringify(pinnedCenters)) {
+        throw new TypeError(
+          `Opaque Builder local-part-frame route ${opaqueRoute.routeId} does not carry the exact ` +
+            `catalog stud endpoint onto the pinned Builder top-field endpoint.`,
+        );
+      }
+      return {
+        transform,
+        candidateCount: 1,
+        equivalenceClassCount: 1,
+        method: "opaque-identity-local-part-frame",
+        witnessMarginMicroRatio: null,
+      } as const;
+    }
     if (anchorRole === "builder-shell-to-catalog-ldraw-surface") {
       return selectCatalogToBuilderSurfaceFrame({
         definition,
@@ -663,12 +630,43 @@ function expectedFrameReport(
   };
 }
 
+function assertConsumed2453DiagnosticRoute(
+  access: ConsumedBuilder2453DiagnosticRegistryRoute,
+): void {
+  const pinnedSource = BUILDER_STEP1_DESIGN_SOURCES.find(
+    ({ designRevision }) => designRevision === "2453;I",
+  );
+  if (
+    !isConsumedBuilder2453DiagnosticRegistryRoute(access) ||
+    pinnedSource === undefined ||
+    access.source !== pinnedSource ||
+    !isModuleOwnedBuilderOpaqueIdentitySource(access.source) ||
+    access.route.routeId !== "builder-2453-I-6595205-to-2453b/1" ||
+    access.route.catalogPartId !== "builtin:brick-1x1x5-solid-stud" ||
+    access.route.exactLdrawId !== "2453b.dat" ||
+    JSON.stringify(access.route.localPartFrame.translationLdu) !== JSON.stringify([0, 60, 0]) ||
+    Object.entries(access.route.authority).some(
+      ([name, value]) => name !== "identityAdjudication" && name !== "localPartFrameRoute" && value,
+    )
+  ) {
+    throw new TypeError(
+      "Builder diagnostic calibration requires the exact consumed opaque 2453;I / 6595205 / " +
+        "2453b local-part-frame route; caller-shaped, cloned, suffix-aliased, and alternate-item " +
+        "access cannot admit its five prefix rows.",
+    );
+  }
+}
+
 /** Recomputes the deterministic v8 report from reviewed pins; no output field authorizes itself. */
 export function createBuilderCanonicalCalibration(
   official: OfficialModelIndex,
   builderGeometryBundleBytes: Uint8Array,
   builderGeometryBundleDigest: string,
+  diagnostic2453RouteAccess?: ConsumedBuilder2453DiagnosticRegistryRoute,
 ): BuilderCanonicalCalibration {
+  if (diagnostic2453RouteAccess !== undefined) {
+    assertConsumed2453DiagnosticRoute(diagnostic2453RouteAccess);
+  }
   if (official.digest !== BUILDER_STEP1_OFFICIAL_MODEL_DIGEST) {
     throw new TypeError(
       `Builder v8 calibration is pinned to official model ${BUILDER_STEP1_OFFICIAL_MODEL_DIGEST}; ` +
@@ -705,6 +703,22 @@ export function createBuilderCanonicalCalibration(
         `Reviewed Builder calibration case ${calibrationCase.brickRef} resolves to ` +
           `${JSON.stringify(resolved.transform ?? resolved.failure)}, not ` +
           `${JSON.stringify(calibrationCase.expectedTransform)}.`,
+      );
+    }
+  }
+  for (const source of BUILDER_STEP1_DESIGN_SOURCES as readonly BuilderDesignSourcePin[]) {
+    const route = source.opaqueIdentityRoute;
+    if (route === undefined) continue;
+    const matching = Object.values(official.bricks).filter(
+      ({ designRevision, itemNos }) =>
+        designRevision === source.designRevision &&
+        itemNos.length === 1 &&
+        itemNos[0] === route.itemNo,
+    );
+    if (matching.length < 1) {
+      throw new TypeError(
+        `Opaque Builder identity route ${route.routeId} may calibrate only ` +
+          `${source.designRevision} itemNo ${route.itemNo}; the exact official-model rows drifted.`,
       );
     }
   }
@@ -771,6 +785,7 @@ export function applyBuilderCanonicalCalibration(
   calibrationDigest: string,
   builderGeometryBundleBytes: Uint8Array,
   builderGeometryBundleDigest: string,
+  diagnostic2453RouteAccess?: ConsumedBuilder2453DiagnosticRegistryRoute,
 ): OfficialModelIndex {
   if (digest(calibrationBytes) !== calibrationDigest) {
     throw new TypeError(
@@ -782,6 +797,7 @@ export function applyBuilderCanonicalCalibration(
     official,
     builderGeometryBundleBytes,
     builderGeometryBundleDigest,
+    diagnostic2453RouteAccess,
   );
   if (JSON.stringify(calibration) !== JSON.stringify(expected)) {
     const retainedVersions = [
@@ -797,11 +813,32 @@ export function applyBuilderCanonicalCalibration(
     );
   }
   const frames = new Map(calibration.designFrames.map((frame) => [frame.designRevision, frame]));
+  const sources = new Map<string, BuilderDesignSourcePin>(
+    (BUILDER_STEP1_DESIGN_SOURCES as readonly BuilderDesignSourcePin[]).map((source) => [
+      source.designRevision,
+      source,
+    ]),
+  );
+  const scopedFrame = (brick: OfficialModelIndex["bricks"][string]) => {
+    const source = sources.get(brick.designRevision);
+    const route = source?.opaqueIdentityRoute;
+    if (
+      source === undefined ||
+      (route !== undefined &&
+        (diagnostic2453RouteAccess === undefined ||
+          diagnostic2453RouteAccess.source !== source ||
+          brick.itemNos.length !== 1 ||
+          brick.itemNos[0] !== route.itemNo))
+    ) {
+      return undefined;
+    }
+    return frames.get(brick.designRevision);
+  };
   const preNormalized = Object.fromEntries(
     Object.entries(official.bricks).map(([brickRef, brick]) => {
       if (brick.builderTransform === null) return [brickRef, null] as const;
       const resolved = resolveBuilderBoneTransform(brick.builderTransform);
-      const frame = frames.get(brick.designRevision);
+      const frame = scopedFrame(brick);
       return [
         brickRef,
         resolved.transform === null || frame === undefined
@@ -860,7 +897,7 @@ export function applyBuilderCanonicalCalibration(
   ) as unknown as FramePoint;
   const bricks = Object.fromEntries(
     Object.entries(official.bricks).map(([brickRef, brick]) => {
-      const frame = frames.get(brick.designRevision);
+      const frame = scopedFrame(brick);
       const composed = preNormalized[brickRef];
       if (brick.builderTransform === null) {
         return [
@@ -906,4 +943,24 @@ export function applyBuilderCanonicalCalibration(
     builderGeometryDigest: builderGeometryBundleDigest,
     bricks,
   };
+}
+
+/** The proper-world census may use the 2453 row only after the opaque route was consumed. */
+export function applyBuilderCanonicalCalibrationForProperWorldDiagnostic(
+  official: OfficialModelIndex,
+  calibrationBytes: Uint8Array,
+  calibrationDigest: string,
+  builderGeometryBundleBytes: Uint8Array,
+  builderGeometryBundleDigest: string,
+  diagnostic2453RouteAccess: ConsumedBuilder2453DiagnosticRegistryRoute,
+): OfficialModelIndex {
+  assertConsumed2453DiagnosticRoute(diagnostic2453RouteAccess);
+  return applyBuilderCanonicalCalibration(
+    official,
+    calibrationBytes,
+    calibrationDigest,
+    builderGeometryBundleBytes,
+    builderGeometryBundleDigest,
+    diagnostic2453RouteAccess,
+  );
 }

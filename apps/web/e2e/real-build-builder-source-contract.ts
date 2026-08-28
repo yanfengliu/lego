@@ -5,6 +5,15 @@ export type BuilderFrameAnchorRole =
   | "underside-field-to-catalog-clutch"
   | "builder-shell-to-catalog-ldraw-surface";
 
+export interface BuilderOpaqueIdentityRoutePin {
+  readonly routeId: "builder-2453-I-6595205-to-2453b/1";
+  readonly itemNo: "6595205";
+  readonly exactLdrawId: "2453b.dat";
+  readonly builderToCatalogLocalMatrix: readonly [25, 0, 0, 0, -25, 0, 0, 0, -25];
+  readonly builderToCatalogLocalTranslationLdu: readonly [0, 60, 0];
+  readonly proofDigest: "sha256:087a8f0308bdf83a7a585196acb4f695409350367e311b38dbb7920038d1f5d4";
+}
+
 export interface BuilderTriangleSlicePin {
   readonly format: "lego.builder-shell-triangles-f32le/1" | "lego.ldraw-expanded-triangles-f32le/1";
   readonly byteOffset: number;
@@ -16,6 +25,8 @@ export interface BuilderTriangleSlicePin {
 export interface BuilderDesignSourcePin {
   readonly designRevision: string;
   readonly catalogPartId: string;
+  /** Present only when a module-owned opaque adjudication capability admitted this exact identity route. */
+  readonly opaqueIdentityRoute?: BuilderOpaqueIdentityRoutePin;
   readonly sourceIdentity: {
     readonly bundleSha256: `sha256:${string}`;
     readonly manifestMd5: `md5:${string}`;
@@ -62,14 +73,14 @@ export const BUILDER_STEP1_OFFICIAL_MODEL_DIGEST =
 
 export const BUILDER_STEP1_GEOMETRY_BUNDLE = {
   format: "lego.builder-shell-and-ldraw-triangles-f32le/2",
-  byteLength: 1_814_364,
-  digest: "sha256:d3636d02dca8a5bec1b1c759cd38cae705547cf0af9f57e6377325cb57d86d0f",
+  byteLength: 1_820_412,
+  digest: "sha256:7e91e1402f2ab609fee6e502336f86ee74fb3a94d970e9b0b75acf07f925a76f",
 } as const;
 
 export const LDRAW_OFFICIAL_ARCHIVE =
   "sha256:6009f2e94204c4d3a63a4c812010b5c90bad8c5acb19b882c859fdac63734eae" as const;
 export const LDRAW_UNOFFICIAL_ARCHIVE =
   "sha256:09ec08007203b66e79b1f857aa4804cbee26e1337e177a7c3a87adc1268e44d4" as const;
-/** The 102-file official closure of all fifteen roots; `builder_calibration_sources.py` holds it. */
+/** The exact official closure of the current diagnostic roots; `builder_calibration_sources.py` holds it. */
 export const BUILDER_STEP1_LDRAW_CLOSURE_DIGEST =
-  "sha256:8674c2d085b3ddd3690cec5832e4c14f5e9705ddbeccc3a9249b4a41e50d8823" as const;
+  "sha256:72ca520b68934fdaa384e9bbc961090538f0b4ee1269773675db1adcf3cc7fdd" as const;

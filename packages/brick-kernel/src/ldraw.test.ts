@@ -1,14 +1,21 @@
 import { describe, expect, it } from "vitest";
 
 import type { BrickDocumentV1, ConnectionEdge } from "@lego-studio/protocol";
+import {
+  PART_DEFINITIONS,
+  PROPER_ORIENTATIONS,
+  type OrientationMatrix,
+} from "@lego-studio/catalog";
 
 import { normalizeBrickDocument } from "./document";
 import { createEmptyBrickDocument, createPartInstance } from "./factory";
 import {
   LDRAW_LIMITS,
   LDrawInterchangeError,
+  catalogOrientationToLDrawMatrix,
   exportBrickDocumentToLDraw,
   importBrickDocumentFromLDraw,
+  ldrawMatrixToCatalogOrientationId,
 } from "./ldraw";
 
 function goldenDocument(): BrickDocumentV1 {
@@ -96,6 +103,17 @@ function expectImportCode(text: string, code: LDrawInterchangeError["code"]): vo
   }
 }
 
+function singlePartDocument(catalogPartId: string): BrickDocumentV1 {
+  const base = createEmptyBrickDocument({ id: "source-frame", name: "Source frame" });
+  const part = createPartInstance({ id: "source-framed-part", catalogPartId });
+  return {
+    ...base,
+    parts: [part],
+    submodels: [{ ...base.submodels[0]!, partIds: [part.id] }],
+    steps: [{ ...base.steps[0]!, partIds: [part.id] }],
+  };
+}
+
 describe("strict LDraw subset", () => {
   it("exports a deterministic golden MPD using catalog identifiers and rigid matrices", () => {
     expect(exportBrickDocumentToLDraw(goldenDocument())).toBe(GOLDEN_MPD);
@@ -138,6 +156,97 @@ describe("strict LDraw subset", () => {
         stepId,
       })),
     );
+  });
+
+  it("round-trips all 24 proper matrices through exact local-frame correction only", () => {
+    for (const catalogPartId of ["builtin:brick-1x1", "builtin:plate-2x14"]) {
+      for (const orientation of PROPER_ORIENTATIONS) {
+        const matrix = catalogOrientationToLDrawMatrix(catalogPartId, orientation.id);
+        expect(ldrawMatrixToCatalogOrientationId(catalogPartId, matrix)).toBe(orientation.id);
+      }
+    }
+    expect(() =>
+      catalogOrientationToLDrawMatrix("builtin:brick-1x1", "hostile-unknown-orientation"),
+    ).toThrowError(expect.objectContaining({ code: "UNSUPPORTED_MATRIX" }));
+    expect(() =>
+      ldrawMatrixToCatalogOrientationId("builtin:brick-1x1", [
+        -1, 0, 0, 0, 1, 0, 0, 0, 1,
+      ] as OrientationMatrix),
+    ).toThrowError(expect.objectContaining({ code: "UNSUPPORTED_MATRIX" }));
+  });
+
+  it("emits and inverts the complete exact raw-asset frame for measured LDraw aliases", () => {
+    const controls = [
+      {
+        catalogPartId: "builtin:technic-brick-1x2-axle-hole",
+        alias: "32064.dat",
+        line: "1 4 0 -12 0 0 0 1 0 1 0 -1 0 0 32064.dat",
+      },
+      {
+        catalogPartId: "builtin:slope-1x2-45",
+        alias: "3040.dat",
+        line: "1 4 0 -12 10 1 0 0 0 1 0 0 0 1 3040.dat",
+      },
+    ] as const;
+    for (const control of controls) {
+      const exported = exportBrickDocumentToLDraw(singlePartDocument(control.catalogPartId));
+      expect(exported.split("\n").find((line) => line.endsWith(` ${control.alias}`))).toBe(
+        control.line,
+      );
+      expect(importBrickDocumentFromLDraw(exported).parts[0]!.transform).toEqual({
+        positionLdu: [0, 0, 0],
+        orientationId: "upright-yaw-0",
+      });
+    }
+
+    const measured = PART_DEFINITIONS.filter(
+      ({ geometry }) => geometry.generatorId === "builtin:preloaded-mesh-reference/1",
+    );
+    expect(measured).toHaveLength(43);
+    for (const definition of measured) {
+      if (definition.geometry.generatorId !== "builtin:preloaded-mesh-reference/1") continue;
+      const alias = definition.aliases.find(({ namespace }) => namespace === "ldraw")!.value;
+      const frame = definition.geometry.assetToCatalogFrame;
+      const orientation = PROPER_ORIENTATIONS.find(({ id }) => id === frame.orientationId)!;
+      const exported = exportBrickDocumentToLDraw(singlePartDocument(definition.id));
+      const line = exported.split("\n").find((candidate) => candidate.endsWith(` ${alias}`))!;
+      expect(line.split(" ").slice(2, 14).map(Number)).toEqual([
+        ...frame.translationLdu,
+        ...orientation.matrix,
+      ]);
+      expect(importBrickDocumentFromLDraw(exported).parts[0]!.transform).toEqual({
+        positionLdu: [0, 0, 0],
+        orientationId: "upright-yaw-0",
+      });
+    }
+  });
+
+  it("keeps document import and export upright-only after proper matrix conversion", () => {
+    const base = createEmptyBrickDocument({ id: "proper-policy", name: "Proper policy" });
+    const upright = createPartInstance({ id: "only-part" });
+    const document: BrickDocumentV1 = {
+      ...base,
+      parts: [upright],
+      submodels: [{ ...base.submodels[0]!, partIds: [upright.id] }],
+      steps: [{ ...base.steps[0]!, partIds: [upright.id] }],
+    };
+    const orientationId = "proper-m-p0000p0n0";
+    expect(() =>
+      exportBrickDocumentToLDraw({
+        ...document,
+        parts: [{ ...upright, transform: { ...upright.transform, orientationId } }],
+      }),
+    ).toThrowError(expect.objectContaining({ code: "UNSUPPORTED_DOCUMENT" }));
+
+    const exported = exportBrickDocumentToLDraw(document);
+    const uprightLine = exported.split("\n").find((line) => line.endsWith(" 3005.dat"))!;
+    const tokens = uprightLine.split(" ");
+    tokens.splice(
+      5,
+      9,
+      ...catalogOrientationToLDrawMatrix(upright.catalogPartId, orientationId).map(String),
+    );
+    expectImportCode(exported.replace(uprightLine, tokens.join(" ")), "UNSUPPORTED_DOCUMENT");
   });
 
   it("corrects the asymmetric 91988 local frame in the actual LDraw type-1 matrix", () => {
@@ -306,12 +415,17 @@ describe("strict LDraw subset", () => {
       "arbitrary matrix",
       GOLDEN_MPD.replace(
         "1 4 0 0 0 1 0 0 0 1 0 0 0 1 3005.dat",
-        "1 4 0 0 0 1 0 0 0 0 -1 0 1 0 3005.dat",
+        "1 4 0 0 0 1 0 0 0 0 -1 0 -1 0 3005.dat",
       ),
       "UNSUPPORTED_MATRIX",
     ],
     ["unknown color", GOLDEN_MPD.replace("1 4 0 0 0", "1 99 0 0 0"), "UNSUPPORTED_COLOR"],
     ["unknown part", GOLDEN_MPD.replace("3005.dat", "99999.dat"), "UNSUPPORTED_REFERENCE"],
+    [
+      "unknown suffixed part",
+      GOLDEN_MPD.replace("3005.dat", "99999a.dat"),
+      "UNSUPPORTED_REFERENCE",
+    ],
     ["parent traversal", GOLDEN_MPD.replace("3005.dat", "../3005.dat"), "UNSUPPORTED_REFERENCE"],
     [
       "Windows path",

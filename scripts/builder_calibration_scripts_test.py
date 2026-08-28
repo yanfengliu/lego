@@ -534,8 +534,8 @@ class FrameAndShellTests(unittest.TestCase):
             self.assertEqual(section["byteLength"], section["triangleCount"] * 36)
             offset += section["byteLength"]
         self.assertEqual(offset, GENERATOR.GEOMETRY_BUNDLE_BYTES)
-        self.assertEqual(len(GENERATOR.DESIGNS), 42)
-        self.assertEqual(len(GENERATOR.LDRAW_CLOSURE_FILES), 183)
+        self.assertEqual(len(GENERATOR.DESIGNS), 43)
+        self.assertEqual(len(GENERATOR.LDRAW_CLOSURE_FILES), 184)
         self.assertEqual(
             GENERATOR.sha256(GENERATOR.canonical_json(GENERATOR.LDRAW_CLOSURE_MANIFEST)),
             GENERATOR.LDRAW_CLOSURE_DIGEST,

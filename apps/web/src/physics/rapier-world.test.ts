@@ -21,12 +21,17 @@ import { createSimulation } from "./rapier-world";
  * solver is Y-up, so a sign error makes a model rise instead, and nothing in
  * the kernel would notice.
  */
-const part = (id: string, catalogPartId: string, positionLdu: readonly [number, number, number]) =>
+const part = (
+  id: string,
+  catalogPartId: string,
+  positionLdu: readonly [number, number, number],
+  orientationId = "upright-yaw-0",
+) =>
   ({
     id,
     catalogPartId,
     colorId: "builtin:light-bluish-gray",
-    transform: { positionLdu, orientationId: "upright-yaw-0" },
+    transform: { positionLdu, orientationId },
     submodelId: "root",
     stepId: "step-1",
     semanticTags: [],
@@ -64,7 +69,7 @@ const settle = (simulation: { step(seconds: number): void }, steps = 60) => {
 describe("createSimulation", () => {
   it("reports which convex prism Rapier rejected and how to fix it", async () => {
     const invalidScene: PhysicsScene = {
-      schemaVersion: "lego.compound-bodies/2",
+      schemaVersion: "lego.compound-bodies/4",
       bodies: [
         {
           id: "assembly:degenerate-ring",
@@ -99,7 +104,7 @@ describe("createSimulation", () => {
     await rapier.init();
     const free = vi.spyOn(rapier.World.prototype, "free");
     const invalidScene: PhysicsScene = {
-      schemaVersion: "lego.compound-bodies/2",
+      schemaVersion: "lego.compound-bodies/4",
       bodies: [
         {
           id: "assembly:non-finite-wedge",
@@ -127,6 +132,61 @@ describe("createSimulation", () => {
       expect(free).toHaveBeenCalledTimes(1);
     } finally {
       free.mockRestore();
+    }
+  }, 30_000);
+
+  it("rotates compound cylinders onto their declared world axes", async () => {
+    const rapier = await import("@dimforge/rapier3d-compat");
+    await rapier.init();
+    const setRotation = vi.spyOn(rapier.ColliderDesc.prototype, "setRotation");
+    const scene: PhysicsScene = {
+      schemaVersion: "lego.compound-bodies/4",
+      bodies: [
+        {
+          id: "assembly:sideways-cylinders",
+          partIds: ["sideways-cylinders"],
+          originLdu: [0, 0, 0],
+          massGrams: 1,
+          shapes: [
+            {
+              kind: "cylinder",
+              axis: "x",
+              centerLdu: [0, 0, 0],
+              radiusLdu: 6,
+              heightLdu: 12,
+            },
+            {
+              kind: "cylinder",
+              axis: "z",
+              centerLdu: [20, 0, 0],
+              radiusLdu: 6,
+              heightLdu: 12,
+            },
+          ],
+        },
+      ],
+      joints: [],
+    };
+
+    const simulation = await createSimulation(scene, {
+      fixedBodyIds: ["assembly:sideways-cylinders"],
+    });
+    try {
+      expect(setRotation).toHaveBeenCalledWith({
+        x: 0,
+        y: 0,
+        z: -Math.SQRT1_2,
+        w: Math.SQRT1_2,
+      });
+      expect(setRotation).toHaveBeenCalledWith({
+        x: Math.SQRT1_2,
+        y: 0,
+        z: 0,
+        w: Math.SQRT1_2,
+      });
+    } finally {
+      simulation.dispose();
+      setRotation.mockRestore();
     }
   }, 30_000);
 
@@ -169,6 +229,26 @@ describe("createSimulation", () => {
     const simulation = await createSimulation(scene, { groundYLdu: 12 });
     settle(simulation, 180);
     expect(simulation.poses().get("assembly:ring")!.positionLdu[1]).toBeLessThan(12);
+    simulation.dispose();
+  }, 30_000);
+
+  it("consumes exact convex hulls for a non-upright wedge and quarter-ring", async () => {
+    const scene = sceneOf(
+      [
+        part("wedge", "builtin:wedge-plate-2x4-left", [-200, -100, 0], "proper-m-p0000p0n0"),
+        part("ring", "builtin:corner-plate-5x5-quarter-ring", [200, -100, 0], "proper-m-p0000p0n0"),
+      ],
+      [],
+    );
+    const wedgeBody = scene.bodies.find(({ partIds }) => partIds.includes("wedge"))!;
+    const ringBody = scene.bodies.find(({ partIds }) => partIds.includes("ring"))!;
+
+    expect(wedgeBody.shapes.filter(({ kind }) => kind === "convex-hull")).toHaveLength(1);
+    expect(ringBody.shapes.filter(({ kind }) => kind === "convex-hull")).toHaveLength(14);
+
+    const simulation = await createSimulation(scene, {
+      fixedBodyIds: scene.bodies.map(({ id }) => id),
+    });
     simulation.dispose();
   }, 30_000);
 

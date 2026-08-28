@@ -76,4 +76,18 @@ describe("horizontal stud collision", () => {
         .map(({ code }) => code),
     ).toContain("PART_STUD_BODY_COLLISION");
   });
+
+  it("detects overlap for a trusted non-upright proper transform", () => {
+    const turned = part("turned", "builtin:brick-1x1", [0, 0, 0], "proper-m-p0000p0n0");
+    const overlapping = part("overlapping", "builtin:brick-1x1", [0, 0, 0]);
+
+    expect(findCatalogCollisions([turned, overlapping], []).map(({ code }) => code)).toContain(
+      "PART_BODY_COLLISION",
+    );
+    expect(
+      createCollisionWorld([turned])
+        .findCollisionsWith(overlapping, [])
+        .map(({ code }) => code),
+    ).toContain("PART_BODY_COLLISION");
+  });
 });

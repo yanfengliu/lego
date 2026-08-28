@@ -8,9 +8,11 @@ export {
   BUILDER_CANONICAL_CALIBRATION_SCHEMA,
   BUILDER_FRAME_EVIDENCE_PROTOCOL,
   composeBuilderTransforms,
+  composeBuilderProperTransforms,
   createBuilderCanonicalCalibration,
   createBuilderFrameEvidence,
   resolveBuilderBoneTransform,
+  resolveBuilderBoneProperTransform,
 } from "./real-build-builder-calibration";
 export type {
   BuilderCanonicalCalibration,

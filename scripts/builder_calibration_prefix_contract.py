@@ -27,6 +27,15 @@ from builder_ldraw_field import (
 
 MAX_STDIN_BYTES = 2 * 1_024 * 1_024
 
+OPAQUE_2453_ROUTE = {
+    "routeId": "builder-2453-I-6595205-to-2453b/1",
+    "itemNo": "6595205",
+    "exactLdrawId": "2453b.dat",
+    "builderToCatalogLocalMatrix": [25, 0, 0, 0, -25, 0, 0, 0, -25],
+    "builderToCatalogLocalTranslationLdu": [0, 60, 0],
+    "proofDigest": "sha256:087a8f0308bdf83a7a585196acb4f695409350367e311b38dbb7920038d1f5d4",
+}
+
 EVIDENCE = {
     "manifest": (
         "manifest.json",
@@ -318,6 +327,17 @@ def validate_prefix_sources(sources: list[object], evidence_directory: Path) -> 
         if design_revision in seen:
             raise ValueError(f"Builder source registry repeats {design_revision}.")
         seen.add(design_revision)
+        opaque_route = source.get("opaqueIdentityRoute")
+        if design_revision == "2453;I":
+            if opaque_route != OPAQUE_2453_ROUTE or source.get("catalogPartId") != "builtin:brick-1x1x5-solid-stud":
+                raise ValueError(
+                    "Builder source 2453;I requires the exact opaque 6595205-to-2453b route pin; "
+                    "a parsed proof, bare 2453 alias, or caller-selected suffix is forbidden."
+                )
+        elif opaque_route is not None:
+            raise ValueError(
+                f"Builder source {design_revision} cannot borrow the 2453;I opaque identity route."
+            )
         identity = source.get("sourceIdentity")
         if not isinstance(identity, dict):
             raise ValueError(f"Builder source {design_revision} has no sourceIdentity object.")

@@ -469,7 +469,7 @@ describe("prepared search batch prerequisite", () => {
     });
   });
 
-  it("refuses duplicate or relabelled witness sequences", () => {
+  it("refuses duplicate or relabelled witness sequences", { timeout: 30_000 }, () => {
     const witness = { pieces: preparedWitnesses() };
     expect(() =>
       inspectRealBuildPreparedSearchBatch(inspectionInput(1, [witness, witness]).input),

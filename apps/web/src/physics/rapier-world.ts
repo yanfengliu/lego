@@ -124,6 +124,12 @@ function addCollider(
       // engine never disagrees with what the catalog says a part weighs.
       .setDensity(0)
       .setTranslation(...toSimulation(shape.centerLdu));
+    const halfSqrtTwo = Math.SQRT1_2;
+    if (shape.axis === "x") {
+      descriptor.setRotation({ x: 0, y: 0, z: -halfSqrtTwo, w: halfSqrtTwo });
+    } else if (shape.axis === "z") {
+      descriptor.setRotation({ x: halfSqrtTwo, y: 0, z: 0, w: halfSqrtTwo });
+    }
     world.createCollider(descriptor, body);
     return;
   }
@@ -138,6 +144,25 @@ function addCollider(
       .setTranslation(...toSimulation(shape.centerLdu));
     world.createCollider(descriptor, body);
     return;
+  }
+
+  if (shape.kind === "convex-hull") {
+    const points = new Float32Array(shape.verticesLdu.length * 3);
+    shape.verticesLdu.forEach((vertex, index) => {
+      points.set(toSimulation(vertex), index * 3);
+    });
+    const failureMessage = `Rapier rejected the convex-hull collider for body ${bodyId}: ${shape.verticesLdu.length} vertices did not form a finite three-dimensional hull; provide at least four non-coplanar finite vertices`;
+    let failureCause: unknown;
+    try {
+      const hull = rapier.ColliderDesc.convexHull(points);
+      if (hull) {
+        world.createCollider(hull.setDensity(0), body);
+        return;
+      }
+    } catch (error) {
+      failureCause = error;
+    }
+    throw new Error(failureMessage, { cause: failureCause });
   }
 
   if (shape.kind === "convex-prism") {

@@ -1,11 +1,8 @@
 import {
   COLOR_DEFINITIONS,
   PART_DEFINITIONS,
-  PROPER_ORIENTATIONS,
-  UPRIGHT_ORIENTATIONS,
   getPartDefinition,
   type LduVector3,
-  type OrientationMatrix,
 } from "@lego-studio/catalog";
 import {
   validateBrickDocumentV1,
@@ -18,8 +15,30 @@ import {
 import { normalizeBrickDocument } from "./document.ts";
 import { createEmptyBrickDocument } from "./factory.ts";
 import { sha256Hex } from "./canonical.ts";
-import { connectorCapacityClaimKeys, getConnectorWorldFrame } from "./transforms.ts";
+import {
+  LDrawInterchangeError,
+  catalogOrientationToLDrawMatrix,
+  catalogPartIdForLDrawAlias,
+  ldrawAliasForCatalogPart,
+  ldrawMatrixToCatalogOrientationId,
+  ldrawToCatalogFrame,
+  requireLDrawOrientationMatrix,
+  requireProperOrientation,
+  type LDrawInterchangeErrorCode,
+} from "./ldraw-frame-conversion.ts";
+import {
+  connectorCapacityClaimKeys,
+  getConnectorWorldFrame,
+  rotateLduVector,
+} from "./transforms.ts";
 import { validateBrickDocument } from "./validation.ts";
+
+export {
+  LDrawInterchangeError,
+  catalogOrientationToLDrawMatrix,
+  ldrawMatrixToCatalogOrientationId,
+};
+export type { LDrawInterchangeErrorCode };
 
 const FORMAT_VERSION = "lego.ldraw-subset/1";
 const ENTRY_FILE_NAME = "main.ldr";
@@ -37,29 +56,6 @@ export const LDRAW_LIMITS = Object.freeze({
   maxSteps: 10_000,
   maxRegions: 1_000,
 });
-
-export type LDrawInterchangeErrorCode =
-  | "LIMIT_EXCEEDED"
-  | "MALFORMED_INPUT"
-  | "UNSUPPORTED_LINE"
-  | "UNSUPPORTED_METADATA"
-  | "UNSUPPORTED_REFERENCE"
-  | "UNSUPPORTED_COLOR"
-  | "UNSUPPORTED_MATRIX"
-  | "CONNECTION_MISMATCH"
-  | "UNSUPPORTED_DOCUMENT";
-
-export class LDrawInterchangeError extends Error {
-  readonly code: LDrawInterchangeErrorCode;
-  readonly lineNumber: number | undefined;
-
-  constructor(code: LDrawInterchangeErrorCode, message: string, lineNumber?: number) {
-    super(lineNumber === undefined ? message : `Line ${lineNumber}: ${message}`);
-    this.name = "LDrawInterchangeError";
-    this.code = code;
-    this.lineNumber = lineNumber;
-  }
-}
 
 interface SubmodelHeader {
   readonly id: string;
@@ -100,76 +96,10 @@ interface InferredConnection {
   readonly b: ConnectionEdge["b"];
 }
 
-const ldrawAliasByPartId = new Map(
-  PART_DEFINITIONS.map((part) => {
-    const alias = part.aliases.find(({ namespace }) => namespace === "ldraw");
-    if (!alias) {
-      throw new Error(`Catalog part ${part.id} has no LDraw identifier alias`);
-    }
-    return [part.id, alias.value] as const;
-  }),
-);
-
-const partIdByLdrawAlias = new Map(
-  [...ldrawAliasByPartId].map(([partId, alias]) => [alias, partId] as const),
-);
 const colorById = new Map(COLOR_DEFINITIONS.map((color) => [color.id, color] as const));
 const colorByLdrawCode = new Map(
   COLOR_DEFINITIONS.map((color) => [String(color.ldrawCode), color] as const),
 );
-const placementOrientationByMatrix = new Map(
-  UPRIGHT_ORIENTATIONS.map((orientation) => [orientation.matrix.join(" "), orientation] as const),
-);
-const sourceOrientationByMatrix = new Map(
-  PROPER_ORIENTATIONS.map((orientation) => [orientation.matrix.join(" "), orientation] as const),
-);
-const sourceOrientationById = new Map(
-  PROPER_ORIENTATIONS.map((orientation) => [orientation.id, orientation] as const),
-);
-
-function multiplyOrientationMatrices(
-  left: OrientationMatrix,
-  right: OrientationMatrix,
-): OrientationMatrix {
-  return [
-    left[0] * right[0] + left[1] * right[3] + left[2] * right[6],
-    left[0] * right[1] + left[1] * right[4] + left[2] * right[7],
-    left[0] * right[2] + left[1] * right[5] + left[2] * right[8],
-    left[3] * right[0] + left[4] * right[3] + left[5] * right[6],
-    left[3] * right[1] + left[4] * right[4] + left[5] * right[7],
-    left[3] * right[2] + left[4] * right[5] + left[5] * right[8],
-    left[6] * right[0] + left[7] * right[3] + left[8] * right[6],
-    left[6] * right[1] + left[7] * right[4] + left[8] * right[7],
-    left[6] * right[2] + left[7] * right[5] + left[8] * right[8],
-  ];
-}
-
-const inverseOrientationMatrix = (matrix: OrientationMatrix): OrientationMatrix => [
-  matrix[0],
-  matrix[3],
-  matrix[6],
-  matrix[1],
-  matrix[4],
-  matrix[7],
-  matrix[2],
-  matrix[5],
-  matrix[8],
-];
-
-function ldrawToCatalogOrientation(catalogPartId: string) {
-  const definition = getPartDefinition(catalogPartId);
-  const orientation = sourceOrientationById.get(
-    definition?.ldrawFrame?.ldrawToCatalogOrientationId ?? "upright-yaw-0",
-  );
-  if (!definition || !orientation) {
-    fail(
-      "UNSUPPORTED_DOCUMENT",
-      `Catalog part ${catalogPartId} has no valid LDraw-to-catalog frame mapping`,
-    );
-  }
-  return orientation;
-}
-
 function compareStrings(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
 }
@@ -481,15 +411,25 @@ function requireSupportedDocument(document: BrickDocumentV1): BrickDocumentV1 {
 }
 
 function exportPartLine(part: PartInstance): string {
-  const alias = ldrawAliasByPartId.get(part.catalogPartId);
+  const alias = ldrawAliasForCatalogPart(part.catalogPartId);
   const color = colorById.get(part.colorId);
-  const orientation = UPRIGHT_ORIENTATIONS.find(({ id }) => id === part.transform.orientationId);
-  if (!alias || !color || !orientation) {
+  if (!alias || !color) {
     fail("UNSUPPORTED_DOCUMENT", `Part ${part.id} uses unsupported LDraw truth`);
   }
-  const frameCorrection = ldrawToCatalogOrientation(part.catalogPartId);
-  const ldrawMatrix = multiplyOrientationMatrices(orientation.matrix, frameCorrection.matrix);
-  return `1 ${color.ldrawCode} ${part.transform.positionLdu.join(" ")} ${ldrawMatrix.join(" ")} ${alias}`;
+  const ldrawMatrix = catalogOrientationToLDrawMatrix(
+    part.catalogPartId,
+    part.transform.orientationId,
+  );
+  const catalogOrientation = requireProperOrientation(part.transform.orientationId);
+  const frame = ldrawToCatalogFrame(part.catalogPartId);
+  const rotatedTranslation = rotateLduVector(catalogOrientation.matrix, frame.translationLdu);
+  const ldrawPosition = part.transform.positionLdu.map(
+    (coordinate, axis) => coordinate + rotatedTranslation[axis]!,
+  );
+  if (!ldrawPosition.every(Number.isSafeInteger)) {
+    fail("UNSUPPORTED_DOCUMENT", `Part ${part.id} LDraw origin is not an exact safe integer`);
+  }
+  return `1 ${color.ldrawCode} ${ldrawPosition.join(" ")} ${ldrawMatrix.join(" ")} ${alias}`;
 }
 
 export function exportBrickDocumentToLDraw(input: BrickDocumentV1): string {
@@ -610,7 +550,8 @@ function parsePartLine(raw: string, metadata: PartMetadata, lineNumber: number):
   const color = colorByLdrawCode.get(tokens[1]!);
   if (!color) fail("UNSUPPORTED_COLOR", `Unsupported LDraw color ${tokens[1]}`, lineNumber);
   const fileName = tokens[14]!;
-  if (!/^[0-9]+\.dat$/.test(fileName) || !partIdByLdrawAlias.has(fileName)) {
+  const catalogPartId = catalogPartIdForLDrawAlias(fileName);
+  if (!/^[0-9]+[a-z0-9]*\.dat$/.test(fileName) || catalogPartId === undefined) {
     fail(
       "UNSUPPORTED_REFERENCE",
       `Unsupported or external LDraw reference ${fileName}`,
@@ -618,34 +559,29 @@ function parsePartLine(raw: string, metadata: PartMetadata, lineNumber: number):
     );
   }
   const matrixToken = tokens.slice(5, 14).join(" ");
-  const ldrawOrientation = sourceOrientationByMatrix.get(matrixToken);
-  if (!ldrawOrientation)
-    fail("UNSUPPORTED_MATRIX", "Matrix is not a supported proper signed permutation", lineNumber);
-  const catalogPartId = partIdByLdrawAlias.get(fileName)!;
-  const frameCorrection = ldrawToCatalogOrientation(catalogPartId);
-  const catalogMatrix = multiplyOrientationMatrices(
-    ldrawOrientation.matrix,
-    inverseOrientationMatrix(frameCorrection.matrix),
+  const ldrawMatrix = requireLDrawOrientationMatrix(matrixToken, lineNumber);
+  const orientationId = ldrawMatrixToCatalogOrientationId(catalogPartId, ldrawMatrix, lineNumber);
+  const ldrawPosition: LduVector3 = [
+    parseCoordinate(tokens[2]!, lineNumber),
+    parseCoordinate(tokens[3]!, lineNumber),
+    parseCoordinate(tokens[4]!, lineNumber),
+  ];
+  const catalogOrientation = requireProperOrientation(orientationId);
+  const frame = ldrawToCatalogFrame(catalogPartId);
+  const rotatedTranslation = rotateLduVector(catalogOrientation.matrix, frame.translationLdu);
+  const catalogPosition = ldrawPosition.map(
+    (coordinate, axis) => coordinate - rotatedTranslation[axis]!,
   );
-  const orientation = placementOrientationByMatrix.get(catalogMatrix.join(" "));
-  if (!orientation) {
-    fail(
-      "UNSUPPORTED_MATRIX",
-      `LDraw matrix for ${fileName} does not resolve to a supported catalog orientation after its local-frame correction`,
-      lineNumber,
-    );
+  if (!catalogPosition.every(Number.isSafeInteger)) {
+    fail("UNSUPPORTED_DOCUMENT", "Catalog part origin is not an exact safe integer", lineNumber);
   }
   return {
     id: metadata.id,
     catalogPartId,
     colorId: color.id,
     transform: {
-      positionLdu: [
-        parseCoordinate(tokens[2]!, lineNumber),
-        parseCoordinate(tokens[3]!, lineNumber),
-        parseCoordinate(tokens[4]!, lineNumber),
-      ],
-      orientationId: orientation.id,
+      positionLdu: [catalogPosition[0]!, catalogPosition[1]!, catalogPosition[2]!],
+      orientationId,
     },
     submodelId: "",
     stepId: "",

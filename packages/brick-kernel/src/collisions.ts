@@ -1,18 +1,18 @@
-import {
-  getPartDefinition,
-  type CollisionAllowance,
-  type CollisionWedge,
-  type LduVector3,
-} from "@lego-studio/catalog";
 import type { ConnectionEdge, PartInstance } from "@lego-studio/protocol";
 
-import { getUprightOrientation, rotateLduVector, transformLduPoint } from "./transforms.ts";
-import { MAX_COLLISION_COMPARISONS, MAX_COLLISION_FINDINGS } from "./truth-manifests.ts";
 import {
-  axisAlignedStudIntersectsVerticalPrism,
-  axisAlignedStudsIntersect,
-  type CollisionAxis,
-} from "./axis-stud-collision.ts";
+  boundsOverlap,
+  type PrimitiveBounds,
+  type WorldBody,
+  type WorldPrimitive,
+  type WorldStud,
+} from "./collision-prism-geometry.ts";
+import {
+  collectAllowedPenetrations,
+  makeWorldPrimitives,
+  primitivesCollide,
+} from "./collision-world-primitives.ts";
+import { MAX_COLLISION_COMPARISONS, MAX_COLLISION_FINDINGS } from "./truth-manifests.ts";
 
 export interface CollisionFinding {
   readonly validatorId: "kernel.collision";
@@ -27,479 +27,8 @@ export interface CollisionFinding {
   readonly partIds: readonly string[];
 }
 
-interface PrimitiveBounds {
-  readonly min: LduVector3;
-  readonly max: LduVector3;
-}
-
-/**
- * The sloped face of a wedge, as a half-plane in the horizontal plane: the
- * solid is where `nx * x + nz * z <= offset`.
- *
- * Every body here is a vertical prism with a convex cross-section, so a box is
- * a rectangle and a wedge is that rectangle clipped by one of these. Keeping
- * the cut as a half-plane rather than a shape makes it survive a quarter turn
- * as a rotated normal, and makes the overlap test exact instead of a bounding
- * box that would claim the whole rectangle is solid.
- */
-interface HorizontalCut {
-  readonly nx: number;
-  readonly nz: number;
-  readonly offset: number;
-}
-
-type Point2 = readonly [x: number, z: number];
-
-interface WorldBody extends PrimitiveBounds {
-  readonly kind: "body";
-  readonly part: PartInstance;
-  readonly primitiveId: string;
-  readonly sourceIndex: number;
-  /** Exact convex horizontal section; the vertical extent remains in min/max. */
-  readonly sectionXZ: readonly Point2[];
-}
-
-interface WorldStud extends PrimitiveBounds {
-  readonly kind: "stud";
-  readonly part: PartInstance;
-  readonly primitiveId: string;
-  readonly sourceIndex: number;
-  readonly center: LduVector3;
-  readonly radiusLdu: number;
-  readonly validatedConnectionProfileRadiusLdu?: number;
-  readonly axis: CollisionAxis;
-}
-
-type WorldPrimitive = WorldBody | WorldStud;
-
-interface WorldAllowance {
-  readonly center: LduVector3;
-  readonly radiusLdu: number;
-  readonly minY: number;
-  readonly maxY: number;
-}
-
-interface AllowedPenetration {
-  readonly studPartId: string;
-  readonly studPrimitiveId: string;
-  readonly clutchPartId: string;
-  readonly allowance: WorldAllowance;
-}
-
 function compareStrings(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
-}
-
-function transformedBoxBounds(
-  part: PartInstance,
-  min: LduVector3,
-  max: LduVector3,
-): PrimitiveBounds {
-  const corners: LduVector3[] = [];
-  for (const x of [min[0], max[0]]) {
-    for (const y of [min[1], max[1]]) {
-      for (const z of [min[2], max[2]]) {
-        corners.push(transformLduPoint(part.transform, [x, y, z]));
-      }
-    }
-  }
-
-  return {
-    min: [
-      Math.min(...corners.map(([x]) => x)),
-      Math.min(...corners.map(([, y]) => y)),
-      Math.min(...corners.map(([, , z]) => z)),
-    ],
-    max: [
-      Math.max(...corners.map(([x]) => x)),
-      Math.max(...corners.map(([, y]) => y)),
-      Math.max(...corners.map(([, , z]) => z)),
-    ],
-  };
-}
-
-function rectangleSection(min: LduVector3, max: LduVector3): readonly Point2[] {
-  return [
-    [min[0], min[2]],
-    [max[0], min[2]],
-    [max[0], max[2]],
-    [min[0], max[2]],
-  ];
-}
-
-function transformSection(part: PartInstance, section: readonly Point2[]): readonly Point2[] {
-  return section.map(([x, z]) => {
-    const point = transformLduPoint(part.transform, [x, 0, z]);
-    return [point[0], point[2]] as const;
-  });
-}
-
-function wedgeSection(wedge: CollisionWedge): readonly Point2[] {
-  const [nx, nz] = wedge.cutNormalXZ;
-  return clipByCut(rectangleSection(wedge.minLdu, wedge.maxLdu), {
-    nx,
-    nz,
-    offset: wedge.cutOffsetLdu,
-  });
-}
-
-function makeWorldPrimitives(parts: readonly PartInstance[]): WorldPrimitive[] {
-  const primitives: WorldPrimitive[] = [];
-
-  for (let sourceIndex = 0; sourceIndex < parts.length; sourceIndex += 1) {
-    const part = parts[sourceIndex];
-    if (!part) continue;
-    const definition = getPartDefinition(part.catalogPartId);
-    if (!definition || !definition.legalOrientationIds.includes(part.transform.orientationId)) {
-      continue;
-    }
-
-    for (const primitive of definition.collision.primitives) {
-      if (primitive.kind === "box") {
-        const sectionXZ = transformSection(
-          part,
-          rectangleSection(primitive.minLdu, primitive.maxLdu),
-        );
-        primitives.push({
-          kind: "body",
-          part,
-          primitiveId: primitive.id,
-          sourceIndex,
-          sectionXZ,
-          ...transformedBoxBounds(part, primitive.minLdu, primitive.maxLdu),
-        });
-        continue;
-      }
-
-      if (primitive.kind === "wedge") {
-        const sectionXZ = transformSection(part, wedgeSection(primitive));
-        primitives.push({
-          kind: "body",
-          part,
-          primitiveId: primitive.id,
-          sourceIndex,
-          sectionXZ,
-          ...transformedBoxBounds(part, primitive.minLdu, primitive.maxLdu),
-        });
-        continue;
-      }
-
-      if (primitive.kind === "convex-prism") {
-        const sectionXZ = transformSection(part, primitive.verticesXZLdu);
-        const xs = primitive.verticesXZLdu.map(([x]) => x);
-        const zs = primitive.verticesXZLdu.map(([, z]) => z);
-        primitives.push({
-          kind: "body",
-          part,
-          primitiveId: primitive.id,
-          sourceIndex,
-          sectionXZ,
-          ...transformedBoxBounds(
-            part,
-            [Math.min(...xs), primitive.minYLdu, Math.min(...zs)],
-            [Math.max(...xs), primitive.maxYLdu, Math.max(...zs)],
-          ),
-        });
-        continue;
-      }
-
-      const center = transformLduPoint(part.transform, primitive.centerLdu);
-      const halfHeight = primitive.heightLdu / 2;
-      // Half-extents along the cylinder's own axis versus across it. A quarter
-      // turn about the vertical swaps x and z, so an x-axis cylinder becomes a
-      // z-axis one; taking the absolute value of the rotated extents handles
-      // both without naming which turn happened.
-      const localHalf: LduVector3 =
-        primitive.axis === "x"
-          ? [halfHeight, primitive.radiusLdu, primitive.radiusLdu]
-          : primitive.axis === "z"
-            ? [primitive.radiusLdu, primitive.radiusLdu, halfHeight]
-            : [primitive.radiusLdu, halfHeight, primitive.radiusLdu];
-      const orientation = getUprightOrientation(part.transform.orientationId);
-      const rotatedHalf = rotateLduVector(orientation.matrix, localHalf);
-      const localAxis: LduVector3 =
-        primitive.axis === "x" ? [1, 0, 0] : primitive.axis === "y" ? [0, 1, 0] : [0, 0, 1];
-      const rotatedAxis = rotateLduVector(orientation.matrix, localAxis);
-      const axisIndex = rotatedAxis.findIndex((coordinate) => Math.abs(coordinate) === 1);
-      const axis = "xyz"[axisIndex] as "x" | "y" | "z" | undefined;
-      if (axis === undefined) continue;
-      const half: LduVector3 = [
-        Math.abs(rotatedHalf[0]),
-        Math.abs(rotatedHalf[1]),
-        Math.abs(rotatedHalf[2]),
-      ];
-      if (primitive.tag === "body") {
-        // Its bounding box, which claims the corners a round part does not
-        // fill. That refuses a placement a real wheel would allow and never
-        // the reverse, which is the safe direction to approximate in.
-        const min: LduVector3 = [center[0] - half[0], center[1] - half[1], center[2] - half[2]];
-        const max: LduVector3 = [center[0] + half[0], center[1] + half[1], center[2] + half[2]];
-        primitives.push({
-          kind: "body",
-          part,
-          primitiveId: primitive.id,
-          sourceIndex,
-          min,
-          max,
-          sectionXZ: rectangleSection(min, max),
-        });
-        continue;
-      }
-      primitives.push({
-        kind: "stud",
-        part,
-        primitiveId: primitive.id,
-        sourceIndex,
-        center,
-        radiusLdu: primitive.radiusLdu,
-        ...(definition.collision.validatedConnectionStudProfile !== "nominal-stud-tube/1" ||
-        primitive.validatedConnectionProfileRadiusLdu === undefined
-          ? {}
-          : {
-              validatedConnectionProfileRadiusLdu: primitive.validatedConnectionProfileRadiusLdu,
-            }),
-        axis,
-        min: [center[0] - half[0], center[1] - half[1], center[2] - half[2]],
-        max: [center[0] + half[0], center[1] + half[1], center[2] + half[2]],
-      });
-    }
-  }
-
-  return primitives.sort(
-    (left, right) =>
-      left.min[0] - right.min[0] ||
-      compareStrings(left.part.id, right.part.id) ||
-      compareStrings(left.primitiveId, right.primitiveId) ||
-      left.sourceIndex - right.sourceIndex,
-  );
-}
-
-function worldAllowance(part: PartInstance, allowance: CollisionAllowance): WorldAllowance {
-  const center = transformLduPoint(part.transform, allowance.centerLdu);
-  const halfDepth = allowance.maxInsertionDepthLdu / 2;
-  return {
-    center,
-    radiusLdu: allowance.radiusLdu,
-    minY: center[1] - halfDepth,
-    maxY: center[1] + halfDepth,
-  };
-}
-
-function penetrationKey(studPartId: string, studPrimitiveId: string, clutchPartId: string): string {
-  return `${studPartId}\u0000${studPrimitiveId}\u0001${clutchPartId}`;
-}
-
-function collectAllowedPenetrations(
-  parts: readonly PartInstance[],
-  validConnections: readonly ConnectionEdge[],
-): ReadonlyMap<string, readonly AllowedPenetration[]> {
-  const partById = new Map(parts.map((part) => [part.id, part]));
-  const allowed = new Map<string, AllowedPenetration[]>();
-
-  for (const connection of validConnections) {
-    const aPart = partById.get(connection.a.partId);
-    const bPart = partById.get(connection.b.partId);
-    if (!aPart || !bPart) continue;
-    const aDefinition = getPartDefinition(aPart.catalogPartId);
-    const bDefinition = getPartDefinition(bPart.catalogPartId);
-    if (!aDefinition || !bDefinition) continue;
-    const aPort = aDefinition.connectors.find(({ id }) => id === connection.a.portId);
-    const bPort = bDefinition.connectors.find(({ id }) => id === connection.b.portId);
-    if (!aPort || !bPort) continue;
-
-    const stud =
-      aPort.kind === "stud" ? { part: aPart, port: aPort } : { part: bPart, port: bPort };
-    const clutch =
-      aPort.kind === "undersideClutch"
-        ? { part: aPart, port: aPort, definition: aDefinition }
-        : { part: bPart, port: bPort, definition: bDefinition };
-    if (stud.port.kind !== "stud" || clutch.port.kind !== "undersideClutch") continue;
-
-    const studDefinition = getPartDefinition(stud.part.catalogPartId);
-    const studPrimitive = studDefinition?.collision.primitives.find(
-      (primitive) => primitive.kind === "cylinder" && primitive.id === stud.port.id,
-    );
-    const allowance = clutch.definition.collision.allowances.find(
-      (candidate) =>
-        candidate.portId === clutch.port.id &&
-        candidate.incomingPrimitiveTag === "stud" &&
-        candidate.requiresValidatedConnection,
-    );
-    if (!studPrimitive || !allowance) continue;
-
-    const value: AllowedPenetration = {
-      studPartId: stud.part.id,
-      studPrimitiveId: studPrimitive.id,
-      clutchPartId: clutch.part.id,
-      allowance: worldAllowance(clutch.part, allowance),
-    };
-    const key = penetrationKey(value.studPartId, value.studPrimitiveId, value.clutchPartId);
-    const existing = allowed.get(key);
-    if (existing) existing.push(value);
-    else allowed.set(key, [value]);
-  }
-
-  return allowed;
-}
-
-/**
- * Carries a wedge's sloped face into world space.
- *
- * The transform is rigid, so the plane's normal is the image of the local
- * normal as a direction — the difference of two transformed points — and its
- * offset is that normal dotted with any transformed point on the plane.
- */
-/** Area below which a polygon is a seam rather than an overlap. */
-const OVERLAP_AREA_EPSILON = 1e-6;
-
-/** Sutherland-Hodgman: keep the part of the polygon inside `nx*x + nz*z <= offset`. */
-function clipByCut(polygon: readonly Point2[], cut: HorizontalCut): readonly Point2[] {
-  const inside = (point: Point2) => cut.nx * point[0] + cut.nz * point[1] <= cut.offset;
-  const clipped: Point2[] = [];
-  for (let index = 0; index < polygon.length; index += 1) {
-    const current = polygon[index]!;
-    const previous = polygon[(index + polygon.length - 1) % polygon.length]!;
-    const currentIn = inside(current);
-    if (currentIn !== inside(previous)) {
-      const currentDistance = cut.nx * current[0] + cut.nz * current[1] - cut.offset;
-      const previousDistance = cut.nx * previous[0] + cut.nz * previous[1] - cut.offset;
-      const t = previousDistance / (previousDistance - currentDistance);
-      clipped.push([
-        previous[0] + t * (current[0] - previous[0]),
-        previous[1] + t * (current[1] - previous[1]),
-      ]);
-    }
-    if (currentIn) clipped.push(current);
-  }
-  return clipped;
-}
-
-function polygonArea(polygon: readonly Point2[]): number {
-  let total = 0;
-  for (let index = 0; index < polygon.length; index += 1) {
-    const current = polygon[index]!;
-    const next = polygon[(index + 1) % polygon.length]!;
-    total += current[0] * next[1] - next[0] * current[1];
-  }
-  return Math.abs(total) / 2;
-}
-
-function signedPolygonArea(polygon: readonly Point2[]): number {
-  let total = 0;
-  for (let index = 0; index < polygon.length; index += 1) {
-    const current = polygon[index]!;
-    const next = polygon[(index + 1) % polygon.length]!;
-    total += current[0] * next[1] - next[0] * current[1];
-  }
-  return total / 2;
-}
-
-function counterClockwise(polygon: readonly Point2[]): readonly Point2[] {
-  return signedPolygonArea(polygon) < 0 ? [...polygon].reverse() : polygon;
-}
-
-function edgeSide(edgeStart: Point2, edgeEnd: Point2, point: Point2): number {
-  return (
-    (edgeEnd[0] - edgeStart[0]) * (point[1] - edgeStart[1]) -
-    (edgeEnd[1] - edgeStart[1]) * (point[0] - edgeStart[0])
-  );
-}
-
-/** Sutherland-Hodgman clipping against one directed edge of a CCW polygon. */
-function clipByEdge(
-  polygon: readonly Point2[],
-  edgeStart: Point2,
-  edgeEnd: Point2,
-): readonly Point2[] {
-  const clipped: Point2[] = [];
-  for (let index = 0; index < polygon.length; index += 1) {
-    const current = polygon[index]!;
-    const previous = polygon[(index + polygon.length - 1) % polygon.length]!;
-    const currentSide = edgeSide(edgeStart, edgeEnd, current);
-    const previousSide = edgeSide(edgeStart, edgeEnd, previous);
-    const currentIn = currentSide >= 0;
-    const previousIn = previousSide >= 0;
-    if (currentIn !== previousIn) {
-      const denominator = previousSide - currentSide;
-      const t = denominator === 0 ? 0 : previousSide / denominator;
-      clipped.push([
-        previous[0] + t * (current[0] - previous[0]),
-        previous[1] + t * (current[1] - previous[1]),
-      ]);
-    }
-    if (currentIn) clipped.push(current);
-  }
-  return clipped;
-}
-
-function convexIntersection(left: readonly Point2[], right: readonly Point2[]): readonly Point2[] {
-  let intersection = counterClockwise(left);
-  const clipper = counterClockwise(right);
-  for (let index = 0; index < clipper.length && intersection.length > 0; index += 1) {
-    intersection = clipByEdge(
-      intersection,
-      clipper[index]!,
-      clipper[(index + 1) % clipper.length]!,
-    );
-  }
-  return intersection;
-}
-
-/**
- * Whether two bodies share space, exactly.
- *
- * Both are vertical prisms, so their vertical extents must overlap and their
- * cross-sections must share area. The cross-sections are their shared bounding
- * rectangle clipped by whichever sloped faces they have, which is exact rather
- * than conservative: the wedge really is its rectangle minus that half-plane.
- */
-function bodiesOverlap(left: WorldBody, right: WorldBody): boolean {
-  const intersection = convexIntersection(left.sectionXZ, right.sectionXZ);
-  return intersection.length >= 3 && polygonArea(intersection) > OVERLAP_AREA_EPSILON;
-}
-
-function boundsOverlap(left: PrimitiveBounds, right: PrimitiveBounds): boolean {
-  return (
-    left.min[0] < right.max[0] &&
-    right.min[0] < left.max[0] &&
-    left.min[1] < right.max[1] &&
-    right.min[1] < left.max[1] &&
-    left.min[2] < right.max[2] &&
-    right.min[2] < left.max[2]
-  );
-}
-
-function penetrationCoveredByAllowance(
-  stud: WorldStud,
-  body: WorldBody,
-  allowedPenetrations: ReadonlyMap<string, readonly AllowedPenetration[]>,
-): boolean {
-  // Current allowances are the vertical tube-seat model. A validated edge may
-  // never reinterpret one as clearance for a horizontal stud.
-  if (stud.axis !== "y") return false;
-  const candidates = allowedPenetrations.get(
-    penetrationKey(stud.part.id, stud.primitiveId, body.part.id),
-  );
-  if (!candidates) return false;
-
-  const overlapMinY = Math.max(stud.min[1], body.min[1]);
-  const overlapMaxY = Math.min(stud.max[1], body.max[1]);
-  return candidates.some(({ allowance }) => {
-    // Broad phase and ordinary contact keep the conservative measured radius.
-    // Only this exact validated connector edge may use a separately admitted
-    // nominal stud-tube profile to decide whether its intended penetration is
-    // covered by the clutch allowance.
-    const connectionRadiusLdu = stud.validatedConnectionProfileRadiusLdu ?? stud.radiusLdu;
-    const radialClearance = allowance.radiusLdu - connectionRadiusLdu;
-    if (radialClearance < 0) return false;
-    const dx = allowance.center[0] - stud.center[0];
-    const dz = allowance.center[2] - stud.center[2];
-    return (
-      dx * dx + dz * dz <= radialClearance * radialClearance &&
-      overlapMinY >= allowance.minY &&
-      overlapMaxY <= allowance.maxY
-    );
-  });
 }
 
 function collisionFinding(left: WorldPrimitive, right: WorldPrimitive): CollisionFinding {
@@ -562,16 +91,6 @@ function partBroadPhaseCellKeys(bounds: PrimitiveBounds): readonly string[] {
   return keys;
 }
 
-/**
- * Indexes whole-part bounds before primitive comparison.
- *
- * The semantic collision budget counts only primitive AABBs that overlap on
- * all three axes. The old x-only sweep nevertheless visited every primitive
- * in a long y/z-separated row. This index removes only pairs whose parent-part
- * unions prove that no primitive pair can overlap. Candidate primitive indices
- * are sorted back into the original x-sweep order, so findings and the exact
- * comparison budget remain byte-for-byte deterministic.
- */
 function createPartBroadPhaseIndex(
   primitives: readonly WorldPrimitive[],
   sourceCount: number,
@@ -658,7 +177,6 @@ export function findCatalogCollisions(
   for (let leftIndex = 0; leftIndex < primitives.length; leftIndex += 1) {
     const left = primitives[leftIndex];
     if (!left) continue;
-
     const sourceCandidates =
       candidatesBySource[left.sourceIndex] ??
       (candidatesBySource[left.sourceIndex] = candidatePrimitiveIndices(
@@ -682,19 +200,7 @@ export function findCatalogCollisions(
           },
         ];
       }
-      let collides: boolean;
-      if (left.kind === "body" && right.kind === "body") {
-        collides = bodiesOverlap(left, right);
-      } else if (left.kind === "stud" && right.kind === "stud") {
-        collides = axisAlignedStudsIntersect(left, right);
-      } else {
-        const stud = left.kind === "stud" ? left : (right as WorldStud);
-        const body = left.kind === "body" ? left : (right as WorldBody);
-        collides =
-          axisAlignedStudIntersectsVerticalPrism(stud, body) &&
-          !penetrationCoveredByAllowance(stud, body, allowedPenetrations);
-      }
-      if (!collides) continue;
+      if (!primitivesCollide(left, right, allowedPenetrations)) continue;
 
       const finding = collisionFinding(left, right);
       const key = collisionClassKey(finding);
@@ -719,79 +225,181 @@ export function findCatalogCollisions(
   return findings;
 }
 
-const WORLD_CELL_LDU = 100;
+const WORLD_CELL_LDU = 40;
+const LEGACY_WORLD_CELL_LDU = 100;
 
 function cellKeysFor(bounds: PrimitiveBounds): readonly string[] {
   const keys: string[] = [];
   const minX = Math.floor(bounds.min[0] / WORLD_CELL_LDU);
   const maxX = Math.floor(bounds.max[0] / WORLD_CELL_LDU);
+  const minY = Math.floor(bounds.min[1] / WORLD_CELL_LDU);
+  const maxY = Math.floor(bounds.max[1] / WORLD_CELL_LDU);
   const minZ = Math.floor(bounds.min[2] / WORLD_CELL_LDU);
   const maxZ = Math.floor(bounds.max[2] / WORLD_CELL_LDU);
+  for (let x = minX; x <= maxX; x += 1) {
+    for (let y = minY; y <= maxY; y += 1) {
+      for (let z = minZ; z <= maxZ; z += 1) keys.push(`${x}:${y}:${z}`);
+    }
+  }
+  return keys;
+}
+
+/** The exact x/z traversal order used by placement enumeration version 2. */
+function legacyCellKeysFor(bounds: PrimitiveBounds): readonly string[] {
+  const keys: string[] = [];
+  const minX = Math.floor(bounds.min[0] / LEGACY_WORLD_CELL_LDU);
+  const maxX = Math.floor(bounds.max[0] / LEGACY_WORLD_CELL_LDU);
+  const minZ = Math.floor(bounds.min[2] / LEGACY_WORLD_CELL_LDU);
+  const maxZ = Math.floor(bounds.max[2] / LEGACY_WORLD_CELL_LDU);
   for (let x = minX; x <= maxX; x += 1) {
     for (let z = minZ; z <= maxZ; z += 1) keys.push(`${x}:${z}`);
   }
   return keys;
 }
 
-function primitivesCollide(
-  left: WorldPrimitive,
-  right: WorldPrimitive,
-  allowedPenetrations: ReadonlyMap<string, readonly AllowedPenetration[]>,
-): boolean {
-  if (left.kind === "body" && right.kind === "body") return bodiesOverlap(left, right);
-  if (left.kind === "stud" && right.kind === "stud") return axisAlignedStudsIntersect(left, right);
-  const stud = left.kind === "stud" ? left : (right as WorldStud);
-  const body = left.kind === "body" ? left : (right as WorldBody);
-  return (
-    axisAlignedStudIntersectsVerticalPrism(stud, body) &&
-    !penetrationCoveredByAllowance(stud, body, allowedPenetrations)
-  );
+/**
+ * Deterministic work, separate from collision truth and enumeration counts.
+ *
+ * An observer receives one world-build delta and one delta per query. The
+ * indexed world itself stays immutable after construction, and ordinary
+ * callers pay no positive-control indexing cost when no observer is supplied.
+ */
+export interface CollisionWorldWork {
+  readonly worldParts: number;
+  readonly worldPrimitives: number;
+  readonly worldCellInsertions: number;
+  readonly collisionQueries: number;
+  readonly candidateConnectionEdges: number;
+  readonly candidatePrimitives: number;
+  readonly queryCellVisits: number;
+  readonly broadphaseCellEntries: number;
+  readonly broadphaseUniquePrimitives: number;
+  readonly legacyOrderWorldCellKeys: number;
+  readonly legacyOrderCandidateCellKeys: number;
+  readonly legacyOrderSetInsertions: number;
+  readonly legacyOrderCellChecks: number;
+  readonly legacyOrderComparisons: number;
+  readonly primitivePairAabbTests: number;
+  readonly primitivePairNarrowphaseTests: number;
+  readonly collisionFindings: number;
+  /** Deliberately bad controls; never part of the production collision path. */
+  readonly positiveControl2dCellEntries: number;
+  readonly positiveControlAllPrimitiveAabbTests: number;
 }
 
-/**
- * An assembly's collision primitives, indexed once so a candidate placement can
- * be tested against them without rebuilding them.
- *
- * `findCatalogCollisions` is the right shape for validating a document: it
- * looks at everything against everything, once. It is the wrong shape for a
- * search, which asks "does this one part fit?" thousands of times against an
- * assembly that has not changed — rebuilding and re-sorting every neighbour's
- * primitives per question made enumerating one part over a 120-part model take
- * 3.6 seconds. Both share the pairwise predicates below, so there is still
- * exactly one definition of what a collision is.
- */
+export const COLLISION_WORLD_WORK_KEYS = [
+  "worldParts",
+  "worldPrimitives",
+  "worldCellInsertions",
+  "collisionQueries",
+  "candidateConnectionEdges",
+  "candidatePrimitives",
+  "queryCellVisits",
+  "broadphaseCellEntries",
+  "broadphaseUniquePrimitives",
+  "legacyOrderWorldCellKeys",
+  "legacyOrderCandidateCellKeys",
+  "legacyOrderSetInsertions",
+  "legacyOrderCellChecks",
+  "legacyOrderComparisons",
+  "primitivePairAabbTests",
+  "primitivePairNarrowphaseTests",
+  "collisionFindings",
+  "positiveControl2dCellEntries",
+  "positiveControlAllPrimitiveAabbTests",
+] as const satisfies readonly (keyof CollisionWorldWork)[];
+
+export type CollisionWorldWorkObserver = (delta: Readonly<CollisionWorldWork>) => void;
+
+function emptyCollisionWorldWork(): Record<keyof CollisionWorldWork, number> {
+  return {
+    worldParts: 0,
+    worldPrimitives: 0,
+    worldCellInsertions: 0,
+    collisionQueries: 0,
+    candidateConnectionEdges: 0,
+    candidatePrimitives: 0,
+    queryCellVisits: 0,
+    broadphaseCellEntries: 0,
+    broadphaseUniquePrimitives: 0,
+    legacyOrderWorldCellKeys: 0,
+    legacyOrderCandidateCellKeys: 0,
+    legacyOrderSetInsertions: 0,
+    legacyOrderCellChecks: 0,
+    legacyOrderComparisons: 0,
+    primitivePairAabbTests: 0,
+    primitivePairNarrowphaseTests: 0,
+    collisionFindings: 0,
+    positiveControl2dCellEntries: 0,
+    positiveControlAllPrimitiveAabbTests: 0,
+  };
+}
+
 export interface CollisionWorld {
   readonly primitiveCount: number;
-  /**
-   * Findings between `candidate` and the assembly. Candidate-internal pairs are
-   * never reported: a part cannot collide with itself, and the caller is asking
-   * whether it fits, not whether the catalog entry is self-consistent.
-   */
   findCollisionsWith(
     candidate: PartInstance,
     candidateConnections: readonly ConnectionEdge[],
   ): CollisionFinding[];
 }
 
-export function createCollisionWorld(parts: readonly PartInstance[]): CollisionWorld {
+export function createCollisionWorld(
+  parts: readonly PartInstance[],
+  observeWork?: CollisionWorldWorkObserver,
+): CollisionWorld {
   const primitives = makeWorldPrimitives(parts);
   const partById = new Map(parts.map((part) => [part.id, part]));
-  const cells = new Map<string, WorldPrimitive[]>();
-  for (const primitive of primitives) {
+  const mutableCells = new Map<string, WorldPrimitive[]>();
+  const primitiveOrdinal = new Map<WorldPrimitive, number>();
+  const legacyCellsByPrimitive = new Map<WorldPrimitive, readonly string[]>();
+  const buildWork = emptyCollisionWorldWork();
+  buildWork.worldParts = parts.length;
+  buildWork.worldPrimitives = primitives.length;
+  const positiveControl2dCellOccupancy = observeWork ? new Map<string, number>() : undefined;
+  for (let ordinal = 0; ordinal < primitives.length; ordinal += 1) {
+    const primitive = primitives[ordinal]!;
+    primitiveOrdinal.set(primitive, ordinal);
+    const legacyCells = legacyCellKeysFor(primitive);
+    legacyCellsByPrimitive.set(primitive, legacyCells);
+    buildWork.legacyOrderWorldCellKeys += legacyCells.length;
     for (const key of cellKeysFor(primitive)) {
-      const cell = cells.get(key);
+      buildWork.worldCellInsertions += 1;
+      const cell = mutableCells.get(key);
       if (cell) cell.push(primitive);
-      else cells.set(key, [primitive]);
+      else mutableCells.set(key, [primitive]);
+    }
+    if (positiveControl2dCellOccupancy) {
+      for (const key of legacyCells) {
+        positiveControl2dCellOccupancy.set(key, (positiveControl2dCellOccupancy.get(key) ?? 0) + 1);
+      }
     }
   }
+  const cells: ReadonlyMap<string, readonly WorldPrimitive[]> = new Map(
+    [...mutableCells].map(([key, members]) => [key, Object.freeze([...members])] as const),
+  );
+  observeWork?.(Object.freeze({ ...buildWork }));
 
   return {
     primitiveCount: primitives.length,
     findCollisionsWith(candidate, candidateConnections) {
+      const queryWork = emptyCollisionWorldWork();
+      queryWork.collisionQueries = 1;
+      queryWork.candidateConnectionEdges = candidateConnections.length;
       const candidatePrimitives = makeWorldPrimitives([candidate]);
-      if (candidatePrimitives.length === 0) return [];
-      // Allowances need both endpoints, so the candidate joins the roster only
-      // for this query and never enters the indexed world.
+      queryWork.candidatePrimitives = candidatePrimitives.length;
+      const candidateLegacyCells = candidatePrimitives.map((primitive) => {
+        const keys = legacyCellKeysFor(primitive);
+        queryWork.legacyOrderCandidateCellKeys += keys.length;
+        return keys;
+      });
+      queryWork.positiveControlAllPrimitiveAabbTests =
+        candidatePrimitives.length * primitives.length;
+      const finish = (findings: CollisionFinding[]): CollisionFinding[] => {
+        queryWork.collisionFindings = findings.length;
+        observeWork?.(Object.freeze({ ...queryWork }));
+        return findings;
+      };
+      if (candidatePrimitives.length === 0) return finish([]);
       const roster = [candidate];
       for (const connection of candidateConnections) {
         for (const endpoint of [connection.a, connection.b]) {
@@ -802,29 +410,81 @@ export function createCollisionWorld(parts: readonly PartInstance[]): CollisionW
       const allowedPenetrations = collectAllowedPenetrations(roster, candidateConnections);
 
       const neighbourhood = new Set<WorldPrimitive>();
-      for (const primitive of candidatePrimitives) {
+      for (
+        let primitiveIndex = 0;
+        primitiveIndex < candidatePrimitives.length;
+        primitiveIndex += 1
+      ) {
+        const primitive = candidatePrimitives[primitiveIndex]!;
         for (const key of cellKeysFor(primitive)) {
-          for (const other of cells.get(key) ?? []) {
+          queryWork.queryCellVisits += 1;
+          const members = cells.get(key) ?? [];
+          queryWork.broadphaseCellEntries += members.length;
+          for (const other of members) {
             if (other.part.id !== candidate.id) neighbourhood.add(other);
           }
         }
+        if (positiveControl2dCellOccupancy) {
+          for (const key of candidateLegacyCells[primitiveIndex]!) {
+            queryWork.positiveControl2dCellEntries += positiveControl2dCellOccupancy.get(key) ?? 0;
+          }
+        }
       }
+      queryWork.broadphaseUniquePrimitives = neighbourhood.size;
+
+      // Removing y-separated primitives must not perturb the finding sequence.
+      // Rank each retained primitive by the first place the former 2-D index
+      // would have encountered it, then by the immutable source ordinal. This
+      // is exactly the old Set insertion order with proven non-overlaps removed.
+      const rankedNeighbourhood = [...neighbourhood].map((primitive) => {
+        const legacyCells = legacyCellsByPrimitive.get(primitive)!;
+        const primitiveLegacyCells = new Set(legacyCells);
+        queryWork.legacyOrderSetInsertions += legacyCells.length;
+        let candidatePrimitiveIndex = Number.MAX_SAFE_INTEGER;
+        let candidateCellIndex = Number.MAX_SAFE_INTEGER;
+        outer: for (let index = 0; index < candidatePrimitives.length; index += 1) {
+          const candidateCells = candidateLegacyCells[index]!;
+          for (let cellIndex = 0; cellIndex < candidateCells.length; cellIndex += 1) {
+            queryWork.legacyOrderCellChecks += 1;
+            if (!primitiveLegacyCells.has(candidateCells[cellIndex]!)) continue;
+            candidatePrimitiveIndex = index;
+            candidateCellIndex = cellIndex;
+            break outer;
+          }
+        }
+        return {
+          primitive,
+          candidatePrimitiveIndex,
+          candidateCellIndex,
+          ordinal: primitiveOrdinal.get(primitive)!,
+        };
+      });
+      rankedNeighbourhood.sort((left, right) => {
+        queryWork.legacyOrderComparisons += 1;
+        return (
+          left.candidatePrimitiveIndex - right.candidatePrimitiveIndex ||
+          left.candidateCellIndex - right.candidateCellIndex ||
+          left.ordinal - right.ordinal
+        );
+      });
 
       const findings: CollisionFinding[] = [];
       const reportedClasses = new Set<string>();
       for (const left of candidatePrimitives) {
-        for (const right of neighbourhood) {
+        for (const { primitive: right } of rankedNeighbourhood) {
+          queryWork.primitivePairAabbTests += 1;
           if (!boundsOverlap(left, right)) continue;
+          queryWork.primitivePairNarrowphaseTests += 1;
           if (!primitivesCollide(left, right, allowedPenetrations)) continue;
           const finding = collisionFinding(left, right);
           const classKey = collisionClassKey(finding);
           if (reportedClasses.has(classKey)) continue;
           reportedClasses.add(classKey);
           findings.push(finding);
-          if (findings.length >= MAX_COLLISION_FINDINGS) return findings;
+          if (findings.length >= MAX_COLLISION_FINDINGS) return finish(findings);
         }
       }
-      return findings;
+      return finish(findings);
     },
   };
 }

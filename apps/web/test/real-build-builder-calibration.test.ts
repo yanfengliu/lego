@@ -289,6 +289,23 @@ describe("Builder canonical calibration v8", () => {
     ).toThrow(/p95=.*max=3 LDU; both must be at most 2 LDU/u);
   });
 
+  it("rejects a structured clone of the opaque 2453 source row", () => {
+    const geometryBytes = readRequiredRealBuildInput(GEOMETRY_BUNDLE_FILE);
+    const moduleOwned = BUILDER_STEP1_DESIGN_SOURCES.find(
+      ({ designRevision }) => designRevision === "2453;I",
+    );
+    expect(moduleOwned).toBeDefined();
+    const callerShaped = structuredClone(moduleOwned) as BuilderDesignSourcePin;
+
+    expect(() =>
+      createBuilderFrameEvidence({
+        source: callerShaped,
+        builderGeometryBundleBytes: geometryBytes,
+        builderGeometryBundleDigest: sha256Digest(geometryBytes),
+      }),
+    ).toThrow(/structured clone or caller-shaped source row cannot mint that identity/u);
+  });
+
   it("recomputes the retained v8 report and derives the exact step-1 canonical origin", () => {
     const officialBytes = readRequiredRealBuildInput(OFFICIAL_MODEL_FILE);
     const geometryBytes = readRequiredRealBuildInput(GEOMETRY_BUNDLE_FILE);
@@ -391,6 +408,7 @@ describe("Builder canonical calibration v8", () => {
       "77844;B builtin:corner-plate-3x3 upright-yaw-180 40/-4/0 1 1 unique-anchor-correspondence null 1299038",
       "87079;K builtin:tile-2x4 upright-yaw-90 30/-4/10 2 1 catalog-part-self-symmetry null 1299041",
       "87580;P builtin:jumper-plate-2x2 upright-yaw-0 10/-4/10 4 1 catalog-part-self-symmetry null 1299038",
+      "2453;I builtin:brick-1x1x5-solid-stud upright-yaw-0 0/-60/0 1 1 opaque-identity-local-part-frame null 1319942",
     ]);
     // Every Builder Shell vertex of every design is inside the 2 LDU the
     // independent LDraw surface has to corroborate it within.

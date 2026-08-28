@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 
 import { applyBuildOperations, createEmptyBrickDocument } from "@lego-studio/brick-kernel";
@@ -5,7 +6,11 @@ import type { BrickDocumentV1 } from "@lego-studio/protocol";
 import { describe, expect, it } from "vitest";
 
 import { createPlacePartTransaction } from "../manual-commands";
-import { enumeratePlacements, type PlacementEnumerationCounts } from "./enumerate-placements";
+import {
+  enumeratePlacements,
+  type PlacementEnumerationCounts,
+  type PlacementEnumerationWork,
+} from "./enumerate-placements";
 
 /**
  * The branching factor of the closed-loop search, measured rather than assumed.
@@ -39,12 +44,108 @@ interface StepRecord extends PlacementEnumerationCounts {
   readonly partsPlaced: number;
   readonly catalogPartId: string;
   readonly milliseconds: number;
+  readonly processCpuMicroseconds: number;
+  readonly orderedCandidateDigest: string;
+  readonly populationDigest: string;
+  readonly work: PlacementEnumerationWork;
+}
+
+const BOUNDED_WORK_KEYS = [
+  "worldParts",
+  "worldPrimitives",
+  "worldCellInsertions",
+  "collisionQueries",
+  "candidateConnectionEdges",
+  "candidatePrimitives",
+  "queryCellVisits",
+  "broadphaseCellEntries",
+  "broadphaseUniquePrimitives",
+  "legacyOrderWorldCellKeys",
+  "legacyOrderCandidateCellKeys",
+  "legacyOrderSetInsertions",
+  "legacyOrderCellChecks",
+  "legacyOrderComparisons",
+  "primitivePairAabbTests",
+  "primitivePairNarrowphaseTests",
+  "collisionFindings",
+  "occupiedCapacitySeedEdges",
+  "occupiedCapacityClaims",
+  "freePortPartsVisited",
+  "freePortConnectorVisits",
+  "freePortCapacityChecks",
+  "seedAxisChecks",
+  "originProposals",
+  "candidateTransformsVisited",
+  "connectorPortLookups",
+  "connectorDiscoveries",
+  "candidateSortComparisons",
+] as const satisfies readonly (keyof PlacementEnumerationWork)[];
+
+const POSITIVE_CONTROL_KEYS = [
+  "positiveControl2dCellEntries",
+  "positiveControlAllPrimitiveAabbTests",
+] as const satisfies readonly (keyof PlacementEnumerationWork)[];
+
+const EXPECTED_ORDERED_CANDIDATE_DIGESTS_DIGEST =
+  "5438fbb22bab86c36e72cc441632d1addead783e51b3b16ba141d249941cdf3a";
+const EXPECTED_POPULATION_DIGESTS_DIGEST =
+  "b98fb9f500f0c9446f9a2e4e5429ecea6e53a5cc786bc849539dba2fc0642481";
+
+function sha256(value: unknown): string {
+  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+}
+
+function populationDigest(
+  catalogPartId: string,
+  counts: PlacementEnumerationCounts,
+  orderedCandidateDigest: string,
+): string {
+  // The explicit typed copy makes a newly required count fail compilation
+  // until it is deliberately added to the frozen population contract.
+  const boundCounts: PlacementEnumerationCounts = {
+    freeStuds: counts.freeStuds,
+    freeClutches: counts.freeClutches,
+    rawFromStuds: counts.rawFromStuds,
+    rawFromClutches: counts.rawFromClutches,
+    rawFromBuildPlate: counts.rawFromBuildPlate,
+    distinctTransforms: counts.distinctTransforms,
+    rejectedUnsupported: counts.rejectedUnsupported,
+    rejectedDetached: counts.rejectedDetached,
+    rejectedBelowBuildPlate: counts.rejectedBelowBuildPlate,
+    rejectedColliding: counts.rejectedColliding,
+    accepted: counts.accepted,
+  };
+  return sha256({ catalogPartId, counts: boundCounts, orderedCandidateDigest });
 }
 
 function median(values: readonly number[]): number {
   const sorted = [...values].sort((left, right) => left - right);
   const middle = Math.floor(sorted.length / 2);
   return sorted.length % 2 === 1 ? sorted[middle]! : (sorted[middle - 1]! + sorted[middle]!) / 2;
+}
+
+function medianQuarterComparison(values: readonly number[]): {
+  readonly firstQuarter: number;
+  readonly lastQuarter: number;
+  readonly growth: number;
+} {
+  const quarter = Math.floor(values.length / 4);
+  const firstQuarter = median(values.slice(0, quarter));
+  const lastQuarter = median(values.slice(-quarter));
+  return { firstQuarter, lastQuarter, growth: lastQuarter / firstQuarter };
+}
+
+function summedWorkQuarterComparison(
+  records: readonly StepRecord[],
+  key: keyof PlacementEnumerationWork,
+): ReturnType<typeof medianQuarterComparison> {
+  const quarter = Math.floor(records.length / 4);
+  const workPerTransform = (selected: readonly StepRecord[]): number =>
+    selected.reduce((sum, record) => sum + record.work[key], 0) /
+    selected.reduce((sum, record) => sum + record.distinctTransforms, 0);
+  const firstQuarter = workPerTransform(records.slice(0, quarter));
+  const lastQuarter = workPerTransform(records.slice(-quarter));
+  return { firstQuarter, lastQuarter, growth: lastQuarter / firstQuarter };
 }
 
 describe("placement branching factor", () => {
@@ -71,14 +172,31 @@ describe("placement branching factor", () => {
     const records: StepRecord[] = [];
     for (let step = 1; step <= steps; step += 1) {
       const catalogPartId = PART_CYCLE[step % PART_CYCLE.length]!;
+      let work: PlacementEnumerationWork | undefined;
+      const cpuStarted = process.cpuUsage();
       const started = performance.now();
-      const enumeration = enumeratePlacements(document, catalogPartId);
+      const enumeration = enumeratePlacements(document, catalogPartId, {
+        observeWork: (measured) => {
+          work = measured;
+        },
+      });
       const milliseconds = performance.now() - started;
+      const cpu = process.cpuUsage(cpuStarted);
+      if (!work) throw new Error(`Step ${step} did not report deterministic enumeration work`);
+      const orderedCandidateDigest = sha256(enumeration.candidates);
       records.push({
         step,
         partsPlaced: document.parts.length,
         catalogPartId,
         milliseconds: Math.round(milliseconds * 100) / 100,
+        processCpuMicroseconds: cpu.user + cpu.system,
+        orderedCandidateDigest,
+        populationDigest: populationDigest(
+          catalogPartId,
+          enumeration.counts,
+          orderedCandidateDigest,
+        ),
+        work,
         ...enumeration.counts,
       });
       if (enumeration.candidates.length === 0) break;
@@ -96,12 +214,28 @@ describe("placement branching factor", () => {
 
     const accepted = records.map((record) => record.accepted);
     const milliseconds = records.map((record) => record.milliseconds);
-    const perTransform = records.map(
+    const wallMicrosecondsPerTransform = records.map(
       (record) => (record.milliseconds * 1000) / Math.max(1, record.distinctTransforms),
     );
+    const cpuMicrosecondsPerTransform = records.map(
+      (record) => record.processCpuMicroseconds / Math.max(1, record.distinctTransforms),
+    );
+    const boundedDeterministicWork = Object.fromEntries(
+      BOUNDED_WORK_KEYS.map((key) => [key, summedWorkQuarterComparison(records, key)]),
+    ) as Record<(typeof BOUNDED_WORK_KEYS)[number], ReturnType<typeof summedWorkQuarterComparison>>;
+    const positiveControls = Object.fromEntries(
+      POSITIVE_CONTROL_KEYS.map((key) => [key, summedWorkQuarterComparison(records, key)]),
+    ) as Record<
+      (typeof POSITIVE_CONTROL_KEYS)[number],
+      ReturnType<typeof summedWorkQuarterComparison>
+    >;
+    const orderedCandidateDigests = records.map((record) => record.orderedCandidateDigest);
+    const populationDigests = records.map((record) => record.populationDigest);
     const summary = {
       steps: records.length,
       finalParts: document.parts.length,
+      orderedCandidateDigestsDigest: sha256(orderedCandidateDigests),
+      populationDigestsDigest: sha256(populationDigests),
       accepted: {
         min: Math.min(...accepted),
         median: median(accepted),
@@ -113,6 +247,11 @@ describe("placement branching factor", () => {
         max: Math.max(...milliseconds),
         total: Math.round(milliseconds.reduce((sum, value) => sum + value, 0)),
       },
+      processCpuMicroseconds: {
+        median: median(records.map((record) => record.processCpuMicroseconds)),
+        max: Math.max(...records.map((record) => record.processCpuMicroseconds)),
+        total: records.reduce((sum, record) => sum + record.processCpuMicroseconds, 0),
+      },
       /**
        * What fraction of the raw (free stud x clutch x orientation) triples
        * survive to be real candidates. This is the whole value of enumerating
@@ -121,16 +260,13 @@ describe("placement branching factor", () => {
       survivalOfRaw:
         records.reduce((sum, record) => sum + record.accepted, 0) /
         records.reduce((sum, record) => sum + record.rawFromStuds, 0),
-      /**
-       * Cost of deciding one candidate, early in the build against late in it.
-       * Absolute times depend on the machine and on what else is running;
-       * whether the cost per candidate grows with assembly size does not, and
-       * that is the property that decides whether the search scales.
-       */
-      microsecondsPerTransform: {
-        firstQuarter: median(perTransform.slice(0, Math.floor(perTransform.length / 4))),
-        lastQuarter: median(perTransform.slice(-Math.floor(perTransform.length / 4))),
+      timingDiagnostics: {
+        includes: "deterministic-work observer and positive-control overhead",
+        wallMicrosecondsPerTransform: medianQuarterComparison(wallMicrosecondsPerTransform),
+        processCpuMicrosecondsPerTransform: medianQuarterComparison(cpuMicrosecondsPerTransform),
       },
+      boundedDeterministicWork,
+      positiveControls,
     };
 
     mkdirSync("output", { recursive: true });
@@ -139,14 +275,29 @@ describe("placement branching factor", () => {
     // The build has to actually get somewhere for the curve to mean anything.
     expect(summary.finalParts).toBeGreaterThan(100);
     expect(summary.accepted.min).toBeGreaterThan(0);
-    // The cost of deciding one candidate must not grow with the assembly. A
-    // wall-clock bound would measure the machine and whatever else is running
-    // on it; this measures the algorithm. Rebuilding the neighbourhood per
-    // candidate showed here as a factor of about eight.
-    const { firstQuarter, lastQuarter } = summary.microsecondsPerTransform;
-    expect({ firstQuarter, lastQuarter, growth: lastQuarter / firstQuarter }).toMatchObject({
-      growth: expect.any(Number),
-    });
-    expect(lastQuarter / firstQuarter).toBeLessThan(3);
+    // The candidate digest is a differential negative control over every
+    // ordered transform and connection in the frozen trajectory.
+    expect(summary.orderedCandidateDigestsDigest).toBe(EXPECTED_ORDERED_CANDIDATE_DIGESTS_DIGEST);
+    // The population digest additionally binds the requested catalog part and
+    // every branching/count outcome at each step.
+    expect(summary.populationDigestsDigest).toBe(EXPECTED_POPULATION_DIGESTS_DIGEST);
+    // Wall and process CPU clocks are retained as diagnostics; suite scheduling
+    // cannot decide the hard scalability claim. Every recorded size-dependent
+    // operation must remain below the unchanged factor-of-three ceiling.
+    for (const key of BOUNDED_WORK_KEYS) {
+      expect(
+        summary.boundedDeterministicWork[key].growth,
+        `${key} grew by ${summary.boundedDeterministicWork[key].growth}`,
+      ).toBeLessThan(3);
+    }
+    // Both deliberately bad controls operate on the same candidate queries.
+    // If either falls below the threshold, the instrument can no longer see
+    // the size-dependent work it exists to gate.
+    for (const key of POSITIVE_CONTROL_KEYS) {
+      expect(
+        summary.positiveControls[key].growth,
+        `${key} positive control only grew by ${summary.positiveControls[key].growth}`,
+      ).toBeGreaterThanOrEqual(3);
+    }
   });
 });

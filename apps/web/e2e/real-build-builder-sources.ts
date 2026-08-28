@@ -45,12 +45,13 @@ export type {
  * land within 2 LDU of the LDraw surface it places, which a wrong quarter turn
  * misses by tens of LDU.
  *
- * The 42 retained rows cover 192 of the prefix's 320 pieces. Absence is a
+ * The 43 retained rows cover 197 of the prefix's 320 pieces. Absence is a
  * measurement, not an implied frame: nine checksum-mismatched revisions, the
- * 10201;H identity contradiction, the unconsumed 2453;I identity route, ten
- * diagnostic-only frame exclusions, one surface-only row whose audited record
+ * 10201;H identity contradiction, ten diagnostic-only frame exclusions, one surface-only row whose audited record
  * carries an authored underside lattice, and two rows whose audited type-23
- * families are not recognized studs remain outside this registry. Revision
+ * families are not recognized studs remain outside this registry. The exact
+ * 2453;I / 6595205 occurrence route is retained only through its opaque evidence
+ * capability and does not admit the other item number. Revision
  * 15573;L's recognized underside lattice also has three cells where its catalog
  * part has two clutches. These local frame diagnostics grant no world placement,
  * execution, mutation, acceptance, or completion authority.

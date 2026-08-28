@@ -488,8 +488,11 @@ export interface ParametricGeometryRecipe {
  *
  * Mesh vertices use their immutable source asset-local LDU frame. The recipe's
  * explicit asset-to-catalog frame applies orientation and translation exactly
- * once. `PartDefinition.ldrawFrame` is independent interchange truth and is
- * never consulted by the mesh resolver. Connectors remain separately authored;
+ * once. When `assetId` names the definition's exact official LDraw alias, strict
+ * interchange uses this same complete rigid frame to place the raw asset;
+ * `PartDefinition.ldrawFrame` remains independent interchange truth for parts
+ * whose render geometry is not that raw alias and is never consulted by the mesh
+ * resolver. Connectors remain separately authored;
  * bounds and bounded collision data may be independently authored or explicitly
  * derived at catalog-generation time, but are never inferred at render time.
  */
@@ -521,8 +524,10 @@ export interface MeshReferenceGeometryRecipe {
   readonly partialOverhangClutchEvidence?: PartialOverhangClutchEvidence;
   /**
    * Integrity-bound normalization from the immutable asset-local coordinates
-   * into catalog-local LDU. This is part of the catalog digest and is separate
-   * from `PartDefinition.ldrawFrame`, which remains interchange-only truth.
+   * into catalog-local LDU. This is part of the catalog digest. When the asset is
+   * the definition's exact official LDraw alias, the same transform is also its
+   * raw-asset interchange frame; otherwise `PartDefinition.ldrawFrame` remains
+   * the separate interchange-only truth.
    */
   readonly assetToCatalogFrame: {
     readonly schemaVersion: "mesh-asset-to-catalog-frame/1";

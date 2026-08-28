@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import type { PartInstance, RigidTransform } from "@lego-studio/protocol";
+import { PROPER_ORIENTATIONS } from "@lego-studio/catalog";
 
 import {
   TransformPolicyError,
   composeRigidTransforms,
   createAttachedTransform,
   getConnectorWorldFrame,
+  getProperOrientation,
   getUprightOrientation,
   rotateLduVector,
   transformLduPoint,
@@ -31,7 +33,7 @@ const ORIENTATION_IDS = [
 ] as const;
 
 function transform(
-  orientationId: (typeof ORIENTATION_IDS)[number],
+  orientationId: string,
   positionLdu: readonly [number, number, number] = [0, 0, 0],
 ): RigidTransform {
   return { positionLdu, orientationId };
@@ -109,6 +111,30 @@ describe("upright transform policy", () => {
     ).toThrow(TransformPolicyError);
     expect(() => getConnectorWorldFrame(basePart, "missing")).toThrow(/Unknown port/);
     expect(() => getUprightOrientation("upside-down")).toThrow(/Unknown upright orientation/);
+    expect(() => getProperOrientation("reflected-or-unknown")).toThrow(
+      /Unknown proper orientation/u,
+    );
+  });
+
+  it("executes a non-upright proper point and connector frame without widening attachment policy", () => {
+    const orientationId = "proper-m-p0000p0n0";
+    expect(getProperOrientation(orientationId).matrix).toEqual([1, 0, 0, 0, 0, 1, 0, -1, 0]);
+    expect(() => getUprightOrientation(orientationId)).toThrow(/Unknown upright orientation/u);
+    expect(transformLduPoint(transform(orientationId, [10, 20, 30]), [1, 2, 3])).toEqual([
+      11, 23, 28,
+    ]);
+    expect(
+      getConnectorWorldFrame({ ...basePart, transform: transform(orientationId) }, "stud:0:0"),
+    ).toMatchObject({ positionLdu: [0, 0, 12], normal: [0, 0, 1] });
+    expect(() =>
+      createAttachedTransform(
+        basePart,
+        "stud:0:0",
+        "builtin:brick-1x1",
+        "undersideClutch:0:0",
+        orientationId,
+      ),
+    ).toThrow(/Unknown upright orientation/u);
   });
 
   it("composes identity exactly on both sides without mutating either input", () => {
@@ -162,6 +188,17 @@ describe("upright transform policy", () => {
           positionLdu: [0, 0, 0],
           orientationId: ORIENTATION_IDS[(parentIndex + localIndex) % ORIENTATION_IDS.length],
         });
+      }
+    }
+  });
+
+  it("resolves every proper pair inside the existing 24-member closed vocabulary", () => {
+    const known = new Set(PROPER_ORIENTATIONS.map(({ id }) => id));
+    expect(PROPER_ORIENTATIONS).toHaveLength(24);
+    for (const parent of PROPER_ORIENTATIONS) {
+      for (const local of PROPER_ORIENTATIONS) {
+        const composed = composeRigidTransforms(transform(parent.id), transform(local.id));
+        expect(known.has(composed.orientationId)).toBe(true);
       }
     }
   });

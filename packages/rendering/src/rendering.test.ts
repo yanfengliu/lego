@@ -85,6 +85,21 @@ describe("brick scene derivation", () => {
     expect(projected).toEqual(expected.map((coordinate) => expect.closeTo(coordinate)));
   });
 
+  it("projects a non-upright proper orientation and rejects an unknown matrix label", () => {
+    const matrix = lduTransformToThreeMatrix({
+      positionLdu: [0, 0, 0],
+      orientationId: "proper-m-p0000p0n0",
+    });
+    expect(new Vector3(0, 1, 0).applyMatrix4(matrix).toArray()).toEqual([0, 0, expect.closeTo(1)]);
+    expect(new Vector3(0, 0, 1).applyMatrix4(matrix).toArray()).toEqual([0, expect.closeTo(-1), 0]);
+    expect(() =>
+      lduTransformToThreeMatrix({
+        positionLdu: [0, 0, 0],
+        orientationId: "hostile-unknown-orientation",
+      }),
+    ).toThrow(/Unknown proper orientation/u);
+  });
+
   it("maps canonical -Y-up LDU transforms into Three.js +Y-up scene units", () => {
     const part = createPartInstance({
       id: "rotated",

@@ -14,6 +14,10 @@ import {
   BUILDER_2453_IDENTITY_ROUTE,
   CURRENT_BUILDER_2453_IDENTITY_PINS,
 } from "./part-identification-2453-builder-identity-source.mjs";
+import {
+  consumeBuilder2453DiagnosticRegistryRoute,
+  verifyBuilder2453RegistryProofBytes,
+} from "./part-identification-2453-builder-registry-route.mjs";
 
 const pins = CURRENT_BUILDER_2453_IDENTITY_PINS;
 const shadowRoot = "C:/tmp/ldcad-shadow-20260802";
@@ -278,7 +282,7 @@ describe.runIf(realEvidencePresent)("2453 exact live identity proof", () => {
     expect(verifyBuilder2453IdentityArtifact(compiled.encoded)).toEqual(compiled.artifact);
   });
 
-  it("routes only the exact revision/item pair and grants no downstream authority", () => {
+  it("routes only the exact revision/item pair and grants no downstream authority", async () => {
     const route = adjudicateBuilder2453Identity(compiled.token, {
       designRevision: "2453;I",
       itemNo: "6595205",
@@ -294,6 +298,19 @@ describe.runIf(realEvidencePresent)("2453 exact live identity proof", () => {
       authority: BUILDER_2453_IDENTITY_AUTHORITY,
     });
     expect(Object.isFrozen(route)).toBe(true);
+    const consumed = await consumeBuilder2453DiagnosticRegistryRoute(compiled.token);
+    expect(consumed.route).toStrictEqual(route);
+    expect(consumed.source).toMatchObject({
+      designRevision: "2453;I",
+      catalogPartId: "builtin:brick-1x1x5-solid-stud",
+      opaqueIdentityRoute: {
+        routeId: BUILDER_2453_IDENTITY_ROUTE,
+        itemNo: "6595205",
+        exactLdrawId: "2453b.dat",
+        builderToCatalogLocalMatrix: [25, 0, 0, 0, -25, 0, 0, 0, -25],
+        builderToCatalogLocalTranslationLdu: [0, 60, 0],
+      },
+    });
     for (const request of [
       { designRevision: "2453;I", itemNo: "4210690" },
       { designRevision: "2453;H", itemNo: "6595205" },
@@ -303,6 +320,10 @@ describe.runIf(realEvidencePresent)("2453 exact live identity proof", () => {
       expect(() => adjudicateBuilder2453Identity(compiled.token, request)).toThrow();
     }
     const verifiedArtifact = verifyBuilder2453IdentityArtifact(compiled.encoded);
+    expect(verifyBuilder2453RegistryProofBytes(compiled.encoded)).toEqual(compiled.artifact);
+    await expect(consumeBuilder2453DiagnosticRegistryRoute(verifiedArtifact)).rejects.toThrow(
+      "opaque token",
+    );
     expect(() =>
       adjudicateBuilder2453Identity(verifiedArtifact, {
         designRevision: "2453;I",

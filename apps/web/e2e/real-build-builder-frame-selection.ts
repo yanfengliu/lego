@@ -55,7 +55,8 @@ export type FrameSelectionMethod =
   | "surface-registration-catalog-symmetry"
   | "ldraw-surface-bound"
   | "ldraw-surface-witness"
-  | "ldraw-surface-registration";
+  | "ldraw-surface-registration"
+  | "opaque-identity-local-part-frame";
 
 /** The runner-up must be at least this many times worse, in mean surface distance. */
 export const FRAME_WITNESS_MINIMUM_MARGIN_MICRO_RATIO = 4_000_000;
