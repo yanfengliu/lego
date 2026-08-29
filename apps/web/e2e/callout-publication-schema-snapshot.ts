@@ -1,5 +1,6 @@
 import { isProxy } from "node:util/types";
 
+import { OBSERVED_LEGACY_FAILURE_IDENTITIES_FIELD } from "./callout-field-names.ts";
 import {
   STRICT_JSON_SNAPSHOT_LIMITS,
   strictBoundedJsonSnapshotReport,
@@ -321,10 +322,10 @@ function recoveryBenchmark(value: unknown, label: string): RecoveryBenchmark {
     ["fixtureSourceHash", ownScalar(source, "fixtureSourceHash", label)],
     ["fixedFailureClassSize", ownScalar(source, "fixedFailureClassSize", label)],
     [
-      "observedLegacyFailureIdentities",
+      OBSERVED_LEGACY_FAILURE_IDENTITIES_FIELD,
       scalarArray(
-        ownData(source, "observedLegacyFailureIdentities", label),
-        `${label}.observedLegacyFailureIdentities`,
+        ownData(source, OBSERVED_LEGACY_FAILURE_IDENTITIES_FIELD, label),
+        `${label}.${OBSERVED_LEGACY_FAILURE_IDENTITIES_FIELD}`,
         SCHEMA_ARRAY_LIMITS.observedLegacyFailures,
       ),
     ],

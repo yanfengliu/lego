@@ -18,6 +18,7 @@ import {
   PREFIX50_LDRAW_CATALOG_FRAMES_OUTPUT_PATH,
   PREFIX50_LDRAW_CATALOG_FRAMES_PINS,
   PREFIX50_LDRAW_CATALOG_FRAMES_SCHEMA,
+  PREFIX50_LDRAW_CATALOG_MOVED_ROOT_EXPECTATIONS,
   PREFIX50_LDRAW_CATALOG_NEW_PARAMETRIC_EXPECTATIONS,
 } from "./part-identification-prefix50-ldraw-catalog-frames-source.mjs";
 import { importRepositoryTypeScript } from "./part-identification-typescript-runtime.mjs";
@@ -48,11 +49,22 @@ const syntheticFrameInput = {
 
 const proposalRow = (overrides = {}) => ({
   stepNumber: 1,
+  phaseSequence: 1,
   sourceBuilderIdentityOrdinal: 1,
+  builderBrickRef: "synthetic-brick",
+  calloutIdentity: "synthetic-callout",
   designRevision: "3001;A",
+  publishedCatalogPartId: "synthetic:brick-2x4",
   catalogPartId: "synthetic:brick-2x4",
   ldrawFilename: "3001.dat",
   catalogFrame: { catalogLdrawFilename: "3001.dat" },
+  catalogBinding: {
+    bindingKind: "published-catalog-part",
+    occurrenceScoped: false,
+    identityBasis: "published-catalog-part-with-closed-identity-relation",
+    priorQuarantineBasis: null,
+    movedRootProofId: null,
+  },
   identityRelation: { state: "projectable" },
   ...overrides,
 });
@@ -110,7 +122,7 @@ describe.runIf(inputsPresent)("prefix-50 exact LDraw/catalog frame registry", ()
     ]);
   }, 180_000);
 
-  it("reproduces the reviewed 62-frame artifact and excludes every quarantine", () => {
+  it("reproduces the reviewed 66-frame artifact and closes all prior quarantines", () => {
     const pin = PREFIX50_LDRAW_CATALOG_FRAMES_PINS.expectedArtifact;
     const inspection = inspectVerifiedPrefix50LdrawCatalogFrames(verified);
     expect(isVerifiedPrefix50LdrawCatalogFrames(verified)).toBe(true);
@@ -118,14 +130,14 @@ describe.runIf(inputsPresent)("prefix-50 exact LDraw/catalog frame registry", ()
     expect(artifact.schemaVersion).toBe(PREFIX50_LDRAW_CATALOG_FRAMES_SCHEMA);
     expect(artifact.authority).toEqual(PREFIX50_LDRAW_CATALOG_FRAMES_AUTHORITY);
     expect(artifact.accounting).toEqual(PREFIX50_LDRAW_CATALOG_FRAMES_PINS.expectedAccounting);
-    expect(artifact.frames).toHaveLength(62);
-    expect(new Set(artifact.frames.map(({ frameKey }) => frameKey)).size).toBe(62);
-    expect(artifact.frames.reduce((total, row) => total + row.occurrenceCount, 0)).toBe(309);
+    expect(artifact.frames).toHaveLength(66);
+    expect(new Set(artifact.frames.map(({ frameKey }) => frameKey)).size).toBe(66);
+    expect(artifact.frames.reduce((total, row) => total + row.occurrenceCount, 0)).toBe(320);
     expect(
-      artifact.frames.some(({ designRevision }) =>
+      artifact.frames.filter(({ designRevision }) =>
         ["10201;H", "3245;M", "41769;G", "41770;H"].includes(designRevision),
       ),
-    ).toBe(false);
+    ).toHaveLength(4);
     expect(artifact.scope).toEqual({
       firstPrintedStep: 1,
       lastPrintedStep: 50,
@@ -135,6 +147,31 @@ describe.runIf(inputsPresent)("prefix-50 exact LDraw/catalog frame registry", ()
     });
     expect(bytes).toHaveLength(pin.bytes);
     expect(inspection.digest).toBe(pin.digest);
+  });
+
+  it("binds the two moved roots to exact occurrences without publishing global aliases", () => {
+    const rows = artifact.frames
+      .filter(({ identityProof }) => identityProof !== null)
+      .map(({ designRevision, occurrences, identityProof }) => ({
+        designRevision,
+        ordinal: occurrences[0].sourceBuilderIdentityOrdinal,
+        proofId: identityProof.proofId,
+        sourceTriangles: identityProof.source.expandedTriangleCount,
+        targetTriangles: identityProof.target.expandedTriangleCount,
+        sameExpandedGeometry: identityProof.sameExpandedGeometry,
+        globalAliasClaimed: identityProof.globalAliasClaimed,
+      }));
+    expect(rows).toEqual(
+      PREFIX50_LDRAW_CATALOG_MOVED_ROOT_EXPECTATIONS.map((expected) => ({
+        designRevision: expected.designRevision,
+        ordinal: expected.sourceBuilderIdentityOrdinal,
+        proofId: expected.proofId,
+        sourceTriangles: 521,
+        targetTriangles: 521,
+        sameExpandedGeometry: true,
+        globalAliasClaimed: false,
+      })),
+    );
   });
 
   it("derives the five new archive frames with exact counts, bounds, and one symmetry class", () => {

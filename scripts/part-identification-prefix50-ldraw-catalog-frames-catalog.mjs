@@ -18,6 +18,7 @@ export function exactAliasGroups(proposal) {
     .map(([designRevision, occurrences]) => {
       const first = occurrences[0];
       const identity = {
+        publishedCatalogPartId: first.publishedCatalogPartId,
         catalogPartId: first.catalogPartId,
         ldrawFilename: first.ldrawFilename,
         catalogLdrawFilename: first.catalogFrame.catalogLdrawFilename,
@@ -28,6 +29,7 @@ export function exactAliasGroups(proposal) {
         !/^\d+[a-z0-9]*\.dat$/u.test(identity.catalogLdrawFilename) ||
         occurrences.some(
           (row) =>
+            row.publishedCatalogPartId !== identity.publishedCatalogPartId ||
             row.catalogPartId !== identity.catalogPartId ||
             row.ldrawFilename !== identity.ldrawFilename ||
             row.catalogFrame.catalogLdrawFilename !== identity.catalogLdrawFilename,
@@ -48,6 +50,27 @@ export function exactAliasGroups(proposal) {
         quarantinedOccurrenceCount: occurrences.filter(
           ({ identityRelation }) => identityRelation.state === "quarantined",
         ).length,
+        occurrences: occurrences
+          .map((row) => ({
+            sourceBuilderIdentityOrdinal: row.sourceBuilderIdentityOrdinal,
+            stepNumber: row.stepNumber,
+            phaseSequence: row.phaseSequence,
+            builderBrickRef: row.builderBrickRef,
+            calloutIdentity: row.calloutIdentity,
+            designRevision: row.designRevision,
+            publishedCatalogPartId: row.publishedCatalogPartId,
+            catalogPartId: row.catalogPartId,
+            ldrawFilename: row.ldrawFilename,
+            catalogLdrawFilename: row.catalogFrame.catalogLdrawFilename,
+            bindingKind: row.catalogBinding.bindingKind,
+            occurrenceScoped: row.catalogBinding.occurrenceScoped,
+            identityBasis: row.catalogBinding.identityBasis,
+            priorQuarantineBasis: row.catalogBinding.priorQuarantineBasis,
+            movedRootProofId: row.catalogBinding.movedRootProofId,
+          }))
+          .sort(
+            (left, right) => left.sourceBuilderIdentityOrdinal - right.sourceBuilderIdentityOrdinal,
+          ),
       };
     })
     .sort((left, right) => left.designRevision.localeCompare(right.designRevision));

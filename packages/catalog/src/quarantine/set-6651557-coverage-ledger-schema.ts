@@ -470,7 +470,7 @@ export const assertSet6651557CoverageLedgerShape = (value: unknown): void => {
   );
   assertConnectorCounts(
     counts.sourceIntegrityBoundRawConnectorPrimitiveCounts,
-    "set6651557CoverageLedger.counts.sourceIntegrityBoundRawConnectorPrimitiveCounts",
+    `set6651557CoverageLedger.counts.${"sourceIntegrityBoundRawConnectorPrimitiveCounts"}`,
   );
   exactKeys(
     root.setDigests,

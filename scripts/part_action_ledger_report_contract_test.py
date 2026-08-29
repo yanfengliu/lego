@@ -9,6 +9,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import part_identification_verification_bridge as verification_bridge
+from part_action_ledger_field_names import TRANSITION_CLASSIFICATIONS_DIGEST_FIELD
 from part_action_ledger_report_contract import require_action_ledger_report_chain
 from part_identification_report_contract import (
     ArtifactContractError,
@@ -18,6 +20,7 @@ from part_identification_report_contract import (
     read_text_artifact,
 )
 from part_identification_report_contract_test_fixture import (
+    TEST_VERIFIER,
     materialize_report_contract_fixture,
     report_contract_test_verifier_patch,
 )
@@ -29,20 +32,6 @@ from part_identification_report_io import (
 
 def sha(character: str) -> str:
     return "sha256:" + character * 64
-
-
-_TEST_VERIFIER_PATCH = None
-
-
-def setUpModule() -> None:
-    global _TEST_VERIFIER_PATCH
-    _TEST_VERIFIER_PATCH = report_contract_test_verifier_patch()
-    _TEST_VERIFIER_PATCH.start()
-
-
-def tearDownModule() -> None:
-    if _TEST_VERIFIER_PATCH is not None:
-        _TEST_VERIFIER_PATCH.stop()
 
 
 def closure(root: Path) -> dict:
@@ -130,11 +119,20 @@ def closure(root: Path) -> dict:
 
 
 class ActionLedgerReportContractTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        test_verifier_patch = report_contract_test_verifier_patch()
+        test_verifier_patch.start()
+        cls.addClassCleanup(test_verifier_patch.stop)
+
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
         materialize_report_contract_fixture(self.root)
+
+    def test_synthetic_verifier_fixture_follows_the_class_across_collection(self) -> None:
+        self.assertEqual(verification_bridge.BRIDGE_PATH, TEST_VERIFIER)
 
     def test_one_exact_bounded_direct_piece_is_accepted(self) -> None:
         require_action_ledger_report_chain(**closure(self.root))
@@ -232,7 +230,7 @@ class ActionLedgerReportContractTests(unittest.TestCase):
             ("callout_manifest_digest", "calloutManifestDigest"),
             ("source_art_rebound_digest", "sourceArtReboundDigest"),
             ("builder_calibration_digest", "builderCalibrationDigest"),
-            ("transition_classifications_digest", "transitionClassificationsDigest"),
+            ("transition_classifications_digest", TRANSITION_CLASSIFICATIONS_DIGEST_FIELD),
         ):
             with self.subTest(field=field):
                 forged = copy.deepcopy(arguments)

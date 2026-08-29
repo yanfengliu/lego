@@ -10,6 +10,7 @@ import {
   expandExactLdrawPart,
 } from "./part-identification-prefix50-ldraw-catalog-frames-archive.mjs";
 import { deriveExactParametricLdrawCatalogFrame } from "./part-identification-prefix50-ldraw-catalog-frames-geometry.mjs";
+import { verifyPrefix50OccurrenceIdentityMovedRoot } from "./part-identification-prefix50-ldraw-catalog-frames-identity.mjs";
 import {
   assertNewExpectation,
   catalogLdrawFilename,
@@ -21,6 +22,7 @@ import {
   PREFIX50_LDRAW_CATALOG_FRAMES_MAX_ARTIFACT_BYTES,
   PREFIX50_LDRAW_CATALOG_FRAMES_PINS,
   PREFIX50_LDRAW_CATALOG_FRAMES_SCHEMA,
+  PREFIX50_LDRAW_CATALOG_MOVED_ROOT_EXPECTATIONS,
   PREFIX50_LDRAW_CATALOG_NEW_PARAMETRIC_EXPECTATIONS,
 } from "./part-identification-prefix50-ldraw-catalog-frames-source.mjs";
 import {
@@ -198,6 +200,31 @@ async function compileSnapshot(input) {
       connectorDigest: canonical.canonicalDigest(definition.connectors),
       collisionDigest: canonical.canonicalDigest(definition.collision),
     };
+    const movedRootOccurrences = identity.occurrences.filter(
+      ({ bindingKind }) => bindingKind === "identity-moved-root",
+    );
+    let identityProof = null;
+    if (movedRootOccurrences.length > 0) {
+      if (movedRootOccurrences.length !== 1) {
+        throw new TypeError(
+          `${identity.designRevision} moved-root proof must remain bound to one exact occurrence, not ${movedRootOccurrences.length}.`,
+        );
+      }
+      const occurrence = movedRootOccurrences[0];
+      const expectation = PREFIX50_LDRAW_CATALOG_MOVED_ROOT_EXPECTATIONS.find(
+        ({ proofId }) => proofId === occurrence.movedRootProofId,
+      );
+      if (expectation === undefined) {
+        throw new TypeError(
+          `${identity.designRevision} has no pinned same-hand moved-root proof ${occurrence.movedRootProofId}.`,
+        );
+      }
+      identityProof = verifyPrefix50OccurrenceIdentityMovedRoot({
+        archive,
+        expectation,
+        occurrence,
+      });
+    }
     let derived;
     if (definition.geometry.generatorId === "builtin:preloaded-mesh-reference/1") {
       derived = meshFrame(definition, identity);
@@ -259,8 +286,10 @@ async function compileSnapshot(input) {
       derivationKind: derived.derivationKind,
       frame: derived.frame,
       frameDigest: canonical.canonicalDigest({ frameKey: identity.frameKey, frame: derived.frame }),
+      occurrenceBindingDigest: canonical.canonicalDigest(identity.occurrences),
       catalogDigests: digests,
       evidence: derived.evidence,
+      identityProof,
       identityEquivalenceClaimed: false,
     };
     assertNewExpectation(row);
@@ -293,6 +322,15 @@ async function compileSnapshot(input) {
     newlyDerivedCandidateSelfSymmetryClasses: frames
       .filter(({ derivationKind }) => derivationKind === "archive-geometry-new-parametric-frame")
       .reduce((total, row) => total + row.evidence.candidateSelfSymmetryClassCount, 0),
+    occurrenceScopedIdentityMovedRootFrames: frames.filter(
+      ({ identityProof }) => identityProof !== null,
+    ).length,
+    occurrenceScopedIdentityMovedRootOccurrences: frames.reduce(
+      (total, row) =>
+        total +
+        row.occurrences.filter(({ bindingKind }) => bindingKind === "identity-moved-root").length,
+      0,
+    ),
   };
   if (!isDeepStrictEqual(accounting, pins.expectedAccounting)) {
     throw new TypeError(
@@ -300,9 +338,9 @@ async function compileSnapshot(input) {
     );
   }
   const frameKeys = frames.map(({ frameKey }) => frameKey);
-  if (new Set(frameKeys).size !== 62) {
+  if (new Set(frameKeys).size !== 66) {
     throw new TypeError(
-      "Prefix-50 frame registry must retain exactly 62 unique closed frame keys.",
+      "Prefix-50 frame registry must retain exactly 66 unique closed frame keys.",
     );
   }
   return {
@@ -350,12 +388,23 @@ async function compileSnapshot(input) {
     },
     accounting,
     frameTableDigest: canonical.canonicalDigest(
-      frames.map(({ frameKey, frame, frameDigest, catalogDigests }) => ({
-        frameKey,
-        frame,
-        frameDigest,
-        catalogDigests,
-      })),
+      frames.map(
+        ({
+          frameKey,
+          frame,
+          frameDigest,
+          occurrenceBindingDigest,
+          catalogDigests,
+          identityProof,
+        }) => ({
+          frameKey,
+          frame,
+          frameDigest,
+          occurrenceBindingDigest,
+          catalogDigests,
+          identityProof,
+        }),
+      ),
     ),
     frames,
   };

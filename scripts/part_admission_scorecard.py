@@ -286,7 +286,8 @@ def measure_connectors(
             "truthSource": "separate-exact-ldcad-shadow-gate",
             "scored": False,
             "caveat": (
-                "LDraw surface primitives do not author axle or axle-hole connection seats. These "
+                "LDraw surface primitives do not author axle, through-hole, or blind-socket "
+                "connection seats. These "
                 "rows remain "
                 "visible in the scorecard but are admitted only when the measured-table driver "
                 "derives them from its pinned exact LDCad shadow route."

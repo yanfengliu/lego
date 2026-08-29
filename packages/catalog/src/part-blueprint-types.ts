@@ -53,7 +53,8 @@ export interface PartBlueprint {
    */
   readonly extraConnectors?: readonly {
     readonly id: string;
-    readonly kind: ConnectorKind;
+    /** Blind sockets require measured axial-span evidence and use the measured route. */
+    readonly kind: Exclude<ConnectorKind, "blindAxleHole">;
     readonly positionLdu: LduVector3;
     readonly normal: LduVector3;
     readonly orientationId: ConnectorOrientationId;

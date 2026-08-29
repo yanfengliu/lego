@@ -70,6 +70,7 @@ export type ConnectorKind =
   | "undersideClutch"
   | "axle"
   | "axleHole"
+  | "blindAxleHole"
   | "pin"
   | "pinHole"
   | "bar"
@@ -108,9 +109,10 @@ export type ConnectorArticulation = "rigid" | "revolute";
 /**
  * How the two connectors' axes have to line up.
  *
- * A stud enters a clutch from one side only, so the axes must oppose. A hole is
- * open at both ends and a shaft can pass in from either, so only the line
- * matters and not the direction — which is LDCad's `caps=none`.
+ * A stud enters a clutch from one side only, so the axes must oppose. A through
+ * hole lets a shaft pass in from either end, so only the line matters and not
+ * the direction — which is LDCad's `caps=none`. A blind socket is one-sided and
+ * therefore opts into opposed axes instead.
  */
 export type ConnectorAxisMatching = "opposed" | "collinear";
 export type CatalogAliasNamespace = "human" | "ldraw";
@@ -178,8 +180,8 @@ export interface UprightOrientation extends ProperOrientation {
  * axis. Legacy non-stud ports can retain `connector-up` even when their
  * separately authoritative `normal` points sideways, so consumers must not
  * invert this label into a general connector normal. Axis names cover
- * source-authored studs on a side face without pretending that the upright-only
- * part transform policy can rotate an ordinary clutch onto that face.
+ * source-authored studs on a side face without pretending that one part's
+ * evidence-backed orientation grant can rotate an ordinary clutch from another part onto that face.
  */
 export type ConnectorOrientationId =
   | "connector-up"
@@ -189,9 +191,24 @@ export type ConnectorOrientationId =
   | "connector-z-negative"
   | "connector-z-positive";
 
-export interface ConnectorPortDefinition {
+/**
+ * The exact occupied axis of a one-sided connector.
+ *
+ * `normal` points from `closedEndLdu` to the open mouth. The connector point is
+ * the exact midpoint of the two ends, and `depthLdu` is their axis-aligned
+ * separation. This preserves LDCad's `caps=one` and `slide=false` facts instead
+ * of flattening a blind socket into a directionless through hole.
+ */
+export interface ConnectorAxialSpan {
+  readonly schemaVersion: "connector-axial-span/1";
+  readonly openEndLdu: LduVector3;
+  readonly closedEndLdu: LduVector3;
+  readonly depthLdu: number;
+  readonly sliding: false;
+}
+
+interface ConnectorPortDefinitionBase {
   readonly id: string;
-  readonly kind: ConnectorKind;
   readonly geometryRole: ConnectorGeometryRole;
   readonly profileId: string;
   readonly gender: ConnectorGender;
@@ -215,6 +232,19 @@ export interface ConnectorPortDefinition {
   readonly sharedCapacityGroupIds?: readonly string[];
   readonly compatibleKinds: readonly ConnectorKind[];
 }
+
+/** A blind axle socket must carry its one-sided span; other kinds must not. */
+export type ConnectorPortDefinition = ConnectorPortDefinitionBase &
+  (
+    | {
+        readonly kind: "blindAxleHole";
+        readonly axialSpan: ConnectorAxialSpan;
+      }
+    | {
+        readonly kind: Exclude<ConnectorKind, "blindAxleHole">;
+        readonly axialSpan?: never;
+      }
+  );
 
 export interface CollisionBox {
   readonly id: string;
@@ -307,12 +337,37 @@ export interface CollisionAllowance {
   readonly requiresValidatedConnection: true;
 }
 
+/**
+ * A measured through-bore region that may contain only the body overlap of the
+ * exact axle joined to `portId`. This is explicit source geometry, not a
+ * connector-compatibility or whole-part collision waiver.
+ */
+export interface ThroughAxleBoreCollisionAllowance {
+  readonly schemaVersion: "collision-through-axle-bore-allowance/1";
+  readonly id: string;
+  readonly portId: string;
+  readonly portKind: "axleHole";
+  readonly incomingPortKind: "axle";
+  readonly incomingPrimitiveTag: "body";
+  readonly profileId: "axle-cross/1";
+  readonly sourceSection: "A 6 1";
+  readonly startLdu: LduVector3;
+  readonly endLdu: LduVector3;
+  readonly radiusLdu: 6;
+  readonly segmentLengthLdu: 20;
+  readonly caps: "none";
+  readonly sliding: true;
+  readonly requiresValidatedConnection: true;
+}
+
 export interface PartCollisionDefinition {
   readonly modelVersion: string;
   /** Cross-binds any per-stud nominal connection radius to one reviewed profile. */
   readonly validatedConnectionStudProfile?: "nominal-stud-tube/1";
   readonly primitives: readonly CollisionPrimitive[];
   readonly allowances: readonly CollisionAllowance[];
+  /** Present only on source-measured open axle bores. */
+  readonly throughAxleBoreAllowances?: readonly ThroughAxleBoreCollisionAllowance[];
 }
 
 /**
@@ -458,7 +513,8 @@ export interface ParametricGeometryRecipe {
   /** Connectors the stud grid cannot express, such as a hole through a part. */
   readonly extraConnectors?: readonly {
     readonly id: string;
-    readonly kind: ConnectorKind;
+    /** Blind sockets require measured axial-span evidence and use the measured route. */
+    readonly kind: Exclude<ConnectorKind, "blindAxleHole">;
     readonly positionLdu: LduVector3;
     readonly normal: LduVector3;
     readonly orientationId: ConnectorOrientationId;
@@ -596,6 +652,26 @@ export interface ColorDefinition {
   readonly ldrawCodeProvenance: SourceProvenance;
 }
 
+export interface TransformPolicyManifest {
+  readonly schemaVersion: "lego.transform-policy-manifest/1";
+  readonly id: string;
+  readonly version: string;
+  readonly coordinateSystem: {
+    readonly upAxis: "-Y";
+    readonly unit: "LDU";
+    readonly studPitchLdu: number;
+  };
+  /** Placement legality is authored by this repository, never inferred from evidence artifacts. */
+  readonly authority: "project-authored-catalog-truth";
+  readonly sourceAndProposalArtifactRole: "corroboration-only";
+  readonly provenance: SourceProvenance;
+  readonly orientations: readonly ProperOrientation[];
+  readonly parts: readonly {
+    readonly id: string;
+    readonly legalOrientationIds: readonly string[];
+  }[];
+}
+
 export interface CatalogSnapshotDigestInput {
   readonly schemaVersion: "catalog-digest-input/1";
   readonly catalogVersion: string;
@@ -608,7 +684,8 @@ export interface CatalogSnapshotDigestInput {
     readonly studPitchLdu: number;
   };
   readonly provenanceLayers: readonly SourceProvenance[];
-  readonly orientations: readonly UprightOrientation[];
+  readonly orientations: readonly ProperOrientation[];
+  readonly transformPolicy: TransformPolicyManifest;
   readonly colors: readonly ColorDefinition[];
   readonly parts: readonly PartDefinition[];
 }

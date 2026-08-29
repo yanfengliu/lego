@@ -1,8 +1,6 @@
 import {
   BRICK_HEIGHT_LDU,
-  PLATE_HEIGHT_LDU,
   STUD_PITCH_LDU,
-  UPRIGHT_ORIENTATIONS,
   connectorAccepts,
   getPartDefinition,
   type ConnectorKind,
@@ -10,7 +8,7 @@ import {
   type PartDefinition,
 } from "@lego-studio/catalog";
 import {
-  getUprightOrientation,
+  getProperOrientation,
   rotateLduVector,
   transformLduPoint,
 } from "@lego-studio/brick-kernel";
@@ -24,6 +22,23 @@ import {
   reserveConnectorCapacity,
   type ConnectorCapacityEndpoint,
 } from "./connector-capacity";
+import {
+  nextLegalOrientationId,
+  PlacementError,
+  placementOrientationIdForCatalogSelection,
+  worldFootprint,
+  type WorldFootprint,
+} from "./placement-orientation";
+import { LATERAL_SNAP_LDU, type LduBox } from "./placement-types";
+
+export {
+  nextLegalOrientationId,
+  PlacementError,
+  placementOrientationIdForCatalogSelection,
+  worldFootprint,
+  type WorldFootprint,
+};
+export { LATERAL_SNAP_LDU, type LduBox };
 
 /**
  * Placement lattice, in canonical -Y-up LDU.
@@ -31,37 +46,12 @@ import {
  * The build plate's top surface sits at +BRICK_HEIGHT_LDU / 2 so that a brick
  * dropped on empty plate rests exactly where "Place at origin" has always put
  * it. Resting *surfaces* are what live on the PLATE_HEIGHT_LDU lattice — the
- * plate, then a plate's height at a time above it — and a part's origin is half
- * its own height below the surface it sits on. For a brick that is y=0 and for
- * a plate y=8, both on the lattice, which is why rounding the origin looked
- * right until a two-plate-tall cheese slope wanted y=+4.
+ * plate, then a plate's height at a time above it. Upright parts usually place
+ * their origin half their nominal height from that surface; a reviewed proper
+ * turn instead uses the transformed body's actual extremum, including measured
+ * half-LDU bounds that cannot themselves become a canonical integer origin.
  */
 export const GROUND_UNDERSIDE_LDU = BRICK_HEIGHT_LDU / 2;
-export const VERTICAL_SNAP_LDU = PLATE_HEIGHT_LDU;
-export const LATERAL_SNAP_LDU = STUD_PITCH_LDU / 2;
-
-export interface WorldFootprint {
-  /** Stud columns along world X after the part's yaw is applied. */
-  readonly studsX: number;
-  /** Stud columns along world Z after the part's yaw is applied. */
-  readonly studsZ: number;
-  readonly heightLdu: number;
-  /** Legal world-origin residue modulo one stud pitch on each lateral axis. */
-  readonly originOffsetX: number;
-  readonly originOffsetZ: number;
-}
-
-export interface LduBox {
-  readonly min: LduVector3;
-  readonly max: LduVector3;
-}
-
-export class PlacementError extends Error {
-  public constructor(message: string) {
-    super(message);
-    this.name = "PlacementError";
-  }
-}
 
 function requireDefinition(catalogPartId: string): PartDefinition {
   const definition = getPartDefinition(catalogPartId);
@@ -71,48 +61,6 @@ function requireDefinition(catalogPartId: string): PartDefinition {
     );
   }
   return definition;
-}
-
-/** A quarter or three-quarter yaw exchanges the part's stud axes in world space. */
-export function worldFootprint(definition: PartDefinition, orientationId: string): WorldFootprint {
-  const { quarterTurns } = getUprightOrientation(orientationId);
-  const swapped = quarterTurns % 2 === 1;
-  const { widthStuds, lengthStuds, heightLdu } = definition.dimensions;
-  const connectorGridCenter =
-    definition.connectorGridCenterLdu ??
-    (definition.geometry.generatorId === "builtin:preloaded-mesh-reference/1"
-      ? undefined
-      : (definition.geometry.connectorGridCenterLdu ?? [0, 0]));
-  if (connectorGridCenter === undefined) {
-    throw new PlacementError(
-      `Cannot snap mesh-backed catalog part ${definition.id}: connectorGridCenterLdu is missing from its geometry-independent PartDefinition truth. Declare the catalog-local connector-grid centre; assuming [0, 0] can put its authored connectors off the shared stud lattice.`,
-    );
-  }
-  if (connectorGridCenter.length !== 2 || !connectorGridCenter.every(Number.isSafeInteger)) {
-    throw new PlacementError(
-      `Cannot snap catalog part ${definition.id}: connectorGridCenterLdu must contain exactly two safe-integer LDU coordinates so snapping yields a serializable canonical transform; received [${connectorGridCenter.join(", ")}].`,
-    );
-  }
-  const [gridCenterX, gridCenterZ] = connectorGridCenter;
-  const localFirst: LduVector3 = [
-    gridCenterX - ((widthStuds - 1) * STUD_PITCH_LDU) / 2,
-    0,
-    gridCenterZ - ((lengthStuds - 1) * STUD_PITCH_LDU) / 2,
-  ];
-  const rotatedFirst = transformLduPoint({ positionLdu: [0, 0, 0], orientationId }, localFirst);
-  const originOffset = (firstConnectorCoordinate: number): number => {
-    const residue =
-      (((LATERAL_SNAP_LDU - firstConnectorCoordinate) % STUD_PITCH_LDU) + STUD_PITCH_LDU) %
-      STUD_PITCH_LDU;
-    return Math.abs(residue - STUD_PITCH_LDU) < 1e-9 ? 0 : residue;
-  };
-  return {
-    studsX: swapped ? lengthStuds : widthStuds,
-    studsZ: swapped ? widthStuds : lengthStuds,
-    heightLdu,
-    originOffsetX: originOffset(rotatedFirst[0]),
-    originOffsetZ: originOffset(rotatedFirst[2]),
-  };
 }
 
 /**
@@ -125,37 +73,9 @@ function snapLateral(raw: number, offset: number): number {
   return Math.round((raw - offset) / STUD_PITCH_LDU) * STUD_PITCH_LDU + offset;
 }
 
-/**
- * The nearest legal surface for a part's underside to rest on.
- *
- * Surfaces are on the plate lattice — the build plate, then a plate's height at
- * a time above it — and it is the *surface* that lands there, not the part's
- * origin. Rounding the origin instead works only while every part is a whole
- * number of plates tall in a way that halves onto the same lattice: a
- * two-plate-tall cheese slope resting on the plate has its origin at +4, which
- * the origin lattice rounds to +8 and buries four LDU under the plate.
- */
-function snapSupportSurface(raw: number): number {
-  const plates = Math.round((raw - GROUND_UNDERSIDE_LDU) / VERTICAL_SNAP_LDU);
-  return GROUND_UNDERSIDE_LDU + plates * VERTICAL_SNAP_LDU;
-}
-
-/**
- * The next legal yaw, cycling through the catalog's quarter turns. Rotating a
- * part is a transform edit like any other, so it stays inside the finite
- * upright-orientation policy rather than inventing a matrix.
- */
-export function nextYawOrientationId(orientationId: string): string {
-  const current = getUprightOrientation(orientationId);
-  const ordered = [...UPRIGHT_ORIENTATIONS].sort((a, b) => a.quarterTurns - b.quarterTurns);
-  const next = ordered[(current.quarterTurns + 1) % ordered.length];
-  if (!next) throw new PlacementError(`No legal yaw follows ${orientationId}`);
-  return next.id;
-}
-
-/** World Y of the surface a part's underside rests on, given its origin. */
-export function partTopSurfaceLdu(definition: PartDefinition, originY: number): number {
-  return originY - definition.dimensions.heightLdu / 2;
+/** World Y of a placed part's actual top body surface. */
+export function partTopSurfaceLdu(part: Pick<PartInstance, "catalogPartId" | "transform">): number {
+  return bodyBoundsLdu(part).min[1];
 }
 
 export interface SnapPlacementOptions {
@@ -188,10 +108,18 @@ export function snapPlacementOriginForDefinition({
       `Placement needs a finite LDU position, received [${rawLdu.join(", ")}]`,
     );
   }
+  if (!Number.isFinite(supportUndersideLdu)) {
+    throw new PlacementError(
+      `Placement needs a finite support surface, received ${supportUndersideLdu}`,
+    );
+  }
   const footprint = worldFootprint(definition, orientationId);
   return [
     snapLateral(rawLdu[0], footprint.originOffsetX),
-    snapSupportSurface(supportUndersideLdu) - footprint.heightLdu / 2,
+    // Canonical transforms require whole LDU. If exact geometry has a
+    // half-LDU underside (4519 does when stood vertically), floor the origin:
+    // the body keeps a sub-LDU clearance instead of penetrating its support.
+    Math.floor(supportUndersideLdu - footprint.undersideOffsetLdu),
     snapLateral(rawLdu[2], footprint.originOffsetZ),
   ];
 }
@@ -294,7 +222,12 @@ function connectorFrames(
   kind: ConnectorKind,
 ): readonly PlacementConnectorFrame[] {
   const definition = requireDefinition(part.catalogPartId);
-  const orientation = getUprightOrientation(part.transform.orientationId);
+  if (!definition.legalOrientationIds.includes(part.transform.orientationId)) {
+    throw new PlacementError(
+      `Cannot discover connectors for ${part.id} (${part.catalogPartId}) at illegal orientation ${part.transform.orientationId}; the catalog allows ${definition.legalOrientationIds.join(", ")}`,
+    );
+  }
+  const orientation = getProperOrientation(part.transform.orientationId);
   return definition.connectors
     .filter((connector) => connector.kind === kind)
     .map((connector) => ({
@@ -374,6 +307,24 @@ export function partUndersideLdu(part: Pick<PartInstance, "catalogPartId" | "tra
   return bodyBoundsLdu(part).max[1];
 }
 
+/** Whether this transform uses the part's exact safe vertical build-plate snap. */
+export function restsOnBuildPlate(
+  candidate: Pick<PartInstance, "catalogPartId" | "transform">,
+): boolean {
+  const definition = requireDefinition(candidate.catalogPartId);
+  const plateClearanceLdu = GROUND_UNDERSIDE_LDU - partUndersideLdu(candidate);
+  const snappedGroundY = snapPlacementOriginForDefinition({
+    definition,
+    orientationId: candidate.transform.orientationId,
+    rawLdu: candidate.transform.positionLdu,
+  })[1];
+  return (
+    plateClearanceLdu >= 0 &&
+    plateClearanceLdu < 1 &&
+    candidate.transform.positionLdu[1] === snappedGroundY
+  );
+}
+
 /**
  * Whether a placement would actually stay put. A brick is held either by the
  * build plate underneath it or by at least one stud/clutch pair — the same
@@ -389,11 +340,15 @@ export function assessSupport(
   connections: readonly DiscoveredConnection[],
 ): SupportVerdict {
   if (connections.length > 0) return { supported: true, held: "connections" };
-  if (partUndersideLdu(candidate) === GROUND_UNDERSIDE_LDU) {
+  const definition = requireDefinition(candidate.catalogPartId);
+  const plateClearanceLdu = GROUND_UNDERSIDE_LDU - partUndersideLdu(candidate);
+  // A signed-permutation turn can put a measured half-LDU body extremum on Y,
+  // while canonical transforms remain whole-LDU. Placement floors that origin
+  // to preserve the plate, so accept its deliberate sub-LDU clearance only.
+  if (restsOnBuildPlate(candidate)) {
     return { supported: true, held: "build-plate" };
   }
-  const definition = requireDefinition(candidate.catalogPartId);
-  const heightAbovePlate = GROUND_UNDERSIDE_LDU - partUndersideLdu(candidate);
+  const heightAbovePlate = plateClearanceLdu;
   return {
     supported: false,
     reason:

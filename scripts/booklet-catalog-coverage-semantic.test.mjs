@@ -1,12 +1,9 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
+import { existsSync } from "node:fs";
 
 import { beforeAll, describe, expect, it } from "vitest";
 
 import {
-  __testOnly as cliTestOnly,
   runSemanticBookletCatalogCoverageCli,
   semanticBookletCatalogCoverageUsage,
 } from "./booklet-catalog-coverage-semantic-cli.mjs";
@@ -14,9 +11,13 @@ import {
   PREFIX50_SEMANTIC_IDENTIFICATION_CONFIDENCE,
   SEMANTIC_CATALOG_COVERAGE_SCHEMA,
   __testOnly as coverageTestOnly,
+  bytesFromVerifiedSemanticBookletCatalogCoverage,
   compileSemanticBookletCatalogCoverage,
   encodeSemanticBookletCatalogCoverage,
+  inspectVerifiedSemanticBookletCatalogCoverage,
+  isVerifiedSemanticBookletCatalogCoverage,
   verifySemanticBookletCatalogCoverage,
+  verifyOpaqueSemanticBookletCatalogCoverage,
 } from "./booklet-catalog-coverage-semantic.mjs";
 import { CURRENT_LEGACY_RECUT_PINS } from "./part-identification-legacy-recut-source.mjs";
 import { CURRENT_LEGACY_RECUT_SEMANTIC_PINS } from "./part-identification-legacy-recut-semantic.mjs";
@@ -118,11 +119,11 @@ describe("semantic booklet catalog coverage hostile boundary", () => {
 
     expect(report).toMatchObject({
       catalog: {
-        version: "builtin.basic-parts/28",
-        digest: "sha256:15decef17024421dec825287923d2ae0142973f83281b3479b0eeeb5e5ddd837",
+        version: "builtin.basic-parts/29",
+        digest: "sha256:19c5e8a3f4e1d00d7747c8d3e0f377ee4391acc53915df8ead0c1830b75b8db6",
       },
       inputDigests: {
-        catalog: "sha256:15decef17024421dec825287923d2ae0142973f83281b3479b0eeeb5e5ddd837",
+        catalog: "sha256:19c5e8a3f4e1d00d7747c8d3e0f377ee4391acc53915df8ead0c1830b75b8db6",
         prefix50SemanticClosure: semanticDigest,
       },
       calloutsConsidered: 1,
@@ -148,39 +149,20 @@ describe("semantic booklet catalog coverage hostile boundary", () => {
     });
   });
 
-  it("documents the bounded prefix and validates it before replaying source evidence", async () => {
+  it("documents the fixed prefix and rejects argv before replaying source evidence", async () => {
     let output = "";
     await expect(
-      runSemanticBookletCatalogCoverageCli(["--last-step", "51"], {
+      runSemanticBookletCatalogCoverageCli(["--unexpected"], {
         stdout: (value) => {
           output += value;
         },
       }),
-    ).rejects.toThrow(/safe integer from 1 through 50/u);
+    ).rejects.toThrow(/accepts no caller arguments/u);
     expect(output).toBe("");
-    expect(semanticBookletCatalogCoverageUsage()).toContain("--last-step 1..50");
-  });
-
-  it("preserves differing counterevidence once and refuses an eight-digit collision", () => {
-    const root = mkdtempSync(join(tmpdir(), "lego-semantic-coverage-"));
-    try {
-      const current = Buffer.from("old coverage\n");
-      const next = Buffer.from("new coverage\n");
-      mkdirSync(root, { recursive: true });
-      writeFileSync(join(root, "catalog-coverage.json"), current);
-
-      const first = cliTestOnly.archiveCounterevidence(next, root);
-      expect(first).toMatchObject({ bytes: current.length, digest: digest(current) });
-      expect(readFileSync(first.archivePath)).toEqual(current);
-      expect(cliTestOnly.archiveCounterevidence(next, root)).toEqual(first);
-
-      writeFileSync(first.archivePath, Buffer.from("collision\n"));
-      expect(() => cliTestOnly.archiveCounterevidence(next, root)).toThrow(
-        /already exists with different bytes/u,
-      );
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
+    expect(semanticBookletCatalogCoverageUsage()).toContain(
+      "booklet-catalog-coverage-semantic-cli.mjs",
+    );
+    expect(semanticBookletCatalogCoverageUsage()).toContain("exactly the first 50 printed steps");
   });
 });
 
@@ -213,11 +195,11 @@ realDescribe("current prefix-50 semantic booklet catalog coverage", () => {
         calloutManifest: CURRENT_LEGACY_RECUT_PINS.currentManifest.digest,
         elementResolution: CURRENT_PREFIX50_SEMANTIC_CLOSURE_PINS.elementResolution.digest,
         prefix50SemanticClosure: CURRENT_PREFIX50_SEMANTIC_CLOSURE_PINS.expectedArtifact.digest,
-        catalog: "sha256:15decef17024421dec825287923d2ae0142973f83281b3479b0eeeb5e5ddd837",
+        catalog: "sha256:19c5e8a3f4e1d00d7747c8d3e0f377ee4391acc53915df8ead0c1830b75b8db6",
       },
       catalog: {
-        version: "builtin.basic-parts/28",
-        digest: "sha256:15decef17024421dec825287923d2ae0142973f83281b3479b0eeeb5e5ddd837",
+        version: "builtin.basic-parts/29",
+        digest: "sha256:19c5e8a3f4e1d00d7747c8d3e0f377ee4391acc53915df8ead0c1830b75b8db6",
       },
       expectedPrintedSteps: 359,
       lastStep: 50,
@@ -274,6 +256,37 @@ realDescribe("current prefix-50 semantic booklet catalog coverage", () => {
     });
   });
 
+  it("does not let occurrence-only /29 definitions rewrite published callout identity", () => {
+    const bracket = report.byCallout["p30|q2|x84.228|y407.699"];
+    expect(bracket.semanticEvidence).toMatchObject({
+      officialDesignId: "10201",
+      publishedPartNum: "28802",
+      publishedMatchesOfficialDesignId: false,
+    });
+    expect(bracket.resolution).toMatchObject({
+      partNum: "28802",
+      catalogPartId: "builtin:bracket-1x2-1x4-rounded-bottom",
+    });
+
+    for (const identity of [
+      "p34|q1|x62.389|y468.271",
+      "p35|q2|x147.987|y481.711",
+      "p36|q4|x83.269|y421.615",
+    ]) {
+      expect(report.byCallout[identity]).toMatchObject({
+        semanticEvidence: {
+          officialDesignId: "3245",
+          publishedPartNum: "3245c",
+          publishedMatchesOfficialDesignId: false,
+        },
+        resolution: {
+          partNum: "3245c",
+          catalogPartId: "builtin:brick-1x2x2-without-understud",
+        },
+      });
+    }
+  });
+
   it("measures complete prefix catalog coverage without granting exact legacy identity bindings", () => {
     expect(report.coverage).toMatchObject({
       stepsCovered: 49,
@@ -291,7 +304,7 @@ realDescribe("current prefix-50 semantic booklet catalog coverage", () => {
   it("independently reproduces exact bytes and rejects a one-byte report edit", async () => {
     expect(bytes).toHaveLength(588_467);
     expect(digest(bytes)).toBe(
-      "sha256:a12d5744f3f4417628e53227aaa4c35d9aee0eba5fdce7b865087e6f97dfbfad",
+      "sha256:861d08a28dac94619e8c541e928d7803b4b6cab9fe9fa12da9f166fc0e46444d",
     );
     await expect(
       verifySemanticBookletCatalogCoverage({ ...input, coverageBytes: bytes }),
@@ -301,6 +314,23 @@ realDescribe("current prefix-50 semantic booklet catalog coverage", () => {
     await expect(
       verifySemanticBookletCatalogCoverage({ ...input, coverageBytes: changed }),
     ).rejects.toThrow(/do not independently reproduce/u);
+  });
+
+  it("issues opaque publication authority only for independently reproduced bytes", async () => {
+    const verified = await verifyOpaqueSemanticBookletCatalogCoverage({
+      ...input,
+      coverageBytes: bytes,
+    });
+    expect(isVerifiedSemanticBookletCatalogCoverage(verified)).toBe(true);
+    expect(bytesFromVerifiedSemanticBookletCatalogCoverage(verified)).toEqual(bytes);
+    expect(inspectVerifiedSemanticBookletCatalogCoverage(verified)).toMatchObject({
+      artifact: report,
+      digest: digest(bytes),
+    });
+    expect(isVerifiedSemanticBookletCatalogCoverage({})).toBe(false);
+    expect(() => bytesFromVerifiedSemanticBookletCatalogCoverage({})).toThrow(
+      /opaque in-memory verifier result/u,
+    );
   });
 
   it("projects a smaller request without leaking later semantic identities", async () => {

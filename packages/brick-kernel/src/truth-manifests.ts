@@ -2,7 +2,7 @@ export const MAX_COLLISION_COMPARISONS = 50_000 as const;
 export const MAX_COLLISION_FINDINGS = 5_000 as const;
 export const MAX_EVIDENCE_IDS_PER_ISSUE = 256 as const;
 export const MAX_VALIDATION_ISSUES = 10_000 as const;
-export const VALIDATOR_SET_VERSION = "lego.kernel-validators/4" as const;
+export const VALIDATOR_SET_VERSION = "lego.kernel-validators/5" as const;
 
 /**
  * Reviewed, deterministic inputs for the validator-set truth snapshot.
@@ -31,6 +31,7 @@ export const VALIDATOR_SET_DIGEST_INPUT = Object.freeze({
     "catalog-convex-plan-body-collision",
     "validated-connection-collision-allowances-only",
     "validated-connection-nominal-stud-profile-bounded-to-source-rounding",
+    "validated-connection-measured-through-axle-bore-body-overlap-only",
     "validation-evidence-and-issue-bounds",
   ]),
   limits: Object.freeze({

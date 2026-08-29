@@ -81,7 +81,7 @@ def require_reproduced_retrieval_inputs(
     ):
         failures.append(
             "worstAbsoluteDeviationFromPublishedRows="
-            f"{worst_absolute_deviation!r} exceeds the finite "
+            + f"{worst_absolute_deviation!r} exceeds the finite "
             f"{MAX_REPRODUCTION_ABSOLUTE_DEVIATION} tolerance"
         )
     if candidate_prefix_reproduced is not True:
@@ -445,7 +445,7 @@ def main() -> int:
     union = report["recall"]["union"]
     print(f"generation features={report['generation']['featuresDigest'][:23]}")
     print(
-        f"reproduction: worst deviation {report['reproduction']['worstAbsoluteDeviationFromPublishedRows']:.2e}, "
+        f"reproduction: worst deviation {report['reproduction']["worstAbsoluteDeviationFromPublishedRows"]:.2e}, "
         f"candidate prefix reproduced {report['reproduction']['candidatePrefixReproduced']}"
     )
     coverage = report["groundTruthCoverage"]
@@ -489,7 +489,7 @@ def main() -> int:
             f"leads: {lead['membersWithADifferentOwnTop6']}/{lead['membersOtherThanLead']} non-lead "
             f"members would have had a different top {DISPLAYED_K} "
             f"({lead['piecesOnADivergentMember']} pieces), across "
-            f"{lead['clustersWithAtLeastOneDivergentMember']} clusters"
+            f"{lead["clustersWithAtLeastOneDivergentMember"]} clusters"
         )
     print(f"wrote {out}")
     return 0

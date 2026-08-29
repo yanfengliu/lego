@@ -5,13 +5,16 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { inspectAppPackageSourceFile } from "./check-bom-source-policy.mjs";
+import { inspectAppPackageSourceFilesCensus } from "./check-bom-source-policy.mjs";
+import { checkedSourcePopulation } from "./check-bom-source-population.mjs";
+import { parseBomJsonRejectingDuplicateKeys } from "./check-bom-json.mjs";
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(scriptDirectory, "..");
 const bomPath = path.join(repositoryRoot, "docs", "dependency-data-bom.md");
 const dependencySections = ["dependencies", "devDependencies"];
 const errors = [];
+const codeUnitCompare = (left, right) => (left < right ? -1 : left > right ? 1 : 0);
 
 function relativePath(absolutePath) {
   return path.relative(repositoryRoot, absolutePath).split(path.sep).join("/");
@@ -72,67 +75,7 @@ function extractBom() {
     throw new Error("missing the machine-readable BOM data block");
   }
 
-  return parseRejectingDuplicateKeys(match[1]);
-}
-
-/**
- * Parse the BOM, refusing an object that declares the same key twice.
- *
- * `JSON.parse` is last-wins, so a record that loses its opening brace merges
- * into the record above it and silently overwrites that record's fields. That
- * happened here: the 3245 quarantine record's nine fields landed inside
- * `lego-builder-step1-shell-frame-calibration`, replacing its `source` with a
- * LEGO API URL and its `declaredLicense` with one that drops the per-file LDraw
- * CC BY terms. Every count this checker reports stayed green, because after the
- * merge the document is valid JSON describing one fewer source than it contains.
- *
- * A licence record that can be overwritten without the licence gate noticing is
- * the failure this rejects.
- */
-function parseRejectingDuplicateKeys(text) {
-  // A reviver cannot see a duplicate - it is called once per surviving key -
-  // so the raw text is walked separately to find keys declared twice.
-  const duplicates = collectDuplicateKeys(text);
-  if (duplicates.length > 0) {
-    const detail = duplicates.map(({ key, id }) => `${id ?? "<unnamed object>"}.${key}`);
-    throw new Error(
-      `the BOM data block declares ${duplicates.length} duplicate key(s): ${detail.join(", ")}. ` +
-        `JSON.parse keeps the last value, so an earlier field was silently overwritten - usually a ` +
-        `record that lost its opening brace and merged into the one above it. Restore the object ` +
-        `boundary; do not delete the duplicated keys.`,
-    );
-  }
-  return JSON.parse(text);
-}
-
-function collectDuplicateKeys(text) {
-  const duplicates = [];
-  const stack = [];
-  let current = null;
-  const tokens = text.matchAll(/"((?:[^"\\]|\\.)*)"\s*:|[{}[\]]/g);
-  for (const token of tokens) {
-    const [raw, key] = token;
-    if (raw === "{") {
-      stack.push(current);
-      current = { keys: new Set(), id: null };
-      continue;
-    }
-    if (raw === "}") {
-      current = stack.pop() ?? null;
-      continue;
-    }
-    if (raw === "[" || raw === "]" || key === undefined) continue;
-    if (current === null) continue;
-    if (current.keys.has(key)) {
-      duplicates.push({ key, id: current.id });
-    }
-    current.keys.add(key);
-    if (key === "id") {
-      const after = text.slice(token.index + raw.length).match(/^\s*"((?:[^"\\]|\\.)*)"/);
-      if (after) current.id = after[1];
-    }
-  }
-  return duplicates;
+  return parseBomJsonRejectingDuplicateKeys(match[1]);
 }
 
 function declarationKey(declaration) {
@@ -170,25 +113,6 @@ function compareSet(actualValues, recordedValues, label) {
   for (const value of recorded) {
     if (!actual.has(value)) errors.push(`${label} is stale in BOM: ${display(value)}`);
   }
-}
-
-function sourceFiles(relativeDirectory) {
-  const absoluteDirectory = path.join(repositoryRoot, relativeDirectory);
-  if (!existsSync(absoluteDirectory)) return [];
-
-  const files = [];
-  for (const entry of readdirSync(absoluteDirectory, { withFileTypes: true })) {
-    if (entry.name === "node_modules" || entry.name === "dist" || entry.name === "coverage") {
-      continue;
-    }
-    const relativeEntry = path.posix.join(relativeDirectory, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...sourceFiles(relativeEntry));
-    } else if (entry.isFile()) {
-      files.push(relativeEntry);
-    }
-  }
-  return files;
 }
 
 let bom;
@@ -281,7 +205,9 @@ for (const { manifest, packageManifest } of allManifests) {
   }
 }
 
-liveDeclarations.sort((left, right) => declarationKey(left).localeCompare(declarationKey(right)));
+liveDeclarations.sort((left, right) =>
+  codeUnitCompare(declarationKey(left), declarationKey(right)),
+);
 
 const recordedDeclarationMap = new Map();
 for (const declaration of bom.declarations ?? []) {
@@ -521,13 +447,34 @@ for (const asset of bom.dataAssets ?? []) {
 
 if (assetIds.size === 0) errors.push("BOM must contain at least one data asset record");
 
-for (const relativeFile of [...sourceFiles("apps"), ...sourceFiles("packages")]) {
-  errors.push(
-    ...inspectAppPackageSourceFile(relativeFile, path.join(repositoryRoot, relativeFile)),
-  );
-}
+const checkedSources = checkedSourcePopulation(repositoryRoot);
+const appPackageSourceFiles = checkedSources
+  .filter((relativeFile) => /^(?:apps|packages)\//u.test(relativeFile))
+  .map((relativeFile) => ({
+    absoluteFile: path.join(repositoryRoot, relativeFile),
+    relativeFile,
+  }));
+const appPackageSourceDependencies = checkedSources
+  .filter((relativeFile) => relativeFile.startsWith("scripts/"))
+  .map((relativeFile) => ({
+    absoluteFile: path.join(repositoryRoot, relativeFile),
+    relativeFile,
+  }));
+const sourceCensus = inspectAppPackageSourceFilesCensus(
+  appPackageSourceFiles,
+  appPackageSourceDependencies,
+);
+errors.push(...sourceCensus.issues);
+
+const leadingSourceFiles = Object.entries(sourceCensus.fileSubtotals)
+  .sort((left, right) => right[1] - left[1] || codeUnitCompare(left[0], right[0]))
+  .slice(0, 10)
+  .map(([relativeFile, characters]) => `${relativeFile}=${characters}`)
+  .join(", ");
+const sourceCensusSummary = `${sourceCensus.schema}: totalCharacters=${sourceCensus.totalCharacters}, atomCount=${sourceCensus.atomCount}, classificationSubtotals=${JSON.stringify(sourceCensus.classificationSubtotals)}, atomClassSubtotals=${JSON.stringify(sourceCensus.atomClassSubtotals)}, leadingFiles=${leadingSourceFiles || "none"}, ledger=sha256:${sourceCensus.ledgerDigest}`;
 
 if (errors.length > 0) {
+  console.error(`BOM source census: ${sourceCensusSummary}`);
   console.error(`BOM check failed with ${errors.length} issue(s):`);
   for (const error of errors) console.error(`- ${error}`);
   process.exit(1);
@@ -537,6 +484,7 @@ const externalCount = [...livePackages.values()].filter(
   (packageRecord) => packageRecord.kind === "npm",
 ).length;
 const internalCount = livePackages.size - externalCount;
+console.log(`BOM source census: ${sourceCensusSummary}`);
 console.log(
   `BOM check passed: ${liveWorkspaceRecords.length} workspaces, ${liveDeclarations.length} dependency declarations, ${externalCount} third-party packages, ${internalCount} internal packages, and ${assetIds.size} data/source records.`,
 );

@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 
+import { OBSERVED_LEGACY_FAILURE_IDENTITIES_FIELD } from "./callout-field-names.ts";
 import type {
   CalloutManifest,
   PixelBounds,
@@ -84,7 +85,7 @@ function recoveryBenchmark(value: RecoveryBenchmark): RecoveryBenchmark {
     ["schemaVersion", value.schemaVersion],
     ["fixtureSourceHash", value.fixtureSourceHash],
     ["fixedFailureClassSize", value.fixedFailureClassSize],
-    ["observedLegacyFailureIdentities", scalars(value.observedLegacyFailureIdentities)],
+    [OBSERVED_LEGACY_FAILURE_IDENTITIES_FIELD, scalars(value.observedLegacyFailureIdentities)],
     [
       "scores",
       arrayOf(value.scores, (score) =>

@@ -241,7 +241,7 @@ export function collectScopePolicyIssues(
         scopeIssue(
           "SCOPE_REQUIRED_ATTACHMENT_INVALID",
           `Required attachment must resolve to a retained base port: ${requiredPort.partId}/${requiredPort.portId}`,
-          `/scope/requiredAttachmentPorts/${index}`,
+          `${"/scope/requiredAttachmentPorts/"}${index}`,
         ),
       );
     } else {
@@ -253,7 +253,7 @@ export function collectScopePolicyIssues(
           scopeIssue(
             "SCOPE_REQUIRED_ATTACHMENT_OCCUPIED",
             `Required attachment ${requiredPort.partId}/${requiredPort.portId} consumes ${describeConnectorCapacityClaimKey(baseConflict)}, already occupied by base connection ${occupiedBaseCapacityClaims.get(baseConflict)}; remove that requirement or choose a non-overlapping base port.`,
-            `/scope/requiredAttachmentPorts/${index}`,
+            `${"/scope/requiredAttachmentPorts/"}${index}`,
           ),
         );
       }
@@ -267,7 +267,7 @@ export function collectScopePolicyIssues(
           scopeIssue(
             "SCOPE_REQUIRED_ATTACHMENT_OCCUPIED",
             `Required attachment ${requiredPort.partId}/${requiredPort.portId} conflicts with required attachment ${prior.port.partId}/${prior.port.portId} at ${describeConnectorCapacityClaimKey(requiredConflict)}; a capability must name attachment ports that can remain usable together.`,
-            `/scope/requiredAttachmentPorts/${index}`,
+            `${"/scope/requiredAttachmentPorts/"}${index}`,
           ),
         );
       }

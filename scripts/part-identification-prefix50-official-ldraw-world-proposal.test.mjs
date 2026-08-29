@@ -21,7 +21,8 @@ import {
   reconcilePrefix50OfficialXmlLdraw,
 } from "./part-identification-prefix50-official-ldraw-world-proposal-parser.mjs";
 import {
-  PREFIX50_OFFICIAL_LDRAW_QUARANTINES,
+  PREFIX50_OFFICIAL_LDRAW_OCCURRENCE_BINDINGS,
+  PREFIX50_OFFICIAL_LDRAW_RETIRED_QUARANTINES,
   PREFIX50_OFFICIAL_LDRAW_WORLD_PROPOSAL_AUTHORITY,
   PREFIX50_OFFICIAL_LDRAW_WORLD_PROPOSAL_OUTPUT_PATH,
   PREFIX50_OFFICIAL_LDRAW_WORLD_PROPOSAL_PINS,
@@ -141,9 +142,10 @@ describe.runIf(inputsPresent)("prefix-50 official XML/LDraw world proposal", () 
     expect(encodePrefix50OfficialLdrawWorldProposal(inspection.artifact)).toEqual(bytes);
   });
 
-  it("retains only proposal authority, all 320 semantic rows, and the exact quarantines", () => {
+  it("retains proposal authority, all 320 rows, eleven exact rebindings, and prior counterevidence", () => {
     expect(artifact.authority).toEqual(PREFIX50_OFFICIAL_LDRAW_WORLD_PROPOSAL_AUTHORITY);
-    expect(artifact.quarantines).toEqual(PREFIX50_OFFICIAL_LDRAW_QUARANTINES);
+    expect(artifact.quarantines).toEqual([]);
+    expect(artifact.resolvedPriorQuarantines).toEqual(PREFIX50_OFFICIAL_LDRAW_RETIRED_QUARANTINES);
     expect(artifact.rows).toHaveLength(320);
     expect(
       artifact.rows.every(
@@ -156,17 +158,19 @@ describe.runIf(inputsPresent)("prefix-50 official XML/LDraw world proposal", () 
     ).toBe(true);
     expect(
       artifact.rows.filter(({ catalogWorldProposal }) => catalogWorldProposal !== null),
-    ).toHaveLength(309);
-    expect(
-      artifact.rows.filter(({ catalogWorldProposal }) => catalogWorldProposal === null),
-    ).toHaveLength(11);
+    ).toHaveLength(320);
     expect(
       artifact.rows.filter(({ semanticColorMatchesLdraw }) => semanticColorMatchesLdraw === null),
     ).toHaveLength(29);
     for (const designRevision of ["41769;G", "41770;H"]) {
       expect(artifact.rows.find((row) => row.designRevision === designRevision)).toMatchObject({
-        identityRelation: { state: "quarantined" },
-        catalogWorldProposal: null,
+        identityRelation: {
+          state: "projectable",
+          basis: "official-archive-identity-moved-root-same-hand",
+          archiveIdentityProofRequired: true,
+        },
+        catalogBinding: { bindingKind: "identity-moved-root", occurrenceScoped: true },
+        catalogWorldProposal: expect.any(Object),
       });
     }
     expect(artifact.rows.filter((row) => row.designRevision === "3245;M")).toHaveLength(7);
@@ -176,10 +180,22 @@ describe.runIf(inputsPresent)("prefix-50 official XML/LDraw world proposal", () 
         .every(
           (row) =>
             row.ldrawFilename === "3245b.dat" &&
-            row.catalogFrame.catalogLdrawFilename === "3245c.dat" &&
-            row.catalogWorldProposal === null,
+            row.publishedCatalogPartId === "builtin:brick-1x2x2-without-understud" &&
+            row.catalogPartId === "builtin:brick-1x2x2-inside-axle-holder" &&
+            row.catalogFrame.catalogLdrawFilename === "3245b.dat" &&
+            row.catalogWorldProposal !== null,
         ),
     ).toBe(true);
+    expect(
+      artifact.rows.filter(
+        ({ publishedCatalogPartId, catalogPartId }) => publishedCatalogPartId !== catalogPartId,
+      ),
+    ).toHaveLength(9);
+    expect(
+      artifact.rows
+        .filter(({ catalogBinding }) => catalogBinding.occurrenceScoped)
+        .map(({ catalogBinding }) => catalogBinding),
+    ).toEqual(PREFIX50_OFFICIAL_LDRAW_OCCURRENCE_BINDINGS);
   });
 
   it("records the three exact half-LDU 4519 origins and connector-seat deltas without snapping", () => {

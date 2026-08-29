@@ -72,11 +72,11 @@ describe("11212 regular 3 x 3 plate catalog truth", () => {
     );
     if (blueprint?.designId !== "11212") throw new Error("11212 blueprint is missing");
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/28");
-    expect(PART_DEFINITIONS).toHaveLength(104);
-    expect(PART_DEFINITIONS.at(-9)?.id).toBe(PART_ID);
-    expect(SET_6651557_MEASURED_BLUEPRINTS.at(-9)).toBe(blueprint);
-    expect(SET_6651557_MEASURED_BLUEPRINTS_G).toHaveLength(10);
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/29");
+    expect(PART_DEFINITIONS).toHaveLength(106);
+    expect(PART_DEFINITIONS.at(-11)?.id).toBe(PART_ID);
+    expect(SET_6651557_MEASURED_BLUEPRINTS.at(-11)).toBe(blueprint);
+    expect(SET_6651557_MEASURED_BLUEPRINTS_G).toHaveLength(12);
     expect(part).toMatchObject({
       id: PART_ID,
       family: "plate",
@@ -120,8 +120,8 @@ describe("11212 regular 3 x 3 plate catalog truth", () => {
       bytes: 11_078,
       manifestSha256: "sha256:8ff079db5d230fbba570a54ef1718c37a33db1059b31034fdd5a5ba9f12e0c73",
     });
-    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(43);
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(228);
+    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(45);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(237);
   });
 
   it("records the consulted LDCad route and its active regular clutch lattice", () => {
@@ -222,10 +222,10 @@ describe("11212 regular 3 x 3 plate catalog truth", () => {
     expect(validateMeshPartDefinitionAdmission(part)).toEqual({ accepted: true, issues: [] });
   });
 
-  it("keeps every /23 part payload byte unchanged after restoring its historical truth label", () => {
+  it("pins the reviewed /29 projection of the /23 prefix under its historical truth label", () => {
     const priorParts = PART_DEFINITIONS.slice(0, 95);
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/28",
+      "builtin.basic-parts/29",
       "builtin.basic-parts/23",
     );
     const connectorCollision = priorParts.map(({ id, connectors, collision }) => ({
@@ -244,10 +244,10 @@ describe("11212 regular 3 x 3 plate catalog truth", () => {
         .digest("hex"),
       collisionHash: createHash("sha256").update(JSON.stringify(collision)).digest("hex"),
     }).toEqual({
-      definitionBytes: 1_583_353,
-      definitionHash: "ceff2b3acbb53f647eea56d6ae4d271c1c048f94c7a035faf8a60b2979521ba3",
-      connectorCollisionHash: "cd14902b4fda0525457091ed7e59820113cf52dd5cbcf15d0c88f58690bc486f",
-      collisionHash: "2c6a27bf11f5f9d16ef8535b053df64b8c46940af4875a94b3380cf0d52b7bee",
+      definitionBytes: 1_585_168,
+      definitionHash: "1d87aeac4d23921a09b2922258c02fd59542905d1303beabeeea047e5b6b7c91",
+      connectorCollisionHash: "4a90760cb9de37ccca61a9089cbfbf1844c172791395b1f21a3b8fa3bbfdd1e4",
+      collisionHash: "6dbc3b8fa771315ea286906a8f71658a040d6669881afda21db2dccef4a692ff",
     });
   });
 });

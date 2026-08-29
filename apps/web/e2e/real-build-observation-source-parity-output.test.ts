@@ -1,3 +1,4 @@
+import { CANDIDATE_DERIVATION_BROWSER_COMMITMENT_DIGEST } from "./real-build-observation-source-parity-field-names.ts";
 import { Buffer } from "node:buffer";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -423,7 +424,7 @@ describe("source-parity publication", () => {
       },
     });
     expect(summary.browserCommitments.fields).toContain(
-      "steps[].candidateDerivationBrowserCommitmentDigest",
+      "steps[]." + CANDIDATE_DERIVATION_BROWSER_COMMITMENT_DIGEST,
     );
     expect(summary.browserAssertedDerivationStages).toBeDefined();
     expect(summary.derivationStages).toBeUndefined();

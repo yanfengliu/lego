@@ -63,8 +63,8 @@ function buildQuotient() {
             connections: [
               {
                 targetPartId: partIds[0],
-                targetPortId: "stud:orbit",
-                candidatePortId: "undersideClutch:orbit",
+                targetPortId: "stud:0:0",
+                candidatePortId: "undersideClutch:0:0",
               },
             ],
             restsOnBuildPlate: false,

@@ -3,7 +3,7 @@
 One place says what a candidate may claim: the catalog's own four collision body
 kinds, its three-to-eight vertex plan limit, and connectors that carry a kind, a
 gender, a position and a normal. Studs and clutch cells are scored against LDraw;
-the narrow axle and axle-hole kinds are retained for separate exact LDCad-source
+the narrow axle, through-hole, and blind-hole kinds are retained for separate exact LDCad-source
 gates. Reading a declaration either yields this exact shape or says which field
 is wrong and what would satisfy it.
 
@@ -35,6 +35,7 @@ MAX_TRIANGLE_SUBDIVISION = 256
 MAX_SURFACE_SAMPLES = 12_000_000
 PLAN_INDEX_CELL_LDU = 20.0
 MAX_PLAN_INDEX_CELLS_PER_BODY = 512
+CONNECTOR_AXIAL_SPAN_SCHEMA_VERSION = "connector-axial-span/1"
 
 
 def _finite(value: object, label: str) -> float:
@@ -226,12 +227,95 @@ def _body(index: int, value: object) -> Body:
 
 
 @dataclass(frozen=True)
+class ConnectorAxialSpan:
+    schema_version: str
+    open_end: Vector3
+    closed_end: Vector3
+    depth: float
+    sliding: bool
+
+
+@dataclass(frozen=True)
 class Connector:
     index: int
     kind: str
     gender: str
     position: Vector3
     normal: Vector3
+    axial_span: ConnectorAxialSpan | None = None
+
+
+def _connector_axial_span(
+    index: int,
+    kind: object,
+    value: dict[str, object],
+    position: Vector3,
+    normal: Vector3,
+) -> ConnectorAxialSpan | None:
+    raw = value.get("axialSpan")
+    if kind != "blindAxleHole":
+        if raw is not None:
+            raise ValueError(
+                f"connectors[{index}].axialSpan is reserved for a blindAxleHole; "
+                f"kind {kind!r} must omit it."
+            )
+        return None
+    if not isinstance(raw, dict):
+        raise ValueError(
+            f"connectors[{index}] is a blindAxleHole and must carry axialSpan object "
+            f"{CONNECTOR_AXIAL_SPAN_SCHEMA_VERSION!r}; received {raw!r}."
+        )
+    expected_keys = {"schemaVersion", "openEndLdu", "closedEndLdu", "depthLdu", "sliding"}
+    if set(raw) != expected_keys:
+        raise ValueError(
+            f"connectors[{index}].axialSpan keys are {sorted(raw)}; expected exactly "
+            f"{sorted(expected_keys)}."
+        )
+    schema = raw["schemaVersion"]
+    if schema != CONNECTOR_AXIAL_SPAN_SCHEMA_VERSION:
+        raise ValueError(
+            f"connectors[{index}].axialSpan.schemaVersion is {schema!r}; expected "
+            f"{CONNECTOR_AXIAL_SPAN_SCHEMA_VERSION!r}."
+        )
+    open_end = _vector3(raw["openEndLdu"], f"connectors[{index}].axialSpan.openEndLdu")
+    closed_end = _vector3(raw["closedEndLdu"], f"connectors[{index}].axialSpan.closedEndLdu")
+    depth = _finite(raw["depthLdu"], f"connectors[{index}].axialSpan.depthLdu")
+    if depth <= 0 or not depth.is_integer():
+        raise ValueError(
+            f"connectors[{index}].axialSpan.depthLdu is {depth}; it must be a positive whole LDU."
+        )
+    if raw["sliding"] is not False:
+        raise ValueError(
+            f"connectors[{index}].axialSpan.sliding is {raw['sliding']!r}; a blind axle seat "
+            "must be the fixed false literal."
+        )
+    if any(not coordinate.is_integer() for coordinate in (*open_end, *closed_end)):
+        raise ValueError(
+            f"connectors[{index}].axialSpan endpoints must be whole LDU; measured "
+            f"{open_end} and {closed_end}."
+        )
+    expected_position = tuple((open_end[axis] + closed_end[axis]) / 2 for axis in range(3))
+    if position != expected_position:
+        raise ValueError(
+            f"connectors[{index}] is at {position}, but its axialSpan midpoint is "
+            f"{expected_position}."
+        )
+    expected_open = tuple(closed_end[axis] + normal[axis] * depth for axis in range(3))
+    unit_axes = (
+        (-1.0, 0.0, 0.0),
+        (1.0, 0.0, 0.0),
+        (0.0, -1.0, 0.0),
+        (0.0, 1.0, 0.0),
+        (0.0, 0.0, -1.0),
+        (0.0, 0.0, 1.0),
+    )
+    if open_end != expected_open or normal not in unit_axes:
+        raise ValueError(
+            f"connectors[{index}].axialSpan must run depthLdu={depth} from closed end "
+            f"{closed_end} to open end {expected_open} along one unit-axis normal; measured "
+            f"normal {normal} and open end {open_end}."
+        )
+    return ConnectorAxialSpan(str(schema), open_end, closed_end, depth, False)
 
 
 def _connector(index: int, value: object) -> Connector:
@@ -239,27 +323,30 @@ def _connector(index: int, value: object) -> Connector:
         raise ValueError(f"connectors[{index}] must be an object; received {type(value).__name__}.")
     kind = value.get("kind")
     gender = value.get("gender")
-    if kind not in ("stud", "undersideClutch", "axle", "axleHole"):
+    if kind not in ("stud", "undersideClutch", "axle", "axleHole", "blindAxleHole"):
         raise ValueError(
             f"connectors[{index}].kind is {kind!r}; this scorer accepts 'stud', "
             "'undersideClutch', and the separately source-gated 'axle' and "
-            "'axleHole' kinds only."
+            "'axleHole' and 'blindAxleHole' kinds only."
         )
     if gender not in ("male", "female"):
         raise ValueError(f"connectors[{index}].gender is {gender!r}; it must be 'male' or 'female'.")
-    expected = "female" if kind in ("undersideClutch", "axleHole") else "male"
+    expected = "female" if kind in ("undersideClutch", "axleHole", "blindAxleHole") else "male"
     if gender != expected:
         article = "an" if kind in ("undersideClutch", "axle", "axleHole") else "a"
         raise ValueError(
             f"connectors[{index}] declares kind {kind!r} with gender {gender!r}; {article} {kind} is always "
             f"{expected}."
         )
+    position = _vector3(value.get("positionLdu"), f"connectors[{index}].positionLdu")
+    normal = _vector3(value.get("normal"), f"connectors[{index}].normal")
     return Connector(
         index=index,
         kind=str(kind),
         gender=str(gender),
-        position=_vector3(value.get("positionLdu"), f"connectors[{index}].positionLdu"),
-        normal=_vector3(value.get("normal"), f"connectors[{index}].normal"),
+        position=position,
+        normal=normal,
+        axial_span=_connector_axial_span(index, kind, value, position, normal),
     )
 
 
@@ -295,8 +382,14 @@ class Candidate:
         return tuple(row for row in self.connectors if row.kind == "axleHole")
 
     @property
+    def blind_axle_hole_connectors(self) -> tuple[Connector, ...]:
+        return tuple(row for row in self.connectors if row.kind == "blindAxleHole")
+
+    @property
     def source_authored_connectors(self) -> tuple[Connector, ...]:
-        return tuple(row for row in self.connectors if row.kind in ("axle", "axleHole"))
+        return tuple(
+            row for row in self.connectors if row.kind in ("axle", "axleHole", "blindAxleHole")
+        )
 
 
 def validate_candidate(value: object) -> Candidate:

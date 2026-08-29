@@ -1,3 +1,8 @@
+import {
+  CALLER_INSTRUCTION_SOURCE_SNAPSHOT_DIGEST,
+  CALLER_SOURCE_CONTENT_HASH_CLAIM_MATCHED_PDF_BYTES,
+  CALLER_SOURCE_PANEL_COMMITMENT_DIGEST,
+} from "./real-build-source-packet-field-names.ts";
 import { canonicalStringify } from "@lego-studio/brick-kernel";
 
 import { createRealBuildBrowserOutputV4SourceEvidencePanel } from "./real-build-browser-output-v4-source-evidence-panel-writer";
@@ -262,8 +267,8 @@ export function readRealBuildExactThreeSourcePacket(
     root.binding,
     [
       "pdfBytesDigest",
-      "callerInstructionSourceSnapshotDigest",
-      "callerSourceContentHashClaimMatchedPdfBytes",
+      CALLER_INSTRUCTION_SOURCE_SNAPSHOT_DIGEST,
+      CALLER_SOURCE_CONTENT_HASH_CLAIM_MATCHED_PDF_BYTES,
       "sourceTextParserReplay",
     ],
     "manifest.binding",
@@ -283,7 +288,7 @@ export function readRealBuildExactThreeSourcePacket(
     ),
     callerInstructionSourceSnapshotDigest: sourceEvidenceDigestValue(
       rawBinding.callerInstructionSourceSnapshotDigest,
-      "manifest.binding.callerInstructionSourceSnapshotDigest",
+      "manifest.binding." + CALLER_INSTRUCTION_SOURCE_SNAPSHOT_DIGEST,
     ),
     callerSourceContentHashClaimMatchedPdfBytes: true as const,
     sourceTextParserReplay: "not-performed" as const,
@@ -331,7 +336,7 @@ export function readRealBuildExactThreeSourcePacket(
         "pageNumber",
         "bounds",
         "calloutBoxes",
-        "callerSourcePanelCommitmentDigest",
+        CALLER_SOURCE_PANEL_COMMITMENT_DIGEST,
         "sourceArtifactDescriptor",
         "roleSlices",
       ],
@@ -368,7 +373,7 @@ export function readRealBuildExactThreeSourcePacket(
     );
     const commitment = sourceEvidenceDigestValue(
       row.callerSourcePanelCommitmentDigest,
-      `${path}.callerSourcePanelCommitmentDigest`,
+      `${path}.${CALLER_SOURCE_PANEL_COMMITMENT_DIGEST}`,
     );
     if (
       commitment !==

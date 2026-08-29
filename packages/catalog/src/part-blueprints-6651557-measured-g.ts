@@ -49,6 +49,16 @@ export const SET_6651557_MEASURED_BLUEPRINTS_G = [
         kind: "axleHole",
         positionLdu: [0, -2, 0],
         normal: [1, 0, 0],
+        throughBoreCollision: {
+          schemaVersion: "measured-through-axle-bore-collision/1",
+          sourceSection: "A 6 1",
+          startLdu: [-10, -2, 0],
+          endLdu: [10, -2, 0],
+          radiusLdu: 6,
+          segmentLengthLdu: 20,
+          caps: "none",
+          sliding: true,
+        },
       },
     ],
     // prettier-ignore
@@ -313,6 +323,16 @@ export const SET_6651557_MEASURED_BLUEPRINTS_G = [
         kind: "axleHole",
         positionLdu: [0, -2, 0],
         normal: [-1, 0, 0],
+        throughBoreCollision: {
+          schemaVersion: "measured-through-axle-bore-collision/1",
+          sourceSection: "A 6 1",
+          startLdu: [10, -2, 0],
+          endLdu: [-10, -2, 0],
+          radiusLdu: 6,
+          segmentLengthLdu: 20,
+          caps: "none",
+          sliding: true,
+        },
       },
     ],
     // prettier-ignore

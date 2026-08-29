@@ -1,11 +1,5 @@
-import { getPartDefinition, type LduVector3, type PartDefinition } from "@lego-studio/catalog";
-import {
-  COLLISION_WORLD_WORK_KEYS,
-  createCollisionWorld,
-  getUprightOrientation,
-  rotateLduVector,
-  transformLduPoint,
-} from "@lego-studio/brick-kernel";
+import { getPartDefinition, type LduVector3 } from "@lego-studio/catalog";
+import { createCollisionWorld, transformLduPoint } from "@lego-studio/brick-kernel";
 import type {
   BrickDocumentV1,
   ConnectionEdge,
@@ -13,25 +7,38 @@ import type {
   RigidTransform,
 } from "@lego-studio/protocol";
 
-import { GROUND_UNDERSIDE_LDU, bodyBoundsLdu, type DiscoveredConnection } from "../placement";
 import {
-  capacityEndpointForConnector,
-  connectorCapacityIsFree,
-  occupiedConnectorCapacityClaims,
-  reserveConnectorCapacity,
-  type ConnectorCapacityEndpoint,
-} from "../connector-capacity";
-import { connectorAxesAlign } from "../connector-frame-alignment";
+  GROUND_UNDERSIDE_LDU,
+  bodyBoundsLdu,
+  restsOnBuildPlate,
+  type DiscoveredConnection,
+} from "../placement";
+import { occupiedConnectorCapacityClaims } from "../connector-capacity";
 import { buildPlateOrigins } from "./build-plate-origins";
+import {
+  createPlacementConnectorIndexes,
+  discoverIndexedConnections,
+  enumerateConnectorOrigins,
+  type PlacementConnectorSeedReceipt,
+} from "./connector-placement-enumeration";
 import {
   emptyPlacementEnumerationWork,
   type MutablePlacementEnumerationWork,
 } from "./enumerate-placement-work";
+import { protocolConnectionKindForDiscoveredConnection } from "./placement-connection-kind";
+import {
+  createPreparedPlacementEnumerationWorld,
+  preparedCollisionWorld,
+  preparedFreePortIndex,
+  requirePreparedPlacementEnumerationState,
+  type PreparedPlacementEnumerationWorld,
+} from "./prepared-placement-enumeration-world";
 
 export type {
   PlacementEnumerationWork,
   PlacementEnumerationWorkObserver,
 } from "./enumerate-placement-work";
+export type { PreparedPlacementEnumerationWorld } from "./prepared-placement-enumeration-world";
 
 /**
  * Every legal place one part could go on the current assembly.
@@ -55,7 +62,7 @@ export type {
  * so a candidate this accepts is one the document validator accepts. The tests
  * assert both directions of that against brute force.
  */
-export const PLACEMENT_ENUMERATION_VERSION = "lego.placement-enumeration/2" as const;
+export const PLACEMENT_ENUMERATION_VERSION = "lego.placement-enumeration/3" as const;
 
 export interface PlacementCandidate {
   readonly catalogPartId: string;
@@ -122,6 +129,12 @@ export class PlacementEnumerationError extends Error {
 
 const DEFAULT_MAX_DISTINCT_TRANSFORMS = 200_000;
 
+export function preparePlacementEnumerationWorld(
+  document: BrickDocumentV1,
+): PreparedPlacementEnumerationWorld {
+  return createPreparedPlacementEnumerationWorld(document);
+}
+
 /**
  * What a placement occupies, as a string two placements share exactly when they
  * are the same placement written differently.
@@ -151,81 +164,6 @@ export function placementOccupancyKey(catalogPartId: string, transform: RigidTra
   return [box.min.join(","), box.max.join(","), ...studs].join("|");
 }
 
-function positionKey(position: LduVector3): string {
-  return `${position[0]},${position[1]},${position[2]}`;
-}
-
-interface PortIndexEntry extends ConnectorCapacityEndpoint {
-  readonly kind: "stud" | "undersideClutch";
-  readonly normal: LduVector3;
-}
-
-/**
- * Where every unused stud and clutch in the assembly is, keyed by exact
- * position. Connection discovery is an integer lattice lookup because
- * orientations are quarter turns and every catalog position is an integer, so
- * two ports meet only when their coordinates are equal.
- */
-function indexFreePorts(
-  parts: readonly PartInstance[],
-  occupied: ReadonlySet<string>,
-  kind: "stud" | "undersideClutch",
-  work?: MutablePlacementEnumerationWork,
-): Map<string, PortIndexEntry> {
-  const index = new Map<string, PortIndexEntry>();
-  for (const part of parts) {
-    if (work) work.freePortPartsVisited += 1;
-    const definition = getPartDefinition(part.catalogPartId);
-    if (!definition) continue;
-    for (const connector of definition.connectors) {
-      if (work) work.freePortConnectorVisits += 1;
-      if (connector.kind !== kind) continue;
-      const capacityEndpoint = capacityEndpointForConnector(part.id, connector);
-      if (work) work.freePortCapacityChecks += 1;
-      if (!connectorCapacityIsFree(capacityEndpoint, occupied)) continue;
-      const key = positionKey(transformLduPoint(part.transform, connector.positionLdu));
-      const orientation = getUprightOrientation(part.transform.orientationId);
-      const normal = rotateLduVector(orientation.matrix, connector.normal);
-      // Two free ports of the same kind at one point means the assembly is
-      // already invalid there; keep the first so enumeration stays a pure
-      // function of the document rather than of iteration order.
-      if (!index.has(key)) {
-        index.set(key, { ...capacityEndpoint, kind: connector.kind, normal });
-      }
-    }
-  }
-  return index;
-}
-
-interface RotatedPorts {
-  readonly clutches: readonly RotatedPort[];
-  readonly studs: readonly RotatedPort[];
-}
-
-interface RotatedPort extends ConnectorCapacityEndpoint {
-  readonly kind: "stud" | "undersideClutch";
-  readonly normal: LduVector3;
-  readonly offset: LduVector3;
-}
-
-/** Local port offsets once an orientation is applied, with no translation. */
-function rotatedPorts(
-  definition: PartDefinition,
-  orientationId: string,
-  kind: "stud" | "undersideClutch",
-): readonly RotatedPort[] {
-  const rotation: RigidTransform = { positionLdu: [0, 0, 0], orientationId };
-  const orientation = getUprightOrientation(orientationId);
-  return definition.connectors
-    .filter((connector) => connector.kind === kind)
-    .map((connector) => ({
-      ...capacityEndpointForConnector("enumeration-candidate", connector),
-      kind,
-      normal: rotateLduVector(orientation.matrix, connector.normal),
-      offset: transformLduPoint(rotation, connector.positionLdu),
-    }));
-}
-
 function compareCandidates(left: PlacementCandidate, right: PlacementCandidate): number {
   const leftPosition = left.transform.positionLdu;
   const rightPosition = right.transform.positionLdu;
@@ -238,12 +176,14 @@ function compareCandidates(left: PlacementCandidate, right: PlacementCandidate):
 }
 
 function connectionEdgesFor(
+  parts: readonly PartInstance[],
+  candidateCatalogPartId: string,
   candidateId: string,
   connections: readonly DiscoveredConnection[],
 ): ConnectionEdge[] {
   return connections.map((connection, index) => ({
     id: `enumeration-edge-${index}`,
-    kind: "stud-tube",
+    kind: protocolConnectionKindForDiscoveredConnection(parts, candidateCatalogPartId, connection),
     a: { partId: connection.targetPartId, portId: connection.targetPortId },
     b: { partId: candidateId, portId: connection.candidatePortId },
     provenance: { source: "manual" },
@@ -254,15 +194,103 @@ export interface PlacementEnumeration {
   readonly schemaVersion: typeof PLACEMENT_ENUMERATION_VERSION;
   readonly catalogPartId: string;
   readonly orientationIds: readonly string[];
+  /** Complete taxonomy-pair seed arithmetic, independent of accepted candidates. */
+  readonly connectorSeedReceipt: readonly PlacementConnectorSeedReceipt[];
   readonly candidates: readonly PlacementCandidate[];
   readonly counts: PlacementEnumerationCounts;
 }
 
-export function enumeratePlacements(
+export interface PlacementTransformDiagnosis {
+  readonly originSeeded: boolean;
+  readonly connections: readonly DiscoveredConnection[];
+  readonly restsOnBuildPlate: boolean;
+  readonly belowBuildPlate: boolean;
+  readonly collisionFindings: readonly {
+    readonly code: string;
+    readonly partIds: readonly string[];
+    readonly message: string;
+  }[];
+  readonly unconnectedCollisionFindings: readonly {
+    readonly code: string;
+    readonly partIds: readonly string[];
+    readonly message: string;
+  }[];
+}
+
+/** Exact rejection evidence for one transform, using the same indexes and collision world. */
+export function diagnosePlacementTransform(
   document: BrickDocumentV1,
   catalogPartId: string,
-  options: PlacementEnumerationOptions = {},
+  transform: RigidTransform,
+): PlacementTransformDiagnosis {
+  const definition = getPartDefinition(catalogPartId);
+  if (definition === undefined) {
+    throw new PlacementEnumerationError(
+      `Cannot diagnose placement for unknown catalog part ${catalogPartId}; it is absent from the pinned catalog`,
+    );
+  }
+  if (!definition.legalOrientationIds.includes(transform.orientationId)) {
+    throw new PlacementEnumerationError(
+      `Cannot diagnose illegal orientation ${transform.orientationId} for ${catalogPartId}.`,
+    );
+  }
+  const occupied = occupiedConnectorCapacityClaims(document.parts, document.connections);
+  const indexes = createPlacementConnectorIndexes(document.parts, occupied, definition, [
+    transform.orientationId,
+  ]);
+  let originSeeded = false;
+  enumerateConnectorOrigins(indexes, [transform.orientationId], (origin, orientationId) => {
+    if (
+      orientationId === transform.orientationId &&
+      origin.every((coordinate, axis) => coordinate === transform.positionLdu[axis])
+    ) {
+      originSeeded = true;
+    }
+  });
+  const candidateId = "enumeration-candidate";
+  const candidate: PartInstance = {
+    id: candidateId,
+    catalogPartId,
+    colorId: definition.availableColorIds[0]!,
+    transform,
+    submodelId: document.submodels[0]?.id ?? "root",
+    stepId: document.steps[0]?.id ?? "step-1",
+    semanticTags: [],
+    provenance: { source: "manual" },
+  };
+  const connections = discoverIndexedConnections(indexes, transform, candidateId);
+  const bounds = bodyBoundsLdu(candidate);
+  const supportedByBuildPlate = restsOnBuildPlate(candidate);
+  const collisionWorld = createCollisionWorld(document.parts);
+  const collisionFindings = collisionWorld.findCollisionsWith(
+    candidate,
+    connectionEdgesFor(document.parts, catalogPartId, candidateId, connections),
+  );
+  const unconnectedCollisionFindings =
+    connections.length === 0 ? collisionFindings : collisionWorld.findCollisionsWith(candidate, []);
+  const boundedFinding = ({ code, partIds, message }: (typeof collisionFindings)[number]) => ({
+    code,
+    partIds,
+    message,
+  });
+  return {
+    originSeeded,
+    connections,
+    restsOnBuildPlate: supportedByBuildPlate,
+    belowBuildPlate: bounds.max[1] > GROUND_UNDERSIDE_LDU,
+    collisionFindings: collisionFindings.map(boundedFinding),
+    unconnectedCollisionFindings: unconnectedCollisionFindings.map(boundedFinding),
+  };
+}
+
+function enumeratePlacementsInPreparedWorldInternal(
+  prepared: PreparedPlacementEnumerationWorld,
+  catalogPartId: string,
+  options: PlacementEnumerationOptions,
+  work?: MutablePlacementEnumerationWork,
 ): PlacementEnumeration {
+  const state = requirePreparedPlacementEnumerationState(prepared);
+  const { document } = state;
   const definition = getPartDefinition(catalogPartId);
   if (!definition) {
     throw new PlacementEnumerationError(
@@ -278,77 +306,47 @@ export function enumeratePlacements(
     }
   }
   const maxDistinctTransforms = options.maxDistinctTransforms ?? DEFAULT_MAX_DISTINCT_TRANSFORMS;
-  const work = options.observeWork ? emptyPlacementEnumerationWork() : undefined;
 
   if (work) work.occupiedCapacitySeedEdges = document.connections.length;
-  const occupied = occupiedConnectorCapacityClaims(document.parts, document.connections);
-  if (work) work.occupiedCapacityClaims = occupied.size;
-  const freeStuds = indexFreePorts(document.parts, occupied, "stud", work);
-  const freeClutches = indexFreePorts(document.parts, occupied, "undersideClutch", work);
-  // Built once for the whole enumeration. Rebuilding the neighbourhood per
-  // candidate is what made this quadratic in assembly size.
-  const world = createCollisionWorld(
+  if (work) work.occupiedCapacityClaims = state.occupiedCapacityClaims.size;
+  const connectorIndexes = createPlacementConnectorIndexes(
     document.parts,
-    work
-      ? (delta) => {
-          for (const key of COLLISION_WORLD_WORK_KEYS) work[key] += delta[key];
-        }
-      : undefined,
+    state.occupiedCapacityClaims,
+    definition,
+    orientationIds,
+    work,
+    (kind, indexWork) => preparedFreePortIndex(state, kind, indexWork),
   );
-  const portsByOrientation = new Map(
-    orientationIds.map((orientationId) => [
-      orientationId,
-      {
-        clutches: rotatedPorts(definition, orientationId, "undersideClutch"),
-        studs: rotatedPorts(definition, orientationId, "stud"),
-      },
-    ]),
-  );
-
+  const freeStuds = connectorIndexes.freeByKind.get("stud")!;
+  const freeClutches = connectorIndexes.freeByKind.get("undersideClutch")!;
+  const world = preparedCollisionWorld(state, work);
   const origins = new Map<string, { origin: LduVector3; orientationId: string }>();
-  let rawFromStuds = 0;
-  let rawFromClutches = 0;
   let rawFromBuildPlate = 0;
-  const remember = (origin: LduVector3, orientationId: string): void => {
+  let rawProgress = { rawFromStuds: 0, rawFromClutches: 0, rawFromOtherConnectorPairs: 0 };
+  const remember = (origin: LduVector3, orientationId: string, progress = rawProgress): void => {
+    rawProgress = progress;
     if (work) work.originProposals += 1;
-    const key = `${positionKey(origin)}|${orientationId}`;
+    const key = `${origin.join(",")}|${orientationId}`;
     if (!origins.has(key)) origins.set(key, { origin, orientationId });
     if (origins.size > maxDistinctTransforms) {
+      const otherSeeds = rawProgress.rawFromOtherConnectorPairs;
+      const otherClause =
+        otherSeeds === 0 ? "" : `, ${otherSeeds} other taxonomy-compatible connector seeds`;
       throw new PlacementEnumerationError(
         `Enumerating ${catalogPartId} over ${document.parts.length} parts passed the ${maxDistinctTransforms} distinct-transform bound ` +
-          `after considering ${rawFromStuds} axis-compatible stud seeds, ${rawFromClutches} axis-compatible clutch seeds, and ${rawFromBuildPlate} build-plate seeds ` +
+          `after considering ${rawProgress.rawFromStuds} axis-compatible stud seeds, ${rawProgress.rawFromClutches} axis-compatible clutch seeds${otherClause}, and ${rawFromBuildPlate} build-plate seeds ` +
           `(${freeStuds.size} total free studs and ${freeClutches.size} total free clutches across ${orientationIds.length} orientations). ` +
           `Nothing was truncated — a silently capped count would read as a tractable step that is not one. ` +
           `Raise maxDistinctTransforms deliberately, narrow orientationIds, or prune the assembly before enumerating.`,
       );
     }
   };
-
-  for (const orientationId of orientationIds) {
-    const ports = portsByOrientation.get(orientationId)!;
-    // The candidate goes on top: its clutches land on free studs.
-    for (const [studPosition, stud] of freeStuds) {
-      const [x, y, z] = studPosition.split(",").map(Number) as [number, number, number];
-      for (const clutch of ports.clutches) {
-        if (work) work.seedAxisChecks += 1;
-        if (!connectorAxesAlign(stud, clutch)) continue;
-        rawFromStuds += 1;
-        remember([x - clutch.offset[0], y - clutch.offset[1], z - clutch.offset[2]], orientationId);
-      }
-    }
-    // The candidate goes underneath: its studs land on free clutches. The two
-    // sets are disjoint in general — a seat under the assembly is not a seat on
-    // it — so this is reachability, not a duplicate spelling of the loop above.
-    for (const [clutchPosition, clutch] of freeClutches) {
-      const [x, y, z] = clutchPosition.split(",").map(Number) as [number, number, number];
-      for (const stud of ports.studs) {
-        if (work) work.seedAxisChecks += 1;
-        if (!connectorAxesAlign(clutch, stud)) continue;
-        rawFromClutches += 1;
-        remember([x - stud.offset[0], y - stud.offset[1], z - stud.offset[2]], orientationId);
-      }
-    }
-  }
+  const connectorOriginCounts = enumerateConnectorOrigins(
+    connectorIndexes,
+    orientationIds,
+    remember,
+    work,
+  );
 
   if (options.includeBuildPlate ?? document.parts.length === 0) {
     for (const orientationId of orientationIds) {
@@ -383,21 +381,13 @@ export function enumeratePlacements(
       semanticTags: [],
       provenance: { source: "manual" },
     };
-    const ports = portsByOrientation.get(orientationId)!;
     const box = bodyBoundsLdu(candidate);
-    const connections = discoverConnections(
-      ports,
-      transform,
-      candidateId,
-      freeStuds,
-      freeClutches,
-      work,
-    );
-    const restsOnBuildPlate = box.max[1] === GROUND_UNDERSIDE_LDU;
+    const connections = discoverIndexedConnections(connectorIndexes, transform, candidateId, work);
+    const supportedByBuildPlate = restsOnBuildPlate(candidate);
     if (connections.length === 0) {
-      if (!restsOnBuildPlate) rejectedUnsupported += 1;
+      if (!supportedByBuildPlate) rejectedUnsupported += 1;
       else if (!allowDetached) rejectedDetached += 1;
-      if (!restsOnBuildPlate || !allowDetached) continue;
+      if (!supportedByBuildPlate || !allowDetached) continue;
     }
     // Seeding from free clutches reaches under the assembly, and under the
     // assembly is sometimes under the build plate: a part whose studs enter the
@@ -413,14 +403,19 @@ export function enumeratePlacements(
 
     const findings = world.findCollisionsWith(
       candidate,
-      connectionEdgesFor(candidateId, connections),
+      connectionEdgesFor(document.parts, catalogPartId, candidateId, connections),
     );
     if (findings.length > 0) {
       rejectedColliding += 1;
       continue;
     }
 
-    candidates.push({ catalogPartId, transform, connections, restsOnBuildPlate });
+    candidates.push({
+      catalogPartId,
+      transform,
+      connections,
+      restsOnBuildPlate: supportedByBuildPlate,
+    });
   }
 
   candidates.sort((left, right) => {
@@ -432,12 +427,13 @@ export function enumeratePlacements(
     schemaVersion: PLACEMENT_ENUMERATION_VERSION,
     catalogPartId,
     orientationIds,
+    connectorSeedReceipt: connectorOriginCounts.seedReceipt,
     candidates,
     counts: {
       freeStuds: freeStuds.size,
       freeClutches: freeClutches.size,
-      rawFromStuds,
-      rawFromClutches,
+      rawFromStuds: connectorOriginCounts.rawFromStuds,
+      rawFromClutches: connectorOriginCounts.rawFromClutches,
       rawFromBuildPlate,
       distinctTransforms: origins.size,
       rejectedUnsupported,
@@ -449,50 +445,30 @@ export function enumeratePlacements(
   };
 }
 
-/**
- * The same pairs `findStudConnections` finds, by lattice lookup instead of a
- * scan over every part. Kept in that function's sort order so a candidate can
- * be handed straight to the placement command path.
- */
-function discoverConnections(
-  ports: RotatedPorts,
-  transform: RigidTransform,
-  candidateId: string,
-  freeStuds: ReadonlyMap<string, PortIndexEntry>,
-  freeClutches: ReadonlyMap<string, PortIndexEntry>,
-  work?: MutablePlacementEnumerationWork,
-): readonly DiscoveredConnection[] {
-  const discovered: DiscoveredConnection[] = [];
-  const reservedCapacityClaims = new Set<string>();
-
-  for (const [offsets, index] of [
-    [ports.clutches, freeStuds],
-    [ports.studs, freeClutches],
-  ] as const) {
-    for (const port of offsets) {
-      if (work) work.connectorPortLookups += 1;
-      const world: LduVector3 = [
-        port.offset[0] + transform.positionLdu[0],
-        port.offset[1] + transform.positionLdu[1],
-        port.offset[2] + transform.positionLdu[2],
-      ];
-      const target = index.get(positionKey(world));
-      if (!target || target.partId === candidateId) continue;
-      if (!connectorAxesAlign(port, target)) continue;
-      if (!reserveConnectorCapacity([port, target], reservedCapacityClaims)) continue;
-      if (work) work.connectorDiscoveries += 1;
-      discovered.push({
-        targetPartId: target.partId,
-        targetPortId: target.portId,
-        candidatePortId: port.portId,
-      });
-    }
+export function enumeratePlacementsInPreparedWorld(
+  prepared: PreparedPlacementEnumerationWorld,
+  catalogPartId: string,
+  options: PlacementEnumerationOptions = {},
+): PlacementEnumeration {
+  if (options.observeWork !== undefined) {
+    throw new PlacementEnumerationError(
+      "enumeratePlacementsInPreparedWorld does not accept observeWork because reusable cache history would make accounting order-dependent; call fresh enumeratePlacements(document, ...) for deterministic work measurement.",
+    );
   }
+  const work = options.observeWork ? emptyPlacementEnumerationWork() : undefined;
+  return enumeratePlacementsInPreparedWorldInternal(prepared, catalogPartId, options, work);
+}
 
-  return discovered.sort(
-    (left, right) =>
-      left.targetPartId.localeCompare(right.targetPartId) ||
-      left.targetPortId.localeCompare(right.targetPortId) ||
-      left.candidatePortId.localeCompare(right.candidatePortId),
+export function enumeratePlacements(
+  document: BrickDocumentV1,
+  catalogPartId: string,
+  options: PlacementEnumerationOptions = {},
+): PlacementEnumeration {
+  const work = options.observeWork ? emptyPlacementEnumerationWork() : undefined;
+  return enumeratePlacementsInPreparedWorldInternal(
+    createPreparedPlacementEnumerationWorld(document, work),
+    catalogPartId,
+    options,
+    work,
   );
 }

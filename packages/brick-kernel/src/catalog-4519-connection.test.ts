@@ -45,7 +45,7 @@ describe("4519 connection semantics", () => {
         normal: [-1, 0, 0],
         profileId: "axle-cross/1",
         gender: "male",
-        compatibleKinds: ["axleHole", "pinHole"],
+        compatibleKinds: ["axleHole", "blindAxleHole", "pinHole"],
       },
       {
         id: "axle:1",
@@ -54,7 +54,7 @@ describe("4519 connection semantics", () => {
         normal: [1, 0, 0],
         profileId: "axle-cross/1",
         gender: "male",
-        compatibleKinds: ["axleHole", "pinHole"],
+        compatibleKinds: ["axleHole", "blindAxleHole", "pinHole"],
       },
       {
         id: "axle:2",
@@ -63,7 +63,7 @@ describe("4519 connection semantics", () => {
         normal: [1, 0, 0],
         profileId: "axle-cross/1",
         gender: "male",
-        compatibleKinds: ["axleHole", "pinHole"],
+        compatibleKinds: ["axleHole", "blindAxleHole", "pinHole"],
       },
     ]);
   });

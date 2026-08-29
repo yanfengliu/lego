@@ -215,8 +215,8 @@ function syntheticProperOrbits(groupCount: number): ReturnType<typeof currentCon
             connections: [
               {
                 targetPartId: partIds[0],
-                targetPortId: "stud:orbit",
-                candidatePortId: "undersideClutch:orbit",
+                targetPortId: "stud:0",
+                candidatePortId: "undersideClutch:0",
               },
             ],
             restsOnBuildPlate: false,
@@ -276,7 +276,7 @@ describe("step-one proper-C4 executable quotient", () => {
       "sha256:24e68a134cf86c181ede701c2f189d1f2816af4a83510e2a841f270249d5ce72",
     );
     expect(result.quotientDigest).toBe(
-      "sha256:5465db578166f8944e7ec0c0bc980b6ee18b87df5153c9959f9af7af9c87c00c",
+      "sha256:7b2c0080b8a09f9816ff2955bfe8d140a7c9a2c85d9e5c113595bb243197d88c",
     );
   });
 
@@ -338,7 +338,7 @@ describe("step-one proper-C4 executable quotient", () => {
       offer.connections[0]!.targetPortId += ":drift";
     });
     expect(() => inspectRealBuildStepOneProperC4Quotient(connectionDrift)).toThrow(
-      /q=0\/90\/180\/270/u,
+      /both exact catalog ports must exist/u,
     );
 
     const supportDrift = currentControl();

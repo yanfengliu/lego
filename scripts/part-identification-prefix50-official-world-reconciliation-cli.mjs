@@ -1,49 +1,78 @@
+import { basename } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { sha256Digest } from "./part-identification-artifact-source.mjs";
-import { writeContainedFile } from "./part-identification-io.mjs";
+import { publishContainedArtifactWithoutOverwrite } from "./part-identification-counterevidence-archive.mjs";
+import { reproduceCurrentPrefix50OfficialWorldReconciliation } from "./part-identification-prefix50-official-world-reconciliation-current.mjs";
 import {
-  reproduceCurrentPrefix50OfficialWorldReconciliation,
-  verifyCurrentPrefix50OfficialWorldReconciliation,
-} from "./part-identification-prefix50-official-world-reconciliation-current.mjs";
+  bytesFromVerifiedPrefix50OfficialWorldReconciliation,
+  inspectVerifiedPrefix50OfficialWorldReconciliation,
+  isVerifiedPrefix50OfficialWorldReconciliation,
+  verifyPrefix50OfficialWorldReconciliation,
+} from "./part-identification-prefix50-official-world-reconciliation.mjs";
 import {
   PREFIX50_OFFICIAL_WORLD_RECONCILIATION_MAX_ARTIFACT_BYTES,
   PREFIX50_OFFICIAL_WORLD_RECONCILIATION_OUTPUT_PATH,
-  PREFIX50_OFFICIAL_WORLD_RECONCILIATION_PINS,
 } from "./part-identification-prefix50-official-world-reconciliation-source.mjs";
 
-export async function runPrefix50OfficialWorldReconciliationCli() {
-  const reproduced = await reproduceCurrentPrefix50OfficialWorldReconciliation();
-  const digest = sha256Digest(reproduced.bytes);
-  const expected = PREFIX50_OFFICIAL_WORLD_RECONCILIATION_PINS.expectedArtifact;
-  if (expected === null) {
-    throw new TypeError("Official-world reconciliation generation has no reviewed artifact pin.");
-  }
-  if (reproduced.bytes.length !== expected.bytes || digest !== expected.digest) {
+const OUTPUT_ROOT = "output/real-build";
+const OUTPUT_FILE = basename(PREFIX50_OFFICIAL_WORLD_RECONCILIATION_OUTPUT_PATH);
+
+function publishVerifiedReconciliation(verified) {
+  if (!isVerifiedPrefix50OfficialWorldReconciliation(verified)) {
     throw new TypeError(
-      `Official-world reconciliation reproduced ${reproduced.bytes.length} bytes at ${digest}, not reviewed ${expected.bytes} bytes at ${expected.digest}; retained evidence was not overwritten.`,
+      "Official-world reconciliation publication requires its opaque in-memory verifier result.",
     );
   }
-  writeContainedFile(
-    "output/real-build",
-    "prefix50-official-world-reconciliation.json",
-    reproduced.bytes,
-    {
-      label: "Official-world reconciliation",
-      pathLabel: "Official-world reconciliation output path",
-      maxBytes: PREFIX50_OFFICIAL_WORLD_RECONCILIATION_MAX_ARTIFACT_BYTES,
-    },
+  return publishContainedArtifactWithoutOverwrite({
+    archiveNameStem: "prefix50-official-world-reconciliation",
+    currentFile: OUTPUT_FILE,
+    label: "Official-world reconciliation",
+    maxBytes: PREFIX50_OFFICIAL_WORLD_RECONCILIATION_MAX_ARTIFACT_BYTES,
+    nextBytes: bytesFromVerifiedPrefix50OfficialWorldReconciliation(verified),
+    outputRoot: OUTPUT_ROOT,
+  });
+}
+
+export async function runPrefix50OfficialWorldReconciliationCli(
+  argv = process.argv.slice(2),
+  context = {},
+) {
+  const stdout = context.stdout ?? console.log;
+  if (argv.length !== 0) {
+    throw new TypeError("Official-world reconciliation generation accepts no caller arguments.");
+  }
+  const reproduced = await reproduceCurrentPrefix50OfficialWorldReconciliation();
+  const verified = await verifyPrefix50OfficialWorldReconciliation({
+    ...reproduced.input,
+    artifactBytes: reproduced.bytes,
+  });
+  if (!isVerifiedPrefix50OfficialWorldReconciliation(verified)) {
+    throw new TypeError(
+      "Official-world reconciliation verifier did not return its opaque authority object; retained evidence was not touched.",
+    );
+  }
+  const verifiedBytes = bytesFromVerifiedPrefix50OfficialWorldReconciliation(verified);
+  if (!verifiedBytes.equals(reproduced.bytes)) {
+    throw new TypeError(
+      "Official-world reconciliation verifier bytes differ from the fresh reproduction; retained evidence was not touched.",
+    );
+  }
+  const inspection = inspectVerifiedPrefix50OfficialWorldReconciliation(verified);
+  const publication = publishVerifiedReconciliation(verified);
+  if (publication.state === "review-required") {
+    throw new TypeError(
+      `Official-world reconciliation retained differing current evidence at ${publication.currentPath}; verified replacement candidate is ${publication.candidate.path} at ${publication.digest}. Review and move the retained current file explicitly before rerunning; automation never overwrites an existing differing pathname.`,
+    );
+  }
+  stdout(
+    `${publication.state === "published-current" ? "wrote" : "verified"} ${PREFIX50_OFFICIAL_WORLD_RECONCILIATION_OUTPUT_PATH}: ${verifiedBytes.length} bytes at ${inspection.digest}`,
   );
-  await verifyCurrentPrefix50OfficialWorldReconciliation();
-  console.log(
-    `wrote ${PREFIX50_OFFICIAL_WORLD_RECONCILIATION_OUTPUT_PATH}: ${reproduced.bytes.length} bytes at ${digest}`,
-  );
-  console.log(
+  stdout(
     [
-      `rows ${reproduced.artifact.accounting.occurrenceRows}`,
-      `reconciled ${reproduced.artifact.accounting.reconciledRows}`,
-      `quarantined ${reproduced.artifact.accounting.quarantinedRows}`,
-      `first-eight components ${reproduced.artifact.firstEightConnectorTopology.components}`,
+      `rows ${inspection.artifact.accounting.occurrenceRows}`,
+      `reconciled ${inspection.artifact.accounting.reconciledRows}`,
+      `quarantined ${inspection.artifact.accounting.quarantinedRows}`,
+      `first-eight components ${inspection.artifact.firstEightConnectorTopology.components}`,
       "authority proposal-only",
     ].join(" | "),
   );

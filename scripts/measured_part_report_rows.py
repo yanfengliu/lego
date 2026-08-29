@@ -22,7 +22,7 @@ def build_measured_part_report_row(part: Any, catalog_id: str) -> dict[str, obje
         "studs": len(part.studs_ldu),
         "clutches": len(part.clutches_ldu),
         "sourceConnectors": len(part.source_connectors_ldu),
-        "sourceConnectorKinds": sorted({row[0] for row in part.source_connectors_ldu}),
+        "sourceConnectorKinds": sorted({row.kind for row in part.source_connectors_ldu}),
         "collisionBoxes": len(part.body_boxes_ldu) // 6,
         "meshTriangles": part.body_triangle_count + part.stud_triangle_count,
         "closureFileCount": len(part.closure),

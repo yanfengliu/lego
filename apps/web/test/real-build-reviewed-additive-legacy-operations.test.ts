@@ -2,14 +2,16 @@ import { PART_DEFINITIONS } from "@lego-studio/catalog";
 import {
   applyBuildOperations,
   canonicalDigest,
+  createPartInstance,
   documentStructuralHash,
   migrateDocumentTruth,
 } from "@lego-studio/brick-kernel";
-import type { BrickDocumentV1 } from "@lego-studio/protocol";
+import type { BrickDocumentV1, ConnectionEdge } from "@lego-studio/protocol";
 import { describe, expect, it } from "vitest";
 
 import { createPlacePartTransaction } from "../src/manual-commands";
 import { applyReviewedAdditiveLegacyBuildOperations } from "../e2e/real-build-reviewed-additive-legacy-operations";
+import { projectExactCurrentMigrationToFrozenV26 } from "../e2e/real-build-step7-gate3-parent-migration-contract";
 import {
   legacyThirteenDocument,
   mutateMaxParts,
@@ -20,15 +22,27 @@ import {
   type MigrationMutation,
 } from "./real-build-step7-gate3-parent-reconstruction.test-support";
 
-describe("reviewed additive legacy operation projection", () => {
+const VERSION_29_CONNECTOR_INTERPRETATION_CHANGE = {
+  fromCatalogVersion: "builtin.basic-parts/28",
+  toCatalogVersion: "builtin.basic-parts/29",
+  affectedCatalogPartIds: [
+    "builtin:plate-1x2-round-end",
+    "builtin:wedge-plate-2x4-wing",
+    "builtin:corner-plate-3x3",
+    "builtin:plate-3x3-corner-round",
+  ],
+  changedFields: ["connector-semantics", "collision-semantics"],
+} as const;
+
+describe("reviewed frozen-/26 additive legacy operation projection", () => {
   it("uses active truth only transiently and restores the exact /13 source truth", () => {
     const source = legacyThirteenDocument();
     expect(migrateDocumentTruth(source).report).toMatchObject({
       migrated: true,
       fromCatalogVersion: "builtin.basic-parts/13",
-      toCatalogVersion: "builtin.basic-parts/28",
+      toCatalogVersion: "builtin.basic-parts/29",
       fromTruthHash: "sha256:de62fae6dbc8095dfd460983e5e845ddfac4bf9ec2ea1f99572bc46026941cb5",
-      toTruthHash: "sha256:643185fe21f0d0c77a7aada8b170395f11bb7da1079f97d5c0cd0a03d7464f1b",
+      toTruthHash: "sha256:54762419e4779c6c15566052062fcaa432cb45e3a13704b5af1563b4fa94e8eb",
       addedCatalogPartIds: [
         "builtin:tile-1x1-quarter-round",
         "builtin:bracket-1x2-1x4-rounded-bottom",
@@ -49,8 +63,10 @@ describe("reviewed additive legacy operation projection", () => {
         "builtin:curved-slope-1x1-outside-bow",
         "builtin:brick-1x2x2-without-understud",
         "builtin:brick-1x1x5-solid-stud",
+        "builtin:bracket-1x2-1x4-rounded-corners",
+        "builtin:brick-1x2x2-inside-axle-holder",
       ],
-      catalogInterpretationChanges: [],
+      catalogInterpretationChanges: [VERSION_29_CONNECTOR_INTERPRETATION_CHANGE],
       blockingReasons: [],
     });
     const transaction = createPlacePartTransaction(source, {
@@ -74,7 +90,7 @@ describe("reviewed additive legacy operation projection", () => {
         },
         applyBuildOperations: (document, operations) => {
           events.push(`apply:${document.truth.catalog.version}`);
-          if (document.truth.catalog.version !== "builtin.basic-parts/28") {
+          if (document.truth.catalog.version !== "builtin.basic-parts/29") {
             throw new TypeError("test sentinel saw current operations receive historical truth");
           }
           return applyBuildOperations(
@@ -87,7 +103,7 @@ describe("reviewed additive legacy operation projection", () => {
 
     expect(events).toEqual([
       "migrate:builtin.basic-parts/13",
-      "apply:builtin.basic-parts/28",
+      "apply:builtin.basic-parts/29",
       "migrate:builtin.basic-parts/13",
     ]);
     expect(reconstructed.truth).toEqual(source.truth);
@@ -122,6 +138,58 @@ describe("reviewed additive legacy operation projection", () => {
     );
   });
 
+  it("permits an unconnected changed /13 part but refuses its changed endpoint", () => {
+    const source = legacyThirteenDocument();
+    const changed = createPartInstance({
+      id: "changed-profile-part",
+      catalogPartId: "builtin:plate-1x2-round-end",
+    });
+    const receiver = createPartInstance({
+      id: "receiver",
+      catalogPartId: "builtin:plate-1x1",
+    });
+    const partIds = [changed.id, receiver.id];
+    const unconnected: BrickDocumentV1 = {
+      ...source,
+      parts: [changed, receiver],
+      submodels: [{ ...source.submodels[0]!, partIds: [...partIds] }],
+      steps: [{ ...source.steps[0]!, partIds: [...partIds] }],
+    };
+
+    const allowed = migrateDocumentTruth(unconnected);
+    expect(allowed.report.migrated).toBe(true);
+    expect(allowed.report.blockingReasons).toEqual([]);
+    expect(allowed.report.catalogInterpretationChanges).toEqual([
+      VERSION_29_CONNECTOR_INTERPRETATION_CHANGE,
+    ]);
+    const projected = projectExactCurrentMigrationToFrozenV26(unconnected, allowed);
+    expect(projected.document.truth.catalog.version).toBe("builtin.basic-parts/26");
+    expect(projected.report.catalogInterpretationChanges).toEqual([]);
+    expect(projected.document.parts).toEqual(unconnected.parts);
+
+    const changedEdge: ConnectionEdge = {
+      id: "changed-profile-edge",
+      kind: "stud-tube",
+      a: { partId: changed.id, portId: "stud:0" },
+      b: { partId: receiver.id, portId: "undersideClutch:0:0" },
+      provenance: { source: "manual" },
+    };
+    const connected: BrickDocumentV1 = {
+      ...unconnected,
+      connections: [changedEdge],
+    };
+
+    const refused = migrateDocumentTruth(connected);
+    expect(refused.document).toBe(connected);
+    expect(refused.report.migrated).toBe(false);
+    expect(refused.report.blockingReasons).toEqual([
+      "Connection changed-profile-edge endpoint changed-profile-part/stud:0 changed after reviewed source truth sha256:de62fae6dbc8095dfd460983e5e845ddfac4bf9ec2ea1f99572bc46026941cb5; migration cannot preserve its connector semantics",
+    ]);
+    expect(() => projectExactCurrentMigrationToFrozenV26(connected, refused)).toThrow(
+      /exact reviewed \/13 to \/29 runtime migration bridge/u,
+    );
+  });
+
   it("refuses runtime migration drift before projecting the frozen /26 boundary", () => {
     const source = legacyThirteenDocument();
     const exact = migrateDocumentTruth(source);
@@ -133,11 +201,37 @@ describe("reviewed additive legacy operation projection", () => {
         migrateDocumentTruth: () => driftedReport,
         applyBuildOperations: (document) => document,
       }),
-    ).toThrow(/exact reviewed \/13 to \/28 runtime migration bridge/u);
+    ).toThrow(/exact reviewed \/13 to \/29 runtime migration bridge/u);
+
+    const exactRows = exact.report.catalogInterpretationChanges;
+    const exactRow = exactRows[0]!;
+    const interpretationAttacks = [
+      [],
+      [structuredClone(exactRow), structuredClone(exactRow)],
+      [
+        {
+          ...exactRow,
+          affectedCatalogPartIds: [...exactRow.affectedCatalogPartIds].reverse(),
+        },
+      ],
+      [{ ...exactRow, changedFields: ["connector-semantics"] }],
+    ];
+    for (const catalogInterpretationChanges of interpretationAttacks) {
+      const driftedInterpretation = structuredClone(exact);
+      Object.assign(driftedInterpretation.report, { catalogInterpretationChanges });
+      expect(() =>
+        applyReviewedAdditiveLegacyBuildOperations(source, [], {
+          truthDigest: canonicalDigest,
+          migrateDocumentTruth: () => driftedInterpretation,
+          applyBuildOperations: (document) => document,
+        }),
+      ).toThrow(/exact reviewed \/13 to \/29 runtime migration bridge/u);
+    }
 
     for (const missingId of [
       "builtin:tile-1x2-chamfered-indented",
       "builtin:brick-1x2x2-without-understud",
+      "builtin:bracket-1x2-1x4-rounded-corners",
     ]) {
       const missingRuntimeRow = {
         ...structuredClone(exact),
@@ -157,7 +251,7 @@ describe("reviewed additive legacy operation projection", () => {
           migrateDocumentTruth: () => missingRuntimeRow,
           applyBuildOperations: (document) => document,
         }),
-      ).toThrow(/all six exact additive \/27 and \/28 runtime rows/u);
+      ).toThrow(/all eight exact additive \/27 through \/29 runtime rows/u);
     }
   });
 });

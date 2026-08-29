@@ -57,7 +57,7 @@ export async function runAndVerifyRealBuildStepOneProperC4BrowserIntegration(inp
     "sha256:24e68a134cf86c181ede701c2f189d1f2816af4a83510e2a841f270249d5ce72",
   );
   expect(c4.quotientDigest).toBe(
-    "sha256:5465db578166f8944e7ec0c0bc980b6ee18b87df5153c9959f9af7af9c87c00c",
+    "sha256:7b2c0080b8a09f9816ff2955bfe8d140a7c9a2c85d9e5c113595bb243197d88c",
   );
   expect(c4.equivariance).toMatchObject({
     exactParity: true,

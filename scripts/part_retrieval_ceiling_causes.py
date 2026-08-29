@@ -20,6 +20,7 @@ it was not, and each answer is a different repair, so they are measured apart:
 
 from __future__ import annotations
 
+
 import collections
 import math
 
@@ -243,7 +244,7 @@ def elimination_and_colour_blocks(union, clusters, resolution, held_of, displaye
             "one-element-per-cluster assignment: if no displayed element holds enough "
             "pieces to supply the cluster, no single answer on that card can be right "
             "for all of it. It is NOT a per-drawing filter - see "
-            "capacityWouldEliminateTheTruthFor. Exact demand is a prior, not a proof, "
+            f"{"capacityWouldEliminateTheTruthFor"}. Exact demand is a prior, not a proof, "
             "and is reported only for comparison."
         ),
         "shortlistsEmptiedByCapacity": len(emptied_capacity),

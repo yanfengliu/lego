@@ -12,6 +12,7 @@ import { normalizeBrickDocument } from "./document.ts";
 import { createBuiltinTruthSnapshot } from "./factory.ts";
 import { getReviewedHistoricalCatalogRoster } from "./historical-catalog-rosters.ts";
 import { historicalConnectionSemanticsBlockingReasons } from "./historical-connection-semantics.ts";
+import { historicalTransformPolicyBlockingReasons } from "./historical-transform-policies.ts";
 
 /**
  * Catalog versions this kernel knows how to carry forward. A version outside
@@ -46,6 +47,7 @@ export const MIGRATABLE_CATALOG_VERSIONS: readonly string[] = Object.freeze([
   "builtin.basic-parts/25",
   "builtin.basic-parts/26",
   "builtin.basic-parts/27",
+  "builtin.basic-parts/28",
   BUILTIN_CATALOG_VERSION,
 ]);
 
@@ -132,10 +134,11 @@ export const REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS = Object.freeze([
     sourceCommit: "108d5b3cc873a90eddce34a1d0e1688c0dce6f16",
     truthHash: "sha256:79cca11d5dbee2dd620b20a6cba7815235fefd53bd2f6b3d003586c8d5a1c635",
   },
-  // The snapshot /11 replaced. /11 adds three measured modes to the eight parts
-  // that draw a bundled mesh and changes nothing else — no part, no connector,
-  // no collision primitive — so a document saved against /10 carries forward
-  // and its parts hash differently only because provenance names the version.
+  // The snapshot /11 replaced. /11 adds three measured construction modes to
+  // the eight parts that draw a bundled mesh. Their triangles, connectors and
+  // collision primitives stay fixed, but the declarations change part-standard
+  // classification, so a /10 document carries forward with that reinterpretation
+  // named explicitly rather than dismissed as provenance-only rehashing.
   {
     catalogVersion: "builtin.basic-parts/10",
     sourceCommit: "081bd53edccf4c0c62691660c94eed5c723dc152",
@@ -301,6 +304,15 @@ export const REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS = Object.freeze([
     sourceCommit: "8a947a9acedd090c6215d547d631a13d6ce747e0",
     truthHash: "sha256:614c61787b6c45d645e3e84c71dd931a15c258535a1959ee4b3aa1906303b70f",
   },
+  // The snapshot /29 replaces. /29 appends exact 10201 and 3245b measured
+  // definitions while preserving both /28 suffixed identities. Four existing
+  // measured definitions gain a reviewed connection-stud profile and two
+  // Technic bricks gain reviewed through-bore collision relief.
+  {
+    catalogVersion: "builtin.basic-parts/28",
+    sourceCommit: "aad79008cd820f3f0cfbec98ae508c0352d65fc9",
+    truthHash: "sha256:643185fe21f0d0c77a7aada8b170395f11bb7da1079f97d5c0cd0a03d7464f1b",
+  },
 ] as const);
 
 const MIGRATABLE_TRUTH_HASHES: ReadonlySet<string> = new Set(
@@ -317,14 +329,132 @@ export interface TruthComponentChange {
 export interface CatalogInterpretationChange {
   readonly fromCatalogVersion: string;
   readonly toCatalogVersion: string;
+  /** Exact predecessor truths when a reinterpretation happened without a catalog-version bump. */
+  readonly fromTruthHashes?: readonly string[];
   readonly affectedCatalogPartIds: readonly string[];
   readonly changedFields: readonly (
-    "render-geometry" | "surface-normals" | "body-bounds" | "visual-bounds"
+    | "render-geometry"
+    | "surface-normals"
+    | "body-bounds"
+    | "visual-bounds"
+    | "construction-semantics"
+    | "connector-semantics"
+    | "collision-semantics"
   )[];
 }
 
 export const REVIEWED_CATALOG_INTERPRETATION_CHANGES: readonly CatalogInterpretationChange[] =
   Object.freeze([
+    {
+      fromCatalogVersion: "builtin.basic-parts/4",
+      toCatalogVersion: "builtin.basic-parts/4",
+      fromTruthHashes: ["sha256:f48bb1cae251f592923d94b4b992a55c06e74ea49b0f81be9ff4d416bb38e843"],
+      affectedCatalogPartIds: ["builtin:jumper-plate-1x3"],
+      changedFields: ["render-geometry", "connector-semantics", "collision-semantics"],
+    },
+    {
+      fromCatalogVersion: "builtin.basic-parts/4",
+      toCatalogVersion: "builtin.basic-parts/5",
+      affectedCatalogPartIds: ["builtin:axle-1x2"],
+      changedFields: ["connector-semantics"],
+    },
+    {
+      fromCatalogVersion: "builtin.basic-parts/5",
+      toCatalogVersion: "builtin.basic-parts/6",
+      affectedCatalogPartIds: [
+        "builtin:wedge-plate-2x4-left",
+        "builtin:wedge-plate-2x4-right",
+        "builtin:wedge-plate-2x3-left",
+        "builtin:wedge-plate-2x3-right",
+      ],
+      changedFields: ["connector-semantics", "collision-semantics"],
+    },
+    {
+      fromCatalogVersion: "builtin.basic-parts/8",
+      toCatalogVersion: "builtin.basic-parts/9",
+      affectedCatalogPartIds: ["builtin:plate-2x4"],
+      changedFields: ["render-geometry", "collision-semantics"],
+    },
+    {
+      fromCatalogVersion: "builtin.basic-parts/9",
+      toCatalogVersion: "builtin.basic-parts/10",
+      affectedCatalogPartIds: [
+        "builtin:brick-1x1",
+        "builtin:brick-1x2",
+        "builtin:brick-1x3",
+        "builtin:brick-1x4",
+        "builtin:brick-2x2",
+        "builtin:brick-2x3",
+        "builtin:brick-2x4",
+        "builtin:plate-1x1",
+        "builtin:plate-1x2",
+        "builtin:plate-1x3",
+        "builtin:plate-1x4",
+        "builtin:plate-2x2",
+        "builtin:plate-2x3",
+        "builtin:plate-2x4",
+        "builtin:brick-1x6",
+        "builtin:brick-1x8",
+        "builtin:brick-2x6",
+        "builtin:brick-2x8",
+        "builtin:plate-1x6",
+        "builtin:plate-1x8",
+        "builtin:plate-2x6",
+        "builtin:plate-2x8",
+        "builtin:plate-4x4",
+        "builtin:plate-4x6",
+        "builtin:plate-4x8",
+        "builtin:plate-6x6",
+        "builtin:tile-1x1",
+        "builtin:tile-1x2",
+        "builtin:tile-1x4",
+        "builtin:tile-1x6",
+        "builtin:tile-2x2",
+        "builtin:tile-2x4",
+        "builtin:plate-1x10",
+        "builtin:plate-1x12",
+        "builtin:plate-2x10",
+        "builtin:plate-2x12",
+        "builtin:plate-4x10",
+        "builtin:plate-4x12",
+        "builtin:plate-6x8",
+        "builtin:plate-6x10",
+        "builtin:plate-6x12",
+        "builtin:plate-6x16",
+        "builtin:plate-8x8",
+        "builtin:plate-8x16",
+        "builtin:brick-1x10",
+        "builtin:brick-1x12",
+        "builtin:brick-1x16",
+        "builtin:brick-2x10",
+        "builtin:tile-1x3",
+        "builtin:tile-1x8",
+        "builtin:tile-2x6",
+        "builtin:grille-tile-1x2",
+        "builtin:jumper-plate-1x2",
+        "builtin:jumper-plate-2x2",
+        "builtin:jumper-plate-1x3",
+        "builtin:technic-brick-1x2",
+        "builtin:corner-plate-2x2",
+        "builtin:plate-2x14",
+      ],
+      changedFields: ["render-geometry", "collision-semantics"],
+    },
+    {
+      fromCatalogVersion: "builtin.basic-parts/10",
+      toCatalogVersion: "builtin.basic-parts/11",
+      affectedCatalogPartIds: [
+        "builtin:tile-1x2-cut-right-45",
+        "builtin:plate-1x2-round-end",
+        "builtin:wedge-plate-2x4-wing",
+        "builtin:corner-plate-3x3",
+        "builtin:curved-slope-1x4-double",
+        "builtin:plate-3x3-corner-round",
+        "builtin:wedge-plate-3x3-cut-corner",
+        "builtin:corner-plate-2x2-round",
+      ],
+      changedFields: ["construction-semantics"],
+    },
     {
       fromCatalogVersion: "builtin.basic-parts/11",
       toCatalogVersion: "builtin.basic-parts/12",
@@ -417,6 +547,26 @@ export const REVIEWED_CATALOG_INTERPRETATION_CHANGES: readonly CatalogInterpreta
       ],
       changedFields: ["body-bounds", "visual-bounds"],
     },
+    {
+      fromCatalogVersion: "builtin.basic-parts/28",
+      toCatalogVersion: "builtin.basic-parts/29",
+      affectedCatalogPartIds: [
+        "builtin:plate-1x2-round-end",
+        "builtin:wedge-plate-2x4-wing",
+        "builtin:corner-plate-3x3",
+        "builtin:plate-3x3-corner-round",
+      ],
+      changedFields: ["connector-semantics", "collision-semantics"],
+    },
+    {
+      fromCatalogVersion: "builtin.basic-parts/28",
+      toCatalogVersion: "builtin.basic-parts/29",
+      affectedCatalogPartIds: [
+        "builtin:technic-brick-1x1-axle-hole",
+        "builtin:technic-brick-1x2-axle-hole",
+      ],
+      changedFields: ["connector-semantics", "collision-semantics"],
+    },
   ]);
 
 export interface TruthMigrationReport {
@@ -488,12 +638,14 @@ export function migrateDocumentTruth(document: BrickDocumentV1): {
   ];
   const sourceCatalogOrdinal = Number(fromCatalogVersion.split("/").at(-1));
   const targetCatalogOrdinal = Number(toCatalogVersion.split("/").at(-1));
+  const sourceRoster = getReviewedHistoricalCatalogRoster(fromTruthHash);
   const catalogInterpretationChanges = MIGRATABLE_CATALOG_VERSIONS.includes(fromCatalogVersion)
     ? REVIEWED_CATALOG_INTERPRETATION_CHANGES.filter(
-        ({ fromCatalogVersion: changeFrom, toCatalogVersion: changeTo }) => {
+        ({ fromCatalogVersion: changeFrom, toCatalogVersion: changeTo, fromTruthHashes }) => {
           const changeFromOrdinal = Number(changeFrom.split("/").at(-1));
           const changeToOrdinal = Number(changeTo.split("/").at(-1));
           return (
+            (fromTruthHashes === undefined || fromTruthHashes.includes(fromTruthHash)) &&
             Number.isInteger(sourceCatalogOrdinal) &&
             Number.isInteger(targetCatalogOrdinal) &&
             sourceCatalogOrdinal <= changeFromOrdinal &&
@@ -501,6 +653,13 @@ export function migrateDocumentTruth(document: BrickDocumentV1): {
           );
         },
       )
+        .map((change) => ({
+          ...change,
+          affectedCatalogPartIds: change.affectedCatalogPartIds.filter((partId) =>
+            sourceRoster?.catalogPartIds.includes(partId),
+          ),
+        }))
+        .filter(({ affectedCatalogPartIds }) => affectedCatalogPartIds.length > 0)
     : [];
   const base = {
     schemaVersion: "lego.truth-migration/2",
@@ -519,7 +678,6 @@ export function migrateDocumentTruth(document: BrickDocumentV1): {
   }
 
   const blockingReasons: string[] = [];
-  const sourceRoster = getReviewedHistoricalCatalogRoster(fromTruthHash);
   if (!MIGRATABLE_TRUTH_HASHES.has(fromTruthHash)) {
     blockingReasons.push(
       `Truth snapshot ${fromTruthHash} is not one of the reviewed historical builtin snapshots; unknown or cross-mixed truth cannot be reinterpreted as ${toTruthHash}`,
@@ -553,6 +711,7 @@ export function migrateDocumentTruth(document: BrickDocumentV1): {
   if (sourceRoster !== undefined && MIGRATABLE_TRUTH_HASHES.has(fromTruthHash)) {
     blockingReasons.push(
       ...historicalConnectionSemanticsBlockingReasons(document, fromTruthHash, toTruthHash),
+      ...historicalTransformPolicyBlockingReasons(document, fromTruthHash),
     );
   }
   if (sourceRoster !== undefined) {
@@ -578,50 +737,78 @@ export function migrateDocumentTruth(document: BrickDocumentV1): {
       label: "Catalog",
       source: document.truth.catalog,
       expected: expectedTruth.catalog,
-      versions: MIGRATABLE_CATALOG_VERSIONS,
+      sourceIdentities: [{ id: expectedTruth.catalog.id, versions: MIGRATABLE_CATALOG_VERSIONS }],
     },
     {
       label: "Connector taxonomy",
       source: document.truth.connectorTaxonomy,
       expected: expectedTruth.connectorTaxonomy,
-      versions: [expectedTruth.connectorTaxonomy.version],
+      sourceIdentities: [
+        {
+          id: expectedTruth.connectorTaxonomy.id,
+          versions: ["stud-tube/1", expectedTruth.connectorTaxonomy.version],
+        },
+      ],
     },
     {
       label: "Collision model",
       source: document.truth.collisionModel,
       expected: expectedTruth.collisionModel,
-      versions: [
-        "rectilinear-stud-clearance/1",
-        "rectilinear-stud-clearance/2",
-        expectedTruth.collisionModel.version,
+      sourceIdentities: [
+        {
+          id: expectedTruth.collisionModel.id,
+          versions: [
+            "rectilinear-stud-clearance/1",
+            "rectilinear-stud-clearance/2",
+            "rectilinear-stud-clearance/3",
+            expectedTruth.collisionModel.version,
+          ],
+        },
       ],
     },
     {
       label: "Transform policy",
       source: document.truth.transformPolicy,
       expected: expectedTruth.transformPolicy,
-      versions: [expectedTruth.transformPolicy.version],
+      sourceIdentities: [
+        {
+          id: "upright-quarter-turns-negative-y-up",
+          versions: ["upright-quarter-turns-negative-y-up/1"],
+        },
+        {
+          id: expectedTruth.transformPolicy.id,
+          versions: [expectedTruth.transformPolicy.version],
+        },
+      ],
     },
     {
       label: "Validator set",
       source: document.truth.validatorSet,
       expected: expectedTruth.validatorSet,
-      versions: [
-        "lego.kernel-validators/1",
-        "lego.kernel-validators/2",
-        "lego.kernel-validators/3",
-        expectedTruth.validatorSet.version,
+      sourceIdentities: [
+        {
+          id: expectedTruth.validatorSet.id,
+          versions: [
+            "lego.kernel-validators/1",
+            "lego.kernel-validators/2",
+            "lego.kernel-validators/3",
+            "lego.kernel-validators/4",
+            expectedTruth.validatorSet.version,
+          ],
+        },
       ],
     },
   ] as const;
-  for (const { label, source, expected, versions } of compatibleComponents) {
-    if (source.id !== expected.id) {
+  for (const { label, source, expected, sourceIdentities } of compatibleComponents) {
+    const sourceIdentity = sourceIdentities.find(({ id }) => id === source.id);
+    if (sourceIdentity === undefined) {
       blockingReasons.push(
         `${label} id ${source.id} cannot migrate to ${expected.id}; only the builtin truth component is supported`,
       );
       continue;
     }
-    if (!(versions as readonly string[]).includes(source.version)) {
+    const versions = sourceIdentity.versions as readonly string[];
+    if (!versions.includes(source.version)) {
       blockingReasons.push(
         `${label} version ${source.version} cannot migrate to ${expected.version}; known source versions are ${versions.join(", ")}`,
       );

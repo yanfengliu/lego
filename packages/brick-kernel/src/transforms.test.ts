@@ -116,7 +116,7 @@ describe("upright transform policy", () => {
     );
   });
 
-  it("executes a non-upright proper point and connector frame without widening attachment policy", () => {
+  it("executes proper frames while keeping attachment policy scoped by catalog part", () => {
     const orientationId = "proper-m-p0000p0n0";
     expect(getProperOrientation(orientationId).matrix).toEqual([1, 0, 0, 0, 0, 1, 0, -1, 0]);
     expect(() => getUprightOrientation(orientationId)).toThrow(/Unknown upright orientation/u);
@@ -134,7 +134,7 @@ describe("upright transform policy", () => {
         "undersideClutch:0:0",
         orientationId,
       ),
-    ).toThrow(/Unknown upright orientation/u);
+    ).toThrow(/is not legal for attached catalog part builtin:brick-1x1/u);
   });
 
   it("composes identity exactly on both sides without mutating either input", () => {

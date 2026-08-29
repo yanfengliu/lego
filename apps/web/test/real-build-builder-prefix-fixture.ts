@@ -25,17 +25,17 @@ export const PREFIX_INPUTS = {
   calibration: {
     path: "output/real-build/builder-canonical-calibration.json",
     bytes: 54_993,
-    digest: "sha256:40807a2329f43321c4af683096465de57f41be41299bbd5b7dea8354e28fe8e9",
+    digest: "sha256:69555bf4a0b7a7beaeb4f98b6d0e5750fa28b6946a957cdc5772633602636a70",
   },
   coverage: {
     path: "output/real-build/catalog-coverage.json",
     bytes: 588_467,
-    digest: "sha256:a12d5744f3f4417628e53227aaa4c35d9aee0eba5fdce7b865087e6f97dfbfad",
+    digest: "sha256:861d08a28dac94619e8c541e928d7803b4b6cab9fe9fa12da9f166fc0e46444d",
   },
   actionPreparation: {
     path: "output/real-build/action-preparation.json",
-    bytes: 317_116,
-    digest: "sha256:edd2096efe55e6e68385dc7f5b735222a9cdf01ae5625528dae2d1edde0fcbbc",
+    bytes: 317_152,
+    digest: "sha256:5fbab00b90c6ffbe6c9b09727819e0b3a964cebbd88138232bd2418df6100fb6",
   },
 } as const;
 

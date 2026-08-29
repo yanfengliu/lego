@@ -16,6 +16,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+
 from part_action_ledger_official_contract_test import (  # noqa: F401
     OfficialBrickContractTests,
 )
@@ -61,6 +62,7 @@ from part_retrieval_ceiling_report import (
     verified_rank_rows,
 )
 from part_retrieval_ceiling_report_inputs import load_verified_retrieval_inputs
+
 
 # The generation every live number below was measured against.
 PINNED = {
@@ -604,7 +606,8 @@ class PinnedGenerationTest(unittest.TestCase):
 
     def test_the_report_reproduces_the_published_distance_rows(self) -> None:
         self.assertLess(
-            self.report["reproduction"]["worstAbsoluteDeviationFromPublishedRows"], 1e-12
+            self.report["reproduction"]["worstAbsoluteDeviationFromPublishedRows"],
+            1e-12,
         )
         self.assertTrue(self.report["reproduction"]["candidatePrefixReproduced"])
 

@@ -25,6 +25,7 @@ from measured_part_tables import (
     MeasuredPart,
     RenderOnlyPart,
 )
+from measured_part_emit_check import enforce_generated_check
 from measured_part_emit_headers import GENERATED_HEADER, RENDER_ONLY_GENERATED_HEADER
 from measured_part_typescript_literals import (
     exact_bounds_lines as _exact_bounds_lines,
@@ -57,18 +58,6 @@ def canonical_typescript(repository: Path, target: Path, source: str) -> str:
         reason = result.stderr.strip() or f"exit {result.returncode}"
         raise SystemExit(f"Prettier could not canonicalize generated table {target}: {reason}.")
     return result.stdout
-
-
-def enforce_generated_check(drifted: Sequence[str]) -> None:
-    """Make check mode a real refusal rather than a report-only comparison."""
-
-    if not drifted:
-        return
-    raise SystemExit(
-        "Measured-part generated tables do not reproduce their canonical committed bytes: "
-        f"{', '.join(drifted)}. Run this command without --check against the same pinned "
-        "inputs, review the resulting diff, and commit the regenerated tables."
-    )
 
 
 def render_mesh_asset_chunk(
@@ -297,11 +286,35 @@ def render_blueprints(
             lines.append(f"    clutchSharedCapacityGroupIds: [{rows}],")
         if part.source_connectors_ldu:
             lines.append("    sourceConnectorsLdu: [")
-            for kind, position, normal in part.source_connectors_ldu:
+            for connector in part.source_connectors_ldu:
                 lines.append("      {")
-                lines.append(f"        kind: {_string(kind)},")
-                lines.append(f"        positionLdu: [{_numbers(position)}],")
-                lines.append(f"        normal: [{_numbers(normal)}],")
+                lines.append(f"        kind: {_string(connector.kind)},")
+                lines.append(f"        positionLdu: [{_numbers(connector.position_ldu)}],")
+                lines.append(f"        normal: [{_numbers(connector.normal)}],")
+                if connector.axial_span is not None:
+                    span = connector.axial_span
+                    lines.append("        axialSpan: {")
+                    lines.append(f"          schemaVersion: {_string(span.schema_version)},")
+                    lines.append(f"          openEndLdu: [{_numbers(span.open_end_ldu)}],")
+                    lines.append(f"          closedEndLdu: [{_numbers(span.closed_end_ldu)}],")
+                    lines.append(f"          depthLdu: {number_literal(span.depth_ldu)},")
+                    lines.append(f"          sliding: {str(span.sliding).lower()},")
+                    lines.append("        },")
+                if connector.through_bore_collision is not None:
+                    bore = connector.through_bore_collision
+                    lines.append("        throughBoreCollision: {")
+                    lines.append(f"          schemaVersion: {_string(bore.schema_version)},")
+                    lines.append(f"          sourceSection: {_string(bore.source_section)},")
+                    lines.append(f"          startLdu: [{_numbers(bore.start_ldu)}],")
+                    lines.append(f"          endLdu: [{_numbers(bore.end_ldu)}],")
+                    lines.append(f"          radiusLdu: {number_literal(bore.radius_ldu)},")
+                    lines.append(
+                        "          segmentLengthLdu: "
+                        f"{number_literal(bore.segment_length_ldu)},"
+                    )
+                    lines.append(f"          caps: {_string(bore.caps)},")
+                    lines.append(f"          sliding: {str(bore.sliding).lower()},")
+                    lines.append("        },")
                 lines.append("      },")
             lines.append("    ],")
         lines.append("    // prettier-ignore")

@@ -244,6 +244,7 @@ const ALL_SOURCE_NORMAL_MESH_PART_IDS = [
   "builtin:corner-plate-2x2-round",
   "builtin:tile-1x1-quarter-round",
   "builtin:bracket-1x2-1x4-rounded-bottom",
+  "builtin:bracket-1x2-1x4-rounded-corners",
   "builtin:tile-2x2-triangular",
   "builtin:roller-skate",
   "builtin:arch-1x6-thin-top",
@@ -260,6 +261,7 @@ const ALL_SOURCE_NORMAL_MESH_PART_IDS = [
   "builtin:slope-1x1-double-45",
   "builtin:curved-slope-1x1-outside-bow",
   "builtin:brick-1x2x2-without-understud",
+  "builtin:brick-1x2x2-inside-axle-holder",
   "builtin:brick-1x1x5-solid-stud",
 ] as const;
 

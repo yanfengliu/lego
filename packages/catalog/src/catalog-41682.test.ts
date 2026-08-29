@@ -108,8 +108,8 @@ describe("41682 vertical-stud bracket catalog truth", () => {
       bytes: 15_430,
       manifestSha256: "sha256:b16625dfbd49f9c365f06e4b088fd0e1a8e469e649e2b028041767b5f09a03e6",
     });
-    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(43);
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(228);
+    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(45);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(237);
   });
 
   it("uses only the pinned LDCad walk for four clutches and two side studs", () => {
@@ -192,10 +192,10 @@ describe("41682 vertical-stud bracket catalog truth", () => {
     expect(validateMeshPartDefinitionAdmission(part)).toEqual({ accepted: true, issues: [] });
   });
 
-  it("keeps every /18 part payload byte unchanged after restoring its truth label", () => {
+  it("pins the reviewed /29 projection of the /18 prefix under its historical truth label", () => {
     const priorParts = PART_DEFINITIONS.slice(0, 90);
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/28",
+      "builtin.basic-parts/29",
       "builtin.basic-parts/18",
     );
     const connectorCollision = priorParts.map(({ id, connectors, collision }) => ({
@@ -214,10 +214,10 @@ describe("41682 vertical-stud bracket catalog truth", () => {
         .digest("hex"),
       collisionHash: createHash("sha256").update(JSON.stringify(collision)).digest("hex"),
     }).toEqual({
-      definitionBytes: 1_531_931,
-      definitionHash: "45a5c361047d9452d0b804b3f622f0a31bbca6769b8a8b025605aeca84292ecf",
-      connectorCollisionHash: "a1b240f37d0feb137f3a0da723ac77ababdc9a6234c197772b8fc775fd7beeac",
-      collisionHash: "ad7c5f99116ffec02070685295386321da9b3dceb905f9235c1bcb882f3927ea",
+      definitionBytes: 1_533_186,
+      definitionHash: "9310a70d450a8acb8bbeec362a116b1a68298a811ac2a5465671db31ddc259e8",
+      connectorCollisionHash: "29ea249bf4022f43bff8be2d52e43f23236c1ff097f5067dce6914faf32501cc",
+      collisionHash: "800fffe4c1737c18fe6a4beb5dc5d5348f254eec9956f675b7c9b8b5f0fb741b",
     });
   });
 });

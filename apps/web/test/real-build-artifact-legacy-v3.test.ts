@@ -619,7 +619,7 @@ describe("legacy artifact-manifest /3 inspection", () => {
         /exact schema \/4/u,
       );
       expect(() => inspectLegacyRealBuildArtifactManifestV3(RETAINED_PRODUCTION_RUN)).toThrow(
-        /Replay role builder-geometry declares 1091772 bytes; its role-specific requirement is exactly 1814364\./u,
+        /Replay role builder-geometry declares 1091772 bytes; its role-specific requirement is exactly 1820412\./u,
       );
 
       const replayClosureBytes = readContainedBoundedRegularFile(

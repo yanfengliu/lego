@@ -224,7 +224,7 @@ function monotonicTimelineSemanticError(
   if (value.inspectionFinishedAtMonotonicMs < value.inspectionStartedAtMonotonicMs) {
     return semanticError(
       "/inspectionFinishedAtMonotonicMs",
-      `Exact-five broker inspectionFinishedAtMonotonicMs ${value.inspectionFinishedAtMonotonicMs} precedes inspectionStartedAtMonotonicMs ${value.inspectionStartedAtMonotonicMs}; inspection must finish at or after it starts.`,
+      `Exact-five broker ${"inspectionFinishedAtMonotonicMs"} ${value.inspectionFinishedAtMonotonicMs} precedes inspectionStartedAtMonotonicMs ${value.inspectionStartedAtMonotonicMs}; inspection must finish at or after it starts.`,
     );
   }
   const elapsedMs = value.inspectionFinishedAtMonotonicMs - value.issuedAtMonotonicMs;

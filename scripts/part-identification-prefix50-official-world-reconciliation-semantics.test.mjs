@@ -127,6 +127,7 @@ describe("prefix-50 official-world reconciliation semantics", () => {
       quarantineBasis: "exact-variant-unresolved",
       frameKey: null,
       catalogFrameEvidence: null,
+      catalogIdentityProof: null,
       frameApplied: false,
       identityEquivalenceClaimed: false,
       sourceWorldProposal: {
@@ -145,6 +146,7 @@ describe("prefix-50 official-world reconciliation semantics", () => {
       frameApplied: false,
       identityEquivalenceClaimed: false,
       sourceWorldProposal: row.sourceWorldProposal,
+      catalogIdentityProof: null,
       catalogWorldTransform: null,
       documentLegalityClaimed: false,
     });

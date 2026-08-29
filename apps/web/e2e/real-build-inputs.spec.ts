@@ -16,6 +16,10 @@ import {
   realBuildInputChainRecovery,
 } from "./real-build-input-chain";
 import {
+  parseRealBuildRegenerationTarget,
+  planRealBuildCoverageRegeneration,
+} from "./real-build-coverage-regeneration-plan";
+import {
   ACTION_LEDGER_PATH,
   BUILDER_CALIBRATION_PATH,
   BUILDER_GEOMETRY_PATH,
@@ -47,6 +51,9 @@ import { hasSampleBooklet } from "./sample-booklet";
 
 const REGENERATE = process.env.LEGO_REAL_BUILD_REGENERATE_INPUTS === "1";
 const REGENERATE_COVERAGE = process.env.LEGO_REAL_BUILD_REGENERATE_COVERAGE === "1";
+const REGENERATE_THROUGH = parseRealBuildRegenerationTarget(
+  process.env.LEGO_REAL_BUILD_REGENERATE_THROUGH,
+);
 
 function coverageMode(): {
   readonly source: string;
@@ -123,16 +130,11 @@ test("regenerates the catalog-derived real-build inputs in chain order", async (
   // Stage 2 — catalog coverage.
   if (REGENERATE_COVERAGE) {
     const mode = coverageMode();
-    const argv = [
-      "scripts/booklet-catalog-coverage.mjs",
-      "--source",
-      mode.source,
-      ...(mode.model === "" ? [] : ["--model", mode.model]),
-      "--assign",
-      mode.assign,
-      "--last-step",
-      String(requestedLastStep),
-    ];
+    const plan = planRealBuildCoverageRegeneration(
+      { source: mode.source, model: mode.model, assignment: mode.assign },
+      requestedLastStep,
+    );
+    const argv = [...plan.argv];
     const result = spawnSync(process.execPath, argv, { encoding: "utf8", cwd: process.cwd() });
     if (result.status !== 0) {
       throw new TypeError(
@@ -153,23 +155,33 @@ test("regenerates the catalog-derived real-build inputs in chain order", async (
   rebuilt.push(BUILDER_CALIBRATION_PATH);
 
   // Stage 4 — action ledger, which binds the digests of stages 2 and 3.
-  const compiled = await compileRealBuildActionLedger({ requestedLastStep });
-  requirePublishableRealBuildActionLedger(compiled);
-  writeContainedRegularFileAtomic(process.cwd(), ACTION_LEDGER_PATH, compiled.encoded, {
-    label: `Action ledger ${ACTION_LEDGER_PATH}`,
-    replace: true,
-  });
-  rebuilt.push(ACTION_LEDGER_PATH);
+  const compiled =
+    REGENERATE_THROUGH === "action-ledger"
+      ? await compileRealBuildActionLedger({ requestedLastStep })
+      : null;
+  if (compiled !== null) {
+    requirePublishableRealBuildActionLedger(compiled);
+    writeContainedRegularFileAtomic(process.cwd(), ACTION_LEDGER_PATH, compiled.encoded, {
+      label: `Action ledger ${ACTION_LEDGER_PATH}`,
+      replace: true,
+    });
+    rebuilt.push(ACTION_LEDGER_PATH);
+  }
 
-  expect(rebuilt).toContain(ACTION_LEDGER_PATH);
+  expect(rebuilt).toContain(
+    REGENERATE_THROUGH === "action-ledger" ? ACTION_LEDGER_PATH : BUILDER_CALIBRATION_PATH,
+  );
   process.stdout.write(
     `rebuilt in chain order: ${rebuilt.join(", ")}\n` +
       `  catalog ${calibration.designFrames[0]?.catalogVersion ?? "unknown"}; ` +
-      `ledger ${compiled.assembled.ledger.steps.length} of ${compiled.requestedLastStep} requested ` +
-      `steps in the ${compiled.expectedPrintedSteps}-step source/index contract, ` +
-      `${compiled.assembled.directPieceCount} direct pieces, ` +
-      `${compiled.validationFailures.length} remaining evidence failures through printed step ` +
-      `${compiled.validatedThroughStep}\n` +
+      (compiled === null
+        ? `stopped explicitly after calibration; ${ACTION_LEDGER_PATH} was left untouched because ` +
+          `the retained coverage mode may not carry action authority\n`
+        : `ledger ${compiled.assembled.ledger.steps.length} of ${compiled.requestedLastStep} requested ` +
+          `steps in the ${compiled.expectedPrintedSteps}-step source/index contract, ` +
+          `${compiled.assembled.directPieceCount} direct pieces, ` +
+          `${compiled.validationFailures.length} remaining evidence failures through printed step ` +
+          `${compiled.validatedThroughStep}\n`) +
       (REGENERATE_COVERAGE
         ? ""
         : `  ${COVERAGE_PATH} was NOT rebuilt; set LEGO_REAL_BUILD_REGENERATE_COVERAGE=1 to include it.\n`),

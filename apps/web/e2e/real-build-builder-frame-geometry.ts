@@ -1,4 +1,8 @@
-import { resolvePreloadedMeshAsset, UPRIGHT_ORIENTATIONS } from "@lego-studio/catalog";
+import {
+  PROPER_ORIENTATIONS,
+  resolvePreloadedMeshAsset,
+  UPRIGHT_ORIENTATIONS,
+} from "@lego-studio/catalog";
 import type { PartDefinition, ResolvedMeshAsset } from "@lego-studio/catalog";
 
 import type { LedgerTransform } from "./real-build-official";
@@ -344,9 +348,24 @@ export function isCatalogPartSelfSymmetry(
     );
   }
   const gridCenterPoint = [connectorGridCenter[0], 0, connectorGridCenter[1]] as Point;
-  const legalTurns = definition.legalOrientationIds
-    .map((id) => UPRIGHT_ORIENTATIONS.find(({ id: candidate }) => candidate === id)?.quarterTurns)
-    .filter((turn): turn is 0 | 1 | 2 | 3 => turn !== undefined)
+  const legalOrientations = definition.legalOrientationIds.map((id) => {
+    const orientation = PROPER_ORIENTATIONS.find(({ id: candidate }) => candidate === id);
+    if (orientation === undefined) {
+      throw new InconclusiveSymmetry(
+        `Catalog part ${definition.id} names legal orientation ${JSON.stringify(id)}, which is not ` +
+          `one of the ${PROPER_ORIENTATIONS.length} exact proper orientations.`,
+      );
+    }
+    return orientation;
+  });
+  // This registry compares only upright candidate frames. Preserve the exact
+  // upright placement-policy quotient, while leaving separately pinned
+  // non-upright permissions out of the physical source-frame symmetry proof.
+  const legalTurns = legalOrientations
+    .flatMap(({ id }) => {
+      const upright = UPRIGHT_ORIENTATIONS.find(({ id: candidate }) => candidate === id);
+      return upright === undefined ? [] : [upright.quarterTurns];
+    })
     .sort((left, right) => left - right);
   const residualTurn = orientationOf(transform.orientationId).quarterTurns;
   const movedLegalTurns = legalTurns
@@ -426,17 +445,41 @@ export function isCatalogPartSelfSymmetry(
             : applyUpright(mapped, allowance.centerLdu as Point),
       })),
     );
+  const throughAxleBoreAllowances = (mapped: LedgerTransform | null): string =>
+    sortedKeys(
+      (definition.collision.throughAxleBoreAllowances ?? []).map((allowance) => ({
+        schemaVersion: allowance.schemaVersion,
+        id: allowance.id,
+        portId: allowance.portId,
+        portKind: allowance.portKind,
+        incomingPortKind: allowance.incomingPortKind,
+        incomingPrimitiveTag: allowance.incomingPrimitiveTag,
+        profileId: allowance.profileId,
+        sourceSection: allowance.sourceSection,
+        endpointsLdu: [allowance.startLdu, allowance.endLdu]
+          .map((point) =>
+            mapped === null ? point : applyUpright(mapped, point as unknown as Point),
+          )
+          .map(key)
+          .sort(),
+        radiusLdu: allowance.radiusLdu,
+        segmentLengthLdu: allowance.segmentLengthLdu,
+        caps: allowance.caps,
+        sliding: allowance.sliding,
+        requiresValidatedConnection: allowance.requiresValidatedConnection,
+      })),
+    );
   return (
     connectors(null) === connectors(transform) &&
     sameBoxVolume(boxes(null), boxes(transform)) &&
     primitives(null) === primitives(transform) &&
     allowances(null) === allowances(transform) &&
+    throughAxleBoreAllowances(null) === throughAxleBoreAllowances(transform) &&
     boundsKey(null, definition.bodyBoundsLdu as { min: Point; max: Point }) ===
       boundsKey(transform, definition.bodyBoundsLdu as { min: Point; max: Point }) &&
     boundsKey(null, definition.boundsLdu as { min: Point; max: Point }) ===
       boundsKey(transform, definition.boundsLdu as { min: Point; max: Point }) &&
     key(gridCenterPoint) === key(applyUpright(transform, gridCenterPoint)) &&
-    legalTurns.length === definition.legalOrientationIds.length &&
     JSON.stringify(legalTurns) === JSON.stringify(movedLegalTurns) &&
     meshSymmetric
   );

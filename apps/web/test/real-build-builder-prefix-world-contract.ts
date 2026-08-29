@@ -205,7 +205,7 @@ export async function assertExactPrefixWorldCensus(input: {
     {
       requestedRows: 320,
       localFrameRows: 197,
-      authorableUprightRows: 182,
+      calibrationUprightRows: 182,
       diagnosticProperOnlyRows: 15,
       missingLocalFrameRows: 123,
     },
@@ -216,7 +216,11 @@ export async function assertExactPrefixWorldCensus(input: {
     { "proper-m-00nn000p0": 1, "proper-m-00pp000p0": 14 },
     "proper-world diagnostic orientation census",
   );
-  exact(diagnostic.documentOrientationPolicy, "unchanged-four-upright", "document policy");
+  exact(
+    diagnostic.projectionOrientationPolicy,
+    "upright-canonical-with-proper-diagnostic-output",
+    "calibration projection policy",
+  );
   exact(Object.values(diagnostic.authority), Array(9).fill(false), "diagnostic authority");
   const failureRows = diagnostic.rows
     .filter(({ classification }) => classification === "diagnostic-proper-only")
@@ -230,8 +234,8 @@ export async function assertExactPrefixWorldCensus(input: {
         )
       ) {
         throw new TypeError(
-          `Local row ${row.builderBrickRef} did not remain refused specifically at the canonical ` +
-            `upright boundary.`,
+          `Local row ${row.builderBrickRef} did not remain refused specifically at the calibration's ` +
+            `canonical upright projection boundary.`,
         );
       }
       return [

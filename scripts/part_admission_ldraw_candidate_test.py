@@ -55,6 +55,50 @@ def plate_surface() -> MeasuredSurface:
 
 
 class LDrawCandidateTests(unittest.TestCase):
+    def test_blind_axle_hole_requires_one_fixed_exact_axial_span(self) -> None:
+        row = {
+            "kind": "blindAxleHole",
+            "gender": "female",
+            "positionLdu": [0, 26, 0],
+            "normal": [0, 1, 0],
+            "axialSpan": {
+                "schemaVersion": "connector-axial-span/1",
+                "openEndLdu": [0, 48, 0],
+                "closedEndLdu": [0, 4, 0],
+                "depthLdu": 44,
+                "sliding": False,
+            },
+        }
+        bodies = [{"kind": "box", "tag": "body", "minLdu": [-1, 0, -1], "maxLdu": [1, 1, 1]}]
+        candidate = validate_candidate(candidate_document(bodies, [row]))
+        self.assertEqual(candidate.blind_axle_hole_connectors[0].axial_span.depth, 44)  # type: ignore[union-attr]
+
+        mutations = (
+            ("missing", lambda value: value.pop("axialSpan"), "must carry axialSpan"),
+            ("through kind", lambda value: value.update(kind="axleHole"), "reserved"),
+            (
+                "wrong midpoint",
+                lambda value: value.update(positionLdu=[0, 25, 0]),
+                "axialSpan midpoint",
+            ),
+            (
+                "inward normal",
+                lambda value: value.update(normal=[0, -1, 0]),
+                "must run depthLdu",
+            ),
+            (
+                "sliding",
+                lambda value: value["axialSpan"].update(sliding=True),
+                "fixed false literal",
+            ),
+        )
+        for label, mutate, message in mutations:
+            with self.subTest(label=label):
+                changed = {**row, "axialSpan": dict(row["axialSpan"])}
+                mutate(changed)
+                with self.assertRaisesRegex(ValueError, message):
+                    validate_candidate(candidate_document(bodies, [changed]))
+
     def test_role_classifier_pins_the_primitive_digest(self) -> None:
         key = ("official", "p/stud.dat")
         digest = PRIMITIVE_ROLE_PINS[key][0]

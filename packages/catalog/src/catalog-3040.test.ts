@@ -94,9 +94,9 @@ describe("3040 straight-slope catalog truth", () => {
     const part = getPartDefinition(PART_ID)!;
     const blueprint = SET_6651557_MEASURED_BLUEPRINTS.find(({ designId }) => designId === "3040")!;
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/28");
-    expect(PART_DEFINITIONS).toHaveLength(104);
-    expect(PART_DEFINITIONS.at(-12)?.id).toBe(PART_ID);
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/29");
+    expect(PART_DEFINITIONS).toHaveLength(106);
+    expect(PART_DEFINITIONS.at(-14)?.id).toBe(PART_ID);
     expect(part).toMatchObject({
       id: PART_ID,
       family: "slope",
@@ -151,8 +151,8 @@ describe("3040 straight-slope catalog truth", () => {
       bytes: 13_050,
       manifestSha256: "sha256:2770e66191388e6ffc5b85c85782f9dabe63d3e90d36ea60ef876da33a44329a",
     });
-    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(43);
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(228);
+    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(45);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(237);
   });
 
   it("binds stud3a's exact source identity to the diagnostic clutch-tube role", () => {
@@ -333,10 +333,10 @@ describe("3040 straight-slope catalog truth", () => {
     expect(validateMeshPartDefinitionAdmission(part)).toEqual({ accepted: true, issues: [] });
   });
 
-  it("keeps every /20 part payload byte unchanged after restoring its historical truth label", () => {
+  it("pins the reviewed /29 projection of the /20 prefix under its historical truth label", () => {
     const priorParts = PART_DEFINITIONS.slice(0, 92);
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/28",
+      "builtin.basic-parts/29",
       "builtin.basic-parts/20",
     );
     const connectorCollision = priorParts.map(({ id, connectors, collision }) => ({
@@ -355,10 +355,10 @@ describe("3040 straight-slope catalog truth", () => {
         .digest("hex"),
       collisionHash: createHash("sha256").update(JSON.stringify(collision)).digest("hex"),
     }).toEqual({
-      definitionBytes: 1_552_626,
-      definitionHash: "f04a0258415b027fc6e0f11a4c15711a44c29cded41aa21d30732e23232a3712",
-      connectorCollisionHash: "4bab47b3e206145e021a083d64a6501da6376a1f8bd0004e0d7024aa053b2fbc",
-      collisionHash: "9b0fb366d17294cb3621d520157a34bf1d75124f21905100facee140eb432c4d",
+      definitionBytes: 1_553_902,
+      definitionHash: "57db94777b7a49b702e352cc9a1e8390e01ca326e573f5783147d3292e388040",
+      connectorCollisionHash: "8a3f5113311b3148e83e6950519bf8e35adb4de6f097f0162b79193974467936",
+      collisionHash: "0849c367e12e089e5696639be807c04cb6daab992263512a67921c6dd20e2ba0",
     });
   });
 });

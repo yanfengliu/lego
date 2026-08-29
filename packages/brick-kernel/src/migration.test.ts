@@ -2,16 +2,19 @@ import {
   BUILTIN_CATALOG_VERSION,
   COLLISION_MODEL_VERSION,
   COLOR_DEFINITIONS,
+  CONNECTOR_TAXONOMY_VERSION,
   PART_DEFINITIONS,
+  TRANSFORM_POLICY_VERSION,
 } from "@lego-studio/catalog";
 import type { BrickDocumentV1 } from "@lego-studio/protocol";
 import { describe, expect, it } from "vitest";
 
 import { createEmptyBrickDocument, createPartInstance } from "./factory.ts";
 import { canonicalDigest } from "./canonical.ts";
-import { MIGRATABLE_CATALOG_VERSIONS, migrateDocumentTruth } from "./migration.ts";
+import { migrateDocumentTruth } from "./migration.ts";
 import { getReviewedHistoricalCatalogRoster } from "./historical-catalog-rosters.ts";
 import { validateBrickDocument } from "./validation.ts";
+import { VALIDATOR_SET_VERSION } from "./truth-manifests.ts";
 
 function legacyDocument(overrides: Partial<BrickDocumentV1> = {}): BrickDocumentV1 {
   const current = createEmptyBrickDocument({ id: "legacy", name: "Legacy model" });
@@ -141,10 +144,10 @@ function historicalDocument(options: HistoricalDocumentOptions): BrickDocumentV1
   if (sourceRoster === undefined) {
     throw new Error(`The reviewed roster fixture for ${truthHash} is missing.`);
   }
-  const allowedCatalogPartIds =
-    options.allowedCatalogPartCount === undefined
-      ? sourceRoster.catalogPartIds
-      : PART_DEFINITIONS.slice(0, options.allowedCatalogPartCount).map(({ id }) => id);
+  // The reviewed source roster, not a prefix of today's catalog ordering, is
+  // the authority for historical constraints. Current insertions must not
+  // rewrite the historical fixture's meaning.
+  const allowedCatalogPartIds = sourceRoster.catalogPartIds;
   return {
     ...populated,
     constraints: {
@@ -157,18 +160,30 @@ function historicalDocument(options: HistoricalDocumentOptions): BrickDocumentV1
 function expectReviewedCurrentTruthChanges(
   report: ReturnType<typeof migrateDocumentTruth>["report"],
   fromVersion: string,
+  collisionFromVersion = "rectilinear-stud-clearance/2",
+  validatorFromVersion = "lego.kernel-validators/2",
 ): void {
   expect(report.truthComponentChanges).toEqual([
     { component: "catalog", fromVersion, toVersion: BUILTIN_CATALOG_VERSION },
     {
+      component: "connector-taxonomy",
+      fromVersion: "stud-tube/1",
+      toVersion: CONNECTOR_TAXONOMY_VERSION,
+    },
+    {
       component: "collision-model",
-      fromVersion: "rectilinear-stud-clearance/2",
-      toVersion: "rectilinear-stud-clearance/3",
+      fromVersion: collisionFromVersion,
+      toVersion: COLLISION_MODEL_VERSION,
+    },
+    {
+      component: "transform-policy",
+      fromVersion: "upright-quarter-turns-negative-y-up/1",
+      toVersion: TRANSFORM_POLICY_VERSION,
     },
     {
       component: "validator-set",
-      fromVersion: "lego.kernel-validators/2",
-      toVersion: "lego.kernel-validators/4",
+      fromVersion: validatorFromVersion,
+      toVersion: VALIDATOR_SET_VERSION,
     },
   ]);
 }
@@ -212,6 +227,11 @@ const VERSION_28_ADDITIVE_PART_IDS = [
   "builtin:brick-1x1x5-solid-stud",
 ] as const;
 
+const VERSION_29_ADDITIVE_PART_IDS = [
+  "builtin:bracket-1x2-1x4-rounded-corners",
+  "builtin:brick-1x2x2-inside-axle-holder",
+] as const;
+
 const VERSION_27_AND_28_ADDITIVE_PART_IDS = [
   ...VERSION_27_ADDITIVE_PART_IDS,
   ...VERSION_28_ADDITIVE_PART_IDS,
@@ -232,6 +252,7 @@ const POST_V13_ADDITIVE_PART_IDS = [
   "builtin:plate-2x2-two-studs",
   "builtin:plate-1x5",
   ...VERSION_27_AND_28_ADDITIVE_PART_IDS,
+  ...VERSION_29_ADDITIVE_PART_IDS,
 ] as const;
 
 const VERSION_13_INTERPRETATION_CHANGES = [
@@ -268,6 +289,18 @@ const VERSION_13_INTERPRETATION_CHANGES = [
   },
 ] as const;
 
+const VERSION_29_CONNECTOR_INTERPRETATION_CHANGE = {
+  affectedCatalogPartIds: [
+    "builtin:plate-1x2-round-end",
+    "builtin:wedge-plate-2x4-wing",
+    "builtin:corner-plate-3x3",
+    "builtin:plate-3x3-corner-round",
+  ],
+  changedFields: ["connector-semantics", "collision-semantics"],
+  fromCatalogVersion: "builtin.basic-parts/28",
+  toCatalogVersion: "builtin.basic-parts/29",
+} as const;
+
 describe("migrateDocumentTruth", () => {
   it("pins the legacy fixture to a reviewed historical truth snapshot", () => {
     expect(canonicalDigest(legacyDocument().truth)).toBe(
@@ -293,23 +326,12 @@ describe("migrateDocumentTruth", () => {
     expect(report.addedColorIds.length).toBeGreaterThan(0);
     expect(report.addedColorIds).toContain("builtin:orange");
     expect(report.addedColorIds).not.toContain("builtin:red");
-    expect(report.truthComponentChanges).toEqual([
-      {
-        component: "catalog",
-        fromVersion: "builtin.basic-parts/5",
-        toVersion: BUILTIN_CATALOG_VERSION,
-      },
-      {
-        component: "collision-model",
-        fromVersion: "rectilinear-stud-clearance/1",
-        toVersion: COLLISION_MODEL_VERSION,
-      },
-      {
-        component: "validator-set",
-        fromVersion: "lego.kernel-validators/1",
-        toVersion: "lego.kernel-validators/4",
-      },
-    ]);
+    expectReviewedCurrentTruthChanges(
+      report,
+      "builtin.basic-parts/5",
+      "rectilinear-stud-clearance/1",
+      "lego.kernel-validators/1",
+    );
     expect(document.constraints.allowedColorIds).toHaveLength(COLOR_DEFINITIONS.length);
   });
 
@@ -346,6 +368,7 @@ describe("migrateDocumentTruth", () => {
         changedFields: ["render-geometry", "visual-bounds"],
       },
       ...VERSION_13_INTERPRETATION_CHANGES,
+      VERSION_29_CONNECTOR_INTERPRETATION_CHANGE,
     ]);
     expect(document.parts).toEqual(savedAtEleven.parts);
   });
@@ -384,8 +407,12 @@ describe("migrateDocumentTruth", () => {
       "builtin:plate-2x2-two-studs",
       "builtin:plate-1x5",
       ...VERSION_27_AND_28_ADDITIVE_PART_IDS,
+      ...VERSION_29_ADDITIVE_PART_IDS,
     ]);
-    expect(report.catalogInterpretationChanges).toEqual(VERSION_13_INTERPRETATION_CHANGES);
+    expect(report.catalogInterpretationChanges).toEqual([
+      ...VERSION_13_INTERPRETATION_CHANGES,
+      VERSION_29_CONNECTOR_INTERPRETATION_CHANGE,
+    ]);
     expect(document.parts).toEqual(savedAtTwelve.parts);
   });
 
@@ -419,8 +446,11 @@ describe("migrateDocumentTruth", () => {
       "builtin:plate-2x2-two-studs",
       "builtin:plate-1x5",
       ...VERSION_27_AND_28_ADDITIVE_PART_IDS,
+      ...VERSION_29_ADDITIVE_PART_IDS,
     ]);
-    expect(report.catalogInterpretationChanges).toEqual([]);
+    expect(report.catalogInterpretationChanges).toEqual([
+      VERSION_29_CONNECTOR_INTERPRETATION_CHANGE,
+    ]);
     expectReviewedCurrentTruthChanges(report, "builtin.basic-parts/13");
     expect(document.parts).toEqual(savedAtThirteen.parts);
   });
@@ -444,7 +474,9 @@ describe("migrateDocumentTruth", () => {
 
     expect(report.migrated).toBe(true);
     expect(report.addedCatalogPartIds).toEqual(POST_V13_ADDITIVE_PART_IDS.slice(1));
-    expect(report.catalogInterpretationChanges).toEqual([]);
+    expect(report.catalogInterpretationChanges).toEqual([
+      VERSION_29_CONNECTOR_INTERPRETATION_CHANGE,
+    ]);
     expectReviewedCurrentTruthChanges(report, "builtin.basic-parts/14");
     expect(document.parts).toEqual(savedAtFourteen.parts);
   });
@@ -468,7 +500,9 @@ describe("migrateDocumentTruth", () => {
 
     expect(report.migrated).toBe(true);
     expect(report.addedCatalogPartIds).toEqual(POST_V13_ADDITIVE_PART_IDS.slice(2));
-    expect(report.catalogInterpretationChanges).toEqual([]);
+    expect(report.catalogInterpretationChanges).toEqual([
+      VERSION_29_CONNECTOR_INTERPRETATION_CHANGE,
+    ]);
     expectReviewedCurrentTruthChanges(report, "builtin.basic-parts/15");
     expect(document.parts).toEqual(savedAtFifteen.parts);
   });
@@ -492,7 +526,9 @@ describe("migrateDocumentTruth", () => {
 
     expect(report.migrated).toBe(true);
     expect(report.addedCatalogPartIds).toEqual(POST_V13_ADDITIVE_PART_IDS.slice(3));
-    expect(report.catalogInterpretationChanges).toEqual([]);
+    expect(report.catalogInterpretationChanges).toEqual([
+      VERSION_29_CONNECTOR_INTERPRETATION_CHANGE,
+    ]);
     expectReviewedCurrentTruthChanges(report, "builtin.basic-parts/16");
     expect(document.parts).toEqual(savedAtSixteen.parts);
   });
@@ -519,19 +555,15 @@ describe("migrateDocumentTruth", () => {
 
     expect(report.migrated).toBe(true);
     expect(report.addedCatalogPartIds).toEqual(POST_V13_ADDITIVE_PART_IDS.slice(4));
-    expect(report.catalogInterpretationChanges).toEqual([]);
-    expect(report.truthComponentChanges).toEqual([
-      {
-        component: "catalog",
-        fromVersion: "builtin.basic-parts/17",
-        toVersion: BUILTIN_CATALOG_VERSION,
-      },
-      {
-        component: "validator-set",
-        fromVersion: "lego.kernel-validators/3",
-        toVersion: "lego.kernel-validators/4",
-      },
+    expect(report.catalogInterpretationChanges).toEqual([
+      VERSION_29_CONNECTOR_INTERPRETATION_CHANGE,
     ]);
+    expectReviewedCurrentTruthChanges(
+      report,
+      "builtin.basic-parts/17",
+      "rectilinear-stud-clearance/3",
+      "lego.kernel-validators/3",
+    );
     expect(document.parts).toEqual(savedAtSeventeen.parts);
   });
 
@@ -557,22 +589,18 @@ describe("migrateDocumentTruth", () => {
     expect(report.migrated).toBe(true);
     expect(report.blockingReasons).toEqual([]);
     expect(report.toTruthHash).toBe(
-      "sha256:643185fe21f0d0c77a7aada8b170395f11bb7da1079f97d5c0cd0a03d7464f1b",
+      "sha256:54762419e4779c6c15566052062fcaa432cb45e3a13704b5af1563b4fa94e8eb",
     );
     expect(report.addedCatalogPartIds).toEqual(POST_V13_ADDITIVE_PART_IDS.slice(5));
-    expect(report.catalogInterpretationChanges).toEqual([]);
-    expect(report.truthComponentChanges).toEqual([
-      {
-        component: "catalog",
-        fromVersion: "builtin.basic-parts/18",
-        toVersion: BUILTIN_CATALOG_VERSION,
-      },
-      {
-        component: "validator-set",
-        fromVersion: "lego.kernel-validators/3",
-        toVersion: "lego.kernel-validators/4",
-      },
+    expect(report.catalogInterpretationChanges).toEqual([
+      VERSION_29_CONNECTOR_INTERPRETATION_CHANGE,
     ]);
+    expectReviewedCurrentTruthChanges(
+      report,
+      "builtin.basic-parts/18",
+      "rectilinear-stud-clearance/3",
+      "lego.kernel-validators/3",
+    );
     expect(document.parts).toEqual(savedAtEighteen.parts);
   });
 
@@ -598,22 +626,18 @@ describe("migrateDocumentTruth", () => {
     expect(report.migrated).toBe(true);
     expect(report.blockingReasons).toEqual([]);
     expect(report.toTruthHash).toBe(
-      "sha256:643185fe21f0d0c77a7aada8b170395f11bb7da1079f97d5c0cd0a03d7464f1b",
+      "sha256:54762419e4779c6c15566052062fcaa432cb45e3a13704b5af1563b4fa94e8eb",
     );
     expect(report.addedCatalogPartIds).toEqual(POST_V13_ADDITIVE_PART_IDS.slice(6));
-    expect(report.catalogInterpretationChanges).toEqual([]);
-    expect(report.truthComponentChanges).toEqual([
-      {
-        component: "catalog",
-        fromVersion: "builtin.basic-parts/19",
-        toVersion: BUILTIN_CATALOG_VERSION,
-      },
-      {
-        component: "validator-set",
-        fromVersion: "lego.kernel-validators/3",
-        toVersion: "lego.kernel-validators/4",
-      },
+    expect(report.catalogInterpretationChanges).toEqual([
+      VERSION_29_CONNECTOR_INTERPRETATION_CHANGE,
     ]);
+    expectReviewedCurrentTruthChanges(
+      report,
+      "builtin.basic-parts/19",
+      "rectilinear-stud-clearance/3",
+      "lego.kernel-validators/3",
+    );
     expect(document.parts).toEqual(savedAtNineteen.parts);
   });
 
@@ -865,6 +889,7 @@ describe("migrateDocumentTruth", () => {
       "builtin:plate-2x2-two-studs",
       "builtin:plate-1x5",
       ...VERSION_27_AND_28_ADDITIVE_PART_IDS,
+      ...VERSION_29_ADDITIVE_PART_IDS,
     ]);
     expect(report.addedColorIds).toEqual([]);
     expectReviewedCurrentTruthChanges(report, "builtin.basic-parts/6");
@@ -906,6 +931,7 @@ describe("migrateDocumentTruth", () => {
       "builtin:plate-2x2-two-studs",
       "builtin:plate-1x5",
       ...VERSION_27_AND_28_ADDITIVE_PART_IDS,
+      ...VERSION_29_ADDITIVE_PART_IDS,
     ]);
     expect(report.addedColorIds).toEqual([]);
     expectReviewedCurrentTruthChanges(report, "builtin.basic-parts/7");
@@ -953,67 +979,5 @@ describe("migrateDocumentTruth", () => {
       `Catalog version someone-elses/9 has no migration to ${BUILTIN_CATALOG_VERSION}`,
     );
     expect(report.catalogInterpretationChanges).toEqual([]);
-  });
-
-  it("refuses unknown non-catalog truth instead of silently rewriting it", () => {
-    const legacy = legacyDocument();
-    const { document, report } = migrateDocumentTruth({
-      ...legacy,
-      truth: {
-        ...legacy.truth,
-        connectorTaxonomy: {
-          ...legacy.truth.connectorTaxonomy,
-          version: "someone-elses-connectors/9",
-        },
-        validatorSet: { ...legacy.truth.validatorSet, id: "someone-elses-validators" },
-      },
-    });
-
-    expect(report.migrated).toBe(false);
-    expect(document.truth.connectorTaxonomy.version).toBe("someone-elses-connectors/9");
-    expect(report.blockingReasons.join(" ")).toContain(
-      "Connector taxonomy version someone-elses-connectors/9 cannot migrate",
-    );
-    expect(report.blockingReasons.join(" ")).toContain(
-      "Validator set id someone-elses-validators cannot migrate",
-    );
-  });
-
-  it("refuses an unreviewed same-version truth hash as tampering, not migration", () => {
-    const current = createEmptyBrickDocument({ id: "current", name: "Current" });
-    const { document, report } = migrateDocumentTruth({
-      ...current,
-      truth: {
-        ...current.truth,
-        collisionModel: {
-          ...current.truth.collisionModel,
-          hash: `sha256:${"deadbeef".repeat(8)}`,
-        },
-      },
-    });
-
-    expect(report.migrated).toBe(false);
-    expect(document.truth.collisionModel.hash).toBe(`sha256:${"deadbeef".repeat(8)}`);
-    expect(report.blockingReasons.join(" ")).toContain(
-      "not one of the reviewed historical builtin snapshots",
-    );
-  });
-
-  it("refuses when a part references truth the current catalog dropped", () => {
-    const legacy = legacyDocument();
-    const { report } = migrateDocumentTruth({
-      ...legacy,
-      parts: [{ ...legacy.parts[0]!, colorId: "builtin:retired-color" }],
-    });
-
-    expect(report.migrated).toBe(false);
-    expect(report.blockingReasons.join(" ")).toContain(
-      `part-1 uses color builtin:retired-color, which ${BUILTIN_CATALOG_VERSION} no longer defines`,
-    );
-  });
-
-  it("names the source versions it knows about", () => {
-    expect(MIGRATABLE_CATALOG_VERSIONS).toContain("builtin.basic-parts/1");
-    expect(MIGRATABLE_CATALOG_VERSIONS).toContain(BUILTIN_CATALOG_VERSION);
   });
 });

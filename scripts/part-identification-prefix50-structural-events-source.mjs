@@ -47,6 +47,6 @@ export const CURRENT_PREFIX50_STRUCTURAL_EVENTS_PINS = Object.freeze({
   }),
   expectedArtifact: Object.freeze({
     bytes: 7_292,
-    digest: "sha256:cdb563b81f89aa9110cc70cc392f7415616aeb3e534ee907547879f8ec82c03e",
+    digest: "sha256:ea1ee9791575ecd858cf13b076d0b3c6de4ebfca9a51a268a9242d3e07667fe3",
   }),
 });

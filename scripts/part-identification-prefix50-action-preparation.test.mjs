@@ -10,6 +10,7 @@ import {
   isVerifiedPrefix50ActionPreparation,
   verifyPrefix50ActionPreparation,
 } from "./part-identification-prefix50-action-preparation.mjs";
+import { assertPublishedCounterevidenceBoundary } from "./part-identification-prefix50-action-preparation-publication-policy.mjs";
 import {
   reproduceCurrentPrefix50ActionPreparation,
   verifyCurrentPrefix50ActionPreparation,
@@ -33,6 +34,93 @@ const realEvidencePresent = [
 function phaseMembers(step, kind) {
   return step.phases.filter((phase) => phase.kind === kind).flatMap((phase) => phase.members);
 }
+
+describe("prefix-50 action-preparation publication boundary", () => {
+  it("retains published mappings and delegates exact revision selection downstream", () => {
+    const rows = [
+      {
+        identity: "p30|q2|x84.228|y407.699",
+        publishedPartNum: "28802",
+        officialDesignId: "10201",
+        publishedCatalogPartId: "builtin:bracket-1x2-1x4-rounded-bottom",
+        occurrenceCatalogPartId: "builtin:bracket-1x2-1x4-rounded-corners",
+        members: [
+          [139, "10201;H"],
+          [147, "10201;H"],
+        ],
+      },
+      {
+        identity: "p34|q1|x62.389|y468.271",
+        publishedPartNum: "3245c",
+        officialDesignId: "3245",
+        publishedCatalogPartId: "builtin:brick-1x2x2-without-understud",
+        occurrenceCatalogPartId: "builtin:brick-1x2x2-inside-axle-holder",
+        members: [[178, "3245;M"]],
+      },
+      {
+        identity: "p35|q2|x147.987|y481.711",
+        publishedPartNum: "3245c",
+        officialDesignId: "3245",
+        publishedCatalogPartId: "builtin:brick-1x2x2-without-understud",
+        occurrenceCatalogPartId: "builtin:brick-1x2x2-inside-axle-holder",
+        members: [
+          [183, "3245;M"],
+          [185, "3245;M"],
+        ],
+      },
+      {
+        identity: "p36|q4|x83.269|y421.615",
+        publishedPartNum: "3245c",
+        officialDesignId: "3245",
+        publishedCatalogPartId: "builtin:brick-1x2x2-without-understud",
+        occurrenceCatalogPartId: "builtin:brick-1x2x2-inside-axle-holder",
+        members: [
+          [190, "3245;M"],
+          [191, "3245;M"],
+          [192, "3245;M"],
+          [193, "3245;M"],
+        ],
+      },
+    ];
+    const artifact = {
+      authority: {
+        semanticIdentity: true,
+        exactOccurrenceIdentity: false,
+        physicalFrame: false,
+        assignmentAuthority: false,
+        actionAuthority: false,
+        placement: false,
+      },
+      steps: rows.map((row) => ({
+        callouts: [
+          {
+            identity: row.identity,
+            publishedPartNum: row.publishedPartNum,
+            officialDesignId: row.officialDesignId,
+            catalogPartId: row.occurrenceCatalogPartId,
+          },
+        ],
+        phases: [
+          {
+            members: row.members.map(([sourceBuilderIdentityOrdinal, designRevision]) => ({
+              calloutIdentity: row.identity,
+              sourceBuilderIdentityOrdinal,
+              designRevision,
+            })),
+          },
+        ],
+      })),
+    };
+
+    expect(() => assertPublishedCounterevidenceBoundary(artifact)).toThrow(
+      /must retain its published mapping/u,
+    );
+    for (const [index, row] of rows.entries()) {
+      artifact.steps[index].callouts[0].catalogPartId = row.publishedCatalogPartId;
+    }
+    expect(() => assertPublishedCounterevidenceBoundary(artifact)).not.toThrow();
+  });
+});
 
 describe.runIf(realEvidencePresent)("prefix-50 action preparation", () => {
   let artifact;
@@ -59,9 +147,9 @@ describe.runIf(realEvidencePresent)("prefix-50 action preparation", () => {
 
   it("reproduces the exact pinned ignored artifact and complete bounded accounting", () => {
     expect(artifact.schemaVersion).toBe(PREFIX50_ACTION_PREPARATION_SCHEMA);
-    expect(bytes).toHaveLength(317_116);
+    expect(bytes).toHaveLength(317_152);
     expect(inspectVerifiedPrefix50ActionPreparation(verified).digest).toBe(
-      "sha256:edd2096efe55e6e68385dc7f5b735222a9cdf01ae5625528dae2d1edde0fcbbc",
+      "sha256:5fbab00b90c6ffbe6c9b09727819e0b3a964cebbd88138232bd2418df6100fb6",
     );
     expect(bytesFromVerifiedPrefix50ActionPreparation(verified)).toEqual(bytes);
     expect(isVerifiedPrefix50ActionPreparation(verified)).toBe(true);
@@ -225,6 +313,7 @@ describe.runIf(realEvidencePresent)("prefix-50 action preparation", () => {
     expect(artifact.authority).toEqual(PREFIX50_ACTION_PREPARATION_AUTHORITY);
     for (const key of [
       "authenticated",
+      "exactOccurrenceIdentity",
       "productionActionLedger",
       "sourceExecution",
       "preparedRun",

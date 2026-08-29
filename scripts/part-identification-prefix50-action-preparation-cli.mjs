@@ -1,37 +1,78 @@
+import { basename } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { writeContainedFile } from "./part-identification-io.mjs";
+import { publishContainedArtifactWithoutOverwrite } from "./part-identification-counterevidence-archive.mjs";
 import { reproduceCurrentPrefix50ActionPreparation } from "./part-identification-prefix50-action-preparation-current.mjs";
+import { assertPublishedCounterevidenceBoundary } from "./part-identification-prefix50-action-preparation-publication-policy.mjs";
 import {
   PREFIX50_ACTION_PREPARATION_MAX_ARTIFACT_BYTES,
   PREFIX50_ACTION_PREPARATION_OUTPUT_PATH,
 } from "./part-identification-prefix50-action-preparation-source.mjs";
 import {
+  bytesFromVerifiedPrefix50ActionPreparation,
   inspectVerifiedPrefix50ActionPreparation,
+  isVerifiedPrefix50ActionPreparation,
   verifyPrefix50ActionPreparation,
 } from "./part-identification-prefix50-action-preparation.mjs";
 
-export async function runPrefix50ActionPreparationCli() {
+const OUTPUT_ROOT = "output/real-build";
+const OUTPUT_FILE = basename(PREFIX50_ACTION_PREPARATION_OUTPUT_PATH);
+function publishVerifiedActionPreparation(verified) {
+  if (!isVerifiedPrefix50ActionPreparation(verified)) {
+    throw new TypeError(
+      "Prefix-50 action-preparation publication requires its opaque in-memory verifier result.",
+    );
+  }
+  const verifiedBytes = bytesFromVerifiedPrefix50ActionPreparation(verified);
+  const inspection = inspectVerifiedPrefix50ActionPreparation(verified);
+  assertPublishedCounterevidenceBoundary(inspection.artifact);
+  return publishContainedArtifactWithoutOverwrite({
+    archiveNameStem: "action-preparation",
+    currentFile: OUTPUT_FILE,
+    label: "Prefix-50 action preparation",
+    maxBytes: PREFIX50_ACTION_PREPARATION_MAX_ARTIFACT_BYTES,
+    nextBytes: verifiedBytes,
+    outputRoot: OUTPUT_ROOT,
+  });
+}
+
+export async function runPrefix50ActionPreparationCli(argv = process.argv.slice(2), context = {}) {
+  const stdout = context.stdout ?? console.log;
+  if (argv.length !== 0) {
+    throw new TypeError("Prefix-50 action-preparation generation accepts no caller arguments.");
+  }
   const reproduced = await reproduceCurrentPrefix50ActionPreparation();
   const verified = await verifyPrefix50ActionPreparation({
     ...reproduced.input,
     artifactBytes: reproduced.bytes,
   });
+  if (!isVerifiedPrefix50ActionPreparation(verified)) {
+    throw new TypeError(
+      "Prefix-50 action-preparation verifier did not return its opaque authority object; retained evidence was not touched.",
+    );
+  }
+  const verifiedBytes = bytesFromVerifiedPrefix50ActionPreparation(verified);
+  if (!verifiedBytes.equals(reproduced.bytes)) {
+    throw new TypeError(
+      "Prefix-50 action-preparation verifier bytes differ from the fresh reproduction; retained evidence was not touched.",
+    );
+  }
   const inspection = inspectVerifiedPrefix50ActionPreparation(verified);
-  writeContainedFile("output/real-build", "action-preparation.json", reproduced.bytes, {
-    label: "Prefix-50 action preparation",
-    pathLabel: "Prefix-50 action-preparation path",
-    maxBytes: PREFIX50_ACTION_PREPARATION_MAX_ARTIFACT_BYTES,
-  });
-  console.log(
-    `wrote ${PREFIX50_ACTION_PREPARATION_OUTPUT_PATH}: ${reproduced.bytes.length} bytes at ${inspection.digest}`,
+  const publication = publishVerifiedActionPreparation(verified);
+  if (publication.state === "review-required") {
+    throw new TypeError(
+      `Prefix-50 action preparation retained differing current evidence at ${publication.currentPath}; verified replacement candidate is ${publication.candidate.path} at ${publication.digest}. Review and move the retained current file explicitly before rerunning; automation never overwrites an existing differing pathname.`,
+    );
+  }
+  stdout(
+    `${publication.state === "published-current" ? "wrote" : "verified"} ${PREFIX50_ACTION_PREPARATION_OUTPUT_PATH}: ${verifiedBytes.length} bytes at ${inspection.digest}`,
   );
-  console.log(
+  stdout(
     [
-      `printed steps ${reproduced.artifact.accounting.printedStepRows}`,
-      `callouts ${reproduced.artifact.accounting.calloutRows}`,
-      `identities ${reproduced.artifact.accounting.physicalIdentities}`,
-      `phases ${reproduced.artifact.accounting.builderPhases}`,
+      `printed steps ${inspection.artifact.accounting.printedStepRows}`,
+      `callouts ${inspection.artifact.accounting.calloutRows}`,
+      `identities ${inspection.artifact.accounting.physicalIdentities}`,
+      `phases ${inspection.artifact.accounting.builderPhases}`,
       "authority local-diagnostic-only",
     ].join(" | "),
   );

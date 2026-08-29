@@ -92,8 +92,8 @@ describe("preloaded mesh asset resolution", () => {
     const legacyRows = legacyParts.map(({ id, geometry }) => [id, geometry.contentHash]);
     const legacyHashes = JSON.stringify(legacyRows);
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/28");
-    expect(PART_DEFINITIONS).toHaveLength(104);
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/29");
+    expect(PART_DEFINITIONS).toHaveLength(106);
     expect(
       PART_DEFINITIONS.filter(isMeshPartDefinition)
         .filter(({ geometry }) => geometry.collisionMode === "preserved-catalog-recipe")
@@ -104,8 +104,8 @@ describe("preloaded mesh asset resolution", () => {
         ({ geometry }) => geometry.generatorId !== "builtin:preloaded-mesh-reference/1",
       ),
     ).toBe(true);
-    expect(meshParts).toHaveLength(43);
-    expect(fullyMeasuredParts).toHaveLength(27);
+    expect(meshParts).toHaveLength(45);
+    expect(fullyMeasuredParts).toHaveLength(29);
     expect(
       fullyMeasuredParts.every(
         ({ geometry }) => geometry.collisionMode === "mesh-derived-height-field",
@@ -126,11 +126,11 @@ describe("preloaded mesh asset resolution", () => {
       createHash("sha256")
         .update(
           JSON.stringify(legacyParts)
-            .replaceAll("builtin.basic-parts/28", "builtin.basic-parts/15")
-            .replaceAll("rectilinear-stud-clearance/3", "rectilinear-stud-clearance/2"),
+            .replaceAll("builtin.basic-parts/29", "builtin.basic-parts/15")
+            .replaceAll("rectilinear-stud-clearance/4", "rectilinear-stud-clearance/2"),
         )
         .digest("hex"),
-    ).toBe("f21fdb9e016b1b6fba7bb25776f4b91eacff6d949bd938f5fd3cc94868df3984");
+    ).toBe("5a11cbb275cf0c9dbb4221a67c5adfe64baaf85eb2785971ac4f044e1ffc9eb0");
   });
 
   it("copies preloaded data and applies explicit orientation plus translation exactly once", () => {

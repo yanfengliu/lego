@@ -1,3 +1,7 @@
+const OBSERVED_LEGACY_FAILURE_IDENTITIES_FIELD = "observedLegacyFailureIdentities";
+
+export { OBSERVED_LEGACY_FAILURE_IDENTITIES_FIELD };
+
 const TOP_LEVEL_KEYS = [
   "accounting",
   "calloutCount",
@@ -29,7 +33,7 @@ const CONSERVATION_KEYS = [
 const BENCHMARK_KEYS = [
   "fixedFailureClassSize",
   "fixtureSourceHash",
-  "observedLegacyFailureIdentities",
+  OBSERVED_LEGACY_FAILURE_IDENTITIES_FIELD,
   "schemaVersion",
   "scores",
   "selected",

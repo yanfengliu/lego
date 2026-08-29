@@ -133,8 +133,8 @@ describe("15254 thin-top arch catalog truth", () => {
       bytes: 18_061,
       manifestSha256: "sha256:45ddc1adf831202895cbfb51c38f7b443fd7702514ac13c429369188e9452e20",
     });
-    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(43);
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(228);
+    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(45);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(237);
   });
 
   it("binds the revision-J Builder record, reviewed bytes, and exact frame", () => {
@@ -260,10 +260,10 @@ describe("15254 thin-top arch catalog truth", () => {
     expect(validateMeshPartDefinitionAdmission(part)).toEqual({ accepted: true, issues: [] });
   });
 
-  it("keeps every /17 part payload byte unchanged after restoring its historical truth label", () => {
+  it("pins the reviewed /29 projection of the /17 prefix under its historical truth label", () => {
     const priorParts = PART_DEFINITIONS.slice(0, 89);
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/28",
+      "builtin.basic-parts/29",
       "builtin.basic-parts/17",
     );
     const rows = priorParts.map(({ id, connectors, collision }) => ({ id, connectors, collision }));
@@ -276,10 +276,10 @@ describe("15254 thin-top arch catalog truth", () => {
       connectorCollisionHash: createHash("sha256").update(JSON.stringify(rows)).digest("hex"),
       collisionHash: createHash("sha256").update(JSON.stringify(collisionRows)).digest("hex"),
     }).toEqual({
-      definitionBytes: 1_508_153,
-      definitionHash: "867afbdf9ad7e1e4fb446a5916a6060800e740509b0750ab3b47f61b0107ceaa",
-      connectorCollisionHash: "47d480e5a23a6da1b4db88ff9faf760e30e04ab3ee3624aa0cc5db68de6fe7e5",
-      collisionHash: "93066f53efe25aefd104d43f648925e4c27df30705a633ec2b3e27d76c181a82",
+      definitionBytes: 1_509_408,
+      definitionHash: "cfdb17cf6541d43b1b2d28326ffa5bcc384d51f98f439cf4cce2caa22c737198",
+      connectorCollisionHash: "9c97e5160e2d246b00c262a04a7b98fd0b1de51279ac57dadb176a26c161fcce",
+      collisionHash: "3d8459aed86b44919d4c2ec16b40626ff6699b4b5e1bee190b7f0bed485aa152",
     });
   });
 });

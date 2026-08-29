@@ -48,17 +48,41 @@ describe("resolveElementPart", () => {
         note: null,
       },
     );
+    expect(
+      resolveElementPart(element("3245b", "Brick 1 x 2 x 2 with Inside Axle Holder")),
+    ).toMatchObject({
+      outcome: "exact",
+      catalogPartId: "builtin:brick-1x2x2-inside-axle-holder",
+      note: null,
+    });
     expect(resolveElementPart(element("2453b", "Brick 1 x 1 x 5 with Solid Stud"))).toMatchObject({
       outcome: "exact",
       catalogPartId: "builtin:brick-1x1x5-solid-stud",
       note: null,
     });
 
-    for (const partNum of ["3245", "3245a", "3245b", "2453", "2453a", "2453c"]) {
+    for (const partNum of ["3245", "3245a", "2453", "2453a", "2453c"]) {
       expect(
         resolveElementPart(element(partNum, "Different or unspecified construction")),
       ).toMatchObject({ outcome: "absent", catalogPartId: null });
     }
+  });
+
+  it("resolves exact 10201 without substituting the distinct 28802 bracket", () => {
+    expect(
+      resolveElementPart(element("10201", "Bracket 1 x 2 - 1 x 4 with Rounded Corners")),
+    ).toMatchObject({
+      outcome: "exact",
+      catalogPartId: "builtin:bracket-1x2-1x4-rounded-corners",
+      note: null,
+    });
+    expect(
+      resolveElementPart(element("28802", "Bracket 1 x 2 - 1 x 4 with Rounded Bottom")),
+    ).toMatchObject({
+      outcome: "exact",
+      catalogPartId: "builtin:bracket-1x2-1x4-rounded-bottom",
+      note: null,
+    });
   });
 
   it("strips a print suffix to reach the undecorated mould", () => {
@@ -127,6 +151,12 @@ describe("resolveElementPart", () => {
     expect(designs).toContain("3001");
     expect(designs).toContain("3069b");
     expect(designs).toContain("41769a");
+    expect(designs).toContain("10201");
+    expect(designs).toContain("3245b");
+    expect(designs).toContain("3245c");
+    expect(designs).not.toContain("2436b");
+    expect(designs).not.toContain("3245");
+    expect(designs).not.toContain("3245a");
     expect(designs).not.toContain("3001.dat");
   });
 });

@@ -55,7 +55,7 @@ describe("32064 connection semantics", () => {
     ]);
   });
 
-  it("accepts the exact shared axle seat while retaining conservative body collision", () => {
+  it("accepts the exact shared axle seat and clears only its measured through-bore overlap", () => {
     const bearing = createPartInstance({
       id: "bearing",
       catalogPartId: "builtin:technic-brick-1x2-axle-hole",
@@ -85,8 +85,6 @@ describe("32064 connection semantics", () => {
         "CONNECTION_TRANSFORM_MISMATCH",
       ]),
     );
-    // The discrete seat validates only the structural edge. There is no bore
-    // relief, continuous-slide range, or stability claim in this admission.
-    expect(codes).toContain("PART_BODY_COLLISION");
+    expect(codes).not.toContain("PART_BODY_COLLISION");
   });
 });

@@ -45,6 +45,31 @@ describe("reviewed migration history", () => {
       "sha256:72657715102652a49e08ae683650758958d5c9fad2235761368269ffd15fc4aa",
     ],
     [
+      "builtin.basic-parts/6",
+      "c78c6f31744b4ef846ecc477015dea4aa20d6ee3",
+      "sha256:e5ae3655ebac2b16ede784efa82728c2412d0c95021183653b07222ac9d76a09",
+    ],
+    [
+      "builtin.basic-parts/7",
+      "9d0ebed8f6639d71affeaed63ab1682f35e1a18b",
+      "sha256:29eaae6325eba701dc52827a9373c7583889ce3fd16fd8057f3c6f243a8ab868",
+    ],
+    [
+      "builtin.basic-parts/8",
+      "262d274b51f819f13de0c118b836747da1fd14db",
+      "sha256:33787b02b898a83957e2cc92cff5b8da39da45dfaa3cafcd12f2446e30748613",
+    ],
+    [
+      "builtin.basic-parts/9",
+      "108d5b3cc873a90eddce34a1d0e1688c0dce6f16",
+      "sha256:79cca11d5dbee2dd620b20a6cba7815235fefd53bd2f6b3d003586c8d5a1c635",
+    ],
+    [
+      "builtin.basic-parts/10",
+      "081bd53edccf4c0c62691660c94eed5c723dc152",
+      "sha256:17ab2f6c385ecb861526921817a96805b77f29f87574c4eff0c174be6abbe5fb",
+    ],
+    [
       "builtin.basic-parts/11",
       "bd46506950385df6e4be0f82385f910616e11675",
       "sha256:6b784ce4259131b1ed637815b78bbf14a0bd2e92627ce2a8f4d09c3504465c43",
@@ -129,6 +154,11 @@ describe("reviewed migration history", () => {
       "8a947a9acedd090c6215d547d631a13d6ce747e0",
       "sha256:614c61787b6c45d645e3e84c71dd931a15c258535a1959ee4b3aa1906303b70f",
     ],
+    [
+      "builtin.basic-parts/28",
+      "aad79008cd820f3f0cfbec98ae508c0352d65fc9",
+      "sha256:643185fe21f0d0c77a7aada8b170395f11bb7da1079f97d5c0cd0a03d7464f1b",
+    ],
   ])("pins reviewed %s truth from commit %s", (catalogVersion, sourceCommit, truthHash) => {
     expect(
       REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS.find(
@@ -139,13 +169,13 @@ describe("reviewed migration history", () => {
   });
 
   it("admits no historical truth snapshots beyond the reviewed table", () => {
-    expect(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS).toHaveLength(29);
+    expect(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS).toHaveLength(30);
     expect(
       new Set(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS.map(({ sourceCommit }) => sourceCommit)).size,
-    ).toBe(29);
+    ).toBe(30);
     expect(
       new Set(REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS.map(({ truthHash }) => truthHash)).size,
-    ).toBe(29);
+    ).toBe(30);
   });
 
   it("binds every reviewed truth hash to its exact immutable catalog roster", () => {

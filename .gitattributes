@@ -20,11 +20,17 @@
 *.ts text eol=lf
 *.tsx text eol=lf
 *.js text eol=lf
+*.jsx text eol=lf
 *.mjs text eol=lf
+*.mts text eol=lf
 *.json text eol=lf
 *.html text eol=lf
 *.css text eol=lf
+*.cs text eol=lf
+*.md text eol=lf
 *.ps1 text eol=lf
+*.py text eol=lf
+*.txt text eol=lf
 
 # These hostile-input fixtures deliberately contain literal NUL bytes. Keep
 # their committed bytes exact instead of asking Git's text filters to interpret

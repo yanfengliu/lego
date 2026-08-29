@@ -6,10 +6,7 @@ import {
   multiplyMatrices,
   transformPoint,
 } from "./part-identification-prefix50-official-ldraw-world-proposal-parser.mjs";
-import {
-  PREFIX50_OFFICIAL_LDRAW_EXACT_IDENTITY_ALIASES,
-  PREFIX50_OFFICIAL_LDRAW_QUARANTINES,
-} from "./part-identification-prefix50-official-ldraw-world-proposal-source.mjs";
+import { PREFIX50_OFFICIAL_LDRAW_EXACT_IDENTITY_ALIASES } from "./part-identification-prefix50-official-ldraw-world-proposal-source.mjs";
 
 function transpose(matrix) {
   return [
@@ -67,24 +64,44 @@ export function catalogFrame(definition, orientationById) {
   return Object.freeze({ catalogLdrawFilename: ldrawAliases[0], ...frame });
 }
 
-export function identityRelation(leaf, frame) {
-  if (frame.catalogLdrawFilename === leaf.ldrawFilename) {
-    return Object.freeze({ state: "projectable", basis: "exact-catalog-ldraw-filename" });
+export function identityRelation(leaf, frame, binding) {
+  if (
+    binding.ldrawFilename !== leaf.ldrawFilename ||
+    binding.catalogLdrawFilename !== frame.catalogLdrawFilename
+  ) {
+    throw new TypeError(
+      `Action ${leaf.designRevision}/${leaf.ldrawFilename} does not retain its full occurrence binding to ${frame.catalogLdrawFilename}.`,
+    );
   }
-  const quarantine = PREFIX50_OFFICIAL_LDRAW_QUARANTINES.find(
-    (row) =>
-      row.designRevision === leaf.designRevision &&
-      row.ldrawFilename === leaf.ldrawFilename &&
-      row.catalogLdrawFilename === frame.catalogLdrawFilename,
-  );
-  if (quarantine !== undefined) {
-    return Object.freeze({ state: "quarantined", basis: quarantine.reason });
+  if (binding.bindingKind === "identity-moved-root") {
+    return Object.freeze({
+      state: "projectable",
+      basis: binding.identityBasis,
+      occurrenceScoped: true,
+      archiveIdentityProofRequired: true,
+      movedRootProofId: binding.movedRootProofId,
+    });
+  }
+  if (frame.catalogLdrawFilename === leaf.ldrawFilename) {
+    return Object.freeze({
+      state: "projectable",
+      basis: binding.occurrenceScoped ? binding.identityBasis : "exact-catalog-ldraw-filename",
+      occurrenceScoped: binding.occurrenceScoped,
+      archiveIdentityProofRequired: false,
+      movedRootProofId: null,
+    });
   }
   const alias = PREFIX50_OFFICIAL_LDRAW_EXACT_IDENTITY_ALIASES.find(
     (row) => row.xmlDesignId === leaf.xmlDesignId && row.ldrawFilename === leaf.ldrawFilename,
   );
   if (alias !== undefined && frame.catalogLdrawFilename === `${leaf.xmlDesignId}.dat`) {
-    return Object.freeze({ state: "projectable", basis: "exact-closed-xml-ldraw-alias" });
+    return Object.freeze({
+      state: "projectable",
+      basis: "exact-closed-xml-ldraw-alias",
+      occurrenceScoped: false,
+      archiveIdentityProofRequired: false,
+      movedRootProofId: null,
+    });
   }
   throw new TypeError(
     `Action ${leaf.designRevision}/${leaf.ldrawFilename} cannot be related to catalog filename ${frame.catalogLdrawFilename} by the exact closed aliases.`,

@@ -3,6 +3,7 @@ import {
   LDRAW_IDENTIFIER_PROVENANCE,
   PLATE_HEIGHT_LDU,
   PROJECT_CATALOG_PROVENANCE,
+  PROPER_ORIENTATIONS,
   STUD_HEIGHT_LDU,
   STUD_PITCH_LDU,
   STUD_RADIUS_LDU,
@@ -18,6 +19,49 @@ import type { PartBlueprint } from "./part-blueprint-types.ts";
 export const LEGAL_ORIENTATION_IDS: readonly string[] = deepFreeze(
   UPRIGHT_ORIENTATIONS.map(({ id }) => id),
 );
+
+/**
+ * Project-authored part-scoped placement policy.
+ *
+ * Every part retains the four legacy upright yaws. Source and proposal
+ * artifacts corroborated this review, but neither artifact class grants
+ * placement authority or contributes rows at runtime.
+ */
+export const PART_SCOPED_NON_UPRIGHT_LEGAL_ORIENTATION_IDS: Readonly<
+  Record<string, readonly string[]>
+> = deepFreeze({
+  "builtin:tile-1x8": ["proper-m-00nn000p0"],
+  "builtin:plate-1x2-round-end": ["proper-m-00nn000p0"],
+  "builtin:plate-1x12": ["proper-m-00nn000p0"],
+  "builtin:technic-brick-1x1-axle-hole": ["proper-m-00nn000p0"],
+  "builtin:technic-brick-1x2-axle-hole": ["proper-m-00pp000p0"],
+  "builtin:bracket-2x2-1x2-vertical-studs": ["proper-m-p0000n0p0"],
+  "builtin:tile-1x6": ["proper-m-00nn000p0"],
+  "builtin:tile-1x2": ["proper-m-00nn000p0", "proper-m-00pp000p0"],
+  "builtin:plate-1x4": ["proper-m-00nn000p0"],
+  "builtin:slope-1x2-45": ["proper-m-00nn000p0", "proper-m-00pp000p0"],
+  "builtin:axle-1x3": ["proper-m-00pp000p0"],
+});
+
+const PROPER_ORIENTATION_IDS = new Set(PROPER_ORIENTATIONS.map(({ id }) => id));
+for (const [partId, orientationIds] of Object.entries(
+  PART_SCOPED_NON_UPRIGHT_LEGAL_ORIENTATION_IDS,
+)) {
+  for (const orientationId of orientationIds) {
+    if (!PROPER_ORIENTATION_IDS.has(orientationId)) {
+      throw new Error(
+        `Project-authored transform policy for ${partId} names unknown proper orientation ${orientationId}`,
+      );
+    }
+  }
+}
+
+export const legalOrientationIdsForPart = (partId: string): readonly string[] => {
+  const nonUpright = PART_SCOPED_NON_UPRIGHT_LEGAL_ORIENTATION_IDS[partId];
+  return nonUpright === undefined
+    ? LEGAL_ORIENTATION_IDS
+    : deepFreeze([...LEGAL_ORIENTATION_IDS, ...nonUpright]);
+};
 
 export const makeAliases = (
   displayName: string,

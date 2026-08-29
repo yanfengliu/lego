@@ -1,3 +1,4 @@
+import { REVIEWED_EXECUTION_IDENTITY_DIGEST } from "./real-build-observation-source-parity-field-names.ts";
 import { sha256Hex } from "@lego-studio/brick-kernel";
 import { describe, expect, it, vi } from "vitest";
 
@@ -223,7 +224,7 @@ describe("source-parity exact-five calibration foundation", () => {
         (packet) => (packet.reviewedCalibrationDigest = "wrong" as never),
       ],
       [
-        "reviewedExecutionIdentityDigest",
+        REVIEWED_EXECUTION_IDENTITY_DIGEST,
         (packet) => (packet.reviewedExecutionIdentityDigest = "wrong" as never),
       ],
       ["pdfDigest", (packet) => (packet.pdfDigest = "wrong" as never)],

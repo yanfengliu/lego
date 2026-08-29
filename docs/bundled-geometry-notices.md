@@ -2,9 +2,11 @@
 
 > Generated from the catalog by `packages/catalog/src/bundled-geometry-notices.test.ts`, which fails if this file and the catalog disagree. Do not edit by hand.
 
-The render mesh of the parts below is real LDraw geometry, bundled and redistributed under the [Creative Commons Attribution 4.0 International licence](https://creativecommons.org/licenses/by/4.0/). Of the 228 source files, 224 declare CC BY 4.0 and `parts/2453b.dat`, `parts/30503.dat`, `parts/32064a.dat`, `parts/3245c.dat` declare `CC-BY-2.0 OR CC-BY-4.0`; this bundle selects their CC BY 4.0 option. Attribution therefore names every file whose triangles are bundled with its author, title, licence and content hash rather than flattening it into project-owned data.
+The render mesh of the parts below is real LDraw geometry, bundled and redistributed under the [Creative Commons Attribution 4.0 International licence](https://creativecommons.org/licenses/by/4.0/). Of the 237 source files, 233 declare CC BY 4.0 and `parts/2453b.dat`, `parts/30503.dat`, `parts/32064a.dat`, `parts/3245c.dat` declare `CC-BY-2.0 OR CC-BY-4.0`; this bundle selects their CC BY 4.0 option. Attribution therefore names every file whose triangles are bundled with its author, title, licence and content hash rather than flattening it into project-owned data.
 
 Permission to reuse this geometry is **not** permission to train on it. That right is not held, and no bundled file is designated as a model-training or benchmark corpus.
+
+Catalog `/29` adds the two exact fully measured roots that close the remaining printed-step-50 catalogue identities. `10201` Bracket 1 x 2 - 1 x 4 with Rounded Corners uses an official 21-file closure, 660 triangles, 23 conservative body boxes plus six source-radius stud cylinders, and an exact LDCad route for four outward side studs, two top studs, and two explicitly opted-in square-S6 underside sockets. The official `10201.dat` root is an alias of `2436b.dat`, but only `10201.dat` is exposed as this catalogue identity. `3245b` Brick 1 x 2 x 2 with Inside Axle Holder uses an official 11-file closure, 144 triangles, 29 conservative body boxes plus two source-radius stud cylinders, and an exact LDCad route for two top studs, two round underside sockets, and one fixed female one-cap A6 x 44 blind axle socket. The socket preserves its exact catalog span from closed end `[0,-20,0]` to open mouth `[0,24,0]`, midpoint `[0,2,0]`, outward normal `[0,1,0]`, depth 44 LDU, and `slide=false`; it is not flattened into a directionless through-hole and grants no bore-relief or insertion-access claim. These definitions grant no bare or cross-suffix alias and, by themselves, no printed occurrence assignment, physical frame, placement, action-ledger, replay, document mutation, acceptance, or completion authority.
 
 Catalog `/28` adds two exact-suffix fully measured parts without treating the suffixes as interchangeable. `3245c` Brick 1 x 2 x 2 Without Understud uses an official 10-file closure, 152 triangles, 25 conservative body boxes plus two source-radius stud cylinders, and an exact LDCad route for two top studs and three half-pitch underside seats. Its two outer seats consume separate capacity cells while the center consumes both, so the two outers may coexist and the center conflicts with either. `2453b` Brick 1 x 1 x 5 with Solid Stud uses an official 6-file closure, 76 triangles, five conservative body boxes plus one source-radius stud cylinder, and an exact LDCad route for its top stud and one explicitly opted-in square-S6 underside socket. These generic catalog facts do not reinterpret the unresolved `3245;M` Builder record, the suffix-absent `2453;I` record, or any booklet pixel diagnostic. They grant no source-execution, printed identity, physical assignment, frame, placement, action-ledger, replay, document mutation, acceptance, or completion authority.
 
@@ -69,10 +71,12 @@ Source archive: `ldraw-complete-2026-07`, 144722356 bytes, `sha256:6009f2e94204c
 | `builtin:curved-slope-1x1-outside-bow` | `49307.dat` | Brick  1 x  1 x  0.667 with Curved Top | Philippe Hurbain [Philo] | `CC-BY-4.0` | 7 |
 | `builtin:brick-1x2x2-without-understud` | `3245c.dat` | Brick  1 x  2 x  2 without Understud | Stephan Meisinger [smr] | `CC-BY-2.0 OR CC-BY-4.0` | 10 |
 | `builtin:brick-1x1x5-solid-stud` | `2453b.dat` | Brick  1 x  1 x  5 with Solid Stud | Merlijn Wissink [legolijntje] | `CC-BY-2.0 OR CC-BY-4.0` | 6 |
+| `builtin:bracket-1x2-1x4-rounded-corners` | `10201.dat` | =Bracket  1 x  2 -  1 x  4 with Rounded Corners | Chris Dee [cwdee] | `CC-BY-4.0` | 21 |
+| `builtin:brick-1x2x2-inside-axle-holder` | `3245b.dat` | Brick  1 x  2 x  2 with Inside Axle Holder | Steve Bliss [sbliss] | `CC-BY-4.0` | 11 |
 
 ## Every bundled file
 
-The 228 files below comprise 224 `CC-BY-4.0` declarations and four `CC-BY-2.0 OR CC-BY-4.0` declarations.
+The 237 files below comprise 233 `CC-BY-4.0` declarations and four `CC-BY-2.0 OR CC-BY-4.0` declarations.
 
 | File | Title | Author | Licence | LDraw.org status | SHA-256 |
 | --- | --- | --- | --- | --- | --- |
@@ -86,6 +90,7 @@ The 228 files below comprise 224 `CC-BY-4.0` declarations and four `CC-BY-2.0 OR
 | `p/1-16tndis.dat` | Disc Negative Truncated 0.0625 | Massimo Maso [Sirio] | `CC-BY-4.0` | Primitive UPDATE 2022-03 | `98bf2c3ef480d10f1fb8aac9af0240a0a0704b395b9fb61373c719648ae782d2` |
 | `p/1-4chrd.dat` | Chord 0.25 | Max Martin Richter [MMR1988] | `CC-BY-4.0` | Primitive UPDATE 2023-05 | `ccba3a97b5cc358754e476b78b4ce61cce5f404cd15e37471b73df3e81784aec` |
 | `p/1-4con1.dat` | Cone  1 x 0.25 | Willy Tschager [Holly-Wood] | `CC-BY-4.0` | Primitive UPDATE 2024-01 | `da6bd834f802df4f9d87cf03ad7b425dcdfa257555beca40c9ae62f9352ecaa0` |
+| `p/1-4cylc.dat` | Cylinder Closed 0.25 | Mark Kennedy [mkennedy] | `CC-BY-4.0` | Primitive UPDATE 2010-01 | `fdcb54ba2e2731cbb86ea6b2fddb25c7dda060a7780629a72003e0278805dd30` |
 | `p/1-4cyli.dat` | Cylinder 0.25 | James Jessiman | `CC-BY-4.0` | Primitive UPDATE 2012-01 | `5a7168952a5a3570327873b9a5802fa7b3be40967ab78c03b6a2bfd4419a1f10` |
 | `p/1-4cylo.dat` | Cylinder Open 0.25 | Max Martin Richter [MMR1988] | `CC-BY-4.0` | Primitive UPDATE 2010-03 | `792a01362608c3f385dd7f01a1bd7d19cf9ed8a40f793266345cc86d1d98f3af` |
 | `p/1-4cyls.dat` | Cylinder Sloped 0.25 | James Jessiman | `CC-BY-4.0` | Primitive UPDATE 2012-01 | `aaee6ffe6e4a191d6cad4496677132eb0349303d6e48c13c7a2240dcea1db621` |
@@ -175,6 +180,7 @@ The 228 files below comprise 224 `CC-BY-4.0` declarations and four `CC-BY-2.0 OR
 | `p/axlehol4.dat` | Technic Axle Hole Open One Side | James Jessiman | `CC-BY-4.0` | Primitive UPDATE 2022-02 | `256ebbe25364125c893ffd4dbbe5131e46aae4b961611848b3bfde88f855673c` |
 | `p/axlehol5.dat` | Technic Axle Hole Open Two Opposite Sides | James Jessiman | `CC-BY-4.0` | Primitive UPDATE 2022-02 | `5977860888c76d8170d9ec33c93f6c431133bfdc79435e7eac9c32bb15c0a83d` |
 | `p/axlehol8.dat` | Technic Axle Perimeter | Steve Bliss [sbliss] | `CC-BY-4.0` | Primitive UPDATE 2024-01 | `e3cf8856c972ecaf486a344c171cb4ab601efcb08956bd7b6cfafa39b0439493` |
+| `p/box0.dat` | Box with 0 Faces and All Edges | Santeri Piippo [arezey] | `CC-BY-4.0` | Primitive UPDATE 2010-02 | `c2a26e0f7caf639bcdd55dd56325f8756ef39a1f86ed16bacd2c9fb625af2847` |
 | `p/box2-11.dat` | Box with 2 Faces without 11 Edges | Steffen [Steffen] | `CC-BY-4.0` | Primitive UPDATE 2005-01 | `7f29fb8601b419207b5c855af8fad8abb55a967ec73f3d8be841d370c360b97c` |
 | `p/box2-5.dat` | Box with 2 Faces without 5 Edges | Steffen [Steffen] | `CC-BY-4.0` | Primitive UPDATE 2003-03 | `8f297b754f87da1dbe19eec8704a5ce03a23b794ccd7cd015508e3758a206174` |
 | `p/box2-7.dat` | Box with  2 Faces without  7 Edges | Willy Tschager [Holly-Wood] | `CC-BY-4.0` | Primitive UPDATE 2024-01 | `e0474c5ad7fb9ff77b67883a5b1e327d028e3eb4e59921a626b4215632dd9f00` |
@@ -182,6 +188,7 @@ The 228 files below comprise 224 `CC-BY-4.0` declarations and four `CC-BY-2.0 OR
 | `p/box2-9p.dat` | Box with  2 Faces with  3 Parallel Edges | Willy Tschager [Holly-Wood] | `CC-BY-4.0` | Primitive UPDATE 2024-01 | `6c68301a34e42d105e716e5ae5edf02e3d58978db24619f0364887c339edd331` |
 | `p/box3-7a.dat` | Box with  3 Adjacent Faces without  7 Adjacent Edges | Willy Tschager [Holly-Wood] | `CC-BY-4.0` | Primitive UPDATE 2024-01 | `4fd59e0bd2a5c2b076568627eaf4ad6696deb1f245422bf124bf4dda160a5c43` |
 | `p/box3u10p.dat` | Box with 3 Faces without 10 Parallel Edges | Owen Burgoyne [C3POwen] | `CC-BY-4.0` | Primitive UPDATE 2014-01 | `a9a9edde9b651aaae34a33728d30ad606e295e0257bca896a07c1b65864370b4` |
+| `p/box3u12.dat` | Box with 3 Parallel Faces without Any Edges | J.C. Tchang [tchang] | `CC-BY-4.0` | Primitive UPDATE 2014-02 | `66c119cd5a0b762632128bc998f4469f65a4bb78800148c637b475d0932b635c` |
 | `p/box3u2p.dat` | Box with 3 Faces without 2 Parallel Edges | Niels Karsdorp [nielsk] | `CC-BY-4.0` | Primitive UPDATE 2012-01 | `df73118b95f23d693c3b7d25c57c483db3bf61ae017d757848119955d28d59e0` |
 | `p/box3u4a.dat` | Box with 3 Faces without 4 Adjacent Edges | Niels Karsdorp [nielsk] | `CC-BY-4.0` | Primitive UPDATE 2009-01 | `15463f41f9947dd75486dc7af3231b1037704f1b654c2555e3ba705817a2db75` |
 | `p/box3u5p.dat` | Box with  3 Faces without  5 Edges | Willy Tschager [Holly-Wood] | `CC-BY-4.0` | Primitive UPDATE 2024-01 | `0f52d5c372a303f508113ace2c7cba6d52b46171052e76a88266679a74f17ea5` |
@@ -229,6 +236,7 @@ The 228 files below comprise 224 `CC-BY-4.0` declarations and four `CC-BY-2.0 OR
 | `p/stug-3x3.dat` | Stud Group  3 x  3 | Steve Bliss [sbliss] | `CC-BY-4.0` | Primitive UPDATE 2011-01 | `ec81497656a4a77a32cc09b131026c9882ab2da35944f701aa7575d43667d7f0` |
 | `p/stug-4x4.dat` | Stud Group  4 x  4 | Tore Eriksson [Tore_Eriksson] | `CC-BY-4.0` | Primitive UPDATE 2011-01 | `d167d3367e9d6346e217331f3d35c7b2700d1c87f35e87b40cb3a702afa90e54` |
 | `p/stug2-1x2.dat` | Stud Open Group  1 x  2 | Steffen [Steffen] | `CC-BY-4.0` | Primitive UPDATE 2011-02 | `9cd034fe99c6efd6e158c73a8a95d7b0e6ff4f1671a7ee22e2323c74a43b7f1e` |
+| `p/stug2-1x4.dat` | Stud Open Group  1 x  4 | Steffen [Steffen] | `CC-BY-4.0` | Primitive UPDATE 2011-02 | `fca792de8f55eea1b35ec581ba94cb1aa5ad0967dd6af5ad3d7ed6ba0d0543b4` |
 | `p/stug2-4x1.dat` | Stud Open Group  4 x  1 | Steffen [Steffen] | `CC-BY-4.0` | Primitive UPDATE 2011-02 | `179d252971d76f12196c7c2c3b6f89bb6c7eab21d9df9625f44a8064e49e4996` |
 | `p/stug2.dat` | ~Moved to stug-2x2 | [PTadmin] | `CC-BY-4.0` | Primitive UPDATE 2011-01 | `e1dfe5f5e0c433cd406467d366d278518cde9d7e83cc5d4229c451adf52fcc71` |
 | `p/stug3-1x2.dat` | Stud Tube Solid Group  1 x  2 | Steffen [Steffen] | `CC-BY-4.0` | Primitive UPDATE 2013-02 | `e78926d1494fa67b984f390aa1c05d01c35eff99030209e9bbee4e15bfcc0ecb` |
@@ -237,10 +245,12 @@ The 228 files below comprise 224 `CC-BY-4.0` declarations and four `CC-BY-2.0 OR
 | `p/stug4-2x2.dat` | Stud Tube Open Group  2 x  2 | Steffen [Steffen] | `CC-BY-4.0` | Primitive UPDATE 2011-01 | `cf6e68b84d37562ed1a035015c23f804157ce6a80a7632a179e4def8ddcacfcb` |
 | `p/stug4.dat` | ~Moved to stug-4x4 | [PTadmin] | `CC-BY-4.0` | Primitive UPDATE 2011-01 | `977530a161304abc45fa2dbcac0e8a7df389d8ab3838a82702032a74dca9021f` |
 | `p/tri3a4.dat` | Triangular Prism with 3 Adjacent Faces without 4 Edges | Magnus Forsberg [MagFors] | `CC-BY-4.0` | Primitive UPDATE 2017-01 | `8c1cf47d85e2d2b429c0ac404108a9e91048fe7c9501b527dda55e75ad11bc4e` |
+| `parts/10201.dat` | =Bracket  1 x  2 -  1 x  4 with Rounded Corners | Chris Dee [cwdee] | `CC-BY-4.0` | Part Alias UPDATE 2014-02 | `028bc441268df93c08a363d375406cdf1eb70a25250bb3b56945fd6828395b7e` |
 | `parts/11212.dat` | Plate  3 x  3 | Rolf Osterthun [Rolf] | `CC-BY-4.0` | Part UPDATE 2012-03 | `c527adbbc5db2983cdc9d0b28481d57a248fd0125d8aa00c13aebd7c32b6633f` |
 | `parts/11253.dat` | Minifig Roller Skate | Magnus Forsberg [MagFors] | `CC-BY-4.0` | Part UPDATE 2013-01 | `73bd3e4ac6080ee535bf4a0ba514322abe3e9d8ff073e2d6b789f0ed105a00fc` |
 | `parts/11477.dat` | Slope Brick Curved  2 x  1 | Owen Burgoyne [C3POwen] | `CC-BY-4.0` | Part UPDATE 2013-01 | `fed74af9f56bcb149a7f67af4b427c261b41d24d15ed7a3466e24170377a0ba6` |
 | `parts/15254.dat` | Arch  1 x  6 x  2 with Thin Top | Michael Heidemann [mikeheide] | `CC-BY-4.0` | Part UPDATE 2025-09 | `d0a46511d5348dcab1d16852e930fb2f7ea96ed461aed46cf0343b0a2feae883` |
+| `parts/2436b.dat` | Bracket  1 x  2 -  1 x  4 with Rounded Corners | Magnus Forsberg [MagFors] | `CC-BY-4.0` | Part UPDATE 2014-02 | `5ea130d5be36679e8d9dd0466865a517e85f755c0d21290eec439670dd19b849` |
 | `parts/2450.dat` | Plate  3 x  3 without Corner | James Jessiman | `CC-BY-4.0` | Part UPDATE 2024-03 | `5bdb50ad11b750ca1621a7c1717f1dee4af58ae8816af3c77f4af75f7e72f408` |
 | `parts/2453b.dat` | Brick  1 x  1 x  5 with Solid Stud | Merlijn Wissink [legolijntje] | `CC-BY-2.0 OR CC-BY-4.0` | Part UPDATE 2025-09 | `3c7caddd91a2467243cf3f3bd0bdd8ee8fa1cbd5435591a6491841ee1ca49b01` |
 | `parts/25269.dat` | Tile  1 x  1 Corner Round | Magnus Forsberg [MagFors] | `CC-BY-4.0` | Part UPDATE 2019-02 | `27d965f14caa2c9ebb13c07190f5683da8aca2471671e469e923b623e7978e6c` |
@@ -253,6 +263,7 @@ The 228 files below comprise 224 `CC-BY-4.0` declarations and four `CC-BY-2.0 OR
 | `parts/30565.dat` | Plate  4 x  4 with Corner Round | Gerald Lasser [GeraldLasser] | `CC-BY-4.0` | Part UPDATE 2024-06 | `e201a60e7f8e8ab15a86e8449c0e722a1b1ebe8015a5021ac5ca9aa1fd462f39` |
 | `parts/32064.dat` | ~Moved to 32064a | [PTadmin] | `CC-BY-4.0` | Part UPDATE 2009-03 | `b6240d5798083701834cec8f566d7fca05cbc51123fad8500d3125fa68b4c465` |
 | `parts/32064a.dat` | Technic Brick  1 x  2 with Axlehole with Open Sides and Stud Blocker | Lutz Uhlmann [El-Lutzo] | `CC-BY-2.0 OR CC-BY-4.0` | Part UPDATE 2022-02 | `b35a848b805493527b83b3a087d0a7f139084834c1f3325045905aa09ded26d2` |
+| `parts/3245b.dat` | Brick  1 x  2 x  2 with Inside Axle Holder | Steve Bliss [sbliss] | `CC-BY-4.0` | Part UPDATE 2020-03 | `3741551acda207402f56b5f7905f1ccc507f8261ea92359fec7829b464b08649` |
 | `parts/3245c.dat` | Brick  1 x  2 x  2 without Understud | Stephan Meisinger [smr] | `CC-BY-2.0 OR CC-BY-4.0` | Part UPDATE 2017-01 | `9cc04bca1050e0b16a00c76a432f9cbb769655dc79188a0df3cffa2229dc6615` |
 | `parts/33909.dat` | Plate  2 x  2 with 2 Studs on One Edge | Magnus Forsberg [MagFors] | `CC-BY-4.0` | Part UPDATE 2020-01 | `8da6789db82746f179997ed4b917d00d34d03a6486d6aa27c76d17c9b21d8609` |
 | `parts/3455.dat` | Arch  1 x  6 | James Jessiman | `CC-BY-4.0` | Part UPDATE 2005-01 | `6e8fcdca71b4dd1a875b926ed5b28889fc4a47a01272b6550987338f0619083b` |
@@ -290,6 +301,8 @@ The 228 files below comprise 224 `CC-BY-4.0` declarations and four `CC-BY-2.0 OR
 | `parts/s/3040s01.dat` | ~Slope Brick 45  2 x  1 without Front Face | Orion Pobursky [OrionP] | `CC-BY-4.0` | Subpart UPDATE 2004-01 | `e350abf28f7b7e91b9dfbc7f6780974f0841960a0c8d50b7abf5a9e8c9550bf5` |
 | `parts/s/30565s01.dat` | ~Plate  4 x  4 Round 1/8 | Gerald Lasser [GeraldLasser] | `CC-BY-4.0` | Subpart UPDATE 2024-06 | `69b36b94a6b6313e379a36b26a1a1f9a3f18b452bf98547a7e16f21b3ecf086b` |
 | `parts/s/32064s01.dat` | ~Technic Brick  1 x  2 with Axlehole | Magnus Forsberg [MagFors] | `CC-BY-4.0` | Subpart UPDATE 2022-02 | `e89d5e33547325f5a84aa9b0c374f3cd997eae841057dc2697e76f5dc1cfd502` |
+| `parts/s/3245bs01.dat` | ~Brick  1 x  2 x  2 with Inside Axle Holder without Front Face | Takeshi Takahashi [RainbowDolphin] | `CC-BY-4.0` | Subpart UPDATE 2020-03 | `f29acbec2f7e9d81e267a5c8065664bc19d0aa73c9444285bc69d560961de0b2` |
+| `parts/s/3245bs02.dat` | ~Brick  1 x  2 x  2 with Inside Axleholder without Side Surfaces | Magnus Forsberg [MagFors] | `CC-BY-4.0` | Subpart UPDATE 2020-02 | `ad6335cc9a19bbbdd15c17da605251db344ca32e92348bc26a3383440b95690b` |
 | `parts/s/3245cs01.dat` | ~Brick  1 x  2 x  2 without Understud - without Front Face | Damien Roux [Darats] | `CC-BY-4.0` | Subpart UPDATE 2017-01 | `805379d3a543a51601cef5c832eaa75c4afd626f7e144defd679a0441132ce20` |
 | `parts/s/35787s01.dat` | ~Tile  2 x  2 Triangular without Top Surface | Gerald Lasser [GeraldLasser] | `CC-BY-4.0` | Subpart UPDATE 2026-01 | `11b63d550c632afaa6b0178c233ae8d87a624bad04ce90d86d22702af1107729` |
 | `parts/s/41770as01.dat` | ~Wing  2 x  4 Left without Chamfer without Studs | Takeshi Takahashi [RainbowDolphin] | `CC-BY-4.0` | Subpart UPDATE 2026-05 | `8d88de31c2ec2050977671b63f6115ae47b72f2c01d9f863bd34ecc00760165d` |
@@ -310,6 +323,8 @@ The 228 files below comprise 224 `CC-BY-4.0` declarations and four `CC-BY-2.0 OR
 For `3245c`, the exact LDCad route authors two top studs and three round half-pitch underside seats; two inherited square-S6 declarations remain excluded. The negative outer and center seats share one capacity cell, while the center and positive outer share another. This admits exact generic connector occupancy without authenticating the unresolved Builder variant, a printed element, or a placement frame.
 
 For `2453b`, the exact LDCad route authors one top stud and one square-S6 underside socket. The socket passes the same bounded source-room control as the earlier calibrated square-S6 routes, but it does not identify an unsuffixed `2453` record or authorize a printed placement.
+
+For `3245b`, the exact LDCad route authors two top studs, two underside clutch cells, and one fixed one-sided axle socket. The female `caps=one`, A6 x 44 declaration is projected as `blindAxleHole`, with its finite axial span retained separately from the connector midpoint and its outward normal naming the only admitted mouth side. The span stays inside the measured body bounds; compatibility does not waive collision, prove insertion access, or imply continuous sliding.
 
 For `99563`, the exact LDCad route authors three half-pitch underside seats. The negative outer and center seats share one capacity cell; the center and positive outer seats share another. The center therefore excludes either outer while the two outers can be occupied together. This is deterministic connector occupancy only and does not authenticate any booklet placement or physical-performance claim.
 
@@ -341,26 +356,32 @@ Catalog-carried attribution: Copyright (c) 2026 Yanfeng Liu. Axle-hole seats der
 
 Source: `set-6651557/1; LDCadShadowLibrary commit 15aa1e718b6a8da37d24fc7af5e52e262c041bfb; whole-tree manifest sha256 668bc047a45e5560ff0fbbd69e9eb5adafab127781720bcb069a1554cb3f0c0f; composed by ldcad-shadow-composed-over-ldraw-tree/1`.
 
+Catalog-carried attribution: Copyright (c) 2026 Yanfeng Liu. Blind axle-holder data derived from the LDCad Shadow Library by Roland Melkert and its per-file !HISTORY contributors, CC BY-SA 4.0; this part uses the exact caps=one female A6x44 finite span from its open mouth to its closed cap and preserves slide=false. ShareAlike attaches to this derived connector data on redistribution. Extents, collision and render mesh are the official LDraw closure named on the part.
+
+Source: `set-6651557/1; LDCadShadowLibrary commit 15aa1e718b6a8da37d24fc7af5e52e262c041bfb; whole-tree manifest sha256 668bc047a45e5560ff0fbbd69e9eb5adafab127781720bcb069a1554cb3f0c0f; composed by ldcad-shadow-composed-over-ldraw-tree/1`.
+
 Catalog-carried attribution: Copyright (c) 2026 Yanfeng Liu. Underside clutch cells derived from the LDCad Shadow Library by Roland Melkert and its per-file !HISTORY contributors, CC BY-SA 4.0; ShareAlike attaches to this derived connector data on redistribution. Extents, collision and render mesh are the official LDraw closure named on the part.
 
-| Catalog part | LDraw file | Stud frames | Clutch cells | Axle seats | Axle-hole seats |
-| --- | --- | --- | --- | --- | --- |
-| `builtin:plate-3x3-corner-round` | `30357.dat` | 8 | 8 | 0 | 0 |
-| `builtin:wedge-plate-3x3-cut-corner` | `2450.dat` | 6 | 6 | 0 | 0 |
-| `builtin:corner-plate-2x2-round` | `79491.dat` | 2 | 2 | 0 | 0 |
-| `builtin:tile-1x1-quarter-round` | `25269.dat` | 0 | 1 | 0 | 0 |
-| `builtin:bracket-1x2-1x4-rounded-bottom` | `28802.dat` | 6 | 2 | 0 | 0 |
-| `builtin:tile-2x2-triangular` | `35787.dat` | 0 | 3 | 0 | 0 |
-| `builtin:roller-skate` | `11253.dat` | 1 | 1 | 0 | 0 |
-| `builtin:bracket-2x2-1x2-vertical-studs` | `41682.dat` | 2 | 4 | 0 | 0 |
-| `builtin:axle-1x3` | `4519.dat` | 0 | 0 | 3 | 0 |
-| `builtin:technic-brick-1x2-axle-hole` | `32064.dat` | 2 | 2 | 0 | 1 |
-| `builtin:plate-3x3` | `11212.dat` | 9 | 9 | 0 | 0 |
-| `builtin:plate-2x2-two-studs` | `33909.dat` | 2 | 4 | 0 | 0 |
-| `builtin:plate-1x5` | `78329.dat` | 5 | 5 | 0 | 0 |
-| `builtin:tile-1x2-chamfered-indented` | `99563.dat` | 0 | 3 | 0 | 0 |
-| `builtin:technic-brick-1x1-axle-hole` | `73230.dat` | 1 | 1 | 0 | 1 |
-| `builtin:slope-1x1-double-45` | `35464.dat` | 0 | 1 | 0 | 0 |
-| `builtin:curved-slope-1x1-outside-bow` | `49307.dat` | 0 | 1 | 0 | 0 |
-| `builtin:brick-1x2x2-without-understud` | `3245c.dat` | 2 | 3 | 0 | 0 |
-| `builtin:brick-1x1x5-solid-stud` | `2453b.dat` | 1 | 1 | 0 | 0 |
+| Catalog part | LDraw file | Stud frames | Clutch cells | Axle seats | Through axle-hole seats | Blind axle sockets |
+| --- | --- | --- | --- | --- | --- | --- |
+| `builtin:plate-3x3-corner-round` | `30357.dat` | 8 | 8 | 0 | 0 | 0 |
+| `builtin:wedge-plate-3x3-cut-corner` | `2450.dat` | 6 | 6 | 0 | 0 | 0 |
+| `builtin:corner-plate-2x2-round` | `79491.dat` | 2 | 2 | 0 | 0 | 0 |
+| `builtin:tile-1x1-quarter-round` | `25269.dat` | 0 | 1 | 0 | 0 | 0 |
+| `builtin:bracket-1x2-1x4-rounded-bottom` | `28802.dat` | 6 | 2 | 0 | 0 | 0 |
+| `builtin:tile-2x2-triangular` | `35787.dat` | 0 | 3 | 0 | 0 | 0 |
+| `builtin:roller-skate` | `11253.dat` | 1 | 1 | 0 | 0 | 0 |
+| `builtin:bracket-2x2-1x2-vertical-studs` | `41682.dat` | 2 | 4 | 0 | 0 | 0 |
+| `builtin:axle-1x3` | `4519.dat` | 0 | 0 | 3 | 0 | 0 |
+| `builtin:technic-brick-1x2-axle-hole` | `32064.dat` | 2 | 2 | 0 | 1 | 0 |
+| `builtin:plate-3x3` | `11212.dat` | 9 | 9 | 0 | 0 | 0 |
+| `builtin:plate-2x2-two-studs` | `33909.dat` | 2 | 4 | 0 | 0 | 0 |
+| `builtin:plate-1x5` | `78329.dat` | 5 | 5 | 0 | 0 | 0 |
+| `builtin:tile-1x2-chamfered-indented` | `99563.dat` | 0 | 3 | 0 | 0 | 0 |
+| `builtin:technic-brick-1x1-axle-hole` | `73230.dat` | 1 | 1 | 0 | 1 | 0 |
+| `builtin:slope-1x1-double-45` | `35464.dat` | 0 | 1 | 0 | 0 | 0 |
+| `builtin:curved-slope-1x1-outside-bow` | `49307.dat` | 0 | 1 | 0 | 0 | 0 |
+| `builtin:brick-1x2x2-without-understud` | `3245c.dat` | 2 | 3 | 0 | 0 | 0 |
+| `builtin:brick-1x1x5-solid-stud` | `2453b.dat` | 1 | 1 | 0 | 0 | 0 |
+| `builtin:bracket-1x2-1x4-rounded-corners` | `10201.dat` | 6 | 2 | 0 | 0 | 0 |
+| `builtin:brick-1x2x2-inside-axle-holder` | `3245b.dat` | 2 | 2 | 0 | 0 | 1 |

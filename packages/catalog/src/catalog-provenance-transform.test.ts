@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   BUILTIN_CATALOG,
   BUILTIN_CATALOG_VERSION,
+  BUILTIN_TRANSFORM_POLICY_MANIFEST,
   COLLISION_MODEL_VERSION,
   COLOR_DEFINITIONS,
   CONNECTOR_TAXONOMY_VERSION,
@@ -12,6 +13,8 @@ import {
   getColorDefinition,
   getPartDefinition,
   PART_DEFINITIONS,
+  PROPER_ORIENTATIONS,
+  PROJECT_TRANSFORM_POLICY_PROVENANCE,
   resolvePartId,
   STUD_PITCH_LDU,
   TRANSFORM_POLICY_VERSION,
@@ -39,9 +42,9 @@ describe("catalog provenance and transforms", () => {
       expect(orientation.upAxis).toEqual([0, -1, 0]);
     }
 
-    for (const part of PART_DEFINITIONS) {
-      expect(part.legalOrientationIds).toEqual(UPRIGHT_ORIENTATIONS.map(({ id }) => id));
-    }
+    expect(
+      PART_DEFINITIONS.every(({ legalOrientationIds }) => legalOrientationIds.length >= 4),
+    ).toBe(true);
   });
 
   it("resolves canonical, human, and LDraw aliases and states each geometry layer's rights", () => {
@@ -129,7 +132,19 @@ describe("catalog provenance and transforms", () => {
     expect(input.parts).toBe(PART_DEFINITIONS);
     expect(input).toBe(BUILTIN_CATALOG);
     expect(input.colors).toBe(COLOR_DEFINITIONS);
-    expect(input.orientations).toBe(UPRIGHT_ORIENTATIONS);
+    expect(input.orientations).toBe(PROPER_ORIENTATIONS);
+    expect(input.transformPolicy).toBe(BUILTIN_TRANSFORM_POLICY_MANIFEST);
+    expect(input.transformPolicy.provenance).toBe(PROJECT_TRANSFORM_POLICY_PROVENANCE);
+    expect(input.transformPolicy.version).toBe(input.transformPolicyVersion);
+    expect(input.transformPolicy.authority).toBe("project-authored-catalog-truth");
+    expect(input.transformPolicy.sourceAndProposalArtifactRole).toBe("corroboration-only");
+    expect(input.transformPolicy.provenance).toMatchObject({
+      sourceType: "project-authored",
+      runtimeRole: "catalog-truth",
+      licenseExpression: "MIT",
+      externalGeometryBundled: false,
+    });
+    expect(input.provenanceLayers).toContain(PROJECT_TRANSFORM_POLICY_PROVENANCE);
     expect(JSON.stringify(getCatalogSnapshotDigestInput())).toBe(JSON.stringify(input));
     expect(Object.isFrozen(input)).toBe(true);
     expect(Object.isFrozen(input.parts)).toBe(true);

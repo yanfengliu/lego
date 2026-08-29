@@ -1,4 +1,5 @@
 import type {
+  ConnectorAxialSpan,
   ConnectorKind,
   LduVector3,
   PartFamily,
@@ -63,16 +64,47 @@ export type MeasuredStudRow =
 /**
  * A non-stud connector derived from the declaration's pinned authored source.
  *
- * The measured route deliberately admits only the exact axle and axle-hole
- * projections gated from LDCad today. LDraw supplies their visible bodies but
- * not their usable seats; the factory derives each catalog profile from the
- * existing connector taxonomy rather than repeating it in generated data.
+ * The measured route deliberately admits only exact axle, through axle-hole,
+ * and one-sided axle-holder projections gated from LDCad today. LDraw supplies
+ * their visible bodies but not their usable seats; the factory derives each
+ * catalog profile from the existing connector taxonomy rather than repeating
+ * it in generated data.
  */
-export interface MeasuredSourceConnectorRow {
-  readonly kind: Extract<ConnectorKind, "axle" | "axleHole">;
+interface MeasuredSourceConnectorRowBase {
   readonly positionLdu: LduVector3;
   readonly normal: LduVector3;
 }
+
+/** Pinned LDCad A6x1 segment evidence retained for collision admission. */
+export interface MeasuredThroughAxleBoreCollisionEvidence {
+  readonly schemaVersion: "measured-through-axle-bore-collision/1";
+  readonly sourceSection: "A 6 1";
+  readonly startLdu: LduVector3;
+  readonly endLdu: LduVector3;
+  readonly radiusLdu: 6;
+  readonly segmentLengthLdu: 20;
+  readonly caps: "none";
+  readonly sliding: true;
+}
+
+export type MeasuredSourceConnectorRow = MeasuredSourceConnectorRowBase &
+  (
+    | {
+        readonly kind: Extract<ConnectorKind, "axle">;
+        readonly axialSpan?: never;
+        readonly throughBoreCollision?: never;
+      }
+    | {
+        readonly kind: Extract<ConnectorKind, "axleHole">;
+        readonly axialSpan?: never;
+        readonly throughBoreCollision: MeasuredThroughAxleBoreCollisionEvidence;
+      }
+    | {
+        readonly kind: Extract<ConnectorKind, "blindAxleHole">;
+        readonly axialSpan: ConnectorAxialSpan;
+        readonly throughBoreCollision?: never;
+      }
+  );
 
 /**
  * A part declared from measured source rather than from parameters.

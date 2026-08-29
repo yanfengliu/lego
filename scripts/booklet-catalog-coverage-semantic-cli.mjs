@@ -1,128 +1,92 @@
-import { constants, copyFileSync, existsSync, mkdirSync } from "node:fs";
-import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import {
+  bytesFromVerifiedSemanticBookletCatalogCoverage,
   compileSemanticBookletCatalogCoverage,
   encodeSemanticBookletCatalogCoverage,
-  verifySemanticBookletCatalogCoverage,
+  inspectVerifiedSemanticBookletCatalogCoverage,
+  isVerifiedSemanticBookletCatalogCoverage,
+  verifyOpaqueSemanticBookletCatalogCoverage,
 } from "./booklet-catalog-coverage-semantic.mjs";
-import { sha256Digest } from "./part-identification-artifact-source.mjs";
-import { readBoundedFile, writeContainedFile } from "./part-identification-io.mjs";
+import { publishContainedArtifactWithoutOverwrite } from "./part-identification-counterevidence-archive.mjs";
 import { verifyCurrentPrefix50SemanticClosure } from "./part-identification-prefix50-semantic-closure-current.mjs";
 
 const OUTPUT_ROOT = "output/real-build";
 const OUTPUT_FILE = "catalog-coverage.json";
 const MAXIMUM_COVERAGE_BYTES = 2 * 1024 * 1024;
 
-function option(argv, name, fallback) {
-  const flag = `--${name}`;
-  const positions = argv.flatMap((value, index) => (value === flag ? [index] : []));
-  if (positions.length > 1) {
-    throw new Error(`${flag} may be supplied once; received ${positions.length} occurrences.`);
-  }
-  if (positions.length === 0) return fallback;
-  const at = positions[0];
-  if (at === argv.length - 1 || argv[at + 1].startsWith("--")) {
-    throw new Error(`${flag} requires a value.`);
-  }
-  return argv[at + 1];
-}
-
 export function semanticBookletCatalogCoverageUsage() {
   return [
-    "Usage: node scripts/booklet-catalog-coverage-semantic-cli.mjs [--last-step 1..50]",
+    "Usage: node scripts/booklet-catalog-coverage-semantic-cli.mjs",
     "",
-    "Replays the exact local prefix-50 semantic identity chain and current catalog without a model or browser,",
-    "retains all 359 printed-step source/index commitments, and publishes only the requested prefix.",
+    "Replays exactly the first 50 printed steps and the current catalog without a model or browser,",
+    "retains all 359 printed-step source/index commitments, and never overwrites differing current evidence.",
   ].join("\n");
 }
 
-function archiveCounterevidence(nextBytes, outputRoot = OUTPUT_ROOT) {
-  const currentPath = join(outputRoot, OUTPUT_FILE);
-  if (!existsSync(currentPath)) return null;
-  const currentBytes = readBoundedFile(currentPath, {
-    label: "Existing catalog coverage counterevidence",
-    maxBytes: MAXIMUM_COVERAGE_BYTES,
-  });
-  if (currentBytes.equals(nextBytes)) return null;
-  const digest = sha256Digest(currentBytes);
-  const historyRoot = join(outputRoot, "history");
-  const archiveName = `catalog-coverage-stale-${digest.slice("sha256:".length, "sha256:".length + 8)}.json`;
-  const archivePath = join(historyRoot, archiveName);
-  mkdirSync(historyRoot, { recursive: true });
-  if (existsSync(archivePath)) {
-    const archivedBytes = readBoundedFile(archivePath, {
-      label: "Existing catalog coverage history artifact",
-      maxBytes: MAXIMUM_COVERAGE_BYTES,
-    });
-    if (!archivedBytes.equals(currentBytes)) {
-      throw new Error(
-        `Coverage counterevidence path ${archivePath} already exists with different bytes; preserve both artifacts under distinct reviewed names before replacement.`,
-      );
-    }
-  } else {
-    copyFileSync(currentPath, archivePath, constants.COPYFILE_EXCL);
-    const archivedBytes = readBoundedFile(archivePath, {
-      label: "New catalog coverage history artifact",
-      maxBytes: MAXIMUM_COVERAGE_BYTES,
-    });
-    if (!archivedBytes.equals(currentBytes)) {
-      throw new Error(
-        `Coverage counterevidence ${archivePath} did not reproduce after its exclusive copy; current coverage was not replaced.`,
-      );
-    }
+function publishVerifiedCoverage(verified) {
+  if (!isVerifiedSemanticBookletCatalogCoverage(verified)) {
+    throw new TypeError(
+      "Semantic catalog coverage publication requires its opaque in-memory verifier result.",
+    );
   }
-  return { archivePath, bytes: currentBytes.length, digest };
+  return publishContainedArtifactWithoutOverwrite({
+    archiveNameStem: "catalog-coverage",
+    currentFile: OUTPUT_FILE,
+    label: "Semantic catalog coverage",
+    maxBytes: MAXIMUM_COVERAGE_BYTES,
+    nextBytes: bytesFromVerifiedSemanticBookletCatalogCoverage(verified),
+    outputRoot: OUTPUT_ROOT,
+  });
 }
-
-export const __testOnly = Object.freeze({ archiveCounterevidence });
 
 export async function runSemanticBookletCatalogCoverageCli(
   argv = process.argv.slice(2),
   context = {},
 ) {
-  if (argv.includes("--help") || argv.includes("-h")) {
-    (context.stdout ?? console.log)(semanticBookletCatalogCoverageUsage());
-    return 0;
-  }
-  const lastStepText = option(argv, "last-step", "50");
-  const lastStep = Number(lastStepText);
-  if (!Number.isSafeInteger(lastStep) || lastStep < 1 || lastStep > 50) {
-    throw new Error(
-      `--last-step must be a safe integer from 1 through 50; received ${JSON.stringify(lastStepText)}.`,
-    );
+  const stdout = context.stdout ?? console.log;
+  if (argv.length !== 0) {
+    throw new TypeError("Semantic catalog coverage generation accepts no caller arguments.");
   }
   const semantic = await verifyCurrentPrefix50SemanticClosure();
   const input = {
     elementResolutionBytes: semantic.elementResolutionBytes,
-    lastStep,
+    lastStep: 50,
     manifestBytes: semantic.manifestBytes,
     semanticClosure: semantic.verified,
   };
   const report = await compileSemanticBookletCatalogCoverage(input);
   const bytes = encodeSemanticBookletCatalogCoverage(report);
-  await verifySemanticBookletCatalogCoverage({ ...input, coverageBytes: bytes });
-  const archived = archiveCounterevidence(bytes);
-  mkdirSync(OUTPUT_ROOT, { recursive: true });
-  writeContainedFile(OUTPUT_ROOT, OUTPUT_FILE, bytes, {
-    label: "Semantic catalog coverage report",
-    pathLabel: "Semantic catalog coverage report path",
-    maxBytes: MAXIMUM_COVERAGE_BYTES,
+  const verified = await verifyOpaqueSemanticBookletCatalogCoverage({
+    ...input,
+    coverageBytes: bytes,
   });
-  if (archived !== null) {
-    console.log(
-      `preserved prior coverage at ${archived.archivePath}: ${archived.bytes} bytes at ${archived.digest}`,
+  if (!isVerifiedSemanticBookletCatalogCoverage(verified)) {
+    throw new TypeError(
+      "Semantic catalog coverage verifier did not return its opaque authority object; retained evidence was not touched.",
     );
   }
-  console.log(
+  const verifiedBytes = bytesFromVerifiedSemanticBookletCatalogCoverage(verified);
+  if (!verifiedBytes.equals(bytes)) {
+    throw new TypeError(
+      "Semantic catalog coverage verifier bytes differ from the fresh reproduction; retained evidence was not touched.",
+    );
+  }
+  const inspection = inspectVerifiedSemanticBookletCatalogCoverage(verified);
+  const publication = publishVerifiedCoverage(verified);
+  if (publication.state === "review-required") {
+    throw new TypeError(
+      `Semantic catalog coverage retained differing current evidence at ${publication.currentPath}; verified replacement candidate is ${publication.candidate.path} at ${publication.digest}. Review and move the retained current file explicitly before rerunning; automation never overwrites an existing differing pathname.`,
+    );
+  }
+  stdout(
     [
-      `coverage ${bytes.length} bytes at ${sha256Digest(bytes)}`,
-      `steps covered ${report.coverage.stepsCovered}/${report.coverage.stepsTotal}`,
-      `covered prefix ${report.coverage.coveredPrefixLength}`,
-      `pieces placeable ${report.coverage.piecesPlaceable}/${report.coverage.piecesTotal}`,
-      `semantic callouts ${report.calloutsConsidered}`,
-      `unidentified ${report.calloutsUnidentified}`,
+      `${publication.state === "published-current" ? "wrote" : "verified"} coverage ${verifiedBytes.length} bytes at ${inspection.digest}`,
+      `steps covered ${inspection.artifact.coverage.stepsCovered}/${inspection.artifact.coverage.stepsTotal}`,
+      `covered prefix ${inspection.artifact.coverage.coveredPrefixLength}`,
+      `pieces placeable ${inspection.artifact.coverage.piecesPlaceable}/${inspection.artifact.coverage.piecesTotal}`,
+      `semantic callouts ${inspection.artifact.calloutsConsidered}`,
+      `unidentified ${inspection.artifact.calloutsUnidentified}`,
     ].join(" | "),
   );
   return report;

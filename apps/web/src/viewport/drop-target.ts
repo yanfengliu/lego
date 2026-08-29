@@ -38,12 +38,11 @@ export function resolveDropSupport(
     return { supportUndersideLdu: GROUND_UNDERSIDE_LDU, supportPartId: null };
   }
   const part = parts.find(({ id }) => id === hitPartId);
-  const definition = part ? getPartDefinition(part.catalogPartId) : undefined;
-  if (!part || !definition) {
+  if (!part || !getPartDefinition(part.catalogPartId)) {
     return { supportUndersideLdu: GROUND_UNDERSIDE_LDU, supportPartId: null };
   }
   return {
-    supportUndersideLdu: partTopSurfaceLdu(definition, part.transform.positionLdu[1]),
+    supportUndersideLdu: partTopSurfaceLdu(part),
     supportPartId: part.id,
   };
 }

@@ -1,0 +1,5 @@
+export const CALLER_INSTRUCTION_SOURCE_SNAPSHOT_DIGEST = "callerInstructionSourceSnapshotDigest";
+export const CALLER_SOURCE_CONTENT_HASH_CLAIM_MATCHED_PDF_BYTES =
+  "callerSourceContentHashClaimMatchedPdfBytes";
+export const CALLER_SOURCE_PANEL_COMMITMENT_BY_STEP = "callerSourcePanelCommitmentByStep";
+export const CALLER_SOURCE_PANEL_COMMITMENT_DIGEST = "callerSourcePanelCommitmentDigest";

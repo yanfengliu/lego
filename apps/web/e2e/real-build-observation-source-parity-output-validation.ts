@@ -1,3 +1,8 @@
+import {
+  CANDIDATE_DERIVATION_BROWSER_COMMITMENT_DIGEST,
+  CANDIDATE_POLICY_BROWSER_COMMITMENT_DIGEST,
+  WORK_RGBA_BROWSER_COMMITMENT_DIGEST,
+} from "./real-build-observation-source-parity-field-names.ts";
 import { sha256Digest } from "./real-build-artifacts";
 import { unpackRealBuildCompiledBinaryMaskMsb } from "./real-build-compiled-observation-registration";
 import {
@@ -134,9 +139,9 @@ export function prepareRealBuildSourceParityPublication(input: {
         "panelEvidenceDigest",
         "width",
         "height",
-        "workRgbaBrowserCommitmentDigest",
-        "candidatePolicyBrowserCommitmentDigest",
-        "candidateDerivationBrowserCommitmentDigest",
+        WORK_RGBA_BROWSER_COMMITMENT_DIGEST,
+        CANDIDATE_POLICY_BROWSER_COMMITMENT_DIGEST,
+        CANDIDATE_DERIVATION_BROWSER_COMMITMENT_DIGEST,
         "comparisons",
       ],
       `Source-parity step ${index + 1}`,

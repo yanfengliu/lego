@@ -1,5 +1,6 @@
 """Bounded field declarations for exact pair-judged truth/3."""
 
+
 MAX_TRUTH_ROWS = 4_000
 MAX_TRUTH_TEXT = 2_000
 MAX_SAFE_INTEGER = (1 << 53) - 1

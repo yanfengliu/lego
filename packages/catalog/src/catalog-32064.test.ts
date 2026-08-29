@@ -128,11 +128,11 @@ describe("32064 Technic brick with axle-hole catalog truth", () => {
     );
     if (blueprint === undefined) throw new Error("32064 blueprint is missing");
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/28");
-    expect(PART_DEFINITIONS).toHaveLength(104);
-    expect(PART_DEFINITIONS.at(-10)?.id).toBe(PART_ID);
-    expect(SET_6651557_MEASURED_BLUEPRINTS.at(-10)).toBe(blueprint);
-    expect(SET_6651557_MEASURED_BLUEPRINTS_G).toHaveLength(10);
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/29");
+    expect(PART_DEFINITIONS).toHaveLength(106);
+    expect(PART_DEFINITIONS.at(-12)?.id).toBe(PART_ID);
+    expect(SET_6651557_MEASURED_BLUEPRINTS.at(-12)).toBe(blueprint);
+    expect(SET_6651557_MEASURED_BLUEPRINTS_G).toHaveLength(12);
     expect(part).toMatchObject({
       id: PART_ID,
       family: "technic-brick",
@@ -225,7 +225,21 @@ describe("32064 Technic brick with axle-hole catalog truth", () => {
     expect(blueprint.studsLdu).toEqual(STUD_Z_LDU.map((z) => [0, -12, z, 6.0001514980873605, 4]));
     expect(blueprint.clutchesLdu).toEqual(CLUTCH_Z_LDU.map((z) => [0, 12, z]));
     expect(blueprint.sourceConnectorsLdu).toEqual([
-      { kind: "axleHole", positionLdu: [0, -2, 0], normal: [1, 0, 0] },
+      {
+        kind: "axleHole",
+        positionLdu: [0, -2, 0],
+        normal: [1, 0, 0],
+        throughBoreCollision: {
+          schemaVersion: "measured-through-axle-bore-collision/1",
+          sourceSection: "A 6 1",
+          startLdu: [-10, -2, 0],
+          endLdu: [10, -2, 0],
+          radiusLdu: 6,
+          segmentLengthLdu: 20,
+          caps: "none",
+          sliding: true,
+        },
+      },
     ]);
     expect(
       part.connectors.map(
@@ -340,6 +354,25 @@ describe("32064 Technic brick with axle-hole catalog truth", () => {
         requiresValidatedConnection: true,
       })),
     );
+    expect(part.collision.throughAxleBoreAllowances).toEqual([
+      {
+        schemaVersion: "collision-through-axle-bore-allowance/1",
+        id: "throughAxleBore:0",
+        portId: "axleHole:0",
+        portKind: "axleHole",
+        incomingPortKind: "axle",
+        incomingPrimitiveTag: "body",
+        profileId: "axle-cross/1",
+        sourceSection: "A 6 1",
+        startLdu: [-10, -2, 0],
+        endLdu: [10, -2, 0],
+        radiusLdu: 6,
+        segmentLengthLdu: 20,
+        caps: "none",
+        sliding: true,
+        requiresValidatedConnection: true,
+      },
+    ]);
     expect(validateMeshPartDefinitionAdmission(part)).toEqual({ accepted: true, issues: [] });
   });
 });

@@ -26,6 +26,7 @@ from measured_part_tables import (
     BUILDER_CONNECTIVITY_CONNECTOR_SOURCE,
     LDCAD_SHADOW_CONNECTOR_SOURCE,
 )
+from measured_source_connector_rows import ConnectorAxialSpan, MeasuredSourceConnector
 from measured_part_test_support import (
     ARCHIVE_SHA256,
     BUILDER_RECORDS,
@@ -182,7 +183,11 @@ class RenderTests(unittest.TestCase):
             [
                 measured(
                     plan=plan(connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE),
-                    source_connectors_ldu=(("axle", (-20.0, 0.0, 0.0), (-1.0, 0.0, 0.0)),),
+                    source_connectors_ldu=(
+                        MeasuredSourceConnector(
+                            "axle", (-20.0, 0.0, 0.0), (-1.0, 0.0, 0.0)
+                        ),
+                    ),
                 )
             ],
             ARCHIVE_SHA256,
@@ -201,7 +206,11 @@ class RenderTests(unittest.TestCase):
             [
                 measured(
                     plan=plan(connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE),
-                    source_connectors_ldu=(("axleHole", (0.0, -2.0, 0.0), (1.0, 0.0, 0.0)),),
+                    source_connectors_ldu=(
+                        MeasuredSourceConnector(
+                            "axleHole", (0.0, -2.0, 0.0), (1.0, 0.0, 0.0)
+                        ),
+                    ),
                 )
             ],
             ARCHIVE_SHA256,
@@ -213,6 +222,39 @@ class RenderTests(unittest.TestCase):
         self.assertIn("positionLdu: [0, -2, 0]", rendered)
         self.assertIn("normal: [1, 0, 0]", rendered)
         self.assertEqual(rendered.count("clutchesLdu:"), 1)
+
+    def test_a_blind_axle_hole_emits_its_exact_fixed_one_sided_span(self) -> None:
+        rendered = render_blueprints(
+            [
+                measured(
+                    plan=plan(connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE),
+                    source_connectors_ldu=(
+                        MeasuredSourceConnector(
+                            "blindAxleHole",
+                            (0.0, 2.0, 0.0),
+                            (0.0, 1.0, 0.0),
+                            ConnectorAxialSpan(
+                                "connector-axial-span/1",
+                                (0.0, 24.0, 0.0),
+                                (0.0, -20.0, 0.0),
+                                44.0,
+                                False,
+                            ),
+                        ),
+                    ),
+                )
+            ],
+            ARCHIVE_SHA256,
+            BUILDER_RECORDS,
+            SHADOW_IDENTITY,
+        )
+
+        self.assertIn('kind: "blindAxleHole"', rendered)
+        self.assertIn('schemaVersion: "connector-axial-span/1"', rendered)
+        self.assertIn("openEndLdu: [0, 24, 0]", rendered)
+        self.assertIn("closedEndLdu: [0, -20, 0]", rendered)
+        self.assertIn("depthLdu: 44", rendered)
+        self.assertIn("sliding: false", rendered)
 
     def test_a_builder_connectivity_part_emits_the_seven_seat_evidence(self) -> None:
         rendered = render_blueprints(
@@ -385,7 +427,10 @@ class RenderTests(unittest.TestCase):
             mesh_ids["mesh-assets-6651557-measured-g.ts"],
             ["32064", "11212", "33909", "78329", "99563", "73230", "35464", "49307"],
         )
-        self.assertEqual(mesh_ids["mesh-assets-6651557-measured-h.ts"], ["3245c", "2453b"])
+        self.assertEqual(
+            mesh_ids["mesh-assets-6651557-measured-h.ts"],
+            ["3245c", "2453b", "10201", "3245b"],
+        )
         self.assertEqual(
             blueprint_ids["part-blueprints-6651557-measured.ts"],
             admitted_ids[:18],
@@ -407,7 +452,8 @@ class RenderTests(unittest.TestCase):
             ["32064", "11212", "33909", "78329", "99563", "73230", "35464", "49307"],
         )
         self.assertEqual(
-            blueprint_ids["part-blueprints-6651557-measured-h.ts"], ["3245c", "2453b"]
+            blueprint_ids["part-blueprints-6651557-measured-h.ts"],
+            ["3245c", "2453b", "10201", "3245b"],
         )
         generated = [
             *mesh_chunks,

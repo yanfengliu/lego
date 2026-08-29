@@ -196,7 +196,7 @@ export const CURRENT_BUILDER_2453_IDENTITY_PINS = deepFreeze({
     },
   },
   catalog: {
-    version: "builtin.basic-parts/28",
+    version: "builtin.basic-parts/29",
     partId: "builtin:brick-1x1x5-solid-stud",
     ldrawId: "2453b.dat",
     assetId: "ldraw:official:2453b.dat",
@@ -229,7 +229,7 @@ export const CURRENT_BUILDER_2453_IDENTITY_PINS = deepFreeze({
   },
   expectedArtifact: {
     bytes: 6_730,
-    digest: "sha256:087a8f0308bdf83a7a585196acb4f695409350367e311b38dbb7920038d1f5d4",
+    digest: "sha256:75ba323b5ce28509ee2041c62ff8f3fabec4450cbd679c7f48fe600b9a608bb5",
   },
 });
 

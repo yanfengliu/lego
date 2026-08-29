@@ -58,6 +58,12 @@ describe("connector taxonomy", () => {
     expect(connectorPairRule("axle", "axleHole")).toMatchObject({
       articulation: "rigid",
       allowedRotation: "quarterTurns",
+      axisMatching: "collinear",
+    });
+    expect(connectorPairRule("axle", "blindAxleHole")).toMatchObject({
+      articulation: "rigid",
+      allowedRotation: "quarterTurns",
+      axisMatching: "opposed",
     });
     expect(connectorPairRule("axle", "pinHole")).toMatchObject({
       articulation: "revolute",

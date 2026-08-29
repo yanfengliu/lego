@@ -1,0 +1,1 @@
+export const TRANSITION_CLASSIFICATIONS_DIGEST_FIELD = "transitionClassificationsDigest";

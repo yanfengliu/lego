@@ -11,7 +11,7 @@ export interface BuilderOpaqueIdentityRoutePin {
   readonly exactLdrawId: "2453b.dat";
   readonly builderToCatalogLocalMatrix: readonly [25, 0, 0, 0, -25, 0, 0, 0, -25];
   readonly builderToCatalogLocalTranslationLdu: readonly [0, 60, 0];
-  readonly proofDigest: "sha256:087a8f0308bdf83a7a585196acb4f695409350367e311b38dbb7920038d1f5d4";
+  readonly proofDigest: "sha256:75ba323b5ce28509ee2041c62ff8f3fabec4450cbd679c7f48fe600b9a608bb5";
 }
 
 export interface BuilderTriangleSlicePin {

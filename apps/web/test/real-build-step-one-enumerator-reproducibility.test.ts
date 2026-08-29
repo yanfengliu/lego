@@ -29,7 +29,7 @@ function distinct(candidates: readonly PlacementCandidate[]): readonly Placement
   });
 }
 
-describe("current /28 step-one catalog enumeration", () => {
+describe("current /29 step-one catalog enumeration", () => {
   it("retains the complete 4 by 100 no-model offer product without target transforms", () => {
     const empty = createEmptyBrickDocument({
       id: "step-one-enumerator-reproducibility",
@@ -56,7 +56,7 @@ describe("current /28 step-one catalog enumeration", () => {
       return { first, branches };
     };
     const { first, branches } = enumerateBranches(empty);
-    // The offers execute only under current /28 truth; this frozen catalog label
+    // The offers execute only under current /29 truth; this frozen catalog label
     // preserves the reviewed /26 digest envelope as evidence, never placement authority.
     const frozenBasis = createFrozenLegacyAdditiveCatalogBasisV26();
     expect(frozenBasis.constraints.allowedCatalogPartIds).toHaveLength(98);
@@ -104,6 +104,6 @@ describe("current /28 step-one catalog enumeration", () => {
           ({ connections, restsOnBuildPlate }) => connections.length > 0 && !restsOnBuildPlate,
         ),
     ).toBe(true);
-    expect(digest).toBe("sha256:3128ff9155bed3b1178708fe4f125719175b6d401635fe46a1dcf6ace5a29d26");
+    expect(digest).toBe("sha256:d74b5a8356e8034368861ff68b2f911b3b45417bad4fe81d8c01d4d4f6edc26e");
   });
 });

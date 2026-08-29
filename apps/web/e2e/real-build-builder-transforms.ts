@@ -46,7 +46,11 @@ function composeFromRegistry(
   };
 }
 
-/** Canonical composition remains restricted to the four authorable upright orientations. */
+/**
+ * Legacy upright-only source-frame composition retained for calibration artifacts
+ * that were measured against that registry. Its result is not placement permission:
+ * the exact catalog part policy and hard validators still decide document legality.
+ */
 export function composeBuilderTransforms(
   world: LedgerTransform,
   catalogToBuilder: LedgerTransform,
@@ -55,7 +59,10 @@ export function composeBuilderTransforms(
   return composeFromRegistry(world, catalogToBuilder, UPRIGHT_ORIENTATIONS, tolerance);
 }
 
-/** Diagnostic-only composition over the determinant-positive source-frame registry. */
+/**
+ * Exact composition over the determinant-positive source-frame registry. The
+ * resulting source observation still has no placement authority by itself.
+ */
 export function composeBuilderProperTransforms(
   world: LedgerTransform,
   catalogToBuilder: LedgerTransform,
@@ -124,7 +131,7 @@ export function resolveBuilderBoneTransform(transform: BuilderBoneTransform): {
   return { transform: { positionLdu, orientationId: orientation.id }, failure: null };
 }
 
-/** Resolves exact proper source data without making it a canonical document transform. */
+/** Resolves exact proper source data without granting part-policy or placement authority. */
 export function resolveBuilderBoneProperTransform(transform: BuilderBoneTransform): {
   readonly transform: LedgerTransform | null;
   readonly failure: string | null;

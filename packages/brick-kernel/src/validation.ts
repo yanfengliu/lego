@@ -210,7 +210,8 @@ function validateConnections(
     const opposing = aFrame.normal.every(
       (coordinate, axis) => coordinate === -bFrame.normal[axis]!,
     );
-    // A hole is open at both ends, so a shaft entering it may face either way.
+    // Only pairs that explicitly opt into collinear matching may face either
+    // way; one-sided sockets remain direction-sensitive through the pair rule.
     const sameLine =
       opposing || aFrame.normal.every((coordinate, axis) => coordinate === bFrame.normal[axis]);
     const aligned = pair.axisMatching === "collinear" ? sameLine : opposing;

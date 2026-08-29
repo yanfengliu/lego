@@ -10,11 +10,18 @@ import {
   PROJECT_COLOR_PROVENANCE,
   PROJECT_GEOMETRY_PROVENANCE,
   PROJECT_PLAN_GEOMETRY_PROVENANCE,
+  PROJECT_TRANSFORM_POLICY_PROVENANCE,
+  PROPER_ORIENTATIONS,
   STUD_PITCH_LDU,
+  TRANSFORM_POLICY_ID,
   TRANSFORM_POLICY_VERSION,
-  UPRIGHT_ORIENTATIONS,
 } from "./constants.ts";
-import type { CatalogSnapshotDigestInput, ColorDefinition, PartDefinition } from "./types.ts";
+import type {
+  CatalogSnapshotDigestInput,
+  ColorDefinition,
+  PartDefinition,
+  TransformPolicyManifest,
+} from "./types.ts";
 
 import { sampleBodyArcPlanBoundary } from "./arc-plan.ts";
 import { COLOR_DEFINITIONS } from "./colors.ts";
@@ -53,6 +60,24 @@ export function assertBuiltinCatalogMeshAdmissions(parts: readonly PartDefinitio
 
 assertBuiltinCatalogMeshAdmissions(PART_DEFINITIONS);
 
+const CATALOG_COORDINATE_SYSTEM = deepFreeze({
+  upAxis: "-Y",
+  unit: "LDU",
+  studPitchLdu: STUD_PITCH_LDU,
+} as const);
+
+export const BUILTIN_TRANSFORM_POLICY_MANIFEST: TransformPolicyManifest = deepFreeze({
+  schemaVersion: "lego.transform-policy-manifest/1",
+  id: TRANSFORM_POLICY_ID,
+  version: TRANSFORM_POLICY_VERSION,
+  coordinateSystem: CATALOG_COORDINATE_SYSTEM,
+  authority: "project-authored-catalog-truth",
+  sourceAndProposalArtifactRole: "corroboration-only",
+  provenance: PROJECT_TRANSFORM_POLICY_PROVENANCE,
+  orientations: PROPER_ORIENTATIONS,
+  parts: PART_DEFINITIONS.map(({ id, legalOrientationIds }) => ({ id, legalOrientationIds })),
+});
+
 const normalizeLookupKey = (value: string): string =>
   value
     .trim()
@@ -89,7 +114,7 @@ export const BUILTIN_CATALOG: CatalogSnapshotDigestInput = deepFreeze({
   connectorTaxonomyVersion: CONNECTOR_TAXONOMY_VERSION,
   collisionModelVersion: COLLISION_MODEL_VERSION,
   transformPolicyVersion: TRANSFORM_POLICY_VERSION,
-  coordinateSystem: { upAxis: "-Y", unit: "LDU", studPitchLdu: STUD_PITCH_LDU },
+  coordinateSystem: CATALOG_COORDINATE_SYSTEM,
   provenanceLayers: [
     PROJECT_CATALOG_PROVENANCE,
     PROJECT_GEOMETRY_PROVENANCE,
@@ -99,8 +124,10 @@ export const BUILTIN_CATALOG: CatalogSnapshotDigestInput = deepFreeze({
     MEASURED_PART_CATALOG_PROVENANCE,
     LDRAW_BUNDLED_GEOMETRY_PROVENANCE,
     LDCAD_SHADOW_CONNECTOR_PROVENANCE,
+    PROJECT_TRANSFORM_POLICY_PROVENANCE,
   ],
-  orientations: UPRIGHT_ORIENTATIONS,
+  orientations: PROPER_ORIENTATIONS,
+  transformPolicy: BUILTIN_TRANSFORM_POLICY_MANIFEST,
   colors: COLOR_DEFINITIONS,
   parts: PART_DEFINITIONS,
 });

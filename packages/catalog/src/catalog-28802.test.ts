@@ -113,9 +113,9 @@ describe("28802 rounded-bottom bracket catalog truth", () => {
       bytes: 17_940,
       manifestSha256: "sha256:e8c326b7fe592ceb83142f62eca6ce3c74c60bad83d3b095a12c80ffece54806",
     });
-    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(43);
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(228);
-    expect(new Set(BUNDLED_LDRAW_SOURCE_FILES.map(({ author }) => author))).toHaveLength(33);
+    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(45);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(237);
+    expect(new Set(BUNDLED_LDRAW_SOURCE_FILES.map(({ author }) => author))).toHaveLength(34);
   });
 
   it("carries six outward stud frames, two LDCad clutch cells, and no semantic bores", () => {
@@ -227,33 +227,33 @@ describe("28802 rounded-bottom bracket catalog truth", () => {
     }
   });
 
-  it("keeps every /14 part payload byte unchanged after restoring its historical truth labels", () => {
+  it("pins the reviewed /29 projection of the /14 prefix under its historical truth labels", () => {
     const priorParts = PART_DEFINITIONS.slice(0, 86);
     const priorDefinitionBytes = JSON.stringify(priorParts)
-      .replaceAll("builtin.basic-parts/28", "builtin.basic-parts/14")
-      .replaceAll("rectilinear-stud-clearance/3", "rectilinear-stud-clearance/2");
+      .replaceAll("builtin.basic-parts/29", "builtin.basic-parts/14")
+      .replaceAll("rectilinear-stud-clearance/4", "rectilinear-stud-clearance/2");
     const rows = priorParts.map(({ id, connectors, collision }) => ({ id, connectors, collision }));
     const collisionRows = priorParts.map(({ id, collision }) => ({ id, collision }));
     const priorConnectorCollisionBytes = JSON.stringify(rows).replaceAll(
-      "rectilinear-stud-clearance/3",
+      "rectilinear-stud-clearance/4",
       "rectilinear-stud-clearance/2",
     );
     const priorCollisionBytes = JSON.stringify(collisionRows).replaceAll(
-      "rectilinear-stud-clearance/3",
+      "rectilinear-stud-clearance/4",
       "rectilinear-stud-clearance/2",
     );
     expect(priorParts).toHaveLength(86);
-    expect(priorDefinitionBytes).toHaveLength(1_472_505);
+    expect(priorDefinitionBytes).toHaveLength(1_473_760);
     expect(createHash("sha256").update(priorDefinitionBytes).digest("hex")).toBe(
-      "a0802ceb4855d1cda11350f29f60d244592a9c3e6e8c835ff344a8a465a3e55a",
+      "91debb45cec0dfba726f4ae0e4a9ef82cd1f58d8d7ebecb97f5608e403202de6",
     );
     expect(createHash("sha256").update(priorConnectorCollisionBytes).digest("hex")).toBe(
-      "53c64eda0142fcd996db02843998715d9569c06e7a112ff2e210f7e87ca165c2",
+      "f35f0bd4dd5148f9cd4aba4c60d5d797202323f6ed9ca4d2ecefb14d75f9cdf1",
     );
     expect(createHash("sha256").update(priorCollisionBytes).digest("hex")).toBe(
-      "9d23769d44b4bd8d9d96fcb41e6bb5d4162c2ef8bd32d78d16d02603cabc1549",
+      "a8e3c77311f7917e8f1287c0a90f2fb379be36f6693c382a4b18d46ce6e9f04a",
     );
-    expect(COLLISION_MODEL_VERSION).toBe("rectilinear-stud-clearance/3");
+    expect(COLLISION_MODEL_VERSION).toBe("rectilinear-stud-clearance/4");
     expect(
       priorParts.flatMap(({ id, collision }) =>
         collision.primitives

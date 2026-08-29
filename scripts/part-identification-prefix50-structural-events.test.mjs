@@ -202,10 +202,10 @@ describe.runIf(realEvidencePresent)("prefix-50 structural events", () => {
     expect(artifact.schemaVersion).toBe(PREFIX50_STRUCTURAL_EVENTS_SCHEMA);
     expect(bytes).toHaveLength(7_292);
     expect(sha256Digest(bytes)).toBe(
-      "sha256:cdb563b81f89aa9110cc70cc392f7415616aeb3e534ee907547879f8ec82c03e",
+      "sha256:ea1ee9791575ecd858cf13b076d0b3c6de4ebfca9a51a268a9242d3e07667fe3",
     );
     expect(inspectVerifiedPrefix50StructuralEvents(verified).digest).toBe(
-      "sha256:cdb563b81f89aa9110cc70cc392f7415616aeb3e534ee907547879f8ec82c03e",
+      "sha256:ea1ee9791575ecd858cf13b076d0b3c6de4ebfca9a51a268a9242d3e07667fe3",
     );
     expect(bytesFromVerifiedPrefix50StructuralEvents(verified)).toEqual(bytes);
     expect(isVerifiedPrefix50StructuralEvents(verified)).toBe(true);
@@ -226,8 +226,8 @@ describe.runIf(realEvidencePresent)("prefix-50 structural events", () => {
   it("keeps the 95-phase action artifact and official phase digest byte-exact", () => {
     expect(artifact.inputs.actionPreparation).toEqual({
       schemaVersion: "lego.real-build-action-preparation/1",
-      bytes: 317_116,
-      digest: "sha256:edd2096efe55e6e68385dc7f5b735222a9cdf01ae5625528dae2d1edde0fcbbc",
+      bytes: 317_152,
+      digest: "sha256:5fbab00b90c6ffbe6c9b09727819e0b3a964cebbd88138232bd2418df6100fb6",
       phaseDigest: "sha256:8988e328aa5793b07fc6c398eb518f4d972d90c8de85c41006db02b2792d896e",
     });
     expect(artifact.inputs.officialModel).toMatchObject({

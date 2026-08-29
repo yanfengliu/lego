@@ -43,6 +43,7 @@ import json
 import sys
 from pathlib import Path
 
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from part_description_retrieval import (
@@ -400,7 +401,7 @@ def main() -> int:
                 "descriptor and reachable by description, but the head-to-head restricts both "
                 f"to the {len(pixel_universe)}-element pixel universe, so such a row scores as a description miss "
                 "when description would in fact rank it. Zero rows are in that state here. If "
-                "`headToHeadUnderCreditsDescription` is ever true, read "
+                f"`{"headToHeadUnderCreditsDescription"}` is ever true, read "
                 "`descriptionOverFullInventory` for the honest description figure and treat the "
                 "restricted `description` column as a lower bound."
             ),

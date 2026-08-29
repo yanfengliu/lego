@@ -94,22 +94,22 @@ const REQUIRED = [
 
 describe("bounded first-50 required catalog tranche", () => {
   it("retains the four exact /27 definitions before the /28 suffix tranche", () => {
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/28");
-    expect(PART_DEFINITIONS).toHaveLength(104);
-    expect(PART_DEFINITIONS.slice(-6, -2).map(({ id }) => id)).toEqual(
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/29");
+    expect(PART_DEFINITIONS).toHaveLength(106);
+    expect(PART_DEFINITIONS.slice(-8, -4).map(({ id }) => id)).toEqual(
       REQUIRED.map(({ id }) => id),
     );
-    expect(SET_6651557_MEASURED_BLUEPRINTS_G).toHaveLength(10);
-    expect(SET_6651557_MEASURED_BLUEPRINTS_H).toHaveLength(2);
+    expect(SET_6651557_MEASURED_BLUEPRINTS_G).toHaveLength(12);
+    expect(SET_6651557_MEASURED_BLUEPRINTS_H).toHaveLength(4);
   });
 
   it("appends only the two exact-suffix /28 definitions", () => {
-    expect(PART_DEFINITIONS.slice(-2).map(({ id }) => id)).toEqual([
+    expect(PART_DEFINITIONS.slice(-4, -2).map(({ id }) => id)).toEqual([
       "builtin:brick-1x2x2-without-understud",
       "builtin:brick-1x1x5-solid-stud",
     ]);
     expect(
-      SET_6651557_MEASURED_BLUEPRINTS_H.map(({ designId, ldrawSource }) => ({
+      SET_6651557_MEASURED_BLUEPRINTS_H.slice(0, 2).map(({ designId, ldrawSource }) => ({
         designId,
         rootSha256: ldrawSource.rootSha256,
       })),

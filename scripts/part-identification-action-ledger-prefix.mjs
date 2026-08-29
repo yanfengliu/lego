@@ -1,3 +1,5 @@
+import { TRANSITION_CLASSIFICATIONS_DIGEST_FIELD } from "./part-identification-action-ledger-field-names.mjs";
+
 const CURRENT_SCHEMA = "lego.real-build-action-ledger/4";
 const CURRENT_GENERATOR = "apps/web/e2e/real-build-action-ledger.spec.ts";
 const TOP_LEVEL_KEYS = [
@@ -8,7 +10,7 @@ const TOP_LEVEL_KEYS = [
   "calloutManifestDigest",
   "sourceArtReboundDigest",
   "builderCalibrationDigest",
-  "transitionClassificationsDigest",
+  TRANSITION_CLASSIFICATIONS_DIGEST_FIELD,
   "steps",
   "provenance",
 ];
@@ -58,7 +60,7 @@ export function inspectCurrentActionLedgerPrefix(value) {
     "calloutManifestDigest",
     "sourceArtReboundDigest",
     "builderCalibrationDigest",
-    "transitionClassificationsDigest",
+    TRANSITION_CLASSIFICATIONS_DIGEST_FIELD,
   ]) {
     if (typeof ledger[field] !== "string" || !/^sha256:[0-9a-f]{64}$/u.test(ledger[field])) {
       throw new TypeError(`Action ledger /4 ${field} must be one lowercase sha256 digest.`);

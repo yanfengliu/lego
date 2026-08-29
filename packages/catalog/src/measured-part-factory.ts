@@ -1,9 +1,8 @@
 import {
   COLLISION_MODEL_VERSION,
-  CONNECTOR_KIND_RULES,
-  connectorAccepts,
   LDCAD_SHADOW_AXLE_CONNECTOR_PROVENANCE,
   LDCAD_SHADOW_AXLE_HOLE_CONNECTOR_PROVENANCE,
+  LDCAD_SHADOW_BLIND_AXLE_HOLE_CONNECTOR_PROVENANCE,
   LDCAD_SHADOW_CONNECTOR_PROVENANCE,
   LDRAW_BUNDLED_GEOMETRY_PROVENANCE,
   MEASURED_PART_CATALOG_PROVENANCE,
@@ -21,10 +20,10 @@ import type {
   MeshReferenceGeometryRecipe,
   PartDefinition,
   SourceProvenance,
+  ThroughAxleBoreCollisionAllowance,
 } from "./types.ts";
 
 import { AVAILABLE_COLOR_IDS } from "./colors.ts";
-import { connectorAxisFrame } from "./connector-axis.ts";
 import { validatePinnedClutchOffsets } from "./connector-backing-policy.ts";
 import {
   assertNumericBoundsContainExact,
@@ -33,6 +32,8 @@ import {
 } from "./exact-ldu.ts";
 import { deepFreeze } from "./freeze.ts";
 import { meshAssetContentHash, resolvePreloadedMeshAsset } from "./mesh-assets.ts";
+import { compileMeasuredSourceConnector } from "./measured-source-connector.ts";
+import { compileThroughAxleBoreCollisionAllowance } from "./through-axle-bore-collision.ts";
 import { meshUndersideIsDrawn } from "./mesh-underside.ts";
 import { compileMeasuredStud } from "./measured-stud.ts";
 import { SET_6651557_MESH_ASSETS } from "./mesh-assets-6651557.ts";
@@ -40,7 +41,7 @@ import type { MeasuredPartBlueprint } from "./measured-part-types.ts";
 import { SET_6651557_MEASURED_BLUEPRINTS } from "./part-blueprints-6651557-measured.ts";
 import {
   FAMILY_DISPLAY_NAMES,
-  LEGAL_ORIENTATION_IDS,
+  legalOrientationIdsForPart,
   makeAliases,
 } from "./part-factory-support.ts";
 
@@ -83,7 +84,7 @@ function connectorProvenance(blueprint: MeasuredPartBlueprint): SourceProvenance
   if (sourceConnectors.length > 0 && !shadow) {
     fail(
       blueprint,
-      `declares ${sourceConnectors.length} source connector rows without an LDCad shadow walk; the measured route currently admits only exact shadow-authored axle and axle-hole lanes.`,
+      `declares ${sourceConnectors.length} source connector rows without an LDCad shadow walk; the measured route currently admits only exact shadow-authored axle, through axle-hole, and blind axle-hole lanes.`,
     );
   }
   if (builderConnectivity) {
@@ -100,6 +101,9 @@ function connectorProvenance(blueprint: MeasuredPartBlueprint): SourceProvenance
   }
   if (sourceConnectors.every(({ kind }) => kind === "axleHole")) {
     return LDCAD_SHADOW_AXLE_HOLE_CONNECTOR_PROVENANCE;
+  }
+  if (sourceConnectors.every(({ kind }) => kind === "blindAxleHole")) {
+    return LDCAD_SHADOW_BLIND_AXLE_HOLE_CONNECTOR_PROVENANCE;
   }
   fail(
     blueprint,
@@ -265,6 +269,7 @@ export const makeMeasuredPartDefinition = (blueprint: MeasuredPartBlueprint): Pa
     maxLdu: box.max,
   }));
   const allowances: CollisionAllowance[] = [];
+  const throughAxleBoreAllowances: ThroughAxleBoreCollisionAllowance[] = [];
 
   blueprint.studsLdu.forEach((row, index) => {
     const stud = compileMeasuredStud(blueprint, bodyBoxes, row, index);
@@ -318,40 +323,14 @@ export const makeMeasuredPartDefinition = (blueprint: MeasuredPartBlueprint): Pa
   });
 
   (blueprint.sourceConnectorsLdu ?? []).forEach((source, index) => {
-    if (source.kind !== "axle" && source.kind !== "axleHole") {
-      fail(
-        blueprint,
-        `source connector ${index} names kind ${JSON.stringify(source.kind)}; the measured route currently admits only the exact LDCad axle and axle-hole lanes.`,
-      );
-    }
-    if (!source.positionLdu.every(Number.isSafeInteger)) {
-      fail(
-        blueprint,
-        `source connector ${index} seats at [${source.positionLdu.join(", ")}]; an authored axle or axle-hole seat must remain on exact whole-LDU coordinates.`,
-      );
-    }
-    const frame = connectorAxisFrame(source.normal);
-    if (frame === undefined) {
-      fail(
-        blueprint,
-        `source connector ${index} has normal [${source.normal.join(", ")}]; an exact shaft or bore gate emits one signed unit axis.`,
-      );
-    }
-    const rule = CONNECTOR_KIND_RULES[source.kind];
-    connectors.push({
-      id: `${source.kind}:${index}`,
-      kind: source.kind,
-      geometryRole: rule.geometryRole,
-      profileId: rule.profileId,
-      gender: rule.gender,
-      positionLdu: source.positionLdu,
-      normal: source.normal,
-      // Existing non-stud ports retain the neutral serialized frame label;
-      // their separately authoritative normal carries the shaft axis.
-      orientationId: "connector-up",
-      capacity: 1,
-      compatibleKinds: connectorAccepts(source.kind),
-    });
+    connectors.push(compileMeasuredSourceConnector(blueprint, source, index, bodyBoundsLdu));
+    const throughBore = compileThroughAxleBoreCollisionAllowance(
+      blueprint,
+      source,
+      index,
+      bodyBoundsLdu,
+    );
+    if (throughBore !== undefined) throughAxleBoreAllowances.push(throughBore);
   });
 
   const asset = SET_6651557_MESH_ASSETS[meshAssetId];
@@ -466,7 +445,7 @@ export const makeMeasuredPartDefinition = (blueprint: MeasuredPartBlueprint): Pa
       undersideMode,
     },
     connectors,
-    legalOrientationIds: LEGAL_ORIENTATION_IDS,
+    legalOrientationIds: legalOrientationIdsForPart(id),
     collision: {
       modelVersion: COLLISION_MODEL_VERSION,
       ...(blueprint.validatedConnectionStudProfile === undefined
@@ -474,6 +453,7 @@ export const makeMeasuredPartDefinition = (blueprint: MeasuredPartBlueprint): Pa
         : { validatedConnectionStudProfile: blueprint.validatedConnectionStudProfile }),
       primitives,
       allowances,
+      ...(throughAxleBoreAllowances.length === 0 ? {} : { throughAxleBoreAllowances }),
     },
     availableColorIds: AVAILABLE_COLOR_IDS,
     substitutionGroupId: `${family}:${widthStuds}x${lengthStuds}${variantSuffix}`,

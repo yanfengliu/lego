@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 
+from part_action_ledger_field_names import TRANSITION_CLASSIFICATIONS_DIGEST_FIELD
 from part_action_ledger_official_contract import official_bricks
 from part_action_ledger_piece_contract import (
     CALLOUT_KEY,
@@ -119,7 +120,7 @@ def require_action_ledger_report_chain(
             "calloutManifestDigest",
             "sourceArtReboundDigest",
             "builderCalibrationDigest",
-            "transitionClassificationsDigest",
+            TRANSITION_CLASSIFICATIONS_DIGEST_FIELD,
             "steps",
             "provenance",
         },
@@ -186,8 +187,8 @@ def require_action_ledger_report_chain(
             value["builderCalibrationDigest"],
             builder_calibration_digest,
         ),
-        "transitionClassificationsDigest": (
-            value["transitionClassificationsDigest"],
+        TRANSITION_CLASSIFICATIONS_DIGEST_FIELD: (
+            value[TRANSITION_CLASSIFICATIONS_DIGEST_FIELD],
             transition_classifications_digest,
         ),
     }

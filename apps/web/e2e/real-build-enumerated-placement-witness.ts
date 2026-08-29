@@ -15,6 +15,7 @@ import {
   MAXIMUM_REAL_BUILD_PREPARED_SEARCH_PIECES,
   type RealBuildPreparedPlacementWitness,
 } from "./real-build-prepared-search-boundary";
+import { protocolConnectionKindForCatalogPorts } from "../src/assembly/placement-connection-kind";
 
 export interface RealBuildEnumeratedPlacementOffer {
   readonly catalogPartId: string;
@@ -246,6 +247,9 @@ export function projectRealBuildEnumeratedPlacementWitnesses(
   }
 
   const basePartIds = new Set(documentSnapshot.document.parts.map(({ id }) => id));
+  const catalogPartIdByPartId = new Map(
+    documentSnapshot.document.parts.map(({ id, catalogPartId }) => [id, catalogPartId] as const),
+  );
   const generatedIndex = new Map<string, number>();
   for (let index = 0; index < pieceCount; index += 1) {
     const partId = identifier(
@@ -258,6 +262,12 @@ export function projectRealBuildEnumeratedPlacementWitnesses(
       );
     }
     generatedIndex.set(partId, index);
+    const declaredPath = `Enumerated placement witness input.pieces[${index}]`;
+    const piece = entry(declared, index, "Enumerated placement witness input.pieces");
+    catalogPartIdByPartId.set(
+      partId,
+      identifier(data(piece, "catalogPartId", declaredPath), `${declaredPath}.catalogPartId`),
+    );
   }
 
   const witnesses: RealBuildPreparedPlacementWitness[] = [];
@@ -291,6 +301,12 @@ export function projectRealBuildEnumeratedPlacementWitnesses(
           `Enumerated placement offer ${index} connection ${connectionIndex} targets unknown part ${JSON.stringify(connection.targetPartId)}; it must name the exact base or an earlier witness part ID.`,
         );
       }
+      const targetCatalogPartId = catalogPartIdByPartId.get(connection.targetPartId);
+      if (targetCatalogPartId === undefined) {
+        throw new TypeError(
+          `Enumerated placement offer ${index} connection ${connectionIndex} has no exact target catalog identity.`,
+        );
+      }
       return intrinsicRealBuildFreeze({
         target:
           priorWitness === undefined
@@ -298,7 +314,12 @@ export function projectRealBuildEnumeratedPlacementWitnesses(
             : intrinsicRealBuildFreeze({ kind: "witness" as const, witnessIndex: priorWitness }),
         targetPortId: connection.targetPortId,
         candidatePortId: connection.candidatePortId,
-        connectionKind: "stud-tube" as const,
+        connectionKind: protocolConnectionKindForCatalogPorts(
+          targetCatalogPartId,
+          connection.targetPortId,
+          catalogPartId,
+          connection.candidatePortId,
+        ),
       });
     });
     if (connections.length === 0 && !offer.restsOnBuildPlate) {

@@ -17,14 +17,17 @@ import {
   searchParts,
 } from "../catalog-search";
 import { PartPreview } from "./PartPreview";
+import { LegalOrientationSelect } from "./LegalOrientationSelect";
 
 interface CatalogPanelProps {
   readonly selectedPartDefinitionId: string;
   readonly selectedColorId: string;
+  readonly selectedOrientationId: string;
   readonly canAttach: boolean;
   readonly documentIsEmpty: boolean;
   readonly onPartDefinitionChange: (partId: string) => void;
   readonly onColorChange: (colorId: string) => void;
+  readonly onOrientationChange: (orientationId: string) => void;
   readonly onAdd: () => void;
   readonly onArmChange: (partId: string | null) => void;
   /** Catalog part currently armed for placement, if any. */
@@ -184,10 +187,12 @@ function ColorPanel({
 export const CatalogPanel = memo(function CatalogPanel({
   selectedPartDefinitionId,
   selectedColorId,
+  selectedOrientationId,
   canAttach,
   documentIsEmpty,
   onPartDefinitionChange,
   onColorChange,
+  onOrientationChange,
   onAdd,
   onArmChange,
   armedPartId,
@@ -198,6 +203,7 @@ export const CatalogPanel = memo(function CatalogPanel({
   const groups = useMemo(() => groupPartsByFamily(searchParts({ query, family })), [query, family]);
   const matchCount = groups.reduce((total, group) => total + group.parts.length, 0);
   const familyCounts = useMemo(() => countPartsByFamily(), []);
+  const selectedDefinition = PART_DEFINITIONS.find(({ id }) => id === selectedPartDefinitionId);
   // One identity for all 84 options, so PartOption's memo holds.
   const selectPart = useCallback(
     (partId: string) => onPartDefinitionChange(partId),
@@ -269,6 +275,17 @@ export const CatalogPanel = memo(function CatalogPanel({
       </div>
 
       <div className="catalog-footer">
+        {selectedDefinition ? (
+          <label className="catalog-orientation">
+            <span className="field-label">Placement orientation</span>
+            <LegalOrientationSelect
+              definition={selectedDefinition}
+              value={selectedOrientationId}
+              onChange={onOrientationChange}
+              ariaLabel="Placement orientation"
+            />
+          </label>
+        ) : null}
         <ColorPanel selectedColorId={selectedColorId} onColorChange={onColorChange} />
         <button
           type="button"

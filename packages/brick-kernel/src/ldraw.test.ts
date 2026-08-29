@@ -202,7 +202,7 @@ describe("strict LDraw subset", () => {
     const measured = PART_DEFINITIONS.filter(
       ({ geometry }) => geometry.generatorId === "builtin:preloaded-mesh-reference/1",
     );
-    expect(measured).toHaveLength(43);
+    expect(measured).toHaveLength(45);
     for (const definition of measured) {
       if (definition.geometry.generatorId !== "builtin:preloaded-mesh-reference/1") continue;
       const alias = definition.aliases.find(({ namespace }) => namespace === "ldraw")!.value;

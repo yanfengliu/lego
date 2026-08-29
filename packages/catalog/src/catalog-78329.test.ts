@@ -67,11 +67,11 @@ describe("78329 regular 1 x 5 plate catalog truth", () => {
     );
     if (blueprint?.designId !== "78329") throw new Error("78329 blueprint is missing");
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/28");
-    expect(PART_DEFINITIONS).toHaveLength(104);
-    expect(PART_DEFINITIONS.at(-7)?.id).toBe(PART_ID);
-    expect(SET_6651557_MEASURED_BLUEPRINTS.at(-7)).toBe(blueprint);
-    expect(SET_6651557_MEASURED_BLUEPRINTS_G).toHaveLength(10);
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/29");
+    expect(PART_DEFINITIONS).toHaveLength(106);
+    expect(PART_DEFINITIONS.at(-9)?.id).toBe(PART_ID);
+    expect(SET_6651557_MEASURED_BLUEPRINTS.at(-9)).toBe(blueprint);
+    expect(SET_6651557_MEASURED_BLUEPRINTS_G).toHaveLength(12);
     expect(part).toMatchObject({
       id: PART_ID,
       family: "plate",
@@ -114,8 +114,8 @@ describe("78329 regular 1 x 5 plate catalog truth", () => {
       bytes: 8_761,
       manifestSha256: "sha256:d203ae681cfa3842e210b894d46e69e555e64e638796d260c3a2cabdb474f283",
     });
-    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(43);
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(228);
+    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(45);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(237);
   });
 
   it("binds only the exact LDCad route and regular connector line", () => {
@@ -170,10 +170,10 @@ describe("78329 regular 1 x 5 plate catalog truth", () => {
     expect(validateMeshPartDefinitionAdmission(part)).toEqual({ accepted: true, issues: [] });
   });
 
-  it("keeps every /25 part payload byte unchanged after restoring its historical truth label", () => {
+  it("pins the reviewed /29 projection of the /25 prefix under its historical truth label", () => {
     const priorParts = PART_DEFINITIONS.slice(0, 97);
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/28",
+      "builtin.basic-parts/29",
       "builtin.basic-parts/25",
     );
     const connectorCollision = priorParts.map(({ id, connectors, collision }) => ({
@@ -190,9 +190,9 @@ describe("78329 regular 1 x 5 plate catalog truth", () => {
         .update(JSON.stringify(connectorCollision))
         .digest("hex"),
     }).toEqual({
-      definitionBytes: 1_617_742,
-      definitionHash: "096b7770ec6a0c7effce941d980a8680dcd081f881ac8304853195821f8351f3",
-      connectorCollisionHash: "3aa8b1d3ce14003184bdc85fd34c66a8578bc614e74a1c0c9dedc7a3d8eb4769",
+      definitionBytes: 1_619_557,
+      definitionHash: "b7bfd7c394ee8188b2ead326a2c16e1a2c8605a75d14d4ce11c4cfe9e2a9ad20",
+      connectorCollisionHash: "7e7b46ceaa24d4533ab024c12acd43d1d1fc6fb34ce52f0d502b2dd9d16c9f6e",
     });
   });
 });

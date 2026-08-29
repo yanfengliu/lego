@@ -1,3 +1,4 @@
+import { REVIEWED_EXECUTION_IDENTITY_DIGEST } from "./real-build-observation-source-parity-field-names.ts";
 import {
   canonicalDigest,
   deepFreeze,
@@ -312,7 +313,7 @@ export function parseRealBuildSourceParityCalibrationTruth(
       "schemaVersion",
       "review",
       "reviewedCalibrationDigest",
-      "reviewedExecutionIdentityDigest",
+      REVIEWED_EXECUTION_IDENTITY_DIGEST,
       "pdfDigest",
       "fullPreparedPanelsDigest",
       "calibrationPreparedPanelsDigest",
@@ -325,7 +326,7 @@ export function parseRealBuildSourceParityCalibrationTruth(
     "schemaVersion",
     "review",
     "reviewedCalibrationDigest",
-    "reviewedExecutionIdentityDigest",
+    REVIEWED_EXECUTION_IDENTITY_DIGEST,
     "pdfDigest",
     "fullPreparedPanelsDigest",
     "calibrationPreparedPanelsDigest",
@@ -344,7 +345,7 @@ export function parseRealBuildSourceParityCalibrationTruth(
   ) as Sha256Digest;
   const reviewedExecutionIdentityDigest = sourceParityDigest(
     packet.reviewedExecutionIdentityDigest,
-    "Calibration truth reviewedExecutionIdentityDigest",
+    "Calibration truth " + REVIEWED_EXECUTION_IDENTITY_DIGEST,
   ) as Sha256Digest;
   const pdfDigest = sourceParityDigest(
     packet.pdfDigest,

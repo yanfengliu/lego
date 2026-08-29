@@ -8,6 +8,11 @@ import type { ConnectionEdge, PartInstance } from "@lego-studio/protocol";
 
 import { axisAlignedStudsIntersect } from "./axis-stud-collision.ts";
 import {
+  bodyOverlapCoveredByThroughAxleBore,
+  collectThroughAxleBoreReliefs,
+  type ThroughAxleBoreReliefs,
+} from "./axle-bore-collision-relief.ts";
+import {
   COLLISION_AXES,
   axisIndexForUnitVector,
   bodiesOverlap,
@@ -41,6 +46,11 @@ interface AllowedPenetration {
   readonly studPrimitiveId: string;
   readonly clutchPartId: string;
   readonly allowance: WorldAllowance;
+}
+
+export interface AllowedPenetrations {
+  readonly studs: ReadonlyMap<string, readonly AllowedPenetration[]>;
+  readonly throughAxleBores: ThroughAxleBoreReliefs;
 }
 
 function compareStrings(left: string, right: string): number {
@@ -322,7 +332,7 @@ function penetrationKey(studPartId: string, studPrimitiveId: string, clutchPartI
 export function collectAllowedPenetrations(
   parts: readonly PartInstance[],
   validConnections: readonly ConnectionEdge[],
-): ReadonlyMap<string, readonly AllowedPenetration[]> {
+): AllowedPenetrations {
   const partById = new Map(parts.map((part) => [part.id, part]));
   const allowed = new Map<string, AllowedPenetration[]>();
 
@@ -369,15 +379,18 @@ export function collectAllowedPenetrations(
     else allowed.set(key, [value]);
   }
 
-  return allowed;
+  return {
+    studs: allowed,
+    throughAxleBores: collectThroughAxleBoreReliefs(parts, validConnections),
+  };
 }
 
 function penetrationCoveredByAllowance(
   stud: WorldStud,
   body: WorldBody,
-  allowedPenetrations: ReadonlyMap<string, readonly AllowedPenetration[]>,
+  allowedPenetrations: AllowedPenetrations,
 ): boolean {
-  const candidates = allowedPenetrations.get(
+  const candidates = allowedPenetrations.studs.get(
     penetrationKey(stud.part.id, stud.primitiveId, body.part.id),
   );
   if (!candidates) return false;
@@ -407,9 +420,14 @@ function penetrationCoveredByAllowance(
 export function primitivesCollide(
   left: WorldPrimitive,
   right: WorldPrimitive,
-  allowedPenetrations: ReadonlyMap<string, readonly AllowedPenetration[]>,
+  allowedPenetrations: AllowedPenetrations,
 ): boolean {
-  if (left.kind === "body" && right.kind === "body") return bodiesOverlap(left, right);
+  if (left.kind === "body" && right.kind === "body") {
+    return (
+      bodiesOverlap(left, right) &&
+      !bodyOverlapCoveredByThroughAxleBore(left, right, allowedPenetrations.throughAxleBores)
+    );
+  }
   if (left.kind === "stud" && right.kind === "stud") return axisAlignedStudsIntersect(left, right);
   const stud = left.kind === "stud" ? left : (right as WorldStud);
   const body = left.kind === "body" ? left : (right as WorldBody);

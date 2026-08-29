@@ -19,6 +19,7 @@ from pathlib import Path, PurePosixPath
 from types import ModuleType
 
 
+
 WORKER_FLAG = "--quarantined-builder-3245-variant-worker"
 BUNDLE_BYTES = 85_098
 BUNDLE_SHA256 = "1aa4e8333df9914191a4d941a7ce0f95460311eabd8f159f9e4a9b1e5c1c9534"

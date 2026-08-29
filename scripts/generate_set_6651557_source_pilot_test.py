@@ -13,6 +13,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 
+
 SCRIPT_PATH = Path(__file__).with_name("generate-set-6651557-source-pilot.py")
 SPEC = importlib.util.spec_from_file_location("set_6651557_source_pilot", SCRIPT_PATH)
 if SPEC is None or SPEC.loader is None:

@@ -317,7 +317,7 @@ describe("catalog-to-Builder frame selection", () => {
     expect(exactFourfold.witnessMarginMicroRatio).toBe(5_000_003);
   });
 
-  it("proves the current resolved 35480 and 3659 meshes under their exact half turns", () => {
+  it("keeps exact half-turn symmetry when placement policy adds non-upright proper rows", () => {
     const halfTurn: LedgerTransform = {
       positionLdu: [0, 0, 0],
       orientationId: "upright-yaw-180",
@@ -326,6 +326,9 @@ describe("catalog-to-Builder frame selection", () => {
       isCatalogPartSelfSymmetry(getPartDefinition("builtin:plate-1x2-round-end")!, halfTurn),
     ).toBe(true);
     expect(isCatalogPartSelfSymmetry(getPartDefinition("builtin:arch-1x4")!, halfTurn)).toBe(true);
+    expect(isCatalogPartSelfSymmetry(getPartDefinition("builtin:plate-1x12")!, halfTurn)).toBe(
+      true,
+    );
   });
 
   it("requires the effective placement grid center and legal yaws to share the quotient symmetry", () => {
@@ -339,7 +342,40 @@ describe("catalog-to-Builder frame selection", () => {
       isCatalogPartSelfSymmetry({ ...plate, connectorGridCenterLdu: [10, 0] }, quarterTurn),
     ).toBe(false);
     expect(
-      isCatalogPartSelfSymmetry({ ...plate, legalOrientationIds: ["upright-yaw-0"] }, quarterTurn),
+      isCatalogPartSelfSymmetry(
+        {
+          ...plate,
+          legalOrientationIds: ["upright-yaw-0", "proper-m-00nn000p0"],
+        },
+        quarterTurn,
+      ),
+    ).toBe(false);
+  });
+
+  it("includes exact through-axle-bore collision allowances in the symmetry proof", () => {
+    const halfTurn: LedgerTransform = {
+      positionLdu: [0, 0, 0],
+      orientationId: "upright-yaw-180",
+    };
+    const plate = getPartDefinition("builtin:plate-1x12")!;
+    const allowance = getPartDefinition("builtin:technic-brick-1x1-axle-hole")!.collision
+      .throughAxleBoreAllowances![0]!;
+    const withAllowance: PartDefinition = {
+      ...plate,
+      collision: { ...plate.collision, throughAxleBoreAllowances: [allowance] },
+    };
+    expect(isCatalogPartSelfSymmetry(withAllowance, halfTurn)).toBe(true);
+    expect(
+      isCatalogPartSelfSymmetry(
+        {
+          ...withAllowance,
+          collision: {
+            ...withAllowance.collision,
+            throughAxleBoreAllowances: [{ ...allowance, endLdu: [9, -2, 0] }],
+          },
+        },
+        halfTurn,
+      ),
     ).toBe(false);
   });
 

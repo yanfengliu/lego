@@ -14,32 +14,47 @@ import {
 } from "../e2e/real-build-builder-calibration";
 
 describe("Builder diagnostic proper-world transforms", () => {
-  it("renders the two observed proper rotations while document policy stays upright-only", () => {
-    const diagnosticOnlyIds = ["proper-m-00pp000p0", "proper-m-00nn000p0"] as const;
-    for (const orientationId of diagnosticOnlyIds) {
+  it("renders observed proper rotations while document legality stays part-scoped", () => {
+    const observed = [
+      ["proper-m-00pp000p0", "builtin:axle-1x3"],
+      ["proper-m-00nn000p0", "builtin:plate-1x4"],
+    ] as const;
+    for (const [orientationId, grantedCatalogPartId] of observed) {
       expect(
-        PART_DEFINITIONS.some(({ legalOrientationIds }) =>
-          legalOrientationIds.includes(orientationId),
-        ),
-      ).toBe(false);
+        PART_DEFINITIONS.find(({ id }) => id === grantedCatalogPartId)?.legalOrientationIds,
+      ).toContain(orientationId);
       expect(() => getUprightOrientation(orientationId)).toThrow(/Unknown upright orientation/u);
       expect(
         lduTransformToThreeMatrix({ positionLdu: [0, 0, 0], orientationId }).determinant(),
       ).toBeCloseTo(1, 12);
 
       const empty = createEmptyBrickDocument({ id: "proper-diagnostic", name: "Diagnostic" });
-      const diagnosticPart = createPartInstance({
-        id: `diagnostic-${orientationId}`,
+      const grantedPart = createPartInstance({
+        id: `granted-${orientationId}`,
+        catalogPartId: grantedCatalogPartId,
         transform: { positionLdu: [0, 0, 0], orientationId },
       });
-      const report = validateBrickDocument({
+      const grantedReport = validateBrickDocument({
         ...empty,
-        parts: [diagnosticPart],
-        submodels: [{ ...empty.submodels[0]!, partIds: [diagnosticPart.id] }],
-        steps: [{ ...empty.steps[0]!, partIds: [diagnosticPart.id] }],
+        parts: [grantedPart],
+        submodels: [{ ...empty.submodels[0]!, partIds: [grantedPart.id] }],
+        steps: [{ ...empty.steps[0]!, partIds: [grantedPart.id] }],
       });
-      expect(report.issues.map(({ code }) => code)).toContain("ILLEGAL_ORIENTATION");
-      expect(report.issues.find(({ code }) => code === "ILLEGAL_ORIENTATION")?.path).toBe(
+      expect(grantedReport.issues.map(({ code }) => code)).not.toContain("ILLEGAL_ORIENTATION");
+
+      const ungrantedPart = createPartInstance({
+        id: `ungranted-${orientationId}`,
+        catalogPartId: "builtin:brick-1x1",
+        transform: { positionLdu: [0, 0, 0], orientationId },
+      });
+      const ungrantedReport = validateBrickDocument({
+        ...empty,
+        parts: [ungrantedPart],
+        submodels: [{ ...empty.submodels[0]!, partIds: [ungrantedPart.id] }],
+        steps: [{ ...empty.steps[0]!, partIds: [ungrantedPart.id] }],
+      });
+      expect(ungrantedReport.issues.map(({ code }) => code)).toContain("ILLEGAL_ORIENTATION");
+      expect(ungrantedReport.issues.find(({ code }) => code === "ILLEGAL_ORIENTATION")?.path).toBe(
         "/parts/0/transform/orientationId",
       );
     }

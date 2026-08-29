@@ -1,4 +1,5 @@
 import { OFFICIAL_REAL_BUILD_ACCOUNTING } from "./real-build-contract";
+import { TRANSITION_CLASSIFICATIONS_DIGEST_FIELD } from "./real-build-action-ledger-field-names.ts";
 import {
   type LedgerCopyIdentity,
   type LedgerPieceIdentity,
@@ -24,7 +25,7 @@ const TOP_LEVEL_KEYS = [
   "calloutManifestDigest",
   "sourceArtReboundDigest",
   "builderCalibrationDigest",
-  "transitionClassificationsDigest",
+  TRANSITION_CLASSIFICATIONS_DIGEST_FIELD,
   "steps",
   "provenance",
 ] as const;
@@ -503,7 +504,7 @@ export function preflightRealBuildActionLedger(
         ),
         transitionClassificationsDigest: digestValue(
           top.transitionClassificationsDigest,
-          "Action ledger transitionClassificationsDigest",
+          `Action ledger ${TRANSITION_CLASSIFICATIONS_DIGEST_FIELD}`,
         ),
         steps,
         provenance: provenanceValue(top.provenance),

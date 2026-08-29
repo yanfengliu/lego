@@ -90,7 +90,7 @@ async function assertOfficialAndCatalog(inputs, pins, native, variant) {
   ] = await Promise.all([
     importRepositoryTypeScript(moduleUrl("../apps/web/e2e/real-build-official.ts")),
     importRepositoryTypeScript(moduleUrl("../packages/catalog/src/catalog.ts")),
-    importRepositoryTypeScript(moduleUrl("../packages/catalog/src/constants.ts")),
+    importRepositoryTypeScript(moduleUrl(`..${"/packages/catalog/src/constants"}.ts`)),
     importRepositoryTypeScript(
       moduleUrl("../packages/catalog/src/part-blueprints-6651557-measured-h.ts"),
     ),

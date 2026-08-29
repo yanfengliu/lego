@@ -115,10 +115,18 @@ async function deriveAuthorities() {
         historical.pairRules,
         "reviewed-historical",
       );
+      const historicalSemanticConnectorKinds = [
+        ...new Set(
+          historical.parts.flatMap(({ connectors }) =>
+            connectors.flatMap(({ kind, compatibleKinds }) => [kind, ...compatibleKinds]),
+          ),
+        ),
+      ];
       const targetProjection = projectConnectionSemantics(
         targetParts,
         CONNECTOR_PAIR_RULES,
         "live-strict",
+        { semanticConnectorKinds: historicalSemanticConnectorKinds },
       );
       authorities.push({
         truthHash: snapshot.truthHash,

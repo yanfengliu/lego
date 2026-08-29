@@ -1,5 +1,6 @@
 import { parseStrictJsonBytes } from "../../../scripts/part-identification-strict-json.mjs";
 
+import { TRANSITION_CLASSIFICATIONS_DIGEST_FIELD } from "./real-build-action-ledger-field-names.ts";
 import { snapshotHostileUint8Array } from "./real-build-hostile-uint8array";
 import type { LedgerStep, RealBuildActionLedgerProvenance } from "./real-build-ledger-contract";
 
@@ -29,7 +30,7 @@ const TOP_KEYS = [
   "coverageDigest",
   "calloutManifestDigest",
   "builderCalibrationDigest",
-  "transitionClassificationsDigest",
+  TRANSITION_CLASSIFICATIONS_DIGEST_FIELD,
   "steps",
   "provenance",
 ] as const;
@@ -254,7 +255,7 @@ export function admitCanonicalLegacyRealBuildActionLedgerV3Bytes(input: {
     "coverageDigest",
     "calloutManifestDigest",
     "builderCalibrationDigest",
-    "transitionClassificationsDigest",
+    TRANSITION_CLASSIFICATIONS_DIGEST_FIELD,
   ]) {
     digest(ledger[field], `${input.label}.${field}`);
   }

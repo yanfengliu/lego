@@ -1,7 +1,7 @@
 import { CURRENT_PREFIX50_ACTION_PREPARATION_PINS } from "./part-identification-prefix50-action-preparation-source.mjs";
 
 export const PREFIX50_OFFICIAL_WORLD_RECONCILIATION_SCHEMA =
-  "lego.prefix50-official-world-reconciliation/1";
+  "lego.prefix50-official-world-reconciliation/2";
 export const PREFIX50_OFFICIAL_WORLD_RECONCILIATION_OUTPUT_PATH =
   "output/real-build/prefix50-official-world-reconciliation.json";
 export const PREFIX50_OFFICIAL_WORLD_RECONCILIATION_MAX_ARTIFACT_BYTES = 2 * 1024 * 1024;
@@ -10,6 +10,8 @@ export const PREFIX50_OFFICIAL_WORLD_RECONCILIATION_AUTHORITY = Object.freeze({
   kind: "authority-absent-official-world-reconciliation",
   proposalOnly: true,
   exactOccurrenceIdentity: true,
+  occurrenceScopedCatalogRebinding: true,
+  occurrenceScopedIdentityMovedRoots: true,
   ldrawToCatalogFrameReconciled: true,
   firstEightConnectorTopologyMeasured: true,
   authenticated: false,
@@ -30,37 +32,37 @@ export const PREFIX50_OFFICIAL_WORLD_RECONCILIATION_AUTHORITY = Object.freeze({
 
 export const PREFIX50_OFFICIAL_WORLD_RECONCILIATION_PINS = Object.freeze({
   proposal: Object.freeze({
-    schemaVersion: "lego.prefix50-official-ldraw-world-proposal/1",
-    bytes: 500_895,
-    digest: "sha256:7b76ef27bbad99f9014fd6543b0fdb47c1fdcfd789d0d9629e16df54a4889da7",
+    schemaVersion: "lego.prefix50-official-ldraw-world-proposal/2",
+    bytes: 764_234,
+    digest: "sha256:24c10640f118d2961dd297cff608b6978bd54eab85a37cf0c314f4711612f960",
   }),
   frameRegistry: Object.freeze({
-    schemaVersion: "lego.prefix50-ldraw-catalog-frames/1",
-    bytes: 98_383,
-    digest: "sha256:16a76321d1cbd8bb1308dff9c58ee61507f67c0139b17aa50a5d8415c789e2f2",
+    schemaVersion: "lego.prefix50-ldraw-catalog-frames/2",
+    bytes: 330_415,
+    digest: "sha256:bcf9702150b73cab1bd70d7ecd0bf33b3b3917522ce4f0ca892be56424b861a1",
   }),
   actionPreparation: Object.freeze({
     schemaVersion: "lego.real-build-action-preparation/1",
     ...CURRENT_PREFIX50_ACTION_PREPARATION_PINS.expectedArtifact,
   }),
-  catalogVersion: "builtin.basic-parts/28",
+  catalogVersion: "builtin.basic-parts/29",
   expectedAccounting: Object.freeze({
     occurrenceRows: 320,
-    reconciledRows: 309,
-    quarantinedRows: 11,
+    reconciledRows: 320,
+    quarantinedRows: 0,
     directRows: 309,
     multiBuildCopyRows: 11,
-    reconciledDirectRows: 298,
+    reconciledDirectRows: 309,
     reconciledMultiBuildCopyRows: 11,
-    quarantinedDirectRows: 11,
+    quarantinedDirectRows: 0,
     uniqueBuilderBrickRefs: 320,
     uniqueXmlRows: 320,
     uniqueTopLevelLdrawRows: 320,
     halfLduRows: 3,
   }),
   expectedArtifact: Object.freeze({
-    bytes: 408_269,
-    digest: "sha256:63d5872f92d208755dae34ecab7bad31c23b9b4cdcfb4165bbbc3159d281156e",
+    bytes: 651_618,
+    digest: "sha256:4037ecb9cc60bc63bae38b963abeef8096d7405f2da80a40e79fe60fdff4092b",
   }),
 });
 

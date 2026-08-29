@@ -12,6 +12,13 @@ from ldcad_shadow_metas import parse_shadow_metas
 from measured_part_tables import measured_part_report_row, scoreable_candidate
 from measured_part_test_support import measured, plan
 from measured_source_connectors import source_connectors_for
+from measured_source_connector_rows import (
+    CONNECTOR_AXIAL_SPAN_SCHEMA_VERSION,
+    THROUGH_AXLE_BORE_COLLISION_SCHEMA_VERSION,
+    ConnectorAxialSpan,
+    MeasuredSourceConnector,
+    ThroughAxleBoreCollisionEvidence,
+)
 
 AXLE_HOLE_META = (
     "0 LDCad shadow info for synthetic axle hole\n"
@@ -22,6 +29,30 @@ AXLE_HOLE_META = (
 )
 AXLE_HOLE_CLOSURE = ["p/axlehol5.dat", "p/stud2.dat", "parts/32064a.dat"]
 AXLE_HOLE4_CLOSURE = ["p/axlehol4.dat", "p/stud2.dat", "parts/73230.dat"]
+AXLE_HOLDER_CLOSURE = ["p/stud.dat", "parts/3245b.dat", "parts/s/3245bs02.dat"]
+
+
+def connector(kind, position, normal, axial_span=None, through_bore_collision=None):
+    return MeasuredSourceConnector(
+        kind,
+        tuple(position),
+        tuple(normal),
+        axial_span,
+        through_bore_collision,
+    )
+
+
+def through_bore(start, end):
+    return ThroughAxleBoreCollisionEvidence(
+        THROUGH_AXLE_BORE_COLLISION_SCHEMA_VERSION,
+        "A 6 1",
+        tuple(start),
+        tuple(end),
+        6.0,
+        20.0,
+        "none",
+        True,
+    )
 
 
 def composed_axle_hole():
@@ -64,6 +95,15 @@ def composed_axle_hole4():
     )
 
 
+def exact_3245b_axle_holder():
+    text = "\n" * 11 + (
+        "0 !LDCAD SNAP_CYL [gender=F] [caps=one] [secs=A 6 44] "
+        "[pos=0 48 0]\n"
+    )
+    meta = parse_shadow_metas(text, "parts/3245b.dat")[0]
+    return snap_instances(meta)[0]
+
+
 class MeasuredSourceConnectorTests(unittest.TestCase):
     def test_axle_projection_is_bound_exclusively_to_4519s_direct_shadow(self) -> None:
         rows = [
@@ -94,7 +134,16 @@ class MeasuredSourceConnectorTests(unittest.TestCase):
 
     def test_axle_hole_projection_is_bound_to_32064as_exact_composed_route(self) -> None:
         snap = composed_axle_hole()
-        expected = [("axleHole", [0.0, 10.0, 0.0], [0.0, 0.0, 1.0])]
+        expected = [
+            connector(
+                "axleHole",
+                [0.0, 10.0, 0.0],
+                [0.0, 0.0, 1.0],
+                through_bore_collision=through_bore(
+                    [0.0, 10.0, -10.0], [0.0, 10.0, 10.0]
+                ),
+            )
+        ]
 
         self.assertEqual(source_connectors_for("32064", [snap], AXLE_HOLE_CLOSURE), expected)
         self.assertEqual(source_connectors_for("32064a", [snap], AXLE_HOLE_CLOSURE), expected)
@@ -125,7 +174,16 @@ class MeasuredSourceConnectorTests(unittest.TestCase):
 
     def test_axlehol4_projection_is_bound_to_73230s_exact_composed_route(self) -> None:
         snap = composed_axle_hole4()
-        expected = [("axleHole", [0.0, 10.0, 0.0], [0.0, 0.0, -1.0])]
+        expected = [
+            connector(
+                "axleHole",
+                [0.0, 10.0, 0.0],
+                [0.0, 0.0, -1.0],
+                through_bore_collision=through_bore(
+                    [0.0, 10.0, 10.0], [0.0, 10.0, -10.0]
+                ),
+            )
+        ]
 
         self.assertEqual(source_connectors_for("73230", [snap], AXLE_HOLE4_CLOSURE), expected)
         with self.assertRaisesRegex(ValueError, "shadow closure"):
@@ -138,6 +196,40 @@ class MeasuredSourceConnectorTests(unittest.TestCase):
             )
         with self.assertRaisesRegex(ValueError, "32064/32064a or 73230"):
             source_connectors_for("other", [snap], AXLE_HOLE4_CLOSURE)
+
+    def test_3245b_exact_blind_axle_holder_projects_its_fixed_midpoint(self) -> None:
+        holder = exact_3245b_axle_holder()
+
+        self.assertEqual(
+            source_connectors_for("3245b", [holder], AXLE_HOLDER_CLOSURE),
+            [
+                connector(
+                    "blindAxleHole",
+                    [0.0, 26.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    ConnectorAxialSpan(
+                        CONNECTOR_AXIAL_SPAN_SCHEMA_VERSION,
+                        (0.0, 48.0, 0.0),
+                        (0.0, 4.0, 0.0),
+                        44.0,
+                        False,
+                    ),
+                )
+            ],
+        )
+        for snaps, closure in (
+            ([], AXLE_HOLDER_CLOSURE),
+            ([holder, holder], AXLE_HOLDER_CLOSURE),
+            ([replace(holder, position=(Fraction(0), Fraction(47), Fraction(0)))], AXLE_HOLDER_CLOSURE),
+            ([replace(holder, slide=True)], AXLE_HOLDER_CLOSURE),
+            ([holder], ["parts/3245b.dat"]),
+        ):
+            with self.subTest(snaps=snaps, closure=closure):
+                with self.assertRaisesRegex(ValueError, "fixed female one-cap A6x44"):
+                    source_connectors_for("3245b", snaps, closure)
+
+        with self.assertRaisesRegex(ValueError, "admitted only for design 3245b"):
+            source_connectors_for("other", [holder], AXLE_HOLDER_CLOSURE)
 
     def test_square_clutch_plan_opt_in_is_literal_and_source_scoped(self) -> None:
         self.assertFalse(plan().allow_ldcad_square_s6_clutches)
@@ -160,7 +252,7 @@ class MeasuredSourceConnectorTests(unittest.TestCase):
                 connector_source="ldcad-shadow",
             ),
             clutches_ldu=(),
-            source_connectors_ldu=(("axle", (10.0, 0.0, 40.0), (0.0, 0.0, 1.0)),),
+            source_connectors_ldu=(connector("axle", (10.0, 0.0, 40.0), (0.0, 0.0, 1.0)),),
             candidate={"connectors": [], "derivation": "unit source candidate"},
         )
 
@@ -181,7 +273,7 @@ class MeasuredSourceConnectorTests(unittest.TestCase):
     def test_report_names_the_unscored_source_connector_kind(self) -> None:
         row = measured_part_report_row(
             measured(
-                source_connectors_ldu=(("axle", (-20.0, 0.0, 0.0), (-1.0, 0.0, 0.0)),)
+                source_connectors_ldu=(connector("axle", (-20.0, 0.0, 0.0), (-1.0, 0.0, 0.0)),)
             )
         )
 
@@ -191,9 +283,7 @@ class MeasuredSourceConnectorTests(unittest.TestCase):
     def test_report_names_axle_hole_as_an_unscored_source_connector_kind(self) -> None:
         row = measured_part_report_row(
             measured(
-                source_connectors_ldu=(
-                    ("axleHole", (0.0, -2.0, 0.0), (1.0, 0.0, 0.0)),
-                )
+                source_connectors_ldu=(connector("axleHole", (0.0, -2.0, 0.0), (1.0, 0.0, 0.0)),)
             )
         )
 

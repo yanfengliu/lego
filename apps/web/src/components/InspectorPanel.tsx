@@ -1,7 +1,9 @@
 import { useState } from "react";
 
-import { COLOR_DEFINITIONS, UPRIGHT_ORIENTATIONS, getPartDefinition } from "@lego-studio/catalog";
+import { COLOR_DEFINITIONS, getPartDefinition } from "@lego-studio/catalog";
 import type { PartInstance, RigidTransform } from "@lego-studio/protocol";
+
+import { LegalOrientationSelect } from "./LegalOrientationSelect";
 
 interface InspectorPanelProps {
   readonly part: PartInstance | null;
@@ -84,17 +86,15 @@ export function InspectorPanel({ part, connected, onApply, onDelete }: Inspector
           </fieldset>
 
           <label>
-            <span className="field-label">Upright orientation</span>
-            <select
-              value={orientationId}
-              onChange={(event) => setOrientationId(event.target.value)}
-            >
-              {UPRIGHT_ORIENTATIONS.map((orientation) => (
-                <option key={orientation.id} value={orientation.id}>
-                  {orientation.quarterTurns * 90}° yaw
-                </option>
-              ))}
-            </select>
+            <span className="field-label">Legal orientation</span>
+            {definition ? (
+              <LegalOrientationSelect
+                definition={definition}
+                value={orientationId}
+                onChange={setOrientationId}
+                ariaLabel="Legal orientation"
+              />
+            ) : null}
           </label>
 
           {connected && transformChanged ? (

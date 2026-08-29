@@ -2,6 +2,7 @@ import {
   BRICK_HEIGHT_LDU,
   PLATE_HEIGHT_LDU,
   STUD_PITCH_LDU,
+  UPRIGHT_ORIENTATIONS,
   PART_DEFINITIONS,
   getPartDefinition,
   type PartDefinition,
@@ -13,14 +14,19 @@ import { describe, expect, it } from "vitest";
 import { occupiedConnectorCapacityClaims } from "./connector-capacity";
 import {
   GROUND_UNDERSIDE_LDU,
+  LATERAL_SNAP_LDU,
   PlacementError,
+  assessSupport,
   bodyBoundsLdu,
   endpointKey,
   findBodyOverlaps,
   findStudConnections,
+  nextLegalOrientationId,
   partTopSurfaceLdu,
   partUndersideLdu,
+  placementOrientationIdForCatalogSelection,
   snapPlacementOrigin,
+  snapPlacementOriginForDefinition,
   worldFootprint,
 } from "./placement";
 
@@ -102,6 +108,164 @@ describe("placement footprints", () => {
         expect(Math.abs(z % STUD_PITCH_LDU)).toBe(STUD_PITCH_LDU / 2);
       }
     }
+  });
+
+  it("snaps every part-scoped legal proper orientation to one finite canonical transform", () => {
+    for (const part of PART_DEFINITIONS) {
+      for (const orientationId of part.legalOrientationIds) {
+        const positionLdu = snapPlacementOriginForDefinition({
+          definition: part,
+          orientationId,
+          rawLdu: [7, -3, 13],
+        });
+        expect([part.id, orientationId, positionLdu.every(Number.isSafeInteger)]).toEqual([
+          part.id,
+          orientationId,
+          true,
+        ]);
+        const bounds = bodyBoundsLdu(partAt("snapped", part.id, positionLdu, orientationId));
+        const plateClearanceLdu = GROUND_UNDERSIDE_LDU - bounds.max[1];
+        expect([part.id, orientationId, bounds.max[1] <= GROUND_UNDERSIDE_LDU]).toEqual([
+          part.id,
+          orientationId,
+          true,
+        ]);
+        expect([part.id, orientationId, plateClearanceLdu >= 0 && plateClearanceLdu < 1]).toEqual([
+          part.id,
+          orientationId,
+          true,
+        ]);
+      }
+    }
+  });
+
+  it("preserves the legacy lateral residues for every upright catalog orientation", () => {
+    const mismatches: unknown[] = [];
+    const legacyOffset = (coordinate: number): number =>
+      (((LATERAL_SNAP_LDU - coordinate) % STUD_PITCH_LDU) + STUD_PITCH_LDU) % STUD_PITCH_LDU;
+    const snap = (raw: number, offset: number): number =>
+      Math.round((raw - offset) / STUD_PITCH_LDU) * STUD_PITCH_LDU + offset;
+
+    for (const part of PART_DEFINITIONS) {
+      const geometryCenter =
+        "connectorGridCenterLdu" in part.geometry
+          ? part.geometry.connectorGridCenterLdu
+          : undefined;
+      const center = part.connectorGridCenterLdu ?? geometryCenter ?? [0, 0];
+      for (const { id: orientationId } of UPRIGHT_ORIENTATIONS) {
+        const localFirst: [number, number, number] = [
+          center[0] - ((part.dimensions.widthStuds - 1) * STUD_PITCH_LDU) / 2,
+          0,
+          center[1] - ((part.dimensions.lengthStuds - 1) * STUD_PITCH_LDU) / 2,
+        ];
+        const rotatedFirst = transformLduPoint(
+          { positionLdu: [0, 0, 0], orientationId },
+          localFirst,
+        );
+        const actual = snapPlacementOriginForDefinition({
+          definition: part,
+          orientationId,
+          rawLdu: [7, 0, 13],
+        });
+        const expected = [
+          part.id,
+          orientationId,
+          snap(7, legacyOffset(rotatedFirst[0])),
+          snap(13, legacyOffset(rotatedFirst[2])),
+        ];
+        const received = [part.id, orientationId, actual[0], actual[2]];
+        if (JSON.stringify(received) !== JSON.stringify(expected)) {
+          mismatches.push({ received, expected });
+        }
+      }
+    }
+    expect(mismatches).toEqual([]);
+  });
+
+  it("snaps the catalog-legal vertical axle frame but refuses it for an upright-only brick", () => {
+    const axleOrientation = "proper-m-00pp000p0";
+    expect(
+      snapPlacementOriginForDefinition({
+        definition: definition("builtin:axle-1x3"),
+        orientationId: axleOrientation,
+        rawLdu: [0, 0, 0],
+      }),
+    ).toEqual([0, -18, 0]);
+    expect(() =>
+      snapPlacementOriginForDefinition({
+        definition: definition(BRICK_1X1),
+        orientationId: axleOrientation,
+        rawLdu: [0, 0, 0],
+      }),
+    ).toThrow(
+      `Cannot place builtin:brick-1x1 at illegal orientation ${axleOrientation}; the catalog allows upright-yaw-0, upright-yaw-90, upright-yaw-180, upright-yaw-270`,
+    );
+    const axle = partAt("vertical-axle", "builtin:axle-1x3", [0, -18, 0], axleOrientation);
+    expect(partUndersideLdu(axle)).toBe(11.5);
+    expect(assessSupport(axle, [])).toEqual({ supported: true, held: "build-plate" });
+  });
+
+  it("never rounds an actual fractional support surface into a stacked body", () => {
+    const verticalAxle = partAt(
+      "vertical-axle",
+      "builtin:axle-1x3",
+      [0, -18, 0],
+      "proper-m-00pp000p0",
+    );
+    const supportTopLdu = partTopSurfaceLdu(verticalAxle);
+    expect(supportTopLdu).toBe(-47.5);
+
+    for (const candidate of PART_DEFINITIONS) {
+      for (const orientationId of candidate.legalOrientationIds) {
+        const positionLdu = snapPlacementOriginForDefinition({
+          definition: candidate,
+          orientationId,
+          rawLdu: [0, supportTopLdu, 0],
+          supportUndersideLdu: supportTopLdu,
+        });
+        const bounds = bodyBoundsLdu(partAt("candidate", candidate.id, positionLdu, orientationId));
+        const clearanceLdu = supportTopLdu - bounds.max[1];
+        expect([candidate.id, orientationId, bounds.max[1] <= supportTopLdu]).toEqual([
+          candidate.id,
+          orientationId,
+          true,
+        ]);
+        expect([candidate.id, orientationId, clearanceLdu >= 0 && clearanceLdu < 1]).toEqual([
+          candidate.id,
+          orientationId,
+          true,
+        ]);
+      }
+    }
+  });
+
+  it("cycles the selected part's complete legal list in deterministic catalog order", () => {
+    const brick = definition(BRICK_1X1);
+    expect(nextLegalOrientationId(brick, "upright-yaw-0")).toBe("upright-yaw-90");
+    expect(nextLegalOrientationId(brick, "upright-yaw-270")).toBe("upright-yaw-0");
+
+    const axle = definition("builtin:axle-1x3");
+    expect(nextLegalOrientationId(axle, "upright-yaw-270")).toBe("proper-m-00pp000p0");
+    expect(nextLegalOrientationId(axle, "proper-m-00pp000p0")).toBe("upright-yaw-0");
+    expect(() => nextLegalOrientationId(brick, "proper-m-00pp000p0")).toThrow(
+      /illegal orientation proper-m-00pp000p0/,
+    );
+  });
+
+  it("preserves a legal re-selection and resets orientation when the chosen part changes", () => {
+    const axle = definition("builtin:axle-1x3");
+    expect(
+      placementOrientationIdForCatalogSelection(axle, {
+        catalogPartId: axle.id,
+        orientationId: "proper-m-00pp000p0",
+      }),
+    ).toBe("proper-m-00pp000p0");
+    expect(
+      placementOrientationIdForCatalogSelection(definition(BRICK_1X1), {
+        catalogPartId: axle.id,
+        orientationId: "proper-m-00pp000p0",
+      }),
+    ).toBe("upright-yaw-0");
   });
 });
 
@@ -186,7 +350,7 @@ describe("snapPlacementOrigin", () => {
 
   it("stacks onto a supporting surface without drifting off the lattice", () => {
     const base = partAt("base", BRICK_2X2, [0, 0, 0]);
-    const supportUndersideLdu = partTopSurfaceLdu(definition(base.catalogPartId), 0);
+    const supportUndersideLdu = partTopSurfaceLdu(base);
     const stacked = snapPlacementOrigin({
       catalogPartId: BRICK_2X2,
       orientationId: "upright-yaw-0",
@@ -261,6 +425,14 @@ describe("body overlap affordance", () => {
 });
 
 describe("stud connection discovery", () => {
+  it("refuses connector discovery for a globally proper but part-illegal orientation", () => {
+    const illegal = partAt("illegal", BRICK_1X1, [0, 2, 0], "proper-m-p0000p0n0");
+
+    expect(() => findStudConnections(illegal, [])).toThrow(
+      `Cannot discover connectors for illegal (builtin:brick-1x1) at illegal orientation proper-m-p0000p0n0; the catalog allows upright-yaw-0, upright-yaw-90, upright-yaw-180, upright-yaw-270`,
+    );
+  });
+
   it("finds every coincident stud/clutch pair under an exact stack", () => {
     const base = partAt("base", BRICK_2X2, [0, 0, 0]);
     const stacked = partAt("stacked", BRICK_2X2, [0, -BRICK_HEIGHT_LDU, 0]);

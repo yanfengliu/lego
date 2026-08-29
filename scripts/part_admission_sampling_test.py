@@ -105,7 +105,8 @@ class SamplingPlanTests(unittest.TestCase):
         self.assertEqual(containment["sampleSpacingLdu"], 0.25)  # type: ignore[index]
         self.assertEqual(containment["requestedSampleSpacingLdu"], 0.25)  # type: ignore[index]
         self.assertEqual(
-            containment["maximumEffectiveSampleSpacingLdu"], 0.390625  # type: ignore[index]
+            containment["maximumEffectiveSampleSpacingLdu"],  # type: ignore[index]
+            0.390625,
         )
         self.assertEqual(containment["maximumTriangleSubdivisions"], 256)  # type: ignore[index]
         self.assertEqual(containment["trianglesCappedBySubdivisionLimit"], 1)  # type: ignore[index]

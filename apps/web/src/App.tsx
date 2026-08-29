@@ -44,13 +44,18 @@ import {
   summarizeInstructionSource,
   type InstructionSourceV1,
 } from "./instructions/instruction-source";
-import { nextYawOrientationId, snapPlacementOrigin } from "./placement";
+import {
+  nextLegalOrientationId,
+  partUndersideLdu,
+  placementOrientationIdForCatalogSelection,
+  snapPlacementOrigin,
+} from "./placement";
 import {
   IndexedDbProjectRepository,
   type ProjectSummary,
 } from "./persistence/indexeddb-project-repository";
 import { ProjectSaveQueue } from "./persistence/project-save-queue";
-import { modelAppearanceCatalogIds } from "./migration-notice";
+import { summarizeModelCatalogInterpretations } from "./migration-notice";
 
 type ProjectHydration =
   { readonly state: "loading" } | { readonly state: "ready" } | { readonly state: "degraded" };
@@ -75,6 +80,7 @@ export function App() {
     PART_DEFINITIONS[4]?.id ?? "builtin:brick-2x2",
   );
   const [colorId, setColorId] = useState("builtin:red");
+  const [placementOrientationId, setPlacementOrientationId] = useState("upright-yaw-0");
   const [draggedCatalogPartId, setDraggedCatalogPartId] = useState<string | null>(null);
   const [playbackPosition, setPlaybackPosition] = useState<number | null>(null);
   const [playbackPlaying, setPlaybackPlaying] = useState(false);
@@ -100,6 +106,39 @@ export function App() {
   const lastQueuedStateHashRef = useRef<string | null>(null);
   const latestSaveSequenceRef = useRef(0);
   const repositoryRef = useRef<IndexedDbProjectRepository | null>(null);
+
+  const selectCatalogPartDefinition = useCallback(
+    (nextCatalogPartId: string) => {
+      const definition = getPartDefinition(nextCatalogPartId);
+      if (!definition) {
+        setCommandError(`Cannot select ${nextCatalogPartId}: it is absent from the pinned catalog`);
+        return;
+      }
+      const nextOrientationId = placementOrientationIdForCatalogSelection(definition, {
+        catalogPartId,
+        orientationId: placementOrientationId,
+      });
+      setCatalogPartId(nextCatalogPartId);
+      setPlacementOrientationId(nextOrientationId);
+      setCommandError(null);
+    },
+    [catalogPartId, placementOrientationId],
+  );
+
+  const selectPlacementOrientation = useCallback(
+    (orientationId: string) => {
+      const definition = getPartDefinition(catalogPartId);
+      if (!definition?.legalOrientationIds.includes(orientationId)) {
+        setCommandError(
+          `Cannot arm ${catalogPartId} at illegal orientation ${orientationId}; the catalog allows ${definition?.legalOrientationIds.join(", ") ?? "no orientations"}`,
+        );
+        return;
+      }
+      setPlacementOrientationId(orientationId);
+      setCommandError(null);
+    },
+    [catalogPartId],
+  );
 
   const selectedPart = state.document.parts.find(({ id }) => id === state.selectedPartId) ?? null;
   const selectedPartConnected =
@@ -163,12 +202,12 @@ export function App() {
               ? { ...stored.state, document: migratedDocument }
               : stored.state;
           if (report.migrated) {
-            const reinterpretedParts = modelAppearanceCatalogIds(
+            const reinterpreted = summarizeModelCatalogInterpretations(
               stored.state.document.parts.map(({ catalogPartId }) => catalogPartId),
               report.catalogInterpretationChanges,
             );
             setMigrationNotice(
-              `Updated this model from ${report.fromCatalogVersion} to ${report.toCatalogVersion}; ${report.addedColorIds.length} new colors are now available${reinterpretedParts.length === 0 ? "" : `, and ${reinterpretedParts.length} catalog part appearance${reinterpretedParts.length === 1 ? "" : "s"} used by this model changed (${reinterpretedParts.join(", ")})`}.`,
+              `Updated this model from ${report.fromCatalogVersion} to ${report.toCatalogVersion}; ${report.addedColorIds.length} new colors are now available${reinterpreted.catalogPartIds.length === 0 ? "" : `, and ${reinterpreted.catalogPartIds.length} catalog part interpretation${reinterpreted.catalogPartIds.length === 1 ? "" : "s"} used by this model changed (${reinterpreted.catalogPartIds.join(", ")}; changed fields: ${reinterpreted.changedFields.join(", ")})`}.`,
             );
           } else if (report.blockingReasons.length > 0) {
             setMigrationNotice(
@@ -363,11 +402,20 @@ export function App() {
         catalogPartId,
         colorId,
         selectedPartId: state.selectedPartId,
+        orientationId: placementOrientationId,
       });
       applyTransaction(transaction);
       dispatch({ type: "selectPart", partId: transaction.partId });
     });
-  }, [applyTransaction, catalogPartId, colorId, runCommand, state.document, state.selectedPartId]);
+  }, [
+    applyTransaction,
+    catalogPartId,
+    colorId,
+    placementOrientationId,
+    runCommand,
+    state.document,
+    state.selectedPartId,
+  ]);
 
   function placePart(catalogPartId: string, transform: RigidTransform) {
     runCommand(() => {
@@ -397,14 +445,16 @@ export function App() {
           `Cannot rotate ${selectedPart.id}: ${selectedPart.catalogPartId} is absent from the pinned catalog`,
         );
       }
-      const orientationId = nextYawOrientationId(selectedPart.transform.orientationId);
+      const orientationId = nextLegalOrientationId(
+        definition,
+        selectedPart.transform.orientationId,
+      );
       // A yaw can flip the footprint parity, so re-snap laterally at the same height.
       const positionLdu = snapPlacementOrigin({
         catalogPartId: selectedPart.catalogPartId,
         orientationId,
         rawLdu: selectedPart.transform.positionLdu,
-        supportUndersideLdu:
-          selectedPart.transform.positionLdu[1] + definition.dimensions.heightLdu / 2,
+        supportUndersideLdu: partUndersideLdu(selectedPart),
       });
       applyTransaction(
         createMovePartTransaction(state.document, selectedPart.id, { positionLdu, orientationId }),
@@ -611,10 +661,12 @@ export function App() {
         <CatalogPanel
           selectedPartDefinitionId={catalogPartId}
           selectedColorId={colorId}
+          selectedOrientationId={placementOrientationId}
           canAttach={selectedPart !== null}
           documentIsEmpty={state.document.parts.length === 0}
-          onPartDefinitionChange={setCatalogPartId}
+          onPartDefinitionChange={selectCatalogPartDefinition}
           onColorChange={setColorId}
+          onOrientationChange={selectPlacementOrientation}
           onAdd={addPart}
           onArmChange={setDraggedCatalogPartId}
           armedPartId={draggedCatalogPartId}
@@ -654,7 +706,11 @@ export function App() {
                 type="button"
                 className="tool"
                 disabled={selectedPart === null}
-                title={selectedPart ? "Rotate the selected part 90°" : "Select a part to rotate it"}
+                title={
+                  selectedPart
+                    ? "Rotate the selected part to its next legal orientation"
+                    : "Select a part to rotate it"
+                }
                 onClick={rotateSelectedPart}
               >
                 ↻ <span>Rotate</span>
@@ -695,6 +751,7 @@ export function App() {
             frameToken={frameToken}
             onDisarm={() => setDraggedCatalogPartId(null)}
             draggedCatalogPartId={draggedCatalogPartId}
+            placementOrientationId={placementOrientationId}
             onSelectPart={(partId) => dispatch({ type: "selectPart", partId })}
             onPlacePart={placePart}
             onMovePart={movePart}

@@ -34,7 +34,7 @@ const blueprintId = (blueprint: (typeof SET_6651557_RENDER_ONLY_BLUEPRINTS)[numb
 const structuralHash = (bytes: string): string => createHash("sha256").update(bytes).digest("hex");
 
 describe("render-only part promotion", () => {
-  it("keeps connector, allowance, collision, grid-centre and overhang evidence bytes at /12 literals", () => {
+  it("pins reviewed connector, allowance, collision, grid-centre and overhang evidence bytes", () => {
     const precedingById = new Map(
       PART_BLUEPRINTS.map(makePartDefinition).map((part) => [part.id, part] as const),
     );
@@ -80,37 +80,32 @@ describe("render-only part promotion", () => {
         `${id} partial-overhang evidence`,
       ).toBe(preceding.geometry.partialOverhangClutchEvidence);
       expect(renderPromotionStructuralBytes(directlyPromoted), id).toBe(precedingBytes);
-      const historicalPrecedingBytes = precedingBytes.replaceAll(
-        "rectilinear-stud-clearance/3",
-        "rectilinear-stud-clearance/2",
-      );
-      expect(historicalPrecedingBytes, `${id} historical collision label`).not.toBe(precedingBytes);
-      actualHashes[id] = structuralHash(historicalPrecedingBytes);
+      actualHashes[id] = structuralHash(precedingBytes);
     }
 
     expect(actualHashes).toEqual({
       "builtin:wedge-plate-2x4-left":
-        "3a84f53caa2d2e2afd28b350491c3f9fabfbdf13cebd298e14ed0bc22e5cfda7",
+        "ab2372d9aaf6499fe7eb0dd57da18c0c9f952cf0d22c69f5af3345ef1a8e1a33",
       "builtin:wedge-plate-2x4-right":
-        "b25a6db385c268e51c3f82df7a980d3947146c0025a8a71de567d7c923202eee",
+        "f30f110c01d60d67c32df1815d66fc1af3b3450e6cb54d1b6acc06c2d635329d",
       "builtin:wedge-plate-2x3-left":
-        "c0b9a6f75daa9592fa7a09ab1feb0ee0356379df594447b2988a591010afbd02",
+        "c67aa00a9fb6e35140fe50e0dfb5f450294a620198511e9b350f86bf14b62f91",
       "builtin:wedge-plate-2x3-right":
-        "37ba3d22b38e3d5abee6ef93fd1aefbab1e83b49ae9802c1d12bec7228cb1055",
+        "5f7415f51f3ee3fcde8c6ba84168c05b9c06c73365a5464be28e5721d597fa93",
       "builtin:wedge-plate-3x6-right":
-        "51787c581e5f746106c9e7d2dfbef4d935c2a6d0c454c3dc251ea981a155f88d",
-      "builtin:arch-1x4": "88380f17eac9c1820aa011887c40e5a06f90ea3416107c2fb62b82762c437c0f",
-      "builtin:arch-1x6": "e0d50d1a3880faf3c211329c40f711ce2823cbc822e6af28286824c63ce6f8a0",
+        "3442481d44e9053b36d582ce8a0918158eac979b853f4d49db4f2c997ae46f0b",
+      "builtin:arch-1x4": "ebc4ccfc806f46dbfcf58a8c003dd8673d7c9805ec0353b36cef3daad485a920",
+      "builtin:arch-1x6": "aa373aa17387a0094e9ae14c6a492ae3d99e006f4c38e5f5ba4990b52a4025f9",
       "builtin:curved-slope-1x2":
-        "dc5383b3cb4bf8206f9d56a40840d527cca10e6ef6b14e6a9c29716c260c2af1",
+        "38f34102d9a2a55945ef7cff8efb88ce55435376b1a9f7f48c23e8d14f3ba7ea",
       "builtin:curved-slope-1x3":
-        "3c7c7c3f657a2acf130872d42ef22706909eb8701060f94a791e330ee5badd6f",
+        "b7d97e08931f99f4468bf5299a1820bb7b87432e67cd38ea452a4d32859f5327",
       "builtin:curved-slope-1x4":
-        "029bb12832c24a00ffc2ea76532d4522c1fd203e538dcddd079dc6589285ebd6",
+        "b9d9a0c06129c5fd5d6dcf1e4b88da557c36648ff038d9a4f0fcfd7800e54a16",
       "builtin:cheese-slope-1x1":
-        "7999a18de7d3181276ee80bab4bb4d0d786ce32a5b461433bf8191fa165cfde2",
+        "fd0b0a89c904a75f1b8f90c499f5abf80b9337419da718926549b0dd4ccedb13",
       "builtin:cheese-slope-2x1":
-        "a73411c3d877c1482d57c5eb3b899aa21239a9026039af8c48ead246c3a76299",
+        "9bc85844c8e6b7030e0f8d7f4962e5f36d46f5ddd3794c26c80687dd8eb5e951",
     });
   });
 

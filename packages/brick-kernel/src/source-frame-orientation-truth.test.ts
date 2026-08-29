@@ -1,47 +1,47 @@
-import { PROPER_ORIENTATIONS, UPRIGHT_ORIENTATIONS } from "@lego-studio/catalog";
+import { PROPER_ORIENTATIONS } from "@lego-studio/catalog";
 import { describe, expect, it } from "vitest";
 
 import { canonicalDigest } from "./canonical.ts";
 import { createBuiltinTruthSnapshot, getBuiltinTruthDigestInputs } from "./factory.ts";
 
 describe("source-frame orientation infrastructure truth boundary", () => {
-  it("keeps placement truth upright while /28 exposes 24 source frames", () => {
+  it("binds the /29 part-scoped placement policy to all 24 proper source frames", () => {
     const digestInputs = getBuiltinTruthDigestInputs();
     const truth = createBuiltinTruthSnapshot();
 
     expect(PROPER_ORIENTATIONS).toHaveLength(24);
-    expect(digestInputs.catalog.orientations).toBe(UPRIGHT_ORIENTATIONS);
-    expect(digestInputs.transformPolicy.orientations).toBe(UPRIGHT_ORIENTATIONS);
+    expect(digestInputs.catalog.orientations).toBe(PROPER_ORIENTATIONS);
+    expect(digestInputs.transformPolicy.orientations).toBe(PROPER_ORIENTATIONS);
     expect(truth).toEqual({
       schemaVersion: "lego.truth-snapshot/1",
       catalog: {
         id: "builtin.basic-parts",
-        version: "builtin.basic-parts/28",
-        hash: "sha256:15decef17024421dec825287923d2ae0142973f83281b3479b0eeeb5e5ddd837",
+        version: "builtin.basic-parts/29",
+        hash: "sha256:19c5e8a3f4e1d00d7747c8d3e0f377ee4391acc53915df8ead0c1830b75b8db6",
       },
       connectorTaxonomy: {
         id: "stud-tube",
-        version: "stud-tube/1",
-        hash: "sha256:41b9011f2ae13baadd4bc173936ea962d5ef6419809bc17fa3dcfcf01e83a553",
+        version: "stud-tube/2",
+        hash: "sha256:b0b8a26e010f522ba88d55f3b8565add619b2e569f15abad59a46ffd2ccf0ddb",
       },
       collisionModel: {
         id: "rectilinear-stud-clearance",
-        version: "rectilinear-stud-clearance/3",
-        hash: "sha256:11a791eaed761857eeb7446a4feaa278635593a8767e0d6d7ed9426d0cebeabd",
+        version: "rectilinear-stud-clearance/4",
+        hash: "sha256:b1231af344c0c293e74c0721bd0005f4f7a6746ee144ccf71ca14e22caa07042",
       },
       transformPolicy: {
-        id: "upright-quarter-turns-negative-y-up",
-        version: "upright-quarter-turns-negative-y-up/1",
-        hash: "sha256:b67a6b5226f97eeef8d18dc038df8e6e51da51843b0846cb64a61c328f46eb9a",
+        id: "part-scoped-proper-orientations-negative-y-up",
+        version: "part-scoped-proper-orientations-negative-y-up/1",
+        hash: "sha256:44cf428cee1487a9441c609a75fbafefd6c3b4591512af30f8903e4508285f4c",
       },
       validatorSet: {
         id: "lego.kernel-validators",
-        version: "lego.kernel-validators/4",
-        hash: "sha256:ac785c8f5ac9f2d642bf53c8ef51764b7954c981355b1d7d508a2228a5f1bf55",
+        version: "lego.kernel-validators/5",
+        hash: "sha256:44233e884c474210006e4e94b82e952fd7b446768396d5b53575eb7946cba4fe",
       },
     });
     expect(canonicalDigest(truth)).toBe(
-      "sha256:643185fe21f0d0c77a7aada8b170395f11bb7da1079f97d5c0cd0a03d7464f1b",
+      "sha256:54762419e4779c6c15566052062fcaa432cb45e3a13704b5af1563b4fa94e8eb",
     );
   });
 });

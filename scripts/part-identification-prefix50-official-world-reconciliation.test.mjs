@@ -99,7 +99,7 @@ describe.runIf(inputsPresent)("prefix-50 official-world occurrence reconciliatio
     );
   });
 
-  it("binds 320 exact actual occurrences, 309 transforms, eleven quarantines, and half-LDU rows", () => {
+  it("binds 320 exact actual occurrences and transforms with no widened quarantine", () => {
     expect(
       artifact.rows.map(({ sourceBuilderIdentityOrdinal }) => sourceBuilderIdentityOrdinal),
     ).toEqual(Array.from({ length: 320 }, (_, index) => index + 1));
@@ -110,9 +110,9 @@ describe.runIf(inputsPresent)("prefix-50 official-world occurrence reconciliatio
     expect(artifact.rows.every((row) => row.compositeLdrawRow === null)).toBe(true);
     expect(artifact.rows.every((row) => row.stepNumber <= 50)).toBe(true);
     expect(artifact.rows.every((row) => row.documentLegalityClaimed === false)).toBe(true);
-    expect(artifact.rows.filter(({ status }) => status === "reconciled")).toHaveLength(309);
+    expect(artifact.rows.filter(({ status }) => status === "reconciled")).toHaveLength(320);
     expect(artifact.rows.filter(({ status }) => status === "quarantined-unchanged")).toHaveLength(
-      11,
+      0,
     );
     expect(
       artifact.rows
@@ -144,6 +144,31 @@ describe.runIf(inputsPresent)("prefix-50 official-world occurrence reconciliatio
             sourceBuilderBrickRef === null && masterSubBuildRef === null,
         ),
     ).toBe(true);
+    expect(
+      artifact.rows.filter(
+        ({ publishedCatalogPartId, catalogPartId }) => publishedCatalogPartId !== catalogPartId,
+      ),
+    ).toHaveLength(9);
+    expect(
+      artifact.rows
+        .filter(({ catalogIdentityProof }) => catalogIdentityProof !== null)
+        .map(({ sourceBuilderIdentityOrdinal, catalogIdentityProof }) => ({
+          sourceBuilderIdentityOrdinal,
+          proofId: catalogIdentityProof.proofId,
+          globalAliasClaimed: catalogIdentityProof.globalAliasClaimed,
+        })),
+    ).toEqual([
+      {
+        sourceBuilderIdentityOrdinal: 25,
+        proofId: "41769.dat->41769a.dat",
+        globalAliasClaimed: false,
+      },
+      {
+        sourceBuilderIdentityOrdinal: 39,
+        proofId: "41770.dat->41770a.dat",
+        globalAliasClaimed: false,
+      },
+    ]);
     expect(
       artifact.rows
         .filter(({ catalogWorldTransform }) =>
@@ -226,7 +251,7 @@ describe.runIf(inputsPresent)("prefix-50 official-world occurrence reconciliatio
   it("rejects forged opaque proposal, frame-registry, and action-preparation handles", async () => {
     await expect(
       compilePrefix50OfficialWorldReconciliation({ ...input, proposal: {} }),
-    ).rejects.toThrow(/opaque verified current 500,895-byte official-world proposal/);
+    ).rejects.toThrow(/opaque verified current official-world proposal/);
     await expect(
       compilePrefix50OfficialWorldReconciliation({ ...input, frameRegistry: {} }),
     ).rejects.toThrow(/opaque verified exact first-50 LDraw-to-catalog frame registry/);

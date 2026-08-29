@@ -66,6 +66,8 @@ interface BrickViewportProps {
   readonly frameToken: number;
   /** Catalog part being dragged out of the palette, if any. */
   readonly draggedCatalogPartId: string | null;
+  /** Part-scoped legal orientation selected for palette placement. */
+  readonly placementOrientationId: string;
   readonly onSelectPart: (partId: string | null) => void;
   readonly onPlacePart: (catalogPartId: string, transform: RigidTransform) => void;
   readonly onMovePart: (partId: string, transform: RigidTransform) => void;
@@ -153,6 +155,7 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
       selectedPartId,
       frameToken,
       draggedCatalogPartId,
+      placementOrientationId,
       onSelectPart,
       onPlacePart,
       onMovePart,
@@ -166,6 +169,7 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
     const onSelectPartRef = useRef(onSelectPart);
     const documentRef = useRef(document);
     const draggedCatalogPartIdRef = useRef(draggedCatalogPartId);
+    const placementOrientationIdRef = useRef(placementOrientationId);
     const onPlacePartRef = useRef(onPlacePart);
     const onMovePartRef = useRef(onMovePart);
     const onDisarmRef = useRef(onDisarm);
@@ -181,6 +185,7 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
     contextLostRef.current = contextLost;
     documentRef.current = document;
     draggedCatalogPartIdRef.current = draggedCatalogPartId;
+    placementOrientationIdRef.current = placementOrientationId;
     onPlacePartRef.current = onPlacePart;
     onMovePartRef.current = onMovePart;
     onDisarmRef.current = onDisarm;
@@ -372,7 +377,7 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
         getParts: () => documentRef.current.parts,
         getPartObjects: () => [...(runtime.projection?.partObjects.values() ?? [])],
         getDraggedCatalogPartId: () => draggedCatalogPartIdRef.current,
-        getOrientationId: () => "upright-yaw-0",
+        getOrientationId: () => placementOrientationIdRef.current,
         isSuspended: () => contextLostRef.current,
         onPlace: (catalogPartId, transform) => onPlacePartRef.current(catalogPartId, transform),
         onMove: (partId, transform) => onMovePartRef.current(partId, transform),

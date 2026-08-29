@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
 from typing import Sequence
+
 from proper_orientations_generated import PROPER_ORIENTATION_ROWS
 import builder_calibration_sources as SOURCES
 import identify_builder_3245_variant_core as GEOMETRY
@@ -408,7 +409,9 @@ def create_control_contract(geometry_payload: bytes, official_payload: bytes) ->
     gaps = [float(row["scoring"]["runnerUpGapLdu"]) for row in decisive]
     ratios = [float(row["scoring"]["runnerUpRatio"]) for row in decisive]
     thresholds = {
-        "maximumAcceptedWitnessDistanceLdu": round(max(correct_scores) * FIT_CEILING_MULTIPLIER, 6),
+        "maximumAcceptedWitnessDistanceLdu": round(
+            max(correct_scores) * FIT_CEILING_MULTIPLIER, 6
+        ),
         "minimumRunnerUpGapLdu": round(min(gaps) * MARGIN_RESERVE_FRACTION, 6),
         "minimumRunnerUpRatio": round(1 + (min(ratios) - 1) * MARGIN_RESERVE_FRACTION, 6),
         "derivation": {

@@ -155,7 +155,7 @@ export const validatePartialOverhangClutchEvidence = (blueprint: PartBlueprint):
 /** A port reads every implied field from the one connector-kind table. */
 const makePort = (
   id: string,
-  kind: ConnectorKind,
+  kind: Exclude<ConnectorKind, "blindAxleHole">,
   positionLdu: LduVector3,
   normal: LduVector3,
   orientationId: ConnectorOrientationId,

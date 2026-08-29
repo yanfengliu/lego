@@ -138,7 +138,7 @@ function parseTerminalFailure(value: unknown): RealBuildCompiledPlacementTermina
         ? null
         : compiledEvidenceInteger(
             row.attemptedUniqueTransitionNumber,
-            `${path}.attemptedUniqueTransitionNumber`,
+            `${path}.${"attemptedUniqueTransitionNumber"}`,
             1,
             MAXIMUM_REAL_BUILD_COMPILED_LINEAGE_TRANSITIONS,
           ),

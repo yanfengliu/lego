@@ -6,7 +6,7 @@ import {
 } from "@lego-studio/catalog";
 import type { BrickDocumentV1 } from "@lego-studio/protocol";
 
-import { GROUND_UNDERSIDE_LDU, bodyBoundsLdu, worldFootprint } from "../placement";
+import { bodyBoundsLdu, snapPlacementOriginForDefinition, worldFootprint } from "../placement";
 
 /** Build-plate seats bounded by the current assembly plus one candidate reach. */
 export function buildPlateOrigins(
@@ -14,7 +14,11 @@ export function buildPlateOrigins(
   definition: PartDefinition,
   orientationId: string,
 ): readonly LduVector3[] {
-  const y = GROUND_UNDERSIDE_LDU - definition.dimensions.heightLdu / 2;
+  const y = snapPlacementOriginForDefinition({
+    definition,
+    orientationId,
+    rawLdu: [0, 0, 0],
+  })[1];
   const placed = document.parts.filter((part) => getPartDefinition(part.catalogPartId));
   if (placed.length === 0) return [[0, y, 0]];
 

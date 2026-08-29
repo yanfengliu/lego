@@ -30,6 +30,9 @@ interface HistoricalPartDefinition {
     readonly validatedConnectionStudProfile?: string;
     readonly primitives: readonly Record<string, unknown>[];
     readonly allowances: readonly (Record<string, unknown> & { readonly portId: string })[];
+    readonly throughAxleBoreAllowances?: readonly (Record<string, unknown> & {
+      readonly portId: string;
+    })[];
   };
 }
 
@@ -56,11 +59,16 @@ export interface ProjectedConnectionSemantics {
   readonly pairDigests: ReadonlyMap<string, Sha256Digest>;
 }
 
+export interface ConnectionSemanticsProjectionOptions {
+  readonly semanticConnectorKinds?: readonly ConnectorKind[];
+}
+
 const GENDER_BY_KIND: Readonly<Record<ConnectorKind, "male" | "female">> = Object.freeze({
   stud: "male",
   undersideClutch: "female",
   axle: "male",
   axleHole: "female",
+  blindAxleHole: "female",
   pin: "male",
   pinHole: "female",
   bar: "male",
@@ -128,13 +136,26 @@ export function projectConnectionSemantics(
   parts: readonly HistoricalPartDefinition[] | readonly PartDefinition[],
   pairRules: readonly HistoricalConnectorPairRule[] | undefined,
   mode: "live-strict" | "reviewed-historical",
+  options: ConnectionSemanticsProjectionOptions = {},
 ): ProjectedConnectionSemantics {
   const connectorKinds = new Set<ConnectorKind>();
   for (const part of parts) {
     for (const connector of part.connectors) connectorKinds.add(connector.kind);
   }
   const effectivePairRules = normalizePairRules(pairRules, mode);
-  const reachablePairRules = effectivePairRules.filter(
+  const semanticConnectorKinds = new Set(
+    mode === "reviewed-historical"
+      ? connectorKinds
+      : (options.semanticConnectorKinds ?? [...connectorKinds]),
+  );
+  const endpointPairRules =
+    mode === "reviewed-historical"
+      ? effectivePairRules
+      : effectivePairRules.filter(
+          ({ male, female }) =>
+            semanticConnectorKinds.has(male) && semanticConnectorKinds.has(female),
+        );
+  const reachablePairRules = endpointPairRules.filter(
     ({ male, female }) => connectorKinds.has(male) && connectorKinds.has(female),
   );
   const endpointEntries: [string, Sha256Digest][] = [];
@@ -151,6 +172,12 @@ export function projectConnectionSemantics(
         connector.kind === "undersideClutch"
           ? part.collision.allowances.filter(({ portId }) => portId === connector.id)
           : [];
+      const throughAxleBoreAllowances =
+        connector.kind === "axleHole"
+          ? part.collision.throughAxleBoreAllowances?.filter(
+              ({ portId }) => portId === connector.id,
+            )
+          : undefined;
       const endpoint = {
         connector: {
           // Retain every own field for the same fail-closed reason as pair
@@ -167,12 +194,24 @@ export function projectConnectionSemantics(
           normal: connector.normal,
           orientationId: connector.orientationId,
           capacity: connector.capacity,
-          compatibleKinds: [...connector.compatibleKinds].sort(compareStrings),
+          // Reviewed historical rows preserve the imported source projection
+          // exactly. Live target projections are scoped to the source roster,
+          // so a future connector kind absent from that roster cannot silently
+          // reinterpret an old endpoint during migration.
+          compatibleKinds:
+            mode === "reviewed-historical"
+              ? [...connector.compatibleKinds].sort(compareStrings)
+              : connector.compatibleKinds
+                  .filter((kind) => semanticConnectorKinds.has(kind))
+                  .sort(compareStrings),
         },
-        pairRules: effectivePairRules.filter(
+        pairRules: endpointPairRules.filter(
           ({ male, female }) => male === connector.kind || female === connector.kind,
         ),
         allowances: sortedCanonical(allowances),
+        ...(throughAxleBoreAllowances === undefined
+          ? {}
+          : { throughAxleBoreAllowances: sortedCanonical(throughAxleBoreAllowances) }),
         matchingStudPrimitives: sortedCanonical(matchingStudPrimitives),
         ...(connector.kind === "stud" && part.collision.validatedConnectionStudProfile !== undefined
           ? {

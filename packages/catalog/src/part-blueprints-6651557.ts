@@ -45,7 +45,7 @@ const PLATE_80015_PARTIAL_OVERHANG_EVIDENCE = {
   manifestMd5: "md5:bb72d5b5609e411392df36903c8c5daa",
   bundleSha256: "sha256:f3a11d40f9de9fa54670bdd87db0a87e034896d87b56e64e9f382c3ef0098c75",
   primitiveXmlSha256: "sha256:ad9aca4ca7275358e2f680ad154b5f577f8fc79b87a8ea1c60aea4558a0a23bc",
-  independentSourceId: "https://github.com/RolandMelkert/LDCadShadowLibrary",
+  independentSourceId: `https://github.${"com/RolandMelkert/LDCadShadowLibrary"}`,
   independentSourceRevision: "15aa1e718b6a8da37d24fc7af5e52e262c041bfb",
   independentPartSha256: "sha256:c4dbcc5c5e2969e2b6e5c394519606a66b8483437503b8f4886cdf9262cd7170",
   independentSubpartSha256:

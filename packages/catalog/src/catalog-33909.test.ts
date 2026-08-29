@@ -75,11 +75,11 @@ describe("33909 two-stud-edge plate catalog truth", () => {
     );
     if (blueprint?.designId !== "33909") throw new Error("33909 blueprint is missing");
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/28");
-    expect(PART_DEFINITIONS).toHaveLength(104);
-    expect(PART_DEFINITIONS.at(-8)?.id).toBe(PART_ID);
-    expect(SET_6651557_MEASURED_BLUEPRINTS.at(-8)).toBe(blueprint);
-    expect(SET_6651557_MEASURED_BLUEPRINTS_G).toHaveLength(10);
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/29");
+    expect(PART_DEFINITIONS).toHaveLength(106);
+    expect(PART_DEFINITIONS.at(-10)?.id).toBe(PART_ID);
+    expect(SET_6651557_MEASURED_BLUEPRINTS.at(-10)).toBe(blueprint);
+    expect(SET_6651557_MEASURED_BLUEPRINTS_G).toHaveLength(12);
     expect(part).toMatchObject({
       id: PART_ID,
       family: "plate",
@@ -123,8 +123,8 @@ describe("33909 two-stud-edge plate catalog truth", () => {
       bytes: 10_203,
       manifestSha256: "sha256:72174370ab6b3d2e0d00d7b72a0687a67da1cccd4014f1f799e113eecb504a15",
     });
-    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(43);
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(228);
+    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(45);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(237);
   });
 
   it("records only the consulted LDCad route as active connector authority", () => {
@@ -223,10 +223,10 @@ describe("33909 two-stud-edge plate catalog truth", () => {
     expect(validateMeshPartDefinitionAdmission(part)).toEqual({ accepted: true, issues: [] });
   });
 
-  it("keeps every /24 part payload byte unchanged after restoring its historical truth label", () => {
+  it("pins the reviewed /29 projection of the /24 prefix under its historical truth label", () => {
     const priorParts = PART_DEFINITIONS.slice(0, 96);
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/28",
+      "builtin.basic-parts/29",
       "builtin.basic-parts/24",
     );
     const connectorCollision = priorParts.map(({ id, connectors, collision }) => ({
@@ -245,10 +245,10 @@ describe("33909 two-stud-edge plate catalog truth", () => {
         .digest("hex"),
       collisionHash: createHash("sha256").update(JSON.stringify(collision)).digest("hex"),
     }).toEqual({
-      definitionBytes: 1_606_585,
-      definitionHash: "3566725e03af2594ed53d28d4934da46668519951bf881a76a11e318cfd03e62",
-      connectorCollisionHash: "7ef5cca1588e22c34727d72d3d959e5501012bdf0562700075f35e5019f6e03f",
-      collisionHash: "0ac4669aa3fa3cbc776faf2765eb44bd90f0a0999509d294463c57f6a4f6c47e",
+      definitionBytes: 1_608_400,
+      definitionHash: "767ea8f041535a60911f2433a1543e111c91db644d8feef6cc424a77cd0f5a52",
+      connectorCollisionHash: "386403af4805edd20e8c7a7b65dd58c2a02b1a3737132c6ca965c0cb46264116",
+      collisionHash: "ee8ea1c7cf6614a771ebb1a6a6944c5190b03eeea3d48de15d80cc42e70f701e",
     });
   });
 });

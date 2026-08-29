@@ -1,4 +1,4 @@
-import { getPartDefinition } from "@lego-studio/catalog";
+import { UPRIGHT_ORIENTATIONS, getPartDefinition } from "@lego-studio/catalog";
 import {
   canonicalSha256,
   createAttachedTransform,
@@ -13,7 +13,12 @@ import type {
   RigidTransform,
 } from "@lego-studio/protocol";
 
-import { assessSupport, findStudConnections, type DiscoveredConnection } from "./placement";
+import {
+  assessSupport,
+  findStudConnections,
+  snapPlacementOrigin,
+  type DiscoveredConnection,
+} from "./placement";
 import {
   capacityEndpointForConnector,
   connectorCapacityIsFree,
@@ -49,11 +54,13 @@ export interface AddPartCommandOptions {
   readonly catalogPartId: string;
   readonly colorId: string;
   readonly selectedPartId: string | null;
+  /** Explicit palette orientation; omission preserves the legacy attach policy. */
+  readonly orientationId?: string;
 }
 
 export function createAddPartTransaction(
   document: BrickDocumentV1,
-  { catalogPartId, colorId, selectedPartId }: AddPartCommandOptions,
+  { catalogPartId, colorId, selectedPartId, orientationId }: AddPartCommandOptions,
 ): {
   readonly label: string;
   readonly operations: readonly BuildOperation[];
@@ -63,6 +70,11 @@ export function createAddPartTransaction(
   if (!definition) throw new ManualCommandError(`Unknown catalog part: ${catalogPartId}`);
   if (!definition.availableColorIds.includes(colorId)) {
     throw new ManualCommandError(`Color ${colorId} is unavailable for ${catalogPartId}`);
+  }
+  if (orientationId !== undefined && !definition.legalOrientationIds.includes(orientationId)) {
+    throw new ManualCommandError(
+      `Orientation ${orientationId} is illegal for ${catalogPartId}; the catalog allows ${definition.legalOrientationIds.join(", ")}`,
+    );
   }
   if (document.parts.length >= document.constraints.maxParts) {
     throw new ManualCommandError("The document part budget is exhausted");
@@ -77,11 +89,23 @@ export function createAddPartTransaction(
     catalogPartId,
     colorId,
     selectedPartId,
+    ...(orientationId === undefined ? {} : { orientationId }),
   };
   const partId = nextId("manual-part", seed);
+  const initialOrientationId = orientationId ?? "upright-yaw-0";
+  const upright = UPRIGHT_ORIENTATIONS.some(({ id }) => id === initialOrientationId);
   let transform: RigidTransform = {
-    positionLdu: [0, 0, 0],
-    orientationId: "upright-yaw-0",
+    // Preserve the legacy four-yaw "at origin" position. A non-upright body
+    // can put a different exact extremum on Y, so only that new path needs the
+    // actual-bounds support snap to avoid burying the part in the plate.
+    positionLdu: upright
+      ? [0, 0, 0]
+      : snapPlacementOrigin({
+          catalogPartId,
+          orientationId: initialOrientationId,
+          rawLdu: [0, 0, 0],
+        }),
+    orientationId: initialOrientationId,
   };
   let submodelId = document.submodels[0]?.id ?? "root";
   let stepId = document.steps[0]?.id ?? "step-1";
@@ -105,12 +129,13 @@ export function createAddPartTransaction(
     if (!targetPortId) throw new ManualCommandError("The selected part has no free top stud");
     const undersidePort = definition.connectors.find(({ kind }) => kind === "undersideClutch");
     if (!undersidePort) throw new ManualCommandError("The new part has no underside clutch port");
+    const attachedOrientationId = orientationId ?? selectedTargetPart.transform.orientationId;
     transform = createAttachedTransform(
       selectedTargetPart,
       targetPortId,
       catalogPartId,
       undersidePort.id,
-      selectedTargetPart.transform.orientationId,
+      attachedOrientationId,
     );
     submodelId = selectedTargetPart.submodelId;
     stepId = selectedTargetPart.stepId;
@@ -277,6 +302,11 @@ export function createPlacePartTransaction(
   if (!definition) throw new ManualCommandError(`Unknown catalog part: ${catalogPartId}`);
   if (!definition.availableColorIds.includes(colorId)) {
     throw new ManualCommandError(`Color ${colorId} is unavailable for ${catalogPartId}`);
+  }
+  if (!definition.legalOrientationIds.includes(transform.orientationId)) {
+    throw new ManualCommandError(
+      `Orientation ${transform.orientationId} is illegal for ${catalogPartId}; the catalog allows ${definition.legalOrientationIds.join(", ")}`,
+    );
   }
   if (document.parts.length >= document.constraints.maxParts) {
     throw new ManualCommandError(

@@ -164,8 +164,18 @@ export function installPlacementRig(options: PlacementRigOptions): PlacementRig 
       if (pending) clearPending();
       return;
     }
-    if (pending?.kind !== "place" || pending.catalogPartId !== catalogPartId) {
-      pending = { kind: "place", catalogPartId, orientationId: getOrientationId() };
+    const orientationId = getOrientationId();
+    const definition = getPartDefinition(catalogPartId);
+    if (!definition?.legalOrientationIds.includes(orientationId)) {
+      if (pending) clearPending();
+      return;
+    }
+    if (
+      pending?.kind !== "place" ||
+      pending.catalogPartId !== catalogPartId ||
+      pending.orientationId !== orientationId
+    ) {
+      pending = { kind: "place", catalogPartId, orientationId };
     }
     updateGhost(event.clientX, event.clientY);
   };

@@ -60,6 +60,26 @@ describe("matchesPartQuery", () => {
     }
   });
 
+  it("keeps exact 10201 discoverable without merging it into the rounded-bottom bracket", () => {
+    const roundedCorners = part("builtin:bracket-1x2-1x4-rounded-corners");
+    const roundedBottom = part("builtin:bracket-1x2-1x4-rounded-bottom");
+    for (const query of ["10201", "bracket", "1x2", "1x4", "rounded corners"]) {
+      expect(matchesPartQuery(roundedCorners, query), query).toBe(true);
+    }
+    expect(matchesPartQuery(roundedCorners, "28802")).toBe(false);
+    expect(matchesPartQuery(roundedBottom, "10201")).toBe(false);
+  });
+
+  it("keeps exact 3245b discoverable as the inside-axle-holder construction", () => {
+    const axleHolder = part("builtin:brick-1x2x2-inside-axle-holder");
+    const withoutUnderstud = part("builtin:brick-1x2x2-without-understud");
+    for (const query of ["3245b", "brick", "1x2", "inside axle holder"]) {
+      expect(matchesPartQuery(axleHolder, query), query).toBe(true);
+    }
+    expect(matchesPartQuery(axleHolder, "3245c")).toBe(false);
+    expect(matchesPartQuery(withoutUnderstud, "3245b")).toBe(false);
+  });
+
   it("keeps 35787 discoverable by identifier, triangular shape, and 2x2 size", () => {
     const triangular = part("builtin:tile-2x2-triangular");
     for (const query of ["35787", "triangular", "2x2"]) {

@@ -26,8 +26,11 @@ import {
   prefix50Commitment,
   prefix50OccurrenceProjection,
   prefix50WorldProjection,
-  reconcilePrefix50WorldTransform,
 } from "./part-identification-prefix50-official-world-reconciliation-math.mjs";
+import {
+  prefix50FrameLookup,
+  reconcilePrefix50Occurrence,
+} from "./part-identification-prefix50-official-world-reconciliation-occurrence.mjs";
 import {
   PREFIX50_OFFICIAL_WORLD_RECONCILIATION_AUTHORITY,
   PREFIX50_OFFICIAL_WORLD_RECONCILIATION_MAX_ARTIFACT_BYTES,
@@ -44,7 +47,7 @@ function snapshotInput(input, keys, label) {
   const roles = snapshotExactDataObject(input, label, keys);
   if (!isVerifiedPrefix50OfficialLdrawWorldProposal(roles.proposal)) {
     throw new TypeError(
-      `${label}.proposal must be the opaque verified current 500,895-byte official-world proposal. Parsed JSON and caller-shaped lookalikes carry no occurrence or transform authority.`,
+      `${label}.proposal must be the opaque verified current official-world proposal. Parsed JSON and caller-shaped lookalikes carry no occurrence or transform authority.`,
     );
   }
   if (!isVerifiedPrefix50LdrawCatalogFrames(roles.frameRegistry)) {
@@ -98,8 +101,8 @@ function exactProposalScope(proposal) {
     proposal.sourceIndex.expectedPrintedSteps !== 359 ||
     proposal.sourceIndex.prefixLastStep !== 50 ||
     proposal.accounting.actionRows !== 320 ||
-    proposal.accounting.projectableActionRows !== 309 ||
-    proposal.accounting.quarantinedActionRows !== 11 ||
+    proposal.accounting.projectableActionRows !== 320 ||
+    proposal.accounting.quarantinedActionRows !== 0 ||
     proposal.rows.length !== 320 ||
     !isDeepStrictEqual(
       ordinals,
@@ -111,96 +114,6 @@ function exactProposalScope(proposal) {
       "Official-world reconciliation requires all and only exact action ordinals 1..320 through printed step 50 while retaining the 359-step index.",
     );
   }
-}
-
-function frameLookup(frameRegistry) {
-  if (!Array.isArray(frameRegistry.frames) || frameRegistry.frames.length !== 62) {
-    throw new TypeError("Official-world reconciliation requires the exact 62-row frame registry.");
-  }
-  const rows = new Map();
-  for (const row of frameRegistry.frames) {
-    const key = `${row.designRevision}|${row.catalogPartId}|${row.catalogLdrawFilename}`;
-    if (key !== row.frameKey || rows.has(key)) {
-      throw new TypeError(
-        `Frame registry key ${JSON.stringify(row.frameKey)} is not exact and unique.`,
-      );
-    }
-    rows.set(key, row);
-  }
-  return rows;
-}
-
-function reconcileRow(proposalRow, actionByOrdinal, registryByKey, catalog) {
-  const action = actionByOrdinal.get(proposalRow.sourceBuilderIdentityOrdinal);
-  if (
-    action === undefined ||
-    action.builderBrickRef !== proposalRow.builderBrickRef ||
-    action.stepNumber !== proposalRow.stepNumber ||
-    action.phaseSequence !== proposalRow.phaseSequence
-  ) {
-    throw new TypeError(
-      `Official occurrence ${proposalRow.sourceBuilderIdentityOrdinal} does not match its opaque action-preparation identity and phase.`,
-    );
-  }
-  const frameKey = `${proposalRow.designRevision}|${proposalRow.catalogPartId}|${proposalRow.catalogFrame.catalogLdrawFilename}`;
-  const registry = registryByKey.get(frameKey);
-  const projectable = proposalRow.identityRelation.state === "projectable";
-  const quarantined = proposalRow.identityRelation.state === "quarantined";
-  if (projectable === quarantined || proposalRow.documentLegalityClaimed !== false) {
-    throw new TypeError(
-      `Official occurrence ${proposalRow.sourceBuilderIdentityOrdinal} has an invalid proposal authority state.`,
-    );
-  }
-  if (
-    projectable &&
-    (registry === undefined ||
-      registry.ldrawFilename !== proposalRow.ldrawFilename ||
-      registry.designRevision !== proposalRow.designRevision ||
-      registry.catalogPartId !== proposalRow.catalogPartId ||
-      registry.catalogLdrawFilename !== proposalRow.catalogFrame.catalogLdrawFilename)
-  ) {
-    throw new TypeError(
-      `Official occurrence ${proposalRow.sourceBuilderIdentityOrdinal} has no exact triple-bound catalog frame ${frameKey}.`,
-    );
-  }
-  if (quarantined && registry !== undefined) {
-    throw new TypeError(
-      `Official occurrence ${proposalRow.sourceBuilderIdentityOrdinal} is quarantined and must not acquire a catalog frame through identity widening.`,
-    );
-  }
-  return Object.freeze({
-    stepNumber: proposalRow.stepNumber,
-    phaseSequence: proposalRow.phaseSequence,
-    sourceBuilderIdentityOrdinal: proposalRow.sourceBuilderIdentityOrdinal,
-    actionKind: action.actionKind,
-    builderBrickRef: proposalRow.builderBrickRef,
-    sourceBuilderBrickRef: action.sourceBuilderBrickRef,
-    masterSubBuildRef: action.masterSubBuildRef,
-    calloutIdentity: proposalRow.calloutIdentity,
-    designRevision: proposalRow.designRevision,
-    catalogPartId: proposalRow.catalogPartId,
-    catalogColorId: proposalRow.catalogColorId,
-    xmlRow: proposalRow.xmlRow,
-    xmlPartRow: 1,
-    topLevelLdrawRow: proposalRow.topLevelLdrawRow,
-    compositeLdrawRow: null,
-    ldrawFilename: proposalRow.ldrawFilename,
-    catalogLdrawFilename: proposalRow.catalogFrame.catalogLdrawFilename,
-    status: projectable ? "reconciled" : "quarantined-unchanged",
-    quarantineBasis: quarantined ? proposalRow.identityRelation.basis : null,
-    frameKey: projectable ? registry.frameKey : null,
-    catalogFrameEvidence: projectable ? registry.frame : null,
-    frameApplied: projectable,
-    identityEquivalenceClaimed: false,
-    sourceWorldProposal: Object.freeze({
-      ...proposalRow.sourceWorldProposal,
-      positionLdu: Object.freeze([...proposalRow.sourceWorldProposal.positionLdu]),
-    }),
-    catalogWorldTransform: projectable
-      ? reconcilePrefix50WorldTransform(proposalRow.sourceWorldProposal, registry.frame, catalog)
-      : null,
-    documentLegalityClaimed: false,
-  });
 }
 
 function accounting(rows) {
@@ -264,10 +177,10 @@ async function compileSnapshot(input) {
       `Official-world reconciliation requires catalog ${PREFIX50_OFFICIAL_WORLD_RECONCILIATION_PINS.catalogVersion}; received ${catalog.BUILTIN_CATALOG_VERSION}.`,
     );
   }
-  const registryByKey = frameLookup(frameInspection.artifact);
+  const registryByKey = prefix50FrameLookup(frameInspection.artifact);
   const rows = [...proposal.rows]
     .sort((left, right) => left.sourceBuilderIdentityOrdinal - right.sourceBuilderIdentityOrdinal)
-    .map((row) => reconcileRow(row, actionByOrdinal, registryByKey, catalog));
+    .map((row) => reconcilePrefix50Occurrence(row, actionByOrdinal, registryByKey, catalog));
   const measuredAccounting = accounting(rows);
   if (
     !isDeepStrictEqual(

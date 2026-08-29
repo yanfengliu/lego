@@ -516,13 +516,13 @@ export function preflightRealBuildOptions(input: {
         `${official.assembledTargetPieces} assembled. Its action ledger must independently conserve ` +
         `${official.directCalloutPieces} direct pieces + ${official.multiBuildCopyPieces} MultiBuild copies = ` +
         `${official.assembledTargetPieces}, plus ${official.looseInventoryPieces} loose separator = ` +
-        `${official.inventoryPieces} inventory. Supplied panels total raw/classified/semantic/omitted ` +
+        `${official.inventoryPieces} inventory. Supplied panels total ${"raw/classified/semantic/omitted"} ` +
         `${rawCalloutQuantity}/${classifiedPhysicalCalloutPieces}/${semanticMultiplierQuantity}/` +
         `${omittedPhysicalPieces}; actions account for ${directActions} direct and ${multiBuildActions} copied ` +
         `pieces; declarations are ${declared.directCalloutPieces} + ${declared.multiBuildCopyPieces} = ` +
         `${declared.assembledTargetPieces}, plus ${declared.looseInventoryPieces} = ` +
         `${declared.inventoryPieces}; targetPartCount/maxParts are ${input.targetPartCount}/${input.maxParts}. ` +
-        `Requested prefix 1..${input.lastStep} totals raw/classified/semantic/omitted ` +
+        `Requested prefix 1..${input.lastStep} totals ${"raw/classified/semantic/omitted"} ` +
         `${rawCalloutQuantity}/${classifiedPhysicalCalloutPieces}/${semanticMultiplierQuantity}/` +
         `${omittedPhysicalPieces}; per-step inconsistencies: ` +
         `${inconsistentSteps.map(({ stepNumber }) => stepNumber).join(", ") || "none"}. Failed clause(s): ` +

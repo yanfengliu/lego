@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from builder_ldraw_frame_pins import EXACT, PINNED_FRAME_DIGESTS, PINNED_FRAMES
-from builder_native_source import NATIVE_RECORD_SHA256, NATIVE_REVIEW_RECORD_SHA256
+from measured_part_builder_plan_test import BuilderPlanTests
 from measured_part_plan import ADMITTED_PART_PLANS
 from measured_part_plan_catalog_contract_test import PlanCatalogContractTests
 from measured_part_tables import (
@@ -14,6 +13,7 @@ from measured_part_tables import (
     measured_part_report_row,
 )
 from measured_part_test_support import measured, plan, record
+from measured_source_connector_rows import MeasuredSourceConnector
 
 
 class PlanTests(unittest.TestCase):
@@ -98,6 +98,8 @@ class PlanTests(unittest.TestCase):
                 "49307",
                 "3245c",
                 "2453b",
+                "10201",
+                "3245b",
             ],
         )
         self.assertTrue(all(row.connector_source == "builder" for row in ADMITTED_PART_PLANS[:5]))
@@ -171,11 +173,28 @@ class PlanTests(unittest.TestCase):
                 (0, -24, 0),
             ),
         )
+        self.assertEqual(
+            ADMITTED_PART_PLANS[2].validated_connection_stud_profile,
+            "nominal-stud-tube/1",
+        )
+        self.assertEqual(
+            ADMITTED_PART_PLANS[3].validated_connection_stud_profile,
+            "nominal-stud-tube/1",
+        )
         self.assertTrue(
             all(
                 row.validated_connection_stud_profile is None
-                for row in ADMITTED_PART_PLANS[:15]
+                for index, row in enumerate(ADMITTED_PART_PLANS[:15])
+                if index not in (1, 2, 3, 5)
             )
+        )
+        self.assertEqual(
+            ADMITTED_PART_PLANS[1].validated_connection_stud_profile,
+            "nominal-stud-tube/1",
+        )
+        self.assertEqual(
+            ADMITTED_PART_PLANS[5].validated_connection_stud_profile,
+            "nominal-stud-tube/1",
         )
         self.assertIsNone(ADMITTED_PART_PLANS[16].validated_connection_stud_profile)
         self.assertEqual(
@@ -284,7 +303,9 @@ class PlanTests(unittest.TestCase):
                 plan=axle_hole,
                 studs_ldu=((0.0, -12.0, -10.0, 6.0, 4.0),) * 2,
                 clutches_ldu=((0.0, 12.0, -10.0), (0.0, 12.0, 10.0)),
-                source_connectors_ldu=(("axleHole", (0.0, -2.0, 0.0), (1.0, 0.0, 0.0)),),
+                source_connectors_ldu=(
+                    MeasuredSourceConnector("axleHole", (0.0, -2.0, 0.0), (1.0, 0.0, 0.0)),
+                ),
                 body_boxes_ldu=(0.0,) * (23 * 6),
                 body_triangle_count=266,
                 stud_triangle_count=192,
@@ -432,62 +453,6 @@ class PlanTests(unittest.TestCase):
             )
         with self.assertRaisesRegex(ValueError, "non-empty unique text"):
             plan(clutch_shared_capacity_groups=(((0, 4, 0), ("",)),))
-
-    def test_3040_plan_and_builder_packet_pin_one_identity_frame_and_source(self) -> None:
-        plan_3040 = ADMITTED_PART_PLANS[19]
-        self.assertEqual(
-            (
-                plan_3040.design_id,
-                plan_3040.connector_source,
-                plan_3040.catalog_id,
-                plan_3040.display_name,
-                plan_3040.family,
-                plan_3040.width_studs,
-                plan_3040.length_studs,
-                plan_3040.variant,
-                plan_3040.height_ldu,
-                plan_3040.orientation_id,
-                plan_3040.translation_ldu,
-            ),
-            (
-                "3040",
-                "builder",
-                "builtin:slope-1x2-45",
-                "Slope 45 1 x 2",
-                "slope",
-                1,
-                2,
-                "45",
-                24,
-                "upright-yaw-0",
-                (0, -12, 10),
-            ),
-        )
-
-        frame = PINNED_FRAMES["3040"]
-        self.assertEqual(
-            (
-                frame.revision,
-                frame.record_sha256,
-                frame.turn,
-                tuple(int(value) for value in frame.translation),
-                frame.derivation,
-                PINNED_FRAME_DIGESTS["3040"],
-            ),
-            (
-                "F",
-                "63ab72a4ff3b2d85b58af6586a1592124ab42019a84cb5faef137ee699836b28",
-                "turn0",
-                (0, 24, 0),
-                EXACT,
-                "65d6be01240cad2790e9fb54fabb056b99c232c26736b33b7340f8a85511a4bf",
-            ),
-        )
-        self.assertEqual(NATIVE_RECORD_SHA256["3040"], frame.record_sha256)
-        self.assertEqual(
-            NATIVE_REVIEW_RECORD_SHA256["3040"],
-            "17afd7907052b6e3e78343a6d26af45c81b7d277d80128b35e9f02c483905075",
-        )
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

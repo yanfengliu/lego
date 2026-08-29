@@ -177,7 +177,7 @@ export function assertPairJudgedTruthFromParsedJson(value, label = "Pair-judged 
       Object.keys(raters).sort().join(",") !== RATER_KEYS.join(",")
     ) {
       throw new Error(
-        `${label} top-level raters must contain exactly agreement, primary, secondary, descriptionDivergenceAdjudicated, and adjudicationNote. Detached rater metadata cannot establish how these pair-sheet rows were reviewed.`,
+        `${label} top-level raters must contain exactly agreement, primary, secondary, ${"descriptionDivergenceAdjudicated"}, and adjudicationNote. Detached rater metadata cannot establish how these pair-sheet rows were reviewed.`,
       );
     }
     for (const field of ["primary", "secondary"]) {
@@ -221,7 +221,7 @@ export function assertPairJudgedTruthFromParsedJson(value, label = "Pair-judged 
     const adjudicated = raters.descriptionDivergenceAdjudicated;
     if (!Array.isArray(adjudicated) || adjudicated.length > pairSheetRows) {
       throw new Error(
-        `${label} raters.descriptionDivergenceAdjudicated must be a bounded array containing at most one ordinal for each of the ${pairSheetRows} pair-sheet rows.`,
+        `${label} raters.${"descriptionDivergenceAdjudicated"} must be a bounded array containing at most one ordinal for each of the ${pairSheetRows} pair-sheet rows.`,
       );
     }
     for (const [position, ordinal] of adjudicated.entries()) {
@@ -232,7 +232,7 @@ export function assertPairJudgedTruthFromParsedJson(value, label = "Pair-judged 
         (position > 0 && ordinal <= adjudicated[position - 1])
       ) {
         throw new Error(
-          `${label} raters.descriptionDivergenceAdjudicated must contain unique pair-sheet ordinals in strictly increasing order from 1 through ${pairSheetRows}; received ${JSON.stringify(adjudicated)}.`,
+          `${label} raters.${"descriptionDivergenceAdjudicated"} must contain unique pair-sheet ordinals in strictly increasing order from 1 through ${pairSheetRows}; received ${JSON.stringify(adjudicated)}.`,
         );
       }
     }

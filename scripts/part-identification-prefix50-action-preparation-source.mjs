@@ -10,6 +10,7 @@ export const PREFIX50_ACTION_PREPARATION_AUTHORITY = Object.freeze({
   kind: "local-diagnostic",
   authenticated: false,
   semanticIdentity: true,
+  exactOccurrenceIdentity: false,
   officialBuilderOrder: true,
   actionPreparation: true,
   productionActionLedger: false,
@@ -59,7 +60,7 @@ export const CURRENT_PREFIX50_ACTION_PREPARATION_PINS = Object.freeze({
     path: "output/real-build/catalog-coverage.json",
     schemaVersion: "lego.real-build-catalog-coverage/4",
     bytes: 588_467,
-    digest: "sha256:a12d5744f3f4417628e53227aaa4c35d9aee0eba5fdce7b865087e6f97dfbfad",
+    digest: "sha256:861d08a28dac94619e8c541e928d7803b4b6cab9fe9fa12da9f166fc0e46444d",
   }),
   semanticClosure: Object.freeze({
     path: "output/part-identification/prefix50-semantic-closure.json",
@@ -98,7 +99,7 @@ export const CURRENT_PREFIX50_ACTION_PREPARATION_PINS = Object.freeze({
     repeatRows: 2,
   }),
   expectedArtifact: Object.freeze({
-    bytes: 317_116,
-    digest: "sha256:edd2096efe55e6e68385dc7f5b735222a9cdf01ae5625528dae2d1edde0fcbbc",
+    bytes: 317_152,
+    digest: "sha256:5fbab00b90c6ffbe6c9b09727819e0b3a964cebbd88138232bd2418df6100fb6",
   }),
 });

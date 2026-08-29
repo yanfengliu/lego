@@ -191,11 +191,15 @@ const EXPECTED_PART_IDS = [
   // builtin.basic-parts/28: exact suffix-only measured definitions.
   "builtin:brick-1x2x2-without-understud",
   "builtin:brick-1x1x5-solid-stud",
+  // builtin.basic-parts/29: exact official identities that were previously
+  // quarantined against physically distinct catalog parts.
+  "builtin:bracket-1x2-1x4-rounded-corners",
+  "builtin:brick-1x2x2-inside-axle-holder",
 ] as const;
 
 describe("starter catalog", () => {
-  it("publishes the exact-suffix catalog admission as version 28", () => {
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/28");
+  it("publishes the official first-50 identity admission as version 29", () => {
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/29");
   });
 
   it("pins 25269's exact LDCad route and raw-to-catalog central clutch", () => {
@@ -282,7 +286,7 @@ describe("starter catalog", () => {
       ]),
     );
     expect(perFamily).toEqual({
-      brick: 18,
+      brick: 19,
       plate: 33,
       tile: 13,
       "jumper-plate": 3,
@@ -296,7 +300,7 @@ describe("starter catalog", () => {
       "curved-slope": 5,
       "cheese-slope": 2,
       "corner-plate": 5,
-      bracket: 2,
+      bracket: 3,
       "minifig-accessory": 1,
     });
     // Every part belongs to a family the palette knows how to show.

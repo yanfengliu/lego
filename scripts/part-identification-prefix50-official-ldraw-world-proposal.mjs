@@ -27,12 +27,17 @@ import {
   snapPrefix50ProperWorldOrientation,
 } from "./part-identification-prefix50-official-ldraw-world-proposal-math.mjs";
 import {
-  PREFIX50_OFFICIAL_LDRAW_QUARANTINES,
+  PREFIX50_OFFICIAL_LDRAW_RETIRED_QUARANTINES,
   PREFIX50_OFFICIAL_LDRAW_WORLD_PROPOSAL_AUTHORITY,
   PREFIX50_OFFICIAL_LDRAW_WORLD_PROPOSAL_MAX_ARTIFACT_BYTES,
   PREFIX50_OFFICIAL_LDRAW_WORLD_PROPOSAL_PINS,
   PREFIX50_OFFICIAL_LDRAW_WORLD_PROPOSAL_SCHEMA,
 } from "./part-identification-prefix50-official-ldraw-world-proposal-source.mjs";
+import {
+  assertPrefix50OccurrenceCatalogBindings,
+  closePrefix50OccurrenceCatalogBinding,
+  resolvePrefix50OccurrenceCatalogBinding,
+} from "./part-identification-prefix50-official-ldraw-world-proposal-occurrence.mjs";
 
 const COMPILE_KEYS = ["actionPreparation", "officialLdrawBytes", "officialXmlBytes"];
 const VERIFY_KEYS = [...COMPILE_KEYS, "artifactBytes"].sort();
@@ -97,6 +102,11 @@ async function compileSnapshot(input) {
     throw new TypeError("Official XML/LDraw proposal requires the exact current action token.");
   }
   const action = actionInspection.artifact;
+  if (action.authority.exactOccurrenceIdentity !== false) {
+    throw new TypeError(
+      "Official XML/LDraw proposal requires action preparation to disclaim exact occurrence identity; the proposal must establish that identity from its independent XML/LDraw correspondence.",
+    );
+  }
   if (
     action.scope.expectedPrintedSteps !== 359 ||
     action.scope.lastPrintedStep !== 50 ||
@@ -145,7 +155,14 @@ async function compileSnapshot(input) {
             `Action ordinal ${member.sourceBuilderIdentityOrdinal} does not bind one exact XML/LDraw leaf.`,
           );
         }
-        const definition = catalog.getPartDefinition(callout.catalogPartId);
+        const openBinding = resolvePrefix50OccurrenceCatalogBinding({
+          stepNumber: step.stepNumber,
+          phaseSequence: phase.sequence,
+          member,
+          callout,
+          leaf,
+        });
+        const definition = catalog.getPartDefinition(openBinding.catalogPartId);
         const color = catalog.getColorDefinition(callout.publishedColorId);
         if (definition === undefined || color === undefined) {
           throw new TypeError(
@@ -154,7 +171,11 @@ async function compileSnapshot(input) {
         }
         const ldrawColor = colorByCode.get(leaf.ldrawColorCode) ?? null;
         const frame = catalogFrame(definition, orientationById);
-        const relation = identityRelation(leaf, frame);
+        const binding = closePrefix50OccurrenceCatalogBinding(
+          openBinding,
+          frame.catalogLdrawFilename,
+        );
+        const relation = identityRelation(leaf, frame, binding);
         const sourceOrientation = snapPrefix50ProperWorldOrientation(
           leaf.ldrawWorldMatrix,
           properOrientations,
@@ -190,7 +211,8 @@ async function compileSnapshot(input) {
             builderBrickRef: member.builderBrickRef,
             calloutIdentity: member.calloutIdentity,
             designRevision: member.designRevision,
-            catalogPartId: callout.catalogPartId,
+            publishedCatalogPartId: callout.catalogPartId,
+            catalogPartId: binding.catalogPartId,
             catalogColorId: callout.publishedColorId,
             ldrawCatalogColorId: ldrawColor?.id ?? null,
             semanticColorMatchesLdraw: ldrawColor === null ? null : color.id === ldrawColor.id,
@@ -199,6 +221,7 @@ async function compileSnapshot(input) {
             ldrawFilename: leaf.ldrawFilename,
             ldrawColorCode: leaf.ldrawColorCode,
             catalogFrame: frame,
+            catalogBinding: binding,
             identityRelation: relation,
             sourceWorldProposal: Object.freeze({
               orientationId: sourceOrientation.orientationId,
@@ -233,19 +256,19 @@ async function compileSnapshot(input) {
       "Official XML/LDraw proposal requires exactly the 320 unique prefix action rows.",
     );
   }
-  const quarantineCounts = PREFIX50_OFFICIAL_LDRAW_QUARANTINES.map((expected) => ({
+  assertPrefix50OccurrenceCatalogBindings(rows);
+  const resolvedPriorQuarantines = PREFIX50_OFFICIAL_LDRAW_RETIRED_QUARANTINES.map((expected) => ({
     ...expected,
     count: rows.filter(
       (row) =>
         row.designRevision === expected.designRevision &&
         row.ldrawFilename === expected.ldrawFilename &&
-        row.catalogFrame.catalogLdrawFilename === expected.catalogLdrawFilename &&
-        row.identityRelation.basis === expected.reason,
+        row.catalogBinding.priorQuarantineBasis === expected.reason,
     ).length,
   }));
-  if (!isDeepStrictEqual(quarantineCounts, PREFIX50_OFFICIAL_LDRAW_QUARANTINES)) {
+  if (!isDeepStrictEqual(resolvedPriorQuarantines, PREFIX50_OFFICIAL_LDRAW_RETIRED_QUARANTINES)) {
     throw new TypeError(
-      `Official XML/LDraw action quarantines drifted: ${JSON.stringify(quarantineCounts)}.`,
+      `Official XML/LDraw resolved quarantine counterevidence drifted: ${JSON.stringify(resolvedPriorQuarantines)}.`,
     );
   }
   const accounting = {
@@ -305,7 +328,7 @@ async function compileSnapshot(input) {
       officialXml: { bytes: input.officialXmlBytes.length, digest: xmlDigest },
       officialLdraw: { bytes: input.officialLdrawBytes.length, digest: ldrawDigest },
       catalogVersion: catalog.BUILTIN_CATALOG_VERSION,
-      catalogDigest: action.inputs.catalogDigest,
+      publishedCatalogDigest: action.inputs.catalogDigest,
       properOrientationRegistryDigest: sha256Digest(
         Buffer.from(JSON.stringify(properOrientations)),
       ),
@@ -322,7 +345,8 @@ async function compileSnapshot(input) {
     colorBindings: reconciliation.colorBindings,
     exactIdentityAliases: reconciliation.exactIdentityAliases,
     localTransformGroups: reconciliation.localTransformGroups,
-    quarantines: quarantineCounts,
+    quarantines: [],
+    resolvedPriorQuarantines,
     measurements: {
       ...reconciliation.measurements,
       maximumWorldOrientationResidual,

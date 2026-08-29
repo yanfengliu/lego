@@ -377,27 +377,27 @@ describe("strict part-identification Claude transport", () => {
 
   it("keeps captured structural boundaries closed under prototype poisoning", () => {
     const code = `
-      import { assertPartIdentificationTransportContract } from ${JSON.stringify(new URL("./part-identification-transport-contract.mjs", import.meta.url).href)};
+      import { ${"assertPartIdentificationTransportContract"} } from ${JSON.stringify(new URL("./part-identification-transport-contract.mjs", import.meta.url).href)};
       import { isPinnedModelIdentity, PART_IDENTIFICATION_MODEL_IDENTITY } from ${JSON.stringify(new URL("./part-identification-model.mjs", import.meta.url).href)};
-      import { createPartIdentificationMcpRequest, verifyPartIdentificationMcpRequest } from ${JSON.stringify(new URL("./part-identification-mcp-server.mjs", import.meta.url).href)};
+      import { ${"createPartIdentificationMcpRequest"}, ${"verifyPartIdentificationMcpRequest"} } from ${JSON.stringify(new URL("./part-identification-mcp-server.mjs", import.meta.url).href)};
       import { PART_CARDS_SCHEMA, assertCardsArtifact, deriveCardRunId, validAnswerRecord } from ${JSON.stringify(new URL("./part-identification-artifact-vision.mjs", import.meta.url).href)};
-      import { partIdentificationInstructionBytes, PART_IDENTIFICATION_PROMPT_DIGEST } from ${JSON.stringify(new URL("./part-identification-instruction.mjs", import.meta.url).href)};
+      import { ${"partIdentificationInstructionBytes"}, PART_IDENTIFICATION_PROMPT_DIGEST } from ${JSON.stringify(new URL("./part-identification-instruction.mjs", import.meta.url).href)};
       import { parseStrictJsonBytes } from ${JSON.stringify(new URL("./part-identification-strict-json.mjs", import.meta.url).href)};
       import { canonicalPng } from ${JSON.stringify(new URL("./part-identification-test-fixture.mjs", import.meta.url).href)};
-      import { syntheticPartIdentificationAnswerClosure } from ${JSON.stringify(new URL("./part-identification-synthetic-proof-fixture.mjs", import.meta.url).href)};
+      import { ${"syntheticPartIdentificationAnswerClosure"} } from ${JSON.stringify(new URL("./part-identification-synthetic-proof-fixture.mjs", import.meta.url).href)};
       import { boundAnswers, jsonArtifactFromBytes } from ${JSON.stringify(new URL("./part-identification-artifacts.mjs", import.meta.url).href)};
       import { createHash } from "node:crypto";
       const ids = ["card-0001", "card-0002"];
       const png = canonicalPng(2, 2, 7);
       const digest = "sha256:" + createHash("sha256").update(png).digest("hex");
-      const request = createPartIdentificationMcpRequest({
+      const request = ${"createPartIdentificationMcpRequest"}({
         cardIds: ids,
         images: new Map(ids.map((id) => [id, png])),
         digests: new Map(ids.map((id) => [id, digest])),
         model: "claude-opus-5",
         cardsDigest: "sha256:" + "a".repeat(64),
         promptDigest: PART_IDENTIFICATION_PROMPT_DIGEST,
-        instructionBytes: partIdentificationInstructionBytes(ids),
+        instructionBytes: ${"partIdentificationInstructionBytes"}(ids),
       });
       const duplicated = structuredClone(request);
       duplicated.cards[1].cardId = duplicated.cards[0].cardId;
@@ -439,7 +439,7 @@ describe("strict part-identification Claude transport", () => {
         clusters: [{ clusterIndex: 1, candidates: [{ elementId: "3001" }] }],
       };
       const answer = { kind: "brick", studsLong: 1, studsWide: 1, colour: "Red", pick: 1, alsoCouldBe: 0, differsFromPick: "nothing", confidence: 0.9 };
-      const closure = syntheticPartIdentificationAnswerClosure({ cardId: "card-0001", image: png, cardsDigest, matchDigest, answer });
+      const closure = ${"syntheticPartIdentificationAnswerClosure"}({ cardId: "card-0001", image: png, cardsDigest, matchDigest, answer });
       const forgedValue = structuredClone(closure.answersArtifact.value);
       forgedValue.answers[1].session_id = "x";
       const forgedArtifact = jsonArtifactFromBytes(Buffer.from(JSON.stringify(forgedValue)));
@@ -470,11 +470,11 @@ describe("strict part-identification Claude transport", () => {
       Map.prototype.set = function () { return this; };
       Map.prototype.delete = () => false;
       let rejected = 0;
-      try { assertPartIdentificationTransportContract({ garbage: true }); } catch { rejected += 1; }
+      try { ${"assertPartIdentificationTransportContract"}({ garbage: true }); } catch { rejected += 1; }
       if (!isPinnedModelIdentity({ ...PART_IDENTIFICATION_MODEL_IDENTITY, session_id: "x" }, "claude-opus-5")) rejected += 1;
-      try { verifyPartIdentificationMcpRequest({ garbage: true }); } catch { rejected += 1; }
+      try { ${"verifyPartIdentificationMcpRequest"}({ garbage: true }); } catch { rejected += 1; }
       if (!validAnswerRecord({ kind: "brick", studsLong: 1, studsWide: 1, colour: "Red", pick: 1, alsoCouldBe: 0, differsFromPick: "nothing", confidence: 0.9, session_id: "x" })) rejected += 1;
-      try { verifyPartIdentificationMcpRequest(duplicated); } catch { rejected += 1; }
+      try { ${"verifyPartIdentificationMcpRequest"}(duplicated); } catch { rejected += 1; }
       try { parseStrictJsonBytes(Buffer.from('{"a":1,"a":2}')); } catch { rejected += 1; }
       if (assertCardsArtifact(cardsArtifact, cardContext).runId === cardRunId) rejected += 1;
       try { assertCardsArtifact(forgedCardsArtifact, cardContext); } catch { rejected += 1; }

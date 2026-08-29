@@ -12,6 +12,7 @@ import unittest
 from pathlib import Path
 
 from measured_part_emit_test import NumberLiteralTests, RenderTests
+from measured_part_builder_plan_test import BuilderPlanTests
 from measured_part_geometry_test import (
     ExactBoundTests,
     FrameTests,
@@ -23,6 +24,7 @@ from measured_part_plan_test import PlanTests
 from measured_part_source_connector_test import MeasuredSourceConnectorTests
 from measured_part_tables import scoreable_candidate
 from measured_part_test_support import measured, plan
+from measured_source_connector_rows import MeasuredSourceConnector
 
 __all__ = [
     "ExactBoundTests",
@@ -30,6 +32,7 @@ __all__ = [
     "MeasuredStudRowTests",
     "MeshMergeTests",
     "NumberLiteralTests",
+    "BuilderPlanTests",
     "PlanCatalogContractTests",
     "PlanTests",
     "RenderTests",
@@ -47,7 +50,9 @@ class AxleHoleRoundTripTests(unittest.TestCase):
                 connector_source="ldcad-shadow",
             ),
             clutches_ldu=(),
-            source_connectors_ldu=(("axleHole", (0.0, -2.0, 0.0), (1.0, 0.0, 0.0)),),
+            source_connectors_ldu=(
+                MeasuredSourceConnector("axleHole", (0.0, -2.0, 0.0), (1.0, 0.0, 0.0)),
+            ),
             candidate={"connectors": [], "derivation": "unit source candidate"},
         )
 
@@ -73,7 +78,9 @@ class AxleHoleRoundTripTests(unittest.TestCase):
                 connector_source="ldcad-shadow",
             ),
             clutches_ldu=(),
-            source_connectors_ldu=(("axleHole", (8.0, -15.0, 5.0), (0.0, 0.0, 1.0)),),
+            source_connectors_ldu=(
+                MeasuredSourceConnector("axleHole", (8.0, -15.0, 5.0), (0.0, 0.0, 1.0)),
+            ),
             candidate={"connectors": [], "derivation": "unit source candidate"},
         )
 
@@ -99,8 +106,11 @@ class MeasuredPartFileBoundaryTests(unittest.TestCase):
             "generate-set-6651557-source-pilot.py",
             "source_pilot_input_validation.py",
             "measured_part_emit.py",
+            "measured_part_emit_check.py",
             "measured_part_emit_headers.py",
+            "measured_part_builder_plan_test.py",
             "measured_part_plan.py",
+            "measured_part_plan_support.py",
             "measured_part_plan_catalog_contract_test.py",
             "measured_part_render_only_plan.py",
             "measured_part_report_rows.py",
@@ -113,6 +123,7 @@ class MeasuredPartFileBoundaryTests(unittest.TestCase):
             "measured_part_plan_test.py",
             "measured_part_suffix_plan_test.py",
             "measured_part_source_connector_test.py",
+            "measured_source_connector_rows.py",
             "measured_source_connectors.py",
             "measured_part_test_support.py",
         )

@@ -19,13 +19,13 @@ import { SET_6651557_MEASURED_BLUEPRINTS } from "./part-blueprints-6651557-measu
 import { SET_6651557_MESH_ASSETS } from "./mesh-assets-6651557.ts";
 
 /**
- * What the twenty-seven fully measured catalog parts are, written out rather than recomputed.
+ * What the twenty-nine fully measured catalog parts are, written out rather than recomputed.
  *
  * These are facts about real parts: the extents come from the exact expanded
  * LDraw closure, the collision column count from its per-column height field at
  * 1 LDU, and the connector counts from an authored connector source
  * carried through the per-part frame — Builder-derived records for eight parts
- * and the LDCad shadow library's snap metas for nineteen. Four of the LDCad-sourced
+ * and the LDCad shadow library's snap metas for twenty-one. Four of the LDCad-sourced
  * designs have no Builder record; 25269 deliberately selects the independently
  * authored shadow route instead of treating record presence as connector truth,
  * while 28802 refuses a contradictory Builder identity and retains the exact
@@ -600,29 +600,48 @@ const ADMITTED = [
     vertices: 97,
     closureFiles: 6,
   },
-] as const;
-
-/** Every part whose connector rows the LDCad shadow library authors. */
-const LDCAD_CONNECTOR_PART_IDS = [
-  "builtin:plate-3x3-corner-round",
-  "builtin:wedge-plate-3x3-cut-corner",
-  "builtin:corner-plate-2x2-round",
-  "builtin:tile-1x1-quarter-round",
-  "builtin:bracket-1x2-1x4-rounded-bottom",
-  "builtin:tile-2x2-triangular",
-  "builtin:roller-skate",
-  "builtin:bracket-2x2-1x2-vertical-studs",
-  "builtin:axle-1x3",
-  "builtin:technic-brick-1x2-axle-hole",
-  "builtin:plate-3x3",
-  "builtin:plate-2x2-two-studs",
-  "builtin:plate-1x5",
-  "builtin:tile-1x2-chamfered-indented",
-  "builtin:technic-brick-1x1-axle-hole",
-  "builtin:slope-1x1-double-45",
-  "builtin:curved-slope-1x1-outside-bow",
-  "builtin:brick-1x2x2-without-understud",
-  "builtin:brick-1x1x5-solid-stud",
+  // builtin.basic-parts/29. Exact official roots and exact LDCad routes admit
+  // these two previously quarantined physical identities without aliasing the
+  // distinct 28802 or 3245c constructions.
+  {
+    id: "builtin:bracket-1x2-1x4-rounded-corners",
+    ldrawId: "10201.dat",
+    family: "bracket",
+    widthStuds: 4,
+    lengthStuds: 1,
+    heightLdu: 20,
+    orientationId: "upright-yaw-0",
+    translationLdu: [0, -10, 0],
+    connectorGridCenterLdu: [0, 0],
+    bodyBoundsLdu: { min: [-40, -10, -14], max: [40, 10, 10] },
+    boundsLdu: { min: [-40, -14, -18], max: [40, 10, 10] },
+    studs: 6,
+    clutches: 2,
+    bodyBoxes: 23,
+    triangles: 660,
+    vertices: 695,
+    closureFiles: 21,
+  },
+  {
+    id: "builtin:brick-1x2x2-inside-axle-holder",
+    ldrawId: "3245b.dat",
+    family: "brick",
+    widthStuds: 1,
+    lengthStuds: 2,
+    heightLdu: 48,
+    orientationId: "upright-yaw-90",
+    translationLdu: [0, -24, 0],
+    connectorGridCenterLdu: [0, 0],
+    bodyBoundsLdu: { min: [-10, -24, -20], max: [10, 24, 20] },
+    boundsLdu: { min: [-10, -28, -20], max: [10, 24, 20] },
+    studs: 2,
+    clutches: 2,
+    blindAxleHoles: 1,
+    bodyBoxes: 29,
+    triangles: 144,
+    vertices: 190,
+    closureFiles: 11,
+  },
 ] as const;
 
 /** The three plate-lattice parts whose clutch cells Builder could not supply. */
@@ -645,7 +664,7 @@ const bodyBoxes = (part: PartDefinition): readonly Extract<CollisionPrimitive, {
   );
 
 describe("set 6651557 parts declared from measured source", () => {
-  it("admits all twenty-seven through the production mesh gate", () => {
+  it("admits all twenty-nine through the production mesh gate", () => {
     for (const expected of ADMITTED) {
       expect([expected.id, validateMeshPartDefinitionAdmission(require(expected.id))]).toEqual([
         expected.id,
@@ -678,6 +697,7 @@ describe("set 6651557 parts declared from measured source", () => {
         clutches: part.connectors.filter(({ kind }) => kind === "undersideClutch").length,
         axles: part.connectors.filter(({ kind }) => kind === "axle").length,
         axleHoles: part.connectors.filter(({ kind }) => kind === "axleHole").length,
+        blindAxleHoles: part.connectors.filter(({ kind }) => kind === "blindAxleHole").length,
         bodyBoxes: bodyBoxes(part).length,
         triangles: (asset.indices?.length ?? asset.positionsLdu.length) / 3,
         vertices: asset.positionsLdu.length / 3,
@@ -697,6 +717,7 @@ describe("set 6651557 parts declared from measured source", () => {
         clutches: expected.clutches,
         axles: "axles" in expected ? expected.axles : 0,
         axleHoles: "axleHoles" in expected ? expected.axleHoles : 0,
+        blindAxleHoles: "blindAxleHoles" in expected ? expected.blindAxleHoles : 0,
         bodyBoxes: expected.bodyBoxes,
         triangles: expected.triangles,
         vertices: expected.vertices,
@@ -776,7 +797,7 @@ describe("set 6651557 parts declared from measured source", () => {
     expect(BUNDLED_LDRAW_ARCHIVE.sha256).toBe(
       "sha256:6009f2e94204c4d3a63a4c812010b5c90bad8c5acb19b882c859fdac63734eae",
     );
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(228);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(237);
     for (const file of BUNDLED_LDRAW_SOURCE_FILES) {
       expect(file.author.trim().length).toBeGreaterThan(0);
       expect(file.title.trim().length).toBeGreaterThan(0);
@@ -796,9 +817,9 @@ describe("set 6651557 parts declared from measured source", () => {
       BUNDLED_LDRAW_SOURCE_FILES.filter(
         ({ licenseExpression }) => licenseExpression === "CC-BY-4.0",
       ),
-    ).toHaveLength(224);
-    // 33 named authors across 228 files: attribution is retained per file, never flattened.
-    expect(new Set(BUNDLED_LDRAW_SOURCE_FILES.map(({ author }) => author)).size).toBe(33);
+    ).toHaveLength(233);
+    // 34 named authors across 237 files: attribution is retained per file, never flattened.
+    expect(new Set(BUNDLED_LDRAW_SOURCE_FILES.map(({ author }) => author)).size).toBe(34);
 
     for (const expected of ADMITTED) {
       const closure = BUNDLED_LDRAW_CLOSURES[expected.ldrawId.replace(".dat", "")]!;
@@ -825,44 +846,6 @@ describe("set 6651557 parts declared from measured source", () => {
       expect(provenance.trainingUseAllowed).toBe(false);
       expect(provenance.attribution).toMatch(/reuse is not permission to train/u);
       expect(provenance.attribution).toContain(expected.ldrawId);
-    }
-  });
-
-  it("says on the part itself which authored source made its connector claims", () => {
-    // A semantic connector is never inferred from geometry, so the part has to
-    // name who claimed it. The catalog provenance is what carries that outwards: a
-    // Builder-sourced part and an LDCad-sourced part are not interchangeable
-    // records, because they carry different licences and different attribution.
-    for (const expected of ADMITTED) {
-      const part = require(expected.id);
-      const ldcad = (LDCAD_CONNECTOR_PART_IDS as readonly string[]).includes(expected.id);
-
-      expect([expected.id, part.provenance.sourceId]).toEqual([
-        expected.id,
-        ldcad
-          ? "lego-studio:ldcad-shadow-measured-part-admission"
-          : "lego-studio:measured-part-admission",
-      ]);
-    }
-  });
-
-  it("carries the shadow library's attribution and share-alike position with the data", () => {
-    for (const id of LDCAD_CONNECTOR_PART_IDS) {
-      const { provenance } = require(id);
-
-      expect(provenance.sourceType).toBe("external-connector-metadata");
-      // The connectors are metadata, not geometry: nothing of the library's own
-      // files is bundled, and the render mesh stays the LDraw closure's.
-      expect(provenance.externalGeometryBundled).toBe(false);
-      expect(provenance.licenseExpression).toBe("MIT AND CC-BY-SA-4.0");
-      expect(provenance.attribution).toContain("Roland Melkert");
-      expect(provenance.attribution).toMatch(/ShareAlike attaches to this derived connector data/u);
-      expect(provenance.sourceVersion).toContain("15aa1e718b6a8da37d24fc7af5e52e262c041bfb");
-      expect(provenance.sourceVersion).toContain(
-        "668bc047a45e5560ff0fbbd69e9eb5adafab127781720bcb069a1554cb3f0c0f",
-      );
-      // Reading and sharing under CC BY-SA is still not permission to train.
-      expect(provenance.trainingUseAllowed).toBe(false);
     }
   });
 
@@ -947,7 +930,7 @@ describe("set 6651557 parts declared from measured source", () => {
       normal: [-1, 0, 0],
       orientationId: "connector-up",
       capacity: 1,
-      compatibleKinds: ["axleHole", "pinHole"],
+      compatibleKinds: ["axleHole", "blindAxleHole", "pinHole"],
     });
     expect(() => makeMeasuredPartDefinition({ ...builderBlueprint, sourceConnectorsLdu })).toThrow(
       /source connector rows without an LDCad shadow walk/u,

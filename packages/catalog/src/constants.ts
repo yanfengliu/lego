@@ -147,11 +147,18 @@ import { GENERATED_NON_UPRIGHT_PROPER_ORIENTATIONS } from "./proper-orientations
  * /28 appends exact suffixed definitions `3245c.dat` and `2453b.dat`. Their
  * official roots supply geometry while exact LDCad routes supply connector
  * rows; no bare or cross-suffix alias is admitted and no printed frame follows.
+ *
+ * /29 appends exact official definitions `10201.dat` and `3245b.dat`. `10201`
+ * remains distinct from rounded-bottom bracket `28802`, and its moved-to
+ * `2436b` root stays closure evidence rather than a public alias. `3245b`
+ * remains distinct from `3245c`; no bare or cross-suffix alias is admitted,
+ * and its exact one-cap holder authors one fixed one-sided axle socket.
  */
-export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/28" as const;
-export const CONNECTOR_TAXONOMY_VERSION = "stud-tube/1" as const;
-export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/3" as const;
-export const TRANSFORM_POLICY_VERSION = "upright-quarter-turns-negative-y-up/1" as const;
+export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/29" as const;
+export const CONNECTOR_TAXONOMY_VERSION = "stud-tube/2" as const;
+export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/4" as const;
+export const TRANSFORM_POLICY_ID = "part-scoped-proper-orientations-negative-y-up" as const;
+export const TRANSFORM_POLICY_VERSION = "part-scoped-proper-orientations-negative-y-up/1" as const;
 
 export const STUD_PITCH_LDU = 20 as const;
 export const BRICK_HEIGHT_LDU = 24 as const;
@@ -190,6 +197,15 @@ export const PROJECT_COLOR_PROVENANCE: SourceProvenance = Object.freeze({
   sourceId: "lego-studio:starter-display-colors",
   sourceVersion: "1",
   runtimeRole: "display-color",
+});
+
+/** Project-authored placement policy; external observations can only corroborate review. */
+export const PROJECT_TRANSFORM_POLICY_PROVENANCE: SourceProvenance = Object.freeze({
+  ...PROJECT_CATALOG_PROVENANCE,
+  sourceId: "lego-studio:part-scoped-transform-policy",
+  sourceVersion: TRANSFORM_POLICY_VERSION,
+  attribution: "Copyright (c) 2026 Yanfeng Liu. Project-authored catalog placement policy.",
+  runtimeRole: "catalog-truth",
 });
 
 export const LDRAW_IDENTIFIER_PROVENANCE: SourceProvenance = Object.freeze({
@@ -287,6 +303,13 @@ export const LDCAD_SHADOW_AXLE_HOLE_CONNECTOR_PROVENANCE: SourceProvenance = Obj
     "Copyright (c) 2026 Yanfeng Liu. Axle-hole seats derived from the LDCad Shadow Library by Roland Melkert and its per-file !HISTORY contributors, CC BY-SA 4.0; this part uses the exact capless, sliding, YOnly-scaled female A6 segment midpoint projection. ShareAlike attaches to this derived connector data on redistribution. Extents, collision and render mesh are the official LDraw closure named on the part.",
 });
 
+/** One-sided axle-holder attribution; it must never inherit through-hole claims. */
+export const LDCAD_SHADOW_BLIND_AXLE_HOLE_CONNECTOR_PROVENANCE: SourceProvenance = Object.freeze({
+  ...LDCAD_SHADOW_CONNECTOR_PROVENANCE,
+  attribution:
+    "Copyright (c) 2026 Yanfeng Liu. Blind axle-holder data derived from the LDCad Shadow Library by Roland Melkert and its per-file !HISTORY contributors, CC BY-SA 4.0; this part uses the exact caps=one female A6x44 finite span from its open mouth to its closed cap and preserves slide=false. ShareAlike attaches to this derived connector data on redistribution. Extents, collision and render mesh are the official LDraw closure named on the part.",
+});
+
 export const LDRAW_91988_FRAME_PROVENANCE: SourceProvenance = Object.freeze({
   sourceId: "ldraw:official:91988.dat",
   sourceType: "interoperability-mapping",
@@ -327,10 +350,7 @@ export const UPRIGHT_ORIENTATIONS: readonly UprightOrientation[] = Object.freeze
   }),
 ]);
 
-/**
- * Source/catalog-frame vocabulary. Placement legality remains the four-row
- * `UPRIGHT_ORIENTATIONS` subset carried by every current part definition.
- */
+/** Complete determinant-positive signed-permutation vocabulary. */
 export const PROPER_ORIENTATIONS: readonly ProperOrientation[] = Object.freeze([
   ...UPRIGHT_ORIENTATIONS,
   ...GENERATED_NON_UPRIGHT_PROPER_ORIENTATIONS,
@@ -369,6 +389,13 @@ export const CONNECTOR_PAIR_RULES: readonly ConnectorPairRule[] = deepFreeze([
     allowedRotation: "quarterTurns",
     articulation: "rigid",
     axisMatching: "collinear",
+  },
+  {
+    male: "axle",
+    female: "blindAxleHole",
+    allowedRotation: "quarterTurns",
+    articulation: "rigid",
+    axisMatching: "opposed",
   },
   // Round hole, cross shaft: it fits and it spins. This is how a wheel turns on
   // an axle that is itself locked into the chassis.
@@ -415,6 +442,7 @@ export const CONNECTOR_KIND_RULES: Readonly<Record<ConnectorKind, ConnectorKindR
     undersideClutch: { gender: "female", geometryRole: "tubeSeat", profileId: "stud-tube/1" },
     axle: { gender: "male", geometryRole: "axleShaft", profileId: "axle-cross/1" },
     axleHole: { gender: "female", geometryRole: "axleBore", profileId: "axle-cross/1" },
+    blindAxleHole: { gender: "female", geometryRole: "axleBore", profileId: "axle-cross/1" },
     pin: { gender: "male", geometryRole: "pinShaft", profileId: "pin-round/1" },
     pinHole: { gender: "female", geometryRole: "pinBore", profileId: "pin-round/1" },
     bar: { gender: "male", geometryRole: "barShaft", profileId: "bar-round/1" },

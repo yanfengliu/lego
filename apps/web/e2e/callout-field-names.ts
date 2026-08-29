@@ -1,0 +1,1 @@
+export const OBSERVED_LEGACY_FAILURE_IDENTITIES_FIELD = "observedLegacyFailureIdentities";

@@ -4,6 +4,7 @@ import {
   COLOR_DEFINITIONS,
   CONNECTOR_TAXONOMY_VERSION,
   PART_DEFINITIONS,
+  TRANSFORM_POLICY_ID,
   TRANSFORM_POLICY_VERSION,
   getCatalogSnapshotDigestInput,
 } from "@lego-studio/catalog";
@@ -40,13 +41,7 @@ function computeBuiltinTruthDigestInputs() {
       coordinateSystem: catalog.coordinateSystem,
       parts: PART_DEFINITIONS.map(({ id, collision }) => ({ id, collision })),
     },
-    transformPolicy: {
-      schemaVersion: "lego.transform-policy-manifest/1",
-      version: TRANSFORM_POLICY_VERSION,
-      coordinateSystem: catalog.coordinateSystem,
-      orientations: catalog.orientations,
-      parts: PART_DEFINITIONS.map(({ id, legalOrientationIds }) => ({ id, legalOrientationIds })),
-    },
+    transformPolicy: catalog.transformPolicy,
     validatorSet: VALIDATOR_SET_DIGEST_INPUT,
   } as const;
 }
@@ -90,7 +85,7 @@ function buildTruthSnapshot(
       hash: canonicalDigest(digestInputs.collisionModel),
     },
     transformPolicy: {
-      id: "upright-quarter-turns-negative-y-up",
+      id: TRANSFORM_POLICY_ID,
       version: TRANSFORM_POLICY_VERSION,
       hash: canonicalDigest(digestInputs.transformPolicy),
     },

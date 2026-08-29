@@ -1,3 +1,8 @@
+import {
+  CALLER_INSTRUCTION_SOURCE_SNAPSHOT_DIGEST,
+  CALLER_SOURCE_CONTENT_HASH_CLAIM_MATCHED_PDF_BYTES,
+  CALLER_SOURCE_PANEL_COMMITMENT_BY_STEP,
+} from "./real-build-source-packet-field-names.ts";
 import { canonicalStringify, type Sha256Digest } from "@lego-studio/brick-kernel";
 
 import { isRealBuildBrowserOutputV4SourceEvidencePanelDescriptor } from "./real-build-browser-output-v4-source-evidence-brands";
@@ -80,7 +85,7 @@ function snapshotScoped(value: unknown) {
     [
       "panels",
       "calloutBoxesByStep",
-      "callerSourcePanelCommitmentByStep",
+      CALLER_SOURCE_PANEL_COMMITMENT_BY_STEP,
       "authority",
       "binding",
       "scope",
@@ -101,7 +106,7 @@ function snapshotScoped(value: unknown) {
   const rawCommitments = sourceEvidenceExactRecord(
     scoped.callerSourcePanelCommitmentByStep,
     ["2", "3", "4"],
-    "Exact-three scoped panel evidence.callerSourcePanelCommitmentByStep",
+    "Exact-three scoped panel evidence." + CALLER_SOURCE_PANEL_COMMITMENT_BY_STEP,
   );
   const rawAuthority = sourceEvidenceExactRecord(
     scoped.authority,
@@ -120,8 +125,8 @@ function snapshotScoped(value: unknown) {
     scoped.binding,
     [
       "pdfBytesDigest",
-      "callerInstructionSourceSnapshotDigest",
-      "callerSourceContentHashClaimMatchedPdfBytes",
+      CALLER_INSTRUCTION_SOURCE_SNAPSHOT_DIGEST,
+      CALLER_SOURCE_CONTENT_HASH_CLAIM_MATCHED_PDF_BYTES,
       "sourceTextParserReplay",
     ],
     "Exact-three scoped panel evidence.binding",
@@ -138,7 +143,7 @@ function snapshotScoped(value: unknown) {
   );
   const callerSourceSnapshotDigest = sourceEvidenceDigestValue(
     rawBinding.callerInstructionSourceSnapshotDigest,
-    "Exact-three scoped panel evidence.binding.callerInstructionSourceSnapshotDigest",
+    "Exact-three scoped panel evidence.binding." + CALLER_INSTRUCTION_SOURCE_SNAPSHOT_DIGEST,
   );
   const rawScope = sourceEvidenceExactRecord(
     scoped.scope,
@@ -223,17 +228,17 @@ function snapshotScoped(value: unknown) {
     const commitmentRow = sourceEvidenceExactRecord(
       rawCommitments[String(stepNumber)],
       ["pageNumber", "commitmentDigest"],
-      `Exact-three scoped panel evidence.callerSourcePanelCommitmentByStep.${stepNumber}`,
+      `Exact-three scoped panel evidence.${CALLER_SOURCE_PANEL_COMMITMENT_BY_STEP}.${stepNumber}`,
     );
     sourceEvidenceInteger(
       commitmentRow.pageNumber,
       pageNumber,
       pageNumber,
-      `Exact-three scoped panel evidence.callerSourcePanelCommitmentByStep.${stepNumber}.pageNumber`,
+      `Exact-three scoped panel evidence.${CALLER_SOURCE_PANEL_COMMITMENT_BY_STEP}.${stepNumber}.pageNumber`,
     );
     const commitmentDigest = sourceEvidenceDigestValue(
       commitmentRow.commitmentDigest,
-      `Exact-three scoped panel evidence.callerSourcePanelCommitmentByStep.${stepNumber}.commitmentDigest`,
+      `Exact-three scoped panel evidence.${CALLER_SOURCE_PANEL_COMMITMENT_BY_STEP}.${stepNumber}.commitmentDigest`,
     );
     const reproduced = stepPanelEvidenceDigest({
       pdfDigest,

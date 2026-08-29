@@ -250,7 +250,12 @@ export function createAttachedTransform(
   const targetFrame = getConnectorWorldFrame(targetPart, targetPortId);
   const attachedDefinition = requirePartDefinition(attachedCatalogPartId);
   const attachedPort = requirePort(attachedDefinition, attachedPortId);
-  const orientation = getUprightOrientation(orientationId);
+  const orientation = getProperOrientation(orientationId);
+  if (!attachedDefinition.legalOrientationIds.includes(orientation.id)) {
+    throw new TransformPolicyError(
+      `Orientation ${orientation.id} is not legal for attached catalog part ${attachedCatalogPartId}.`,
+    );
+  }
   const attachedNormal = rotateLduVector(orientation.matrix, attachedPort.normal);
 
   const pair = connectorPairRule(targetFrame.kind, attachedPort.kind);
@@ -264,8 +269,8 @@ export function createAttachedTransform(
     attachedNormal[0] === -targetFrame.normal[0] &&
     attachedNormal[1] === -targetFrame.normal[1] &&
     attachedNormal[2] === -targetFrame.normal[2];
-  // A hole is open at both ends, so a shaft may enter facing either way and
-  // only the line the axes lie on matters.
+  // Only a pair that explicitly opts into collinear matching may face either
+  // way. One-sided sockets instead declare opposed matching in the pair table.
   const sameLine =
     opposed ||
     (attachedNormal[0] === targetFrame.normal[0] &&

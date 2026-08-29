@@ -103,7 +103,7 @@ describe("first-50 Builder source and frame census contract", () => {
         return [name, bytes];
       }),
     ) as Record<keyof typeof INPUTS, Buffer>;
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/28");
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/29");
 
     const python = runPythonSourceContract(BUILDER_STEP1_DESIGN_SOURCES);
     expect(python.status, python.stderr).toBe(0);

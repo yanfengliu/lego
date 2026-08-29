@@ -8,6 +8,8 @@ import {
 } from "./constants.ts";
 import { MAX_EXACT_LDU_MAGNITUDE } from "./exact-ldu.ts";
 import { connectorAxisFrame } from "./connector-axis.ts";
+import { connectorAxialSpanIssue } from "./connector-axial-span.ts";
+import { collisionAllowanceAdmissionIssues } from "./collision-allowance-admission.ts";
 import {
   NOMINAL_STUD_SOURCE_RADIUS_MAX_ROUNDING_DELTA_LDU,
   NOMINAL_STUD_TUBE_VALIDATED_CONNECTION_PROFILE,
@@ -578,6 +580,7 @@ export function validateMeshPartDefinitionAdmission(
           : true;
     const physicalFrameKey = connectorPhysicalFrameKey(connector);
     const priorFrameOwner = connectorFrameOwners.get(physicalFrameKey);
+    const axialSpanIssue = connectorAxialSpanIssue(connector);
     const valid =
       connector.id.trim().length > 0 &&
       !connectorIds.has(connector.id) &&
@@ -588,6 +591,11 @@ export function validateMeshPartDefinitionAdmission(
       connector.profileId === taxonomy.profileId &&
       connector.capacity === 1 &&
       sharedCapacityGroupsAreRepresentable(connector) &&
+      axialSpanIssue === undefined &&
+      (connector.kind !== "blindAxleHole" ||
+        !bodyBoundsValid ||
+        (pointInside(definition.bodyBoundsLdu, connector.axialSpan.openEndLdu) &&
+          pointInside(definition.bodyBoundsLdu, connector.axialSpan.closedEndLdu))) &&
       (connector.kind === "stud" ||
         connector.orientationId === "connector-up" ||
         connector.orientationId === "connector-down") &&
@@ -613,7 +621,7 @@ export function validateMeshPartDefinitionAdmission(
       add(
         "MESH_ADMISSION_CONNECTOR_INVALID",
         `/connectors/${index}`,
-        `Part ${definition.id} connector ${JSON.stringify(connector.id)} needs a unique non-empty id and physical frame (kind + position + normal), the catalog taxonomy fields for kind ${connector.kind}, a safe-integer in-bounds position, and one axis-unit safe-integer normal; a stud's orientation must name its outward normal axis, while undersideClutch ports remain connector-down/[0,1,0]. Optional sharedCapacityGroupIds are allowed only as a non-empty unique string list on an underside clutch. Received position=${JSON.stringify(connector.positionLdu)}, orientation=${JSON.stringify(connector.orientationId)}, normal=${JSON.stringify(connector.normal)}, sharedCapacityGroupIds=${JSON.stringify(connector.sharedCapacityGroupIds)}${priorFrameOwner === undefined ? "" : `; this physical frame is already declared by connector ${JSON.stringify(priorFrameOwner.id)} at /connectors/${priorFrameOwner.index}, and changing connector ids or shared-capacity labels cannot create a second attachment frame`}.`,
+        `Part ${definition.id} connector ${JSON.stringify(connector.id)} needs a unique non-empty id and physical frame (kind + position + normal), the catalog taxonomy fields for kind ${connector.kind}, a safe-integer in-bounds position, and one axis-unit safe-integer normal; a stud's orientation must name its outward normal axis, while undersideClutch ports remain connector-down/[0,1,0]. A blindAxleHole also needs an exact one-sided axialSpan whose normal points from the closed end to the open mouth; other kinds must not carry that metadata. Optional sharedCapacityGroupIds are allowed only as a non-empty unique string list on an underside clutch. Received position=${JSON.stringify(connector.positionLdu)}, orientation=${JSON.stringify(connector.orientationId)}, normal=${JSON.stringify(connector.normal)}, axialSpan=${JSON.stringify(connector.axialSpan)}, axialSpanIssue=${JSON.stringify(axialSpanIssue)}, sharedCapacityGroupIds=${JSON.stringify(connector.sharedCapacityGroupIds)}${priorFrameOwner === undefined ? "" : `; this physical frame is already declared by connector ${JSON.stringify(priorFrameOwner.id)} at /connectors/${priorFrameOwner.index}, and changing connector ids or shared-capacity labels cannot create a second attachment frame`}.`,
       );
     }
     if (
@@ -903,53 +911,8 @@ export function validateMeshPartDefinitionAdmission(
     }
   }
 
-  const allowanceIds = new Set<string>();
-  for (let index = 0; index < definition.collision.allowances.length; index += 1) {
-    const allowance = definition.collision.allowances[index]!;
-    const port = definition.connectors.find(({ id }) => id === allowance.portId);
-    const allowanceCenterMatchesPort =
-      port !== undefined &&
-      safeVector(allowance.centerLdu) &&
-      Number.isSafeInteger(allowance.maxInsertionDepthLdu) &&
-      allowance.centerLdu[0] === port.positionLdu[0] &&
-      allowance.centerLdu[1] === port.positionLdu[1] - allowance.maxInsertionDepthLdu / 2 &&
-      allowance.centerLdu[2] === port.positionLdu[2];
-    if (
-      allowance.id.trim().length === 0 ||
-      allowanceIds.has(allowance.id) ||
-      port?.kind !== "undersideClutch" ||
-      allowance.portKind !== "undersideClutch" ||
-      allowance.incomingPrimitiveTag !== "stud" ||
-      allowance.requiresValidatedConnection !== true ||
-      !safeVector(allowance.centerLdu) ||
-      !allowanceCenterMatchesPort ||
-      (visualBoundsValid && !pointInside(definition.boundsLdu, allowance.centerLdu)) ||
-      !Number.isSafeInteger(allowance.radiusLdu) ||
-      allowance.radiusLdu <= 0 ||
-      !Number.isSafeInteger(allowance.maxInsertionDepthLdu) ||
-      allowance.maxInsertionDepthLdu <= 0
-    ) {
-      add(
-        "MESH_ADMISSION_COLLISION_INVALID",
-        `/collision/allowances/${index}`,
-        `Part ${definition.id} collision allowance ${JSON.stringify(allowance.id)} must name an undersideClutch connector and use a safe-integer center exactly [port.x, port.y-maxInsertionDepthLdu/2, port.z], positive radius, and positive insertion depth; received port=${port === undefined ? "missing" : JSON.stringify(port.positionLdu)}, allowance=${JSON.stringify(allowance)}.`,
-      );
-    }
-    allowanceIds.add(allowance.id);
-  }
-  for (let connectorIndex = 0; connectorIndex < definition.connectors.length; connectorIndex += 1) {
-    const connector = definition.connectors[connectorIndex]!;
-    if (connector.kind !== "undersideClutch") continue;
-    const matchingAllowances = definition.collision.allowances.filter(
-      ({ portId }) => portId === connector.id,
-    );
-    if (matchingAllowances.length !== 1) {
-      add(
-        "MESH_ADMISSION_CONNECTOR_COLLISION_MISMATCH",
-        `/connectors/${connectorIndex}`,
-        `Part ${definition.id} undersideClutch connector ${connector.id} needs exactly one collision allowance naming its portId; found ${matchingAllowances.length} with ids [${matchingAllowances.map(({ id }) => id).join(", ")}]. Missing allowances disable valid connected-stud penetration, while duplicates make allowance selection order-dependent.`,
-      );
-    }
+  for (const issue of collisionAllowanceAdmissionIssues(definition, visualBoundsValid)) {
+    add(issue.code, issue.path, issue.message);
   }
 
   if (issues.length > 0) {

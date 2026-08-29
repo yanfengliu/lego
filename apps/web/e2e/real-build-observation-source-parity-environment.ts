@@ -1,4 +1,8 @@
 import {
+  EXECUTION_SOURCE_MIRROR_MANIFEST_DIGEST,
+  SERVED_SOURCE_BUNDLE_MANIFEST_DIGEST,
+} from "./real-build-observation-source-parity-field-names.ts";
+import {
   exactSourceParityKeys,
   sourceParityDigest,
   sourceParityInteger,
@@ -84,9 +88,9 @@ export function validateRealBuildSourceParityEnvironment(input: {
       "browser",
       "playwright",
       "bootstrapSourceManifestDigest",
-      "executionSourceMirrorManifestDigest",
+      EXECUTION_SOURCE_MIRROR_MANIFEST_DIGEST,
       "servedResponseManifestDigest",
-      "servedSourceBundleManifestDigest",
+      SERVED_SOURCE_BUNDLE_MANIFEST_DIGEST,
       "servedSourceBundleDigest",
       "checkoutRoot",
       "browserResultDigest",
@@ -124,9 +128,9 @@ export function validateRealBuildSourceParityEnvironment(input: {
   exactRuntimeValue(environment.checkoutRoot, input.repoRoot, "Execution environment checkoutRoot");
   const digestBindings = [
     ["bootstrapSourceManifestDigest", snapshot.bootstrapManifestDigest],
-    ["executionSourceMirrorManifestDigest", snapshot.executionMirrorManifestDigest],
+    [EXECUTION_SOURCE_MIRROR_MANIFEST_DIGEST, snapshot.executionMirrorManifestDigest],
     ["servedResponseManifestDigest", snapshot.servedResponseManifestDigest],
-    ["servedSourceBundleManifestDigest", snapshot.servedSourceBundleManifestDigest],
+    [SERVED_SOURCE_BUNDLE_MANIFEST_DIGEST, snapshot.servedSourceBundleManifestDigest],
     ["servedSourceBundleDigest", snapshot.servedSourceBundleDigest],
     ["browserResultDigest", snapshot.browserResultDigest],
     ["preparedPanelsDigest", snapshot.preparedPanelsDigest],

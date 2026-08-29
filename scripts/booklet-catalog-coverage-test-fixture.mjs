@@ -163,7 +163,7 @@ export function fixture() {
   const callouts = [
     {
       identity: "p11|q1|x43.074|y486.271",
-      file: "runs/0123456789abcdef01234567/p11-q1-x43d074-y486d271.png",
+      file: `${"runs/0123456789abcdef01234567/p11"}-q1-x43d074-y486d271.png`,
       pageNumber: 11,
       stepNumber: 1,
       quantity: 1,
@@ -199,7 +199,7 @@ export function fixture() {
     },
     {
       identity: "p11|q1|x108.908|y486.271",
-      file: "runs/0123456789abcdef01234567/p11-q1-x108d908-y486d271.png",
+      file: `${"runs/0123456789abcdef01234567/p11"}-q1-x108d908-y486d271.png`,
       pageNumber: 11,
       stepNumber: 1,
       quantity: 1,

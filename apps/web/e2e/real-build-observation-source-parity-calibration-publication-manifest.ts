@@ -1,3 +1,4 @@
+import { FULL_PREPARED_PANELS_MANIFEST_BYTES } from "./real-build-observation-source-parity-field-names.ts";
 import { sha256Hex, type Sha256Digest } from "@lego-studio/brick-kernel";
 
 import { createRealBuildSourceParityCalibrationContract } from "./real-build-observation-source-parity-calibration-contract";
@@ -80,7 +81,7 @@ export function parseRealBuildSourceParityCalibrationFullPreparedPanelsManifest(
   const bytes = snapshotCaptureBytes(
     value,
     MAXIMUM_REAL_BUILD_SOURCE_PARITY_CALIBRATION_FULL_MANIFEST_BYTES,
-    "calibrationPublication.fullPreparedPanelsManifestBytes",
+    "calibrationPublication." + FULL_PREPARED_PANELS_MANIFEST_BYTES,
   );
   let text: string;
   try {

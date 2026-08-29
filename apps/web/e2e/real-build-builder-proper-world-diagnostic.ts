@@ -16,7 +16,7 @@ import {
 } from "./real-build-official";
 
 export const BUILDER_PROPER_WORLD_DIAGNOSTIC_SCHEMA =
-  "lego.builder-proper-world-diagnostic/1" as const;
+  "lego.builder-proper-world-diagnostic/2" as const;
 
 export const BUILDER_PREFIX50_ACTION_SOURCE_ROWS_COMMITMENT =
   "sha256:559d808d9fe3980f1f3be73718db2305b1e341cd4d40b5811e2e4d2c3d507d6a" as const;
@@ -32,7 +32,7 @@ export interface BuilderProperWorldDiagnosticRow extends PrefixRow {
   readonly catalogPartId: string;
   readonly diagnosticProperTransform: LedgerTransform;
   readonly canonicalTransform: LedgerTransform | null;
-  readonly classification: "authorable-upright" | "diagnostic-proper-only";
+  readonly classification: "calibration-upright-canonical" | "diagnostic-proper-only";
 }
 
 export interface BuilderProperWorldDiagnostic {
@@ -43,11 +43,11 @@ export interface BuilderProperWorldDiagnostic {
   readonly calibrationSchemaVersion: string;
   readonly sourceRowsCommitment: typeof BUILDER_PREFIX50_ACTION_SOURCE_ROWS_COMMITMENT;
   readonly properOrientationRosterDigest: `sha256:${string}`;
-  readonly documentOrientationPolicy: "unchanged-four-upright";
+  readonly projectionOrientationPolicy: "upright-canonical-with-proper-diagnostic-output";
   readonly counts: {
     readonly requestedRows: number;
     readonly localFrameRows: number;
-    readonly authorableUprightRows: number;
+    readonly calibrationUprightRows: number;
     readonly diagnosticProperOnlyRows: number;
     readonly missingLocalFrameRows: number;
   };
@@ -134,11 +134,12 @@ const sameTransform = (left: LedgerTransform, right: LedgerTransform): boolean =
   left.positionLdu.every((coordinate, axis) => coordinate === right.positionLdu[axis]);
 
 /**
- * Derives exact proper world transforms without widening the canonical document policy.
+ * Derives exact proper world transforms without widening canonical document authority.
  *
  * All output is diagnostic and explicitly authority-absent. A non-upright row keeps
  * `canonicalTransform: null`; rendering may consume the separate diagnostic transform, while
- * catalog legality, compiler validation, placement, and manual-editor authoring remain upright-only.
+ * catalog legality, compiler validation, placement, and manual-editor authoring independently enforce
+ * the selected definition's part-scoped legal orientations; this diagnostic grants none of them.
  */
 export async function createBuilderProperWorldDiagnostic(input: {
   readonly rows: readonly PrefixRow[];
@@ -377,7 +378,7 @@ export async function createBuilderProperWorldDiagnostic(input: {
               orientationId: canonicalTransform.orientationId,
             },
       classification: authorable
-        ? ("authorable-upright" as const)
+        ? ("calibration-upright-canonical" as const)
         : ("diagnostic-proper-only" as const),
     };
   });
@@ -409,11 +410,11 @@ export async function createBuilderProperWorldDiagnostic(input: {
     calibrationSchemaVersion: calibration.schemaVersion,
     sourceRowsCommitment,
     properOrientationRosterDigest: properOrientationRosterDigest(),
-    documentOrientationPolicy: "unchanged-four-upright",
+    projectionOrientationPolicy: "upright-canonical-with-proper-diagnostic-output",
     counts: {
       requestedRows: orderedRows.length,
       localFrameRows: outputRows.length,
-      authorableUprightRows: outputRows.length - diagnosticOnly.length,
+      calibrationUprightRows: outputRows.length - diagnosticOnly.length,
       diagnosticProperOnlyRows: diagnosticOnly.length,
       missingLocalFrameRows: orderedRows.length - outputRows.length,
     },

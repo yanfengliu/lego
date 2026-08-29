@@ -34,6 +34,12 @@ from measured_part_report_rows import (
 )
 from measured_stud_tables import MeasuredStudRow, require_matching_stud_frames
 from measured_source_connectors import source_connectors_for
+from measured_source_connector_rows import (
+    MeasuredSourceConnector,
+    source_connector_candidate_row,
+    source_connector_sort_key,
+    transform_source_connector,
+)
 from part_admission_ldraw_candidate import DEFAULT_COLUMN_LDU, column_candidate, role_classifier
 from part_admission_surface import STUD_ROLE, MeasuredSurface
 from proper_orientations_generated import PROPER_ORIENTATIONS
@@ -201,7 +207,7 @@ class MeasuredPart:
     exact_bounds: tuple[tuple[str, str, str], tuple[str, str, str]]
     studs_ldu: tuple[MeasuredStudRow, ...]
     clutches_ldu: tuple[Vector3, ...]
-    source_connectors_ldu: tuple[tuple[str, Vector3, Vector3], ...]
+    source_connectors_ldu: tuple[MeasuredSourceConnector, ...]
     body_boxes_ldu: tuple[float, ...]
     root: SourceRecord
     closure: tuple[SourceRecord, ...]
@@ -359,7 +365,7 @@ def measure_part(
                 "Builder-to-LDraw frame report has no record for that design."
             )
         shadow_files: tuple[str, ...] = ()
-        source_connectors: list[tuple[str, Sequence[float], Sequence[float]]] = []
+        source_connectors: list[MeasuredSourceConnector] = []
     elif plan.connector_source == BUILDER_CONNECTIVITY_CONNECTOR_SOURCE:
         fact = plan.builder_connectivity_fact
         assert fact is not None
@@ -401,11 +407,14 @@ def measure_part(
         source_connectors_ldu=tuple(
             sorted(
                 (
-                    kind,
-                    frame_point(position, plan),
-                    frame_direction(normal, plan),
-                )
-                for kind, position, normal in source_connectors
+                    transform_source_connector(
+                        row,
+                        lambda point: frame_point(point, plan),
+                        lambda direction: frame_direction(direction, plan),
+                    )
+                    for row in source_connectors
+                ),
+                key=source_connector_sort_key,
             )
         ),
         body_boxes_ldu=_clamped_column_boxes(candidate, plan, solid_bounds),
@@ -453,18 +462,15 @@ def scoreable_candidate(part: MeasuredPart) -> dict[str, object]:
         for row in part.clutches_ldu
     ]
     source_connectors = [
-        {
-            "kind": kind,
-            "gender": "female" if kind == "axleHole" else "male",
-            "positionLdu": list(
-                frame_point(
-                    tuple(position[axis] - part.plan.translation_ldu[axis] for axis in range(3)),
-                    unframe,
-                )
+        source_connector_candidate_row(
+            row,
+            lambda point: frame_point(
+                tuple(point[axis] - part.plan.translation_ldu[axis] for axis in range(3)),
+                unframe,
             ),
-            "normal": list(frame_direction(normal, unframe)),
-        }
-        for kind, position, normal in part.source_connectors_ldu
+            lambda direction: frame_direction(direction, unframe),
+        )
+        for row in part.source_connectors_ldu
     ]
     candidate = dict(part.candidate)
     candidate["connectors"] = [

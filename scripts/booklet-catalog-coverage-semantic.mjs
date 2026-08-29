@@ -13,6 +13,7 @@ import {
   FULL_CALLOUT_MANIFEST_EXPECTATION,
   assertV6CalloutManifest,
   jsonArtifactFromBytes,
+  sha256Digest,
 } from "./part-identification-artifact-source.mjs";
 import {
   snapshotBoundedUint8Array,
@@ -296,6 +297,46 @@ export async function verifySemanticBookletCatalogCoverage(input) {
   }
   return expected;
 }
+
+const verifiedCoverageArtifacts = new WeakMap();
+
+function deepFreeze(value) {
+  if (typeof value !== "object" || value === null || Object.isFrozen(value)) return value;
+  for (const child of Object.values(value)) deepFreeze(child);
+  return Object.freeze(value);
+}
+
+/** Opaque publication authority layered over the independently reproduced coverage verifier. */
+export async function verifyOpaqueSemanticBookletCatalogCoverage(input) {
+  const artifact = await verifySemanticBookletCatalogCoverage(input);
+  const bytes = encodeSemanticBookletCatalogCoverage(artifact);
+  const verified = Object.freeze({});
+  verifiedCoverageArtifacts.set(verified, {
+    artifact: deepFreeze(artifact),
+    bytes: Buffer.from(bytes),
+    digest: sha256Digest(bytes),
+  });
+  return verified;
+}
+
+function verifiedCoverageRecord(value) {
+  const record = verifiedCoverageArtifacts.get(value);
+  if (record === undefined) {
+    throw new TypeError(
+      "Semantic catalog coverage publication inspection requires its opaque in-memory verifier result.",
+    );
+  }
+  return record;
+}
+
+export const isVerifiedSemanticBookletCatalogCoverage = (value) =>
+  typeof value === "object" && value !== null && verifiedCoverageArtifacts.has(value);
+export const bytesFromVerifiedSemanticBookletCatalogCoverage = (value) =>
+  Buffer.from(verifiedCoverageRecord(value).bytes);
+export const inspectVerifiedSemanticBookletCatalogCoverage = (value) => {
+  const record = verifiedCoverageRecord(value);
+  return Object.freeze({ artifact: record.artifact, digest: record.digest });
+};
 
 export const __testOnly = Object.freeze({
   compileSnapshot: (input, expectation) => compileSnapshot(input, expectation),

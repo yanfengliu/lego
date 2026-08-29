@@ -1,3 +1,10 @@
+import {
+  BOOTSTRAP_LOCK_COVERS_INSTRUCTION_PDF,
+  BOOTSTRAP_MANIFEST_EVIDENCE_DIGEST,
+  EXECUTION_MIRROR_COVERS_INSTRUCTION_PDF,
+  FULL_PREPARED_PANELS_MANIFEST_BYTES,
+  SERVED_SOURCE_BUNDLE_MANIFEST_DIGEST,
+} from "./real-build-observation-source-parity-field-names.ts";
 import { lstatSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import { types as nodeTypes } from "node:util";
@@ -30,20 +37,20 @@ import type {
 const SOURCE_SNAPSHOT_KEYS = [
   "state",
   "bootstrapManifestDigest",
-  "bootstrapManifestEvidenceDigest",
+  BOOTSTRAP_MANIFEST_EVIDENCE_DIGEST,
   "sourceRootsPolicyDigest",
   "bootstrapLockManifestDigest",
   "bootstrapLockedFiles",
   "bootstrapLockedBytes",
-  "bootstrapLockCoversInstructionPdf",
+  BOOTSTRAP_LOCK_COVERS_INSTRUCTION_PDF,
   "executionMirrorManifestDigest",
   "executionMirrorFiles",
   "executionMirrorBytes",
-  "executionMirrorCoversInstructionPdf",
+  EXECUTION_MIRROR_COVERS_INSTRUCTION_PDF,
   "servedResponseManifestDigest",
   "servedResponseFiles",
   "servedResponseBytes",
-  "servedSourceBundleManifestDigest",
+  SERVED_SOURCE_BUNDLE_MANIFEST_DIGEST,
   "servedSourceBundleDigest",
   "servedSourceFiles",
   "servedSourceUniqueBytes",
@@ -94,12 +101,12 @@ export function snapshotRealBuildSourceParityCalibrationSourceSnapshot(
   }
   const digestKeys = [
     "bootstrapManifestDigest",
-    "bootstrapManifestEvidenceDigest",
+    BOOTSTRAP_MANIFEST_EVIDENCE_DIGEST,
     "sourceRootsPolicyDigest",
     "bootstrapLockManifestDigest",
     "executionMirrorManifestDigest",
     "servedResponseManifestDigest",
-    "servedSourceBundleManifestDigest",
+    SERVED_SOURCE_BUNDLE_MANIFEST_DIGEST,
     "servedSourceBundleDigest",
     "browserResultDigest",
     "preparedPanelsDigest",
@@ -213,7 +220,7 @@ export function snapshotRealBuildSourceParityCalibrationPublicationInput(
 ): PreparedRealBuildSourceParityCalibrationPublicationInput {
   const row = exactCaptureRecord(
     value,
-    ["repoRoot", "capture", "fullPreparedPanelsManifestBytes", "sourceSnapshot", "provenance"],
+    ["repoRoot", "capture", FULL_PREPARED_PANELS_MANIFEST_BYTES, "sourceSnapshot", "provenance"],
     "calibrationPublication",
   );
   const provenance = boundedDenseCaptureArray(
@@ -228,7 +235,7 @@ export function snapshotRealBuildSourceParityCalibrationPublicationInput(
     fullPreparedPanelsManifestBytes: snapshotCaptureBytes(
       row.fullPreparedPanelsManifestBytes,
       MAXIMUM_REAL_BUILD_SOURCE_PARITY_CALIBRATION_FULL_MANIFEST_BYTES,
-      "calibrationPublication.fullPreparedPanelsManifestBytes",
+      "calibrationPublication." + FULL_PREPARED_PANELS_MANIFEST_BYTES,
     ),
     sourceSnapshot: snapshotRealBuildSourceParityCalibrationSourceSnapshot(row.sourceSnapshot),
     provenance: Object.freeze([...provenance]) as readonly RealBuildSourceParityProvenanceRole[],

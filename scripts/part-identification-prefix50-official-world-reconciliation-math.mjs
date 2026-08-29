@@ -141,7 +141,9 @@ export function prefix50OccurrenceProjection(row) {
     masterSubBuildRef: row.masterSubBuildRef,
     calloutIdentity: row.calloutIdentity,
     designRevision: row.designRevision,
+    publishedCatalogPartId: row.publishedCatalogPartId,
     catalogPartId: row.catalogPartId,
+    catalogBinding: row.catalogBinding,
     catalogColorId: row.catalogColorId,
     xmlRow: row.xmlRow,
     xmlPartRow: row.xmlPartRow,
@@ -160,6 +162,7 @@ export function assertPrefix50ReconciliationAuthorityState(row) {
     );
   }
   if (row.status === "reconciled") {
+    const movedRoot = row.catalogBinding?.bindingKind === "identity-moved-root";
     if (
       row.frameApplied !== true ||
       typeof row.frameKey !== "string" ||
@@ -168,7 +171,11 @@ export function assertPrefix50ReconciliationAuthorityState(row) {
       row.catalogFrameEvidence === undefined ||
       row.catalogWorldTransform === null ||
       row.catalogWorldTransform === undefined ||
-      row.quarantineBasis !== null
+      row.quarantineBasis !== null ||
+      (movedRoot &&
+        (row.catalogIdentityProof?.proofId !== row.catalogBinding.movedRootProofId ||
+          row.catalogIdentityProof?.globalAliasClaimed !== false)) ||
+      (!movedRoot && row.catalogIdentityProof !== null)
     ) {
       throw new TypeError(
         "A reconciled official-world row requires one exact applied frame and world transform without quarantine authority.",
@@ -181,6 +188,7 @@ export function assertPrefix50ReconciliationAuthorityState(row) {
       row.frameApplied !== false ||
       row.frameKey !== null ||
       row.catalogFrameEvidence !== null ||
+      row.catalogIdentityProof !== null ||
       row.catalogWorldTransform !== null ||
       typeof row.quarantineBasis !== "string" ||
       row.quarantineBasis.length === 0
@@ -205,6 +213,7 @@ export function prefix50WorldProjection(row) {
     frameApplied: row.frameApplied,
     identityEquivalenceClaimed: row.identityEquivalenceClaimed,
     sourceWorldProposal: row.sourceWorldProposal,
+    catalogIdentityProof: row.catalogIdentityProof,
     catalogWorldTransform: row.catalogWorldTransform,
     documentLegalityClaimed: row.documentLegalityClaimed,
   };

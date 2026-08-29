@@ -137,8 +137,8 @@ describe("first-50 Builder proper-world diagnostic contract", () => {
         BUILDER_PREFIX50_ACTION_SOURCE_ROWS_COMMITMENT,
       );
       expect([properWorldDiagnosticBytes.length, sha256(properWorldDiagnosticBytes)]).toEqual([
-        76_854,
-        "sha256:f01f40fe744f0f704411e470852339eb5d285eacfea73680052421778a7445a9",
+        78_884,
+        "sha256:6a26f70df0aa6faac4361a195bd2d95931f8f46acd2e56ecc7c7f052ea0aa940",
       ]);
       for (const hostileToken of [
         structuredClone(builder2453IdentityToken),

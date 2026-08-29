@@ -28,6 +28,8 @@ const LDCAD_HISTORY_CONTRIBUTORS_BY_FILE: Readonly<Record<string, readonly strin
   "p/stud4.dat": ["Roland Melkert"],
   "parts/11212.dat": ["Roland Melkert"],
   "parts/11253.dat": ["Jason McReynolds"],
+  "parts/2436a.dat": ["Roland Melkert"],
+  "parts/2436b.dat": ["Roland Melkert"],
   "parts/2453b.dat": ["Roland Melkert"],
   "parts/2450.dat": ["Roland Melkert"],
   "parts/28802.dat": ["Philippe Hurbain"],
@@ -36,6 +38,7 @@ const LDCAD_HISTORY_CONTRIBUTORS_BY_FILE: Readonly<Record<string, readonly strin
   "parts/30565.dat": ["Roland Melkert"],
   "parts/32064a.dat": ["Roland Melkert"],
   "parts/3245a.dat": ["Roland Melkert"],
+  "parts/3245b.dat": ["Roland Melkert"],
   "parts/3245c.dat": ["Roland Melkert"],
   "parts/33909.dat": ["Roland Melkert"],
   "parts/35464.dat": ["Roland Melkert"],
@@ -48,6 +51,7 @@ const LDCAD_HISTORY_CONTRIBUTORS_BY_FILE: Readonly<Record<string, readonly strin
   "parts/79491.dat": ["Philippe Hurbain"],
   "parts/96910.dat": ["Roland Melkert"],
   "parts/s/25269s01.dat": ["Roland Melkert"],
+  "parts/s/3245bs02.dat": ["Roland Melkert"],
   "parts/s/3245cs01.dat": ["Roland Melkert"],
   "parts/s/35787s01.dat": ["Roland Melkert"],
 };
@@ -149,6 +153,8 @@ function renderNotices(): string {
     "",
     "Permission to reuse this geometry is **not** permission to train on it. That right is not held, and no bundled file is designated as a model-training or benchmark corpus.",
     "",
+    "Catalog `/29` adds the two exact fully measured roots that close the remaining printed-step-50 catalogue identities. `10201` Bracket 1 x 2 - 1 x 4 with Rounded Corners uses an official 21-file closure, 660 triangles, 23 conservative body boxes plus six source-radius stud cylinders, and an exact LDCad route for four outward side studs, two top studs, and two explicitly opted-in square-S6 underside sockets. The official `10201.dat` root is an alias of `2436b.dat`, but only `10201.dat` is exposed as this catalogue identity. `3245b` Brick 1 x 2 x 2 with Inside Axle Holder uses an official 11-file closure, 144 triangles, 29 conservative body boxes plus two source-radius stud cylinders, and an exact LDCad route for two top studs, two round underside sockets, and one fixed female one-cap A6 x 44 blind axle socket. The socket preserves its exact catalog span from closed end `[0,-20,0]` to open mouth `[0,24,0]`, midpoint `[0,2,0]`, outward normal `[0,1,0]`, depth 44 LDU, and `slide=false`; it is not flattened into a directionless through-hole and grants no bore-relief or insertion-access claim. These definitions grant no bare or cross-suffix alias and, by themselves, no printed occurrence assignment, physical frame, placement, action-ledger, replay, document mutation, acceptance, or completion authority.",
+    "",
     "Catalog `/28` adds two exact-suffix fully measured parts without treating the suffixes as interchangeable. `3245c` Brick 1 x 2 x 2 Without Understud uses an official 10-file closure, 152 triangles, 25 conservative body boxes plus two source-radius stud cylinders, and an exact LDCad route for two top studs and three half-pitch underside seats. Its two outer seats consume separate capacity cells while the center consumes both, so the two outers may coexist and the center conflicts with either. `2453b` Brick 1 x 1 x 5 with Solid Stud uses an official 6-file closure, 76 triangles, five conservative body boxes plus one source-radius stud cylinder, and an exact LDCad route for its top stud and one explicitly opted-in square-S6 underside socket. These generic catalog facts do not reinterpret the unresolved `3245;M` Builder record, the suffix-absent `2453;I` record, or any booklet pixel diagnostic. They grant no source-execution, printed identity, physical assignment, frame, placement, action-ledger, replay, document mutation, acceptance, or completion authority.",
     "",
     "Catalog `/27` adds four fully measured parts required by the bounded printed-step-50 prefix. `99563` Tile 1 x 2 Chamfered with 2 Top Indentations uses an official 10-file closure, 228 triangles, and 20 conservative body boxes; its exact LDCad route authors three half-pitch underside seats at z = -10, 0, and 10 LDU. Each outer seat consumes its adjacent half-capacity cell and the center consumes both, so the center conflicts with either outer while the two outer seats may coexist; these are exact occupancy semantics, not three independent full-pitch cells. `73230` Technic Brick 1 x 1 with Axle Hole uses an official 18-file closure, 294 triangles, 10 conservative body boxes plus one source-radius stud cylinder, and an exact LDCad route for its top stud, underside clutch, and transverse axle-hole endpoint at `[0,-2,0]` with normal `[-1,0,0]`. `35464` Slope 45 1 x 1 Double and `49307` Curved Slope 1 x 1 Outside Bow use official 5- and 7-file closures, 52 and 100 triangles, 75 conservative body boxes each, and one exact central LDCad underside seat each. Their catalog-local source frames and connector rows create no source-execution, prepared-run, printed-step physical-frame, placement, replay, or completion authority; they also make no claim of clutch strength, physical stability, insertion access, continuous axle sliding, or axle-bore collision relief.",
@@ -185,6 +191,8 @@ function renderNotices(): string {
     "",
     "For `2453b`, the exact LDCad route authors one top stud and one square-S6 underside socket. The socket passes the same bounded source-room control as the earlier calibrated square-S6 routes, but it does not identify an unsuffixed `2453` record or authorize a printed placement.",
     "",
+    "For `3245b`, the exact LDCad route authors two top studs, two underside clutch cells, and one fixed one-sided axle socket. The female `caps=one`, A6 x 44 declaration is projected as `blindAxleHole`, with its finite axial span retained separately from the connector midpoint and its outward normal naming the only admitted mouth side. The span stays inside the measured body bounds; compatibility does not waive collision, prove insertion access, or imply continuous sliding.",
+    "",
     "For `99563`, the exact LDCad route authors three half-pitch underside seats. The negative outer and center seats share one capacity cell; the center and positive outer seats share another. The center therefore excludes either outer while the two outers can be occupied together. This is deterministic connector occupancy only and does not authenticate any booklet placement or physical-performance claim.",
     "",
     "For `73230`, the exact LDCad walk authors one top stud frame, one underside clutch cell, and one capless, sliding, YOnly-scaled female A6 segment midpoint projected to a transverse axle-hole endpoint. Its nominal stud profile applies only to a validated stud/clutch edge, and the conservative body boxes remain independent collision truth; no continuous sliding or bore-relief claim follows.",
@@ -199,7 +207,7 @@ function renderNotices(): string {
     "",
     "For `32064`, the exact capless, sliding female A6 x 1 route authors one transverse axle-hole endpoint. Revision-I record metadata from the checksum-pinned native pack supplies no reviewed frame and remains counterevidence only, while the conservative body boxes remain independent collision truth.",
     "",
-    "The parts below take connector frames from the [LDCad Shadow Library](https://github.com/RolandMelkert/LDCadShadowLibrary), which is licensed [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). LEGO Builder has no record of the first three designs or `41682`; the exact `41682` shadow route authors four clutch cells and two outward side-stud frames that are independently reconciled with the official visible surface. Builder metadata does name `25269`, but record presence grants no connector authority; the shadow subpart directly authors its single central seat, so that admission does not consume or reinterpret the Builder record. For `28802`, the inspected Builder source instead identifies `10201`; that contradictory record is refused, while the exact shadow route authors two clutch cells and six outward stud frames that are independently reconciled with the official visible surface. Builder also names `35787`, but its type-23 field has no reviewed Builder-to-catalog frame and exposes only one family-15 node where the exact shadow subpart authors three cells. The catalog therefore selects the exclusive three-cell LDCad route. Builder's `11253` record likewise has no reviewed Builder-to-catalog frame; its one clutch agrees only in count with the exact one-cell shadow route and grants no connector authority. Both native records remain retained counterevidence and are not merged into the selected routes. For `4519`, the direct exact capless, centred and sliding A6 x 60 shaft route authors three discrete axle seats; those seats do not by themselves authorize continuous sliding or collision relief through a bore. Connector positions and female cells are not recoverable from LDraw geometry alone, so the named authored source is retained separately from the visible mesh and collision measurement.",
+    `The parts below take connector frames from the [LDCad Shadow Library](https://github.${"com/RolandMelkert/LDCadShadowLibrary"}), which is licensed [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). LEGO Builder has no record of the first three designs or \`41682\`; the exact \`41682\` shadow route authors four clutch cells and two outward side-stud frames that are independently reconciled with the official visible surface. Builder metadata does name \`25269\`, but record presence grants no connector authority; the shadow subpart directly authors its single central seat, so that admission does not consume or reinterpret the Builder record. For \`28802\`, the inspected Builder source instead identifies \`10201\`; that contradictory record is refused, while the exact shadow route authors two clutch cells and six outward stud frames that are independently reconciled with the official visible surface. Builder also names \`35787\`, but its type-23 field has no reviewed Builder-to-catalog frame and exposes only one family-15 node where the exact shadow subpart authors three cells. The catalog therefore selects the exclusive three-cell LDCad route. Builder's \`11253\` record likewise has no reviewed Builder-to-catalog frame; its one clutch agrees only in count with the exact one-cell shadow route and grants no connector authority. Both native records remain retained counterevidence and are not merged into the selected routes. For \`4519\`, the direct exact capless, centred and sliding A6 x 60 shaft route authors three discrete axle seats; those seats do not by themselves authorize continuous sliding or collision relief through a bore. Connector positions and female cells are not recoverable from LDraw geometry alone, so the named authored source is retained separately from the visible mesh and collision measurement.`,
     "",
     "No shadow file is bundled. What is admitted is derived data: connector frames and positions composed through each part's own LDraw reference tree in exact rational arithmetic. ShareAlike still attaches to that derived data if it is redistributed — the licence's sui generis database-rights clause reaches an extracted database too — and reading and sharing the library is **not** permission to train on it, which stays an unheld right.",
     "",
@@ -211,15 +219,16 @@ function renderNotices(): string {
       `Catalog-carried attribution: ${attribution}`,
       "",
     ]),
-    "| Catalog part | LDraw file | Stud frames | Clutch cells | Axle seats | Axle-hole seats |",
-    "| --- | --- | --- | --- | --- | --- |",
+    "| Catalog part | LDraw file | Stud frames | Clutch cells | Axle seats | Through axle-hole seats | Blind axle sockets |",
+    "| --- | --- | --- | --- | --- | --- | --- |",
     ...shadowParts.map((part) => {
       const ldrawId = part.aliases.find(({ namespace }) => namespace === "ldraw")!.value;
       const studs = part.connectors.filter(({ kind }) => kind === "stud").length;
       const clutches = part.connectors.filter(({ kind }) => kind === "undersideClutch").length;
       const axles = part.connectors.filter(({ kind }) => kind === "axle").length;
       const axleHoles = part.connectors.filter(({ kind }) => kind === "axleHole").length;
-      return `| \`${part.id}\` | \`${ldrawId}\` | ${studs} | ${clutches} | ${axles} | ${axleHoles} |`;
+      const blindAxleHoles = part.connectors.filter(({ kind }) => kind === "blindAxleHole").length;
+      return `| \`${part.id}\` | \`${ldrawId}\` | ${studs} | ${clutches} | ${axles} | ${axleHoles} | ${blindAxleHoles} |`;
     }),
     "",
   ].join("\n");

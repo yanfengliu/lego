@@ -10,6 +10,8 @@ const V27_TRUTH_HASH = "sha256:614c61787b6c45d645e3e84c71dd931a15c258535a1959ee4
 const V28_PART_IDS = [
   "builtin:brick-1x2x2-without-understud",
   "builtin:brick-1x1x5-solid-stud",
+  "builtin:bracket-1x2-1x4-rounded-corners",
+  "builtin:brick-1x2x2-inside-axle-holder",
 ] as const;
 
 function documentSavedAtV27(): BrickDocumentV1 {
@@ -59,12 +61,53 @@ describe("builtin.basic-parts/27 migration", () => {
     expect(report.migrated).toBe(true);
     expect(report.fromTruthHash).toBe(V27_TRUTH_HASH);
     expect(report.addedCatalogPartIds).toEqual(V28_PART_IDS);
-    expect(report.catalogInterpretationChanges).toEqual([]);
+    expect(report.catalogInterpretationChanges).toEqual([
+      {
+        affectedCatalogPartIds: [
+          "builtin:plate-1x2-round-end",
+          "builtin:wedge-plate-2x4-wing",
+          "builtin:corner-plate-3x3",
+          "builtin:plate-3x3-corner-round",
+        ],
+        changedFields: ["connector-semantics", "collision-semantics"],
+        fromCatalogVersion: "builtin.basic-parts/28",
+        toCatalogVersion: "builtin.basic-parts/29",
+      },
+      {
+        affectedCatalogPartIds: [
+          "builtin:technic-brick-1x1-axle-hole",
+          "builtin:technic-brick-1x2-axle-hole",
+        ],
+        changedFields: ["connector-semantics", "collision-semantics"],
+        fromCatalogVersion: "builtin.basic-parts/28",
+        toCatalogVersion: "builtin.basic-parts/29",
+      },
+    ]);
     expect(report.truthComponentChanges).toEqual([
       {
         component: "catalog",
         fromVersion: "builtin.basic-parts/27",
         toVersion: BUILTIN_CATALOG_VERSION,
+      },
+      {
+        component: "connector-taxonomy",
+        fromVersion: "stud-tube/1",
+        toVersion: "stud-tube/2",
+      },
+      {
+        component: "collision-model",
+        fromVersion: "rectilinear-stud-clearance/3",
+        toVersion: "rectilinear-stud-clearance/4",
+      },
+      {
+        component: "transform-policy",
+        fromVersion: "upright-quarter-turns-negative-y-up/1",
+        toVersion: "part-scoped-proper-orientations-negative-y-up/1",
+      },
+      {
+        component: "validator-set",
+        fromVersion: "lego.kernel-validators/4",
+        toVersion: "lego.kernel-validators/5",
       },
     ]);
     expect(document.parts).toEqual(saved.parts);

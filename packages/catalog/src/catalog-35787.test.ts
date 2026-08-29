@@ -176,8 +176,8 @@ describe("35787 triangular tile catalog truth", () => {
       bytes: 16_184,
       manifestSha256: "sha256:64d0e836c0fc63f1a604c98f13ec5529a755589648675887c3896404b7bf7091",
     });
-    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(43);
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(228);
+    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(45);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(237);
   });
 
   it("retains the native Builder record only as counterevidence and selects one exact LDCad route", () => {
@@ -304,10 +304,10 @@ describe("35787 triangular tile catalog truth", () => {
     }
   });
 
-  it("keeps every /15 part payload byte unchanged after restoring its historical truth labels", () => {
+  it("pins the reviewed /29 projection of the /15 prefix under its historical truth labels", () => {
     const priorParts = PART_DEFINITIONS.slice(0, 87);
     const priorDefinitionBytes = JSON.stringify(priorParts)
-      .replaceAll("builtin.basic-parts/28", "builtin.basic-parts/15")
+      .replaceAll("builtin.basic-parts/29", "builtin.basic-parts/15")
       .replaceAll("rectilinear-stud-clearance/3", "rectilinear-stud-clearance/2");
     const rows = priorParts.map(({ id, connectors, collision }) => ({ id, connectors, collision }));
     const collisionRows = priorParts.map(({ id, collision }) => ({ id, collision }));
@@ -333,10 +333,10 @@ describe("35787 triangular tile catalog truth", () => {
         )
         .digest("hex"),
     }).toEqual({
-      definitionBytes: 1_482_732,
-      definitionHash: "5b69d9e01889d473e1dd3260624f64ff7d27ebae049eb00ee53e9fef59d23d15",
-      connectorCollisionHash: "0ea67bcd18a6e44d1be623b182fb3037c61981f21622d315c9e9f62d50639615",
-      collisionHash: "fa926e20179af939ae93c846a62b6c2d68bca6d9c21515a8d6ffafc35e3e146c",
+      definitionBytes: 1_483_987,
+      definitionHash: "94bf75a51659b4bbc6b296d2b3a6575ce20918108fef25e08078df3995ea7401",
+      connectorCollisionHash: "46385f112f19371ec6b92ee5c9e01071ae4847a03786bb5ec18f70b9e151e6cd",
+      collisionHash: "e552f2e8d28c93983421876d72d2b9d68167b92a1376e8f6a151fb6611de8013",
     });
   });
 });
