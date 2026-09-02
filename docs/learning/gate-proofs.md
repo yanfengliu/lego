@@ -396,6 +396,26 @@ Each was mutation-tested and the named gate stayed green, which is the finding. 
 - **The booklet turns the model over and says so.** Changing `ROTATION_ICON_SIDE_PT` from 44.937 to 30 leaves `real-build-transition-classification.test.ts` green.
 - **A cost curve's true minimum is its sharpest point.** The module the lesson was born in was rewritten: `findPitchCandidates` no longer exists and the estimator maximises a comb power rather than minimising a cost, so there is no smoothing to reintroduce.
 
+## The differential the second pass was checked against, 2026-09-02
+
+`npx vitest run`, with nothing else running and no file edited while it ran: **44 test files failed, 103 tests failed, 4231 passed**, 48 skipped, 2 todo, over 589 files in 766.82s. The first pass recorded **44 / 103 failed and 4197 passed over 582 files** at the end of its own work on this same tree, so the failure counts are identical. The 589 is 582 plus this pass's seven new test files, and the 4231 is 4197 plus their 32 cases plus the two added to existing files.
+
+That is a count, and a count is not a comparison. Checked by name instead:
+
+- Thirty-nine files printed a failing case. **None is a file this pass created or changed**, and none appears in the 52-file set that imports any module this pass changed — `camera-fit-lattice`, `camera-fit-lattice-phase`, `real-build-deferral`, `run-ledger-file`, `stud-pitch-profile`, `check-lessons`.
+- Thirty-one of the thirty-nine are modified or untracked in the working tree — the in-flight catalog `/30` work. The other eight fail on moved catalog digests, on `tar: Cannot connect to C: resolve failed`, and on a legacy-diagnostic message; the same three causes the first pass recorded.
+- All nineteen test files this pass created or touched were also run together, alone: 235 passed, 0 failed.
+
+`npx playwright test`: **59 passed, 16 skipped, 1 failed** in 14.1 minutes. The failure is `apps/web/e2e/manual-building.spec.ts:97 › steps through the build it just made`, on `expect(locator).toHaveText` receiving `"preview"`. That spec is modified in the working tree and nothing in it touches this pass's work.
+
+One earlier full run is discarded rather than reported: it was started, then `npm run build` was run beside it and two files were edited while it was in flight. It came back 61 / 127, and the only failure in this pass's own area was the test file being edited at the time. A suite this scheduling-sensitive cannot be measured while the tree moves under it.
+
+Non-test gates at the same point:
+
+- Pass: `schema:check`, `node:check`, `observations:check`, `parts:check`, `lessons:check`, `notices:check`, `tsc --noEmit`, `npm run test:python` (exit 0), `npm run build` (typecheck, web build, and the production bundle guard).
+- Fail, pre-existing: `bom:check` on an untracked WIP `.dll` the census has no policy for, and `migration-history:check` on the same `tar` drive-path error.
+- Fail, environmental and new since the first pass: `format:check` and `lint` both die on `EPERM: operation not permitted, scandir '.pytest_cache'`. That directory is gitignored and dates from 2026-08-23 at the root and 2026-08-29 under `scripts/`, so it predates this session. Prettier's verdict on every file it could read is "All matched files use Prettier code style!", and `eslint apps packages scripts --ignore-pattern "**/.pytest_cache/**" --max-warnings 0` reports exactly two errors, both `no-unused-vars` in untracked WIP files.
+
 ## The differential this session was checked against
 
 Full `npx vitest run` before this session's changes: 40 files / 101 tests failed, 4221 passed. After: 44 / 103 failed, 4197 passed, over 582 files rather than 580 — the two extra files are the new gates above.
