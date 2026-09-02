@@ -147,6 +147,26 @@ describe("isolateAssembly", () => {
   });
 });
 
+/**
+ * A sub-assembly box is joined to the model by its leader line, so the largest
+ * connected non-background region is not the assembly.
+ *
+ * Step 14 of the sample booklet prints a white box holding a two-step
+ * sub-assembly and joins it to the model with a printed leader line, so the box
+ * and the model are one connected component — and a 400 by 170 rectangle of
+ * white came through as assembly and read as a part that appeared between the
+ * panels. Opening the mask to sever the line is worse than the problem: printed
+ * art is line work, and a three-pixel erosion at a thousand-pixel panel width
+ * fragmented step 4 into 125 components, the largest holding a sixth of the
+ * drawing, which then fitted a camera at 21 pixels per stud against the
+ * booklet's 40.
+ *
+ * The page is grey and the model is not white, so keying the white first takes
+ * the callout box, the sub-assembly box, the step number and the progress bar
+ * with their bounding boxes before components are counted. Panels fitting a
+ * camera went 37 to 39 of 50 and median assembly agreement 66% to 74%. Raise the
+ * white level past what the page prints and the case below goes red.
+ */
 describe("keyPrintedBoxes", () => {
   it("masks a white box and everything it contains, not just its fill", () => {
     const width = 120;

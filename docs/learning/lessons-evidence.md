@@ -23,16 +23,6 @@ Each of the three `--check` gates now names the domain values that moved when an
 
 **Anchor:** 2026-08-07 commit `a8fc397`; `scripts/generated-file-staleness.mjs`; the doubled digest is quoted verbatim in `.gitattributes`; the then-current regression “never prints one pinned value as both held and produced” lived in `scripts/generated-file-staleness.test.mjs` and was later removed with the obsolete pinning surface.
 
-## Naming an ambiguity is not resolving it
-
-The grader stopped promoting a pick when the card displayed both hands of one part, and let it through again once the model's free-text note named the mirror twin by its candidate number.
-That check cannot fail on the case it exists to catch. The twin's number is the same number whichever hand was picked, so feeding `visionPick` the swapped pick on card-0039 with the note `candidate 1 is the mirror` returned `vision-kept` carrying element `6392747` — Wedge Plate 6 x 2 **Left** — identical in label and in element to the correct answer.
-Nothing downstream closed it either: `describesSameThing` never reads Left/Right, and both mirror pairs in this inventory are quantity 1 and 1, so a swapped pick conserves the printed piece counts exactly.
-The block was called `handedness` and the run reported `mirror named 0/4`, so the number read as handedness verified on four cards when it was mirror-pair awareness on four cards.
-The hand is a property of the drawing, so it is now read off the drawing: the query silhouette against each hand and against each hand mirrored, area-normalised, the wider overlap deciding. Same swapped input, same note, now `handedness-refuted` with no element.
-
-**Anchor:** 2026-08-07; `scripts/part-identification-handedness.mjs`; the swap and its before/after label are pinned in `scripts/part-identification-handedness.test.mjs` ("rejects the swapped hand even when the note names the twin by number"), which goes red if the refutation branch is removed.
-
 ## `lstat` and `fstat` do not agree on `dev` across platforms
 
 The ledger checked that a file was not swapped between lookup and open by comparing `dev` and `ino` from `lstat` against the open handle's `fstat`.
@@ -40,14 +30,6 @@ On Windows `lstat` reports `dev: 0` while `fstat` reports the real device, so ev
 The inode is the identity a swap changes; the device id is corroborating only, and must be compared only when both sides report one.
 
 **Anchor:** fix commit `c068b4c`; `sameFile` in `apps/companion/src/run-ledger-file.ts`; observed `device 0/39406496742044240 became 3603962542/39406496742044240`.
-
-## The structural hash covers part identifiers, so it is not model equivalence
-
-`documentStructuralHash` includes each part's id.
-Two identical models built independently therefore never hash alike, so a rebuild scored by hash equality is always a miss.
-Comparison must match parts on what they are and where they sit.
-
-**Anchor:** commit `0aa2f06`; `structuralMatch` in `packages/brick-kernel/src/build-comparison.ts`; caught by "scores an identical rebuild as an exact structural match".
 
 ## Recomputing pinned truth per call turns catalog growth into a timeout
 
@@ -65,22 +47,6 @@ The same pinned frustum also clipped the model away once the user dollied past t
 
 **Anchor:** commits `dd49eaa` and `73c550b`; `MIN_INTERACTIVE_FRAME_RADIUS` and `orbitCameraFrustum`; regression test "reproduces the canonical frustum clipping it replaces for interactive use".
 
-## A preview that recomputes geometry drifts from what gets placed
-
-The palette preview derived studs from a part's `widthStuds × lengthStuds` grid rather than from its collision primitives, so tiles — which have no studs — were drawn with studs.
-Tests passed; only looking at the rendered palette caught it.
-A preview must read the same source the renderer does.
-
-**Anchor:** commit `d86b274`; `PartPreview.tsx`; verified `tile1x1: 0, brick2x4: 8, plate6x6: 36` in the browser.
-
-## Filtering by value drops the token you wanted when it collides
-
-The booklet parser removed every text token equal to the page number, to discard the printed page number.
-A step whose number equals its page number — common early in a booklet — was discarded with it, losing step 64 of 359.
-The page prints its number once, so exactly one occurrence should be removed.
-
-**Anchor:** commit `00607a9`; `extractBookletStructure`; sequence coverage 0.997 → 1.000 on the 224-page sample.
-
 ## Long feedback loops need an intermediate score, and booklets supply their own
 
 "Did the right model come out" is too slow to iterate against.
@@ -88,40 +54,6 @@ An instruction booklet is internally redundant: step numbers must run 1..N witho
 Both are checkable the moment a booklet is read, with no model built, and both are falsifiable — which is what made the step-64 bug visible.
 
 **Anchor:** commits `00607a9` and `932948d`; `checkBookletConsistency` first recorded 359/359 steps and an impossible 3102 callout pieces, then panel attribution separated 1480 back-of-book inventory tokens and corrected the step-callout total to 1622 while sequence coverage stayed 359/359. The 3102 value is the caught failure, not the current callout count.
-
-## A cost curve's true minimum is its sharpest point, and smoothing destroys it
-
-The stud-pitch estimator scored each candidate period by how badly the traced edge failed to repeat at it, then looked for the dip.
-At the true period of 48 px the cost was exactly `0.00` while both neighbours sat at `0.71`, because a second difference cancels perfectly when the period is right.
-A three-point mean, added to stop raster noise passing for a dip, averaged that zero against its neighbours and made 48 px a local *maximum*; the estimate went to 45 px, on the shoulder.
-The dip that matters is one sample wide by construction, so it is the first thing any smoothing removes.
-
-**Anchor:** `findPitchCandidates` reads the curve raw in `apps/web/src/instructions/stud-pitch-comb.ts`; observed costs `47=0.71 48=0.00 49=0.71` against a smoothed `47=0.43 48=0.47 49=0.43`.
-
-## Periodicity and amplitude are both forgeable evidence of a drawn feature
-
-Reading stud pitch from the scallops on a highlight outline failed twice on evidence that looked sufficient.
-First, periodicity: a sloped line rounded into whole raster rows stair-steps, and a staircase repeats exactly and forever — `round(0.45x)` has period 20 — so straight fixtures returned confident 11 and 12 px pitches.
-Adding an amplitude floor fixed the synthetic cases and 59 synthetic negatives passed, but page 120 of the sample booklet, a visibly straight tiled outline, still yielded a confident 26 px pitch: thresholding an anti-aliased stroke into a binary mask makes the traced edge wander by a row or more, and that wander is correlated along the edge, so it clears an amplitude floor and repeats well enough to dip.
-What separates a drawn feature is that its wobble gathers onto the harmonics of one period and leaves the half-multiples between them empty.
-
-**Anchor:** `apps/web/src/instructions/stud-pitch.ts`; the negative is fixture `p120-r1@6` in `__fixtures__/booklet-edges.json`, kept by "reports no pitch for p120-r1@6, whose outline is visibly smooth"; synthetic recall 1.00 with 0 false positives on 59 negatives, and 6/6 hand-labelled real edges.
-
-## A probe that spells out an absolute repo path cannot run from a worktree
-
-Four booklet probes loaded pdfjs and the sample PDF over vite `/@fs/` URLs built from a hardcoded `C:/Users/.../github/lego`.
-Run from a worktree that path is outside the workspace vite infers, so `fs.allow` refused to serve it and every probe died on "Failed to fetch dynamically imported module" — and a worktree has neither `node_modules` nor `recipes/` of its own, so the path was also the wrong one to want.
-Resolving the pdfjs build through `require.resolve` and finding `recipes/` by walking up makes the probes run the same from either checkout.
-
-**Anchor:** `apps/web/e2e/sample-booklet.ts`; `servableRoots()` feeds `server.fs.allow` in `apps/web/e2e/global-setup.ts`.
-
-## Label image ground truth at more than one zoom
-
-Six highlight regions were labelled "scalloped" or "smooth" by rendering each and looking at it, to judge the pitch estimator against something better than its own output.
-Region `p200-r0` was labelled smooth from the scale-4 crop, where the studs sit inside the silhouette and the top edge reads as a plain diagonal.
-At scale 6 the same outline visibly arcs over every stud, and the label was wrong; had it been committed, a correct measurement would have been scored as a false positive and the estimator tuned to refuse it.
-
-**Anchor:** `apps/web/src/instructions/__fixtures__/booklet-edges.json` carries both scales of every edge for this reason; `p200-r0@4` and `p200-r0@6` both read "scalloped".
 
 ## A fixed crop box silently decapitates the big items
 
@@ -133,15 +65,6 @@ Sizing the cell to its own content — climb until a gap of clear rows — recov
 
 **Anchor:** the content-scan crop in the inventory thumbnail probe; `302926` went 876x164 to 876x419, `303226` 787x163 to 787x301, and the only dimension miss in the naive baseline was the clipped `302926`.
 
-## Reading a part from an isolated thumbnail is a different problem from reading it out of an assembly
-
-The same model, asked what part a step adds, answered 6 of 6 assembly crops at 0.35-0.58 self-reported confidence and got at least one plainly wrong.
-Asked the same question about the booklet's own inventory thumbnails — one part, isolated, on a plain ground — it scored 28/28 on stud dimensions, and the naive control prompt still scored 27/28.
-The prompt was worth about 4 points; the picture was worth the rest.
-Every surviving miss was a taxonomy artifact, where the answer vocabulary had no entry for an arch or a modified brick, not a misreading of the shape.
-
-**Anchor:** `output/vision-benchmark.json`; labels are element ids paired from the text layer by `apps/web/src/instructions/parts-inventory.ts`, resolved to part names against Brickset's published inventory for set 21066.
-
 ## A hand-assembled parts array is not a document
 
 The instruction-render probe spread four correctly-stacked, on-lattice parts into an empty document's `parts` array and got twelve blocking issues back.
@@ -149,26 +72,6 @@ A stud sitting inside another part's body is legal only through a collision allo
 Building the same four placements through `createPlacePartTransaction` and `applyBuildOperations` — the path the editor itself uses — validated clean.
 
 **Anchor:** `apps/web/e2e/instruction-render.spec.ts`; twelve blocking issues (`DISCONNECTED_ASSEMBLY`, three `PART_STUD_BODY_COLLISION`, four `STEP_MEMBERSHIP_MISMATCH`, four `SUBMODEL_MEMBERSHIP_MISMATCH`) became zero with no change to any transform.
-
-## A step highlight is an open contour whenever the parts go behind built ones
-
-The booklet outlines each step's new parts in yellow, which keys out of the page almost noise-free, so filling that outline looked like a free per-step target region.
-Half of them do not fill. Where a step's parts pass behind something already built, the booklet stops the yellow at the occluding edge and lets the black line art of the part in front carry the rest of the boundary, so the contour is open by design and encloses nothing.
-Thickening the stroke to bridge antialiasing gaps is worth doing — it repaired both open contours on page 160 — but it cannot close a contour that was never drawn closed, and pages 100 and 140 have no closed contour at all.
-A per-step score therefore cannot be an area comparison alone: it needs the stroke itself, scored against the candidate's own boundary, and must report an unavailable region as unavailable rather than as zero agreement.
-
-**Anchor:** `apps/web/src/instructions/highlight-region.ts` and `apps/web/e2e/highlight-region.spec.ts`; 19 of 36 contours closed over pages 12, 24, 40, 60, 80, 100, 120, 140, 160, 180, 200 and 214 of `recipes/6651557.pdf`; page 12 step 6 fills exactly and page 12 step 5 encloses nothing.
-
-## An open contour has no one-sided pixel test
-
-A closed contour is decided by containment — no candidate pixel outside the printed region — which works because the yellow is drawn outward of the silhouette, so the truth is strictly inside it.
-An open contour encloses nothing, and the two statements that sound like containment's replacement were both tried on printed step 5 of `recipes/6651557.pdf` and are both false of the right answer.
-"Every printed pixel is explained" shipped as a gate for one full run and refused the correct build at 1254 of 1429px: the best of 374 distinct placements of the Plate 2 x 14 is the unique maximum at 907 of the 1081px its own contour prints, and the 174 it misses are the outer row of a two-pixel stroke drawn outward by more than the boundary tolerance — the artist's offset, not the placement.
-"No printed pixel lies inside the piece" fails in the other direction: that same best placement has 433 printed pixels inside its own silhouette, because a line two pixels wide straddling a boundary is half inside it, and 166 of the 374 placements cross nothing at all because they are nowhere near the drawing.
-What works is maximality: rank by `strokeRecall` — the printed line the candidate's visible boundary passes under, with the precision term dropped because it charges the candidate for the occlusion that opened the contour — and require the run's existing separation margin or defer to the next panel.
-It keeps the property containment was chosen for, that a candidate spilling outside the printed contour cannot win, because spilled boundary explains no printed pixel.
-
-**Anchor:** `apps/web/src/assembly/step-score.ts` (`rankStepDelta`) and `apps/web/e2e/real-build-contract.ts` (`assessWholeStepVisualEvidence`); step 5 margins 0.6347 against 0.4962 and 0.2428 against 0.1854 on a 0.01 bar; `stepsComplete` 5, `piecesPlaced` 8.
 
 ## A document's parts are not in insertion order
 
@@ -212,34 +115,6 @@ A second reading covers it: every pixel the two panels disagree on, which sees t
 **Anchor:** `apps/web/e2e/first-fifty.spec.ts` recorded the original whole-panel red-pixel count of 19/50. After the shape, origin, and sub-build filters described above, only printed steps 2, 10, and 13 are well posed for this comparison: 3 of the first 50. The 19 is retained only as the overcount this lesson warns against.
 `apps/web/src/assembly/exploded-score.ts` and `apps/web/e2e/exploded-resolution.spec.ts`; `output/exploded-resolution/score.json` records rank and margin per step per metric — highlight score 0 of 5, emergence 4 of 5 at a mean margin of +0.33, the two readings together 5 of 5 at +0.50 and 4 of 5 under two pixels of misregistration.
 The emerged region also prunes: 427 distinct placements to 285 across the five steps, keeping the true one every time.
-
-## Part dimensions are published
-
-Every official LDraw part file states a part's geometry in LDU, and the library serves them one file at a time over HTTP under CC BY 4.0.
-So the stud pattern of any real part is a lookup, not a judgement call, and `scripts/ldraw-part-facts.mjs` does the lookup: it walks a part's subfile references composing transforms until it reaches stud primitives, and takes body extents from the triangles and quads on the way.
-
-It earns its keep immediately. Run against twenty-three parts that had just been hand-authored from memory, it found one wrong: the two studs of `34103`, Plate 1x3 with 2 Studs Offset, sit at plus and minus 10 LDU, not plus and minus 20.
-They are half a pitch off the cell grid — between the cells rather than on the outer ones — which is exactly what "Offset" in the part's name means, and exactly the kind of detail that is invisible until something is built on it.
-
-Two traps inside the tool itself, both worth keeping:
-LDraw builds a part's underside tubes out of stud primitives too, so a 2x4 brick reports eleven studs until the top face is separated from the bottom — eight on top, three tubes beneath.
-And the library rate limits a burst of subfile requests; reporting a non-404 as "no such part" made eight real parts look nonexistent until it retried with backoff instead.
-
-**Anchor:** `scripts/ldraw-part-facts.mjs`, validated against Brick 2x4 (80x40x24, eight studs) and Plate 2x4; correction to `34103` in the catalog with a new geometry hash; measured wedge-plate facts — Wing 2x4 Left/Right are 40x80x8 with four studs along one edge at x -10 / +10, Wing 2x3 Left/Right 40x60x8 with three.
-
-## Simulate bricks in centimetres, not LDU or metres
-
-Two scale traps, one cause: a brick is small, and solvers are tuned for objects around a metre.
-
-One LDU is 0.4 mm, so a 2x4 brick is 80 by 24 by 40 LDU and 0.032 m across.
-Feeding either unit to a solver puts every object orders of magnitude away from the size its default tolerances, sleep thresholds and contact slop assume.
-Centimetres put a 2x4 brick at 3.2 by 1.6, which is the range those defaults were chosen for. Gravity is then 981, not 9.81, and mass stays in grams so the system is consistent.
-
-The second trap follows from the first. A brick dropped 8 cm reaches about 125 cm/s, which is 2 cm of travel in a sixtieth of a second — larger than most of the parts involved.
-A ground plane modelled as a thin sheet is crossed entirely within one step and the body keeps falling with nothing to report: the collider was 20 micrometres thick and the brick came to rest 11 LDU *below* the plate.
-The ground is a slab deep enough that nothing crosses it in a step, positioned so its top face is the build plate, and dynamic bodies enable continuous collision detection.
-
-**Anchor:** `apps/web/src/physics/rapier-world.ts`; the landing test in `rapier-world.test.ts` failed at y=23.37 against a plate at y=12 before the ground was given depth.
 
 ## A panel's own stud grid fits the camera, but not where the model sits
 
@@ -347,61 +222,6 @@ Where the booklet turns the model over, agreement falls to about half and no sim
 49 of 49 consecutive pairs aligned; 29 share a camera and 2 turn the model over.
 Median assembly agreement 74% over all pairs and 91% over same-camera pairs, against 55% for the panels as cropped; median outline gap 1-2px inside the long camera run of steps 17-37, and `output/real-panel-scoring/pair-020-021.png` shows that pair at 97% as near-solid yellow with single-pixel fringe.
 
-## A sub-assembly box is joined to the model by its leader line
-
-Taking the largest connected non-background region is how `camera-panel-fit` isolates the assembly from the step number, the callout box and the progress bar, and it works there.
-It does not survive a step that draws a sub-build.
-Step 14 of the sample booklet prints a white box holding a two-step sub-assembly and joins it to the model with a printed leader line, so the box and the model are one connected region — and a 400 by 170 rectangle of white came through as part of the assembly and read as a part that appeared between the panels.
-
-Opening the mask to sever the line is worse than the problem.
-Printed art is line work: an erosion of three pixels at a thousand-pixel panel width fragmented step 4 into 125 components and left the largest holding a sixth of the drawing, which then fitted a camera at 21 pixels per stud against the booklet's 40.
-
-The fix is to key the white first. The page is grey, the model is not white, and everything the booklet prints on white — callout box, sub-assembly box, step number, progress bar — goes with its bounding box before the components are counted.
-
-**Anchor:** `keyPrintedBoxes` in `apps/web/src/assembly/panel-art.ts`, and the `openingRadiusPx` note on `isolateAssembly` that records why the opening defaults to off.
-With the white keyed out, panels fitting a camera went from 37 to 39 of 50 and median assembly agreement from 66% to 74%.
-
-## A printed step's panel difference finds the right stud, not the right offset
-
-`scoreExplodedStep` reads where an exploded step's part went by differencing the step's panel against the next one's, and on a synthetic booklet it ranked the true placement first on all five contested steps with a mean margin of +0.50.
-Run against the printed booklet it does something weaker, and the sample is far thinner than the synthetic result implies.
-
-Thinner first. Of the 49 consecutive pairs in the first fifty steps, 3 are well posed for the question at all.
-38 print no arrow that survives a shape and origin test; 5 fit no camera on one side, so there is no grid for the part to move on; 2 close no highlight contour, so the part's printed shape is unavailable.
-Establishing an answer to check against is most of the difficulty, and it is the part a synthetic booklet hands over for free.
-
-Weaker second, and the weakness is specific.
-Sweeping the step's own printed silhouette across the fitted stud grid and scoring every offset with the real `scoreExplodedStep`, the top-scoring offset landed 0.57, 0.60 and 2.50 studs from where the step's red arrows point.
-The do-nothing offset — the part already drawn where it lands — ranked last of 1851 and last of 2168 on the two clean steps, so the reading does reject staying put.
-But the arrow's own offset ranked 43rd, 82nd and 271st: first place on none of them.
-That is not the surprise it reads as. About seventy candidate offsets sit within one stud of any point, because a stud pitch is 40 pixels and a plate of height is 13, so ranking was never going to separate the answer from its own neighbours.
-The distance from the winner to the answer is the number that means something; the rank is the number that looks like it does.
-
-What the reading gives is a prior over a neighbourhood roughly a stud across. Physics and the part's identity have to resolve it from there.
-
-The sharpest thing the measurement says is not about the score at all. It is where the lookahead registers.
-Take the pairs a difference could honestly be read from — assembly agreement above 0.80 and outlines within three pixels — and 22 of 49 qualify: steps 8, 17 through 26, 29 through 33, 36, 41, and 44 through 47.
-Take the steps that need the lookahead, the ones drawing their part somewhere other than where it lands: 2, 10 and 13.
-The two sets do not intersect at all.
-The reason is the build, not the printing. A step needs the lookahead early, when the model is small and the booklet is rezooming hard between panels — median agreement 57% over steps 1 to 15 — and the panels register beautifully later, when the model is big and stable and the highlight is already drawn at the landing site — 94% over steps 17 to 37.
-A picture-to-picture lookahead is therefore best exactly where it is least needed. Anything built on it has to carry the registration quality as a per-pair fact and fall back when it is poor, rather than assume the reading is available.
-
-The arrow itself came out of this looking better than the thing it was checking, so it was measured too.
-Across the first fifty steps, 13 print a red arrow that survives the shape and origin tests — steps 1, 2, 10, 12, 13, 16, 32, 35, 38, 40, 45, 48 and 49 — and 11 of those draw it on the model rather than on a sub-build strip beside it.
-The strips have to be separated out, because this booklet draws whole sub-builds as numbered panels inside a step's panel and rings each sub-step in yellow exactly like a main step: "the arrow starts at something this step highlighted" does not tell them apart and "the arrow's tail sits on the assembly" does.
-Steps 32 and 48 are the two that do not, and step 48's own numbers give it away — a head sitting 253 pixels from the nearest built model at the end of a 29-pixel arrow is not an arrow spanning a gap in that model.
-
-Where an arrow is on the model, it is precise, and biased by an amount the same page states.
-Arrows on one step agree with each other to between 0.5 and 4.0 pixels, a median of 1.0, which at these panels' 21 to 43 pixels per stud is a few hundredths of a stud.
-Each is also systematically short, because it is drawn clear of the ghost at one end and clear of the landing surface at the other, and measuring both gaps gives 0.00, 0.05, 0.38 and 0.47 of a stud on the four steps where a camera fitted — a median of 0.22.
-That is a bias to subtract rather than noise to live with, because the two gaps are readable off the same pixels as the arrow.
-So the arrow is worth about a fifth of a stud raw and a twentieth once the clearance is added back, which is inside what a placement needs — and an order of magnitude sharper than the panel difference it was brought in to check.
-
-**Anchor:** `apps/web/src/assembly/lattice-placements.ts` and the docstring on `scoreExplodedStep`, measured by `apps/web/e2e/real-panel-registration.spec.ts`; numbers and overlays in `output/real-panel-scoring/`.
-0 of 3 scored steps ranked the arrow-implied offset first and 2 put the top offset within a stud of it; median margin -0.037.
-The reference is the red arrow's own tail-to-head vector, which the score never reads, and it is good to about half a stud because an arrow is drawn with clearance at both ends.
-`placement-010-011.png` is the picture to look at: the emerged region sits squarely on the landing site and the score's winner and the arrows' answer are half a stud apart.
-
 ## Matching a gallery one item at a time discards the constraint that makes it a gallery
 
 Naming the part a step adds is matching its printed callout drawing against the back-of-book parts list, which is a labelled gallery of the same drawings.
@@ -422,103 +242,6 @@ The same pass added an interior-shading grid, because a 1x2 grille tile and a pl
 
 **Anchor:** `colourDistance` and the `detail` grid in `scripts/part-thumbnail-image.mjs`; over-claims 439 → 230 and elements at exact quantity 139 → 174 with the assignment held at `nearest`.
 
-## Make a vision call answer the same question twice
-
-The callout card asks the model to describe the part in words and to point at a candidate from the parts list, and the candidate's published name is something the model never sees.
-Where the two answers disagree the pick is dropped, and on Haiku they disagreed on 214 of 265 drawings: it read a Tile 1x4 as "plate 8x4", a Plate 2x10 as "plate 12x2", and a Brick 1x4 as "brick 4x2".
-It is a real check rather than a formality — it is the reason a model that reads stud counts this badly cost only two elements of accuracy instead of wrecking the run: conservation went 203 → 201 elements exact and 1308 → 1301 pieces with every Haiku pick applied.
-
-The lesson is not that model calls do not belong here. It is that the pairing of a free answer with a closed-set answer is what makes one safe to use, and that stud counting on a 200-pixel booklet thumbnail is beyond a small model — Sonnet read the same 3x3 plate correctly where Haiku called it 4x4, at roughly fifteen times the wall clock per call.
-
-A frontier model does not retire the check, and the current closure shows that it can move the answer without making its confidence a reliable gate.
-Opus 5 has retained answers for 273 of 285 drawings. The direct vision filter keeps 131, contradicts 127, cannot check 12 descriptions, records 3 explicit differences, and leaves 12 unanswered; mean confidence is `0.892061` for kept answers and `0.877480` for contradicted answers.
-Against deterministic one-to-one assignment, adjudication changes 6 clusters covering 19 callouts and 28 pieces. Element conservation remains 233 of 276 exact, reconciled pieces move from 1,339 to 1,345, and exact crop-plus-current-claim truth moves from 67 to 68 correct callouts while still covering 104 pieces.
-Under `nearest`, adjudication moves element exactness from 236 to 234 while leaving 1,401 reconciled pieces unchanged. Under `quantity-informed`, 235 elements remain exact while reconciled pieces move from 1,381 to 1,376.
-The global assignment is constrained enough that the vision prior moves little, but not nothing, so its effect and failure modes must be measured rather than inferred from model tier.
-
-**Anchor:** `visionPick` and `describesSameThing` in `scripts/part-identification-score.mjs`; the adjudicated variants that carry `descriptionAgreement.either` 214 of 265 were measured on the 870-callout closure generation and are retained as `output/part-identification/history/score-adjudicated-*-stale-*.json` beside `history/answers-haiku-stale-2d0c01db.json` and `history/answers-sonnet-legacy-7e8559d4.json`. The current Opus 5 pass is `output/part-identification/answers-claude-opus-5.json` and its `score-adjudicated-*.json` set: `descriptionAgreement.either` is 127 of 265, and the callout-level `picked` tally is 381 self-contradicted, 22 unanswered, 125 vision-kept, 271 vision-member-unreviewed, 25 description-unverifiable, 5 differs-colour, 25 vision-overruled, and 5 differs-detail.
-
-## A plate of height projects to a third of a stud, so a looser tolerance cannot see layers
-
-Inverting a printed arrow's pixel displacement back onto the brick grid is underdetermined — two numbers, three axes — and the integer grid is what makes it tractable.
-How tractable depends entirely on the tolerance, and the number that sets the tolerance is not the measurement's accuracy. It is the height quantum.
-
-A plate is 8 LDU against a 20 LDU stud pitch, and under an axonometric view at 35 degrees of elevation it projects to `cos(35) * 0.4` of a stud pitch — 0.322 to 0.330 across every panel of the sample booklet that fitted a camera.
-So a tolerance at or above a third of a stud admits the layer above and the layer below by construction, and the answer is a family containing its own neighbours: measured at 0.35, the booklet's arrows admit 12 to 18 whole-grid displacements apiece.
-At 0.15 — under half a plate, and still three times the corrected arrow's own scatter — the same arrows admit 2 to 4.
-
-The first version defaulted to 0.35 because that was comfortably above the measurement error, which is the wrong thing to be comfortable about.
-A tolerance is chosen against the quantum it has to resolve, not against the noise it has to tolerate, and when those two disagree the quantum wins or the result means nothing.
-
-**Anchor:** `arrowDisplacementFamily` in `apps/web/src/assembly/arrow-placement.ts`, and the test that asserts the plate quantum before asserting anything about family size.
-Blind sweep of the same grid: about 2000 offsets. Arrow at 0.35 studs: 12 to 18. Arrow at 0.15: 2 to 4.
-
-## A shape test that works on a solid blob need not work on printed art
-
-A red arrow is the booklet's only statement of where a part travels, and red is the obvious way to find one.
-The set has red parts too, so shape has to separate them, and the two obvious tests do not.
-A 2x6 plate seen in axonometric is three times longer than it is wide, which clears an elongation gate meant to catch blobs, and on a panel drawn at 21 pixels per stud it is under an area cap sized for a panel drawn at 42.
-Steps 12 and 16 of the sample booklet each let one through, and each produced a diagonal displacement — which matters more than the count, because they are the *only* two diagonal displacements in the first fifty steps.
-A reader that trusts them reports that the booklet mixes vertical drops with diagonal travel, on the evidence of two bricks.
-
-The obvious third test is how much of its own oriented box the shape fills: an arrow is a shaft with a head and fills about a third, a plate fills most of it.
-It is right about a plate and wrong about a *drawn* plate, and it did not fire on either offender.
-Instruction art rings every stud and shades every face, so the saturated red of a printed brick is a sparse figure, not a filled rectangle — it came through under the same threshold the arrows did.
-The test was written, unit-tested against a solid rectangle, passed, and changed nothing on the corpus it was written for.
-
-The lesson is not about fill. It is that a shape test has to be validated against the art it will meet, not against a synthetic instance of the thing it is meant to reject — and that "the test passes" and "the test fires" are different claims.
-What does separate them in this data is length, 4.7 and 6.1 stud pitches against about 2 for every confirmed arrow, but two examples is not a threshold and a length cap needs the camera scale that one of the two panels has not got.
-
-**Anchor:** the `maxFillFraction` option in `readDisplacementArrows`, `apps/web/src/assembly/panel-arrows.ts`, whose doc now records that it does not catch the case it was added for.
-Zero of step 12's 10 rejected red regions and zero of step 16's 31 mention fill.
-
-## A measurement computed after an early return reports zero, and zero reads as an absence
-
-Three times in one session, a number that decided a design question was computed after the code path that skipped it.
-A step that printed a perfectly good arrow and then failed for want of a fitted camera returned through a blank-report helper that hardcoded zeros, so the census of "how many steps print an arrow" answered "how many steps got all the way through" instead.
-The same fault hid the on-model test and the clearance measurement, both of which sat below the skips.
-
-It is not a subtle bug and it does not look like one from the code: every field is populated, every value is a plausible number, and nothing throws.
-It is only visible against the world — the panels plainly had arrows on them — which is why it survived a careful read of the diff and died the moment the pictures were opened.
-
-The cost was the headline: arrows on the model went from 3 to 11 when the measurements moved above the skips, and 3 would have been small enough to abandon the approach.
-
-The rule is that a measurement belongs at the point the thing it measures becomes available, not at the point the caller happens to want it, and a report that cannot distinguish "measured zero" from "never measured" should be returning null.
-
-**Anchor:** the `skipClearances` / `skipArrowsInsideAssembly` / `skipFamily` publication in `apps/web/e2e/real-panel-scoring.ts`, hoisted above every skip with a comment saying why.
-
-## A safety barrier that lives only in a document is not a barrier
-
-The quarantined 3245 Builder discovery tool handles one untrusted 85,098-byte third-party bundle, and its handoff and commit message explained why it could not be decoded here: "the only registered Python is `C:\Python314\python.exe` 3.14.0", against a pinned UnityPy wheel that needs 64-bit CPython 3.13.
-Nobody had run `where python`.
-It resolves first to `C:\Users\38909\miniconda3\python.exe`, CPython 3.13.9, 64-bit, win32; a second conforming 3.13.10 sits in `miniconda3/envs/py313`; and `validate_worker_runtime()` returns cleanly under both. The claimed barrier had never been one, and the suite the same document reported as blocked was in fact running under a conforming interpreter the whole time.
-
-Two separate faults, and the second is the expensive one.
-The stated fact was wrong because it was asserted rather than measured — one command would have settled it.
-And the barrier it described was documentary: nothing in the code required the pinned environment before handing bundle bytes to a third-party parser, so `build_report(bytes, UnityPy.load, MeshHandler)` from a REPL would have decoded the artifact with no gate at all. A future session reading "the interpreter is the barrier" had an obvious unblocking move — `pip install UnityPy==1.25.3` into the conda base — that removed the last thing standing between an untrusted bundle and third-party parsing code.
-
-The repair was not to reword the document. It was to make the refusal executable: the exact retained identity is now refused unless the active import root passes the full 13-distribution RECORD contract, and the error message names the dead ends, including that the interpreter check is not the barrier and that installing the package does not help.
-
-**Anchor:** `assert_pinned_environment_for_retained_bundle` in `scripts/discover_builder_shell_core.py`, regression `test_retained_bundle_refuses_to_parse_outside_the_pinned_environment`, which fails with `AssertionError: retained bundle must not be parsed` when the gate is removed.
-Verified 2026-08-04 by running `where python` and `validate_worker_runtime()` under all four installed interpreters: clean return under 3.13.9 and 3.13.10, `ValueError` under 3.14.0 and 3.10.6.
-
-## A blocker you inherited is a claim, not a fact
-
-A handoff note recorded that Git writes were unavailable: an exact 15-path `git add` had hit a `.git/index.lock` permission error, and the escalation had been rejected by an approval-service quota said to last four more days.
-The next session read that, believed it, and planned around it — staging delivery for later, reporting the goal as blocked on infrastructure.
-Nothing was committed. Roughly four thousand lines of independently approved work sat in the working tree, unprotected, across two sessions.
-
-It took one command to disprove. `.git` was writable, no stale lock existed, `git add` returned 0, and the first `git push` succeeded on the first attempt.
-The original failure had been real but session-local; what was false was its promotion into a standing restriction.
-
-The same session then found the identical shape a second time, in the same handoff: "the only registered Python is 3.14.0", disproved by one `where python`.
-Two inherited claims, both asserted rather than measured, both load-bearing for a decision to not do work.
-
-The rule is not "distrust handoffs" — a handoff that records a real failure is doing its job.
-It is that a *blocker* is the one kind of inherited claim that must be retested before it is repeated, because its entire effect is to stop work, and it costs one command to check against days of not shipping.
-
-**Anchor:** commits `a6ebde8` through `88af17d` on 2026-08-04, 144 paths committed and pushed in fourteen pathspec commits after the inherited blocker was tested and found false; the same session's `where python` correction is recorded in [A safety barrier that lives only in a document is not a barrier](#a-safety-barrier-that-lives-only-in-a-document-is-not-a-barrier).
-
 ## File metadata cannot see a same-size rewrite
 
 `sameFileState` compared `dev`, `ino`, `size`, `mtimeNs` and `ctimeNs` across a bounded read, and its error promised the file had not "changed identity, size, modification time, or change time while being read".
@@ -534,36 +257,6 @@ What works is pinning content by digest where a digest exists, and saying so hon
 
 **Anchor:** `expectedSha256` and `CONTENT_DIGEST_MISMATCH` in `apps/web/e2e/bounded-file-read.ts`, wired at six call sites that already held a digest and were checking it only after the read; regression `never returns same-tick pre-open rewritten bytes`, which returns attacker bytes in 13 of 40 attempts when the check is made a no-op. Attacker reads went from 12–26 of 50 to 0 of 50.
 
-## A check that reads the same constant as the code it checks cannot see that the constant is wrong
-
-A new publisher needed an opt-in flag, and `LEGO_REAL_BUILD_TRANSITIONS=1` was the obvious name.
-That variable already existed: `real-build-input-files.ts` uses it to override the *path* the transition-classification input is read from, defaulting to `output/real-build/transition-classifications.json`.
-Setting it to `1` made the path `1`, so the run wrote its bundle to a file called `1` in the repository root.
-
-Three assertions ran immediately after the write and all three passed: the returned path ended with `TRANSITION_CLASSIFICATIONS_PATH`, `existsSync` was true, and the bytes read back equalled the bytes written.
-They passed because every one of them was computed from the same poisoned constant. `"C:/…/lego/1".endsWith("1")` is true.
-The only thing that noticed was `ls` in the directory the file was supposed to be in — and even then it took three runs, a 200 ms existence poller that never fired, and finally writing `process.cwd()` and the resolved target to a file outside the runner, because the reporter's line prefix made the printed path look truncated rather than wrong.
-
-Two rules, and the second is the general one.
-Grep an environment variable name before adding it; a repository that reads configuration from the environment has a namespace, and `LEGO_REAL_BUILD_*` was already a path-override namespace.
-And a self-check built from the same symbol as the thing it checks is not evidence — it only proves the code is consistent with itself. Verifying a destination means naming it independently: an absolute literal, a directory listing, or a second process.
-
-**Anchor:** `LEGO_REAL_BUILD_PUBLISH_TRANSITIONS` in `apps/web/e2e/real-build-transitions.spec.ts` with the collision recorded at its declaration, against `TRANSITION_CLASSIFICATIONS_PATH` in `apps/web/e2e/real-build-input-files.ts:71`. Observed 2026-08-05 on set 6651557: three consecutive green runs wrote 34,784 bytes to `<repo>/1` while `output/real-build/transition-classifications.json` never existed.
-
-## An exact fit to a symmetric feature set is not one answer
-
-Deriving the Builder-to-LDraw frame of 51739 looked finished the moment the authored node lattice landed on the LDraw-measured stud centres with a residual of exactly zero.
-It was not: the four studs of a 2x4 wing sit on a square, a square is invariant under every quarter turn, and the one central tube is on the axis, so eight different frames reproduce that correspondence exactly and four of them are wrong. Zero residual measured how well the anchors matched, and said nothing at all about how many frames match them equally well.
-93273 had the same shape of problem for the same reason, and 35480 and 77844 did not — which is only visible if you count.
-
-Two steps fix it, and the order matters.
-First divide the exact solutions by the part's own measured self-symmetry, because two frames that differ by a symmetry the part already has emit identical connectors and are not an ambiguity at all: 51739's eight collapse to four classes, 93273's eight to two, 35480's four and 77844's two to one each. Only then is what remains a real choice, and it needs evidence the anchors do not contain — something asymmetric. Carrying Builder's own shell vertices through each surviving class and measuring the distance to the LDraw surface separated them by 27.8x and 18.5x, and the human-checkable form of the same fact is that the wing's wide edge sits at z = +13.66..+20 in LDraw and the rejected turn put it at z = -20..-12.92.
-
-The sharper corollary is about mirrors.
-Every one of these parts has a mirror self-symmetry, so a mirrored frame and a proper one are the same frame described twice and no amount of measuring them can tell handedness apart. 5092 is the only pilot part whose symmetry group is trivial, and it is therefore the only place where handedness is a measurement rather than a convention — its best mirrored frame is 5.0x worse. One asymmetric specimen decided a property of all five.
-
-**Anchor:** `exact_frames`, `frames_modulo_symmetry` and `canonical_frame` in `scripts/builder_ldraw_frame.py`; `ldraw_self_symmetries` and `mesh_disagreement` in `scripts/builder_ldraw_frame_witness.py`; regression `test_a_symmetric_part_admits_several_frames_that_are_one_class` in `scripts/builder_ldraw_frame_test.py`. Measured 2026-08-05 over the six-part 6651557 pilot: 8/4/2/8 exact frames reducing to 4/1/1/2 classes for 51739/35480/77844/93273, selection margins 27.8x and 18.5x, 5092 mirror margin 5.0x.
-
 ## A clearance probe answers whether a stud fits, never whether anything holds it
 
 Bringing the LDCad Shadow Library in as a third connector source produced 21 under-stud clutch candidates across the six-part 6651557 pilot, and all 21 passed the `clutchRoom` probe against the expanded LDraw surface: the nominal 6 by 4 LDU stud volume was clear and the face was open on every one, worst intrusion 0.117147353 LDU against a 0.230576635 LDU bound.
@@ -577,107 +270,6 @@ That is evidence and still not a verdict — two cells *both* sources author on 
 So the honest output is the disagreement itself: 11 of Builder's 16 pilot cells independently confirmed at 0 LDU, 2 LDCad-only, 5 Builder-only, with the geometry recorded beside each and neither source declared the winner.
 
 **Anchor:** `measure_clutch_room` in `scripts/part_admission_clutch.py` driving candidates from `emit_clutch_connectors` in `scripts/ldcad_shadow_connectors.py`; `grip_evidence` and `compare_positions` in `scripts/derive-ldcad-shadow-connectors.py`; regressions `test_every_emitted_clutch_passes_the_clutch_room_probe` and `test_the_two_disagreements_are_recorded_rather_than_smoothed` in `scripts/ldcad_shadow_test.py`. Measured 2026-08-05 over the six-part 6651557 pilot: 21/21 clutches with room, 11 agreeing cells, 2 LDCad-only, 5 Builder-only.
-
-## The editor keeps its document in IndexedDB, so reloading is not a fresh plate
-
-Proving the five newly admitted 6651557 parts could actually be placed meant driving the served app and clicking the plate once per part, reloading between them so each placement stood on its own.
-Every part after the first came back with `partCount: 1` and the same structural hash `sha256:d60cdce0...`, naming only the tile placed first.
-Read quickly that says four of the five parts cannot be placed. It says nothing of the kind.
-The editor persists its project through `indexeddb-project-repository.ts`, so `page.goto` reloaded the app onto the document that was already there, the click landed on a plate that already had a tile at the centre, and the command refused it — which is the editor doing exactly what it is supposed to do, because an illegal placement is refused at the command rather than flagged afterwards.
-Clearing `localStorage` first did not help either, because that is not where the document lives.
-
-A fresh browser context per part fixed it in one line and turned the same five clicks into five distinct structural hashes with zero blocking issues each.
-The general shape: when a UI check reuses one page, the app's own persistence becomes a hidden input to every step after the first, and a correct refusal is indistinguishable from a broken feature. Give each independent assertion its own context, or assert on a state you cleared through the app's own controls rather than through the browser's.
-
-**Anchor:** `apps/web/src/persistence/indexeddb-project-repository.ts`; measured 2026-08-05 driving the served app at `builtin.basic-parts/7`. Shared page: 5 placements, 1 part, one hash `sha256:d60cdce0...`. Context per part: 5 placements, 5 parts, 5 hashes, 0 blocking issues each.
-
-## Grading a free-text answer against a controlled vocabulary measures wording, not sight
-
-The identification prompt originally asked the model for a `"<plain colour name>"`, while `describesSameThing` accepted the answer only if it equalled the element's LDraw display name after normalisation.
-Those are two different vocabularies, and LEGO greys are exactly where they part company.
-In that generation's 273-drawing Opus 5 pass, colour was the axis that rejected most: 90 disagreements against 55 on stud size and 35 on kind.
-Sixty-three of its 140 self-contradictions were colour alone, with shape and stud size both agreeing — the model had the part right and lost it on the word.
-
-Splitting those 63 says which half is the model's problem.
-23 drawings, 84 pieces, said "light gray" where the sticker says "Light Bluish Gray": the same colour under LEGO's own two names for it.
-19 drawings, 130 pieces, gave the hue without the shade — "blue" against "Dark Blue", "grey" against "Dark Bluish Gray" — which is what "plain colour name" invites.
-Only 21 are the model actually misreading: 7 called a dark part light, and 14 called a black part dark gray.
-
-So two thirds of the strictest check's rejections were the harness disagreeing with itself about vocabulary.
-The check is still worth having and must not be loosened to make the number look better — "dark gray" for a black brick is a real error and belongs in the same bucket as a wrong stud count.
-The fix is at the other end: a prompt that grades against a closed vocabulary should print that vocabulary, so a rejection means the model saw the wrong thing rather than said it the wrong way. The current prompt now prints all 13 accepted colour labels.
-
-**Anchor:** `PART_IDENTIFICATION_PROMPT` in `scripts/part-identification-prompt.mjs` now prints the exact 13-colour vocabulary; `describesSameThing` in `scripts/part-identification-score.mjs` compares against `COLOR_DEFINITIONS[].displayName` by normalised equality. The historical 273-drawing pass retained the wording failure above; the current `output/part-identification/score-adjudicated-one-to-one.json` checks 265 descriptions and reports 35 colour, 77 size, and 56 kind contradictions.
-
-## A check that has stopped checking still reports green
-
-Four separate instances surfaced in one day, in four unrelated subsystems, and every one had the same shape: correct code that had quietly stopped verifying anything, reporting success, and surfacing later as a failure that looked like somebody else's problem.
-
-The first-fifty ground-truth verdicts were keyed by cluster index, which `match` renumbers on every re-cut. All 87 labels stopped binding, and `firstFiftyAccuracy` reported `0/0` — indistinguishable from nobody having labelled anything.
-The 3245 Builder quarantine rested on "the only registered Python is 3.14.0", which one `where python` disproved; nothing in the code required the pinned environment before handing bundle bytes to a third-party parser.
-The real-build input chain — catalog version, reviewed source pins, coverage, calibration, ledger — had no declared order, so a catalog bump silently invalidated three artifacts and the only symptom was a build rejection that read like a modeling failure.
-And `real-build-builder-calibration.test.ts` *detected* the stale artifact, then answered it with `console.warn` and a skipped test: a green run that had stopped performing the writer/reader cross-check entirely.
-
-The common cause is that each check answered "I could not verify this" the same way it answered "I verified this and it was fine". Absence and success shared an output. Every one was invisible precisely because green is what you expect, and none was found by the subsystem that owned it.
-
-The repair that generalises is not more checks, it is making the three outcomes distinguishable: verified, refused, and *could not verify*. The historical `verdictsUnbindable` metric separated dead labels from absent ones; current score `/2` additionally reports `verdictsUnboundToCurrentClaims`, so 14 preserved exact labels whose unchanged judged element differs from the current claim cannot disappear into ordinary unjudged callouts. The barrier became an executable refusal naming its own dead ends; the chain declares its order as data with each stage's rebuild command; and the skip became a failing assertion. A check that cannot say "I did not run" will eventually not run.
-
-**Anchor:** historical `verdictsUnbindable` in `scripts/part-identification-score.mjs` moved 87 -> 0 once verdicts were re-keyed by crop digest; current score `/2` pins the separate 14-verdict current-claim mismatch. `assert_pinned_environment_for_retained_bundle` in `scripts/discover_builder_shell_core.py`; `apps/web/e2e/real-build-input-chain.ts` with its regression `apps/web/test/real-build-input-chain.test.ts`; and the stale-artifact case in `apps/web/test/real-build-builder-calibration.test.ts` convert missing execution from warning or skip into a refusal naming the observed version, expected version, and regeneration command. The original four failures were found on 2026-08-05.
-
-The same shape returned the next day wearing the opposite face, in three files, found by two agents who each caught the other's and then their own. A defect-side classifier with two outcomes answered a 1.0x tie - geometry sound on both sides - with `callout-crop`, inventing a defect and aiming the repair at a correct file. A lookup searching a published `worst[:15]` list reported an element as having no same-mould sibling when it has one, collapsing "absent from a truncated view" into "does not exist". And a report built its miss list as "rank is None or rank > k" then built the cause block with a trailing `if rank is not None`, so a truth element with no thumbnail - a miss that cannot be ablated, because there is no descriptor to ablate - was dropped between the two and counted nowhere, while the per-repair totals looked complete.
-
-So absence collapses two ways, not one. A check that cannot say "I did not run" reports green; a classifier with fewer outcomes than the world has reports a confident wrong verdict. The second is the more expensive, because a green merely fails to direct work while a wrong verdict directs it at the wrong file.
-
-The third was latent - that generation held zero unreachable truths, so it had never fired, and a live-only test would have reported green forever on a branch real data cannot enter. A branch your data cannot reach is not covered by a passing suite; it needs a synthetic case. And the repair is the same either way: give the unmeasurable case its own row, never a skip and never a substantive verdict, then publish a conservation check the caller can read - rows equals ablatable plus unreachable, asserted rather than assumed.
-
-**Anchor for the second face:** `test_agreement_on_both_sides_is_its_own_outcome` in `scripts/part_description_retrieval_test.py`; `everyMissAccountedFor` and its three synthetic drivers in `scripts/part_retrieval_ceiling_test.py`; `elementsWithNoSibling: 113` beside `worstIsATruncatedView` in `output/part-retrieval-ceiling.json`. All 2026-08-06.
-
-## The shape of the question decides what a vision call is worth
-
-Two configurations, the same booklet, the same model family, measured on the same day.
-
-Asked an open N-way question — a card of candidates beside the callout, answer with a pick number, a free-text description and a confidence — the current Claude Opus 5 closure has 273 retained answers out of 285 drawings and agrees with itself on 138 of 265 checkable descriptions, or **52.1 percent**. It contradicts 127, and adjudication changes 6 clusters covering 19 callouts and 28 pieces against deterministic one-to-one assignment. Confidence is only a weak separator: `0.892061` mean on kept answers and `0.877480` on contradicted answers, so it cannot be an admission gate.
-
-Asked a closed binary question — two pictures side by side at the same height, is this the same part, nothing else on screen — two independent raters on different models agreed **84 of 84**, including all eight "different" calls and both cases where the pair was unjudgeable because the claim side was blank. The artifact records 82 verdicts and two unjudgeable pairs; agreement is not an independent correctness measurement.
-
-The closed framing produced complete inter-rater agreement where the open framing still produced substantial self-contradiction. Those are different measurements, so the result supports the framing and auditability of the question without proving every shared verdict correct. What moved it:
-
-The answer space was small and checkable. Same or different has a structure that two raters can be compared on; "which of these six" does not.
-The answer was withheld. The pair judge saw no part name, no element id, no metadata, and could not be led by them — which is also what makes the resulting label auditable.
-Uncertainty had somewhere to go. "Unsure" was a first-class answer and was used exactly twice, both times correctly, on pairs whose right-hand side was empty. A confidence number instead absorbs uncertainty into a value nothing acts on.
-Escalation was built in. Contact sheets first, single-pair renders for anything ambiguous; one rater re-read 39 of 84 that way, and the resolution difference is what settled stud counts.
-
-The corollary is that a disappointing vision result is not automatically a model limit. Before concluding the model cannot see it, check whether it was asked something answerable — and whether the grader is measuring sight or vocabulary.
-
-**Anchor:** the current open configuration is `output/part-identification/answers-claude-opus-5.json` scored by `scripts/part-identification-score.mjs`; `descriptionAgreement` records 138 agreements and 127 contradictions across 265 checked descriptions, while adjudicated one-to-one changes 6 clusters, 19 callouts, and 28 pieces from deterministic one-to-one. The closed configuration was measured on 2026-08-05 and originally retained under truth `/2`; `scripts/fixtures/part-identification-truth-first50.json` is now its losslessly migrated `/3` form with full crop SHA-256 plus element keys. The 82 verdict fields, outcomes, and order are unchanged; their full digests came from tracked pre-truncation commit `59ca5b7` and were corroborated against the retained features `/3` crop identities, including byte-identical duplicate rows. Its `raters` block records the 84/84 agreement and the two pairs adjudicated by hand where the raters' descriptions diverged despite agreeing verdicts.
-
-## A rotation matrix stored as nine numbers has two readings, and only geometry says which
-
-LEGO Builder's `Custom2DField` carries its frame as a twelve-number `transformation` attribute, nine of which are a 3x3 rotation. Read row-major and read column-major it is the same matrix only when the matrix is symmetric. The six-part source pilot never had to decide: every field it touched was the identity, so `builder_ldraw_field._signed_permutation` refused an asymmetric matrix outright and said so — measure a rotated field before accepting one.
-
-Two of the fourteen designs the real build's opening steps place carry a quarter turn: 30503 and 6106. Both readings put their type-23 stud nodes on an exact integer LDU lattice and both admit exactly one exact frame against the LDraw-measured stud centres, because a rotation of the field is absorbed by a compensating rotation of the frame. Exactness could not choose, and a count of one exact frame per reading looked equally convincing on both sides.
-
-The Builder Shell mesh chose, because it is in the design's own frame and is not free to rotate with the field. Carrying its vertices through each reading's frame and measuring them against the expanded LDraw surface: 30503 reads 1.299 LDU maximum column-major against 113.137 row-major, and 6106 reads 1.376 against 169.706. That is 87x and 123x, and it is **column-major**.
-
-The XML then confirmed it for free, from data already in the file. Every primitive repeats its rotation as an axis-angle pair, and 2310's `angle="120" ax=ay=az="-0.5773502692"` is the -120 degree rotation about (1,1,1) — which is the transpose of what its nine numbers read row-major. The redundant attribute was a second independent witness sitting in the source the whole time.
-
-Two things generalize. A serialized matrix is not self-describing, and neither is a lattice that fits: when two readings both fit exactly, the thing that separates them has to be something the ambiguity cannot rotate. And when a format repeats itself, the repetition is a free cross-check — read it before running a search.
-
-**Anchor:** `field_studs` order comparison against `builder_calibration_sources.py`'s pinned centres for 30503 and 6106; the 87x/123x separation is `verification.maximumSurfaceDistanceMicroLdu` for the two readings under `createBuilderFrameEvidence`, and the surviving column-major reading is pinned as `builderStudCentersLdu` in `apps/web/e2e/real-build-builder-sources.ts` with `apps/web/test/real-build-builder-calibration.test.ts` asserting both designs resolve at `unique-stud-correspondence` under 1.4 LDU. Measured 2026-08-05.
-
-## A conservation check with one unmeasured term cannot fail
-
-`OFFICIAL_REAL_BUILD_ACCOUNTING` declared set 6651557 as 1486 raw callout quantity = 1446 physical + 40 semantic, then `+ 18 omitted physical pieces` to reach the 1464 assembled model. Four of those five numbers came from a printed source. The fifth, `omittedPhysicalPieces: 18`, came from the subtraction: it was set in the same commit as the rest and no artifact ever enumerated an omitted piece, so `set-accounting-mismatch` could not fire on a callout over-read of exactly 18. It fired on 26 only because the callout publication had meanwhile moved from a 870-identity generation to an 881-identity one and nobody moved the constant with it.
-
-Reading the labels straight out of the PDF settled which side was wrong, and neither side was right. The step pages carry 881 distinct Nx labels totalling 1512 — the publication's number, not the constant's 1486. But the publication's 1472 physical was 8 too many: the booklet sets parts-bin quantities at 8pt and multiplier labels at 16pt, 24pt and 40pt, and four labels at the multiplier faces (`p59|q2|x124.683|y55.056`, `p85|q2|x662.244|y445.465`, `p96|q2|x125.941|y478.298`, `p109|q2|x723.002|y319.540`) were published as part-art. They are pointer boxes and a subassembly-repeat header that restate pieces the step's own bin already counts. The 8pt labels alone total exactly 1464. So the 26 was 8 pieces of real over-read plus an 18-piece class that never existed.
-
-Three independent printed sources then agreed on 1464, which is what made the answer safe to act on rather than another plausible reconciliation: the 8pt bin labels sum to 1464; the back-matter inventory on pages 221-222 sums to 1465, one more because the loose 31510 separator is never placed; and the official Builder XML yields 1395 direct + 69 MultiBuild = 1464 instruction identities from 1465 Bricks with that same separator unmatched.
-
-Two things generalize. A conservation identity is only as strong as its weakest term: if one term is derived by subtraction rather than measured, the identity is a definition and cannot detect anything, so pin every term to its own source or set it to zero and let the check fail loudly. And when the same truth is written down in more than one place — here three, in a TypeScript fixture, a real-build contract, and an .mjs producer contract — they will drift, so bind them to each other in a test rather than trusting that whoever edits one will find the others.
-
-**Anchor:** `apps/web/e2e/real-build-contract.ts` `OFFICIAL_REAL_BUILD_ACCOUNTING` moved 1486/1446/40/18 to 1512/1464/48/0; the four multiplier labels are preregistered in `apps/web/e2e/callout-recovery-fixture.ts` and the full-booklet publication reproduced 881/1512 raw, 859/1464 physical, 22/48 semantic with zero failures. Regressions: `callout-contract.test.ts` "conserves one callout accounting across the publication and real-build contracts", "keeps the assembled model inside the printed inventory", "classifies every multiplier-face label as semantic", and `real-build-test-options.test.ts` "satisfies the full-set accounting clause at the last printed step" — all four fail if the constant is reverted. Measured 2026-08-05.
-
-**Follow-on, same day.** The four labels were only found by hand because the classifier failed open: `evidenceContract` returned `part-art` for any identity the curated fixture did not list, and the manifest published no measurement that could contradict it. The signal was already extracted — `heightPt` on `QuantityLabel` — and dropped before the record was written. Re-measuring the booklet with the publication's own extraction, deduplicated by stable identity: over the 196 step pages, 859 labels / 1464 pieces at 8pt and 22 / 48 at 16, 24 and 40pt, which reproduces the hand measurement exactly; across the whole booklet a further 276 labels / 1465 pieces sit at 6pt, which is the back-matter inventory and a third meaning entirely. So the rule cannot be "not 8pt means multiplier" in either direction. Manifest `/5` introduced `heightPt`; current manifest `lego.callout-thumbnails/6` retains it, and `assertPublishedQuantityFaces` refuses publication when the printed face and the published class disagree, or when the face is one this booklet has never been measured at. Gate, so no rule line: `apps/web/e2e/callout-faces.ts`, enforced at `publishCalloutRun` and again at `assertV6CalloutManifest`, with four regressions in `callout-publication.test.ts` under "published quantity-label type size" that all fail when the assertion is stubbed out. Measured 2026-08-05; current gate anchor updated 2026-08-14.
 
 ## The booklet turns the model over and says so
 
@@ -705,20 +297,6 @@ So the habits are three. Before parameterising a solver to prefer an answer, wri
 
 **Anchor:** `PanelFace` and `solveAxonometricFromLattice` in `packages/rendering/src/camera-fit-lattice.ts` — the type is exported and nothing in the module consumes it, which is the finding. Regressions "gives the same lattice for a below-view as for an above-view at negated azimuth" and "fits a below-view panel as an above-view without ever failing" in its test file. Measured 2026-08-06.
 
-## Local frames can be right while world placements are mirrored
-
-The Builder asset bundle is left-handed, so `extract-builder-shell.py` decodes Shell vertices as `-25·v`, negating all three axes. That is correct, and the proof is a chiral part: design `54383;F` is a *right* wedge plate, and it lands on the official LDraw surface at p95 1.250 LDU under that decode against p95 10.714 with z flipped. `resolveBuilderBoneTransform` then applied the same handedness to the LXFML Bone data, which is right-handed, and mirrored every world placement in the model.
-
-It read the Bone through `diag(1,-1,1)`, determinant -1: a reflection, not a rotation. Calling it "z flipped" understates it, and the understatement is itself part of the lesson, because the sign vector is shared by two halves of one change of basis. The rotation is conjugated by the same `S` the translation is scaled by, so negating only the position turns a reflection into a map that is not rigid at all: scored by the same interlock census, position-only is *worse* than the mirror it replaces on three of four measures. The correct map is `diag(1,-1,-1)`, a 180-degree rotation about x, and conjugating a yaw by that extra z flip inverts it, so `upright-yaw-90` and `upright-yaw-270` exchange while `yaw-0` and `yaw-180` are fixed points and can witness nothing.
-
-Nothing local could see it. Eight designs passed per-part admission scoring against LDraw surfaces, because a part compared to itself is unaffected by where the model puts it. The two parts of printed step 1 are individually mirror-ambiguous — under a free upright fit, z-kept and z-negated score within 0.03 LDU for both — so even scoring them could not separate the readings. What separated them was a global fit over all 1440 instances requiring each design to admit one part frame: 1439 explained with z negated, 656 without; a rotation-only check that never touches a position, 1129/1129 instances and 155/155 designs under `diag(1,-1,-1)` against 443 and 102; and a physical-interlock census that never opens the export at all, in which `diag(1,-1,-1)` is the only one of six candidate readings with zero stud/stud and zero clutch/clutch coincidences, while also having the *most* interlock — so the zero was not bought by pulling the parts apart.
-
-The cost was paid at the other end of the pipeline, as a build that could not start. The real-build run searched step 1 for a placement matching the canonical target and found none legal, because the target itself was unbuildable: at the repository's own transforms the second piece was refused — "would rest 8 LDU above the build plate with nothing under it" — while at the corrected transforms the editor places both, holds each by connections rather than by the plate, and derives three stud/clutch pairs. Three voices that had never met agreed only after the question was asked in the third place.
-
-The generalisation is about where a handedness error can hide. A decode and a placement can use the same scale, the same axis names and the same rotation convention and still disagree in chirality, and every check that compares a thing to itself — a part to its own surface, a document to its own hash — is blind to it. Ask something that spans instances: a global fit, or a contact count, or simply whether the model can be built. The regression that now holds the correction is of that shape and of no other: three Bone rows, placed, and the editor asked whether the result would stay put.
-
-**Anchor:** `LDD_TO_LDRAW_BASIS_SIGNS` and `resolveBuilderBoneTransform` in `apps/web/e2e/real-build-builder-calibration.ts`, decode unchanged at `scripts/extract-builder-shell.py`. Measured 2026-08-07 over the 1465-brick official model and its `.ldr` export; step-1 placement confirmed against the editor's own support and connection derivation. Corrected the same day, with the regression in `apps/web/test/real-build-builder-basis.test.ts`.
-
 ## An orientation compared as a string, not modulo the part's own symmetry
 
 Seven of the fourteen pinned designs were reported as failing to reproduce the official `.ldr` export, and `3832;G` was written into the position of record as a frame that needed settling. All seven reproduce it exactly. The only difference was an `orientationId` naming a yaw 180 degrees from the export's, and for a 2x10 plate that is the part's own self-symmetry — every stud, every body point, identical. The same false positive hit `3032;F`, `3034;J`, `3460;N`, `3795;I`, `60479;F` and `91988;F`, all rectangular plates.
@@ -738,28 +316,6 @@ Driving that over real enumerated geometry the first time, four hundred candidat
 The generalisation is that a maximisation is also a blindness, and its blind spot is exactly its search domain. Any invariance bought by searching over a group — translation here, but rotation or scale the same way — deletes that group from the evidence, so a difference expressed only in it cannot be seen and reports as agreement rather than as an error. Before trusting such a score, state the smallest difference it must resolve in the units the search actually moves in, and check that it is larger than the search. A discriminator that says everything agrees is more often mis-scaled than wrong.
 
 **Anchor:** `registerPrefixAgreement` in `apps/web/e2e/real-build-deferral.ts` and its geometry-driven regression in `apps/web/test/real-build-deferral.test.ts`, which now names the scale as pixels per stud. Measured 2026-08-07 over the 400-candidate product of printed step 1.
-
-## A score's reachable maximum belongs to the picture, not to the placement
-
-Printed step 2 of the sample booklet is drawn exploded: the new wedge floats clear of the assembly with two arrows pointing up into it, so its 527px closed contour outlines the part where the booklet *draws* it rather than where it seats. The run scored seated candidates against that contour and refused at a joint visual score of 0.200918543009241, below a bar of 0.45 that had been calibrated on synthetic panels. Both halves of that sentence were measuring the wrong thing. The placement the booklet actually draws, scored where it seats, reaches a region agreement of 0.000155 — it is almost wholly hidden behind what step 1 built — so 0.2009 was simply whichever wrong seat overlapped the ghost region most.
-
-The bar could not have been right either, and that is the part worth keeping. On this panel the highlight region is 4749 px and the rendered wedge silhouette about 2795, so a placement that fits perfectly inside the printed contour scores 2795/4749 = 0.5883 and nothing can score higher; an independent world-lattice sweep peaks at exactly that value. A synthetic panel's highlight *is* the silhouette, so its ceiling is near 1.0. The same 0.45 is therefore 76% of everything achievable on the printed panel and under half of what the synthetic one reaches — one number asking two different questions, and on the printed panel it was reading the booklet's draughting rather than the model.
-
-The ceiling is not a nuisance to be calibrated around; it is the test. Dilating the drawn ghost's silhouette and comparing it to the printed region gives IoU 0.5817 undilated, 0.7597 at radius 3, a peak of 0.8153 at radius 5 and 0.8052 at 6 — the yellow is drawn about five work pixels clear of the part all the way round. So a correctly placed ghost has no pixel outside the printed contour, and a wholly contained ghost scores exactly its own area over the region's, which is that ceiling. Containment and reaching the ceiling are the same statement, and it carries no constant at all. Measured this way step 2's best candidate leaves 46 px of 2793 outside, which names the residual as the arrow reading about 1.26 plates short of the drawn travel rather than as a threshold that wants lowering.
-
-The generalisation: before comparing a score against a bar, compute what the picture allows that score to reach. If the maximum varies with the panel, a fixed bar is a measurement of the panel. Where the ceiling can be derived from the same two masks the score is computed from, prefer the derived statement — it is a gate with no free parameter and it cannot be tuned into accepting a wrong answer.
-
-**Anchor:** `measureGhostContainment` and `decideExplodedGhostPlacement` in `apps/web/src/assembly/ghost-placement.ts`, wired by `apps/web/e2e/real-build-exploded-step.ts`; measured 2026-08-07 over printed step 2's 105 whole-step candidates at `LEGO_REAL_BUILD_LAST_STEP=3`.
-
-## A measurement converts through the raster it was measured on
-
-The run fits a panel's stud lattice on the full-resolution crop and reads its displacement arrows on the same crop downsampled by `workFactor`. The arrow-to-world inversion took the fit's `pixelsPerUnit` unchanged, so every arrow-derived displacement in the repository was exactly `workFactor` times too short — a factor of two, reproduced to 2.000000000000 on all three basis vectors of all three fitted panels, by projecting known world travels through the run's own camera. Step 1's published family read `[-60,80,-40] [140,-88,100] [60,-24,40] [0,32,0]`; at the corrected scale it reads `[0,56,0] [60,8,40]`, and the purely vertical member — the only one whose direction matches the two arrows the panel prints — moves from last of four to first of two.
-
-Nothing local could see it. The renderer divided by the same factor a few lines away and looked right; the reported `errorStuds` was a work-pixel numerator over a full-resolution denominator, so every published accuracy was also half the real one and the family looked *more* precise than it was. A sibling module in the same repository did the conversion correctly, reading its arrows at full resolution and dividing both the arrow and the scale when it needed the downsampled raster; the defect was that block copied with the raster swapped and the fit left alone.
-
-The generalisation is about where a scale lives. A pixel measurement is meaningless without the raster it was taken on, and a fit is meaningless without the raster it was fitted to; when the two differ, a call that accepts only the fit cannot state the mistake, so the reader has to remember it. Give the conversion both — make the function take the factor and refuse a factor that describes no raster — so that mixing them is a type error rather than a silent ratio.
-
-**Anchor:** `panelProjectionForWorkRaster` in `apps/web/src/assembly/arrow-placement.ts` with its round-trip regression in `arrow-placement.test.ts`; call sites corrected in `apps/web/e2e/real-build-panel-raster.ts` and `apps/web/e2e/step1-deferral.spec.ts`. Measured 2026-08-07; step 1 still reports `complete/deferred-lookahead 2/2 placed` after the correction.
 
 ## An annotation drawn to a hidden destination states its direction, not its length
 
@@ -787,72 +343,6 @@ The generalisation: when a selector picks among candidates and a gate then judge
 
 **Anchor:** 2026-08-08; the sort in `fitStudLattice`, `packages/rendering/src/camera-fit-lattice.ts`; pinned on the real booklet by the printed-step-4 block in `apps/web/e2e/camera-panel-fit.spec.ts`, which asserts its pitch and elevation against printed steps 3 and 5 and its basis as their mirror. `output/camera-fit/overlay-004.png` before and after is the picture: the predicted cells move from ellipses twice the size of the drawn tubes onto the tubes. The booklet run's step 4 goes from `camera-fit-failed` to 220 scored candidate renders and a different refusal, `ambiguous-placement-score`.
 
-## The structural hash covers the pinned truth, so a catalog bump moves every baseline
-
-`structuralDocumentValue` hashes `truth` alongside the parts, so a document's structural hash is a function of the catalog version it pins as well as of what is in it. Bump `BUILTIN_CATALOG_VERSION` and every pinned baseline in the repository moves at once, whether or not a single placement changed. The three booklet prefixes went `f15eadfa`, `64017a83`, `6d46478c` to `c37d7b59`, `3475cc89`, `b343e96d` on a change that touched one part's body boxes and moved no connector at all.
-
-That is the trap: three moved hashes look exactly like a regression, and the run that produces them cannot tell you which kind of move it was. Neither can a diff of the source, because the bump is deliberate and the placements are somewhere else entirely.
-
-The escape is cheap and exact, and it is the same technique that saved the 77-part legacy roster pin in `mesh-assets.test.ts`. Take the retained `document.json`, put back only the truth digests the bump moved — `truth.catalog.version`, `truth.catalog.hash`, and `truth.collisionModel.hash`, which is the other one that reads the catalog's body primitives — change nothing else, and re-hash. If it reproduces the old value bit for bit, no part, colour, transform, step or connection moved and the whole delta is the version. If it does not, the difference is real and is now isolated from the bump.
-
-The same shape works on any pinned digest with a version component folded into it: restore the component, re-hash, and the literal you were about to overwrite becomes a test of what else changed rather than a casualty of the change.
-
-This is distinct from the older lesson that the structural hash covers part *identifiers* — that one is about two models never hashing alike, this one is about one model not hashing alike across a truth bump.
-
-**Anchor:** 2026-08-09; `structuralDocumentValue` in `packages/brick-kernel/src/document.ts`; measured on all three retained runs at `builtin.basic-parts/9` restoring `truth.catalog` `sha256:a9adf38b…` and `truth.collisionModel` `sha256:8f181d6f…`. The in-tree form of the technique is the `rowsWithTheEightPlate` assertion in `packages/catalog/src/mesh-assets.test.ts`, which recovers the `/6` roster literal by restoring one row.
-
-## A gate that cannot tell "passed" from "did not run" reports the second as the first
-
-2026-08-09, commits `90a4a87` and `a44b53a`, after eight instances surfaced in two days.
-
-`real-build-builder-calibration.test.ts` resolved its inputs through `process.cwd()` and skipped mutely when they were absent, so the strongest assertion this repository makes about Builder frame truth did nothing from any subdirectory and reported `6 passed, 1 skipped`, exit 0. Its companion was vacuous the same way: with the report unreachable, `retainedCalibrationVersions.length === 0` short-circuited to `IN_STEP`. `real-build-official.test.ts` had it too, silencing the case that pins the official model's sha256 and its 1,465 bricks. `real-build-transition-bundle.test.ts` was worse than all three - its mirror case PASSED while asserting the artifact was absent, with the file present at 34,784 bytes.
-
-The same shape without a skip: `real-build-action-ledger.spec.ts` asserted `identificationConfidence` equalled `"vision-kept"`, written 53 minutes before the code stopped hard-coding that literal into every piece, so it checked a constant against itself until a refactor silently turned the tautology into a gate. And the first handedness check demanded the model's note name the mirror twin's number - which is the same number whichever hand was picked, so feeding it a SWAPPED pick returned `vision-kept` for the wrong element.
-
-Every one of them was green. That is the property: the failure mode IS the success signal, so the only way to see it is to make the gate fail on purpose and watch it name the reason.
-
-## A shell pipeline reports the last command's exit code
-
-2026-08-09, three separate occurrences in one session.
-
-`npm run verify 2>&1 | tail -40` was read as exit 0 when verify had failed with 978 lint errors. Then `node scripts/part-identification.mjs ask ... | tail` was read as success when the pass had died at 102 of 269 answers. Then the harness's own completion code for a backgrounded compound command was read as the command's, when it belonged to the `tail` that ended it.
-
-Each time the report was "green" and the underlying work had failed. The fix is mechanical - `cmd > log 2>&1; echo "EXIT=$?"` - and the reason it kept recurring is that the wrong answer looks exactly like the right one.
-
-`npx vitest run -t "<name>"` is the same trap from another direction: it exits 0 when the filter matches nothing, so a filtered green run can mean the assertion never executed.
-
-## A check is written against the case that exists and is silent about the one that arrives
-
-2026-08-09, commit `108d5b3`, found by asking what a change would break before making it.
-
-`connector-backing-policy.ts` admitted a connector by asking whether a whole stud's footprint of a face was backed by solid. Correct for a stud, which stands on the body. Exactly backwards for a clutch, which needs a cavity - solid behind it is what makes the clutch impossible. It had never fired because no part modelled a cavity, so the rule looked right for as long as nothing tested it.
-
-Three more of the same shape in the same two days. `isRealBuildBrowserOutput` answered two unrelated questions with one boolean - are these bytes a browser output, and did the run account for every declared piece - and the second is the signature of an unfinished prefix, so 19 of 22 partial runs discarded every measured row. `evidenceDigest` carried the literal string `"missing"` where `null` was meant, because the refusal message renders `?? "missing"` and the display string had been written into the data; it then threw at step 13 and abandoned 49 correct rows. The stud radius read `6.0001514980873605` - the circumradius of a 16-gon written to four decimals - against a clutch allowance that `Number.isSafeInteger` forces to exactly 6, so a correctly seated stud read as a collision by 60 nanometres.
-
-None was found by a test passing or failing. Each was found by asking what the check would say about a case it had never seen.
-
-## A hand-built surface can be present, counted, and invisible
-
-2026-08-09, the session that shelled fifty-eight parts.
-
-`createTubeGeometry` builds the underside tube's 144 triangles by hand. Every one of them was wound backwards, and every material in this renderer is `FrontSide`, so the GPU culled the whole tube. The scene held three tube meshes for a 2x4 plate, `deriveBrickScene` returned them, a unit test counted seven body meshes and passed, and the from-below capture was a flat red rectangle - the exact picture the shell exists to replace, reproduced by geometry that had been added to replace it.
-
-Nothing in the vertex order reads as wrong. What reads is the direction each face points, so the test measures that: 48 triangles away from the axis, 48 toward it, 48 down at a camera below, none up.
-
-The orthographic underside capture could not have found it either, and that is worth knowing on its own: from directly below, the wall bottoms, the tube rings and the recessed ceiling are all faces with the same normal and the same material, so the picture is one flat colour whatever is behind it. The cavity only became visible when the camera was orbited under the model at an angle.
-
-**Anchor:** 2026-08-09; `createTubeGeometry` in `packages/rendering/src/geometry.ts`; the test is "points every face of an underside tube outward, at a camera that can see it" in `packages/rendering/src/rendering.test.ts`; the pictures are `output/underside-probe/orbit-*.png`.
-
-## "Err on the safe side" has a direction, and a touching fit reverses it
-
-2026-08-09, same session, found by validating a two-brick stack.
-
-`collisions.ts` turns a body cylinder into its bounding box and says why: it claims corners a round part does not fill, so it refuses a placement a real wheel would allow and never admits one it would not. That is correct for a wheel, which stands alone. An underside tube does not stand alone - it sits at the centre of a 2 x 2 block with four studs at its corners, 10 * sqrt(2) = 14.142 LDU away against a true radius sum of 14. The bounding box reaches 8 LDU along each axis, so its nearest point to a stud centre is 2.83 LDU away, well inside the stud's 6, and every exactly seated stack of two 2-wide parts reported `PART_STUD_BODY_COLLISION` against its own tubes - with the connection declared.
-
-The conservative direction was the broken one, because the legal configuration is nearly tangent to the thing being approximated. What replaced it is the largest axis-aligned box inside the tube circle: its corners lie exactly on that circle in the four diagonal directions the studs occupy, so it reports the tube's own 0.142 LDU clearance, and it gives up reach only along the two axes where the neighbouring tube 20 LDU away covers the gap. Swept exhaustively - a stud at all 9,801 integer positions under a 2x4 plate, a 4x4 plate and a 2x4 brick, which is every position the document schema can express - it admits none whose drawn annulus overlaps it.
-
-**Anchor:** 2026-08-09; the tube primitive in `makePartDefinition`, `packages/catalog/src/part-factory.ts`; the seated-stack case is "seats a stud in the cavity, and refuses one a single LDU off the lattice" in `packages/brick-kernel/src/validation.test.ts`.
-
 ## A green vision narrowing can drop settled truth
 
 **Anchor:** 2026-08-10; `recipes/6651557.pdf` page 11; retained run `2026-08-09T06-52-45-853Z-622f66a3fe8d-2c210f0e-d99f-42c4-85f8-189bf740031c`; focused `apps/web/test/panel-reading-booklet.test.ts` replay, 6/6 green.
@@ -860,18 +350,6 @@ The conservative direction was the broken one, because the legal configuration i
 The step-4 model reading saw the correct underside viewpoint, then described both pieces as beside one another with zero overlap. Replayed against the retained enumeration, the 1x8 plate narrowed 480 candidates to 12 and dropped its settled transform; the wedge kept all 190 candidates, dropped its settled transform because its anchor was not yet placed, and made the product unusable. The oracle reading kept the settled wedge while narrowing 190 candidates to 2.
 
 The replay stayed green because it proved the safety property it was written to prove: every survivor came from the enumerator, and an unusable reading could not invent a placement. That boundary says nothing about whether the visual description retained the real answer. Report truth loss separately, refuse known disagreements, and never promote subset safety into a claim of visual correctness.
-
-## A text prompt is not an image transport
-
-A model can receive a perfect visual-comparison prompt and still see no pixels. The subscription CLI's streaming input is text-only, while granting its general `Read` tool makes the intended crop boundary a policy sentence rather than an enforced capability. The transport is part of the evidence: without the exact image-bearing tool call and matching result, a saved answer cannot prove which bytes, if any, reached vision.
-
-The bounded route is a stdio MCP server with one no-argument tool. It loads one prevalidated request whose source and candidate PNG bytes already reproduce their digests, returns those image blocks once in declared N/N+1/conditional-K order, exposes no resource or path method, and runs beside a CLI with built-ins and setting sources disabled. The retained stream-json trace must contain exactly that tool use and its matching successful result before the strict answer may be consumed.
-
-The first mocked adapter test violated that rule while appearing to prove it: its successful `tool_result` contained one unrelated placeholder image, and the parser checked only the tool name, call id, and success bit. The harsh-critic regression substitutes a complete tool result from another digest-bound request; consumption now fails unless the retained label and image blocks byte-for-byte reproduce the exact request being sealed. A green mock is transport evidence only when its fake is held to the same identity contract as the live path.
-
-The first live transport probe reached Claude authentication through that boundary and failed with `OAuth access token has expired. Re-authenticate to continue.` That proves the route is callable but not that a model saw the images; the latter remains unproved until a successful trace survives. Mocked green protocol tests prove containment and parsing, never live visual accuracy.
-
-**Anchor:** 2026-08-10; `scripts/multi-panel-vision-mcp-server.test.mjs` cases “returns exact source/render images in panel order” and “serves the same one-tool protocol in a child process”; `scripts/multi-panel-vision-claude-adapter.test.mjs` cases “refuses a successful tool result carrying pixels from another bound request” and “disables ambient tools, serves one validated bundle, retains the raw trace, and cleans up”; live no-`Read` probe terminated at the quoted OAuth refusal before a verdict.
 
 ## A contact sheet can be full-size while every bound image inside it is downsampled
 

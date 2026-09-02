@@ -107,6 +107,27 @@ function physicalVerdict(parts: readonly PartInstance[]): readonly string[] {
   });
 }
 
+/**
+ * Local part frames can be right while world placements are mirrored, and a
+ * basis is one thing.
+ *
+ * The Builder asset bundle is left-handed, so `extract-builder-shell.py` decodes
+ * Shell vertices as `-25*v`. That is correct, and a chiral part proves it.
+ * Applying the same handedness to the LXFML Bone data, which is right-handed,
+ * read it through `diag(1,-1,1)` — determinant -1, a reflection rather than a
+ * rotation — and mirrored every world placement in the model. Negating only the
+ * position is worse, not better: the rotation is conjugated by the same `S` the
+ * translation is scaled by, so a half-fix is not a rigid map at all. The correct
+ * basis is `diag(1,-1,-1)`, a half-turn about x.
+ *
+ * Nothing local can see this. A part compared to its own surface, or a document
+ * to its own hash, is unaffected by where the model puts it, and eight designs
+ * passed per-part admission under both readings. What separates them has to span
+ * instances — a global fit, a contact census, or simply whether the model can be
+ * built — which is the shape of the two cases below: three Bone rows, placed,
+ * and the editor asked whether the result would stay up. Set
+ * `LDD_TO_LDRAW_BASIS_SIGNS` back to `[1, -1, 1]` and both go red.
+ */
 describe("LXFML Bone basis", () => {
   it("resolves a chiral Bone trio into an assembly that holds itself up", () => {
     expect(physicalVerdict(resolvedParts(false))).toEqual([

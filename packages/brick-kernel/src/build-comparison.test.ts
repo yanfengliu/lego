@@ -44,6 +44,17 @@ function reference(): BrickDocumentV1 {
   ]);
 }
 
+/**
+ * The structural hash covers part identifiers, so it cannot decide whether two
+ * models are the same.
+ *
+ * `documentStructuralHash` includes each part's id, and a rebuild invents its
+ * own. Two identical models built independently therefore never hash alike, so a
+ * rebuild scored by hash equality is always a miss: it measures whether the same
+ * object came back, not whether the same model was made. Comparison has to match
+ * parts on what they are and where they sit. Put `part.id` back into
+ * `placementKey` and the first two cases below go to zero.
+ */
 describe("compareBuilds", () => {
   it("scores an identical rebuild as an exact structural match", () => {
     // Different part identifiers, same pieces in the same places.

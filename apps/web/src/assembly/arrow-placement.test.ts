@@ -266,6 +266,23 @@ describe("arrowTravelFamily", () => {
   });
 });
 
+/**
+ * A pixel measurement carries the raster it was taken on: convert it through
+ * that raster's projection, not through a fit from another one.
+ *
+ * The run fits a panel's stud lattice on the full-resolution crop and reads its
+ * displacement arrows on the same crop downsampled by `workFactor`. Taking the
+ * fit's `pixelsPerUnit` unchanged made every arrow-derived displacement in the
+ * repository exactly `workFactor` times too short — a factor of two, reproduced
+ * to 2.000000000000 on all three basis vectors of all three fitted panels.
+ * Nothing local could see it: the renderer divided by the same factor a few
+ * lines away and looked right, and the reported `errorStuds` was a work-pixel
+ * numerator over a full-resolution denominator, so the family looked *more*
+ * precise than it was.
+ *
+ * So the conversion takes both, and refuses a factor that describes no raster —
+ * mixing them is a type error rather than a silent ratio.
+ */
 describe("panelProjectionForWorkRaster", () => {
   /**
    * Panel 2 of the sample booklet: the lattice fit is measured on the

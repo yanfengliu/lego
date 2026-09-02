@@ -16,8 +16,21 @@ import type { BodyShape, PhysicsScene } from "@lego-studio/brick-kernel";
  */
 
 /** One LDU is 0.4 mm, so 0.04 cm. */
-const CM_PER_LDU = 0.04;
-const GRAVITY_CM_PER_S2 = 981;
+export const CM_PER_LDU = 0.04;
+export const GRAVITY_CM_PER_S2 = 981;
+
+/**
+ * Half the build plate's thickness, in centimetres. A slab, not a sheet.
+ *
+ * The first version was 20 micrometres thick. A brick dropped 8 cm reaches about
+ * 125 cm/s, which is 2 cm of travel in a sixtieth of a second — larger than most
+ * of the parts involved — so the body crossed the collider entirely inside one
+ * step and kept falling with nothing to report, coming to rest 11 LDU *below*
+ * the plate. Continuous collision detection now covers the same failure from the
+ * other side, which is why removing either defence alone leaves the landing test
+ * green; `rapier-world-scale.test.ts` holds this half on its own.
+ */
+export const GROUND_SLAB_HALF_DEPTH_CM = 50;
 
 export interface BodyPose {
   /** Body origin in LDU, in the document's frame. */
@@ -259,7 +272,7 @@ export async function createSimulation(
       // brick dropped from 8 cm moves 2 cm in a step, so it passed straight
       // through and kept going. Deep enough that nothing can cross it in one
       // step, positioned so its top face is the plate.
-      const halfDepth = 50;
+      const halfDepth = GROUND_SLAB_HALF_DEPTH_CM;
       const surfaceY = toSimulation([0, options.groundYLdu, 0])[1];
       const ground = world.createRigidBody(
         rapier.RigidBodyDesc.fixed().setTranslation(0, surfaceY - halfDepth, 0),

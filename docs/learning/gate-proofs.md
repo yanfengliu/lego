@@ -1,0 +1,217 @@
+# Gate proofs
+
+Every lesson this repository used to carry as prose is now either enforced by a machine, promoted, or dropped.
+
+This file is the standing answer to "did the gates actually do their job". One entry per gate, each recording the product-code edit that reintroduces the defect and the failure line the gate printed when it did.
+
+A gate nobody has watched fail is a claim, not a gate. Nothing was deleted from `lessons.md` on the strength of an entry that is not here.
+
+## The baseline these proofs were measured against
+
+Measured 2026-09-02 at `234dde93562d2a3c5a0a0dad9e3f62806d1eda72` ("Sync fleet canon: rework the standing-loop rules after review").
+
+The working tree was **not** clean. It carried 188 modified tracked files and 491 untracked files of uncommitted work in progress — an in-flight catalog `/30` change adding the `builtin:jumper-plate-1x2` identity — with mtimes from 2026-08-29 to 2026-09-01. None of it was touched: no stash, no revert, no `git checkout --`. Every mutation below backed its file up in memory and restored it byte for byte, so a dirty file was never clobbered.
+
+On that tree `npx vitest run` reported **41 test files failed, 103 tests failed, 4223 passed** before any change of this session, and **40 / 101 / 4221** on a second full run twenty minutes later — so about two of them are flaky and a count on its own is not a comparison. The named list from the second run is what the differential at the end of the session was diffed against. The failures are catalog definition-byte and hash pins that the in-flight change moved and has not yet re-pinned.
+
+A red suite makes "I mutated the code and the suite went red" worthless as evidence. So no proof below uses the full suite as its red/green signal. Each one names a single test file, and that file was run alone and seen green immediately after the mutation was reverted — the `Green after revert` line in each entry is that run.
+
+Where a lesson's only gate lives in a file that is already red at baseline, the lesson is **blocked, not gated**: its prose stays in `lessons.md` and it is named in the report as unproved. Retaining an unproved lesson is the correct outcome; deleting one on an unprovable gate is the failure this file exists to prevent.
+
+## Proofs
+
+### Naming an ambiguity is not resolving it: a check both answers satisfy cannot fail on the swap it exists to catch.
+
+- **Gate:** `scripts/part-identification-handedness.test.mjs` :: "rejects the swapped hand even when the note names the twin by number" — run by `npm run test`
+- **Mutation:** in `scripts/part-identification-claims.mjs`, replaced the pixel-read refutation `if (hand.hand !== pick) return { elementId: null, picked: "handedness-refuted" };` with a check that the model's free-text note names the twin by number, which is the original shipped grader.
+- **Red:** `AssertionError: expected { elementId: '6392747', …(2) } to deeply equal { elementId: null, …(1) }` — the swapped pick was promoted, carrying the mirror twin's element.
+- **Green after revert:** yes
+
+### The structural hash covers part identifiers, so it cannot decide whether two models are the same.
+
+- **Gate:** `packages/brick-kernel/src/build-comparison.test.ts` :: "scores an identical rebuild as an exact structural match" and "does not depend on part identifiers matching" — run by `npm run test`
+- **Mutation:** in `packages/brick-kernel/src/build-comparison.ts`, added `part.id` to `placementKey`, so a placement is keyed by identifier again.
+- **Red:** 3 of 12 failed; `AssertionError: expected +0 to be 1` for recall, `expected +0 to be 2` for the renamed rebuild's correct count.
+- **Green after revert:** yes
+
+### Filtering by value drops the token you wanted when it collides with the one you meant to discard.
+
+- **Gate:** `apps/web/src/instructions/booklet-structure.test.ts` :: "reads the step from each page and ignores the printed page number", and two more — run by `npm run test`
+- **Mutation:** in `apps/web/src/instructions/booklet-structure.ts`, reduced `withoutPrintedPageNumbers` to `sighting.value === sighting.pageNumber`, dropping both the smallest-type test and the once-per-page limit. That is the filter that lost step 64 of 359.
+- **Red:** 3 of 16 failed, including `AssertionError: expected [ 1, 1 ] to deeply equal [ 1, 2, 3 ]` — steps whose number equals their page went out with the page number.
+- **Green after revert:** yes
+
+### Periodicity and amplitude are both forgeable: a raster staircase repeats exactly and a thresholded stroke wanders a whole row.
+
+- **Gate:** `apps/web/src/instructions/stud-pitch.test.ts` :: "reports no pitch for p120-r0@4" and "…@6, whose outline is visibly smooth" — real traced booklet edges from `__fixtures__/booklet-edges.json`, run by `npm run test`
+- **Mutation:** in `apps/web/src/instructions/stud-pitch-profile.ts`, set `minCombShare: 0`, removing the requirement that the edge's wobble gather onto the harmonics of one period.
+- **Red:** `expected 67.008790765595 to be null` and `expected 14.762634617293958 to be null` — the visibly smooth page-120 outline returned a confident pitch, which is the reported failure reproduced.
+- **Green after revert:** yes
+- **Not covered:** the amplitude floor `minRippleRows` can be set to 0 with the whole file still green. The synthetic staircases are refused by the harmonic test on its own, so only the second half of this lesson is pinned.
+
+### A step highlight is an open contour whenever the step's parts go behind built ones; only about half enclose anything.
+
+- **Gate:** `apps/web/src/instructions/highlight-region.test.ts` :: "reports a gapped outline as leaked instead of silently enclosing nothing", "keeps an open contour's own stroke, which is all it prints", "reports how many contours closed, which is the share a fill can serve" — run by `npm run test`
+- **Mutation:** in `apps/web/src/instructions/highlight-region.ts`, set `leaked: false` unconditionally, so a gapped outline reports as a closed one.
+- **Red:** 3 of 10 failed; `closedContourRate` moved `expected 1 to be 0.5`, and the open contour's own stroke was dropped from the region.
+- **Green after revert:** yes
+
+### An open contour has no one-sided pixel test: the stroke straddles the boundary, so rank by the printed line explained.
+
+- **Gate:** `apps/web/src/assembly/step-score.test.ts` :: "ranks an open contour on the printed line alone, not on the line it was never given" — run by `npm run test`
+- **Mutation:** in `apps/web/src/assembly/step-score.ts`, made `rankStepDelta` return `score.score` for every basis, so an open contour is ranked by the blend that includes `boundaryPrecision`.
+- **Red:** `AssertionError: expected 0.9090909090909091 to be 1` — the candidate is charged for the occlusion that opened the contour, which is a fact about the page rather than about the placement.
+- **Green after revert:** yes
+
+### Simulate bricks in centimetres, not LDU or metres, and give the ground real depth or a falling brick goes straight through it.
+
+- **Gate:** `apps/web/src/physics/rapier-world-scale.test.ts` (new) :: three cases — run by `npm run test`
+- **Mutation A:** `GROUND_SLAB_HALF_DEPTH_CM` 50 → 0.001 in `apps/web/src/physics/rapier-world.ts`, the 20-micrometre sheet.
+- **Red A:** `a 0.002 cm plate is crossed by 2.09 cm of travel in one 0.0167 s step, which is how the brick came to rest 11 LDU below it: expected 0.002 to be greater than 2.08806130178211`
+- **Mutation B:** `CM_PER_LDU` 0.04 → 0.0004 and `GRAVITY_CM_PER_S2` 981 → 9.81, which is metres.
+- **Red B:** all three cases, including `expected 9.81 to be close to 981, received difference is 971.19`.
+- **Green after revert:** yes
+- **Why a new gate:** the anchor's own test, "lands a body on the plate and leaves it there", holds neither claim. Two independent defences now cover the tunnelling — a deep slab and continuous collision detection — so removing either alone leaves it green, and it never looks at the unit system at all. Both mutations, plus `enableCcd(false)`, were run against it first and it stayed green every time.
+
+### A sub-assembly box is joined to the model by its leader line, so the largest connected region is not the assembly.
+
+- **Gate:** `apps/web/src/assembly/panel-registration.test.ts` :: "keyPrintedBoxes > masks a white box and everything it contains, not just its fill" — run by `npm run test`
+- **Mutation:** in `apps/web/src/assembly/panel-art.ts`, raised `keyPrintedBoxes`'s white level to 256, so nothing on the page is white enough to key and the printed sub-assembly box stays joined to the assembly.
+- **Red:** `AssertionError: expected +0 to be 1` — the box and everything inside it came through as assembly.
+- **Green after revert:** yes
+
+### Make a vision call answer the same question twice, in words and by pointing; the cheap model contradicts itself four times in five.
+
+- **Gate:** `scripts/part-identification-vision.test.mjs` :: "fails closed on incomplete descriptions, mutable model aliases, and extra model usage" — run by `npm run test`
+- **Mutation:** in `scripts/part-identification-claims.mjs`, disabled the guard that drops a pick when the free-text description and the closed-set pick disagree.
+- **Red:** `AssertionError: expected { elementId: '300501', …(2) } to match object { elementId: '300501', …(1) }` — a pick its own description contradicts was promoted.
+- **Green after revert:** yes
+
+### A plate of height projects to a third of a stud, so a tolerance looser than that cannot tell one layer from the next.
+
+- **Gate:** `apps/web/src/assembly/arrow-placement.test.ts` :: "arrowTravelFamily > measures across the arrow rather than to its endpoint" — run by `npm run test`
+- **Mutation:** in `apps/web/src/assembly/arrow-placement.ts`, restored the original default `toleranceStuds = 0.35`, which is above the 0.322–0.330 of a stud that a plate projects to on every fitted panel of the sample booklet.
+- **Red:** the family admitted its own neighbouring layers; `expected false to be true`.
+- **Green after revert:** yes
+
+### A safety barrier that lives only in a document is not a barrier; state the machine fact you actually ran, then make the refusal executable.
+
+- **Gate:** `scripts/discover_builder_shell_test.py` :: `test_retained_bundle_refuses_to_parse_outside_the_pinned_environment` — run by `npm run test:python`
+- **Mutation:** in `scripts/discover_builder_shell_core.py`, made `assert_pinned_environment_for_retained_bundle` return before it checks the bundle digest, so the refusal is documentary again.
+- **Red:** `AssertionError: retained bundle must not be parsed`
+- **Green after revert:** yes
+
+### An exact fit to a symmetric feature set is not one answer: divide by the object's own symmetry, then let something asymmetric settle what is left.
+
+- **Gate:** `scripts/builder_ldraw_frame_test.py` :: `test_a_symmetric_part_admits_several_frames_that_are_one_class` — run by `npm run test:python`
+- **Mutation:** in `scripts/builder_ldraw_frame.py`, disabled `_same_class` inside `frames_modulo_symmetry`, so every exact frame becomes its own class and the quotient by the part's own symmetry never happens.
+- **Red:** `AssertionError: 4 != 1`
+- **Green after revert:** yes
+
+### Grading a free-text answer against a controlled vocabulary measures wording, not sight, unless the prompt names the vocabulary.
+
+- **Gate:** `scripts/part-identification-vision.test.mjs` :: "offers the call only names the grader can accept" — run by `npm run test`
+- **Mutation:** in `scripts/part-identification-prompt.mjs`, replaced the printed 13-colour vocabulary with the original instruction "Give the colour as a plain colour name."
+- **Red:** `AssertionError: expected 'Each image shows one LEGO part drawin…' to contain 'Green'` — the prompt stopped offering the names the grader compares against.
+- **Green after revert:** yes
+- **Weak spot, recorded rather than hidden:** the same test resolves each vocabulary entry through `COLOR_DEFINITIONS` by the same symbol that built it, so a mutation renaming a colour on both sides passes. What actually binds is the `toContain` against the prompt text.
+
+### Absence needs its own outcome: without one a check reports green, and a classifier reports a confident wrong verdict.
+
+- **Gate:** `scripts/part_description_retrieval_test.py` :: `test_agreement_on_both_sides_is_its_own_outcome` — run by `npm run test:python`
+- **Mutation:** in `scripts/part_description_causes.py`, removed the third outcome from the defect-side classifier, leaving the two-way test that invented a defect out of a 1.0x tie.
+- **Red:** `AssertionError: 'callout-crop' != 'neither-geometry-agrees-on-both-sides'` — the repair is pointed at a file that is fine.
+- **Green after revert:** yes
+
+### A rotation matrix stored as nine numbers has two readings; only something the ambiguity cannot rotate says which.
+
+- **Gate:** `scripts/builder_ldraw_frame_test.py` :: `test_a_rotation_is_read_column_major` — run by `npm run test:python`
+- **Mutation:** in `scripts/builder_ldraw_field.py`, returned `tuple(stored)` from `_signed_permutation` instead of its transpose, which reads Builder's matrix row-major.
+- **Red:** `AssertionError: Tuples differ: (Fraction(0, 1), Fraction(8, 25), Fraction(-4, 5)) != (Fraction(-4, 5), Fraction(8, 25), Fraction(0, 1))`
+- **Green after revert:** yes
+
+### A conservation check with one unmeasured term cannot fail: the free term absorbs whatever the parse got wrong.
+
+- **Gate:** `apps/web/e2e/callout-contract.test.ts` :: "conserves one callout accounting across the publication and real-build contracts" and "keeps the assembled model inside the printed inventory"; `apps/web/test/real-build-test-options.test.ts` :: "satisfies the full-set accounting clause at the last printed step" — run by `npm run test`
+- **Mutation:** in `apps/web/e2e/real-build-contract.ts`, reverted `OFFICIAL_REAL_BUILD_ACCOUNTING` to 1486 / 1446 / 40 / **18**, restoring the term that was derived by subtraction rather than measured.
+- **Red:** `AssertionError: expected 1512 to be 1486` and `expected 18 to be +0`.
+- **Green after revert:** yes
+
+### Local part frames can be right while world placements are mirrored, and a basis is one thing.
+
+- **Gate:** `apps/web/test/real-build-builder-basis.test.ts` :: "resolves a chiral Bone trio into an assembly that holds itself up" and "refuses the same three Bones read through the mirror" — run by `npm run test`
+- **Mutation:** in `apps/web/e2e/real-build-builder-transforms.ts`, set `LDD_TO_LDRAW_BASIS_SIGNS = [1, -1, 1]`, the reflection of determinant -1 that mirrored every world placement.
+- **Red:** both cases failed on the resolved Bone transforms.
+- **Green after revert:** yes
+
+### A score's reachable maximum is a property of the picture; a bar that ignores it measures the panel rather than the placement.
+
+- **Gate:** `apps/web/src/assembly/ghost-placement.test.ts` :: "scores a wholly contained ghost at exactly the panel's own ceiling" — run by `npm run test`
+- **Mutation:** in `apps/web/src/assembly/ghost-placement.ts`, replaced the derived `containmentCeiling` with the fixed 0.45 bar that had been calibrated on synthetic panels.
+- **Red:** `AssertionError: expected 0.2727272727272727 to be 0.45` — the panel's own ceiling and a global bar are different numbers, and only one of them is about the placement.
+- **Green after revert:** yes
+
+### A pixel measurement carries the raster it was taken on: convert it through that raster's projection, not through a fit from another one.
+
+- **Gate:** `apps/web/src/assembly/arrow-placement.test.ts` :: "reports the same travel from either raster, which is the whole point", "recovers the travel a displacement measured on the work raster came from", and two more — run by `npm run test`
+- **Mutation:** in `apps/web/src/assembly/arrow-placement.ts`, made `panelProjectionForWorkRaster` pass the fit's `pixelsPerUnit` through unchanged, which is the shipped defect.
+- **Red:** `AssertionError: expected [ [ +0, -32, +0 ] ] to strictly equal [ [ +0, -64, +0 ] ]` — exactly `workFactor` times too short, reproduced.
+- **Green after revert:** yes
+
+### A check is written against the cases that exist, so ask what it would say about one it has never seen.
+
+- **Gate:** `packages/catalog/src/connector-backing-policy.test.ts` :: "keeps every clutch on the shipped plate whose body is a real cavity" and three more — run by `npm run test`
+- **Mutation:** in `packages/catalog/src/connector-backing-policy.ts`, made `undersideHoldsStud` admit a clutch only when the face is backed by solid, dropping the cavity branch. Correct for a stud, exactly backwards for a clutch.
+- **Red:** `AssertionError: expected 'semantic-tube-seat-grid' to be 'modelled-shell-cavity'`, and the admitted-clutch tallies fell to zero.
+- **Green after revert:** yes
+
+### A hand-built surface can be present, counted by a test, and invisible: measure which way each face points, never the vertex order.
+
+- **Gate:** `packages/rendering/src/rendering.test.ts` :: "points every face of an underside tube outward, at a camera that can see it" — run by `npm run test`
+- **Mutation:** in `packages/rendering/src/geometry.ts`, reversed the winding of the tube's outer wall quad in `createTubeGeometry`, so a `FrontSide` material culls it.
+- **Red:** 1 of 33 failed, on the face-direction census.
+- **Green after revert:** yes
+
+### "Err on the safe side" has a direction, and a legal fit that is nearly tangent reverses it.
+
+- **Gate:** `packages/brick-kernel/src/tube-clearance.test.ts` (new) :: "leaves the four studs its own cell puts at its corners, which a bounding box does not" and "lets two 2-wide parts seat exactly on each other, connection declared" — run by `npm run test`
+- **Mutation:** in `packages/catalog/src/part-factory.ts`, replaced the inscribed tube box `outerRadiusLdu / Math.SQRT2` with the bounding box `outerRadiusLdu`.
+- **Red:** `builtin:brick-2x2 tube:0 half-side 8 leaves -3.172 LDU for a stud half a pitch away in both plan axes: expected -3.1715728752538097 to be greater than 0`, and `builtin:plate-2x2 seated on itself: expected [ 'PART_STUD_BODY_COLLISION' ] to not include 'PART_STUD_BODY_COLLISION'`.
+- **Green after revert:** yes
+- **Why a new gate:** the anchor's own test, "seats a stud in the cavity, and refuses one a single LDU off the lattice" in `validation.test.ts`, is about the *cavity wall* and stacks 1x1 bricks, which have no tube at all. The same mutation was run against it first and it stayed green; across all of `packages/brick-kernel` it moved only catalog hash pins, which report a changed digest rather than a refused build.
+
+### A text prompt is not an image transport; retain the exact image tool call and result or a claimed vision check cannot prove it saw pixels.
+
+- **Gate:** `scripts/multi-panel-vision-claude-adapter.test.mjs` :: "refuses a successful tool result carrying pixels from another bound request" — run by `npm run test`
+- **Mutation:** in `scripts/multi-panel-vision-claude-adapter.mjs`, disabled the byte-for-byte comparison of the retained tool result against the bound request's own image and label blocks, leaving the tool name, call id and success bit — the first mocked adapter's check.
+- **Red:** `AssertionError: expected [Function] to throw an error` — a result carrying another request's pixels was consumed.
+- **Green after revert:** yes
+
+## The phase of a repeat is not the centre of the thing that repeats — half proved
+
+- **Gate:** `packages/rendering/src/camera-fit-lattice.test.ts` :: "latticePhase > moves with the picture, so it registers one panel against another" — run by `npm run test`
+- **Mutation:** in `packages/rendering/src/camera-fit-lattice-phase.ts`, dropped the negation from both returned phases, so the phase is the transform's raw argument.
+- **Red:** 1 of 22 failed — the recovered shift is mirrored about the panel's centre, which is the sign trap the lesson names.
+- **Green after revert:** yes
+- **Not covered:** the lesson's main claim — that grid sites must be drawn from `foldedStudShape`'s own ring centre rather than from `latticePhase`'s Fourier argument — lives at every *call site*, and `latticeSiteResiduals` takes the phase as a parameter. Both existing residual tests hand it the fold, so passing the Fourier phase instead is not caught by anything. The rule survives here and in the `latticeSite` doc comment; the prose line stays in `lessons.md`.
+
+## Lessons whose gate could not be made to go red
+
+Each was mutation-tested and the named gate stayed green, which is the finding. The first five stay in `lessons.md` and `lessons-evidence.md` as unproved prose; the sixth left instead by promotion, because the code it was born in no longer exists to mutate.
+
+- **An error message that covers several causes hides the real one.** `run-ledger-file.ts` splits the five conditions and names the observed values in each, but nothing asserts the messages. The anchor's "46 failing tests" failed on the device-mismatch defect, not on the message. Collapsing all five back into one byte-cap message leaves the suite green.
+- **`lstat` and a handle's `fstat` disagree on `dev` across platforms.** `sameFile`'s `left.dev === 0 || right.dev === 0` tolerance is referenced by no test in the repository.
+- **A step's highlight is not always where the part ends up.** `EMERGENCE_WEIGHT` in `exploded-score.ts` can be set to 0 — scoring by the change reading alone, which measured 3 of 5 against emergence's 4 of 5 — with `exploded-score.test.ts` fully green.
+- **A selector that consults the acceptance test only after choosing.** Moving the axonometric test back below the coarseness tie-break in `fitStudLattice`'s sort leaves all 22 cases of `camera-fit-lattice.test.ts` green. The printed-step-4 case that pins it is in the Playwright spec `apps/web/e2e/camera-panel-fit.spec.ts`, which needs the sample booklet PDF.
+- **The booklet turns the model over and says so.** Changing `ROTATION_ICON_SIDE_PT` from 44.937 to 30 leaves `real-build-transition-classification.test.ts` green.
+- **A cost curve's true minimum is its sharpest point.** The module the lesson was born in was rewritten: `findPitchCandidates` no longer exists and the estimator maximises a comb power rather than minimising a cost, so there is no smoothing to reintroduce.
+
+## The differential this session was checked against
+
+Full `npx vitest run` before this session's changes: 40 files / 101 tests failed, 4221 passed. After: 44 / 103 failed, 4197 passed, over 582 files rather than 580 — the two extra files are the new gates above.
+
+Diffed by test name rather than by count, eight failures appeared and two disappeared. All ten live in `apps/web/test/real-build-prefix50-*`, the in-flight catalog `/30` area, and none of them imports anything this session changed — a grep for the changed modules across those files returns zero. Run alone, all six newly-failing files pass: 4 files / 32 tests and 2 files / 6 tests, both green. They do real process kills, staging publication and PDF-toolchain work, and adding two test files to the run reschedules the eight workers around them.
+
+So the honest statement is not "zero new failures". It is that the WIP area carries scheduling-sensitive tests, that the set of failures moves between runs of the same tree, and that nothing this session touched appears in it.
+
+Non-test gates at the same point: `schema:check`, `node:check`, `observations:check`, `lessons:check`, `notices:check`, `parts:check`, `tsc --noEmit`, and `eslint`/`prettier` over the changed files all pass. `bom:check` fails on an untracked WIP `.dll` the census has no policy for, and `migration-history:check` fails on a `tar` invocation that cannot resolve a Windows drive path in this shell. Both predate this session.
