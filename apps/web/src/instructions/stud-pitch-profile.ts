@@ -10,7 +10,10 @@
  */
 export const STUD_PITCH_SCHEMA_VERSION = "lego.stud-pitch/1" as const;
 
-export const STUD_PITCH_DEFAULTS = Object.freeze({
+// Every default is a `number`, not the literal it happens to hold today: an
+// options type whose fields accept only their own defaults cannot be used to
+// turn one term off and see what the others were carrying.
+const STUD_PITCH_DEFAULT_VALUES = {
   /** Below this a "period" is indistinguishable from raster stair-stepping. */
   minPitchPx: 10,
   /** Rows the topmost edge may jump between neighbouring columns before it is a new run. */
@@ -48,7 +51,10 @@ export const STUD_PITCH_DEFAULTS = Object.freeze({
   /** Shortest piece a corner split may leave behind. */
   minSegmentPx: 60,
   maxCorners: 3,
-});
+} as const;
+
+export const STUD_PITCH_DEFAULTS: Readonly<Record<keyof typeof STUD_PITCH_DEFAULT_VALUES, number>> =
+  Object.freeze(STUD_PITCH_DEFAULT_VALUES);
 
 export type StudPitchOptions = typeof STUD_PITCH_DEFAULTS;
 

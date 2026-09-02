@@ -87,18 +87,53 @@ for (const rule of rules) {
   }
 }
 
+/**
+ * The claim, without its evidence link and without the gate clause after it.
+ *
+ * A rule is two things: the transferring claim, which is what a reader has to
+ * hold, and the gate it is waiting for, which is what makes the line a queue
+ * entry rather than a destination. They are measured separately — a long clause
+ * naming a test file must not push a short claim over the index's budget, and an
+ * unbounded claim must not hide behind one.
+ */
+const claimOf = (rule) =>
+  rule.replace(/\s*\(\[evidence\].*$/, "").replace(/\s*\*\*Waiting on:\*\*.*$/s, "");
+
 // The index earns its keep only by staying short.
-const overlong = rules.filter((rule) => rule.replace(/\s*\(\[evidence\].*$/, "").length > 160);
+const overlong = rules.filter((rule) => claimOf(rule).length > 160);
 if (overlong.length > 0) {
   fail(
-    `${overlong.length} rule(s) exceed 160 characters before their link, which defeats an index. ` +
+    `${overlong.length} rule(s) state a claim longer than 160 characters, which defeats an index. ` +
+      `The gate clause after "**Waiting on:**" is not counted against it. ` +
       `First: ${overlong[0].slice(0, 120)}…`,
+  );
+}
+
+/**
+ * Every rule names the gate it is waiting for.
+ *
+ * A lesson is a queue entry, not a destination: it is deleted in the commit that
+ * lands its gate, so it has to say which gate that is, and until then every
+ * session in the repo pays to read it. An entry that can name no gate is not a
+ * lesson — it is promoted into the fleet constitution through
+ * canon-candidates.md, moved to docs/policies/local-rules.md when it binds only
+ * here, or dropped. Without this check a line can sit in the queue for months
+ * with nothing said about what would let it leave, which is how thirty of them
+ * accumulated.
+ */
+const gateless = rules.filter((rule) => !/\*\*Waiting on:\*\*\s*\S/.test(rule));
+if (gateless.length > 0) {
+  fail(
+    `${gateless.length} rule(s) name no gate. Add "**Waiting on:** <the test, lint rule, schema ` +
+      `check or fixed command that would let this line be deleted>" — or promote the entry to ` +
+      `canon-candidates.md, move it to docs/policies/local-rules.md, or drop it. ` +
+      `First: ${claimOf(gateless[0]).slice(0, 120)}…`,
   );
 }
 
 const seen = new Set();
 for (const rule of rules) {
-  const text = rule.replace(/\s*\(\[evidence\].*$/, "");
+  const text = claimOf(rule);
   if (seen.has(text)) fail(`Two rules say the same thing, so two entries teach it: ${text}`);
   seen.add(text);
 }

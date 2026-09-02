@@ -71,8 +71,31 @@ export function describeDeferralTrigger(trigger: DeferralTrigger): string {
 
 /** Coarse translation costs one sixteenth of full sampling, then reports the winning shift at full resolution. Against the probe's eight pairs it moved the optimum by up to 7.3 px and agreement by 0.009916; the margin floor is sized from that measurement. */
 const REGISTRATION_SAMPLE_STRIDE = 4;
-const REGISTRATION_SCALES = [8, 3, 1] as const;
-const REGISTRATION_RADIUS = 4;
+export const REGISTRATION_SCALES = [8, 3, 1] as const;
+export const REGISTRATION_RADIUS = 4;
+
+/**
+ * How far this registration can move a candidate, in pixels along each axis.
+ *
+ * A maximisation is also a blindness, and its blind spot is exactly its search
+ * domain: any difference between two candidates that is a translation inside
+ * this reach is deleted from the evidence and reports as agreement rather than
+ * as an error. Driven the first time at 3 pixels per Three.js *unit* rather than
+ * 20 per stud, a whole stud was three pixels wide, every difference in a
+ * four-hundred-candidate set was inside this number, and the search dutifully
+ * translated each wrong answer on top of the right one: 0.995 to 1.000 across
+ * the set, best-to-runner-up 0.0047. At 20 pixels per stud the same candidates
+ * separate 1.000 from 0.781.
+ *
+ * So before trusting this score, state the smallest difference it must resolve
+ * in pixels and check that it is larger than this. Widening the search widens
+ * the blind spot, which is why the number is pinned in
+ * `apps/web/test/real-build-deferral.test.ts` rather than left implicit.
+ */
+export const REGISTRATION_REACH_PX = REGISTRATION_SCALES.reduce(
+  (total, scale) => total + scale * REGISTRATION_RADIUS,
+  0,
+);
 
 export interface PrefixAgreement {
   readonly agreement: number;

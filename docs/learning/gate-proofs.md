@@ -262,6 +262,83 @@ Two clauses, and each has its own gate.
 - **Green after revert:** yes
 - **Why the gate is a type and not a threshold — measured, not assumed:** on the synthetic grid this module draws, the two phases agree to 0.0003 of a cell and the residuals taken against either are indistinguishable, 0.2504px against 0.2501px and 19.7391 against 19.7395 on the anti-phase control. No fixture this module can draw separates them; the half-cell divergence is a property of printed instruction art, where the anchor measured 0.96px of reprojection error from the folded centre against about 20px from the Fourier argument. The sign trap beside it stays gated where it was, in `camera-fit-lattice.test.ts`.
 
+## Proofs from the second pass's triage of the remaining lessons, 2026-09-02
+
+### A deterministic capture default is the wrong default for an interactive camera.
+
+- **Gate:** `packages/rendering/src/rendering.test.ts` :: "keeps the model inside the frustum at any dolly distance", "covers display layers wider than the model when asked to", "reproduces the canonical frustum clipping it replaces for interactive use" — run by `npm run test`
+- **Mutation:** in `packages/rendering/src/cameras.ts`, made `orbitCameraFrustum` compute its planes from the authored capture distance (`sceneRadius * 3`) instead of the live orbit distance, which is the pinned frustum reused for interaction.
+- **Red:** 3 of 33 failed.
+- **Green after revert:** yes
+- **The clause that did not leave this way:** the interactive *framing* minimum — the half-unit fallback box putting the camera inside the first brick — lives in `Math.max(view.frameRadius, GRID_SCENE_RADIUS)` in `apps/web/src/components/BrickViewport.tsx`, where `GRID_SCENE_RADIUS` is private to a `.tsx` component. It moved to `docs/policies/local-rules.md` with the gate it would need named there.
+
+### An LDraw part has no inside: its hollows are open primitives, so test that the real surface is contained rather than counting ray crossings.
+
+- **Gate:** `scripts/part_admission_ldraw_candidate_test.py` :: `test_the_inset_probe_shrinks_only_horizontal_faces`; `scripts/part_admission_scorecard_test.py` :: `test_a_quarter_ldu_inset_is_a_hard_fail_not_a_low_score` — run by `npm run test:python`
+- **Mutation:** in `scripts/part_admission_scorecard.py`, made every sampled surface point count as contained, which is what a containment check that has stopped checking looks like. Parity itself is gone and cannot be reintroduced; what is provable is that the measurement replacing it is live.
+- **Red:** `AssertionError: Lists differ: ['female-connector-has-no-room-for-a-stud'] != ['female-connector-has-no-room-for-a-stud', 'collision-under-claim']` and `Lists differ: [] != ['collision-under-claim']` — the box union stops being checked against the surface it claims to contain.
+- **Green after revert:** yes
+
+### A clearance probe answers whether a stud fits, never whether anything holds it, so it cannot settle a disagreement between two authored sources.
+
+- **Gate:** `scripts/ldcad_shadow_coverage_test.py` :: "a cell one lattice step away is a disagreement not a match" and "a tube a whole stud pitch away backs nothing" — run by `npm run test:python`
+- **Mutation A:** `POSITION_TOLERANCE_LDU` 1e-9 → 25.0 in `scripts/ldcad_shadow_coverage.py`, which absorbs the two LDCad-only cells into agreement instead of recording them.
+- **Red A:** `AssertionError: 1 != 0`
+- **Mutation B:** made `tubesAtThisCellsCorners` count every measured tube rather than the ones 10 LDU away in both plan axes, so a claim resting on a wall reads as tube-backed.
+- **Red B:** `AssertionError: 1 != 0` on the cell whose nearest tube is 30 LDU away.
+- **Green after revert:** yes
+
+### An exact ambiguity cannot be resolved by telling the measurement which answer to prefer; the cue belongs where the answer is used.
+
+- **Gate:** `packages/rendering/src/camera-fit-lattice.test.ts` :: "gives the same lattice for a below-view as for an above-view at negated azimuth" and "fits a below-view panel as an above-view without ever failing" — run by `npm run test`
+- **Mutation:** in `reduceToAxonometricBasis`, negated `b` after `canonicalPair` has oriented it — the shipped `face` option, threaded in as a below-view.
+- **Red:** 16 of 22 failed, and the named case failed with `expected null not to be null` — the option is destructive rather than inert, which is the correction the lesson records: refitting every panel as a below-view produced 0 solutions where 32 had been found.
+- **Green after revert:** yes
+
+### An annotation drawn to a hidden destination states its direction, not its length; treat the ink as a floor and let the picture supply the rest.
+
+- **Gate:** `apps/web/src/assembly/arrow-placement.test.ts` and `apps/web/test/real-build-exploded-step.test.ts` :: "takes the ink as a floor, so nothing travels less far than it was drawn", "recovers a travel the arrow was inked too short to state", "stops at the model rather than carrying the part through it", "settles from an arrow inked short of the travel it means" — run by `npm run test`
+- **Mutation A:** in `arrowTravelFamily`, read the ink as a length rather than a floor — `Math.abs(travelPx - drawnPx) > tolerancePx` in place of the floor-and-ceiling window, which is `correctArrowForClearance`'s assumption.
+- **Red A:** 6 of 35 failed.
+- **Mutation B:** dropped the ceiling, leaving only the floor.
+- **Red B:** 3 of 35 failed, including "stops at the model rather than carrying the part through it".
+- **Green after revert:** yes
+
+### File metadata cannot see a same-size rewrite.
+
+- **Gate:** `apps/web/test/real-build-input-files.test.ts` :: "never returns same-tick pre-open rewritten bytes when the caller pins their digest" and "rejects bytes whose content digest differs from the caller's pin" — run by `npm run test`
+- **Mutation:** in `apps/web/e2e/bounded-file-read.ts`, made `assertPinnedContent` return before comparing the digest.
+- **Red:** the file's failures went from 1 to 3 **by name**, the two new ones being exactly those cases. That file carries one pre-existing failure at baseline — "rejects and removes a same-size mutation after atomic publication", which fails with `EBUSY: resource busy or locked` on this host — so the proof is a by-name differential rather than a count.
+- **Green after revert:** yes, back to the same single pre-existing failure.
+- **The clause that did not leave this way:** "a guard test that passes on an incidental clock tick is a false green" is about how a test came to be green, not about the file read. It is staged in `canon-candidates.md`.
+
+### A maximisation is also a blindness: a score maximised over shift cannot see a difference smaller than its own search reach.
+
+- **Gate:** `apps/web/test/real-build-registration-reach.test.ts` (new) :: four cases — run by `npm run test`
+- **Product change first:** `REGISTRATION_SCALES`, `REGISTRATION_RADIUS` and a derived `REGISTRATION_REACH_PX` are now exported from `apps/web/e2e/real-build-deferral.ts`, with the reach documented as the blind spot it is. The reach was implicit before, so nothing could compare it against the difference it had to resolve.
+- **Mutation:** `REGISTRATION_SCALES` `[8, 3, 1]` → `[64, 8, 3, 1]`, widening the reach from 48px to 304px.
+- **Red:** `expected [ 64, 8, 3, 1 ] to deeply equal [ 8, 3, 1 ]`, `expected 15.2 to be less than 3` — a stud at the booklet's own 20px is no longer outside the blind spot — and, in the existing `real-build-deferral.test.ts`, `refuses a winner the panel does not corroborate` fell to `expected 0.058335010424077904 to be greater than 0.0878`.
+- **Green after revert:** yes
+- **What was tried first and did not work:** widening the same constant to `[512, 128, 32, 8, 3, 1]` with radius 8 — a 4096px reach — left all 22 cases of `real-build-deferral.test.ts` green, which is the finding that made a new file necessary. The measured spread the new gate rests on: over a block 80px wide on a 400x200 raster under the `"iou"` measure, offsets 0 to 48 come back between 0.863 and 1.000 — placements up to 2.4 studs apart at the booklet's own 20px per stud — and four times the reach comes back at 0.
+- **A limit of the fixture, stated rather than left to be found:** the reach boundary is not crisp in it. An 80px block shifted 96px still overlaps a little, so it reads 0.863 as well; only at 192px, where the overlap is nil, does the score collapse. What the gate holds is the pin on the reach and the collapse far outside it, not a knife edge at 48.
+
+### Recomputing pinned truth per call turns catalog growth into a timeout that reads as a hang.
+
+- **Gate:** `packages/brick-kernel/src/truth-snapshot-memoisation.test.ts` (new) :: "returns one frozen object however often it is asked", "does not rebuild it once per validation" — run by `npm run test`
+- **Mutation:** removed `if (cachedTruthSnapshot) return cachedTruthSnapshot;` from `createBuiltinTruthSnapshot` in `packages/brick-kernel/src/factory.ts`.
+- **Red:** both cases, `AssertionError: expected { …(6) } to be { …(6) } // Object.is equality`. The second case also went from milliseconds to 5.42 seconds, which is the original symptom — but it fails on an assertion naming the defect rather than by timing out, which is the point of asserting identity instead of elapsed time.
+- **Green after revert:** yes
+
+### The lessons queue itself: every retained rule names the gate it is waiting for.
+
+- **Gate:** `scripts/check-lessons.mjs` — run by `npm run lessons:check`, which is in `npm run verify`
+- **Product change:** the pairing check now measures the claim separately from the gate clause, and refuses any rule with no `**Waiting on:**`. Without it a line can sit in the queue indefinitely with nothing said about what would let it leave.
+- **Mutation A:** stripped the `**Waiting on:**` clause from one rule.
+- **Red A:** `Lessons check failed: 1 rule(s) name no gate. Add "**Waiting on:** …"`
+- **Mutation B:** pushed one claim past 160 characters, with its gate clause intact.
+- **Red B:** `Lessons check failed: 1 rule(s) state a claim longer than 160 characters, which defeats an index.` — so widening the line to hold a gate name has not quietly widened the index budget.
+- **Green after revert:** yes
+
 ## Reach and clause audit of the first pass, 2026-09-02
 
 One mutation proves a gate catches that mutation; it does not prove the reach claimed in prose beside it. And a lesson with several clauses needs a destination for every clause, not one gate that absorbs its siblings. Both were checked against the entries above.
@@ -284,6 +361,20 @@ The second-pass phase gate claimed to refuse the Fourier argument "at every site
 
 - `connector-backing-policy.test.ts` names one shipped plate and asserts all eight of its clutches; its six other cases build fresh blueprints through `makePartDefinition`, which is the "case it has never seen" the lesson is about. No class claim beyond that appears in its entry.
 - `rendering.test.ts` :: "points every face of an underside tube outward" censuses every triangle of one tube of one part. The tube geometry comes from one `createTubeGeometry`, so one tube is the family; the entry claims no more than that.
+
+## Lessons deliberately retained after the second pass, with the gate each is waiting for
+
+Ten rules are still in `lessons.md`, and every one of them now names what would let it leave. Nine need a gate that does not exist yet and are honest queue entries; one has a gate that cannot be run.
+
+- **An orientation compared as a string, not modulo the part's own symmetry.** This one is *blocked*, not ungated. Its gate exists — the `catalog-part-self-symmetry` rows of "recomputes the retained v8 report and derives the exact step-1 canonical origin" in `apps/web/test/real-build-builder-calibration.test.ts` — and that case is red at baseline, with `Pinned Builder source 3040;F/builtin:slope-1x2-45 is stale against catalog builtin.basic-parts/30`. That is the in-flight catalog change, not this work. A mutation proof against a case that is already red proves nothing, so the prose stays until it is green.
+- The other nine name a test that has to be written. Four of them (the hand-assembled parts array, insertion order, the crop box, the printed-panel registration) exist today only as Playwright specs over the sample booklet; two (the gallery assignment, the colour distance) are in `.mjs` scripts with no test file at all; one (the stud grid's missing translation) needs a translation-invariance case beside the recovery cases that are already gated; one (the instruction finish) needs the printed reference its spec loads; and one (the byte comparison's message) needs a regression that was deleted along with the pinning surface it was written against.
+
+Two lessons left this pass by promotion rather than by gate, and each is named where it went:
+
+- **A green vision narrowing can drop settled truth** → `canon-candidates.md`. The replay that covers it is green either way; what transfers is that a safety result must not be reported as a correctness one.
+- **A contact sheet can be full-size while every bound image inside it is downsampled** → `docs/policies/local-rules.md`, as a requirement on any inspection composite this repo builds.
+
+One left as a duplicate: **long feedback loops need an intermediate score** is already `AGENTS.md`'s own convention, established 2026-07-31 from the same step-64 anchor — "build the measurable intermediate first and drive it… a booklet checks itself… a change with no number attached is not progress". Keeping both halves would have been a second copy of a rule already read every session.
 
 ## Lessons whose gate could not be made to go red
 
