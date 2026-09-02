@@ -72,8 +72,16 @@ export interface LatticePhaseOffset {
  * `latticePhase`'s output at any of the four call sites compiled, ran, and drew
  * marks in the gaps. `LatticePhase` deliberately does not carry the marker.
  */
+declare const NAMES_A_STUD_CENTRE: unique symbol;
+
 export interface LatticeSitePhase extends LatticePhaseOffset {
-  readonly namesAStudCentre: true;
+  /**
+   * Phantom, and deliberately so: declared, never assigned, and erased at build.
+   * A real field here would join `phase` wherever a caller puts it into a result
+   * object, and this repository pins artifact bytes — a marker that exists to
+   * stop a mistake must not be able to move a digest.
+   */
+  readonly [NAMES_A_STUD_CENTRE]: true;
 }
 
 export interface LatticePhase extends LatticePhaseOffset {
@@ -729,10 +737,9 @@ export function foldedStudShape(fold: FoldedCell): FoldedStudShape | null {
   }
   const scatter = residualCount > 0 ? Math.sqrt(residual / residualCount) : 0;
   return {
-    namesAStudCentre: true,
     phase1,
     phase2,
     ringRadiusCells: (ringBin / bins) * reach,
     radialContrast: scatter > 0 ? (highest - lowest) / scatter : 0,
-  };
+  } as FoldedStudShape;
 }

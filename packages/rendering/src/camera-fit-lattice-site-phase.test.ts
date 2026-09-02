@@ -99,6 +99,15 @@ const BASIS = fitStudLattice(FIELD).basis!;
 const FOURIER = latticePhase(FIELD, latticeReciprocal(BASIS)!)!;
 const FOLD = foldedStudShape(foldUnitCell(FIELD, BASIS, 28)!)!;
 
+/**
+ * The same phase signed the other way. Only `foldedStudShape` can mint a
+ * `LatticeSitePhase`, which is the point, so a derived one is asserted rather
+ * than built — and the assertion is confined to this one helper.
+ */
+function negated(phase: LatticeSitePhase): LatticeSitePhase {
+  return { phase1: -phase.phase1, phase2: -phase.phase2 } as LatticeSitePhase;
+}
+
 /** Cycles from `left` to `right` along one direction, wrapped into (-0.5, 0.5]. */
 function cyclesApart(left: number, right: number): number {
   const raw = (right - left) % 1;
@@ -117,9 +126,20 @@ describe("only a phase that names a stud may be drawn from", () => {
     // @ts-expect-error the same argument, at the measurement that reports the panel's error
     latticeSiteResiduals(FIELD, BASIS, FOURIER);
     // "Every site call" is the claim, so it is checked rather than asserted: every
-    // exported function of this module taking a phase appears above.
-    expect(FOLD.namesAStudCentre).toBe(true);
-    expect("namesAStudCentre" in FOURIER).toBe(false);
+    // exported function of this module taking a phase appears above. The marker is
+    // phantom — declared on the type, never assigned — so a caller putting a phase
+    // into a result object serializes the same four numbers it always did, and no
+    // pinned artifact moves. That is what the last two assertions hold.
+    expect(Object.keys(FOLD).sort()).toEqual([
+      "phase1",
+      "phase2",
+      "radialContrast",
+      "ringRadiusCells",
+    ]);
+    expect(latticeSite(BASIS, FOLD, 0, 0)).toEqual({
+      xPx: expect.any(Number),
+      yPx: expect.any(Number),
+    });
   });
 
   /**
@@ -154,12 +174,7 @@ describe("only a phase that names a stud may be drawn from", () => {
     // mark lands mirrored about the panel's centre. Drawn at the negated fold, the
     // predicted site moves off the ink it was on.
     const onTheStud = latticeSite(BASIS, FOLD, 3, 2);
-    const mirrored = latticeSite(
-      BASIS,
-      { namesAStudCentre: true, phase1: -FOLD.phase1, phase2: -FOLD.phase2 },
-      3,
-      2,
-    );
+    const mirrored = latticeSite(BASIS, negated(FOLD), 3, 2);
     expect(Math.hypot(onTheStud.xPx - mirrored.xPx, onTheStud.yPx - mirrored.yPx)).toBeGreaterThan(
       1,
     );
