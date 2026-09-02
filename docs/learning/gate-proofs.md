@@ -349,6 +349,15 @@ The claim is that the gate covers the corpus rather than one part: `packages/bri
 
 The hole was the loop's own `if (tube.kind !== "box") continue`. A tube authored as a **cylinder** left the loop silently, and `collision-world-primitives.ts` gives a cylinder half-extents of `[radius, radius, halfHeight]` — its bounding box, which is precisely the approximation the lesson refuses. Proved by authoring `3001.dat`'s tubes as cylinders: before the fix only the second case caught it, and only because `brick-2x4` happens to be one of three hardcoded stacks; a cylinder tube on any other part would have escaped. The loop now collects unboxed tubes and fails on them (`a tube that is not a box escapes the clearance check above: expected [ …(3) ] to deeply equal []`). The non-vacuity floor moved from `> 20` to the measured corpus — 582 tube boxes over the 30 parts that carry one, of 106 — and a second case states the remaining horizon out loud: tubes are found by the `tube:` id prefix `part-factory.ts` writes, and by nothing else.
 
+### Clauses of the lessons deleted in this pass, enumerated before they were deleted
+
+Four of the eight carried more than one claim, and each clause was given its own destination rather than being absorbed by a sibling's gate.
+
+- **The interactive camera lesson** is two: the framing minimum and the frustum. The frustum is gated; the framing minimum is a `.tsx`-private constant and moved to `local-rules.md` with the gate it would need named there.
+- **The file-metadata lesson** is two: metadata cannot see a same-size rewrite, and a guard test that passes on an incidental clock tick is a false green. The first is gated; the second is staged in `canon-candidates.md`.
+- **The LDraw-has-no-inside lesson** carries a second finding under its own 2026-08-09 heading: consistent winding is necessary for run pairing and is not sufficient, and "feasible, because the winding is consistent" reached a pushed commit message before it was measured. The containment gate covers the remedy; the "necessary is not sufficient" claim is staged in `canon-candidates.md`.
+- **The exact-ambiguity lesson** names three habits. Distinguishability-before-parameterising is gated by the equivalence regression. "Quote a number only from something a later reader can re-run" is already fleet canon. "An option with no caller is worse than none, because it reads as a capability" was not covered anywhere — `PanelFace` is still exported from `camera-fit-lattice.ts` with nothing consuming it, deliberately, as the finding — and is staged in `canon-candidates.md`.
+
 ### One clause of "periodicity and amplitude are both forgeable" had no destination
 
 It is recorded in that entry above. The lesson names two forgeries and only the periodicity half was pinned; the amplitude half was deleted with the prose and existed in no file. It now has its own case and its own mutation.
