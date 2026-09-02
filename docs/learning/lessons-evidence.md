@@ -6,14 +6,6 @@ This file is not read at session start. Come here from a rule.
 
 ## Entries
 
-## An error message that covers several causes hides the real one
-
-`recoverEvents` reported "Ledger file exceeds its byte cap" for five distinct conditions: wrong file type, extra hard links, a device mismatch, an inode mismatch, and the actual size cap.
-46 companion tests failed on the device mismatch, and the message sent every reader to look at byte caps.
-Splitting the condition into five messages that each name the observed values exposed the cause in one run.
-
-**Anchor:** fix commit `c068b4c`; `apps/companion/src/run-ledger-file.ts`; 46 failing tests in `run-ledger-adversarial.test.ts` and `test-run-recorder.test.ts`.
-
 ## A byte comparison knows only that two files differ
 
 `pin:check` decides staleness by comparing the whole formatted bytes of `run-pin.generated.ts` against what the generator produces, and then reported the failure as a moved run digest.
@@ -22,14 +14,6 @@ The comparison is right and belongs at the byte level; the message was one altit
 Each of the three `--check` gates now names the domain values that moved when any did, and otherwise says the bytes moved while the meaning did not, with the first differing line.
 
 **Anchor:** 2026-08-07 commit `a8fc397`; `scripts/generated-file-staleness.mjs`; the doubled digest is quoted verbatim in `.gitattributes`; the then-current regression “never prints one pinned value as both held and produced” lived in `scripts/generated-file-staleness.test.mjs` and was later removed with the obsolete pinning surface.
-
-## `lstat` and `fstat` do not agree on `dev` across platforms
-
-The ledger checked that a file was not swapped between lookup and open by comparing `dev` and `ino` from `lstat` against the open handle's `fstat`.
-On Windows `lstat` reports `dev: 0` while `fstat` reports the real device, so every recovery was rejected as a swapped file although the inode matched exactly.
-The inode is the identity a swap changes; the device id is corroborating only, and must be compared only when both sides report one.
-
-**Anchor:** fix commit `c068b4c`; `sameFile` in `apps/companion/src/run-ledger-file.ts`; observed `device 0/39406496742044240 became 3603962542/39406496742044240`.
 
 ## Recomputing pinned truth per call turns catalog growth into a timeout
 
@@ -83,39 +67,6 @@ That is impossible for identical geometry, and rendering both masks and differen
 
 **Anchor:** `apps/web/e2e/build-search.spec.ts`; observed `partId manual-part-426e9bee…` against `lastPartId manual-part-4a593702…`, mask areas 21541 and 59230 for the same placement; the rebuild went from 1 of 6 parts correct to 6 of 6 with no change to the enumerator, the score, or the driver.
 
-## A step's highlight is not always where the part ends up
-
-The closed loop scores a candidate by projecting it through the fitted camera and comparing its silhouette to the step's yellow highlight.
-That assumes the booklet draws the new part where it goes. This booklet does not always do so.
-Early steps are drawn exploded: the new part sits below or beside the assembly with red arrows showing where it travels, so its outline is in the right shape and the right orientation but the wrong place.
-Later steps highlight the part in position, as the score assumes.
-Both conventions appear inside the first fifty steps, and there is no announcement of which is in use — the red arrows are the only signal, and they are unambiguous because nothing else on the page is that red.
-
-So the highlight is two different measurements depending on the step, and a scorer that treats it as one will reject the correct placement on the exploded ones.
-An exploded step still constrains a great deal — shape and orientation identify the part, and the arrows point at the destination — but position has to come from somewhere else.
-The cheapest somewhere else is the next step: step N+1 draws the assembly with step N's part already in place, so a candidate placement for step N is scored against step N+1's picture rather than step N's highlight.
-That costs one step of lag and no new machinery — the beam already carries several branches forward, which is exactly what is needed to defer a verdict by a step.
-
-Measured before it was built, on a synthetic booklet with the answer known and the highlight deliberately drawn around a ghost lifted 48 LDU off its landing site, scoring every distinct legal placement rather than the ones a prune kept.
-The current highlight score ranked the true placement first on none of five exploded steps — rank 31 of 126, 44 of 132, 21 of 49, and two steps where every candidate tied at zero — which is the reported failure, reproduced.
-
-The count of 19 was wrong and is corrected here rather than deleted, because the way it was wrong matters more than the number.
-It came from keying red pixels over the whole panel, and red on these pages is a red part or a sub-build's own arrow as often as it is this step's displacement arrow.
-Measured again with shape tests on the red — long, thin, one end fatter — and the requirement that the arrow start at what this step highlighted: 28 of the 49 pairs in the first fifty steps print no red at all, step 12's "arrows" are a red 2x6 plate, and steps 14, 29, 30 and 47 print arrows belonging to sub-builds drawn inside the same panel, two of them in grey inset boxes rather than the white ones a colour test would catch.
-Three steps survive every test. The convention is real and the trap is real; the population is much smaller than a colour key suggests.
-Scored against the next panel it ranked first on all five, by 0.29 to 0.73 of IoU over the best wrong placement.
-
-The shape of the comparison mattered more than the idea.
-The literal reading — the candidate's pixels are model in panel N+1 and page in panel N, as a share of the candidate — is a coverage, and a small placement hiding inside the region buys it: 3 of 5.
-Comparing the candidate's whole silhouette against the difference is also wrong, because a part landing in front of what is already drawn changes nothing where it overlaps: 3 of 5.
-Comparing only the pixels the candidate would *newly* cover, as a region with both precision and recall, is what works: 4 of 5.
-The fifth is a 2x2 brick standing in the middle of a 6x6 plate — its silhouette lies entirely within the plate's, so it emerges nowhere and the region is empty, which the score reports as unavailable rather than as disagreement.
-A second reading covers it: every pixel the two panels disagree on, which sees the brick because brick faces do not shade like a plate top. That reading is 5 of 5, but it asks the panels to be registered pixel for pixel, and two pixels of registration error cost it that step.
-
-**Anchor:** `apps/web/e2e/first-fifty.spec.ts` recorded the original whole-panel red-pixel count of 19/50. After the shape, origin, and sub-build filters described above, only printed steps 2, 10, and 13 are well posed for this comparison: 3 of the first 50. The 19 is retained only as the overcount this lesson warns against.
-`apps/web/src/assembly/exploded-score.ts` and `apps/web/e2e/exploded-resolution.spec.ts`; `output/exploded-resolution/score.json` records rank and margin per step per metric — highlight score 0 of 5, emergence 4 of 5 at a mean margin of +0.33, the two readings together 5 of 5 at +0.50 and 4 of 5 under two pixels of misregistration.
-The emerged region also prunes: 427 distinct placements to 285 across the five steps, keeping the true one every time.
-
 ## A panel's own stud grid fits the camera, but not where the model sits
 
 The closed loop scores a candidate placement by projecting it through the panel's camera, so on a real booklet the camera has to come from somewhere.
@@ -143,19 +94,6 @@ What the grid cannot give is translation. A grid is the same grid one pitch over
 Predicted studs land 0.94px from the ink under them, 4.1% of the median 21px pitch, over 99% of grid sites — bounded above by the measuring aperture, so read it with the control beside it: the same aperture half a cell off the prediction holds 1.11 times less ink.
 Four camera runs found (steps 1-9, 10-15, 16-34, 36-37) with azimuth and elevation holding to about 0.3 degrees of standard deviation inside a run, which is the booklet turning the model over and back.
 Round-tripping the fitted numbers through `createOrthographicViewCamera` and re-fitting the render recovers them to 0.04 degrees and 0.14% of scale.
-
-## The phase of a repeat is not the centre of the thing that repeats
-
-Having fitted a panel's stud grid, the obvious way to say where the studs are is the argument of the picture's fundamental Fourier component at the grid frequency.
-It is off by half a cell. The first overlay drawn that way put a predicted ellipse squarely in every gap between the drawn studs — the grid was right, the pitch was right, the direction was right, and every mark was wrong.
-
-A Fourier phase locates where the pattern's fundamental peaks, which is a property of how the thing is inked, not of where it is.
-The fix costs nothing extra: fold every art pixel onto one grid cell and take the circular mean of the folded ring's own contrast. That is the stud's centre by construction, and the same fold already had to be computed to check the stud's shape.
-
-The fold's sign has its own trap next to it. A pattern peaking at `p0` makes the transform's argument `-2*pi*f.p0`, so the phase that names a grid site is the negated argument; signed the other way, every mark lands mirrored about the panel's centre.
-
-**Anchor:** `foldedStudShape` in `packages/rendering/src/camera-fit-lattice-phase.ts` and the `latticeSite` doc comment; `output/camera-fit/overlay-003.png` was the picture that showed it.
-Reprojection error against the drawn studs is 0.96px with the folded centre; the Fourier phase put it near half a pitch, about 20px.
 
 ## An LDraw part has no inside, because its hollows are open primitives
 
@@ -271,18 +209,6 @@ So the honest output is the disagreement itself: 11 of Builder's 16 pilot cells 
 
 **Anchor:** `measure_clutch_room` in `scripts/part_admission_clutch.py` driving candidates from `emit_clutch_connectors` in `scripts/ldcad_shadow_connectors.py`; `grip_evidence` and `compare_positions` in `scripts/derive-ldcad-shadow-connectors.py`; regressions `test_every_emitted_clutch_passes_the_clutch_room_probe` and `test_the_two_disagreements_are_recorded_rather_than_smoothed` in `scripts/ldcad_shadow_test.py`. Measured 2026-08-05 over the six-part 6651557 pilot: 21/21 clutches with room, 11 agreeing cells, 2 LDCad-only, 5 Builder-only.
 
-## The booklet turns the model over and says so
-
-Set 6651557 is built partly upside down, and the booklet marks every turn with a printed icon: a white 44.937pt rounded square holding a curved arrow around a sphere. Read by eye over printed steps 1 to 12, the icon is a strict toggle of which face the panel is drawn from, and it reproduces exactly: steps 1-3 studs up; 4 icon, underside; 5 icon, studs up; 6 studs up; 7 icon, underside; 8 icon, studs up; 9 studs up; 10 icon, underside; 11 no icon, still underside. The owner identified 4, 7, 10 and 11 as back views from the rendered pages in seconds, and all four fall out of that toggle.
-
-It was already half-found. `deriveTransitionPanelFeatures` detects the icon exactly, and an earlier pass measured it across all 224 pages and concluded it is "a note about the viewpoint the step is drawn from, not a name for the action" — then correctly refused to map it to the `rotation` action class, because 33 of the 39 it found also place pieces and reading it as an action would mislabel six placement steps. That refusal was right. What was missing is that nothing else consumed it either: no viewpoint state exists, `transition-classifications.json` carries 25 attachments and one final-view with zero rotations and no entry before step 44, and the note "that gap is what a vision call is for" was never acted on.
-
-Two measurement errors kept it hidden. The icon count is an undercount: attribution requires the icon's centre to fall inside `panel.bounds`, and step 8's icon sits above its artwork where those bounds do not reach, so page 13 carries two icons and only step 7's is seen. The recorded "39 icons, one per page" is that assumption written down as a finding. And the camera fit cannot contradict any of it, because it is fitted to the panel's own stud grid and a projected square lattice is identical viewed from above or below — it reports a positive elevation on every panel including the flipped ones, and its own legend already says it is "a fit quality, not a proof".
-
-The general shape: a cue can be detected, correctly interpreted, and still dropped, because refusing to use it for the wrong purpose is not the same as using it for the right one. When a pass concludes "this signal means X, but X is not what I was asking", that is the moment to write down who consumes X — otherwise the finding is a note that the signal was thrown away.
-
-**Anchor:** `ROTATION_ICON_SIDE_PT` and `rotationIconPresent` in `apps/web/e2e/real-build-transition-features.ts`; measured 2026-08-06 with the live detector as steps 4, 5, 7, 10, 12, 16, 17, ... (39 of them), against pages 11 to 15 read by eye, which show the icon on step 8 as well. The camera fit is `output/camera-fit/score.json`, median elevation +35.59 degrees over 32 fitted panels.
-
 ## An exact ambiguity cannot be resolved by telling the measurement which answer to prefer
 
 Set 6651557 draws five of its first forty-three panels from underneath, and the flip icon says which. The obvious next move was to hand that face to the camera fit so a below-view panel would stop being refused, and `solveAxonometricFromLattice` even had a line inviting it: it rejected the negative root with the comment that a negative `sin elevation` is "the same view mirrored, which upright art never prints". Threading a face through the fitter and mirroring the measured basis passed its unit tests immediately.
@@ -328,20 +254,6 @@ Correcting the arrow's length was therefore the wrong repair, and the obvious al
 The generalisation: when a drawing annotates a destination it cannot show, the annotation's extent is a lower bound and only its direction is a measurement. Do not correct the length — bound it from something else in the same picture, and let the test that was already going to decide pick within the interval.
 
 **Anchor:** `arrowTravelFamily` and `measureArrowTravelCeiling` in `apps/web/src/assembly/arrow-placement.ts`, replacing `correctArrowForClearance`; regressions in `arrow-placement.test.ts` and `apps/web/test/real-build-exploded-step.test.ts`. Measured 2026-08-07 by a lock-free probe over printed step 2's own panel raster, its numbers retained in the ignored `output/build-search/zz-arrow-clearance.json`; the run then reported 3 of 3 printed steps complete and 4 pieces placed at `LEGO_REAL_BUILD_LAST_STEP=3`.
-
-## A selector that consults the acceptance test only after choosing refuses while holding the answer
-
-`fitStudLattice` builds a candidate lattice from every pair of autocorrelation peaks, ranks them by explained peaks then by coarsest unit cell then by the axonometric residual, and applies the residual gate to the winner alone. Printed step 4 of the sample booklet was refused for two days on the number that fell out of that: 9.11px from the closest upright axonometric against a 0.02 tolerance, on a 92.19px stud pitch. The pitch was the tell and nobody read it — every panel around step 4 measures 40 to 44px, and a panel drawn at twice its neighbours' scale on the same page is not a measurement, it is a lattice at twice the pitch.
-
-The panel's own grid was in the candidate list the whole time, second, at 43.83px and 0.47% of pitch — four times inside the gate that refused the panel. It lost to an index-2 sublattice of itself which explained exactly as many peaks with twice the cell, and won on coarseness at 10% of pitch. So the reported failure was the residual of a candidate that had already lost on the criterion the run actually cares about, and every consumer of that message — including a whole session of work — went looking for a reason the panel might not be an axonometric view at all.
-
-The framing that hid it is worth naming. The tie-break was justified as "the coarsest such lattice, because every finer one explains those peaks too and would halve the pitch", which is sound *among readings that are readings*: a refinement of the true lattice explains the same peaks and would report half the scale, so coarseness settles that. It says nothing about a lattice that is not a projection of a square grid at all, and ranking one of those first because its cell is bigger is choosing between an answer and a non-answer on a criterion that only compares answers.
-
-The repair is not a new criterion and not a wider gate: it is the same threshold, the same value, consulted one step earlier — whether a candidate is an axonometric projection at all now outranks coarseness, and the winner still has to pass the identical gate at the end on the refined basis. Over the same forty panels, before and after, exactly one changes: step 4 goes from refused to azimuth 34.71, elevation 35.01, 0.475% of pitch, and 16.134 points per stud where its neighbours measure 16.193 and 16.014. Its measured grid is its neighbours' reflected in x to within half a pixel, which is what an underside panel looks like to a fit that can only report a positive elevation.
-
-The generalisation: when a selector picks among candidates and a gate then judges the pick, the gate is part of the selection whether it is written there or not. Rank by it, or the loser's number becomes the diagnosis.
-
-**Anchor:** 2026-08-08; the sort in `fitStudLattice`, `packages/rendering/src/camera-fit-lattice.ts`; pinned on the real booklet by the printed-step-4 block in `apps/web/e2e/camera-panel-fit.spec.ts`, which asserts its pitch and elevation against printed steps 3 and 5 and its basis as their mirror. `output/camera-fit/overlay-004.png` before and after is the picture: the predicted cells move from ellipses twice the size of the drawn tubes onto the tubes. The booklet run's step 4 goes from `camera-fit-failed` to 220 scored candidate renders and a different refusal, `ambiguous-placement-score`.
 
 ## A green vision narrowing can drop settled truth
 

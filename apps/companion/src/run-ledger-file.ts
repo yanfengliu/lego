@@ -46,12 +46,21 @@ export interface LedgerFileIdentity {
  * `fstat` for the same file — so comparing it unconditionally rejects a file
  * that was never touched. It is still compared when both sides report one.
  */
-function sameFile(
+export function sameFile(
   left: { readonly dev: number; readonly ino: number },
   right: { readonly dev: number; readonly ino: number },
 ): boolean {
   if (left.ino !== right.ino) return false;
   return left.dev === 0 || right.dev === 0 || left.dev === right.dev;
+}
+
+function describeDirectoryEntry(stats: Stats): string {
+  if (stats.isDirectory()) return "directory";
+  if (stats.isBlockDevice()) return "block device";
+  if (stats.isCharacterDevice()) return "character device";
+  if (stats.isFIFO()) return "FIFO";
+  if (stats.isSocket()) return "socket";
+  return "non-regular file";
 }
 
 // `FileHandle["stat"]` is overloaded, and its return union now includes the
@@ -231,14 +240,32 @@ async function recoverEvents(
   byteLength: number;
   identity: LedgerFileIdentity;
 }> {
+  // Four more distinct failures, and the same rule applies to them as to the
+  // five below: a reader who hits one has to be told which one.
   const linkedStats = await linkStats(paths.eventsFile);
-  if (
-    !linkedStats ||
-    linkedStats.isSymbolicLink() ||
-    !linkedStats.isFile() ||
-    linkedStats.nlink !== 1
-  ) {
-    throw new RunLedgerError("LEDGER_CORRUPTION", "Run event stream is not a regular file");
+  if (!linkedStats) {
+    throw new RunLedgerError(
+      "LEDGER_CORRUPTION",
+      `Run event stream at ${paths.eventsFile} disappeared between initialization and recovery`,
+    );
+  }
+  if (linkedStats.isSymbolicLink()) {
+    throw new RunLedgerError(
+      "LEDGER_CORRUPTION",
+      `Run event stream at ${paths.eventsFile} is a symbolic link, which names a file this ledger does not own`,
+    );
+  }
+  if (!linkedStats.isFile()) {
+    throw new RunLedgerError(
+      "LEDGER_CORRUPTION",
+      `Run event stream at ${paths.eventsFile} is a ${describeDirectoryEntry(linkedStats)}, not a regular file`,
+    );
+  }
+  if (linkedStats.nlink !== 1) {
+    throw new RunLedgerError(
+      "LEDGER_CORRUPTION",
+      `Run event stream at ${paths.eventsFile} has ${linkedStats.nlink} links before it is opened; exactly one is required so no other name can alter it`,
+    );
   }
   const handle = await openNoFollow(paths.eventsFile, constants.O_RDWR);
   try {
@@ -300,11 +327,14 @@ async function recoverEvents(
     if (finalNewline < 0) {
       throw new RunLedgerError(
         "LEDGER_CORRUPTION",
-        "An unterminated ledger without a verified prefix cannot be recovered",
+        `Run event stream at ${paths.eventsFile} holds ${bytes.byteLength} bytes with no record terminator, so it has no verified prefix to recover`,
       );
     }
     if (bytes.byteLength - finalNewline - 1 > limits.maxRecordBytes) {
-      throw new RunLedgerError("LEDGER_LIMIT_EXCEEDED", "Truncated record exceeds its byte cap");
+      throw new RunLedgerError(
+        "LEDGER_LIMIT_EXCEEDED",
+        `Truncated final record in ${paths.eventsFile} is ${bytes.byteLength - finalNewline - 1} bytes, over its ${limits.maxRecordBytes}-byte record cap`,
+      );
     }
     const retainedBytes = bytes.subarray(0, finalNewline + 1);
     const state = replayLines(retainedBytes.toString("utf8"), runId, limits);

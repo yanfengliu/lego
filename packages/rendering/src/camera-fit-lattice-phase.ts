@@ -56,6 +56,26 @@ export interface LatticePhaseOffset {
   readonly phase2: number;
 }
 
+/**
+ * A phase that names where a stud is *drawn*, which is not where the pattern peaks.
+ *
+ * The phase of a repeat is not the centre of the thing that repeats. The argument
+ * of the picture's fundamental Fourier component at the grid frequency is off by
+ * half a cell — the first overlay drawn that way put a predicted ellipse squarely
+ * in every gap between the drawn studs, with the grid, the pitch and the direction
+ * all correct. Only `foldedStudShape`, which folds every art pixel onto one cell
+ * and takes the circular mean of the folded ring's own contrast, returns a phase
+ * that means a stud.
+ *
+ * Both readings are two numbers in cycles, so nothing but this marker separates
+ * them: while every site function took the shared `LatticePhaseOffset`, handing it
+ * `latticePhase`'s output at any of the four call sites compiled, ran, and drew
+ * marks in the gaps. `LatticePhase` deliberately does not carry the marker.
+ */
+export interface LatticeSitePhase extends LatticePhaseOffset {
+  readonly namesAStudCentre: true;
+}
+
 export interface LatticePhase extends LatticePhaseOffset {
   /** Grid offset in cycles, each in (-0.5, 0.5]. */
   readonly phase1: number;
@@ -142,7 +162,7 @@ export function latticePhase(
  */
 export function latticeSite(
   basis: LatticeBasisPx,
-  phase: LatticePhaseOffset,
+  phase: LatticeSitePhase,
   m: number,
   n: number,
 ): { readonly xPx: number; readonly yPx: number } {
@@ -157,7 +177,7 @@ export function latticeSite(
 /** Every predicted stud centre inside a box, in drawing order. */
 export function latticeSitesInBox(
   basis: LatticeBasisPx,
-  phase: LatticePhaseOffset,
+  phase: LatticeSitePhase,
   box: PixelBoxPx,
 ): readonly { readonly xPx: number; readonly yPx: number }[] {
   const reciprocal = latticeReciprocal(basis);
@@ -481,7 +501,7 @@ export interface LatticeSiteResidualOptions {
 export function latticeSiteResiduals(
   field: StudTextureField,
   basis: LatticeBasisPx,
-  phase: LatticePhaseOffset,
+  phase: LatticeSitePhase,
   options: LatticeSiteResidualOptions = {},
 ): LatticeSiteResiduals | null {
   const studRadiusCells = options.studRadiusCells ?? 0.38;
@@ -571,7 +591,7 @@ export function latticeSiteResiduals(
   };
 }
 
-export interface FoldedStudShape extends LatticePhaseOffset {
+export interface FoldedStudShape extends LatticeSitePhase {
   /**
    * Where the drawn stud sits inside the cell, in cycles along each direction.
    * This is the phase to draw predicted studs at — see `latticeSite`.
@@ -709,6 +729,7 @@ export function foldedStudShape(fold: FoldedCell): FoldedStudShape | null {
   }
   const scatter = residualCount > 0 ? Math.sqrt(residual / residualCount) : 0;
   return {
+    namesAStudCentre: true,
     phase1,
     phase2,
     ringRadiusCells: (ringBin / bins) * reach,

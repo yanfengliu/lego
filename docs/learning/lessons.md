@@ -12,18 +12,14 @@ Deleting it means proving it first. [gate-proofs.md](gate-proofs.md) records, fo
 
 ## Rules
 
-- An error message that covers several causes hides the real one — split the condition and name the observed values. ([evidence](lessons-evidence.md#an-error-message-that-covers-several-causes-hides-the-real-one))
 - A byte comparison knows only that two files differ; a message naming what changed is a guess, and it prints nonsense exactly when the guess is wrong. ([evidence](lessons-evidence.md#a-byte-comparison-knows-only-that-two-files-differ))
-- `lstat` and a handle's `fstat` disagree on `dev` across platforms; the inode is the identity, the device only corroborates. ([evidence](lessons-evidence.md#lstat-and-fstat-do-not-agree-on-dev-across-platforms))
 - Recomputing pinned truth per call turns catalog growth into a timeout that reads as a hang. ([evidence](lessons-evidence.md#recomputing-pinned-truth-per-call-turns-catalog-growth-into-a-timeout))
 - A deterministic capture default is the wrong default for an interactive camera. ([evidence](lessons-evidence.md#a-deterministic-capture-default-is-the-wrong-default-for-an-interactive-camera))
 - Long feedback loops need an intermediate score; a booklet supplies its own in step numbering and piece counts. ([evidence](lessons-evidence.md#long-feedback-loops-need-an-intermediate-score-and-booklets-supply-their-own))
 - A fixed crop box silently decapitates the big items — size the crop to its own content. ([evidence](lessons-evidence.md#a-fixed-crop-box-silently-decapitates-the-big-items))
 - A hand-assembled parts array is not a document: stacking without connection edges validates as a collision. ([evidence](lessons-evidence.md#a-hand-assembled-parts-array-is-not-a-document))
 - A document's parts are not in insertion order; key a part by the id its command returned, never by array position. ([evidence](lessons-evidence.md#a-documents-parts-are-not-in-insertion-order))
-- Some steps are drawn exploded, so a highlight gives shape and orientation but not position — and counting them by red pixels overcounts badly. ([evidence](lessons-evidence.md#a-steps-highlight-is-not-always-where-the-part-ends-up))
 - A panel's own stud grid fits the booklet's camera angles and scale with no part identities; where the model sits is not in the grid. ([evidence](lessons-evidence.md#a-panels-own-stud-grid-fits-the-camera-but-not-where-the-model-sits))
-- The phase of a repeat is not the centre of the thing that repeats; fold the cell and take the drawn ring's own centre. ([evidence](lessons-evidence.md#the-phase-of-a-repeat-is-not-the-centre-of-the-thing-that-repeats))
 - An LDraw part has no inside: its hollows are open primitives, so test that the real surface is contained rather than counting ray crossings. ([evidence](lessons-evidence.md#an-ldraw-part-has-no-inside-because-its-hollows-are-open-primitives))
 - Measure the art you are imitating: booklet parts carry three face tones, a near-black stud wall and a per-colour ink, not one flat fill. ([evidence](lessons-evidence.md#measure-the-art-you-are-imitating-rather-than-asserting-its-dialect-in-a-comment))
 - Two consecutive printed panels are one drawing moved: take the scale from the camera fit and search only the shift. ([evidence](lessons-evidence.md#two-consecutive-printed-panels-are-one-drawing-moved))
@@ -31,12 +27,10 @@ Deleting it means proving it first. [gate-proofs.md](gate-proofs.md) records, fo
 - Elements differing only in colour are one shape twice, so a colour distance softened to the nearest shared tone merges them. ([evidence](lessons-evidence.md#elements-differing-only-in-colour-are-one-shape-twice))
 - File metadata cannot see a same-size rewrite, and a guard test that passes on an incidental clock tick is a false green. ([evidence](lessons-evidence.md#file-metadata-cannot-see-a-same-size-rewrite))
 - A clearance probe answers whether a stud fits, never whether anything holds it, so it cannot settle a disagreement between two authored sources. ([evidence](lessons-evidence.md#a-clearance-probe-answers-whether-a-stud-fits-never-whether-anything-holds-it))
-- The booklet turns the model over mid-build and prints an icon saying so; a panel the loop scores against the wrong face cannot be matched by any placement. ([evidence](lessons-evidence.md#the-booklet-turns-the-model-over-and-says-so))
 - An exact ambiguity cannot be resolved by telling the measurement which answer to prefer; the cue belongs where the answer is used. ([evidence](lessons-evidence.md#an-exact-ambiguity-cannot-be-resolved-by-telling-the-measurement-which-answer-to-prefer))
 - An orientation compared as a string, not modulo the part's own symmetry, manufactures false positives. ([evidence](lessons-evidence.md#an-orientation-compared-as-a-string-not-modulo-the-parts-own-symmetry))
 - A maximisation is also a blindness: a score maximised over shift cannot see a difference smaller than its own search reach. ([evidence](lessons-evidence.md#a-registration-that-maximises-over-shift-is-blind-to-anything-smaller-than-its-own-search))
 - An annotation drawn to a hidden destination states its direction, not its length; treat the ink as a floor and let the picture supply the rest. ([evidence](lessons-evidence.md#an-annotation-drawn-to-a-hidden-destination-states-its-direction-not-its-length))
-- A selector that consults the acceptance test only after choosing will refuse while holding the answer, and report the loser's number. ([evidence](lessons-evidence.md#a-selector-that-consults-the-acceptance-test-only-after-choosing-refuses-while-holding-the-answer))
 - A green vision narrowing can drop settled truth; staying inside the enumerator is safety, not visual correctness. ([evidence](lessons-evidence.md#a-green-vision-narrowing-can-drop-settled-truth))
 - A contact sheet can be full-size while every bound image inside it is downsampled; inspect and name the source pixels at one-to-one scale. ([evidence](lessons-evidence.md#a-contact-sheet-can-be-full-size-while-every-bound-image-inside-it-is-downsampled))
 

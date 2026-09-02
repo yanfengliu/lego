@@ -814,6 +814,46 @@ function refineBasis(field: StudTextureField, seed: LatticeBasisPx): LatticeBasi
  * lattice. The axonometric solve is what separates them — a non-primitive or
  * mis-paired basis demands a `sin elevation` above one and is rejected outright.
  */
+/**
+ * Picks the candidate the fit is reported from, and sorts `viable` into that order.
+ *
+ * A selector that consults the acceptance test only after choosing will refuse
+ * while holding the answer, and report the loser's number. The residual gate below
+ * judges this pick, so it is part of the selection whether it is written here or
+ * not: ranked by coarseness first, printed step 4 of the sample booklet lost to an
+ * index-2 sublattice of its own grid — same explained peaks, twice the cell, 10% of
+ * pitch from any axonometric projection against its own 0.47% — and the panel was
+ * refused for two days on the sublattice's 9.11px residual while its answer sat
+ * second in this list. Consulting the same threshold one step earlier is the whole
+ * repair; it is not a wider gate and not a new criterion.
+ *
+ * Stated as a property, which is what `camera-fit-lattice-selection.test.ts` holds:
+ * if any viable candidate passes the acceptance test, the chosen one does.
+ */
+export function chooseLatticeCandidate(
+  viable: LatticeCandidate[],
+  maxResidualFraction: number,
+): LatticeCandidate {
+  const axonometric = (candidate: LatticeCandidate): boolean =>
+    candidate.solution !== null &&
+    candidate.solution.residualPx <= maxResidualFraction * candidate.solution.pixelsPerUnit;
+  viable.sort((left, right) => {
+    if (left.explainsStrongestPeak !== right.explainsStrongestPeak) {
+      return left.explainsStrongestPeak ? -1 : 1;
+    }
+    if (right.explainedPeaks !== left.explainedPeaks) {
+      return right.explainedPeaks - left.explainedPeaks;
+    }
+    const leftFits = axonometric(left);
+    if (leftFits !== axonometric(right)) return leftFits ? -1 : 1;
+    if (Math.abs(right.cellAreaPx - left.cellAreaPx) > 1) {
+      return right.cellAreaPx - left.cellAreaPx;
+    }
+    return left.solution!.residualPx - right.solution!.residualPx;
+  });
+  return viable[0]!;
+}
+
 export function fitStudLattice(
   field: StudTextureField,
   options: StudLatticeOptions = {},
@@ -963,25 +1003,7 @@ export function fitStudLattice(
   // it: over 1698 rule and pairing combinations searched against the forty
   // panels, every one that fits 34 accepts printed 32, and every one that refuses
   // it fits at most 33 and leaves printed step 7 refused with it.
-  const axonometric = (candidate: LatticeCandidate): boolean =>
-    candidate.solution !== null &&
-    candidate.solution.residualPx <= maxResidualFraction * candidate.solution.pixelsPerUnit;
-  viable.sort((left, right) => {
-    if (left.explainsStrongestPeak !== right.explainsStrongestPeak) {
-      return left.explainsStrongestPeak ? -1 : 1;
-    }
-    if (right.explainedPeaks !== left.explainedPeaks) {
-      return right.explainedPeaks - left.explainedPeaks;
-    }
-    const leftFits = axonometric(left);
-    if (leftFits !== axonometric(right)) return leftFits ? -1 : 1;
-    if (Math.abs(right.cellAreaPx - left.cellAreaPx) > 1) {
-      return right.cellAreaPx - left.cellAreaPx;
-    }
-    return left.solution!.residualPx - right.solution!.residualPx;
-  });
-
-  const chosen = viable[0]!;
+  const chosen = chooseLatticeCandidate(viable, maxResidualFraction);
   const refined = options.refine === false ? chosen.basis : refineBasis(field, chosen.basis);
   const settled = reduceToAxonometricBasis(refined);
   const basis = settled?.basis ?? refined;

@@ -195,6 +195,73 @@ Where a lesson's only gate lives in a file that is already red at baseline, the 
 - **Green after revert:** yes
 - **Not covered:** the lesson's main claim — that grid sites must be drawn from `foldedStudShape`'s own ring centre rather than from `latticePhase`'s Fourier argument — lives at every *call site*, and `latticeSiteResiduals` takes the phase as a parameter. Both existing residual tests hand it the fold, so passing the Fourier phase instead is not caught by anything. The rule survives here and in the `latticeSite` doc comment; the prose line stays in `lessons.md`.
 
+## Proofs added in the second pass, 2026-09-02
+
+Measured against the same working tree, at `e126d30`. The same rule holds: each entry names one test file, run alone and seen green immediately after the mutation was reverted. Every backup and restore was a byte copy; nothing was stashed, reverted or checked out.
+
+### An error message that covers several causes hides the real one — split the condition and name the observed values.
+
+- **Gate:** `apps/companion/src/run-ledger-recovery-diagnostics.test.ts` :: five refusal cases plus "gives each of the five conditions a message of its own" — run by `npm run test`
+- **Product change first:** `recoverEvents`'s pre-open check was itself an instance of the defect the lesson names — four conditions (missing, symbolic link, not a regular file, extra hard links) sharing "Run event stream is not a regular file". Those are now four messages, and the truncated-record and unterminated-stream refusals now name their observed byte counts.
+- **Mutation:** collapsed all ten refusals in `apps/companion/src/run-ledger-file.ts` back to the single `"Ledger file exceeds its byte cap"` the lesson was born from.
+- **Red:** 6 of 9 failed; `expected 'Ledger file exceeds its byte cap' to contain '2 links'`, `…to contain 'is a directory, not a regular file'`, `…to contain '4096 bytes'`, `…to contain '1200 bytes'`, `…to contain '300 bytes'`, and the distinctness case at `expected 1 to be 5`.
+- **Green after revert:** yes
+- **Why the anchor's own tests were not the gate:** the 46 failing companion tests named in the evidence failed on the device mismatch, not on the message, and the nearest existing case — "fails closed on a hard-link swap instead of truncating an external file" in `run-ledger-adversarial.test.ts` — asserts the error *code* only. Both were run against the collapsed messages first and stayed green.
+
+### `lstat` and a handle's `fstat` disagree on `dev` across platforms; the inode is the identity, the device only corroborates.
+
+- **Gate:** `apps/companion/src/run-ledger-recovery-diagnostics.test.ts` :: "holds a file the same when only one side reports a device", "refuses a different inode however the devices compare", "still refuses a moved device when both sides report one" — run by `npm run test`
+- **Mutation A:** in `apps/companion/src/run-ledger-file.ts`, replaced `sameFile`'s device clause with `left.dev === right.dev`, dropping the dev-0 tolerance.
+- **Red A:** `AssertionError: expected false to be true` — the Windows `lstat`/`fstat` pair is refused as a swapped file, which is the shipped defect.
+- **Mutation B:** dropped the inode comparison instead, leaving the device to decide.
+- **Red B:** `AssertionError: expected true to be false` — a different inode is accepted.
+- **Green after revert:** yes
+- **A stated limit of its reach:** the divergence is a property of the host. `sameFile` was exported and pinned directly because a control run on this machine measured `lstat` and `fstat` agreeing — both `dev 3603962542` for the same file — so no end-to-end recovery here can exercise the tolerance at all. Separately, `LedgerFileIdentity.ino` is a `number` and the real Windows inode in the anchor (`39406496742044240`) is above `Number.MAX_SAFE_INTEGER`, so two distinct inodes rounding to one double would compare equal. That is recorded here, not fixed.
+
+### Some steps are drawn exploded, so a highlight gives shape and orientation but not position — and counting them by red pixels overcounts badly.
+
+Two clauses, and each has its own gate.
+
+- **Gate (position):** `apps/web/src/assembly/exploded-score-blend.test.ts` (new) :: "ranks the true placement over one the difference reading alone prefers", "…over one the emerged region alone prefers", "keeps both readings inside one number rather than choosing between them" — run by `npm run test`
+- **Mutation:** `EMERGENCE_WEIGHT` in `apps/web/src/assembly/exploded-score.ts`, at 0, 1, 0.45 and 0.56.
+- **Red:** all four. At 0, `expected 0.4 to be greater than 0.9` — the difference reading alone takes the impostor. At 1, the same line for the emerged region alone. At 0.45 and 0.56 the margins invert by 0.005 and 0.016, so the gate pins the weight to about (0.4545, 0.5455) rather than merely to "not 0".
+- **Green after revert:** yes
+- **Why a new file:** every candidate in `exploded-score.test.ts` is handed the same rectangle as both its emerged and its changed mask, so both readings return one number and any weight scores identically. The four mutations above were run against it first and it stayed green every time.
+- **Gate (the red-pixel overcount):** `apps/web/src/assembly/panel-arrows.test.ts` :: "refuses a red part for being too big, and says so", "refuses a red plate that is long, thin and inside the area cap", "refuses an arrow that starts nowhere near what the step highlighted" — run by `npm run test`
+- **Mutations:** in `apps/web/src/assembly/panel-arrows.ts`, the origin check disabled; the `maxAreaFraction` default 6e-3 to 1; the `maxFillFraction` default 0.55 to `Infinity`.
+- **Red:** `expected [ { areaPx: 464, … } ] to have a length of +0 but got 1` for a sub-build's own arrow; `expected 'red blob of 32000px is 1.25 times lon…' to match /red part rather than an arrow/`; `expected [ { areaPx: 2970, … } ] to have a length of +0 but got 1` for step 12's red 2x6 plate.
+- **Green after revert:** yes
+- **A weak mutation, recorded rather than hidden:** setting `maxFillFraction` to 1 rather than `Infinity` leaves the whole file green, because a 99x30 plate fills 104% of the box measured from its own principal axis. A fill cap of 1 is not the absence of a fill cap.
+
+### The booklet turns the model over mid-build and prints an icon saying so; a panel the loop scores against the wrong face cannot be matched by any placement.
+
+- **Gate (the icon):** `apps/web/test/real-build-rotation-icon-detection.test.ts` (new) :: six cases — run by `npm run test`
+- **Mutation:** `ROTATION_ICON_SIDE_PT` 44.937 to 30 in `apps/web/e2e/real-build-transition-features.ts`.
+- **Red:** 5 of 6 failed, including `expected 30 to be 44.937` and `expected false to be true` for a white square drawn at the size the booklet prints it.
+- **Gate (the consumption):** `apps/web/src/assembly/panel-face.test.ts` :: "seeds at studs-up and toggles on the step the icon is printed on" and three more — run by `npm run test`
+- **Mutation:** removed the toggle from `derivePanelFaces` in `apps/web/src/assembly/panel-face.ts`, so the icon is detected and then consumed by nothing, which is the state the lesson found.
+- **Red:** 4 of 17 failed, including `expected [] to deeply equal [ 4, 5, 6, 7, 8, 9, 10, 11, 12 ]` — one missed icon inverts every later step rather than its own.
+- **Green after revert:** yes
+- **Why a new file for the icon:** every existing check builds its fixture out of `ROTATION_ICON_SIDE_PT`, so moving the constant moves both sides of the comparison and nothing can fail. The new file writes the side, the tolerance and the admitted extremes as literals. It also pins one limit rather than leaving it to be rediscovered: attribution is centre-in-panel-bounds, so an icon printed above its panel's artwork is not counted for it, which is what the "39 icons, one per page" undercount was.
+
+### A selector that consults the acceptance test only after choosing will refuse while holding the answer, and report the loser's number.
+
+- **Gate:** `packages/rendering/src/camera-fit-lattice-selection.test.ts` (new) :: "keeps printed step 4's own grid over the coarser lattice that cannot be printed", "never chooses a candidate the gate refuses while one it admits is on the list", and two more — run by `npm run test`
+- **Product change first:** the comparator was inline in `fitStudLattice`, reachable only through a raster. It is now `chooseLatticeCandidate` in `packages/rendering/src/camera-fit-lattice.ts`, behaviour-identical — it sorts the same array in place and returns its head — so the ordering is testable on candidates directly.
+- **Mutation:** moved the axonometric acceptance test back below the coarseness tie-break, which is the ordering that refused printed step 4 for two days.
+- **Red:** `expected { …(8) } to be { Object (label, basis, ...) }` — the index-2 sublattice at 9.11px of residual is chosen over the panel's own grid — and `expected false to be true` on the class property.
+- **Green after revert:** yes
+- **Reach:** the second case asserts the property rather than the instance — over every permutation of a three-candidate family, the chosen candidate passes the acceptance test whenever any candidate does. All 22 cases of `camera-fit-lattice.test.ts` were run against the same mutation first and stayed green, which is why the property is stated over candidates and not over a synthetic panel.
+
+### The phase of a repeat is not the centre of the thing that repeats; fold the cell and take the drawn ring's own centre.
+
+- **Gate:** `npm run typecheck` (`tsc --noEmit`), through `packages/rendering/src/camera-fit-lattice-site-phase.test.ts` (new) :: "refuses the Fourier argument at the type level, at every site call"
+- **Product change first:** `latticeSite`, `latticeSitesInBox` and `latticeSiteResiduals` all took `LatticePhaseOffset`, which both readings satisfy, so passing the Fourier argument at any of the four call sites compiled and ran. They now take `LatticeSitePhase`, a marker only `foldedStudShape` returns.
+- **Mutation:** widened the two exported site functions back to `LatticePhaseOffset`.
+- **Red:** `packages/rendering/src/camera-fit-lattice-site-phase.test.ts(112,5): error TS2578: Unused '@ts-expect-error' directive.` and the same at (114,5), plus `TS2353: … 'namesAStudCentre' does not exist in type 'LatticePhaseOffset'`.
+- **Green after revert:** yes
+- **Why the gate is a type and not a threshold — measured, not assumed:** on the synthetic grid this module draws, the two phases agree to 0.0003 of a cell and the residuals taken against either are indistinguishable, 0.2504px against 0.2501px and 19.7391 against 19.7395 on the anti-phase control. No fixture this module can draw separates them; the half-cell divergence is a property of printed instruction art, where the anchor measured 0.96px of reprojection error from the folded centre against about 20px from the Fourier argument. The sign trap beside it stays gated where it was, in `camera-fit-lattice.test.ts`.
+
 ## Lessons whose gate could not be made to go red
 
 Each was mutation-tested and the named gate stayed green, which is the finding. The first five stay in `lessons.md` and `lessons-evidence.md` as unproved prose; the sixth left instead by promotion, because the code it was born in no longer exists to mutate.
