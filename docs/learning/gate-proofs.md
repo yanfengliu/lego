@@ -47,7 +47,7 @@ Where a lesson's only gate lives in a file that is already red at baseline, the 
 - **Mutation:** in `apps/web/src/instructions/stud-pitch-profile.ts`, set `minCombShare: 0`, removing the requirement that the edge's wobble gather onto the harmonics of one period.
 - **Red:** `expected 67.008790765595 to be null` and `expected 14.762634617293958 to be null` — the visibly smooth page-120 outline returned a confident pitch, which is the reported failure reproduced.
 - **Green after revert:** yes
-- **Not covered:** the amplitude floor `minRippleRows` can be set to 0 with the whole file still green. The synthetic staircases are refused by the harmonic test on its own, so only the second half of this lesson is pinned.
+- **Was not covered, and now is (2026-09-02):** the amplitude floor `minRippleRows` could be set to 0 with the whole file still green, because the synthetic staircases are refused by the harmonic test on its own — so only one of this lesson's two clauses was pinned, and the other had no destination anywhere. `apps/web/src/instructions/stud-pitch.test.ts` :: "refuses a thresholded stroke that repeats cleanly but wanders one row" adds the case only the floor refuses: a stroke rasterised from a sub-row wobble is exactly periodic on one frequency, passes every harmonic gate, and moves 1.00 rows peak to peak where a stud must clear 1.45. Measured over amplitudes 0.7 to 1.4, each is refused with "only moves 1.00 rows peak to peak" and each comes back at 40.000px with `minRippleRows: 0`. Setting the default to 0 fails it: `sub-row wobble of 0.7: expected 40.000007437224546 to be null`.
 
 ### A step highlight is an open contour whenever the step's parts go behind built ones; only about half enclose anything.
 
@@ -261,6 +261,29 @@ Two clauses, and each has its own gate.
 - **Red:** `packages/rendering/src/camera-fit-lattice-site-phase.test.ts(112,5): error TS2578: Unused '@ts-expect-error' directive.` and the same at (114,5), plus `TS2353: … 'namesAStudCentre' does not exist in type 'LatticePhaseOffset'`.
 - **Green after revert:** yes
 - **Why the gate is a type and not a threshold — measured, not assumed:** on the synthetic grid this module draws, the two phases agree to 0.0003 of a cell and the residuals taken against either are indistinguishable, 0.2504px against 0.2501px and 19.7391 against 19.7395 on the anti-phase control. No fixture this module can draw separates them; the half-cell divergence is a property of printed instruction art, where the anchor measured 0.96px of reprojection error from the folded centre against about 20px from the Fourier argument. The sign trap beside it stays gated where it was, in `camera-fit-lattice.test.ts`.
+
+## Reach and clause audit of the first pass, 2026-09-02
+
+One mutation proves a gate catches that mutation; it does not prove the reach claimed in prose beside it. And a lesson with several clauses needs a destination for every clause, not one gate that absorbs its siblings. Both were checked against the entries above.
+
+### The tube-clearance gate's class claim holds, and had one hole that did not
+
+The claim is that the gate covers the corpus rather than one part: `packages/brick-kernel/src/tube-clearance.test.ts` walks `BUILTIN_CATALOG.parts` and derives the clearance for every `tube:` primitive. A new member was added to test it — `part-factory.ts` made to author the *bounding* box for `3001.dat` alone, one part of 106 — and the gate named it: `builtin:brick-2x4 tube:0 half-side 8 leaves -3.172 LDU …: expected -3.1715728752538097 to be greater than 0`. So a single new part authored wrongly is inside the gate.
+
+The hole was the loop's own `if (tube.kind !== "box") continue`. A tube authored as a **cylinder** left the loop silently, and `collision-world-primitives.ts` gives a cylinder half-extents of `[radius, radius, halfHeight]` — its bounding box, which is precisely the approximation the lesson refuses. Proved by authoring `3001.dat`'s tubes as cylinders: before the fix only the second case caught it, and only because `brick-2x4` happens to be one of three hardcoded stacks; a cylinder tube on any other part would have escaped. The loop now collects unboxed tubes and fails on them (`a tube that is not a box escapes the clearance check above: expected [ …(3) ] to deeply equal []`). The non-vacuity floor moved from `> 20` to the measured corpus — 582 tube boxes over the 30 parts that carry one, of 106 — and a second case states the remaining horizon out loud: tubes are found by the `tube:` id prefix `part-factory.ts` writes, and by nothing else.
+
+### One clause of "periodicity and amplitude are both forgeable" had no destination
+
+It is recorded in that entry above. The lesson names two forgeries and only the periodicity half was pinned; the amplitude half was deleted with the prose and existed in no file. It now has its own case and its own mutation.
+
+### "At every site call" was two calls of three
+
+The second-pass phase gate claimed to refuse the Fourier argument "at every site call" while naming `latticeSite` and `latticeSiteResiduals`. `latticeSitesInBox` is now in the same case, so the claim is checked rather than asserted.
+
+### Claims that were checked and are not over-stated
+
+- `connector-backing-policy.test.ts` names one shipped plate and asserts all eight of its clutches; its six other cases build fresh blueprints through `makePartDefinition`, which is the "case it has never seen" the lesson is about. No class claim beyond that appears in its entry.
+- `rendering.test.ts` :: "points every face of an underside tube outward" censuses every triangle of one tube of one part. The tube geometry comes from one `createTubeGeometry`, so one tube is the family; the entry claims no more than that.
 
 ## Lessons whose gate could not be made to go red
 

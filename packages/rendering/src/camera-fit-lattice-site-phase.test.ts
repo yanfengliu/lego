@@ -41,6 +41,7 @@ import {
   latticeReciprocal,
   latticeSite,
   latticeSiteResiduals,
+  latticeSitesInBox,
   type LatticeSitePhase,
 } from "./camera-fit-lattice-phase.ts";
 import { INSTRUCTION_BACKGROUND_HEX } from "./constants.ts";
@@ -111,8 +112,12 @@ describe("only a phase that names a stud may be drawn from", () => {
     // unused directive, which is what makes this a gate rather than a comment.
     // @ts-expect-error latticePhase returns where the pattern peaks, not where a stud is
     latticeSite(BASIS, FOURIER, 0, 0);
+    // @ts-expect-error the same argument, at the call that draws a panel's overlay
+    latticeSitesInBox(BASIS, FOURIER, { minXPx: 0, minYPx: 0, maxXPx: 64, maxYPx: 64 });
     // @ts-expect-error the same argument, at the measurement that reports the panel's error
     latticeSiteResiduals(FIELD, BASIS, FOURIER);
+    // "Every site call" is the claim, so it is checked rather than asserted: every
+    // exported function of this module taking a phase appears above.
     expect(FOLD.namesAStudCentre).toBe(true);
     expect("namesAStudCentre" in FOURIER).toBe(false);
   });

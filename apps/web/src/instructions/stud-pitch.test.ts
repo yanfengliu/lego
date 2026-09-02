@@ -137,6 +137,31 @@ describe("estimateStudPitch", () => {
     }
   });
 
+  /**
+   * The other half of "periodicity and amplitude are both forgeable".
+   *
+   * The staircases above are refused by the harmonic test on its own, so nothing
+   * held the amplitude floor: `minRippleRows` could be set to 0 with this whole
+   * file green. This is the case only the floor refuses — a stroke rasterised
+   * from a sub-row wobble is *exactly* periodic on one frequency, so it passes
+   * every harmonic gate, and it moves one row peak to peak where a drawn stud
+   * moves two. The control is the last assertion: at `minRippleRows: 0` the same
+   * edge comes back with a confident pitch, which is what makes this a test of
+   * the floor rather than of the gates beside it.
+   */
+  it("refuses a thresholded stroke that repeats cleanly but wanders one row", () => {
+    for (const amplitude of [0.7, 0.9, 1.0, 1.2, 1.4]) {
+      const rasterised = runOf(scallopedEdge({ columns: 900, periodPx: 40, slope: 0, amplitude }));
+      const refused = estimateStudPitch([rasterised]);
+      expect(refused.pitchPx, `sub-row wobble of ${amplitude}`).toBeNull();
+      expect(refused.rejected).toContain("only moves 1.00 rows peak to peak");
+
+      const withoutTheFloor = estimateStudPitch([rasterised], { minRippleRows: 0 });
+      expect(withoutTheFloor.rejected, `sub-row wobble of ${amplitude}`).toBeNull();
+      expect(withoutTheFloor.pitchPx).toBeCloseTo(40, 4);
+    }
+  });
+
   it("names what it measured when it refuses, so the refusal can be acted on", () => {
     const tooShort = estimateStudPitch([runOf(straightEdge(20, 0.5))]);
     expect(tooShort.pitchPx).toBeNull();

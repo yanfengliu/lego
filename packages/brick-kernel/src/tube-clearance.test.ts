@@ -82,12 +82,16 @@ describe("an underside tube approximated by a box", () => {
       Math.SQRT2 * (HALF_PITCH_LDU - halfSideLdu) - STUD_RADIUS_LDU;
 
     let checked = 0;
+    const unboxed: string[] = [];
     for (const part of BUILTIN_CATALOG.parts) {
       const tubes = (part.collision?.primitives ?? []).filter(({ id }) =>
         String(id).startsWith("tube:"),
       );
       for (const tube of tubes) {
-        if (tube.kind !== "box") continue;
+        if (tube.kind !== "box") {
+          unboxed.push(`${part.id} ${String(tube.id)} is a ${tube.kind}`);
+          continue;
+        }
         const halfSideX = (tube.maxLdu[0] - tube.minLdu[0]) / 2;
         const halfSideZ = (tube.maxLdu[2] - tube.minLdu[2]) / 2;
         expect(halfSideX).toBeCloseTo(halfSideZ, 9);
@@ -99,8 +103,40 @@ describe("an underside tube approximated by a box", () => {
         checked += 1;
       }
     }
-    // The corpus has to be non-empty or the loop above asserts nothing at all.
-    expect(checked).toBeGreaterThan(20);
+    // A tube authored as a cylinder would leave this loop silently, and
+    // `collision-world-primitives.ts` gives a cylinder half-extents of
+    // `[radius, radius, halfHeight]` — its *bounding* box, which is the exact
+    // approximation this gate exists to refuse. So an unboxed tube is a failure
+    // here rather than a skip. Measured 2026-09-02: 582 tube boxes, 0 of anything
+    // else, over 106 parts.
+    expect(unboxed, "a tube that is not a box escapes the clearance check above").toEqual([]);
+    // Non-vacuity, at the size actually measured rather than at an arbitrary
+    // floor: 2026-09-02, 582 tube boxes across the 30 parts that carry one, of
+    // 106 parts in the catalog. A loop that suddenly checks a handful is a loop
+    // whose corpus moved out from under it.
+    const tubedParts = BUILTIN_CATALOG.parts.filter((part) =>
+      (part.collision?.primitives ?? []).some(({ id }) => String(id).startsWith("tube:")),
+    ).length;
+    expect(tubedParts).toBeGreaterThanOrEqual(30);
+    expect(checked).toBeGreaterThan(500);
+  });
+
+  /**
+   * The one horizon this file cannot close from inside, stated rather than left
+   * to be rediscovered: every tube is found by the `tube:` prefix on its
+   * primitive id, which `part-factory.ts` writes. A part that authored an
+   * underside tube under any other id would be invisible to the loop above and
+   * counted by nothing. Naming the convention here is what makes that a decision.
+   */
+  it("finds tubes by the id prefix the factory writes, and by nothing else", () => {
+    const prefixed = BUILTIN_CATALOG.parts.flatMap((part) =>
+      (part.collision?.primitives ?? []).filter(({ id }) => String(id).startsWith("tube:")),
+    );
+    const tubeish = BUILTIN_CATALOG.parts.flatMap((part) =>
+      (part.collision?.primitives ?? []).filter(({ id }) => /tube|clutch/iu.test(String(id))),
+    );
+    expect(tubeish.length).toBe(prefixed.length);
+    expect(prefixed.length).toBeGreaterThan(500);
   });
 
   it("lets two 2-wide parts seat exactly on each other, connection declared", () => {
