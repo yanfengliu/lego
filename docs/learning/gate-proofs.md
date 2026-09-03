@@ -2,6 +2,18 @@
 
 Every lesson this repository used to carry as prose is now either enforced by a machine, promoted, or dropped.
 
+
+## If a gate here is wrong
+
+A gate and the claim in its header can be wrong together, and when they are they look exactly like a gate that is right: retiring 356 lessons across this fleet found 43 that named a defect their own named test did not catch. Auditing one means reaching what was actually believed, measured, and abandoned — never the sentence the gate carries about itself, which is the same self-agreement these gates exist to catch.
+
+That evidence was deleted in the retirement commits, not lost. This repo's evidence file as it stood immediately before, all 68 entries with their anchors:
+
+    git show 234dde9:docs/learning/lessons-evidence.md
+
+`git log -- docs/learning/lessons-evidence.md` lists every earlier revision, and `git log -S'<phrase from the gate header>' -- docs/learning/` finds the entry a particular gate came from.
+
+
 This file is the standing answer to "did the gates actually do their job". One entry per gate, each recording the product-code edit that reintroduces the defect and the failure line the gate printed when it did.
 
 A gate nobody has watched fail is a claim, not a gate. Nothing was deleted from `lessons.md` on the strength of an entry that is not here.
