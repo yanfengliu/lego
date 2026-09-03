@@ -310,7 +310,7 @@ Two clauses, and each has its own gate.
 - **Mutation:** in `apps/web/e2e/bounded-file-read.ts`, made `assertPinnedContent` return before comparing the digest.
 - **Red:** the file's failures went from 1 to 3 **by name**, the two new ones being exactly those cases. That file carries one pre-existing failure at baseline — "rejects and removes a same-size mutation after atomic publication", which fails with `EBUSY: resource busy or locked` on this host — so the proof is a by-name differential rather than a count.
 - **Green after revert:** yes, back to the same single pre-existing failure.
-- **The clause that did not leave this way:** "a guard test that passes on an incidental clock tick is a false green" is about how a test came to be green, not about the file read. It is staged in `canon-candidates.md`.
+- **The clause that did not leave this way:** "a guard test that passes on an incidental clock tick is a false green" is about how a test came to be green, not about the file read. It was staged in `canon-candidates.md` and promoted in `1ba382f`: the constitution now carries it as the standing requirement that a gate be made to go red on purpose.
 
 ### A maximisation is also a blindness: a score maximised over shift cannot see a difference smaller than its own search reach.
 
@@ -354,9 +354,9 @@ The hole was the loop's own `if (tube.kind !== "box") continue`. A tube authored
 Four of the eight carried more than one claim, and each clause was given its own destination rather than being absorbed by a sibling's gate.
 
 - **The interactive camera lesson** is two: the framing minimum and the frustum. The frustum is gated; the framing minimum is a `.tsx`-private constant and moved to `local-rules.md` with the gate it would need named there.
-- **The file-metadata lesson** is two: metadata cannot see a same-size rewrite, and a guard test that passes on an incidental clock tick is a false green. The first is gated; the second is staged in `canon-candidates.md`.
-- **The LDraw-has-no-inside lesson** carries a second finding under its own 2026-08-09 heading: consistent winding is necessary for run pairing and is not sufficient, and "feasible, because the winding is consistent" reached a pushed commit message before it was measured. The containment gate covers the remedy; the "necessary is not sufficient" claim is staged in `canon-candidates.md`.
-- **The exact-ambiguity lesson** names three habits. Distinguishability-before-parameterising is gated by the equivalence regression. "Quote a number only from something a later reader can re-run" is already fleet canon. "An option with no caller is worse than none, because it reads as a capability" was not covered anywhere — `PanelFace` is still exported from `camera-fit-lattice.ts` with nothing consuming it, deliberately, as the finding — and is staged in `canon-candidates.md`.
+- **The file-metadata lesson** is two: metadata cannot see a same-size rewrite, and a guard test that passes on an incidental clock tick is a false green. The first is gated; the second was staged in `canon-candidates.md` and is now constitution (`1ba382f`), as the requirement that a gate be made to go red on purpose.
+- **The LDraw-has-no-inside lesson** carries a second finding under its own 2026-08-09 heading: consistent winding is necessary for run pairing and is not sufficient, and "feasible, because the winding is consistent" reached a pushed commit message before it was measured. The containment gate covers the remedy; the "necessary is not sufficient" claim was staged in `canon-candidates.md` and is now constitution (`1ba382f`), folded into the rule that past its bound a gate can measure a different phenomenon entirely and report it just as confidently.
+- **The exact-ambiguity lesson** names three habits. Distinguishability-before-parameterising is gated by the equivalence regression. "Quote a number only from something a later reader can re-run" is already fleet canon. "An option with no caller is worse than none, because it reads as a capability" was not covered anywhere — `PanelFace` is still exported from `camera-fit-lattice.ts` with nothing consuming it, deliberately, as the finding — so it was staged in `canon-candidates.md`. It was then **dropped** in `1ba382f`, visibly and with a reason: it restates YAGNI, which a capable model already holds, and its sharp half — that calling the option inert was a guess dressed as a measurement — is already the instrument rule. Recorded here so a later reader looking for it finds the decision rather than a gap.
 
 ### One clause of "periodicity and amplitude are both forgeable" had no destination
 
@@ -380,7 +380,7 @@ Ten rules are still in `lessons.md`, and every one of them now names what would 
 
 Two lessons left this pass by promotion rather than by gate, and each is named where it went:
 
-- **A green vision narrowing can drop settled truth** → `canon-candidates.md`. The replay that covers it is green either way; what transfers is that a safety result must not be reported as a correctness one.
+- **A green vision narrowing can drop settled truth** → `canon-candidates.md`, and promoted from there in `1ba382f`. The replay that covers it is green either way; what transfers is that a safety result must not be reported as a correctness one.
 - **A contact sheet can be full-size while every bound image inside it is downsampled** → `docs/policies/local-rules.md`, as a requirement on any inspection composite this repo builds.
 
 One left as a duplicate: **long feedback loops need an intermediate score** is already `AGENTS.md`'s own convention, established 2026-07-31 from the same step-64 anchor — "build the measurable intermediate first and drive it… a booklet checks itself… a change with no number attached is not progress". Keeping both halves would have been a second copy of a rule already read every session.
