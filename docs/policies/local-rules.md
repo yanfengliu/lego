@@ -1,6 +1,5 @@
 # Local rules
 
-- Use independent subagents for parallel repository work and put every material implementation unit through a separate harsh-critic pass before accepting it.
 - Treat user-provided and publicly reachable construction sources as authorized inputs for this repository's private, noncommercial reconstruction and evaluation work; commercial-rights review must not block that work. Keep native payloads local when practical, preserve exact identities and hashes, never describe upstream material as project-owned, and never broaden this authorization to public redistribution or training.
 - Bundle real LDraw geometry as the render layer with per-file authorship and licence preserved. The BOM and generated notices must describe geometry as bundled under CC BY 4.0 from the first admission that bundles a file; reuse is not training, and generated approximations are not an acceptable substitute where lost fidelity changes booklet-panel measurement.
 - Advance catalog, collision, and validator truth versions at the first production part admission rather than at contract change, and retain the preceding version as a historical migration snapshot so existing documents keep their interpretation and hashes.
