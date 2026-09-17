@@ -6,7 +6,7 @@ A digital brick modeling studio with two target surfaces: a precise manual brick
 
 Non-goals: not a BrickLink Studio clone, general mesh editor, complete official-parts catalog, or a guarantee of physical stability/clutch/instructions; it does not merge with `3d-maker` merely because both render 3D. **Do not claim a feature, command, validator, or harness exists until live files and executable behavior prove it** — and do not record how far along the project is here. Status is not a rule: `docs/devlog/summary.md` holds what has happened and `docs/design/building-system.md` holds the measured position, and a status line in this file goes stale silently because nothing exercises it.
 
-<!-- FLEET-CANON:BEGIN sha=bb31c741ed27 generated from ../fleet/FLEET.md by `npm run sync-canon` — do not edit inside this block; this repo's own rules go in docs/policies/local-rules.md -->
+<!-- FLEET-CANON:BEGIN sha=95bcbcb491dd generated from ../fleet/FLEET.md by `npm run sync-canon` — do not edit inside this block; this repo's own rules go in docs/policies/local-rules.md -->
 ## Fleet constitution
 
 ### Fleet Orchestration Policy
@@ -31,7 +31,7 @@ Each assignment must identify its owner, outcome, relevant context, dependencies
 
 Use only capabilities actually available. Never assume visibility into other chats, shared memory, automatic messaging, workspace isolation, or persistent monitoring. Distinguish prepared assignments from dispatched work and observed status from assumptions. When delegation is unavailable — the session has no way to spawn a worker — work directly or provide an explicit handoff.
 
-Isolate concurrent edits with worktrees or equivalent mechanisms; otherwise serialize overlapping writes. Account for shared services, databases, ports, and compute limits. Never overwrite or discard another participant's work. Track delegated work through completion, cancellation, or handoff, and release only resources you own without losing work.
+Isolate concurrent edits in a worktree: a session or agent doing anything beyond a trivial read works in its own worktree by default, because two sessions in one tree invalidate each other's comparisons, gates, and commits. Serialize overlapping writes only when a worktree is genuinely unavailable, and say why. Finishing a worktree means merging its branch to main and pushing, in the same session — a worktree is never where work is left to sit. Remove it with `git worktree remove` once its branch is merged; a worktree still on disk after its work has landed is a defect to report, not housekeeping to defer, and a session that ends with one says so and where it is. Account for shared services, databases, ports, and compute limits. Never overwrite or discard another participant's work. Track delegated work through completion, cancellation, or handoff, and release only resources you own without losing work.
 
 #### Preserve state and decision boundaries
 
