@@ -84,7 +84,10 @@ try {
     configFile: resolve("apps/web/vite.config.ts"),
     appType: "custom",
     optimizeDeps: { noDiscovery: true, include: [] },
-    server: { middlewareMode: true, hmr: false },
+    // No file watcher, for the reason and measurement recorded beside the same
+    // server in create-part-visual-admission-pairs.mjs: with one, Vite crawls
+    // the whole repository root before this one-shot load can finish.
+    server: { middlewareMode: true, hmr: false, watch: null },
   });
   const module = await server.ssrLoadModule("/apps/web/e2e/part-visual-admission-review.ts");
   if (parsed.kind === "batch") {

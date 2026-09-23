@@ -18,6 +18,7 @@ import {
   PREFIX50_STRUCTURAL_EVENTS_OUTPUT_PATH,
   PREFIX50_STRUCTURAL_EVENTS_SCHEMA,
 } from "./part-identification-prefix50-structural-events-source.mjs";
+import { describeWithRunEvidence } from "./run-evidence-gate.mjs";
 
 const realEvidencePresent = [
   CURRENT_PREFIX50_STRUCTURAL_EVENTS_PINS.actionPreparation.path,
@@ -182,7 +183,12 @@ describe("prefix-50 structural-event semantics", () => {
   });
 });
 
-describe.runIf(realEvidencePresent)("prefix-50 structural events", () => {
+const describeWithEvidence = describeWithRunEvidence(
+  "pins output/real-build/prefix50-structural-events.json and its inputs from the retired first-50 campaign",
+  { onlyIf: realEvidencePresent },
+);
+
+describeWithEvidence("prefix-50 structural events", () => {
   let artifact;
   let bytes;
   let input;

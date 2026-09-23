@@ -5,7 +5,7 @@ import {
   createEmptyBrickDocument,
   documentStructuralHash,
 } from "@lego-studio/brick-kernel";
-import { expect, it } from "vitest";
+import { expect } from "vitest";
 
 // @ts-expect-error This opaque Node verifier intentionally has no caller-facing TS surface.
 import { bytesFromVerifiedPrefix50ActionPreparation } from "../../../scripts/part-identification-prefix50-action-preparation.mjs";
@@ -16,6 +16,7 @@ import { verifyPrefix50OfficialWorldReconciliation } from "../../../scripts/part
 // @ts-expect-error This ignored-evidence reproducer intentionally has no caller-facing TS surface.
 import { reproduceCurrentPrefix50OfficialWorldReconciliation } from "../../../scripts/part-identification-prefix50-official-world-reconciliation-current.mjs";
 import { createRealBuildPrefix50VerifiedProjectionReader } from "../../../scripts/part-identification-prefix50-verified-projection.mjs";
+import { itWithRunEvidence } from "../../../scripts/run-evidence-gate.mjs";
 import { createRealBuildCandidateDocumentSnapshot } from "../e2e/real-build-candidate-document-snapshot";
 import { diagnoseRealBuildPrefix50VerifiedProjection } from "../e2e/real-build-prefix50-exact-compiler";
 import { verifyRealBuildPrefix50Occurrence30SourceRepair } from "../e2e/real-build-prefix50-occurrence30-source-repair";
@@ -33,8 +34,12 @@ const REAL_EVIDENCE_PATHS = [
 ] as const;
 
 const hasRealEvidence = REAL_EVIDENCE_PATHS.every((path) => existsSync(path));
+const itWithEvidence = itWithRunEvidence(
+  "reproduces output/real-build/ prefix-50 artifacts pinned by the retired first-50 campaign",
+  { onlyIf: hasRealEvidence },
+);
 
-it.runIf(hasRealEvidence)(
+itWithEvidence(
   "reports the current catalog/29 selected-path blocker without minting completion or reading a suffix",
   async () => {
     const reproduced = await reproduceCurrentPrefix50OfficialWorldReconciliation();

@@ -19,6 +19,7 @@ from types import ModuleType
 from unittest import mock
 
 from builder_ldraw_field import BuilderNode
+from run_evidence_gate import requires_run_evidence
 
 
 SCRIPTS = Path(__file__).resolve().parent
@@ -41,9 +42,15 @@ PREFIX_CONTRACT = load_script(
 SNAPSHOT = EXTRACTOR.SNAPSHOT
 
 
+RETIRED_PREFIX_SOURCE = requires_run_evidence(
+    "reads output/real-build/builder-prefix-source/, retained by the retired first-50 campaign"
+)
+
+
 class PrefixSourceContractTests(unittest.TestCase):
     evidence_directory = SCRIPTS.parent / "output" / "real-build" / "builder-prefix-source"
 
+    @RETIRED_PREFIX_SOURCE
     def test_exact_evidence_derives_checksum_refusals_and_binds_native_connectivity(self) -> None:
         report = PREFIX_CONTRACT.validate_prefix_sources([], self.evidence_directory)
         prefix_mismatches = {
@@ -77,6 +84,7 @@ class PrefixSourceContractTests(unittest.TestCase):
             },
         )
 
+    @RETIRED_PREFIX_SOURCE
     def test_exact_35787_audit_refuses_surface_fallback_over_underside_lattice(self) -> None:
         audit = PREFIX_CONTRACT._verified_json(self.evidence_directory, "audit")
         record = next(

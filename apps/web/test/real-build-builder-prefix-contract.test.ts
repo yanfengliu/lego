@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 
 import { BUILTIN_CATALOG_VERSION, getPartDefinition } from "@lego-studio/catalog";
-import { describe, expect, it } from "vitest";
+import { expect, it } from "vitest";
 
 import { BUILDER_PREFIX50_ACTION_SOURCE_ROWS_COMMITMENT } from "../e2e/real-build-builder-proper-world-diagnostic";
 import { parseOfficialModelIndex } from "../e2e/real-build-official";
@@ -21,6 +21,7 @@ import {
   type ActionArtifact,
   type CoverageArtifact,
 } from "./real-build-builder-prefix-fixture";
+import { describeWithRunEvidence } from "../../../scripts/run-evidence-gate.mjs";
 
 const EXPECTED_EXCLUSION_CENSUS = {
   "3003;S": [1, "checksum-mismatch"],
@@ -94,7 +95,11 @@ function officialPrefixRefs(official: ReturnType<typeof parseOfficialModelIndex>
     );
 }
 
-describe("first-50 Builder source and frame census contract", () => {
+const describeWithEvidence = describeWithRunEvidence(
+  "pins output/real-build/builder-shell-geometry.bin and the other prefix inputs of the retired first-50 campaign",
+);
+
+describeWithEvidence("first-50 Builder source and frame census contract", () => {
   it("derives the exact 43/197 local subset and the distinct 182-world-transform subset", () => {
     const inputBytes = Object.fromEntries(
       Object.entries(INPUTS).map(([name, pin]) => {

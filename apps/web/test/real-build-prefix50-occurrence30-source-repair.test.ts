@@ -7,7 +7,7 @@ import {
   createPartInstance,
   findCatalogCollisions,
 } from "@lego-studio/brick-kernel";
-import { describe, expect, it } from "vitest";
+import { expect, it } from "vitest";
 
 import {
   __testOnly,
@@ -15,6 +15,7 @@ import {
   verifyRealBuildPrefix50Occurrence30SourceRepair,
 } from "../e2e/real-build-prefix50-occurrence30-source-repair";
 import { enumeratePlacements } from "../src/assembly/enumerate-placements";
+import { describeWithRunEvidence } from "../../../scripts/run-evidence-gate.mjs";
 
 const OFFICIAL_MODEL_PATH = "output/official-model/vx1087034_21066_a.xml";
 const BUILDER_GEOMETRY_PATH = "output/real-build/builder-shell-geometry.bin";
@@ -28,7 +29,11 @@ function proof() {
   });
 }
 
-describe("prefix-50 occurrence-30 opaque source repair", () => {
+const describeWithEvidence = describeWithRunEvidence(
+  "pins output/real-build/builder-shell-geometry.bin and prefix50-official-world-reconciliation.json from the retired first-50 campaign",
+);
+
+describeWithEvidence("prefix-50 occurrence-30 opaque source repair", () => {
   it("derives the exact single-Bone Builder world from committed source pins", () => {
     const verified = proof();
     const evidence = requireRealBuildPrefix50Occurrence30SourceRepairProof(verified);
@@ -155,6 +160,8 @@ describe("prefix-50 occurrence-30 opaque source repair", () => {
     }
   });
 
+  // Enumerating up to 200,000 transforms took 5.7-6.6 s on 2026-09-23, past the
+  // 5 s default, so an opted-in run would time out whatever its evidence said.
   it("finds the repaired pose with five exact seats and keeps third bodies collision-free", () => {
     const reconciliation = JSON.parse(readFileSync(RECONCILIATION_PATH, "utf8")) as {
       rows: Array<{
@@ -222,5 +229,5 @@ describe("prefix-50 occurrence-30 opaque source repair", () => {
     expect(findCatalogCollisions([repaired, future147], [])).toEqual([]);
     const retained = part(30);
     expect(findCatalogCollisions([retained, future147], []).length).toBeGreaterThan(0);
-  });
+  }, 30_000);
 });

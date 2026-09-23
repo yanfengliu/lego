@@ -22,6 +22,7 @@ import {
   PREFIX50_ACTION_PREPARATION_SCHEMA,
 } from "./part-identification-prefix50-action-preparation-source.mjs";
 import { importRepositoryTypeScript } from "./part-identification-typescript-runtime.mjs";
+import { describeWithRunEvidence } from "./run-evidence-gate.mjs";
 
 const moduleUrl = (relativePath) => new URL(relativePath, import.meta.url).href;
 const realEvidencePresent = [
@@ -122,7 +123,12 @@ describe("prefix-50 action-preparation publication boundary", () => {
   });
 });
 
-describe.runIf(realEvidencePresent)("prefix-50 action preparation", () => {
+const describeWithEvidence = describeWithRunEvidence(
+  "pins output/real-build/action-preparation.json and its inputs from the retired first-50 campaign",
+  { onlyIf: realEvidencePresent },
+);
+
+describeWithEvidence("prefix-50 action preparation", () => {
   let artifact;
   let bytes;
   let input;

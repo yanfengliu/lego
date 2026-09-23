@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { UPRIGHT_ORIENTATIONS, getPartDefinition } from "@lego-studio/catalog";
 import { applyBuildOperations, createEmptyBrickDocument } from "@lego-studio/brick-kernel";
 import type { BrickDocumentV1, RigidTransform } from "@lego-studio/protocol";
-import { describe, expect, it } from "vitest";
+import { expect, it } from "vitest";
 
 import { createPlacePartTransaction } from "../src/manual-commands";
 import { panelProjectionFromFit } from "../src/assembly/arrow-placement";
@@ -20,6 +20,10 @@ import {
   type PieceReading,
   type PlacedPart,
 } from "../src/assembly/panel-reading";
+import {
+  describeWithRunEvidence,
+  runEvidenceEnabled,
+} from "../../../scripts/run-evidence-gate.mjs";
 
 function rotateByOrientation(
   orientationId: string,
@@ -45,7 +49,8 @@ function classify(
  *
  * Everything this needs is a run artifact under an ignored path — the action
  * ledger, the settled document, a step's fitted camera, and the readings the
- * vision pass produced — so it skips rather than failing when they are absent.
+ * vision pass produced — so it runs only under `LEGO_RUN_EVIDENCE=1` and skips,
+ * naming why, rather than failing when they are absent.
  * That is deliberate: the numbers below are evidence about one booklet and one
  * set of readings, and a gate that demanded them would be asserting that a model
  * call went a particular way.
@@ -139,10 +144,14 @@ function findRuns(): { score: string | null; document: string | null } {
   return { score, document };
 }
 
-const runs = findRuns();
+const runs = runEvidenceEnabled ? findRuns() : { score: null, document: null };
 const hasEvidence = existsSync(LEDGER_PATH) && runs.score !== null && runs.document !== null;
+const describeWithEvidence = describeWithRunEvidence(
+  "reads output/real-build/action-ledger.json and the furthest retained run under output/real-build/runs/",
+  { onlyIf: hasEvidence },
+);
 
-describe.skipIf(!hasEvidence)("a real panel reading, narrowing the real enumeration", () => {
+describeWithEvidence("a real panel reading, narrowing the real enumeration", () => {
   const ledger = readJson<{ steps: { stepNumber: number; action: { pieces: LedgerPiece[] } }[] }>(
     LEDGER_PATH,
   );

@@ -12,6 +12,10 @@ export default tseslint.config(
       "**/node_modules/**",
       "**/playwright-report/**",
       "**/test-results/**",
+      // pytest's cache, at any depth, as .gitignore has it. A sandboxed run left
+      // two of these that deny listing, and eslint aborts its whole scan with
+      // EPERM on the first directory it cannot read rather than skipping it.
+      "**/.pytest_cache/**",
       "packages/protocol/src/generated/**",
       // The artifact roots AGENTS.md declares for task-run evidence. A run that
       // snapshots repository sources into its own output directory would

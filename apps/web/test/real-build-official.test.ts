@@ -13,6 +13,7 @@ import {
   validateOfficialModelAccounting,
 } from "../e2e/real-build-official";
 import { builderCuboidGeometry } from "./real-build-frame-test-fixture";
+import { itWithRunEvidence } from "../../../scripts/run-evidence-gate.mjs";
 
 const identityBone = "1,0,0,0,1,0,0,0,1,0,0,0";
 
@@ -47,6 +48,11 @@ const REGENERATE_INPUTS =
  * against itself and this case's own companion in
  * `real-build-builder-calibration.test.ts`. A checkout that cannot make the
  * claim should say so.
+ *
+ * Since the 2026-09-22 reset this case runs only under `LEGO_RUN_EVIDENCE=1`
+ * (`scripts/run-evidence-gate.mjs`); the default gate reports it as skipped
+ * with that reason in its name. Opted in, an absent file still fails here by
+ * name rather than skipping.
  */
 function readRequiredOfficialModel(repositoryRelativePath: string): Buffer {
   const path = resolve(REPOSITORY_ROOT, repositoryRelativePath);
@@ -142,6 +148,10 @@ function exactAccountingXml(duplicateDirect = false): Uint8Array {
     `<Root><Bricks>${bricks.join("")}</Bricks>${builderInstructionsXml(directBrickRefs, copies)}</Root>`,
   );
 }
+
+const itWithEvidence = itWithRunEvidence(
+  "reads output/official-model/vx1087034_21066_a.xml, the ignored answer key a clean clone does not have",
+);
 
 describe("official Builder model truth", () => {
   it("independently derives the exact 1395 + 69 = 1464 accounting and unmatched separator", () => {
@@ -295,32 +305,35 @@ describe("official Builder model truth", () => {
     );
   });
 
-  it("reparses the retained official source with exact ordered and composite invariants", () => {
-    const bytes = readRequiredOfficialModel(OFFICIAL_MODEL_FILE);
-    expect(sha256Digest(bytes)).toBe(
-      "sha256:c0564fd86ede633f6cb18738f999fbb70ee948ba93a55cc8d338b4b5f02b5922",
-    );
-    const official = parseOfficialModelIndex(bytes);
+  itWithEvidence(
+    "reparses the retained official source with exact ordered and composite invariants",
+    () => {
+      const bytes = readRequiredOfficialModel(OFFICIAL_MODEL_FILE);
+      expect(sha256Digest(bytes)).toBe(
+        "sha256:c0564fd86ede633f6cb18738f999fbb70ee948ba93a55cc8d338b4b5f02b5922",
+      );
+      const official = parseOfficialModelIndex(bytes);
 
-    expect(Object.keys(official.bricks)).toHaveLength(1_465);
-    expect(Object.values(official.bricks).flatMap(({ parts }) => parts)).toHaveLength(1_469);
-    expect(official.builderOrder.phases).toHaveLength(561);
-    expect(official.directBrickRefs.size).toBe(1_395);
-    expect(official.multiBuildByActualRef.size).toBe(69);
-    expect(official.builderOrder.aggregateBrickRefs.size).toBe(1_464);
-    expect(
-      official.builderOrder.phases
-        .slice(0, 3)
-        .map((phase) => (phase.kind === "direct" ? phase.brickRefs : null)),
-    ).toEqual([
-      ["76092bf0-3d72-474a-baf3-06b837082f6a"],
-      ["21288f64-b9d5-4efb-92b9-427a17832a45"],
-      ["9d453fd1-adbe-44b8-ae21-d499a2c01e46"],
-    ]);
-    expect(official.bricks["2d36f089-87da-44d0-b2c6-85a3bcd459b8"]).toMatchObject({
-      designRevision: "76382;AO",
-      builderTransform: null,
-    });
-    expect(official.bricks["2d36f089-87da-44d0-b2c6-85a3bcd459b8"]!.parts).toHaveLength(5);
-  });
+      expect(Object.keys(official.bricks)).toHaveLength(1_465);
+      expect(Object.values(official.bricks).flatMap(({ parts }) => parts)).toHaveLength(1_469);
+      expect(official.builderOrder.phases).toHaveLength(561);
+      expect(official.directBrickRefs.size).toBe(1_395);
+      expect(official.multiBuildByActualRef.size).toBe(69);
+      expect(official.builderOrder.aggregateBrickRefs.size).toBe(1_464);
+      expect(
+        official.builderOrder.phases
+          .slice(0, 3)
+          .map((phase) => (phase.kind === "direct" ? phase.brickRefs : null)),
+      ).toEqual([
+        ["76092bf0-3d72-474a-baf3-06b837082f6a"],
+        ["21288f64-b9d5-4efb-92b9-427a17832a45"],
+        ["9d453fd1-adbe-44b8-ae21-d499a2c01e46"],
+      ]);
+      expect(official.bricks["2d36f089-87da-44d0-b2c6-85a3bcd459b8"]).toMatchObject({
+        designRevision: "76382;AO",
+        builderTransform: null,
+      });
+      expect(official.bricks["2d36f089-87da-44d0-b2c6-85a3bcd459b8"]!.parts).toHaveLength(5);
+    },
+  );
 });

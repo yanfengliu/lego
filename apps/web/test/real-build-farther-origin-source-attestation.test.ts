@@ -29,6 +29,7 @@ import type { RealBuildSourceSnapshot } from "../e2e/real-build-replay-files";
 import type { RealBuildOptions } from "../e2e/real-build-safety";
 import { REAL_BUILD_SOURCE_ROOTS } from "../e2e/real-build-source-roots";
 import { REAL_BUILD_TEST_DIGEST, completeRealBuildTestOptions } from "./real-build-test-options";
+import { itWithRunEvidence } from "../../../scripts/run-evidence-gate.mjs";
 
 const DIFFERENT_DIGEST = `sha256:${"b".repeat(64)}`;
 const codeUnitCompare = (left: string, right: string): number =>
@@ -283,6 +284,10 @@ function attestedFixture() {
   };
 }
 
+const itWithEvidence = itWithRunEvidence(
+  "pins a digest of every file under the real-build source roots, installed packages and the local Vite cache included, captured for the retired first-50 campaign; any change there moves it",
+);
+
 describe("measured farther-origin source attestation", () => {
   it("tracks literal dynamic, CommonJS, and import-relative file dependencies and refuses computed paths", () => {
     expect(
@@ -430,12 +435,16 @@ describe("measured farther-origin source attestation", () => {
     );
   });
 
-  it("pins the expected manifest to the exact captured canonical source closure", () => {
-    const active = deriveMeasuredFartherOriginSourceAttestation(
-      snapshotRealBuildCodeRoots(REAL_BUILD_SOURCE_ROOTS),
-    );
-    expect(active).toEqual(MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION);
-  }, 30_000);
+  itWithEvidence(
+    "pins the expected manifest to the exact captured canonical source closure",
+    () => {
+      const active = deriveMeasuredFartherOriginSourceAttestation(
+        snapshotRealBuildCodeRoots(REAL_BUILD_SOURCE_ROOTS),
+      );
+      expect(active).toEqual(MEASURED_FARTHER_ORIGIN_SOURCE_ATTESTATION);
+    },
+    30_000,
+  );
 
   it("independently rejects forged, missing, contract-mutated, and retained-mutated closure", () => {
     const fixture = attestedFixture();

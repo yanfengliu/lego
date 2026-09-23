@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import type { BrickDocumentV1 } from "@lego-studio/protocol";
 import { describe, expect, it } from "vitest";
 
+import { extractTarArchive } from "../../../scripts/tar-archive.mjs";
 import { canonicalDigest } from "./canonical.ts";
 import { getReviewedHistoricalCatalogRoster } from "./historical-catalog-rosters.ts";
 import {
@@ -59,7 +60,7 @@ async function deriveVersion10ShellPartIds(): Promise<readonly string[]> {
       "packages/catalog/package.json",
       "packages/catalog/src",
     ]);
-    run("tar", ["-xf", archivePath, "-C", extractionRoot]);
+    extractTarArchive(archivePath, extractionRoot);
     const catalogUrl = pathToFileURL(join(extractionRoot, "packages/catalog/src/catalog.ts"));
     const historical = (await import(`${catalogUrl.href}?commit=${VERSION_10_SOURCE_COMMIT}`)) as {
       readonly PART_DEFINITIONS?: readonly {

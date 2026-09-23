@@ -1,5 +1,4 @@
 import { createHash } from "node:crypto";
-import { execFileSync } from "node:child_process";
 import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
@@ -18,6 +17,7 @@ import {
   consumeBuilder2453DiagnosticRegistryRoute,
   verifyBuilder2453RegistryProofBytes,
 } from "./part-identification-2453-builder-registry-route.mjs";
+import { readArchiveMember } from "./tar-archive.mjs";
 
 const pins = CURRENT_BUILDER_2453_IDENTITY_PINS;
 const shadowRoot = "C:/tmp/ldcad-shadow-20260802";
@@ -51,11 +51,7 @@ async function digestBoundedFile(path, expectedBytes) {
 }
 
 function extractOfficialMember(path) {
-  const executable = process.platform === "win32" ? "tar.exe" : "tar";
-  return execFileSync(executable, ["-xOf", pins.officialLdraw.archive.path, path], {
-    maxBuffer: 2 * 1024 * 1024,
-    windowsHide: true,
-  });
+  return readArchiveMember(pins.officialLdraw.archive.path, path, { maxBuffer: 2 * 1024 * 1024 });
 }
 
 async function readCurrentEvidence() {

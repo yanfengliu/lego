@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, expect, it } from "vitest";
 
 import {
   bytesFromVerifiedPrefix50OfficialWorldReconciliation,
@@ -21,6 +21,7 @@ import {
 } from "./part-identification-prefix50-official-world-reconciliation-source.mjs";
 import { PREFIX50_LDRAW_CATALOG_FRAMES_OUTPUT_PATH } from "./part-identification-prefix50-ldraw-catalog-frames-source.mjs";
 import { PREFIX50_OFFICIAL_LDRAW_WORLD_PROPOSAL_OUTPUT_PATH } from "./part-identification-prefix50-official-ldraw-world-proposal-source.mjs";
+import { describeWithRunEvidence } from "./run-evidence-gate.mjs";
 
 const inputsPresent = [
   PREFIX50_OFFICIAL_LDRAW_WORLD_PROPOSAL_OUTPUT_PATH,
@@ -34,7 +35,12 @@ function hostileBytes(artifact, change) {
   return encodePrefix50OfficialWorldReconciliation(changed);
 }
 
-describe.runIf(inputsPresent)("prefix-50 official-world occurrence reconciliation", () => {
+const describeWithEvidence = describeWithRunEvidence(
+  "pins output/real-build/prefix50-official-world-reconciliation.json and its inputs from the retired first-50 campaign",
+  { onlyIf: inputsPresent },
+);
+
+describeWithEvidence("prefix-50 official-world occurrence reconciliation", () => {
   let artifact;
   let bytes;
   let input;

@@ -22,6 +22,7 @@ import {
   PREFIX50_LDRAW_CATALOG_NEW_PARAMETRIC_EXPECTATIONS,
 } from "./part-identification-prefix50-ldraw-catalog-frames-source.mjs";
 import { importRepositoryTypeScript } from "./part-identification-typescript-runtime.mjs";
+import { describeWithRunEvidence } from "./run-evidence-gate.mjs";
 
 const moduleUrl = (relativePath) => new URL(relativePath, import.meta.url).href;
 const inputsPresent = [
@@ -102,7 +103,12 @@ describe("prefix-50 frame algebra without private inputs", () => {
   });
 });
 
-describe.runIf(inputsPresent)("prefix-50 exact LDraw/catalog frame registry", () => {
+const describeWithEvidence = describeWithRunEvidence(
+  "pins output/real-build/prefix50-ldraw-catalog-frames.json and its inputs from the retired first-50 campaign",
+  { onlyIf: inputsPresent },
+);
+
+describeWithEvidence("prefix-50 exact LDraw/catalog frame registry", () => {
   let artifact;
   let bytes;
   let input;
