@@ -2,7 +2,7 @@
 
 ## What this is
 
-A digital brick modeling studio with two surfaces: a precise manual brick editor, and a closed loop that reads a printed LEGO instruction booklet and builds its set — counting every part, compiling each printed step into a build program, placing each piece, checking each step against the booklet's own picture, and playing the build back. Stack: TypeScript, Three.js, React, Vitest, Playwright, Python.
+A digital brick modeling studio with two target surfaces: a precise manual brick editor, and a closed loop that reads a printed LEGO instruction booklet and builds its set — counting every part, compiling each printed step into a build program, placing each piece, checking each step against the booklet's own picture, and playing the build back. Stack: TypeScript, Three.js, React, Vitest, Playwright, Python.
 
 Not a BrickLink Studio clone, general mesh editor, complete official-parts catalog, or promise of physical stability, clutch or instructions, and not merged with `3d-maker` just because both render 3D.
 
@@ -108,7 +108,7 @@ Do not declare the result fully verified while material findings or required che
 
 ## Gates
 
-Node 24 (`.nvmrc`), npm 11, Python 3 (`python`), Playwright Chromium; commands: `package.json`. Iterate on the smallest relevant check; `npm run verify` passes before implementation is done, and a unit-only pass never covers a change crossing persistence, broker, provider, browser, import/export or rendering boundaries. A dependency change also runs `npm run audit` and `audit:runtime`; a new HIGH or CRITICAL blocks.
+Node 24 (`.nvmrc`), npm 11, Python 3 as `python` (no `requires-python` pin yet — a known gap), Playwright Chromium; commands: `package.json`. Iterate on the smallest relevant check; `npm run verify` passes before implementation is done, and a unit-only pass never covers a change crossing persistence, broker, provider, browser, import/export or rendering boundaries. A dependency change also runs `npm run audit` and `audit:runtime`; a new HIGH or CRITICAL blocks.
 
 ## Invariants & boundaries
 
@@ -117,15 +117,17 @@ Node 24 (`.nvmrc`), npm 11, Python 3 (`python`), Playwright Chromium; commands: 
 - Saved documents pin their truth snapshots; a schema or truth change ships a versioned migration and report, never a silent reinterpretation.
 - Manual edits may leave a draft-invalid document; a compiled patch — all a printed step or template can become — is scope-valid, adds no blocking failure outside its scope, and keeps a globally valid base globally valid.
 - A command refuses to create a state the domain forbids (a placement nothing holds up) and says what was wrong; the UI cannot reach that state.
-- Model output (vision proposals, panel judgements, templates, repairs) is untrusted data: it cannot declare itself valid, author trusted scope or provenance, run code, waive a hard validator, admit a part or change the user document. It proposes; a deterministic check disposes, and no visual score outweighs a hard failure.
+- Model output (vision proposals, panel judgements, templates, repairs) is untrusted data: it cannot declare itself valid, author trusted scope or provenance, run code, waive a hard validator, admit a part or directly mutate the user document. It proposes; a deterministic check disposes, and no visual score outweighs a hard failure.
+- A repair, replan or rejected placement creates an immutable child candidate; never overwrite a parent or erase counterevidence — backtracking needs the wrong branch to survive as evidence, not vanish as a gap.
 - User documents change only by explicit manual command or previewed acceptance; nothing automatic accepts a patch, promotes knowledge, merges code, deploys, changes secrets or weakens its evaluator.
+- A physical claim applies only to the exact document and catalog hash tested; a structural edit invalidates it.
 - Domain, build-program, canonicalization, migration and validation code never depends on the DOM, React, Three.js scene objects, provider SDKs or persistence adapters; the Three.js scene is a disposable view, disposed deliberately and rebuilt after context loss.
-- The released companion trust broker alone holds production signing, credential proxying, authoritative events and artifact sealing, and enforces a scope-bounded, one-use acceptance capability whose event it seals; only the user originates acceptance, consent or scope. It never runs challenger code; production and test identities, keys, ledgers and namespaces stay apart; the evaluator accepts only expected-namespace seals; challengers get no arbitrary filesystem access or direct network egress, and only bounded schema-checked aggregates leave the evaluator.
-- The browser stays a working offline manual editor; model calls, recorded runs and patch acceptance go through the broker. One bad response, candidate, render or strategy cannot corrupt the document or crash the editor.
+- The released companion trust broker alone holds production signing, credential proxying, authoritative events and artifact sealing, and enforces a scope-bounded, one-use acceptance capability whose event it seals; only the user originates acceptance, consent or scope. It never loads or launches challenger code; production and test identities, keys, ledgers and namespaces stay apart; the independent evaluator accepts only expected-namespace seals; challengers get no arbitrary filesystem access or direct network egress, and only bounded schema-checked aggregates leave the evaluator.
+- The browser stays a working offline manual editor; runtime model calls, recorded runs and patch acceptance go through the broker. One bad response, candidate, render or strategy cannot corrupt the document or crash the editor.
 - `lego` owns brick semantics, `3d-maker` genome-to-mesh semantics: share only generic experiment, lineage, artifact, comparison or evaluation interfaces both have proved they need, never add the game engine to brick-domain, browser, broker or evaluator packages, and change a sibling repo only when the task scopes it, never importing its invariants.
 - Imports, archives, images, LDraw, JSON, HTML, provider output and loopback requests are hostile: bound bytes, depth, dimensions, expansion, recursion, operation and part counts, time, render memory, paths, origins and output schemas.
 - Credentials, tokens, signing keys, private endpoints and session material stay out of source, bundles, run artifacts, prompts and logs; tests mock provider and network calls, and live calls need explicit authorization. User references and designs are local by default: sending, training, benchmark use, sharing and Git retention are separate consents.
 
 ## Conventions
 
-Task-run evidence goes only to ignored `var/runs/`, `var/state/` and `output/`; `docs/START.md` says what goes where.
+Task-run evidence goes only to ignored `var/runs/`, `var/state/`, `output/` and Playwright's `test-results/`; `docs/START.md` says what goes where.

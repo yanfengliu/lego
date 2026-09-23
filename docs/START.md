@@ -4,12 +4,12 @@ Read this file and [`docs/policies/local-rules.md`](policies/local-rules.md) at 
 
 ## What the product is
 
-A digital brick modeling studio with two surfaces over one document model:
+A digital brick modeling studio with two target surfaces over one document model:
 
 - A precise manual brick editor that works offline in the browser.
-- A closed loop that reads a printed LEGO instruction booklet and builds the set it describes: count every part, compile each printed step into a build program, place each piece, check each step against the booklet's own panel, and play the build back.
+- A closed loop that is meant to read a printed LEGO instruction booklet and build the set it describes: count every part, compile each printed step into a build program, place each piece, check each step against the booklet's own panel, and play the build back. Placement is experimental and fail-closed today ([building-system.md](design/building-system.md)).
 
-The versioned `BrickDocument` part-and-connection graph is the truth; scenes, renders, LDraw files and model answers are derived from it. The booklet is the loop's input. The official LEGO Builder model of the set is the answer key the rebuild is scored against, never an input to the builder ([local-rules](policies/local-rules.md#the-booklet-and-the-reference)).
+The versioned `BrickDocument` part-and-connection graph is the truth; scenes, renders, LDraw files and model answers are derived from it. The booklet is the loop's input. Target rule: the official LEGO Builder model of the set is only the answer key the rebuild is scored against, never an input to the builder; the experimental real-build tooling is a named exception that still reads it directly, retired only with that family ([local-rules](policies/local-rules.md#the-booklet-and-the-reference)).
 
 ## Where the measured position lives
 
@@ -56,7 +56,7 @@ Each is stated once, where the link points.
 - Build the measurable intermediate first; a change with no number attached is not progress ([Probes and measurement](policies/local-rules.md#probes-and-measurement)).
 - Look at every picture at its native resolution, and drive the real UI ([Looking](policies/local-rules.md#looking)).
 - Ask models closed questions; per-image classification is a one-shot call, and read-only lookups go to the `scout` agent ([Models and subagents](policies/local-rules.md#models-and-subagents)).
-- Review once, at merge, sized to risk; a devlog summary line is at most 300 characters ([Review, devlog and docs](policies/local-rules.md#review-devlog-and-docs)).
+- Review runs before a substantial or high-risk milestone merges, sized to risk, with a focused re-review after fixes invalidate it; a devlog summary line is at most 300 characters ([Review, devlog and docs](policies/local-rules.md#review-devlog-and-docs)).
 - Model output is untrusted, and user documents change only by explicit command or previewed acceptance (`AGENTS.md`, Invariants).
 
 ## Read only when changing that system
