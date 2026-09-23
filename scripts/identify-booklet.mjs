@@ -158,7 +158,7 @@ async function main() {
   const t = result.text;
   const unpaired = t.unpairedElementIds.map((u) => `${u.elementId} (p${u.page})`);
   console.log(
-    `text: inventory on pages ${t.inventoryPages.join(", ")}; ${unpaired.length} unpaired element ids${unpaired.length > 0 ? ` (${unpaired.slice(0, 10).join(", ")})` : ""}; callout labels at ${t.calloutLabelSizePt} pt; ${t.overprintsDropped} overprinted runs dropped; ${t.otherSizeCountLabels} labels at other sizes (sub-assembly multipliers); steps 1-${t.lastStep}: ${t.stepNumbers} found, missing [${t.missingSteps.join(", ")}], repeated [${t.repeatedSteps.join(", ")}]`,
+    `text: inventory on pages ${t.inventoryPages.join(", ")}; ${unpaired.length} unpaired element ids${unpaired.length > 0 ? ` (${unpaired.slice(0, 10).join(", ")})` : ""}; ${t.calloutLabelSizePt === null ? "no callout labels" : `callout labels at ${t.calloutLabelSizePt} pt`}; ${t.overprintsDropped} overprinted runs dropped; ${t.otherSizeCountLabels} labels at other sizes (sub-assembly multipliers); ${t.lastStep === null ? "no step numbers" : `steps 1-${t.lastStep}: ${t.stepNumbers} found, missing [${t.missingSteps.join(", ")}], repeated [${t.repeatedSteps.join(", ")}]`}`,
   );
   console.log(
     `inventory: ${s.inventoryElements} elements, ${s.inventoryPieces} pieces, ${s.inventoryThumbnails}/${result.inventory.length} thumbnails found`,
