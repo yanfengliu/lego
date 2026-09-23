@@ -86,6 +86,17 @@ describe("scoreAgainstTruth", () => {
     ]);
   });
 
+  it("never passes a verdict on through a composite picture's key, even a shared one", () => {
+    const shared = "composite:p2@60.000,100.000";
+    const composites = scoreAgainstTruth(
+      { callouts: [callout(2, 1, 60, 2, shared, "C"), callout(3, 1, 60, 3, shared, "Q")] },
+      [verdict(1, 2, 1, 60, "C", true)],
+      3,
+    );
+    expect(composites.inherited).toEqual({ callouts: 0, correct: 0 });
+    expect(composites.expanded.callouts).toBe(1);
+  });
+
   it("counts a negative verdict as avoided only when the rejected element was not chosen", () => {
     expect(score.negative).toEqual({ callouts: 1, avoided: 0 });
   });

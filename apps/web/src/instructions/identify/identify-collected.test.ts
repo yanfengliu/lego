@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Collected, CollectedCallout, CollectedInventory } from "./collect";
 import { DEFAULT_PARAMETERS, identifyCollected } from "./identify-booklet";
 import type { Picture } from "./pictures";
-import { assertWithinInventory } from "./report";
+import { assertWithinInventory, report } from "./report";
 import type { CalloutIdentification, IdentifyResult } from "./types";
 
 type Rgb = readonly [number, number, number];
@@ -270,8 +270,42 @@ describe("identifyCollected", () => {
 });
 
 describe("assertWithinInventory", () => {
-  const spent = (id: string, elementId: string): CalloutIdentification =>
-    ({ id, step: 1, elementId, flags: [] }) as unknown as CalloutIdentification;
+  const spent = (id: string, elementId: string): CalloutIdentification => ({
+    id,
+    page: 1,
+    step: 1,
+    count: 1,
+    bbox: null,
+    drawing: null,
+    elementId,
+    score: null,
+    iou: null,
+    firstChoice: null,
+    runnerUp: null,
+    margin: null,
+    candidates: [],
+    flags: [],
+  });
+
+  it("is what report() runs: a report spending an element past its count is refused, not printed", () => {
+    const three = ["p1|q1|x1.000|y1.000", "p2|q1|x1.000|y1.000", "p3|q1|x1.000|y1.000"];
+    expect(() =>
+      report(
+        three.map((id) => spent(id, "A")),
+        [],
+        new Map([["A", 2]]),
+      ),
+    ).toThrow(
+      /^identifyBooklet assigned 3 pieces of element A, but the inventory prints 2, by callouts p1/,
+    );
+    expect(() =>
+      report(
+        three.slice(0, 2).map((id) => spent(id, "A")),
+        [],
+        new Map([["A", 2]]),
+      ),
+    ).not.toThrow();
+  });
 
   it("stops a report that spends an element past its count, naming the element and its callouts", () => {
     const callouts = [spent("p1|q2|x1.000|y1.000", "A"), spent("p2|q1|x1.000|y1.000", "A")];
