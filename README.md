@@ -102,6 +102,7 @@ The authoritative command definitions are in [package.json](package.json).
 
 ## Design and policy
 
+- [Start here](docs/START.md)
 - [Product and architecture specification](docs/design/spec.md)
 - [Part model](docs/design/part-model.md)
 - [Building-system assessment and current measured position](docs/design/building-system.md)
