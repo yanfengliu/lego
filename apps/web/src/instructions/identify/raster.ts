@@ -1,4 +1,5 @@
 import { invert, paintRect, type Matrix } from "./geometry";
+import { IDENTIFY_LIMITS } from "./limits";
 import type { DecodedImage, ImagePaint, Rect } from "./types";
 
 /**
@@ -24,8 +25,6 @@ export interface RegionRaster {
   /** Background colour of each composited paint, estimated from its image border. */
   readonly background: readonly (readonly [number, number, number])[];
 }
-
-export const MAX_REGION_PIXELS = 4_000_000;
 
 /** Pixel (column, row) centre to page coordinates. */
 export function pixelCentre(raster: RegionRaster, column: number, row: number): [number, number] {
@@ -78,6 +77,12 @@ export function borderBackground(
   return { colour, agreement: ring.length === 0 ? 0 : agree / ring.length };
 }
 
+/** Which page a region is on and how many count labels share it, for error messages. */
+export interface RegionContext {
+  readonly pageNumber: number;
+  readonly labels: number;
+}
+
 /**
  * Paints `paints` (already in page order) into a raster of `region` at `pxPerPt`.
  * Each image is sampled bilinearly, averaged over its footprint when it is being
@@ -89,12 +94,29 @@ export function compositeRegion(
   paints: readonly ImagePaint[],
   images: ReadonlyMap<string, DecodedImage>,
   backgroundTolerance: number,
+  context: RegionContext,
 ): RegionRaster {
   const width = Math.max(1, Math.ceil((region.x1 - region.x0) * pxPerPt));
   const height = Math.max(1, Math.ceil((region.y1 - region.y0) * pxPerPt));
-  if (width * height > MAX_REGION_PIXELS) {
+  const where = `Page ${context.pageNumber}: the region at (${region.x0.toFixed(1)}, ${region.y0.toFixed(1)}) holding ${context.labels} count label(s)`;
+  if (width * height > IDENTIFY_LIMITS.maxRegionPixels) {
     throw new Error(
-      `A callout region of ${(region.x1 - region.x0).toFixed(1)}x${(region.y1 - region.y0).toFixed(1)}pt needs ${width * height} pixels at ${pxPerPt.toFixed(2)} px/pt, over the ${MAX_REGION_PIXELS} limit; lower gridPxPerPt.`,
+      `${where} spans ${(region.x1 - region.x0).toFixed(1)}x${(region.y1 - region.y0).toFixed(1)} pt, ${width * height} pixels at ${pxPerPt.toFixed(2)} px/pt, over the ${IDENTIFY_LIMITS.maxRegionPixels}-pixel limit for one region. Callout pictures are far smaller (the sample booklet's largest region is 124,032 pixels), so the images above these labels are not laid out as callouts, a count label under its own picture, and the page cannot be read. If it is a genuine booklet page, a lower gridPxPerPt fits it, but coarsens every comparison.`,
+    );
+  }
+  let painted = 0;
+  for (const paint of paints) {
+    const visible = paintRect(paint.transform as Matrix, paint.clip);
+    if (visible === null) continue;
+    const span = pixelSpan(
+      { width, height, left: region.x0, top: region.y1, pxPerPt } as RegionRaster,
+      visible,
+    );
+    painted += Math.max(0, span.c1 - span.c0) * Math.max(0, span.r1 - span.r0);
+  }
+  if (painted > IDENTIFY_LIMITS.maxPaintedPixelsPerRegion) {
+    throw new Error(
+      `${where} has ${paints.length} images painting ${painted} pixels into its ${width * height}, over the ${IDENTIFY_LIMITS.maxPaintedPixelsPerRegion}-pixel limit; booklet artwork paints a region about once. The page stacks images far past any booklet; pass an instruction booklet.`,
     );
   }
   const raster = {

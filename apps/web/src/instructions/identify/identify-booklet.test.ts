@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   fakePdfjs,
+  SYNTHETIC_PARTS,
   SYNTHETIC_STEPS,
   syntheticBooklet,
   type SyntheticPage,
+  type SyntheticPart,
 } from "./__fixtures__/synthetic-booklet";
 import { identifyBooklet } from "./identify-booklet";
 import { IDENTIFY_SCHEMA_VERSION, type IdentifyResult } from "./types";
@@ -35,11 +37,21 @@ describe("identifyBooklet on a synthetic booklet", () => {
       stepCallouts: 8,
       calloutsWithPicture: 8,
       drawings: 7,
-      calloutsAssigned: 8,
-      piecesAssigned: 11,
-      elementsExact: 7,
+      forcedByCapacity: { calloutsAssigned: 8, piecesAssigned: 11, elementsExact: 7 },
       firstChoiceKept: 8,
       residuals: 0,
+    });
+    expect(result.assignment).toMatchObject({ provenOptimal: true, nodes: 1 });
+    expect(result.text).toEqual({
+      inventoryPages: [3],
+      unpairedElementIds: [],
+      calloutLabelSizePt: 8,
+      overprintsDropped: 0,
+      otherSizeCountLabels: 0,
+      stepNumbers: 2,
+      lastStep: 2,
+      missingSteps: [],
+      repeatedSteps: [],
     });
     const expected = SYNTHETIC_STEPS.flatMap((callouts, i) =>
       callouts.map(([elementId, count]) => [i + 1, elementId, count]),
@@ -85,6 +97,45 @@ describe("identifyBooklet on a synthetic booklet", () => {
     expect(red[1]!.drawing).toBe(red[0]!.drawing);
   });
 
+  it("keeps two composite pictures printed at one spot on two pages apart", async () => {
+    // Each page prints its part as two tiles; the label sits at the same place on both pages.
+    const result = await identify(
+      syntheticBooklet([[["3001001", 1, { split: true }]], [["3001002", 1, { split: true }]]]),
+    );
+    expect(result.callouts.map((c) => [c.page, c.drawing, c.elementId, c.flags])).toEqual([
+      [1, "composite:p1@60.000,510.000", "3001001", []],
+      [2, "composite:p2@60.000,510.000", "3001002", []],
+    ]);
+  });
+
+  it("tells a left-handed part from its right-handed twin printed as the same image mirrored", async () => {
+    const left: SyntheticPart = {
+      elementId: "3001009",
+      count: 1,
+      shape: { kind: "ell", widthPt: 18, heightPt: 12, rgb: [60, 120, 200] },
+    };
+    const right: SyntheticPart = {
+      elementId: "3001010",
+      count: 1,
+      shape: { ...left.shape, mirrored: true },
+    };
+    const result = await identify(
+      syntheticBooklet(
+        [
+          [
+            ["3001009", 1],
+            ["3001010", 1, { image: "3001009", mirror: true }],
+          ],
+        ],
+        [...SYNTHETIC_PARTS, left, right],
+      ),
+    );
+    const [upright, mirrored] = result.callouts;
+    expect(mirrored!.drawing).toBe(`${upright!.drawing}/mirrored`);
+    expect([upright!.elementId, mirrored!.elementId]).toEqual(["3001009", "3001010"]);
+    expect(result.callouts.every((c) => c.flags.length === 0)).toBe(true);
+  });
+
   it("returns the same identification for the same bytes, and releases the document", async () => {
     const pdfjs = fakePdfjs(syntheticBooklet());
     const first = await identifyBooklet(BYTES, { pdfjs });
@@ -94,6 +145,7 @@ describe("identifyBooklet on a synthetic booklet", () => {
     const a = { ...first, timingsMs: {} };
     const b = { ...second, timingsMs: {} };
     expect(Object.keys(first).sort()).toEqual([
+      "assignment",
       "callouts",
       "inventory",
       "parameters",
@@ -103,6 +155,7 @@ describe("identifyBooklet on a synthetic booklet", () => {
       "source",
       "steps",
       "summary",
+      "text",
       "timingsMs",
     ]);
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));

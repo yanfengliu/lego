@@ -78,6 +78,7 @@ describe("scoreAgainstTruth", () => {
   it("extends a verdict to identical drawings, but never through a composite picture", () => {
     expect(score.direct).toEqual({ callouts: 3, correct: 3 });
     // p2 x10 inherits A from p1's drawing; p3 x10 inherits B and is wrong.
+    expect(score.inherited).toEqual({ callouts: 2, correct: 1 });
     expect(score.expanded).toEqual({ callouts: 5, correct: 4, pieces: 6, piecesCorrect: 5 });
     expect(score.misses).toEqual([
       { calloutId: "p3|q1|x10.000|y100.000", step: 3, truth: "B", got: "X", inherited: true },

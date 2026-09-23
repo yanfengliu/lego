@@ -2,13 +2,18 @@
  * Closed-set assignment of drawings to inventory elements.
  *
  * Every piece a callout prints must come out of the inventory, so the counts
- * printed at the back are capacities: a transportation problem from drawings
- * (supply = pieces called out) to elements (capacity = pieces in the set), with
- * the visual score as the price. It is solved as a min-cost flow by successive
- * shortest paths. A drawing is one part, so a drawing split across elements is
- * repaired by fixing it to each element it was split across in turn and keeping
- * the cheapest outcome. A priced "unassigned" route keeps every instance
+ * printed at the back are capacities. A drawing is one part: all of its pieces go
+ * to one element, or none do and it is reported unassigned. That is a generalized
+ * assignment problem priced by the visual score, solved exactly by branch and
+ * bound. Each node is a min-cost flow, by successive shortest paths, in which the
+ * drawings not yet decided may split across elements or be placed in part; its
+ * cost bounds every whole answer below the node, and a node whose flow is
+ * already whole is an answer. A priced "unassigned" route keeps every node
  * solvable; using it is reported, never hidden.
+ *
+ * The search stops at a node budget. An answer it could not prove best says so,
+ * and names the drawings the search decided so the caller can flag them. On the
+ * sample booklet the first flow is already whole: one node, proven optimal.
  */
 export interface Demand {
   readonly key: string;
@@ -23,20 +28,34 @@ export interface Supply {
 }
 
 export interface Placement {
-  /** The element the drawing went to, or null when none of its pieces could be placed. */
+  /** The element the drawing went to, or null when it was left unassigned. */
   readonly elementId: string | null;
-  /** Pieces placed; fewer than the demand when the element ran out. */
+  /** Pieces placed: the drawing's whole quantity, or 0. */
   readonly placed: number;
+}
+
+export interface AssignmentOptions {
+  /** Flow problems the search may solve before it settles for the best answer found. */
+  readonly maxNodes?: number | undefined;
+  /** Called before each flow problem after the first, with its number; throw to stop. */
+  readonly checkpoint?: (node: number) => void;
 }
 
 export interface AssignmentResult {
   readonly placements: ReadonlyMap<string, Placement>;
   readonly totalCost: number;
-  readonly splitsRepaired: number;
+  /** The fractional optimum: no whole assignment costs less. */
+  readonly lowerBound: number;
+  /** True when no whole assignment costs less than `totalCost`. */
+  readonly provenOptimal: boolean;
+  readonly nodes: number;
+  /** Drawings whose placement is not the one the fractional optimum gave them whole. */
+  readonly decided: readonly string[];
 }
 
 const SCALE = 1_000;
 const UNASSIGNED_COST = 10_000_000;
+export const DEFAULT_MAX_NODES = 200;
 
 class FlowGraph {
   readonly to: number[] = [];
@@ -159,15 +178,25 @@ function priceOf(score: number, maxScore: number): number {
   return Math.max(0, Math.round(SCALE * (maxScore - score)));
 }
 
+function byText(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/** Decided drawings: the element each is fixed to, or null for unassigned. */
+type Fixings = ReadonlyMap<string, string | null>;
+
 interface Solved {
-  readonly flows: Map<string, Map<string, number>>;
+  /** False when the decided drawings cannot all fit. */
+  readonly feasible: boolean;
   readonly cost: number;
+  /** Pieces of each drawing on each element. */
+  readonly flows: ReadonlyMap<string, ReadonlyMap<string, number>>;
 }
 
 function solve(
   demands: readonly Demand[],
   supplies: readonly Supply[],
-  fixed: ReadonlyMap<string, string>,
+  fixed: Fixings,
   maxScore: number,
 ): Solved {
   const elementIndex = new Map(supplies.map((s, i) => [s.elementId, i]));
@@ -181,23 +210,22 @@ function solve(
   demands.forEach((demand, d) => {
     graph.addEdge(source, firstDemand + d, demand.quantity, 0);
     total += demand.quantity;
-    const only = fixed.get(demand.key);
-    for (const candidate of demand.candidates) {
-      if (only !== undefined && candidate.elementId !== only) continue;
-      const e = elementIndex.get(candidate.elementId);
-      if (e === undefined) continue;
-      const edge = graph.addEdge(
-        firstDemand + d,
-        firstElement + e,
-        demand.quantity,
-        priceOf(candidate.score, maxScore),
-      );
-      edges.push({ demand: d, elementId: candidate.elementId, edge });
+    const decision = fixed.get(demand.key);
+    if (decision !== null) {
+      for (const candidate of demand.candidates) {
+        if (decision !== undefined && candidate.elementId !== decision) continue;
+        const e = elementIndex.get(candidate.elementId)!;
+        const price = priceOf(candidate.score, maxScore);
+        const edge = graph.addEdge(firstDemand + d, firstElement + e, demand.quantity, price);
+        edges.push({ demand: d, elementId: candidate.elementId, edge });
+      }
     }
-    graph.addEdge(firstDemand + d, sink, demand.quantity, UNASSIGNED_COST);
+    // A drawing fixed to an element has no way out but that element.
+    if (decision === undefined || decision === null)
+      graph.addEdge(firstDemand + d, sink, demand.quantity, UNASSIGNED_COST);
   });
   supplies.forEach((supply, e) => graph.addEdge(firstElement + e, sink, supply.capacity, 0));
-  const { cost } = graph.minCostFlow(source, sink, total);
+  const { flow, cost } = graph.minCostFlow(source, sink, total);
   const flows = new Map<string, Map<string, number>>();
   for (const { demand, elementId, edge } of edges) {
     const used = graph.capacity[edge ^ 1]!;
@@ -206,16 +234,33 @@ function solve(
     if (!flows.has(key)) flows.set(key, new Map());
     flows.get(key)!.set(elementId, used);
   }
-  return { flows, cost };
+  return { feasible: flow === total, cost, flows };
 }
 
-/** Assigns each demand to one element, respecting capacities; see the module note. */
-export function assignDrawings(
+/** The drawing's one element; null when none of it is placed; undefined when it is split or part-placed. */
+function wholeChoice(solved: Solved, demand: Demand): string | null | undefined {
+  const flows = solved.flows.get(demand.key);
+  if (flows === undefined || flows.size === 0) return null;
+  if (flows.size > 1) return undefined;
+  const [elementId, placed] = [...flows][0]!;
+  return placed === demand.quantity ? elementId : undefined;
+}
+
+function costOf(
+  choice: ReadonlyMap<string, string | null>,
   demands: readonly Demand[],
-  supplies: readonly Supply[],
   maxScore: number,
-  maxRepairs = 60,
-): AssignmentResult {
+): number {
+  let cost = 0;
+  for (const demand of demands) {
+    const elementId = choice.get(demand.key) ?? null;
+    const candidate = demand.candidates.find((c) => c.elementId === elementId);
+    cost += demand.quantity * (candidate ? priceOf(candidate.score, maxScore) : UNASSIGNED_COST);
+  }
+  return cost;
+}
+
+function validate(demands: readonly Demand[], supplies: readonly Supply[], maxNodes: number): void {
   const keys = new Set<string>();
   for (const demand of demands) {
     if (keys.has(demand.key)) {
@@ -244,40 +289,91 @@ export function assignDrawings(
     }
     elements.add(supply.elementId);
   }
-  const fixed = new Map<string, string>();
-  let current = solve(demands, supplies, fixed, maxScore);
-  let repairs = 0;
-  for (;;) {
-    const split = demands
-      .filter((d) => (current.flows.get(d.key)?.size ?? 0) > 1 && !fixed.has(d.key))
-      .sort((a, b) => b.quantity - a.quantity || a.key.localeCompare(b.key))[0];
-    if (split === undefined) break;
-    const options = [...current.flows.get(split.key)!.keys()].sort();
-    if (repairs >= maxRepairs) {
-      // Out of repair budget: keep the element carrying most of the drawing.
-      const flows = current.flows.get(split.key)!;
-      fixed.set(
-        split.key,
-        options.sort((a, b) => flows.get(b)! - flows.get(a)! || a.localeCompare(b))[0]!,
-      );
-      current = solve(demands, supplies, fixed, maxScore);
-      continue;
+  if (!Number.isSafeInteger(maxNodes) || maxNodes < 1) {
+    throw new Error(
+      `Assignment was given a node budget of ${maxNodes}; it must be a whole number from 1.`,
+    );
+  }
+}
+
+/** Each demand's candidates in the inventory, one per element at its best score. */
+function inInventory(demands: readonly Demand[], supplies: readonly Supply[]): Demand[] {
+  const held = new Set(supplies.map((s) => s.elementId));
+  return demands.map((demand) => {
+    const best = new Map<string, number>();
+    for (const { elementId, score } of demand.candidates) {
+      if (held.has(elementId) && score > (best.get(elementId) ?? -Infinity))
+        best.set(elementId, score);
     }
-    let best: { element: string; solved: Solved } | null = null;
-    for (const element of options) {
-      const trial = new Map(fixed).set(split.key, element);
-      const solved = solve(demands, supplies, trial, maxScore);
-      if (best === null || solved.cost < best.solved.cost) best = { element, solved };
+    const candidates = [...best].map(([elementId, score]) => ({ elementId, score }));
+    return { key: demand.key, quantity: demand.quantity, candidates };
+  });
+}
+
+/** Assigns each demand wholly to one element or to none, respecting capacities; see the module note. */
+export function assignDrawings(
+  demands: readonly Demand[],
+  supplies: readonly Supply[],
+  maxScore: number,
+  options: AssignmentOptions = {},
+): AssignmentResult {
+  const maxNodes = options.maxNodes ?? DEFAULT_MAX_NODES;
+  validate(demands, supplies, maxNodes);
+  const drawings = inInventory(demands, supplies);
+  const root = solve(drawings, supplies, new Map(), maxScore);
+  const rootChoice = new Map(drawings.map((d) => [d.key, wholeChoice(root, d)]));
+  // The first answer keeps the root's whole drawings and leaves the rest unassigned; it always fits.
+  const fallback = new Map([...rootChoice].map(([key, choice]) => [key, choice ?? null]));
+  let best = { choice: fallback, cost: costOf(fallback, drawings, maxScore) };
+  let nodes = 1;
+  const stack: Fixings[] = [];
+  const expand = (fixed: Fixings, solved: Solved): void => {
+    if (!solved.feasible || solved.cost >= best.cost) return;
+    const open = drawings.filter((d) => !fixed.has(d.key) && wholeChoice(solved, d) === undefined);
+    if (open.length === 0) {
+      const choice = new Map(drawings.map((d) => [d.key, wholeChoice(solved, d) ?? null]));
+      best = { choice, cost: solved.cost };
+      return;
     }
-    fixed.set(split.key, best!.element);
-    current = best!.solved;
-    repairs += 1;
+    const pick = open.sort((a, b) => b.quantity - a.quantity || byText(a.key, b.key))[0]!;
+    const flows = solved.flows.get(pick.key) ?? new Map<string, number>();
+    const order: (string | null)[] = [...pick.candidates]
+      .sort(
+        (a, b) =>
+          (flows.get(b.elementId) ?? 0) - (flows.get(a.elementId) ?? 0) ||
+          b.score - a.score ||
+          byText(a.elementId, b.elementId),
+      )
+      .map((c) => c.elementId);
+    order.push(null);
+    // Pushed last-first, so the element carrying most of the drawing is tried first.
+    for (const choice of order.reverse()) stack.push(new Map(fixed).set(pick.key, choice));
+  };
+  expand(new Map(), root);
+  let exhausted = false;
+  while (stack.length > 0) {
+    if (nodes >= maxNodes) {
+      exhausted = true;
+      break;
+    }
+    options.checkpoint?.(nodes + 1);
+    const fixed = stack.pop()!;
+    nodes += 1;
+    expand(fixed, solve(drawings, supplies, fixed, maxScore));
   }
   const placements = new Map<string, Placement>();
-  for (const demand of demands) {
-    const flows = current.flows.get(demand.key);
-    const [elementId, placed] = flows ? [...flows.entries()][0]! : [null, 0];
-    placements.set(demand.key, { elementId, placed });
+  for (const demand of drawings) {
+    const elementId = best.choice.get(demand.key) ?? null;
+    placements.set(demand.key, { elementId, placed: elementId === null ? 0 : demand.quantity });
   }
-  return { placements, totalCost: current.cost, splitsRepaired: repairs };
+  return {
+    placements,
+    totalCost: best.cost,
+    lowerBound: root.cost,
+    provenOptimal: !exhausted || best.cost === root.cost,
+    nodes,
+    decided: drawings
+      .filter((d) => best.choice.get(d.key) !== rootChoice.get(d.key))
+      .map((d) => d.key),
+  };
 }

@@ -34,6 +34,8 @@ export interface PartShape {
   readonly widthPt: number;
   readonly heightPt: number;
   readonly rgb: Rgb;
+  /** The left-right mirror image of the shape: a part's right-handed twin. */
+  readonly mirrored?: boolean;
 }
 
 export interface SyntheticImage {
@@ -46,8 +48,9 @@ export interface SyntheticImage {
 /** White margin around every drawn part, in points at inventory scale. */
 export const MARGIN_PT = 2;
 
-function inside(shape: PartShape, x: number, y: number): boolean {
+function inside(shape: PartShape, px: number, y: number): boolean {
   const { widthPt: w, heightPt: h } = shape;
+  const x = shape.mirrored ? w - px : px;
   if (x < 0 || y < 0 || x >= w || y >= h) return false;
   if (shape.kind === "disc")
     return ((x - w / 2) / (w / 2)) ** 2 + ((y - h / 2) / (h / 2)) ** 2 <= 1;
@@ -97,6 +100,8 @@ export interface SyntheticPaint {
   readonly w: number;
   readonly h: number;
   readonly clip?: Rect;
+  /** Paint the image mirrored left to right, in the same rectangle. */
+  readonly mirror?: boolean;
 }
 
 export interface SyntheticPage {
@@ -134,7 +139,12 @@ function operatorList(page: SyntheticPage): { fnArray: number[]; argsArray: unkn
       op(FAKE_OPS.clip, null);
       op(FAKE_OPS.constructPath, [0, [rectanglePath(c)], [c.x0, c.y0, c.x1, c.y1]]);
     }
-    op(FAKE_OPS.transform, [paint.w, 0, 0, paint.h, paint.x, paint.y]);
+    op(
+      FAKE_OPS.transform,
+      paint.mirror
+        ? [-paint.w, 0, 0, paint.h, paint.x + paint.w, paint.y]
+        : [paint.w, 0, 0, paint.h, paint.x, paint.y],
+    );
     op(FAKE_OPS.paintImageXObject, [paint.key, 1, 1]);
     op(FAKE_OPS.restore, null);
   }
@@ -172,10 +182,13 @@ function fakePage(page: SyntheticPage): PdfjsPageLike {
 export interface FakePdfjs extends PdfjsLike {
   /** How many documents were destroyed; identification must release what it opens. */
   readonly destroyed: () => number;
+  /** The options the last document was opened with. */
+  readonly opened: () => Record<string, unknown> | null;
 }
 
 export function fakePdfjs(pages: readonly SyntheticPage[]): FakePdfjs {
   let destroyed = 0;
+  let opened: Record<string, unknown> | null = null;
   const document: PdfjsDocumentLike = {
     numPages: pages.length,
     getPage: async (pageNumber: number) => {
@@ -190,8 +203,12 @@ export function fakePdfjs(pages: readonly SyntheticPage[]): FakePdfjs {
   return {
     version: "synthetic",
     OPS: FAKE_OPS,
-    getDocument: () => ({ promise: Promise.resolve(document) }),
+    getDocument: (source) => {
+      opened = source;
+      return { promise: Promise.resolve(document) };
+    },
     destroyed: () => destroyed,
+    opened: () => opened,
   };
 }
 
@@ -245,11 +262,20 @@ export const SYNTHETIC_PARTS: readonly SyntheticPart[] = [
   },
 ];
 
+/** How a callout's picture is printed, when not as its own part's image, whole and upright. */
+export interface DrawnAs {
+  /** Paint this part's callout image instead of the callout's own part's. */
+  readonly image?: string;
+  /** Paint the image mirrored left to right. */
+  readonly mirror?: boolean;
+  /** Paint the image as two tiles split down the middle, as the booklet's exporter does. */
+  readonly split?: boolean;
+}
+
+export type SyntheticCallout = readonly [elementId: string, count: number, drawnAs?: DrawnAs];
+
 /** Which parts each step calls out, and how many; page n holds step n. */
-export const SYNTHETIC_STEPS: readonly (readonly (readonly [
-  elementId: string,
-  count: number,
-])[])[] = [
+export const SYNTHETIC_STEPS: readonly (readonly SyntheticCallout[])[] = [
   [
     ["3001001", 1],
     ["3001002", 1],
@@ -270,8 +296,8 @@ const LABEL_SIZE = 8;
 const STEP_SIZE = 20;
 const PAGE_NUMBER_SIZE = 6;
 
-function partById(elementId: string): SyntheticPart {
-  const part = SYNTHETIC_PARTS.find((p) => p.elementId === elementId);
+function partById(elementId: string, parts: readonly SyntheticPart[]): SyntheticPart {
+  const part = parts.find((p) => p.elementId === elementId);
   if (!part) throw new Error(`no synthetic part ${elementId}`);
   return part;
 }
@@ -283,10 +309,26 @@ function paintedSize(shape: PartShape, scale: number): { w: number; h: number } 
   };
 }
 
+/** The left and right halves of an image, as two images. */
+function splitImage(image: SyntheticImage): [SyntheticImage, SyntheticImage] {
+  const half = Math.floor(image.width / 2);
+  const tile = (from: number, to: number): SyntheticImage => {
+    const width = to - from;
+    const data = new Uint8ClampedArray(width * image.height * 3);
+    for (let row = 0; row < image.height; row += 1) {
+      const start = (row * image.width + from) * 3;
+      data.set(image.data.subarray(start, start + width * 3), row * width * 3);
+    }
+    return { width, height: image.height, kind: 2, data };
+  };
+  return [tile(0, half), tile(half, image.width)];
+}
+
 /** One build page: a callout box of count labels with pictures above them, the step number under it. */
 function stepPage(
   pageNumber: number,
-  callouts: readonly (readonly [string, number])[],
+  callouts: readonly SyntheticCallout[],
+  parts: readonly SyntheticPart[],
 ): SyntheticPage {
   const box: Rect = { x0: 50, y0: 500, x1: 60 + 90 * callouts.length, y1: 600 };
   const texts: SyntheticText[] = [
@@ -295,27 +337,38 @@ function stepPage(
   ];
   const paints: SyntheticPaint[] = [];
   const images = new Map<string, SyntheticImage>();
-  callouts.forEach(([elementId, count], i) => {
-    const { shape } = partById(elementId);
+  callouts.forEach(([elementId, count, drawnAs = {}], i) => {
+    const imageOf = drawnAs.image ?? elementId;
+    const { shape } = partById(imageOf, parts);
     const x = 60 + 90 * i;
     const y = 510;
     texts.push({ str: `${count}x`, x, y, size: LABEL_SIZE });
     // One XObject per part, so a part called out on two pages is the same drawing.
-    const key = `callout_${elementId}`;
-    images.set(key, drawPart(shape));
-    paints.push({ key, x, y: y + 6, ...paintedSize(shape, CALLOUT_SCALE) });
+    const key = `callout_${imageOf}`;
+    const image = drawPart(shape);
+    const { w, h } = paintedSize(shape, CALLOUT_SCALE);
+    if (drawnAs.split) {
+      const [left, right] = splitImage(image);
+      const leftW = (w * left.width) / image.width;
+      images.set(`${key}_left`, left).set(`${key}_right`, right);
+      paints.push({ key: `${key}_left`, x, y: y + 6, w: leftW, h });
+      paints.push({ key: `${key}_right`, x: x + leftW, y: y + 6, w: w - leftW, h });
+    } else {
+      images.set(key, image);
+      paints.push({ key, x, y: y + 6, w, h, mirror: drawnAs.mirror ?? false });
+    }
   });
   return { ...PAGE, texts, paints, boxes: [box], images };
 }
 
 /** The inventory: count over element id, thumbnail above the count, four cells a row. */
-function inventoryPage(pageNumber: number): SyntheticPage {
+function inventoryPage(pageNumber: number, parts: readonly SyntheticPart[]): SyntheticPage {
   const texts: SyntheticText[] = [
     { str: String(pageNumber), x: 580, y: 20, size: PAGE_NUMBER_SIZE },
   ];
   const paints: SyntheticPaint[] = [];
   const images = new Map<string, SyntheticImage>();
-  SYNTHETIC_PARTS.forEach((part, i) => {
+  parts.forEach((part, i) => {
     const x = 40 + 120 * (i % 4);
     const y = 600 - 90 * Math.floor(i / 4);
     texts.push({ str: `${part.count}x`, x, y, size: 7 });
@@ -327,7 +380,10 @@ function inventoryPage(pageNumber: number): SyntheticPage {
   return { ...PAGE, texts, paints, boxes: [], images };
 }
 
-export function syntheticBooklet(): SyntheticPage[] {
-  const steps = SYNTHETIC_STEPS.map((callouts, i) => stepPage(i + 1, callouts));
-  return [...steps, inventoryPage(steps.length + 1)];
+export function syntheticBooklet(
+  steps: readonly (readonly SyntheticCallout[])[] = SYNTHETIC_STEPS,
+  parts: readonly SyntheticPart[] = SYNTHETIC_PARTS,
+): SyntheticPage[] {
+  const pages = steps.map((callouts, i) => stepPage(i + 1, callouts, parts));
+  return [...pages, inventoryPage(pages.length + 1, parts)];
 }

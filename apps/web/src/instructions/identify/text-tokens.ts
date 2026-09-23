@@ -7,6 +7,14 @@ import type { PageScan, TextRun } from "./types";
  * The booklet overprints some labels — the same run drawn two or three times at
  * the same spot — so runs are de-duplicated first; counted twice, one "1x" would
  * become two callouts and spend two pieces.
+ *
+ * `inventoryLabels` duplicates the pairing rule of `../parts-inventory.ts`
+ * (`extractPartsInventory`): a count within 0.6 pt of its id's column, 4 to 11 pt
+ * above it, each count spent once. It is not reused because that parser keeps
+ * the id's position and drops the count label's, which is what finds the
+ * thumbnail here, and because it does not drop overprints, so an overprinted id
+ * would come back as a spurious unpaired copy. text-tokens.test.ts runs both on
+ * one page so the shared rule cannot drift apart unnoticed.
  */
 const COUNT = /^(\d{1,3})x$/;
 const ELEMENT_ID = /^\d{6,7}$/;
@@ -171,7 +179,9 @@ export function stepNumbers(scans: readonly PageScan[]): StepNumber[] {
   const bySize = new Map<string, StepNumber[]>();
   for (const s of sightings) {
     const key = s.sizePt.toFixed(1);
-    bySize.set(key, [...(bySize.get(key) ?? []), s]);
+    const group = bySize.get(key);
+    if (group) group.push(s);
+    else bySize.set(key, [s]);
   }
   let best: StepNumber[] = [];
   let bestScore = 0;

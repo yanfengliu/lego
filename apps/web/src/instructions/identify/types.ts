@@ -6,7 +6,7 @@
  * result names elements, positions and scores, so it can be written anywhere
  * without copying the artwork.
  */
-export const IDENTIFY_SCHEMA_VERSION = "lego.booklet-identify/1" as const;
+export const IDENTIFY_SCHEMA_VERSION = "lego.booklet-identify/2" as const;
 
 export interface Rect {
   readonly x0: number;
@@ -84,7 +84,9 @@ export type CalloutFlag =
   /** A callout outside any numbered step, such as a bag-opening page. */
   | "outside-step"
   /** The assignment could not place it within the inventory's counts. */
-  | "unassigned";
+  | "unassigned"
+  /** The assignment search hit its node budget before proving this drawing's element best. */
+  | "assignment-unproven";
 
 export interface Candidate {
   readonly elementId: string;
@@ -150,6 +152,22 @@ export interface Residual {
   readonly candidates: readonly Candidate[];
 }
 
+/**
+ * What the capacity constraint forces. These are not evidence that any picture
+ * was read right: the assignment never spends more of an element than the
+ * inventory holds, so on a booklet whose callouts add up to its inventory they
+ * come out full whichever elements the pictures are given. In the review of
+ * 71f2f55 a sweep of the weights moved first-choice agreement from 761 to 839
+ * callouts and left these at 859/859 and 275/276 throughout.
+ */
+export interface ForcedByCapacity {
+  /** Step callouts given an element. */
+  readonly calloutsAssigned: number;
+  readonly piecesAssigned: number;
+  /** Elements whose assigned pieces equal their inventory count exactly. */
+  readonly elementsExact: number;
+}
+
 export interface IdentifySummary {
   readonly inventoryElements: number;
   readonly inventoryPieces: number;
@@ -160,13 +178,56 @@ export interface IdentifySummary {
   readonly stepCalloutPieces: number;
   readonly calloutsWithPicture: number;
   readonly drawings: number;
-  readonly calloutsAssigned: number;
-  readonly piecesAssigned: number;
-  /** Elements whose assigned pieces equal their inventory count exactly. */
-  readonly elementsExact: number;
-  /** Callouts whose assigned element is also their visual first choice. */
+  readonly forcedByCapacity: ForcedByCapacity;
+  /**
+   * Callouts whose assigned element is also their visual first choice: agreement
+   * between two stages of this module, not accuracy. Accuracy comes only from
+   * callouts a person judged, scored by `scoreAgainstTruth`.
+   */
   readonly firstChoiceKept: number;
+  /**
+   * Callouts left for a closed-question check. The count depends on the weights
+   * and thresholds (appearanceWeight, colourWeight, lowMargin, lowIou): the same
+   * sweep moved it from 35 to 304. Compare it only between runs with equal
+   * parameters.
+   */
   readonly residuals: number;
+}
+
+export interface UnpairedElementId {
+  readonly elementId: string;
+  readonly page: number;
+}
+
+/** What the text layer said, before any picture was read. */
+export interface TextCounts {
+  readonly inventoryPages: readonly number[];
+  /** Element ids on the inventory pages that no count label sits over; kept, never dropped. */
+  readonly unpairedElementIds: readonly UnpairedElementId[];
+  /** The size callout count labels are printed at, or null when no build page prints one. */
+  readonly calloutLabelSizePt: number | null;
+  /** Text runs on the build pages dropped as overprints of a run at the same spot. */
+  readonly overprintsDropped: number;
+  /** Count labels printed at another size: sub-assembly multipliers, not part callouts. */
+  readonly otherSizeCountLabels: number;
+  /** Step numbers found. */
+  readonly stepNumbers: number;
+  readonly lastStep: number | null;
+  /** Numbers from 1 to `lastStep` that no step prints, and those printed more than once. */
+  readonly missingSteps: readonly number[];
+  readonly repeatedSteps: readonly number[];
+}
+
+/** How the drawings were assigned to elements; see `assign.ts`. */
+export interface AssignmentSummary {
+  /** 1000 per piece per point of score below a perfect match, 10,000,000 per unassigned piece. */
+  readonly cost: number;
+  /** The fractional optimum, which no whole assignment can beat. */
+  readonly lowerBound: number;
+  /** True when the search finished, so no whole assignment costs less than `cost`. */
+  readonly provenOptimal: boolean;
+  /** Flow problems solved; 1 when the fractional optimum was already whole. */
+  readonly nodes: number;
 }
 
 export interface IdentifyResult {
@@ -179,6 +240,8 @@ export interface IdentifyResult {
   };
   readonly parameters: IdentifyParameters;
   readonly summary: IdentifySummary;
+  readonly text: TextCounts;
+  readonly assignment: AssignmentSummary;
   readonly inventory: readonly InventoryElement[];
   readonly callouts: readonly CalloutIdentification[];
   readonly steps: readonly StepTotals[];

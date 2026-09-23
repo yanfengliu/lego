@@ -1,17 +1,68 @@
 import { describe, expect, it } from "vitest";
 
 import { FAKE_OPS } from "./__fixtures__/synthetic-booklet";
+import { IDENTIFY_LIMITS } from "./limits";
 import {
+  assertPdfBytes,
   decodeImage,
   isRectanglePath,
+  loadPdfjs,
   openPdf,
   scanPage,
-  SCAN_LIMITS,
   textRunsOf,
   toRgb,
   type PdfjsLike,
   type PdfjsPageLike,
 } from "./pdf-scan";
+
+/**
+ * A one-page PDF painting two images: "Big" declares 5000x5000 pixels but carries
+ * three bytes, "Small" is 2x2. Built here, byte by byte, so no booklet is needed.
+ */
+function twoImagePdf(): Uint8Array {
+  const encoder = new TextEncoder();
+  const small = new Uint8Array([255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255]);
+  const content = "q 100 0 0 100 0 0 cm /Big Do Q q 50 0 0 50 100 100 cm /Small Do Q";
+  const image = (w: number, h: number, length: number): string =>
+    `<< /Type /XObject /Subtype /Image /Width ${w} /Height ${h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Length ${length} >>\nstream\n`;
+  const objects: (string | Uint8Array)[][] = [
+    ["<< /Type /Catalog /Pages 2 0 R >>"],
+    ["<< /Type /Pages /Kids [3 0 R] /Count 1 >>"],
+    [
+      "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Resources << /XObject << /Big 4 0 R /Small 5 0 R >> >> /Contents 6 0 R >>",
+    ],
+    [image(5000, 5000, 3), "abc", "\nendstream"],
+    [image(2, 2, small.length), small, "\nendstream"],
+    [`<< /Length ${content.length} >>\nstream\n${content}\nendstream`],
+  ];
+  const chunks: Uint8Array[] = [];
+  let length = 0;
+  const add = (part: string | Uint8Array): void => {
+    const bytes = typeof part === "string" ? encoder.encode(part) : part;
+    chunks.push(bytes);
+    length += bytes.length;
+  };
+  add("%PDF-1.4\n");
+  const offsets: number[] = [];
+  objects.forEach((parts, i) => {
+    offsets.push(length);
+    add(`${i + 1} 0 obj\n`);
+    parts.forEach(add);
+    add("\nendobj\n");
+  });
+  const xref = length;
+  const entries = offsets.map((o) => `${String(o).padStart(10, "0")} 00000 n \n`).join("");
+  add(
+    `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${entries}trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`,
+  );
+  const bytes = new Uint8Array(length);
+  let at = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, at);
+    at += chunk.length;
+  }
+  return bytes;
+}
 
 const BOUNDS = { x0: 10, y0: 20, x1: 110, y1: 70 };
 const RECTANGLE = [0, 10, 20, 1, 110, 20, 1, 110, 70, 1, 10, 70, 3];
@@ -127,6 +178,35 @@ describe("scanPage", () => {
       /Page 5 has 1 drawing operators.*mismatched argument list/,
     );
   });
+
+  it("refuses a page painting more images, or filling more paths, than a booklet page does", async () => {
+    const paints = IDENTIFY_LIMITS.maxImagePaintsPerPage + 1;
+    await expect(
+      scanPage(
+        pdfjs,
+        page(
+          Array.from({ length: paints }, () => FAKE_OPS.paintImageXObject),
+          Array.from({ length: paints }, () => ["img", 1, 1]),
+        ),
+        8,
+      ),
+    ).rejects.toThrow(
+      `Page 8 paints more than ${IDENTIFY_LIMITS.maxImagePaintsPerPage} images (the limit for one page, by operator ${paints - 1}); a booklet page paints a few hundred at most. Pass an instruction booklet.`,
+    );
+    const fills = IDENTIFY_LIMITS.maxFilledPathsPerPage + 1;
+    await expect(
+      scanPage(
+        pdfjs,
+        page(
+          Array.from({ length: fills }, () => FAKE_OPS.constructPath),
+          Array.from({ length: fills }, () => [FAKE_OPS.fill, [RECTANGLE], [10, 20, 110, 70]]),
+        ),
+        9,
+      ),
+    ).rejects.toThrow(
+      `Page 9 fills more than ${IDENTIFY_LIMITS.maxFilledPathsPerPage} paths (the limit for one page, by operator ${fills - 1}); a booklet page fills a few hundred at most. Pass an instruction booklet.`,
+    );
+  });
 });
 
 describe("toRgb", () => {
@@ -161,22 +241,73 @@ describe("decodeImage", () => {
     expect(b.digest).toBe(a.digest);
   });
 
-  it("refuses an image with no readable size or one over the pixel limit", async () => {
-    const huge = { width: SCAN_LIMITS.maxImagePixels, height: 2, kind: 2, data: new Uint8Array(3) };
+  it("says an image over the pixel limit is too large, from its declared size, before reading its pixels", async () => {
+    const limit = IDENTIFY_LIMITS.maxImagePixels;
+    const huge = { width: limit, height: 2, kind: 2, data: new Uint8Array(3) };
     await expect(decodeImage(page([], [], { big: huge }), "big", 6)).rejects.toThrow(
-      `Page 6 image "big" has no readable size (width ${SCAN_LIMITS.maxImagePixels}, height 2; at most ${SCAN_LIMITS.maxImagePixels} pixels).`,
+      `Page 6 image "big" is too large: ${limit}x2 is ${limit * 2} pixels, over the ${limit}-pixel limit for one image. A booklet's pictures are far smaller; pass an instruction booklet.`,
+    );
+  });
+
+  it("says an image whose size is missing or not a pixel count has no readable size", async () => {
+    const broken = { width: 0, height: "tall", kind: 2, data: new Uint8Array(3) };
+    await expect(decodeImage(page([], [], { odd: broken }), "odd", 4)).rejects.toThrow(
+      'Page 4 image "odd" has no readable size: width 0, height tall, where each must be a whole number of pixels from 1. The image stream is malformed.',
     );
   });
 });
 
+describe("pdf.js, the real one", () => {
+  it("drops an image whose declared size is over the limit before decoding it", async () => {
+    const real = await loadPdfjs();
+    const document = await openPdf(real, twoImagePdf());
+    try {
+      const onlyPage = await document.getPage(1);
+      const scan = await scanPage(real, onlyPage, 1);
+      // Without maxImageSize pdf.js decodes "Big" into 5000x5000 pixels from its three bytes.
+      expect(scan.paints).toHaveLength(1);
+      const image = await decodeImage(onlyPage, scan.paints[0]!.imageKey, 1);
+      expect([image.width, image.height]).toEqual([2, 2]);
+    } finally {
+      await document.destroy();
+    }
+  });
+});
+
 describe("openPdf", () => {
+  it("opens with evaluation, font faces and platform decoders off, and the image size capped", async () => {
+    let source: Record<string, unknown> = {};
+    const recording: PdfjsLike = {
+      ...pdfjs,
+      getDocument: (options) => {
+        source = options;
+        return {
+          promise: Promise.resolve({
+            numPages: 1,
+            getPage: () => Promise.reject(new Error("unused")),
+            destroy: async () => {},
+          }),
+        };
+      },
+    };
+    await openPdf(recording, new Uint8Array([1, 2]));
+    expect(source).toMatchObject({
+      isEvalSupported: false,
+      isOffscreenCanvasSupported: false,
+      isImageDecoderSupported: false,
+      disableFontFace: true,
+      maxImageSize: IDENTIFY_LIMITS.maxImagePixels,
+    });
+    expect(source["data"]).toEqual(new Uint8Array([1, 2]));
+  });
+
   it("refuses more pages than a booklet has, and releases the document", async () => {
     let destroyed = 0;
     const many: PdfjsLike = {
       ...pdfjs,
       getDocument: () => ({
         promise: Promise.resolve({
-          numPages: SCAN_LIMITS.maxPages + 1,
+          numPages: IDENTIFY_LIMITS.maxPages + 1,
           getPage: () => Promise.reject(new Error("unused")),
           destroy: async () => {
             destroyed += 1;
@@ -185,15 +316,31 @@ describe("openPdf", () => {
       }),
     };
     await expect(openPdf(many, new Uint8Array([1]))).rejects.toThrow(
-      `The PDF has ${SCAN_LIMITS.maxPages + 1} pages; identification reads at most ${SCAN_LIMITS.maxPages}. Pass a single instruction booklet.`,
+      `The PDF has ${IDENTIFY_LIMITS.maxPages + 1} pages; identification reads at most ${IDENTIFY_LIMITS.maxPages}. Pass a single instruction booklet.`,
     );
     expect(destroyed).toBe(1);
   });
 
   it("refuses bytes over the size limit without opening them", async () => {
-    const oversized = { byteLength: SCAN_LIMITS.maxBytes + 1 } as unknown as Uint8Array;
-    await expect(openPdf(pdfjs, oversized)).rejects.toThrow(
-      `limit is ${SCAN_LIMITS.maxBytes} bytes`,
+    await expect(openPdf(pdfjs, oversized())).rejects.toThrow(
+      `limit is ${IDENTIFY_LIMITS.maxBytes} bytes`,
     );
   });
+
+  it("refuses anything but a byte array, naming what arrived", () => {
+    expect(() => assertPdfBytes("booklet.pdf")).toThrow(
+      "identifyBooklet received string where the PDF's bytes belong; pass a Uint8Array of the booklet.",
+    );
+    expect(() => assertPdfBytes(null)).toThrow(/received null where/);
+  });
 });
+
+/** A byte array reporting one byte over the limit without allocating it. */
+function oversized(): Uint8Array {
+  class Oversized extends Uint8Array {
+    override get byteLength(): number {
+      return IDENTIFY_LIMITS.maxBytes + 1;
+    }
+  }
+  return new Oversized(1);
+}

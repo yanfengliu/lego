@@ -35,10 +35,16 @@ export interface TruthScore {
   readonly piecesInRange: number;
   readonly verdictsBound: number;
   readonly verdictsUnbound: readonly number[];
-  /** Callouts carrying their own positive verdict. */
+  /** Callouts carrying their own positive verdict: the one independent accuracy measure here. */
   readonly direct: { readonly callouts: number; readonly correct: number };
   /** Callouts with a negative verdict, and how many avoided the rejected element. */
   readonly negative: { readonly callouts: number; readonly avoided: number };
+  /**
+   * Callouts that take a judged callout's verdict because the module keyed them
+   * as the same drawing. The module gives one drawing one element, so these agree
+   * with their judged callout by construction: they are not independent evidence.
+   */
+  readonly inherited: { readonly callouts: number; readonly correct: number };
   /** Positive labels including those inherited through identical drawings. */
   readonly expanded: {
     readonly callouts: number;
@@ -175,6 +181,7 @@ export function scoreAgainstTruth(
     verdictsUnbound: unbound,
     direct: { callouts: directTotal, correct: directCorrect },
     negative: { callouts: negative.size, avoided },
+    inherited: { callouts: positive.size - directTotal, correct: correct - directCorrect },
     expanded: { callouts: positive.size, correct, pieces, piecesCorrect },
     steps: {
       total: stepNumbers.length,

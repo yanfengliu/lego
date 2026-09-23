@@ -1,8 +1,11 @@
 import { assignDrawings, type Demand } from "./assign";
+import { timeBudget, UNLIMITED, type Budget } from "./budget";
 import { collectBooklet, type Collected, type Progress } from "./collect";
 import { roundRect } from "./geometry";
-import { featuresOf, rankReferences, type Features, type Reference } from "./match";
-import { loadPdfjs, openPdf, sha256Digest, type PdfjsLike } from "./pdf-scan";
+import { IDENTIFY_LIMITS } from "./limits";
+import { featuresOf, rankReferences, type Reference } from "./match";
+import { assertPdfBytes, loadPdfjs, openPdf, sha256Digest, type PdfjsLike } from "./pdf-scan";
+import { report, textCounts } from "./report";
 import {
   IDENTIFY_SCHEMA_VERSION,
   type CalloutFlag,
@@ -11,9 +14,6 @@ import {
   type IdentifyParameters,
   type IdentifyResult,
   type InventoryElement,
-  type Reconciliation,
-  type Residual,
-  type StepTotals,
 } from "./types";
 
 /**
@@ -22,9 +22,9 @@ import {
  * The inventory printed at the back is the closed set: each element's id and
  * count are text, and its thumbnail is the reference picture. Every callout
  * picture is scored against every thumbnail at the booklet's fixed callout scale,
- * and a min-cost flow assigns drawings to elements with the inventory counts as
- * capacities, so the per-element totals reconcile. What the pictures and the
- * counts cannot settle is flagged and listed, not guessed at.
+ * and an exact search assigns each drawing wholly to one element with the
+ * inventory counts as capacities, so the per-element totals reconcile. What the
+ * pictures and the counts cannot settle is flagged and listed, not guessed at.
  */
 export const DEFAULT_PARAMETERS: IdentifyParameters = Object.freeze({
   calloutScale: 1.334,
@@ -43,18 +43,11 @@ export interface IdentifyOptions extends Partial<IdentifyParameters> {
   readonly pdfjs?: PdfjsLike;
   readonly onProgress?: Progress;
   readonly now?: () => number;
+  /** The whole run's time limit; `IDENTIFY_LIMITS.timeLimitMs` when omitted. */
+  readonly timeLimitMs?: number;
+  /** Flow problems the exact assignment may solve before settling; see `assign.ts`. */
+  readonly maxAssignmentNodes?: number;
 }
-
-/** Flags that leave a callout for a later closed-question check. */
-const RESIDUAL_FLAGS: ReadonlySet<CalloutFlag> = new Set<CalloutFlag>([
-  "low-margin",
-  "low-score",
-  "conflict",
-  "unlinked-picture",
-  "no-picture",
-  "merged-split",
-  "unassigned",
-]);
 
 function calloutId(page: number, count: number, x: number, y: number): string {
   return `p${page}|q${count}|x${x.toFixed(3)}|y${y.toFixed(3)}`;
@@ -64,21 +57,36 @@ export async function identifyBooklet(
   pdfBytes: Uint8Array,
   options: IdentifyOptions = {},
 ): Promise<IdentifyResult> {
+  // Bytes are checked before anything hashes or parses them.
+  assertPdfBytes(pdfBytes);
   const params: IdentifyParameters = { ...DEFAULT_PARAMETERS, ...definedParameters(options) };
   validateParameters(params);
+  const timeLimitMs = options.timeLimitMs ?? IDENTIFY_LIMITS.timeLimitMs;
+  if (!Number.isFinite(timeLimitMs) || timeLimitMs <= 0) {
+    throw new Error(
+      `identifyBooklet option timeLimitMs is ${timeLimitMs}; it must be a positive number of milliseconds.`,
+    );
+  }
+  if (options.maxAssignmentNodes !== undefined)
+    wholeNumberIn("maxAssignmentNodes", options.maxAssignmentNodes, 1, 100_000);
   const now = options.now ?? (() => performance.now());
   const started = now();
+  const budget = timeBudget(timeLimitMs, now);
   const pdfjs = options.pdfjs ?? (await loadPdfjs());
   const sha256 = await sha256Digest(pdfBytes);
   const document = await openPdf(pdfjs, pdfBytes);
   let collected: Collected;
   try {
-    collected = await collectBooklet(pdfjs, document, params, options.onProgress, now);
+    collected = await collectBooklet(pdfjs, document, params, options.onProgress, now, budget);
   } finally {
     await document.destroy();
   }
   const matchStarted = now();
-  const { matchMs, ...result } = identifyCollected(collected, params, now);
+  const { matchMs, ...result } = identifyCollected(collected, params, {
+    now,
+    budget,
+    maxAssignmentNodes: options.maxAssignmentNodes,
+  });
   const finished = now();
   return {
     schemaVersion: IDENTIFY_SCHEMA_VERSION,
@@ -119,18 +127,12 @@ function validateParameters(params: IdentifyParameters): void {
       `identifyBooklet needs calloutScale > 0 and 0 < gridPxPerPt <= 8; received ${params.calloutScale} and ${params.gridPxPerPt}.`,
     );
   }
-  wholeNumberIn(params, "candidatesPerDrawing", 1, 64);
-  wholeNumberIn(params, "alignSearchPx", 0, 16);
+  wholeNumberIn("candidatesPerDrawing", params.candidatesPerDrawing, 1, 64);
+  wholeNumberIn("alignSearchPx", params.alignSearchPx, 0, 16);
 }
 
-/** Bounds the options that set how much work matching does per picture. */
-function wholeNumberIn(
-  params: IdentifyParameters,
-  key: keyof IdentifyParameters,
-  min: number,
-  max: number,
-): void {
-  const value = params[key];
+/** Bounds the options that set how much work a run does. */
+function wholeNumberIn(key: string, value: number, min: number, max: number): void {
   if (!Number.isSafeInteger(value) || value < min || value > max) {
     throw new Error(
       `identifyBooklet option ${key} is ${value}; it must be a whole number from ${min} to ${max}.`,
@@ -142,20 +144,54 @@ type Identified = Omit<IdentifyResult, "schemaVersion" | "source" | "parameters"
   matchMs: number;
 };
 
+export interface CollectedOptions {
+  readonly now?: () => number;
+  readonly budget?: Budget;
+  readonly maxAssignmentNodes?: number | undefined;
+}
+
+/**
+ * A composite picture is its own drawing. Two callouts under one composite key
+ * would share one demand and the first one's picture, so the second would get
+ * the first's element with no flag; that is refused.
+ */
+function assertCompositesUnshared(collected: Collected): void {
+  const owner = new Map<string, string>();
+  for (const { label, picture } of collected.callouts) {
+    const key = picture?.drawing;
+    if (!key?.startsWith("composite:")) continue;
+    const id = calloutId(label.page, label.count, label.xPt, label.yPt);
+    const first = owner.get(key);
+    if (first !== undefined) {
+      throw new Error(
+        `Callouts ${first} and ${id} share the composite drawing key ${JSON.stringify(key)}. A composite picture belongs to one callout, so its key must name that callout's page and label position: a defect in apps/web/src/instructions/identify/pictures.ts, not in the booklet.`,
+      );
+    }
+    owner.set(key, id);
+  }
+}
+
 /** Matching, assignment and reporting over already-collected pictures; pure. */
 export function identifyCollected(
   collected: Collected,
   params: IdentifyParameters,
-  now: () => number = () => performance.now(),
+  options: CollectedOptions = {},
 ): Identified {
+  const now = options.now ?? (() => performance.now());
+  const budget = options.budget ?? UNLIMITED;
   const t0 = now();
-  const weights = params;
+  assertCompositesUnshared(collected);
   const capacity = new Map<string, number>();
   const references: Reference[] = [];
+  const referenced = new Set<string>();
   const inventory: InventoryElement[] = collected.inventory.map(({ label, picture }) => {
     capacity.set(label.elementId, (capacity.get(label.elementId) ?? 0) + label.count);
     const features = picture ? featuresOf(picture) : null;
-    if (features) references.push({ elementId: label.elementId, features });
+    // An element listed twice keeps one reference, so it cannot fill two candidate places.
+    if (features && !referenced.has(label.elementId)) {
+      referenced.add(label.elementId);
+      references.push({ elementId: label.elementId, features });
+    }
     return {
       elementId: label.elementId,
       count: label.count,
@@ -169,20 +205,20 @@ export function identifyCollected(
 
   // Score each distinct drawing once; identical drawings share every candidate.
   const ranked = new Map<string, Candidate[]>();
-  const featureOf = new Map<string, Features | null>();
   for (const { picture } of collected.callouts) {
-    if (!picture?.drawing || featureOf.has(picture.drawing)) continue;
+    if (!picture?.drawing || ranked.has(picture.drawing)) continue;
+    budget.check(`matching drawing ${ranked.size + 1}`);
     const features = featuresOf(picture);
-    featureOf.set(picture.drawing, features);
     ranked.set(
       picture.drawing,
       features
-        ? rankReferences(features, references, weights, Math.max(params.candidatesPerDrawing, 5))
+        ? rankReferences(features, references, params, Math.max(params.candidatesPerDrawing, 5))
         : [],
     );
   }
   const matchMs = now() - t0;
 
+  // Identical drawings are one part, so their pieces are one demand on one element.
   const demandOf = new Map<string, number>();
   for (const { picture, step, label } of collected.callouts) {
     if (step === null || !picture?.drawing || (ranked.get(picture.drawing)?.length ?? 0) === 0)
@@ -199,21 +235,28 @@ export function identifyCollected(
   const supplies = [...capacity.entries()]
     .sort()
     .map(([elementId, count]) => ({ elementId, capacity: count }));
-  const assignment = assignDrawings(demands, supplies, 1 + params.appearanceWeight);
+  const assignment = assignDrawings(demands, supplies, 1 + params.appearanceWeight, {
+    maxNodes: options.maxAssignmentNodes,
+    checkpoint: (node) => budget.check(`assignment node ${node}`),
+  });
+  const unproven = new Set(assignment.provenOptimal ? [] : assignment.decided);
 
   const callouts: CalloutIdentification[] = collected.callouts.map(({ label, step, picture }) => {
     const flags: CalloutFlag[] = picture ? [...picture.flags] : ["no-picture"];
     if (step === null) flags.push("outside-step");
-    const candidates = picture?.drawing ? (ranked.get(picture.drawing) ?? []) : [];
-    const placement = picture?.drawing ? assignment.placements.get(picture.drawing) : undefined;
+    const drawing = picture?.drawing ?? null;
+    const candidates = drawing ? (ranked.get(drawing) ?? []) : [];
+    const placement = drawing ? assignment.placements.get(drawing) : undefined;
     let elementId: string | null = placement?.elementId ?? null;
     if (
       step !== null &&
       candidates.length > 0 &&
-      (placement === undefined || placement.placed < demandOf.get(picture!.drawing!)!)
+      (placement === undefined || placement.placed < demandOf.get(drawing!)!)
     ) {
       flags.push("unassigned");
     }
+    if (step !== null && drawing !== null && unproven.has(drawing))
+      flags.push("assignment-unproven");
     if (step === null && elementId === null) elementId = candidates[0]?.elementId ?? null;
     const chosen = candidates.find((c) => c.elementId === elementId) ?? null;
     const others = candidates.filter((c) => c.elementId !== elementId);
@@ -229,7 +272,7 @@ export function identifyCollected(
       step,
       count: label.count,
       bbox: picture?.bbox ? roundRect(picture.bbox) : null,
-      drawing: picture?.drawing ?? null,
+      drawing,
       elementId,
       score: chosen?.score ?? null,
       iou: chosen?.iou ?? null,
@@ -241,82 +284,22 @@ export function identifyCollected(
     };
   });
 
-  return { ...report(callouts, inventory, capacity), inventory, callouts, matchMs };
-}
-
-function report(
-  callouts: readonly CalloutIdentification[],
-  inventory: readonly InventoryElement[],
-  capacity: ReadonlyMap<string, number>,
-): Pick<IdentifyResult, "summary" | "steps" | "reconciliation" | "residuals"> {
-  const stepCallouts = callouts.filter((c) => c.step !== null);
-  const assigned = new Map<string, number>();
-  const bySteps = new Map<
-    number,
-    { pages: Set<number>; elements: Map<string, number>; unassigned: number }
-  >();
-  for (const c of stepCallouts) {
-    const entry = bySteps.get(c.step!) ?? { pages: new Set(), elements: new Map(), unassigned: 0 };
-    entry.pages.add(c.page);
-    if (c.elementId !== null && !c.flags.includes("unassigned")) {
-      entry.elements.set(c.elementId, (entry.elements.get(c.elementId) ?? 0) + c.count);
-      assigned.set(c.elementId, (assigned.get(c.elementId) ?? 0) + c.count);
-    } else entry.unassigned += c.count;
-    bySteps.set(c.step!, entry);
-  }
-  const steps: StepTotals[] = [...bySteps.entries()]
-    .sort((a, b) => a[0] - b[0])
-    .map(([step, e]) => ({
-      step,
-      pages: [...e.pages].sort((a, b) => a - b),
-      elements: Object.fromEntries(
-        [...e.elements.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)),
-      ),
-      unassignedPieces: e.unassigned,
-    }));
-  const reconciliation: Reconciliation[] = [...capacity.entries()]
-    .sort((a, b) => (a[0] < b[0] ? -1 : 1))
-    .map(([elementId, count]) => ({
-      elementId,
-      inventory: count,
-      assigned: assigned.get(elementId) ?? 0,
-    }));
-  const residuals: Residual[] = callouts
-    .filter((c) => c.flags.some((flag) => RESIDUAL_FLAGS.has(flag)))
-    .map((c) => ({
-      calloutId: c.id,
-      page: c.page,
-      step: c.step,
-      count: c.count,
-      flags: c.flags,
-      elementId: c.elementId,
-      candidates: c.candidates.slice(0, 3),
-    }));
-  const drawings = new Set(callouts.map((c) => c.drawing).filter((d) => d !== null));
-  const assignedCallouts = stepCallouts.filter(
-    (c) => c.elementId !== null && !c.flags.includes("unassigned"),
-  );
+  const { summary, steps, reconciliation, residuals } = report(callouts, inventory, capacity);
   return {
-    summary: {
-      inventoryElements: capacity.size,
-      inventoryPieces: [...capacity.values()].reduce((a, b) => a + b, 0),
-      inventoryThumbnails: inventory.filter((e) => e.bbox !== null).length,
-      callouts: callouts.length,
-      calloutPieces: callouts.reduce((a, c) => a + c.count, 0),
-      stepCallouts: stepCallouts.length,
-      stepCalloutPieces: stepCallouts.reduce((a, c) => a + c.count, 0),
-      calloutsWithPicture: callouts.filter((c) => c.bbox !== null).length,
-      drawings: drawings.size,
-      calloutsAssigned: assignedCallouts.length,
-      piecesAssigned: assignedCallouts.reduce((a, c) => a + c.count, 0),
-      elementsExact: reconciliation.filter((r) => r.assigned === r.inventory).length,
-      firstChoiceKept: assignedCallouts.filter((c) => c.firstChoice?.elementId === c.elementId)
-        .length,
-      residuals: residuals.length,
+    summary,
+    text: textCounts(collected),
+    assignment: {
+      cost: assignment.totalCost,
+      lowerBound: assignment.lowerBound,
+      provenOptimal: assignment.provenOptimal,
+      nodes: assignment.nodes,
     },
+    inventory,
+    callouts,
     steps,
     reconciliation,
     residuals,
+    matchMs,
   };
 }
 

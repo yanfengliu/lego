@@ -1,3 +1,5 @@
+import { UNLIMITED, type Budget } from "./budget";
+import { IDENTIFY_LIMITS } from "./limits";
 import {
   decodeImage,
   scanPage,
@@ -17,13 +19,14 @@ import {
   type InventoryLabel,
   type StepNumber,
 } from "./text-tokens";
-import type { DecodedImage, IdentifyParameters, PageScan, Rect } from "./types";
+import type { DecodedImage, IdentifyParameters, PageScan, Rect, UnpairedElementId } from "./types";
 
 /**
  * Reads the booklet twice: once for text, which decides which pages matter and
  * what every label says, and once for images, only on the pages that print a
  * count label. Each page's decoded images are dropped as soon as its pictures are
- * cut, so memory stays at one page of artwork.
+ * cut, so memory stays at one page of artwork. Every pdf.js call is raced against
+ * the run's time limit, and every page is held to `IDENTIFY_LIMITS`.
  */
 export interface CollectedCallout {
   readonly label: CountLabel;
@@ -40,7 +43,7 @@ export interface CollectedInventory {
 export interface Collected {
   readonly pageCount: number;
   readonly inventoryPages: readonly number[];
-  readonly unpairedElementIds: readonly string[];
+  readonly unpairedElementIds: readonly UnpairedElementId[];
   readonly inventory: readonly CollectedInventory[];
   readonly callouts: readonly CollectedCallout[];
   readonly labelSizePt: number | null;
@@ -70,33 +73,97 @@ export function stepForBox(
   return best?.step ?? null;
 }
 
+function checkPageExtent(pageNumber: number, viewport: { width: number; height: number }): void {
+  const limit = IDENTIFY_LIMITS.maxPageExtentPt;
+  const readable = [viewport.width, viewport.height].every(
+    (extent) => Number.isFinite(extent) && extent > 0 && extent <= limit,
+  );
+  if (!readable) {
+    throw new Error(
+      `Page ${pageNumber} measures ${viewport.width} x ${viewport.height} pt, outside the 0 to ${limit} pt a booklet page is read at (the sample booklet's pages are 765 x 544 pt). Pass an instruction booklet.`,
+    );
+  }
+}
+
+/** Adds one page's text to the running total, refusing a page or a booklet over its limit. */
+function countText(scan: PageScan, before: number): number {
+  const chars = scan.texts.reduce((sum, run) => sum + run.text.length, 0);
+  if (chars > IDENTIFY_LIMITS.maxTextCharsPerPage) {
+    throw new Error(
+      `Page ${scan.pageNumber}'s text layer holds ${chars} characters, over the ${IDENTIFY_LIMITS.maxTextCharsPerPage}-character limit for one page (the sample booklet's busiest page holds 1,350). Pass an instruction booklet.`,
+    );
+  }
+  const total = before + chars;
+  if (total > IDENTIFY_LIMITS.maxTotalTextChars) {
+    throw new Error(
+      `The text layer reaches ${total} characters by page ${scan.pageNumber}, over the ${IDENTIFY_LIMITS.maxTotalTextChars}-character limit for a booklet (the sample booklet holds 14,228). Pass a single instruction booklet.`,
+    );
+  }
+  return total;
+}
+
+/** Refuses a page, or a booklet, printing more count labels than any booklet does. */
+function checkLabelCounts(labelsByPage: ReadonlyMap<number, number>): void {
+  let total = 0;
+  for (const [page, count] of labelsByPage) {
+    if (count > IDENTIFY_LIMITS.maxCountLabelsPerPage) {
+      throw new Error(
+        `Page ${page} prints ${count} count labels such as "2x", over the ${IDENTIFY_LIMITS.maxCountLabelsPerPage} one page is read with (the sample booklet's busiest page, in its inventory, prints 152). Pass an instruction booklet.`,
+      );
+    }
+    total += count;
+  }
+  if (total > IDENTIFY_LIMITS.maxCountLabels) {
+    throw new Error(
+      `The PDF prints ${total} count labels such as "2x", over the ${IDENTIFY_LIMITS.maxCountLabels} a booklet is read with (the sample booklet prints 1,140). Pass a single instruction booklet.`,
+    );
+  }
+}
+
+interface PageWork {
+  readonly pdfjs: PdfjsLike;
+  readonly document: PdfjsDocumentLike;
+  readonly params: IdentifyParameters;
+  readonly budget: Budget;
+}
+
 async function pagePictures(
-  pdfjs: PdfjsLike,
-  document: PdfjsDocumentLike,
+  { pdfjs, document, params, budget }: PageWork,
   pageNumber: number,
   labels: readonly LabelBox[],
   useBoxes: boolean,
   pxPerPt: number,
-  params: IdentifyParameters,
 ): Promise<{ scan: PageScan; pictures: Map<number, Picture> }> {
-  const page = await document.getPage(pageNumber);
+  const where = `page ${pageNumber} (cutting pictures)`;
+  const page = await budget.race(document.getPage(pageNumber), where);
   try {
-    const scan = await scanPage(pdfjs, page, pageNumber);
+    const scan = await budget.race(scanPage(pdfjs, page, pageNumber), where);
     const plans = planRegions(scan, labels, { useBoxes });
     const images = new Map<string, DecodedImage>();
+    let decoded = 0;
     for (const key of new Set(plans.flatMap((plan) => plan.paints.map((p) => p.imageKey)))) {
-      images.set(key, await decodeImage(page, key, pageNumber));
+      const image = await budget.race(decodeImage(page, key, pageNumber), where);
+      decoded += image.width * image.height;
+      if (decoded > IDENTIFY_LIMITS.maxDecodedPixelsPerPage) {
+        throw new Error(
+          `Page ${pageNumber}'s callout pictures are cut from images holding ${decoded} decoded pixels by image ${JSON.stringify(key)}, over the ${IDENTIFY_LIMITS.maxDecodedPixelsPerPage}-pixel limit for one page (the sample booklet's heaviest page needs 517,094). Pass an instruction booklet.`,
+        );
+      }
+      images.set(key, image);
     }
     const pictures = new Map<number, Picture>();
     for (const plan of plans) {
+      budget.check(where);
       const raster = compositeRegion(
         plan.rect,
         pxPerPt,
         plan.paints,
         images,
         params.backgroundTolerance,
+        { pageNumber, labels: plan.labels.length },
       );
       const cut = extractPictures(plan, labels, raster, images, {
+        pageNumber,
         backgroundTolerance: params.backgroundTolerance,
         expectedRiseRatio: EXPECTED_RISE_RATIO,
         minComponentPx: 3,
@@ -109,37 +176,52 @@ async function pagePictures(
   }
 }
 
+async function readText(
+  document: PdfjsDocumentLike,
+  budget: Budget,
+  onProgress: Progress,
+): Promise<PageScan[]> {
+  const textScans: PageScan[] = [];
+  let totalChars = 0;
+  for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
+    const where = `page ${pageNumber} (reading text)`;
+    const page = await budget.race(document.getPage(pageNumber), where);
+    try {
+      const viewport = page.getViewport({ scale: 1 });
+      checkPageExtent(pageNumber, viewport);
+      const content = await budget.race(page.getTextContent(), where);
+      const scan = scanTextOnly(pageNumber, viewport, content.items);
+      totalChars = countText(scan, totalChars);
+      textScans.push(scan);
+    } finally {
+      page.cleanup();
+    }
+    onProgress("text", pageNumber, document.numPages);
+  }
+  return textScans;
+}
+
 export async function collectBooklet(
   pdfjs: PdfjsLike,
   document: PdfjsDocumentLike,
   params: IdentifyParameters,
   onProgress: Progress = () => {},
   now: () => number = () => performance.now(),
+  budget: Budget = UNLIMITED,
 ): Promise<Collected> {
   const started = now();
-  const textScans: PageScan[] = [];
-  for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
-    const page = await document.getPage(pageNumber);
-    try {
-      const viewport = page.getViewport({ scale: 1 });
-      const content = await page.getTextContent();
-      textScans.push(scanTextOnly(pageNumber, viewport, content.items));
-    } finally {
-      page.cleanup();
-    }
-    onProgress("text", pageNumber, document.numPages);
-  }
+  const textScans = await readText(document, budget, onProgress);
   const textDone = now();
 
   const inventoryPageList = inventoryPages(textScans);
   const inventorySet = new Set(inventoryPageList);
   const inventoryByPage = new Map<number, InventoryLabel[]>();
-  const unpaired: string[] = [];
+  const unpaired: UnpairedElementId[] = [];
   for (const scan of textScans) {
     if (!inventorySet.has(scan.pageNumber)) continue;
     const { labels, unpairedIds } = inventoryLabels(scan);
     inventoryByPage.set(scan.pageNumber, labels);
-    unpaired.push(...unpairedIds);
+    for (const elementId of unpairedIds) unpaired.push({ elementId, page: scan.pageNumber });
   }
   if ([...inventoryByPage.values()].every((labels) => labels.length === 0)) {
     throw new Error(
@@ -148,27 +230,37 @@ export async function collectBooklet(
   }
   const callouts = calloutLabels(textScans, inventorySet);
   const steps = stepNumbers(textScans.filter((scan) => !inventorySet.has(scan.pageNumber)));
+  // A callout's step is on its own page, so each callout looks through that page's numbers only.
+  const stepsByPage = new Map<number, StepNumber[]>();
+  for (const step of steps) {
+    const here = stepsByPage.get(step.page);
+    if (here) here.push(step);
+    else stepsByPage.set(step.page, [step]);
+  }
   const calloutsByPage = new Map<number, CountLabel[]>();
   for (const label of callouts.labels) {
-    calloutsByPage.set(label.page, [...(calloutsByPage.get(label.page) ?? []), label]);
+    const here = calloutsByPage.get(label.page);
+    if (here) here.push(label);
+    else calloutsByPage.set(label.page, [label]);
   }
+  const labelsByPage = new Map<number, number>();
+  for (const [page, labels] of [...inventoryByPage, ...calloutsByPage])
+    labelsByPage.set(page, (labelsByPage.get(page) ?? 0) + labels.length);
+  checkLabelCounts(labelsByPage);
 
+  const work: PageWork = { pdfjs, document, params, budget };
   const inventory: CollectedInventory[] = [];
   const collected: CollectedCallout[] = [];
-  const pages = [...new Set([...inventoryByPage.keys(), ...calloutsByPage.keys()])].sort(
-    (a, b) => a - b,
-  );
+  const pages = [...labelsByPage.keys()].sort((a, b) => a - b);
   for (const [done, pageNumber] of pages.entries()) {
     const inventoryLabelsHere = inventoryByPage.get(pageNumber);
     if (inventoryLabelsHere) {
       const { pictures } = await pagePictures(
-        pdfjs,
-        document,
+        work,
         pageNumber,
         inventoryLabelsHere,
         false,
         params.gridPxPerPt,
-        params,
       );
       inventoryLabelsHere.forEach((label, i) =>
         inventory.push({ label, picture: pictures.get(i) ?? null }),
@@ -177,20 +269,18 @@ export async function collectBooklet(
     const calloutLabelsHere = calloutsByPage.get(pageNumber);
     if (calloutLabelsHere) {
       const { scan, pictures } = await pagePictures(
-        pdfjs,
-        document,
+        work,
         pageNumber,
         calloutLabelsHere,
         true,
         params.gridPxPerPt / params.calloutScale,
-        params,
       );
       calloutLabelsHere.forEach((label, i) => {
         const box = framingBox(scan, label);
         collected.push({
           label,
           box,
-          step: stepForBox(box, pageNumber, steps),
+          step: stepForBox(box, pageNumber, stepsByPage.get(pageNumber) ?? []),
           picture: pictures.get(i) ?? null,
         });
       });

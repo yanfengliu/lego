@@ -1,5 +1,5 @@
-import { INSTRUCTION_PDF_LIMITS } from "../instruction-source";
 import { IDENTITY, intersect, multiply, transformRect, type Matrix } from "./geometry";
+import { IDENTIFY_LIMITS } from "./limits";
 import type { DecodedImage, FillPath, ImagePaint, PageScan, Rect, TextRun } from "./types";
 
 /**
@@ -40,29 +40,31 @@ export interface PdfjsPageLike {
   cleanup(): void;
 }
 
-export const SCAN_LIMITS = Object.freeze({
-  maxBytes: INSTRUCTION_PDF_LIMITS.maxBytes,
-  maxPages: INSTRUCTION_PDF_LIMITS.maxPages,
-  maxOperatorsPerPage: 500_000,
-  maxImagePixels: 16 * 1024 * 1024,
-  imageWaitMs: 10_000,
-});
-
 /** Loads the pdf.js build that runs under Node as well as in a browser. */
 export async function loadPdfjs(): Promise<PdfjsLike> {
   const module: unknown = await import("pdfjs-dist/legacy/build/pdf.mjs");
   return module as PdfjsLike;
 }
 
-export async function openPdf(pdfjs: PdfjsLike, bytes: Uint8Array): Promise<PdfjsDocumentLike> {
+/** Refuses bytes that are not a PDF-sized buffer, before anything reads, hashes or parses them. */
+export function assertPdfBytes(bytes: unknown): asserts bytes is Uint8Array {
+  if (!(bytes instanceof Uint8Array)) {
+    throw new Error(
+      `identifyBooklet received ${bytes === null ? "null" : typeof bytes} where the PDF's bytes belong; pass a Uint8Array of the booklet.`,
+    );
+  }
   if (bytes.byteLength === 0) {
     throw new Error("identifyBooklet received an empty PDF; pass the booklet's bytes.");
   }
-  if (bytes.byteLength > SCAN_LIMITS.maxBytes) {
+  if (bytes.byteLength > IDENTIFY_LIMITS.maxBytes) {
     throw new Error(
-      `identifyBooklet received a ${bytes.byteLength}-byte PDF; the limit is ${SCAN_LIMITS.maxBytes} bytes. Pass a single instruction booklet.`,
+      `identifyBooklet received a ${bytes.byteLength}-byte PDF; the limit is ${IDENTIFY_LIMITS.maxBytes} bytes. Pass a single instruction booklet.`,
     );
   }
+}
+
+export async function openPdf(pdfjs: PdfjsLike, bytes: Uint8Array): Promise<PdfjsDocumentLike> {
+  assertPdfBytes(bytes);
   const document = await pdfjs.getDocument({
     // pdf.js transfers the buffer to its worker; hand it a copy so the caller's bytes survive.
     data: Uint8Array.from(bytes),
@@ -71,11 +73,14 @@ export async function openPdf(pdfjs: PdfjsLike, bytes: Uint8Array): Promise<Pdfj
     isOffscreenCanvasSupported: false,
     isImageDecoderSupported: false,
     disableFontFace: true,
+    // pdf.js reads an image's declared width and height and drops it, undecoded, when
+    // their product is over this; its callout is then flagged as having no picture.
+    maxImageSize: IDENTIFY_LIMITS.maxImagePixels,
   }).promise;
-  if (document.numPages > SCAN_LIMITS.maxPages) {
+  if (document.numPages > IDENTIFY_LIMITS.maxPages) {
     await document.destroy();
     throw new Error(
-      `The PDF has ${document.numPages} pages; identification reads at most ${SCAN_LIMITS.maxPages}. Pass a single instruction booklet.`,
+      `The PDF has ${document.numPages} pages; identification reads at most ${IDENTIFY_LIMITS.maxPages}. Pass a single instruction booklet.`,
     );
   }
   return document;
@@ -159,9 +164,9 @@ export async function scanPage(
   const viewport = page.getViewport({ scale: 1 });
   const [operators, text] = await Promise.all([page.getOperatorList(), page.getTextContent()]);
   const count = operators.fnArray.length;
-  if (count > SCAN_LIMITS.maxOperatorsPerPage || operators.argsArray.length !== count) {
+  if (count > IDENTIFY_LIMITS.maxOperatorsPerPage || operators.argsArray.length !== count) {
     throw new Error(
-      `Page ${pageNumber} has ${count} drawing operators (limit ${SCAN_LIMITS.maxOperatorsPerPage}) or a mismatched argument list; the PDF is not a readable instruction booklet.`,
+      `Page ${pageNumber} has ${count} drawing operators (limit ${IDENTIFY_LIMITS.maxOperatorsPerPage}) or a mismatched argument list; the PDF is not a readable instruction booklet.`,
     );
   }
   const OPS = pdfjs.OPS;
@@ -217,11 +222,21 @@ export async function scanPage(
         pendingClip = false;
       }
       if (typeof parts[0] === "number" && fillOps.has(parts[0])) {
+        if (fills.length === IDENTIFY_LIMITS.maxFilledPathsPerPage) {
+          throw new Error(
+            `Page ${pageNumber} fills more than ${IDENTIFY_LIMITS.maxFilledPathsPerPage} paths (the limit for one page, by operator ${index}); a booklet page fills a few hundred at most. Pass an instruction booklet.`,
+          );
+        }
         fills.push({ bounds, isRectangle: isRectanglePath(parts[1], local) });
       }
     } else if (fn === OPS.paintImageXObject) {
       const key = Array.isArray(args) ? (args as unknown[])[0] : undefined;
       if (typeof key !== "string" || key.length === 0 || key.length > 256) continue;
+      if (paints.length === IDENTIFY_LIMITS.maxImagePaintsPerPage) {
+        throw new Error(
+          `Page ${pageNumber} paints more than ${IDENTIFY_LIMITS.maxImagePaintsPerPage} images (the limit for one page, by operator ${index}); a booklet page paints a few hundred at most. Pass an instruction booklet.`,
+        );
+      }
       paints.push({ imageKey: key, order: paints.length, transform: ctm, clip });
     }
   }
@@ -248,10 +263,10 @@ async function resolveObject(
       () =>
         reject(
           new Error(
-            `Page ${pageNumber} image ${JSON.stringify(key)} did not decode within ${SCAN_LIMITS.imageWaitMs} ms; the image stream may be corrupt.`,
+            `Page ${pageNumber} image ${JSON.stringify(key)} did not decode within ${IDENTIFY_LIMITS.imageWaitMs} ms; the image stream may be corrupt.`,
           ),
         ),
-      SCAN_LIMITS.imageWaitMs,
+      IDENTIFY_LIMITS.imageWaitMs,
     );
     store.get(key, (value) => {
       clearTimeout(timer);
@@ -322,17 +337,22 @@ export async function decodeImage(
     kind?: unknown;
     data?: unknown;
   };
+  // The declared size is read, and checked, before a byte of the pixels is.
   if (
     typeof width !== "number" ||
     typeof height !== "number" ||
     !Number.isSafeInteger(width) ||
     !Number.isSafeInteger(height) ||
     width < 1 ||
-    height < 1 ||
-    width * height > SCAN_LIMITS.maxImagePixels
+    height < 1
   ) {
     throw new Error(
-      `${label} has no readable size (width ${String(width)}, height ${String(height)}; at most ${SCAN_LIMITS.maxImagePixels} pixels).`,
+      `${label} has no readable size: width ${String(width)}, height ${String(height)}, where each must be a whole number of pixels from 1. The image stream is malformed.`,
+    );
+  }
+  if (width * height > IDENTIFY_LIMITS.maxImagePixels) {
+    throw new Error(
+      `${label} is too large: ${width}x${height} is ${width * height} pixels, over the ${IDENTIFY_LIMITS.maxImagePixels}-pixel limit for one image. A booklet's pictures are far smaller; pass an instruction booklet.`,
     );
   }
   if (!(data instanceof Uint8Array || data instanceof Uint8ClampedArray)) {

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import type { InstructionSourceV1 } from "../instruction-source";
+import { extractPartsInventory } from "../parts-inventory";
 import {
   calloutLabels,
   dedupeRuns,
@@ -60,6 +62,68 @@ describe("inventory text", () => {
       ["3001002", 1, 100],
     ]);
     expect(unpairedIds).toEqual(["3001003"]);
+  });
+
+  /**
+   * inventoryLabels duplicates the pairing rule of parts-inventory.ts (see the
+   * note in text-tokens.ts). Bound: one page covering a pair, a drifted column, a
+   * count too high, a shared count and an overprinted id; the one divergence,
+   * the overprint, is pinned rather than hidden.
+   */
+  it("pairs ids with counts exactly as parts-inventory.ts does, except that it drops overprints", () => {
+    const runs = [
+      run("2x", 40, 107, 7),
+      run("3001001", 40.3, 100, 6),
+      run("1x", 100, 108, 7),
+      run("3001002", 100, 100, 6),
+      run("5x", 160, 130, 7),
+      run("3001003", 160, 100, 6),
+      run("4x", 220, 107, 7),
+      run("3001004", 220, 100, 6),
+      run("3001005", 220, 99.5, 6),
+      run("3x", 280, 107, 7),
+      run("3001006", 280, 100, 6),
+      run("3001006", 280, 100, 6),
+      ...ids.slice(6).map((id, i) => run(id, 400 + 60 * i, 300, 6)),
+    ];
+    const source: InstructionSourceV1 = {
+      schemaVersion: "lego.instruction-source/1",
+      contentHash: "sha256:test",
+      fileName: "test.pdf",
+      byteLength: 1,
+      pageCount: 1,
+      pages: [
+        {
+          pageNumber: 9,
+          widthPt: 600,
+          heightPt: 800,
+          text: "",
+          textElements: runs.map((r) => ({
+            text: r.text,
+            heightPt: r.sizePt,
+            xPt: r.xPt,
+            yPt: r.yPt,
+          })),
+          textTruncated: false,
+        },
+      ],
+      provenance: { origin: "user-supplied", ingestedBy: "lego-studio:pdf-ingest/1" },
+    };
+    const theirs = extractPartsInventory(source);
+    const ours = inventoryLabels(page(9, runs));
+    expect(ours.labels.map((l) => `${l.elementId}:${l.count}`)).toEqual(
+      theirs.entries.map((e) => `${e.elementId}:${e.quantity}`),
+    );
+    expect(ours.labels.map((l) => l.elementId)).toEqual([
+      "3001001",
+      "3001002",
+      "3001004",
+      "3001006",
+    ]);
+    // parts-inventory.ts reads the overprinted 3001006 twice and reports the copy unpaired.
+    expect(theirs.unpaired.map((u) => u.elementId).sort()).toEqual(
+      [...ours.unpairedIds, "3001006"].sort(),
+    );
   });
 
   it("spends a count once even when two ids sit under it", () => {

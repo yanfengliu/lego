@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import type { Collected, CollectedCallout, CollectedInventory } from "./collect";
 import { DEFAULT_PARAMETERS, identifyCollected } from "./identify-booklet";
 import type { Picture } from "./pictures";
+import { assertWithinInventory } from "./report";
+import type { CalloutIdentification, IdentifyResult } from "./types";
 
 type Rgb = readonly [number, number, number];
 
@@ -33,6 +35,12 @@ function callout(step: number | null, count: number, picture: Picture | null): C
   nextX += 50;
   const label = { page: step ?? 5, count, xPt: nextX, yPt: 100, sizePt: 8, widthPt: 8 };
   return { label, box: null, step, picture };
+}
+
+/** The one rule a report may never break, whatever the pictures: no element spent past its count. */
+function expectWithinInventory(result: Pick<IdentifyResult, "reconciliation">): void {
+  const over = result.reconciliation.filter((r) => r.assigned > r.inventory);
+  expect(over).toEqual([]);
 }
 
 function collected(inventory: CollectedInventory[], callouts: CollectedCallout[]): Collected {
@@ -76,7 +84,11 @@ describe("identifyCollected", () => {
     expect(y!.elementId).toBe("orange");
     expect(y!.flags).toEqual(["conflict", "low-margin"]);
     expect(y!.margin!).toBeLessThan(0);
-    expect(result.summary).toMatchObject({ calloutsAssigned: 2, firstChoiceKept: 1, residuals: 1 });
+    expect(result.summary).toMatchObject({
+      forcedByCapacity: { calloutsAssigned: 2 },
+      firstChoiceKept: 1,
+      residuals: 1,
+    });
     expect(result.residuals).toEqual([
       expect.objectContaining({
         calloutId: y!.id,
@@ -103,16 +115,49 @@ describe("identifyCollected", () => {
     expect(result.steps.map((s) => s.step)).toEqual([1, 3]);
   });
 
+  /**
+   * Gate for the double-count class: identical drawings are one demand whose
+   * pieces are summed. Bound: one drawing repeated three times against a count of
+   * two. In the review of 71f2f55, a demand taken from one callout instead of the
+   * sum passed all 67 tests while element 242026 was reported 27 of 13.
+   */
+  it("gives a drawing repeated past its element's count nothing, never more than the inventory holds", () => {
+    const result = identifyCollected(
+      collected(inventory, [
+        callout(1, 1, block(12, 36, GREEN, "g")),
+        callout(2, 1, block(12, 36, GREEN, "g")),
+        callout(3, 1, block(12, 36, GREEN, "g")),
+      ]),
+      DEFAULT_PARAMETERS,
+    );
+    expectWithinInventory(result);
+    expect(result.callouts.map((c) => [c.elementId, c.flags.includes("unassigned")])).toEqual([
+      [null, true],
+      [null, true],
+      [null, true],
+    ]);
+    expect(result.reconciliation.find((r) => r.elementId === "green")!.assigned).toBe(0);
+    expect(result.summary.forcedByCapacity).toEqual({
+      calloutsAssigned: 0,
+      piecesAssigned: 0,
+      elementsExact: 0,
+    });
+  });
+
   it("marks a callout the inventory cannot cover as unassigned and keeps its pieces out of the totals", () => {
     const result = identifyCollected(
       collected(inventory, [callout(1, 3, block(12, 36, GREEN, "g"))]),
       DEFAULT_PARAMETERS,
     );
     const [only] = result.callouts;
+    expect(only).toMatchObject({ elementId: null, firstChoice: { elementId: "green" } });
     expect(only!.flags).toContain("unassigned");
     expect(result.steps).toEqual([{ step: 1, pages: [1], elements: {}, unassignedPieces: 3 }]);
     expect(result.reconciliation.find((r) => r.elementId === "green")!.assigned).toBe(0);
-    expect(result.summary).toMatchObject({ calloutsAssigned: 0, piecesAssigned: 0, residuals: 1 });
+    expect(result.summary).toMatchObject({
+      forcedByCapacity: { calloutsAssigned: 0, piecesAssigned: 0 },
+      residuals: 1,
+    });
   });
 
   it("names a callout outside any step by its first choice without spending inventory", () => {
@@ -125,7 +170,11 @@ describe("identifyCollected", () => {
       elementId: "red",
       flags: ["outside-step"],
     });
-    expect(result.summary).toMatchObject({ stepCallouts: 0, calloutsAssigned: 0, residuals: 0 });
+    expect(result.summary).toMatchObject({
+      stepCallouts: 0,
+      forcedByCapacity: { calloutsAssigned: 0 },
+      residuals: 0,
+    });
     expect(result.reconciliation.every((r) => r.assigned === 0)).toBe(true);
   });
 
@@ -156,5 +205,84 @@ describe("identifyCollected", () => {
       flags: ["no-picture"],
     });
     expect(result.summary).toMatchObject({ inventoryElements: 4, inventoryThumbnails: 3 });
+  });
+
+  it("flags the callouts whose element the search ran out of nodes to prove", () => {
+    const pair = [
+      element("red", 1, block(30, 15, RED, null)),
+      element("orange", 1, block(30, 15, ORANGE, null)),
+    ];
+    const twice = [callout(1, 1, block(30, 15, RED, "x")), callout(2, 1, block(30, 15, RED, "x"))];
+    // No element holds both pieces; the fractional optimum puts one on each.
+    const settled = identifyCollected(collected(pair, twice), DEFAULT_PARAMETERS);
+    expect(settled.assignment).toMatchObject({ provenOptimal: true });
+    expect(settled.callouts.every((c) => !c.flags.includes("assignment-unproven"))).toBe(true);
+    const cut = identifyCollected(collected(pair, twice), DEFAULT_PARAMETERS, {
+      maxAssignmentNodes: 1,
+    });
+    expect(cut.assignment).toMatchObject({ provenOptimal: false, nodes: 1 });
+    expect(cut.callouts.map((c) => c.flags)).toEqual([
+      ["unassigned", "assignment-unproven"],
+      ["unassigned", "assignment-unproven"],
+    ]);
+    expect(cut.summary.residuals).toBe(2);
+  });
+
+  it("reports what the text layer said: unpaired ids, overprints, multipliers and the step run", () => {
+    const step = (value: number) => ({ page: value, step: value, xPt: 0, yPt: 0, sizePt: 20 });
+    const result = identifyCollected(
+      {
+        ...collected(inventory, []),
+        unpairedElementIds: [{ elementId: "3009999", page: 9 }],
+        duplicateRuns: 4,
+        otherSizeCountLabels: 2,
+        stepNumbers: [step(1), step(2), step(2), step(4)],
+      },
+      DEFAULT_PARAMETERS,
+    );
+    expect(result.text).toEqual({
+      inventoryPages: [9],
+      unpairedElementIds: [{ elementId: "3009999", page: 9 }],
+      calloutLabelSizePt: 8,
+      overprintsDropped: 4,
+      otherSizeCountLabels: 2,
+      stepNumbers: 4,
+      lastStep: 4,
+      missingSteps: [3],
+      repeatedSteps: [2],
+    });
+  });
+
+  it("refuses two callouts sharing one composite picture's key, naming both", () => {
+    const shared = "composite:p5@50.000,100.000";
+    expect(() =>
+      identifyCollected(
+        collected(inventory, [
+          callout(1, 1, block(30, 15, RED, shared)),
+          callout(2, 1, block(12, 36, GREEN, shared)),
+        ]),
+        DEFAULT_PARAMETERS,
+      ),
+    ).toThrow(
+      /Callouts p1\|q1\|x\d+\.000\|y100\.000 and p2\|q1\|x\d+\.000\|y100\.000 share the composite drawing key "composite:p5@50\.000,100\.000"/,
+    );
+  });
+});
+
+describe("assertWithinInventory", () => {
+  const spent = (id: string, elementId: string): CalloutIdentification =>
+    ({ id, step: 1, elementId, flags: [] }) as unknown as CalloutIdentification;
+
+  it("stops a report that spends an element past its count, naming the element and its callouts", () => {
+    const callouts = [spent("p1|q2|x1.000|y1.000", "A"), spent("p2|q1|x1.000|y1.000", "A")];
+    expect(() => assertWithinInventory(new Map([["A", 3]]), new Map([["A", 2]]), callouts)).toThrow(
+      "identifyBooklet assigned 3 pieces of element A, but the inventory prints 2, by callouts p1|q2|x1.000|y1.000, p2|q1|x1.000|y1.000. The assignment never spends past an element's count, so the report disagrees with it: a defect in apps/web/src/instructions/identify, not in the booklet.",
+    );
+    expect(() =>
+      assertWithinInventory(new Map([["A", 2]]), new Map([["A", 2]]), callouts),
+    ).not.toThrow();
+    expect(() => assertWithinInventory(new Map([["B", 1]]), new Map(), [])).toThrow(
+      /element B, but the inventory prints 0/,
+    );
   });
 });

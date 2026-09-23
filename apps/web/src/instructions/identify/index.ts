@@ -10,11 +10,14 @@ export {
   identifyCollected,
   type IdentifyOptions,
 } from "./identify-booklet";
+export { IDENTIFY_LIMITS } from "./limits";
 export { scoreAgainstTruth, type TruthIdentity, type TruthScore } from "./truth-score";
 export type {
+  AssignmentSummary,
   CalloutFlag,
   CalloutIdentification,
   Candidate,
+  ForcedByCapacity,
   IdentifyParameters,
   IdentifyResult,
   IdentifySummary,
@@ -23,5 +26,7 @@ export type {
   Rect,
   Residual,
   StepTotals,
+  TextCounts,
+  UnpairedElementId,
 } from "./types";
 export { IDENTIFY_SCHEMA_VERSION } from "./types";

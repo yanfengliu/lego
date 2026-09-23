@@ -12,9 +12,16 @@ import { importRepositoryTypeScript } from "./part-identification-typescript-run
  *
  * The booklet defaults to recipes/6651557.pdf, found by climbing from this
  * checkout (a worktree has no recipes/ of its own). Writes the ignored
- * output/booklet/identify.json and prints: accuracy on Steps 1-50 against the
- * tracked first-fifty truth, the inventory reconciliation, first-choice
- * agreement, and runtime. Without the booklet it prints "skipped (input absent)".
+ * output/booklet/identify.json and prints what the text layer said, the
+ * inventory reconciliation, the assignment, the residuals, accuracy on Steps
+ * 1-50 against the tracked first-fifty truth, and runtime. Without the booklet
+ * it prints "skipped (input absent)".
+ *
+ * Only the judged-callout line measures accuracy. The reconciliation is forced
+ * by the capacity constraint, first-choice agreement compares two of the
+ * module's own stages, the residual count moves with the weights, and callouts
+ * that inherit a verdict through the module's own drawing key agree with it by
+ * construction; each line says which it is.
  */
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUTPUT = resolve(repositoryRoot, "output/booklet/identify.json");
@@ -55,6 +62,7 @@ function calloutIdOf(row) {
  */
 function truthErrata(bindings, verdicts) {
   const errata = new Map();
+  const byVerdict = new Map();
   for (const erratum of bindings.errata ?? []) {
     const verdict = verdicts.get(erratum.n);
     const row = bindings.labels.find((r) => r.n === erratum.n);
@@ -64,8 +72,9 @@ function truthErrata(bindings, verdicts) {
       );
     }
     errata.set(calloutIdOf(row), erratum);
+    byVerdict.set(erratum.n, erratum);
   }
-  return errata;
+  return { errata, byVerdict };
 }
 
 /** Joins the label bindings to their verdicts, refusing a binding whose digest disagrees. */
@@ -75,7 +84,7 @@ function truthLabels() {
   const verdicts = new Map([...truth.verdicts, ...truth.unjudgeable].map((v) => [v.n, v]));
   return {
     lastStep: truth.lastStep,
-    errata: truthErrata(bindings, verdicts),
+    ...truthErrata(bindings, verdicts),
     labels: bindings.labels.map((row) => {
       const verdict = verdicts.get(row.n);
       if (!verdict || verdict.judgedCropSha256 !== row.judgedCropSha256) {
@@ -142,8 +151,14 @@ async function main() {
   writeFileSync(OUTPUT, `${JSON.stringify(result, null, 1)}\n`);
 
   const s = result.summary;
+  const forced = s.forcedByCapacity;
   console.log(
     `booklet: ${pdfPath} ${result.source.sha256} (${result.source.pageCount} pages, pdf.js ${result.source.pdfjsVersion})`,
+  );
+  const t = result.text;
+  const unpaired = t.unpairedElementIds.map((u) => `${u.elementId} (p${u.page})`);
+  console.log(
+    `text: inventory on pages ${t.inventoryPages.join(", ")}; ${unpaired.length} unpaired element ids${unpaired.length > 0 ? ` (${unpaired.slice(0, 10).join(", ")})` : ""}; callout labels at ${t.calloutLabelSizePt} pt; ${t.overprintsDropped} overprinted runs dropped; ${t.otherSizeCountLabels} labels at other sizes (sub-assembly multipliers); steps 1-${t.lastStep}: ${t.stepNumbers} found, missing [${t.missingSteps.join(", ")}], repeated [${t.repeatedSteps.join(", ")}]`,
   );
   console.log(
     `inventory: ${s.inventoryElements} elements, ${s.inventoryPieces} pieces, ${s.inventoryThumbnails}/${result.inventory.length} thumbnails found`,
@@ -152,34 +167,43 @@ async function main() {
     `callouts: ${s.callouts} (${s.calloutPieces} pieces); in numbered steps ${s.stepCallouts} (${s.stepCalloutPieces} pieces); with a picture ${s.calloutsWithPicture}; distinct drawings ${s.drawings}`,
   );
   console.log(
-    `reconciliation: ${s.elementsExact}/${s.inventoryElements} elements exact; ${s.calloutsAssigned}/${s.stepCallouts} step callouts assigned (${s.piecesAssigned}/${s.stepCalloutPieces} pieces)`,
+    `forced by capacity, not evidence: ${forced.elementsExact}/${s.inventoryElements} elements exact; ${forced.calloutsAssigned}/${s.stepCallouts} step callouts assigned (${forced.piecesAssigned}/${s.stepCalloutPieces} pieces). The assignment never spends past an element's count, so these fill whichever elements the pictures are given.`,
   );
   for (const r of result.reconciliation.filter((r) => r.assigned !== r.inventory)) {
     console.log(`  element ${r.elementId}: inventory ${r.inventory}, assigned ${r.assigned}`);
   }
+  const a = result.assignment;
   console.log(
-    `first choice kept: ${s.firstChoiceKept}/${s.calloutsAssigned} (${percent(s.firstChoiceKept, s.calloutsAssigned)})`,
+    `assignment: ${a.provenOptimal ? "proven optimal" : "NOT proven optimal (node budget spent)"} after ${a.nodes} node${a.nodes === 1 ? "" : "s"}; cost ${a.cost}, lower bound ${a.lowerBound}`,
+  );
+  console.log(
+    `first choice kept: ${s.firstChoiceKept}/${forced.calloutsAssigned} (${percent(s.firstChoiceKept, forced.calloutsAssigned)}); agreement between this module's matching and its assignment, not accuracy`,
   );
   const flagCounts = new Map();
   for (const residual of result.residuals)
     for (const flag of residual.flags) flagCounts.set(flag, (flagCounts.get(flag) ?? 0) + 1);
   console.log(
-    `residuals: ${s.residuals} callouts (${[...flagCounts].map(([f, n]) => `${f} ${n}`).join(", ")})`,
+    `residuals: ${s.residuals} callouts (${[...flagCounts].map(([f, n]) => `${f} ${n}`).join(", ")}); the count depends on the weights and thresholds, so compare it only between runs with equal parameters`,
   );
 
-  const { lastStep, labels, errata } = truthLabels();
+  const { lastStep, labels, errata, byVerdict } = truthLabels();
   const score = scoreAgainstTruth(result, labels, lastStep);
+  const corrected = labels.map((row) =>
+    byVerdict.has(row.n) ? { ...row, elementId: byVerdict.get(row.n).correct } : row,
+  );
+  const withErrata = scoreAgainstTruth(result, corrected, lastStep);
   console.log(
     `truth, steps 1-${lastStep} (${score.calloutsInRange} callouts, ${score.piecesInRange} pieces; ${score.verdictsBound}/${labels.length} verdict labels bound):`,
   );
   console.log(
-    `  judged callouts: ${score.direct.correct}/${score.direct.callouts} correct (${percent(score.direct.correct, score.direct.callouts)}); negative verdicts avoided ${score.negative.avoided}/${score.negative.callouts}`,
+    `  independent accuracy, judged callouts only: ${score.direct.correct}/${score.direct.callouts} (${percent(score.direct.correct, score.direct.callouts)}) as judged; ${withErrata.direct.correct}/${withErrata.direct.callouts} (${percent(withErrata.direct.correct, withErrata.direct.callouts)}) with the ${byVerdict.size} recorded truth errata applied`,
+  );
+  console.log(`  negative verdicts avoided: ${score.negative.avoided}/${score.negative.callouts}`);
+  console.log(
+    `  not independent: ${score.inherited.callouts} more callouts share a judged callout's drawing key, so they get its element by construction; ${score.inherited.correct}/${score.inherited.callouts} agree (${score.expanded.correct}/${score.expanded.callouts} callouts, ${score.expanded.piecesCorrect}/${score.expanded.pieces} pieces, counting both)`,
   );
   console.log(
-    `  with identical drawings: ${score.expanded.correct}/${score.expanded.callouts} callouts correct (${percent(score.expanded.correct, score.expanded.callouts)}), ${score.expanded.piecesCorrect}/${score.expanded.pieces} pieces`,
-  );
-  console.log(
-    `  per step: ${score.steps.allLabelledCorrect}/${score.steps.withLabels} steps with labels have every label right; ${score.steps.fullyLabelledCorrect}/${score.steps.fullyLabelled} fully labelled steps entirely right (of ${score.steps.total})`,
+    `  per step, judged and inherited labels together: ${score.steps.allLabelledCorrect}/${score.steps.withLabels} steps with labels have every label right; ${score.steps.fullyLabelledCorrect}/${score.steps.fullyLabelled} fully labelled steps entirely right (of ${score.steps.total})`,
   );
   let explained = 0;
   for (const miss of score.misses) {
@@ -198,9 +222,9 @@ async function main() {
       `old vision route (${old.rows} rows, ${OLD_ROUTE}): agrees on ${old.agree}/${old.compared} callouts (${percent(old.agree, old.compared)})`,
     );
   }
-  const t = result.timingsMs;
+  const ms = result.timingsMs;
   console.log(
-    `runtime: text ${(t.text / 1000).toFixed(1)}s, images ${(t.images / 1000).toFixed(1)}s, match ${(t.match / 1000).toFixed(1)}s, assign ${(t.assign / 1000).toFixed(1)}s, total ${(t.total / 1000).toFixed(1)}s`,
+    `runtime: text ${(ms.text / 1000).toFixed(1)}s, images ${(ms.images / 1000).toFixed(1)}s, match ${(ms.match / 1000).toFixed(1)}s, assign ${(ms.assign / 1000).toFixed(1)}s, total ${(ms.total / 1000).toFixed(1)}s`,
   );
   console.log(`wrote ${OUTPUT}`);
 }
