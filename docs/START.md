@@ -15,19 +15,22 @@ The versioned `BrickDocument` part-and-connection graph is the truth; scenes, re
 
 - [`docs/design/building-system.md`](design/building-system.md) holds the current measured position of the editor and the booklet build, and the ordered work still missing. Read it before choosing booklet work or claiming progress.
 - [`docs/devlog/summary.md`](devlog/summary.md) is history, newest first, not status.
+- `npm run booklet` measures the booklet build per printed step against the official model. It reads the booklet, aligns each step to the model, measures catalog coverage, and plays the official poses back through the brick kernel. It writes its rows to ignored `output/booklet/` and compares headline counts with the committed [`status/booklet-baseline.json`](../status/booklet-baseline.json). Inputs default to the main checkout's `recipes/` and `output/official-model/`; `BOOKLET_PDF`, `BOOKLET_LXFML`, `BOOKLET_OFFICIAL_LDRAW`, `BOOKLET_LDRAW_FRAMES` and `BOOKLET_OUT` override them. Camera fit and placement are not scored yet.
+- `node scripts/identify-booklet.mjs` identifies every part callout by closed-set matching against the booklet's own inventory, with no model call, and scores Steps 1-50 against the tracked truth labels. `LEGO_BOOKLET_PDF` overrides the booklet, and the full result goes to ignored `output/booklet/identify.json`.
 - Run numbers live in ignored `output/`; a claimed improvement names the number it moved.
 - A handoff's prose is not the position: retest an inherited blocker before repeating it (fleet canon).
 
 ## Where code lives
 
-- `apps/web/src`: the React and Three.js editor (`components/`, `viewport/`, `persistence/`, `manual-commands.ts`) and the booklet loop, where `instructions/` reads the PDF (pages, steps, callouts, inventory) and `assembly/` searches placements and scores them against panels.
-- `apps/web/e2e` and `apps/web/test`: Playwright specs and the real-booklet harness, and Vitest contract tests for that harness.
+- `apps/web/src`: the React and Three.js editor (`components/`, `viewport/`, `persistence/`, `manual-commands.ts`) and the booklet loop, where `instructions/` reads the PDF (pages, steps, callouts, inventory), `instructions/identify/` matches each callout's picture to an inventory part, and `assembly/` searches placements and scores them against panels.
+- `apps/web/e2e` and `apps/web/test`: Playwright specs and the experimental real-build family (`real-build-*`), and Vitest contract tests for that family.
 - `apps/companion`: artifact store, test run ledger and test recorder as a library; the planned home of the trust broker.
 - `packages/protocol`: versioned JSON Schema with generated types and validators.
 - `packages/brick-kernel`: documents, commands, compiler, patches, validation, migrations, and `compareBuilds`.
 - `packages/catalog`: parts, colours, geometry, connectors, collision, licences.
 - `packages/rendering`: Three.js derivation, canonical captures, render packets.
 - `scripts/`: booklet, LDraw, Builder and catalog derivation tools in Node and Python, plus the gate scripts.
+- `tools/booklet/`: the `npm run booklet` harness, whose `answer-key/` module reads the official model. An `eslint.config.js` rule stops product code (`packages/*/src`, `apps/*/src`) from importing `tools/booklet` or naming `output/official-model`.
 - `recipes/`: the local booklet PDF, ignored and never committed.
 
 Files and functions stay focused: under 500 lines, 1000 at most. A worktree under `.claude/worktrees/` has no `node_modules` or `recipes/` of its own; Node and `npx` find the main checkout's by walking up, and a probe must find them the same way ([local-rules](policies/local-rules.md#probes-and-measurement)).
@@ -44,6 +47,8 @@ Files and functions stay focused: under 500 lines, 1000 at most. A worktree unde
 - Toolchain: Node 24 (`.nvmrc`), npm 11, Python 3 as `python` (no `requires-python` pin yet — a known gap), and Playwright's Chromium (`npx playwright install chromium`).
 - While iterating, run the smallest check that covers the change: `npx vitest run <path>`, `npx playwright test <spec>`, `npm run typecheck`, `npm run lint`, or one of the `*:check` scripts.
 - Before calling implementation done, `npm run verify` passes. Its steps are the `verify` script in [`package.json`](../package.json), which is the only list kept.
+- Tests that read ignored run evidence (`output/real-build/`, `output/official-model/`, external archives) are skipped by default, each naming why, and run under `LEGO_RUN_EVIDENCE=1`; opted in, a missing input fails by name ([`scripts/run-evidence-gate.mjs`](../scripts/run-evidence-gate.mjs), [`scripts/run_evidence_gate.py`](../scripts/run_evidence_gate.py)). The 26 Playwright specs that check `hasSampleBooklet` still gate on whether the booklet exists, not on the opt-in; moving them is open work.
+- `npm run test:score` runs the `*.score.test.ts` scoring runs, which measure the real booklet or a grown assembly and stay out of `npm test`.
 - A dependency change also runs `npm run audit` and `npm run audit:runtime`; a new HIGH or CRITICAL blocks.
 - Doc-only work checks the diff, internal links and paths, Markdown fences and trailing whitespace. `.prettierignore` excludes `docs/`, `AGENTS.md`, `CLAUDE.md` and `.claude/`, so `format:check` says nothing about them, and `npm run lessons:check` covers only the two lessons files.
 

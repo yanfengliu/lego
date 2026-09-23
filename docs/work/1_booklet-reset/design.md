@@ -12,7 +12,7 @@ Subagent and workflow transcripts held 66% of tokens, across 181 subagents, all 
 
 Part-identification vision calls ran as full agent sessions rather than one-shot calls: 369 sessions, a median of 10 calls each, 7.5% of raw tokens and 15.8% of spend by price.
 
-The fixed prefix repeated on every call was about 17.7% of tokens; the first call of a session averaged 58.1k tokens. Required-doc reads were about 3.7% of tokens.
+The fixed prefix repeated on every call was about 17.7% of tokens. The median first call of a session was 28.4k tokens for main threads and about 40k for subagents; one Sep-15 session's first call was 58.1k. Required-doc reads were about 3.7% of tokens.
 
 About 34.8M tokens were spent per successful commit, over 115 commits.
 
