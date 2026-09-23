@@ -1,9 +1,10 @@
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { documentStructuralHash } from "@lego-studio/brick-kernel";
 import type { BrickDocumentV1 } from "@lego-studio/protocol";
 import { describe, expect, it } from "vitest";
+import { itWithRunEvidence } from "../../../scripts/run-evidence-gate.mjs";
 import { readContainedBoundedRegularFile } from "../e2e/bounded-file-read";
 import { verifyLegacyRealBuildArtifactScoreV4 } from "../e2e/real-build-artifact-legacy-score-verification";
 import { inspectFrozenLegacyBrowserOutputV2 } from "../e2e/real-build-artifact-legacy-browser-v2";
@@ -612,7 +613,10 @@ describe("legacy artifact-manifest /3 inspection", () => {
     expect(() => assertIdentity(fixedPanel)).toThrow(/transform multiset/u);
   });
 
-  it.skipIf(!existsSync(RETAINED_PRODUCTION_RUN))(
+  const itWithEvidence = itWithRunEvidence(
+    "reads the retained production run under output/direct-origin-k-production/runs/, an ignored generation",
+  );
+  itWithEvidence(
     "keeps frozen inspection of the exact ignored production generation when it is locally available",
     () => {
       expect(() => verifyRealBuildArtifactManifest(RETAINED_PRODUCTION_RUN)).toThrow(

@@ -1,6 +1,6 @@
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 
-import { describe, expect, it } from "vitest";
+import { expect, it } from "vitest";
 
 import { openExactLdrawArchive } from "./part-identification-prefix50-ldraw-catalog-frames-archive.mjs";
 import { verifyPrefix50OccurrenceIdentityMovedRoot } from "./part-identification-prefix50-ldraw-catalog-frames-identity.mjs";
@@ -9,10 +9,13 @@ import {
   PREFIX50_LDRAW_CATALOG_MOVED_ROOT_EXPECTATIONS,
 } from "./part-identification-prefix50-ldraw-catalog-frames-source.mjs";
 import { PREFIX50_OFFICIAL_LDRAW_OCCURRENCE_BINDINGS } from "./part-identification-prefix50-official-ldraw-world-proposal-source.mjs";
+import { describeWithRunEvidence } from "./run-evidence-gate.mjs";
 
-const archivePresent = existsSync(PREFIX50_LDRAW_CATALOG_FRAMES_PINS.officialArchive.path);
+const describeWithEvidence = describeWithRunEvidence(
+  `reads ${PREFIX50_LDRAW_CATALOG_FRAMES_PINS.officialArchive.path}, pinned by the retired first-50 campaign`,
+);
 
-describe.runIf(archivePresent)("prefix-50 exact occurrence-scoped identity moved roots", () => {
+describeWithEvidence("prefix-50 exact occurrence-scoped identity moved roots", () => {
   const archive = openExactLdrawArchive(
     readFileSync(PREFIX50_LDRAW_CATALOG_FRAMES_PINS.officialArchive.path),
   );

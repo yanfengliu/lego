@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
@@ -16,6 +16,7 @@ import {
   isVerifiedPartIdentificationLegacyRecut,
   verifyPartIdentificationLegacyRecut,
 } from "./part-identification-legacy-recut.mjs";
+import { itWithRunEvidence } from "./run-evidence-gate.mjs";
 
 const OUTPUT_ROOT = resolve("output");
 const SOURCE_HASH = `sha256:${"a".repeat(64)}`;
@@ -381,13 +382,12 @@ describe("legacy /5 to current /6 exact recut bridge", () => {
   });
 });
 
-const realEvidencePresent = [
-  CURRENT_LEGACY_RECUT_PINS.legacyManifest.path,
-  CURRENT_LEGACY_RECUT_PINS.currentManifest.path,
-  CURRENT_LEGACY_RECUT_PINS.truth.path,
-].every(existsSync);
+const itWithEvidence = itWithRunEvidence(
+  "reads output/callout-thumbnails and the legacy/current/truth manifests pinned by the retired " +
+    "first-50 campaign",
+);
 
-it.runIf(realEvidencePresent)(
+itWithEvidence(
   "reproduces and privately closes the retained first-50 census",
   () => {
     const input = {

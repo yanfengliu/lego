@@ -7,6 +7,7 @@ from ldcad_shadow_axles import emit_axle_connectors
 from ldcad_shadow_connectors import snap_census, snap_instances
 from ldcad_shadow_metas import parse_shadow_metas
 from ldcad_shadow_source import VerifiedShadowLibrary
+from run_evidence_gate import requires_run_evidence
 
 
 HEADER = (
@@ -148,7 +149,7 @@ class ExactAxleShaftTests(unittest.TestCase):
             one_snap(SYNTHETIC_4519_SEMANTICS.replace("slide=true", "slide=sometimes"))
         self.assertIn("a boolean shadow parameter is true or false", str(error.exception))
 
-    @unittest.skipUnless(PINNED_SHADOW_ROOT.is_dir(), "pinned local shadow checkout is absent")
+    @requires_run_evidence(f"reads the external LDCad shadow root {PINNED_SHADOW_ROOT}")
     def test_the_pinned_4519_shadow_file_matches_the_exact_bridge_contract(self) -> None:
         shadow = VerifiedShadowLibrary(PINNED_SHADOW_ROOT)
         source = shadow.read("parts/4519.dat")

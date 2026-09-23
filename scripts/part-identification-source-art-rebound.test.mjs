@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect } from "vitest";
 
 import {
   assertVerifiedPartIdentificationSourceArtReboundClosure,
@@ -9,11 +9,12 @@ import {
   inspectVerifiedPartIdentificationSourceArtRebound,
   verifyPartIdentificationSourceArtReboundClosure,
 } from "./part-identification-source-art-rebound.mjs";
+import { itWithRunEvidence } from "./run-evidence-gate.mjs";
 
 const PDF_PATH = "recipes/6651557.pdf";
 const MANIFEST_PATH = "output/callout-thumbnails/manifest.json";
 const ARTIFACT_SHA256 = "sha256:a58a55e65c19e2771defe02fc9d37e24c00246bbed9dd375d8d0a2f16382897d";
-const realIt = existsSync(PDF_PATH) && existsSync(MANIFEST_PATH) ? it : it.skip;
+const realIt = itWithRunEvidence(`reads ${PDF_PATH} and ${MANIFEST_PATH}`);
 
 const digest = (bytes) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 

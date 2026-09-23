@@ -62,6 +62,7 @@ from part_retrieval_ceiling_report import (
     verified_rank_rows,
 )
 from part_retrieval_ceiling_report_inputs import load_verified_retrieval_inputs
+from run_evidence_gate import requires_run_evidence
 
 
 # The generation every live number below was measured against.
@@ -594,12 +595,23 @@ def _drifted() -> list[str]:
     return drift
 
 
-@unittest.skipIf(_drifted(), f"could not verify against the pinned generation: {_drifted()}")
+def _assert_not_drifted() -> None:
+    """Opted in, a republished identification chain fails loudly rather than passing stale."""
+    drift = _drifted()
+    if drift:
+        raise AssertionError(f"could not verify against the pinned generation: {drift}")
+
+
+@requires_run_evidence(
+    "reads output/part-identification, output/real-build/action-ledger.json and "
+    "output/official-model, pinned to the digests in PINNED"
+)
 class PinnedGenerationTest(unittest.TestCase):
     """Numbers measured from one exact generation of the identification chain."""
 
     @classmethod
     def setUpClass(cls) -> None:
+        _assert_not_drifted()
         import part_retrieval_ceiling_report as driver
 
         cls.report = driver.build_report(quick=True)

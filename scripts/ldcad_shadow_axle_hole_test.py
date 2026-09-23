@@ -18,6 +18,7 @@ from ldcad_shadow_connectors import (
 from ldcad_shadow_metas import parse_shadow_metas
 from ldcad_shadow_source import VerifiedShadowLibrary
 from ldraw_source_archive import LDrawSourceLibrary, VerifiedArchive
+from run_evidence_gate import requires_run_evidence
 from set_6651557_ldraw_source_audit_plan import ARCHIVE_PINS
 
 HEADER = (
@@ -234,9 +235,9 @@ class ExactAxleHoleTests(unittest.TestCase):
             ["non-axis-axle-hole-segment", "unexpected-axle-hole-segment-length"],
         )
 
-    @unittest.skipUnless(
-        PINNED_OFFICIAL.is_file() and PINNED_UNOFFICIAL.is_file() and PINNED_SHADOW.is_dir(),
-        "pinned local LDraw and LDCad inputs are absent",
+    @requires_run_evidence(
+        f"reads the external LDraw/LDCad inputs {PINNED_OFFICIAL}, {PINNED_UNOFFICIAL}, and "
+        f"{PINNED_SHADOW}"
     )
     def test_pinned_32064a_composition_matches_the_exact_bridge_contract(self) -> None:
         paths = {"official": PINNED_OFFICIAL, "unofficial": PINNED_UNOFFICIAL}
@@ -266,9 +267,9 @@ class ExactAxleHoleTests(unittest.TestCase):
             [([0.0, 10.0, 0.0], [0.0, 0.0, 1.0])],
         )
 
-    @unittest.skipUnless(
-        PINNED_OFFICIAL.is_file() and PINNED_UNOFFICIAL.is_file() and PINNED_SHADOW.is_dir(),
-        "pinned local LDraw and LDCad inputs are absent",
+    @requires_run_evidence(
+        f"reads the external LDraw/LDCad inputs {PINNED_OFFICIAL}, {PINNED_UNOFFICIAL}, and "
+        f"{PINNED_SHADOW}"
     )
     def test_pinned_73230_composition_matches_the_exact_axlehol4_bridge(self) -> None:
         paths = {"official": PINNED_OFFICIAL, "unofficial": PINNED_UNOFFICIAL}

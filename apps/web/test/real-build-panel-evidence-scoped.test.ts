@@ -12,12 +12,12 @@ import {
   deriveRealBuildPanelEvidence,
   deriveScopedRealBuildPanelEvidence,
 } from "../e2e/real-build-panel-evidence";
-import { hasSampleBooklet } from "../e2e/sample-booklet";
 import type {
   InstructionPage,
   InstructionSourceV1,
   InstructionTextElement,
 } from "../src/instructions/instruction-source";
+import { itWithRunEvidence } from "../../../scripts/run-evidence-gate.mjs";
 
 const PDF_DIGEST = "sha256:baef0a373164b58d7c982984b52d4e50b10cc59ed28007acb456faa72359bd27";
 const EXPECTED_PANEL_DIGESTS = Object.freeze([
@@ -560,7 +560,7 @@ describe("scoped real-build panel evidence", () => {
     expect(trace).toEqual(emptyTrace());
   });
 
-  it.skipIf(!hasSampleBooklet)(
+  itWithRunEvidence("reads recipes/6651557.pdf, the ignored sample booklet")(
     "matches full-run steps 2-4 for the genuine freshly ingested caller source",
     async () => {
       const readStarted = performance.now();
