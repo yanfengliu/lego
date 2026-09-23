@@ -108,7 +108,7 @@ Do not declare the result fully verified while material findings or required che
 
 ## Gates
 
-Node 24 (`.nvmrc`), npm 11, Python 3 as `python` (no `requires-python` pin yet — a known gap), Playwright Chromium; commands: `package.json`. Iterate on the smallest relevant check; `npm run verify` passes before implementation is done, and a unit-only pass never covers a change crossing persistence, broker, provider, browser, import/export or rendering boundaries. A dependency change also runs `npm run audit` and `audit:runtime`; a new HIGH or CRITICAL blocks.
+Node 24 (`.nvmrc`), npm 11, Python 3 as `python`, Playwright Chromium; commands: `package.json`. Iterate on the smallest relevant check; `npm run verify` passes before implementation is done, and a unit-only pass never covers a change crossing persistence, broker, provider, browser, import/export or rendering boundaries. A dependency change also runs `npm run audit` and `audit:runtime`; a new HIGH or CRITICAL blocks.
 
 ## Invariants & boundaries
 

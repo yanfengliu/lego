@@ -41,7 +41,7 @@ Files and functions stay focused: under 500 lines, 1000 at most. A worktree unde
 
 ## Gates
 
-- Toolchain: Node 24 (`.nvmrc`), npm 11, Python 3 as `python`, and Playwright's Chromium (`npx playwright install chromium`).
+- Toolchain: Node 24 (`.nvmrc`), npm 11, Python 3 as `python` (no `requires-python` pin yet — a known gap), and Playwright's Chromium (`npx playwright install chromium`).
 - While iterating, run the smallest check that covers the change: `npx vitest run <path>`, `npx playwright test <spec>`, `npm run typecheck`, `npm run lint`, or one of the `*:check` scripts.
 - Before calling implementation done, `npm run verify` passes. Its steps are the `verify` script in [`package.json`](../package.json), which is the only list kept.
 - A dependency change also runs `npm run audit` and `npm run audit:runtime`; a new HIGH or CRITICAL blocks.
