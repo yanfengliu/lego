@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "allocations": [
+    {
+      "id": 0,
+      "theme": "first-50-campaign"
+    },
+    {
+      "id": 1,
+      "theme": "booklet-reset"
+    }
+  ]
+}
