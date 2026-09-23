@@ -1,5 +1,5 @@
 {
-  "version": "lego.booklet-status/1",
+  "version": "lego.booklet-status/2",
   "headline": {
     "read": {
       "steps": 359,
@@ -42,14 +42,26 @@
       "lxfmlSteps": 668,
       "stepsAddingBricks": 538,
       "unplacedBricks": 1,
-      "ldraw": "paired"
+      "ldraw": {
+        "status": "paired",
+        "verifiedDesigns": 129,
+        "verifiedBricks": 1422,
+        "singleInstanceDesigns": 42,
+        "compositeBricks": 1,
+        "contradictedDesigns": 0,
+        "invarianceFailures": 0,
+        "colorConflicts": 0
+      }
     },
     "align": {
-      "stepsAligned": 359,
       "steps": 359,
-      "runOrderMatched": 343,
+      "matchedByRunOrder": 338,
+      "fittedByRepair": 18,
+      "unmatched": 3,
+      "runOrderMatchedBeforeRepair": 343,
       "repairWindows": 7,
-      "unsolvedWindows": 0,
+      "solvedWindows": 6,
+      "unsolvedWindows": ["unsolved (budget)"],
       "bricksAssigned": 1464,
       "unplacedBricks": 1,
       "inventoryMismatches": 0,
@@ -67,16 +79,45 @@
       "firstStepNeedingMissing": 51,
       "firstStepNeedingMissingColor": 18
     },
+    "exportFrames": {
+      "pins": "loaded",
+      "pinnedInExport": 8,
+      "agree": 6,
+      "equivalentBySymmetry": 1,
+      "disagree": 1,
+      "unusablePins": 0,
+      "catalogRecordsMatching": 8,
+      "uncheckedDesigns": 163,
+      "corrections": ["77844 (pin)", "80015 (review)"],
+      "staleCorrections": 0
+    },
     "playback": {
-      "steps": 359,
-      "validSteps": 1,
-      "invalidSteps": 43,
-      "blockedSteps": 315,
-      "validThrough": 1,
-      "firstInvalid": 2,
-      "firstBlocked": 45,
-      "stepsAddingIssues": 13,
-      "partsThroughValid": 2
+      "asExported": {
+        "validThrough": 1,
+        "firstNonValid": "2 invalid",
+        "partsThroughValid": 2
+      },
+      "corrections": ["77844 (pin)", "80015 (review)"],
+      "corrected": {
+        "stepsReplayed": 359,
+        "validSteps": 28,
+        "invalidSteps": 16,
+        "blockedSteps": 315,
+        "validThrough": 28,
+        "firstNonValid": "29 invalid",
+        "firstInvalid": 29,
+        "firstBlocked": 45,
+        "stepsAddingIssues": 8,
+        "partsThroughValid": 163
+      },
+      "frames": {
+        "registry": "loaded",
+        "measured": 610,
+        "declared": 17,
+        "inferred": 2,
+        "fallbackParametricRows": 35,
+        "fallbackDisagreements": 24
+      }
     }
   }
 }

@@ -4,6 +4,11 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
+// esquery regular expressions for the answer-key guard below, written raw: [\\\/]
+// is a backslash or a slash, and a path matches only as whole segments.
+const HARNESS_PATH = String.raw`/(^|[\\\/])tools[\\\/]booklet([\\\/]|$)/`;
+const OFFICIAL_MODEL_PATH = String.raw`/(^|[\\\/])official-model([\\\/]|$)/`;
+
 export default tseslint.config(
   {
     ignores: [
@@ -66,15 +71,28 @@ export default tseslint.config(
   {
     // The answer-key guard. LEGO's official model of the set scores the booklet
     // harness (tools/booklet); a product that could read it could no longer be
-    // scored by it. So product code may not import anything under tools/booklet
-    // (whose answer-key/ module is the only loader of the official model) nor
-    // name output/official-model in any string. Tests, scripts, e2e and tools
-    // stay free to. tools/booklet/answer-key-guard.test.ts keeps this rule
-    // honest by linting violations through this very config.
-    files: ["packages/*/src/**/*.{ts,tsx,js,mjs,cjs}", "apps/*/src/**/*.{ts,tsx,js,mjs,cjs}"],
+    // scored by it. So product code may not load anything under tools/booklet
+    // (the harness, whose answer-key/ module is how it reads the official
+    // model) nor name output/official-model as a path. Tests, e2e, tools and
+    // scripts stay free to: 17 files under scripts/ read output/official-model
+    // today, legitimately. tools/booklet/answer-key-guard.test.ts keeps this
+    // rule honest by linting each construct below through this very config.
+    //
+    // Product code is every source root that ships: packages/*/src, apps/*/src,
+    // and the config roots beside them (apps/web/vite.config.ts), in every
+    // script extension. A path matches only as whole segments, so
+    // ./tools/booklet-panel and "the official-model render" are not caught.
+    // Bound: a path assembled at run time ("official-" + "model", a variable
+    // passed to import()) is invisible to a linter.
+    files: [
+      "packages/*/src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}",
+      "apps/*/src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}",
+      "packages/*/*.{ts,mts,cts,js,mjs,cjs}",
+      "apps/*/*.{ts,mts,cts,js,mjs,cjs}",
+    ],
     ignores: [
-      "**/*.test.{ts,tsx,js,mjs,cjs}",
-      "**/*.spec.{ts,tsx,js,mjs,cjs}",
+      "**/*.test.{ts,tsx,mts,cts,js,jsx,mjs,cjs}",
+      "**/*.spec.{ts,tsx,mts,cts,js,jsx,mjs,cjs}",
       // Test-only data: its logicalLocator strings name the official-model files
       // as provenance, and nothing but set-6651557-coverage-ledger.test.ts and
       // set-6651557-ldraw-source-audit.test.ts imports it (the catalog index
@@ -86,22 +104,29 @@ export default tseslint.config(
       "no-restricted-syntax": [
         "error",
         ...[
-          "ImportDeclaration",
-          "ImportExpression",
-          "ExportAllDeclaration",
-          "ExportNamedDeclaration",
-        ].map((node) => ({
-          selector: `${node}[source.value=/tools[\\/]booklet/]`,
+          // Module syntax: static imports, re-exports, `import x = require()`, `typeof import()`.
+          `ImportDeclaration[source.value=${HARNESS_PATH}]`,
+          `ExportAllDeclaration[source.value=${HARNESS_PATH}]`,
+          `ExportNamedDeclaration[source.value=${HARNESS_PATH}]`,
+          `TSExternalModuleReference > Literal[value=${HARNESS_PATH}]`,
+          `TSImportType Literal[value=${HARNESS_PATH}]`,
+          // Loads and path uses: import() with a string, a template or new URL(...),
+          // require(), createRequire(...)(...), and any call or constructor given the path.
+          `:matches(ImportExpression, CallExpression, NewExpression) Literal[value=${HARNESS_PATH}]`,
+          `:matches(ImportExpression, CallExpression, NewExpression) TemplateElement[value.raw=${HARNESS_PATH}]`,
+        ].map((selector) => ({
+          selector,
           message:
-            "Product code must not import the booklet harness or its official-model answer key (tools/booklet); move shared logic into a package and import it from there.",
+            "Product code must not load the booklet harness or its official-model answer key (tools/booklet); move shared logic into a package and import it from there.",
         })),
-        ...["Literal[value=/official-model/]", "TemplateElement[value.raw=/official-model/]"].map(
-          (selector) => ({
-            selector,
-            message:
-              "Product code must not read output/official-model: LEGO's official model is the harness's answer key, never a product input. Take the data from the booklet or the catalog instead.",
-          }),
-        ),
+        ...[
+          `Literal[value=${OFFICIAL_MODEL_PATH}]`,
+          `TemplateElement[value.raw=${OFFICIAL_MODEL_PATH}]`,
+        ].map((selector) => ({
+          selector,
+          message:
+            "Product code must not read output/official-model: LEGO's official model is the harness's answer key, never a product input. Take the data from the booklet or the catalog instead.",
+        })),
       ],
     },
   },

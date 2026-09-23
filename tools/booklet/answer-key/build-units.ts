@@ -1,4 +1,5 @@
 import type { LxfmlModel, LxfmlMultiBuild, LxfmlStep } from "./lxfml.ts";
+import { AnswerKeyFormatError } from "./xml-tree.ts";
 
 /**
  * The official build sequence flattened into physical build order.
@@ -12,6 +13,15 @@ import type { LxfmlModel, LxfmlMultiBuild, LxfmlStep } from "./lxfml.ts";
  *
  * A printed step is a run of consecutive units; the aligner decides which.
  */
+/**
+ * How long a chain of copies may be: a MultiBuild copy of a copy of a copy.
+ * The official file nests them at most a few deep; a chain past this is
+ * refused rather than walked, so a hostile file cannot make the walk
+ * arbitrarily long, and the walk keeps its pending work on an explicit stack
+ * so no chain reaches the call stack.
+ */
+export const BUILD_UNIT_LIMITS = Object.freeze({ maxCopyDepth: 64 });
+
 export interface BuildUnit {
   readonly index: number;
   readonly stepName: string;
@@ -88,26 +98,42 @@ export function flattenBuildSequence(model: LxfmlModel): BuildSequence {
   const steps = model.instruction?.steps ?? [];
   collectCopies(steps, copies);
 
-  const place = (ref: string, placement: RawPlacement, into: string[]): number => {
-    if (!known.has(ref)) {
-      problems.push(
-        `Step unit ${placement.unit} adds brick ${ref}, which is not in the Bricks inventory.`,
-      );
-      return 0;
-    }
-    if (raw.has(ref)) {
-      problems.push(
-        `Brick ${ref} is added twice (units ${raw.get(ref)!.unit} and ${placement.unit}); a brick is placed once.`,
-      );
-      return 0;
-    }
-    raw.set(ref, placement);
-    into.push(ref);
+  /** Places `first` and, depth first, every copy made of it; returns how many copies were placed. */
+  const place = (first: string, placement: RawPlacement, into: string[]): number => {
+    const pending = [{ ref: first, placement, depth: 0 }];
     let added = 0;
-    for (const edge of copies.get(ref) ?? []) {
-      added +=
-        1 +
-        place(edge.actual, { ...placement, copy: { of: ref, multiBuild: edge.multiBuild } }, into);
+    while (pending.length > 0) {
+      const { ref, placement: at, depth } = pending.pop()!;
+      if (!known.has(ref)) {
+        problems.push(
+          `Step unit ${at.unit} adds brick ${ref}, which is not in the Bricks inventory.`,
+        );
+        continue;
+      }
+      if (raw.has(ref)) {
+        problems.push(
+          `Brick ${ref} is added twice (units ${raw.get(ref)!.unit} and ${at.unit}); a brick is placed once.`,
+        );
+        continue;
+      }
+      if (depth > BUILD_UNIT_LIMITS.maxCopyDepth) {
+        throw new AnswerKeyFormatError(
+          `LXFML MultiBuild copies chain more than ${BUILD_UNIT_LIMITS.maxCopyDepth} deep at brick ${ref} (a copy of a copy, starting from brick ${first}); an answer key with a chain that long is refused.`,
+        );
+      }
+      raw.set(ref, at);
+      into.push(ref);
+      if (depth > 0) added += 1;
+      const edges = copies.get(ref) ?? [];
+      // Reversed onto the stack so copies come off in file order, as the booklet counts them.
+      for (let index = edges.length - 1; index >= 0; index -= 1) {
+        const edge = edges[index]!;
+        pending.push({
+          ref: edge.actual,
+          placement: { ...at, copy: { of: ref, multiBuild: edge.multiBuild } },
+          depth: depth + 1,
+        });
+      }
     }
     return added;
   };
@@ -151,27 +177,37 @@ export function flattenBuildSequence(model: LxfmlModel): BuildSequence {
   }
 
   const resolved = new Map<string, readonly string[]>();
+  /** A copy's segments are its original's, with the master sub-build renamed per copy. */
   const segmentsOf = (ref: string): readonly string[] => {
-    const cached = resolved.get(ref);
-    if (cached) return cached;
-    const placement = raw.get(ref)!;
-    let segments = placement.chain.map(({ segment }) => segment);
-    if (placement.copy) {
-      const base = [...segmentsOf(placement.copy.of)];
-      const master = placement.chain.findIndex(
-        ({ segment }) => segment === placement.copy!.multiBuild.masterSubBuildRef,
-      );
-      if (master < 0) {
-        problems.push(
-          `MultiBuild ${JSON.stringify(placement.copy.multiBuild.name)} names master sub-build ${placement.copy.multiBuild.masterSubBuildRef}, which does not enclose brick ${placement.copy.of}.`,
-        );
-      } else {
-        base[master] = `${base[master]}#m${placement.copy.multiBuild.ordinal}`;
-      }
-      segments = base;
+    // Walk back to the first brick whose segments are known or need no original,
+    // then resolve forward: iterative, and no longer than place() allowed the chain to be.
+    const chain: string[] = [];
+    let cursor: string | null = ref;
+    while (cursor !== null && !resolved.has(cursor)) {
+      chain.push(cursor);
+      cursor = raw.get(cursor)!.copy?.of ?? null;
     }
-    resolved.set(ref, segments);
-    return segments;
+    for (let index = chain.length - 1; index >= 0; index -= 1) {
+      const current = chain[index]!;
+      const placement = raw.get(current)!;
+      let segments = placement.chain.map(({ segment }) => segment);
+      if (placement.copy) {
+        const base = [...resolved.get(placement.copy.of)!];
+        const master = placement.chain.findIndex(
+          ({ segment }) => segment === placement.copy!.multiBuild.masterSubBuildRef,
+        );
+        if (master < 0) {
+          problems.push(
+            `MultiBuild ${JSON.stringify(placement.copy.multiBuild.name)} names master sub-build ${placement.copy.multiBuild.masterSubBuildRef}, which does not enclose brick ${placement.copy.of}.`,
+          );
+        } else {
+          base[master] = `${base[master]}#m${placement.copy.multiBuild.ordinal}`;
+        }
+        segments = base;
+      }
+      resolved.set(current, segments);
+    }
+    return resolved.get(ref)!;
   };
 
   const placements = new Map<string, BrickPlacement>();

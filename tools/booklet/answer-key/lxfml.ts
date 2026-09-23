@@ -20,6 +20,8 @@ export const LXFML_LIMITS = Object.freeze({
   maxBytes: 32 * 1024 * 1024,
   maxElements: 400_000,
   maxDepth: 96,
+  /** Attributes per element; LXFML elements carry fewer than ten. */
+  maxAttributes: 64,
   maxBricks: 20_000,
   maxPartsPerBrick: 64,
 });

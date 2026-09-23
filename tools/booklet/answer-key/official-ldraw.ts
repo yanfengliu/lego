@@ -8,10 +8,17 @@ import { lxfmlPoseInLdrawConvention, type LxfmlBrick } from "./lxfml.ts";
  * in that file's frame, which is the frame the catalog's LDraw aliases are
  * declared in. The two files are paired row by row — single-part bricks with
  * part rows, multi-part bricks with sub-model rows, each in file order — and
- * the pairing is then proved rather than assumed: the transform taking a
+ * the pairing is then checked rather than assumed: the transform taking a
  * brick's LXFML pose to its LDraw pose depends only on the design, so every
  * instance of a design must agree on it. A shifted pairing breaks that for
  * every row after the shift.
+ *
+ * Bound: the check needs two instances to compare. A design placed once, and
+ * a multi-part brick (paired with a sub-model row by order alone), has nothing
+ * to agree with, so its pairing is reported as unverified, never as checked.
+ * The check also proves only that instances agree: an export that uses one
+ * wrong frame for every instance of a design passes it (export-frames.ts
+ * compares the frames themselves against the pinned ones).
  */
 export const OFFICIAL_LDRAW_LIMITS = Object.freeze({
   maxBytes: 8 * 1024 * 1024,
@@ -37,6 +44,14 @@ export interface OfficialLdrawModel {
   readonly ignoredLines: number;
 }
 
+/**
+ * What the pairing check says about one brick's row: `verified` when every
+ * instance of its design agrees on the LXFML-to-LDraw frame, `contradicted`
+ * when they do not, and unverified (`single-instance`, `composite`) when
+ * there is nothing to compare it with.
+ */
+export type PairingCheck = "verified" | "contradicted" | "single-instance" | "composite";
+
 export interface OfficialLdrawBrick {
   readonly uuid: string;
   readonly filename: string;
@@ -44,16 +59,46 @@ export interface OfficialLdrawBrick {
   readonly composite: boolean;
   readonly matrix: readonly number[];
   readonly positionLdu: readonly number[];
+  readonly pairing: PairingCheck;
+}
+
+/**
+ * One design's LXFML-to-LDraw frame as the export applied it, in the
+ * convention of scripts/builder_ldraw_frame.py: an LXFML-local point p (in
+ * LDU, LDraw axes) lands at turn * p + originLdu in the LDraw file's frame, so
+ * `originLdu` is where the LXFML origin sits in LDraw-local coordinates.
+ */
+export interface ExportDesignFrame {
+  readonly designRevision: string;
+  readonly designId: string;
+  readonly filename: string;
+  readonly instances: number;
+  /** Row-major 3x3 with float noise rounded off; null when it is not a signed permutation. */
+  readonly turn: readonly number[] | null;
+  readonly originLdu: readonly number[];
+  readonly pairing: PairingCheck;
 }
 
 export interface OfficialLdrawPairing {
   readonly byBrick: ReadonlyMap<string, OfficialLdrawBrick>;
-  /** Designs whose instances disagree on the LXFML-to-LDraw frame: a broken pairing. */
+  /** Single-part designs by LXFML design revision, with the frame their first instance shows. */
+  readonly designFrames: ReadonlyMap<string, ExportDesignFrame>;
+  /** Instances that disagree with their design's first instance: a broken pairing. */
   readonly invarianceFailures: readonly string[];
   /** LXFML materials that map to more than one LDraw colour. */
   readonly colorConflicts: readonly string[];
   /** Material id to LDraw colour code, as the export applied it. */
   readonly materialColors: ReadonlyMap<string, number>;
+  readonly counts: {
+    /** Designs with two or more single-part instances, all agreeing. */
+    readonly verifiedDesigns: number;
+    readonly verifiedBricks: number;
+    /** Designs placed once: their pairing is unverified. */
+    readonly singleInstanceDesigns: number;
+    /** Multi-part bricks: paired with sub-model rows by order alone, unverified. */
+    readonly compositeBricks: number;
+    readonly contradictedDesigns: number;
+  };
 }
 
 const NUMBER = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/u;
@@ -168,10 +213,43 @@ function localFrame(
   };
 }
 
+/** A value within `tolerance` of a whole number is that number. */
+function whole(value: number, tolerance: number): number {
+  const rounded = Math.round(value);
+  return Math.abs(value - rounded) <= tolerance ? rounded + 0 : value;
+}
+
+/** The frame in the pins' convention: turn = transpose(rotation), origin = -turn * translation. */
+function exportFrame(frame: { rotation: number[]; translation: number[] }): {
+  turn: number[] | null;
+  originLdu: number[];
+} {
+  const turn = transpose(frame.rotation);
+  const exact = turn.map((value) =>
+    whole(value, OFFICIAL_LDRAW_LIMITS.invarianceRotationTolerance),
+  );
+  return {
+    turn: exact.every(Number.isInteger) ? exact : null,
+    originLdu: rotate(turn, frame.translation).map((value) =>
+      whole(-value, OFFICIAL_LDRAW_LIMITS.invarianceTranslationToleranceLdu),
+    ),
+  };
+}
+
+interface FirstInstance {
+  readonly row: number;
+  readonly filename: string;
+  readonly rotation: number[];
+  readonly translation: number[];
+  readonly frame: { turn: number[] | null; originLdu: number[] };
+  instances: number;
+}
+
 /**
- * Pairs LXFML bricks with the export's rows and proves the pairing. Refuses
+ * Pairs LXFML bricks with the export's rows and checks the pairing. Refuses
  * (throws) only when the row counts cannot pair at all; a pairing that pairs
- * but disagrees is reported through `invarianceFailures`.
+ * but disagrees is reported through `invarianceFailures`, and every brick
+ * says which check its row passed (`pairing`).
  */
 export function pairOfficialLdraw(
   bricks: readonly LxfmlBrick[],
@@ -188,35 +266,25 @@ export function pairOfficialLdraw(
       `${label} main file ${model.mainFile} has ${partRows.length} part rows and ${submodelRows.length} sub-model rows, but the LXFML has ${single.length} single-part and ${composite.length} multi-part bricks; re-export the LDraw file from this LXFML.`,
     );
   }
-  const byBrick = new Map<string, OfficialLdrawBrick>();
-  const pair = (brick: LxfmlBrick, row: LdrawRow, isComposite: boolean) =>
-    byBrick.set(
-      brick.uuid,
-      Object.freeze({
-        uuid: brick.uuid,
-        filename: row.filename,
-        colorCode: row.colorCode,
-        composite: isComposite,
-        matrix: row.matrix,
-        positionLdu: row.positionLdu,
-      }),
-    );
-  single.forEach((brick, index) => pair(brick, partRows[index]!, false));
-  composite.forEach((brick, index) => pair(brick, submodelRows[index]!, true));
 
   const invarianceFailures: string[] = [];
-  const reference = new Map<
-    string,
-    { row: number; rotation: number[]; translation: number[]; filename: string }
-  >();
+  const contradicted = new Set<string>();
+  const firsts = new Map<string, FirstInstance>();
   single.forEach((brick, index) => {
     const row = partRows[index]!;
     const frame = localFrame(brick, row);
-    const first = reference.get(brick.designRevision);
+    const first = firsts.get(brick.designRevision);
     if (!first) {
-      reference.set(brick.designRevision, { row: brick.row, ...frame, filename: row.filename });
+      firsts.set(brick.designRevision, {
+        row: brick.row,
+        filename: row.filename,
+        ...frame,
+        frame: exportFrame(frame),
+        instances: 1,
+      });
       return;
     }
+    first.instances += 1;
     const rotationError = Math.max(
       ...frame.rotation.map((value, i) => Math.abs(value - first.rotation[i]!)),
     );
@@ -228,11 +296,35 @@ export function pairOfficialLdraw(
       rotationError > OFFICIAL_LDRAW_LIMITS.invarianceRotationTolerance ||
       translationError > OFFICIAL_LDRAW_LIMITS.invarianceTranslationToleranceLdu
     ) {
+      contradicted.add(brick.designRevision);
       invarianceFailures.push(
         `LXFML brick row ${brick.row} (${brick.designRevision}) pairs with ${label} line ${row.line} (${row.filename}), but its LXFML-to-LDraw frame differs from row ${first.row} (${first.filename}) by ${rotationError.toExponential(2)} in rotation and ${translationError.toFixed(3)} LDU.`,
       );
     }
   });
+  const checkOf = (design: string): PairingCheck =>
+    contradicted.has(design)
+      ? "contradicted"
+      : firsts.get(design)!.instances > 1
+        ? "verified"
+        : "single-instance";
+
+  const byBrick = new Map<string, OfficialLdrawBrick>();
+  const pair = (brick: LxfmlBrick, row: LdrawRow, pairing: PairingCheck) =>
+    byBrick.set(
+      brick.uuid,
+      Object.freeze({
+        uuid: brick.uuid,
+        filename: row.filename,
+        colorCode: row.colorCode,
+        composite: pairing === "composite",
+        matrix: row.matrix,
+        positionLdu: row.positionLdu,
+        pairing,
+      }),
+    );
+  single.forEach((brick, index) => pair(brick, partRows[index]!, checkOf(brick.designRevision)));
+  composite.forEach((brick, index) => pair(brick, submodelRows[index]!, "composite"));
 
   const materialColors = new Map<string, number>();
   const colorConflicts: string[] = [];
@@ -247,10 +339,37 @@ export function pairOfficialLdraw(
       );
     }
   }
+  const designFrames = new Map<string, ExportDesignFrame>();
+  for (const brick of single) {
+    if (designFrames.has(brick.designRevision)) continue;
+    const first = firsts.get(brick.designRevision)!;
+    designFrames.set(
+      brick.designRevision,
+      Object.freeze({
+        designRevision: brick.designRevision,
+        designId: brick.designId,
+        filename: first.filename,
+        instances: first.instances,
+        turn: first.frame.turn,
+        originLdu: first.frame.originLdu,
+        pairing: checkOf(brick.designRevision),
+      }),
+    );
+  }
+  const designs = [...designFrames.values()];
+  const verified = designs.filter(({ pairing }) => pairing === "verified");
   return Object.freeze({
     byBrick,
+    designFrames,
     invarianceFailures: Object.freeze(invarianceFailures),
     colorConflicts: Object.freeze(colorConflicts),
     materialColors,
+    counts: Object.freeze({
+      verifiedDesigns: verified.length,
+      verifiedBricks: verified.reduce((total, { instances }) => total + instances, 0),
+      singleInstanceDesigns: designs.filter(({ pairing }) => pairing === "single-instance").length,
+      compositeBricks: composite.length,
+      contradictedDesigns: contradicted.size,
+    }),
   });
 }

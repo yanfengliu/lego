@@ -45,7 +45,29 @@ describe("step alignment", () => {
     ]);
     expect(repaired.steps.every(stepMatches)).toBe(true);
     expect(repaired.windows).toHaveLength(1);
-    expect(repaired.windows[0]).toMatchObject({ solved: true, moved: 1 });
+    expect(repaired.windows[0]).toMatchObject({ solved: true, outcome: "solved", moved: 1 });
+  });
+
+  it("reports a window whose search hit the node budget as unsolved and leaves its steps alone", () => {
+    const brick = (uuid: string, element: string, order: number) => ({ uuid, element, order });
+    const steps = [
+      { callouts: [2], bricks: [brick("a", "x", 0), brick("b", "x", 1)] },
+      { callouts: [1], bricks: [brick("c", "y", 2), brick("d", "z", 3)] },
+      { callouts: [1, 1], bricks: [brick("e", "w", 4)] },
+    ];
+    // Budget 3 lets the search find a redistribution but not prove it moves the fewest bricks.
+    const repaired = repairAlignment(steps, { nodeBudget: 3 });
+    expect(repaired.windows[0]).toMatchObject({
+      solved: false,
+      outcome: "unsolved (budget)",
+      moved: 0,
+    });
+    expect(repaired.windows[0]!.reason).toMatch(/stopped at its budget of 3 nodes/u);
+    expect(repaired.steps.map(({ bricks }) => bricks.map(({ uuid }) => uuid).join(""))).toEqual([
+      "ab",
+      "cd",
+      "e",
+    ]);
   });
 
   it("checks per-element conservation between the printed inventory and the official bricks", () => {

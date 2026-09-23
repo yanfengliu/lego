@@ -60,9 +60,15 @@ export interface PlaybackBrick {
   /** Null when the catalog has no colour for the LDraw code. */
   readonly colorId: string | null;
   readonly pose: OfficialPose;
+  /** Where `pose` came from: the export's row, or a frame correction (pin or review). */
+  readonly poseSource?: PoseSource;
+  /** What the export-pairing check says about this brick's row. */
+  readonly pairing?: string;
   /** Sub-assembly the brick belongs to once `lastUnit` is built. */
   readonly assemblyAt: (lastUnit: number) => string;
 }
+
+export type PoseSource = "export" | "pin" | "review";
 
 export interface PlaybackStepInput {
   readonly step: number;
@@ -111,6 +117,16 @@ export interface PlacedPart {
   readonly ldrawColor: number;
   readonly transform: RigidTransform;
   readonly frameBasis: FrameBasis;
+  readonly poseSource: PoseSource;
+  readonly pairing: string | null;
+}
+
+/** One LDraw file's LDraw-to-catalog frame, as playback used it. */
+export interface FrameUse {
+  readonly ldrawFile: string;
+  readonly catalogPartId: string;
+  readonly basis: FrameBasis;
+  readonly parts: number;
 }
 
 export interface Playback {
@@ -118,6 +134,10 @@ export interface Playback {
   readonly worldShiftLdu: LduVector3 | null;
   /** How many placed parts used each LDraw-to-catalog frame basis. */
   readonly frameBases: Readonly<Record<FrameBasis, number>>;
+  /** Which frame each LDraw file used, so an inferred frame can be named. */
+  readonly frameFiles: readonly FrameUse[];
+  /** True when `stopAtFirstNonValid` ended the replay before the last step. */
+  readonly stoppedEarly: boolean;
   readonly steps: readonly PlaybackStep[];
   readonly placed: readonly PlacedPart[];
 }
@@ -208,10 +228,15 @@ function validateAssembly(
   return { issues, plateHeld };
 }
 
-/** Replays `steps` in order. Pure apart from the kernel and editor code it calls. */
+/**
+ * Replays `steps` in order. Pure apart from the kernel and editor code it calls.
+ * `stopAtFirstNonValid` ends the replay after the first step that is not valid,
+ * for a caller that needs only how far it stays valid.
+ */
 export function playBack(
   steps: readonly PlaybackStepInput[],
   measured: MeasuredFrames | null = null,
+  options: { readonly stopAtFirstNonValid?: boolean } = {},
 ): Playback {
   let shift: LduVector3 | null = null;
   for (const brick of steps.flatMap(({ bricks }) => bricks)) {
@@ -339,6 +364,8 @@ export function playBack(
         ldrawColor: brick.ldrawColor,
         transform: pose.transform,
         frameBasis: pose.frameBasis,
+        poseSource: brick.poseSource ?? "export",
+        pairing: brick.pairing ?? null,
       });
     }
 
@@ -382,17 +409,32 @@ export function playBack(
       blocks,
       colorStandIns: [...standIns].sort((left, right) => left - right),
     });
+    if (options.stopAtFirstNonValid && results.at(-1)!.status !== "valid") break;
   }
   const frameBases: Record<FrameBasis, number> = {
     measured: 0,
     declared: 0,
     "inferred-top-of-body": 0,
   };
-  for (const part of placed) frameBases[part.frameBasis] += 1;
+  const files = new Map<string, FrameUse>();
+  for (const part of placed) {
+    frameBases[part.frameBasis] += 1;
+    const use = files.get(part.design);
+    files.set(part.design, {
+      ldrawFile: part.design,
+      catalogPartId: part.catalogPartId,
+      basis: part.frameBasis,
+      parts: (use?.parts ?? 0) + 1,
+    });
+  }
   return {
     version: PLAYBACK_STAGE_VERSION,
     worldShiftLdu: shift,
     frameBases,
+    frameFiles: [...files.values()].sort((left, right) =>
+      left.ldrawFile.localeCompare(right.ldrawFile),
+    ),
+    stoppedEarly: results.length < steps.length,
     steps: results,
     placed,
   };

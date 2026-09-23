@@ -12,12 +12,13 @@ import type { MeasuredFrames } from "./ldraw-frames.ts";
  * The official LDraw export writes each brick as a type-1 line in its LDraw
  * file's frame; the catalog part sits in the catalog frame. The map between
  * them is taken, in order of trust, from (1) a measured frame registry when
- * one is supplied and names this file, (2) the catalog's own declaration
- * (`assetToCatalogFrame` of a mesh-backed part, `ldrawFrame` orientation),
- * and (3) for a parametric part that declares nothing, the top-face
- * convention every mesh declaration follows: LDraw puts the origin on the
- * body's top face, the catalog at its centre, so translation [0, body top, 0].
- * Each placed part records which basis it used.
+ * one is supplied and names this file, (2) the catalog's own declaration of a
+ * mesh-backed part (`assetToCatalogFrame`, turn and offset), and (3) for a
+ * parametric part, the catalog's declared turn (`ldrawFrame`, or none) with
+ * the top-face offset every mesh declaration follows: LDraw puts the origin on
+ * the body's top face, the catalog at its centre, so translation
+ * [0, body top, 0] whatever the turn. Each placed part records which basis it
+ * used; `checkFallbackAgainstRegistry` measures (3) against the registry.
  *
  * The export carries float noise (-24.00000000000325), so a term is snapped
  * only within a stated tolerance of a value the document can represent; a
@@ -91,18 +92,22 @@ export function catalogFrameFor(
       basis: "measured",
     };
   }
+  return fallbackCatalogFrame(catalogPartId);
+}
+
+/** The frame without a registry row: the catalog's declaration, or its turn plus the top-face offset. */
+export function fallbackCatalogFrame(catalogPartId: string): CatalogFrame {
   const frame = ldrawToCatalogFrame(catalogPartId);
   const definition = getPartDefinition(catalogPartId);
-  const parametric =
-    definition !== undefined &&
-    definition.geometry.generatorId !== "builtin:preloaded-mesh-reference/1";
   if (
-    parametric &&
-    frame.orientation.id === "upright-yaw-0" &&
-    frame.translationLdu.every((value) => value === 0)
+    definition !== undefined &&
+    definition.geometry.generatorId !== "builtin:preloaded-mesh-reference/1"
   ) {
+    // The kernel gives a parametric part only a turn (its ldrawFrame declaration, or
+    // none) and a zero offset. The offset is still the top face: dropping it when a
+    // turn was declared put the 2 x 14 plate (91988, upright-yaw-90) 4 LDU off.
     return {
-      orientationId: "upright-yaw-0",
+      orientationId: frame.orientation.id,
       translationLdu: [0, definition.bodyBoundsLdu.min[1], 0],
       basis: "inferred-top-of-body",
     };

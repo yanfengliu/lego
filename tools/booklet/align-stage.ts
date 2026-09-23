@@ -11,10 +11,20 @@ import type { BookletRead } from "./read.ts";
  */
 export const ALIGN_STAGE_VERSION = "lego.booklet-align/1";
 
+/**
+ * How a matched step came to match: `run order` when the official sequence,
+ * cut into runs, reproduced its callout counts untouched; `repair` when the
+ * local repair chose its bricks so their counts equal its callouts — a fit by
+ * construction, not independent evidence.
+ */
+export type MatchBasis = "run order" | "repair";
+
 export interface AlignedPrintedStep {
   readonly step: number;
   readonly page: number;
   readonly matched: boolean;
+  /** Null for an unmatched step. */
+  readonly matchedBy: MatchBasis | null;
   /** True when the local repair changed this step's bricks. */
   readonly repaired: boolean;
   readonly expected: readonly number[];
@@ -36,8 +46,14 @@ export interface BagViolation {
 export interface AlignStage {
   readonly version: typeof ALIGN_STAGE_VERSION;
   readonly steps: readonly AlignedPrintedStep[];
+  /** Steps the run alignment matched before any repair. */
   readonly runMatchedSteps: number;
+  /** Steps whose callout counts equal their bricks' counts, however they got there. */
   readonly matchedSteps: number;
+  /** Matched steps whose bricks the repair left as the run alignment gave them. */
+  readonly matchedByRunOrder: number;
+  /** Matched steps whose bricks the repair chose to fit their callouts. */
+  readonly fittedByRepair: number;
   readonly mismatchedSteps: readonly number[];
   readonly windows: readonly (RepairWindow & {
     readonly firstStep: number;
@@ -139,11 +155,14 @@ export function runAlignStage(read: BookletRead, key: AnswerKey): AlignStage {
     for (const brick of bricks) counts.set(brick.element, (counts.get(brick.element) ?? 0) + 1);
     const before = repairInput[index]!.bricks.map(({ uuid }) => uuid).join(",");
     const after = bricks.map(({ uuid }) => uuid).join(",");
+    const matched = stepMatches(repaired.steps[index]!);
+    const changed = before !== after;
     return {
       step: aligned.step,
       page: aligned.page,
-      matched: stepMatches(repaired.steps[index]!),
-      repaired: before !== after,
+      matched,
+      matchedBy: matched ? (changed ? "repair" : "run order") : null,
+      repaired: changed,
       expected: descending(read.steps[index]!.callouts),
       actual: descending([...counts.values()]),
       bricks: bricks.map(({ uuid }) => uuid),
@@ -175,6 +194,8 @@ export function runAlignStage(read: BookletRead, key: AnswerKey): AlignStage {
     steps,
     runMatchedSteps: run.matchedSteps,
     matchedSteps: steps.filter(({ matched }) => matched).length,
+    matchedByRunOrder: steps.filter(({ matchedBy }) => matchedBy === "run order").length,
+    fittedByRepair: steps.filter(({ matchedBy }) => matchedBy === "repair").length,
     mismatchedSteps: steps.filter(({ matched }) => !matched).map(({ step }) => step),
     windows: repaired.windows.map((window) => ({
       ...window,

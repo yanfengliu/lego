@@ -24,7 +24,12 @@ export type { AssemblyLevel, BrickPlacement, BuildSequence, BuildUnit } from "./
 export { lxfmlPoseInLdrawConvention, parseLxfml } from "./lxfml.ts";
 export type { LxfmlBrick, LxfmlModel, LxfmlStep } from "./lxfml.ts";
 export { pairOfficialLdraw, parseOfficialLdraw } from "./official-ldraw.ts";
-export type { OfficialLdrawBrick, OfficialLdrawPairing } from "./official-ldraw.ts";
+export type {
+  ExportDesignFrame,
+  OfficialLdrawBrick,
+  OfficialLdrawPairing,
+  PairingCheck,
+} from "./official-ldraw.ts";
 export { AnswerKeyFormatError } from "./xml-tree.ts";
 
 /**
@@ -43,13 +48,29 @@ export interface SourceFile {
   readonly sha256: string;
 }
 
+/**
+ * The official LDraw export beside the LXFML:
+ * - `paired`: its rows pair with the bricks and no two instances of a design
+ *   disagree (designs placed once stay unverified; see `pairing.counts`);
+ * - `contradicted`: the rows pair by count but instances of a design disagree
+ *   on their frame, or one material exports as two colours: a shifted or
+ *   foreign export, which must not be played back;
+ * - `malformed`: present but not readable as an export of this LXFML;
+ * - `absent`: no file.
+ */
 export type LdrawState =
   | {
       readonly status: "paired";
       readonly source: SourceFile;
       readonly pairing: OfficialLdrawPairing;
     }
-  | { readonly status: "absent" | "unpaired"; readonly reason: string };
+  | {
+      readonly status: "contradicted";
+      readonly source: SourceFile;
+      readonly pairing: OfficialLdrawPairing;
+    }
+  | { readonly status: "absent"; readonly reason: string }
+  | { readonly status: "malformed"; readonly reason: string };
 
 export interface AnswerKey {
   readonly source: SourceFile;
@@ -138,21 +159,24 @@ export function loadAnswerKey(paths: {
       reason: `input absent: no official LDraw export at ${paths.ldrawPath ?? "(no path)"}; set BOOKLET_OFFICIAL_LDRAW to its path`,
     };
   } else {
-    const file = readBounded(
-      paths.ldrawPath,
-      OFFICIAL_LDRAW_LIMITS.maxBytes,
-      "Official LDraw export",
-    );
     try {
+      const file = readBounded(
+        paths.ldrawPath,
+        OFFICIAL_LDRAW_LIMITS.maxBytes,
+        "Official LDraw export",
+      );
       const pairing = pairOfficialLdraw(
         model.bricks,
         parseOfficialLdraw(file.text, `LDraw ${paths.ldrawPath}`),
         `LDraw ${paths.ldrawPath}`,
       );
-      ldraw = { status: "paired", source: file.source, pairing };
+      const broken = pairing.invarianceFailures.length + pairing.colorConflicts.length > 0;
+      ldraw = broken
+        ? { status: "contradicted", source: file.source, pairing }
+        : { status: "paired", source: file.source, pairing };
     } catch (error) {
       if (!(error instanceof AnswerKeyFormatError)) throw error;
-      ldraw = { status: "unpaired", reason: error.message };
+      ldraw = { status: "malformed", reason: error.message };
     }
   }
   return {

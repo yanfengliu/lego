@@ -8,8 +8,13 @@ import { PROPER_ORIENTATIONS, type LduVector3 } from "@lego-studio/catalog";
  * digest sha256:bcf97021…). The catalog declares these frames only for
  * mesh-backed parts; for parametric parts the registry holds the measured
  * turn and offset (a 2x4 plate is upright-yaw-90 with [0,-4,0]) that catalog
- * truth does not yet carry. Optional: without it, playback falls back to the
- * catalog's declarations and the top-face convention, and says so.
+ * truth does not yet carry.
+ *
+ * The registry is an ignored file under output/, so a clean clone has none.
+ * Playback then falls back to the catalog's declarations and the top-face
+ * convention, and the fallback is wrong for most parametric parts (the
+ * registry check in frame-checks.ts counts how many), so the harness reports
+ * the registry's absence loudly and says which frames were inferred.
  */
 export const DEFAULT_MEASURED_FRAMES_PATH =
   "output/real-build/history/prefix50-ldraw-catalog-frames-reviewed-move-bcf9702150b73cab1bd70d7ecd0bf33b3b3917522ce4f0ca892be56424b861a1.json";
@@ -97,19 +102,34 @@ export function parseMeasuredFrames(text: string, label: string): MeasuredFrames
   return result;
 }
 
-/** Reads the registry at `path`, or returns null when there is no file there. */
-export function loadMeasuredFrames(path: string): MeasuredFrames | null {
-  let size: number;
+export type FrameRegistry =
+  | { readonly status: "loaded"; readonly path: string; readonly frames: MeasuredFrames }
+  | { readonly status: "absent"; readonly path: string };
+
+/**
+ * Reads the registry at `path`: `absent` when nothing is there, and a
+ * MeasuredFramesError when something is there that is not a registry.
+ */
+export function loadMeasuredFrames(path: string): FrameRegistry {
+  let stat;
   try {
-    if (!statSync(path).isFile()) return null;
-    size = statSync(path).size;
+    stat = statSync(path);
   } catch {
-    return null;
+    return { status: "absent", path };
   }
-  if (size > MEASURED_FRAME_LIMITS.maxBytes) {
+  if (!stat.isFile()) {
     throw new MeasuredFramesError(
-      `Frame registry ${path} is ${size} bytes, over the ${MEASURED_FRAME_LIMITS.maxBytes}-byte limit.`,
+      `Frame registry ${path} is not a file; point BOOKLET_LDRAW_FRAMES at the registry JSON or unset it.`,
     );
   }
-  return parseMeasuredFrames(readFileSync(path, "utf8"), `Frame registry ${path}`);
+  if (stat.size > MEASURED_FRAME_LIMITS.maxBytes) {
+    throw new MeasuredFramesError(
+      `Frame registry ${path} is ${stat.size} bytes, over the ${MEASURED_FRAME_LIMITS.maxBytes}-byte limit; point BOOKLET_LDRAW_FRAMES at the registry JSON.`,
+    );
+  }
+  return {
+    status: "loaded",
+    path,
+    frames: parseMeasuredFrames(readFileSync(path, "utf8"), `Frame registry ${path}`),
+  };
 }

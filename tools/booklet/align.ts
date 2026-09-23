@@ -7,9 +7,15 @@
  * the first two of a model merged. The aligner finds the run for every step
  * by dynamic programming, scoring a step as matched only when the multiset of
  * its callout quantities equals the multiset of per-element counts of the
- * bricks in its run. The text layer names no element per callout, so a count
- * multiset is the strongest check it allows; the per-element inventory check
- * below closes the gap globally.
+ * bricks in its run.
+ *
+ * What that checks, and what it does not: the text layer names no element per
+ * callout, so a match says only that the counts agree — a step drawing "2x"
+ * red and "1x" blue matches a run holding two blue and one red. Nothing here
+ * checks which elements a step adds. The per-element inventory check below
+ * compares the printed inventory with the official model's per-element totals
+ * for the whole set; it does not see how bricks are split into steps, so it
+ * cannot catch two steps that trade elements with equal counts either.
  *
  * Mismatches are not forced to fit: the program minimises the number of
  * unmatched steps, then the pieces they disagree by, and reports each one.

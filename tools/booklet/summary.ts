@@ -1,33 +1,42 @@
 import type { AnswerKey, AnswerKeyLoad } from "./answer-key/index.ts";
 import type { AlignStage } from "./align-stage.ts";
 import type { CatalogStage } from "./catalog-coverage.ts";
-import type { Playback } from "./playback.ts";
+import type { ExportFrameCheck } from "./export-frames.ts";
+import type { PlaybackStage } from "./playback-stage.ts";
 import type { BookletRead } from "./read.ts";
+import {
+  exportFramesHeadline,
+  exportFramesLines,
+  keyLine,
+  pairingHeadline,
+  playbackHeadline,
+  playbackLines,
+} from "./summary-playback.ts";
 
 /**
  * The headline counts (committed as status/booklet-baseline.json) and the
  * console summary, at most 40 lines. Only counts leave this module for Git:
  * no booklet text, no official-model data.
+ *
+ * A stage either ran, was skipped because an input is absent, or failed
+ * because an input is present but cannot be used (malformed, oversized, or an
+ * official export that contradicts itself). A failed stage fails the run.
  */
 export type Stage<T> =
   | { readonly status: "ran"; readonly ms: number; readonly value: T }
-  | { readonly status: "skipped"; readonly reason: string };
+  | { readonly status: "skipped"; readonly reason: string }
+  | { readonly status: "failed"; readonly reason: string };
 
 /** The repository's older manifest-v6 source count (building-system.md). */
 export const OLDER_SOURCE_COUNT = Object.freeze({ callouts: 881, pieces: 1_512 });
-/** The committed selected-path diagnostic's frontier (building-system.md, 2026-08-28). */
-export const COMMITTED_FRONTIER = Object.freeze({
-  validThrough: 28,
-  blockedAt: 29,
-  partsThrough: 163,
-});
 export const SUMMARY_MAX_LINES = 40;
 
 interface Stages {
   readonly read: Stage<BookletRead>;
   readonly align: Stage<AlignStage>;
   readonly catalog: Stage<CatalogStage>;
-  readonly playback: Stage<Playback>;
+  readonly exportFrames: Stage<ExportFrameCheck>;
+  readonly playback: Stage<PlaybackStage>;
   readonly key: AnswerKey | null;
 }
 
@@ -44,28 +53,13 @@ function bagPanels(read: BookletRead) {
     .map(({ page, quantities, pieces }) => ({ page, labels: quantities.length, pieces }));
 }
 
-function playbackCounts(playback: Playback) {
-  const firstNot = playback.steps.find(({ status }) => status !== "valid");
-  const firstInvalid = playback.steps.find(({ status }) => status === "invalid");
-  const firstBlocked = playback.steps.find(({ status }) => status === "catalog-blocked");
-  return {
-    steps: playback.steps.length,
-    validSteps: playback.steps.filter(({ status }) => status === "valid").length,
-    invalidSteps: playback.steps.filter(({ status }) => status === "invalid").length,
-    blockedSteps: playback.steps.filter(({ status }) => status === "catalog-blocked").length,
-    validThrough: firstNot ? firstNot.step - 1 : (playback.steps.at(-1)?.step ?? 0),
-    firstInvalid: firstInvalid?.step ?? null,
-    firstBlocked: firstBlocked?.step ?? null,
-    stepsAddingIssues: playback.steps.filter(
-      ({ status, newIssues }) => status === "invalid" && newIssues > 0,
-    ).length,
-    partsThroughValid: firstNot
-      ? (playback.steps.find(({ step }) => step === firstNot.step - 1)?.placedParts ?? 0)
-      : playback.placed.length,
-  };
+/** A first step that needs something: the step, "none", or "unknown" without an aligned booklet. */
+function firstStep(align: AlignStage | null, found: { step: number } | null): number | string {
+  if (!align) return "unknown";
+  return found?.step ?? "none";
 }
 
-export function headlineOf({ read, align, catalog, playback, key }: Stages) {
+export function headlineOf({ read, align, catalog, exportFrames, playback, key }: Stages) {
   const r = read.status === "ran" ? read.value : null;
   const a = align.status === "ran" ? align.value : null;
   const c = catalog.status === "ran" ? catalog.value : null;
@@ -88,14 +82,17 @@ export function headlineOf({ read, align, catalog, playback, key }: Stages) {
       lxfmlSteps: key.sequence.units.length,
       stepsAddingBricks: key.sequence.units.filter(({ brickRefs }) => brickRefs.length > 0).length,
       unplacedBricks: key.sequence.unplaced.length,
-      ldraw: key.ldraw.status,
+      ldraw: pairingHeadline(key),
     },
     align: a && {
-      stepsAligned: a.matchedSteps,
       steps: a.steps.length,
-      runOrderMatched: a.runMatchedSteps,
+      matchedByRunOrder: a.matchedByRunOrder,
+      fittedByRepair: a.fittedByRepair,
+      unmatched: a.mismatchedSteps.length,
+      runOrderMatchedBeforeRepair: a.runMatchedSteps,
       repairWindows: a.windows.length,
-      unsolvedWindows: a.windows.filter(({ solved }) => !solved).length,
+      solvedWindows: a.windows.filter(({ solved }) => solved).length,
+      unsolvedWindows: a.windows.filter(({ solved }) => !solved).map(({ outcome }) => outcome),
       bricksAssigned: sum(a.steps.map(({ bricks }) => bricks.length)),
       unplacedBricks: a.unplaced.length,
       inventoryMismatches: a.inventory.mismatches.length + a.inventory.missingFromInventory.length,
@@ -103,10 +100,11 @@ export function headlineOf({ read, align, catalog, playback, key }: Stages) {
     },
     catalog: c && {
       ...c.totals,
-      firstStepNeedingMissing: c.firstStepNeedingMissing?.step ?? null,
-      firstStepNeedingMissingColor: c.firstStepNeedingMissingColor?.step ?? null,
+      firstStepNeedingMissing: firstStep(a, c.firstStepNeedingMissing),
+      firstStepNeedingMissingColor: firstStep(a, c.firstStepNeedingMissingColor),
     },
-    playback: playback.status === "ran" ? playbackCounts(playback.value) : null,
+    exportFrames: exportFrames.status === "ran" ? exportFramesHeadline(exportFrames.value) : null,
+    playback: playback.status === "ran" ? playbackHeadline(playback.value) : null,
   };
 }
 
@@ -165,12 +163,15 @@ function readLines(read: BookletRead, ms: number): string[] {
 }
 
 function alignLines(align: AlignStage, ms: number): string[] {
-  const moved = sum(align.windows.map(({ moved: count }) => count));
+  const solved = align.windows.filter(({ solved: done }) => done);
+  const unsolved = align.windows.filter(({ solved: done }) => !done);
+  const moved = sum(solved.map(({ moved: count }) => count));
   const mismatch = align.steps.filter(({ matched }) => !matched);
   return [
-    `[align] ${seconds(ms)} · ${align.matchedSteps}/${align.steps.length} steps aligned (${align.runMatchedSteps} by run order; ${align.windows.length} repair windows moved ${moved} bricks, ${align.windows.filter(({ solved }) => !solved).length} unsolved)`,
+    `[align] ${seconds(ms)} · ${align.steps.length} steps: ${align.matchedByRunOrder} matched by run order, ${align.fittedByRepair} fitted by repair, ${mismatch.length} unmatched · repair: ${align.windows.length} windows, ${solved.length} solved (moved ${moved} bricks)${unsolved.length > 0 ? `, ${unsolved.map(({ outcome, firstStep: from, lastStep: to }) => `${outcome} at steps ${from}-${to}`).join(", ")}` : ""}`,
+    `  a match compares callout counts only, never which elements; the inventory check sees per-element totals, not the split into steps`,
     `  ${sum(align.steps.map(({ bricks }) => bricks.length))} bricks assigned; unplaced by any step: ${align.unplaced.map(({ designRevision }) => designRevision).join(", ") || "none"} · inventory mismatches ${align.inventory.mismatches.length + align.inventory.missingFromInventory.length} · bag-order violations ${align.bagViolations.length}`,
-    `  mismatches: ${
+    `  unmatched: ${
       mismatch.length === 0
         ? "none"
         : list(
@@ -184,82 +185,65 @@ function alignLines(align: AlignStage, ms: number): string[] {
   ];
 }
 
-function catalogLines(catalog: CatalogStage, ms: number): string[] {
+function catalogLines(catalog: CatalogStage, align: AlignStage | null, ms: number): string[] {
   const t = catalog.totals;
   const missing = catalog.firstStepNeedingMissing;
   const color = catalog.firstStepNeedingMissingColor;
+  const unknown = "unknown (no aligned booklet)";
   return [
     `[catalog] ${seconds(ms)} · ${t.designs} designs: ${t.exact} exact, ${t.interchangeable} interchangeable, ${t.missing} missing · pieces ${t.piecesExact} / ${t.piecesInterchangeable} / ${t.piecesMissing} of ${t.pieces}`,
-    `  first step needing an uncovered design: ${missing ? `${missing.step} (${list(missing.designs, 4)})` : "none"} · needing an absent colour: ${color ? `${color.step} (LDraw ${color.codes.join(", ")})` : "none"}`,
+    `  first step needing an uncovered design: ${!align ? unknown : missing ? `${missing.step} (${list(missing.designs, 4)})` : "none"} · needing an absent colour: ${!align ? unknown : color ? `${color.step} (LDraw ${color.codes.join(", ")})` : "none"}`,
   ];
 }
 
-function playbackLines(playback: Playback, ms: number): string[] {
-  const counts = playbackCounts(playback);
-  const invalid = playback.steps.find(({ status }) => status === "invalid");
-  const blocked = playback.steps.find(({ status }) => status === "catalog-blocked");
-  const lines = [
-    `[playback] ${seconds(ms)} · valid ${counts.validSteps} / invalid ${counts.invalidSteps} / catalog-blocked ${counts.blockedSteps} of ${counts.steps} · valid through step ${counts.validThrough} (${counts.partsThroughValid} parts)`,
-  ];
-  if (invalid) {
-    const first = invalid.issues[0];
-    lines.push(
-      `  first invalid: step ${invalid.step} (p${invalid.page}) ${first ? `${first.code} in ${first.assembly}: ${first.message}` : ""}`.slice(
-        0,
-        220,
-      ),
-    );
-  }
-  const fresh = playback.steps
-    .filter(({ status, newIssues }) => status === "invalid" && newIssues > 0)
-    .map(({ step }) => step);
-  lines.push(`  steps adding a new issue: ${fresh.length === 0 ? "none" : list(fresh, 12)}`);
-  if (blocked) {
-    lines.push(
-      `  first catalog-blocked: step ${blocked.step} (p${blocked.page}) ${list(
-        blocked.blocks.map(({ design, kind }) => `${design} ${kind}`),
-        3,
-      )}`.slice(0, 220),
-    );
-  }
-  const bases = playback.frameBases;
-  lines.push(
-    `  frames: ${bases.measured} measured, ${bases.declared} catalog-declared, ${bases["inferred-top-of-body"]} inferred · world shift [${playback.worldShiftLdu?.join(", ") ?? "none"}]`,
-    `  committed selected-path frontier (a placement search, not official poses): valid through ${COMMITTED_FRONTIER.validThrough} (${COMMITTED_FRONTIER.partsThrough} parts), blocked at ${COMMITTED_FRONTIER.blockedAt}`,
-  );
-  return lines;
-}
+const notRun = (label: string, stage: { status: "skipped" | "failed"; reason: string }) =>
+  `[${label}] ${stage.status === "failed" ? `FAILED: ${stage.reason}` : stage.reason}`;
 
 export function summaryLines(
   input: Stages & {
     readonly keyLoad: Stage<AnswerKeyLoad> | null;
+    /** The frame registry's load, reported here only when it failed. */
+    readonly frameRegistry: Stage<unknown>;
     readonly statusPath: string;
     readonly baseline: BaselineComparison;
     readonly totalMs: number;
   },
 ): string[] {
-  const { read, align, catalog, playback, key } = input;
-  const lines = [`npm run booklet · ${seconds(input.totalMs)} total`];
+  const { read, align, catalog, exportFrames, playback, key } = input;
+  const failed = [
+    read,
+    align,
+    catalog,
+    exportFrames,
+    playback,
+    input.keyLoad,
+    input.frameRegistry,
+  ].some((stage) => stage?.status === "failed");
+  const lines = [
+    `npm run booklet · ${seconds(input.totalMs)} total${failed ? " · FAILED (a present input could not be used; see below)" : ""}`,
+  ];
+  lines.push(...(read.status === "ran" ? readLines(read.value, read.ms) : [notRun("read", read)]));
+  if (input.keyLoad?.status === "failed") lines.push(notRun("key", input.keyLoad));
+  else if (key && input.keyLoad?.status === "ran") lines.push(...keyLine(key, input.keyLoad.ms));
   lines.push(
-    ...(read.status === "ran" ? readLines(read.value, read.ms) : [`[read] ${read.reason}`]),
-  );
-  if (key && input.keyLoad?.status === "ran") {
-    lines.push(
-      `[key] ${seconds(input.keyLoad.ms)} · ${key.model.bricks.length} official bricks · ${key.sequence.units.length} LXFML steps, ${key.sequence.units.filter(({ brickRefs }) => brickRefs.length > 0).length} add bricks · official LDraw ${key.ldraw.status}${key.sequence.problems.length > 0 ? ` · ${key.sequence.problems.length} sequence problems` : ""}`,
-    );
-  }
-  lines.push(
-    ...(align.status === "ran" ? alignLines(align.value, align.ms) : [`[align] ${align.reason}`]),
+    ...(align.status === "ran" ? alignLines(align.value, align.ms) : [notRun("align", align)]),
   );
   lines.push(
     ...(catalog.status === "ran"
-      ? catalogLines(catalog.value, catalog.ms)
-      : [`[catalog] ${catalog.reason}`]),
+      ? catalogLines(catalog.value, align.status === "ran" ? align.value : null, catalog.ms)
+      : [notRun("catalog", catalog)]),
+  );
+  if (input.frameRegistry.status === "failed")
+    lines.push(notRun("frame registry", input.frameRegistry));
+  lines.push(
+    ...(exportFrames.status === "ran"
+      ? exportFramesLines(exportFrames.value, exportFrames.ms)
+      : [notRun("export frames", exportFrames)]),
   );
   lines.push(
     ...(playback.status === "ran"
       ? playbackLines(playback.value, playback.ms)
-      : [`[playback] ${playback.reason}`]),
+      : [notRun("playback", playback)]),
   );
   const baseline =
     input.baseline.status === "changed"
