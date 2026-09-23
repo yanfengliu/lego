@@ -7,6 +7,7 @@ import {
   canonicalDigest,
   createEmptyBrickDocument,
   deriveBuildSequence,
+  deriveBuildSequenceFromTrace,
   exportBrickDocumentToLDraw,
   importBrickDocumentFromLDraw,
   migrateDocumentTruth,
@@ -26,6 +27,7 @@ import { installAutomationBridge, type AutomationAppState } from "./automation";
 import {
   createEditorState,
   editorReducer,
+  restoreEditorStateAfterTruthMigration,
   type EditorState,
   type EditorTransaction,
 } from "./editor-state";
@@ -150,14 +152,20 @@ export function App() {
   // playback bar is open.
   const playbackOpen = playbackPosition !== null;
   const buildSequence = useMemo(
-    () => (playbackOpen ? deriveBuildSequence(state.document) : null),
-    [playbackOpen, state.document],
+    () =>
+      playbackOpen
+        ? state.playbackTrace === null
+          ? deriveBuildSequence(state.document)
+          : deriveBuildSequenceFromTrace(state.document, state.playbackTrace)
+        : null,
+    [playbackOpen, state.document, state.playbackTrace],
   );
-  const playbackDocument =
+  const playbackState =
     buildSequence === null
       ? null
-      : (buildSequence.states[Math.min(playbackPosition ?? 0, buildSequence.states.length - 1)]
-          ?.document ?? null);
+      : (buildSequence.states[Math.min(playbackPosition ?? 0, buildSequence.states.length - 1)] ??
+        null);
+  const playbackDocument = playbackState?.document ?? null;
   const previewDocument = playbackDocument ?? state.document;
   const documentReport = useMemo(() => validateBrickDocument(state.document), [state.document]);
   // Outside playback the preview *is* the document, and validating it twice
@@ -175,8 +183,36 @@ export function App() {
       selectedPartId: state.selectedPartId,
       validationReport: documentReport,
       commandError,
+      playback:
+        buildSequence === null || playbackState === null || playbackPosition === null
+          ? null
+          : {
+              position: Math.min(playbackPosition, buildSequence.states.length - 1),
+              terminalPosition: buildSequence.states.length - 1,
+              stepId: playbackState.stepId,
+              stepName: playbackState.stepName,
+              addedPartCount: playbackState.addedPartIds.length,
+              previewDocument,
+              validationReport: report,
+              blockingCodes: playbackState.blockingCodes,
+              buildable: playbackState.buildable,
+              connected: playbackState.connected,
+              exact: buildSequence.exact,
+              mode: buildSequence.mode,
+              traceCommitment: buildSequence.traceCommitment,
+            },
     }),
-    [commandError, documentReport, state.document, state.selectedPartId],
+    [
+      buildSequence,
+      commandError,
+      documentReport,
+      playbackPosition,
+      playbackState,
+      previewDocument,
+      report,
+      state.document,
+      state.selectedPartId,
+    ],
   );
 
   useEffect(() => {
@@ -197,10 +233,11 @@ export function App() {
           const { document: migratedDocument, report } = migrateDocumentTruth(
             stored.state.document,
           );
-          const restored =
-            report.migrated || report.blockingReasons.length > 0
-              ? { ...stored.state, document: migratedDocument }
-              : stored.state;
+          const restored = restoreEditorStateAfterTruthMigration(
+            stored.state,
+            migratedDocument,
+            report,
+          );
           if (report.migrated) {
             const reinterpreted = summarizeModelCatalogInterpretations(
               stored.state.document.parts.map(({ catalogPartId }) => catalogPartId),
@@ -213,6 +250,8 @@ export function App() {
             setMigrationNotice(
               `This model is pinned to ${report.fromCatalogVersion} and was left unchanged: ${report.blockingReasons[0]}`,
             );
+          } else if (stored.state.playbackTraceRecovery !== null) {
+            setMigrationNotice(stored.state.playbackTraceRecovery);
           }
           dispatch({ type: "restoreState", state: restored });
           lastQueuedStateHashRef.current = canonicalDigest(restored);

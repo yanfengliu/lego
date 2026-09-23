@@ -37,11 +37,12 @@ from measured_part_emit import (
     canonical_typescript,
     enforce_generated_check,
     render_blueprints,
-    render_bundled_sources,
     render_mesh_asset_aggregator,
     render_mesh_asset_chunk,
+    render_measured_stud_source_class,
     render_render_only_blueprints,
 )
+from measured_part_bundled_sources import render_bundled_sources
 from measured_part_plan import (
     ADMITTED_PART_PLANS,
     BUNDLED_LDRAW_ARCHIVE_RECORD,
@@ -65,6 +66,7 @@ MEASURED_E_SHARD_START = 19
 MEASURED_F_SHARD_START = 20
 MEASURED_G_SHARD_START = 21
 MEASURED_H_SHARD_START = 29
+MEASURED_I_SHARD_START = 33
 GENERATED_FILES = {
     "meshAssets": "packages/catalog/src/mesh-assets-6651557.ts",
     "meshAssetsMeasuredA": "packages/catalog/src/mesh-assets-6651557-measured-a.ts",
@@ -75,6 +77,7 @@ GENERATED_FILES = {
     "meshAssetsMeasuredF": "packages/catalog/src/mesh-assets-6651557-measured-f.ts",
     "meshAssetsMeasuredG": "packages/catalog/src/mesh-assets-6651557-measured-g.ts",
     "meshAssetsMeasuredH": "packages/catalog/src/mesh-assets-6651557-measured-h.ts",
+    "meshAssetsMeasuredI": "packages/catalog/src/mesh-assets-6651557-measured-i.ts",
     "meshAssetsRenderOnly": "packages/catalog/src/mesh-assets-6651557-render-only.ts",
     "blueprints": "packages/catalog/src/part-blueprints-6651557-measured.ts",
     "blueprintsMeasuredD": "packages/catalog/src/part-blueprints-6651557-measured-d.ts",
@@ -82,8 +85,10 @@ GENERATED_FILES = {
     "blueprintsMeasuredF": "packages/catalog/src/part-blueprints-6651557-measured-f.ts",
     "blueprintsMeasuredG": "packages/catalog/src/part-blueprints-6651557-measured-g.ts",
     "blueprintsMeasuredH": "packages/catalog/src/part-blueprints-6651557-measured-h.ts",
+    "blueprintsMeasuredI": "packages/catalog/src/part-blueprints-6651557-measured-i.ts",
     "renderOnlyBlueprints": "packages/catalog/src/part-blueprints-6651557-render-only.ts",
     "bundledSources": "packages/catalog/src/ldraw-bundled-sources-6651557.ts",
+    "nominalStudSourceClass": "packages/catalog/src/measured-stud-source-class-6651557.ts",
 }
 
 
@@ -281,9 +286,14 @@ def main() -> None:
             "SET_6651557_MEASURED_MESH_ASSETS_G",
         ),
         "meshAssetsMeasuredH": render_mesh_asset_chunk(
-            measured_parts[MEASURED_H_SHARD_START:],
+            measured_parts[MEASURED_H_SHARD_START:MEASURED_I_SHARD_START],
             archive_sha256,
             "SET_6651557_MEASURED_MESH_ASSETS_H",
+        ),
+        "meshAssetsMeasuredI": render_mesh_asset_chunk(
+            measured_parts[MEASURED_I_SHARD_START:],
+            archive_sha256,
+            "SET_6651557_MEASURED_MESH_ASSETS_I",
         ),
         "meshAssetsRenderOnly": render_mesh_asset_chunk(
             render_only_parts,
@@ -346,16 +356,30 @@ def main() -> None:
             ),
         ),
         "blueprintsMeasuredH": render_blueprints(
-            measured_parts[MEASURED_H_SHARD_START:],
+            measured_parts[MEASURED_H_SHARD_START:MEASURED_I_SHARD_START],
             archive_sha256,
             builder,
             dict(shadow.identity()),
             export_name="SET_6651557_MEASURED_BLUEPRINTS_H",
+            appended_shard=(
+                "SET_6651557_MEASURED_BLUEPRINTS_I",
+                "./part-blueprints-6651557-measured-i.ts",
+            ),
+        ),
+        "blueprintsMeasuredI": render_blueprints(
+            measured_parts[MEASURED_I_SHARD_START:],
+            archive_sha256,
+            builder,
+            dict(shadow.identity()),
+            export_name="SET_6651557_MEASURED_BLUEPRINTS_I",
         ),
         "renderOnlyBlueprints": render_render_only_blueprints(
             render_only_parts, archive_sha256
         ),
         "bundledSources": render_bundled_sources(mesh_parts, BUNDLED_LDRAW_ARCHIVE_RECORD),
+        "nominalStudSourceClass": render_measured_stud_source_class(
+            measured_parts, archive_sha256
+        ),
     }
     assert_bound_input_unchanged(arguments.pilot, "source pilot", pilot_bytes)
     assert_bound_input_unchanged(

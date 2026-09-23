@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 
 import { expect, test } from "@playwright/test";
 
-import { readSampleBooklet, sampleBookletPageShapes } from "./booklet-fixture";
+import { readSampleBooklet } from "./booklet-file-source.ts";
+import { sampleBookletPageShapes } from "./booklet-fixture";
 import { writeContainedRegularFileAtomic } from "./contained-atomic-write";
 import { sha256Digest } from "./real-build-artifacts";
 import { TRANSITION_CLASSIFICATIONS_PATH } from "./real-build-input-files";

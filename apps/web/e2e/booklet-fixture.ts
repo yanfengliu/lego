@@ -1,8 +1,8 @@
 import { selectStepNumberHeight } from "../src/instructions/booklet-structure";
 import { ingestInstructionPdf, type PdfDocument } from "../src/instructions/ingest-pdf";
 import {
-  INSTRUCTION_PDF_LIMITS,
   assertPageExtent,
+  INSTRUCTION_PDF_LIMITS,
   type InstructionSourceV1,
 } from "../src/instructions/instruction-source";
 import {
@@ -18,10 +18,8 @@ import {
   type StepPanelPageIndexEntry,
   type StepPanel,
 } from "../src/instructions/step-panels";
-import { readBoundedRegularFile } from "./bounded-file-read";
 import { snapshotBoundedInstructionPages } from "./bounded-instruction-source";
 import { snapshotBoundedPlainUint8Array } from "./bounded-uint8-snapshot";
-import { SAMPLE_BOOKLET_PATH } from "./sample-booklet";
 
 /**
  * Reading the sample booklet the way every probe needs it.
@@ -30,20 +28,6 @@ import { SAMPLE_BOOKLET_PATH } from "./sample-booklet";
  * is how one of them ended up with a stale step-number height. They live here
  * once so a fix reaches every caller.
  */
-
-export interface SampleBooklet {
-  readonly bytes: Buffer;
-  readonly source: InstructionSourceV1;
-}
-
-export const SAMPLE_BOOKLET_MAXIMUM_BYTES = INSTRUCTION_PDF_LIMITS.maxBytes;
-
-export function readSampleBookletBytes(path: string): Buffer {
-  return readBoundedRegularFile(path, {
-    label: "Sample instruction booklet 6651557.pdf",
-    maximumBytes: SAMPLE_BOOKLET_MAXIMUM_BYTES,
-  });
-}
 
 export function exactSampleBookletArrayBuffer(bytes: Buffer): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
@@ -64,17 +48,6 @@ export async function ingestSampleBookletBytes(bytes: Buffer): Promise<Instructi
       },
     },
   );
-}
-
-export async function readSampleBooklet(): Promise<SampleBooklet> {
-  if (SAMPLE_BOOKLET_PATH === null) {
-    throw new Error(
-      "readSampleBooklet needs recipes/6651557.pdf, which is uncommitted and absent from this checkout; guard the caller with hasSampleBooklet.",
-    );
-  }
-  const bytes = readSampleBookletBytes(SAMPLE_BOOKLET_PATH);
-  const source = await ingestSampleBookletBytes(bytes);
-  return { bytes, source };
 }
 
 function sampleBookletStepNumberHeight(source: InstructionSourceV1): number {

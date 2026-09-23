@@ -45,7 +45,7 @@ function requirePart(id: string) {
 }
 
 describe("measured-part connector provenance", () => {
-  it("distinguishes the eight Builder declarations from the twenty-one LDCad declarations", () => {
+  it("distinguishes the eight Builder declarations from the twenty-two LDCad declarations", () => {
     expect(BUILDER_CONNECTOR_PART_IDS).toHaveLength(8);
     expect(LDCAD_CONNECTOR_PART_IDS).toHaveLength(21);
     for (const id of BUILDER_CONNECTOR_PART_IDS) {

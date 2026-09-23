@@ -1,0 +1,4 @@
+export const REAL_BUILD_PREFIX50_STEP44_CAMERA_ONLY_BATCH_RELATIVE_PATH =
+  "output/playwright/real-build-prefix50-step44-return-review/return-review-batch-v2-6bb4f29d7f7133bc7edcc2179c4657732ad6de65a55295aaccc6b2ea542b351d.json";
+export const REAL_BUILD_PREFIX50_STEP44_CAMERA_ONLY_BATCH_BYTES_HASH =
+  "sha256:5b8aab325eca84433ed49922772002f3981cb883bb70889436509c9aa3974894" as const;

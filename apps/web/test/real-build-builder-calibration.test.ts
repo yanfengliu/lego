@@ -409,6 +409,7 @@ describe("Builder canonical calibration v8", () => {
       "87079;K builtin:tile-2x4 upright-yaw-90 30/-4/10 2 1 catalog-part-self-symmetry null 1299041",
       "87580;P builtin:jumper-plate-2x2 upright-yaw-0 10/-4/10 4 1 catalog-part-self-symmetry null 1299038",
       "2453;I builtin:brick-1x1x5-solid-stud upright-yaw-0 0/-60/0 1 1 opaque-identity-local-part-frame null 1319942",
+      "15573;L builtin:jumper-plate-1x2 upright-yaw-90 10/-4/0 2 1 catalog-part-self-symmetry null 1299037",
     ]);
     // Every Builder Shell vertex of every design is inside the 2 LDU the
     // independent LDraw surface has to corroborate it within.

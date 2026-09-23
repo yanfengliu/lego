@@ -33,7 +33,6 @@ const EXPECTED_EXCLUSION_CENSUS = {
   "41770;H": [1, "checksum-mismatch"],
   "99563;G": [4, "checksum-mismatch"],
   "10201;H": [2, "identity-contradiction"],
-  "15573;L": [33, "recognized-anchor-cardinality-mismatch"],
   "3024;N": [2, "recognized-anchor-route-absent"],
   "11253;G": [4, null],
   "15254;J": [5, null],
@@ -95,7 +94,7 @@ function officialPrefixRefs(official: ReturnType<typeof parseOfficialModelIndex>
 }
 
 describe("first-50 Builder source and frame census contract", () => {
-  it("derives the exact 43/197 local subset and the distinct 182-world-transform subset", () => {
+  it("derives the exact 44/230 local subset and the disjoint 90-row exclusion subset", () => {
     const inputBytes = Object.fromEntries(
       Object.entries(INPUTS).map(([name, pin]) => {
         const bytes = file(pin.path);
@@ -103,13 +102,13 @@ describe("first-50 Builder source and frame census contract", () => {
         return [name, bytes];
       }),
     ) as Record<keyof typeof INPUTS, Buffer>;
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/29");
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/30");
 
     const python = runPythonSourceContract(BUILDER_STEP1_DESIGN_SOURCES);
     expect(python.status, python.stderr).toBe(0);
     const sourceReport = parseJson<PrefixSourceReport>(Buffer.from(python.stdout));
     expect(sourceReport.schemaVersion).toBe("lego.builder-prefix-source-contract/1");
-    expect(sourceReport.sourceRows).toBe(43);
+    expect(sourceReport.sourceRows).toBe(44);
     expect(sourceReport.rows.map(({ designRevision }) => designRevision)).toEqual(
       BUILDER_STEP1_DESIGN_SOURCES.map(({ designRevision }) => designRevision),
     );
@@ -188,14 +187,14 @@ describe("first-50 Builder source and frame census contract", () => {
     }
     expect(revisionCounts.size).toBe(66);
     expect([...revisionCounts].filter(([revision]) => sourceByRevision.has(revision))).toHaveLength(
-      43,
+      44,
     );
     expect(
       [...revisionCounts].reduce(
         (total, [revision, count]) => total + (sourceByRevision.has(revision) ? count : 0),
         0,
       ),
-    ).toBe(197);
+    ).toBe(230);
     const checksumMismatches = new Set(
       sourceReport.checksumMismatches
         .map(({ designRevision }) => designRevision)
@@ -287,11 +286,24 @@ describe("first-50 Builder source and frame census contract", () => {
       authoredTopFieldCount: 1,
       authoredUndersideFieldCount: 3,
     });
+    expect(sourceByRevision.get("15573;L")).toMatchObject({
+      catalogPartId: "builtin:jumper-plate-1x2",
+      builderAnchorRole: "underside-field-to-catalog-clutch",
+      builderAnchorCentersLdu: [
+        [0, 0, 0],
+        [10, 0, 0],
+        [20, 0, 0],
+      ],
+      ldrawToCatalogLocalTransform: {
+        positionLdu: [0, -4, 0],
+        orientationId: "upright-yaw-90",
+      },
+    });
     expect(
       getPartDefinition("builtin:jumper-plate-1x2")!.connectors.filter(
         ({ kind }) => kind === "undersideClutch",
       ),
-    ).toHaveLength(2);
+    ).toHaveLength(3);
     expect([
       ...new Set(semanticCoverage("15573;L").map(({ resolution }) => resolution.catalogPartId)),
     ]).toEqual(["builtin:jumper-plate-1x2"]);
@@ -330,9 +342,7 @@ describe("first-50 Builder source and frame census contract", () => {
                 ? "authored-lattice-surface-contradiction"
                 : revision === "3024;N"
                   ? "recognized-anchor-route-absent"
-                  : revision === "15573;L"
-                    ? "recognized-anchor-cardinality-mismatch"
-                    : null;
+                  : null;
           return [revision, [count, executedEvidenceClass]];
         }),
     );
@@ -353,7 +363,7 @@ describe("first-50 Builder source and frame census contract", () => {
         (total, [revision, count]) => total + (sourceByRevision.has(revision) ? 0 : count),
         0,
       ),
-    ).toBe(123);
+    ).toBe(90);
     expect([...sourceByRevision.keys(), ...Object.keys(EXPECTED_EXCLUSION_CENSUS)].sort()).toEqual(
       [...revisionCounts.keys()].sort(),
     );

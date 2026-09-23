@@ -10,7 +10,7 @@ export const BUILDER_PREFIX50_DESIGN_SOURCES_M = [
       exactLdrawId: "2453b.dat",
       builderToCatalogLocalMatrix: [25, 0, 0, 0, -25, 0, 0, 0, -25],
       builderToCatalogLocalTranslationLdu: [0, 60, 0],
-      proofDigest: "sha256:75ba323b5ce28509ee2041c62ff8f3fabec4450cbd679c7f48fe600b9a608bb5",
+      proofDigest: "sha256:58c7847cb2b39f6b535c0be6cee1d2659bceaef6f0074343eadc51fe8bf1845a",
     },
     sourceIdentity: {
       bundleSha256: "sha256:a14c214b69dc57b3123c96e4e15b92f5bd4541d5b8eccfc3885e0bcb5d30a955",
@@ -51,7 +51,7 @@ export const BUILDER_PREFIX50_DESIGN_SOURCES_M = [
       "sha256:37f442650ea056093e53171d91a467f44dd184bfba7cc6c348097a3da4e46333",
     uniqueBuilderVertexCount: 48,
     expectedCatalogDefinitionDigest:
-      "sha256:816328e2461c13689ae7db17a5de45d38ac4fbdf5669271639bf4300c0a54fe7",
+      "sha256:e79da97530462687509b3bc28a16032b05f08e069ffde59abc72b673ae1e6173",
     expectedCatalogGeometryDigest:
       "sha256:0aba2e1c0c3c9412772a0bc2072dbda2b577e923bdd2f4f7c3f8fe7af7d28619",
     expectedCatalogConnectorDigest:

@@ -8,6 +8,7 @@ export interface VerifiedProjectionSourceRole {
 export interface VerifiedProjectionAdapterInput {
   readonly actionPreparation: VerifiedProjectionSourceRole;
   readonly officialWorldReconciliation: VerifiedProjectionSourceRole;
+  readonly structuralEvents: VerifiedProjectionSourceRole;
 }
 
 export interface RealBuildPrefix50VerifiedProjectionReader {
@@ -36,6 +37,10 @@ export interface RealBuildPrefix50Occurrence30ActionBinding {
 export function readOpaqueRealBuildPrefix50Occurrence30ActionBinding(
   value: unknown,
 ): RealBuildPrefix50Occurrence30ActionBinding;
+
+export function readOpaqueRealBuildPrefix50Step42ActionBinding(value: unknown): unknown;
+
+export function readOpaqueRealBuildPrefix50Step43ActionBinding(value: unknown): unknown;
 
 export function readSyntheticRealBuildPrefix50ProjectionForTest(
   value: unknown,

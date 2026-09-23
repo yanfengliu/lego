@@ -7,6 +7,7 @@ from measured_part_tables import (
     BuilderConnectivityFact,
     MeasuredPartPlan,
 )
+from measured_clutch_semantics import ClutchPortSemantics
 
 PLATE_HEIGHT_LDU = 8
 BRICK_HEIGHT_LDU = 24
@@ -32,6 +33,7 @@ def measured_part_plan(
     clutch_shared_capacity_groups: tuple[
         tuple[tuple[int, int, int], tuple[str, ...]], ...
     ] = (),
+    clutch_port_semantics: ClutchPortSemantics = (),
 ) -> MeasuredPartPlan:
     return MeasuredPartPlan(
         design_id=design_id,
@@ -51,6 +53,7 @@ def measured_part_plan(
         validated_connection_stud_profile=validated_connection_stud_profile,
         allow_ldcad_square_s6_clutches=allow_ldcad_square_s6_clutches,
         clutch_shared_capacity_groups=clutch_shared_capacity_groups,
+        clutch_port_semantics=clutch_port_semantics,
     )
 
 

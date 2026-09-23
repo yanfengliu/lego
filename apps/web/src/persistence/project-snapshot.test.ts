@@ -1,18 +1,29 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  canonicalDigest,
   canonicalStringify,
+  createBuildPlaybackTrace,
   createEmptyBrickDocument,
   createPartInstance,
+  migrateDocumentTruth,
 } from "@lego-studio/brick-kernel";
 import type { BuildOperation } from "@lego-studio/protocol";
 
-import { createEditorState, editorReducer } from "../editor-state";
+import {
+  createEditorState,
+  EditorTruthHistoryRecoveryError,
+  editorReducer,
+  restoreEditorStateAfterTruthMigration,
+  type EditorState,
+} from "../editor-state";
 import { createAddPartTransaction } from "../manual-commands";
 import {
   ProjectSnapshotError,
+  PROJECT_SNAPSHOT_LIMITS,
   createStoredEditorProject,
   parseStoredEditorProject,
+  type StoredEditorProject,
 } from "./project-snapshot";
 
 function fixture() {
@@ -43,6 +54,54 @@ function expectSnapshotError(value: unknown, code: ProjectSnapshotError["code"])
   }
 }
 
+function stateWithPlaybackTrace(): EditorState {
+  const { empty, operations, state } = fixture();
+  return { ...state, playbackTrace: createBuildPlaybackTrace(empty, [[operations]]) };
+}
+
+function rehashStoredProject(
+  stored: StoredEditorProject,
+  state: unknown,
+  documentHash = stored.documentHash,
+): unknown {
+  return {
+    ...stored,
+    documentHash,
+    state,
+    snapshotHash: canonicalDigest({
+      schemaVersion: stored.schemaVersion,
+      projectId: stored.projectId,
+      generation: stored.generation,
+      documentHash,
+      state,
+    }),
+  };
+}
+
+function legacyStoredProject(state: EditorState): unknown {
+  const legacyState = {
+    document: state.document,
+    redoStack: state.redoStack,
+    selectedPartId: state.selectedPartId,
+    undoStack: state.undoStack,
+  };
+  const documentHash = canonicalDigest(state.document);
+  return {
+    schemaVersion: "lego.local-project/1",
+    projectId: "project-1",
+    generation: 7,
+    documentHash,
+    snapshotHash: canonicalDigest({
+      schemaVersion: "lego.local-project/1",
+      projectId: "project-1",
+      generation: 7,
+      documentHash,
+      state: legacyState,
+    }),
+    state: legacyState,
+  };
+}
+
 describe("stored editor project snapshots", () => {
   it("round-trips a bounded editor state and deeply freezes detached data", () => {
     const { state } = fixture();
@@ -58,6 +117,156 @@ describe("stored editor project snapshots", () => {
     expect(Object.isFrozen(parsed)).toBe(true);
     expect(Object.isFrozen(parsed.state.document.parts[0])).toBe(true);
     expect(Object.isFrozen(parsed.state.undoStack[0]?.operations)).toBe(true);
+  });
+
+  it("round-trips and deeply freezes a version-2 operation replay trace", () => {
+    const stored = createStoredEditorProject("project-1", 8, stateWithPlaybackTrace());
+    const parsed = parseStoredEditorProject(structuredClone(stored));
+
+    expect(stored.schemaVersion).toBe("lego.local-project/2");
+    expect(parsed.state.playbackTrace?.traceCommitment).toBe(
+      stored.state.playbackTrace?.traceCommitment,
+    );
+    expect(parsed.state.playbackTraceRecovery).toBeNull();
+    expect(Object.isFrozen(parsed.state.playbackTrace)).toBe(true);
+    expect(Object.isFrozen(parsed.state.playbackTrace?.transitions[0]?.operationGroups[0])).toBe(
+      true,
+    );
+  });
+
+  it("migrates an authentic version-1 snapshot to version 2 without inventing replay evidence", () => {
+    const { state } = fixture();
+    const parsed = parseStoredEditorProject(legacyStoredProject(state));
+
+    expect(parsed).toMatchObject({ schemaVersion: "lego.local-project/2", generation: 7 });
+    expect(parsed.state.playbackTrace).toBeNull();
+    expect(parsed.state.playbackTraceRecovery).toBeNull();
+    expect(parsed.state.undoStack).toEqual(state.undoStack);
+    expect(parsed.state.redoStack).toEqual(state.redoStack);
+  });
+
+  it("distinguishes tampered trace bytes from an intact snapshot carrying stale derived evidence", () => {
+    const stored = createStoredEditorProject("project-1", 3, stateWithPlaybackTrace());
+    const playbackTrace = {
+      ...stored.state.playbackTrace!,
+      targetDocumentHash: `sha256:${"f".repeat(64)}`,
+    };
+    const state = { ...stored.state, playbackTrace };
+
+    expectSnapshotError({ ...stored, state }, "SNAPSHOT_HASH_MISMATCH");
+
+    const recovered = parseStoredEditorProject(rehashStoredProject(stored, state));
+    expect(recovered.state.document).toEqual(stored.state.document);
+    expect(recovered.state.undoStack).toEqual(stored.state.undoStack);
+    expect(recovered.state.playbackTrace).toBeNull();
+    expect(recovered.state.playbackTraceRecovery).toContain(
+      "dropped without changing the authored document or history",
+    );
+  });
+
+  it("loads intact future trace schemas as authored truth with explicit recovery", () => {
+    const stored = createStoredEditorProject("project-1", 3, stateWithPlaybackTrace());
+    const state = {
+      ...stored.state,
+      playbackTrace: { ...stored.state.playbackTrace!, schemaVersion: "future-trace/99" },
+    };
+    const recovered = parseStoredEditorProject(rehashStoredProject(stored, state));
+
+    expect(recovered.state.document).toEqual(stored.state.document);
+    expect(recovered.state.playbackTrace).toBeNull();
+    expect(recovered.state.playbackTraceRecovery).toContain("dropped");
+  });
+
+  it("preserves nonempty history when an old unknown truth migration is blocked", () => {
+    const stored = createStoredEditorProject("project-1", 3, stateWithPlaybackTrace());
+    const firstTransaction = stored.state.undoStack[0];
+    const staleOperation = firstTransaction?.operations[0];
+    if (firstTransaction === undefined || staleOperation?.kind !== "addPart") {
+      throw new Error("Unexpected history fixture");
+    }
+    // Schema-valid but irreconcilable with the stored document: undo would try
+    // to remove a yellow part while the document contains the original red one.
+    const staleUndoStack = [
+      {
+        ...firstTransaction,
+        operations: [
+          {
+            ...staleOperation,
+            part: { ...staleOperation.part, colorId: "builtin:yellow" },
+          },
+          ...firstTransaction.operations.slice(1),
+        ],
+      },
+      ...stored.state.undoStack.slice(1),
+    ];
+    const oldDocument = {
+      ...stored.state.document,
+      truth: {
+        ...stored.state.document.truth,
+        catalog: {
+          ...stored.state.document.truth.catalog,
+          version: "unknown-catalog/999",
+        },
+      },
+    };
+    const state = { ...stored.state, document: oldDocument, undoStack: staleUndoStack };
+    const documentHash = canonicalDigest(oldDocument);
+    const parsed = parseStoredEditorProject(rehashStoredProject(stored, state, documentHash));
+
+    expect(parsed.state.undoStack).toEqual(staleUndoStack);
+    expect(parsed.state.undoStack).toHaveLength(1);
+    expect(parsed.state.playbackTrace).toBeNull();
+    expect(parsed.state.playbackTraceRecovery).toContain("pinned truth requires migration");
+
+    const migration = migrateDocumentTruth(parsed.state.document);
+    expect(migration.report.migrated).toBe(false);
+    expect(migration.report.blockingReasons.length).toBeGreaterThan(0);
+    expect(() =>
+      restoreEditorStateAfterTruthMigration(parsed.state, migration.document, migration.report),
+    ).toThrowError(EditorTruthHistoryRecoveryError);
+    try {
+      restoreEditorStateAfterTruthMigration(parsed.state, migration.document, migration.report);
+      throw new Error("Expected blocked history restoration to fail closed");
+    } catch (error) {
+      expect(error).toMatchObject({
+        name: "EditorTruthHistoryRecoveryError",
+        code: "TRUTH_HISTORY_UNVERIFIED",
+      });
+      expect(error).toHaveProperty(
+        "message",
+        expect.stringContaining(
+          "stored undo/redo history cannot be verified against the current truth",
+        ),
+      );
+      expect(error).toHaveProperty("message", expect.stringContaining("left unchanged"));
+      expect(error).toHaveProperty(
+        "message",
+        expect.stringContaining("compatible truth migration or recovery tool"),
+      );
+    }
+  });
+
+  it("rejects oversized and noncanonical nested trace values behind typed project errors", () => {
+    const stored = createStoredEditorProject("project-1", 3, stateWithPlaybackTrace());
+    expectSnapshotError(
+      {
+        ...stored,
+        state: {
+          ...stored.state,
+          playbackTrace: { payload: "x".repeat(PROJECT_SNAPSHOT_LIMITS.maxBytes) },
+        },
+      },
+      "PROJECT_LIMIT_EXCEEDED",
+    );
+
+    const sparse: unknown[] = [];
+    sparse.length = 1;
+    for (const playbackTrace of [undefined, Number.NaN, new Map(), new Date(0), sparse]) {
+      expectSnapshotError(
+        { ...stored, state: { ...stored.state, playbackTrace } },
+        "PROJECT_SCHEMA_INVALID",
+      );
+    }
   });
 
   it("detaches caller objects before retaining them", () => {
@@ -133,34 +342,28 @@ describe("stored editor project snapshots", () => {
     // @ts-expect-error Deliberately forge persisted before-values after structured cloning.
     operation.part.colorId = "builtin:yellow";
 
-    expectSnapshotError(forged, "HISTORY_REPLAY_FAILED");
+    expectSnapshotError(rehashStoredProject(stored, forged.state), "HISTORY_REPLAY_FAILED");
   });
 
   it("rejects malformed operations, selections, and excessive history", () => {
     const { state } = fixture();
     const stored = createStoredEditorProject("project-1", 1, state);
     expectSnapshotError(
-      {
-        ...stored,
-        state: {
-          ...stored.state,
-          undoStack: [{ label: "Bad", operations: [{ kind: "javascript", source: "x" }] }],
-        },
-      },
+      rehashStoredProject(stored, {
+        ...stored.state,
+        undoStack: [{ label: "Bad", operations: [{ kind: "javascript", source: "x" }] }],
+      }),
       "PROJECT_SCHEMA_INVALID",
     );
     expectSnapshotError(
-      { ...stored, state: { ...stored.state, selectedPartId: "missing-part" } },
+      rehashStoredProject(stored, { ...stored.state, selectedPartId: "missing-part" }),
       "PROJECT_SCHEMA_INVALID",
     );
     expectSnapshotError(
-      {
-        ...stored,
-        state: {
-          ...stored.state,
-          undoStack: Array.from({ length: 501 }, () => stored.state.undoStack[0]),
-        },
-      },
+      rehashStoredProject(stored, {
+        ...stored.state,
+        undoStack: Array.from({ length: 501 }, () => stored.state.undoStack[0]),
+      }),
       "PROJECT_LIMIT_EXCEEDED",
     );
   });

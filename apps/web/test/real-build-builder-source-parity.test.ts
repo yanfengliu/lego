@@ -81,11 +81,11 @@ const canonicalTypeScriptDesign = (source: (typeof BUILDER_STEP1_DESIGN_SOURCES)
 describe("committed Builder TypeScript/Python source parity", () => {
   const python = loadPythonPins();
 
-  it("keeps all 43 Builder design source tuples equal", () => {
-    expect(BUILDER_STEP1_DESIGN_SOURCES).toHaveLength(43);
+  it("keeps all 44 Builder design source tuples equal", () => {
+    expect(BUILDER_STEP1_DESIGN_SOURCES).toHaveLength(44);
     expect(
       new Set(BUILDER_STEP1_DESIGN_SOURCES.map(({ designRevision }) => designRevision)).size,
-    ).toBe(43);
+    ).toBe(44);
     expect(python.designs).toEqual(BUILDER_STEP1_DESIGN_SOURCES.map(canonicalTypeScriptDesign));
   });
 
@@ -110,7 +110,7 @@ describe("committed Builder TypeScript/Python source parity", () => {
       ]);
     }
     expect(sha256(JSON.stringify(python.shells))).toBe(
-      "ce023de75e9c5214cd49ebc381e1842cdeb4bd75c6da39b055a11124f5dcd136",
+      "a48923ab6e2355cda7467b8b0bc5865b8045e66226fc68c0e712dfbd0be1ac5c",
     );
     for (const shell of python.shells) {
       const source = sourcesByRevision.get(String(shell.designRevision));
@@ -134,10 +134,10 @@ describe("committed Builder TypeScript/Python source parity", () => {
     }
   });
 
-  it("keeps the canonical 184-file Builder closure equal to its TypeScript authority", () => {
+  it("keeps the canonical 185-file Builder closure equal to its TypeScript authority", () => {
     expect(python.ldrawClosureDigest).toBe(withoutSha256(BUILDER_STEP1_LDRAW_CLOSURE_DIGEST));
-    expect(python.ldrawFiles).toHaveLength(184);
-    expect(new Set(python.ldrawFiles.map(([file]) => file)).size).toBe(184);
+    expect(python.ldrawFiles).toHaveLength(185);
+    expect(new Set(python.ldrawFiles.map(([file]) => file)).size).toBe(185);
     const manifest = {
       schemaVersion: "lego.builder-ldraw-closure/2",
       archiveSha256: LDRAW_OFFICIAL_ARCHIVE,

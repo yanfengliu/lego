@@ -2,7 +2,8 @@ import { mkdirSync, writeFileSync } from "node:fs";
 
 import { test, expect } from "@playwright/test";
 
-import { readSampleBooklet, sampleBookletCallouts, sampleBookletPanels } from "./booklet-fixture";
+import { readSampleBooklet } from "./booklet-file-source.ts";
+import { sampleBookletCallouts, sampleBookletPanels } from "./booklet-fixture";
 import { bookletProbeUrls, hasSampleBooklet } from "./sample-booklet";
 import {
   BRICK_KERNEL_MODULE_URL,

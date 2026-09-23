@@ -5,14 +5,20 @@ import {
   createCameraForView,
   createCanonicalViewPacket,
   createPartMaterialCache,
+  createSemanticColorMaskMaterials,
   deriveBrickScene,
+  disposeSemanticColorMaskMaterials,
   THREE_UNITS_PER_LDU,
   fitPerspectiveCameraToFrame,
   orbitCameraFrustum,
   setBrickSceneSelection,
   type CanonicalViewPacket,
   type DerivedBrickScene,
+  type OrthographicViewFrame,
+  type OrthographicViewParameters,
   type PartMaterialCache,
+  type SemanticColorMaskClassification,
+  type SemanticColorMaskMaterials,
 } from "@lego-studio/rendering";
 import {
   ACESFilmicToneMapping,
@@ -41,6 +47,8 @@ import { GROUND_UNDERSIDE_LDU } from "../placement";
 import { installFlyRig } from "../viewport/install-fly-rig";
 import { installSelectionRig } from "../viewport/install-selection";
 import { installPlacementRig, type PlacementRig } from "../viewport/install-placement";
+import { CanonicalViewCaptureQueue } from "./canonical-view-capture-queue";
+import { renderInstructionViewPixels } from "./instruction-view-capture";
 
 export interface BrickViewportSnapshot {
   readonly contextLost: boolean;
@@ -51,8 +59,45 @@ export interface BrickViewportSnapshot {
   } | null;
 }
 
+export interface CanonicalViewCaptureOptions {
+  readonly scene?: "presentation" | "model-only";
+}
+
+interface InstructionViewCaptureBaseRequest {
+  readonly scene: "model-only";
+  readonly backgroundHex: number;
+  readonly parameters: OrthographicViewParameters;
+  readonly frame: OrthographicViewFrame;
+}
+
+export type InstructionViewCaptureRequest = InstructionViewCaptureBaseRequest &
+  (
+    | { readonly renderMode: "instruction-art"; readonly targetColorIds?: never }
+    | {
+        readonly renderMode: "semantic-color-id-mask";
+        readonly targetColorIds: readonly string[];
+      }
+  );
+
+export interface InstructionViewCaptureResult {
+  readonly scene: "model-only";
+  readonly renderMode: "instruction-art" | "semantic-color-id-mask";
+  readonly semanticColorMask: SemanticColorMaskClassification | null;
+  readonly backgroundHex: number;
+  readonly width: number;
+  readonly height: number;
+  readonly pngDataUrl: string;
+  readonly parameters: OrthographicViewParameters;
+  readonly frame: OrthographicViewFrame;
+  readonly projectionMatrix: readonly number[];
+  readonly matrixWorldInverse: readonly number[];
+}
+
 export interface BrickViewportHandle {
-  captureCanonicalViews(): Promise<Record<string, string>>;
+  captureCanonicalViews(options?: CanonicalViewCaptureOptions): Promise<Record<string, string>>;
+  captureInstructionView(
+    request: InstructionViewCaptureRequest,
+  ): Promise<InstructionViewCaptureResult>;
   getSnapshot(): BrickViewportSnapshot;
   /** Arms a move so the part follows the pointer until it is dropped. */
   beginMove(partId: string): void;
@@ -91,6 +136,7 @@ interface ViewportRuntime {
    * renderer's GL programs on each placement.
    */
   readonly materialCache: PartMaterialCache;
+  readonly semanticColorMaskMaterials: SemanticColorMaskMaterials;
   /** Covers the model and the ground grid so neither clips while orbiting. */
   sceneRadius: number;
 }
@@ -178,7 +224,7 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
     const [renderError, setRenderError] = useState<string | null>(null);
     const contextLostRef = useRef(false);
     const framedTokenRef = useRef<number | null>(null);
-    const capturePromiseRef = useRef<Promise<Record<string, string>> | null>(null);
+    const captureQueueRef = useRef(new CanonicalViewCaptureQueue());
 
     selectedPartIdRef.current = selectedPartId;
     onSelectPartRef.current = onSelectPart;
@@ -193,19 +239,24 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
     useImperativeHandle(
       ref,
       () => ({
-        async captureCanonicalViews() {
-          if (capturePromiseRef.current) return capturePromiseRef.current;
-          const capture = async () => {
+        async captureCanonicalViews(options = {}) {
+          return captureQueueRef.current.run(options.scene, async (captureScene) => {
             const runtime = runtimeRef.current;
             const host = hostRef.current;
             if (!runtime || !host || !runtime.packet || contextLostRef.current) return {};
 
             const previousSize = runtime.renderer.getSize(new Vector2());
             const previousPixelRatio = runtime.renderer.getPixelRatio();
+            const previousGridVisible = runtime.grid.visible;
+            const previousShadowPlateVisible = runtime.shadowPlate.visible;
             const width = 640;
             const height = 480;
             runtime.renderer.setPixelRatio(1);
             runtime.renderer.setSize(width, height, false);
+            if (captureScene === "model-only") {
+              runtime.grid.visible = false;
+              runtime.shadowPlate.visible = false;
+            }
             try {
               const captures: Record<string, string> = {};
               for (const view of runtime.packet.views) {
@@ -215,6 +266,8 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
               }
               return captures;
             } finally {
+              runtime.grid.visible = previousGridVisible;
+              runtime.shadowPlate.visible = previousShadowPlateVisible;
               runtime.renderer.setPixelRatio(previousPixelRatio);
               runtime.renderer.setSize(previousSize.x, previousSize.y, false);
               resizeCamera(
@@ -226,12 +279,33 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
               );
               runtime.renderer.render(runtime.scene, runtime.camera);
             }
-          };
-          const pending = capture().finally(() => {
-            if (capturePromiseRef.current === pending) capturePromiseRef.current = null;
           });
-          capturePromiseRef.current = pending;
-          return pending;
+        },
+        async captureInstructionView(request) {
+          return captureQueueRef.current.run(request.scene, async (captureScene) => {
+            if (captureScene !== "model-only")
+              throw new RangeError("Instruction-view capture scene must be model-only.");
+            const runtime = runtimeRef.current;
+            if (!runtime || !runtime.packet || !runtime.projection || contextLostRef.current)
+              throw new Error("Instruction-view capture requires one live framed model scene.");
+            const { pixels, ...capture } = renderInstructionViewPixels({
+              document: documentRef.current,
+              expectedDocumentHash: runtime.projection.documentHash,
+              request: { ...request, scene: captureScene },
+              renderer: runtime.renderer,
+              maskMaterials: runtime.semanticColorMaskMaterials,
+            });
+            const canvas = runtime.renderer.domElement.ownerDocument.createElement("canvas");
+            canvas.width = capture.width;
+            canvas.height = capture.height;
+            const context = canvas.getContext("2d");
+            if (!context)
+              throw new Error(
+                "Instruction-view capture requires a 2D PNG encoder; this browser did not provide a canvas context.",
+              );
+            context.putImageData(new ImageData(pixels, capture.width, capture.height), 0, 0);
+            return { ...capture, pngDataUrl: canvas.toDataURL("image/png") };
+          });
         },
         beginMove(partId: string) {
           placementRef.current?.beginMove(partId);
@@ -342,6 +416,7 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
         projection: null,
         packet: null,
         materialCache: createPartMaterialCache(),
+        semanticColorMaskMaterials: createSemanticColorMaskMaterials(),
         sceneRadius: GRID_SCENE_RADIUS,
       };
       runtimeRef.current = runtime;
@@ -434,6 +509,7 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
         runtime.projection?.dispose();
         // After the last scene that borrows from it, never before.
         runtime.materialCache.dispose();
+        disposeSemanticColorMaskMaterials(runtime.semanticColorMaskMaterials);
         grid.geometry.dispose();
         grid.material.dispose();
         shadowPlate.geometry.dispose();

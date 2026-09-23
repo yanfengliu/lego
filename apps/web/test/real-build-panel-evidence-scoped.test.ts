@@ -3,11 +3,8 @@ import { performance } from "node:perf_hooks";
 
 import { describe, expect, it } from "vitest";
 
-import {
-  readSampleBooklet,
-  sampleBookletCalloutBoxes,
-  type SampleBookletGetDocument,
-} from "../e2e/booklet-fixture";
+import { readSampleBooklet } from "../e2e/booklet-file-source.ts";
+import { sampleBookletCalloutBoxes, type SampleBookletGetDocument } from "../e2e/booklet-fixture";
 import {
   deriveRealBuildPanelEvidence,
   deriveScopedRealBuildPanelEvidence,

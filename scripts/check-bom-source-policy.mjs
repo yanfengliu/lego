@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 
 import ts from "typescript";
 
+import { inspectReviewedSourceBinary } from "./check-bom-source-policy-binary.mjs";
+
 import {
   ENCODED_SOURCE_LITERAL_CENSUS_SCHEMA,
   collectEncodedSourceLiteralCensus,
@@ -416,8 +418,10 @@ const binarySignature = (bytes) => {
   return undefined;
 };
 
-const inspectBytes = (relativeFile, sourceBytes) => {
+const inspectBytes = (relativeFile, sourceBytes, entries) => {
   const normalizedFile = normalizePath(relativeFile);
+  const binaryIssues = inspectReviewedSourceBinary(normalizedFile, sourceBytes, entries);
+  if (binaryIssues !== undefined) return { issues: binaryIssues };
   const issues = [];
   if (forbiddenRawSourceExtension.test(normalizedFile)) {
     issues.push(
@@ -472,11 +476,12 @@ export function inspectAppPackageSourceCensus(entries, dependencyEntries = []) {
   const censusEntries = [];
   const pythonEntries = [];
   const seen = new Set();
-  for (const entry of [...entries, ...dependencyEntries]) {
+  const population = [...entries, ...dependencyEntries];
+  for (const entry of population) {
     const relativeFile = normalizePath(entry.relativeFile);
     if (seen.has(relativeFile)) continue;
     seen.add(relativeFile);
-    const inspected = inspectBytes(relativeFile, entry.sourceBytes);
+    const inspected = inspectBytes(relativeFile, entry.sourceBytes, population);
     issues.push(...inspected.issues);
     if (inspected.source !== undefined) {
       censusEntries.push({ relativeFile, source: inspected.source });

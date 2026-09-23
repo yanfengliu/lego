@@ -29,6 +29,7 @@ export const SET_6651557_MEASURED_BLUEPRINTS_D = [
     // prettier-ignore
     assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-90", translationLdu: [0, -12, 0] },
     connectorGridCenterLdu: [0, 0],
+    validatedConnectionStudProfile: "nominal-stud-tube/1",
     exactBodyBoundsLdu: {
       min: ["-10", "-12", "-20"],
       max: ["10", "12", "20"],

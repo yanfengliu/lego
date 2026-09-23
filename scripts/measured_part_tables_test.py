@@ -12,6 +12,10 @@ import unittest
 from pathlib import Path
 
 from measured_part_emit_test import NumberLiteralTests, RenderTests
+from measured_clutch_semantics_test import (
+    MeasuredClutchSemanticEmitterTests,
+    MeasuredClutchSemanticPlanTests,
+)
 from measured_part_builder_plan_test import BuilderPlanTests
 from measured_part_geometry_test import (
     ExactBoundTests,
@@ -37,6 +41,8 @@ __all__ = [
     "PlanTests",
     "RenderTests",
     "MeasuredSourceConnectorTests",
+    "MeasuredClutchSemanticEmitterTests",
+    "MeasuredClutchSemanticPlanTests",
     "AxleHoleRoundTripTests",
 ]
 
@@ -106,6 +112,7 @@ class MeasuredPartFileBoundaryTests(unittest.TestCase):
             "generate-set-6651557-source-pilot.py",
             "source_pilot_input_validation.py",
             "measured_part_emit.py",
+            "measured_clutch_semantics.py",
             "measured_part_emit_check.py",
             "measured_part_emit_headers.py",
             "measured_part_builder_plan_test.py",
@@ -120,6 +127,7 @@ class MeasuredPartFileBoundaryTests(unittest.TestCase):
             "measured_part_tables_test.py",
             "measured_part_geometry_test.py",
             "measured_part_emit_test.py",
+            "measured_clutch_semantics_test.py",
             "measured_part_plan_test.py",
             "measured_part_suffix_plan_test.py",
             "measured_part_source_connector_test.py",

@@ -149,7 +149,7 @@ describe.runIf(realEvidencePresent)("prefix-50 action preparation", () => {
     expect(artifact.schemaVersion).toBe(PREFIX50_ACTION_PREPARATION_SCHEMA);
     expect(bytes).toHaveLength(317_152);
     expect(inspectVerifiedPrefix50ActionPreparation(verified).digest).toBe(
-      "sha256:5fbab00b90c6ffbe6c9b09727819e0b3a964cebbd88138232bd2418df6100fb6",
+      "sha256:cc1163b91bcc3892137e73dd99ae51b9626589572ca683f55e74302bd4a2b267",
     );
     expect(bytesFromVerifiedPrefix50ActionPreparation(verified)).toEqual(bytes);
     expect(isVerifiedPrefix50ActionPreparation(verified)).toBe(true);

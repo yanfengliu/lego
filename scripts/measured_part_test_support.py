@@ -68,6 +68,13 @@ def measured(**overrides: object) -> MeasuredPart:
         "indices": (0, 1, 2),
         "body_triangle_count": 1,
         "stud_triangle_count": 0,
+        "stud_role_lineage": (
+            (
+                "official",
+                "p/stud.dat",
+                "sha256:db037d518d7c08bcdc1f0e7497f4f98e97d99850531dd62d602965520f3bf8f4",
+            ),
+        ),
         "exact_body_bounds": (("-10", "-4", "-20"), ("10", "4", "20")),
         "exact_bounds": (("-10", "-8", "-20"), ("10", "4", "20")),
         "studs_ldu": ((0.0, -4.0, -10.0, 6.0, 4.0),),

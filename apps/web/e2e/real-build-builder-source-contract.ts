@@ -11,7 +11,7 @@ export interface BuilderOpaqueIdentityRoutePin {
   readonly exactLdrawId: "2453b.dat";
   readonly builderToCatalogLocalMatrix: readonly [25, 0, 0, 0, -25, 0, 0, 0, -25];
   readonly builderToCatalogLocalTranslationLdu: readonly [0, 60, 0];
-  readonly proofDigest: "sha256:75ba323b5ce28509ee2041c62ff8f3fabec4450cbd679c7f48fe600b9a608bb5";
+  readonly proofDigest: "sha256:58c7847cb2b39f6b535c0be6cee1d2659bceaef6f0074343eadc51fe8bf1845a";
 }
 
 export interface BuilderTriangleSlicePin {
@@ -73,8 +73,8 @@ export const BUILDER_STEP1_OFFICIAL_MODEL_DIGEST =
 
 export const BUILDER_STEP1_GEOMETRY_BUNDLE = {
   format: "lego.builder-shell-and-ldraw-triangles-f32le/2",
-  byteLength: 1_820_412,
-  digest: "sha256:7e91e1402f2ab609fee6e502336f86ee74fb3a94d970e9b0b75acf07f925a76f",
+  byteLength: 1_834_092,
+  digest: "sha256:c047a4b78518ae658a34efd3f3121de11558d00821b1764a472b87cf0ee82b97",
 } as const;
 
 export const LDRAW_OFFICIAL_ARCHIVE =
@@ -83,4 +83,4 @@ export const LDRAW_UNOFFICIAL_ARCHIVE =
   "sha256:09ec08007203b66e79b1f857aa4804cbee26e1337e177a7c3a87adc1268e44d4" as const;
 /** The exact official closure of the current diagnostic roots; `builder_calibration_sources.py` holds it. */
 export const BUILDER_STEP1_LDRAW_CLOSURE_DIGEST =
-  "sha256:72ca520b68934fdaa384e9bbc961090538f0b4ee1269773675db1adcf3cc7fdd" as const;
+  "sha256:ffe99f465ae9e045d649750d9290043fd6947e5d740d6576980da42fc365fb63" as const;

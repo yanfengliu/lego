@@ -48,7 +48,11 @@ export function ownData(value: unknown, key: string, label: string): unknown {
   return descriptor.value;
 }
 
-export function exactInputKeys(value: unknown, includeOccurrence30Proof: boolean): void {
+export function exactInputKeys(
+  value: unknown,
+  includeSourceRepairProofs: boolean,
+  includeSelectedSubBuildReturn = false,
+): void {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     throw new TypeError("Prefix-50 exact compiler input must be a data object.");
   }
@@ -58,8 +62,16 @@ export function exactInputKeys(value: unknown, includeOccurrence30Proof: boolean
   } catch {
     throw new TypeError("Prefix-50 exact compiler input could not be inspected safely.");
   }
-  const expected = includeOccurrence30Proof
-    ? ["documentSnapshot", "occurrence30SourceRepairProof", "projectionReader"]
+  const expected = includeSourceRepairProofs
+    ? [
+        "documentSnapshot",
+        "occurrence30SourceRepairProof",
+        "projectionReader",
+        ...(includeSelectedSubBuildReturn ? ["selectedSubBuildReturn"] : []),
+        "step41SourceRepairProof",
+        "step42SourceRepairProof",
+        "step42_43SourceRepairProof",
+      ]
     : ["documentSnapshot", "projectionReader"];
   if (keys.length !== expected.length || keys.some((key, index) => key !== expected[index])) {
     throw new TypeError(
@@ -123,6 +135,28 @@ export function requireRealBuildPrefix50CompleteEnumeration(
   return enumeration;
 }
 
+export const REAL_BUILD_PREFIX50_EXACT_ENUMERATION_QUERY_VERSION =
+  "lego.real-build-prefix50-exact-enumeration-query/1" as const;
+
+/** Pure source of every non-document input to one exact placement enumeration. */
+export function buildRealBuildPrefix50ExactEnumerationQuery(
+  occurrence: RealBuildPrefix50TargetOccurrence | RealBuildPrefix50ProjectionOccurrence,
+  allowDetachedBuildPlate: boolean,
+) {
+  return deepFreeze({
+    schemaVersion: REAL_BUILD_PREFIX50_EXACT_ENUMERATION_QUERY_VERSION,
+    catalogPartId: occurrence.partIdentity.reconciledCatalogPartId,
+    options: {
+      includeBuildPlate: allowDetachedBuildPlate,
+      allowDetached: allowDetachedBuildPlate,
+      maxDistinctTransforms: REAL_BUILD_PREFIX50_MAXIMUM_DISTINCT_TRANSFORMS,
+      ...("targetTransform" in occurrence
+        ? { orientationIds: [occurrence.targetTransform.orientationId] }
+        : {}),
+    },
+  });
+}
+
 export function enumerateFor(
   document: BrickDocumentV1,
   occurrence: RealBuildPrefix50TargetOccurrence | RealBuildPrefix50ProjectionOccurrence,
@@ -130,24 +164,13 @@ export function enumerateFor(
   budget: RealBuildPrefix50SearchBudget,
   prepared?: PreparedPlacementEnumerationWorld,
 ): PlacementEnumeration {
+  const query = buildRealBuildPrefix50ExactEnumerationQuery(occurrence, allowDetachedBuildPlate);
   budget.enumerations += 1;
-  if ("targetTransform" in occurrence) budget.orientationNarrowedEnumerations += 1;
-  const options = {
-    includeBuildPlate: allowDetachedBuildPlate,
-    allowDetached: allowDetachedBuildPlate,
-    maxDistinctTransforms: REAL_BUILD_PREFIX50_MAXIMUM_DISTINCT_TRANSFORMS,
-    ...("targetTransform" in occurrence
-      ? { orientationIds: [occurrence.targetTransform.orientationId] }
-      : {}),
-  };
+  if (query.options.orientationIds !== undefined) budget.orientationNarrowedEnumerations += 1;
   return requireRealBuildPrefix50CompleteEnumeration(
     prepared === undefined
-      ? enumeratePlacements(document, occurrence.partIdentity.reconciledCatalogPartId, options)
-      : enumeratePlacementsInPreparedWorld(
-          prepared,
-          occurrence.partIdentity.reconciledCatalogPartId,
-          options,
-        ),
+      ? enumeratePlacements(document, query.catalogPartId, query.options)
+      : enumeratePlacementsInPreparedWorld(prepared, query.catalogPartId, query.options),
   );
 }
 

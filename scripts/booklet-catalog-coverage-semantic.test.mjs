@@ -119,11 +119,11 @@ describe("semantic booklet catalog coverage hostile boundary", () => {
 
     expect(report).toMatchObject({
       catalog: {
-        version: "builtin.basic-parts/29",
-        digest: "sha256:19c5e8a3f4e1d00d7747c8d3e0f377ee4391acc53915df8ead0c1830b75b8db6",
+        version: "builtin.basic-parts/30",
+        digest: "sha256:a030be3e20eeb1592594c43e321be64ac2f84875c40ad2445c48ca9e104ef290",
       },
       inputDigests: {
-        catalog: "sha256:19c5e8a3f4e1d00d7747c8d3e0f377ee4391acc53915df8ead0c1830b75b8db6",
+        catalog: "sha256:a030be3e20eeb1592594c43e321be64ac2f84875c40ad2445c48ca9e104ef290",
         prefix50SemanticClosure: semanticDigest,
       },
       calloutsConsidered: 1,
@@ -195,11 +195,11 @@ realDescribe("current prefix-50 semantic booklet catalog coverage", () => {
         calloutManifest: CURRENT_LEGACY_RECUT_PINS.currentManifest.digest,
         elementResolution: CURRENT_PREFIX50_SEMANTIC_CLOSURE_PINS.elementResolution.digest,
         prefix50SemanticClosure: CURRENT_PREFIX50_SEMANTIC_CLOSURE_PINS.expectedArtifact.digest,
-        catalog: "sha256:19c5e8a3f4e1d00d7747c8d3e0f377ee4391acc53915df8ead0c1830b75b8db6",
+        catalog: "sha256:a030be3e20eeb1592594c43e321be64ac2f84875c40ad2445c48ca9e104ef290",
       },
       catalog: {
-        version: "builtin.basic-parts/29",
-        digest: "sha256:19c5e8a3f4e1d00d7747c8d3e0f377ee4391acc53915df8ead0c1830b75b8db6",
+        version: "builtin.basic-parts/30",
+        digest: "sha256:a030be3e20eeb1592594c43e321be64ac2f84875c40ad2445c48ca9e104ef290",
       },
       expectedPrintedSteps: 359,
       lastStep: 50,
@@ -304,7 +304,7 @@ realDescribe("current prefix-50 semantic booklet catalog coverage", () => {
   it("independently reproduces exact bytes and rejects a one-byte report edit", async () => {
     expect(bytes).toHaveLength(588_467);
     expect(digest(bytes)).toBe(
-      "sha256:861d08a28dac94619e8c541e928d7803b4b6cab9fe9fa12da9f166fc0e46444d",
+      "sha256:18758d821162e9ec9eda008fb9051893ac7b6013b40e50e5098986a0aa61f890",
     );
     await expect(
       verifySemanticBookletCatalogCoverage({ ...input, coverageBytes: bytes }),

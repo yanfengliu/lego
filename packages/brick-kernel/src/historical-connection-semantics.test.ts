@@ -17,6 +17,192 @@ import {
 } from "./migration-historical-fixtures.test-support.ts";
 import { getReviewedHistoricalCatalogRoster } from "./historical-catalog-rosters.ts";
 
+const EXPECTED_JUMPER_15573_V30_CHANGES = [
+  {
+    partId: "builtin:jumper-plate-1x2",
+    portId: "stud:0",
+    sourceDigest: "sha256:61dfdb8f0f1be08d2f879c6eb8cc6adcbf983c3b60adbf78e7a8e58000a1ab1c",
+    targetDigest: "sha256:6d18cd98abc61c5dc6e8f7c2150b01e4c1f3399e221cb7ea98490bc9469b47a2",
+  },
+  {
+    partId: "builtin:jumper-plate-1x2",
+    portId: "undersideClutch:0:0",
+    sourceDigest: "sha256:c15d33f08a5abe76a76463638f2ec6161b7b987b8fd550c7ec3776f0f337c1fb",
+    targetDigest: "sha256:f0dfb4e576750a365b47ae6af4434dcae817440b61486a0e7d113ebb9758b5b2",
+  },
+  {
+    partId: "builtin:jumper-plate-1x2",
+    portId: "undersideClutch:0:1",
+    sourceDigest: "sha256:926847873d79b7422369f1ed9d5688cf2d8578d81035a479ac5cb1c4f7d7ce5e",
+    targetDigest: "sha256:ac2dd1ea96cebe00afbefb527188086cdfdd05417799beee63efee79100e7a67",
+  },
+  {
+    partId: "builtin:jumper-plate-1x2",
+    portId: "undersideClutch:center",
+    sourceDigest: null,
+    targetDigest: "sha256:b756d80ea0e8fdd60d88ae20d440470708b2848441d38052207e3e97ed1c7766",
+  },
+] as const;
+
+const EXPECTED_V30_NOMINAL_STUD_PROFILE_CHANGES = [
+  {
+    partId: "builtin:arch-1x6-thin-top",
+    portId: "stud:0",
+    sourceDigest: "sha256:b5d3141f86fcc59fee998636ae60b0aa21d812add478dae1c1a3af01ff27b230",
+    targetDigest: "sha256:3a0b3038add9e289560afe547678ea272b49c5bf72ba2e8b0079dc0245fcc7ad",
+  },
+  {
+    partId: "builtin:arch-1x6-thin-top",
+    portId: "stud:1",
+    sourceDigest: "sha256:ee2480d9cf787dce91585794b6d886b95d2f1faaf06582245c9bc3436cd94141",
+    targetDigest: "sha256:e67ea5b7edbaa771c6ce0aebf6f68f50aa4073c64fccb0442dcef8bda7c6c756",
+  },
+  {
+    partId: "builtin:arch-1x6-thin-top",
+    portId: "stud:2",
+    sourceDigest: "sha256:161dc3a010d2d0f37d873a474b5032c2aa4f0293190f266acf3ba4c3f5f54974",
+    targetDigest: "sha256:5c1e81a22c2d3f9582464e997337596ccc219fd5d252873c6960e2472dc913dd",
+  },
+  {
+    partId: "builtin:arch-1x6-thin-top",
+    portId: "stud:3",
+    sourceDigest: "sha256:2fe93cf402082385c3dec8efbfc667583eac2b02912e21bbe382d46feaec5142",
+    targetDigest: "sha256:63e75758efc187f467c367b686f54ed8a20b99f401d6c91b7e98be753f0393c2",
+  },
+  {
+    partId: "builtin:arch-1x6-thin-top",
+    portId: "stud:4",
+    sourceDigest: "sha256:5dbc3577d14c839e4465e0ffe12e759be9351b5acd896184dde3253d073e2ec6",
+    targetDigest: "sha256:b4da05044288ec4e872c6ce347d15ae928598aee58fb55828ed1953f3811959a",
+  },
+  {
+    partId: "builtin:arch-1x6-thin-top",
+    portId: "stud:5",
+    sourceDigest: "sha256:f8cfbd08059db3010a3f59bd4396dfc3441296b47df3593c97541e33c0f41de5",
+    targetDigest: "sha256:4795c40cd23e50181632cb8420ca42f232378ce773b1b42c1d97cacbfacf6094",
+  },
+  {
+    partId: "builtin:bracket-1x2-1x4-rounded-bottom",
+    portId: "stud:0",
+    sourceDigest: "sha256:90e85b902e7cd6a7410f95960092450d12d356a09e3ab55ac66ac980f823479c",
+    targetDigest: "sha256:d1f81a006d30dad1288c7ca7fae5ba07a9e03178208d22390a0448966cef8c72",
+  },
+  {
+    partId: "builtin:bracket-1x2-1x4-rounded-bottom",
+    portId: "stud:1",
+    sourceDigest: "sha256:c24c273ad355979535ef9182541d89ffd23a1c5422c9c014fc9aeeb78b9b2a97",
+    targetDigest: "sha256:2a9b5447b5e8f5ad7ad00f2f7e689f128901b0892b70b990eb3e516010427d62",
+  },
+  {
+    partId: "builtin:bracket-1x2-1x4-rounded-bottom",
+    portId: "stud:2",
+    sourceDigest: "sha256:c8edbeb2d399253bbbe5b651b6029834719de75a22366230b58f4b79cb9b30f3",
+    targetDigest: "sha256:555b7536866c2c181fe27262b07127045bd67b1acca991ed4fddf5cfbc90bae2",
+  },
+  {
+    partId: "builtin:bracket-1x2-1x4-rounded-bottom",
+    portId: "stud:3",
+    sourceDigest: "sha256:c44be19ddd313fbcae2150ed45948d608349b4f3a9fff4c6d74483666308a416",
+    targetDigest: "sha256:2868e38c2cb430f639d1535994c3528300890e448f1d2fa98e01a950980020d7",
+  },
+  {
+    partId: "builtin:bracket-1x2-1x4-rounded-bottom",
+    portId: "stud:4",
+    sourceDigest: "sha256:05be104c219c88aa6ebd1dc51503cf959b0940aaab96dfc2716af913804769f5",
+    targetDigest: "sha256:48958b21a05fa7f3abe8ef92689a8c408ce590f72f21f108975a8c6c99401f39",
+  },
+  {
+    partId: "builtin:bracket-1x2-1x4-rounded-bottom",
+    portId: "stud:5",
+    sourceDigest: "sha256:cf16d3d7ec9feb5f43226287c93631f0ed31e5556a930092c2644f208ea39dbb",
+    targetDigest: "sha256:fec8553481ae3ca586e2540bb20785144f2926f129c248feef0a0d12114789eb",
+  },
+  {
+    partId: "builtin:bracket-2x2-1x2-vertical-studs",
+    portId: "stud:0",
+    sourceDigest: "sha256:4a99b1abf864318954c0420ba3f74e548242e2fb0d6ada03a2c6f3542256f09b",
+    targetDigest: "sha256:cc4dc7a878f13a133c61cabdab18d2d5923481b83885a204cb23c4245312308d",
+  },
+  {
+    partId: "builtin:bracket-2x2-1x2-vertical-studs",
+    portId: "stud:1",
+    sourceDigest: "sha256:123cfb55d092b68b5f7867f3baf472fd248ad10d8fa9900a67eac43b61bb8b1f",
+    targetDigest: "sha256:c9eeb17812520caa79bfe37f4ad84eaa74935e61fb258181597eecf551bc99b4",
+  },
+  {
+    partId: "builtin:brick-1x2-grille",
+    portId: "stud:0",
+    sourceDigest: "sha256:212771ef8fb14438dc224ac05fe918eea96366414fe22c59165e769bc7fe3fb6",
+    targetDigest: "sha256:0052bcf0cac6ddf47137cb8aaf8d07ebb71dd55707d1c1141c1552ed15dbe90e",
+  },
+  {
+    partId: "builtin:brick-1x2-grille",
+    portId: "stud:1",
+    sourceDigest: "sha256:781aaa3396fcde3510887d34ab7cd8580f200e8c245cf6e67f9d642473be6aae",
+    targetDigest: "sha256:ca95b584db634e480d4b29727c1a94e604e7767d81cb1bfe8429a9a6dde222a6",
+  },
+  {
+    partId: "builtin:corner-plate-2x2-round",
+    portId: "stud:0",
+    sourceDigest: "sha256:86fdc6997d32dd599d8ce21cac29ddbb5d9020fb461e2d34828fa8799158c80b",
+    targetDigest: "sha256:81bdf45fc51111361af87654ab365ef62a168d7f1eaab4f50ea36db3d0412f9d",
+  },
+  {
+    partId: "builtin:corner-plate-2x2-round",
+    portId: "stud:1",
+    sourceDigest: "sha256:85b521112777da90e1fd5d59b0bda34c5fb827af4294e415f2996fab30fd86e9",
+    targetDigest: "sha256:8dea88d4ba6ab339182e44f9992217138d5206d07b3ef71b71ff62afdf5e99c9",
+  },
+  {
+    partId: "builtin:technic-brick-1x2-axle-hole",
+    portId: "stud:0",
+    sourceDigest: "sha256:212771ef8fb14438dc224ac05fe918eea96366414fe22c59165e769bc7fe3fb6",
+    targetDigest: "sha256:0052bcf0cac6ddf47137cb8aaf8d07ebb71dd55707d1c1141c1552ed15dbe90e",
+  },
+  {
+    partId: "builtin:technic-brick-1x2-axle-hole",
+    portId: "stud:1",
+    sourceDigest: "sha256:781aaa3396fcde3510887d34ab7cd8580f200e8c245cf6e67f9d642473be6aae",
+    targetDigest: "sha256:ca95b584db634e480d4b29727c1a94e604e7767d81cb1bfe8429a9a6dde222a6",
+  },
+  {
+    partId: "builtin:wedge-plate-3x3-cut-corner",
+    portId: "stud:0",
+    sourceDigest: "sha256:5d13a1b90714ca40eeaebaf77ecabcfdc88c026cfde76ac8fbfe0fa1672ef5ca",
+    targetDigest: "sha256:a2eeb06d3569d59b853e5f6b681788b2080dddab02da7449c60f148d242871de",
+  },
+  {
+    partId: "builtin:wedge-plate-3x3-cut-corner",
+    portId: "stud:1",
+    sourceDigest: "sha256:50a0749b012c54ed667a1413fe3b07895db37e3d34018ec527e42ab9ac4f8710",
+    targetDigest: "sha256:f067013c5bba17c32278cb2b00c92477637392a2ee672f5e2bb5fe0a2a3ebd47",
+  },
+  {
+    partId: "builtin:wedge-plate-3x3-cut-corner",
+    portId: "stud:2",
+    sourceDigest: "sha256:ffcaee0d4b63c2fdcd0fd08afc58f706e246b6fb34c9689d05e55be31876b355",
+    targetDigest: "sha256:b8c275fbf486bf8001d6043f9ae67f6f4ac8f54a98b35ab5542593d9ee3e996a",
+  },
+  {
+    partId: "builtin:wedge-plate-3x3-cut-corner",
+    portId: "stud:3",
+    sourceDigest: "sha256:fb005ff004f132e4b2aee85c5b2c3dad5531a6014d0a56e7557544a64309eec2",
+    targetDigest: "sha256:4c3d439633881d7119ee8d4c0dcf56446eae3cb38b1a6e85b544c4f17e168318",
+  },
+  {
+    partId: "builtin:wedge-plate-3x3-cut-corner",
+    portId: "stud:4",
+    sourceDigest: "sha256:bdf77e32ba9ac2ea1de3322586a0430ce6196238ea0752fca290f834b1780b75",
+    targetDigest: "sha256:ba6e0b23d74ba436c2a59d3d398025b0c664d247f0f9a84d301e1a69803c9369",
+  },
+  {
+    partId: "builtin:wedge-plate-3x3-cut-corner",
+    portId: "stud:5",
+    sourceDigest: "sha256:d51fb9214bb9f865c52ba7b1b3427d589cb0328764eaf9659a6a464e56677b30",
+    targetDigest: "sha256:4cb3c98b802d0e8098e33b90270047e3a01e44ab48626b624b90de940df36726",
+  },
+] as const;
+
 const EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_BEFORE_30357 = [
   {
     partId: "builtin:corner-plate-3x3",
@@ -48,6 +234,7 @@ const EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_BEFORE_30357 = [
     sourceDigest: "sha256:9ad1f20c13c6b6ab63de3e425ced0f525b375e81a83bfc29eb98ea34cabe657b",
     targetDigest: "sha256:7c6b8a5c08fdc858a65625629e6bd28abebd6b9c8c954911ea26b792d6ac8223",
   },
+  ...EXPECTED_JUMPER_15573_V30_CHANGES,
   {
     partId: "builtin:plate-1x2-round-end",
     portId: "stud:0",
@@ -147,18 +334,100 @@ const EXPECTED_TECHNIC_BRICK_1X2_THROUGH_BORE_CHANGE = {
   targetDigest: "sha256:8492dfdbf8872bc38cb469a3aad2fe6766c8081324df2eb03a00ca9c5c027570",
 } as const;
 
-const EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_V8 = [
-  ...EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_BEFORE_30357,
-  ...EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_30357,
-  ...EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_WING,
-] as const;
+type ExpectedEndpointDelta = {
+  readonly partId: string;
+  readonly portId: string;
+  readonly sourceDigest: string | null;
+  readonly targetDigest: string | null;
+};
 
-const EXPECTED_VALIDATED_STUD_PROFILE_AND_1X2_THROUGH_BORE_CHANGES = [
-  ...EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_BEFORE_30357,
-  ...EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_30357,
-  EXPECTED_TECHNIC_BRICK_1X2_THROUGH_BORE_CHANGE,
-  ...EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_WING,
-] as const;
+function mergeExpectedEndpointDeltas(
+  ...groups: readonly (readonly ExpectedEndpointDelta[])[]
+): readonly ExpectedEndpointDelta[] {
+  return groups
+    .flat()
+    .sort((left, right) =>
+      connectionEndpointKey(left.partId, left.portId).localeCompare(
+        connectionEndpointKey(right.partId, right.portId),
+      ),
+    );
+}
+
+function expectedV30NominalStudProfileChanges(
+  ...partIds: readonly string[]
+): readonly ExpectedEndpointDelta[] {
+  const included = new Set(partIds);
+  return EXPECTED_V30_NOMINAL_STUD_PROFILE_CHANGES.filter(({ partId }) => included.has(partId));
+}
+
+const EXPECTED_V30_NOMINAL_STUD_PROFILE_CHANGES_V8 = expectedV30NominalStudProfileChanges(
+  "builtin:wedge-plate-3x3-cut-corner",
+  "builtin:corner-plate-2x2-round",
+);
+const EXPECTED_V30_NOMINAL_STUD_PROFILE_CHANGES_V15 = expectedV30NominalStudProfileChanges(
+  "builtin:wedge-plate-3x3-cut-corner",
+  "builtin:corner-plate-2x2-round",
+  "builtin:bracket-1x2-1x4-rounded-bottom",
+);
+const EXPECTED_V30_NOMINAL_STUD_PROFILE_CHANGES_V18 = expectedV30NominalStudProfileChanges(
+  "builtin:wedge-plate-3x3-cut-corner",
+  "builtin:corner-plate-2x2-round",
+  "builtin:bracket-1x2-1x4-rounded-bottom",
+  "builtin:arch-1x6-thin-top",
+);
+const EXPECTED_V30_NOMINAL_STUD_PROFILE_CHANGES_V19 = expectedV30NominalStudProfileChanges(
+  "builtin:wedge-plate-3x3-cut-corner",
+  "builtin:corner-plate-2x2-round",
+  "builtin:bracket-1x2-1x4-rounded-bottom",
+  "builtin:arch-1x6-thin-top",
+  "builtin:bracket-2x2-1x2-vertical-studs",
+);
+const EXPECTED_V30_NOMINAL_STUD_PROFILE_CHANGES_V20 = expectedV30NominalStudProfileChanges(
+  "builtin:wedge-plate-3x3-cut-corner",
+  "builtin:corner-plate-2x2-round",
+  "builtin:bracket-1x2-1x4-rounded-bottom",
+  "builtin:arch-1x6-thin-top",
+  "builtin:bracket-2x2-1x2-vertical-studs",
+  "builtin:brick-1x2-grille",
+);
+
+function expectedValidatedStudProfileChanges(
+  v30Changes: readonly ExpectedEndpointDelta[],
+): readonly ExpectedEndpointDelta[] {
+  return mergeExpectedEndpointDeltas(
+    EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_BEFORE_30357,
+    EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_30357,
+    EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_WING,
+    v30Changes,
+  );
+}
+
+const EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_V8 = expectedValidatedStudProfileChanges(
+  EXPECTED_V30_NOMINAL_STUD_PROFILE_CHANGES_V8,
+);
+const EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_V15 = expectedValidatedStudProfileChanges(
+  EXPECTED_V30_NOMINAL_STUD_PROFILE_CHANGES_V15,
+);
+const EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_V18 = expectedValidatedStudProfileChanges(
+  EXPECTED_V30_NOMINAL_STUD_PROFILE_CHANGES_V18,
+);
+const EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_V19 = expectedValidatedStudProfileChanges(
+  EXPECTED_V30_NOMINAL_STUD_PROFILE_CHANGES_V19,
+);
+const EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_V20 = expectedValidatedStudProfileChanges(
+  EXPECTED_V30_NOMINAL_STUD_PROFILE_CHANGES_V20,
+);
+const EXPECTED_VALIDATED_STUD_PROFILE_AND_1X2_THROUGH_BORE_CHANGES = mergeExpectedEndpointDeltas(
+  EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_BEFORE_30357,
+  EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_30357,
+  [EXPECTED_TECHNIC_BRICK_1X2_THROUGH_BORE_CHANGE],
+  EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_WING,
+  EXPECTED_V30_NOMINAL_STUD_PROFILE_CHANGES,
+);
+const EXPECTED_VERSION_30_ENDPOINT_CHANGES = mergeExpectedEndpointDeltas(
+  EXPECTED_V30_NOMINAL_STUD_PROFILE_CHANGES,
+  EXPECTED_JUMPER_15573_V30_CHANGES,
+);
 
 describe("reviewed historical connection semantics", () => {
   it("binds every reviewed truth to an immutable exhaustive authority row", () => {
@@ -168,7 +437,7 @@ describe("reviewed historical connection semantics", () => {
     expect(rows.map(([truthHash]) => truthHash)).toEqual(truthHashes);
     expect(Object.isFrozen(REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH)).toBe(true);
     expect(rows.every(([, row]) => Object.isFrozen(row))).toBe(true);
-    expect(rows.reduce((count, [, row]) => count + row.endpointDeltas.length, 0)).toBe(440);
+    expect(rows.reduce((count, [, row]) => count + row.endpointDeltas.length, 0)).toBe(946);
     expect(rows.flatMap(([, row]) => row.pairDeltas)).toEqual([]);
     for (const [, row] of rows) {
       const keys = row.endpointDeltas.map(({ partId, portId }) =>
@@ -191,9 +460,27 @@ describe("reviewed historical connection semantics", () => {
       sourcePairCount: 3,
       sourcePairMapDigest:
         "sha256:7431a242907aa9829ead6a279d0b530fe5f5d00ee31e6ddc1576fe66a8a07add",
-      endpointDeltas: EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_V8,
+      endpointDeltas: EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_V19,
       pairDeltas: [],
     });
+  });
+
+  it("pins each additive profile-class admission stage before /19", () => {
+    expect(
+      REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH[
+        "sha256:db8c1740f23c65a4c0046c679e321a559623ac18a9c3fe59357b912e3a48a1b3"
+      ]?.endpointDeltas,
+    ).toEqual(EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_V8);
+    expect(
+      REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH[
+        "sha256:f8e7efbd1bc969ac699fd68db9696af693898a15ffb7901821e676d843240e2f"
+      ]?.endpointDeltas,
+    ).toEqual(EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_V15);
+    expect(
+      REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH[
+        "sha256:8172cc4f993b46bb9fa8f782bb2b295c516e95c16f2d6861e4a18219ef2e1b20"
+      ]?.endpointDeltas,
+    ).toEqual(EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_V18);
   });
 
   it("preserves a historical source root while the live target excludes a future blind kind", () => {
@@ -236,7 +523,7 @@ describe("reviewed historical connection semantics", () => {
       sourcePairCount: 3,
       sourcePairMapDigest:
         "sha256:7431a242907aa9829ead6a279d0b530fe5f5d00ee31e6ddc1576fe66a8a07add",
-      endpointDeltas: EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_V8,
+      endpointDeltas: EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_V20,
       pairDeltas: [],
     });
   });
@@ -254,7 +541,7 @@ describe("reviewed historical connection semantics", () => {
       sourcePairCount: 3,
       sourcePairMapDigest:
         "sha256:7431a242907aa9829ead6a279d0b530fe5f5d00ee31e6ddc1576fe66a8a07add",
-      endpointDeltas: EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_V8,
+      endpointDeltas: EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_V20,
       pairDeltas: [],
     });
   });
@@ -272,7 +559,7 @@ describe("reviewed historical connection semantics", () => {
       sourcePairCount: 3,
       sourcePairMapDigest:
         "sha256:7431a242907aa9829ead6a279d0b530fe5f5d00ee31e6ddc1576fe66a8a07add",
-      endpointDeltas: EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_V8,
+      endpointDeltas: EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_V20,
       pairDeltas: [],
     });
   });
@@ -309,6 +596,24 @@ describe("reviewed historical connection semantics", () => {
       sourcePairMapDigest:
         "sha256:7431a242907aa9829ead6a279d0b530fe5f5d00ee31e6ddc1576fe66a8a07add",
       endpointDeltas: EXPECTED_VALIDATED_STUD_PROFILE_AND_1X2_THROUGH_BORE_CHANGES,
+      pairDeltas: [],
+    });
+  });
+
+  it("pins the complete /29 connector authority that /30 reinterprets", () => {
+    expect(
+      REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH[
+        "sha256:54762419e4779c6c15566052062fcaa432cb45e3a13704b5af1563b4fa94e8eb"
+      ],
+    ).toEqual({
+      sourceCommit: "6b02e50732d7908374b168ce0582476ac0422769",
+      sourceEndpointCount: 2339,
+      sourceEndpointMapDigest:
+        "sha256:3ee33ad94b3f4ff2ea0024c27753d871f26b7bbe0cd8d74c7309287c804d2be9",
+      sourcePairCount: 4,
+      sourcePairMapDigest:
+        "sha256:92dd1cdfb9f34879f55a5ee5a0827b5c24c830da654c90bd3b00896025ca5731",
+      endpointDeltas: EXPECTED_VERSION_30_ENDPOINT_CHANGES,
       pairDeltas: [],
     });
   });

@@ -1,3 +1,4 @@
+import type { BuildPlaybackTraceV1 } from "@lego-studio/brick-kernel";
 import type { BrickDocumentV1, RigidTransform } from "@lego-studio/protocol";
 
 import type {
@@ -5,10 +6,29 @@ import type {
   PlacementTransformDiagnosis,
 } from "../src/assembly/enumerate-placements";
 import type { RealBuildAutomaticPlacementWitness } from "./real-build-automatic-placement-input";
+import type { RigidSubassemblyReturnEnumeration } from "../src/assembly/rigid-subassembly-return";
 import { BUILDER_STEP1_ORIGIN_POLICY } from "./real-build-builder-sources";
 import type { RealBuildPrefix50Occurrence30SourceRepairEvidence } from "./real-build-prefix50-occurrence30-source-repair";
-import type { RealBuildPrefix50ProjectionOccurrence } from "./real-build-prefix50-projection";
+import type {
+  RealBuildPrefix50ProjectionOccurrence,
+  RealBuildPrefix50ProjectionStep,
+} from "./real-build-prefix50-projection";
 import type { RealBuildPrefix50SourcePlacementRepairProposal } from "./real-build-prefix50-source-placement-repair";
+import type { RealBuildPrefix50BoundStep41SourceRepair } from "./real-build-prefix50-step41-source-repair-application";
+import type {
+  RealBuildPrefix50BoundStep42_43SourceRepair,
+  RealBuildPrefix50BoundStep42SourceRepair,
+} from "./real-build-prefix50-late-source-repair-binding";
+import type { RealBuildPrefix50AtomicSubBuildRoot } from "./real-build-prefix50-subbuild-root";
+import type { RealBuildPrefix50DetachedSubBuildState } from "./real-build-prefix50-subbuild-state";
+import type { RealBuildPrefix50SelectedSubBuildReturn } from "./real-build-prefix50-subbuild-return";
+import type { RealBuildPrefix50Step45RelationalResolution } from "./real-build-prefix50-step45-relational-resolver";
+import type { RealBuildPrefix50Step50AtomicRoot } from "./real-build-prefix50-suffix-root";
+import type { RealBuildPrefix50SuffixSubBuildPlan } from "./real-build-prefix50-suffix-subbuild-plan";
+import type {
+  RealBuildPrefix50SameStepReturnStates,
+  RealBuildPrefix50TerminalDetachedState,
+} from "./real-build-prefix50-suffix-state";
 
 export const REAL_BUILD_PREFIX50_MAXIMUM_DISTINCT_TRANSFORMS = 200_000;
 export const REAL_BUILD_PREFIX50_MAXIMUM_CUMULATIVE_SEARCH_NODES = 100_000;
@@ -17,30 +37,116 @@ export interface RealBuildPrefix50StateCommitment {
   readonly completedPrintedStep: number;
   readonly partCount: number;
   readonly documentHash: `sha256:${string}`;
+  readonly canonicalDocumentDigest: `sha256:${string}`;
 }
 
 export interface RealBuildPrefix50ExactCompilation {
-  readonly schemaVersion: "lego.real-build-prefix50-exact-compilation/2";
+  readonly schemaVersion: "lego.real-build-prefix50-exact-compilation/6";
   readonly projectionCommitment: `sha256:${string}`;
   readonly gauge: RigidTransform;
   readonly gaugeCommitment: `sha256:${string}`;
   readonly worldGaugeSourceRepair: RealBuildPrefix50WorldGaugeSourceRepair | null;
   readonly occurrence30SourceRepair: RealBuildPrefix50BoundOccurrence30SourceRepair;
+  readonly step41SourceRepair: RealBuildPrefix50BoundStep41SourceRepair;
+  readonly step42SourceRepair: RealBuildPrefix50BoundStep42SourceRepair;
+  readonly step42_43SourceRepair: RealBuildPrefix50BoundStep42_43SourceRepair;
   readonly placementOrdinals: readonly number[];
   readonly stateCommitments: readonly RealBuildPrefix50StateCommitment[];
+  readonly playbackTrace: BuildPlaybackTraceV1;
   readonly enumerationCount: number;
   readonly orientationNarrowedEnumerationCount: number;
   readonly searchNodeCount: number;
   readonly sourcePlacementRepairs: readonly RealBuildPrefix50BoundPlacementRepair[];
+  readonly candidateStepCommitments: readonly {
+    readonly printedStepNumber: number;
+    readonly commitment: `sha256:${string}`;
+  }[];
+  readonly atomicSubBuildRoot: RealBuildPrefix50AtomicSubBuildRoot | null;
+  readonly detachedSubBuildStates: readonly RealBuildPrefix50DetachedSubBuildState[];
+  readonly subBuildReturnEnumeration: RigidSubassemblyReturnEnumeration | null;
+  readonly selectedSubBuildReturn: RealBuildPrefix50SelectedSubBuildReturn;
+  readonly step44SelectionEvidence: RealBuildPrefix50Step44SelectionEvidence;
+  readonly step45RelationalEvidence: RealBuildPrefix50Step45RelationalCompilationEvidence;
+  readonly suffixSubBuildPlan: RealBuildPrefix50SuffixSubBuildPlan;
+  readonly sameStepReturnStates: RealBuildPrefix50SameStepReturnStates;
+  readonly step50AtomicRoot: RealBuildPrefix50Step50AtomicRoot;
+  readonly terminalDetachedState: RealBuildPrefix50TerminalDetachedState;
   readonly document: BrickDocumentV1;
 }
 
 export type RealBuildPrefix50ExactCompilationCore = Omit<
   RealBuildPrefix50ExactCompilation,
-  "schemaVersion" | "occurrence30SourceRepair"
+  | "schemaVersion"
+  | "occurrence30SourceRepair"
+  | "sameStepReturnStates"
+  | "selectedSubBuildReturn"
+  | "step41SourceRepair"
+  | "step42SourceRepair"
+  | "step42_43SourceRepair"
+  | "step44SelectionEvidence"
+  | "step45RelationalEvidence"
+  | "step50AtomicRoot"
+  | "suffixSubBuildPlan"
+  | "terminalDetachedState"
 > & {
   readonly occurrence30SourceRepair: RealBuildPrefix50BoundOccurrence30SourceRepair | null;
+  readonly sameStepReturnStates: RealBuildPrefix50SameStepReturnStates | null;
+  readonly selectedSubBuildReturn: RealBuildPrefix50SelectedSubBuildReturn | null;
+  readonly step41SourceRepair: RealBuildPrefix50BoundStep41SourceRepair | null;
+  readonly step42SourceRepair: RealBuildPrefix50BoundStep42SourceRepair | null;
+  readonly step42_43SourceRepair: RealBuildPrefix50BoundStep42_43SourceRepair | null;
+  readonly step44SelectionEvidence: RealBuildPrefix50Step44SelectionEvidence | null;
+  readonly step45RelationalEvidence: RealBuildPrefix50Step45RelationalCompilationEvidence | null;
+  readonly step50AtomicRoot: RealBuildPrefix50Step50AtomicRoot | null;
+  readonly suffixSubBuildPlan: RealBuildPrefix50SuffixSubBuildPlan | null;
+  readonly terminalDetachedState: RealBuildPrefix50TerminalDetachedState | null;
 };
+
+export interface RealBuildPrefix50Step44SelectionEvidence {
+  readonly schemaVersion: "lego.real-build-prefix50-step44-selection-evidence/2";
+  readonly authority: "none";
+  readonly printedStepNumber: 44;
+  readonly step44PrintedStep: RealBuildPrefix50ProjectionStep;
+  readonly step44PrintedStepCommitment: `sha256:${string}`;
+  readonly returnResultCommitment: `sha256:${string}`;
+  readonly candidateRosterCommitment: `sha256:${string}`;
+  readonly selectedSubBuildReturnCommitment: `sha256:${string}`;
+  readonly reviewedVisualBindingCommitment: `sha256:${string}`;
+  readonly candidateKey: string;
+  readonly selectedDocumentHash: `sha256:${string}`;
+  readonly selectedDocumentCommitment: `sha256:${string}`;
+  readonly commitment: `sha256:${string}`;
+}
+
+export interface RealBuildPrefix50Step45RelationalCompilationEvidence {
+  readonly schemaVersion: "lego.real-build-prefix50-step45-relational-compilation/1";
+  readonly authority: "none";
+  readonly printedStepNumber: 45;
+  readonly selectedSubBuildReturnCommitment: `sha256:${string}`;
+  readonly reviewedVisualBindingCommitment: `sha256:${string}`;
+  readonly step44SelectionEvidenceCommitment: `sha256:${string}`;
+  readonly step44ZeroStepProgramHash: `sha256:${string}`;
+  readonly resolution: RealBuildPrefix50Step45RelationalResolution;
+  readonly accounting: {
+    readonly relationalResolverCallCount: 1;
+    readonly genericSearchCallCount: 0;
+    readonly enumerationDelta: 1;
+    readonly orientationNarrowedEnumerationDelta: 0;
+    readonly searchNodeDelta: 3;
+  };
+  readonly receiverPairs: readonly {
+    readonly occurrenceOrdinal: 281 | 282 | 283;
+    readonly receiverOrdinal: 261 | 264 | 265;
+    readonly candidatePartId: string;
+    readonly receiverPartId: string;
+    readonly connectionId: string;
+    readonly candidateCommitment: `sha256:${string}`;
+  }[];
+  readonly candidateStepCommitment: `sha256:${string}`;
+  readonly playbackOperationsCommitment: `sha256:${string}`;
+  readonly resultDocumentHash: `sha256:${string}`;
+  readonly commitment: `sha256:${string}`;
+}
 
 export interface RealBuildPrefix50DiagnosticObservation {
   readonly schemaVersion: "lego.real-build-prefix50-selected-path-diagnostic/1";

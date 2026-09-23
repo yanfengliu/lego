@@ -15,6 +15,11 @@ import {
   BUNDLED_LDRAW_CLOSURE_MANIFESTS,
   BUNDLED_LDRAW_SOURCE_FILES,
 } from "./ldraw-bundled-sources-6651557.ts";
+import {
+  restorePhysicalPromotionBases,
+  restorePreV30NominalStudProfileAbsence,
+  restorePreV30OrientationGrantAbsence,
+} from "./historical-catalog-test-support.ts";
 import { SET_6651557_MESH_ASSETS } from "./mesh-assets-6651557.ts";
 import { SET_6651557_MEASURED_BLUEPRINTS } from "./part-blueprints-6651557-measured.ts";
 import { SET_6651557_MEASURED_BLUEPRINTS_G } from "./part-blueprints-6651557-measured-g.ts";
@@ -75,11 +80,11 @@ describe("33909 two-stud-edge plate catalog truth", () => {
     );
     if (blueprint?.designId !== "33909") throw new Error("33909 blueprint is missing");
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/29");
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/30");
     expect(PART_DEFINITIONS).toHaveLength(106);
     expect(PART_DEFINITIONS.at(-10)?.id).toBe(PART_ID);
-    expect(SET_6651557_MEASURED_BLUEPRINTS.at(-10)).toBe(blueprint);
-    expect(SET_6651557_MEASURED_BLUEPRINTS_G).toHaveLength(12);
+    expect(SET_6651557_MEASURED_BLUEPRINTS.at(-11)).toBe(blueprint);
+    expect(SET_6651557_MEASURED_BLUEPRINTS_G).toHaveLength(13);
     expect(part).toMatchObject({
       id: PART_ID,
       family: "plate",
@@ -123,8 +128,8 @@ describe("33909 two-stud-edge plate catalog truth", () => {
       bytes: 10_203,
       manifestSha256: "sha256:72174370ab6b3d2e0d00d7b72a0687a67da1cccd4014f1f799e113eecb504a15",
     });
-    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(45);
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(237);
+    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(46);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(239);
   });
 
   it("records only the consulted LDCad route as active connector authority", () => {
@@ -224,9 +229,13 @@ describe("33909 two-stud-edge plate catalog truth", () => {
   });
 
   it("pins the reviewed /29 projection of the /24 prefix under its historical truth label", () => {
-    const priorParts = PART_DEFINITIONS.slice(0, 96);
+    const priorParts = restorePreV30OrientationGrantAbsence(
+      restorePreV30NominalStudProfileAbsence(
+        restorePhysicalPromotionBases(PART_DEFINITIONS.slice(0, 96), ["builtin:jumper-plate-1x2"]),
+      ),
+    );
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/29",
+      "builtin.basic-parts/30",
       "builtin.basic-parts/24",
     );
     const connectorCollision = priorParts.map(({ id, connectors, collision }) => ({

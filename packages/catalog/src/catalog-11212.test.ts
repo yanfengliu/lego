@@ -15,6 +15,11 @@ import {
   BUNDLED_LDRAW_CLOSURE_MANIFESTS,
   BUNDLED_LDRAW_SOURCE_FILES,
 } from "./ldraw-bundled-sources-6651557.ts";
+import {
+  restorePhysicalPromotionBases,
+  restorePreV30NominalStudProfileAbsence,
+  restorePreV30OrientationGrantAbsence,
+} from "./historical-catalog-test-support.ts";
 import { SET_6651557_MESH_ASSETS } from "./mesh-assets-6651557.ts";
 import { SET_6651557_MEASURED_BLUEPRINTS } from "./part-blueprints-6651557-measured.ts";
 import { SET_6651557_MEASURED_BLUEPRINTS_G } from "./part-blueprints-6651557-measured-g.ts";
@@ -72,11 +77,11 @@ describe("11212 regular 3 x 3 plate catalog truth", () => {
     );
     if (blueprint?.designId !== "11212") throw new Error("11212 blueprint is missing");
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/29");
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/30");
     expect(PART_DEFINITIONS).toHaveLength(106);
     expect(PART_DEFINITIONS.at(-11)?.id).toBe(PART_ID);
-    expect(SET_6651557_MEASURED_BLUEPRINTS.at(-11)).toBe(blueprint);
-    expect(SET_6651557_MEASURED_BLUEPRINTS_G).toHaveLength(12);
+    expect(SET_6651557_MEASURED_BLUEPRINTS.at(-12)).toBe(blueprint);
+    expect(SET_6651557_MEASURED_BLUEPRINTS_G).toHaveLength(13);
     expect(part).toMatchObject({
       id: PART_ID,
       family: "plate",
@@ -120,8 +125,8 @@ describe("11212 regular 3 x 3 plate catalog truth", () => {
       bytes: 11_078,
       manifestSha256: "sha256:8ff079db5d230fbba570a54ef1718c37a33db1059b31034fdd5a5ba9f12e0c73",
     });
-    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(45);
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(237);
+    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(46);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(239);
   });
 
   it("records the consulted LDCad route and its active regular clutch lattice", () => {
@@ -223,9 +228,13 @@ describe("11212 regular 3 x 3 plate catalog truth", () => {
   });
 
   it("pins the reviewed /29 projection of the /23 prefix under its historical truth label", () => {
-    const priorParts = PART_DEFINITIONS.slice(0, 95);
+    const priorParts = restorePreV30OrientationGrantAbsence(
+      restorePreV30NominalStudProfileAbsence(
+        restorePhysicalPromotionBases(PART_DEFINITIONS.slice(0, 95), ["builtin:jumper-plate-1x2"]),
+      ),
+    );
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/29",
+      "builtin.basic-parts/30",
       "builtin.basic-parts/23",
     );
     const connectorCollision = priorParts.map(({ id, connectors, collision }) => ({

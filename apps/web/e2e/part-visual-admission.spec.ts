@@ -7,6 +7,7 @@ import { lstatSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { spawnSync } from "node:child_process";
 
+import { PART_VISUAL_ADMISSION_EXPLICIT_TARGET_IDS } from "../../../scripts/part-visual-admission-targets.mjs";
 import type {
   PartVisualAdmissionCaptureInput,
   PartVisualAdmissionCaptureResult,
@@ -217,53 +218,7 @@ test("synthetic asymmetric source and production candidate emit one clean immuta
 
 const realArchiveRequested = process.env.LEGO_PART_VISUAL_ADMISSION_REQUIRED === "1";
 
-const ALL_SOURCE_NORMAL_MESH_PART_IDS = [
-  "builtin:wedge-plate-2x4-left",
-  "builtin:wedge-plate-2x4-right",
-  "builtin:wedge-plate-2x3-left",
-  "builtin:wedge-plate-2x3-right",
-  "builtin:arch-1x4",
-  "builtin:arch-1x6",
-  "builtin:curved-slope-1x2",
-  "builtin:curved-slope-1x3",
-  "builtin:curved-slope-1x4",
-  "builtin:cheese-slope-1x1",
-  "builtin:cheese-slope-2x1",
-  "builtin:wedge-plate-3x6-right",
-  "builtin:wedge-plate-4x4-cut-corner",
-  "builtin:wedge-plate-6x6-cut-corner",
-  "builtin:corner-plate-4x4-round",
-  "builtin:corner-plate-5x5-quarter-ring",
-  "builtin:tile-1x2-cut-right-45",
-  "builtin:plate-1x2-round-end",
-  "builtin:wedge-plate-2x4-wing",
-  "builtin:corner-plate-3x3",
-  "builtin:curved-slope-1x4-double",
-  "builtin:plate-3x3-corner-round",
-  "builtin:wedge-plate-3x3-cut-corner",
-  "builtin:corner-plate-2x2-round",
-  "builtin:tile-1x1-quarter-round",
-  "builtin:bracket-1x2-1x4-rounded-bottom",
-  "builtin:bracket-1x2-1x4-rounded-corners",
-  "builtin:tile-2x2-triangular",
-  "builtin:roller-skate",
-  "builtin:arch-1x6-thin-top",
-  "builtin:bracket-2x2-1x2-vertical-studs",
-  "builtin:brick-1x2-grille",
-  "builtin:slope-1x2-45",
-  "builtin:axle-1x3",
-  "builtin:technic-brick-1x2-axle-hole",
-  "builtin:plate-3x3",
-  "builtin:plate-2x2-two-studs",
-  "builtin:plate-1x5",
-  "builtin:tile-1x2-chamfered-indented",
-  "builtin:technic-brick-1x1-axle-hole",
-  "builtin:slope-1x1-double-45",
-  "builtin:curved-slope-1x1-outside-bow",
-  "builtin:brick-1x2x2-without-understud",
-  "builtin:brick-1x2x2-inside-axle-holder",
-  "builtin:brick-1x1x5-solid-stud",
-] as const;
+const ALL_SOURCE_NORMAL_MESH_PART_IDS = PART_VISUAL_ADMISSION_EXPLICIT_TARGET_IDS;
 
 function requiredRealPartIds(): readonly string[] {
   const encoded = process.env.LEGO_PART_VISUAL_ADMISSION_PART_IDS;

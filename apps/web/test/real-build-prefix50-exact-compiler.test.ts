@@ -16,10 +16,11 @@ import { compileRealBuildAutomaticPlacement } from "../e2e/real-build-automatic-
 import { createRealBuildCandidateDocumentSnapshot } from "../e2e/real-build-candidate-document-snapshot";
 import {
   __testOnly as exactCompilerTestOnly,
-  compileRealBuildPrefix50ExactProjection,
+  compileRealBuildPrefix50ExactProjection as compileRealBuildPrefix50ExactProjectionWithDependency,
   diagnoseRealBuildPrefix50ProjectionForTest,
   requireRealBuildPrefix50CompleteEnumeration,
 } from "../e2e/real-build-prefix50-exact-compiler";
+import { compileRealBuildPrefix50Step45RelationalTransition } from "../e2e/real-build-prefix50-step45-relational-compilation.ts";
 import {
   readRealBuildPrefix50VerifiedProjection,
   readSyntheticRealBuildPrefix50DiagnosticProjectionForTest,
@@ -34,6 +35,12 @@ import {
 } from "../src/assembly/enumerate-placements";
 
 const digest = (digit: string): `sha256:${string}` => `sha256:${digit.repeat(64)}`;
+
+const compileRealBuildPrefix50ExactProjection = (input: unknown) =>
+  compileRealBuildPrefix50ExactProjectionWithDependency(
+    input,
+    compileRealBuildPrefix50Step45RelationalTransition,
+  );
 
 function snapshot(document: BrickDocumentV1) {
   return createRealBuildCandidateDocumentSnapshot({
@@ -145,6 +152,9 @@ function projection(mutation: ProjectionMutation = {}): RealBuildPrefix50Verifie
         mutation.occurrenceOrdinal === ordinal && mutation.printedStepNumber !== undefined
           ? mutation.printedStepNumber
           : normalStep,
+      phaseSequence: ordinal,
+      phaseMemberOrdinal: 1,
+      subBuildPath: ["synthetic-root"],
       colorId: "builtin:red",
       partIdentity,
       sourceWorldTransform:
@@ -166,9 +176,10 @@ function projection(mutation: ProjectionMutation = {}): RealBuildPrefix50Verifie
     ];
   }
   return deepFreeze({
-    schemaVersion: "lego.real-build-prefix50-verified-projection/1" as const,
+    schemaVersion: "lego.real-build-prefix50-verified-projection/2" as const,
     sourceSetId: mutation.sourceSetId ?? "synthetic-prefix50",
     sourceArtifactDigest: digest("a"),
+    childSubBuildWindow: null,
     steps: Array.from({ length: 50 }, (_, index) => ({
       printedStepNumber: index + 1,
       name: `Printed step ${index + 1}`,
@@ -287,31 +298,79 @@ describe("exact prefix-50 placement compiler", () => {
     expect(first).not.toHaveProperty("candidate");
   }, 120_000);
 
-  it("rejects a caller-frozen reader lookalike before exact compilation", () => {
+  it("requires the branded selected-return key before a caller-frozen reader can compile", () => {
     const shaped = projection();
     const lookalike = Object.freeze({
       readVerifiedPrefix50Projection: Object.freeze(() => shaped),
     });
     expect(() => readRealBuildPrefix50VerifiedProjection(lookalike)).toThrow(
-      /reader minted from the opaque current action and official-world verifiers/u,
+      /reader minted from the opaque current action, official-world, and structural-event verifiers/u,
     );
     expect(() =>
       compileRealBuildPrefix50ExactProjection({
         documentSnapshot: snapshot(emptyDocument()),
         occurrence30SourceRepairProof: {},
         projectionReader: lookalike,
+        step41SourceRepairProof: {},
+        step42SourceRepairProof: {},
+        step42_43SourceRepairProof: {},
       }),
-    ).toThrow(/frozen caller lookalikes carry no placement authority/u);
+    ).toThrow(/accepts only .*selectedSubBuildReturn/u);
   });
 
-  it("rejects a synthetic reader at the canonical exact compiler boundary", () => {
+  it("rejects an unbranded selected-return forgery before reading canonical evidence", () => {
+    const selectedDocument = emptyDocument();
+    const reviewedVisualBindingCommitment = digest("7");
+    const forgedBody = {
+      schemaVersion: "lego.real-build-prefix50-selected-subbuild-return/1" as const,
+      authority: "none" as const,
+      sourceSetId: "6651557" as const,
+      returnResultCommitment: digest("1"),
+      reviewedVisualBinding: { commitment: reviewedVisualBindingCommitment },
+      candidateKey: "a".repeat(64),
+      groupDelta: { positionLdu: [0, 0, 0], orientationId: "upright-yaw-0" },
+      crossPorts: [],
+      selectedDocumentHash: documentStructuralHash(selectedDocument),
+      selectedDocument,
+    };
+    const forgedSelection = deepFreeze({
+      ...forgedBody,
+      commitment: canonicalDigest({
+        schemaVersion: forgedBody.schemaVersion,
+        authority: forgedBody.authority,
+        sourceSetId: forgedBody.sourceSetId,
+        returnResultCommitment: forgedBody.returnResultCommitment,
+        reviewedVisualBindingCommitment,
+        candidateKey: forgedBody.candidateKey,
+        groupDelta: forgedBody.groupDelta,
+        crossPorts: forgedBody.crossPorts,
+        selectedDocumentHash: forgedBody.selectedDocumentHash,
+      }),
+    });
     expect(() =>
       compileRealBuildPrefix50ExactProjection({
         documentSnapshot: snapshot(emptyDocument()),
         occurrence30SourceRepairProof: {},
         projectionReader: reader(projection()),
+        selectedSubBuildReturn: forgedSelection,
+        step41SourceRepairProof: {},
+        step42SourceRepairProof: {},
+        step42_43SourceRepairProof: {},
       }),
-    ).toThrow(/reader minted from the opaque current action and official-world verifiers/u);
+    ).toThrow(/exact runtime-branded selected receipt/u);
+    expect(() =>
+      compileRealBuildPrefix50ExactProjection({
+        documentSnapshot: snapshot(emptyDocument()),
+        occurrence30SourceRepairProof: {},
+        projectionReader: reader(projection()),
+        reviewedVisualBindingCommitment,
+        selectedDocument,
+        selectionCommitment: forgedSelection.commitment,
+        step41SourceRepairProof: {},
+        step42SourceRepairProof: {},
+        step42_43SourceRepairProof: {},
+      }),
+    ).toThrow(/accepts only .*selectedSubBuildReturn/u);
   });
 
   it("retains the verified rewind and refuses non-integral source positions without an exact repair", () => {
@@ -556,7 +615,9 @@ describe("exact prefix-50 placement compiler", () => {
           },
         },
       }),
-    ).toThrow(/accepts only documentSnapshot, occurrence30SourceRepairProof, projectionReader/u);
+    ).toThrow(
+      /accepts only documentSnapshot, occurrence30SourceRepairProof, projectionReader, selectedSubBuildReturn, step41SourceRepairProof, step42SourceRepairProof, step42_43SourceRepairProof/u,
+    );
   });
 
   it("final repair binding refuses missing, duplicate, wrong-receiver, and wrong-port axle edges", () => {
@@ -671,7 +732,7 @@ describe("exact prefix-50 placement compiler", () => {
           detachedStepOneSource: [targetZ + 100, targetY + 100, 100 - targetX],
         }),
       ),
-    ).toThrow(/automatic compilation failed at printed step 1.*DISCONNECTED_ASSEMBLY/u);
+    ).toThrow(/authority-free candidate at printed step 1.*observed \[DISCONNECTED_ASSEMBLY\]/u);
   });
 
   it("rejects suffix rows and refuses inconsistent enumeration counts", () => {

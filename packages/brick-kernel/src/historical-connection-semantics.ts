@@ -27,14 +27,231 @@ export interface ReviewedHistoricalConnectionSemantics {
 }
 
 export const CURRENT_CONNECTION_SEMANTICS_AUTHORITY = deepFreeze({
-  truthHash: "sha256:54762419e4779c6c15566052062fcaa432cb45e3a13704b5af1563b4fa94e8eb",
-  endpointCount: 2339,
-  endpointMapDigest: "sha256:b911e1d62c84c4abcb4c2fc5ae5568d41482b413beb9ef5186f7766a2e677688",
+  truthHash: "sha256:c304c3eb673e86d48580c6b28309f1fdf8bf4d71f7259ecc75f6f5691a336d51",
+  endpointCount: 2340,
+  endpointMapDigest: "sha256:fde3ed535c345b9b7ea5863c8be3ca2b03dbd49d8b7a04c5e4b385e5447a292d",
   pairCount: 4,
   pairMapDigest: "sha256:92dd1cdfb9f34879f55a5ee5a0827b5c24c830da654c90bd3b00896025ca5731",
 } as const);
 
+function mergeEndpointDeltas(
+  ...groups: readonly (readonly ConnectionSemanticsEndpointDelta[])[]
+): readonly ConnectionSemanticsEndpointDelta[] {
+  const merged = groups.flat();
+  merged.sort((left, right) => {
+    const leftKey = connectionEndpointKey(left.partId, left.portId);
+    const rightKey = connectionEndpointKey(right.partId, right.portId);
+    return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
+  });
+  return deepFreeze(merged);
+}
+
+const JUMPER_15573_V30_CHANGES = deepFreeze([
+  {
+    partId: "builtin:jumper-plate-1x2",
+    portId: "stud:0",
+    sourceDigest: "sha256:61dfdb8f0f1be08d2f879c6eb8cc6adcbf983c3b60adbf78e7a8e58000a1ab1c",
+    targetDigest: "sha256:6d18cd98abc61c5dc6e8f7c2150b01e4c1f3399e221cb7ea98490bc9469b47a2",
+  },
+  {
+    partId: "builtin:jumper-plate-1x2",
+    portId: "undersideClutch:0:0",
+    sourceDigest: "sha256:c15d33f08a5abe76a76463638f2ec6161b7b987b8fd550c7ec3776f0f337c1fb",
+    targetDigest: "sha256:f0dfb4e576750a365b47ae6af4434dcae817440b61486a0e7d113ebb9758b5b2",
+  },
+  {
+    partId: "builtin:jumper-plate-1x2",
+    portId: "undersideClutch:0:1",
+    sourceDigest: "sha256:926847873d79b7422369f1ed9d5688cf2d8578d81035a479ac5cb1c4f7d7ce5e",
+    targetDigest: "sha256:ac2dd1ea96cebe00afbefb527188086cdfdd05417799beee63efee79100e7a67",
+  },
+  {
+    partId: "builtin:jumper-plate-1x2",
+    portId: "undersideClutch:center",
+    sourceDigest: null,
+    targetDigest: "sha256:b756d80ea0e8fdd60d88ae20d440470708b2848441d38052207e3e97ed1c7766",
+  },
+] as const satisfies readonly ConnectionSemanticsEndpointDelta[]);
+
+const V30_ARCH_15254_NOMINAL_STUD_PROFILE_CHANGES = deepFreeze([
+  {
+    partId: "builtin:arch-1x6-thin-top",
+    portId: "stud:0",
+    sourceDigest: "sha256:b5d3141f86fcc59fee998636ae60b0aa21d812add478dae1c1a3af01ff27b230",
+    targetDigest: "sha256:3a0b3038add9e289560afe547678ea272b49c5bf72ba2e8b0079dc0245fcc7ad",
+  },
+  {
+    partId: "builtin:arch-1x6-thin-top",
+    portId: "stud:1",
+    sourceDigest: "sha256:ee2480d9cf787dce91585794b6d886b95d2f1faaf06582245c9bc3436cd94141",
+    targetDigest: "sha256:e67ea5b7edbaa771c6ce0aebf6f68f50aa4073c64fccb0442dcef8bda7c6c756",
+  },
+  {
+    partId: "builtin:arch-1x6-thin-top",
+    portId: "stud:2",
+    sourceDigest: "sha256:161dc3a010d2d0f37d873a474b5032c2aa4f0293190f266acf3ba4c3f5f54974",
+    targetDigest: "sha256:5c1e81a22c2d3f9582464e997337596ccc219fd5d252873c6960e2472dc913dd",
+  },
+  {
+    partId: "builtin:arch-1x6-thin-top",
+    portId: "stud:3",
+    sourceDigest: "sha256:2fe93cf402082385c3dec8efbfc667583eac2b02912e21bbe382d46feaec5142",
+    targetDigest: "sha256:63e75758efc187f467c367b686f54ed8a20b99f401d6c91b7e98be753f0393c2",
+  },
+  {
+    partId: "builtin:arch-1x6-thin-top",
+    portId: "stud:4",
+    sourceDigest: "sha256:5dbc3577d14c839e4465e0ffe12e759be9351b5acd896184dde3253d073e2ec6",
+    targetDigest: "sha256:b4da05044288ec4e872c6ce347d15ae928598aee58fb55828ed1953f3811959a",
+  },
+  {
+    partId: "builtin:arch-1x6-thin-top",
+    portId: "stud:5",
+    sourceDigest: "sha256:f8cfbd08059db3010a3f59bd4396dfc3441296b47df3593c97541e33c0f41de5",
+    targetDigest: "sha256:4795c40cd23e50181632cb8420ca42f232378ce773b1b42c1d97cacbfacf6094",
+  },
+] as const satisfies readonly ConnectionSemanticsEndpointDelta[]);
+
+const V30_BRACKET_28802_NOMINAL_STUD_PROFILE_CHANGES = deepFreeze([
+  {
+    partId: "builtin:bracket-1x2-1x4-rounded-bottom",
+    portId: "stud:0",
+    sourceDigest: "sha256:90e85b902e7cd6a7410f95960092450d12d356a09e3ab55ac66ac980f823479c",
+    targetDigest: "sha256:d1f81a006d30dad1288c7ca7fae5ba07a9e03178208d22390a0448966cef8c72",
+  },
+  {
+    partId: "builtin:bracket-1x2-1x4-rounded-bottom",
+    portId: "stud:1",
+    sourceDigest: "sha256:c24c273ad355979535ef9182541d89ffd23a1c5422c9c014fc9aeeb78b9b2a97",
+    targetDigest: "sha256:2a9b5447b5e8f5ad7ad00f2f7e689f128901b0892b70b990eb3e516010427d62",
+  },
+  {
+    partId: "builtin:bracket-1x2-1x4-rounded-bottom",
+    portId: "stud:2",
+    sourceDigest: "sha256:c8edbeb2d399253bbbe5b651b6029834719de75a22366230b58f4b79cb9b30f3",
+    targetDigest: "sha256:555b7536866c2c181fe27262b07127045bd67b1acca991ed4fddf5cfbc90bae2",
+  },
+  {
+    partId: "builtin:bracket-1x2-1x4-rounded-bottom",
+    portId: "stud:3",
+    sourceDigest: "sha256:c44be19ddd313fbcae2150ed45948d608349b4f3a9fff4c6d74483666308a416",
+    targetDigest: "sha256:2868e38c2cb430f639d1535994c3528300890e448f1d2fa98e01a950980020d7",
+  },
+  {
+    partId: "builtin:bracket-1x2-1x4-rounded-bottom",
+    portId: "stud:4",
+    sourceDigest: "sha256:05be104c219c88aa6ebd1dc51503cf959b0940aaab96dfc2716af913804769f5",
+    targetDigest: "sha256:48958b21a05fa7f3abe8ef92689a8c408ce590f72f21f108975a8c6c99401f39",
+  },
+  {
+    partId: "builtin:bracket-1x2-1x4-rounded-bottom",
+    portId: "stud:5",
+    sourceDigest: "sha256:cf16d3d7ec9feb5f43226287c93631f0ed31e5556a930092c2644f208ea39dbb",
+    targetDigest: "sha256:fec8553481ae3ca586e2540bb20785144f2926f129c248feef0a0d12114789eb",
+  },
+] as const satisfies readonly ConnectionSemanticsEndpointDelta[]);
+
+const V30_BRACKET_41682_NOMINAL_STUD_PROFILE_CHANGES = deepFreeze([
+  {
+    partId: "builtin:bracket-2x2-1x2-vertical-studs",
+    portId: "stud:0",
+    sourceDigest: "sha256:4a99b1abf864318954c0420ba3f74e548242e2fb0d6ada03a2c6f3542256f09b",
+    targetDigest: "sha256:cc4dc7a878f13a133c61cabdab18d2d5923481b83885a204cb23c4245312308d",
+  },
+  {
+    partId: "builtin:bracket-2x2-1x2-vertical-studs",
+    portId: "stud:1",
+    sourceDigest: "sha256:123cfb55d092b68b5f7867f3baf472fd248ad10d8fa9900a67eac43b61bb8b1f",
+    targetDigest: "sha256:c9eeb17812520caa79bfe37f4ad84eaa74935e61fb258181597eecf551bc99b4",
+  },
+] as const satisfies readonly ConnectionSemanticsEndpointDelta[]);
+
+const V30_BRICK_2877_NOMINAL_STUD_PROFILE_CHANGES = deepFreeze([
+  {
+    partId: "builtin:brick-1x2-grille",
+    portId: "stud:0",
+    sourceDigest: "sha256:212771ef8fb14438dc224ac05fe918eea96366414fe22c59165e769bc7fe3fb6",
+    targetDigest: "sha256:0052bcf0cac6ddf47137cb8aaf8d07ebb71dd55707d1c1141c1552ed15dbe90e",
+  },
+  {
+    partId: "builtin:brick-1x2-grille",
+    portId: "stud:1",
+    sourceDigest: "sha256:781aaa3396fcde3510887d34ab7cd8580f200e8c245cf6e67f9d642473be6aae",
+    targetDigest: "sha256:ca95b584db634e480d4b29727c1a94e604e7767d81cb1bfe8429a9a6dde222a6",
+  },
+] as const satisfies readonly ConnectionSemanticsEndpointDelta[]);
+
+const V30_CORNER_79491_NOMINAL_STUD_PROFILE_CHANGES = deepFreeze([
+  {
+    partId: "builtin:corner-plate-2x2-round",
+    portId: "stud:0",
+    sourceDigest: "sha256:86fdc6997d32dd599d8ce21cac29ddbb5d9020fb461e2d34828fa8799158c80b",
+    targetDigest: "sha256:81bdf45fc51111361af87654ab365ef62a168d7f1eaab4f50ea36db3d0412f9d",
+  },
+  {
+    partId: "builtin:corner-plate-2x2-round",
+    portId: "stud:1",
+    sourceDigest: "sha256:85b521112777da90e1fd5d59b0bda34c5fb827af4294e415f2996fab30fd86e9",
+    targetDigest: "sha256:8dea88d4ba6ab339182e44f9992217138d5206d07b3ef71b71ff62afdf5e99c9",
+  },
+] as const satisfies readonly ConnectionSemanticsEndpointDelta[]);
+
+const V30_TECHNIC_32064_NOMINAL_STUD_PROFILE_CHANGES = deepFreeze([
+  {
+    partId: "builtin:technic-brick-1x2-axle-hole",
+    portId: "stud:0",
+    sourceDigest: "sha256:212771ef8fb14438dc224ac05fe918eea96366414fe22c59165e769bc7fe3fb6",
+    targetDigest: "sha256:0052bcf0cac6ddf47137cb8aaf8d07ebb71dd55707d1c1141c1552ed15dbe90e",
+  },
+  {
+    partId: "builtin:technic-brick-1x2-axle-hole",
+    portId: "stud:1",
+    sourceDigest: "sha256:781aaa3396fcde3510887d34ab7cd8580f200e8c245cf6e67f9d642473be6aae",
+    targetDigest: "sha256:ca95b584db634e480d4b29727c1a94e604e7767d81cb1bfe8429a9a6dde222a6",
+  },
+] as const satisfies readonly ConnectionSemanticsEndpointDelta[]);
+
+const V30_WEDGE_2450_NOMINAL_STUD_PROFILE_CHANGES = deepFreeze([
+  {
+    partId: "builtin:wedge-plate-3x3-cut-corner",
+    portId: "stud:0",
+    sourceDigest: "sha256:5d13a1b90714ca40eeaebaf77ecabcfdc88c026cfde76ac8fbfe0fa1672ef5ca",
+    targetDigest: "sha256:a2eeb06d3569d59b853e5f6b681788b2080dddab02da7449c60f148d242871de",
+  },
+  {
+    partId: "builtin:wedge-plate-3x3-cut-corner",
+    portId: "stud:1",
+    sourceDigest: "sha256:50a0749b012c54ed667a1413fe3b07895db37e3d34018ec527e42ab9ac4f8710",
+    targetDigest: "sha256:f067013c5bba17c32278cb2b00c92477637392a2ee672f5e2bb5fe0a2a3ebd47",
+  },
+  {
+    partId: "builtin:wedge-plate-3x3-cut-corner",
+    portId: "stud:2",
+    sourceDigest: "sha256:ffcaee0d4b63c2fdcd0fd08afc58f706e246b6fb34c9689d05e55be31876b355",
+    targetDigest: "sha256:b8c275fbf486bf8001d6043f9ae67f6f4ac8f54a98b35ab5542593d9ee3e996a",
+  },
+  {
+    partId: "builtin:wedge-plate-3x3-cut-corner",
+    portId: "stud:3",
+    sourceDigest: "sha256:fb005ff004f132e4b2aee85c5b2c3dad5531a6014d0a56e7557544a64309eec2",
+    targetDigest: "sha256:4c3d439633881d7119ee8d4c0dcf56446eae3cb38b1a6e85b544c4f17e168318",
+  },
+  {
+    partId: "builtin:wedge-plate-3x3-cut-corner",
+    portId: "stud:4",
+    sourceDigest: "sha256:bdf77e32ba9ac2ea1de3322586a0430ce6196238ea0752fca290f834b1780b75",
+    targetDigest: "sha256:ba6e0b23d74ba436c2a59d3d398025b0c664d247f0f9a84d301e1a69803c9369",
+  },
+  {
+    partId: "builtin:wedge-plate-3x3-cut-corner",
+    portId: "stud:5",
+    sourceDigest: "sha256:d51fb9214bb9f865c52ba7b1b3427d589cb0328764eaf9659a6a464e56677b30",
+    targetDigest: "sha256:4cb3c98b802d0e8098e33b90270047e3a01e44ab48626b624b90de940df36726",
+  },
+] as const satisfies readonly ConnectionSemanticsEndpointDelta[]);
+
 const WEDGE_REMOVALS = deepFreeze([
+  ...JUMPER_15573_V30_CHANGES,
   {
     partId: "builtin:wedge-plate-2x3-left",
     portId: "undersideClutch:1:1",
@@ -74,6 +291,7 @@ const WEDGE_REMOVALS = deepFreeze([
 ] as const satisfies readonly ConnectionSemanticsEndpointDelta[]);
 
 const JUMPER_CHANGES = deepFreeze([
+  ...JUMPER_15573_V30_CHANGES,
   {
     partId: "builtin:jumper-plate-1x3",
     portId: "stud:0",
@@ -149,6 +367,7 @@ const VALIDATED_STUD_PROFILE_CHANGES_BEFORE_30357 = deepFreeze([
     sourceDigest: "sha256:9ad1f20c13c6b6ab63de3e425ced0f525b375e81a83bfc29eb98ea34cabe657b",
     targetDigest: "sha256:7c6b8a5c08fdc858a65625629e6bd28abebd6b9c8c954911ea26b792d6ac8223",
   },
+  ...JUMPER_15573_V30_CHANGES,
   {
     partId: "builtin:plate-1x2-round-end",
     portId: "stud:0",
@@ -241,31 +460,88 @@ const VALIDATED_STUD_PROFILE_CHANGES_WING = deepFreeze([
   },
 ] as const satisfies readonly ConnectionSemanticsEndpointDelta[]);
 
-const VALIDATED_STUD_PROFILE_CHANGES_V7 = deepFreeze([
-  ...VALIDATED_STUD_PROFILE_CHANGES_BEFORE_30357,
-  ...VALIDATED_STUD_PROFILE_CHANGES_WING,
-] as const satisfies readonly ConnectionSemanticsEndpointDelta[]);
+const VALIDATED_STUD_PROFILE_CHANGES_V7 = mergeEndpointDeltas(
+  VALIDATED_STUD_PROFILE_CHANGES_BEFORE_30357,
+  VALIDATED_STUD_PROFILE_CHANGES_WING,
+);
 
-const VALIDATED_STUD_PROFILE_CHANGES_V8 = deepFreeze([
-  ...VALIDATED_STUD_PROFILE_CHANGES_BEFORE_30357,
-  ...VALIDATED_STUD_PROFILE_CHANGES_30357,
-  ...VALIDATED_STUD_PROFILE_CHANGES_WING,
-] as const satisfies readonly ConnectionSemanticsEndpointDelta[]);
+const V30_NOMINAL_STUD_PROFILE_CHANGES_V8 = mergeEndpointDeltas(
+  V30_CORNER_79491_NOMINAL_STUD_PROFILE_CHANGES,
+  V30_WEDGE_2450_NOMINAL_STUD_PROFILE_CHANGES,
+);
+const V30_NOMINAL_STUD_PROFILE_CHANGES_V15 = mergeEndpointDeltas(
+  V30_NOMINAL_STUD_PROFILE_CHANGES_V8,
+  V30_BRACKET_28802_NOMINAL_STUD_PROFILE_CHANGES,
+);
+const V30_NOMINAL_STUD_PROFILE_CHANGES_V18 = mergeEndpointDeltas(
+  V30_NOMINAL_STUD_PROFILE_CHANGES_V15,
+  V30_ARCH_15254_NOMINAL_STUD_PROFILE_CHANGES,
+);
+const V30_NOMINAL_STUD_PROFILE_CHANGES_V19 = mergeEndpointDeltas(
+  V30_NOMINAL_STUD_PROFILE_CHANGES_V18,
+  V30_BRACKET_41682_NOMINAL_STUD_PROFILE_CHANGES,
+);
+const V30_NOMINAL_STUD_PROFILE_CHANGES_V20 = mergeEndpointDeltas(
+  V30_NOMINAL_STUD_PROFILE_CHANGES_V19,
+  V30_BRICK_2877_NOMINAL_STUD_PROFILE_CHANGES,
+);
+const V30_NOMINAL_STUD_PROFILE_CHANGES_V23 = mergeEndpointDeltas(
+  V30_NOMINAL_STUD_PROFILE_CHANGES_V20,
+  V30_TECHNIC_32064_NOMINAL_STUD_PROFILE_CHANGES,
+);
 
-const VALIDATED_STUD_PROFILE_AND_1X2_THROUGH_BORE_CHANGES = deepFreeze([
-  ...VALIDATED_STUD_PROFILE_CHANGES_BEFORE_30357,
-  ...VALIDATED_STUD_PROFILE_CHANGES_30357,
-  TECHNIC_BRICK_1X2_AXLE_HOLE_THROUGH_BORE_CHANGE,
-  ...VALIDATED_STUD_PROFILE_CHANGES_WING,
-] as const satisfies readonly ConnectionSemanticsEndpointDelta[]);
+const VALIDATED_STUD_PROFILE_CHANGES_V8 = mergeEndpointDeltas(
+  VALIDATED_STUD_PROFILE_CHANGES_BEFORE_30357,
+  VALIDATED_STUD_PROFILE_CHANGES_30357,
+  VALIDATED_STUD_PROFILE_CHANGES_WING,
+  V30_NOMINAL_STUD_PROFILE_CHANGES_V8,
+);
+const VALIDATED_STUD_PROFILE_CHANGES_V15 = mergeEndpointDeltas(
+  VALIDATED_STUD_PROFILE_CHANGES_BEFORE_30357,
+  VALIDATED_STUD_PROFILE_CHANGES_30357,
+  VALIDATED_STUD_PROFILE_CHANGES_WING,
+  V30_NOMINAL_STUD_PROFILE_CHANGES_V15,
+);
+const VALIDATED_STUD_PROFILE_CHANGES_V18 = mergeEndpointDeltas(
+  VALIDATED_STUD_PROFILE_CHANGES_BEFORE_30357,
+  VALIDATED_STUD_PROFILE_CHANGES_30357,
+  VALIDATED_STUD_PROFILE_CHANGES_WING,
+  V30_NOMINAL_STUD_PROFILE_CHANGES_V18,
+);
+const VALIDATED_STUD_PROFILE_CHANGES_V19 = mergeEndpointDeltas(
+  VALIDATED_STUD_PROFILE_CHANGES_BEFORE_30357,
+  VALIDATED_STUD_PROFILE_CHANGES_30357,
+  VALIDATED_STUD_PROFILE_CHANGES_WING,
+  V30_NOMINAL_STUD_PROFILE_CHANGES_V19,
+);
+const VALIDATED_STUD_PROFILE_CHANGES_V20 = mergeEndpointDeltas(
+  VALIDATED_STUD_PROFILE_CHANGES_BEFORE_30357,
+  VALIDATED_STUD_PROFILE_CHANGES_30357,
+  VALIDATED_STUD_PROFILE_CHANGES_WING,
+  V30_NOMINAL_STUD_PROFILE_CHANGES_V20,
+);
 
-const VALIDATED_STUD_PROFILE_AND_THROUGH_BORE_CHANGES = deepFreeze([
-  ...VALIDATED_STUD_PROFILE_CHANGES_BEFORE_30357,
-  ...VALIDATED_STUD_PROFILE_CHANGES_30357,
-  TECHNIC_BRICK_1X1_AXLE_HOLE_THROUGH_BORE_CHANGE,
-  TECHNIC_BRICK_1X2_AXLE_HOLE_THROUGH_BORE_CHANGE,
-  ...VALIDATED_STUD_PROFILE_CHANGES_WING,
-] as const satisfies readonly ConnectionSemanticsEndpointDelta[]);
+const VALIDATED_STUD_PROFILE_AND_1X2_THROUGH_BORE_CHANGES = mergeEndpointDeltas(
+  VALIDATED_STUD_PROFILE_CHANGES_BEFORE_30357,
+  VALIDATED_STUD_PROFILE_CHANGES_30357,
+  [TECHNIC_BRICK_1X2_AXLE_HOLE_THROUGH_BORE_CHANGE],
+  VALIDATED_STUD_PROFILE_CHANGES_WING,
+  V30_NOMINAL_STUD_PROFILE_CHANGES_V23,
+);
+
+const VALIDATED_STUD_PROFILE_AND_THROUGH_BORE_CHANGES = mergeEndpointDeltas(
+  VALIDATED_STUD_PROFILE_CHANGES_BEFORE_30357,
+  VALIDATED_STUD_PROFILE_CHANGES_30357,
+  [TECHNIC_BRICK_1X1_AXLE_HOLE_THROUGH_BORE_CHANGE],
+  [TECHNIC_BRICK_1X2_AXLE_HOLE_THROUGH_BORE_CHANGE],
+  VALIDATED_STUD_PROFILE_CHANGES_WING,
+  V30_NOMINAL_STUD_PROFILE_CHANGES_V23,
+);
+
+const VERSION_30_ENDPOINT_CHANGES = mergeEndpointDeltas(
+  V30_NOMINAL_STUD_PROFILE_CHANGES_V23,
+  JUMPER_15573_V30_CHANGES,
+);
 
 const EARLY_PAIR_DIGEST = "sha256:8add57fce92fab25775aa9767a664ba5e273019877f73a98179ae4add2ebdaa1";
 const TWO_PAIR_DIGEST = "sha256:fe0a92b6d87e947470792811b2c45a859aa4a87f46dfd9355dc860c15de8fcae";
@@ -352,6 +628,7 @@ export const REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH: Readonly<
     "sha256:80e758d9faadf1c02e30c4b4701081acddb7bd8891c001b66f51634ebeff1108",
     3,
     THREE_PAIR_DIGEST,
+    JUMPER_15573_V30_CHANGES,
   ),
   "sha256:29eaae6325eba701dc52827a9373c7583889ce3fd16fd8057f3c6f243a8ab868": authority(
     "9d0ebed8f6639d71affeaed63ab1682f35e1a18b",
@@ -423,7 +700,7 @@ export const REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH: Readonly<
     "sha256:2a961d8063e735f3c6e21260d31fb15b4a3a871bcecf66d8c1ebc84574cdf9f6",
     3,
     THREE_PAIR_DIGEST,
-    VALIDATED_STUD_PROFILE_CHANGES_V8,
+    VALIDATED_STUD_PROFILE_CHANGES_V15,
   ),
   "sha256:71c76ba1d6740cbaf89b1ab721dba2ffa3136e9d742198b289373ad2205be1be": authority(
     "d58ea055120ea8e99a30faab35384a7a54f18de2",
@@ -431,7 +708,7 @@ export const REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH: Readonly<
     "sha256:6d814f546dfc8662a2c5ee0c1221db6ac73fde54abf59a17d731d720ae32fef3",
     3,
     THREE_PAIR_DIGEST,
-    VALIDATED_STUD_PROFILE_CHANGES_V8,
+    VALIDATED_STUD_PROFILE_CHANGES_V15,
   ),
   "sha256:d21bdecc6a269b1b92e0915664cae9a147168fe8d7576ee17213e8e9446c7926": authority(
     "4cb37ef80c045ab5b7732dd9021938590ecbb086",
@@ -439,7 +716,7 @@ export const REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH: Readonly<
     "sha256:df77717eff73f86b966ab4543bdf67cff3d2087b9bbc172e2199803b3996a87c",
     3,
     THREE_PAIR_DIGEST,
-    VALIDATED_STUD_PROFILE_CHANGES_V8,
+    VALIDATED_STUD_PROFILE_CHANGES_V15,
   ),
   "sha256:8172cc4f993b46bb9fa8f782bb2b295c516e95c16f2d6861e4a18219ef2e1b20": authority(
     "201fafba454d1db74a986ef0087f84530f96214e",
@@ -447,7 +724,7 @@ export const REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH: Readonly<
     "sha256:960172943e8082add409c5964db59831d0270aa012c933cc816dc6fbeab145bc",
     3,
     THREE_PAIR_DIGEST,
-    VALIDATED_STUD_PROFILE_CHANGES_V8,
+    VALIDATED_STUD_PROFILE_CHANGES_V18,
   ),
   "sha256:e34fcc8ac627f0dcfdb1d779246a723101d765f931830a4c06514d9daff75c26": authority(
     "a49137131566247daeb01d80ff88302b41bcf538",
@@ -455,7 +732,7 @@ export const REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH: Readonly<
     "sha256:4224f8ca202557d357bd4c7a94707fc9d3e58617e2d87a8e8e16059d516a58ba",
     3,
     THREE_PAIR_DIGEST,
-    VALIDATED_STUD_PROFILE_CHANGES_V8,
+    VALIDATED_STUD_PROFILE_CHANGES_V19,
   ),
   "sha256:9c4c32efcaf9bc5f2a251e77188134075f58ca536c6da6148e34b93419d84ad2": authority(
     "e037b7e60e1240ddf196d381850ae49bc8c80e9b",
@@ -463,7 +740,7 @@ export const REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH: Readonly<
     "sha256:863b65218ceb2522510b7bf2e52f4cd9749c7b87fc5979499b9ef191523f6799",
     3,
     THREE_PAIR_DIGEST,
-    VALIDATED_STUD_PROFILE_CHANGES_V8,
+    VALIDATED_STUD_PROFILE_CHANGES_V20,
   ),
   "sha256:44044c90de3bb380f32c26db561bad1bd0f247c22ea35c54d75aa5ec6ef8f9a1": authority(
     "98dc1e82b309eb52a6a32e0928ce075acb3e93ed",
@@ -471,7 +748,7 @@ export const REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH: Readonly<
     "sha256:f84f1e0ec3e1d628b1bd49d869e6b9f3dbdb9d95be87b2fa81b396a566462d2b",
     3,
     THREE_PAIR_DIGEST,
-    VALIDATED_STUD_PROFILE_CHANGES_V8,
+    VALIDATED_STUD_PROFILE_CHANGES_V20,
   ),
   "sha256:7f64021239ab6395a3666f1f72908fd420b73065909822bc68e5226785bfa12e": authority(
     "94db468e6a5045a0a7732f8f4adc128e90f025b6",
@@ -479,7 +756,7 @@ export const REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH: Readonly<
     "sha256:006157a4816e7dc9a001b0c15a7c2e45fdbaeb611142b428458457f2ea4b8ff2",
     3,
     THREE_PAIR_DIGEST,
-    VALIDATED_STUD_PROFILE_CHANGES_V8,
+    VALIDATED_STUD_PROFILE_CHANGES_V20,
   ),
   "sha256:af781e7356e28622fb13afcb571d28495a0962d6aa78ef70d988126a9c4aeefb": authority(
     "d99b74d355684c8ceaca0ad6f2df76d96ebe4937",
@@ -528,6 +805,14 @@ export const REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH: Readonly<
     3,
     THREE_PAIR_DIGEST,
     VALIDATED_STUD_PROFILE_AND_THROUGH_BORE_CHANGES,
+  ),
+  "sha256:54762419e4779c6c15566052062fcaa432cb45e3a13704b5af1563b4fa94e8eb": authority(
+    "6b02e50732d7908374b168ce0582476ac0422769",
+    2339,
+    "sha256:3ee33ad94b3f4ff2ea0024c27753d871f26b7bbe0cd8d74c7309287c804d2be9",
+    4,
+    "sha256:92dd1cdfb9f34879f55a5ee5a0827b5c24c830da654c90bd3b00896025ca5731",
+    VERSION_30_ENDPOINT_CHANGES,
   ),
 });
 

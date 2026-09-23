@@ -7,7 +7,7 @@ import {
 } from "../src/instructions/page-shapes";
 
 import PANEL_FACE_GROUND_TRUTH from "../test/fixtures/panel-face-ground-truth.json" with { type: "json" };
-import { readSampleBooklet } from "./booklet-fixture";
+import { readSampleBooklet } from "./booklet-file-source.ts";
 import { sha256Digest } from "./real-build-artifacts";
 import { deriveRealBuildPanelEvidence } from "./real-build-panel-evidence";
 import { derivePanelFaces, deriveTransitionPanelFeatures } from "./real-build-transition-features";

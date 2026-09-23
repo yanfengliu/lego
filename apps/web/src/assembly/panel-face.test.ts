@@ -4,6 +4,7 @@ import { panelProjectionFromFit } from "./arrow-placement";
 import {
   derivePanelFaces,
   FIRST_PANEL_FACE,
+  preHandPanelFace,
   viewForLatticeHand,
   viewForPanelFace,
 } from "./panel-face";
@@ -35,11 +36,13 @@ describe("viewForLatticeHand", () => {
     expect(reflected.up.yPx).toBeCloseTo(fitted.up.yPx, 12);
   });
 
-  it("is a horizontal reflection, not an underside face", () => {
+  it("crosses the physical model plane without applying the booklet face roll", () => {
     const fitted = panelProjectionFromFit(FIT);
-    const reflected = panelProjectionFromFit(viewForLatticeHand(FIT, "x-reflected"));
+    const reflectedView = viewForLatticeHand(FIT, "x-reflected");
+    const reflected = panelProjectionFromFit(reflectedView);
     const underside = panelProjectionFromFit(viewForPanelFace(FIT, "underside"));
 
+    expect(reflectedView.elevationDegrees).toBeLessThan(0);
     expect(reflected.a.xPx).toBeCloseTo(underside.a.xPx, 12);
     expect(reflected.a.yPx).toBeCloseTo(underside.a.yPx, 12);
     expect(reflected.b.xPx).toBeCloseTo(underside.b.xPx, 12);
@@ -68,6 +71,37 @@ describe("viewForLatticeHand", () => {
   it("refuses an unknown hand instead of choosing a mirrored default", () => {
     expect(() => viewForLatticeHand(FIT, "ambidextrous" as "as-fitted")).toThrow(
       /as-fitted.*x-reflected.*ambidextrous/su,
+    );
+  });
+});
+
+describe("preHandPanelFace", () => {
+  it("keeps every post-hand branch on the physical face named by its key", () => {
+    for (const face of ["studs-up", "underside"] as const) {
+      for (const hand of ["as-fitted", "x-reflected"] as const) {
+        for (const turn of [0, 1, 2, 3] as const) {
+          const faced = viewForPanelFace(FIT, preHandPanelFace(face, hand));
+          const branch = viewForLatticeHand(
+            { ...faced, azimuthDegrees: faced.azimuthDegrees + turn * 90 },
+            hand,
+          );
+          expect(branch.elevationDegrees, `${face}/${hand}/${turn}`).toBe(
+            face === "studs-up" ? FIT.elevationDegrees : -FIT.elevationDegrees,
+          );
+          expect(branch.upSign, `${face}/${hand}/${turn}`).toBe(
+            face === "studs-up" ? (hand === "as-fitted" ? 1 : -1) : hand === "as-fitted" ? -1 : 1,
+          );
+        }
+      }
+    }
+  });
+
+  it("refuses unknown faces and hands before a mislabeled camera can be built", () => {
+    expect(() => preHandPanelFace("sideways" as "studs-up", "as-fitted")).toThrow(
+      /studs-up.*underside/su,
+    );
+    expect(() => preHandPanelFace("studs-up", "ambidextrous" as "as-fitted")).toThrow(
+      /as-fitted.*x-reflected/su,
     );
   });
 });

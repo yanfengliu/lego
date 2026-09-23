@@ -6,7 +6,7 @@ import {
   documentStructuralHash,
   verifyAssemblyPatchAgainstCapability,
 } from "@lego-studio/brick-kernel";
-import type { AssemblyPatchV1, BrickDocumentV1 } from "@lego-studio/protocol";
+import type { AssemblyPatchV1, BrickDocumentV1, ScopeCapabilityV1 } from "@lego-studio/protocol";
 
 import {
   requireRealBuildCandidateDocumentSnapshotValue,
@@ -18,6 +18,7 @@ import {
   prepareRealBuildAutomaticPrintedStep,
   snapshotRealBuildAutomaticPrintedStepMetadata,
   type RealBuildAutomaticPrintedStepMetadata,
+  type RealBuildPreparedAutomaticPrintedStep,
 } from "./real-build-automatic-placement-step";
 
 export const REAL_BUILD_PREFIX50_ZERO_STEP_NUMBER = 44;
@@ -39,6 +40,14 @@ export interface RealBuildPrefix50ZeroStepSuccess {
   readonly ok: true;
   readonly document: BrickDocumentV1;
   readonly patch: AssemblyPatchV1;
+  readonly compilerInputDigest: `sha256:${string}`;
+  readonly targetDocumentHash: `sha256:${string}`;
+}
+
+export interface PreparedRealBuildPrefix50ZeroPieceStep {
+  readonly document: BrickDocumentV1;
+  readonly preparedStep: RealBuildPreparedAutomaticPrintedStep;
+  readonly scope: ScopeCapabilityV1;
   readonly compilerInputDigest: `sha256:${string}`;
   readonly targetDocumentHash: `sha256:${string}`;
 }
@@ -89,6 +98,12 @@ function deterministicId(prefix: string, value: unknown): string {
 export function compileRealBuildPrefix50ZeroPieceStep(
   unsafeInput: unknown,
 ): RealBuildPrefix50ZeroStepSuccess {
+  return compilePrepared(prepareRealBuildPrefix50ZeroPieceStep(unsafeInput));
+}
+
+export function prepareRealBuildPrefix50ZeroPieceStep(
+  unsafeInput: unknown,
+): PreparedRealBuildPrefix50ZeroPieceStep {
   exactKeys(
     unsafeInput,
     ["documentSnapshot", "printedStep", "printedStepNumber"],
@@ -106,13 +121,13 @@ export function compileRealBuildPrefix50ZeroPieceStep(
   const printedStep = snapshotRealBuildAutomaticPrintedStepMetadata(
     data(unsafeInput, "printedStep", "Prefix-50 zero-piece input"),
   );
-  return compileSnapshot(documentSnapshot, printedStep);
+  return prepareSnapshot(documentSnapshot, printedStep);
 }
 
-function compileSnapshot(
+function prepareSnapshot(
   snapshot: RealBuildCandidateDocumentSnapshot,
   printedStep: Readonly<RealBuildAutomaticPrintedStepMetadata>,
-): RealBuildPrefix50ZeroStepSuccess {
+): PreparedRealBuildPrefix50ZeroPieceStep {
   const document = snapshot.document;
   const compilerInputDigest = canonicalDigest({
     schemaVersion: "lego.real-build-prefix50-zero-step-input/1",
@@ -138,6 +153,20 @@ function compileSnapshot(
     phase: "combined",
   });
   const targetDocumentHash = documentStructuralHash(prepared.documentWithStep);
+  return deepFreeze({
+    document,
+    preparedStep: prepared,
+    scope,
+    compilerInputDigest,
+    targetDocumentHash,
+  });
+}
+
+function compilePrepared(
+  preparedInput: PreparedRealBuildPrefix50ZeroPieceStep,
+): RealBuildPrefix50ZeroStepSuccess {
+  const { document, scope, compilerInputDigest, targetDocumentHash } = preparedInput;
+  const prepared = preparedInput.preparedStep;
   const candidateId = realBuildDocumentCandidateId(targetDocumentHash);
   const patch: AssemblyPatchV1 = {
     schemaVersion: "lego.assembly-patch/1",

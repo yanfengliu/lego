@@ -15,6 +15,7 @@ import { BUILDER_PREFIX50_DESIGN_SOURCES_J } from "./real-build-builder-source-p
 import { BUILDER_PREFIX50_DESIGN_SOURCES_K } from "./real-build-builder-source-pins-k";
 import { BUILDER_PREFIX50_DESIGN_SOURCES_L } from "./real-build-builder-source-pins-l";
 import { BUILDER_PREFIX50_DESIGN_SOURCES_M } from "./real-build-builder-source-pins-m";
+import { BUILDER_PREFIX50_DESIGN_SOURCES_N } from "./real-build-builder-source-pins-n";
 
 export {
   BUILDER_STEP1_GEOMETRY_BUNDLE,
@@ -45,15 +46,15 @@ export type {
  * land within 2 LDU of the LDraw surface it places, which a wrong quarter turn
  * misses by tens of LDU.
  *
- * The 43 retained rows cover 197 of the prefix's 320 pieces. Absence is a
+ * The 44 retained rows cover 230 of the prefix's 320 pieces. Absence is a
  * measurement, not an implied frame: nine checksum-mismatched revisions, the
  * 10201;H identity contradiction, ten diagnostic-only frame exclusions, one surface-only row whose audited record
  * carries an authored underside lattice, and two rows whose audited type-23
  * families are not recognized studs remain outside this registry. The exact
  * 2453;I / 6595205 occurrence route is retained only through its opaque evidence
- * capability and does not admit the other item number. Revision
- * 15573;L's recognized underside lattice also has three cells where its catalog
- * part has two clutches. These local frame diagnostics grant no world placement,
+ * capability and does not admit the other item number. Revision 15573;L's three
+ * recognized underside cells now bind the independently measured three-seat
+ * catalog truth. These local frame diagnostics grant no world placement,
  * execution, mutation, acceptance, or completion authority.
  */
 export const BUILDER_STEP1_DESIGN_SOURCES = [
@@ -70,6 +71,7 @@ export const BUILDER_STEP1_DESIGN_SOURCES = [
   ...BUILDER_PREFIX50_DESIGN_SOURCES_K,
   ...BUILDER_PREFIX50_DESIGN_SOURCES_L,
   ...BUILDER_PREFIX50_DESIGN_SOURCES_M,
+  ...BUILDER_PREFIX50_DESIGN_SOURCES_N,
 ] as const satisfies readonly BuilderDesignSourcePin[];
 
 /**

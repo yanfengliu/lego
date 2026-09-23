@@ -7,7 +7,9 @@ import { servableRoots } from "./sample-booklet";
 import {
   assertRealBuildBootstrapSourceLockHeld,
   readRequiredRealBuildBootstrapSourceManifest,
+  realBuildViteCacheDirectory,
 } from "./real-build-bootstrap-source";
+import { listenWithCloseOnFailure } from "./vite-server-lifecycle";
 
 export default async function globalSetup() {
   if (process.env.LEGO_REAL_BUILD_REQUIRED === "1") {
@@ -15,7 +17,9 @@ export default async function globalSetup() {
     assertRealBuildBootstrapSourceLockHeld();
   }
   const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+  const cacheDir = realBuildViteCacheDirectory();
   const server = await createServer({
+    ...(cacheDir === undefined ? {} : { cacheDir }),
     root: webRoot,
     logLevel: "error",
     server: {
@@ -40,8 +44,5 @@ export default async function globalSetup() {
       fs: { allow: [searchForWorkspaceRoot(webRoot), ...servableRoots()] },
     },
   });
-  await server.listen();
-  return async () => {
-    await server.close();
-  };
+  return listenWithCloseOnFailure(server);
 }

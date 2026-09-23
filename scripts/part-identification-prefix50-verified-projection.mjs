@@ -16,6 +16,18 @@ import {
   inspectVerifiedPrefix50OfficialWorldReconciliation,
   isVerifiedPrefix50OfficialWorldReconciliation,
 } from "./part-identification-prefix50-official-world-reconciliation.mjs";
+import {
+  bytesFromVerifiedPrefix50StructuralEvents,
+  inspectVerifiedPrefix50StructuralEvents,
+  isVerifiedPrefix50StructuralEvents,
+} from "./part-identification-prefix50-structural-events.mjs";
+import { projectPrefix50Action } from "./part-identification-prefix50-verified-projection-action.mjs";
+import { projectPrefix50ChildSubBuildWindow } from "./part-identification-prefix50-verified-projection-structural.mjs";
+import { projectPrefix50Step41ActionBinding } from "./part-identification-prefix50-verified-projection-step41.mjs";
+import { createOpaqueRealBuildPrefix50Step42SourceGeometryReader } from "./part-identification-prefix50-verified-projection-step42-source-geometry.mjs";
+import { projectPrefix50Step43ActionBinding } from "./part-identification-prefix50-verified-projection-step43.mjs";
+
+export { readOpaqueRealBuildPrefix50Step42ActionBinding } from "./part-identification-prefix50-verified-projection-step42-source-geometry.mjs";
 
 const MAXIMUM_ARTIFACT_BYTES = 2 * 1024 * 1024;
 const SHA256 = /^sha256:[0-9a-f]{64}$/u;
@@ -28,19 +40,6 @@ const EXPECTED_SCOPE = Object.freeze({
   expectedPrintedSteps: 359,
   sourceIndexPreserved: true,
   suffixStepsReconstructed: false,
-});
-const EXPECTED_ACTION_ACCOUNTING = Object.freeze({
-  printedStepRows: 50,
-  partBearingStepRows: 49,
-  zeroPieceStepRows: 1,
-  calloutRows: 187,
-  physicalIdentities: 320,
-  builderPhases: 95,
-  directPhases: 91,
-  copyPhases: 4,
-  directIdentities: 309,
-  copyIdentities: 11,
-  repeatRows: 2,
 });
 const OCCURRENCE_CORRECTIONS = new Set([139, 147, 178, 183, 185, 190, 191, 192, 193]);
 const MOVED_ROOTS = new Set([25, 39]);
@@ -94,115 +93,6 @@ function verifiedRole(value, kind) {
     );
   }
   return Object.freeze({ bytes: suppliedBytes, inspection, verified: role.verified });
-}
-
-function actionProjection(actionRole) {
-  const { artifact, digest } = actionRole.inspection;
-  if (
-    artifact.schemaVersion !== "lego.real-build-action-preparation/1" ||
-    !isDeepStrictEqual(artifact.scope, EXPECTED_SCOPE) ||
-    !isDeepStrictEqual(artifact.accounting, EXPECTED_ACTION_ACCOUNTING) ||
-    !Array.isArray(artifact.steps) ||
-    artifact.steps.length !== 50 ||
-    artifact.sourceIndex?.prefixPartArtPieces !== 320 ||
-    artifact.sourceIndex?.expectedPrintedSteps !== 359 ||
-    artifact.sourceIndex?.suffixStepsReconstructed !== false ||
-    artifact.inputs?.sourcePdfDigest !== SET_6651557_SOURCE_PDF_DIGEST
-  ) {
-    throw new TypeError(
-      "Opaque action preparation does not retain the exact 1..50/320 prefix and 359-step index boundary.",
-    );
-  }
-  const occurrences = new Map();
-  const steps = [];
-  let cursor = 0;
-  for (const [index, step] of artifact.steps.entries()) {
-    const stepNumber = index + 1;
-    const callouts = new Map(step.callouts?.map((callout) => [callout.identity, callout]));
-    const phaseOrdinals = [];
-    if (
-      step.stepNumber !== stepNumber ||
-      step.printedPieceCursorBefore !== cursor ||
-      step.printedPieceCursorAfter !== cursor + step.printedPieces ||
-      !Array.isArray(step.sourceBuilderIdentityOrdinals) ||
-      !Array.isArray(step.phaseSequences) ||
-      !Array.isArray(step.phases) ||
-      callouts.size !== step.callouts?.length
-    ) {
-      throw new TypeError(`Opaque action preparation printed step ${stepNumber} is not exact.`);
-    }
-    for (const phase of step.phases) {
-      if (
-        (phase.kind !== "direct" && phase.kind !== "multi-build-copy") ||
-        !step.phaseSequences.includes(phase.sequence) ||
-        !Array.isArray(phase.members)
-      ) {
-        throw new TypeError(`Opaque action preparation step ${stepNumber} has an invalid phase.`);
-      }
-      for (const member of phase.members) {
-        const callout = callouts.get(member.calloutIdentity);
-        const ordinal = member.sourceBuilderIdentityOrdinal;
-        if (
-          !Number.isSafeInteger(ordinal) ||
-          ordinal < 1 ||
-          ordinal > 320 ||
-          occurrences.has(ordinal) ||
-          callout === undefined ||
-          callout.officialDesignId !== member.officialDesignId
-        ) {
-          throw new TypeError(
-            `Opaque action preparation occurrence ${String(ordinal)} has no unique exact callout/member basis.`,
-          );
-        }
-        phaseOrdinals.push(ordinal);
-        occurrences.set(
-          ordinal,
-          Object.freeze({
-            actionKind: phase.kind,
-            builderBrickRef: member.builderBrickRef,
-            calloutIdentity: member.calloutIdentity,
-            catalogColorId: callout.publishedColorId,
-            designRevision: member.designRevision,
-            masterSubBuildRef: phase.kind === "multi-build-copy" ? phase.masterSubBuildRef : null,
-            officialDesignId: member.officialDesignId,
-            phaseSequence: phase.sequence,
-            publishedCatalogPartId: callout.catalogPartId,
-            sourceBuilderBrickRef:
-              phase.kind === "multi-build-copy" ? member.sourceBuilderBrickRef : null,
-            stepNumber,
-          }),
-        );
-      }
-    }
-    if (
-      !isDeepStrictEqual(phaseOrdinals, step.sourceBuilderIdentityOrdinals) ||
-      phaseOrdinals.length !== step.printedPieces ||
-      (stepNumber === 44 ? step.printedPieces !== 0 : step.printedPieces < 1)
-    ) {
-      throw new TypeError(
-        `Opaque action preparation step ${stepNumber} does not retain its exact printed occurrence row.`,
-      );
-    }
-    steps.push(
-      deepFreeze({
-        printedStepNumber: stepNumber,
-        name: `Printed step ${stepNumber}`,
-        sourceActionDigest: stableDigest({
-          schemaVersion: "lego.real-build-prefix50-source-action/1",
-          step,
-        }),
-      }),
-    );
-    cursor = step.printedPieceCursorAfter;
-  }
-  if (
-    cursor !== 320 ||
-    occurrences.size !== 320 ||
-    [...occurrences.keys()].sort((a, b) => a - b).some((ordinal, index) => ordinal !== index + 1)
-  ) {
-    throw new TypeError("Opaque action preparation does not close exact ordinals 1..320.");
-  }
-  return Object.freeze({ digest, occurrences, schemaVersion: artifact.schemaVersion, steps });
 }
 
 function exactWorldTransform(value, ordinal) {
@@ -341,7 +231,7 @@ function reconciliationProjection(reconciliationRole, actionRole, action) {
   const scopedBindings = { corrections: 0, movedRoots: 0 };
   if (
     artifact.schemaVersion !== "lego.prefix50-official-world-reconciliation/2" ||
-    artifact.inputs?.catalogVersion !== "builtin.basic-parts/29" ||
+    artifact.inputs?.catalogVersion !== "builtin.basic-parts/30" ||
     !isDeepStrictEqual(
       {
         firstPrintedStep: artifact.scope?.firstPrintedStep,
@@ -401,6 +291,9 @@ function reconciliationProjection(reconciliationRole, actionRole, action) {
     return deepFreeze({
       ordinal,
       printedStepNumber: row.stepNumber,
+      phaseSequence: source.phaseSequence,
+      phaseMemberOrdinal: source.phaseMemberOrdinal,
+      subBuildPath: [...source.subBuildPath],
       colorId: row.catalogColorId,
       partIdentity: partIdentity(row, source, ordinal),
       sourceWorldTransform: exactWorldTransform(row.catalogWorldTransform, ordinal),
@@ -423,6 +316,7 @@ export function createRealBuildPrefix50VerifiedProjectionReader(value) {
   const input = snapshotExactDataObject(value, "Prefix-50 verified-projection adapter input", [
     "actionPreparation",
     "officialWorldReconciliation",
+    "structuralEvents",
   ]);
   const actionRole = verifiedRole(input.actionPreparation, {
     label: "action-preparation",
@@ -436,24 +330,49 @@ export function createRealBuildPrefix50VerifiedProjectionReader(value) {
     bytesFromVerified: bytesFromVerifiedPrefix50OfficialWorldReconciliation,
     inspect: inspectVerifiedPrefix50OfficialWorldReconciliation,
   });
-  const action = actionProjection(actionRole);
+  const structuralRole = verifiedRole(input.structuralEvents, {
+    label: "structural-events",
+    isVerified: isVerifiedPrefix50StructuralEvents,
+    bytesFromVerified: bytesFromVerifiedPrefix50StructuralEvents,
+    inspect: inspectVerifiedPrefix50StructuralEvents,
+  });
+  const action = projectPrefix50Action({
+    actionRole,
+    expectedScope: EXPECTED_SCOPE,
+    sourcePdfDigest: SET_6651557_SOURCE_PDF_DIGEST,
+    stableDigest,
+  });
   const reconciliation = reconciliationProjection(reconciliationRole, actionRole, action);
+  const structural = projectPrefix50ChildSubBuildWindow({
+    structuralRole,
+    actionRole,
+    action,
+    expectedScope: EXPECTED_SCOPE,
+  });
   const sourceArtifactDigest = stableDigest({
-    schemaVersion: "lego.real-build-prefix50-verified-source-commitment/1",
+    schemaVersion: "lego.real-build-prefix50-verified-source-commitment/2",
     actionPreparationDigest: action.digest,
     officialWorldReconciliationDigest: reconciliation.digest,
+    structuralEventsDigest: structural.digest,
+    structuralDigest: structural.structuralDigest,
+    childSubBuildMemberCommitment: structural.window.memberCommitment,
     occurrenceCommitment: reconciliation.occurrenceCommitment,
     worldTransformCommitment: reconciliation.worldTransformCommitment,
   });
   const projection = deepFreeze({
-    schemaVersion: "lego.real-build-prefix50-verified-projection/1",
+    schemaVersion: "lego.real-build-prefix50-verified-projection/2",
     sourceSetId: "6651557",
     sourceArtifactDigest,
+    childSubBuildWindow: structural.window,
     steps: action.steps,
     occurrences: reconciliation.occurrences,
   });
   const readVerifiedPrefix50Projection = Object.freeze(() => projection);
-  const reader = Object.freeze({ readVerifiedPrefix50Projection });
+  const reader = createOpaqueRealBuildPrefix50Step42SourceGeometryReader({
+    actionPreparationVerified: actionRole.verified,
+    officialWorldReconciliationVerified: reconciliationRole.verified,
+    readVerifiedPrefix50Projection,
+  });
   const occurrence30 = action.occurrences.get(30);
   if (
     occurrence30?.stepNumber !== 14 ||
@@ -478,7 +397,14 @@ export function createRealBuildPrefix50VerifiedProjectionReader(value) {
     officialDesignId: occurrence30.officialDesignId,
     designRevision: occurrence30.designRevision,
   });
-  verifiedProjectionReaders.set(reader, { occurrence30ActionBinding, projection });
+  const step41ActionBinding = projectPrefix50Step41ActionBinding(action);
+  const step43ActionBinding = projectPrefix50Step43ActionBinding(action);
+  verifiedProjectionReaders.set(reader, {
+    occurrence30ActionBinding,
+    projection,
+    step41ActionBinding,
+    step43ActionBinding,
+  });
   return reader;
 }
 
@@ -487,7 +413,7 @@ export function readOpaqueRealBuildPrefix50VerifiedProjection(value) {
     typeof value === "object" && value !== null ? verifiedProjectionReaders.get(value) : undefined;
   if (record === undefined) {
     throw new TypeError(
-      "Prefix-50 exact compilation requires a reader minted from the opaque current action and official-world verifiers; frozen caller lookalikes carry no placement authority.",
+      "Prefix-50 exact compilation requires a reader minted from the opaque current action, official-world, and structural-event verifiers; frozen caller lookalikes carry no placement authority.",
     );
   }
   return record.projection;
@@ -502,6 +428,28 @@ export function readOpaqueRealBuildPrefix50Occurrence30ActionBinding(value) {
     );
   }
   return record.occurrence30ActionBinding;
+}
+
+export function readOpaqueRealBuildPrefix50Step41ActionBinding(value) {
+  const record =
+    typeof value === "object" && value !== null ? verifiedProjectionReaders.get(value) : undefined;
+  if (record === undefined) {
+    throw new TypeError(
+      "Step-41 action binding requires the opaque current prefix-50 projection reader; caller-shaped action rows carry no repair authority.",
+    );
+  }
+  return record.step41ActionBinding;
+}
+
+export function readOpaqueRealBuildPrefix50Step43ActionBinding(value) {
+  const record =
+    typeof value === "object" && value !== null ? verifiedProjectionReaders.get(value) : undefined;
+  if (record === undefined) {
+    throw new TypeError(
+      "Step-43 action binding requires the opaque current prefix-50 projection reader; caller-shaped action rows carry no repair authority.",
+    );
+  }
+  return record.step43ActionBinding;
 }
 
 export function readSyntheticRealBuildPrefix50ProjectionForTest(value) {

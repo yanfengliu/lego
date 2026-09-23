@@ -32,6 +32,7 @@ import {
 } from "./exact-ldu.ts";
 import { deepFreeze } from "./freeze.ts";
 import { meshAssetContentHash, resolvePreloadedMeshAsset } from "./mesh-assets.ts";
+import { compileMeasuredClutchPortSemantics } from "./measured-clutch-semantics.ts";
 import { compileMeasuredSourceConnector } from "./measured-source-connector.ts";
 import { compileThroughAxleBoreCollisionAllowance } from "./through-axle-bore-collision.ts";
 import { meshUndersideIsDrawn } from "./mesh-underside.ts";
@@ -286,6 +287,7 @@ export const makeMeasuredPartDefinition = (blueprint: MeasuredPartBlueprint): Pa
       `declares ${blueprint.clutchSharedCapacityGroupIds.length} clutch shared-capacity rows for ${blueprint.clutchesLdu.length} underside clutches; the generated rows must stay aligned one-for-one.`,
     );
   }
+  const clutchPortSemantics = compileMeasuredClutchPortSemantics(blueprint);
 
   blueprint.clutchesLdu.forEach(([x, y, z], index) => {
     if (!Number.isSafeInteger(y) || y < bodyBoundsLdu.min[1] || y > bodyBoundsLdu.max[1]) {
@@ -294,7 +296,10 @@ export const makeMeasuredPartDefinition = (blueprint: MeasuredPartBlueprint): Pa
         `underside clutch ${index} seats at y=${y}, outside the measured body's ${bodyBoundsLdu.min[1]} to ${bodyBoundsLdu.max[1]} range or off the whole-LDU lattice; a seat is a plane of the part.`,
       );
     }
-    const portId = `undersideClutch:${index}`;
+    const portSemantics = clutchPortSemantics?.[index];
+    const portId = portSemantics?.id ?? `undersideClutch:${index}`;
+    const sharedCapacityGroupIds =
+      portSemantics?.sharedCapacityGroupIds ?? blueprint.clutchSharedCapacityGroupIds?.[index];
     connectors.push({
       id: portId,
       kind: "undersideClutch",
@@ -305,13 +310,11 @@ export const makeMeasuredPartDefinition = (blueprint: MeasuredPartBlueprint): Pa
       normal: [0, 1, 0],
       orientationId: "connector-down",
       capacity: 1,
-      ...(blueprint.clutchSharedCapacityGroupIds?.[index]?.length
-        ? { sharedCapacityGroupIds: blueprint.clutchSharedCapacityGroupIds[index] }
-        : {}),
+      ...(sharedCapacityGroupIds?.length ? { sharedCapacityGroupIds } : {}),
       compatibleKinds: ["stud"],
     });
     allowances.push({
-      id: `tubeSeat:${index}`,
+      id: `tubeSeat:${portId.slice("undersideClutch:".length)}`,
       portId,
       portKind: "undersideClutch",
       incomingPrimitiveTag: "stud",

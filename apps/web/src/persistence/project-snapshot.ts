@@ -1,10 +1,13 @@
 import {
   applyBuildOperations,
   canonicalDigest,
+  canonicalStringify,
   createBuiltinTruthSnapshot,
   deepFreeze,
+  deriveBuildSequenceFromTrace,
   documentStructuralHash,
   invertBuildOperations,
+  type BuildPlaybackTraceV1,
 } from "@lego-studio/brick-kernel";
 import {
   validateBrickDocumentV1,
@@ -40,14 +43,16 @@ export class ProjectSnapshotError extends Error {
   }
 }
 
-export interface StoredEditorProjectV1 {
-  readonly schemaVersion: "lego.local-project/1";
+export interface StoredEditorProjectV2 {
+  readonly schemaVersion: "lego.local-project/2";
   readonly projectId: string;
   readonly generation: number;
   readonly documentHash: string;
   readonly snapshotHash: string;
   readonly state: EditorState;
 }
+
+export type StoredEditorProject = StoredEditorProjectV2;
 
 const IDENTIFIER_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/;
 const HASH_PATTERN = /^sha256:[0-9a-f]{64}$/;
@@ -59,7 +64,15 @@ const PROJECT_KEYS = [
   "snapshotHash",
   "state",
 ];
-const STATE_KEYS = ["document", "redoStack", "selectedPartId", "undoStack"];
+const LEGACY_STATE_KEYS = ["document", "redoStack", "selectedPartId", "undoStack"];
+const STATE_KEYS = [
+  "document",
+  "playbackTrace",
+  "playbackTraceRecovery",
+  "redoStack",
+  "selectedPartId",
+  "undoStack",
+];
 const TRANSACTION_KEYS = ["label", "operations"];
 
 function invalid(message: string): never {
@@ -91,13 +104,13 @@ function detachAndBound(value: unknown): unknown {
   } catch {
     return invalid("Stored project must be detached structured-cloneable data");
   }
-  let json: string;
+  let canonicalJson: string;
   try {
-    json = JSON.stringify(detached);
+    canonicalJson = canonicalStringify(detached);
   } catch {
-    return invalid("Stored project must be finite JSON-compatible data");
+    return invalid("Stored project must be finite canonical JSON data without sparse arrays");
   }
-  if (new TextEncoder().encode(json).byteLength > PROJECT_SNAPSHOT_LIMITS.maxBytes) {
+  if (new TextEncoder().encode(canonicalJson).byteLength > PROJECT_SNAPSHOT_LIMITS.maxBytes) {
     return limit("Stored project exceeds the local project byte limit");
   }
   return detached;
@@ -178,27 +191,33 @@ function verifyHistory(
 }
 
 function snapshotDigest(
+  schemaVersion: "lego.local-project/1" | "lego.local-project/2",
   projectId: string,
   generation: number,
   documentHash: string,
-  state: EditorState,
+  state: unknown,
 ): string {
-  return canonicalDigest({
-    schemaVersion: "lego.local-project/1",
-    projectId,
-    generation,
-    documentHash,
-    state,
-  });
+  try {
+    return canonicalDigest({
+      schemaVersion,
+      projectId,
+      generation,
+      documentHash,
+      state,
+    });
+  } catch {
+    return invalid("Stored project snapshot must be finite canonical JSON data");
+  }
 }
 
-export function parseStoredEditorProject(value: unknown): StoredEditorProjectV1 {
+export function parseStoredEditorProject(value: unknown): StoredEditorProjectV2 {
   const detached = detachAndBound(value);
   if (!isPlainRecord(detached) || !hasExactKeys(detached, PROJECT_KEYS)) {
     return invalid("Stored project has an invalid shape");
   }
   if (
-    detached.schemaVersion !== "lego.local-project/1" ||
+    (detached.schemaVersion !== "lego.local-project/1" &&
+      detached.schemaVersion !== "lego.local-project/2") ||
     typeof detached.projectId !== "string" ||
     !IDENTIFIER_PATTERN.test(detached.projectId) ||
     !Number.isSafeInteger(detached.generation) ||
@@ -210,7 +229,11 @@ export function parseStoredEditorProject(value: unknown): StoredEditorProjectV1 
   ) {
     return invalid("Stored project identity or generation is invalid");
   }
-  if (!isPlainRecord(detached.state) || !hasExactKeys(detached.state, STATE_KEYS)) {
+  const legacy = detached.schemaVersion === "lego.local-project/1";
+  if (
+    !isPlainRecord(detached.state) ||
+    !hasExactKeys(detached.state, legacy ? LEGACY_STATE_KEYS : STATE_KEYS)
+  ) {
     return invalid("Stored editor state has an invalid shape");
   }
 
@@ -227,6 +250,19 @@ export function parseStoredEditorProject(value: unknown): StoredEditorProjectV1 
     throw new ProjectSnapshotError(
       "DOCUMENT_HASH_MISMATCH",
       "Stored project document hash does not match its canonical bytes",
+    );
+  }
+  const snapshotHash = snapshotDigest(
+    detached.schemaVersion,
+    detached.projectId,
+    detached.generation as number,
+    documentHash,
+    detached.state,
+  );
+  if (snapshotHash !== detached.snapshotHash) {
+    throw new ProjectSnapshotError(
+      "SNAPSHOT_HASH_MISMATCH",
+      "Stored project snapshot hash does not match its canonical content",
     );
   }
 
@@ -249,34 +285,67 @@ export function parseStoredEditorProject(value: unknown): StoredEditorProjectV1 
     return limit("Stored editor history exceeds the total operation limit");
   }
   // Operations authored under an older truth cannot be replayed against the
-  // current kernel, so a document awaiting migration skips replay. The stored
-  // bytes are still verified in full below; only the history is set aside.
+  // current kernel, so a document awaiting migration skips replay validation.
+  // Its history remains hash-bound and is preserved until App knows whether
+  // migration succeeded or was blocked.
   const awaitingTruthMigration = documentAwaitsTruthMigration(document);
   if (!awaitingTruthMigration) verifyHistory(document, undoStack, redoStack);
 
-  const state = { document, selectedPartId, undoStack, redoStack } satisfies EditorState;
-  const snapshotHash = snapshotDigest(
+  const storedPlaybackTrace = legacy ? null : detached.state.playbackTrace;
+  const storedPlaybackTraceRecovery = legacy ? null : detached.state.playbackTraceRecovery;
+  if (
+    storedPlaybackTraceRecovery !== null &&
+    (typeof storedPlaybackTraceRecovery !== "string" ||
+      storedPlaybackTraceRecovery.length < 1 ||
+      storedPlaybackTraceRecovery.length > 512)
+  ) {
+    return invalid("Stored playback trace recovery notice is invalid");
+  }
+  let playbackTrace: BuildPlaybackTraceV1 | null = null;
+  let playbackTraceRecovery = storedPlaybackTraceRecovery as string | null;
+  if (storedPlaybackTrace !== null && !awaitingTruthMigration) {
+    try {
+      deriveBuildSequenceFromTrace(document, storedPlaybackTrace);
+      playbackTrace = storedPlaybackTrace as BuildPlaybackTraceV1;
+    } catch (error) {
+      playbackTraceRecovery =
+        `Stored operation replay trace was dropped without changing the authored document or history: ${
+          error instanceof Error ? error.message : "the trace could not be replayed"
+        }`.slice(0, 512);
+    }
+  } else if (storedPlaybackTrace !== null && awaitingTruthMigration) {
+    playbackTraceRecovery =
+      "Stored operation replay trace was dropped because its pinned truth requires migration.";
+  }
+
+  const state = {
+    document,
+    playbackTrace,
+    playbackTraceRecovery,
+    selectedPartId,
+    undoStack,
+    redoStack,
+  } satisfies EditorState;
+  const parsedState = legacy
+    ? { ...state, playbackTrace: null, playbackTraceRecovery: null }
+    : state;
+  const migratedSnapshotHash = snapshotDigest(
+    "lego.local-project/2",
     detached.projectId,
     detached.generation as number,
     documentHash,
-    state,
+    parsedState,
   );
-  if (snapshotHash !== detached.snapshotHash) {
-    throw new ProjectSnapshotError(
-      "SNAPSHOT_HASH_MISMATCH",
-      "Stored project snapshot hash does not match its canonical content",
-    );
-  }
 
   return deepFreeze({
-    schemaVersion: "lego.local-project/1",
+    schemaVersion: "lego.local-project/2" as const,
     projectId: detached.projectId,
     generation: detached.generation as number,
     documentHash,
-    snapshotHash,
-    // Undo across a truth migration would reinstate the old truth, so the
-    // migrated document starts a fresh history.
-    state: awaitingTruthMigration ? { ...state, undoStack: [], redoStack: [] } : state,
+    snapshotHash: migratedSnapshotHash,
+    // Parsing preserves hash-bound history. App clears it only after the
+    // migration kernel reports a successful truth rewrite.
+    state: parsedState,
   });
 }
 
@@ -284,24 +353,32 @@ export function createStoredEditorProject(
   projectId: string,
   generation: number,
   state: EditorState,
-): StoredEditorProjectV1 {
+): StoredEditorProjectV2 {
   // Editor command helpers may return useful transient fields (for example,
   // `partId`) alongside the transaction contract. The reducer intentionally
   // accepts that structural subtype, but persistence must retain only the
   // versioned project schema.
   const canonicalState = {
     document: state.document,
+    playbackTrace: state.playbackTrace,
+    playbackTraceRecovery: state.playbackTraceRecovery,
     selectedPartId: state.selectedPartId,
     undoStack: state.undoStack.map(({ label, operations }) => ({ label, operations })),
     redoStack: state.redoStack.map(({ label, operations }) => ({ label, operations })),
   } satisfies EditorState;
   const documentHash = canonicalDigest(canonicalState.document);
   return parseStoredEditorProject({
-    schemaVersion: "lego.local-project/1",
+    schemaVersion: "lego.local-project/2",
     projectId,
     generation,
     documentHash,
-    snapshotHash: snapshotDigest(projectId, generation, documentHash, canonicalState),
+    snapshotHash: snapshotDigest(
+      "lego.local-project/2",
+      projectId,
+      generation,
+      documentHash,
+      canonicalState,
+    ),
     state: canonicalState,
   });
 }

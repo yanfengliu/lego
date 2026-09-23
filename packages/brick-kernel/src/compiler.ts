@@ -27,7 +27,11 @@ import {
   SCOPE_CAPABILITY_NORMALIZATION_VERSION,
 } from "./normalization.ts";
 import { applyBuildOperations, OperationApplicationError } from "./operations.ts";
-import { assessPatchHardValidation, collectScopePolicyIssues } from "./patch-policy.ts";
+import {
+  assessPatchHardValidation,
+  collectScopePolicyIssues,
+  type PatchHardValidationAssessment,
+} from "./patch-policy.ts";
 
 export const BUILD_PROGRAM_COMPILER_VERSION = "lego.build-program-compiler/3" as const;
 export const BUILD_PROGRAM_COMPILER_MANIFEST = deepFreeze({
@@ -119,6 +123,20 @@ export interface CompilationFailure {
 }
 
 export type CompilationResult = CompilationSuccess | CompilationFailure;
+
+/** Internal authority-free boundary shared by candidate inspection and patch compilation. */
+export interface BuildProgramExpansion {
+  readonly kind: "buildProgramExpansion";
+  readonly base: BrickDocumentV1;
+  readonly scope: ScopeCapabilityV1;
+  readonly baseDocumentHash: string;
+  readonly buildProgramHash: string;
+  readonly operations: readonly BuildOperation[];
+  readonly document: BrickDocumentV1;
+  readonly hardValidation: PatchHardValidationAssessment;
+}
+
+export type BuildProgramExpansionResult = BuildProgramExpansion | CompilationFailure;
 
 function issue(
   code: CompilationIssueCode,
@@ -409,11 +427,12 @@ function compileInstruction(
   }
 }
 
-export function compileBuildProgram(
+/** @internal Expands data and runs scope plus complete hard validation without issuing a patch. */
+export function expandBuildProgram(
   baseValue: unknown,
   programValue: unknown,
   context: CompilationContext,
-): CompilationResult {
+): BuildProgramExpansionResult {
   let detachedBaseValue: unknown;
   let detachedProgramValue: unknown;
   let detachedScopeValue: unknown;
@@ -612,6 +631,28 @@ export function compileBuildProgram(
       ],
     };
   }
+  return {
+    kind: "buildProgramExpansion",
+    base,
+    scope,
+    baseDocumentHash,
+    buildProgramHash,
+    operations: state.operations,
+    document: resultDocument,
+    hardValidation,
+  };
+}
+
+export function compileBuildProgram(
+  baseValue: unknown,
+  programValue: unknown,
+  context: CompilationContext,
+): CompilationResult {
+  const expansion = expandBuildProgram(baseValue, programValue, context);
+  if ("ok" in expansion) return expansion;
+
+  const { base, scope, baseDocumentHash, buildProgramHash, operations, document } = expansion;
+  const { hardValidation } = expansion;
   const validationReport = hardValidation.validationReport;
   if (!validationReport.patchValid || !hardValidation.globalValidityPreserved) {
     return {
@@ -633,7 +674,7 @@ export function compileBuildProgram(
     truthSnapshotHash: canonicalDigest(base.truth),
     scopeCapabilityId: scope.capabilityId,
     scopeDigest: canonicalDigest(scope),
-    operations: state.operations,
+    operations,
     provenance: {
       jobId: context.jobId,
       candidateId: context.candidateId,
@@ -654,5 +695,5 @@ export function compileBuildProgram(
     };
   }
 
-  return deepFreeze({ ok: true, patch, document: resultDocument, validationReport });
+  return deepFreeze({ ok: true, patch, document, validationReport });
 }

@@ -15,6 +15,7 @@ import {
   type PreloadedMeshAsset,
   type SourceProvenance,
 } from "./index.js";
+import { restorePhysicalPromotionBases } from "./historical-catalog-test-support.ts";
 
 const ASSET_ID = "test:asymmetric-tetrahedron/1";
 type MeshPartDefinition = PartDefinition & { readonly geometry: MeshReferenceGeometryRecipe };
@@ -84,7 +85,9 @@ describe("preloaded mesh asset resolution", () => {
       "builtin:corner-plate-4x4-round",
       "builtin:corner-plate-5x5-quarter-ring",
     ]);
-    const legacyParts = PART_DEFINITIONS.slice(0, 77).filter(({ id }) => !promotedIds.has(id));
+    const legacyParts = restorePhysicalPromotionBases(PART_DEFINITIONS.slice(0, 77), [
+      "builtin:jumper-plate-1x2",
+    ]).filter(({ id }) => !promotedIds.has(id));
     const meshParts = PART_DEFINITIONS.filter(isMeshPartDefinition);
     const fullyMeasuredParts = meshParts.filter(
       ({ geometry }) => geometry.collisionMode !== "preserved-catalog-recipe",
@@ -92,7 +95,7 @@ describe("preloaded mesh asset resolution", () => {
     const legacyRows = legacyParts.map(({ id, geometry }) => [id, geometry.contentHash]);
     const legacyHashes = JSON.stringify(legacyRows);
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/29");
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/30");
     expect(PART_DEFINITIONS).toHaveLength(106);
     expect(
       PART_DEFINITIONS.filter(isMeshPartDefinition)
@@ -104,8 +107,8 @@ describe("preloaded mesh asset resolution", () => {
         ({ geometry }) => geometry.generatorId !== "builtin:preloaded-mesh-reference/1",
       ),
     ).toBe(true);
-    expect(meshParts).toHaveLength(45);
-    expect(fullyMeasuredParts).toHaveLength(29);
+    expect(meshParts).toHaveLength(46);
+    expect(fullyMeasuredParts).toHaveLength(30);
     expect(
       fullyMeasuredParts.every(
         ({ geometry }) => geometry.collisionMode === "mesh-derived-height-field",
@@ -126,7 +129,7 @@ describe("preloaded mesh asset resolution", () => {
       createHash("sha256")
         .update(
           JSON.stringify(legacyParts)
-            .replaceAll("builtin.basic-parts/29", "builtin.basic-parts/15")
+            .replaceAll("builtin.basic-parts/30", "builtin.basic-parts/15")
             .replaceAll("rectilinear-stud-clearance/4", "rectilinear-stud-clearance/2"),
         )
         .digest("hex"),

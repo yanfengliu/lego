@@ -22,9 +22,7 @@ import {
   multiplyMatrices,
   transformPoint,
 } from "./part-identification-2453-builder-identity-evidence.mjs";
-import { importRepositoryTypeScript } from "./part-identification-typescript-runtime.mjs";
-
-const moduleUrl = (relativePath) => new URL(relativePath, import.meta.url).href;
+import { registerRepositoryTypeScriptImports } from "./part-identification-typescript-hooks.mjs";
 const INPUT_KEYS = [
   "officialModelBytes",
   "builderManifestBytes",
@@ -79,6 +77,7 @@ function snapshotInputs(input, pins) {
 }
 
 async function assertOfficialAndCatalog(inputs, pins, native, variant) {
+  registerRepositoryTypeScriptImports();
   const [
     officialModule,
     catalogModule,
@@ -88,19 +87,13 @@ async function assertOfficialAndCatalog(inputs, pins, native, variant) {
     ldrawModule,
     meshHashModule,
   ] = await Promise.all([
-    importRepositoryTypeScript(moduleUrl("../apps/web/e2e/real-build-official.ts")),
-    importRepositoryTypeScript(moduleUrl("../packages/catalog/src/catalog.ts")),
-    importRepositoryTypeScript(moduleUrl(`..${"/packages/catalog/src/constants"}.ts`)),
-    importRepositoryTypeScript(
-      moduleUrl("../packages/catalog/src/part-blueprints-6651557-measured-h.ts"),
-    ),
-    importRepositoryTypeScript(
-      moduleUrl("../packages/catalog/src/mesh-assets-6651557-measured-h.ts"),
-    ),
-    importRepositoryTypeScript(
-      moduleUrl("../packages/catalog/src/ldraw-bundled-sources-6651557.ts"),
-    ),
-    importRepositoryTypeScript(moduleUrl("../packages/catalog/src/mesh-assets.ts")),
+    import("../apps/web/e2e/real-build-official.ts"),
+    import("../packages/catalog/src/catalog.ts"),
+    import("../packages/catalog/src/constants.ts"),
+    import("../packages/catalog/src/part-blueprints-6651557-measured-h.ts"),
+    import("../packages/catalog/src/mesh-assets-6651557-measured-h.ts"),
+    import("../packages/catalog/src/ldraw-bundled-sources-6651557.ts"),
+    import("../packages/catalog/src/mesh-assets.ts"),
   ]);
   const official = officialModule.parseOfficialModelIndex(inputs.officialModelBytes);
   if (official.digest !== pins.officialModel.digest) {

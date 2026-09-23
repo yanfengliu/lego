@@ -28,10 +28,8 @@ from measured_part_geometry import (
     merged_mesh,
     require_front_side_surface,
 )
-from measured_part_report_rows import (
-    build_measured_part_report_row,
-    build_render_only_part_report_row,
-)
+from measured_clutch_semantics import ClutchPortSemantics, validate_clutch_port_semantics
+from measured_part_report_rows import build_measured_part_report_row, build_render_only_part_report_row
 from measured_stud_tables import MeasuredStudRow, require_matching_stud_frames
 from measured_source_connectors import source_connectors_for
 from measured_source_connector_rows import (
@@ -40,7 +38,7 @@ from measured_source_connector_rows import (
     source_connector_sort_key,
     transform_source_connector,
 )
-from part_admission_ldraw_candidate import DEFAULT_COLUMN_LDU, column_candidate, role_classifier
+from part_admission_ldraw_candidate import DEFAULT_COLUMN_LDU, column_candidate, pinned_stud_role_lineage, role_classifier
 from part_admission_surface import STUD_ROLE, MeasuredSurface
 from proper_orientations_generated import PROPER_ORIENTATIONS
 
@@ -52,6 +50,7 @@ CONNECTOR_SOURCES = (
     BUILDER_CONNECTIVITY_CONNECTOR_SOURCE,
     LDCAD_SHADOW_CONNECTOR_SOURCE,
 )
+
 @dataclass(frozen=True)
 class BuilderConnectivityFact:
     """One byte-pinned Builder field whose full clutch set is already settled."""
@@ -100,6 +99,7 @@ class MeasuredPartPlan:
     clutch_shared_capacity_groups: tuple[
         tuple[tuple[int, int, int], tuple[str, ...]], ...
     ] = ()
+    clutch_port_semantics: ClutchPortSemantics = ()
 
     def __post_init__(self) -> None:
         if self.orientation_id not in PROPER_ORIENTATIONS:
@@ -125,6 +125,12 @@ class MeasuredPartPlan:
                 raise ValueError("Shared clutch-capacity seats must use whole-LDU integer positions.")
             if not groups or len(set(groups)) != len(groups) or any(not group.strip() for group in groups):
                 raise ValueError("Shared clutch-capacity groups must be non-empty unique text per seat.")
+        validate_clutch_port_semantics(self.clutch_port_semantics)
+        if self.clutch_port_semantics and self.clutch_shared_capacity_groups:
+            raise ValueError(
+                "A measured plan must declare stable clutch semantics or legacy shared-capacity "
+                "rows, not both."
+            )
         has_connectivity_fact = self.builder_connectivity_fact is not None
         expects_connectivity_fact = self.connector_source == BUILDER_CONNECTIVITY_CONNECTOR_SOURCE
         if has_connectivity_fact != expects_connectivity_fact:
@@ -203,6 +209,7 @@ class MeasuredPart:
     indices: tuple[int, ...]
     body_triangle_count: int
     stud_triangle_count: int
+    stud_role_lineage: tuple[tuple[str, str, str], ...]
     exact_body_bounds: tuple[tuple[str, str, str], tuple[str, str, str]]
     exact_bounds: tuple[tuple[str, str, str], tuple[str, str, str]]
     studs_ldu: tuple[MeasuredStudRow, ...]
@@ -400,6 +407,7 @@ def measure_part(
         indices=indices,
         body_triangle_count=body_triangles,
         stud_triangle_count=stud_triangles,
+        stud_role_lineage=pinned_stud_role_lineage(expanded, lambda key: library.record(key).sha256),
         exact_body_bounds=_exact_bounds(solid_points, plan, "body bounds"),
         exact_bounds=_exact_bounds(all_points, plan, "visual bounds"),
         studs_ldu=_stud_rows(candidate, plan),

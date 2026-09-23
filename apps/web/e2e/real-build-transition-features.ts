@@ -64,7 +64,7 @@ export interface TransitionPanelFeatures extends TransitionPanelEvidence {
   readonly panelFace: PanelFace;
 }
 
-function isRotationIcon(shape: PageShape): boolean {
+export function isRotationIcon(shape: PageShape): boolean {
   if (shape.fillHex !== ROTATION_ICON_FILL_HEX) return false;
   const width = shape.bounds.maxXPt - shape.bounds.minXPt;
   const height = shape.bounds.maxYPt - shape.bounds.minYPt;
@@ -72,6 +72,24 @@ function isRotationIcon(shape: PageShape): boolean {
     Math.abs(width - ROTATION_ICON_SIDE_PT) <= ROTATION_ICON_SIDE_TOLERANCE_PT &&
     Math.abs(height - ROTATION_ICON_SIDE_PT) <= ROTATION_ICON_SIDE_TOLERANCE_PT
   );
+}
+
+/** One shared vector-chrome predicate for every booklet face derivation. */
+export function panelContainsRotationIcon(
+  panel: Pick<StepPanel, "bounds">,
+  shapes: readonly PageShape[],
+): boolean {
+  return shapes.some((shape) => {
+    if (!isRotationIcon(shape)) return false;
+    const centreX = (shape.bounds.minXPt + shape.bounds.maxXPt) / 2;
+    const centreY = (shape.bounds.minYPt + shape.bounds.maxYPt) / 2;
+    return (
+      centreX >= panel.bounds.minXPt &&
+      centreX < panel.bounds.maxXPt &&
+      centreY >= panel.bounds.minYPt &&
+      centreY < panel.bounds.maxYPt
+    );
+  });
 }
 
 /**
@@ -117,17 +135,7 @@ export function deriveTransitionPanelFeatures(input: {
         panelEvidenceDigest: evidence.digest,
         newPieceCalloutCount: (input.calloutBoxesByStep[panel.stepNumber] ?? []).length,
         isTerminalPrintedStep: panel.stepNumber === input.expectedPrintedSteps,
-        rotationIconPresent: shapes.some((shape) => {
-          if (!isRotationIcon(shape)) return false;
-          const centreX = (shape.bounds.minXPt + shape.bounds.maxXPt) / 2;
-          const centreY = (shape.bounds.minYPt + shape.bounds.maxYPt) / 2;
-          return (
-            centreX >= panel.bounds.minXPt &&
-            centreX < panel.bounds.maxXPt &&
-            centreY >= panel.bounds.minYPt &&
-            centreY < panel.bounds.maxYPt
-          );
-        }),
+        rotationIconPresent: panelContainsRotationIcon(panel, shapes),
       };
     });
   const faceByStep = new Map(

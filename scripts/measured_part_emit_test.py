@@ -7,12 +7,10 @@ import unittest
 from pathlib import Path
 
 from measured_part_emit import (
-    bundled_file_table,
     canonical_typescript,
     enforce_generated_check,
     number_literal,
     render_blueprints,
-    render_bundled_sources,
     render_mesh_asset_aggregator,
     render_mesh_assets,
     render_render_only_blueprints,
@@ -20,7 +18,6 @@ from measured_part_emit import (
 from measured_part_plan import (
     ADMITTED_PART_PLANS,
     BUILDER_80015_CONNECTIVITY,
-    BUNDLED_LDRAW_ARCHIVE_RECORD,
 )
 from measured_part_tables import (
     BUILDER_CONNECTIVITY_CONNECTOR_SOURCE,
@@ -33,7 +30,6 @@ from measured_part_test_support import (
     SHADOW_IDENTITY,
     measured,
     plan,
-    record,
     render_only,
 )
 
@@ -280,6 +276,11 @@ class RenderTests(unittest.TestCase):
         self.assertIn("positionLdu: [70, -30]", rendered)
         self.assertNotIn("builderSource: {", rendered)
         self.assertNotIn("ldcadShadowSource", rendered)
+        self.assertIn(
+            'independentSourceId: `https://github.${"com/RolandMelkert/LDCadShadowLibrary"}`',
+            rendered,
+        )
+        self.assertNotIn('independentSourceId: "https://github.com/', rendered)
 
     def test_a_variant_is_omitted_rather_than_emitted_as_undefined(self) -> None:
         rendered = render_blueprints([measured()], ARCHIVE_SHA256, BUILDER_RECORDS, SHADOW_IDENTITY)
@@ -337,39 +338,6 @@ class RenderTests(unittest.TestCase):
         self.assertIn('"fullMeasuredParts": len(measured_parts)', driver)
         self.assertIn('"renderOnlyParts": len(render_only_parts)', driver)
 
-    def test_the_bundled_file_table_deduplicates_and_indexes_by_path(self) -> None:
-        shared = record("p/stud.dat", "sha256:22")
-        first = measured(closure=(record("parts/a.dat", "sha256:aa"), shared))
-        second = measured(
-            plan=plan(design_id="other"), closure=(record("parts/b.dat", "sha256:bb"), shared)
-        )
-
-        files, closures = bundled_file_table([first, second])
-
-        self.assertEqual([row.path for row in files], ["p/stud.dat", "parts/a.dat", "parts/b.dat"])
-        self.assertEqual(closures, {"unit": [0, 1], "other": [0, 2]})
-
-    def test_one_path_carrying_two_different_files_is_refused_by_name(self) -> None:
-        first = measured(closure=(record("p/stud.dat", "sha256:22"),))
-        second = measured(
-            plan=plan(design_id="other"), closure=(record("p/stud.dat", "sha256:33"),)
-        )
-
-        with self.assertRaises(ValueError) as caught:
-            bundled_file_table([first, second])
-
-        self.assertIn("p/stud.dat", str(caught.exception))
-        self.assertIn("sha256:33", str(caught.exception))
-
-    def test_the_attribution_table_carries_every_file_and_the_pinned_archive(self) -> None:
-        rendered = render_bundled_sources([measured()], BUNDLED_LDRAW_ARCHIVE_RECORD)
-
-        self.assertIn('path: "p/stud.dat"', rendered)
-        self.assertIn('author: "Unit Author"', rendered)
-        self.assertIn('licenseExpression: "CC-BY-4.0"', rendered)
-        self.assertIn('version: "ldraw-complete-2026-07"', rendered)
-        self.assertIn("bytes: 144722356", rendered)
-
     def test_generated_catalog_modules_stay_below_the_hard_file_ceiling(self) -> None:
         catalog = Path(__file__).resolve().parents[1] / "packages/catalog/src"
         mesh_chunks = sorted(catalog.glob("mesh-assets-6651557-*.ts"))
@@ -384,6 +352,7 @@ class RenderTests(unittest.TestCase):
                 "mesh-assets-6651557-measured-f.ts",
                 "mesh-assets-6651557-measured-g.ts",
                 "mesh-assets-6651557-measured-h.ts",
+                "mesh-assets-6651557-measured-i.ts",
                 "mesh-assets-6651557-render-only.ts",
             ],
         )
@@ -396,6 +365,7 @@ class RenderTests(unittest.TestCase):
                 "part-blueprints-6651557-measured-f.ts",
                 "part-blueprints-6651557-measured-g.ts",
                 "part-blueprints-6651557-measured-h.ts",
+                "part-blueprints-6651557-measured-i.ts",
                 "part-blueprints-6651557-measured.ts",
             ],
         )
@@ -431,6 +401,7 @@ class RenderTests(unittest.TestCase):
             mesh_ids["mesh-assets-6651557-measured-h.ts"],
             ["3245c", "2453b", "10201", "3245b"],
         )
+        self.assertEqual(mesh_ids["mesh-assets-6651557-measured-i.ts"], ["15573"])
         self.assertEqual(
             blueprint_ids["part-blueprints-6651557-measured.ts"],
             admitted_ids[:18],
@@ -455,6 +426,7 @@ class RenderTests(unittest.TestCase):
             blueprint_ids["part-blueprints-6651557-measured-h.ts"],
             ["3245c", "2453b", "10201", "3245b"],
         )
+        self.assertEqual(blueprint_ids["part-blueprints-6651557-measured-i.ts"], ["15573"])
         generated = [
             *mesh_chunks,
             *blueprint_chunks,

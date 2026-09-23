@@ -9,9 +9,7 @@ import {
   CURRENT_LEGACY_RECUT_SEMANTIC_PINS,
   LEGACY_RECUT_SEMANTIC_MAX_OFFICIAL_XML_BYTES,
 } from "./part-identification-legacy-recut-semantic-source.mjs";
-import { importRepositoryTypeScript } from "./part-identification-typescript-runtime.mjs";
-
-const moduleUrl = (relativePath) => new URL(relativePath, import.meta.url).href;
+import { registerRepositoryTypeScriptImports } from "./part-identification-typescript-hooks.mjs";
 
 export const STEP31_32_ORDER_RECONCILIATION_SCHEMA =
   "lego.part-identification-step31-32-order-reconciliation/2";
@@ -314,9 +312,8 @@ export async function authenticateStep31_32OfficialModel(bytes) {
   if (bytes.length > LEGACY_RECUT_SEMANTIC_MAX_OFFICIAL_XML_BYTES) {
     throw new Error("Step-31/32 official model exceeds its fixed XML byte limit.");
   }
-  const officialModule = await importRepositoryTypeScript(
-    moduleUrl("../apps/web/e2e/real-build-official.ts"),
-  );
+  registerRepositoryTypeScriptImports();
+  const officialModule = await import("../apps/web/e2e/real-build-official.ts");
   const official = officialModule.parseOfficialModelIndex(bytes);
   const failures = officialModule.validateOfficialModelAccounting(official);
   if (failures.length > 0 || official.digest !== pin.digest) {

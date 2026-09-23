@@ -20,6 +20,7 @@ from __future__ import annotations
 import math
 from typing import Callable, Iterable, Sequence
 
+from ldraw_surface_expander import ExpandedTriangle
 from part_admission_contract import (
     CANDIDATE_FRAME,
     CANDIDATE_SCHEMA_VERSION,
@@ -98,6 +99,46 @@ MINIMUM_COLUMN_HEIGHT_LDU = 0.001
 BUILDER_HORIZONTAL_INSET_LDU = 0.25
 
 
+def pinned_role_source(
+    ancestry: tuple[SourceKey, ...], digest_for_source: Callable[[SourceKey], str]
+) -> tuple[SourceKey, str, str] | None:
+    """First checksum-pinned primitive that authorizes one ancestry's role."""
+
+    for key in ancestry:
+        pinned = PRIMITIVE_ROLE_PINS.get(key)
+        if pinned is None:
+            continue
+        expected_digest, role = pinned
+        actual = digest_for_source(key)
+        if actual != expected_digest:
+            raise ValueError(
+                f"Primitive {key[0]}:{key[1]} is {actual}; the pinned role policy expects "
+                f"{expected_digest}. Re-measure the policy before scoring against it."
+            )
+        return key, expected_digest, role
+    return None
+
+
+def pinned_stud_role_lineage(
+    triangles: Sequence[ExpandedTriangle], digest_for_source: Callable[[SourceKey], str]
+) -> tuple[tuple[str, str, str], ...]:
+    """Distinct checksum-pinned primitive routes that classified visible studs."""
+
+    lineage: set[tuple[str, str, str]] = set()
+    for triangle in triangles:
+        if triangle.role != STUD_ROLE:
+            continue
+        pinned = pinned_role_source(triangle.ancestry, digest_for_source)
+        if pinned is None or pinned[2] != STUD_ROLE:
+            raise ValueError(
+                f"Visible stud triangle {triangle.source[0]}:{triangle.source[1]} line "
+                f"{triangle.line_number} has no checksum-pinned STUD_ROLE ancestry."
+            )
+        (archive_id, path), digest, _ = pinned
+        lineage.add((archive_id, path, digest))
+    return tuple(sorted(lineage))
+
+
 def role_classifier(
     digest_for_source: Callable[[SourceKey], str],
 ) -> Callable[[tuple[SourceKey, ...]], str]:
@@ -108,19 +149,8 @@ def role_classifier(
     """
 
     def classify(ancestry: tuple[SourceKey, ...]) -> str:
-        for key in ancestry:
-            pinned = PRIMITIVE_ROLE_PINS.get(key)
-            if pinned is None:
-                continue
-            expected_digest, role = pinned
-            actual = digest_for_source(key)
-            if actual != expected_digest:
-                raise ValueError(
-                    f"Primitive {key[0]}:{key[1]} is {actual}; the pinned role policy expects "
-                    f"{expected_digest}. Re-measure the policy before scoring against it."
-                )
-            return role
-        return BODY_ROLE
+        pinned = pinned_role_source(ancestry, digest_for_source)
+        return BODY_ROLE if pinned is None else pinned[2]
 
     return classify
 

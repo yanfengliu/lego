@@ -1,9 +1,7 @@
 import { isDeepStrictEqual } from "node:util";
 
-import { importRepositoryTypeScript } from "./part-identification-typescript-runtime.mjs";
 import { sha256Digest } from "./part-identification-legacy-recut-source.mjs";
-
-const moduleUrl = (relativePath) => new URL(relativePath, import.meta.url).href;
+import { registerRepositoryTypeScriptImports } from "./part-identification-typescript-hooks.mjs";
 
 export const LEGACY_RECUT_SEMANTIC_MAX_OFFICIAL_XML_BYTES = 2 * 1024 * 1024;
 export const LEGACY_RECUT_SEMANTIC_OFFICIAL_XML_FULL_DECODES_PER_MODEL_INDEX = 2;
@@ -122,9 +120,10 @@ function prefixQuantities(currentRows, lastStep) {
 /** Derive exact per-step element multisets without assigning a callout to a physical Brick. */
 export async function deriveOfficialPrefixCut(currentRows, officialModelBytes, pins) {
   const payload = assertPinnedBytes(officialModelBytes, pins.officialModel, "Official model XML");
+  registerRepositoryTypeScriptImports();
   const [actionModule, officialModule] = await Promise.all([
-    importRepositoryTypeScript(moduleUrl("../apps/web/e2e/real-build-action-ledger.ts")),
-    importRepositoryTypeScript(moduleUrl("../apps/web/e2e/real-build-official.ts")),
+    import("../apps/web/e2e/real-build-action-ledger.ts"),
+    import("../apps/web/e2e/real-build-official.ts"),
   ]);
   const official = officialModule.parseOfficialModelIndex(payload);
   const failures = officialModule.validateOfficialModelAccounting(official);

@@ -1,57 +1,75 @@
 import { canonicalDigest, deepFreeze } from "@lego-studio/brick-kernel";
 import type { RigidTransform } from "@lego-studio/protocol";
-
 import {
   readOpaqueRealBuildPrefix50Occurrence30ActionBinding,
   readOpaqueRealBuildPrefix50VerifiedProjection,
   readSyntheticRealBuildPrefix50ProjectionForTest,
 } from "../../../scripts/part-identification-prefix50-verified-projection.mjs";
 import { SET_6651557_OCCURRENCE_BINDINGS } from "./real-build-prefix50-projection-bindings";
-
+import {
+  validateRealBuildPrefix50ChildSubBuildWindow,
+  type RealBuildPrefix50ChildSubBuildWindow,
+} from "./real-build-prefix50-projection-structural";
+export type {
+  RealBuildPrefix50ChildSubBuildWindow,
+  RealBuildPrefix50StructuralMemberCommitment,
+} from "./real-build-prefix50-projection-structural";
+export {
+  readRealBuildPrefix50Step41ActionBinding,
+  type RealBuildPrefix50Step41ActionBinding,
+  type RealBuildPrefix50Step41ActionMemberBinding,
+} from "./real-build-prefix50-projection-step41";
+export {
+  readRealBuildPrefix50Step42ActionBinding,
+  type RealBuildPrefix50Step42ActionBinding,
+  type RealBuildPrefix50Step42ActionMemberBinding,
+} from "./real-build-prefix50-projection-step42";
+export {
+  readRealBuildPrefix50Step43ActionBinding,
+  type RealBuildPrefix50Step43ActionBinding,
+  type RealBuildPrefix50Step43ActionMemberBinding,
+  type RealBuildPrefix50Step43ActionPhaseBinding,
+} from "./real-build-prefix50-projection-step43";
 export const REAL_BUILD_PREFIX50_LAST_STEP = 50;
 export const REAL_BUILD_PREFIX50_OCCURRENCE_COUNT = 320;
 export const REAL_BUILD_PREFIX50_TRANSITION_STEP = 44;
-
 export interface RealBuildPrefix50ProjectionStep {
   readonly printedStepNumber: number;
   readonly name: string;
   readonly sourceActionDigest: `sha256:${string}`;
 }
-
 export interface RealBuildPrefix50ProjectionOccurrence {
   readonly ordinal: number;
   readonly printedStepNumber: number;
+  readonly phaseSequence: number;
+  readonly phaseMemberOrdinal: number;
+  readonly subBuildPath: readonly string[];
   readonly colorId: string;
   readonly partIdentity: RealBuildPrefix50OccurrencePartIdentity;
   readonly sourceWorldTransform: RigidTransform;
 }
 
 export interface RealBuildPrefix50OccurrencePartIdentity {
-  /** Published callout identity is retained as counterevidence, never compiled. */
   readonly publishedCatalogPartId: string;
-  /** Exact occurrence/member reconciliation; this is the only compiled ID. */
   readonly reconciledCatalogPartId: string;
   readonly officialDesignId: string;
   readonly officialDesignRevision: string;
-  /** Exact Builder/LDraw source root, without the inert .dat suffix. */
   readonly sourceLDrawPartId: string;
-  /** Exact catalog geometry root, without the inert .dat suffix. */
   readonly catalogLDrawPartId: string;
-  /** Present only for a pinned official-archive identity redirect. */
   readonly identityProofId: string | null;
   readonly basis:
     "published-exact" | "official-member-revision" | "official-archive-identity-moved-root";
 }
 
 export interface RealBuildPrefix50VerifiedProjection {
-  readonly schemaVersion: "lego.real-build-prefix50-verified-projection/1";
+  readonly schemaVersion: "lego.real-build-prefix50-verified-projection/2";
   readonly sourceSetId: string;
   readonly sourceArtifactDigest: `sha256:${string}`;
+  readonly childSubBuildWindow: RealBuildPrefix50ChildSubBuildWindow | null;
   readonly steps: readonly RealBuildPrefix50ProjectionStep[];
   readonly occurrences: readonly RealBuildPrefix50ProjectionOccurrence[];
 }
 
-/** Minted only after the current opaque action and world verifiers both succeed. */
 export interface RealBuildPrefix50VerifiedProjectionReader {
   readonly readVerifiedPrefix50Projection: () => RealBuildPrefix50VerifiedProjection;
 }
@@ -261,16 +279,26 @@ function requireReaderShape(unsafeReader: unknown): () => unknown {
   return read as () => unknown;
 }
 
-function validateProjection(projection: unknown): RealBuildPrefix50VerifiedProjection {
+function validateProjection(
+  projection: unknown,
+  allowSyntheticStructuralAbsence = false,
+): RealBuildPrefix50VerifiedProjection {
   requireFrozenProjection(projection);
   exactKeys(
     projection,
-    ["occurrences", "schemaVersion", "sourceArtifactDigest", "sourceSetId", "steps"],
+    [
+      "childSubBuildWindow",
+      "occurrences",
+      "schemaVersion",
+      "sourceArtifactDigest",
+      "sourceSetId",
+      "steps",
+    ],
     "Verified prefix-50 projection",
   );
   if (
     ownData(projection, "schemaVersion", "Verified prefix-50 projection") !==
-    "lego.real-build-prefix50-verified-projection/1"
+    "lego.real-build-prefix50-verified-projection/2"
   ) {
     throw new TypeError("Verified prefix-50 projection schema is unsupported.");
   }
@@ -332,7 +360,16 @@ function validateProjection(projection: unknown): RealBuildPrefix50VerifiedProje
       const label = `Verified prefix-50 occurrence[${index}]`;
       exactKeys(
         value,
-        ["colorId", "ordinal", "partIdentity", "printedStepNumber", "sourceWorldTransform"],
+        [
+          "colorId",
+          "ordinal",
+          "partIdentity",
+          "phaseMemberOrdinal",
+          "phaseSequence",
+          "printedStepNumber",
+          "sourceWorldTransform",
+          "subBuildPath",
+        ],
         label,
       );
       const ordinal = ownData(value, "ordinal", label);
@@ -348,6 +385,25 @@ function validateProjection(projection: unknown): RealBuildPrefix50VerifiedProje
         );
       }
       const stepNumber = printedStepNumber as number;
+      const phaseSequence = ownData(value, "phaseSequence", label);
+      const phaseMemberOrdinal = ownData(value, "phaseMemberOrdinal", label);
+      const unsafeSubBuildPath = ownData(value, "subBuildPath", label);
+      if (
+        !Number.isSafeInteger(phaseSequence) ||
+        (phaseSequence as number) < 1 ||
+        !Number.isSafeInteger(phaseMemberOrdinal) ||
+        (phaseMemberOrdinal as number) < 1 ||
+        !Array.isArray(unsafeSubBuildPath) ||
+        unsafeSubBuildPath.length < 1 ||
+        unsafeSubBuildPath.length > 8
+      ) {
+        throw new TypeError(
+          `${label} must retain a positive action phase/member and bounded source SubBuild path.`,
+        );
+      }
+      const subBuildPath = unsafeSubBuildPath.map((entry, pathIndex) =>
+        identifier(entry, `${label}.subBuildPath[${pathIndex}]`),
+      );
       perStep[stepNumber - 1] = perStep[stepNumber - 1]! + 1;
       const identity = partIdentity(ownData(value, "partIdentity", label), `${label}.partIdentity`);
       const expectedIdentity =
@@ -368,6 +424,9 @@ function validateProjection(projection: unknown): RealBuildPrefix50VerifiedProje
       return deepFreeze({
         ordinal: ordinal as number,
         printedStepNumber: stepNumber,
+        phaseSequence: phaseSequence as number,
+        phaseMemberOrdinal: phaseMemberOrdinal as number,
+        subBuildPath,
         colorId: identifier(ownData(value, "colorId", label), `${label}.colorId`),
         partIdentity: identity,
         sourceWorldTransform: transform(
@@ -389,10 +448,17 @@ function validateProjection(projection: unknown): RealBuildPrefix50VerifiedProje
       );
     }
   }
+  const childSubBuildWindow = validateRealBuildPrefix50ChildSubBuildWindow(
+    ownData(projection, "childSubBuildWindow", "Verified prefix-50 projection"),
+    sourceSetId,
+    occurrences,
+    allowSyntheticStructuralAbsence,
+  );
   const verified = deepFreeze({
-    schemaVersion: "lego.real-build-prefix50-verified-projection/1" as const,
+    schemaVersion: "lego.real-build-prefix50-verified-projection/2" as const,
     sourceSetId,
     sourceArtifactDigest: sourceArtifactDigest as `sha256:${string}`,
+    childSubBuildWindow,
     steps,
     occurrences,
   });
@@ -404,7 +470,10 @@ export function readRealBuildPrefix50VerifiedProjection(
   unsafeReader: unknown,
 ): RealBuildPrefix50VerifiedProjection {
   requireReaderShape(unsafeReader);
-  return validateProjection(readOpaqueRealBuildPrefix50VerifiedProjection(unsafeReader));
+  const projection = readOpaqueRealBuildPrefix50VerifiedProjection(unsafeReader);
+  validateProjection(projection);
+  verifiedProjectionValues.add(projection);
+  return projection as RealBuildPrefix50VerifiedProjection;
 }
 
 export function readRealBuildPrefix50Occurrence30ActionBinding(
@@ -420,13 +489,9 @@ export function readSyntheticRealBuildPrefix50DiagnosticProjectionForTest(
   unsafeReader: unknown,
 ): RealBuildPrefix50VerifiedProjection {
   requireReaderShape(unsafeReader);
-  return validateProjection(readSyntheticRealBuildPrefix50ProjectionForTest(unsafeReader));
+  return validateProjection(readSyntheticRealBuildPrefix50ProjectionForTest(unsafeReader), true);
 }
 
-/**
- * Preserves the opaque-reader trust boundary across internal computation stages.
- * Shape-compatible or even deeply frozen caller values do not pass this check.
- */
 export function requireRealBuildPrefix50VerifiedProjectionValue(
   projection: RealBuildPrefix50VerifiedProjection,
 ): RealBuildPrefix50VerifiedProjection {

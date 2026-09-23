@@ -5,7 +5,7 @@ import { canonicalDigest } from "./canonical.ts";
 import { createBuiltinTruthSnapshot, getBuiltinTruthDigestInputs } from "./factory.ts";
 
 describe("source-frame orientation infrastructure truth boundary", () => {
-  it("binds the /29 part-scoped placement policy to all 24 proper source frames", () => {
+  it("binds the /30 part-scoped placement policy to all 24 proper source frames", () => {
     const digestInputs = getBuiltinTruthDigestInputs();
     const truth = createBuiltinTruthSnapshot();
 
@@ -16,23 +16,23 @@ describe("source-frame orientation infrastructure truth boundary", () => {
       schemaVersion: "lego.truth-snapshot/1",
       catalog: {
         id: "builtin.basic-parts",
-        version: "builtin.basic-parts/29",
-        hash: "sha256:19c5e8a3f4e1d00d7747c8d3e0f377ee4391acc53915df8ead0c1830b75b8db6",
+        version: "builtin.basic-parts/30",
+        hash: "sha256:a030be3e20eeb1592594c43e321be64ac2f84875c40ad2445c48ca9e104ef290",
       },
       connectorTaxonomy: {
         id: "stud-tube",
         version: "stud-tube/2",
-        hash: "sha256:b0b8a26e010f522ba88d55f3b8565add619b2e569f15abad59a46ffd2ccf0ddb",
+        hash: "sha256:b83c1c675ff2f4eef185c75a98a246f6269c427f859c2a8a691fb849eb3f04a6",
       },
       collisionModel: {
         id: "rectilinear-stud-clearance",
         version: "rectilinear-stud-clearance/4",
-        hash: "sha256:b1231af344c0c293e74c0721bd0005f4f7a6746ee144ccf71ca14e22caa07042",
+        hash: "sha256:c9afee2441ed98dc811143ea00223a770acff67de794f24f9dc84d626c033c64",
       },
       transformPolicy: {
         id: "part-scoped-proper-orientations-negative-y-up",
-        version: "part-scoped-proper-orientations-negative-y-up/1",
-        hash: "sha256:44cf428cee1487a9441c609a75fbafefd6c3b4591512af30f8903e4508285f4c",
+        version: "part-scoped-proper-orientations-negative-y-up/2",
+        hash: "sha256:352a78b04999c0e0e8b2b322e5ce748582e7f544676e181ec41600232d85ead6",
       },
       validatorSet: {
         id: "lego.kernel-validators",
@@ -41,7 +41,7 @@ describe("source-frame orientation infrastructure truth boundary", () => {
       },
     });
     expect(canonicalDigest(truth)).toBe(
-      "sha256:54762419e4779c6c15566052062fcaa432cb45e3a13704b5af1563b4fa94e8eb",
+      "sha256:c304c3eb673e86d48580c6b28309f1fdf8bf4d71f7259ecc75f6f5691a336d51",
     );
   });
 });

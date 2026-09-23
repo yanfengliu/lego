@@ -10,7 +10,7 @@ import {
   inspectVerifiedPrefix50ActionPreparation,
   isVerifiedPrefix50ActionPreparation,
 } from "./part-identification-prefix50-action-preparation.mjs";
-import { importRepositoryTypeScript } from "./part-identification-typescript-runtime.mjs";
+import { registerRepositoryTypeScriptImports } from "./part-identification-typescript-hooks.mjs";
 import {
   parsePrefix50OfficialLdraw,
   parsePrefix50OfficialXml,
@@ -41,7 +41,6 @@ import {
 
 const COMPILE_KEYS = ["actionPreparation", "officialLdrawBytes", "officialXmlBytes"];
 const VERIFY_KEYS = [...COMPILE_KEYS, "artifactBytes"].sort();
-const CATALOG_URL = new URL("../packages/catalog/src/index.ts", import.meta.url).href;
 
 function snapshotInput(input, keys, label) {
   const roles = snapshotExactDataObject(input, label, keys);
@@ -122,7 +121,8 @@ async function compileSnapshot(input) {
   const xmlBricks = parsePrefix50OfficialXml(input.officialXmlBytes);
   const ldraw = parsePrefix50OfficialLdraw(input.officialLdrawBytes);
   const reconciliation = reconcilePrefix50OfficialXmlLdraw(xmlBricks, ldraw);
-  const catalog = await importRepositoryTypeScript(CATALOG_URL);
+  registerRepositoryTypeScriptImports();
+  const catalog = await import("../packages/catalog/src/index.ts");
   if (catalog.BUILTIN_CATALOG_VERSION !== pins.catalogVersion) {
     throw new TypeError(
       `Official XML/LDraw proposal requires catalog ${pins.catalogVersion}; received ${catalog.BUILTIN_CATALOG_VERSION}.`,

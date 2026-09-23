@@ -159,6 +159,15 @@ function requiredBootstrapDirectory(environment: NodeJS.ProcessEnv): string {
   return directory;
 }
 
+/** Gives only required real-build Vite servers a cache owned by their bootstrap lifecycle. */
+export function realBuildViteCacheDirectory(
+  options: RealBuildBootstrapEnvironmentOptions = {},
+): string | undefined {
+  const environment = options.environment ?? process.env;
+  if (environment.LEGO_REAL_BUILD_REQUIRED !== "1") return undefined;
+  return join(requiredBootstrapDirectory(environment), "vite-cache");
+}
+
 /** Refuses any bootstrap control path that does not live inside the run's own directory. */
 function containedBootstrapName(directory: string, value: string, label: string): string {
   if (!isAbsolute(value)) {

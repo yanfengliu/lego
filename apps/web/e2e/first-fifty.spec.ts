@@ -4,7 +4,8 @@ import { test, expect } from "@playwright/test";
 
 import { bookletProbeUrls, hasSampleBooklet } from "./sample-booklet";
 import { ASSEMBLY_MODULE_URL } from "./workspace-module";
-import { readSampleBooklet, sampleBookletCallouts, sampleBookletPanels } from "./booklet-fixture";
+import { readSampleBooklet } from "./booklet-file-source.ts";
+import { sampleBookletCallouts, sampleBookletPanels } from "./booklet-fixture";
 
 /**
  * What the first fifty printed steps actually contain.

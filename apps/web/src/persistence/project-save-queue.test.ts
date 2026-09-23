@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { createEmptyBrickDocument } from "@lego-studio/brick-kernel";
+import {
+  applyBuildOperations,
+  createBuildPlaybackTrace,
+  createEmptyBrickDocument,
+  createPartInstance,
+} from "@lego-studio/brick-kernel";
+import type { BuildOperation } from "@lego-studio/protocol";
 
 import { createEditorState, type EditorState } from "../editor-state";
 import type { ProjectRepository } from "./indexeddb-project-repository";
 import { ProjectSaveQueue } from "./project-save-queue";
-import { createStoredEditorProject, type StoredEditorProjectV1 } from "./project-snapshot";
+import { createStoredEditorProject, type StoredEditorProject } from "./project-snapshot";
 
 class RecordingRepository implements ProjectRepository {
   public async list() {
@@ -20,7 +26,7 @@ class RecordingRepository implements ProjectRepository {
   public firstSaveRelease: (() => void) | null = null;
   public failure: Error | null = null;
 
-  public async load(): Promise<StoredEditorProjectV1 | null> {
+  public async load(): Promise<StoredEditorProject | null> {
     return null;
   }
 
@@ -28,7 +34,7 @@ class RecordingRepository implements ProjectRepository {
     projectId: string,
     state: EditorState,
     expectedGeneration: number,
-  ): Promise<StoredEditorProjectV1> {
+  ): Promise<StoredEditorProject> {
     this.calls.push({ projectId, state, expectedGeneration });
     if (this.calls.length === 1 && this.firstSaveRelease === null) {
       await new Promise<void>((resolve) => {
@@ -45,6 +51,20 @@ class RecordingRepository implements ProjectRepository {
 
 function state(name: string) {
   return createEditorState(createEmptyBrickDocument({ id: name.toLowerCase(), name }));
+}
+
+function tracedState(): EditorState {
+  const base = createEmptyBrickDocument({ id: "traced", name: "Traced" });
+  const operations: readonly BuildOperation[] = [
+    {
+      kind: "addPart",
+      operationId: "add-traced-part",
+      part: createPartInstance({ id: "traced-part" }),
+      semanticRegionIds: [],
+    },
+  ];
+  const document = applyBuildOperations(base, operations);
+  return createEditorState(document, createBuildPlaybackTrace(base, [[operations]]));
 }
 
 describe("project save queue", () => {
@@ -86,6 +106,23 @@ describe("project save queue", () => {
     expect(repository.calls[0]?.state.document.name).toBe("Original");
   });
 
+  it("preserves the exact trace commitment in version-2 queued snapshots", async () => {
+    const repository = new RecordingRepository();
+    const queue = new ProjectSaveQueue(repository, "project-1", 0);
+    const exact = tracedState();
+    const save = queue.enqueue(exact);
+
+    await Promise.resolve();
+    repository.firstSaveRelease?.();
+    const stored = await save;
+
+    expect(stored.schemaVersion).toBe("lego.local-project/2");
+    expect(stored.state.playbackTrace?.traceCommitment).toBe(exact.playbackTrace?.traceCommitment);
+    expect(repository.calls[0]?.state.playbackTrace?.traceCommitment).toBe(
+      exact.playbackTrace?.traceCommitment,
+    );
+  });
+
   it("stops later writes after a failed save", async () => {
     const repository = new RecordingRepository();
     repository.failure = new Error("disk full");
@@ -109,7 +146,7 @@ describe("project save queue", () => {
       undoStack: [{ label: "Broken", operations: [] }],
     } as unknown as EditorState;
 
-    let save!: Promise<StoredEditorProjectV1>;
+    let save!: Promise<StoredEditorProject>;
     expect(() => {
       save = queue.enqueue(malformed);
     }).not.toThrow();

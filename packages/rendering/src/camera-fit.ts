@@ -218,7 +218,7 @@ const DEFAULT_ELEVATIONS = [10, 20, 25, 30, 35, 40, 50];
  * parts we have not placed yet, and one stray part on the edge of the picture
  * moves a bounding box by its whole width while moving the area by a percent.
  */
-function alignTo(
+export function alignOrthographicSilhouettes(
   trial: Silhouette,
   target: Silhouette,
   parameters: OrthographicViewParameters,
@@ -283,7 +283,7 @@ export function fitOrthographicView(
     // so the first correction is wrong and the second — measured on a render
     // that is now nearly in place — is right. Iterate until it settles.
     for (let pass = 0; pass < alignmentPasses; pass += 1) {
-      const aligned = alignTo(trial, target, current);
+      const aligned = alignOrthographicSilhouettes(trial, target, current);
       if (!aligned) return null;
       const settled =
         Math.abs(aligned.pixelsPerUnit - current.pixelsPerUnit) < current.pixelsPerUnit * 5e-4 &&

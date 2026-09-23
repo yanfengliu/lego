@@ -19,23 +19,23 @@ export const PREFIX_INPUTS = {
   },
   geometry: {
     path: "output/real-build/builder-shell-geometry.bin",
-    bytes: 1_820_412,
-    digest: "sha256:7e91e1402f2ab609fee6e502336f86ee74fb3a94d970e9b0b75acf07f925a76f",
+    bytes: 1_834_092,
+    digest: "sha256:c047a4b78518ae658a34efd3f3121de11558d00821b1764a472b87cf0ee82b97",
   },
   calibration: {
     path: "output/real-build/builder-canonical-calibration.json",
-    bytes: 54_993,
-    digest: "sha256:69555bf4a0b7a7beaeb4f98b6d0e5750fa28b6946a957cdc5772633602636a70",
+    bytes: 56_235,
+    digest: "sha256:7cc76c17cef27a74a9840d78769f4f839f85ee706ba123cdafbd12248698565c",
   },
   coverage: {
     path: "output/real-build/catalog-coverage.json",
     bytes: 588_467,
-    digest: "sha256:861d08a28dac94619e8c541e928d7803b4b6cab9fe9fa12da9f166fc0e46444d",
+    digest: "sha256:9aabfaa4b1481b029c56873d4023925b3f5eed73aa4bef85255e2bbd56e8af5c",
   },
   actionPreparation: {
     path: "output/real-build/action-preparation.json",
     bytes: 317_152,
-    digest: "sha256:5fbab00b90c6ffbe6c9b09727819e0b3a964cebbd88138232bd2418df6100fb6",
+    digest: "sha256:b3b4c340570f9348c16e3a1fab5e9e0c2a2eda30559891ab041508b0ae1bae4e",
   },
 } as const;
 

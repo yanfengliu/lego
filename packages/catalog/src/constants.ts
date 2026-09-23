@@ -153,12 +153,23 @@ import { GENERATED_NON_UPRIGHT_PROPER_ORIENTATIONS } from "./proper-orientations
  * `2436b` root stays closure evidence rather than a public alias. `3245b`
  * remains distinct from `3245c`; no bare or cross-suffix alias is admitted,
  * and its exact one-cap holder authors one fixed one-sided axle socket.
+ *
+ * /30 promotes existing jumper `15573.dat` from its project-authored physical
+ * recipe to the exact official closure and conservative measured collision
+ * field. The pinned LDCad regular C3x1 female grid authors three underside
+ * clutch seats, preserving both outer IDs and adding the previously missing
+ * centre seat. The source-measured stud keeps its ordinary collision radius
+ * and declares the reviewed nominal-stud connection-only profile; its measured
+ * stud and clutch frames are catalog truth. The same tranche admits the one
+ * canonical sideways 35480 orientation required by printed step 41: it keeps
+ * the source row's catalog long-axis representative while its local half-turn
+ * remains recorded as equivalent counterevidence rather than placement truth.
  */
-export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/29" as const;
+export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/30" as const;
 export const CONNECTOR_TAXONOMY_VERSION = "stud-tube/2" as const;
 export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/4" as const;
 export const TRANSFORM_POLICY_ID = "part-scoped-proper-orientations-negative-y-up" as const;
-export const TRANSFORM_POLICY_VERSION = "part-scoped-proper-orientations-negative-y-up/1" as const;
+export const TRANSFORM_POLICY_VERSION = "part-scoped-proper-orientations-negative-y-up/2" as const;
 
 export const STUD_PITCH_LDU = 20 as const;
 export const BRICK_HEIGHT_LDU = 24 as const;

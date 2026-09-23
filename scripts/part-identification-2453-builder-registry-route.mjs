@@ -8,9 +8,7 @@ import {
   BUILDER_2453_IDENTITY_AUTHORITY,
   CURRENT_BUILDER_2453_IDENTITY_PINS,
 } from "./part-identification-2453-builder-identity-source.mjs";
-import { importRepositoryTypeScript } from "./part-identification-typescript-runtime.mjs";
-
-const moduleUrl = (relativePath) => new URL(relativePath, import.meta.url).href;
+import { registerRepositoryTypeScriptImports } from "./part-identification-typescript-hooks.mjs";
 const CONSUMED_DIAGNOSTIC_ROUTES = new WeakSet();
 
 const expectedRoutePin = (route) => ({
@@ -32,9 +30,8 @@ export async function consumeBuilder2453DiagnosticRegistryRoute(token) {
     designRevision: pins.builderScope.designRevision,
     itemNo: pins.builderScope.itemNo,
   });
-  const sourceModule = await importRepositoryTypeScript(
-    moduleUrl("../apps/web/e2e/real-build-builder-source-pins-m.ts"),
-  );
+  registerRepositoryTypeScriptImports();
+  const sourceModule = await import("../apps/web/e2e/real-build-builder-source-pins-m.ts");
   const rows = sourceModule.BUILDER_PREFIX50_DESIGN_SOURCES_M;
   const source = Array.isArray(rows) && rows.length === 1 ? rows[0] : undefined;
   if (

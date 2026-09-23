@@ -12,6 +12,7 @@ import { describe, expect, it } from "vitest";
 import { createEmptyBrickDocument, createPartInstance } from "./factory.ts";
 import { canonicalDigest } from "./canonical.ts";
 import { migrateDocumentTruth } from "./migration.ts";
+import { version30InterpretationChangesForSourceCatalogVersion } from "./migration-v30.test-support.ts";
 import { getReviewedHistoricalCatalogRoster } from "./historical-catalog-rosters.ts";
 import { validateBrickDocument } from "./validation.ts";
 import { VALIDATOR_SET_VERSION } from "./truth-manifests.ts";
@@ -369,6 +370,7 @@ describe("migrateDocumentTruth", () => {
       },
       ...VERSION_13_INTERPRETATION_CHANGES,
       VERSION_29_CONNECTOR_INTERPRETATION_CHANGE,
+      ...version30InterpretationChangesForSourceCatalogVersion(11),
     ]);
     expect(document.parts).toEqual(savedAtEleven.parts);
   });
@@ -412,6 +414,7 @@ describe("migrateDocumentTruth", () => {
     expect(report.catalogInterpretationChanges).toEqual([
       ...VERSION_13_INTERPRETATION_CHANGES,
       VERSION_29_CONNECTOR_INTERPRETATION_CHANGE,
+      ...version30InterpretationChangesForSourceCatalogVersion(12),
     ]);
     expect(document.parts).toEqual(savedAtTwelve.parts);
   });
@@ -450,6 +453,7 @@ describe("migrateDocumentTruth", () => {
     ]);
     expect(report.catalogInterpretationChanges).toEqual([
       VERSION_29_CONNECTOR_INTERPRETATION_CHANGE,
+      ...version30InterpretationChangesForSourceCatalogVersion(13),
     ]);
     expectReviewedCurrentTruthChanges(report, "builtin.basic-parts/13");
     expect(document.parts).toEqual(savedAtThirteen.parts);
@@ -476,6 +480,7 @@ describe("migrateDocumentTruth", () => {
     expect(report.addedCatalogPartIds).toEqual(POST_V13_ADDITIVE_PART_IDS.slice(1));
     expect(report.catalogInterpretationChanges).toEqual([
       VERSION_29_CONNECTOR_INTERPRETATION_CHANGE,
+      ...version30InterpretationChangesForSourceCatalogVersion(14),
     ]);
     expectReviewedCurrentTruthChanges(report, "builtin.basic-parts/14");
     expect(document.parts).toEqual(savedAtFourteen.parts);
@@ -502,6 +507,7 @@ describe("migrateDocumentTruth", () => {
     expect(report.addedCatalogPartIds).toEqual(POST_V13_ADDITIVE_PART_IDS.slice(2));
     expect(report.catalogInterpretationChanges).toEqual([
       VERSION_29_CONNECTOR_INTERPRETATION_CHANGE,
+      ...version30InterpretationChangesForSourceCatalogVersion(15),
     ]);
     expectReviewedCurrentTruthChanges(report, "builtin.basic-parts/15");
     expect(document.parts).toEqual(savedAtFifteen.parts);
@@ -528,6 +534,7 @@ describe("migrateDocumentTruth", () => {
     expect(report.addedCatalogPartIds).toEqual(POST_V13_ADDITIVE_PART_IDS.slice(3));
     expect(report.catalogInterpretationChanges).toEqual([
       VERSION_29_CONNECTOR_INTERPRETATION_CHANGE,
+      ...version30InterpretationChangesForSourceCatalogVersion(16),
     ]);
     expectReviewedCurrentTruthChanges(report, "builtin.basic-parts/16");
     expect(document.parts).toEqual(savedAtSixteen.parts);
@@ -557,6 +564,7 @@ describe("migrateDocumentTruth", () => {
     expect(report.addedCatalogPartIds).toEqual(POST_V13_ADDITIVE_PART_IDS.slice(4));
     expect(report.catalogInterpretationChanges).toEqual([
       VERSION_29_CONNECTOR_INTERPRETATION_CHANGE,
+      ...version30InterpretationChangesForSourceCatalogVersion(17),
     ]);
     expectReviewedCurrentTruthChanges(
       report,
@@ -589,11 +597,12 @@ describe("migrateDocumentTruth", () => {
     expect(report.migrated).toBe(true);
     expect(report.blockingReasons).toEqual([]);
     expect(report.toTruthHash).toBe(
-      "sha256:54762419e4779c6c15566052062fcaa432cb45e3a13704b5af1563b4fa94e8eb",
+      "sha256:c304c3eb673e86d48580c6b28309f1fdf8bf4d71f7259ecc75f6f5691a336d51",
     );
     expect(report.addedCatalogPartIds).toEqual(POST_V13_ADDITIVE_PART_IDS.slice(5));
     expect(report.catalogInterpretationChanges).toEqual([
       VERSION_29_CONNECTOR_INTERPRETATION_CHANGE,
+      ...version30InterpretationChangesForSourceCatalogVersion(18),
     ]);
     expectReviewedCurrentTruthChanges(
       report,
@@ -626,11 +635,12 @@ describe("migrateDocumentTruth", () => {
     expect(report.migrated).toBe(true);
     expect(report.blockingReasons).toEqual([]);
     expect(report.toTruthHash).toBe(
-      "sha256:54762419e4779c6c15566052062fcaa432cb45e3a13704b5af1563b4fa94e8eb",
+      "sha256:c304c3eb673e86d48580c6b28309f1fdf8bf4d71f7259ecc75f6f5691a336d51",
     );
     expect(report.addedCatalogPartIds).toEqual(POST_V13_ADDITIVE_PART_IDS.slice(6));
     expect(report.catalogInterpretationChanges).toEqual([
       VERSION_29_CONNECTOR_INTERPRETATION_CHANGE,
+      ...version30InterpretationChangesForSourceCatalogVersion(19),
     ]);
     expectReviewedCurrentTruthChanges(
       report,

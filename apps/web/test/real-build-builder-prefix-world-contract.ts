@@ -193,7 +193,7 @@ export async function assertExactPrefixWorldCensus(input: {
   );
   exact(
     [localRows.length, localRows.length - failures.length, failures.length],
-    [197, 182, 15],
+    [230, 215, 15],
     "world census",
   );
   const frameByRevision = new Map(
@@ -204,10 +204,10 @@ export async function assertExactPrefixWorldCensus(input: {
     diagnostic.counts,
     {
       requestedRows: 320,
-      localFrameRows: 197,
-      calibrationUprightRows: 182,
+      localFrameRows: 230,
+      calibrationUprightRows: 215,
       diagnosticProperOnlyRows: 15,
-      missingLocalFrameRows: 123,
+      missingLocalFrameRows: 90,
     },
     "proper-world diagnostic census",
   );
@@ -275,6 +275,6 @@ export async function assertExactPrefixWorldCensus(input: {
   const allRefused = rows.filter(
     ({ builderBrickRef }) => calibrated.bricks[builderBrickRef]!.canonicalTransform === null,
   );
-  exact(allRefused.length, 138, "all-prefix world refusals");
+  exact(allRefused.length, 105, "all-prefix world refusals");
   return diagnostic;
 }

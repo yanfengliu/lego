@@ -28,7 +28,7 @@ export interface BundledLdrawSourceFile {
   readonly licenseExpression: string;
 }
 
-/** Every file in the 45 bundled closures, deduplicated and path-ordered. */
+/** Every file in the 46 bundled closures, deduplicated and append-ordered. */
 export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Object.freeze([
   // prettier-ignore
   { path: "p/1-16chrd.dat", bytes: 701, sha256: "sha256:e429dd760eb6f0cf460a74e6ebf52c023bedbdea82de7801efa1694b5a1a82e8", title: "Chord 0.0625", author: "Philippe Hurbain [Philo]", ldrawOrg: "Primitive UPDATE 2015-01", licenseExpression: "CC-BY-4.0" },
@@ -504,6 +504,10 @@ export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = Obj
   { path: "parts/s/85984s01.dat", bytes: 5162, sha256: "sha256:be8c8a230e87f02663d9a985895d1342fe5246523609296e3d64862895bb8721", title: "~Slope Brick 31  1 x  2 x  0.667 without Top Surface", author: "Magnus Forsberg [MagFors]", ldrawOrg: "Subpart UPDATE 2020-02", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
   { path: "parts/s/93273s01.dat", bytes: 5473, sha256: "sha256:95d97ee75937fa8baa4b0fca339143ed3a5d1b812e4b2e76ef20d2a4c4622489", title: "~Slope Brick Curved  4 x  1 Double without Top Surface", author: "Magnus Forsberg [MagFors]", ldrawOrg: "Subpart UPDATE 2023-04", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "p/box3u6.dat", bytes: 630, sha256: "sha256:362b5deba42781b7ec9b0616c62c242fc46a051edb3ad3e9c7d800d1929bc22c", title: "Box with  3 Faces without  6 Edges", author: "Willy Tschager [Holly-Wood]", ldrawOrg: "Primitive UPDATE 2024-01", licenseExpression: "CC-BY-4.0" },
+  // prettier-ignore
+  { path: "parts/15573.dat", bytes: 2327, sha256: "sha256:c6946965875a8275996c4559cd355ea13a20197e96f33585cd750bb1da89b56d", title: "Plate  1 x  2 with Groove with 1 Centre Stud, without Understud", author: "Magnus Forsberg [MagFors]", ldrawOrg: "Part UPDATE 2013-01", licenseExpression: "CC-BY-4.0" },
 ]);
 
 /** Which of those files each bundled part's exact closure references. */
@@ -564,6 +568,7 @@ export const BUNDLED_LDRAW_CLOSURES: Readonly<Record<string, readonly number[]>>
     8, 10, 11, 15, 16, 56, 59, 60, 63, 101, 115, 116, 122, 130, 137, 138, 141, 145, 156, 165, 170,
   ],
   "3245b": [56, 59, 60, 100, 108, 124, 137, 145, 183, 221, 222],
+  "15573": [56, 60, 63, 102, 110, 119, 124, 128, 138, 237, 238],
   "41770a": [
     0, 1, 2, 3, 7, 11, 12, 16, 18, 19, 20, 21, 22, 23, 25, 26, 27, 30, 31, 33, 36, 38, 41, 42, 43,
     45, 46, 56, 59, 60, 64, 126, 127, 131, 137, 143, 147, 193, 225,
@@ -733,6 +738,10 @@ export const BUNDLED_LDRAW_CLOSURE_MANIFESTS: Readonly<
   "3245b": {
     bytes: 10868,
     manifestSha256: "sha256:9fdf84fa4dac343eaa9f4f3f30950044ae86613d66033b5c4bffd20a46b139c1",
+  },
+  "15573": {
+    bytes: 12907,
+    manifestSha256: "sha256:c7a8d39b4b45fee945580a3e59f3d2e54dd231667ed24b0186ecc88bee73c2d1",
   },
   "41770a": {
     bytes: 35931,

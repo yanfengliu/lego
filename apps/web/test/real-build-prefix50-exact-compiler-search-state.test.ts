@@ -37,6 +37,9 @@ function target(
   return {
     ordinal,
     printedStepNumber,
+    phaseSequence: printedStepNumber,
+    phaseMemberOrdinal: ordinal,
+    subBuildPath: ["synthetic-root"],
     colorId: "builtin:red",
     partIdentity: {
       publishedCatalogPartId: catalogPartId,
@@ -208,7 +211,7 @@ describe("exact prefix-50 search-state memoization", () => {
     expect(result?.witnesses[1]?.connections).toEqual([
       expect.objectContaining({ target: { kind: "witness", witnessIndex: 0 } }),
     ]);
-    expect(searchBudget).toMatchObject({ enumerations: 3, nodes: 3 });
+    expect(searchBudget).toMatchObject({ enumerations: 2, nodes: 3 });
   });
 
   it("does not let a dead A-to-B capacity state prune the completable B-to-A state", () => {

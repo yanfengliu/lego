@@ -32,21 +32,6 @@ export const PREFIX50_LDRAW_CATALOG_FRAMES_AUTHORITY = deepFreeze({
 
 export const PREFIX50_LDRAW_CATALOG_NEW_PARAMETRIC_EXPECTATIONS = deepFreeze([
   {
-    designRevision: "15573;L",
-    catalogPartId: "builtin:jumper-plate-1x2",
-    ldrawFilename: "15573.dat",
-    catalogLdrawFilename: "15573.dat",
-    occurrenceCount: 33,
-    frame: { orientationId: "upright-yaw-90", translationLdu: [0, -4, 0] },
-    archive: {
-      closureFileCount: 11,
-      expandedTriangleCount: 220,
-      bounds: { min: [-20, -4, -10], max: [20, 8, 10] },
-    },
-    candidateCount: 2,
-    candidateSelfSymmetryClassCount: 1,
-  },
-  {
     designRevision: "3003;S",
     catalogPartId: "builtin:brick-2x2",
     ldrawFilename: "3003.dat",
@@ -162,8 +147,8 @@ export const PREFIX50_LDRAW_CATALOG_MOVED_ROOT_EXPECTATIONS = deepFreeze([
 export const PREFIX50_LDRAW_CATALOG_FRAMES_PINS = deepFreeze({
   officialWorldProposal: {
     schemaVersion: "lego.prefix50-official-ldraw-world-proposal/2",
-    bytes: 764_234,
-    digest: "sha256:24c10640f118d2961dd297cff608b6978bd54eab85a37cf0c314f4711612f960",
+    bytes: 765_179,
+    digest: "sha256:1a1bf42979962969ae4389007680cc209e86addf6dc4e48b6ff7eb4fe699aaab",
   },
   officialArchive: {
     path: "C:/tmp/ldraw-complete-2026-07.zip",
@@ -174,11 +159,11 @@ export const PREFIX50_LDRAW_CATALOG_FRAMES_PINS = deepFreeze({
   },
   builderGeometry: {
     path: "output/real-build/builder-shell-geometry.bin",
-    bytes: 1_820_412,
-    digest: "sha256:7e91e1402f2ab609fee6e502336f86ee74fb3a94d970e9b0b75acf07f925a76f",
+    bytes: 1_834_092,
+    digest: "sha256:c047a4b78518ae658a34efd3f3121de11558d00821b1764a472b87cf0ee82b97",
     format: "lego.builder-shell-and-ldraw-triangles-f32le/2",
   },
-  catalogVersion: "builtin.basic-parts/29",
+  catalogVersion: "builtin.basic-parts/30",
   expectedAccounting: {
     proposalAliasGroups: 66,
     proposalOccurrences: 320,
@@ -186,16 +171,16 @@ export const PREFIX50_LDRAW_CATALOG_FRAMES_PINS = deepFreeze({
     framedProposalOccurrences: 320,
     excludedQuarantineAliases: 0,
     excludedQuarantineOccurrences: 0,
-    meshAssetFrames: 31,
-    archiveGeometryFrames: 35,
+    meshAssetFrames: 32,
+    archiveGeometryFrames: 34,
     existingParametricFrames: 30,
-    newlyDerivedParametricFrames: 5,
-    newlyDerivedCandidateSelfSymmetryClasses: 5,
+    newlyDerivedParametricFrames: 4,
+    newlyDerivedCandidateSelfSymmetryClasses: 4,
     occurrenceScopedIdentityMovedRootFrames: 2,
     occurrenceScopedIdentityMovedRootOccurrences: 2,
   },
   expectedArtifact: {
-    bytes: 330_415,
-    digest: "sha256:bcf9702150b73cab1bd70d7ecd0bf33b3b3917522ce4f0ca892be56424b861a1",
+    bytes: 330_074,
+    digest: "sha256:c2722346da09a11623ccfb53d4b3341b874e150633876693d2a4347c3d14aa5f",
   },
 });

@@ -2,7 +2,7 @@ import { isDeepStrictEqual } from "node:util";
 
 import { assertV6CalloutManifest, sha256Digest } from "./part-identification-artifact-source.mjs";
 import { MAX_IMAGE_ARTIFACT_BYTES, readContainedFile } from "./part-identification-io.mjs";
-import { importRepositoryTypeScript } from "./part-identification-typescript-runtime.mjs";
+import { registerRepositoryTypeScriptImports } from "./part-identification-typescript-hooks.mjs";
 import {
   CURRENT_PREFIX50_SEMANTIC_CLOSURE_PINS,
   PREFIX50_STATIC_REVIEWED_MAP,
@@ -14,7 +14,6 @@ import {
 } from "./part-identification-prefix50-semantic-closure-review.mjs";
 
 const SHA256 = /^sha256:[0-9a-f]{64}$/u;
-const moduleUrl = (relativePath) => new URL(relativePath, import.meta.url).href;
 const exactKeys = (value, keys) =>
   typeof value === "object" &&
   value !== null &&
@@ -77,9 +76,8 @@ function assertResolution(value) {
 }
 
 async function officialDesignIndex(bytes) {
-  const officialModule = await importRepositoryTypeScript(
-    moduleUrl("../apps/web/e2e/real-build-official.ts"),
-  );
+  registerRepositoryTypeScriptImports();
+  const officialModule = await import("../apps/web/e2e/real-build-official.ts");
   const official = officialModule.parseOfficialModelIndex(bytes);
   const failures = officialModule.validateOfficialModelAccounting(official);
   if (failures.length > 0) {

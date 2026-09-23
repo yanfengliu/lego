@@ -385,6 +385,9 @@ button:disabled {
   overflow: hidden;
   background: #0e110f;
 }
+.workspace:has(> .playback-bar) {
+  grid-template-rows: 48px minmax(0, 1fr) auto 32px;
+}
 .workspace-toolbar {
   display: flex;
   align-items: center;

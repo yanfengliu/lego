@@ -2,19 +2,23 @@ import { existsSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, relative, resolve } from "node:path";
 
+import { realBuildViteShutdownPreservationDecision } from "./real-build-vite-shutdown-preservation.ts";
+
 function inside(root: string, candidate: string): boolean {
   const path = relative(root, candidate);
   return path !== ".." && !path.startsWith("../") && !path.startsWith("..\\");
 }
 
 /** Releases and removes only the unique pre-discovery lock owned by this Playwright run. */
-export default async function realBuildGlobalTeardown(): Promise<void> {
-  const directoryValue = process.env.LEGO_REAL_BUILD_BOOTSTRAP_DIRECTORY;
+export async function realBuildGlobalTeardownWithEnvironment(
+  environment: NodeJS.ProcessEnv,
+): Promise<void> {
+  const directoryValue = environment.LEGO_REAL_BUILD_BOOTSTRAP_DIRECTORY;
   if (directoryValue === undefined) return;
   const directory = resolve(directoryValue);
   const temporaryRoot = resolve(tmpdir());
-  const releasePath = process.env.LEGO_REAL_BUILD_BOOTSTRAP_RELEASE;
-  const pid = Number(process.env.LEGO_REAL_BUILD_BOOTSTRAP_LOCK_PID);
+  const releasePath = environment.LEGO_REAL_BUILD_BOOTSTRAP_RELEASE;
+  const pid = Number(environment.LEGO_REAL_BUILD_BOOTSTRAP_LOCK_PID);
   if (
     !inside(temporaryRoot, directory) ||
     dirname(directory) !== temporaryRoot ||
@@ -26,6 +30,12 @@ export default async function realBuildGlobalTeardown(): Promise<void> {
   ) {
     throw new Error(
       "Refusing to release a pre-discovery real-build lock outside its exact task-owned temporary directory.",
+    );
+  }
+  const preservation = realBuildViteShutdownPreservationDecision({ directory, environment });
+  if (preservation.preserve) {
+    throw new Error(
+      `Refusing to release or remove the real-build bootstrap after an unconfirmed Vite shutdown: ${preservation.reason}.`,
     );
   }
   if (!existsSync(releasePath)) writeFileSync(releasePath, "RELEASE\n", { flag: "wx" });
@@ -46,4 +56,9 @@ export default async function realBuildGlobalTeardown(): Promise<void> {
     );
   }
   if (existsSync(directory)) rmSync(directory, { recursive: true, force: false });
+}
+
+/** Playwright entrypoint; the environment seam above keeps preservation tests process-free. */
+export default async function realBuildGlobalTeardown(): Promise<void> {
+  await realBuildGlobalTeardownWithEnvironment(process.env);
 }

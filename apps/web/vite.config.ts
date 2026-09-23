@@ -1,7 +1,10 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
+import { taskOwnedViteCacheConfig } from "./task-owned-vite-cache";
+
 export default defineConfig({
+  ...taskOwnedViteCacheConfig(),
   plugins: [react()],
   /**
    * Keep the workspace packages and their hashing dependency out of the

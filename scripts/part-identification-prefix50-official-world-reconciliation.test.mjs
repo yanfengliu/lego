@@ -10,6 +10,12 @@ import {
   isVerifiedPrefix50OfficialWorldReconciliation,
   verifyPrefix50OfficialWorldReconciliation,
 } from "./part-identification-prefix50-official-world-reconciliation.mjs";
+import * as reconciliationConsumer from "./part-identification-prefix50-official-world-reconciliation-verification.mjs";
+import {
+  prefix50Commitment,
+  prefix50WorldProjection,
+} from "./part-identification-prefix50-official-world-reconciliation-projection.mjs";
+import { createOpaqueRealBuildPrefix50Step42SourceGeometryReader } from "./part-identification-prefix50-verified-projection-step42-source-geometry.mjs";
 import { inspectVerifiedPrefix50ActionPreparation } from "./part-identification-prefix50-action-preparation.mjs";
 import { reproduceCurrentPrefix50OfficialWorldReconciliation } from "./part-identification-prefix50-official-world-reconciliation-current.mjs";
 import {
@@ -246,6 +252,49 @@ describe.runIf(inputsPresent)("prefix-50 official-world occurrence reconciliatio
     const first = bytesFromVerifiedPrefix50OfficialWorldReconciliation(verified);
     first[0] = 0;
     expect(bytesFromVerifiedPrefix50OfficialWorldReconciliation(verified)).toEqual(bytes);
+  });
+
+  it("refuses all-zero digest registration and a coherent ordinal-274 X mutation before any Step-42 geometry receipt", () => {
+    const exactArtifact = inspectVerifiedPrefix50OfficialWorldReconciliation(verified).artifact;
+    const allZeroDigestForgery = Object.freeze({
+      artifact: exactArtifact,
+      artifactBytes: bytes,
+      digest: `sha256:${"0".repeat(64)}`,
+    });
+    expect(reconciliationConsumer).not.toHaveProperty(
+      "registerVerifiedPrefix50OfficialWorldReconciliation",
+    );
+    expect(() =>
+      reconciliationConsumer.verifyExactReviewedPrefix50OfficialWorldReconciliation(
+        allZeroDigestForgery,
+      ),
+    ).toThrow(/caller-supplied tokens or digests carry no authority/u);
+
+    const coherentMutation = structuredClone(exactArtifact);
+    const ordinal274 = coherentMutation.rows[273];
+    ordinal274.sourceWorldProposal.positionLdu[0] += 1;
+    ordinal274.catalogWorldTransform.positionLdu[0] += 1;
+    coherentMutation.worldTransformCommitment = prefix50Commitment(
+      coherentMutation.rows,
+      prefix50WorldProjection,
+    );
+    const coherentMutationBytes = encodePrefix50OfficialWorldReconciliation(coherentMutation);
+    expect(() =>
+      reconciliationConsumer.verifyExactReviewedPrefix50OfficialWorldReconciliation({
+        artifact: coherentMutation,
+        artifactBytes: coherentMutationBytes,
+      }),
+    ).toThrow(/requires the reviewed 651618 bytes/u);
+
+    for (const forgedReconciliation of [allZeroDigestForgery, coherentMutation]) {
+      expect(() =>
+        createOpaqueRealBuildPrefix50Step42SourceGeometryReader({
+          actionPreparationVerified: input.actionPreparation,
+          officialWorldReconciliationVerified: forgedReconciliation,
+          readVerifiedPrefix50Projection: () => Object.freeze({}),
+        }),
+      ).toThrow(/opaque verified official-world reconciliation/u);
+    }
   });
 
   it("rejects forged opaque proposal, frame-registry, and action-preparation handles", async () => {

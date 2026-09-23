@@ -1,6 +1,7 @@
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
-import { PROPER_ORIENTATIONS } from "@lego-studio/catalog";
+import { PROPER_ORIENTATIONS, getPartDefinition } from "@lego-studio/catalog";
 import {
   composeRigidTransforms,
   createEmptyBrickDocument,
@@ -14,12 +15,15 @@ import {
   requireRealBuildPrefix50Occurrence30SourceRepairProof,
   verifyRealBuildPrefix50Occurrence30SourceRepair,
 } from "../e2e/real-build-prefix50-occurrence30-source-repair";
+import { BUILDER_PREFIX50_DESIGN_SOURCES_L } from "../e2e/real-build-builder-source-pins-l";
 import { enumeratePlacements } from "../src/assembly/enumerate-placements";
 
 const OFFICIAL_MODEL_PATH = "output/official-model/vx1087034_21066_a.xml";
 const BUILDER_GEOMETRY_PATH = "output/real-build/builder-shell-geometry.bin";
 const RECONCILIATION_PATH = "output/real-build/prefix50-official-world-reconciliation.json";
 const GAUGE = { positionLdu: [-560, 12, 194] as const, orientationId: "upright-yaw-0" };
+const digest = (value: unknown) =>
+  `sha256:${createHash("sha256").update(JSON.stringify(value)).digest("hex")}`;
 
 function proof() {
   return verifyRealBuildPrefix50Occurrence30SourceRepair({
@@ -64,6 +68,31 @@ describe("prefix-50 occurrence-30 opaque source repair", () => {
     });
     expect(Object.isFrozen(verified)).toBe(true);
     expect(Object.isFrozen(evidence)).toBe(true);
+  });
+
+  it("rejects the retired source-pin digest while retaining identical 77844 geometry semantics", () => {
+    const evidence = requireRealBuildPrefix50Occurrence30SourceRepairProof(proof());
+    expect(() =>
+      __testOnly.requireExactEvidence({
+        ...evidence,
+        sourcePinTrustedDigest:
+          "sha256:565aae6158079faf80002730bbe5d0a36dd1bfac3cbec480129a351005390a1c",
+      } as unknown as typeof evidence),
+    ).toThrow(/committed 77844 source pins/u);
+
+    const sourcePin = BUILDER_PREFIX50_DESIGN_SOURCES_L[0];
+    const definition = getPartDefinition(sourcePin.catalogPartId)!;
+    expect({
+      definition: digest(definition),
+      geometry: digest(definition.geometry),
+      connectors: digest(definition.connectors),
+      collision: digest(definition.collision),
+    }).toEqual({
+      definition: "sha256:24341d53481fbacdaf8793ecf926effebbfd45e00cfb62c2ffc9527484181719",
+      geometry: "sha256:1ffe0522e24e93cb87518cd7847dc49cc220a36c9f18ccab613481220cc8cd7c",
+      connectors: "sha256:80d4f556c5a2c97dafe310a092a1a0ca4b5f77183a36c8167aafd5af9f87b96b",
+      collision: "sha256:c9e2426d0353a5e111023ad06981cd2af240d4f9f7b73145d87b1327fa9b4d04",
+    });
   });
 
   it("rejects cloned, serialized, caller-shaped, and wrong-byte proof inputs", () => {

@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 
 import { createEmptyBrickDocument, createPartInstance } from "./factory.ts";
 import { getReviewedHistoricalCatalogRoster } from "./historical-catalog-rosters.ts";
+import { VERSION_30_INTERPRETATION_CHANGES } from "./migration-v30.test-support.ts";
 import { migrateDocumentTruth } from "./migration.ts";
 import { VALIDATOR_SET_VERSION } from "./truth-manifests.ts";
 
@@ -69,7 +70,7 @@ describe("builtin.basic-parts/28 migration", () => {
     expect(report.catalogInterpretationChanges).toEqual([
       {
         fromCatalogVersion: "builtin.basic-parts/28",
-        toCatalogVersion: BUILTIN_CATALOG_VERSION,
+        toCatalogVersion: "builtin.basic-parts/29",
         affectedCatalogPartIds: [
           "builtin:plate-1x2-round-end",
           "builtin:wedge-plate-2x4-wing",
@@ -80,13 +81,14 @@ describe("builtin.basic-parts/28 migration", () => {
       },
       {
         fromCatalogVersion: "builtin.basic-parts/28",
-        toCatalogVersion: BUILTIN_CATALOG_VERSION,
+        toCatalogVersion: "builtin.basic-parts/29",
         affectedCatalogPartIds: [
           "builtin:technic-brick-1x1-axle-hole",
           "builtin:technic-brick-1x2-axle-hole",
         ],
         changedFields: ["connector-semantics", "collision-semantics"],
       },
+      ...VERSION_30_INTERPRETATION_CHANGES,
     ]);
     expect(report.truthComponentChanges).toEqual([
       {
@@ -206,7 +208,7 @@ describe("builtin.basic-parts/28 migration", () => {
       expect.arrayContaining([
         `Connector taxonomy id someone-elses-connectors cannot migrate to stud-tube; only the builtin truth component is supported`,
         `Collision model id someone-elses-collision-model cannot migrate to rectilinear-stud-clearance; only the builtin truth component is supported`,
-        `Transform policy version upright-quarter-turns-negative-y-up/1 cannot migrate to ${TRANSFORM_POLICY_VERSION}; known source versions are ${TRANSFORM_POLICY_VERSION}`,
+        `Transform policy version upright-quarter-turns-negative-y-up/1 cannot migrate to ${TRANSFORM_POLICY_VERSION}; known source versions are part-scoped-proper-orientations-negative-y-up/1, ${TRANSFORM_POLICY_VERSION}`,
       ]),
     );
   });

@@ -13,16 +13,52 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, parse, resolve } from "node:path";
+import { basename, dirname, join, parse, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import {
+  createRealBuildPlaywrightConfig,
+  selectRealBuildPlaywrightOperation,
+} from "./apps/web/e2e/playwright-config-support.ts";
+import { captureRealBuildStep44PreUnlockSourceSnapshots } from "./apps/web/e2e/real-build-step44-playwright-source-closure.ts";
+import {
+  assertRealBuildStep44CalibrationRawConfig,
+  prepareRealBuildStep44CalibrationRunnerOutput,
+} from "./apps/web/e2e/real-build-step44-calibration-runner-output.ts";
 
 const BOOTSTRAP_SCHEMA = "lego.real-build-bootstrap-source/1";
 const BOOTSTRAP_BOUNDARY = "node-executable-and-playwright-config-loader";
 const SOURCE_ROOT_POLICY = "apps/web/e2e/real-build-source-roots.json";
 const LOCK_HELPER = "scripts/windows-lock-real-build-snapshot.ps1";
+const STEP44_CAMERA_ONLY_SOURCE_PDF = "recipes/6651557.pdf";
+const STEP44_SOURCE_LOCKED_INPUTS_ENV = "LEGO_REAL_BUILD_PREFIX50_STEP44_LOCKED_INPUTS_JSON";
+const step44Operation = selectRealBuildPlaywrightOperation(process.env);
+const step44SourceLockedOperation =
+  step44Operation.mode === "source-locked-capture"
+    ? "capture"
+    : step44Operation.mode === "source-locked-finalize"
+      ? "finalize"
+      : undefined;
+const STEP44_SOURCE_LOCKED_PRODUCTION_ROOTS = [
+  STEP44_CAMERA_ONLY_SOURCE_PDF,
+  "output/official-model/vx1087034_21066_a.xml",
+  "output/part-identification/prefix50-semantic-closure.json",
+  "output/real-build/action-preparation.json",
+  "output/real-build/builder-shell-geometry.bin",
+  "output/real-build/prefix50-ldraw-catalog-frames.json",
+  "output/real-build/prefix50-official-ldraw-world-proposal.json",
+  "output/real-build/prefix50-official-world-reconciliation.json",
+  "output/real-build/prefix50-structural-events.json",
+  // Lock the complete transitive dependency root. The production-materials module imports
+  // current-evidence verifiers whose own imports must not remain mutable after discovery.
+  "scripts",
+] as const;
 const MAXIMUM_SOURCE_FILES = 10_000;
 const MAXIMUM_SOURCE_ENTRIES = 25_000;
 const MAXIMUM_SOURCE_BYTES = 512 * 1024 * 1024;
+const VITE_SHUTDOWN_UNCONFIRMED_ENVIRONMENT_KEY =
+  "LEGO_REAL_BUILD_VITE_SHUTDOWN_UNCONFIRMED" as const;
+const VITE_SHUTDOWN_UNCONFIRMED_MARKER = "vite-shutdown-unconfirmed.marker" as const;
 
 const sha256 = (value: Uint8Array | string): string =>
   `sha256:${createHash("sha256").update(value).digest("hex")}`;
@@ -83,6 +119,11 @@ function bootstrapSourceSnapshots(repoRoot: string): readonly {
   readonly digest: string;
   readonly bytes: number;
 }[] {
+  if (step44Operation.mode === "camera-only" || step44Operation.mode === "real-domain-calibration")
+    return captureRealBuildStep44PreUnlockSourceSnapshots({
+      repositoryRoot: repoRoot,
+      operation: step44Operation,
+    });
   const policyBytes = readExactFile(join(repoRoot, SOURCE_ROOT_POLICY));
   const policy = JSON.parse(new TextDecoder("utf8", { fatal: true }).decode(policyBytes)) as {
     readonly schemaVersion?: unknown;
@@ -139,10 +180,39 @@ function bootstrapSourceSnapshots(repoRoot: string): readonly {
       visit(`${relativePath}/${name}`, depth + 1);
     }
   };
-  for (const root of policy.roots as string[]) visit(root, 0);
-  files.sort((left, right) => left.localeCompare(right));
+  const roots = [...(policy.roots as string[])];
+  if (step44SourceLockedOperation !== undefined) {
+    const encodedInputs = process.env[STEP44_SOURCE_LOCKED_INPUTS_ENV];
+    let lockedInputs: unknown;
+    try {
+      lockedInputs = JSON.parse(encodedInputs ?? "");
+    } catch (error) {
+      throw new TypeError(
+        `${STEP44_SOURCE_LOCKED_INPUTS_ENV} must be a JSON array of exact repository-relative input roots.`,
+        { cause: error },
+      );
+    }
+    if (
+      !Array.isArray(lockedInputs) ||
+      lockedInputs.length < 1 ||
+      lockedInputs.length > 16 ||
+      new Set(lockedInputs).size !== lockedInputs.length ||
+      lockedInputs.some(
+        (input) =>
+          typeof input !== "string" ||
+          !/^[A-Za-z0-9._@/-]+$/u.test(input) ||
+          input.split("/").some((segment) => segment === "" || segment === "." || segment === ".."),
+      )
+    )
+      throw new TypeError(
+        `${STEP44_SOURCE_LOCKED_INPUTS_ENV} must contain 1..16 unique strict repository-relative input roots.`,
+      );
+    roots.push(...STEP44_SOURCE_LOCKED_PRODUCTION_ROOTS, ...(lockedInputs as string[]));
+  }
+  for (const root of new Set(roots)) visit(root, 0);
+  const uniqueFiles = [...new Set(files)].sort((left, right) => left.localeCompare(right));
   let aggregateBytes = 0;
-  return files.map((path) => {
+  return uniqueFiles.map((path) => {
     const bytes = readExactFile(join(repoRoot, path));
     aggregateBytes += bytes.length;
     if (aggregateBytes > MAXIMUM_SOURCE_BYTES) {
@@ -230,9 +300,57 @@ function waitForBootstrapReady(path: string, expected: string, errorPath: string
   throw new Error(`Pre-discovery source lock did not become ready in 60 seconds: ${stderr}`);
 }
 
+/** Node-built-in-only exit decision: repository imports here would execute before source locking. */
+function realBuildBootstrapExitPreservationReason(
+  directoryValue: string,
+  environment: NodeJS.ProcessEnv,
+): string | null {
+  try {
+    const directory = resolve(directoryValue);
+    const temporaryRoot = realpathSync.native(resolve(tmpdir()));
+    const stat = lstatSync(directory);
+    const canonicalDirectory = realpathSync.native(directory);
+    if (
+      stat.isSymbolicLink() ||
+      !stat.isDirectory() ||
+      canonicalDirectory.toLocaleLowerCase("en-US") !== directory.toLocaleLowerCase("en-US") ||
+      dirname(canonicalDirectory).toLocaleLowerCase("en-US") !==
+        temporaryRoot.toLocaleLowerCase("en-US") ||
+      !basename(canonicalDirectory).startsWith("lego-real-build-bootstrap-")
+    ) {
+      return `bootstrap directory ${directory} no longer has its exact task-owned identity`;
+    }
+    const signal = environment[VITE_SHUTDOWN_UNCONFIRMED_ENVIRONMENT_KEY];
+    if (signal !== undefined) {
+      return signal === "1"
+        ? "the Vite shutdown environment signal is unconfirmed"
+        : `the Vite shutdown environment signal is malformed (${JSON.stringify(signal)})`;
+    }
+    const marker = join(canonicalDirectory, VITE_SHUTDOWN_UNCONFIRMED_MARKER);
+    try {
+      lstatSync(marker);
+      return `the fixed Vite shutdown marker exists at ${marker}`;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException | null)?.code;
+      return code === "ENOENT"
+        ? null
+        : `the fixed Vite shutdown marker could not be inspected (${code ?? "unknown"})`;
+    }
+  } catch (error) {
+    return `the bootstrap shutdown boundary could not be validated: ${String(error)}`;
+  }
+}
+
 function releaseBootstrapOnExit(directory: string, releasePath: string, pid: number): void {
   process.once("exit", () => {
     if (!existsSync(directory)) return;
+    const preservationReason = realBuildBootstrapExitPreservationReason(directory, process.env);
+    if (preservationReason !== null) {
+      process.stderr.write(
+        `Preserving the pre-discovery source lock until parent exit after an unconfirmed Vite shutdown: ${preservationReason}.\n`,
+      );
+      return;
+    }
     try {
       if (!existsSync(releasePath)) writeFileSync(releasePath, "RELEASE\n", { flag: "wx" });
     } catch (error) {
@@ -354,44 +472,26 @@ function ensureRealBuildBootstrapLock(): void {
   child.unref();
 }
 
+const calibrationConfig =
+  step44Operation.mode === "real-domain-calibration"
+    ? createRealBuildPlaywrightConfig({
+        port: Number(process.env.LEGO_E2E_PORT ?? 5267 + (process.pid % 900)),
+        operation: step44Operation,
+        calibrationOutputDir: prepareRealBuildStep44CalibrationRunnerOutput(exactConfigRepoRoot()),
+      })
+    : undefined;
+if (calibrationConfig !== undefined) assertRealBuildStep44CalibrationRawConfig(calibrationConfig);
+
 ensureRealBuildBootstrapLock();
 
-/**
- * A port of this run's own, so two Playwright runs can share a checkout.
- *
- * The dev server used to be pinned to 5267, and several agents working in one
- * worktree spent tens of minutes each queueing behind "Port 5267 is already in
- * use" — one of them resorted to killing every node process and took a sibling
- * agent down with it. The port is derived from the process id so concurrent
- * runs differ without any coordination, and `LEGO_E2E_PORT` pins it when a
- * caller needs to know the number in advance.
- *
- * Chosen here rather than in global setup because Playwright reads the config
- * before setup runs, so this is the last moment both the server and `baseURL`
- * can still agree on it.
- */
+if (calibrationConfig !== undefined) assertRealBuildStep44CalibrationRawConfig(calibrationConfig);
+
+// Playwright reads this before global setup, so the server and baseURL share one run-owned port.
 const port = Number(process.env.LEGO_E2E_PORT ?? 5267 + (process.pid % 900));
 process.env.LEGO_E2E_PORT = String(port);
 
-export default {
-  testDir: "./apps/web/e2e",
-  // Browser tests use .spec.ts. Keep colocated Vitest contract tests out of
-  // Playwright's default .test.ts discovery so each runner owns one syntax.
-  testMatch: "**/*.spec.ts",
-  fullyParallel: false,
-  forbidOnly: true,
-  retries: 0,
-  workers: 1,
-  globalSetup: "./apps/web/e2e/global-setup.ts",
-  globalTeardown: "./apps/web/e2e/real-build-global-teardown.ts",
-  outputDir: "test-results/playwright",
-  reporter: "list",
-  use: {
-    baseURL: `http://127.0.0.1:${port}`,
-    headless: true,
-    serviceWorkers: "block",
-    screenshot: "only-on-failure",
-    trace: "retain-on-failure",
-    viewport: { width: 1440, height: 1000 },
-  },
-} satisfies import("@playwright/test").PlaywrightTestConfig;
+export default calibrationConfig ??
+  createRealBuildPlaywrightConfig({
+    port,
+    operation: step44Operation,
+  });

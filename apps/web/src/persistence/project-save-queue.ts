@@ -1,11 +1,11 @@
 import type { EditorState } from "../editor-state";
 import type { ProjectRepository } from "./indexeddb-project-repository";
-import { createStoredEditorProject, type StoredEditorProjectV1 } from "./project-snapshot";
+import { createStoredEditorProject, type StoredEditorProject } from "./project-snapshot";
 
 interface SaveSlot {
   state: EditorState;
-  readonly promise: Promise<StoredEditorProjectV1>;
-  readonly resolve: (stored: StoredEditorProjectV1) => void;
+  readonly promise: Promise<StoredEditorProject>;
+  readonly resolve: (stored: StoredEditorProject) => void;
   readonly reject: (error: unknown) => void;
 }
 
@@ -15,9 +15,9 @@ interface IdleWaiter {
 }
 
 function createSaveSlot(state: EditorState): SaveSlot {
-  let resolve!: (stored: StoredEditorProjectV1) => void;
+  let resolve!: (stored: StoredEditorProject) => void;
   let reject!: (error: unknown) => void;
-  const promise = new Promise<StoredEditorProjectV1>((resolvePromise, rejectPromise) => {
+  const promise = new Promise<StoredEditorProject>((resolvePromise, rejectPromise) => {
     resolve = resolvePromise;
     reject = rejectPromise;
   });
@@ -43,7 +43,7 @@ export class ProjectSaveQueue {
     return this.#generation;
   }
 
-  public enqueue(state: EditorState): Promise<StoredEditorProjectV1> {
+  public enqueue(state: EditorState): Promise<StoredEditorProject> {
     if (this.#failure !== null) return Promise.reject(this.#failure);
 
     let capturedState: EditorState;

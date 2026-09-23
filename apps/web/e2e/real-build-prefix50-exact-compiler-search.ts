@@ -9,6 +9,8 @@ import type { BrickDocumentV1 } from "@lego-studio/protocol";
 import {
   preparePlacementEnumerationWorld,
   type PlacementCandidate,
+  type PlacementEnumeration,
+  type PreparedPlacementEnumerationWorld,
 } from "../src/assembly/enumerate-placements";
 import { protocolConnectionKindForDiscoveredConnection } from "../src/assembly/placement-connection-kind";
 import type { RealBuildAutomaticPlacementWitness } from "./real-build-automatic-placement-input";
@@ -18,7 +20,12 @@ import {
   type RealBuildPrefix50SearchState,
   type RealBuildPrefix50TargetOccurrence,
 } from "./real-build-prefix50-exact-compiler-contract";
-import { enumerateFor, sameTransform } from "./real-build-prefix50-exact-compiler-foundation";
+import {
+  buildRealBuildPrefix50ExactEnumerationQuery,
+  enumerateFor,
+  requireRealBuildPrefix50CompleteEnumeration,
+  sameTransform,
+} from "./real-build-prefix50-exact-compiler-foundation";
 import {
   prefix50TemporaryOperations,
   prefix50TemporaryPartId,
@@ -82,6 +89,44 @@ export function searchStateMemoCommitment(
   });
 }
 
+/**
+ * Commits every input to one complete placement-enumeration query except the
+ * document. The owning map is allocated inside one recursive search state, so
+ * crossing a document transition necessarily discards every cached result.
+ */
+export function stateLocalEnumerationQueryCommitment(
+  occurrence: RealBuildPrefix50TargetOccurrence,
+  allowDetachedBuildPlate: boolean,
+) {
+  return canonicalDigest(
+    buildRealBuildPrefix50ExactEnumerationQuery(occurrence, allowDetachedBuildPlate),
+  );
+}
+
+function stateLocalCompleteEnumerator(
+  document: BrickDocumentV1,
+  allowDetachedBuildPlate: boolean,
+  budget: RealBuildPrefix50SearchBudget,
+  prepared: PreparedPlacementEnumerationWorld,
+  enumeratePlacement: typeof enumerateFor,
+  reuseCompleteEnumerations: boolean,
+): (occurrence: RealBuildPrefix50TargetOccurrence) => PlacementEnumeration {
+  const completeEnumerations = new Map<string, PlacementEnumeration>();
+  return (occurrence) => {
+    if (!reuseCompleteEnumerations) {
+      return enumeratePlacement(document, occurrence, allowDetachedBuildPlate, budget, prepared);
+    }
+    const key = stateLocalEnumerationQueryCommitment(occurrence, allowDetachedBuildPlate);
+    const cached = completeEnumerations.get(key);
+    if (cached !== undefined) return cached;
+    const complete = requireRealBuildPrefix50CompleteEnumeration(
+      enumeratePlacement(document, occurrence, allowDetachedBuildPlate, budget, prepared),
+    );
+    completeEnumerations.set(key, complete);
+    return complete;
+  };
+}
+
 function searchStepWithEnumerator(
   state: RealBuildPrefix50SearchState,
   basePartIds: ReadonlySet<string>,
@@ -89,6 +134,7 @@ function searchStepWithEnumerator(
   budget: RealBuildPrefix50SearchBudget,
   dead: Set<string>,
   enumeratePlacement: typeof enumerateFor,
+  reuseCompleteEnumerations: boolean,
 ): RealBuildPrefix50SearchState | null {
   budget.nodes += 1;
   if (budget.nodes > REAL_BUILD_PREFIX50_MAXIMUM_CUMULATIVE_SEARCH_NODES) {
@@ -102,15 +148,21 @@ function searchStepWithEnumerator(
   const key = searchStateMemoCommitment(state, basePartIds, allowDetachedBuildPlate);
   if (dead.has(key)) return null;
   const prepared = preparePlacementEnumerationWorld(state.document);
+  // Placement enumeration depends on the unchanged document plus the committed
+  // query above, not on occurrence ordinal, colour, or target position. Keeping
+  // this map state-local makes invalidation structural: every recursive child
+  // owns a new map after its document has changed.
+  const enumerateStateLocal = stateLocalCompleteEnumerator(
+    state.document,
+    allowDetachedBuildPlate,
+    budget,
+    prepared,
+    enumeratePlacement,
+    reuseCompleteEnumerations,
+  );
   for (let index = 0; index < state.remaining.length; index += 1) {
     const occurrence = state.remaining[index]!;
-    const enumeration = enumeratePlacement(
-      state.document,
-      occurrence,
-      allowDetachedBuildPlate,
-      budget,
-      prepared,
-    );
+    const enumeration = enumerateStateLocal(occurrence);
     const candidate = enumeration.candidates.find(({ transform }) =>
       sameTransform(transform, occurrence.targetTransform),
     );
@@ -147,6 +199,7 @@ function searchStepWithEnumerator(
       budget,
       dead,
       enumeratePlacement,
+      reuseCompleteEnumerations,
     );
     if (result !== null) return result;
   }
@@ -168,6 +221,7 @@ export function searchStep(
     budget,
     dead,
     enumerateFor,
+    true,
   );
 }
 
@@ -178,6 +232,7 @@ export function searchStepForTest(
   budget: RealBuildPrefix50SearchBudget,
   dead: Set<string>,
   enumeratePlacement: typeof enumerateFor = enumerateFor,
+  reuseCompleteEnumerations = enumeratePlacement === enumerateFor,
 ): RealBuildPrefix50SearchState | null {
   return searchStepWithEnumerator(
     state,
@@ -186,5 +241,6 @@ export function searchStepForTest(
     budget,
     dead,
     enumeratePlacement,
+    reuseCompleteEnumerations,
   );
 }

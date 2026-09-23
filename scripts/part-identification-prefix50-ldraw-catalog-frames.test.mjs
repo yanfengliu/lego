@@ -174,7 +174,7 @@ describe.runIf(inputsPresent)("prefix-50 exact LDraw/catalog frame registry", ()
     );
   });
 
-  it("derives the five new archive frames with exact counts, bounds, and one symmetry class", () => {
+  it("derives the four new archive frames with exact counts, bounds, and one symmetry class", () => {
     const rows = PREFIX50_LDRAW_CATALOG_NEW_PARAMETRIC_EXPECTATIONS.map((expected) => {
       const row = artifact.frames.find(
         ({ designRevision }) => designRevision === expected.designRevision,
@@ -196,7 +196,7 @@ describe.runIf(inputsPresent)("prefix-50 exact LDraw/catalog frame registry", ()
       };
     });
     expect(rows).toEqual(PREFIX50_LDRAW_CATALOG_NEW_PARAMETRIC_EXPECTATIONS);
-    expect(rows.map(({ candidateCount }) => candidateCount)).toEqual([2, 4, 4, 2, 2]);
+    expect(rows.map(({ candidateCount }) => candidateCount)).toEqual([4, 4, 2, 2]);
   });
 
   it("binds every catalog definition layer and preserves 15573's exact narrow connector truth", async () => {
@@ -213,12 +213,37 @@ describe.runIf(inputsPresent)("prefix-50 exact LDraw/catalog frame registry", ()
       });
     }
     const jumper = catalog.getPartDefinition("builtin:jumper-plate-1x2");
-    expect(jumper.connectors.map(({ kind, positionLdu }) => ({ kind, positionLdu }))).toEqual([
-      { kind: "undersideClutch", positionLdu: [0, 4, -10] },
-      { kind: "undersideClutch", positionLdu: [0, 4, 10] },
-      { kind: "stud", positionLdu: [0, -4, 0] },
+    expect(
+      jumper.connectors.map(({ id, kind, positionLdu }) => ({ id, kind, positionLdu })),
+    ).toEqual([
+      { id: "stud:0", kind: "stud", positionLdu: [0, -4, 0] },
+      { id: "undersideClutch:0:0", kind: "undersideClutch", positionLdu: [0, 4, -10] },
+      { id: "undersideClutch:center", kind: "undersideClutch", positionLdu: [0, 4, 0] },
+      { id: "undersideClutch:0:1", kind: "undersideClutch", positionLdu: [0, 4, 10] },
     ]);
-    expect(jumper.collision.allowances).toHaveLength(2);
+    expect(
+      jumper.collision.allowances.map(({ id, portId, centerLdu }) => ({ id, portId, centerLdu })),
+    ).toEqual([
+      { id: "tubeSeat:0:0", portId: "undersideClutch:0:0", centerLdu: [0, 2, -10] },
+      { id: "tubeSeat:center", portId: "undersideClutch:center", centerLdu: [0, 2, 0] },
+      { id: "tubeSeat:0:1", portId: "undersideClutch:0:1", centerLdu: [0, 2, 10] },
+    ]);
+    const source = artifact.frames.find(({ designRevision }) => designRevision === "15573;L");
+    expect(source).toMatchObject({
+      derivationKind: "catalog-mesh-asset-to-catalog-frame",
+      frame: { orientationId: "upright-yaw-90", translationLdu: [0, -4, 0] },
+      evidence: {
+        assetId: "ldraw:official:15573.dat",
+        assetToCatalogFrameSchemaVersion: "mesh-asset-to-catalog-frame/1",
+        geometryContentHash:
+          "sha256:ca16e018c7fe96b6f9ebb09b7104d64066351ad4ad014f618053f76aacd783dd",
+      },
+    });
+    expect(
+      PREFIX50_LDRAW_CATALOG_NEW_PARAMETRIC_EXPECTATIONS.some(
+        ({ designRevision }) => designRevision === "15573;L",
+      ),
+    ).toBe(false);
   });
 
   it("rejects forged tokens and any archive mutation before frame publication", async () => {
@@ -255,7 +280,7 @@ describe.runIf(inputsPresent)("prefix-50 exact LDraw/catalog frame registry", ()
   }, 60_000);
 
   it("refuses an asymmetric quarter-turn instead of choosing by candidate order", () => {
-    const source = artifact.frames.find(({ designRevision }) => designRevision === "15573;L");
+    const source = artifact.frames.find(({ designRevision }) => designRevision === "3003;S");
     const definition = structuredClone(catalog.getPartDefinition(source.catalogPartId));
     definition.connectors.push({
       ...definition.connectors[0],

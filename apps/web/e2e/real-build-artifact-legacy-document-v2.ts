@@ -82,27 +82,27 @@ const ADDITIVE_SUCCESSOR_TRUTH_V26 = Object.freeze({
 });
 
 /** Exact live truth allowed to execute the detached `/26` compatibility projection. */
-const CURRENT_RUNTIME_TRUTH_V29 = Object.freeze({
+const CURRENT_RUNTIME_TRUTH_V30 = Object.freeze({
   schemaVersion: "lego.truth-snapshot/1",
   catalog: {
     id: "builtin.basic-parts",
-    version: "builtin.basic-parts/29",
-    hash: "sha256:19c5e8a3f4e1d00d7747c8d3e0f377ee4391acc53915df8ead0c1830b75b8db6",
+    version: "builtin.basic-parts/30",
+    hash: "sha256:78a6300cd177e295fd0bc518db006a8bae61e45b69bf54bf0724d08d2500cdb1",
   },
   connectorTaxonomy: {
     id: "stud-tube",
     version: "stud-tube/2",
-    hash: "sha256:b0b8a26e010f522ba88d55f3b8565add619b2e569f15abad59a46ffd2ccf0ddb",
+    hash: "sha256:b83c1c675ff2f4eef185c75a98a246f6269c427f859c2a8a691fb849eb3f04a6",
   },
   collisionModel: {
     id: "rectilinear-stud-clearance",
     version: "rectilinear-stud-clearance/4",
-    hash: "sha256:b1231af344c0c293e74c0721bd0005f4f7a6746ee144ccf71ca14e22caa07042",
+    hash: "sha256:c9afee2441ed98dc811143ea00223a770acff67de794f24f9dc84d626c033c64",
   },
   transformPolicy: {
     id: "part-scoped-proper-orientations-negative-y-up",
-    version: "part-scoped-proper-orientations-negative-y-up/1",
-    hash: "sha256:44cf428cee1487a9441c609a75fbafefd6c3b4591512af30f8903e4508285f4c",
+    version: "part-scoped-proper-orientations-negative-y-up/2",
+    hash: "sha256:36a749aa761253c33fac7b75fb48fdbd3df0ea83f869bd6926b60308c37f18f1",
   },
   validatorSet: {
     id: "lego.kernel-validators",
@@ -153,18 +153,21 @@ const ALL_POST_LEGACY_CATALOG_PART_IDS = Object.freeze([
   ...CURRENT_RUNTIME_ADDITIVE_PART_IDS,
 ]);
 /**
- * Exact `/29` live projection over the retained 85-row predecessor roster.
+ * Exact `/30` live projection over the retained 85-row predecessor roster.
  * This binds the current connector, proper-orientation, collision-profile, and
  * validator semantics without rewriting either frozen `/13` truth or the
  * separately retained `/26` migration projection.
  */
-const CURRENT_RUNTIME_PREDECESSOR_SEMANTICS_HASH_V29 =
-  "sha256:3366a2aba6de9918911d4f0bb02c82fed12a4cecd1dc9ee17710756b5a853bab";
-const CURRENT_RUNTIME_PROFILED_PREDECESSOR_IDS_V29 = Object.freeze([
+const CURRENT_RUNTIME_PREDECESSOR_SEMANTICS_HASH_V30 =
+  "sha256:add74bf0fc6c8b73061fed04d22e61b1fc7af7ce88124b2f8d3ec9216f429933";
+const CURRENT_RUNTIME_PROFILED_PREDECESSOR_IDS_V30 = Object.freeze([
+  "builtin:corner-plate-2x2-round",
   "builtin:corner-plate-3x3",
+  "builtin:jumper-plate-1x2",
   "builtin:plate-1x2-round-end",
   "builtin:plate-3x3-corner-round",
   "builtin:wedge-plate-2x4-wing",
+  "builtin:wedge-plate-3x3-cut-corner",
 ]);
 
 interface CatalogCompatibilityBasisV26 {
@@ -213,13 +216,13 @@ export function createFrozenLegacyAdditiveCatalogBasisV26(): CatalogCompatibilit
     (partId) => !CURRENT_RUNTIME_ADDITIVE_PART_IDS.includes(partId),
   );
   if (
-    JSON.stringify(active.truth) !== JSON.stringify(CURRENT_RUNTIME_TRUTH_V29) ||
+    JSON.stringify(active.truth) !== JSON.stringify(CURRENT_RUNTIME_TRUTH_V30) ||
     runtimeAddedPartCounts.some((count) => count !== 1) ||
     activePartIds.length !== 106 ||
     v26PartIds.length !== 98
   ) {
     throw new TypeError(
-      "Legacy diagnostic validation requires the exact reviewed /29 runtime bridge over frozen builtin.basic-parts/26.",
+      "Legacy diagnostic validation requires the exact reviewed /30 runtime bridge over frozen builtin.basic-parts/26.",
     );
   }
   return {
@@ -232,7 +235,7 @@ export function createFrozenLegacyAdditiveCatalogBasisV26(): CatalogCompatibilit
   };
 }
 
-function currentRuntimeCompatibilityProjectionV29(document: BrickDocumentV1): BrickDocumentV1 {
+function currentRuntimeCompatibilityProjectionV30(document: BrickDocumentV1): BrickDocumentV1 {
   const active = createEmptyBrickDocument({
     id: "legacy-v2-current-runtime-projection",
     name: "Legacy v2 current runtime projection",
@@ -267,9 +270,9 @@ export function assertFrozenLegacyAdditiveCatalogV2(
       "Legacy diagnostic validation requires exact reviewed additive catalog successor builtin.basic-parts/26.",
     );
   }
-  if (active.validatorSemanticsHash !== CURRENT_RUNTIME_PREDECESSOR_SEMANTICS_HASH_V29) {
+  if (active.validatorSemanticsHash !== CURRENT_RUNTIME_PREDECESSOR_SEMANTICS_HASH_V30) {
     throw new TypeError(
-      "Legacy diagnostic validation requires the exact reviewed /29 predecessor-semantic projection; an existing catalog interpretation moved.",
+      `Legacy diagnostic validation requires the exact reviewed /30 predecessor-semantic projection; received ${active.validatorSemanticsHash}, expected ${CURRENT_RUNTIME_PREDECESSOR_SEMANTICS_HASH_V30}.`,
     );
   }
   const profiledPredecessorIds = PART_DEFINITIONS.filter(
@@ -286,10 +289,10 @@ export function assertFrozenLegacyAdditiveCatalogV2(
     .sort();
   if (
     JSON.stringify(profiledPredecessorIds) !==
-    JSON.stringify(CURRENT_RUNTIME_PROFILED_PREDECESSOR_IDS_V29)
+    JSON.stringify(CURRENT_RUNTIME_PROFILED_PREDECESSOR_IDS_V30)
   ) {
     throw new TypeError(
-      `Legacy diagnostic validation requires the exact reviewed /29 predecessor profile roster; received ${profiledPredecessorIds.join(", ")}.`,
+      `Legacy diagnostic validation requires the exact reviewed /30 predecessor profile roster; received ${profiledPredecessorIds.join(", ")}.`,
     );
   }
   const successorPartIds = active.constraints.allowedCatalogPartIds;
@@ -362,17 +365,17 @@ function additiveCompatibilityProjectionV26(
 export function validateFrozenLegacyBrickDocumentV2(document: BrickDocumentV1): ValidationReportV1 {
   const active = createFrozenLegacyAdditiveCatalogBasisV26();
   additiveCompatibilityProjectionV26(document, active);
-  const projected = currentRuntimeCompatibilityProjectionV29(document);
+  const projected = currentRuntimeCompatibilityProjectionV30(document);
   const validation = validateBrickDocument(projected);
   if (
-    validation.truthSnapshotHash !== canonicalDigest(CURRENT_RUNTIME_TRUTH_V29) ||
+    validation.truthSnapshotHash !== canonicalDigest(CURRENT_RUNTIME_TRUTH_V30) ||
     validation.targetDocumentHash !== documentStructuralHash(projected)
   ) {
     throw new TypeError(
       "Legacy compatibility projection did not reproduce its exact active truth and structural hash.",
     );
   }
-  if (validation.validatorSetHash !== CURRENT_RUNTIME_TRUTH_V29.validatorSet.hash) {
+  if (validation.validatorSetHash !== CURRENT_RUNTIME_TRUTH_V30.validatorSet.hash) {
     throw new TypeError(
       "Legacy compatibility projection was not evaluated by the exact generation-5 runtime bridge under the frozen /26 predecessor semantic guard.",
     );
@@ -453,7 +456,7 @@ export function assertFrozenLegacyDocumentProjectionV2(input: {
       "Legacy diagnostic document is not globally valid or does not reproduce its exact structural hash under frozen truth.",
     );
   }
-  const sequence = deriveBuildSequence(currentRuntimeCompatibilityProjectionV29(input.document));
+  const sequence = deriveBuildSequence(currentRuntimeCompatibilityProjectionV30(input.document));
   if (!sequence.buildable) {
     throw new TypeError(
       `Legacy diagnostic document has an unbuildable prefix at step ${String(sequence.firstUnbuildableStepIndex)}.`,
@@ -462,7 +465,7 @@ export function assertFrozenLegacyDocumentProjectionV2(input: {
   for (const report of input.reports) {
     const prefix = canonicalPrefixDocument(input.document, report.stepNumber);
     const validation = validateFrozenLegacyBrickDocumentV2(prefix);
-    const prefixSequence = deriveBuildSequence(currentRuntimeCompatibilityProjectionV29(prefix));
+    const prefixSequence = deriveBuildSequence(currentRuntimeCompatibilityProjectionV30(prefix));
     assertPinnedLegacyReport(validation, `Legacy printed-step ${report.stepNumber} prefix`);
     const expectedBlocking = blockingIssues(validation);
     if (

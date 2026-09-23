@@ -3,6 +3,7 @@ export const BRICK_KERNEL_VERSION = "lego.brick-kernel/1" as const;
 export * from "./assemblies.ts";
 export * from "./compound-bodies.ts";
 export * from "./build-comparison.ts";
+export * from "./build-playback-trace.ts";
 export * from "./build-sequence.ts";
 export * from "./canonical.ts";
 export {
@@ -14,7 +15,19 @@ export {
   type CollisionWorldWork,
   type CollisionWorldWorkObserver,
 } from "./collisions.ts";
-export * from "./compiler.ts";
+export * from "./compiler-candidate.ts";
+export {
+  BUILD_PROGRAM_COMPILER_MANIFEST,
+  BUILD_PROGRAM_COMPILER_VERSION,
+  BUILTIN_COMPILER_SNAPSHOT_HASH,
+  compileBuildProgram,
+  type CompilationContext,
+  type CompilationFailure,
+  type CompilationIssue,
+  type CompilationIssueCode,
+  type CompilationResult,
+  type CompilationSuccess,
+} from "./compiler.ts";
 export * from "./document.ts";
 export * from "./factory.ts";
 export * from "./ldraw.ts";

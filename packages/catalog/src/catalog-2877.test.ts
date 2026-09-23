@@ -16,6 +16,11 @@ import {
   BUNDLED_LDRAW_CLOSURE_MANIFESTS,
   BUNDLED_LDRAW_SOURCE_FILES,
 } from "./ldraw-bundled-sources-6651557.ts";
+import {
+  restorePhysicalPromotionBases,
+  restorePreV30NominalStudProfileAbsence,
+  restorePreV30OrientationGrantAbsence,
+} from "./historical-catalog-test-support.ts";
 import { SET_6651557_MESH_ASSETS } from "./mesh-assets-6651557.ts";
 import { SET_6651557_MEASURED_BLUEPRINTS } from "./part-blueprints-6651557-measured.ts";
 import { SET_6651557_NATIVE_RECORD_DIGESTS } from "./quarantine/set-6651557-native-record-digests.ts";
@@ -55,7 +60,7 @@ describe("2877 grille brick catalog truth", () => {
     const part = getPartDefinition(PART_ID)!;
     const blueprint = SET_6651557_MEASURED_BLUEPRINTS.find(({ designId }) => designId === "2877")!;
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/29");
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/30");
     expect(PART_DEFINITIONS).toHaveLength(106);
     expect(PART_DEFINITIONS.at(-15)?.id).toBe(PART_ID);
     expect(part).toMatchObject({
@@ -104,8 +109,8 @@ describe("2877 grille brick catalog truth", () => {
       bytes: 12_845,
       manifestSha256: "sha256:61128d15f095eaa9353037ebae2d3e8413835db9c01870b979221dd5bc55afd2",
     });
-    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(45);
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(237);
+    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(46);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(239);
   });
 
   it("binds the revision-E Builder record, reviewed bytes, and exact frame", () => {
@@ -211,6 +216,7 @@ describe("2877 grille brick catalog truth", () => {
         axis: "y",
         centerLdu: [0, -14, z],
         radiusLdu: 6.0001514980873605,
+        validatedConnectionProfileRadiusLdu: 6,
         heightLdu: 4,
       })),
     );
@@ -233,9 +239,13 @@ describe("2877 grille brick catalog truth", () => {
   });
 
   it("pins the reviewed /29 projection of the /19 prefix under its historical truth label", () => {
-    const priorParts = PART_DEFINITIONS.slice(0, 91);
+    const priorParts = restorePreV30OrientationGrantAbsence(
+      restorePreV30NominalStudProfileAbsence(
+        restorePhysicalPromotionBases(PART_DEFINITIONS.slice(0, 91), ["builtin:jumper-plate-1x2"]),
+      ),
+    );
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/29",
+      "builtin.basic-parts/30",
       "builtin.basic-parts/19",
     );
     const connectorCollision = priorParts.map(({ id, connectors, collision }) => ({

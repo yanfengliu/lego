@@ -29,7 +29,7 @@ export const PREFIX50_OFFICIAL_LDRAW_WORLD_PROPOSAL_PINS = Object.freeze({
   actionPreparation: Object.freeze({
     schemaVersion: "lego.real-build-action-preparation/1",
     bytes: 317_152,
-    digest: "sha256:5fbab00b90c6ffbe6c9b09727819e0b3a964cebbd88138232bd2418df6100fb6",
+    digest: "sha256:cc1163b91bcc3892137e73dd99ae51b9626589572ca683f55e74302bd4a2b267",
   }),
   officialXml: Object.freeze({
     path: "output/official-model/vx1087034_21066_a.xml",
@@ -41,7 +41,7 @@ export const PREFIX50_OFFICIAL_LDRAW_WORLD_PROPOSAL_PINS = Object.freeze({
     bytes: 139_649,
     digest: "sha256:096b78037ef1ee15a6dcff90b38f00f09465d0f5a246cb6f5f08fac087dd7bc2",
   }),
-  catalogVersion: "builtin.basic-parts/29",
+  catalogVersion: "builtin.basic-parts/30",
   expectedAccounting: Object.freeze({
     xmlBrickRows: 1_465,
     topLevelLdrawRows: 1_465,
@@ -62,8 +62,8 @@ export const PREFIX50_OFFICIAL_LDRAW_WORLD_PROPOSAL_PINS = Object.freeze({
     semanticColorContradictions: 0,
   }),
   expectedArtifact: Object.freeze({
-    bytes: 764_234,
-    digest: "sha256:24c10640f118d2961dd297cff608b6978bd54eab85a37cf0c314f4711612f960",
+    bytes: 765_179,
+    digest: "sha256:1a1bf42979962969ae4389007680cc209e86addf6dc4e48b6ff7eb4fe699aaab",
   }),
 });
 

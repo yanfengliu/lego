@@ -3,7 +3,7 @@ import {
   ProjectSnapshotError,
   createStoredEditorProject,
   parseStoredEditorProject,
-  type StoredEditorProjectV1,
+  type StoredEditorProject,
 } from "./project-snapshot";
 
 const DATABASE_VERSION = 1;
@@ -38,12 +38,12 @@ export interface ProjectSummary {
 export interface ProjectRepository {
   /** Every stored project, for the project switcher. */
   list(): Promise<readonly ProjectSummary[]>;
-  load(projectId: string): Promise<StoredEditorProjectV1 | null>;
+  load(projectId: string): Promise<StoredEditorProject | null>;
   save(
     projectId: string,
     state: EditorState,
     expectedGeneration: number,
-  ): Promise<StoredEditorProjectV1>;
+  ): Promise<StoredEditorProject>;
   delete(projectId: string, expectedGeneration: number): Promise<void>;
   close(): Promise<void>;
 }
@@ -192,7 +192,7 @@ export class IndexedDbProjectRepository implements ProjectRepository {
     }
   }
 
-  public async load(projectId: string): Promise<StoredEditorProjectV1 | null> {
+  public async load(projectId: string): Promise<StoredEditorProject | null> {
     const database = await this.#databasePromise;
     const transaction = database.transaction(PROJECT_STORE, "readonly");
     const completion = transactionComplete(transaction);
@@ -218,7 +218,7 @@ export class IndexedDbProjectRepository implements ProjectRepository {
     projectId: string,
     state: EditorState,
     expectedGeneration: number,
-  ): Promise<StoredEditorProjectV1> {
+  ): Promise<StoredEditorProject> {
     const database = await this.#databasePromise;
     const transaction = database.transaction(PROJECT_STORE, "readwrite");
     const completion = transactionComplete(transaction);

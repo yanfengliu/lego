@@ -33,7 +33,7 @@ OPAQUE_2453_ROUTE = {
     "exactLdrawId": "2453b.dat",
     "builderToCatalogLocalMatrix": [25, 0, 0, 0, -25, 0, 0, 0, -25],
     "builderToCatalogLocalTranslationLdu": [0, 60, 0],
-    "proofDigest": "sha256:75ba323b5ce28509ee2041c62ff8f3fabec4450cbd679c7f48fe600b9a608bb5",
+    "proofDigest": "sha256:58c7847cb2b39f6b535c0be6cee1d2659bceaef6f0074343eadc51fe8bf1845a",
 }
 
 EVIDENCE = {

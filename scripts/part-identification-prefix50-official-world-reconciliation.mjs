@@ -5,8 +5,8 @@ import {
   snapshotBoundedUint8Array,
   snapshotExactDataObject,
 } from "./part-identification-bounded-snapshot.mjs";
-import { importRepositoryTypeScript } from "./part-identification-typescript-runtime.mjs";
 import { prefix50ActionOccurrenceMap } from "./part-identification-prefix50-official-world-reconciliation-action.mjs";
+import { registerRepositoryTypeScriptImports } from "./part-identification-typescript-hooks.mjs";
 import {
   bytesFromVerifiedPrefix50ActionPreparation,
   inspectVerifiedPrefix50ActionPreparation,
@@ -26,22 +26,17 @@ import {
   prefix50Commitment,
   prefix50OccurrenceProjection,
   prefix50WorldProjection,
-} from "./part-identification-prefix50-official-world-reconciliation-math.mjs";
-import {
-  prefix50FrameLookup,
-  reconcilePrefix50Occurrence,
-} from "./part-identification-prefix50-official-world-reconciliation-occurrence.mjs";
+} from "./part-identification-prefix50-official-world-reconciliation-projection.mjs";
+import { verifyExactReviewedPrefix50OfficialWorldReconciliation } from "./part-identification-prefix50-official-world-reconciliation-verification.mjs";
 import {
   PREFIX50_OFFICIAL_WORLD_RECONCILIATION_AUTHORITY,
   PREFIX50_OFFICIAL_WORLD_RECONCILIATION_MAX_ARTIFACT_BYTES,
   PREFIX50_OFFICIAL_WORLD_RECONCILIATION_PINS,
   PREFIX50_OFFICIAL_WORLD_RECONCILIATION_SCHEMA,
 } from "./part-identification-prefix50-official-world-reconciliation-source.mjs";
-import { measurePrefix50FirstEightConnectorTopology } from "./part-identification-prefix50-official-world-reconciliation-topology.mjs";
 
 const COMPILE_KEYS = ["actionPreparation", "frameRegistry", "proposal"];
 const VERIFY_KEYS = [...COMPILE_KEYS, "artifactBytes"].sort();
-const CATALOG_URL = new URL("../packages/catalog/src/index.ts", import.meta.url).href;
 
 function snapshotInput(input, keys, label) {
   const roles = snapshotExactDataObject(input, label, keys);
@@ -142,6 +137,10 @@ function accounting(rows) {
 }
 
 async function compileSnapshot(input) {
+  const { prefix50FrameLookup, reconcilePrefix50Occurrence } =
+    await import("./part-identification-prefix50-official-world-reconciliation-occurrence.mjs");
+  const { measurePrefix50FirstEightConnectorTopology } =
+    await import("./part-identification-prefix50-official-world-reconciliation-topology.mjs");
   const proposalInspection = inspectVerifiedPrefix50OfficialLdrawWorldProposal(input.proposal);
   const proposalBytes = bytesFromVerifiedPrefix50OfficialLdrawWorldProposal(input.proposal);
   const frameInspection = inspectVerifiedPrefix50LdrawCatalogFrames(input.frameRegistry);
@@ -169,7 +168,8 @@ async function compileSnapshot(input) {
   const proposal = proposalInspection.artifact;
   exactProposalScope(proposal);
   const actionByOrdinal = prefix50ActionOccurrenceMap(actionInspection.artifact);
-  const catalog = await importRepositoryTypeScript(CATALOG_URL);
+  registerRepositoryTypeScriptImports();
+  const catalog = await import("../packages/catalog/src/index.ts");
   if (
     catalog.BUILTIN_CATALOG_VERSION !== PREFIX50_OFFICIAL_WORLD_RECONCILIATION_PINS.catalogVersion
   ) {
@@ -312,14 +312,6 @@ function validateSuppliedArtifact(supplied, expected) {
   }
 }
 
-const verifiedArtifacts = new WeakMap();
-
-function deepFreeze(value) {
-  if (typeof value !== "object" || value === null) return value;
-  for (const child of Object.values(value)) deepFreeze(child);
-  return Object.freeze(value);
-}
-
 export async function verifyPrefix50OfficialWorldReconciliation(input) {
   const snapshot = snapshotInput(
     input,
@@ -348,30 +340,14 @@ export async function verifyPrefix50OfficialWorldReconciliation(input) {
       "Official-world reconciliation does not exactly reproduce from its three opaque current inputs.",
     );
   }
-  const verified = Object.freeze({});
-  verifiedArtifacts.set(verified, {
-    artifact: deepFreeze(expected),
-    bytes: Buffer.from(expectedBytes),
-    digest,
+  return verifyExactReviewedPrefix50OfficialWorldReconciliation({
+    artifact: expected,
+    artifactBytes: expectedBytes,
   });
-  return verified;
 }
 
-function verifiedRecord(value) {
-  const record = verifiedArtifacts.get(value);
-  if (record === undefined) {
-    throw new TypeError(
-      "Official-world reconciliation inspection requires its opaque independent-verifier result.",
-    );
-  }
-  return record;
-}
-
-export const isVerifiedPrefix50OfficialWorldReconciliation = (value) =>
-  typeof value === "object" && value !== null && verifiedArtifacts.has(value);
-export const inspectVerifiedPrefix50OfficialWorldReconciliation = (value) => {
-  const record = verifiedRecord(value);
-  return Object.freeze({ artifact: record.artifact, digest: record.digest });
-};
-export const bytesFromVerifiedPrefix50OfficialWorldReconciliation = (value) =>
-  Buffer.from(verifiedRecord(value).bytes);
+export {
+  bytesFromVerifiedPrefix50OfficialWorldReconciliation,
+  inspectVerifiedPrefix50OfficialWorldReconciliation,
+  isVerifiedPrefix50OfficialWorldReconciliation,
+} from "./part-identification-prefix50-official-world-reconciliation-verification.mjs";

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { readSampleBooklet } from "./booklet-fixture";
+import { readSampleBooklet } from "./booklet-file-source.ts";
 import { sha256Digest } from "./real-build-artifacts";
 import {
   assertRealBuildBootstrapSourceLockHeld,

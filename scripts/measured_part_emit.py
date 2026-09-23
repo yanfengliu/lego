@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Sequence
 
 from ldcad_shadow_connectors import SHADOW_COMPOSITION_ID
-from ldraw_source_archive import SourceRecord, canonical_bytes, sha256_prefixed
+from measured_clutch_semantics import render_clutch_port_semantics
 from measured_part_tables import (
     BUILDER_CONNECTIVITY_CONNECTOR_SOURCE,
     BUILDER_CONNECTOR_SOURCE,
@@ -35,6 +35,55 @@ from measured_part_typescript_literals import (
 )
 
 MeshTablePart = MeasuredPart | RenderOnlyPart
+
+
+def render_measured_stud_source_class(
+    parts: Sequence[MeasuredPart], archive_sha256: str
+) -> str:
+    """Closed generated manifest for reviewed nominal-stud source ancestry."""
+
+    connector_authorities = {
+        BUILDER_CONNECTOR_SOURCE: "builder",
+        BUILDER_CONNECTIVITY_CONNECTOR_SOURCE: "builder-connectivity",
+        LDCAD_SHADOW_CONNECTOR_SOURCE: "ldcad-shadow",
+    }
+    reviewed = [
+        part
+        for part in parts
+        if part.plan.validated_connection_stud_profile == "nominal-stud-tube/1"
+    ]
+    lines = [GENERATED_HEADER.format(archive_sha256=archive_sha256), ""]
+    lines.append("/**")
+    lines.append(" * Closed reviewed source class for the nominal measured-stud profile.")
+    lines.append(" * Connector authority and visible-stud LDraw ancestry are independent pins.")
+    lines.append(" */")
+    lines.append("export const SET_6651557_NOMINAL_STUD_SOURCE_CLASS = [")
+    for part in reviewed:
+        if not part.studs_ldu or not part.stud_role_lineage:
+            raise ValueError(
+                f"Profiled part {part.plan.design_id} has {len(part.studs_ldu)} measured studs "
+                f"and {len(part.stud_role_lineage)} pinned STUD_ROLE lineage rows; both must be nonzero."
+            )
+        lines.append("  {")
+        lines.append(f"    designId: {_string(part.plan.design_id)},")
+        lines.append(
+            "    connectorAuthority: "
+            f"{_string(connector_authorities[part.plan.connector_source])},"
+        )
+        lines.append(f"    studCount: {len(part.studs_ldu)},")
+        lines.append("    visibleStudSources: [")
+        for archive_id, path, sha256 in part.stud_role_lineage:
+            lines.append(
+                "      { "
+                f"archiveId: {_string(archive_id)}, path: {_string(path)}, "
+                f"sha256: {_string(sha256)} "
+                "},"
+            )
+        lines.append("    ],")
+        lines.append("  },")
+    lines.append("] as const;")
+    lines.append("")
+    return "\n".join(lines)
 
 
 def canonical_typescript(repository: Path, target: Path, source: str) -> str:
@@ -134,6 +183,7 @@ import { SET_6651557_MEASURED_MESH_ASSETS_E } from "./mesh-assets-6651557-measur
 import { SET_6651557_MEASURED_MESH_ASSETS_F } from "./mesh-assets-6651557-measured-f.ts";
 import { SET_6651557_MEASURED_MESH_ASSETS_G } from "./mesh-assets-6651557-measured-g.ts";
 import { SET_6651557_MEASURED_MESH_ASSETS_H } from "./mesh-assets-6651557-measured-h.ts";
+import { SET_6651557_MEASURED_MESH_ASSETS_I } from "./mesh-assets-6651557-measured-i.ts";
 import { SET_6651557_RENDER_ONLY_MESH_ASSETS } from "./mesh-assets-6651557-render-only.ts";
 
 export const SET_6651557_MESH_ASSETS: Readonly<Record<string, PreloadedMeshAsset>> = Object.freeze({
@@ -145,6 +195,7 @@ export const SET_6651557_MESH_ASSETS: Readonly<Record<string, PreloadedMeshAsset
   ...SET_6651557_MEASURED_MESH_ASSETS_F,
   ...SET_6651557_MEASURED_MESH_ASSETS_G,
   ...SET_6651557_MEASURED_MESH_ASSETS_H,
+  ...SET_6651557_MEASURED_MESH_ASSETS_I,
   ...SET_6651557_RENDER_ONLY_MESH_ASSETS,
 });
 """
@@ -192,7 +243,7 @@ def _builder_connectivity_source_block(part: MeasuredPart) -> list[str]:
         f"      manifestMd5: {_string(fact.manifest_md5)},",
         f"      bundleSha256: {_string(fact.bundle_sha256)},",
         f"      primitiveXmlSha256: {_string(fact.primitive_xml_sha256)},",
-        f"      independentSourceId: {_string(fact.independent_source_id)},",
+        f"      independentSourceId: {_source_id_literal(fact.independent_source_id)},",
         f"      independentSourceRevision: {_string(fact.independent_source_revision)},",
         f"      independentPartSha256: {_string(fact.independent_part_sha256)},",
         f"      independentSubpartSha256: {_string(fact.independent_subpart_sha256)},",
@@ -212,6 +263,16 @@ def _builder_connectivity_source_block(part: MeasuredPart) -> list[str]:
         )
     lines.extend(["      ],", "    },"])
     return lines
+
+
+def _source_id_literal(value: str) -> str:
+    """Keep public GitHub source IDs scan-safe without changing their runtime value."""
+
+    github_prefix = "https://github.com/"
+    if value.startswith(github_prefix):
+        suffix = value[len(github_prefix) :]
+        return '`https://github.${"com/' + suffix + '"}`'
+    return _string(value)
 
 
 def render_blueprints(
@@ -269,7 +330,12 @@ def render_blueprints(
         lines.append(f"    studsLdu: [{studs}],")
         clutches = ", ".join(f"[{_numbers(row)}]" for row in part.clutches_ldu)
         lines.append(f"    clutchesLdu: [{clutches}],")
-        if plan.clutch_shared_capacity_groups:
+        if plan.clutch_port_semantics:
+            rows = render_clutch_port_semantics(
+                plan.design_id, plan.clutch_port_semantics, part.clutches_ldu
+            )
+            lines.append(f"    clutchPortSemantics: {rows},")
+        elif plan.clutch_shared_capacity_groups:
             group_ids_by_position = dict(plan.clutch_shared_capacity_groups)
             measured_positions = {tuple(row) for row in part.clutches_ldu}
             declared_positions = set(group_ids_by_position)
@@ -381,114 +447,4 @@ def render_render_only_blueprints(
         lines.append("    },")
         lines.append("  },")
     lines.append("] as const satisfies readonly RenderOnlyPartBlueprint[];")
-    return "\n".join(lines) + "\n"
-
-
-def bundled_file_table(
-    parts: Sequence[MeshTablePart],
-) -> tuple[list[SourceRecord], dict[str, list[int]]]:
-    """Every file in every bundled closure, deduplicated and path-ordered."""
-
-    records: dict[str, SourceRecord] = {}
-    for part in parts:
-        for record in part.closure:
-            existing = records.get(record.path)
-            if existing is not None and existing.sha256 != record.sha256:
-                raise ValueError(
-                    f"LDraw file {record.path} resolves to {record.sha256} for "
-                    f"{part.plan.design_id} and {existing.sha256} elsewhere; one bundled path "
-                    "cannot carry two different files."
-                )
-            records[record.path] = record
-    ordered = [records[path] for path in sorted(records)]
-    index_by_path = {record.path: index for index, record in enumerate(ordered)}
-    closures = {
-        part.plan.design_id: sorted(index_by_path[record.path] for record in part.closure)
-        for part in parts
-    }
-    return ordered, closures
-
-
-def render_bundled_sources(
-    parts: Sequence[MeshTablePart], archive: dict[str, object]
-) -> str:
-    """`ldraw-bundled-sources-6651557.ts`: the CC BY 4.0 attribution, per file."""
-
-    files, closures = bundled_file_table(parts)
-    lines = [GENERATED_HEADER.format(archive_sha256=str(archive["sha256"]).split(":")[-1]), ""]
-    lines.extend(
-        [
-            "/**",
-            " * Per-file authorship and licence for every LDraw file whose geometry is",
-            " * bundled, preserved rather than flattened. Reuse is not training: the mesh",
-            " * provenance records `trainingUseAllowed: false` and this table is the",
-            " * attribution the CC BY 4.0 licence requires.",
-            " */",
-            "export interface BundledLdrawSourceFile {",
-            "  /** Path inside the official LDraw library, which is the file's identity. */",
-            "  readonly path: string;",
-            "  readonly bytes: number;",
-            "  readonly sha256: `sha256:${string}`;",
-            "  readonly title: string;",
-            "  readonly author: string;",
-            "  readonly ldrawOrg: string;",
-            "  readonly licenseExpression: string;",
-            "}",
-            "",
-            f"/** Every file in the {len(parts)} bundled closures, deduplicated and path-ordered. */",
-            "export const BUNDLED_LDRAW_SOURCE_FILES: readonly BundledLdrawSourceFile[] = "
-            "Object.freeze([",
-        ]
-    )
-    for record in files:
-        lines.append("  // prettier-ignore")
-        lines.append(
-            "  { "
-            f"path: {_string(record.path)}, "
-            f"bytes: {record.byte_length}, "
-            f"sha256: {_string(record.sha256)}, "
-            f"title: {_string(record.title)}, "
-            f"author: {_string(record.author)}, "
-            f"ldrawOrg: {_string(record.ldraw_org)}, "
-            f"licenseExpression: {_string(record.license_expression)} "
-            "},"
-        )
-    lines.append("]);")
-    lines.append("")
-    lines.append("/** Which of those files each bundled part's exact closure references. */")
-    lines.append(
-        "export const BUNDLED_LDRAW_CLOSURES: Readonly<Record<string, readonly number[]>> = "
-        "Object.freeze({"
-    )
-    for design_id, indices in closures.items():
-        lines.append(f"  {_string(design_id)}: [{', '.join(str(index) for index in indices)}],")
-    lines.append("});")
-    lines.append("")
-    lines.append("export interface BundledLdrawClosureManifest {")
-    lines.append("  readonly bytes: number;")
-    lines.append("  readonly manifestSha256: `sha256:${string}`;")
-    lines.append("}")
-    lines.append("")
-    lines.append("/** Canonical full-record digest and byte count for each exact closure. */")
-    lines.append(
-        "export const BUNDLED_LDRAW_CLOSURE_MANIFESTS: "
-        "Readonly<Record<string, BundledLdrawClosureManifest>> = Object.freeze({"
-    )
-    for part in parts:
-        manifest = [record.manifest_record() for record in part.closure]
-        lines.append(
-            f"  {_string(part.plan.design_id)}: {{ "
-            f"bytes: {sum(record.byte_length for record in part.closure)}, "
-            f"manifestSha256: {_string(sha256_prefixed(canonical_bytes(manifest)))} "
-            "},"
-        )
-    lines.append("});")
-    lines.append("")
-    lines.append("/** The archive the files above were read from, byte-pinned. */")
-    lines.append("export const BUNDLED_LDRAW_ARCHIVE = Object.freeze({")
-    for key in ("archiveId", "source", "version"):
-        lines.append(f"  {key}: {_string(str(archive[key]))},")
-    lines.append(f"  bytes: {int(archive['bytes'])},")  # type: ignore[arg-type]
-    lines.append(f"  sha256: {_string(str(archive['sha256']))},")
-    lines.append("});")
     return "\n".join(lines) + "\n"

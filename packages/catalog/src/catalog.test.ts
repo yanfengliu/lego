@@ -198,8 +198,8 @@ const EXPECTED_PART_IDS = [
 ] as const;
 
 describe("starter catalog", () => {
-  it("publishes the official first-50 identity admission as version 29", () => {
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/29");
+  it("publishes the measured 15573 physical promotion as version 30", () => {
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/30");
   });
 
   it("pins 25269's exact LDCad route and raw-to-catalog central clutch", () => {

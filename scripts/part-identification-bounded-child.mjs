@@ -250,14 +250,18 @@ export function runBoundedChild(command, args, options = {}) {
                 ]),
           ]
         : heldArguments;
-      child = (options.spawnImpl ?? spawn)(executable, childArgs, {
+      const spawnOptions = {
         cwd: options.cwd,
         env: options.env,
         detached: process.platform !== "win32",
         windowsHide: true,
         shell: false,
         ...(inheritFds.length === 0 ? {} : { stdio: ["pipe", "pipe", "pipe", ...inheritFds] }),
-      });
+      };
+      child =
+        options.spawnImpl === undefined
+          ? spawn(executable, childArgs, spawnOptions)
+          : options.spawnImpl(executable, childArgs, spawnOptions);
     } catch (cause) {
       reject(
         new Error(

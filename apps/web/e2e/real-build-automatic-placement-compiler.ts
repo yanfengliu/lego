@@ -1,45 +1,21 @@
-import { intrinsicRealBuildFreeze } from "./real-build-intrinsic-freeze";
 import {
   BUILTIN_COMPILER_SNAPSHOT_HASH,
   canonicalDigest,
-  canonicalSha256,
   compileBuildProgram,
-  connectorCapacityClaimKeys,
   deepFreeze,
-  describeConnectorCapacityClaimKey,
   documentStructuralHash,
-  getConnectorWorldFrame,
   verifyAssemblyPatchAgainstCapability,
   type CompilationResult,
 } from "@lego-studio/brick-kernel";
-import type {
-  AssemblyPatchV1,
-  BrickDocumentV1,
-  ProgramOperation,
-  ScopeCapabilityV1,
-} from "@lego-studio/protocol";
+import type { AssemblyPatchV1, BrickDocumentV1, ScopeCapabilityV1 } from "@lego-studio/protocol";
 
-import { assessSupport } from "../src/placement";
-import {
-  snapshotRealBuildAutomaticPlacementInput,
-  type RealBuildAutomaticPlacementInput,
-  type RealBuildAutomaticPlacementWitness,
-} from "./real-build-automatic-placement-input";
 export type {
   RealBuildAutomaticPlacementConnection,
   RealBuildAutomaticPlacementWitness,
 } from "./real-build-automatic-placement-input";
 import { realBuildDocumentCandidateId } from "./real-build-candidate-lineage-identity";
+import { prepareRealBuildAutomaticPlacementExpansion } from "./real-build-automatic-placement-expansion";
 import {
-  measureRealBuildAutomaticPlacementBaseWork,
-  measureRealBuildAutomaticPlacementWork,
-  requireRealBuildAutomaticPlacementWorkWithinCompilerLimits,
-} from "./real-build-automatic-placement-work";
-import {
-  createRealBuildAutomaticScope,
-  prepareRealBuildAutomaticPrintedStep,
-  REAL_BUILD_AUTOMATIC_MAXIMUM_OPERATIONS,
-  REAL_BUILD_AUTOMATIC_MAXIMUM_REQUIRED_BASE_PORTS,
   REAL_BUILD_AUTOMATIC_PLACEMENT_COMPILER_SNAPSHOT_HASH,
   type RealBuildAutomaticPlacementCompilationSuccess,
   type RealBuildAutomaticPlacementCompilationResult,
@@ -48,32 +24,6 @@ import {
 } from "./real-build-automatic-placement-step";
 
 const automaticPlacementCompilationResults = new WeakSet<object>();
-
-type AutomaticCapacityPart = Parameters<typeof getConnectorWorldFrame>[0];
-
-function reserveAutomaticConnectorCapacity(
-  occupied: Map<string, string>,
-  endpoints: readonly {
-    readonly part: AutomaticCapacityPart;
-    readonly portId: string;
-  }[],
-  label: string,
-): void {
-  const claims = endpoints.flatMap(({ part, portId }) =>
-    connectorCapacityClaimKeys(getConnectorWorldFrame(part, portId)),
-  );
-  const pending = new Map<string, string>();
-  for (const claim of claims) {
-    const priorOwner = occupied.get(claim) ?? pending.get(claim);
-    if (priorOwner !== undefined) {
-      throw new TypeError(
-        `${label} consumes ${describeConnectorCapacityClaimKey(claim)}, already reserved by ${priorOwner}; choose a non-overlapping endpoint.`,
-      );
-    }
-    pending.set(claim, label);
-  }
-  for (const [claim, owner] of pending) occupied.set(claim, owner);
-}
 
 function retainAutomaticPlacementCompilationResult<
   T extends RealBuildAutomaticPlacementCompilationResult,
@@ -91,148 +41,6 @@ export function isRealBuildAutomaticPlacementCompilationResult(
     (typeof value === "object" || typeof value === "function") &&
     automaticPlacementCompilationResults.has(value)
   );
-}
-
-function deterministicId(prefix: string, value: unknown): string {
-  return `${prefix}-${canonicalSha256(value).slice(0, 24)}`;
-}
-
-function requireBoundedCompilationWork(
-  input: RealBuildAutomaticPlacementInput,
-  preparationOperations: number,
-): void {
-  const work = measureRealBuildAutomaticPlacementWork({
-    base: measureRealBuildAutomaticPlacementBaseWork(
-      input.documentSnapshot.document,
-      input.documentSnapshot.canonicalByteLength,
-    ),
-    printedStepNumber: input.printedStepNumber,
-    printedStep: input.printedStep,
-    witnesses: input.witnesses,
-  });
-  if (work.preparationOperations !== preparationOperations) {
-    throw new TypeError(
-      "Automatic placement compiler preparation and work policies disagree for this printed step.",
-    );
-  }
-  requireRealBuildAutomaticPlacementWorkWithinCompilerLimits(work);
-}
-
-function programFor(
-  document: BrickDocumentV1,
-  targetStepId: string,
-  proposalId: string,
-  witnesses: readonly RealBuildAutomaticPlacementWitness[],
-): {
-  readonly operations: readonly ProgramOperation[];
-  readonly requiredPorts: ScopeCapabilityV1["requiredAttachmentPorts"];
-} {
-  const operations: ProgramOperation[] = [];
-  const localPartIds: string[] = [];
-  const localParts: AutomaticCapacityPart[] = [];
-  const retained = new Map(document.parts.map((part) => [part.id, part]));
-  const occupiedCapacityClaims = new Map<string, string>();
-  for (const connection of document.connections) {
-    reserveAutomaticConnectorCapacity(
-      occupiedCapacityClaims,
-      [connection.a, connection.b].map(({ partId, portId }) => {
-        const part = retained.get(partId);
-        if (part === undefined) {
-          throw new TypeError(
-            `Automatic placement base connection ${JSON.stringify(connection.id)} names missing part ${JSON.stringify(partId)}.`,
-          );
-        }
-        return { part, portId };
-      }),
-      `Automatic placement base connection ${JSON.stringify(connection.id)}`,
-    );
-  }
-  const required = new Map<string, { partId: string; portId: string }>();
-  witnesses.forEach((witness, index) => {
-    const localPartId = deterministicId("candidate-part", { proposalId, index, witness });
-    const localPart = {
-      id: localPartId,
-      catalogPartId: witness.catalogPartId,
-      transform: witness.transform,
-    };
-    operations.push({
-      kind: "placePart",
-      operationId: `place-${index + 1}`,
-      localPartId,
-      catalogPartId: witness.catalogPartId,
-      colorId: witness.colorId,
-      transform: witness.transform,
-      submodelId: document.submodels[0]?.id ?? "root",
-      stepId: targetStepId,
-      semanticTags: [],
-    });
-    const discovered = witness.connections.map((connection, connectionIndex) => {
-      const targetPartId =
-        connection.target.kind === "base"
-          ? connection.target.partId
-          : localPartIds[connection.target.witnessIndex];
-      if (
-        targetPartId === undefined ||
-        (connection.target.kind === "witness" && connection.target.witnessIndex >= index)
-      ) {
-        throw new TypeError(
-          `Witness ${index} connection ${connectionIndex} must target the base or an earlier witness.`,
-        );
-      }
-      return { ...connection, targetPartId };
-    });
-    const support = assessSupport(
-      { id: localPartId, catalogPartId: witness.catalogPartId, transform: witness.transform },
-      discovered,
-    );
-    if (!support.supported)
-      throw new TypeError(
-        `Automatic placement witness ${index} is not supported: ${support.reason}`,
-      );
-    discovered.forEach((connection, connectionIndex) => {
-      const targetPart =
-        connection.target.kind === "base"
-          ? retained.get(connection.targetPartId)
-          : localParts[connection.target.witnessIndex];
-      if (targetPart === undefined) {
-        throw new TypeError(
-          `Witness ${index} connection ${connectionIndex} target is absent from the exact base and earlier witness set.`,
-        );
-      }
-      reserveAutomaticConnectorCapacity(
-        occupiedCapacityClaims,
-        [
-          { part: targetPart, portId: connection.targetPortId },
-          { part: localPart, portId: connection.candidatePortId },
-        ],
-        `Automatic placement witness ${index} connection ${connectionIndex}`,
-      );
-      operations.push({
-        kind: "attach",
-        operationId: `attach-${index + 1}-${connectionIndex + 1}`,
-        a: { partId: connection.targetPartId, portId: connection.targetPortId },
-        b: { partId: localPartId, portId: connection.candidatePortId },
-        connectionKind: connection.connectionKind,
-      });
-      if (retained.has(connection.targetPartId)) {
-        required.set(`${connection.targetPartId}\0${connection.targetPortId}`, {
-          partId: connection.targetPartId,
-          portId: connection.targetPortId,
-        });
-      }
-    });
-    localPartIds.push(localPartId);
-    localParts.push(localPart);
-  });
-  if (required.size > REAL_BUILD_AUTOMATIC_MAXIMUM_REQUIRED_BASE_PORTS) {
-    throw new RangeError(
-      `Automatic placement requires ${required.size} base attachment ports above the ${REAL_BUILD_AUTOMATIC_MAXIMUM_REQUIRED_BASE_PORTS} scope limit.`,
-    );
-  }
-  return intrinsicRealBuildFreeze({
-    operations: intrinsicRealBuildFreeze(operations),
-    requiredPorts: intrinsicRealBuildFreeze([...required.values()]),
-  });
 }
 
 type CompilationSuccess = Extract<CompilationResult, { readonly ok: true }>;
@@ -339,86 +147,27 @@ function composeRealBuildAutomaticPrintedStepCompilation(input: {
 export function compileRealBuildAutomaticPlacement(
   unsafeInput: unknown,
 ): RealBuildAutomaticPlacementCompilationResult {
-  const input = snapshotRealBuildAutomaticPlacementInput(unsafeInput);
-  const document = input.documentSnapshot.document;
-  const compilerInputDigest = canonicalDigest({
-    schemaVersion: "lego.real-build-automatic-placement-input/2",
-    baseCanonicalBytesHash: input.documentSnapshot.canonicalBytesHash,
-    baseCanonicalByteLength: input.documentSnapshot.canonicalByteLength,
-    baseDocumentHash: input.documentSnapshot.documentHash,
-    printedStepNumber: input.printedStepNumber,
-    printedStep: input.printedStep,
-    witnesses: input.witnesses,
-  });
-  const proposalId = deterministicId("real-build-proposal", {
-    compilerInputDigest,
-  });
-  const preparedStep = prepareRealBuildAutomaticPrintedStep({
-    document,
-    printedStepNumber: input.printedStepNumber,
-    metadata: input.printedStep,
-    compilerInputDigest,
-  });
-  const program = programFor(
-    preparedStep.documentWithStep,
-    preparedStep.step.id,
-    proposalId,
-    input.witnesses,
+  const expansion = prepareRealBuildAutomaticPlacementExpansion(unsafeInput, "ordinary");
+  const draft = compileBuildProgram(
+    expansion.preparedStep.documentWithStep,
+    expansion.placementProgram,
+    {
+      scope: expansion.placementScope,
+      jobId: expansion.jobId,
+      candidateId: expansion.proposalId,
+    },
   );
-  const placementProgram = deepFreeze({
-    schemaVersion: "lego.build-program/1" as const,
-    operations: program.operations,
-  });
-  const automaticProgram: RealBuildAutomaticPrintedStepProgram = deepFreeze({
-    schemaVersion: "lego.real-build-automatic-printed-step-program/1",
-    compilerInputDigest,
-    baseCanonicalBytesHash: input.documentSnapshot.canonicalBytesHash,
-    baseCanonicalByteLength: input.documentSnapshot.canonicalByteLength,
-    baseDocumentHash: input.documentSnapshot.documentHash,
-    printedStepNumber: input.printedStepNumber,
-    printedStep: input.printedStep,
-    preparationOperations: preparedStep.preparationOperations,
-    placementProgram,
-  });
-  const combinedOperationCount =
-    program.operations.length + preparedStep.preparationOperations.length;
-  if (combinedOperationCount > REAL_BUILD_AUTOMATIC_MAXIMUM_OPERATIONS) {
-    throw new RangeError(
-      `Automatic printed step expands to ${combinedOperationCount} operations above the ${REAL_BUILD_AUTOMATIC_MAXIMUM_OPERATIONS}-operation compiler limit.`,
-    );
-  }
-  requireBoundedCompilationWork(input, preparedStep.preparationOperations.length);
-  const placementScope = createRealBuildAutomaticScope({
-    document: preparedStep.documentWithStep,
-    printedStepNumber: input.printedStepNumber,
-    maximumAddedParts: input.witnesses.length,
-    maximumOperations: program.operations.length,
-    requiredAttachmentPorts: program.requiredPorts,
-    compilerInputDigest,
-    phase: "placement",
-  });
-  const combinedScope = createRealBuildAutomaticScope({
-    document,
-    printedStepNumber: input.printedStepNumber,
-    maximumAddedParts: input.witnesses.length,
-    maximumOperations: combinedOperationCount,
-    requiredAttachmentPorts: program.requiredPorts,
-    compilerInputDigest,
-    phase: "combined",
-  });
-  const jobId = deterministicId("real-build-job", { compilerInputDigest });
-  const draft = compileBuildProgram(preparedStep.documentWithStep, placementProgram, {
-    scope: placementScope,
-    jobId,
-    candidateId: proposalId,
-  });
   if (!draft.ok) return retainAutomaticPlacementCompilationResult(draft);
   const candidateId = realBuildDocumentCandidateId(documentStructuralHash(draft.document));
-  const result = compileBuildProgram(preparedStep.documentWithStep, placementProgram, {
-    scope: placementScope,
-    jobId,
-    candidateId,
-  });
+  const result = compileBuildProgram(
+    expansion.preparedStep.documentWithStep,
+    expansion.placementProgram,
+    {
+      scope: expansion.placementScope,
+      jobId: expansion.jobId,
+      candidateId,
+    },
+  );
   if (
     result.ok &&
     documentStructuralHash(result.document) !== documentStructuralHash(draft.document)
@@ -430,14 +179,14 @@ export function compileRealBuildAutomaticPlacement(
   if (!result.ok) return retainAutomaticPlacementCompilationResult(result);
   return retainAutomaticPlacementCompilationResult(
     composeRealBuildAutomaticPrintedStepCompilation({
-      baseDocument: document,
-      preparedStep,
+      baseDocument: expansion.document,
+      preparedStep: expansion.preparedStep,
       placement: result,
-      combinedScope,
-      jobId,
+      combinedScope: expansion.combinedScope,
+      jobId: expansion.jobId,
       candidateId,
-      automaticProgram,
-      placementScope,
+      automaticProgram: expansion.automaticProgram,
+      placementScope: expansion.placementScope,
     }),
   );
 }

@@ -2,7 +2,8 @@ import { mkdirSync, writeFileSync } from "node:fs";
 
 import { test, expect } from "@playwright/test";
 
-import { readSampleBooklet, sampleBookletCallouts, sampleBookletPanels } from "./booklet-fixture";
+import { readSampleBooklet } from "./booklet-file-source.ts";
+import { sampleBookletCallouts, sampleBookletPanels } from "./booklet-fixture";
 import { measureRealPanelRegistration } from "./real-panel-scoring";
 import type { PairReport } from "./real-panel-types";
 import { bookletProbeUrls, hasSampleBooklet } from "./sample-booklet";

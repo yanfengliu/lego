@@ -137,7 +137,11 @@ The requirement is therefore not to resolve every ambiguity before committing, b
 
 ### Current manual playback and target booklet playback
 
-The current editor plays back manually authored placement steps. The target booklet workflow plays a completed reconstructed build step by step from the canonical document, using the same renderer and the same step membership the build produced.
+The current editor's membership mode is a non-exact final-pose preview: it restricts the authored final document by BuildStep membership and does not claim to reproduce intermediate transforms or reducer history.
+
+An attached generic exact operation trace proves only that its bounded reducer operation groups replay locally to the committed states and authored target. It carries no compiler, source, acceptance, or mutation authority.
+
+The prefix-50 compiler lane separately binds that trace commitment and every structural and canonical replay-state commitment to its runtime-branded exact compilation. That compiler-provenance binding is additional evidence from the prefix lane, not authority inherent in an arbitrary persisted trace.
 
 ## Architecture
 
@@ -398,7 +402,7 @@ Primary references for that audit are the [LDraw legal terms](https://www.ldraw.
 
 ## Automation and testability
 
-The current app exposes a stable, test-only automation bridge: `window.render_app_to_text()` returns the canonical document and hash, selection, validation, overlay, renderer snapshot and command error; `window.capture_model_views()` returns seven named canonical-camera PNG data URLs from the current presentation scene; and `window.get_model_snapshot()` returns a schema-versioned document summary and structural hash. The capture hook is not wired to the render-packet artifact contract and does not itself bind the PNGs to the structured snapshot. `window.advanceTime(ms)` currently validates a bounded delay, yields once and returns the snapshot; it does not yet drive an animation clock.
+The current app exposes a stable, test-only automation bridge: `window.render_app_to_text()` returns the canonical authored document and hash, selection, authored validation, active playback preview identity and validation when open, overlay, renderer snapshot and command error; `window.capture_model_views()` returns seven named canonical-camera PNG data URLs from the current presentation scene, with an explicit `model-only` diagnostic mode that hides the grid and shadow plate; and `window.get_model_snapshot()` returns a schema-versioned authored-document summary and structural hash. The capture hook is not wired to the render-packet artifact contract and does not itself bind the PNGs to the structured snapshot. `window.advanceTime(ms)` currently validates a bounded delay, yields once and returns the snapshot; it does not yet drive an animation clock.
 
 These are verifier instrumentation, not a model-facing action surface. Trusted capture code in the test boundary may call them and retain evidence; an external or model-facing actor receives only a filtered, hashed observation and a bounded action API, with no arbitrary browser evaluation, direct debug-hook access or production authority. A future production build must either omit the bridge or require a separately authenticated test namespace that cannot reach production documents, identities, credentials or ledgers.
 

@@ -5,6 +5,7 @@ import { documentStructuralHash } from "@lego-studio/brick-kernel";
 import type { BrickDocumentV1 } from "@lego-studio/protocol";
 import { describe, expect, it } from "vitest";
 import { readContainedBoundedRegularFile } from "../e2e/bounded-file-read";
+import { BUILDER_STEP1_GEOMETRY_BUNDLE } from "../e2e/real-build-builder-source-contract";
 import { verifyLegacyRealBuildArtifactScoreV4 } from "../e2e/real-build-artifact-legacy-score-verification";
 import { inspectFrozenLegacyBrowserOutputV2 } from "../e2e/real-build-artifact-legacy-browser-v2";
 import { decodeFrozenLegacyPngCaptureV2 } from "../e2e/real-build-artifact-legacy-browser-v2-values";
@@ -17,6 +18,7 @@ import { assertFrozenLegacyIdentityProjectionV2 } from "../e2e/real-build-artifa
 import { verifyRealBuildArtifactManifest } from "../e2e/real-build-artifact-current-verification";
 import { inspectLegacyRealBuildArtifactManifestV3 } from "../e2e/real-build-artifact-legacy-v3";
 import type { LegacyRealBuildArtifactInspectionV3 } from "../e2e/real-build-artifact-legacy-v3";
+import { BUILDER_GEOMETRY_EXACT_BYTES } from "../e2e/real-build-input-limits";
 import type { RealBuildPublicationVerification } from "../e2e/real-build-artifact-publication";
 import { sha256Digest } from "../e2e/real-build-artifact-policy";
 import { createRealBuildDiagnosticPrefix } from "../e2e/real-build-diagnostic-prefix";
@@ -615,11 +617,19 @@ describe("legacy artifact-manifest /3 inspection", () => {
   it.skipIf(!existsSync(RETAINED_PRODUCTION_RUN))(
     "keeps frozen inspection of the exact ignored production generation when it is locally available",
     () => {
+      expect(BUILDER_STEP1_GEOMETRY_BUNDLE).toMatchObject({
+        byteLength: 1_834_092,
+        digest: "sha256:c047a4b78518ae658a34efd3f3121de11558d00821b1764a472b87cf0ee82b97",
+      });
+      expect(BUILDER_GEOMETRY_EXACT_BYTES).toBe(BUILDER_STEP1_GEOMETRY_BUNDLE.byteLength);
       expect(() => verifyRealBuildArtifactManifest(RETAINED_PRODUCTION_RUN)).toThrow(
         /exact schema \/4/u,
       );
       expect(() => inspectLegacyRealBuildArtifactManifestV3(RETAINED_PRODUCTION_RUN)).toThrow(
-        /Replay role builder-geometry declares 1091772 bytes; its role-specific requirement is exactly 1820412\./u,
+        new RegExp(
+          `Replay role builder-geometry declares 1091772 bytes; its role-specific requirement is exactly ${BUILDER_GEOMETRY_EXACT_BYTES}\\.`,
+          "u",
+        ),
       );
 
       const replayClosureBytes = readContainedBoundedRegularFile(

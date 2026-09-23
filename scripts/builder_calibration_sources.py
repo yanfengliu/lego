@@ -13,12 +13,14 @@ from builder_calibration_source_pins_c import DESIGNS_C
 from builder_calibration_source_pins_d import DESIGNS_D
 from builder_calibration_source_pins_e import DESIGNS_E
 from builder_calibration_source_pins_f import DESIGNS_F
+from builder_calibration_source_pins_g import DESIGNS_G
 from builder_calibration_ldraw_pins_a import LDRAW_CLOSURE_FILES_A
 from builder_calibration_ldraw_pins_b import LDRAW_CLOSURE_FILES_B
 from builder_calibration_ldraw_pins_c import LDRAW_CLOSURE_FILES_C
+from builder_calibration_ldraw_pins_d import LDRAW_CLOSURE_FILES_D
 
-LDRAW_CLOSURE_DIGEST = '72ca520b68934fdaa384e9bbc961090538f0b4ee1269773675db1adcf3cc7fdd'
-LDRAW_CLOSURE_FILES = (*LDRAW_CLOSURE_FILES_A, *LDRAW_CLOSURE_FILES_B, *LDRAW_CLOSURE_FILES_C,)
-DESIGNS = (*DESIGNS_A, *DESIGNS_B, *DESIGNS_C, *DESIGNS_D, *DESIGNS_E, *DESIGNS_F,)
-GEOMETRY_BUNDLE_BYTES = 1820412
-GEOMETRY_BUNDLE_SHA256 = '7e91e1402f2ab609fee6e502336f86ee74fb3a94d970e9b0b75acf07f925a76f'
+LDRAW_CLOSURE_DIGEST = 'ffe99f465ae9e045d649750d9290043fd6947e5d740d6576980da42fc365fb63'
+LDRAW_CLOSURE_FILES = (*LDRAW_CLOSURE_FILES_A, *LDRAW_CLOSURE_FILES_B, *LDRAW_CLOSURE_FILES_C, *LDRAW_CLOSURE_FILES_D,)
+DESIGNS = (*DESIGNS_A, *DESIGNS_B, *DESIGNS_C, *DESIGNS_D, *DESIGNS_E, *DESIGNS_F, *DESIGNS_G,)
+GEOMETRY_BUNDLE_BYTES = 1834092
+GEOMETRY_BUNDLE_SHA256 = 'c047a4b78518ae658a34efd3f3121de11558d00821b1764a472b87cf0ee82b97'

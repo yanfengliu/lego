@@ -20,6 +20,7 @@ export * from "./panel-face";
 export * from "./panel-difference";
 export * from "./panel-registration";
 export * from "./project-bounds";
+export * from "./rigid-subassembly-return";
 export * from "./search-driver";
 export * from "./step-score";
 export { extractHighlightRegions, isHighlightPixel } from "../instructions/highlight-region";

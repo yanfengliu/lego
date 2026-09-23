@@ -1,3 +1,5 @@
+import { writeFileSync } from "node:fs";
+
 import { expect, test, type Page } from "@playwright/test";
 
 /** Picks a palette part by its visible name, the way a builder chooses a brick. */
@@ -62,7 +64,7 @@ test("builds a model by clicking the palette and the viewport", async ({ page })
       (part: { colorId: string }) => part.colorId === "builtin:yellow",
     ),
   ).toBe(true);
-  // Every placement opened its own step, so the build is replayable.
+  // Each placement opens a step for the non-exact final-membership preview.
   expect(observation.document.steps).toHaveLength(3);
 
   // The canonical capture hook, checked against a real built model rather than
@@ -84,11 +86,19 @@ test("builds a model by clicking the palette and the viewport", async ({ page })
     "underside",
   ]);
   expect(Object.values(captures).every((value) => value.startsWith("data:image/png"))).toBe(true);
+  const modelOnlyCaptures = await page.evaluate(() =>
+    window.capture_model_views!({ scene: "model-only" }),
+  );
+  expect(Object.keys(modelOnlyCaptures).sort()).toEqual(Object.keys(captures).sort());
+  expect(modelOnlyCaptures.isometric).not.toBe(captures.isometric);
+  await expect.poll(() => page.evaluate(() => window.capture_model_views!())).toEqual(captures);
 
   expect(consoleErrors).toEqual([]);
 });
 
-test("steps through the build it just made", async ({ page }) => {
+test("previews build membership without claiming an exact operation trace", async ({
+  page,
+}, testInfo) => {
   await page.goto("/");
   await page.waitForFunction(() => typeof window.get_model_snapshot === "function");
   page.once("dialog", (dialog) => void dialog.accept());
@@ -108,11 +118,129 @@ test("steps through the build it just made", async ({ page }) => {
 
   // The base state holds nothing, and each step adds exactly one part.
   await expect(page.locator(".playback-readout")).toContainText("0 parts");
+  const startObservation = await page.evaluate(() => JSON.parse(window.render_app_to_text!()));
+  expect(startObservation.document.parts).toHaveLength(2);
+  expect(startObservation.playback).toMatchObject({
+    mode: "membership-preview",
+    exact: false,
+    traceCommitment: null,
+    position: 0,
+    terminalPosition: 2,
+    stepId: null,
+    stepName: "Empty base",
+    addedPartCount: 0,
+    blockingCodes: [],
+    buildable: true,
+    connected: true,
+  });
+  expect(startObservation.playback.previewDocumentHash).not.toBe(startObservation.documentHash);
+  expect(startObservation.renderer.viewPacket.documentHash).toBe(
+    startObservation.playback.previewDocumentHash,
+  );
   await page.getByRole("button", { name: "Next step" }).click();
   await expect(page.locator(".playback-readout")).toContainText("1 parts");
-  await expect(page.locator(".playback-verdict")).toHaveText("verified");
+  await expect(page.locator(".playback-verdict")).toHaveText("preview");
+  await expect(page.locator(".playback-verdict")).toHaveAttribute(
+    "title",
+    "Final-membership preview only; no exact operation replay trace is attached",
+  );
+  const stepOneObservation = await page.evaluate(() => JSON.parse(window.render_app_to_text!()));
+  expect(stepOneObservation.playback).toMatchObject({
+    mode: "membership-preview",
+    exact: false,
+    traceCommitment: null,
+    position: 1,
+    terminalPosition: 2,
+    addedPartCount: 1,
+    blockingCodes: [],
+    buildable: true,
+    connected: true,
+  });
+  expect(stepOneObservation.playback.validation.targetDocumentHash).toBe(
+    stepOneObservation.playback.previewDocumentHash,
+  );
+  expect(stepOneObservation.renderer.viewPacket.documentHash).toBe(
+    stepOneObservation.playback.previewDocumentHash,
+  );
   await page.getByRole("button", { name: "Next step" }).click();
   await expect(page.locator(".playback-readout")).toContainText("2 parts");
+
+  // Bound: both desktop sizes, including a short window. Check every control,
+  // readout, verdict, and footer against its containing row and the viewport.
+  for (const size of [
+    { width: 1440, height: 1000 },
+    { width: 1280, height: 720 },
+  ]) {
+    await page.setViewportSize(size);
+    await expect
+      .poll(async () =>
+        page.evaluate(() => {
+          const bar = document.querySelector(".playback-bar")!.getBoundingClientRect();
+          const footer = document.querySelector(".viewport-footer")!.getBoundingClientRect();
+          const controls = [...document.querySelectorAll(".playback-bar > *")];
+          const visibleContents = [
+            ...document.querySelectorAll(
+              ".playback-bar button, .playback-bar input, .playback-readout strong, .playback-readout small, .playback-verdict, .viewport-footer > *",
+            ),
+          ];
+          return (
+            controls.every((control) => {
+              const rect = control.getBoundingClientRect();
+              return (
+                rect.width > 0 &&
+                rect.height > 0 &&
+                rect.left >= bar.left &&
+                rect.right <= bar.right &&
+                rect.top >= bar.top &&
+                rect.bottom <= bar.bottom
+              );
+            }) &&
+            visibleContents.every((element) => {
+              const rect = element.getBoundingClientRect();
+              if (rect.width <= 0 || rect.height <= 0) return false;
+              const container = element
+                .closest(".playback-bar, .viewport-footer")!
+                .getBoundingClientRect();
+              if (
+                rect.left < container.left ||
+                rect.right > container.right ||
+                rect.top < container.top ||
+                rect.bottom > container.bottom
+              )
+                return false;
+              if (element instanceof HTMLInputElement) return true;
+              const range = document.createRange();
+              range.selectNodeContents(element);
+              return [...range.getClientRects()].every(
+                (text) =>
+                  text.width > 0 &&
+                  text.height > 0 &&
+                  text.left >= rect.left &&
+                  text.right <= rect.right &&
+                  text.top >= rect.top &&
+                  text.bottom <= rect.bottom,
+              );
+            }) &&
+            bar.left >= 0 &&
+            bar.right <= innerWidth &&
+            bar.top >= 0 &&
+            bar.bottom <= footer.top &&
+            footer.bottom <= innerHeight
+          );
+        }),
+      )
+      .toBe(true);
+    await page.screenshot({
+      path: testInfo.outputPath(`playback-${size.width}x${size.height}.png`),
+    });
+  }
+  const captures = await page.evaluate(() => window.capture_model_views!({ scene: "model-only" }));
+  for (const [name, png] of Object.entries(captures)) {
+    writeFileSync(
+      testInfo.outputPath(`playback-model-${name}.png`),
+      Buffer.from(png.split(",")[1]!, "base64"),
+    );
+  }
 });
 
 test("never leaves a brick floating, wherever the user clicks", async ({ page }) => {

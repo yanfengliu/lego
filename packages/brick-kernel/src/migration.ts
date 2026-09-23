@@ -48,6 +48,7 @@ export const MIGRATABLE_CATALOG_VERSIONS: readonly string[] = Object.freeze([
   "builtin.basic-parts/26",
   "builtin.basic-parts/27",
   "builtin.basic-parts/28",
+  "builtin.basic-parts/29",
   BUILTIN_CATALOG_VERSION,
 ]);
 
@@ -313,6 +314,19 @@ export const REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS = Object.freeze([
     sourceCommit: "aad79008cd820f3f0cfbec98ae508c0352d65fc9",
     truthHash: "sha256:643185fe21f0d0c77a7aada8b170395f11bb7da1079f97d5c0cd0a03d7464f1b",
   },
+  // The snapshot /30 replaces. /30 promotes the existing 15573 jumper to its
+  // exact measured render and collision definition, admits its source-rounded
+  // stud through the reviewed nominal connection-only profile, and adds the
+  // centred underside clutch declared by the pinned LDCad source. The two historical
+  // outer clutch IDs survive, but their measured positions and shared-capacity
+  // semantics change, so connected /29 instances require explicit refusal. /30
+  // also applies that nominal connection-only stud profile to the exact closed
+  // seven-definition, 26-cylinder source-rounded class recorded below.
+  {
+    catalogVersion: "builtin.basic-parts/29",
+    sourceCommit: "6b02e50732d7908374b168ce0582476ac0422769",
+    truthHash: "sha256:54762419e4779c6c15566052062fcaa432cb45e3a13704b5af1563b4fa94e8eb",
+  },
 ] as const);
 
 const MIGRATABLE_TRUTH_HASHES: ReadonlySet<string> = new Set(
@@ -340,6 +354,7 @@ export interface CatalogInterpretationChange {
     | "construction-semantics"
     | "connector-semantics"
     | "collision-semantics"
+    | "placement-orientation-semantics"
   )[];
 }
 
@@ -567,6 +582,61 @@ export const REVIEWED_CATALOG_INTERPRETATION_CHANGES: readonly CatalogInterpreta
       ],
       changedFields: ["connector-semantics", "collision-semantics"],
     },
+    {
+      fromCatalogVersion: "builtin.basic-parts/29",
+      toCatalogVersion: "builtin.basic-parts/30",
+      affectedCatalogPartIds: [
+        "builtin:wedge-plate-3x3-cut-corner",
+        "builtin:corner-plate-2x2-round",
+        "builtin:bracket-1x2-1x4-rounded-bottom",
+        "builtin:arch-1x6-thin-top",
+        "builtin:bracket-2x2-1x2-vertical-studs",
+        "builtin:brick-1x2-grille",
+        "builtin:technic-brick-1x2-axle-hole",
+      ],
+      changedFields: ["connector-semantics", "collision-semantics"],
+    },
+    {
+      fromCatalogVersion: "builtin.basic-parts/29",
+      toCatalogVersion: "builtin.basic-parts/30",
+      affectedCatalogPartIds: ["builtin:jumper-plate-1x2"],
+      changedFields: [
+        "render-geometry",
+        "construction-semantics",
+        "connector-semantics",
+        "collision-semantics",
+      ],
+    },
+    {
+      fromCatalogVersion: "builtin.basic-parts/29",
+      toCatalogVersion: "builtin.basic-parts/30",
+      affectedCatalogPartIds: ["builtin:plate-1x2-round-end"],
+      changedFields: ["placement-orientation-semantics"],
+    },
+    {
+      fromCatalogVersion: "builtin.basic-parts/29",
+      toCatalogVersion: "builtin.basic-parts/30",
+      affectedCatalogPartIds: ["builtin:tile-1x6"],
+      changedFields: ["placement-orientation-semantics"],
+    },
+    {
+      fromCatalogVersion: "builtin.basic-parts/29",
+      toCatalogVersion: "builtin.basic-parts/30",
+      affectedCatalogPartIds: ["builtin:tile-1x2"],
+      changedFields: ["placement-orientation-semantics"],
+    },
+    {
+      fromCatalogVersion: "builtin.basic-parts/29",
+      toCatalogVersion: "builtin.basic-parts/30",
+      affectedCatalogPartIds: ["builtin:plate-1x4"],
+      changedFields: ["placement-orientation-semantics"],
+    },
+    {
+      fromCatalogVersion: "builtin.basic-parts/29",
+      toCatalogVersion: "builtin.basic-parts/30",
+      affectedCatalogPartIds: ["builtin:slope-1x2-45"],
+      changedFields: ["placement-orientation-semantics"],
+    },
   ]);
 
 export interface TruthMigrationReport {
@@ -777,7 +847,10 @@ export function migrateDocumentTruth(document: BrickDocumentV1): {
         },
         {
           id: expectedTruth.transformPolicy.id,
-          versions: [expectedTruth.transformPolicy.version],
+          versions: [
+            "part-scoped-proper-orientations-negative-y-up/1",
+            expectedTruth.transformPolicy.version,
+          ],
         },
       ],
     },

@@ -1,0 +1,29 @@
+# Unproved next step: continuous camera and drawing-model bounds
+
+Status: design only. No new experiment, code, source read or production integration is authorized by this note. Preserve all completed finite evidence and the original cap-only counterexample.
+
+The measured finite result moves the missing piece from a hypothetical image-to-owner search to a specific implemented result on clean finite solids. It does not close continuous global exclusion. In particular, the empty rejected finite rows cannot eliminate the spaces between samples, and their best residuals are not lower bounds on those spaces. A search around only the nine survivors would silently assume the missing result.
+
+## First proposed increment: continuous ideal-model enclosure
+
+Keep the exact original finite solid geometry and neutral drawing contract initially. Partition the full predeclared camera domain, scale interval and fractional image translations into cells. State all angular/scale endpoints before generating any new observation; explicitly include or handle grazing and polar charts rather than declaring them absent because the current grid skipped them. The no-continuous-roll consumer family still has its two discrete up signs. Camera translation along the view direction remains an orthographic gauge, not a measured coordinate.
+
+Derive outward enclosures of every physical face's projected polygon over each cell. The projection is explicit in camera rows, so interval bounds on sine/cosine, scale and translation can enclose all projected vertices. Faces may be removed for backfacing only when the whole cell proves the face normal has the wrong sign. At this first exclusion stage, retain faces with uncertain visibility; a deliberately loose union is safe even if it is slow.
+
+A cell can be rejected when a required observed tone/support pixel lies outside the union of all physical surfaces that could have that class anywhere in the cell, after the frozen synthetic raster allowance. The reverse unexplained-foreground requirement remains necessary. This provides a possible conservative exclusion mechanism; a center sample with a poor fit is not a rejection certificate. Tightening a cell with depth/occlusion needs a proof that the same nearest surface wins throughout the entire relevant cell and image region. Equal-depth and unstable occlusion cases must remain unresolved or split.
+
+Retain every nonexcluded cell and every possible physical owner at each observed support. A positive result requires all surviving cells to bound the requested signed projection away from zero and agree on the physical owner classes within stated uncertainty. It returns a nonzero-width camera region, not an exact pose. If uneliminated cells disagree or the cell/time budget expires, return incomplete with those cells and their reason. Do not call finite sampling inside a cell an enclosure proof.
+
+The smallest new falsification would use a newly declared source-free off-grid view and fractional translation generated independently of the estimator, plus the cap-only ambiguity control. The estimator must search the whole registered domain and must not receive generator pose, source owners, or a true-centered neighborhood. Before execution, author the exact source packet and interval arithmetic/enclosure tests, freeze inputs and all bounds, and obtain the coordinator's source-closure review. No such packet exists yet. The existing 60-second/16,384-cell resource budget remains a study constraint unless separately changed; conservative rejection may be too weak to complete within it. That computational feasibility is unproved.
+
+## Separate proposed increment: drawing nuisance
+
+The current estimator uses distinct known neutral surface-class tones. This is useful synthetic evidence and a strong appearance prior; it is not a model of arbitrary printed art. First specify a bounded family of surface tones, stroke geometry, subpixel phase and sampling kernels that can be independently generated and checked. Do not introduce arbitrary per-pixel textures or an oracle telling the estimator which pixels to disregard.
+
+Keep camera, physical ownership and appearance nuisance jointly quantified. A camera cannot pass because one favored appearance instance fits; every competing camera with any allowed nuisance remains a possible explanation until excluded. Overlapping tone ranges may erase class evidence entirely. Preserve that ambiguity instead of widening the current native thresholds to restore a pass.
+
+Subpixel phase and fractional translation are coupled and must be accounted for once. The present 3-by-3 support allowance is a precise sample relation, not a universal antialiasing theorem. A new kernel/error envelope must state how it induces compatible observed pixel sets and must not silently add an independent 1.5-pixel allowance on top of a phase allowance that already accounts for the same effect.
+
+Only after the ideal-model enclosure and independently varied nuisance controls work should a proposed production adapter be considered. It must use genuine admitted geometry and frames, prove the actual source-extraction rule, retain all frozen qualification thresholds/denominators/rosters, and map its measured matrix through the exact source-anchor and 16-branch consumer. The actual image's source-art assumptions require independently reviewed evidence; synthetic success cannot supply them. The original campaign's staged source access, one-shot validation accounting, native image review and genuine opaque-capability flow remain unchanged.
+
+The route is therefore promising within a measured finite bound, with two explicit unproved obligations: efficient conservative exclusion of the continuous camera/registration space, and a justified drawing family that retains physical-owner information. Neither obligation is renamed a completed solver by this design.

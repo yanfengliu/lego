@@ -311,6 +311,7 @@ export const SET_6651557_MEASURED_BLUEPRINTS = [
     // prettier-ignore
     assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, -4, 0] },
     connectorGridCenterLdu: [0, 0],
+    validatedConnectionStudProfile: "nominal-stud-tube/1",
     exactBodyBoundsLdu: {
       min: ["-30", "-4", "-30"],
       max: ["30", "4", "30"],
@@ -365,6 +366,7 @@ export const SET_6651557_MEASURED_BLUEPRINTS = [
     // prettier-ignore
     assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, -4, 0] },
     connectorGridCenterLdu: [10, 10],
+    validatedConnectionStudProfile: "nominal-stud-tube/1",
     exactBodyBoundsLdu: {
       min: ["-10", "-4", "-10"],
       max: ["30", "4", "30"],
@@ -411,6 +413,7 @@ export const SET_6651557_MEASURED_BLUEPRINTS = [
     // prettier-ignore
     assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, -4, 0] },
     connectorGridCenterLdu: [0, 0],
+    validatedConnectionStudProfile: "nominal-stud-tube/1",
     exactBodyBoundsLdu: {
       min: ["-40", "-4", "-40"],
       max: ["40", "4", "40"],
@@ -473,6 +476,7 @@ export const SET_6651557_MEASURED_BLUEPRINTS = [
     // prettier-ignore
     assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, -4, 0] },
     connectorGridCenterLdu: [0, 0],
+    validatedConnectionStudProfile: "nominal-stud-tube/1",
     exactBodyBoundsLdu: {
       min: ["-60", "-4", "-60"],
       max: ["60", "4", "60"],
@@ -567,6 +571,7 @@ export const SET_6651557_MEASURED_BLUEPRINTS = [
     // prettier-ignore
     assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, -4, 0] },
     connectorGridCenterLdu: [0, 0],
+    validatedConnectionStudProfile: "nominal-stud-tube/1",
     exactBodyBoundsLdu: {
       min: ["-40", "-4", "-40"],
       max: ["40", "4", "40"],
@@ -631,6 +636,7 @@ export const SET_6651557_MEASURED_BLUEPRINTS = [
     // prettier-ignore
     assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, -4, 0] },
     connectorGridCenterLdu: [30, -30],
+    validatedConnectionStudProfile: "nominal-stud-tube/1",
     exactBodyBoundsLdu: {
       min: ["-20", "-4", "-80"],
       max: ["80", "4", "20"],
@@ -750,6 +756,7 @@ export const SET_6651557_MEASURED_BLUEPRINTS = [
     // prettier-ignore
     assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, -10, 0] },
     connectorGridCenterLdu: [0, 0],
+    validatedConnectionStudProfile: "nominal-stud-tube/1",
     exactBodyBoundsLdu: {
       min: ["-40", "-10", "-14"],
       max: ["40", "10", "10"],
@@ -891,6 +898,7 @@ export const SET_6651557_MEASURED_BLUEPRINTS = [
     // prettier-ignore
     assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-90", translationLdu: [0, -24, 0] },
     connectorGridCenterLdu: [0, 0],
+    validatedConnectionStudProfile: "nominal-stud-tube/1",
     exactBodyBoundsLdu: {
       min: ["-10", "-24", "-60"],
       max: ["10", "24", "60"],
@@ -941,6 +949,7 @@ export const SET_6651557_MEASURED_BLUEPRINTS = [
     // prettier-ignore
     assetToCatalogFrame: { schemaVersion: "mesh-asset-to-catalog-frame/1", orientationId: "upright-yaw-0", translationLdu: [0, 6, 0] },
     connectorGridCenterLdu: [0, 0],
+    validatedConnectionStudProfile: "nominal-stud-tube/1",
     exactBodyBoundsLdu: {
       min: ["-20", "-14", "-20"],
       max: ["20", "14", "20"],

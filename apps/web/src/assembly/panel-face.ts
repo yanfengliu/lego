@@ -34,6 +34,29 @@ export type PanelFace = "studs-up" | "underside";
 export type LatticeHand = "as-fitted" | "x-reflected";
 
 /**
+ * The face that must enter the lattice-hand transform when a branch key names
+ * the face physically visible after that transform.
+ *
+ * `x-reflected` negates elevation, so it crosses the model plane. Feeding the
+ * requested face directly would render the opposite physical side while
+ * retaining the requested label. Compensate before applying the hand.
+ */
+export function preHandPanelFace(face: PanelFace, hand: LatticeHand): PanelFace {
+  if (face !== "studs-up" && face !== "underside") {
+    throw new TypeError(
+      `A panel face must be "studs-up" or "underside"; received ${JSON.stringify(face)}.`,
+    );
+  }
+  if (hand !== "as-fitted" && hand !== "x-reflected") {
+    throw new TypeError(
+      `A lattice hand must be "as-fitted" or "x-reflected"; received ${JSON.stringify(hand)}.`,
+    );
+  }
+  if (hand === "as-fitted") return face;
+  return face === "studs-up" ? "underside" : "studs-up";
+}
+
+/**
  * The face printed step 1 is drawn from, and the seed of the whole toggle.
  *
  * It is an assumption, not a measurement: a booklet could open on an inverted
@@ -61,8 +84,10 @@ export interface FittedPanelView {
  * The lattice fit has two possible horizontal hands. For a face-corrected view
  * `p = (A, e, s)`, the opposite hand is `H(p) = (180 - A, -e, s)`. Under the
  * projection used by the assembly reader, that sends `a` to `-a`, keeps `b`
- * fixed, and keeps model-up fixed. It is therefore not an underside view:
- * changing face also inverts `upSign`.
+ * fixed, and keeps model-up fixed in the projected lattice algebra. It does
+ * cross the physical model plane because it negates elevation. A caller whose
+ * branch label names the post-hand visible face must therefore pass
+ * `preHandPanelFace(labelledFace, hand)` to `viewForPanelFace` first.
  *
  * A quarter turn belongs inside the reflection: `H(A + q) = H(A) - q`.
  * Callers must add the candidate's turn before applying this helper rather than

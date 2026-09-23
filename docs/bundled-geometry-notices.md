@@ -2,9 +2,11 @@
 
 > Generated from the catalog by `packages/catalog/src/bundled-geometry-notices.test.ts`, which fails if this file and the catalog disagree. Do not edit by hand.
 
-The render mesh of the parts below is real LDraw geometry, bundled and redistributed under the [Creative Commons Attribution 4.0 International licence](https://creativecommons.org/licenses/by/4.0/). Of the 237 source files, 233 declare CC BY 4.0 and `parts/2453b.dat`, `parts/30503.dat`, `parts/32064a.dat`, `parts/3245c.dat` declare `CC-BY-2.0 OR CC-BY-4.0`; this bundle selects their CC BY 4.0 option. Attribution therefore names every file whose triangles are bundled with its author, title, licence and content hash rather than flattening it into project-owned data.
+The render mesh of the parts below is real LDraw geometry, bundled and redistributed under the [Creative Commons Attribution 4.0 International licence](https://creativecommons.org/licenses/by/4.0/). Of the 239 source files, 235 declare CC BY 4.0 and `parts/2453b.dat`, `parts/30503.dat`, `parts/32064a.dat`, `parts/3245c.dat` declare `CC-BY-2.0 OR CC-BY-4.0`; this bundle selects their CC BY 4.0 option. Attribution therefore names every file whose triangles are bundled with its author, title, licence and content hash rather than flattening it into project-owned data.
 
 Permission to reuse this geometry is **not** permission to train on it. That right is not held, and no bundled file is designated as a model-training or benchmark corpus.
+
+Catalog `/30` promotes the existing `15573` Jumper Plate 1 x 2 identity from a parametric physical recipe to its exact fully measured source declaration. Its official 11-file, 12,907-byte closure supplies 220 render triangles, 29 conservative body boxes, and one source-radius stud cylinder under yaw 90 plus translation `[0,-4,0]`. The checksum-pinned LDCad composition through `p/stud2.dat` and `parts/15573.dat` authors three underside seats at z = -10, 0, and 10 LDU. The historical outer endpoint IDs remain stable; each outer consumes its adjacent half-capacity cell, while the new centered endpoint consumes both, so the two outers may coexist and the center conflicts with either. This is a same-identity render, connector, and collision migration: it adds no bare alias, printed occurrence assignment, source-world frame, placement, replay, document mutation, acceptance, or completion authority.
 
 Catalog `/29` adds the two exact fully measured roots that close the remaining printed-step-50 catalogue identities. `10201` Bracket 1 x 2 - 1 x 4 with Rounded Corners uses an official 21-file closure, 660 triangles, 23 conservative body boxes plus six source-radius stud cylinders, and an exact LDCad route for four outward side studs, two top studs, and two explicitly opted-in square-S6 underside sockets. The official `10201.dat` root is an alias of `2436b.dat`, but only `10201.dat` is exposed as this catalogue identity. `3245b` Brick 1 x 2 x 2 with Inside Axle Holder uses an official 11-file closure, 144 triangles, 29 conservative body boxes plus two source-radius stud cylinders, and an exact LDCad route for two top studs, two round underside sockets, and one fixed female one-cap A6 x 44 blind axle socket. The socket preserves its exact catalog span from closed end `[0,-20,0]` to open mouth `[0,24,0]`, midpoint `[0,2,0]`, outward normal `[0,1,0]`, depth 44 LDU, and `slide=false`; it is not flattened into a directionless through-hole and grants no bore-relief or insertion-access claim. These definitions grant no bare or cross-suffix alias and, by themselves, no printed occurrence assignment, physical frame, placement, action-ledger, replay, document mutation, acceptance, or completion authority.
 
@@ -28,6 +30,7 @@ Source archive: `ldraw-complete-2026-07`, 144722356 bytes, `sha256:6009f2e94204c
 
 | Catalog part | LDraw file | Title | Author | Root licence | Closure files |
 | --- | --- | --- | --- | --- | --- |
+| `builtin:jumper-plate-1x2` | `15573.dat` | Plate  1 x  2 with Groove with 1 Centre Stud, without Understud | Magnus Forsberg [MagFors] | `CC-BY-4.0` | 11 |
 | `builtin:wedge-plate-2x4-left` | `41770a.dat` | Wing  2 x  4 Left without Chamfer | Takeshi Takahashi [RainbowDolphin] | `CC-BY-4.0` | 39 |
 | `builtin:wedge-plate-2x4-right` | `41769a.dat` | Wing  2 x  4 Right without Chamfer | Takeshi Takahashi [RainbowDolphin] | `CC-BY-4.0` | 39 |
 | `builtin:wedge-plate-2x3-left` | `43723a.dat` | Wing  2 x  3 Left without Chamfer | Donald Sutter [technog] | `CC-BY-4.0` | 31 |
@@ -76,7 +79,7 @@ Source archive: `ldraw-complete-2026-07`, 144722356 bytes, `sha256:6009f2e94204c
 
 ## Every bundled file
 
-The 237 files below comprise 233 `CC-BY-4.0` declarations and four `CC-BY-2.0 OR CC-BY-4.0` declarations.
+The 239 files below comprise 235 `CC-BY-4.0` declarations and four `CC-BY-2.0 OR CC-BY-4.0` declarations.
 
 | File | Title | Author | Licence | LDraw.org status | SHA-256 |
 | --- | --- | --- | --- | --- | --- |
@@ -317,6 +320,8 @@ The 237 files below comprise 233 `CC-BY-4.0` declarations and four `CC-BY-2.0 OR
 | `parts/s/80015s01.dat` | ~Plate  5 x  5 with  4 x  4 Corner Round and  4 x  4 with  3 x  3 Corner Round Cutout - Half | Gerald Lasser [GeraldLasser] | `CC-BY-4.0` | Subpart UPDATE 2024-05 | `08baa9987359d51ddd8954ae8983a3aa0b5d47b063c497f4e43e520d3b2aa36b` |
 | `parts/s/85984s01.dat` | ~Slope Brick 31  1 x  2 x  0.667 without Top Surface | Magnus Forsberg [MagFors] | `CC-BY-4.0` | Subpart UPDATE 2020-02 | `be8c8a230e87f02663d9a985895d1342fe5246523609296e3d64862895bb8721` |
 | `parts/s/93273s01.dat` | ~Slope Brick Curved  4 x  1 Double without Top Surface | Magnus Forsberg [MagFors] | `CC-BY-4.0` | Subpart UPDATE 2023-04 | `95d97ee75937fa8baa4b0fca339143ed3a5d1b812e4b2e76ef20d2a4c4622489` |
+| `p/box3u6.dat` | Box with  3 Faces without  6 Edges | Willy Tschager [Holly-Wood] | `CC-BY-4.0` | Primitive UPDATE 2024-01 | `362b5deba42781b7ec9b0616c62c242fc46a051edb3ad3e9c7d800d1929bc22c` |
+| `parts/15573.dat` | Plate  1 x  2 with Groove with 1 Centre Stud, without Understud | Magnus Forsberg [MagFors] | `CC-BY-4.0` | Part UPDATE 2013-01 | `c6946965875a8275996c4559cd355ea13a20197e96f33585cd750bb1da89b56d` |
 
 ## Derived connector data
 
@@ -364,6 +369,7 @@ Catalog-carried attribution: Copyright (c) 2026 Yanfeng Liu. Underside clutch ce
 
 | Catalog part | LDraw file | Stud frames | Clutch cells | Axle seats | Through axle-hole seats | Blind axle sockets |
 | --- | --- | --- | --- | --- | --- | --- |
+| `builtin:jumper-plate-1x2` | `15573.dat` | 1 | 3 | 0 | 0 | 0 |
 | `builtin:plate-3x3-corner-round` | `30357.dat` | 8 | 8 | 0 | 0 | 0 |
 | `builtin:wedge-plate-3x3-cut-corner` | `2450.dat` | 6 | 6 | 0 | 0 | 0 |
 | `builtin:corner-plate-2x2-round` | `79491.dat` | 2 | 2 | 0 | 0 | 0 |

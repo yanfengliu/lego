@@ -12,11 +12,21 @@ import { createBuiltinTruthSnapshot, getBuiltinTruthDigestInputs } from "./facto
  * are literals rather than recomputed expectations on purpose: a test that
  * derives what it checks from the code it is checking cannot notice a change.
  *
- * Measured at catalog builtin.basic-parts/29 with 106 definitions. /29 appends
- * exact official 10201 and 3245b identities as complete measured definitions
- * in generated order. Their official geometry, reviewed connector rows,
- * collision fields, and source frames are additive; predecessor semantic
- * payloads remain unchanged.
+ * Measured at catalog builtin.basic-parts/30 with 106 definitions. /30 promotes
+ * existing 15573 to its exact official closure, conservative measured
+ * collision field, source-measured stud/clutch frames, and the previously
+ * missing centred underside clutch. The roster count does not change.
+ * The same unreleased tranche admits the minimal reviewed child-panel roster:
+ * one sideways label each for 35480, tile 1x6, tile 1x2 and plate 1x4, plus
+ * both genuinely distinct inward-facing sideways labels for slope 1x2.
+ *
+ * What they were at builtin.basic-parts/29, HEAD 6b02e50, with 106 definitions:
+ *   catalog            sha256:19c5e8a3f4e1d00d7747c8d3e0f377ee4391acc53915df8ead0c1830b75b8db6
+ *   connectorTaxonomy  sha256:b0b8a26e010f522ba88d55f3b8565add619b2e569f15abad59a46ffd2ccf0ddb
+ *   collisionModel     sha256:b1231af344c0c293e74c0721bd0005f4f7a6746ee144ccf71ca14e22caa07042
+ *   transformPolicy    sha256:44cf428cee1487a9441c609a75fbafefd6c3b4591512af30f8903e4508285f4c
+ *   validatorSet       sha256:44233e884c474210006e4e94b82e952fd7b446768396d5b53575eb7946cba4fe
+ *   truth              sha256:54762419e4779c6c15566052062fcaa432cb45e3a13704b5af1563b4fa94e8eb
  *
  * What they were at builtin.basic-parts/28, HEAD aad7900, with 104 definitions:
  *   catalog            sha256:15decef17024421dec825287923d2ae0142973f83281b3479b0eeeb5e5ddd837
@@ -152,14 +162,14 @@ import { createBuiltinTruthSnapshot, getBuiltinTruthDigestInputs } from "./facto
  *   validatorSet       sha256:cb2767cfa8c8d7adfe145bef950b49428d8c8fced235a04b5f984c29799a031e
  */
 const PINNED_TRUTH_HASHES = {
-  catalog: "sha256:19c5e8a3f4e1d00d7747c8d3e0f377ee4391acc53915df8ead0c1830b75b8db6",
-  connectorTaxonomy: "sha256:b0b8a26e010f522ba88d55f3b8565add619b2e569f15abad59a46ffd2ccf0ddb",
-  collisionModel: "sha256:b1231af344c0c293e74c0721bd0005f4f7a6746ee144ccf71ca14e22caa07042",
-  transformPolicy: "sha256:44cf428cee1487a9441c609a75fbafefd6c3b4591512af30f8903e4508285f4c",
+  catalog: "sha256:a030be3e20eeb1592594c43e321be64ac2f84875c40ad2445c48ca9e104ef290",
+  connectorTaxonomy: "sha256:b83c1c675ff2f4eef185c75a98a246f6269c427f859c2a8a691fb849eb3f04a6",
+  collisionModel: "sha256:c9afee2441ed98dc811143ea00223a770acff67de794f24f9dc84d626c033c64",
+  transformPolicy: "sha256:352a78b04999c0e0e8b2b322e5ce748582e7f544676e181ec41600232d85ead6",
   validatorSet: "sha256:44233e884c474210006e4e94b82e952fd7b446768396d5b53575eb7946cba4fe",
 } as const;
 
-const PINNED_TRUTH_HASH = "sha256:54762419e4779c6c15566052062fcaa432cb45e3a13704b5af1563b4fa94e8eb";
+const PINNED_TRUTH_HASH = "sha256:c304c3eb673e86d48580c6b28309f1fdf8bf4d71f7259ecc75f6f5691a336d51";
 
 /**
  * SHA-256 of the ordered `[partId, geometry.contentHash]` roster, all 106 rows.
@@ -172,7 +182,7 @@ const PINNED_TRUTH_HASH = "sha256:54762419e4779c6c15566052062fcaa432cb45e3a13704
  * version bump: parts in place changed what they draw.
  */
 const PINNED_GEOMETRY_ROSTER_SHA256 =
-  "b294d5b342a5d19da9bfc019cfb907d082183b8ad560f078ef23fb356ba9d058";
+  "3fd18aa8021e83458ee73ccc4645b71d7ef87543ff72c699c782638148361bd2";
 
 const PINNED_PART_COUNT = 106;
 /**
@@ -197,8 +207,13 @@ const PINNED_PART_COUNT = 106;
  * collision bodies; 3245c also declares two reviewed shared-capacity cells.
  * /29 appends two exact-identity meshes, twelve connectors and their
  * conservative collision bodies; 10201 also declares square-S6 clutch cells.
+ * /30 promotes existing 15573 to a measured mesh, three source-measured
+ * underside clutches, and its conservative measured collision field. It also
+ * records the reviewed nominal connection-only stud profile on seven existing
+ * definitions and all 26 of their matching stud collision cylinders, and adds
+ * the six-row child-panel orientation roster to catalog and transform truth.
  */
-const PINNED_CATALOG_SERIALIZED_LENGTH = 1_771_315;
+const PINNED_CATALOG_SERIALIZED_LENGTH = 1_776_570;
 
 describe("builtin truth digest stability", () => {
   it("keeps the five pinned truth hashes byte-identical", () => {
@@ -217,7 +232,7 @@ describe("builtin truth digest stability", () => {
     const truth = createBuiltinTruthSnapshot();
 
     expect(truth.catalog.hash).toBe(PINNED_TRUTH_HASHES.catalog);
-    expect(truth.catalog.version).toBe("builtin.basic-parts/29");
+    expect(truth.catalog.version).toBe("builtin.basic-parts/30");
     expect(truth.connectorTaxonomy.hash).toBe(PINNED_TRUTH_HASHES.connectorTaxonomy);
     expect(truth.collisionModel.hash).toBe(PINNED_TRUTH_HASHES.collisionModel);
     expect(truth.transformPolicy.hash).toBe(PINNED_TRUTH_HASHES.transformPolicy);

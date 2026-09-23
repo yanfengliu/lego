@@ -97,14 +97,22 @@ export function BuildPlaybackBar({
       <span
         className={state.buildable ? "playback-verdict is-ok" : "playback-verdict is-bad"}
         title={
-          state.buildable
-            ? state.connected
-              ? "This step verifies as buildable"
-              : "Buildable; subassemblies are still separate"
-            : `Not buildable: ${state.blockingCodes.join(", ")}`
+          !sequence.exact
+            ? "Final-membership preview only; no exact operation replay trace is attached"
+            : state.buildable
+              ? state.connected
+                ? "Local operation trace replays and this state is buildable; the trace grants no source or acceptance authority"
+                : "Local operation trace replays and is buildable; subassemblies are still separate"
+              : `Not buildable: ${state.blockingCodes.join(", ")}`
         }
       >
-        {state.buildable ? (state.connected ? "verified" : "subassembly") : "unbuildable"}
+        {!sequence.exact
+          ? "preview"
+          : state.buildable
+            ? state.connected
+              ? "trace-valid"
+              : "trace-valid subassembly"
+            : "unbuildable"}
       </span>
 
       <button type="button" className="quiet-action" onClick={onExit}>

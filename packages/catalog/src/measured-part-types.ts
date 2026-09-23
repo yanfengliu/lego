@@ -61,6 +61,13 @@ export type MeasuredStudRow =
       normalZ: number,
     ];
 
+/** Stable authored identity and optional capacity claims for one measured clutch seat. */
+export interface MeasuredClutchPortSemanticRow {
+  readonly positionLdu: readonly [x: number, y: number, z: number];
+  readonly id: `undersideClutch:${string}`;
+  readonly sharedCapacityGroupIds?: readonly string[];
+}
+
 /**
  * A non-stud connector derived from the declaration's pinned authored source.
  *
@@ -165,9 +172,15 @@ export interface MeasuredPartBlueprint {
   /** Underside clutch seats from the declaration's one authored connector source. */
   readonly clutchesLdu: readonly (readonly [x: number, y: number, z: number])[];
   /**
+   * Stable port identities aligned one-for-one with source-sorted `clutchesLdu`.
+   * The generator binds these rows to exact measured positions before emission,
+   * so adding a newly discovered seat cannot silently rename historical ports.
+   */
+  readonly clutchPortSemantics?: readonly MeasuredClutchPortSemanticRow[];
+  /**
    * Part-local shared capacity cells aligned one-for-one with `clutchesLdu`.
-   * Present only for a reviewed source socket with mutually overlapping seats;
-   * an empty row means the corresponding ordinary seat has no shared claim.
+   * Legacy generated rows retain this field byte-for-byte. New declarations
+   * carry the same optional claims beside stable ids in `clutchPortSemantics`.
    */
   readonly clutchSharedCapacityGroupIds?: readonly (readonly string[])[];
   /** Authored non-stud seats; absent on the immutable pre-4519 shards. */

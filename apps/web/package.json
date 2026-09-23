@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5173 --strictPort",
-    "build": "vite build"
+    "build": "vite build",
+    "build:instruction-review": "vite build --config vite.instruction-review.config.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.12.0",

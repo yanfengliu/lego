@@ -15,11 +15,10 @@ import {
   PREFIX50_STRUCTURAL_MEMBER_COMMITMENT_SCHEMA,
 } from "./part-identification-prefix50-structural-events-source.mjs";
 import { authenticateStep31_32OfficialModel } from "./part-identification-step31-32-order-reconciliation-source.mjs";
-import { importRepositoryTypeScript } from "./part-identification-typescript-runtime.mjs";
+import { registerRepositoryTypeScriptImports } from "./part-identification-typescript-hooks.mjs";
 
 const COMPILE_KEYS = ["actionPreparation", "officialModelBytes", "transitionClassificationBytes"];
 const VERIFY_KEYS = [...COMPILE_KEYS, "artifactBytes"].sort();
-const moduleUrl = (relativePath) => new URL(relativePath, import.meta.url).href;
 
 function snapshotInput(input, keys, label) {
   const roles = snapshotExactDataObject(input, label, keys);
@@ -291,9 +290,8 @@ async function compileSnapshot(input) {
     pins.transitionClassifications,
     "Prefix-50 transition-classification corroboration",
   );
-  const transitionModule = await importRepositoryTypeScript(
-    moduleUrl("../apps/web/e2e/real-build-transition-classification.ts"),
-  );
+  registerRepositoryTypeScriptImports();
+  const transitionModule = await import("../apps/web/e2e/real-build-transition-classification.ts");
   const classification = transitionModule.readTransitionClassificationBundle(
     transitionArtifact.value,
     action.inputs.sourcePdfDigest,

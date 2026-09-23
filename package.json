@@ -18,6 +18,7 @@
   "scripts": {
     "dev": "npm run dev --workspace @lego-studio/web",
     "build": "npm run typecheck && npm run build --workspace @lego-studio/web && node scripts/check-production-bundle.mjs",
+    "build:instruction-review": "npm run build:instruction-review --workspace @lego-studio/web",
     "bom:check": "node scripts/check-bom.mjs",
     "notices:generate": "node scripts/generate-third-party-notices.mjs",
     "notices:check": "node scripts/generate-third-party-notices.mjs --check",
@@ -51,7 +52,7 @@
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "npm run schema:check && npm run node:check && npm run migration-history:check && npm run observations:check && npm run bom:check && npm run parts:check && npm run lessons:check && npm run notices:check && npm run format:check && npm run lint && npm run typecheck && npm run test:python && npm run test && npm run test:browser && npm run build",
+    "verify": "npm run schema:check && npm run node:check && npm run migration-history:check && npm run observations:check && npm run bom:check && npm run parts:check && npm run lessons:check && npm run notices:check && npm run format:check && npm run lint && npm run typecheck && npm run build:instruction-review && npm run test:python && npm run test && npm run test:browser && npm run build",
     "audit:runtime": "npm audit --omit=dev --audit-level=high",
     "audit": "npm audit --audit-level=high",
     "lessons:check": "node scripts/check-lessons.mjs"

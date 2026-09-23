@@ -13,6 +13,11 @@ import {
   BUNDLED_LDRAW_CLOSURE_MANIFESTS,
   BUNDLED_LDRAW_SOURCE_FILES,
 } from "./ldraw-bundled-sources-6651557.ts";
+import {
+  restorePhysicalPromotionBases,
+  restorePreV30NominalStudProfileAbsence,
+  restorePreV30OrientationGrantAbsence,
+} from "./historical-catalog-test-support.ts";
 import { SET_6651557_MESH_ASSETS } from "./mesh-assets-6651557.ts";
 import { SET_6651557_MEASURED_BLUEPRINTS } from "./part-blueprints-6651557-measured.ts";
 
@@ -113,8 +118,8 @@ describe("28802 rounded-bottom bracket catalog truth", () => {
       bytes: 17_940,
       manifestSha256: "sha256:e8c326b7fe592ceb83142f62eca6ce3c74c60bad83d3b095a12c80ffece54806",
     });
-    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(45);
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(237);
+    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(46);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(239);
     expect(new Set(BUNDLED_LDRAW_SOURCE_FILES.map(({ author }) => author))).toHaveLength(34);
   });
 
@@ -228,9 +233,13 @@ describe("28802 rounded-bottom bracket catalog truth", () => {
   });
 
   it("pins the reviewed /29 projection of the /14 prefix under its historical truth labels", () => {
-    const priorParts = PART_DEFINITIONS.slice(0, 86);
+    const priorParts = restorePreV30OrientationGrantAbsence(
+      restorePreV30NominalStudProfileAbsence(
+        restorePhysicalPromotionBases(PART_DEFINITIONS.slice(0, 86), ["builtin:jumper-plate-1x2"]),
+      ),
+    );
     const priorDefinitionBytes = JSON.stringify(priorParts)
-      .replaceAll("builtin.basic-parts/29", "builtin.basic-parts/14")
+      .replaceAll("builtin.basic-parts/30", "builtin.basic-parts/14")
       .replaceAll("rectilinear-stud-clearance/4", "rectilinear-stud-clearance/2");
     const rows = priorParts.map(({ id, connectors, collision }) => ({ id, connectors, collision }));
     const collisionRows = priorParts.map(({ id, collision }) => ({ id, collision }));

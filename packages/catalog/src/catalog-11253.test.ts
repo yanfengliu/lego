@@ -15,6 +15,11 @@ import {
   BUNDLED_LDRAW_CLOSURE_MANIFESTS,
   BUNDLED_LDRAW_SOURCE_FILES,
 } from "./ldraw-bundled-sources-6651557.ts";
+import {
+  restorePhysicalPromotionBases,
+  restorePreV30NominalStudProfileAbsence,
+  restorePreV30OrientationGrantAbsence,
+} from "./historical-catalog-test-support.ts";
 import { SET_6651557_MESH_ASSETS } from "./mesh-assets-6651557.ts";
 import { resolvePreloadedMeshAsset } from "./mesh-assets.ts";
 import { meshClutchUndersides } from "./mesh-underside.ts";
@@ -122,8 +127,8 @@ describe("11253 roller-skate catalog truth", () => {
       bytes: 28_352,
       manifestSha256: "sha256:a95ff67e17b326856aec2d59be0d8062c91dd5093dd380bdf61c610fda2bad60",
     });
-    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(45);
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(237);
+    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(46);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(239);
   });
 
   it("retains Builder only as counterevidence and selects one exact LDCad route", () => {
@@ -311,9 +316,13 @@ describe("11253 roller-skate catalog truth", () => {
   });
 
   it("pins the reviewed /29 projection of the /16 prefix under its historical truth labels", () => {
-    const priorParts = PART_DEFINITIONS.slice(0, 88);
+    const priorParts = restorePreV30OrientationGrantAbsence(
+      restorePreV30NominalStudProfileAbsence(
+        restorePhysicalPromotionBases(PART_DEFINITIONS.slice(0, 88), ["builtin:jumper-plate-1x2"]),
+      ),
+    );
     const priorDefinitionBytes = JSON.stringify(priorParts)
-      .replaceAll("builtin.basic-parts/29", "builtin.basic-parts/16")
+      .replaceAll("builtin.basic-parts/30", "builtin.basic-parts/16")
       .replaceAll("rectilinear-stud-clearance/3", "rectilinear-stud-clearance/2");
     const rows = priorParts.map(({ id, connectors, collision }) => ({ id, connectors, collision }));
     const collisionRows = priorParts.map(({ id, collision }) => ({ id, collision }));

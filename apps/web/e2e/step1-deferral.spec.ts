@@ -2,7 +2,8 @@ import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
 
 import { expect, test } from "@playwright/test";
 
-import { readSampleBooklet, sampleBookletPageShapes } from "./booklet-fixture";
+import { readSampleBooklet } from "./booklet-file-source.ts";
+import { sampleBookletPageShapes } from "./booklet-fixture";
 import { deriveRealBuildPanelEvidence } from "./real-build-panel-evidence";
 import { deriveTransitionPanelFeatures } from "./real-build-transition-features";
 import { bookletProbeUrls, hasSampleBooklet } from "./sample-booklet";

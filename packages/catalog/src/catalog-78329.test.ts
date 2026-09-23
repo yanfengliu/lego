@@ -15,6 +15,11 @@ import {
   BUNDLED_LDRAW_CLOSURE_MANIFESTS,
   BUNDLED_LDRAW_SOURCE_FILES,
 } from "./ldraw-bundled-sources-6651557.ts";
+import {
+  restorePhysicalPromotionBases,
+  restorePreV30NominalStudProfileAbsence,
+  restorePreV30OrientationGrantAbsence,
+} from "./historical-catalog-test-support.ts";
 import { SET_6651557_MESH_ASSETS } from "./mesh-assets-6651557.ts";
 import { SET_6651557_MEASURED_BLUEPRINTS } from "./part-blueprints-6651557-measured.ts";
 import { SET_6651557_MEASURED_BLUEPRINTS_G } from "./part-blueprints-6651557-measured-g.ts";
@@ -67,11 +72,11 @@ describe("78329 regular 1 x 5 plate catalog truth", () => {
     );
     if (blueprint?.designId !== "78329") throw new Error("78329 blueprint is missing");
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/29");
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/30");
     expect(PART_DEFINITIONS).toHaveLength(106);
     expect(PART_DEFINITIONS.at(-9)?.id).toBe(PART_ID);
-    expect(SET_6651557_MEASURED_BLUEPRINTS.at(-9)).toBe(blueprint);
-    expect(SET_6651557_MEASURED_BLUEPRINTS_G).toHaveLength(12);
+    expect(SET_6651557_MEASURED_BLUEPRINTS.at(-10)).toBe(blueprint);
+    expect(SET_6651557_MEASURED_BLUEPRINTS_G).toHaveLength(13);
     expect(part).toMatchObject({
       id: PART_ID,
       family: "plate",
@@ -114,8 +119,8 @@ describe("78329 regular 1 x 5 plate catalog truth", () => {
       bytes: 8_761,
       manifestSha256: "sha256:d203ae681cfa3842e210b894d46e69e555e64e638796d260c3a2cabdb474f283",
     });
-    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(45);
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(237);
+    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(46);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(239);
   });
 
   it("binds only the exact LDCad route and regular connector line", () => {
@@ -171,9 +176,13 @@ describe("78329 regular 1 x 5 plate catalog truth", () => {
   });
 
   it("pins the reviewed /29 projection of the /25 prefix under its historical truth label", () => {
-    const priorParts = PART_DEFINITIONS.slice(0, 97);
+    const priorParts = restorePreV30OrientationGrantAbsence(
+      restorePreV30NominalStudProfileAbsence(
+        restorePhysicalPromotionBases(PART_DEFINITIONS.slice(0, 97), ["builtin:jumper-plate-1x2"]),
+      ),
+    );
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/29",
+      "builtin.basic-parts/30",
       "builtin.basic-parts/25",
     );
     const connectorCollision = priorParts.map(({ id, connectors, collision }) => ({

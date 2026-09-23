@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  isNominalStudSourceRoundingClass,
   NOMINAL_STUD_SOURCE_RADIUS_MAX_ROUNDING_DELTA_LDU,
   compileMeasuredStud,
   studSeatTouchesOutwardBoxFace,
@@ -13,7 +14,9 @@ const BLUEPRINT = {
   ldrawId: "local-deck.dat",
 } as unknown as MeasuredPartBlueprint;
 const PROFILED_BLUEPRINT = {
-  ...BLUEPRINT,
+  designId: "15573",
+  ldrawId: "15573.dat",
+  ldcadShadowSource: {},
   validatedConnectionStudProfile: "nominal-stud-tube/1",
 } as unknown as MeasuredPartBlueprint;
 
@@ -55,6 +58,42 @@ describe("measured stud local supporting faces", () => {
       validatedConnectionProfileRadiusLdu: 6,
       heightLdu: 4,
     });
+  });
+
+  it("fails closed when a source-rounded nominal R6x4 stud omits its profile", () => {
+    const sourceRounded = [0, -4, 0, 6.0001514980873605, 4] as const;
+
+    expect(isNominalStudSourceRoundingClass(sourceRounded)).toBe(true);
+    expect(isNominalStudSourceRoundingClass([0, -4, 0, 6, 4])).toBe(false);
+    expect(isNominalStudSourceRoundingClass([0, -4, 0, 6.001, 4])).toBe(false);
+    expect(isNominalStudSourceRoundingClass([0, -4, 0, 5.999, 4])).toBe(false);
+    expect(isNominalStudSourceRoundingClass([0, -4, 0, 6.0001514980873605, 5])).toBe(false);
+    expect(() => compileMeasuredStud(BLUEPRINT, BODY_BOXES, sourceRounded, 0)).toThrow(
+      /every measured stud in this R6x4 rounding class requires the definition-level profile/u,
+    );
+  });
+
+  it("does not let matching dimensions authorize an unreviewed future design", () => {
+    const unreviewed = {
+      ...PROFILED_BLUEPRINT,
+      designId: "future-source-rounded-stud",
+    } as unknown as MeasuredPartBlueprint;
+
+    expect(() =>
+      compileMeasuredStud(unreviewed, BODY_BOXES, [0, -4, 0, 6.0001514980873605, 4], 0),
+    ).toThrow(/Dimensions alone cannot authorize a source-rounding profile/u);
+  });
+
+  it("does not let a reviewed design switch connector-source partitions", () => {
+    const wrongSource = {
+      ...PROFILED_BLUEPRINT,
+      ldcadShadowSource: undefined,
+      builderSource: {},
+    } as unknown as MeasuredPartBlueprint;
+
+    expect(() =>
+      compileMeasuredStud(wrongSource, BODY_BOXES, [0, -4, 0, 6.0001514980873605, 4], 0),
+    ).toThrow(/explicit reviewed design\/source binding/u);
   });
 
   it("fails closed when a nominal connection profile exceeds source rounding or stud height", () => {

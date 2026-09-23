@@ -14,6 +14,11 @@ import {
   BUNDLED_LDRAW_CLOSURE_MANIFESTS,
   BUNDLED_LDRAW_SOURCE_FILES,
 } from "./ldraw-bundled-sources-6651557.ts";
+import {
+  restorePhysicalPromotionBases,
+  restorePreV30NominalStudProfileAbsence,
+  restorePreV30OrientationGrantAbsence,
+} from "./historical-catalog-test-support.ts";
 import { SET_6651557_MESH_ASSETS } from "./mesh-assets-6651557.ts";
 import { SET_6651557_MEASURED_BLUEPRINTS } from "./part-blueprints-6651557-measured.ts";
 
@@ -108,8 +113,8 @@ describe("41682 vertical-stud bracket catalog truth", () => {
       bytes: 15_430,
       manifestSha256: "sha256:b16625dfbd49f9c365f06e4b088fd0e1a8e469e649e2b028041767b5f09a03e6",
     });
-    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(45);
-    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(237);
+    expect(Object.keys(BUNDLED_LDRAW_CLOSURES)).toHaveLength(46);
+    expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(239);
   });
 
   it("uses only the pinned LDCad walk for four clutches and two side studs", () => {
@@ -185,6 +190,7 @@ describe("41682 vertical-stud bracket catalog truth", () => {
         axis: "z",
         centerLdu: [x, -4, -6],
         radiusLdu: 6.0001514980873605,
+        validatedConnectionProfileRadiusLdu: 6,
         heightLdu: 4,
       })),
     );
@@ -193,9 +199,13 @@ describe("41682 vertical-stud bracket catalog truth", () => {
   });
 
   it("pins the reviewed /29 projection of the /18 prefix under its historical truth label", () => {
-    const priorParts = PART_DEFINITIONS.slice(0, 90);
+    const priorParts = restorePreV30OrientationGrantAbsence(
+      restorePreV30NominalStudProfileAbsence(
+        restorePhysicalPromotionBases(PART_DEFINITIONS.slice(0, 90), ["builtin:jumper-plate-1x2"]),
+      ),
+    );
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/29",
+      "builtin.basic-parts/30",
       "builtin.basic-parts/18",
     );
     const connectorCollision = priorParts.map(({ id, connectors, collision }) => ({

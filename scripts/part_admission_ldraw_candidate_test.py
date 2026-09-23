@@ -8,6 +8,7 @@ from part_admission_ldraw_candidate import (
     _height_field,
     column_candidate,
     horizontally_inset_candidate,
+    pinned_role_source,
     role_classifier,
 )
 from part_admission_scorecard import measure_union_volume, score_candidate
@@ -107,6 +108,18 @@ class LDrawCandidateTests(unittest.TestCase):
         self.assertEqual(classify((("official", "parts/3024.dat"),)), BODY_ROLE)
         with self.assertRaisesRegex(ValueError, "the pinned role policy expects"):
             role_classifier(lambda _: "sha256:0")((key,))
+
+    def test_visible_stud_lineage_names_the_checksum_pinned_role_source(self) -> None:
+        key = ("official", "p/stud2.dat")
+        digest = PRIMITIVE_ROLE_PINS[key][0]
+        ancestry = (("official", "parts/example.dat"), key, ("official", "p/4-4cyli.dat"))
+
+        self.assertEqual(
+            pinned_role_source(ancestry, lambda source: digest if source == key else "unused"),
+            (key, digest, STUD_ROLE),
+        )
+        with self.assertRaisesRegex(ValueError, "the pinned role policy expects"):
+            pinned_role_source(ancestry, lambda _: "sha256:0")
 
     def test_stud3a_is_checksum_pinned_as_a_clutch_tube_not_a_visible_stud(self) -> None:
         key = ("official", "p/stud3a.dat")

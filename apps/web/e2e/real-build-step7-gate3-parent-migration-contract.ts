@@ -92,23 +92,23 @@ const CURRENT_RUNTIME_TRUTH: BrickDocumentV1["truth"] = SAFE_OBJECT_FREEZE({
   schemaVersion: "lego.truth-snapshot/1",
   catalog: {
     id: "builtin.basic-parts",
-    version: "builtin.basic-parts/29",
-    hash: "sha256:19c5e8a3f4e1d00d7747c8d3e0f377ee4391acc53915df8ead0c1830b75b8db6",
+    version: "builtin.basic-parts/30",
+    hash: "sha256:78a6300cd177e295fd0bc518db006a8bae61e45b69bf54bf0724d08d2500cdb1",
   },
   connectorTaxonomy: {
     id: "stud-tube",
     version: "stud-tube/2",
-    hash: "sha256:b0b8a26e010f522ba88d55f3b8565add619b2e569f15abad59a46ffd2ccf0ddb",
+    hash: "sha256:b83c1c675ff2f4eef185c75a98a246f6269c427f859c2a8a691fb849eb3f04a6",
   },
   collisionModel: {
     id: "rectilinear-stud-clearance",
     version: "rectilinear-stud-clearance/4",
-    hash: "sha256:b1231af344c0c293e74c0721bd0005f4f7a6746ee144ccf71ca14e22caa07042",
+    hash: "sha256:c9afee2441ed98dc811143ea00223a770acff67de794f24f9dc84d626c033c64",
   },
   transformPolicy: {
     id: "part-scoped-proper-orientations-negative-y-up",
-    version: "part-scoped-proper-orientations-negative-y-up/1",
-    hash: "sha256:44cf428cee1487a9441c609a75fbafefd6c3b4591512af30f8903e4508285f4c",
+    version: "part-scoped-proper-orientations-negative-y-up/2",
+    hash: "sha256:36a749aa761253c33fac7b75fb48fdbd3df0ea83f869bd6926b60308c37f18f1",
   },
   validatorSet: {
     id: "lego.kernel-validators",
@@ -168,9 +168,9 @@ const EXPECTED_CURRENT_RUNTIME_MIGRATION_REPORT: Step7Gate3MigrationResult["repo
   SAFE_OBJECT_FREEZE({
     schemaVersion: "lego.truth-migration/2",
     fromCatalogVersion: STEP7_GATE3_SOURCE_CATALOG_VERSION,
-    toCatalogVersion: "builtin.basic-parts/29",
+    toCatalogVersion: "builtin.basic-parts/30",
     fromTruthHash: STEP7_GATE3_SOURCE_TRUTH_HASH,
-    toTruthHash: "sha256:54762419e4779c6c15566052062fcaa432cb45e3a13704b5af1563b4fa94e8eb",
+    toTruthHash: "sha256:89ac0538251dc054fb6971e1f0f0ea9578992f3bd63512889415c999fecd315e",
     addedColorIds: SAFE_OBJECT_FREEZE([]),
     addedCatalogPartIds: SAFE_OBJECT_FREEZE([
       ...ADDED_CATALOG_PART_IDS,
@@ -188,12 +188,38 @@ const EXPECTED_CURRENT_RUNTIME_MIGRATION_REPORT: Step7Gate3MigrationResult["repo
         ]),
         changedFields: SAFE_OBJECT_FREEZE(["connector-semantics", "collision-semantics"]),
       }),
+      SAFE_OBJECT_FREEZE({
+        fromCatalogVersion: "builtin.basic-parts/29",
+        toCatalogVersion: "builtin.basic-parts/30",
+        affectedCatalogPartIds: SAFE_OBJECT_FREEZE([
+          "builtin:wedge-plate-3x3-cut-corner",
+          "builtin:corner-plate-2x2-round",
+        ]),
+        changedFields: SAFE_OBJECT_FREEZE(["connector-semantics", "collision-semantics"]),
+      }),
+      SAFE_OBJECT_FREEZE({
+        fromCatalogVersion: "builtin.basic-parts/29",
+        toCatalogVersion: "builtin.basic-parts/30",
+        affectedCatalogPartIds: SAFE_OBJECT_FREEZE(["builtin:jumper-plate-1x2"]),
+        changedFields: SAFE_OBJECT_FREEZE([
+          "render-geometry",
+          "construction-semantics",
+          "connector-semantics",
+          "collision-semantics",
+        ]),
+      }),
+      SAFE_OBJECT_FREEZE({
+        fromCatalogVersion: "builtin.basic-parts/29",
+        toCatalogVersion: "builtin.basic-parts/30",
+        affectedCatalogPartIds: SAFE_OBJECT_FREEZE(["builtin:plate-1x2-round-end"]),
+        changedFields: SAFE_OBJECT_FREEZE(["placement-orientation-semantics"]),
+      }),
     ]),
     truthComponentChanges: SAFE_OBJECT_FREEZE([
       SAFE_OBJECT_FREEZE({
         component: "catalog",
         fromVersion: STEP7_GATE3_SOURCE_CATALOG_VERSION,
-        toVersion: "builtin.basic-parts/29",
+        toVersion: "builtin.basic-parts/30",
       }),
       SAFE_OBJECT_FREEZE({
         component: "connector-taxonomy",
@@ -208,7 +234,7 @@ const EXPECTED_CURRENT_RUNTIME_MIGRATION_REPORT: Step7Gate3MigrationResult["repo
       SAFE_OBJECT_FREEZE({
         component: "transform-policy",
         fromVersion: "upright-quarter-turns-negative-y-up/1",
-        toVersion: "part-scoped-proper-orientations-negative-y-up/1",
+        toVersion: "part-scoped-proper-orientations-negative-y-up/2",
       }),
       SAFE_OBJECT_FREEZE({
         component: "validator-set",
@@ -284,9 +310,9 @@ export function assertExactStep7Gate3FinalMigration(
 }
 
 /**
- * Projects the one exact live `/13` -> `/29` migration back onto the retained
+ * Projects the one exact live `/13` -> `/30` migration back onto the retained
  * additive `/26` boundary used by Gate-3 evidence. The live report authenticates
- * the roster-intersected `/29` connector/collision reinterpretation; migration
+ * the roster-intersected `/30` connector/collision reinterpretation; migration
  * has already refused any edge using a changed endpoint. The four `/27`, two
  * `/28`, and two `/29` rows plus later semantics never enter the projection.
  */
@@ -304,7 +330,7 @@ export function projectExactCurrentMigrationToFrozenV26(
       exactPlainDataBytes(CURRENT_RUNTIME_TRUTH, "Expected current runtime truth")
   ) {
     throw new SAFE_TYPE_ERROR(
-      "Frozen /26 projection requires the exact reviewed /13 to /29 runtime migration bridge.",
+      "Frozen /26 projection requires the exact reviewed /13 to /30 runtime migration bridge.",
     );
   }
   const expectedRuntimeRevision = `revision-${apply<string>(

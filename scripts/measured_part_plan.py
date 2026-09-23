@@ -84,8 +84,7 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         3,
         variant="corner-round",
         connector_grid_center_ldu=(20, 20),
-        connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
-        validated_connection_stud_profile="nominal-stud-tube/1",
+        connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE, validated_connection_stud_profile="nominal-stud-tube/1",
     ),
     _plan(
         "2450",
@@ -94,6 +93,7 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         3,
         variant="cut-corner",
         connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
+        validated_connection_stud_profile="nominal-stud-tube/1",
     ),
     _plan(
         "79491",
@@ -103,6 +103,7 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         variant="round",
         connector_grid_center_ldu=(10, 10),
         connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
+        validated_connection_stud_profile="nominal-stud-tube/1",
     ),
     # Exact render surfaces for the special plates used by the first underside
     # booklet panel. Their Builder records are already byte-pinned by the frame
@@ -119,6 +120,7 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         4,
         variant="cut-corner",
         connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
+        validated_connection_stud_profile="nominal-stud-tube/1",
     ),
     _plan(
         "6106",
@@ -127,6 +129,7 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         6,
         variant="cut-corner",
         connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
+        validated_connection_stud_profile="nominal-stud-tube/1",
     ),
     _plan(
         "30565",
@@ -135,6 +138,7 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         4,
         variant="round",
         connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
+        validated_connection_stud_profile="nominal-stud-tube/1",
     ),
     _plan(
         "80015",
@@ -145,6 +149,7 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         connector_grid_center_ldu=(30, -30),
         connector_source=BUILDER_CONNECTIVITY_CONNECTOR_SOURCE,
         builder_connectivity_fact=BUILDER_80015_CONNECTIVITY,
+        validated_connection_stud_profile="nominal-stud-tube/1",
     ),
     # builtin.basic-parts/14: the corrected manifest-v6 step-18 crop identifies
     # the two printed quarter tiles as 25269 rather than the adjacent 3069 tile.
@@ -175,6 +180,7 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
         catalog_id="builtin:bracket-1x2-1x4-rounded-bottom",
         display_name="Bracket 1 x 2 - 1 x 4 Rounded Bottom",
+        validated_connection_stud_profile="nominal-stud-tube/1",
     ),
     # builtin.basic-parts/16: the pinned official-model inventory distribution
     # records eighteen 35787 triangular tiles. The official root supplies the
@@ -229,6 +235,7 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         translation_ldu=(0, -24, 0),
         catalog_id="builtin:arch-1x6-thin-top",
         display_name="Arch 1 x 6 x 2 Thin Top",
+        validated_connection_stud_profile="nominal-stud-tube/1",
     ),
     # builtin.basic-parts/19: step 40 first uses the 41682 bracket. Its exact
     # official closure supplies the horizontal plate, vertical wall and two
@@ -248,6 +255,7 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
         catalog_id="builtin:bracket-2x2-1x2-vertical-studs",
         display_name="Bracket 2 x 2 with 1 x 2 Vertical Studs",
+        validated_connection_stud_profile="nominal-stud-tube/1",
     ),
     # builtin.basic-parts/20: step 35 first uses the 2877 grille brick. Its
     # exact official closure supplies the asymmetric grille shell and two top
@@ -267,6 +275,7 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         translation_ldu=(0, -12, 0),
         catalog_id="builtin:brick-1x2-grille",
         display_name="Brick 1 x 2 with Grille",
+        validated_connection_stud_profile="nominal-stud-tube/1",
     ),
     # builtin.basic-parts/21: step 43 first uses the 3040 45-degree slope. Its
     # moved-to official root resolves to the exact 3040b shell, whose visible
@@ -324,6 +333,7 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
         catalog_id="builtin:technic-brick-1x2-axle-hole",
         display_name="Technic Brick 1 x 2 with Axle Hole",
+        validated_connection_stud_profile="nominal-stud-tube/1",
     ),
     # builtin.basic-parts/24: step 59 first uses the regular 3 x 3 plate. Its
     # exact official closure supplies the shell and nine visible studs. The
@@ -453,4 +463,37 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         translation_ldu=(0, -24, 0), connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
         catalog_id="builtin:brick-1x2x2-inside-axle-holder", display_name="Brick 1 x 2 x 2 with Inside Axle Holder",
         validated_connection_stud_profile="nominal-stud-tube/1"),
+    # builtin.basic-parts/30: exact 15573 replaces the earlier project-authored
+    # physical approximation in place. Its official closure supplies the mesh
+    # and conservative collision columns; the pinned LDCad root independently
+    # authors the complete three-seat underside line at half-stud pitch. Stable
+    # outer IDs preserve the two historical endpoints, while the centre claims
+    # both overlapping half cells so the two outers coexist and centre-plus-
+    # either-outer is impossible.
+    _plan(
+        "15573",
+        "jumper-plate",
+        1,
+        2,
+        orientation_id="upright-yaw-90",
+        connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
+        validated_connection_stud_profile="nominal-stud-tube/1",
+        clutch_port_semantics=(
+            (
+                (0, 4, -10),
+                "undersideClutch:0:0",
+                ("15573:negative-z-half",),
+            ),
+            (
+                (0, 4, 0),
+                "undersideClutch:center",
+                ("15573:negative-z-half", "15573:positive-z-half"),
+            ),
+            (
+                (0, 4, 10),
+                "undersideClutch:0:1",
+                ("15573:positive-z-half",),
+            ),
+        ),
+    ),
 )

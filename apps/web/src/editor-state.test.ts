@@ -2,11 +2,18 @@ import { describe, expect, it } from "vitest";
 
 import {
   applyBuildOperations,
+  createBuildPlaybackTrace,
   createEmptyBrickDocument,
   validateBrickDocument,
 } from "@lego-studio/brick-kernel";
 
-import { EDITOR_HISTORY_LIMIT, createEditorState, editorReducer } from "./editor-state";
+import {
+  EDITOR_HISTORY_LIMIT,
+  createEditorState,
+  EditorTruthHistoryRecoveryError,
+  editorReducer,
+  restoreEditorStateAfterTruthMigration,
+} from "./editor-state";
 import {
   ManualCommandError,
   createAddPartTransaction,
@@ -68,6 +75,120 @@ describe("manual editor command history", () => {
     expect(restored).toBe(persisted);
     expect(restored.document.parts).toHaveLength(1);
     expect(restored.undoStack).toHaveLength(1);
+  });
+
+  it("retains replay evidence only across selection and cosmetic document renames", () => {
+    const empty = createEmptyBrickDocument({ id: "trace-editor", name: "Trace editor" });
+    const addition = createAddPartTransaction(empty, {
+      catalogPartId: "builtin:brick-1x1",
+      colorId: "builtin:red",
+      selectedPartId: null,
+    });
+    const authored = editorReducer(createEditorState(empty), {
+      type: "applyTransaction",
+      transaction: addition,
+    });
+    const trace = createBuildPlaybackTrace(empty, [[addition.operations]]);
+    const exact = createEditorState(authored.document, trace);
+
+    const selected = editorReducer(exact, { type: "selectPart", partId: addition.partId });
+    const renamed = editorReducer(selected, { type: "renameDocument", name: "Display name" });
+    expect(selected.playbackTrace).toBe(trace);
+    expect(renamed.playbackTrace).toBe(trace);
+
+    const recolor = createUpdatePartTransaction(
+      authored.document,
+      addition.partId,
+      { colorId: "builtin:yellow" },
+      false,
+    );
+    expect(
+      editorReducer(exact, { type: "applyTransaction", transaction: recolor }).playbackTrace,
+    ).toBeNull();
+
+    const withHistory = {
+      ...authored,
+      playbackTrace: trace,
+      playbackTraceRecovery: "old notice",
+    };
+    const undone = editorReducer(withHistory, { type: "undo" });
+    expect(undone.playbackTrace).toBeNull();
+    expect(undone.playbackTraceRecovery).toBeNull();
+
+    const withRedo = { ...exact, redoStack: [recolor] };
+    expect(editorReducer(withRedo, { type: "redo" }).playbackTrace).toBeNull();
+    expect(
+      editorReducer(exact, { type: "replaceDocument", document: empty }).playbackTrace,
+    ).toBeNull();
+  });
+
+  it("clears history only after truth migration succeeds", () => {
+    const empty = createEmptyBrickDocument({ id: "truth-history", name: "Truth history" });
+    const addition = createAddPartTransaction(empty, {
+      catalogPartId: "builtin:brick-1x1",
+      colorId: "builtin:red",
+      selectedPartId: null,
+    });
+    const state = editorReducer(createEditorState(empty), {
+      type: "applyTransaction",
+      transaction: addition,
+    });
+    const migratedDocument = { ...state.document, name: "Migrated truth" };
+    const restored = restoreEditorStateAfterTruthMigration(state, migratedDocument, {
+      schemaVersion: "lego.truth-migration/2",
+      migrated: true,
+      fromCatalogVersion: "builtin.basic-parts/29",
+      toCatalogVersion: "builtin.basic-parts/30",
+      fromTruthHash: `sha256:${"1".repeat(64)}`,
+      toTruthHash: `sha256:${"2".repeat(64)}`,
+      addedColorIds: [],
+      addedCatalogPartIds: [],
+      catalogInterpretationChanges: [],
+      truthComponentChanges: [],
+      blockingReasons: [],
+    });
+
+    expect(restored.document).toBe(migratedDocument);
+    expect(restored.undoStack).toEqual([]);
+    expect(restored.redoStack).toEqual([]);
+    expect(restored.playbackTrace).toBeNull();
+    expect(restored.playbackTraceRecovery).toBeNull();
+  });
+
+  it("keeps blocked empty-history projects usable but refuses unverified active history", () => {
+    const empty = createEditorState(
+      createEmptyBrickDocument({ id: "blocked-truth", name: "Blocked truth" }),
+    );
+    const blockedReport = {
+      schemaVersion: "lego.truth-migration/2" as const,
+      migrated: false,
+      fromCatalogVersion: "unknown-catalog/999",
+      toCatalogVersion: "builtin.basic-parts/30",
+      fromTruthHash: `sha256:${"1".repeat(64)}`,
+      toTruthHash: `sha256:${"2".repeat(64)}`,
+      addedColorIds: [],
+      addedCatalogPartIds: [],
+      catalogInterpretationChanges: [],
+      truthComponentChanges: [],
+      blockingReasons: ["No compatible truth migration is available"],
+    };
+
+    const restoredEmpty = restoreEditorStateAfterTruthMigration(
+      empty,
+      empty.document,
+      blockedReport,
+    );
+    expect(restoredEmpty.document).toBe(empty.document);
+    expect(restoredEmpty.undoStack).toEqual([]);
+    expect(restoredEmpty.redoStack).toEqual([]);
+
+    const withHistory = {
+      ...empty,
+      undoStack: [{ label: "Unverified", operations: [] }],
+    };
+    expect(() =>
+      restoreEditorStateAfterTruthMigration(withHistory, empty.document, blockedReport),
+    ).toThrowError(EditorTruthHistoryRecoveryError);
   });
 
   it("adds, connects, undoes, and redoes explicit transactions", () => {

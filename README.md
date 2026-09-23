@@ -89,7 +89,9 @@ Run the repository's implemented verification gate with:
 npm run verify
 ```
 
-`verify` checks schemas, Node consumers, observation consumers, provenance and notices, the green part-geometry standard, lessons, formatting, lint, types, Python derivation contracts, Vitest, Playwright, and the production browser bundle.
+`verify` checks schemas, Node consumers, observation consumers, provenance and notices, the green part-geometry standard, lessons, formatting, lint, types, Python derivation contracts, Vitest, Playwright, and the production browser bundle. It also runs `npm run build:instruction-review` before the tests. That separate local static build lives under ignored `apps/web/e2e/static-app/dist` and includes inspection/capture hooks for the first-50 harness; normal `apps/web/dist` remains hook-free. The harness imports parent structures through the real Import control and checks structural equivalence, not preservation of imported provenance.
+
+Instruction captures use a separate instruction-finish scene and exact-color offscreen target. They leave the interactive presentation scene unchanged. Their source-free browser regression checks actual art and semantic-mask pixels across four views; it does not qualify the instruction PDF or certify completion of its first 50 steps.
 
 Dependency changes additionally require both audits:
 

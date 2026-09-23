@@ -1,0 +1,2 @@
+// Static-analysis fixture: deliberately malformed and never executed.
+export const parserMustReject = {

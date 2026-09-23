@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { writeContainedRegularFileAtomic } from "./contained-atomic-write";
 import { ensureContainedDirectoryTree } from "./contained-directory";
-import { readSampleBooklet } from "./booklet-fixture";
+import { readSampleBooklet } from "./booklet-file-source.ts";
 import { sha256Digest } from "./real-build-artifacts";
 import {
   assertRealBuildBootstrapSourceLockHeld,

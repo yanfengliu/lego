@@ -31,15 +31,20 @@ export const PART_SCOPED_NON_UPRIGHT_LEGAL_ORIENTATION_IDS: Readonly<
   Record<string, readonly string[]>
 > = deepFreeze({
   "builtin:tile-1x8": ["proper-m-00nn000p0"],
-  "builtin:plate-1x2-round-end": ["proper-m-00nn000p0"],
+  "builtin:plate-1x2-round-end": ["proper-m-00nn000p0", "proper-m-00n0n0n00"],
   "builtin:plate-1x12": ["proper-m-00nn000p0"],
   "builtin:technic-brick-1x1-axle-hole": ["proper-m-00nn000p0"],
   "builtin:technic-brick-1x2-axle-hole": ["proper-m-00pp000p0"],
   "builtin:bracket-2x2-1x2-vertical-studs": ["proper-m-p0000n0p0"],
-  "builtin:tile-1x6": ["proper-m-00nn000p0"],
-  "builtin:tile-1x2": ["proper-m-00nn000p0", "proper-m-00pp000p0"],
-  "builtin:plate-1x4": ["proper-m-00nn000p0"],
-  "builtin:slope-1x2-45": ["proper-m-00nn000p0", "proper-m-00pp000p0"],
+  "builtin:tile-1x6": ["proper-m-00nn000p0", "proper-m-00n0n0n00"],
+  "builtin:tile-1x2": ["proper-m-00nn000p0", "proper-m-00pp000p0", "proper-m-00n0n0n00"],
+  "builtin:plate-1x4": ["proper-m-00nn000p0", "proper-m-00n0n0n00"],
+  "builtin:slope-1x2-45": [
+    "proper-m-00nn000p0",
+    "proper-m-00pp000p0",
+    "proper-m-00n0n0n00",
+    "proper-m-00p0n0p00",
+  ],
   "builtin:axle-1x3": ["proper-m-00pp000p0"],
 });
 

@@ -87,13 +87,13 @@ describe("first-50 Builder proper-world diagnostic contract", () => {
         ({ designRevision }) => designRevision,
       ),
     );
-    expect(genericRevisions).toHaveLength(42);
+    expect(genericRevisions).toHaveLength(43);
     expect(
       input.rows.filter(({ designRevision }) => genericRevisions.has(designRevision)),
-    ).toHaveLength(192);
+    ).toHaveLength(225);
     expect(
       genericPrefix.filter(({ canonicalTransform }) => canonicalTransform !== null),
-    ).toHaveLength(177);
+    ).toHaveLength(210);
     const generic2453 = input.rows
       .filter(({ designRevision }) => designRevision === "2453;I")
       .map(({ builderBrickRef }) => input.calibrated.bricks[builderBrickRef]!);
@@ -119,7 +119,7 @@ describe("first-50 Builder proper-world diagnostic contract", () => {
   });
 
   it.skipIf(!hasBuilder2453IdentityEvidence)(
-    "retains the exact 43/197 census only through a freshly minted and consumed 2453 token",
+    "retains the exact 44/230 census only through a freshly minted and consumed 2453 token",
     async () => {
       const builder2453IdentityToken = await mintBuilder2453IdentityToken();
       const input = await currentGatedInput(builder2453IdentityToken);
@@ -137,8 +137,8 @@ describe("first-50 Builder proper-world diagnostic contract", () => {
         BUILDER_PREFIX50_ACTION_SOURCE_ROWS_COMMITMENT,
       );
       expect([properWorldDiagnosticBytes.length, sha256(properWorldDiagnosticBytes)]).toEqual([
-        78_884,
-        "sha256:6a26f70df0aa6faac4361a195bd2d95931f8f46acd2e56ecc7c7f052ea0aa940",
+        92_220,
+        "sha256:0d3b3505ac6d9b6c85ac962f61f58c32c319d137c5a7cc95b7724a59395e87ec",
       ]);
       for (const hostileToken of [
         structuredClone(builder2453IdentityToken),

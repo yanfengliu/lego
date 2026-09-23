@@ -322,7 +322,7 @@ describe("bounded real-build input reads", () => {
   it("rejects an oversized sample booklet before reading or PDF parsing", async () => {
     const path = relativeTemporaryPath("booklet.pdf");
     const absolutePath = resolve(process.cwd(), path);
-    const booklet = await import("../e2e/booklet-fixture");
+    const booklet = await import("../e2e/booklet-file-source.ts");
     writeFileSync(absolutePath, "");
     truncateSync(absolutePath, booklet.SAMPLE_BOOKLET_MAXIMUM_BYTES + 1);
 

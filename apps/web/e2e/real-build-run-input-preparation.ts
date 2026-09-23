@@ -1,4 +1,4 @@
-import { readSampleBooklet } from "./booklet-fixture";
+import { readSampleBooklet } from "./booklet-file-source.ts";
 import { sha256Digest, validateRealBuildOutputRoot } from "./real-build-artifacts";
 import {
   assertRealBuildBootstrapSourceLockHeld,

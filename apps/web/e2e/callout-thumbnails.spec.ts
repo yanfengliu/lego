@@ -45,7 +45,8 @@ import type {
   RetainedFailure,
 } from "./callout-types";
 import { SAMPLE_BOOKLET_PATH, bookletProbeUrls, hasSampleBooklet } from "./sample-booklet";
-import { ingestSampleBookletBytes, readSampleBookletBytes } from "./booklet-fixture";
+import { readSampleBookletBytes } from "./booklet-file-source.ts";
+import { ingestSampleBookletBytes } from "./booklet-fixture";
 
 const OUT = "output/callout-thumbnails";
 const PAGE_LIMIT = Number(process.env.CALLOUT_PAGE_LIMIT ?? "8");

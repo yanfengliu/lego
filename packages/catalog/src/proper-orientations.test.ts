@@ -90,14 +90,19 @@ describe("proper source/catalog orientations", () => {
       ),
     );
     const expectedNonUprightRoster = {
-      "builtin:plate-1x4": ["proper-m-00nn000p0"],
-      "builtin:tile-1x2": ["proper-m-00nn000p0", "proper-m-00pp000p0"],
-      "builtin:tile-1x6": ["proper-m-00nn000p0"],
+      "builtin:plate-1x4": ["proper-m-00nn000p0", "proper-m-00n0n0n00"],
+      "builtin:tile-1x2": ["proper-m-00nn000p0", "proper-m-00pp000p0", "proper-m-00n0n0n00"],
+      "builtin:tile-1x6": ["proper-m-00nn000p0", "proper-m-00n0n0n00"],
       "builtin:plate-1x12": ["proper-m-00nn000p0"],
       "builtin:tile-1x8": ["proper-m-00nn000p0"],
-      "builtin:plate-1x2-round-end": ["proper-m-00nn000p0"],
+      "builtin:plate-1x2-round-end": ["proper-m-00nn000p0", "proper-m-00n0n0n00"],
       "builtin:bracket-2x2-1x2-vertical-studs": ["proper-m-p0000n0p0"],
-      "builtin:slope-1x2-45": ["proper-m-00nn000p0", "proper-m-00pp000p0"],
+      "builtin:slope-1x2-45": [
+        "proper-m-00nn000p0",
+        "proper-m-00pp000p0",
+        "proper-m-00n0n0n00",
+        "proper-m-00p0n0p00",
+      ],
       "builtin:axle-1x3": ["proper-m-00pp000p0"],
       "builtin:technic-brick-1x2-axle-hole": ["proper-m-00pp000p0"],
       "builtin:technic-brick-1x1-axle-hole": ["proper-m-00nn000p0"],
@@ -114,8 +119,30 @@ describe("proper source/catalog orientations", () => {
       ).toBe(true);
     }
     expect(TRANSFORM_POLICY_ID).toBe("part-scoped-proper-orientations-negative-y-up");
-    expect(TRANSFORM_POLICY_VERSION).toBe("part-scoped-proper-orientations-negative-y-up/1");
+    expect(TRANSFORM_POLICY_VERSION).toBe("part-scoped-proper-orientations-negative-y-up/2");
   });
+
+  it.each([
+    ["builtin:plate-1x2-round-end", "proper-m-00n0n0n00"],
+    ["builtin:tile-1x6", "proper-m-00n0n0n00"],
+    ["builtin:tile-1x2", "proper-m-00n0n0n00"],
+    ["builtin:plate-1x4", "proper-m-00n0n0n00"],
+    ["builtin:slope-1x2-45", "proper-m-00n0n0n00"],
+    ["builtin:slope-1x2-45", "proper-m-00p0n0p00"],
+  ] as const)("admits reviewed current-/30 placement row %s / %s", (partId, orientationId) => {
+    const definition = PART_DEFINITIONS.find(({ id }) => id === partId);
+
+    expect(definition?.legalOrientationIds).toContain(orientationId);
+  });
+
+  it.each(["builtin:tile-1x6", "builtin:tile-1x2", "builtin:plate-1x4"] as const)(
+    "does not widen geometry-equivalent symmetry label for %s",
+    (partId) => {
+      const definition = PART_DEFINITIONS.find(({ id }) => id === partId);
+
+      expect(definition?.legalOrientationIds).not.toContain("proper-m-00p0n0p00");
+    },
+  );
 
   it("binds the exact project-authored placement roster in one versioned manifest", () => {
     expect(BUILTIN_TRANSFORM_POLICY_MANIFEST).toMatchObject({
@@ -136,7 +163,7 @@ describe("proper source/catalog orientations", () => {
     expect(Object.isFrozen(BUILTIN_TRANSFORM_POLICY_MANIFEST.parts)).toBe(true);
     expect(
       createHash("sha256").update(JSON.stringify(BUILTIN_TRANSFORM_POLICY_MANIFEST)).digest("hex"),
-    ).toBe("b6a03f9bfa1a097991aea3fe3ea668c37952111f2b57b8b42ec47996ad152c59");
+    ).toBe("72cb7ffc3abde37e2ab57ae9157e424c3437114bafbd8dcc9dce47cea5cb6d68");
   });
 
   it("pins the exact ordered 24-row roster", () => {

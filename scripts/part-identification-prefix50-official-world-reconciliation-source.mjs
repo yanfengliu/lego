@@ -33,19 +33,19 @@ export const PREFIX50_OFFICIAL_WORLD_RECONCILIATION_AUTHORITY = Object.freeze({
 export const PREFIX50_OFFICIAL_WORLD_RECONCILIATION_PINS = Object.freeze({
   proposal: Object.freeze({
     schemaVersion: "lego.prefix50-official-ldraw-world-proposal/2",
-    bytes: 764_234,
-    digest: "sha256:24c10640f118d2961dd297cff608b6978bd54eab85a37cf0c314f4711612f960",
+    bytes: 765_179,
+    digest: "sha256:1a1bf42979962969ae4389007680cc209e86addf6dc4e48b6ff7eb4fe699aaab",
   }),
   frameRegistry: Object.freeze({
     schemaVersion: "lego.prefix50-ldraw-catalog-frames/2",
-    bytes: 330_415,
-    digest: "sha256:bcf9702150b73cab1bd70d7ecd0bf33b3b3917522ce4f0ca892be56424b861a1",
+    bytes: 330_074,
+    digest: "sha256:c2722346da09a11623ccfb53d4b3341b874e150633876693d2a4347c3d14aa5f",
   }),
   actionPreparation: Object.freeze({
     schemaVersion: "lego.real-build-action-preparation/1",
     ...CURRENT_PREFIX50_ACTION_PREPARATION_PINS.expectedArtifact,
   }),
-  catalogVersion: "builtin.basic-parts/29",
+  catalogVersion: "builtin.basic-parts/30",
   expectedAccounting: Object.freeze({
     occurrenceRows: 320,
     reconciledRows: 320,
@@ -62,7 +62,7 @@ export const PREFIX50_OFFICIAL_WORLD_RECONCILIATION_PINS = Object.freeze({
   }),
   expectedArtifact: Object.freeze({
     bytes: 651_618,
-    digest: "sha256:4037ecb9cc60bc63bae38b963abeef8096d7405f2da80a40e79fe60fdff4092b",
+    digest: "sha256:47d186212999081a715b8594d40f06fce31b5278d89a84cef8f364619073c756",
   }),
 });
 

@@ -103,6 +103,7 @@ class ExactSuffixPlanTests(unittest.TestCase):
                 True,
             ),
         )
+
         self.assertEqual(
             (
                 axle_holder_brick.design_id,
@@ -135,6 +136,51 @@ class ExactSuffixPlanTests(unittest.TestCase):
                 "ldcad-shadow",
                 "nominal-stud-tube/1",
                 False,
+            ),
+        )
+
+
+    def test_v30_plan_pins_15573_source_frame_and_stable_half_pitch_seats(self) -> None:
+        jumper = ADMITTED_PART_PLANS[33]
+
+        self.assertEqual(
+            (
+                jumper.design_id,
+                jumper.ldraw_path,
+                jumper.catalog_id,
+                jumper.family,
+                jumper.width_studs,
+                jumper.length_studs,
+                jumper.height_ldu,
+                jumper.orientation_id,
+                jumper.translation_ldu,
+                jumper.connector_source,
+                jumper.validated_connection_stud_profile,
+            ),
+            (
+                "15573",
+                "parts/15573.dat",
+                None,
+                "jumper-plate",
+                1,
+                2,
+                8,
+                "upright-yaw-90",
+                (0, -4, 0),
+                "ldcad-shadow",
+                "nominal-stud-tube/1",
+            ),
+        )
+        self.assertEqual(
+            jumper.clutch_port_semantics,
+            (
+                ((0, 4, -10), "undersideClutch:0:0", ("15573:negative-z-half",)),
+                (
+                    (0, 4, 0),
+                    "undersideClutch:center",
+                    ("15573:negative-z-half", "15573:positive-z-half"),
+                ),
+                ((0, 4, 10), "undersideClutch:0:1", ("15573:positive-z-half",)),
             ),
         )
 

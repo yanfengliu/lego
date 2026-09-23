@@ -30,25 +30,10 @@ import {
   inspectVerifiedPrefix50OfficialLdrawWorldProposal,
   isVerifiedPrefix50OfficialLdrawWorldProposal,
 } from "./part-identification-prefix50-official-ldraw-world-proposal.mjs";
-import { importRepositoryTypeScript } from "./part-identification-typescript-runtime.mjs";
+import { registerRepositoryTypeScriptImports } from "./part-identification-typescript-hooks.mjs";
 
 const COMPILE_KEYS = ["builderGeometryBytes", "officialArchiveBytes", "officialWorldProposal"];
 const VERIFY_KEYS = [...COMPILE_KEYS, "artifactBytes"].sort();
-const CATALOG_URL = new URL("../packages/catalog/src/index.ts", import.meta.url).href;
-const CANONICAL_URL = new URL("../packages/brick-kernel/src/canonical.ts", import.meta.url).href;
-const FACTORY_URL = new URL("../packages/brick-kernel/src/factory.ts", import.meta.url).href;
-const SYMMETRY_URL = new URL(
-  "../apps/web/e2e/real-build-builder-frame-geometry.ts",
-  import.meta.url,
-).href;
-const BUILDER_SOURCES_URL = new URL(
-  "../apps/web/e2e/real-build-builder-sources.ts",
-  import.meta.url,
-).href;
-const BUILDER_FRAME_URL = new URL(
-  "../apps/web/e2e/real-build-builder-ldraw-frame-contract.ts",
-  import.meta.url,
-).href;
 
 function snapshotInput(input, keys, label) {
   const roles = snapshotExactDataObject(input, label, keys);
@@ -127,13 +112,14 @@ async function compileSnapshot(input) {
     pins.builderGeometry,
     "Builder/LDraw geometry-proof bundle",
   );
+  registerRepositoryTypeScriptImports();
   const [catalog, canonical, factory, symmetry, builderSources, builderFrames] = await Promise.all([
-    importRepositoryTypeScript(CATALOG_URL),
-    importRepositoryTypeScript(CANONICAL_URL),
-    importRepositoryTypeScript(FACTORY_URL),
-    importRepositoryTypeScript(SYMMETRY_URL),
-    importRepositoryTypeScript(BUILDER_SOURCES_URL),
-    importRepositoryTypeScript(BUILDER_FRAME_URL),
+    import("../packages/catalog/src/index.ts"),
+    import("../packages/brick-kernel/src/canonical.ts"),
+    import("../packages/brick-kernel/src/factory.ts"),
+    import("../apps/web/e2e/real-build-builder-frame-geometry.ts"),
+    import("../apps/web/e2e/real-build-builder-sources.ts"),
+    import("../apps/web/e2e/real-build-builder-ldraw-frame-contract.ts"),
   ]);
   if (catalog.BUILTIN_CATALOG_VERSION !== pins.catalogVersion) {
     throw new TypeError(

@@ -21,6 +21,54 @@ class PlanTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "only admitted source-rounding normalization"):
             plan(validated_connection_stud_profile="invented-profile/1")
 
+    def test_source_rounded_nominal_r6x4_profile_roster_is_explicit(self) -> None:
+        profiled = [
+            row.design_id
+            for row in ADMITTED_PART_PLANS
+            if row.validated_connection_stud_profile == "nominal-stud-tube/1"
+        ]
+        unprofiled = [
+            row.design_id
+            for row in ADMITTED_PART_PLANS
+            if row.validated_connection_stud_profile is None
+        ]
+
+        self.assertEqual(
+            profiled,
+            [
+                "35480",
+                "51739",
+                "77844",
+                "30357",
+                "2450",
+                "79491",
+                "30503",
+                "6106",
+                "30565",
+                "80015",
+                "28802",
+                "11253",
+                "15254",
+                "41682",
+                "2877",
+                "3040",
+                "32064",
+                "11212",
+                "33909",
+                "78329",
+                "73230",
+                "3245c",
+                "2453b",
+                "10201",
+                "3245b",
+                "15573",
+            ],
+        )
+        self.assertEqual(
+            unprofiled,
+            ["5092", "93273", "25269", "35787", "4519", "99563", "35464", "49307"],
+        )
+
     def test_emission_report_uses_the_explicit_28802_catalog_identity(self) -> None:
         part = measured(
             plan=ADMITTED_PART_PLANS[13],
@@ -39,6 +87,7 @@ class PlanTests(unittest.TestCase):
                 "designId": "28802",
                 "catalogId": "builtin:bracket-1x2-1x4-rounded-bottom",
                 "connectorSource": LDCAD_SHADOW_CONNECTOR_SOURCE,
+                "validatedConnectionStudProfile": "nominal-stud-tube/1",
                 "studs": 6,
                 "clutches": 2,
                 "sourceConnectors": 0,
@@ -100,6 +149,7 @@ class PlanTests(unittest.TestCase):
                 "2453b",
                 "10201",
                 "3245b",
+                "15573",
             ],
         )
         self.assertTrue(all(row.connector_source == "builder" for row in ADMITTED_PART_PLANS[:5]))
@@ -174,29 +224,9 @@ class PlanTests(unittest.TestCase):
             ),
         )
         self.assertEqual(
-            ADMITTED_PART_PLANS[2].validated_connection_stud_profile,
+            ADMITTED_PART_PLANS[16].validated_connection_stud_profile,
             "nominal-stud-tube/1",
         )
-        self.assertEqual(
-            ADMITTED_PART_PLANS[3].validated_connection_stud_profile,
-            "nominal-stud-tube/1",
-        )
-        self.assertTrue(
-            all(
-                row.validated_connection_stud_profile is None
-                for index, row in enumerate(ADMITTED_PART_PLANS[:15])
-                if index not in (1, 2, 3, 5)
-            )
-        )
-        self.assertEqual(
-            ADMITTED_PART_PLANS[1].validated_connection_stud_profile,
-            "nominal-stud-tube/1",
-        )
-        self.assertEqual(
-            ADMITTED_PART_PLANS[5].validated_connection_stud_profile,
-            "nominal-stud-tube/1",
-        )
-        self.assertIsNone(ADMITTED_PART_PLANS[16].validated_connection_stud_profile)
         self.assertEqual(
             (
                 ADMITTED_PART_PLANS[17].connector_source,
@@ -215,7 +245,10 @@ class PlanTests(unittest.TestCase):
                 (0, 6, 0),
             ),
         )
-        self.assertIsNone(ADMITTED_PART_PLANS[17].validated_connection_stud_profile)
+        self.assertEqual(
+            ADMITTED_PART_PLANS[17].validated_connection_stud_profile,
+            "nominal-stud-tube/1",
+        )
         self.assertEqual(
             (
                 ADMITTED_PART_PLANS[18].connector_source,
@@ -234,7 +267,10 @@ class PlanTests(unittest.TestCase):
                 (0, -12, 0),
             ),
         )
-        self.assertIsNone(ADMITTED_PART_PLANS[18].validated_connection_stud_profile)
+        self.assertEqual(
+            ADMITTED_PART_PLANS[18].validated_connection_stud_profile,
+            "nominal-stud-tube/1",
+        )
 
     def test_4519_plan_pins_only_the_exact_ldcad_axle_route(self) -> None:
         axle = ADMITTED_PART_PLANS[20]

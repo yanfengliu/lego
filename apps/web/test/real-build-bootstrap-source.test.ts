@@ -12,6 +12,7 @@ import {
   assertRealBuildBootstrapSourceLockHeld,
   createRealBuildBootstrapSourceManifest,
   readRequiredRealBuildBootstrapSourceManifest,
+  realBuildViteCacheDirectory,
   REAL_BUILD_BOOTSTRAP_DIRECTORY_PREFIX,
   REAL_BUILD_BOOTSTRAP_LOCK_MANIFEST_FILE,
   REAL_BUILD_BOOTSTRAP_LOCK_SCHEMA,
@@ -224,6 +225,35 @@ afterEach(async () => {
 });
 
 describe("pre-discovery bootstrap source manifest reads", () => {
+  it("isolates only required real-build Vite caches inside the exact bootstrap directory", () => {
+    const directory = temporaryDirectory(REAL_BUILD_BOOTSTRAP_DIRECTORY_PREFIX);
+
+    expect(
+      realBuildViteCacheDirectory({
+        environment: {
+          LEGO_REAL_BUILD_REQUIRED: "1",
+          LEGO_REAL_BUILD_BOOTSTRAP_DIRECTORY: directory,
+        },
+      }),
+    ).toBe(join(directory, "vite-cache"));
+    expect(
+      realBuildViteCacheDirectory({
+        environment: {
+          LEGO_REAL_BUILD_REQUIRED: "0",
+          LEGO_REAL_BUILD_BOOTSTRAP_DIRECTORY: REPOSITORY_ROOT,
+        },
+      }),
+    ).toBeUndefined();
+    expect(() =>
+      realBuildViteCacheDirectory({
+        environment: {
+          LEGO_REAL_BUILD_REQUIRED: "1",
+          LEGO_REAL_BUILD_BOOTSTRAP_DIRECTORY: REPOSITORY_ROOT,
+        },
+      }),
+    ).toThrow(/must be a lego-real-build-bootstrap-\* directory created directly inside/u);
+  });
+
   it("refuses an oversized manifest before any of it is read or made resident", () => {
     const { manifest } = syntheticCheckout();
     const { directory, environment } = publishBootstrapEvidence(manifest, {
