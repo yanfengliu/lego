@@ -109,8 +109,13 @@ describe("npm run booklet", { timeout: 60_000 }, () => {
   it("refuses to write its rows where Git would track them", async () => {
     const tracked = join(repositoryRoot, "tools", "booklet", "guard-probe-out");
     process.env.BOOKLET_OUT = tracked;
-    await expect(runBooklet({ writeBaseline: false })).rejects.toThrow(OutputGuardError);
-    expect(existsSync(tracked)).toBe(false);
+    try {
+      await expect(runBooklet({ writeBaseline: false })).rejects.toThrow(OutputGuardError);
+      expect(existsSync(tracked)).toBe(false);
+    } finally {
+      // Only a broken guard creates it; never leave rows in the tree when that happens.
+      rmSync(tracked, { recursive: true, force: true });
+    }
   });
 });
 
