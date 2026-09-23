@@ -1,0 +1,82 @@
+{
+  "version": "lego.booklet-status/1",
+  "headline": {
+    "read": {
+      "steps": 359,
+      "contiguous": true,
+      "firstPage": 11,
+      "lastPage": 219,
+      "overprintsRemoved": 219,
+      "stepCallouts": {
+        "tokens": 859,
+        "pieces": 1464
+      },
+      "calloutLabels": {
+        "tokens": 864,
+        "pieces": 1479
+      },
+      "multipliers": {
+        "labels": 22,
+        "sum": 48
+      },
+      "bagPanels": [
+        {
+          "page": 84,
+          "labels": 4,
+          "pieces": 14
+        },
+        {
+          "page": 132,
+          "labels": 1,
+          "pieces": 1
+        }
+      ],
+      "orphanCallouts": 0,
+      "inventory": {
+        "rows": 276,
+        "pieces": 1465
+      }
+    },
+    "key": {
+      "bricks": 1465,
+      "lxfmlSteps": 668,
+      "stepsAddingBricks": 538,
+      "unplacedBricks": 1,
+      "ldraw": "paired"
+    },
+    "align": {
+      "stepsAligned": 359,
+      "steps": 359,
+      "runOrderMatched": 343,
+      "repairWindows": 7,
+      "unsolvedWindows": 0,
+      "bricksAssigned": 1464,
+      "unplacedBricks": 1,
+      "inventoryMismatches": 0,
+      "bagViolations": 0
+    },
+    "catalog": {
+      "designs": 172,
+      "exact": 77,
+      "interchangeable": 5,
+      "missing": 90,
+      "pieces": 1465,
+      "piecesExact": 1011,
+      "piecesInterchangeable": 83,
+      "piecesMissing": 371,
+      "firstStepNeedingMissing": 51,
+      "firstStepNeedingMissingColor": 18
+    },
+    "playback": {
+      "steps": 359,
+      "validSteps": 1,
+      "invalidSteps": 43,
+      "blockedSteps": 315,
+      "validThrough": 1,
+      "firstInvalid": 2,
+      "firstBlocked": 45,
+      "stepsAddingIssues": 13,
+      "partsThroughValid": 2
+    }
+  }
+}

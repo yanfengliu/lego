@@ -30,5 +30,11 @@
       "@lego-studio/rendering": ["./packages/rendering/src/index.ts"]
     }
   },
-  "include": ["apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts", "vitest.config.ts"]
+  "include": [
+    "apps/**/*.ts",
+    "apps/**/*.tsx",
+    "packages/**/*.ts",
+    "tools/**/*.ts",
+    "vitest.config.ts"
+  ]
 }

@@ -63,4 +63,46 @@ export default tseslint.config(
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
     },
   },
+  {
+    // The answer-key guard. LEGO's official model of the set scores the booklet
+    // harness (tools/booklet); a product that could read it could no longer be
+    // scored by it. So product code may not import anything under tools/booklet
+    // (whose answer-key/ module is the only loader of the official model) nor
+    // name output/official-model in any string. Tests, scripts, e2e and tools
+    // stay free to. tools/booklet/answer-key-guard.test.ts keeps this rule
+    // honest by linting violations through this very config.
+    files: ["packages/*/src/**/*.{ts,tsx,js,mjs,cjs}", "apps/*/src/**/*.{ts,tsx,js,mjs,cjs}"],
+    ignores: [
+      "**/*.test.{ts,tsx,js,mjs,cjs}",
+      "**/*.spec.{ts,tsx,js,mjs,cjs}",
+      // Test-only data: its logicalLocator strings name the official-model files
+      // as provenance, and nothing but set-6651557-coverage-ledger.test.ts and
+      // set-6651557-ldraw-source-audit.test.ts imports it (the catalog index
+      // does not export quarantine/). If a product module ever imports it, this
+      // exemption has to go and the ledger has to move out of src.
+      "packages/catalog/src/quarantine/set-6651557-coverage-ledger.ts",
+    ],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...[
+          "ImportDeclaration",
+          "ImportExpression",
+          "ExportAllDeclaration",
+          "ExportNamedDeclaration",
+        ].map((node) => ({
+          selector: `${node}[source.value=/tools[\\/]booklet/]`,
+          message:
+            "Product code must not import the booklet harness or its official-model answer key (tools/booklet); move shared logic into a package and import it from there.",
+        })),
+        ...["Literal[value=/official-model/]", "TemplateElement[value.raw=/official-model/]"].map(
+          (selector) => ({
+            selector,
+            message:
+              "Product code must not read output/official-model: LEGO's official model is the harness's answer key, never a product input. Take the data from the booklet or the catalog instead.",
+          }),
+        ),
+      ],
+    },
+  },
 );
