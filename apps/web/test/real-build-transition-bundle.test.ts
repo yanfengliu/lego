@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { describe, expect, test } from "vitest";
+import { expect, test } from "vitest";
 
 import {
   MANIFEST_PATH,
@@ -13,6 +13,7 @@ import {
 } from "../e2e/real-build-input-files";
 import { readTransitionClassificationBundle } from "../e2e/real-build-transition-classification";
 import type { StepFailure } from "../e2e/real-build-safety";
+import { describeWithRunEvidence } from "../../../scripts/run-evidence-gate.mjs";
 
 /**
  * The labelled sample this booklet's classifier was measured against.
@@ -89,8 +90,11 @@ const LABELLED_SAMPLE: Readonly<Record<number, "rotation" | "attachment" | "fina
  */
 const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const published = existsSync(resolve(REPOSITORY_ROOT, TRANSITION_CLASSIFICATIONS_PATH));
+const describeWithEvidence = describeWithRunEvidence(
+  `reads ${TRANSITION_CLASSIFICATIONS_PATH}, ignored output/real-build evidence`,
+);
 
-describe.skipIf(!published)(`published ${TRANSITION_CLASSIFICATIONS_PATH}`, () => {
+describeWithEvidence(`published ${TRANSITION_CLASSIFICATIONS_PATH}`, () => {
   const failures: StepFailure[] = [];
   const artifact = readJsonArtifact<TransitionClassificationBundle>(
     TRANSITION_CLASSIFICATIONS_PATH,

@@ -22,6 +22,7 @@ from ldraw_source_archive import (
     canonical_bytes,
     reference_candidates,
 )
+from run_evidence_gate import requires_run_evidence
 from set_6651557_ldraw_source_audit_plan import (
     EXPECTED_AUDIT_COUNTS,
     REQUIRED_LEAF_IDS,
@@ -319,10 +320,7 @@ class GeneratedSourceAuditContractTests(unittest.TestCase):
         self.assertFalse(self.header["authority"]["runtimeExposed"])
 
 
-@unittest.skipUnless(
-    LIVE_OFFICIAL.is_file() and LIVE_UNOFFICIAL.is_file(),
-    "pinned local LDraw archives are not present",
-)
+@requires_run_evidence(f"reads the external {LIVE_OFFICIAL} and {LIVE_UNOFFICIAL}")
 class LivePinnedArchiveRegressionTests(unittest.TestCase):
     def test_pinned_archives_reproduce_the_committed_source_audit_byte_for_byte(self) -> None:
         document = build_source_audit(LIVE_OFFICIAL, LIVE_UNOFFICIAL)

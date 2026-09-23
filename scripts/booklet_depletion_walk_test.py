@@ -33,6 +33,7 @@ from part_identification_report_contract_test import (  # noqa: F401
 from part_identification_report_contract_test_fixture import (
     report_contract_test_verifier_patch,
 )
+from run_evidence_gate import requires_run_evidence
 
 
 _TEST_VERIFIER_PATCH = None
@@ -86,6 +87,27 @@ def artifacts_match_pins() -> bool:
         if "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest() != digest:
             return False
     return True
+
+
+def _assert_artifacts_match_pins() -> None:
+    """Opted in, a republished identification chain fails loudly rather than passing stale."""
+    if not artifacts_match_pins():
+        raise AssertionError(
+            "the retained identification and coverage artifacts no longer hash to the digests "
+            "in PINNED, so the live numbers below would describe a different set of drawings. "
+            "Re-run `python -B scripts/booklet_depletion_report.py` and re-pin."
+        )
+
+
+def _assert_pre_fix_coverage_current() -> None:
+    observed = "sha256:" + hashlib.sha256(PRE_FIX_COVERAGE.read_bytes()).hexdigest()
+    if observed != PRE_FIX_DIGEST:
+        raise AssertionError(
+            f"{PRE_FIX_COVERAGE} is now {observed}, not the pinned {PRE_FIX_DIGEST}, so the walk "
+            "cannot be scored against the four mis-read multiplier labels. Restore the retained "
+            "history artifact, or drop this ground-truth check rather than weakening it."
+        )
+    _assert_artifacts_match_pins()
 
 
 class WalkSemanticsTests(unittest.TestCase):
@@ -261,17 +283,16 @@ class ClusterTests(unittest.TestCase):
         )
 
 
-@unittest.skipUnless(
-    artifacts_match_pins(),
-    "the retained identification and coverage artifacts are absent or no longer hash to the "
-    "digests in PINNED, so the live numbers below describe a different set of drawings. Re-run "
-    "`python -B scripts/booklet_depletion_report.py` and re-pin.",
+@requires_run_evidence(
+    "reads output/part-identification/{element-resolution,match,features,distances}.json and "
+    "output/real-build/catalog-coverage.json, pinned to the digests in PINNED"
 )
 class LiveBookletTests(unittest.TestCase):
     """The measured position, pinned so a regression in it is visible."""
 
     @classmethod
     def setUpClass(cls) -> None:
+        _assert_artifacts_match_pins()
         import booklet_depletion_report as report_module
 
         inventory_raw = json.loads(INVENTORY.read_text(encoding="utf-8"))
@@ -365,13 +386,8 @@ class LiveBookletTests(unittest.TestCase):
             self.assertNotIn(key, keys)
 
 
-@unittest.skipUnless(
-    PRE_FIX_COVERAGE.is_file()
-    and "sha256:" + hashlib.sha256(PRE_FIX_COVERAGE.read_bytes()).hexdigest() == PRE_FIX_DIGEST
-    and artifacts_match_pins(),
-    "the retained pre-fix coverage is absent or no longer hashes to PRE_FIX_DIGEST, so the walk "
-    "cannot be scored against the four mis-read multiplier labels. Restore the retained history "
-    "artifact, or drop this ground-truth check rather than weakening it.",
+@requires_run_evidence(
+    "reads the retained pre-fix coverage history artifact, pinned to PRE_FIX_DIGEST"
 )
 class GroundTruthLocalisationTests(unittest.TestCase):
     """Score the pure walk against a historical defect whose answer is known.
@@ -383,6 +399,7 @@ class GroundTruthLocalisationTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
+        _assert_pre_fix_coverage_current()
         import booklet_depletion_report as report_module
 
         cls.module = report_module
@@ -417,11 +434,9 @@ class GroundTruthLocalisationTests(unittest.TestCase):
         self.assertEqual(self.report.overdrafts[0].callout_keys, ("p13|q1|x83.311|y434.390",))
 
 
-@unittest.skipUnless(
-    ACTION_LEDGER.is_file() and OFFICIAL_MODEL.is_file() and artifacts_match_pins(),
-    "the emitted action ledger or the official model export is absent, so the walk's narrowed "
-    "candidate for the refused pair cannot be corroborated against what the official program "
-    "places at those steps. Re-run the real-build action ledger.",
+@requires_run_evidence(
+    "reads output/real-build/action-ledger.json and output/official-model, corroborated against "
+    "the digests in PINNED"
 )
 class BuilderCutCorroborationTests(unittest.TestCase):
     """A second, independent source for the walk's narrowed candidate.
@@ -435,6 +450,7 @@ class BuilderCutCorroborationTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
+        _assert_artifacts_match_pins()
         ledger = json.loads(ACTION_LEDGER.read_text(encoding="utf-8"))
         cls.refusals = {
             row["calloutKey"]: row["brickRef"]

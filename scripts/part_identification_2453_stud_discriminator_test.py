@@ -6,21 +6,12 @@ from pathlib import Path
 from PIL import Image
 
 from part_identification_2453_stud_discriminator import (
-    DEFAULT_OFFICIAL_ARCHIVE,
-    REPOSITORY_ROOT,
     build_report,
     canonical_bytes,
     measure_rgba,
     sha256_prefixed,
 )
-
-
-LIVE_INPUTS = (
-    DEFAULT_OFFICIAL_ARCHIVE,
-    REPOSITORY_ROOT / "output/inventory-thumbnails/manifest.json",
-    REPOSITORY_ROOT / "output/callout-thumbnails/manifest.json",
-    REPOSITORY_ROOT / "output/part-identification/legacy-recut-semantic.json",
-)
+from run_evidence_gate import requires_run_evidence
 
 
 def synthetic_stud(kind: str, *, run_width: int = 19) -> Image.Image:
@@ -77,7 +68,10 @@ class FeatureBoundaryTests(unittest.TestCase):
         self.assertIn("nonuniform-or-nonopaque-background-corners", measurement["reasons"])
 
 
-@unittest.skipUnless(all(path.is_file() for path in LIVE_INPUTS), "pinned local source art is absent")
+@requires_run_evidence(
+    "reads the official archive and output/{inventory,callout}-thumbnails manifests and "
+    "output/part-identification/legacy-recut-semantic.json"
+)
 class LivePinnedDiagnosticTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:

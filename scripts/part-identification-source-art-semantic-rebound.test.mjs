@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
@@ -29,18 +29,13 @@ import {
   __testOnly as sourceTestOnly,
   createSourceArtWorkLedger,
 } from "./part-identification-source-art-semantic-rebound-source.mjs";
+import { itWithRunEvidence } from "./run-evidence-gate.mjs";
 
 const SEMANTIC_PATH = "output/part-identification/legacy-recut-semantic.json";
-const REQUIRED_PATHS = [
-  CURRENT_LEGACY_RECUT_PINS.currentManifest.path,
-  CURRENT_LEGACY_RECUT_PINS.legacyManifest.path,
-  CURRENT_LEGACY_RECUT_PINS.truth.path,
-  CURRENT_LEGACY_RECUT_SEMANTIC_PINS.legacyRecut.path,
-  CURRENT_LEGACY_RECUT_SEMANTIC_PINS.officialModel.path,
-  CURRENT_SOURCE_ART_SEMANTIC_REBOUND_PINS.pdf.path,
-  SEMANTIC_PATH,
-];
-const realIt = REQUIRED_PATHS.every(existsSync) ? it : it.skip;
+const realIt = itWithRunEvidence(
+  "reads the legacy-recut, source-art and legacy-recut-semantic manifests pinned by the retired " +
+    "first-50 campaign",
+);
 const digest = (bytes) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 
 function semanticInput() {

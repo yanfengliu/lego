@@ -79,7 +79,14 @@ async function supportFunctions() {
     configFile: resolve("apps/web/vite.config.ts"),
     appType: "custom",
     optimizeDeps: { noDiscovery: true, include: [] },
-    server: { middlewareMode: true, hmr: false },
+    // No file watcher: this server loads three modules once and closes. With
+    // one, Vite first crawls everything under the repository root, which in the
+    // main checkout includes output/, var/ and every nested agent worktree.
+    // Timed there on 2026-09-23: 112.8 s with the watcher and 18.7 s without on
+    // a first run, 11.2 s and 2.6 s on a repeat. Under a full test run the crawl
+    // starved Vite's module fetch past its 60 s timeout, and the link-refusal
+    // test that spawns this script failed at 50-140 s against its 15 s budget.
+    server: { middlewareMode: true, hmr: false, watch: null },
   });
   try {
     const [canonical, directories, atomicWrite] = await Promise.all([

@@ -1,5 +1,4 @@
 import { createHash } from "node:crypto";
-import { existsSync } from "node:fs";
 
 import { beforeAll, describe, expect, it } from "vitest";
 
@@ -20,30 +19,15 @@ import {
   verifyOpaqueSemanticBookletCatalogCoverage,
 } from "./booklet-catalog-coverage-semantic.mjs";
 import { CURRENT_LEGACY_RECUT_PINS } from "./part-identification-legacy-recut-source.mjs";
-import { CURRENT_LEGACY_RECUT_SEMANTIC_PINS } from "./part-identification-legacy-recut-semantic.mjs";
-import { CURRENT_SOURCE_ART_SEMANTIC_REBOUND_PINS } from "./part-identification-source-art-semantic-rebound.mjs";
 import { verifyCurrentPrefix50SemanticClosure } from "./part-identification-prefix50-semantic-closure-current.mjs";
 import { CURRENT_PREFIX50_SEMANTIC_CLOSURE_PINS } from "./part-identification-prefix50-semantic-closure-source.mjs";
+import { describeWithRunEvidence } from "./run-evidence-gate.mjs";
 
-const LEGACY_SEMANTIC_PATH = "output/part-identification/legacy-recut-semantic.json";
-const SOURCE_ART_SEMANTIC_PATH = "output/part-identification/source-art-semantic-rebound.json";
-const REQUIRED_PATHS = [
-  CURRENT_LEGACY_RECUT_PINS.currentManifest.path,
-  CURRENT_LEGACY_RECUT_PINS.legacyManifest.path,
-  CURRENT_LEGACY_RECUT_PINS.truth.path,
-  CURRENT_LEGACY_RECUT_SEMANTIC_PINS.legacyRecut.path,
-  CURRENT_LEGACY_RECUT_SEMANTIC_PINS.officialModel.path,
-  CURRENT_SOURCE_ART_SEMANTIC_REBOUND_PINS.pdf.path,
-  CURRENT_PREFIX50_SEMANTIC_CLOSURE_PINS.inventoryManifest.path,
-  CURRENT_PREFIX50_SEMANTIC_CLOSURE_PINS.elementResolution.path,
-  CURRENT_PREFIX50_SEMANTIC_CLOSURE_PINS.review57.path,
-  CURRENT_PREFIX50_SEMANTIC_CLOSURE_PINS.review3.path,
-  CURRENT_PREFIX50_SEMANTIC_CLOSURE_PINS.reviewOutcomes.path,
-  LEGACY_SEMANTIC_PATH,
-  SOURCE_ART_SEMANTIC_PATH,
-];
-const realDescribe = REQUIRED_PATHS.every(existsSync) ? describe : describe.skip;
 const digest = (bytes) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+const describeWithEvidence = describeWithRunEvidence(
+  "reads the legacy-recut, source-art and prefix50-semantic-closure manifests pinned by the " +
+    "retired first-50 campaign",
+);
 
 describe("semantic booklet catalog coverage hostile boundary", () => {
   it("rejects caller-shaped semantic closure lookalikes before reading their bytes", async () => {
@@ -166,7 +150,7 @@ describe("semantic booklet catalog coverage hostile boundary", () => {
   });
 });
 
-realDescribe("current prefix-50 semantic booklet catalog coverage", () => {
+describeWithEvidence("current prefix-50 semantic booklet catalog coverage", () => {
   let current;
   let input;
   let report;

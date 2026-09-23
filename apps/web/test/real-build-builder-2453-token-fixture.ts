@@ -1,8 +1,8 @@
-import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { parse, resolve } from "node:path";
 
 import { compileBuilder2453IdentityProof } from "../../../scripts/part-identification-2453-builder-identity.mjs";
+import { readArchiveMember } from "../../../scripts/tar-archive.mjs";
 
 const LOCAL_EVIDENCE_ROOT = resolve(parse(process.cwd()).root, "tmp");
 const localEvidencePath = (...segments: readonly string[]): string =>
@@ -26,11 +26,7 @@ export const hasBuilder2453IdentityEvidence =
   Object.values(PATHS).every((path) => existsSync(resolve(process.cwd(), path)));
 
 function extractOfficialMember(path: string): Buffer {
-  return execFileSync(process.platform === "win32" ? "tar.exe" : "tar", [
-    "-xOf",
-    OFFICIAL_ARCHIVE,
-    path,
-  ]);
+  return readArchiveMember(OFFICIAL_ARCHIVE, path);
 }
 
 /** Mints the opaque route token only by recompiling every exact module-pinned evidence role. */

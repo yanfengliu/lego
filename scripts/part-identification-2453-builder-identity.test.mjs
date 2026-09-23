@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
-import { execFileSync } from "node:child_process";
-import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
+import { createReadStream, readFileSync, statSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
@@ -18,22 +17,11 @@ import {
   consumeBuilder2453DiagnosticRegistryRoute,
   verifyBuilder2453RegistryProofBytes,
 } from "./part-identification-2453-builder-registry-route.mjs";
+import { describeWithRunEvidence } from "./run-evidence-gate.mjs";
+import { readArchiveMember } from "./tar-archive.mjs";
 
 const pins = CURRENT_BUILDER_2453_IDENTITY_PINS;
 const shadowRoot = "C:/tmp/ldcad-shadow-20260802";
-const livePaths = [
-  pins.officialModel.path,
-  pins.builderManifest.path,
-  pins.builderBundle.path,
-  pins.builderBundleProof.path,
-  pins.nativePack.path,
-  pins.officialLdraw.archive.path,
-  `${shadowRoot}/parts/2453b.dat`,
-  `${shadowRoot}/parts/2453a.dat`,
-  `${shadowRoot}/p/stud.dat`,
-  `${shadowRoot}/p/stud2a.dat`,
-];
-const realEvidencePresent = livePaths.every(existsSync);
 
 async function digestBoundedFile(path, expectedBytes) {
   if (statSync(path).size !== expectedBytes) {
@@ -51,11 +39,7 @@ async function digestBoundedFile(path, expectedBytes) {
 }
 
 function extractOfficialMember(path) {
-  const executable = process.platform === "win32" ? "tar.exe" : "tar";
-  return execFileSync(executable, ["-xOf", pins.officialLdraw.archive.path, path], {
-    maxBuffer: 2 * 1024 * 1024,
-    windowsHide: true,
-  });
+  return readArchiveMember(pins.officialLdraw.archive.path, path, { maxBuffer: 2 * 1024 * 1024 });
 }
 
 async function readCurrentEvidence() {
@@ -171,7 +155,12 @@ describe("2453 exact identity source boundary", () => {
   });
 });
 
-describe.runIf(realEvidencePresent)("2453 exact live identity proof", () => {
+const describeWithEvidence = describeWithRunEvidence(
+  `reads output/official-model, the builder manifest/bundle/proof and native pack, the official ` +
+    `LDraw archive, and four files under the external LDraw shadow root ${shadowRoot}`,
+);
+
+describeWithEvidence("2453 exact live identity proof", () => {
   let evidence;
   let compiled;
 

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
@@ -13,6 +13,7 @@ import {
   isVerifiedPartIdentificationLegacyRecutSemantic,
   verifyPartIdentificationLegacyRecutSemantic,
 } from "./part-identification-legacy-recut-semantic.mjs";
+import { itWithRunEvidence } from "./run-evidence-gate.mjs";
 
 const EXACT_AUTHORITY = {
   kind: "local-diagnostic",
@@ -183,15 +184,11 @@ describe("legacy-recut exact semantic classification", () => {
   });
 });
 
-const realEvidencePresent = [
-  CURRENT_LEGACY_RECUT_PINS.legacyManifest.path,
-  CURRENT_LEGACY_RECUT_PINS.currentManifest.path,
-  CURRENT_LEGACY_RECUT_PINS.truth.path,
-  CURRENT_LEGACY_RECUT_SEMANTIC_PINS.legacyRecut.path,
-  CURRENT_LEGACY_RECUT_SEMANTIC_PINS.officialModel.path,
-  "output/callout-thumbnails",
-].every(existsSync);
-const realEvidenceTest = (name, testBody) => it.runIf(realEvidencePresent)(name, testBody, 20_000);
+const itWithEvidence = itWithRunEvidence(
+  "reads output/callout-thumbnails and the legacy/current/truth/official-model manifests pinned " +
+    "by the retired first-50 campaign",
+);
+const realEvidenceTest = (name, testBody) => itWithEvidence(name, testBody, 20_000);
 
 function realInput() {
   return {
@@ -357,7 +354,7 @@ realEvidenceTest(
   },
 );
 
-it.runIf(realEvidencePresent)(
+realEvidenceTest(
   "rejects edited authority, changed official bytes, changed recut bytes, and extra roles",
   async () => {
     const input = realInput();
@@ -392,5 +389,4 @@ it.runIf(realEvidencePresent)(
       }),
     ).rejects.toThrow(/must contain exactly/);
   },
-  20_000,
 );

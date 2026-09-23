@@ -35,26 +35,15 @@ import {
   CURRENT_PREFIX50_SEMANTIC_CLOSURE_PINS,
   assertGlobalPrefixConservation,
 } from "./part-identification-prefix50-semantic-closure-source.mjs";
+import { describeWithRunEvidence } from "./run-evidence-gate.mjs";
 
 const LEGACY_SEMANTIC_PATH = "output/part-identification/legacy-recut-semantic.json";
 const SOURCE_ART_PATH = "output/part-identification/source-art-semantic-rebound.json";
-const REQUIRED_PATHS = [
-  CURRENT_LEGACY_RECUT_PINS.currentManifest.path,
-  CURRENT_LEGACY_RECUT_PINS.legacyManifest.path,
-  CURRENT_LEGACY_RECUT_PINS.truth.path,
-  CURRENT_LEGACY_RECUT_SEMANTIC_PINS.legacyRecut.path,
-  CURRENT_LEGACY_RECUT_SEMANTIC_PINS.officialModel.path,
-  CURRENT_SOURCE_ART_SEMANTIC_REBOUND_PINS.pdf.path,
-  CURRENT_PREFIX50_SEMANTIC_CLOSURE_PINS.inventoryManifest.path,
-  CURRENT_PREFIX50_SEMANTIC_CLOSURE_PINS.elementResolution.path,
-  CURRENT_PREFIX50_SEMANTIC_CLOSURE_PINS.review57.path,
-  CURRENT_PREFIX50_SEMANTIC_CLOSURE_PINS.review3.path,
-  CURRENT_PREFIX50_SEMANTIC_CLOSURE_PINS.reviewOutcomes.path,
-  LEGACY_SEMANTIC_PATH,
-  SOURCE_ART_PATH,
-];
-const realDescribe = REQUIRED_PATHS.every(existsSync) ? describe : describe.skip;
 const digest = (bytes) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+const describeWithEvidence = describeWithRunEvidence(
+  "reads the legacy-recut, source-art and prefix50-semantic-closure manifests pinned by the " +
+    "retired first-50 campaign",
+);
 
 function legacySemanticInput() {
   return {
@@ -212,7 +201,7 @@ describe("prefix-50 semantic closure hostile primitives", () => {
   });
 });
 
-realDescribe("prefix-50 semantic identity closure", () => {
+describeWithEvidence("prefix-50 semantic identity closure", () => {
   let source;
   let input;
   let artifact;

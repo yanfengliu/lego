@@ -1,8 +1,9 @@
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { itWithRunEvidence } from "../../../scripts/run-evidence-gate.mjs";
 import { PART_DEFINITIONS } from "./index.js";
 import {
   BUNDLED_LDRAW_ARCHIVE,
@@ -267,7 +268,7 @@ describe("bundled geometry notices", () => {
     }
   });
 
-  it.skipIf(!existsSync(PINNED_SHADOW_ROOT))(
+  itWithRunEvidence(`reads the external LDCad shadow root ${PINNED_SHADOW_ROOT}`)(
     "matches every release-notice contributor to the pinned shadow headers",
     () => {
       for (const [file, expected] of Object.entries(LDCAD_HISTORY_CONTRIBUTORS_BY_FILE)) {

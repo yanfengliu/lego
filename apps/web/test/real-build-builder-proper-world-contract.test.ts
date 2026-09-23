@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { expect, it } from "vitest";
 
 import { sha256Digest } from "../e2e/real-build-artifacts";
 import {
@@ -28,6 +28,7 @@ import {
 } from "./real-build-builder-prefix-fixture";
 import { assertExactPrefixWorldCensus } from "./real-build-builder-prefix-world-contract";
 import { consumeBuilder2453DiagnosticRegistryRoute } from "../../../scripts/part-identification-2453-builder-registry-route.mjs";
+import { describeWithRunEvidence } from "../../../scripts/run-evidence-gate.mjs";
 
 function currentInput() {
   const inputBytes = Object.fromEntries(
@@ -76,7 +77,11 @@ async function currentGatedInput(builder2453IdentityToken: object) {
   };
 }
 
-describe("first-50 Builder proper-world diagnostic contract", () => {
+const describeWithEvidence = describeWithRunEvidence(
+  "pins output/real-build/builder-shell-geometry.bin and the other prefix inputs of the retired first-50 campaign",
+);
+
+describeWithEvidence("first-50 Builder proper-world diagnostic contract", () => {
   it("fails before the census when the opaque 2453 evidence token is absent or caller-shaped", async () => {
     const input = currentInput();
     const genericPrefix = input.rows.map(

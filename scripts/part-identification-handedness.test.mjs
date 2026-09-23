@@ -16,6 +16,7 @@ import {
 import { chiralCard } from "./part-identification-card-test-fixture.mjs";
 import { mirrorPairedPicks } from "./part-identification-mirror-pairs.mjs";
 import { visionPick } from "./part-identification-score.mjs";
+import { describeWithRunEvidence } from "./run-evidence-gate.mjs";
 
 /**
  * The check that decides which hand a booklet drawing is, from the drawing.
@@ -212,7 +213,11 @@ const sealedManifest = () => {
   return manifest.runId === SEALED_RUN_ID ? manifest : null;
 };
 
-describe.runIf(sealedManifest() !== null)("the sealed run's four chiral cards", () => {
+const describeWithEvidence = describeWithRunEvidence(
+  `reads the sealed run's manifest under ${SEALED_CARDS}`,
+);
+
+describeWithEvidence("the sealed run's four chiral cards", () => {
   it("separates every one of them, and by how much", () => {
     const manifest = sealedManifest();
     for (const [cardId, expected] of Object.entries(SEALED_MARGINS)) {

@@ -44,6 +44,7 @@ from part_description_truth_test import (  # noqa: F401
     TruthStructureContractTests,
 )
 from part_description_input_contract_test import DescriptionInputContractTests  # noqa: F401
+from run_evidence_gate import requires_run_evidence
 
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 INVENTORY = REPOSITORY_ROOT / "output/part-identification/element-resolution.json"
@@ -55,6 +56,16 @@ def inventory_matches_pin() -> bool:
         return False
     digest = f"sha256:{hashlib.sha256(INVENTORY.read_bytes()).hexdigest()}"
     return digest == INVENTORY_DIGEST
+
+
+def _assert_inventory_matches_pin() -> None:
+    """Opted in, a re-derived inventory fails loudly rather than passing stale."""
+    if not inventory_matches_pin():
+        raise AssertionError(
+            f"{INVENTORY} no longer hashes to {INVENTORY_DIGEST}, so the printed inventory these "
+            "counts describe is not the one on disk. Re-derive element resolution, then "
+            "re-measure and update the pin rather than relaxing the assertion."
+        )
 
 
 class StudDimensionTests(unittest.TestCase):
@@ -293,17 +304,13 @@ class RankingTests(unittest.TestCase):
         self.assertEqual(first, 0.0)
 
 
-@unittest.skipUnless(
-    inventory_matches_pin(),
-    f"{INVENTORY} is absent or no longer hashes to {INVENTORY_DIGEST}, so the printed inventory "
-    "these counts describe is not the one on disk. Re-derive element resolution, then re-measure "
-    "and update the pin rather than relaxing the assertion.",
-)
+@requires_run_evidence(f"reads {INVENTORY}, pinned to {INVENTORY_DIGEST}")
 class LiveInventoryTests(unittest.TestCase):
     """What the parser can and cannot read out of the real printed inventory."""
 
     @classmethod
     def setUpClass(cls) -> None:
+        _assert_inventory_matches_pin()
         cls.inventory = json.loads(INVENTORY.read_text(encoding="utf-8"))
         cls.parsed = parse_inventory(cls.inventory)
 

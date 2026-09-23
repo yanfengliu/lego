@@ -25,6 +25,7 @@ from ldraw_surface_expander import expand_surface
 from part_admission_clutch import measure_clutch_room
 from part_admission_contract import Candidate, Connector
 from part_admission_ldraw_candidate import role_classifier
+from run_evidence_gate import requires_run_evidence
 from set_6651557_ldraw_source_audit_plan import ARCHIVE_PINS
 
 HEADER = (
@@ -115,12 +116,9 @@ class ExactSquareClutchTests(unittest.TestCase):
         )
 
 
-@unittest.skipUnless(
-    PINNED_OFFICIAL.is_file()
-    and PINNED_UNOFFICIAL.is_file()
-    and PINNED_SHADOW.is_dir()
-    and PINNED_NATIVE_PACK.is_file(),
-    "pinned LDraw, LDCad, or Builder control input is absent",
+@requires_run_evidence(
+    f"reads the external {PINNED_OFFICIAL}, {PINNED_UNOFFICIAL}, {PINNED_SHADOW}, and "
+    f"{PINNED_NATIVE_PACK}"
 )
 class PinnedBuilderSquareClutchControlTests(unittest.TestCase):
     @classmethod

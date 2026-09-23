@@ -17,6 +17,7 @@ from ldcad_shadow_coverage import (
 )
 from ldcad_shadow_connectors import snap_instances
 from ldcad_shadow_source import VerifiedShadowLibrary
+from run_evidence_gate import requires_run_evidence
 
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 LIVE_OFFICIAL = Path(r"C:\tmp\ldraw-complete-2026-07.zip")
@@ -140,12 +141,9 @@ class BuilderFramePinTests(unittest.TestCase):
             self.assertIn("must not move it", message)
 
 
-@unittest.skipUnless(
-    LIVE_SHADOW.is_dir()
-    and LIVE_OFFICIAL.is_file()
-    and LIVE_UNOFFICIAL.is_file()
-    and LIVE_REPORT.is_file(),
-    "pinned local LDCad shadow library, LDraw archives or measurement report are not present",
+@requires_run_evidence(
+    f"reads the external {LIVE_SHADOW}, {LIVE_OFFICIAL} and {LIVE_UNOFFICIAL}, and the retained "
+    f"measurement report {LIVE_REPORT}"
 )
 class LiveMeasurementRegressionTests(unittest.TestCase):
     """The numbers this measurement established, pinned so a regression is loud.

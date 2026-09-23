@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, expect, it } from "vitest";
 
 import {
   bytesFromVerifiedPrefix50OfficialLdrawWorldProposal,
@@ -29,6 +29,7 @@ import {
   PREFIX50_OFFICIAL_LDRAW_WORLD_PROPOSAL_SCHEMA,
 } from "./part-identification-prefix50-official-ldraw-world-proposal-source.mjs";
 import { importRepositoryTypeScript } from "./part-identification-typescript-runtime.mjs";
+import { describeWithRunEvidence } from "./run-evidence-gate.mjs";
 
 const moduleUrl = (relativePath) => new URL(relativePath, import.meta.url).href;
 const inputsPresent = [
@@ -56,7 +57,12 @@ function rotatedZ(radians) {
   return [cosine, -sine, 0, sine, cosine, 0, 0, 0, 1];
 }
 
-describe.runIf(inputsPresent)("prefix-50 official XML/LDraw world proposal", () => {
+const describeWithEvidence = describeWithRunEvidence(
+  "pins output/real-build/prefix50-official-ldraw-world-proposal.json and its inputs from the retired first-50 campaign",
+  { onlyIf: inputsPresent },
+);
+
+describeWithEvidence("prefix-50 official XML/LDraw world proposal", () => {
   let artifact;
   let bytes;
   let input;

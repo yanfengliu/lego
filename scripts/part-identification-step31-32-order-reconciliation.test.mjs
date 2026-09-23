@@ -1,6 +1,6 @@
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, expect, it } from "vitest";
 
 import {
   CURRENT_STEP31_32_ORDER_RECONCILIATION_PINS,
@@ -13,11 +13,7 @@ import {
   isVerifiedStep31_32OrderReconciliation,
   verifyStep31_32OrderReconciliation,
 } from "./part-identification-step31-32-order-reconciliation.mjs";
-
-const realEvidencePresent = [
-  CURRENT_STEP31_32_ORDER_RECONCILIATION_PINS.currentManifest.path,
-  CURRENT_STEP31_32_ORDER_RECONCILIATION_PINS.officialModel.path,
-].every(existsSync);
+import { describeWithRunEvidence } from "./run-evidence-gate.mjs";
 
 const realInput = () => ({
   currentManifestBytes: readFileSync(
@@ -44,7 +40,11 @@ function mutableOfficial(official) {
   };
 }
 
-describe.runIf(realEvidencePresent)("bounded step-31/32 official-order reconciliation", () => {
+const describeWithEvidence = describeWithRunEvidence(
+  "reads the current manifest and official model pinned by the retired first-50 campaign",
+);
+
+describeWithEvidence("bounded step-31/32 official-order reconciliation", () => {
   let input;
   let manifestEvidence;
   let official;

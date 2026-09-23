@@ -18,6 +18,7 @@ import {
   REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH,
 } from "../packages/brick-kernel/src/historical-connection-semantics.ts";
 import { REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS } from "../packages/brick-kernel/src/migration.ts";
+import { extractTarArchive } from "./tar-archive.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const outputRoot = resolve(repositoryRoot, "output");
@@ -64,7 +65,7 @@ async function importHistoricalCatalog(sourceCommit, temporaryRoot) {
     "packages/catalog/package.json",
     "packages/catalog/src",
   ]);
-  run("tar", ["-xf", archivePath, "-C", extractionRoot]);
+  extractTarArchive(archivePath, extractionRoot);
   const catalogUrl = pathToFileURL(join(extractionRoot, "packages/catalog/src/catalog.ts"));
   const constantsUrl = pathToFileURL(join(extractionRoot, "packages/catalog/src/constants.ts"));
   const [{ PART_DEFINITIONS: historicalParts }, constants] = await Promise.all([
