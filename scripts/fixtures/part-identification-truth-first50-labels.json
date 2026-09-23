@@ -1,0 +1,704 @@
+{
+  "schemaVersion": "lego.part-identification-truth-labels/1",
+  "truth": "scripts/fixtures/part-identification-truth-first50.json",
+  "note": "Binds each verdict of the first-fifty truth to the count label whose crop was judged. The judged crops are the files of the ignored run output/callout-thumbnails/runs/1e37c50ffee4df7741ac6722, each named p<page>-q<count>-x<x>-y<y>.png after the pdf.js position of its count label; the SHA-256 of every file listed here equals its verdict's judgedCropSha256, and all 84 verdict digests were found (verdict 25's crop bytes occur at two labels). A row carries no verdict, element or pixel: the verdict stays in the truth file, joined by n and checked by digest.",
+  "errataNote": "Errata are verdicts the truth file gets wrong as element identities. The raters judged shape only, and an element id fixes colour as well as shape. Each erratum names the element the verdict claimed, the element the evidence supports, and the evidence: median ink colour of the callout and of both inventory thumbnails, as cut by apps/web/src/instructions/identify on booklet sha256:baef0a373164b58d7c982984b52d4e50b10cc59ed28007acb456faa72359bd27, and the inventory counts. scripts/identify-booklet.mjs still counts these as misses and prints the erratum beside each.",
+  "errata": [
+    {
+      "n": 16,
+      "claimed": "4210678",
+      "correct": "383228",
+      "reason": "shape-only verdict; the callout is the green 2x10 plate 383228, not the grey 4210678",
+      "evidence": "callout p15 step 11 ink median RGB 48,159,86 (green); inventory 383228 median 48,150,85 (green); inventory 4210678 median 101,102,102 (dark bluish grey). 4210678 has inventory count 2, spent by the two byte-identical grey callouts on p85 (steps 96 and 98, median 105,105,106); 383228 has count 1. The verdict note itself says the colours differ."
+    },
+    {
+      "n": 82,
+      "claimed": "4210690",
+      "correct": "6595205",
+      "reason": "shape-only verdict; the callout is the dark blue 1x1x5 column 6595205, not the grey 4210690",
+      "evidence": "callout p50 step 49 ink median RGB 34,62,104 (dark blue); inventory 6595205 median 34,62,102 (dark blue); inventory 4210690 median 106,106,106 (grey). The p50 drawing is byte-identical at the same size to the p53 drawing that verdict 83 judges to be 6595205. 6595205 has count 6 = p50 (3) + p53 (2) + p189 (1); 4210690 has count 3, spent by the grey drawing on p55, p191 and p212. The verdict note itself says the colours differ."
+    }
+  ],
+  "labels": [
+    {
+      "n": 1,
+      "judgedCropSha256": "sha256:36315f66f191360ae41d179822ca030934bf79fdbcc487aa2658c58f58c47183",
+      "page": 11,
+      "quantity": 1,
+      "xPt": 43.074,
+      "yPt": 486.271
+    },
+    {
+      "n": 2,
+      "judgedCropSha256": "sha256:8097fb3b56f3131cbaa72f121a25e91061726642dfa4c3cdee3a5a3a414754c3",
+      "page": 11,
+      "quantity": 1,
+      "xPt": 108.908,
+      "yPt": 486.271
+    },
+    {
+      "n": 3,
+      "judgedCropSha256": "sha256:1aa4cf7e0cd83d2423292e484894e565a0b02f7a7f2159484c07e04865a0a842",
+      "page": 11,
+      "quantity": 1,
+      "xPt": 506.064,
+      "yPt": 212.112
+    },
+    {
+      "n": 4,
+      "judgedCropSha256": "sha256:a926e1a6822f6f4168e1ae656824e5176258d981c8132f57e80b607431f0be06",
+      "page": 11,
+      "quantity": 1,
+      "xPt": 451.987,
+      "yPt": 460.351
+    },
+    {
+      "n": 5,
+      "judgedCropSha256": "sha256:2dd95aee81163252fb965d084bc16bc82720a82ed8bab4d7d07a5678bf2ae842",
+      "page": 11,
+      "quantity": 1,
+      "xPt": 420.47,
+      "yPt": 212.112
+    },
+    {
+      "n": 6,
+      "judgedCropSha256": "sha256:87335cb83ac1487063f32d86fcc07867e419cd59a5e251dc678cb97457a36136",
+      "page": 12,
+      "quantity": 1,
+      "xPt": 26.748,
+      "yPt": 453.87
+    },
+    {
+      "n": 7,
+      "judgedCropSha256": "sha256:0daea2b9a2bb822470f01c3bdc6468f341e1c55c148f1c0749d4821dce7be489",
+      "page": 12,
+      "quantity": 1,
+      "xPt": 108.829,
+      "yPt": 453.87
+    },
+    {
+      "n": 8,
+      "judgedCropSha256": "sha256:d1e80c354073d10c5204c0339e513d4c85ea8d2ec04977d7749849147e31d714",
+      "page": 12,
+      "quantity": 1,
+      "xPt": 425.416,
+      "yPt": 470.671
+    },
+    {
+      "n": 9,
+      "judgedCropSha256": "sha256:dadd6b470a7f42857f03eca35619571d8bab169657d350bd74673270b46eded3",
+      "page": 12,
+      "quantity": 1,
+      "xPt": 425.416,
+      "yPt": 425.162
+    },
+    {
+      "n": 10,
+      "judgedCropSha256": "sha256:2691ad02ad3ffe248b0892e023a9699fe871face95c3f63f297441d1cc81ac48",
+      "page": 12,
+      "quantity": 1,
+      "xPt": 395.433,
+      "yPt": 425.162
+    },
+    {
+      "n": 11,
+      "judgedCropSha256": "sha256:cc19c9e49156d55011c93b5ba6ad4ca680e3d8cd65b265832779c17e06a52d51",
+      "page": 12,
+      "quantity": 1,
+      "xPt": 469.096,
+      "yPt": 425.162
+    },
+    {
+      "n": 12,
+      "judgedCropSha256": "sha256:e018edbc8443a2b4932079dbdb5e63a81beb2c4ed3fa7e7e22c2a91e5efbe513",
+      "page": 13,
+      "quantity": 1,
+      "xPt": 83.311,
+      "yPt": 473.55
+    },
+    {
+      "n": 13,
+      "judgedCropSha256": "sha256:9f4dcbe1b52fdc637ed2895b868974958ebebf46aa05efd616e9d6a8827ff8cb",
+      "page": 13,
+      "quantity": 1,
+      "xPt": 139.831,
+      "yPt": 434.39
+    },
+    {
+      "n": 14,
+      "judgedCropSha256": "sha256:83a213b9ff8d5e0f2a721dc9415288c8c65088f7394fd52bdb24d557e5a34c08",
+      "page": 14,
+      "quantity": 1,
+      "xPt": 437.251,
+      "yPt": 419.109
+    },
+    {
+      "n": 15,
+      "judgedCropSha256": "sha256:d02fddec8b22c4c34ff058782df59b591528d90f588410efd448fde2bab00961",
+      "page": 14,
+      "quantity": 1,
+      "xPt": 395.433,
+      "yPt": 467.071
+    },
+    {
+      "n": 16,
+      "judgedCropSha256": "sha256:d24105a62fc20aa8bdfc7ae82ed915556d8507acc47726bd8e2d12a230cbc520",
+      "page": 15,
+      "quantity": 1,
+      "xPt": 49.471,
+      "yPt": 465.622
+    },
+    {
+      "n": 17,
+      "judgedCropSha256": "sha256:e9cd97de0ad08db46d824fdf6ba0495794572aec4bc85b20ca88ba514582cb84",
+      "page": 15,
+      "quantity": 1,
+      "xPt": 151.951,
+      "yPt": 418.502
+    },
+    {
+      "n": 18,
+      "judgedCropSha256": "sha256:6b477661c23d379671926b7d7bc88d2b9f4ed75cf73576edfe93e58249b790f4",
+      "page": 16,
+      "quantity": 1,
+      "xPt": 59.508,
+      "yPt": 480.271
+    },
+    {
+      "n": 19,
+      "judgedCropSha256": "sha256:130c23983506c705c7d161ff649c4a0a9af12d4be263a81df18e625b6cc7243a",
+      "page": 18,
+      "quantity": 1,
+      "xPt": 29.48,
+      "yPt": 468.911
+    },
+    {
+      "n": 20,
+      "judgedCropSha256": "sha256:a400f346b48bc7905df1ecac9bdc90d9aa4dbfe86839ea1acb7053c745d60090",
+      "page": 18,
+      "quantity": 1,
+      "xPt": 29.48,
+      "yPt": 498.751
+    },
+    {
+      "n": 21,
+      "judgedCropSha256": "sha256:ffb512ce9b682de826fb7c6b322b531970320fff771e333c1a7d20322ce6e988",
+      "page": 20,
+      "quantity": 1,
+      "xPt": 82.697,
+      "yPt": 430.691
+    },
+    {
+      "n": 22,
+      "judgedCropSha256": "sha256:f5667a72d63f321c009bf54ae07578680f01f6812da065cc5183d86273205ae8",
+      "page": 20,
+      "quantity": 1,
+      "xPt": 124.274,
+      "yPt": 430.691
+    },
+    {
+      "n": 23,
+      "judgedCropSha256": "sha256:89fab90c30916ad8b6f98780b6ac635916b53c1e9d2e30c5d570962761f2305a",
+      "page": 21,
+      "quantity": 1,
+      "xPt": 100.711,
+      "yPt": 471.631
+    },
+    {
+      "n": 24,
+      "judgedCropSha256": "sha256:8a23375961b4b06bee820159cc2d0c12bf40192591c7ed9efb2a72e582771e39",
+      "page": 22,
+      "quantity": 1,
+      "xPt": 57.695,
+      "yPt": 495.055
+    },
+    {
+      "n": 25,
+      "judgedCropSha256": "sha256:5c06b703de80f61a534045670e98bded78d6c9417b3e4efc6cca77ca4e3a799f",
+      "page": 23,
+      "quantity": 1,
+      "xPt": 85.937,
+      "yPt": 467.756
+    },
+    {
+      "n": 25,
+      "judgedCropSha256": "sha256:5c06b703de80f61a534045670e98bded78d6c9417b3e4efc6cca77ca4e3a799f",
+      "page": 23,
+      "quantity": 1,
+      "xPt": 120.898,
+      "yPt": 467.756
+    },
+    {
+      "n": 26,
+      "judgedCropSha256": "sha256:93d77565a057c4288229f4ab69769606563312b874bd4b65e031841255111260",
+      "page": 23,
+      "quantity": 3,
+      "xPt": 43.937,
+      "yPt": 497.277
+    },
+    {
+      "n": 27,
+      "judgedCropSha256": "sha256:ded1229855fdafe43c4fb36a2b69cefd496e08d91576be5c53fe79af48410513",
+      "page": 23,
+      "quantity": 1,
+      "xPt": 85.937,
+      "yPt": 497.277
+    },
+    {
+      "n": 28,
+      "judgedCropSha256": "sha256:2a03c8d718cc67e6db2d06706472f6cd59f90c1885d631a65f6cb42e4d4ede50",
+      "page": 24,
+      "quantity": 2,
+      "xPt": 61.886,
+      "yPt": 493.255
+    },
+    {
+      "n": 29,
+      "judgedCropSha256": "sha256:3197a0aaa065444c492bea192b6343b32ec300745e27896fd210448487f32a32",
+      "page": 24,
+      "quantity": 1,
+      "xPt": 27.042,
+      "yPt": 493.255
+    },
+    {
+      "n": 30,
+      "judgedCropSha256": "sha256:d9ab145d045736368d547c6a2bf0a7fef287b998b6e1d44f539d5c2bcf218c0f",
+      "page": 25,
+      "quantity": 1,
+      "xPt": 80.274,
+      "yPt": 455.471
+    },
+    {
+      "n": 31,
+      "judgedCropSha256": "sha256:b262093e988832430ee756c02c61138f5f4754b35504e12fbf0221689b47f5fe",
+      "page": 25,
+      "quantity": 1,
+      "xPt": 80.274,
+      "yPt": 497.071
+    },
+    {
+      "n": 32,
+      "judgedCropSha256": "sha256:5579faf48c9dfb30cae8b05ae1db1a007a8ea88f16609dce821c72d91182a28d",
+      "page": 25,
+      "quantity": 1,
+      "xPt": 42.52,
+      "yPt": 497.071
+    },
+    {
+      "n": 33,
+      "judgedCropSha256": "sha256:a1c8ce1ee65b63a30e9d159b3559a8eb39513309e32d626f68fee2d76d8c670b",
+      "page": 25,
+      "quantity": 2,
+      "xPt": 161.542,
+      "yPt": 455.471
+    },
+    {
+      "n": 34,
+      "judgedCropSha256": "sha256:d93c19b5772e8feb7f4b4da9e8060de2a0fae2c75646d8ce8f4ae6d458c2ef59",
+      "page": 25,
+      "quantity": 2,
+      "xPt": 161.542,
+      "yPt": 497.071
+    },
+    {
+      "n": 35,
+      "judgedCropSha256": "sha256:00cce49ba2c2bcb6585f6a67842d9a5475e28f2739b601df30afd5ad1e143b78",
+      "page": 26,
+      "quantity": 4,
+      "xPt": 24.135,
+      "yPt": 487.711
+    },
+    {
+      "n": 36,
+      "judgedCropSha256": "sha256:ec1ce7b9842e6eef290f525b075ce2e3da9bab601ac0d209beb5c21ea013f07b",
+      "page": 27,
+      "quantity": 2,
+      "xPt": 94.325,
+      "yPt": 493.711
+    },
+    {
+      "n": 37,
+      "judgedCropSha256": "sha256:cee670fdf0f0950aae4ed5c60bd1946331c4cf596fbd476c5961f157569aaaba",
+      "page": 27,
+      "quantity": 2,
+      "xPt": 94.325,
+      "yPt": 459.311
+    },
+    {
+      "n": 38,
+      "judgedCropSha256": "sha256:f1be045d83ac9fc889b9ae94dc6fb76e17582bd44fb09515087998b28e193ad6",
+      "page": 28,
+      "quantity": 2,
+      "xPt": 142.74,
+      "yPt": 433.406
+    },
+    {
+      "n": 39,
+      "judgedCropSha256": "sha256:7772bda2863e407650442708305fdf6aa3d25e2682801e1c406b29713643ad4a",
+      "page": 29,
+      "quantity": 1,
+      "xPt": 131.416,
+      "yPt": 462.971
+    },
+    {
+      "n": 40,
+      "judgedCropSha256": "sha256:bf6228cf8ff412d5769505a94fd55aed191a6c3abcce14585de46b10f2fd1953",
+      "page": 30,
+      "quantity": 2,
+      "xPt": 84.228,
+      "yPt": 407.699
+    },
+    {
+      "n": 41,
+      "judgedCropSha256": "sha256:b13109a1dc1ee4784fca2b582e63828dd9577f4de7c2b4ea0a8792d382ef12c8",
+      "page": 30,
+      "quantity": 2,
+      "xPt": 84.228,
+      "yPt": 449.299
+    },
+    {
+      "n": 42,
+      "judgedCropSha256": "sha256:ab85f5f844fa0f27fc5ffa017f6856d99ed137659cf2fc19ead14ac1cfbf0d3c",
+      "page": 31,
+      "quantity": 1,
+      "xPt": 146.902,
+      "yPt": 449.64
+    },
+    {
+      "n": 43,
+      "judgedCropSha256": "sha256:acda80cd82e80c4fbbb7ecfb598c2d26c519c3f9b7d85b15ae0fb6e1c894c08a",
+      "page": 31,
+      "quantity": 2,
+      "xPt": 152.182,
+      "yPt": 497.071
+    },
+    {
+      "n": 44,
+      "judgedCropSha256": "sha256:9fb3bf3d0af0c22d401805a14d015ebda6cea0d42b25b1e30fe3ea81e6678409",
+      "page": 32,
+      "quantity": 2,
+      "xPt": 82.986,
+      "yPt": 224.21
+    },
+    {
+      "n": 45,
+      "judgedCropSha256": "sha256:e13627c2cb3aeb6469ca611d11757ede271644dd1f4d3c6184c3a416ae459c0b",
+      "page": 32,
+      "quantity": 4,
+      "xPt": 41.791,
+      "yPt": 224.21
+    },
+    {
+      "n": 46,
+      "judgedCropSha256": "sha256:5b16c7f56aaadc858cbd6c855502ab3ad103ba12be9adef83283a706bf0898ae",
+      "page": 33,
+      "quantity": 4,
+      "xPt": 95.271,
+      "yPt": 495.055
+    },
+    {
+      "n": 47,
+      "judgedCropSha256": "sha256:3f4be3aed9b715f7149d2306bb0a0acc19490e57d532989342979e8a328694a8",
+      "page": 33,
+      "quantity": 4,
+      "xPt": 140.127,
+      "yPt": 495.055
+    },
+    {
+      "n": 48,
+      "judgedCropSha256": "sha256:d6b73d488c74c9167665861eda0ae8b4d16cfd455d8d654be2b69d7fc229bee1",
+      "page": 33,
+      "quantity": 4,
+      "xPt": 57.695,
+      "yPt": 495.055
+    },
+    {
+      "n": 49,
+      "judgedCropSha256": "sha256:933c4d77a108001be9602e23648fbb69982d2f910e4ed78a77cdbf1b88cbd6ef",
+      "page": 34,
+      "quantity": 1,
+      "xPt": 62.389,
+      "yPt": 468.271
+    },
+    {
+      "n": 50,
+      "judgedCropSha256": "sha256:77142bf534a7e2c9d0d7d274f600ec1f5280f48601cde48726022fbf4f607558",
+      "page": 34,
+      "quantity": 2,
+      "xPt": 27.293,
+      "yPt": 468.271
+    },
+    {
+      "n": 51,
+      "judgedCropSha256": "sha256:3f53db603ff01abd5ce2bbbcdfb1b24f045d66b01cf5bec3291528c97af61115",
+      "page": 35,
+      "quantity": 1,
+      "xPt": 87.631,
+      "yPt": 481.711
+    },
+    {
+      "n": 52,
+      "judgedCropSha256": "sha256:1d35885fd4973d1c52b133cce3aa2a9bbef80bdc9595bed9cbaa26cb5d12aa07",
+      "page": 35,
+      "quantity": 1,
+      "xPt": 49.835,
+      "yPt": 481.711
+    },
+    {
+      "n": 53,
+      "judgedCropSha256": "sha256:820ceec5e9ff927a730f3d09f0f3c2f70c201e62aeb365d9bc1cc968b71fb6dd",
+      "page": 36,
+      "quantity": 1,
+      "xPt": 34.46,
+      "yPt": 421.615
+    },
+    {
+      "n": 54,
+      "judgedCropSha256": "sha256:97ee859866658fbc374aea912c51a2468e11b24d27b5489b3304839e2379c761",
+      "page": 36,
+      "quantity": 2,
+      "xPt": 115.277,
+      "yPt": 421.615
+    },
+    {
+      "n": 55,
+      "judgedCropSha256": "sha256:5c692d8cd12db6f520d4c9de9e0cdcd857fc6bdde7ec47eec8d4f8bf5ff728f2",
+      "page": 37,
+      "quantity": 1,
+      "xPt": 42.52,
+      "yPt": 383.151
+    },
+    {
+      "n": 56,
+      "judgedCropSha256": "sha256:ea25708b1925cc33ae4522efa87cc7e3b780e6c36ffc8645a00e2b2b46dd8ca3",
+      "page": 37,
+      "quantity": 2,
+      "xPt": 138.502,
+      "yPt": 383.151
+    },
+    {
+      "n": 57,
+      "judgedCropSha256": "sha256:8a4fdbed1d55157670f139207caa1cbe1e0cf384be675c72dc1acec1e87ed5a8",
+      "page": 37,
+      "quantity": 1,
+      "xPt": 104.2,
+      "yPt": 495.151
+    },
+    {
+      "n": 58,
+      "judgedCropSha256": "sha256:6f1d2005813fce3f2cef7d923088d96a1ee6d154f50ccc8ce6eec94e44abb789",
+      "page": 38,
+      "quantity": 1,
+      "xPt": 22.677,
+      "yPt": 477.391
+    },
+    {
+      "n": 59,
+      "judgedCropSha256": "sha256:84095e0e6534cbedd82edc520bb4523c96d951d31cd0ccb95c66e49b0521ae47",
+      "page": 38,
+      "quantity": 1,
+      "xPt": 22.677,
+      "yPt": 442.991
+    },
+    {
+      "n": 60,
+      "judgedCropSha256": "sha256:ba087a1671aec8c7552f0e18e912d037eb910b9153ddefde8d43b27f57cb6def",
+      "page": 39,
+      "quantity": 2,
+      "xPt": 88.59,
+      "yPt": 442.751
+    },
+    {
+      "n": 61,
+      "judgedCropSha256": "sha256:18712c0a9a93d70b3caf72c457dcc79ae046042424c2b7b4dd69a98a945ab17b",
+      "page": 39,
+      "quantity": 1,
+      "xPt": 145.701,
+      "yPt": 442.751
+    },
+    {
+      "n": 62,
+      "judgedCropSha256": "sha256:d423a8d1b7c904bb73b5e1207a79faf6becc5e124f4978fe36c0fb7993a493b0",
+      "page": 39,
+      "quantity": 1,
+      "xPt": 104.88,
+      "yPt": 486.991
+    },
+    {
+      "n": 63,
+      "judgedCropSha256": "sha256:121a95d1b36fc0e631ad9a0e5c5891839971b714a621482f9155b6bb665c7ff2",
+      "page": 39,
+      "quantity": 1,
+      "xPt": 70.3,
+      "yPt": 486.991
+    },
+    {
+      "n": 64,
+      "judgedCropSha256": "sha256:92bc67ce91acbc5a4fd4a8e81250b6d1da84a759b6e703a784a8bbd1ef0e57a4",
+      "page": 39,
+      "quantity": 2,
+      "xPt": 42.52,
+      "yPt": 442.751
+    },
+    {
+      "n": 65,
+      "judgedCropSha256": "sha256:96cf8344b5c27d6e2ada5b4990e9be9422782e61aae2811cb6421a48d302445b",
+      "page": 39,
+      "quantity": 1,
+      "xPt": 145.701,
+      "yPt": 486.991
+    },
+    {
+      "n": 66,
+      "judgedCropSha256": "sha256:33b0e2f248922a24c9c2c6f84cddb41cf0b7d074b1db9a206c6e868105deb4bb",
+      "page": 39,
+      "quantity": 1,
+      "xPt": 42.52,
+      "yPt": 486.991
+    },
+    {
+      "n": 67,
+      "judgedCropSha256": "sha256:493d57d7be923c0a9ae25ff85270f547d0975951a142eb6d559a6a60529779fc",
+      "page": 41,
+      "quantity": 2,
+      "xPt": 146.902,
+      "yPt": 492.511
+    },
+    {
+      "n": 68,
+      "judgedCropSha256": "sha256:8e6dc6891af5cb3ba09a8a4135a2a02e6d85040799b8d621e13a94b769147c94",
+      "page": 42,
+      "quantity": 1,
+      "xPt": 88.426,
+      "yPt": 448.271
+    },
+    {
+      "n": 69,
+      "judgedCropSha256": "sha256:e3e5780eece6552d1f98913760e8d2b65fa6803ecd4f27d0b423ebbbd488fe1b",
+      "page": 42,
+      "quantity": 1,
+      "xPt": 88.426,
+      "yPt": 492.511
+    },
+    {
+      "n": 70,
+      "judgedCropSha256": "sha256:6636b0fa8d216bc87937fc4625e95f8932cefab5476499b2fba5cbc8dbf02f2b",
+      "page": 43,
+      "quantity": 1,
+      "xPt": 159.024,
+      "yPt": 183.382
+    },
+    {
+      "n": 71,
+      "judgedCropSha256": "sha256:daea078cd477c23276ef42c98da3f6fc1bcf3c6aa8b911779a3622a5867ad5f2",
+      "page": 43,
+      "quantity": 1,
+      "xPt": 431.291,
+      "yPt": 491.335
+    },
+    {
+      "n": 72,
+      "judgedCropSha256": "sha256:d2e2e6c267c3eb74f3b86d45fe20cf9f464210741bb8fd223ab909c19678d654",
+      "page": 43,
+      "quantity": 2,
+      "xPt": 520.443,
+      "yPt": 491.335
+    },
+    {
+      "n": 73,
+      "judgedCropSha256": "sha256:dcff411048541886f1e15b5d1121ea3f2f176a7846a0bda0a5ec9353a40efa03",
+      "page": 43,
+      "quantity": 4,
+      "xPt": 470.467,
+      "yPt": 208.417
+    },
+    {
+      "n": 74,
+      "judgedCropSha256": "sha256:d5cfe9aa879c5a8fdf93ba6f8b1d8b3a63b3b0ed532102e0f113c42c26338c3c",
+      "page": 44,
+      "quantity": 1,
+      "xPt": 443.424,
+      "yPt": 491.335
+    },
+    {
+      "n": 75,
+      "judgedCropSha256": "sha256:801ba2606f7b7b4b0084ae33fd54c8b84d2bc3dc5ceabfad773adcb141926d55",
+      "page": 44,
+      "quantity": 2,
+      "xPt": 499.46,
+      "yPt": 491.335
+    },
+    {
+      "n": 76,
+      "judgedCropSha256": "sha256:6546ee8146d997336d6da9fffb44bd7e91fdfb0842322261f0f1ab68013f46ef",
+      "page": 44,
+      "quantity": 1,
+      "xPt": 404.189,
+      "yPt": 491.335
+    },
+    {
+      "n": 77,
+      "judgedCropSha256": "sha256:121c834ac742586919ea7b85a8312c672258bbd6820f0ce41fedf58a784a3542",
+      "page": 46,
+      "quantity": 3,
+      "xPt": 69.265,
+      "yPt": 491.26
+    },
+    {
+      "n": 78,
+      "judgedCropSha256": "sha256:f550c7e729217d9de6a4ddf5bf35d18c794a299409d9f95401a5392ca4d67b09",
+      "page": 47,
+      "quantity": 2,
+      "xPt": 132.893,
+      "yPt": 485.071
+    },
+    {
+      "n": 79,
+      "judgedCropSha256": "sha256:99508b2f0d498f23efba23ab6e0f84b2cba1cd682239b9dddc7e7e6dddafe5f9",
+      "page": 47,
+      "quantity": 1,
+      "xPt": 159.338,
+      "yPt": 485.071
+    },
+    {
+      "n": 80,
+      "judgedCropSha256": "sha256:e7f0ef8d079ce4b41e16b0b0de33bd8b98f424e6ddb4e8ef9b67b8b99f7b6d4d",
+      "page": 48,
+      "quantity": 1,
+      "xPt": 83.269,
+      "yPt": 491.335
+    },
+    {
+      "n": 81,
+      "judgedCropSha256": "sha256:4561c34fdd852f4d0ce1a4c119a2139956b68837187d6f0a70c61d81f1dfd976",
+      "page": 48,
+      "quantity": 1,
+      "xPt": 128.804,
+      "yPt": 491.335
+    },
+    {
+      "n": 82,
+      "judgedCropSha256": "sha256:92c61e52bea54a24e141d24c484b27cc0576d4006296ea4c24cdb78c26ddb61d",
+      "page": 50,
+      "quantity": 3,
+      "xPt": 139.905,
+      "yPt": 454.59
+    },
+    {
+      "n": 83,
+      "judgedCropSha256": "sha256:8f3b4ae253489bc4115410b290bdef835d3c6ea881e2bac4455c87373a8ea622",
+      "page": 53,
+      "quantity": 2,
+      "xPt": 160.825,
+      "yPt": 454.591
+    },
+    {
+      "n": 84,
+      "judgedCropSha256": "sha256:1c953eb68a93aef6269186af69efaa3ff8f25cf3f52cf457e65d77f4612205b2",
+      "page": 53,
+      "quantity": 2,
+      "xPt": 70.434,
+      "yPt": 454.591
+    }
+  ]
+}
