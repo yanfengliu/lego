@@ -55,14 +55,17 @@ describe("step alignment", () => {
       { callouts: [1], bricks: [brick("c", "y", 2), brick("d", "z", 3)] },
       { callouts: [1, 1], bricks: [brick("e", "w", 4)] },
     ];
-    // Budget 3 lets the search find a redistribution but not prove it moves the fewest bricks.
-    const repaired = repairAlignment(steps, { nodeBudget: 3 });
+    // Budget 5 is the smallest at which the search already has a candidate redistribution
+    // when its nodes run out (below 5 it has found none yet), so this is the smallest budget
+    // that can tell this code apart from a version that reports or applies that unproven
+    // candidate anyway.
+    const repaired = repairAlignment(steps, { nodeBudget: 5 });
     expect(repaired.windows[0]).toMatchObject({
       solved: false,
       outcome: "unsolved (budget)",
       moved: 0,
     });
-    expect(repaired.windows[0]!.reason).toMatch(/stopped at its budget of 3 nodes/u);
+    expect(repaired.windows[0]!.reason).toMatch(/stopped at its budget of 5 nodes/u);
     expect(repaired.steps.map(({ bricks }) => bricks.map(({ uuid }) => uuid).join(""))).toEqual([
       "ab",
       "cd",
