@@ -31,6 +31,7 @@ export default defineConfig({
       "apps/**/*.test.ts",
       "apps/**/*.test.tsx",
       "scripts/**/*.test.mjs",
+      "tools/**/*.test.ts",
     ],
     exclude: [...configDefaults.exclude, ...SCORE_TESTS],
     restoreMocks: true,
