@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
+import vitestConfig from "../vitest.config.ts";
 import { findUnwiredExistenceGates } from "./run-evidence-gate-coverage-scan.mjs";
 
 /**
@@ -54,14 +55,17 @@ function trackedFiles(patterns) {
     .filter((line) => line.length > 0);
 }
 
-/** The JS/TS population mirrors `vitest.config.ts`'s own `test.include`. */
+/**
+ * The JS/TS population is `vitest.config.ts`'s own `test.include`, read from
+ * the config rather than copied, so an include root added there cannot fall
+ * outside this scan. A copied list drifted once already: the booklet harness
+ * added its `tools/` test root to the config while this list still named four
+ * roots, so `npm test` ran tests this check never read.
+ */
 function findEvidenceGateScanTargets() {
-  const jsFiles = trackedFiles([
-    "packages/**/*.test.ts",
-    "apps/**/*.test.ts",
-    "apps/**/*.test.tsx",
-    "scripts/**/*.test.mjs",
-  ]);
+  const include = vitestConfig.test?.include ?? [];
+  expect(include.length).toBeGreaterThan(0);
+  const jsFiles = trackedFiles(include);
   const pythonFiles = trackedFiles(["scripts/*_test.py"]);
   return [...jsFiles, ...pythonFiles]
     .map((path) => path.replaceAll("\\", "/"))
