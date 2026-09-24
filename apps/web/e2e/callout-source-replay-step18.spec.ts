@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { renderCalloutCropsInPage } from "./callout-browser-runner";
 import { bookletProbeUrls, hasSampleBooklet } from "./sample-booklet";
+import { skipWithoutRunEvidence } from "./run-evidence-gate";
 import type { CalloutTarget } from "./callout-types";
 import type { SourceReplayInput, SourceReplayResult } from "./callout-source-replay-types";
 
@@ -71,7 +72,9 @@ const EXPECTED_COMPONENTS = [
 test("records the exact step-18 clip mismatch without weakening component parity", async ({
   page,
 }) => {
-  test.skip(!hasSampleBooklet, "no sample booklet");
+  skipWithoutRunEvidence(test, "reads the sample booklet to replay the step-18 clip", {
+    onlyIf: hasSampleBooklet,
+  });
   await page.goto("/");
   const urls = bookletProbeUrls();
   const input: SourceReplayInput = {

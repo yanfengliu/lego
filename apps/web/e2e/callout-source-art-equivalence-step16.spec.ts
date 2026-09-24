@@ -30,6 +30,7 @@ import {
   TARGET_3023_IDENTITY,
   TARGET_35480_IDENTITY,
 } from "./callout-source-art-step16-fixture";
+import { skipWithoutRunEvidence } from "./run-evidence-gate";
 import { bookletProbeUrls, hasSampleBooklet, SAMPLE_BOOKLET_PATH } from "./sample-booklet";
 import type { BrowserCrop } from "./callout-types";
 
@@ -124,9 +125,10 @@ function requiredCrop(crop: BrowserCrop | null, label: string): BrowserCrop {
 test("measures exact step-16 embedded source art without granting identity authority", async ({
   page,
 }, testInfo) => {
-  test.skip(
-    !hasProofInputs,
-    "exact sample booklet and current identification artifacts unavailable",
+  skipWithoutRunEvidence(
+    test,
+    "reads the sample booklet and output/callout-thumbnails, output/part-identification evidence",
+    { onlyIf: hasProofInputs },
   );
   if (SAMPLE_BOOKLET_PATH === null) throw new Error("Sample booklet path disappeared after skip.");
 

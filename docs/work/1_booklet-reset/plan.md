@@ -67,7 +67,7 @@ Todo:
 - [ ] G3d camera fit (fed) and placement (fed) scored against the key
 - [ ] G3e ratchet baseline; retire the real-build-* family
 - [ ] G3f-2 port the a8fc397 staleness tests
-- [ ] G3f-3 move the 26 Playwright specs gated on booklet existence (`hasSampleBooklet`) to the `LEGO_RUN_EVIDENCE` opt-in.
+- [x] G3f-3 move the 26 Playwright specs gated on booklet existence (`hasSampleBooklet`) to the `LEGO_RUN_EVIDENCE` opt-in.
 - [ ] G4 records and canon candidates
 
 ## Outcome

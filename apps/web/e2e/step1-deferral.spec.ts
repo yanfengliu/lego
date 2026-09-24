@@ -6,6 +6,7 @@ import { readSampleBooklet, sampleBookletPageShapes } from "./booklet-fixture";
 import { deriveRealBuildPanelEvidence } from "./real-build-panel-evidence";
 import { deriveTransitionPanelFeatures } from "./real-build-transition-features";
 import { bookletProbeUrls, hasSampleBooklet } from "./sample-booklet";
+import { skipWithoutRunEvidence } from "./run-evidence-gate";
 import { sha256Digest } from "./real-build-artifacts";
 import { applyBuilderCanonicalCalibration } from "./real-build-builder-calibration";
 import { parseOfficialModelIndex } from "./real-build-official";
@@ -37,7 +38,9 @@ const REQUIRED = process.env.LEGO_DEFERRAL_PROBE === "1";
 test("what step 2 says about step 1's candidates", async ({ page }) => {
   test.setTimeout(1_800_000);
   test.skip(!REQUIRED, "set LEGO_DEFERRAL_PROBE=1 to run the deferral probe");
-  test.skip(!hasSampleBooklet, "no sample booklet");
+  skipWithoutRunEvidence(test, "reads the sample booklet for the step-1 deferral probe", {
+    onlyIf: hasSampleBooklet,
+  });
 
   const { bytes: pdfBytes, source } = await readSampleBooklet();
   const pdfDigest = sha256Digest(pdfBytes);

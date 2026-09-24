@@ -6,6 +6,7 @@ import { readSampleBooklet, sampleBookletCallouts, sampleBookletPanels } from ".
 import { measureRealPanelRegistration } from "./real-panel-scoring";
 import type { PairReport } from "./real-panel-types";
 import { bookletProbeUrls, hasSampleBooklet } from "./sample-booklet";
+import { skipWithoutRunEvidence } from "./run-evidence-gate";
 import { ASSEMBLY_MODULE_URL, RENDERING_MODULE_URL, workspaceModuleUrl } from "./workspace-module";
 
 /**
@@ -45,7 +46,9 @@ const LATTICE_MODULE_URL = workspaceModuleUrl("packages/rendering/src/camera-fit
 
 test("registers consecutive printed panels onto one frame", async ({ page }) => {
   test.setTimeout(3_600_000);
-  test.skip(!hasSampleBooklet, "no sample booklet");
+  skipWithoutRunEvidence(test, "reads the sample booklet to register printed panels", {
+    onlyIf: hasSampleBooklet,
+  });
   mkdirSync(OUT, { recursive: true });
 
   const { bytes, source } = await readSampleBooklet();

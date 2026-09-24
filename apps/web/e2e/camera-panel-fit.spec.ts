@@ -4,6 +4,7 @@ import { test, expect } from "@playwright/test";
 
 import { readSampleBooklet, sampleBookletCallouts, sampleBookletPanels } from "./booklet-fixture";
 import { bookletProbeUrls, hasSampleBooklet } from "./sample-booklet";
+import { skipWithoutRunEvidence } from "./run-evidence-gate";
 import {
   BRICK_KERNEL_MODULE_URL,
   MANUAL_COMMANDS_MODULE_URL,
@@ -120,7 +121,9 @@ interface PanelFitReport {
 
 test("fits the camera a printed step panel was drawn with", async ({ page }) => {
   test.setTimeout(1_800_000);
-  test.skip(!hasSampleBooklet, "no sample booklet");
+  skipWithoutRunEvidence(test, "reads the sample booklet to fit the camera to a printed panel", {
+    onlyIf: hasSampleBooklet,
+  });
   mkdirSync(OUT, { recursive: true });
 
   const { bytes, source } = await readSampleBooklet();

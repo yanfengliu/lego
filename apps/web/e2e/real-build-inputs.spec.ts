@@ -31,6 +31,7 @@ import {
 import { parseOfficialModelIndex } from "./real-build-ledger";
 import type { StepFailure } from "./real-build-safety";
 import { hasSampleBooklet } from "./sample-booklet";
+import { skipWithoutRunEvidence } from "./run-evidence-gate";
 
 /**
  * The one answer to "the catalog moved".
@@ -100,7 +101,11 @@ test("regenerates the catalog-derived real-build inputs in chain order", async (
     !REGENERATE,
     `set LEGO_REAL_BUILD_REGENERATE_INPUTS=1 to rebuild:\n${describeRealBuildInputChain()}`,
   );
-  test.skip(!hasSampleBooklet, "no sample booklet");
+  skipWithoutRunEvidence(
+    test,
+    "reads the sample booklet to regenerate catalog-derived real-build inputs",
+    { onlyIf: hasSampleBooklet },
+  );
 
   const requestedLastStep = parseRealBuildActionLedgerRequestedLastStep(
     process.env.LEGO_REAL_BUILD_LAST_STEP,

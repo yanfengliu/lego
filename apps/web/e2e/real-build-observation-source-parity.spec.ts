@@ -23,6 +23,7 @@ import {
 import { deriveRealBuildPanelEvidence } from "./real-build-panel-evidence";
 import { REAL_BUILD_SERVED_RESPONSE_RUNNER_PATH } from "./real-build-served-response-policy";
 import { hasSampleBooklet } from "./sample-booklet";
+import { skipWithoutRunEvidence } from "./run-evidence-gate";
 import { workspaceModuleUrl } from "./workspace-module";
 
 const ENABLED = process.env.LEGO_REAL_BUILD_SOURCE_PARITY === "1";
@@ -68,7 +69,11 @@ test("measures work-raster observation-source parity across the real booklet", a
     !REQUIRED,
     "source-parity opt-in requires LEGO_REAL_BUILD_REQUIRED=1 so Playwright owns an authenticated pre-discovery source lock",
   );
-  test.skip(!hasSampleBooklet, "no sample booklet");
+  skipWithoutRunEvidence(
+    test,
+    "reads the sample booklet for the 359-step observation-source parity probe",
+    { onlyIf: hasSampleBooklet },
+  );
 
   const bootstrap = readRequiredRealBuildBootstrapSourceManifest();
   const beforeLock = assertRealBuildBootstrapSourceLockHeld();

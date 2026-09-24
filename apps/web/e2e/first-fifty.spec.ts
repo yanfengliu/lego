@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { test, expect } from "@playwright/test";
 
 import { bookletProbeUrls, hasSampleBooklet } from "./sample-booklet";
+import { skipWithoutRunEvidence } from "./run-evidence-gate";
 import { ASSEMBLY_MODULE_URL } from "./workspace-module";
 import { readSampleBooklet, sampleBookletCallouts, sampleBookletPanels } from "./booklet-fixture";
 
@@ -26,7 +27,9 @@ const PANEL_WIDTH = 700;
 
 test("reads the first fifty steps off the booklet", async ({ page }) => {
   test.setTimeout(1_800_000);
-  test.skip(!hasSampleBooklet, "no sample booklet");
+  skipWithoutRunEvidence(test, "reads the sample booklet's first fifty printed steps", {
+    onlyIf: hasSampleBooklet,
+  });
   mkdirSync(OUT, { recursive: true });
 
   const { bytes, source } = await readSampleBooklet();
