@@ -12,6 +12,7 @@ import {
 } from "./answer-key/index.ts";
 import { runAlignStage, type AlignStage } from "./align-stage.ts";
 import { runCatalogStage, type CatalogStage } from "./catalog-coverage.ts";
+import { runIdentifyStage, type IdentifyStage } from "./identify-stage.ts";
 import { checkExportFrames, type ExportFrameCheck } from "./export-frames.ts";
 import { FRAME_PINS_DEFAULT_PATH, loadFramePins } from "./frame-pins.ts";
 import {
@@ -34,6 +35,7 @@ import { readBookletPdf, type BookletRead } from "./read.ts";
 import {
   alignRows,
   catalogRows,
+  identifyRows,
   pairingRows,
   playbackSection,
   readRows,
@@ -45,22 +47,27 @@ import { compareWithBaseline, headlineOf, summaryLines, type Stage } from "./sum
  * `npm run booklet`: how far the booklet build is, per printed step, scored
  * against LEGO's official model of the set.
  *
- * Stages — read, align, catalog, export frames, reference playback — write
- * their per-step rows to output/booklet/status.json, and the console gets a
- * summary of at most 40 lines. The valid prefix of reference playback also
- * goes to output/booklet/reference-build.mpd, which the editor imports and
- * plays back one printed step at a time. An absent input skips the stages that need it
- * ("skipped (input absent)") and never fails the run. A present input that
- * cannot be used — malformed, oversized, or an official export whose rows
- * contradict the LXFML — fails the stages that need it and the run (exit 1),
- * naming the file and the fault; the other stages still report.
+ * Stages — read, identify, align, catalog, export frames, reference
+ * playback — write their per-step rows to output/booklet/status.json, and the
+ * console gets a summary of at most 40 lines. Identify runs the product's
+ * closed-set callout identification on the booklet alone; align then holds
+ * each printed step to the elements identification names, and keeps the
+ * alignment by callout counts alone as a comparison line. The valid prefix of
+ * reference playback also goes to output/booklet/reference-build.mpd, which
+ * the editor imports and plays back one printed step at a time. An absent
+ * input skips the stages that need it ("skipped (input absent)") and never
+ * fails the run. A present input that cannot be used — malformed, oversized,
+ * or an official export whose rows contradict the LXFML — fails the stages
+ * that need it and the run (exit 1), naming the file and the fault; the other
+ * stages still report. Identification failing on a readable booklet fails the
+ * run too, and align then falls back to counts and says so.
  *
  * Every LDraw-to-catalog frame playback uses is catalog truth. The first-50
  * frame registry, an ignored run file that used to supply them, is read only
  * with LEGO_RUN_EVIDENCE=1, and then only to compare the catalog frames with
  * it; no stage waits on it.
  */
-export const BOOKLET_STATUS_VERSION = "lego.booklet-status/2";
+export const BOOKLET_STATUS_VERSION = "lego.booklet-status/3";
 export const BOOKLET_BOOKLET_DEFAULT_PATH = "recipes/6651557.pdf";
 
 const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -182,11 +189,23 @@ export async function runBooklet(options: { readonly writeBaseline: boolean }): 
   const keyStage: Stage<unknown> =
     keyLoad ?? skipped(`no official LXFML at ${inputs.lxfml.path}; set BOOKLET_LXFML`);
 
+  // The booklet alone: no answer key reaches identification. A refusal (a
+  // hostile-input limit, the time limit) fails the stage by name, not as "malformed".
+  const identify: Stage<IdentifyStage> =
+    read.status !== "ran"
+      ? blockedBy(read, "the booklet read")
+      : await timed(() => runIdentifyStage(inputs.booklet.path, read.value)).catch(
+          (error: unknown): NotRun =>
+            failed(
+              `identification of ${inputs.booklet.path} stopped: ${error instanceof Error ? error.message : String(error)}`,
+            ),
+        );
+  const identified = identify.status === "ran" ? identify.value : null;
   const align: Stage<AlignStage> =
     read.status !== "ran"
       ? blockedBy(read, "the booklet read")
       : key
-        ? await timed(() => runAlignStage(read.value, key))
+        ? await timed(() => runAlignStage(read.value, key, identified))
         : blockedBy(keyStage, "the official LXFML");
   const alignValue = align.status === "ran" ? align.value : null;
   const catalog: Stage<CatalogStage> = key
@@ -271,7 +290,7 @@ export async function runBooklet(options: { readonly writeBaseline: boolean }): 
               }),
             ));
 
-  const stages = { read, align, catalog, exportFrames, playback, key };
+  const stages = { read, identify, align, catalog, exportFrames, playback, key };
   const headline = headlineOf(stages);
   writeJson(statusPath, {
     version: BOOKLET_STATUS_VERSION,
@@ -288,6 +307,13 @@ export async function runBooklet(options: { readonly writeBaseline: boolean }): 
               inventory: { ...read.value.inventory, quantities: undefined },
             }
           : read,
+      identify: identified
+        ? {
+            status: "ran",
+            ...identified,
+            steps: identifyRows(identified),
+          }
+        : identify,
       key: key ? { status: "ran", ldraw: key.ldraw.status, pairing: pairingRows(key) } : keyStage,
       align: alignValue ? { status: "ran", ...alignValue, steps: alignRows(alignValue) } : align,
       catalog: catalogValue
@@ -329,8 +355,15 @@ export async function runBooklet(options: { readonly writeBaseline: boolean }): 
   });
   if (referenceBuild) lines.splice(-1, 0, referenceBuildLine(referenceBuild, referenceBuildPath));
   process.stdout.write(`${lines.join("\n")}\n`);
-  const anyFailed = [read, keyLoad, align, catalog, registryStage, exportFrames, playback].some(
-    (stage) => stage?.status === "failed",
-  );
+  const anyFailed = [
+    read,
+    identify,
+    keyLoad,
+    align,
+    catalog,
+    registryStage,
+    exportFrames,
+    playback,
+  ].some((stage) => stage?.status === "failed");
   return anyFailed ? 1 : 0;
 }

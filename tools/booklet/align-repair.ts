@@ -1,3 +1,5 @@
+import { countElements, stepCountsMatch, type IdentityTarget } from "./align-identity.ts";
+
 /**
  * Local repair of an alignment where the booklet re-laid the official
  * sequence.
@@ -17,10 +19,21 @@
  * it had found a redistribution by then: that one is not proven to move the
  * fewest bricks, so it is not applied.
  *
+ * A step with an identity target (align-identity.ts) is solved by identity:
+ * its trusted callouts are fixed slots that must receive their own element,
+ * and only its flagged callouts are free slots the search assigns, as every
+ * callout of a count-only step is. Because a booklet re-lay can move a part
+ * several steps (pages 85-86 move two 2x2 plates forward three), a cluster
+ * held to identity whose smallest balanced window cannot be redistributed
+ * tries the next larger balanced window, up to the padding limit, and stops
+ * at the first it solves or whose search runs out of nodes. A cluster aligned
+ * by counts keeps the smallest balanced window only, as before.
+ *
  * A repaired step matches its callouts by construction — its bricks were
- * chosen so its per-element counts equal them — so it is evidence of nothing
- * beyond the window balancing. Callers report such a step as fitted by repair,
- * never as matched by run order.
+ * chosen so they satisfy them — so it is evidence of nothing beyond the
+ * window balancing. By identity that is a real check (every trusted element's
+ * bricks sit in the window, only in other steps); by counts it is not. Callers
+ * report such a step as fitted by repair, never as matched by run order.
  */
 export const REPAIR_LIMITS = Object.freeze({
   /** Steps apart that still belong to one cluster. */
@@ -41,6 +54,8 @@ export interface RepairBrick {
 export interface RepairStep {
   readonly callouts: readonly number[];
   readonly bricks: readonly RepairBrick[];
+  /** Held to identity when present; by counts otherwise. */
+  readonly identity?: IdentityTarget | null;
 }
 
 export type RepairOutcome =
@@ -56,20 +71,16 @@ export interface RepairWindow {
   /** Bricks moved to a different step than the run alignment gave them. */
   readonly moved: number;
   readonly nodes: number;
+  /** Balanced windows tried before this outcome; more than one only for a cluster held to identity. */
+  readonly windowsTried: number;
   readonly reason: string;
 }
 
-function descending(values: readonly number[]): number[] {
-  return [...values].sort((left, right) => right - left);
-}
-
 export function stepMatches(step: RepairStep): boolean {
-  const counts = new Map<string, number>();
-  for (const { element } of step.bricks) counts.set(element, (counts.get(element) ?? 0) + 1);
-  const actual = descending([...counts.values()]);
-  const expected = descending(step.callouts);
-  return (
-    actual.length === expected.length && actual.every((value, index) => value === expected[index])
+  return stepCountsMatch(
+    countElements(step.bricks.map(({ element }) => element)),
+    step.callouts,
+    step.identity,
   );
 }
 
@@ -80,7 +91,10 @@ interface Slot {
   readonly twin: number;
 }
 
-/** Finds per-step element counts for a window, or null within the node budget. */
+/**
+ * Finds per-step element counts for a window, or null within the node budget.
+ * A trusted callout's element is fixed; the search assigns the free slots.
+ */
 function solveWindow(
   steps: readonly RepairStep[],
   nodeBudget: number,
@@ -93,17 +107,30 @@ function solveWindow(
 } {
   const totals = new Map<string, number>();
   const baseline = steps.map((step) => {
-    const counts = new Map<string, number>();
-    for (const { element } of step.bricks) {
-      counts.set(element, (counts.get(element) ?? 0) + 1);
-      totals.set(element, (totals.get(element) ?? 0) + 1);
-    }
+    const counts = countElements(step.bricks.map(({ element }) => element));
+    for (const [element, count] of counts) totals.set(element, (totals.get(element) ?? 0) + count);
     return counts;
   });
   const elements = [...totals.keys()].sort();
+  const remaining = new Map(totals);
+  const used = steps.map(() => new Set<string>());
+  // Trusted callouts are fixed slots: their element is spent before the search starts.
+  const fixed = steps.map(() => new Map<string, number>());
+  let fixedMoved = 0;
+  for (const [index, step] of steps.entries()) {
+    for (const [element, pieces] of step.identity?.elements ?? []) {
+      const left = (remaining.get(element) ?? 0) - pieces;
+      if (left < 0) return { counts: null, moved: 0, nodes: 0, exhausted: false };
+      remaining.set(element, left);
+      used[index]!.add(element);
+      fixed[index]!.set(element, pieces);
+      fixedMoved += Math.max(0, pieces - (baseline[index]!.get(element) ?? 0));
+    }
+  }
   const slots: Slot[] = [];
   steps.forEach((step, index) => {
-    for (const quantity of step.callouts) slots.push({ step: index, quantity, twin: -1 });
+    for (const quantity of step.identity ? step.identity.flagged : step.callouts)
+      slots.push({ step: index, quantity, twin: -1 });
   });
   slots.sort((left, right) => right.quantity - left.quantity || left.step - right.step);
   const ordered: Slot[] = slots.map((slot, index) => {
@@ -113,12 +140,10 @@ function solveWindow(
       : slot;
   });
 
-  const remaining = new Map(totals);
-  const used = steps.map(() => new Set<string>());
   const assignment = new Int32Array(ordered.length).fill(-1);
   let best: { counts: Map<string, number>[]; moved: number } | null = null;
   let nodes = 0;
-  let open = elements.length;
+  let open = elements.filter((element) => remaining.get(element)! > 0).length;
 
   let exhausted = false;
   const visit = (index: number, moved: number): void => {
@@ -131,7 +156,7 @@ function solveWindow(
     nodes += 1;
     if (index === ordered.length) {
       if (open === 0) {
-        const counts = steps.map(() => new Map<string, number>());
+        const counts = fixed.map((map) => new Map(map));
         ordered.forEach((slot, at) =>
           counts[slot.step]!.set(elements[assignment[at]!]!, slot.quantity),
         );
@@ -165,73 +190,99 @@ function solveWindow(
       remaining.set(element, left + slot.quantity);
     }
   };
-  visit(0, 0);
+  visit(0, fixedMoved);
   const found = best as { counts: Map<string, number>[]; moved: number } | null;
   return { counts: found?.counts ?? null, moved: found?.moved ?? 0, nodes, exhausted };
 }
 
-/** Turns per-step element counts into concrete bricks, keeping each where it was when it can stay. */
+const byOrder = (left: RepairBrick, right: RepairBrick) => left.order - right.order;
+
+/**
+ * Turns per-step element counts into concrete bricks. Bricks of one element
+ * are interchangeable to the counts but not to playback, since each has its
+ * own pose, so which one moves matters. A step whose count of an element is
+ * unchanged keeps its own bricks. A step left with a surplus gives bricks to
+ * the steps short of them, the surplus and shortfalls paired in step order,
+ * which moves each the least distance; and it gives the brick the model
+ * builds nearest the receiving step: its earliest to an earlier step, its
+ * latest to a later one. Printed step 31 draws two black 1x2x2 bricks from
+ * one sub-build (units 50 and 51) where the run gave it only the first; the
+ * second must come from the start of step 32's run, not the 1x2x2 built four
+ * units later at the other end of the model.
+ */
 function distribute(
   steps: readonly RepairStep[],
   counts: readonly Map<string, number>[],
 ): RepairBrick[][] {
   const result: RepairBrick[][] = steps.map(() => []);
-  const byElement = new Map<string, { brick: RepairBrick; from: number }[]>();
-  steps.forEach((step, index) => {
-    for (const brick of step.bricks) {
-      const list = byElement.get(brick.element) ?? [];
-      list.push({ brick, from: index });
-      byElement.set(brick.element, list);
-    }
-  });
-  for (const [element, entries] of byElement) {
-    entries.sort((left, right) => left.brick.order - right.brick.order);
-    const capacity = counts.map((map) => map.get(element) ?? 0);
-    const leftover: RepairBrick[] = [];
-    for (const { brick, from } of entries) {
-      if (capacity[from]! > 0) {
-        capacity[from]! -= 1;
-        result[from]!.push(brick);
-      } else {
-        leftover.push(brick);
-      }
-    }
-    let target = 0;
-    for (const brick of leftover) {
-      while (capacity[target] === 0) target += 1;
-      capacity[target]! -= 1;
-      result[target]!.push(brick);
-    }
+  const elements = new Set(steps.flatMap(({ bricks }) => bricks.map(({ element }) => element)));
+  for (const element of elements) {
+    const held = steps.map(({ bricks }) =>
+      bricks.filter((brick) => brick.element === element).sort(byOrder),
+    );
+    const donors: number[] = [];
+    const receivers: number[] = [];
+    held.forEach((bricks, index) => {
+      const need = counts[index]!.get(element) ?? 0;
+      for (let count = bricks.length; count > need; count -= 1) donors.push(index);
+      for (let count = bricks.length; count < need; count += 1) receivers.push(index);
+    });
+    donors.forEach((from, pair) => {
+      const to = receivers[pair]!;
+      result[to]!.push(to < from ? held[from]!.shift()! : held[from]!.pop()!);
+    });
+    held.forEach((bricks, index) => result[index]!.push(...bricks));
   }
-  for (const list of result) list.sort((left, right) => left.order - right.order);
+  for (const list of result) list.sort(byOrder);
   return result;
 }
 
-/** The smallest window around [low, high] whose bricks and callout pieces balance. */
-function balancedWindow(
+/**
+ * Every window around [low, high], within the padding limit, whose bricks and
+ * callout pieces balance: smallest first, then the one reaching back least.
+ */
+function balancedWindows(
   steps: readonly RepairStep[],
   low: number,
   high: number,
-): [number, number] | null {
+): [number, number][] {
   const drift = [0];
   for (const step of steps) {
     drift.push(
       drift.at(-1)! + step.bricks.length - step.callouts.reduce((sum, value) => sum + value, 0),
     );
   }
-  let best: [number, number] | null = null;
+  const found: [number, number][] = [];
   for (let first = low; first >= Math.max(0, low - REPAIR_LIMITS.maxPadding); first -= 1) {
     for (
       let last = high;
       last <= Math.min(steps.length - 1, high + REPAIR_LIMITS.maxPadding);
       last += 1
     ) {
-      if (drift[last + 1] !== drift[first]) continue;
-      if (!best || last - first < best[1] - best[0]) best = [first, last];
-      break;
+      if (drift[last + 1] === drift[first]) found.push([first, last]);
     }
   }
-  return best;
+  return found.sort(
+    (left, right) => left[1] - left[0] - (right[1] - right[0]) || right[0] - left[0],
+  );
+}
+
+function windowReason(
+  outcome: RepairOutcome,
+  moved: number,
+  budget: number,
+  foundUnproven: boolean,
+  tried: number,
+): string {
+  if (outcome === "solved") {
+    return `redistributed ${moved} brick(s) so every step matches its callouts${tried > 1 ? ` (the smallest of ${tried} balanced windows tried that could be)` : ""}`;
+  }
+  if (outcome === "unsolved (budget)") {
+    return `the search stopped at its budget of ${budget} nodes${foundUnproven ? `; its best redistribution so far (moving ${moved} brick(s)) is not proven minimal and was not applied` : " without a redistribution"}`;
+  }
+  return tried > 1
+    ? `no redistribution makes every step match in any of the ${tried} balanced windows within ${REPAIR_LIMITS.maxPadding} steps`
+    : "no redistribution makes every step match";
 }
 
 /**
@@ -245,7 +296,11 @@ export function repairAlignment(
   readonly steps: readonly RepairStep[];
   readonly windows: readonly RepairWindow[];
 } {
-  const current = steps.map((step) => ({ callouts: step.callouts, bricks: [...step.bricks] }));
+  const current = steps.map((step) => ({
+    callouts: step.callouts,
+    bricks: [...step.bricks],
+    identity: step.identity ?? null,
+  }));
   const unmatched = current.flatMap((step, index) => (stepMatches(step) ? [] : [index]));
   const clusters: [number, number][] = [];
   for (const index of unmatched) {
@@ -257,12 +312,12 @@ export function repairAlignment(
   for (const [low, high] of clusters) {
     // An earlier window may already have fixed this cluster.
     if (current.slice(low, high + 1).every((step) => stepMatches(step))) continue;
-    const range = balancedWindow(
+    const ranges = balancedWindows(
       current,
       Math.max(0, low - 1),
       Math.min(current.length - 1, high + 1),
     );
-    if (!range) {
+    if (ranges.length === 0) {
       windows.push({
         first: low,
         last: high,
@@ -270,37 +325,47 @@ export function repairAlignment(
         outcome: "unsolved (no balanced window)",
         moved: 0,
         nodes: 0,
+        windowsTried: 0,
         reason: `no window within ${REPAIR_LIMITS.maxPadding} steps balances its bricks against its callout pieces`,
       });
       continue;
     }
-    const [first, last] = range;
-    const window = current.slice(first, last + 1);
-    const { counts, moved, nodes, exhausted } = solveWindow(window, limits.nodeBudget);
-    const outcome: RepairOutcome = exhausted
-      ? "unsolved (budget)"
-      : counts
-        ? "solved"
-        : "unsolved (no redistribution)";
-    if (counts && outcome === "solved") {
-      distribute(window, counts).forEach((list, offset) => {
-        current[first + offset]!.bricks = list;
-      });
+    // By counts the smallest balanced window is the only one tried, as before identity existed.
+    const byIdentity = current.slice(low, high + 1).some(({ identity }) => identity !== null);
+    const candidates = byIdentity ? ranges : ranges.slice(0, 1);
+    let record: RepairWindow | null = null;
+    let nodesSpent = 0;
+    for (const [tried, [first, last]] of candidates.entries()) {
+      const window = current.slice(first, last + 1);
+      const { counts, moved, nodes, exhausted } = solveWindow(window, limits.nodeBudget);
+      nodesSpent += nodes;
+      const outcome: RepairOutcome = exhausted
+        ? "unsolved (budget)"
+        : counts
+          ? "solved"
+          : "unsolved (no redistribution)";
+      if (outcome === "unsolved (no redistribution)" && tried + 1 < candidates.length) continue;
+      if (counts && outcome === "solved") {
+        distribute(window, counts).forEach((list, offset) => {
+          current[first + offset]!.bricks = list;
+        });
+      }
+      // A window that exhausted its search is named; when none redistributes, the smallest is.
+      const [reportFirst, reportLast] =
+        outcome === "unsolved (no redistribution)" ? ranges[0]! : [first, last];
+      record = {
+        first: reportFirst,
+        last: reportLast,
+        solved: outcome === "solved",
+        outcome,
+        moved: outcome === "solved" ? moved : 0,
+        nodes: nodesSpent,
+        windowsTried: tried + 1,
+        reason: windowReason(outcome, moved, limits.nodeBudget, counts !== null, tried + 1),
+      };
+      break;
     }
-    windows.push({
-      first,
-      last,
-      solved: outcome === "solved",
-      outcome,
-      moved: outcome === "solved" ? moved : 0,
-      nodes,
-      reason:
-        outcome === "solved"
-          ? `redistributed ${moved} brick(s) so every step matches its callouts`
-          : outcome === "unsolved (budget)"
-            ? `the search stopped at its budget of ${limits.nodeBudget} nodes${counts ? `; its best redistribution so far (moving ${moved} brick(s)) is not proven minimal and was not applied` : " without a redistribution"}`
-            : "no redistribution makes every step match",
-    });
+    windows.push(record!);
   }
   return { steps: current, windows };
 }

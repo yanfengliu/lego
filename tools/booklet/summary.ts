@@ -2,9 +2,17 @@ import type { AnswerKey, AnswerKeyLoad } from "./answer-key/index.ts";
 import type { AlignStage } from "./align-stage.ts";
 import type { CatalogStage } from "./catalog-coverage.ts";
 import type { ExportFrameCheck } from "./export-frames.ts";
+import type { IdentifyStage } from "./identify-stage.ts";
 import type { FrameRegistry } from "./ldraw-frames.ts";
 import type { PlaybackStage } from "./playback-stage.ts";
 import type { BookletRead } from "./read.ts";
+import {
+  alignHeadLines,
+  alignHeadline,
+  identifyHeadline,
+  identifyLines,
+  scoreLines,
+} from "./summary-identify.ts";
 import {
   exportFramesHeadline,
   exportFramesLines,
@@ -34,6 +42,7 @@ export const SUMMARY_MAX_LINES = 40;
 
 interface Stages {
   readonly read: Stage<BookletRead>;
+  readonly identify: Stage<IdentifyStage>;
   readonly align: Stage<AlignStage>;
   readonly catalog: Stage<CatalogStage>;
   readonly exportFrames: Stage<ExportFrameCheck>;
@@ -60,8 +69,17 @@ function firstStep(align: AlignStage | null, found: { step: number } | null): nu
   return found?.step ?? "none";
 }
 
-export function headlineOf({ read, align, catalog, exportFrames, playback, key }: Stages) {
+export function headlineOf({
+  read,
+  identify,
+  align,
+  catalog,
+  exportFrames,
+  playback,
+  key,
+}: Stages) {
   const r = read.status === "ran" ? read.value : null;
+  const i = identify.status === "ran" ? identify.value : null;
   const a = align.status === "ran" ? align.value : null;
   const c = catalog.status === "ran" ? catalog.value : null;
   return {
@@ -78,6 +96,7 @@ export function headlineOf({ read, align, catalog, exportFrames, playback, key }
       orphanCallouts: r.exceptions.filter(({ kind }) => kind === "orphan-callout").length,
       inventory: { rows: r.inventory.rows, pieces: r.inventory.pieces },
     },
+    identify: i && identifyHeadline(i, a?.identityScore ?? null),
     key: key && {
       bricks: key.model.bricks.length,
       lxfmlSteps: key.sequence.units.length,
@@ -85,20 +104,7 @@ export function headlineOf({ read, align, catalog, exportFrames, playback, key }
       unplacedBricks: key.sequence.unplaced.length,
       ldraw: pairingHeadline(key),
     },
-    align: a && {
-      steps: a.steps.length,
-      matchedByRunOrder: a.matchedByRunOrder,
-      fittedByRepair: a.fittedByRepair,
-      unmatched: a.mismatchedSteps.length,
-      runOrderMatchedBeforeRepair: a.runMatchedSteps,
-      repairWindows: a.windows.length,
-      solvedWindows: a.windows.filter(({ solved }) => solved).length,
-      unsolvedWindows: a.windows.filter(({ solved }) => !solved).map(({ outcome }) => outcome),
-      bricksAssigned: sum(a.steps.map(({ bricks }) => bricks.length)),
-      unplacedBricks: a.unplaced.length,
-      inventoryMismatches: a.inventory.mismatches.length + a.inventory.missingFromInventory.length,
-      bagViolations: a.bagViolations.length,
-    },
+    align: a && alignHeadline(a),
     catalog: c && {
       ...c.totals,
       firstStepNeedingMissing: firstStep(a, c.firstStepNeedingMissing),
@@ -163,14 +169,10 @@ function readLines(read: BookletRead, ms: number): string[] {
   ];
 }
 
-function alignLines(align: AlignStage, ms: number): string[] {
-  const solved = align.windows.filter(({ solved: done }) => done);
-  const unsolved = align.windows.filter(({ solved: done }) => !done);
-  const moved = sum(solved.map(({ moved: count }) => count));
+function alignLines(align: AlignStage, ms: number, identifyNote: string): string[] {
   const mismatch = align.steps.filter(({ matched }) => !matched);
   return [
-    `[align] ${seconds(ms)} · ${align.steps.length} steps: ${align.matchedByRunOrder} matched by run order, ${align.fittedByRepair} fitted by repair, ${mismatch.length} unmatched · repair: ${align.windows.length} windows, ${solved.length} solved (moved ${moved} bricks)${unsolved.length > 0 ? `, ${unsolved.map(({ outcome, firstStep: from, lastStep: to }) => `${outcome} at steps ${from}-${to}`).join(", ")}` : ""}`,
-    `  a match compares callout counts only, never which elements; the inventory check sees per-element totals, not the split into steps`,
+    ...alignHeadLines(align, ms, identifyNote),
     `  ${sum(align.steps.map(({ bricks }) => bricks.length))} bricks assigned; unplaced by any step: ${align.unplaced.map(({ designRevision }) => designRevision).join(", ") || "none"} · inventory mismatches ${align.inventory.mismatches.length + align.inventory.missingFromInventory.length} · bag-order violations ${align.bagViolations.length}`,
     `  unmatched: ${
       mismatch.length === 0
@@ -213,9 +215,10 @@ export function summaryLines(
     readonly totalMs: number;
   },
 ): string[] {
-  const { read, align, catalog, exportFrames, playback, key } = input;
+  const { read, identify, align, catalog, exportFrames, playback, key } = input;
   const failed = [
     read,
+    identify,
     align,
     catalog,
     exportFrames,
@@ -227,11 +230,24 @@ export function summaryLines(
     `npm run booklet · ${seconds(input.totalMs)} total${failed ? " · FAILED (a present input could not be used; see below)" : ""}`,
   ];
   lines.push(...(read.status === "ran" ? readLines(read.value, read.ms) : [notRun("read", read)]));
+  lines.push(
+    ...(identify.status === "ran"
+      ? identifyLines(identify.value, identify.ms)
+      : [notRun("identify", identify)]),
+  );
   if (input.keyLoad?.status === "failed") lines.push(notRun("key", input.keyLoad));
   else if (key && input.keyLoad?.status === "ran") lines.push(...keyLine(key, input.keyLoad.ms));
+  const identifyNote =
+    identify.status === "ran"
+      ? "identification ran"
+      : `identification did not run: ${identify.status === "failed" ? "it failed" : "skipped"}`;
   lines.push(
-    ...(align.status === "ran" ? alignLines(align.value, align.ms) : [notRun("align", align)]),
+    ...(align.status === "ran"
+      ? alignLines(align.value, align.ms, identifyNote)
+      : [notRun("align", align)]),
   );
+  if (align.status === "ran" && align.value.identityScore)
+    lines.push(...scoreLines(align.value.identityScore));
   lines.push(
     ...(catalog.status === "ran"
       ? catalogLines(catalog.value, align.status === "ran" ? align.value : null, catalog.ms)

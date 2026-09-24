@@ -179,6 +179,25 @@ describe("scanPage", () => {
     );
   });
 
+  it("reads a page of exactly the operator limit and refuses one operator more, before walking it", async () => {
+    // Operator 0 is none identification acts on, so a list of them costs only the walk.
+    const limit = IDENTIFY_LIMITS.maxOperatorsPerPage;
+    const atLimit = await scanPage(
+      pdfjs,
+      page(new Array<number>(limit).fill(0), new Array<unknown>(limit).fill(null)),
+      6,
+    );
+    expect(atLimit.paints).toEqual([]);
+    // One more, with a matching argument list, so only the operator count can refuse it.
+    const over = page(
+      [...new Array<number>(limit).fill(0), FAKE_OPS.restore],
+      new Array<unknown>(limit + 1).fill(null),
+    );
+    await expect(scanPage(pdfjs, over, 6)).rejects.toThrow(
+      `Page 6 has ${limit + 1} drawing operators (limit ${limit}) or a mismatched argument list; the PDF is not a readable instruction booklet.`,
+    );
+  });
+
   it("refuses a page painting more images, or filling more paths, than a booklet page does", async () => {
     const paints = IDENTIFY_LIMITS.maxImagePaintsPerPage + 1;
     await expect(
