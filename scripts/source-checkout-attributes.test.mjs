@@ -47,6 +47,7 @@ const bytePreservingSourcePath = (path) =>
   ].includes(path) ||
   path.startsWith("apps/web/test/fixtures/") ||
   path.startsWith("scripts/fixtures/") ||
+  path.startsWith("packages/brick-kernel/src/fixtures/") ||
   path.startsWith("packages/catalog/src/quarantine/") ||
   /(?:^|\/)[^/]*\.generated\.[^/]+$/u.test(path);
 

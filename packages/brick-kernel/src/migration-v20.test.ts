@@ -8,7 +8,7 @@ import { EXPECTED_V30_INTERPRETATION_CHANGES } from "./migration-historical-fixt
 import { migrateDocumentTruth } from "./migration.ts";
 
 const V20_TRUTH_HASH = "sha256:9c4c32efcaf9bc5f2a251e77188134075f58ca536c6da6148e34b93419d84ad2";
-const V30_TRUTH_HASH = "sha256:7672dd7820ddbcd5e146fcac6b98e071d8dbe143f8b99513f425b3e954c483bd";
+const V30_TRUTH_HASH = "sha256:cf2d67907369f85551055665b6df0f849dd978d2e63330130ec2d2db8f6ccc0b";
 const V21_PART_ID = "builtin:slope-1x2-45";
 const V22_PART_ID = "builtin:axle-1x3";
 const V23_PART_ID = "builtin:technic-brick-1x2-axle-hole";

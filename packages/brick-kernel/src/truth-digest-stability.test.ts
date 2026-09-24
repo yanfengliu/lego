@@ -164,14 +164,14 @@ import { createBuiltinTruthSnapshot, getBuiltinTruthDigestInputs } from "./facto
  *   validatorSet       sha256:cb2767cfa8c8d7adfe145bef950b49428d8c8fced235a04b5f984c29799a031e
  */
 const PINNED_TRUTH_HASHES = {
-  catalog: "sha256:7aee74162dfcbb58b56a2ff9cb50c6cb17a50b28d096b808d3682ebcb6b39527",
+  catalog: "sha256:4662bd517d807a952bda5fc3964c02e34e0ae502255f747635b6c969fb564ebc",
   connectorTaxonomy: "sha256:73e50f5ea9f2ce529f241dae4e04dc99aeb2b57738c228d0844e5b30af66ceb2",
   collisionModel: "sha256:369f49834d2cfe26e5ab5650272baab6af40f01add2c93f542847c5b1b2c29c0",
   transformPolicy: "sha256:44cf428cee1487a9441c609a75fbafefd6c3b4591512af30f8903e4508285f4c",
   validatorSet: "sha256:44233e884c474210006e4e94b82e952fd7b446768396d5b53575eb7946cba4fe",
 } as const;
 
-const PINNED_TRUTH_HASH = "sha256:7672dd7820ddbcd5e146fcac6b98e071d8dbe143f8b99513f425b3e954c483bd";
+const PINNED_TRUTH_HASH = "sha256:cf2d67907369f85551055665b6df0f849dd978d2e63330130ec2d2db8f6ccc0b";
 
 /**
  * SHA-256 of the ordered `[partId, geometry.contentHash]` roster, all 106 rows.
@@ -212,10 +212,11 @@ const PINNED_PART_COUNT = 106;
  * collision bodies; 3245c also declares two reviewed shared-capacity cells.
  * /29 appends two exact-identity meshes, twelve connectors and their
  * conservative collision bodies; 10201 also declares square-S6 clutch cells.
- * /30 is 1_771_315 + 45_575: sixty-one measured LDraw frames, and 15573's
+ * /30 is 1_771_315 + 45_692: sixty-one measured LDraw frames (3023 attributed to
+ * 3023b, the part its redirect resolves to), and 15573's
  * centre seat, its allowance, its shared-capacity groups and its recipe entry.
  */
-const PINNED_CATALOG_SERIALIZED_LENGTH = 1_816_890;
+const PINNED_CATALOG_SERIALIZED_LENGTH = 1_817_007;
 
 describe("builtin truth digest stability", () => {
   it("keeps the five pinned truth hashes byte-identical", () => {

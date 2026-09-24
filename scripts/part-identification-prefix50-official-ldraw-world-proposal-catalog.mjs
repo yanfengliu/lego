@@ -35,12 +35,20 @@ export function catalogFrame(definition, orientationById) {
     definition.geometry.generatorId === "builtin:preloaded-mesh-reference/1"
       ? definition.geometry.assetToCatalogFrame
       : null;
+  if (geometryFrame === null && definition.ldrawFrame === undefined) {
+    throw new TypeError(
+      `Catalog ${definition.id} declares no LDraw-to-catalog frame, so its LDraw placements cannot be projected; derive one with scripts/derive-ldraw-catalog-frames.mjs.`,
+    );
+  }
+  // A parametric part's frame is its measured turn and offset together; a turn
+  // paired with an assumed zero offset misplaces every part whose LDraw origin
+  // is not its catalog origin (a plate's top face is 4 LDU off).
   const frame =
     geometryFrame === null
       ? {
           kind: "ldraw-interchange-frame",
-          orientationId: definition.ldrawFrame?.ldrawToCatalogOrientationId ?? "upright-yaw-0",
-          translationLdu: [0, 0, 0],
+          orientationId: definition.ldrawFrame.ldrawToCatalogOrientationId,
+          translationLdu: [...definition.ldrawFrame.translationLdu],
           assetId: null,
         }
       : {

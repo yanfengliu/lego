@@ -8,7 +8,7 @@ import { EXPECTED_V30_INTERPRETATION_CHANGES } from "./migration-historical-fixt
 import { migrateDocumentTruth } from "./migration.ts";
 
 const V25_TRUTH_HASH = "sha256:364ef046160736292eb51b331ce27ff246fa8940e16b256d53a68b9656a6018f";
-const V30_TRUTH_HASH = "sha256:7672dd7820ddbcd5e146fcac6b98e071d8dbe143f8b99513f425b3e954c483bd";
+const V30_TRUTH_HASH = "sha256:cf2d67907369f85551055665b6df0f849dd978d2e63330130ec2d2db8f6ccc0b";
 const V26_PART_ID = "builtin:plate-1x5";
 const POST_V26_PART_IDS = [
   "builtin:tile-1x2-chamfered-indented",

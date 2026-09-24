@@ -132,7 +132,7 @@ describe("preloaded mesh asset resolution", () => {
             .replaceAll("rectilinear-stud-clearance/4", "rectilinear-stud-clearance/2"),
         )
         .digest("hex"),
-    ).toBe("ec2a5790e95c19cf4f902bdd9aae34084f315cf23920abdc79f88d504011407c");
+    ).toBe("0bf520061f140af1c4051e44759ef45c5f36b585200912b9732f3d026feaa48d");
   });
 
   it("copies preloaded data and applies explicit orientation plus translation exactly once", () => {

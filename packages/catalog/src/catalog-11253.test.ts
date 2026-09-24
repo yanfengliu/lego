@@ -341,8 +341,8 @@ describe("11253 roller-skate catalog truth", () => {
         )
         .digest("hex"),
     }).toEqual({
-      definitionBytes: 1_541_533,
-      definitionHash: "d54fd5903c73e00a9f35beb9474e6ad45bf2571888a0bbe8a6ddd06d13fccf78",
+      definitionBytes: 1_541_650,
+      definitionHash: "57948c8e9eb290cfc354c40d2a53737130a47e4ba1e0df9b8151e277edc30113",
       connectorCollisionHash: "370fc144babd34a272f0ebc57103b98a949cad0717180618e55d9c167b757940",
       collisionHash: "b626aacebc8dbaacc7d39f818f3a8246aad2669637fe247bfa67a1310d7ee22b",
     });

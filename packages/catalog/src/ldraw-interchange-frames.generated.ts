@@ -6,7 +6,9 @@
 //
 // and check with --check. Each row is measurement only: the orientation and
 // whole-LDU offset that put the file's extent and studs on the catalog part
-// (catalog = O * ldraw + t), plus the root file's identity and attribution.
+// (catalog = O * ldraw + t), plus the root file's identity and attribution. A
+// redirect stub's row also names the part it moved to, whose header it attributes,
+// and a reviewed choice's row carries its why.
 
 import type { LdrawInterchangeFrameRow } from "./ldraw-interchange-frames.ts";
 
@@ -59,7 +61,7 @@ export const LDRAW_INTERCHANGE_FRAME_ROWS: readonly LdrawInterchangeFrameRow[] =
   // prettier-ignore
   { ldrawId: "3022.dat", orientationId: "upright-yaw-0", translationLdu: [0, -4, 0], basis: "derived", candidates: 4, rootSha256: "sha256:3cd09bfe626e751ad95eab0ea83e5f3adea81f05d34993a1c4bf432ee386fe25", rootBytes: 1088, closureFileCount: 8, title: "Plate  2 x  2", author: "James Jessiman", ldrawOrg: "Part UPDATE 2002-03", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
-  { ldrawId: "3023.dat", orientationId: "upright-yaw-90", translationLdu: [0, -4, 0], basis: "derived", candidates: 2, rootSha256: "sha256:fa3eeab92b077488bae3dbc0fe974ef3327a77f130776d2965f13d3ebc22ab57", rootBytes: 391, closureFileCount: 11, title: "~Moved to 3023b", author: "Orion Pobursky [OrionP]", ldrawOrg: "Part UPDATE 2024-07", licenseExpression: "CC-BY-4.0" },
+  { ldrawId: "3023.dat", orientationId: "upright-yaw-90", translationLdu: [0, -4, 0], basis: "derived", candidates: 2, rootSha256: "sha256:fa3eeab92b077488bae3dbc0fe974ef3327a77f130776d2965f13d3ebc22ab57", rootBytes: 391, closureFileCount: 11, resolvedRoot: { ldrawId: "3023b.dat", sha256: "sha256:42f96ca69f8a0b83a877f4e128e4143ce753d038b1074835edc5aca9a9954fc9", bytes: 820 }, title: "Plate  1 x  2", author: "James Jessiman", ldrawOrg: "Part UPDATE 2023-03", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
   { ldrawId: "3024.dat", orientationId: "upright-yaw-0", translationLdu: [0, -4, 0], basis: "derived", candidates: 4, rootSha256: "sha256:e053af4f232374b0c8da2dc0f9620bedf0576ca43d7c3ceebc6676050ae61da8", rootBytes: 668, closureFileCount: 8, title: "Plate  1 x  1", author: "James Jessiman", ldrawOrg: "Part UPDATE 2022-05", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
@@ -89,13 +91,13 @@ export const LDRAW_INTERCHANGE_FRAME_ROWS: readonly LdrawInterchangeFrameRow[] =
   // prettier-ignore
   { ldrawId: "3070b.dat", orientationId: "upright-yaw-0", translationLdu: [0, -4, 0], basis: "derived", candidates: 4, rootSha256: "sha256:c7608c7e9f40c61747fb46c7107ef141b0a441e381768d2cdac0129f8ad03752", rootBytes: 477, closureFileCount: 4, title: "Tile  1 x  1 with Groove", author: "Chris Dee [cwdee]", ldrawOrg: "Part UPDATE 2025-09", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
-  { ldrawId: "32062.dat", orientationId: "upright-yaw-0", translationLdu: [0, 0, 0], basis: "reviewed-choice", candidates: 2, rootSha256: "sha256:5d5a970dccccabbd0a0e89e9519c69a51e6a8c75a35af1cfbf61f4fb46231da7", rootBytes: 6616, closureFileCount: 5, title: "Technic Axle  2 Notched", author: "Steve Bliss [sbliss]", ldrawOrg: "Part UPDATE 2025-09", licenseExpression: "CC-BY-4.0" },
+  { ldrawId: "32062.dat", orientationId: "upright-yaw-0", translationLdu: [0, 0, 0], basis: "reviewed-choice", candidates: 2, rootSha256: "sha256:5d5a970dccccabbd0a0e89e9519c69a51e6a8c75a35af1cfbf61f4fb46231da7", rootBytes: 6616, closureFileCount: 5, title: "Technic Axle  2 Notched", author: "Steve Bliss [sbliss]", ldrawOrg: "Part UPDATE 2025-09", licenseExpression: "CC-BY-4.0", why: "32062.dat's notched faces are not symmetric under the half turn between the two candidates, and neither is the catalog axle: the turn swaps its end ports axle:0 and axle:2 exactly but reverses the centre port axle:1 from +x to -x. The choice is harmless because axle-to-axleHole connections match collinear axes, which that reversal leaves unchanged, and an axle end in a blind hole uses axle:0 or axle:2. Yaw 0, the first candidate, keeps the shaft on the x axis both conventions give it." },
   // prettier-ignore
   { ldrawId: "34103.dat", orientationId: "upright-yaw-90", translationLdu: [0, -4, 0], basis: "derived", candidates: 2, rootSha256: "sha256:81e985e6dce3d56bec5fe2226b16139e38474f2fd1ff63ab4fa6fbdaf8b7b2f4", rootBytes: 522, closureFileCount: 13, title: "Plate  1 x  3 with  2 Studs Offset", author: "Magnus Forsberg [MagFors]", ldrawOrg: "Part UPDATE 2022-06", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
   { ldrawId: "3460.dat", orientationId: "upright-yaw-90", translationLdu: [0, -4, 0], basis: "derived", candidates: 2, rootSha256: "sha256:a236ed5a1efb4844f2eebafc6096a90571607af30e287b307400dcdea44f438f", rootBytes: 622, closureFileCount: 11, title: "Plate  1 x  8", author: "James Jessiman", ldrawOrg: "Part UPDATE 2024-01", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore
-  { ldrawId: "3483.dat", orientationId: "upright-yaw-90", translationLdu: [0, 0, 0], basis: "reviewed-choice", candidates: 2, rootSha256: "sha256:23320d45840f31f6385d34090ddc7fe7b8495eb3b66a83d189c18b4c19b52401", rootBytes: 51574, closureFileCount: 1, title: "Tyre  7/ 56 x 17 Offset Tread", author: "James Jessiman", ldrawOrg: "Part UPDATE 2014-01", licenseExpression: "CC-BY-4.0" },
+  { ldrawId: "3483.dat", orientationId: "upright-yaw-90", translationLdu: [0, 0, 0], basis: "reviewed-choice", candidates: 2, rootSha256: "sha256:23320d45840f31f6385d34090ddc7fe7b8495eb3b66a83d189c18b4c19b52401", rootBytes: 51574, closureFileCount: 1, title: "Tyre  7/ 56 x 17 Offset Tread", author: "James Jessiman", ldrawOrg: "Part UPDATE 2014-01", licenseExpression: "CC-BY-4.0", why: "3483.dat's offset tread is not symmetric under the half turn between the two candidates, and neither is the catalog wheel: the turn keeps its symmetric body bounds but reverses its one port axleHole:0 from +x to -x. The choice is harmless because axle-to-axleHole connections match collinear axes, so an axle through the hole connects the same either way. Yaw 90, the first candidate, is kept." },
   // prettier-ignore
   { ldrawId: "3622.dat", orientationId: "upright-yaw-90", translationLdu: [0, -12, 0], basis: "derived", candidates: 2, rootSha256: "sha256:9317bcec4fbcddbd38ed3972d25ea95d685101904f3ed86c7e769a9f356245d8", rootBytes: 511, closureFileCount: 11, title: "Brick  1 x  3", author: "James Jessiman", ldrawOrg: "Part UPDATE 2004-02", licenseExpression: "CC-BY-4.0" },
   // prettier-ignore

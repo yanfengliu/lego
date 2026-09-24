@@ -278,8 +278,8 @@ describe("15254 thin-top arch catalog truth", () => {
       connectorCollisionHash: createHash("sha256").update(JSON.stringify(rows)).digest("hex"),
       collisionHash: createHash("sha256").update(JSON.stringify(collisionRows)).digest("hex"),
     }).toEqual({
-      definitionBytes: 1_554_983,
-      definitionHash: "0aeefca3278ada83a79326c868a4e92361f860f4aeeee372c2f16816c2d66279",
+      definitionBytes: 1_555_100,
+      definitionHash: "00fac1d198760b4ac4ca1bf9633add0cc0e15e4038bd5bda8cf84e9a068a5d3e",
       connectorCollisionHash: "dc6da73a3a7a674632bb131798db596794e778247d074d0b4b11f6663547ff3e",
       collisionHash: "f80e8907e5677dad3b971633fd617407e9d2506acb131f76affa977076908722",
     });

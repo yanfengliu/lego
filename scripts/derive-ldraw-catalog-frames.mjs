@@ -5,7 +5,11 @@
  * the byte-pinned official LDraw archive by ldraw-catalog-frame-derivation.mjs.
  *
  *   node scripts/derive-ldraw-catalog-frames.mjs --official <ldraw-complete-2026-07.zip> --write
- *   node scripts/derive-ldraw-catalog-frames.mjs --official <ldraw-complete-2026-07.zip> --check
+ *   LEGO_RUN_EVIDENCE=1 node scripts/derive-ldraw-catalog-frames.mjs --official <ldraw-complete-2026-07.zip> --check
+ *
+ * `--check` needs the pinned archive, which a clean clone lacks, so like the
+ * other run-evidence checks it runs only under LEGO_RUN_EVIDENCE=1 and
+ * otherwise says it did not run.
  *
  * `--official` defaults to LEGO_LDRAW_OFFICIAL_ARCHIVE, then
  * C:/tmp/ldraw-complete-2026-07.zip. The archive is read locally and never
@@ -31,6 +35,11 @@ export const LDRAW_FRAME_ARCHIVE_PIN = Object.freeze({
 });
 export const DEFAULT_OFFICIAL_ARCHIVE = "C:/tmp/ldraw-complete-2026-07.zip";
 
+/** Where the pinned archive is read from without --official: LEGO_LDRAW_OFFICIAL_ARCHIVE, else the default. */
+export function officialArchivePath(env = process.env) {
+  return env.LEGO_LDRAW_OFFICIAL_ARCHIVE ?? DEFAULT_OFFICIAL_ARCHIVE;
+}
+
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const GENERATED_PATH = resolve(
   ROOT,
@@ -40,7 +49,7 @@ const MESH_GENERATOR = "builtin:preloaded-mesh-reference/1";
 
 function parseArguments(argv) {
   const options = {
-    official: process.env.LEGO_LDRAW_OFFICIAL_ARCHIVE ?? DEFAULT_OFFICIAL_ARCHIVE,
+    official: officialArchivePath(),
     mode: null,
   };
   for (let index = 0; index < argv.length; index += 1) {
@@ -59,6 +68,19 @@ function parseArguments(argv) {
     );
   }
   return options;
+}
+
+/**
+ * Whether `LEGO_RUN_EVIDENCE` opts in, read the way scripts/run-evidence-gate.mjs
+ * reads it for tests (that module imports vitest): unset, "" or "0" is off, "1"
+ * is on, and anything else is refused by name.
+ */
+export function runEvidenceOptedIn(value) {
+  if (value === undefined || value === "" || value === "0") return false;
+  if (value === "1") return true;
+  throw new Error(
+    `LEGO_RUN_EVIDENCE is ${JSON.stringify(value)}; set it to 1 to run --check against the pinned archive, or leave it unset (or 0) to skip it.`,
+  );
 }
 
 /** The pinned archive's bytes, refused unless they are exactly the pinned archive. */
@@ -96,9 +118,17 @@ export function deriveRows(catalog, archive) {
   for (const definition of catalog.PART_DEFINITIONS) {
     if (definition.geometry.generatorId === MESH_GENERATOR) continue;
     const ldrawId = definition.aliases.find(({ namespace }) => namespace === "ldraw")?.value;
+    if (ldrawId === undefined) {
+      failures.push(
+        `${definition.id}: has no "ldraw" alias, so no official LDraw file names it and no frame can be measured; add its LDraw id as an alias ({ namespace: "ldraw", value: "<id>.dat" })`,
+      );
+      continue;
+    }
     try {
       const expanded = expandLdrawPartForFrame(archive, ldrawId);
       const frame = deriveLdrawCatalogFrame(definition, expanded, catalog.PROPER_ORIENTATIONS);
+      // A redirect stub draws nothing: attribution goes to the part it moved to.
+      const attributed = expanded.resolvedRoot?.header ?? expanded.header;
       rows.push({
         ldrawId,
         orientationId: frame.orientationId,
@@ -108,10 +138,20 @@ export function deriveRows(catalog, archive) {
         rootSha256: expanded.root.sha256,
         rootBytes: expanded.root.bytes,
         closureFileCount: expanded.closureFileCount,
-        title: expanded.header.title,
-        author: expanded.header.author,
-        ldrawOrg: expanded.header.ldrawOrg,
-        licenseExpression: expanded.header.licenseExpression,
+        ...(expanded.resolvedRoot === undefined
+          ? {}
+          : {
+              resolvedRoot: {
+                ldrawId: expanded.resolvedRoot.path.split("/").pop(),
+                sha256: expanded.resolvedRoot.sha256,
+                bytes: expanded.resolvedRoot.bytes,
+              },
+            }),
+        title: attributed.title,
+        author: attributed.author,
+        ldrawOrg: attributed.ldrawOrg,
+        licenseExpression: attributed.licenseExpression,
+        ...(frame.why === undefined ? {} : { why: frame.why }),
       });
     } catch (error) {
       failures.push(`${definition.id} (${ldrawId}): ${error.message}`);
@@ -130,7 +170,7 @@ export function deriveRows(catalog, archive) {
 export function renderGenerated(rows) {
   const lines = rows.map(
     (row) =>
-      `  // prettier-ignore\n  { ldrawId: ${JSON.stringify(row.ldrawId)}, orientationId: ${JSON.stringify(row.orientationId)}, translationLdu: [${row.translationLdu.join(", ")}], basis: ${JSON.stringify(row.basis)}, candidates: ${row.candidates}, rootSha256: ${JSON.stringify(row.rootSha256)}, rootBytes: ${row.rootBytes}, closureFileCount: ${row.closureFileCount}, title: ${JSON.stringify(row.title)}, author: ${JSON.stringify(row.author)}, ldrawOrg: ${JSON.stringify(row.ldrawOrg)}, licenseExpression: ${JSON.stringify(row.licenseExpression)} },`,
+      `  // prettier-ignore\n  { ldrawId: ${JSON.stringify(row.ldrawId)}, orientationId: ${JSON.stringify(row.orientationId)}, translationLdu: [${row.translationLdu.join(", ")}], basis: ${JSON.stringify(row.basis)}, candidates: ${row.candidates}, rootSha256: ${JSON.stringify(row.rootSha256)}, rootBytes: ${row.rootBytes}, closureFileCount: ${row.closureFileCount}, ${row.resolvedRoot === undefined ? "" : `resolvedRoot: { ldrawId: ${JSON.stringify(row.resolvedRoot.ldrawId)}, sha256: ${JSON.stringify(row.resolvedRoot.sha256)}, bytes: ${row.resolvedRoot.bytes} }, `}title: ${JSON.stringify(row.title)}, author: ${JSON.stringify(row.author)}, ldrawOrg: ${JSON.stringify(row.ldrawOrg)}, licenseExpression: ${JSON.stringify(row.licenseExpression)}${row.why === undefined ? "" : `, why: ${JSON.stringify(row.why)}`} },`,
   );
   return `// Generated by scripts/derive-ldraw-catalog-frames.mjs from the byte-pinned official
 // LDraw archive ${LDRAW_FRAME_ARCHIVE_PIN.logicalName} (${LDRAW_FRAME_ARCHIVE_PIN.bytes} bytes,
@@ -140,7 +180,9 @@ export function renderGenerated(rows) {
 //
 // and check with --check. Each row is measurement only: the orientation and
 // whole-LDU offset that put the file's extent and studs on the catalog part
-// (catalog = O * ldraw + t), plus the root file's identity and attribution.
+// (catalog = O * ldraw + t), plus the root file's identity and attribution. A
+// redirect stub's row also names the part it moved to, whose header it attributes,
+// and a reviewed choice's row carries its why.
 
 import type { LdrawInterchangeFrameRow } from "./ldraw-interchange-frames.ts";
 
@@ -159,6 +201,13 @@ ${lines.join("\n")}
 
 async function main() {
   const options = parseArguments(process.argv.slice(2));
+  if (options.mode === "check" && !runEvidenceOptedIn(process.env.LEGO_RUN_EVIDENCE)) {
+    process.stdout.write(
+      `derive-ldraw-catalog-frames --check did not run: it reads the pinned official LDraw archive (${LDRAW_FRAME_ARCHIVE_PIN.logicalName}), which a clean clone lacks. Set LEGO_RUN_EVIDENCE=1 to run it.
+`,
+    );
+    return;
+  }
   const archive = openExactLdrawArchive(readPinnedArchive(options.official));
   const catalog = await loadCatalog();
   const text = renderGenerated(deriveRows(catalog, archive));

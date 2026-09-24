@@ -246,8 +246,8 @@ describe("11212 regular 3 x 3 plate catalog truth", () => {
         .digest("hex"),
       collisionHash: createHash("sha256").update(JSON.stringify(collision)).digest("hex"),
     }).toEqual({
-      definitionBytes: 1_630_743,
-      definitionHash: "2aaaead75437a02681db323cde6f0abe395c8719cb5dc001102a51c89c8c54ef",
+      definitionBytes: 1_630_860,
+      definitionHash: "0ff4babf452fc6d37752337dba49b4645e62f25c8e19b912b1c208156c91f1d4",
       connectorCollisionHash: "150a0885e18810cd4cca15fa064ec0d05043fea2a40ec17d48c0d0b59d6fdff1",
       collisionHash: "6bd9d83147de23ed03e4ace7dfce3e463f26b1492ae0eeda12f62f5cecf1dfee",
     });

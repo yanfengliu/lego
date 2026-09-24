@@ -53,7 +53,7 @@ describe("reviewed frozen-/26 additive legacy operation projection", () => {
       fromCatalogVersion: "builtin.basic-parts/13",
       toCatalogVersion: "builtin.basic-parts/30",
       fromTruthHash: "sha256:de62fae6dbc8095dfd460983e5e845ddfac4bf9ec2ea1f99572bc46026941cb5",
-      toTruthHash: "sha256:7672dd7820ddbcd5e146fcac6b98e071d8dbe143f8b99513f425b3e954c483bd",
+      toTruthHash: "sha256:cf2d67907369f85551055665b6df0f849dd978d2e63330130ec2d2db8f6ccc0b",
       addedCatalogPartIds: [
         "builtin:tile-1x1-quarter-round",
         "builtin:bracket-1x2-1x4-rounded-bottom",

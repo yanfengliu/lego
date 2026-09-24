@@ -192,8 +192,8 @@ describe("78329 regular 1 x 5 plate catalog truth", () => {
         .update(JSON.stringify(connectorCollision))
         .digest("hex"),
     }).toEqual({
-      definitionBytes: 1_665_132,
-      definitionHash: "a3c8077eb44bebe7746c752364e1886978de975ca0ffc03f020ed449f42598e2",
+      definitionBytes: 1_665_249,
+      definitionHash: "757ed16b4ac1967065d6050d05e64f6dfa73b359526f6a7bc8ca08af05fb6f53",
       connectorCollisionHash: "37f978428be50637b29bb1cbc6ad05a637f651a7bbb3b1a696a0810730e144ad",
     });
   });

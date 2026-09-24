@@ -33,21 +33,34 @@ export interface LdrawInterchangeFrameRow {
   readonly rootSha256: `sha256:${string}`;
   readonly rootBytes: number;
   readonly closureFileCount: number;
+  /**
+   * Set when the file is an official "~Moved to" redirect: the part it moved
+   * to, which draws the geometry, so title, author, `ldrawOrg` and licence are
+   * that part's.
+   */
+  readonly resolvedRoot?: {
+    readonly ldrawId: string;
+    readonly sha256: `sha256:${string}`;
+    readonly bytes: number;
+  };
   readonly title: string;
   readonly author: string;
   readonly ldrawOrg: string;
   readonly licenseExpression: string;
+  /** Why review chose this frame among the measured candidates; only on a reviewed choice. */
+  readonly why?: string;
 }
 
 export type LdrawInterchangeFrame = NonNullable<PartDefinition["ldrawFrame"]>;
 
 function provenanceFor(row: LdrawInterchangeFrameRow): SourceProvenance {
+  const redirect = row.resolvedRoot;
   return {
     sourceId: `ldraw:official:${row.ldrawId}`,
     sourceType: "interoperability-mapping",
-    sourceVersion: `${LDRAW_INTERCHANGE_FRAME_ARCHIVE.logicalName} ${LDRAW_INTERCHANGE_FRAME_ARCHIVE.sha256}; ${row.ldrawOrg}; root ${row.rootSha256}`,
+    sourceVersion: `${LDRAW_INTERCHANGE_FRAME_ARCHIVE.logicalName} ${LDRAW_INTERCHANGE_FRAME_ARCHIVE.sha256}; ${row.ldrawOrg}; root ${row.rootSha256}${redirect === undefined ? "" : `; resolved root ${redirect.ldrawId} ${redirect.sha256}`}`,
     licenseExpression: row.licenseExpression,
-    attribution: `${row.ldrawId} ("${row.title}") authored by ${row.author} for LDraw.org; frame ${row.basis === "derived" ? "measured" : "chosen by review among measured candidates"} by scripts/derive-ldraw-catalog-frames.mjs without bundling geometry.`,
+    attribution: `${redirect === undefined ? row.ldrawId : `${redirect.ldrawId}, which ${row.ldrawId} redirects to,`} ("${row.title}") authored by ${row.author} for LDraw.org; frame ${row.basis === "derived" ? "measured" : "chosen by review among measured candidates"} by scripts/derive-ldraw-catalog-frames.mjs without bundling geometry.`,
     runtimeRole: "interchange-frame-measurement",
     redistributionAllowed: true,
     trainingUseAllowed: false,

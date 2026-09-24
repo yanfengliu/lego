@@ -587,7 +587,7 @@ describe("migrateDocumentTruth", () => {
     expect(report.migrated).toBe(true);
     expect(report.blockingReasons).toEqual([]);
     expect(report.toTruthHash).toBe(
-      "sha256:7672dd7820ddbcd5e146fcac6b98e071d8dbe143f8b99513f425b3e954c483bd",
+      "sha256:cf2d67907369f85551055665b6df0f849dd978d2e63330130ec2d2db8f6ccc0b",
     );
     expect(report.addedCatalogPartIds).toEqual(POST_V13_ADDITIVE_PART_IDS.slice(5));
     expect(report.catalogInterpretationChanges).toEqual([...CHANGES_AFTER_V28]);
@@ -622,7 +622,7 @@ describe("migrateDocumentTruth", () => {
     expect(report.migrated).toBe(true);
     expect(report.blockingReasons).toEqual([]);
     expect(report.toTruthHash).toBe(
-      "sha256:7672dd7820ddbcd5e146fcac6b98e071d8dbe143f8b99513f425b3e954c483bd",
+      "sha256:cf2d67907369f85551055665b6df0f849dd978d2e63330130ec2d2db8f6ccc0b",
     );
     expect(report.addedCatalogPartIds).toEqual(POST_V13_ADDITIVE_PART_IDS.slice(6));
     expect(report.catalogInterpretationChanges).toEqual([...CHANGES_AFTER_V28]);

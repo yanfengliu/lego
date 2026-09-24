@@ -11,7 +11,7 @@ const TARGET_CATALOG_VERSION = "builtin.basic-parts/26";
 const SOURCE_TRUTH_HASH = "sha256:de62fae6dbc8095dfd460983e5e845ddfac4bf9ec2ea1f99572bc46026941cb5";
 const TARGET_TRUTH_HASH = "sha256:3226590b11882fea03d8a6370d4ca3c6c8201feaddb56882a243a69acba627e9";
 const CURRENT_RUNTIME_TRUTH_HASH =
-  "sha256:7672dd7820ddbcd5e146fcac6b98e071d8dbe143f8b99513f425b3e954c483bd";
+  "sha256:cf2d67907369f85551055665b6df0f849dd978d2e63330130ec2d2db8f6ccc0b";
 const ADDED_CATALOG_PART_IDS = [
   "builtin:tile-1x1-quarter-round",
   "builtin:bracket-1x2-1x4-rounded-bottom",

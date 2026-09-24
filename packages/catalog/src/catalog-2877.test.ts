@@ -256,8 +256,8 @@ describe("2877 grille brick catalog truth", () => {
         .digest("hex"),
       collisionHash: createHash("sha256").update(JSON.stringify(collision)).digest("hex"),
     }).toEqual({
-      definitionBytes: 1_590_958,
-      definitionHash: "31eb09bd7b135110443f46d713db1f3bb8d57ab1485c89d72f8200e0616e2317",
+      definitionBytes: 1_591_075,
+      definitionHash: "138e0ffca2879b0548d42e59619801b195bc49491f214f6bc90e61c488819f86",
       connectorCollisionHash: "0a5432c6b456c6c8c0b58f16f3fa20b3afa0d85c628108812c2c9cd77b614f8f",
       collisionHash: "e4967064f72469490748f345fde81a072eb32e01beeacf1011812f0c1f9816be",
     });

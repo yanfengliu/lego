@@ -87,7 +87,7 @@ const CURRENT_RUNTIME_TRUTH_V30 = Object.freeze({
   catalog: {
     id: "builtin.basic-parts",
     version: "builtin.basic-parts/30",
-    hash: "sha256:7aee74162dfcbb58b56a2ff9cb50c6cb17a50b28d096b808d3682ebcb6b39527",
+    hash: "sha256:4662bd517d807a952bda5fc3964c02e34e0ae502255f747635b6c969fb564ebc",
   },
   connectorTaxonomy: {
     id: "stud-tube",

@@ -19,7 +19,7 @@ describe("source-frame orientation infrastructure truth boundary", () => {
       catalog: {
         id: "builtin.basic-parts",
         version: "builtin.basic-parts/30",
-        hash: "sha256:7aee74162dfcbb58b56a2ff9cb50c6cb17a50b28d096b808d3682ebcb6b39527",
+        hash: "sha256:4662bd517d807a952bda5fc3964c02e34e0ae502255f747635b6c969fb564ebc",
       },
       connectorTaxonomy: {
         id: "stud-tube",
@@ -43,7 +43,7 @@ describe("source-frame orientation infrastructure truth boundary", () => {
       },
     });
     expect(canonicalDigest(truth)).toBe(
-      "sha256:7672dd7820ddbcd5e146fcac6b98e071d8dbe143f8b99513f425b3e954c483bd",
+      "sha256:cf2d67907369f85551055665b6df0f849dd978d2e63330130ec2d2db8f6ccc0b",
     );
   });
 });

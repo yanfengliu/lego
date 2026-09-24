@@ -106,7 +106,8 @@ function headerOf(text, label) {
 /**
  * Expands `ldrawId`'s closure from `archive` (an object with `read(path)`
  * returning bytes): its full extent, and the origin and up direction of every
- * stud primitive it places.
+ * stud primitive it places. An official "~Moved to" redirect also yields
+ * `resolvedRoot`, the part it moved to, whose header attribution reads.
  */
 export function expandLdrawPartForFrame(archive, ldrawId) {
   const rootPath = `ldraw/parts/${normalizedPath(ldrawId)}`;
@@ -175,6 +176,7 @@ export function expandLdrawPartForFrame(archive, ldrawId) {
   };
   const rootBytes = archive.read(rootPath);
   const header = headerOf(rootBytes.toString("utf8"), rootPath);
+  const resolvedRoot = redirectTargetOf(rootPath, rootBytes, header, resolve);
   walk(rootPath, rootBytes, [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0], 0);
   if (points === 0) throw new TypeError(`${rootPath} draws no geometry.`);
   return {
@@ -184,10 +186,46 @@ export function expandLdrawPartForFrame(archive, ldrawId) {
       sha256: sha256(rootBytes),
     },
     header,
+    ...(resolvedRoot === undefined ? {} : { resolvedRoot }),
     closureFileCount: closure.size,
     bounds: { min: min.map(zero), max: max.map(zero) },
     studs,
     faces,
+  };
+}
+
+const IDENTITY_PLACEMENT = "0 0 0 1 0 0 0 1 0 0 0 1";
+
+/**
+ * The part an official "~Moved to" redirect resolves to, or undefined for an
+ * ordinary file. A redirect draws nothing itself: it places its target once,
+ * unturned at the origin, so the target's geometry and author are the ones
+ * the measurement rests on, and attribution reads the target's header.
+ */
+function redirectTargetOf(rootPath, rootBytes, header, resolve) {
+  if (!header.title.startsWith("~Moved to ")) return undefined;
+  const placements = rootBytes
+    .toString("utf8")
+    .split(/\r?\n/u)
+    .map((line) => line.trim().split(/\s+/u))
+    .filter((tokens) => tokens[0] === "1");
+  const [only] = placements;
+  if (placements.length !== 1 || only.slice(2, 14).join(" ") !== IDENTITY_PLACEMENT) {
+    throw new TypeError(
+      `${rootPath} is titled "${header.title}" but does not place exactly one file unturned at the origin; a redirect must, so that its target's frame is its own.`,
+    );
+  }
+  const target = resolve(only.slice(14).join(" "));
+  if (!target.path.startsWith("ldraw/parts/")) {
+    throw new TypeError(
+      `${rootPath} redirects to ${target.path}, which is not a part file; attribution needs the part it moved to.`,
+    );
+  }
+  return {
+    path: target.path.replace(/^ldraw\//u, ""),
+    bytes: target.bytes.length,
+    sha256: sha256(target.bytes),
+    header: headerOf(target.bytes.toString("utf8"), target.path),
   };
 }
 
@@ -244,16 +282,20 @@ export function isSourceSelfMotion(faces, matrix, translation) {
  * Frames chosen by review where the file fits several candidates but is not
  * symmetric between them. The choice must still be one of the candidates the
  * extent and studs leave, so review picks among measured frames and cannot
- * invent one.
+ * invent one. Each `why` is emitted into its generated row.
+ *
+ * Neither choice rests on the catalog part being symmetric: for both, a half
+ * turn is not a catalog self-motion (tools/booklet/frame-checks.ts
+ * `isCatalogSelfMotion` is false), because it reverses a port's normal.
  */
 export const REVIEWED_FRAME_CHOICES = Object.freeze({
   "32062.dat": {
     orientationId: "upright-yaw-0",
-    why: "32062.dat's faces do not map onto themselves under a half turn as drawn, but the catalog models a plain 39 LDU shaft with ports at -10, 0 and 10, so either end first gives the same shaft; yaw 0, the first candidate, keeps it on the x axis both conventions give it.",
+    why: "32062.dat's notched faces are not symmetric under the half turn between the two candidates, and neither is the catalog axle: the turn swaps its end ports axle:0 and axle:2 exactly but reverses the centre port axle:1 from +x to -x. The choice is harmless because axle-to-axleHole connections match collinear axes, which that reversal leaves unchanged, and an axle end in a blind hole uses axle:0 or axle:2. Yaw 0, the first candidate, keeps the shaft on the x axis both conventions give it.",
   },
   "3483.dat": {
     orientationId: "upright-yaw-90",
-    why: "3483.dat's faces do not map onto themselves under a half turn as drawn, but the catalog models a rim and tyre symmetric about its one axle hole, so both yaws give the same wheel; yaw 90, the first candidate, is kept.",
+    why: "3483.dat's offset tread is not symmetric under the half turn between the two candidates, and neither is the catalog wheel: the turn keeps its symmetric body bounds but reverses its one port axleHole:0 from +x to -x. The choice is harmless because axle-to-axleHole connections match collinear axes, so an axle through the hole connects the same either way. Yaw 90, the first candidate, is kept.",
   },
 });
 
@@ -262,9 +304,15 @@ export const REVIEWED_FRAME_CHOICES = Object.freeze({
  * `definition`, over `orientations` (id + row-major matrix, in catalog order;
  * only the upright yaws are tried). Throws, naming the part and what failed,
  * when no candidate survives or the survivors are not one placement and no
- * reviewed choice picks one of them.
+ * reviewed choice picks one of them. `reviewedChoices` defaults to
+ * `REVIEWED_FRAME_CHOICES`; tests pass their own.
  */
-export function deriveLdrawCatalogFrame(definition, expanded, orientations) {
+export function deriveLdrawCatalogFrame(
+  definition,
+  expanded,
+  orientations,
+  reviewedChoices = REVIEWED_FRAME_CHOICES,
+) {
   const catalogStuds = definition.connectors.filter(({ kind }) => kind === "stud");
   const candidates = [];
   for (const orientation of orientations.filter(({ matrix }) => isUprightYaw(matrix))) {
@@ -311,7 +359,7 @@ export function deriveLdrawCatalogFrame(definition, expanded, orientations) {
     return !isSourceSelfMotion(expanded.faces, turn, shift);
   });
   const ldrawId = expanded.root.path.split("/").pop();
-  const reviewed = REVIEWED_FRAME_CHOICES[ldrawId];
+  const reviewed = reviewedChoices[ldrawId];
   if (distinct.length > 0 && reviewed !== undefined) {
     const chosen = candidates.find(({ orientationId }) => orientationId === reviewed.orientationId);
     if (chosen === undefined) {
@@ -324,6 +372,7 @@ export function deriveLdrawCatalogFrame(definition, expanded, orientations) {
       translationLdu: chosen.translation,
       candidates: candidates.length,
       basis: "reviewed-choice",
+      why: reviewed.why,
     };
   }
   if (distinct.length > 0) {

@@ -245,9 +245,9 @@ describe("28802 rounded-bottom bracket catalog truth", () => {
       "rectilinear-stud-clearance/2",
     );
     expect(priorParts).toHaveLength(86);
-    expect(priorDefinitionBytes).toHaveLength(1_519_335);
+    expect(priorDefinitionBytes).toHaveLength(1_519_452);
     expect(createHash("sha256").update(priorDefinitionBytes).digest("hex")).toBe(
-      "0755f1e6a7561f169f9aa5773b8f4d344fa5e18982feb20bb20a37f1de0fe87d",
+      "f23956b678e5d4328b0132468ecb8b7566290f33a3f719392c58a4cd1d1bfc0a",
     );
     expect(createHash("sha256").update(priorConnectorCollisionBytes).digest("hex")).toBe(
       "24a07081d26d18de319cf72b2298d58fa75685ee5b1692465ba8dc1ca8ea2b5c",

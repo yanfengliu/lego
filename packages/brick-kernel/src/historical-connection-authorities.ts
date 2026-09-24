@@ -43,7 +43,7 @@ export interface ReviewedHistoricalConnectionSemantics {
 }
 
 export const CURRENT_CONNECTION_SEMANTICS_AUTHORITY = deepFreeze({
-  truthHash: "sha256:7672dd7820ddbcd5e146fcac6b98e071d8dbe143f8b99513f425b3e954c483bd",
+  truthHash: "sha256:cf2d67907369f85551055665b6df0f849dd978d2e63330130ec2d2db8f6ccc0b",
   endpointCount: 2340,
   endpointMapDigest: "sha256:529c86dec5755d6efbf7e70ee5a57002ae18880e4f0a0c54fcdb4eae903f5acb",
   pairCount: 4,

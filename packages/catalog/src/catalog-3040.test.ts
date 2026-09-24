@@ -357,8 +357,8 @@ describe("3040 straight-slope catalog truth", () => {
         .digest("hex"),
       collisionHash: createHash("sha256").update(JSON.stringify(collision)).digest("hex"),
     }).toEqual({
-      definitionBytes: 1_599_477,
-      definitionHash: "d7618c5ff2369f3a55f6382c085c84217bcc622728504cc32f3c1bf67d631dad",
+      definitionBytes: 1_599_594,
+      definitionHash: "71532e5e3d785eddd59af8e4403c5e7d817fd1ff9cfa0e2b85e04ecafe128f63",
       connectorCollisionHash: "e92094b0fba540af9595cbf535311a3ba7e0869942ba822a47e1bb1c2a462fe1",
       collisionHash: "b9cdba5f152d50349ea413a0d733a50da569e9f087047410a6a77565c2c12c1d",
     });

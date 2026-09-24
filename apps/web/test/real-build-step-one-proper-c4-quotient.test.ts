@@ -278,7 +278,7 @@ describe("step-one proper-C4 executable quotient", () => {
     // The root document carries live truth: at /30 only its truth moved, and
     // restoring the /29 truth in the root gives back sha256:7b2c0080...97d88c.
     expect(result.quotientDigest).toBe(
-      "sha256:52907c612fdd6b9e2596abc4fda86ca4716e94f2cf887d046159ce135a3c23e8",
+      "sha256:bed8770f66f6f48382c4e3d9206bf9c43709707c3ab5c6deeb5c703e9d56e500",
     );
   });
 

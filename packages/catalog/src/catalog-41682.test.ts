@@ -216,8 +216,8 @@ describe("41682 vertical-stud bracket catalog truth", () => {
         .digest("hex"),
       collisionHash: createHash("sha256").update(JSON.stringify(collision)).digest("hex"),
     }).toEqual({
-      definitionBytes: 1_578_761,
-      definitionHash: "d77a6e03605087866392a60a97800f03b4905fe4b71969bbc8c10acbf6d93ac1",
+      definitionBytes: 1_578_878,
+      definitionHash: "4e95ccee11ee4462715218b157d0cfbe6b1bb4316b96a89db7d8d9dfd11242cc",
       connectorCollisionHash: "a0e5832276167c833f1d0ea806d6294af3440469d7b35488cfac678931c65b39",
       collisionHash: "9abb1674f5aaab49025e7cc50f152bb3e78694ddcaf47e378eac0e0526f66c75",
     });

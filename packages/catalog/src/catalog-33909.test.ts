@@ -247,8 +247,8 @@ describe("33909 two-stud-edge plate catalog truth", () => {
         .digest("hex"),
       collisionHash: createHash("sha256").update(JSON.stringify(collision)).digest("hex"),
     }).toEqual({
-      definitionBytes: 1_653_975,
-      definitionHash: "d2c25dce4d93b129ccde6ef7a59fc78e6ef62f213301606d6781543ea8243adb",
+      definitionBytes: 1_654_092,
+      definitionHash: "7b492f8c1f7764fe9cb61e6c42691408f2dea896061ed86b2f5b95667706edf9",
       connectorCollisionHash: "a6284856cf0cf6d91b56ab45b127c44ed063d7f287f34ff02fba5edd50d6e346",
       collisionHash: "c312f38bee5aa07c282265a2ac05d88b6b46fa57f869a772c0397e7e3b8fa1e7",
     });

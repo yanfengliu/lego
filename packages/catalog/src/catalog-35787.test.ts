@@ -335,8 +335,8 @@ describe("35787 triangular tile catalog truth", () => {
         )
         .digest("hex"),
     }).toEqual({
-      definitionBytes: 1_529_562,
-      definitionHash: "91eb8c03ac739b2f87b187f99db85e4f8d2da3c5a622b5efdf32974f8732045a",
+      definitionBytes: 1_529_679,
+      definitionHash: "884a623c348d67c8d3f0695e2a093752cc13e5715ee2b4063cb6bad49b243f5b",
       connectorCollisionHash: "92b65bb76b60716ccc7490e6b5b38f6b16d80e5013e993609e616220d20ed5fd",
       collisionHash: "b98fa569f474926cf3b8940e9c7ccef7becb9169b058a7c05be5dfe8cbfb14e0",
     });
