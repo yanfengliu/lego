@@ -19,18 +19,23 @@ import { validateBrickDocument } from "./validation.ts";
  * a 1 x 2 plate with both grid clutches connected. A /1 file written before a
  * part's mesh promotion (/12, /13) is read through today's mesh frame, not the
  * frame it was written with, and nothing here covers that.
+ *
+ * The repository keeps no raw .ldr file under packages/ (the BOM source census
+ * forbids the extension), so each file's exact text sits in one JSON fixture
+ * with the byte count and sha256 of the file as written.
  */
-const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "ldraw-subset-v1");
+const FIXTURE = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "ldraw-subset-v1.json");
 
 interface FixtureFile {
   readonly file: string;
+  readonly text: string;
   readonly bytes: number;
   readonly sha256: string;
   readonly parts: readonly Pick<PartInstance, "id" | "catalogPartId" | "transform">[];
   readonly connections: readonly Pick<ConnectionEdge, "id" | "a" | "b">[];
 }
 
-const manifest = JSON.parse(readFileSync(join(FIXTURES, "manifest.json"), "utf8")) as {
+const manifest = JSON.parse(readFileSync(FIXTURE, "utf8")) as {
   readonly sourceCommit: string;
   readonly files: readonly FixtureFile[];
 };
@@ -56,7 +61,7 @@ describe("LDraw subset /1 files written at catalog /29", () => {
 
   for (const fixture of manifest.files) {
     it(`reads ${fixture.file} back at the placement it was written from`, () => {
-      const bytes = readFileSync(join(FIXTURES, fixture.file));
+      const bytes = Buffer.from(fixture.text, "utf8");
       expect(bytes.length).toBe(fixture.bytes);
       expect(`sha256:${createHash("sha256").update(bytes).digest("hex")}`).toBe(fixture.sha256);
       const text = bytes.toString("utf8");

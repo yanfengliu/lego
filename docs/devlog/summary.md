@@ -2,6 +2,7 @@
 
 Current state belongs in the design documents; this index records only behaviour changes, measured results, and links to the matching detailed history.
 
+- [2026-09-23 (frame truth review fixes)](detailed/2026-09-23_2026-09-23.md) — Saved `/4`-`/29` edges on 15573 grid clutches now migrate under a proven delta class instead of being refused; real `/1` files pin LDraw fidelity; `3023` credits `3023b`, moving the `/30` catalog hash.
 - [2026-09-23 (frame truth, catalog `/30`)](detailed/2026-09-23_2026-09-23.md) — Parametric LDraw frames measured from the official files into catalog truth; playback reads no ignored registry (valid through 3 → 31 without it); the 15573 centre seat clears step 29; LDraw subset `/2`.
 - [2026-09-23 (booklet-reset milestone 1 integrated)](detailed/2026-09-23_2026-09-23.md) — Four branches merged; `npm run verify` exit 0 in 16 min (Vitest 3881 passed, Python 608 ran, Playwright 59 passed). The run-evidence class check now reads vitest's include, so `tools/` tests are scanned.
 - [2026-09-23 (`npm run verify` green again)](detailed/2026-09-23_2026-09-23.md) — Vitest failures on main 31 → 0. Tests reading ignored run evidence skip unless `LEGO_RUN_EVIDENCE=1`, and a class check fails any test gated on a path's existence; scoring runs moved to `npm run test:score`.
