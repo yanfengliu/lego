@@ -111,6 +111,25 @@ export const EXPECTED_JUMPER_1X2_CENTRE_SEAT_CHANGES = [
   },
 ] as const;
 
+/**
+ * The two of those changes every row carries a saved edge across: each grid
+ * clutch only joins a capacity group shared with the centre seat.
+ */
+export const EXPECTED_JUMPER_1X2_CARRIED_ENDPOINT_DELTAS = [
+  {
+    ...EXPECTED_JUMPER_1X2_CENTRE_SEAT_CHANGES[0],
+    deltaClass: "capacity-cells-added-shared-only-with-endpoints-absent-from-source",
+    addedSharedCapacityGroupIds: ["15573:negative-z-half"],
+    reportedUnderCatalogVersion: "builtin.basic-parts/30",
+  },
+  {
+    ...EXPECTED_JUMPER_1X2_CENTRE_SEAT_CHANGES[1],
+    deltaClass: "capacity-cells-added-shared-only-with-endpoints-absent-from-source",
+    addedSharedCapacityGroupIds: ["15573:positive-z-half"],
+    reportedUnderCatalogVersion: "builtin.basic-parts/30",
+  },
+] as const;
+
 /** The 61 parametric parts whose LDraw interchange frame /30 measured, in catalog order. */
 export const EXPECTED_V30_LDRAW_FRAME_PART_IDS = [
   "builtin:brick-1x1",

@@ -8,12 +8,18 @@ import {
 import type { BrickDocumentV1 } from "@lego-studio/protocol";
 
 import { canonicalDigest, canonicalSha256 } from "./canonical.ts";
-import type { CatalogInterpretationChange } from "./catalog-interpretation-changes.ts";
+import type {
+  CarriedConnectionEndpoint,
+  CatalogInterpretationChange,
+  ReportedCatalogInterpretationChange,
+} from "./catalog-interpretation-changes.ts";
 import { REVIEWED_CATALOG_INTERPRETATION_CHANGES } from "./catalog-interpretation-changes.ts";
 import { normalizeBrickDocument } from "./document.ts";
 import { createBuiltinTruthSnapshot } from "./factory.ts";
 import { getReviewedHistoricalCatalogRoster } from "./historical-catalog-rosters.ts";
-import { historicalConnectionSemanticsBlockingReasons } from "./historical-connection-semantics.ts";
+import type { CarriedEndpointAssessment } from "./historical-connection-carry-forward.ts";
+import { reportCarriedEndpoints } from "./historical-connection-carry-forward.ts";
+import { assessHistoricalConnectionSemantics } from "./historical-connection-semantics.ts";
 import { historicalTransformPolicyBlockingReasons } from "./historical-transform-policies.ts";
 
 /**
@@ -319,8 +325,19 @@ export const REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS = Object.freeze([
   // The snapshot /30 replaces. /30 adds no part identity. Every parametric
   // part gains its measured LDraw interchange frame, which moves LDraw import
   // and export only. 15573 gains a centre seat that shares capacity with its
-  // two grid clutches, so an edge on either grid clutch changes meaning and is
-  // refused rather than carried forward.
+  // two grid clutches. A saved edge on a grid clutch keeps its meaning: the
+  // clutch changes only by joining a group whose other member is the new seat,
+  // which no saved document can use. Migration carries such an edge and
+  // reports it under the /30 connector-semantics row.
+  //
+  // Two /30 notes. Four opt-in gates still pin /29 on purpose because their
+  // real-build family is retiring: real-build-builder-prefix-contract.test.ts,
+  // real-build-prefix50-exact-compiler-current-evidence.test.ts,
+  // booklet-catalog-coverage-semantic.test.mjs and
+  // real-build-step-one-proper-c4-browser-integration-host.ts. And branch
+  // archive/first50-campaign-wip-20260908 used the label /30 for a different
+  // catalog; a document pinned to that truth is refused as unknown truth, but
+  // the refusal names "builtin.basic-parts/30" because that is its pinned label.
   {
     catalogVersion: "builtin.basic-parts/29",
     sourceCommit: "982634de7ddcb75310a802b9cc4dbba9d19d3d9c",
@@ -341,7 +358,11 @@ export interface TruthComponentChange {
 
 // The reviewed reinterpretation table lives in its own module; callers keep
 // importing both names from here.
-export type { CatalogInterpretationChange };
+export type {
+  CarriedConnectionEndpoint,
+  CatalogInterpretationChange,
+  ReportedCatalogInterpretationChange,
+};
 export { REVIEWED_CATALOG_INTERPRETATION_CHANGES };
 
 export interface TruthMigrationReport {
@@ -355,8 +376,11 @@ export interface TruthMigrationReport {
   readonly addedColorIds: readonly string[];
   /** Complete newly available definitions, including render, connectors and collision. */
   readonly addedCatalogPartIds: readonly string[];
-  /** Reviewed in-place catalog reinterpretations crossed by this migration. */
-  readonly catalogInterpretationChanges: readonly CatalogInterpretationChange[];
+  /**
+   * Reviewed in-place catalog reinterpretations crossed by this migration. A
+   * row lists the saved edges carried across its connector-semantics change.
+   */
+  readonly catalogInterpretationChanges: readonly ReportedCatalogInterpretationChange[];
   /** Every pinned truth component whose version changed, not only the catalog. */
   readonly truthComponentChanges: readonly TruthComponentChange[];
   /** Populated only when the document could not be carried forward. */
@@ -483,12 +507,17 @@ export function migrateDocumentTruth(document: BrickDocumentV1): {
       }
     }
   }
+  let carriedEndpoints: readonly CarriedEndpointAssessment[] = [];
   if (sourceRoster !== undefined && MIGRATABLE_TRUTH_HASHES.has(fromTruthHash)) {
+    const connections = assessHistoricalConnectionSemantics(document, fromTruthHash, toTruthHash);
+    carriedEndpoints = connections.carriedEndpoints;
     blockingReasons.push(
-      ...historicalConnectionSemanticsBlockingReasons(document, fromTruthHash, toTruthHash),
+      ...connections.blockingReasons,
       ...historicalTransformPolicyBlockingReasons(document, fromTruthHash),
     );
   }
+  const reported = reportCarriedEndpoints(catalogInterpretationChanges, carriedEndpoints);
+  blockingReasons.push(...reported.blockingReasons);
   if (sourceRoster !== undefined) {
     const sourcePartIds = new Set(sourceRoster.catalogPartIds);
     const sourceColorIds = new Set(sourceRoster.colorIds);
@@ -636,6 +665,7 @@ export function migrateDocumentTruth(document: BrickDocumentV1): {
     document: migrated,
     report: {
       ...base,
+      catalogInterpretationChanges: reported.changes,
       migrated: true,
       addedColorIds: colorIds.filter((id) => !previousColorIds.has(id)),
       addedCatalogPartIds: catalogPartIds.filter((id) => !previousPartIds.has(id)),

@@ -17,8 +17,10 @@ import { extractTarArchive } from "../../../scripts/tar-archive.mjs";
 import { canonicalDigest } from "./canonical.ts";
 import { createEmptyBrickDocument, createPartInstance } from "./factory.ts";
 import { getReviewedHistoricalCatalogRoster } from "./historical-catalog-rosters.ts";
+import { CAPACITY_CELLS_ADDED_FOR_ABSENT_PEERS } from "./historical-connection-carry-forward.ts";
 import { REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH } from "./historical-connection-semantics.ts";
 import {
+  EXPECTED_JUMPER_1X2_CARRIED_ENDPOINT_DELTAS,
   EXPECTED_JUMPER_1X2_CENTRE_SEAT_CHANGES,
   EXPECTED_V30_INTERPRETATION_CHANGES,
   EXPECTED_V30_LDRAW_FRAME_PART_IDS,
@@ -29,6 +31,7 @@ import {
   REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS,
   migrateDocumentTruth,
 } from "./migration.ts";
+import { validateBrickDocument } from "./validation.ts";
 
 /**
  * A document saved at builtin.basic-parts/29 carries forward to /30. /30 adds
@@ -160,6 +163,7 @@ describe("builtin.basic-parts/29 migration", () => {
         "sha256:92dd1cdfb9f34879f55a5ee5a0827b5c24c830da654c90bd3b00896025ca5731",
       endpointDeltas: EXPECTED_JUMPER_1X2_CENTRE_SEAT_CHANGES,
       pairDeltas: [],
+      carriedEndpointDeltas: EXPECTED_JUMPER_1X2_CARRIED_ENDPOINT_DELTAS,
     });
   });
 
@@ -172,6 +176,12 @@ describe("builtin.basic-parts/29 migration", () => {
         truthHash,
       ).toEqual(
         roster?.catalogPartIds.includes(JUMPER) ? EXPECTED_JUMPER_1X2_CENTRE_SEAT_CHANGES : [],
+      );
+      // Every such row carries saved edges on the two grid clutches; no other row carries any.
+      expect(row?.carriedEndpointDeltas, truthHash).toEqual(
+        roster?.catalogPartIds.includes(JUMPER)
+          ? EXPECTED_JUMPER_1X2_CARRIED_ENDPOINT_DELTAS
+          : undefined,
       );
     }
   });
@@ -208,24 +218,36 @@ describe("builtin.basic-parts/29 migration", () => {
     expect(document.connections).toEqual([]);
   });
 
-  it("refuses a /29 edge on a 15573 grid clutch, whose semantics /30 changed", () => {
+  it("carries a /29 edge on a 15573 grid clutch, reports it under the /30 row, and validates", () => {
     const { parts, gridEdge, studEdge } = jumperOnGridClutch();
     const connected = documentSavedAtV29(parts, [gridEdge, studEdge]);
-    const studOnly = documentSavedAtV29(parts, [studEdge]);
 
     const { document, report } = migrateDocumentTruth(connected);
-    const control = migrateDocumentTruth(studOnly);
 
-    // Only the grid-clutch endpoint is refused; the edge on 15573's unchanged
-    // stud carries forward, alone or beside it.
-    expect(report.blockingReasons).toEqual([
-      `Connection ${gridEdge.id} endpoint v29-jumper/undersideClutch:0:0 changed after reviewed source truth ${V29_TRUTH_HASH}; migration cannot preserve its connector semantics`,
+    // The grid clutch changed only by sharing a cell with the new centre seat,
+    // which no /29 document can use, so the edge keeps its meaning.
+    expect(report.blockingReasons).toEqual([]);
+    expect(report.migrated).toBe(true);
+    expect(document.connections).toEqual([gridEdge, studEdge]);
+    expect(report.catalogInterpretationChanges).toEqual([
+      EXPECTED_V30_INTERPRETATION_CHANGES[0],
+      {
+        ...EXPECTED_V30_INTERPRETATION_CHANGES[1],
+        carriedConnectionEndpoints: [
+          {
+            connectionId: gridEdge.id,
+            partId: "v29-jumper",
+            catalogPartId: JUMPER,
+            portId: "undersideClutch:0:0",
+            deltaClass: CAPACITY_CELLS_ADDED_FOR_ABSENT_PEERS,
+            addedSharedCapacityGroupIds: ["15573:negative-z-half"],
+          },
+        ],
+      },
     ]);
-    expect(report.migrated).toBe(false);
-    expect(document).toBe(connected);
-    expect(control.report.blockingReasons).toEqual([]);
-    expect(control.report.migrated).toBe(true);
-    expect(control.document.connections).toEqual([studEdge]);
+    const validation = validateBrickDocument(document);
+    expect(validation.issues.filter(({ severity }) => severity === "blocking")).toEqual([]);
+    expect(validation.documentGloballyValid).toBe(true);
   });
 
   it("names exactly the parts whose interpretation moved since /29 source commit 982634d", async () => {

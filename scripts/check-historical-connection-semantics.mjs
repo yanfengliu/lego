@@ -13,6 +13,7 @@ import {
 import { canonicalDigest } from "../packages/brick-kernel/src/canonical.ts";
 import { createBuiltinTruthSnapshot } from "../packages/brick-kernel/src/factory.ts";
 import { getReviewedHistoricalCatalogRoster } from "../packages/brick-kernel/src/historical-catalog-rosters.ts";
+import { carriedEndpointDeltaProofFailures } from "../packages/brick-kernel/src/historical-connection-carry-forward.ts";
 import {
   CURRENT_CONNECTION_SEMANTICS_AUTHORITY,
   REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH,
@@ -93,6 +94,8 @@ async function deriveAuthorities() {
       "live-strict",
     );
     const authorities = [];
+    // Each committed row's carried endpoints, proved against this row's derivation.
+    const carried = { rows: 0, endpoints: 0, failures: [] };
     for (const snapshot of REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS) {
       const roster = getReviewedHistoricalCatalogRoster(snapshot.truthHash);
       if (roster === undefined) {
@@ -129,6 +132,25 @@ async function deriveAuthorities() {
         "live-strict",
         { semanticConnectorKinds: historicalSemanticConnectorKinds },
       );
+      const endpointDeltas = diffConnectionSemantics(sourceProjection, targetProjection);
+      const reviewedCarried =
+        REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH[snapshot.truthHash]
+          ?.carriedEndpointDeltas ?? [];
+      if (reviewedCarried.length > 0) {
+        carried.rows += 1;
+        carried.endpoints += reviewedCarried.length;
+        carried.failures.push(
+          ...carriedEndpointDeltaProofFailures({
+            truthHash: snapshot.truthHash,
+            carried: reviewedCarried,
+            endpointDeltas,
+            sourceParts: historical.parts,
+            targetParts,
+            pairRules: CONNECTOR_PAIR_RULES,
+            semanticConnectorKinds: historicalSemanticConnectorKinds,
+          }),
+        );
+      }
       authorities.push({
         truthHash: snapshot.truthHash,
         sourceCommit: snapshot.sourceCommit,
@@ -136,7 +158,7 @@ async function deriveAuthorities() {
         sourceEndpointMapDigest: sourceProjection.endpointMapDigest,
         sourcePairCount: sourceProjection.pairCount,
         sourcePairMapDigest: sourceProjection.pairMapDigest,
-        endpointDeltas: diffConnectionSemantics(sourceProjection, targetProjection),
+        endpointDeltas,
         pairDeltas: diffConnectionPairs(sourceProjection, targetProjection),
       });
     }
@@ -149,6 +171,7 @@ async function deriveAuthorities() {
         pairMapDigest: target.pairMapDigest,
       },
       authorities,
+      carried,
     };
   } finally {
     assertContainedTemporaryRoot(temporaryRoot);
@@ -159,7 +182,10 @@ async function deriveAuthorities() {
 try {
   const derived = await deriveAuthorities();
   if (printOnly) {
-    process.stdout.write(`${JSON.stringify(derived, null, 2)}\n`);
+    const { carried, ...printed } = derived;
+    process.stdout.write(
+      `${JSON.stringify({ ...printed, carriedEndpointProofFailures: carried.failures }, null, 2)}\n`,
+    );
   } else {
     const expectedTruthHashes = REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS.map(
       ({ truthHash }) => truthHash,
@@ -177,13 +203,24 @@ try {
         `Current connector authority is stale. Expected ${JSON.stringify(CURRENT_CONNECTION_SEMANTICS_AUTHORITY)}, derived ${JSON.stringify(derived.target)}.`,
       );
     }
-    const expectedAuthorities = expectedTruthHashes.map((truthHash) => ({
-      truthHash,
-      ...REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH[truthHash],
-    }));
+    // A row's carried endpoints are a reviewed claim, not derived data, so
+    // they are proved below rather than compared.
+    const expectedAuthorities = expectedTruthHashes.map((truthHash) => {
+      const row = Object.fromEntries(
+        Object.entries(REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH[truthHash]).filter(
+          ([name]) => name !== "carriedEndpointDeltas",
+        ),
+      );
+      return { truthHash, ...row };
+    });
     if (!isDeepStrictEqual(derived.authorities, expectedAuthorities)) {
       throw new Error(
         `Historical connector authority is stale. Run npm run migration-history:check -- --print, inspect the complete source/current delta, and update only after review.`,
+      );
+    }
+    if (derived.carried.failures.length > 0) {
+      throw new Error(
+        `${derived.carried.failures.length} carried endpoint claim(s) fail their proof, so migration would carry an edge whose meaning changed:\n- ${derived.carried.failures.join("\n- ")}\nFix or remove the entry in REVIEWED_CARRIED_ENDPOINT_DELTAS (packages/brick-kernel/src/historical-connection-endpoint-deltas.ts).`,
       );
     }
     const changedRows = derived.authorities.filter(
@@ -194,7 +231,7 @@ try {
       0,
     );
     process.stdout.write(
-      `Historical connector authority verified: ${derived.authorities.length} source truths, ${derived.target.endpointCount} current endpoints, ${endpointDeltaCount} truth-row endpoint deltas, 0 pair deltas.\n`,
+      `Historical connector authority verified: ${derived.authorities.length} source truths, ${derived.target.endpointCount} current endpoints, ${endpointDeltaCount} truth-row endpoint deltas, 0 pair deltas; ${derived.carried.endpoints} carried endpoint deltas proved across ${derived.carried.rows} rows.\n`,
     );
   }
 } catch (error) {

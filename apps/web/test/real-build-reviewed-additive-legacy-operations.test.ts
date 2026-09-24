@@ -198,7 +198,7 @@ describe("reviewed frozen-/26 additive legacy operation projection", () => {
     expect(refused.document).toBe(connected);
     expect(refused.report.migrated).toBe(false);
     expect(refused.report.blockingReasons).toEqual([
-      "Connection changed-profile-edge endpoint changed-profile-part/stud:0 changed after reviewed source truth sha256:de62fae6dbc8095dfd460983e5e845ddfac4bf9ec2ea1f99572bc46026941cb5; migration cannot preserve its connector semantics",
+      "Connection changed-profile-edge endpoint changed-profile-part/stud:0 changed after reviewed source truth sha256:de62fae6dbc8095dfd460983e5e845ddfac4bf9ec2ea1f99572bc46026941cb5; migration cannot preserve its connector semantics, so remove connection changed-profile-edge from the saved document and re-attach the parts after migration",
     ]);
     expect(() => projectExactCurrentMigrationToFrozenV26(connected, refused)).toThrow(
       /exact reviewed \/13 to \/30 runtime migration bridge/u,

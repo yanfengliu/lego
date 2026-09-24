@@ -27,6 +27,26 @@ export interface CatalogInterpretationChange {
   )[];
 }
 
+/** One endpoint of a saved connection that migration carried across a reviewed connector change. */
+export interface CarriedConnectionEndpoint {
+  readonly connectionId: string;
+  readonly partId: string;
+  readonly catalogPartId: string;
+  readonly portId: string;
+  /** The reviewed class that allows the carry (`historical-connection-carry-forward.ts`). */
+  readonly deltaClass: string;
+  readonly addedSharedCapacityGroupIds: readonly string[];
+}
+
+/** An interpretation row as a migration report carries it. */
+export interface ReportedCatalogInterpretationChange extends CatalogInterpretationChange {
+  /**
+   * Saved edges this migration carried across the row's connector-semantics
+   * change, in connection order. Present only when there is at least one.
+   */
+  readonly carriedConnectionEndpoints?: readonly CarriedConnectionEndpoint[];
+}
+
 export const REVIEWED_CATALOG_INTERPRETATION_CHANGES: readonly CatalogInterpretationChange[] =
   Object.freeze([
     {
@@ -326,7 +346,10 @@ export const REVIEWED_CATALOG_INTERPRETATION_CHANGES: readonly CatalogInterpreta
     // /30 gives 15573 a centre underside seat and its tube-seat allowance, and
     // puts its two grid clutches in shared-capacity groups with that seat. Its
     // recipe records the seat, so its geometry content hash moves, but it draws
-    // the same triangles.
+    // the same triangles. A saved edge on either grid clutch keeps its meaning:
+    // the only group peer is the new seat, which no saved document can use.
+    // Migration carries such an edge and lists it on this row as
+    // `carriedConnectionEndpoints`.
     {
       fromCatalogVersion: "builtin.basic-parts/29",
       toCatalogVersion: "builtin.basic-parts/30",

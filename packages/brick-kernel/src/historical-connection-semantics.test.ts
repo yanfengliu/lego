@@ -12,6 +12,7 @@ import {
 } from "./historical-connection-semantics.ts";
 import { REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS } from "./migration.ts";
 import {
+  EXPECTED_JUMPER_1X2_CARRIED_ENDPOINT_DELTAS,
   EXPECTED_JUMPER_1X2_CENTRE_SEAT_CHANGES,
   REVIEWED_TRUTH_V1,
   documentAtReviewedTruth,
@@ -206,6 +207,7 @@ describe("reviewed historical connection semantics", () => {
         "sha256:7431a242907aa9829ead6a279d0b530fe5f5d00ee31e6ddc1576fe66a8a07add",
       endpointDeltas: EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_V8,
       pairDeltas: [],
+      carriedEndpointDeltas: EXPECTED_JUMPER_1X2_CARRIED_ENDPOINT_DELTAS,
     });
   });
 
@@ -251,6 +253,7 @@ describe("reviewed historical connection semantics", () => {
         "sha256:7431a242907aa9829ead6a279d0b530fe5f5d00ee31e6ddc1576fe66a8a07add",
       endpointDeltas: EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_V8,
       pairDeltas: [],
+      carriedEndpointDeltas: EXPECTED_JUMPER_1X2_CARRIED_ENDPOINT_DELTAS,
     });
   });
 
@@ -269,6 +272,7 @@ describe("reviewed historical connection semantics", () => {
         "sha256:7431a242907aa9829ead6a279d0b530fe5f5d00ee31e6ddc1576fe66a8a07add",
       endpointDeltas: EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_V8,
       pairDeltas: [],
+      carriedEndpointDeltas: EXPECTED_JUMPER_1X2_CARRIED_ENDPOINT_DELTAS,
     });
   });
 
@@ -287,6 +291,7 @@ describe("reviewed historical connection semantics", () => {
         "sha256:7431a242907aa9829ead6a279d0b530fe5f5d00ee31e6ddc1576fe66a8a07add",
       endpointDeltas: EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_V8,
       pairDeltas: [],
+      carriedEndpointDeltas: EXPECTED_JUMPER_1X2_CARRIED_ENDPOINT_DELTAS,
     });
   });
 
@@ -305,6 +310,7 @@ describe("reviewed historical connection semantics", () => {
         "sha256:7431a242907aa9829ead6a279d0b530fe5f5d00ee31e6ddc1576fe66a8a07add",
       endpointDeltas: EXPECTED_VALIDATED_STUD_PROFILE_AND_1X2_THROUGH_BORE_CHANGES,
       pairDeltas: [],
+      carriedEndpointDeltas: EXPECTED_JUMPER_1X2_CARRIED_ENDPOINT_DELTAS,
     });
   });
 
@@ -323,6 +329,7 @@ describe("reviewed historical connection semantics", () => {
         "sha256:7431a242907aa9829ead6a279d0b530fe5f5d00ee31e6ddc1576fe66a8a07add",
       endpointDeltas: EXPECTED_VALIDATED_STUD_PROFILE_AND_1X2_THROUGH_BORE_CHANGES,
       pairDeltas: [],
+      carriedEndpointDeltas: EXPECTED_JUMPER_1X2_CARRIED_ENDPOINT_DELTAS,
     });
   });
 

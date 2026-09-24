@@ -172,7 +172,7 @@ describe("builtin.basic-parts/28 migration", () => {
     const { document, report } = migrateDocumentTruth(connected);
 
     expect(report.blockingReasons).toEqual([
-      `Connection ${edge.id} endpoint ${bearing.id}/axleHole:0 changed after reviewed source truth ${V28_TRUTH_HASH}; migration cannot preserve its connector semantics`,
+      `Connection ${edge.id} endpoint ${bearing.id}/axleHole:0 changed after reviewed source truth ${V28_TRUTH_HASH}; migration cannot preserve its connector semantics, so remove connection ${edge.id} from the saved document and re-attach the parts after migration`,
     ]);
     expect(report.migrated).toBe(false);
     expect(document).toEqual(connected);
