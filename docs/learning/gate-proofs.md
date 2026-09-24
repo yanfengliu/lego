@@ -365,6 +365,14 @@ Measured on base `384a70d` with the uncommitted `/31` change applied; each mutat
 - **Red B:** 6 failures naming `builtin:bracket-1x2-1x4-rounded-bottom/stud:0` to `stud:5`, so a sideways stud is covered too.
 - **Green after revert:** yes, all 1,125 studs.
 
+### A reviewed export-frame correction's premise must read a side stud's column along its normal.
+
+- **Gate:** `tools/booklet/frames.test.ts` :: "turns 41682's frame so its flange is the ledge the booklet draws, under a side stud" — run by `npm run test`. Bound: the reviewed 41682 row against the real catalog part, with a hand-written export frame.
+- **Defect:** `studColumnAt` in `tools/booklet/export-frames.ts` compared only x and z, so an origin under 41682's flange studs (normal -z) read as "no catalog stud" and the reviewed correction was reported stale and never applied.
+- **Mutation:** in `studColumnAt`, replaced `normal[axis] !== 0 ||` with `axis === 1 ||`, the vertical-only column it had before.
+- **Red:** `AssertionError: expected [ Array(1) ] to deeply equal []` on `check.staleCorrections`.
+- **Green after revert:** yes.
+
 ## Reach and clause audit of the first pass, 2026-09-02
 
 One mutation proves a gate catches that mutation; it does not prove the reach claimed in prose beside it. And a lesson with several clauses needs a destination for every clause, not one gate that absorbs its siblings. Both were checked against the entries above.

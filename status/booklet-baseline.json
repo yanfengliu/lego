@@ -88,7 +88,7 @@
       "unusablePins": 0,
       "catalogRecordsMatching": 8,
       "uncheckedDesigns": 163,
-      "corrections": ["77844 (pin)", "80015 (review)"],
+      "corrections": ["77844 (pin)", "80015 (review)", "41682 (review)"],
       "staleCorrections": 0
     },
     "playback": {
@@ -97,21 +97,21 @@
         "firstNonValid": "2 invalid",
         "partsThroughValid": 2
       },
-      "corrections": ["77844 (pin)", "80015 (review)"],
+      "corrections": ["77844 (pin)", "80015 (review)", "41682 (review)"],
       "corrected": {
         "stepsReplayed": 359,
-        "validSteps": 31,
-        "invalidSteps": 13,
+        "validSteps": 39,
+        "invalidSteps": 5,
         "blockedSteps": 315,
-        "validThrough": 31,
-        "firstNonValid": "32 invalid",
-        "firstInvalid": 32,
+        "validThrough": 39,
+        "firstNonValid": "40 invalid",
+        "firstInvalid": 40,
         "firstBlocked": 45,
-        "stepsAddingIssues": 7,
-        "partsThroughValid": 184
+        "stepsAddingIssues": 1,
+        "partsThroughValid": 265
       },
       "frames": {
-        "meshAssetFrame": 201,
+        "meshAssetFrame": 198,
         "measuredLdrawFrame": 428
       }
     }

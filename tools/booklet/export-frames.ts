@@ -51,6 +51,8 @@ export interface ReviewedCorrection {
     readonly originLdu: readonly number[];
   };
   readonly originLdu: readonly number[];
+  /** The corrected turn, row-major in LDraw axes; absent keeps the export's turn. */
+  readonly turn?: readonly number[];
   readonly why: string;
 }
 
@@ -61,6 +63,13 @@ export const REVIEWED_CORRECTIONS: readonly ReviewedCorrection[] = Object.freeze
     reviewedExport: { turn: [0, 0, 1, 0, 1, 0, -1, 0, 0], originLdu: [50, 8, -30] },
     originLdu: [-10, 8, -70],
     why: "review 2026-09-23: keeps the export's turn and moves the LXFML origin to the stud at LDraw (-10, 8, -70), which alone takes playback from valid through 1 to 25; the quarter turn instead clears step 2 but disconnects step 1. Chosen by a playback search over the ring's stud positions, not derived from a Builder record.",
+  },
+  {
+    designId: "41682",
+    reviewedExport: { turn: [-1, 0, 0, 0, 1, 0, 0, 0, -1], originLdu: [10, 8, 10] },
+    turn: [-1, 0, 0, 0, 0, 1, 0, 1, 0],
+    originLdu: [10, -10, 4],
+    why: "review 2026-09-24: the export frames LDraw 41682 (Bracket 2 x 2 - 1 x 2 Up Centred) upright, 2 x 2 base down, but the booklet's inventory thumbnail of element 6250020 and its step-40 callout draw the 1 x 2 flange as a ledge with its two studs up and the base as a wall behind it, and step 41 presses a 1 x 2 plate onto those studs. Turning the frame a quarter turn about x puts the LXFML origin on the flange's recessed back face under its stud at LDraw (10, -10, 4), the bottom-under-a-stud convention every other design's origin keeps. The export frame instead stacks plates through the centred flange (a 4 LDU overlap at all 7 instances). Derived from the booklet's pictures and the LDraw geometry, not from a Builder record, which has no 41682.",
   },
 ]);
 
@@ -166,11 +175,13 @@ function studColumnAt(
   // c = O p + t: the LDraw-local point in the catalog part's frame.
   const orientation = catalogFrameMatrix(frame.orientationId);
   const c = rotate(orientation, point).map((value, axis) => value + frame.translationLdu[axis]!);
+  // A stud's column runs along its normal, so a side stud's column is horizontal.
   const stud = definition.connectors.find(
-    ({ kind, positionLdu }) =>
+    ({ kind, positionLdu, normal }) =>
       kind === "stud" &&
-      Math.abs(positionLdu[0] - c[0]!) < 1e-6 &&
-      Math.abs(positionLdu[2] - c[2]!) < 1e-6,
+      ([0, 1, 2] as const).every(
+        (axis) => normal[axis] !== 0 || Math.abs(positionLdu[axis] - c[axis]!) < 1e-6,
+      ),
   );
   return stud ? `${catalogPartId} ${stud.id}` : null;
 }
@@ -307,7 +318,7 @@ export function checkExportFrames(input: {
       why: reviewed.why,
       premise,
       from: { turn: frame.turn!, originLdu: frame.originLdu },
-      to: { turn: frame.turn!, originLdu: reviewed.originLdu },
+      to: { turn: reviewed.turn ?? frame.turn!, originLdu: reviewed.originLdu },
     });
   }
   const pinnedIds = new Set(pinList.map(({ designId }) => designId));
