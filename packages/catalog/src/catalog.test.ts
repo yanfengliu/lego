@@ -197,11 +197,13 @@ const EXPECTED_PART_IDS = [
   "builtin:brick-1x2x2-inside-axle-holder",
   // builtin.basic-parts/30 adds no identity: it measures every parametric
   // part's LDraw frame and gives 15573 a centre seat, both in place.
+  // builtin.basic-parts/31 adds no identity: seven measured parts gain the
+  // nominal-stud-tube/1 validated-connection stud profile in place.
 ] as const;
 
 describe("starter catalog", () => {
-  it("publishes the measured LDraw frames and the 15573 centre seat as version 30", () => {
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/30");
+  it("publishes the seven nominal stud profiles as version 31", () => {
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/31");
   });
 
   it("pins 25269's exact LDCad route and raw-to-catalog central clutch", () => {

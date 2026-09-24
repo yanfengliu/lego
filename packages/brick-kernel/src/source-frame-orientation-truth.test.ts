@@ -14,12 +14,13 @@ describe("source-frame orientation infrastructure truth boundary", () => {
     expect(digestInputs.transformPolicy.orientations).toBe(PROPER_ORIENTATIONS);
     expect(truth).toEqual({
       schemaVersion: "lego.truth-snapshot/1",
-      // /30 moved these three and left the /29 transform policy and validator
-      // set byte-identical (truth-digest-stability.test.ts has the proof).
+      // /31 moved the catalog and collision model and left the /30 connector
+      // taxonomy, transform policy and validator set byte-identical
+      // (truth-digest-stability.test.ts has the proof).
       catalog: {
         id: "builtin.basic-parts",
-        version: "builtin.basic-parts/30",
-        hash: "sha256:4662bd517d807a952bda5fc3964c02e34e0ae502255f747635b6c969fb564ebc",
+        version: "builtin.basic-parts/31",
+        hash: "sha256:b0ec0baddbd165ef1c821097ad31388bd4515c233236f833a2364265578feaf2",
       },
       connectorTaxonomy: {
         id: "stud-tube",
@@ -29,7 +30,7 @@ describe("source-frame orientation infrastructure truth boundary", () => {
       collisionModel: {
         id: "rectilinear-stud-clearance",
         version: "rectilinear-stud-clearance/4",
-        hash: "sha256:369f49834d2cfe26e5ab5650272baab6af40f01add2c93f542847c5b1b2c29c0",
+        hash: "sha256:878ed40921b671888228a13a747fa7836eaba50adab2319a2050130360e6211a",
       },
       transformPolicy: {
         id: "part-scoped-proper-orientations-negative-y-up",
@@ -43,7 +44,7 @@ describe("source-frame orientation infrastructure truth boundary", () => {
       },
     });
     expect(canonicalDigest(truth)).toBe(
-      "sha256:cf2d67907369f85551055665b6df0f849dd978d2e63330130ec2d2db8f6ccc0b",
+      "sha256:b2ca21fb0fefefa18c17229cdcf1235475031bc2892d5d514103d45473a7d474",
     );
   });
 });

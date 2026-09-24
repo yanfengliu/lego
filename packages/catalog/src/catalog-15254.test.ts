@@ -235,9 +235,11 @@ describe("15254 thin-top arch catalog truth", () => {
         axis: "y",
         centerLdu: [0, -26, z],
         radiusLdu: 6.0001514980873605,
+        validatedConnectionProfileRadiusLdu: 6,
         heightLdu: 4,
       })),
     );
+    expect(part.collision.validatedConnectionStudProfile).toBe("nominal-stud-tube/1");
     for (const box of boxes) {
       expect(box.minLdu.every((value, axis) => value < box.maxLdu[axis]!)).toBe(true);
     }
@@ -260,12 +262,12 @@ describe("15254 thin-top arch catalog truth", () => {
     expect(validateMeshPartDefinitionAdmission(part)).toEqual({ accepted: true, issues: [] });
   });
 
-  it("pins the reviewed /30 projection of the /17 prefix under its historical truth label", () => {
-    // /30 moved these with its 61 LDraw frames and 15573's centre seat; restoring
-    // those fields and the /29 label reproduces the /29 pins bit for bit.
+  it("pins the reviewed /31 projection of the /17 prefix under its historical truth label", () => {
+    // /31 moved these with seven parts' nominal-stud-tube/1 stud profiles;
+    // removing those and restoring the /30 label reproduces the /30 pins.
     const priorParts = PART_DEFINITIONS.slice(0, 89);
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/30",
+      "builtin.basic-parts/31",
       "builtin.basic-parts/17",
     );
     const rows = priorParts.map(({ id, connectors, collision }) => ({ id, connectors, collision }));
@@ -278,10 +280,10 @@ describe("15254 thin-top arch catalog truth", () => {
       connectorCollisionHash: createHash("sha256").update(JSON.stringify(rows)).digest("hex"),
       collisionHash: createHash("sha256").update(JSON.stringify(collisionRows)).digest("hex"),
     }).toEqual({
-      definitionBytes: 1_555_100,
-      definitionHash: "00fac1d198760b4ac4ca1bf9633add0cc0e15e4038bd5bda8cf84e9a068a5d3e",
-      connectorCollisionHash: "dc6da73a3a7a674632bb131798db596794e778247d074d0b4b11f6663547ff3e",
-      collisionHash: "f80e8907e5677dad3b971633fd617407e9d2506acb131f76affa977076908722",
+      definitionBytes: 1_555_825,
+      definitionHash: "522d6263d5efa5bb0db7e2d594c49594bc97cb43a6b898dc5265c2294cb84bd5",
+      connectorCollisionHash: "269cf883ebf5457d1dd2d0bad8aa52786ffdbcf3f706499b66f009f807820a7c",
+      collisionHash: "69b5bb69bc48a163de6ecf53fb7775f50e44f7ea2815a3dabeb8f3676c79b7c8",
     });
   });
 });

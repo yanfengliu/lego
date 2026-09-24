@@ -14,6 +14,7 @@ import { canonicalDigest } from "./canonical.ts";
 import { migrateDocumentTruth } from "./migration.ts";
 import { getReviewedHistoricalCatalogRoster } from "./historical-catalog-rosters.ts";
 import { EXPECTED_V30_INTERPRETATION_CHANGES } from "./migration-historical-fixtures.test-support.ts";
+import { expectedV31InterpretationChanges } from "./migration-v31-fixtures.test-support.ts";
 import { validateBrickDocument } from "./validation.ts";
 import { VALIDATOR_SET_VERSION } from "./truth-manifests.ts";
 
@@ -303,11 +304,16 @@ const VERSION_29_CONNECTOR_INTERPRETATION_CHANGE = {
 } as const;
 
 // Every source here holds all the parts these rows name, so each crosses
-// /28 -> /29 for the stud profiles and then both /29 -> /30 rows.
+// /28 -> /29 for the stud profiles and then both /29 -> /30 rows. The /31 row
+// names only the seven profiled parts each source's roster holds.
 const CHANGES_AFTER_V28 = [
   VERSION_29_CONNECTOR_INTERPRETATION_CHANGE,
   ...EXPECTED_V30_INTERPRETATION_CHANGES,
 ] as const;
+const changesAfterV28 = (sourceVersion: number) => [
+  ...CHANGES_AFTER_V28,
+  ...expectedV31InterpretationChanges(sourceVersion),
+];
 
 describe("migrateDocumentTruth", () => {
   it("pins the legacy fixture to a reviewed historical truth snapshot", () => {
@@ -376,7 +382,7 @@ describe("migrateDocumentTruth", () => {
         changedFields: ["render-geometry", "visual-bounds"],
       },
       ...VERSION_13_INTERPRETATION_CHANGES,
-      ...CHANGES_AFTER_V28,
+      ...changesAfterV28(11),
     ]);
     expect(document.parts).toEqual(savedAtEleven.parts);
   });
@@ -419,7 +425,7 @@ describe("migrateDocumentTruth", () => {
     ]);
     expect(report.catalogInterpretationChanges).toEqual([
       ...VERSION_13_INTERPRETATION_CHANGES,
-      ...CHANGES_AFTER_V28,
+      ...changesAfterV28(12),
     ]);
     expect(document.parts).toEqual(savedAtTwelve.parts);
   });
@@ -456,7 +462,7 @@ describe("migrateDocumentTruth", () => {
       ...VERSION_27_AND_28_ADDITIVE_PART_IDS,
       ...VERSION_29_ADDITIVE_PART_IDS,
     ]);
-    expect(report.catalogInterpretationChanges).toEqual([...CHANGES_AFTER_V28]);
+    expect(report.catalogInterpretationChanges).toEqual(changesAfterV28(13));
     expectReviewedCurrentTruthChanges(report, "builtin.basic-parts/13");
     expect(document.parts).toEqual(savedAtThirteen.parts);
   });
@@ -480,7 +486,7 @@ describe("migrateDocumentTruth", () => {
 
     expect(report.migrated).toBe(true);
     expect(report.addedCatalogPartIds).toEqual(POST_V13_ADDITIVE_PART_IDS.slice(1));
-    expect(report.catalogInterpretationChanges).toEqual([...CHANGES_AFTER_V28]);
+    expect(report.catalogInterpretationChanges).toEqual(changesAfterV28(14));
     expectReviewedCurrentTruthChanges(report, "builtin.basic-parts/14");
     expect(document.parts).toEqual(savedAtFourteen.parts);
   });
@@ -504,7 +510,7 @@ describe("migrateDocumentTruth", () => {
 
     expect(report.migrated).toBe(true);
     expect(report.addedCatalogPartIds).toEqual(POST_V13_ADDITIVE_PART_IDS.slice(2));
-    expect(report.catalogInterpretationChanges).toEqual([...CHANGES_AFTER_V28]);
+    expect(report.catalogInterpretationChanges).toEqual(changesAfterV28(15));
     expectReviewedCurrentTruthChanges(report, "builtin.basic-parts/15");
     expect(document.parts).toEqual(savedAtFifteen.parts);
   });
@@ -528,7 +534,7 @@ describe("migrateDocumentTruth", () => {
 
     expect(report.migrated).toBe(true);
     expect(report.addedCatalogPartIds).toEqual(POST_V13_ADDITIVE_PART_IDS.slice(3));
-    expect(report.catalogInterpretationChanges).toEqual([...CHANGES_AFTER_V28]);
+    expect(report.catalogInterpretationChanges).toEqual(changesAfterV28(16));
     expectReviewedCurrentTruthChanges(report, "builtin.basic-parts/16");
     expect(document.parts).toEqual(savedAtSixteen.parts);
   });
@@ -555,7 +561,7 @@ describe("migrateDocumentTruth", () => {
 
     expect(report.migrated).toBe(true);
     expect(report.addedCatalogPartIds).toEqual(POST_V13_ADDITIVE_PART_IDS.slice(4));
-    expect(report.catalogInterpretationChanges).toEqual([...CHANGES_AFTER_V28]);
+    expect(report.catalogInterpretationChanges).toEqual(changesAfterV28(17));
     expectReviewedCurrentTruthChanges(
       report,
       "builtin.basic-parts/17",
@@ -587,10 +593,10 @@ describe("migrateDocumentTruth", () => {
     expect(report.migrated).toBe(true);
     expect(report.blockingReasons).toEqual([]);
     expect(report.toTruthHash).toBe(
-      "sha256:cf2d67907369f85551055665b6df0f849dd978d2e63330130ec2d2db8f6ccc0b",
+      "sha256:b2ca21fb0fefefa18c17229cdcf1235475031bc2892d5d514103d45473a7d474",
     );
     expect(report.addedCatalogPartIds).toEqual(POST_V13_ADDITIVE_PART_IDS.slice(5));
-    expect(report.catalogInterpretationChanges).toEqual([...CHANGES_AFTER_V28]);
+    expect(report.catalogInterpretationChanges).toEqual(changesAfterV28(18));
     expectReviewedCurrentTruthChanges(
       report,
       "builtin.basic-parts/18",
@@ -622,10 +628,10 @@ describe("migrateDocumentTruth", () => {
     expect(report.migrated).toBe(true);
     expect(report.blockingReasons).toEqual([]);
     expect(report.toTruthHash).toBe(
-      "sha256:cf2d67907369f85551055665b6df0f849dd978d2e63330130ec2d2db8f6ccc0b",
+      "sha256:b2ca21fb0fefefa18c17229cdcf1235475031bc2892d5d514103d45473a7d474",
     );
     expect(report.addedCatalogPartIds).toEqual(POST_V13_ADDITIVE_PART_IDS.slice(6));
-    expect(report.catalogInterpretationChanges).toEqual([...CHANGES_AFTER_V28]);
+    expect(report.catalogInterpretationChanges).toEqual(changesAfterV28(19));
     expectReviewedCurrentTruthChanges(
       report,
       "builtin.basic-parts/19",

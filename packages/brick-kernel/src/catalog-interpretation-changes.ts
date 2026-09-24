@@ -27,16 +27,28 @@ export interface CatalogInterpretationChange {
   )[];
 }
 
-/** One endpoint of a saved connection that migration carried across a reviewed connector change. */
-export interface CarriedConnectionEndpoint {
+interface CarriedConnectionEndpointIdentity {
   readonly connectionId: string;
   readonly partId: string;
   readonly catalogPartId: string;
   readonly portId: string;
-  /** The reviewed class that allows the carry (`historical-connection-carry-forward.ts`). */
-  readonly deltaClass: string;
-  readonly addedSharedCapacityGroupIds: readonly string[];
 }
+
+/**
+ * One endpoint of a saved connection that migration carried across a reviewed
+ * connector change. `deltaClass` names the reviewed class that allows the
+ * carry (`historical-connection-carry-forward.ts`), and the field beside it
+ * says what that class added to the connector.
+ */
+export type CarriedConnectionEndpoint =
+  | (CarriedConnectionEndpointIdentity & {
+      readonly deltaClass: "capacity-cells-added-shared-only-with-endpoints-absent-from-source";
+      readonly addedSharedCapacityGroupIds: readonly string[];
+    })
+  | (CarriedConnectionEndpointIdentity & {
+      readonly deltaClass: "validated-stud-profile-added-to-unchanged-stud";
+      readonly addedValidatedConnectionStudProfile: "nominal-stud-tube/1";
+    });
 
 /** An interpretation row as a migration report carries it. */
 export interface ReportedCatalogInterpretationChange extends CatalogInterpretationChange {
@@ -354,6 +366,29 @@ export const REVIEWED_CATALOG_INTERPRETATION_CHANGES: readonly CatalogInterpreta
       fromCatalogVersion: "builtin.basic-parts/29",
       toCatalogVersion: "builtin.basic-parts/30",
       affectedCatalogPartIds: ["builtin:jumper-plate-1x2"],
+      changedFields: ["connector-semantics", "collision-semantics"],
+    },
+    // /31 gives seven measured parts whose stud cylinders keep the LDraw source
+    // radius 6.0001514980873605 LDU the nominal-stud-tube/1 validated-connection
+    // profile, so a clutch seated on one of their studs through a validated edge
+    // is checked against the nominal 6 LDU radius instead of overlapping it by
+    // 0.00015 LDU. The profile enters each stud endpoint's projection, so every
+    // stud endpoint of these parts changes; nothing else about it does. A saved
+    // edge on such a stud keeps its meaning and only its collision relaxes, so
+    // migration carries it and lists it on this row as
+    // `carriedConnectionEndpoints`.
+    {
+      fromCatalogVersion: "builtin.basic-parts/30",
+      toCatalogVersion: "builtin.basic-parts/31",
+      affectedCatalogPartIds: [
+        "builtin:wedge-plate-3x3-cut-corner",
+        "builtin:corner-plate-2x2-round",
+        "builtin:bracket-1x2-1x4-rounded-bottom",
+        "builtin:arch-1x6-thin-top",
+        "builtin:bracket-2x2-1x2-vertical-studs",
+        "builtin:brick-1x2-grille",
+        "builtin:technic-brick-1x2-axle-hole",
+      ],
       changedFields: ["connector-semantics", "collision-semantics"],
     },
   ]);

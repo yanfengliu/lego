@@ -57,6 +57,7 @@ export const MIGRATABLE_CATALOG_VERSIONS: readonly string[] = Object.freeze([
   "builtin.basic-parts/27",
   "builtin.basic-parts/28",
   "builtin.basic-parts/29",
+  "builtin.basic-parts/30",
   BUILTIN_CATALOG_VERSION,
 ]);
 
@@ -342,6 +343,19 @@ export const REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS = Object.freeze([
     catalogVersion: "builtin.basic-parts/29",
     sourceCommit: "982634de7ddcb75310a802b9cc4dbba9d19d3d9c",
     truthHash: "sha256:54762419e4779c6c15566052062fcaa432cb45e3a13704b5af1563b4fa94e8eb",
+  },
+  // The snapshot /31 replaces. /31 adds no part identity. Seven measured parts
+  // whose stud cylinders keep the LDraw source radius (2450, 79491, 28802,
+  // 15254, 41682, 2877 and 32064) gain the nominal-stud-tube/1 profile, so a
+  // clutch seated on one of their studs through a validated edge no longer
+  // overlaps it by 0.00015 LDU. Only collision for validated edges relaxes; the
+  // connector frame, capacity and compatibility do not move, so migration
+  // carries a saved edge on such a stud and reports it under the /31
+  // connector-semantics row.
+  {
+    catalogVersion: "builtin.basic-parts/30",
+    sourceCommit: "c6356f76520b130c326e2a6df3917045df551085",
+    truthHash: "sha256:cf2d67907369f85551055665b6df0f849dd978d2e63330130ec2d2db8f6ccc0b",
   },
 ] as const);
 

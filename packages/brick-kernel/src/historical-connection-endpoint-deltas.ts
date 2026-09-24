@@ -2,6 +2,7 @@ import type { ConnectionSemanticsEndpointDelta } from "./connection-semantics-pr
 import { deepFreeze } from "./canonical.ts";
 import type { ReviewedCarriedEndpointDelta } from "./historical-connection-carry-forward.ts";
 import { CAPACITY_CELLS_ADDED_FOR_ABSENT_PEERS } from "./historical-connection-carry-forward.ts";
+import { V31_CARRIED_STUD_PROFILE_DELTAS } from "./historical-connection-stud-profile-deltas.ts";
 
 /**
  * The reviewed connector endpoint deltas from each historical source truth to
@@ -39,11 +40,13 @@ export const JUMPER_1X2_CENTRE_SEAT_CHANGES = deepFreeze([
 ] as const satisfies readonly ConnectionSemanticsEndpointDelta[]);
 
 /**
- * The two 15573 changes above that migration carries a saved edge across.
- * Each grid clutch changes only by joining one shared-capacity group, whose
- * other member is the centre seat no source truth had. A row whose deltas
- * hold one of these exact changes carries it (`historical-connection-semantics.ts`),
- * and `npm run migration-history:check` proves the class for that row.
+ * Every endpoint change that migration carries a saved edge across. First the
+ * two 15573 changes above: each grid clutch changes only by joining one
+ * shared-capacity group, whose other member is the centre seat no source truth
+ * had. Then the 26 /31 stud-profile changes
+ * (`historical-connection-stud-profile-deltas.ts`). A row whose deltas hold one
+ * of these exact changes carries it (`historical-connection-semantics.ts`), and
+ * `npm run migration-history:check` proves the class for that row.
  */
 export const REVIEWED_CARRIED_ENDPOINT_DELTAS = deepFreeze([
   {
@@ -58,6 +61,7 @@ export const REVIEWED_CARRIED_ENDPOINT_DELTAS = deepFreeze([
     addedSharedCapacityGroupIds: ["15573:positive-z-half"],
     reportedUnderCatalogVersion: "builtin.basic-parts/30",
   },
+  ...V31_CARRIED_STUD_PROFILE_DELTAS,
 ] as const satisfies readonly ReviewedCarriedEndpointDelta[]);
 
 const WEDGE_REMOVALS = deepFreeze([

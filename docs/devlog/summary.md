@@ -3,6 +3,7 @@
 Current state belongs in the design documents; this index records only behaviour changes, measured results, and links to the matching detailed history.
 
 - [2026-09-24 (G3c-2, alignment by identity)](detailed/2026-09-24_2026-09-24.md) — `npm run booklet` identifies callouts and aligns steps by part: 316 exact, 43 count fallback, 0 mismatch (counts: 338/18/3). 22 steps change parts; step 31 is right. Valid through 31 → 32.
+- [2026-09-24 (stud profile `/31`, 41682 frame)](detailed/2026-09-24_2026-09-24.md) — Seven measured parts get the nominal stud profile (catalog `/31`): playback valid through 31 → 39. 41682's export frame is turned to the ledge the booklet draws; step 40 waits on its missing flange clutches.
 - [2026-09-24 (G3b, reference build in the editor)](detailed/2026-09-24_2026-09-24.md) — `npm run booklet` writes `reference-build.mpd`, printed steps 1-31 as editor steps. Screenshots found two faults no gate saw: the editor draws the model mirrored; step 31 has 2 of 4 pieces wrong.
 - [2026-09-24 (design docs cut, reset records)](detailed/2026-09-24_2026-09-24.md) — Design docs 479,409 → 215,422 B: retired first-50 status and dead evidence citations out, contracts kept; four owner-reported defects registered; `npm run evidence:budget` (256 MiB, not in verify).
 - [2026-09-24 (canon sync 973eb18eaf96)](detailed/2026-09-24_2026-09-24.md) — `AGENTS.md` canon block re-synced after the fleet canon trim (fleet 20a77f3, here 002a6af); local rules drop their copy of the session-size rule, now canon R6.

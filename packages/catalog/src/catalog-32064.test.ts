@@ -128,7 +128,7 @@ describe("32064 Technic brick with axle-hole catalog truth", () => {
     );
     if (blueprint === undefined) throw new Error("32064 blueprint is missing");
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/30");
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/31");
     expect(PART_DEFINITIONS).toHaveLength(106);
     expect(PART_DEFINITIONS.at(-12)?.id).toBe(PART_ID);
     expect(SET_6651557_MEASURED_BLUEPRINTS.at(-12)).toBe(blueprint);
@@ -335,9 +335,11 @@ describe("32064 Technic brick with axle-hole catalog truth", () => {
         axis: "y",
         centerLdu: [0, -14, z],
         radiusLdu: 6.0001514980873605,
+        validatedConnectionProfileRadiusLdu: 6,
         heightLdu: 4,
       })),
     );
+    expect(part.collision.validatedConnectionStudProfile).toBe("nominal-stud-tube/1");
     expect(part.collision.primitives).toEqual([...boxes, ...cylinders]);
     for (const box of boxes) {
       expect(box.minLdu.every((value, axis) => value < box.maxLdu[axis]!)).toBe(true);

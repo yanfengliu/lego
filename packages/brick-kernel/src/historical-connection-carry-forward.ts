@@ -1,4 +1,9 @@
-import type { ConnectorKind, PartDefinition } from "@lego-studio/catalog";
+import type {
+  CollisionCylinder,
+  CollisionPrimitive,
+  ConnectorKind,
+  PartDefinition,
+} from "@lego-studio/catalog";
 
 import type {
   CarriedConnectionEndpoint,
@@ -13,8 +18,8 @@ import {
 type Sha256Digest = `sha256:${string}`;
 
 /**
- * The one reviewed class of connector change that migration carries an edge
- * across instead of refusing it. Current truth adds shared-capacity groups to
+ * The first of two reviewed classes of connector change that migration carries
+ * an edge across instead of refusing it. Current truth adds shared-capacity groups to
  * a connector that already existed, and every other member of each added
  * group is a connector the source truth did not have. Nothing else about the
  * connector moves. A source-valid document cannot hold an edge on such a
@@ -28,25 +33,80 @@ type Sha256Digest = `sha256:${string}`;
 export const CAPACITY_CELLS_ADDED_FOR_ABSENT_PEERS =
   "capacity-cells-added-shared-only-with-endpoints-absent-from-source" as const;
 
-/** One reviewed endpoint change, of a reviewed class, that migration carries an edge across. */
-export interface ReviewedCarriedEndpointDelta extends ConnectionSemanticsEndpointDelta {
+/**
+ * The second reviewed class. Current truth gives an existing stud the
+ * `nominal-stud-tube/1` validated-connection profile, and nothing else about
+ * the stud endpoint moves. The profile only lets a validated edge check its
+ * clutch against a stud radius no larger than the measured one, so a saved
+ * edge keeps its frame, capacity and compatibility and can only lose a
+ * collision it had, never gain one.
+ *
+ * `npm run migration-history:check` proves the class for every row that uses
+ * it (`carriedEndpointDeltaProofFailures`), and migration re-checks that the
+ * live part still declares the profile (`carriedEndpointPeerFailure`).
+ */
+export const VALIDATED_STUD_PROFILE_ADDED =
+  "validated-stud-profile-added-to-unchanged-stud" as const;
+
+interface ReviewedCarriedEndpointDeltaBase extends ConnectionSemanticsEndpointDelta {
   readonly sourceDigest: Sha256Digest;
   readonly targetDigest: Sha256Digest;
-  readonly deltaClass: typeof CAPACITY_CELLS_ADDED_FOR_ABSENT_PEERS;
-  /** The shared-capacity group ids current truth adds to this connector. */
-  readonly addedSharedCapacityGroupIds: readonly string[];
   /** The catalog version whose connector-semantics interpretation row reports a carried edge. */
   readonly reportedUnderCatalogVersion: string;
 }
 
+/** One reviewed endpoint change, of a reviewed class, that migration carries an edge across. */
+export type ReviewedCarriedEndpointDelta =
+  | (ReviewedCarriedEndpointDeltaBase & {
+      readonly deltaClass: typeof CAPACITY_CELLS_ADDED_FOR_ABSENT_PEERS;
+      /** The shared-capacity group ids current truth adds to this connector. */
+      readonly addedSharedCapacityGroupIds: readonly string[];
+    })
+  | (ReviewedCarriedEndpointDeltaBase & {
+      readonly deltaClass: typeof VALIDATED_STUD_PROFILE_ADDED;
+      /** The validated-connection stud profile current truth adds to the part. */
+      readonly addedValidatedConnectionStudProfile: "nominal-stud-tube/1";
+    });
+
 /** A carried endpoint, before migration files it under its interpretation row. */
-export interface CarriedEndpointAssessment extends CarriedConnectionEndpoint {
+export type CarriedEndpointAssessment = CarriedConnectionEndpoint & {
   readonly reportedUnderCatalogVersion: string;
+};
+
+/** The class-specific fields a carried endpoint reports beside its identity. */
+export function carriedEndpointClassFields(
+  carried: ReviewedCarriedEndpointDelta,
+):
+  | Pick<
+      Extract<
+        ReviewedCarriedEndpointDelta,
+        { deltaClass: typeof CAPACITY_CELLS_ADDED_FOR_ABSENT_PEERS }
+      >,
+      "deltaClass" | "addedSharedCapacityGroupIds"
+    >
+  | Pick<
+      Extract<ReviewedCarriedEndpointDelta, { deltaClass: typeof VALIDATED_STUD_PROFILE_ADDED }>,
+      "deltaClass" | "addedValidatedConnectionStudProfile"
+    > {
+  return carried.deltaClass === CAPACITY_CELLS_ADDED_FOR_ABSENT_PEERS
+    ? {
+        deltaClass: carried.deltaClass,
+        addedSharedCapacityGroupIds: carried.addedSharedCapacityGroupIds,
+      }
+    : {
+        deltaClass: carried.deltaClass,
+        addedValidatedConnectionStudProfile: carried.addedValidatedConnectionStudProfile,
+      };
 }
 
 interface CarryForwardConnector {
   readonly id: string;
+  readonly kind?: string;
   readonly sharedCapacityGroupIds?: readonly string[];
+}
+
+interface CarryForwardCollision {
+  readonly validatedConnectionStudProfile?: string;
 }
 
 const groupsOf = (connector: CarryForwardConnector): readonly string[] =>
@@ -62,13 +122,24 @@ export function carriedEndpointPeerFailure(
   carried: ReviewedCarriedEndpointDelta,
   delta: ConnectionSemanticsEndpointDelta,
   endpointDeltas: readonly ConnectionSemanticsEndpointDelta[],
-  definition: { readonly id: string; readonly connectors: readonly CarryForwardConnector[] },
+  definition: {
+    readonly id: string;
+    readonly connectors: readonly CarryForwardConnector[];
+    readonly collision?: CarryForwardCollision;
+  },
 ): string | undefined {
   if (delta.sourceDigest !== carried.sourceDigest || delta.targetDigest !== carried.targetDigest) {
     return `the row changes it from ${String(delta.sourceDigest)} to ${String(delta.targetDigest)}, not the reviewed ${carried.sourceDigest} to ${carried.targetDigest}`;
   }
   const connector = definition.connectors.find(({ id }) => id === carried.portId);
   if (connector === undefined) return `current truth has no ${carried.portId}`;
+  if (carried.deltaClass === VALIDATED_STUD_PROFILE_ADDED) {
+    if (connector.kind !== "stud") return `current ${carried.portId} is not a stud`;
+    const profile = definition.collision?.validatedConnectionStudProfile;
+    return profile === carried.addedValidatedConnectionStudProfile
+      ? undefined
+      : `current ${definition.id} declares validated stud profile ${String(profile)}, not the reviewed ${carried.addedValidatedConnectionStudProfile}`;
+  }
   const sourceDigests = new Map(
     endpointDeltas.map((entry) => [
       connectionEndpointKey(entry.partId, entry.portId),
@@ -140,10 +211,12 @@ interface ProofPairRule {
 }
 
 /**
- * Every way `carried` fails to be the reviewed class for one row, as the
+ * Every way `carried` fails to be its reviewed class for one row, as the
  * migration-history check derives that row: `endpointDeltas` from source
  * truth `sourceParts` to current `targetParts`, projected with `pairRules`
- * over the source's `semanticConnectorKinds`. Empty when every entry holds:
+ * over the source's `semanticConnectorKinds`. A `VALIDATED_STUD_PROFILE_ADDED`
+ * entry is proved by `studProfileAddedProofFailures`. A capacity-cell entry
+ * yields nothing when every one of these holds:
  *
  * - the row changes the endpoint exactly as the entry says, and current
  *   truth still has the connector with every added group;
@@ -159,6 +232,7 @@ export function carriedEndpointDeltaProofFailures(input: {
   readonly sourceParts: readonly {
     readonly id: string;
     readonly connectors: readonly CarryForwardConnector[];
+    readonly collision?: CarryForwardCollision;
   }[];
   readonly targetParts: readonly PartDefinition[];
   readonly pairRules: readonly ProofPairRule[];
@@ -172,8 +246,12 @@ export function carriedEndpointDeltaProofFailures(input: {
     const key = connectionEndpointKey(entry.partId, entry.portId);
     const fail = (reason: string) =>
       failures.push(`${input.truthHash} ${entry.partId}/${entry.portId}: ${reason}`);
-    if (entry.deltaClass !== CAPACITY_CELLS_ADDED_FOR_ABSENT_PEERS) {
-      fail(`names unknown delta class ${String(entry.deltaClass)}`);
+    const deltaClass: string = entry.deltaClass;
+    if (
+      deltaClass !== CAPACITY_CELLS_ADDED_FOR_ABSENT_PEERS &&
+      deltaClass !== VALIDATED_STUD_PROFILE_ADDED
+    ) {
+      fail(`names unknown delta class ${deltaClass}`);
       continue;
     }
     const delta = deltas.get(key);
@@ -189,6 +267,23 @@ export function carriedEndpointDeltaProofFailures(input: {
       fail("current truth has no such connector");
       continue;
     }
+    const digestOf = (candidate: PartDefinition) =>
+      projectConnectionSemantics([candidate], input.pairRules, "live-strict", {
+        semanticConnectorKinds: input.semanticConnectorKinds,
+      }).endpointDigests.get(key) ?? null;
+    if (entry.deltaClass === VALIDATED_STUD_PROFILE_ADDED) {
+      const sourcePart = input.sourceParts.find(({ id }) => id === entry.partId);
+      for (const reason of studProfileAddedProofFailures(
+        entry,
+        delta,
+        part,
+        sourcePart,
+        digestOf,
+      )) {
+        fail(reason);
+      }
+      continue;
+    }
     const added = entry.addedSharedCapacityGroupIds;
     const groups = groupsOf(connector);
     if (
@@ -201,10 +296,6 @@ export function carriedEndpointDeltaProofFailures(input: {
       );
       continue;
     }
-    const digestOf = (candidate: PartDefinition) =>
-      projectConnectionSemantics([candidate], input.pairRules, "live-strict", {
-        semanticConnectorKinds: input.semanticConnectorKinds,
-      }).endpointDigests.get(key) ?? null;
     const control = digestOf(part);
     if (control !== delta.targetDigest) {
       fail(
@@ -249,6 +340,77 @@ export function carriedEndpointDeltaProofFailures(input: {
         fail(`group ${groupId} already existed in the source part, so it was not added`);
       }
     }
+  }
+  return failures;
+}
+
+/**
+ * Every way one stud endpoint fails to be the `VALIDATED_STUD_PROFILE_ADDED`
+ * class: the source part declared no profile; current truth declares the
+ * reviewed profile on a stud whose matching collision cylinders each carry a
+ * profile radius no larger than their measured radius, so the profile can
+ * only relax collision; and the current part minus that profile, both the
+ * part-level name and each cylinder's profile radius, digests to the source.
+ */
+function studProfileAddedProofFailures(
+  entry: Extract<ReviewedCarriedEndpointDelta, { deltaClass: typeof VALIDATED_STUD_PROFILE_ADDED }>,
+  delta: ConnectionSemanticsEndpointDelta,
+  part: PartDefinition,
+  sourcePart: { readonly collision?: CarryForwardCollision } | undefined,
+  digestOf: (candidate: PartDefinition) => string | null,
+): readonly string[] {
+  const connector = part.connectors.find(({ id }) => id === entry.portId);
+  if (connector?.kind !== "stud") return [`current ${entry.portId} is not a stud`];
+  if (sourcePart === undefined) return ["the source truth has no such part"];
+  const failures: string[] = [];
+  const sourceProfile = sourcePart.collision?.validatedConnectionStudProfile;
+  if (sourceProfile !== undefined) {
+    failures.push(`the source part already declared validated stud profile ${sourceProfile}`);
+  }
+  const profile = part.collision.validatedConnectionStudProfile;
+  if (profile !== entry.addedValidatedConnectionStudProfile) {
+    failures.push(
+      `current truth declares validated stud profile ${String(profile)}, not the reviewed ${entry.addedValidatedConnectionStudProfile}`,
+    );
+  }
+  const isMatchingStud = (primitive: CollisionPrimitive): primitive is CollisionCylinder =>
+    primitive.kind === "cylinder" && primitive.tag === "stud" && primitive.id === entry.portId;
+  const cylinders = part.collision.primitives.filter(isMatchingStud);
+  if (cylinders.length === 0) failures.push("current truth has no stud cylinder for it");
+  for (const { radiusLdu, validatedConnectionProfileRadiusLdu } of cylinders) {
+    if (
+      validatedConnectionProfileRadiusLdu === undefined ||
+      validatedConnectionProfileRadiusLdu > radiusLdu
+    ) {
+      failures.push(
+        `stud cylinder profile radius ${String(validatedConnectionProfileRadiusLdu)} is not at most its measured radius ${radiusLdu}, so the profile would not only relax collision`,
+      );
+    }
+  }
+  const control = digestOf(part);
+  if (control !== delta.targetDigest) {
+    failures.push(
+      `projecting the part alone gives ${String(control)}, not the derived target ${String(delta.targetDigest)}, so this proof cannot vouch for the change`,
+    );
+    return failures;
+  }
+  const without = <T extends object>(value: T, field: string): T =>
+    Object.fromEntries(Object.entries(value).filter(([name]) => name !== field)) as T;
+  const stripped = digestOf({
+    ...part,
+    collision: {
+      ...without(part.collision, "validatedConnectionStudProfile"),
+      primitives: part.collision.primitives.map((primitive) =>
+        isMatchingStud(primitive)
+          ? without(primitive, "validatedConnectionProfileRadiusLdu")
+          : primitive,
+      ),
+    },
+  });
+  if (stripped !== delta.sourceDigest) {
+    failures.push(
+      `current truth minus the ${String(profile)} profile digests to ${String(stripped)}, not the source ${String(delta.sourceDigest)}, so more than the profile changed`,
+    );
   }
   return failures;
 }

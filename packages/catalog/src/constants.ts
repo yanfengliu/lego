@@ -163,8 +163,18 @@ import { GENERATED_NON_UPRIGHT_PROPER_ORIENTATIONS } from "./proper-orientations
  * underside seat with its own tube-seat allowance, and its two grid clutches
  * share capacity with it (`alternate-clutch-seats.ts`), so it can sit centred
  * on one stud as well as across two.
+ *
+ * /31 adds no part identity and changes one interpretation in place. Seven
+ * measured parts whose stud cylinders keep the LDraw source radius
+ * 6.0001514980873605 LDU (`2450`, `79491`, `28802`, `15254`, `41682`, `2877`
+ * and `32064`) now declare the `nominal-stud-tube/1` validated-connection
+ * profile, as the other fourteen measured parts with that radius already did.
+ * Before, a clutch seated on one of their studs through a validated edge
+ * overlapped the stud by 0.00015 LDU and reported a stud-body collision. That
+ * changes collision for validated edges only; the ordinary collision radius,
+ * geometry, connector frames and capacity do not move.
  */
-export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/30" as const;
+export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/31" as const;
 export const CONNECTOR_TAXONOMY_VERSION = "stud-tube/2" as const;
 export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/4" as const;
 export const TRANSFORM_POLICY_ID = "part-scoped-proper-orientations-negative-y-up" as const;
