@@ -16,10 +16,29 @@ import { playbackHeadline, playbackLines } from "./summary-playback.ts";
 /**
  * `npm run booklet` end to end on synthetic inputs: which stage says what, and
  * the exit code, when an input is absent, malformed or self-contradicting.
- * Bound: no booklet PDF (a clean clone has none), so read, align and playback
- * never run here; the real run is what exercises them.
+ * Bound: no real booklet PDF (a clean clone has none). One case reads a blank
+ * one-page PDF, which identification refuses; otherwise read, identify, align
+ * and playback never run here, and the real run is what exercises them.
  */
 const repositoryRoot = fileURLToPath(new URL("../..", import.meta.url));
+
+/** A valid PDF of one empty page: readable, with no steps and no parts inventory. */
+function blankPdf(): string {
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] >>",
+  ];
+  let body = "%PDF-1.4\n";
+  const offsets = objects.map((object, index) => {
+    const offset = body.length;
+    body += `${index + 1} 0 obj\n${object}\nendobj\n`;
+    return offset;
+  });
+  const xref = body.length;
+  const entries = offsets.map((offset) => `${String(offset).padStart(10, "0")} 00000 n \n`);
+  return `${body}xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${entries.join("")}trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+}
 const VARIABLES = [
   "BOOKLET_PDF",
   "BOOKLET_LXFML",
@@ -142,6 +161,23 @@ describe("npm run booklet", { timeout: 60_000 }, () => {
     expect(line("[frame registry]")).toBe(
       '[frame registry] FAILED: LEGO_RUN_EVIDENCE is "yes"; set it to 1 to read ignored run evidence (the first-50 frame registry), or leave it unset (or 0) to skip it.',
     );
+  });
+
+  it("fails a booklet identification refuses, by name, and aligns by counts instead", async () => {
+    writeFileSync(join(dir, "model.ldr"), exportText(exportRows()));
+    writeFileSync(join(dir, "blank.pdf"), blankPdf());
+    process.env.BOOKLET_PDF = join(dir, "blank.pdf");
+    expect(await runBooklet({ writeBaseline: false })).toBe(1);
+    expect(line("[read]")).toMatch(/^\[read\] \d+\.\d s · /u);
+    expect(line("[identify]")).toMatch(
+      /^\[identify\] FAILED: identification of .*blank\.pdf stopped: identifyBooklet found no parts inventory in the 1 pages of this PDF/u,
+    );
+    expect(line("[align]")).toMatch(/ · by counts \(identification did not run: it failed\), /u);
+    const status = JSON.parse(readFileSync(join(dir, "out", "status.json"), "utf8"));
+    expect(status.stages.identify.status).toBe("failed");
+    expect(status.headline.identify).toBeNull();
+    expect(status.headline.align).toMatchObject({ basis: "counts", steps: 0 });
+    expect(status.headline.align.identity).toBeUndefined();
   });
 
   it("refuses to write its rows where Git would track them", async () => {

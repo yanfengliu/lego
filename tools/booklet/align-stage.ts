@@ -254,12 +254,14 @@ function verdictOf(matched: boolean, identity: StepIdentity | null): StepVerdict
 
 function identityCounts(steps: readonly AlignedPrintedStep[], read: BookletRead): IdentityCounts {
   const exact = steps.filter(({ verdict }) => verdict === "identity");
+  const noCallouts = new Set(
+    read.steps.filter(({ callouts }) => callouts.length === 0).map(({ step }) => step),
+  );
   return {
     exact: exact.length,
     exactByRunOrder: exact.filter(({ matchedBy }) => matchedBy === "run order").length,
     exactByRepair: exact.filter(({ matchedBy }) => matchedBy === "repair").length,
-    exactWithoutCallouts: exact.filter((_, index) => read.steps[index]!.callouts.length === 0)
-      .length,
+    exactWithoutCallouts: exact.filter(({ step }) => noCallouts.has(step)).length,
     countFallback: steps.filter(({ verdict }) => verdict === "count fallback").length,
     mismatched: steps.filter(({ verdict }) => verdict === "mismatch").length,
   };
@@ -314,11 +316,12 @@ export function runAlignStage(
       }
     }
   }
-  const changedFromCounts = (key: (uuid: string) => string) =>
+  /** Steps whose bricks differ between the two alignments, compared by `identityOf` each brick. */
+  const changedFromCounts = (identityOf: (uuid: string) => string) =>
     byIdentity
       ? byIdentity.steps
           .filter((aligned, index) => {
-            const set = (bricks: readonly string[]) => bricks.map(key).sort().join(",");
+            const set = (bricks: readonly string[]) => bricks.map(identityOf).sort().join(",");
             return set(aligned.bricks) !== set(byCounts.steps[index]!.bricks);
           })
           .map(({ step }) => step)

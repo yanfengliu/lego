@@ -189,13 +189,16 @@ export async function runBooklet(options: { readonly writeBaseline: boolean }): 
   const keyStage: Stage<unknown> =
     keyLoad ?? skipped(`no official LXFML at ${inputs.lxfml.path}; set BOOKLET_LXFML`);
 
-  // The booklet alone: no answer key reaches identification.
+  // The booklet alone: no answer key reaches identification. A refusal (a
+  // hostile-input limit, the time limit) fails the stage by name, not as "malformed".
   const identify: Stage<IdentifyStage> =
     read.status !== "ran"
       ? blockedBy(read, "the booklet read")
-      : await attempt(
-          () => runIdentifyStage(inputs.booklet.path, read.value),
-          () => true,
+      : await timed(() => runIdentifyStage(inputs.booklet.path, read.value)).catch(
+          (error: unknown): NotRun =>
+            failed(
+              `identification of ${inputs.booklet.path} stopped: ${error instanceof Error ? error.message : String(error)}`,
+            ),
         );
   const identified = identify.status === "ran" ? identify.value : null;
   const align: Stage<AlignStage> =

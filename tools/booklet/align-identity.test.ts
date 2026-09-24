@@ -194,18 +194,25 @@ describe("alignment by identity", () => {
           ],
         },
         { callouts: [["B", 2]] },
+        // A step printing no callouts, as an attach-only step does: exact, with nothing to identify.
+        { callouts: [] },
       ],
-      [
-        ["P", "L"],
-        ["B", "B"],
-      ],
+      [["P", "L"], ["B", "B"], []],
     );
     const stage = runAlignStage(read, key, identify);
     expect(
       stage.steps.map(
         ({ verdict, matchedBy, countedCallouts }) => `${verdict}/${matchedBy}/${countedCallouts}`,
       ),
-    ).toEqual(["count fallback/run order/1", "identity/run order/0"]);
+    ).toEqual(["count fallback/run order/1", "identity/run order/0", "identity/run order/0"]);
+    expect(stage.identity).toEqual({
+      exact: 2,
+      exactByRunOrder: 2,
+      exactByRepair: 0,
+      exactWithoutCallouts: 1,
+      countFallback: 1,
+      mismatched: 0,
+    });
     expect(stage.identityScore).toMatchObject({
       callouts: 3,
       calloutsAgreeing: 2,

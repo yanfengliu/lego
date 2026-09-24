@@ -77,7 +77,7 @@
         "exact": 316,
         "exactByRunOrder": 303,
         "exactByRepair": 13,
-        "exactWithoutCallouts": 22,
+        "exactWithoutCallouts": 26,
         "countFallback": 43,
         "mismatched": 0
       },
