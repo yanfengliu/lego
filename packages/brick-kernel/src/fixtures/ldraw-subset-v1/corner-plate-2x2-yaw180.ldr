@@ -1,0 +1,17 @@
+0 FILE main.ldr
+0 Name: main.ldr
+0 !BRICK-STUDIO FORMAT lego.ldraw-subset/1
+0 !BRICK-STUDIO DOCUMENT c22 revision-0 manual ~ x633232
+0 !BRICK-STUDIO COUNTS 1 1 1 0 0
+0 !BRICK-STUDIO CONSTRAINTS builtin 500
+0 !BRICK-STUDIO SUBMODEL 0 root x526f6f74 submodel-0000.ldr
+0 !BRICK-STUDIO STEP 0 step-1 x537465702031
+1 16 0 0 0 1 0 0 0 1 0 0 0 1 submodel-0000.ldr
+0 NOFILE
+0 FILE submodel-0000.ldr
+0 Name: submodel-0000.ldr
+0 !BRICK-STUDIO SUBMODEL-USE root
+0 !BRICK-STUDIO STEP-USE step-1
+0 !BRICK-STUDIO PART c manual ~ ~
+1 4 10 0 10 -1 0 0 0 1 0 0 0 -1 2420.dat
+0 NOFILE

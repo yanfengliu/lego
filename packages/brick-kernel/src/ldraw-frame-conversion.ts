@@ -105,6 +105,11 @@ export function requireLDrawOrientationMatrix(matrixToken: string, lineNumber?: 
  * frame was only a turn (none but the 2 x 14 plate's, a quarter turn) with a
  * zero offset, so they are read back through that frame and keep the catalog
  * positions they were written from.
+ *
+ * Bound: that holds for the frames of /29, which real /1 files written by
+ * commit 982634d pin (`ldraw-subset-v1-fixtures.test.ts`). A /1 file written
+ * before a part's mesh promotion (/12, /13) wrote that part through its old
+ * parametric frame, but is read through today's mesh frame.
  */
 export type LDrawSubsetFormat = "lego.ldraw-subset/1" | "lego.ldraw-subset/2";
 
