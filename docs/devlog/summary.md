@@ -2,6 +2,7 @@
 
 Current state belongs in the design documents; this index records only behaviour changes, measured results, and links to the matching detailed history.
 
+- [2026-09-24 (batch 4, identity alignment + catalog `/31` integrated)](detailed/2026-09-24_2026-09-24.md) — Merged: valid through 39 (not 32 alone), first invalid step 40 `DISCONNECTED_ASSEMBLY` (41682 flange). Reference build in-app reaches only 1-37, 2 steps short.
 - [2026-09-24 (G3c-2, alignment by identity)](detailed/2026-09-24_2026-09-24.md) — `npm run booklet` identifies callouts and aligns steps by part: 316 exact, 43 count fallback, 0 mismatch (counts: 338/18/3). 22 steps change parts; step 31 is right. Valid through 31 → 32.
 - [2026-09-24 (stud profile `/31`, 41682 frame)](detailed/2026-09-24_2026-09-24.md) — Seven measured parts get the nominal stud profile (catalog `/31`): playback valid through 31 → 39. 41682's export frame is turned to the ledge the booklet draws; step 40 waits on its missing flange clutches.
 - [2026-09-24 (G3b, reference build in the editor)](detailed/2026-09-24_2026-09-24.md) — `npm run booklet` writes `reference-build.mpd`, printed steps 1-31 as editor steps. Screenshots found two faults no gate saw: the editor draws the model mirrored; step 31 has 2 of 4 pieces wrong.
