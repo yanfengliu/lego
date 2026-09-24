@@ -55,7 +55,7 @@ describe("2877 grille brick catalog truth", () => {
     const part = getPartDefinition(PART_ID)!;
     const blueprint = SET_6651557_MEASURED_BLUEPRINTS.find(({ designId }) => designId === "2877")!;
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/30");
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/31");
     expect(PART_DEFINITIONS).toHaveLength(106);
     expect(PART_DEFINITIONS.at(-15)?.id).toBe(PART_ID);
     expect(part).toMatchObject({
@@ -211,9 +211,11 @@ describe("2877 grille brick catalog truth", () => {
         axis: "y",
         centerLdu: [0, -14, z],
         radiusLdu: 6.0001514980873605,
+        validatedConnectionProfileRadiusLdu: 6,
         heightLdu: 4,
       })),
     );
+    expect(part.collision.validatedConnectionStudProfile).toBe("nominal-stud-tube/1");
     for (const box of boxes) {
       expect(box.minLdu.every((value, axis) => value < box.maxLdu[axis]!)).toBe(true);
     }
@@ -232,12 +234,12 @@ describe("2877 grille brick catalog truth", () => {
     expect(validateMeshPartDefinitionAdmission(part)).toEqual({ accepted: true, issues: [] });
   });
 
-  it("pins the reviewed /30 projection of the /19 prefix under its historical truth label", () => {
-    // /30 moved these with its 61 LDraw frames and 15573's centre seat; restoring
-    // those fields and the /29 label reproduces the /29 pins bit for bit.
+  it("pins the reviewed /31 projection of the /19 prefix under its historical truth label", () => {
+    // /31 moved these with seven parts' nominal-stud-tube/1 stud profiles;
+    // removing those and restoring the /30 label reproduces the /30 pins.
     const priorParts = PART_DEFINITIONS.slice(0, 91);
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/30",
+      "builtin.basic-parts/31",
       "builtin.basic-parts/19",
     );
     const connectorCollision = priorParts.map(({ id, connectors, collision }) => ({
@@ -256,10 +258,10 @@ describe("2877 grille brick catalog truth", () => {
         .digest("hex"),
       collisionHash: createHash("sha256").update(JSON.stringify(collision)).digest("hex"),
     }).toEqual({
-      definitionBytes: 1_591_075,
-      definitionHash: "138e0ffca2879b0548d42e59619801b195bc49491f214f6bc90e61c488819f86",
-      connectorCollisionHash: "0a5432c6b456c6c8c0b58f16f3fa20b3afa0d85c628108812c2c9cd77b614f8f",
-      collisionHash: "e4967064f72469490748f345fde81a072eb32e01beeacf1011812f0c1f9816be",
+      definitionBytes: 1_592_230,
+      definitionHash: "7c2ac0b70d5773fa9a81c218b564ba2a7d1f4d542e3c6f82a38e050ae7a3879b",
+      connectorCollisionHash: "25b8450ac32055264adf4c4e9280c92dd4d1e60bb2c460402feaa3dc6c8cc42f",
+      collisionHash: "f0e9193c1a99c1931a920eb49f421def5b71bcb6e6f9a291438822f8c3e86d5a",
     });
   });
 });

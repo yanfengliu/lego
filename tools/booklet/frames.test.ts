@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
+import { getPartDefinition } from "@lego-studio/catalog";
+
 import { describeWithRunEvidence } from "../../scripts/run-evidence-gate.mjs";
 import {
   lxfmlPoseInLdrawConvention,
@@ -211,6 +213,35 @@ describe("export frame check", () => {
     });
     expect(check.corrections).toEqual([]);
     expect(check.staleCorrections[0]).toMatch(/80015: the export now shows origin \(30, 8, -30\)/u);
+  });
+
+  it("turns 41682's frame so its flange is the ledge the booklet draws, under a side stud", () => {
+    // Bound: the reviewed 41682 row against the real catalog part; the export frame is hand-written.
+    const bracket = "builtin:bracket-2x2-1x2-vertical-studs";
+    const check = checkExportFrames({
+      key: keyWith([frame("41682;H", "41682.dat", yaw(180), [10, 8, 10])]),
+      pins,
+      catalogPartFor: (filename) => (filename === "41682.dat" ? bracket : null),
+    });
+    expect(check.staleCorrections).toEqual([]);
+    const correction = check.corrections.find(({ designId }) => designId === "41682")!;
+    expect(correction.source).toBe("review");
+    const to = correction.to;
+    expect(to).toEqual({ turn: [-1, 0, 0, 0, 0, 1, 0, 1, 0], originLdu: [10, -10, 4] });
+    // The premise reads the side stud's column along its normal, not a vertical column.
+    expect(correction.premise).toMatch(
+      /\(10, -10, 4\) is under builtin:bracket-2x2-1x2-vertical-studs stud:1; the export's \(10, 8, 10\) is under no catalog stud/u,
+    );
+    // LXFML "up" (LDraw -y) lands on the flange studs' normal, and the origin sits one plate
+    // (8 LDU) below a stud along it: the relation a 1 x 2 plate's LXFML origin has with its stud.
+    const up = [0, 1, 2].map((r) => -to.turn[r * 3 + 1]! + 0);
+    const frame41682 = catalogFrameFor(bracket);
+    const studs = getPartDefinition(bracket)!.connectors.filter(({ kind }) => kind === "stud");
+    expect(studs.map(({ normal }) => normal)).toEqual([up, up]);
+    const seat = studs[1]!.positionLdu.map(
+      (value, axis) => value - frame41682.translationLdu[axis]!,
+    );
+    expect(seat.map((value, axis) => value - to.originLdu[axis]!)).toEqual(up.map((u) => u * 8));
   });
 
   it("carries the LXFML pose through a corrected frame", () => {

@@ -1,5 +1,5 @@
 {
-  "version": "lego.booklet-status/2",
+  "version": "lego.booklet-status/3",
   "headline": {
     "read": {
       "steps": 359,
@@ -37,6 +37,23 @@
         "pieces": 1465
       }
     },
+    "identify": {
+      "stepCallouts": 859,
+      "stepCalloutPieces": 1464,
+      "drawings": 313,
+      "assignmentProvenOptimal": true,
+      "flaggedCallouts": 65,
+      "flaggedSteps": 43,
+      "stepsDisagreeingWithRead": 0,
+      "againstModel": {
+        "stepsWithCallouts": 333,
+        "stepsAgreeingByRunOrder": 313,
+        "stepsMovedByBooklet": 20,
+        "stepsUnexplained": 0,
+        "callouts": 859,
+        "calloutsAgreeing": 859
+      }
+    },
     "key": {
       "bricks": 1465,
       "lxfmlSteps": 668,
@@ -55,13 +72,32 @@
     },
     "align": {
       "steps": 359,
-      "matchedByRunOrder": 338,
-      "fittedByRepair": 18,
-      "unmatched": 3,
-      "runOrderMatchedBeforeRepair": 343,
-      "repairWindows": 7,
-      "solvedWindows": 6,
-      "unsolvedWindows": ["unsolved (budget)"],
+      "basis": "identity",
+      "identity": {
+        "exact": 316,
+        "exactByRunOrder": 303,
+        "exactByRepair": 13,
+        "exactWithoutCallouts": 26,
+        "countFallback": 43,
+        "mismatched": 0
+      },
+      "matchedByRunOrder": 339,
+      "fittedByRepair": 20,
+      "unmatched": 0,
+      "runOrderMatchedBeforeRepair": 339,
+      "repairWindows": 9,
+      "solvedWindows": 9,
+      "unsolvedWindows": [],
+      "byCounts": {
+        "matchedByRunOrder": 338,
+        "fittedByRepair": 18,
+        "unmatched": 3,
+        "runOrderMatchedBeforeRepair": 343,
+        "repairWindows": 7,
+        "solvedWindows": 6,
+        "unsolvedWindows": ["unsolved (budget)"]
+      },
+      "partsChangedFromCounts": 22,
       "bricksAssigned": 1464,
       "unplacedBricks": 1,
       "inventoryMismatches": 0,
@@ -88,7 +124,7 @@
       "unusablePins": 0,
       "catalogRecordsMatching": 8,
       "uncheckedDesigns": 163,
-      "corrections": ["77844 (pin)", "80015 (review)"],
+      "corrections": ["77844 (pin)", "80015 (review)", "41682 (review)"],
       "staleCorrections": 0
     },
     "playback": {
@@ -97,21 +133,21 @@
         "firstNonValid": "2 invalid",
         "partsThroughValid": 2
       },
-      "corrections": ["77844 (pin)", "80015 (review)"],
+      "corrections": ["77844 (pin)", "80015 (review)", "41682 (review)"],
       "corrected": {
         "stepsReplayed": 359,
-        "validSteps": 31,
-        "invalidSteps": 13,
+        "validSteps": 39,
+        "invalidSteps": 5,
         "blockedSteps": 315,
-        "validThrough": 31,
-        "firstNonValid": "32 invalid",
-        "firstInvalid": 32,
+        "validThrough": 39,
+        "firstNonValid": "40 invalid",
+        "firstInvalid": 40,
         "firstBlocked": 45,
-        "stepsAddingIssues": 7,
-        "partsThroughValid": 184
+        "stepsAddingIssues": 1,
+        "partsThroughValid": 265
       },
       "frames": {
-        "meshAssetFrame": 201,
+        "meshAssetFrame": 198,
         "measuredLdrawFrame": 428
       }
     }

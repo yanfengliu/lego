@@ -12,12 +12,12 @@ import {
 } from "./historical-connection-semantics.ts";
 import { REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS } from "./migration.ts";
 import {
-  EXPECTED_JUMPER_1X2_CARRIED_ENDPOINT_DELTAS,
   EXPECTED_JUMPER_1X2_CENTRE_SEAT_CHANGES,
   REVIEWED_TRUTH_V1,
   documentAtReviewedTruth,
 } from "./migration-historical-fixtures.test-support.ts";
 import { getReviewedHistoricalCatalogRoster } from "./historical-catalog-rosters.ts";
+import { carriedPlusV31, plusV31 } from "./migration-v31-fixtures.test-support.ts";
 
 const EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_BEFORE_30357 = [
   {
@@ -181,8 +181,8 @@ describe("reviewed historical connection semantics", () => {
     expect(rows.map(([truthHash]) => truthHash)).toEqual(truthHashes);
     expect(Object.isFrozen(REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH)).toBe(true);
     expect(rows.every(([, row]) => Object.isFrozen(row))).toBe(true);
-    // 440 through /29; /30 adds 15573's three deltas to each of the 28 rows from /4 on.
-    expect(rows.reduce((count, [, row]) => count + row.endpointDeltas.length, 0)).toBe(524);
+    // 440 through /29; /30 adds 3 (15573) to each of 28 rows; /31 adds 420 + a /30 row of 26.
+    expect(rows.reduce((count, [, row]) => count + row.endpointDeltas.length, 0)).toBe(944);
     expect(rows.flatMap(([, row]) => row.pairDeltas)).toEqual([]);
     for (const [, row] of rows) {
       const keys = row.endpointDeltas.map(({ partId, portId }) =>
@@ -205,9 +205,9 @@ describe("reviewed historical connection semantics", () => {
       sourcePairCount: 3,
       sourcePairMapDigest:
         "sha256:7431a242907aa9829ead6a279d0b530fe5f5d00ee31e6ddc1576fe66a8a07add",
-      endpointDeltas: EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_V8,
+      endpointDeltas: plusV31(EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_V8, 19),
       pairDeltas: [],
-      carriedEndpointDeltas: EXPECTED_JUMPER_1X2_CARRIED_ENDPOINT_DELTAS,
+      carriedEndpointDeltas: carriedPlusV31(19),
     });
   });
 
@@ -251,9 +251,9 @@ describe("reviewed historical connection semantics", () => {
       sourcePairCount: 3,
       sourcePairMapDigest:
         "sha256:7431a242907aa9829ead6a279d0b530fe5f5d00ee31e6ddc1576fe66a8a07add",
-      endpointDeltas: EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_V8,
+      endpointDeltas: plusV31(EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_V8, 20),
       pairDeltas: [],
-      carriedEndpointDeltas: EXPECTED_JUMPER_1X2_CARRIED_ENDPOINT_DELTAS,
+      carriedEndpointDeltas: carriedPlusV31(20),
     });
   });
 
@@ -270,9 +270,9 @@ describe("reviewed historical connection semantics", () => {
       sourcePairCount: 3,
       sourcePairMapDigest:
         "sha256:7431a242907aa9829ead6a279d0b530fe5f5d00ee31e6ddc1576fe66a8a07add",
-      endpointDeltas: EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_V8,
+      endpointDeltas: plusV31(EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_V8, 20),
       pairDeltas: [],
-      carriedEndpointDeltas: EXPECTED_JUMPER_1X2_CARRIED_ENDPOINT_DELTAS,
+      carriedEndpointDeltas: carriedPlusV31(20),
     });
   });
 
@@ -289,9 +289,9 @@ describe("reviewed historical connection semantics", () => {
       sourcePairCount: 3,
       sourcePairMapDigest:
         "sha256:7431a242907aa9829ead6a279d0b530fe5f5d00ee31e6ddc1576fe66a8a07add",
-      endpointDeltas: EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_V8,
+      endpointDeltas: plusV31(EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_V8, 20),
       pairDeltas: [],
-      carriedEndpointDeltas: EXPECTED_JUMPER_1X2_CARRIED_ENDPOINT_DELTAS,
+      carriedEndpointDeltas: carriedPlusV31(20),
     });
   });
 
@@ -308,9 +308,9 @@ describe("reviewed historical connection semantics", () => {
       sourcePairCount: 3,
       sourcePairMapDigest:
         "sha256:7431a242907aa9829ead6a279d0b530fe5f5d00ee31e6ddc1576fe66a8a07add",
-      endpointDeltas: EXPECTED_VALIDATED_STUD_PROFILE_AND_1X2_THROUGH_BORE_CHANGES,
+      endpointDeltas: plusV31(EXPECTED_VALIDATED_STUD_PROFILE_AND_1X2_THROUGH_BORE_CHANGES, 23),
       pairDeltas: [],
-      carriedEndpointDeltas: EXPECTED_JUMPER_1X2_CARRIED_ENDPOINT_DELTAS,
+      carriedEndpointDeltas: carriedPlusV31(23),
     });
   });
 
@@ -327,9 +327,9 @@ describe("reviewed historical connection semantics", () => {
       sourcePairCount: 3,
       sourcePairMapDigest:
         "sha256:7431a242907aa9829ead6a279d0b530fe5f5d00ee31e6ddc1576fe66a8a07add",
-      endpointDeltas: EXPECTED_VALIDATED_STUD_PROFILE_AND_1X2_THROUGH_BORE_CHANGES,
+      endpointDeltas: plusV31(EXPECTED_VALIDATED_STUD_PROFILE_AND_1X2_THROUGH_BORE_CHANGES, 23),
       pairDeltas: [],
-      carriedEndpointDeltas: EXPECTED_JUMPER_1X2_CARRIED_ENDPOINT_DELTAS,
+      carriedEndpointDeltas: carriedPlusV31(23),
     });
   });
 

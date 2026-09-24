@@ -156,8 +156,8 @@ const CURRENT_RUNTIME_TRUTH: BrickDocumentV1["truth"] = SAFE_OBJECT_FREEZE({
   schemaVersion: "lego.truth-snapshot/1",
   catalog: {
     id: "builtin.basic-parts",
-    version: "builtin.basic-parts/30",
-    hash: "sha256:4662bd517d807a952bda5fc3964c02e34e0ae502255f747635b6c969fb564ebc",
+    version: "builtin.basic-parts/31",
+    hash: "sha256:b0ec0baddbd165ef1c821097ad31388bd4515c233236f833a2364265578feaf2",
   },
   connectorTaxonomy: {
     id: "stud-tube",
@@ -167,7 +167,7 @@ const CURRENT_RUNTIME_TRUTH: BrickDocumentV1["truth"] = SAFE_OBJECT_FREEZE({
   collisionModel: {
     id: "rectilinear-stud-clearance",
     version: "rectilinear-stud-clearance/4",
-    hash: "sha256:369f49834d2cfe26e5ab5650272baab6af40f01add2c93f542847c5b1b2c29c0",
+    hash: "sha256:878ed40921b671888228a13a747fa7836eaba50adab2319a2050130360e6211a",
   },
   transformPolicy: {
     id: "part-scoped-proper-orientations-negative-y-up",
@@ -232,9 +232,9 @@ const EXPECTED_CURRENT_RUNTIME_MIGRATION_REPORT: Step7Gate3MigrationResult["repo
   SAFE_OBJECT_FREEZE({
     schemaVersion: "lego.truth-migration/2",
     fromCatalogVersion: STEP7_GATE3_SOURCE_CATALOG_VERSION,
-    toCatalogVersion: "builtin.basic-parts/30",
+    toCatalogVersion: "builtin.basic-parts/31",
     fromTruthHash: STEP7_GATE3_SOURCE_TRUTH_HASH,
-    toTruthHash: "sha256:cf2d67907369f85551055665b6df0f849dd978d2e63330130ec2d2db8f6ccc0b",
+    toTruthHash: "sha256:b2ca21fb0fefefa18c17229cdcf1235475031bc2892d5d514103d45473a7d474",
     addedColorIds: SAFE_OBJECT_FREEZE([]),
     addedCatalogPartIds: SAFE_OBJECT_FREEZE([
       ...ADDED_CATALOG_PART_IDS,
@@ -264,12 +264,21 @@ const EXPECTED_CURRENT_RUNTIME_MIGRATION_REPORT: Step7Gate3MigrationResult["repo
         affectedCatalogPartIds: SAFE_OBJECT_FREEZE(["builtin:jumper-plate-1x2"]),
         changedFields: SAFE_OBJECT_FREEZE(["connector-semantics", "collision-semantics"]),
       }),
+      SAFE_OBJECT_FREEZE({
+        fromCatalogVersion: "builtin.basic-parts/30",
+        toCatalogVersion: "builtin.basic-parts/31",
+        affectedCatalogPartIds: SAFE_OBJECT_FREEZE([
+          "builtin:wedge-plate-3x3-cut-corner",
+          "builtin:corner-plate-2x2-round",
+        ]),
+        changedFields: SAFE_OBJECT_FREEZE(["connector-semantics", "collision-semantics"]),
+      }),
     ]),
     truthComponentChanges: SAFE_OBJECT_FREEZE([
       SAFE_OBJECT_FREEZE({
         component: "catalog",
         fromVersion: STEP7_GATE3_SOURCE_CATALOG_VERSION,
-        toVersion: "builtin.basic-parts/30",
+        toVersion: "builtin.basic-parts/31",
       }),
       SAFE_OBJECT_FREEZE({
         component: "connector-taxonomy",
@@ -360,11 +369,12 @@ export function assertExactStep7Gate3FinalMigration(
 }
 
 /**
- * Projects the one exact live `/13` -> `/30` migration back onto the retained
+ * Projects the one exact live `/13` -> `/31` migration back onto the retained
  * additive `/26` boundary used by Gate-3 evidence. The live report authenticates
- * the roster-intersected `/29` connector/collision reinterpretation and the
- * `/30` LDraw-frame and 15573 reinterpretations; migration has already refused
- * any edge using a changed endpoint. The four `/27`, two `/28`, and two `/29`
+ * the roster-intersected `/29` connector/collision reinterpretation, the `/30`
+ * LDraw-frame and 15573 reinterpretations and the roster-intersected `/31`
+ * stud-profile reinterpretation; migration has already refused any edge using
+ * a changed endpoint it does not carry. The four `/27`, two `/28`, and two `/29`
  * rows plus later semantics never enter the projection.
  */
 export function projectExactCurrentMigrationToFrozenV26(
@@ -381,7 +391,7 @@ export function projectExactCurrentMigrationToFrozenV26(
       exactPlainDataBytes(CURRENT_RUNTIME_TRUTH, "Expected current runtime truth")
   ) {
     throw new SAFE_TYPE_ERROR(
-      "Frozen /26 projection requires the exact reviewed /13 to /30 runtime migration bridge.",
+      "Frozen /26 projection requires the exact reviewed /13 to /31 runtime migration bridge.",
     );
   }
   const expectedRuntimeRevision = `revision-${apply<string>(

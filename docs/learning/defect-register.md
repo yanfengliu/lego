@@ -24,6 +24,24 @@ Newest first.
 
 ---
 
+## 2026-09-24 - Printed step 31 played back with the wrong parts
+
+**Status:** fixed and gated.
+
+**Symptom.** In the editor, printed step 31 of the reference build (booklet page 35) showed two dark bluish grey 1x3 bricks. The booklet draws a second black 1x2x2 brick and a light grey 1x2 plate there. The harness still reported the build valid through step 31.
+
+**Investigation.** The step's piece count matched its callouts (1+1+2), and the kernel found nothing wrong. `tools/booklet/align.ts` assigned official bricks to printed steps by callout counts only. Step 31's official run held elements with counts {2,1,1}, the same as its callouts, but not the same elements. Element identity was checked only over the whole set. Run inside the harness, closed-set identification showed 22 steps where counts alone gave other parts than the callouts draw.
+
+**Root cause.** When two steps' counts coincide, alignment by counts cannot tell their parts apart. At pages 35-36 the booklet builds two sibling sub-builds in the opposite order to the model, and both runs' counts came out equal. So "valid through step N" measured kernel validity for whatever bricks the counts picked, not whether each step was right.
+
+**Fix.** `npm run booklet` runs identification (`tools/booklet/identify-stage.ts`). It aligns each step by the elements its callouts name (`tools/booklet/align-identity.ts`), and counts only the callouts identification flags. The repair moves the brick the model builds nearest the step that receives it, so a sub-build stays whole. Step 31 now holds the booklet's sub-build, checked against page 35.
+
+**How it is checked from now on.** `tools/booklet/align-identity.test.ts` has a synthetic two-step case where counts pick the wrong parts. Swapping the criterion for count-only logic turns 5 of its tests red. A sub-build case turns red when the repair moves the latest-built brick instead. Each run reports every step as exact identity, count fallback or mismatch, and scores identification against the model; the committed headline carries both. Bound: the 43 steps with flagged callouts still match those callouts by count, so a wrong part of equal count there would pass.
+
+**Class.** A per-step check that compares counts where identities are available. Any count-only match can hide swapped parts.
+
+---
+
 ## 2026-09-24 - 42 GB of run evidence under the ignored output/ and var/
 
 **Status:** cleaned up; a budget check exists but nothing runs it automatically.

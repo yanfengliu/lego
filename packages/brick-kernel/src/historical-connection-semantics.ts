@@ -14,7 +14,10 @@ import {
   REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH,
 } from "./historical-connection-authorities.ts";
 import type { CarriedEndpointAssessment } from "./historical-connection-carry-forward.ts";
-import { carriedEndpointPeerFailure } from "./historical-connection-carry-forward.ts";
+import {
+  carriedEndpointClassFields,
+  carriedEndpointPeerFailure,
+} from "./historical-connection-carry-forward.ts";
 
 export type { ReviewedHistoricalConnectionSemantics } from "./historical-connection-authorities.ts";
 export {
@@ -171,8 +174,7 @@ export function assessHistoricalConnectionSemantics(
             partId: endpoint.partId,
             catalogPartId: instance.catalogPartId,
             portId: endpoint.portId,
-            deltaClass: carried.deltaClass,
-            addedSharedCapacityGroupIds: carried.addedSharedCapacityGroupIds,
+            ...carriedEndpointClassFields(carried),
             reportedUnderCatalogVersion: carried.reportedUnderCatalogVersion,
           });
         } else {

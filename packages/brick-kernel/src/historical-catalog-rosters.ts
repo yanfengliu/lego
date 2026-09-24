@@ -250,6 +250,8 @@ export const REVIEWED_HISTORICAL_CATALOG_ROSTERS_BY_TRUTH_HASH: Readonly<
   "sha256:614c61787b6c45d645e3e84c71dd931a15c258535a1959ee4b3aa1906303b70f": roster(PART_IDS_V27),
   "sha256:643185fe21f0d0c77a7aada8b170395f11bb7da1079f97d5c0cd0a03d7464f1b": roster(PART_IDS_V28),
   "sha256:54762419e4779c6c15566052062fcaa432cb45e3a13704b5af1563b4fa94e8eb": roster(PART_IDS_V29),
+  // /30 added no part or color identity, so its roster is /29's.
+  "sha256:cf2d67907369f85551055665b6df0f849dd978d2e63330130ec2d2db8f6ccc0b": roster(PART_IDS_V29),
 });
 
 export function getReviewedHistoricalCatalogRoster(

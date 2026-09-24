@@ -1,6 +1,7 @@
 import type { AnswerKey } from "./answer-key/index.ts";
 import type { AlignStage } from "./align-stage.ts";
 import type { CatalogStage } from "./catalog-coverage.ts";
+import type { IdentifyStage } from "./identify-stage.ts";
 import type { Playback } from "./playback.ts";
 import { primaryPlayback, type PlaybackStage } from "./playback-stage.ts";
 import type { BookletRead } from "./read.ts";
@@ -15,17 +16,66 @@ export function readRows(read: BookletRead) {
   return read.steps.map(({ step, page, callouts, pieces }) => ({ step, page, callouts, pieces }));
 }
 
+/** Each printed step's callouts as identification named them, and which it flagged. */
+export function identifyRows(identify: IdentifyStage) {
+  return identify.steps.map(({ step, callouts, countsOnly }) => ({
+    step,
+    callouts: callouts.map(({ count, elementId, flags }) => ({
+      count,
+      elementId,
+      ...(flags.length > 0 ? { flags } : {}),
+    })),
+    ...(countsOnly ? { countsOnly } : {}),
+  }));
+}
+
 export function alignRows(align: AlignStage) {
+  const partsChanged = new Set(align.partsChangedFromCounts);
+  const bricksChanged = new Set(align.bricksChangedFromCounts);
+  const differences = new Map(
+    (align.identityScore?.differences ?? []).map((difference) => [difference.step, difference]),
+  );
   return align.steps.map(
-    ({ step, page, matched, matchedBy, repaired, expected, actual, bricks }) => ({
+    ({
       step,
       page,
       matched,
+      verdict,
       matchedBy,
       repaired,
-      bricks: bricks.length,
-      ...(matched ? {} : { expected, actual }),
-    }),
+      countedCallouts,
+      expected,
+      actual,
+      bricks,
+    }) => {
+      const difference = differences.get(step);
+      return {
+        step,
+        page,
+        matched,
+        verdict,
+        matchedBy,
+        repaired,
+        countedCallouts,
+        bricks: bricks.length,
+        ...(matched ? {} : { expected, actual }),
+        ...(align.byCounts
+          ? {
+              partsChangedFromCounts: partsChanged.has(step),
+              bricksChangedFromCounts: bricksChanged.has(step),
+            }
+          : {}),
+        ...(difference
+          ? {
+              runOrderDifference: {
+                explanation: difference.explanation,
+                identifiedOnly: difference.identifiedOnly,
+                modelOnly: difference.modelOnly,
+              },
+            }
+          : {}),
+      };
+    },
   );
 }
 

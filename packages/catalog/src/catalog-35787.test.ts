@@ -304,12 +304,12 @@ describe("35787 triangular tile catalog truth", () => {
     }
   });
 
-  it("pins the reviewed /30 projection of the /15 prefix under its historical truth labels", () => {
-    // /30 moved these with its 61 LDraw frames and 15573's centre seat; restoring
-    // those fields and the /29 label reproduces the /29 pins bit for bit.
+  it("pins the reviewed /31 projection of the /15 prefix under its historical truth labels", () => {
+    // /31 moved these with seven parts' nominal-stud-tube/1 stud profiles;
+    // removing those and restoring the /30 label reproduces the /30 pins.
     const priorParts = PART_DEFINITIONS.slice(0, 87);
     const priorDefinitionBytes = JSON.stringify(priorParts)
-      .replaceAll("builtin.basic-parts/30", "builtin.basic-parts/15")
+      .replaceAll("builtin.basic-parts/31", "builtin.basic-parts/15")
       .replaceAll("rectilinear-stud-clearance/3", "rectilinear-stud-clearance/2");
     const rows = priorParts.map(({ id, connectors, collision }) => ({ id, connectors, collision }));
     const collisionRows = priorParts.map(({ id, collision }) => ({ id, collision }));
@@ -335,10 +335,10 @@ describe("35787 triangular tile catalog truth", () => {
         )
         .digest("hex"),
     }).toEqual({
-      definitionBytes: 1_529_679,
-      definitionHash: "884a623c348d67c8d3f0695e2a093752cc13e5715ee2b4063cb6bad49b243f5b",
-      connectorCollisionHash: "92b65bb76b60716ccc7490e6b5b38f6b16d80e5013e993609e616220d20ed5fd",
-      collisionHash: "b98fa569f474926cf3b8940e9c7ccef7becb9169b058a7c05be5dfe8cbfb14e0",
+      definitionBytes: 1_530_404,
+      definitionHash: "ec9f2c74061bd2d3641347a8e666b6bff1aa7b2bbbb4bdde4941f02ec1e54f6b",
+      connectorCollisionHash: "9e8ff5c13d3d065fae65228cd4773db757f2f2028eb28db3a68dd92567f1897a",
+      collisionHash: "35431a3742fc9c89c16ac020db7d6cd734a954a7d7e976126da513248838bc7f",
     });
   });
 });
