@@ -13,10 +13,12 @@ import {
   REVIEWED_TRUTH_V29,
   documentAtReviewedTruth,
 } from "./migration-historical-fixtures.test-support.ts";
+import { REVIEWED_TRUTH_V30 } from "./migration-v31-fixtures.test-support.ts";
 import { REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS, migrateDocumentTruth } from "./migration.ts";
 
 const V28_TRUTH_HASH = "sha256:643185fe21f0d0c77a7aada8b170395f11bb7da1079f97d5c0cd0a03d7464f1b";
 const V29_TRUTH_HASH = "sha256:54762419e4779c6c15566052062fcaa432cb45e3a13704b5af1563b4fa94e8eb";
+const V30_TRUTH_HASH = "sha256:cf2d67907369f85551055665b6df0f849dd978d2e63330130ec2d2db8f6ccc0b";
 
 const REVIEWED_TRUTH_V28 = {
   schemaVersion: "lego.truth-snapshot/1",
@@ -56,17 +58,22 @@ describe("historical transform-policy migration authority", () => {
       REVIEWED_HISTORICAL_TRANSFORM_POLICIES_BY_TRUTH_HASH,
     )) {
       // Through /28 every source held the global upright policy; /29 introduced
-      // the part-scoped one.
+      // the part-scoped one, and /30 kept it unchanged.
       expect(policy.legalOrientationIds.join("|"), truthHash).toBe(
         "upright-yaw-0|upright-yaw-90|upright-yaw-180|upright-yaw-270",
       );
       expect(policy.id, truthHash).toBe(
-        truthHash === V29_TRUTH_HASH
+        truthHash === V29_TRUTH_HASH || truthHash === V30_TRUTH_HASH
           ? "part-scoped-proper-orientations-negative-y-up"
           : "upright-quarter-turns-negative-y-up",
       );
     }
     expect(REVIEWED_HISTORICAL_TRANSFORM_POLICIES_BY_TRUTH_HASH[V29_TRUTH_HASH]).toBe(
+      PART_SCOPED_V29_TRANSFORM_POLICY,
+    );
+    // /30 has /29's roster and transform-policy hash, so it binds the same table.
+    expect(REVIEWED_TRUTH_V30.transformPolicy).toEqual(REVIEWED_TRUTH_V29.transformPolicy);
+    expect(REVIEWED_HISTORICAL_TRANSFORM_POLICIES_BY_TRUTH_HASH[V30_TRUTH_HASH]).toBe(
       PART_SCOPED_V29_TRANSFORM_POLICY,
     );
     expect(Object.isFrozen(REVIEWED_HISTORICAL_TRANSFORM_POLICIES_BY_TRUTH_HASH)).toBe(true);

@@ -351,6 +351,20 @@ Two clauses, and each has its own gate.
 - **Red B:** `Lessons check failed: 1 rule(s) state a claim longer than 160 characters, which defeats an index.` — so widening the line to hold a gate name has not quietly widened the index budget.
 - **Green after revert:** yes
 
+## Proofs added with catalog `/31`, 2026-09-24
+
+Measured on base `384a70d` with the uncommitted `/31` change applied; each mutation backed its file up and restored it byte for byte, and the gate file was run alone.
+
+### A clutch seated on a stud through a validated edge must not collide with that stud, whatever the stud's source radius.
+
+- **Gate:** `packages/brick-kernel/src/stud-seat-collision-class.test.ts` :: "seats a 1 x 1 plate on every catalog stud through a validated edge without collision" — run by `npm run test`. It seats a `plate-1x1` on each of the 1,125 stud connectors of the 106 definitions, whatever the stud's normal.
+- **Defect:** booklet step 32 failed because seven measured parts kept the LDraw source stud radius 6.0001514980873605 LDU without the `nominal-stud-tube/1` profile, so a `3023` plate seated on a `15254` arch collided with its studs by 0.00015 LDU.
+- **Mutation A:** removed `validatedConnectionStudProfile: "nominal-stud-tube/1"` from the `15254` blueprint in `packages/catalog/src/part-blueprints-6651557-measured.ts`.
+- **Red A:** 6 failures, one per stud, each `builtin:arch-1x6-thin-top/stud:N: PART_STUD_BODY_COLLISION Stud host/stud:N overlaps body probe/body:1` for N = 0 to 5.
+- **Mutation B:** the same removal on `28802`, whose studs 0, 2, 4 and 5 face -z, so the probe plate is seated sideways.
+- **Red B:** 6 failures naming `builtin:bracket-1x2-1x4-rounded-bottom/stud:0` to `stud:5`, so a sideways stud is covered too.
+- **Green after revert:** yes, all 1,125 studs.
+
 ## Reach and clause audit of the first pass, 2026-09-02
 
 One mutation proves a gate catches that mutation; it does not prove the reach claimed in prose beside it. And a lesson with several clauses needs a destination for every clause, not one gate that absorbs its siblings. Both were checked against the entries above.

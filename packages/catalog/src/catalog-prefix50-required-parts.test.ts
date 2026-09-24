@@ -94,7 +94,7 @@ const REQUIRED = [
 
 describe("bounded first-50 required catalog tranche", () => {
   it("retains the four exact /27 definitions before the /28 suffix tranche", () => {
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/30");
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/31");
     expect(PART_DEFINITIONS).toHaveLength(106);
     expect(PART_DEFINITIONS.slice(-8, -4).map(({ id }) => id)).toEqual(
       REQUIRED.map(({ id }) => id),

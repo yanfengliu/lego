@@ -227,12 +227,12 @@ describe("28802 rounded-bottom bracket catalog truth", () => {
     }
   });
 
-  it("pins the reviewed /30 projection of the /14 prefix under its historical truth labels", () => {
-    // /30 moved these with its 61 LDraw frames and 15573's centre seat; restoring
-    // those fields and the /29 label reproduces the /29 pins bit for bit.
+  it("pins the reviewed /31 projection of the /14 prefix under its historical truth labels", () => {
+    // /31 moved these with seven parts' nominal-stud-tube/1 stud profiles;
+    // removing those and restoring the /30 label reproduces the /30 pins.
     const priorParts = PART_DEFINITIONS.slice(0, 86);
     const priorDefinitionBytes = JSON.stringify(priorParts)
-      .replaceAll("builtin.basic-parts/30", "builtin.basic-parts/14")
+      .replaceAll("builtin.basic-parts/31", "builtin.basic-parts/14")
       .replaceAll("rectilinear-stud-clearance/4", "rectilinear-stud-clearance/2");
     const rows = priorParts.map(({ id, connectors, collision }) => ({ id, connectors, collision }));
     const collisionRows = priorParts.map(({ id, collision }) => ({ id, collision }));
@@ -245,15 +245,15 @@ describe("28802 rounded-bottom bracket catalog truth", () => {
       "rectilinear-stud-clearance/2",
     );
     expect(priorParts).toHaveLength(86);
-    expect(priorDefinitionBytes).toHaveLength(1_519_452);
+    expect(priorDefinitionBytes).toHaveLength(1_519_882);
     expect(createHash("sha256").update(priorDefinitionBytes).digest("hex")).toBe(
-      "f23956b678e5d4328b0132468ecb8b7566290f33a3f719392c58a4cd1d1bfc0a",
+      "abbed88ad55396a8883212cc1be209be400ebb45861dbb2e11d5a9974aad57f9",
     );
     expect(createHash("sha256").update(priorConnectorCollisionBytes).digest("hex")).toBe(
-      "24a07081d26d18de319cf72b2298d58fa75685ee5b1692465ba8dc1ca8ea2b5c",
+      "58dfa76e578b519715a3bd7c85ff4d2d15e594dccf9a15452a78986e08f83d04",
     );
     expect(createHash("sha256").update(priorCollisionBytes).digest("hex")).toBe(
-      "71f80c905758e4e0a716e2725d8dcc4407c960bed1cc95e01955c2bd2ae809c3",
+      "84aea345d94d59f3ce0eec4d84380197e87a8d7dcd7f0f88388a1d9d9eb4bbb9",
     );
     expect(COLLISION_MODEL_VERSION).toBe("rectilinear-stud-clearance/4");
     expect(

@@ -310,12 +310,12 @@ describe("11253 roller-skate catalog truth", () => {
     ).toContain("MESH_ADMISSION_CONNECTOR_COLLISION_MISMATCH");
   });
 
-  it("pins the reviewed /30 projection of the /16 prefix under its historical truth labels", () => {
-    // /30 moved these with its 61 LDraw frames and 15573's centre seat; restoring
-    // those fields and the /29 label reproduces the /29 pins bit for bit.
+  it("pins the reviewed /31 projection of the /16 prefix under its historical truth labels", () => {
+    // /31 moved these with seven parts' nominal-stud-tube/1 stud profiles;
+    // removing those and restoring the /30 label reproduces the /30 pins.
     const priorParts = PART_DEFINITIONS.slice(0, 88);
     const priorDefinitionBytes = JSON.stringify(priorParts)
-      .replaceAll("builtin.basic-parts/30", "builtin.basic-parts/16")
+      .replaceAll("builtin.basic-parts/31", "builtin.basic-parts/16")
       .replaceAll("rectilinear-stud-clearance/3", "rectilinear-stud-clearance/2");
     const rows = priorParts.map(({ id, connectors, collision }) => ({ id, connectors, collision }));
     const collisionRows = priorParts.map(({ id, collision }) => ({ id, collision }));
@@ -341,10 +341,10 @@ describe("11253 roller-skate catalog truth", () => {
         )
         .digest("hex"),
     }).toEqual({
-      definitionBytes: 1_541_650,
-      definitionHash: "57948c8e9eb290cfc354c40d2a53737130a47e4ba1e0df9b8151e277edc30113",
-      connectorCollisionHash: "370fc144babd34a272f0ebc57103b98a949cad0717180618e55d9c167b757940",
-      collisionHash: "b626aacebc8dbaacc7d39f818f3a8246aad2669637fe247bfa67a1310d7ee22b",
+      definitionBytes: 1_542_375,
+      definitionHash: "ae3a397a115fdecd7c1150596837d102b47a7949eeaa9af4be0b4bbb0ae01991",
+      connectorCollisionHash: "1a34eacd12ae4952e6b689c8c27fd75ea7b3d5231b1147b79a9c1b0a6d137c83",
+      collisionHash: "d820194a541e92ea7480dd4edbe25542e5e418cbcbd6eb09e0c295b99910ea90",
     });
   });
 });

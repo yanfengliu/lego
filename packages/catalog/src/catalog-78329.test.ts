@@ -67,7 +67,7 @@ describe("78329 regular 1 x 5 plate catalog truth", () => {
     );
     if (blueprint?.designId !== "78329") throw new Error("78329 blueprint is missing");
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/30");
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/31");
     expect(PART_DEFINITIONS).toHaveLength(106);
     expect(PART_DEFINITIONS.at(-9)?.id).toBe(PART_ID);
     expect(SET_6651557_MEASURED_BLUEPRINTS.at(-9)).toBe(blueprint);
@@ -170,12 +170,12 @@ describe("78329 regular 1 x 5 plate catalog truth", () => {
     expect(validateMeshPartDefinitionAdmission(part)).toEqual({ accepted: true, issues: [] });
   });
 
-  it("pins the reviewed /30 projection of the /25 prefix under its historical truth label", () => {
-    // /30 moved these with its 61 LDraw frames and 15573's centre seat; restoring
-    // those fields and the /29 label reproduces the /29 pins bit for bit.
+  it("pins the reviewed /31 projection of the /25 prefix under its historical truth label", () => {
+    // /31 moved these with seven parts' nominal-stud-tube/1 stud profiles;
+    // removing those and restoring the /30 label reproduces the /30 pins.
     const priorParts = PART_DEFINITIONS.slice(0, 97);
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/30",
+      "builtin.basic-parts/31",
       "builtin.basic-parts/25",
     );
     const connectorCollision = priorParts.map(({ id, connectors, collision }) => ({
@@ -192,9 +192,9 @@ describe("78329 regular 1 x 5 plate catalog truth", () => {
         .update(JSON.stringify(connectorCollision))
         .digest("hex"),
     }).toEqual({
-      definitionBytes: 1_665_249,
-      definitionHash: "757ed16b4ac1967065d6050d05e64f6dfa73b359526f6a7bc8ca08af05fb6f53",
-      connectorCollisionHash: "37f978428be50637b29bb1cbc6ad05a637f651a7bbb3b1a696a0810730e144ad",
+      definitionBytes: 1_666_674,
+      definitionHash: "b366580e5e062d0efa0088f20d97d704a3f09958e4dfa0cd7c8ff857d20250a3",
+      connectorCollisionHash: "b8e7004b851620498b314a36516bcb45c894f8aed5a46fe9790b853188b0be1f",
     });
   });
 });
