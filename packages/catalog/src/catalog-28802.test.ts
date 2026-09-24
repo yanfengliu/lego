@@ -227,10 +227,12 @@ describe("28802 rounded-bottom bracket catalog truth", () => {
     }
   });
 
-  it("pins the reviewed /29 projection of the /14 prefix under its historical truth labels", () => {
+  it("pins the reviewed /30 projection of the /14 prefix under its historical truth labels", () => {
+    // /30 moved these with its 61 LDraw frames and 15573's centre seat; restoring
+    // those fields and the /29 label reproduces the /29 pins bit for bit.
     const priorParts = PART_DEFINITIONS.slice(0, 86);
     const priorDefinitionBytes = JSON.stringify(priorParts)
-      .replaceAll("builtin.basic-parts/29", "builtin.basic-parts/14")
+      .replaceAll("builtin.basic-parts/30", "builtin.basic-parts/14")
       .replaceAll("rectilinear-stud-clearance/4", "rectilinear-stud-clearance/2");
     const rows = priorParts.map(({ id, connectors, collision }) => ({ id, connectors, collision }));
     const collisionRows = priorParts.map(({ id, collision }) => ({ id, collision }));
@@ -243,15 +245,15 @@ describe("28802 rounded-bottom bracket catalog truth", () => {
       "rectilinear-stud-clearance/2",
     );
     expect(priorParts).toHaveLength(86);
-    expect(priorDefinitionBytes).toHaveLength(1_473_760);
+    expect(priorDefinitionBytes).toHaveLength(1_519_335);
     expect(createHash("sha256").update(priorDefinitionBytes).digest("hex")).toBe(
-      "91debb45cec0dfba726f4ae0e4a9ef82cd1f58d8d7ebecb97f5608e403202de6",
+      "0755f1e6a7561f169f9aa5773b8f4d344fa5e18982feb20bb20a37f1de0fe87d",
     );
     expect(createHash("sha256").update(priorConnectorCollisionBytes).digest("hex")).toBe(
-      "f35f0bd4dd5148f9cd4aba4c60d5d797202323f6ed9ca4d2ecefb14d75f9cdf1",
+      "24a07081d26d18de319cf72b2298d58fa75685ee5b1692465ba8dc1ca8ea2b5c",
     );
     expect(createHash("sha256").update(priorCollisionBytes).digest("hex")).toBe(
-      "a8e3c77311f7917e8f1287c0a90f2fb379be36f6693c382a4b18d46ce6e9f04a",
+      "71f80c905758e4e0a716e2725d8dcc4407c960bed1cc95e01955c2bd2ae809c3",
     );
     expect(COLLISION_MODEL_VERSION).toBe("rectilinear-stud-clearance/4");
     expect(

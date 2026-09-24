@@ -224,10 +224,12 @@ interface ConnectorPortDefinitionBase {
    * overlap, though: 99563's centre seat excludes either half-pitch outer seat,
    * while the two outer seats may be occupied together. Each string names one
    * part-local cell; a connection consumes every cell named by both endpoints.
-   * This covers exact half-pitch seats such as 99563 and 3245c without
+   * This covers exact half-pitch seats such as 99563, 3245c and 15573 without
    * treating their center and outer positions as three independent cells.
    * The catalog admission gate rejects empty, duplicate, or uncalibrated claims so
-   * this cannot be used as an unreviewed escape from the ordinary stud lattice.
+   * this cannot be used as an unreviewed escape from the ordinary stud lattice;
+   * mesh admission and the parametric factory apply the same rule
+   * (`alternate-clutch-seats.ts`).
    */
   readonly sharedCapacityGroupIds?: readonly string[];
   readonly compatibleKinds: readonly ConnectorKind[];
@@ -435,6 +437,12 @@ export interface PartialOverhangClutchEvidence {
   }[];
 }
 
+/** An underside seat half a pitch between two grid clutches, and the port id it keeps. */
+export interface AlternateClutchSeatDeclaration {
+  readonly id: string;
+  readonly positionLdu: readonly [x: number, z: number];
+}
+
 export interface ParametricGeometryRecipe {
   readonly generatorId:
     "builtin:parametric-rectilinear-part/1" | "builtin:parametric-plan-feature-part/1";
@@ -459,6 +467,8 @@ export interface ParametricGeometryRecipe {
   readonly studOffsetsLdu?: readonly (readonly [x: number, z: number])[];
   /** Explicit underside clutch centres for an irregular footprint. */
   readonly clutchOffsetsLdu?: readonly (readonly [x: number, z: number])[];
+  /** Underside seats half a pitch between two grid clutches, as the blueprint declared them. */
+  readonly alternateClutchSeats?: readonly AlternateClutchSeatDeclaration[];
   /** Source proof for explicit clutch circles that intentionally cross a body edge. */
   readonly partialOverhangClutchEvidence?: PartialOverhangClutchEvidence;
   /**
@@ -606,9 +616,17 @@ export interface PartDefinition {
   readonly family: PartFamily;
   readonly displayName: string;
   readonly aliases: readonly CatalogAlias[];
-  /** Measured raw-LDraw-to-catalog frame correction and its file-level source. */
+  /**
+   * Measured raw-LDraw-to-catalog frame and its file-level source:
+   * catalog = O * ldraw + translationLdu, O named by the orientation id, so
+   * `translationLdu` is where the LDraw origin lands in catalog coordinates.
+   * Every parametric part declares one (`ldraw-interchange-frames.ts`); a
+   * mesh part's frame is its `assetToCatalogFrame`, which this must equal
+   * when both are present.
+   */
   readonly ldrawFrame?: {
     readonly ldrawToCatalogOrientationId: string;
+    readonly translationLdu: LduVector3;
     readonly provenance: SourceProvenance;
   };
   readonly dimensions: PartDimensions;

@@ -100,23 +100,19 @@
       "corrections": ["77844 (pin)", "80015 (review)"],
       "corrected": {
         "stepsReplayed": 359,
-        "validSteps": 28,
-        "invalidSteps": 16,
+        "validSteps": 31,
+        "invalidSteps": 13,
         "blockedSteps": 315,
-        "validThrough": 28,
-        "firstNonValid": "29 invalid",
-        "firstInvalid": 29,
+        "validThrough": 31,
+        "firstNonValid": "32 invalid",
+        "firstInvalid": 32,
         "firstBlocked": 45,
-        "stepsAddingIssues": 8,
-        "partsThroughValid": 163
+        "stepsAddingIssues": 7,
+        "partsThroughValid": 184
       },
       "frames": {
-        "registry": "loaded",
-        "measured": 610,
-        "declared": 17,
-        "inferred": 2,
-        "fallbackParametricRows": 35,
-        "fallbackDisagreements": 24
+        "meshAssetFrame": 201,
+        "measuredLdrawFrame": 428
       }
     }
   }

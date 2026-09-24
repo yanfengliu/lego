@@ -4,21 +4,18 @@ import type { RigidTransform } from "@lego-studio/protocol";
 
 import { ldrawToCatalogFrame } from "../../packages/brick-kernel/src/ldraw-frame-conversion.ts";
 import { snapPlacementOriginForDefinition } from "../../apps/web/src/placement.ts";
-import type { MeasuredFrames } from "./ldraw-frames.ts";
 
 /**
  * One official brick's pose, moved into the editor's document frame.
  *
  * The official LDraw export writes each brick as a type-1 line in its LDraw
  * file's frame; the catalog part sits in the catalog frame. The map between
- * them is taken, in order of trust, from (1) a measured frame registry when
- * one is supplied and names this file, (2) the catalog's own declaration of a
- * mesh-backed part (`assetToCatalogFrame`, turn and offset), and (3) for a
- * parametric part, the catalog's declared turn (`ldrawFrame`, or none) with
- * the top-face offset every mesh declaration follows: LDraw puts the origin on
- * the body's top face, the catalog at its centre, so translation
- * [0, body top, 0] whatever the turn. Each placed part records which basis it
- * used; `checkFallbackAgainstRegistry` measures (3) against the registry.
+ * them is catalog truth, read through the kernel's `ldrawToCatalogFrame`: a
+ * mesh-backed part's `assetToCatalogFrame`, or a parametric part's
+ * `ldrawFrame`, measured from the official LDraw file
+ * (scripts/derive-ldraw-catalog-frames.mjs). The first-50 frame registry is no
+ * longer an input; `checkCatalogFramesAgainstRegistry` compares against it
+ * when it happens to be present and run evidence is opted in.
  *
  * The export carries float noise (-24.00000000000325), so a term is snapped
  * only within a stated tolerance of a value the document can represent; a
@@ -45,7 +42,8 @@ export type PoseBlock =
   | "position-off-lattice"
   | "origin-not-integral";
 
-export type FrameBasis = "measured" | "declared" | "inferred-top-of-body";
+/** Where a catalog frame came from: a mesh part's asset frame, or a measured LDraw frame. */
+export type FrameBasis = "mesh-asset-frame" | "measured-ldraw-frame";
 
 export type PoseResolution =
   | { readonly ok: true; readonly transform: RigidTransform; readonly frameBasis: FrameBasis }
@@ -79,53 +77,22 @@ export interface CatalogFrame {
   readonly basis: FrameBasis;
 }
 
-export function catalogFrameFor(
-  catalogPartId: string,
-  ldrawFilename: string,
-  measured: MeasuredFrames | null,
-): CatalogFrame {
-  const row = measured?.get(ldrawFilename.toLowerCase());
-  if (row && row.catalogPartId === catalogPartId) {
-    return {
-      orientationId: row.orientationId,
-      translationLdu: row.translationLdu,
-      basis: "measured",
-    };
-  }
-  return fallbackCatalogFrame(catalogPartId);
-}
-
-/** The frame without a registry row: the catalog's declaration, or its turn plus the top-face offset. */
-export function fallbackCatalogFrame(catalogPartId: string): CatalogFrame {
+/** The catalog's frame for `catalogPartId`'s LDraw file. Throws when the catalog has none. */
+export function catalogFrameFor(catalogPartId: string): CatalogFrame {
   const frame = ldrawToCatalogFrame(catalogPartId);
-  const definition = getPartDefinition(catalogPartId);
-  if (
-    definition !== undefined &&
-    definition.geometry.generatorId !== "builtin:preloaded-mesh-reference/1"
-  ) {
-    // The kernel gives a parametric part only a turn (its ldrawFrame declaration, or
-    // none) and a zero offset. The offset is still the top face: dropping it when a
-    // turn was declared put the 2 x 14 plate (91988, upright-yaw-90) 4 LDU off.
-    return {
-      orientationId: frame.orientation.id,
-      translationLdu: [0, definition.bodyBoundsLdu.min[1], 0],
-      basis: "inferred-top-of-body",
-    };
-  }
   return {
     orientationId: frame.orientation.id,
     translationLdu: frame.translationLdu,
-    basis: "declared",
+    basis:
+      getPartDefinition(catalogPartId)?.geometry.generatorId ===
+      "builtin:preloaded-mesh-reference/1"
+        ? "mesh-asset-frame"
+        : "measured-ldraw-frame",
   };
 }
 
 /** The catalog transform for `pose`, before any world shift. */
-export function officialPoseToCatalog(
-  catalogPartId: string,
-  ldrawFilename: string,
-  pose: OfficialPose,
-  measured: MeasuredFrames | null,
-): PoseResolution {
+export function officialPoseToCatalog(catalogPartId: string, pose: OfficialPose): PoseResolution {
   const matrix = pose.matrix.map((term) => snapTerm(term, 1, POSE_TOLERANCES.matrixTerm));
   if (matrix.length !== 9 || matrix.some((term) => term === null)) {
     return {
@@ -134,7 +101,7 @@ export function officialPoseToCatalog(
       detail: `rotation [${pose.matrix.map((term) => term.toFixed(4)).join(" ")}] is not a quarter-turn pose`,
     };
   }
-  const frame = catalogFrameFor(catalogPartId, ldrawFilename, measured);
+  const frame = catalogFrameFor(catalogPartId);
   const catalogMatrix = multiplyByTranspose(
     matrix as number[],
     matrixById.get(frame.orientationId) ?? [],

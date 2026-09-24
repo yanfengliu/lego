@@ -5,16 +5,30 @@ import { deepFreeze } from "./canonical.ts";
 
 type Sha256Digest = `sha256:${string}`;
 
-export interface ReviewedHistoricalTransformPolicy {
+type UprightOrientationIds = readonly [
+  "upright-yaw-0",
+  "upright-yaw-90",
+  "upright-yaw-180",
+  "upright-yaw-270",
+];
+
+export interface ReviewedLegacyUprightTransformPolicy {
   readonly id: "upright-quarter-turns-negative-y-up";
   readonly version: "upright-quarter-turns-negative-y-up/1";
-  readonly legalOrientationIds: readonly [
-    "upright-yaw-0",
-    "upright-yaw-90",
-    "upright-yaw-180",
-    "upright-yaw-270",
-  ];
+  readonly legalOrientationIds: UprightOrientationIds;
 }
+
+export interface ReviewedPartScopedTransformPolicy {
+  readonly id: "part-scoped-proper-orientations-negative-y-up";
+  readonly version: "part-scoped-proper-orientations-negative-y-up/1";
+  /** Every part in the source roster may take these. */
+  readonly legalOrientationIds: UprightOrientationIds;
+  /** Further proper orientations one part admitted, in the source's order. */
+  readonly additionalLegalOrientationIdsByPartId: Readonly<Record<string, readonly string[]>>;
+}
+
+export type ReviewedHistoricalTransformPolicy =
+  ReviewedLegacyUprightTransformPolicy | ReviewedPartScopedTransformPolicy;
 
 /**
  * The exact global orientation vocabulary carried by every reviewed source
@@ -26,7 +40,33 @@ const LEGACY_UPRIGHT_TRANSFORM_POLICY = deepFreeze({
   id: "upright-quarter-turns-negative-y-up",
   version: "upright-quarter-turns-negative-y-up/1",
   legalOrientationIds: ["upright-yaw-0", "upright-yaw-90", "upright-yaw-180", "upright-yaw-270"],
-} as const satisfies ReviewedHistoricalTransformPolicy);
+} as const satisfies ReviewedLegacyUprightTransformPolicy);
+
+/**
+ * The part-scoped policy /29 introduced, as source commit 982634d emits it:
+ * every part takes the four upright yaws, and these eleven also take the
+ * non-upright proper orientations listed. Literals for the same reason as
+ * above; `historical-transform-policy-migration.test.ts` rebuilds the /29
+ * transform-policy digest from this table and the /29 roster.
+ */
+export const PART_SCOPED_V29_TRANSFORM_POLICY = deepFreeze({
+  id: "part-scoped-proper-orientations-negative-y-up",
+  version: "part-scoped-proper-orientations-negative-y-up/1",
+  legalOrientationIds: ["upright-yaw-0", "upright-yaw-90", "upright-yaw-180", "upright-yaw-270"],
+  additionalLegalOrientationIdsByPartId: {
+    "builtin:plate-1x4": ["proper-m-00nn000p0"],
+    "builtin:tile-1x2": ["proper-m-00nn000p0", "proper-m-00pp000p0"],
+    "builtin:tile-1x6": ["proper-m-00nn000p0"],
+    "builtin:plate-1x12": ["proper-m-00nn000p0"],
+    "builtin:tile-1x8": ["proper-m-00nn000p0"],
+    "builtin:plate-1x2-round-end": ["proper-m-00nn000p0"],
+    "builtin:bracket-2x2-1x2-vertical-studs": ["proper-m-p0000n0p0"],
+    "builtin:slope-1x2-45": ["proper-m-00nn000p0", "proper-m-00pp000p0"],
+    "builtin:axle-1x3": ["proper-m-00pp000p0"],
+    "builtin:technic-brick-1x2-axle-hole": ["proper-m-00pp000p0"],
+    "builtin:technic-brick-1x1-axle-hole": ["proper-m-00nn000p0"],
+  },
+} as const satisfies ReviewedPartScopedTransformPolicy);
 
 /**
  * Complete truth hashes authenticate the source policy as one inseparable
@@ -67,16 +107,32 @@ const LEGACY_UPRIGHT_SOURCE_TRUTH_HASHES = deepFreeze([
   "sha256:643185fe21f0d0c77a7aada8b170395f11bb7da1079f97d5c0cd0a03d7464f1b",
 ] as const satisfies readonly Sha256Digest[]);
 
+const PART_SCOPED_V29_SOURCE_TRUTH_HASH =
+  "sha256:54762419e4779c6c15566052062fcaa432cb45e3a13704b5af1563b4fa94e8eb" satisfies Sha256Digest;
+
 export const REVIEWED_HISTORICAL_TRANSFORM_POLICIES_BY_TRUTH_HASH: Readonly<
   Record<string, ReviewedHistoricalTransformPolicy>
-> = deepFreeze(
-  Object.fromEntries(
+> = deepFreeze({
+  ...Object.fromEntries(
     LEGACY_UPRIGHT_SOURCE_TRUTH_HASHES.map((truthHash) => [
       truthHash,
       LEGACY_UPRIGHT_TRANSFORM_POLICY,
     ]),
   ),
-);
+  [PART_SCOPED_V29_SOURCE_TRUTH_HASH]: PART_SCOPED_V29_TRANSFORM_POLICY,
+});
+
+function legalOrientationIdsFor(
+  authority: ReviewedHistoricalTransformPolicy,
+  catalogPartId: string,
+): ReadonlySet<string> {
+  const additional =
+    "additionalLegalOrientationIdsByPartId" in authority &&
+    Object.hasOwn(authority.additionalLegalOrientationIdsByPartId, catalogPartId)
+      ? authority.additionalLegalOrientationIdsByPartId[catalogPartId]!
+      : [];
+  return new Set<string>([...authority.legalOrientationIds, ...additional]);
+}
 
 /**
  * Refuses to let a newer transform vocabulary retroactively legitimize source
@@ -95,7 +151,6 @@ export function historicalTransformPolicyBlockingReasons(
     ];
   }
 
-  const legalOrientationIds = new Set<string>(authority.legalOrientationIds);
   const reasons: string[] = [];
   for (const part of document.parts) {
     if (!validateRigidTransform(part.transform)) {
@@ -104,9 +159,13 @@ export function historicalTransformPolicyBlockingReasons(
       );
       continue;
     }
-    if (!legalOrientationIds.has(part.transform.orientationId)) {
+    if (!legalOrientationIdsFor(authority, part.catalogPartId).has(part.transform.orientationId)) {
+      const scope =
+        "additionalLegalOrientationIdsByPartId" in authority
+          ? ` for catalog part ${part.catalogPartId}`
+          : "";
       reasons.push(
-        `Part ${part.id} uses orientation ${part.transform.orientationId}, which reviewed source transform policy ${authority.version} at ${sourceTruthHash} did not permit; migration cannot legitimize a transform introduced only by current truth`,
+        `Part ${part.id} uses orientation ${part.transform.orientationId}, which reviewed source transform policy ${authority.version} at ${sourceTruthHash} did not permit${scope}; migration cannot legitimize a transform introduced only by current truth`,
       );
     }
   }

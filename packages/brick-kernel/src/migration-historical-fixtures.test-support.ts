@@ -85,6 +85,146 @@ function reviewedTruthV4(hashes: {
   };
 }
 
+/**
+ * The connector deltas /30 gives 15573 against every source truth that has it
+ * (/4 on), as `npm run migration-history:check -- --print` derives them: its
+ * two grid clutches join shared-capacity groups and a centre seat appears.
+ */
+export const EXPECTED_JUMPER_1X2_CENTRE_SEAT_CHANGES = [
+  {
+    partId: "builtin:jumper-plate-1x2",
+    portId: "undersideClutch:0:0",
+    sourceDigest: "sha256:c15d33f08a5abe76a76463638f2ec6161b7b987b8fd550c7ec3776f0f337c1fb",
+    targetDigest: "sha256:f0dfb4e576750a365b47ae6af4434dcae817440b61486a0e7d113ebb9758b5b2",
+  },
+  {
+    partId: "builtin:jumper-plate-1x2",
+    portId: "undersideClutch:0:1",
+    sourceDigest: "sha256:926847873d79b7422369f1ed9d5688cf2d8578d81035a479ac5cb1c4f7d7ce5e",
+    targetDigest: "sha256:ac2dd1ea96cebe00afbefb527188086cdfdd05417799beee63efee79100e7a67",
+  },
+  {
+    partId: "builtin:jumper-plate-1x2",
+    portId: "undersideClutch:center",
+    sourceDigest: null,
+    targetDigest: "sha256:b756d80ea0e8fdd60d88ae20d440470708b2848441d38052207e3e97ed1c7766",
+  },
+] as const;
+
+/** The 61 parametric parts whose LDraw interchange frame /30 measured, in catalog order. */
+export const EXPECTED_V30_LDRAW_FRAME_PART_IDS = [
+  "builtin:brick-1x1",
+  "builtin:brick-1x2",
+  "builtin:brick-1x3",
+  "builtin:brick-1x4",
+  "builtin:brick-2x2",
+  "builtin:brick-2x3",
+  "builtin:brick-2x4",
+  "builtin:plate-1x1",
+  "builtin:plate-1x2",
+  "builtin:plate-1x3",
+  "builtin:plate-1x4",
+  "builtin:plate-2x2",
+  "builtin:plate-2x3",
+  "builtin:plate-2x4",
+  "builtin:brick-1x6",
+  "builtin:brick-1x8",
+  "builtin:brick-2x6",
+  "builtin:brick-2x8",
+  "builtin:plate-1x6",
+  "builtin:plate-1x8",
+  "builtin:plate-2x6",
+  "builtin:plate-2x8",
+  "builtin:plate-4x4",
+  "builtin:plate-4x6",
+  "builtin:plate-4x8",
+  "builtin:plate-6x6",
+  "builtin:tile-1x1",
+  "builtin:tile-1x2",
+  "builtin:tile-1x4",
+  "builtin:tile-1x6",
+  "builtin:tile-2x2",
+  "builtin:tile-2x4",
+  "builtin:plate-1x10",
+  "builtin:plate-1x12",
+  "builtin:plate-2x10",
+  "builtin:plate-2x12",
+  "builtin:plate-4x10",
+  "builtin:plate-4x12",
+  "builtin:plate-6x8",
+  "builtin:plate-6x10",
+  "builtin:plate-6x12",
+  "builtin:plate-6x16",
+  "builtin:plate-8x8",
+  "builtin:plate-8x16",
+  "builtin:brick-1x10",
+  "builtin:brick-1x12",
+  "builtin:brick-1x16",
+  "builtin:brick-2x10",
+  "builtin:tile-1x3",
+  "builtin:tile-1x8",
+  "builtin:tile-2x6",
+  "builtin:grille-tile-1x2",
+  "builtin:jumper-plate-1x2",
+  "builtin:jumper-plate-2x2",
+  "builtin:jumper-plate-1x3",
+  "builtin:technic-brick-1x2",
+  "builtin:axle-1x2",
+  "builtin:axle-1x4",
+  "builtin:wheel-1x2",
+  "builtin:corner-plate-2x2",
+  "builtin:plate-2x14",
+] as const;
+
+/**
+ * The /29 -> /30 rows a report crossing /30 carries, for a source roster that
+ * holds every affected part (/6 on). An older roster sees them filtered.
+ */
+export const EXPECTED_V30_INTERPRETATION_CHANGES = [
+  {
+    fromCatalogVersion: "builtin.basic-parts/29",
+    toCatalogVersion: "builtin.basic-parts/30",
+    affectedCatalogPartIds: EXPECTED_V30_LDRAW_FRAME_PART_IDS,
+    changedFields: ["ldraw-interchange-frame"],
+  },
+  {
+    fromCatalogVersion: "builtin.basic-parts/29",
+    toCatalogVersion: "builtin.basic-parts/30",
+    affectedCatalogPartIds: ["builtin:jumper-plate-1x2"],
+    changedFields: ["connector-semantics", "collision-semantics"],
+  },
+] as const;
+
+/** The complete truth source commit 982634d emits at builtin.basic-parts/29. */
+export const REVIEWED_TRUTH_V29 = {
+  schemaVersion: "lego.truth-snapshot/1",
+  catalog: {
+    id: "builtin.basic-parts",
+    version: "builtin.basic-parts/29",
+    hash: "sha256:19c5e8a3f4e1d00d7747c8d3e0f377ee4391acc53915df8ead0c1830b75b8db6",
+  },
+  connectorTaxonomy: {
+    id: "stud-tube",
+    version: "stud-tube/2",
+    hash: "sha256:b0b8a26e010f522ba88d55f3b8565add619b2e569f15abad59a46ffd2ccf0ddb",
+  },
+  collisionModel: {
+    id: "rectilinear-stud-clearance",
+    version: "rectilinear-stud-clearance/4",
+    hash: "sha256:b1231af344c0c293e74c0721bd0005f4f7a6746ee144ccf71ca14e22caa07042",
+  },
+  transformPolicy: {
+    id: "part-scoped-proper-orientations-negative-y-up",
+    version: "part-scoped-proper-orientations-negative-y-up/1",
+    hash: "sha256:44cf428cee1487a9441c609a75fbafefd6c3b4591512af30f8903e4508285f4c",
+  },
+  validatorSet: {
+    id: "lego.kernel-validators",
+    version: "lego.kernel-validators/5",
+    hash: "sha256:44233e884c474210006e4e94b82e952fd7b446768396d5b53575eb7946cba4fe",
+  },
+} as const satisfies BrickDocumentV1["truth"];
+
 export const REVIEWED_TRUTHS_V4 = Object.freeze([
   {
     truthHash: "sha256:f48bb1cae251f592923d94b4b992a55c06e74ea49b0f81be9ff4d416bb38e843",

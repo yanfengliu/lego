@@ -14,7 +14,6 @@ import {
   transpose,
 } from "./frame-checks.ts";
 import type { FramePin, FramePinsLoad } from "./frame-pins.ts";
-import type { MeasuredFrames } from "./ldraw-frames.ts";
 import { catalogFrameFor, type OfficialPose } from "./playback-pose.ts";
 
 const catalogFrameMatrix = (orientationId: string): readonly number[] =>
@@ -159,12 +158,11 @@ function studColumnAt(
   filename: string,
   point: readonly number[],
   catalogPartFor: (filename: string) => string | null,
-  measured: MeasuredFrames | null,
 ): string | null {
   const catalogPartId = catalogPartFor(filename);
   const definition = catalogPartId ? getPartDefinition(catalogPartId) : undefined;
   if (!catalogPartId || !definition) return null;
-  const frame = catalogFrameFor(catalogPartId, filename, measured);
+  const frame = catalogFrameFor(catalogPartId);
   // c = O p + t: the LDraw-local point in the catalog part's frame.
   const orientation = catalogFrameMatrix(frame.orientationId);
   const c = rotate(orientation, point).map((value, axis) => value + frame.translationLdu[axis]!);
@@ -183,7 +181,6 @@ function symmetryVerdict(
   to: { turn: readonly number[]; originLdu: readonly number[] },
   filename: string,
   catalogPartFor: (filename: string) => string | null,
-  measured: MeasuredFrames | null,
 ): { verdict: FrameVerdict; detail: string } {
   // Two LXFML-to-LDraw frames F(q) = T q + b differ by D = F_to o F_from^-1 in LDraw-local space.
   const matrix = multiply(to.turn, transpose(from.turn));
@@ -200,7 +197,7 @@ function symmetryVerdict(
       detail: `no catalog part for ${filename}, so symmetry is unknown`,
     };
   }
-  const frame = catalogFrameFor(catalogPartId, filename, measured);
+  const frame = catalogFrameFor(catalogPartId);
   const symmetric = isCatalogSelfMotion(catalogPartId, ldrawMotionInCatalog(frame, motion));
   return symmetric
     ? {
@@ -216,10 +213,9 @@ function symmetryVerdict(
 export function checkExportFrames(input: {
   readonly key: AnswerKey;
   readonly pins: FramePinsLoad;
-  readonly measured: MeasuredFrames | null;
   readonly catalogPartFor: (filename: string) => string | null;
 }): ExportFrameCheck {
-  const { key, pins, measured, catalogPartFor } = input;
+  const { key, pins, catalogPartFor } = input;
   if (key.ldraw.status !== "paired")
     throw new Error("checkExportFrames needs a paired official LDraw export.");
   const frames = [...key.ldraw.pairing.designFrames.values()];
@@ -251,7 +247,6 @@ export function checkExportFrames(input: {
         { turn: frame.turn, originLdu: frame.originLdu },
         frame.filename,
         catalogPartFor,
-        measured,
       ));
     }
     comparisons.push({
@@ -295,8 +290,8 @@ export function checkExportFrames(input: {
       );
       continue;
     }
-    const before = studColumnAt(frame.filename, frame.originLdu, catalogPartFor, measured);
-    const after = studColumnAt(frame.filename, reviewed.originLdu, catalogPartFor, measured);
+    const before = studColumnAt(frame.filename, frame.originLdu, catalogPartFor);
+    const after = studColumnAt(frame.filename, reviewed.originLdu, catalogPartFor);
     const premise = `LDraw ${fmt(reviewed.originLdu)} is under ${after ?? "no catalog stud"}; the export's ${fmt(frame.originLdu)} is under ${before ?? "no catalog stud"}`;
     if (after === null) {
       staleCorrections.push(

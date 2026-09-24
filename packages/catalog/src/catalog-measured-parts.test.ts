@@ -283,15 +283,20 @@ describe("measured set 6651557 catalog parts", () => {
       (plate2x14.geometry as { bodyTubes?: { centersXZLdu: readonly unknown[] } }).bodyTubes
         ?.centersXZLdu,
     ).toHaveLength(13);
+    // /30 measures the frame from the pinned archive's 91988.dat and records its
+    // translation too: the file's origin is the plate's top face, 4 LDU above
+    // (-Y) the catalog's mid-height origin.
     expect(getPartDefinition("builtin:plate-2x14")!.ldrawFrame).toEqual({
       ldrawToCatalogOrientationId: "upright-yaw-90",
+      translationLdu: [0, -4, 0],
       provenance: {
         sourceId: "ldraw:official:91988.dat",
         sourceType: "interoperability-mapping",
-        sourceVersion: "UPDATE-2012-02;measured-2026-08-02",
-        licenseExpression: "CC-BY-2.0",
+        sourceVersion:
+          "ldraw-complete-2026-07.zip sha256:6009f2e94204c4d3a63a4c812010b5c90bad8c5acb19b882c859fdac63734eae; Part UPDATE 2012-02; root sha256:873411a516fab0f053bbbf77cfd8d9babc64647d6432400a42a0026635debb42",
+        licenseExpression: "CC-BY-4.0",
         attribution:
-          "91988.dat authored by Owen Burgoyne [C3POwen] for LDraw.org; frame measured without bundling geometry.",
+          '91988.dat ("Plate  2 x 14") authored by Owen Burgoyne [C3POwen] for LDraw.org; frame measured by scripts/derive-ldraw-catalog-frames.mjs without bundling geometry.',
         runtimeRole: "interchange-frame-measurement",
         redistributionAllowed: true,
         trainingUseAllowed: false,

@@ -14,7 +14,14 @@ import { runAlignStage, type AlignStage } from "./align-stage.ts";
 import { runCatalogStage, type CatalogStage } from "./catalog-coverage.ts";
 import { checkExportFrames, type ExportFrameCheck } from "./export-frames.ts";
 import { FRAME_PINS_DEFAULT_PATH, loadFramePins } from "./frame-pins.ts";
-import { assertOutputIgnored, INPUT_LIMITS, inputFile, mainCheckoutRoot } from "./inputs.ts";
+import {
+  assertOutputIgnored,
+  INPUT_LIMITS,
+  inputFile,
+  mainCheckoutRoot,
+  readRunEvidenceOptIn,
+  RUN_EVIDENCE_VARIABLE,
+} from "./inputs.ts";
 import {
   DEFAULT_MEASURED_FRAMES_PATH,
   loadMeasuredFrames,
@@ -44,6 +51,11 @@ import { compareWithBaseline, headlineOf, summaryLines, type Stage } from "./sum
  * cannot be used — malformed, oversized, or an official export whose rows
  * contradict the LXFML — fails the stages that need it and the run (exit 1),
  * naming the file and the fault; the other stages still report.
+ *
+ * Every LDraw-to-catalog frame playback uses is catalog truth. The first-50
+ * frame registry, an ignored run file that used to supply them, is read only
+ * with LEGO_RUN_EVIDENCE=1, and then only to compare the catalog frames with
+ * it; no stage waits on it.
  */
 export const BOOKLET_STATUS_VERSION = "lego.booklet-status/2";
 export const BOOKLET_BOOKLET_DEFAULT_PATH = "recipes/6651557.pdf";
@@ -77,6 +89,10 @@ const skipped = (reason: string): NotRun => ({
   reason: `skipped (input absent): ${reason}`,
 });
 const failed = (reason: string): NotRun => ({ status: "failed", reason });
+const notOptedIn = (reason: string): NotRun => ({
+  status: "skipped",
+  reason: `skipped (not opted in): ${reason}`,
+});
 /** A stage that cannot run because one it needs did not: carries that stage's verdict forward. */
 const blockedBy = (stage: Stage<unknown>, what: string): NotRun =>
   stage.status === "failed"
@@ -112,6 +128,7 @@ export async function runBooklet(options: { readonly writeBaseline: boolean }): 
   assertOutputIgnored(referencePath);
   const envPath = (name: string, fallback: string) =>
     resolve(process.env[name] ?? resolve(inputRoot, fallback));
+  const runEvidence = readRunEvidenceOptIn(process.env[RUN_EVIDENCE_VARIABLE]);
   const inputs = {
     booklet: inputFile(
       envPath("BOOKLET_PDF", BOOKLET_BOOKLET_DEFAULT_PATH),
@@ -125,10 +142,14 @@ export async function runBooklet(options: { readonly writeBaseline: boolean }): 
       envPath("BOOKLET_OFFICIAL_LDRAW", ANSWER_KEY_DEFAULT_PATHS.ldraw),
       INPUT_LIMITS.officialLdrawBytes,
     ),
-    ldrawFrames: inputFile(
-      envPath("BOOKLET_LDRAW_FRAMES", DEFAULT_MEASURED_FRAMES_PATH),
-      INPUT_LIMITS.ldrawFramesBytes,
-    ),
+    // Run evidence, not a playback input: not even sized or hashed unless opted in.
+    ldrawFrames:
+      runEvidence.status === "on"
+        ? inputFile(
+            envPath("BOOKLET_LDRAW_FRAMES", DEFAULT_MEASURED_FRAMES_PATH),
+            INPUT_LIMITS.ldrawFramesBytes,
+          )
+        : null,
   };
 
   const read: Stage<BookletRead> = !inputs.booklet.present
@@ -173,13 +194,29 @@ export async function runBooklet(options: { readonly writeBaseline: boolean }): 
       )
     : blockedBy(keyStage, "the official LXFML");
 
-  const registryStage: Stage<FrameRegistry> = inputs.ldrawFrames.problem
-    ? failed(`malformed: ${inputs.ldrawFrames.problem} (BOOKLET_LDRAW_FRAMES)`)
-    : await attempt(
-        () => loadMeasuredFrames(inputs.ldrawFrames.path),
-        (error) => error instanceof MeasuredFramesError,
-      );
-  const registry = registryStage.status === "ran" ? registryStage.value : null;
+  // The first-50 frame registry feeds no stage; opted in, playback compares the catalog frames with it.
+  const framesFile = inputs.ldrawFrames;
+  const registryStage: Stage<FrameRegistry> =
+    runEvidence.status === "invalid"
+      ? failed(runEvidence.reason)
+      : framesFile === null
+        ? notOptedIn(
+            `playback takes every frame from the catalog; set ${RUN_EVIDENCE_VARIABLE}=1 to compare the catalog frames with the first-50 frame registry`,
+          )
+        : !framesFile.present
+          ? skipped(
+              `no first-50 frame registry at ${framesFile.path}, so the catalog frames are not compared with it; set BOOKLET_LDRAW_FRAMES`,
+            )
+          : framesFile.problem
+            ? failed(`malformed: ${framesFile.problem} (BOOKLET_LDRAW_FRAMES)`)
+            : await attempt(
+                () => loadMeasuredFrames(framesFile.path),
+                (error) => error instanceof MeasuredFramesError,
+              );
+  const registry =
+    registryStage.status === "ran" && registryStage.value.status === "loaded"
+      ? registryStage.value
+      : null;
   const ldraw = key?.ldraw ?? null;
   // The official LDraw export is the pose source: absent skips, malformed or contradicted fails.
   const ldrawVerdict: NotRun | null = !key
@@ -205,7 +242,6 @@ export async function runBooklet(options: { readonly writeBaseline: boolean }): 
             checkExportFrames({
               key: key!,
               pins: loadFramePins(resolve(REPOSITORY_ROOT, FRAME_PINS_DEFAULT_PATH)),
-              measured: registry?.status === "loaded" ? registry.frames : null,
               catalogPartFor: (filename) =>
                 catalogValue.designs.find(({ design }) => design === filename)?.catalogPartId ??
                 null,
@@ -218,19 +254,17 @@ export async function runBooklet(options: { readonly writeBaseline: boolean }): 
       ? blockedBy(align, "the booklet read, to know each printed step's bricks")
       : !catalogValue
         ? blockedBy(catalog, "the catalog stage")
-        : !registry
-          ? blockedBy(registryStage, "the frame registry")
-          : exportFrames.status === "failed"
-            ? blockedBy(exportFrames, "the export frame check")
-            : await timed(() =>
-                runPlaybackStage({
-                  key: key!,
-                  align: alignValue,
-                  catalog: catalogValue,
-                  registry,
-                  corrections: exportFrames.status === "ran" ? exportFrames.value.corrections : [],
-                }),
-              ));
+        : exportFrames.status === "failed"
+          ? blockedBy(exportFrames, "the export frame check")
+          : await timed(() =>
+              runPlaybackStage({
+                key: key!,
+                align: alignValue,
+                catalog: catalogValue,
+                registry,
+                corrections: exportFrames.status === "ran" ? exportFrames.value.corrections : [],
+              }),
+            ));
 
   const stages = { read, align, catalog, exportFrames, playback, key };
   const headline = headlineOf(stages);

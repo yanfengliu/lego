@@ -12,6 +12,7 @@ import {
 } from "./historical-connection-semantics.ts";
 import { REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS } from "./migration.ts";
 import {
+  EXPECTED_JUMPER_1X2_CENTRE_SEAT_CHANGES,
   REVIEWED_TRUTH_V1,
   documentAtReviewedTruth,
 } from "./migration-historical-fixtures.test-support.ts";
@@ -147,14 +148,25 @@ const EXPECTED_TECHNIC_BRICK_1X2_THROUGH_BORE_CHANGE = {
   targetDigest: "sha256:8492dfdbf8872bc38cb469a3aad2fe6766c8081324df2eb03a00ca9c5c027570",
 } as const;
 
+// /30's 15573 deltas sort between the 3x3 corner plate's and the round-end plate's.
+const EXPECTED_STUD_PROFILE_AND_CENTRE_SEAT_CHANGES_BEFORE_30357 = [
+  ...EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_BEFORE_30357.filter(
+    ({ partId }) => partId === "builtin:corner-plate-3x3",
+  ),
+  ...EXPECTED_JUMPER_1X2_CENTRE_SEAT_CHANGES,
+  ...EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_BEFORE_30357.filter(
+    ({ partId }) => partId === "builtin:plate-1x2-round-end",
+  ),
+] as const;
+
 const EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_V8 = [
-  ...EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_BEFORE_30357,
+  ...EXPECTED_STUD_PROFILE_AND_CENTRE_SEAT_CHANGES_BEFORE_30357,
   ...EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_30357,
   ...EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_WING,
 ] as const;
 
 const EXPECTED_VALIDATED_STUD_PROFILE_AND_1X2_THROUGH_BORE_CHANGES = [
-  ...EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_BEFORE_30357,
+  ...EXPECTED_STUD_PROFILE_AND_CENTRE_SEAT_CHANGES_BEFORE_30357,
   ...EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_30357,
   EXPECTED_TECHNIC_BRICK_1X2_THROUGH_BORE_CHANGE,
   ...EXPECTED_VALIDATED_STUD_PROFILE_CHANGES_WING,
@@ -168,7 +180,8 @@ describe("reviewed historical connection semantics", () => {
     expect(rows.map(([truthHash]) => truthHash)).toEqual(truthHashes);
     expect(Object.isFrozen(REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH)).toBe(true);
     expect(rows.every(([, row]) => Object.isFrozen(row))).toBe(true);
-    expect(rows.reduce((count, [, row]) => count + row.endpointDeltas.length, 0)).toBe(440);
+    // 440 through /29; /30 adds 15573's three deltas to each of the 28 rows from /4 on.
+    expect(rows.reduce((count, [, row]) => count + row.endpointDeltas.length, 0)).toBe(524);
     expect(rows.flatMap(([, row]) => row.pairDeltas)).toEqual([]);
     for (const [, row] of rows) {
       const keys = row.endpointDeltas.map(({ partId, portId }) =>

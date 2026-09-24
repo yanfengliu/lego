@@ -153,8 +153,18 @@ import { GENERATED_NON_UPRIGHT_PROPER_ORIENTATIONS } from "./proper-orientations
  * `2436b` root stays closure evidence rather than a public alias. `3245b`
  * remains distinct from `3245c`; no bare or cross-suffix alias is admitted,
  * and its exact one-cap holder authors one fixed one-sided axle socket.
+ *
+ * /30 adds no part identity and changes two interpretations in place. All 61
+ * parametric parts now declare the LDraw-to-catalog frame measured from their
+ * official LDraw files (`ldraw-interchange-frames.ts`: an orientation and a
+ * whole-LDU translation); before, only `plate-2x14` declared one, and only its
+ * orientation. That moves where LDraw import and export put a part, not its
+ * geometry, connectors or collision. Jumper plate `15573` gains a centre
+ * underside seat with its own tube-seat allowance, and its two grid clutches
+ * share capacity with it (`alternate-clutch-seats.ts`), so it can sit centred
+ * on one stud as well as across two.
  */
-export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/29" as const;
+export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/30" as const;
 export const CONNECTOR_TAXONOMY_VERSION = "stud-tube/2" as const;
 export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/4" as const;
 export const TRANSFORM_POLICY_ID = "part-scoped-proper-orientations-negative-y-up" as const;
@@ -308,19 +318,6 @@ export const LDCAD_SHADOW_BLIND_AXLE_HOLE_CONNECTOR_PROVENANCE: SourceProvenance
   ...LDCAD_SHADOW_CONNECTOR_PROVENANCE,
   attribution:
     "Copyright (c) 2026 Yanfeng Liu. Blind axle-holder data derived from the LDCad Shadow Library by Roland Melkert and its per-file !HISTORY contributors, CC BY-SA 4.0; this part uses the exact caps=one female A6x44 finite span from its open mouth to its closed cap and preserves slide=false. ShareAlike attaches to this derived connector data on redistribution. Extents, collision and render mesh are the official LDraw closure named on the part.",
-});
-
-export const LDRAW_91988_FRAME_PROVENANCE: SourceProvenance = Object.freeze({
-  sourceId: "ldraw:official:91988.dat",
-  sourceType: "interoperability-mapping",
-  sourceVersion: "UPDATE-2012-02;measured-2026-08-02",
-  licenseExpression: "CC-BY-2.0",
-  attribution:
-    "91988.dat authored by Owen Burgoyne [C3POwen] for LDraw.org; frame measured without bundling geometry.",
-  runtimeRole: "interchange-frame-measurement",
-  redistributionAllowed: true,
-  trainingUseAllowed: false,
-  externalGeometryBundled: false,
 });
 
 export const UPRIGHT_ORIENTATIONS: readonly UprightOrientation[] = Object.freeze([

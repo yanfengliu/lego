@@ -343,8 +343,9 @@ describe("step-one proper-C4 twenty-closure render reduction", () => {
     const counts = emptyCounts();
     const { compiler, equivariance, result } = runReduction(counts);
 
+    // Moves with the root document's live truth only (see the quotient test).
     expect(result.quotientDigest).toBe(
-      "sha256:7b2c0080b8a09f9816ff2955bfe8d140a7c9a2c85d9e5c113595bb243197d88c",
+      "sha256:52907c612fdd6b9e2596abc4fda86ca4716e94f2cf887d046159ce135a3c23e8",
     );
     expect(currentControl().quotient.rawRosterDigest).toBe(
       "sha256:24e68a134cf86c181ede701c2f189d1f2816af4a83510e2a841f270249d5ce72",

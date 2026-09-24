@@ -63,7 +63,7 @@ function goldenDocument(): BrickDocumentV1 {
 const GOLDEN_MPD = `${[
   "0 FILE main.ldr",
   "0 Name: main.ldr",
-  "0 !BRICK-STUDIO FORMAT lego.ldraw-subset/1",
+  "0 !BRICK-STUDIO FORMAT lego.ldraw-subset/2",
   "0 !BRICK-STUDIO DOCUMENT golden-stack revision-7 manual fixture:golden x476f6c64656e20737461636b",
   "0 !BRICK-STUDIO COUNTS 2 2 2 1 1",
   "0 !BRICK-STUDIO CONSTRAINTS builtin 500",
@@ -85,11 +85,11 @@ const GOLDEN_MPD = `${[
   "0 !BRICK-STUDIO SUBMODEL-USE root",
   "0 !BRICK-STUDIO STEP-USE step-1",
   "0 !BRICK-STUDIO PART lower manual ~ base",
-  "1 4 0 0 0 1 0 0 0 1 0 0 0 1 3005.dat",
+  "1 4 0 -12 0 1 0 0 0 1 0 0 0 1 3005.dat",
   "0 STEP",
   "0 !BRICK-STUDIO STEP-USE step-2",
   "0 !BRICK-STUDIO PART upper manual ~ accent,top",
-  "1 1 0 -24 0 0 0 1 0 1 0 -1 0 0 3005.dat",
+  "1 1 0 -36 0 0 0 1 0 1 0 -1 0 0 3005.dat",
   "0 NOFILE",
 ].join("\n")}\n`;
 
@@ -264,7 +264,8 @@ describe("strict LDraw subset", () => {
 
     const exported = exportBrickDocumentToLDraw(source);
     const partLine = exported.split("\n").find((line) => line.endsWith(" 91988.dat"));
-    expect(partLine).toBe("1 4 0 0 0 0 0 1 0 1 0 -1 0 0 91988.dat");
+    // The catalog origin is the body centre and LDraw's is the top face, 4 LDU up.
+    expect(partLine).toBe("1 4 0 -4 0 0 0 1 0 1 0 -1 0 0 91988.dat");
 
     // An LDraw consumer applies the type-1 matrix to raw part coordinates. The
     // official 91988 file's long endpoints lie on local X; the exported matrix
@@ -414,12 +415,12 @@ describe("strict LDraw subset", () => {
     [
       "arbitrary matrix",
       GOLDEN_MPD.replace(
-        "1 4 0 0 0 1 0 0 0 1 0 0 0 1 3005.dat",
-        "1 4 0 0 0 1 0 0 0 0 -1 0 -1 0 3005.dat",
+        "1 4 0 -12 0 1 0 0 0 1 0 0 0 1 3005.dat",
+        "1 4 0 -12 0 1 0 0 0 0 -1 0 -1 0 3005.dat",
       ),
       "UNSUPPORTED_MATRIX",
     ],
-    ["unknown color", GOLDEN_MPD.replace("1 4 0 0 0", "1 99 0 0 0"), "UNSUPPORTED_COLOR"],
+    ["unknown color", GOLDEN_MPD.replace("1 4 0 -12 0", "1 99 0 -12 0"), "UNSUPPORTED_COLOR"],
     ["unknown part", GOLDEN_MPD.replace("3005.dat", "99999.dat"), "UNSUPPORTED_REFERENCE"],
     [
       "unknown suffixed part",

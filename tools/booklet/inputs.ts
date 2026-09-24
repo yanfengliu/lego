@@ -55,6 +55,27 @@ export function inputFile(path: string, maxBytes: number): InputFile {
   };
 }
 
+/**
+ * The opt-in for inputs that are ignored run evidence rather than product
+ * inputs (the first-50 frame registry). It reads `LEGO_RUN_EVIDENCE` the way
+ * scripts/run-evidence-gate.mjs reads it for tests: unset, "" or "0" is off,
+ * "1" is on, and anything else is refused by name. That module imports
+ * vitest, so the harness reads the variable itself.
+ */
+export const RUN_EVIDENCE_VARIABLE = "LEGO_RUN_EVIDENCE";
+
+export type RunEvidenceOptIn =
+  { readonly status: "off" | "on" } | { readonly status: "invalid"; readonly reason: string };
+
+export function readRunEvidenceOptIn(value: string | undefined): RunEvidenceOptIn {
+  if (value === undefined || value === "" || value === "0") return { status: "off" };
+  if (value === "1") return { status: "on" };
+  return {
+    status: "invalid",
+    reason: `${RUN_EVIDENCE_VARIABLE} is ${JSON.stringify(value)}; set it to 1 to read ignored run evidence (the first-50 frame registry), or leave it unset (or 0) to skip it.`,
+  };
+}
+
 /** The main checkout, where the ignored inputs live; a worktree shares its Git directory. */
 export function mainCheckoutRoot(repositoryRoot: string): string {
   try {

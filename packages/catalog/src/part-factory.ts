@@ -31,6 +31,7 @@ import {
   subtractExactLdu,
 } from "./exact-ldu.ts";
 import { deepFreeze } from "./freeze.ts";
+import { ldrawInterchangeFrameFor } from "./ldraw-interchange-frames.ts";
 import { MEASURED_PART_DEFINITIONS } from "./measured-part-factory.ts";
 import { SET_6651557_RENDER_ONLY_BLUEPRINTS } from "./part-blueprints-6651557-render-only.ts";
 import { PART_BLUEPRINTS } from "./part-blueprints.ts";
@@ -90,12 +91,15 @@ export const makePartDefinition = (blueprint: PartBlueprint): ParametricPartDefi
     );
   }
   validatePartialOverhangClutchEvidence(blueprint);
+  const ldrawFrame = blueprint.ldrawFrame ?? ldrawInterchangeFrameFor(blueprint.ldrawId);
   if (
-    blueprint.ldrawFrame !== undefined &&
-    !PROPER_ORIENTATIONS.some(({ id }) => id === blueprint.ldrawFrame?.ldrawToCatalogOrientationId)
+    ldrawFrame !== undefined &&
+    (!PROPER_ORIENTATIONS.some(({ id }) => id === ldrawFrame.ldrawToCatalogOrientationId) ||
+      ldrawFrame.translationLdu.length !== 3 ||
+      !ldrawFrame.translationLdu.every(Number.isSafeInteger))
   ) {
     throw new Error(
-      `${blueprint.ldrawId} names unknown LDraw-to-catalog orientation ${blueprint.ldrawFrame.ldrawToCatalogOrientationId}`,
+      `${blueprint.ldrawId} declares LDraw-to-catalog frame ${ldrawFrame.ldrawToCatalogOrientationId} [${ldrawFrame.translationLdu.join(", ")}]; a frame needs one of the 24 proper orientation ids and three whole-LDU terms, so re-derive it with scripts/derive-ldraw-catalog-frames.mjs.`,
     );
   }
 
@@ -301,7 +305,7 @@ export const makePartDefinition = (blueprint: PartBlueprint): ParametricPartDefi
     family,
     displayName,
     aliases: makeAliases(displayName, blueprint.ldrawId),
-    ...(blueprint.ldrawFrame === undefined ? {} : { ldrawFrame: blueprint.ldrawFrame }),
+    ...(ldrawFrame === undefined ? {} : { ldrawFrame }),
     dimensions: { widthStuds, lengthStuds, widthLdu, lengthLdu, heightLdu },
     bodyBoundsLdu,
     boundsLdu,
@@ -331,6 +335,9 @@ export const makePartDefinition = (blueprint: PartBlueprint): ParametricPartDefi
       studMode: studModeFor(family, studOffsetsLdu),
       ...(studOffsetsLdu === undefined ? {} : { studOffsetsLdu }),
       ...(clutchOffsetsLdu === undefined ? {} : { clutchOffsetsLdu }),
+      ...(blueprint.alternateClutchSeats === undefined
+        ? {}
+        : { alternateClutchSeats: blueprint.alternateClutchSeats }),
       ...(partialOverhangClutchEvidence === undefined ? {} : { partialOverhangClutchEvidence }),
       ...(blueprint.connectorGridCenterLdu === undefined
         ? {}

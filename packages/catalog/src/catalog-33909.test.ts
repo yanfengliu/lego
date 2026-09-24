@@ -75,7 +75,7 @@ describe("33909 two-stud-edge plate catalog truth", () => {
     );
     if (blueprint?.designId !== "33909") throw new Error("33909 blueprint is missing");
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/29");
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/30");
     expect(PART_DEFINITIONS).toHaveLength(106);
     expect(PART_DEFINITIONS.at(-10)?.id).toBe(PART_ID);
     expect(SET_6651557_MEASURED_BLUEPRINTS.at(-10)).toBe(blueprint);
@@ -223,10 +223,12 @@ describe("33909 two-stud-edge plate catalog truth", () => {
     expect(validateMeshPartDefinitionAdmission(part)).toEqual({ accepted: true, issues: [] });
   });
 
-  it("pins the reviewed /29 projection of the /24 prefix under its historical truth label", () => {
+  it("pins the reviewed /30 projection of the /24 prefix under its historical truth label", () => {
+    // /30 moved these with its 61 LDraw frames and 15573's centre seat; restoring
+    // those fields and the /29 label reproduces the /29 pins bit for bit.
     const priorParts = PART_DEFINITIONS.slice(0, 96);
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/29",
+      "builtin.basic-parts/30",
       "builtin.basic-parts/24",
     );
     const connectorCollision = priorParts.map(({ id, connectors, collision }) => ({
@@ -245,10 +247,10 @@ describe("33909 two-stud-edge plate catalog truth", () => {
         .digest("hex"),
       collisionHash: createHash("sha256").update(JSON.stringify(collision)).digest("hex"),
     }).toEqual({
-      definitionBytes: 1_608_400,
-      definitionHash: "767ea8f041535a60911f2433a1543e111c91db644d8feef6cc424a77cd0f5a52",
-      connectorCollisionHash: "386403af4805edd20e8c7a7b65dd58c2a02b1a3737132c6ca965c0cb46264116",
-      collisionHash: "ee8ea1c7cf6614a771ebb1a6a6944c5190b03eeea3d48de15d80cc42e70f701e",
+      definitionBytes: 1_653_975,
+      definitionHash: "d2c25dce4d93b129ccde6ef7a59fc78e6ef62f213301606d6781543ea8243adb",
+      connectorCollisionHash: "a6284856cf0cf6d91b56ab45b127c44ed063d7f287f34ff02fba5edd50d6e346",
+      collisionHash: "c312f38bee5aa07c282265a2ac05d88b6b46fa57f869a772c0397e7e3b8fa1e7",
     });
   });
 });
