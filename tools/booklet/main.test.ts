@@ -11,6 +11,8 @@ import { assertOutputIgnored, inputFile, OutputGuardError } from "./inputs.ts";
 import { runBooklet } from "./main.ts";
 import { playBack } from "./playback.ts";
 import type { PlaybackStage } from "./playback-stage.ts";
+import { subBuildAttachRows } from "./status-rows.ts";
+import type { AttachBasis, SubBuildAttach } from "./sub-build-attach.ts";
 import { playbackHeadline, playbackLines } from "./summary-playback.ts";
 
 /**
@@ -236,13 +238,12 @@ describe("playback frame report", () => {
     ldrawColor: 4,
     colorId: "builtin:red",
     pose: { matrix: [1, 0, 0, 0, 1, 0, 0, 0, 1], positionLdu: [0, y, 0] },
-    assemblyAt: () => "model",
+    assemblyAfter: () => "model",
   });
-  const playback = playBack([
-    { step: 1, page: 11, lastUnit: 0, bricks: [plate("a", 0), plate("b", -8)] },
-  ]);
+  const playback = playBack([{ step: 1, page: 11, bricks: [plate("a", 0), plate("b", -8)] }]);
   const stage = (registryCheck: RegistryCheck | null): PlaybackStage => ({
     corrections: [],
+    subBuilds: new Map(),
     asExported: playback,
     corrected: null,
     registryCheck,
@@ -284,5 +285,41 @@ describe("playback frame report", () => {
     );
     // The headline is committed; an ignored file must not move it.
     expect(playbackHeadline(stage(check))).toEqual(playbackHeadline(stage(null)));
+  });
+
+  it("counts the sub-builds that attach at another step than their attach unit's run step, and lists them in the rows", () => {
+    const row = (
+      key: string,
+      runStep: number | null,
+      attachStep: number | null,
+      basis: AttachBasis,
+    ): SubBuildAttach => ({
+      key,
+      parent: "model",
+      attachUnit: 0,
+      runStep,
+      complete: attachStep,
+      window: null,
+      attachStep,
+      basis,
+    });
+    const subBuilds = new Map(
+      [
+        row("S0", 31, 32, "window"),
+        row("S1", 32, 31, "window"),
+        row("S2", 44, 44, "run order"),
+        row("K", null, null, "never"),
+      ].map((entry) => [entry.key, entry] as const),
+    );
+    expect(playbackLines({ ...stage(null), subBuilds }, 0)).toContain(
+      "  sub-builds: 4; 2 attach at another step than their attach unit's run step (2 window)",
+    );
+    expect(subBuildAttachRows(subBuilds)).toEqual({
+      subBuilds: 4,
+      byBasis: { window: 2, "run order": 1, never: 1 },
+      movedFromRun: [subBuilds.get("S0"), subBuilds.get("S1")],
+    });
+    // Attach timing is reported, never committed: the headline does not carry it.
+    expect(playbackHeadline({ ...stage(null), subBuilds })).toEqual(playbackHeadline(stage(null)));
   });
 });

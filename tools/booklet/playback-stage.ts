@@ -1,6 +1,6 @@
 import { COLOR_DEFINITIONS } from "@lego-studio/catalog";
 
-import { assemblyKeyAt, type AnswerKey } from "./answer-key/index.ts";
+import type { AnswerKey } from "./answer-key/index.ts";
 import type { AlignStage } from "./align-stage.ts";
 import type { CatalogStage } from "./catalog-coverage.ts";
 import { correctedPoses, type FrameCorrection } from "./export-frames.ts";
@@ -8,6 +8,7 @@ import { checkCatalogFramesAgainstRegistry, type RegistryCheck } from "./frame-c
 import type { FrameRegistry } from "./ldraw-frames.ts";
 import { playBack, type Playback, type PlaybackStepInput } from "./playback.ts";
 import type { OfficialPose } from "./playback-pose.ts";
+import { assemblyAfterStep, subBuildAttachSteps, type SubBuildAttach } from "./sub-build-attach.ts";
 
 /**
  * Stage 4 assembled: reference playback as exported and with the frame
@@ -18,10 +19,13 @@ import type { OfficialPose } from "./playback-pose.ts";
  * the corrected designs at their corrected frames and everything else as
  * exported. With corrections, the as-exported replay stops at its first step
  * that is not valid, which is all its headline (valid through) needs; without
- * any, it is the one full replay.
+ * any, it is the one full replay. Both attach each sub-build at the printed
+ * step sub-build-attach.ts gives it.
  */
 export interface PlaybackStage {
   readonly corrections: readonly FrameCorrection[];
+  /** The printed step that attaches each sub-build, by level key. */
+  readonly subBuilds: ReadonlyMap<string, SubBuildAttach>;
   readonly asExported: Playback;
   /** Null when there is nothing to correct. */
   readonly corrected: Playback | null;
@@ -41,6 +45,7 @@ function playbackInputs(
   key: AnswerKey,
   align: AlignStage,
   catalog: CatalogStage,
+  subBuilds: ReadonlyMap<string, SubBuildAttach>,
   corrections: readonly FrameCorrection[],
 ): PlaybackStepInput[] {
   if (key.ldraw.status !== "paired") return [];
@@ -55,7 +60,6 @@ function playbackInputs(
   return align.steps.map((step) => ({
     step: step.step,
     page: step.page,
-    lastUnit: step.unitEnd - 1,
     bricks: step.bricks.map((uuid) => {
       const row = official.get(uuid)!;
       const cover = catalog.byBrick[uuid]!;
@@ -72,7 +76,8 @@ function playbackInputs(
           ? (sourceOf.get(key.brickByUuid.get(uuid)!.designRevision) ?? "export")
           : "export",
         pairing: row.pairing,
-        assemblyAt: (lastUnit: number) => assemblyKeyAt(placement, lastUnit),
+        assemblyAfter: (printedStep: number) =>
+          assemblyAfterStep(placement, printedStep, subBuilds),
       };
     }),
   }));
@@ -86,13 +91,21 @@ export function runPlaybackStage(input: {
   readonly corrections: readonly FrameCorrection[];
 }): PlaybackStage {
   const { key, align, catalog, registry, corrections } = input;
-  const asExported = playBack(playbackInputs(key, align, catalog, []), {
+  const subBuilds = subBuildAttachSteps({
+    steps: align.steps,
+    windows: align.windows,
+    placements: key.sequence.placements,
+  });
+  const asExported = playBack(playbackInputs(key, align, catalog, subBuilds, []), {
     stopAtFirstNonValid: corrections.length > 0,
   });
   const corrected =
-    corrections.length > 0 ? playBack(playbackInputs(key, align, catalog, corrections)) : null;
+    corrections.length > 0
+      ? playBack(playbackInputs(key, align, catalog, subBuilds, corrections))
+      : null;
   return {
     corrections,
+    subBuilds,
     asExported,
     corrected,
     registryCheck:

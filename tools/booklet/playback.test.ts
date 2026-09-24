@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { playBack, type PlaybackBrick, type PlaybackStepInput } from "./playback.ts";
+import {
+  assemblyOfPart,
+  playBack,
+  type PlaybackBrick,
+  type PlaybackStepInput,
+} from "./playback.ts";
 
 /**
  * Synthetic official poses of a real catalog part (LDraw 3024, a 1x1 plate),
@@ -19,12 +24,12 @@ function plate(
     ldrawColor: 4,
     colorId: "builtin:red",
     pose: { matrix: IDENTITY, positionLdu: position },
-    assemblyAt: () => "model",
+    assemblyAfter: () => "model",
     ...options,
   };
 }
 const steps = (...bricksPerStep: PlaybackBrick[][]): PlaybackStepInput[] =>
-  bricksPerStep.map((bricks, index) => ({ step: index + 1, page: 11, lastUnit: index, bricks }));
+  bricksPerStep.map((bricks, index) => ({ step: index + 1, page: 11, bricks }));
 
 describe("reference playback", () => {
   it("accepts a plate pressed onto the one below it, seated on the build plate", () => {
@@ -60,16 +65,53 @@ describe("reference playback", () => {
   });
 
   it("validates a pending sub-build on its own and joins it to the model on the step that attaches it", () => {
-    const subBuild = (lastUnit: number) => (lastUnit >= 1 ? "model" : "sub");
+    const subBuild = (step: number) => (step >= 2 ? "model" : "sub");
     const result = playBack(
       steps(
-        [plate("a", [0, 0, 0]), plate("s", [0, -8, 0], { assemblyAt: subBuild })],
+        [plate("a", [0, 0, 0]), plate("s", [0, -8, 0], { assemblyAfter: subBuild })],
         [plate("t", [0, -16, 0])],
       ),
     );
     expect(
       result.steps.map(({ status, pendingSubAssemblies }) => `${status}/${pendingSubAssemblies}`),
     ).toEqual(["valid/1", "valid/0"]);
+    // Each placed part records the assemblies it belonged to, step by step.
+    const s = result.placed.find(({ uuid }) => uuid === "s")!;
+    expect(s.assemblies).toEqual([
+      { fromStep: 1, assembly: "sub" },
+      { fromStep: 2, assembly: "model" },
+    ]);
+    expect([0, 1, 2, 3].map((step) => assemblyOfPart(s, step))).toEqual([
+      null,
+      "sub",
+      "model",
+      "model",
+    ]);
+    expect(result.placed.find(({ uuid }) => uuid === "t")!.assemblies).toEqual([
+      { fromStep: 2, assembly: "model" },
+    ]);
+  });
+
+  it("places a sub-build that attaches in the step that builds it straight into its parent", () => {
+    // Built and attached in step 2, as the booklet joins an inset sub-build in the step that completes it.
+    const joinsAtTwo = (step: number) => (step >= 2 ? "model" : "sub");
+    const result = playBack(
+      steps(
+        [plate("a", [0, 0, 0])],
+        [
+          plate("s", [0, -8, 0], { assemblyAfter: joinsAtTwo }),
+          plate("t", [0, -16, 0], { assemblyAfter: joinsAtTwo }),
+        ],
+      ),
+    );
+    expect(
+      result.steps.map(({ status, pendingSubAssemblies }) => `${status}/${pendingSubAssemblies}`),
+    ).toEqual(["valid/0", "valid/0"]);
+    expect(result.placed.map(({ assemblies }) => assemblies)).toEqual([
+      [{ fromStep: 1, assembly: "model" }],
+      [{ fromStep: 2, assembly: "model" }],
+      [{ fromStep: 2, assembly: "model" }],
+    ]);
   });
 
   it("blocks a step the catalog or the document cannot represent, and every step after it", () => {

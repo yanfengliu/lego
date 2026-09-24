@@ -4,13 +4,7 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import {
-  AnswerKeyFormatError,
-  assemblyKeyAt,
-  flattenBuildSequence,
-  loadAnswerKey,
-  parseLxfml,
-} from "./index.ts";
+import { AnswerKeyFormatError, flattenBuildSequence, loadAnswerKey, parseLxfml } from "./index.ts";
 
 /** A synthetic four-brick model: A, a sub-build holding B (built twice via a MultiBuild copy C), then D. */
 const bone = (x: number) => `<Bone refID="0" transformation="1,0,0,0,1,0,0,0,1,${x},0,0"/>`;
@@ -51,11 +45,11 @@ describe("LXFML answer key", () => {
     const b = sequence.placements.get("b")!;
     const c = sequence.placements.get("c")!;
     expect(c.copyOf).toBe("b");
-    // The copy is its own physical sub-assembly until unit 2 attaches both.
-    expect(assemblyKeyAt(b, 1)).toBe("sb");
-    expect(assemblyKeyAt(c, 1)).not.toBe(assemblyKeyAt(b, 1));
-    expect(assemblyKeyAt(b, 2)).toBe("model");
-    expect(assemblyKeyAt(c, 2)).toBe("model");
+    // The copy is its own physical sub-assembly, and unit 2 attaches both.
+    expect(b.levels).toEqual([{ key: "sb", attachUnit: 2 }]);
+    expect(c.levels).toHaveLength(1);
+    expect(c.levels[0]!.key).not.toBe("sb");
+    expect(c.levels[0]!.attachUnit).toBe(2);
     expect(sequence.unplaced).toEqual([]);
   });
 

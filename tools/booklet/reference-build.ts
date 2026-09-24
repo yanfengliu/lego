@@ -1,14 +1,20 @@
 import {
   createEmptyBrickDocument,
   createPartInstance,
+  deriveBuildSequence,
   exportBrickDocumentToLDraw,
-  validateBrickDocument,
 } from "@lego-studio/brick-kernel";
 import type { BrickDocumentV1, ConnectionEdge, PartInstance } from "@lego-studio/protocol";
 
 import { occupiedConnectorCapacityClaims } from "../../apps/web/src/connector-capacity.ts";
 import { findStudConnections } from "../../apps/web/src/placement.ts";
-import type { Playback } from "./playback.ts";
+import {
+  assemblyOfPart,
+  connectedComponents,
+  MODEL_ASSEMBLY,
+  type PlacedPart,
+  type Playback,
+} from "./playback.ts";
 
 /**
  * The reference build as a file the editor imports: the valid prefix of the
@@ -22,6 +28,24 @@ import type { Playback } from "./playback.ts";
  * ignored output. A colour the catalog lacks is drawn in a stand-in colour
  * and the part is tagged `colour-stand-in-ldraw-<code>`; its step name counts
  * the stand-ins.
+ *
+ * Playback holds a sub-build apart until the printed step that attaches it
+ * (sub-build-attach.ts). The file is one document and draws every part where
+ * it ends up, so a state may hold a pending sub-build unconnected to the rest.
+ * The file runs through the last valid playback step when three things hold:
+ * - every state it holds (one per printed step) is one the editor's build
+ *   playback calls buildable: the kernel's own `deriveBuildSequence`, which
+ *   allows no blocking code but DISCONNECTED_ASSEMBLY;
+ * - each disconnection in those states falls between assemblies playback
+ *   holds apart after that step (a pending sub-build), never through one (the
+ *   model in two pieces, or a sub-build split);
+ * - the kernel's LDraw exporter accepts the document. The exporter, like the
+ *   importer, takes only a globally valid document, so the last state cannot
+ *   be one where a pending sub-build is still apart.
+ * Otherwise the file is cut back to the longest prefix that passes, and
+ * `shortenedBy` names the first step left out, with the codes or the refusal.
+ * The file is centred on the parts of the whole valid prefix, so a file cut
+ * short is exactly a prefix of the document whose states were judged.
  */
 export const REFERENCE_BUILD_FILE = "reference-build.mpd";
 export const REFERENCE_BUILD_LIMITS = Object.freeze({ maxParts: 10_000 });
@@ -35,8 +59,10 @@ export interface ReferenceBuildStep {
   readonly cumulative: number;
   readonly colorStandIns: number;
   /**
-   * The step opens a sub-build playback holds apart from what is already built.
-   * The file draws it where it ends up; the booklet may draw it on its own first.
+   * Parts were built before this step, and the step places a part in a
+   * sub-build that playback held nowhere after the step before and still
+   * holds apart after this one. The file draws it where it ends up; the
+   * booklet may draw it on its own first.
    */
   readonly startsSubBuild: boolean;
 }
@@ -99,23 +125,42 @@ export function validPrefixEnd(playback: Pick<Playback, "steps">): number | null
   return end;
 }
 
+/** The valid prefix placed once: parts in step order, the connections between them, and step rows. */
+interface PlacedPrefix {
+  readonly centringLdu: readonly [number, number, number];
+  readonly parts: readonly PartInstance[];
+  readonly connections: readonly ConnectionEdge[];
+  readonly steps: readonly ReferenceBuildStep[];
+  /** The playback part each file part was made from, by file part id. */
+  readonly sourceOf: ReadonlyMap<string, PlacedPart>;
+}
+
 /**
- * The document for printed steps up to `throughStep`. Connections are found
- * the way the editor's place command finds them, each part against every part
- * already placed, so the file's declared edges are the ones the importer infers.
+ * Places printed steps up to `throughStep`, centred on their parts.
+ * Connections are found the way the editor's place command finds them, each
+ * part against every part already placed, so the file's declared edges are
+ * the ones the importer infers, and those of an earlier step never depend on
+ * a later one.
  */
-export function referenceBuildDocument(
+function placePrefix(
   playback: Pick<Playback, "steps" | "placed">,
   throughStep: number,
-): ReferenceBuild {
+): PlacedPrefix {
   const stepRows = playback.steps.filter(({ step }) => step <= throughStep);
-  const centring = centringShift(playback.placed.filter(({ step }) => step <= throughStep));
+  const placedThrough = playback.placed.filter(({ step }) => step <= throughStep);
+  const centring = centringShift(placedThrough);
   const parts: PartInstance[] = [];
   const connections: ConnectionEdge[] = [];
   const steps: ReferenceBuildStep[] = [];
-  let pending = 0;
+  const sourceOf = new Map<string, PlacedPart>();
+  let previous: number | null = null;
   for (const row of stepRows) {
-    const placed = playback.placed.filter(({ step }) => step === row.step);
+    const placed = placedThrough.filter(({ step }) => step === row.step);
+    const heldBefore = new Set(
+      previous === null
+        ? []
+        : [...sourceOf.values()].map((part) => assemblyOfPart(part, previous!)),
+    );
     let standIns = 0;
     placed.forEach((brick, index) => {
       const standIn = brick.colorId === null;
@@ -147,6 +192,11 @@ export function referenceBuildDocument(
         });
       }
       parts.push(part);
+      sourceOf.set(part.id, brick);
+    });
+    const opens = placed.some((brick) => {
+      const assembly = assemblyOfPart(brick, row.step);
+      return assembly !== MODEL_ASSEMBLY && !heldBefore.has(assembly);
     });
     steps.push({
       step: row.step,
@@ -154,10 +204,22 @@ export function referenceBuildDocument(
       added: placed.length,
       cumulative: parts.length,
       colorStandIns: standIns,
-      startsSubBuild: parts.length > placed.length && row.pendingSubAssemblies > pending,
+      startsSubBuild: parts.length > placed.length && opens,
     });
-    pending = row.pendingSubAssemblies;
+    previous = row.step;
   }
+  return { centringLdu: centring, parts, connections, steps, sourceOf };
+}
+
+/** The document for the placed prefix's printed steps up to `throughStep`. */
+function documentThrough(prefix: PlacedPrefix, throughStep: number): ReferenceBuild {
+  const steps = prefix.steps.filter(({ step }) => step <= throughStep);
+  const stepIds = new Set(steps.map(({ step }) => stepIdOf(step)));
+  const parts = prefix.parts.filter(({ stepId }) => stepIds.has(stepId));
+  const partIds = new Set(parts.map(({ id }) => id));
+  const connections = prefix.connections.filter(
+    ({ a, b }) => partIds.has(a.partId) && partIds.has(b.partId),
+  );
   const first = steps[0]?.step ?? throughStep;
   const base = createEmptyBrickDocument({
     id: "booklet-reference-build",
@@ -176,7 +238,61 @@ export function referenceBuildDocument(
       partIds: parts.filter(({ stepId }) => stepId === stepIdOf(step.step)).map(({ id }) => id),
     })),
   };
-  return { throughStep, centringLdu: centring, steps, document };
+  return { throughStep, centringLdu: prefix.centringLdu, steps, document };
+}
+
+interface StateVerdict {
+  readonly step: number;
+  /** Why the file cannot hold this state, or null when it can. */
+  readonly refusal: string | null;
+  /** The state is disconnected, and only between assemblies playback holds apart. */
+  readonly apart: boolean;
+}
+
+/** Assemblies playback holds as one after `step` that the state's document leaves in pieces. */
+function splitAssemblies(
+  document: BrickDocumentV1,
+  sourceOf: ReadonlyMap<string, PlacedPart>,
+  step: number,
+): string[] {
+  const pieces = new Map<string, Set<number>>();
+  connectedComponents(document.parts, document.connections).forEach((component, index) => {
+    for (const id of component) {
+      const assembly = assemblyOfPart(sourceOf.get(id)!, step)!;
+      pieces.set(assembly, (pieces.get(assembly) ?? new Set<number>()).add(index));
+    }
+  });
+  return [...pieces]
+    .filter(([, components]) => components.size > 1)
+    .map(
+      ([assembly, components]) =>
+        `${assembly === MODEL_ASSEMBLY ? "the model" : "a pending sub-build"} is in ${components.size} unconnected pieces`,
+    );
+}
+
+/** Every state of `document`, one per printed step, judged by the kernel's build-sequence rule and against playback. */
+function judgeStates(prefix: PlacedPrefix, document: BrickDocumentV1): StateVerdict[] {
+  return deriveBuildSequence(document)
+    .states.filter(({ stepIndex }) => stepIndex >= 0)
+    .map((state) => {
+      const step = state.stepIndex;
+      if (!state.buildable) {
+        return {
+          step,
+          refusal: `the editor's build playback calls it unbuildable (${state.blockingCodes.join(", ")})`,
+          apart: false,
+        };
+      }
+      if (state.connected) return { step, refusal: null, apart: false };
+      const split = splitAssemblies(state.document, prefix.sourceOf, step);
+      return split.length === 0
+        ? { step, refusal: null, apart: true }
+        : {
+            step,
+            refusal: `DISCONNECTED_ASSEMBLY that no pending sub-build explains (${split.join("; ")})`,
+            apart: false,
+          };
+    });
 }
 
 /** One summary line: what was written and how to open it, or why nothing was. */
@@ -187,35 +303,31 @@ export function referenceBuildLine(result: ReferenceBuildResult, path: string): 
 }
 
 /**
- * The valid prefix as editor-importable LDraw, or why it cannot be written.
- *
- * Playback holds a sub-build apart until the step that attaches it, but the
- * editor imports only one hard-valid, connected document. A valid prefix whose
- * last states the editor cannot hold is cut back to the longest one it can,
- * and `shortenedBy` names the first step left out and why.
+ * The valid prefix as editor-importable LDraw, or why it cannot be written:
+ * through the last valid playback step when every state passes and the
+ * exporter accepts it, else cut back as the module comment says.
  */
 export function buildReferenceFile(
   playback: Pick<Playback, "steps" | "placed">,
 ): ReferenceBuildResult {
   const validEnd = validPrefixEnd(playback);
   if (validEnd === null) return { status: "not-built", reason: "no printed step is valid" };
-  const ends = playback.steps.map(({ step }) => step).filter((step) => step <= validEnd);
-  let refusal: string | null = null;
-  for (const end of ends.reverse()) {
-    const build = referenceBuildDocument(playback, end);
-    const report = validateBrickDocument(build.document);
-    let why: string;
-    if (report.documentGloballyValid) {
-      try {
-        const text = exportBrickDocumentToLDraw(build.document);
-        return { status: "built", ...build, text, shortenedBy: refusal };
-      } catch (error) {
-        why = `the LDraw exporter refused it: ${(error as Error).message}`;
-      }
-    } else {
-      why = `not one hard-valid document (${[...new Set(report.issues.map(({ code }) => code))].join(", ")})`;
+  const prefix = placePrefix(playback, validEnd);
+  const verdicts = judgeStates(prefix, documentThrough(prefix, validEnd).document);
+  const refused = verdicts.find(({ refusal }) => refusal !== null);
+  let refusal = refused ? `step ${refused.step}: ${refused.refusal}` : null;
+  const ends = verdicts
+    .filter(({ step }) => refused === undefined || step < refused.step)
+    .reverse();
+  for (const { step: end, apart } of ends) {
+    const build = documentThrough(prefix, end);
+    try {
+      const text = exportBrickDocumentToLDraw(build.document);
+      return { status: "built", ...build, text, shortenedBy: refusal };
+    } catch (error) {
+      const note = apart ? " (a pending sub-build is still apart there)" : "";
+      refusal = `step ${end}: the LDraw exporter refused it${note}: ${(error as Error).message}`;
     }
-    refusal = `step ${end}: ${why}`;
   }
   return { status: "not-built", reason: `steps up to ${validEnd} are valid, but ${refusal}` };
 }

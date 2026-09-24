@@ -30,17 +30,24 @@ import {
  * each step is validated by the brick kernel. The state is not one document:
  * a sub-build the booklet boxes is assembled apart and only joins the model on
  * the step that attaches it, so each pending sub-assembly is validated as its
- * own document and the model as another. Connections are discovered the way
- * the editor's place command discovers them (`findStudConnections`), and a
- * part of the model is held when its connected component rests on the build
- * plate — the editor's support rule. The kernel wants one connected assembly;
- * separate model components that each rest on the plate are reported, not
- * failed, because the booklet builds them that way.
+ * own document and the model as another. Each brick says which assembly it
+ * belongs to after a printed step (`assemblyAfter`); when that is, is the
+ * caller's rule (sub-build-attach.ts), and playback records each part's
+ * assemblies step by step (`PlacedPart.assemblies`). Connections are
+ * discovered the way the editor's place command discovers them
+ * (`findStudConnections`), and a part of the model is held when its connected
+ * component rests on the build plate — the editor's support rule. The kernel
+ * wants one connected assembly; separate model components that each rest on
+ * the plate are reported, not failed, because the booklet builds them that
+ * way.
  *
  * A brick the catalog or the document cannot represent blocks its step and
  * every later one: the state after it is no longer the booklet's.
  */
 export const PLAYBACK_STAGE_VERSION = "lego.booklet-playback/1";
+
+/** The assembly a brick belongs to once every sub-build holding it has attached. */
+export const MODEL_ASSEMBLY = "model";
 
 export const PLAYBACK_LIMITS = Object.freeze({
   /** Issues kept per step in status.json. */
@@ -63,17 +70,23 @@ export interface PlaybackBrick {
   readonly poseSource?: PoseSource;
   /** What the export-pairing check says about this brick's row. */
   readonly pairing?: string;
-  /** Sub-assembly the brick belongs to once `lastUnit` is built. */
-  readonly assemblyAt: (lastUnit: number) => string;
+  /** The assembly the brick belongs to once printed step `step` is built: a sub-assembly key, or "model". */
+  readonly assemblyAfter: (step: number) => string;
 }
 
 export type PoseSource = "export" | "pin" | "review";
 
 export interface PlaybackStepInput {
+  /** Printed step number; steps come in increasing order. */
   readonly step: number;
   readonly page: number;
-  readonly lastUnit: number;
   readonly bricks: readonly PlaybackBrick[];
+}
+
+/** From the end of printed step `fromStep` on, a part belongs to `assembly`. */
+export interface AssemblySpan {
+  readonly fromStep: number;
+  readonly assembly: string;
 }
 
 export type BlockKind = "design-missing" | PoseBlock;
@@ -118,6 +131,18 @@ export interface PlacedPart {
   readonly frameBasis: FrameBasis;
   readonly poseSource: PoseSource;
   readonly pairing: string | null;
+  /** The assemblies the part belonged to, oldest first: the one its step placed it in, then one per step that moved it. */
+  readonly assemblies: readonly AssemblySpan[];
+}
+
+/** The assembly `part` belongs to once printed step `step` is built; null before the step that placed it. */
+export function assemblyOfPart(part: Pick<PlacedPart, "assemblies">, step: number): string | null {
+  let assembly: string | null = null;
+  for (const span of part.assemblies) {
+    if (span.fromStep > step) break;
+    assembly = span.assembly;
+  }
+  return assembly;
 }
 
 /** One LDraw file's LDraw-to-catalog frame, as playback used it. */
@@ -169,9 +194,9 @@ function documentFor(
 }
 
 /** Connected components of `parts` under `connections`, each as its part ids. */
-function components(
-  parts: readonly PartInstance[],
-  connections: readonly ConnectionEdge[],
+export function connectedComponents(
+  parts: readonly Pick<PartInstance, "id">[],
+  connections: readonly Pick<ConnectionEdge, "a" | "b">[],
 ): string[][] {
   const parent = new Map(parts.map(({ id }) => [id, id]));
   const find = (id: string): string => {
@@ -201,7 +226,7 @@ function validateAssembly(
   let plateHeld = 0;
   for (const issue of report.issues) {
     if (issue.severity !== "blocking") continue;
-    if (issue.code === "DISCONNECTED_ASSEMBLY" && key === "model") continue;
+    if (issue.code === "DISCONNECTED_ASSEMBLY" && key === MODEL_ASSEMBLY) continue;
     issues.push({
       assembly: key,
       code: issue.code,
@@ -209,9 +234,9 @@ function validateAssembly(
       bricks: (issue.partIds ?? []).map(uuidOf),
     });
   }
-  if (key === "model") {
+  if (key === MODEL_ASSEMBLY) {
     const byId = new Map(parts.map((part) => [part.id, part] as const));
-    for (const component of components(parts, connections)) {
+    for (const component of connectedComponents(parts, connections)) {
       if (component.some((id) => restsOnBuildPlate(byId.get(id)!))) {
         plateHeld += 1;
         continue;
@@ -251,6 +276,8 @@ export function playBack(
   const connections: ConnectionEdge[] = [];
   const verdicts = new Map<string, AssemblyVerdict>();
   const placed: PlacedPart[] = [];
+  /** Each placed part's assemblies, by part id; the same arrays `placed` carries. */
+  const spans = new Map<string, AssemblySpan[]>();
   const results: PlaybackStep[] = [];
   let blocked = false;
   let previousIssueKeys = new Set<string>();
@@ -288,10 +315,11 @@ export function playBack(
     // Sub-assemblies this step attaches join their parent before its new bricks land.
     const previous = new Map<string, string>();
     for (const [id, key] of groupOf) {
-      const next = bricks.get(uuidOf(id))!.assemblyAt(input.lastUnit);
+      const next = bricks.get(uuidOf(id))!.assemblyAfter(input.step);
       if (next === key) continue;
       previous.set(id, key);
       groupOf.set(id, next);
+      spans.get(id)!.push({ fromStep: input.step, assembly: next });
       verdicts.delete(key);
       changed.add(next);
     }
@@ -333,7 +361,7 @@ export function playBack(
         });
         continue;
       }
-      const key = brick.assemblyAt(input.lastUnit);
+      const key = brick.assemblyAfter(input.step);
       const part = createPartInstance({
         id: partIdOf(brick.uuid),
         catalogPartId: brick.catalogPartId,
@@ -348,6 +376,8 @@ export function playBack(
       groupOf.set(part.id, key);
       connect(part, members, [...members, part]);
       changed.add(key);
+      const assemblies: AssemblySpan[] = [{ fromStep: input.step, assembly: key }];
+      spans.set(part.id, assemblies);
       placed.push({
         uuid: brick.uuid,
         step: input.step,
@@ -359,6 +389,7 @@ export function playBack(
         frameBasis: pose.frameBasis,
         poseSource: brick.poseSource ?? "export",
         pairing: brick.pairing ?? null,
+        assemblies,
       });
     }
 
@@ -382,7 +413,7 @@ export function playBack(
       }
       for (const key of keys) {
         issues = issues.concat(verdicts.get(key)?.issues ?? []);
-        if (key === "model") plateHeld = verdicts.get(key)?.plateHeld ?? 0;
+        if (key === MODEL_ASSEMBLY) plateHeld = verdicts.get(key)?.plateHeld ?? 0;
       }
     }
     // A collision stays in every later state; a step is worth reading when it adds a problem of its own.
@@ -396,7 +427,7 @@ export function playBack(
       newIssues,
       added: input.bricks.length,
       placedParts: parts.size,
-      pendingSubAssemblies: keys.filter((key) => key !== "model").length,
+      pendingSubAssemblies: keys.filter((key) => key !== MODEL_ASSEMBLY).length,
       plateHeldComponents: plateHeld,
       issues: issues.slice(0, PLAYBACK_LIMITS.issuesPerStep),
       blocks,

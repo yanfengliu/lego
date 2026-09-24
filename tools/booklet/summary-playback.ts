@@ -201,6 +201,14 @@ export function playbackLines(stage: PlaybackStage, ms: number): string[] {
     .filter(({ status, newIssues }) => status === "invalid" && newIssues > 0)
     .map(({ step }) => step);
   lines.push(`  steps adding a new issue: ${fresh.length === 0 ? "none" : list(fresh, 12)}`);
+  const subBuilds = [...stage.subBuilds.values()];
+  const moved = subBuilds.filter(({ attachStep, runStep }) => attachStep !== runStep);
+  const bases = [...new Set(moved.map(({ basis }) => basis))].map(
+    (basis) => `${moved.filter((row) => row.basis === basis).length} ${basis}`,
+  );
+  lines.push(
+    `  sub-builds: ${subBuilds.length}; ${moved.length} attach at another step than their attach unit's run step${bases.length > 0 ? ` (${bases.join(", ")})` : ""}`,
+  );
   const blocked = playback.steps.find(({ status }) => status === "catalog-blocked");
   if (blocked) {
     lines.push(

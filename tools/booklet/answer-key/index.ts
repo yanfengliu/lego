@@ -19,7 +19,7 @@ import { AnswerKeyFormatError } from "./xml-tree.ts";
  * tools/booklet at all and from naming output/official-model, because a
  * pipeline that could see the answer key could no longer be scored by it.
  */
-export { assemblyKeyAt, flattenBuildSequence } from "./build-units.ts";
+export { flattenBuildSequence } from "./build-units.ts";
 export type { AssemblyLevel, BrickPlacement, BuildSequence, BuildUnit } from "./build-units.ts";
 export { lxfmlPoseInLdrawConvention, parseLxfml } from "./lxfml.ts";
 export type { LxfmlBrick, LxfmlModel, LxfmlStep } from "./lxfml.ts";

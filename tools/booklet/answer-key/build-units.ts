@@ -40,7 +40,7 @@ export interface BuildUnit {
 export interface AssemblyLevel {
   /** Unique per physical sub-assembly: repeat copies get their own key. */
   readonly key: string;
-  /** Unit that attaches this sub-assembly to its parent. */
+  /** Unit that attaches this sub-assembly to its parent; which printed step does is ../sub-build-attach.ts's rule. */
   readonly attachUnit: number;
 }
 
@@ -238,16 +238,4 @@ export function flattenBuildSequence(model: LxfmlModel): BuildSequence {
     ),
     problems: Object.freeze(problems),
   });
-}
-
-/**
- * Which sub-assembly a placed brick belongs to once units 0..`lastUnit` are
- * built: the deepest sub-build not yet attached, or the finished model.
- */
-export function assemblyKeyAt(placement: BrickPlacement, lastUnit: number): string {
-  for (let depth = placement.levels.length - 1; depth >= 0; depth -= 1) {
-    const level = placement.levels[depth]!;
-    if (level.attachUnit > lastUnit) return level.key;
-  }
-  return "model";
 }

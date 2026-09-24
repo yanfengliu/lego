@@ -5,6 +5,7 @@ import type { IdentifyStage } from "./identify-stage.ts";
 import type { Playback } from "./playback.ts";
 import { primaryPlayback, type PlaybackStage } from "./playback-stage.ts";
 import type { BookletRead } from "./read.ts";
+import type { SubBuildAttach } from "./sub-build-attach.ts";
 
 /**
  * The per-step rows of output/booklet/status.json and the reference build of
@@ -125,12 +126,29 @@ function playbackSummary(playback: Playback) {
   };
 }
 
+/**
+ * How each sub-build's attach step was set (sub-build-attach.ts), and in full
+ * the sub-builds that attach at another step than the one whose run holds
+ * their attach unit.
+ */
+export function subBuildAttachRows(subBuilds: ReadonlyMap<string, SubBuildAttach>) {
+  const rows = [...subBuilds.values()];
+  const byBasis: Record<string, number> = {};
+  for (const { basis } of rows) byBasis[basis] = (byBasis[basis] ?? 0) + 1;
+  return {
+    subBuilds: rows.length,
+    byBasis,
+    movedFromRun: rows.filter(({ attachStep, runStep }) => attachStep !== runStep),
+  };
+}
+
 export function playbackSection(stage: PlaybackStage) {
   const primary = primaryPlayback(stage);
   return {
     status: "ran",
     rowsFrom: stage.corrected ? "corrected" : "as exported",
     corrections: stage.corrections,
+    subBuildAttach: subBuildAttachRows(stage.subBuilds),
     registryCheck: stage.registryCheck,
     asExported: {
       ...playbackSummary(stage.asExported),

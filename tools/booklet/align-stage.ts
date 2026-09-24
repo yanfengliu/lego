@@ -52,7 +52,7 @@ export interface AlignedPrintedStep {
   readonly actual: readonly number[];
   /** Official brick uuids this step adds, in official build order. */
   readonly bricks: readonly string[];
-  /** Last build unit the run alignment gave this step (for sub-build attach timing). */
+  /** One past the last build unit the run alignment gave this step, before any repair (sub-build-attach.ts reads it). */
   readonly unitEnd: number;
 }
 
