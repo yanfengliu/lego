@@ -90,7 +90,7 @@ Exact decimal bounds are retained when a measured extent cannot be projected saf
 
 ### 3. Connection field
 
-Catalog ports carry local transforms, capacity, gender, profile, and one of ten implemented kinds: `stud`, `undersideClutch`, `axle`, `axleHole`, `pin`, `pinHole`, `bar`, `clip`, `hinge`, and `hingeSocket`. Six pair rules cover stud/clutch, axle/axle-hole, axle/pin-hole, pin/pin-hole, bar/clip, and hinge/hinge-socket behavior.
+Catalog ports carry local transforms, capacity, gender, profile, and one of eleven implemented kinds: `stud`, `undersideClutch`, `axle`, `axleHole`, `blindAxleHole`, `pin`, `pinHole`, `bar`, `clip`, `hinge`, and `hingeSocket`. Seven pair rules cover stud/clutch, axle/axle-hole, axle/blind-axle-hole, axle/pin-hole, pin/pin-hole, bar/clip, and hinge/hinge-socket behavior.
 
 Placement discovery consumes those rules, but document edges and attach programs still serialize only `stud-tube`; referenced ports imply the actual pair. A versioned pair identity is still needed before the full taxonomy is represented end to end.
 
