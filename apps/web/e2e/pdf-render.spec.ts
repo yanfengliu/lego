@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 import { bookletProbeUrls, hasSampleBooklet } from "./sample-booklet";
+import { skipWithoutRunEvidence } from "./run-evidence-gate";
 
 /**
  * Rasterises booklet pages so they can actually be looked at. Reading a page
@@ -14,7 +15,9 @@ const OUT = "output/pdf-pages";
 test("renders booklet pages as a reader sees them", async ({ page }) => {
   test.setTimeout(300_000);
   // The sample booklet is not committed; without it there is nothing to render.
-  test.skip(!hasSampleBooklet, "no sample booklet");
+  skipWithoutRunEvidence(test, "reads the sample booklet to rasterise its pages", {
+    onlyIf: hasSampleBooklet,
+  });
   page.on("pageerror", (e) => console.log("PAGEERROR " + e.message));
   await page.goto("/");
 

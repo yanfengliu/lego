@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { test, expect } from "@playwright/test";
 
 import { bookletProbeUrls, hasSampleBooklet } from "./sample-booklet";
+import { skipWithoutRunEvidence } from "./run-evidence-gate";
 
 const SCOREBOARD = "output/stud-pitch.json";
 // A spread across the booklet. Only 12, 40, 120, 160 and 200 appear in the
@@ -53,7 +54,11 @@ interface RegionPitch {
  */
 test("measures stud pitch from highlight scallops", async ({ page }) => {
   test.setTimeout(600_000);
-  test.skip(!hasSampleBooklet, "no sample booklet");
+  skipWithoutRunEvidence(
+    test,
+    "reads the sample booklet to measure stud pitch from highlight scallops",
+    { onlyIf: hasSampleBooklet },
+  );
   await page.goto("/");
   mkdirSync("output", { recursive: true });
 

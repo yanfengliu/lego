@@ -2,12 +2,6 @@
 
 This repository's own rules, read at session start with [`docs/START.md`](../START.md). They add to the fleet canon in `AGENTS.md` and never override it. Each rule added on 2026-09-22 states its reason in one clause.
 
-## Sessions
-
-- One task per session, because a session that keeps taking requests grows until its context is the cost: two never-restarted sessions reached about 1M tokens of context and spent 87.8% of this repo's 4.0B Claude tokens (measured 2026-09-22 from session transcripts; see `docs/work/1_booklet-reset/design.md`). A second request arriving mid-task goes to the coordinator, who delegates it as its own assignment rather than the working session absorbing it (fleet canon).
-- Split a task expected to pass about 200k tokens of context into milestones that each fit that budget, and commit each to main as soon as its gates are green, because work on main survives an archived thread and a failed milestone loses only itself. The next milestone may start a fresh session from main; that is a planned boundary, and inside a milestone a compaction is still no reason to wrap up or hand off (fleet canon).
-- No unattended "do not stop until done" loop runs without milestone commits, because a loop with no commit point can run for weeks without a product commit, as the first-50 campaign did after 08-29.
-
 ## The booklet and the reference
 
 - The booklet is the product's input, not a held-out test set (owner, 2026-09-22). Any session may read any page, and `npm run verify`, browser suite included, runs in full whenever it is due. The blind, staged first-50 protocol (source admission, holdout staging, the ban on the full browser gate before a late stage, frozen one-shot contracts) is retired, because it produced no product commit after 08-29 and no record shows it catching a defect; its last working state is branch `archive/first50-campaign-wip-20260908` (f44f1b8).
@@ -39,7 +33,7 @@ This repository's own rules, read at session start with [`docs/START.md`](../STA
 
 ## Review, devlog and docs
 
-- Independent review is sized to risk, not commit count: an ordinary milestone still merges as soon as its gates are green ([Sessions](#sessions)), but a milestone that is substantial, crosses a trust boundary, claims a measurement, or touches concurrency, money, a dependency (supply chain) or a sibling repo gets independent review before it merges, plus a focused re-review whenever a later fix invalidates the round before it (fleet canon). Mechanics are in `../fleet/docs/skills/multi-cli-review.md`, and every review prompt carries this repo's doc-accuracy addendum: check that docs in the diff match the implementation and flag stale ones. Trust-broker, evaluator, provider, consent, signing, persistence, scoped-patch, migration, recursive-loop and data-loss changes add a security or multi-model review, and a trust-boundary change adds a repository-grounded threat model (the `security-threat-model` and `security-best-practices` skills).
+- Independent review is sized to risk, not commit count: an ordinary milestone still merges as soon as its gates are green (fleet canon R6), but a milestone that is substantial, crosses a trust boundary, claims a measurement, or touches concurrency, money, a dependency (supply chain) or a sibling repo gets independent review before it merges, plus a focused re-review whenever a later fix invalidates the round before it (fleet canon). Mechanics are in `../fleet/docs/skills/multi-cli-review.md`, and every review prompt carries this repo's doc-accuracy addendum: check that docs in the diff match the implementation and flag stale ones. Trust-broker, evaluator, provider, consent, signing, persistence, scoped-patch, migration, recursive-loop and data-loss changes add a security or multi-model review, and a trust-boundary change adds a repository-grounded threat model (the `security-threat-model` and `security-best-practices` skills).
 - A `docs/devlog/summary.md` line is at most 300 characters (the date, what moved, what it cost; newest first), with the rest in `docs/devlog/detailed/`, because at 9bdf450 76 of its 112 lines ran past 300 characters, the longest 4,763, and it stopped working as an index. It is history and `docs/design/building-system.md` is the position; neither stands in for the other.
 - Keep `README.md` and the design docs true to what is implemented.
 

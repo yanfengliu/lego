@@ -30,6 +30,7 @@ import type { RealBuildSourceParityProbePanel } from "./real-build-observation-s
 import { deriveRealBuildPanelEvidence } from "./real-build-panel-evidence";
 import { REAL_BUILD_SERVED_RESPONSE_RUNNER_PATH } from "./real-build-served-response-policy";
 import { hasSampleBooklet } from "./sample-booklet";
+import { skipWithoutRunEvidence } from "./run-evidence-gate";
 import { workspaceModuleUrl } from "./workspace-module";
 
 const ENABLED = process.env.LEGO_REAL_BUILD_SOURCE_PARITY_CALIBRATION === "1";
@@ -276,7 +277,9 @@ test.describe("opt-in exact-five source-parity calibration capture", () => {
     !REQUIRED,
     "calibration capture requires LEGO_REAL_BUILD_REQUIRED=1 so Playwright owns an authenticated pre-discovery source lock",
   );
-  test.skip(!hasSampleBooklet, "no sample booklet");
+  skipWithoutRunEvidence(test, "reads the sample booklet for the calibration capture", {
+    onlyIf: hasSampleBooklet,
+  });
 
   test("captures only the fixed five panels inside the source execution closure", async ({
     page,

@@ -15,6 +15,7 @@ import { isTrustedIdentificationConfidence } from "./real-build-identification-t
 import { pieceEvidenceDigest } from "./real-build-ledger";
 import { ACTION_LEDGER_PATH } from "./real-build-input-files";
 import { hasSampleBooklet } from "./sample-booklet";
+import { skipWithoutRunEvidence } from "./run-evidence-gate";
 
 /**
  * Publishes `output/real-build/action-ledger.json`.
@@ -37,7 +38,9 @@ test("publishes the booklet's action ledger", async () => {
     !PUBLISH,
     `set LEGO_REAL_BUILD_PUBLISH_ACTION_LEDGER=1 to republish ${ACTION_LEDGER_PATH}`,
   );
-  test.skip(!hasSampleBooklet, "no sample booklet");
+  skipWithoutRunEvidence(test, "reads the sample booklet to publish the real-build action ledger", {
+    onlyIf: hasSampleBooklet,
+  });
 
   const requestedLastStep = parseRealBuildActionLedgerRequestedLastStep(
     process.env.LEGO_REAL_BUILD_LAST_STEP,

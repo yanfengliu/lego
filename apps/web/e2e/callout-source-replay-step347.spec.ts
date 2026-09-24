@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { renderCalloutCropsInPage } from "./callout-browser-runner";
 import { bookletProbeUrls, hasSampleBooklet } from "./sample-booklet";
+import { skipWithoutRunEvidence } from "./run-evidence-gate";
 import type { CalloutTarget } from "./callout-types";
 import type { SourceReplayInput, SourceReplayResult } from "./callout-source-replay-types";
 
@@ -70,7 +71,9 @@ const EXPECTED_COMPONENTS = [
 test("coalesces only the left page-214 inner detail and replays step 347 exactly", async ({
   page,
 }) => {
-  test.skip(!hasSampleBooklet, "no sample booklet");
+  skipWithoutRunEvidence(test, "reads the sample booklet to replay step 347", {
+    onlyIf: hasSampleBooklet,
+  });
   await page.goto("/");
   const urls = bookletProbeUrls();
   const input: SourceReplayInput = {

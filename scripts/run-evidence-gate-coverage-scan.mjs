@@ -17,14 +17,36 @@
  * .test.ts`'s nested `it.skipIf(!hasBuilder2453IdentityEvidence)` is exactly
  * that shape (the identifier is imported, not locally declared) and is
  * verified safe by hand, not by this scan, because it sits inside an outer
- * evidence-gated describe. Platform gates (`process.platform`, `os.name`) are
- * excluded on sight. Playwright's `apps/web/e2e` `.spec.ts` population is out
- * of this scan's file list entirely (see `findEvidenceGateScanTargets`): a
- * separate, unconverted population flagged for its own pass, not silently
- * approved by this gate's silence.
+ * evidence-gated describe. `real-build-step7-gate3-diagnostic.spec.ts`'s
+ * `sampleBookletAvailable: hasSampleBooklet` argument to
+ * `resolveStep7Gate3InvocationPolicy` is the same shape one hop further away
+ * (through a function call, not a direct condition) and is likewise verified
+ * safe by hand: that policy skips by default for an unrelated reason and only
+ * consults the booklet's presence once a diagnostic mode is explicitly
+ * requested, where it throws rather than skips. Platform gates
+ * (`process.platform`, `os.name`) are excluded on sight.
+ *
+ * Playwright's own idiom is a plain `test.skip(condition, reason)` call
+ * inside the test body rather than vitest's `.runIf`/`.skipIf` chain, so this
+ * also matches a bare `test.skip(` call and resolves only its first
+ * (condition) argument, split at the top-level comma before `reason` — never
+ * the whole two-argument span, which would let an innocent word in the
+ * description string produce a false match. `findEvidenceGateScanTargets`
+ * reads Playwright's spec population from `playwright.config.ts` itself.
  */
 
-const EXISTENCE_TOKENS_JS = ["existsSync"];
+/**
+ * `hasSampleBooklet` (`apps/web/e2e/sample-booklet.ts`) is named directly,
+ * not just matched through `existsSync`, because it is always imported —
+ * never declared locally in the file that gates on it — so the one-hop local
+ * `const`/`let` resolution below can never see through it back to the
+ * `existsSync` call inside `sample-booklet.ts`. It is exactly the flag the
+ * whole G3f-3 conversion (`apps/web/e2e/run-evidence-gate.ts`'s
+ * `skipWithoutRunEvidence`) exists to keep out of a raw `test.skip`/`.runIf`/
+ * `.skipIf` condition, so it is named on sight rather than left to a general
+ * resolution rule that cannot reach it.
+ */
+const EXISTENCE_TOKENS_JS = ["existsSync", "hasSampleBooklet"];
 const EXISTENCE_TOKENS_PY = [".is_file(", ".is_dir(", ".exists(", "os.path.exists("];
 const PLATFORM_TOKENS = ["process.platform", "os.name"];
 
@@ -40,6 +62,38 @@ function balancedParenSpan(text, openParenIndex) {
     }
   }
   return null;
+}
+
+/**
+ * Splits `argsText` at its first top-level comma (outside nested brackets and
+ * string literals) and returns the text before it, or the whole text if there
+ * is none. Used to isolate `test.skip(condition, reason)`'s first argument so
+ * a description string cannot itself trigger a false match.
+ */
+function firstTopLevelArg(argsText) {
+  let depth = 0;
+  let stringDelimiter = null;
+  for (let index = 0; index < argsText.length; index += 1) {
+    const char = argsText[index];
+    if (stringDelimiter !== null) {
+      if (char === "\\") {
+        index += 1;
+      } else if (char === stringDelimiter) {
+        stringDelimiter = null;
+      }
+      continue;
+    }
+    if (char === '"' || char === "'" || char === "`") {
+      stringDelimiter = char;
+    } else if (char === "(" || char === "[" || char === "{") {
+      depth += 1;
+    } else if (char === ")" || char === "]" || char === "}") {
+      depth -= 1;
+    } else if (char === "," && depth === 0) {
+      return argsText.slice(0, index);
+    }
+  }
+  return argsText;
 }
 
 function localDeclarationRhs(text, identifier) {
@@ -94,6 +148,21 @@ export function findUnwiredExistenceGates(path, text) {
     if (PLATFORM_TOKENS.some((token) => args.includes(token))) continue;
     if (resolvesToExistenceCheck(args, text, EXISTENCE_TOKENS_JS)) {
       violations.push({ path, condition: args.trim().slice(0, 200) });
+    }
+  }
+
+  const bareSkipCall = /\btest\.skip\(/gu;
+  for (
+    let skipMatch = bareSkipCall.exec(text);
+    skipMatch !== null;
+    skipMatch = bareSkipCall.exec(text)
+  ) {
+    const args = balancedParenSpan(text, bareSkipCall.lastIndex - 1);
+    if (args === null) continue;
+    const condition = firstTopLevelArg(args);
+    if (PLATFORM_TOKENS.some((token) => condition.includes(token))) continue;
+    if (resolvesToExistenceCheck(condition, text, EXISTENCE_TOKENS_JS)) {
+      violations.push({ path, condition: condition.trim().slice(0, 200) });
     }
   }
 

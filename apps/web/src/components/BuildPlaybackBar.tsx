@@ -2,6 +2,8 @@ import { useEffect } from "react";
 
 import type { BuildSequence } from "@lego-studio/brick-kernel";
 
+import { playbackReadoutDetail } from "./build-playback-readout";
+
 /** Milliseconds each step holds while playing. */
 export const PLAYBACK_STEP_MS = 900;
 
@@ -89,8 +91,7 @@ export function BuildPlaybackBar({
       <div className="playback-readout">
         <strong>{state.stepIndex < 0 ? "Start" : state.stepName}</strong>
         <small>
-          {position} / {lastPosition} · {state.cumulativePartCount} parts
-          {state.addedPartIds.length > 0 ? ` · +${state.addedPartIds.length}` : ""}
+          {playbackReadoutDetail(state, Math.min(position, lastPosition), lastPosition)}
         </small>
       </div>
 

@@ -28,6 +28,7 @@
     "observations:check": "node scripts/check-observation-consumers.mjs",
     "parts:check": "node scripts/check-part-standard.mjs",
     "docs:budget": "node scripts/check-doc-budgets.mjs",
+    "evidence:budget": "node scripts/check-evidence-budget.mjs",
     "parts:visual-capture": "node scripts/run-part-visual-admission.mjs",
     "parts:visual-pairs": "node scripts/create-part-visual-admission-pairs.mjs",
     "parts:visual-review": "node scripts/publish-part-visual-admission-review.mjs",

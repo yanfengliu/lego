@@ -10,6 +10,7 @@ import type {
 } from "./real-build-exact-three-source-browser";
 import { deriveScopedRealBuildPanelEvidence } from "./real-build-panel-evidence";
 import { bookletProbeUrls, hasSampleBooklet } from "./sample-booklet";
+import { skipWithoutRunEvidence } from "./run-evidence-gate";
 import { ASSEMBLY_MODULE_URL, workspaceModuleUrl } from "./workspace-module";
 import { runAndVerifyRealBuildStepOneProperC4BrowserIntegration } from "./real-build-step-one-proper-c4-browser-integration-host";
 
@@ -219,7 +220,9 @@ test("captures fresh page-11 RGBA for exact panels 2, 3 and 4", async ({ page })
     !ENABLED,
     "set LEGO_REAL_BUILD_EXACT_THREE_SOURCE=1 to run the genuine exact-three browser capture",
   );
-  test.skip(!hasSampleBooklet, "no sample booklet");
+  skipWithoutRunEvidence(test, "reads the sample booklet to capture exact-three page-11 RGBA", {
+    onlyIf: hasSampleBooklet,
+  });
 
   const { bytes, source } = await readSampleBooklet();
   const pdfDigest = sha256Digest(bytes);

@@ -45,6 +45,7 @@ import type {
   RetainedFailure,
 } from "./callout-types";
 import { SAMPLE_BOOKLET_PATH, bookletProbeUrls, hasSampleBooklet } from "./sample-booklet";
+import { skipWithoutRunEvidence } from "./run-evidence-gate";
 import { ingestSampleBookletBytes, readSampleBookletBytes } from "./booklet-fixture";
 
 const OUT = "output/callout-thumbnails";
@@ -100,7 +101,9 @@ function failure(
 
 test("publishes typed evidence for every distinct Nx label", async ({ page }) => {
   test.setTimeout(3_000_000);
-  test.skip(!hasSampleBooklet, "no sample booklet");
+  skipWithoutRunEvidence(test, "reads the sample booklet to publish callout thumbnail evidence", {
+    onlyIf: hasSampleBooklet,
+  });
 
   const bytes = readSampleBookletBytes(SAMPLE_BOOKLET_PATH!);
   expect(sha256(bytes)).toBe(CALLOUT_RECOVERY_FIXTURE.sourceHash);

@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { test, expect } from "@playwright/test";
 
 import { bookletProbeUrls, hasSampleBooklet } from "./sample-booklet";
+import { skipWithoutRunEvidence } from "./run-evidence-gate";
 
 const OUT = "output/highlight-region";
 const PAGES = [12, 24, 40, 60, 80, 100, 120, 140, 160, 180, 200, 214];
@@ -19,7 +20,9 @@ const HIGHLIGHT_REGION_MODULE_URL: string = "/src/instructions/highlight-region.
  */
 test("fills the region each step's highlight encloses", async ({ page }) => {
   test.setTimeout(300_000);
-  test.skip(!hasSampleBooklet, "no sample booklet");
+  skipWithoutRunEvidence(test, "reads the sample booklet to fill each step's highlight region", {
+    onlyIf: hasSampleBooklet,
+  });
   await page.goto("/");
   mkdirSync(OUT, { recursive: true });
   const scoreboard: unknown[] = [];
