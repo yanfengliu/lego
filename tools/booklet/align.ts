@@ -1,3 +1,10 @@
+import {
+  countElements,
+  descending,
+  stepCountsMatch,
+  type IdentityTarget,
+} from "./align-identity.ts";
+
 /**
  * Stage 2: which official bricks each printed step adds.
  *
@@ -5,27 +12,33 @@
  * step is a run of consecutive build units (see answer-key/build-units.ts):
  * usually one, several when a sub-build is drawn boxed inside one step, or
  * the first two of a model merged. The aligner finds the run for every step
- * by dynamic programming, scoring a step as matched only when the multiset of
- * its callout quantities equals the multiset of per-element counts of the
- * bricks in its run.
+ * by dynamic programming, scoring a step as matched when its run's bricks
+ * satisfy the step's criterion (align-identity.ts):
  *
- * What that checks, and what it does not: the text layer names no element per
- * callout, so a match says only that the counts agree — a step drawing "2x"
- * red and "1x" blue matches a run holding two blue and one red. Nothing here
- * checks which elements a step adds. The per-element inventory check below
- * compares the printed inventory with the official model's per-element totals
- * for the whole set; it does not see how bricks are split into steps, so it
- * cannot catch two steps that trade elements with equal counts either.
+ * - by identity, when identification named the step's callouts: each trusted
+ *   callout's element must be in the run exactly that many times, and only
+ *   callouts identification flagged are matched by count;
+ * - by counts otherwise: the multiset of callout quantities must equal the
+ *   multiset of per-element brick counts. A count match says nothing about
+ *   which elements a step adds — a step drawing "2x" red and "1x" blue matches
+ *   a run holding two blue and one red — which is how printed step 31 held two
+ *   dark bluish grey 1x3 bricks the booklet draws a step later.
+ *
+ * The per-element inventory check below compares the printed inventory with
+ * the official model's per-element totals for the whole set; it does not see
+ * how bricks are split into steps.
  *
  * Mismatches are not forced to fit: the program minimises the number of
  * unmatched steps, then the pieces they disagree by, and reports each one.
  */
-export const ALIGN_STAGE_VERSION = "lego.booklet-align/1";
+export const ALIGN_STAGE_VERSION = "lego.booklet-align/2";
 
 export interface AlignStepInput {
   readonly step: number;
   readonly page: number;
   readonly callouts: readonly number[];
+  /** The step's identified callouts; null or absent aligns it by counts. */
+  readonly identity?: IdentityTarget | null;
 }
 
 export interface AlignUnitInput {
@@ -61,21 +74,12 @@ const LEADING_EMPTY_UNIT_COST = 1;
 /** How far a mismatched step's brick count may stray from its callouts. */
 const MISMATCH_PIECE_SLACK = 12;
 
-function descending(values: readonly number[]): number[] {
-  return [...values].sort((left, right) => right - left);
-}
-
-function elementCounts(units: readonly AlignUnitInput[], start: number, end: number): number[] {
-  const counts = new Map<string, number>();
-  for (let index = start; index < end; index += 1) {
-    for (const element of units[index]!.elements)
-      counts.set(element, (counts.get(element) ?? 0) + 1);
-  }
-  return descending([...counts.values()]);
-}
-
-function sameMultiset(left: readonly number[], right: readonly number[]): boolean {
-  return left.length === right.length && left.every((value, index) => value === right[index]);
+function unitCounts(
+  units: readonly AlignUnitInput[],
+  start: number,
+  end: number,
+): Map<string, number> {
+  return countElements(units.slice(start, end).flatMap(({ elements }) => elements));
 }
 
 export function alignSteps(
@@ -96,6 +100,7 @@ export function alignSteps(
   cost[0] = 0;
   for (let k = 0; k < m; k += 1) {
     const want = pieces[k]!;
+    const step = steps[k]!;
     for (let start = 0; start <= n; start += 1) {
       const base = cost[k * width + start]!;
       if (base === Number.POSITIVE_INFINITY) continue;
@@ -113,7 +118,7 @@ export function alignSteps(
         if (have > want + MISMATCH_PIECE_SLACK) break;
         if (have < want - MISMATCH_PIECE_SLACK) continue;
         let stepCost: number;
-        if (have === want && sameMultiset(descending([...running.values()]), expected[k]!)) {
+        if (have === want && stepCountsMatch(running, step.callouts, step.identity)) {
           stepCost = 0;
         } else {
           stepCost = MISMATCH_COST + PIECE_COST * Math.abs(have - want);
@@ -143,15 +148,15 @@ export function alignSteps(
   for (let k = m; k > 0; k -= 1) {
     const start = back[k * width + cursor]!;
     const step = steps[k - 1]!;
-    const actual = start < 0 ? [] : elementCounts(units, start, cursor);
+    const counts = start < 0 ? new Map<string, number>() : unitCounts(units, start, cursor);
     aligned.push({
       step: step.step,
       page: step.page,
       unitStart: Math.max(start, 0),
       unitEnd: cursor,
-      matched: start >= 0 && sameMultiset(actual, expected[k - 1]!),
+      matched: start >= 0 && stepCountsMatch(counts, step.callouts, step.identity),
       expected: expected[k - 1]!,
-      actual,
+      actual: descending([...counts.values()]),
     });
     cursor = Math.max(start, 0);
   }
@@ -180,8 +185,7 @@ export function checkInventoryAgainstModel(
   inventory: Readonly<Record<string, number>>,
   officialElements: readonly string[],
 ): InventoryCheck {
-  const official = new Map<string, number>();
-  for (const element of officialElements) official.set(element, (official.get(element) ?? 0) + 1);
+  const official = countElements(officialElements);
   const mismatches: { element: string; inventory: number; official: number }[] = [];
   for (const [element, quantity] of Object.entries(inventory)) {
     const count = official.get(element) ?? 0;

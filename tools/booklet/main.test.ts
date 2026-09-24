@@ -83,6 +83,9 @@ describe("npm run booklet", { timeout: 60_000 }, () => {
     expect(printed).toMatch(
       /first step needing an uncovered design: unknown \(no aligned booklet\)/u,
     );
+    expect(line("[identify]")).toMatch(/^\[identify\] skipped \(input absent\): no booklet PDF/u);
+    expect(status.stages.identify.status).toBe("skipped");
+    expect(status.headline.identify).toBeNull();
     expect(line("[playback]")).toMatch(/skipped \(input absent\): no booklet PDF/u);
   });
 

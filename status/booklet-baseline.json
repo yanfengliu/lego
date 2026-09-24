@@ -1,5 +1,5 @@
 {
-  "version": "lego.booklet-status/2",
+  "version": "lego.booklet-status/3",
   "headline": {
     "read": {
       "steps": 359,
@@ -37,6 +37,23 @@
         "pieces": 1465
       }
     },
+    "identify": {
+      "stepCallouts": 859,
+      "stepCalloutPieces": 1464,
+      "drawings": 313,
+      "assignmentProvenOptimal": true,
+      "flaggedCallouts": 65,
+      "flaggedSteps": 43,
+      "stepsDisagreeingWithRead": 0,
+      "againstModel": {
+        "stepsWithCallouts": 333,
+        "stepsAgreeingByRunOrder": 313,
+        "stepsMovedByBooklet": 20,
+        "stepsUnexplained": 0,
+        "callouts": 859,
+        "calloutsAgreeing": 859
+      }
+    },
     "key": {
       "bricks": 1465,
       "lxfmlSteps": 668,
@@ -55,13 +72,32 @@
     },
     "align": {
       "steps": 359,
-      "matchedByRunOrder": 338,
-      "fittedByRepair": 18,
-      "unmatched": 3,
-      "runOrderMatchedBeforeRepair": 343,
-      "repairWindows": 7,
-      "solvedWindows": 6,
-      "unsolvedWindows": ["unsolved (budget)"],
+      "basis": "identity",
+      "identity": {
+        "exact": 316,
+        "exactByRunOrder": 303,
+        "exactByRepair": 13,
+        "exactWithoutCallouts": 22,
+        "countFallback": 43,
+        "mismatched": 0
+      },
+      "matchedByRunOrder": 339,
+      "fittedByRepair": 20,
+      "unmatched": 0,
+      "runOrderMatchedBeforeRepair": 339,
+      "repairWindows": 9,
+      "solvedWindows": 9,
+      "unsolvedWindows": [],
+      "byCounts": {
+        "matchedByRunOrder": 338,
+        "fittedByRepair": 18,
+        "unmatched": 3,
+        "runOrderMatchedBeforeRepair": 343,
+        "repairWindows": 7,
+        "solvedWindows": 6,
+        "unsolvedWindows": ["unsolved (budget)"]
+      },
+      "partsChangedFromCounts": 22,
       "bricksAssigned": 1464,
       "unplacedBricks": 1,
       "inventoryMismatches": 0,
@@ -100,15 +136,15 @@
       "corrections": ["77844 (pin)", "80015 (review)"],
       "corrected": {
         "stepsReplayed": 359,
-        "validSteps": 31,
-        "invalidSteps": 13,
+        "validSteps": 32,
+        "invalidSteps": 12,
         "blockedSteps": 315,
-        "validThrough": 31,
-        "firstNonValid": "32 invalid",
-        "firstInvalid": 32,
+        "validThrough": 32,
+        "firstNonValid": "33 invalid",
+        "firstInvalid": 33,
         "firstBlocked": 45,
-        "stepsAddingIssues": 7,
-        "partsThroughValid": 184
+        "stepsAddingIssues": 6,
+        "partsThroughValid": 194
       },
       "frames": {
         "meshAssetFrame": 201,
