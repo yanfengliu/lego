@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { createEmptyBrickDocument, createPartInstance } from "./factory.ts";
 import { getReviewedHistoricalCatalogRoster } from "./historical-catalog-rosters.ts";
+import { EXPECTED_V30_INTERPRETATION_CHANGES } from "./migration-historical-fixtures.test-support.ts";
 import { migrateDocumentTruth } from "./migration.ts";
 
 const V26_TRUTH_HASH = "sha256:3226590b11882fea03d8a6370d4ca3c6c8201feaddb56882a243a69acba627e9";
@@ -83,6 +84,7 @@ describe("builtin.basic-parts/26 migration", () => {
         fromCatalogVersion: "builtin.basic-parts/28",
         toCatalogVersion: "builtin.basic-parts/29",
       },
+      ...EXPECTED_V30_INTERPRETATION_CHANGES,
     ]);
     expect(report.truthComponentChanges).toEqual([
       {

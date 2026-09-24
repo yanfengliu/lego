@@ -275,8 +275,10 @@ describe("step-one proper-C4 executable quotient", () => {
     expect(result.rawRosterDigest).toBe(
       "sha256:24e68a134cf86c181ede701c2f189d1f2816af4a83510e2a841f270249d5ce72",
     );
+    // The root document carries live truth: at /30 only its truth moved, and
+    // restoring the /29 truth in the root gives back sha256:7b2c0080...97d88c.
     expect(result.quotientDigest).toBe(
-      "sha256:7b2c0080b8a09f9816ff2955bfe8d140a7c9a2c85d9e5c113595bb243197d88c",
+      "sha256:bed8770f66f6f48382c4e3d9206bf9c43709707c3ab5c6deeb5c703e9d56e500",
     );
   });
 

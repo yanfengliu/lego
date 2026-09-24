@@ -11,7 +11,7 @@ const TARGET_CATALOG_VERSION = "builtin.basic-parts/26";
 const SOURCE_TRUTH_HASH = "sha256:de62fae6dbc8095dfd460983e5e845ddfac4bf9ec2ea1f99572bc46026941cb5";
 const TARGET_TRUTH_HASH = "sha256:3226590b11882fea03d8a6370d4ca3c6c8201feaddb56882a243a69acba627e9";
 const CURRENT_RUNTIME_TRUTH_HASH =
-  "sha256:54762419e4779c6c15566052062fcaa432cb45e3a13704b5af1563b4fa94e8eb";
+  "sha256:cf2d67907369f85551055665b6df0f849dd978d2e63330130ec2d2db8f6ccc0b";
 const ADDED_CATALOG_PART_IDS = [
   "builtin:tile-1x1-quarter-round",
   "builtin:bracket-1x2-1x4-rounded-bottom",
@@ -100,12 +100,12 @@ function assertExactReviewedAdditiveMigration(
  *
  * Current operation admission intentionally refuses a historical truth
  * snapshot. For this one exact bridge, operations execute transiently under
- * pinned `/29` runtime truth and are then replaced with the unchanged source
+ * pinned `/30` runtime truth and are then replaced with the unchanged source
  * truth. The live migration first refuses every historical edge whose endpoint
- * semantics changed and authenticates its exact roster-intersected `/29`
+ * semantics changed and authenticates its exact roster-intersected `/30`
  * interpretation report. The separately projected migration truth, report,
  * revision, and additive roster remain frozen at `/26`; the compatibility guard
- * binds the exact `/29` predecessor semantics and reviewed predecessor profile roster.
+ * binds the exact `/30` predecessor semantics and reviewed predecessor profile roster.
  * Exact retained structural hashes dispose of the result; they do not claim
  * historical revision or wire-byte identity. This helper grants no general
  * legacy execution or document-migration authority.
@@ -155,7 +155,7 @@ export function applyReviewedAdditiveLegacyBuildOperations(
     JSON.stringify(applied.truth) !== JSON.stringify(currentMigration.document.truth)
   ) {
     throw new TypeError(
-      "Reviewed legacy operation execution did not retain exact /29 runtime truth.",
+      "Reviewed legacy operation execution did not retain exact /30 runtime truth.",
     );
   }
   const restored: BrickDocumentV1 = {

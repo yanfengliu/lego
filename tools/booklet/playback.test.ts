@@ -31,9 +31,10 @@ describe("reference playback", () => {
     const result = playBack(steps([plate("a", [0, 0, 0])], [plate("b", [0, -8.0000000001, 0])]));
     expect(result.steps.map(({ status }) => status)).toEqual(["valid", "valid"]);
     expect(result.placed.map(({ frameBasis }) => frameBasis)).toEqual([
-      "inferred-top-of-body",
-      "inferred-top-of-body",
+      "measured-ldraw-frame",
+      "measured-ldraw-frame",
     ]);
+    expect(result.frameBases).toEqual({ "measured-ldraw-frame": 2, "mesh-asset-frame": 0 });
     // The anchor rests on the editor's build plate: a plate's centre sits 4 LDU above y = +12.
     expect(result.placed[0]!.transform.positionLdu[1]).toBe(8);
   });

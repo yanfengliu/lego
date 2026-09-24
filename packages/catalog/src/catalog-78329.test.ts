@@ -67,7 +67,7 @@ describe("78329 regular 1 x 5 plate catalog truth", () => {
     );
     if (blueprint?.designId !== "78329") throw new Error("78329 blueprint is missing");
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/29");
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/30");
     expect(PART_DEFINITIONS).toHaveLength(106);
     expect(PART_DEFINITIONS.at(-9)?.id).toBe(PART_ID);
     expect(SET_6651557_MEASURED_BLUEPRINTS.at(-9)).toBe(blueprint);
@@ -170,10 +170,12 @@ describe("78329 regular 1 x 5 plate catalog truth", () => {
     expect(validateMeshPartDefinitionAdmission(part)).toEqual({ accepted: true, issues: [] });
   });
 
-  it("pins the reviewed /29 projection of the /25 prefix under its historical truth label", () => {
+  it("pins the reviewed /30 projection of the /25 prefix under its historical truth label", () => {
+    // /30 moved these with its 61 LDraw frames and 15573's centre seat; restoring
+    // those fields and the /29 label reproduces the /29 pins bit for bit.
     const priorParts = PART_DEFINITIONS.slice(0, 97);
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/29",
+      "builtin.basic-parts/30",
       "builtin.basic-parts/25",
     );
     const connectorCollision = priorParts.map(({ id, connectors, collision }) => ({
@@ -190,9 +192,9 @@ describe("78329 regular 1 x 5 plate catalog truth", () => {
         .update(JSON.stringify(connectorCollision))
         .digest("hex"),
     }).toEqual({
-      definitionBytes: 1_619_557,
-      definitionHash: "b7bfd7c394ee8188b2ead326a2c16e1a2c8605a75d14d4ce11c4cfe9e2a9ad20",
-      connectorCollisionHash: "7e7b46ceaa24d4533ab024c12acd43d1d1fc6fb34ce52f0d502b2dd9d16c9f6e",
+      definitionBytes: 1_665_249,
+      definitionHash: "757ed16b4ac1967065d6050d05e64f6dfa73b359526f6a7bc8ca08af05fb6f53",
+      connectorCollisionHash: "37f978428be50637b29bb1cbc6ad05a637f651a7bbb3b1a696a0810730e144ad",
     });
   });
 });

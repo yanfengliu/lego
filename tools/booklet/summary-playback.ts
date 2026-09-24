@@ -126,13 +126,10 @@ export function playbackHeadline(stage: PlaybackStage) {
     },
     corrections: stage.corrections.map(({ designId, source }) => `${designId} (${source})`),
     ...(stage.corrected ? { corrected: primary } : { full: primary }),
+    // Parts placed on each catalog frame basis: counts that no ignored input can move.
     frames: {
-      registry: stage.registry.status,
-      measured: bases.measured,
-      declared: bases.declared,
-      inferred: bases["inferred-top-of-body"],
-      fallbackParametricRows: stage.fallbackCheck?.parametricRows ?? null,
-      fallbackDisagreements: stage.fallbackCheck?.disagreements.length ?? null,
+      meshAssetFrame: bases["mesh-asset-frame"],
+      measuredLdrawFrame: bases["measured-ldraw-frame"],
     },
   };
 }
@@ -149,39 +146,38 @@ function firstIssueLine(label: string, playback: Playback): string[] {
   ];
 }
 
+const frameText = (frame: {
+  readonly orientationId: string;
+  readonly translationLdu: readonly number[];
+}) => `${frame.orientationId} ${fmt(frame.translationLdu)}`;
+
+/** The frames playback used (catalog truth), and the opt-in comparison with the first-50 registry. */
 function frameLines(stage: PlaybackStage): string[] {
   const playback = primaryPlayback(stage);
   const bases = playback.frameBases;
-  const inferred = playback.frameFiles.filter(({ basis }) => basis === "inferred-top-of-body");
-  const inferredNames = list(
-    inferred.map(({ ldrawFile, parts }) => `${ldrawFile} x${parts}`),
-    4,
-  );
-  if (stage.registry.status === "absent") {
-    return [
-      `  frames: REGISTRY ABSENT (${stage.registry.path}) — 0 parts from the registry, ${bases.declared} catalog-declared, ${bases["inferred-top-of-body"]} INFERRED in ${inferred.length} files (${inferredNames})`,
-      `  inferred frames are guesses the registry contradicts for most parametric parts: restore it (BOOKLET_LDRAW_FRAMES) before trusting playback`,
-    ];
-  }
-  const check = stage.fallbackCheck;
-  return [
-    `  frames: registry (${stage.registry.rows} rows) ${bases.measured} parts, catalog-declared ${bases.declared}, inferred ${bases["inferred-top-of-body"]}${inferred.length > 0 ? ` (${inferredNames})` : ""} · world shift [${playback.worldShiftLdu?.join(", ") ?? "none"}]`,
-    ...(check
-      ? [
-          `  no-registry fallback vs registry: ${check.agree} of ${check.parametricRows} parametric rows agree, ${check.equivalentBySymmetry} equivalent by symmetry, ${check.disagreements.length} disagree${
-            check.disagreements.length > 0
-              ? ` (${list(
-                  check.disagreements.map(
-                    ({ ldrawFilename, registry, fallback }) =>
-                      `${ldrawFilename} ${registry.orientationId}/${fallback.orientationId}`,
-                  ),
-                  3,
-                )})`
-              : ""
-          }`.slice(0, 240),
-        ]
-      : []),
+  const lines = [
+    `  frames from the catalog: ${bases["measured-ldraw-frame"]} parts on measured LDraw frames, ${bases["mesh-asset-frame"]} on mesh asset frames · world shift [${playback.worldShiftLdu?.join(", ") ?? "none"}]`,
   ];
+  const check = stage.registryCheck;
+  if (!check) return lines;
+  const { disagreements, unknownParts } = check;
+  lines.push(
+    `  catalog frames vs first-50 registry (${check.rows} rows): ${check.agree} agree, ${check.equivalentBySymmetry} equivalent by symmetry, ${disagreements.length} disagree${
+      disagreements.length > 0
+        ? ` (${list(
+            disagreements.map(
+              ({ ldrawFilename, catalog, registry }) =>
+                `${ldrawFilename} ${frameText(catalog)}/${frameText(registry)}`,
+            ),
+            3,
+          )})`
+        : ""
+    }`.slice(0, 300),
+  );
+  if (unknownParts.length > 0) {
+    lines.push(`  registry rows naming no catalog part: ${list(unknownParts, 4)}`.slice(0, 240));
+  }
+  return lines;
 }
 
 export function playbackLines(stage: PlaybackStage, ms: number): string[] {

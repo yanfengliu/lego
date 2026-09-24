@@ -195,11 +195,13 @@ const EXPECTED_PART_IDS = [
   // quarantined against physically distinct catalog parts.
   "builtin:bracket-1x2-1x4-rounded-corners",
   "builtin:brick-1x2x2-inside-axle-holder",
+  // builtin.basic-parts/30 adds no identity: it measures every parametric
+  // part's LDraw frame and gives 15573 a centre seat, both in place.
 ] as const;
 
 describe("starter catalog", () => {
-  it("publishes the official first-50 identity admission as version 29", () => {
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/29");
+  it("publishes the measured LDraw frames and the 15573 centre seat as version 30", () => {
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/30");
   });
 
   it("pins 25269's exact LDCad route and raw-to-catalog central clutch", () => {

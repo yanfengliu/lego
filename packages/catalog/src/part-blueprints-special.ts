@@ -47,7 +47,13 @@ export const SPECIAL_PART_BLUEPRINTS = [
     lengthStuds: 2,
     ldrawId: "15573.dat",
     studOffsetsLdu: [[0, 0]],
-    geometrySha256: "f1194823c1b2f75857734defca68c3fafac359b76a1ae904f530daa54d98e297",
+    // LDraw titles 15573 "Plate 1 x 2 with Groove with 1 Centre Stud, without
+    // Understud": no post stands under its middle, so it also seats centred on
+    // one stud, as booklet 6651557 step 29 prints it on each 11253 skate. The
+    // pinned LDCad shadow route for 15573 authors the same cell at z 0 beside
+    // the two at z -10 and +10; it corroborates this seat and supplies no data.
+    alternateClutchSeats: [{ id: "undersideClutch:center", positionLdu: [0, 0] }],
+    geometrySha256: "480ce9ad890a88f9a1e122ce3bb8a856d115dfd647a2ea8b9e51eb30f05063f0",
   },
   {
     family: "jumper-plate",

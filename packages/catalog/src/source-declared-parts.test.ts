@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { alternateClutchSeatIssues } from "./alternate-clutch-seats.ts";
+import { collisionAllowanceAdmissionIssues } from "./collision-allowance-admission.ts";
 import {
   BUNDLED_LDRAW_ARCHIVE,
   BUNDLED_LDRAW_CLOSURES,
@@ -849,7 +851,7 @@ describe("set 6651557 parts declared from measured source", () => {
     }
   });
 
-  it("restricts shared connector-capacity claims to admitted mesh definitions", () => {
+  it("restricts shared connector-capacity claims to seats the alternate clutch seat rule admits", () => {
     const carryingClaims = PART_DEFINITIONS.flatMap((part) =>
       part.connectors
         .filter(({ sharedCapacityGroupIds }) => sharedCapacityGroupIds !== undefined)
@@ -857,6 +859,9 @@ describe("set 6651557 parts declared from measured source", () => {
     );
 
     expect(carryingClaims.map(({ connector, part }) => [part.id, connector.id])).toEqual([
+      ["builtin:jumper-plate-1x2", "undersideClutch:0:0"],
+      ["builtin:jumper-plate-1x2", "undersideClutch:0:1"],
+      ["builtin:jumper-plate-1x2", "undersideClutch:center"],
       ["builtin:tile-1x2-chamfered-indented", "undersideClutch:0"],
       ["builtin:tile-1x2-chamfered-indented", "undersideClutch:1"],
       ["builtin:tile-1x2-chamfered-indented", "undersideClutch:2"],
@@ -865,8 +870,17 @@ describe("set 6651557 parts declared from measured source", () => {
       ["builtin:brick-1x2x2-without-understud", "undersideClutch:2"],
     ]);
     for (const { part } of carryingClaims) {
-      expect(part.geometry.generatorId).toBe("builtin:preloaded-mesh-reference/1");
-      expect(validateMeshPartDefinitionAdmission(part)).toEqual({ accepted: true, issues: [] });
+      if (part.geometry.generatorId === "builtin:preloaded-mesh-reference/1") {
+        expect(validateMeshPartDefinitionAdmission(part)).toEqual({ accepted: true, issues: [] });
+        continue;
+      }
+      // A parametric part claims shared capacity only through a declared
+      // alternate seat, and answers to the rule mesh admission applies.
+      expect(part.geometry.alternateClutchSeats).toBeDefined();
+      expect(
+        alternateClutchSeatIssues(part, part.geometry.connectorGridCenterLdu ?? [0, 0]),
+      ).toEqual([]);
+      expect(collisionAllowanceAdmissionIssues(part, true)).toEqual([]);
     }
   });
 

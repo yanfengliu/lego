@@ -4,17 +4,17 @@ import { PROPER_ORIENTATIONS, type LduVector3 } from "@lego-studio/catalog";
 
 /**
  * Measured LDraw-to-catalog frames, one per LDraw file, read from the frame
- * registry the first-50 chain published (building-system.md names it by
- * digest sha256:bcf97021…). The catalog declares these frames only for
- * mesh-backed parts; for parametric parts the registry holds the measured
- * turn and offset (a 2x4 plate is upright-yaw-90 with [0,-4,0]) that catalog
- * truth does not yet carry.
+ * registry the retired first-50 chain published (building-system.md names it
+ * by digest sha256:bcf97021…).
  *
- * The registry is an ignored file under output/, so a clean clone has none.
- * Playback then falls back to the catalog's declarations and the top-face
- * convention, and the fallback is wrong for most parametric parts (the
- * registry check in frame-checks.ts counts how many), so the harness reports
- * the registry's absence loudly and says which frames were inferred.
+ * The registry is no longer a playback input. Every part's frame is catalog
+ * truth now: a parametric part's `ldrawFrame`, measured from the official
+ * LDraw file by scripts/derive-ldraw-catalog-frames.mjs (a 2x4 plate is
+ * upright-yaw-90 with [0,-4,0]), or a mesh part's `assetToCatalogFrame`. The
+ * registry is an ignored file under output/ that a clean clone lacks, so
+ * `npm run booklet` reads it only with LEGO_RUN_EVIDENCE=1, and only to
+ * compare the catalog frames with it (`checkCatalogFramesAgainstRegistry` in
+ * frame-checks.ts).
  */
 export const DEFAULT_MEASURED_FRAMES_PATH =
   "output/real-build/history/prefix50-ldraw-catalog-frames-reviewed-move-bcf9702150b73cab1bd70d7ecd0bf33b3b3917522ce4f0ca892be56424b861a1.json";

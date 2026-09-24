@@ -1,5 +1,4 @@
 import { ARC_SEGMENTS_PER_QUARTER } from "./arc-plan.ts";
-import { LDRAW_91988_FRAME_PROVENANCE } from "./constants.ts";
 import type { PartBlueprint } from "./part-blueprint-types.ts";
 
 const PLATE_30565_CONNECTORS = [
@@ -127,12 +126,9 @@ export const SET_6651557_PART_BLUEPRINTS = [
     widthStuds: 2,
     lengthStuds: 14,
     ldrawId: "91988.dat",
-    // LDraw's long axis is X; the catalog's width-first convention rotates this
-    // symmetric rectangle so a 2 x 14 remains 40 by 280 LDU in catalog axes.
-    ldrawFrame: {
-      ldrawToCatalogOrientationId: "upright-yaw-90",
-      provenance: LDRAW_91988_FRAME_PROVENANCE,
-    },
+    // LDraw's long axis is X; the catalog's width-first convention keeps a
+    // 2 x 14 at 40 by 280 LDU, so its measured frame (ldraw-interchange-frames)
+    // is a quarter turn, like every other long plate's.
     bodyBoundsLdu: { min: [-20, -4, -140], max: [20, 4, 140] },
     geometrySha256: "3c558f70cbef7dd274b4f1314e45ede3a7476b65d6f6e3be1f0d923a5979ed04",
   },

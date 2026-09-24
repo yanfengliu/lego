@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 
 import { createEmptyBrickDocument, createPartInstance } from "./factory.ts";
 import { getReviewedHistoricalCatalogRoster } from "./historical-catalog-rosters.ts";
+import { EXPECTED_V30_INTERPRETATION_CHANGES } from "./migration-historical-fixtures.test-support.ts";
 import { migrateDocumentTruth } from "./migration.ts";
 import { VALIDATOR_SET_VERSION } from "./truth-manifests.ts";
 
@@ -69,7 +70,7 @@ describe("builtin.basic-parts/28 migration", () => {
     expect(report.catalogInterpretationChanges).toEqual([
       {
         fromCatalogVersion: "builtin.basic-parts/28",
-        toCatalogVersion: BUILTIN_CATALOG_VERSION,
+        toCatalogVersion: "builtin.basic-parts/29",
         affectedCatalogPartIds: [
           "builtin:plate-1x2-round-end",
           "builtin:wedge-plate-2x4-wing",
@@ -80,13 +81,14 @@ describe("builtin.basic-parts/28 migration", () => {
       },
       {
         fromCatalogVersion: "builtin.basic-parts/28",
-        toCatalogVersion: BUILTIN_CATALOG_VERSION,
+        toCatalogVersion: "builtin.basic-parts/29",
         affectedCatalogPartIds: [
           "builtin:technic-brick-1x1-axle-hole",
           "builtin:technic-brick-1x2-axle-hole",
         ],
         changedFields: ["connector-semantics", "collision-semantics"],
       },
+      ...EXPECTED_V30_INTERPRETATION_CHANGES,
     ]);
     expect(report.truthComponentChanges).toEqual([
       {
@@ -170,7 +172,7 @@ describe("builtin.basic-parts/28 migration", () => {
     const { document, report } = migrateDocumentTruth(connected);
 
     expect(report.blockingReasons).toEqual([
-      `Connection ${edge.id} endpoint ${bearing.id}/axleHole:0 changed after reviewed source truth ${V28_TRUTH_HASH}; migration cannot preserve its connector semantics`,
+      `Connection ${edge.id} endpoint ${bearing.id}/axleHole:0 changed after reviewed source truth ${V28_TRUTH_HASH}; migration cannot preserve its connector semantics, so remove connection ${edge.id} from the saved document and re-attach the parts after migration`,
     ]);
     expect(report.migrated).toBe(false);
     expect(document).toEqual(connected);

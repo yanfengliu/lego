@@ -4,7 +4,7 @@ import { assemblyKeyAt, type AnswerKey } from "./answer-key/index.ts";
 import type { AlignStage } from "./align-stage.ts";
 import type { CatalogStage } from "./catalog-coverage.ts";
 import { correctedPoses, type FrameCorrection } from "./export-frames.ts";
-import { checkFallbackAgainstRegistry, type FallbackCheck } from "./frame-checks.ts";
+import { checkCatalogFramesAgainstRegistry, type RegistryCheck } from "./frame-checks.ts";
 import type { FrameRegistry } from "./ldraw-frames.ts";
 import { playBack, type Playback, type PlaybackStepInput } from "./playback.ts";
 import type { OfficialPose } from "./playback-pose.ts";
@@ -25,13 +25,12 @@ export interface PlaybackStage {
   readonly asExported: Playback;
   /** Null when there is nothing to correct. */
   readonly corrected: Playback | null;
-  readonly registry: {
-    readonly status: FrameRegistry["status"];
-    readonly path: string;
-    readonly rows: number;
-  };
-  /** The no-registry fallback measured against the registry; null without a registry. */
-  readonly fallbackCheck: FallbackCheck | null;
+  /**
+   * The catalog frames compared with the retired first-50 frame registry: null
+   * unless LEGO_RUN_EVIDENCE=1 and the ignored registry file is present.
+   * Playback never reads the registry's frames.
+   */
+  readonly registryCheck: RegistryCheck | null;
 }
 
 /** The replay whose per-step rows the run reports: corrected when there are corrections. */
@@ -83,27 +82,22 @@ export function runPlaybackStage(input: {
   readonly key: AnswerKey;
   readonly align: AlignStage;
   readonly catalog: CatalogStage;
-  readonly registry: FrameRegistry;
+  readonly registry: FrameRegistry | null;
   readonly corrections: readonly FrameCorrection[];
 }): PlaybackStage {
   const { key, align, catalog, registry, corrections } = input;
-  const measured = registry.status === "loaded" ? registry.frames : null;
-  const asExported = playBack(playbackInputs(key, align, catalog, []), measured, {
+  const asExported = playBack(playbackInputs(key, align, catalog, []), {
     stopAtFirstNonValid: corrections.length > 0,
   });
   const corrected =
-    corrections.length > 0
-      ? playBack(playbackInputs(key, align, catalog, corrections), measured)
-      : null;
+    corrections.length > 0 ? playBack(playbackInputs(key, align, catalog, corrections)) : null;
   return {
     corrections,
     asExported,
     corrected,
-    registry: {
-      status: registry.status,
-      path: registry.path,
-      rows: registry.status === "loaded" ? registry.frames.size : 0,
-    },
-    fallbackCheck: measured ? checkFallbackAgainstRegistry(measured) : null,
+    registryCheck:
+      registry?.status === "loaded"
+        ? checkCatalogFramesAgainstRegistry(registry.path, registry.frames)
+        : null,
   };
 }

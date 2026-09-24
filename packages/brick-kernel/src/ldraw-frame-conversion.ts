@@ -99,7 +99,39 @@ export function requireLDrawOrientationMatrix(matrixToken: string, lineNumber?: 
   return orientation.matrix;
 }
 
-export function ldrawToCatalogFrame(catalogPartId: string): {
+/**
+ * The LDraw subset formats this kernel reads. `/2` places every part through
+ * its catalog LDraw frame; `/1` files were written when a parametric part's
+ * frame was only a turn (none but the 2 x 14 plate's, a quarter turn) with a
+ * zero offset, so they are read back through that frame and keep the catalog
+ * positions they were written from.
+ *
+ * Bound: that holds for the frames of /29, which real /1 files written by
+ * commit 982634d pin (`ldraw-subset-v1-fixtures.test.ts`). A /1 file written
+ * before a part's mesh promotion (/12, /13) wrote that part through its old
+ * parametric frame, but is read through today's mesh frame.
+ */
+export type LDrawSubsetFormat = "lego.ldraw-subset/1" | "lego.ldraw-subset/2";
+
+/** The parametric turns `lego.ldraw-subset/1` wrote with; every other parametric part used none. */
+const LEGACY_V1_PARAMETRIC_ORIENTATION_IDS: Readonly<Record<string, string>> = Object.freeze({
+  "builtin:plate-2x14": "upright-yaw-90",
+});
+
+const sameVector = (left: readonly number[], right: readonly number[]) =>
+  left.length === right.length && left.every((value, axis) => value === right[axis]);
+
+/**
+ * The frame between a part's LDraw file and its catalog part:
+ * catalog = O * ldraw + translationLdu. A mesh part's is its asset frame; a
+ * parametric part's is its measured `ldrawFrame`. Under the legacy `/1`
+ * format a parametric part gets the turn-only frame that format was written
+ * with.
+ */
+export function ldrawToCatalogFrame(
+  catalogPartId: string,
+  format: LDrawSubsetFormat = "lego.ldraw-subset/2",
+): {
   readonly orientation: (typeof PROPER_ORIENTATIONS)[number];
   readonly translationLdu: LduVector3;
 } {
@@ -118,28 +150,49 @@ export function ldrawToCatalogFrame(catalogPartId: string): {
       `Catalog part ${catalogPartId} mesh asset ${definition.geometry.assetId} is not its exact LDraw alias ${alias}`,
     );
   }
+  const declared = definition?.ldrawFrame;
   if (
     meshFrame !== null &&
-    definition?.ldrawFrame !== undefined &&
-    definition.ldrawFrame.ldrawToCatalogOrientationId !== meshFrame.orientationId
+    declared !== undefined &&
+    (declared.ldrawToCatalogOrientationId !== meshFrame.orientationId ||
+      !sameVector(declared.translationLdu, meshFrame.translationLdu))
   ) {
     fail(
       "UNSUPPORTED_DOCUMENT",
-      `Catalog part ${catalogPartId} declares conflicting mesh and LDraw interchange orientations`,
+      `Catalog part ${catalogPartId} declares LDraw frame ${declared.ldrawToCatalogOrientationId} [${declared.translationLdu.join(", ")}] but its mesh asset frame is ${meshFrame.orientationId} [${meshFrame.translationLdu.join(", ")}]; the two must be one frame`,
     );
   }
-  const orientation = orientationById.get(
-    meshFrame?.orientationId ??
-      definition?.ldrawFrame?.ldrawToCatalogOrientationId ??
-      "upright-yaw-0",
-  );
-  const translationLdu: LduVector3 = meshFrame === null ? [0, 0, 0] : [...meshFrame.translationLdu];
-  if (!definition || !orientation) {
+  if (!definition) {
+    fail("UNSUPPORTED_DOCUMENT", `Catalog part ${catalogPartId} is not in the builtin catalog`);
+  }
+  const frame =
+    meshFrame !== null
+      ? { orientationId: meshFrame.orientationId, translationLdu: meshFrame.translationLdu }
+      : format === "lego.ldraw-subset/1"
+        ? {
+            orientationId: LEGACY_V1_PARAMETRIC_ORIENTATION_IDS[catalogPartId] ?? "upright-yaw-0",
+            translationLdu: [0, 0, 0] as const,
+          }
+        : declared === undefined
+          ? undefined
+          : {
+              orientationId: declared.ldrawToCatalogOrientationId,
+              translationLdu: declared.translationLdu,
+            };
+  if (frame === undefined) {
     fail(
       "UNSUPPORTED_DOCUMENT",
-      `Catalog part ${catalogPartId} has no valid LDraw-to-catalog frame mapping`,
+      `Catalog part ${catalogPartId} declares no LDraw-to-catalog frame, so its LDraw position and turn cannot be converted; derive one with scripts/derive-ldraw-catalog-frames.mjs`,
     );
   }
+  const orientation = orientationById.get(frame.orientationId);
+  if (!orientation) {
+    fail(
+      "UNSUPPORTED_DOCUMENT",
+      `Catalog part ${catalogPartId} names LDraw-to-catalog orientation ${frame.orientationId}, which is not a proper orientation`,
+    );
+  }
+  const translationLdu = [...frame.translationLdu] as unknown as LduVector3;
   if (!translationLdu.every(Number.isSafeInteger)) {
     fail(
       "UNSUPPORTED_DOCUMENT",
@@ -153,9 +206,10 @@ export function ldrawToCatalogFrame(catalogPartId: string): {
 export function catalogOrientationToLDrawMatrix(
   catalogPartId: string,
   orientationId: string,
+  format: LDrawSubsetFormat = "lego.ldraw-subset/2",
 ): OrientationMatrix {
   const orientation = requireProperOrientation(orientationId);
-  const frameCorrection = ldrawToCatalogFrame(catalogPartId);
+  const frameCorrection = ldrawToCatalogFrame(catalogPartId, format);
   return multiplyOrientationMatrices(orientation.matrix, frameCorrection.orientation.matrix);
 }
 
@@ -164,12 +218,13 @@ export function ldrawMatrixToCatalogOrientationId(
   catalogPartId: string,
   matrix: OrientationMatrix,
   lineNumber?: number,
+  format: LDrawSubsetFormat = "lego.ldraw-subset/2",
 ): string {
   const ldrawOrientation = orientationByMatrix.get(matrix.join(" "));
   if (!ldrawOrientation) {
     fail("UNSUPPORTED_MATRIX", "Matrix is not a supported proper signed permutation", lineNumber);
   }
-  const frameCorrection = ldrawToCatalogFrame(catalogPartId);
+  const frameCorrection = ldrawToCatalogFrame(catalogPartId, format);
   const catalogMatrix = multiplyOrientationMatrices(
     ldrawOrientation.matrix,
     inverseOrientationMatrix(frameCorrection.orientation.matrix),

@@ -247,13 +247,18 @@ export function deriveLdrawToCatalogLocalTransform(
     );
   }
   const derived = [...candidates].sort(canonicalOrder)[0]!;
+  // The catalog frame is a turn and an offset together; comparing the turn
+  // alone would pass a frame whose offset is wrong.
+  const declared = definition.ldrawFrame;
   if (
-    definition.ldrawFrame !== undefined &&
-    definition.ldrawFrame.ldrawToCatalogOrientationId !== derived.orientationId
+    declared !== undefined &&
+    (declared.ldrawToCatalogOrientationId !== derived.orientationId ||
+      declared.translationLdu.some((value, axis) => value !== derived.positionLdu[axis]))
   ) {
     throw new TypeError(
-      `${source.designRevision} derives ${derived.orientationId}, but current catalog provenance ` +
-        `names ${definition.ldrawFrame.ldrawToCatalogOrientationId}.`,
+      `${source.designRevision} derives ${derived.orientationId} [${derived.positionLdu.join(", ")}], ` +
+        `but current catalog provenance names ${declared.ldrawToCatalogOrientationId} ` +
+        `[${declared.translationLdu.join(", ")}].`,
     );
   }
   return derived;

@@ -1,4 +1,5 @@
 import type {
+  AlternateClutchSeatDeclaration,
   BodyArcFeature,
   ConnectorKind,
   ConnectorOrientationId,
@@ -17,9 +18,15 @@ export interface PartBlueprint {
   readonly lengthStuds: number;
   /** LDraw part identifiers may carry a variant letter, so this is not numeric. */
   readonly ldrawId: `${string}.dat`;
-  /** Maps raw LDraw-local coordinates into this catalog frame, with per-file provenance. */
+  /**
+   * Maps raw LDraw-local coordinates into this catalog frame, with per-file
+   * provenance. Omit it: the factory takes the measured frame from
+   * `ldraw-interchange-frames.generated.ts`; a blueprint states one only to
+   * exercise the factory with a frame no catalog row has.
+   */
   readonly ldrawFrame?: {
     readonly ldrawToCatalogOrientationId: string;
+    readonly translationLdu: LduVector3;
     readonly provenance: SourceProvenance;
   };
   readonly geometrySha256: string;
@@ -30,6 +37,12 @@ export interface PartBlueprint {
   readonly studOffsetsLdu?: readonly (readonly [x: number, z: number])[];
   /** Explicit underside clutch centres for an irregular footprint. */
   readonly clutchOffsetsLdu?: readonly (readonly [x: number, z: number])[];
+  /**
+   * Underside seats half a pitch between two grid clutches, for a part with no
+   * understud post that also grips a stud there. Each shares capacity with its
+   * two peers (`alternate-clutch-seats.ts`).
+   */
+  readonly alternateClutchSeats?: readonly AlternateClutchSeatDeclaration[];
   /** Integrity-bound exceptions for explicit seats that overhang a curved edge. */
   readonly partialOverhangClutchEvidence?: PartialOverhangClutchEvidence;
   /** Source-lattice centre when raw part coordinates are intentionally asymmetric. */

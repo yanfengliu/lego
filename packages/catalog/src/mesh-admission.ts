@@ -7,6 +7,7 @@ import {
   connectorAccepts,
 } from "./constants.ts";
 import { MAX_EXACT_LDU_MAGNITUDE } from "./exact-ldu.ts";
+import { alternateClutchSeatIssues } from "./alternate-clutch-seats.ts";
 import { connectorAxisFrame } from "./connector-axis.ts";
 import { connectorAxialSpanIssue } from "./connector-axial-span.ts";
 import { collisionAllowanceAdmissionIssues } from "./collision-allowance-admission.ts";
@@ -340,25 +341,6 @@ function unionBounds(bounds: readonly LduBounds[]): LduBounds | null {
   };
 }
 
-function placementResidue(firstConnectorCoordinate: number): number {
-  return (
-    (((STUD_PITCH_LDU / 2 - firstConnectorCoordinate) % STUD_PITCH_LDU) + STUD_PITCH_LDU) %
-    STUD_PITCH_LDU
-  );
-}
-
-function onStudLattice(coordinate: number): boolean {
-  return (
-    (((coordinate - STUD_PITCH_LDU / 2) % STUD_PITCH_LDU) + STUD_PITCH_LDU) % STUD_PITCH_LDU === 0
-  );
-}
-
-function declaredSharedCapacityGroups(
-  connector: PartDefinition["connectors"][number],
-): readonly string[] {
-  return connector.sharedCapacityGroupIds ?? [];
-}
-
 /**
  * Connector ids and shared-capacity labels are bookkeeping, not physical
  * coordinates. Two same-kind ports at the same position and outward normal
@@ -653,87 +635,8 @@ export function validateMeshPartDefinitionAdmission(
   }
 
   if (dimensionsValid && validConnectorGridCenter(gridCenter) && connectorRepresentationValid) {
-    const firstX = gridCenter[0] - ((dimensions.widthStuds - 1) * STUD_PITCH_LDU) / 2;
-    const firstZ = gridCenter[1] - ((dimensions.lengthStuds - 1) * STUD_PITCH_LDU) / 2;
-    const originOffsetX = placementResidue(firstX);
-    const originOffsetZ = placementResidue(firstZ);
-    const undersideClutches = definition.connectors.filter(
-      (connector) => connector.kind === "undersideClutch",
-    );
-    const isOnPrimaryGrid = (connector: (typeof undersideClutches)[number]): boolean =>
-      onStudLattice(connector.positionLdu[0] + originOffsetX) &&
-      onStudLattice(connector.positionLdu[2] + originOffsetZ);
-    const calibratedSharedGroups = new Set<string>();
-    for (let index = 0; index < definition.connectors.length; index += 1) {
-      const connector = definition.connectors[index]!;
-      if (connector.kind !== "undersideClutch") continue;
-      if (!isOnPrimaryGrid(connector)) {
-        const [seatX, seatY, seatZ] = connector.positionLdu;
-        const groups = declaredSharedCapacityGroups(connector);
-        const peerPairs: (readonly [
-          (typeof undersideClutches)[number],
-          (typeof undersideClutches)[number],
-        ])[] = [];
-        for (let leftIndex = 0; leftIndex < undersideClutches.length; leftIndex += 1) {
-          const left = undersideClutches[leftIndex]!;
-          if (!isOnPrimaryGrid(left) || left.positionLdu[1] !== seatY) continue;
-          for (
-            let rightIndex = leftIndex + 1;
-            rightIndex < undersideClutches.length;
-            rightIndex += 1
-          ) {
-            const right = undersideClutches[rightIndex]!;
-            if (!isOnPrimaryGrid(right) || right.positionLdu[1] !== seatY) continue;
-            const oppositeHalfPitch =
-              left.positionLdu[0] + right.positionLdu[0] === 2 * seatX &&
-              left.positionLdu[2] + right.positionLdu[2] === 2 * seatZ &&
-              ((Math.abs(left.positionLdu[0] - seatX) === STUD_PITCH_LDU / 2 &&
-                left.positionLdu[2] === seatZ &&
-                right.positionLdu[2] === seatZ) ||
-                (Math.abs(left.positionLdu[2] - seatZ) === STUD_PITCH_LDU / 2 &&
-                  left.positionLdu[0] === seatX &&
-                  right.positionLdu[0] === seatX));
-            const leftGroups = declaredSharedCapacityGroups(left);
-            const rightGroups = declaredSharedCapacityGroups(right);
-            if (
-              oppositeHalfPitch &&
-              groups.length === 2 &&
-              leftGroups.length === 1 &&
-              rightGroups.length === 1 &&
-              leftGroups[0] !== rightGroups[0] &&
-              new Set([...leftGroups, ...rightGroups]).size === groups.length &&
-              groups.every(
-                (groupId) => leftGroups.includes(groupId) || rightGroups.includes(groupId),
-              )
-            ) {
-              peerPairs.push([left, right]);
-            }
-          }
-        }
-        if (peerPairs.length === 1) {
-          for (const groupId of groups) calibratedSharedGroups.add(groupId);
-          continue;
-        }
-        add(
-          "MESH_ADMISSION_CONNECTOR_GRID_MISMATCH",
-          `/connectors/${index}/positionLdu`,
-          `Part ${definition.id} underside connector ${connector.id} at [${connector.positionLdu[0]}, ${connector.positionLdu[2]}] is incompatible with connectorGridCenterLdu [${gridCenter.join(", ")}], ${dimensions.widthStuds}x${dimensions.lengthStuds} footprint parity, and the placement lattice. An alternate seat is admitted only exactly half-pitch between one unambiguous pair of primary-grid peers, with two shared capacity groups that correspond one-to-one to those peers; found ${peerPairs.length} calibrated peer pairs.`,
-        );
-      }
-    }
-    const groupMembers = new Map<string, number>();
-    for (const connector of undersideClutches) {
-      for (const groupId of declaredSharedCapacityGroups(connector)) {
-        groupMembers.set(groupId, (groupMembers.get(groupId) ?? 0) + 1);
-      }
-    }
-    for (const [groupId, memberCount] of groupMembers) {
-      if (memberCount === 2 && calibratedSharedGroups.has(groupId)) continue;
-      add(
-        "MESH_ADMISSION_CONNECTOR_GRID_MISMATCH",
-        "/connectors",
-        `Part ${definition.id} shared connector-capacity group ${JSON.stringify(groupId)} has ${memberCount} member(s) and calibratedAlternate=${calibratedSharedGroups.has(groupId)}; each admitted group must bind exactly one off-grid half-pitch seat to exactly one primary-grid peer.`,
-      );
+    for (const { path, message } of alternateClutchSeatIssues(definition, gridCenter)) {
+      add("MESH_ADMISSION_CONNECTOR_GRID_MISMATCH", path, message);
     }
   }
 

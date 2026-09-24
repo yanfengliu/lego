@@ -230,6 +230,7 @@ export const makeGeometryDigestInput = (
     bodyArc,
     extraConnectors,
     clutchOffsetsLdu,
+    alternateClutchSeats,
     partialOverhangClutchEvidence,
     connectorGridCenterLdu,
   } = blueprint;
@@ -265,6 +266,7 @@ export const makeGeometryDigestInput = (
         }),
     ...(extraConnectors === undefined ? {} : { extraConnectors }),
     ...(clutchOffsetsLdu === undefined ? {} : { clutchOffsetsLdu }),
+    ...(alternateClutchSeats === undefined ? {} : { alternateClutchSeats }),
     ...(partialOverhangClutchEvidence === undefined ? {} : { partialOverhangClutchEvidence }),
     ...(connectorGridCenterLdu === undefined ? {} : { connectorGridCenterLdu }),
   });

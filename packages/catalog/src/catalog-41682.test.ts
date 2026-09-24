@@ -192,10 +192,12 @@ describe("41682 vertical-stud bracket catalog truth", () => {
     expect(validateMeshPartDefinitionAdmission(part)).toEqual({ accepted: true, issues: [] });
   });
 
-  it("pins the reviewed /29 projection of the /18 prefix under its historical truth label", () => {
+  it("pins the reviewed /30 projection of the /18 prefix under its historical truth label", () => {
+    // /30 moved these with its 61 LDraw frames and 15573's centre seat; restoring
+    // those fields and the /29 label reproduces the /29 pins bit for bit.
     const priorParts = PART_DEFINITIONS.slice(0, 90);
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/29",
+      "builtin.basic-parts/30",
       "builtin.basic-parts/18",
     );
     const connectorCollision = priorParts.map(({ id, connectors, collision }) => ({
@@ -214,10 +216,10 @@ describe("41682 vertical-stud bracket catalog truth", () => {
         .digest("hex"),
       collisionHash: createHash("sha256").update(JSON.stringify(collision)).digest("hex"),
     }).toEqual({
-      definitionBytes: 1_533_186,
-      definitionHash: "9310a70d450a8acb8bbeec362a116b1a68298a811ac2a5465671db31ddc259e8",
-      connectorCollisionHash: "29ea249bf4022f43bff8be2d52e43f23236c1ff097f5067dce6914faf32501cc",
-      collisionHash: "800fffe4c1737c18fe6a4beb5dc5d5348f254eec9956f675b7c9b8b5f0fb741b",
+      definitionBytes: 1_578_878,
+      definitionHash: "4e95ccee11ee4462715218b157d0cfbe6b1bb4316b96a89db7d8d9dfd11242cc",
+      connectorCollisionHash: "a0e5832276167c833f1d0ea806d6294af3440469d7b35488cfac678931c65b39",
+      collisionHash: "9abb1674f5aaab49025e7cc50f152bb3e78694ddcaf47e378eac0e0526f66c75",
     });
   });
 });

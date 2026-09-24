@@ -65,7 +65,9 @@ describe("preloaded mesh asset resolution", () => {
     // Sixteen existing rows render exact source meshes at /13; /14 through /26
     // each append one complete measured part. These literals pin the remaining
     // parametric geometry identities. /27 appends four complete measured parts;
-    // full-definition digests move with catalog-version provenance.
+    // full-definition digests move with catalog-version provenance. /30 moves
+    // both digests in place: 15573's recipe records its centre seat, and every
+    // parametric row gains its LDraw frame; restoring those gives the /29 pins.
     const promotedIds = new Set([
       "builtin:wedge-plate-2x4-left",
       "builtin:wedge-plate-2x4-right",
@@ -92,7 +94,7 @@ describe("preloaded mesh asset resolution", () => {
     const legacyRows = legacyParts.map(({ id, geometry }) => [id, geometry.contentHash]);
     const legacyHashes = JSON.stringify(legacyRows);
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/29");
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/30");
     expect(PART_DEFINITIONS).toHaveLength(106);
     expect(
       PART_DEFINITIONS.filter(isMeshPartDefinition)
@@ -112,7 +114,7 @@ describe("preloaded mesh asset resolution", () => {
       ),
     ).toBe(true);
     expect(createHash("sha256").update(legacyHashes).digest("hex")).toBe(
-      "1a24d723074372b10e3d5bb7b52a4487ef3c4f93e12ed9019da123e7103635b5",
+      "0018bea0c1b06afbc2f4c37c509664c68406b37d33841fdeb2cd0bed9914cf56",
     );
     expect(
       legacyParts
@@ -126,11 +128,11 @@ describe("preloaded mesh asset resolution", () => {
       createHash("sha256")
         .update(
           JSON.stringify(legacyParts)
-            .replaceAll("builtin.basic-parts/29", "builtin.basic-parts/15")
+            .replaceAll("builtin.basic-parts/30", "builtin.basic-parts/15")
             .replaceAll("rectilinear-stud-clearance/4", "rectilinear-stud-clearance/2"),
         )
         .digest("hex"),
-    ).toBe("5a11cbb275cf0c9dbb4221a67c5adfe64baaf85eb2785971ac4f044e1ffc9eb0");
+    ).toBe("0bf520061f140af1c4051e44759ef45c5f36b585200912b9732f3d026feaa48d");
   });
 
   it("copies preloaded data and applies explicit orientation plus translation exactly once", () => {

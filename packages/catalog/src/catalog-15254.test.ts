@@ -260,10 +260,12 @@ describe("15254 thin-top arch catalog truth", () => {
     expect(validateMeshPartDefinitionAdmission(part)).toEqual({ accepted: true, issues: [] });
   });
 
-  it("pins the reviewed /29 projection of the /17 prefix under its historical truth label", () => {
+  it("pins the reviewed /30 projection of the /17 prefix under its historical truth label", () => {
+    // /30 moved these with its 61 LDraw frames and 15573's centre seat; restoring
+    // those fields and the /29 label reproduces the /29 pins bit for bit.
     const priorParts = PART_DEFINITIONS.slice(0, 89);
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/29",
+      "builtin.basic-parts/30",
       "builtin.basic-parts/17",
     );
     const rows = priorParts.map(({ id, connectors, collision }) => ({ id, connectors, collision }));
@@ -276,10 +278,10 @@ describe("15254 thin-top arch catalog truth", () => {
       connectorCollisionHash: createHash("sha256").update(JSON.stringify(rows)).digest("hex"),
       collisionHash: createHash("sha256").update(JSON.stringify(collisionRows)).digest("hex"),
     }).toEqual({
-      definitionBytes: 1_509_408,
-      definitionHash: "cfdb17cf6541d43b1b2d28326ffa5bcc384d51f98f439cf4cce2caa22c737198",
-      connectorCollisionHash: "9c97e5160e2d246b00c262a04a7b98fd0b1de51279ac57dadb176a26c161fcce",
-      collisionHash: "3d8459aed86b44919d4c2ec16b40626ff6699b4b5e1bee190b7f0bed485aa152",
+      definitionBytes: 1_555_100,
+      definitionHash: "00fac1d198760b4ac4ca1bf9633add0cc0e15e4038bd5bda8cf84e9a068a5d3e",
+      connectorCollisionHash: "dc6da73a3a7a674632bb131798db596794e778247d074d0b4b11f6663547ff3e",
+      collisionHash: "f80e8907e5677dad3b971633fd617407e9d2506acb131f76affa977076908722",
     });
   });
 });

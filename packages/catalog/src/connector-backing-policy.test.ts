@@ -192,3 +192,76 @@ describe("underside clutch backing", () => {
     );
   });
 });
+
+/** A plate whose shell the factory derives, for alternate-seat declarations 15573 does not make. */
+const seatProbe = (
+  widthStuds: number,
+  lengthStuds: number,
+  declaration: Pick<PartBlueprint, "alternateClutchSeats" | "clutchOffsetsLdu">,
+): PartBlueprint => ({
+  family: "plate",
+  widthStuds,
+  lengthStuds,
+  ldrawId: "seat-probe.dat",
+  geometrySha256: "0".repeat(64),
+  ...declaration,
+});
+
+describe("alternate clutch seats", () => {
+  it("refuses a seat that is not half a pitch between two grid clutches", () => {
+    expect(() =>
+      makePartDefinition(
+        seatProbe(1, 2, {
+          alternateClutchSeats: [{ id: "undersideClutch:center", positionLdu: [0, -10] }],
+        }),
+      ),
+    ).toThrow(
+      /seat-probe\.dat alternate clutch seat undersideClutch:center at \[0, -10\] needs one pair of grid clutches exactly 10 LDU either side of it along x or z; found 0 among the clutches at \[0, -10\], \[0, 10\]/,
+    );
+  });
+
+  it("refuses a seat its cavity does not hold: a 2 x 2 plate's tube stands there", () => {
+    expect(() =>
+      makePartDefinition(
+        seatProbe(2, 2, {
+          alternateClutchSeats: [{ id: "undersideClutch:between", positionLdu: [-10, 0] }],
+        }),
+      ),
+    ).toThrow(
+      /alternate clutch seat undersideClutch:between at \[-10, 0\] is not held by the modelled cavity: underside tube at \[0, 0\] stands 2\.000000 LDU from the centre/,
+    );
+  });
+
+  it("refuses two seats that would share one grid clutch", () => {
+    expect(() =>
+      makePartDefinition(
+        seatProbe(1, 3, {
+          alternateClutchSeats: [
+            { id: "undersideClutch:a", positionLdu: [0, -10] },
+            { id: "undersideClutch:b", positionLdu: [0, 10] },
+          ],
+        }),
+      ),
+    ).toThrow(
+      /alternate clutch seats undersideClutch:a and undersideClutch:b both need grid clutch undersideClutch:0:1 as a peer/,
+    );
+  });
+
+  it("puts every parametric part through mesh admission's alternate-seat rule", () => {
+    // An explicit clutch half a pitch off the grid, with no shared capacity: a
+    // measured part declaring it is refused, and so is a parametric one.
+    expect(() =>
+      makePartDefinition(
+        seatProbe(1, 2, {
+          clutchOffsetsLdu: [
+            [0, -10],
+            [0, 0],
+            [0, 10],
+          ],
+        }),
+      ),
+    ).toThrow(
+      /seat-probe\.dat fails the alternate clutch seat rule: \/connectors\/3\/positionLdu: Part seat-probe\.dat underside connector undersideClutch:1 at \[0, 0\] is incompatible with .* found 0 calibrated peer pairs/,
+    );
+  });
+});

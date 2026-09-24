@@ -21,7 +21,6 @@ import {
   type OfficialPose,
   type PoseBlock,
 } from "./playback-pose.ts";
-import type { MeasuredFrames } from "./ldraw-frames.ts";
 
 /**
  * Stage 4: the reference build, replayed printed step by printed step.
@@ -134,7 +133,7 @@ export interface Playback {
   readonly worldShiftLdu: LduVector3 | null;
   /** How many placed parts used each LDraw-to-catalog frame basis. */
   readonly frameBases: Readonly<Record<FrameBasis, number>>;
-  /** Which frame each LDraw file used, so an inferred frame can be named. */
+  /** Which catalog frame basis each LDraw file used. */
   readonly frameFiles: readonly FrameUse[];
   /** True when `stopAtFirstNonValid` ended the replay before the last step. */
   readonly stoppedEarly: boolean;
@@ -235,13 +234,12 @@ function validateAssembly(
  */
 export function playBack(
   steps: readonly PlaybackStepInput[],
-  measured: MeasuredFrames | null = null,
   options: { readonly stopAtFirstNonValid?: boolean } = {},
 ): Playback {
   let shift: LduVector3 | null = null;
   for (const brick of steps.flatMap(({ bricks }) => bricks)) {
     if (brick.catalogPartId === null) continue;
-    const pose = officialPoseToCatalog(brick.catalogPartId, brick.design, brick.pose, measured);
+    const pose = officialPoseToCatalog(brick.catalogPartId, brick.pose);
     if (!pose.ok) continue;
     shift = worldShiftFor({ catalogPartId: brick.catalogPartId, transform: pose.transform });
     break;
@@ -321,12 +319,7 @@ export function playBack(
         });
         continue;
       }
-      const catalogPose = officialPoseToCatalog(
-        brick.catalogPartId,
-        brick.design,
-        brick.pose,
-        measured,
-      );
+      const catalogPose = officialPoseToCatalog(brick.catalogPartId, brick.pose);
       const pose =
         catalogPose.ok && shift
           ? shiftTransform(catalogPose.transform, shift, catalogPose.frameBasis)
@@ -412,9 +405,8 @@ export function playBack(
     if (options.stopAtFirstNonValid && results.at(-1)!.status !== "valid") break;
   }
   const frameBases: Record<FrameBasis, number> = {
-    measured: 0,
-    declared: 0,
-    "inferred-top-of-body": 0,
+    "mesh-asset-frame": 0,
+    "measured-ldraw-frame": 0,
   };
   const files = new Map<string, FrameUse>();
   for (const part of placed) {

@@ -189,28 +189,35 @@ describe("proper source/catalog orientations", () => {
 
   it("accepts proper rotations only for an interchange frame", () => {
     const blueprints: readonly PartBlueprint[] = PART_BLUEPRINTS;
-    const blueprint = blueprints.find(({ ldrawFrame }) => ldrawFrame !== undefined);
-    expect(blueprint).toBeDefined();
-    if (blueprint === undefined || blueprint.ldrawFrame === undefined) return;
-    const ldrawFrame = blueprint.ldrawFrame;
-    const sourceFramed = makePartDefinition({
-      ...blueprint,
-      ldrawFrame: {
-        ...ldrawFrame,
-        ldrawToCatalogOrientationId: "proper-m-p000n000n",
-      },
-    });
+    const blueprint = blueprints.find(({ ldrawId }) => ldrawId === "91988.dat");
+    if (blueprint === undefined) throw new Error("The 91988 blueprint is missing");
+    // Every measured catalog frame is upright, so state a non-upright one: a
+    // blueprint frame replaces the generated row for the factory.
+    const measured = makePartDefinition(blueprint).ldrawFrame;
+    if (measured === undefined) throw new Error("91988 has no measured LDraw frame");
+    const ldrawFrame = {
+      ldrawToCatalogOrientationId: "proper-m-p000n000n",
+      translationLdu: [0, 4, 0],
+      provenance: measured.provenance,
+    } as const;
+    const sourceFramed = makePartDefinition({ ...blueprint, ldrawFrame });
 
-    expect(sourceFramed.ldrawFrame?.ldrawToCatalogOrientationId).toBe("proper-m-p000n000n");
+    expect(measured.ldrawToCatalogOrientationId).toBe("upright-yaw-90");
+    expect(sourceFramed.ldrawFrame).toEqual(ldrawFrame);
     expect(sourceFramed.legalOrientationIds).toEqual(UPRIGHT_ORIENTATIONS.map(({ id }) => id));
     expect(() =>
       makePartDefinition({
         ...blueprint,
-        ldrawFrame: {
-          ...ldrawFrame,
-          ldrawToCatalogOrientationId: "proper-m-p000p000n",
-        },
+        ldrawFrame: { ...ldrawFrame, ldrawToCatalogOrientationId: "proper-m-p000p000n" },
       }),
-    ).toThrow(/unknown LDraw-to-catalog orientation/);
+    ).toThrow(
+      "91988.dat declares LDraw-to-catalog frame proper-m-p000p000n [0, 4, 0]; a frame needs one of the 24 proper orientation ids and three whole-LDU terms",
+    );
+    expect(() =>
+      makePartDefinition({
+        ...blueprint,
+        ldrawFrame: { ...ldrawFrame, translationLdu: [0, 4.5, 0] },
+      }),
+    ).toThrow("91988.dat declares LDraw-to-catalog frame proper-m-p000n000n [0, 4.5, 0]");
   });
 });

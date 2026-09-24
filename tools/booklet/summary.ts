@@ -2,6 +2,7 @@ import type { AnswerKey, AnswerKeyLoad } from "./answer-key/index.ts";
 import type { AlignStage } from "./align-stage.ts";
 import type { CatalogStage } from "./catalog-coverage.ts";
 import type { ExportFrameCheck } from "./export-frames.ts";
+import type { FrameRegistry } from "./ldraw-frames.ts";
 import type { PlaybackStage } from "./playback-stage.ts";
 import type { BookletRead } from "./read.ts";
 import {
@@ -202,8 +203,11 @@ const notRun = (label: string, stage: { status: "skipped" | "failed"; reason: st
 export function summaryLines(
   input: Stages & {
     readonly keyLoad: Stage<AnswerKeyLoad> | null;
-    /** The frame registry's load, reported here only when it failed. */
-    readonly frameRegistry: Stage<unknown>;
+    /**
+     * The first-50 frame registry's load, reported here unless it loaded;
+     * when it did, playback's frame lines carry its comparison.
+     */
+    readonly frameRegistry: Stage<FrameRegistry>;
     readonly statusPath: string;
     readonly baseline: BaselineComparison;
     readonly totalMs: number;
@@ -233,8 +237,6 @@ export function summaryLines(
       ? catalogLines(catalog.value, align.status === "ran" ? align.value : null, catalog.ms)
       : [notRun("catalog", catalog)]),
   );
-  if (input.frameRegistry.status === "failed")
-    lines.push(notRun("frame registry", input.frameRegistry));
   lines.push(
     ...(exportFrames.status === "ran"
       ? exportFramesLines(exportFrames.value, exportFrames.ms)
@@ -245,6 +247,16 @@ export function summaryLines(
       ? playbackLines(playback.value, playback.ms)
       : [notRun("playback", playback)]),
   );
+  const registry = input.frameRegistry;
+  if (registry.status !== "ran") lines.push(notRun("frame registry", registry));
+  else if (registry.value.status === "absent")
+    lines.push(
+      `[frame registry] input absent: no first-50 frame registry at ${registry.value.path}`,
+    );
+  else if (playback.status !== "ran")
+    lines.push(
+      `[frame registry] loaded ${registry.value.frames.size} rows; not compared with the catalog frames, because playback did not run`,
+    );
   const baseline =
     input.baseline.status === "changed"
       ? `baseline: ${input.baseline.changes.length} count(s) changed — ${list(input.baseline.changes, 3)}`

@@ -151,7 +151,7 @@ describe("historical catalog roster migration", () => {
     expect(document).toBe(historical);
     expect(report.migrated).toBe(false);
     expect(report.blockingReasons).toContain(
-      `Connection historical-edge endpoint wedge/undersideClutch:1:2 existed in reviewed source truth ${reviewed.truthHash} but current truth removes it; migration cannot preserve the edge`,
+      `Connection historical-edge endpoint wedge/undersideClutch:1:2 existed in reviewed source truth ${reviewed.truthHash} but current truth removes it; migration cannot preserve the edge, so remove connection historical-edge from the saved document before migrating`,
     );
   });
 
@@ -224,7 +224,7 @@ describe("historical catalog roster migration", () => {
     expect(document).toBe(historical);
     expect(report.migrated).toBe(false);
     expect(report.blockingReasons).toContain(
-      `Connection jumper-edge endpoint jumper/stud:0 changed after reviewed source truth ${reviewed.truthHash}; migration cannot preserve its connector semantics`,
+      `Connection jumper-edge endpoint jumper/stud:0 changed after reviewed source truth ${reviewed.truthHash}; migration cannot preserve its connector semantics, so remove connection jumper-edge from the saved document and re-attach the parts after migration`,
     );
   });
 
@@ -257,7 +257,7 @@ describe("historical catalog roster migration", () => {
     expect(document).toBe(historical);
     expect(report.migrated).toBe(false);
     expect(report.blockingReasons).toContain(
-      `Connection future-axle-edge endpoint axle/axle:2 did not exist in reviewed source truth ${reviewed.truthHash}; migration cannot legitimize a later connector`,
+      `Connection future-axle-edge endpoint axle/axle:2 did not exist in reviewed source truth ${reviewed.truthHash}; migration cannot legitimize a later connector, so remove connection future-axle-edge from the saved document and re-attach the parts after migration`,
     );
   });
 

@@ -1,11 +1,11 @@
 import { getPartDefinition, PROPER_ORIENTATIONS } from "@lego-studio/catalog";
 
 import type { MeasuredFrames } from "./ldraw-frames.ts";
-import { fallbackCatalogFrame, type CatalogFrame } from "./playback-pose.ts";
+import { catalogFrameFor, type CatalogFrame } from "./playback-pose.ts";
 
 /**
- * Two checks on the frames playback depends on, and the one question both
- * ask: do two frames that differ still put the part in the same place?
+ * Checks on the frames playback depends on, and the one question they ask:
+ * do two frames that differ still put the part in the same place?
  *
  * They do when the difference between them is a symmetry of the part — a
  * half turn of a 2 x 2 plate — so a difference is only reported as a
@@ -110,63 +110,73 @@ export function isCatalogSelfMotion(catalogPartId: string, motion: LocalMotion):
   return key(movedMin) === key(min) && key(movedMax) === key(max);
 }
 
-export interface FallbackDisagreement {
+export interface RegistryDisagreement {
   readonly ldrawFilename: string;
   readonly catalogPartId: string;
   readonly registry: { readonly orientationId: string; readonly translationLdu: readonly number[] };
-  readonly fallback: { readonly orientationId: string; readonly translationLdu: readonly number[] };
-  /** True when the two frames differ only by a symmetry of the part (the same placement). */
-  readonly equivalentBySymmetry: boolean;
+  readonly catalog: { readonly orientationId: string; readonly translationLdu: readonly number[] };
 }
 
-export interface FallbackCheck {
-  /** Registry rows whose catalog part is parametric: the rows the fallback would otherwise guess. */
-  readonly parametricRows: number;
+export interface RegistryCheck {
+  readonly path: string;
+  readonly rows: number;
   readonly agree: number;
+  /** Rows whose frames differ only by a symmetry of the part: the same placement. */
   readonly equivalentBySymmetry: number;
-  readonly disagreements: readonly FallbackDisagreement[];
+  /** Rows naming a catalog part the catalog no longer defines. */
+  readonly unknownParts: readonly string[];
+  readonly disagreements: readonly RegistryDisagreement[];
 }
 
 /**
- * How the no-registry fallback (`fallbackCatalogFrame`) compares with the
- * registry on every parametric row: what playback would get wrong if the
- * ignored registry were missing. Mesh-backed rows are left out, because their
- * fallback is the catalog's own measured declaration rather than a guess.
+ * The catalog's frames against the retired first-50 frame registry, the
+ * ignored run file playback used to read its frames from. Every registry row
+ * is compared, mesh and parametric alike; a disagreement that is not a
+ * symmetry of the part means catalog truth and the registry place the part
+ * differently, and one of them is wrong. Playback never reads the registry;
+ * this runs only when it happens to be present and run evidence is opted in.
  */
-export function checkFallbackAgainstRegistry(frames: MeasuredFrames): FallbackCheck {
-  let parametricRows = 0;
+export function checkCatalogFramesAgainstRegistry(
+  path: string,
+  frames: MeasuredFrames,
+): RegistryCheck {
   let agree = 0;
-  const disagreements: FallbackDisagreement[] = [];
+  let equivalentBySymmetry = 0;
+  const unknownParts: string[] = [];
+  const disagreements: RegistryDisagreement[] = [];
   for (const [ldrawFilename, row] of [...frames].sort(([left], [right]) =>
     left.localeCompare(right),
   )) {
-    const definition = getPartDefinition(row.catalogPartId);
-    if (!definition || definition.geometry.generatorId === "builtin:preloaded-mesh-reference/1")
+    if (!getPartDefinition(row.catalogPartId)) {
+      unknownParts.push(`${ldrawFilename} ${row.catalogPartId}`);
       continue;
-    parametricRows += 1;
-    const fallback = fallbackCatalogFrame(row.catalogPartId);
-    const registry: CatalogFrame = { ...row, basis: "measured" };
+    }
+    const catalog = catalogFrameFor(row.catalogPartId);
     if (
-      fallback.orientationId === row.orientationId &&
-      key(fallback.translationLdu) === key(row.translationLdu)
+      catalog.orientationId === row.orientationId &&
+      key(catalog.translationLdu) === key(row.translationLdu)
     ) {
       agree += 1;
+      continue;
+    }
+    const registry: CatalogFrame = { ...row, basis: catalog.basis };
+    if (isCatalogSelfMotion(row.catalogPartId, catalogFrameDelta(registry, catalog)) === true) {
+      equivalentBySymmetry += 1;
       continue;
     }
     disagreements.push({
       ldrawFilename,
       catalogPartId: row.catalogPartId,
       registry: { orientationId: row.orientationId, translationLdu: row.translationLdu },
-      fallback: { orientationId: fallback.orientationId, translationLdu: fallback.translationLdu },
-      equivalentBySymmetry:
-        isCatalogSelfMotion(row.catalogPartId, catalogFrameDelta(registry, fallback)) === true,
+      catalog: { orientationId: catalog.orientationId, translationLdu: catalog.translationLdu },
     });
   }
-  const equivalent = disagreements.filter(({ equivalentBySymmetry }) => equivalentBySymmetry);
   return {
-    parametricRows,
+    path,
+    rows: frames.size,
     agree,
-    equivalentBySymmetry: equivalent.length,
-    disagreements: disagreements.filter(({ equivalentBySymmetry }) => !equivalentBySymmetry),
+    equivalentBySymmetry,
+    unknownParts,
+    disagreements,
   };
 }

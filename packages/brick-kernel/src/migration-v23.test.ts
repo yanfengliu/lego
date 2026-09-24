@@ -4,10 +4,11 @@ import { describe, expect, it } from "vitest";
 
 import { createEmptyBrickDocument, createPartInstance } from "./factory.ts";
 import { getReviewedHistoricalCatalogRoster } from "./historical-catalog-rosters.ts";
+import { EXPECTED_V30_INTERPRETATION_CHANGES } from "./migration-historical-fixtures.test-support.ts";
 import { migrateDocumentTruth } from "./migration.ts";
 
 const V23_TRUTH_HASH = "sha256:af781e7356e28622fb13afcb571d28495a0962d6aa78ef70d988126a9c4aeefb";
-const V29_TRUTH_HASH = "sha256:54762419e4779c6c15566052062fcaa432cb45e3a13704b5af1563b4fa94e8eb";
+const V30_TRUTH_HASH = "sha256:cf2d67907369f85551055665b6df0f849dd978d2e63330130ec2d2db8f6ccc0b";
 const V24_PART_ID = "builtin:plate-3x3";
 const V25_PART_ID = "builtin:plate-2x2-two-studs";
 const V26_PART_ID = "builtin:plate-1x5";
@@ -72,7 +73,7 @@ describe("builtin.basic-parts/23 migration", () => {
     expect(report.migrated).toBe(true);
     expect(report.blockingReasons).toEqual([]);
     expect(report.fromTruthHash).toBe(V23_TRUTH_HASH);
-    expect(report.toTruthHash).toBe(V29_TRUTH_HASH);
+    expect(report.toTruthHash).toBe(V30_TRUTH_HASH);
     expect(report.addedCatalogPartIds).toEqual([
       V24_PART_ID,
       V25_PART_ID,
@@ -97,6 +98,7 @@ describe("builtin.basic-parts/23 migration", () => {
         fromCatalogVersion: "builtin.basic-parts/28",
         toCatalogVersion: "builtin.basic-parts/29",
       },
+      ...EXPECTED_V30_INTERPRETATION_CHANGES,
     ]);
     expect(report.truthComponentChanges).toEqual([
       {

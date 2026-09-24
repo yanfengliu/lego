@@ -25,6 +25,7 @@ import {
   requireLDrawOrientationMatrix,
   requireProperOrientation,
   type LDrawInterchangeErrorCode,
+  type LDrawSubsetFormat,
 } from "./ldraw-frame-conversion.ts";
 import {
   connectorCapacityClaimKeys,
@@ -38,9 +39,19 @@ export {
   catalogOrientationToLDrawMatrix,
   ldrawMatrixToCatalogOrientationId,
 };
-export type { LDrawInterchangeErrorCode };
+export type { LDrawInterchangeErrorCode, LDrawSubsetFormat };
 
-const FORMAT_VERSION = "lego.ldraw-subset/1";
+/**
+ * `/2` writes each part through its catalog LDraw frame (turn and offset), so
+ * the file places parts where LDraw itself would. `/1` wrote a parametric
+ * part's catalog origin with a turn only; it is still read, through that
+ * legacy frame, so a file exported before `/2` keeps its positions.
+ */
+const FORMAT_VERSION: LDrawSubsetFormat = "lego.ldraw-subset/2";
+const READABLE_FORMAT_VERSIONS: readonly LDrawSubsetFormat[] = [
+  "lego.ldraw-subset/1",
+  FORMAT_VERSION,
+];
 const ENTRY_FILE_NAME = "main.ldr";
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/;
 const INTEGER_PATTERN = /^(?:0|-?[1-9][0-9]*)$/;
@@ -541,7 +552,12 @@ function parseInputLines(input: string): string[] {
   return lines;
 }
 
-function parsePartLine(raw: string, metadata: PartMetadata, lineNumber: number): PartInstance {
+function parsePartLine(
+  raw: string,
+  metadata: PartMetadata,
+  lineNumber: number,
+  format: LDrawSubsetFormat,
+): PartInstance {
   const tokens = raw.split(" ");
   if (tokens[0] !== "1") classifyUnexpectedLine(raw, lineNumber);
   if (tokens.length !== 15 || tokens.some((token) => token.length === 0)) {
@@ -560,14 +576,19 @@ function parsePartLine(raw: string, metadata: PartMetadata, lineNumber: number):
   }
   const matrixToken = tokens.slice(5, 14).join(" ");
   const ldrawMatrix = requireLDrawOrientationMatrix(matrixToken, lineNumber);
-  const orientationId = ldrawMatrixToCatalogOrientationId(catalogPartId, ldrawMatrix, lineNumber);
+  const orientationId = ldrawMatrixToCatalogOrientationId(
+    catalogPartId,
+    ldrawMatrix,
+    lineNumber,
+    format,
+  );
   const ldrawPosition: LduVector3 = [
     parseCoordinate(tokens[2]!, lineNumber),
     parseCoordinate(tokens[3]!, lineNumber),
     parseCoordinate(tokens[4]!, lineNumber),
   ];
   const catalogOrientation = requireProperOrientation(orientationId);
-  const frame = ldrawToCatalogFrame(catalogPartId);
+  const frame = ldrawToCatalogFrame(catalogPartId, format);
   const rotatedTranslation = rotateLduVector(catalogOrientation.matrix, frame.translationLdu);
   const catalogPosition = ldrawPosition.map(
     (coordinate, axis) => coordinate - rotatedTranslation[axis]!,
@@ -609,7 +630,18 @@ export function importBrickDocumentFromLDraw(input: string): BrickDocumentV1 {
   const reader = new LineReader(parseInputLines(input));
   reader.expect(`0 FILE ${ENTRY_FILE_NAME}`, "UNSUPPORTED_REFERENCE");
   reader.expect(`0 Name: ${ENTRY_FILE_NAME}`);
-  reader.expect(`0 !BRICK-STUDIO FORMAT ${FORMAT_VERSION}`, "UNSUPPORTED_METADATA");
+  const formatLineNumber = reader.nextLineNumber;
+  const formatLine = reader.take();
+  const format = READABLE_FORMAT_VERSIONS.find(
+    (version) => formatLine === `0 !BRICK-STUDIO FORMAT ${version}`,
+  );
+  if (format === undefined) {
+    fail(
+      "UNSUPPORTED_METADATA",
+      `Expected '0 !BRICK-STUDIO FORMAT <version>' naming ${READABLE_FORMAT_VERSIONS.join(" or ")}; found '${formatLine.slice(0, 80)}'. Export the model again from this studio.`,
+      formatLineNumber,
+    );
+  }
 
   const documentLine = reader.metadata("DOCUMENT", 8);
   const documentId = requireIdentifier(documentLine.tokens[3]!, "Document ID", documentLine.line);
@@ -759,7 +791,7 @@ export function importBrickDocumentFromLDraw(input: string): BrickDocumentV1 {
       while (reader.peek()?.startsWith("0 !BRICK-STUDIO PART ")) {
         const metadata = parsePartMetadata(reader);
         const partLineNumber = reader.nextLineNumber;
-        const parsed = parsePartLine(reader.take(), metadata, partLineNumber);
+        const parsed = parsePartLine(reader.take(), metadata, partLineNumber, format);
         if (partIds.has(parsed.id)) {
           fail("MALFORMED_INPUT", `Duplicate part ID ${parsed.id}`, partLineNumber);
         }

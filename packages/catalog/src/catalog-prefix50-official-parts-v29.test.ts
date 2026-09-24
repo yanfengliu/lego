@@ -62,7 +62,7 @@ function expectCollisionInsideVisualBounds(partId: string): void {
 
 describe("official first-50 catalog tranche /29", () => {
   it("appends the two exact official identities without moving the /28 suffix tranche", () => {
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/29");
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/30");
     expect(PART_DEFINITIONS).toHaveLength(106);
     expect(PART_DEFINITIONS.slice(-4).map(({ id }) => id)).toEqual([
       WITHOUT_UNDERSTUD_BRICK_ID,

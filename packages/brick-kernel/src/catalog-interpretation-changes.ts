@@ -1,0 +1,359 @@
+/**
+ * Reviewed in-place reinterpretations of catalog rows that already existed,
+ * which `migrateDocumentTruth` reports whenever a document crosses them. A
+ * row names the exact parts and fields whose meaning moved; an added part is
+ * reported separately, as an addition.
+ */
+export interface CatalogInterpretationChange {
+  readonly fromCatalogVersion: string;
+  readonly toCatalogVersion: string;
+  /** Exact predecessor truths when a reinterpretation happened without a catalog-version bump. */
+  readonly fromTruthHashes?: readonly string[];
+  readonly affectedCatalogPartIds: readonly string[];
+  readonly changedFields: readonly (
+    | "render-geometry"
+    | "surface-normals"
+    | "body-bounds"
+    | "visual-bounds"
+    | "construction-semantics"
+    | "connector-semantics"
+    | "collision-semantics"
+    /**
+     * Where LDraw import and export place the part: its measured
+     * LDraw-to-catalog orientation and translation. A document's own
+     * transforms, connectors and collision do not move with it.
+     */
+    | "ldraw-interchange-frame"
+  )[];
+}
+
+/** One endpoint of a saved connection that migration carried across a reviewed connector change. */
+export interface CarriedConnectionEndpoint {
+  readonly connectionId: string;
+  readonly partId: string;
+  readonly catalogPartId: string;
+  readonly portId: string;
+  /** The reviewed class that allows the carry (`historical-connection-carry-forward.ts`). */
+  readonly deltaClass: string;
+  readonly addedSharedCapacityGroupIds: readonly string[];
+}
+
+/** An interpretation row as a migration report carries it. */
+export interface ReportedCatalogInterpretationChange extends CatalogInterpretationChange {
+  /**
+   * Saved edges this migration carried across the row's connector-semantics
+   * change, in connection order. Present only when there is at least one.
+   */
+  readonly carriedConnectionEndpoints?: readonly CarriedConnectionEndpoint[];
+}
+
+export const REVIEWED_CATALOG_INTERPRETATION_CHANGES: readonly CatalogInterpretationChange[] =
+  Object.freeze([
+    {
+      fromCatalogVersion: "builtin.basic-parts/4",
+      toCatalogVersion: "builtin.basic-parts/4",
+      fromTruthHashes: ["sha256:f48bb1cae251f592923d94b4b992a55c06e74ea49b0f81be9ff4d416bb38e843"],
+      affectedCatalogPartIds: ["builtin:jumper-plate-1x3"],
+      changedFields: ["render-geometry", "connector-semantics", "collision-semantics"],
+    },
+    {
+      fromCatalogVersion: "builtin.basic-parts/4",
+      toCatalogVersion: "builtin.basic-parts/5",
+      affectedCatalogPartIds: ["builtin:axle-1x2"],
+      changedFields: ["connector-semantics"],
+    },
+    {
+      fromCatalogVersion: "builtin.basic-parts/5",
+      toCatalogVersion: "builtin.basic-parts/6",
+      affectedCatalogPartIds: [
+        "builtin:wedge-plate-2x4-left",
+        "builtin:wedge-plate-2x4-right",
+        "builtin:wedge-plate-2x3-left",
+        "builtin:wedge-plate-2x3-right",
+      ],
+      changedFields: ["connector-semantics", "collision-semantics"],
+    },
+    {
+      fromCatalogVersion: "builtin.basic-parts/8",
+      toCatalogVersion: "builtin.basic-parts/9",
+      affectedCatalogPartIds: ["builtin:plate-2x4"],
+      changedFields: ["render-geometry", "collision-semantics"],
+    },
+    {
+      fromCatalogVersion: "builtin.basic-parts/9",
+      toCatalogVersion: "builtin.basic-parts/10",
+      affectedCatalogPartIds: [
+        "builtin:brick-1x1",
+        "builtin:brick-1x2",
+        "builtin:brick-1x3",
+        "builtin:brick-1x4",
+        "builtin:brick-2x2",
+        "builtin:brick-2x3",
+        "builtin:brick-2x4",
+        "builtin:plate-1x1",
+        "builtin:plate-1x2",
+        "builtin:plate-1x3",
+        "builtin:plate-1x4",
+        "builtin:plate-2x2",
+        "builtin:plate-2x3",
+        "builtin:plate-2x4",
+        "builtin:brick-1x6",
+        "builtin:brick-1x8",
+        "builtin:brick-2x6",
+        "builtin:brick-2x8",
+        "builtin:plate-1x6",
+        "builtin:plate-1x8",
+        "builtin:plate-2x6",
+        "builtin:plate-2x8",
+        "builtin:plate-4x4",
+        "builtin:plate-4x6",
+        "builtin:plate-4x8",
+        "builtin:plate-6x6",
+        "builtin:tile-1x1",
+        "builtin:tile-1x2",
+        "builtin:tile-1x4",
+        "builtin:tile-1x6",
+        "builtin:tile-2x2",
+        "builtin:tile-2x4",
+        "builtin:plate-1x10",
+        "builtin:plate-1x12",
+        "builtin:plate-2x10",
+        "builtin:plate-2x12",
+        "builtin:plate-4x10",
+        "builtin:plate-4x12",
+        "builtin:plate-6x8",
+        "builtin:plate-6x10",
+        "builtin:plate-6x12",
+        "builtin:plate-6x16",
+        "builtin:plate-8x8",
+        "builtin:plate-8x16",
+        "builtin:brick-1x10",
+        "builtin:brick-1x12",
+        "builtin:brick-1x16",
+        "builtin:brick-2x10",
+        "builtin:tile-1x3",
+        "builtin:tile-1x8",
+        "builtin:tile-2x6",
+        "builtin:grille-tile-1x2",
+        "builtin:jumper-plate-1x2",
+        "builtin:jumper-plate-2x2",
+        "builtin:jumper-plate-1x3",
+        "builtin:technic-brick-1x2",
+        "builtin:corner-plate-2x2",
+        "builtin:plate-2x14",
+      ],
+      changedFields: ["render-geometry", "collision-semantics"],
+    },
+    {
+      fromCatalogVersion: "builtin.basic-parts/10",
+      toCatalogVersion: "builtin.basic-parts/11",
+      affectedCatalogPartIds: [
+        "builtin:tile-1x2-cut-right-45",
+        "builtin:plate-1x2-round-end",
+        "builtin:wedge-plate-2x4-wing",
+        "builtin:corner-plate-3x3",
+        "builtin:curved-slope-1x4-double",
+        "builtin:plate-3x3-corner-round",
+        "builtin:wedge-plate-3x3-cut-corner",
+        "builtin:corner-plate-2x2-round",
+      ],
+      changedFields: ["construction-semantics"],
+    },
+    {
+      fromCatalogVersion: "builtin.basic-parts/11",
+      toCatalogVersion: "builtin.basic-parts/12",
+      affectedCatalogPartIds: [
+        "builtin:wedge-plate-4x4-cut-corner",
+        "builtin:wedge-plate-6x6-cut-corner",
+        "builtin:corner-plate-4x4-round",
+        "builtin:corner-plate-5x5-quarter-ring",
+      ],
+      changedFields: ["render-geometry", "visual-bounds"],
+    },
+    {
+      fromCatalogVersion: "builtin.basic-parts/12",
+      toCatalogVersion: "builtin.basic-parts/13",
+      affectedCatalogPartIds: [
+        "builtin:wedge-plate-2x4-left",
+        "builtin:wedge-plate-2x4-right",
+        "builtin:wedge-plate-2x3-left",
+        "builtin:wedge-plate-2x3-right",
+        "builtin:arch-1x4",
+        "builtin:arch-1x6",
+        "builtin:curved-slope-1x2",
+        "builtin:curved-slope-1x3",
+        "builtin:curved-slope-1x4",
+        "builtin:cheese-slope-1x1",
+        "builtin:cheese-slope-2x1",
+        "builtin:wedge-plate-4x4-cut-corner",
+        "builtin:wedge-plate-6x6-cut-corner",
+        "builtin:wedge-plate-3x6-right",
+        "builtin:corner-plate-4x4-round",
+        "builtin:corner-plate-5x5-quarter-ring",
+        "builtin:tile-1x2-cut-right-45",
+        "builtin:plate-1x2-round-end",
+        "builtin:wedge-plate-2x4-wing",
+        "builtin:corner-plate-3x3",
+        "builtin:curved-slope-1x4-double",
+        "builtin:plate-3x3-corner-round",
+        "builtin:wedge-plate-3x3-cut-corner",
+        "builtin:corner-plate-2x2-round",
+      ],
+      changedFields: ["surface-normals"],
+    },
+    {
+      fromCatalogVersion: "builtin.basic-parts/12",
+      toCatalogVersion: "builtin.basic-parts/13",
+      affectedCatalogPartIds: [
+        "builtin:wedge-plate-2x4-left",
+        "builtin:wedge-plate-2x4-right",
+        "builtin:wedge-plate-2x3-left",
+        "builtin:wedge-plate-2x3-right",
+        "builtin:arch-1x4",
+        "builtin:arch-1x6",
+        "builtin:curved-slope-1x2",
+        "builtin:curved-slope-1x3",
+        "builtin:curved-slope-1x4",
+        "builtin:cheese-slope-1x1",
+        "builtin:cheese-slope-2x1",
+        "builtin:wedge-plate-4x4-cut-corner",
+        "builtin:wedge-plate-6x6-cut-corner",
+        "builtin:wedge-plate-3x6-right",
+        "builtin:corner-plate-4x4-round",
+        "builtin:corner-plate-5x5-quarter-ring",
+        "builtin:tile-1x2-cut-right-45",
+        "builtin:plate-1x2-round-end",
+        "builtin:wedge-plate-2x4-wing",
+        "builtin:corner-plate-3x3",
+        "builtin:curved-slope-1x4-double",
+        "builtin:plate-3x3-corner-round",
+        "builtin:wedge-plate-3x3-cut-corner",
+        "builtin:corner-plate-2x2-round",
+      ],
+      changedFields: ["render-geometry"],
+    },
+    {
+      fromCatalogVersion: "builtin.basic-parts/12",
+      toCatalogVersion: "builtin.basic-parts/13",
+      affectedCatalogPartIds: [
+        "builtin:wedge-plate-2x4-left",
+        "builtin:wedge-plate-2x4-right",
+        "builtin:wedge-plate-2x3-left",
+        "builtin:wedge-plate-2x3-right",
+        "builtin:wedge-plate-3x6-right",
+        "builtin:arch-1x4",
+        "builtin:arch-1x6",
+        "builtin:curved-slope-1x2",
+        "builtin:curved-slope-1x3",
+        "builtin:curved-slope-1x4",
+        "builtin:cheese-slope-1x1",
+        "builtin:cheese-slope-2x1",
+      ],
+      changedFields: ["body-bounds", "visual-bounds"],
+    },
+    {
+      fromCatalogVersion: "builtin.basic-parts/28",
+      toCatalogVersion: "builtin.basic-parts/29",
+      affectedCatalogPartIds: [
+        "builtin:plate-1x2-round-end",
+        "builtin:wedge-plate-2x4-wing",
+        "builtin:corner-plate-3x3",
+        "builtin:plate-3x3-corner-round",
+      ],
+      changedFields: ["connector-semantics", "collision-semantics"],
+    },
+    {
+      fromCatalogVersion: "builtin.basic-parts/28",
+      toCatalogVersion: "builtin.basic-parts/29",
+      affectedCatalogPartIds: [
+        "builtin:technic-brick-1x1-axle-hole",
+        "builtin:technic-brick-1x2-axle-hole",
+      ],
+      changedFields: ["connector-semantics", "collision-semantics"],
+    },
+    // /30 gives every parametric part the LDraw frame measured from its official
+    // file (`ldraw-interchange-frames.generated.ts`). Only plate-2x14 declared a
+    // frame at /29, an orientation without a translation. The list is every row
+    // whose `ldrawFrame` differs from source commit 982634d.
+    {
+      fromCatalogVersion: "builtin.basic-parts/29",
+      toCatalogVersion: "builtin.basic-parts/30",
+      affectedCatalogPartIds: [
+        "builtin:brick-1x1",
+        "builtin:brick-1x2",
+        "builtin:brick-1x3",
+        "builtin:brick-1x4",
+        "builtin:brick-2x2",
+        "builtin:brick-2x3",
+        "builtin:brick-2x4",
+        "builtin:plate-1x1",
+        "builtin:plate-1x2",
+        "builtin:plate-1x3",
+        "builtin:plate-1x4",
+        "builtin:plate-2x2",
+        "builtin:plate-2x3",
+        "builtin:plate-2x4",
+        "builtin:brick-1x6",
+        "builtin:brick-1x8",
+        "builtin:brick-2x6",
+        "builtin:brick-2x8",
+        "builtin:plate-1x6",
+        "builtin:plate-1x8",
+        "builtin:plate-2x6",
+        "builtin:plate-2x8",
+        "builtin:plate-4x4",
+        "builtin:plate-4x6",
+        "builtin:plate-4x8",
+        "builtin:plate-6x6",
+        "builtin:tile-1x1",
+        "builtin:tile-1x2",
+        "builtin:tile-1x4",
+        "builtin:tile-1x6",
+        "builtin:tile-2x2",
+        "builtin:tile-2x4",
+        "builtin:plate-1x10",
+        "builtin:plate-1x12",
+        "builtin:plate-2x10",
+        "builtin:plate-2x12",
+        "builtin:plate-4x10",
+        "builtin:plate-4x12",
+        "builtin:plate-6x8",
+        "builtin:plate-6x10",
+        "builtin:plate-6x12",
+        "builtin:plate-6x16",
+        "builtin:plate-8x8",
+        "builtin:plate-8x16",
+        "builtin:brick-1x10",
+        "builtin:brick-1x12",
+        "builtin:brick-1x16",
+        "builtin:brick-2x10",
+        "builtin:tile-1x3",
+        "builtin:tile-1x8",
+        "builtin:tile-2x6",
+        "builtin:grille-tile-1x2",
+        "builtin:jumper-plate-1x2",
+        "builtin:jumper-plate-2x2",
+        "builtin:jumper-plate-1x3",
+        "builtin:technic-brick-1x2",
+        "builtin:axle-1x2",
+        "builtin:axle-1x4",
+        "builtin:wheel-1x2",
+        "builtin:corner-plate-2x2",
+        "builtin:plate-2x14",
+      ],
+      changedFields: ["ldraw-interchange-frame"],
+    },
+    // /30 gives 15573 a centre underside seat and its tube-seat allowance, and
+    // puts its two grid clutches in shared-capacity groups with that seat. Its
+    // recipe records the seat, so its geometry content hash moves, but it draws
+    // the same triangles. A saved edge on either grid clutch keeps its meaning:
+    // the only group peer is the new seat, which no saved document can use.
+    // Migration carries such an edge and lists it on this row as
+    // `carriedConnectionEndpoints`.
+    {
+      fromCatalogVersion: "builtin.basic-parts/29",
+      toCatalogVersion: "builtin.basic-parts/30",
+      affectedCatalogPartIds: ["builtin:jumper-plate-1x2"],
+      changedFields: ["connector-semantics", "collision-semantics"],
+    },
+  ]);

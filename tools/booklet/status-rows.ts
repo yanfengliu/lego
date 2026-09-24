@@ -81,8 +81,7 @@ export function playbackSection(stage: PlaybackStage) {
     status: "ran",
     rowsFrom: stage.corrected ? "corrected" : "as exported",
     corrections: stage.corrections,
-    registry: stage.registry,
-    fallbackCheck: stage.fallbackCheck,
+    registryCheck: stage.registryCheck,
     asExported: {
       ...playbackSummary(stage.asExported),
       ...(stage.corrected ? { steps: stage.asExported.steps } : {}),

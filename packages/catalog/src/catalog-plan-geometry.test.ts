@@ -106,6 +106,10 @@ const solidCellCount = (part: ParametricPartDefinition): number => {
   return count;
 };
 
+/** Cell seats plus the declared seats half a pitch between two of them (15573's centre). */
+const expectedClutchCount = (part: ParametricPartDefinition): number =>
+  solidCellCount(part) + (part.geometry.alternateClutchSeats?.length ?? 0);
+
 const expectedStudCells = (part: ParametricPartDefinition): number => {
   const compound = COMPOUND_CELLS[part.id];
   if (compound) return compound.studs.length;
@@ -187,7 +191,7 @@ describe("catalog plan geometry", () => {
   it("places one semantic stud and one underside tube seat at every grid point", () => {
     for (const part of PARAMETRIC_PART_DEFINITIONS) {
       const { widthStuds, lengthStuds, heightLdu } = part.dimensions;
-      const expectedPortCount = solidCellCount(part);
+      const expectedPortCount = expectedClutchCount(part);
       // A jumper plate names its studs, so its count is what it declared, not
       // one per grid point.
       const expectedStudCount = expectedStudCells(part);
@@ -315,8 +319,9 @@ describe("catalog plan geometry", () => {
         ]);
       }
       expect(studs).toHaveLength(expectedStudCount);
-      // One per cell the body fills: a wedge has no clutch over its empty corner.
-      expect(part.collision.allowances).toHaveLength(solidCellCount(part));
+      // One per clutch: a wedge has none over its empty corner, and a declared
+      // alternate seat has its own.
+      expect(part.collision.allowances).toHaveLength(expectedClutchCount(part));
 
       for (const allowance of part.collision.allowances) {
         expect(allowance).toMatchObject({

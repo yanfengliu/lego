@@ -8,10 +8,18 @@ import {
 import type { BrickDocumentV1 } from "@lego-studio/protocol";
 
 import { canonicalDigest, canonicalSha256 } from "./canonical.ts";
+import type {
+  CarriedConnectionEndpoint,
+  CatalogInterpretationChange,
+  ReportedCatalogInterpretationChange,
+} from "./catalog-interpretation-changes.ts";
+import { REVIEWED_CATALOG_INTERPRETATION_CHANGES } from "./catalog-interpretation-changes.ts";
 import { normalizeBrickDocument } from "./document.ts";
 import { createBuiltinTruthSnapshot } from "./factory.ts";
 import { getReviewedHistoricalCatalogRoster } from "./historical-catalog-rosters.ts";
-import { historicalConnectionSemanticsBlockingReasons } from "./historical-connection-semantics.ts";
+import type { CarriedEndpointAssessment } from "./historical-connection-carry-forward.ts";
+import { reportCarriedEndpoints } from "./historical-connection-carry-forward.ts";
+import { assessHistoricalConnectionSemantics } from "./historical-connection-semantics.ts";
 import { historicalTransformPolicyBlockingReasons } from "./historical-transform-policies.ts";
 
 /**
@@ -48,6 +56,7 @@ export const MIGRATABLE_CATALOG_VERSIONS: readonly string[] = Object.freeze([
   "builtin.basic-parts/26",
   "builtin.basic-parts/27",
   "builtin.basic-parts/28",
+  "builtin.basic-parts/29",
   BUILTIN_CATALOG_VERSION,
 ]);
 
@@ -313,6 +322,27 @@ export const REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS = Object.freeze([
     sourceCommit: "aad79008cd820f3f0cfbec98ae508c0352d65fc9",
     truthHash: "sha256:643185fe21f0d0c77a7aada8b170395f11bb7da1079f97d5c0cd0a03d7464f1b",
   },
+  // The snapshot /30 replaces. /30 adds no part identity. Every parametric
+  // part gains its measured LDraw interchange frame, which moves LDraw import
+  // and export only. 15573 gains a centre seat that shares capacity with its
+  // two grid clutches. A saved edge on a grid clutch keeps its meaning: the
+  // clutch changes only by joining a group whose other member is the new seat,
+  // which no saved document can use. Migration carries such an edge and
+  // reports it under the /30 connector-semantics row.
+  //
+  // Two /30 notes. Four opt-in gates still pin /29 on purpose because their
+  // real-build family is retiring: real-build-builder-prefix-contract.test.ts,
+  // real-build-prefix50-exact-compiler-current-evidence.test.ts,
+  // booklet-catalog-coverage-semantic.test.mjs and
+  // real-build-step-one-proper-c4-browser-integration-host.ts. And branch
+  // archive/first50-campaign-wip-20260908 used the label /30 for a different
+  // catalog; a document pinned to that truth is refused as unknown truth, but
+  // the refusal names "builtin.basic-parts/30" because that is its pinned label.
+  {
+    catalogVersion: "builtin.basic-parts/29",
+    sourceCommit: "982634de7ddcb75310a802b9cc4dbba9d19d3d9c",
+    truthHash: "sha256:54762419e4779c6c15566052062fcaa432cb45e3a13704b5af1563b4fa94e8eb",
+  },
 ] as const);
 
 const MIGRATABLE_TRUTH_HASHES: ReadonlySet<string> = new Set(
@@ -326,248 +356,14 @@ export interface TruthComponentChange {
   readonly toVersion: string;
 }
 
-export interface CatalogInterpretationChange {
-  readonly fromCatalogVersion: string;
-  readonly toCatalogVersion: string;
-  /** Exact predecessor truths when a reinterpretation happened without a catalog-version bump. */
-  readonly fromTruthHashes?: readonly string[];
-  readonly affectedCatalogPartIds: readonly string[];
-  readonly changedFields: readonly (
-    | "render-geometry"
-    | "surface-normals"
-    | "body-bounds"
-    | "visual-bounds"
-    | "construction-semantics"
-    | "connector-semantics"
-    | "collision-semantics"
-  )[];
-}
-
-export const REVIEWED_CATALOG_INTERPRETATION_CHANGES: readonly CatalogInterpretationChange[] =
-  Object.freeze([
-    {
-      fromCatalogVersion: "builtin.basic-parts/4",
-      toCatalogVersion: "builtin.basic-parts/4",
-      fromTruthHashes: ["sha256:f48bb1cae251f592923d94b4b992a55c06e74ea49b0f81be9ff4d416bb38e843"],
-      affectedCatalogPartIds: ["builtin:jumper-plate-1x3"],
-      changedFields: ["render-geometry", "connector-semantics", "collision-semantics"],
-    },
-    {
-      fromCatalogVersion: "builtin.basic-parts/4",
-      toCatalogVersion: "builtin.basic-parts/5",
-      affectedCatalogPartIds: ["builtin:axle-1x2"],
-      changedFields: ["connector-semantics"],
-    },
-    {
-      fromCatalogVersion: "builtin.basic-parts/5",
-      toCatalogVersion: "builtin.basic-parts/6",
-      affectedCatalogPartIds: [
-        "builtin:wedge-plate-2x4-left",
-        "builtin:wedge-plate-2x4-right",
-        "builtin:wedge-plate-2x3-left",
-        "builtin:wedge-plate-2x3-right",
-      ],
-      changedFields: ["connector-semantics", "collision-semantics"],
-    },
-    {
-      fromCatalogVersion: "builtin.basic-parts/8",
-      toCatalogVersion: "builtin.basic-parts/9",
-      affectedCatalogPartIds: ["builtin:plate-2x4"],
-      changedFields: ["render-geometry", "collision-semantics"],
-    },
-    {
-      fromCatalogVersion: "builtin.basic-parts/9",
-      toCatalogVersion: "builtin.basic-parts/10",
-      affectedCatalogPartIds: [
-        "builtin:brick-1x1",
-        "builtin:brick-1x2",
-        "builtin:brick-1x3",
-        "builtin:brick-1x4",
-        "builtin:brick-2x2",
-        "builtin:brick-2x3",
-        "builtin:brick-2x4",
-        "builtin:plate-1x1",
-        "builtin:plate-1x2",
-        "builtin:plate-1x3",
-        "builtin:plate-1x4",
-        "builtin:plate-2x2",
-        "builtin:plate-2x3",
-        "builtin:plate-2x4",
-        "builtin:brick-1x6",
-        "builtin:brick-1x8",
-        "builtin:brick-2x6",
-        "builtin:brick-2x8",
-        "builtin:plate-1x6",
-        "builtin:plate-1x8",
-        "builtin:plate-2x6",
-        "builtin:plate-2x8",
-        "builtin:plate-4x4",
-        "builtin:plate-4x6",
-        "builtin:plate-4x8",
-        "builtin:plate-6x6",
-        "builtin:tile-1x1",
-        "builtin:tile-1x2",
-        "builtin:tile-1x4",
-        "builtin:tile-1x6",
-        "builtin:tile-2x2",
-        "builtin:tile-2x4",
-        "builtin:plate-1x10",
-        "builtin:plate-1x12",
-        "builtin:plate-2x10",
-        "builtin:plate-2x12",
-        "builtin:plate-4x10",
-        "builtin:plate-4x12",
-        "builtin:plate-6x8",
-        "builtin:plate-6x10",
-        "builtin:plate-6x12",
-        "builtin:plate-6x16",
-        "builtin:plate-8x8",
-        "builtin:plate-8x16",
-        "builtin:brick-1x10",
-        "builtin:brick-1x12",
-        "builtin:brick-1x16",
-        "builtin:brick-2x10",
-        "builtin:tile-1x3",
-        "builtin:tile-1x8",
-        "builtin:tile-2x6",
-        "builtin:grille-tile-1x2",
-        "builtin:jumper-plate-1x2",
-        "builtin:jumper-plate-2x2",
-        "builtin:jumper-plate-1x3",
-        "builtin:technic-brick-1x2",
-        "builtin:corner-plate-2x2",
-        "builtin:plate-2x14",
-      ],
-      changedFields: ["render-geometry", "collision-semantics"],
-    },
-    {
-      fromCatalogVersion: "builtin.basic-parts/10",
-      toCatalogVersion: "builtin.basic-parts/11",
-      affectedCatalogPartIds: [
-        "builtin:tile-1x2-cut-right-45",
-        "builtin:plate-1x2-round-end",
-        "builtin:wedge-plate-2x4-wing",
-        "builtin:corner-plate-3x3",
-        "builtin:curved-slope-1x4-double",
-        "builtin:plate-3x3-corner-round",
-        "builtin:wedge-plate-3x3-cut-corner",
-        "builtin:corner-plate-2x2-round",
-      ],
-      changedFields: ["construction-semantics"],
-    },
-    {
-      fromCatalogVersion: "builtin.basic-parts/11",
-      toCatalogVersion: "builtin.basic-parts/12",
-      affectedCatalogPartIds: [
-        "builtin:wedge-plate-4x4-cut-corner",
-        "builtin:wedge-plate-6x6-cut-corner",
-        "builtin:corner-plate-4x4-round",
-        "builtin:corner-plate-5x5-quarter-ring",
-      ],
-      changedFields: ["render-geometry", "visual-bounds"],
-    },
-    {
-      fromCatalogVersion: "builtin.basic-parts/12",
-      toCatalogVersion: "builtin.basic-parts/13",
-      affectedCatalogPartIds: [
-        "builtin:wedge-plate-2x4-left",
-        "builtin:wedge-plate-2x4-right",
-        "builtin:wedge-plate-2x3-left",
-        "builtin:wedge-plate-2x3-right",
-        "builtin:arch-1x4",
-        "builtin:arch-1x6",
-        "builtin:curved-slope-1x2",
-        "builtin:curved-slope-1x3",
-        "builtin:curved-slope-1x4",
-        "builtin:cheese-slope-1x1",
-        "builtin:cheese-slope-2x1",
-        "builtin:wedge-plate-4x4-cut-corner",
-        "builtin:wedge-plate-6x6-cut-corner",
-        "builtin:wedge-plate-3x6-right",
-        "builtin:corner-plate-4x4-round",
-        "builtin:corner-plate-5x5-quarter-ring",
-        "builtin:tile-1x2-cut-right-45",
-        "builtin:plate-1x2-round-end",
-        "builtin:wedge-plate-2x4-wing",
-        "builtin:corner-plate-3x3",
-        "builtin:curved-slope-1x4-double",
-        "builtin:plate-3x3-corner-round",
-        "builtin:wedge-plate-3x3-cut-corner",
-        "builtin:corner-plate-2x2-round",
-      ],
-      changedFields: ["surface-normals"],
-    },
-    {
-      fromCatalogVersion: "builtin.basic-parts/12",
-      toCatalogVersion: "builtin.basic-parts/13",
-      affectedCatalogPartIds: [
-        "builtin:wedge-plate-2x4-left",
-        "builtin:wedge-plate-2x4-right",
-        "builtin:wedge-plate-2x3-left",
-        "builtin:wedge-plate-2x3-right",
-        "builtin:arch-1x4",
-        "builtin:arch-1x6",
-        "builtin:curved-slope-1x2",
-        "builtin:curved-slope-1x3",
-        "builtin:curved-slope-1x4",
-        "builtin:cheese-slope-1x1",
-        "builtin:cheese-slope-2x1",
-        "builtin:wedge-plate-4x4-cut-corner",
-        "builtin:wedge-plate-6x6-cut-corner",
-        "builtin:wedge-plate-3x6-right",
-        "builtin:corner-plate-4x4-round",
-        "builtin:corner-plate-5x5-quarter-ring",
-        "builtin:tile-1x2-cut-right-45",
-        "builtin:plate-1x2-round-end",
-        "builtin:wedge-plate-2x4-wing",
-        "builtin:corner-plate-3x3",
-        "builtin:curved-slope-1x4-double",
-        "builtin:plate-3x3-corner-round",
-        "builtin:wedge-plate-3x3-cut-corner",
-        "builtin:corner-plate-2x2-round",
-      ],
-      changedFields: ["render-geometry"],
-    },
-    {
-      fromCatalogVersion: "builtin.basic-parts/12",
-      toCatalogVersion: "builtin.basic-parts/13",
-      affectedCatalogPartIds: [
-        "builtin:wedge-plate-2x4-left",
-        "builtin:wedge-plate-2x4-right",
-        "builtin:wedge-plate-2x3-left",
-        "builtin:wedge-plate-2x3-right",
-        "builtin:wedge-plate-3x6-right",
-        "builtin:arch-1x4",
-        "builtin:arch-1x6",
-        "builtin:curved-slope-1x2",
-        "builtin:curved-slope-1x3",
-        "builtin:curved-slope-1x4",
-        "builtin:cheese-slope-1x1",
-        "builtin:cheese-slope-2x1",
-      ],
-      changedFields: ["body-bounds", "visual-bounds"],
-    },
-    {
-      fromCatalogVersion: "builtin.basic-parts/28",
-      toCatalogVersion: "builtin.basic-parts/29",
-      affectedCatalogPartIds: [
-        "builtin:plate-1x2-round-end",
-        "builtin:wedge-plate-2x4-wing",
-        "builtin:corner-plate-3x3",
-        "builtin:plate-3x3-corner-round",
-      ],
-      changedFields: ["connector-semantics", "collision-semantics"],
-    },
-    {
-      fromCatalogVersion: "builtin.basic-parts/28",
-      toCatalogVersion: "builtin.basic-parts/29",
-      affectedCatalogPartIds: [
-        "builtin:technic-brick-1x1-axle-hole",
-        "builtin:technic-brick-1x2-axle-hole",
-      ],
-      changedFields: ["connector-semantics", "collision-semantics"],
-    },
-  ]);
+// The reviewed reinterpretation table lives in its own module; callers keep
+// importing both names from here.
+export type {
+  CarriedConnectionEndpoint,
+  CatalogInterpretationChange,
+  ReportedCatalogInterpretationChange,
+};
+export { REVIEWED_CATALOG_INTERPRETATION_CHANGES };
 
 export interface TruthMigrationReport {
   readonly schemaVersion: "lego.truth-migration/2";
@@ -580,8 +376,11 @@ export interface TruthMigrationReport {
   readonly addedColorIds: readonly string[];
   /** Complete newly available definitions, including render, connectors and collision. */
   readonly addedCatalogPartIds: readonly string[];
-  /** Reviewed in-place catalog reinterpretations crossed by this migration. */
-  readonly catalogInterpretationChanges: readonly CatalogInterpretationChange[];
+  /**
+   * Reviewed in-place catalog reinterpretations crossed by this migration. A
+   * row lists the saved edges carried across its connector-semantics change.
+   */
+  readonly catalogInterpretationChanges: readonly ReportedCatalogInterpretationChange[];
   /** Every pinned truth component whose version changed, not only the catalog. */
   readonly truthComponentChanges: readonly TruthComponentChange[];
   /** Populated only when the document could not be carried forward. */
@@ -708,12 +507,17 @@ export function migrateDocumentTruth(document: BrickDocumentV1): {
       }
     }
   }
+  let carriedEndpoints: readonly CarriedEndpointAssessment[] = [];
   if (sourceRoster !== undefined && MIGRATABLE_TRUTH_HASHES.has(fromTruthHash)) {
+    const connections = assessHistoricalConnectionSemantics(document, fromTruthHash, toTruthHash);
+    carriedEndpoints = connections.carriedEndpoints;
     blockingReasons.push(
-      ...historicalConnectionSemanticsBlockingReasons(document, fromTruthHash, toTruthHash),
+      ...connections.blockingReasons,
       ...historicalTransformPolicyBlockingReasons(document, fromTruthHash),
     );
   }
+  const reported = reportCarriedEndpoints(catalogInterpretationChanges, carriedEndpoints);
+  blockingReasons.push(...reported.blockingReasons);
   if (sourceRoster !== undefined) {
     const sourcePartIds = new Set(sourceRoster.catalogPartIds);
     const sourceColorIds = new Set(sourceRoster.colorIds);
@@ -861,6 +665,7 @@ export function migrateDocumentTruth(document: BrickDocumentV1): {
     document: migrated,
     report: {
       ...base,
+      catalogInterpretationChanges: reported.changes,
       migrated: true,
       addedColorIds: colorIds.filter((id) => !previousColorIds.has(id)),
       addedCatalogPartIds: catalogPartIds.filter((id) => !previousPartIds.has(id)),

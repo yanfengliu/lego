@@ -85,7 +85,12 @@ function shiftedPrimitive(primitive: CollisionPrimitive): CollisionPrimitive {
 }
 
 function offCentreDefinition(): PartDefinition {
-  const base = getPartDefinition("builtin:brick-1x2")!;
+  // A mesh fixture: its asset frame is its only frame, so it drops the LDraw
+  // frame the parametric 1 x 2 brick has measured since /30.
+  const base = (({ ldrawFrame, ...rest }) => {
+    void ldrawFrame;
+    return rest;
+  })(getPartDefinition("builtin:brick-1x2")!);
   return {
     ...base,
     id: "test:off-centre-mesh-part",

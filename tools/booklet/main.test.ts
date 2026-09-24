@@ -6,10 +6,12 @@ import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { exportRows, exportText, LXFML } from "./answer-key/pairing-fixture.ts";
+import type { RegistryCheck } from "./frame-checks.ts";
 import { assertOutputIgnored, inputFile, OutputGuardError } from "./inputs.ts";
 import { runBooklet } from "./main.ts";
 import { playBack } from "./playback.ts";
-import { playbackLines } from "./summary-playback.ts";
+import type { PlaybackStage } from "./playback-stage.ts";
+import { playbackHeadline, playbackLines } from "./summary-playback.ts";
 
 /**
  * `npm run booklet` end to end on synthetic inputs: which stage says what, and
@@ -24,6 +26,7 @@ const VARIABLES = [
   "BOOKLET_OFFICIAL_LDRAW",
   "BOOKLET_LDRAW_FRAMES",
   "BOOKLET_OUT",
+  "LEGO_RUN_EVIDENCE",
 ] as const;
 
 describe("npm run booklet", { timeout: 60_000 }, () => {
@@ -38,6 +41,8 @@ describe("npm run booklet", { timeout: 60_000 }, () => {
     process.env.BOOKLET_OFFICIAL_LDRAW = join(dir, "model.ldr");
     process.env.BOOKLET_LDRAW_FRAMES = join(dir, "absent-frames.json");
     process.env.BOOKLET_OUT = join(dir, "out");
+    // The run reads the opt-in itself, so each case starts opted out whatever the shell set.
+    delete process.env.LEGO_RUN_EVIDENCE;
     writeFileSync(join(dir, "model.xml"), LXFML);
     printed = "";
     vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
@@ -93,17 +98,47 @@ describe("npm run booklet", { timeout: 60_000 }, () => {
     expect(line("[playback]")).not.toMatch(/input absent/u);
   });
 
-  it("fails a malformed frame registry by name instead of skipping it", async () => {
+  it("fails a malformed frame registry by name once opted in, instead of skipping it", async () => {
     writeFileSync(join(dir, "model.ldr"), exportText(exportRows()));
     writeFileSync(join(dir, "frames.json"), "not json");
     process.env.BOOKLET_LDRAW_FRAMES = join(dir, "frames.json");
-    process.env.BOOKLET_PDF = join(dir, "absent.pdf");
+    process.env.LEGO_RUN_EVIDENCE = "1";
     expect(await runBooklet({ writeBaseline: false })).toBe(1);
-    // Without a booklet, playback is skipped before it needs the registry; the run still fails and says why.
+    // No stage waits on the registry; the run still fails and says why.
     expect(line("[frame registry]")).toMatch(/FAILED: malformed: .*frames\.json is not JSON/u);
+    expect(line("[playback]")).toMatch(/skipped \(input absent\): no booklet PDF/u);
     const status = JSON.parse(readFileSync(join(dir, "out", "status.json"), "utf8"));
     expect(status.stages.frameRegistry.status).toBe("failed");
     expect(status.stages.frameRegistry.reason).toMatch(/frames\.json is not JSON/u);
+  });
+
+  it("does not open the frame registry without LEGO_RUN_EVIDENCE=1, and says how to opt in", async () => {
+    writeFileSync(join(dir, "model.ldr"), exportText(exportRows()));
+    writeFileSync(join(dir, "frames.json"), "not json");
+    process.env.BOOKLET_LDRAW_FRAMES = join(dir, "frames.json");
+    // A malformed registry cannot fail a run that never reads it.
+    expect(await runBooklet({ writeBaseline: false })).toBe(0);
+    expect(line("[frame registry]")).toMatch(
+      /^\[frame registry\] skipped \(not opted in\): .*set LEGO_RUN_EVIDENCE=1 to compare/u,
+    );
+    const status = JSON.parse(readFileSync(join(dir, "out", "status.json"), "utf8"));
+    expect(status.inputs.ldrawFrames).toBeNull();
+    expect(status.stages.frameRegistry.status).toBe("skipped");
+  });
+
+  it("says so when opted in without a registry, and refuses an opt-in value it does not know", async () => {
+    writeFileSync(join(dir, "model.ldr"), exportText(exportRows()));
+    process.env.LEGO_RUN_EVIDENCE = "1";
+    expect(await runBooklet({ writeBaseline: false })).toBe(0);
+    expect(line("[frame registry]")).toMatch(
+      /^\[frame registry\] skipped \(input absent\): no first-50 frame registry at .*absent-frames\.json/u,
+    );
+    printed = "";
+    process.env.LEGO_RUN_EVIDENCE = "yes";
+    expect(await runBooklet({ writeBaseline: false })).toBe(1);
+    expect(line("[frame registry]")).toBe(
+      '[frame registry] FAILED: LEGO_RUN_EVIDENCE is "yes"; set it to 1 to read ignored run evidence (the first-50 frame registry), or leave it unset (or 0) to skip it.',
+    );
   });
 
   it("refuses to write its rows where Git would track them", async () => {
@@ -155,34 +190,60 @@ describe("the harness's file boundary", () => {
 });
 
 describe("playback frame report", () => {
-  it("warns loudly without the registry and names the inferred frames", () => {
-    const plate = (uuid: string, y: number) => ({
-      uuid,
-      design: "3024.dat",
-      catalogPartId: "builtin:plate-1x1",
-      ldrawColor: 4,
-      colorId: "builtin:red",
-      pose: { matrix: [1, 0, 0, 0, 1, 0, 0, 0, 1], positionLdu: [0, y, 0] },
-      assemblyAt: () => "model",
+  const plate = (uuid: string, y: number) => ({
+    uuid,
+    design: "3024.dat",
+    catalogPartId: "builtin:plate-1x1",
+    ldrawColor: 4,
+    colorId: "builtin:red",
+    pose: { matrix: [1, 0, 0, 0, 1, 0, 0, 0, 1], positionLdu: [0, y, 0] },
+    assemblyAt: () => "model",
+  });
+  const playback = playBack([
+    { step: 1, page: 11, lastUnit: 0, bricks: [plate("a", 0), plate("b", -8)] },
+  ]);
+  const stage = (registryCheck: RegistryCheck | null): PlaybackStage => ({
+    corrections: [],
+    asExported: playback,
+    corrected: null,
+    registryCheck,
+  });
+  const disagreement = (ldrawFilename: string) => ({
+    ldrawFilename,
+    catalogPartId: "builtin:plate-1x1",
+    registry: { orientationId: "upright-yaw-0", translationLdu: [0, 0, 0] },
+    catalog: { orientationId: "upright-yaw-0", translationLdu: [0, -4, 0] },
+  });
+
+  it("counts the parts on each catalog frame basis, and says nothing of a registry it did not read", () => {
+    expect(playbackHeadline(stage(null)).frames).toEqual({
+      meshAssetFrame: 0,
+      measuredLdrawFrame: 2,
     });
-    const playback = playBack([
-      { step: 1, page: 11, lastUnit: 0, bricks: [plate("a", 0), plate("b", -8)] },
-    ]);
-    const lines = playbackLines(
-      {
-        corrections: [],
-        asExported: playback,
-        corrected: null,
-        registry: { status: "absent", path: "C:/nowhere/frames.json", rows: 0 },
-        fallbackCheck: null,
-      },
-      0,
+    const lines = playbackLines(stage(null), 0).join("\n");
+    expect(lines).toMatch(
+      /frames from the catalog: 2 parts on measured LDraw frames, 0 on mesh asset frames · world shift \[-?\d+, -?\d+, -?\d+\]/u,
     );
-    expect(lines.join("\n")).toMatch(
-      /frames: REGISTRY ABSENT \(C:\/nowhere\/frames\.json\) — 0 parts from the registry, 0 catalog-declared, 2 INFERRED in 1 files \(3024\.dat x2\)/u,
+    expect(lines).not.toMatch(/registry|inferred/iu);
+  });
+
+  it("reports the opt-in registry comparison without moving the headline", () => {
+    const check: RegistryCheck = {
+      path: "frames.json",
+      rows: 66,
+      agree: 60,
+      equivalentBySymmetry: 1,
+      unknownParts: ["99999.dat builtin:no-such-part"],
+      disagreements: ["3024.dat", "3070b.dat", "3005.dat", "3062b.dat"].map(disagreement),
+    };
+    const lines = playbackLines(stage(check), 0);
+    expect(lines).toContain(
+      "  catalog frames vs first-50 registry (66 rows): 60 agree, 1 equivalent by symmetry, 4 disagree (3024.dat upright-yaw-0 (0, -4, 0)/upright-yaw-0 (0, 0, 0), 3070b.dat upright-yaw-0 (0, -4, 0)/upright-yaw-0 (0, 0, 0), 3005.dat upright-yaw-0 (0, -4, 0)/upright-yaw-0 (0, 0, 0) … (+1))",
     );
-    expect(lines.join("\n")).toMatch(
-      /restore it \(BOOKLET_LDRAW_FRAMES\) before trusting playback/u,
+    expect(lines).toContain(
+      "  registry rows naming no catalog part: 99999.dat builtin:no-such-part",
     );
+    // The headline is committed; an ignored file must not move it.
+    expect(playbackHeadline(stage(check))).toEqual(playbackHeadline(stage(null)));
   });
 });

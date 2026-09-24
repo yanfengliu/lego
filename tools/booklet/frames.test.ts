@@ -1,8 +1,11 @@
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
+import { describeWithRunEvidence } from "../../scripts/run-evidence-gate.mjs";
 import {
   lxfmlPoseInLdrawConvention,
   parseLxfml,
@@ -10,16 +13,23 @@ import {
   type ExportDesignFrame,
 } from "./answer-key/index.ts";
 import { checkExportFrames, correctedPoses } from "./export-frames.ts";
-import { checkFallbackAgainstRegistry, isCatalogSelfMotion } from "./frame-checks.ts";
+import { checkCatalogFramesAgainstRegistry, isCatalogSelfMotion } from "./frame-checks.ts";
 import { FRAME_PINS_DEFAULT_PATH, loadFramePins, parseFramePins } from "./frame-pins.ts";
-import type { MeasuredFrame } from "./ldraw-frames.ts";
+import { mainCheckoutRoot } from "./inputs.ts";
+import {
+  DEFAULT_MEASURED_FRAMES_PATH,
+  parseMeasuredFrames,
+  type MeasuredFrame,
+} from "./ldraw-frames.ts";
 import { catalogFrameFor, officialPoseToCatalog } from "./playback-pose.ts";
 
 /**
  * Frames that are not the identity: the LDraw-to-catalog frame playback uses,
  * the checks on it, and the export-frame check against the pinned Builder
  * frames. Bound: real catalog parts and the repository's real pins file; the
- * official export is replaced by hand-written design frames.
+ * official export is replaced by hand-written design frames, and the
+ * first-50 registry by a hand-written one, except in the last suite, which
+ * reads the real registry and runs only with LEGO_RUN_EVIDENCE=1.
  */
 const repositoryRoot = fileURLToPath(new URL("../..", import.meta.url));
 const yaw = (degrees: 0 | 90 | 180 | 270) =>
@@ -29,44 +39,50 @@ const yaw = (degrees: 0 | 90 | 180 | 270) =>
     180: [-1, 0, 0, 0, 1, 0, 0, 0, -1],
     270: [0, 0, -1, 0, 1, 0, 1, 0, 0],
   })[degrees];
-const row = (catalogPartId: string, orientationId: string): MeasuredFrame => ({
-  catalogPartId,
-  orientationId,
-  translationLdu: [0, -4, 0],
-});
+const row = (
+  catalogPartId: string,
+  orientationId: string,
+  translationLdu: [number, number, number] = [0, -4, 0],
+): MeasuredFrame => ({ catalogPartId, orientationId, translationLdu });
 
 describe("LDraw-to-catalog frames", () => {
-  it("keeps the top-face offset of a parametric part whose catalog declares a turn", () => {
-    // The 2 x 14 plate declares upright-yaw-90; the offset used to be dropped with it.
-    expect(catalogFrameFor("builtin:plate-2x14", "91988.dat", null)).toEqual({
+  it("takes a parametric part's turn and offset from its measured catalog LDraw frame", () => {
+    // LDraw runs a 2 x 4 plate's long side along x with the origin on its top face;
+    // the catalog runs it along z with the origin at the body centre.
+    expect(catalogFrameFor("builtin:plate-2x4")).toEqual({
       orientationId: "upright-yaw-90",
       translationLdu: [0, -4, 0],
-      basis: "inferred-top-of-body",
+      basis: "measured-ldraw-frame",
     });
-    const pose = officialPoseToCatalog(
-      "builtin:plate-2x14",
-      "91988.dat",
-      { matrix: yaw(0), positionLdu: [0, 0, 0] },
-      null,
-    );
-    expect(pose).toMatchObject({
+    expect(
+      officialPoseToCatalog("builtin:plate-2x4", { matrix: yaw(90), positionLdu: [20, -8, 40] }),
+    ).toMatchObject({
+      ok: true,
+      transform: { orientationId: "upright-yaw-0", positionLdu: [20, -4, 40] },
+      frameBasis: "measured-ldraw-frame",
+    });
+    // The 2 x 14 plate once lost its top-face offset along with its declared turn.
+    expect(
+      officialPoseToCatalog("builtin:plate-2x14", { matrix: yaw(0), positionLdu: [0, 0, 0] }),
+    ).toMatchObject({
       ok: true,
       transform: { orientationId: "upright-yaw-270", positionLdu: [0, 4, 0] },
     });
   });
 
-  it("applies a measured turn and offset from the registry before any declaration", () => {
-    const measured = new Map([["3020.dat", row("builtin:plate-2x4", "upright-yaw-90")]]);
-    expect(catalogFrameFor("builtin:plate-2x4", "3020.dat", measured).basis).toBe("measured");
-    const pose = officialPoseToCatalog(
-      "builtin:plate-2x4",
-      "3020.dat",
-      { matrix: yaw(90), positionLdu: [20, -8, 40] },
-      measured,
-    );
-    expect(pose).toMatchObject({
+  it("takes a mesh part's frame from its asset frame, offset off the vertical axis included", () => {
+    // LDraw 3040 (1 x 2 slope) puts its origin 12 LDU up and 10 LDU along z from the catalog origin.
+    expect(catalogFrameFor("builtin:slope-1x2-45")).toEqual({
+      orientationId: "upright-yaw-0",
+      translationLdu: [0, -12, 10],
+      basis: "mesh-asset-frame",
+    });
+    expect(
+      officialPoseToCatalog("builtin:slope-1x2-45", { matrix: yaw(180), positionLdu: [0, 0, 0] }),
+    ).toMatchObject({
       ok: true,
-      transform: { orientationId: "upright-yaw-0", positionLdu: [20, -4, 40] },
+      transform: { orientationId: "upright-yaw-180", positionLdu: [0, 12, 10] },
+      frameBasis: "mesh-asset-frame",
     });
   });
 
@@ -81,20 +97,34 @@ describe("LDraw-to-catalog frames", () => {
     expect(isCatalogSelfMotion("builtin:no-such-part", turn(90))).toBeNull();
   });
 
-  it("measures the no-registry fallback against the registry's parametric rows", () => {
-    const check = checkFallbackAgainstRegistry(
+  it("compares the catalog frames with a registry: agreement, symmetry, disagreement, unknown part", () => {
+    const check = checkCatalogFramesAgainstRegistry(
+      "registry.json",
       new Map([
+        // The catalog's own frame, row for row.
         ["3020.dat", row("builtin:plate-2x4", "upright-yaw-90")],
+        // A quarter turn off the catalog's upright-yaw-0, which a 2 x 2 plate cannot tell.
         ["3022.dat", row("builtin:plate-2x2", "upright-yaw-90")],
-        ["3024.dat", row("builtin:plate-1x1", "upright-yaw-0")],
-        ["91988.dat", row("builtin:plate-2x14", "upright-yaw-90")],
-        ["77844.dat", row("builtin:corner-plate-3x3", "upright-yaw-0")],
+        // The catalog's turn without its top-face offset: the plate lands 4 LDU off.
+        ["3024.dat", row("builtin:plate-1x1", "upright-yaw-0", [0, 0, 0])],
+        ["99999.dat", row("builtin:no-such-part", "upright-yaw-0")],
       ]),
     );
-    expect(check.parametricRows).toBe(4);
-    expect(check.agree).toBe(2);
-    expect(check.equivalentBySymmetry).toBe(1);
-    expect(check.disagreements.map(({ ldrawFilename }) => ldrawFilename)).toEqual(["3020.dat"]);
+    expect(check).toEqual({
+      path: "registry.json",
+      rows: 4,
+      agree: 1,
+      equivalentBySymmetry: 1,
+      unknownParts: ["99999.dat builtin:no-such-part"],
+      disagreements: [
+        {
+          ldrawFilename: "3024.dat",
+          catalogPartId: "builtin:plate-1x1",
+          registry: { orientationId: "upright-yaw-0", translationLdu: [0, 0, 0] },
+          catalog: { orientationId: "upright-yaw-0", translationLdu: [0, -4, 0] },
+        },
+      ],
+    });
   });
 });
 
@@ -149,7 +179,6 @@ describe("export frame check", () => {
         frame("80015;E", "80015.dat", yaw(90), [50, 8, -30]),
       ]),
       pins,
-      measured: null,
       catalogPartFor,
     });
     const verdicts = Object.fromEntries(
@@ -178,7 +207,6 @@ describe("export frame check", () => {
     const check = checkExportFrames({
       key: keyWith([frame("80015;E", "80015.dat", yaw(90), [30, 8, -30])]),
       pins,
-      measured: null,
       catalogPartFor,
     });
     expect(check.corrections).toEqual([]);
@@ -219,5 +247,38 @@ describe("export frame check", () => {
     expect(origin.map((value) => Math.round(value * 1e6) / 1e6)).toEqual(
       xml.positionLdu.map((value) => Math.round(value * 1e6) / 1e6),
     );
+  });
+});
+
+/**
+ * The catalog frames against the real first-50 frame registry, the ignored
+ * file playback read its frames from before they became catalog truth. Bound:
+ * the registry covers only the 66 LDraw files of the first 50 printed steps,
+ * so a catalog part that first appears later is not checked here. Its file
+ * name carries the sha256 of its bytes, which the test checks before trusting
+ * a row. It is read from the main checkout, since a worktree has no output/.
+ */
+describeWithRunEvidence(
+  `reads the first-50 frame registry, the ignored ${DEFAULT_MEASURED_FRAMES_PATH} of the main checkout`,
+)("catalog frames against the real first-50 frame registry", () => {
+  it("places every registry row where the registry does, up to a symmetry of the part", () => {
+    const path = resolve(mainCheckoutRoot(repositoryRoot), DEFAULT_MEASURED_FRAMES_PATH);
+    let bytes: Buffer;
+    try {
+      bytes = readFileSync(path);
+    } catch (error) {
+      throw new Error(
+        `LEGO_RUN_EVIDENCE=1 needs the first-50 frame registry at ${path}, which could not be read (${(error as Error).message}); restore that file, or unset LEGO_RUN_EVIDENCE to skip this comparison.`,
+        { cause: error },
+      );
+    }
+    const pinned = /-([0-9a-f]{64})\.json$/u.exec(DEFAULT_MEASURED_FRAMES_PATH)?.[1];
+    expect(createHash("sha256").update(bytes).digest("hex")).toBe(pinned);
+    const frames = parseMeasuredFrames(bytes.toString("utf8"), path);
+    const check = checkCatalogFramesAgainstRegistry(path, frames);
+    expect(check.rows).toBe(66);
+    expect(check.unknownParts).toEqual([]);
+    expect(check.disagreements).toEqual([]);
+    expect(check.agree + check.equivalentBySymmetry).toBe(check.rows);
   });
 });

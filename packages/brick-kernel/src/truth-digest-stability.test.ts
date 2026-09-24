@@ -12,11 +12,23 @@ import { createBuiltinTruthSnapshot, getBuiltinTruthDigestInputs } from "./facto
  * are literals rather than recomputed expectations on purpose: a test that
  * derives what it checks from the code it is checking cannot notice a change.
  *
- * Measured at catalog builtin.basic-parts/29 with 106 definitions. /29 appends
- * exact official 10201 and 3245b identities as complete measured definitions
- * in generated order. Their official geometry, reviewed connector rows,
- * collision fields, and source frames are additive; predecessor semantic
- * payloads remain unchanged.
+ * Measured at catalog builtin.basic-parts/30 with 106 definitions. /30 adds no
+ * part. Every parametric part gains its measured LDraw interchange frame, which
+ * moves the catalog hash, and 15573 gains a centre seat and its allowance,
+ * which move the connector taxonomy and collision model hashes. Restoring the
+ * /29 label, those frames and 15573's /29 geometry, connectors and collision
+ * reproduces all three /29 hashes below bit for bit; the transform policy and
+ * validator set do not move.
+ *
+ * What they were at builtin.basic-parts/29, HEAD 982634d, with 106 definitions:
+ *   catalog            sha256:19c5e8a3f4e1d00d7747c8d3e0f377ee4391acc53915df8ead0c1830b75b8db6
+ *   connectorTaxonomy  sha256:b0b8a26e010f522ba88d55f3b8565add619b2e569f15abad59a46ffd2ccf0ddb
+ *   collisionModel     sha256:b1231af344c0c293e74c0721bd0005f4f7a6746ee144ccf71ca14e22caa07042
+ *   transformPolicy    sha256:44cf428cee1487a9441c609a75fbafefd6c3b4591512af30f8903e4508285f4c
+ *   validatorSet       sha256:44233e884c474210006e4e94b82e952fd7b446768396d5b53575eb7946cba4fe
+ *   truth              sha256:54762419e4779c6c15566052062fcaa432cb45e3a13704b5af1563b4fa94e8eb
+ * /29 appended exact official 10201 and 3245b identities as complete measured
+ * definitions in generated order; predecessor semantic payloads were unchanged.
  *
  * What they were at builtin.basic-parts/28, HEAD aad7900, with 104 definitions:
  *   catalog            sha256:15decef17024421dec825287923d2ae0142973f83281b3479b0eeeb5e5ddd837
@@ -152,27 +164,30 @@ import { createBuiltinTruthSnapshot, getBuiltinTruthDigestInputs } from "./facto
  *   validatorSet       sha256:cb2767cfa8c8d7adfe145bef950b49428d8c8fced235a04b5f984c29799a031e
  */
 const PINNED_TRUTH_HASHES = {
-  catalog: "sha256:19c5e8a3f4e1d00d7747c8d3e0f377ee4391acc53915df8ead0c1830b75b8db6",
-  connectorTaxonomy: "sha256:b0b8a26e010f522ba88d55f3b8565add619b2e569f15abad59a46ffd2ccf0ddb",
-  collisionModel: "sha256:b1231af344c0c293e74c0721bd0005f4f7a6746ee144ccf71ca14e22caa07042",
+  catalog: "sha256:4662bd517d807a952bda5fc3964c02e34e0ae502255f747635b6c969fb564ebc",
+  connectorTaxonomy: "sha256:73e50f5ea9f2ce529f241dae4e04dc99aeb2b57738c228d0844e5b30af66ceb2",
+  collisionModel: "sha256:369f49834d2cfe26e5ab5650272baab6af40f01add2c93f542847c5b1b2c29c0",
   transformPolicy: "sha256:44cf428cee1487a9441c609a75fbafefd6c3b4591512af30f8903e4508285f4c",
   validatorSet: "sha256:44233e884c474210006e4e94b82e952fd7b446768396d5b53575eb7946cba4fe",
 } as const;
 
-const PINNED_TRUTH_HASH = "sha256:54762419e4779c6c15566052062fcaa432cb45e3a13704b5af1563b4fa94e8eb";
+const PINNED_TRUTH_HASH = "sha256:cf2d67907369f85551055665b6df0f849dd978d2e63330130ec2d2db8f6ccc0b";
 
 /**
  * SHA-256 of the ordered `[partId, geometry.contentHash]` roster, all 106 rows.
- * It was 5ea04c448b04800b87087f0c5dcb818d46e805eb51d535c9b40b7894281f4af1 at /8
- * and 19c6fbc5190d808bfa0b3ffd4d81fef3262a8758fffc53f9ecc7dfe76857cce8 at /9.
+ * It was 5ea04c448b04800b87087f0c5dcb818d46e805eb51d535c9b40b7894281f4af1 at /8,
+ * 19c6fbc5190d808bfa0b3ffd4d81fef3262a8758fffc53f9ecc7dfe76857cce8 at /9 and
+ * b294d5b342a5d19da9bfc019cfb907d082183b8ad560f078ef23fb356ba9d058 at /29.
  *
  * Every move of this number through /8 came from appending parts, which left the
  * existing prefixes hashing exactly as before. /9 moved one row in place and /10
  * moves fifty-seven more, so no prefix survives either. That is the point of the
- * version bump: parts in place changed what they draw.
+ * version bump: parts in place changed what they draw. /30 moves one row in
+ * place without changing a triangle: 15573's recipe records its centre seat, and
+ * restoring that one content hash gives back the /29 value.
  */
 const PINNED_GEOMETRY_ROSTER_SHA256 =
-  "b294d5b342a5d19da9bfc019cfb907d082183b8ad560f078ef23fb356ba9d058";
+  "e99a4d1b2676105d5f3999bca6c4e584f23499bc5a1c87c8ba9fcf41f760bf30";
 
 const PINNED_PART_COUNT = 106;
 /**
@@ -197,8 +212,11 @@ const PINNED_PART_COUNT = 106;
  * collision bodies; 3245c also declares two reviewed shared-capacity cells.
  * /29 appends two exact-identity meshes, twelve connectors and their
  * conservative collision bodies; 10201 also declares square-S6 clutch cells.
+ * /30 is 1_771_315 + 45_692: sixty-one measured LDraw frames (3023 attributed to
+ * 3023b, the part its redirect resolves to), and 15573's
+ * centre seat, its allowance, its shared-capacity groups and its recipe entry.
  */
-const PINNED_CATALOG_SERIALIZED_LENGTH = 1_771_315;
+const PINNED_CATALOG_SERIALIZED_LENGTH = 1_817_007;
 
 describe("builtin truth digest stability", () => {
   it("keeps the five pinned truth hashes byte-identical", () => {
@@ -217,7 +235,7 @@ describe("builtin truth digest stability", () => {
     const truth = createBuiltinTruthSnapshot();
 
     expect(truth.catalog.hash).toBe(PINNED_TRUTH_HASHES.catalog);
-    expect(truth.catalog.version).toBe("builtin.basic-parts/29");
+    expect(truth.catalog.version).toBe("builtin.basic-parts/30");
     expect(truth.connectorTaxonomy.hash).toBe(PINNED_TRUTH_HASHES.connectorTaxonomy);
     expect(truth.collisionModel.hash).toBe(PINNED_TRUTH_HASHES.collisionModel);
     expect(truth.transformPolicy.hash).toBe(PINNED_TRUTH_HASHES.transformPolicy);

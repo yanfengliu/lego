@@ -49,6 +49,8 @@ packages/brick-kernel/src/build-sequence.ts -text
 # inherits the protection instead of waiting to be discovered by a red suite.
 apps/web/test/fixtures/** -text
 scripts/fixtures/** -text
+# Real LDraw subset /1 files written by commit 982634d; the test pins their bytes.
+packages/brick-kernel/src/fixtures/** -text
 
 # The first version of this file listed only the digest-pinned goldens, because
 # the audit behind it grepped for the two pin helpers. That missed byte
