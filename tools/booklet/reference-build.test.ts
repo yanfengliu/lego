@@ -7,6 +7,7 @@ import {
   buildReferenceFile,
   centringShift,
   REFERENCE_STAND_IN_COLOR_ID,
+  referenceBuildRecord,
   referenceStepName,
 } from "./reference-build.ts";
 
@@ -253,6 +254,44 @@ describe("reference build file", () => {
     if (result.status !== "built") throw new Error(result.reason);
     expect(result.steps.map(({ startsSubBuild }) => startsSubBuild)).toEqual([false, false]);
     expect(result.document.steps[1]!.name).toBe("Printed step 2 (p. 12) · reference");
+  });
+
+  it("records the steps the file holds and why it stops short, for a reader to hold the file to", () => {
+    const playback = playBack(
+      steps(
+        [plate("a", [0, 0, 0])],
+        [plate("b", [0, -8, 0], { colorId: null, ldrawColor: 47 })],
+        [plate("s", [40, 0, 0], { assemblyAfter: subBuildUntil(null) })],
+      ),
+    );
+    const result = buildReferenceFile(playback);
+    expect(referenceBuildRecord(result, playback)).toEqual({
+      status: "built",
+      file: "reference-build.mpd",
+      validThrough: 3,
+      firstStep: 1,
+      throughStep: 2,
+      parts: 2,
+      colorStandIns: 1,
+      shortenedBy:
+        "step 3: the LDraw exporter refused it (a pending sub-build is still apart there): Document is not globally valid: DISCONNECTED_ASSEMBLY",
+      steps: [
+        { step: 1, added: 1, cumulative: 1, colorStandIns: 0, startsSubBuild: false },
+        { step: 2, added: 1, cumulative: 2, colorStandIns: 1, startsSubBuild: false },
+      ],
+    });
+
+    const whole = playBack(steps([plate("a", [0, 0, 0])]));
+    expect(referenceBuildRecord(buildReferenceFile(whole), whole)).toMatchObject({
+      validThrough: 1,
+      throughStep: 1,
+      shortenedBy: null,
+    });
+    const none = playBack(steps([plate("a", [0, 0, 0]), plate("c", [0, 0, 0])]));
+    expect(referenceBuildRecord(buildReferenceFile(none), none)).toEqual({
+      status: "not-built",
+      reason: "no printed step is valid",
+    });
   });
 
   it("centres the model on the build plate by whole studs", () => {

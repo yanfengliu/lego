@@ -30,7 +30,12 @@ import {
   type FrameRegistry,
 } from "./ldraw-frames.ts";
 import { primaryPlayback, runPlaybackStage, type PlaybackStage } from "./playback-stage.ts";
-import { buildReferenceFile, REFERENCE_BUILD_FILE, referenceBuildLine } from "./reference-build.ts";
+import {
+  buildReferenceFile,
+  REFERENCE_BUILD_FILE,
+  referenceBuildLine,
+  referenceBuildRecord,
+} from "./reference-build.ts";
 import { readBookletPdf, type BookletRead } from "./read.ts";
 import {
   alignRows,
@@ -54,7 +59,9 @@ import { compareWithBaseline, headlineOf, summaryLines, type Stage } from "./sum
  * each printed step to the elements identification names, and keeps the
  * alignment by callout counts alone as a comparison line. The valid prefix of
  * reference playback also goes to output/booklet/reference-build.mpd, which
- * the editor imports and plays back one printed step at a time. An absent
+ * the editor imports and plays back one printed step at a time; status.json's
+ * `referenceBuild` records the printed steps that file holds and, when it
+ * stops before the valid prefix ends, why. An absent
  * input skips the stages that need it ("skipped (input absent)") and never
  * fails the run. A present input that cannot be used — malformed, oversized,
  * or an official export whose rows contradict the LXFML — fails the stages
@@ -292,11 +299,17 @@ export async function runBooklet(options: { readonly writeBaseline: boolean }): 
 
   const stages = { read, identify, align, catalog, exportFrames, playback, key };
   const headline = headlineOf(stages);
+  const primary = playback.status === "ran" ? primaryPlayback(playback.value) : null;
+  const referenceBuild = primary ? buildReferenceFile(primary) : null;
   writeJson(statusPath, {
     version: BOOKLET_STATUS_VERSION,
     inputs,
     catalogVersion: BUILTIN_CATALOG_VERSION,
     headline,
+    referenceBuild:
+      referenceBuild && primary
+        ? referenceBuildRecord(referenceBuild, primary)
+        : { status: "not-built", reason: "reference playback did not run" },
     stages: {
       read:
         read.status === "ran"
@@ -334,8 +347,6 @@ export async function runBooklet(options: { readonly writeBaseline: boolean }): 
     },
   });
   if (playback.status === "ran") writeJson(referencePath, referencePlayback(playback.value));
-  const referenceBuild =
-    playback.status === "ran" ? buildReferenceFile(primaryPlayback(playback.value)) : null;
   if (referenceBuild?.status === "built") {
     mkdirSync(dirname(referenceBuildPath), { recursive: true });
     writeFileSync(referenceBuildPath, referenceBuild.text, "utf8");

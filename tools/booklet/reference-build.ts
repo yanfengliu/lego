@@ -94,6 +94,51 @@ export type ReferenceBuildResult =
       })
   | { readonly status: "not-built"; readonly reason: string };
 
+/**
+ * What status.json records about the file: which printed steps it holds and,
+ * when it stops before the valid prefix ends, why. A reader of the file (the
+ * opt-in reference-build playback spec) holds it to this record, so a file
+ * cut short without a recorded reason cannot pass.
+ */
+export type ReferenceBuildRecord =
+  | {
+      readonly status: "built";
+      readonly file: string;
+      /** Last step of the valid playback prefix the file was cut from. */
+      readonly validThrough: number;
+      readonly firstStep: number;
+      readonly throughStep: number;
+      readonly parts: number;
+      readonly colorStandIns: number;
+      readonly shortenedBy: string | null;
+      readonly steps: readonly Omit<ReferenceBuildStep, "page">[];
+    }
+  | { readonly status: "not-built"; readonly reason: string };
+
+export function referenceBuildRecord(
+  result: ReferenceBuildResult,
+  playback: Pick<Playback, "steps">,
+): ReferenceBuildRecord {
+  if (result.status === "not-built") return result;
+  return {
+    status: "built",
+    file: REFERENCE_BUILD_FILE,
+    validThrough: validPrefixEnd(playback) ?? result.throughStep,
+    firstStep: result.steps[0]!.step,
+    throughStep: result.throughStep,
+    parts: result.document.parts.length,
+    colorStandIns: result.steps.reduce((sum, { colorStandIns }) => sum + colorStandIns, 0),
+    shortenedBy: result.shortenedBy,
+    steps: result.steps.map(({ step, added, cumulative, colorStandIns, startsSubBuild }) => ({
+      step,
+      added,
+      cumulative,
+      colorStandIns,
+      startsSubBuild,
+    })),
+  };
+}
+
 const pad = (value: number) => String(value).padStart(3, "0");
 const stepIdOf = (step: number) => `printed-step-${pad(step)}`;
 
