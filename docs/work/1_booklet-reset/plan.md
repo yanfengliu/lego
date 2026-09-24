@@ -68,7 +68,7 @@ Todo:
 
 - [ ] Step 32 `PART_STUD_BODY_COLLISION`, the first playback failure with both corrections.
 - [ ] G3a-3 catalog coverage: the 90 missing designs (first needed at step 51), LDraw colour 47 (first needed at step 18), and 4519's half-LDU origin (first blocks step 45).
-- [ ] G3b reference build playable in the app, per step.
+- [x] G3b reference build playable in the app, per step (`output/booklet/reference-build.mpd`; step 31 has 2 of 4 pieces wrong, and the editor draws the model mirrored, both open).
 - [ ] G3c-2 identification follow-ups: tests for the untested `maxOperatorsPerPage` and `maxDecodedPixelsPerPage` limits, and identification scored against the official model inside the harness.
 - [ ] G3d camera fit (fed) and placement (fed) scored against the key.
 - [ ] G3e ratchet baseline (today `status/booklet-baseline.json` is reported, not enforced); retire the real-build-* family.

@@ -33,7 +33,7 @@ The retired first-50 campaign's figures (its placement search, exact-prefix diag
 - **Camera fit scored against the key** (not built (G3d)): Silhouette camera-fit primitives exist in `packages/rendering/src/camera-fit.ts`, used by specs and the experimental family; nothing fits a printed panel's camera and scores it against the official camera.
 - **Placement scored against the key** (not built (G3d)): `compareBuilds` runs only against a synthetic reference (`apps/web/e2e/build-search.spec.ts`).
 - **Per-step verification against the printed panel** (not built): No rebuild step is checked against its booklet picture.
-- **Reference build in the app** (not built (G3b)): The harness plays back; the studio cannot yet step through the reference build.
+- **Reference build in the app** (built (G3b)): `npm run booklet` writes the valid prefix to ignored `output/booklet/reference-build.mpd`, with one editor step per printed step and labelled as a reference. Use the editor's Import, then Build, to step through printed steps 1-31. `apps/web/e2e/reference-build-playback.spec.ts` (opt-in) checks each step's counts against the printed callouts. Looked at 2026-09-24: step 31 matches booklet page 35 without a flip once the renderer's LDU-to-Three map became a rotation (it had been a reflection that mirrored every model), and trans-clear appears as an opaque stand-in.
 - **Ratchet** (baseline reported, not enforced (G3e)): Headline counts are committed and compared each run; a regression does not fail.
 - **Broker and evaluator** (not built): `apps/companion` holds local run-ledger and artifact-store libraries. There is no released broker, credential proxy, production signing, sealed replay, or independent evaluator.
 - **Experimental `real-build-*` family** (exists, retiring (G3e)): `apps/web/e2e/real-build-*` is the retired first-50 campaign's tooling. It reads the official model directly as a named exception and is not the current frontier. It is removed once the harness reproduces its useful numbers.
@@ -45,6 +45,7 @@ The earlier model-pilot identification path (the pilot transports and the quaran
 The next gaps, in build order, as `npm run booklet` measures them:
 
 - Step 18: colour LDraw 47 is first needed and absent from the catalog.
+- Step 31: valid in playback, and its piece count matches the callouts, but 2 of its 4 pieces differ from the printed callout in kind and colour. Alignment compares callout counts only, so only looking at the step caught this.
 - Step 32: playback fails `PART_STUD_BODY_COLLISION`; it is the first invalid step after 31 valid ones.
 - Step 45: the first step the catalog blocks, on 4519's half-LDU origin.
 - Step 51 onward: 90 designs are missing, 371 pieces in all.
@@ -66,7 +67,7 @@ Rules the retired campaign established, which still bind:
 
 1. Step 32: resolve `PART_STUD_BODY_COLLISION`.
 2. G3a-3 catalog gaps: the 90 missing designs, colour LDraw 47, and 4519's half-LDU origin.
-3. G3b: the reference build playable in the app, per step.
+3. G3b: done. The reference build plays in the app, per step; step 31's pieces are open under the frontier above.
 4. G3c-2: tests for the untested `maxOperatorsPerPage` and `maxDecodedPixelsPerPage` limits, and identification scored against the official model inside the harness.
 5. G3d: camera fit, and placement scored against the key.
 6. G3e: enforce the ratchet on the committed baseline, and retire the `real-build-*` family.

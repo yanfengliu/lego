@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -28,7 +28,8 @@ import {
   MeasuredFramesError,
   type FrameRegistry,
 } from "./ldraw-frames.ts";
-import { runPlaybackStage, type PlaybackStage } from "./playback-stage.ts";
+import { primaryPlayback, runPlaybackStage, type PlaybackStage } from "./playback-stage.ts";
+import { buildReferenceFile, REFERENCE_BUILD_FILE, referenceBuildLine } from "./reference-build.ts";
 import { readBookletPdf, type BookletRead } from "./read.ts";
 import {
   alignRows,
@@ -46,7 +47,9 @@ import { compareWithBaseline, headlineOf, summaryLines, type Stage } from "./sum
  *
  * Stages — read, align, catalog, export frames, reference playback — write
  * their per-step rows to output/booklet/status.json, and the console gets a
- * summary of at most 40 lines. An absent input skips the stages that need it
+ * summary of at most 40 lines. The valid prefix of reference playback also
+ * goes to output/booklet/reference-build.mpd, which the editor imports and
+ * plays back one printed step at a time. An absent input skips the stages that need it
  * ("skipped (input absent)") and never fails the run. A present input that
  * cannot be used — malformed, oversized, or an official export whose rows
  * contradict the LXFML — fails the stages that need it and the run (exit 1),
@@ -123,9 +126,11 @@ export async function runBooklet(options: { readonly writeBaseline: boolean }): 
   const outDir = resolve(process.env.BOOKLET_OUT ?? resolve(REPOSITORY_ROOT, "output", "booklet"));
   const statusPath = resolve(outDir, "status.json");
   const referencePath = resolve(outDir, "reference-playback.json");
+  const referenceBuildPath = resolve(outDir, REFERENCE_BUILD_FILE);
   // Before any work: the rows carry official transforms and must never be committable.
   assertOutputIgnored(statusPath);
   assertOutputIgnored(referencePath);
+  assertOutputIgnored(referenceBuildPath);
   const envPath = (name: string, fallback: string) =>
     resolve(process.env[name] ?? resolve(inputRoot, fallback));
   const runEvidence = readRunEvidenceOptIn(process.env[RUN_EVIDENCE_VARIABLE]);
@@ -303,6 +308,15 @@ export async function runBooklet(options: { readonly writeBaseline: boolean }): 
     },
   });
   if (playback.status === "ran") writeJson(referencePath, referencePlayback(playback.value));
+  const referenceBuild =
+    playback.status === "ran" ? buildReferenceFile(primaryPlayback(playback.value)) : null;
+  if (referenceBuild?.status === "built") {
+    mkdirSync(dirname(referenceBuildPath), { recursive: true });
+    writeFileSync(referenceBuildPath, referenceBuild.text, "utf8");
+  } else {
+    // A file left by an earlier run would be played as if this run had written it.
+    rmSync(referenceBuildPath, { force: true });
+  }
   if (options.writeBaseline)
     writeJson(BASELINE_PATH, { version: BOOKLET_STATUS_VERSION, headline });
   const lines = summaryLines({
@@ -313,6 +327,7 @@ export async function runBooklet(options: { readonly writeBaseline: boolean }): 
     baseline: compareWithBaseline(headline, readBaseline()),
     totalMs: Math.round(performance.now() - started),
   });
+  if (referenceBuild) lines.splice(-1, 0, referenceBuildLine(referenceBuild, referenceBuildPath));
   process.stdout.write(`${lines.join("\n")}\n`);
   const anyFailed = [read, keyLoad, align, catalog, registryStage, exportFrames, playback].some(
     (stage) => stage?.status === "failed",
