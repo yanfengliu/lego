@@ -15,6 +15,7 @@ import {
   verifyStep7DepthHostRun,
 } from "./real-build-step7-depth-diagnostic";
 import { hasSampleBooklet } from "./sample-booklet";
+import { skipWithoutRunEvidence } from "./run-evidence-gate";
 
 const REQUIRED = process.env.LEGO_GATE3_STEP7_DEPTH_DIAGNOSTIC === "1";
 const OUTPUT_ROOT =
@@ -26,7 +27,9 @@ test("replays all step-7 rows exactly under the fixed physical subject-render le
 }) => {
   test.setTimeout(7_200_000);
   test.skip(!REQUIRED, "set LEGO_GATE3_STEP7_DEPTH_DIAGNOSTIC=1 for the fixed-8192 proof");
-  test.skip(!hasSampleBooklet, "no sample booklet");
+  skipWithoutRunEvidence(test, "reads the sample booklet for the fixed-8192 step-7 depth proof", {
+    onlyIf: hasSampleBooklet,
+  });
 
   let stage: "preparation" | "execution" | "verification" | "publication" = "preparation";
   let prepared: PreparedStep7Gate3HostRun | null = null;

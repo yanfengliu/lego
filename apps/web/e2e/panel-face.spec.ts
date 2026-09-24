@@ -12,6 +12,7 @@ import { sha256Digest } from "./real-build-artifacts";
 import { deriveRealBuildPanelEvidence } from "./real-build-panel-evidence";
 import { derivePanelFaces, deriveTransitionPanelFeatures } from "./real-build-transition-features";
 import { hasSampleBooklet } from "./sample-booklet";
+import { skipWithoutRunEvidence } from "./run-evidence-gate";
 
 /**
  * Binds the panel-face fixture to the booklet it claims to describe.
@@ -32,7 +33,9 @@ const EXPECTED_PRINTED_STEPS = 359;
 
 test("reproduces the fixture's icons from the booklet itself", async () => {
   test.setTimeout(900_000);
-  test.skip(!hasSampleBooklet, "no sample booklet");
+  skipWithoutRunEvidence(test, "reads the sample booklet to reproduce the panel-face fixture", {
+    onlyIf: hasSampleBooklet,
+  });
 
   const { bytes, source } = await readSampleBooklet();
   const evidence = await deriveRealBuildPanelEvidence({

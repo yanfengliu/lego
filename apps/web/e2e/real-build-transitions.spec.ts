@@ -19,6 +19,7 @@ import {
   deterministicTransitionClassifier,
 } from "./real-build-transition-features";
 import { hasSampleBooklet } from "./sample-booklet";
+import { skipWithoutRunEvidence } from "./run-evidence-gate";
 
 /**
  * Publishes `output/real-build/transition-classifications.json`.
@@ -43,7 +44,9 @@ test("publishes the booklet's transition classifications", async () => {
     !PUBLISH,
     `set LEGO_REAL_BUILD_PUBLISH_TRANSITIONS=1 to republish ${TRANSITION_CLASSIFICATIONS_PATH}`,
   );
-  test.skip(!hasSampleBooklet, "no sample booklet");
+  skipWithoutRunEvidence(test, "reads the sample booklet to publish transition classifications", {
+    onlyIf: hasSampleBooklet,
+  });
 
   const { bytes, source } = await readSampleBooklet();
   const pdfDigest = sha256Digest(bytes);

@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { test, expect } from "@playwright/test";
 
 import { bookletProbeUrls, hasSampleBooklet } from "./sample-booklet";
+import { skipWithoutRunEvidence } from "./run-evidence-gate";
 
 const OUT = "output/highlight-masks";
 
@@ -13,7 +14,9 @@ const OUT = "output/highlight-masks";
  */
 test("measures how the step highlight segments", async ({ page }) => {
   test.setTimeout(300_000);
-  test.skip(!hasSampleBooklet, "no sample booklet");
+  skipWithoutRunEvidence(test, "reads the sample booklet to probe step highlight segmentation", {
+    onlyIf: hasSampleBooklet,
+  });
   await page.goto("/");
   mkdirSync("output", { recursive: true });
   const scoreboard: unknown[] = [];

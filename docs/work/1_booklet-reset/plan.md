@@ -72,7 +72,7 @@ Todo:
 - [ ] G3c-2 identification follow-ups: tests for the untested `maxOperatorsPerPage` and `maxDecodedPixelsPerPage` limits, and identification scored against the official model inside the harness.
 - [ ] G3d camera fit (fed) and placement (fed) scored against the key.
 - [ ] G3e ratchet baseline (today `status/booklet-baseline.json` is reported, not enforced); retire the real-build-* family.
-- [ ] G3f-3 move the 26 Playwright specs gated on booklet existence (`hasSampleBooklet`) to the `LEGO_RUN_EVIDENCE` opt-in.
+- [x] G3f-3 move the Playwright specs gated on booklet existence (`hasSampleBooklet`) to the `LEGO_RUN_EVIDENCE` opt-in (da37b92): 24 of 26 converted, one compound case kept its onlyIf, `real-build-step7-gate3-diagnostic.spec.ts` left alone since it already fails loudly rather than skipping; the class check now scans Playwright's spec population too.
 - [ ] Editor centre-seat placement: the editor cannot hand-place a part on the 15573 centre seat (the `snapPlacementOrigin` lattice).
 - [ ] App recovery for refused documents: the app offers no way forward for any document the migration refuses.
 - [ ] Run `npm run evidence:budget` automatically (session start or a hook); today it runs only when invoked.

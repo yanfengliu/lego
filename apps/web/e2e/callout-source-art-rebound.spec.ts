@@ -6,6 +6,7 @@ import {
   assertV6CalloutManifest,
   readJsonArtifact,
 } from "../../../scripts/part-identification-artifacts.mjs";
+import { skipWithoutRunEvidence } from "./run-evidence-gate";
 import { bookletProbeUrls, hasSampleBooklet } from "./sample-booklet";
 import type { CalloutManifest } from "./callout-types";
 import type {
@@ -90,7 +91,11 @@ test("captures exact step-2/4/16 full and isolated source-art contributions", as
   page,
 }, testInfo) => {
   test.skip(!ENABLED, "set LEGO_REAL_BUILD_SOURCE_ART_REBOUND=1 for genuine capture");
-  test.skip(!hasSampleBooklet || !existsSync(MANIFEST_PATH), "exact PDF or manifest unavailable");
+  skipWithoutRunEvidence(
+    test,
+    "reads the sample booklet and output/callout-thumbnails/manifest.json for the source-art rebound capture",
+    { onlyIf: hasSampleBooklet && existsSync(MANIFEST_PATH) },
+  );
 
   const manifestArtifact = readJsonArtifact<CalloutManifest>(
     MANIFEST_PATH,

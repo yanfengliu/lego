@@ -1,13 +1,14 @@
 import { expect, test } from "@playwright/test";
 
 import { SAMPLE_BOOKLET_PATH, hasSampleBooklet } from "./sample-booklet";
+import { skipWithoutRunEvidence } from "./run-evidence-gate";
 
 const SHOTS = "output/shots";
 
 test("reads a real set instruction PDF within its bounds", async ({ page }) => {
   test.setTimeout(180_000);
   // The sample booklet is not committed, so this can only run where it is present.
-  test.skip(!hasSampleBooklet, "no sample booklet");
+  skipWithoutRunEvidence(test, "reads a real sample instruction PDF", { onlyIf: hasSampleBooklet });
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(String(error)));
 

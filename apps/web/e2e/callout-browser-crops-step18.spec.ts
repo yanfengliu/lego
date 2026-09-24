@@ -4,6 +4,7 @@ import { selectEvidenceAwareCrop } from "./callout-benchmark";
 import { renderCalloutCropsInPage } from "./callout-browser-runner";
 import { CALLOUT_RECOVERY_FIXTURE } from "./callout-recovery-fixture";
 import { bookletProbeUrls, hasSampleBooklet } from "./sample-booklet";
+import { skipWithoutRunEvidence } from "./run-evidence-gate";
 import type { CalloutTarget } from "./callout-types";
 
 const SHARED_BOX = {
@@ -43,7 +44,9 @@ const TARGETS: readonly CalloutTarget[] = [
 ];
 
 test("keeps distinct step-18 part art bound to each printed quantity label", async ({ page }) => {
-  test.skip(!hasSampleBooklet, "no sample booklet");
+  skipWithoutRunEvidence(test, "reads recipes/6651557.pdf to render step-18 callout crops", {
+    onlyIf: hasSampleBooklet,
+  });
   await page.goto("/");
   const results = await renderCalloutCropsInPage(page, {
     ...bookletProbeUrls(),

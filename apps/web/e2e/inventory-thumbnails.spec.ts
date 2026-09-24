@@ -26,6 +26,7 @@ import {
   type InventoryCropRequest,
 } from "./inventory-browser-crops";
 import { SAMPLE_BOOKLET_PATH, bookletProbeUrls, hasSampleBooklet } from "./sample-booklet";
+import { skipWithoutRunEvidence } from "./run-evidence-gate";
 
 /**
  * Cuts one labelled thumbnail out of the page for every inventory element, and
@@ -106,7 +107,9 @@ interface PublishedThumbnail {
 
 test("crops a labelled, measured thumbnail for every inventory element", async ({ page }) => {
   test.setTimeout(1_200_000);
-  test.skip(!hasSampleBooklet, "no sample booklet");
+  skipWithoutRunEvidence(test, "reads the sample booklet to crop inventory thumbnails", {
+    onlyIf: hasSampleBooklet,
+  });
   mkdirSync(OUT, { recursive: true });
 
   const bytes = readFileSync(SAMPLE_BOOKLET_PATH!);
