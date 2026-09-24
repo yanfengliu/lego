@@ -27,6 +27,7 @@
     "migration-history:check": "node --experimental-strip-types scripts/check-historical-connection-semantics.mjs",
     "observations:check": "node scripts/check-observation-consumers.mjs",
     "parts:check": "node scripts/check-part-standard.mjs",
+    "docs:budget": "node scripts/check-doc-budgets.mjs",
     "parts:visual-capture": "node scripts/run-part-visual-admission.mjs",
     "parts:visual-pairs": "node scripts/create-part-visual-admission-pairs.mjs",
     "parts:visual-review": "node scripts/publish-part-visual-admission-review.mjs",
@@ -54,7 +55,7 @@
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write . \"!**/.pytest_cache\" \"!output\" \"!var\" \"!tmp\" \"!test-results\" \"!.claude/worktrees\"",
     "format:check": "prettier --check . \"!**/.pytest_cache\" \"!output\" \"!var\" \"!tmp\" \"!test-results\" \"!.claude/worktrees\"",
-    "verify": "npm run schema:check && npm run node:check && npm run migration-history:check && npm run observations:check && npm run bom:check && npm run parts:check && npm run lessons:check && npm run notices:check && npm run format:check && npm run lint && npm run typecheck && npm run test:python && npm run test && npm run test:browser && npm run build",
+    "verify": "npm run schema:check && npm run node:check && npm run migration-history:check && npm run observations:check && npm run bom:check && npm run parts:check && npm run docs:budget && npm run lessons:check && npm run notices:check && npm run format:check && npm run lint && npm run typecheck && npm run test:python && npm run test && npm run test:browser && npm run build",
     "audit:runtime": "npm audit --omit=dev --audit-level=high",
     "audit": "npm audit --audit-level=high",
     "lessons:check": "node scripts/check-lessons.mjs"
