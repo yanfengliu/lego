@@ -52,8 +52,8 @@ from measured_part_tables import (
     measure_render_only_part,
     measured_part_report_row,
     render_only_part_report_row,
-    scoreable_candidate,
 )
+from measured_part_scoring import scoreable_candidate
 from part_admission_contract import validate_candidate
 from part_admission_evidence import PILOT_DESIGN_IDS, bind_to_pilot, parse_pilot, write_output_report
 from part_admission_scorecard import DEFAULT_SAMPLE_SPACING_LDU, score_candidate

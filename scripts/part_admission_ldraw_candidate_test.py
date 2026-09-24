@@ -11,7 +11,11 @@ from part_admission_ldraw_candidate import (
     role_classifier,
 )
 from part_admission_scorecard import measure_union_volume, score_candidate
+from part_admission_solid_columns_test import SolidIntervalColumnTests
 from part_admission_surface import BODY_ROLE, CLUTCH_ROLE, MeasuredSurface, STUD_ROLE
+
+# The solid-interval cases run through this `npm run test:python` entry point.
+__all__ = ["LDrawCandidateTests", "SolidIntervalColumnTests"]
 
 
 def quad(a: Vector3, b: Vector3, c: Vector3, d: Vector3) -> list[tuple[Vector3, ...]]:

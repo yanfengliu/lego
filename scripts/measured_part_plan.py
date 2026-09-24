@@ -236,7 +236,11 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
     # the four underside clutches and both directional studs; all six frames
     # land on one normal-grouped 20-LDU lattice and every clutch has measured
     # room for a nominal stud. Builder has no record for this design and grants
-    # no authority.
+    # no authority. builtin.basic-parts/32: the same root authors a square-S6
+    # socket in the wall's back recess, two cells facing +Z that take a 1 x 2
+    # plate's studs (step 40), so the opt-in admits them; the recess opens
+    # sideways, so collision is measured as solid intervals per column rather
+    # than one height-field interval that fills it.
     _plan(
         "41682",
         "bracket",
@@ -248,6 +252,8 @@ ADMITTED_PART_PLANS: tuple[MeasuredPartPlan, ...] = (
         connector_source=LDCAD_SHADOW_CONNECTOR_SOURCE,
         catalog_id="builtin:bracket-2x2-1x2-vertical-studs",
         display_name="Bracket 2 x 2 with 1 x 2 Vertical Studs",
+        allow_ldcad_square_s6_clutches=True,
+        collision_derivation="column-solid-intervals",
     ),
     # builtin.basic-parts/20: step 35 first uses the 2877 grille brick. Its
     # exact official closure supplies the asymmetric grille shell and two top

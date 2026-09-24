@@ -221,6 +221,25 @@ class PinnedBuilderSquareClutchControlTests(unittest.TestCase):
                 )
                 self.assert_clutches_have_source_room(design_id, root, rows)
 
+    def test_41682_opt_in_adds_its_recess_cells_facing_along_z(self) -> None:
+        root = self.library.exact("official", "parts/41682.dat")
+        composition = compose_part_snaps(self.library, self.shadow, root)
+        square_snaps = [snap for snap in composition.snaps if is_square_s6_clutch_socket(snap)]
+        underside = [([x, 8.0, z], [0.0, 1.0, 0.0]) for x in (-10.0, 10.0) for z in (-10.0, 10.0)]
+        rows = emit_clutch_connectors(composition.snaps, allow_square_s6=True)
+
+        self.assertEqual(
+            [(row["positionLdu"], row["normal"]) for row in emit_clutch_connectors(composition.snaps)],
+            underside,
+        )
+        self.assertEqual(
+            sorted((row["positionLdu"], row["normal"]) for row in rows),
+            sorted([*underside, ([-10.0, -10.0, 4.0], [0.0, 0.0, 1.0]), ([10.0, -10.0, 4.0], [0.0, 0.0, 1.0])]),
+        )
+        self.assertEqual([str(snap.sections[0].length) for snap in square_snaps], ["4", "4"])
+        self.assertEqual([snap.grid_count for snap in square_snaps], [2, 2])
+        self.assert_clutches_have_source_room("41682", root, rows)
+
     def test_3245c_keeps_inherited_square_rows_non_authoritative(self) -> None:
         root = self.library.exact("official", "parts/3245c.dat")
         composition = compose_part_snaps(self.library, self.shadow, root)

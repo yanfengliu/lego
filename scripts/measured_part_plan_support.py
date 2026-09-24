@@ -32,6 +32,7 @@ def measured_part_plan(
     clutch_shared_capacity_groups: tuple[
         tuple[tuple[int, int, int], tuple[str, ...]], ...
     ] = (),
+    collision_derivation: str = "column-height-field",
 ) -> MeasuredPartPlan:
     return MeasuredPartPlan(
         design_id=design_id,
@@ -51,6 +52,7 @@ def measured_part_plan(
         validated_connection_stud_profile=validated_connection_stud_profile,
         allow_ldcad_square_s6_clutches=allow_ldcad_square_s6_clutches,
         clutch_shared_capacity_groups=clutch_shared_capacity_groups,
+        collision_derivation=collision_derivation,
     )
 
 
