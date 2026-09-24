@@ -3,7 +3,7 @@
 Status: active
 Owner: Claude Code session 472890e3 (coordinator)
 Created: 2026-09-22
-Updated: 2026-09-23
+Updated: 2026-09-24
 
 ## Problem and outcome
 
@@ -50,25 +50,34 @@ Nothing else is ported.
 
 ## Implementation steps
 
-Done (integrated on branch integrate/booklet-reset-1; `npm run verify` exit 0 at c2a3d7a):
+Done (on main):
 
 - [x] G1 archive, clean, refs; baseline measured. The WIP is on archive/first50-campaign-wip-20260908 (f44f1b8), and main was clean at b1e1d0e.
 - [x] G2 workflow reform (23be69a): AGENTS.md 35,357 → 28,621 bytes with the fleet canon block byte-identical, docs/START.md, the local-rules rewrite, and the `scout` agent.
-- [x] G3a harness milestone 1: read, align, catalog, reference playback (ee3e7af). `npm run booklet` reads 359/359 steps; aligns 338 by run order, 18 by repair and 3 not; covers 77 exact and 5 interchangeable designs of 172, with 90 missing; plays back valid through step 1 as exported and through 28 with the two labelled corrections, then step 29 is `DISCONNECTED_ASSEMBLY` on the 15573 jumpers.
+- [x] G3a harness milestone 1: read, align, catalog, reference playback (ee3e7af). `npm run booklet` reads 359/359 steps; aligns 338 by run order, 18 by repair and 3 not; covers 77 exact and 5 interchangeable designs of 172, with 90 missing.
+- [x] G3a-2 frame truth, catalog `/30` (merge 3d5822e). Every parametric part's LDraw-to-catalog frame is catalog truth, so playback reads no ignored registry; the 15573 jumper's centre seat clears step 29. The `/29`→`/30` migration carries saved 15573 grid-clutch edges forward under a proven delta class (b466d94). Playback is valid through step 31 with the two labelled corrections; step 32 fails `PART_STUD_BODY_COLLISION`; 315 steps are catalog-blocked, the first at step 45 (re-measured 2026-09-24 at 384a70d).
 - [x] G3c closed-set identification scored against the key (0271962). `node scripts/identify-booklet.mjs` finds 313 drawings, proves its assignment optimal, and gets 72/74 judged Step 1-50 callouts right, 74/74 with the 2 recorded truth errata.
 - [x] G3f-1 the gate made green (feea2f8): `npm run verify` exit 0, the `LEGO_RUN_EVIDENCE` opt-in with its class check, and `npm run test:score`.
+- [x] G3f-2 the a8fc397 generated-file staleness tests ported (741e9a2).
+- [x] README cut to 4.8 KB and the `docs:budget` gate (7c43b22); operating-docs fixes from the ops review (4fbc04c); both merged in c53723e.
+- [x] Evidence cleanup: ignored `output/` and `var/` cut from about 42 GB to 2.8 MB, keeping only the inputs `npm run booklet`, `identify-booklet.mjs` and the score tests read.
+- [x] Fleet canon trim (fleet 20a77f3), synced here in 8ed4adc and 002a6af.
+- [x] Design docs trimmed to contracts plus the measured position, and the session records written (this branch).
 
 Todo:
 
-- [ ] G3a-2 frame truth: move the measured frames into catalog data so the harness stops reading `output/real-build/history`, and fix the 15573 jumper that blocks step 29.
+- [ ] Step 32 `PART_STUD_BODY_COLLISION`, the first playback failure with both corrections.
 - [ ] G3a-3 catalog coverage: the 90 missing designs (first needed at step 51), LDraw colour 47 (first needed at step 18), and 4519's half-LDU origin (first blocks step 45).
-- [ ] G3b reference build playable in the app, per step
+- [ ] G3b reference build playable in the app, per step.
 - [ ] G3c-2 identification follow-ups: tests for the untested `maxOperatorsPerPage` and `maxDecodedPixelsPerPage` limits, and identification scored against the official model inside the harness.
-- [ ] G3d camera fit (fed) and placement (fed) scored against the key
-- [ ] G3e ratchet baseline; retire the real-build-* family
-- [ ] G3f-2 port the a8fc397 staleness tests
+- [ ] G3d camera fit (fed) and placement (fed) scored against the key.
+- [ ] G3e ratchet baseline (today `status/booklet-baseline.json` is reported, not enforced); retire the real-build-* family.
 - [ ] G3f-3 move the 26 Playwright specs gated on booklet existence (`hasSampleBooklet`) to the `LEGO_RUN_EVIDENCE` opt-in.
-- [ ] G4 records and canon candidates
+- [ ] Editor centre-seat placement: the editor cannot hand-place a part on the 15573 centre seat (the `snapPlacementOrigin` lattice).
+- [ ] App recovery for refused documents: the app offers no way forward for any document the migration refuses.
+- [ ] Run `npm run evidence:budget` automatically (session start or a hook); today it runs only when invoked.
+- [ ] G4 canon candidates.
+- [ ] Not ours: the local AGENTS.md trims needed in the scenes, cards and voxel repos.
 
 ## Outcome
 
