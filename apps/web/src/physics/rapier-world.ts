@@ -35,7 +35,11 @@ export const GROUND_SLAB_HALF_DEPTH_CM = 50;
 export interface BodyPose {
   /** Body origin in LDU, in the document's frame. */
   readonly positionLdu: readonly [number, number, number];
-  /** Rotation as a quaternion, x y z w. */
+  /**
+   * Rotation as a quaternion, x y z w, in Rapier's own Y-up sim frame — not
+   * yet the document's Y-down frame. `simulation-session.ts` converts it
+   * before it reaches a `PartPose`.
+   */
   readonly rotation: readonly [number, number, number, number];
 }
 

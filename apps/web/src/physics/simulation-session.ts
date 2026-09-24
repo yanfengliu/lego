@@ -45,6 +45,25 @@ const FIXED_STEP_SECONDS = 1 / 60;
 /** Never simulate more than a quarter second of catch-up in one call. */
 const MAX_CATCHUP_STEPS = 15;
 
+/**
+ * Rapier reports a body's rotation in its own Y-up sim frame. A point's Y-flip
+ * crossing that boundary is a direct relabelling (`toLdu` in `rapier-world.ts`),
+ * but a rotation operator has to be conjugated by the same axis flip,
+ * `diag(1, -1, 1)`, instead — elementwise that is `(x, y, z, w) -> (x, -y, z, -w)`,
+ * verified against `tilt-direction.test.ts` and against
+ * `scratchpad/review-handedness/verify-physics-rotation.mjs`. Forwarding the
+ * raw sim quaternion (as this used to) renders a physically correct tip
+ * backwards for any turn that is not purely about the vertical.
+ */
+function simRotationToDocument([x, y, z, w]: readonly [number, number, number, number]): [
+  number,
+  number,
+  number,
+  number,
+] {
+  return [x, -y, z, -w];
+}
+
 function rotateByQuaternion(
   [x, y, z]: readonly [number, number, number],
   [qx, qy, qz, qw]: readonly [number, number, number, number],
@@ -133,14 +152,19 @@ export async function startSimulation(
         const body = bodies.get(bodyId);
         const origin = restOrigins.get(bodyId);
         if (!body || !origin) continue;
-        const carried = rotateByQuaternion(offsetLdu, body.rotation);
+        // Both the offset carried below and the rotation returned to the
+        // caller must use the same, document-frame rotation, or a part's
+        // position and its own reported orientation would disagree about
+        // which way the body turned.
+        const rotation = simRotationToDocument(body.rotation);
+        const carried = rotateByQuaternion(offsetLdu, rotation);
         poses.set(partId, {
           positionLdu: [
             body.positionLdu[0] + carried[0],
             body.positionLdu[1] + carried[1],
             body.positionLdu[2] + carried[2],
           ],
-          rotation: body.rotation,
+          rotation,
         });
       }
       return poses;

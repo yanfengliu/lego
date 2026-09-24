@@ -99,7 +99,12 @@ describe("startSimulation", () => {
     // The body's own origin is the part's balance point, so the offset is
     // small; what matters is that it moved off the x axis at all.
     expect(Math.abs(pose.positionLdu[0]!)).toBeLessThan(41);
-    expect(pose.rotation[1]).toBeCloseTo(Math.SQRT1_2, 6);
+    // The stub hands back a sim-frame quaternion, which the session converts
+    // to the document's frame before returning it (conjugate by diag(1,-1,1),
+    // i.e. (x,-y,z,-w)). For a turn purely about the vertical that is the
+    // same rotation with the opposite quaternion sign — q and -q both mean a
+    // 90 degree turn about y — so the expected component flips sign too.
+    expect(pose.rotation[1]).toBeCloseTo(-Math.SQRT1_2, 6);
     session.dispose();
   });
 

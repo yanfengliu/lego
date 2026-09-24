@@ -5,7 +5,7 @@ import {
   type LduVector3,
 } from "@lego-studio/catalog";
 import type { RigidTransform } from "@lego-studio/protocol";
-import { Matrix4, Vector3 } from "three";
+import { Matrix4, Quaternion, Vector3 } from "three";
 
 export const THREE_UNITS_PER_LDU = MESH_RENDER_UNITS_PER_LDU;
 
@@ -86,6 +86,27 @@ export function lduToThreeBasisMatrix(): Matrix4 {
     sy * THREE_UNITS_PER_LDU,
     sz * THREE_UNITS_PER_LDU,
   );
+}
+
+/**
+ * Converts a rotation quaternion from the document's LDU frame into Three.js
+ * scene axes: the same conjugation `lduTransformToThreeMatrix` applies to a
+ * part's rest orientation (`B * R * B`, `B = diag(LDU_TO_THREE_AXIS_SIGNS)`,
+ * its own inverse), generalised to a free rotation — a physics body's turn
+ * since rest, say — rather than one of the catalog's proper orientations.
+ * Points relabel with a direct sign flip (`lduDirectionToThree`); a rotation
+ * operator instead needs this conjugation, or a physically correct tip
+ * renders backwards.
+ */
+export function lduRotationToThreeQuaternion(
+  rotation: readonly [number, number, number, number],
+): Quaternion {
+  const [x, y, z, w] = rotation;
+  const ldu = new Matrix4().makeRotationFromQuaternion(new Quaternion(x, y, z, w));
+  const [s1, s2, s3] = LDU_TO_THREE_AXIS_SIGNS;
+  const basis = new Matrix4().makeScale(s1, s2, s3);
+  const scene = basis.clone().multiply(ldu).multiply(basis.clone().invert());
+  return new Quaternion().setFromRotationMatrix(scene);
 }
 
 /**

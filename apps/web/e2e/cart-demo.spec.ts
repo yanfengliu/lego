@@ -50,11 +50,6 @@ test("builds a cart, drops it, and puts it back", async ({ page }) => {
       );
       restScene.dispose();
 
-      // The renderer's own basis change, so poses cannot disagree with the
-      // parts about which hand the scene is drawn in.
-      const basis = rendering.lduToThreeBasisMatrix();
-      const inverseBasis = basis.clone().invert();
-
       const shoot = (
         poses?: ReadonlyMap<string, { positionLdu: number[]; rotation: number[] }>,
       ) => {
@@ -78,15 +73,12 @@ test("builds a cart, drops it, and puts it back", async ({ page }) => {
             if (!pose) continue;
             object.position.copy(rendering.lduToThreeVector(pose.positionLdu));
             // The session reports how the body has turned since rest, in the
-            // document's LDU frame. Changing basis gives the same turn in the
-            // scene, and it applies on top of the part's rest orientation.
-            const [x, y, z, w] = pose.rotation as [number, number, number, number];
-            const turnLdu = basis
-              .clone()
-              .makeRotationFromQuaternion(object.quaternion.clone().set(x, y, z, w));
-            const turnScene = basis.clone().multiply(turnLdu).multiply(inverseBasis);
-            const turn = object.quaternion.clone();
-            turn.setFromRotationMatrix(turnScene);
+            // document's LDU frame. The standard document-to-scene conversion
+            // gives the same turn in the scene, applied on top of the part's
+            // rest orientation.
+            const turn = rendering.lduRotationToThreeQuaternion(
+              pose.rotation as [number, number, number, number],
+            );
             object.quaternion.premultiply(turn);
             object.updateMatrix();
           }
