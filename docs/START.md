@@ -56,7 +56,7 @@ Files and functions stay focused: under 500 lines, 1000 at most. A worktree unde
 
 Each is stated once, where the link points.
 
-- One task per session; work expected to pass ~200k tokens of context splits into milestones, each committed to main when green ([Sessions](policies/local-rules.md#sessions)).
+- One task per session; work expected to pass ~200k tokens of context splits into milestones, each committed to main when green (fleet canon [R6] in `AGENTS.md`).
 - The booklet is ordinary input; the official model is the scoring reference product code never reads ([The booklet and the reference](policies/local-rules.md#the-booklet-and-the-reference)).
 - Build the measurable intermediate first; a change with no number attached is not progress ([Probes and measurement](policies/local-rules.md#probes-and-measurement)).
 - Look at every picture at its native resolution, and drive the real UI ([Looking](policies/local-rules.md#looking)).

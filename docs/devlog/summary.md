@@ -2,7 +2,13 @@
 
 Current state belongs in the design documents; this index records only behaviour changes, measured results, and links to the matching detailed history.
 
+- [2026-09-24 (design docs cut, reset records)](detailed/2026-09-24_2026-09-24.md) — Design docs 479,409 → 215,422 B: retired first-50 status and dead evidence citations out, contracts kept; four owner-reported defects registered; `npm run evidence:budget` (256 MiB, not in verify).
+- [2026-09-24 (canon sync 973eb18eaf96)](detailed/2026-09-24_2026-09-24.md) — `AGENTS.md` canon block re-synced after the fleet canon trim (fleet 20a77f3, here 002a6af); local rules drop their copy of the session-size rule, now canon R6.
+- [2026-09-24 (evidence cleanup)](detailed/2026-09-24_2026-09-24.md) — Ignored `output/` and `var/` cut from about 42 GB to 2.8 MB by the owner after an audit at 982634d; only inputs a current command reads by default, and the gates' score files, remain.
 - [2026-09-23 (frame truth review fixes)](detailed/2026-09-23_2026-09-23.md) — Saved `/4`-`/29` edges on 15573 grid clutches now migrate under a proven delta class instead of being refused; real `/1` files pin LDraw fidelity; `3023` credits `3023b`, moving the `/30` catalog hash.
+- [2026-09-23 (canon sync a4df5e4b87dc)](detailed/2026-09-23_2026-09-23.md) — The `AGENTS.md` canon block re-synced from `../fleet/FLEET.md` by the sync script (8ed4adc).
+- [2026-09-23 (staleness tests ported)](detailed/2026-09-23_2026-09-23.md) — 14 of a8fc397's 19 generated-file staleness tests ported to main (G3f-2); the 5 `describeStaleRunPin` tests dropped with their removed feature.
+- [2026-09-23 (README and doc budgets)](detailed/2026-09-23_2026-09-23.md) — README 25.6 → 4.8 KB; `npm run docs:budget` in verify caps README 6,000 B, START 10,000, AGENTS.md 30,000 and devlog lines 300 chars; devlog summary 68,092 → 29,972 B.
 - [2026-09-23 (frame truth, catalog `/30`)](detailed/2026-09-23_2026-09-23.md) — Parametric LDraw frames measured from the official files into catalog truth; playback reads no ignored registry (valid through 3 → 31 without it); the 15573 centre seat clears step 29; LDraw subset `/2`.
 - [2026-09-23 (booklet-reset milestone 1 integrated)](detailed/2026-09-23_2026-09-23.md) — Four branches merged; `npm run verify` exit 0 in 16 min (Vitest 3881 passed, Python 608 ran, Playwright 59 passed). The run-evidence class check now reads vitest's include, so `tools/` tests are scanned.
 - [2026-09-23 (`npm run verify` green again)](detailed/2026-09-23_2026-09-23.md) — Vitest failures on main 31 → 0. Tests reading ignored run evidence skip unless `LEGO_RUN_EVIDENCE=1`, and a class check fails any test gated on a path's existence; scoring runs moved to `npm run test:score`.
