@@ -1,5 +1,7 @@
 # Real-booklet build runbook
 
+> **Scheduled for retirement** (plan item G3e in [`docs/work/1_booklet-reset/plan.md`](../work/1_booklet-reset/plan.md)) once the booklet harness covers its measurements. Its tests run only under `LEGO_RUN_EVIDENCE=1`. For current measurements use `npm run booklet` (see [README.md](../../README.md)).
+
 This runbook operates the retained set 6651557 reconstruction. It is developer-only experimental tooling: it does not drive the web studio's **Instructions** control, contact a production companion, or apply a patch to a user's document.
 
 The current measured result and next blocker belong only in [building-system.md](../design/building-system.md). Keep this file about reproducible operation.

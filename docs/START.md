@@ -37,7 +37,7 @@ Files and functions stay focused: under 500 lines, 1000 at most. A worktree unde
 
 ## Evidence and artifacts
 
-- `var/runs/` holds product run bundles; `var/state/` holds local broker databases, indexes, CAS and dev state; `output/` holds booklet-run evidence, scoreboards and fleet recursive-pass output. Raw browser and reviewer captures go under those roots. All three are ignored.
+- `var/runs/` holds product run bundles; `var/state/` holds local broker databases, indexes, CAS and dev state; `output/` holds booklet-run evidence, scoreboards and fleet recursive-pass output; `test-results/` holds Playwright's own output. Raw browser and reviewer captures go under those roots. All four are ignored.
 - `output/official-model/` holds the official LEGO Builder model: a private reference, never committed.
 - Committed fixtures and benchmarks are synthetic, repo-owned or public. A real user or provider artifact enters Git only after inspectable consent, licence clearance, redaction, and a secret and personal-data scan.
 - A confirmed failure becomes a regression test or fixture per [`learning-system.md` § Promotion](design/learning-system.md#promotion); a defect the user reports also gets a [`defect-register.md`](learning/defect-register.md) entry (fleet canon).

@@ -12,10 +12,10 @@ import { fileURLToPath, pathToFileURL } from "node:url";
  * measured the file, so nothing caught it. This gate is that measurement.
  *
  * Bound: this checks exactly the items below — three whole-file byte
- * ceilings (`FILE_BUDGETS`) and one per-line character ceiling on
- * `docs/devlog/summary.md` entries dated on or after `DEVLOG_BASELINE_DATE`
- * (`evaluateDevlogBudget`). It says nothing about any other file's size, and
- * nothing about whether these files' *content* is accurate — only length.
+ * ceilings (`FILE_BUDGETS`) and one per-line character ceiling on every
+ * entry line of `docs/devlog/summary.md` (`evaluateDevlogBudget`). It says
+ * nothing about any other file's size, and nothing about whether these
+ * files' *content* is accurate — only length.
  *
  * Run directly (`node scripts/check-doc-budgets.mjs`), via
  * `npm run docs:budget`, or as a step of `npm run verify`.
@@ -53,18 +53,18 @@ export const FILE_BUDGETS = [
 ];
 
 /**
- * `docs/devlog/summary.md` is a growing, newest-first log. Old lines are
- * facts about the past and are never rewritten, so they are grandfathered by
- * date rather than enforced retroactively: only lines dated on or after
- * `DEVLOG_BASELINE_DATE` are checked. Checked 2026-09-23, every line dated
- * 2026-09-23 already fit (264-296 characters); many older lines run past
- * 4,000. A line whose leading date cannot be parsed is treated as new (not
- * grandfathered), since only a recognized past date earns the exemption.
+ * `docs/devlog/summary.md` is a growing, newest-first log. Every entry line
+ * (one behaviour-changing session per line, linked to its full history in
+ * `docs/devlog/detailed/`) is checked, with no exemption by date: from
+ * 2026-07-09 (the earliest entry) through 2026-09-23, 76 of the file's 118
+ * lines ran past this limit, the longest at 4,763 characters, because the
+ * line restated content its own linked detailed entry already carried in
+ * full. Trimmed 2026-09-23 to the index form this gate now enforces
+ * unconditionally; older entries were grandfathered by date until that trim
+ * landed, never before or after.
  */
 export const DEVLOG_PATH = "docs/devlog/summary.md";
-export const DEVLOG_BASELINE_DATE = "2026-09-23";
 export const DEVLOG_LINE_LIMIT = 300;
-const DEVLOG_ENTRY_DATE_PATTERN = /^-\s+\[?(\d{4}-\d{2}-\d{2})/;
 
 /** Pure: does an already-measured byte size fit its budget? Returns 0 or 1 failure message. */
 export function evaluateFileBudget({ path, sizeBytes, limitBytes, reason }) {
@@ -77,29 +77,22 @@ export function evaluateFileBudget({ path, sizeBytes, limitBytes, reason }) {
 }
 
 /**
- * Pure: given the devlog's raw text, finds entry lines dated on or after
- * `baselineDate` that are longer than `lineLimit` characters. Older-dated
- * lines, and non-entry lines (the heading, the intro paragraph, blanks), are
- * never checked.
+ * Pure: given the devlog's raw text, finds entry lines longer than
+ * `lineLimit` characters. Non-entry lines (the heading, the intro paragraph,
+ * blanks) are never checked. No line is exempt by date.
  */
 export function evaluateDevlogBudget(
   text,
-  { path = DEVLOG_PATH, baselineDate = DEVLOG_BASELINE_DATE, lineLimit = DEVLOG_LINE_LIMIT } = {},
+  { path = DEVLOG_PATH, lineLimit = DEVLOG_LINE_LIMIT } = {},
 ) {
   const failures = [];
   text.split(/\r?\n/).forEach((line, index) => {
     if (!line.startsWith("- ")) return;
-    const match = DEVLOG_ENTRY_DATE_PATTERN.exec(line);
-    const date = match?.[1] ?? null;
-    const isGrandfathered = date !== null && date < baselineDate;
-    if (isGrandfathered || line.length <= lineLimit) return;
+    if (line.length <= lineLimit) return;
     failures.push(
-      `${path}:${index + 1} is ${line.length} characters, over the ${lineLimit}-character budget ` +
-        `for entries dated ${baselineDate} or later (older entries are grandfathered by date; see ` +
-        `DEVLOG_BASELINE_DATE in scripts/check-doc-budgets.mjs — a line whose date cannot be parsed ` +
-        `is treated as new, not grandfathered). Budget exists so the devlog stays a scannable index, ` +
-        `not a second copy of the detailed history. Shorten the line to its densest form and move ` +
-        `detail into docs/devlog/detailed/.`,
+      `${path}:${index + 1} is ${line.length} characters, over the ${lineLimit}-character budget. ` +
+        `Budget exists so the devlog stays a scannable index, not a second copy of the detailed ` +
+        `history. Shorten the line to its densest form and move detail into docs/devlog/detailed/.`,
     );
   });
   return failures;
@@ -136,7 +129,7 @@ export function main({ repoRoot = REPO_ROOT } = {}) {
   }
   console.log(
     `Doc budget check passed: ${FILE_BUDGETS.map((budget) => budget.path).join(", ")} within budget; ` +
-      `${DEVLOG_PATH} entries dated ${DEVLOG_BASELINE_DATE} or later are within ${DEVLOG_LINE_LIMIT} characters.`,
+      `every ${DEVLOG_PATH} entry is within ${DEVLOG_LINE_LIMIT} characters.`,
   );
   return { exitCode: 0, failures };
 }
