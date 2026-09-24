@@ -50,6 +50,11 @@ test("builds a cart, drops it, and puts it back", async ({ page }) => {
       );
       restScene.dispose();
 
+      // The renderer's own basis change, so poses cannot disagree with the
+      // parts about which hand the scene is drawn in.
+      const basis = rendering.lduToThreeBasisMatrix();
+      const inverseBasis = basis.clone().invert();
+
       const shoot = (
         poses?: ReadonlyMap<string, { positionLdu: number[]; rotation: number[] }>,
       ) => {
@@ -58,26 +63,31 @@ test("builds a cart, drops it, and puts it back", async ({ page }) => {
           for (const [partId, object] of scene.partObjects as Map<
             string,
             {
-              position: { set(x: number, y: number, z: number): void };
-              quaternion: { set(x: number, y: number, z: number, w: number): void };
+              position: { copy(vector: unknown): void };
+              quaternion: {
+                clone(): {
+                  set(x: number, y: number, z: number, w: number): unknown;
+                  setFromRotationMatrix(matrix: unknown): unknown;
+                };
+                premultiply(quaternion: unknown): void;
+              };
               updateMatrix(): void;
             }
           >) {
             const pose = poses.get(partId);
             if (!pose) continue;
-            object.position.set(
-              pose.positionLdu[0]! * rendering.THREE_UNITS_PER_LDU,
-              -pose.positionLdu[1]! * rendering.THREE_UNITS_PER_LDU,
-              pose.positionLdu[2]! * rendering.THREE_UNITS_PER_LDU,
-            );
-            // Rapier reports rotation in a Y-up frame; the scene is Y-up too,
-            // so only the handedness of x and z has to be undone.
-            object.quaternion.set(
-              -pose.rotation[0]!,
-              pose.rotation[1]!,
-              -pose.rotation[2]!,
-              pose.rotation[3]!,
-            );
+            object.position.copy(rendering.lduToThreeVector(pose.positionLdu));
+            // The session reports how the body has turned since rest, in the
+            // document's LDU frame. Changing basis gives the same turn in the
+            // scene, and it applies on top of the part's rest orientation.
+            const [x, y, z, w] = pose.rotation as [number, number, number, number];
+            const turnLdu = basis
+              .clone()
+              .makeRotationFromQuaternion(object.quaternion.clone().set(x, y, z, w));
+            const turnScene = basis.clone().multiply(turnLdu).multiply(inverseBasis);
+            const turn = object.quaternion.clone();
+            turn.setFromRotationMatrix(turnScene);
+            object.quaternion.premultiply(turn);
             object.updateMatrix();
           }
           scene.root.updateMatrixWorld(true);

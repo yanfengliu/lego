@@ -1,5 +1,6 @@
 import { STUD_PITCH_LDU, UPRIGHT_ORIENTATIONS } from "@lego-studio/catalog";
 import type { RigidTransform } from "@lego-studio/protocol";
+import { lduDirectionToThree } from "@lego-studio/rendering";
 
 /**
  * Turning what a person can see in a printed panel into a bounded candidate set.
@@ -210,14 +211,20 @@ export function worldBox(box: PartBox, transform: RigidTransform): PartBox {
   return { min, max };
 }
 
-/** Projects a world displacement onto the page. World -Y is up the page. */
+/**
+ * Projects a document displacement onto the page. The projection's `a`, `b` and
+ * `up` are scene +X, +Z and +Y, so the displacement goes through the renderer's
+ * basis change first: document -Y is up the page, and document -Z, the model's
+ * front, is scene +Z.
+ */
 export function projectLdu(
   projection: PanelProjection,
   displacement: readonly [number, number, number],
 ): PixelVector {
-  const studsA = displacement[0] / STUD_PITCH_LDU;
-  const studsB = displacement[2] / STUD_PITCH_LDU;
-  const plates = -displacement[1] / 8;
+  const [sceneX, sceneY, sceneZ] = lduDirectionToThree(...displacement);
+  const studsA = sceneX / STUD_PITCH_LDU;
+  const studsB = sceneZ / STUD_PITCH_LDU;
+  const plates = sceneY / 8;
   return {
     xPx: studsA * projection.a.xPx + studsB * projection.b.xPx + plates * projection.up.xPx,
     yPx: studsA * projection.a.yPx + studsB * projection.b.yPx + plates * projection.up.yPx,

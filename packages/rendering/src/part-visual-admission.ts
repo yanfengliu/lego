@@ -2,10 +2,22 @@ import { deepFreeze, type Sha256Digest } from "@lego-studio/brick-kernel";
 import {
   MESH_RENDER_UNITS_PER_LDU,
   PROPER_ORIENTATIONS,
+  type LduVector3,
   type MeshReferenceGeometryRecipe,
+  type OrientationMatrix,
 } from "@lego-studio/catalog";
-import { Box3, Matrix4, OrthographicCamera, PerspectiveCamera, Vector3 } from "three";
+import {
+  Box3,
+  BufferAttribute,
+  Matrix4,
+  OrthographicCamera,
+  PerspectiveCamera,
+  Vector3,
+  type BufferGeometry,
+  type Object3D,
+} from "three";
 
+import { lduDirectionToThree, lduToThreeVector } from "./coordinates.ts";
 import {
   PART_VISUAL_ADMISSION_CAPTURE_POLICY,
   PART_VISUAL_ADMISSION_CAPTURE_POLICY_HASH,
@@ -159,10 +171,12 @@ export function createPartVisualAdmissionCamera(
   return camera;
 }
 
-/** Maps raw LDraw LDU through the catalog recipe's frame and then into Three +Y-up units. */
-export function ldrawAssetToCatalogThreeMatrix(
-  frame: MeshReferenceGeometryRecipe["assetToCatalogFrame"],
-): Matrix4 {
+type SourceFrame = MeshReferenceGeometryRecipe["assetToCatalogFrame"];
+
+function properSourceFrame(frame: SourceFrame): {
+  readonly matrix: OrientationMatrix;
+  readonly translationLdu: LduVector3;
+} {
   if (frame.schemaVersion !== "mesh-asset-to-catalog-frame/1") {
     throw new TypeError(
       `Visual admission requires mesh-asset-to-catalog-frame/1; received ${JSON.stringify(frame.schemaVersion)}.`,
@@ -183,25 +197,104 @@ export function ldrawAssetToCatalogThreeMatrix(
       `Visual admission frame translation must contain three safe-integer LDU coordinates; received ${JSON.stringify(frame.translationLdu)}.`,
     );
   }
-  const [m11, m12, m13, m21, m22, m23, m31, m32, m33] = orientation.matrix;
-  const [tx, ty, tz] = frame.translationLdu;
-  const scale = MESH_RENDER_UNITS_PER_LDU;
-  return new Matrix4().set(
-    m11 * scale,
-    m12 * scale,
-    m13 * scale,
-    tx * scale,
-    -m21 * scale,
-    -m22 * scale,
-    -m23 * scale,
-    -ty * scale,
-    m31 * scale,
-    m32 * scale,
-    m33 * scale,
-    tz * scale,
-    0,
-    0,
-    0,
-    1,
-  );
+  return { matrix: orientation.matrix, translationLdu: frame.translationLdu };
+}
+
+/**
+ * How each attribute `LDrawLoader` emits moves into scene units: a point takes
+ * the frame's translation and the LDU scale, a displacement (a conditional
+ * line's `direction`, one point minus another) the scale alone, and a unit
+ * normal only the rotation.
+ */
+const SOURCE_ATTRIBUTE_KINDS: Readonly<Record<string, "point" | "displacement" | "normal">> = {
+  position: "point",
+  control0: "point",
+  control1: "point",
+  direction: "displacement",
+  normal: "normal",
+};
+
+interface SourceGeometryObject extends Object3D {
+  readonly geometry: BufferGeometry;
+}
+
+function hasGeometry(object: Object3D): object is SourceGeometryObject {
+  return (object as Partial<SourceGeometryObject>).geometry?.isBufferGeometry === true;
+}
+
+/**
+ * Moves an `LDrawLoader` part tree from raw source LDU into Three scene units,
+ * in place, with the arithmetic the production mesh route gives the candidate:
+ * the recipe frame in LDU, written as the catalog resolver writes it, then
+ * `lduToThreeVector` or `lduDirectionToThree`, rounded once into Float32. Both
+ * sides then reach the GPU as scene-unit attributes under identity object
+ * matrices, so equal attributes draw equal pixels.
+ *
+ * Placing the source with an object matrix instead sent only the source
+ * through Three's decompose and compose round trip and the normal matrix of a
+ * 0.05-scaled map. That different float path alone moved one underside-oblique
+ * pixel by one channel step on 2026-09-24.
+ *
+ * The frame and the basis change are both proper rotations, so every triangle
+ * keeps its winding. Equal attributes still need source coordinates Float32
+ * holds exactly: the loader stores raw LDU in Float32 before this runs, while
+ * production rounds once after scaling, so a coordinate such as 12.4 LDU can
+ * land one Float32 step apart on the two sides.
+ *
+ * The loader's part cache shares these geometries with its clones, so a loader
+ * is not reused once its output is baked.
+ */
+export function bakeLDrawSourceIntoCatalogThree(root: Object3D, frame: SourceFrame): void {
+  const { matrix, translationLdu } = properSourceFrame(frame);
+  const [m11, m12, m13, m21, m22, m23, m31, m32, m33] = matrix;
+  const [tx, ty, tz] = translationLdu;
+  const identity = new Matrix4();
+  const geometries = new Set<BufferGeometry>();
+  root.updateMatrixWorld(true);
+  root.traverse((object) => {
+    if (!hasGeometry(object)) return;
+    if (!object.matrixWorld.equals(identity)) {
+      throw new TypeError(
+        `Visual admission bakes raw LDU source geometry, so every source object must sit at identity; ${object.type} ${JSON.stringify(object.name)} has world matrix ${JSON.stringify(object.matrixWorld.elements)}.`,
+      );
+    }
+    geometries.add(object.geometry);
+  });
+  for (const geometry of geometries) {
+    for (const [name, attribute] of Object.entries(geometry.attributes)) {
+      const kind = SOURCE_ATTRIBUTE_KINDS[name];
+      if (
+        kind === undefined ||
+        !(attribute instanceof BufferAttribute) ||
+        !(attribute.array instanceof Float32Array) ||
+        attribute.itemSize !== 3 ||
+        attribute.normalized
+      ) {
+        throw new TypeError(
+          `Visual admission cannot move source attribute ${JSON.stringify(name)} into scene units; it bakes only Float32 xyz ${Object.keys(SOURCE_ATTRIBUTE_KINDS).join(", ")}.`,
+        );
+      }
+      for (let vertex = 0; vertex < attribute.count; vertex += 1) {
+        const x = attribute.getX(vertex);
+        const y = attribute.getY(vertex);
+        const z = attribute.getZ(vertex);
+        const rotated: LduVector3 = [
+          m11 * x + m12 * y + m13 * z,
+          m21 * x + m22 * y + m23 * z,
+          m31 * x + m32 * y + m33 * z,
+        ];
+        if (kind === "normal") {
+          attribute.setXYZ(vertex, ...lduDirectionToThree(...rotated));
+          continue;
+        }
+        const scene = lduToThreeVector(
+          kind === "point" ? [rotated[0] + tx, rotated[1] + ty, rotated[2] + tz] : rotated,
+        );
+        attribute.setXYZ(vertex, scene.x, scene.y, scene.z);
+      }
+      attribute.needsUpdate = true;
+    }
+    geometry.boundingBox = null;
+    geometry.boundingSphere = null;
+  }
 }

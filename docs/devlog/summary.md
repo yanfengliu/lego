@@ -2,6 +2,7 @@
 
 Current state belongs in the design documents; this index records only behaviour changes, measured results, and links to the matching detailed history.
 
+- [2026-09-24 (renderer handedness)](detailed/2026-09-24_2026-09-24.md) — LDU reached Three as (x,-y,z), a reflection: every model drew mirrored, step 31 flipped against page 35. Now the half-turn (x,-y,-z) everywhere; `lego.rendering/2`; det, chiral-pair and pick gates.
 - [2026-09-24 (design docs cut, reset records)](detailed/2026-09-24_2026-09-24.md) — Design docs 479,409 → 215,422 B: retired first-50 status and dead evidence citations out, contracts kept; four owner-reported defects registered; `npm run evidence:budget` (256 MiB, not in verify).
 - [2026-09-24 (canon sync 973eb18eaf96)](detailed/2026-09-24_2026-09-24.md) — `AGENTS.md` canon block re-synced after the fleet canon trim (fleet 20a77f3, here 002a6af); local rules drop their copy of the session-size rule, now canon R6.
 - [2026-09-24 (evidence cleanup)](detailed/2026-09-24_2026-09-24.md) — Ignored `output/` and `var/` cut from about 42 GB to 2.8 MB by the owner after an audit at 982634d; only inputs a current command reads by default, and the gates' score files, remain.

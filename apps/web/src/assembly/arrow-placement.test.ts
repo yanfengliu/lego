@@ -215,7 +215,10 @@ describe("arrowTravelFamily", () => {
     });
     const exact = family.find((entry) => entry.plates === 5)!;
     expect(exact.lduX).toBe(40);
-    expect(exact.lduZ).toBe(-60);
+    // `b` is scene +Z, which the half-turn about X makes document -Z (the
+    // model's front): three studs along scene -Z are three along document +Z.
+    // Reading it as document +Z mirrors the part through the model's XY plane.
+    expect(exact.lduZ).toBe(60);
     // Five plates up the page is five plates down the axis: the booklet draws
     // up and the document counts down, and a sign error here drops the part
     // through the model so the validator refuses every candidate.

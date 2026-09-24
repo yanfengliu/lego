@@ -1,7 +1,7 @@
 import type { PreloadedMeshGroup, ResolvedMeshAsset } from "@lego-studio/catalog";
 import { BufferGeometry, Float32BufferAttribute, Uint32BufferAttribute } from "three";
 
-import { lduToThreeVector } from "./coordinates.ts";
+import { lduDirectionToThree, lduToThreeVector } from "./coordinates.ts";
 
 interface SelectedResolvedMesh {
   readonly positionsLdu: readonly number[];
@@ -94,36 +94,40 @@ export function createResolvedMeshGeometry(
 
   const geometry = new BufferGeometry();
   geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+  const sourceIndices =
+    indices ?? Array.from({ length: positions.length / 3 }, (_, index) => index);
   if (normalsCatalogLocal !== null) {
+    // LDU-to-Three is a proper rotation, the one the independent LDrawLoader
+    // applies, so a source normal takes the same rotation as its vertex and a
+    // source triangle keeps its counter-clockwise, outward winding: FrontSide
+    // visibility and source lighting both survive with the indices as given.
     const normals = new Float32Array(normalsCatalogLocal.length);
     for (let index = 0; index < normalsCatalogLocal.length; index += 3) {
-      // LDU-to-Three reflects Y. The independent LDrawLoader applies that
-      // negative-determinant transform at Object3D level, so Three reverses the
-      // front-face test while its normal matrix applies (x, -y, z). This baked
-      // geometry reverses every triangle below and applies the same normal
-      // transform, preserving both FrontSide visibility and source lighting.
-      normals[index] = normalsCatalogLocal[index]!;
-      normals[index + 1] =
-        normalsCatalogLocal[index + 1] === 0 ? 0 : -normalsCatalogLocal[index + 1]!;
-      normals[index + 2] = normalsCatalogLocal[index + 2]!;
+      const normal = lduDirectionToThree(
+        normalsCatalogLocal[index]!,
+        normalsCatalogLocal[index + 1]!,
+        normalsCatalogLocal[index + 2]!,
+      );
+      normals[index] = normal[0];
+      normals[index + 1] = normal[1];
+      normals[index + 2] = normal[2];
     }
     geometry.setAttribute("normal", new Float32BufferAttribute(normals, 3));
-  }
-  if (normalsCatalogLocal !== null) {
-    const sourceIndices =
-      indices ?? Array.from({ length: positions.length / 3 }, (_, index) => index);
-    const reflectedIndices = new Uint32Array(sourceIndices.length);
+    geometry.setIndex(new Uint32BufferAttribute(new Uint32Array(sourceIndices), 1));
+  } else {
+    // Legacy schema-/2 assets have no independent source normals, and their
+    // triangles were wound for the reflecting basis change this renderer used
+    // until 2026-09-24: clockwise in catalog LDU, which that reflection turned
+    // counter-clockwise. The proper basis change keeps winding, so each
+    // triangle is reversed here to keep them facing out. No catalog asset takes
+    // this route; all source-faithful LDraw assets carry normals.
+    const reversedIndices = new Uint32Array(sourceIndices.length);
     for (let index = 0; index < sourceIndices.length; index += 3) {
-      reflectedIndices[index] = sourceIndices[index]!;
-      reflectedIndices[index + 1] = sourceIndices[index + 2]!;
-      reflectedIndices[index + 2] = sourceIndices[index + 1]!;
+      reversedIndices[index] = sourceIndices[index]!;
+      reversedIndices[index + 1] = sourceIndices[index + 2]!;
+      reversedIndices[index + 2] = sourceIndices[index + 1]!;
     }
-    geometry.setIndex(new Uint32BufferAttribute(reflectedIndices, 1));
-  } else if (indices !== null) {
-    // Legacy schema-/2 assets already encode catalog-to-Three winding and have
-    // no independent source normals. Preserve that compatibility route; all
-    // source-faithful LDraw assets use the explicit-normal branch above.
-    geometry.setIndex(new Uint32BufferAttribute(new Uint32Array(indices), 1));
+    geometry.setIndex(new Uint32BufferAttribute(reversedIndices, 1));
   }
   for (const group of groups) {
     geometry.addGroup(group.triangleStart * 3, group.triangleCount * 3, 0);

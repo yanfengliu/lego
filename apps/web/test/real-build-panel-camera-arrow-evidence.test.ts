@@ -258,8 +258,9 @@ describe("arrowFamilyForRealBuildPanelCameraRegistration", () => {
 
     const result = arrowFamilyForRealBuildPanelCameraRegistration(input as never);
 
+    // x-reflected at 90 degrees, re-derived for scene +Z = LDU -Z; the mirror gave (40, 60).
     expect(result).toStrictEqual([
-      { lduX: 40, lduY: -8, lduZ: 60, travelPx: 23, offLineStuds: 0.04 },
+      { lduX: -40, lduY: -8, lduZ: -60, travelPx: 23, offLineStuds: 0.04 },
     ]);
     expect(receivedView).toStrictEqual({
       azimuthDegrees: 41,

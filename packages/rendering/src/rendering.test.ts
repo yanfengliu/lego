@@ -73,11 +73,13 @@ describe("brick scene derivation", () => {
     );
   });
 
+  // Scene +Z is LDraw -Z under the half-turn about X, so the yaw that carries
+  // LDraw +X to LDraw -Z carries scene +X to scene +Z.
   it.each([
     ["upright-yaw-0", [1, 0, 0]],
-    ["upright-yaw-90", [0, 0, -1]],
+    ["upright-yaw-90", [0, 0, 1]],
     ["upright-yaw-180", [-1, 0, 0]],
-    ["upright-yaw-270", [0, 0, 1]],
+    ["upright-yaw-270", [0, 0, -1]],
   ] as const)("projects %s with the catalog's exact quarter-turn", (orientationId, expected) => {
     const matrix = lduTransformToThreeMatrix({ positionLdu: [0, 0, 0], orientationId });
     const projected = new Vector3(1, 0, 0).applyMatrix4(matrix).toArray();
@@ -90,8 +92,8 @@ describe("brick scene derivation", () => {
       positionLdu: [0, 0, 0],
       orientationId: "proper-m-p0000p0n0",
     });
-    expect(new Vector3(0, 1, 0).applyMatrix4(matrix).toArray()).toEqual([0, 0, expect.closeTo(1)]);
-    expect(new Vector3(0, 0, 1).applyMatrix4(matrix).toArray()).toEqual([0, expect.closeTo(-1), 0]);
+    expect(new Vector3(0, 1, 0).applyMatrix4(matrix).toArray()).toEqual([0, 0, expect.closeTo(-1)]);
+    expect(new Vector3(0, 0, 1).applyMatrix4(matrix).toArray()).toEqual([0, expect.closeTo(1), 0]);
     expect(() =>
       lduTransformToThreeMatrix({
         positionLdu: [0, 0, 0],
@@ -115,15 +117,17 @@ describe("brick scene derivation", () => {
     const partObject = projection.partObjects.get(part.id);
 
     expect(THREE_UNITS_PER_LDU).toBe(0.05);
-    expect(lduToThreeVector([20, -24, 40]).toArray()).toEqual([1, expect.closeTo(1.2), 2]);
-    expect(partObject?.position.toArray()).toEqual([1, expect.closeTo(1.2), 2]);
+    // LDU y runs down and LDU z runs toward the model's back; the scene has +Y
+    // up and +Z toward a default camera, the half-turn about X.
+    expect(lduToThreeVector([20, -24, 40]).toArray()).toEqual([1, expect.closeTo(1.2), -2]);
+    expect(partObject?.position.toArray()).toEqual([1, expect.closeTo(1.2), -2]);
 
     partObject?.updateMatrixWorld(true);
     const transformedLocalX = new Vector3(1, 0, 0).applyMatrix4(partObject!.matrixWorld);
     expect(transformedLocalX.toArray()).toEqual([
       expect.closeTo(1),
       expect.closeTo(1.2),
-      expect.closeTo(1),
+      expect.closeTo(-1),
     ]);
     expect(partObject?.userData).toMatchObject({
       renderRole: "part",
@@ -242,12 +246,12 @@ describe("brick scene derivation", () => {
     expect(geometry.boundingBox?.min.toArray()).toEqual([
       expect.closeTo(-1),
       expect.closeTo(-0.2),
-      expect.closeTo(-4),
+      expect.closeTo(-1),
     ]);
     expect(geometry.boundingBox?.max.toArray()).toEqual([
       expect.closeTo(4),
       expect.closeTo(0.4),
-      expect.closeTo(1),
+      expect.closeTo(4),
     ]);
   });
 
@@ -269,19 +273,19 @@ describe("brick scene derivation", () => {
     expect(body.geometry.boundingBox?.min.toArray()).toEqual([
       expect.closeTo(-1),
       expect.closeTo(-0.2),
-      expect.closeTo(-4),
+      expect.closeTo(-1),
     ]);
     expect(body.geometry.boundingBox?.max.toArray()).toEqual([
       expect.closeTo(4),
       expect.closeTo(0.4),
-      expect.closeTo(1),
+      expect.closeTo(4),
     ]);
 
     const ray = (xLdu: number, zLdu: number) =>
-      new Raycaster(
-        new Vector3(xLdu * THREE_UNITS_PER_LDU, 10, zLdu * THREE_UNITS_PER_LDU),
-        new Vector3(0, -1, 0),
-      ).intersectObject(body, false);
+      new Raycaster(lduToThreeVector([xLdu, -200, zLdu]), new Vector3(0, -1, 0)).intersectObject(
+        body,
+        false,
+      );
     expect(ray(20, -20)).toEqual([]);
     expect(ray(50, -50).length).toBeGreaterThan(0);
 
@@ -301,10 +305,10 @@ describe("brick scene derivation", () => {
         object instanceof Mesh && object.userData.primitiveId === "mesh:ldraw:official:30503.dat",
     )!;
     const ray = (xLdu: number, zLdu: number) =>
-      new Raycaster(
-        new Vector3(xLdu * THREE_UNITS_PER_LDU, 10, zLdu * THREE_UNITS_PER_LDU),
-        new Vector3(0, -1, 0),
-      ).intersectObject(body, false);
+      new Raycaster(lduToThreeVector([xLdu, -200, zLdu]), new Vector3(0, -1, 0)).intersectObject(
+        body,
+        false,
+      );
 
     expect(ray(30, -30)).toEqual([]);
     expect(ray(-30, 30).length).toBeGreaterThan(0);
@@ -485,7 +489,7 @@ describe("canonical views and lifecycle", () => {
 
     expect(firstPacket.schemaVersion).toBe("lego.canonical-view-packet/1");
     expect(firstPacket).toMatchObject({
-      rendererVersion: "lego.rendering/1",
+      rendererVersion: "lego.rendering/2",
       cameraPolicyVersion: "lego.canonical-cameras/1",
       threeUnitsPerLdu: 0.05,
     });

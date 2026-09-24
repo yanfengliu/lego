@@ -41,12 +41,15 @@ const VIEW_BASES = [
   },
 ] as const satisfies readonly PartVisualAdmissionViewBasis[];
 
+// `/2` (2026-09-24): catalog LDU reaches Three through the half-turn about X,
+// a proper rotation. `/1` negated Y alone, a reflection that drew source and
+// candidate as the same mirror image, so a `/1` packet never saw a hand.
 export const PART_VISUAL_ADMISSION_VIEW_POLICY = deepFreeze({
   schemaVersion: "lego.part-visual-admission-view-policy/1",
-  version: "lego.part-visual-admission-views/1",
+  version: "lego.part-visual-admission-views/2",
   sourceCoordinateSystem: "ldraw-plus-y-down-ldu",
   catalogCoordinateSystem: "catalog-minus-y-up-ldu",
-  renderCoordinateSystem: "three-plus-y-up",
+  renderCoordinateSystem: "three-plus-y-up-half-turn-about-x",
   fit: "one-union-bounds-sphere-shared-by-source-and-candidate",
   perspectiveVerticalFovDegrees: 35,
   views: VIEW_BASES,

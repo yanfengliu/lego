@@ -210,7 +210,8 @@ describe("off-centre mesh part alignment", () => {
     expect(renderedBounds.getCenter(new Vector3()).toArray()).toEqual([
       expect.closeTo(0.5),
       expect.closeTo(0.1),
-      expect.closeTo(-1),
+      // LDU z -20 is scene z +1 under the half-turn about X; the old reflection drew it at -1.
+      expect.closeTo(1),
     ]);
 
     const markup = renderToStaticMarkup(

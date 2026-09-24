@@ -50,10 +50,24 @@
  * further along than the far side of the already-built art.
  */
 
-import { dilateMask } from "@lego-studio/rendering";
+import { dilateMask, LDU_TO_THREE_AXIS_SIGNS } from "@lego-studio/rendering";
 
 import { distanceToMask } from "./panel-difference";
 import type { PixelVector } from "./lattice-placements";
+
+/**
+ * A step measured along scene axes, in LDU lengths, as a document step. The
+ * basis change is a signed permutation that is its own inverse, so this is the
+ * sign flip alone and stays exact on the whole-LDU grid.
+ */
+export function sceneStepToLdu(
+  sceneX: number,
+  sceneY: number,
+  sceneZ: number,
+): readonly [number, number, number] {
+  const [sx, sy, sz] = LDU_TO_THREE_AXIS_SIGNS;
+  return [sx * sceneX + 0, sy * sceneY + 0, sz * sceneZ + 0];
+}
 
 export const ARROW_PLACEMENT_SCHEMA_VERSION = "lego.arrow-placement/1" as const;
 
@@ -187,17 +201,25 @@ export function arrowTravelFamily(
         if (travelPx < drawnPx || travelPx > ceilingPx) continue;
         const offLinePx = Math.abs(xPx * -alongY + yPx * alongX);
         if (offLinePx > tolerancePx) continue;
+        // `a`, `b` and `up` are scene +X, +Z and +Y (`panelProjectionFromFit`),
+        // so the step comes back to the document through the renderer's own
+        // basis change. The document's y runs down, so a plate up the page is
+        // a plate down the axis; and scene +Z is LDraw -Z, the model's front.
+        // Getting either backwards moves parts through the model or onto its
+        // mirror image, and the validator then refuses every candidate, which
+        // reads as "the arrow found nothing" rather than as a sign error.
+        const [lduX, lduY, lduZ] = sceneStepToLdu(
+          studsA * STUD_PITCH_LDU,
+          plates * PLATE_HEIGHT_LDU,
+          studsB * STUD_PITCH_LDU,
+        );
         found.push({
           studsA,
           studsB,
           plates,
-          lduX: studsA * STUD_PITCH_LDU,
-          // The document's y runs down, so a plate up the page is a plate down
-          // the axis. Getting this backwards drops parts through the model and
-          // the validator then refuses every candidate, which reads as "the
-          // arrow found nothing" rather than as a sign error.
-          lduY: -plates * PLATE_HEIGHT_LDU,
-          lduZ: studsB * STUD_PITCH_LDU,
+          lduX,
+          lduY,
+          lduZ,
           travelPx,
           offLinePx,
           offLineStuds: offLinePx / projection.pixelsPerStud,

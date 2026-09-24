@@ -13,9 +13,9 @@ import {
   PART_VISUAL_ADMISSION_CAPTURE_POLICY_HASH,
   PART_VISUAL_ADMISSION_VIEW_NAMES,
   PART_VISUAL_ADMISSION_VIEW_POLICY_HASH,
+  bakeLDrawSourceIntoCatalogThree,
   createCatalogPartGeometry,
   createPartVisualAdmissionCameraPacket,
-  ldrawAssetToCatalogThreeMatrix,
   type PartVisualAdmissionBounds,
   type PartVisualAdmissionCameraPacket,
   type RenderDiagnostic,
@@ -252,7 +252,10 @@ export async function runPartVisualAdmissionCapture(
     loader.setPartsLibraryPath(input.source.libraryUrl);
     loader.setPath(input.source.libraryUrl);
     sourceGroup = await loader.loadAsync(input.source.rootPath);
-    sourceGroup.applyMatrix4(ldrawAssetToCatalogThreeMatrix(recipe.assetToCatalogFrame));
+    // The source reaches the GPU in the candidate's form, scene-unit Float32
+    // attributes under identity matrices, so the pixels compare the two
+    // surfaces and not two float paths through the same transform.
+    bakeLDrawSourceIntoCatalogThree(sourceGroup, recipe.assetToCatalogFrame);
     sourceGroup.updateMatrixWorld(true);
 
     const diagnostics: RenderDiagnostic[] = [];

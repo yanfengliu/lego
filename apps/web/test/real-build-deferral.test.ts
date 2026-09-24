@@ -47,6 +47,19 @@ const HEIGHT = 300;
 const BOUNDS = { minXPx: 0, minYPx: 0, maxXPx: WIDTH - 1, maxYPx: HEIGHT - 1 };
 // One three unit is one stud pitch, so this is 20 pixels per stud — the order
 // the booklet's own panel fit reports once the run's work factor is applied.
+//
+// The scenarios below were built on pictures from the old renderer, which
+// mapped LDU to three.js as (x, -y, z) and so drew every document as its mirror
+// image. The proper mapping, (x, -y, -z), draws the point (x, y, -z) exactly
+// where the old one drew (x, y, z). So the fixture documents here are the old
+// ones mirrored in z, and every picture is the old picture, pixel for pixel:
+// the 400 step-1 candidates draw the same 400 masks, in a different order.
+//
+// Mirroring the picture instead, at azimuth 180 - 55, does not keep the
+// scores. The registration search scans left to right and recentres on every
+// gain, so a mirrored image can end on a different shift. Given exact pixel
+// mirrors of the old masks, 266 of the 400 step-1 containment agreements
+// changed.
 const VIEW = { azimuthDegrees: 55, elevationDegrees: 35, pixelsPerUnit: 20 };
 const FRAME = {
   widthPx: WIDTH,
@@ -285,7 +298,21 @@ function settle(input: {
   };
 }
 
-/** The assembly printed step 1 actually builds, as the panel would draw it. */
+/**
+ * The quarter ring the drawn assembly starts from: the z mirror of the old
+ * fixture's ring at yaw 90. The proper renderer draws it at yaw 180 exactly as
+ * the old one drew yaw 90, and the same holds for the 4x4 round below.
+ */
+const DRAWN_RING = { positionLdu: [0, 8, 0], orientationId: "upright-yaw-180" } as const;
+
+/**
+ * The step-1 assembly the panels below draw.
+ *
+ * The 4x4 round is the z mirror of the old fixture's pick, the offer at index
+ * floor(n / 3) on a ring at yaw 90, which was [-60, 0, -60] at yaw 90. It is
+ * looked up among the offers rather than placed directly, so it stays a
+ * placement the enumerator actually produces.
+ */
 function drawnStepOne(): {
   readonly document: Document;
   readonly transforms: readonly { positionLdu: readonly number[]; orientationId: string }[];
@@ -294,13 +321,24 @@ function drawnStepOne(): {
   const first = place(
     empty,
     "builtin:corner-plate-5x5-quarter-ring",
-    { positionLdu: [0, 8, 0], orientationId: "upright-yaw-90" },
+    DRAWN_RING,
     "builtin:black",
     1,
     null,
   );
   const offered = enumeratePlacements(first.document, "builtin:corner-plate-4x4-round", {});
-  const chosen = offered.candidates[Math.floor(offered.candidates.length / 3)]!;
+  const chosen = offered.candidates.find(
+    ({ transform }) =>
+      transform.orientationId === "upright-yaw-180" &&
+      transform.positionLdu.join(",") === "-60,0,60",
+  );
+  if (chosen === undefined) {
+    throw new Error(
+      `The drawn step-1 fixture needs the 4x4 round at [-60, 0, 60] yaw 180 on the ring at ` +
+        `${JSON.stringify(DRAWN_RING)}, and the enumerator offered ${offered.candidates.length} ` +
+        `placements without it. Pick the fixture again from what it offers now.`,
+    );
+  }
   const second = place(
     first.document,
     chosen.catalogPartId,
@@ -311,7 +349,7 @@ function drawnStepOne(): {
   );
   return {
     document: second.document,
-    transforms: [{ positionLdu: [0, 8, 0], orientationId: "upright-yaw-90" }, chosen.transform],
+    transforms: [DRAWN_RING, chosen.transform],
   };
 }
 
@@ -386,7 +424,7 @@ describe("deferred printed step", { timeout: 30_000 }, () => {
     const firstOnly = place(
       createEmptyBrickDocument({ id: "first", name: "first", maxParts: 64 }),
       "builtin:corner-plate-5x5-quarter-ring",
-      { positionLdu: [0, 8, 0], orientationId: "upright-yaw-90" },
+      DRAWN_RING,
       "builtin:black",
       1,
       null,
@@ -556,7 +594,8 @@ describe("deferred printed step", { timeout: 30_000 }, () => {
     const alsoDrawn = place(
       drawn.document,
       "builtin:plate-2x2",
-      { positionLdu: [140, 8, 140], orientationId: "upright-yaw-0" },
+      // The z mirror of the old fixture's [140, 8, 140].
+      { positionLdu: [140, 8, -140], orientationId: "upright-yaw-0" },
       "builtin:black",
       2,
       null,

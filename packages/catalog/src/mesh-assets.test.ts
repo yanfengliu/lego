@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   BUILTIN_CATALOG_VERSION,
+  MESH_RENDER_AXIS_SIGNS,
   MESH_RENDER_QUANTIZATION_TOLERANCE_LDU,
   MESH_RENDER_UNITS_PER_LDU,
   PART_DEFINITIONS,
@@ -157,17 +158,20 @@ describe("preloaded mesh asset resolution", () => {
     expect(resolution.ok).toBe(true);
     if (!resolution.ok) return;
     const framedPositions = [3, -4, 5, 23, -4, 5, 3, 4, 5, 3, -4, -5];
+    // The renderer's basis change is the half-turn about X: Y and Z change sign.
+    const renderSigns = [1, -1, -1] as const;
+    expect(MESH_RENDER_AXIS_SIGNS).toEqual(renderSigns);
     const rendererPositions = framedPositions.map((coordinate, index) =>
-      Math.fround(coordinate * MESH_RENDER_UNITS_PER_LDU * (index % 3 === 1 ? -1 : 1)),
+      Math.fround(coordinate * MESH_RENDER_UNITS_PER_LDU * renderSigns[index % 3]!),
     );
     const quantizedCatalogPositions = rendererPositions.map(
-      (coordinate, index) => (coordinate * (index % 3 === 1 ? -1 : 1)) / MESH_RENDER_UNITS_PER_LDU,
+      (coordinate, index) => (coordinate * renderSigns[index % 3]!) / MESH_RENDER_UNITS_PER_LDU,
     );
     expect(resolution.asset.positionsLdu).toEqual(quantizedCatalogPositions);
     expect(resolution.asset.normalsCatalogLocal).toBeNull();
     expect(
       resolution.asset.positionsLdu.map((coordinate, index) =>
-        Math.fround(coordinate * MESH_RENDER_UNITS_PER_LDU * (index % 3 === 1 ? -1 : 1)),
+        Math.fround(coordinate * MESH_RENDER_UNITS_PER_LDU * renderSigns[index % 3]!),
       ),
     ).toEqual(rendererPositions);
     expect(resolution.asset.indices).toEqual([0, 2, 1, 0, 1, 3, 0, 3, 2, 1, 2, 3]);

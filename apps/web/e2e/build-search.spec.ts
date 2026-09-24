@@ -458,7 +458,11 @@ test("rebuilds a model whose booklet turns it over", async ({ page }) => {
       const frame = rendering.instructionViewFrame(finalScene.bounds, width, height);
       finalScene.dispose();
 
-      const AZIMUTH = 41;
+      // 180 - 41. This layout was drawn at 41 when the scene was mirrored, and
+      // 139 shows the proper model the way 41 showed the mirror. Measured: at 41
+      // the told-face loop placed 4 of 6, diverging at the first underside step;
+      // at 139 it placed 6 of 6 and the face-blind loop 5 of 6.
+      const AZIMUTH = 139;
       const ELEVATION = 26;
       // Both signs flip, measured rather than derived: the lattice fit reports a
       // negated azimuth when the true view is below, so (A, -e) is a third

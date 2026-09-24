@@ -27,7 +27,7 @@ The command fails if any required archive, output, part, exact mesh route, mater
 
 The primary packet renders `top`, `bottom`, `front`, `back`, `left`, `right`, `isometric`, and `underside-oblique` in that order with one shared union fit, six orthographic cameras, two pinned 35-degree perspective cameras, DPR 1, one neutral `FrontSide` material, one light rig, and no grid, shadows, selection, or source line overlays.
 
-The source uses Three's independent `LDrawLoader` over the exact materialized closure; the candidate uses production `createCatalogPartGeometry`; both consume the real asset-to-catalog frame and LDU-to-Three transform.
+The source uses Three's independent `LDrawLoader` over the exact materialized closure; the candidate uses production `createCatalogPartGeometry`; both consume the real asset-to-catalog frame and LDU-to-Three transform. That transform is the half-turn about X, `(x, -y, -z)`, since view policy `/2` (2026-09-24). Under `/1` it negated Y alone, a reflection both sides shared, so a `/1` pair matched while showing every chiral part in its opposite hand; `packages/rendering/src/handedness.test.ts` now checks the production side against LDraw's own vertices.
 
 The ignored output contains one immutable run directory per part with `packet.json` and all 16 raw PNGs, plus one batch manifest binding the requested catalog IDs, relative packet paths, and packet hashes.
 

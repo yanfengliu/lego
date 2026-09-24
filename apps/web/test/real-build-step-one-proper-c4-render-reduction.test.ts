@@ -277,7 +277,11 @@ function rendererFactory(
           options.stateAfterCalibration && counts.renders > 32
             ? 0
             : (root as { readonly memberTurn: number }).memberTurn;
-        const representativeTurn = (((turn - determinant * memberTurn) % 360) + 360) % 360;
+        // The real renderer carries document yaw q to scene yaw -q through its
+        // half-turn about X, so a member seen at turn t is the representative
+        // seen at t + determinant * q. The mirrored mapping used before
+        // 2026-09-24 made it t - determinant * q.
+        const representativeTurn = (((turn + determinant * memberTurn) % 360) + 360) % 360;
         const representativeIndex = (asFitted ? 0 : 4) + representativeTurn / 90;
         return rgbaMask(DISTINCT_D4_MASKS[representativeIndex]!);
       },

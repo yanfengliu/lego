@@ -224,22 +224,25 @@ describe("preloaded mesh rendering", () => {
     const firstGeometry = firstMeshes[0]!.geometry as BufferGeometry;
     const secondGeometry = secondMeshes[0]!.geometry as BufferGeometry;
     firstGeometry.computeBoundingBox();
+    // yaw-90 carries the raw +X leg to catalog -Z, which is scene +Z.
     expect(firstGeometry.boundingBox?.min.toArray()).toEqual([
       expect.closeTo(0),
       expect.closeTo(0),
-      expect.closeTo(-1),
+      expect.closeTo(0),
     ]);
     expect(firstGeometry.boundingBox?.max.toArray()).toEqual([
       expect.closeTo(0.5),
       expect.closeTo(0.4),
-      expect.closeTo(0),
+      expect.closeTo(1),
     ]);
     expect(firstGeometry).not.toBe(secondGeometry);
     expect(firstGeometry.getAttribute("position").array).not.toBe(
       secondGeometry.getAttribute("position").array,
     );
     expect(firstGeometry.index?.array).not.toBe(secondGeometry.index?.array);
-    expect(Array.from(firstGeometry.index!.array)).toEqual(asymmetricAsset().indices);
+    // A legacy asset without normals was wound for the old reflecting basis
+    // change, so each of its triangles is reversed under the proper one.
+    expect(Array.from(firstGeometry.index!.array)).toEqual([0, 1, 2, 0, 3, 1, 0, 2, 3, 1, 3, 2]);
     expect(firstGeometry.getAttribute("normal").count).toBe(4);
 
     const disposed = vi.fn();
@@ -272,10 +275,12 @@ describe("preloaded mesh rendering", () => {
     const rendered = createCatalogPartGeometry(part(), definition, true, [], "flat", resolver);
     const geometry = meshes(rendered)[0]!.geometry as BufferGeometry;
 
+    // Normals take the vertices' own half-turn about X, and a proper rotation
+    // keeps each source triangle's winding.
     expect(Array.from(geometry.getAttribute("normal").array)).toEqual([
-      0, 0, 1, 0, 0, 1, 0, 0, 1, 0, -1, 0, 0, -1, 0, 0, -1, 0,
+      0, 0, -1, 0, 0, -1, 0, 0, -1, 0, -1, 0, 0, -1, 0, 0, -1, 0,
     ]);
-    expect(Array.from(geometry.index!.array)).toEqual([0, 2, 1, 3, 5, 4]);
+    expect(Array.from(geometry.index!.array)).toEqual([0, 1, 2, 3, 4, 5]);
     expect(geometry.getAttribute("position").count).toBe(6);
     disposeObjectTree(rendered);
   });
@@ -311,8 +316,8 @@ describe("preloaded mesh rendering", () => {
     ]);
     bodyGeometry.computeBoundingBox();
     completeGeometry.computeBoundingBox();
-    expect(bodyGeometry.boundingBox?.min.z).toBeCloseTo(-1);
-    expect(completeGeometry.boundingBox?.min.z).toBeCloseTo(-6);
+    expect(bodyGeometry.boundingBox?.max.z).toBeCloseTo(1);
+    expect(completeGeometry.boundingBox?.max.z).toBeCloseTo(6);
 
     disposeObjectTree(bodyOnly);
     disposeObjectTree(complete);
@@ -384,7 +389,7 @@ describe("preloaded mesh rendering", () => {
     });
     const geometry = ghostMeshes[0]!.geometry as BufferGeometry;
     geometry.computeBoundingBox();
-    expect(geometry.boundingBox?.min.z).toBeCloseTo(-1);
+    expect(geometry.boundingBox?.max.z).toBeCloseTo(1);
     expect(geometry.boundingBox?.max.x).toBeCloseTo(0.5);
     disposeObjectTree(ghost);
   });

@@ -6,9 +6,10 @@ import {
 } from "@lego-studio/catalog";
 import { createPartInstance } from "@lego-studio/brick-kernel";
 import {
-  THREE_UNITS_PER_LDU,
   createCatalogPartGeometry,
   disposeObjectTree,
+  lduDirectionToThree,
+  threeToLduVector,
 } from "@lego-studio/rendering";
 
 interface FrameLike {
@@ -114,13 +115,11 @@ function readVertex(
     normal.getY(index),
     normal.getZ(index),
   );
+  // Back through the renderer's own basis change. It is a signed permutation
+  // that is its own inverse, so the LDU-to-scene direction map also undoes it.
   return {
-    positionLdu: [
-      point[0] / THREE_UNITS_PER_LDU,
-      -point[1] / THREE_UNITS_PER_LDU,
-      point[2] / THREE_UNITS_PER_LDU,
-    ],
-    normal: [direction[0], -direction[1], direction[2]],
+    positionLdu: threeToLduVector({ x: point[0], y: point[1], z: point[2] }),
+    normal: lduDirectionToThree(direction[0], direction[1], direction[2]),
   };
 }
 

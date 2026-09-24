@@ -6,7 +6,6 @@ import {
   createCanonicalViewPacket,
   createPartMaterialCache,
   deriveBrickScene,
-  THREE_UNITS_PER_LDU,
   fitPerspectiveCameraToFrame,
   orbitCameraFrustum,
   setBrickSceneSelection,
@@ -37,7 +36,7 @@ import {
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 
-import { GROUND_UNDERSIDE_LDU } from "../placement";
+import { GROUND_PLANE_THREE_Y } from "../viewport/drop-target";
 import { installFlyRig } from "../viewport/install-fly-rig";
 import { installSelectionRig } from "../viewport/install-selection";
 import { installPlacementRig, type PlacementRig } from "../viewport/install-placement";
@@ -505,9 +504,8 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
 
       // The build plate is fixed truth, so the grid marks it rather than
       // drifting with whatever the model's lowest point happens to be.
-      const plateY = -GROUND_UNDERSIDE_LDU * THREE_UNITS_PER_LDU;
-      runtime.grid.position.y = plateY;
-      runtime.shadowPlate.position.y = plateY;
+      runtime.grid.position.y = GROUND_PLANE_THREE_Y;
+      runtime.shadowPlate.position.y = GROUND_PLANE_THREE_Y;
       syncOrbitFrustum(runtime);
       runtime.renderer.render(runtime.scene, runtime.camera);
     }, [document, validationReport, frameToken]);
@@ -545,10 +543,13 @@ export const BrickViewport = forwardRef<BrickViewportHandle, BrickViewportProps>
         <div className="sr-only" aria-live="polite">
           {selectedPartId ? `Selected part ${selectedPartId}` : "No part selected"}
         </div>
+        {/* Document (LDU) axes as the default camera sees them, the numbers the
+            inspector edits: +X lower right, -Y up, and -Z, the model's front,
+            lower left toward the viewer. */}
         <div className="viewport-axis" aria-hidden="true">
           <span className="axis-x">X</span>
-          <span className="axis-y">Y</span>
-          <span className="axis-z">Z</span>
+          <span className="axis-y">-Y</span>
+          <span className="axis-z">-Z</span>
         </div>
       </div>
     );

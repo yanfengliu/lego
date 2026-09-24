@@ -6,6 +6,24 @@ Newest first.
 
 ---
 
+## 2026-09-24 - The renderer drew every model as its mirror image
+
+**Status:** fixed and gated.
+
+**Symptom.** In the app, the reference build of set 21066 at printed step 31 came out as the exact horizontal mirror of the booklet's page-35 picture: the rounded white end on the left and the blue brick on the right, where the booklet has them the other way round.
+
+**Investigation.** `packages/rendering/src/coordinates.ts` mapped catalog LDU to Three.js as `(x, -y, z)` and rotations as C·R·C with C = diag(1, -1, 1). det C = -1, so the map is a reflection, and positions, orientations and mesh vertices all went through it: chiral parts drew as their opposite hand (the 2x4 left wedge plate looked like the right one) and imported models appeared flipped. Picking (`threePointToLdu`), the palette's SVG preview, the booklet loop's lattice-to-LDU steps (`arrow-placement.ts`, `panel-reading.ts`), the part-admission harness's LDrawLoader side, several e2e helpers and the mesh winding all carried the same reflection, so every check that compared two of them agreed. The one determinant test that existed measured `lduTransformToThreeMatrix` alone, and B·R·B is a rotation for either sign of det B, so it stayed at +1 throughout. Part admission compared a mirrored production render with an equally mirrored LDrawLoader render and called them the same.
+
+**Root cause.** Negating Y alone to turn LDraw's -Y-up frame into Three's +Y-up one. The proper change is the half-turn about X, `(x, -y, -z)`, which Three's own `LDrawLoader` applies (`rotation.x = PI`). The source-faithful mesh path had reversed every triangle to hide the reflection from `FrontSide` culling, which is why nothing looked broken.
+
+**Fix.** One sign vector, `MESH_RENDER_AXIS_SIGNS = [1, -1, -1]` (catalog) read as `LDU_TO_THREE_AXIS_SIGNS` (rendering), now drives every conversion: vectors, rotations (B·R·B), normals, the inverse used for picking, the admission harness's LDrawLoader side (baked into scene units with production's arithmetic), and the lattice steps. Source meshes keep their winding; procedural prisms choose winding from scene-space orientation. Saved documents did not change; `RENDERING_VERSION` moved to `lego.rendering/2` and the admission view policy to `/2`, so a mirrored capture cannot pass as current. The canonical view directions kept their numbers and now look from the side each is named for in LDraw terms (`front` from LDraw -Z).
+
+**How it is checked from now on.** `packages/rendering/src/handedness.test.ts`: the vector map and every one of the 24 proper orientations' full part transforms have determinant +1 and equal `makeRotationX(PI)` scaled, built without reading the sign constant; the 2x4 left and right wedge plates (`41770a`, `41769a`) render exactly LDraw's own vertices under that reference, not their mirror, and show opposite hands in the canonical top view; procedural wedge and arc solids have positive signed volume. Picking is gated in `apps/web/src/viewport`. Red proofs are in `docs/devlog/detailed/2026-09-24_2026-09-24.md`. Bound: one chiral pair, one yaw, one position; a new conversion that bypasses `coordinates.ts` is caught only if it feeds those meshes or a pick.
+
+**Class.** A reflection hidden by a system that is consistent with itself: every consumer shares the flip, so every pairwise check agrees. Only a check against an independent reference (another program's convention, the source's own geometry, a printed picture) can see the hand.
+
+---
+
 ## 2026-09-24 - 42 GB of run evidence under the ignored output/ and var/
 
 **Status:** cleaned up; a budget check exists but nothing runs it automatically.

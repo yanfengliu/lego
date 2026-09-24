@@ -173,10 +173,11 @@ test("synthetic asymmetric source and production candidate emit one clean immuta
   });
 
   expectCleanCapture(result);
-  [0.55, -0.65, -1.25].forEach((value, axis) =>
+  // Scene z is LDU -z under the half-turn about X, so the z range negates; the mirror kept it.
+  [0.55, -0.65, -0.25].forEach((value, axis) =>
     expect(result.sourceBounds.min[axis]).toBeCloseTo(value, 6),
   );
-  [1.55, 0.35, 0.25].forEach((value, axis) =>
+  [1.55, 0.35, 1.25].forEach((value, axis) =>
     expect(result.sourceBounds.max[axis]).toBeCloseTo(value, 6),
   );
   result.sourceBounds.min.forEach((value, axis) =>
@@ -185,6 +186,12 @@ test("synthetic asymmetric source and production candidate emit one clean immuta
   result.sourceBounds.max.forEach((value, axis) =>
     expect(result.candidateBounds.max[axis]).toBeCloseTo(value, 6),
   );
+  // Both sides reach the GPU as the same Float32 attributes under identity
+  // matrices, so their bounds agree to the bit. A source placed by an object
+  // matrix left float64 noise here (min x 0.5499999999999997 against
+  // 0.550000011920929) whether or not a pixel moved. Bound: the fixture's
+  // extreme vertices are coordinates Float32 holds exactly.
+  expect(result.sourceBounds).toEqual(result.candidateBounds);
   expect(result.cameraPacket.sourceBounds).toEqual(result.sourceBounds);
   expect(result.cameraPacket.candidateBounds).toEqual(result.candidateBounds);
   expect(result.metrics).toEqual(

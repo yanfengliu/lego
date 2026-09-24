@@ -78,7 +78,7 @@ export interface CanonicalViewDefinition {
 
 export interface CanonicalViewPacket {
   readonly schemaVersion: "lego.canonical-view-packet/1";
-  readonly rendererVersion: "lego.rendering/1";
+  readonly rendererVersion: "lego.rendering/2";
   readonly cameraPolicyVersion: "lego.canonical-cameras/1";
   readonly documentHash: string;
   readonly coordinateSystem: "three-plus-y-up";

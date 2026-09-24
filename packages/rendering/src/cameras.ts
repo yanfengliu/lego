@@ -28,6 +28,16 @@ interface ViewBasis {
   readonly projection: "perspective" | "orthographic";
 }
 
+/**
+ * Camera directions in Three.js axes. Through the half-turn about X that
+ * carries catalog LDU into the scene, each looks from the side of the model its
+ * name says in LDraw's own terms: `front` from LDraw -Z, the side a slope faces;
+ * `left` from LDraw -X, the viewer's left facing that front; `top` with the
+ * front at the bottom of the image and `underside` with it at the top, as a
+ * third-angle drawing places them; `isometric` from front, right and above.
+ * Under the reflection used until 2026-09-24 the same numbers showed each view
+ * mirrored, and `front`, `back` and `isometric` looked at the far side.
+ */
 const VIEW_BASES: readonly ViewBasis[] = [
   { name: "isometric", direction: [1, 1, 1], up: [0, 1, 0], projection: "perspective" },
   { name: "front", direction: [0, 0, 1], up: [0, 1, 0], projection: "orthographic" },

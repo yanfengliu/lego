@@ -1,4 +1,9 @@
-export const RENDERING_VERSION = "lego.rendering/1" as const;
+/**
+ * `/2` (2026-09-24): catalog LDU reaches Three through the half-turn about X, a
+ * proper rotation. `/1` negated Y alone, a reflection that drew every model as
+ * its mirror image, so a `/1` packet or capture shows the opposite hand.
+ */
+export const RENDERING_VERSION = "lego.rendering/2" as const;
 export const CANONICAL_CAMERA_POLICY_VERSION = "lego.canonical-cameras/1" as const;
 
 /**

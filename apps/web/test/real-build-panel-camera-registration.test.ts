@@ -1,5 +1,8 @@
 ﻿import { describe, expect, it } from "vitest";
 
+import { createOrthographicViewCamera } from "@lego-studio/rendering";
+
+import { projectPoint } from "../src/assembly/project-bounds";
 import {
   arrowDisplacementForRealBuildPanelCameraRegistration,
   createRealBuildPanelCameraRegistration,
@@ -384,15 +387,17 @@ describe("arrowDisplacementForRealBuildPanelCameraRegistration", () => {
       ),
     );
 
+    // Scene +Z is LDU -Z under the renderer's half-turn about X, so a 90 degree
+    // turn now sends (x, z) to (-z, x) and 270 to (z, -x); the mirror swapped them.
     expect(transformed.map(({ lduX, lduZ }) => [lduX, lduZ])).toEqual([
       [40, 60],
-      [60, -40],
-      [-40, -60],
       [-60, 40],
+      [-40, -60],
+      [60, -40],
       [-40, 60],
-      [-60, -40],
-      [40, -60],
       [60, 40],
+      [40, -60],
+      [-60, -40],
     ]);
     expect(transformed.every(({ lduY }) => lduY === -8)).toBe(true);
     expect(transformed.every(({ travelPx }) => travelPx === 46.17)).toBe(true);
@@ -400,6 +405,39 @@ describe("arrowDisplacementForRealBuildPanelCameraRegistration", () => {
     expect(transformed.every(Object.isFrozen)).toBe(true);
     expect(Object.isFrozen(input)).toBe(false);
     expect(input.lduX).toBe(40);
+  });
+
+  it("draws each re-expressed row where the fitted camera draws the fitted row", () => {
+    // Independent of the table above: real orthographic cameras and the
+    // renderer's own point projection, so a helper that disagrees with the
+    // renderer about the hand draws the arrow somewhere else.
+    const fitted = { azimuthDegrees: 41, elevationDegrees: 26, pixelsPerUnit: 52 };
+    const input = { lduX: 40, lduY: -8, lduZ: 60, travelPx: 46.17, offLineStuds: 0.04 };
+    const drawn = (
+      view: { azimuthDegrees: number; elevationDegrees: number; pixelsPerUnit: number },
+      step: { lduX: number; lduY: number; lduZ: number },
+    ): readonly [number, number] => {
+      const camera = createOrthographicViewCamera(
+        { ...view, centerXPx: 400, centerYPx: 300 },
+        { widthPx: 800, heightPx: 600, target: [0, 0, 0], sceneRadius: 200 },
+      );
+      const origin = projectPoint([0, 0, 0], camera, 800, 600);
+      const tip = projectPoint([step.lduX, step.lduY, step.lduZ], camera, 800, 600);
+      return [tip.xPx - origin.xPx, tip.yPx - origin.yPx];
+    };
+    const expected = drawn(fitted, input);
+    expect(Math.hypot(...expected)).toBeGreaterThan(100);
+    for (const { latticeHand } of HANDS) {
+      for (const turnDegrees of TURNS) {
+        const registration = frame(latticeHand, turnDegrees);
+        const actual = drawn(
+          viewForRealBuildPanelCameraRegistration(fitted, registration),
+          arrowDisplacementForRealBuildPanelCameraRegistration(input, registration),
+        );
+        expect(actual[0]).toBeCloseTo(expected[0], 9);
+        expect(actual[1]).toBeCloseTo(expected[1], 9);
+      }
+    }
   });
 
   it("refuses coordinates or measurements that cannot describe a derived arrow family", () => {
@@ -434,12 +472,13 @@ describe("arrowDisplacementForRealBuildPanelCameraRegistration", () => {
       offLineStuds: { enumerable: true, get: once("offline", 0.04) },
     });
 
+    // The x-reflected 90 degree row of the table above, re-derived for scene +Z = LDU -Z.
     expect(
       arrowDisplacementForRealBuildPanelCameraRegistration(
         input as never,
         frame("x-reflected", 90),
       ),
-    ).toEqual({ lduX: -60, lduY: -8, lduZ: -40, travelPx: 46.17, offLineStuds: 0.04 });
+    ).toEqual({ lduX: 60, lduY: -8, lduZ: 40, travelPx: 46.17, offLineStuds: 0.04 });
     expect(Object.fromEntries(reads)).toEqual({ x: 1, y: 1, z: 1, travel: 1, offline: 1 });
   });
 

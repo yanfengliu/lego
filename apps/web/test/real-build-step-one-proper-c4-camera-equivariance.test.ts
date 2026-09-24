@@ -25,18 +25,22 @@ describe("step-one proper-C4 camera equivariance", () => {
     }
   });
 
-  it("uses tRep = tMember - determinant*q without crossing lattice hands", () => {
+  // Document yaw q is scene yaw -q under the renderer's half-turn about X, so the
+  // member's turn moves by +determinant*q; the mirrored mapping made it -determinant*q.
+  it("uses tRep = tMember + determinant*q without crossing lattice hands", () => {
     const fitted = PANEL_CAMERA_ANGULAR_HYPOTHESES[1]!;
     const reflected = PANEL_CAMERA_ANGULAR_HYPOTHESES[5]!;
+    expect(fitted).toMatchObject({ latticeHand: "as-fitted", turnDegrees: 90 });
+    expect(reflected).toMatchObject({ latticeHand: "x-reflected", turnDegrees: 90 });
     expect(mapRealBuildStepOneProperC4MemberCameraToRepresentative(fitted, 90)).toEqual({
       latticeHand: "as-fitted",
       latticeDeterminant: 1,
-      turnDegrees: 0,
+      turnDegrees: 180,
     });
     expect(mapRealBuildStepOneProperC4MemberCameraToRepresentative(reflected, 90)).toEqual({
       latticeHand: "x-reflected",
       latticeDeterminant: -1,
-      turnDegrees: 180,
+      turnDegrees: 0,
     });
   });
 

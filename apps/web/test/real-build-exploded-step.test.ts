@@ -13,7 +13,9 @@ import {
   arrowTravelFamily,
   measureArrowTravelCeiling,
   panelProjectionFromFit,
+  sceneStepToLdu,
 } from "../src/assembly/arrow-placement";
+import { projectLdu } from "../src/assembly/panel-reading";
 import { enumeratePlacements, placementOccupancyKey } from "../src/assembly/enumerate-placements";
 import {
   decideExplodedGhostPlacement,
@@ -474,16 +476,8 @@ describe("exploded printed step", () => {
     // applied here so the shortfall is the booklet's rather than a number
     // chosen to pass.
     const projection = panelProjectionFromFit(VIEW);
-    const trueTravelPx = {
-      xPx:
-        (TRAVEL.lduX / 20) * projection.a.xPx +
-        (TRAVEL.lduZ / 20) * projection.b.xPx +
-        (-TRAVEL.lduY / 8) * projection.up.xPx,
-      yPx:
-        (TRAVEL.lduX / 20) * projection.a.yPx +
-        (TRAVEL.lduZ / 20) * projection.b.yPx +
-        (-TRAVEL.lduY / 8) * projection.up.yPx,
-    };
+    // Through the reader's own projection, which applies the renderer's basis change.
+    const trueTravelPx = projectLdu(projection, [TRAVEL.lduX, TRAVEL.lduY, TRAVEL.lduZ]);
     const inkedFraction = 33.50220230104512 / 46.16553563437847;
     const inked = { xPx: trueTravelPx.xPx * inkedFraction, yPx: trueTravelPx.yPx * inkedFraction };
 
@@ -539,10 +533,13 @@ describe("exploded printed step", () => {
           const offPx = Math.hypot(xPx - inked.xPx, yPx - inked.yPx);
           if (offPx >= nearestPx) continue;
           nearestPx = offPx;
+          // `a`, `b` and `up` are scene +X, +Z and +Y, so the step comes back
+          // to the document through the renderer's basis change.
+          const [lduX, lduY, lduZ] = sceneStepToLdu(studsA * 20, plates * 8, studsB * 20);
           nearest = {
-            lduX: studsA * 20,
-            lduY: -plates * 8,
-            lduZ: studsB * 20,
+            lduX,
+            lduY,
+            lduZ,
             travelPx: Math.hypot(xPx, yPx),
             offLineStuds: 0,
           };

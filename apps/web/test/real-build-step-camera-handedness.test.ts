@@ -160,15 +160,17 @@ describe("anchorStepCameraLatticeFrame", () => {
     expect(result.selected?.iou).toBeGreaterThan(0.99);
     expect(result.rankedHypotheses).toHaveLength(8);
     expect(result.rankedHypotheses.every(({ status }) => status === "scored")).toBe(true);
+    // Measured with the half-turn about X; the mirrored mapping drew this chiral
+    // assembly as its mirror image, so the seven losing scores moved and the winner did not.
     const expectedScores = new Map([
-      ["as-fitted:0", 0.4760536398467433],
-      ["as-fitted:90", 0.26993490642799023],
-      ["as-fitted:180", 0.23836978131212724],
-      ["as-fitted:270", 0.269773145309626],
-      ["x-reflected:0", 0.2622817701989444],
+      ["as-fitted:0", 0.3456976493422471],
+      ["as-fitted:90", 0.12093698928636282],
+      ["as-fitted:180", 0.1475258493353028],
+      ["as-fitted:270", 0.17893738140417456],
+      ["x-reflected:0", 0.1330300272975432],
       ["x-reflected:90", 1],
-      ["x-reflected:180", 0.2806153846153846],
-      ["x-reflected:270", 0.2632440171814277],
+      ["x-reflected:180", 0.24741850577039887],
+      ["x-reflected:270", 0.21613720522315338],
     ]);
     for (const attempt of result.rankedHypotheses) {
       expect(attempt.iou).toBeCloseTo(

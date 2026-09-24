@@ -51,6 +51,13 @@ export const MESH_ASSET_LIMITS: MeshAssetLimits = Object.freeze({
 export const PRELOADED_MESH_GENERATOR_ID = "builtin:preloaded-mesh-reference/1" as const;
 /** Exact scale used before mesh positions enter Three.js Float32 attributes. */
 export const MESH_RENDER_UNITS_PER_LDU = 0.05 as const;
+/**
+ * The sign each catalog LDU axis takes in Three.js render axes: the half-turn
+ * about X from LDraw's -Y-up frame to Three's +Y-up one, determinant +1.
+ * `@lego-studio/rendering` converts through these signs; a sign flip is exact
+ * in Float32, so they never move a precision verdict below.
+ */
+export const MESH_RENDER_AXIS_SIGNS = Object.freeze([1, -1, -1] as const);
 /** Maximum admitted Float32 renderer drift when mapped back into catalog LDU. */
 export const MESH_RENDER_QUANTIZATION_TOLERANCE_LDU = 1e-4;
 
@@ -813,11 +820,13 @@ export function createPreloadedMeshAssetResolver(
             return result;
           }, []);
 
-    // Mirror geometry.ts exactly: scale catalog LDU, invert Y, then assign into
-    // a Float32Array. Precision loss is rejected before it can redefine
-    // topology, extrema, bounds, preview coverage, or admission truth.
+    // Mirror the renderer exactly: scale catalog LDU, apply the render axis
+    // signs, then assign into a Float32Array. Precision loss is rejected before
+    // it can redefine topology, extrema, bounds, preview coverage, or admission
+    // truth.
     const rendererPositions = transformed.map(
-      (coordinate, index) => coordinate * MESH_RENDER_UNITS_PER_LDU * (index % 3 === 1 ? -1 : 1),
+      (coordinate, index) =>
+        coordinate * MESH_RENDER_UNITS_PER_LDU * MESH_RENDER_AXIS_SIGNS[index % 3]!,
     );
     const quantizedRendererPositions = rendererPositions.map((coordinate) =>
       Math.fround(coordinate),
@@ -832,7 +841,8 @@ export function createPreloadedMeshAssetResolver(
       );
     }
     const quantizedCatalogPositions = quantizedRendererPositions.map(
-      (coordinate, index) => (coordinate * (index % 3 === 1 ? -1 : 1)) / MESH_RENDER_UNITS_PER_LDU,
+      (coordinate, index) =>
+        (coordinate * MESH_RENDER_AXIS_SIGNS[index % 3]!) / MESH_RENDER_UNITS_PER_LDU,
     );
     const driftedCoordinate = quantizedCatalogPositions.findIndex(
       (coordinate, index) =>

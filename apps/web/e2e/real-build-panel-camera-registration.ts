@@ -1,3 +1,5 @@
+import { lduDirectionToThree } from "@lego-studio/rendering";
+
 import type { FittedPanelView, LatticeHand } from "../src/assembly/panel-face";
 import { viewForLatticeHand } from "../src/assembly/panel-face";
 
@@ -224,18 +226,29 @@ export function arrowDisplacementForRealBuildPanelCameraRegistration(
     }
   }
   const registration = createRealBuildPanelCameraRegistration(suppliedRegistration);
+  // The turn and the hand act on the camera, so they are applied in scene axes,
+  // where the fitted lattice's `a` and `b` are scene +X and +Z. Adding 90 degrees
+  // of azimuth draws scene +X where +Z was and +Z where -X was. The reflected
+  // hand sends `a` to `-a` and keeps `b`, so it negates scene X. The renderer's
+  // basis change carries the step there and back, and is its own inverse.
+  const [sceneX, sceneY, sceneZ] = lduDirectionToThree(lduX, lduY, lduZ);
   const [turnedX, turnedZ] =
     registration.turnDegrees === 0
-      ? [lduX, lduZ]
+      ? [sceneX, sceneZ]
       : registration.turnDegrees === 90
-        ? [lduZ, -lduX]
+        ? [sceneZ, -sceneX]
         : registration.turnDegrees === 180
-          ? [-lduX, -lduZ]
-          : [-lduZ, lduX];
+          ? [-sceneX, -sceneZ]
+          : [-sceneZ, sceneX];
+  const [outX, outY, outZ] = lduDirectionToThree(
+    registration.latticeHand === "x-reflected" ? -turnedX : turnedX,
+    sceneY,
+    turnedZ,
+  );
   return Object.freeze({
-    lduX: normalizeZero(registration.latticeHand === "x-reflected" ? -turnedX : turnedX),
-    lduY: normalizeZero(lduY),
-    lduZ: normalizeZero(turnedZ),
+    lduX: normalizeZero(outX),
+    lduY: normalizeZero(outY),
+    lduZ: normalizeZero(outZ),
     travelPx: normalizeZero(travelPx),
     offLineStuds: normalizeZero(offLineStuds),
   });

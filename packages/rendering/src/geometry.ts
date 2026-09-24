@@ -193,6 +193,66 @@ function createInstructionOutline(
   return outline;
 }
 
+type ScenePoint = readonly [number, number, number];
+
+/**
+ * A vertical prism over a plan contour, as flat triangles that face out: a cap
+ * at each end from `capTriangles` (index triples into the contour) and one quad
+ * per contour edge.
+ *
+ * The contour is carried into scene axes before any winding is chosen, and
+ * every winding is read off the scene-space orientation, so the solid faces out
+ * whatever the LDU-to-Three basis change is. A triangle `(a, b, c)` in a plane
+ * of constant y has normal y equal to minus its (x, z) cross product, which is
+ * what both rules below rest on. The wedge built its section before this and
+ * wound its side walls inward, which `FrontSide` then culled.
+ */
+function prismPositions(
+  contourXZLdu: readonly (readonly [number, number])[],
+  capTriangles: readonly (readonly [number, number, number])[],
+  topYLdu: number,
+  bottomYLdu: number,
+): number[] {
+  const toScene = ([x, z]: readonly [number, number], yLdu: number): ScenePoint =>
+    lduToThreeVector([x, yLdu, z]).toArray();
+  const top = contourXZLdu.map((point) => toScene(point, topYLdu));
+  const bottom = contourXZLdu.map((point) => toScene(point, bottomYLdu));
+  const crossXZ = (a: ScenePoint, b: ScenePoint, c: ScenePoint): number =>
+    (b[0] - a[0]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[0] - a[0]);
+  const positions: number[] = [];
+  const push = (...points: readonly ScenePoint[]) => {
+    for (const point of points) positions.push(...point);
+  };
+  for (const [a, b, c] of capTriangles) {
+    // Up-facing wants a negative (x, z) cross product; the bottom cap the reverse.
+    if (crossXZ(top[a]!, top[b]!, top[c]!) > 0) {
+      push(top[a]!, top[c]!, top[b]!);
+      push(bottom[a]!, bottom[b]!, bottom[c]!);
+    } else {
+      push(top[a]!, top[b]!, top[c]!);
+      push(bottom[a]!, bottom[c]!, bottom[b]!);
+    }
+  }
+  let twiceArea = 0;
+  for (let index = 0; index < top.length; index += 1) {
+    const current = top[index]!;
+    const next = top[(index + 1) % top.length]!;
+    twiceArea += current[0] * next[2] - next[0] * current[2];
+  }
+  for (let index = 0; index < top.length; index += 1) {
+    const next = (index + 1) % top.length;
+    // A positive (x, z) area runs so that an edge's outward side is its right.
+    if (twiceArea > 0) {
+      push(top[index]!, top[next]!, bottom[next]!);
+      push(top[index]!, bottom[next]!, bottom[index]!);
+    } else {
+      push(top[index]!, bottom[next]!, top[next]!);
+      push(top[index]!, bottom[index]!, bottom[next]!);
+    }
+  }
+  return positions;
+}
+
 /**
  * A wedge drawn as what it is: its bounding rectangle clipped by the sloped
  * face, extruded through the part's height.
@@ -247,23 +307,10 @@ function createWedgeGeometry(wedge: CollisionWedge): BufferGeometry {
 
   // Two capped ends plus one quad per section edge, as flat triangles: a wedge
   // has hard edges and smoothing them would round a corner that is not round.
-  const positions: number[] = [];
-  const topY = -wedge.minLdu[1] * THREE_UNITS_PER_LDU;
-  const bottomY = -wedge.maxLdu[1] * THREE_UNITS_PER_LDU;
-  const at = (index: number, y: number): [number, number, number] => [
-    section[index]![0] * THREE_UNITS_PER_LDU,
-    y,
-    section[index]![1] * THREE_UNITS_PER_LDU,
-  ];
-  for (let index = 1; index + 1 < section.length; index += 1) {
-    positions.push(...at(0, topY), ...at(index + 1, topY), ...at(index, topY));
-    positions.push(...at(0, bottomY), ...at(index, bottomY), ...at(index + 1, bottomY));
-  }
-  for (let index = 0; index < section.length; index += 1) {
-    const next = (index + 1) % section.length;
-    positions.push(...at(index, topY), ...at(index, bottomY), ...at(next, bottomY));
-    positions.push(...at(index, topY), ...at(next, bottomY), ...at(next, topY));
-  }
+  // The section is convex, so a fan from its first corner covers it.
+  const fan: [number, number, number][] = [];
+  for (let index = 1; index + 1 < section.length; index += 1) fan.push([0, index, index + 1]);
+  const positions = prismPositions(section, fan, wedge.minLdu[1], wedge.maxLdu[1]);
 
   const geometry = new BufferGeometry();
   geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
@@ -344,52 +391,13 @@ export function createArcPrismGeometry(feature: BodyArcFeature, bounds: LduBound
     throw new RangeError("bodyArc boundary could not be triangulated into a visible solid");
   }
 
-  const topY = -bounds.min[1] * THREE_UNITS_PER_LDU;
-  const bottomY = -bounds.max[1] * THREE_UNITS_PER_LDU;
-  const at = (index: number, y: number): [number, number, number] => [
-    boundary[index]![0] * THREE_UNITS_PER_LDU,
-    y,
-    boundary[index]![1] * THREE_UNITS_PER_LDU,
-  ];
-  const positions: number[] = [];
-  for (const face of faces) {
+  const triangles = faces.map((face) => {
     if (face.length !== 3) {
       throw new RangeError(`bodyArc triangulation returned a ${face.length}-vertex face`);
     }
-    const a = face[0]!;
-    const b = face[1]!;
-    const c = face[2]!;
-    const left = boundary[a]!;
-    const middle = boundary[b]!;
-    const right = boundary[c]!;
-    const cross =
-      (middle[0] - left[0]) * (right[1] - left[1]) - (middle[1] - left[1]) * (right[0] - left[0]);
-    if (cross > 0) {
-      positions.push(...at(a, topY), ...at(c, topY), ...at(b, topY));
-      positions.push(...at(a, bottomY), ...at(b, bottomY), ...at(c, bottomY));
-    } else {
-      positions.push(...at(a, topY), ...at(b, topY), ...at(c, topY));
-      positions.push(...at(a, bottomY), ...at(c, bottomY), ...at(b, bottomY));
-    }
-  }
-
-  let twiceArea = 0;
-  for (let index = 0; index < boundary.length; index += 1) {
-    const current = boundary[index]!;
-    const next = boundary[(index + 1) % boundary.length]!;
-    twiceArea += current[0] * next[1] - next[0] * current[1];
-  }
-  const counterClockwise = twiceArea > 0;
-  for (let index = 0; index < boundary.length; index += 1) {
-    const next = (index + 1) % boundary.length;
-    if (counterClockwise) {
-      positions.push(...at(index, topY), ...at(next, topY), ...at(next, bottomY));
-      positions.push(...at(index, topY), ...at(next, bottomY), ...at(index, bottomY));
-    } else {
-      positions.push(...at(index, topY), ...at(next, bottomY), ...at(next, topY));
-      positions.push(...at(index, topY), ...at(index, bottomY), ...at(next, bottomY));
-    }
-  }
+    return [face[0]!, face[1]!, face[2]!] as const;
+  });
+  const positions = prismPositions(boundary, triangles, bounds.min[1], bounds.max[1]);
 
   const geometry = new BufferGeometry();
   geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
